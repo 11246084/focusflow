@@ -1,0 +1,286 @@
+
+<style>
+  @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:1} }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .flow-line { stroke-dasharray: 6 4; animation: flow 1.4s linear infinite; }
+  .flow-line.paused { animation-play-state: paused; opacity: .3; }
+  .layer-btn { cursor: pointer; transition: opacity .2s; }
+  .layer-btn:hover rect { opacity: .85; }
+  .active-layer rect { stroke-width: 2 !important; }
+</style>
+
+<svg width="100%" viewBox="0 0 680 760" xmlns="http://www.w3.org/2000/svg" id="arch-svg">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- ═══ 層次標籤（左欄） ═══ -->
+<text class="ts" x="38" y="102" text-anchor="middle" dominant-baseline="central">使用者</text>
+<text class="ts" x="38" y="222" text-anchor="middle" dominant-baseline="central">閘道</text>
+<text class="ts" x="38" y="372" text-anchor="middle" dominant-baseline="central">服務</text>
+<text class="ts" x="38" y="570" text-anchor="middle" dominant-baseline="central">資料庫</text>
+<text class="ts" x="38" y="692" text-anchor="middle" dominant-baseline="central">外部</text>
+
+<!-- 左側分隔線 -->
+<line x1="62" y1="30" x2="62" y2="730" stroke="var(--color-border-tertiary)" stroke-width="0.5"/>
+
+<!-- ═══ 層1：使用者端（三角色同一入口） ═══ -->
+<rect x="70" y="30" width="598" height="144" rx="14" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="ts" x="84" y="48" dominant-baseline="central" fill="#185FA5">前端入口 — 同一頁面，依 JWT role 渲染不同視圖</text>
+
+<!-- 學生 -->
+<g class="layer-btn" id="btn-student" onclick="highlight('student')">
+  <rect x="88" y="60" width="158" height="96" rx="10" fill="#B5D4F4" stroke="#185FA5" stroke-width="0.5"/>
+  <!-- 人形 -->
+  <circle cx="167" cy="82" r="11" fill="#185FA5" opacity=".8"/>
+  <path d="M148 120 Q167 108 186 120" fill="#185FA5" opacity=".5"/>
+  <text class="th" x="167" y="108" text-anchor="middle" dominant-baseline="central" fill="#0C447C">學生</text>
+  <text class="ts" x="167" y="126" text-anchor="middle" dominant-baseline="central" fill="#185FA5">儀表板 · 選課 · 提問</text>
+  <text class="ts" x="167" y="142" text-anchor="middle" dominant-baseline="central" fill="#185FA5">Line Bot 跳轉</text>
+</g>
+
+<!-- 教師 -->
+<g class="layer-btn" id="btn-teacher" onclick="highlight('teacher')">
+  <rect x="268" y="60" width="158" height="96" rx="10" fill="#9FE1CB" stroke="#0F6E56" stroke-width="0.5"/>
+  <circle cx="347" cy="82" r="11" fill="#0F6E56" opacity=".8"/>
+  <path d="M328 120 Q347 108 366 120" fill="#0F6E56" opacity=".5"/>
+  <text class="th" x="347" y="108" text-anchor="middle" dominant-baseline="central" fill="#085041">教師</text>
+  <text class="ts" x="347" y="126" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">選課程</text>
+  <text class="ts" x="347" y="142" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">上傳影片</text>
+</g>
+
+<!-- 管理者 -->
+<g class="layer-btn" id="btn-admin" onclick="highlight('admin')">
+  <rect x="448" y="60" width="206" height="96" rx="10" fill="#CECBF6" stroke="#534AB7" stroke-width="0.5"/>
+  <circle cx="551" cy="82" r="11" fill="#534AB7" opacity=".8"/>
+  <path d="M532 120 Q551 108 570 120" fill="#534AB7" opacity=".5"/>
+  <text class="th" x="551" y="108" text-anchor="middle" dominant-baseline="central" fill="#3C3489">管理者</text>
+  <text class="ts" x="551" y="126" text-anchor="middle" dominant-baseline="central" fill="#534AB7">用戶統計 · 影片總量</text>
+  <text class="ts" x="551" y="142" text-anchor="middle" dominant-baseline="central" fill="#534AB7">系統監控</text>
+</g>
+
+<!-- ═══ 流線：前端 → 閘道 ═══ -->
+<line id="fl-s" x1="167" y1="156" x2="270" y2="196" class="flow-line" fill="none" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arr)"/>
+<line id="fl-t" x1="347" y1="156" x2="347" y2="196" class="flow-line" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr)"/>
+<line id="fl-a" x1="551" y1="156" x2="430" y2="196" class="flow-line" fill="none" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<!-- ═══ 層2：API Gateway ═══ -->
+<g class="layer-btn" onclick="highlight('gateway')">
+  <rect x="70" y="196" width="598" height="52" rx="10" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5" id="gw-rect"/>
+  <!-- 盾牌形 -->
+  <path d="M90 208 L90 224 Q90 234 100 238 Q110 234 110 224 L110 208 L100 204 Z" fill="#888780" opacity=".6"/>
+  <text class="th" x="350" y="222" text-anchor="middle" dominant-baseline="central" fill="#444441">API Gateway　JWT 驗證　角色路由 student / teacher / admin</text>
+</g>
+
+<!-- 閘道 → 服務 -->
+<line x1="200" y1="248" x2="160" y2="298" class="flow-line" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="340" y1="248" x2="340" y2="298" class="flow-line" fill="none" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="490" y1="248" x2="530" y2="298" class="flow-line" fill="none" stroke="#BA7517" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<!-- ═══ 層3：核心服務（上排三個） ═══ -->
+
+<!-- 影片上傳 -->
+<g class="layer-btn" onclick="highlight('upload')">
+  <rect x="70" y="298" width="178" height="80" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <!-- 上傳圖示（箭頭入框） -->
+  <rect x="88" y="316" width="28" height="20" rx="3" fill="#1D9E75" opacity=".5"/>
+  <path d="M102 310 L102 322 M96 314 L102 308 L108 314" fill="none" stroke="#0F6E56" stroke-width="1.5" stroke-linecap="round"/>
+  <text class="th" x="159" y="316" text-anchor="middle" dominant-baseline="central" fill="#085041">影片上傳服務</text>
+  <text class="ts" x="159" y="334" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">存雲端</text>
+  <text class="ts" x="159" y="350" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">觸發索引任務</text>
+  <text class="ts" x="159" y="366" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">S3 / GCS</text>
+</g>
+
+<!-- 問答檢索 -->
+<g class="layer-btn" onclick="highlight('qa')">
+  <rect x="261" y="298" width="178" height="80" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <!-- 放大鏡 -->
+  <circle cx="284" cy="326" r="9" fill="none" stroke="#7F77DD" stroke-width="1.5"/>
+  <path d="M291 333 L300 342" fill="none" stroke="#7F77DD" stroke-width="1.5" stroke-linecap="round"/>
+  <text class="th" x="350" y="316" text-anchor="middle" dominant-baseline="central" fill="#3C3489">問答檢索服務</text>
+  <text class="ts" x="350" y="334" text-anchor="middle" dominant-baseline="central" fill="#534AB7">LLM embedding</text>
+  <text class="ts" x="350" y="350" text-anchor="middle" dominant-baseline="central" fill="#534AB7">向量相似比對</text>
+  <text class="ts" x="350" y="366" text-anchor="middle" dominant-baseline="central" fill="#534AB7">MongoDB Atlas</text>
+</g>
+
+<!-- 短影音生成 -->
+<g class="layer-btn" onclick="highlight('clip')">
+  <rect x="452" y="298" width="216" height="80" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <!-- 剪刀 -->
+  <path d="M474 316 L492 334 M474 334 L492 316" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-linecap="round"/>
+  <text class="th" x="560" y="316" text-anchor="middle" dominant-baseline="central" fill="#633806">短影音生成</text>
+  <text class="ts" x="560" y="334" text-anchor="middle" dominant-baseline="central" fill="#854F0B">FFmpeg 剪輯</text>
+  <text class="ts" x="560" y="350" text-anchor="middle" dominant-baseline="central" fill="#854F0B">重點摘要萃取</text>
+  <text class="ts" x="560" y="366" text-anchor="middle" dominant-baseline="central" fill="#854F0B">時間戳 + 跳轉連結</text>
+</g>
+
+<!-- 服務間箭頭 -->
+<line x1="248" y1="338" x2="261" y2="338" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="439" y1="338" x2="452" y2="338" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- 服務下排（佇列 + Line Bot） -->
+<line x1="159" y1="378" x2="159" y2="420" class="flow-line" fill="none" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="560" y1="378" x2="530" y2="420" class="flow-line" fill="none" stroke="#BA7517" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- 非同步佇列 -->
+<g class="layer-btn" onclick="highlight('queue')">
+  <rect x="70" y="420" width="236" height="72" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+  <!-- 佇列圖示：三條橫線 -->
+  <line x1="90" y1="444" x2="120" y2="444" stroke="#D85A30" stroke-width="2" stroke-linecap="round"/>
+  <line x1="90" y1="452" x2="114" y2="452" stroke="#D85A30" stroke-width="2" stroke-linecap="round"/>
+  <line x1="90" y1="460" x2="108" y2="460" stroke="#D85A30" stroke-width="2" stroke-linecap="round"/>
+  <text class="th" x="175" y="444" text-anchor="middle" dominant-baseline="central" fill="#712B13">非同步任務佇列</text>
+  <text class="ts" x="175" y="462" text-anchor="middle" dominant-baseline="central" fill="#993C1D">Whisper STT → 切段</text>
+  <text class="ts" x="175" y="478" text-anchor="middle" dominant-baseline="central" fill="#993C1D">embedding 寫入 MongoDB</text>
+</g>
+
+<!-- Line Bot 推播 -->
+<g class="layer-btn" onclick="highlight('linebot')">
+  <rect x="376" y="420" width="292" height="72" rx="10" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+  <!-- 對話泡 -->
+  <rect x="396" y="438" width="32" height="20" rx="5" fill="#639922" opacity=".6"/>
+  <path d="M400 458 L396 468 L408 460" fill="#639922" opacity=".5"/>
+  <text class="th" x="524" y="444" text-anchor="middle" dominant-baseline="central" fill="#27500A">Line Bot 推播服務</text>
+  <text class="ts" x="524" y="462" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">短影音 + 重點摘要</text>
+  <text class="ts" x="524" y="478" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">原始影片時間戳連結</text>
+</g>
+
+<!-- 服務 → DB 箭頭 -->
+<line x1="188" y1="492" x2="200" y2="536" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="350" y1="378" x2="350" y2="536" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="524" y1="492" x2="490" y2="536" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- ═══ 層4：MongoDB ═══ -->
+<rect x="70" y="536" width="598" height="116" rx="14" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<!-- MongoDB 葉形 logo 簡化版 -->
+<ellipse cx="90" cy="564" rx="6" ry="12" fill="#639922" opacity=".7"/>
+<text class="ts" x="104" y="546" dominant-baseline="central" fill="#5F5E5A">MongoDB — 全系統統一資料庫</text>
+
+<!-- 六個集合 -->
+<g class="layer-btn" onclick="highlight('col-users')">
+  <rect x="82" y="558" width="88" height="80" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="0.5"/>
+  <text class="th" x="126" y="581" text-anchor="middle" dominant-baseline="central" fill="#0C447C">users</text>
+  <text class="ts" x="126" y="598" text-anchor="middle" dominant-baseline="central" fill="#185FA5">role</text>
+  <text class="ts" x="126" y="613" text-anchor="middle" dominant-baseline="central" fill="#185FA5">lineUserId</text>
+  <text class="ts" x="126" y="628" text-anchor="middle" dominant-baseline="central" fill="#185FA5">createdAt</text>
+</g>
+
+<g class="layer-btn" onclick="highlight('col-courses')">
+  <rect x="180" y="558" width="96" height="80" rx="8" fill="#9FE1CB" stroke="#0F6E56" stroke-width="0.5"/>
+  <text class="th" x="228" y="581" text-anchor="middle" dominant-baseline="central" fill="#085041">courses</text>
+  <text class="ts" x="228" y="598" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">teacherId</text>
+  <text class="ts" x="228" y="613" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">videoUrls</text>
+  <text class="ts" x="228" y="628" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">title</text>
+</g>
+
+<g class="layer-btn" onclick="highlight('col-segs')">
+  <rect x="286" y="558" width="116" height="80" rx="8" fill="#CECBF6" stroke="#534AB7" stroke-width="0.5"/>
+  <text class="th" x="344" y="572" text-anchor="middle" dominant-baseline="central" fill="#3C3489">video_segments</text>
+  <text class="ts" x="344" y="589" text-anchor="middle" dominant-baseline="central" fill="#534AB7">startSec / endSec</text>
+  <text class="ts" x="344" y="604" text-anchor="middle" dominant-baseline="central" fill="#534AB7">transcript</text>
+  <text class="ts" x="344" y="619" text-anchor="middle" dominant-baseline="central" fill="#534AB7">embedding []</text>
+  <text class="ts" x="344" y="634" text-anchor="middle" dominant-baseline="central" fill="#534AB7">courseId →</text>
+</g>
+
+<g class="layer-btn" onclick="highlight('col-clips')">
+  <rect x="412" y="558" width="96" height="80" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text class="th" x="460" y="581" text-anchor="middle" dominant-baseline="central" fill="#633806">clips</text>
+  <text class="ts" x="460" y="598" text-anchor="middle" dominant-baseline="central" fill="#854F0B">clipUrl</text>
+  <text class="ts" x="460" y="613" text-anchor="middle" dominant-baseline="central" fill="#854F0B">keyPoints</text>
+  <text class="ts" x="460" y="628" text-anchor="middle" dominant-baseline="central" fill="#854F0B">jumpUrl</text>
+</g>
+
+<g class="layer-btn" onclick="highlight('col-enroll')">
+  <rect x="518" y="558" width="80" height="80" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text class="th" x="558" y="575" text-anchor="middle" dominant-baseline="central" fill="#444441">enroll</text>
+  <text class="ts" x="558" y="592" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">studentId</text>
+  <text class="ts" x="558" y="607" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">courseId</text>
+  <text class="ts" x="558" y="622" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">progress</text>
+</g>
+
+<g class="layer-btn" onclick="highlight('col-logs')">
+  <rect x="608" y="558" width="46" height="80" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+  <text class="th" x="631" y="578" text-anchor="middle" dominant-baseline="central" fill="#27500A">logs</text>
+  <text class="ts" x="631" y="596" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">event</text>
+  <text class="ts" x="631" y="612" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">dur</text>
+  <text class="ts" x="631" y="628" text-anchor="middle" dominant-baseline="central" fill="#3B6D11">time</text>
+</g>
+
+<!-- DB → 外部箭頭 -->
+<line x1="228" y1="652" x2="200" y2="670" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="344" y1="652" x2="344" y2="670" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+<line x1="524" y1="652" x2="540" y2="670" class="flow-line" fill="none" stroke="#888780" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- ═══ 層5：外部服務 ═══ -->
+<rect x="70" y="670" width="598" height="70" rx="14" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+
+<!-- 雲端儲存 -->
+<g class="layer-btn" onclick="highlight('ext-s3')">
+  <rect x="82" y="682" width="156" height="46" rx="8" fill="#D3D1C7" stroke="#5F5E5A" stroke-width="0.5"/>
+  <!-- 雲形：三個圓弧 -->
+  <circle cx="106" cy="700" r="8" fill="#888780" opacity=".5"/>
+  <circle cx="118" cy="696" r="10" fill="#888780" opacity=".5"/>
+  <circle cx="130" cy="700" r="8" fill="#888780" opacity=".5"/>
+  <rect x="100" y="700" width="36" height="6" fill="#888780" opacity=".5"/>
+  <text class="ts" x="158" y="701" dominant-baseline="central" fill="#444441">雲端儲存</text>
+  <text class="ts" x="158" y="716" dominant-baseline="central" fill="#5F5E5A">S3 / GCS</text>
+</g>
+
+<!-- AI 服務 -->
+<g class="layer-btn" onclick="highlight('ext-ai')">
+  <rect x="252" y="682" width="184" height="46" rx="8" fill="#D3D1C7" stroke="#5F5E5A" stroke-width="0.5"/>
+  <!-- 大腦形：圓 + 波紋 -->
+  <circle cx="274" cy="705" r="9" fill="#888780" opacity=".5"/>
+  <path d="M268 700 Q274 695 280 700 Q274 706 268 700" fill="#5F5E5A" opacity=".4"/>
+  <text class="ts" x="360" y="701" dominant-baseline="central" fill="#444441">AI 服務</text>
+  <text class="ts" x="360" y="716" dominant-baseline="central" fill="#5F5E5A">Whisper STT · OpenAI API</text>
+</g>
+
+<!-- Line API -->
+<g class="layer-btn" onclick="highlight('ext-line')">
+  <rect x="450" y="682" width="206" height="46" rx="8" fill="#D3D1C7" stroke="#5F5E5A" stroke-width="0.5"/>
+  <rect x="468" y="694" width="26" height="22" rx="5" fill="#639922" opacity=".7"/>
+  <text class="ts" x="556" y="701" dominant-baseline="central" fill="#444441">Line Messaging API</text>
+  <text class="ts" x="556" y="716" dominant-baseline="central" fill="#5F5E5A">Webhook · Push message</text>
+</g>
+
+<!-- 說明文字 -->
+<text class="ts" x="369" y="748" text-anchor="middle" dominant-baseline="central" fill="var(--color-text-secondary)">點擊任一區塊查看詳細說明</text>
+</svg>
+
+<div id="info-box" style="margin:12px 0 0;padding:12px 16px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:13px;color:var(--color-text-secondary);min-height:40px;transition:all .2s;">
+  點擊上方任意元件，即可在此查看說明。
+</div>
+
+<script>
+const INFO = {
+  student: '學生視圖：登入後顯示個人儀表板（使用時間、已選課程、學習進度），選課後帶 courseId 跳轉 Line Bot。',
+  teacher: '教師視圖：依選定課程上傳原始影片，可查看已上傳影片數量。影片上傳後自動觸發 Whisper STT 索引任務。',
+  admin: '管理者視圖：查看全系統用戶清單（學生 / 教師）、影片總量、系統使用統計，資料來源為 usage_logs 集合。',
+  gateway: 'API Gateway：所有請求統一入口，解析 JWT token，從 users 集合讀取 role，依 student / teacher / admin 路由到對應服務。',
+  upload: '影片上傳服務：接收教師上傳的原始影片，存入 S3/GCS 雲端，同時在 courses.videoUrls 寫入路徑，並向任務佇列派發 STT 索引任務。',
+  qa: '問答檢索服務：收到學生問題後，計算問題 embedding，在 video_segments 集合做向量相似度比對，找出最相關片段，交給短影音生成服務處理。',
+  clip: '短影音生成服務：拿到相關片段的時間戳後，呼叫 FFmpeg 剪輯原始影片，用 LLM 萃取重點摘要，組合成 clips 文件，並產生帶 ?t=秒數 的跳轉連結。',
+  queue: '非同步任務佇列：教師上傳影片後，在背景執行 Whisper STT 轉逐字稿 → LLM 切段 → 計算 embedding → 寫入 video_segments，不阻塞前端回應。',
+  linebot: 'Line Bot 推播服務：收到生成完成通知後，透過 Line Messaging API push 給對應 lineUserId：短影音 + 重點條列 + 原始影片時間戳跳轉連結，並寫入 usage_logs。',
+  'col-users': 'users 集合：_id, name, email, passwordHash, role ("student"|"teacher"|"admin"), lineUserId, createdAt。role 欄位是前端視圖切換的唯一依據。',
+  'col-courses': 'courses 集合：_id, title, description, teacherId (→users), videoUrls ([String]), createdAt。教師可管理多個課程，每課程可有多支影片。',
+  'col-segs': 'video_segments 集合：_id, courseId, videoUrl, startSec, endSec, transcript (Whisper逐字稿), embedding ([Number])。Atlas Vector Search 在此集合上建立向量索引。',
+  'col-clips': 'clips 集合：_id, segmentId, clipUrl (短影音雲端路徑), keyPoints ([String]), jumpUrl (原始影片?t=秒數), hitCount (快取命中次數), createdAt。',
+  'col-enroll': 'enrollments 集合：_id, studentId, courseId, enrolledAt, lineState (Line Bot 對話狀態), progress (0–100)。',
+  'col-logs': 'usage_logs 集合：userId, courseId, event ("login"|"watch"|"ask"|"clip_view"), durationSec, timestamp。驅動學生儀表板與管理者統計頁的唯一資料來源。',
+  'ext-s3': '雲端物件儲存（AWS S3 / GCS）：儲存教師上傳的原始影片及生成的短影音。使用 pre-signed URL 控制存取，bucket 設為私有。',
+  'ext-ai': 'AI 外部服務：Whisper API 做語音轉文字，OpenAI API (text-embedding-3-small) 計算向量，GPT-4o 做重點摘要萃取。',
+  'ext-line': 'Line Messaging API：非同步 push message 給學生的 lineUserId，Webhook 接收學生在 Line Bot 輸入的問題，驗證 X-Line-Signature 防偽。',
+};
+
+function highlight(key) {
+  const box = document.getElementById('info-box');
+  box.textContent = INFO[key] || '（無說明）';
+  box.style.borderColor = 'var(--color-border-info)';
+  box.style.color = 'var(--color-text-primary)';
+  setTimeout(() => { box.style.borderColor = 'var(--color-border-secondary)'; }, 1200);
+}
+</script>

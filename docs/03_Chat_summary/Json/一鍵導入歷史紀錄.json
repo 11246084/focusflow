@@ -1,0 +1,116 @@
+{
+  "project": {
+    "name": "AI 學習系統（LearnClip 系列）",
+    "type": "畢業專題 / 研究專案",
+    "team_size": 4,
+    "timeline_weeks": 4,
+    "tech_stack": {
+      "frontend": "React 或 Vue（同一頁面，依 JWT role 渲染不同視圖）",
+      "backend": "Node.js",
+      "ai": "Whisper STT、OpenAI API（text-embedding、GPT-4o）",
+      "video_processing": "FFmpeg",
+      "database": "MongoDB（全系統統一，含 Atlas Vector Search）",
+      "messaging": "Line Messaging API（Webhook + Push）",
+      "storage": "AWS S3 或 GCS（影片檔、短影音）",
+      "auth": "JWT + RBAC（role: student | teacher | admin）"
+    }
+  },
+
+  "system_overview": {
+    "description": "AI 驅動的教學影片學習系統。教師上傳課程影片後，系統自動建立語意索引；學生透過 Line Bot 提問，系統找到最相關片段、生成短影音並附上重點摘要與原始影片時間戳跳轉連結，推播給學生。",
+    "core_flow": [
+      "1. 教師上傳影片 → 存入雲端（S3/GCS）→ 觸發非同步任務佇列",
+      "2. 背景任務：Whisper STT 轉逐字稿 → LLM 切段 → 計算 embedding → 存入 MongoDB video_segments",
+      "3. 學生登入（Web）→ 選課 → 點擊跳轉 Line Bot，帶 courseId 綁定",
+      "4. 學生在 Line Bot 輸入問題 → 後端計算問題 embedding → Atlas Vector Search 找相關片段",
+      "5. FFmpeg 剪輯對應片段 → LLM 萃取重點摘要 → 儲存至 clips 集合",
+      "6. Line Bot push 短影音 + 重點列表 + 原始影片 ?t=秒數 跳轉連結"
+    ]
+  },
+
+  "architecture_layers": {
+    "layer_1_frontend": {
+      "description": "同一套前端頁面，JWT role 決定渲染哪個視圖",
+      "student_view": "個人儀表板（使用時間、學習進度）、選課、Line Bot 跳轉",
+      "teacher_view": "選課程、上傳影片、查看已上傳影片數量",
+      "admin_view": "全用戶清單（學生/教師分類）、影片總量、系統使用統計"
+    },
+    "layer_2_gateway": {
+      "description": "API Gateway：所有請求統一入口",
+      "auth": "JWT 驗證 + role-based routing（student / teacher / admin）"
+    },
+    "layer_3_core_services": {
+      "video_upload_service": "接收影片 → 存 S3/GCS → 派發 STT 索引任務",
+      "async_queue": "背景執行 Whisper STT → 分段 → embedding → 寫入 MongoDB",
+      "qa_retrieval_service": "問題 embedding 計算 → Atlas Vector Search → 找相關 video_segment",
+      "clip_generation_service": "FFmpeg 剪輯 → LLM 重點摘要 → 生成 jumpUrl（?t=秒數）→ 存 clips 集合",
+      "linebot_push_service": "組合短影音 + 重點 + 跳轉連結 → Line Messaging API push",
+      "cache_strategy": "同一問題若已有 clips 記錄（hitCount > 0），直接回傳，不重新剪輯"
+    },
+    "layer_4_mongodb_collections": {
+      "users": {
+        "key_fields": ["_id", "name", "email", "role", "lineUserId", "createdAt"],
+        "note": "role 欄位為 student / teacher / admin，lineUserId 在學生首次 Line Bot 綁定時寫入"
+      },
+      "courses": {
+        "key_fields": ["_id", "title", "description", "teacherId", "videoUrls", "createdAt"],
+        "note": "videoUrls 為雲端路徑陣列，teacherId 關聯 users"
+      },
+      "video_segments": {
+        "key_fields": ["_id", "courseId", "videoUrl", "startSec", "endSec", "transcript", "embedding"],
+        "note": "embedding 為 Number 陣列，Atlas Vector Search 在此集合建立向量索引"
+      },
+      "enrollments": {
+        "key_fields": ["_id", "studentId", "courseId", "enrolledAt", "lineState", "progress"],
+        "note": "lineState 用於 Line Bot 對話狀態機；progress 為 0-100 百分比"
+      },
+      "queries": {
+        "key_fields": ["_id", "studentId", "courseId", "question", "clipId", "askedAt", "lineMessageId"],
+        "note": "記錄每次問答，clipId 關聯 clips 集合"
+      },
+      "clips": {
+        "key_fields": ["_id", "segmentId", "clipUrl", "keyPoints", "jumpUrl", "hitCount", "createdAt"],
+        "note": "hitCount 為快取命中計數，jumpUrl 格式為 原始影片URL?t=秒數"
+      },
+      "usage_logs": {
+        "key_fields": ["userId", "courseId", "event", "durationSec", "timestamp"],
+        "events": ["login", "watch", "ask", "clip_view"],
+        "note": "學生儀表板與管理者統計頁的唯一資料來源"
+      }
+    },
+    "layer_5_external_services": {
+      "storage": "AWS S3 或 GCS（私有 bucket + pre-signed URL）",
+      "ai": "Whisper API（STT）、OpenAI text-embedding-3-small（向量）、GPT-4o（重點摘要）",
+      "messaging": "Line Messaging API（Webhook 驗 X-Line-Signature、Push Message）"
+    }
+  },
+
+  "team_division": {
+    "A_frontend": {
+      "role": "前端 React/Vue",
+      "tasks": ["登入頁 + 角色路由", "學生儀表板", "教師上傳介面", "管理者後台", "整合測試 / UI 修正"]
+    },
+    "B_backend": {
+      "role": "後端 Node.js API",
+      "tasks": ["Auth + JWT + RBAC", "課程/影片上傳 API", "問答+檢索 API", "Line Bot Webhook", "API 整合測試"]
+    },
+    "C_ai_video": {
+      "role": "AI / 影片處理",
+      "tasks": ["Whisper STT 整合", "LLM 切段 + embedding", "FFmpeg 短影音剪輯", "時間戳 + 跳轉連結生成", "端對端 AI 測試"]
+    },
+    "D_db_devops": {
+      "role": "MongoDB / DevOps / Line Bot",
+      "tasks": ["MongoDB Schema 設計", "Atlas Vector Index 建立", "雲端部署 + CI 設定", "Line Bot 綁定流程", "usage_logs + 系統監控", "正式環境壓測 / 上線"]
+    }
+  },
+
+  "key_design_decisions": {
+    "single_page_multi_role": "前端只有一套程式碼，role 欄位控制視圖，無需三個獨立路由",
+    "async_indexing": "教師上傳後立即返回，STT+embedding 全在背景執行，不阻塞 UX",
+    "clip_cache": "clips.hitCount 做命中計數，同問題不重複剪輯",
+    "vector_search": "embedding 直接存 MongoDB，使用 Atlas Vector Search，不另架向量資料庫",
+    "line_binding": "學生首次從 Web 跳 Line Bot 時帶 courseId，Webhook 收到後寫入 users.lineUserId",
+    "presigned_url": "S3/GCS bucket 私有，所有影片連結透過 pre-signed URL 控制存取有效期",
+    "usage_logs_single_source": "學生儀表板、管理者統計全部從 usage_logs aggregate，不分散在各集合"
+  }
+}

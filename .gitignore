@@ -137,3 +137,16 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# ================================
+# STT Pipeline (Python / AI)
+# ================================
+
+STT_Whisper/.venv/
+STT_Whisper/.tool/
+STT_Whisper/data/cache/
+STT_Whisper/data/processed_audio/
+STT_Whisper/Test_video_file/
+
+__pycache__/
+*.pyc

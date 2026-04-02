@@ -1,0 +1,80 @@
+{
+  "ChatGPT": [
+    "CHATGVT",
+    "CHAT GPT",
+    "chat gpt",
+    "Chat G P T",
+    "chatgpt"
+  ],
+  "OpenAI": [
+    "Open A I",
+    "open ai",
+    "Open AI",
+    "OPEN AI"
+  ],
+  "Whisper": [
+    "Wisper",
+    "whis per",
+    "WHISPER",
+    "wisper"
+  ],
+  "Transformer": [
+    "transformer",
+    "Transformers",
+    "trans former",
+    "transformers"
+  ],
+  "MongoDB": [
+    "Mongo DB",
+    "mongo db",
+    "mangodb",
+    "MangoDB"
+  ],
+  "Vector DB": [
+    "VectorDB",
+    "vector db",
+    "vector d b",
+    "Vector D B"
+  ],
+  "Embedding": [
+    "embedding",
+    "Embeddings",
+    "embed ding",
+    "embeding"
+  ],
+  "API": [
+    "A P I",
+    "a p i",
+    "api"
+  ],
+  "Python": [
+    "python",
+    "Py thon",
+    "PYTHON"
+  ],
+  "LLM": [
+    "llm",
+    "L L M",
+    "large language model"
+  ],
+  "RAG": [
+    "rag",
+    "R A G"
+  ],
+  "Retrieval": [
+    "retrieval",
+    "retreival",
+    "Retrieveal"
+  ],
+  "Prompt": [
+    "prompt",
+    "promt",
+    "Prompts"
+  ],
+  "GPT-4": [
+    "GPT 4",
+    "gpt 4",
+    "G P T 4",
+    "GPT4"
+  ]
+}

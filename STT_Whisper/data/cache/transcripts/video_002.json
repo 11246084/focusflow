@@ -1,0 +1,3677 @@
+{
+  "video_id": "video_002",
+  "segments": [
+    {
+      "segment_id": "video_002_seg_0001",
+      "start_sec": 0.56,
+      "end_sec": 3.62,
+      "text": "印象中他會跟另外一個套件"
+    },
+    {
+      "segment_id": "video_002_seg_0002",
+      "start_sec": 3.62,
+      "end_sec": 4.92,
+      "text": "叫D-Live"
+    },
+    {
+      "segment_id": "video_002_seg_0003",
+      "start_sec": 4.92,
+      "end_sec": 6.46,
+      "text": "這兩個套件"
+    },
+    {
+      "segment_id": "video_002_seg_0004",
+      "start_sec": 6.46,
+      "end_sec": 9.02,
+      "text": "有一點相互重疊"
+    },
+    {
+      "segment_id": "video_002_seg_0005",
+      "start_sec": 9.02,
+      "end_sec": 12.08,
+      "text": "他做的事情有一點點重疊"
+    },
+    {
+      "segment_id": "video_002_seg_0006",
+      "start_sec": 12.08,
+      "end_sec": 15.92,
+      "text": "那OpenCV會畫圖他也可以畫"
+    },
+    {
+      "segment_id": "video_002_seg_0007",
+      "start_sec": 15.92,
+      "end_sec": 19.52,
+      "text": "OpenCV會畫圖D-Live也可以畫"
+    },
+    {
+      "segment_id": "video_002_seg_0008",
+      "start_sec": 19.52,
+      "end_sec": 22.58,
+      "text": "那OpenCV他能夠"
+    },
+    {
+      "segment_id": "video_002_seg_0009",
+      "start_sec": 22.58,
+      "end_sec": 26.68,
+      "text": "他能夠內建有一些偵測器D-Live也有"
+    },
+    {
+      "segment_id": "video_002_seg_0010",
+      "start_sec": 26.68,
+      "end_sec": 29.76,
+      "text": "那這兩種模型他到底"
+    },
+    {
+      "segment_id": "video_002_seg_0011",
+      "start_sec": 29.76,
+      "end_sec": 33.08,
+      "text": "這兩種套件他到底差在哪裡呢"
+    },
+    {
+      "segment_id": "video_002_seg_0012",
+      "start_sec": 33.08,
+      "end_sec": 34.88,
+      "text": "我們可以來看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0013",
+      "start_sec": 34.88,
+      "end_sec": 39.24,
+      "text": "這個網站"
+    },
+    {
+      "segment_id": "video_002_seg_0014",
+      "start_sec": 39.24,
+      "end_sec": 44.36,
+      "text": "他整理就是這篇部份他整理的很好"
+    },
+    {
+      "segment_id": "video_002_seg_0015",
+      "start_sec": 44.36,
+      "end_sec": 48.44,
+      "text": "我覺得大家有興趣的話也都可以看一看"
+    },
+    {
+      "segment_id": "video_002_seg_0016",
+      "start_sec": 48.44,
+      "end_sec": 51.0,
+      "text": "他是以人臉辨識為例子"
+    },
+    {
+      "segment_id": "video_002_seg_0017",
+      "start_sec": 51.0,
+      "end_sec": 54.86,
+      "text": "去帶你去看這兩種模型有什麼不一樣"
+    },
+    {
+      "segment_id": "video_002_seg_0018",
+      "start_sec": 54.86,
+      "end_sec": 59.46,
+      "text": "那他上面的程式是介紹給你看"
+    },
+    {
+      "segment_id": "video_002_seg_0019",
+      "start_sec": 59.46,
+      "end_sec": 64.32,
+      "text": "兩種不同的東西的寫法不過這邊我們就不講了"
+    },
+    {
+      "segment_id": "video_002_seg_0020",
+      "start_sec": 64.32,
+      "end_sec": 69.98,
+      "text": "我們直接看他最後的效果"
+    },
+    {
+      "segment_id": "video_002_seg_0021",
+      "start_sec": 69.98,
+      "end_sec": 74.84,
+      "text": "為什麼說這個網站寫得很好是因為他要把最後的效果也秀出來"
+    },
+    {
+      "segment_id": "video_002_seg_0022",
+      "start_sec": 74.84,
+      "end_sec": 77.16,
+      "text": "各位你可以看一下這是"
+    },
+    {
+      "segment_id": "video_002_seg_0023",
+      "start_sec": 77.16,
+      "end_sec": 80.74,
+      "text": "兩種不同的套件找出來的樣子"
+    },
+    {
+      "segment_id": "video_002_seg_0024",
+      "start_sec": 80.74,
+      "end_sec": 85.6,
+      "text": "左邊是OpenCV內建的一種叫做哈爾分類器"
+    },
+    {
+      "segment_id": "video_002_seg_0025",
+      "start_sec": 85.6,
+      "end_sec": 89.18,
+      "text": "這是一種機器學習的演算法"
+    },
+    {
+      "segment_id": "video_002_seg_0026",
+      "start_sec": 89.18,
+      "end_sec": 92.26,
+      "text": "他利用機器學習裡面找特徵"
+    },
+    {
+      "segment_id": "video_002_seg_0027",
+      "start_sec": 92.26,
+      "end_sec": 94.52,
+      "text": "去把人臉的位置抓出來"
+    },
+    {
+      "segment_id": "video_002_seg_0028",
+      "start_sec": 94.52,
+      "end_sec": 96.82,
+      "text": "他這邊是用人臉偵測"
+    },
+    {
+      "segment_id": "video_002_seg_0029",
+      "start_sec": 96.82,
+      "end_sec": 101.42,
+      "text": "兩個套件他都有內建人臉偵測器"
+    },
+    {
+      "segment_id": "video_002_seg_0030",
+      "start_sec": 101.42,
+      "end_sec": 104.76,
+      "text": "所以其實抓人臉這件事情挺簡單的"
+    },
+    {
+      "segment_id": "video_002_seg_0031",
+      "start_sec": 104.76,
+      "end_sec": 108.2,
+      "text": "然後抓到人臉之後你再去辨識他是誰"
+    },
+    {
+      "segment_id": "video_002_seg_0032",
+      "start_sec": 108.2,
+      "end_sec": 112.96,
+      "text": "基本上這個應用算是目前所有應用裡面比較簡單的"
+    },
+    {
+      "segment_id": "video_002_seg_0033",
+      "start_sec": 112.96,
+      "end_sec": 118.7,
+      "text": "你看我抓出來人臉的位置之後"
+    },
+    {
+      "segment_id": "video_002_seg_0034",
+      "start_sec": 118.7,
+      "end_sec": 123.04,
+      "text": "左邊跟右邊的框大家會發現有點不一樣對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0035",
+      "start_sec": 123.04,
+      "end_sec": 126.24,
+      "text": "這個哈爾分類器他抓出來是正方形的"
+    },
+    {
+      "segment_id": "video_002_seg_0036",
+      "start_sec": 126.24,
+      "end_sec": 131.94,
+      "text": "基本上他的演算邏輯就是找到一個正方形"
+    },
+    {
+      "segment_id": "video_002_seg_0037",
+      "start_sec": 131.94,
+      "end_sec": 134.2,
+      "text": "能夠把人臉框進去"
+    },
+    {
+      "segment_id": "video_002_seg_0038",
+      "start_sec": 134.2,
+      "end_sec": 139.54,
+      "text": "右邊這個他出來的框是比較貼合人臉的"
+    },
+    {
+      "segment_id": "video_002_seg_0039",
+      "start_sec": 139.54,
+      "end_sec": 142.14,
+      "text": "相信大家有發現的"
+    },
+    {
+      "segment_id": "video_002_seg_0040",
+      "start_sec": 142.14,
+      "end_sec": 144.8,
+      "text": "所以真的比起來的話"
+    },
+    {
+      "segment_id": "video_002_seg_0041",
+      "start_sec": 144.8,
+      "end_sec": 147.94,
+      "text": "大家覺得是左邊的框好了還是右邊的框好了"
+    },
+    {
+      "segment_id": "video_002_seg_0042",
+      "start_sec": 148.28,
+      "end_sec": 150.74,
+      "text": "如果是我的話我會選擇右邊的框好了"
+    },
+    {
+      "segment_id": "video_002_seg_0043",
+      "start_sec": 150.74,
+      "end_sec": 154.28,
+      "text": "因為左邊的雖然他把人臉框出來了"
+    },
+    {
+      "segment_id": "video_002_seg_0044",
+      "start_sec": 154.28,
+      "end_sec": 157.38,
+      "text": "但是他框到了一些無效的地區"
+    },
+    {
+      "segment_id": "video_002_seg_0045",
+      "start_sec": 157.38,
+      "end_sec": 160.18,
+      "text": "像這個地方這個地方只是頭髮"
+    },
+    {
+      "segment_id": "video_002_seg_0046",
+      "start_sec": 160.18,
+      "end_sec": 162.98,
+      "text": "他不是他不是完整的人臉"
+    },
+    {
+      "segment_id": "video_002_seg_0047",
+      "start_sec": 162.98,
+      "end_sec": 166.28,
+      "text": "那這就代表說他的框沒有那麼精確"
+    },
+    {
+      "segment_id": "video_002_seg_0048",
+      "start_sec": 167.08,
+      "end_sec": 169.48,
+      "text": "雖然他還是有把臉框出來"
+    },
+    {
+      "segment_id": "video_002_seg_0049",
+      "start_sec": 169.48,
+      "end_sec": 175.38,
+      "text": "那如果我們把這個思考的方式講得極端一點"
+    },
+    {
+      "segment_id": "video_002_seg_0050",
+      "start_sec": 175.48,
+      "end_sec": 178.22,
+      "text": "我不能說他有框到臉就算他對啊"
+    },
+    {
+      "segment_id": "video_002_seg_0051",
+      "start_sec": 178.22,
+      "end_sec": 180.62,
+      "text": "那你這樣的話我乾脆整個畫面都框起來"
+    },
+    {
+      "segment_id": "video_002_seg_0052",
+      "start_sec": 180.62,
+      "end_sec": 182.02,
+      "text": "那是不是一定有框到臉"
+    },
+    {
+      "segment_id": "video_002_seg_0053",
+      "start_sec": 183.42,
+      "end_sec": 185.12,
+      "text": "如果我把整個畫面都框起來"
+    },
+    {
+      "segment_id": "video_002_seg_0054",
+      "start_sec": 185.12,
+      "end_sec": 186.52,
+      "text": "那是不是一定有框到臉"
+    },
+    {
+      "segment_id": "video_002_seg_0055",
+      "start_sec": 186.52,
+      "end_sec": 188.18,
+      "text": "那你這樣算我對嗎"
+    },
+    {
+      "segment_id": "video_002_seg_0056",
+      "start_sec": 190.45,
+      "end_sec": 191.85,
+      "text": "不能算吧對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0057",
+      "start_sec": 191.85,
+      "end_sec": 197.25,
+      "text": "所以左邊的這個沒有右邊這個好"
+    },
+    {
+      "segment_id": "video_002_seg_0058",
+      "start_sec": 198.05,
+      "end_sec": 199.35,
+      "text": "沒有右邊這個好"
+    },
+    {
+      "segment_id": "video_002_seg_0059",
+      "start_sec": 199.91,
+      "end_sec": 202.61,
+      "text": "但是呢左邊這個模型很小"
+    },
+    {
+      "segment_id": "video_002_seg_0060",
+      "start_sec": 202.61,
+      "end_sec": 203.85,
+      "text": "非常非常的小"
+    },
+    {
+      "segment_id": "video_002_seg_0061",
+      "start_sec": 204.85,
+      "end_sec": 208.15,
+      "text": "你要跑open cv的這個哈爾芬類企的話"
+    },
+    {
+      "segment_id": "video_002_seg_0062",
+      "start_sec": 208.15,
+      "end_sec": 210.95,
+      "text": "他模型本身好像才幾百k而已"
+    },
+    {
+      "segment_id": "video_002_seg_0063",
+      "start_sec": 211.85,
+      "end_sec": 214.65,
+      "text": "超小的你甚至在一些那種"
+    },
+    {
+      "segment_id": "video_002_seg_0064",
+      "start_sec": 215.05,
+      "end_sec": 216.55,
+      "text": "牽入式系統上面"
+    },
+    {
+      "segment_id": "video_002_seg_0065",
+      "start_sec": 217.05,
+      "end_sec": 218.65,
+      "text": "像是什麼Azuno啊"
+    },
+    {
+      "segment_id": "video_002_seg_0066",
+      "start_sec": 218.65,
+      "end_sec": 220.25,
+      "text": "還用不著數媒派啊"
+    },
+    {
+      "segment_id": "video_002_seg_0067",
+      "start_sec": 220.69,
+      "end_sec": 222.89,
+      "text": "你用Azuno他都能跑啊"
+    },
+    {
+      "segment_id": "video_002_seg_0068",
+      "start_sec": 223.05,
+      "end_sec": 225.09,
+      "text": "哦 那個小小一顆的啊"
+    },
+    {
+      "segment_id": "video_002_seg_0069",
+      "start_sec": 225.09,
+      "end_sec": 227.15,
+      "text": "這這麼大連同機板"
+    },
+    {
+      "segment_id": "video_002_seg_0070",
+      "start_sec": 227.45,
+      "end_sec": 228.71,
+      "text": "再加攝影機"
+    },
+    {
+      "segment_id": "video_002_seg_0071",
+      "start_sec": 228.71,
+      "end_sec": 230.35,
+      "text": "然後然後再加那個"
+    },
+    {
+      "segment_id": "video_002_seg_0072",
+      "start_sec": 230.65,
+      "end_sec": 232.35,
+      "text": "呃再加處理器"
+    },
+    {
+      "segment_id": "video_002_seg_0073",
+      "start_sec": 232.35,
+      "end_sec": 234.15,
+      "text": "全部都在這樣子的一個大小的"
+    },
+    {
+      "segment_id": "video_002_seg_0074",
+      "start_sec": 234.15,
+      "end_sec": 236.65,
+      "text": "那個板子上面的這種東西他都能跑"
+    },
+    {
+      "segment_id": "video_002_seg_0075",
+      "start_sec": 237.05,
+      "end_sec": 237.55,
+      "text": "哦"
+    },
+    {
+      "segment_id": "video_002_seg_0076",
+      "start_sec": 238.99,
+      "end_sec": 241.95,
+      "text": "但是右邊這個就沒有那麼簡單了"
+    },
+    {
+      "segment_id": "video_002_seg_0077",
+      "start_sec": 241.95,
+      "end_sec": 243.65,
+      "text": "他要的硬體之人就多"
+    },
+    {
+      "segment_id": "video_002_seg_0078",
+      "start_sec": 244.11,
+      "end_sec": 245.25,
+      "text": "好那大家下面"
+    },
+    {
+      "segment_id": "video_002_seg_0079",
+      "start_sec": 245.25,
+      "end_sec": 246.69,
+      "text": "我可以往下看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0080",
+      "start_sec": 246.69,
+      "end_sec": 247.75,
+      "text": "這個是delive"
+    },
+    {
+      "segment_id": "video_002_seg_0081",
+      "start_sec": 247.75,
+      "end_sec": 249.15,
+      "text": "這是這兩個套件"
+    },
+    {
+      "segment_id": "video_002_seg_0082",
+      "start_sec": 249.29,
+      "end_sec": 251.25,
+      "text": "這個sog 也是delive"
+    },
+    {
+      "segment_id": "video_002_seg_0083",
+      "start_sec": 251.25,
+      "end_sec": 252.89,
+      "text": "裡面內建的一種"
+    },
+    {
+      "segment_id": "video_002_seg_0084",
+      "start_sec": 253.15,
+      "end_sec": 256.19,
+      "text": "那個積極學習的演算法"
+    },
+    {
+      "segment_id": "video_002_seg_0085",
+      "start_sec": 256.39,
+      "end_sec": 258.75,
+      "text": "哦那你你會發現"
+    },
+    {
+      "segment_id": "video_002_seg_0086",
+      "start_sec": 258.89,
+      "end_sec": 260.69,
+      "text": "他的這個框哦"
+    },
+    {
+      "segment_id": "video_002_seg_0087",
+      "start_sec": 261.09,
+      "end_sec": 264.73,
+      "text": "哎跟上面的open cv 的框比起來"
+    },
+    {
+      "segment_id": "video_002_seg_0088",
+      "start_sec": 264.73,
+      "end_sec": 265.69,
+      "text": "他比較小"
+    },
+    {
+      "segment_id": "video_002_seg_0089",
+      "start_sec": 267.13,
+      "end_sec": 269.73,
+      "text": "那比較小他容易發生什麼事"
+    },
+    {
+      "segment_id": "video_002_seg_0090",
+      "start_sec": 271.23,
+      "end_sec": 272.93,
+      "text": "哦他他容易發生"
+    },
+    {
+      "segment_id": "video_002_seg_0091",
+      "start_sec": 273.23,
+      "end_sec": 275.73,
+      "text": "人臉有一部分被切掉"
+    },
+    {
+      "segment_id": "video_002_seg_0092",
+      "start_sec": 276.99,
+      "end_sec": 278.73,
+      "text": "好比方說他有時候框框出來"
+    },
+    {
+      "segment_id": "video_002_seg_0093",
+      "start_sec": 278.73,
+      "end_sec": 280.49,
+      "text": "把嘴巴這邊被切一半"
+    },
+    {
+      "segment_id": "video_002_seg_0094",
+      "start_sec": 280.93,
+      "end_sec": 281.93,
+      "text": "下巴不見了"
+    },
+    {
+      "segment_id": "video_002_seg_0095",
+      "start_sec": 283.77,
+      "end_sec": 286.47,
+      "text": "哦這是他的缺點"
+    },
+    {
+      "segment_id": "video_002_seg_0096",
+      "start_sec": 286.57,
+      "end_sec": 287.77,
+      "text": "哦這種這種"
+    },
+    {
+      "segment_id": "video_002_seg_0097",
+      "start_sec": 289.57,
+      "end_sec": 291.17,
+      "text": "delive 的裡面內建的"
+    },
+    {
+      "segment_id": "video_002_seg_0098",
+      "start_sec": 291.17,
+      "end_sec": 293.27,
+      "text": "人臉偵測器的缺點哦"
+    },
+    {
+      "segment_id": "video_002_seg_0099",
+      "start_sec": 293.57,
+      "end_sec": 295.01,
+      "text": "那後面有一個delive 裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0100",
+      "start_sec": 295.01,
+      "end_sec": 296.47,
+      "text": "他有一個mmo d"
+    },
+    {
+      "segment_id": "video_002_seg_0101",
+      "start_sec": 296.57,
+      "end_sec": 298.47,
+      "text": "哦這個其實也是用那個"
+    },
+    {
+      "segment_id": "video_002_seg_0102",
+      "start_sec": 298.67,
+      "end_sec": 302.21,
+      "text": "呃呃類似深度學習的方法來做的"
+    },
+    {
+      "segment_id": "video_002_seg_0103",
+      "start_sec": 302.21,
+      "end_sec": 304.57,
+      "text": "但是你會發現哎不是你"
+    },
+    {
+      "segment_id": "video_002_seg_0104",
+      "start_sec": 304.97,
+      "end_sec": 307.27,
+      "text": "呃老師你不是講他深度學習嗎"
+    },
+    {
+      "segment_id": "video_002_seg_0105",
+      "start_sec": 307.67,
+      "end_sec": 309.27,
+      "text": "為什麼這看起來超不準的"
+    },
+    {
+      "segment_id": "video_002_seg_0106",
+      "start_sec": 310.47,
+      "end_sec": 312.97,
+      "text": "你看這四個比起來大概這個最不準"
+    },
+    {
+      "segment_id": "video_002_seg_0107",
+      "start_sec": 313.07,
+      "end_sec": 313.61,
+      "text": "為什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0108",
+      "start_sec": 313.71,
+      "end_sec": 315.81,
+      "text": "因為他又框到了沒有用的地方"
+    },
+    {
+      "segment_id": "video_002_seg_0109",
+      "start_sec": 315.81,
+      "end_sec": 317.77,
+      "text": "而且怎樣而且下巴還被切掉"
+    },
+    {
+      "segment_id": "video_002_seg_0110",
+      "start_sec": 318.21,
+      "end_sec": 319.91,
+      "text": "照他講這個最爛啊"
+    },
+    {
+      "segment_id": "video_002_seg_0111",
+      "start_sec": 322.37,
+      "end_sec": 323.81,
+      "text": "哦照你講這個這麼爛"
+    },
+    {
+      "segment_id": "video_002_seg_0112",
+      "start_sec": 323.81,
+      "end_sec": 325.37,
+      "text": "他何必要存在呢"
+    },
+    {
+      "segment_id": "video_002_seg_0113",
+      "start_sec": 326.67,
+      "end_sec": 329.37,
+      "text": "哦這個其實挺有趣的哦"
+    },
+    {
+      "segment_id": "video_002_seg_0114",
+      "start_sec": 329.37,
+      "end_sec": 330.47,
+      "text": "這議題很有趣"
+    },
+    {
+      "segment_id": "video_002_seg_0115",
+      "start_sec": 330.77,
+      "end_sec": 331.51,
+      "text": "為什麼呢"
+    },
+    {
+      "segment_id": "video_002_seg_0116",
+      "start_sec": 331.57,
+      "end_sec": 333.57,
+      "text": "來我們實際上來看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0117",
+      "start_sec": 334.11,
+      "end_sec": 337.11,
+      "text": "最後的結果哦他的問題在這裡"
+    },
+    {
+      "segment_id": "video_002_seg_0118",
+      "start_sec": 339.33,
+      "end_sec": 340.01,
+      "text": "這叫什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0119",
+      "start_sec": 341.37,
+      "end_sec": 342.11,
+      "text": "速度"
+    },
+    {
+      "segment_id": "video_002_seg_0120",
+      "start_sec": 342.71,
+      "end_sec": 343.47,
+      "text": "張數"
+    },
+    {
+      "segment_id": "video_002_seg_0121",
+      "start_sec": 344.71,
+      "end_sec": 346.17,
+      "text": "哦你看他的張數"
+    },
+    {
+      "segment_id": "video_002_seg_0122",
+      "start_sec": 347.17,
+      "end_sec": 348.27,
+      "text": "三百一"
+    },
+    {
+      "segment_id": "video_002_seg_0123",
+      "start_sec": 350.07,
+      "end_sec": 351.11,
+      "text": "哦三百一"
+    },
+    {
+      "segment_id": "video_002_seg_0124",
+      "start_sec": 351.21,
+      "end_sec": 353.31,
+      "text": "所以這種他的"
+    },
+    {
+      "segment_id": "video_002_seg_0125",
+      "start_sec": 353.45,
+      "end_sec": 355.11,
+      "text": "這種方法他處理的"
+    },
+    {
+      "segment_id": "video_002_seg_0126",
+      "start_sec": 355.41,
+      "end_sec": 357.71,
+      "text": "那個速度非常的快啊"
+    },
+    {
+      "segment_id": "video_002_seg_0127",
+      "start_sec": 358.01,
+      "end_sec": 359.55,
+      "text": "哦他速度非常的快"
+    },
+    {
+      "segment_id": "video_002_seg_0128",
+      "start_sec": 359.75,
+      "end_sec": 360.71,
+      "text": "那呃"
+    },
+    {
+      "segment_id": "video_002_seg_0129",
+      "start_sec": 362.05,
+      "end_sec": 364.31,
+      "text": "後面哦我們在做專案的時候"
+    },
+    {
+      "segment_id": "video_002_seg_0130",
+      "start_sec": 364.31,
+      "end_sec": 365.95,
+      "text": "會再跟各位提到一下"
+    },
+    {
+      "segment_id": "video_002_seg_0131",
+      "start_sec": 365.95,
+      "end_sec": 367.75,
+      "text": "delive 這個套件哦"
+    },
+    {
+      "segment_id": "video_002_seg_0132",
+      "start_sec": 369.68,
+      "end_sec": 371.14,
+      "text": "這邊先巨透一下"
+    },
+    {
+      "segment_id": "video_002_seg_0133",
+      "start_sec": 371.22,
+      "end_sec": 372.98,
+      "text": "這個套件是誰開發的"
+    },
+    {
+      "segment_id": "video_002_seg_0134",
+      "start_sec": 375.1,
+      "end_sec": 378.84,
+      "text": "好他是一間公司叫做洛斯洛普格魯曼"
+    },
+    {
+      "segment_id": "video_002_seg_0135",
+      "start_sec": 380.08,
+      "end_sec": 381.68,
+      "text": "好洛斯洛普格魯曼"
+    },
+    {
+      "segment_id": "video_002_seg_0136",
+      "start_sec": 382.0,
+      "end_sec": 382.38,
+      "text": "哎"
+    },
+    {
+      "segment_id": "video_002_seg_0137",
+      "start_sec": 382.62,
+      "end_sec": 385.48,
+      "text": "哎我相信厚多厚少"
+    },
+    {
+      "segment_id": "video_002_seg_0138",
+      "start_sec": 386.62,
+      "end_sec": 390.22,
+      "text": "會有同學在新聞上面聽過這家公司的名字"
+    },
+    {
+      "segment_id": "video_002_seg_0139",
+      "start_sec": 391.32,
+      "end_sec": 398.12,
+      "text": "好這家公司是每全世界前五大的軍火供應商"
+    },
+    {
+      "segment_id": "video_002_seg_0140",
+      "start_sec": 399.68,
+      "end_sec": 403.28,
+      "text": "哦做軍做那個軍事裝備的"
+    },
+    {
+      "segment_id": "video_002_seg_0141",
+      "start_sec": 403.98,
+      "end_sec": 407.08,
+      "text": "好像那個很有名的所謂的youtube"
+    },
+    {
+      "segment_id": "video_002_seg_0142",
+      "start_sec": 407.24,
+      "end_sec": 409.82,
+      "text": "哦youtube 的那個高空偵察機"
+    },
+    {
+      "segment_id": "video_002_seg_0143",
+      "start_sec": 410.42,
+      "end_sec": 411.76,
+      "text": "好或者是那個"
+    },
+    {
+      "segment_id": "video_002_seg_0144",
+      "start_sec": 411.92,
+      "end_sec": 413.22,
+      "text": "呃之前那個nq"
+    },
+    {
+      "segment_id": "video_002_seg_0145",
+      "start_sec": 413.22,
+      "end_sec": 415.62,
+      "text": "nq 9 的死神無人機"
+    },
+    {
+      "segment_id": "video_002_seg_0146",
+      "start_sec": 416.06,
+      "end_sec": 417.52,
+      "text": "哦都他們的東西"
+    },
+    {
+      "segment_id": "video_002_seg_0147",
+      "start_sec": 419.22,
+      "end_sec": 419.72,
+      "text": "哦"
+    },
+    {
+      "segment_id": "video_002_seg_0148",
+      "start_sec": 420.22,
+      "end_sec": 423.52,
+      "text": "然後他們的這種偵測"
+    },
+    {
+      "segment_id": "video_002_seg_0149",
+      "start_sec": 424.02,
+      "end_sec": 425.36,
+      "text": "你可以想像一下"
+    },
+    {
+      "segment_id": "video_002_seg_0150",
+      "start_sec": 425.52,
+      "end_sec": 427.92,
+      "text": "他要把這種偵測的模型放在"
+    },
+    {
+      "segment_id": "video_002_seg_0151",
+      "start_sec": 428.26,
+      "end_sec": 429.62,
+      "text": "像是飛彈啊"
+    },
+    {
+      "segment_id": "video_002_seg_0152",
+      "start_sec": 430.02,
+      "end_sec": 431.46,
+      "text": "哦或者是什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0153",
+      "start_sec": 432.02,
+      "end_sec": 433.12,
+      "text": "無人機啊"
+    },
+    {
+      "segment_id": "video_002_seg_0154",
+      "start_sec": 433.26,
+      "end_sec": 437.56,
+      "text": "或者是高空偵察機這種速度這麼快的東西裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0155",
+      "start_sec": 437.9,
+      "end_sec": 442.5,
+      "text": "哦速度這麼速度這麼快的東西裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0156",
+      "start_sec": 442.8,
+      "end_sec": 443.2,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_002_seg_0157",
+      "start_sec": 444.7,
+      "end_sec": 446.8,
+      "text": "這個就這個就有點問題了"
+    },
+    {
+      "segment_id": "video_002_seg_0158",
+      "start_sec": 447.1,
+      "end_sec": 448.76,
+      "text": "哦這就有點問題了為什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0159",
+      "start_sec": 448.92,
+      "end_sec": 451.0,
+      "text": "因為你看哦你可以想像如果他"
+    },
+    {
+      "segment_id": "video_002_seg_0160",
+      "start_sec": 451.1,
+      "end_sec": 453.86,
+      "text": "如果他把這種演算方法放在"
+    },
+    {
+      "segment_id": "video_002_seg_0161",
+      "start_sec": 454.1,
+      "end_sec": 454.46,
+      "text": "呃"
+    },
+    {
+      "segment_id": "video_002_seg_0162",
+      "start_sec": 455.42,
+      "end_sec": 457.8,
+      "text": "武器裡面好放在飛彈裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0163",
+      "start_sec": 457.8,
+      "end_sec": 460.5,
+      "text": "然後飛彈射出去要去追別人的飛機"
+    },
+    {
+      "segment_id": "video_002_seg_0164",
+      "start_sec": 460.8,
+      "end_sec": 462.56,
+      "text": "好那飛彈要去追別人的飛機"
+    },
+    {
+      "segment_id": "video_002_seg_0165",
+      "start_sec": 462.66,
+      "end_sec": 464.46,
+      "text": "那你可以想像一個飛彈裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0166",
+      "start_sec": 464.46,
+      "end_sec": 466.46,
+      "text": "他有可能會去插顯示卡嗎"
+    },
+    {
+      "segment_id": "video_002_seg_0167",
+      "start_sec": 467.1,
+      "end_sec": 470.86,
+      "text": "你你可能把一張4090插在飛彈裡面嗎"
+    },
+    {
+      "segment_id": "video_002_seg_0168",
+      "start_sec": 471.1,
+      "end_sec": 471.76,
+      "text": "好像"
+    },
+    {
+      "segment_id": "video_002_seg_0169",
+      "start_sec": 472.1,
+      "end_sec": 474.56,
+      "text": "這看聽起來怎麼聽怎麼怪對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0170",
+      "start_sec": 474.56,
+      "end_sec": 475.86,
+      "text": "哦不太可能吧"
+    },
+    {
+      "segment_id": "video_002_seg_0171",
+      "start_sec": 476.06,
+      "end_sec": 476.96,
+      "text": "而且呢"
+    },
+    {
+      "segment_id": "video_002_seg_0172",
+      "start_sec": 477.4,
+      "end_sec": 478.1,
+      "text": "他怎樣"
+    },
+    {
+      "segment_id": "video_002_seg_0173",
+      "start_sec": 478.9,
+      "end_sec": 480.8,
+      "text": "那個相對速度超快"
+    },
+    {
+      "segment_id": "video_002_seg_0174",
+      "start_sec": 481.4,
+      "end_sec": 483.0,
+      "text": "哦相對速度超快"
+    },
+    {
+      "segment_id": "video_002_seg_0175",
+      "start_sec": 483.1,
+      "end_sec": 485.2,
+      "text": "如果你的那個fps"
+    },
+    {
+      "segment_id": "video_002_seg_0176",
+      "start_sec": 485.26,
+      "end_sec": 488.4,
+      "text": "就是我們所謂的每秒處理的章數哦"
+    },
+    {
+      "segment_id": "video_002_seg_0177",
+      "start_sec": 488.76,
+      "end_sec": 489.9,
+      "text": "跟不上的話"
+    },
+    {
+      "segment_id": "video_002_seg_0178",
+      "start_sec": 490.8,
+      "end_sec": 493.96,
+      "text": "那還沒等你辨識出來那個飛彈就跟丟了嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0179",
+      "start_sec": 494.9,
+      "end_sec": 496.36,
+      "text": "哦飛彈就跟丟了"
+    },
+    {
+      "segment_id": "video_002_seg_0180",
+      "start_sec": 496.46,
+      "end_sec": 498.7,
+      "text": "所以這個演算法"
+    },
+    {
+      "segment_id": "video_002_seg_0181",
+      "start_sec": 498.86,
+      "end_sec": 500.66,
+      "text": "哦這個演算法很有趣"
+    },
+    {
+      "segment_id": "video_002_seg_0182",
+      "start_sec": 500.66,
+      "end_sec": 504.3,
+      "text": "他跟其他三個演算法差別插在"
+    },
+    {
+      "segment_id": "video_002_seg_0183",
+      "start_sec": 504.42,
+      "end_sec": 506.5,
+      "text": "他最追求的是速度"
+    },
+    {
+      "segment_id": "video_002_seg_0184",
+      "start_sec": 507.3,
+      "end_sec": 508.1,
+      "text": "哦速度"
+    },
+    {
+      "segment_id": "video_002_seg_0185",
+      "start_sec": 509.2,
+      "end_sec": 512.6,
+      "text": "所以他的他可以允許他的框稍微偏一點"
+    },
+    {
+      "segment_id": "video_002_seg_0186",
+      "start_sec": 513.76,
+      "end_sec": 516.76,
+      "text": "哦至少臉的位置有抓到"
+    },
+    {
+      "segment_id": "video_002_seg_0187",
+      "start_sec": 516.9,
+      "end_sec": 520.6,
+      "text": "哦偏了一點那個沒那麼好就再說啦"
+    },
+    {
+      "segment_id": "video_002_seg_0188",
+      "start_sec": 520.76,
+      "end_sec": 523.5,
+      "text": "再說啦速度夠了最重要哦"
+    },
+    {
+      "segment_id": "video_002_seg_0189",
+      "start_sec": 524.5,
+      "end_sec": 526.6,
+      "text": "好那各位你可以看到"
+    },
+    {
+      "segment_id": "video_002_seg_0190",
+      "start_sec": 526.6,
+      "end_sec": 528.44,
+      "text": "這是第二張人臉啊"
+    },
+    {
+      "segment_id": "video_002_seg_0191",
+      "start_sec": 528.44,
+      "end_sec": 529.5,
+      "text": "那老樣子啊"
+    },
+    {
+      "segment_id": "video_002_seg_0192",
+      "start_sec": 529.5,
+      "end_sec": 531.5,
+      "text": "剛剛講的這些特性都在啊"
+    },
+    {
+      "segment_id": "video_002_seg_0193",
+      "start_sec": 531.5,
+      "end_sec": 532.64,
+      "text": "你看這像這個"
+    },
+    {
+      "segment_id": "video_002_seg_0194",
+      "start_sec": 533.0,
+      "end_sec": 534.06,
+      "text": "他一樣嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0195",
+      "start_sec": 534.06,
+      "end_sec": 537.1,
+      "text": "哦這個這個框真的比起來的話"
+    },
+    {
+      "segment_id": "video_002_seg_0196",
+      "start_sec": 537.1,
+      "end_sec": 539.74,
+      "text": "他是最最不好的嘛對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0197",
+      "start_sec": 541.84,
+      "end_sec": 543.5,
+      "text": "好這邊呢是"
+    },
+    {
+      "segment_id": "video_002_seg_0198",
+      "start_sec": 543.74,
+      "end_sec": 546.84,
+      "text": "多人人臉多的時候"
+    },
+    {
+      "segment_id": "video_002_seg_0199",
+      "start_sec": 547.34,
+      "end_sec": 549.54,
+      "text": "來各位你看問題就來了哦"
+    },
+    {
+      "segment_id": "video_002_seg_0200",
+      "start_sec": 549.74,
+      "end_sec": 551.84,
+      "text": "機器學習的方法的那個"
+    },
+    {
+      "segment_id": "video_002_seg_0201",
+      "start_sec": 552.14,
+      "end_sec": 554.4,
+      "text": "那個誤判就開始了哦"
+    },
+    {
+      "segment_id": "video_002_seg_0202",
+      "start_sec": 554.5,
+      "end_sec": 556.5,
+      "text": "你看這邊這個人照理講"
+    },
+    {
+      "segment_id": "video_002_seg_0203",
+      "start_sec": 556.5,
+      "end_sec": 557.64,
+      "text": "他只有一個人頭啊"
+    },
+    {
+      "segment_id": "video_002_seg_0204",
+      "start_sec": 557.64,
+      "end_sec": 559.9,
+      "text": "結果他被不知道為什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0205",
+      "start_sec": 559.9,
+      "end_sec": 561.44,
+      "text": "真稱到兩個人臉"
+    },
+    {
+      "segment_id": "video_002_seg_0206",
+      "start_sec": 562.74,
+      "end_sec": 563.64,
+      "text": "哦對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0207",
+      "start_sec": 563.94,
+      "end_sec": 566.3,
+      "text": "那但是如果你用深入學習方法的話"
+    },
+    {
+      "segment_id": "video_002_seg_0208",
+      "start_sec": 566.3,
+      "end_sec": 568.5,
+      "text": "他這邊就就只會有一個"
+    },
+    {
+      "segment_id": "video_002_seg_0209",
+      "start_sec": 569.24,
+      "end_sec": 570.74,
+      "text": "哦他就只會有一個"
+    },
+    {
+      "segment_id": "video_002_seg_0210",
+      "start_sec": 571.0,
+      "end_sec": 572.54,
+      "text": "那下面這裡呢"
+    },
+    {
+      "segment_id": "video_002_seg_0211",
+      "start_sec": 572.54,
+      "end_sec": 573.66,
+      "text": "哎下面這裡呢"
+    },
+    {
+      "segment_id": "video_002_seg_0212",
+      "start_sec": 573.66,
+      "end_sec": 575.46,
+      "text": "這個就是抓的比較小啊"
+    },
+    {
+      "segment_id": "video_002_seg_0213",
+      "start_sec": 575.46,
+      "end_sec": 577.6,
+      "text": "你可以看到他嘴巴有一半都不見了"
+    },
+    {
+      "segment_id": "video_002_seg_0214",
+      "start_sec": 578.24,
+      "end_sec": 580.24,
+      "text": "對不對他嘴巴有一半都不見了哦"
+    },
+    {
+      "segment_id": "video_002_seg_0215",
+      "start_sec": 580.46,
+      "end_sec": 582.44,
+      "text": "那這個更慘啊"
+    },
+    {
+      "segment_id": "video_002_seg_0216",
+      "start_sec": 582.44,
+      "end_sec": 583.54,
+      "text": "他真的是砍一半"
+    },
+    {
+      "segment_id": "video_002_seg_0217",
+      "start_sec": 583.54,
+      "end_sec": 585.74,
+      "text": "但是他人家要求是速度嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0218",
+      "start_sec": 586.24,
+      "end_sec": 587.88,
+      "text": "哦人家要求是速度"
+    },
+    {
+      "segment_id": "video_002_seg_0219",
+      "start_sec": 589.78,
+      "end_sec": 591.86,
+      "text": "好那既然要速度"
+    },
+    {
+      "segment_id": "video_002_seg_0220",
+      "start_sec": 591.96,
+      "end_sec": 593.02,
+      "text": "他就比速度"
+    },
+    {
+      "segment_id": "video_002_seg_0221",
+      "start_sec": 593.62,
+      "end_sec": 594.06,
+      "text": "哦"
+    },
+    {
+      "segment_id": "video_002_seg_0222",
+      "start_sec": 595.56,
+      "end_sec": 597.42,
+      "text": "一般哦這種東西啊"
+    },
+    {
+      "segment_id": "video_002_seg_0223",
+      "start_sec": 597.56,
+      "end_sec": 600.86,
+      "text": "你只會看到很冰冷的圖表而已哦"
+    },
+    {
+      "segment_id": "video_002_seg_0224",
+      "start_sec": 601.22,
+      "end_sec": 603.06,
+      "text": "這為什麼我一定要把這網址"
+    },
+    {
+      "segment_id": "video_002_seg_0225",
+      "start_sec": 603.16,
+      "end_sec": 605.76,
+      "text": "哦為什麼我一定要把這網址貼給大家呢"
+    },
+    {
+      "segment_id": "video_002_seg_0226",
+      "start_sec": 606.02,
+      "end_sec": 609.06,
+      "text": "因為他下面還有做成所謂的"
+    },
+    {
+      "segment_id": "video_002_seg_0227",
+      "start_sec": 609.76,
+      "end_sec": 611.82,
+      "text": "管動畫給大家看哦"
+    },
+    {
+      "segment_id": "video_002_seg_0228",
+      "start_sec": 612.02,
+      "end_sec": 614.18,
+      "text": "你看像這個右上角"
+    },
+    {
+      "segment_id": "video_002_seg_0229",
+      "start_sec": 614.18,
+      "end_sec": 615.38,
+      "text": "這個是哈爾芬類器"
+    },
+    {
+      "segment_id": "video_002_seg_0230",
+      "start_sec": 615.38,
+      "end_sec": 617.02,
+      "text": "然後後面他還很好心"
+    },
+    {
+      "segment_id": "video_002_seg_0231",
+      "start_sec": 617.02,
+      "end_sec": 619.08,
+      "text": "幫你把fps 都列出來"
+    },
+    {
+      "segment_id": "video_002_seg_0232",
+      "start_sec": 620.08,
+      "end_sec": 622.48,
+      "text": "哦fps 就是 brand per second 啊"
+    },
+    {
+      "segment_id": "video_002_seg_0233",
+      "start_sec": 622.48,
+      "end_sec": 623.78,
+      "text": "每秒幾張啊"
+    },
+    {
+      "segment_id": "video_002_seg_0234",
+      "start_sec": 624.08,
+      "end_sec": 627.22,
+      "text": "哦你看像這個機器學習類的方法"
+    },
+    {
+      "segment_id": "video_002_seg_0235",
+      "start_sec": 627.48,
+      "end_sec": 630.14,
+      "text": "哦他每秒五十幾張效果還不錯"
+    },
+    {
+      "segment_id": "video_002_seg_0236",
+      "start_sec": 630.14,
+      "end_sec": 632.52,
+      "text": "但是來大家注意一下哦"
+    },
+    {
+      "segment_id": "video_002_seg_0237",
+      "start_sec": 633.04,
+      "end_sec": 635.08,
+      "text": "你看當他往前靠的時候"
+    },
+    {
+      "segment_id": "video_002_seg_0238",
+      "start_sec": 635.08,
+      "end_sec": 636.48,
+      "text": "有沒有框不見了"
+    },
+    {
+      "segment_id": "video_002_seg_0239",
+      "start_sec": 638.02,
+      "end_sec": 639.78,
+      "text": "哦等下大家再留一次哦"
+    },
+    {
+      "segment_id": "video_002_seg_0240",
+      "start_sec": 640.04,
+      "end_sec": 641.48,
+      "text": "你看框掉了"
+    },
+    {
+      "segment_id": "video_002_seg_0241",
+      "start_sec": 641.82,
+      "end_sec": 642.52,
+      "text": "為什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0242",
+      "start_sec": 642.98,
+      "end_sec": 644.12,
+      "text": "哦他為什麼框"
+    },
+    {
+      "segment_id": "video_002_seg_0243",
+      "start_sec": 644.38,
+      "end_sec": 645.82,
+      "text": "會突然不見了"
+    },
+    {
+      "segment_id": "video_002_seg_0244",
+      "start_sec": 647.12,
+      "end_sec": 651.18,
+      "text": "好來各位可以留意一下他這個這位"
+    },
+    {
+      "segment_id": "video_002_seg_0245",
+      "start_sec": 651.18,
+      "end_sec": 651.58,
+      "text": "呃"
+    },
+    {
+      "segment_id": "video_002_seg_0246",
+      "start_sec": 652.12,
+      "end_sec": 653.58,
+      "text": "畫面中的這位人"
+    },
+    {
+      "segment_id": "video_002_seg_0247",
+      "start_sec": 653.82,
+      "end_sec": 657.58,
+      "text": "人胸哦他是在拉那個滑船機嘛哦"
+    },
+    {
+      "segment_id": "video_002_seg_0248",
+      "start_sec": 657.78,
+      "end_sec": 659.62,
+      "text": "那你可以看到這前面這個"
+    },
+    {
+      "segment_id": "video_002_seg_0249",
+      "start_sec": 659.92,
+      "end_sec": 661.28,
+      "text": "機器的這個"
+    },
+    {
+      "segment_id": "video_002_seg_0250",
+      "start_sec": 661.58,
+      "end_sec": 663.28,
+      "text": "運動設備的其中一部分"
+    },
+    {
+      "segment_id": "video_002_seg_0251",
+      "start_sec": 663.28,
+      "end_sec": 666.78,
+      "text": "把他的臉給遮住了有沒有遮了一部分"
+    },
+    {
+      "segment_id": "video_002_seg_0252",
+      "start_sec": 667.78,
+      "end_sec": 670.02,
+      "text": "啊遮了一部分之後那個機器學習"
+    },
+    {
+      "segment_id": "video_002_seg_0253",
+      "start_sec": 670.02,
+      "end_sec": 671.68,
+      "text": "因為他要去抓那個位置"
+    },
+    {
+      "segment_id": "video_002_seg_0254",
+      "start_sec": 671.68,
+      "end_sec": 673.94,
+      "text": "跟位置之間的相對關係啊那些的"
+    },
+    {
+      "segment_id": "video_002_seg_0255",
+      "start_sec": 674.08,
+      "end_sec": 676.64,
+      "text": "那些特徵結果你把他臉給遮了一部分"
+    },
+    {
+      "segment_id": "video_002_seg_0256",
+      "start_sec": 676.64,
+      "end_sec": 677.68,
+      "text": "他就掉框了"
+    },
+    {
+      "segment_id": "video_002_seg_0257",
+      "start_sec": 679.24,
+      "end_sec": 680.64,
+      "text": "哦他就掉框了"
+    },
+    {
+      "segment_id": "video_002_seg_0258",
+      "start_sec": 681.28,
+      "end_sec": 681.68,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_002_seg_0259",
+      "start_sec": 683.14,
+      "end_sec": 685.34,
+      "text": "旁邊的這個深度學習就不會"
+    },
+    {
+      "segment_id": "video_002_seg_0260",
+      "start_sec": 685.48,
+      "end_sec": 686.08,
+      "text": "你看"
+    },
+    {
+      "segment_id": "video_002_seg_0261",
+      "start_sec": 686.54,
+      "end_sec": 688.78,
+      "text": "不管你人臉在什麼位置"
+    },
+    {
+      "segment_id": "video_002_seg_0262",
+      "start_sec": 688.78,
+      "end_sec": 690.34,
+      "text": "他都抓得非常的穩"
+    },
+    {
+      "segment_id": "video_002_seg_0263",
+      "start_sec": 690.48,
+      "end_sec": 691.98,
+      "text": "而且他還不會有雜訊"
+    },
+    {
+      "segment_id": "video_002_seg_0264",
+      "start_sec": 691.98,
+      "end_sec": 693.84,
+      "text": "你看像剛剛這個機器學習"
+    },
+    {
+      "segment_id": "video_002_seg_0265",
+      "start_sec": 693.84,
+      "end_sec": 695.34,
+      "text": "他這個地方會有雜框"
+    },
+    {
+      "segment_id": "video_002_seg_0266",
+      "start_sec": 696.52,
+      "end_sec": 698.54,
+      "text": "有沒有哦好"
+    },
+    {
+      "segment_id": "video_002_seg_0267",
+      "start_sec": 698.62,
+      "end_sec": 701.04,
+      "text": "那下面這個呢是"
+    },
+    {
+      "segment_id": "video_002_seg_0268",
+      "start_sec": 701.44,
+      "end_sec": 703.8,
+      "text": "d libe的內建的方法"
+    },
+    {
+      "segment_id": "video_002_seg_0269",
+      "start_sec": 704.04,
+      "end_sec": 706.1,
+      "text": "你看他問題點不一樣哦"
+    },
+    {
+      "segment_id": "video_002_seg_0270",
+      "start_sec": 706.48,
+      "end_sec": 708.4,
+      "text": "那個open cv的這個是"
+    },
+    {
+      "segment_id": "video_002_seg_0271",
+      "start_sec": 709.0,
+      "end_sec": 710.88,
+      "text": "他內建的這個偵測器是"
+    },
+    {
+      "segment_id": "video_002_seg_0272",
+      "start_sec": 710.88,
+      "end_sec": 712.88,
+      "text": "當你人臉往前靠"
+    },
+    {
+      "segment_id": "video_002_seg_0273",
+      "start_sec": 712.88,
+      "end_sec": 715.18,
+      "text": "被機器遮住的時候框會掉"
+    },
+    {
+      "segment_id": "video_002_seg_0274",
+      "start_sec": 715.34,
+      "end_sec": 717.4,
+      "text": "然後旁邊有雜訊對不對"
+    },
+    {
+      "segment_id": "video_002_seg_0275",
+      "start_sec": 717.48,
+      "end_sec": 718.6,
+      "text": "這是他的問題"
+    },
+    {
+      "segment_id": "video_002_seg_0276",
+      "start_sec": 718.88,
+      "end_sec": 721.94,
+      "text": "但是d libe內建的這個偵測器他是怎樣"
+    },
+    {
+      "segment_id": "video_002_seg_0277",
+      "start_sec": 722.24,
+      "end_sec": 723.64,
+      "text": "他沒有掉框"
+    },
+    {
+      "segment_id": "video_002_seg_0278",
+      "start_sec": 723.64,
+      "end_sec": 726.44,
+      "text": "你看他臉到前面被遮住的時候沒有掉"
+    },
+    {
+      "segment_id": "video_002_seg_0279",
+      "start_sec": 726.44,
+      "end_sec": 727.78,
+      "text": "但什麼時候掉這個"
+    },
+    {
+      "segment_id": "video_002_seg_0280",
+      "start_sec": 728.38,
+      "end_sec": 729.08,
+      "text": "剛剛有沒有"
+    },
+    {
+      "segment_id": "video_002_seg_0281",
+      "start_sec": 729.2,
+      "end_sec": 730.74,
+      "text": "大家有看到他後仰"
+    },
+    {
+      "segment_id": "video_002_seg_0282",
+      "start_sec": 731.38,
+      "end_sec": 733.08,
+      "text": "頭往後仰的時候"
+    },
+    {
+      "segment_id": "video_002_seg_0283",
+      "start_sec": 733.38,
+      "end_sec": 734.28,
+      "text": "框就掉了"
+    },
+    {
+      "segment_id": "video_002_seg_0284",
+      "start_sec": 736.99,
+      "end_sec": 738.09,
+      "text": "好再來一次"
+    },
+    {
+      "segment_id": "video_002_seg_0285",
+      "start_sec": 738.45,
+      "end_sec": 739.89,
+      "text": "好你看這邊就掉了"
+    },
+    {
+      "segment_id": "video_002_seg_0286",
+      "start_sec": 739.99,
+      "end_sec": 742.05,
+      "text": "哦所以這兩個的問題"
+    },
+    {
+      "segment_id": "video_002_seg_0287",
+      "start_sec": 742.39,
+      "end_sec": 744.19,
+      "text": "相比之下是不一樣的"
+    },
+    {
+      "segment_id": "video_002_seg_0288",
+      "start_sec": 744.59,
+      "end_sec": 745.95,
+      "text": "那右下角這個呢"
+    },
+    {
+      "segment_id": "video_002_seg_0289",
+      "start_sec": 745.95,
+      "end_sec": 748.15,
+      "text": "大家也都看得到他效果最差"
+    },
+    {
+      "segment_id": "video_002_seg_0290",
+      "start_sec": 748.75,
+      "end_sec": 750.39,
+      "text": "哦你看他這個地方"
+    },
+    {
+      "segment_id": "video_002_seg_0291",
+      "start_sec": 750.39,
+      "end_sec": 751.25,
+      "text": "雖然他不會掉"
+    },
+    {
+      "segment_id": "video_002_seg_0292",
+      "start_sec": 751.25,
+      "end_sec": 752.99,
+      "text": "但是他後仰的時候也會掉"
+    },
+    {
+      "segment_id": "video_002_seg_0293",
+      "start_sec": 752.99,
+      "end_sec": 754.55,
+      "text": "而且他框沒有那麼準"
+    },
+    {
+      "segment_id": "video_002_seg_0294",
+      "start_sec": 755.05,
+      "end_sec": 757.39,
+      "text": "對不對他框沒有像其他人那麼準"
+    },
+    {
+      "segment_id": "video_002_seg_0295",
+      "start_sec": 757.39,
+      "end_sec": 758.69,
+      "text": "但是這個"
+    },
+    {
+      "segment_id": "video_002_seg_0296",
+      "start_sec": 758.99,
+      "end_sec": 761.55,
+      "text": "這個我想就很說明一切了有沒有"
+    },
+    {
+      "segment_id": "video_002_seg_0297",
+      "start_sec": 762.55,
+      "end_sec": 764.75,
+      "text": "他每一秒可以做幾個畫面"
+    },
+    {
+      "segment_id": "video_002_seg_0298",
+      "start_sec": 764.99,
+      "end_sec": 767.15,
+      "text": "300多張兩300張"
+    },
+    {
+      "segment_id": "video_002_seg_0299",
+      "start_sec": 768.95,
+      "end_sec": 770.85,
+      "text": "哦你就可以發現他"
+    },
+    {
+      "segment_id": "video_002_seg_0300",
+      "start_sec": 770.95,
+      "end_sec": 773.05,
+      "text": "他追求的真的就是速度啊"
+    },
+    {
+      "segment_id": "video_002_seg_0301",
+      "start_sec": 773.75,
+      "end_sec": 775.15,
+      "text": "哦真的就是速度"
+    },
+    {
+      "segment_id": "video_002_seg_0302",
+      "start_sec": 775.65,
+      "end_sec": 777.85,
+      "text": "你其他人做的再準也沒有用"
+    },
+    {
+      "segment_id": "video_002_seg_0303",
+      "start_sec": 778.15,
+      "end_sec": 779.55,
+      "text": "哦做的再準沒用"
+    },
+    {
+      "segment_id": "video_002_seg_0304",
+      "start_sec": 779.55,
+      "end_sec": 781.05,
+      "text": "因為你速度不夠快"
+    },
+    {
+      "segment_id": "video_002_seg_0305",
+      "start_sec": 781.35,
+      "end_sec": 782.15,
+      "text": "在那個"
+    },
+    {
+      "segment_id": "video_002_seg_0306",
+      "start_sec": 783.29,
+      "end_sec": 785.19,
+      "text": "那個軍火上面哦"
+    },
+    {
+      "segment_id": "video_002_seg_0307",
+      "start_sec": 785.19,
+      "end_sec": 786.95,
+      "text": "你坐在飛彈上面的時候"
+    },
+    {
+      "segment_id": "video_002_seg_0308",
+      "start_sec": 787.05,
+      "end_sec": 788.55,
+      "text": "等你算完一張的框"
+    },
+    {
+      "segment_id": "video_002_seg_0309",
+      "start_sec": 788.55,
+      "end_sec": 790.75,
+      "text": "那個飛機爪都飛走了"
+    },
+    {
+      "segment_id": "video_002_seg_0310",
+      "start_sec": 791.29,
+      "end_sec": 792.29,
+      "text": "太慢了沒用"
+    },
+    {
+      "segment_id": "video_002_seg_0311",
+      "start_sec": 793.59,
+      "end_sec": 795.25,
+      "text": "哦所以他這個"
+    },
+    {
+      "segment_id": "video_002_seg_0312",
+      "start_sec": 795.75,
+      "end_sec": 797.75,
+      "text": "這個演算法的特色在這裡"
+    },
+    {
+      "segment_id": "video_002_seg_0313",
+      "start_sec": 798.55,
+      "end_sec": 800.55,
+      "text": "好那你可以繼續往下看"
+    },
+    {
+      "segment_id": "video_002_seg_0314",
+      "start_sec": 800.55,
+      "end_sec": 802.75,
+      "text": "下面這個就是比較動態"
+    },
+    {
+      "segment_id": "video_002_seg_0315",
+      "start_sec": 802.75,
+      "end_sec": 804.05,
+      "text": "沒有比較靜態"
+    },
+    {
+      "segment_id": "video_002_seg_0316",
+      "start_sec": 804.75,
+      "end_sec": 806.65,
+      "text": "你看機器學習類的方法"
+    },
+    {
+      "segment_id": "video_002_seg_0317",
+      "start_sec": 806.65,
+      "end_sec": 809.15,
+      "text": "他的這個就是他的最大的問題"
+    },
+    {
+      "segment_id": "video_002_seg_0318",
+      "start_sec": 809.15,
+      "end_sec": 813.49,
+      "text": "啊因為他當初都是根據人的正臉"
+    },
+    {
+      "segment_id": "video_002_seg_0319",
+      "start_sec": 813.65,
+      "end_sec": 816.05,
+      "text": "哦就是正面的臉部的特徵"
+    },
+    {
+      "segment_id": "video_002_seg_0320",
+      "start_sec": 816.25,
+      "end_sec": 817.55,
+      "text": "去做運算的"
+    },
+    {
+      "segment_id": "video_002_seg_0321",
+      "start_sec": 817.65,
+      "end_sec": 818.99,
+      "text": "那你運算完了之後"
+    },
+    {
+      "segment_id": "video_002_seg_0322",
+      "start_sec": 818.99,
+      "end_sec": 822.65,
+      "text": "你人的那個臉哦一往下一低頭"
+    },
+    {
+      "segment_id": "video_002_seg_0323",
+      "start_sec": 822.65,
+      "end_sec": 823.89,
+      "text": "他就抓不到啦"
+    },
+    {
+      "segment_id": "video_002_seg_0324",
+      "start_sec": 824.05,
+      "end_sec": 827.93,
+      "text": "因為他是他是根據人的臉部正面特徵嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0325",
+      "start_sec": 827.99,
+      "end_sec": 830.73,
+      "text": "那你頭低下去特徵跑掉了就不見了"
+    },
+    {
+      "segment_id": "video_002_seg_0326",
+      "start_sec": 831.09,
+      "end_sec": 833.59,
+      "text": "有沒有那深度學習呢"
+    },
+    {
+      "segment_id": "video_002_seg_0327",
+      "start_sec": 833.89,
+      "end_sec": 837.63,
+      "text": "深度學習是讓那個模型自己去抓特徵嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0328",
+      "start_sec": 838.43,
+      "end_sec": 840.73,
+      "text": "那他比較沒有人的干預"
+    },
+    {
+      "segment_id": "video_002_seg_0329",
+      "start_sec": 840.73,
+      "end_sec": 843.23,
+      "text": "所以你會發現哎這個地方效果還不錯"
+    },
+    {
+      "segment_id": "video_002_seg_0330",
+      "start_sec": 843.53,
+      "end_sec": 845.73,
+      "text": "頭低下去了他這樣抓出來"
+    },
+    {
+      "segment_id": "video_002_seg_0331",
+      "start_sec": 846.07,
+      "end_sec": 849.87,
+      "text": "好那這邊也一樣了"
+    },
+    {
+      "segment_id": "video_002_seg_0332",
+      "start_sec": 850.17,
+      "end_sec": 851.97,
+      "text": "剛剛是低頭現在是側臉"
+    },
+    {
+      "segment_id": "video_002_seg_0333",
+      "start_sec": 854.1,
+      "end_sec": 855.5,
+      "text": "哦還有"
+    },
+    {
+      "segment_id": "video_002_seg_0334",
+      "start_sec": 856.3,
+      "end_sec": 857.5,
+      "text": "這個更難"
+    },
+    {
+      "segment_id": "video_002_seg_0335",
+      "start_sec": 858.4,
+      "end_sec": 861.7,
+      "text": "哦剛剛是側臉至少還有光"
+    },
+    {
+      "segment_id": "video_002_seg_0336",
+      "start_sec": 862.1,
+      "end_sec": 864.1,
+      "text": "哦至少他有光人的"
+    },
+    {
+      "segment_id": "video_002_seg_0337",
+      "start_sec": 864.5,
+      "end_sec": 866.66,
+      "text": "人的這個五官還看得到"
+    },
+    {
+      "segment_id": "video_002_seg_0338",
+      "start_sec": 867.0,
+      "end_sec": 868.8,
+      "text": "只是少了一個眼睛而已"
+    },
+    {
+      "segment_id": "video_002_seg_0339",
+      "start_sec": 869.7,
+      "end_sec": 871.2,
+      "text": "在下面這個嘞哇賽"
+    },
+    {
+      "segment_id": "video_002_seg_0340",
+      "start_sec": 872.7,
+      "end_sec": 877.1,
+      "text": "又低頭哦然後光線又很差"
+    },
+    {
+      "segment_id": "video_002_seg_0341",
+      "start_sec": 878.0,
+      "end_sec": 880.56,
+      "text": "哦那這種那個你就會看到機器"
+    },
+    {
+      "segment_id": "video_002_seg_0342",
+      "start_sec": 881.06,
+      "end_sec": 884.46,
+      "text": "那個機器學習幾個演算法都爆掉了"
+    },
+    {
+      "segment_id": "video_002_seg_0343",
+      "start_sec": 884.56,
+      "end_sec": 886.46,
+      "text": "哦這個是地獄模式啊"
+    },
+    {
+      "segment_id": "video_002_seg_0344",
+      "start_sec": 886.66,
+      "end_sec": 887.36,
+      "text": "就剩"
+    },
+    {
+      "segment_id": "video_002_seg_0345",
+      "start_sec": 887.66,
+      "end_sec": 888.56,
+      "text": "那個"
+    },
+    {
+      "segment_id": "video_002_seg_0346",
+      "start_sec": 888.76,
+      "end_sec": 892.96,
+      "text": "呃那個open cv 裡面搭配深度學習的這個"
+    },
+    {
+      "segment_id": "video_002_seg_0347",
+      "start_sec": 893.22,
+      "end_sec": 895.76,
+      "text": "這個方法還是抓得到"
+    },
+    {
+      "segment_id": "video_002_seg_0348",
+      "start_sec": 896.3,
+      "end_sec": 898.46,
+      "text": "哦就剩他效果最好"
+    },
+    {
+      "segment_id": "video_002_seg_0349",
+      "start_sec": 900.2,
+      "end_sec": 903.66,
+      "text": "好那這個一樣啦哦換另外一邊低頭吧"
+    },
+    {
+      "segment_id": "video_002_seg_0350",
+      "start_sec": 904.3,
+      "end_sec": 907.06,
+      "text": "好那也是右邊這兩個再抓出來"
+    },
+    {
+      "segment_id": "video_002_seg_0351",
+      "start_sec": 908.1,
+      "end_sec": 909.56,
+      "text": "好那下面這個也是啊"
+    },
+    {
+      "segment_id": "video_002_seg_0352",
+      "start_sec": 910.22,
+      "end_sec": 911.82,
+      "text": "兩個人臉"
+    },
+    {
+      "segment_id": "video_002_seg_0353",
+      "start_sec": 912.42,
+      "end_sec": 913.26,
+      "text": "但是怎樣"
+    },
+    {
+      "segment_id": "video_002_seg_0354",
+      "start_sec": 913.42,
+      "end_sec": 915.72,
+      "text": "但是是一個有側臉啊"
+    },
+    {
+      "segment_id": "video_002_seg_0355",
+      "start_sec": 915.72,
+      "end_sec": 919.56,
+      "text": "像這個男生的部分啊他臉側一邊啊"
+    },
+    {
+      "segment_id": "video_002_seg_0356",
+      "start_sec": 919.76,
+      "end_sec": 920.96,
+      "text": "那這個小朋友呢"
+    },
+    {
+      "segment_id": "video_002_seg_0357",
+      "start_sec": 920.96,
+      "end_sec": 924.26,
+      "text": "哎他他頭是稍微有點抬起來的"
+    },
+    {
+      "segment_id": "video_002_seg_0358",
+      "start_sec": 924.66,
+      "end_sec": 925.56,
+      "text": "哦那"
+    },
+    {
+      "segment_id": "video_002_seg_0359",
+      "start_sec": 925.96,
+      "end_sec": 929.26,
+      "text": "看啊右邊這兩個都還抓到吧"
+    },
+    {
+      "segment_id": "video_002_seg_0360",
+      "start_sec": 931.06,
+      "end_sec": 933.46,
+      "text": "好那這個就是標準的哦"
+    },
+    {
+      "segment_id": "video_002_seg_0361",
+      "start_sec": 933.46,
+      "end_sec": 935.12,
+      "text": "這個就是標準的"
+    },
+    {
+      "segment_id": "video_002_seg_0362",
+      "start_sec": 935.78,
+      "end_sec": 937.46,
+      "text": "讓大家可以看到"
+    },
+    {
+      "segment_id": "video_002_seg_0363",
+      "start_sec": 937.46,
+      "end_sec": 940.02,
+      "text": "機器學習跟深度學習的差別的地方"
+    },
+    {
+      "segment_id": "video_002_seg_0364",
+      "start_sec": 940.32,
+      "end_sec": 943.32,
+      "text": "你看哦機器學習因為他這個是正臉啊"
+    },
+    {
+      "segment_id": "video_002_seg_0365",
+      "start_sec": 943.32,
+      "end_sec": 945.62,
+      "text": "他這個算是正面的臉"
+    },
+    {
+      "segment_id": "video_002_seg_0366",
+      "start_sec": 946.02,
+      "end_sec": 946.76,
+      "text": "所以你看"
+    },
+    {
+      "segment_id": "video_002_seg_0367",
+      "start_sec": 947.46,
+      "end_sec": 948.62,
+      "text": "大家都抓到啊"
+    },
+    {
+      "segment_id": "video_002_seg_0368",
+      "start_sec": 948.96,
+      "end_sec": 950.86,
+      "text": "哦這種正臉的很簡單"
+    },
+    {
+      "segment_id": "video_002_seg_0369",
+      "start_sec": 950.86,
+      "end_sec": 951.86,
+      "text": "大家都抓到"
+    },
+    {
+      "segment_id": "video_002_seg_0370",
+      "start_sec": 952.16,
+      "end_sec": 955.02,
+      "text": "但是側臉的呢哦就只有這個抓到"
+    },
+    {
+      "segment_id": "video_002_seg_0371",
+      "start_sec": 956.96,
+      "end_sec": 957.9,
+      "text": "好所以"
+    },
+    {
+      "segment_id": "video_002_seg_0372",
+      "start_sec": 958.9,
+      "end_sec": 960.2,
+      "text": "還是有差距的"
+    },
+    {
+      "segment_id": "video_002_seg_0373",
+      "start_sec": 960.4,
+      "end_sec": 961.5,
+      "text": "哦還是有差距的"
+    },
+    {
+      "segment_id": "video_002_seg_0374",
+      "start_sec": 961.5,
+      "end_sec": 962.76,
+      "text": "而且下面你看哦"
+    },
+    {
+      "segment_id": "video_002_seg_0375",
+      "start_sec": 962.76,
+      "end_sec": 965.3,
+      "text": "他他還做了更多的實驗給你看哦"
+    },
+    {
+      "segment_id": "video_002_seg_0376",
+      "start_sec": 965.64,
+      "end_sec": 969.1,
+      "text": "如果是哦如果你是用那個手"
+    },
+    {
+      "segment_id": "video_002_seg_0377",
+      "start_sec": 969.9,
+      "end_sec": 971.44,
+      "text": "把臉給遮住了哦"
+    },
+    {
+      "segment_id": "video_002_seg_0378",
+      "start_sec": 971.44,
+      "end_sec": 973.0,
+      "text": "這個被遮了半張臉"
+    },
+    {
+      "segment_id": "video_002_seg_0379",
+      "start_sec": 973.34,
+      "end_sec": 974.54,
+      "text": "哎抓不到"
+    },
+    {
+      "segment_id": "video_002_seg_0380",
+      "start_sec": 975.94,
+      "end_sec": 978.44,
+      "text": "哦因為他臉部整體特徵不見"
+    },
+    {
+      "segment_id": "video_002_seg_0381",
+      "start_sec": 978.74,
+      "end_sec": 980.9,
+      "text": "但是深度學習還是拉得出來"
+    },
+    {
+      "segment_id": "video_002_seg_0382",
+      "start_sec": 981.2,
+      "end_sec": 984.94,
+      "text": "好那這個是比上半額頭上半部被遮住"
+    },
+    {
+      "segment_id": "video_002_seg_0383",
+      "start_sec": 985.54,
+      "end_sec": 987.04,
+      "text": "哦那他還是抓到"
+    },
+    {
+      "segment_id": "video_002_seg_0384",
+      "start_sec": 988.2,
+      "end_sec": 991.28,
+      "text": "哦好所以"
+    },
+    {
+      "segment_id": "video_002_seg_0385",
+      "start_sec": 991.64,
+      "end_sec": 992.58,
+      "text": "這個就是"
+    },
+    {
+      "segment_id": "video_002_seg_0386",
+      "start_sec": 993.58,
+      "end_sec": 994.98,
+      "text": "結論啊"
+    },
+    {
+      "segment_id": "video_002_seg_0387",
+      "start_sec": 994.98,
+      "end_sec": 997.38,
+      "text": "哦就是他這一篇文章"
+    },
+    {
+      "segment_id": "video_002_seg_0388",
+      "start_sec": 997.48,
+      "end_sec": 999.58,
+      "text": "呃帶給大家的結論就是說"
+    },
+    {
+      "segment_id": "video_002_seg_0389",
+      "start_sec": 1000.52,
+      "end_sec": 1001.58,
+      "text": "其實沒有"
+    },
+    {
+      "segment_id": "video_002_seg_0390",
+      "start_sec": 1002.88,
+      "end_sec": 1003.98,
+      "text": "100%"
+    },
+    {
+      "segment_id": "video_002_seg_0391",
+      "start_sec": 1004.48,
+      "end_sec": 1005.72,
+      "text": "完美的做法"
+    },
+    {
+      "segment_id": "video_002_seg_0392",
+      "start_sec": 1006.18,
+      "end_sec": 1009.48,
+      "text": "要看你要應用在什麼樣的情境"
+    },
+    {
+      "segment_id": "video_002_seg_0393",
+      "start_sec": 1009.88,
+      "end_sec": 1011.62,
+      "text": "哦你說深度"
+    },
+    {
+      "segment_id": "video_002_seg_0394",
+      "start_sec": 1011.62,
+      "end_sec": 1013.38,
+      "text": "你說那個open cv"
+    },
+    {
+      "segment_id": "video_002_seg_0395",
+      "start_sec": 1013.38,
+      "end_sec": 1015.32,
+      "text": "搭配深度學習的這個模型"
+    },
+    {
+      "segment_id": "video_002_seg_0396",
+      "start_sec": 1015.62,
+      "end_sec": 1017.22,
+      "text": "他的效果一定最好嗎"
+    },
+    {
+      "segment_id": "video_002_seg_0397",
+      "start_sec": 1017.32,
+      "end_sec": 1019.48,
+      "text": "哦不一定因為他的速度慢"
+    },
+    {
+      "segment_id": "video_002_seg_0398",
+      "start_sec": 1019.98,
+      "end_sec": 1023.98,
+      "text": "所以如果今天你對那個延遲"
+    },
+    {
+      "segment_id": "video_002_seg_0399",
+      "start_sec": 1024.22,
+      "end_sec": 1026.28,
+      "text": "哦比較有敏感需求的話"
+    },
+    {
+      "segment_id": "video_002_seg_0400",
+      "start_sec": 1026.28,
+      "end_sec": 1027.48,
+      "text": "這種就不能用嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0401",
+      "start_sec": 1028.42,
+      "end_sec": 1029.62,
+      "text": "哦這種就不能用"
+    },
+    {
+      "segment_id": "video_002_seg_0402",
+      "start_sec": 1029.82,
+      "end_sec": 1030.22,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_002_seg_0403",
+      "start_sec": 1030.82,
+      "end_sec": 1034.32,
+      "text": "如果你今天是那種設備所謂的"
+    },
+    {
+      "segment_id": "video_002_seg_0404",
+      "start_sec": 1034.32,
+      "end_sec": 1035.58,
+      "text": "潛入式系統"
+    },
+    {
+      "segment_id": "video_002_seg_0405",
+      "start_sec": 1036.18,
+      "end_sec": 1037.68,
+      "text": "哦他的運算能力很差"
+    },
+    {
+      "segment_id": "video_002_seg_0406",
+      "start_sec": 1037.68,
+      "end_sec": 1039.88,
+      "text": "像是adjuno啊那種東西的話"
+    },
+    {
+      "segment_id": "video_002_seg_0407",
+      "start_sec": 1040.28,
+      "end_sec": 1043.48,
+      "text": "那你用這種機器學習類的方法"
+    },
+    {
+      "segment_id": "video_002_seg_0408",
+      "start_sec": 1043.88,
+      "end_sec": 1045.24,
+      "text": "哦他可以在面跑啊"
+    },
+    {
+      "segment_id": "video_002_seg_0409",
+      "start_sec": 1045.24,
+      "end_sec": 1048.52,
+      "text": "因為他的模型全中才800k而已啊"
+    },
+    {
+      "segment_id": "video_002_seg_0410",
+      "start_sec": 1049.64,
+      "end_sec": 1051.28,
+      "text": "哦很小啊不像"
+    },
+    {
+      "segment_id": "video_002_seg_0411",
+      "start_sec": 1051.38,
+      "end_sec": 1053.38,
+      "text": "那個深度學習動不動就給你"
+    },
+    {
+      "segment_id": "video_002_seg_0412",
+      "start_sec": 1053.58,
+      "end_sec": 1055.88,
+      "text": "即時n哦即時nb啊"
+    },
+    {
+      "segment_id": "video_002_seg_0413",
+      "start_sec": 1056.28,
+      "end_sec": 1058.48,
+      "text": "哦那他跑的動"
+    },
+    {
+      "segment_id": "video_002_seg_0414",
+      "start_sec": 1059.22,
+      "end_sec": 1060.44,
+      "text": "哦但是"
+    },
+    {
+      "segment_id": "video_002_seg_0415",
+      "start_sec": 1061.82,
+      "end_sec": 1064.28,
+      "text": "只要當初設定的"
+    },
+    {
+      "segment_id": "video_002_seg_0416",
+      "start_sec": 1065.34,
+      "end_sec": 1067.64,
+      "text": "角度也好或者是"
+    },
+    {
+      "segment_id": "video_002_seg_0417",
+      "start_sec": 1068.14,
+      "end_sec": 1070.48,
+      "text": "光線的強度也好那些一偏"
+    },
+    {
+      "segment_id": "video_002_seg_0418",
+      "start_sec": 1070.72,
+      "end_sec": 1072.54,
+      "text": "好那他特徵就找不到了"
+    },
+    {
+      "segment_id": "video_002_seg_0419",
+      "start_sec": 1073.44,
+      "end_sec": 1075.18,
+      "text": "哦那他特徵就找不到了"
+    },
+    {
+      "segment_id": "video_002_seg_0420",
+      "start_sec": 1075.98,
+      "end_sec": 1077.54,
+      "text": "所以各自有各自的好處啊"
+    },
+    {
+      "segment_id": "video_002_seg_0421",
+      "start_sec": 1077.54,
+      "end_sec": 1080.5,
+      "text": "大家可以選按照你的情境"
+    },
+    {
+      "segment_id": "video_002_seg_0422",
+      "start_sec": 1080.5,
+      "end_sec": 1082.6,
+      "text": "來選擇你要用哪一種"
+    },
+    {
+      "segment_id": "video_002_seg_0423",
+      "start_sec": 1087.35,
+      "end_sec": 1090.49,
+      "text": "那這邊呢就是呃優漏呃優漏"
+    },
+    {
+      "segment_id": "video_002_seg_0424",
+      "start_sec": 1090.49,
+      "end_sec": 1092.49,
+      "text": "跟dlive的差異啦哦"
+    },
+    {
+      "segment_id": "video_002_seg_0425",
+      "start_sec": 1092.69,
+      "end_sec": 1092.99,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_002_seg_0426",
+      "start_sec": 1093.63,
+      "end_sec": 1095.43,
+      "text": "為什麼選這兩個來比"
+    },
+    {
+      "segment_id": "video_002_seg_0427",
+      "start_sec": 1095.43,
+      "end_sec": 1098.43,
+      "text": "因為兩個都有現成的可以用"
+    },
+    {
+      "segment_id": "video_002_seg_0428",
+      "start_sec": 1099.79,
+      "end_sec": 1103.35,
+      "text": "好優漏官方預設了八十幾種"
+    },
+    {
+      "segment_id": "video_002_seg_0429",
+      "start_sec": 1103.63,
+      "end_sec": 1107.09,
+      "text": "哦八十幾種現成的權重可以讓你拿來用"
+    },
+    {
+      "segment_id": "video_002_seg_0430",
+      "start_sec": 1107.39,
+      "end_sec": 1108.63,
+      "text": "就是我剛剛講的嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0431",
+      "start_sec": 1108.93,
+      "end_sec": 1111.39,
+      "text": "他同時可以認出八十幾種物品"
+    },
+    {
+      "segment_id": "video_002_seg_0432",
+      "start_sec": 1111.39,
+      "end_sec": 1113.15,
+      "text": "像人啊車子啊"
+    },
+    {
+      "segment_id": "video_002_seg_0433",
+      "start_sec": 1113.49,
+      "end_sec": 1115.29,
+      "text": "一些簡單的家具啊"
+    },
+    {
+      "segment_id": "video_002_seg_0434",
+      "start_sec": 1115.45,
+      "end_sec": 1117.29,
+      "text": "哦那個小動物啊"
+    },
+    {
+      "segment_id": "video_002_seg_0435",
+      "start_sec": 1117.69,
+      "end_sec": 1119.49,
+      "text": "這種東西他都認得出來"
+    },
+    {
+      "segment_id": "video_002_seg_0436",
+      "start_sec": 1119.73,
+      "end_sec": 1121.33,
+      "text": "但是他模型大嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0437",
+      "start_sec": 1122.23,
+      "end_sec": 1123.53,
+      "text": "哦但是他模型大"
+    },
+    {
+      "segment_id": "video_002_seg_0438",
+      "start_sec": 1123.59,
+      "end_sec": 1124.93,
+      "text": "那這個dlive呢"
+    },
+    {
+      "segment_id": "video_002_seg_0439",
+      "start_sec": 1125.29,
+      "end_sec": 1127.69,
+      "text": "dlive他也有很多現有的模型"
+    },
+    {
+      "segment_id": "video_002_seg_0440",
+      "start_sec": 1127.83,
+      "end_sec": 1129.13,
+      "text": "好為什麼會這樣講呢"
+    },
+    {
+      "segment_id": "video_002_seg_0441",
+      "start_sec": 1129.13,
+      "end_sec": 1130.03,
+      "text": "因為這個"
+    },
+    {
+      "segment_id": "video_002_seg_0442",
+      "start_sec": 1130.43,
+      "end_sec": 1132.59,
+      "text": "呃這個套件哦"
+    },
+    {
+      "segment_id": "video_002_seg_0443",
+      "start_sec": 1132.83,
+      "end_sec": 1136.39,
+      "text": "他的他大概算是目前我們看到的"
+    },
+    {
+      "segment_id": "video_002_seg_0444",
+      "start_sec": 1136.39,
+      "end_sec": 1136.69,
+      "text": "這"
+    },
+    {
+      "segment_id": "video_002_seg_0445",
+      "start_sec": 1137.09,
+      "end_sec": 1139.89,
+      "text": "這幾個套件裡面歷史最悠久的"
+    },
+    {
+      "segment_id": "video_002_seg_0446",
+      "start_sec": 1141.59,
+      "end_sec": 1144.59,
+      "text": "哦歷史最悠久的很多那個"
+    },
+    {
+      "segment_id": "video_002_seg_0447",
+      "start_sec": 1145.39,
+      "end_sec": 1145.89,
+      "text": "呃"
+    },
+    {
+      "segment_id": "video_002_seg_0448",
+      "start_sec": 1148.17,
+      "end_sec": 1152.07,
+      "text": "製造業現場所採用的簽入式系統"
+    },
+    {
+      "segment_id": "video_002_seg_0449",
+      "start_sec": 1153.01,
+      "end_sec": 1155.21,
+      "text": "都是用這個dlive開發的"
+    },
+    {
+      "segment_id": "video_002_seg_0450",
+      "start_sec": 1156.27,
+      "end_sec": 1158.51,
+      "text": "所以他有時候你公司內部"
+    },
+    {
+      "segment_id": "video_002_seg_0451",
+      "start_sec": 1158.51,
+      "end_sec": 1160.91,
+      "text": "已經有很多現成的東西可以用"
+    },
+    {
+      "segment_id": "video_002_seg_0452",
+      "start_sec": 1162.21,
+      "end_sec": 1163.61,
+      "text": "好所以這個是"
+    },
+    {
+      "segment_id": "video_002_seg_0453",
+      "start_sec": 1164.71,
+      "end_sec": 1166.71,
+      "text": "呃他們之間的差別啦"
+    },
+    {
+      "segment_id": "video_002_seg_0454",
+      "start_sec": 1169.16,
+      "end_sec": 1170.8,
+      "text": "好ok 那"
+    },
+    {
+      "segment_id": "video_002_seg_0455",
+      "start_sec": 1171.3,
+      "end_sec": 1172.1,
+      "text": "我們"
+    },
+    {
+      "segment_id": "video_002_seg_0456",
+      "start_sec": 1173.04,
+      "end_sec": 1175.8,
+      "text": "大概了解的這三種東西之後"
+    },
+    {
+      "segment_id": "video_002_seg_0457",
+      "start_sec": 1180.56,
+      "end_sec": 1182.16,
+      "text": "我們可以來看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0458",
+      "start_sec": 1186.56,
+      "end_sec": 1190.44,
+      "text": "好各位直接在這個搜索的地方打"
+    },
+    {
+      "segment_id": "video_002_seg_0459",
+      "start_sec": 1190.44,
+      "end_sec": 1191.84,
+      "text": "spider就可以了"
+    },
+    {
+      "segment_id": "video_002_seg_0460",
+      "start_sec": 1195.92,
+      "end_sec": 1198.22,
+      "text": "好因為各位都裝了anaconda嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0461",
+      "start_sec": 1198.42,
+      "end_sec": 1200.62,
+      "text": "啊直接spider就可以了"
+    },
+    {
+      "segment_id": "video_002_seg_0462",
+      "start_sec": 1206.18,
+      "end_sec": 1207.78,
+      "text": "好為什麼可以呢"
+    },
+    {
+      "segment_id": "video_002_seg_0463",
+      "start_sec": 1213.01,
+      "end_sec": 1214.45,
+      "text": "來他在這裡有"
+    },
+    {
+      "segment_id": "video_002_seg_0464",
+      "start_sec": 1217.15,
+      "end_sec": 1217.99,
+      "text": "anaconda"
+    },
+    {
+      "segment_id": "video_002_seg_0465",
+      "start_sec": 1219.19,
+      "end_sec": 1219.65,
+      "text": "這個"
+    },
+    {
+      "segment_id": "video_002_seg_0466",
+      "start_sec": 1221.83,
+      "end_sec": 1223.89,
+      "text": "啊他預設會內建在裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0467",
+      "start_sec": 1224.89,
+      "end_sec": 1228.79,
+      "text": "不過他預設內建的這個東西是裝在"
+    },
+    {
+      "segment_id": "video_002_seg_0468",
+      "start_sec": 1230.99,
+      "end_sec": 1232.49,
+      "text": "沒有就是"
+    },
+    {
+      "segment_id": "video_002_seg_0469",
+      "start_sec": 1233.89,
+      "end_sec": 1236.59,
+      "text": "我不太確定各位有沒有開虛擬環境啊"
+    },
+    {
+      "segment_id": "video_002_seg_0470",
+      "start_sec": 1236.59,
+      "end_sec": 1238.19,
+      "text": "我記得之前都會"
+    },
+    {
+      "segment_id": "video_002_seg_0471",
+      "start_sec": 1238.43,
+      "end_sec": 1240.19,
+      "text": "都會請各位開哦"
+    },
+    {
+      "segment_id": "video_002_seg_0472",
+      "start_sec": 1240.33,
+      "end_sec": 1244.79,
+      "text": "那他預設的這個啊spider是安裝在那個"
+    },
+    {
+      "segment_id": "video_002_seg_0473",
+      "start_sec": 1245.13,
+      "end_sec": 1246.03,
+      "text": "最外層"
+    },
+    {
+      "segment_id": "video_002_seg_0474",
+      "start_sec": 1246.49,
+      "end_sec": 1250.13,
+      "text": "哦最外層也就是沒有啟動距離環境的那一層"
+    },
+    {
+      "segment_id": "video_002_seg_0475",
+      "start_sec": 1250.47,
+      "end_sec": 1252.13,
+      "text": "那如果你要"
+    },
+    {
+      "segment_id": "video_002_seg_0476",
+      "start_sec": 1252.37,
+      "end_sec": 1254.93,
+      "text": "安裝在虛擬環境裡面的話"
+    },
+    {
+      "segment_id": "video_002_seg_0477",
+      "start_sec": 1255.19,
+      "end_sec": 1255.77,
+      "text": "哦那"
+    },
+    {
+      "segment_id": "video_002_seg_0478",
+      "start_sec": 1256.37,
+      "end_sec": 1259.27,
+      "text": "如果沒有哦如果沒有的話"
+    },
+    {
+      "segment_id": "video_002_seg_0479",
+      "start_sec": 1259.43,
+      "end_sec": 1262.57,
+      "text": "你可以用pip install再去把它裝進去"
+    },
+    {
+      "segment_id": "video_002_seg_0480",
+      "start_sec": 1262.83,
+      "end_sec": 1263.87,
+      "text": "好什麼意思呢"
+    },
+    {
+      "segment_id": "video_002_seg_0481",
+      "start_sec": 1272.05,
+      "end_sec": 1276.35,
+      "text": "哦就是我們一開始不都是在bass裡面嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0482",
+      "start_sec": 1277.31,
+      "end_sec": 1280.37,
+      "text": "哦我們一開始都是在bass裡面"
+    },
+    {
+      "segment_id": "video_002_seg_0483",
+      "start_sec": 1280.61,
+      "end_sec": 1284.21,
+      "text": "啊那這個bass就是代表完全沒有再去裝"
+    },
+    {
+      "segment_id": "video_002_seg_0484",
+      "start_sec": 1284.21,
+      "end_sec": 1285.35,
+      "text": "虛擬環境啊"
+    },
+    {
+      "segment_id": "video_002_seg_0485",
+      "start_sec": 1286.25,
+      "end_sec": 1290.05,
+      "text": "好那如果你要啟動你的虛擬環境"
+    },
+    {
+      "segment_id": "video_002_seg_0486",
+      "start_sec": 1290.05,
+      "end_sec": 1291.55,
+      "text": "就是你自己去打馬"
+    },
+    {
+      "segment_id": "video_002_seg_0487",
+      "start_sec": 1291.75,
+      "end_sec": 1294.75,
+      "text": "activate哦你的虛擬環境名稱嘛"
+    },
+    {
+      "segment_id": "video_002_seg_0488",
+      "start_sec": 1296.82,
+      "end_sec": 1299.92,
+      "text": "好那如果你的虛擬環境裡面沒有"
+    },
+    {
+      "segment_id": "video_002_seg_0489",
+      "start_sec": 1300.12,
+      "end_sec": 1302.22,
+      "text": "沒有spider的話"
+    },
+    {
+      "segment_id": "video_002_seg_0490",
+      "start_sec": 1302.42,
+      "end_sec": 1305.46,
+      "text": "你就直接你就直接安裝就好了"
+    },
+    {
+      "segment_id": "video_002_seg_0491",
+      "start_sec": 1309.25,
+      "end_sec": 1311.05,
+      "text": "哦這樣子就可以把它裝進去了"
+    },
+    {
+      "segment_id": "video_002_seg_0492",
+      "start_sec": 1311.05,
+      "end_sec": 1312.07,
+      "text": "我這邊是不裝了"
+    },
+    {
+      "segment_id": "video_002_seg_0493",
+      "start_sec": 1312.07,
+      "end_sec": 1313.31,
+      "text": "因為我原本就有了"
+    },
+    {
+      "segment_id": "video_002_seg_0494",
+      "start_sec": 1314.07,
+      "end_sec": 1316.75,
+      "text": "哦我這邊就不裝了我原本就有了"
+    },
+    {
+      "segment_id": "video_002_seg_0495",
+      "start_sec": 1316.85,
+      "end_sec": 1318.75,
+      "text": "pip install spider就好了"
+    },
+    {
+      "segment_id": "video_002_seg_0496",
+      "start_sec": 1318.95,
+      "end_sec": 1320.65,
+      "text": "然後裝完了之後"
+    },
+    {
+      "segment_id": "video_002_seg_0497",
+      "start_sec": 1323.0,
+      "end_sec": 1324.84,
+      "text": "來我我把它關掉"
+    },
+    {
+      "segment_id": "video_002_seg_0498",
+      "start_sec": 1328.77,
+      "end_sec": 1331.61,
+      "text": "好如果裝完了之後你就直接"
+    },
+    {
+      "segment_id": "video_002_seg_0499",
+      "start_sec": 1332.61,
+      "end_sec": 1334.07,
+      "text": "在這邊打spider"
+    },
+    {
+      "segment_id": "video_002_seg_0500",
+      "start_sec": 1345.0,
+      "end_sec": 1346.84,
+      "text": "好他系統就可以叫起來了"
+    },
+    {
+      "segment_id": "video_002_seg_0501",
+      "start_sec": 1349.26,
+      "end_sec": 1351.02,
+      "text": "哦他系統就可以叫起來了"
+    },
+    {
+      "segment_id": "video_002_seg_0502",
+      "start_sec": 1351.36,
+      "end_sec": 1355.96,
+      "text": "為什麼選這個套件來跟各位介紹呢"
+    },
+    {
+      "segment_id": "video_002_seg_0503",
+      "start_sec": 1356.46,
+      "end_sec": 1358.4,
+      "text": "好因為第一點"
+    },
+    {
+      "segment_id": "video_002_seg_0504",
+      "start_sec": 1359.06,
+      "end_sec": 1361.82,
+      "text": "他在anaconda裡面有那一件"
+    },
+    {
+      "segment_id": "video_002_seg_0505",
+      "start_sec": 1362.46,
+      "end_sec": 1364.62,
+      "text": "好所以相對之下"
+    },
+    {
+      "segment_id": "video_002_seg_0506",
+      "start_sec": 1365.08,
+      "end_sec": 1368.42,
+      "text": "大家要用的話你都是直接開就可以了"
+    },
+    {
+      "segment_id": "video_002_seg_0507",
+      "start_sec": 1369.22,
+      "end_sec": 1370.98,
+      "text": "這第一點第二點"
+    },
+    {
+      "segment_id": "video_002_seg_0508",
+      "start_sec": 1371.66,
+      "end_sec": 1374.86,
+      "text": "他的設定很單純"
+    },
+    {
+      "segment_id": "video_002_seg_0509",
+      "start_sec": 1375.28,
+      "end_sec": 1379.28,
+      "text": "好如果哦是講一些其他的套件"
+    },
+    {
+      "segment_id": "video_002_seg_0510",
+      "start_sec": 1379.28,
+      "end_sec": 1382.12,
+      "text": "哦應該講其他的工具啊"
+    },
+    {
+      "segment_id": "video_002_seg_0511",
+      "start_sec": 1383.42,
+      "end_sec": 1385.02,
+      "text": "會相對複雜"
+    },
+    {
+      "segment_id": "video_002_seg_0512",
+      "start_sec": 1385.36,
+      "end_sec": 1385.78,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_002_seg_0513",
+      "start_sec": 1386.58,
+      "end_sec": 1389.42,
+      "text": "每次都有人問我這個問題說"
+    },
+    {
+      "segment_id": "video_002_seg_0514",
+      "start_sec": 1389.78,
+      "end_sec": 1392.02,
+      "text": "哎老師呢如果我有"
+    },
+    {
+      "segment_id": "video_002_seg_0515",
+      "start_sec": 1392.08,
+      "end_sec": 1394.58,
+      "text": "已經用習慣的其他的"
+    },
+    {
+      "segment_id": "video_002_seg_0516",
+      "start_sec": 1395.08,
+      "end_sec": 1395.88,
+      "text": "開發"
+    },
+    {
+      "segment_id": "video_002_seg_0517",
+      "start_sec": 1396.66,
+      "end_sec": 1398.78,
+      "text": "界面所謂的ide"
+    },
+    {
+      "segment_id": "video_002_seg_0518",
+      "start_sec": 1399.08,
+      "end_sec": 1401.52,
+      "text": "我可不可以用我已經用習慣了"
+    },
+    {
+      "segment_id": "video_002_seg_0519",
+      "start_sec": 1401.52,
+      "end_sec": 1402.78,
+      "text": "比方說有同學"
+    },
+    {
+      "segment_id": "video_002_seg_0520",
+      "start_sec": 1403.02,
+      "end_sec": 1405.18,
+      "text": "喜歡用visual studio code"
+    },
+    {
+      "segment_id": "video_002_seg_0521",
+      "start_sec": 1405.58,
+      "end_sec": 1407.38,
+      "text": "哦那當然沒問題啊"
+    },
+    {
+      "segment_id": "video_002_seg_0522",
+      "start_sec": 1407.48,
+      "end_sec": 1409.62,
+      "text": "有一些同學習慣用pichon"
+    },
+    {
+      "segment_id": "video_002_seg_0523",
+      "start_sec": 1409.88,
+      "end_sec": 1411.28,
+      "text": "哦當然也可以啊"
+    },
+    {
+      "segment_id": "video_002_seg_0524",
+      "start_sec": 1411.82,
+      "end_sec": 1414.02,
+      "text": "哦我這邊只是因為"
+    },
+    {
+      "segment_id": "video_002_seg_0525",
+      "start_sec": 1414.38,
+      "end_sec": 1417.92,
+      "text": "我我要那個選一個"
+    },
+    {
+      "segment_id": "video_002_seg_0526",
+      "start_sec": 1418.02,
+      "end_sec": 1423.62,
+      "text": "大家最能夠簡單使用到的一個"
+    },
+    {
+      "segment_id": "video_002_seg_0527",
+      "start_sec": 1424.72,
+      "end_sec": 1426.82,
+      "text": "套件啊跟各位介紹"
+    },
+    {
+      "segment_id": "video_002_seg_0528",
+      "start_sec": 1426.82,
+      "end_sec": 1428.82,
+      "text": "所以才選這個spider"
+    },
+    {
+      "segment_id": "video_002_seg_0529",
+      "start_sec": 1429.66,
+      "end_sec": 1431.42,
+      "text": "哦你如果已經會用我剛剛"
+    },
+    {
+      "segment_id": "video_002_seg_0530",
+      "start_sec": 1431.42,
+      "end_sec": 1434.62,
+      "text": "呃我剛剛講的像是什麼vivo studio code"
+    },
+    {
+      "segment_id": "video_002_seg_0531",
+      "start_sec": 1434.62,
+      "end_sec": 1436.12,
+      "text": "或pichon那些的話"
+    },
+    {
+      "segment_id": "video_002_seg_0532",
+      "start_sec": 1436.26,
+      "end_sec": 1437.36,
+      "text": "那你就用你的"
+    },
+    {
+      "segment_id": "video_002_seg_0533",
+      "start_sec": 1438.32,
+      "end_sec": 1438.66,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_002_seg_0534",
+      "start_sec": 1439.72,
+      "end_sec": 1442.22,
+      "text": "那那你就用自己的就可以了"
+    },
+    {
+      "segment_id": "video_002_seg_0535",
+      "start_sec": 1446.42,
+      "end_sec": 1448.22,
+      "text": "好那這邊呢"
+    },
+    {
+      "segment_id": "video_002_seg_0536",
+      "start_sec": 1448.32,
+      "end_sec": 1450.92,
+      "text": "我們為什麼要"
+    },
+    {
+      "segment_id": "video_002_seg_0537",
+      "start_sec": 1452.32,
+      "end_sec": 1454.56,
+      "text": "前面講的jubiter notebook"
+    },
+    {
+      "segment_id": "video_002_seg_0538",
+      "start_sec": 1454.56,
+      "end_sec": 1455.66,
+      "text": "用的好好的"
+    },
+    {
+      "segment_id": "video_002_seg_0539",
+      "start_sec": 1456.36,
+      "end_sec": 1458.36,
+      "text": "跑過來講這個鬼東西呢"
+    },
+    {
+      "segment_id": "video_002_seg_0540",
+      "start_sec": 1466.51,
+      "end_sec": 1468.51,
+      "text": "我相信同學會有疑問啊"
+    },
+    {
+      "segment_id": "video_002_seg_0541",
+      "start_sec": 1472.86,
+      "end_sec": 1475.5,
+      "text": "為什麼我們要jubiter notebook"
+    },
+    {
+      "segment_id": "video_002_seg_0542",
+      "start_sec": 1475.5,
+      "end_sec": 1477.6,
+      "text": "講的好好的跑來介紹這個"
+    },
+    {
+      "segment_id": "video_002_seg_0543",
+      "start_sec": 1479.26,
+      "end_sec": 1482.5,
+      "text": "好這邊的話我來跟各位稍微說明一下"
+    },
+    {
+      "segment_id": "video_002_seg_0544",
+      "start_sec": 1483.52,
+      "end_sec": 1485.9,
+      "text": "好這是老樣子嘛啊"
+    },
+    {
+      "segment_id": "video_002_seg_0545",
+      "start_sec": 1485.96,
+      "end_sec": 1487.46,
+      "text": "我們的連結"
+    },
+    {
+      "segment_id": "video_002_seg_0546",
+      "start_sec": 1491.29,
+      "end_sec": 1493.89,
+      "text": "大家點選一下啊"
+    },
+    {
+      "segment_id": "video_002_seg_0547",
+      "start_sec": 1493.89,
+      "end_sec": 1495.73,
+      "text": "點開了之後到裡面這個"
+    },
+    {
+      "segment_id": "video_002_seg_0548",
+      "start_sec": 1495.73,
+      "end_sec": 1498.17,
+      "text": "影像處理這個地方來看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0549",
+      "start_sec": 1503.82,
+      "end_sec": 1508.12,
+      "text": "好這我們今天會跟大家介紹到的"
+    },
+    {
+      "segment_id": "video_002_seg_0550",
+      "start_sec": 1508.12,
+      "end_sec": 1510.02,
+      "text": "范麗范麗城市"
+    },
+    {
+      "segment_id": "video_002_seg_0551",
+      "start_sec": 1510.02,
+      "end_sec": 1513.32,
+      "text": "之前寫好的放在上面的范麗城市"
+    },
+    {
+      "segment_id": "video_002_seg_0552",
+      "start_sec": 1517.09,
+      "end_sec": 1518.69,
+      "text": "好大家可以看一下"
+    },
+    {
+      "segment_id": "video_002_seg_0553",
+      "start_sec": 1518.79,
+      "end_sec": 1520.39,
+      "text": "他的副檔名是什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0554",
+      "start_sec": 1523.15,
+      "end_sec": 1525.15,
+      "text": "哦這個副檔名很重要哦"
+    },
+    {
+      "segment_id": "video_002_seg_0555",
+      "start_sec": 1526.19,
+      "end_sec": 1528.19,
+      "text": "點py"
+    },
+    {
+      "segment_id": "video_002_seg_0556",
+      "start_sec": 1534.29,
+      "end_sec": 1535.65,
+      "text": "這個點py"
+    },
+    {
+      "segment_id": "video_002_seg_0557",
+      "start_sec": 1536.55,
+      "end_sec": 1541.79,
+      "text": "才是一般我們講的拍省的檔案"
+    },
+    {
+      "segment_id": "video_002_seg_0558",
+      "start_sec": 1542.19,
+      "end_sec": 1544.69,
+      "text": "這個才是拍省哦"
+    },
+    {
+      "segment_id": "video_002_seg_0559",
+      "start_sec": 1546.35,
+      "end_sec": 1548.35,
+      "text": "之前我們用jubiter notebook"
+    },
+    {
+      "segment_id": "video_002_seg_0560",
+      "start_sec": 1548.35,
+      "end_sec": 1550.09,
+      "text": "寫出來的東西是什麼呢"
+    },
+    {
+      "segment_id": "video_002_seg_0561",
+      "start_sec": 1552.13,
+      "end_sec": 1553.83,
+      "text": "我們可以看一下我隨便開一個"
+    },
+    {
+      "segment_id": "video_002_seg_0562",
+      "start_sec": 1558.65,
+      "end_sec": 1562.89,
+      "text": "他的副檔名叫做ipynb"
+    },
+    {
+      "segment_id": "video_002_seg_0563",
+      "start_sec": 1568.12,
+      "end_sec": 1569.08,
+      "text": "這個是什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0564",
+      "start_sec": 1569.82,
+      "end_sec": 1571.52,
+      "text": "這個是jubiter notebook"
+    },
+    {
+      "segment_id": "video_002_seg_0565",
+      "start_sec": 1571.52,
+      "end_sec": 1573.68,
+      "text": "專用的檔案名稱"
+    },
+    {
+      "segment_id": "video_002_seg_0566",
+      "start_sec": 1573.98,
+      "end_sec": 1576.62,
+      "text": "所以他其實不是拍省"
+    },
+    {
+      "segment_id": "video_002_seg_0567",
+      "start_sec": 1580.61,
+      "end_sec": 1583.05,
+      "text": "哦這個有點吊鬼啊"
+    },
+    {
+      "segment_id": "video_002_seg_0568",
+      "start_sec": 1583.05,
+      "end_sec": 1584.85,
+      "text": "大家可能會覺得啊我寫的語法"
+    },
+    {
+      "segment_id": "video_002_seg_0569",
+      "start_sec": 1584.85,
+      "end_sec": 1587.15,
+      "text": "都一直都在寫拍省的語法"
+    },
+    {
+      "segment_id": "video_002_seg_0570",
+      "start_sec": 1587.35,
+      "end_sec": 1590.15,
+      "text": "為什麼老師跟我講這個檔案都是拍省"
+    },
+    {
+      "segment_id": "video_002_seg_0571",
+      "start_sec": 1591.25,
+      "end_sec": 1596.46,
+      "text": "哦比方說我們寫了一個"
+    },
+    {
+      "segment_id": "video_002_seg_0572",
+      "start_sec": 1598.16,
+      "end_sec": 1600.76,
+      "text": "城市哦如果你想要讓"
+    },
+    {
+      "segment_id": "video_002_seg_0573",
+      "start_sec": 1601.36,
+      "end_sec": 1603.16,
+      "text": "windows哦"
+    },
+    {
+      "segment_id": "video_002_seg_0574",
+      "start_sec": 1603.5,
+      "end_sec": 1606.86,
+      "text": "定固定時間去執行那個拍省"
+    },
+    {
+      "segment_id": "video_002_seg_0575",
+      "start_sec": 1606.86,
+      "end_sec": 1608.6,
+      "text": "你要要寫排程的話"
+    },
+    {
+      "segment_id": "video_002_seg_0576",
+      "start_sec": 1609.22,
+      "end_sec": 1611.3,
+      "text": "這個ipynb沒辦法"
+    },
+    {
+      "segment_id": "video_002_seg_0577",
+      "start_sec": 1612.26,
+      "end_sec": 1615.6,
+      "text": "哦因為他一定要透過jubiter notebook去執行啊"
+    },
+    {
+      "segment_id": "video_002_seg_0578",
+      "start_sec": 1616.4,
+      "end_sec": 1619.2,
+      "text": "哦他一定要透過jubiter notebook去執行"
+    },
+    {
+      "segment_id": "video_002_seg_0579",
+      "start_sec": 1619.36,
+      "end_sec": 1622.2,
+      "text": "但是這種點py檔就不一樣了"
+    },
+    {
+      "segment_id": "video_002_seg_0580",
+      "start_sec": 1625.14,
+      "end_sec": 1630.69,
+      "text": "哦這個點py檔的話"
+    },
+    {
+      "segment_id": "video_002_seg_0581",
+      "start_sec": 1630.69,
+      "end_sec": 1632.59,
+      "text": "他就是正統的拍省"
+    },
+    {
+      "segment_id": "video_002_seg_0582",
+      "start_sec": 1632.79,
+      "end_sec": 1634.75,
+      "text": "所以你可以直接拍省"
+    },
+    {
+      "segment_id": "video_002_seg_0583",
+      "start_sec": 1634.75,
+      "end_sec": 1637.29,
+      "text": "空格open image 點py"
+    },
+    {
+      "segment_id": "video_002_seg_0584",
+      "start_sec": 1637.39,
+      "end_sec": 1638.63,
+      "text": "直接就把城市"
+    },
+    {
+      "segment_id": "video_002_seg_0585",
+      "start_sec": 1639.09,
+      "end_sec": 1639.99,
+      "text": "叫起來"
+    },
+    {
+      "segment_id": "video_002_seg_0586",
+      "start_sec": 1640.53,
+      "end_sec": 1643.15,
+      "text": "哦那但是jubiter notebook那個不行"
+    },
+    {
+      "segment_id": "video_002_seg_0587",
+      "start_sec": 1646.35,
+      "end_sec": 1648.75,
+      "text": "哦還有一個最大的好處是什麼"
+    },
+    {
+      "segment_id": "video_002_seg_0588",
+      "start_sec": 1649.29,
+      "end_sec": 1651.45,
+      "text": "哦還有一個最大的好處是"
+    },
+    {
+      "segment_id": "video_002_seg_0589",
+      "start_sec": 1653.35,
+      "end_sec": 1655.89,
+      "text": "因為這個點py檔"
+    },
+    {
+      "segment_id": "video_002_seg_0590",
+      "start_sec": 1656.59,
+      "end_sec": 1660.45,
+      "text": "哦我們是在我們自己的電腦上面執行"
+    },
+    {
+      "segment_id": "video_002_seg_0591",
+      "start_sec": 1661.69,
+      "end_sec": 1664.59,
+      "text": "所以呢他可以很輕鬆的去"
+    },
+    {
+      "segment_id": "video_002_seg_0592",
+      "start_sec": 1665.29,
+      "end_sec": 1666.89,
+      "text": "搭配攝影機"
+    },
+    {
+      "segment_id": "video_002_seg_0593",
+      "start_sec": 1668.35,
+      "end_sec": 1670.79,
+      "text": "好這邊展示給大家看一下哦"
+    },
+    {
+      "segment_id": "video_002_seg_0594",
+      "start_sec": 1671.89,
+      "end_sec": 1672.79,
+      "text": "等一下"
+    },
+    {
+      "segment_id": "video_002_seg_0595",
+      "start_sec": 1673.09,
+      "end_sec": 1675.89,
+      "text": "下我要先把那個"
+    },
+    {
+      "segment_id": "video_002_seg_0596",
+      "start_sec": 1676.13,
+      "end_sec": 1679.59,
+      "text": "呃google meet的聊天室的攝影機關掉哦"
+    },
+    {
+      "segment_id": "video_002_seg_0597",
+      "start_sec": 1679.79,
+      "end_sec": 1681.93,
+      "text": "因為如果這邊不關的話"
+    },
+    {
+      "segment_id": "video_002_seg_0598",
+      "start_sec": 1681.93,
+      "end_sec": 1684.03,
+      "text": "等一下拉不到畫面"
+    },
+    {
+      "segment_id": "video_002_seg_0599",
+      "start_sec": 1688.82,
+      "end_sec": 1690.32,
+      "text": "哦他有點卡住"
+    },
+    {
+      "segment_id": "video_002_seg_0600",
+      "start_sec": 1691.02,
+      "end_sec": 1692.52,
+      "text": "好像我的線"
+    },
+    {
+      "segment_id": "video_002_seg_0601",
+      "start_sec": 1692.62,
+      "end_sec": 1693.52,
+      "text": "老師不好意思"
+    },
+    {
+      "segment_id": "video_002_seg_0602",
+      "start_sec": 1693.52,
+      "end_sec": 1697.02,
+      "text": "那個有些人反映說你叫到他太快一點"
+    },
+    {
+      "segment_id": "video_002_seg_0603",
+      "start_sec": 1698.66,
+      "end_sec": 1702.82,
+      "text": "啊我還沒我還沒有開始講城市的部分呢"
+    },
+    {
+      "segment_id": "video_002_seg_0604",
+      "start_sec": 1703.02,
+      "end_sec": 1704.72,
+      "text": "對等一下就是有"
+    },
+    {
+      "segment_id": "video_002_seg_0605",
+      "start_sec": 1704.76,
+      "end_sec": 1706.42,
+      "text": "目前應該有兩位同學"
+    },
+    {
+      "segment_id": "video_002_seg_0606",
+      "start_sec": 1706.42,
+      "end_sec": 1707.82,
+      "text": "好像是會不會太快"
+    },
+    {
+      "segment_id": "video_002_seg_0607",
+      "start_sec": 1709.76,
+      "end_sec": 1710.56,
+      "text": "好ok"
+    },
+    {
+      "segment_id": "video_002_seg_0608",
+      "start_sec": 1711.1,
+      "end_sec": 1711.8,
+      "text": "介老師"
+    },
+    {
+      "segment_id": "video_002_seg_0609",
+      "start_sec": 1715.06,
+      "end_sec": 1715.76,
+      "text": "一下"
+    },
+    {
+      "segment_id": "video_002_seg_0610",
+      "start_sec": 1720.86,
+      "end_sec": 1722.64,
+      "text": "我要先跟同學講一下"
+    },
+    {
+      "segment_id": "video_002_seg_0611",
+      "start_sec": 1722.64,
+      "end_sec": 1724.64,
+      "text": "為什麼要用這個東西"
+    },
+    {
+      "segment_id": "video_002_seg_0612",
+      "start_sec": 1724.94,
+      "end_sec": 1735.91,
+      "text": "我看一下範例"
+    }
+  ]
+}

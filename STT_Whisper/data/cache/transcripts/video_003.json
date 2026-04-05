@@ -1,0 +1,3683 @@
+{
+  "video_id": "video_003",
+  "segments": [
+    {
+      "segment_id": "video_003_seg_0001",
+      "start_sec": 6.8,
+      "end_sec": 8.8,
+      "text": "好不知道各位有沒有看到"
+    },
+    {
+      "segment_id": "video_003_seg_0002",
+      "start_sec": 8.8,
+      "end_sec": 13.3,
+      "text": "現在在那個畫面上有那個攝影機"
+    },
+    {
+      "segment_id": "video_003_seg_0003",
+      "start_sec": 13.3,
+      "end_sec": 20.3,
+      "text": "這個攝影機就是我現在的那個 Webcam"
+    },
+    {
+      "segment_id": "video_003_seg_0004",
+      "start_sec": 20.3,
+      "end_sec": 22.8,
+      "text": "攝影機拍到的畫面"
+    },
+    {
+      "segment_id": "video_003_seg_0005",
+      "start_sec": 22.8,
+      "end_sec": 27.8,
+      "text": "我要透過這個 OpenCV"
+    },
+    {
+      "segment_id": "video_003_seg_0006",
+      "start_sec": 27.8,
+      "end_sec": 32.3,
+      "text": "把那個拍到的畫面可以抓進來"
+    },
+    {
+      "segment_id": "video_003_seg_0007",
+      "start_sec": 32.3,
+      "end_sec": 35.8,
+      "text": "同時我還可以搭配那個人臉偵測"
+    },
+    {
+      "segment_id": "video_003_seg_0008",
+      "start_sec": 35.8,
+      "end_sec": 40.3,
+      "text": "它可以抓到我的臉部的那個位置"
+    },
+    {
+      "segment_id": "video_003_seg_0009",
+      "start_sec": 40.3,
+      "end_sec": 42.3,
+      "text": "把框給秀出來"
+    },
+    {
+      "segment_id": "video_003_seg_0010",
+      "start_sec": 42.3,
+      "end_sec": 45.8,
+      "text": "那這個就是我們要搭配的東西"
+    },
+    {
+      "segment_id": "video_003_seg_0011",
+      "start_sec": 45.8,
+      "end_sec": 50.8,
+      "text": "那這個硬體是接在我們自己的電腦上"
+    },
+    {
+      "segment_id": "video_003_seg_0012",
+      "start_sec": 50.8,
+      "end_sec": 53.8,
+      "text": "硬體是接在我們自己的電腦上"
+    },
+    {
+      "segment_id": "video_003_seg_0013",
+      "start_sec": 53.8,
+      "end_sec": 57.8,
+      "text": "那當然沒有辦法放在雲端裡面執行"
+    },
+    {
+      "segment_id": "video_003_seg_0014",
+      "start_sec": 57.8,
+      "end_sec": 61.8,
+      "text": "然後也因為我們需要有一個這個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0015",
+      "start_sec": 61.8,
+      "end_sec": 64.3,
+      "text": "大家可以看到我現在不是拖著一個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0016",
+      "start_sec": 64.3,
+      "end_sec": 66.3,
+      "text": "到處晃來晃去嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0017",
+      "start_sec": 66.3,
+      "end_sec": 69.8,
+      "text": "這是一個Windows開出來的視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0018",
+      "start_sec": 69.8,
+      "end_sec": 72.3,
+      "text": "然後我們需要這個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0019",
+      "start_sec": 72.3,
+      "end_sec": 74.3,
+      "text": "才能搭配我們的攝影機"
+    },
+    {
+      "segment_id": "video_003_seg_0020",
+      "start_sec": 74.3,
+      "end_sec": 76.8,
+      "text": "搭配攝影機把攝影機的畫面"
+    },
+    {
+      "segment_id": "video_003_seg_0021",
+      "start_sec": 76.8,
+      "end_sec": 78.8,
+      "text": "秀在這個視窗裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0022",
+      "start_sec": 78.8,
+      "end_sec": 84.3,
+      "text": "所以這個動作用 Jupyter Notebook很難做"
+    },
+    {
+      "segment_id": "video_003_seg_0023",
+      "start_sec": 84.3,
+      "end_sec": 89.8,
+      "text": "Jupyter Notebook只能把畫面拆成一個 Friend"
+    },
+    {
+      "segment_id": "video_003_seg_0024",
+      "start_sec": 89.8,
+      "end_sec": 91.8,
+      "text": "然後在畫面上面"
+    },
+    {
+      "segment_id": "video_003_seg_0025",
+      "start_sec": 91.8,
+      "end_sec": 94.8,
+      "text": "然後在那個網頁裡面去秀"
+    },
+    {
+      "segment_id": "video_003_seg_0026",
+      "start_sec": 94.8,
+      "end_sec": 98.8,
+      "text": "那就沒有這種拍到這種"
+    },
+    {
+      "segment_id": "video_003_seg_0027",
+      "start_sec": 98.8,
+      "end_sec": 103.3,
+      "text": "畫面裡面會動的這種影片的感覺"
+    },
+    {
+      "segment_id": "video_003_seg_0028",
+      "start_sec": 103.3,
+      "end_sec": 105.8,
+      "text": "所以我們要用這個Spider"
+    },
+    {
+      "segment_id": "video_003_seg_0029",
+      "start_sec": 105.8,
+      "end_sec": 144.76,
+      "text": "把它換回來"
+    },
+    {
+      "segment_id": "video_003_seg_0030",
+      "start_sec": 144.76,
+      "end_sec": 146.76,
+      "text": "好OK那所以呢"
+    },
+    {
+      "segment_id": "video_003_seg_0031",
+      "start_sec": 146.76,
+      "end_sec": 148.76,
+      "text": "我們也因為這樣子"
+    },
+    {
+      "segment_id": "video_003_seg_0032",
+      "start_sec": 148.76,
+      "end_sec": 153.76,
+      "text": "所以才要去使用這個Spider"
+    },
+    {
+      "segment_id": "video_003_seg_0033",
+      "start_sec": 159.82,
+      "end_sec": 164.82,
+      "text": "那大家我們在使用這個Spider的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0034",
+      "start_sec": 164.82,
+      "end_sec": 166.82,
+      "text": "如同我剛剛講的"
+    },
+    {
+      "segment_id": "video_003_seg_0035",
+      "start_sec": 166.82,
+      "end_sec": 170.82,
+      "text": "如果你本你的那個"
+    },
+    {
+      "segment_id": "video_003_seg_0036",
+      "start_sec": 170.82,
+      "end_sec": 177.14,
+      "text": "前面有在這個Anaconda裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0037",
+      "start_sec": 177.14,
+      "end_sec": 179.14,
+      "text": "開設虛擬環境的話"
+    },
+    {
+      "segment_id": "video_003_seg_0038",
+      "start_sec": 179.14,
+      "end_sec": 183.14,
+      "text": "那你可能要自己用Activate"
+    },
+    {
+      "segment_id": "video_003_seg_0039",
+      "start_sec": 183.14,
+      "end_sec": 185.14,
+      "text": "把虛擬環境建起來"
+    },
+    {
+      "segment_id": "video_003_seg_0040",
+      "start_sec": 185.14,
+      "end_sec": 187.64,
+      "text": "把虛擬環境叫起來"
+    },
+    {
+      "segment_id": "video_003_seg_0041",
+      "start_sec": 187.64,
+      "end_sec": 190.64,
+      "text": "然後用PIP install"
+    },
+    {
+      "segment_id": "video_003_seg_0042",
+      "start_sec": 190.64,
+      "end_sec": 192.14,
+      "text": "PIP install"
+    },
+    {
+      "segment_id": "video_003_seg_0043",
+      "start_sec": 192.14,
+      "end_sec": 195.64,
+      "text": "把Spider裝在虛擬環境裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0044",
+      "start_sec": 195.64,
+      "end_sec": 197.64,
+      "text": "那如果你"
+    },
+    {
+      "segment_id": "video_003_seg_0045",
+      "start_sec": 197.64,
+      "end_sec": 200.14,
+      "text": "直接在這個Base裡面去用的話"
+    },
+    {
+      "segment_id": "video_003_seg_0046",
+      "start_sec": 200.14,
+      "end_sec": 202.14,
+      "text": "那你就不用裝了"
+    },
+    {
+      "segment_id": "video_003_seg_0047",
+      "start_sec": 202.14,
+      "end_sec": 205.64,
+      "text": "你就直接在這個Anaconda Prompt裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0048",
+      "start_sec": 205.64,
+      "end_sec": 207.64,
+      "text": "直接Spider"
+    },
+    {
+      "segment_id": "video_003_seg_0049",
+      "start_sec": 207.64,
+      "end_sec": 210.14,
+      "text": "因為這個套件他都內建了"
+    },
+    {
+      "segment_id": "video_003_seg_0050",
+      "start_sec": 210.14,
+      "end_sec": 215.02,
+      "text": "你就可以直接把它叫起來了"
+    },
+    {
+      "segment_id": "video_003_seg_0051",
+      "start_sec": 215.02,
+      "end_sec": 217.02,
+      "text": "各位你們之前"
+    },
+    {
+      "segment_id": "video_003_seg_0052",
+      "start_sec": 217.02,
+      "end_sec": 219.52,
+      "text": "之前沒有介紹過安裝"
+    },
+    {
+      "segment_id": "video_003_seg_0053",
+      "start_sec": 219.52,
+      "end_sec": 222.02,
+      "text": "沒有介紹過安裝套件"
+    },
+    {
+      "segment_id": "video_003_seg_0054",
+      "start_sec": 222.02,
+      "end_sec": 224.02,
+      "text": "應該有吧"
+    },
+    {
+      "segment_id": "video_003_seg_0055",
+      "start_sec": 224.02,
+      "end_sec": 235.14,
+      "text": "他都是在這個Anaconda Prompt"
+    },
+    {
+      "segment_id": "video_003_seg_0056",
+      "start_sec": 235.14,
+      "end_sec": 237.14,
+      "text": "都在這邊"
+    },
+    {
+      "segment_id": "video_003_seg_0057",
+      "start_sec": 237.14,
+      "end_sec": 239.64,
+      "text": "這個Anaconda Prompt"
+    },
+    {
+      "segment_id": "video_003_seg_0058",
+      "start_sec": 239.64,
+      "end_sec": 241.64,
+      "text": "安裝套件的話應該都在"
+    },
+    {
+      "segment_id": "video_003_seg_0059",
+      "start_sec": 241.64,
+      "end_sec": 244.14,
+      "text": "都是在這邊裝吧"
+    },
+    {
+      "segment_id": "video_003_seg_0060",
+      "start_sec": 244.14,
+      "end_sec": 246.64,
+      "text": "還是說之前跟各位介紹"
+    },
+    {
+      "segment_id": "video_003_seg_0061",
+      "start_sec": 246.64,
+      "end_sec": 249.14,
+      "text": "是其他的安裝方式嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0062",
+      "start_sec": 249.14,
+      "end_sec": 254.14,
+      "text": "就是你在Anaconda裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0063",
+      "start_sec": 254.14,
+      "end_sec": 256.14,
+      "text": "找到這個Anaconda Prompt"
+    },
+    {
+      "segment_id": "video_003_seg_0064",
+      "start_sec": 256.64,
+      "end_sec": 258.64,
+      "text": "然後在裡面用那個"
+    },
+    {
+      "segment_id": "video_003_seg_0065",
+      "start_sec": 258.64,
+      "end_sec": 260.64,
+      "text": "其實他安裝有幾套"
+    },
+    {
+      "segment_id": "video_003_seg_0066",
+      "start_sec": 260.64,
+      "end_sec": 262.64,
+      "text": "一種是Konda"
+    },
+    {
+      "segment_id": "video_003_seg_0067",
+      "start_sec": 262.64,
+      "end_sec": 265.64,
+      "text": "Konda然後去下指令"
+    },
+    {
+      "segment_id": "video_003_seg_0068",
+      "start_sec": 265.64,
+      "end_sec": 267.64,
+      "text": "另外一種是用標準的"
+    },
+    {
+      "segment_id": "video_003_seg_0069",
+      "start_sec": 267.64,
+      "end_sec": 270.14,
+      "text": "PIP的安裝方式"
+    },
+    {
+      "segment_id": "video_003_seg_0070",
+      "start_sec": 270.14,
+      "end_sec": 271.64,
+      "text": "PIP install"
+    },
+    {
+      "segment_id": "video_003_seg_0071",
+      "start_sec": 271.64,
+      "end_sec": 274.64,
+      "text": "去把套件裝進去"
+    },
+    {
+      "segment_id": "video_003_seg_0072",
+      "start_sec": 274.64,
+      "end_sec": 276.64,
+      "text": "那你如果想偷懶"
+    },
+    {
+      "segment_id": "video_003_seg_0073",
+      "start_sec": 276.64,
+      "end_sec": 278.64,
+      "text": "不要在虛擬環境裡面用的話"
+    },
+    {
+      "segment_id": "video_003_seg_0074",
+      "start_sec": 278.64,
+      "end_sec": 280.64,
+      "text": "那你就直接用這個"
+    },
+    {
+      "segment_id": "video_003_seg_0075",
+      "start_sec": 280.64,
+      "end_sec": 282.64,
+      "text": "你直接開這個就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0076",
+      "start_sec": 282.64,
+      "end_sec": 284.64,
+      "text": "要偷懶的話"
+    },
+    {
+      "segment_id": "video_003_seg_0077",
+      "start_sec": 284.64,
+      "end_sec": 288.56,
+      "text": "你就直接開這個就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0078",
+      "start_sec": 288.56,
+      "end_sec": 292.32,
+      "text": "這個是一定有的"
+    },
+    {
+      "segment_id": "video_003_seg_0079",
+      "start_sec": 292.32,
+      "end_sec": 296.65,
+      "text": "這個是一定有的"
+    },
+    {
+      "segment_id": "video_003_seg_0080",
+      "start_sec": 296.65,
+      "end_sec": 298.65,
+      "text": "打開完你就會看到這樣的東西了"
+    },
+    {
+      "segment_id": "video_003_seg_0081",
+      "start_sec": 298.65,
+      "end_sec": 300.65,
+      "text": "當然不會有"
+    },
+    {
+      "segment_id": "video_003_seg_0082",
+      "start_sec": 300.65,
+      "end_sec": 302.65,
+      "text": "左邊的這個程式"
+    },
+    {
+      "segment_id": "video_003_seg_0083",
+      "start_sec": 302.65,
+      "end_sec": 306.65,
+      "text": "因為你還沒有把"
+    },
+    {
+      "segment_id": "video_003_seg_0084",
+      "start_sec": 306.65,
+      "end_sec": 311.05,
+      "text": "還沒有把檔案放進去"
+    },
+    {
+      "segment_id": "video_003_seg_0085",
+      "start_sec": 311.05,
+      "end_sec": 313.05,
+      "text": "那這個"
+    },
+    {
+      "segment_id": "video_003_seg_0086",
+      "start_sec": 313.05,
+      "end_sec": 315.05,
+      "text": "這個東西"
+    },
+    {
+      "segment_id": "video_003_seg_0087",
+      "start_sec": 315.05,
+      "end_sec": 318.05,
+      "text": "跟各位介紹一下左邊這裡"
+    },
+    {
+      "segment_id": "video_003_seg_0088",
+      "start_sec": 318.05,
+      "end_sec": 321.05,
+      "text": "是寫程式的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0089",
+      "start_sec": 322.05,
+      "end_sec": 324.05,
+      "text": "這一次寫程式的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0090",
+      "start_sec": 324.05,
+      "end_sec": 326.05,
+      "text": "上面這一排"
+    },
+    {
+      "segment_id": "video_003_seg_0091",
+      "start_sec": 326.05,
+      "end_sec": 328.05,
+      "text": "它是一些"
+    },
+    {
+      "segment_id": "video_003_seg_0092",
+      "start_sec": 328.05,
+      "end_sec": 331.05,
+      "text": "比較常用的一些"
+    },
+    {
+      "segment_id": "video_003_seg_0093",
+      "start_sec": 331.05,
+      "end_sec": 332.05,
+      "text": "功能"
+    },
+    {
+      "segment_id": "video_003_seg_0094",
+      "start_sec": 332.05,
+      "end_sec": 333.05,
+      "text": "像是"
+    },
+    {
+      "segment_id": "video_003_seg_0095",
+      "start_sec": 333.05,
+      "end_sec": 335.05,
+      "text": "開啟新的檔案"
+    },
+    {
+      "segment_id": "video_003_seg_0096",
+      "start_sec": 335.05,
+      "end_sec": 337.05,
+      "text": "開啟舊檔"
+    },
+    {
+      "segment_id": "video_003_seg_0097",
+      "start_sec": 337.05,
+      "end_sec": 338.05,
+      "text": "存檔"
+    },
+    {
+      "segment_id": "video_003_seg_0098",
+      "start_sec": 338.05,
+      "end_sec": 341.05,
+      "text": "執行Python語法之類的"
+    },
+    {
+      "segment_id": "video_003_seg_0099",
+      "start_sec": 341.05,
+      "end_sec": 343.05,
+      "text": "功能它會放在上面"
+    },
+    {
+      "segment_id": "video_003_seg_0100",
+      "start_sec": 345.05,
+      "end_sec": 347.05,
+      "text": "那另外一個我們要看的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0101",
+      "start_sec": 347.05,
+      "end_sec": 349.05,
+      "text": "其實這個地方我們大概"
+    },
+    {
+      "segment_id": "video_003_seg_0102",
+      "start_sec": 349.05,
+      "end_sec": 351.05,
+      "text": "這個程式我們大概"
+    },
+    {
+      "segment_id": "video_003_seg_0103",
+      "start_sec": 351.05,
+      "end_sec": 353.05,
+      "text": "只看三個地方就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0104",
+      "start_sec": 353.05,
+      "end_sec": 355.05,
+      "text": "第一個是左上角這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0105",
+      "start_sec": 355.05,
+      "end_sec": 357.05,
+      "text": "開啟舊檔"
+    },
+    {
+      "segment_id": "video_003_seg_0106",
+      "start_sec": 357.05,
+      "end_sec": 359.05,
+      "text": "存檔這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0107",
+      "start_sec": 359.05,
+      "end_sec": 362.05,
+      "text": "還有這個"
+    },
+    {
+      "segment_id": "video_003_seg_0108",
+      "start_sec": 362.05,
+      "end_sec": 365.05,
+      "text": "所以左上角這一塊"
+    },
+    {
+      "segment_id": "video_003_seg_0109",
+      "start_sec": 365.05,
+      "end_sec": 367.05,
+      "text": "第二個就是"
+    },
+    {
+      "segment_id": "video_003_seg_0110",
+      "start_sec": 367.05,
+      "end_sec": 369.05,
+      "text": "下面這裡"
+    },
+    {
+      "segment_id": "video_003_seg_0111",
+      "start_sec": 369.05,
+      "end_sec": 371.05,
+      "text": "寫程式的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0112",
+      "start_sec": 371.05,
+      "end_sec": 374.05,
+      "text": "第三個就是右下角"
+    },
+    {
+      "segment_id": "video_003_seg_0113",
+      "start_sec": 374.05,
+      "end_sec": 376.05,
+      "text": "右下角這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0114",
+      "start_sec": 376.05,
+      "end_sec": 377.05,
+      "text": "這是什麼"
+    },
+    {
+      "segment_id": "video_003_seg_0115",
+      "start_sec": 377.05,
+      "end_sec": 379.05,
+      "text": "這是結果輸出的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0116",
+      "start_sec": 379.05,
+      "end_sec": 382.05,
+      "text": "我做一個簡單的實驗"
+    },
+    {
+      "segment_id": "video_003_seg_0117",
+      "start_sec": 382.05,
+      "end_sec": 384.05,
+      "text": "我們只要在這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0118",
+      "start_sec": 384.05,
+      "end_sec": 385.05,
+      "text": "我隨便寫"
+    },
+    {
+      "segment_id": "video_003_seg_0119",
+      "start_sec": 385.05,
+      "end_sec": 387.05,
+      "text": "A等於"
+    },
+    {
+      "segment_id": "video_003_seg_0120",
+      "start_sec": 387.05,
+      "end_sec": 389.05,
+      "text": "A等於3"
+    },
+    {
+      "segment_id": "video_003_seg_0121",
+      "start_sec": 389.05,
+      "end_sec": 391.05,
+      "text": "B等於4"
+    },
+    {
+      "segment_id": "video_003_seg_0122",
+      "start_sec": 391.05,
+      "end_sec": 393.05,
+      "text": "C等於A"
+    },
+    {
+      "segment_id": "video_003_seg_0123",
+      "start_sec": 393.05,
+      "end_sec": 395.05,
+      "text": "乘上B"
+    },
+    {
+      "segment_id": "video_003_seg_0124",
+      "start_sec": 395.05,
+      "end_sec": 398.94,
+      "text": "print"
+    },
+    {
+      "segment_id": "video_003_seg_0125",
+      "start_sec": 398.94,
+      "end_sec": 402.63,
+      "text": "C"
+    },
+    {
+      "segment_id": "video_003_seg_0126",
+      "start_sec": 402.63,
+      "end_sec": 403.63,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0127",
+      "start_sec": 403.63,
+      "end_sec": 404.63,
+      "text": "這是"
+    },
+    {
+      "segment_id": "video_003_seg_0128",
+      "start_sec": 404.63,
+      "end_sec": 406.63,
+      "text": "真的是一個隨便寫的程式"
+    },
+    {
+      "segment_id": "video_003_seg_0129",
+      "start_sec": 406.63,
+      "end_sec": 407.63,
+      "text": "對不對"
+    },
+    {
+      "segment_id": "video_003_seg_0130",
+      "start_sec": 407.63,
+      "end_sec": 408.63,
+      "text": "然後我在這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0131",
+      "start_sec": 408.63,
+      "end_sec": 410.63,
+      "text": "上面有一個看起來像"
+    },
+    {
+      "segment_id": "video_003_seg_0132",
+      "start_sec": 411.63,
+      "end_sec": 413.63,
+      "text": "YouTube的播放按鈕的"
+    },
+    {
+      "segment_id": "video_003_seg_0133",
+      "start_sec": 413.63,
+      "end_sec": 414.63,
+      "text": "這東西有沒有"
+    },
+    {
+      "segment_id": "video_003_seg_0134",
+      "start_sec": 414.63,
+      "end_sec": 415.63,
+      "text": "綠色的"
+    },
+    {
+      "segment_id": "video_003_seg_0135",
+      "start_sec": 416.63,
+      "end_sec": 418.63,
+      "text": "你就給它按下去"
+    },
+    {
+      "segment_id": "video_003_seg_0136",
+      "start_sec": 418.63,
+      "end_sec": 419.63,
+      "text": "它程式就會跑了"
+    },
+    {
+      "segment_id": "video_003_seg_0137",
+      "start_sec": 420.63,
+      "end_sec": 421.63,
+      "text": "按一下"
+    },
+    {
+      "segment_id": "video_003_seg_0138",
+      "start_sec": 421.63,
+      "end_sec": 425.09,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0139",
+      "start_sec": 425.09,
+      "end_sec": 426.09,
+      "text": "各位你可以看到"
+    },
+    {
+      "segment_id": "video_003_seg_0140",
+      "start_sec": 426.09,
+      "end_sec": 428.09,
+      "text": "右下角的這個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0141",
+      "start_sec": 429.09,
+      "end_sec": 431.09,
+      "text": "它就跳了一個結果"
+    },
+    {
+      "segment_id": "video_003_seg_0142",
+      "start_sec": 431.09,
+      "end_sec": 432.09,
+      "text": "12"
+    },
+    {
+      "segment_id": "video_003_seg_0143",
+      "start_sec": 432.09,
+      "end_sec": 436.24,
+      "text": "A等於3"
+    },
+    {
+      "segment_id": "video_003_seg_0144",
+      "start_sec": 436.24,
+      "end_sec": 438.24,
+      "text": "B等於4"
+    },
+    {
+      "segment_id": "video_003_seg_0145",
+      "start_sec": 438.24,
+      "end_sec": 440.24,
+      "text": "3x4不就是12嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0146",
+      "start_sec": 440.24,
+      "end_sec": 443.68,
+      "text": "3x4就是12"
+    },
+    {
+      "segment_id": "video_003_seg_0147",
+      "start_sec": 443.68,
+      "end_sec": 444.68,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0148",
+      "start_sec": 444.68,
+      "end_sec": 445.68,
+      "text": "這個東西"
+    },
+    {
+      "segment_id": "video_003_seg_0149",
+      "start_sec": 445.68,
+      "end_sec": 447.68,
+      "text": "要看的只有三個地方"
+    },
+    {
+      "segment_id": "video_003_seg_0150",
+      "start_sec": 447.68,
+      "end_sec": 449.68,
+      "text": "左上角的這一塊"
+    },
+    {
+      "segment_id": "video_003_seg_0151",
+      "start_sec": 449.68,
+      "end_sec": 452.68,
+      "text": "下面的寫程式的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0152",
+      "start_sec": 452.68,
+      "end_sec": 454.68,
+      "text": "還有右下角的執行結果"
+    },
+    {
+      "segment_id": "video_003_seg_0153",
+      "start_sec": 454.68,
+      "end_sec": 458.21,
+      "text": "大概就是這樣"
+    },
+    {
+      "segment_id": "video_003_seg_0154",
+      "start_sec": 458.21,
+      "end_sec": 461.71,
+      "text": "其他的東西"
+    },
+    {
+      "segment_id": "video_003_seg_0155",
+      "start_sec": 461.71,
+      "end_sec": 463.71,
+      "text": "你現在都可以不用理它"
+    },
+    {
+      "segment_id": "video_003_seg_0156",
+      "start_sec": 464.71,
+      "end_sec": 466.71,
+      "text": "其他東西你都可以不用理它"
+    },
+    {
+      "segment_id": "video_003_seg_0157",
+      "start_sec": 466.71,
+      "end_sec": 469.82,
+      "text": "老樣子"
+    },
+    {
+      "segment_id": "video_003_seg_0158",
+      "start_sec": 469.82,
+      "end_sec": 471.82,
+      "text": "我們的程式"
+    },
+    {
+      "segment_id": "video_003_seg_0159",
+      "start_sec": 472.82,
+      "end_sec": 474.82,
+      "text": "內容蠻多的"
+    },
+    {
+      "segment_id": "video_003_seg_0160",
+      "start_sec": 474.82,
+      "end_sec": 476.82,
+      "text": "像這邊內容都蠻多的"
+    },
+    {
+      "segment_id": "video_003_seg_0161",
+      "start_sec": 476.82,
+      "end_sec": 478.82,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0162",
+      "start_sec": 479.82,
+      "end_sec": 481.82,
+      "text": "大家也不用自己在那邊"
+    },
+    {
+      "segment_id": "video_003_seg_0163",
+      "start_sec": 481.82,
+      "end_sec": 483.82,
+      "text": "打程式嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0164",
+      "start_sec": 483.82,
+      "end_sec": 486.82,
+      "text": "不用自己在那邊打程式嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0165",
+      "start_sec": 486.82,
+      "end_sec": 488.82,
+      "text": "大家只要做一件事就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0166",
+      "start_sec": 488.82,
+      "end_sec": 491.82,
+      "text": "就是把這個失敗隊打開"
+    },
+    {
+      "segment_id": "video_003_seg_0167",
+      "start_sec": 491.82,
+      "end_sec": 495.8,
+      "text": "然後怎樣"
+    },
+    {
+      "segment_id": "video_003_seg_0168",
+      "start_sec": 495.8,
+      "end_sec": 497.8,
+      "text": "然後到我們的影像處理"
+    },
+    {
+      "segment_id": "video_003_seg_0169",
+      "start_sec": 497.8,
+      "end_sec": 499.8,
+      "text": "這個資料夾裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0170",
+      "start_sec": 499.8,
+      "end_sec": 506.68,
+      "text": "把這裡面的東西全部下載"
+    },
+    {
+      "segment_id": "video_003_seg_0171",
+      "start_sec": 506.68,
+      "end_sec": 507.68,
+      "text": "全部"
+    },
+    {
+      "segment_id": "video_003_seg_0172",
+      "start_sec": 507.68,
+      "end_sec": 509.68,
+      "text": "全部都載下來"
+    },
+    {
+      "segment_id": "video_003_seg_0173",
+      "start_sec": 509.68,
+      "end_sec": 513.3,
+      "text": "然後呢"
+    },
+    {
+      "segment_id": "video_003_seg_0174",
+      "start_sec": 513.3,
+      "end_sec": 516.74,
+      "text": "然後建一個資料夾"
+    },
+    {
+      "segment_id": "video_003_seg_0175",
+      "start_sec": 516.74,
+      "end_sec": 518.74,
+      "text": "把他們放在一起就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0176",
+      "start_sec": 518.74,
+      "end_sec": 522.66,
+      "text": "像這樣"
+    },
+    {
+      "segment_id": "video_003_seg_0177",
+      "start_sec": 522.66,
+      "end_sec": 523.66,
+      "text": "建一個資料夾"
+    },
+    {
+      "segment_id": "video_003_seg_0178",
+      "start_sec": 523.66,
+      "end_sec": 527.36,
+      "text": "把全部放在一起就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0179",
+      "start_sec": 527.36,
+      "end_sec": 529.36,
+      "text": "然後其他就不用管了"
+    },
+    {
+      "segment_id": "video_003_seg_0180",
+      "start_sec": 529.36,
+      "end_sec": 535.48,
+      "text": "全部都放在裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0181",
+      "start_sec": 535.48,
+      "end_sec": 536.48,
+      "text": "那要用的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0182",
+      "start_sec": 536.48,
+      "end_sec": 538.48,
+      "text": "你也只要做一件事就好"
+    },
+    {
+      "segment_id": "video_003_seg_0183",
+      "start_sec": 538.48,
+      "end_sec": 539.48,
+      "text": "什麼事"
+    },
+    {
+      "segment_id": "video_003_seg_0184",
+      "start_sec": 539.48,
+      "end_sec": 540.48,
+      "text": "來,比方說"
+    },
+    {
+      "segment_id": "video_003_seg_0185",
+      "start_sec": 540.48,
+      "end_sec": 543.48,
+      "text": "我們等一下要從第一個開始看"
+    },
+    {
+      "segment_id": "video_003_seg_0186",
+      "start_sec": 543.48,
+      "end_sec": 547.48,
+      "text": "從第一個編號1的檔案開始看"
+    },
+    {
+      "segment_id": "video_003_seg_0187",
+      "start_sec": 547.48,
+      "end_sec": 549.48,
+      "text": "你就只要做這件事情就好"
+    },
+    {
+      "segment_id": "video_003_seg_0188",
+      "start_sec": 549.48,
+      "end_sec": 551.48,
+      "text": "把它檔案撥過來"
+    },
+    {
+      "segment_id": "video_003_seg_0189",
+      "start_sec": 551.48,
+      "end_sec": 553.48,
+      "text": "像這樣"
+    },
+    {
+      "segment_id": "video_003_seg_0190",
+      "start_sec": 553.48,
+      "end_sec": 557.4,
+      "text": "這樣就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0191",
+      "start_sec": 557.4,
+      "end_sec": 561.4,
+      "text": "要看第二個的時候就是拖過來"
+    },
+    {
+      "segment_id": "video_003_seg_0192",
+      "start_sec": 561.4,
+      "end_sec": 564.4,
+      "text": "第三個時候拖過來"
+    },
+    {
+      "segment_id": "video_003_seg_0193",
+      "start_sec": 564.4,
+      "end_sec": 568.61,
+      "text": "這樣子就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0194",
+      "start_sec": 568.61,
+      "end_sec": 572.61,
+      "text": "操作應該不複雜啦"
+    },
+    {
+      "segment_id": "video_003_seg_0195",
+      "start_sec": 572.61,
+      "end_sec": 575.61,
+      "text": "如果你不會安裝的話"
+    },
+    {
+      "segment_id": "video_003_seg_0196",
+      "start_sec": 575.61,
+      "end_sec": 579.61,
+      "text": "如果你不會在自己虛擬環境裡面安裝Spider的話"
+    },
+    {
+      "segment_id": "video_003_seg_0197",
+      "start_sec": 579.61,
+      "end_sec": 581.61,
+      "text": "你就直接用"
+    },
+    {
+      "segment_id": "video_003_seg_0198",
+      "start_sec": 581.61,
+      "end_sec": 583.61,
+      "text": "它預設環境的那個"
+    },
+    {
+      "segment_id": "video_003_seg_0199",
+      "start_sec": 583.61,
+      "end_sec": 592.11,
+      "text": "那大家可以試試看"
+    },
+    {
+      "segment_id": "video_003_seg_0200",
+      "start_sec": 592.11,
+      "end_sec": 597.0,
+      "text": "當你把這個"
+    },
+    {
+      "segment_id": "video_003_seg_0201",
+      "start_sec": 597.0,
+      "end_sec": 601.0,
+      "text": "所有檔案都下載下來之後"
+    },
+    {
+      "segment_id": "video_003_seg_0202",
+      "start_sec": 601.0,
+      "end_sec": 603.0,
+      "text": "放在同個資料夾"
+    },
+    {
+      "segment_id": "video_003_seg_0203",
+      "start_sec": 603.0,
+      "end_sec": 605.0,
+      "text": "一定要放在同個資料夾喔"
+    },
+    {
+      "segment_id": "video_003_seg_0204",
+      "start_sec": 605.0,
+      "end_sec": 607.0,
+      "text": "一定要放在同個資料夾"
+    },
+    {
+      "segment_id": "video_003_seg_0205",
+      "start_sec": 607.0,
+      "end_sec": 609.0,
+      "text": "因為它會有所謂的"
+    },
+    {
+      "segment_id": "video_003_seg_0206",
+      "start_sec": 609.0,
+      "end_sec": 611.0,
+      "text": "讀取入境的問題"
+    },
+    {
+      "segment_id": "video_003_seg_0207",
+      "start_sec": 611.0,
+      "end_sec": 616.46,
+      "text": "檔案讀取入境的問題"
+    },
+    {
+      "segment_id": "video_003_seg_0208",
+      "start_sec": 616.46,
+      "end_sec": 618.46,
+      "text": "然後執行看看"
+    },
+    {
+      "segment_id": "video_003_seg_0209",
+      "start_sec": 618.46,
+      "end_sec": 620.46,
+      "text": "像這個執行一下"
+    },
+    {
+      "segment_id": "video_003_seg_0210",
+      "start_sec": 620.46,
+      "end_sec": 624.8,
+      "text": "你就可以看到一個圖片"
+    },
+    {
+      "segment_id": "video_003_seg_0211",
+      "start_sec": 624.8,
+      "end_sec": 628.8,
+      "text": "被讀取進來然後放在這個視窗裡"
+    },
+    {
+      "segment_id": "video_003_seg_0212",
+      "start_sec": 628.8,
+      "end_sec": 631.8,
+      "text": "它叫這個視窗叫Test Image"
+    },
+    {
+      "segment_id": "video_003_seg_0213",
+      "start_sec": 631.8,
+      "end_sec": 634.8,
+      "text": "那裡面每一行分別在幹什麼"
+    },
+    {
+      "segment_id": "video_003_seg_0214",
+      "start_sec": 634.8,
+      "end_sec": 636.8,
+      "text": "我們現在先不講"
+    },
+    {
+      "segment_id": "video_003_seg_0215",
+      "start_sec": 636.8,
+      "end_sec": 638.8,
+      "text": "大家只要試試看"
+    },
+    {
+      "segment_id": "video_003_seg_0216",
+      "start_sec": 638.8,
+      "end_sec": 642.47,
+      "text": "把檔案拖進來就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0217",
+      "start_sec": 642.47,
+      "end_sec": 650.62,
+      "text": "那這個就請大家"
+    },
+    {
+      "segment_id": "video_003_seg_0218",
+      "start_sec": 650.62,
+      "end_sec": 652.62,
+      "text": "先試一下"
+    },
+    {
+      "segment_id": "video_003_seg_0219",
+      "start_sec": 652.62,
+      "end_sec": 654.62,
+      "text": "試完了的話"
+    },
+    {
+      "segment_id": "video_003_seg_0220",
+      "start_sec": 654.62,
+      "end_sec": 657.62,
+      "text": "我們就可以先"
+    },
+    {
+      "segment_id": "video_003_seg_0221",
+      "start_sec": 657.62,
+      "end_sec": 659.62,
+      "text": "休息一下"
+    },
+    {
+      "segment_id": "video_003_seg_0222",
+      "start_sec": 659.62,
+      "end_sec": 663.62,
+      "text": "等一下再帶大家來看這個"
+    },
+    {
+      "segment_id": "video_003_seg_0223",
+      "start_sec": 663.62,
+      "end_sec": 665.62,
+      "text": "裡面的程式到底在幹嘛"
+    },
+    {
+      "segment_id": "video_003_seg_0224",
+      "start_sec": 665.62,
+      "end_sec": 681.64,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0225",
+      "start_sec": 681.64,
+      "end_sec": 685.97,
+      "text": "那個"
+    },
+    {
+      "segment_id": "video_003_seg_0226",
+      "start_sec": 685.97,
+      "end_sec": 688.97,
+      "text": "同學剛剛在聊天室有提到"
+    },
+    {
+      "segment_id": "video_003_seg_0227",
+      "start_sec": 688.97,
+      "end_sec": 692.97,
+      "text": "執行的時候它出現缺CV2"
+    },
+    {
+      "segment_id": "video_003_seg_0228",
+      "start_sec": 692.97,
+      "end_sec": 694.97,
+      "text": "缺少CV2這個套件"
+    },
+    {
+      "segment_id": "video_003_seg_0229",
+      "start_sec": 694.97,
+      "end_sec": 696.97,
+      "text": "這個是我疏忽的"
+    },
+    {
+      "segment_id": "video_003_seg_0230",
+      "start_sec": 696.97,
+      "end_sec": 698.97,
+      "text": "我忘記先講這個了"
+    },
+    {
+      "segment_id": "video_003_seg_0231",
+      "start_sec": 698.97,
+      "end_sec": 701.97,
+      "text": "CV2其實就是OpenCV"
+    },
+    {
+      "segment_id": "video_003_seg_0232",
+      "start_sec": 701.97,
+      "end_sec": 704.97,
+      "text": "CV2就是OpenCV"
+    },
+    {
+      "segment_id": "video_003_seg_0233",
+      "start_sec": 704.97,
+      "end_sec": 707.97,
+      "text": "不過安裝OpenCV很奇怪"
+    },
+    {
+      "segment_id": "video_003_seg_0234",
+      "start_sec": 707.97,
+      "end_sec": 709.97,
+      "text": "那我想"
+    },
+    {
+      "segment_id": "video_003_seg_0235",
+      "start_sec": 709.97,
+      "end_sec": 711.97,
+      "text": "會問這個問題"
+    },
+    {
+      "segment_id": "video_003_seg_0236",
+      "start_sec": 711.97,
+      "end_sec": 713.97,
+      "text": "就代表同學應該試著"
+    },
+    {
+      "segment_id": "video_003_seg_0237",
+      "start_sec": 713.97,
+      "end_sec": 716.97,
+      "text": "自己去點了一下"
+    },
+    {
+      "segment_id": "video_003_seg_0238",
+      "start_sec": 716.97,
+      "end_sec": 719.97,
+      "text": "就是去打PIPInstallCV2"
+    },
+    {
+      "segment_id": "video_003_seg_0239",
+      "start_sec": 719.97,
+      "end_sec": 723.97,
+      "text": "結果那個"
+    },
+    {
+      "segment_id": "video_003_seg_0240",
+      "start_sec": 723.97,
+      "end_sec": 726.97,
+      "text": "Alaconda跟你回報說"
+    },
+    {
+      "segment_id": "video_003_seg_0241",
+      "start_sec": 726.97,
+      "end_sec": 729.97,
+      "text": "找不到CV2這個套件對不對"
+    },
+    {
+      "segment_id": "video_003_seg_0242",
+      "start_sec": 729.97,
+      "end_sec": 731.97,
+      "text": "那的確"
+    },
+    {
+      "segment_id": "video_003_seg_0243",
+      "start_sec": 731.97,
+      "end_sec": 733.97,
+      "text": "來"
+    },
+    {
+      "segment_id": "video_003_seg_0244",
+      "start_sec": 733.97,
+      "end_sec": 735.97,
+      "text": "我剛剛應該要先講"
+    },
+    {
+      "segment_id": "video_003_seg_0245",
+      "start_sec": 735.97,
+      "end_sec": 737.97,
+      "text": "我剛剛應該要先講"
+    },
+    {
+      "segment_id": "video_003_seg_0246",
+      "start_sec": 737.97,
+      "end_sec": 739.97,
+      "text": "再讓各位同學去試"
+    },
+    {
+      "segment_id": "video_003_seg_0247",
+      "start_sec": 739.97,
+      "end_sec": 741.97,
+      "text": "然後去休息"
+    },
+    {
+      "segment_id": "video_003_seg_0248",
+      "start_sec": 741.97,
+      "end_sec": 743.97,
+      "text": "這個是我疏忽了"
+    },
+    {
+      "segment_id": "video_003_seg_0249",
+      "start_sec": 743.97,
+      "end_sec": 747.97,
+      "text": "那我們來看一下"
+    },
+    {
+      "segment_id": "video_003_seg_0250",
+      "start_sec": 747.97,
+      "end_sec": 750.97,
+      "text": "各位你可以參考一下"
+    },
+    {
+      "segment_id": "video_003_seg_0251",
+      "start_sec": 750.97,
+      "end_sec": 753.97,
+      "text": "畫面上的這個位置"
+    },
+    {
+      "segment_id": "video_003_seg_0252",
+      "start_sec": 753.97,
+      "end_sec": 756.97,
+      "text": "安裝OpenCV"
+    },
+    {
+      "segment_id": "video_003_seg_0253",
+      "start_sec": 756.97,
+      "end_sec": 759.97,
+      "text": "它要用這個指令"
+    },
+    {
+      "segment_id": "video_003_seg_0254",
+      "start_sec": 759.97,
+      "end_sec": 762.97,
+      "text": "PIPInstallOpenCV"
+    },
+    {
+      "segment_id": "video_003_seg_0255",
+      "start_sec": 762.97,
+      "end_sec": 765.97,
+      "text": "橫線拍攝"
+    },
+    {
+      "segment_id": "video_003_seg_0256",
+      "start_sec": 765.97,
+      "end_sec": 768.97,
+      "text": "它長這樣"
+    },
+    {
+      "segment_id": "video_003_seg_0257",
+      "start_sec": 768.97,
+      "end_sec": 772.97,
+      "text": "但是它的Module"
+    },
+    {
+      "segment_id": "video_003_seg_0258",
+      "start_sec": 772.97,
+      "end_sec": 774.97,
+      "text": "它套件在使用的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0259",
+      "start_sec": 774.97,
+      "end_sec": 777.97,
+      "text": "是InputCV2"
+    },
+    {
+      "segment_id": "video_003_seg_0260",
+      "start_sec": 777.97,
+      "end_sec": 780.97,
+      "text": "所以這個蠻特別的"
+    },
+    {
+      "segment_id": "video_003_seg_0261",
+      "start_sec": 780.97,
+      "end_sec": 783.97,
+      "text": "為什麼會出現這種問題呢"
+    },
+    {
+      "segment_id": "video_003_seg_0262",
+      "start_sec": 783.97,
+      "end_sec": 785.97,
+      "text": "因為OpenCV如同我"
+    },
+    {
+      "segment_id": "video_003_seg_0263",
+      "start_sec": 785.97,
+      "end_sec": 787.97,
+      "text": "前面跟各位介紹的"
+    },
+    {
+      "segment_id": "video_003_seg_0264",
+      "start_sec": 787.97,
+      "end_sec": 790.97,
+      "text": "它有超級"
+    },
+    {
+      "segment_id": "video_003_seg_0265",
+      "start_sec": 790.97,
+      "end_sec": 792.97,
+      "text": "沒分享到畫面"
+    },
+    {
+      "segment_id": "video_003_seg_0266",
+      "start_sec": 795.97,
+      "end_sec": 797.97,
+      "text": "如同我前面跟各位介紹的"
+    },
+    {
+      "segment_id": "video_003_seg_0267",
+      "start_sec": 797.97,
+      "end_sec": 799.97,
+      "text": "它有超級多個版本"
+    },
+    {
+      "segment_id": "video_003_seg_0268",
+      "start_sec": 799.97,
+      "end_sec": 802.97,
+      "text": "來我把這個指令貼在聊天室"
+    },
+    {
+      "segment_id": "video_003_seg_0269",
+      "start_sec": 802.97,
+      "end_sec": 804.97,
+      "text": "這個"
+    },
+    {
+      "segment_id": "video_003_seg_0270",
+      "start_sec": 804.97,
+      "end_sec": 809.95,
+      "text": "它有很多個版本"
+    },
+    {
+      "segment_id": "video_003_seg_0271",
+      "start_sec": 809.95,
+      "end_sec": 811.95,
+      "text": "那各位其實"
+    },
+    {
+      "segment_id": "video_003_seg_0272",
+      "start_sec": 811.95,
+      "end_sec": 814.95,
+      "text": "之前學那個"
+    },
+    {
+      "segment_id": "video_003_seg_0273",
+      "start_sec": 814.95,
+      "end_sec": 816.95,
+      "text": "語法去安裝"
+    },
+    {
+      "segment_id": "video_003_seg_0274",
+      "start_sec": 816.95,
+      "end_sec": 818.95,
+      "text": "OpenCV的套件你都只"
+    },
+    {
+      "segment_id": "video_003_seg_0275",
+      "start_sec": 818.95,
+      "end_sec": 820.95,
+      "text": "可能"
+    },
+    {
+      "segment_id": "video_003_seg_0276",
+      "start_sec": 820.95,
+      "end_sec": 822.95,
+      "text": "助教有跟大家講"
+    },
+    {
+      "segment_id": "video_003_seg_0277",
+      "start_sec": 822.95,
+      "end_sec": 824.95,
+      "text": "就是要打PIPInstall"
+    },
+    {
+      "segment_id": "video_003_seg_0278",
+      "start_sec": 824.95,
+      "end_sec": 826.95,
+      "text": "但是"
+    },
+    {
+      "segment_id": "video_003_seg_0279",
+      "start_sec": 826.95,
+      "end_sec": 829.95,
+      "text": "可能我不太確定"
+    },
+    {
+      "segment_id": "video_003_seg_0280",
+      "start_sec": 829.95,
+      "end_sec": 831.95,
+      "text": "不太確定有沒有講到"
+    },
+    {
+      "segment_id": "video_003_seg_0281",
+      "start_sec": 831.95,
+      "end_sec": 834.95,
+      "text": "PIP是什麼東西"
+    },
+    {
+      "segment_id": "video_003_seg_0282",
+      "start_sec": 834.95,
+      "end_sec": 837.95,
+      "text": "PIP它是一個"
+    },
+    {
+      "segment_id": "video_003_seg_0283",
+      "start_sec": 837.95,
+      "end_sec": 843.03,
+      "text": "管理套件的套件"
+    },
+    {
+      "segment_id": "video_003_seg_0284",
+      "start_sec": 843.03,
+      "end_sec": 852.11,
+      "text": "它是一個管理套件的套件"
+    },
+    {
+      "segment_id": "video_003_seg_0285",
+      "start_sec": 852.11,
+      "end_sec": 856.99,
+      "text": "管理套件的套件"
+    },
+    {
+      "segment_id": "video_003_seg_0286",
+      "start_sec": 856.99,
+      "end_sec": 859.99,
+      "text": "它本身也是一個Module"
+    },
+    {
+      "segment_id": "video_003_seg_0287",
+      "start_sec": 859.99,
+      "end_sec": 861.99,
+      "text": "但它可以幫你管理"
+    },
+    {
+      "segment_id": "video_003_seg_0288",
+      "start_sec": 861.99,
+      "end_sec": 863.99,
+      "text": "各式各樣的Module"
+    },
+    {
+      "segment_id": "video_003_seg_0289",
+      "start_sec": 863.99,
+      "end_sec": 865.99,
+      "text": "只要那個Module在PIP"
+    },
+    {
+      "segment_id": "video_003_seg_0290",
+      "start_sec": 865.99,
+      "end_sec": 867.99,
+      "text": "裡面註冊"
+    },
+    {
+      "segment_id": "video_003_seg_0291",
+      "start_sec": 867.99,
+      "end_sec": 869.99,
+      "text": "然後按照PIP"
+    },
+    {
+      "segment_id": "video_003_seg_0292",
+      "start_sec": 869.99,
+      "end_sec": 871.99,
+      "text": "套件的格式"
+    },
+    {
+      "segment_id": "video_003_seg_0293",
+      "start_sec": 871.99,
+      "end_sec": 873.99,
+      "text": "把安裝的方式"
+    },
+    {
+      "segment_id": "video_003_seg_0294",
+      "start_sec": 873.99,
+      "end_sec": 875.99,
+      "text": "寫好"
+    },
+    {
+      "segment_id": "video_003_seg_0295",
+      "start_sec": 875.99,
+      "end_sec": 878.99,
+      "text": "以後別人要用這個套件的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0296",
+      "start_sec": 878.99,
+      "end_sec": 881.99,
+      "text": "你就只需要去打"
+    },
+    {
+      "segment_id": "video_003_seg_0297",
+      "start_sec": 881.99,
+      "end_sec": 883.99,
+      "text": "PIPInstall"
+    },
+    {
+      "segment_id": "video_003_seg_0298",
+      "start_sec": 883.99,
+      "end_sec": 886.99,
+      "text": "它就會自動幫你安裝完了"
+    },
+    {
+      "segment_id": "video_003_seg_0299",
+      "start_sec": 886.99,
+      "end_sec": 888.99,
+      "text": "所以其實PIP它是一個"
+    },
+    {
+      "segment_id": "video_003_seg_0300",
+      "start_sec": 888.99,
+      "end_sec": 890.99,
+      "text": "管理套件的套件"
+    },
+    {
+      "segment_id": "video_003_seg_0301",
+      "start_sec": 890.99,
+      "end_sec": 892.99,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_003_seg_0302",
+      "start_sec": 892.99,
+      "end_sec": 895.99,
+      "text": "這個就要先生機再生蛋了"
+    },
+    {
+      "segment_id": "video_003_seg_0303",
+      "start_sec": 895.99,
+      "end_sec": 898.99,
+      "text": "到底是先有機還是先有蛋問題"
+    },
+    {
+      "segment_id": "video_003_seg_0304",
+      "start_sec": 898.99,
+      "end_sec": 900.99,
+      "text": "有同學可能又會講說"
+    },
+    {
+      "segment_id": "video_003_seg_0305",
+      "start_sec": 900.99,
+      "end_sec": 901.99,
+      "text": "老師不對"
+    },
+    {
+      "segment_id": "video_003_seg_0306",
+      "start_sec": 901.99,
+      "end_sec": 903.99,
+      "text": "你現在不是要裝套件嗎"
+    },
+    {
+      "segment_id": "video_003_seg_0307",
+      "start_sec": 903.99,
+      "end_sec": 906.99,
+      "text": "你又說PIP它是一個管理套件的套件"
+    },
+    {
+      "segment_id": "video_003_seg_0308",
+      "start_sec": 906.99,
+      "end_sec": 908.99,
+      "text": "但是我們安裝PIP"
+    },
+    {
+      "segment_id": "video_003_seg_0309",
+      "start_sec": 908.99,
+      "end_sec": 911.99,
+      "text": "好像也沒有安裝PIP這個套件"
+    },
+    {
+      "segment_id": "video_003_seg_0310",
+      "start_sec": 912.99,
+      "end_sec": 915.99,
+      "text": "這是有原因的"
+    },
+    {
+      "segment_id": "video_003_seg_0311",
+      "start_sec": 915.99,
+      "end_sec": 918.99,
+      "text": "Python這個語言"
+    },
+    {
+      "segment_id": "video_003_seg_0312",
+      "start_sec": 918.99,
+      "end_sec": 920.99,
+      "text": "光是原生的Python"
+    },
+    {
+      "segment_id": "video_003_seg_0313",
+      "start_sec": 920.99,
+      "end_sec": 922.99,
+      "text": "它預設就有把PIP這個套件"
+    },
+    {
+      "segment_id": "video_003_seg_0314",
+      "start_sec": 922.99,
+      "end_sec": 923.99,
+      "text": "放在裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0315",
+      "start_sec": 923.99,
+      "end_sec": 925.99,
+      "text": "還不用到Anaconda"
+    },
+    {
+      "segment_id": "video_003_seg_0316",
+      "start_sec": 925.99,
+      "end_sec": 927.99,
+      "text": "還不用到Anaconda"
+    },
+    {
+      "segment_id": "video_003_seg_0317",
+      "start_sec": 927.99,
+      "end_sec": 929.99,
+      "text": "一般的Python預設"
+    },
+    {
+      "segment_id": "video_003_seg_0318",
+      "start_sec": 929.99,
+      "end_sec": 931.99,
+      "text": "就有把PIP裝進去了"
+    },
+    {
+      "segment_id": "video_003_seg_0319",
+      "start_sec": 931.99,
+      "end_sec": 933.99,
+      "text": "它為了方便大家使用"
+    },
+    {
+      "segment_id": "video_003_seg_0320",
+      "start_sec": 935.99,
+      "end_sec": 937.99,
+      "text": "那問題就來了"
+    },
+    {
+      "segment_id": "video_003_seg_0321",
+      "start_sec": 937.99,
+      "end_sec": 940.99,
+      "text": "同樣"
+    },
+    {
+      "segment_id": "video_003_seg_0322",
+      "start_sec": 940.99,
+      "end_sec": 942.99,
+      "text": "是"
+    },
+    {
+      "segment_id": "video_003_seg_0323",
+      "start_sec": 942.99,
+      "end_sec": 944.99,
+      "text": "OpenCB"
+    },
+    {
+      "segment_id": "video_003_seg_0324",
+      "start_sec": 944.99,
+      "end_sec": 947.99,
+      "text": "在PIP裡面有註冊"
+    },
+    {
+      "segment_id": "video_003_seg_0325",
+      "start_sec": 947.99,
+      "end_sec": 950.99,
+      "text": "在PIP這個套件裡面有註冊"
+    },
+    {
+      "segment_id": "video_003_seg_0326",
+      "start_sec": 950.99,
+      "end_sec": 952.99,
+      "text": "它有Python的版本"
+    },
+    {
+      "segment_id": "video_003_seg_0327",
+      "start_sec": 952.99,
+      "end_sec": 954.99,
+      "text": "它有C的版本"
+    },
+    {
+      "segment_id": "video_003_seg_0328",
+      "start_sec": 954.99,
+      "end_sec": 960.16,
+      "text": "它有很多各式各樣語言不同的版本"
+    },
+    {
+      "segment_id": "video_003_seg_0329",
+      "start_sec": 960.16,
+      "end_sec": 961.16,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0330",
+      "start_sec": 961.16,
+      "end_sec": 965.67,
+      "text": "因為它版本太多了"
+    },
+    {
+      "segment_id": "video_003_seg_0331",
+      "start_sec": 965.67,
+      "end_sec": 967.67,
+      "text": "你在PIP裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0332",
+      "start_sec": 967.67,
+      "end_sec": 968.67,
+      "text": "才需要跟它講"
+    },
+    {
+      "segment_id": "video_003_seg_0333",
+      "start_sec": 968.67,
+      "end_sec": 970.67,
+      "text": "我要安裝OpenCB"
+    },
+    {
+      "segment_id": "video_003_seg_0334",
+      "start_sec": 970.67,
+      "end_sec": 971.67,
+      "text": "然後怎樣"
+    },
+    {
+      "segment_id": "video_003_seg_0335",
+      "start_sec": 971.67,
+      "end_sec": 973.67,
+      "text": "我要安裝的是Python"
+    },
+    {
+      "segment_id": "video_003_seg_0336",
+      "start_sec": 973.67,
+      "end_sec": 977.68,
+      "text": "如果你只打"
+    },
+    {
+      "segment_id": "video_003_seg_0337",
+      "start_sec": 977.68,
+      "end_sec": 979.68,
+      "text": "PIP到OpenCB的話"
+    },
+    {
+      "segment_id": "video_003_seg_0338",
+      "start_sec": 979.68,
+      "end_sec": 981.68,
+      "text": "它不知道你要裝哪一個"
+    },
+    {
+      "segment_id": "video_003_seg_0339",
+      "start_sec": 981.68,
+      "end_sec": 985.32,
+      "text": "它不知道你要裝哪一個"
+    },
+    {
+      "segment_id": "video_003_seg_0340",
+      "start_sec": 985.32,
+      "end_sec": 987.32,
+      "text": "這個跟各位之前安裝過的"
+    },
+    {
+      "segment_id": "video_003_seg_0341",
+      "start_sec": 987.32,
+      "end_sec": 989.32,
+      "text": "其他套件不一樣"
+    },
+    {
+      "segment_id": "video_003_seg_0342",
+      "start_sec": 989.32,
+      "end_sec": 991.32,
+      "text": "Python的Python"
+    },
+    {
+      "segment_id": "video_003_seg_0343",
+      "start_sec": 991.32,
+      "end_sec": 993.32,
+      "text": "就只有Python的Python"
+    },
+    {
+      "segment_id": "video_003_seg_0344",
+      "start_sec": 993.32,
+      "end_sec": 995.32,
+      "text": "像剛剛提到的Spider"
+    },
+    {
+      "segment_id": "video_003_seg_0345",
+      "start_sec": 995.32,
+      "end_sec": 998.32,
+      "text": "只有在Python裡面有Spider"
+    },
+    {
+      "segment_id": "video_003_seg_0346",
+      "start_sec": 998.32,
+      "end_sec": 1000.32,
+      "text": "其他人"
+    },
+    {
+      "segment_id": "video_003_seg_0347",
+      "start_sec": 1000.32,
+      "end_sec": 1002.32,
+      "text": "沒有"
+    },
+    {
+      "segment_id": "video_003_seg_0348",
+      "start_sec": 1002.32,
+      "end_sec": 1006.76,
+      "text": "OpenCB不一樣"
+    },
+    {
+      "segment_id": "video_003_seg_0349",
+      "start_sec": 1006.76,
+      "end_sec": 1011.39,
+      "text": "所以它才會出現這個狀況"
+    },
+    {
+      "segment_id": "video_003_seg_0350",
+      "start_sec": 1011.39,
+      "end_sec": 1015.39,
+      "text": "那你安裝Python"
+    },
+    {
+      "segment_id": "video_003_seg_0351",
+      "start_sec": 1019.39,
+      "end_sec": 1020.39,
+      "text": "所以剛剛如果有"
+    },
+    {
+      "segment_id": "video_003_seg_0352",
+      "start_sec": 1020.39,
+      "end_sec": 1021.39,
+      "text": "執行的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0353",
+      "start_sec": 1021.39,
+      "end_sec": 1023.39,
+      "text": "遇到它跳了一個訊息"
+    },
+    {
+      "segment_id": "video_003_seg_0354",
+      "start_sec": 1023.39,
+      "end_sec": 1026.39,
+      "text": "跟你講CV2找不到"
+    },
+    {
+      "segment_id": "video_003_seg_0355",
+      "start_sec": 1026.39,
+      "end_sec": 1028.39,
+      "text": "CV2找不到的話"
+    },
+    {
+      "segment_id": "video_003_seg_0356",
+      "start_sec": 1028.39,
+      "end_sec": 1030.39,
+      "text": "那你就做一件事情"
+    },
+    {
+      "segment_id": "video_003_seg_0357",
+      "start_sec": 1030.39,
+      "end_sec": 1031.39,
+      "text": "把這個"
+    },
+    {
+      "segment_id": "video_003_seg_0358",
+      "start_sec": 1031.39,
+      "end_sec": 1033.39,
+      "text": "先把Spider關掉"
+    },
+    {
+      "segment_id": "video_003_seg_0359",
+      "start_sec": 1033.39,
+      "end_sec": 1034.39,
+      "text": "一定要先關喔"
+    },
+    {
+      "segment_id": "video_003_seg_0360",
+      "start_sec": 1034.39,
+      "end_sec": 1036.39,
+      "text": "如果你Spider沒關掉的話"
+    },
+    {
+      "segment_id": "video_003_seg_0361",
+      "start_sec": 1036.39,
+      "end_sec": 1039.39,
+      "text": "你再去裝OpenCB的話"
+    },
+    {
+      "segment_id": "video_003_seg_0362",
+      "start_sec": 1039.39,
+      "end_sec": 1040.39,
+      "text": "你同樣去執行"
+    },
+    {
+      "segment_id": "video_003_seg_0363",
+      "start_sec": 1040.39,
+      "end_sec": 1044.39,
+      "text": "它還是會跟你講找不到喔"
+    },
+    {
+      "segment_id": "video_003_seg_0364",
+      "start_sec": 1044.39,
+      "end_sec": 1046.39,
+      "text": "因為Python這個"
+    },
+    {
+      "segment_id": "video_003_seg_0365",
+      "start_sec": 1046.39,
+      "end_sec": 1047.39,
+      "text": "執行環境"
+    },
+    {
+      "segment_id": "video_003_seg_0366",
+      "start_sec": 1047.39,
+      "end_sec": 1048.39,
+      "text": "是"
+    },
+    {
+      "segment_id": "video_003_seg_0367",
+      "start_sec": 1048.39,
+      "end_sec": 1051.39,
+      "text": "開啟了那一瞬間"
+    },
+    {
+      "segment_id": "video_003_seg_0368",
+      "start_sec": 1051.39,
+      "end_sec": 1053.39,
+      "text": "它的狀態就固定了"
+    },
+    {
+      "segment_id": "video_003_seg_0369",
+      "start_sec": 1053.39,
+      "end_sec": 1055.39,
+      "text": "它狀態就固定下來了"
+    },
+    {
+      "segment_id": "video_003_seg_0370",
+      "start_sec": 1055.39,
+      "end_sec": 1057.39,
+      "text": "你後面再去裝"
+    },
+    {
+      "segment_id": "video_003_seg_0371",
+      "start_sec": 1057.39,
+      "end_sec": 1058.39,
+      "text": "新的套件進去"
+    },
+    {
+      "segment_id": "video_003_seg_0372",
+      "start_sec": 1058.39,
+      "end_sec": 1060.39,
+      "text": "只要你沒有把"
+    },
+    {
+      "segment_id": "video_003_seg_0373",
+      "start_sec": 1060.39,
+      "end_sec": 1063.39,
+      "text": "當下執行中的Python的"
+    },
+    {
+      "segment_id": "video_003_seg_0374",
+      "start_sec": 1063.39,
+      "end_sec": 1065.39,
+      "text": "程式把它關掉"
+    },
+    {
+      "segment_id": "video_003_seg_0375",
+      "start_sec": 1065.39,
+      "end_sec": 1066.39,
+      "text": "然後再重開"
+    },
+    {
+      "segment_id": "video_003_seg_0376",
+      "start_sec": 1066.39,
+      "end_sec": 1068.39,
+      "text": "只要你沒做這個步驟"
+    },
+    {
+      "segment_id": "video_003_seg_0377",
+      "start_sec": 1068.39,
+      "end_sec": 1071.39,
+      "text": "它還是抓到的是舊的"
+    },
+    {
+      "segment_id": "video_003_seg_0378",
+      "start_sec": 1071.39,
+      "end_sec": 1074.39,
+      "text": "也就是新裝進去的那個東西"
+    },
+    {
+      "segment_id": "video_003_seg_0379",
+      "start_sec": 1074.39,
+      "end_sec": 1076.39,
+      "text": "它不認得"
+    },
+    {
+      "segment_id": "video_003_seg_0380",
+      "start_sec": 1076.39,
+      "end_sec": 1078.39,
+      "text": "新裝進去的那個東西"
+    },
+    {
+      "segment_id": "video_003_seg_0381",
+      "start_sec": 1078.39,
+      "end_sec": 1079.39,
+      "text": "它不認得"
+    },
+    {
+      "segment_id": "video_003_seg_0382",
+      "start_sec": 1079.39,
+      "end_sec": 1081.39,
+      "text": "所以我們要"
+    },
+    {
+      "segment_id": "video_003_seg_0383",
+      "start_sec": 1081.39,
+      "end_sec": 1084.39,
+      "text": "把那個"
+    },
+    {
+      "segment_id": "video_003_seg_0384",
+      "start_sec": 1084.39,
+      "end_sec": 1087.96,
+      "text": "Spider先關掉"
+    },
+    {
+      "segment_id": "video_003_seg_0385",
+      "start_sec": 1087.96,
+      "end_sec": 1088.96,
+      "text": "然後你就在這邊"
+    },
+    {
+      "segment_id": "video_003_seg_0386",
+      "start_sec": 1088.96,
+      "end_sec": 1091.96,
+      "text": "PIP install"
+    },
+    {
+      "segment_id": "video_003_seg_0387",
+      "start_sec": 1092.96,
+      "end_sec": 1095.96,
+      "text": "OpenCB"
+    },
+    {
+      "segment_id": "video_003_seg_0388",
+      "start_sec": 1095.96,
+      "end_sec": 1097.96,
+      "text": "Python"
+    },
+    {
+      "segment_id": "video_003_seg_0389",
+      "start_sec": 1097.96,
+      "end_sec": 1099.96,
+      "text": "就是我剛剛"
+    },
+    {
+      "segment_id": "video_003_seg_0390",
+      "start_sec": 1099.96,
+      "end_sec": 1101.96,
+      "text": "丟在聊天室的那一串"
+    },
+    {
+      "segment_id": "video_003_seg_0391",
+      "start_sec": 1101.96,
+      "end_sec": 1103.96,
+      "text": "那我這邊是沒差的"
+    },
+    {
+      "segment_id": "video_003_seg_0392",
+      "start_sec": 1103.96,
+      "end_sec": 1105.96,
+      "text": "因為我早就裝完了"
+    },
+    {
+      "segment_id": "video_003_seg_0393",
+      "start_sec": 1105.96,
+      "end_sec": 1107.96,
+      "text": "所以我這邊就跳兩行而已"
+    },
+    {
+      "segment_id": "video_003_seg_0394",
+      "start_sec": 1107.96,
+      "end_sec": 1109.96,
+      "text": "大家要安裝的話"
+    },
+    {
+      "segment_id": "video_003_seg_0395",
+      "start_sec": 1109.96,
+      "end_sec": 1111.96,
+      "text": "它可能會跑比較多的東西"
+    },
+    {
+      "segment_id": "video_003_seg_0396",
+      "start_sec": 1111.96,
+      "end_sec": 1113.96,
+      "text": "但是也不會裝太久"
+    },
+    {
+      "segment_id": "video_003_seg_0397",
+      "start_sec": 1113.96,
+      "end_sec": 1115.96,
+      "text": "因為這個很快"
+    },
+    {
+      "segment_id": "video_003_seg_0398",
+      "start_sec": 1115.96,
+      "end_sec": 1119.52,
+      "text": "安裝很快"
+    },
+    {
+      "segment_id": "video_003_seg_0399",
+      "start_sec": 1119.52,
+      "end_sec": 1121.52,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0400",
+      "start_sec": 1121.52,
+      "end_sec": 1123.52,
+      "text": "我發現聊天室有同學"
+    },
+    {
+      "segment_id": "video_003_seg_0401",
+      "start_sec": 1123.52,
+      "end_sec": 1124.52,
+      "text": "我問一個問題"
+    },
+    {
+      "segment_id": "video_003_seg_0402",
+      "start_sec": 1124.52,
+      "end_sec": 1135.42,
+      "text": "這個問題挺不錯的"
+    },
+    {
+      "segment_id": "video_003_seg_0403",
+      "start_sec": 1135.42,
+      "end_sec": 1137.42,
+      "text": "會問這個問題的一定是"
+    },
+    {
+      "segment_id": "video_003_seg_0404",
+      "start_sec": 1137.42,
+      "end_sec": 1141.42,
+      "text": "同學一定是有之前"
+    },
+    {
+      "segment_id": "video_003_seg_0405",
+      "start_sec": 1141.42,
+      "end_sec": 1143.42,
+      "text": "跟我其他的程式"
+    },
+    {
+      "segment_id": "video_003_seg_0406",
+      "start_sec": 1143.42,
+      "end_sec": 1146.86,
+      "text": "進行過比較"
+    },
+    {
+      "segment_id": "video_003_seg_0407",
+      "start_sec": 1146.86,
+      "end_sec": 1150.81,
+      "text": "同學問的問題是這個"
+    },
+    {
+      "segment_id": "video_003_seg_0408",
+      "start_sec": 1150.81,
+      "end_sec": 1153.81,
+      "text": "像我們之前在"
+    },
+    {
+      "segment_id": "video_003_seg_0409",
+      "start_sec": 1153.81,
+      "end_sec": 1155.81,
+      "text": "做chatGPT的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0410",
+      "start_sec": 1155.81,
+      "end_sec": 1158.81,
+      "text": "其實有安裝套件"
+    },
+    {
+      "segment_id": "video_003_seg_0411",
+      "start_sec": 1158.81,
+      "end_sec": 1160.81,
+      "text": "我們有安裝過套件"
+    },
+    {
+      "segment_id": "video_003_seg_0412",
+      "start_sec": 1160.81,
+      "end_sec": 1161.81,
+      "text": "但是那個時候"
+    },
+    {
+      "segment_id": "video_003_seg_0413",
+      "start_sec": 1161.81,
+      "end_sec": 1162.81,
+      "text": "我在chatGPT裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0414",
+      "start_sec": 1162.81,
+      "end_sec": 1163.81,
+      "text": "執行的是"
+    },
+    {
+      "segment_id": "video_003_seg_0415",
+      "start_sec": 1163.81,
+      "end_sec": 1165.81,
+      "text": "英碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0416",
+      "start_sec": 1165.81,
+      "end_sec": 1167.81,
+      "text": "PIP install"
+    },
+    {
+      "segment_id": "video_003_seg_0417",
+      "start_sec": 1167.81,
+      "end_sec": 1169.81,
+      "text": "OpenAI"
+    },
+    {
+      "segment_id": "video_003_seg_0418",
+      "start_sec": 1169.81,
+      "end_sec": 1171.81,
+      "text": "等於等於0.28"
+    },
+    {
+      "segment_id": "video_003_seg_0419",
+      "start_sec": 1171.81,
+      "end_sec": 1176.12,
+      "text": "等於等於是版本"
+    },
+    {
+      "segment_id": "video_003_seg_0420",
+      "start_sec": 1176.12,
+      "end_sec": 1178.12,
+      "text": "但是我這邊"
+    },
+    {
+      "segment_id": "video_003_seg_0421",
+      "start_sec": 1178.12,
+      "end_sec": 1179.12,
+      "text": "沒有打英碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0422",
+      "start_sec": 1179.12,
+      "end_sec": 1181.12,
+      "text": "這是為什麼"
+    },
+    {
+      "segment_id": "video_003_seg_0423",
+      "start_sec": 1181.12,
+      "end_sec": 1183.12,
+      "text": "其實這個英碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0424",
+      "start_sec": 1183.12,
+      "end_sec": 1185.12,
+      "text": "跟Python本身一點關係都沒有"
+    },
+    {
+      "segment_id": "video_003_seg_0425",
+      "start_sec": 1185.12,
+      "end_sec": 1189.55,
+      "text": "這是怎樣"
+    },
+    {
+      "segment_id": "video_003_seg_0426",
+      "start_sec": 1189.55,
+      "end_sec": 1191.55,
+      "text": "這個是在"
+    },
+    {
+      "segment_id": "video_003_seg_0427",
+      "start_sec": 1191.55,
+      "end_sec": 1193.55,
+      "text": "JubiternalBook裡面的"
+    },
+    {
+      "segment_id": "video_003_seg_0428",
+      "start_sec": 1193.55,
+      "end_sec": 1195.55,
+      "text": "特殊用法"
+    },
+    {
+      "segment_id": "video_003_seg_0429",
+      "start_sec": 1195.55,
+      "end_sec": 1198.83,
+      "text": "這個不是Python"
+    },
+    {
+      "segment_id": "video_003_seg_0430",
+      "start_sec": 1198.83,
+      "end_sec": 1200.83,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0431",
+      "start_sec": 1200.83,
+      "end_sec": 1202.83,
+      "text": "JubiternalBook這個套件"
+    },
+    {
+      "segment_id": "video_003_seg_0432",
+      "start_sec": 1202.83,
+      "end_sec": 1204.83,
+      "text": "它方便是方便"
+    },
+    {
+      "segment_id": "video_003_seg_0433",
+      "start_sec": 1204.83,
+      "end_sec": 1205.83,
+      "text": "但是有時候"
+    },
+    {
+      "segment_id": "video_003_seg_0434",
+      "start_sec": 1205.83,
+      "end_sec": 1208.83,
+      "text": "反而會讓很多人搞混"
+    },
+    {
+      "segment_id": "video_003_seg_0435",
+      "start_sec": 1208.83,
+      "end_sec": 1209.83,
+      "text": "這個金碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0436",
+      "start_sec": 1209.83,
+      "end_sec": 1210.83,
+      "text": "根本跟Python"
+    },
+    {
+      "segment_id": "video_003_seg_0437",
+      "start_sec": 1210.83,
+      "end_sec": 1212.83,
+      "text": "半毛錢關係都沒有"
+    },
+    {
+      "segment_id": "video_003_seg_0438",
+      "start_sec": 1212.83,
+      "end_sec": 1214.83,
+      "text": "這是JubiternalBook裡面的用法"
+    },
+    {
+      "segment_id": "video_003_seg_0439",
+      "start_sec": 1214.83,
+      "end_sec": 1215.83,
+      "text": "意思是說"
+    },
+    {
+      "segment_id": "video_003_seg_0440",
+      "start_sec": 1215.83,
+      "end_sec": 1217.83,
+      "text": "只要有金碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0441",
+      "start_sec": 1217.83,
+      "end_sec": 1219.83,
+      "text": "內行的開頭是金碳號的"
+    },
+    {
+      "segment_id": "video_003_seg_0442",
+      "start_sec": 1219.83,
+      "end_sec": 1221.83,
+      "text": "後面的這個語法"
+    },
+    {
+      "segment_id": "video_003_seg_0443",
+      "start_sec": 1221.83,
+      "end_sec": 1223.83,
+      "text": "JubiternalBook就要自動"
+    },
+    {
+      "segment_id": "video_003_seg_0444",
+      "start_sec": 1223.83,
+      "end_sec": 1224.83,
+      "text": "幫你到這個"
+    },
+    {
+      "segment_id": "video_003_seg_0445",
+      "start_sec": 1224.83,
+      "end_sec": 1226.83,
+      "text": "Naconda Prompt"
+    },
+    {
+      "segment_id": "video_003_seg_0446",
+      "start_sec": 1226.83,
+      "end_sec": 1231.32,
+      "text": "裡面把它輸入進去"
+    },
+    {
+      "segment_id": "video_003_seg_0447",
+      "start_sec": 1231.32,
+      "end_sec": 1233.32,
+      "text": "你就是去啟動"
+    },
+    {
+      "segment_id": "video_003_seg_0448",
+      "start_sec": 1233.32,
+      "end_sec": 1235.32,
+      "text": "它的安裝功能就對了"
+    },
+    {
+      "segment_id": "video_003_seg_0449",
+      "start_sec": 1237.32,
+      "end_sec": 1239.32,
+      "text": "但我們現在"
+    },
+    {
+      "segment_id": "video_003_seg_0450",
+      "start_sec": 1239.32,
+      "end_sec": 1240.32,
+      "text": "不是用JubiternalBook"
+    },
+    {
+      "segment_id": "video_003_seg_0451",
+      "start_sec": 1240.32,
+      "end_sec": 1243.32,
+      "text": "我們是用真正的拍審"
+    },
+    {
+      "segment_id": "video_003_seg_0452",
+      "start_sec": 1243.32,
+      "end_sec": 1245.32,
+      "text": "我們是用原生的拍審"
+    },
+    {
+      "segment_id": "video_003_seg_0453",
+      "start_sec": 1245.32,
+      "end_sec": 1248.32,
+      "text": "那自然就不需要這個金碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0454",
+      "start_sec": 1248.32,
+      "end_sec": 1250.32,
+      "text": "我們不需要透過JubiternalBook"
+    },
+    {
+      "segment_id": "video_003_seg_0455",
+      "start_sec": 1250.32,
+      "end_sec": 1252.32,
+      "text": "去幫我幹這件事情"
+    },
+    {
+      "segment_id": "video_003_seg_0456",
+      "start_sec": 1252.32,
+      "end_sec": 1254.32,
+      "text": "我自己來做就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0457",
+      "start_sec": 1254.32,
+      "end_sec": 1256.32,
+      "text": "所以這個地方不會有金碳號"
+    },
+    {
+      "segment_id": "video_003_seg_0458",
+      "start_sec": 1256.32,
+      "end_sec": 1258.32,
+      "text": "同學問這個問題"
+    },
+    {
+      "segment_id": "video_003_seg_0459",
+      "start_sec": 1258.32,
+      "end_sec": 1259.32,
+      "text": "很細節"
+    },
+    {
+      "segment_id": "video_003_seg_0460",
+      "start_sec": 1259.32,
+      "end_sec": 1261.32,
+      "text": "同學有發現這個"
+    },
+    {
+      "segment_id": "video_003_seg_0461",
+      "start_sec": 1261.32,
+      "end_sec": 1265.32,
+      "text": "發現這個東西很細心"
+    },
+    {
+      "segment_id": "video_003_seg_0462",
+      "start_sec": 1265.32,
+      "end_sec": 1274.52,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0463",
+      "start_sec": 1274.52,
+      "end_sec": 1276.52,
+      "text": "那各位安裝完了之後"
+    },
+    {
+      "segment_id": "video_003_seg_0464",
+      "start_sec": 1276.52,
+      "end_sec": 1285.09,
+      "text": "你再把Spider重新打開就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0465",
+      "start_sec": 1285.09,
+      "end_sec": 1287.09,
+      "text": "這時候就不會有這個問題了"
+    },
+    {
+      "segment_id": "video_003_seg_0466",
+      "start_sec": 1287.09,
+      "end_sec": 1289.09,
+      "text": "你再去執行那個"
+    },
+    {
+      "segment_id": "video_003_seg_0467",
+      "start_sec": 1289.09,
+      "end_sec": 1291.09,
+      "text": "程式它就會跑出來了"
+    },
+    {
+      "segment_id": "video_003_seg_0468",
+      "start_sec": 1291.09,
+      "end_sec": 1293.09,
+      "text": "它就會跑出來了"
+    },
+    {
+      "segment_id": "video_003_seg_0469",
+      "start_sec": 1293.09,
+      "end_sec": 1309.42,
+      "text": "好"
+    },
+    {
+      "segment_id": "video_003_seg_0470",
+      "start_sec": 1309.42,
+      "end_sec": 1315.83,
+      "text": "OK"
+    },
+    {
+      "segment_id": "video_003_seg_0471",
+      "start_sec": 1315.83,
+      "end_sec": 1318.83,
+      "text": "那我們"
+    },
+    {
+      "segment_id": "video_003_seg_0472",
+      "start_sec": 1318.83,
+      "end_sec": 1323.83,
+      "text": "在拍審中要去使用OpenCV的話"
+    },
+    {
+      "segment_id": "video_003_seg_0473",
+      "start_sec": 1323.83,
+      "end_sec": 1324.83,
+      "text": "這為什麼"
+    },
+    {
+      "segment_id": "video_003_seg_0474",
+      "start_sec": 1324.83,
+      "end_sec": 1327.83,
+      "text": "為什麼是叫CV2這個"
+    },
+    {
+      "segment_id": "video_003_seg_0475",
+      "start_sec": 1327.83,
+      "end_sec": 1328.83,
+      "text": "我說實在的話"
+    },
+    {
+      "segment_id": "video_003_seg_0476",
+      "start_sec": 1328.83,
+      "end_sec": 1330.83,
+      "text": "我不太知道"
+    },
+    {
+      "segment_id": "video_003_seg_0477",
+      "start_sec": 1330.83,
+      "end_sec": 1331.83,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_003_seg_0478",
+      "start_sec": 1331.83,
+      "end_sec": 1334.83,
+      "text": "或許它有一些什麼版本的差異吧"
+    },
+    {
+      "segment_id": "video_003_seg_0479",
+      "start_sec": 1334.83,
+      "end_sec": 1335.83,
+      "text": "總之"
+    },
+    {
+      "segment_id": "video_003_seg_0480",
+      "start_sec": 1335.83,
+      "end_sec": 1337.83,
+      "text": "我們在"
+    },
+    {
+      "segment_id": "video_003_seg_0481",
+      "start_sec": 1337.83,
+      "end_sec": 1340.83,
+      "text": "那個拍審裡面要使用OpenCV的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0482",
+      "start_sec": 1340.83,
+      "end_sec": 1342.83,
+      "text": "我們不是用"
+    },
+    {
+      "segment_id": "video_003_seg_0483",
+      "start_sec": 1342.83,
+      "end_sec": 1345.83,
+      "text": "我們不是用ImportOpenCV這個指定"
+    },
+    {
+      "segment_id": "video_003_seg_0484",
+      "start_sec": 1345.83,
+      "end_sec": 1346.83,
+      "text": "不是"
+    },
+    {
+      "segment_id": "video_003_seg_0485",
+      "start_sec": 1346.83,
+      "end_sec": 1350.83,
+      "text": "我們是用ImportCV2"
+    },
+    {
+      "segment_id": "video_003_seg_0486",
+      "start_sec": 1350.83,
+      "end_sec": 1354.83,
+      "text": "這是比較特別的地方"
+    },
+    {
+      "segment_id": "video_003_seg_0487",
+      "start_sec": 1354.83,
+      "end_sec": 1355.83,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_003_seg_0488",
+      "start_sec": 1355.83,
+      "end_sec": 1357.83,
+      "text": "一般來講"
+    },
+    {
+      "segment_id": "video_003_seg_0489",
+      "start_sec": 1357.83,
+      "end_sec": 1360.83,
+      "text": "我們要用OpenCV讀取資料"
+    },
+    {
+      "segment_id": "video_003_seg_0490",
+      "start_sec": 1360.83,
+      "end_sec": 1363.83,
+      "text": "或者是顯示資料"
+    },
+    {
+      "segment_id": "video_003_seg_0491",
+      "start_sec": 1363.83,
+      "end_sec": 1365.83,
+      "text": "的話"
+    },
+    {
+      "segment_id": "video_003_seg_0492",
+      "start_sec": 1365.83,
+      "end_sec": 1368.83,
+      "text": "常用的一些語法"
+    },
+    {
+      "segment_id": "video_003_seg_0493",
+      "start_sec": 1368.83,
+      "end_sec": 1369.83,
+      "text": "在這頁裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0494",
+      "start_sec": 1369.83,
+      "end_sec": 1372.83,
+      "text": "我都做一個簡單的介紹"
+    },
+    {
+      "segment_id": "video_003_seg_0495",
+      "start_sec": 1372.83,
+      "end_sec": 1374.83,
+      "text": "但是你要"
+    },
+    {
+      "segment_id": "video_003_seg_0496",
+      "start_sec": 1374.83,
+      "end_sec": 1376.83,
+      "text": "你要會知道這些語法"
+    },
+    {
+      "segment_id": "video_003_seg_0497",
+      "start_sec": 1376.83,
+      "end_sec": 1378.83,
+      "text": "要如何組合"
+    },
+    {
+      "segment_id": "video_003_seg_0498",
+      "start_sec": 1378.83,
+      "end_sec": 1383.27,
+      "text": "它是需要組合起來的"
+    },
+    {
+      "segment_id": "video_003_seg_0499",
+      "start_sec": 1383.27,
+      "end_sec": 1384.27,
+      "text": "我們"
+    },
+    {
+      "segment_id": "video_003_seg_0500",
+      "start_sec": 1384.27,
+      "end_sec": 1386.27,
+      "text": "首先跟各位"
+    },
+    {
+      "segment_id": "video_003_seg_0501",
+      "start_sec": 1386.27,
+      "end_sec": 1389.27,
+      "text": "用個流程圖的方法"
+    },
+    {
+      "segment_id": "video_003_seg_0502",
+      "start_sec": 1389.27,
+      "end_sec": 1394.0,
+      "text": "大致上說明一下"
+    },
+    {
+      "segment_id": "video_003_seg_0503",
+      "start_sec": 1394.0,
+      "end_sec": 1396.0,
+      "text": "說明一下OpenCV是怎麼把"
+    },
+    {
+      "segment_id": "video_003_seg_0504",
+      "start_sec": 1396.0,
+      "end_sec": 1397.0,
+      "text": "檔案讀"
+    },
+    {
+      "segment_id": "video_003_seg_0505",
+      "start_sec": 1397.0,
+      "end_sec": 1398.0,
+      "text": "把檔案讀進來"
+    },
+    {
+      "segment_id": "video_003_seg_0506",
+      "start_sec": 1398.0,
+      "end_sec": 1401.37,
+      "text": "並且秀在畫面上"
+    },
+    {
+      "segment_id": "video_003_seg_0507",
+      "start_sec": 1401.37,
+      "end_sec": 1404.37,
+      "text": "好 OK"
+    },
+    {
+      "segment_id": "video_003_seg_0508",
+      "start_sec": 1404.37,
+      "end_sec": 1410.04,
+      "text": "第一步"
+    },
+    {
+      "segment_id": "video_003_seg_0509",
+      "start_sec": 1410.04,
+      "end_sec": 1413.04,
+      "text": "把檔案"
+    },
+    {
+      "segment_id": "video_003_seg_0510",
+      "start_sec": 1413.04,
+      "end_sec": 1422.56,
+      "text": "讀到記憶體"
+    },
+    {
+      "segment_id": "video_003_seg_0511",
+      "start_sec": 1422.56,
+      "end_sec": 1426.87,
+      "text": "然後"
+    },
+    {
+      "segment_id": "video_003_seg_0512",
+      "start_sec": 1426.87,
+      "end_sec": 1427.87,
+      "text": "第二個"
+    },
+    {
+      "segment_id": "video_003_seg_0513",
+      "start_sec": 1427.87,
+      "end_sec": 1434.23,
+      "text": "第二步"
+    },
+    {
+      "segment_id": "video_003_seg_0514",
+      "start_sec": 1434.23,
+      "end_sec": 1439.23,
+      "text": "進行處理"
+    },
+    {
+      "segment_id": "video_003_seg_0515",
+      "start_sec": 1439.23,
+      "end_sec": 1448.88,
+      "text": "進行前處理"
+    },
+    {
+      "segment_id": "video_003_seg_0516",
+      "start_sec": 1448.88,
+      "end_sec": 1466.85,
+      "text": "第三步"
+    },
+    {
+      "segment_id": "video_003_seg_0517",
+      "start_sec": 1466.85,
+      "end_sec": 1468.85,
+      "text": "準備一個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0518",
+      "start_sec": 1468.85,
+      "end_sec": 1482.6,
+      "text": "一個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0519",
+      "start_sec": 1482.6,
+      "end_sec": 1484.6,
+      "text": "太久沒寫字了"
+    },
+    {
+      "segment_id": "video_003_seg_0520",
+      "start_sec": 1484.6,
+      "end_sec": 1486.6,
+      "text": "窗怎麼寫來的"
+    },
+    {
+      "segment_id": "video_003_seg_0521",
+      "start_sec": 1486.6,
+      "end_sec": 1494.39,
+      "text": "視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0522",
+      "start_sec": 1494.39,
+      "end_sec": 1499.27,
+      "text": "然後"
+    },
+    {
+      "segment_id": "video_003_seg_0523",
+      "start_sec": 1499.27,
+      "end_sec": 1512.01,
+      "text": "把記憶體裡面的圖"
+    },
+    {
+      "segment_id": "video_003_seg_0524",
+      "start_sec": 1512.01,
+      "end_sec": 1522.19,
+      "text": "秀在視窗中"
+    },
+    {
+      "segment_id": "video_003_seg_0525",
+      "start_sec": 1522.19,
+      "end_sec": 1524.19,
+      "text": "除了第一步之外"
+    },
+    {
+      "segment_id": "video_003_seg_0526",
+      "start_sec": 1524.19,
+      "end_sec": 1539.76,
+      "text": "第一步是必要"
+    },
+    {
+      "segment_id": "video_003_seg_0527",
+      "start_sec": 1539.76,
+      "end_sec": 1541.76,
+      "text": "除了第一步一定要之外"
+    },
+    {
+      "segment_id": "video_003_seg_0528",
+      "start_sec": 1541.76,
+      "end_sec": 1543.76,
+      "text": "下面這幾個步驟"
+    },
+    {
+      "segment_id": "video_003_seg_0529",
+      "start_sec": 1543.76,
+      "end_sec": 1546.76,
+      "text": "都有可能沒有"
+    },
+    {
+      "segment_id": "video_003_seg_0530",
+      "start_sec": 1546.76,
+      "end_sec": 1548.76,
+      "text": "比方說"
+    },
+    {
+      "segment_id": "video_003_seg_0531",
+      "start_sec": 1548.76,
+      "end_sec": 1550.76,
+      "text": "我今天"
+    },
+    {
+      "segment_id": "video_003_seg_0532",
+      "start_sec": 1550.76,
+      "end_sec": 1552.76,
+      "text": "只是要把圖讀出來"
+    },
+    {
+      "segment_id": "video_003_seg_0533",
+      "start_sec": 1552.76,
+      "end_sec": 1557.12,
+      "text": "並且秀在畫面裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0534",
+      "start_sec": 1557.12,
+      "end_sec": 1564.35,
+      "text": "那我就只需要做這個步驟"
+    },
+    {
+      "segment_id": "video_003_seg_0535",
+      "start_sec": 1564.35,
+      "end_sec": 1566.35,
+      "text": "做這三個"
+    },
+    {
+      "segment_id": "video_003_seg_0536",
+      "start_sec": 1566.35,
+      "end_sec": 1568.35,
+      "text": "這三個就是"
+    },
+    {
+      "segment_id": "video_003_seg_0537",
+      "start_sec": 1568.35,
+      "end_sec": 1569.35,
+      "text": "讀"
+    },
+    {
+      "segment_id": "video_003_seg_0538",
+      "start_sec": 1569.35,
+      "end_sec": 1573.04,
+      "text": "圖"
+    },
+    {
+      "segment_id": "video_003_seg_0539",
+      "start_sec": 1573.04,
+      "end_sec": 1577.15,
+      "text": "秀"
+    },
+    {
+      "segment_id": "video_003_seg_0540",
+      "start_sec": 1577.15,
+      "end_sec": 1579.15,
+      "text": "出"
+    },
+    {
+      "segment_id": "video_003_seg_0541",
+      "start_sec": 1579.15,
+      "end_sec": 1581.15,
+      "text": "所以就是我們編號"
+    },
+    {
+      "segment_id": "video_003_seg_0542",
+      "start_sec": 1581.15,
+      "end_sec": 1583.15,
+      "text": "一號的程式"
+    },
+    {
+      "segment_id": "video_003_seg_0543",
+      "start_sec": 1583.15,
+      "end_sec": 1586.65,
+      "text": "是做這三個步驟"
+    },
+    {
+      "segment_id": "video_003_seg_0544",
+      "start_sec": 1586.65,
+      "end_sec": 1588.65,
+      "text": "是做這三個步驟"
+    },
+    {
+      "segment_id": "video_003_seg_0545",
+      "start_sec": 1588.65,
+      "end_sec": 1589.65,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_003_seg_0546",
+      "start_sec": 1589.65,
+      "end_sec": 1592.65,
+      "text": "如果我們今天是要"
+    },
+    {
+      "segment_id": "video_003_seg_0547",
+      "start_sec": 1592.65,
+      "end_sec": 1595.65,
+      "text": "做"
+    },
+    {
+      "segment_id": "video_003_seg_0548",
+      "start_sec": 1595.65,
+      "end_sec": 1597.65,
+      "text": "資料前處理"
+    },
+    {
+      "segment_id": "video_003_seg_0549",
+      "start_sec": 1597.65,
+      "end_sec": 1599.65,
+      "text": "然後放到模型裡面的話"
+    },
+    {
+      "segment_id": "video_003_seg_0550",
+      "start_sec": 1599.65,
+      "end_sec": 1608.0,
+      "text": "如果今天是要訓練模型"
+    },
+    {
+      "segment_id": "video_003_seg_0551",
+      "start_sec": 1608.0,
+      "end_sec": 1611.0,
+      "text": "十之八九我只需要做前面兩步"
+    },
+    {
+      "segment_id": "video_003_seg_0552",
+      "start_sec": 1611.0,
+      "end_sec": 1616.84,
+      "text": "這個叫準備"
+    },
+    {
+      "segment_id": "video_003_seg_0553",
+      "start_sec": 1616.84,
+      "end_sec": 1622.66,
+      "text": "準備模型的訓練資料"
+    },
+    {
+      "segment_id": "video_003_seg_0554",
+      "start_sec": 1622.66,
+      "end_sec": 1625.66,
+      "text": "大概都只要做這兩步就好了"
+    },
+    {
+      "segment_id": "video_003_seg_0555",
+      "start_sec": 1625.66,
+      "end_sec": 1652.91,
+      "text": "那"
+    },
+    {
+      "segment_id": "video_003_seg_0556",
+      "start_sec": 1652.91,
+      "end_sec": 1655.91,
+      "text": "有時候我們會"
+    },
+    {
+      "segment_id": "video_003_seg_0557",
+      "start_sec": 1656.91,
+      "end_sec": 1661.54,
+      "text": "有時候我們會全做"
+    },
+    {
+      "segment_id": "video_003_seg_0558",
+      "start_sec": 1661.54,
+      "end_sec": 1673.2,
+      "text": "用不同顏色的"
+    },
+    {
+      "segment_id": "video_003_seg_0559",
+      "start_sec": 1673.2,
+      "end_sec": 1675.2,
+      "text": "讓大家可以體會到"
+    },
+    {
+      "segment_id": "video_003_seg_0560",
+      "start_sec": 1675.2,
+      "end_sec": 1677.2,
+      "text": "做不同的事情"
+    },
+    {
+      "segment_id": "video_003_seg_0561",
+      "start_sec": 1677.2,
+      "end_sec": 1679.2,
+      "text": "全做通常就是"
+    },
+    {
+      "segment_id": "video_003_seg_0562",
+      "start_sec": 1679.2,
+      "end_sec": 1682.35,
+      "text": "拿來"
+    },
+    {
+      "segment_id": "video_003_seg_0563",
+      "start_sec": 1682.35,
+      "end_sec": 1692.03,
+      "text": "資料展示"
+    },
+    {
+      "segment_id": "video_003_seg_0564",
+      "start_sec": 1692.03,
+      "end_sec": 1693.03,
+      "text": "比方說"
+    },
+    {
+      "segment_id": "video_003_seg_0565",
+      "start_sec": 1693.03,
+      "end_sec": 1695.03,
+      "text": "要展示給別人看"
+    },
+    {
+      "segment_id": "video_003_seg_0566",
+      "start_sec": 1695.03,
+      "end_sec": 1697.03,
+      "text": "我讀進來的資料長怎麼樣"
+    },
+    {
+      "segment_id": "video_003_seg_0567",
+      "start_sec": 1697.03,
+      "end_sec": 1699.03,
+      "text": "處理完了之後長怎麼樣"
+    },
+    {
+      "segment_id": "video_003_seg_0568",
+      "start_sec": 1699.03,
+      "end_sec": 1701.03,
+      "text": "然後要把它丟進模型"
+    },
+    {
+      "segment_id": "video_003_seg_0569",
+      "start_sec": 1701.03,
+      "end_sec": 1703.03,
+      "text": "我才需要全部都做"
+    },
+    {
+      "segment_id": "video_003_seg_0570",
+      "start_sec": 1703.03,
+      "end_sec": 1706.03,
+      "text": "像後面的比方說"
+    },
+    {
+      "segment_id": "video_003_seg_0571",
+      "start_sec": 1706.03,
+      "end_sec": 1708.03,
+      "text": "二"
+    },
+    {
+      "segment_id": "video_003_seg_0572",
+      "start_sec": 1708.03,
+      "end_sec": 1710.03,
+      "text": "三"
+    },
+    {
+      "segment_id": "video_003_seg_0573",
+      "start_sec": 1710.03,
+      "end_sec": 1713.03,
+      "text": "甚至四之類的"
+    },
+    {
+      "segment_id": "video_003_seg_0574",
+      "start_sec": 1713.03,
+      "end_sec": 1715.03,
+      "text": "都是屬於"
+    },
+    {
+      "segment_id": "video_003_seg_0575",
+      "start_sec": 1715.03,
+      "end_sec": 1717.03,
+      "text": "這一種的"
+    },
+    {
+      "segment_id": "video_003_seg_0576",
+      "start_sec": 1717.03,
+      "end_sec": 1719.03,
+      "text": "像我們在"
+    },
+    {
+      "segment_id": "video_003_seg_0577",
+      "start_sec": 1719.03,
+      "end_sec": 1722.03,
+      "text": "專案裡面使用的時候"
+    },
+    {
+      "segment_id": "video_003_seg_0578",
+      "start_sec": 1722.03,
+      "end_sec": 1725.69,
+      "text": "如果"
+    },
+    {
+      "segment_id": "video_003_seg_0579",
+      "start_sec": 1725.69,
+      "end_sec": 1728.69,
+      "text": "同學有興趣的話"
+    },
+    {
+      "segment_id": "video_003_seg_0580",
+      "start_sec": 1728.69,
+      "end_sec": 1731.69,
+      "text": "我現在還沒開始講專案"
+    },
+    {
+      "segment_id": "video_003_seg_0581",
+      "start_sec": 1731.69,
+      "end_sec": 1733.69,
+      "text": "就是我們在"
+    },
+    {
+      "segment_id": "video_003_seg_0582",
+      "start_sec": 1733.69,
+      "end_sec": 1735.69,
+      "text": "我的資料夾裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0583",
+      "start_sec": 1735.69,
+      "end_sec": 1739.16,
+      "text": "有好幾個專案"
+    },
+    {
+      "segment_id": "video_003_seg_0584",
+      "start_sec": 1739.16,
+      "end_sec": 1741.16,
+      "text": "專案用"
+    },
+    {
+      "segment_id": "video_003_seg_0585",
+      "start_sec": 1741.16,
+      "end_sec": 1744.16,
+      "text": "專案裡面只做前兩步"
+    },
+    {
+      "segment_id": "video_003_seg_0586",
+      "start_sec": 1744.16,
+      "end_sec": 1747.16,
+      "text": "不一定會把資料秀出來"
+    },
+    {
+      "segment_id": "video_003_seg_0587",
+      "start_sec": 1747.16,
+      "end_sec": 1749.16,
+      "text": "專案裡面只做前兩步"
+    },
+    {
+      "segment_id": "video_003_seg_0588",
+      "start_sec": 1749.16,
+      "end_sec": 1754.08,
+      "text": "不見得會把資料秀出來"
+    },
+    {
+      "segment_id": "video_003_seg_0589",
+      "start_sec": 1754.08,
+      "end_sec": 1756.08,
+      "text": "所以它的"
+    },
+    {
+      "segment_id": "video_003_seg_0590",
+      "start_sec": 1756.08,
+      "end_sec": 1758.08,
+      "text": "邏輯大概是這樣"
+    },
+    {
+      "segment_id": "video_003_seg_0591",
+      "start_sec": 1758.08,
+      "end_sec": 1760.08,
+      "text": "不一定每一次都得四步跑完"
+    },
+    {
+      "segment_id": "video_003_seg_0592",
+      "start_sec": 1760.08,
+      "end_sec": 1762.08,
+      "text": "它有時候可以跳"
+    },
+    {
+      "segment_id": "video_003_seg_0593",
+      "start_sec": 1762.08,
+      "end_sec": 1764.08,
+      "text": "有時候可以只做其中一部分"
+    },
+    {
+      "segment_id": "video_003_seg_0594",
+      "start_sec": 1764.08,
+      "end_sec": 1768.64,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0595",
+      "start_sec": 1768.64,
+      "end_sec": 1770.64,
+      "text": "我們現在就可以來看"
+    },
+    {
+      "segment_id": "video_003_seg_0596",
+      "start_sec": 1770.64,
+      "end_sec": 1772.64,
+      "text": "我們把OpenCP的這個"
+    },
+    {
+      "segment_id": "video_003_seg_0597",
+      "start_sec": 1772.64,
+      "end_sec": 1774.64,
+      "text": "套件抓進來"
+    },
+    {
+      "segment_id": "video_003_seg_0598",
+      "start_sec": 1774.64,
+      "end_sec": 1776.64,
+      "text": "根據剛剛的說法"
+    },
+    {
+      "segment_id": "video_003_seg_0599",
+      "start_sec": 1776.64,
+      "end_sec": 1778.64,
+      "text": "我們要進行前處理"
+    },
+    {
+      "segment_id": "video_003_seg_0600",
+      "start_sec": 1778.64,
+      "end_sec": 1780.64,
+      "text": "但是我這邊沒做"
+    },
+    {
+      "segment_id": "video_003_seg_0601",
+      "start_sec": 1780.64,
+      "end_sec": 1782.64,
+      "text": "還沒進行前處理"
+    },
+    {
+      "segment_id": "video_003_seg_0602",
+      "start_sec": 1782.64,
+      "end_sec": 1784.64,
+      "text": "所以我在這邊的做法"
+    },
+    {
+      "segment_id": "video_003_seg_0603",
+      "start_sec": 1784.64,
+      "end_sec": 1786.64,
+      "text": "是準備好一個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0604",
+      "start_sec": 1786.64,
+      "end_sec": 1788.64,
+      "text": "然後把記憶體裡面的圖"
+    },
+    {
+      "segment_id": "video_003_seg_0605",
+      "start_sec": 1788.64,
+      "end_sec": 1790.64,
+      "text": "秀在這個視窗裡面"
+    },
+    {
+      "segment_id": "video_003_seg_0606",
+      "start_sec": 1790.64,
+      "end_sec": 1792.64,
+      "text": "所以"
+    },
+    {
+      "segment_id": "video_003_seg_0607",
+      "start_sec": 1792.64,
+      "end_sec": 1794.64,
+      "text": "我在這個地方才要寫這個"
+    },
+    {
+      "segment_id": "video_003_seg_0608",
+      "start_sec": 1794.64,
+      "end_sec": 1796.64,
+      "text": "建立一個視窗"
+    },
+    {
+      "segment_id": "video_003_seg_0609",
+      "start_sec": 1796.64,
+      "end_sec": 1798.64,
+      "text": "來顯示影像"
+    },
+    {
+      "segment_id": "video_003_seg_0610",
+      "start_sec": 1798.64,
+      "end_sec": 1800.64,
+      "text": "它的指定叫做"
+    },
+    {
+      "segment_id": "video_003_seg_0611",
+      "start_sec": 1800.64,
+      "end_sec": 1802.64,
+      "text": "Name the window"
+    },
+    {
+      "segment_id": "video_003_seg_0612",
+      "start_sec": 1802.64,
+      "end_sec": 1804.64,
+      "text": "Name the window"
+    },
+    {
+      "segment_id": "video_003_seg_0613",
+      "start_sec": 1804.64,
+      "end_sec": 1806.64,
+      "text": "然後我們來看一下這個裡面"
+    }
+  ]
+}

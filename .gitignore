@@ -144,7 +144,6 @@ vite.config.ts.timestamp-*
 
 STT_Whisper/.venv/
 STT_Whisper/.tool/
-STT_Whisper/data/cache/
 STT_Whisper/data/processed_audio/
 STT_Whisper/Test_video_file/
 

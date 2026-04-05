@@ -17,6 +17,7 @@ const collections = [
   "stt_cache",
   "term_dictionary",
   "raw_transcripts",
+  "line_bind_tokens",
 ];
 
 collections.forEach((name) => {
@@ -34,7 +35,10 @@ print("\n🎉 所有 Collection 建立完成！");
 //
 // users          — 所有使用者（學生 / 教師 / 管理者）
 //                  欄位：_id, name, email, passwordHash,
-//                        role, lineUserId, createdAt
+//                        role, isActive,
+//                        lineUserId, lineBindAt,
+//                        activeCourseId, lineConversationState,
+//                        createdAt
 //
 // courses        — 課程基本資料
 //                  欄位：_id, title, description,
@@ -56,11 +60,14 @@ print("\n🎉 所有 Collection 建立完成！");
 //
 // enrollments    — 學生選課紀錄
 //                  欄位：_id, studentId, courseId,
-//                        enrolledAt, progress, lineState
+//                        enrolledAt, progress, lineNotify
 //
 // usage_logs     — 使用者行為紀錄（設有 90 天 TTL）
 //                  欄位：_id, userId, courseId,
 //                        event, durationSec, timestamp
+//
+// line_bind_tokens — LINE 綁定 token，10 分鐘後自動刪除
+//                  欄位：_id, token, userId, createdAt, expiresAt
 //
 // ── Pipeline 支援 Collection ─────────────────────────────────
 //

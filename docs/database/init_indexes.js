@@ -11,6 +11,9 @@ use("focusflow");
 db.users.createIndex({ email: 1 }, { unique: true });
 print("✅ users.email（unique）");
 
+db.users.createIndex({ lineUserId: 1 }, { sparse: true });
+print("✅ users.lineUserId（sparse）");
+
 // ── courses ────────────────────────────────────────────────
 db.courses.createIndex({ teacherId: 1 });
 print("✅ courses.teacherId");
@@ -65,6 +68,17 @@ print("✅ term_dictionary.correct");
 // ── raw_transcripts ────────────────────────────────────────
 db.raw_transcripts.createIndex({ video_id: 1 }, { unique: true });
 print("✅ raw_transcripts.video_id（unique）");
+
+// ── line_bind_tokens ───────────────────────────────────────
+db.line_bind_tokens.createIndex({ token: 1 }, { unique: true });
+print("✅ line_bind_tokens.token（unique）");
+
+// TTL Index：token 到期自動刪除（expiresAt 由程式碼設定為 10 分鐘後）
+db.line_bind_tokens.createIndex(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0 }
+);
+print("✅ line_bind_tokens.expiresAt（TTL）");
 
 print("\n🎉 所有 Indexes 建立完成！");
 

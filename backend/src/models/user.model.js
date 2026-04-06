@@ -44,6 +44,10 @@ const userSchema = new mongoose.Schema(
       ref: 'Course',
       default: null,
     },
+    lineConversationState: {
+      type: String,
+      default: 'idle',
+    },
   },
   {
     timestamps: true,

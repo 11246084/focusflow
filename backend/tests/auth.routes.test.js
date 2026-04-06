@@ -9,7 +9,6 @@ const {
   startServer,
   stopServer,
   jsonRequest,
-  loginAs,
 } = require('./helpers/backendTestHarness');
 
 describe('auth routes', () => {
@@ -28,13 +27,23 @@ describe('auth routes', () => {
   });
 
   it('logs in and fetches the current user', async () => {
-    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const loginResult = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: {
+        email: 'teacher@focusflow.local',
+        password: 'Teacher123!',
+      },
+    });
+    const token = loginResult.body.data.token;
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
       token,
     });
 
+    assert.equal(loginResult.status, 200);
+    assert.equal(loginResult.body.data.user.lineConversationState, 'idle');
     assert.equal(result.status, 200);
     assert.equal(result.body.data.user.email, 'teacher@focusflow.local');
+    assert.equal(result.body.data.user.lineConversationState, 'idle');
     assert.equal(store.usageLogs[0].event, 'login');
   });
 

@@ -117,7 +117,8 @@ PROCESSING_WEBHOOK_SECRET=
 - `videoSegment.chunk_id`
 - `videoSegment.original_text`
 - `videoSegment.corrections`
-- `enrollment.lineState`
+- `enrollment.lineNotify`
+- `user.lineConversationState`
 
 這些欄位的用途是讓目前 backend 與外部資料匯入可以先共存；目前對外 API 契約仍以現有 route / controller / service 為主。
 

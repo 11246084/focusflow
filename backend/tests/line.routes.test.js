@@ -104,6 +104,39 @@ describe('line webhook routes', () => {
     assert.equal(store.lineBindTokens.some((token) => token.token === ids.expiredLineBindTokenText), false);
   });
 
+  it('binds a user and resets the conversation state to idle', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineUserId = null;
+    student.lineConversationState = 'awaiting_course_selection';
+
+    store.lineBindTokens.push({
+      _id: 'line-token-valid',
+      token: ids.lineBindTokenText,
+      userId: ids.student,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const payload = JSON.stringify({
+      events: [
+        {
+          type: 'message',
+          replyToken: 'reply-bind-success',
+          source: { userId: 'line-student-001' },
+          message: { type: 'text', text: ids.lineBindTokenText },
+        },
+      ],
+    });
+    const result = await postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.results[0].handled, true);
+    assert.equal(student.lineUserId, 'line-student-001');
+    assert.equal(student.lineConversationState, 'idle');
+    assert.equal(student.lineBindAt instanceof Date, true);
+  });
+
   it('handles unbound users and missing active courses for question events', async () => {
     const unboundPayload = JSON.stringify({
       events: [
@@ -140,6 +173,7 @@ describe('line webhook routes', () => {
   });
 
   it('switches courses and handles select_course postbacks', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
     const switchPayload = JSON.stringify({
       events: [
         {
@@ -153,6 +187,10 @@ describe('line webhook routes', () => {
     const switchResult = await postLineWebhook(serverContext.baseUrl, switchPayload, {
       'x-line-signature': createLineSignature(switchPayload),
     });
+
+    assert.equal(switchResult.status, 200);
+    assert.equal(switchResult.body.data.results[0].handled, true);
+    assert.equal(student.lineConversationState, 'awaiting_course_selection');
 
     const selectPayload = JSON.stringify({
       events: [
@@ -168,11 +206,54 @@ describe('line webhook routes', () => {
       'x-line-signature': createLineSignature(selectPayload),
     });
 
-    assert.equal(switchResult.status, 200);
-    assert.equal(switchResult.body.data.results[0].handled, true);
     assert.equal(selectResult.status, 200);
     assert.equal(selectResult.body.data.results[0].handled, true);
-    assert.equal(String(store.users.find((user) => user._id === ids.student).activeCourseId), ids.publishedCourse);
+    assert.equal(String(student.activeCourseId), ids.publishedCourse);
+    assert.equal(student.lineConversationState, 'idle');
+  });
+
+  it('rejects select_course postbacks when course switching was not started', async () => {
+    const payload = JSON.stringify({
+      events: [
+        {
+          type: 'postback',
+          replyToken: 'reply-select-without-switch',
+          source: { userId: 'line-student-001' },
+          postback: { data: `action=select_course&courseId=${ids.publishedCourse}` },
+        },
+      ],
+    });
+    const result = await postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.results[0].handled, false);
+    assert.equal(result.body.data.results[0].reason, 'conversation_state_invalid');
+  });
+
+  it('blocks questions while course selection is pending', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineConversationState = 'awaiting_course_selection';
+    student.activeCourseId = ids.publishedCourse;
+
+    const payload = JSON.stringify({
+      events: [
+        {
+          type: 'message',
+          replyToken: 'reply-pending-selection',
+          source: { userId: 'line-student-001' },
+          message: { type: 'text', text: 'What is JWT?' },
+        },
+      ],
+    });
+    const result = await postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.results[0].handled, false);
+    assert.equal(result.body.data.results[0].reason, 'course_selection_pending');
   });
 
   it('handles successful question events and unsupported events in the same batch', async () => {

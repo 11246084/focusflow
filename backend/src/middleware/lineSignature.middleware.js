@@ -1,32 +1,32 @@
 const crypto = require('crypto');
+const env = require('../config/env');
+const AppError = require('../utils/appError');
 
-const lineSignature = (req, res, next) => {
+function lineSignature(req, res, next) {
   const signature = req.headers['x-line-signature'];
 
   if (!signature) {
-    return res.status(401).json({ message: 'Missing LINE signature' });
+    return next(new AppError('Missing LINE signature.', 401, 'LINE_SIGNATURE_MISSING'));
   }
 
-  const secret = process.env.LINE_CHANNEL_SECRET;
-  const body = req.body; // raw buffer
+  if (!env.lineChannelSecret) {
+    return next(new AppError('LINE_CHANNEL_SECRET is not configured.', 500, 'LINE_NOT_CONFIGURED'));
+  }
 
-  const hash = crypto
-    .createHmac('sha256', secret)
-    .update(body)
+  if (!req.rawBody) {
+    return next(new AppError('LINE raw request body is not available.', 400, 'LINE_RAW_BODY_MISSING'));
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', env.lineChannelSecret)
+    .update(req.rawBody)
     .digest('base64');
 
-  if (hash !== signature) {
-    return res.status(401).json({ message: 'Invalid LINE signature' });
+  if (expectedSignature !== signature) {
+    return next(new AppError('Invalid LINE signature.', 401, 'LINE_SIGNATURE_INVALID'));
   }
 
-  // 把 raw buffer 轉成 JS 物件，後面的 controller 才能用
-  try {
-    req.body = JSON.parse(body.toString('utf8'));
-  } catch (e) {
-    return res.status(400).json({ message: 'Invalid JSON body' });
-  }
-
-  next();
-};
+  return next();
+}
 
 module.exports = lineSignature;

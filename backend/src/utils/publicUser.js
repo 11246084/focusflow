@@ -11,6 +11,9 @@
     email: source.email,
     role: source.role,
     isActive: source.isActive,
+    lineUserId: source.lineUserId || null,
+    lineBindAt: source.lineBindAt || null,
+    activeCourseId: source.activeCourseId ? String(source.activeCourseId) : null,
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
   };

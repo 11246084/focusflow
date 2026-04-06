@@ -14,6 +14,7 @@
     lineUserId: source.lineUserId || null,
     lineBindAt: source.lineBindAt || null,
     activeCourseId: source.activeCourseId ? String(source.activeCourseId) : null,
+    lineConversationState: source.lineConversationState ?? 'idle',
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
   };

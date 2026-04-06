@@ -8,6 +8,14 @@ const LineBindToken = require('../models/lineBindToken.model');
 const { askQuestion } = require('./qa.service');
 
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
+const LINE_CONVERSATION_STATES = {
+  IDLE: 'idle',
+  AWAITING_COURSE_SELECTION: 'awaiting_course_selection',
+};
+
+function getLineConversationState(user) {
+  return user?.lineConversationState || LINE_CONVERSATION_STATES.IDLE;
+}
 
 function buildTextMessage(text) {
   return {
@@ -90,6 +98,7 @@ async function handleBind(lineUserId, token, replyToken) {
   await User.findByIdAndUpdate(record.userId, {
     lineUserId,
     lineBindAt: new Date(),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
   });
 
   await LineBindToken.deleteOne({ token });
@@ -132,6 +141,9 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   const selectableCourses = Array.from(courseMap.values());
 
   if (!selectableCourses.length) {
+    await User.findByIdAndUpdate(user._id, {
+      lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+    });
     await replyMessage(replyToken, [buildTextMessage('目前沒有可切換的課程。')]);
     return {
       type: 'switch_course',
@@ -160,6 +172,10 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     },
   ]);
 
+  await User.findByIdAndUpdate(user._id, {
+    lineConversationState: LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION,
+  });
+
   return {
     type: 'switch_course',
     handled: true,
@@ -175,6 +191,15 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
       type: 'select_course',
       handled: false,
       reason: 'user_not_bound',
+    };
+  }
+
+  if (getLineConversationState(user) !== LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION) {
+    await replyMessage(replyToken, [buildTextMessage('請先輸入「切換課程」，再選擇課程。')]);
+    return {
+      type: 'select_course',
+      handled: false,
+      reason: 'conversation_state_invalid',
     };
   }
 
@@ -195,6 +220,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
 
   await User.findByIdAndUpdate(user._id, {
     activeCourseId: new mongoose.Types.ObjectId(courseId),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
   });
 
   await replyMessage(replyToken, [buildTextMessage('課程切換成功，現在可以直接提問。')]);
@@ -213,6 +239,15 @@ async function handleQuestion(lineUserId, text, replyToken) {
       type: 'question',
       handled: false,
       reason: 'user_not_bound',
+    };
+  }
+
+  if (getLineConversationState(user) === LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION) {
+    await replyMessage(replyToken, [buildTextMessage('請先完成課程選擇，再開始提問。')]);
+    return {
+      type: 'question',
+      handled: false,
+      reason: 'course_selection_pending',
     };
   }
 

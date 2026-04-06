@@ -24,11 +24,7 @@ const enrollmentSchema = new mongoose.Schema(
     },
     lineNotify: {
       type: Boolean,
-      default: true,
-    },
-    lineState: {
-      type: mongoose.Schema.Types.Mixed,
-      default: null,
+      default: false,
     },
   },
   {

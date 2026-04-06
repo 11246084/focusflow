@@ -500,7 +500,9 @@ function resetStore() {
       role: 'teacher',
       isActive: true,
       lineUserId: null,
+      lineBindAt: null,
       activeCourseId: null,
+      lineConversationState: 'idle',
     },
     {
       _id: ids.student,
@@ -510,7 +512,9 @@ function resetStore() {
       role: 'student',
       isActive: true,
       lineUserId: 'line-student-001',
+      lineBindAt: null,
       activeCourseId: null,
+      lineConversationState: 'idle',
     },
     {
       _id: ids.admin,
@@ -520,7 +524,9 @@ function resetStore() {
       role: 'admin',
       isActive: true,
       lineUserId: null,
+      lineBindAt: null,
       activeCourseId: null,
+      lineConversationState: 'idle',
     },
     {
       _id: ids.otherTeacher,
@@ -530,7 +536,9 @@ function resetStore() {
       role: 'teacher',
       isActive: true,
       lineUserId: null,
+      lineBindAt: null,
       activeCourseId: null,
+      lineConversationState: 'idle',
     },
   );
 
@@ -627,12 +635,14 @@ function resetStore() {
       studentId: ids.student,
       courseId: ids.publishedCourse,
       progress: 25,
+      lineNotify: false,
     },
     {
       _id: newObjectId(),
       studentId: ids.student,
       courseId: ids.enrolledDraftCourse,
       progress: 5,
+      lineNotify: false,
     },
   );
 

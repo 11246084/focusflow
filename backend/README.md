@@ -401,3 +401,16 @@ node --test --experimental-test-isolation=none --test-concurrency=1
 - 接上實際 STT / chunking / embeddings pipeline，讓 internal endpoints 由 Python worker 呼叫
 - 定義 `video_segments` / `clips` 的正式匯入契約
 - 把 QA 從 `mock + template + memory` 升級到正式 OpenAI / Atlas
+## Demo Seed Data
+
+`npm run seed` now seeds a reusable demo dataset, not only the three demo users.
+
+Seeded content includes:
+
+- teacher, student, and admin demo accounts
+- one published course for QA walkthroughs
+- one draft course for processing / retry walkthroughs
+- two demo videos with `completed` and `failed` processing states
+- three QA segments and one cached clip
+
+If `DEMO_SEED_ENABLED=true`, the same dataset is upserted automatically on server startup.

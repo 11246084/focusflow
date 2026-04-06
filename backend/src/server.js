@@ -1,16 +1,16 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const app = require('./app');
 const env = require('./config/env');
 const { connectDatabase } = require('./config/database');
-const { seedDemoUsers } = require('./services/demoSeed.service');
+const { seedDemoData } = require('./services/demoSeed.service');
 
 async function startServer() {
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
 
   if (env.demoSeedEnabled) {
-    await seedDemoUsers({ silent: true });
+    await seedDemoData({ silent: true });
   }
 
   const server = app.listen(env.port, () => {

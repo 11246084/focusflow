@@ -261,6 +261,30 @@ function createQuery(initialValue, options = {}) {
   };
 }
 
+function findOneAndUpdateInStore(collection, query, update, options = {}) {
+  let document = collection.find((item) => matchesQuery(item, query));
+
+  if (!document && options.upsert) {
+    document = {
+      _id: newObjectId(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    applyUpdate(document, query, { isInsert: true });
+    applyUpdate(document, update, { isInsert: true });
+    collection.push(document);
+    return document;
+  }
+
+  if (!document) {
+    return null;
+  }
+
+  applyUpdate(document, update);
+  document.updatedAt = new Date().toISOString();
+  return document;
+}
+
 function installModelStubs() {
   if (installModelStubs.installed) {
     return;
@@ -308,6 +332,12 @@ function installModelStubs() {
     store.courses.push(course);
     return course;
   };
+  Course.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.courses,
+    query,
+    update,
+    options,
+  );
   Course.find = (query = {}) => createQuery(
     store.courses.filter((item) => matchesQuery(item, query)),
     {
@@ -356,6 +386,12 @@ function installModelStubs() {
     store.videos.push(video);
     return video;
   };
+  Video.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.videos,
+    query,
+    update,
+    options,
+  );
   Video.find = (query = {}) => createQuery(
     store.videos.filter((item) => matchesQuery(item, query)),
     {
@@ -440,18 +476,20 @@ function installModelStubs() {
   };
 
   VideoSegment.find = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query));
+  VideoSegment.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.videoSegments,
+    query,
+    update,
+    options,
+  );
   VideoSegment.aggregate = async () => [];
 
-  Clip.findOneAndUpdate = async (query, update) => {
-    const clip = store.clips.find((item) => matchesQuery(item, query));
-
-    if (!clip) {
-      return null;
-    }
-
-    applyUpdate(clip, update);
-    return clip;
-  };
+  Clip.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.clips,
+    query,
+    update,
+    options,
+  );
 
   UsageLog.create = async (payload) => {
     store.usageLogs.push({

@@ -23,6 +23,12 @@ const VIDEO_PROCESSING_STATUSES = {
   FAILED: 'failed',
 };
 
+const USAGE_LOG_EVENTS = {
+  LOGIN: 'login',
+  ASK: 'ask',
+  CLIP_VIEW: 'clip_view',
+};
+
 module.exports = {
   USER_ROLES,
   USER_ROLE_VALUES: Object.values(USER_ROLES),
@@ -32,4 +38,6 @@ module.exports = {
   VIDEO_SOURCE_TYPE_VALUES: Object.values(VIDEO_SOURCE_TYPES),
   VIDEO_PROCESSING_STATUSES,
   VIDEO_PROCESSING_STATUS_VALUES: Object.values(VIDEO_PROCESSING_STATUSES),
+  USAGE_LOG_EVENTS,
+  USAGE_LOG_EVENT_VALUES: Object.values(USAGE_LOG_EVENTS),
 };

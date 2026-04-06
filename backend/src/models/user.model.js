@@ -28,6 +28,22 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    lineUserId: {
+      type: String,
+      default: null,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
+    lineBindAt: {
+      type: Date,
+      default: null,
+    },
+    activeCourseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      default: null,
+    },
   },
   {
     timestamps: true,

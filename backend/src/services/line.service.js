@@ -1,115 +1,152 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const env = require('../config/env');
 const User = require('../models/user.model');
+const Enrollment = require('../models/enrollment.model');
+const Course = require('../models/course.model');
+const LineBindToken = require('../models/lineBindToken.model');
+const { askQuestion } = require('./qa.service');
 
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
 
-// ── 送訊息給使用者 ──────────────────────────────────────────
-const replyMessage = async (replyToken, messages) => {
-  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+function buildTextMessage(text) {
+  return {
+    type: 'text',
+    text,
+  };
+}
+
+async function replyMessage(replyToken, messages) {
+  if (!replyToken || !env.lineChannelAccessToken) {
+    return {
+      skipped: true,
+    };
+  }
+
+  const response = await fetch(`${LINE_API_BASE}/message/reply`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${env.lineChannelAccessToken}`,
     },
     body: JSON.stringify({ replyToken, messages }),
   });
 
-  if (!res.ok) {
-    const err = await res.json();
-    console.error('[LINE] replyMessage error:', err);
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(`LINE reply failed: ${payload}`);
   }
-};
 
-// ── 產生綁定 token ──────────────────────────────────────────
-const generateBindToken = async (userId) => {
-  const LineBindToken = require('../models/lineBindToken.model');
+  return {
+    skipped: false,
+  };
+}
 
+async function generateBindToken(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 分鐘後過期
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
   await LineBindToken.create({ token, userId, expiresAt });
-
   return token;
-};
+}
 
-// ── 處理 follow 事件（掃 QR Code 加好友並帶 token）──────────
-const handleFollow = async (event) => {
-  const lineUserId = event.source.userId;
-  const replyToken = event.replyToken;
-
-  // 檢查是否帶有綁定 token（透過 liff 或 line://app 傳入）
-  // 目前先回覆歡迎訊息，綁定由 handleMessage 處理
-  await replyMessage(replyToken, [
-    {
-      type: 'text',
-      text: '歡迎使用 FocusFlow！\n請輸入你的綁定驗證碼，或透過網頁掃描 QR Code 完成綁定。',
-    },
+async function handleFollow(event) {
+  await replyMessage(event.replyToken, [
+    buildTextMessage('歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。'),
   ]);
-};
 
-// ── 處理綁定（收到 token 字串）──────────────────────────────
-const handleBind = async (lineUserId, token, replyToken) => {
-  const LineBindToken = require('../models/lineBindToken.model');
+  return {
+    type: 'follow',
+    handled: true,
+  };
+}
 
+async function handleBind(lineUserId, token, replyToken) {
   const record = await LineBindToken.findOne({ token });
 
   if (!record) {
     await replyMessage(replyToken, [
-      { type: 'text', text: '驗證碼無效或已過期，請重新從網頁取得 QR Code。' },
+      buildTextMessage('這個綁定碼無效或已失效，請重新從系統取得新的綁定碼。'),
     ]);
-    return;
+    return {
+      type: 'bind',
+      handled: false,
+      reason: 'token_not_found',
+    };
   }
 
   if (record.expiresAt < new Date()) {
     await LineBindToken.deleteOne({ token });
     await replyMessage(replyToken, [
-      { type: 'text', text: '驗證碼已過期，請重新從網頁取得 QR Code。' },
+      buildTextMessage('綁定碼已過期，請重新從系統取得新的綁定碼。'),
     ]);
-    return;
+    return {
+      type: 'bind',
+      handled: false,
+      reason: 'token_expired',
+    };
   }
 
-  // 寫入 lineUserId
   await User.findByIdAndUpdate(record.userId, {
     lineUserId,
     lineBindAt: new Date(),
   });
 
-  // 刪除用過的 token
   await LineBindToken.deleteOne({ token });
-
   await replyMessage(replyToken, [
-    { type: 'text', text: '綁定成功！🎉 你現在可以直接輸入問題來查詢課程影片。' },
+    buildTextMessage('帳號綁定成功。接下來請先選擇課程，之後就可以直接提問。'),
   ]);
-};
 
-// ── 處理切換課程 ────────────────────────────────────────────
-const handleSwitchCourse = async (lineUserId, replyToken) => {
-  const Enrollment = require('../models/enrollment.model');
+  return {
+    type: 'bind',
+    handled: true,
+  };
+}
 
+async function handleSwitchCourse(lineUserId, replyToken) {
   const user = await User.findOne({ lineUserId });
+
   if (!user) {
-    await replyMessage(replyToken, [
-      { type: 'text', text: '請先完成帳號綁定。' },
-    ]);
-    return;
+    await replyMessage(replyToken, [buildTextMessage('請先完成帳號綁定。')]);
+    return {
+      type: 'switch_course',
+      handled: false,
+      reason: 'user_not_bound',
+    };
   }
 
-  const enrollments = await Enrollment.find({ userId: user._id }).populate('courseId');
+  const enrollments = await Enrollment.find({ studentId: user._id }).populate('courseId');
+  const publishedCourses = await Course.find({ status: 'published' });
+  const courseMap = new Map();
 
-  if (!enrollments.length) {
-    await replyMessage(replyToken, [
-      { type: 'text', text: '你目前沒有選修任何課程。' },
-    ]);
-    return;
+  for (const enrollment of enrollments) {
+    if (enrollment.courseId) {
+      courseMap.set(String(enrollment.courseId._id), enrollment.courseId);
+    }
   }
 
-  // 用按鈕模板讓學生選課程
-  const actions = enrollments.map((e) => ({
-    type: 'postback',
-    label: e.courseId.title.slice(0, 20), // LINE 限制 20 字
-    data: `action=select_course&courseId=${e.courseId._id}`,
-  }));
+  for (const course of publishedCourses) {
+    courseMap.set(String(course._id), course);
+  }
+
+  const selectableCourses = Array.from(courseMap.values());
+
+  if (!selectableCourses.length) {
+    await replyMessage(replyToken, [buildTextMessage('目前沒有可切換的課程。')]);
+    return {
+      type: 'switch_course',
+      handled: false,
+      reason: 'no_available_course',
+    };
+  }
+
+  const actions = selectableCourses
+    .slice(0, 4)
+    .map((course) => ({
+      type: 'postback',
+      label: course.title.slice(0, 20),
+      data: `action=select_course&courseId=${course._id}`,
+    }));
 
   await replyMessage(replyToken, [
     {
@@ -117,60 +154,199 @@ const handleSwitchCourse = async (lineUserId, replyToken) => {
       altText: '請選擇課程',
       template: {
         type: 'buttons',
-        text: '請選擇你要查詢的課程：',
-        actions: actions.slice(0, 4), // LINE 按鈕模板最多 4 個
+        text: '請選擇你要提問的課程。',
+        actions,
       },
     },
   ]);
-};
 
-// ── 處理選課 postback ───────────────────────────────────────
-const handleSelectCourse = async (lineUserId, courseId, replyToken) => {
-  const user = await User.findOneAndUpdate(
-    { lineUserId },
-    { activeCourseId: new mongoose.Types.ObjectId(courseId) },
-    { new: true }
-  );
+  return {
+    type: 'switch_course',
+    handled: true,
+  };
+}
 
-  if (!user) {
-    await replyMessage(replyToken, [{ type: 'text', text: '找不到使用者，請重新綁定。' }]);
-    return;
-  }
-
-  await replyMessage(replyToken, [
-    { type: 'text', text: '課程已切換！你現在可以輸入問題了。' },
-  ]);
-};
-
-// ── 處理問答（預留，之後接 embedding 搜尋）─────────────────
-const handleQuestion = async (lineUserId, text, replyToken) => {
+async function handleSelectCourse(lineUserId, courseId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
   if (!user) {
-    await replyMessage(replyToken, [
-      { type: 'text', text: '請先完成帳號綁定。' },
-    ]);
-    return;
+    await replyMessage(replyToken, [buildTextMessage('找不到綁定使用者，請重新綁定帳號。')]);
+    return {
+      type: 'select_course',
+      handled: false,
+      reason: 'user_not_bound',
+    };
+  }
+
+  const course = await Course.findById(courseId);
+  const enrollment = await Enrollment.findOne({
+    studentId: user._id,
+    courseId,
+  });
+
+  if (!course || (!enrollment && course.status !== 'published')) {
+    await replyMessage(replyToken, [buildTextMessage('你沒有這門課程的存取權限。')]);
+    return {
+      type: 'select_course',
+      handled: false,
+      reason: 'course_access_denied',
+    };
+  }
+
+  await User.findByIdAndUpdate(user._id, {
+    activeCourseId: new mongoose.Types.ObjectId(courseId),
+  });
+
+  await replyMessage(replyToken, [buildTextMessage('課程切換成功，現在可以直接提問。')]);
+  return {
+    type: 'select_course',
+    handled: true,
+  };
+}
+
+async function handleQuestion(lineUserId, text, replyToken) {
+  const user = await User.findOne({ lineUserId });
+
+  if (!user) {
+    await replyMessage(replyToken, [buildTextMessage('請先完成帳號綁定。')]);
+    return {
+      type: 'question',
+      handled: false,
+      reason: 'user_not_bound',
+    };
   }
 
   if (!user.activeCourseId) {
-    await replyMessage(replyToken, [
-      { type: 'text', text: '請先選擇課程，輸入「切換課程」來選擇。' },
-    ]);
-    return;
+    await replyMessage(replyToken, [buildTextMessage('請先切換課程，再開始提問。')]);
+    return {
+      type: 'question',
+      handled: false,
+      reason: 'active_course_missing',
+    };
   }
 
-  // TODO: 接 embedding 搜尋 video_segments
-  await replyMessage(replyToken, [
-    { type: 'text', text: `收到你的問題：「${text}」\n正在搜尋相關影片片段...（功能開發中）` },
-  ]);
-};
+  const qaResult = await askQuestion({
+    user: {
+      id: String(user._id),
+      role: user.role,
+    },
+    courseId: String(user.activeCourseId),
+    question: text,
+    source: 'line',
+  });
+
+  const [topMatch] = qaResult.matches;
+  const summaryLines = [qaResult.answer];
+
+  if (topMatch) {
+    summaryLines.push(`片段：${topMatch.startSec}s - ${topMatch.endSec}s`);
+  }
+
+  if (qaResult.clip?.jumpUrl) {
+    summaryLines.push(`跳轉：${qaResult.clip.jumpUrl}`);
+  }
+
+  await replyMessage(replyToken, [buildTextMessage(summaryLines.join('\n'))]);
+  return {
+    type: 'question',
+    handled: true,
+    matchCount: qaResult.matches.length,
+  };
+}
+
+async function processWebhookEvent(event) {
+  const lineUserId = event.source?.userId;
+  const replyToken = event.replyToken;
+
+  if (event.type === 'follow') {
+    return handleFollow(event);
+  }
+
+  if (event.type === 'message' && event.message?.type === 'text') {
+    const text = String(event.message.text || '').trim();
+
+    if (/^[a-f0-9]{64}$/i.test(text)) {
+      return handleBind(lineUserId, text.toLowerCase(), replyToken);
+    }
+
+    if (text === '切換課程') {
+      return handleSwitchCourse(lineUserId, replyToken);
+    }
+
+    return handleQuestion(lineUserId, text, replyToken);
+  }
+
+  if (event.type === 'postback') {
+    const params = new URLSearchParams(event.postback?.data || '');
+    const action = params.get('action');
+
+    if (action === 'select_course') {
+      return handleSelectCourse(lineUserId, params.get('courseId'), replyToken);
+    }
+  }
+
+  return {
+    type: event.type,
+    handled: false,
+    reason: 'unsupported_event',
+  };
+}
+
+async function processWebhookEvents(events) {
+  const results = [];
+
+  for (const event of events) {
+    try {
+      results.push(await processWebhookEvent(event));
+    } catch (error) {
+      results.push({
+        type: event?.type || 'unknown',
+        handled: false,
+        reason: 'internal_error',
+      });
+
+      if (env.nodeEnv !== 'test') {
+        console.error('[LINE] event processing failed.', error);
+      }
+    }
+  }
+
+  return {
+    received: events.length,
+    processed: results.filter((item) => item.handled).length,
+    results,
+  };
+}
+
+async function ensureCourseForUser(userId, courseId) {
+  const user = await User.findById(userId);
+  const course = await Course.findById(courseId);
+
+  if (!user || !course) {
+    return null;
+  }
+
+  await Enrollment.findOneAndUpdate(
+    { studentId: user._id, courseId: course._id },
+    {
+      $setOnInsert: {
+        studentId: user._id,
+        courseId: course._id,
+        enrolledAt: new Date(),
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  return course;
+}
 
 module.exports = {
-  handleFollow,
-  handleBind,
-  handleSwitchCourse,
-  handleSelectCourse,
-  handleQuestion,
   generateBindToken,
+  processWebhookEvents,
+  ensureCourseForUser,
 };

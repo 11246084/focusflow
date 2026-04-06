@@ -1,18 +1,22 @@
-﻿# Focus Flow Backend
+# Focus Flow Backend
 
-`focus flow` 第一階段目標是做出教學影片問答系統的 MVP。這一輪先完成可 demo、可本地啟動的後端骨架，範圍只包含登入、課程管理、影片上傳與影片處理狀態骨架，不提前實作問答、歷史紀錄或重處理功能。
+`focus flow` 第一階段目標是做出教學影片問答系統的 MVP。這一版 backend 已補到可 demo 的主線，範圍包含登入、角色權限、課程與影片管理、問答 API、LINE webhook，以及最小整合測試。
 
 ## 目前後端範圍
 
 - Node.js + Express 後端初始化
 - MongoDB 連線設定
 - 統一 API response 格式
-- `/health` 健康檢查
+- `/health`
 - JWT 登入與 `auth/me`
-- `users`、`courses`、`videos` 三個基礎 model
+- `teacher / admin / student` RBAC 與課程存取規則
 - 課程建立與查詢
 - 本機 `uploads/` 影片上傳
-- `processing.status` 基礎流程欄位與 placeholder service
+- `videos.processing.status` 基礎流程
+- `POST /api/v1/qa/ask`
+- `POST /api/v1/line/webhook`
+- `usage_logs` 事件記錄
+- 不依賴外部 Mongo 的本地整合測試
 
 ## 後端結構
 
@@ -32,7 +36,19 @@ backend/
     scripts/
   tests/
   uploads/
+  docs/        # 個人本機文件區，已加入 .gitignore
 ```
+
+## 主要資料模型
+
+- `users`
+- `courses`
+- `videos`
+- `enrollments`
+- `video_segments`
+- `clips`
+- `usage_logs`
+- `line_bind_tokens`
 
 ## 安裝
 
@@ -102,17 +118,32 @@ JWT_SECRET=change-me-in-local-env
 JWT_EXPIRES_IN=7d
 DEMO_SEED_ENABLED=true
 UPLOAD_DIR=uploads
+QA_QUERY_EMBEDDING_PROVIDER=mock
+QA_ANSWER_PROVIDER=template
+QA_VECTOR_SEARCH_MODE=memory
+QA_MATCH_LIMIT=3
+QA_MOCK_EMBEDDING_DIMENSIONS=32
+OPENAI_API_KEY=
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-4o-mini
+LINE_CHANNEL_SECRET=
+LINE_CHANNEL_ACCESS_TOKEN=
 ```
 
 說明：
 
-- `NODE_ENV`: 執行環境，預設為 `development`
-- `PORT`: API server 監聽埠號，預設 `4000`
-- `MONGODB_URI`: MongoDB 連線字串
-- `JWT_SECRET`: JWT 簽章密鑰，本地開發請改成自訂值
-- `JWT_EXPIRES_IN`: JWT 有效時間，例如 `7d`
-- `DEMO_SEED_ENABLED`: server 啟動時是否自動建立 demo 帳號
-- `UPLOAD_DIR`: 上傳檔案目錄，預設為 `backend/uploads`
+- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` 或 `openai`
+- `QA_ANSWER_PROVIDER`: `template` 或 `openai`
+- `QA_VECTOR_SEARCH_MODE`: `memory` 或 `atlas`
+- `QA_MATCH_LIMIT`: 問答回傳的相關片段數量
+- `QA_MOCK_EMBEDDING_DIMENSIONS`: mock embedding 維度
+- `LINE_CHANNEL_SECRET`: LINE webhook signature 驗證用
+- `LINE_CHANNEL_ACCESS_TOKEN`: LINE reply API 用
+
+預設設計：
+
+- 本地 demo 預設使用 `mock + template + memory`
+- 若要接正式 OpenAI / Atlas，再補正式金鑰與索引
 
 ## 測試帳號
 
@@ -146,6 +177,14 @@ UPLOAD_DIR=uploads
 - `GET /api/v1/videos/:videoId`
 - `GET /api/v1/videos/:videoId/processing`
 
+### QA
+
+- `POST /api/v1/qa/ask`
+
+### LINE
+
+- `POST /api/v1/line/webhook`
+
 ## API 使用說明
 
 ### 1. 登入
@@ -160,14 +199,7 @@ Content-Type: application/json
 }
 ```
 
-### 2. 取得目前使用者
-
-```http
-GET /api/v1/auth/me
-Authorization: Bearer <token>
-```
-
-### 3. 建立課程
+### 2. 建立課程
 
 只有 `teacher` 或 `admin` 可建立課程。
 
@@ -179,13 +211,13 @@ Content-Type: application/json
 {
   "title": "Introduction to Deep Learning",
   "description": "MVP demo course",
-  "status": "draft"
+  "status": "published"
 }
 ```
 
-### 4. 上傳影片
+### 3. 上傳影片
 
-只有 `teacher` 或 `admin` 可上傳影片。
+只有課程 owner teacher 或 admin 可上傳影片。
 
 `multipart/form-data` 欄位：
 
@@ -197,6 +229,55 @@ POST /api/v1/courses/:courseId/videos
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
+
+### 4. 提問
+
+```http
+POST /api/v1/qa/ask
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "courseId": "507f191e810c19729de860eb",
+  "question": "What does the course say about JWT authentication?"
+}
+```
+
+成功回傳格式：
+
+```json
+{
+  "success": true,
+  "message": "Question answered successfully.",
+  "data": {
+    "answer": "...",
+    "matches": [
+      {
+        "segmentId": "segment-one",
+        "videoId": "video-published-001",
+        "startSec": 12,
+        "endSec": 32,
+        "transcript": "...",
+        "score": 0.91
+      }
+    ],
+    "clip": {
+      "segmentId": "segment-one",
+      "clipUrl": "https://clips.local/segment-one.mp4",
+      "jumpUrl": "https://videos.local/watch?v=video-published-001&t=12",
+      "keyPoints": ["JWT auth", "RBAC"],
+      "hitCount": 1
+    }
+  }
+}
+```
+
+## 存取規則
+
+- `admin`: 可存取與管理所有課程與影片
+- `teacher`: 只能管理自己建立的課程與其影片
+- `student`: 可讀取 `published` 課程，或已在 `enrollments` 中被允許的課程
+- `videos/:id/processing`: 僅課程 owner teacher 或 admin 可讀
 
 ## 統一回應格式
 
@@ -222,24 +303,28 @@ Content-Type: multipart/form-data
 }
 ```
 
-## 目前的 placeholder
+## 目前的 placeholder / 約束
 
 - 影片上傳後只建立資料並把 `processing.status` 由 `uploaded` 更新成 `queued`
-- 尚未串接 STT、chunking、embeddings、retrieval
-- `durationSec` 目前未自動計算
-- 尚未加入更完整的 request validation 與整合測試
+- backend 不負責 Whisper、chunking、embeddings 與 FFmpeg clip generation
+- backend 只讀取 AI / DB 組寫入的 `video_segments` 與 `clips`
+- `bind token` 產生 endpoint 尚未正式掛出，LINE 這版先以 webhook + 問答主線為主
 
 ## 測試
-
-目前先提供最小 smoke test，驗證統一 response helper：
 
 ```bash
 npm test
 ```
 
+說明：
+
+- 測試使用自製 runner
+- 不依賴本機 MongoDB 服務
+- 會驗證 auth、course/video、qa、line webhook 主線
+
 ## 下一步建議
 
-- 補齊註冊流程或正式使用者建立流程
-- 加入課程/影片 ownership 驗證
-- 接上影片處理佇列與 STT pipeline
-- 補 API integration tests
+- 接上正式 OpenAI embeddings / answers
+- 把 `QA_VECTOR_SEARCH_MODE` 切到 Atlas 並驗證正式索引
+- 補 enrollment / active course 的正式 UI 流程
+- 和 AI / DB / LINE 組做一次 end-to-end demo 串接

@@ -1,4 +1,4 @@
-﻿const asyncHandler = require('../utils/asyncHandler');
+const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const videoService = require('../services/video.service');
@@ -13,6 +13,7 @@ const createVideo = asyncHandler(async (req, res) => {
     title: req.body.title,
     file: req.file,
     uploadedBy: req.user.id,
+    user: req.user,
   });
 
   return sendSuccess(res, {
@@ -25,7 +26,7 @@ const createVideo = asyncHandler(async (req, res) => {
 });
 
 const listCourseVideos = asyncHandler(async (req, res) => {
-  const videos = await videoService.listCourseVideos(req.params.courseId);
+  const videos = await videoService.listCourseVideos(req.params.courseId, req.user);
 
   return sendSuccess(res, {
     message: 'Videos fetched successfully.',
@@ -36,7 +37,7 @@ const listCourseVideos = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-  const video = await videoService.getVideoById(req.params.videoId);
+  const video = await videoService.getVideoById(req.params.videoId, req.user);
 
   return sendSuccess(res, {
     message: 'Video fetched successfully.',
@@ -47,7 +48,7 @@ const getVideoById = asyncHandler(async (req, res) => {
 });
 
 const getVideoProcessing = asyncHandler(async (req, res) => {
-  const processing = await videoService.getVideoProcessingStatus(req.params.videoId);
+  const processing = await videoService.getVideoProcessingStatus(req.params.videoId, req.user);
 
   return sendSuccess(res, {
     message: 'Video processing status fetched successfully.',

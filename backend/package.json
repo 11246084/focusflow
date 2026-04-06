@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seedDemoUsers.js",
-    "test": "node tests/api-response.test.js"
+    "test": "node tests/run-tests.js"
   },
   "keywords": [
     "focusflow",

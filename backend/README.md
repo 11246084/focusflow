@@ -36,8 +36,23 @@ backend/
     scripts/
   tests/
   uploads/
-  docs/        # 個人本機文件區，已加入 .gitignore
 ```
+
+## 文件導覽
+
+後端正式文件主要包含以下兩份：
+
+- `backend/README.md`
+  用來說明 backend 目前做到哪裡、有哪些 API、怎麼啟動、怎麼測試。
+- `backend/.env.example`
+  用來說明 backend 執行所需的環境變數與預設設定。
+
+### 建議閱讀順序
+
+1. 先看 `backend/README.md`
+   先了解 backend 現在能做什麼。
+2. 需要實際執行時，再看 `backend/.env.example`
+   確認環境變數設定。
 
 ## 主要資料模型
 

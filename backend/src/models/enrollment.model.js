@@ -26,6 +26,10 @@ const enrollmentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    lineState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,

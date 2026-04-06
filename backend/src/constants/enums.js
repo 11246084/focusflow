@@ -16,7 +16,6 @@ const VIDEO_SOURCE_TYPES = {
 };
 
 const VIDEO_PROCESSING_STATUSES = {
-  UPLOADED: 'uploaded',
   QUEUED: 'queued',
   PROCESSING: 'processing',
   COMPLETED: 'completed',
@@ -25,6 +24,7 @@ const VIDEO_PROCESSING_STATUSES = {
 
 const USAGE_LOG_EVENTS = {
   LOGIN: 'login',
+  WATCH: 'watch',
   ASK: 'ask',
   CLIP_VIEW: 'clip_view',
 };

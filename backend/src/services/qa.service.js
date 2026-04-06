@@ -60,7 +60,7 @@ function computeLexicalScore(question, transcript) {
 
 function mapSegmentMatch(segment, score) {
   return {
-    segmentId: segment.segmentId || segment.chunkId || String(segment._id),
+    segmentId: segment.segmentId || segment.chunkId || segment.chunk_id || String(segment._id),
     videoId: segment.videoId || segment.video_id || null,
     startSec: segment.startSec,
     endSec: segment.endSec,
@@ -113,6 +113,7 @@ async function searchSegmentsWithAtlas(courseId, question, queryVector) {
         _id: 1,
         segmentId: 1,
         chunkId: 1,
+        chunk_id: 1,
         videoId: 1,
         video_id: 1,
         startSec: 1,

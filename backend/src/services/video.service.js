@@ -1,8 +1,9 @@
 const Video = require('../models/video.model');
+const Course = require('../models/course.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_SOURCE_TYPES, VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
-const { queueVideoForProcessing } = require('./videoProcessing.service');
+const { VIDEO_SOURCE_TYPES } = require('../constants/enums');
+const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
 const { assertCanAccessCourse, assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 
 async function ensureCourseExists(courseId) {
@@ -22,16 +23,24 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     title: String(title || '').trim() || file.originalname,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
     sourceUrl: `/uploads/${file.filename}`,
+    file_name: file.originalname,
+    file_path: file.path,
     storagePath: file.path,
     durationSec: null,
+    duration_sec: null,
+    video_source: VIDEO_SOURCE_TYPES.UPLOAD,
+    video_url: `/uploads/${file.filename}`,
     uploadedBy,
-    processing: {
-      status: VIDEO_PROCESSING_STATUSES.UPLOADED,
-      errorMessage: null,
+    processing: createQueuedProcessingState(),
+  });
+
+  await Course.findByIdAndUpdate(courseId, {
+    $addToSet: {
+      videoIds: video._id,
     },
   });
 
-  return queueVideoForProcessing(video._id);
+  return video;
 }
 
 async function listCourseVideos(courseId, user) {
@@ -65,12 +74,7 @@ async function getVideoProcessingStatus(videoId, user) {
   const course = await ensureCourseExists(video.courseId?._id || video.courseId);
   await assertCanManageCourse(user, course);
 
-  return {
-    id: String(video._id),
-    title: video.title,
-    processing: video.processing,
-    updatedAt: video.updatedAt,
-  };
+  return buildProcessingMetadata(video);
 }
 
 module.exports = {

@@ -10,6 +10,7 @@ process.env.QA_VECTOR_SEARCH_MODE = 'memory';
 process.env.QA_ANSWER_PROVIDER = 'template';
 process.env.LINE_CHANNEL_SECRET = 'line-secret-for-tests';
 process.env.LINE_CHANNEL_ACCESS_TOKEN = '';
+process.env.PROCESSING_WEBHOOK_SECRET = 'processing-secret-for-tests';
 
 const app = require('../../src/app');
 const env = require('../../src/config/env');
@@ -123,6 +124,28 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
     }
   }
 
+  if (update.$push) {
+    for (const [key, value] of Object.entries(update.$push)) {
+      const currentValue = getNested(target, key);
+      const nextValue = Array.isArray(currentValue) ? [...currentValue, value] : [value];
+      setNested(target, key, nextValue);
+    }
+  }
+
+  if (update.$addToSet) {
+    for (const [key, value] of Object.entries(update.$addToSet)) {
+      const currentValue = getNested(target, key);
+      const nextValue = Array.isArray(currentValue) ? [...currentValue] : [];
+      const exists = nextValue.some((item) => normalizeValue(item) === normalizeValue(value));
+
+      if (!exists) {
+        nextValue.push(value);
+      }
+
+      setNested(target, key, nextValue);
+    }
+  }
+
   return target;
 }
 
@@ -184,6 +207,28 @@ function findUserById(id) {
 
 function findCourseById(id) {
   return store.courses.find((course) => normalizeValue(course._id) === normalizeValue(id)) || null;
+}
+
+function createProcessingState({
+  status,
+  errorMessage = null,
+  errorCode = null,
+  queuedAt = null,
+  startedAt = null,
+  completedAt = null,
+  failedAt = null,
+  attemptCount = 0,
+} = {}) {
+  return {
+    status,
+    errorMessage,
+    errorCode,
+    queuedAt,
+    startedAt,
+    completedAt,
+    failedAt,
+    attemptCount,
+  };
 }
 
 function createQuery(initialValue, options = {}) {
@@ -289,6 +334,17 @@ function installModelStubs() {
       },
     },
   );
+  Course.findByIdAndUpdate = async (id, update) => {
+    const course = findCourseById(id);
+
+    if (!course) {
+      return null;
+    }
+
+    applyUpdate(course, update);
+    course.updatedAt = new Date().toISOString();
+    return course;
+  };
 
   Video.create = async (payload) => {
     const video = {
@@ -484,6 +540,7 @@ function resetStore() {
       title: 'Teacher Draft Course',
       description: 'Draft course',
       teacherId: ids.teacher,
+      videoIds: [ids.teacherVideo],
       status: 'draft',
       createdAt: '2026-04-06T09:00:00.000Z',
     },
@@ -492,6 +549,7 @@ function resetStore() {
       title: 'Published AI Course',
       description: 'Published course',
       teacherId: ids.teacher,
+      videoIds: [ids.publishedVideo],
       status: 'published',
       createdAt: '2026-04-06T10:00:00.000Z',
     },
@@ -500,6 +558,7 @@ function resetStore() {
       title: 'Enrolled Draft Course',
       description: 'Draft course with enrollment',
       teacherId: ids.otherTeacher,
+      videoIds: [],
       status: 'draft',
       createdAt: '2026-04-06T10:30:00.000Z',
     },
@@ -508,6 +567,7 @@ function resetStore() {
       title: 'Foreign Draft Course',
       description: 'Draft course without enrollment',
       teacherId: ids.otherTeacher,
+      videoIds: [],
       status: 'draft',
       createdAt: '2026-04-06T11:00:00.000Z',
     },
@@ -520,13 +580,18 @@ function resetStore() {
       title: 'Draft Video',
       sourceType: 'upload',
       sourceUrl: '/uploads/draft.mp4',
+      file_name: 'draft.mp4',
+      file_path: path.join(uploadsDir, 'draft.mp4'),
       storagePath: path.join(uploadsDir, 'draft.mp4'),
       durationSec: null,
+      duration_sec: null,
+      video_source: 'upload',
+      video_url: '/uploads/draft.mp4',
       uploadedBy: ids.teacher,
-      processing: {
+      processing: createProcessingState({
         status: 'queued',
-        errorMessage: null,
-      },
+        queuedAt: '2026-04-06T11:00:00.000Z',
+      }),
       createdAt: '2026-04-06T11:00:00.000Z',
       updatedAt: '2026-04-06T11:00:00.000Z',
     },
@@ -536,13 +601,21 @@ function resetStore() {
       title: 'Published Video',
       sourceType: 'upload',
       sourceUrl: '/uploads/published.mp4',
+      file_name: 'published.mp4',
+      file_path: path.join(uploadsDir, 'published.mp4'),
       storagePath: path.join(uploadsDir, 'published.mp4'),
       durationSec: null,
+      duration_sec: null,
+      video_source: 'upload',
+      video_url: '/uploads/published.mp4',
       uploadedBy: ids.teacher,
-      processing: {
+      processing: createProcessingState({
         status: 'completed',
-        errorMessage: null,
-      },
+        queuedAt: '2026-04-06T12:00:00.000Z',
+        startedAt: '2026-04-06T12:01:00.000Z',
+        completedAt: '2026-04-06T12:03:00.000Z',
+        attemptCount: 1,
+      }),
       createdAt: '2026-04-06T12:00:00.000Z',
       updatedAt: '2026-04-06T12:00:00.000Z',
     },
@@ -567,21 +640,25 @@ function resetStore() {
     {
       _id: newObjectId(),
       segmentId: ids.segmentOne,
+      chunk_id: ids.segmentOne,
       courseId: ids.publishedCourse,
       videoId: 'video-published-001',
       startSec: 12,
       endSec: 32,
       transcript: 'Node.js backend course explains JWT authentication and role based access control.',
+      original_text: 'Node.js backend course explains JWT authentication and role based access control.',
       embedding: [],
     },
     {
       _id: newObjectId(),
       segmentId: ids.segmentTwo,
+      chunk_id: ids.segmentTwo,
       courseId: ids.publishedCourse,
       videoId: 'video-published-001',
       startSec: 40,
       endSec: 58,
       transcript: 'This segment describes Express middleware and video upload processing status.',
+      original_text: 'This segment describes Express middleware and video upload processing status.',
       embedding: [],
     },
   );
@@ -721,4 +798,5 @@ module.exports = {
   postLineWebhook,
   createVideoUploadForm,
   cleanupTestUploads,
+  createProcessingState,
 };

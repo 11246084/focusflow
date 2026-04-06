@@ -11,6 +11,8 @@ const {
   store,
   createVideoUploadForm,
   cleanupTestUploads,
+  env,
+  createProcessingState,
 } = require('./helpers/backendTestHarness');
 
 describe('course and video routes', () => {
@@ -133,8 +135,21 @@ describe('course and video routes', () => {
     assert.equal(createCourseResult.status, 201);
     assert.equal(uploadResult.status, 201);
     assert.equal(uploadResult.body.data.video.processing.status, 'queued');
+    assert.ok(uploadResult.body.data.video.processing.queuedAt);
+    assert.equal(uploadResult.body.data.video.processing.attemptCount, 0);
+    assert.equal(uploadResult.body.data.video.file_name, formData.get('video').name);
+    assert.ok(uploadResult.body.data.video.file_path);
+    assert.equal(uploadResult.body.data.video.video_source, 'upload');
+    assert.equal(uploadResult.body.data.video.video_url, uploadResult.body.data.video.sourceUrl);
+    assert.equal(uploadResult.body.data.video.duration_sec, null);
     assert.equal(processingResult.status, 200);
     assert.equal(processingResult.body.data.processing.status, 'queued');
+    assert.ok(processingResult.body.data.processing.queuedAt);
+    assert.equal(processingResult.body.data.processing.attemptCount, 0);
+    assert.deepEqual(
+      store.courses.find((course) => course._id === createCourseResult.body.data.course._id).videoIds,
+      [uploadResult.body.data.video._id],
+    );
   });
 
   it('rejects uploads without a file', async () => {
@@ -256,6 +271,8 @@ describe('course and video routes', () => {
     assert.equal(studentProcessingResult.status, 403);
     assert.equal(studentProcessingResult.body.error.code, 'COURSE_MANAGE_DENIED');
     assert.equal(teacherProcessingResult.status, 200);
+    assert.ok(teacherProcessingResult.body.data.processing.attemptCount >= 0);
+    assert.ok('queuedAt' in teacherProcessingResult.body.data.processing);
     assert.equal(adminProcessingResult.status, 200);
   });
 
@@ -283,10 +300,13 @@ describe('course and video routes', () => {
       storagePath: 'uploads/enrolled-draft.mp4',
       durationSec: null,
       uploadedBy: ids.otherTeacher,
-      processing: {
+      processing: createProcessingState({
         status: 'completed',
-        errorMessage: null,
-      },
+        queuedAt: '2026-04-06T13:00:00.000Z',
+        startedAt: '2026-04-06T13:01:00.000Z',
+        completedAt: '2026-04-06T13:03:00.000Z',
+        attemptCount: 1,
+      }),
       createdAt: '2026-04-06T13:00:00.000Z',
       updatedAt: '2026-04-06T13:00:00.000Z',
     });
@@ -297,5 +317,283 @@ describe('course and video routes', () => {
 
     assert.equal(result.status, 200);
     assert.equal(result.body.data.video._id, enrolledVideoId);
+  });
+
+  it('allows owner teacher and admin to retry failed videos but rejects other roles', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+
+    store.videos.find((video) => video._id === ids.teacherVideo).processing = createProcessingState({
+      status: 'failed',
+      errorMessage: 'whisper timeout',
+      errorCode: 'WHISPER_TIMEOUT',
+      queuedAt: '2026-04-06T11:00:00.000Z',
+      startedAt: '2026-04-06T11:02:00.000Z',
+      failedAt: '2026-04-06T11:05:00.000Z',
+      attemptCount: 1,
+    });
+
+    const studentResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      {
+        method: 'POST',
+        token: studentToken,
+      },
+    );
+    const otherTeacherResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      {
+        method: 'POST',
+        token: otherTeacherToken,
+      },
+    );
+    const teacherResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      {
+        method: 'POST',
+        token: teacherToken,
+      },
+    );
+
+    assert.equal(studentResult.status, 403);
+    assert.equal(studentResult.body.error.code, 'COURSE_MANAGE_DENIED');
+    assert.equal(otherTeacherResult.status, 403);
+    assert.equal(otherTeacherResult.body.error.code, 'COURSE_MANAGE_DENIED');
+    assert.equal(teacherResult.status, 200);
+    assert.equal(teacherResult.body.data.processing.status, 'queued');
+    assert.equal(teacherResult.body.data.processing.errorMessage, null);
+    assert.equal(teacherResult.body.data.processing.errorCode, null);
+    assert.equal(teacherResult.body.data.processing.startedAt, null);
+    assert.equal(teacherResult.body.data.processing.completedAt, null);
+    assert.equal(teacherResult.body.data.processing.failedAt, null);
+    assert.equal(teacherResult.body.data.processing.attemptCount, 1);
+    assert.ok(teacherResult.body.data.processing.queuedAt);
+
+    store.videos.find((video) => video._id === ids.teacherVideo).processing = createProcessingState({
+      status: 'failed',
+      errorMessage: 'atlas timeout',
+      queuedAt: '2026-04-06T11:00:00.000Z',
+      failedAt: '2026-04-06T11:08:00.000Z',
+      attemptCount: 2,
+    });
+
+    const adminResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      {
+        method: 'POST',
+        token: adminToken,
+      },
+    );
+
+    assert.equal(adminResult.status, 200);
+    assert.equal(adminResult.body.data.processing.status, 'queued');
+    assert.equal(adminResult.body.data.processing.attemptCount, 2);
+  });
+
+  it('rejects retry when the current processing state is not failed', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      {
+        method: 'POST',
+        token: teacherToken,
+      },
+    );
+
+    assert.equal(result.status, 409);
+    assert.equal(result.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+  });
+
+  it('requires the processing secret for internal start and enforces strict transitions', async () => {
+    const missingSecretResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+      },
+    );
+    const invalidSecretResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': 'wrong-secret',
+        },
+      },
+    );
+    const successResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+      },
+    );
+    const invalidTransitionResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+      },
+    );
+
+    assert.equal(missingSecretResult.status, 401);
+    assert.equal(missingSecretResult.body.error.code, 'UNAUTHORIZED');
+    assert.equal(invalidSecretResult.status, 401);
+    assert.equal(successResult.status, 200);
+    assert.equal(successResult.body.data.processing.status, 'processing');
+    assert.ok(successResult.body.data.processing.startedAt);
+    assert.equal(successResult.body.data.processing.attemptCount, 1);
+    assert.equal(invalidTransitionResult.status, 409);
+    assert.equal(invalidTransitionResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+  });
+
+  it('completes processing only from processing state and updates durationSec', async () => {
+    const startResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+      },
+    );
+    const completeResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/complete`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+        body: {
+          durationSec: 123,
+          metadata: {
+            ignored: true,
+          },
+        },
+      },
+    );
+    const secondCompleteResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/complete`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+      },
+    );
+
+    assert.equal(startResult.status, 200);
+    assert.equal(completeResult.status, 200);
+    assert.equal(completeResult.body.data.processing.status, 'completed');
+    assert.ok(completeResult.body.data.processing.completedAt);
+    assert.equal(store.videos.find((video) => video._id === ids.teacherVideo).durationSec, 123);
+    assert.equal(secondCompleteResult.status, 409);
+    assert.equal(secondCompleteResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+  });
+
+  it('fails processing from queued or processing states and requires errorMessage', async () => {
+    const missingMessageResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/fail`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+        body: {
+          errorCode: 'WORKER_TIMEOUT',
+        },
+      },
+    );
+    const queuedFailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/fail`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+        body: {
+          errorMessage: 'worker timeout',
+          errorCode: 'WORKER_TIMEOUT',
+        },
+      },
+    );
+
+    store.videos.find((video) => video._id === ids.teacherVideo).processing = createProcessingState({
+      status: 'queued',
+      queuedAt: '2026-04-06T11:00:00.000Z',
+      attemptCount: 1,
+    });
+
+    const processingStartResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+      },
+    );
+    const processingFailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/fail`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+        body: {
+          errorMessage: 'chunking failed',
+        },
+      },
+    );
+    const invalidTransitionResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/internal/videos/${ids.teacherVideo}/processing/fail`,
+      {
+        method: 'POST',
+        headers: {
+          'x-processing-secret': env.processingWebhookSecret,
+        },
+        body: {
+          errorMessage: 'should not happen twice',
+        },
+      },
+    );
+
+    assert.equal(missingMessageResult.status, 400);
+    assert.equal(missingMessageResult.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(queuedFailResult.status, 200);
+    assert.equal(queuedFailResult.body.data.processing.status, 'failed');
+    assert.equal(queuedFailResult.body.data.processing.errorMessage, 'worker timeout');
+    assert.equal(queuedFailResult.body.data.processing.errorCode, 'WORKER_TIMEOUT');
+    assert.ok(queuedFailResult.body.data.processing.failedAt);
+    assert.equal(processingStartResult.status, 200);
+    assert.equal(processingFailResult.status, 200);
+    assert.equal(processingFailResult.body.data.processing.status, 'failed');
+    assert.equal(processingFailResult.body.data.processing.errorMessage, 'chunking failed');
+    assert.ok(processingFailResult.body.data.processing.failedAt);
+    assert.equal(invalidTransitionResult.status, 409);
+    assert.equal(invalidTransitionResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
   });
 });

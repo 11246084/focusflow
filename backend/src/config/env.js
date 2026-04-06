@@ -23,5 +23,6 @@ module.exports = {
   openaiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
+  processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
   projectRoot,
 };

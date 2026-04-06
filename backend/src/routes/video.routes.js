@@ -18,5 +18,6 @@ router.post(
 router.get('/courses/:courseId/videos', videoController.listCourseVideos);
 router.get('/videos/:videoId', videoController.getVideoById);
 router.get('/videos/:videoId/processing', videoController.getVideoProcessing);
+router.post('/videos/:videoId/processing/retry', videoController.retryVideoProcessing);
 
 module.exports = router;

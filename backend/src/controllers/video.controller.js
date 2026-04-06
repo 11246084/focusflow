@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const videoService = require('../services/video.service');
+const videoProcessingService = require('../services/videoProcessing.service');
 
 const createVideo = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -56,9 +57,55 @@ const getVideoProcessing = asyncHandler(async (req, res) => {
   });
 });
 
+const retryVideoProcessing = asyncHandler(async (req, res) => {
+  const video = await videoProcessingService.retryVideoProcessing(req.params.videoId, req.user);
+
+  return sendSuccess(res, {
+    message: 'Video processing retried successfully.',
+    data: videoProcessingService.buildProcessingMetadata(video),
+  });
+});
+
+const startInternalVideoProcessing = asyncHandler(async (req, res) => {
+  const video = await videoProcessingService.startVideoProcessing(req.params.videoId);
+
+  return sendSuccess(res, {
+    message: 'Video processing started successfully.',
+    data: videoProcessingService.buildProcessingMetadata(video),
+  });
+});
+
+const completeInternalVideoProcessing = asyncHandler(async (req, res) => {
+  const video = await videoProcessingService.completeVideoProcessing(req.params.videoId, {
+    durationSec: req.body.durationSec,
+    metadata: req.body.metadata,
+  });
+
+  return sendSuccess(res, {
+    message: 'Video processing completed successfully.',
+    data: videoProcessingService.buildProcessingMetadata(video),
+  });
+});
+
+const failInternalVideoProcessing = asyncHandler(async (req, res) => {
+  const video = await videoProcessingService.failVideoProcessing(req.params.videoId, {
+    errorMessage: req.body.errorMessage,
+    errorCode: req.body.errorCode,
+  });
+
+  return sendSuccess(res, {
+    message: 'Video processing failed successfully.',
+    data: videoProcessingService.buildProcessingMetadata(video),
+  });
+});
+
 module.exports = {
   createVideo,
   listCourseVideos,
   getVideoById,
   getVideoProcessing,
+  retryVideoProcessing,
+  startInternalVideoProcessing,
+  completeInternalVideoProcessing,
+  failInternalVideoProcessing,
 };

@@ -19,6 +19,11 @@ const videoSegmentSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    chunk_id: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     videoId: {
       type: String,
       default: null,
@@ -44,6 +49,15 @@ const videoSegmentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    original_text: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    corrections: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
     },
     embedding: {
       type: [Number],

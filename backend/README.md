@@ -333,9 +333,10 @@ npm test
 
 說明：
 
-- 測試使用自製 runner
+- 測試使用 Node.js 內建 `node:test`
 - 不依賴本機 MongoDB 服務
-- 會驗證 auth、course/video、qa、line webhook 主線
+- 以共用 in-memory stubs 跑 route integration tests 與少量 service tests
+- 目前覆蓋 auth、course/video、qa、line webhook 主線與主要拒絕/錯誤分支
 
 ## 下一步建議
 

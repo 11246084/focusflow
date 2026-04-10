@@ -180,6 +180,17 @@ python src/video_multimodal_pipeline.py
 python src/mongodb_uploader.py
 ```
 
+## 專屬規則檔案
+
+執行以下相關任務時，**請優先閱讀 `.claude/rules/` 下對應的規則檔案**，其內容比本文件更詳細：
+
+| 任務類型 | 規則檔案 |
+|----------|----------|
+| 新增或修改 API 路由、controller、response 格式、錯誤碼 | `.claude/rules/api-design.md` |
+| 修改 Mongoose Schema、索引、資料存取邏輯 | `.claude/rules/database.md` |
+| 撰寫或修改測試、測試 harness | `.claude/rules/testing.md` |
+| 涉及 JWT 驗證、密碼處理、輸入驗證、CORS | `.claude/rules/security.md` |
+
 ## 後端結構偏好
 
 backend 目前已經採用清楚的分層，修改時請優先沿用：

@@ -1,9 +1,11 @@
-﻿const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const { toPublicUser } = require('../utils/publicUser');
+const { recordUsage } = require('./usageLog.service');
+const { USAGE_LOG_EVENTS } = require('../constants/enums');
 
 async function login({ email, password }) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
@@ -33,6 +35,14 @@ async function login({ email, password }) {
       expiresIn: env.jwtExpiresIn,
     },
   );
+
+  await recordUsage({
+    userId: user._id,
+    event: USAGE_LOG_EVENTS.LOGIN,
+    metadata: {
+      role: user.role,
+    },
+  });
 
   return {
     token,

@@ -16,11 +16,17 @@ const VIDEO_SOURCE_TYPES = {
 };
 
 const VIDEO_PROCESSING_STATUSES = {
-  UPLOADED: 'uploaded',
   QUEUED: 'queued',
   PROCESSING: 'processing',
   COMPLETED: 'completed',
   FAILED: 'failed',
+};
+
+const USAGE_LOG_EVENTS = {
+  LOGIN: 'login',
+  WATCH: 'watch',
+  ASK: 'ask',
+  CLIP_VIEW: 'clip_view',
 };
 
 module.exports = {
@@ -32,4 +38,6 @@ module.exports = {
   VIDEO_SOURCE_TYPE_VALUES: Object.values(VIDEO_SOURCE_TYPES),
   VIDEO_PROCESSING_STATUSES,
   VIDEO_PROCESSING_STATUS_VALUES: Object.values(VIDEO_PROCESSING_STATUSES),
+  USAGE_LOG_EVENTS,
+  USAGE_LOG_EVENT_VALUES: Object.values(USAGE_LOG_EVENTS),
 };

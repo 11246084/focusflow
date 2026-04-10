@@ -18,6 +18,13 @@ const courseSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    videoIds: {
+      type: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Video',
+      }],
+      default: [],
+    },
     status: {
       type: String,
       enum: COURSE_STATUS_VALUES,

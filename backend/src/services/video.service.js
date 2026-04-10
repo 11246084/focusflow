@@ -1,55 +1,58 @@
-﻿const Course = require('../models/course.model');
 const Video = require('../models/video.model');
+const Course = require('../models/course.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_SOURCE_TYPES, VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
-const { queueVideoForProcessing } = require('./videoProcessing.service');
+const { VIDEO_SOURCE_TYPES } = require('../constants/enums');
+const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
+const { assertCanAccessCourse, assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 
 async function ensureCourseExists(courseId) {
-  assertObjectId(courseId, 'course');
-
-  const course = await Course.findById(courseId);
-
-  if (!course) {
-    throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
-  }
-
-  return course;
+  return getCourseByIdOrThrow(courseId);
 }
 
-async function createCourseVideo({ courseId, title, file, uploadedBy }) {
+async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   if (!file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
   }
 
-  await ensureCourseExists(courseId);
+  const course = await ensureCourseExists(courseId);
+  await assertCanManageCourse(user, course);
 
   const video = await Video.create({
     courseId,
     title: String(title || '').trim() || file.originalname,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
     sourceUrl: `/uploads/${file.filename}`,
+    file_name: file.originalname,
+    file_path: file.path,
     storagePath: file.path,
     durationSec: null,
+    duration_sec: null,
+    video_source: VIDEO_SOURCE_TYPES.UPLOAD,
+    video_url: `/uploads/${file.filename}`,
     uploadedBy,
-    processing: {
-      status: VIDEO_PROCESSING_STATUSES.UPLOADED,
-      errorMessage: null,
+    processing: createQueuedProcessingState(),
+  });
+
+  await Course.findByIdAndUpdate(courseId, {
+    $addToSet: {
+      videoIds: video._id,
     },
   });
 
-  return queueVideoForProcessing(video._id);
+  return video;
 }
 
-async function listCourseVideos(courseId) {
-  await ensureCourseExists(courseId);
+async function listCourseVideos(courseId, user) {
+  const course = await ensureCourseExists(courseId);
+  await assertCanAccessCourse(user, course);
 
   return Video.find({ courseId })
     .populate('uploadedBy', 'name email role')
     .sort({ createdAt: -1 });
 }
 
-async function getVideoById(videoId) {
+async function getVideoById(videoId, user) {
   assertObjectId(videoId, 'video');
 
   const video = await Video.findById(videoId)
@@ -60,18 +63,18 @@ async function getVideoById(videoId) {
     throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   }
 
+  const course = await ensureCourseExists(video.courseId?._id || video.courseId);
+  await assertCanAccessCourse(user, course);
+
   return video;
 }
 
-async function getVideoProcessingStatus(videoId) {
-  const video = await getVideoById(videoId);
+async function getVideoProcessingStatus(videoId, user) {
+  const video = await getVideoById(videoId, user);
+  const course = await ensureCourseExists(video.courseId?._id || video.courseId);
+  await assertCanManageCourse(user, course);
 
-  return {
-    id: String(video._id),
-    title: video.title,
-    processing: video.processing,
-    updatedAt: video.updatedAt,
-  };
+  return buildProcessingMetadata(video);
 }
 
 module.exports = {

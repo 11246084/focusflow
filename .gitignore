@@ -145,7 +145,16 @@ vite.config.ts.timestamp-*
 STT_Whisper/.venv/
 STT_Whisper/.tool/
 STT_Whisper/data/processed_audio/
+STT_Whisper/data/outputs/
+STT_Whisper/data/cache/
+STT_Whisper/data/video_multimodal_chunks/
 STT_Whisper/Test_video_file/
 
 __pycache__/
 *.pyc
+*.pyo
+
+# ================================
+# Claude Code
+# ================================
+CLAUDE.local.md

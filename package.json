@@ -1,0 +1,18 @@
+{
+  "name": "focusflow",
+  "version": "0.1.0",
+  "description": "AI 驅動的教育影片問答系統（Monorepo 根目錄）",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend/focus-flow && npm run dev",
+    "start:backend": "cd backend && npm start",
+    "build:frontend": "cd frontend/focus-flow && npm run build",
+    "lint:frontend": "cd frontend/focus-flow && npm run lint",
+    "test:backend": "cd backend && npm test",
+    "seed": "cd backend && npm run seed",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend/focus-flow && npm install",
+    "install:all": "npm run install:backend && npm run install:frontend"
+  }
+}

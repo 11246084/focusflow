@@ -13,13 +13,14 @@ function lineSignature(req, res, next) {
     return next(new AppError('LINE_CHANNEL_SECRET is not configured.', 500, 'LINE_NOT_CONFIGURED'));
   }
 
-  if (!req.rawBody) {
+  const rawBody = req.rawBody ?? req.body;
+  if (!rawBody) {
     return next(new AppError('LINE raw request body is not available.', 400, 'LINE_RAW_BODY_MISSING'));
   }
 
   const expectedSignature = crypto
     .createHmac('sha256', env.lineChannelSecret)
-    .update(req.rawBody)
+    .update(rawBody)
     .digest('base64');
 
   if (expectedSignature !== signature) {

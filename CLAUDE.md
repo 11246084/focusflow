@@ -4,6 +4,13 @@
 
 > **本文件規則同步自 [AGENTS.md](AGENTS.md)，修改規範時請優先參考該檔案。**
 
+## 專屬規則
+
+@.claude/rules/api-design.md
+@.claude/rules/database.md
+@.claude/rules/testing.md
+@.claude/rules/security.md
+
 ## 專案概述
 
 **FocusFlow** 是一個全端 AI 教學影片問答系統。第一階段 MVP：教師上傳影片 → 系統自動轉錄並分段 → 學生提問 → 系統回傳 AI 生成的答案與對應影片時間戳。

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<!-- saved from url=(0058)file:///C:/Users/ST-user/Downloads/ai_architecture_zh.html -->
+<html lang="zh-TW"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<title>AI學習系統架構圖</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Noto Sans TC',sans-serif;
+  background:#c2dff0;
+  padding:20px;
+  min-width:1380px;
+}
+.page{
+  background:linear-gradient(150deg,#e0f3fd 0%,#eaf7ff 45%,#d6ecf8 100%);
+  border-radius:20px;
+  padding:22px 26px 26px;
+  position:relative;
+  overflow:hidden;
+  border:2px solid #9ecde8;
+  box-shadow:0 4px 24px rgba(0,80,160,.15);
+}
+.page::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,#7ab8d8 1px,transparent 1px);
+  background-size:28px 28px;opacity:.16;pointer-events:none;
+}
+
+/* ─ Title ─ */
+.title-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:18px;margin-bottom:18px;position:relative;z-index:3;
+}
+.tdeco{display:flex;flex-direction:column;gap:3.5px;}
+.tb{height:4.5px;border-radius:2px;}
+.tdeco.L .tb:nth-child(1){width:38px;background:#1a6fad;}
+.tdeco.L .tb:nth-child(2){width:29px;background:#4da8d8;}
+.tdeco.L .tb:nth-child(3){width:20px;background:#80c8e8;}
+.tdeco.L .tb:nth-child(4){width:12px;background:#aaddf4;}
+.tdeco.R .tb:nth-child(1){width:38px;background:#1a6fad;}
+.tdeco.R .tb:nth-child(2){width:29px;background:#4da8d8;}
+.tdeco.R .tb:nth-child(3){width:20px;background:#80c8e8;}
+.tdeco.R .tb:nth-child(4){width:12px;background:#aaddf4;}
+h1{font-size:30px;font-weight:900;color:#0c2a48;letter-spacing:3px;
+   text-shadow:0 1px 0 rgba(255,255,255,.7);}
+
+/* ─ Master layout: 5 columns + spacers ─ */
+.master{
+  display:grid;
+  grid-template-columns: 196px 32px 152px 32px 1fr 14px 272px;
+  gap:0;position:relative;z-index:2;align-items:start;
+}
+
+/* ─ Section shell ─ */
+.sec{
+  border-radius:15px;padding:9px 9px 12px;
+  background:rgba(174,216,242,.40);
+  border:1.5px solid #7ab4d4;
+}
+.sec-hdr{
+  font-size:12.5px;font-weight:700;color:#fff;
+  background:#1868a8;text-align:center;
+  padding:5px 8px;border-radius:7px;margin-bottom:9px;
+  letter-spacing:.6px;
+}
+
+/* ─ View cards ─ */
+.vc{
+  background:#fff;border-radius:10px;padding:8px 9px;
+  margin-bottom:8px;
+  box-shadow:0 2px 6px rgba(0,50,110,.10);
+  border:1px solid #c0daf0;
+}
+.vc:last-child{margin-bottom:0;}
+.vhdr{
+  background:#1468a8;color:#fff;font-size:12px;font-weight:700;
+  text-align:center;padding:3.5px 0;border-radius:5px;margin-bottom:7px;
+}
+.vicons{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;}
+.vi{display:flex;flex-direction:column;align-items:center;gap:2px;
+    font-size:9.5px;color:#2e6080;font-weight:600;}
+.ib{
+  width:37px;height:37px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+}
+.ib-or{background:#fef0d4;border:1.5px solid #f0a440;}
+.ib-bl{background:#daeefa;border:1.5px solid #58b0d8;}
+.ib-gr{background:#d4f2e0;border:1.5px solid #48c07a;}
+.ib-rd{background:#fde6e6;border:1.5px solid #e07070;}
+.ib-pu{background:#ece8fc;border:1.5px solid #9880dc;}
+.ib-gy{background:#ededf2;border:1.5px solid #a8a8bc;}
+.vlb{font-size:9.5px;color:#5080a0;text-align:center;margin-top:5px;}
+
+/* ─ Arrow columns (left/right of gateway) ─ */
+.acol{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding-top:48px;gap:24px;
+}
+.ait{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.alb{
+  font-size:9px;color:#1e5878;font-weight:700;
+  background:rgba(255,255,255,.88);padding:1px 5px;
+  border-radius:3px;border:.5px solid #88bcd8;white-space:nowrap;
+}
+.ash{display:flex;align-items:center;}
+.aln{width:22px;height:1.5px;background:#1e80c8;}
+.ahd{
+  width:0;height:0;
+  border-top:4.5px solid transparent;
+  border-bottom:4.5px solid transparent;
+  border-left:7px solid #1e80c8;
+}
+
+/* ─ Gateway ─ */
+.gw{
+  background:#fff;border-radius:12px;padding:16px 12px;
+  text-align:center;
+  box-shadow:0 2px 8px rgba(0,50,110,.13);
+  border:1px solid #c0daf0;
+}
+.gwico{font-size:38px;margin-bottom:6px;}
+.gwname{font-size:13px;font-weight:700;color:#0c2a48;margin-bottom:4px;}
+.gwdesc{font-size:10.5px;color:#2e6888;line-height:1.65;}
+.gwppl{font-size:32px;text-align:center;margin-top:16px;opacity:.6;}
+
+/* ─ Core service cards ─ */
+.sc{
+  border-radius:12px;padding:10px 9px;text-align:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.09);
+}
+.sc-tl{background:linear-gradient(140deg,#c8f0e2,#e4f9f0);border:1.5px solid #3ab87e;}
+.sc-or{background:linear-gradient(140deg,#fce0b8,#fef3e4);border:1.5px solid #e09030;}
+.sc-pu{background:linear-gradient(140deg,#e4e0fc,#f0eefe);border:1.5px solid #8068d8;}
+.sc-gn{background:linear-gradient(140deg,#ccf0d4,#e4f8e8);border:1.5px solid #3ab850;}
+.sc-ico{font-size:26px;margin-bottom:4px;}
+.sc-ttl{font-size:11.5px;font-weight:700;color:#0c2a44;margin-bottom:2px;line-height:1.3;}
+.sc-dsc{font-size:10px;color:#386080;line-height:1.5;}
+
+/* Line green icon */
+.linico{
+  width:30px;height:30px;background:#06c755;
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-weight:900;color:#fff;font-size:17px;font-family:sans-serif;
+  margin:0 auto 4px;
+}
+
+/* Core row layouts */
+.cr{display:grid;grid-template-columns:1fr 30px 1fr;gap:0;align-items:start;margin-bottom:4px;}
+.cb{display:grid;grid-template-columns:1fr 16px 1fr;gap:0;align-items:start;}
+.cm{/* center mid arrow cell */
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding-top:22px;gap:3px;
+}
+.cml{
+  font-size:8.5px;color:#1e5878;font-weight:700;text-align:center;
+  white-space:nowrap;line-height:1.35;
+  background:rgba(255,255,255,.88);padding:1px 3px;
+  border-radius:3px;border:.5px solid #88bcd8;
+}
+.cms{display:flex;align-items:center;}
+.cmln{width:16px;height:1.5px;background:#1e80c8;}
+.cmhd{
+  width:0;height:0;
+  border-top:3.5px solid transparent;
+  border-bottom:3.5px solid transparent;
+  border-left:6px solid #1e80c8;
+}
+/* down arrows inside core */
+.dr2{display:grid;grid-template-columns:1fr 30px 1fr;gap:0;margin-bottom:4px;}
+.da{text-align:center;}
+.dalb{font-size:9px;color:#1e5878;font-weight:700;margin-bottom:1px;}
+.dasy{color:#1e80c8;font-size:15px;font-weight:900;line-height:1.1;}
+
+/* ─ DB section ─ */
+.db-hdr{
+  background:#1468a8;color:#fff;font-size:11px;font-weight:700;
+  text-align:center;padding:4px 8px;border-radius:7px;margin-bottom:8px;
+}
+.dbg2{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;}
+.dbg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.dbc{border-radius:8px;padding:7px 8px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.dbc-bl{background:#d6ecf8;border:1px solid #50a8d0;}
+.dbc-tl{background:#d0f0e6;border:1px solid #40a870;}
+.dbc-pu{background:#e8e4fc;border:1px solid #7868d0;}
+.dbc-gn{background:#d2f0d8;border:1px solid #40b058;}
+.dbc-or{background:#fce4bc;border:1px solid #d88830;}
+.dbc-rd{background:#fce4e4;border:1px solid #d07070;}
+.dbc-cy{background:#d0eef0;border:1px solid #40a0a8;}
+.dbico{font-size:16px;float:right;margin:-1px -1px 0 0;}
+.dbtit{font-size:11px;font-weight:700;color:#0c2a44;margin-bottom:2px;}
+.dbfld{font-size:9px;color:#386080;line-height:1.55;}
+
+/* ─ External services ─ */
+.ext-sec{
+  border-radius:12px;padding:9px;
+  background:rgba(168,212,236,.3);
+  border:1.5px solid #72b0d0;
+  margin-top:9px;
+}
+.ext-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.extc{
+  background:#fff;border-radius:8px;padding:7px 6px;text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);border:1px solid #b4d0e4;
+}
+.extc-ico{font-size:22px;margin-bottom:3px;}
+.extc-nm{font-size:10px;font-weight:700;color:#0c2a44;margin-bottom:2px;line-height:1.3;}
+.extc-ds{font-size:9px;color:#406888;line-height:1.4;}
+.lin-sm{
+  width:24px;height:24px;background:#06c755;
+  border-radius:5px;display:flex;align-items:center;justify-content:center;
+  font-weight:900;color:#fff;font-size:14px;font-family:sans-serif;
+  margin:0 auto 3px;
+}
+/* push/upload label on spacer col */
+.spacer-col{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;padding-top:55px;gap:3px;
+}
+.sp-lbl{
+  font-size:8.5px;color:#1e5878;font-weight:700;
+  writing-mode:vertical-rl;text-orientation:mixed;
+  background:rgba(255,255,255,.88);padding:3px 2px;
+  border-radius:3px;border:.5px solid #88bcd8;
+  white-space:nowrap;
+}
+.sp-arr{
+  display:flex;flex-direction:column;align-items:center;
+}
+.sp-ln{width:1.5px;height:18px;background:#1e80c8;}
+.sp-hd{
+  width:0;height:0;
+  border-left:4px solid transparent;
+  border-right:4px solid transparent;
+  border-top:6px solid #1e80c8;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ Title ══ -->
+  <div class="title-row">
+    <div class="tdeco L"><div class="tb"></div><div class="tb"></div><div class="tb"></div><div class="tb"></div></div>
+    <h1>AI學習系統架構圖</h1>
+    <div class="tdeco R"><div class="tb"></div><div class="tb"></div><div class="tb"></div><div class="tb"></div></div>
+  </div>
+
+  <div class="master">
+
+    <!-- ══════════ COL 1 ── 用戶介面層 ══════════ -->
+    <div class="sec">
+      <div class="sec-hdr">1. 用戶介面層</div>
+
+      <!-- 學生視圖 -->
+      <div class="vc">
+        <div class="vhdr">學生視圖</div>
+        <div class="vicons">
+          <div class="vi">
+            <div class="ib ib-or">📊</div>
+            <span>儀表板</span>
+          </div>
+          <div class="vi">
+            <div class="ib ib-bl">📅</div>
+            <span>選課</span>
+          </div>
+          <div class="vi">
+            <div class="ib ib-gr" style="background:#d0f4de;border-color:#06c755;">
+              <div style="width:24px;height:24px;background:#06c755;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:14px;font-family:sans-serif;">L</div>
+            </div>
+            <span>Line 跳轉</span>
+          </div>
+        </div>
+        <div class="vlb">前端（同一頁面、依 role 渲染）</div>
+      </div>
+
+      <!-- 教師視圖 -->
+      <div class="vc">
+        <div class="vhdr">教師視圖</div>
+        <div class="vicons">
+          <div class="vi">
+            <div class="ib ib-bl">🗂️</div>
+            <span>選課程</span>
+          </div>
+          <div class="vi">
+            <div class="ib ib-rd">▶️</div>
+            <span>上傳影片</span>
+          </div>
+        </div>
+        <div class="vlb">教師視圖</div>
+      </div>
+
+      <!-- 管理者視圖 -->
+      <div class="vc">
+        <div class="vhdr">管理者視圖</div>
+        <div class="vicons">
+          <div class="vi">
+            <div class="ib ib-bl">📈</div>
+            <span>用戶統計</span>
+          </div>
+          <div class="vi">
+            <div class="ib ib-pu">📊</div>
+            <span>用戶統計</span>
+          </div>
+          <div class="vi">
+            <div class="ib ib-gy">⚙️</div>
+            <span>系統監控</span>
+          </div>
+        </div>
+        <div class="vlb">管理者視圖</div>
+      </div>
+    </div><!-- /col1 -->
+
+    <!-- ── 箭頭 col1→col2 ── -->
+    <div class="acol">
+      <div class="ait">
+        <div class="alb">用戶請求</div>
+        <div class="ash"><div class="aln"></div><div class="ahd"></div></div>
+      </div>
+      <div class="ait" style="margin-top:20px;">
+        <div class="alb">用戶請求</div>
+        <div class="ash"><div class="aln"></div><div class="ahd"></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ COL 2 ── API 閘道層 ══════════ -->
+    <div class="sec" style="min-height:410px;display:flex;flex-direction:column;">
+      <div class="sec-hdr">2. API 閘道層</div>
+      <div class="gw" style="flex:1;">
+        <div class="gwico">🔒</div>
+        <div class="gwname">API 閘道</div>
+        <div class="gwdesc">
+          JWT 驗證 + role:<br>
+          student | teacher | admin
+        </div>
+      </div>
+      <div class="gwppl">👥</div>
+    </div><!-- /col2 -->
+
+    <!-- ── 箭頭 col2→col3 ── -->
+    <div class="acol" style="gap:18px;padding-top:52px;">
+      <div class="ait">
+        <div class="ash"><div class="aln"></div><div class="ahd"></div></div>
+      </div>
+      <div class="ait" style="margin-top:50px;">
+        <div class="alb">驗證/查role</div>
+        <div class="ash"><div class="aln"></div><div class="ahd"></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ COL 3 ── 核心服務層 ══════════ -->
+    <div class="sec">
+      <div class="sec-hdr">3. 核心服務層</div>
+
+      <!-- Row A: 影片上傳  →觸發索引→  非同步任務佇列 -->
+      <div class="cr">
+        <div class="sc sc-tl">
+          <div class="sc-ico">🎬</div>
+          <div class="sc-ttl">影片上傳服務</div>
+          <div class="sc-dsc">存雲端、觸發索引任務</div>
+        </div>
+        <div class="cm">
+          <div class="cml">觸發索引</div>
+          <div class="cms"><div class="cmln"></div><div class="cmhd"></div></div>
+        </div>
+        <div class="sc sc-or">
+          <div class="sc-ico">⚙️</div>
+          <div class="sc-ttl">非同步任務佇列</div>
+          <div class="sc-dsc">Whisper STT → embedding</div>
+        </div>
+      </div>
+
+      <!-- Down arrows A→B -->
+      <div class="dr2">
+        <div class="da">
+          <div class="dalb">觸發索引</div>
+          <div class="dasy">↓</div>
+        </div>
+        <div></div>
+        <div class="da">
+          <div class="dalb">embedding 寫入</div>
+          <div class="dasy">↓</div>
+        </div>
+      </div>
+
+      <!-- Row B: 問答檢索(teal)  →是否已有→  問答檢索(purple) -->
+      <div class="cr">
+        <div class="sc sc-tl">
+          <div class="sc-ico">📄</div>
+          <div class="sc-ttl">問答檢索服務</div>
+          <div class="sc-dsc">embedding 相似比對</div>
+        </div>
+        <div class="cm">
+          <div class="cml">是否已<br>有一筆入</div>
+          <div class="cms"><div class="cmln"></div><div class="cmhd"></div></div>
+        </div>
+        <div class="sc sc-pu">
+          <div class="sc-ico">🔍</div>
+          <div class="sc-ttl">問答檢索服務</div>
+          <div class="sc-dsc">embedding 相似比對</div>
+        </div>
+      </div>
+
+      <!-- Down arrows B→C -->
+      <div class="dr2">
+        <div class="da">
+          <div class="dalb">找到片段</div>
+          <div class="dasy">↓</div>
+        </div>
+        <div></div>
+        <div class="da">
+          <div class="dalb">生成完成推播</div>
+          <div class="dasy">↓</div>
+        </div>
+      </div>
+
+      <!-- Row C: 短影音生成  |  Line Bot 推播 -->
+      <div class="cb">
+        <div class="sc sc-or">
+          <div class="sc-ico">🎞️</div>
+          <div class="sc-ttl">短影音生成服務</div>
+          <div class="sc-dsc">FFmpeg 剪輯 + 時間戳</div>
+        </div>
+        <div></div>
+        <div class="sc sc-gn">
+          <div class="linico">L</div>
+          <div class="sc-ttl">Line Bot 推播服務</div>
+          <div class="sc-dsc">短影音 + 時間戳 + 跳轉連結</div>
+        </div>
+      </div>
+    </div><!-- /col3 -->
+
+    <!-- ── spacer col with upload / push arrows ── -->
+    <div class="spacer-col">
+      <div class="sp-arr">
+        <div class="sp-ln"></div>
+        <div class="sp-hd"></div>
+      </div>
+      <div class="sp-lbl">上傳影片</div>
+      <div style="height:60px;"></div>
+      <div class="sp-arr">
+        <div class="sp-ln"></div>
+        <div class="sp-hd"></div>
+      </div>
+      <div class="sp-lbl">push message</div>
+    </div>
+
+    <!-- ══════════ COL 4 ── 數據儲存層 + 外部服務層 ══════════ -->
+    <div>
+
+      <!-- 數據儲存層 -->
+      <div class="sec" style="margin-bottom:10px;">
+        <div class="sec-hdr">4. 數據儲存層</div>
+        <div class="db-hdr">MongoDB（全系統統一資料庫）</div>
+
+        <!-- users + courses -->
+        <div class="dbg2">
+          <div class="dbc dbc-bl">
+            <span class="dbico">👤</span>
+            <div class="dbtit">users</div>
+            <div class="dbfld">role / lineUserId</div>
+          </div>
+          <div class="dbc dbc-tl">
+            <span class="dbico">📚</span>
+            <div class="dbtit">courses</div>
+            <div class="dbfld">teacherId / videoUrls</div>
+          </div>
+        </div>
+
+        <!-- video_segments + enrollments -->
+        <div class="dbg2">
+          <div class="dbc dbc-pu">
+            <span class="dbico">🎞️</span>
+            <div class="dbtit">video_segments</div>
+            <div class="dbfld">startSec / endSec /<br>embedding</div>
+          </div>
+          <div class="dbc dbc-gn">
+            <span class="dbico">👤</span>
+            <div class="dbtit">enrollments</div>
+            <div class="dbfld">studentId / progress</div>
+          </div>
+        </div>
+
+        <!-- queries + clips + usage_logs -->
+        <div class="dbg3">
+          <div class="dbc dbc-or">
+            <span class="dbico">❓</span>
+            <div class="dbtit">queries</div>
+            <div class="dbfld">question / clipId</div>
+          </div>
+          <div class="dbc dbc-rd">
+            <span class="dbico">⭐</span>
+            <div class="dbtit">clips</div>
+            <div class="dbfld">clipUrl / keyPoints / jumpUrl</div>
+          </div>
+          <div class="dbc dbc-cy">
+            <span class="dbico">📋</span>
+            <div class="dbtit">usage_logs</div>
+            <div class="dbfld">event / durationSec / timestamp</div>
+          </div>
+        </div>
+      </div><!-- /數據儲存層 -->
+
+      <!-- 外部服務層 -->
+      <div class="sec ext-sec" style="background:rgba(168,212,236,.3);border:1.5px solid #72b0d0;">
+        <div class="sec-hdr" style="margin-bottom:8px;">5. 外部服務層</div>
+        <div class="ext-grid">
+          <div class="extc">
+            <div class="extc-ico">☁️</div>
+            <div class="extc-nm">雲端物件儲存</div>
+            <div class="extc-ds">GCS</div>
+          </div>
+          <div class="extc">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:3px;">
+              <span style="font-size:13px;">🧠</span>
+              <span style="font-size:11px;color:#1a6fad;font-weight:700;">OpenAI</span>
+            </div>
+            <div class="extc-nm">AI 服務</div>
+            <div class="extc-ds">Whisper<br>OpenAI API</div>
+          </div>
+          <div class="extc">
+            <div class="lin-sm">L</div>
+            <div class="extc-nm">Line Messaging API</div>
+            <div class="extc-ds">Webhook + push</div>
+          </div>
+        </div>
+      </div><!-- /外部服務層 -->
+
+    </div><!-- /col4 -->
+
+  </div><!-- /master -->
+</div><!-- /page -->
+
+
+</body></html>

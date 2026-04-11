@@ -139,6 +139,10 @@ const videoSchema = new mongoose.Schema(
       type: processingSchema,
       required: true,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -30,6 +30,10 @@ const courseSchema = new mongoose.Schema(
       enum: COURSE_STATUS_VALUES,
       default: COURSE_STATUSES.DRAFT,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

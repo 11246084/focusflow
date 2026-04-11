@@ -184,12 +184,34 @@ python src/mongodb_uploader.py
 
 執行以下相關任務時，**請優先閱讀 `.claude/rules/` 下對應的規則檔案**，其內容比本文件更詳細：
 
-| 任務類型 | 規則檔案 |
-|----------|----------|
+| 任務類型                                               | 規則檔案                      |
+| ------------------------------------------------------ | ----------------------------- |
 | 新增或修改 API 路由、controller、response 格式、錯誤碼 | `.claude/rules/api-design.md` |
-| 修改 Mongoose Schema、索引、資料存取邏輯 | `.claude/rules/database.md` |
-| 撰寫或修改測試、測試 harness | `.claude/rules/testing.md` |
-| 涉及 JWT 驗證、密碼處理、輸入驗證、CORS | `.claude/rules/security.md` |
+| 修改 Mongoose Schema、索引、資料存取邏輯               | `.claude/rules/database.md`   |
+| 撰寫或修改測試、測試 harness                           | `.claude/rules/testing.md`    |
+| 涉及 JWT 驗證、密碼處理、輸入驗證、CORS                | `.claude/rules/security.md`   |
+
+## Repo Local Skills
+
+本 repo 在 `.claude/skills/` 下提供團隊共用的 repo-local skill。
+
+目前包含：
+
+- `github-copy` -> `.claude/skills/github-copy/SKILL.md`
+
+使用原則：
+
+- `.claude/skills/` 是團隊共享的正式來源（source of truth）
+- 當使用者明確提到 skill 名稱時，請先閱讀對應 `SKILL.md` 再執行
+- 不要假設 `/github-copy` 這類 slash command 一定可用，優先依使用者文字指令與 repo 內 skill 規格判斷
+
+例如當使用者說：
+
+- `用 github-copy 幫我寫 commit 文案`
+- `請依照 github-copy 產生 GitHub Desktop 的 Summary 和 Description`
+- `執行 github-copy`
+
+此時應先讀取 `.claude/skills/github-copy/SKILL.md`，再依其格式輸出結果。
 
 ## 後端結構偏好
 

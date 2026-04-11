@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Copy"
+  short_description: "Generate short GitHub summary and description copy"
+  default_prompt: "Use $github-copy to generate a short Traditional Chinese GitHub Summary and Description."

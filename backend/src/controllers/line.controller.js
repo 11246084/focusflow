@@ -12,6 +12,18 @@ const handleWebhook = asyncHandler(async (req, res) => {
   });
 });
 
+const issueBindToken = asyncHandler(async (req, res) => {
+  const token = await lineService.generateBindToken(req.user.id);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Bind token issued.',
+    data: { token, expiresAt },
+  });
+});
+
 module.exports = {
   handleWebhook,
+  issueBindToken,
 };

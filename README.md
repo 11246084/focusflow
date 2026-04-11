@@ -44,8 +44,10 @@ npm run dev               # 啟動開發伺服器（port 4000）
 | `QA_QUERY_EMBEDDING_PROVIDER` | 向量嵌入 provider（`mock`/`openai`/`gemini`） | `mock` |
 | `QA_ANSWER_PROVIDER` | 答案生成 provider（`template`/`openai`） | `template` |
 | `QA_VECTOR_SEARCH_MODE` | 向量搜尋模式（`memory`/`atlas`） | `memory` |
+| `LINE_CHANNEL_SECRET` | LINE Channel Secret（簽章驗證用） | — |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Channel Access Token（傳訊用） | — |
 
-本機開發使用預設值即可，不需要任何 API 金鑰。
+本機開發使用預設值即可，不需要任何 API 金鑰。啟用 LINE Bot 需額外填入 LINE 相關變數。
 
 ### 前端
 
@@ -89,7 +91,48 @@ python src/main.py --overwrite    # 強制重新處理（不使用快取）
 | GET | `/api/v1/videos/:videoId/processing` | 查詢影片處理進度 | 已登入 |
 | POST | `/api/v1/qa/ask` | 提問並取得 AI 回答 | 已登入 |
 | POST | `/api/v1/line/webhook` | LINE Bot Webhook | LINE 簽章驗證 |
+| GET | `/api/v1/line/webhook` | LINE Webhook 驗證（Console Verify 用） | 公開 |
+| POST | `/api/v1/line/bind-token` | 發放 LINE 綁定 token（10 分鐘有效） | 已登入 |
 | GET | `/health` | 服務健康檢查 | 公開 |
+
+---
+
+## LINE Bot 設定與使用
+
+### 環境設定
+
+1. 在 [LINE Developers Console](https://developers.line.biz/) 建立 Messaging API Channel
+2. 取得 **Channel Secret** 與 **Channel Access Token**，填入 `backend/.env`
+3. 將後端服務公開至網路（本機開發可使用 [ngrok](https://ngrok.com/)）：
+   ```bash
+   ngrok http 4000
+   ```
+4. 在 LINE Developers Console 將 Webhook URL 設為：
+   ```
+   https://<your-domain>/api/v1/line/webhook
+   ```
+5. 啟用 Webhook，點擊 **Verify** 確認回傳 200
+
+### 學生綁定流程
+
+```
+1. 學生登入 FocusFlow 前端
+2. 前端呼叫 POST /api/v1/line/bind-token（需 JWT）
+   → 取得 10 分鐘有效的綁定 token
+3. 學生將 token 傳送給 LINE Bot
+4. Bot 完成綁定，將 lineUserId 寫入使用者帳號
+5. 綁定完成後，Bot 引導學生選擇課程
+```
+
+### LINE Bot 指令
+
+| 訊息 | 功能 |
+|------|------|
+| `<綁定 token>` | 完成帳號綁定 |
+| `切換課程` | 顯示可選課程清單 |
+| 其他文字 | 對目前選擇的課程進行 QA 問答 |
+
+> 未選擇課程時提問，Bot 會提示先執行「切換課程」。
 
 ---
 
@@ -99,9 +142,9 @@ python src/main.py --overwrite    # 強制重新處理（不使用快取）
 
 | 角色 | Email | 密碼 |
 |------|-------|------|
-| 管理員 | `admin@example.com` | `password123` |
-| 教師 | `teacher@example.com` | `password123` |
-| 學生 | `student@example.com` | `password123` |
+| 管理員 | `admin@focusflow.local` | `Admin123!` |
+| 教師 | `teacher@focusflow.local` | `Teacher123!` |
+| 學生 | `student@focusflow.local` | `Student123!` |
 
 ---
 

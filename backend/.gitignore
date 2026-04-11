@@ -1,6 +1,7 @@
-﻿node_modules/
-.env
-coverage/
-docs/
+# Backend-specific runtime artifacts. Shared rules such as `.env`,
+# `node_modules`, and `coverage` are handled by the repo root `.gitignore`.
+docs/implementation-log.md
+docs/README.md
+docs/task-plan.md
 uploads/*
 !uploads/.gitkeep

@@ -120,6 +120,8 @@ FFMPEG_BINARY=C:/tools/ffmpeg/bin/ffmpeg.exe
 Copy-Item .env.example .env
 ```
 
+`.env.example` 是這個目錄唯一應該進版控的環境設定範本。真實 API key、MongoDB 帳密只放本機 `.env`，不要再寫進腳本或 README 範例值。
+
 重要設定如下：
 
 ```env

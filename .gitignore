@@ -1,3 +1,6 @@
+# Root-level ignore rules for files shared across this monorepo.
+# Service-specific runtime artifacts should stay in each service directory.
+
 # Logs
 logs
 *.log

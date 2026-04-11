@@ -1,5 +1,3 @@
-# Frontend-specific ignore rules. Shared repo-wide rules live in the root `.gitignore`.
-
 # Logs
 logs
 *.log

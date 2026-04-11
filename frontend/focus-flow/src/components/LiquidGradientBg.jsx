@@ -163,10 +163,10 @@ export default function LiquidGradientBg() {
     const uniforms = {
       uTime:         { value: 0 },
       uResolution:   { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-      uColor1:       { value: new THREE.Vector3(0.945, 0.310, 0.129) }, // #F14F21 orange
+      uColor1:       { value: new THREE.Vector3(0.945, 0.353, 0.133) }, // #F15A22 orange
       uColor2:       { value: new THREE.Vector3(0.039, 0.055, 0.153) }, // #0A0E27 navy
-      uColor3:       { value: new THREE.Vector3(0.945, 0.310, 0.129) },
-      uColor4:       { value: new THREE.Vector3(0.039, 0.055, 0.153) },
+      uColor3:       { value: new THREE.Vector3(0.835, 0.180, 0.050) }, // #D52E0D deep orange
+      uColor4:       { value: new THREE.Vector3(0.039, 0.055, 0.153) }, // #0A0E27 navy
       uSpeed:        { value: 1.2 },
       uTouchTexture: { value: touch.texture },
       uGrainIntensity: { value: 0.06 },

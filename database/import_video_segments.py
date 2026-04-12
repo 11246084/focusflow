@@ -10,9 +10,37 @@
 # ============================================================
 
 import json
+import os
+from pathlib import Path
 from pymongo import MongoClient
 
-MONGODB_URI = "mongodb+srv://11246084:11246084@focusflow.gw8l4ke.mongodb.net/focusflow"
+SCRIPT_DIR = Path(__file__).resolve().parent
+ENV_PATH = SCRIPT_DIR / ".env"
+
+
+def load_env_file(env_path: Path) -> None:
+    """Load KEY=VALUE pairs from a local .env file without extra dependencies."""
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_env_file(ENV_PATH)
+
+MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI is not set. Put it in database/.env or your shell environment.")
 
 client = MongoClient(MONGODB_URI)
 db = client["focusflow"]

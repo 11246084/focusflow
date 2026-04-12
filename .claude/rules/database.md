@@ -19,13 +19,17 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `User` | `users` |
 | `Course` | `courses` |
 | `Video` | `videos` |
-| `VideoSegment` | `videosegments` |
+| `VideoSegment` | `video_segments` |
 | `Enrollment` | `enrollments` |
 | `Clip` | `clips` |
 | `UsageLog` | `usagelogs` |
 | `LineBindToken` | `linebindtokens` |
 
-**不要** 在 Schema 中自訂集合名稱（`collection` 選項），除非有明確理由。
+目前 repo 內已有明確理由的例外：
+
+- `VideoSegment` 使用 `video_segments`
+
+若未來新增 Mongoose model，仍以預設小寫複數命名為優先，除非要對齊既有資料庫契約。
 
 ---
 
@@ -91,7 +95,17 @@ videoSegmentSchema.index({ courseId: 1, startSec: 1 });
 ```
 
 ### 向量索引（Atlas Vector Search）
-`VideoSegment.embedding` 欄位需在 MongoDB Atlas 手動建立 Vector Search Index，名稱為 `vector_index`，路徑為 `embedding`。本機開發使用 `QA_VECTOR_SEARCH_MODE=memory`，不需要此索引。
+目前正式契約請參考：
+
+- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md`
+
+正式 v1 契約採分 collection 設計：
+
+- `video_segments_text.embedding` → `text_embedding_index`
+- `video_segments_video.embedding` → `video_embedding_index`
+
+舊版 `video_segments.vector_index` 視為 legacy。  
+本機開發使用 `QA_VECTOR_SEARCH_MODE=memory`，不需要 Atlas Vector Search Index。
 
 ### 索引原則
 - 不要為每個欄位都建索引，只對**高頻查詢的過濾/排序欄位**建立

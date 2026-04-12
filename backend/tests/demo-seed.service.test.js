@@ -49,4 +49,31 @@ describe('demo seed service', () => {
     assert.deepEqual(firstRun.courses, secondRun.courses);
     assert.deepEqual(firstRun.videos, secondRun.videos);
   });
+
+  it('creates a QA bridge course that points to existing pipeline videos when matching segments already exist', async () => {
+    store.videos.push({
+      _id: 'pipeline-video-001',
+      video_id: 'video_001',
+      file_name: 'pipeline-video-001.mp4',
+      duration_sec: 1800,
+    });
+
+    store.videoSegments.push({
+      _id: 'pipeline-segment-001',
+      video_id: 'video_001',
+      start_sec: 10,
+      end_sec: 25,
+      text: 'Pipeline bridge seed test segment.',
+      embedding: [],
+    });
+
+    const result = await seedDemoData({ silent: true });
+
+    const bridgeCourse = store.courses.find((course) => course.title === 'FocusFlow Pipeline Bridge Course');
+
+    assert.ok(bridgeCourse);
+    assert.deepEqual(bridgeCourse.videoIds, ['pipeline-video-001']);
+    assert.equal(store.videos.filter((video) => video.video_id === 'video_001').length, 1);
+    assert.deepEqual(result.pipelineBridge?.externalVideoIds, ['video_001']);
+  });
 });

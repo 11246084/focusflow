@@ -114,7 +114,7 @@ describe('qa routes', () => {
       token: studentToken,
       body: {
         courseId: ids.publishedCourse,
-        question: 'quantum entanglement satellite farming',
+        question: '9876543210 9876543210',
       },
     });
 
@@ -141,6 +141,10 @@ describe('qa routes', () => {
     assert.match(result.body.data.answer, /JWT authentication/i);
     assert.equal(result.body.data.matches.length > 0, true);
     assert.equal(result.body.data.matches[0].segmentId, ids.segmentOne);
+    assert.deepEqual(
+      Object.keys(result.body.data.matches[0]).sort(),
+      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
+    );
     assert.equal(result.body.data.clip.segmentId, ids.segmentOne);
     assert.equal(store.clips[0].hitCount, 1);
 
@@ -152,5 +156,51 @@ describe('qa routes', () => {
     assert.equal(askLog.metadata.topSegmentId, ids.segmentOne);
     assert.ok(clipLog);
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
+  });
+
+  it('supports snake_case Atlas-style segments that rely on video_id fallback without changing response shape', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    store.videoSegments.push(
+      {
+        _id: newObjectId(),
+        segment_id: ids.snakeCaseSegment,
+        video_id: ids.publishedVideoExternal,
+        start_sec: 90,
+        end_sec: 126,
+        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has video_id and text fields.',
+        embedding: [],
+      },
+      {
+        _id: newObjectId(),
+        segment_id: 'segment-snake-foreign',
+        video_id: 'video-foreign-999',
+        start_sec: 90,
+        end_sec: 126,
+        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has video_id and text fields.',
+        embedding: [],
+      },
+    );
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        courseId: ids.publishedCourse,
+        question: 'How does fallbacktoken keep Atlas compatibility working?',
+      },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.matches[0].segmentId, ids.snakeCaseSegment);
+    assert.equal(result.body.data.matches[0].videoId, ids.publishedVideoExternal);
+    assert.equal(result.body.data.matches[0].startSec, 90);
+    assert.equal(result.body.data.matches[0].endSec, 126);
+    assert.match(result.body.data.matches[0].transcript, /video_id and text fields/i);
+    assert.deepEqual(
+      Object.keys(result.body.data.matches[0]).sort(),
+      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
+    );
+    assert.equal(result.body.data.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
   });
 });

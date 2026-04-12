@@ -101,11 +101,50 @@ PROCESSING_WEBHOOK_SECRET=
 
 本地 demo 預設使用 `mock + template + memory`。這一輪不會直接串 STT / Whisper / chunking 腳本。
 
-## 與資料庫組 schema 對齊
+目前建議：
 
-目前 backend 已先保留既有 API 與 service 命名，並補上和資料庫組版本相容的欄位，避免後續匯入資料時出現明顯落差。
+- phase-1 MVP 開發與 demo 預設固定使用 `QA_VECTOR_SEARCH_MODE=memory`
+- 只有在 Atlas collection、filter 欄位與 vector index 都定版後，才切換到 `atlas`
 
-目前已補上的相容欄位包含：
+原因是目前 Atlas 現況仍偏向 pipeline 已上傳資料，還不是 backend 已完整對齊的最終查詢環境。
+
+## Atlas 現況說明
+
+截至 2026-04-12 的唯讀盤點：
+
+- Atlas 中已有部分 pipeline 資料，例如 `videos`、`video_segments_text`、`video_segments_video`
+- 但 backend 應用層主線依賴的 `courses`、`users`、`enrollments`、`clips` 目前仍未完整到位
+- 目前 Atlas 也還沒有正式的 vector search index 供 backend 直接切到 `atlas` 模式
+
+因此目前要區分兩件事：
+
+1. backend demo / seed 資料
+   - 用於登入、課程、權限、clip 回傳等完整 MVP 主線
+2. pipeline uploader 資料
+   - 用於 transcript / segment / embedding 類資料的匯入
+
+這兩條資料線目前尚未完全收斂成同一份正式 schema。
+
+## 與資料契約對齊（本次整理新增）
+
+目前正式資料契約請以：
+
+- [MongoDB_契約定版_v1.md](../docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
+
+為準。
+
+目前 backend 狀態是：
+
+- 已補上一部分相容欄位，讓舊 backend 與外部資料匯入可以暫時共存
+- 正式 v1 契約已改採 `video_segments_text` / `video_segments_video` 分流
+- 現行 backend 仍有部分查詢邏輯停留在 legacy `video_segments` / `clips`
+
+備註：
+
+- 這代表 backend README 已先對齊正式文件，但不代表所有 service 與 model 都已完成重構
+- 修改 backend schema / QA 查詢時，請優先參考 v1 契約文件，再確認是否需要保留過渡相容欄位
+
+目前 repo 已補上的相容欄位包含：
 
 - `course.videoIds`
 - `video.file_name`
@@ -120,7 +159,7 @@ PROCESSING_WEBHOOK_SECRET=
 - `enrollment.lineNotify`
 - `user.lineConversationState`
 
-這些欄位的用途是讓目前 backend 與外部資料匯入可以先共存；目前對外 API 契約仍以現有 route / controller / service 為主。
+這些欄位的用途是讓目前 backend 與外部資料匯入先共存，不代表它們全部都是 v1 正式欄位。
 
 ## 測試帳號
 
@@ -390,7 +429,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1
 ## 目前不做的事
 
 - 不直接呼叫 `STT_Whisper` 腳本
-- 不匯入 transcript / chunk / clips 產物
+- 不直接匯入 legacy `video_segments` / `clips` 契約
 - 不提供 teacher/admin 手動標記 complete/fail
 - 不引入 queue system 或 background job framework
 
@@ -399,8 +438,8 @@ node --test --experimental-test-isolation=none --test-concurrency=1
 - 驗證 `auth`、`courses`、`videos` API 在 Atlas 上的實際讀寫行為
 - 決定 demo seed 是否保留在目前 Atlas 開發資料庫
 - 接上實際 STT / chunking / embeddings pipeline，讓 internal endpoints 由 Python worker 呼叫
-- 定義 `video_segments` / `clips` 的正式匯入契約
-- 把 QA 從 `mock + template + memory` 升級到正式 OpenAI / Atlas
+- 依 `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md` 改寫正式匯入契約
+- 把 QA 從 `mock + template + memory` 升級到正式 Gemini / Atlas 或其他定版 provider
 ## Demo Seed Data
 
 `npm run seed` now seeds a reusable demo dataset, not only the three demo users.

@@ -50,6 +50,11 @@ const DEMO_COURSES = {
     description: 'Draft demo course for teacher-only access and processing status demos.',
     status: COURSE_STATUSES.DRAFT,
   },
+  pipelineBridge: {
+    title: 'FocusFlow Pipeline Bridge Course',
+    description: 'Published bridge course that reuses existing pipeline videos via course.videoIds for QA-only segment scoping.',
+    status: COURSE_STATUSES.PUBLISHED,
+  },
 };
 
 const DEMO_VIDEOS = {
@@ -114,6 +119,46 @@ const DEMO_CLIP = {
   jumpUrl: 'https://focusflow.local/demo-watch/focusflow-demo-video-published?t=18',
   keyPoints: ['QA API', 'video snippet', 'timestamp'],
 };
+
+function pickFirstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function normalizeIdentifier(...values) {
+  const value = pickFirstDefined(...values);
+  return value == null ? null : String(value);
+}
+
+async function collectPipelineBridgeVideos() {
+  const [videos, segments] = await Promise.all([
+    Video.find({}),
+    VideoSegment.find({}),
+  ]);
+
+  const segmentVideoIds = new Set(
+    segments
+      .map((segment) => normalizeIdentifier(segment.video_id, segment.videoId))
+      .filter(Boolean),
+  );
+
+  return videos.filter((video) => {
+    const externalVideoId = normalizeIdentifier(video.video_id, video.videoId);
+
+    if (!externalVideoId || !segmentVideoIds.has(externalVideoId)) {
+      return false;
+    }
+
+    // Bridge only onto existing pipeline metadata docs. Demo/app-layer videos
+    // already have course ownership and should stay on the regular path.
+    return !video.courseId && !video.uploadedBy;
+  });
+}
 
 async function seedDemoUsers({ silent = false } = {}) {
   for (const demoUser of DEMO_USERS) {
@@ -335,6 +380,54 @@ async function seedDemoData({ silent = false } = {}) {
     },
   );
 
+  const pipelineBridgeVideos = await collectPipelineBridgeVideos();
+  let pipelineBridgeCourse = null;
+
+  if (pipelineBridgeVideos.length) {
+    pipelineBridgeCourse = await Course.findOneAndUpdate(
+      { title: DEMO_COURSES.pipelineBridge.title, teacherId: teacher._id },
+      {
+        $set: {
+          title: DEMO_COURSES.pipelineBridge.title,
+          description: DEMO_COURSES.pipelineBridge.description,
+          teacherId: teacher._id,
+          status: DEMO_COURSES.pipelineBridge.status,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      },
+    );
+
+    await Course.findByIdAndUpdate(pipelineBridgeCourse._id, {
+      $set: {
+        videoIds: pipelineBridgeVideos.map((video) => video._id),
+      },
+    });
+
+    await Enrollment.findOneAndUpdate(
+      { studentId: student._id, courseId: pipelineBridgeCourse._id },
+      {
+        $set: {
+          studentId: student._id,
+          courseId: pipelineBridgeCourse._id,
+          progress: 0,
+          lineNotify: false,
+        },
+        $setOnInsert: {
+          enrolledAt: new Date('2026-04-13T08:00:00.000Z'),
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      },
+    );
+  }
+
   const summary = {
     users,
     courses: [
@@ -368,7 +461,26 @@ async function seedDemoData({ silent = false } = {}) {
       },
     ],
     segments: DEMO_SEGMENTS.map((segment) => segment.segmentId),
+    pipelineBridge: pipelineBridgeCourse
+      ? {
+        courseId: String(pipelineBridgeCourse._id),
+        title: pipelineBridgeCourse.title,
+        videoIds: pipelineBridgeVideos.map((video) => String(video._id)),
+        externalVideoIds: pipelineBridgeVideos
+          .map((video) => normalizeIdentifier(video.video_id, video.videoId))
+          .filter(Boolean),
+      }
+      : null,
   };
+
+  if (pipelineBridgeCourse) {
+    summary.courses.push({
+      key: 'pipelineBridgeCourse',
+      id: String(pipelineBridgeCourse._id),
+      title: pipelineBridgeCourse.title,
+      status: pipelineBridgeCourse.status,
+    });
+  }
 
   if (!silent) {
     console.log('Demo data seeded.');

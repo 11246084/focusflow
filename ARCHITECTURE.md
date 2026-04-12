@@ -2,6 +2,15 @@
 
 FocusFlow 系統架構設計文件。
 
+目前正式資料契約請同步參考（本次整理新增）：
+
+- [MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
+
+備註：
+
+- 本文件描述的是目前目標架構與正式契約方向
+- 若部分程式仍保留 legacy `video_segments` / `clips`，屬於過渡狀態，不代表正式 v1 schema
+
 ---
 
 ## 一、系統概觀
@@ -68,7 +77,7 @@ backend/src/
 │   ├── asyncHandler.js # 包裝 async controller，自動 catch 並轉交 error middleware
 │   └── objectId.js     # assertObjectId，驗證並轉換 MongoDB ObjectId
 └── services/
-    ├── queryEmbedding.service.js   # 可插拔 provider：mock / openai / gemini
+    ├── queryEmbedding.service.js   # 可插拔 provider：mock / openai
     ├── answerGeneration.service.js # 可插拔 provider：template / openai
     ├── qa.service.js               # QA 核心邏輯：向量搜尋 + 詞彙搜尋混合策略
     ├── courseAccess.service.js     # 判斷使用者是否有權限存取課程
@@ -96,8 +105,13 @@ queued → processing → completed
 ### QA 系統架構
 
 QA 採用雙策略混合搜尋（`qa.service.js`）：
-1. **向量搜尋**：cosine similarity 比對 `VideoSegment.embedding`
-2. **詞彙搜尋**（fallback）：當 embedding 為空時，改用詞彙重疊率評分
+1. **向量搜尋**：以 `video_segments_text.embedding` 為主資料來源
+2. **詞彙搜尋**（fallback）：當 embedding 不可用時，改用文字重疊率評分
+
+備註：
+
+- backend 目前尚未完全切換到這份 v1 查詢結構
+- 現有 `qa.service.js` 仍有 legacy 相容邏輯
 
 搜尋模式由 `QA_VECTOR_SEARCH_MODE` 控制：
 - `memory`：Node.js 記憶體內計算（本機開發）
@@ -136,7 +150,8 @@ frontend/focus-flow/src/
    ↓  transcribe.py        Faster-Whisper 語音辨識 → 含時間戳的逐字稿
    ↓  normalize_transcript.py  rapidfuzz 模糊比對修正專有名詞（term_dictionary.json）
    ↓  chunking.py          依字數/片段數/時長三重限制分段
-   ↓  embedding.py         Sentence-Transformers / Gemini 建立向量
+   ↓  embedding.py         Gemini 建立 text / audio embedding
+   ↓  video_multimodal_pipeline.py  Gemini 建立 video embedding
    ↓  export_outputs.py    輸出 JSON/JSONL 至 data/outputs/
    ↓  mongodb_uploader.py  （可選）直接寫入 MongoDB
 ```
@@ -160,9 +175,11 @@ frontend/focus-flow/src/
 | `User` | users | 帳號、角色、密碼雜湊 |
 | `Course` | courses | 課程容器，含狀態（draft/published/archived） |
 | `Video` | videos | 影片元資料、上傳路徑、processing 狀態 |
-| `VideoSegment` | videosegments | 逐段文字稿 + 向量嵌入（QA 搜尋的核心） |
+| `VideoSegment` | legacy `video_segments` | 舊版過渡模型，非正式 v1 契約 |
+| `video_segments_text` | `video_segments_text` | 問答搜尋核心 collection |
+| `video_segments_video` | `video_segments_video` | 影片片段與 video embedding |
 | `Enrollment` | enrollments | 學生修課紀錄，含 LINE userId 綁定 |
-| `Clip` | clips | 預先產出的短影音，含命中次數快取 |
+| `Clip` | legacy `clips` | 舊版快取層，非正式資料來源 |
 | `UsageLog` | usagelogs | 使用者行為記錄（登入、觀看、提問、短片瀏覽） |
 | `LineBindToken` | linebindtokens | LINE 帳號綁定的一次性 token |
 
@@ -181,7 +198,7 @@ frontend/focus-flow/src/
  │  POST /qa/ask     │                          │
  │  (Bearer JWT)─────→│  qa.service             │
  │                   │  embedQuery()            │
- │                   │  searchSegments()────────→│ VideoSegment
+ │                   │  searchSegments()────────→│ video_segments_text
  │                   │  ←──────── matches ──────│
  │                   │  generateAnswer()        │
  │                   │  recordUsage()───────────→│ UsageLog
@@ -204,4 +221,4 @@ LINE Bot             後端
 - 前端主介面（課程列表、影片播放、問答 UI）
 - 影片短片自動生成（FFmpeg 裁切）
 - 個人化學習推薦
-- MongoDB Atlas Vector Search 索引建立流程
+- backend 全面切換到 v1 database contract

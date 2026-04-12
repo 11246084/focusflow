@@ -12,7 +12,7 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 |------|------|------|
 | **後端 API** | Node.js、Express 4、MongoDB、JWT | 4000 |
 | **前端** | React 19、Vite、Three.js、GSAP | 5173 |
-| **AI Pipeline** | Python、Faster-Whisper、Sentence-Transformers、FFmpeg | CLI |
+| **AI Pipeline** | Python、Faster-Whisper、Gemini Embedding、FFmpeg | CLI |
 
 ---
 
@@ -41,7 +41,7 @@ npm run dev               # 啟動開發伺服器（port 4000）
 | `MONGODB_URI` | MongoDB 連線字串 | — |
 | `JWT_SECRET` | JWT 簽章金鑰 | — |
 | `DEMO_SEED_ENABLED` | 啟動時自動植入示範資料 | `true` |
-| `QA_QUERY_EMBEDDING_PROVIDER` | 向量嵌入 provider（`mock`/`openai`/`gemini`） | `mock` |
+| `QA_QUERY_EMBEDDING_PROVIDER` | 向量嵌入 provider（`mock`/`openai`） | `mock` |
 | `QA_ANSWER_PROVIDER` | 答案生成 provider（`template`/`openai`） | `template` |
 | `QA_VECTOR_SEARCH_MODE` | 向量搜尋模式（`memory`/`atlas`） | `memory` |
 | `LINE_CHANNEL_SECRET` | LINE Channel Secret（簽章驗證用） | — |
@@ -73,6 +73,23 @@ python src/main.py                 # 處理所有影片
 python src/main.py --limit 1      # 只處理第一支（快速驗證）
 python src/main.py --overwrite    # 強制重新處理（不使用快取）
 ```
+
+### Database Contract（本次整理新增）
+
+目前正式資料契約已整理到：
+
+- [MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
+
+說明：
+
+- 這份文件是 backend、database、AI pipeline 目前共同對齊的 schema 依據
+- 舊版 `video_segments` / `clips` 結構目前視為 legacy 過渡層
+- 正式問答主資料流以 `video_segments_text` 與 `video_segments_video` 為準
+
+備註：
+
+- 目前 repo 仍存在部分 legacy model、script 與 query 邏輯
+- 若文件內容與舊程式衝突，請以這份契約文件與實際修正 PR 為準
 
 ---
 

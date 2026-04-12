@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const env = require('../config/env');
 
 const videoSegmentSchema = new mongoose.Schema(
   {
@@ -9,6 +10,12 @@ const videoSegmentSchema = new mongoose.Schema(
       index: true,
     },
     segmentId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    segment_id: {
       type: String,
       default: null,
       trim: true,
@@ -37,17 +44,32 @@ const videoSegmentSchema = new mongoose.Schema(
     },
     startSec: {
       type: Number,
-      required: true,
+      default: null,
+      min: 0,
+    },
+    start_sec: {
+      type: Number,
+      default: null,
       min: 0,
     },
     endSec: {
       type: Number,
-      required: true,
+      default: null,
+      min: 0,
+    },
+    end_sec: {
+      type: Number,
+      default: null,
       min: 0,
     },
     transcript: {
       type: String,
-      required: true,
+      default: null,
+      trim: true,
+    },
+    text: {
+      type: String,
+      default: null,
       trim: true,
     },
     original_text: {
@@ -66,7 +88,7 @@ const videoSegmentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    collection: 'video_segments',
+    collection: env.videoSegmentCollection,
   },
 );
 

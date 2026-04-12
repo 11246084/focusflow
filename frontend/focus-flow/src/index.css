@@ -40,7 +40,7 @@ body {
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: 0.012;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 150px 150px;
 }
@@ -67,8 +67,16 @@ body {
   overflow: visible; /* allow phone to overflow */
 }
 
-/* SVG staircase — fills the container, non-interactive */
-.staircase-svg {
+.orangebox{
+  padding-bottom: 2rem;
+}
+
+.purplebox{
+  padding-top: 2rem;
+}
+
+/* SVG left shape — fills the container, non-interactive */
+.left-shape {
   position: absolute;
   top: 0;
   left: 0;
@@ -81,80 +89,86 @@ body {
 /* Logo — inside orange top section */
 .logo {
   position: absolute;
-  top: 18px;
-  left: 18px;
+  top: 9%;
+  left: 6%;
   z-index: 10;
 }
 
 .logo img {
-  height: 30px;
+  height: 44px;
   width: auto;
   object-fit: contain;
 }
 
-/* Waveform — tall narrow on the left */
+/* Waveform — inside step 1 (0–46.7% of panel height) */
 .waveform-img {
   position: absolute;
-  top: 8%;
-  left: 2%;
-  width: 27%;
-  height: 64%;
-  border-radius: 1.25rem;
+    top: 29%;
+    left: 3%;
+    width: 31%;
+    height: 45%;
+    border-radius: 2.25rem;
   object-fit: cover;
   z-index: 5;
   opacity: 0.9;
 }
 
-/* Phone — transparent cutout, right portion, overflows into dark steps */
+/* Phone — inside step 1, right side */
 .phone-img {
   position: absolute;
-  top: 4%;
-  right: 1%;
-  width: 54%;
-  height: 68%;
+    top: 2%;
+    right: 25%;
+    width: 29%;
+    height: 43%;
   object-fit: contain;
   object-position: bottom center;
   z-index: 6;
 }
 
-/* Stats — positioned inside step 2 and step 3 */
-.stat-card {
+/* Step 2 content block — 問答準確率 / 98% */
+/* viewBox 500×900: step2 y=420–620 → top 46.7%; width 360/500=72% */
+.block-2 {
   position: absolute;
-  background: rgba(12, 4, 28, 0.82);
-  backdrop-filter: blur(14px);
-  border-radius: 14px;
-  padding: 14px 20px 16px;
+  top: 54.7%;
+    left: 44%;
+  width: 72%;
+  height: 22.2%;
+  padding: 0 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   z-index: 7;
 }
 
-/* 98% card — inside step 2 (y: ~46-71%, x: 0-71.2%) */
-/* starts at left: 30% to avoid overlapping waveform (which ends at ~29%) */
-.stat-98 {
-  top: 49%;
-  left: 30%;
-  right: 31%; /* right edge at ~69%, within step-2 boundary 71.2% */
+/* Step 3 content block — 平均回應時間 / <3s */
+/* step3 y=620–820 → top 68.9%; width 240/500=48% */
+.block-3 {
+  position: absolute;
+  top: 78.9%;
+    left: 45px;
+  width: 48%;
+  height: 22.2%;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 7;
 }
 
-/* <3s card — inside step 3 (y: ~71-100%, x: 0-43.2%) */
-.stat-3s {
-  bottom: 4%;
-  left: 2%;
-  right: 59%; /* card right edge at ~41%, within step-3 boundary 43.2% */
-}
-
+/* Stat text — no card background, sits directly on dark blocks */
 .stat-label {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
   font-weight: 400;
-  letter-spacing: 0.02em;
-  margin-bottom: 2px;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
 }
 
 .stat-value {
-  font-size: 2.2rem;
+  font-size: clamp(2rem, 3.2vw, 3rem);
   font-weight: 700;
   color: #ffffff;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 /* ══════════════════════════════
@@ -167,18 +181,24 @@ body {
   height: 100%;
   gap: 0.75rem;
   min-width: 0;
-  justify-content: space-between;
+  justify-content: space-around;
 }
 
 /* Hero box — subtle border card */
 .hero-box {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
-  padding: 28px 32px 32px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 36px 40px 44px;
+  background: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   flex-shrink: 0;
+  margin-bottom: 0;
+  height: 45%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .hero-eyebrow {
@@ -199,16 +219,18 @@ body {
 }
 
 .hero-desc {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.55);
-  line-height: 1.8;
-  max-width: 520px;
-  margin-bottom: 20px;
+      font-size: 1rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.8;
+    max-width: 520px;
+    margin-bottom: 10px;
 }
 
 .hero-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 1rem;
 }
 
@@ -271,15 +293,13 @@ body {
   filter: brightness(0) invert(1);
 }
 
-/* Middle section */
+/* Middle section — auto height, padded, space-between distributes it */
 .middle-section {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .middle-text {
@@ -288,10 +308,11 @@ body {
 }
 
 .middle-label {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 0.08em;
-  margin-bottom: 10px;
+      font-size: 1.7rem;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.441);
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
 }
 
 .middle-headline {
@@ -302,7 +323,7 @@ body {
   color: #ffffff;
 }
 
-/* Bubble mascot */
+/* Bubble mascot — circular mask */
 .bubble-container {
   flex: 0 0 200px;
   height: 200px;
@@ -388,14 +409,14 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 2rem;
-  background: linear-gradient(56deg, #61dafb 0%, #d6cbf6 46%, #f2056f 100%);
+  background: linear-gradient(56deg, #BD5695 0%, #3E1B33 46%, #D75A5E 100%);
   opacity: 0;
   transition: opacity 0.4s ease;
 }
 
 .btn-3d::after {
   content: '';
-  background: linear-gradient(56deg, #61dafb 0%, #d6cbf6 46%, #f2056f 100%);
+  background: linear-gradient(56deg, #BD5695 0%, #3E1B33 46%, #D75A5E 100%);
   width: 80%;
   height: 30%;
   position: absolute;
@@ -441,4 +462,146 @@ body {
   height: 4px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 50%;
+}
+
+/* ══════════════════════════════
+   RWD
+══════════════════════════════ */
+
+/* Tablet — narrow left panel, slightly smaller stat text */
+@media (max-width: 1024px) {
+  .layout {
+    padding: 1.25rem;
+    gap: 1.25rem;
+  }
+
+  .left-panel {
+    flex: 0 0 36%;
+  }
+
+  .stat-value {
+    font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+  }
+
+  .waveform-img {
+    top: 7%;
+    left: 3%;
+    width: 25%;
+    height: 34%;
+  }
+
+  .phone-img {
+    top: 2%;
+    right: 1%;
+    width: 50%;
+    height: 41%;
+  }
+
+  .bubble-container {
+    flex: 0 0 220px;
+    height: 220px;
+  }
+
+  .hero-box {
+    padding: 28px 32px 36px;
+  }
+}
+
+/* Mobile — vertical stack; hide complex SVG, show flat bg */
+@media (max-width: 768px) {
+  html, body, #root {
+    overflow: auto;
+  }
+
+  .page {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .left-panel {
+    flex: none;
+    width: 100%;
+    height: 280px;
+    overflow: hidden;
+  }
+
+  /* Hide SVG, use flat orange background */
+  .left-shape {
+    display: none;
+  }
+
+  .left-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(210, 62, 16, 0.88);
+    border-radius: 20px;
+    z-index: 0;
+  }
+
+  .logo {
+    top: 14px;
+    left: 14px;
+  }
+
+  .waveform-img {
+    top: 10%;
+    left: 3%;
+    width: 22%;
+    height: 75%;
+  }
+
+  .phone-img {
+    top: 4%;
+    right: 2%;
+    width: 44%;
+    height: 88%;
+  }
+
+  /* Hide step 2/3 stat blocks on mobile */
+  .block-2,
+  .block-3 {
+    display: none;
+  }
+
+  .right-panel {
+    flex: none;
+    width: 100%;
+    height: auto;
+    gap: 0.75rem;
+  }
+
+  .hero-box {
+    padding: 24px 24px 28px;
+  }
+
+  .middle-section {
+    padding: 16px 0 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .bubble-container {
+    flex: 0 0 160px;
+    height: 160px;
+  }
+
+  .features-row {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .feature-item {
+    flex: 1 1 calc(50% - 0.75rem);
+  }
 }

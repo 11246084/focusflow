@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ':*)",
+      "Bash(python -c \"f=open\\('C:/Users/ST-user/frontend/focus-flow/src/App.jsx','r',encoding='utf-8'\\); c=f.read\\(\\); f.close\\(\\); s=c.find\\('LEFT PANEL'\\); e=c.find\\('RIGHT PANEL'\\); print\\(s,e,len\\(c\\)\\)\")"
+    ]
+  }
+}

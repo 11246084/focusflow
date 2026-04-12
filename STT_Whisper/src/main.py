@@ -9,7 +9,7 @@ from pathlib import Path
 
 from chunking import build_chunks
 from config import PipelineConfig
-from embedding import embed_chunks
+from embedding import embed_audio_tracks, embed_chunks
 from export_outputs import export_all_outputs
 from extract_audio import extract_audio_for_videos
 from normalize_transcript import normalize_transcripts
@@ -42,11 +42,6 @@ def parse_args() -> argparse.Namespace:
         help="Optional faster-whisper model size or local path override.",
     )
     parser.add_argument(
-        "--embedding-model",
-        default=None,
-        help="Optional sentence-transformers model override.",
-    )
-    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Rebuild cached audio/transcripts instead of reusing existing intermediate files.",
@@ -56,6 +51,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="Only process the first N discovered videos for faster testing.",
+    )
+    parser.add_argument(
+        "--gemini-max-chunks",
+        type=int,
+        default=None,
+        help="Only send the first N pending text chunks to Gemini in this run.",
     )
     return parser.parse_args()
 
@@ -73,8 +74,8 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
         overrides["video_input_dir"] = video_dir.resolve()
     if args.whisper_model is not None:
         overrides["whisper_model_size"] = args.whisper_model
-    if args.embedding_model is not None:
-        overrides["embedding_model_name"] = args.embedding_model
+    if args.gemini_max_chunks is not None:
+        overrides["gemini_max_chunks_per_run"] = args.gemini_max_chunks
     if args.overwrite:
         overrides["overwrite_existing"] = True
 
@@ -84,6 +85,10 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
 def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, Path]:
     """Execute the full local pipeline from video scan to export."""
     logger.info("Starting FocusFlow AI pipeline")
+    if not config.gemini_embedding_enabled:
+        raise RuntimeError(
+            "Gemini embedding is now the final embedding path. Set ENABLE_GEMINI_EMBEDDING=true in .env."
+        )
 
     # Step 1: scan videos and build normalized metadata.
     videos = scan_videos(config)
@@ -106,17 +111,28 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, 
     normalized_transcripts = normalize_transcripts(transcripts, config)
     # Step 5: merge normalized transcript segments into search chunks.
     chunks = build_chunks(videos, normalized_transcripts, config)
-    # Step 6: generate multilingual embeddings.
-    embeddings = embed_chunks(chunks, config)
-    # Step 7: export JSON and JSONL files for downstream teams.
-    output_paths = export_all_outputs(videos, transcripts, normalized_transcripts, chunks, embeddings, config)
+    # Step 6: generate Gemini text embeddings from normalized chunks.
+    text_embeddings = embed_chunks(chunks, config)
+    # Step 7: generate Gemini audio embeddings directly from extracted audio files.
+    audio_embeddings = embed_audio_tracks(videos, config)
+    # Step 8: export JSON and JSONL files for downstream teams.
+    output_paths = export_all_outputs(
+        videos,
+        transcripts,
+        normalized_transcripts,
+        chunks,
+        text_embeddings,
+        audio_embeddings,
+        config,
+    )
 
     logger.info(
-        "Pipeline completed: videos=%s transcripts=%s chunks=%s embeddings=%s",
+        "Pipeline completed: videos=%s transcripts=%s chunks=%s text_embeddings=%s audio_embeddings=%s",
         len(videos),
         len(transcripts),
         len(chunks),
-        len(embeddings),
+        len(text_embeddings),
+        len(audio_embeddings),
     )
     return output_paths
 

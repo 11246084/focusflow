@@ -5,3 +5,5 @@ imageio-ffmpeg>=0.5.1
 numpy>=1.26.4
 tqdm>=4.66.4
 rapidfuzz>=3.13.0
+google-genai>=1.0.0
+pymongo>=4.11.0

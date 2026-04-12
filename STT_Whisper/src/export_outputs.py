@@ -6,7 +6,15 @@ import logging
 from pathlib import Path
 
 from config import PipelineConfig
-from utils import ChunkRecord, EmbeddingRecord, TranscriptDocument, VideoMetadata, write_json_file, write_jsonl_file
+from utils import (
+    AudioEmbeddingRecord,
+    ChunkRecord,
+    EmbeddingRecord,
+    TranscriptDocument,
+    VideoMetadata,
+    write_json_file,
+    write_jsonl_file,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -47,21 +55,30 @@ def export_normalized_transcripts(
     return output_path
 
 
-def export_chunks(chunks: list[ChunkRecord], output_dir: Path, backup_existing: bool = True) -> Path:
-    """Export search chunks as JSONL with one record per line."""
-    output_path = output_dir / "chunks.jsonl"
+def export_chunks(chunks: list[ChunkRecord], output_path: Path, backup_existing: bool = True) -> Path:
+    """Export all search chunks into one stable JSONL file."""
     write_jsonl_file(output_path, (chunk.to_dict() for chunk in chunks), backup_existing=backup_existing)
     logger.info("Exported %s", output_path)
     return output_path
 
 
-def export_embeddings(
+def export_text_embeddings(
     embeddings: list[EmbeddingRecord],
-    output_dir: Path,
+    output_path: Path,
     backup_existing: bool = True,
 ) -> Path:
-    """Export vector records as JSONL for later Vector DB ingestion."""
-    output_path = output_dir / "embeddings.jsonl"
+    """Export Gemini text embeddings into one JSONL file."""
+    write_jsonl_file(output_path, (record.to_dict() for record in embeddings), backup_existing=backup_existing)
+    logger.info("Exported %s", output_path)
+    return output_path
+
+
+def export_audio_embeddings(
+    embeddings: list[AudioEmbeddingRecord],
+    output_path: Path,
+    backup_existing: bool = True,
+) -> Path:
+    """Export Gemini audio embeddings into one JSONL file."""
     write_jsonl_file(output_path, (record.to_dict() for record in embeddings), backup_existing=backup_existing)
     logger.info("Exported %s", output_path)
     return output_path
@@ -72,11 +89,11 @@ def export_all_outputs(
     transcripts: list[TranscriptDocument],
     normalized_transcripts: list[TranscriptDocument],
     chunks: list[ChunkRecord],
-    embeddings: list[EmbeddingRecord],
+    text_embeddings: list[EmbeddingRecord],
+    audio_embeddings: list[AudioEmbeddingRecord],
     config: PipelineConfig,
 ) -> dict[str, Path]:
     """Export every standardized artifact required by the downstream team."""
-    # Keep official output filenames in one place for schema stability.
     return {
         "videos": export_videos(videos, config.output_dir, config.backup_existing_outputs),
         "transcripts": export_transcripts(transcripts, config.output_dir, config.backup_existing_outputs),
@@ -85,6 +102,15 @@ def export_all_outputs(
             config.normalized_transcript_output_path,
             config.backup_existing_outputs,
         ),
-        "chunks": export_chunks(chunks, config.output_dir, config.backup_existing_outputs),
-        "embeddings": export_embeddings(embeddings, config.output_dir, config.backup_existing_outputs),
+        "chunks": export_chunks(chunks, config.chunks_output_path, config.backup_existing_outputs),
+        "embeddings_text_gemini": export_text_embeddings(
+            text_embeddings,
+            config.text_embeddings_output_path,
+            config.backup_existing_outputs,
+        ),
+        "embeddings_audio_gemini": export_audio_embeddings(
+            audio_embeddings,
+            config.audio_embeddings_output_path,
+            config.backup_existing_outputs,
+        ),
     }

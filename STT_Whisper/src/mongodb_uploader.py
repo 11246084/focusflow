@@ -1,153 +1,342 @@
-"""Upload FocusFlow output artifacts into MongoDB with bulk upserts."""
+"""Upload FocusFlow pipeline outputs into existing MongoDB collections."""
 
 from __future__ import annotations
 
-import argparse
-import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
 from config import PipelineConfig
-from utils import chunked, configure_logging, load_json_file, load_jsonl_file
+from utils import configure_logging, load_json_file, load_jsonl_file
+
+LOGGER = logging.getLogger(__name__)
+
+# These collection names are already provisioned by the DB team.
+VIDEOS_COLLECTION = "videos"
+TRANSCRIPTS_NORMALIZED_COLLECTION = "transcripts_normalized"
+VIDEO_SEGMENTS_TEXT_COLLECTION = "video_segments_text"
+VIDEO_SEGMENTS_VIDEO_COLLECTION = "video_segments_video"
 
 
-logger = logging.getLogger(__name__)
+@dataclass(slots=True)
+class UploadStats:
+    """Track how many records were upserted, skipped, or failed."""
+
+    success: int = 0
+    skip: int = 0
+    error: int = 0
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for the MongoDB uploader."""
-    parser = argparse.ArgumentParser(description="Upload FocusFlow output files into MongoDB.")
-    parser.add_argument(
-        "--project-root",
-        type=Path,
-        default=Path(__file__).resolve().parents[1],
-        help="Project root directory.",
-    )
-    parser.add_argument(
-        "--include-video-embeddings",
-        action="store_true",
-        help="Also upload embeddings_video_gemini.jsonl when it exists.",
-    )
-    return parser.parse_args()
-
-
-def _load_collection_records(path: Path) -> list[dict]:
-    """Load either JSON or JSONL records from disk."""
-    if not path.exists():
-        logger.warning("Skipping missing file: %s", path)
+def read_json(file_path: Path) -> list[dict[str, Any]]:
+    """Read a JSON file and normalize the result to a list of dictionaries."""
+    if not file_path.exists():
+        LOGGER.warning("JSON file does not exist: %s", file_path)
         return []
 
-    if path.suffix.lower() == ".json":
-        payload = load_json_file(path)
-        return payload if isinstance(payload, list) else []
-    if path.suffix.lower() == ".jsonl":
-        return load_jsonl_file(path)
-    raise ValueError(f"Unsupported upload file format: {path}")
+    payload = load_json_file(file_path)
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        return [payload]
+
+    LOGGER.warning("Unexpected JSON root type in %s. Expected list or object.", file_path)
+    return []
 
 
-def _bulk_upsert(collection, records: list[dict], key_field: str, batch_size: int) -> int:
-    """Upsert documents into one MongoDB collection using bulk_write."""
-    if not records:
-        return 0
+def read_jsonl(file_path: Path) -> list[dict[str, Any]]:
+    """Read a JSONL file into a list of dictionaries."""
+    if not file_path.exists():
+        LOGGER.warning("JSONL file does not exist: %s", file_path)
+        return []
 
-    try:
-        from pymongo import UpdateOne
-    except ImportError as exc:  # pragma: no cover - depends on local environment
-        raise RuntimeError("pymongo is not installed. Run 'pip install -r requirements.txt' first.") from exc
+    return [item for item in load_jsonl_file(file_path) if isinstance(item, dict)]
 
-    total_upserts = 0
-    for batch in chunked(records, batch_size):
-        operations = []
-        for record in batch:
-            if key_field not in record:
-                logger.warning("Skipping record without key field %s: %s", key_field, record)
-                continue
-            operations.append(
-                UpdateOne(
-                    {key_field: record[key_field]},
-                    {"$set": record},
-                    upsert=True,
-                )
+
+def log_summary(collection_name: str, stats: UploadStats) -> None:
+    """Log one concise summary line for a collection upload."""
+    LOGGER.info(
+        "[MongoDB Summary] collection=%s success=%s skip=%s error=%s",
+        collection_name,
+        stats.success,
+        stats.skip,
+        stats.error,
+    )
+
+
+def safe_upsert(collection: Any, key_name: str, key_value: Any, document: dict[str, Any]) -> bool:
+    """Upsert a single document and return whether it succeeded."""
+    collection.update_one({key_name: key_value}, {"$set": document}, upsert=True)
+    return True
+
+
+def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
+    """Upload normalized video metadata into the existing videos collection."""
+    stats = UploadStats()
+    source_path = config.output_dir / "videos.json"
+    records = read_json(source_path)
+    collection = database[VIDEOS_COLLECTION]
+
+    LOGGER.info("Uploading videos from %s into collection=%s", source_path, VIDEOS_COLLECTION)
+
+    required_keys = {"video_id", "file_name", "file_path", "audio_path", "duration_sec"}
+    for record in records:
+        missing_keys = sorted(required_keys - record.keys())
+        if missing_keys:
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s reason=missing_keys keys=%s record=%s",
+                VIDEOS_COLLECTION,
+                ",".join(missing_keys),
+                record.get("video_id", "<unknown>"),
             )
-        if not operations:
             continue
-        result = collection.bulk_write(operations, ordered=False)
-        total_upserts += result.upserted_count + result.modified_count + result.matched_count
-    return total_upserts
+
+        document = {
+            "video_id": record["video_id"],
+            "file_name": record["file_name"],
+            "file_path": record["file_path"],
+            "audio_path": record["audio_path"],
+            "duration_sec": float(record["duration_sec"]),
+            "week": record.get("week"),
+            "lesson": record.get("lesson"),
+            "video_source": record.get("video_source", "local"),
+            "video_url": record.get("video_url"),
+        }
+
+        try:
+            safe_upsert(collection, "video_id", document["video_id"], document)
+            stats.success += 1
+        except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+            stats.error += 1
+            LOGGER.error(
+                "[MongoDB Error] collection=%s key=video_id value=%s error=%s",
+                VIDEOS_COLLECTION,
+                document["video_id"],
+                exc,
+            )
+
+    log_summary(VIDEOS_COLLECTION, stats)
+    return stats
 
 
-def _iter_upload_jobs(config: PipelineConfig, include_video_embeddings: bool) -> Iterable[tuple[str, Path, str, str]]:
-    """Yield the file-path, collection-name, and primary-key mapping for upload."""
-    yield ("videos", config.output_dir / "videos.json", config.mongodb_videos_collection, "video_id")
-    yield (
-        "transcripts",
-        config.output_dir / "transcripts.json",
-        config.mongodb_transcripts_collection,
-        "video_id",
+def upload_transcripts_normalized(database: Any, config: PipelineConfig) -> UploadStats:
+    """Upload normalized transcripts into the existing transcripts_normalized collection."""
+    stats = UploadStats()
+    source_path = config.normalized_transcript_output_path
+    records = read_json(source_path)
+    collection = database[TRANSCRIPTS_NORMALIZED_COLLECTION]
+
+    LOGGER.info(
+        "Uploading normalized transcripts from %s into collection=%s",
+        source_path,
+        TRANSCRIPTS_NORMALIZED_COLLECTION,
     )
-    yield ("chunks", config.chunks_output_path, config.mongodb_chunks_collection, "chunk_id")
-    yield (
-        "embeddings_text_gemini",
-        config.text_embeddings_output_path,
-        config.mongodb_text_embeddings_collection,
-        "chunk_id",
+
+    for record in records:
+        video_id = record.get("video_id")
+        segments = record.get("segments")
+        if not video_id or not isinstance(segments, list):
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s reason=missing_video_id_or_segments record=%s",
+                TRANSCRIPTS_NORMALIZED_COLLECTION,
+                video_id or "<unknown>",
+            )
+            continue
+
+        document = {
+            "video_id": video_id,
+            "segments": segments,
+        }
+
+        try:
+            safe_upsert(collection, "video_id", video_id, document)
+            stats.success += 1
+        except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+            stats.error += 1
+            LOGGER.error(
+                "[MongoDB Error] collection=%s key=video_id value=%s error=%s",
+                TRANSCRIPTS_NORMALIZED_COLLECTION,
+                video_id,
+                exc,
+            )
+
+    log_summary(TRANSCRIPTS_NORMALIZED_COLLECTION, stats)
+    return stats
+
+
+def upload_text_embeddings(database: Any, config: PipelineConfig) -> UploadStats:
+    """Upload Gemini text embeddings into the existing video_segments_text collection."""
+    stats = UploadStats()
+    chunks_path = config.chunks_output_path
+    embeddings_path = config.text_embeddings_output_path
+    collection = database[VIDEO_SEGMENTS_TEXT_COLLECTION]
+
+    chunk_records = read_jsonl(chunks_path)
+    embedding_records = read_jsonl(embeddings_path)
+    chunk_map = {
+        record.get("chunk_id"): record
+        for record in chunk_records
+        if isinstance(record.get("chunk_id"), str)
+    }
+
+    LOGGER.info(
+        "Uploading text embeddings from %s into collection=%s",
+        embeddings_path,
+        VIDEO_SEGMENTS_TEXT_COLLECTION,
     )
-    if include_video_embeddings:
-        yield (
-            "embeddings_video_gemini",
-            config.video_embeddings_output_path,
-            config.mongodb_video_embeddings_collection,
-            "clip_id",
-        )
+
+    required_keys = {"chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding"}
+    for record in embedding_records:
+        missing_keys = sorted(required_keys - record.keys())
+        chunk_id = record.get("chunk_id")
+
+        if missing_keys:
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s chunk_id=%s reason=missing_keys keys=%s",
+                VIDEO_SEGMENTS_TEXT_COLLECTION,
+                chunk_id or "<unknown>",
+                ",".join(missing_keys),
+            )
+            continue
+
+        embedding = record.get("embedding")
+        if not isinstance(embedding, list) or not embedding:
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s chunk_id=%s reason=empty_embedding",
+                VIDEO_SEGMENTS_TEXT_COLLECTION,
+                chunk_id or "<unknown>",
+            )
+            continue
+
+        chunk_record = chunk_map.get(chunk_id, {})
+        document = {
+            "chunk_id": chunk_id,
+            "video_id": record["video_id"],
+            "segment_id": chunk_record.get("segment_id"),
+            "start_sec": float(record["start_sec"]),
+            "end_sec": float(record["end_sec"]),
+            "text": record["text"],
+            "embedding": embedding,
+        }
+
+        try:
+            safe_upsert(collection, "chunk_id", chunk_id, document)
+            stats.success += 1
+        except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+            stats.error += 1
+            LOGGER.error(
+                "[MongoDB Error] collection=%s key=chunk_id value=%s error=%s",
+                VIDEO_SEGMENTS_TEXT_COLLECTION,
+                chunk_id,
+                exc,
+            )
+
+    log_summary(VIDEO_SEGMENTS_TEXT_COLLECTION, stats)
+    return stats
+
+
+def upload_video_embeddings(database: Any, config: PipelineConfig) -> UploadStats:
+    """Upload Gemini video embeddings into the existing video_segments_video collection."""
+    stats = UploadStats()
+    source_path = config.video_embeddings_output_path
+    records = read_jsonl(source_path)
+    collection = database[VIDEO_SEGMENTS_VIDEO_COLLECTION]
+
+    LOGGER.info(
+        "Uploading video embeddings from %s into collection=%s",
+        source_path,
+        VIDEO_SEGMENTS_VIDEO_COLLECTION,
+    )
+
+    required_keys = {"clip_id", "video_id", "start_sec", "end_sec", "clip_path", "embedding"}
+    for record in records:
+        missing_keys = sorted(required_keys - record.keys())
+        clip_id = record.get("clip_id")
+
+        if missing_keys:
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s clip_id=%s reason=missing_keys keys=%s",
+                VIDEO_SEGMENTS_VIDEO_COLLECTION,
+                clip_id or "<unknown>",
+                ",".join(missing_keys),
+            )
+            continue
+
+        embedding = record.get("embedding")
+        if not isinstance(embedding, list) or not embedding:
+            stats.skip += 1
+            LOGGER.warning(
+                "[MongoDB Skip] collection=%s clip_id=%s reason=empty_embedding",
+                VIDEO_SEGMENTS_VIDEO_COLLECTION,
+                clip_id or "<unknown>",
+            )
+            continue
+
+        document = {
+            "clip_id": clip_id,
+            "video_id": record["video_id"],
+            "start_sec": float(record["start_sec"]),
+            "end_sec": float(record["end_sec"]),
+            "clip_path": record["clip_path"],
+            "embedding": embedding,
+        }
+
+        try:
+            safe_upsert(collection, "clip_id", clip_id, document)
+            stats.success += 1
+        except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+            stats.error += 1
+            LOGGER.error(
+                "[MongoDB Error] collection=%s key=clip_id value=%s error=%s",
+                VIDEO_SEGMENTS_VIDEO_COLLECTION,
+                clip_id,
+                exc,
+            )
+
+    log_summary(VIDEO_SEGMENTS_VIDEO_COLLECTION, stats)
+    return stats
 
 
 def main() -> int:
-    """Upload FocusFlow artifacts into MongoDB and return a process exit code."""
-    args = parse_args()
-    config = PipelineConfig.from_env(project_root=args.project_root.resolve())
+    """Upload local pipeline outputs into the already existing MongoDB collections."""
+    config = PipelineConfig.from_env()
     configure_logging(config.log_level)
 
     if not config.mongodb_uri:
-        raise RuntimeError("MONGODB_URI is not set in .env.")
+        LOGGER.error("MONGODB_URI is not configured in .env.")
+        return 1
 
     try:
         from pymongo import MongoClient
-    except ImportError as exc:  # pragma: no cover - depends on local environment
+    except ImportError as exc:
         raise RuntimeError("pymongo is not installed. Run 'pip install -r requirements.txt' first.") from exc
 
-    logger.info("Connecting to MongoDB database=%s", config.mongodb_database_name)
+    LOGGER.info("Connecting to MongoDB database=%s", config.mongodb_database_name)
     client = MongoClient(config.mongodb_uri)
-    client.admin.command("ping")
+
+    try:
+        client.admin.command("ping")
+    except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+        LOGGER.error("Failed to connect to MongoDB: %s", exc)
+        return 1
+
     database = client[config.mongodb_database_name]
 
-    summary: dict[str, int] = {}
-    for job_name, file_path, collection_name, key_field in _iter_upload_jobs(
-        config,
-        include_video_embeddings=args.include_video_embeddings,
-    ):
-        records = _load_collection_records(file_path)
-        if not records:
-            summary[job_name] = 0
-            continue
-
-        logger.info(
-            "Uploading %s records from %s into collection=%s using key=%s",
-            len(records),
-            file_path,
-            collection_name,
-            key_field,
-        )
-        summary[job_name] = _bulk_upsert(
-            database[collection_name],
-            records,
-            key_field,
-            config.mongodb_bulk_batch_size,
-        )
+    upload_videos(database, config)
+    upload_transcripts_normalized(database, config)
+    upload_text_embeddings(database, config)
+    upload_video_embeddings(database, config)
 
     print("MongoDB upload completed.")
-    for job_name, count in summary.items():
-        print(f"{job_name}: {count}")
+    print(f"videos -> {VIDEOS_COLLECTION}")
+    print(f"transcripts_normalized -> {TRANSCRIPTS_NORMALIZED_COLLECTION}")
+    print(f"video_segments_text -> {VIDEO_SEGMENTS_TEXT_COLLECTION}")
+    print(f"video_segments_video -> {VIDEO_SEGMENTS_VIDEO_COLLECTION}")
     return 0
 
 

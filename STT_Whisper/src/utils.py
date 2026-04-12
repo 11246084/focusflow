@@ -8,7 +8,9 @@ import os
 import re
 import shutil
 import tempfile
+from collections import Counter
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -139,7 +141,7 @@ class ChunkRecord:
 
 @dataclass(slots=True)
 class EmbeddingRecord:
-    """A vectorized representation of a text chunk."""
+    """A Gemini text embedding record for one chunk."""
 
     chunk_id: str
     video_id: str
@@ -147,10 +149,47 @@ class EmbeddingRecord:
     end_sec: float
     text: str
     embedding: list[float]
+    embedding_model: str
+    embedding_modality: str
+    embedding_dim: int
+    embedding_timestamp: str
+    embedding_status: str = "success"
+    embedding_error: str | None = None
+    embedding_request_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert the dataclass to a JSON-safe dictionary."""
-        return asdict(self)
+        payload = asdict(self)
+        if self.embedding_error is None:
+            payload.pop("embedding_error")
+        if self.embedding_request_id is None:
+            payload.pop("embedding_request_id")
+        return payload
+
+
+@dataclass(slots=True)
+class AudioEmbeddingRecord:
+    """A Gemini audio embedding record for one extracted audio track."""
+
+    video_id: str
+    audio_path: str
+    embedding: list[float]
+    embedding_model: str
+    embedding_modality: str
+    embedding_dim: int
+    embedding_timestamp: str
+    embedding_status: str = "success"
+    embedding_error: str | None = None
+    embedding_request_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the dataclass to a JSON-safe dictionary."""
+        payload = asdict(self)
+        if self.embedding_error is None:
+            payload.pop("embedding_error")
+        if self.embedding_request_id is None:
+            payload.pop("embedding_request_id")
+        return payload
 
 
 def configure_logging(log_level: str = "INFO") -> None:
@@ -271,6 +310,15 @@ def load_json_file(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_jsonl_file(path: Path) -> list[dict[str, Any]]:
+    """Load a JSONL file into memory while tolerating UTF-8 BOM."""
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
+    ]
+
+
 def extract_duration_seconds(ffmpeg_stderr: str) -> float:
     """Parse the Duration field from FFmpeg stderr output."""
     duration_match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", ffmpeg_stderr)
@@ -287,3 +335,13 @@ def chunked(sequence: Sequence[Any], batch_size: int) -> Iterable[Sequence[Any]]
     """Yield small batches from a larger sequence."""
     for index in range(0, len(sequence), batch_size):
         yield sequence[index : index + batch_size]
+
+
+def utc_timestamp() -> str:
+    """Return a stable UTC ISO timestamp for exported metadata and logs."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def summarize_modalities(modalities: Sequence[str]) -> dict[str, int]:
+    """Count how many records belong to each Gemini modality."""
+    return dict(Counter(modalities))

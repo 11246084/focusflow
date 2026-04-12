@@ -120,8 +120,6 @@ FFMPEG_BINARY=C:/tools/ffmpeg/bin/ffmpeg.exe
 Copy-Item .env.example .env
 ```
 
-`.env.example` 是這個目錄唯一應該進版控的環境設定範本。真實 API key、MongoDB 帳密只放本機 `.env`，不要再寫進腳本或 README 範例值。
-
 重要設定如下：
 
 ```env
@@ -433,37 +431,35 @@ Script:
 python src/mongodb_uploader.py
 ```
 
-If you also want to upload video multimodal embeddings:
-
-```powershell
-python src/mongodb_uploader.py --include-video-embeddings
-```
-
 Recommended `.env` settings:
 
 ```env
 MONGODB_URI=
 MONGODB_DATABASE_NAME=focusflow
 MONGODB_VIDEOS_COLLECTION=videos
-MONGODB_TRANSCRIPTS_COLLECTION=transcripts
-MONGODB_CHUNKS_COLLECTION=chunks
-MONGODB_TEXT_EMBEDDINGS_COLLECTION=embeddings_text_gemini
-MONGODB_VIDEO_EMBEDDINGS_COLLECTION=embeddings_video_gemini
+MONGODB_TRANSCRIPTS_COLLECTION=transcripts_normalized
+MONGODB_CHUNKS_COLLECTION=video_segments_text
+MONGODB_TEXT_EMBEDDINGS_COLLECTION=video_segments_text
+MONGODB_VIDEO_EMBEDDINGS_COLLECTION=video_segments_video
 MONGODB_BULK_BATCH_SIZE=200
 ```
 
 Uploader inputs:
 
 - `data/outputs/videos.json`
-- `data/outputs/transcripts.json`
+- `data/outputs/transcripts_normalized.json`
 - `data/outputs/chunks.jsonl`
 - `data/outputs/embeddings_text_gemini.jsonl`
-- `data/outputs/embeddings_video_gemini.jsonl` when `--include-video-embeddings` is enabled
+- `data/outputs/embeddings_video_gemini.jsonl`
 
-MongoDB upsert keys:
+MongoDB target collections and upsert keys:
 
 - `videos` -> `video_id`
-- `transcripts` -> `video_id`
-- `chunks` -> `chunk_id`
-- `embeddings_text_gemini` -> `chunk_id`
-- `embeddings_video_gemini` -> `clip_id`
+- `transcripts_normalized` -> `video_id`
+- `video_segments_text` -> `chunk_id`
+- `video_segments_video` -> `clip_id`
+
+Notes:
+
+- `chunks.jsonl` is used as supporting metadata when building `video_segments_text`
+- empty video embeddings are skipped during upload rather than crashing the whole run

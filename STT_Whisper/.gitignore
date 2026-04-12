@@ -1,0 +1,9 @@
+.tools
+.venv/
+__pycache__/
+*.pyc
+data/processed_audio/*.wav
+data/cache/transcripts/*.json
+data/outputs/*.json
+data/outputs/*.jsonl
+data/outputs/*.bak

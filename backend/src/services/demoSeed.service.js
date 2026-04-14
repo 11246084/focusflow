@@ -14,6 +14,10 @@ const {
   VIDEO_PROCESSING_STATUSES,
 } = require('../constants/enums');
 const { buildMockEmbedding } = require('./queryEmbedding.service');
+const {
+  COURSE_BRIDGE_MODES,
+  normalizeIdentifier,
+} = require('./bridgeScope.service');
 
 const DEMO_USERS = [
   {
@@ -120,21 +124,6 @@ const DEMO_CLIP = {
   keyPoints: ['QA API', 'video snippet', 'timestamp'],
 };
 
-function pickFirstDefined(...values) {
-  for (const value of values) {
-    if (value !== undefined && value !== null && value !== '') {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function normalizeIdentifier(...values) {
-  const value = pickFirstDefined(...values);
-  return value == null ? null : String(value);
-}
-
 async function collectPipelineBridgeVideos() {
   const [videos, segments] = await Promise.all([
     Video.find({}),
@@ -155,8 +144,8 @@ async function collectPipelineBridgeVideos() {
     }
 
     // Bridge only onto existing pipeline metadata docs. Demo/app-layer videos
-    // already have course ownership and should stay on the regular path.
-    return !video.courseId && !video.uploadedBy;
+    // stay on the regular backend-owned path even though they share `videos`.
+    return Video.isPipelineMetadataRecord(video);
   });
 }
 
@@ -463,6 +452,7 @@ async function seedDemoData({ silent = false } = {}) {
     segments: DEMO_SEGMENTS.map((segment) => segment.segmentId),
     pipelineBridge: pipelineBridgeCourse
       ? {
+        mode: COURSE_BRIDGE_MODES.QA_SCOPE_ONLY,
         courseId: String(pipelineBridgeCourse._id),
         title: pipelineBridgeCourse.title,
         videoIds: pipelineBridgeVideos.map((video) => String(video._id)),

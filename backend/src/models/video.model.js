@@ -5,6 +5,26 @@ const {
   VIDEO_PROCESSING_STATUS_VALUES,
 } = require('../constants/enums');
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function isAppOwnedVideoRecord(video) {
+  return Boolean(
+    video
+    && hasValue(video.courseId)
+    && hasValue(video.uploadedBy)
+    && hasValue(video.title)
+    && hasValue(video.processing?.status),
+  );
+}
+
+function isPipelineMetadataRecord(video) {
+  const externalVideoId = video?.video_id ?? video?.videoId;
+
+  return Boolean(hasValue(externalVideoId) && !isAppOwnedVideoRecord(video));
+}
+
 const processingSchema = new mongoose.Schema(
   {
     status: {
@@ -133,6 +153,8 @@ const videoSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    // `videos` is temporarily shared with pipeline metadata docs. Backend app-layer
+    // ownership is defined by course/upload/processing fields, not by `video_id` alone.
     // `completed` means the current processing pipeline finished and is ready
     // for later indexing / QA integration. We intentionally do not mix in `indexed`.
     processing: {
@@ -148,5 +170,8 @@ const videoSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+videoSchema.statics.isAppOwnedRecord = isAppOwnedVideoRecord;
+videoSchema.statics.isPipelineMetadataRecord = isPipelineMetadataRecord;
 
 module.exports = mongoose.model('Video', videoSchema);

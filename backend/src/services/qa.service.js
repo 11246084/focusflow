@@ -1,5 +1,4 @@
 const Course = require('../models/course.model');
-const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Clip = require('../models/clip.model');
 const AppError = require('../utils/appError');
@@ -10,6 +9,18 @@ const { embedQuery } = require('./queryEmbedding.service');
 const { generateAnswer } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
 const { USAGE_LOG_EVENTS } = require('../constants/enums');
+const {
+  normalizeSegment,
+  collectScopedVideos,
+  buildCourseBridgeSummary,
+  buildCourseSegmentScope,
+  buildSegmentLookupQuery,
+  segmentMatchesScope,
+} = require('./bridgeScope.service');
+const {
+  buildQaRuntimeSnapshot,
+  assertQaRuntimeConfiguration,
+} = require('./runtimeDiagnostics.service');
 
 function normalizeWords(text) {
   return String(text || '')
@@ -107,173 +118,6 @@ function computeLexicalScore(question, transcript) {
   return Math.max(wordScore, computeCharacterNgramScore(question, transcript));
 }
 
-function pickFirstDefined(...values) {
-  for (const value of values) {
-    if (value !== undefined && value !== null) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function normalizeIdentifier(...values) {
-  const normalizedValue = pickFirstDefined(...values);
-
-  if (normalizedValue == null || normalizedValue === '') {
-    return null;
-  }
-
-  return String(normalizedValue);
-}
-
-function normalizeNumber(...values) {
-  const normalizedValue = pickFirstDefined(...values);
-
-  if (normalizedValue == null || normalizedValue === '') {
-    return null;
-  }
-
-  const nextValue = Number(normalizedValue);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function normalizeTranscript(...values) {
-  const normalizedValue = pickFirstDefined(...values, '');
-  return String(normalizedValue).trim();
-}
-
-function normalizeSegment(segment) {
-  return {
-    segmentId: normalizeIdentifier(
-      segment.segmentId,
-      segment.segment_id,
-      segment.chunkId,
-      segment.chunk_id,
-      segment._id,
-    ),
-    videoId: normalizeIdentifier(segment.videoId, segment.video_id),
-    courseId: normalizeIdentifier(segment.courseId),
-    startSec: normalizeNumber(segment.startSec, segment.start_sec),
-    endSec: normalizeNumber(segment.endSec, segment.end_sec),
-    transcript: normalizeTranscript(segment.transcript, segment.text, segment.original_text),
-    embedding: Array.isArray(segment.embedding) ? segment.embedding : [],
-  };
-}
-
-function addIdentifier(targetSet, value) {
-  const normalizedValue = normalizeIdentifier(value);
-
-  if (normalizedValue) {
-    targetSet.add(normalizedValue);
-  }
-}
-
-function addVideoIdentifiers(targetSet, video) {
-  if (!video) {
-    return;
-  }
-
-  addIdentifier(targetSet, video._id);
-  addIdentifier(targetSet, video.id);
-  addIdentifier(targetSet, video.videoId);
-  addIdentifier(targetSet, video.video_id);
-}
-
-async function collectScopedVideos(course) {
-  const videosById = new Map();
-  const courseVideoRefs = (course.videoIds || [])
-    .map((videoId) => normalizeIdentifier(videoId))
-    .filter(Boolean);
-
-  const addVideo = (video) => {
-    if (!video) {
-      return;
-    }
-
-    const videoKey = normalizeIdentifier(video._id, video.id, video.videoId, video.video_id);
-
-    if (!videoKey || videosById.has(videoKey)) {
-      return;
-    }
-
-    videosById.set(videoKey, video);
-  };
-
-  const [courseVideos, referencedVideos] = await Promise.all([
-    Video.find({ courseId: course._id }),
-    courseVideoRefs.length ? Video.find({ _id: { $in: courseVideoRefs } }) : [],
-  ]);
-
-  for (const video of courseVideos) {
-    addVideo(video);
-  }
-
-  for (const video of referencedVideos) {
-    addVideo(video);
-  }
-
-  return {
-    courseVideoRefs,
-    videos: [...videosById.values()],
-  };
-}
-
-async function buildCourseSegmentScope(course) {
-  const allowedCourseIds = new Set([String(course._id)]);
-  const allowedVideoIds = new Set();
-  const { courseVideoRefs, videos } = await collectScopedVideos(course);
-
-  for (const video of videos) {
-    addVideoIdentifiers(allowedVideoIds, video);
-  }
-
-  for (const videoId of courseVideoRefs) {
-    addIdentifier(allowedVideoIds, videoId);
-  }
-
-  return {
-    allowedCourseIds,
-    allowedVideoIds,
-  };
-}
-
-function buildSegmentLookupQuery(scope) {
-  const conditions = [];
-
-  for (const courseId of scope.allowedCourseIds) {
-    conditions.push({ courseId });
-  }
-
-  if (scope.allowedVideoIds.size) {
-    const allowedVideoIds = [...scope.allowedVideoIds];
-    conditions.push({ videoId: { $in: allowedVideoIds } });
-    conditions.push({ video_id: { $in: allowedVideoIds } });
-  }
-
-  if (!conditions.length) {
-    return {};
-  }
-
-  if (conditions.length === 1) {
-    return conditions[0];
-  }
-
-  return { $or: conditions };
-}
-
-function segmentMatchesScope(segment, scope) {
-  if (segment.courseId) {
-    return scope.allowedCourseIds.has(segment.courseId);
-  }
-
-  if (!segment.videoId) {
-    return false;
-  }
-
-  return scope.allowedVideoIds.has(segment.videoId);
-}
-
 function mapSegmentMatch(segment, score) {
   return {
     segmentId: segment.segmentId,
@@ -285,13 +129,91 @@ function mapSegmentMatch(segment, score) {
   };
 }
 
+function buildRuntimeFallback({ stage, code, message, from = null, to = null }) {
+  return {
+    stage,
+    code,
+    message,
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  };
+}
+
+function buildRetrievalFallbacks(reasons) {
+  const fallbacks = [];
+
+  if (reasons.has('EMBEDDING_DIMENSION_MISMATCH')) {
+    fallbacks.push(buildRuntimeFallback({
+      stage: 'retrieval',
+      code: 'EMBEDDING_DIMENSION_MISMATCH',
+      from: 'vector',
+      to: 'lexical',
+      message: 'Query embeddings do not match stored segment embedding dimensions, so the backend ranked matches lexically.',
+    }));
+  }
+
+  if (reasons.has('SEGMENT_EMBEDDING_MISSING')) {
+    fallbacks.push(buildRuntimeFallback({
+      stage: 'retrieval',
+      code: 'SEGMENT_EMBEDDING_MISSING',
+      from: 'vector',
+      to: 'lexical',
+      message: 'Some scoped segments have no stored embedding, so the backend ranked matches lexically.',
+    }));
+  }
+
+  if (reasons.has('QUERY_EMBEDDING_EMPTY')) {
+    fallbacks.push(buildRuntimeFallback({
+      stage: 'retrieval',
+      code: 'QUERY_EMBEDDING_EMPTY',
+      from: 'vector',
+      to: 'lexical',
+      message: 'The query embedding was empty, so the backend ranked matches lexically.',
+    }));
+  }
+
+  if (!fallbacks.length && reasons.has('VECTOR_SCORING_UNAVAILABLE')) {
+    fallbacks.push(buildRuntimeFallback({
+      stage: 'retrieval',
+      code: 'VECTOR_SCORING_UNAVAILABLE',
+      from: 'vector',
+      to: 'lexical',
+      message: 'Vector scoring was unavailable, so the backend ranked matches lexically.',
+    }));
+  }
+
+  return fallbacks;
+}
+
 function rankSegments(segments, question, queryVector, scope) {
-  return segments
-    .map((segment) => normalizeSegment(segment))
+  const queryVectorLength = Array.isArray(queryVector) ? queryVector.length : 0;
+  const fallbackReasons = new Set();
+  let vectorScoreCount = 0;
+  let lexicalScoreCount = 0;
+
+  const matches = segments
     .filter((segment) => segmentMatchesScope(segment, scope))
     .map((segment) => {
       const cosine = computeCosineSimilarity(queryVector, segment.embedding);
-      const score = cosine ?? computeLexicalScore(question, segment.transcript);
+      let score = cosine;
+
+      if (cosine !== null) {
+        vectorScoreCount += 1;
+      } else {
+        lexicalScoreCount += 1;
+
+        if (!queryVectorLength) {
+          fallbackReasons.add('QUERY_EMBEDDING_EMPTY');
+        } else if (!Array.isArray(segment.embedding) || !segment.embedding.length) {
+          fallbackReasons.add('SEGMENT_EMBEDDING_MISSING');
+        } else if (segment.embedding.length !== queryVectorLength) {
+          fallbackReasons.add('EMBEDDING_DIMENSION_MISMATCH');
+        } else {
+          fallbackReasons.add('VECTOR_SCORING_UNAVAILABLE');
+        }
+
+        score = computeLexicalScore(question, segment.transcript);
+      }
 
       return {
         segment,
@@ -302,32 +224,76 @@ function rankSegments(segments, question, queryVector, scope) {
     .sort((left, right) => right.score - left.score)
     .slice(0, env.qaMatchLimit)
     .map((item) => mapSegmentMatch(item.segment, item.score));
+
+  const scoringMode = vectorScoreCount && lexicalScoreCount
+    ? 'mixed'
+    : vectorScoreCount
+      ? 'vector'
+      : 'lexical';
+
+  return {
+    matches,
+    diagnostics: {
+      searchBackendUsed: 'memory',
+      scoringMode,
+      fallbacks: buildRetrievalFallbacks(fallbackReasons),
+    },
+  };
 }
 
-async function searchSegmentsInMemory(scope, question, queryVector) {
+async function loadScopedSearchableSegments(scope) {
   const segments = await VideoSegment.find(buildSegmentLookupQuery(scope));
+
+  return segments
+    .map((segment) => normalizeSegment(segment))
+    .filter((segment) => segmentMatchesScope(segment, scope))
+    .filter((segment) => segment.transcript);
+}
+
+async function searchSegmentsInMemory(scope, question, queryVector, scopedSegments = null) {
+  const segments = scopedSegments || await loadScopedSearchableSegments(scope);
   return rankSegments(segments, question, queryVector, scope);
 }
 
 function buildAtlasSegmentFilter(scope) {
+  if (env.qaAtlasFilterMode !== 'bridge_course_or_video') {
+    return null;
+  }
+
   return buildSegmentLookupQuery(scope);
 }
 
-async function searchSegmentsWithAtlas(scope, question, queryVector) {
+async function searchSegmentsWithAtlas(scope, queryVector) {
   if (!Array.isArray(queryVector) || !queryVector.length) {
-    return searchSegmentsInMemory(scope, question, queryVector);
+    throw new AppError(
+      'Atlas vector search requires a non-empty query embedding.',
+      500,
+      'QA_RUNTIME_MISCONFIGURED',
+      buildQaRuntimeSnapshot(),
+    );
+  }
+
+  const atlasFilter = buildAtlasSegmentFilter(scope);
+
+  if (!env.qaAtlasVectorIndexName || !atlasFilter) {
+    throw new AppError(
+      'Atlas vector search is configured without a ready index or filter contract.',
+      500,
+      'QA_RUNTIME_MISCONFIGURED',
+      buildQaRuntimeSnapshot(),
+    );
   }
 
   try {
     const results = await VideoSegment.aggregate([
       {
         $vectorSearch: {
-          index: 'vector_index',
+          index: env.qaAtlasVectorIndexName,
           path: 'embedding',
           queryVector,
           numCandidates: Math.max(env.qaMatchLimit * 5, 10),
           limit: env.qaMatchLimit,
-          filter: buildAtlasSegmentFilter(scope),
+          filter: atlasFilter,
         },
       },
       {
@@ -352,23 +318,45 @@ async function searchSegmentsWithAtlas(scope, question, queryVector) {
       },
     ]);
 
-    const matches = results
-      .map((item) => ({
-        score: item.score,
-        segment: normalizeSegment(item),
-      }))
-      .filter((item) => item.score > 0)
-      .filter((item) => segmentMatchesScope(item.segment, scope))
-      .map((item) => mapSegmentMatch(item.segment, item.score));
-
-    if (matches.length) {
-      return matches;
-    }
+    return {
+      matches: results
+        .map((item) => ({
+          score: item.score,
+          segment: normalizeSegment(item),
+        }))
+        .filter((item) => item.score > 0)
+        .filter((item) => segmentMatchesScope(item.segment, scope))
+        .map((item) => mapSegmentMatch(item.segment, item.score)),
+      diagnostics: {
+        searchBackendUsed: 'atlas',
+        scoringMode: 'vector',
+        fallbacks: [],
+      },
+    };
   } catch (error) {
-    return searchSegmentsInMemory(scope, question, queryVector);
+    throw new AppError(
+      'Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.',
+      503,
+      'QA_ATLAS_NOT_READY',
+      {
+        ...buildQaRuntimeSnapshot(),
+        atlasVectorIndexName: env.qaAtlasVectorIndexName,
+        cause: error.message,
+      },
+    );
   }
+}
 
-  return searchSegmentsInMemory(scope, question, queryVector);
+function buildCourseRuntimeSummary(summary) {
+  return {
+    qaScopeOnly: summary.qaScopeOnly,
+    bridgeMode: summary.bridgeMode,
+    videoCount: summary.videoCount,
+    appVideoCount: summary.appVideoCount,
+    bridgeVideoCount: summary.bridgeVideoCount,
+    bridgeContract: summary.bridgeContract,
+    bridgeContractPath: summary.bridgeContractPath,
+  };
 }
 
 async function findCachedClip(segmentId) {
@@ -391,7 +379,45 @@ async function findCachedClip(segmentId) {
   };
 }
 
+function buildQaRuntime({
+  runtimeSnapshot,
+  courseSummary,
+  searchableSegmentCount,
+  matchStatus,
+  searchDiagnostics,
+  answerResult,
+}) {
+  const answerFallbacks = answerResult?.fallback ? [answerResult.fallback] : [];
+  const fallbacks = [...(searchDiagnostics?.fallbacks || []), ...answerFallbacks];
+  const degradedReasons = [];
+
+  if (matchStatus === 'no_searchable_segments') {
+    degradedReasons.push('NO_SEARCHABLE_SEGMENTS');
+  }
+
+  for (const fallback of fallbacks) {
+    degradedReasons.push(fallback.code);
+  }
+
+  const status = degradedReasons.length ? 'degraded' : 'ready';
+
+  return {
+    ...runtimeSnapshot,
+    status,
+    degraded: status === 'degraded',
+    degradedReasons,
+    searchBackendUsed: searchDiagnostics?.searchBackendUsed || env.qaVectorSearchMode,
+    scoringMode: searchDiagnostics?.scoringMode || 'lexical',
+    searchableSegmentCount,
+    matchStatus,
+    course: buildCourseRuntimeSummary(courseSummary),
+    answerProviderUsed: answerResult?.provider || null,
+    fallbacks,
+  };
+}
+
 async function askQuestion({ user, courseId, question, source = 'api' }) {
+  const runtimeSnapshot = assertQaRuntimeConfiguration();
   assertObjectId(courseId, 'course');
 
   const trimmedQuestion = String(question || '').trim();
@@ -405,14 +431,25 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
   }
 
   await assertCanAccessCourse(user, course);
-  const segmentScope = await buildCourseSegmentScope(course);
+  const scopedVideos = await collectScopedVideos(course);
+  const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
+  const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+  const scopedSegments = await loadScopedSearchableSegments(segmentScope);
 
-  const queryVector = await embedQuery(trimmedQuestion);
-  const matches = env.qaVectorSearchMode === 'atlas'
-    ? await searchSegmentsWithAtlas(segmentScope, trimmedQuestion, queryVector)
-    : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector);
+  if (!scopedSegments.length) {
+    const runtime = buildQaRuntime({
+      runtimeSnapshot,
+      courseSummary,
+      searchableSegmentCount: 0,
+      matchStatus: 'no_searchable_segments',
+      searchDiagnostics: {
+        searchBackendUsed: env.qaVectorSearchMode,
+        scoringMode: 'unavailable',
+        fallbacks: [],
+      },
+      answerResult: null,
+    });
 
-  if (!matches.length) {
     await recordUsage({
       userId: user.id,
       courseId: course._id,
@@ -421,6 +458,47 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
         source,
         question: trimmedQuestion,
         matchCount: 0,
+        runtime,
+      },
+    });
+
+    const answer = courseSummary.qaScopeOnly
+      ? '這門課目前只有 bridge metadata，尚未有可搜尋的影片片段。請先補 searchable segments，再進行 QA 展示。'
+      : '這門課目前還沒有可搜尋的影片片段，請先確認影片索引是否已完成。';
+
+    return {
+      answer,
+      matches: [],
+      clip: null,
+      runtime,
+    };
+  }
+
+  const queryVector = await embedQuery(trimmedQuestion);
+  const searchResult = env.qaVectorSearchMode === 'atlas'
+    ? await searchSegmentsWithAtlas(segmentScope, queryVector)
+    : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
+  const matches = searchResult.matches;
+
+  if (!matches.length) {
+    const runtime = buildQaRuntime({
+      runtimeSnapshot,
+      courseSummary,
+      searchableSegmentCount: scopedSegments.length,
+      matchStatus: 'no_relevant_match',
+      searchDiagnostics: searchResult.diagnostics,
+      answerResult: null,
+    });
+
+    await recordUsage({
+      userId: user.id,
+      courseId: course._id,
+      event: USAGE_LOG_EVENTS.ASK,
+      metadata: {
+        source,
+        question: trimmedQuestion,
+        matchCount: 0,
+        runtime,
       },
     });
 
@@ -428,11 +506,20 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
       answer: '目前找不到足夠相關的影片片段，請換個問法或確認課程是否已完成索引。',
       matches: [],
       clip: null,
+      runtime,
     };
   }
 
-  const answer = await generateAnswer(trimmedQuestion, matches);
+  const answerResult = await generateAnswer(trimmedQuestion, matches);
   const clip = await findCachedClip(matches[0].segmentId);
+  const runtime = buildQaRuntime({
+    runtimeSnapshot,
+    courseSummary,
+    searchableSegmentCount: scopedSegments.length,
+    matchStatus: 'matched',
+    searchDiagnostics: searchResult.diagnostics,
+    answerResult,
+  });
 
   await recordUsage({
     userId: user.id,
@@ -443,6 +530,7 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
       question: trimmedQuestion,
       matchCount: matches.length,
       topSegmentId: matches[0].segmentId,
+      runtime,
     },
   });
 
@@ -459,9 +547,10 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
   }
 
   return {
-    answer,
+    answer: answerResult.text,
     matches,
     clip,
+    runtime,
   };
 }
 

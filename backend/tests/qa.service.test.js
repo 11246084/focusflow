@@ -1,18 +1,34 @@
 const assert = require('node:assert/strict');
 const { beforeEach, describe, it } = require('node:test');
 const { askQuestion } = require('../src/services/qa.service');
+const env = require('../src/config/env');
+const VideoSegment = require('../src/models/videoSegment.model');
 const {
   ids,
   resetStore,
   store,
 } = require('./helpers/backendTestHarness');
 
+const originalFetch = global.fetch;
+
+function resetQaEnv() {
+  env.qaQueryEmbeddingProvider = 'mock';
+  env.qaVectorSearchMode = 'memory';
+  env.qaAnswerProvider = 'template';
+  env.qaAtlasVectorIndexName = '';
+  env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.geminiApiKey = '';
+  env.openaiApiKey = '';
+}
+
 describe('qa service', () => {
   beforeEach(() => {
     resetStore();
+    resetQaEnv();
+    global.fetch = originalFetch;
   });
 
-  it('uses in-memory ranking to return the best segment first', async () => {
+  it('uses in-memory ranking to return the best segment first and exposes runtime diagnostics', async () => {
     store.videoSegments.push({
       _id: 'segment-three-id',
       segmentId: 'segment-three',
@@ -36,6 +52,15 @@ describe('qa service', () => {
 
     assert.equal(result.matches[0].segmentId, ids.segmentOne);
     assert.equal(result.matches.length, 3);
+    assert.equal(result.runtime.queryEmbeddingProvider, 'mock');
+    assert.equal(result.runtime.searchBackendUsed, 'memory');
+    assert.equal(result.runtime.answerProviderUsed, 'template');
+    assert.equal(result.runtime.status, 'degraded');
+    assert.equal(result.runtime.degraded, true);
+    assert.equal(result.runtime.matchStatus, 'matched');
+    assert.equal(result.runtime.searchableSegmentCount, 3);
+    assert.equal(result.runtime.course.qaScopeOnly, false);
+    assert.equal(result.runtime.fallbacks.some((item) => item.code === 'SEGMENT_EMBEDDING_MISSING'), true);
   });
 
   it('normalizes snake_case segments and falls back to course video_id whitelist when courseId is missing', async () => {
@@ -263,9 +288,13 @@ describe('qa service', () => {
     assert.equal(result.matches.length, 1);
     assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideoExternal);
     assert.equal(result.matches[0].segmentId, 'segment-pipeline-bridge');
+    assert.equal(result.runtime.status, 'degraded');
+    assert.equal(result.runtime.degraded, true);
+    assert.equal(result.runtime.course.qaScopeOnly, true);
+    assert.equal(result.runtime.course.bridgeMode, 'qa_scope_only');
   });
 
-  it('matches Chinese pipeline segments through the bridge when lexical fallback cannot rely on spaced words', async () => {
+  it('marks embedding dimension mismatch when Chinese pipeline segments rely on lexical fallback', async () => {
     store.courses.push({
       _id: ids.pipelineBridgeCourse,
       title: 'Pipeline Bridge Course',
@@ -307,6 +336,51 @@ describe('qa service', () => {
     assert.equal(result.matches.length, 1);
     assert.equal(result.matches[0].segmentId, 'segment-pipeline-bridge-zh');
     assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideoExternal);
+    assert.equal(
+      result.runtime.fallbacks.some((item) => item.code === 'EMBEDDING_DIMENSION_MISMATCH'),
+      true,
+    );
+  });
+
+  it('returns explicit no-searchable-data diagnostics for metadata-only bridge courses', async () => {
+    store.courses.push({
+      _id: ids.pipelineBridgeCourse,
+      title: 'Pipeline Bridge Course',
+      description: 'QA bridge course',
+      teacherId: ids.teacher,
+      videoIds: [ids.pipelineBridgeVideo],
+      status: 'published',
+      createdAt: '2026-04-13T08:00:00.000Z',
+    });
+
+    store.videos.push({
+      _id: ids.pipelineBridgeVideo,
+      video_id: ids.pipelineBridgeVideoExternal,
+      file_name: 'pipeline-bridge.mp4',
+      duration_sec: 420,
+      createdAt: '2026-04-13T08:01:00.000Z',
+      updatedAt: '2026-04-13T08:01:00.000Z',
+    });
+
+    const result = await askQuestion({
+      user: {
+        id: ids.student,
+        role: 'student',
+      },
+      courseId: ids.pipelineBridgeCourse,
+      question: '這門課可以問什麼？',
+      source: 'service-test',
+    });
+
+    assert.equal(result.matches.length, 0);
+    assert.equal(result.clip, null);
+    assert.equal(result.runtime.status, 'degraded');
+    assert.equal(result.runtime.degraded, true);
+    assert.equal(result.runtime.matchStatus, 'no_searchable_segments');
+    assert.equal(result.runtime.searchableSegmentCount, 0);
+    assert.equal(result.runtime.degradedReasons.includes('NO_SEARCHABLE_SEGMENTS'), true);
+    assert.equal(result.runtime.course.qaScopeOnly, true);
+    assert.match(result.answer, /只有 bridge metadata/);
   });
 
   it('returns null clip data when no cached clip exists and skips clip_view logging', async () => {
@@ -325,5 +399,65 @@ describe('qa service', () => {
     assert.equal(result.clip, null);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'ask'), true);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
+  });
+
+  it('fails fast when atlas mode is combined with mock query embeddings', async () => {
+    env.qaVectorSearchMode = 'atlas';
+    env.qaAtlasVectorIndexName = 'text_embedding_index';
+
+    await assert.rejects(
+      () => askQuestion({
+        user: {
+          id: ids.student,
+          role: 'student',
+        },
+        courseId: ids.publishedCourse,
+        question: 'What does the course say about JWT authentication?',
+        source: 'service-test',
+      }),
+      (error) => error.code === 'QA_RUNTIME_MISCONFIGURED',
+    );
+  });
+
+  it('surfaces atlas-not-ready errors instead of silently falling back to memory', async () => {
+    const originalAggregate = VideoSegment.aggregate;
+
+    env.qaQueryEmbeddingProvider = 'openai';
+    env.openaiApiKey = 'openai-test-key';
+    env.qaVectorSearchMode = 'atlas';
+    env.qaAtlasVectorIndexName = 'text_embedding_index';
+    global.fetch = async () => ({
+      ok: true,
+      async json() {
+        return {
+          data: [
+            {
+              embedding: [0.1, 0.2, 0.3],
+            },
+          ],
+        };
+      },
+    });
+    VideoSegment.aggregate = async () => {
+      throw new Error('Atlas index not ready');
+    };
+
+    try {
+      await assert.rejects(
+        () => askQuestion({
+          user: {
+            id: ids.student,
+            role: 'student',
+          },
+          courseId: ids.publishedCourse,
+          question: 'What does the course say about JWT authentication?',
+          source: 'service-test',
+        }),
+        (error) => error.code === 'QA_ATLAS_NOT_READY',
+      );
+    } finally {
+      VideoSegment.aggregate = originalAggregate;
+      global.fetch = originalFetch;
+    }
   });
 });

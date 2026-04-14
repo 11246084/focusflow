@@ -1,6 +1,10 @@
-﻿const express = require('express');
+const express = require('express');
 const env = require('../config/env');
 const { sendSuccess } = require('../utils/apiResponse');
+const {
+  buildQaRuntimeSnapshot,
+  buildLineRuntimeSnapshot,
+} = require('../services/runtimeDiagnostics.service');
 
 const router = express.Router();
 
@@ -11,6 +15,10 @@ router.get('/', (req, res) => {
       service: 'focusflow-backend',
       environment: env.nodeEnv,
       timestamp: new Date().toISOString(),
+      runtime: {
+        qa: buildQaRuntimeSnapshot(),
+        line: buildLineRuntimeSnapshot(),
+      },
     },
   });
 });

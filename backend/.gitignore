@@ -1,7 +1,30 @@
-# Backend-specific runtime artifacts. Shared rules such as `.env`,
-# `node_modules`, and `coverage` are handled by the repo root `.gitignore`.
-docs/implementation-log.md
-docs/README.md
-docs/task-plan.md
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Runtime and diagnostic output
+logs/
+*.log
+coverage/
+.nyc_output/
+tmp/
+
+# Uploaded or generated backend files
 uploads/*
 !uploads/.gitkeep
+
+# Local editor / OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+docs/implementation-log.md

@@ -319,6 +319,82 @@ describe('course and video routes', () => {
     assert.equal(result.body.data.video._id, enrolledVideoId);
   });
 
+  it('marks bridge courses and returns metadata-only bridge videos for QA-scope presentation', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    store.courses.push({
+      _id: ids.pipelineBridgeCourse,
+      title: 'FocusFlow Pipeline Bridge Course',
+      description: 'Bridge course for QA-only scoping.',
+      teacherId: ids.teacher,
+      videoIds: [ids.pipelineBridgeVideo],
+      status: 'published',
+      createdAt: '2026-04-13T08:00:00.000Z',
+    });
+
+    store.videos.push({
+      _id: ids.pipelineBridgeVideo,
+      video_id: ids.pipelineBridgeVideoExternal,
+      file_name: 'pipeline-bridge.mp4',
+      duration_sec: 900,
+      createdAt: '2026-04-13T08:00:00.000Z',
+      updatedAt: '2026-04-13T08:00:00.000Z',
+    });
+
+    const courseListResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', {
+      token: teacherToken,
+    });
+    const courseDetailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.pipelineBridgeCourse}`,
+      { token: teacherToken },
+    );
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.pipelineBridgeCourse}/videos`,
+      { token: teacherToken },
+    );
+    const detailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.pipelineBridgeVideo}`,
+      { token: teacherToken },
+    );
+    const processingResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.pipelineBridgeVideo}/processing`,
+      { token: teacherToken },
+    );
+
+    const bridgeCourseInList = courseListResult.body.data.courses.find((course) => course._id === ids.pipelineBridgeCourse);
+
+    assert.equal(courseListResult.status, 200);
+    assert.ok(bridgeCourseInList);
+    assert.equal(bridgeCourseInList.qaScopeOnly, true);
+    assert.equal(bridgeCourseInList.bridgeMode, 'qa_scope_only');
+    assert.equal(bridgeCourseInList.bridgeContract, 'course_video_refs_v1');
+    assert.match(bridgeCourseInList.bridgeContractPath, /course\.videoIds/);
+    assert.equal(bridgeCourseInList.bridgeVideoCount, 1);
+    assert.equal(bridgeCourseInList.videoCount, 1);
+    assert.equal(courseDetailResult.status, 200);
+    assert.equal(courseDetailResult.body.data.course.qaScopeOnly, true);
+    assert.equal(courseDetailResult.body.data.course.bridgeMode, 'qa_scope_only');
+    assert.equal(courseDetailResult.body.data.course.bridgeContract, 'course_video_refs_v1');
+    assert.equal(listResult.status, 200);
+    assert.equal(listResult.body.meta.qaScopeOnly, true);
+    assert.equal(listResult.body.meta.bridgeMode, 'qa_scope_only');
+    assert.equal(listResult.body.data.videos.length, 1);
+    assert.equal(listResult.body.data.videos[0]._id, ids.pipelineBridgeVideo);
+    assert.equal(listResult.body.data.videos[0].metadataOnly, true);
+    assert.equal(listResult.body.data.videos[0].qaScopeOnly, true);
+    assert.equal(listResult.body.data.videos[0].isAppOwned, false);
+    assert.equal(listResult.body.data.videos[0].externalVideoId, ids.pipelineBridgeVideoExternal);
+    assert.equal(detailResult.status, 200);
+    assert.equal(detailResult.body.data.video.metadataOnly, true);
+    assert.equal(detailResult.body.data.video.courseId, ids.pipelineBridgeCourse);
+    assert.equal(processingResult.status, 409);
+    assert.equal(processingResult.body.error.code, 'VIDEO_METADATA_ONLY');
+  });
+
   it('allows owner teacher and admin to retry failed videos but rejects other roles', async () => {
     const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
     const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');

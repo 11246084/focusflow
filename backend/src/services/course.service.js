@@ -10,6 +10,15 @@ const {
   assertCanAccessCourse,
 } = require('./courseAccess.service');
 const { COURSE_STATUSES } = require('../constants/enums');
+const {
+  buildCourseBridgePresentation,
+  collectScopedVideos,
+} = require('./bridgeScope.service');
+
+async function buildCoursePresentation(course) {
+  const scopedVideos = await collectScopedVideos(course);
+  return buildCourseBridgePresentation(course, scopedVideos);
+}
 
 async function createCourse({ title, description, teacherId, status, creator }) {
   const ownerId = isAdmin(creator) && teacherId ? teacherId : creator.id;
@@ -20,24 +29,23 @@ async function createCourse({ title, description, teacherId, status, creator }) 
     ...(status ? { status } : {}),
   });
 
-  return Course.findById(course._id).populate('teacherId', 'name email role isActive');
+  const createdCourse = await Course.findById(course._id).populate('teacherId', 'name email role isActive');
+  return buildCoursePresentation(createdCourse);
 }
 
 async function listCourses(user) {
-  if (isAdmin(user)) {
-    return Course.find().populate('teacherId', 'name email role isActive').sort({ createdAt: -1 });
-  }
+  let courses = [];
 
-  if (isTeacher(user)) {
-    return Course.find({ teacherId: user.id })
+  if (isAdmin(user)) {
+    courses = await Course.find().populate('teacherId', 'name email role isActive').sort({ createdAt: -1 });
+  } else if (isTeacher(user)) {
+    courses = await Course.find({ teacherId: user.id })
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
-  }
-
-  if (isStudent(user)) {
+  } else if (isStudent(user)) {
     const enrolledCourseIds = await getStudentEnrollmentCourseIds(user.id);
 
-    return Course.find({
+    courses = await Course.find({
       $or: [
         { status: COURSE_STATUSES.PUBLISHED },
         { _id: { $in: enrolledCourseIds } },
@@ -47,7 +55,7 @@ async function listCourses(user) {
       .sort({ createdAt: -1 });
   }
 
-  return [];
+  return Promise.all(courses.map((course) => buildCoursePresentation(course)));
 }
 
 async function getCourseById(courseId, user) {
@@ -61,7 +69,7 @@ async function getCourseById(courseId, user) {
 
   await assertCanAccessCourse(user, course);
 
-  return course;
+  return buildCoursePresentation(course);
 }
 
 async function ensureStudentEnrollment(studentId, courseId) {

@@ -15,14 +15,26 @@ function buildTemplateAnswer(question, matches) {
   return `根據目前最相關的課程片段，這個問題和影片內容最接近的說明是：${excerpt}`;
 }
 
+function buildAnswerResult({ text, provider, fallback = null }) {
+  return {
+    text,
+    provider,
+    fallback,
+  };
+}
+
+function buildPrompt(question, matches) {
+  const context = matches
+    .map((match, index) => `片段 ${index + 1} (${match.startSec}-${match.endSec}s): ${match.transcript}`)
+    .join('\n');
+
+  return `問題：${question}\n\n影片片段：\n${context}`;
+}
+
 async function generateAnswerWithOpenAI(question, matches) {
   if (!env.openaiApiKey) {
     throw new AppError('OPENAI_API_KEY is required for OpenAI answers.', 500, 'ANSWER_PROVIDER_NOT_CONFIGURED');
   }
-
-  const context = matches
-    .map((match, index) => `片段 ${index + 1} (${match.startSec}-${match.endSec}s): ${match.transcript}`)
-    .join('\n');
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -39,7 +51,7 @@ async function generateAnswerWithOpenAI(question, matches) {
         },
         {
           role: 'user',
-          content: `問題：${question}\n\n片段內容：\n${context}`,
+          content: buildPrompt(question, matches),
         },
       ],
     }),
@@ -54,18 +66,121 @@ async function generateAnswerWithOpenAI(question, matches) {
   return payload.choices?.[0]?.message?.content?.trim() || buildTemplateAnswer(question, matches);
 }
 
+function extractGeminiText(payload) {
+  const parts = payload?.candidates?.[0]?.content?.parts;
+
+  if (!Array.isArray(parts)) {
+    return '';
+  }
+
+  return parts
+    .map((part) => part?.text || '')
+    .join('')
+    .trim();
+}
+
+async function generateAnswerWithGemini(question, matches) {
+  if (!env.geminiApiKey) {
+    throw new AppError('GEMINI_API_KEY is required for Gemini answers.', 500, 'ANSWER_PROVIDER_NOT_CONFIGURED');
+  }
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.geminiChatModel}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': env.geminiApiKey,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [
+          {
+            text: 'You answer questions about a course video using only the provided transcript snippets. If the snippets are insufficient, say so briefly. Keep the answer concise and grounded in the snippets.',
+          },
+        ],
+      },
+      contents: [
+        {
+          parts: [
+            {
+              text: buildPrompt(question, matches),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'text/plain',
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new AppError('Failed to generate answer.', 502, 'ANSWER_PROVIDER_ERROR', payload);
+  }
+
+  const payload = await response.json();
+  return extractGeminiText(payload) || buildTemplateAnswer(question, matches);
+}
+
 async function generateAnswer(question, matches) {
   if (!matches.length) {
-    return buildTemplateAnswer(question, matches);
+    return buildAnswerResult({
+      text: buildTemplateAnswer(question, matches),
+      provider: 'template',
+    });
+  }
+
+  if (env.qaAnswerProvider === 'template') {
+    return buildAnswerResult({
+      text: buildTemplateAnswer(question, matches),
+      provider: 'template',
+    });
   }
 
   if (env.qaAnswerProvider === 'openai') {
-    return generateAnswerWithOpenAI(question, matches);
+    return buildAnswerResult({
+      text: await generateAnswerWithOpenAI(question, matches),
+      provider: 'openai',
+    });
   }
 
-  return buildTemplateAnswer(question, matches);
+  if (env.qaAnswerProvider === 'gemini') {
+    try {
+      return buildAnswerResult({
+        text: await generateAnswerWithGemini(question, matches),
+        provider: 'gemini',
+      });
+    } catch (error) {
+      if (error instanceof AppError && error.code === 'ANSWER_PROVIDER_NOT_CONFIGURED') {
+        throw error;
+      }
+
+      return buildAnswerResult({
+        text: buildTemplateAnswer(question, matches),
+        provider: 'template',
+        fallback: {
+          stage: 'answer',
+          from: 'gemini',
+          to: 'template',
+          code: error.code || 'ANSWER_PROVIDER_ERROR',
+          message: 'Gemini answer generation failed, so the backend used the template answer fallback.',
+        },
+      });
+    }
+  }
+
+  throw new AppError(
+    `Unsupported QA answer provider "${env.qaAnswerProvider}".`,
+    500,
+    'QA_RUNTIME_MISCONFIGURED',
+    {
+      answerProvider: env.qaAnswerProvider,
+    },
+  );
 }
 
 module.exports = {
   generateAnswer,
+  buildTemplateAnswer,
+  buildAnswerResult,
 };

@@ -1,455 +1,238 @@
-# Focus Flow Backend
+# FocusFlow Backend
 
-`focus flow` 第一階段目標是做出教學影片問答系統的 MVP。這一版 backend 已經有可 demo 的主線：登入與權限控制、課程與影片管理、問答 API、LINE webhook，以及可被外部 worker 接上的影片處理狀態機。
+`focusflow` phase-1 MVP 的 backend 目前已整理到可穩定 demo、可重現、可交接的狀態，但仍明確保留 phase-1 的 bridge 與協作邊界。
 
-## 目前範圍
+## 目前真實 runtime
 
-- Node.js + Express 後端
-- MongoDB Atlas / MongoDB model 與基本資料流
-- JWT 登入與 `auth/me`
-- `teacher / admin / student` 權限與課程存取規則
-- 課程建立 / 查詢
-- 本機影片上傳到 `uploads/`
-- 嚴格模式的影片 processing lifecycle
-- `POST /api/v1/qa/ask`
-- `POST /api/v1/line/webhook`
-- 不依賴本機 MongoDB 的 route / service 測試
-
-## 專案結構
-
-```text
-backend/
-  src/
-    app.js
-    server.js
-    config/
-    routes/
-    controllers/
-    services/
-    models/
-    middleware/
-    utils/
-    constants/
-    scripts/
-  tests/
-  docs/
-  uploads/
-```
-
-## 安裝與啟動
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-npm run dev
-```
-
-Windows PowerShell:
-
-```powershell
-cd backend
-Copy-Item .env.example .env
-npm run dev
-```
-
-如果 `.env` 中 `DEMO_SEED_ENABLED=true`，server 啟動時會自動 upsert demo 帳號。
-
-目前開發環境已驗證可直接連到 MongoDB Atlas，並通過：
-
-- backend 啟動成功
-- `GET /health` 回傳 `200 OK`
-
-如果你使用 Atlas，請另外確認：
-
-- `MONGODB_URI` 使用 `mongodb+srv://...`
-- `IP Access List` 已放行目前開發機
-- 資料庫帳號具備目標 database 的讀寫權限
-
-## 環境變數
-
-`backend/.env.example`
+phase-1 預設應視為：
 
 ```env
-NODE_ENV=development
-PORT=4000
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/focusflow?retryWrites=true&w=majority&appName=focusflow
-JWT_SECRET=change-me-in-local-env
-JWT_EXPIRES_IN=7d
-DEMO_SEED_ENABLED=true
-UPLOAD_DIR=uploads
+DEMO_SEED_ENABLED=false
 QA_QUERY_EMBEDDING_PROVIDER=mock
-QA_ANSWER_PROVIDER=template
 QA_VECTOR_SEARCH_MODE=memory
-QA_MATCH_LIMIT=3
-QA_MOCK_EMBEDDING_DIMENSIONS=32
-OPENAI_API_KEY=
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_CHAT_MODEL=gpt-4o-mini
-LINE_CHANNEL_SECRET=
-LINE_CHANNEL_ACCESS_TOKEN=
-PROCESSING_WEBHOOK_SECRET=
+QA_ANSWER_PROVIDER=gemini
+QA_ATLAS_FILTER_MODE=bridge_course_or_video
+QA_ATLAS_VECTOR_INDEX_NAME=
 ```
 
-重點說明：
+代表：
+
+- query embedding 仍是 mock，不是正式 3072 維對齊
+- retrieval 正式模式仍是 memory
+- answer provider 正式模式是 Gemini
+- startup 不會自動 seed
+
+## 必要 env
+
+最少需要：
+
+- `MONGODB_URI`
+- `JWT_SECRET`
+- `PROCESSING_WEBHOOK_SECRET`
+
+依 runtime 決定：
+
+- `GEMINI_API_KEY`
+  - `QA_ANSWER_PROVIDER=gemini` 時必填
+- `OPENAI_API_KEY`
+  - `QA_QUERY_EMBEDDING_PROVIDER=openai` 或 `QA_ANSWER_PROVIDER=openai` 時必填
+- `LINE_CHANNEL_SECRET`
+  - 驗 LINE webhook signature 必填
+- `LINE_CHANNEL_ACCESS_TOKEN`
+  - 要送出 live LINE reply 必填
+
+## Fail-Fast 與 Fallback
+
+### 會直接 fail-fast 的情況
+
+- `QA_QUERY_EMBEDDING_PROVIDER` / `QA_VECTOR_SEARCH_MODE` / `QA_ANSWER_PROVIDER` 設成不支援值
+- `QA_ANSWER_PROVIDER=gemini` 但缺 `GEMINI_API_KEY`
+- `QA_QUERY_EMBEDDING_PROVIDER=openai` 或 `QA_ANSWER_PROVIDER=openai` 但缺 `OPENAI_API_KEY`
+- `QA_VECTOR_SEARCH_MODE=atlas` 但缺 `QA_ATLAS_VECTOR_INDEX_NAME`
+- `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`
+- Atlas aggregate 失敗時，回 `503 QA_ATLAS_NOT_READY`
+
+### 目前仍保留 fallback，但會明確標記的情況
+
+- memory ranking 無法做向量比對時，退回 lexical ranking
+  - `/api/v1/qa/ask` 會回 `data.runtime.fallbacks`
+- Gemini 在已正確設定 key 的前提下若臨時失敗
+  - 會改用 template answer
+  - `/api/v1/qa/ask` 會回 `data.runtime.fallbacks`
+- LINE 在 backend-only / non-live 驗證時若缺 `LINE_CHANNEL_ACCESS_TOKEN`
+  - webhook 不會假裝 live reply 已送出
+  - 會回 `replySkipped=true` 與 `replyReason=line_channel_access_token_missing`
+
+## Health 與可觀測性
+
+`GET /health` 現在會回：
+
+- `runtime.qa`
+- `runtime.line`
+
+可快速看出：
+
+- 目前 QA provider / search mode / answer mode
+- `runtime.qa.readiness`
+  - `ready`
+  - `hard_fail`
+- `runtime.qa.readyForAsk`
+- `runtime.qa.warnings`
+- `runtime.qa.hardFailures`
+- Atlas index 是否有配置
+- Gemini / OpenAI key 是否已配置
+- LINE live flow 是否真的 ready
+- `runtime.line.readiness`
+  - `ready`
+  - `degraded`
+  - `hard_fail`
+- `runtime.line.deliveryMode`
+  - `live`
+  - `backend_only`
+  - `disabled`
+- `runtime.line.degradedReasons`
+- `runtime.line.hardFailures`
+
+## QA API
+
+### 目前最小 bridge contract
+
+`course.videoIds -> videos._id -> videos.video_id -> video_segments_text.video_id|videoId`
+
+### `/api/v1/qa/ask` 現在的可觀測欄位
+
+成功與 no-match 回應都會帶：
+
+- `data.runtime.status`
+  - `ready`
+  - `degraded`
+- `data.runtime.degraded`
+- `data.runtime.degradedReasons`
+- `data.runtime.matchStatus`
+  - `matched`
+  - `no_relevant_match`
+  - `no_searchable_segments`
+- `data.runtime.searchableSegmentCount`
+- `data.runtime.searchBackendUsed`
+- `data.runtime.answerProviderUsed`
+- `data.runtime.course.qaScopeOnly`
+- `data.runtime.course.bridgeMode`
+- `data.runtime.fallbacks`
 
-- `MONGODB_URI`: 本機可用 `mongodb://127.0.0.1:27017/focusflow`，若使用 Atlas，建議改成 `mongodb+srv://...`
-- `PROCESSING_WEBHOOK_SECRET`: internal processing endpoints 的 shared secret。未來 Python worker / callback 呼叫 `/api/v1/internal/...` 時要放在 `x-processing-secret` header。
-- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` 或 `openai`
-- `QA_ANSWER_PROVIDER`: `template` 或 `openai`
-- `QA_VECTOR_SEARCH_MODE`: `memory` 或 `atlas`
+### bridge course 沒 searchable data 時的行為
 
-本地 demo 預設使用 `mock + template + memory`。這一輪不會直接串 STT / Whisper / chunking 腳本。
+若課程只有 metadata、沒有 searchable segment：
 
-目前建議：
+- API 仍回 `200`
+- `matches=[]`
+- `runtime.matchStatus=no_searchable_segments`
+- answer 明確說明目前只有 bridge metadata，尚未有可搜尋片段
 
-- phase-1 MVP 開發與 demo 預設固定使用 `QA_VECTOR_SEARCH_MODE=memory`
-- 只有在 Atlas collection、filter 欄位與 vector index 都定版後，才切換到 `atlas`
+## Courses / Videos
 
-原因是目前 Atlas 現況仍偏向 pipeline 已上傳資料，還不是 backend 已完整對齊的最終查詢環境。
+`FocusFlow Pipeline Bridge Course` 目前不再是「課程列得出來，但影片清單空掉」。
 
-## Atlas 現況說明
+課程 response 會帶：
 
-截至 2026-04-12 的唯讀盤點：
+- `qaScopeOnly`
+- `bridgeMode`
+- `videoCount`
+- `appVideoCount`
+- `bridgeVideoCount`
+- `bridgeContract`
+- `bridgeContractPath`
 
-- Atlas 中已有部分 pipeline 資料，例如 `videos`、`video_segments_text`、`video_segments_video`
-- 但 backend 應用層主線依賴的 `courses`、`users`、`enrollments`、`clips` 目前仍未完整到位
-- 目前 Atlas 也還沒有正式的 vector search index 供 backend 直接切到 `atlas` 模式
-
-因此目前要區分兩件事：
-
-1. backend demo / seed 資料
-   - 用於登入、課程、權限、clip 回傳等完整 MVP 主線
-2. pipeline uploader 資料
-   - 用於 transcript / segment / embedding 類資料的匯入
-
-這兩條資料線目前尚未完全收斂成同一份正式 schema。
-
-## 與資料契約對齊（本次整理新增）
-
-目前正式資料契約請以：
-
-- [MongoDB_契約定版_v1.md](../docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
-
-為準。
-
-目前 backend 狀態是：
-
-- 已補上一部分相容欄位，讓舊 backend 與外部資料匯入可以暫時共存
-- 正式 v1 契約已改採 `video_segments_text` / `video_segments_video` 分流
-- 現行 backend 仍有部分查詢邏輯停留在 legacy `video_segments` / `clips`
-
-備註：
-
-- 這代表 backend README 已先對齊正式文件，但不代表所有 service 與 model 都已完成重構
-- 修改 backend schema / QA 查詢時，請優先參考 v1 契約文件，再確認是否需要保留過渡相容欄位
-
-目前 repo 已補上的相容欄位包含：
-
-- `course.videoIds`
-- `video.file_name`
-- `video.file_path`
-- `video.audio_path`
-- `video.duration_sec`
-- `video.video_source`
-- `video.video_url`
-- `videoSegment.chunk_id`
-- `videoSegment.original_text`
-- `videoSegment.corrections`
-- `enrollment.lineNotify`
-- `user.lineConversationState`
-
-這些欄位的用途是讓目前 backend 與外部資料匯入先共存，不代表它們全部都是 v1 正式欄位。
-
-## 測試帳號
-
-如果已執行 seed，可使用：
-
-- Teacher: `teacher@focusflow.local` / `Teacher123!`
-- Student: `student@focusflow.local` / `Student123!`
-- Admin: `admin@focusflow.local` / `Admin123!`
-
-## 影片處理狀態機
-
-這一輪保留 `completed` 命名，不改成 `indexed`。在目前 repo 中，`completed` 的語意是：
-
-- 影片處理 pipeline 已完成
-- backend 可視為後續 QA / indexing integration 的穩定接點
-
-這一輪不混用 `completed` 與 `indexed`。
-
-### Processing 欄位
-
-`videos.processing` 目前包含：
-
-- `status`
-- `errorMessage`
-- `errorCode`
-- `queuedAt`
-- `startedAt`
-- `completedAt`
-- `failedAt`
-- `attemptCount`
-
-### 狀態
-
-- `queued`
-- `processing`
-- `completed`
-- `failed`
-
-### 合法 transition
-
-- upload: 直接建立為 `queued`
-- internal start: `queued -> processing`
-- internal complete: `processing -> completed`
-- internal fail: `queued|processing -> failed`
-- manual retry: `failed -> queued`
-
-### 嚴格模式
-
-processing callback 目前採嚴格模式：
-
-- 非法 transition 一律回 `409`
-- 不做 idempotent callback
-- 重複 `start` / `complete` / `fail` 只要狀態不合法就回 `409`
-
-## API 清單
-
-### Public
-
-- `GET /health`
-
-### Auth
-
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
-
-### Courses
-
-- `POST /api/v1/courses`
-- `GET /api/v1/courses`
-- `GET /api/v1/courses/:courseId`
-
-### Videos
-
-- `POST /api/v1/courses/:courseId/videos`
-- `GET /api/v1/courses/:courseId/videos`
-- `GET /api/v1/videos/:videoId`
-- `GET /api/v1/videos/:videoId/processing`
-- `POST /api/v1/videos/:videoId/processing/retry`
-
-### Internal Processing
-
-- `POST /api/v1/internal/videos/:videoId/processing/start`
-- `POST /api/v1/internal/videos/:videoId/processing/complete`
-- `POST /api/v1/internal/videos/:videoId/processing/fail`
-
-### QA
-
-- `POST /api/v1/qa/ask`
-
-### LINE
-
-- `POST /api/v1/line/webhook`
-
-## Processing API 使用方式
-
-### 1. 上傳影片
-
-`POST /api/v1/courses/:courseId/videos`
-
-成功後 `processing.status` 會直接是 `queued`，並帶上：
-
-- `queuedAt`
-- `attemptCount = 0`
-
-### 2. 查詢 processing 狀態
-
-`GET /api/v1/videos/:videoId/processing`
-
-會回傳完整 processing metadata，例如：
-
-```json
-{
-  "success": true,
-  "message": "Video processing status fetched successfully.",
-  "data": {
-    "id": "507f191e810c19729de860ec",
-    "title": "Draft Video",
-    "processing": {
-      "status": "queued",
-      "errorMessage": null,
-      "errorCode": null,
-      "queuedAt": "2026-04-06T11:00:00.000Z",
-      "startedAt": null,
-      "completedAt": null,
-      "failedAt": null,
-      "attemptCount": 0
-    },
-    "updatedAt": "2026-04-06T11:00:00.000Z"
-  }
-}
-```
-
-### 3. 手動 retry
-
-`POST /api/v1/videos/:videoId/processing/retry`
+bridge course 的 `/api/v1/courses/:courseId/videos` 會回 `metadataOnly=true` 的 bridge rows。
 
 限制：
 
-- 需要 JWT
-- 只有 owner teacher 或 admin 可用
-- 只允許 `failed -> queued`
+- 這些 rows 可用於 QA scope
+- 不是完整 app-owned video
+- `GET /api/v1/videos/:videoId/processing` 會回 `409 VIDEO_METADATA_ONLY`
 
-retry 會：
+## LINE
 
-- 清掉 `errorMessage`
-- 清掉 `errorCode`
-- 清掉 `failedAt`
-- 清掉 `startedAt`
-- 清掉 `completedAt`
-- 更新 `queuedAt`
-- 保留既有 `attemptCount`
+### backend-only 可驗證內容
 
-### 4. Internal start
+- `POST /api/v1/line/bind-token`
+- bind token -> bind
+- `切換課程`
+- `select_course` postback
+- question routing 到 QA
 
-```http
-POST /api/v1/internal/videos/:videoId/processing/start
-x-processing-secret: <PROCESSING_WEBHOOK_SECRET>
+### live LINE 與 backend-only 的差異
+
+- 有 `LINE_CHANNEL_SECRET + LINE_CHANNEL_ACCESS_TOKEN`
+  - webhook 可驗簽且可送出 live reply
+- 只有 `LINE_CHANNEL_SECRET`
+  - webhook route 仍可做 backend-only 驗證
+  - `/health` 會顯示 `runtime.line.readiness=degraded`
+  - `/health` 會顯示 `runtime.line.deliveryMode=backend_only`
+  - 但結果會標示 `replySkipped=true`
+
+### LINE question flow 的 hard-fail 訊號
+
+若 LINE 問答碰到 QA runtime 問題，webhook result 不再只剩 generic `internal_error`，而會帶：
+
+- `reason`
+  - `qa_runtime_misconfigured`
+  - `qa_atlas_not_ready`
+  - `answer_provider_not_configured`
+  - `qa_internal_error`
+- `errorCode`
+- `qaRuntime.readiness`
+- `qaRuntime.readyForAsk`
+- `qaRuntime.hardFailureCodes`
+
+## Quick Start
+
+```powershell
+cd backend
+npm install
+Copy-Item .env.example .env
 ```
 
-只允許 `queued -> processing`。
+新環境若需要 demo 基礎資料，再手動執行：
 
-### 5. Internal complete
-
-```http
-POST /api/v1/internal/videos/:videoId/processing/complete
-x-processing-secret: <PROCESSING_WEBHOOK_SECRET>
-Content-Type: application/json
-
-{
-  "durationSec": 123,
-  "metadata": {
-    "ignoredForNow": true
-  }
-}
+```powershell
+cd backend
+npm run seed
 ```
 
-只允許 `processing -> completed`。`metadata` 目前接受但不寫入資料庫。
+說明：
 
-### 6. Internal fail
+- `npm run seed` 只建立 / 更新 backend demo users、courses、videos、segments、clip
+- 不負責 pipeline metadata
+- 不負責建立 Atlas vector index
+- 不會保證多影片 searchable coverage
 
-```http
-POST /api/v1/internal/videos/:videoId/processing/fail
-x-processing-secret: <PROCESSING_WEBHOOK_SECRET>
-Content-Type: application/json
+啟動：
 
-{
-  "errorMessage": "worker timeout",
-  "errorCode": "WORKER_TIMEOUT"
-}
+```powershell
+cd backend
+npm start
 ```
 
-只允許 `queued|processing -> failed`，且 `errorMessage` 必填。
+## 驗證
 
-## 權限規則
+這一輪已重新確認：
 
-- `admin`: 可存取與管理所有課程與影片
-- `teacher`: 只能管理自己建立的課程與影片
-- `student`: 可讀 `published` 課程，或已在 `enrollments` 中允許的課程
-- `GET /videos/:id/processing`: 僅 owner teacher 或 admin 可讀
-- `POST /videos/:id/processing/retry`: 僅 owner teacher 或 admin 可用
-- `/api/v1/internal/...`: 不使用 JWT，僅接受 `x-processing-secret`
+- `npm.cmd test`
+  - `65 / 65 passed`（2026-04-15）
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\\mvp.acceptance.test.js`
+  - 鎖 `health -> auth -> courses -> QA -> LINE` backend-only demo 主線
+- `tests\\health.routes.test.js`
+  - 鎖 `/health` readiness / deliveryMode contract
+- 實際 backend startup + `/health`
+  - passed（2026-04-14）
+- `auth / me`、courses、bridge course videos、QA、LINE bind/ask
+  - 以 backend route tests / harness 重新驗證
+  - 這樣可避免在共享 MongoDB 上新增 usage log / bind token
 
-## 本地手動測 processing flow
+## 先看哪些文件
 
-以下範例假設你已登入並拿到 teacher token：
-
-### 1. 上傳影片
-
-```bash
-curl -X POST http://127.0.0.1:4000/api/v1/courses/<courseId>/videos \
-  -H "Authorization: Bearer <teacher-token>" \
-  -F "title=Processing Demo" \
-  -F "video=@./demo.mp4"
-```
-
-### 2. 查詢 queued 狀態
-
-```bash
-curl http://127.0.0.1:4000/api/v1/videos/<videoId>/processing \
-  -H "Authorization: Bearer <teacher-token>"
-```
-
-### 3. 模擬 worker start
-
-```bash
-curl -X POST http://127.0.0.1:4000/api/v1/internal/videos/<videoId>/processing/start \
-  -H "x-processing-secret: <PROCESSING_WEBHOOK_SECRET>"
-```
-
-### 4. 模擬 worker complete
-
-```bash
-curl -X POST http://127.0.0.1:4000/api/v1/internal/videos/<videoId>/processing/complete \
-  -H "Content-Type: application/json" \
-  -H "x-processing-secret: <PROCESSING_WEBHOOK_SECRET>" \
-  -d "{\"durationSec\": 123}"
-```
-
-### 5. 模擬 fail 後 retry
-
-```bash
-curl -X POST http://127.0.0.1:4000/api/v1/internal/videos/<videoId>/processing/fail \
-  -H "Content-Type: application/json" \
-  -H "x-processing-secret: <PROCESSING_WEBHOOK_SECRET>" \
-  -d "{\"errorMessage\": \"worker timeout\", \"errorCode\": \"WORKER_TIMEOUT\"}"
-```
-
-```bash
-curl -X POST http://127.0.0.1:4000/api/v1/videos/<videoId>/processing/retry \
-  -H "Authorization: Bearer <teacher-token>"
-```
-
-## 測試
-
-```bash
-node --test --experimental-test-isolation=none --test-concurrency=1
-```
-
-目前測試覆蓋：
-
-- auth
-- course / video routes
-- processing detail / retry / internal lifecycle routes
-- qa routes / service
-- line webhook
-
-## 目前不做的事
-
-- 不直接呼叫 `STT_Whisper` 腳本
-- 不直接匯入 legacy `video_segments` / `clips` 契約
-- 不提供 teacher/admin 手動標記 complete/fail
-- 不引入 queue system 或 background job framework
-
-## 下一步建議
-
-- 驗證 `auth`、`courses`、`videos` API 在 Atlas 上的實際讀寫行為
-- 決定 demo seed 是否保留在目前 Atlas 開發資料庫
-- 接上實際 STT / chunking / embeddings pipeline，讓 internal endpoints 由 Python worker 呼叫
-- 依 `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md` 改寫正式匯入契約
-- 把 QA 從 `mock + template + memory` 升級到正式 Gemini / Atlas 或其他定版 provider
-## Demo Seed Data
-
-`npm run seed` now seeds a reusable demo dataset, not only the three demo users.
-
-Seeded content includes:
-
-- teacher, student, and admin demo accounts
-- one published course for QA walkthroughs
-- one draft course for processing / retry walkthroughs
-- two demo videos with `completed` and `failed` processing states
-- three QA segments and one cached clip
-
-If `DEMO_SEED_ENABLED=true`, the same dataset is upserted automatically on server startup.
+- [backend/docs/current-state.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/current-state.md)
+- [backend/docs/demo-runbook.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/demo-runbook.md)
+- [backend/docs/handoff-known-issues.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/handoff-known-issues.md)
+- [backend/docs/task-plan.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/task-plan.md)
+- [backend/docs/implementation-log.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/implementation-log.md)

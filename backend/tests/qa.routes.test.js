@@ -10,6 +10,17 @@ const {
   loginAs,
   store,
 } = require('./helpers/backendTestHarness');
+const env = require('../src/config/env');
+
+function resetQaEnv() {
+  env.qaQueryEmbeddingProvider = 'mock';
+  env.qaVectorSearchMode = 'memory';
+  env.qaAnswerProvider = 'template';
+  env.qaAtlasVectorIndexName = '';
+  env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.geminiApiKey = '';
+  env.openaiApiKey = '';
+}
 
 describe('qa routes', () => {
   let serverContext;
@@ -24,6 +35,7 @@ describe('qa routes', () => {
 
   beforeEach(() => {
     resetStore();
+    resetQaEnv();
   });
 
   it('requires authentication', async () => {
@@ -106,7 +118,7 @@ describe('qa routes', () => {
     assert.equal(result.body.error.code, 'COURSE_ACCESS_DENIED');
   });
 
-  it('returns empty results when no segment matches', async () => {
+  it('returns empty results with runtime diagnostics when no segment matches', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
@@ -121,11 +133,16 @@ describe('qa routes', () => {
     assert.equal(result.status, 200);
     assert.equal(result.body.data.matches.length, 0);
     assert.equal(result.body.data.clip, null);
+    assert.equal(result.body.data.runtime.status, 'degraded');
+    assert.equal(result.body.data.runtime.degraded, true);
+    assert.equal(result.body.data.runtime.matchStatus, 'no_relevant_match');
+    assert.equal(result.body.data.runtime.searchableSegmentCount, 2);
+    assert.equal(result.body.data.runtime.degradedReasons.includes('SEGMENT_EMBEDDING_MISSING'), true);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'ask'), true);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
   });
 
-  it('returns matches, cached clip data, and usage logs on success', async () => {
+  it('returns matches, cached clip data, and runtime diagnostics on success', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
@@ -146,6 +163,13 @@ describe('qa routes', () => {
       ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
     );
     assert.equal(result.body.data.clip.segmentId, ids.segmentOne);
+    assert.equal(result.body.data.runtime.status, 'degraded');
+    assert.equal(result.body.data.runtime.degraded, true);
+    assert.equal(result.body.data.runtime.queryEmbeddingProvider, 'mock');
+    assert.equal(result.body.data.runtime.searchBackendUsed, 'memory');
+    assert.equal(result.body.data.runtime.answerProviderUsed, 'template');
+    assert.equal(result.body.data.runtime.course.bridgeMode, 'standard');
+    assert.equal(result.body.data.runtime.fallbacks.some((item) => item.code === 'SEGMENT_EMBEDDING_MISSING'), true);
     assert.equal(store.clips[0].hitCount, 1);
 
     const askLog = store.usageLogs.find((entry) => entry.event === 'ask');
@@ -154,6 +178,7 @@ describe('qa routes', () => {
     assert.ok(askLog);
     assert.equal(askLog.metadata.source, 'api');
     assert.equal(askLog.metadata.topSegmentId, ids.segmentOne);
+    assert.equal(askLog.metadata.runtime.matchStatus, 'matched');
     assert.ok(clipLog);
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
   });
@@ -202,5 +227,48 @@ describe('qa routes', () => {
       ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
     );
     assert.equal(result.body.data.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
+  });
+
+  it('returns explicit no-searchable-data contract for metadata-only bridge courses', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    store.courses.push({
+      _id: ids.pipelineBridgeCourse,
+      title: 'Pipeline Bridge Course',
+      description: 'QA bridge course',
+      teacherId: ids.teacher,
+      videoIds: [ids.pipelineBridgeVideo],
+      status: 'published',
+      createdAt: '2026-04-13T08:00:00.000Z',
+    });
+
+    store.videos.push({
+      _id: ids.pipelineBridgeVideo,
+      video_id: ids.pipelineBridgeVideoExternal,
+      file_name: 'pipeline-bridge.mp4',
+      duration_sec: 420,
+      createdAt: '2026-04-13T08:01:00.000Z',
+      updatedAt: '2026-04-13T08:01:00.000Z',
+    });
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        courseId: ids.pipelineBridgeCourse,
+        question: '這門課可以問什麼？',
+      },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.matches.length, 0);
+    assert.equal(result.body.data.runtime.status, 'degraded');
+    assert.equal(result.body.data.runtime.degraded, true);
+    assert.equal(result.body.data.runtime.matchStatus, 'no_searchable_segments');
+    assert.equal(result.body.data.runtime.searchableSegmentCount, 0);
+    assert.equal(result.body.data.runtime.degradedReasons.includes('NO_SEARCHABLE_SEGMENTS'), true);
+    assert.equal(result.body.data.runtime.course.qaScopeOnly, true);
+    assert.equal(result.body.data.runtime.course.bridgeMode, 'qa_scope_only');
+    assert.match(result.body.data.answer, /bridge metadata/);
   });
 });

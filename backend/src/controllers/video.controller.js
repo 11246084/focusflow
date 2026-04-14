@@ -27,12 +27,20 @@ const createVideo = asyncHandler(async (req, res) => {
 });
 
 const listCourseVideos = asyncHandler(async (req, res) => {
-  const videos = await videoService.listCourseVideos(req.params.courseId, req.user);
+  const result = await videoService.listCourseVideos(req.params.courseId, req.user);
 
   return sendSuccess(res, {
     message: 'Videos fetched successfully.',
     data: {
-      videos,
+      videos: result.videos,
+    },
+    meta: {
+      qaScopeOnly: result.presentation.qaScopeOnly,
+      bridgeMode: result.presentation.bridgeMode,
+      videoCount: result.presentation.videoCount,
+      appVideoCount: result.presentation.appVideoCount,
+      bridgeVideoCount: result.presentation.bridgeVideoCount,
+      bridgeContract: result.presentation.bridgeContract,
     },
   });
 });

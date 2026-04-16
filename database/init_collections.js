@@ -19,6 +19,7 @@ const collections = [
   "raw_transcripts",
   "transcripts_normalized",
   "video_segments_text",
+  "video_segments_audio",
   "video_segments_video",
   "video_segments",
   "clips",
@@ -86,6 +87,10 @@ print("\n🎉 所有 Collection 建立完成！");
 //                  欄位：_id, chunk_id, video_id, segment_id,
 //                        start_sec, end_sec, text, embedding,
 //                        embedding_model, embedding_dim, updated_at
+//
+// video_segments_audio — 音檔片段 + audio embedding
+//                  欄位：_id, segment_id, video_id,
+//                        start_sec, end_sec, audio_path, embedding
 //
 // video_segments_video — 正式影片片段檢索主 collection
 //                  欄位：_id, clip_id, video_id,

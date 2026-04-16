@@ -49,6 +49,13 @@ print("✅ video_segments_text.video_id");
 db.video_segments_text.createIndex({ chunk_id: 1 }, { unique: true });
 print("✅ video_segments_text.chunk_id（unique）");
 
+// ── video_segments_audio ──────────────────────────────────
+db.video_segments_audio.createIndex({ video_id: 1 });
+print("✅ video_segments_audio.video_id");
+
+db.video_segments_audio.createIndex({ segment_id: 1 }, { unique: true });
+print("✅ video_segments_audio.segment_id（unique）");
+
 // ── video_segments_video ──────────────────────────────────
 db.video_segments_video.createIndex({ video_id: 1 });
 print("✅ video_segments_video.video_id");

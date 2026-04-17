@@ -92,29 +92,9 @@ backend 目前已採取的行為：
 - 若 UI 不標示 QA-only / metadata-only，會像壞掉的課程
 - 若 UI 不揭露 degraded / backend-only，demo 口徑會與實際 runtime 脫節
 
-## Demo 風險總結
-
-- phase-1 目前最安全的對外說法仍是 `mock + memory + gemini + explicit seed`
-- Atlas、正式 embedding 對齊、live LINE 都還是協作事項，不是 backend 單方已完工項目
-- 共享 MongoDB 不適合直接做全 live smoke，因為會留下 usage logs、bind tokens 等痕跡
-
 ## 若尚未定版時的應對方式
 
-- DB / AI 口徑未 freeze 前：
-  - 只講 memory mode 與 fallback，可展示 QA 流程，但不講正式 semantic retrieval ready
-- bridge coverage 未補齊前：
-  - 把 bridge course 說成 `QA-only` 或 `metadata-only`
-  - 若回 `no_searchable_segments`，照實講資料尚未補齊
-- LINE 條件未到位前：
-  - 只講 backend-only 驗證完成
-  - 不講 live reply ready
-- 共享 DB 不可寫前：
-  - 走 `/health`、acceptance smoke 與 route tests
-  - 不直接做會污染資料的 live smoke
-
-## 建議接手順序
-
-1. [../README.md](../README.md)
-2. [current-state.md](./current-state.md)
-3. [demo-runbook.md](./demo-runbook.md)
-4. [task-plan.md](./task-plan.md)
+- DB / AI 口徑未 freeze 前：只講 memory mode 與 fallback，不講 semantic retrieval ready
+- bridge coverage 未補齊前：說 `QA-only` 或 `metadata-only`；回 `no_searchable_segments` 照實說
+- LINE 條件未到位前：只講 backend-only 驗證完成，不講 live reply ready
+- 共享 DB 不可寫前：走 `/health`、acceptance smoke 與 route tests

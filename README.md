@@ -74,22 +74,7 @@ python src/main.py --limit 1      # 只處理第一支（快速驗證）
 python src/main.py --overwrite    # 強制重新處理（不使用快取）
 ```
 
-### Database Contract（本次整理新增）
-
-目前正式資料契約已整理到：
-
-- [MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
-
-說明：
-
-- 這份文件是 backend、database、AI pipeline 目前共同對齊的 schema 依據
-- 舊版 `video_segments` / `clips` 結構目前視為 legacy 過渡層
-- 正式問答主資料流以 `video_segments_text` 與 `video_segments_video` 為準
-
-備註：
-
-- 目前 repo 仍存在部分 legacy model、script 與 query 邏輯
-- 若文件內容與舊程式衝突，請以這份契約文件與實際修正 PR 為準
+> 資料庫 schema 契約（v1 正式 vs legacy）見 [ARCHITECTURE.md](ARCHITECTURE.md)，詳細定版見 [docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)。
 
 ---
 

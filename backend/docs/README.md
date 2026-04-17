@@ -1,6 +1,8 @@
 # Backend 文件入口
 
-最後更新：2026-04-15
+最後更新：2026-04-17
+
+> 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
 ## 先看哪一份
 

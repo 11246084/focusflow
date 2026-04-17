@@ -10,12 +10,6 @@
 
 runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
 
-## 本輪同步
-
-- `backend/docs` 已收斂成六份正式文件
-- `backend/.gitignore` 已改為只忽略 backend 真正不該進版控的內容
-- 本輪沒有修改 backend runtime code，也沒有修改 MongoDB 資料
-
 ## 下一步優先順序
 
 1. 跟 DB / MongoDB、AI / Pipeline 組 freeze phase-1 契約

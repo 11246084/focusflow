@@ -150,9 +150,4 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\\line.
 
 ## 哪些話不能講錯
 
-- 不要說 Atlas semantic retrieval 已 ready
-- 不要說切 `.env` 就能安全改成 atlas mode
-- 不要說 query embedding 已和 pipeline 3072 維 vectors 完全對齊
-- 不要說 bridge course 的影片都已有 searchable text segments
-- 不要說 LINE live flow 已完成外部驗證
-- 不要說 `video_segments_video` 已經是正式 clip source
+見 [current-state.md → 不能誤稱的邊界](./current-state.md)。

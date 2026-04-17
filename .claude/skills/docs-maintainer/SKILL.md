@@ -1,3 +1,8 @@
+---
+name: docs-maintainer
+description: docs-maintainer
+---
+
 # docs-maintainer
 
 ## 目的

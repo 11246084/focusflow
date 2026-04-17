@@ -27,7 +27,7 @@
 - phase-1 正式 retrieval 仍是 memory mode，不是 Atlas semantic retrieval
 - answer generation 正式模式是 Gemini
 - demo 資料不是自動建立，仍需明確執行 `npm run seed`
-- 若要先清掉 demo-owned / demo-derived 痕跡再重建，使用 `npm run seed -- --reset`
+- 若要先清掉 demo-owned / demo-derived 痕跡再重建，使用 `npm run seed:reset`
 
 目前 QA bridge contract 仍是：
 
@@ -45,7 +45,7 @@
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa` 與 `runtime.line`
 - backend-only acceptance smoke 已存在，可在不碰共享 MongoDB 的前提下重驗主線
-- demo baseline 已可用 `npm run seed` 收斂，並可用 `npm run seed -- --reset` 保守清除 demo-owned / demo-derived 痕跡後重建
+- demo baseline 已可用 `npm run seed` 收斂，並可用 `npm run seed:reset` 保守清除 demo-owned / demo-derived 痕跡後重建
 
 ## readiness / degraded / hard_fail 怎麼解讀
 

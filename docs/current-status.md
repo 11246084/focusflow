@@ -37,7 +37,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - courses / videos / processing 狀態流程
 - `/api/v1/qa/ask`：answer、matches、時間資訊、runtime 訊號
 - bridge-first API 契約已收斂：課程與 QA runtime 會提供 `isBridgeCourse`；`appOwnedVideoCount` / `metadataOnlyVideoCount` 是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases；`resultCategory` 是 Phase-1 convenience field，細節仍以 `status` / `matchStatus` / `degradedReasons` 為準
-- demo baseline / reset 路徑已收斂：`npm run seed` 預設只做 converge baseline；`npm run seed -- --reset` 會保守清除 demo-owned / demo-derived 痕跡後重建；bridge 課程基線目前定位為 pipeline-style demo baseline
+- demo baseline / reset 路徑已收斂：`npm run seed` 預設只做 converge baseline；`npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建；bridge 課程基線目前定位為 pipeline-style demo baseline
 - LINE：bind-token、webhook verify、bind、switch course、ask routing
 - `GET /health`：qa + line runtime 可觀察性
 - backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，且 LINE webhook 已納入文件但只應視為 integration-facing endpoint

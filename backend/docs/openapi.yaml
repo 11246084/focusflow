@@ -1,39 +1,39 @@
 openapi: 3.1.0
 info:
-  title: FocusFlow Backend API
+  title: FocusFlow Backend API 文件
   version: 0.1.0-phase1
   description: |
-    Phase-1 MVP API documentation for the current FocusFlow backend.
+    這份文件整理 FocusFlow backend 目前 Phase-1 MVP 的 API 契約與回應口徑。
 
-    Scope of this document:
-    - Keep the current live backend contract understandable for frontend and teammates.
-    - Describe phase-1 bridge-aware and runtime-observable responses honestly.
-    - Do not overstate Atlas retrieval, query embedding alignment, or live LINE delivery as production-ready.
+    本文件的範圍：
+    - 讓 frontend、組員與老師可以快速理解目前 live backend 的 API 契約
+    - 如實描述 phase-1 的 `bridge-aware` 與 runtime 可觀測回應
+    - 不把 Atlas retrieval、query embedding 對齊、或 live LINE delivery 說成 production-ready
 
-    Non-goals for this round:
-    - No route-level JSDoc generation
-    - No production-hardening refactor
-    - No internal processing webhook coverage in Swagger yet
+    本輪不處理的項目：
+    - 不做 route-level JSDoc generation
+    - 不做 production-hardening refactor
+    - 暫不納入 internal processing webhook 的 Swagger 文件
 servers:
   - url: /
-    description: Same-origin backend root. Swagger UI Try it out uses the current host and port.
+    description: Same-origin backend root。Swagger UI 的 Try it out 會直接使用目前開啟的 host 與 port。
 tags:
   - name: Health
-    description: Phase-1 observability and bootstrap checks. Safe to use in demo validation paths.
+    description: Phase-1 的 observability 與 bootstrap 檢查入口，適合用於 demo 前的安全驗證路徑。
   - name: Auth
-    description: JWT login and current-user lookup for frontend and test clients.
+    description: 提供 frontend 與測試客戶端使用的 JWT login 與 current-user 查詢。
   - name: Courses
-    description: Authenticated course APIs. Course responses are bridge-aware in phase-1 and may expose QA scope metadata.
+    description: 已登入後可使用的課程 API。Phase-1 的課程回應是 `bridge-aware`，可能會揭露 QA scope 相關 metadata。
   - name: Videos
-    description: Video listing, detail, processing status, upload, and guarded operational actions.
+    description: 涵蓋影片列表、詳細資料、processing 狀態、上傳與 `guarded action` 類型的操作端點。
   - name: QA
-    description: Question-answering APIs with explicit runtime diagnostics and phase-1 fallback signals.
+    description: 問答 API，會明確回傳 runtime diagnostics 與 phase-1 fallback 訊號。
   - name: LINE Webhook
     description: |
-      Integration-facing LINE Platform webhook callbacks.
+      LINE Platform 的 `integration-facing` webhook callback 入口。
 
-      This is not a general frontend endpoint.
-      Phase-1 only documents the current backend-observable flow and does not claim a fully verified live production integration.
+      這不是一般 frontend 直接呼叫的 API。
+      本文件只描述目前 backend 可觀測的 Phase-1 流程，不代表 live production integration 已完整驗證。
 security:
   - BearerAuth: []
 paths:
@@ -42,21 +42,23 @@ paths:
       tags:
         - Health
       security: []
-      summary: Read backend runtime health
+      summary: 讀取 backend runtime 狀態
       description: |
-        Phase-1 observability endpoint used for bootstrap checks and demo-safe runtime inspection.
+        這是 Phase-1 的 observability 端點，主要用於 bootstrap 檢查與 demo 前的 runtime 檢視。
 
-        It exposes the current QA and LINE runtime snapshots. Treat it as a readiness/diagnostics endpoint, not a proof that every downstream integration is fully production-ready.
+        它會回傳目前 QA 與 LINE 的 runtime snapshot。請把它視為 `readiness` / diagnostics 入口，而不是所有下游整合都已 fully production-ready 的證明。
       operationId: getHealth
       responses:
         '200':
-          description: Service health snapshot
+          description: 服務健康狀態快照
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
               examples:
                 healthy:
+                  summary: 健康檢查成功範例
+                  description: 顯示目前 Phase-1 下 QA 與 LINE runtime 的可觀測快照；其中 LINE 仍可能是 `degraded` 或 `backend_only`。
                   value:
                     success: true
                     message: Service is healthy.
@@ -98,8 +100,8 @@ paths:
       tags:
         - Auth
       security: []
-      summary: Log in with email and password
-      description: Returns a JWT bearer token and the current public user profile.
+      summary: 使用 email 與 password 登入
+      description: 成功後回傳 JWT bearer token 與目前登入者的 public user 資訊。
       operationId: login
       requestBody:
         required: true
@@ -114,13 +116,15 @@ paths:
                   password: Teacher123!
       responses:
         '200':
-          description: Login successful
+          description: 登入成功
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthLoginResponse'
               examples:
                 success:
+                  summary: 登入成功範例
+                  description: 回傳 token 與目前登入者的 public user 資訊，供 frontend 後續帶入 BearerAuth。
                   value:
                     success: true
                     message: Login successful.
@@ -148,30 +152,34 @@ paths:
     get:
       tags:
         - Auth
-      summary: Read the current authenticated user
-      description: Requires a valid bearer token.
+      summary: 讀取目前登入使用者
+      description: 需要有效的 bearer token。
       operationId: getCurrentUser
       responses:
         '200':
-          description: Current user fetched successfully
+          description: 成功取得目前登入使用者
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthMeResponse'
         '401':
-          description: Missing, invalid, expired, or unavailable user token
+          description: 缺少 token、token 無效或過期，或 token 對應的使用者已不可用
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 unauthorized:
+                  summary: 未提供 Bearer token
+                  description: 呼叫端未帶入 Bearer token，因此 backend 直接回 `UNAUTHORIZED`。
                   value:
                     success: false
                     message: Authentication required.
                     error:
                       code: UNAUTHORIZED
                 invalidToken:
+                  summary: Bearer token 無效或已過期
+                  description: token 驗證失敗時，backend 會回 `INVALID_TOKEN`。
                   value:
                     success: false
                     message: Invalid or expired token.
@@ -183,15 +191,15 @@ paths:
     get:
       tags:
         - Courses
-      summary: List accessible courses
+      summary: 列出目前可存取的課程
       description: |
-        Returns courses visible to the current user according to role-based access rules.
+        依照目前登入者的角色與存取規則，回傳可見的課程列表。
 
-        This response is bridge-aware in phase-1 and may expose `qaScopeOnly`, `bridgeMode`, and related metadata so frontend/demo consumers can distinguish normal courses from QA-only bridge presentations.
+        這個回應在 Phase-1 是 `bridge-aware`，可能會帶出 `qaScopeOnly`、`bridgeMode` 等欄位，讓 frontend 或 demo 使用者可以區分一般課程與 QA-only 的 bridge 呈現。
       operationId: listCourses
       responses:
         '200':
-          description: Courses fetched successfully
+          description: 成功取得課程列表
           content:
             application/json:
               schema:
@@ -201,8 +209,8 @@ paths:
     post:
       tags:
         - Courses
-      summary: Create a course
-      description: Teacher/admin-only course creation endpoint.
+      summary: 建立課程
+      description: 僅限 teacher / admin 使用的課程建立端點。
       operationId: createCourse
       requestBody:
         required: true
@@ -212,7 +220,7 @@ paths:
               $ref: '#/components/schemas/CourseCreateRequest'
       responses:
         '201':
-          description: Course created successfully
+          description: 課程建立成功
           content:
             application/json:
               schema:
@@ -227,15 +235,17 @@ paths:
     get:
       tags:
         - Courses
-      summary: Read a course by id
+      summary: 依 courseId 讀取單一課程
       description: |
-        Returns one accessible course. This is bridge-aware in phase-1 and may expose QA-only metadata such as `qaScopeOnly`, `bridgeMode`, and bridge contract hints.
+        回傳目前使用者可存取的單一課程。
+
+        這個回應在 Phase-1 仍是 `bridge-aware`，可能帶出 `qaScopeOnly`、`bridgeMode` 與 bridge contract 提示欄位。
       operationId: getCourseById
       parameters:
         - $ref: '#/components/parameters/CourseId'
       responses:
         '200':
-          description: Course fetched successfully
+          description: 成功取得課程
           content:
             application/json:
               schema:
@@ -252,21 +262,21 @@ paths:
     get:
       tags:
         - Videos
-      summary: List videos for a course
+      summary: 列出課程下的影片
       description: |
-        Returns bridge-aware video presentations for one course.
+        回傳單一課程下的影片列表，並保留 Phase-1 的 `bridge-aware` 呈現方式。
 
-        In phase-1 a course may expose:
-        - app-owned videos with processing metadata
-        - metadata-only bridge videos for QA scope presentation
+        在 Phase-1，同一門課可能同時出現：
+        - 帶有 processing metadata 的 app-owned video
+        - 只用來做 QA 範圍呈現的 `metadataOnly` bridge video
 
-        Check both the response `meta` block and per-video flags such as `metadataOnly`, `qaScopeOnly`, and `isAppOwned`.
+        建議同時檢查 response 的 `meta` 區塊，以及每支影片上的 `metadataOnly`、`qaScopeOnly`、`isAppOwned` 等旗標。
       operationId: listCourseVideos
       parameters:
         - $ref: '#/components/parameters/CourseId'
       responses:
         '200':
-          description: Videos fetched successfully
+          description: 成功取得影片列表
           content:
             application/json:
               schema:
@@ -282,8 +292,8 @@ paths:
     post:
       tags:
         - Videos
-      summary: Upload a course video
-      description: Teacher/admin-only video upload endpoint for app-owned course videos.
+      summary: 上傳課程影片
+      description: 僅限 teacher / admin 使用，並且用於建立 app-owned course video 的上傳端點。
       operationId: createVideo
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -298,38 +308,44 @@ paths:
               properties:
                 title:
                   type: string
-                  description: Optional display title. Defaults to the uploaded filename when omitted.
+                  description: 可選的顯示標題；若未提供，backend 會改用上傳檔名作為預設值。
                 video:
                   type: string
                   format: binary
-                  description: Video file. Backend currently accepts MIME types starting with `video/`.
+                  description: 影片檔案。backend 目前接受 MIME type 以 `video/` 開頭的檔案。
       responses:
         '201':
-          description: Video uploaded successfully
+          description: 影片上傳成功
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VideoItemResponse'
         '400':
-          description: Invalid upload payload, invalid course id, or upload validation error
+          description: 上傳 payload 不合法、courseId 無效，或上傳驗證失敗
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 invalidId:
+                  summary: courseId 格式錯誤
+                  description: 路徑中的 `courseId` 不是合法的 MongoDB ObjectId。
                   value:
                     success: false
                     message: Invalid resource id.
                     error:
                       code: INVALID_ID
                 missingFile:
+                  summary: 缺少影片檔案
+                  description: request 有送出 multipart/form-data，但缺少必要的 `video` 檔案欄位。
                   value:
                     success: false
                     message: Video file is required.
                     error:
                       code: VIDEO_FILE_REQUIRED
                 invalidFileType:
+                  summary: 檔案型別不被接受
+                  description: 上傳檔案的 MIME type 不符合目前 backend 接受的 `video/` 規則。
                   value:
                     success: false
                     message: Only video uploads are allowed.
@@ -338,19 +354,23 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Caller cannot create/manage videos for this course
+          description: 呼叫端沒有權限建立或管理這門課的影片
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 forbiddenRole:
+                  summary: 角色本身不允許上傳
+                  description: 呼叫者不是 teacher / admin，因此先被角色層擋下。
                   value:
                     success: false
                     message: You do not have permission to perform this action.
                     error:
                       code: FORBIDDEN
                 manageDenied:
+                  summary: 不是課程管理者
+                  description: 雖然角色允許，但呼叫者不是這門課的 owner teacher，也不是 admin。
                   value:
                     success: false
                     message: You do not have permission to manage this course.
@@ -362,19 +382,19 @@ paths:
     get:
       tags:
         - Videos
-      summary: Read one video by id
+      summary: 依 videoId 讀取單一影片
       description: |
-        Returns a bridge-aware video presentation.
+        回傳單一影片的 `bridge-aware` 呈現資料。
 
-        In phase-1 the same endpoint may return:
-        - an app-owned video with processing state
-        - a metadata-only bridge video for QA scoping
+        在 Phase-1，同一個端點可能回傳：
+        - 帶有 processing state 的 app-owned video
+        - 僅用於 QA scope 的 `metadataOnly` bridge video
       operationId: getVideoById
       parameters:
         - $ref: '#/components/parameters/VideoId'
       responses:
         '200':
-          description: Video fetched successfully
+          description: 成功取得影片
           content:
             application/json:
               schema:
@@ -389,17 +409,17 @@ paths:
     get:
       tags:
         - Videos
-      summary: Read video processing status
+      summary: 讀取影片 processing 狀態
       description: |
-        Reads processing metadata for one video.
+        讀取單一影片的 processing metadata。
 
-        This is an operational/observability endpoint, not a public student-facing path. Only the course owner teacher or an admin may read processing state for app-owned videos. Metadata-only bridge videos intentionally return `409 VIDEO_METADATA_ONLY`.
+        這是偏向 operational / observability 的端點，不是一般 student-facing 路徑。只有課程 owner teacher 或 admin 可以查看 app-owned video 的 processing state；`metadataOnly` 的 bridge video 會刻意回 `409 VIDEO_METADATA_ONLY`。
       operationId: getVideoProcessing
       parameters:
         - $ref: '#/components/parameters/VideoId'
       responses:
         '200':
-          description: Processing state fetched successfully
+          description: 成功取得 processing 狀態
           content:
             application/json:
               schema:
@@ -418,17 +438,17 @@ paths:
     post:
       tags:
         - Videos
-      summary: Retry failed video processing
+      summary: 重新排入失敗影片的 processing
       description: |
-        Guarded operational action for failed app-owned videos.
+        這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
 
-        This is not a demo-only shortcut. It is intended for course owner teachers and admins who need to re-queue a failed processing job. The current state must already be `failed`, otherwise the backend returns `409 VIDEO_PROCESSING_TRANSITION_INVALID`.
+        這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
       operationId: retryVideoProcessing
       parameters:
         - $ref: '#/components/parameters/VideoId'
       responses:
         '200':
-          description: Video processing re-queued successfully
+          description: 已成功重新排入 processing
           content:
             application/json:
               schema:
@@ -447,17 +467,19 @@ paths:
     post:
       tags:
         - QA
-      summary: Ask a course question
+      summary: 對課程提出問題
       description: |
-        Phase-1 QA endpoint with explicit runtime diagnostics.
+        這是 Phase-1 的 QA 端點，會明確回傳 runtime diagnostics。
 
-        The response may still be successful while runtime status is `degraded`. Clients should inspect:
+        即使回應成功，runtime 狀態仍可能是 `degraded`；這表示系統可以回答，但目前執行條件不是理想狀態。呼叫端應至少檢查：
         - `runtime.status`
         - `runtime.matchStatus`
         - `runtime.fallbacks`
         - `runtime.course.qaScopeOnly`
 
-        This endpoint does not claim production-ready Atlas retrieval. Current phase-1 behavior may use memory-mode retrieval, mock embeddings, bridge-only scope, or answer-generation fallbacks.
+        若 `runtime.matchStatus=no_searchable_segments`，代表這門課目前沒有可搜尋的片段資料，而不是單純找不到相關答案。
+
+        這個端點不代表 Atlas retrieval 已 production-ready。Phase-1 目前可能仍使用 memory-mode retrieval、mock embeddings、bridge-only scope，或 answer-generation fallback。
       operationId: askQuestion
       requestBody:
         required: true
@@ -472,25 +494,29 @@ paths:
                   question: What does the course say about JWT authentication?
       responses:
         '200':
-          description: Question answered successfully
+          description: 問答處理成功
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/QaAskResponse'
         '400':
-          description: Validation error or invalid ObjectId
+          description: 請求驗證失敗，或 ObjectId 格式不合法
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 validation:
+                  summary: 缺少必要欄位
+                  description: "`courseId` 或 `question` 未提供，或 `question` 經過 trim 後為空字串。"
                   value:
                     success: false
                     message: courseId and question are required.
                     error:
                       code: VALIDATION_ERROR
                 invalidId:
+                  summary: courseId 格式錯誤
+                  description: request body 內的 `courseId` 不是合法的 MongoDB ObjectId。
                   value:
                     success: false
                     message: Invalid resource id.
@@ -512,16 +538,16 @@ paths:
         - LINE Webhook
       security:
         - LineSignature: []
-      summary: Receive LINE Platform webhook callbacks
+      summary: 接收 LINE Platform webhook callback
       description: |
-        Integration-facing endpoint for LINE Platform callbacks.
+        這是提供 LINE Platform 使用的 `integration-facing` callback 端點。
 
-        Current phase-1 expectations:
-        - Not intended for direct frontend calls
-        - The backend validates `x-line-signature` against the exact raw request body
-        - A successful `200` means the backend handled the callback batch, not that live LINE delivery is fully verified
-        - LINE replies may still be skipped in `backend_only` mode when `LINE_CHANNEL_ACCESS_TOKEN` is missing
-        - Swagger UI Try it out does not auto-sign the raw payload, so manual requests will fail unless the signature exactly matches the request body bytes
+        目前的 Phase-1 口徑如下：
+        - 不作為 frontend 直接呼叫的 API
+        - backend 會用 `x-line-signature` 對「原始 raw request body」做簽章驗證
+        - 回 `200` 只代表 backend 已接收並處理這批 callback，不代表 live LINE delivery 已 fully verified
+        - 若缺少 `LINE_CHANNEL_ACCESS_TOKEN`，系統仍可能在 `backend_only` 模式下處理事件，但跳過實際回訊
+        - Swagger UI 的 Try it out 不會自動幫你計算簽章；若手動送出，除非 signature 與 request body bytes 完全一致，否則會驗證失敗
       operationId: handleLineWebhook
       requestBody:
         required: true
@@ -542,13 +568,15 @@ paths:
                         text: What does the course say about JWT authentication?
       responses:
         '200':
-          description: Webhook batch accepted and processed by the backend
+          description: backend 已接受並處理這批 webhook 事件
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineWebhookResponse'
               examples:
                 backendOnly:
+                  summary: "`backend_only` 模式下的 webhook 處理範例"
+                  description: 顯示 LINE webhook 已被 backend 接收，但因缺少 `LINE_CHANNEL_ACCESS_TOKEN`，reply 被標記為 skipped，仍保留 `degraded` runtime 訊號。
                   value:
                     success: true
                     message: LINE webhook processed.
@@ -584,38 +612,46 @@ paths:
                             fallbackCodes:
                               - SEGMENT_EMBEDDING_MISSING
         '400':
-          description: Raw request body was unavailable or the JSON payload could not be parsed
+          description: 無法取得 raw request body，或 JSON payload 解析失敗
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 invalidJson:
+                  summary: JSON 內容格式錯誤
+                  description: request body 存在，但 backend 無法成功解析成 JSON。
                   value:
                     success: false
                     message: Invalid JSON body.
                     error:
                       code: VALIDATION_ERROR
                 rawBodyMissing:
+                  summary: 缺少 raw body
+                  description: 進行簽章驗證時，backend 找不到可供驗證的 raw request body。
                   value:
                     success: false
                     message: LINE raw request body is not available.
                     error:
                       code: LINE_RAW_BODY_MISSING
         '401':
-          description: Missing or invalid LINE signature
+          description: 缺少 LINE signature，或 signature 驗證失敗
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 missingSignature:
+                  summary: 缺少 `x-line-signature`
+                  description: request 沒有帶入 LINE 平台要求的 signature header。
                   value:
                     success: false
                     message: Missing LINE signature.
                     error:
                       code: LINE_SIGNATURE_MISSING
                 invalidSignature:
+                  summary: LINE signature 驗證失敗
+                  description: "`x-line-signature` 存在，但與 raw request body 計算出的結果不一致。"
                   value:
                     success: false
                     message: Invalid LINE signature.
@@ -634,33 +670,35 @@ components:
       in: header
       name: x-line-signature
       description: |
-        HMAC-SHA256 signature over the exact raw webhook body, using `LINE_CHANNEL_SECRET`.
+        使用 `LINE_CHANNEL_SECRET`，對「完整且未改動的 raw webhook body」計算出的 HMAC-SHA256 signature。
 
-        This is an integration-facing signature check. Swagger UI does not compute the signature automatically.
+        這是一個 `integration-facing` 的簽章驗證流程；Swagger UI 不會自動替你計算 signature。
   parameters:
     CourseId:
       name: courseId
       in: path
       required: true
-      description: MongoDB ObjectId for the target course.
+      description: 目標課程的 MongoDB ObjectId。
       schema:
         $ref: '#/components/schemas/ObjectId'
     VideoId:
       name: videoId
       in: path
       required: true
-      description: MongoDB ObjectId for the target video.
+      description: 目標影片的 MongoDB ObjectId。
       schema:
         $ref: '#/components/schemas/ObjectId'
   responses:
     ValidationError:
-      description: Request payload failed validation.
+      description: request payload 驗證失敗。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           examples:
             validation:
+              summary: 一般欄位驗證失敗
+              description: 代表 request 結構存在欄位缺漏、型別錯誤，或其他基本驗證失敗情況。
               value:
                 success: false
                 message: Validation failed.
@@ -669,201 +707,271 @@ components:
                   details:
                     - title is required
     InvalidCredentialsError:
-      description: Email or password is invalid.
+      description: email 或 password 不正確。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Invalid email or password.
-            error:
-              code: INVALID_CREDENTIALS
+          examples:
+            invalidCredentials:
+              summary: 帳號或密碼錯誤
+              description: 使用者提供的 email 或 password 無法通過驗證。
+              value:
+                success: false
+                message: Invalid email or password.
+                error:
+                  code: INVALID_CREDENTIALS
     UserInactiveError:
-      description: User exists but is inactive.
+      description: 使用者存在，但目前為 inactive。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: User is inactive.
-            error:
-              code: USER_INACTIVE
+          examples:
+            userInactive:
+              summary: 帳號存在但已停用
+              description: 使用者資料存在，但目前 `isActive=false`，因此不允許登入。
+              value:
+                success: false
+                message: User is inactive.
+                error:
+                  code: USER_INACTIVE
     UnauthorizedError:
-      description: Missing bearer token or authenticated user is unavailable.
+      description: 缺少 bearer token，或 token 對應的使用者目前不可用。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Authentication required.
-            error:
-              code: UNAUTHORIZED
+          examples:
+            unauthorized:
+              summary: 尚未通過身份驗證
+              description: 請求未帶入必要的 Bearer token，或目前請求情境需要先完成認證。
+              value:
+                success: false
+                message: Authentication required.
+                error:
+                  code: UNAUTHORIZED
     ForbiddenError:
-      description: Authenticated user does not have the required role.
+      description: 已登入，但角色不符合此端點要求。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: You do not have permission to perform this action.
-            error:
-              code: FORBIDDEN
+          examples:
+            forbidden:
+              summary: 角色權限不足
+              description: 呼叫者已登入，但角色不符合這個端點的授權條件。
+              value:
+                success: false
+                message: You do not have permission to perform this action.
+                error:
+                  code: FORBIDDEN
     InvalidIdError:
-      description: Path or body ObjectId is invalid.
+      description: path 或 body 內的 ObjectId 格式不合法。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Invalid resource id.
-            error:
-              code: INVALID_ID
+          examples:
+            invalidId:
+              summary: ObjectId 格式錯誤
+              description: path 或 body 中的資源識別值不是合法的 MongoDB ObjectId。
+              value:
+                success: false
+                message: Invalid resource id.
+                error:
+                  code: INVALID_ID
     UserNotFoundError:
-      description: Authenticated user no longer exists.
+      description: token 驗證成功，但對應的使用者已不存在。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: User not found.
-            error:
-              code: USER_NOT_FOUND
+          examples:
+            userNotFound:
+              summary: 找不到 token 對應的使用者
+              description: token 本身可被驗證，但資料庫中已找不到對應 user。
+              value:
+                success: false
+                message: User not found.
+                error:
+                  code: USER_NOT_FOUND
     CourseAccessDeniedError:
-      description: Caller cannot access the requested course.
+      description: 呼叫端沒有存取這門課的權限。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: You do not have access to this course.
-            error:
-              code: COURSE_ACCESS_DENIED
+          examples:
+            courseAccessDenied:
+              summary: 沒有課程存取權
+              description: 呼叫者雖已登入，但不符合這門課目前的課程存取規則。
+              value:
+                success: false
+                message: You do not have access to this course.
+                error:
+                  code: COURSE_ACCESS_DENIED
     CourseManageDeniedError:
-      description: Caller cannot manage the requested course/video.
+      description: 呼叫端沒有管理這門課或影片的權限。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: You do not have permission to manage this course.
-            error:
-              code: COURSE_MANAGE_DENIED
+          examples:
+            courseManageDenied:
+              summary: 沒有課程管理權
+              description: 呼叫者不是課程 owner teacher，也不是 admin，因此不能執行管理型操作。
+              value:
+                success: false
+                message: You do not have permission to manage this course.
+                error:
+                  code: COURSE_MANAGE_DENIED
     CourseNotFoundError:
-      description: Course was not found.
+      description: 找不到指定課程。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Course not found.
-            error:
-              code: COURSE_NOT_FOUND
+          examples:
+            courseNotFound:
+              summary: 課程不存在
+              description: 請求中的課程識別值格式正確，但資料庫中找不到對應課程。
+              value:
+                success: false
+                message: Course not found.
+                error:
+                  code: COURSE_NOT_FOUND
     VideoNotFoundError:
-      description: Video was not found.
+      description: 找不到指定影片。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Video not found.
-            error:
-              code: VIDEO_NOT_FOUND
+          examples:
+            videoNotFound:
+              summary: 影片不存在
+              description: 請求中的影片識別值格式正確，但資料庫中找不到對應影片。
+              value:
+                success: false
+                message: Video not found.
+                error:
+                  code: VIDEO_NOT_FOUND
     VideoMetadataOnlyError:
-      description: Metadata-only bridge video does not expose processing state.
+      description: "`metadataOnly` 的 bridge video 不提供 processing state。"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: This video is metadata-only for QA scope and does not expose processing status.
-            error:
-              code: VIDEO_METADATA_ONLY
+          examples:
+            videoMetadataOnly:
+              summary: bridge video 僅有 metadata
+              description: 這支影片目前是 `metadataOnly` 狀態，只用於 QA scope，不暴露 processing 狀態。
+              value:
+                success: false
+                message: This video is metadata-only for QA scope and does not expose processing status.
+                error:
+                  code: VIDEO_METADATA_ONLY
     VideoProcessingTransitionInvalidError:
-      description: Processing state cannot transition to the requested target state.
+      description: 目前 processing state 無法轉移到要求的目標狀態。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Cannot transition video processing from completed to queued.
-            error:
-              code: VIDEO_PROCESSING_TRANSITION_INVALID
+          examples:
+            invalidTransition:
+              summary: processing 狀態轉移不合法
+              description: 目前影片的 processing state 與要求的目標狀態不相容，因此不能執行轉移。
+              value:
+                success: false
+                message: Cannot transition video processing from completed to queued.
+                error:
+                  code: VIDEO_PROCESSING_TRANSITION_INVALID
     QaRuntimeMisconfiguredError:
-      description: QA runtime settings are invalid for the requested operation.
+      description: QA runtime 設定對這次操作而言不合法。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: GEMINI_API_KEY is required when QA_ANSWER_PROVIDER=gemini.
-            error:
-              code: QA_RUNTIME_MISCONFIGURED
-              details:
-                readiness: hard_fail
+          examples:
+            qaRuntimeMisconfigured:
+              summary: QA runtime 設定錯誤
+              description: provider、金鑰或 mode 的設定不符合目前執行條件，因此 backend 直接以 `hard_fail` 結束。
+              value:
+                success: false
+                message: GEMINI_API_KEY is required when QA_ANSWER_PROVIDER=gemini.
+                error:
+                  code: QA_RUNTIME_MISCONFIGURED
+                  details:
+                    readiness: hard_fail
     QaAtlasNotReadyError:
-      description: Atlas vector-search mode is configured but not ready for phase-1 execution.
+      description: "`atlas` vector-search mode 已配置，但仍未達到 Phase-1 可執行條件。"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.
-            error:
-              code: QA_ATLAS_NOT_READY
+          examples:
+            qaAtlasNotReady:
+              summary: Atlas mode 尚未 ready
+              description: backend 偵測到 `atlas` mode 已被啟用，但目前不符合 Phase-1 可用條件，因此拒絕執行。
+              value:
+                success: false
+                message: Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.
+                error:
+                  code: QA_ATLAS_NOT_READY
     LineNotConfiguredError:
-      description: LINE signature verification is impossible because the backend is missing `LINE_CHANNEL_SECRET`.
+      description: backend 缺少 `LINE_CHANNEL_SECRET`，因此無法完成 LINE signature 驗證。
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-          example:
-            success: false
-            message: LINE_CHANNEL_SECRET is not configured.
-            error:
-              code: LINE_NOT_CONFIGURED
+          examples:
+            lineNotConfigured:
+              summary: LINE signature 驗證條件不足
+              description: backend 尚未配置 `LINE_CHANNEL_SECRET`，因此無法驗證 LINE webhook 的簽章。
+              value:
+                success: false
+                message: LINE_CHANNEL_SECRET is not configured.
+                error:
+                  code: LINE_NOT_CONFIGURED
   schemas:
     ObjectId:
+      description: MongoDB ObjectId 的字串格式。
       type: string
       pattern: '^[a-fA-F0-9]{24}$'
       example: 507f191e810c19729de860eb
     UserRole:
+      description: 系統目前支援的使用者角色列舉。
       type: string
       enum:
         - admin
         - teacher
         - student
     CourseStatus:
+      description: 課程狀態列舉。
       type: string
       enum:
         - draft
         - published
         - archived
     BridgeMode:
+      description: |
+        Phase-1 課程或影片的 `bridge` 呈現模式。
+
+        `bridge` 代表目前資料仍處於 app-owned records 與 pipeline metadata 共存的過渡狀態。
+        `qa_scope_only` 代表這份資料主要只用來提供 QA 範圍，不保證具備完整 app-owned video 行為。
       type: string
       enum:
         - standard
         - qa_scope_only
         - mixed_scope
     VideoSourceType:
+      description: 影片來源型別列舉。
       type: string
       enum:
         - upload
         - external_url
     VideoProcessingStatus:
+      description: 影片 processing 狀態列舉。
       type: string
       enum:
         - queued
@@ -871,18 +979,21 @@ components:
         - completed
         - failed
     ReadinessStatus:
+      description: runtime readiness 狀態列舉。
       type: string
       enum:
         - ready
         - degraded
         - hard_fail
     LineDeliveryMode:
+      description: LINE webhook / reply flow 的交付模式列舉。
       type: string
       enum:
         - live
         - backend_only
         - disabled
     SuccessBase:
+      description: 所有成功回應共用的 envelope 基底。
       type: object
       required:
         - success
@@ -893,6 +1004,7 @@ components:
         message:
           type: string
     ErrorResponse:
+      description: 所有錯誤回應共用的 envelope 格式。
       type: object
       required:
         - success
@@ -911,8 +1023,9 @@ components:
             code:
               type: string
             details:
-              description: Optional endpoint-specific error details. Shape varies by error.
+              description: 可選的 endpoint-specific error details；實際結構會依 error 類型而不同。
     DiagnosticItem:
+      description: 用於 warnings、hardFailures 或 degradedReasons 的診斷項目。
       type: object
       required:
         - code
@@ -923,6 +1036,7 @@ components:
         message:
           type: string
     PublicUser:
+      description: 對 API 使用者公開的 user 資訊，不包含敏感欄位。
       type: object
       required:
         - id
@@ -975,6 +1089,7 @@ components:
               format: date-time
             - type: 'null'
     TeacherSummary:
+      description: 課程或影片回應中使用的 teacher 簡化資料。
       type: object
       required:
         - _id
@@ -995,6 +1110,10 @@ components:
         isActive:
           type: boolean
     CourseBridgeFields:
+      description: |
+        課程在 Phase-1 下的 `bridge` 補充欄位。
+
+        這些欄位用來說明目前課程是一般課程、混合課程，或僅作為 QA scope 的 bridge 課程。
       type: object
       required:
         - qaScopeOnly
@@ -1009,6 +1128,7 @@ components:
         - bridgeContractPath
       properties:
         qaScopeOnly:
+          description: "`true` 代表這門課目前偏向 QA scope 使用，而不是完整 app-owned course 體驗。"
           type: boolean
         bridgeMode:
           $ref: '#/components/schemas/BridgeMode'
@@ -1033,12 +1153,15 @@ components:
           items:
             $ref: '#/components/schemas/ObjectId'
         bridgeContract:
+          description: backend 目前採用的 bridge contract 名稱。
           type: string
           example: course_video_refs_v1
         bridgeContractPath:
+          description: bridge contract 的資料串接路徑說明。
           type: string
           example: course.videoIds -> videos.video_id -> video_segments_text.video_id|videoId
     Course:
+      description: 課程主體回應，含基本課程資料與 Phase-1 bridge 欄位。
       allOf:
         - type: object
           required:
@@ -1075,6 +1198,7 @@ components:
                 - type: 'null'
         - $ref: '#/components/schemas/CourseBridgeFields'
     CourseRef:
+      description: 影片或其他巢狀回應中使用的最小課程參考資料。
       type: object
       required:
         - _id
@@ -1092,6 +1216,7 @@ components:
             - $ref: '#/components/schemas/ObjectId'
             - $ref: '#/components/schemas/TeacherSummary'
     UserRef:
+      description: 巢狀回應中使用的最小使用者參考資料。
       type: object
       required:
         - _id
@@ -1109,6 +1234,7 @@ components:
         role:
           $ref: '#/components/schemas/UserRole'
     VideoProcessing:
+      description: 影片 processing 狀態本體。
       type: object
       required:
         - status
@@ -1154,6 +1280,12 @@ components:
           type: integer
           minimum: 0
     Video:
+      description: |
+        影片回應主體。
+
+        Phase-1 下同一個 `Video` schema 可能同時承載：
+        - 完整的 app-owned video
+        - 僅提供 QA scope 的 `metadataOnly` bridge video
       type: object
       required:
         - _id
@@ -1182,7 +1314,7 @@ components:
         _id:
           type: string
         courseId:
-          description: Phase-1 may return either an ObjectId string or a populated minimal course reference.
+          description: Phase-1 下可能回傳 ObjectId 字串，或最小化的 populated course reference。
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - $ref: '#/components/schemas/CourseRef'
@@ -1197,7 +1329,7 @@ components:
             - type: string
             - type: 'null'
         uploadedBy:
-          description: Phase-1 may return either an ObjectId string, a minimal populated user, or null for metadata-only bridge videos.
+          description: Phase-1 下可能回傳 ObjectId 字串、最小 populated user，或在 `metadataOnly` bridge video 時為 null。
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - $ref: '#/components/schemas/UserRef'
@@ -1263,20 +1395,26 @@ components:
               format: date-time
             - type: 'null'
         qaScopeOnly:
+          description: "`true` 代表這支影片主要只暴露 QA scope 所需資訊。"
           type: boolean
         metadataOnly:
+          description: "`true` 代表這支影片只有 metadata，沒有完整 app-owned video 的 processing / 管理能力。"
           type: boolean
         isAppOwned:
+          description: "`true` 代表這支影片是 backend app 直接管理的 app-owned record。"
           type: boolean
         bridgeMode:
+          description: 這支影片目前所屬的 `bridge` 呈現模式。
           $ref: '#/components/schemas/BridgeMode'
         bridgeSource:
+          description: 若為 bridge video，指出目前 metadata 來源。
           anyOf:
             - type: string
               enum:
                 - pipeline_metadata
             - type: 'null'
     VideoProcessingPayload:
+      description: 影片 processing 相關端點回傳的資料主體。
       type: object
       required:
         - id
@@ -1296,6 +1434,7 @@ components:
               format: date-time
             - type: 'null'
     CourseVideosMeta:
+      description: 課程影片列表額外附帶的 `meta` 區塊。
       type: object
       required:
         - qaScopeOnly
@@ -1306,6 +1445,7 @@ components:
         - bridgeContract
       properties:
         qaScopeOnly:
+          description: 課程影片列表是否屬於 QA-only scope。
           type: boolean
         bridgeMode:
           $ref: '#/components/schemas/BridgeMode'
@@ -1319,8 +1459,10 @@ components:
           type: integer
           minimum: 0
         bridgeContract:
+          description: 目前列表採用的 bridge contract 名稱。
           type: string
     QaRuntimeSnapshot:
+      description: QA runtime 的靜態快照，用來描述目前 provider 與 readiness 狀態。
       type: object
       required:
         - queryEmbeddingProvider
@@ -1377,6 +1519,7 @@ components:
           items:
             $ref: '#/components/schemas/DiagnosticItem'
     LineRuntimeSnapshot:
+      description: LINE runtime 的靜態快照，用來描述簽章驗證、reply 能力與 delivery mode。
       type: object
       required:
         - signatureValidationConfigured
@@ -1411,6 +1554,7 @@ components:
           items:
             $ref: '#/components/schemas/DiagnosticItem'
     HealthData:
+      description: "`/health` 回應中的主要資料區塊。"
       type: object
       required:
         - service
@@ -1436,6 +1580,7 @@ components:
             line:
               $ref: '#/components/schemas/LineRuntimeSnapshot'
     AuthLoginRequest:
+      description: "`/api/v1/auth/login` 的 request body。"
       type: object
       required:
         - email
@@ -1447,6 +1592,7 @@ components:
         password:
           type: string
     AuthLoginData:
+      description: 登入成功後回傳的資料主體。
       type: object
       required:
         - token
@@ -1457,6 +1603,7 @@ components:
         user:
           $ref: '#/components/schemas/PublicUser'
     AuthMeData:
+      description: 目前登入使用者查詢的資料主體。
       type: object
       required:
         - user
@@ -1464,6 +1611,7 @@ components:
         user:
           $ref: '#/components/schemas/PublicUser'
     CourseCreateRequest:
+      description: 建立課程時使用的 request body。
       type: object
       required:
         - title
@@ -1477,6 +1625,7 @@ components:
         teacherId:
           $ref: '#/components/schemas/ObjectId'
     QaAskRequest:
+      description: "`/api/v1/qa/ask` 的 request body。"
       type: object
       required:
         - courseId
@@ -1487,6 +1636,7 @@ components:
         question:
           type: string
     QaMatch:
+      description: QA 搜尋後回傳的單一片段命中結果。
       type: object
       required:
         - segmentId
@@ -1512,6 +1662,7 @@ components:
           type: number
           minimum: 0
     QaClip:
+      description: QA 命中的 clip 快取資訊；若目前沒有 clip，回應中可能為 null。
       type: object
       required:
         - segmentId
@@ -1534,6 +1685,7 @@ components:
           type: integer
           minimum: 0
     QaFallback:
+      description: QA 在 retrieval 或 answer generation 階段發生 fallback 時的說明項目。
       type: object
       required:
         - stage
@@ -1555,6 +1707,7 @@ components:
             - type: string
             - type: 'null'
     QaRuntimeCourseSummary:
+      description: QA runtime 內附帶的課程範圍摘要。
       type: object
       required:
         - qaScopeOnly
@@ -1566,6 +1719,7 @@ components:
         - bridgeContractPath
       properties:
         qaScopeOnly:
+          description: "`true` 代表這門課目前只有 QA scope 的可用性，不保證具備完整影片管理體驗。"
           type: boolean
         bridgeMode:
           $ref: '#/components/schemas/BridgeMode'
@@ -1579,10 +1733,17 @@ components:
           type: integer
           minimum: 0
         bridgeContract:
+          description: QA scope 使用的 bridge contract 名稱。
           type: string
         bridgeContractPath:
+          description: QA scope 使用的 bridge contract 路徑說明。
           type: string
     QaRuntime:
+      description: |
+        QA 執行結果對應的 runtime 診斷資訊。
+
+        `degraded` 代表系統仍可回答，但目前條件不是理想狀態，例如 fallback、bridge-only scope 或 retrieval 條件不足。
+        `no_searchable_segments` 代表目前課程缺少可搜尋片段，而不是單純沒有相關答案。
       allOf:
         - $ref: '#/components/schemas/QaRuntimeSnapshot'
         - type: object
@@ -1599,24 +1760,31 @@ components:
             - fallbacks
           properties:
             status:
+              description: QA runtime 的總體狀態；`degraded` 代表仍可用，但不在理想條件。
               type: string
               enum:
                 - ready
                 - degraded
             degraded:
+              description: 是否處於 `degraded` 狀態。
               type: boolean
             degradedReasons:
+              description: 導致 `degraded` 的原因代碼列表。
               type: array
               items:
                 type: string
             searchBackendUsed:
+              description: 實際使用的搜尋 backend。
               type: string
             scoringMode:
+              description: 本次 QA 命中排序所使用的 scoring 模式。
               type: string
             searchableSegmentCount:
+              description: 目前課程範圍內可搜尋的 segment 數量。
               type: integer
               minimum: 0
             matchStatus:
+              description: QA 命中狀態；`no_searchable_segments` 代表沒有可搜尋片段，`no_relevant_match` 則代表有資料但未命中相關片段。
               type: string
               enum:
                 - matched
@@ -1625,19 +1793,23 @@ components:
             course:
               $ref: '#/components/schemas/QaRuntimeCourseSummary'
             answerProviderUsed:
+              description: 本次實際用來產生答案的 provider；若未產生答案則可能為 null。
               anyOf:
                 - type: string
                 - type: 'null'
             fallbacks:
+              description: 本次請求中發生的 fallback 列表。
               type: array
               items:
                 $ref: '#/components/schemas/QaFallback'
     LineEventSource:
+      description: LINE event 內的來源資訊。
       type: object
       properties:
         userId:
           type: string
     LineTextMessage:
+      description: LINE text message 事件中的訊息內容。
       type: object
       required:
         - type
@@ -1648,6 +1820,7 @@ components:
         text:
           type: string
     LineMessageEvent:
+      description: LINE 的 message 事件。
       type: object
       required:
         - type
@@ -1664,6 +1837,7 @@ components:
         message:
           $ref: '#/components/schemas/LineTextMessage'
     LineFollowEvent:
+      description: LINE 的 follow 事件。
       type: object
       required:
         - type
@@ -1677,6 +1851,7 @@ components:
         source:
           $ref: '#/components/schemas/LineEventSource'
     LinePostbackEvent:
+      description: LINE 的 postback 事件。
       type: object
       required:
         - type
@@ -1698,6 +1873,7 @@ components:
             data:
               type: string
     LineUnknownEvent:
+      description: 未被 backend 明確支援、但仍允許保留原始型態的 LINE 事件。
       type: object
       required:
         - type
@@ -1706,12 +1882,14 @@ components:
           type: string
       additionalProperties: true
     LineWebhookEvent:
+      description: LINE webhook 事件的 union 型別，接受目前 backend 已處理與未知型別的事件。
       anyOf:
         - $ref: '#/components/schemas/LineFollowEvent'
         - $ref: '#/components/schemas/LineMessageEvent'
         - $ref: '#/components/schemas/LinePostbackEvent'
         - $ref: '#/components/schemas/LineUnknownEvent'
     LineWebhookRequest:
+      description: LINE Platform 送往 webhook 的 request body。
       type: object
       required:
         - events
@@ -1723,6 +1901,7 @@ components:
           items:
             $ref: '#/components/schemas/LineWebhookEvent'
     LineQuestionQaRuntime:
+      description: LINE 問答事件成功處理後，回傳給觀測用途的 QA runtime 摘要。
       type: object
       required:
         - status
@@ -1754,6 +1933,7 @@ components:
           items:
             type: string
     LineFailureQaRuntime:
+      description: LINE 問答事件在 QA hard-fail 時，回傳的簡化 runtime 摘要。
       type: object
       required:
         - readiness
@@ -1784,6 +1964,7 @@ components:
           items:
             type: string
     LineWebhookResult:
+      description: 單一 LINE event 經 backend 處理後的結果摘要。
       type: object
       required:
         - type
@@ -1821,6 +2002,7 @@ components:
             - $ref: '#/components/schemas/LineFailureQaRuntime'
             - type: 'null'
     HealthResponse:
+      description: "`/health` 的成功回應 envelope。"
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1830,6 +2012,7 @@ components:
             data:
               $ref: '#/components/schemas/HealthData'
     AuthLoginResponse:
+      description: "`/api/v1/auth/login` 的成功回應 envelope。"
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1839,6 +2022,7 @@ components:
             data:
               $ref: '#/components/schemas/AuthLoginData'
     AuthMeResponse:
+      description: "`/api/v1/auth/me` 的成功回應 envelope。"
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1848,6 +2032,7 @@ components:
             data:
               $ref: '#/components/schemas/AuthMeData'
     CourseListResponse:
+      description: 課程列表端點的成功回應 envelope。
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1864,6 +2049,7 @@ components:
                   items:
                     $ref: '#/components/schemas/Course'
     CourseItemResponse:
+      description: 單一課程端點的成功回應 envelope。
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1878,6 +2064,7 @@ components:
                 course:
                   $ref: '#/components/schemas/Course'
     VideoListResponse:
+      description: 課程影片列表端點的成功回應 envelope。
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1897,6 +2084,7 @@ components:
             meta:
               $ref: '#/components/schemas/CourseVideosMeta'
     VideoItemResponse:
+      description: 單一影片端點的成功回應 envelope。
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1911,6 +2099,7 @@ components:
                 video:
                   $ref: '#/components/schemas/Video'
     VideoProcessingResponse:
+      description: 影片 processing 相關端點的成功回應 envelope。
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1920,6 +2109,7 @@ components:
             data:
               $ref: '#/components/schemas/VideoProcessingPayload'
     QaAskResponse:
+      description: "`/api/v1/qa/ask` 的成功回應 envelope。"
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object
@@ -1947,6 +2137,7 @@ components:
                 runtime:
                   $ref: '#/components/schemas/QaRuntime'
     LineWebhookResponse:
+      description: "`/api/v1/line/webhook` 的成功回應 envelope。"
       allOf:
         - $ref: '#/components/schemas/SuccessBase'
         - type: object

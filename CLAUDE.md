@@ -40,6 +40,9 @@ npm test                                                                        
 node --test --experimental-test-isolation=none --test-concurrency=1 tests/<file>.test.js          # 執行單一測試檔
 ```
 
+Swagger / OpenAPI：執行中的文件入口是 `/docs`，raw spec 由 repo 內 `backend/docs/openapi.yaml` 提供。
+`POST /api/v1/line/webhook` 已納入 OpenAPI，但屬 integration-facing endpoint，不要當成一般前端 API。
+
 ### Frontend
 
 首次設定：

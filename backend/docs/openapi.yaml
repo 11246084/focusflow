@@ -1,0 +1,1975 @@
+openapi: 3.1.0
+info:
+  title: FocusFlow Backend API
+  version: 0.1.0-phase1
+  description: |
+    Phase-1 MVP API documentation for the current FocusFlow backend.
+
+    Scope of this document:
+    - Keep the current live backend contract understandable for frontend and teammates.
+    - Describe phase-1 bridge-aware and runtime-observable responses honestly.
+    - Do not overstate Atlas retrieval, query embedding alignment, or live LINE delivery as production-ready.
+
+    Non-goals for this round:
+    - No route-level JSDoc generation
+    - No production-hardening refactor
+    - No internal processing webhook coverage in Swagger yet
+servers:
+  - url: /
+    description: Same-origin backend root. Swagger UI Try it out uses the current host and port.
+tags:
+  - name: Health
+    description: Phase-1 observability and bootstrap checks. Safe to use in demo validation paths.
+  - name: Auth
+    description: JWT login and current-user lookup for frontend and test clients.
+  - name: Courses
+    description: Authenticated course APIs. Course responses are bridge-aware in phase-1 and may expose QA scope metadata.
+  - name: Videos
+    description: Video listing, detail, processing status, upload, and guarded operational actions.
+  - name: QA
+    description: Question-answering APIs with explicit runtime diagnostics and phase-1 fallback signals.
+  - name: LINE Webhook
+    description: |
+      Integration-facing LINE Platform webhook callbacks.
+
+      This is not a general frontend endpoint.
+      Phase-1 only documents the current backend-observable flow and does not claim a fully verified live production integration.
+security:
+  - BearerAuth: []
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      security: []
+      summary: Read backend runtime health
+      description: |
+        Phase-1 observability endpoint used for bootstrap checks and demo-safe runtime inspection.
+
+        It exposes the current QA and LINE runtime snapshots. Treat it as a readiness/diagnostics endpoint, not a proof that every downstream integration is fully production-ready.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service health snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  value:
+                    success: true
+                    message: Service is healthy.
+                    data:
+                      service: focusflow-backend
+                      environment: development
+                      timestamp: '2026-04-17T02:00:00.000Z'
+                      runtime:
+                        qa:
+                          queryEmbeddingProvider: mock
+                          vectorSearchMode: memory
+                          answerProvider: gemini
+                          atlasVectorIndexConfigured: false
+                          atlasFilterMode: bridge_course_or_video
+                          geminiConfigured: true
+                          openaiConfigured: false
+                          readiness: ready
+                          readyForAsk: true
+                          warnings:
+                            - code: PHASE1_MEMORY_SEARCH
+                              message: Phase-1 QA retrieval is running in memory mode instead of Atlas vector search.
+                            - code: PHASE1_MOCK_QUERY_EMBEDDING
+                              message: Phase-1 QA query embeddings are still mock embeddings.
+                          hardFailures: []
+                        line:
+                          signatureValidationConfigured: true
+                          liveReplyConfigured: false
+                          liveFlowReady: false
+                          readiness: degraded
+                          deliveryMode: backend_only
+                          missingConfig:
+                            - LINE_CHANNEL_ACCESS_TOKEN
+                          hardFailures: []
+                          degradedReasons:
+                            - code: LINE_CHANNEL_ACCESS_TOKEN_MISSING
+                              message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: Log in with email and password
+      description: Returns a JWT bearer token and the current public user profile.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+            examples:
+              teacherLogin:
+                value:
+                  email: teacher@focusflow.local
+                  password: Teacher123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: Login successful.
+                    data:
+                      token: <jwt-token>
+                      user:
+                        id: 507f1f77bcf86cd799439011
+                        name: Demo Teacher
+                        email: teacher@focusflow.local
+                        role: teacher
+                        isActive: true
+                        lineUserId: null
+                        lineBindAt: null
+                        activeCourseId: null
+                        lineConversationState: idle
+                        createdAt: '2026-04-06T09:00:00.000Z'
+                        updatedAt: '2026-04-17T02:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentialsError'
+        '403':
+          $ref: '#/components/responses/UserInactiveError'
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Read the current authenticated user
+      description: Requires a valid bearer token.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          description: Missing, invalid, expired, or unavailable user token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unauthorized:
+                  value:
+                    success: false
+                    message: Authentication required.
+                    error:
+                      code: UNAUTHORIZED
+                invalidToken:
+                  value:
+                    success: false
+                    message: Invalid or expired token.
+                    error:
+                      code: INVALID_TOKEN
+        '404':
+          $ref: '#/components/responses/UserNotFoundError'
+  /api/v1/courses:
+    get:
+      tags:
+        - Courses
+      summary: List accessible courses
+      description: |
+        Returns courses visible to the current user according to role-based access rules.
+
+        This response is bridge-aware in phase-1 and may expose `qaScopeOnly`, `bridgeMode`, and related metadata so frontend/demo consumers can distinguish normal courses from QA-only bridge presentations.
+      operationId: listCourses
+      responses:
+        '200':
+          description: Courses fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Courses
+      summary: Create a course
+      description: Teacher/admin-only course creation endpoint.
+      operationId: createCourse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateRequest'
+      responses:
+        '201':
+          description: Course created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseItemResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/courses/{courseId}:
+    get:
+      tags:
+        - Courses
+      summary: Read a course by id
+      description: |
+        Returns one accessible course. This is bridge-aware in phase-1 and may expose QA-only metadata such as `qaScopeOnly`, `bridgeMode`, and bridge contract hints.
+      operationId: getCourseById
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: Course fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseItemResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/courses/{courseId}/videos:
+    get:
+      tags:
+        - Videos
+      summary: List videos for a course
+      description: |
+        Returns bridge-aware video presentations for one course.
+
+        In phase-1 a course may expose:
+        - app-owned videos with processing metadata
+        - metadata-only bridge videos for QA scope presentation
+
+        Check both the response `meta` block and per-video flags such as `metadataOnly`, `qaScopeOnly`, and `isAppOwned`.
+      operationId: listCourseVideos
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: Videos fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+    post:
+      tags:
+        - Videos
+      summary: Upload a course video
+      description: Teacher/admin-only video upload endpoint for app-owned course videos.
+      operationId: createVideo
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - video
+              properties:
+                title:
+                  type: string
+                  description: Optional display title. Defaults to the uploaded filename when omitted.
+                video:
+                  type: string
+                  format: binary
+                  description: Video file. Backend currently accepts MIME types starting with `video/`.
+      responses:
+        '201':
+          description: Video uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoItemResponse'
+        '400':
+          description: Invalid upload payload, invalid course id, or upload validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid resource id.
+                    error:
+                      code: INVALID_ID
+                missingFile:
+                  value:
+                    success: false
+                    message: Video file is required.
+                    error:
+                      code: VIDEO_FILE_REQUIRED
+                invalidFileType:
+                  value:
+                    success: false
+                    message: Only video uploads are allowed.
+                    error:
+                      code: INVALID_FILE_TYPE
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Caller cannot create/manage videos for this course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbiddenRole:
+                  value:
+                    success: false
+                    message: You do not have permission to perform this action.
+                    error:
+                      code: FORBIDDEN
+                manageDenied:
+                  value:
+                    success: false
+                    message: You do not have permission to manage this course.
+                    error:
+                      code: COURSE_MANAGE_DENIED
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/videos/{videoId}:
+    get:
+      tags:
+        - Videos
+      summary: Read one video by id
+      description: |
+        Returns a bridge-aware video presentation.
+
+        In phase-1 the same endpoint may return:
+        - an app-owned video with processing state
+        - a metadata-only bridge video for QA scoping
+      operationId: getVideoById
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: Video fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoItemResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+  /api/v1/videos/{videoId}/processing:
+    get:
+      tags:
+        - Videos
+      summary: Read video processing status
+      description: |
+        Reads processing metadata for one video.
+
+        This is an operational/observability endpoint, not a public student-facing path. Only the course owner teacher or an admin may read processing state for app-owned videos. Metadata-only bridge videos intentionally return `409 VIDEO_METADATA_ONLY`.
+      operationId: getVideoProcessing
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: Processing state fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoProcessingResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/VideoMetadataOnlyError'
+  /api/v1/videos/{videoId}/processing/retry:
+    post:
+      tags:
+        - Videos
+      summary: Retry failed video processing
+      description: |
+        Guarded operational action for failed app-owned videos.
+
+        This is not a demo-only shortcut. It is intended for course owner teachers and admins who need to re-queue a failed processing job. The current state must already be `failed`, otherwise the backend returns `409 VIDEO_PROCESSING_TRANSITION_INVALID`.
+      operationId: retryVideoProcessing
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: Video processing re-queued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoProcessingResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/VideoProcessingTransitionInvalidError'
+  /api/v1/qa/ask:
+    post:
+      tags:
+        - QA
+      summary: Ask a course question
+      description: |
+        Phase-1 QA endpoint with explicit runtime diagnostics.
+
+        The response may still be successful while runtime status is `degraded`. Clients should inspect:
+        - `runtime.status`
+        - `runtime.matchStatus`
+        - `runtime.fallbacks`
+        - `runtime.course.qaScopeOnly`
+
+        This endpoint does not claim production-ready Atlas retrieval. Current phase-1 behavior may use memory-mode retrieval, mock embeddings, bridge-only scope, or answer-generation fallbacks.
+      operationId: askQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaAskRequest'
+            examples:
+              ask:
+                value:
+                  courseId: 507f191e810c19729de860eb
+                  question: What does the course say about JWT authentication?
+      responses:
+        '200':
+          description: Question answered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QaAskResponse'
+        '400':
+          description: Validation error or invalid ObjectId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation:
+                  value:
+                    success: false
+                    message: courseId and question are required.
+                    error:
+                      code: VALIDATION_ERROR
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid resource id.
+                    error:
+                      code: INVALID_ID
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+        '500':
+          $ref: '#/components/responses/QaRuntimeMisconfiguredError'
+        '503':
+          $ref: '#/components/responses/QaAtlasNotReadyError'
+  /api/v1/line/webhook:
+    post:
+      tags:
+        - LINE Webhook
+      security:
+        - LineSignature: []
+      summary: Receive LINE Platform webhook callbacks
+      description: |
+        Integration-facing endpoint for LINE Platform callbacks.
+
+        Current phase-1 expectations:
+        - Not intended for direct frontend calls
+        - The backend validates `x-line-signature` against the exact raw request body
+        - A successful `200` means the backend handled the callback batch, not that live LINE delivery is fully verified
+        - LINE replies may still be skipped in `backend_only` mode when `LINE_CHANNEL_ACCESS_TOKEN` is missing
+        - Swagger UI Try it out does not auto-sign the raw payload, so manual requests will fail unless the signature exactly matches the request body bytes
+      operationId: handleLineWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineWebhookRequest'
+            examples:
+              textQuestion:
+                value:
+                  events:
+                    - type: message
+                      replyToken: reply-ask-001
+                      source:
+                        userId: line-student-001
+                      message:
+                        type: text
+                        text: What does the course say about JWT authentication?
+      responses:
+        '200':
+          description: Webhook batch accepted and processed by the backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineWebhookResponse'
+              examples:
+                backendOnly:
+                  value:
+                    success: true
+                    message: LINE webhook processed.
+                    data:
+                      received: 1
+                      processed: 1
+                      lineRuntime:
+                        signatureValidationConfigured: true
+                        liveReplyConfigured: false
+                        liveFlowReady: false
+                        readiness: degraded
+                        deliveryMode: backend_only
+                        missingConfig:
+                          - LINE_CHANNEL_ACCESS_TOKEN
+                        hardFailures: []
+                        degradedReasons:
+                          - code: LINE_CHANNEL_ACCESS_TOKEN_MISSING
+                            message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
+                      results:
+                        - type: question
+                          handled: true
+                          matchCount: 1
+                          replySent: false
+                          replySkipped: true
+                          replyReason: line_channel_access_token_missing
+                          qaRuntime:
+                            status: degraded
+                            degraded: true
+                            matchStatus: matched
+                            answerProviderUsed: template
+                            searchableSegmentCount: 2
+                            fallbackCount: 1
+                            fallbackCodes:
+                              - SEGMENT_EMBEDDING_MISSING
+        '400':
+          description: Raw request body was unavailable or the JSON payload could not be parsed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidJson:
+                  value:
+                    success: false
+                    message: Invalid JSON body.
+                    error:
+                      code: VALIDATION_ERROR
+                rawBodyMissing:
+                  value:
+                    success: false
+                    message: LINE raw request body is not available.
+                    error:
+                      code: LINE_RAW_BODY_MISSING
+        '401':
+          description: Missing or invalid LINE signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingSignature:
+                  value:
+                    success: false
+                    message: Missing LINE signature.
+                    error:
+                      code: LINE_SIGNATURE_MISSING
+                invalidSignature:
+                  value:
+                    success: false
+                    message: Invalid LINE signature.
+                    error:
+                      code: LINE_SIGNATURE_INVALID
+        '500':
+          $ref: '#/components/responses/LineNotConfiguredError'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    LineSignature:
+      type: apiKey
+      in: header
+      name: x-line-signature
+      description: |
+        HMAC-SHA256 signature over the exact raw webhook body, using `LINE_CHANNEL_SECRET`.
+
+        This is an integration-facing signature check. Swagger UI does not compute the signature automatically.
+  parameters:
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      description: MongoDB ObjectId for the target course.
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+    VideoId:
+      name: videoId
+      in: path
+      required: true
+      description: MongoDB ObjectId for the target video.
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+  responses:
+    ValidationError:
+      description: Request payload failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              value:
+                success: false
+                message: Validation failed.
+                error:
+                  code: VALIDATION_ERROR
+                  details:
+                    - title is required
+    InvalidCredentialsError:
+      description: Email or password is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Invalid email or password.
+            error:
+              code: INVALID_CREDENTIALS
+    UserInactiveError:
+      description: User exists but is inactive.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: User is inactive.
+            error:
+              code: USER_INACTIVE
+    UnauthorizedError:
+      description: Missing bearer token or authenticated user is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Authentication required.
+            error:
+              code: UNAUTHORIZED
+    ForbiddenError:
+      description: Authenticated user does not have the required role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: You do not have permission to perform this action.
+            error:
+              code: FORBIDDEN
+    InvalidIdError:
+      description: Path or body ObjectId is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Invalid resource id.
+            error:
+              code: INVALID_ID
+    UserNotFoundError:
+      description: Authenticated user no longer exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: User not found.
+            error:
+              code: USER_NOT_FOUND
+    CourseAccessDeniedError:
+      description: Caller cannot access the requested course.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: You do not have access to this course.
+            error:
+              code: COURSE_ACCESS_DENIED
+    CourseManageDeniedError:
+      description: Caller cannot manage the requested course/video.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: You do not have permission to manage this course.
+            error:
+              code: COURSE_MANAGE_DENIED
+    CourseNotFoundError:
+      description: Course was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Course not found.
+            error:
+              code: COURSE_NOT_FOUND
+    VideoNotFoundError:
+      description: Video was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Video not found.
+            error:
+              code: VIDEO_NOT_FOUND
+    VideoMetadataOnlyError:
+      description: Metadata-only bridge video does not expose processing state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: This video is metadata-only for QA scope and does not expose processing status.
+            error:
+              code: VIDEO_METADATA_ONLY
+    VideoProcessingTransitionInvalidError:
+      description: Processing state cannot transition to the requested target state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Cannot transition video processing from completed to queued.
+            error:
+              code: VIDEO_PROCESSING_TRANSITION_INVALID
+    QaRuntimeMisconfiguredError:
+      description: QA runtime settings are invalid for the requested operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: GEMINI_API_KEY is required when QA_ANSWER_PROVIDER=gemini.
+            error:
+              code: QA_RUNTIME_MISCONFIGURED
+              details:
+                readiness: hard_fail
+    QaAtlasNotReadyError:
+      description: Atlas vector-search mode is configured but not ready for phase-1 execution.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.
+            error:
+              code: QA_ATLAS_NOT_READY
+    LineNotConfiguredError:
+      description: LINE signature verification is impossible because the backend is missing `LINE_CHANNEL_SECRET`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: LINE_CHANNEL_SECRET is not configured.
+            error:
+              code: LINE_NOT_CONFIGURED
+  schemas:
+    ObjectId:
+      type: string
+      pattern: '^[a-fA-F0-9]{24}$'
+      example: 507f191e810c19729de860eb
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - teacher
+        - student
+    CourseStatus:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+    BridgeMode:
+      type: string
+      enum:
+        - standard
+        - qa_scope_only
+        - mixed_scope
+    VideoSourceType:
+      type: string
+      enum:
+        - upload
+        - external_url
+    VideoProcessingStatus:
+      type: string
+      enum:
+        - queued
+        - processing
+        - completed
+        - failed
+    ReadinessStatus:
+      type: string
+      enum:
+        - ready
+        - degraded
+        - hard_fail
+    LineDeliveryMode:
+      type: string
+      enum:
+        - live
+        - backend_only
+        - disabled
+    SuccessBase:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          const: true
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - error
+      properties:
+        success:
+          const: false
+        message:
+          type: string
+        error:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+            details:
+              description: Optional endpoint-specific error details. Shape varies by error.
+    DiagnosticItem:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    PublicUser:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+        - isActive
+        - lineUserId
+        - lineBindAt
+        - activeCourseId
+        - lineConversationState
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+        lineUserId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        lineBindAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        activeCourseId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        lineConversationState:
+          type: string
+          enum:
+            - idle
+            - awaiting_course_selection
+        createdAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    TeacherSummary:
+      type: object
+      required:
+        - _id
+        - name
+        - email
+        - role
+        - isActive
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+    CourseBridgeFields:
+      type: object
+      required:
+        - qaScopeOnly
+        - bridgeMode
+        - videoCount
+        - appVideoCount
+        - bridgeVideoCount
+        - courseVideoRefCount
+        - bridgeExternalVideoIds
+        - courseVideoIds
+        - bridgeContract
+        - bridgeContractPath
+      properties:
+        qaScopeOnly:
+          type: boolean
+        bridgeMode:
+          $ref: '#/components/schemas/BridgeMode'
+        videoCount:
+          type: integer
+          minimum: 0
+        appVideoCount:
+          type: integer
+          minimum: 0
+        bridgeVideoCount:
+          type: integer
+          minimum: 0
+        courseVideoRefCount:
+          type: integer
+          minimum: 0
+        bridgeExternalVideoIds:
+          type: array
+          items:
+            type: string
+        courseVideoIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectId'
+        bridgeContract:
+          type: string
+          example: course_video_refs_v1
+        bridgeContractPath:
+          type: string
+          example: course.videoIds -> videos.video_id -> video_segments_text.video_id|videoId
+    Course:
+      allOf:
+        - type: object
+          required:
+            - _id
+            - title
+            - description
+            - teacherId
+            - videoIds
+            - status
+          properties:
+            _id:
+              $ref: '#/components/schemas/ObjectId'
+            title:
+              type: string
+            description:
+              type: string
+            teacherId:
+              $ref: '#/components/schemas/TeacherSummary'
+            videoIds:
+              type: array
+              items:
+                $ref: '#/components/schemas/ObjectId'
+            status:
+              $ref: '#/components/schemas/CourseStatus'
+            createdAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            updatedAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+        - $ref: '#/components/schemas/CourseBridgeFields'
+    CourseRef:
+      type: object
+      required:
+        - _id
+        - title
+        - status
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/CourseStatus'
+        teacherId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - $ref: '#/components/schemas/TeacherSummary'
+    UserRef:
+      type: object
+      required:
+        - _id
+        - name
+        - email
+        - role
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+    VideoProcessing:
+      type: object
+      required:
+        - status
+        - errorMessage
+        - errorCode
+        - queuedAt
+        - startedAt
+        - completedAt
+        - failedAt
+        - attemptCount
+      properties:
+        status:
+          $ref: '#/components/schemas/VideoProcessingStatus'
+        errorMessage:
+          anyOf:
+            - type: string
+            - type: 'null'
+        errorCode:
+          anyOf:
+            - type: string
+            - type: 'null'
+        queuedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        startedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        failedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        attemptCount:
+          type: integer
+          minimum: 0
+    Video:
+      type: object
+      required:
+        - _id
+        - courseId
+        - title
+        - sourceType
+        - sourceUrl
+        - uploadedBy
+        - processing
+        - video_id
+        - videoId
+        - externalVideoId
+        - file_name
+        - fileName
+        - file_path
+        - durationSec
+        - duration_sec
+        - createdAt
+        - updatedAt
+        - qaScopeOnly
+        - metadataOnly
+        - isAppOwned
+        - bridgeMode
+        - bridgeSource
+      properties:
+        _id:
+          type: string
+        courseId:
+          description: Phase-1 may return either an ObjectId string or a populated minimal course reference.
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - $ref: '#/components/schemas/CourseRef'
+        title:
+          type: string
+        sourceType:
+          anyOf:
+            - $ref: '#/components/schemas/VideoSourceType'
+            - type: 'null'
+        sourceUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        uploadedBy:
+          description: Phase-1 may return either an ObjectId string, a minimal populated user, or null for metadata-only bridge videos.
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - $ref: '#/components/schemas/UserRef'
+            - type: 'null'
+        processing:
+          anyOf:
+            - $ref: '#/components/schemas/VideoProcessing'
+            - type: 'null'
+        video_id:
+          anyOf:
+            - type: string
+            - type: 'null'
+        videoId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        externalVideoId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        file_name:
+          anyOf:
+            - type: string
+            - type: 'null'
+        fileName:
+          anyOf:
+            - type: string
+            - type: 'null'
+        file_path:
+          anyOf:
+            - type: string
+            - type: 'null'
+        storagePath:
+          anyOf:
+            - type: string
+            - type: 'null'
+        durationSec:
+          anyOf:
+            - type: number
+              minimum: 0
+            - type: 'null'
+        duration_sec:
+          anyOf:
+            - type: number
+              minimum: 0
+            - type: 'null'
+        video_source:
+          anyOf:
+            - type: string
+            - type: 'null'
+        video_url:
+          anyOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        qaScopeOnly:
+          type: boolean
+        metadataOnly:
+          type: boolean
+        isAppOwned:
+          type: boolean
+        bridgeMode:
+          $ref: '#/components/schemas/BridgeMode'
+        bridgeSource:
+          anyOf:
+            - type: string
+              enum:
+                - pipeline_metadata
+            - type: 'null'
+    VideoProcessingPayload:
+      type: object
+      required:
+        - id
+        - title
+        - processing
+        - updatedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+        processing:
+          $ref: '#/components/schemas/VideoProcessing'
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    CourseVideosMeta:
+      type: object
+      required:
+        - qaScopeOnly
+        - bridgeMode
+        - videoCount
+        - appVideoCount
+        - bridgeVideoCount
+        - bridgeContract
+      properties:
+        qaScopeOnly:
+          type: boolean
+        bridgeMode:
+          $ref: '#/components/schemas/BridgeMode'
+        videoCount:
+          type: integer
+          minimum: 0
+        appVideoCount:
+          type: integer
+          minimum: 0
+        bridgeVideoCount:
+          type: integer
+          minimum: 0
+        bridgeContract:
+          type: string
+    QaRuntimeSnapshot:
+      type: object
+      required:
+        - queryEmbeddingProvider
+        - vectorSearchMode
+        - answerProvider
+        - atlasVectorIndexConfigured
+        - atlasFilterMode
+        - geminiConfigured
+        - openaiConfigured
+        - readiness
+        - readyForAsk
+        - warnings
+        - hardFailures
+      properties:
+        queryEmbeddingProvider:
+          type: string
+          enum:
+            - mock
+            - openai
+        vectorSearchMode:
+          type: string
+          enum:
+            - memory
+            - atlas
+        answerProvider:
+          type: string
+          enum:
+            - template
+            - openai
+            - gemini
+        atlasVectorIndexConfigured:
+          type: boolean
+        atlasFilterMode:
+          type: string
+          enum:
+            - bridge_course_or_video
+        geminiConfigured:
+          type: boolean
+        openaiConfigured:
+          type: boolean
+        readiness:
+          type: string
+          enum:
+            - ready
+            - hard_fail
+        readyForAsk:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+        hardFailures:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+    LineRuntimeSnapshot:
+      type: object
+      required:
+        - signatureValidationConfigured
+        - liveReplyConfigured
+        - liveFlowReady
+        - readiness
+        - deliveryMode
+        - missingConfig
+        - hardFailures
+        - degradedReasons
+      properties:
+        signatureValidationConfigured:
+          type: boolean
+        liveReplyConfigured:
+          type: boolean
+        liveFlowReady:
+          type: boolean
+        readiness:
+          $ref: '#/components/schemas/ReadinessStatus'
+        deliveryMode:
+          $ref: '#/components/schemas/LineDeliveryMode'
+        missingConfig:
+          type: array
+          items:
+            type: string
+        hardFailures:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+        degradedReasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+    HealthData:
+      type: object
+      required:
+        - service
+        - environment
+        - timestamp
+        - runtime
+      properties:
+        service:
+          type: string
+        environment:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        runtime:
+          type: object
+          required:
+            - qa
+            - line
+          properties:
+            qa:
+              $ref: '#/components/schemas/QaRuntimeSnapshot'
+            line:
+              $ref: '#/components/schemas/LineRuntimeSnapshot'
+    AuthLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthLoginData:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/PublicUser'
+    AuthMeData:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/PublicUser'
+    CourseCreateRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/CourseStatus'
+        teacherId:
+          $ref: '#/components/schemas/ObjectId'
+    QaAskRequest:
+      type: object
+      required:
+        - courseId
+        - question
+      properties:
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        question:
+          type: string
+    QaMatch:
+      type: object
+      required:
+        - segmentId
+        - videoId
+        - startSec
+        - endSec
+        - transcript
+        - score
+      properties:
+        segmentId:
+          type: string
+        videoId:
+          type: string
+        startSec:
+          type: number
+          minimum: 0
+        endSec:
+          type: number
+          minimum: 0
+        transcript:
+          type: string
+        score:
+          type: number
+          minimum: 0
+    QaClip:
+      type: object
+      required:
+        - segmentId
+        - clipUrl
+        - jumpUrl
+        - keyPoints
+        - hitCount
+      properties:
+        segmentId:
+          type: string
+        clipUrl:
+          type: string
+        jumpUrl:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        hitCount:
+          type: integer
+          minimum: 0
+    QaFallback:
+      type: object
+      required:
+        - stage
+        - code
+        - message
+      properties:
+        stage:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        from:
+          anyOf:
+            - type: string
+            - type: 'null'
+        to:
+          anyOf:
+            - type: string
+            - type: 'null'
+    QaRuntimeCourseSummary:
+      type: object
+      required:
+        - qaScopeOnly
+        - bridgeMode
+        - videoCount
+        - appVideoCount
+        - bridgeVideoCount
+        - bridgeContract
+        - bridgeContractPath
+      properties:
+        qaScopeOnly:
+          type: boolean
+        bridgeMode:
+          $ref: '#/components/schemas/BridgeMode'
+        videoCount:
+          type: integer
+          minimum: 0
+        appVideoCount:
+          type: integer
+          minimum: 0
+        bridgeVideoCount:
+          type: integer
+          minimum: 0
+        bridgeContract:
+          type: string
+        bridgeContractPath:
+          type: string
+    QaRuntime:
+      allOf:
+        - $ref: '#/components/schemas/QaRuntimeSnapshot'
+        - type: object
+          required:
+            - status
+            - degraded
+            - degradedReasons
+            - searchBackendUsed
+            - scoringMode
+            - searchableSegmentCount
+            - matchStatus
+            - course
+            - answerProviderUsed
+            - fallbacks
+          properties:
+            status:
+              type: string
+              enum:
+                - ready
+                - degraded
+            degraded:
+              type: boolean
+            degradedReasons:
+              type: array
+              items:
+                type: string
+            searchBackendUsed:
+              type: string
+            scoringMode:
+              type: string
+            searchableSegmentCount:
+              type: integer
+              minimum: 0
+            matchStatus:
+              type: string
+              enum:
+                - matched
+                - no_relevant_match
+                - no_searchable_segments
+            course:
+              $ref: '#/components/schemas/QaRuntimeCourseSummary'
+            answerProviderUsed:
+              anyOf:
+                - type: string
+                - type: 'null'
+            fallbacks:
+              type: array
+              items:
+                $ref: '#/components/schemas/QaFallback'
+    LineEventSource:
+      type: object
+      properties:
+        userId:
+          type: string
+    LineTextMessage:
+      type: object
+      required:
+        - type
+        - text
+      properties:
+        type:
+          const: text
+        text:
+          type: string
+    LineMessageEvent:
+      type: object
+      required:
+        - type
+        - replyToken
+        - source
+        - message
+      properties:
+        type:
+          const: message
+        replyToken:
+          type: string
+        source:
+          $ref: '#/components/schemas/LineEventSource'
+        message:
+          $ref: '#/components/schemas/LineTextMessage'
+    LineFollowEvent:
+      type: object
+      required:
+        - type
+        - replyToken
+        - source
+      properties:
+        type:
+          const: follow
+        replyToken:
+          type: string
+        source:
+          $ref: '#/components/schemas/LineEventSource'
+    LinePostbackEvent:
+      type: object
+      required:
+        - type
+        - replyToken
+        - source
+        - postback
+      properties:
+        type:
+          const: postback
+        replyToken:
+          type: string
+        source:
+          $ref: '#/components/schemas/LineEventSource'
+        postback:
+          type: object
+          required:
+            - data
+          properties:
+            data:
+              type: string
+    LineUnknownEvent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+      additionalProperties: true
+    LineWebhookEvent:
+      anyOf:
+        - $ref: '#/components/schemas/LineFollowEvent'
+        - $ref: '#/components/schemas/LineMessageEvent'
+        - $ref: '#/components/schemas/LinePostbackEvent'
+        - $ref: '#/components/schemas/LineUnknownEvent'
+    LineWebhookRequest:
+      type: object
+      required:
+        - events
+      properties:
+        destination:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineWebhookEvent'
+    LineQuestionQaRuntime:
+      type: object
+      required:
+        - status
+        - degraded
+        - matchStatus
+        - answerProviderUsed
+        - searchableSegmentCount
+        - fallbackCount
+        - fallbackCodes
+      properties:
+        status:
+          type: string
+        degraded:
+          type: boolean
+        matchStatus:
+          type: string
+        answerProviderUsed:
+          anyOf:
+            - type: string
+            - type: 'null'
+        searchableSegmentCount:
+          type: integer
+          minimum: 0
+        fallbackCount:
+          type: integer
+          minimum: 0
+        fallbackCodes:
+          type: array
+          items:
+            type: string
+    LineFailureQaRuntime:
+      type: object
+      required:
+        - readiness
+        - readyForAsk
+        - queryEmbeddingProvider
+        - vectorSearchMode
+        - answerProvider
+        - hardFailureCodes
+      properties:
+        readiness:
+          type: string
+        readyForAsk:
+          type: boolean
+        queryEmbeddingProvider:
+          anyOf:
+            - type: string
+            - type: 'null'
+        vectorSearchMode:
+          anyOf:
+            - type: string
+            - type: 'null'
+        answerProvider:
+          anyOf:
+            - type: string
+            - type: 'null'
+        hardFailureCodes:
+          type: array
+          items:
+            type: string
+    LineWebhookResult:
+      type: object
+      required:
+        - type
+        - handled
+        - replySent
+        - replySkipped
+        - replyReason
+      properties:
+        type:
+          type: string
+        handled:
+          type: boolean
+        reason:
+          anyOf:
+            - type: string
+            - type: 'null'
+        replySent:
+          type: boolean
+        replySkipped:
+          type: boolean
+        replyReason:
+          anyOf:
+            - type: string
+            - type: 'null'
+        errorCode:
+          anyOf:
+            - type: string
+            - type: 'null'
+        matchCount:
+          type: integer
+          minimum: 0
+        qaRuntime:
+          anyOf:
+            - $ref: '#/components/schemas/LineQuestionQaRuntime'
+            - $ref: '#/components/schemas/LineFailureQaRuntime'
+            - type: 'null'
+    HealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/HealthData'
+    AuthLoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthLoginData'
+    AuthMeResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/AuthMeData'
+    CourseListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - courses
+              properties:
+                courses:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Course'
+    CourseItemResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - course
+              properties:
+                course:
+                  $ref: '#/components/schemas/Course'
+    VideoListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: object
+              required:
+                - videos
+              properties:
+                videos:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Video'
+            meta:
+              $ref: '#/components/schemas/CourseVideosMeta'
+    VideoItemResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - video
+              properties:
+                video:
+                  $ref: '#/components/schemas/Video'
+    VideoProcessingResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/VideoProcessingPayload'
+    QaAskResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - answer
+                - matches
+                - clip
+                - runtime
+              properties:
+                answer:
+                  type: string
+                matches:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/QaMatch'
+                clip:
+                  anyOf:
+                    - $ref: '#/components/schemas/QaClip'
+                    - type: 'null'
+                runtime:
+                  $ref: '#/components/schemas/QaRuntime'
+    LineWebhookResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - received
+                - processed
+                - lineRuntime
+                - results
+              properties:
+                received:
+                  type: integer
+                  minimum: 0
+                processed:
+                  type: integer
+                  minimum: 0
+                lineRuntime:
+                  $ref: '#/components/schemas/LineRuntimeSnapshot'
+                results:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LineWebhookResult'

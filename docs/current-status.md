@@ -38,6 +38,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `/api/v1/qa/ask`：answer、matches、時間資訊、runtime 訊號
 - LINE：bind-token、webhook verify、bind、switch course、ask routing
 - `GET /health`：qa + line runtime 可觀察性
+- backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，且 LINE webhook 已納入文件但只應視為 integration-facing endpoint
 - backend tests：7 個測試檔，in-memory store，不依賴真實 MongoDB
 
 ---
@@ -83,3 +84,4 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - Query embedding **尚未與 pipeline 3072 維對齊**
 - `video_segments_video` **尚未接手** clip source
 - Live LINE **尚未完成** 完整外部驗證
+- LINE webhook **已納入 OpenAPI 文件**，但這不等於 live production flow 已完整驗證

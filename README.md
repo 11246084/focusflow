@@ -49,6 +49,13 @@ npm run dev               # 啟動開發伺服器（port 4000）
 
 本機開發使用預設值即可，不需要任何 API 金鑰。啟用 LINE Bot 需額外填入 LINE 相關變數。
 
+### Swagger / OpenAPI
+
+- 執行時 Swagger UI：`/docs`
+- 執行時 raw spec：`/docs/openapi.yaml`
+- repo 規格檔：`backend/docs/openapi.yaml`
+- LINE webhook 已納入 OpenAPI，但屬 integration-facing endpoint，不是一般前端直接呼叫入口。
+
 ### 前端
 
 ```bash

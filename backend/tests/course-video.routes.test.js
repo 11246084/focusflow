@@ -369,19 +369,30 @@ describe('course and video routes', () => {
 
     assert.equal(courseListResult.status, 200);
     assert.ok(bridgeCourseInList);
+    assert.equal(bridgeCourseInList.isBridgeCourse, true);
     assert.equal(bridgeCourseInList.qaScopeOnly, true);
     assert.equal(bridgeCourseInList.bridgeMode, 'qa_scope_only');
     assert.equal(bridgeCourseInList.bridgeContract, 'course_video_refs_v1');
     assert.match(bridgeCourseInList.bridgeContractPath, /course\.videoIds/);
     assert.equal(bridgeCourseInList.bridgeVideoCount, 1);
+    assert.equal(bridgeCourseInList.metadataOnlyVideoCount, 1);
     assert.equal(bridgeCourseInList.videoCount, 1);
+    assert.equal(bridgeCourseInList.appVideoCount, 0);
+    assert.equal(bridgeCourseInList.appOwnedVideoCount, 0);
     assert.equal(courseDetailResult.status, 200);
+    assert.equal(courseDetailResult.body.data.course.isBridgeCourse, true);
     assert.equal(courseDetailResult.body.data.course.qaScopeOnly, true);
     assert.equal(courseDetailResult.body.data.course.bridgeMode, 'qa_scope_only');
     assert.equal(courseDetailResult.body.data.course.bridgeContract, 'course_video_refs_v1');
     assert.equal(listResult.status, 200);
+    assert.equal(listResult.body.meta.isBridgeCourse, true);
     assert.equal(listResult.body.meta.qaScopeOnly, true);
     assert.equal(listResult.body.meta.bridgeMode, 'qa_scope_only');
+    assert.equal(listResult.body.meta.appVideoCount, 0);
+    assert.equal(listResult.body.meta.appOwnedVideoCount, 0);
+    assert.equal(listResult.body.meta.bridgeVideoCount, 1);
+    assert.equal(listResult.body.meta.metadataOnlyVideoCount, 1);
+    assert.match(listResult.body.meta.bridgeContractPath, /course\.videoIds/);
     assert.equal(listResult.body.data.videos.length, 1);
     assert.equal(listResult.body.data.videos[0]._id, ids.pipelineBridgeVideo);
     assert.equal(listResult.body.data.videos[0].metadataOnly, true);
@@ -393,6 +404,90 @@ describe('course and video routes', () => {
     assert.equal(detailResult.body.data.video.courseId, ids.pipelineBridgeCourse);
     assert.equal(processingResult.status, 409);
     assert.equal(processingResult.body.error.code, 'VIDEO_METADATA_ONLY');
+  });
+
+  it('marks mixed bridge courses with both canonical counts and readability aliases', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const mixedCourseId = newObjectId();
+    const mixedAppVideoId = newObjectId();
+    const mixedBridgeVideoId = newObjectId();
+    const mixedBridgeExternalVideoId = 'video-mixed-bridge-001';
+
+    store.courses.push({
+      _id: mixedCourseId,
+      title: 'Mixed Bridge Course',
+      description: 'Course with both app-owned and bridge metadata videos.',
+      teacherId: ids.teacher,
+      videoIds: [mixedAppVideoId, mixedBridgeVideoId],
+      status: 'published',
+      createdAt: '2026-04-14T08:00:00.000Z',
+    });
+
+    store.videos.push(
+      {
+        _id: mixedAppVideoId,
+        courseId: mixedCourseId,
+        title: 'Mixed App Video',
+        sourceType: 'upload',
+        sourceUrl: '/uploads/mixed-app.mp4',
+        video_id: 'video-mixed-app-001',
+        file_name: 'mixed-app.mp4',
+        file_path: 'uploads/mixed-app.mp4',
+        storagePath: 'uploads/mixed-app.mp4',
+        durationSec: 120,
+        duration_sec: 120,
+        video_source: 'upload',
+        video_url: '/uploads/mixed-app.mp4',
+        uploadedBy: ids.teacher,
+        processing: createProcessingState({
+          status: 'completed',
+          queuedAt: '2026-04-14T08:00:00.000Z',
+          startedAt: '2026-04-14T08:01:00.000Z',
+          completedAt: '2026-04-14T08:03:00.000Z',
+          attemptCount: 1,
+        }),
+        createdAt: '2026-04-14T08:00:00.000Z',
+        updatedAt: '2026-04-14T08:03:00.000Z',
+      },
+      {
+        _id: mixedBridgeVideoId,
+        video_id: mixedBridgeExternalVideoId,
+        file_name: 'mixed-bridge.mp4',
+        duration_sec: 300,
+        createdAt: '2026-04-14T08:05:00.000Z',
+        updatedAt: '2026-04-14T08:05:00.000Z',
+      },
+    );
+
+    const courseDetailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${mixedCourseId}`,
+      { token: teacherToken },
+    );
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${mixedCourseId}/videos`,
+      { token: teacherToken },
+    );
+
+    assert.equal(courseDetailResult.status, 200);
+    assert.equal(courseDetailResult.body.data.course.isBridgeCourse, true);
+    assert.equal(courseDetailResult.body.data.course.bridgeMode, 'mixed_scope');
+    assert.equal(courseDetailResult.body.data.course.appVideoCount, 1);
+    assert.equal(courseDetailResult.body.data.course.appOwnedVideoCount, 1);
+    assert.equal(courseDetailResult.body.data.course.bridgeVideoCount, 1);
+    assert.equal(courseDetailResult.body.data.course.metadataOnlyVideoCount, 1);
+
+    assert.equal(listResult.status, 200);
+    assert.equal(listResult.body.meta.isBridgeCourse, true);
+    assert.equal(listResult.body.meta.bridgeMode, 'mixed_scope');
+    assert.equal(listResult.body.meta.appVideoCount, 1);
+    assert.equal(listResult.body.meta.appOwnedVideoCount, 1);
+    assert.equal(listResult.body.meta.bridgeVideoCount, 1);
+    assert.equal(listResult.body.meta.metadataOnlyVideoCount, 1);
+    assert.equal(listResult.body.data.videos.length, 2);
+    assert.equal(listResult.body.data.videos.some((video) => video.metadataOnly === true), true);
+    assert.equal(listResult.body.data.videos.some((video) => video.isAppOwned === true), true);
   });
 
   it('allows owner teacher and admin to retry failed videos but rejects other roles', async () => {

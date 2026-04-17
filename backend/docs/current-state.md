@@ -27,10 +27,13 @@
 - phase-1 正式 retrieval 仍是 memory mode，不是 Atlas semantic retrieval
 - answer generation 正式模式是 Gemini
 - demo 資料不是自動建立，仍需明確執行 `npm run seed`
+- 若要先清掉 demo-owned / demo-derived 痕跡再重建，使用 `npm run seed -- --reset`
 
 目前 QA bridge contract 仍是：
 
 `course.videoIds -> videos._id -> videos.video_id -> video_segments_text.video_id|videoId`
+
+目前另有一條 pipeline-style demo bridge baseline，目的是讓 bridge 課程展示可重現；它不是已與真實 pipeline fully synchronized 的正式產品狀態。
 
 ## 已完成項目
 
@@ -42,6 +45,7 @@
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa` 與 `runtime.line`
 - backend-only acceptance smoke 已存在，可在不碰共享 MongoDB 的前提下重驗主線
+- demo baseline 已可用 `npm run seed` 收斂，並可用 `npm run seed -- --reset` 保守清除 demo-owned / demo-derived 痕跡後重建
 
 ## readiness / degraded / hard_fail 怎麼解讀
 
@@ -87,6 +91,7 @@
 - `videos` 仍是 mixed collection，app-owned video 與 pipeline metadata 的 ownership 尚未定版
 - `video_segments_text` 仍是 mixed shape，canonical 欄位與搜尋覆蓋率尚未完全 freeze
 - `FocusFlow Pipeline Bridge Course` 可能只有 metadata、沒有 searchable segments
+- `FocusFlow Pipeline Bridge Course` 目前是 pipeline-style demo baseline，不應誤稱為 live pipeline 已完整同步
 - `clips` 目前仍是 cache / helper，`video_segments_video` 尚未接成正式片段來源
 - 共享 MongoDB 不適合直接做全 live smoke，因為會留下 usage logs、bind tokens 等痕跡
 - Atlas index naming、filter fields、query embedding provider、live LINE 條件仍需跨組協作定版

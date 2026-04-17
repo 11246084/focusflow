@@ -157,11 +157,14 @@ function buildCourseBridgeSummary(course, scopedVideos = {}) {
   }
 
   return {
+    isBridgeCourse: bridgeMode !== COURSE_BRIDGE_MODES.STANDARD,
     qaScopeOnly: bridgeMode === COURSE_BRIDGE_MODES.QA_SCOPE_ONLY,
     bridgeMode,
     videoCount: videos.length,
     appVideoCount: appOwnedVideos.length,
     bridgeVideoCount: pipelineMetadataVideos.length,
+    appOwnedVideoCount: appOwnedVideos.length,
+    metadataOnlyVideoCount: pipelineMetadataVideos.length,
     courseVideoRefCount: courseVideoRefs.length,
     bridgeExternalVideoIds: pipelineMetadataVideos
       .map((video) => normalizeIdentifier(video.video_id, video.videoId))

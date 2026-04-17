@@ -291,6 +291,24 @@ function findOneAndUpdateInStore(collection, query, update, options = {}) {
   return document;
 }
 
+function deleteManyInStore(collection, query = {}) {
+  const removableIndexes = [];
+
+  collection.forEach((item, index) => {
+    if (matchesQuery(item, query)) {
+      removableIndexes.push(index);
+    }
+  });
+
+  for (let index = removableIndexes.length - 1; index >= 0; index -= 1) {
+    collection.splice(removableIndexes[index], 1);
+  }
+
+  return {
+    deletedCount: removableIndexes.length,
+  };
+}
+
 function installModelStubs() {
   if (installModelStubs.installed) {
     return;
@@ -344,6 +362,7 @@ function installModelStubs() {
     update,
     options,
   );
+  Course.deleteMany = async (query = {}) => deleteManyInStore(store.courses, query);
   Course.find = (query = {}) => createQuery(
     store.courses.filter((item) => matchesQuery(item, query)),
     {
@@ -398,6 +417,7 @@ function installModelStubs() {
     update,
     options,
   );
+  Video.deleteMany = async (query = {}) => deleteManyInStore(store.videos, query);
   Video.find = (query = {}) => createQuery(
     store.videos.filter((item) => matchesQuery(item, query)),
     {
@@ -480,6 +500,7 @@ function installModelStubs() {
     applyUpdate(enrollment, update);
     return enrollment;
   };
+  Enrollment.deleteMany = async (query = {}) => deleteManyInStore(store.enrollments, query);
 
   VideoSegment.find = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query));
   VideoSegment.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
@@ -488,6 +509,7 @@ function installModelStubs() {
     update,
     options,
   );
+  VideoSegment.deleteMany = async (query = {}) => deleteManyInStore(store.videoSegments, query);
   VideoSegment.aggregate = async () => [];
 
   Clip.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
@@ -496,6 +518,7 @@ function installModelStubs() {
     update,
     options,
   );
+  Clip.deleteMany = async (query = {}) => deleteManyInStore(store.clips, query);
 
   UsageLog.create = async (payload) => {
     store.usageLogs.push({
@@ -503,6 +526,7 @@ function installModelStubs() {
       ...payload,
     });
   };
+  UsageLog.deleteMany = async (query = {}) => deleteManyInStore(store.usageLogs, query);
 
   LineBindToken.create = async (payload) => {
     const token = {
@@ -513,6 +537,7 @@ function installModelStubs() {
     return token;
   };
   LineBindToken.findOne = async (query = {}) => store.lineBindTokens.find((item) => matchesQuery(item, query)) || null;
+  LineBindToken.deleteMany = async (query = {}) => deleteManyInStore(store.lineBindTokens, query);
   LineBindToken.deleteOne = async (query = {}) => {
     const index = store.lineBindTokens.findIndex((item) => matchesQuery(item, query));
 

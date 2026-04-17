@@ -35,12 +35,16 @@ const listCourseVideos = asyncHandler(async (req, res) => {
       videos: result.videos,
     },
     meta: {
+      isBridgeCourse: result.presentation.isBridgeCourse,
       qaScopeOnly: result.presentation.qaScopeOnly,
       bridgeMode: result.presentation.bridgeMode,
       videoCount: result.presentation.videoCount,
       appVideoCount: result.presentation.appVideoCount,
       bridgeVideoCount: result.presentation.bridgeVideoCount,
+      appOwnedVideoCount: result.presentation.appOwnedVideoCount,
+      metadataOnlyVideoCount: result.presentation.metadataOnlyVideoCount,
       bridgeContract: result.presentation.bridgeContract,
+      bridgeContractPath: result.presentation.bridgeContractPath,
     },
   });
 });

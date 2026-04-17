@@ -474,10 +474,12 @@ paths:
         即使回應成功，runtime 狀態仍可能是 `degraded`；這表示系統可以回答，但目前執行條件不是理想狀態。呼叫端應至少檢查：
         - `runtime.status`
         - `runtime.matchStatus`
+        - `runtime.resultCategory`
         - `runtime.fallbacks`
         - `runtime.course.qaScopeOnly`
 
         若 `runtime.matchStatus=no_searchable_segments`，代表這門課目前沒有可搜尋的片段資料，而不是單純找不到相關答案。
+        `runtime.resultCategory` 是 Phase-1 的 convenience field，方便 frontend / demo 先做分流；真正細節仍應以 `status`、`matchStatus` 與 `degradedReasons` 為準。
 
         這個端點不代表 Atlas retrieval 已 production-ready。Phase-1 目前可能仍使用 memory-mode retrieval、mock embeddings、bridge-only scope，或 answer-generation fallback。
       operationId: askQuestion
@@ -605,6 +607,7 @@ paths:
                           qaRuntime:
                             status: degraded
                             degraded: true
+                            resultCategory: matched_degraded
                             matchStatus: matched
                             answerProviderUsed: template
                             searchableSegmentCount: 2
@@ -1116,17 +1119,23 @@ components:
         這些欄位用來說明目前課程是一般課程、混合課程，或僅作為 QA scope 的 bridge 課程。
       type: object
       required:
+        - isBridgeCourse
         - qaScopeOnly
         - bridgeMode
         - videoCount
         - appVideoCount
         - bridgeVideoCount
+        - appOwnedVideoCount
+        - metadataOnlyVideoCount
         - courseVideoRefCount
         - bridgeExternalVideoIds
         - courseVideoIds
         - bridgeContract
         - bridgeContractPath
       properties:
+        isBridgeCourse:
+          description: "`true` 代表這門課目前不是純 `standard` 呈現，而是 bridge-first 的課程視圖。"
+          type: boolean
         qaScopeOnly:
           description: "`true` 代表這門課目前偏向 QA scope 使用，而不是完整 app-owned course 體驗。"
           type: boolean
@@ -1136,9 +1145,19 @@ components:
           type: integer
           minimum: 0
         appVideoCount:
+          description: 課程下 app-owned video 的正式統計欄位。
           type: integer
           minimum: 0
         bridgeVideoCount:
+          description: 課程下 bridge / pipeline metadata video 的正式統計欄位。
+          type: integer
+          minimum: 0
+        appOwnedVideoCount:
+          description: "`appVideoCount` 的 readability alias，統計來源完全相同，僅用於讓 frontend / demo 更容易理解。"
+          type: integer
+          minimum: 0
+        metadataOnlyVideoCount:
+          description: "`bridgeVideoCount` 的 readability alias，統計來源完全相同，僅用於強調這些影片目前是 `metadataOnly` bridge video。"
           type: integer
           minimum: 0
         courseVideoRefCount:
@@ -1437,13 +1456,20 @@ components:
       description: 課程影片列表額外附帶的 `meta` 區塊。
       type: object
       required:
+        - isBridgeCourse
         - qaScopeOnly
         - bridgeMode
         - videoCount
         - appVideoCount
         - bridgeVideoCount
+        - appOwnedVideoCount
+        - metadataOnlyVideoCount
         - bridgeContract
+        - bridgeContractPath
       properties:
+        isBridgeCourse:
+          description: 方便呼叫端快速判斷這份列表是否來自 bridge-first 課程。
+          type: boolean
         qaScopeOnly:
           description: 課程影片列表是否屬於 QA-only scope。
           type: boolean
@@ -1453,13 +1479,26 @@ components:
           type: integer
           minimum: 0
         appVideoCount:
+          description: 影片列表中 app-owned video 的正式統計欄位。
           type: integer
           minimum: 0
         bridgeVideoCount:
+          description: 影片列表中 bridge / pipeline metadata video 的正式統計欄位。
+          type: integer
+          minimum: 0
+        appOwnedVideoCount:
+          description: "`appVideoCount` 的 readability alias，統計來源完全相同。"
+          type: integer
+          minimum: 0
+        metadataOnlyVideoCount:
+          description: "`bridgeVideoCount` 的 readability alias，統計來源完全相同。"
           type: integer
           minimum: 0
         bridgeContract:
           description: 目前列表採用的 bridge contract 名稱。
+          type: string
+        bridgeContractPath:
+          description: 目前列表採用的 bridge contract 路徑說明。
           type: string
     QaRuntimeSnapshot:
       description: QA runtime 的靜態快照，用來描述目前 provider 與 readiness 狀態。
@@ -1710,14 +1749,20 @@ components:
       description: QA runtime 內附帶的課程範圍摘要。
       type: object
       required:
+        - isBridgeCourse
         - qaScopeOnly
         - bridgeMode
         - videoCount
         - appVideoCount
         - bridgeVideoCount
+        - appOwnedVideoCount
+        - metadataOnlyVideoCount
         - bridgeContract
         - bridgeContractPath
       properties:
+        isBridgeCourse:
+          description: 方便 QA client 快速辨識這次問答是否落在 bridge-first 課程範圍內。
+          type: boolean
         qaScopeOnly:
           description: "`true` 代表這門課目前只有 QA scope 的可用性，不保證具備完整影片管理體驗。"
           type: boolean
@@ -1727,9 +1772,19 @@ components:
           type: integer
           minimum: 0
         appVideoCount:
+          description: QA 範圍內 app-owned video 的正式統計欄位。
           type: integer
           minimum: 0
         bridgeVideoCount:
+          description: QA 範圍內 bridge / pipeline metadata video 的正式統計欄位。
+          type: integer
+          minimum: 0
+        appOwnedVideoCount:
+          description: "`appVideoCount` 的 readability alias，統計來源完全相同。"
+          type: integer
+          minimum: 0
+        metadataOnlyVideoCount:
+          description: "`bridgeVideoCount` 的 readability alias，統計來源完全相同。"
           type: integer
           minimum: 0
         bridgeContract:
@@ -1755,6 +1810,7 @@ components:
             - scoringMode
             - searchableSegmentCount
             - matchStatus
+            - resultCategory
             - course
             - answerProviderUsed
             - fallbacks
@@ -1788,6 +1844,14 @@ components:
               type: string
               enum:
                 - matched
+                - no_relevant_match
+                - no_searchable_segments
+            resultCategory:
+              description: Phase-1 的 convenience field，方便 frontend / demo 先分流結果；真正細節仍應以 `status`、`matchStatus` 與 `degradedReasons` 為準。
+              type: string
+              enum:
+                - matched
+                - matched_degraded
                 - no_relevant_match
                 - no_searchable_segments
             course:

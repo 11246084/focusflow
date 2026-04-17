@@ -136,6 +136,7 @@ describe('qa routes', () => {
     assert.equal(result.body.data.runtime.status, 'degraded');
     assert.equal(result.body.data.runtime.degraded, true);
     assert.equal(result.body.data.runtime.matchStatus, 'no_relevant_match');
+    assert.equal(result.body.data.runtime.resultCategory, 'no_relevant_match');
     assert.equal(result.body.data.runtime.searchableSegmentCount, 2);
     assert.equal(result.body.data.runtime.degradedReasons.includes('SEGMENT_EMBEDDING_MISSING'), true);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'ask'), true);
@@ -168,7 +169,13 @@ describe('qa routes', () => {
     assert.equal(result.body.data.runtime.queryEmbeddingProvider, 'mock');
     assert.equal(result.body.data.runtime.searchBackendUsed, 'memory');
     assert.equal(result.body.data.runtime.answerProviderUsed, 'template');
+    assert.equal(result.body.data.runtime.resultCategory, 'matched_degraded');
+    assert.equal(result.body.data.runtime.course.isBridgeCourse, false);
     assert.equal(result.body.data.runtime.course.bridgeMode, 'standard');
+    assert.equal(result.body.data.runtime.course.appVideoCount, 1);
+    assert.equal(result.body.data.runtime.course.appOwnedVideoCount, 1);
+    assert.equal(result.body.data.runtime.course.bridgeVideoCount, 0);
+    assert.equal(result.body.data.runtime.course.metadataOnlyVideoCount, 0);
     assert.equal(result.body.data.runtime.fallbacks.some((item) => item.code === 'SEGMENT_EMBEDDING_MISSING'), true);
     assert.equal(store.clips[0].hitCount, 1);
 
@@ -265,10 +272,16 @@ describe('qa routes', () => {
     assert.equal(result.body.data.runtime.status, 'degraded');
     assert.equal(result.body.data.runtime.degraded, true);
     assert.equal(result.body.data.runtime.matchStatus, 'no_searchable_segments');
+    assert.equal(result.body.data.runtime.resultCategory, 'no_searchable_segments');
     assert.equal(result.body.data.runtime.searchableSegmentCount, 0);
     assert.equal(result.body.data.runtime.degradedReasons.includes('NO_SEARCHABLE_SEGMENTS'), true);
+    assert.equal(result.body.data.runtime.course.isBridgeCourse, true);
     assert.equal(result.body.data.runtime.course.qaScopeOnly, true);
     assert.equal(result.body.data.runtime.course.bridgeMode, 'qa_scope_only');
+    assert.equal(result.body.data.runtime.course.appVideoCount, 0);
+    assert.equal(result.body.data.runtime.course.appOwnedVideoCount, 0);
+    assert.equal(result.body.data.runtime.course.bridgeVideoCount, 1);
+    assert.equal(result.body.data.runtime.course.metadataOnlyVideoCount, 1);
     assert.match(result.body.data.answer, /bridge metadata/);
   });
 });

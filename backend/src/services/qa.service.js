@@ -349,14 +349,25 @@ async function searchSegmentsWithAtlas(scope, queryVector) {
 
 function buildCourseRuntimeSummary(summary) {
   return {
+    isBridgeCourse: summary.isBridgeCourse,
     qaScopeOnly: summary.qaScopeOnly,
     bridgeMode: summary.bridgeMode,
     videoCount: summary.videoCount,
     appVideoCount: summary.appVideoCount,
     bridgeVideoCount: summary.bridgeVideoCount,
+    appOwnedVideoCount: summary.appOwnedVideoCount,
+    metadataOnlyVideoCount: summary.metadataOnlyVideoCount,
     bridgeContract: summary.bridgeContract,
     bridgeContractPath: summary.bridgeContractPath,
   };
+}
+
+function buildQaResultCategory({ status, matchStatus }) {
+  if (matchStatus === 'matched') {
+    return status === 'degraded' ? 'matched_degraded' : 'matched';
+  }
+
+  return matchStatus;
 }
 
 async function findCachedClip(segmentId) {
@@ -400,6 +411,7 @@ function buildQaRuntime({
   }
 
   const status = degradedReasons.length ? 'degraded' : 'ready';
+  const resultCategory = buildQaResultCategory({ status, matchStatus });
 
   return {
     ...runtimeSnapshot,
@@ -410,6 +422,7 @@ function buildQaRuntime({
     scoringMode: searchDiagnostics?.scoringMode || 'lexical',
     searchableSegmentCount,
     matchStatus,
+    resultCategory,
     course: buildCourseRuntimeSummary(courseSummary),
     answerProviderUsed: answerResult?.provider || null,
     fallbacks,

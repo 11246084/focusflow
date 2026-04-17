@@ -6,6 +6,9 @@
 
 這份 runbook 只保留 phase-1 backend 目前真實可重現的 demo 與 smoke 路徑，不把未 ready 的 Atlas 或 live LINE 寫成理想版。
 
+目前 demo baseline 可透過 `npm run seed` 收斂；若需要先清除 demo-owned / demo-derived 痕跡再重建，使用 `npm run seed -- --reset`。
+bridge 課程基線目前是 pipeline-style demo baseline，用來讓展示可重現，不代表已與真實 pipeline fully synchronized。
+
 ## Demo 前檢查
 
 - 先確認現況口徑以 [current-state.md](./current-state.md) 為準
@@ -55,6 +58,8 @@ QA_ANSWER_PROVIDER=gemini
 建議做法：
 
 1. `npm run seed`
+   - 預設只做 converge baseline，不主動清除既有 demo 痕跡
+   - 若需要乾淨重建，改用 `npm run seed -- --reset`
 2. `npm start`
 3. login / me / courses / QA
 4. 視外部條件決定是否做 live LINE smoke
@@ -107,6 +112,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\\line.
 - login / me
 - `/api/v1/courses`
 - bridge course 與 `metadataOnly` / `qaScopeOnly` 呈現
+  - 這門 bridge 課程是 pipeline-style demo baseline，預期主要用來展示 bridge / QA-only / metadata-only contract
 - `/api/v1/qa/ask`
 - 視外部條件再做 LINE live smoke
 

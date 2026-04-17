@@ -6,6 +6,8 @@ const Video = require('../models/video.model');
 const Enrollment = require('../models/enrollment.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Clip = require('../models/clip.model');
+const UsageLog = require('../models/usageLog.model');
+const LineBindToken = require('../models/lineBindToken.model');
 const env = require('../config/env');
 const {
   USER_ROLES,
@@ -14,10 +16,20 @@ const {
   VIDEO_PROCESSING_STATUSES,
 } = require('../constants/enums');
 const { buildMockEmbedding } = require('./queryEmbedding.service');
-const {
-  COURSE_BRIDGE_MODES,
-  normalizeIdentifier,
-} = require('./bridgeScope.service');
+const { COURSE_BRIDGE_MODES } = require('./bridgeScope.service');
+
+const DEMO_RECORD_IDS = {
+  courses: {
+    published: '680000000000000000000101',
+    draft: '680000000000000000000102',
+    pipelineBridge: '680000000000000000000103',
+  },
+  videos: {
+    published: '680000000000000000000201',
+    draft: '680000000000000000000202',
+    pipelineBridge: '680000000000000000000203',
+  },
+};
 
 const DEMO_USERS = [
   {
@@ -94,6 +106,12 @@ const DEMO_VIDEOS = {
       attemptCount: 1,
     },
   },
+  pipelineBridge: {
+    videoId: 'focusflow-demo-video-pipeline-bridge',
+    title: 'FocusFlow Pipeline-Style Bridge Demo Video',
+    filename: 'focusflow-demo-pipeline-bridge.mp4',
+    durationSec: 540,
+  },
 };
 
 const DEMO_SEGMENTS = [
@@ -124,30 +142,10 @@ const DEMO_CLIP = {
   keyPoints: ['QA API', 'video snippet', 'timestamp'],
 };
 
-async function collectPipelineBridgeVideos() {
-  const [videos, segments] = await Promise.all([
-    Video.find({}),
-    VideoSegment.find({}),
-  ]);
-
-  const segmentVideoIds = new Set(
-    segments
-      .map((segment) => normalizeIdentifier(segment.video_id, segment.videoId))
-      .filter(Boolean),
-  );
-
-  return videos.filter((video) => {
-    const externalVideoId = normalizeIdentifier(video.video_id, video.videoId);
-
-    if (!externalVideoId || !segmentVideoIds.has(externalVideoId)) {
-      return false;
-    }
-
-    // Bridge only onto existing pipeline metadata docs. Demo/app-layer videos
-    // stay on the regular backend-owned path even though they share `videos`.
-    return Video.isPipelineMetadataRecord(video);
-  });
-}
+const DEMO_USER_EMAILS = DEMO_USERS.map((user) => user.email);
+const DEMO_COURSE_TITLES = Object.values(DEMO_COURSES).map((course) => course.title);
+const DEMO_VIDEO_IDS = Object.values(DEMO_VIDEOS).map((video) => video.videoId);
+const DEMO_SEGMENT_IDS = DEMO_SEGMENTS.map((segment) => segment.segmentId);
 
 async function seedDemoUsers({ silent = false } = {}) {
   for (const demoUser of DEMO_USERS) {
@@ -163,6 +161,9 @@ async function seedDemoUsers({ silent = false } = {}) {
           role: demoUser.role,
           isActive: true,
           lineUserId: demoUser.lineUserId,
+          lineBindAt: null,
+          activeCourseId: null,
+          lineConversationState: 'idle',
         },
       },
       {
@@ -178,6 +179,74 @@ async function seedDemoUsers({ silent = false } = {}) {
   }
 
   return DEMO_USERS.map(({ passwordHash, ...user }) => user);
+}
+
+function buildDemoResetSelectors(existingTargets) {
+  const courseIds = existingTargets.courses.map((course) => String(course._id));
+  const userIds = existingTargets.users.map((user) => String(user._id));
+
+  return {
+    courseIds,
+    userIds,
+    lineBindTokenQuery: userIds.length
+      ? { userId: { $in: userIds } }
+      : null,
+    usageLogQuery: [
+      userIds.length ? { userId: { $in: userIds } } : null,
+      courseIds.length ? { courseId: { $in: courseIds } } : null,
+    ].filter(Boolean),
+  };
+}
+
+async function collectExistingDemoTargets() {
+  const users = (await Promise.all(DEMO_USER_EMAILS.map((email) => User.findOne({ email }))))
+    .filter(Boolean);
+  const [courses, videos] = await Promise.all([
+    Course.find({ title: { $in: DEMO_COURSE_TITLES } }),
+    Video.find({ video_id: { $in: DEMO_VIDEO_IDS } }),
+  ]);
+
+  return {
+    users,
+    courses,
+    videos,
+  };
+}
+
+async function resetDemoData({ silent = false } = {}) {
+  const existingTargets = await collectExistingDemoTargets();
+  const selectors = buildDemoResetSelectors(existingTargets);
+
+  if (selectors.lineBindTokenQuery) {
+    await LineBindToken.deleteMany(selectors.lineBindTokenQuery);
+  }
+
+  if (selectors.usageLogQuery.length) {
+    await UsageLog.deleteMany({ $or: selectors.usageLogQuery });
+  }
+
+  if (selectors.courseIds.length) {
+    await Enrollment.deleteMany({ courseId: { $in: selectors.courseIds } });
+  }
+
+  await Clip.deleteMany({ segmentId: { $in: [DEMO_CLIP.segmentId] } });
+  await VideoSegment.deleteMany({ segmentId: { $in: DEMO_SEGMENT_IDS } });
+  await Video.deleteMany({
+    $or: [
+      { _id: { $in: Object.values(DEMO_RECORD_IDS.videos) } },
+      { video_id: { $in: DEMO_VIDEO_IDS } },
+    ],
+  });
+  await Course.deleteMany({
+    $or: [
+      { _id: { $in: Object.values(DEMO_RECORD_IDS.courses) } },
+      { title: { $in: DEMO_COURSE_TITLES } },
+    ],
+  });
+
+  if (!silent) {
+    console.log('Demo-owned baseline data reset.');
+  }
 }
 
 function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
@@ -202,7 +271,21 @@ function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
   };
 }
 
-async function seedDemoData({ silent = false } = {}) {
+function buildPipelineStyleBridgeVideoPayload(definition) {
+  return {
+    title: definition.title,
+    video_id: definition.videoId,
+    file_name: definition.filename,
+    durationSec: definition.durationSec,
+    duration_sec: definition.durationSec,
+  };
+}
+
+async function seedDemoData({ silent = false, reset = false } = {}) {
+  if (reset) {
+    await resetDemoData({ silent: true });
+  }
+
   const users = await seedDemoUsers({ silent: true });
 
   const teacher = await User.findOne({ email: 'teacher@focusflow.local' });
@@ -216,6 +299,9 @@ async function seedDemoData({ silent = false } = {}) {
         description: DEMO_COURSES.published.description,
         teacherId: teacher._id,
         status: DEMO_COURSES.published.status,
+      },
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.courses.published,
       },
     },
     {
@@ -234,6 +320,9 @@ async function seedDemoData({ silent = false } = {}) {
         teacherId: teacher._id,
         status: DEMO_COURSES.draft.status,
       },
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.courses.draft,
+      },
     },
     {
       upsert: true,
@@ -250,6 +339,9 @@ async function seedDemoData({ silent = false } = {}) {
         uploadedBy: teacher._id,
         definition: DEMO_VIDEOS.published,
       }),
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.videos.published,
+      },
     },
     {
       upsert: true,
@@ -266,6 +358,9 @@ async function seedDemoData({ silent = false } = {}) {
         uploadedBy: teacher._id,
         definition: DEMO_VIDEOS.draft,
       }),
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.videos.draft,
+      },
     },
     {
       upsert: true,
@@ -283,6 +378,58 @@ async function seedDemoData({ silent = false } = {}) {
   await Course.findByIdAndUpdate(draftCourse._id, {
     $set: {
       videoIds: [draftVideo._id],
+    },
+  });
+
+  const pipelineBridgeCourse = await Course.findOneAndUpdate(
+    { title: DEMO_COURSES.pipelineBridge.title, teacherId: teacher._id },
+    {
+      $set: {
+        title: DEMO_COURSES.pipelineBridge.title,
+        description: `${DEMO_COURSES.pipelineBridge.description} This is a pipeline-style demo baseline for reproducible MVP demos, not a fully synchronized live pipeline contract.`,
+        teacherId: teacher._id,
+        status: DEMO_COURSES.pipelineBridge.status,
+      },
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.courses.pipelineBridge,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  const pipelineBridgeVideo = await Video.findOneAndUpdate(
+    { video_id: DEMO_VIDEOS.pipelineBridge.videoId },
+    {
+      $set: buildPipelineStyleBridgeVideoPayload(DEMO_VIDEOS.pipelineBridge),
+      $setOnInsert: {
+        _id: DEMO_RECORD_IDS.videos.pipelineBridge,
+      },
+      $unset: {
+        courseId: 1,
+        uploadedBy: 1,
+        processing: 1,
+        sourceType: 1,
+        sourceUrl: 1,
+        file_path: 1,
+        storagePath: 1,
+        video_source: 1,
+        video_url: 1,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  await Course.findByIdAndUpdate(pipelineBridgeCourse._id, {
+    $set: {
+      videoIds: [pipelineBridgeVideo._id],
     },
   });
 
@@ -354,6 +501,26 @@ async function seedDemoData({ silent = false } = {}) {
     },
   );
 
+  await Enrollment.findOneAndUpdate(
+    { studentId: student._id, courseId: pipelineBridgeCourse._id },
+    {
+      $set: {
+        studentId: student._id,
+        courseId: pipelineBridgeCourse._id,
+        progress: 0,
+        lineNotify: false,
+      },
+      $setOnInsert: {
+        enrolledAt: new Date('2026-04-13T08:00:00.000Z'),
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
   await User.findOneAndUpdate(
     { email: 'student@focusflow.local' },
     {
@@ -369,55 +536,8 @@ async function seedDemoData({ silent = false } = {}) {
     },
   );
 
-  const pipelineBridgeVideos = await collectPipelineBridgeVideos();
-  let pipelineBridgeCourse = null;
-
-  if (pipelineBridgeVideos.length) {
-    pipelineBridgeCourse = await Course.findOneAndUpdate(
-      { title: DEMO_COURSES.pipelineBridge.title, teacherId: teacher._id },
-      {
-        $set: {
-          title: DEMO_COURSES.pipelineBridge.title,
-          description: DEMO_COURSES.pipelineBridge.description,
-          teacherId: teacher._id,
-          status: DEMO_COURSES.pipelineBridge.status,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      },
-    );
-
-    await Course.findByIdAndUpdate(pipelineBridgeCourse._id, {
-      $set: {
-        videoIds: pipelineBridgeVideos.map((video) => video._id),
-      },
-    });
-
-    await Enrollment.findOneAndUpdate(
-      { studentId: student._id, courseId: pipelineBridgeCourse._id },
-      {
-        $set: {
-          studentId: student._id,
-          courseId: pipelineBridgeCourse._id,
-          progress: 0,
-          lineNotify: false,
-        },
-        $setOnInsert: {
-          enrolledAt: new Date('2026-04-13T08:00:00.000Z'),
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      },
-    );
-  }
-
   const summary = {
+    resetApplied: reset,
     users,
     courses: [
       {
@@ -431,6 +551,12 @@ async function seedDemoData({ silent = false } = {}) {
         id: String(draftCourse._id),
         title: draftCourse.title,
         status: draftCourse.status,
+      },
+      {
+        key: 'pipelineBridgeCourse',
+        id: String(pipelineBridgeCourse._id),
+        title: pipelineBridgeCourse.title,
+        status: pipelineBridgeCourse.status,
       },
     ],
     videos: [
@@ -448,29 +574,25 @@ async function seedDemoData({ silent = false } = {}) {
         title: draftVideo.title,
         processingStatus: draftVideo.processing.status,
       },
+      {
+        key: 'pipelineBridgeVideo',
+        id: String(pipelineBridgeVideo._id),
+        videoId: pipelineBridgeVideo.video_id,
+        title: pipelineBridgeVideo.title,
+        processingStatus: null,
+      },
     ],
     segments: DEMO_SEGMENTS.map((segment) => segment.segmentId),
-    pipelineBridge: pipelineBridgeCourse
-      ? {
-        mode: COURSE_BRIDGE_MODES.QA_SCOPE_ONLY,
-        courseId: String(pipelineBridgeCourse._id),
-        title: pipelineBridgeCourse.title,
-        videoIds: pipelineBridgeVideos.map((video) => String(video._id)),
-        externalVideoIds: pipelineBridgeVideos
-          .map((video) => normalizeIdentifier(video.video_id, video.videoId))
-          .filter(Boolean),
-      }
-      : null,
-  };
-
-  if (pipelineBridgeCourse) {
-    summary.courses.push({
-      key: 'pipelineBridgeCourse',
-      id: String(pipelineBridgeCourse._id),
+    pipelineBridge: {
+      mode: COURSE_BRIDGE_MODES.QA_SCOPE_ONLY,
+      baseline: 'pipeline_style_demo_baseline',
+      fullySynchronizedWithLivePipeline: false,
+      courseId: String(pipelineBridgeCourse._id),
       title: pipelineBridgeCourse.title,
-      status: pipelineBridgeCourse.status,
-    });
-  }
+      videoIds: [String(pipelineBridgeVideo._id)],
+      externalVideoIds: [DEMO_VIDEOS.pipelineBridge.videoId],
+    },
+  };
 
   if (!silent) {
     console.log('Demo data seeded.');
@@ -482,6 +604,11 @@ async function seedDemoData({ silent = false } = {}) {
 
 module.exports = {
   DEMO_USERS,
+  DEMO_COURSES,
+  DEMO_VIDEOS,
+  DEMO_SEGMENTS,
+  DEMO_CLIP,
+  resetDemoData,
   seedDemoUsers,
   seedDemoData,
 };

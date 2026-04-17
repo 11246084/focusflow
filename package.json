@@ -10,7 +10,7 @@
     "build:frontend": "cd frontend/focus-flow && npm run build",
     "lint:frontend": "cd frontend/focus-flow && npm run lint",
     "test:backend": "cd backend && npm test",
-    "seed": "cd backend && npm run seed",
+    "seed": "npm --prefix backend run seed --",
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend/focus-flow && npm install",
     "install:all": "npm run install:backend && npm run install:frontend"

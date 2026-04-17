@@ -68,6 +68,8 @@ routes → controllers → services → models
 
 > Phase-1 正式 runtime：`mock + memory + gemini`。`atlas` mode 目前 fail-fast，尚未上線。
 
+補充：為了讓 bridge-first MVP 更穩定、可理解，課程回應與 QA runtime course summary 現已提供 `isBridgeCourse`。`appOwnedVideoCount` / `metadataOnlyVideoCount` 只是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases，不是另一套統計來源；QA 回應中的 `resultCategory` 則是 Phase-1 convenience field，方便前端或 demo 先分流，細節仍以 `status`、`matchStatus`、`degradedReasons` 為準。
+
 ### 影片處理狀態機
 
 ```

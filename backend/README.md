@@ -201,7 +201,8 @@ npm run seed
 
 說明：
 
-- `npm run seed` 只建立 / 更新 backend demo users、courses、videos、segments、clip
+- `npm run seed` 只建立 / 更新 backend demo users、courses、videos、segments、clip（converge baseline，不清除既有資料）
+- `npm run seed:reset` 先清除 demo-owned / demo-derived 痕跡，再重建基線
 - 不負責 pipeline metadata
 - 不負責建立 Atlas vector index
 - 不會保證多影片 searchable coverage

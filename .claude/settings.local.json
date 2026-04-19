@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mongodb__count",
+      "mcp__mongodb__find",
+      "mcp__mongodb__aggregate",
+      "mcp__mongodb__collection-indexes",
+      "mcp__mongodb__list-collections",
+      "mcp__mongodb__collection-schema"
+    ]
+  }
+}

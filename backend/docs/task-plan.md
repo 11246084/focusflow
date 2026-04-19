@@ -1,6 +1,6 @@
 # Backend Task Plan
 
-最後更新：2026-04-17
+最後更新：2026-04-19
 
 > 本文件為後端組員**個人執行版**任務清單。全組總覽請看 repo 根目錄 [TODO.md](../../TODO.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -17,172 +17,140 @@
 
 ## 個人任務清單（僅後端）
 
-以下項目均已按「主動發起 / 等待對方 / 可先做的事」三段結構整理，排序依 MVP demo 關鍵度。
-
 ---
 
 ### 1. 發起 phase-1 契約 Freeze 會議
 
 - **狀態**：Pending（由我發起）
 - **要 freeze 的議題**：
-  - Atlas vector index name（`text_embedding_index` / `video_embedding_index` 是否定版）
-  - Atlas filter fields 要用 `video_id` 還是 `videoId`、是否含 `courseId`
+  - Atlas vector index 健康狀態與 3072 維維度確認（`text_embedding_index` 是否已建立且正確）
+  - Atlas filter fields 契約（目前使用 `video_id`，是否定版）
   - `videos` collection ownership 邊界（app-owned vs. pipeline metadata 要拆分還是加 `sourceType`）
-  - query embedding provider（模型名稱 + 維度，RAG 已確認 pipeline 3072 維）
-  - pipeline segments 如何綁定 course（加 `courseId` / 改查 `video_id` / 重跑 pipeline 三擇一）
+  - pipeline segments 如何綁定 course（加 `courseId` / 改查 `video_id` 三擇一）
+  - Collections 實際 12 vs. init 腳本宣稱 14 的落差說明
 - **我要主動做**：
-  - 彙整上述五點為一頁議題單
+  - 彙整上述議題為一頁議題單
   - 約 Database、RAG 兩組同步時間
   - 會後把結論寫進 [handoff-known-issues.md](./handoff-known-issues.md) 並同步 [current-state.md](./current-state.md)
 - **等誰**：Database、RAG 兩組到齊
-- **對方需先交付**：Database 帶 Atlas 現況說明、RAG 帶 pipeline 實際輸出格式
-- **等待期間可先做**：起草議題單；把 backend 目前相容 `video_id` / `videoId` 的 normalize 範圍寫成備忘
+- **等待期間可先做**：起草議題單；列出 backend normalize 目前相容的欄位範圍
 
 ---
 
 ### 2. 決定 demo DB 隔離策略
 
-- **狀態**：Pending（我需協調各組拿出決定）
-- **背景**：MCP 已確認 demo DB 混有 pipeline 與 demo seed 的資料。`usage_logs`、`line_bind_tokens` 本輪未掃描（Need Confirmation 是否有污染）。
+- **狀態**：Pending（需協調各組拿出決定）
+- **背景**：DB 中 `usage_logs` 有 23 筆含 smoke test 痕跡。`line_bind_tokens` 目前乾淨（0 筆）。
 - **我要主動做**：
   - 提議三選一：(a) 共享 Atlas 只讀 + 另開隔離 demo instance (b) 保留共享 Atlas 但 demo 前 reseed (c) 完全獨立 demo DB
   - 估算每個選項對 backend `.env`、seed script、CI 的影響
 - **等誰**：Database 組 + 整體 demo 決策
 - **對方需先交付**：Atlas 管理員可提供的 demo 環境選項
-- **等待期間可先做**：盤點 `usage_logs` / `line_bind_tokens` 目前內容（MCP find），判斷污染風險
 
 ---
 
-### 3. 啟用 Atlas vector search（env 切換）
+### 3. 確認 Atlas vector search index 健康狀態 + 修正 atlas filter 兩處 bug
 
-- **狀態**：Blocked by Database
-- **後端側準備**：Done
-  - `qa.service.js` 的 `searchSegmentsWithAtlas()` 與 fail-fast 邏輯已實作
-  - `.env.example` 有 `QA_VECTOR_SEARCH_MODE`、`QA_ATLAS_VECTOR_INDEX_NAME` 欄位
-- **等誰**：Database
-- **對方需先交付**：
-  - Atlas UI 建立的 `text_embedding_index`（3072 維）＋ `video_embedding_index`
-  - index 正式名稱
-  - 已清除或隔離 `video_segments_text` 內 32 維 demo seed embeddings
-- **我要主動做**（對方交付後）：
-  - 更新 backend `.env`：`QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=<確認值>`
-  - 跑 acceptance smoke + `qa.service` 測試
-  - 更新 [current-state.md](./current-state.md) 移除 memory-only 標註
-- **等待期間可先做**：
-  - 確認目前 normalize 相容性：如果 Atlas prefilter 用 `video_id`，backend 查 `courseId` 的路徑要走哪條 index？先用註解寫成待驗證點
-  - 檢查 `qa.service.test.js` 有沒有把 atlas fail-fast 路徑納入測試
+- **狀態**：Done（2026-04-19 Atlas UI 截圖確認 + 兩處 filter bug 已修）
+- **完成內容**：
+  - `text_embedding_index`：狀態 READY，105/105 筆 100% 索引，filter fields：`embedding`、`courseId`、`video_id`
+  - M0 free cluster：vector indexes 1 of 3 used，剩 2 個配額
+  - backend `.env` 已設定 `QA_VECTOR_SEARCH_MODE=atlas`、`QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`
+  - 修正 Bug 1：`$vectorSearch` 不經 Mongoose auto-cast，`courseId` String 需手動轉 ObjectId（`castCourseIdToObjectId`）
+  - 修正 Bug 2：`videoId`（camelCase）不在 vector index filter fields，需從 atlas filter 條件中剔除（`isAtlasFilterCompatible`）；DB index 截圖確認 `videoId_1` 有 15 次使用紀錄；文件直接確認 `videoId` 欄位**不存在於文件中**，`videoId_1` 為孤立索引
+  - `video_segments_text` 文件欄位直接確認（2026-04-19）：只有 `video_id`，無 `videoId`；`segment_id` 值為 null，實際識別碼為 `chunk_id`（如 `video_001_chunk_0001`）
+  - `videoSegment.model.js` 已清除 `videoId` schema 欄位宣告
+  - `video_segments_video`：有 embedding，**無 vector search index**，multimodal QA 目前不可用
+  - `video_segments_audio`：0 docs，無 vector search index
 
 ---
 
-### 4. 切換 query embedding 到正式 Gemini provider
+### 4. query embedding Gemini provider
 
-- **狀態**：Blocked by RAG
-- **後端側準備**：Done
-  - `queryEmbedding.service.js` 已有 mock / openai / gemini 三種 provider
+- **狀態**：Done（2026-04-19）
+- **完成內容**：
+  - `.env` 已設定 `QA_QUERY_EMBEDDING_PROVIDER=gemini`
+  - `queryEmbedding.service.js` 支援 `gemini-embedding-2-preview`（3072 維）
   - 維度動態配置（`QA_QUERY_EMBEDDING_DIM`）
-- **等誰**：RAG
-- **對方需先交付**：
-  - freeze `GEMINI_EMBEDDING_MODEL_NAME` 與官方維度
-  - 確認 query 端與 pipeline 端使用同一個 model version
-- **我要主動做**（對方交付後）：
-  - 更新 `.env`：`QA_QUERY_EMBEDDING_PROVIDER=gemini` + 對應 model + dim
-  - 執行 `qa.service.test.js` 與 QA route 測試
-  - 確認 `runtime.fallbacks` 是否仍會觸發（若 DB 尚未清 32 維，記得提醒 Database）
-- **等待期間可先做**：
-  - 檢查 `queryEmbedding.service.js` 對不同維度的錯誤訊息是否清楚
-  - 增補 gemini provider 的單元測試（若缺）
+  - `video_segments_text` 105 筆 segments 全部有 embedding，維度一致
 
 ---
 
 ### 5. 支援 Frontend × Backend API 整合
 
 - **狀態**：Partial（後端 API Done，整合待 Frontend 推進）
-- **後端側準備**：Done — 登入、課程、QA、影片、LINE bind、`/health` 全數可用
+- **後端側**：Done — 登入、課程、QA、影片、LINE bind、`/health` 全數可用
 - **等誰**：Frontend
 - **對方需先做**：API client、登入頁、Protected Route
 - **我要主動做**：
   - 整合過程中快速回覆 CORS、response format、token 處理相關問題
-  - 如果 Frontend 需要，補 Swagger 用法或 example payload 到 [current-state.md](./current-state.md)
-- **等待期間可先做**：
-  - 驗證 `/api/v1/courses`、`/api/v1/qa/ask`、`/api/v1/line/bind-token` 的 response shape 對前端好不好消化（欄位命名一致、錯誤碼對齊）
-  - 確認 CORS 目前設定能讓 `http://localhost:5173` 打得通
+  - 若 Frontend 需要，補 Swagger 用法或 example payload
 
 ---
 
 ### 6. 協助 Frontend 決定 bridge course 呈現策略
 
 - **狀態**：Pending（需要我先把欄位語義寫清楚）
-- **背景**：MCP 已確認 bridge course 目前零 searchable segments。前端若不標示會像壞掉。
+- **背景**：bridge course 目前為 pipeline-style demo baseline，`qaScopeOnly`、`bridgeMode`、`bridgeContract` 已有回應
 - **後端已提供的訊號**：`qaScopeOnly`、`bridgeMode`、`bridgeContract`、`metadataOnly=true`、`matchStatus=no_searchable_segments`、`VIDEO_METADATA_ONLY=409`
 - **我要主動做**：
-  - 整理一份 bridge course 相關欄位語義表（fields × 何時出現 × 建議 UI 處理）給 Frontend
+  - 整理 bridge course 相關欄位語義表給 Frontend
   - 決策完成後更新 [handoff-known-issues.md](./handoff-known-issues.md)
-- **等誰**：Frontend 提出 UI 偏好（隱藏 / QA-only badge / metadata-only 呈現）
-- **等待期間可先做**：把欄位語義表寫完；加一個 route test 確認 bridge video processing 路徑仍回 409
+- **等誰**：Frontend 提出 UI 偏好
 
 ---
 
-### 7. 支援 LINE live smoke test
+### 7. LINE live smoke test
 
-- **狀態**：Blocked by Database & LINE Bot
-- **後端側準備**：Done — bind / switch / ask、簽章驗證、error mapping、`/health` degraded 訊號全部已測試
-- **等誰**：Database & LINE Bot 組
-- **對方需先交付**：
-  - `LINE_CHANNEL_ACCESS_TOKEN`
-  - `LINE_CHANNEL_SECRET`
-  - LINE Developer Console webhook URL 設定完成證據
-- **我要主動做**（對方交付後）：
-  - 更新 `.env` 並啟動 backend
-  - 與 LINE Bot 組一起跑 live smoke（bind → switch course → ask）
-  - 驗收後把 `runtime.line.deliveryMode` 從 `backend_only` 改為 `live` 並同步 [current-state.md](./current-state.md)
-- **等待期間可先做**：
-  - 撰寫 LINE live smoke 的 step-by-step checklist
-  - 確認 `line.service.js` 的錯誤訊息對 LINE 使用者友善
+- **狀態**：Done（2026-04-19 實測通過）
+- **完成內容**：
+  - `LINE_CHANNEL_ACCESS_TOKEN`、`LINE_CHANNEL_SECRET` 已設定至 `.env`
+  - 真實 LINE 端對端完整走通：bind → switch course → ask
+  - `/health` `runtime.line.readiness=ready`、`deliveryMode=live`
+  - QA 回答成功從 LINE 傳回，含影片時間戳
 
 ---
 
 ### 8. 澄清 `videos` 所有權模型
 
 - **狀態**：Need Confirmation（策略未定，需要 Database 一起決定）
-- **背景**：MCP 確認 DB 中 9 筆 `videos` 混用三種形狀（pipeline-owned / app-owned / bridge 中間型）。
+- **背景**：DB 中 9 筆 `videos` 混用兩種形狀：pipeline-owned（video_001~006，無 `courseId`/`sourceType`）與 app-owned（3 筆，有 `sourceType: "upload"` 與 `courseId`）
 - **我要主動做**：
-  - 在 Phase-1 契約會議提出兩個方案：(a) Schema 加 `sourceType` 欄位，service 依此判斷 (b) 拆 `videos_app` / `videos_pipeline_metadata` 兩個 collection
+  - 在 Phase-1 契約會議提出兩個方案：(a) Schema 加 `sourceType` 欄位 (b) 拆 collection
   - 會後若定案，更新 `models/Video.js` + `video.service.js` + demo seed + 測試 harness
-- **等誰**：Database 共同定案
-- **等待期間可先做**：寫一段 normalize 備忘（目前 backend 哪些路徑依賴哪些欄位，會影響選項評估）
 
 ---
 
 ### 9. 確認 `video_segments_text` canonical 欄位
 
-- **狀態**：Partial（backend 已相容，長期仍需 freeze）
-- **背景**：MCP 確認 DB 同時存在 `video_id` / `videoId`、`start_sec` / `startSec`。Backend 目前靠 normalize 相容。
-- **我要主動做**：
-  - Phase-1 契約會議中提出 freeze 一套命名
-  - 定案後若 RAG 改 `import_*` 腳本，我同步縮窄 backend normalize 範圍（保留一份向後相容期限）
-- **等誰**：RAG + Database 決定 canonical fields
-- **等待期間可先做**：把 backend 目前相容點列表（`qa.service.js`、normalize helper），附在議題單
+- **狀態**：Done（文件直接確認，2026-04-19）
+- **完成內容**：
+  - `video_id`（snake_case）確認為 canonical：DB 文件直接查看，只有 `video_id`，`videoId` 欄位不存在
+  - `segment_id` 值為 null，實際識別碼為 `chunk_id`（如 `video_001_chunk_0001`）
+  - `videoId_1` 確認為孤立索引（orphaned index），待 Database 組清除
+  - `videoSegment.model.js` 已移除 `videoId` schema 欄位宣告
+  - `bridgeScope.service.js` 的 normalize 相容路徑（`segment.videoId` fallback）暫時保留，待 Database 組清除孤立索引後再縮窄
+- **剩餘後續**：
+  - Database 組清除 `videoId_1` 孤立索引後，縮窄 `normalizeSegment` 的 `segment.videoId` fallback
 
 ---
 
-### 10. `init_collections.js` 14 vs MCP 實測 12 的落差
+### 10. Collections 數量落差（12 vs. 14）
 
 - **狀態**：Need Confirmation（低優先）
-- **背景**：repo 宣稱 14 collections，MCP 實測 12。與 backend 功能無直接關聯。
-- **我要主動做**：在 Phase-1 會議順帶確認，由 Database 說明；結論寫進 [handoff-known-issues.md](./handoff-known-issues.md)
-- **等待期間可先做**：無（不影響 backend 主線）
+- **背景**：MCP 實測 12 collections，init 腳本宣稱 14。差異說明由 Database 組負責。
+- **我要主動做**：在 Phase-1 會議順帶確認；結論寫進 [handoff-known-issues.md](./handoff-known-issues.md)
 
 ---
 
 ### 11. 生產環境前：CORS 限定 origin
 
 - **狀態**：Pending（phase-1 MVP 可接受，demo/生產前必做）
-- **背景**：`app.js` 目前使用寬鬆 `cors()`。
+- **背景**：`app.js` 目前使用寬鬆 `cors()`
 - **我要主動做**：
   - `.env.example` 補 `ALLOWED_ORIGIN`
   - `app.js` 改為 `cors({ origin: env.ALLOWED_ORIGIN })`
   - 加一個驗證 preflight 的 route test
-- **等誰**：無（獨立可做，只是時機在 demo 前）
 - **先決條件**：Frontend 確認正式部署的 origin
 
 ---
@@ -199,8 +167,8 @@
 
 ## 規劃前提
 
-- phase-1 正式 runtime 仍是 `mock + memory + template/gemini answer + explicit seed`
+- 共享 demo env 主線：`gemini + atlas + gemini + explicit seed`；isolated local smoke：`mock + memory`
 - 切換任何 provider 或 vector mode 前，先跑 `qa.service.test.js` 與 route 測試
-- 跨組未 freeze 的議題先用 [handoff-known-issues.md](./handoff-known-issues.md) 口徑管住，不在 backend 單方面擴功能
+- 跨組未 freeze 的議題先用 [handoff-known-issues.md](./handoff-known-issues.md) 管住，不在 backend 單方面擴功能
 - demo 口徑以 `/health` 與 API runtime 訊號為準
 - 完成任一任務後同步更新 [task-plan.md](./task-plan.md)、[implementation-log.md](./implementation-log.md)、[README.md](./README.md) 的 Latest Update

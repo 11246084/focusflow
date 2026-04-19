@@ -6,7 +6,8 @@
       "mcp__mongodb__aggregate",
       "mcp__mongodb__collection-indexes",
       "mcp__mongodb__list-collections",
-      "mcp__mongodb__collection-schema"
+      "mcp__mongodb__collection-schema",
+      "mcp__mongodb__connect"
     ]
   }
 }

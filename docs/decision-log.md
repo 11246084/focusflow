@@ -20,7 +20,7 @@
 
 **原因**：開發期間不想依賴 API key；上線時可切換到真實 provider，不需改程式碼。
 
-**影響**：所有開發環境預設 `mock + template`，CI 測試不依賴外部服務。Phase-1 正式 runtime 為 `mock + gemini`。
+**影響**：CI 與 isolated local 測試仍可使用 `mock + template`，不依賴外部服務；共享 / demo 環境則可切到 `gemini + atlas + gemini`，實際 runtime 以 `.env` 與 `/health` 為準。
 
 ---
 

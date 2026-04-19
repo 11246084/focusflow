@@ -68,20 +68,16 @@ paths:
                       timestamp: '2026-04-17T02:00:00.000Z'
                       runtime:
                         qa:
-                          queryEmbeddingProvider: mock
-                          vectorSearchMode: memory
+                          queryEmbeddingProvider: gemini
+                          vectorSearchMode: atlas
                           answerProvider: gemini
-                          atlasVectorIndexConfigured: false
+                          atlasVectorIndexConfigured: true
                           atlasFilterMode: bridge_course_or_video
                           geminiConfigured: true
                           openaiConfigured: false
                           readiness: ready
                           readyForAsk: true
-                          warnings:
-                            - code: PHASE1_MEMORY_SEARCH
-                              message: Phase-1 QA retrieval is running in memory mode instead of Atlas vector search.
-                            - code: PHASE1_MOCK_QUERY_EMBEDDING
-                              message: Phase-1 QA query embeddings are still mock embeddings.
+                          warnings: []
                           hardFailures: []
                         line:
                           signatureValidationConfigured: true
@@ -918,7 +914,7 @@ components:
               description: backend 偵測到 `atlas` mode 已被啟用，但目前不符合 Phase-1 可用條件，因此拒絕執行。
               value:
                 success: false
-                message: Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.
+                message: Atlas vector search is configured but not ready. Check the Atlas index, query embedding provider, and /health before retrying.
                 error:
                   code: QA_ATLAS_NOT_READY
     LineNotConfiguredError:

@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-04-17
+最後更新：2026-04-19
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -10,24 +10,25 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線穩定 | auth / courses / videos / qa / LINE 已可用，runtime 固定在 `mock + memory + gemini` |
+| **Backend** | ✅ 主線穩定 | auth / courses / videos / qa / LINE 已可用，共享環境主線已切到 `gemini + atlas + gemini` |
 | **Frontend** | ⚠️ 展示型 | 登入頁（Three.js 3D 場景）已完成，主介面（課程列表、問答 UI）待開發 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整，無正式自動化測試 |
 
 ---
 
-## Backend 目前 Runtime（2026-04-15 定版）
+## Backend 目前 Runtime（2026-04-19 更新）
 
 ```
-QA_QUERY_EMBEDDING_PROVIDER = mock
-QA_VECTOR_SEARCH_MODE       = memory
+QA_QUERY_EMBEDDING_PROVIDER = gemini
+QA_VECTOR_SEARCH_MODE       = atlas
 QA_ANSWER_PROVIDER          = gemini
 DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ```
 
 - `/health` 可直接觀察 `runtime.qa` 與 `runtime.line` 狀態
 - QA misconfig 與 Atlas not ready 已 fail-fast，不靜默降級
-- LINE Bot backend routing 已完成；live delivery 需補 secret + callback 設定
+- 共享 Atlas index 已建立，QA 可走 `text_embedding_index`
+- LINE Bot 已有成功提問驗證；完整外部設定仍以當下 channel / callback 為準
 
 ---
 
@@ -51,10 +52,10 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 | 項目 | 負責方 | 說明 |
 |------|--------|------|
-| Atlas vector index name | DB / MongoDB 組 | `text_embedding_index` / `video_embedding_index` 尚未確認 |
-| Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | pipeline 3072 維，query side 仍是 mock |
+| Atlas vector index / future naming | DB / MongoDB 組 | `video_segments_text` 已使用 `text_embedding_index`；後續若擴到 `video_segments_video` 仍需定版 |
+| Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | 目前已改用 Gemini query embedding；仍需持續確認 coverage 與長期契約 |
 | `videos` ownership 邊界 | Backend + DB 組 | app-owned video vs pipeline metadata 混存 |
-| Live LINE smoke | Backend + 外部 | 需要 secret、access token、callback 設定證據 |
+| Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
 | Demo 環境策略 | 全組 | 共享 DB 是否提供專屬 demo DB |
 
 ### Frontend 待開發
@@ -82,8 +83,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 不能誤稱的邊界
 
-- Atlas vector retrieval **尚未上線**
-- Query embedding **尚未與 pipeline 3072 維對齊**
+- Atlas vector retrieval **已在共享環境成功驗證，但不能直接誤稱所有資料都 fully production-ready**
+- Query embedding **已切到 Gemini，但仍需持續確認與 pipeline 資料覆蓋率的一致性**
 - `video_segments_video` **尚未接手** clip source
-- Live LINE **尚未完成** 完整外部驗證
+- Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**
 - LINE webhook **已納入 OpenAPI 文件**，但這不等於 live production flow 已完整驗證

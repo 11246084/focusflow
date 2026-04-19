@@ -4,22 +4,25 @@
 
 ## 目前真實 runtime
 
-phase-1 預設應視為：
+phase-1 當前狀態（2026-04-19）：
 
 ```env
 DEMO_SEED_ENABLED=false
-QA_QUERY_EMBEDDING_PROVIDER=mock
+QA_QUERY_EMBEDDING_PROVIDER=gemini
 QA_VECTOR_SEARCH_MODE=memory
 QA_ANSWER_PROVIDER=gemini
-QA_ATLAS_FILTER_MODE=bridge_course_or_video
-QA_ATLAS_VECTOR_INDEX_NAME=
+GEMINI_API_KEY=<需填入>
+LINE_CHANNEL_SECRET=<需填入>
+LINE_CHANNEL_ACCESS_TOKEN=<需填入>
+VIDEO_SEGMENT_COLLECTION=video_segments_text
 ```
 
 代表：
 
-- query embedding 仍是 mock，不是正式 3072 維對齊
-- retrieval 正式模式仍是 memory
-- answer provider 正式模式是 Gemini
+- query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
+- retrieval 使用 memory cosine similarity，query / segment 維度已對齊，語意搜尋正常運作
+- answer provider 是 Gemini
+- LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - startup 不會自動 seed
 
 ## 必要 env
@@ -152,23 +155,48 @@ bridge course 的 `/api/v1/courses/:courseId/videos` 會回 `metadataOnly=true` 
 
 ## LINE
 
-### backend-only 可驗證內容
+### live 狀態（2026-04-19 已驗證）
 
-- `POST /api/v1/line/bind-token`
-- bind token -> bind
-- `切換課程`
-- `select_course` postback
-- question routing 到 QA
+端對端流程已在真實裝置走通：
+
+```
+學生在 LINE 輸入問題
+↓
+LINE Platform → POST /api/v1/line/webhook（ngrok → localhost:4000）
+↓
+lineSignature.middleware 驗證 HMAC-SHA256
+↓
+line.service.handleQuestion()
+↓
+embedWithGemini(question) → 3072 維 query vector
+↓
+memory cosine similarity → video_segments_text（102 個 segments）
+↓
+Gemini gemini-2.5-flash 生成答案
+↓
+LINE reply API 回傳答案 + 影片時間戳
+```
+
+### 可驗證內容
+
+- `POST /api/v1/line/bind-token` — 發放綁定代碼（需 JWT）
+- bind token → bind（LINE 傳入代碼完成帳號綁定）
+- 「切換課程」→ `select_course` postback
+- 自然語言提問 → QA 語意搜尋 → 答案 + 時間戳回傳至 LINE
 
 ### live LINE 與 backend-only 的差異
 
-- 有 `LINE_CHANNEL_SECRET + LINE_CHANNEL_ACCESS_TOKEN`
-  - webhook 可驗簽且可送出 live reply
-- 只有 `LINE_CHANNEL_SECRET`
+- 有 `LINE_CHANNEL_SECRET + LINE_CHANNEL_ACCESS_TOKEN`（目前狀態）
+  - webhook 可驗簽且可送出 live reply，`/health` 顯示 `readiness=ready`
+- 只有 `LINE_CHANNEL_SECRET`（金鑰遺失時的降級狀態）
   - webhook route 仍可做 backend-only 驗證
-  - `/health` 會顯示 `runtime.line.readiness=degraded`
-  - `/health` 會顯示 `runtime.line.deliveryMode=backend_only`
-  - 但結果會標示 `replySkipped=true`
+  - `/health` 會顯示 `runtime.line.readiness=degraded`、`deliveryMode=backend_only`
+  - 結果會標示 `replySkipped=true`
+
+### 已知短期限制
+
+- ngrok 每次重啟 URL 會變，需手動更新 LINE Developers Console Webhook URL
+- 學生綁定代碼目前需透過 API 手動取得，正式場景需前端做登入 + QR Code 頁面
 
 ### LINE question flow 的 hard-fail 訊號
 

@@ -313,7 +313,7 @@ function buildQaFailureMessage(error) {
     case 'QA_RUNTIME_MISCONFIGURED':
       return '[MVP hard-fail] QA runtime 設定錯誤，請先檢查 /health 與 .env。';
     case 'QA_ATLAS_NOT_READY':
-      return '[MVP hard-fail] Atlas QA 尚未 ready，phase-1 demo 請切回 memory mode。';
+      return '[MVP hard-fail] Atlas QA 尚未 ready，請先檢查 Atlas index、Gemini embedding 設定與 /health。';
     case 'ANSWER_PROVIDER_NOT_CONFIGURED':
       return '[MVP hard-fail] QA answer provider 缺少必要金鑰，請先檢查 .env。';
     default:

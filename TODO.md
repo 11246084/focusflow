@@ -1,6 +1,6 @@
 # FocusFlow TODO.md
 
-> 根據 2026-04-17 程式碼 + MongoDB MCP 實地盤點結果建立。
+> 根據 2026-04-17 程式碼 + MongoDB MCP 實地盤點結果建立；2026-04-19 依 LINE live smoke 驗證與 Gemini query embedding 接通後更新。
 > 判斷依據分三級：
 > - **Confirmed by Code** — 由 repository 程式碼/設定/測試直接驗證
 > - **Confirmed by DB via MCP** — 由 MongoDB MCP 直接讀取 collection / documents / indexes 確認
@@ -138,14 +138,15 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 | **Frontend** | ~5% | ❌ 不可用 | 只有 Three.js 動態登陸頁，零功能性 UI | Confirmed by Code |
 | **AI Pipeline（程式）** | ~90% | ✅ 可用 | 完整 STT → Chunking → Gemini 嵌入流程，輸出檔案供 DB 組匯入 | Confirmed by Code |
 | **AI Pipeline（資料）** | 部分匯入 | 🟡 有限 | `video_001` 已進 DB；`video_002..006` 只有 videos metadata，無 segments；audio 整個集合空 | Confirmed by DB via MCP |
-| **Database & LINE Bot** | ~65% | 🟡 部分可用 | 集合存在；Atlas vector index 未建立；video_001 pipeline segments 已補 courseId 並關聯至 Bridge course；LINE live reply 待 webhook 設定 | Confirmed by DB via MCP（2026-04-19）+ Confirmed by Code |
+| **Database & LINE Bot** | ~75% | 🟢 LINE live 已通 | 集合存在；Atlas vector index 未建立；video_001 pipeline segments 已補 courseId；LINE live smoke 已驗證通過（2026-04-19） | Confirmed by DB via MCP（2026-04-19）+ Confirmed by Code |
 
 **MVP 最大缺口**：
 1. Frontend 幾乎從零開始
 2. Atlas vector search 索引尚未建立（Still broken，Confirmed by DB via MCP 2026-04-19）
 3. Pipeline segments 尚未全面匯入 demo DB（video_002..006 仍空，Confirmed by DB via MCP 2026-04-19）
-4. Bridge course QA：已確認可用於 memory mode（courseId 查詢命中 102 筆，Mongoose 自動轉型，Confirmed by Code 2026-04-19）
+4. Bridge course QA：已確認可用於 memory mode，且 Gemini query embedding 已接通（scoringMode: vector，2026-04-19 live 驗證）
 5. `videos` 與 `video_segments_text` 在 DB 層欄位命名混用（仍存在，Confirmed by DB via MCP 2026-04-19）
+6. ~~LINE live reply 未完成~~ → ✅ 已完成（2026-04-19 live smoke 通過）
 
 ---
 
@@ -161,9 +162,11 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 | RBAC 角色授權（teacher / student / admin） | `role.middleware.js` + 各路由測試覆蓋 |
 | 課程 CRUD（建立、列表、詳情） | `course.service.js` + `course-video.routes.test.js` 770 行 |
 | 影片上傳、處理狀態機（queued → processing → completed / failed / retry） | `videoProcessing.service.js` + 狀態流程測試全覆蓋 |
-| QA 問答（memory 模式 + lexical fallback + Gemini answer） | `qa.service.js` 550+ 行 + `qa.service.test.js` 463 行 |
+| QA 問答（memory 模式 + Gemini 3072 維語意搜尋 + Gemini answer） | `qa.service.js` + `queryEmbedding.service.js` embedWithGemini() + `qa.service.test.js` |
+| Gemini query embedding（`gemini-embedding-2-preview`，3072 維，與 STT pipeline 對齊） | `queryEmbedding.service.js` + `runtimeDiagnostics.service.js`（2026-04-19 新增） |
 | LINE Webhook 驗簽 + bind + switch course + ask question（後端邏輯） | `line.service.js` 450+ 行 + `line.routes.test.js` 491 行 |
 | LINE bind-token 生成（10 分鐘過期） | service + route + tests |
+| LINE live smoke 端對端驗證（bind → switch course → ask，真實 LINE 裝置） | 2026-04-19 實測通過；`/health` `line.readiness=ready`、`deliveryMode=live` |
 | Health endpoint（`/health` 含 `runtime.qa` + `runtime.line` snapshot） | `health.routes.test.js` |
 | Bridge course 邏輯（qaScopeOnly、metadataOnly 標記） | `bridgeScope.service.js` + 測試 |
 | Demo seed / reset（`npm run seed` / `npm run seed:reset`） | `demoSeed.service.js` + `demo-seed.service.test.js` |
@@ -232,38 +235,33 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 
 **負責組**：Database（建立 index + 清資料）+ Backend（設定 env）+ RAG（維度對齊）
 
-### Query Embedding 對齊（Backend + RAG 共同缺口）
+### Query Embedding 對齊（✅ 已完成，2026-04-19）
 
-**MCP 驗證結論**（Confirmed by DB via MCP，2026-04-19 更新）：
-- `video_segments_text.embedding` 不是全庫單一維度（Partially fixed）
-- 102 筆為 3072 維（pipeline / `video_001`）
-- ~~3 筆為 32 維（demo seed / `focusflow-demo-video-published`）~~ → **2026-04-19：已改為 dim=0（空陣列 `[]`）**，32 維文件已消除
-- dim=0 的 3 筆文件仍無法被 Atlas vector search 索引（但不會造成維度衝突）
+**MCP 驗證結論**（Confirmed by DB via MCP，2026-04-19）：
+- `video_segments_text.embedding` 102 筆均為 3072 維（pipeline / `video_001`）
+- ~~3 筆為 32 維~~ → 已改為 dim=0（空陣列），32 維文件已消除
+- dim=0 的 3 筆文件仍無法被 Atlas vector search 索引（不影響 memory mode）
 
-**有什麼**（Confirmed by Code）：
-- `queryEmbedding.service.js` 有 mock / OpenAI / Gemini 三種 provider
-- mock 可用於 phase-1 測試
+**完成內容**（Confirmed by live smoke, 2026-04-19）：
+- `queryEmbedding.service.js` 新增 `embedWithGemini()`，呼叫 `gemini-embedding-2-preview`，產生 3072 維 query vector
+- `runtimeDiagnostics.service.js` 新增 gemini provider 合法性檢查與 key 缺失 hard-fail
+- `.env` 已設定 `QA_QUERY_EMBEDDING_PROVIDER=gemini`
+- live smoke 確認：`scoringMode: vector`，FocusFlow Pipeline Bridge Course 102 segments 正常命中
 
-**缺口**：
-- 目前 phase-1 正式使用 `QA_QUERY_EMBEDDING_PROVIDER=mock`（非真實向量）— Confirmed by Code（`.env.example`）
-- Pipeline 實際輸出 3072 維（Confirmed by DB via MCP：102 筆 `video_001` 確為 3072 維），query 端尚未對齊
-- 無 semantic retrieval，只有 lexical fallback（`degradedReasons` 會明確標示）— Confirmed by Code
+**仍未完成**（不影響 memory mode demo）：
+- Atlas vector search 仍未啟用（index 不存在，需 Database 組建立）
 
-**負責組**：Backend + RAG
+### LINE Live Delivery（✅ 已完成，2026-04-19）
 
-### LINE Live Delivery（Database & LINE Bot + 外部設定缺口）
+**完成內容**（Confirmed by live smoke, 2026-04-19）：
+- `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` 已設定於 `backend/.env`
+- LINE Developer Console webhook URL 已設定（ngrok http 4000）
+- live smoke 已在真實 LINE 裝置通過：bind → switch course → ask，回傳答案含時間戳
+- `/health` `runtime.line.readiness=ready`、`deliveryMode=live`
 
-**有什麼**（Confirmed by Code）：
-- backend 後端流程全數完成（bind / switch / ask / error mapping）
-- `/health` 正確標示 `deliveryMode=backend_only`
-
-**缺口**（2026-04-18 更新：token 已到位，仍待 webhook 設定與 smoke test）：
-- ~~`LINE_CHANNEL_ACCESS_TOKEN` 尚未設定 → reply 不會實際送出~~ ✅ 2026-04-18 已設定於 `backend/.env`
-- ~~`LINE_CHANNEL_SECRET` 尚未確認~~ ✅ 2026-04-18 已設定於 `backend/.env`
-- LINE Developer Console webhook URL 尚未設定完成（`Need Confirmation`：repo 無法判斷外部設定狀態）
-- 未進行 live smoke test（`Need Confirmation`）
-
-**負責組**：Database & LINE Bot（webhook URL 設定 + live smoke test）
+**仍需持續注意**：
+- ngrok 每次重啟 URL 會變，需手動更新 LINE Console → 正式部署後才能固定
+- 學生綁定代碼目前需透過 API 手動取得 → 需前端登入 + QR Code 頁面
 
 ### Bridge Course QA 覆蓋率
 
@@ -320,7 +318,7 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 
 | Title | Priority | Owner | Dependency | Why it matters | Suggested next step |
 |-------|----------|-------|------------|---------------|---------------------|
-| 切換至正式 Gemini query embedding（`QA_QUERY_EMBEDDING_PROVIDER=gemini`） | P1 | Backend | RAG 組確認 pipeline 維度 / 模型名稱凍結 | 目前 QA 走 lexical fallback，無法做語義搜尋（2026-04-18：`GEMINI_API_KEY` 已設定，僅待模型名稱凍結） | 等 RAG 組確認 `GEMINI_EMBEDDING_MODEL_NAME` 後更新 `.env` |
+| ~~切換至正式 Gemini query embedding~~ | ✅ Done | Backend | — | 2026-04-19：`embedWithGemini()` 已實作，`QA_QUERY_EMBEDDING_PROVIDER=gemini`，live smoke scoringMode: vector | — |
 | 啟用 Atlas vector search（`QA_VECTOR_SEARCH_MODE=atlas`） | P1 | Backend | DB 組建立 Atlas index 並回報 index name | MCP 已確認 index 根本不存在，目前只有 memory mode | 在 Atlas UI 建立 index 後，更新 `QA_ATLAS_VECTOR_INDEX_NAME` |
 | 決定 demo DB 策略（共享 vs. 專屬） | P0 | Backend 協調 | 所有組別 | 共享 DB 有 usage log / bind token 污染風險，影響 demo 穩定度 | 討論並決定：提供唯讀 Atlas 給 demo，或提供隔離 demo instance |
 | 澄清 `videos` 所有權模型（app-owned vs. pipeline metadata） | P1 | Backend | Database | MCP 實證 DB 現況混用：有些 row 有 `courseId/uploadedBy/processing`、有些沒有，bridge video 為中間狀態 | 在 Schema 層加 `sourceType` 或拆分集合，backend service 明確判斷 |
@@ -354,8 +352,8 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 | 匯入 audio segments | P1 | Database | RAG 組輸出 JSONL | MCP 確認 `video_segments_audio` 完全為空 | 執行 `import_video_segments_audio.py` |
 | ~~將 pipeline segments 綁定到實際 course~~ ~~確認 QA 查詢路徑~~ → ✅ 已完成（2026-04-19） | — | — | — | DB 補 courseId + Mongoose ObjectId 自動轉型 → Bridge QA memory mode 已可運作（102 筆）。剩餘：升級到 Gemini embedding 後可做語義搜尋 | 無需後續動作；升級路徑見 RAG 組 P0 項目 |
 | 確認 videos 所有權邊界（app-owned vs. pipeline metadata） | P1 | Database + Backend | 無 | MCP 確認 DB 中 `videos` 混用兩種 row 格式，bridge video 為中間狀態 | 加 `sourceType` 欄位或拆分集合 |
-| ~~取得 LINE_CHANNEL_ACCESS_TOKEN~~ + 設定 webhook URL（token 已完成 2026-04-18） | **P0** | Database & LINE Bot | LINE Developer Console 管理員 | ~~缺少 token，LINE bot 無法實際回覆~~ token 已設定；仍需在 LINE Developer Console 指定 webhook URL 才能收到實際訊息 | 登入 LINE Developer Console，將 webhook URL 指向 `POST /api/v1/line/webhook` 並啟用 |
-| 執行 LINE live smoke test | P0 | Database & LINE Bot | token 設定完成 | 驗證 bind → switch course → ask 完整流程可走通 | 用真實 LINE 帳號走一遍，檢查 `handled=true` + 實際收到回覆 |
+| ~~取得 LINE token + 設定 webhook URL~~ | ✅ Done | Database & LINE Bot | — | 2026-04-19：LINE_CHANNEL_SECRET/ACCESS_TOKEN 已設定，webhook URL 已指向 ngrok | — |
+| ~~執行 LINE live smoke test~~ | ✅ Done | Database & LINE Bot | — | 2026-04-19：bind → switch course → ask 真實 LINE 裝置端對端通過 | — |
 | 決定並執行 demo DB 隔離策略 | P1 | Database 協調 | 與所有組別對齊 | 共享 DB 若允許 demo seed 寫入，會留下測試痕跡（MCP 本輪未掃 usage_logs / line_bind_tokens，`Need Confirmation`） | 評估：提供唯讀 demo DB 或建立隔離 demo instance |
 | 確認 `init_collections.js` 宣稱 14 collections 與 MCP 實測 12 的落差 | P2 | Database | 無 | 避免後續腳本依賴不存在的 collection | 比對 `init_collections.js` 的清單 vs MCP 實際 collection 列表 |
 
@@ -395,8 +393,9 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 | `videos` 集合混用 pipeline metadata 與 app-owned row | 🟡 中 | Database + Backend | MCP 確認 DB 中 9 筆 row 至少 3 種形狀（pipeline / app / 中間型 bridge） | Confirmed by DB via MCP |
 | `video_segments_text` embedding 維度不一致（3072 vs 0） | 🟢 低 | RAG + Database | 2026-04-19 MCP 確認：32 維已消除，改為 dim=0（空陣列）。dim=0 不會造成 ANN 維度衝突，但這 3 筆仍無法被 vector search。整體風險已下降 | Partially fixed，Confirmed by DB via MCP 2026-04-19 |
 | `video_segments_audio` 完全空 | 🟡 中 | RAG + Database | MCP 確認集合存在但 0 documents | Confirmed by DB via MCP |
-| Query embedding 與 pipeline 維度不對齊（mock vs 3072 維） | 🟡 中 | RAG + Backend | `QA_QUERY_EMBEDDING_PROVIDER=mock`（Confirmed by Code）；pipeline 輸出 3072 維（Confirmed by DB via MCP） | Confirmed by Code + DB |
-| LINE live reply 未測試（backend-only 模式） | 🟡 中 | Database & LINE Bot | 後端邏輯正確（Confirmed by Code）；2026-04-18 token 已設定於 `.env`，仍待 webhook URL 設定與 live smoke test | Confirmed by Code + Need Confirmation |
+| ~~Query embedding 與 pipeline 維度不對齊~~ | 🟢 已解決 | Backend | 2026-04-19：`embedWithGemini()` 接通，query 維度 3072 與 pipeline 對齊，`scoringMode: vector` 確認 | Confirmed by live smoke 2026-04-19 |
+| ~~LINE live reply 未測試~~ | 🟢 已解決 | Database & LINE Bot | 2026-04-19：live smoke 通過，`deliveryMode=live` | Confirmed by live smoke 2026-04-19 |
+| ngrok URL 每次重啟會變 → LINE Webhook URL 需手動更新 | 🟡 中 | 全體 | 短期展示可接受；正式部署需固定 HTTPS 網址 | 已知限制（2026-04-19） |
 | 共享 MongoDB 可能留下 usage log / bind token 痕跡 | 🟠 低中 | Database | 本輪 MCP 未逐筆掃描 `usage_logs` / `line_bind_tokens` | Need Confirmation |
 | Frontend 缺少狀態管理架構 | 🟠 低中 | Frontend | 從零建立時需決定 Context / Zustand / Redux | Confirmed by Code |
 | `clips` 集合定位不明確 | 🟢 低 | RAG + Backend | MCP 僅 1 筆 demo seed；phase-2 前不影響主流程 | Confirmed by DB via MCP |
@@ -430,9 +429,8 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
    - 執行 `import_video_segments_audio.py`（第一次）
    - 與 RAG / Backend 確認 pipeline segments 要如何 attach 到 course
 
-5. **[Database & LINE Bot] ~~取得 LINE token~~ 並設定 webhook**（P0，部分完成 2026-04-18）
-   - ~~取得 `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_SECRET`~~ ✅ 已設定於 `backend/.env`
-   - 仍需：在 LINE Developer Console 將 webhook URL 指向 `POST /api/v1/line/webhook` 並啟用
+5. ~~**[Database & LINE Bot] 取得 LINE token 並設定 webhook**~~ ✅ 已完成（2026-04-19）
+   - token 已設定；webhook URL 已指向 ngrok；live smoke 通過
 
 ### Sprint 2：Frontend 核心 UI（立即平行推進）
 
@@ -447,8 +445,8 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 
 ### Sprint 3：完整整合與 demo 準備
 
-9. **[Backend + RAG] 切換 query embedding 至 Gemini**（P1）
-   - 確認維度對齊後更新 `.env`
+9. ~~**[Backend + RAG] 切換 query embedding 至 Gemini**~~ ✅ 已完成（2026-04-19）
+   - `embedWithGemini()` 已實作，`.env` 已切換，live smoke 確認 `scoringMode: vector`
 
 10. **[Backend] 啟用 Atlas vector search**（P1）
     - Atlas index 就緒後更新 `QA_VECTOR_SEARCH_MODE=atlas`
@@ -460,7 +458,7 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 13. **[全體] QA 端到端整合驗收**（P0）
     - Frontend → Backend → DB → semantic retrieval → answer 全流程跑通
 
-14. **[Database & LINE Bot + Backend] LINE live smoke test**（P1）
+14. ~~**[Database & LINE Bot + Backend] LINE live smoke test**~~ ✅ 已完成（2026-04-19）
 
 ### Sprint 4：優化與收尾（demo 前）
 
@@ -471,13 +469,29 @@ DB 名稱：`focusflow`（唯一一個 DB，size 約 11.7 MB）。
 
 ---
 
-*最後更新：2026-04-19（backend code reading 確認 Bridge Course QA memory mode 可用；DB 現況經 MongoDB MCP 重驗）*
+*最後更新：2026-04-19（LINE live smoke 驗證通過；Gemini query embedding 接通；TODO 對應項目標為完成）*
+*2026-04-19 前次更新：backend code reading 確認 Bridge Course QA memory mode 可用；DB 現況經 MongoDB MCP 重驗*
 *2026-04-18 更新：依 `backend/.env` 實際 token 狀態劃掉已完成項目*
 *原始建立：2026-04-17（DB 現況經 MongoDB MCP 驗證）*
 
 ---
 
 ## Recent Updates
+
+### 2026-04-19 — LINE live smoke 通過 + Gemini query embedding 接通
+
+> LINE 組員完成設定，並在真實 LINE 裝置端對端驗證 bind → switch course → ask 全流程。
+
+- ✅ **LINE live smoke 通過**：真實 LINE 裝置 bind → switch course（Pipeline Bridge Course）→ ask，Gemini 回傳答案含影片時間戳
+- ✅ **`embedWithGemini()` 新增至 `queryEmbedding.service.js`**：呼叫 `gemini-embedding-2-preview`，3072 維，與 STT pipeline 對齊
+- ✅ **`runtimeDiagnostics.service.js` 更新**：`gemini` 加入合法 provider 清單，補 `GEMINI_API_KEY_MISSING_FOR_QUERY_EMBEDDING` hard-fail
+- ✅ **`scoringMode: vector` 確認**：102 個 Pipeline Bridge Course segments 正常命中（非 lexical fallback）
+- ✅ **`/health` 確認**：`line.readiness=ready`、`deliveryMode=live`、`qa.readiness=ready`
+- ✅ **`.env` 修正**：`PROCESSING_WEBHOOK_SECRET` 改回正確 secret 字串；`QA_QUERY_EMBEDDING_PROVIDER=gemini`
+- ⏸ **ngrok URL 不固定**：每次重啟需手動更新 LINE Console（短期限制，正式部署後消除）
+- ⏸ **學生綁定需前端支援**：目前僅能透過 API 手動取得代碼
+
+---
 
 ### 2026-04-19 — backend 查詢鏈路 code reading（Bridge Course QA 確認）
 

@@ -31,12 +31,6 @@ const videoSegmentSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
-    videoId: {
-      type: String,
-      default: null,
-      trim: true,
-      index: true,
-    },
     video_id: {
       type: String,
       default: null,

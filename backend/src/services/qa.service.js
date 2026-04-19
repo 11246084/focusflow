@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Clip = require('../models/clip.model');
@@ -255,12 +256,44 @@ async function searchSegmentsInMemory(scope, question, queryVector, scopedSegmen
   return rankSegments(segments, question, queryVector, scope);
 }
 
+function castCourseIdToObjectId(condition) {
+  if (condition.courseId && typeof condition.courseId === 'string') {
+    try {
+      return { ...condition, courseId: new mongoose.Types.ObjectId(condition.courseId) };
+    } catch {
+      return condition;
+    }
+  }
+  return condition;
+}
+
+function isAtlasFilterCompatible(condition) {
+  // text_embedding_index filter fields: courseId (ObjectId), video_id (String)
+  // videoId (camelCase) is NOT indexed → including it causes $vectorSearch to error
+  return !('videoId' in condition);
+}
+
 function buildAtlasSegmentFilter(scope) {
   if (env.qaAtlasFilterMode !== 'bridge_course_or_video') {
     return null;
   }
 
-  return buildSegmentLookupQuery(scope);
+  const raw = buildSegmentLookupQuery(scope);
+  if (!raw || !Object.keys(raw).length) {
+    return raw;
+  }
+
+  if (raw.$or) {
+    const compatible = raw.$or
+      .filter(isAtlasFilterCompatible)
+      .map(castCourseIdToObjectId);
+    if (!compatible.length) return null;
+    if (compatible.length === 1) return compatible[0];
+    return { $or: compatible };
+  }
+
+  if (!isAtlasFilterCompatible(raw)) return null;
+  return castCourseIdToObjectId(raw);
 }
 
 async function searchSegmentsWithAtlas(scope, queryVector) {
@@ -335,7 +368,7 @@ async function searchSegmentsWithAtlas(scope, queryVector) {
     };
   } catch (error) {
     throw new AppError(
-      'Atlas vector search is configured but not ready. Switch QA_VECTOR_SEARCH_MODE=memory for phase-1 MVP demos.',
+      'Atlas vector search is configured but not ready. Check the Atlas index, query embedding provider, and /health before retrying.',
       503,
       'QA_ATLAS_NOT_READY',
       {

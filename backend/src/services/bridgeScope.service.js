@@ -171,7 +171,7 @@ function buildCourseBridgeSummary(course, scopedVideos = {}) {
       .filter(Boolean),
     courseVideoIds: courseVideoRefs,
     bridgeContract: 'course_video_refs_v1',
-    bridgeContractPath: 'course.videoIds -> videos.video_id -> video_segments_text.video_id|videoId',
+    bridgeContractPath: 'course.videoIds -> videos.video_id -> video_segments_text.video_id',
   };
 }
 

@@ -40,14 +40,16 @@ npm run dev               # 啟動開發伺服器（port 4000）
 |------|------|--------|
 | `MONGODB_URI` | MongoDB 連線字串 | — |
 | `JWT_SECRET` | JWT 簽章金鑰 | — |
-| `DEMO_SEED_ENABLED` | 啟動時自動植入示範資料 | `true` |
-| `QA_QUERY_EMBEDDING_PROVIDER` | 向量嵌入 provider（`mock`/`openai`） | `mock` |
-| `QA_ANSWER_PROVIDER` | 答案生成 provider（`template`/`openai`） | `template` |
-| `QA_VECTOR_SEARCH_MODE` | 向量搜尋模式（`memory`/`atlas`） | `memory` |
+| `DEMO_SEED_ENABLED` | 啟動時自動植入示範資料 | `false` |
+| `QA_QUERY_EMBEDDING_PROVIDER` | 向量嵌入 provider（`mock`/`openai`/`gemini`） | `gemini` |
+| `QA_ANSWER_PROVIDER` | 答案生成 provider（`template`/`openai`/`gemini`） | `gemini` |
+| `QA_VECTOR_SEARCH_MODE` | 向量搜尋模式（`memory`/`atlas`） | `atlas` |
+| `QA_ATLAS_VECTOR_INDEX_NAME` | Atlas vector index 名稱 | `text_embedding_index` |
+| `QA_ATLAS_FILTER_MODE` | Atlas filter contract | `bridge_course_or_video` |
 | `LINE_CHANNEL_SECRET` | LINE Channel Secret（簽章驗證用） | — |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Channel Access Token（傳訊用） | — |
 
-本機開發使用預設值即可，不需要任何 API 金鑰。啟用 LINE Bot 需額外填入 LINE 相關變數。
+目前共享環境主線使用 `gemini + atlas + gemini`。若只做不依賴外部服務的本機 smoke，可暫時切回 `mock + memory`，但實際 runtime 仍以 `.env` 與 `/health` 顯示為準。
 
 ### Swagger / OpenAPI
 

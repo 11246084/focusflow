@@ -1,10 +1,10 @@
 # Demo Bootstrap / Smoke Runbook
 
-最後更新：2026-04-15
+最後更新：2026-04-19
 
 ## 目的
 
-這份 runbook 只保留 phase-1 backend 目前真實可重現的 demo 與 smoke 路徑，不把未 ready 的 Atlas 或 live LINE 寫成理想版。
+這份 runbook 只保留 phase-1 backend 目前真實可重現的 demo 與 smoke 路徑。共享環境主線走 Gemini + Atlas，但仍不把未驗證條件寫成理想版。
 
 目前 demo baseline 可透過 `npm run seed` 收斂；若需要先清除 demo-owned / demo-derived 痕跡再重建，使用 `npm run seed:reset`。
 bridge 課程基線目前是 pipeline-style demo baseline，用來讓展示可重現，不代表已與真實 pipeline fully synchronized。
@@ -13,24 +13,34 @@ bridge 課程基線目前是 pipeline-style demo baseline，用來讓展示可�
 
 - 先確認現況口徑以 [current-state.md](./current-state.md) 為準
 - 先決定今天是走只讀驗證，還是可寫入的專屬 demo DB
-- phase-1 runtime 應仍是：
+- 共享環境常用 runtime：
 
 ```env
 DEMO_SEED_ENABLED=false
-QA_QUERY_EMBEDDING_PROVIDER=mock
-QA_VECTOR_SEARCH_MODE=memory
+QA_QUERY_EMBEDDING_PROVIDER=gemini
+QA_VECTOR_SEARCH_MODE=atlas
+QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
+QA_ATLAS_FILTER_MODE=bridge_course_or_video
 QA_ANSWER_PROVIDER=gemini
+GEMINI_API_KEY=<已填入>
+LINE_CHANNEL_SECRET=<已填入>
+LINE_CHANNEL_ACCESS_TOKEN=<已填入>
 ```
+
+> ⚠️ `QA_VECTOR_SEARCH_MODE=atlas` 需要 Atlas `text_embedding_index` 已建立且狀態 READY。
+> 若 index 未就緒，`/health` 會顯示 `hard_fail`，應對方式見 [handoff-known-issues.md](./handoff-known-issues.md)。
 
 - 必要 env：
   - `MONGODB_URI`
   - `JWT_SECRET`
   - `PROCESSING_WEBHOOK_SECRET`
-- 依情境補：
-  - `GEMINI_API_KEY`
+  - `GEMINI_API_KEY`（query embedding + answer generation 均需）
   - `LINE_CHANNEL_SECRET`
   - `LINE_CHANNEL_ACCESS_TOKEN`
-- 若是共享 MongoDB，不要先跑 `npm run seed`，也不要直接做會寫入 usage log / bind token 的 live smoke
+- LINE live demo 前額外確認：
+  - ngrok 已執行（`ngrok http 4000`），取得最新 URL
+  - LINE Developers Console Webhook URL 已更新為最新 ngrok URL
+- 若是共享 MongoDB，不要先跑 `npm run seed`，但可以做 LINE live smoke（bind token 有 TTL 自動過期）
 
 ## 先判斷驗證路徑
 
@@ -78,8 +88,11 @@ phase-1 預期：
 
 - `200 OK`
 - `data.runtime.qa.readiness=ready`
-- `data.runtime.line.readiness=degraded` 或 `ready`
-- 若是 `degraded`，通常會同時看到 `data.runtime.line.deliveryMode=backend_only`
+- `data.runtime.qa.queryEmbeddingProvider=gemini`
+- `data.runtime.qa.vectorSearchMode=atlas`
+- `data.runtime.qa.atlasVectorIndexConfigured=true`
+- `data.runtime.line.readiness=ready`
+- `data.runtime.line.deliveryMode=live`
 
 ### 2. 先跑 acceptance smoke，鎖住 backend 主線
 
@@ -120,10 +133,12 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\\line.
 
 - `runtime.qa.readiness=ready`
   - 代表 phase-1 QA runtime 可以接受提問
-- `runtime.line.readiness=degraded`
-  - 代表 backend 端 bind / switch / ask routing 可驗，但 live channel 條件還沒補齊
-- `runtime.line.deliveryMode=backend_only`
-  - 只能講 backend-only 驗證完成，不能講 live reply ready
+- `runtime.line.readiness=ready`
+  - 代表 LINE live 條件已就位，可以直接做端對端 demo
+- `runtime.line.deliveryMode=live`
+  - 訊息會真正送出到 LINE 使用者
+- `runtime.line.readiness=degraded`（若 TOKEN 遺失時出現）
+  - 代表 backend-only 驗證可走，但 live reply 不會送出
 - 任一段出現 `hard_fail`
   - 不要硬做 live demo
   - 先修正 env、provider、index 或外部條件，再重打 `/health`
@@ -131,17 +146,19 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\\line.
 ## Demo 話術
 
 - 開場：
-  - 「phase-1 backend 主線已可展示登入、課程範圍、QA 回答與 LINE routing，但正式 runtime 仍是 memory mode，不是 Atlas semantic retrieval 正式上線版。」
+  - 「phase-1 backend 主線已可展示登入、課程範圍、Atlas QA 回答與 LINE routing；實際 readiness 仍以 `/health` 與 Atlas index 狀態為準。」
 - `/health` 正常時：
   - 「這裡先確認 QA 與 LINE runtime 狀態，避免 demo 把未 ready 的整合誤講成完成。」
 - QA 走 fallback 時：
-  - 「目前正式檢索主線仍是 memory；若回應裡出現 fallback 訊號，代表系統明確記錄了目前不是理想檢索條件。」
-- LINE 是 backend-only 時：
-  - 「backend 端 bind、切換課程與 QA routing 已打通，但 live channel 條件仍待外部設定補齊。」
+  - 「目前共享環境主線是 Atlas；若回應裡出現 fallback 訊號，代表系統明確記錄了目前不是理想檢索條件。」
+- LINE live demo 時：
+  - 「LINE live 已完整驗證：使用者在 LINE 傳問題，backend 經 Gemini 3072 維語意搜尋後，將答案與影片時間戳直接回傳到 LINE 對話視窗。」
+- ngrok URL 改變時：
+  - 「ngrok 是本地展示用的暫時通道，每次重啟 URL 會變；正式部署後會換成固定網址，這個步驟就不再需要手動更新。」
 - bridge course 沒 searchable segments 時：
   - 「這門課目前可能只有 bridge metadata，backend 會明確回 `no_searchable_segments`，不是假裝有內容卻回錯答案。」
 - 收尾：
-  - 「phase-1 backend 已可 demo、可驗收、可交接；Atlas、正式 embedding 對齊與 live LINE 仍是下一步協作事項。」
+  - 「phase-1 backend 已可 demo、可驗收、可交接；後續重點是 Atlas vector search 啟用、固定 HTTPS 部署與前端綁定 UI。」
 
 ## degraded / hard_fail 應對
 

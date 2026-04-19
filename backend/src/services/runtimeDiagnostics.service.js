@@ -79,7 +79,7 @@ function buildQaHardFailures(snapshot) {
   if (snapshot.vectorSearchMode === 'atlas' && snapshot.queryEmbeddingProvider === 'mock') {
     hardFailures.push(buildDiagnostic(
       'QA_ATLAS_REQUIRES_REAL_QUERY_EMBEDDINGS',
-      'QA atlas mode is not compatible with mock query embeddings in phase-1. Use QA_VECTOR_SEARCH_MODE=memory.',
+      'QA atlas mode is not compatible with mock query embeddings. Set QA_QUERY_EMBEDDING_PROVIDER=gemini or openai.',
     ));
   }
 
@@ -267,7 +267,7 @@ function assertQaRuntimeConfiguration() {
 
   if (env.qaQueryEmbeddingProvider === 'mock') {
     throw new AppError(
-      'QA atlas mode is not compatible with mock query embeddings in phase-1. Use QA_VECTOR_SEARCH_MODE=memory.',
+      'QA atlas mode is not compatible with mock query embeddings. Set QA_QUERY_EMBEDDING_PROVIDER=gemini or openai.',
       500,
       'QA_RUNTIME_MISCONFIGURED',
       snapshot,

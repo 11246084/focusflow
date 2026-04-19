@@ -9,7 +9,9 @@ phase-1 當前狀態（2026-04-19）：
 ```env
 DEMO_SEED_ENABLED=false
 QA_QUERY_EMBEDDING_PROVIDER=gemini
-QA_VECTOR_SEARCH_MODE=memory
+QA_VECTOR_SEARCH_MODE=atlas
+QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
+QA_ATLAS_FILTER_MODE=bridge_course_or_video
 QA_ANSWER_PROVIDER=gemini
 GEMINI_API_KEY=<需填入>
 LINE_CHANNEL_SECRET=<需填入>
@@ -20,7 +22,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 代表：
 
 - query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- retrieval 使用 memory cosine similarity，query / segment 維度已對齊，語意搜尋正常運作
+- retrieval 使用 Atlas vector search（`text_embedding_index`），query / segment 維度已對齊，語意搜尋正式主線已切到 Atlas
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - startup 不會自動 seed
@@ -100,7 +102,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 
 ### 目前最小 bridge contract
 
-`course.videoIds -> videos._id -> videos.video_id -> video_segments_text.video_id|videoId`
+`course.videoIds -> videos._id -> videos.video_id -> video_segments_text.videoId`
 
 ### `/api/v1/qa/ask` 現在的可觀測欄位
 
@@ -170,7 +172,7 @@ line.service.handleQuestion()
 ↓
 embedWithGemini(question) → 3072 維 query vector
 ↓
-memory cosine similarity → video_segments_text（102 個 segments）
+Atlas vector search（text_embedding_index）→ video_segments_text
 ↓
 Gemini gemini-2.5-flash 生成答案
 ↓
@@ -247,7 +249,7 @@ npm start
 這一輪已重新確認：
 
 - `npm.cmd test`
-  - `65 / 65 passed`（2026-04-15）
+  - `69 / 69 passed`（依 [backend/docs/current-state.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/current-state.md) 的 2026-04-19 記錄）
 - `node --test --experimental-test-isolation=none --test-concurrency=1 tests\\mvp.acceptance.test.js`
   - 鎖 `health -> auth -> courses -> QA -> LINE` backend-only demo 主線
 - `tests\\health.routes.test.js`

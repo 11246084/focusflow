@@ -83,7 +83,7 @@ python src/main.py --limit 1      # 只處理第一支（快速驗證）
 python src/main.py --overwrite    # 強制重新處理（不使用快取）
 ```
 
-> 資料庫 schema 契約（v1 正式 vs legacy）見 [ARCHITECTURE.md](ARCHITECTURE.md)，詳細定版見 [docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)。
+> 資料庫 schema 契約（v1 正式 vs legacy）見 [ARCHITECTURE.md](ARCHITECTURE.md)。`docs/05_Database_Schema_Contract/` 目前保留的 [MongoDB_契約定版_v1_已過期.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md) 僅供歷史參考；正式 runtime 與欄位命名請以 [docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準。
 
 ---
 

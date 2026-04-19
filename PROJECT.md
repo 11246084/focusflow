@@ -40,7 +40,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 目前為展示型登入頁（Three.js 3D 場景）。主介面（課程列表、影片播放、問答 UI）待開發。
 
 ### AI Pipeline（`STT_Whisper/`）
-離線 CLI 流程：影片 → FFmpeg 音訊提取 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 寫入 MongoDB。
+離線 CLI 流程：影片 → FFmpeg 音訊提取 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL；如需落庫，另由 `mongodb_uploader.py` 導入 MongoDB。
 
 ---
 
@@ -59,4 +59,4 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 | `UsageLog` | 使用行為記錄 |
 | `LineBindToken` | LINE 帳號綁定一次性 token |
 
-正式資料契約見 [docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)。
+正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。

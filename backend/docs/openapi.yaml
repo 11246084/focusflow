@@ -1174,7 +1174,7 @@ components:
         bridgeContractPath:
           description: bridge contract 的資料串接路徑說明。
           type: string
-          example: course.videoIds -> videos.video_id -> video_segments_text.video_id|videoId
+          example: course.videoIds -> videos.video_id -> video_segments_text.videoId
     Course:
       description: 課程主體回應，含基本課程資料與 Phase-1 bridge 欄位。
       allOf:

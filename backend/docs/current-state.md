@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-04-19（atlas filter 兩處 bug 修正）
+最後更新：2026-04-19（atlas filter bug 修正 + 全面遷移 camelCase，含 DB 文件遷移完成）
 
 ## 文件角色
 
@@ -45,7 +45,7 @@
 | `courses` | 3 | Demo QA Course / Demo Processing Course / Pipeline Bridge Course |
 | `videos` | 9 | 6 pipeline-owned（video_001~006）+ 3 app-owned（sourceType: upload）|
 | `users` | 3 | |
-| `video_segments_text` | 105 | 全部有 embedding；欄位為 snake_case（`video_id`、`start_sec`）；均有 `courseId` |
+| `video_segments_text` | 105 | 全部有 embedding；欄位為 camelCase（`videoId`、`startSec`）；均有 `courseId` |
 | `video_segments_video` | 15 | |
 | `clips` | 1 | |
 | `enrollments` | 2 | |
@@ -107,12 +107,12 @@
 ## 已知限制
 
 - `videos` 仍是 mixed collection，pipeline-owned（video_001~006）與 app-owned（sourceType: upload）並存，ownership 邊界尚未定版
-- `video_segments_text` 欄位：文件已確認只有 `video_id`（snake_case），`videoId`（camelCase）**不存在於文件中**；DB regular indexes 仍存在孤立的 `videoId_1`（索引了不存在的欄位，待 Database 組清除）；`segment_id` 值為 null，實際識別碼為 `chunk_id`；backend 的 normalize 相容路徑保留作為防護，atlas filter 只使用 vector index 支援的欄位
+- `video_segments_text` 欄位：已全面統一為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件遷移已於 2026-04-19 完成；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
 - `clips` 目前只有 1 筆，`video_segments_video` 尚未接成正式片段來源
 - `usage_logs` 有 23 筆含 smoke test 痕跡（共享 DB 不適合做全 live smoke）
-- Atlas `text_embedding_index`：已確認 READY，105/105 筆 100% 索引，filter fields：`embedding`、`courseId`（ObjectId）、`video_id`（snake_case）；M0 vector index 配額 1/3 已用（2026-04-19 截圖驗證）
-- `video_segments_text` regular indexes：`videoId_1`（15 次查詢）+ `video_id_1`（16 次查詢）；**`videoId_1` 為孤立索引**（文件直接確認無 `videoId` 欄位，該 index 索引一個不存在的欄位）；atlas filter 已修正，僅保留 vector index 支援的欄位（`courseId`、`video_id`）
+- Atlas `text_embedding_index`：已確認 READY，105/105 筆 100% 索引，filter fields：`embedding`、`courseId`（ObjectId）、`videoId`（camelCase）；M0 vector index 配額 1/3 已用（2026-04-19 截圖驗證）
+- `video_segments_text` regular indexes（DB 組 2026-04-19 更新後）：`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`；遷移後 `videoId_1` 對應真實欄位，不再是孤立索引；atlas filter 僅使用 vector index 支援欄位（`courseId` ObjectId、`videoId` camelCase）
 - `video_segments_video`：有 embedding（Array 3072），但無 Atlas vector search index，multimodal QA 目前不可用
 - Atlas filter 兩處 bug 已修（`qa.service.js`）：① courseId String→ObjectId cast；② 剔除非 vector index filter field 的 `videoId`（camelCase）條件
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
@@ -121,4 +121,4 @@
 
 ## 一句話結論
 
-截至 2026-04-19，backend 主線為 `gemini query embedding + atlas vector search（text_embedding_index）+ gemini answer（gemini-2.5-flash）+ LINE live`；LINE 已在真實裝置端對端驗證成功（bind → switch course → ask），`video_segments_text` 共 105 筆 segments 全部有 embedding。Atlas filter 兩處 bug（courseId 型別、videoId 非法 filter field）已修正。文件確認 `video_id`（snake_case）為 canonical，`videoId` 不存在於文件中，`videoId_1` 為孤立索引待 Database 組清除，`segment_id` 值為 null（實際識別碼為 `chunk_id`）。已知短期限制：ngrok URL 不固定、學生綁定需前端支援。
+截至 2026-04-19，backend 主線為 `gemini query embedding + atlas vector search（text_embedding_index）+ gemini answer（gemini-2.5-flash）+ LINE live`。`video_segments_text` 欄位命名已全面統一為 camelCase（model、service、vector index filter、DB 文件一致）。Tests 69/69 pass。短期限制：ngrok URL 不固定、學生綁定需前端支援。

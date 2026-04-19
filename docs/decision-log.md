@@ -6,11 +6,11 @@
 
 ## 2026-03 | AI Pipeline 作為離線 CLI，不內嵌於 Backend
 
-**決策**：Whisper STT 與 embedding pipeline 作為獨立 Python CLI（`STT_Whisper/`），執行完畢後直接寫入 MongoDB，backend 只查詢結果。
+**決策**：Whisper STT 與 embedding pipeline 作為獨立 Python CLI（`STT_Whisper/`），與 backend process 分離；主線先輸出標準化 JSON / JSONL，必要時再由 uploader 導入 MongoDB，backend 只查詢結果。
 
 **原因**：Whisper 模型體積大（數 GB）、執行耗時（分鐘級），不適合與 Express API server 共用 process。CLI 模式也方便在開發機本地批次處理。
 
-**影響**：Backend 與 Pipeline 的協作介面是 MongoDB schema，需要跨組對齊 `video_segments_text` collection 的欄位口徑。
+**影響**：Backend 與 Pipeline 的協作介面仍以 MongoDB schema 為主，但 pipeline 交付物不再只剩直接落庫；跨組仍需對齊 `video_segments_text` collection 的欄位口徑與 uploader 行為。
 
 ---
 
@@ -30,7 +30,7 @@
 
 **原因**：文字與影片 embedding 維度、查詢模式與 Atlas index 設定不同，合併在一個 collection 會造成 index 複雜度與查詢效率問題。
 
-**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。詳見 [docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md](05_Database_Schema_Contract/MongoDB_契約定版_v1.md)。
+**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。正式欄位口徑請以 `docs/current-status.md`、`backend/docs/current-state.md` 與實際程式碼為準；`docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考。
 
 ---
 

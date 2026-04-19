@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-04-19（atlas filter bug 修正 + video_id canonical 文件確認 + videoId_1 孤立索引確認）
+最後更新：2026-04-19（atlas filter bug 修正 + DB 組完成 105 筆文件遷移為 camelCase + vector index filter 更新為 videoId + videoId_1 孤立索引問題已解除）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -11,19 +11,18 @@
 **已確認（2026-04-19）：**
 
 - Atlas `text_embedding_index`：狀態 READY，105/105 筆 100% 索引
-  - filter fields（向量索引搜尋時允許用來篩選的欄位，需事先登記）：`courseId`（ObjectId 型別）、`video_id`（snake_case 字串）
+  - filter fields（向量索引搜尋時允許用來篩選的欄位，需事先登記）：`courseId`（ObjectId 型別）、`videoId`（camelCase 字串）
+  - DB 組已於 2026-04-19 完成：vector index filter 改為 `videoId`（camelCase）、105 筆文件欄位遷移為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
 - M0 free cluster：vector indexes（向量索引，Atlas 做相似度搜尋所需，類似書的目錄）1 of 3 used，剩 2 個配額可用
-- `video_segments_text` regular indexes：`videoId_1`（15 uses）、`video_id_1`（16 uses）、`segment_id_1`、`segmentId_1`
-  - **文件直接確認（2026-04-19）**：實際文件只有 `video_id` 欄位，**沒有 `videoId`**；`videoId_1` 為孤立索引（orphaned index，索引了一個文件中不存在的欄位）；`segment_id` 值為 null，實際識別碼為 `chunk_id`
-  - 後續需要 Database 組刪除 `videoId_1` 孤立索引（無實際作用，只佔系統資源）
+- `video_segments_text` regular indexes（DB 組 2026-04-19 更新後）：`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`；105 筆文件已遷移為 camelCase，`videoId_1` 現在對應真實欄位，不再是孤立索引；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 - Atlas filter 兩處 bug 已修（`qa.service.js`）：
   - ① `courseId` 型別不符：backend 傳純字串，但 DB 存的是 ObjectId（MongoDB 的專用 ID 型別，外觀相似但 Atlas 視為不同型別，比對不到就回傳 0 筆）→ 已修正為傳 ObjectId
-  - ② `videoId`（camelCase）不在 vector index filter fields，Atlas 拒絕此條件 → 已從 atlas filter 中剔除
+  - ② `videoId`（camelCase）不在舊 vector index filter fields，Atlas 拒絕此條件 → 已從 atlas filter 中剔除；DB 組已將 vector index filter 更新為 `videoId`，backend `isAtlasFilterCompatible` 同步對齊
 - `video_segments_video`：有 embedding（3072 維），**無 vector search index**，multimodal QA 目前不可用
 
 **尚未定版：**
 
-- `video_segments_text` canonical 欄位口徑：`video_id`（snake_case）已文件確認為 canonical，`videoId`（camelCase）欄位**不存在於文件中**；但 DB regular indexes 仍存在孤立的 `videoId_1`，需 Database 組清除
+- `video_segments_text` canonical 欄位口徑：已定版為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件、backend model/service、vector index filter 三者一致（2026-04-19）
 - `video_segments_video` 的 Atlas vector index（若要開 multimodal QA，需補建 `video_embedding_index`，3072 維 cosine，filter field：`video_id`）
 - `videos` mixed collection 的 ownership 邊界（6 筆 pipeline-owned 無 `sourceType`，3 筆 app-owned 有 `sourceType: "upload"`）
 - Collections 實際 12 個，init 腳本宣稱 14，落差說明由 Database 組負責
@@ -33,9 +32,8 @@
 
 | 項目 | 誰做 | 具體動作 |
 |------|------|----------|
-| `videoId_1` 孤立索引清除 | **Database** | 確認 `video_segments_text` 文件無 `videoId` 欄位後，在 Atlas 刪除 `videoId_1` regular index（孤立索引，無實際作用） |
-| `video_segments_text` camelCase fallback 縮窄 | **Backend**（配合 Database 清除後）| Database 清除孤立索引後，縮窄 `normalizeSegment` 的 `videoId` 相容路徑，移除 `segment.videoId` fallback |
-| Pipeline STT 產出 schema 確認 | **Pipeline** | 確認後續 STT 產出只寫 `video_id`（snake_case），不再寫入 camelCase `videoId` |
+| `video_segments_text` 文件遷移 | **Done（2026-04-19）** | 105 筆文件已遷移為 camelCase；`videoId_1`、`segmentId_1` regular index 現在對應真實欄位，不再是孤立索引 |
+| Pipeline STT 產出 schema 確認 | **Pipeline** | 確認後續 STT 產出改為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`），與現有 backend schema 對齊 |
 | `video_segments_video` vector index | **Database** | 若 Phase-2 要開 multimodal QA，在 Atlas 補建 `video_embedding_index`（`video_segments_video`，numDimensions: 3072，similarity: cosine，filter field: `video_id`）；M0 剩 2 個配額 |
 | `videos` ownership 邊界 | **Database + Backend** | 三選一：(a) 為 pipeline-owned 文件補 `sourceType: "pipeline"` 欄位；(b) 將 pipeline metadata 拆到獨立 collection；(c) 在 backend model 加 `sourceType` 欄位並更新 `video.service.js` 查詢邏輯 |
 | Collections 12 vs 14 落差 | **Database** | 說明 init 腳本多宣稱的 2 個 collection 是哪些、是否需要建立 |
@@ -44,7 +42,7 @@
 **backend 目前已採取的行為：**
 
 - `QA_VECTOR_SEARCH_MODE=atlas` 已生效，缺 index 或 aggregate 失敗會直接 fail-fast（不靜默回 memory）
-- atlas filter 僅使用 vector index 支援欄位（`courseId` ObjectId、`video_id` snake_case），`videoId` camelCase 已排除
+- atlas filter 僅使用 vector index 支援欄位（`courseId` ObjectId、`videoId` camelCase）；`video_id` snake_case 已排除（文件已全面遷移為 camelCase）
 - pipeline metadata 只拿來做 QA bridge，不當正式 app-owned video 使用
 
 ---
@@ -54,13 +52,10 @@
 **已定版：**
 
 - query embedding provider：`gemini`（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- `video_segments_text`：105 筆，全部有 embedding，欄位為 snake_case（`video_id`、`start_sec`）
-- `video_id` 確認為 canonical（2026-04-19 文件直接確認）：DB 內文件只有 `video_id`，沒有 `videoId`；`videoId_1` 是孤立索引
-- `segment_id` 值為 null，實際識別碼為 `chunk_id`（如 `video_001_chunk_0001`）
+- `video_segments_text`：105 筆，全部有 embedding，欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件遷移已於 2026-04-19 完成
+- `videoId` 確認為 canonical（camelCase）；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 
 **仍未定版：**
-
-- `videoId_1` 孤立索引：已確認無對應文件欄位，但 Database 組尚未清除
 - 哪些影片目前真的已有 searchable coverage（目前全數 105 筆均屬 Pipeline Bridge Course）
 - `clips` 與 `video_segments_video` 的正式分工（`clips` 目前只有 1 筆）
 
@@ -68,7 +63,7 @@
 
 | 項目 | 誰做 | 具體動作 |
 |------|------|----------|
-| `videoId_1` 孤立索引清除 | **Database** | 同 DB 缺口（上方已列）；`video_id` canonical 已確認，不再需要 Pipeline 說明來源 |
+| `videoId_1` 索引 | **Done（2026-04-19）** | 文件遷移後 `videoId_1` 已對應真實欄位，不再是孤立索引；無需額外清除動作 |
 | searchable coverage 範圍 | **Pipeline** | 說明目前 105 筆 segments 對應的是哪幾支影片、哪幾門課；若其他課程要有 QA coverage，需明確排定影片處理時程 |
 | `clips` 與 `video_segments_video` 分工 | **Pipeline + Backend** | 決定 Phase-2 clip source：(a) `clips` collection 繼續作為 clip cache；(b) 由 `video_segments_video` 直接提供 clip path；決定後 Backend 更新 `findCachedClip` 邏輯 |
 

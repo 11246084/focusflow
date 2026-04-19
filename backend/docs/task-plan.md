@@ -123,15 +123,15 @@
 
 ### 9. 確認 `video_segments_text` canonical 欄位
 
-- **狀態**：Done（文件直接確認，2026-04-19）
+- **狀態**：Done（2026-04-19 全面完成）
 - **完成內容**：
-  - `video_id`（snake_case）確認為 canonical：DB 文件直接查看，只有 `video_id`，`videoId` 欄位不存在
-  - `segment_id` 值為 null，實際識別碼為 `chunk_id`（如 `video_001_chunk_0001`）
-  - `videoId_1` 確認為孤立索引（orphaned index），待 Database 組清除
-  - `videoSegment.model.js` 已移除 `videoId` schema 欄位宣告
-  - `bridgeScope.service.js` 的 normalize 相容路徑（`segment.videoId` fallback）暫時保留，待 Database 組清除孤立索引後再縮窄
-- **剩餘後續**：
-  - Database 組清除 `videoId_1` 孤立索引後，縮窄 `normalizeSegment` 的 `segment.videoId` fallback
+  - canonical 欄位定版為 camelCase：`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`
+  - DB 文件 105 筆已遷移為 camelCase（2026-04-19）
+  - vector index filter 已改為 `videoId`（camelCase）
+  - `videoSegment.model.js`：camelCase only，已移除 snake_case 欄位宣告
+  - `bridgeScope.service.js`：`normalizeSegment` 只讀 camelCase，`buildSegmentLookupQuery` 只查 `{ videoId: ... }`
+  - `qa.service.js` `isAtlasFilterCompatible`：允許 `videoId`，拒絕 `video_id`
+  - `segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 
 ---
 

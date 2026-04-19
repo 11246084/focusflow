@@ -8,10 +8,11 @@ const apiRoutes = require('./routes');
 const { notFoundHandler } = require('./middleware/notFound.middleware');
 const { errorHandler } = require('./middleware/error.middleware');
 const { sendSuccess } = require('./utils/apiResponse');
-const { readOpenApiYaml } = require('./docs/openapi');
+const { readOpenApiYaml, readSwaggerCustomCss } = require('./docs/openapi');
 
 const app = express();
 const openApiYaml = readOpenApiYaml();
+const swaggerCustomCss = readSwaggerCustomCss();
 
 app.use(cors());
 app.use('/api/v1/line/webhook', express.raw({ type: 'application/json' }));
@@ -25,9 +26,19 @@ app.use(
   '/docs',
   swaggerUi.serve,
   swaggerUi.setup(null, {
+    customSiteTitle: 'FocusFlow API Docs',
+    customCss: swaggerCustomCss,
     swaggerOptions: {
       url: '/docs/openapi.yaml',
       tryItOutEnabled: true,
+      docExpansion: 'list',
+      deepLinking: true,
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      filter: true,
+      defaultModelsExpandDepth: 0,
+      defaultModelExpandDepth: 1,
+      syntaxHighlight: { activate: true, theme: 'nord' },
     },
   }),
 );

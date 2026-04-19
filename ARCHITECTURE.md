@@ -2,9 +2,9 @@
 
 FocusFlow 系統技術架構、資料流與資料庫契約。
 
-> 正式資料契約：[docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md)
+> 正式資料契約請以 [docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準。
 >
-> 若程式碼與本文件衝突，以契約文件與實際 PR 為準。Legacy 欄位（`video_segments`、`clips`）為過渡狀態。
+> `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 目前僅供歷史參考。Legacy 欄位（`video_segments`、`clips`）為過渡狀態。
 
 ---
 
@@ -28,7 +28,7 @@ FocusFlow 系統技術架構、資料流與資料庫契約。
                                  └──────────────────┘
 ```
 
-**關鍵決策**：AI Pipeline 作為離線 CLI（非 backend subprocess）。Whisper 模型體積大、執行耗時，Pipeline 完成後直接寫入 MongoDB，backend 只查詢結果。見 [docs/decision-log.md](docs/decision-log.md)。
+**關鍵決策**：AI Pipeline 作為離線 CLI（非 backend subprocess）。Whisper 模型體積大、執行耗時，因此與 backend process 分離；目前主線先輸出標準化 JSON / JSONL，必要時再由 uploader 導入 MongoDB。見 [docs/decision-log.md](docs/decision-log.md)。
 
 ---
 
@@ -63,10 +63,10 @@ routes → controllers → services → models
 | 變數 | 值 | 說明 |
 |------|----|------|
 | `QA_QUERY_EMBEDDING_PROVIDER` | `mock` / `openai` / `gemini` | query 向量化方式 |
-| `QA_ANSWER_PROVIDER` | `template` / `openai` | 答案生成方式 |
+| `QA_ANSWER_PROVIDER` | `template` / `openai` / `gemini` | 答案生成方式 |
 | `QA_VECTOR_SEARCH_MODE` | `memory` / `atlas` | 本機記憶體 vs Atlas Vector Search |
 
-> Phase-1 正式 runtime：`mock + memory + gemini`。`atlas` mode 目前 fail-fast，尚未上線。
+> Phase-1 當前正式 runtime 以 `gemini + atlas + gemini` 為主；若只做本機 smoke，可暫時切回 `mock + memory`，但實際狀態仍以 `.env` 與 `/health` 為準。
 
 補充：為了讓 bridge-first MVP 更穩定、可理解，課程回應與 QA runtime course summary 現已提供 `isBridgeCourse`。`appOwnedVideoCount` / `metadataOnlyVideoCount` 只是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases，不是另一套統計來源；QA 回應中的 `resultCategory` 則是 Phase-1 convenience field，方便前端或 demo 先分流，細節仍以 `status`、`matchStatus`、`degradedReasons` 為準。
 

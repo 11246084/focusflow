@@ -171,6 +171,8 @@ const videoSchema = new mongoose.Schema(
   },
 );
 
+videoSchema.index({ courseId: 1 });
+
 videoSchema.statics.isAppOwnedRecord = isAppOwnedVideoRecord;
 videoSchema.statics.isPipelineMetadataRecord = isPipelineMetadataRecord;
 

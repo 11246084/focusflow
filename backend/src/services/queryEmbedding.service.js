@@ -48,9 +48,39 @@ async function embedWithOpenAI(text) {
   return payload.data?.[0]?.embedding || [];
 }
 
+async function embedWithGemini(text) {
+  if (!env.geminiApiKey) {
+    throw new AppError('GEMINI_API_KEY is required for Gemini embeddings.', 500, 'EMBEDDING_PROVIDER_NOT_CONFIGURED');
+  }
+
+  const model = 'gemini-embedding-2-preview';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${env.geminiApiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: `models/${model}`,
+      content: { parts: [{ text }] },
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new AppError('Failed to generate Gemini query embedding.', 502, 'EMBEDDING_PROVIDER_ERROR', payload);
+  }
+
+  const payload = await response.json();
+  return payload.embedding?.values || [];
+}
+
 async function embedQuery(text) {
   if (env.qaQueryEmbeddingProvider === 'openai') {
     return embedWithOpenAI(text);
+  }
+
+  if (env.qaQueryEmbeddingProvider === 'gemini') {
+    return embedWithGemini(text);
   }
 
   return buildMockEmbedding(text);

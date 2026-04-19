@@ -1,7 +1,7 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
 
-const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai'];
+const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
 const QA_ANSWER_PROVIDERS = ['template', 'openai', 'gemini'];
 const QA_ATLAS_FILTER_MODES = ['bridge_course_or_video'];
@@ -45,6 +45,13 @@ function buildQaHardFailures(snapshot) {
     hardFailures.push(buildDiagnostic(
       'OPENAI_API_KEY_MISSING_FOR_QUERY_EMBEDDING',
       'OPENAI_API_KEY is required when QA_QUERY_EMBEDDING_PROVIDER=openai.',
+    ));
+  }
+
+  if (snapshot.queryEmbeddingProvider === 'gemini' && !snapshot.geminiConfigured) {
+    hardFailures.push(buildDiagnostic(
+      'GEMINI_API_KEY_MISSING_FOR_QUERY_EMBEDDING',
+      'GEMINI_API_KEY is required when QA_QUERY_EMBEDDING_PROVIDER=gemini.',
     ));
   }
 

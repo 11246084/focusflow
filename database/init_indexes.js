@@ -49,6 +49,10 @@ print("✅ video_segments_text.video_id");
 db.video_segments_text.createIndex({ chunk_id: 1 }, { unique: true });
 print("✅ video_segments_text.chunk_id（unique）");
 
+// QA 查詢同時過濾 video_id + courseId，加複合索引避免全表掃描
+db.video_segments_text.createIndex({ video_id: 1, courseId: 1 });
+print("✅ video_segments_text.video_id + courseId（複合）");
+
 // ── video_segments_audio ──────────────────────────────────
 db.video_segments_audio.createIndex({ video_id: 1 });
 print("✅ video_segments_audio.video_id");

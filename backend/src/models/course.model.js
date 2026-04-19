@@ -40,4 +40,6 @@ const courseSchema = new mongoose.Schema(
   },
 );
 
+courseSchema.index({ teacherId: 1 });
+
 module.exports = mongoose.model('Course', courseSchema);

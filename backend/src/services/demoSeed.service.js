@@ -15,7 +15,7 @@ const {
   VIDEO_SOURCE_TYPES,
   VIDEO_PROCESSING_STATUSES,
 } = require('../constants/enums');
-const { buildMockEmbedding } = require('./queryEmbedding.service');
+const { buildMockEmbedding, embedQuery } = require('./queryEmbedding.service');
 const { COURSE_BRIDGE_MODES } = require('./bridgeScope.service');
 
 const DEMO_RECORD_IDS = {
@@ -434,6 +434,15 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   });
 
   for (const [index, segment] of DEMO_SEGMENTS.entries()) {
+    let embedding;
+    try {
+      embedding = env.qaQueryEmbeddingProvider !== 'mock'
+        ? await embedQuery(segment.transcript)
+        : buildMockEmbedding(`${segment.transcript} ${index}`);
+    } catch {
+      embedding = buildMockEmbedding(`${segment.transcript} ${index}`);
+    }
+
     await VideoSegment.findOneAndUpdate(
       { segmentId: segment.segmentId },
       {
@@ -446,7 +455,7 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
           endSec: segment.endSec,
           text: segment.transcript,
           corrections: [],
-          embedding: buildMockEmbedding(`${segment.transcript} ${index}`),
+          embedding,
         },
       },
       {

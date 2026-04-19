@@ -268,9 +268,9 @@ function castCourseIdToObjectId(condition) {
 }
 
 function isAtlasFilterCompatible(condition) {
-  // text_embedding_index filter fields: courseId (ObjectId), video_id (String)
-  // videoId (camelCase) is NOT indexed → including it causes $vectorSearch to error
-  return !('videoId' in condition);
+  // text_embedding_index filter fields: courseId (ObjectId), videoId (String)
+  const allowedFilterFields = new Set(['courseId', 'videoId', '$or', '$and']);
+  return Object.keys(condition).every((key) => allowedFilterFields.has(key));
 }
 
 function buildAtlasSegmentFilter(scope) {

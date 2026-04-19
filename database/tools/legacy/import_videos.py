@@ -1,9 +1,11 @@
 # ============================================================
-# focusflow — 寫入 video_segments_video
-# 執行方式：python database/import_video_segments_video.py
-# 資料來源：STT_Whisper/data/outputs/embeddings_video_gemini.jsonl
+# focusflow — 寫入 videos
+# 執行方式：python database/tools/legacy/import_videos.py
+# 資料來源：STT_Whisper/data/outputs/videos.json
 #
-# upsert key：clip_id
+# upsert key：video_id
+# ⚠️  注意：此腳本只寫入 AI pipeline 產出的影片 metadata，
+#          courseId / uploadedBy / processing 等欄位由後端 API 管理
 # ============================================================
 
 import json
@@ -13,10 +15,10 @@ from pymongo import MongoClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = Path(__file__).resolve().parent / ".env"
-SOURCE_PATH = PROJECT_ROOT / "STT_Whisper" / "data" / "outputs" / "embeddings_video_gemini.jsonl"
+SOURCE_PATH = PROJECT_ROOT / "STT_Whisper" / "data" / "outputs" / "videos.json"
 
-COLLECTION_NAME = "video_segments_video"
-REQUIRED_KEYS = {"clip_id", "video_id", "start_sec", "end_sec", "clip_path", "embedding"}
+COLLECTION_NAME = "videos"
+REQUIRED_KEYS = {"video_id", "file_name", "file_path", "audio_path", "duration_sec"}
 
 
 def load_env_file(env_path: Path) -> None:
@@ -45,63 +47,51 @@ collection = db[COLLECTION_NAME]
 print("✅ 成功連線 MongoDB")
 
 # ============================================================
-# 讀取 embeddings_video_gemini.jsonl
+# 讀取 videos.json
 # ============================================================
 print(f"\n📂 讀取 {SOURCE_PATH}...")
 
 if not SOURCE_PATH.exists():
     raise FileNotFoundError(f"找不到來源檔案：{SOURCE_PATH}")
 
-records = []
-skip_count = 0
-
-with open(SOURCE_PATH, encoding="utf-8") as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        record = json.loads(line)
-
-        missing = REQUIRED_KEYS - record.keys()
-        if missing:
-            print(f"  ⚠️  跳過（缺少欄位 {missing}）：{record.get('clip_id', '<unknown>')}")
-            skip_count += 1
-            continue
-
-        embedding = record.get("embedding")
-        if not isinstance(embedding, list) or not embedding:
-            print(f"  ⚠️  跳過（embedding 為空）：{record.get('clip_id', '<unknown>')}")
-            skip_count += 1
-            continue
-
-        records.append(record)
-
-print(f"✅ 載入 {len(records)} 筆，跳過 {skip_count} 筆")
+raw = json.loads(SOURCE_PATH.read_text(encoding="utf-8"))
+records = raw if isinstance(raw, list) else [raw]
+print(f"✅ 載入 {len(records)} 筆")
 
 # ============================================================
-# Upsert 寫入 video_segments_video
+# Upsert 寫入 videos
 # ============================================================
 print(f"\n📥 Upsert 寫入 {COLLECTION_NAME}...")
 
 success_count = 0
+skip_count = 0
 error_count = 0
 
 for record in records:
-    clip_id = record["clip_id"]
+    missing = REQUIRED_KEYS - record.keys()
+    if missing:
+        print(f"  ⚠️  跳過（缺少欄位 {missing}）：{record.get('video_id', '<unknown>')}")
+        skip_count += 1
+        continue
+
+    video_id = record["video_id"]
     document = {
-        "clip_id":   clip_id,
-        "video_id":  record["video_id"],
-        "start_sec": float(record["start_sec"]),
-        "end_sec":   float(record["end_sec"]),
-        "clip_path": record["clip_path"],
-        "embedding": record["embedding"],
+        "video_id":    video_id,
+        "file_name":   record["file_name"],
+        "file_path":   record["file_path"],
+        "audio_path":  record["audio_path"],
+        "duration_sec": float(record["duration_sec"]),
+        "week":        record.get("week"),
+        "lesson":      record.get("lesson"),
+        "video_source": record.get("video_source", "local"),
+        "video_url":   record.get("video_url"),
     }
 
     try:
-        collection.update_one({"clip_id": clip_id}, {"$set": document}, upsert=True)
+        collection.update_one({"video_id": video_id}, {"$set": document}, upsert=True)
         success_count += 1
     except Exception as exc:
-        print(f"  ❌ 寫入失敗 clip_id={clip_id}：{exc}")
+        print(f"  ❌ 寫入失敗 video_id={video_id}：{exc}")
         error_count += 1
 
 total = collection.count_documents({})

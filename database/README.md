@@ -1,42 +1,61 @@
 # FocusFlow Database 使用說明
 
-本資料夾包含 FocusFlow 資料庫的初始化腳本與資料匯入工具。
+本資料夾包含 FocusFlow 資料庫的初始化腳本、資料匯入工具、歷史修復腳本與交接文件。
 
 ---
 
 ## 資料夾結構
 
-```
+```text
 database/
-├── README.md                         ← 本文件
-├── .env                              ← 放 MONGODB_URI（不進版控）
-├── init_collections.js               ← 建立所有 Collection
-├── init_indexes.js                   ← 建立所有 Index
-├── mongodb_uploader.py               ← ✅ 統一上傳工具（取代以下所有 import_*.py）
-├── import_videos.py                  ← 舊版（已整合進 mongodb_uploader.py）
-├── import_transcripts_normalized.py  ← 舊版（已整合進 mongodb_uploader.py）
-├── import_video_segments_text.py     ← 舊版（snake_case，已停用）
-├── import_video_segments_audio.py    ← 舊版（已整合進 mongodb_uploader.py）
-├── import_video_segments_video.py    ← 舊版（已整合進 mongodb_uploader.py）
-└── import_term_dictionary.py         ← 舊版（已整合進 mongodb_uploader.py）
+├── README.md                          ← 本文件
+├── .env                               ← 放 MONGODB_URI（不進版控）
+├── .env.example                       ← 環境變數範例
+├── docs/
+│   └── db-handoff-current.txt         ← 給 backend 的目前 DB 現況交接
+├── tools/
+│   ├── mongodb_uploader.py            ← ✅ 統一上傳工具（正式使用）
+│   ├── setup/
+│   │   ├── init_collections.js        ← 建立所有 Collection
+│   │   └── init_indexes.js            ← 建立所有 Index
+│   ├── fixes/
+│   │   ├── fix_bridge_course_segments.js
+│   │   ├── fix_embedding_dims.js
+│   │   └── run_fix.js
+│   └── legacy/
+│       ├── import_videos.py
+│       ├── import_transcripts_normalized.py
+│       ├── import_video_segments_text.py
+│       ├── import_video_segments_audio.py
+│       ├── import_video_segments_video.py
+│       └── import_term_dictionary.py
+├── Lib/                               ← 本機 Python 環境產物
+└── Scripts/                           ← 本機 Python 環境產物
 ```
 
-> ⚠️ 所有 `import_*.py` 均已整合至 `mongodb_uploader.py`，**請統一使用新工具**。
-> `import_video_segments_text.py` 額外注意：寫入 snake_case 欄位，與 Mongoose model 不相容，**禁止使用**。
+注意：
+
+- 所有 `import_*.py` 都已整合進 `tools/mongodb_uploader.py`，日常操作請只用這個正式工具。
+- `tools/legacy/import_video_segments_text.py` 會寫入 snake_case 欄位，與目前 Mongoose model 不相容，禁止使用。
+- `Lib/` 與 `Scripts/` 是本機環境產物，這次只整理結構，不主動搬動。
 
 ---
 
 ## 第一次使用（初始化資料庫）
 
-### 步驟 1：建立 .env
+### 步驟 1：建立 `.env`
 
 在 `database/` 資料夾內新增 `.env` 檔，填入 MongoDB 連線字串：
 
-```
+```env
 MONGODB_URI=mongodb+srv://<帳號>:<密碼>@<cluster>.mongodb.net/focusflow
 ```
 
-> 本機測試可用：`MONGODB_URI=mongodb://127.0.0.1:27017/focusflow`
+本機測試也可用：
+
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/focusflow
+```
 
 ---
 
@@ -45,7 +64,7 @@ MONGODB_URI=mongodb+srv://<帳號>:<密碼>@<cluster>.mongodb.net/focusflow
 在 MongoDB Shell（mongosh）執行：
 
 ```bash
-mongosh "你的連線字串" --file database/init_collections.js
+mongosh "你的連線字串" --file database/tools/setup/init_collections.js
 ```
 
 ---
@@ -53,10 +72,10 @@ mongosh "你的連線字串" --file database/init_collections.js
 ### 步驟 3：建立 Indexes
 
 ```bash
-mongosh "你的連線字串" --file database/init_indexes.js
+mongosh "你的連線字串" --file database/tools/setup/init_indexes.js
 ```
 
-> ⚠️ 請確認 init_collections.js 已先執行完畢再執行此步驟。
+請先確認 `init_collections.js` 已執行完畢再跑這一步。
 
 ---
 
@@ -71,58 +90,65 @@ python -m pip install pymongo
 ### 步驟 5：匯入資料
 
 ```bash
-python database/mongodb_uploader.py
+python database/tools/mongodb_uploader.py
 ```
 
-一次執行全部模組（segments、videos、transcripts、audio、video_clips、terms）。
-每個模組完成後會顯示成功、跳過、失敗的筆數。
+這會一次執行全部模組：`segments`、`videos`、`transcripts`、`audio`、`video_clips`、`terms`。
 
 若只需執行特定模組：
 
 ```bash
-python database/mongodb_uploader.py --only segments
-python database/mongodb_uploader.py --only segments videos
+python database/tools/mongodb_uploader.py --only segments
+python database/tools/mongodb_uploader.py --only segments videos
 ```
 
 ---
 
-## mongodb_uploader.py 使用說明
+## 正式工具：`mongodb_uploader.py`
 
 ### 基本用法
 
 ```bash
-python database/mongodb_uploader.py              # 執行全部模組
-python database/mongodb_uploader.py --only segments          # 只跑文字 segment
-python database/mongodb_uploader.py --only segments videos   # 指定多個模組
+python database/tools/mongodb_uploader.py
+python database/tools/mongodb_uploader.py --only segments
+python database/tools/mongodb_uploader.py --only segments videos
 ```
 
-可用模組：`segments`、`videos`、`transcripts`、`audio`、`video_clips`、`terms`
+可用模組：
 
-### segments 模組寫入欄位
+- `segments`
+- `videos`
+- `transcripts`
+- `audio`
+- `video_clips`
+- `terms`
+
+### `segments` 模組目前寫入欄位
 
 讀取 `STT_Whisper/data/outputs/embeddings_text_gemini.jsonl`，以 `chunkId` 為 upsert key，寫入以下 camelCase 欄位：
 
 | 欄位 | 說明 |
 |------|------|
 | `chunkId` | chunk 唯一識別碼 |
-| `videoId` | 對應影片的 video_id |
+| `videoId` | 對應影片的 `video_id` |
 | `segmentId` | 對應 segment 識別碼 |
 | `startSec` | 開始時間（秒） |
 | `endSec` | 結束時間（秒） |
 | `text` | 逐字稿文字 |
 | `embedding` | 3072 維 Gemini embedding 向量 |
+| `courseId` | 有設定 `FOCUSFLOW_COURSE_ID` 時才會寫入 |
 
-### 指定課程（courseId）
+### 指定課程（`courseId`）
 
 若需將 segment 直接綁定到某門課，設定環境變數 `FOCUSFLOW_COURSE_ID`：
 
 ```bash
-FOCUSFLOW_COURSE_ID=680000000000000000000103 python database/mongodb_uploader.py
+FOCUSFLOW_COURSE_ID=680000000000000000000103 python database/tools/mongodb_uploader.py
 ```
 
 或在 `database/.env` 加入：
 
-```
+```env
 FOCUSFLOW_COURSE_ID=680000000000000000000103
 ```
 
@@ -130,22 +156,40 @@ FOCUSFLOW_COURSE_ID=680000000000000000000103
 
 ## 重新匯入資料
 
-所有模組都使用 **upsert**（有就更新、沒有就新增），重複執行完全安全。
+所有模組都使用 **upsert**，重複執行是安全的。
 
 AI pipeline 產出新資料後，重跑對應模組即可：
 
 ```bash
-python database/mongodb_uploader.py --only segments     # 文字 embedding 更新後
-python database/mongodb_uploader.py --only audio        # 音訊 embedding 產出後
-python database/mongodb_uploader.py --only video_clips  # 影片 embedding 更新後
+python database/tools/mongodb_uploader.py --only segments
+python database/tools/mongodb_uploader.py --only audio
+python database/tools/mongodb_uploader.py --only video_clips
 ```
+
+---
+
+## 歷史 / 修復腳本說明
+
+### `tools/legacy/`
+
+放的是舊版匯入腳本，保留作歷史參考，不建議日常使用。
+
+其中最重要的警告是：
+
+- `tools/legacy/import_video_segments_text.py` 會寫 snake_case 欄位，與目前 backend model 不相容，禁止使用。
+
+### `tools/fixes/`
+
+放的是過去整理資料時用過的修復腳本。
+
+這些腳本主要是歷史維修工具，重跑前請先重新確認它們的欄位假設是否仍符合當前 DB 狀態。
 
 ---
 
 ## 資料來源對照
 
-| 模組（--only） | Collection | 資料來源 |
-|--------------|-----------|----------|
+| 模組（`--only`） | Collection | 資料來源 |
+|------------------|------------|----------|
 | `segments` | `video_segments_text` | `STT_Whisper/data/outputs/embeddings_text_gemini.jsonl` |
 | `videos` | `videos` | `STT_Whisper/data/outputs/videos.json` |
 | `transcripts` | `transcripts_normalized` | `STT_Whisper/data/outputs/transcripts_normalized.json` |
@@ -157,7 +201,7 @@ python database/mongodb_uploader.py --only video_clips  # 影片 embedding 更�
 
 ## 目前資料庫狀態（2026-04-19）
 
-### video_segments_text
+### `video_segments_text`
 
 | 條件 | 數量 |
 |------|------|
@@ -185,35 +229,46 @@ python database/mongodb_uploader.py --only video_clips  # 影片 embedding 更�
 | FocusFlow Demo QA Co | 680000000000000000000101 | 680000000000000000000202 | 680000000000000000000201 | demo 用途 |
 | FocusFlow Pipeline B | 680000000000000000000103 | focusflow-demo-video-pipeline-bridge | video_001 | 靠 courseId 綁定 |
 
-> ⚠️ Pipeline Bridge Course 的 `video.video_id` 與 pipeline segments 的 `videoId` 不匹配，目前靠 `courseId` 直接綁定運作。若未來 pipeline 更換影片，需同步更新 `courseId` 或 `videoId`。
+補充：
+
+Pipeline Bridge Course 的 `video.video_id` 與 pipeline segments 的 `videoId` 不匹配，目前靠 `courseId` 直接綁定運作。若未來 pipeline 更換影片，需要同步更新 `courseId` 或 `videoId` 對應。
+
+---
+
+## 相關文件
+
+- `database/docs/db-handoff-current.txt`
+  - 給 backend 同學的目前 DB 現況交接
 
 ---
 
 ## 常見問題
 
-**Q：執行腳本時出現 `ModuleNotFoundError: No module named 'pymongo'`**
+### Q：執行腳本時出現 `ModuleNotFoundError: No module named 'pymongo'`
 
 ```bash
 python -m pip install pymongo
 ```
 
-**Q：執行腳本時出現 `MONGODB_URI is not set`**
+### Q：執行腳本時出現 `MONGODB_URI is not set`
 
-確認 `database/.env` 檔案存在且內容正確。
+請確認 `database/.env` 存在且內容正確。
 
-**Q：執行 `--only audio` 時出現 `FileNotFoundError`**
+### Q：執行 `--only audio` 時出現 `FileNotFoundError`
 
 `embeddings_audio_gemini.jsonl` 尚未產生，需先執行 AI pipeline 的音訊 embedding 流程。找不到的模組會自動跳過，不影響其他模組執行。
 
-**Q：Atlas Vector Search Index 要怎麼建？**
+### Q：Atlas Vector Search Index 要怎麼建？
 
-需至 MongoDB Atlas 網頁手動建立，路徑：**Atlas → Search & Vector Search → Create Vector Search Index**
+需至 MongoDB Atlas 網頁手動建立，路徑：
+
+`Atlas -> Search & Vector Search -> Create Vector Search Index`
 
 | Collection | Index 名稱 | path | numDimensions | filter fields |
 |---|---|---|---|---|
 | `video_segments_text` | `text_embedding_index` | `embedding` | 3072 | `courseId`、`videoId` |
 | `video_segments_video` | `video_embedding_index` | `embedding` | 依模型而定 | — |
 
-**Q：舊的 `import_*.py` 還能用嗎？**
+### Q：舊的 `import_*.py` 還能用嗎？
 
-不建議。所有功能已整合至 `mongodb_uploader.py`。其中 `import_video_segments_text.py` 寫入 snake_case 欄位（`chunk_id`、`video_id` 等），與 Mongoose VideoSegment model 不相容，**禁止使用**。其餘 import 腳本保留備用，但日後請統一使用 `mongodb_uploader.py`。
+不建議。所有功能已整合至 `tools/mongodb_uploader.py`。其中 `tools/legacy/import_video_segments_text.py` 會寫 snake_case 欄位，與目前 Mongoose VideoSegment model 不相容，禁止使用。其餘 `legacy` 腳本僅保留備查。

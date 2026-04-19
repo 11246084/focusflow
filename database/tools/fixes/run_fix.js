@@ -1,4 +1,4 @@
-// 用 Node.js 執行：node database/run_fix.js
+// 用 Node.js 執行：node database/tools/fixes/run_fix.js
 // 自動讀取 backend/.env 的 MONGODB_URI
 
 const path = require('path');

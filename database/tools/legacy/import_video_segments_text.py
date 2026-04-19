@@ -1,6 +1,6 @@
 # ============================================================
 # focusflow — 寫入 video_segments_text
-# 執行方式：python database/import_video_segments_text.py
+# 執行方式：python database/tools/legacy/import_video_segments_text.py
 # 資料來源：
 #   STT_Whisper/data/outputs/chunks.jsonl            ← segment_id
 #   STT_Whisper/data/outputs/embeddings_text_gemini.jsonl ← embedding

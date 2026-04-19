@@ -1,0 +1,101 @@
+FocusFlow 資料庫現況交接給後端
+最後更新：2026-04-19
+
+用途
+這份純文字檔是給 backend 同學的現況摘要，目的是統一目前真正可採用的資料庫口徑，避免再被舊版 snake_case 文件誤導。
+
+目前請優先相信的來源
+1. database/README.md
+2. database/tools/mongodb_uploader.py
+3. backend/src/models/videoSegment.model.js
+4. backend/src/services/bridgeScope.service.js
+5. backend/src/services/qa.service.js
+
+先看結論
+1. video_segments_text 目前在 MongoDB 裡是 camelCase，不是 snake_case。
+2. backend 的 VideoSegment model 已經和目前 DB 結構對齊。
+3. 現在唯一應該使用的匯入工具是 mongodb_uploader.py。
+4. import_video_segments_text.py 是舊腳本，因為會寫 snake_case，所以不能再用。
+5. 目前主要風險已不是 video_segments_text 本身，而是 bridge 對應、videos ownership 邊界，以及 video_segments_video 還沒補齊 vector index。
+
+已確認的現況
+1. video_segments_text 目前共有 105 筆文件。
+2. 105 筆都是 camelCase 文件，具有 chunkId。
+3. snake_case 文件（chunk_id）目前是 0 筆。
+4. mongodb_uploader.py 目前寫入的 text segment 欄位為：
+   - chunkId
+   - videoId
+   - segmentId
+   - startSec
+   - endSec
+   - text
+   - embedding
+   - courseId（只有設定 FOCUSFLOW_COURSE_ID 時才會寫入）
+5. video_segments_text 目前 regular indexes 為：
+   - _id_
+   - courseId_1
+   - segmentId_1
+   - videoId_1
+   - courseId_1_videoId_1
+6. 目前文字 QA 使用的 Atlas vector index 為：
+   - text_embedding_index
+   - path = embedding
+   - numDimensions = 3072
+   - filter fields = courseId, videoId
+
+backend 目前可以安全假設的事情
+1. VideoSegment model 應繼續讀 camelCase 欄位：
+   - segmentId
+   - chunkId
+   - videoId
+   - startSec
+   - endSec
+2. buildSegmentLookupQuery 目前用 courseId 或 videoId 查詢，和現在的 DB README 及 uploader 行為一致。
+3. normalizeSegment 回傳的 backend response shape 也是建在 camelCase segment 欄位上。
+4. qa.service 目前的 Atlas filter 相容欄位也是 courseId + videoId。
+
+關於 videos collection 的補充
+1. videos 目前仍是 mixed collection。
+2. app-owned videos 和 pipeline metadata 目前共存在同一個 collection。
+3. backend 現在是靠 record shape 去分辨，不是靠完全定版的 ownership contract。
+4. 這仍然是 backend 和資料層之間的真實邊界問題。
+
+目前仍存在的問題
+1. Bridge course 的對應還不算完全乾淨。
+   - 目前 pipeline bridge course 的 video.video_id 和 segment.videoId 並不是直接對上的。
+   - 現在能運作，是因為 segment 同時也有靠 courseId 在做 scope。
+   - 如果之後 pipeline 換影片，courseId 或 videoId 的對應要一起更新。
+2. video_segments_video 還沒有 ready 的 Atlas vector index。
+   - 文字 QA 已可用。
+   - multimodal QA 目前還不能算 ready。
+3. videos ownership 仍未完全定版。
+   - pipeline-owned metadata 和 app-owned uploaded videos 仍共存在同一個 collection。
+   - sourceType / ownership contract 還需要後續釐清。
+4. repo 裡仍保留 legacy 腳本。
+   - 最危險的是 database/tools/legacy/import_video_segments_text.py，因為它會寫 snake_case，和目前 backend model 不相容。
+5. repo 裡有幾份文件仍把 snake_case 寫成現行口徑。
+   - 這些文件不應再被當作 video_segments_text 的當前真相。
+
+目前對 video_segments_text 來說已過期的文件
+1. backend/docs/current-state.md
+2. backend/docs/handoff-known-issues.md
+3. docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md
+
+為什麼說它們過期
+因為這些文件仍描述 video_segments_text 目前使用 snake_case，但現在的 uploader、backend model、bridge lookup、database README 都已對齊到 camelCase text segment 結構。
+
+建議 backend 接下來怎麼做
+1. 在舊文件更新前，video_segments_text 的 live handoff 先以 database/README.md 為準。
+2. 不要再根據舊文件直接把 videoId_1 當成孤立索引處理，除非先重新確認 DB 現況。
+3. 匯入流程統一只用 mongodb_uploader.py。
+4. 如果要更新文件，優先修正以下幾份裡的 snake_case 舊說法：
+   - backend/docs/current-state.md
+   - backend/docs/handoff-known-issues.md
+   - docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md
+5. 如果後續要進 Phase 2，建議先把這三件事講清楚：
+   - bridge course mapping contract
+   - videos ownership contract
+   - video_segments_video 的 vector index contract
+
+一句話總結
+對 backend 來說，今天的 video_segments_text 應視為一個已經和 uploader、model、query 邏輯對齊的 camelCase collection；目前真正該補的是文件同步，以及 bridge / multimodal / ownership 這三個剩餘邊界。

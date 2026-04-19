@@ -12,7 +12,7 @@
 //       （保留其他欄位以維持 lexical fallback 可用性）
 //
 // 執行方式：
-//   mongosh "<Atlas 連接字串>" --file database/fix_embedding_dims.js
+//   mongosh "<Atlas 連接字串>" --file database/tools/fixes/fix_embedding_dims.js
 // ============================================================
 
 use("focusflow");

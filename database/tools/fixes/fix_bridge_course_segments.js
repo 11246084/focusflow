@@ -16,7 +16,7 @@
 //   allowedVideoIds。但這會改變影片文件語義，需要與 RAG / DB 組確認。
 //
 // 執行方式：
-//   mongosh "<Atlas 連接字串>" --file database/fix_bridge_course_segments.js
+//   mongosh "<Atlas 連接字串>" --file database/tools/fixes/fix_bridge_course_segments.js
 // ============================================================
 
 use("focusflow");

@@ -1,7 +1,7 @@
 // ============================================================
 // focusflow — MongoDB 初始化 Collections
 // 執行方式：在 MongoDB Shell (mongosh) 中執行此腳本
-// 指令：mongosh "your_connection_string" --file init_collections.js
+// 指令：mongosh "your_connection_string" --file database/tools/setup/init_collections.js
 // 備註：此腳本同時建立 v1 正式 collections 與少量 legacy collections，
 //      目的是讓新資料契約與目前過渡中的 backend 可以並存。
 // ============================================================

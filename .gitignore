@@ -1,6 +1,9 @@
 # Root-level ignore rules for files shared across this monorepo.
 # Service-specific runtime artifacts should stay in each service directory.
 
+# Claude Code agent worktrees（自動產生，不進版控）
+.claude/worktrees/
+
 # Logs
 logs
 *.log

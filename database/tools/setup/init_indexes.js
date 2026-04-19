@@ -1,8 +1,8 @@
 // ============================================================
 // focusflow — MongoDB 初始化 Indexes
 // 執行方式：在 MongoDB Shell (mongosh) 中執行此腳本
-// 指令：mongosh "your_connection_string" --file init_indexes.js
-// ⚠️  請先執行 init_collections.js 再執行此腳本
+// 指令：mongosh "your_connection_string" --file database/tools/setup/init_indexes.js
+// ⚠️  請先執行 database/tools/setup/init_collections.js 再執行此腳本
 // 備註：此腳本優先補齊 v1 正式契約需要的 index，
 //      同時保留 legacy `video_segments` / `clips` 的過渡索引。
 // ============================================================

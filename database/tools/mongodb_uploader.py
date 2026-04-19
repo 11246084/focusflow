@@ -1,8 +1,8 @@
 # ============================================================
 # focusflow — 統一資料庫上傳工具
 # 執行方式：
-#   python database/mongodb_uploader.py              # 執行全部
-#   python database/mongodb_uploader.py --only segments videos
+#   python database/tools/mongodb_uploader.py              # 執行全部
+#   python database/tools/mongodb_uploader.py --only segments videos
 #
 # 可用模組：
 #   segments     → video_segments_text（camelCase，主要 QA 資料）
@@ -26,8 +26,8 @@ from pathlib import Path
 from bson import ObjectId as BsonObjectId
 from pymongo import MongoClient
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 OUTPUTS_DIR = PROJECT_ROOT / "STT_Whisper" / "data" / "outputs"
 TERM_DICT_PATH = PROJECT_ROOT / "STT_Whisper" / "data" / "term_dictionary.json"
 

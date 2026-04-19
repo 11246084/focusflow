@@ -56,18 +56,12 @@ function normalizeTranscript(...values) {
 
 function normalizeSegment(segment) {
   return {
-    segmentId: normalizeIdentifier(
-      segment.segmentId,
-      segment.segment_id,
-      segment.chunkId,
-      segment.chunk_id,
-      segment._id,
-    ),
-    videoId: normalizeIdentifier(segment.videoId, segment.video_id),
+    segmentId: normalizeIdentifier(segment.segmentId, segment.chunkId, segment._id),
+    videoId: normalizeIdentifier(segment.videoId),
     courseId: normalizeIdentifier(segment.courseId),
-    startSec: normalizeNumber(segment.startSec, segment.start_sec),
-    endSec: normalizeNumber(segment.endSec, segment.end_sec),
-    transcript: normalizeTranscript(segment.transcript, segment.text, segment.original_text),
+    startSec: normalizeNumber(segment.startSec),
+    endSec: normalizeNumber(segment.endSec),
+    transcript: normalizeTranscript(segment.text),
     embedding: Array.isArray(segment.embedding) ? segment.embedding : [],
   };
 }
@@ -258,7 +252,6 @@ function buildSegmentLookupQuery(scope) {
   if (scope.allowedVideoIds.size) {
     const allowedVideoIds = [...scope.allowedVideoIds];
     conditions.push({ videoId: { $in: allowedVideoIds } });
-    conditions.push({ video_id: { $in: allowedVideoIds } });
   }
 
   if (!conditions.length) {

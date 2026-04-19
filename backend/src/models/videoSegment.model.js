@@ -15,33 +15,18 @@ const videoSegmentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    segment_id: {
-      type: String,
-      default: null,
-      trim: true,
-      index: true,
-    },
     chunkId: {
       type: String,
       default: null,
       trim: true,
     },
-    chunk_id: {
+    videoId: {
       type: String,
       default: null,
       trim: true,
-    },
-    video_id: {
-      type: String,
-      default: null,
-      trim: true,
+      index: true,
     },
     startSec: {
-      type: Number,
-      default: null,
-      min: 0,
-    },
-    start_sec: {
       type: Number,
       default: null,
       min: 0,
@@ -51,22 +36,7 @@ const videoSegmentSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
-    end_sec: {
-      type: Number,
-      default: null,
-      min: 0,
-    },
-    transcript: {
-      type: String,
-      default: null,
-      trim: true,
-    },
     text: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    original_text: {
       type: String,
       default: null,
       trim: true,

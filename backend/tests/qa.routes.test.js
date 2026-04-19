@@ -190,26 +190,26 @@ describe('qa routes', () => {
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
   });
 
-  it('supports snake_case Atlas-style segments that rely on video_id fallback without changing response shape', async () => {
+  it('supports camelCase segments with videoId and text fields without changing response shape', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 
     store.videoSegments.push(
       {
         _id: newObjectId(),
-        segment_id: ids.snakeCaseSegment,
-        video_id: ids.publishedVideoExternal,
-        start_sec: 90,
-        end_sec: 126,
-        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has video_id and text fields.',
+        segmentId: ids.snakeCaseSegment,
+        videoId: ids.publishedVideoExternal,
+        startSec: 90,
+        endSec: 126,
+        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has videoId and text fields.',
         embedding: [],
       },
       {
         _id: newObjectId(),
-        segment_id: 'segment-snake-foreign',
-        video_id: 'video-foreign-999',
-        start_sec: 90,
-        end_sec: 126,
-        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has video_id and text fields.',
+        segmentId: 'segment-snake-foreign',
+        videoId: 'video-foreign-999',
+        startSec: 90,
+        endSec: 126,
+        text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has videoId and text fields.',
         embedding: [],
       },
     );
@@ -228,7 +228,7 @@ describe('qa routes', () => {
     assert.equal(result.body.data.matches[0].videoId, ids.publishedVideoExternal);
     assert.equal(result.body.data.matches[0].startSec, 90);
     assert.equal(result.body.data.matches[0].endSec, 126);
-    assert.match(result.body.data.matches[0].transcript, /video_id and text fields/i);
+    assert.match(result.body.data.matches[0].transcript, /videoId and text fields/i);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
       ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],

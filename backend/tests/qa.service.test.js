@@ -36,7 +36,7 @@ describe('qa service', () => {
       videoId: ids.publishedVideoExternal,
       startSec: 60,
       endSec: 85,
-      transcript: 'This segment mentions JWT once.',
+      text: 'This segment mentions JWT once.',
       embedding: [],
     });
 
@@ -63,23 +63,23 @@ describe('qa service', () => {
     assert.equal(result.runtime.fallbacks.some((item) => item.code === 'SEGMENT_EMBEDDING_MISSING'), true);
   });
 
-  it('normalizes snake_case segments and falls back to course video_id whitelist when courseId is missing', async () => {
+  it('falls back to course video whitelist when courseId is missing from segments', async () => {
     store.videoSegments.push(
       {
         _id: 'segment-snake-allowed-id',
-        segment_id: ids.snakeCaseSegment,
-        video_id: ids.publishedVideoExternal,
-        start_sec: 84,
-        end_sec: 118,
+        segmentId: ids.snakeCaseSegment,
+        videoId: ids.publishedVideoExternal,
+        startSec: 84,
+        endSec: 118,
         text: 'Atlas bridge whitelisttoken aligns text segments by filtering with the course video whitelist.',
         embedding: [],
       },
       {
         _id: 'segment-snake-foreign-id',
-        segment_id: 'segment-snake-foreign',
-        video_id: 'video-foreign-999',
-        start_sec: 84,
-        end_sec: 118,
+        segmentId: 'segment-snake-foreign',
+        videoId: 'video-foreign-999',
+        startSec: 84,
+        endSec: 118,
         text: 'Atlas bridge whitelisttoken aligns text segments by filtering with the course video whitelist.',
         embedding: [],
       },
@@ -111,19 +111,19 @@ describe('qa service', () => {
     store.videoSegments.push(
       {
         _id: 'segment-course-videoids-only',
-        segment_id: 'segment-course-videoids-only',
-        video_id: ids.publishedVideoExternal,
-        start_sec: 21,
-        end_sec: 44,
+        segmentId: 'segment-course-videoids-only',
+        videoId: ids.publishedVideoExternal,
+        startSec: 21,
+        endSec: 44,
         text: 'Course refs fallbacktoken bridges course video object ids to videos.video_id aliases.',
         embedding: [],
       },
       {
         _id: 'segment-course-videoids-foreign',
-        segment_id: 'segment-course-videoids-foreign',
-        video_id: 'video-foreign-999',
-        start_sec: 21,
-        end_sec: 44,
+        segmentId: 'segment-course-videoids-foreign',
+        videoId: 'video-foreign-999',
+        startSec: 21,
+        endSec: 44,
         text: 'Course refs fallbacktoken bridges course video object ids to videos.video_id aliases.',
         embedding: [],
       },
@@ -156,7 +156,7 @@ describe('qa service', () => {
         videoId: ids.publishedVideoExternal,
         startSec: 48,
         endSec: 73,
-        transcript: 'Aliasmap token keeps camelCase videoId segments reachable from videos.video_id documents.',
+        text: 'Aliasmap token keeps camelCase videoId segments reachable from videos.video_id documents.',
         embedding: [],
       },
       {
@@ -165,7 +165,7 @@ describe('qa service', () => {
         videoId: 'video-foreign-999',
         startSec: 48,
         endSec: 73,
-        transcript: 'Aliasmap token keeps camelCase videoId segments reachable from videos.video_id documents.',
+        text: 'Aliasmap token keeps camelCase videoId segments reachable from videos.video_id documents.',
         embedding: [],
       },
     );
@@ -193,11 +193,11 @@ describe('qa service', () => {
     store.videoSegments.push(
       {
         _id: 'segment-mixed-snake',
-        segment_id: 'segment-mixed-snake',
-        video_id: ids.publishedVideoExternal,
-        start_sec: 12,
-        end_sec: 28,
-        text: 'Mixscope token keeps snake case aliases inside the course scope.',
+        segmentId: 'segment-mixed-snake',
+        videoId: ids.publishedVideoExternal,
+        startSec: 12,
+        endSec: 28,
+        text: 'Mixscope token keeps camelCase aliases inside the course scope.',
         embedding: [],
       },
       {
@@ -206,7 +206,7 @@ describe('qa service', () => {
         videoId: ids.publishedVideoExternal,
         startSec: 32,
         endSec: 49,
-        transcript: 'Mixscope token also keeps camelCase aliases inside the course scope.',
+        text: 'Mixscope token also keeps camelCase aliases inside the course scope.',
         embedding: [],
       },
       {
@@ -259,17 +259,19 @@ describe('qa service', () => {
     store.videoSegments.push(
       {
         _id: 'segment-pipeline-bridge',
-        video_id: ids.pipelineBridgeVideoExternal,
-        start_sec: 144,
-        end_sec: 178,
+        segmentId: 'segment-pipeline-bridge',
+        videoId: ids.pipelineBridgeVideoExternal,
+        startSec: 144,
+        endSec: 178,
         text: 'Bridgecourse token lets QA scope a course onto pipeline metadata videos without rewriting the videos collection.',
         embedding: [],
       },
       {
         _id: 'segment-pipeline-foreign',
-        video_id: 'video-pipeline-foreign-999',
-        start_sec: 144,
-        end_sec: 178,
+        segmentId: 'segment-pipeline-foreign',
+        videoId: 'video-pipeline-foreign-999',
+        startSec: 144,
+        endSec: 178,
         text: 'Bridgecourse token lets QA scope a course onto pipeline metadata videos without rewriting the videos collection.',
         embedding: [],
       },
@@ -316,9 +318,10 @@ describe('qa service', () => {
 
     store.videoSegments.push({
       _id: 'segment-pipeline-bridge-zh',
-      video_id: ids.pipelineBridgeVideoExternal,
-      start_sec: 4.53,
-      end_sec: 32.62,
+      segmentId: 'segment-pipeline-bridge-zh',
+      videoId: ids.pipelineBridgeVideoExternal,
+      startSec: 4.53,
+      endSec: 32.62,
       text: '我們今天要開始進入影像處理的部分，會先介紹數據預測、自然語言與影像處理。',
       embedding: [1, 2, 3],
     });

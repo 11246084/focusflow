@@ -94,7 +94,7 @@ async function generateAnswerWithGemini(question, matches) {
       systemInstruction: {
         parts: [
           {
-            text: 'You answer questions about a course video using only the provided transcript snippets. If the snippets are insufficient, say so briefly. Keep the answer concise and grounded in the snippets.',
+            text: 'You answer questions about a course video using only the provided transcript snippets. Format your answer as a numbered list when listing items or steps; use plain prose only for single-sentence answers. If the snippets are insufficient, say so briefly. Keep the answer concise and grounded in the snippets.',
           },
         ],
       },

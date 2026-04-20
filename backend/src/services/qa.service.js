@@ -455,7 +455,7 @@ function buildQaRuntime({
   };
 }
 
-async function askQuestion({ user, courseId, question, source = 'api' }) {
+async function askQuestion({ user, courseId, question, source = 'api', conversationHistory = null }) {
   const runtimeSnapshot = assertQaRuntimeConfiguration();
   assertObjectId(courseId, 'course');
 
@@ -549,7 +549,7 @@ async function askQuestion({ user, courseId, question, source = 'api' }) {
     };
   }
 
-  const answerResult = await generateAnswer(trimmedQuestion, matches);
+  const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
   const clip = await findCachedClip(matches[0].segmentId);
   const runtime = buildQaRuntime({
     runtimeSnapshot,

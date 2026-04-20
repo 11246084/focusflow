@@ -79,10 +79,25 @@ function extractGeminiText(payload) {
     .trim();
 }
 
-async function generateAnswerWithGemini(question, matches) {
+async function generateAnswerWithGemini(question, matches, conversationHistory = null) {
   if (!env.geminiApiKey) {
     throw new AppError('GEMINI_API_KEY is required for Gemini answers.', 500, 'ANSWER_PROVIDER_NOT_CONFIGURED');
   }
+
+  const historyContents = Array.isArray(conversationHistory) && conversationHistory.length
+    ? conversationHistory.map((entry) => ({
+      role: entry.role,
+      parts: [{ text: entry.content }],
+    }))
+    : [];
+
+  const contents = [
+    ...historyContents,
+    {
+      role: 'user',
+      parts: [{ text: buildPrompt(question, matches) }],
+    },
+  ];
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.geminiChatModel}:generateContent`, {
     method: 'POST',
@@ -98,15 +113,7 @@ async function generateAnswerWithGemini(question, matches) {
           },
         ],
       },
-      contents: [
-        {
-          parts: [
-            {
-              text: buildPrompt(question, matches),
-            },
-          ],
-        },
-      ],
+      contents,
       generationConfig: {
         responseMimeType: 'text/plain',
       },
@@ -122,7 +129,7 @@ async function generateAnswerWithGemini(question, matches) {
   return extractGeminiText(payload) || buildTemplateAnswer(question, matches);
 }
 
-async function generateAnswer(question, matches) {
+async function generateAnswer(question, matches, conversationHistory = null) {
   if (!matches.length) {
     return buildAnswerResult({
       text: buildTemplateAnswer(question, matches),
@@ -147,7 +154,7 @@ async function generateAnswer(question, matches) {
   if (env.qaAnswerProvider === 'gemini') {
     try {
       return buildAnswerResult({
-        text: await generateAnswerWithGemini(question, matches),
+        text: await generateAnswerWithGemini(question, matches, conversationHistory),
         provider: 'gemini',
       });
     } catch (error) {

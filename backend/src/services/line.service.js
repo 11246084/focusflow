@@ -372,6 +372,8 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
+  const conversationHistory = user.lineConversationHistory || [];
+
   let qaResult;
 
   try {
@@ -383,6 +385,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
       courseId: String(user.activeCourseId),
       question: text,
       source: 'line',
+      conversationHistory: conversationHistory.length ? conversationHistory : null,
     });
   } catch (error) {
     const replyResult = await replyMessage(replyToken, [buildTextMessage(buildQaFailureMessage(error))]);
@@ -395,6 +398,14 @@ async function handleQuestion(lineUserId, text, replyToken) {
       qaRuntime: buildQaFailureRuntime(error),
     }, replyResult);
   }
+
+  const updatedHistory = [
+    ...conversationHistory,
+    { role: 'user', content: text },
+    { role: 'model', content: qaResult.answer },
+  ].slice(-6);
+
+  await User.findByIdAndUpdate(user._id, { lineConversationHistory: updatedHistory });
 
   const replyResult = await replyMessage(replyToken, [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))]);
 

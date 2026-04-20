@@ -48,6 +48,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'idle',
     },
+    lineConversationHistory: {
+      type: [
+        {
+          role: { type: String, enum: ['user', 'model'] },
+          content: { type: String },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,

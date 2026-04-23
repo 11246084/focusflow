@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { gsap } from 'gsap';
 
-export default function Button3D({ children }) {
+export default function Button3D({ children, onClick }) {
   const mountRef  = useRef(null);  // where Three.js canvas is appended
   const btnRef    = useRef(null);  // the actual button element
   const [hovered, setHovered] = useState(false);
@@ -133,7 +133,7 @@ export default function Button3D({ children }) {
           height: 220,
         }}
       />
-      <button ref={btnRef} className={`btn-3d${hovered ? ' hovered' : ''}`}>
+      <button ref={btnRef} className={`btn-3d${hovered ? ' hovered' : ''}`} onClick={onClick}>
         <span>{children}</span>
       </button>
     </div>

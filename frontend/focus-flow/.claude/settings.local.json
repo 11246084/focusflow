@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(python3 -c ':*)",
-      "Bash(python -c \"f=open\\('C:/Users/ST-user/frontend/focus-flow/src/App.jsx','r',encoding='utf-8'\\); c=f.read\\(\\); f.close\\(\\); s=c.find\\('LEFT PANEL'\\); e=c.find\\('RIGHT PANEL'\\); print\\(s,e,len\\(c\\)\\)\")"
+      "Bash(python -c \"f=open\\('C:/Users/ST-user/frontend/focus-flow/src/App.jsx','r',encoding='utf-8'\\); c=f.read\\(\\); f.close\\(\\); s=c.find\\('LEFT PANEL'\\); e=c.find\\('RIGHT PANEL'\\); print\\(s,e,len\\(c\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp"
     ]
   }
 }

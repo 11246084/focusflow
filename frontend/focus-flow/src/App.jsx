@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './index.css';
 import LiquidGradientBg from './components/LiquidGradientBg';
 import Button3D          from './components/Button3D';
 import BubbleScene       from './components/BubbleScene';
+import LoginPage         from './components/LoginPage';
+import DashboardApp      from './components/DashboardApp';
 
 function Cursor() {
   const ref = useRef(null);
@@ -20,6 +22,21 @@ function Cursor() {
 }
 
 export default function App() {
+  const [page, setPage] = useState('landing');
+  const [role, setRole] = useState('student');
+  const [sub,  setSub]  = useState('home');
+
+  const handleLogin = (r) => { setRole(r); setSub('home'); setPage('app'); };
+  const handleLogout = () => setPage('login');
+
+  if (page === 'login') {
+    return <LoginPage onBack={() => setPage('landing')} onLogin={handleLogin} />;
+  }
+
+  if (page === 'app') {
+    return <DashboardApp role={role} sub={sub} onNav={setSub} onLogout={handleLogout} />;
+  }
+
   return (
     <div className="page">
       <LiquidGradientBg />
@@ -93,7 +110,7 @@ export default function App() {
             </p>
 
             <div className="hero-actions">
-              <Button3D>立 即 開 始</Button3D>
+              <Button3D onClick={() => setPage('login')}>立 即 開 始</Button3D>
 
               {/* Two overlapping circles: Group 11 + Group 12 */}
               <div className="circles-pair">

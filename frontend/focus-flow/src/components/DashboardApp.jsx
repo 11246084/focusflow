@@ -1,0 +1,41 @@
+import Sidebar from './Sidebar';
+import Topbar  from './Topbar';
+import { topbarMap } from './Icons';
+
+import StudentDashboard from '../pages/StudentDashboard';
+import StudentCourses   from '../pages/StudentCourses';
+import StudentLineBot   from '../pages/StudentLineBot';
+import TeacherDashboard from '../pages/TeacherDashboard';
+import TeacherCourses   from '../pages/TeacherCourses';
+import TeacherUpload    from '../pages/TeacherUpload';
+import AdminOverview    from '../pages/AdminOverview';
+import AdminUsers       from '../pages/AdminUsers';
+import AdminVideos      from '../pages/AdminVideos';
+import AdminStats       from '../pages/AdminStats';
+
+function DashboardRouter({ role, sub, onNav }) {
+  const map = {
+    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot /> },
+    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload /> },
+    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, videos: <AdminVideos />, stats: <AdminStats /> },
+  };
+  return map[role]?.[sub] || null;
+}
+
+export default function DashboardApp({ role, sub, onNav, onLogout }) {
+  const tb = topbarMap[role]?.[sub] || ['Dashboard', ''];
+  return (
+    <div className="dashboard-shell">
+      <div className="ff-bg" />
+      <div className="dashboard-inner">
+        <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} />
+        <div className="dashboard-main">
+          <Topbar title={tb[0]} sub={tb[1]} />
+          <div className="dashboard-content">
+            <DashboardRouter role={role} sub={sub} onNav={onNav} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

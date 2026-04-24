@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-04-19（atlas filter bug 修正 + DB 組完成 105 筆文件遷移為 camelCase + vector index filter 更新為 videoId + videoId_1 孤立索引問題已解除）
+最後更新：2026-04-24（更新 Frontend 頁面完成狀態；補充教授開會決議）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -99,6 +99,13 @@
 
 ### Frontend / Demo Consumer 協作缺口
 
+**已確認（2026-04-21 教授開會）：**
+
+- LINE Bot 不完全整合進網頁：網頁負責影片觀看，LINE Bot 負責問答，各自角色獨立
+- 影片採 YouTube 託管：利用 YouTube embed 追蹤觀看狀態；LINE Bot 回覆含時間戳的 YouTube 連結
+- 禁止學生直接上傳影片（版權考量）：改用分享連結（如 YouTube URL）
+- LINE 綁定流程：現階段一次性 token 可接受；未來前端以 QR Code 顯示（含課程 ID）
+
 **尚未定版：**
 
 - bridge course 在 UI 上要隱藏、標示 `QA-only`，還是做 metadata-only 呈現
@@ -109,8 +116,10 @@
 
 | 項目 | 誰做 | 具體動作 |
 |------|------|----------|
+| Frontend API 整合 | **Frontend** | 第一階段頁面 UI 已完成（2026-04-21）；下一步串接登入、課程列表、QA 問答、LINE 綁定 API |
+| LINE 綁定 QR Code 頁面 | **Frontend** | 呼叫 `POST /api/v1/line/bind-token`，以 QR Code 顯示 token（或直接顯示供使用者輸入）；Backend 側 API 已就緒 |
+| YouTube embed 整合 | **Frontend** | 影片頁改用 YouTube embed；QA 回答含時間戳時，連結格式為 `https://youtu.be/<id>?t=<sec>` |
 | bridge course UI 策略 | **Frontend** | 決定三選一：(a) 課程列表隱藏 bridge course；(b) 顯示但標示「QA only」badge；(c) 顯示且允許進入，只是影片頁回 metadata-only 提示。決定後通知 Backend，若需要新 API 欄位再補 |
-| degraded 訊號是否顯示 | **Frontend** | 決定是否在 QA 回答頁顯示 `runtime.degraded=true` 時的降級提示（如「目前使用備援搜尋模式」）；Backend `runtime.fallbacks` 已有足夠訊號 |
 | demo 口徑 | **整體（Demo 決策）** | 在 demo 前統一說法：bridge course 是「已索引影片的 QA demo」，不是「完整上傳流程的 demo」；將這個口徑寫進 `demo-runbook.md` |
 
 **backend 目前已採取的行為：**

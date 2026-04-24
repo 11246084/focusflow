@@ -1,6 +1,6 @@
 # Backend Task Plan
 
-最後更新：2026-04-19
+最後更新：2026-04-24
 
 > 本文件為後端組員**個人執行版**任務清單。全組總覽請看 repo 根目錄 [TODO.md](../../TODO.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -78,13 +78,13 @@
 
 ### 5. 支援 Frontend × Backend API 整合
 
-- **狀態**：Partial（後端 API Done，整合待 Frontend 推進）
+- **狀態**：Partial（後端 API Done；Frontend 第一階段頁面已完成，API 整合進行中）
 - **後端側**：Done — 登入、課程、QA、影片、LINE bind、`/health` 全數可用
-- **等誰**：Frontend
-- **對方需先做**：API client、登入頁、Protected Route
+- **Frontend 側**：第一階段 7+ 頁面 UI 已完成（2026-04-21），目前進行 API 串接
 - **我要主動做**：
   - 整合過程中快速回覆 CORS、response format、token 處理相關問題
   - 若 Frontend 需要，補 Swagger 用法或 example payload
+  - LINE 綁定 QR Code 頁面：後端 `POST /api/v1/line/bind-token` 已可用，無需修改
 
 ---
 

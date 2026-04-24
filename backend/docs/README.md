@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-04-19（Atlas filter ObjectId bug 修正）
+最後更新：2026-04-24（LINE Bot 多輪對話歷史）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 

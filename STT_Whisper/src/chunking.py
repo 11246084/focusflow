@@ -19,13 +19,17 @@ def _segment_fits_chunk(
     max_duration_sec: float,
 ) -> bool:
     """Check whether adding the next segment still respects the chunk limits."""
+    # 如果當前段列表為空，則可以添加（因為沒有任何限制）
     if not current_segments:
         return True
 
-    # Control chunk size by text length, segment count, and time span.
+    # 控制塊大小：通過文本長度、段數量和時間跨度
+    # 合併當前段和下一個段的文本，並標準化
     merged_text = normalize_text(" ".join(segment.text for segment in current_segments + [next_segment]))
+    # 計算塊的持續時間：從第一個段的開始到最後一個段的結束
     chunk_duration = next_segment.end_sec - current_segments[0].start_sec
 
+    # 返回是否所有限制都滿足：文本長度 <= 最大字符數，段數 <= 最大段數，持續時間 <= 最大持續時間
     return (
         len(merged_text) <= max_chars
         and len(current_segments) + 1 <= max_segments
@@ -39,7 +43,9 @@ def _build_chunk_record(
     chunk_segments: list[TranscriptSegment],
 ) -> ChunkRecord:
     """Convert a buffered segment list into a final chunk record."""
+    # 合併所有段的文本並標準化
     merged_text = normalize_text(" ".join(segment.text for segment in chunk_segments))
+    # 創建並返回 ChunkRecord 對象，包含塊ID、視頻ID、開始時間、結束時間、文本、課程名稱、周數、課節
     return ChunkRecord(
         chunk_id=f"{video.video_id}_chunk_{chunk_index:04d}",
         video_id=video.video_id,
@@ -54,16 +60,19 @@ def _build_chunk_record(
 
 def build_chunks_for_transcript(video: VideoMetadata, transcript: TranscriptDocument, config: PipelineConfig) -> list[ChunkRecord]:
     """Merge adjacent transcript segments into search-ready chunks."""
+    # 如果轉錄文檔沒有段，記錄警告並返回空列表
     if not transcript.segments:
         logger.warning("Transcript for %s has no segments to chunk.", video.video_id)
         return []
 
+    # 初始化塊列表、當前段列表和塊索引
     chunks: list[ChunkRecord] = []
     current_segments: list[TranscriptSegment] = []
     chunk_index = 1
 
+    # 遍歷轉錄文檔中的每個段
     for segment in transcript.segments:
-        # Add to the current chunk when all limits still fit.
+        # 檢查添加下一個段是否仍符合塊限制
         if _segment_fits_chunk(
             current_segments=current_segments,
             next_segment=segment,
@@ -71,18 +80,23 @@ def build_chunks_for_transcript(video: VideoMetadata, transcript: TranscriptDocu
             max_segments=config.chunk_max_segments,
             max_duration_sec=config.chunk_max_duration_sec,
         ):
+            # 如果符合，將段添加到當前段列表中，並繼續下一個段
             current_segments.append(segment)
             continue
 
+        # 如果不符合，創建當前塊記錄並添加到塊列表中
         chunks.append(_build_chunk_record(video, chunk_index, current_segments))
+        # 增加塊索引，重置當前段列表為新段
         chunk_index += 1
         current_segments = [segment]
 
-    # Flush the final buffered chunk.
+    # 處理最後一個緩衝的塊（如果有）
     if current_segments:
         chunks.append(_build_chunk_record(video, chunk_index, current_segments))
 
+    # 記錄構建的塊數量
     logger.info("Built %s chunks for %s", len(chunks), video.video_id)
+    # 返回所有塊
     return chunks
 
 
@@ -92,14 +106,21 @@ def build_chunks(
     config: PipelineConfig,
 ) -> list[ChunkRecord]:
     """Build chunks for every transcript while preserving video order."""
+    # 創建視頻ID到轉錄文檔的映射
     transcript_by_video_id = {transcript.video_id: transcript for transcript in transcripts}
+    # 初始化所有塊列表
     all_chunks: list[ChunkRecord] = []
 
+    # 遍歷每個視頻
     for video in videos:
+        # 獲取對應的轉錄文檔
         transcript = transcript_by_video_id.get(video.video_id)
+        # 如果轉錄文檔不存在，記錄警告並跳過
         if transcript is None:
             logger.warning("Skipping chunking for %s because transcript is missing.", video.video_id)
             continue
+        # 為該視頻構建塊並添加到總塊列表中
         all_chunks.extend(build_chunks_for_transcript(video, transcript, config))
 
+    # 返回所有塊
     return all_chunks

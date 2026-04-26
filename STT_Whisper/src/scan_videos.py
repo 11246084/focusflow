@@ -16,58 +16,77 @@ logger = logging.getLogger(__name__)
 
 def infer_optional_metadata(video_path: Path, video_input_dir: Path) -> tuple[str | None, str | None, str | None]:
     """Infer course fields from folder/file naming when possible."""
-    # Use the first nested folder as a lightweight course hint when available.
+    # 使用第一個嵌套文件夾作為輕量級課程提示（如果可用）
     relative_parent = video_path.parent.relative_to(video_input_dir)
     course_name = relative_parent.parts[0] if relative_parent.parts else None
 
-    # Keep the MVP heuristic intentionally simple and non-destructive.
+    # 保持 MVP 啟發式故意簡單且非破壞性
+    # 使用正則表達式從文件名中提取週數
     week_match = re.search(r"week[_\s-]?(\d+)", video_path.stem, re.IGNORECASE)
+    # 使用正則表達式從文件名中提取課程數
     lesson_match = re.search(r"lesson[_\s-]?(\d+)", video_path.stem, re.IGNORECASE)
 
+    # 提取匹配的週數，如果沒有匹配則為 None
     week = week_match.group(1) if week_match else None
+    # 提取匹配的課程數，如果沒有匹配則為 None
     lesson = lesson_match.group(1) if lesson_match else None
+    # 返回課程名稱、週數和課程數
     return course_name, week, lesson
 
 
 def probe_video_duration(video_path: Path, ffmpeg_binary: str) -> float:
     """Read a video's duration using FFmpeg stderr output."""
-    # `ffmpeg -i` prints probe details to stderr, which is enough for duration parsing.
+    # `ffmpeg -i` 將探測詳情打印到 stderr，這足以用於持續時間解析
     command = [ffmpeg_binary, "-i", str(video_path)]
+    # 運行 FFmpeg 命令，捕獲輸出，不檢查返回值
     completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    # 合併 stderr 和 stdout 輸出
     ffmpeg_output = (completed.stderr or "") + "\n" + (completed.stdout or "")
+    # 從輸出中提取持續時間秒數
     duration_sec = extract_duration_seconds(ffmpeg_output)
+    # 將持續時間四捨五入並返回
     return round_seconds(duration_sec)
 
 
 def discover_video_files(video_input_dir: Path, supported_extensions: tuple[str, ...]) -> list[Path]:
     """Find all supported video files recursively under the input directory."""
+    # 使用遞歸通配符查找所有支持的視頻文件
     discovered_files = [
         path
         for path in video_input_dir.rglob("*")
         if path.is_file() and path.suffix.lower() in supported_extensions
     ]
+    # 按 POSIX 路徑排序以確保穩定順序
     return sorted(discovered_files, key=lambda item: item.as_posix().lower())
 
 
 def scan_videos(config: PipelineConfig) -> list[VideoMetadata]:
     """Scan the input folder and produce normalized metadata records."""
-    # Resolve FFmpeg before scanning so environment errors fail fast.
+    # 在掃描前解析 FFmpeg，以便環境錯誤快速失敗
     ffmpeg_binary = resolve_ffmpeg_binary(config.ffmpeg_binary)
+    # 發現視頻文件
     video_files = discover_video_files(config.video_input_dir, config.supported_video_extensions)
 
+    # 如果沒有找到視頻文件，記錄警告並返回空列表
     if not video_files:
         logger.warning("No supported video files were found in %s", config.video_input_dir)
         return []
 
+    # 初始化視頻元數據列表
     videos: list[VideoMetadata] = []
 
+    # 遍歷每個發現的視頻文件
     for index, video_path in enumerate(video_files, start=1):
-        # Stable ordering creates stable IDs across repeat runs.
+        # 穩定排序創建跨重複運行的穩定 ID
         video_id = f"video_{index:03d}"
+        # 推斷可選元數據（課程名稱、週數、課程數）
         course_name, week, lesson = infer_optional_metadata(video_path, config.video_input_dir)
+        # 探測視頻持續時間
         duration_sec = probe_video_duration(video_path, ffmpeg_binary)
+        # 構造音頻輸出路徑
         audio_path = config.processed_audio_dir / f"{video_id}.wav"
 
+        # 創建視頻元數據記錄
         video_record = VideoMetadata(
             video_id=video_id,
             file_name=video_path.name,
@@ -78,7 +97,10 @@ def scan_videos(config: PipelineConfig) -> list[VideoMetadata]:
             week=week,
             lesson=lesson,
         )
+        # 添加到視頻列表
         videos.append(video_record)
+        # 記錄掃描信息
         logger.info("Scanned %s (%s)", video_record.file_name, video_record.video_id)
 
+    # 返回視頻元數據列表
     return videos

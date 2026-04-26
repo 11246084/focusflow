@@ -22,9 +22,13 @@ logger = logging.getLogger(__name__)
 
 def export_videos(videos: list[VideoMetadata], output_dir: Path, backup_existing: bool = True) -> Path:
     """Export video metadata as a single JSON array."""
+    # 設置輸出路徑為 output_dir 下的 "videos.json"
     output_path = output_dir / "videos.json"
+    # 將視頻列表轉換為字典列表並寫入 JSON 文件，如果 backup_existing 為 True 則備份現有文件
     write_json_file(output_path, [video.to_dict() for video in videos], backup_existing=backup_existing)
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
@@ -34,9 +38,13 @@ def export_transcripts(
     backup_existing: bool = True,
 ) -> Path:
     """Export transcript segments as a single JSON array."""
+    # 設置輸出路徑為 output_dir 下的 "transcripts.json"
     output_path = output_dir / "transcripts.json"
+    # 將轉錄文檔列表轉換為字典列表並寫入 JSON 文件，如果 backup_existing 為 True 則備份現有文件
     write_json_file(output_path, [transcript.to_dict() for transcript in transcripts], backup_existing=backup_existing)
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
@@ -46,19 +54,25 @@ def export_normalized_transcripts(
     backup_existing: bool = True,
 ) -> Path:
     """Export normalized transcript segments plus correction history."""
+    # 將轉錄文檔列表轉換為包含標準化信息的字典列表並寫入 JSON 文件，如果 backup_existing 為 True 則備份現有文件
     write_json_file(
         output_path,
         [transcript.to_dict(include_normalization=True) for transcript in transcripts],
         backup_existing=backup_existing,
     )
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
 def export_chunks(chunks: list[ChunkRecord], output_path: Path, backup_existing: bool = True) -> Path:
     """Export all search chunks into one stable JSONL file."""
+    # 將塊記錄生成器寫入 JSONL 文件，如果 backup_existing 為 True 則備份現有文件
     write_jsonl_file(output_path, (chunk.to_dict() for chunk in chunks), backup_existing=backup_existing)
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
@@ -68,8 +82,11 @@ def export_text_embeddings(
     backup_existing: bool = True,
 ) -> Path:
     """Export Gemini text embeddings into one JSONL file."""
+    # 將嵌入記錄生成器寫入 JSONL 文件，如果 backup_existing 為 True 則備份現有文件
     write_jsonl_file(output_path, (record.to_dict() for record in embeddings), backup_existing=backup_existing)
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
@@ -79,8 +96,11 @@ def export_audio_embeddings(
     backup_existing: bool = True,
 ) -> Path:
     """Export Gemini audio embeddings into one JSONL file."""
+    # 將音頻嵌入記錄生成器寫入 JSONL 文件，如果 backup_existing 為 True 則備份現有文件
     write_jsonl_file(output_path, (record.to_dict() for record in embeddings), backup_existing=backup_existing)
+    # 記錄導出成功的日誌
     logger.info("Exported %s", output_path)
+    # 返回輸出路徑
     return output_path
 
 
@@ -94,20 +114,27 @@ def export_all_outputs(
     config: PipelineConfig,
 ) -> dict[str, Path]:
     """Export every standardized artifact required by the downstream team."""
+    # 返回包含所有導出路徑的字典
     return {
+        # 導出視頻元數據
         "videos": export_videos(videos, config.output_dir, config.backup_existing_outputs),
+        # 導出轉錄文檔
         "transcripts": export_transcripts(transcripts, config.output_dir, config.backup_existing_outputs),
+        # 導出標準化轉錄文檔
         "transcripts_normalized": export_normalized_transcripts(
             normalized_transcripts,
             config.normalized_transcript_output_path,
             config.backup_existing_outputs,
         ),
+        # 導出塊記錄
         "chunks": export_chunks(chunks, config.chunks_output_path, config.backup_existing_outputs),
+        # 導出文本嵌入
         "embeddings_text_gemini": export_text_embeddings(
             text_embeddings,
             config.text_embeddings_output_path,
             config.backup_existing_outputs,
         ),
+        # 導出音頻嵌入
         "embeddings_audio_gemini": export_audio_embeddings(
             audio_embeddings,
             config.audio_embeddings_output_path,

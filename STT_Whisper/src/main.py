@@ -23,99 +23,118 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the local MVP pipeline."""
+    # 創建命令行參數解析器
     parser = argparse.ArgumentParser(description="Run the FocusFlow education video AI pipeline.")
+    # 添加項目根目錄參數，默認為當前腳本的父父目錄（即項目根目錄）
     parser.add_argument(
         "--project-root",
         type=Path,
         default=Path(__file__).resolve().parents[1],
         help="Project root directory. Defaults to the current repository root.",
     )
+    # 添加視頻目錄覆蓋參數
     parser.add_argument(
         "--video-dir",
         type=Path,
         default=None,
         help="Optional override for the video input directory.",
     )
+    # 添加 Whisper 模型覆蓋參數
     parser.add_argument(
         "--whisper-model",
         default=None,
         help="Optional faster-whisper model size or local path override.",
     )
+    # 添加覆蓋現有文件參數
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Rebuild cached audio/transcripts instead of reusing existing intermediate files.",
     )
+    # 添加處理視頻數量限制參數，用於快速測試
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
         help="Only process the first N discovered videos for faster testing.",
     )
+    # 添加 Gemini 文本塊處理限制參數
     parser.add_argument(
         "--gemini-max-chunks",
         type=int,
         default=None,
         help="Only send the first N pending text chunks to Gemini in this run.",
     )
+    # 解析並返回命令行參數
     return parser.parse_args()
 
 
 def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
     """Merge environment config with CLI overrides."""
-    # Load .env first, then let CLI flags override selected settings.
+    # 首先從環境變數加載配置
     config = PipelineConfig.from_env(project_root=args.project_root)
+    # 準備覆蓋字典
     overrides: dict[str, object] = {}
 
+    # 如果指定了視頻目錄，進行覆蓋
     if args.video_dir is not None:
         video_dir = args.video_dir
+        # 如果是相對路徑，轉換為絕對路徑
         if not video_dir.is_absolute():
             video_dir = args.project_root / video_dir
         overrides["video_input_dir"] = video_dir.resolve()
+    # 如果指定了 Whisper 模型，進行覆蓋
     if args.whisper_model is not None:
         overrides["whisper_model_size"] = args.whisper_model
+    # 如果指定了 Gemini 塊限制，進行覆蓋
     if args.gemini_max_chunks is not None:
         overrides["gemini_max_chunks_per_run"] = args.gemini_max_chunks
+    # 如果指定了覆蓋標誌，進行覆蓋
     if args.overwrite:
         overrides["overwrite_existing"] = True
 
+    # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
 
 
 def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, Path]:
     """Execute the full local pipeline from video scan to export."""
+    # 記錄管道開始
     logger.info("Starting FocusFlow AI pipeline")
+    # 檢查 Gemini 嵌入是否啟用（現在是唯一的嵌入路徑）
     if not config.gemini_embedding_enabled:
         raise RuntimeError(
             "Gemini embedding is now the final embedding path. Set ENABLE_GEMINI_EMBEDDING=true in .env."
         )
 
-    # Step 1: scan videos and build normalized metadata.
+    # 步驟 1：掃描視頻並構建標準化元數據
     videos = scan_videos(config)
 
+    # 如果指定了限制，只處理前 N 個視頻
     if limit is not None:
         videos = videos[:limit]
         logger.info("Processing only the first %s videos because --limit was provided", len(videos))
 
+    # 如果沒有找到視頻，拋出錯誤
     if not videos:
         raise FileNotFoundError(
             f"No supported video files were found in {config.video_input_dir}. "
             "Place .mp4/.mov/.mkv files there and rerun the pipeline."
         )
 
-    # Step 2: extract Whisper-ready audio.
+    # 步驟 2：提取 Whisper 兼容的音頻
     extract_audio_for_videos(videos, config)
-    # Step 3: run faster-whisper STT.
+    # 步驟 3：運行 faster-whisper STT
     transcripts = transcribe_videos(videos, config)
-    # Step 4: normalize technical terms before search chunking.
+    # 步驟 4：在搜索分塊前標準化技術術語
     normalized_transcripts = normalize_transcripts(transcripts, config)
-    # Step 5: merge normalized transcript segments into search chunks.
+    # 步驟 5：將標準化轉錄段合併為搜索塊
     chunks = build_chunks(videos, normalized_transcripts, config)
-    # Step 6: generate Gemini text embeddings from normalized chunks.
+    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
     text_embeddings = embed_chunks(chunks, config)
-    # Step 7: generate Gemini audio embeddings directly from extracted audio files.
+    # 步驟 7：直接從提取的音頻文件生成 Gemini 音頻嵌入
     audio_embeddings = embed_audio_tracks(videos, config)
-    # Step 8: export JSON and JSONL files for downstream teams.
+    # 步驟 8：導出 JSON 和 JSONL 文件供下游團隊使用
     output_paths = export_all_outputs(
         videos,
         transcripts,
@@ -126,6 +145,7 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, 
         config,
     )
 
+    # 記錄管道完成統計
     logger.info(
         "Pipeline completed: videos=%s transcripts=%s chunks=%s text_embeddings=%s audio_embeddings=%s",
         len(videos),
@@ -134,26 +154,35 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, 
         len(text_embeddings),
         len(audio_embeddings),
     )
+    # 返回輸出文件路徑
     return output_paths
 
 
 def main() -> int:
     """CLI wrapper that returns a process exit code."""
+    # 解析命令行參數
     args = parse_args()
+    # 構建運行時配置
     config = build_runtime_config(args)
+    # 配置日誌記錄
     configure_logging(config.log_level)
 
+    # 嘗試運行管道
     try:
         output_paths = run_pipeline(config, limit=args.limit)
+    # 如果出現異常，記錄錯誤並返回退出碼 1
     except Exception as exc:
         logger.exception("Pipeline failed: %s", exc)
         return 1
 
+    # 打印成功消息和輸出路徑
     print("FocusFlow AI pipeline completed successfully.")
     for name, path in output_paths.items():
         print(f"{name}: {path}")
+    # 返回成功退出碼 0
     return 0
 
 
 if __name__ == "__main__":
+    # 作為腳本運行時，退出並返回 main() 的退出碼
     sys.exit(main())

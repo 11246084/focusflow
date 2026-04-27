@@ -1,8 +1,8 @@
-# Backend Task Plan
+# Backend TODO
 
 最後更新：2026-04-24
 
-> 本文件為後端組員**個人執行版**任務清單。全組總覽請看 repo 根目錄 [TODO.md](../../TODO.md)。
+> 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
 
 ## 狀態語彙
@@ -171,4 +171,4 @@
 - 切換任何 provider 或 vector mode 前，先跑 `qa.service.test.js` 與 route 測試
 - 跨組未 freeze 的議題先用 [handoff-known-issues.md](./handoff-known-issues.md) 管住，不在 backend 單方面擴功能
 - demo 口徑以 `/health` 與 API runtime 訊號為準
-- 完成任一任務後同步更新 [task-plan.md](./task-plan.md)、[implementation-log.md](./implementation-log.md)、[README.md](./README.md) 的 Latest Update
+- 完成任一任務後同步更新 [todo.md](./todo.md)、[implementation-log.md](./implementation-log.md)、[README.md](./README.md) 的 Latest Update

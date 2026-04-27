@@ -120,7 +120,7 @@
 | LINE 綁定 QR Code 頁面 | **Frontend** | 呼叫 `POST /api/v1/line/bind-token`，以 QR Code 顯示 token（或直接顯示供使用者輸入）；Backend 側 API 已就緒 |
 | YouTube embed 整合 | **Frontend** | 影片頁改用 YouTube embed；QA 回答含時間戳時，連結格式為 `https://youtu.be/<id>?t=<sec>` |
 | bridge course UI 策略 | **Frontend** | 決定三選一：(a) 課程列表隱藏 bridge course；(b) 顯示但標示「QA only」badge；(c) 顯示且允許進入，只是影片頁回 metadata-only 提示。決定後通知 Backend，若需要新 API 欄位再補 |
-| demo 口徑 | **整體（Demo 決策）** | 在 demo 前統一說法：bridge course 是「已索引影片的 QA demo」，不是「完整上傳流程的 demo」；將這個口徑寫進 `demo-runbook.md` |
+| demo 口徑 | **整體（Demo 決策）** | 在 demo 前統一說法：bridge course 是「已索引影片的 QA demo」，不是「完整上傳流程的 demo」 |
 
 **backend 目前已採取的行為：**
 

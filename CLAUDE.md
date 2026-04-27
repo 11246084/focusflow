@@ -84,11 +84,11 @@ python src/mongodb_uploader.py                # 直接上傳至 MongoDB
 
 ```
 backend/src/
-├── server.js          # 入口：連接資料庫、植入示範資料、啟動 Express
+├── server.js          # 入口：連接資料庫、植入示範資料、啟動 Express；強制 Google DNS（8.8.8.8/8.8.4.4）解決部分網路環境 Atlas SRV 查詢失敗
 ├── app.js             # Express 設定、middleware 掛載、路由註冊
 ├── routes/            # API 路由（auth、course、video、qa、line、health、internal-video）
 ├── controllers/       # HTTP 處理器 — 呼叫 service、回傳回應
-├── services/          # 業務邏輯（auth、course、qa、video、embedding、lineBot、demoSeed）
+├── services/          # 業務邏輯（auth、course、courseAccess、video、videoProcessing、qa、queryEmbedding、answerGeneration、bridgeScope、line、demoSeed、runtimeDiagnostics、usageLog）
 ├── models/            # Mongoose Schema：User、Course、Video、VideoSegment、Enrollment、Clip、UsageLog、LineBindToken
 ├── middleware/        # JWT 驗證、錯誤處理、multer 上傳、LINE 簽章驗證
 ├── config/            # env.js（型別化環境變數）、database.js
@@ -102,15 +102,63 @@ backend/src/
 ### QA 系統 Provider（可透過環境變數切換）
 
 QA 系統使用可插拔的 provider，透過 `.env` 設定：
-- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` | `openai` | `gemini`
-- `QA_ANSWER_PROVIDER`: `template` | `openai`
-- `QA_VECTOR_SEARCH_MODE`: `memory` | `atlas`（MongoDB Atlas 向量搜尋）
+- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` | `openai` | `gemini`（預設 `mock`）
+- `QA_ANSWER_PROVIDER`: `template` | `openai` | `gemini`（預設 `gemini`）
+- `QA_VECTOR_SEARCH_MODE`: `memory` | `atlas`（MongoDB Atlas 向量搜尋，預設 `memory`）
 
-開發環境預設使用 `mock` 嵌入 + `template` 答案，無需任何 API 金鑰。
+**預設答案 provider 是 `gemini`，需要 `GEMINI_API_KEY`。** 若金鑰未設定，直接拋出 `ANSWER_PROVIDER_NOT_CONFIGURED`（非 fallback）；若 Gemini API 呼叫失敗（502 等），才 fallback 到 `template`。純本機無金鑰開發請在 `.env` 加 `QA_ANSWER_PROVIDER=template`。
 
 ### 影片處理狀態機
 
-影片依照 `constants/` 中定義的狀態流程推進。處理透過 `POST /api/v1/videos/:videoId/processing/retry` 觸發（內部 webhook，需要 `PROCESSING_WEBHOOK_SECRET`）。修改 processing 流程時，不要自行發明另一套 naming 或 lifecycle。
+影片依照 `constants/` 中定義的狀態流程推進，由 `videoProcessing.service.js` 硬性強制合法轉換。修改 processing 流程時，不要自行發明另一套 naming 或 lifecycle。
+
+兩條觸發路徑：
+
+- **前端 retry**：`POST /api/v1/videos/:videoId/processing/retry`（auth + role，給 teacher/admin 重跑失敗影片）
+- **內部 webhook**：`POST /api/v1/internal/videos/:videoId/processing/{start,complete,fail}`（需 `PROCESSING_WEBHOOK_SECRET`，給 pipeline 回報進度）
+
+合法轉換：
+
+| 操作 | 前置狀態 | 目標狀態 |
+|------|----------|----------|
+| retry（前端觸發） | `failed` | `queued` |
+| start（webhook） | `queued` | `processing` |
+| complete（webhook） | `processing` | `completed` |
+| fail（webhook） | `queued` 或 `processing` | `failed` |
+
+**非法轉換直接回傳 409 `VIDEO_PROCESSING_TRANSITION_INVALID`**，沒有軟性 fallback。
+
+### Video Model 雙身份設計
+
+`videos` collection 同時存放兩種文件，靠靜態方法區分：
+- `Video.isAppOwnedRecord(video)`：`courseId` + `uploadedBy` + `title` + `processing.status` 均有值 → App 上傳的正式影片
+- `Video.isPipelineMetadataRecord(video)`：有 `video_id`（或 `videoId`）且 **不** 是 App owned → AI Pipeline 寫入的 metadata
+
+混存設計目的：讓 QA Pipeline 的外部影片資料可透過 `course.videoIds` 參照進入 QA 範圍，而不需要獨立 collection。
+
+### BridgeScope 服務
+
+`bridgeScope.service.js` 是 QA 搜尋範圍調度的核心，負責判斷課程的 bridge mode：
+
+| bridge mode | 條件 |
+|-------------|------|
+| `standard` | 只有 App owned 影片（或無影片） |
+| `qa_scope_only` | 只有 Pipeline metadata 影片（無 App owned） |
+| `mixed_scope` | 同時有 App owned 與 Pipeline metadata 影片 |
+
+`buildCourseSegmentScope()` 回傳 `allowedCourseIds` 與 `allowedVideoIds`，供 QA service 在 `video_segments_text` 中過濾可搜尋範圍。
+
+### LINE Bot 對話設計
+
+LINE Bot 在 `User` 文件上維護**使用者層級的對話狀態機**：
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `lineConversationState` | String | `idle`（可提問）或 `awaiting_course_selection`（等待選課） |
+| `lineConversationHistory` | Array | 最近 6 則對話（`{ role: 'user'|'model', content }` 格式），傳給 Gemini 做多輪對話 |
+| `activeCourseId` | ObjectId | 目前選定的課程 |
+
+**課程清單邏輯**：切換課程時顯示的選項 = 自己的 enrollment ∪ 所有 `published` 課程（Map 合并去重，最多顯示 4 筆）。不是只顯示自己修的。
 
 ### 示範資料植入（Demo Seed）
 
@@ -118,13 +166,22 @@ QA 系統使用可插拔的 provider，透過 `.env` 設定：
 
 ## 後端環境設定
 
-將 `backend/.env.example` 複製為 `backend/.env`。本機開發時使用 mock provider，無需任何 API 金鑰。MongoDB 可使用本機（`mongodb://127.0.0.1:27017/focusflow`）或 Atlas。
+將 `backend/.env.example` 複製為 `backend/.env`。MongoDB 可使用本機（`mongodb://127.0.0.1:27017/focusflow`）或 Atlas。
+
+**最小化本機開發設定（完全不需要 API 金鑰）：**
+```
+QA_QUERY_EMBEDDING_PROVIDER=mock
+QA_ANSWER_PROVIDER=template
+QA_VECTOR_SEARCH_MODE=memory
+```
+
+若要使用預設值（`gemini` 答案），必須設定 `GEMINI_API_KEY`，否則提問時直接報錯。
 
 ## 測試規範
 
 ### Backend
 
-測試位於 `backend/tests/`，涵蓋 `auth.routes`、`course-video.routes`、`qa.routes`、`qa.service`、`line.routes`、`api-response`、`demo-seed.service`。
+測試位於 `backend/tests/`，涵蓋 `auth.routes`、`course-video.routes`、`qa.routes`、`qa.service`、`line.routes`、`health.routes`、`docs.routes`、`api-response`、`demo-seed.service`、`answer-generation.service`、`mvp.acceptance`（端到端驗收）。
 
 注意事項：
 - 測試透過 `tests/helpers/backendTestHarness.js` 以 in-memory store stub 掉 Mongoose model

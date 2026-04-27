@@ -37,7 +37,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 - **demoSeed** — 啟動時植入示範資料（`DEMO_SEED_ENABLED=true`）
 
 ### Frontend（`frontend/focus-flow/`）
-目前為展示型登入頁（Three.js 3D 場景）。主介面（課程列表、影片播放、問答 UI）待開發。
+登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面共 10 頁面（StudentDashboard / Courses / LineBot、TeacherDashboard / Courses / Upload、AdminOverview / Stats / Users / Videos）已完成 UI，目前進行 API 整合。
 
 ### AI Pipeline（`STT_Whisper/`）
 離線 CLI 流程：影片 → FFmpeg 音訊提取 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL；如需落庫，另由 `mongodb_uploader.py` 導入 MongoDB。
@@ -46,17 +46,17 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 
 ## 資料庫模型
 
-| 模型 | 說明 |
+| Model（Collection） | 說明 |
 |------|------|
-| `User` | 帳號、角色、密碼雜湊 |
-| `Course` | 課程容器（draft / published / archived） |
-| `Video` | 影片元資料與 processing 狀態 |
-| `video_segments_text` | 問答核心：文字片段 + text embedding（v1 正式）|
-| `video_segments_video` | 影片片段 + video embedding（v1 正式）|
-| `VideoSegment` | **Legacy 過渡層**，非 v1 正式契約 |
-| `Enrollment` | 學生修課紀錄、LINE userId 綁定 |
-| `Clip` | **Legacy 快取層**，非正式資料來源 |
-| `UsageLog` | 使用行為記錄 |
-| `LineBindToken` | LINE 帳號綁定一次性 token |
+| `User`（`users`）| 帳號、角色、密碼雜湊 |
+| `Course`（`courses`）| 課程容器（draft / published / archived） |
+| `Video`（`videos`）| 影片元資料與 processing 狀態；同時混存 App-owned 與 Pipeline metadata |
+| `VideoSegment`（`video_segments_text`，可由 `VIDEO_SEGMENT_COLLECTION` 切換）| 問答核心：文字片段 + text embedding（v1 正式） |
+| `Enrollment`（`enrollments`）| 學生修課紀錄、LINE userId 綁定 |
+| `Clip`（`clips`）| 影片精華片段；目前定位為過渡層，`video_segments_video` 尚未接手 |
+| `UsageLog`（`usagelogs`）| 使用行為記錄 |
+| `LineBindToken`（`linebindtokens`）| LINE 帳號綁定一次性 token |
+
+DB 中另存在 `video_segments_video`（影片片段 + video embedding，v1 正式契約，由 AI Pipeline 寫入，backend 尚未直接接入 QA）。舊版 `video_segments`（無後綴）為 legacy collection，目前不被 backend 程式碼引用。
 
 正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。

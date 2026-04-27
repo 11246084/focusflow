@@ -19,7 +19,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `User` | `users` |
 | `Course` | `courses` |
 | `Video` | `videos` |
-| `VideoSegment` | `video_segments` |
+| `VideoSegment` | 由 `VIDEO_SEGMENT_COLLECTION` 環境變數決定（預設 `video_segments_text`） |
 | `Enrollment` | `enrollments` |
 | `Clip` | `clips` |
 | `UsageLog` | `usagelogs` |
@@ -27,7 +27,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 
 目前 repo 內已有明確理由的例外：
 
-- `VideoSegment` 使用 `video_segments`
+- `VideoSegment`：collection 名稱由 `VIDEO_SEGMENT_COLLECTION` 環境變數決定（預設 `video_segments_text`，Schema 中直接使用 `collection: env.videoSegmentCollection`）。這是為了對齊 AI Pipeline 寫入的 collection 名稱，並允許部署時切換不同 collection。
 
 若未來新增 Mongoose model，仍以預設小寫複數命名為優先，除非要對齊既有資料庫契約。
 

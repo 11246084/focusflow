@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import urllib.request
 from pathlib import Path
 
 from chunking import build_chunks
@@ -65,6 +66,19 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Only send the first N pending text chunks to Gemini in this run.",
     )
+    # 由後端自動觸發時傳入：指定要處理的單一影片絕對路徑
+    parser.add_argument(
+        "--video-path",
+        type=Path,
+        default=None,
+        help="Path to a specific video file to process (used when triggered by the backend).",
+    )
+    # 由後端自動觸發時傳入：MongoDB 的 Video 文件 ID，用於回報處理狀態
+    parser.add_argument(
+        "--video-id",
+        default=None,
+        help="MongoDB Video document ID for status webhook callbacks.",
+    )
     # 解析並返回命令行參數
     return parser.parse_args()
 
@@ -93,8 +107,32 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
     if args.overwrite:
         overrides["overwrite_existing"] = True
 
+    # 若指定了單一影片路徑，轉換為絕對路徑並存入 config
+    if args.video_path is not None:
+        video_path = args.video_path
+        if not video_path.is_absolute():
+            video_path = args.project_root / video_path
+        overrides["target_video_path"] = video_path.resolve()
+
     # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
+
+
+def notify_backend(config, video_id: str, endpoint: str) -> None:
+    """通知後端更新影片處理狀態（start / complete / fail）。
+    若缺少設定或發生錯誤，只記錄警告不中斷 pipeline。
+    """
+    if not video_id or not config.backend_url or not config.processing_webhook_secret:
+        return
+    url = f"{config.backend_url}/api/v1/internal/videos/{video_id}/processing/{endpoint}"
+    req = urllib.request.Request(url, method="POST", data=b"{}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("X-Processing-Secret", config.processing_webhook_secret)
+    try:
+        urllib.request.urlopen(req, timeout=10)
+        logger.info("Notified backend: processing/%s (videoId=%s)", endpoint, video_id)
+    except Exception as exc:
+        logger.warning("Failed to notify backend (%s): %s", endpoint, exc)
 
 
 def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, Path]:
@@ -167,18 +205,34 @@ def main() -> int:
     # 配置日誌記錄
     configure_logging(config.log_level)
 
+    # 通知後端：STT 開始處理（狀態 queued → processing）
+    notify_backend(config, args.video_id, "start")
+
     # 嘗試運行管道
     try:
         output_paths = run_pipeline(config, limit=args.limit)
-    # 如果出現異常，記錄錯誤並返回退出碼 1
+    # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
         logger.exception("Pipeline failed: %s", exc)
+        notify_backend(config, args.video_id, "fail")
         return 1
 
     # 打印成功消息和輸出路徑
     print("FocusFlow AI pipeline completed successfully.")
     for name, path in output_paths.items():
         print(f"{name}: {path}")
+
+    # Pipeline 完成後自動上傳結果到 MongoDB
+    print("\nStarting MongoDB upload...")
+    import mongodb_uploader
+    if mongodb_uploader.main() != 0:
+        logger.error("MongoDB upload failed.")
+        notify_backend(config, args.video_id, "fail")
+        return 1
+
+    # 通知後端：處理全部完成（狀態 processing → completed）
+    notify_backend(config, args.video_id, "complete")
+
     # 返回成功退出碼 0
     return 0
 

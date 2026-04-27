@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-04-24（更新 Frontend 頁面完成狀態；補充教授開會決議）
+最後更新：2026-04-27（補充 STT 自動化與 YouTube 整合缺口）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -94,6 +94,39 @@
 |------|------|----------|
 | ngrok URL 不固定 | **DevOps / 整體** | demo 前確認 ngrok 已啟動並更新 LINE Developers Console Webhook URL；正式環境決定部署目標（Railway / Render / 自建 VPS），改用固定 HTTPS domain |
 | 學生綁定代碼 | **Frontend** | 實作登入後的綁定頁面，呼叫 `POST /api/v1/line/bind-token` 取得代碼，搭配 QR Code 顯示；Backend 側 API 已就緒，不需修改 |
+
+---
+
+### STT Pipeline 自動化 / YouTube 整合缺口（2026-04-27 新增）
+
+**已完成：**
+
+- `video.service.js` 影片上傳後自動 spawn STT pipeline（背景執行，不阻擋 HTTP 回應）
+- STT pipeline 新增 `--video-path`、`--video-id` CLI 參數
+- STT pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態
+- STT pipeline 完成後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
+- `STT_Whisper/.env.example` 新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
+
+**尚未實作（需補）：**
+
+- Video model 尚未新增 `youtubeVideoId` 欄位
+- 影片上傳後自動上傳 YouTube（YouTube Data API v3）尚未實作
+- QA 回答的時間戳跳轉連結（`youtube.com/watch?v=ID&t=秒數`）需要 `youtubeVideoId` 才能組合
+
+**應採取的行動：**
+
+| 項目 | 誰做 | 具體動作 |
+|------|------|----------|
+| Video model 補 `youtubeVideoId` | **Backend** | 在 `models/video.model.js` 新增 `youtubeVideoId: { type: String }` |
+| YouTube 自動上傳 | **Backend** | 上傳影片後呼叫 YouTube Data API v3，影片設為 unlisted，取得 ID 存入 `youtubeVideoId` |
+| OAuth 憑證 | **專案負責人** | 提供 FocusFlow Google 帳號的 YouTube API OAuth 憑證給後端 |
+| QA 跳轉連結 | **Backend** | QA 回答時從 Video 取 `youtubeVideoId`，組合 `youtube.com/watch?v=ID&t=startSec` |
+
+**STT_Whisper/.env 需手動補上：**
+```
+BACKEND_URL=http://localhost:4000
+PROCESSING_WEBHOOK_SECRET=（與 backend/.env 相同的值）
+```
 
 ---
 

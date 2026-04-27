@@ -111,6 +111,12 @@ class PipelineConfig:
     backup_existing_outputs: bool
     # 日誌級別
     log_level: str
+    # 後端伺服器 URL，用於回報影片處理狀態
+    backend_url: str
+    # 後端內部 Webhook 驗證 Secret
+    processing_webhook_secret: str | None
+    # 指定單一影片路徑（由後端觸發時傳入，None 表示掃描整個 video_input_dir）
+    target_video_path: Path | None
 
     @classmethod
     def from_env(cls, project_root: Path | None = None) -> "PipelineConfig":
@@ -261,6 +267,12 @@ class PipelineConfig:
             backup_existing_outputs=os.getenv("BACKUP_EXISTING_OUTPUTS", "true").lower() == "true",
             # 日誌級別，默認 "INFO"
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            # 後端伺服器 URL，預設本機 4000 port
+            backend_url=os.getenv("BACKEND_URL", "http://localhost:4000"),
+            # 後端 Webhook Secret，與後端 .env 的 PROCESSING_WEBHOOK_SECRET 一致
+            processing_webhook_secret=os.getenv("PROCESSING_WEBHOOK_SECRET") or None,
+            # 單一影片路徑，由 CLI 參數傳入，預設 None（掃描整個目錄）
+            target_video_path=None,
         )
 
         # 提前創建運行時目錄，以保持下游模塊簡單

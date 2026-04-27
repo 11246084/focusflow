@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-04-24
+最後更新：2026-04-27
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -152,6 +152,30 @@
   - `app.js` 改為 `cors({ origin: env.ALLOWED_ORIGIN })`
   - 加一個驗證 preflight 的 route test
 - **先決條件**：Frontend 確認正式部署的 origin
+
+---
+
+### 12. STT Pipeline 自動化整合（2026-04-27 完成）
+
+- **狀態**：Done
+- **完成內容**：
+  - `video.service.js`：影片上傳後自動 spawn STT pipeline（`child_process.spawn`，`detached: true`）
+  - `STT_Whisper/src/main.py`：新增 `--video-path`、`--video-id` 參數；新增 `notify_backend()` webhook 回報；STT 完成後自動執行 `mongodb_uploader.py`
+  - `STT_Whisper/src/config.py`：新增 `backend_url`、`processing_webhook_secret`、`target_video_path`
+  - `STT_Whisper/src/scan_videos.py`：支援 `target_video_path` 直接指定單一影片
+  - `STT_Whisper/.env.example`：新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
+
+---
+
+### 13. YouTube 自動上傳整合
+
+- **狀態**：Pending
+- **背景**：學生提問時需要回傳 YouTube 時間戳跳轉連結（`youtube.com/watch?v=ID&t=秒數`），需要先有 `youtubeVideoId`
+- **我要主動做**：
+  - `models/video.model.js` 新增 `youtubeVideoId: { type: String }` 欄位
+  - `video.service.js` 上傳後呼叫 YouTube Data API v3，影片設為 unlisted
+  - QA 回答時從 Video 取 `youtubeVideoId` 組合跳轉連結
+- **先決條件**：專案負責人提供 FocusFlow Google 帳號 OAuth 憑證
 
 ---
 

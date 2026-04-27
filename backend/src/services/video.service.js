@@ -1,8 +1,11 @@
+const path = require('path');
+const { spawn } = require('child_process');
 const Video = require('../models/video.model');
 const Course = require('../models/course.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { VIDEO_SOURCE_TYPES } = require('../constants/enums');
+const env = require('../config/env');
 const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
 const {
   assertCanAccessCourse,
@@ -135,6 +138,25 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
       videoIds: video._id,
     },
   });
+
+  // 在背景啟動 STT pipeline，不等待完成（不阻擋 HTTP 回應）
+  // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
+  const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
+  const sttProcess = spawn('python', [
+    'src/main.py',
+    '--video-path', path.resolve(file.path),
+    '--video-id', String(video._id),
+  ], {
+    cwd: sttDir,
+    detached: true,
+    stdio: 'ignore',
+    env: {
+      ...process.env,
+      BACKEND_URL: `http://localhost:${env.port}`,
+      PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
+    },
+  });
+  sttProcess.unref();
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {
     courseId,

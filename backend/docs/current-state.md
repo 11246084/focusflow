@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-04-24（LINE Bot 多輪對話歷史）
+最後更新：2026-04-27（STT Pipeline 自動化整合）
 
 ## 文件角色
 
@@ -67,6 +67,7 @@
 - `POST /api/v1/line/bind-token`、webhook verify、bind、switch course、ask question routing 已完成
 - LINE live smoke 已完成（2026-04-19）：真實 LINE 端對端 bind → switch course → ask 全程走通
 - LINE Bot 多輪對話歷史（2026-04-21）：每輪 Q&A 結束後將最新 6 筆紀錄（3 輪）寫入 `User.lineConversationHistory`；下次提問時帶入 Gemini 作為 `contents` history，支援上下文連貫問答
+- STT Pipeline 自動化整合（2026-04-27）：影片上傳後 `video.service.js` 自動 spawn STT pipeline；pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態；pipeline 結束後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
 - `queryEmbedding.service.js` 支援 `gemini-embedding-2-preview`（3072 維）
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa` 與 `runtime.line`
@@ -122,4 +123,4 @@
 
 ## 一句話結論
 
-截至 2026-04-24，backend 主線為 `gemini query embedding + atlas vector search（text_embedding_index）+ gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史（最近 3 輪）`。`video_segments_text` 欄位命名已全面統一為 camelCase。Tests 69/69 pass。短期限制：ngrok URL 不固定、學生綁定需前端 QR Code 頁面支援。
+截至 2026-04-27，backend 主線為 `gemini query embedding + atlas vector search（text_embedding_index）+ gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史（最近 3 輪）+ STT Pipeline 自動化（上傳影片後自動觸發）`。`video_segments_text` 欄位命名已全面統一為 camelCase。Tests 69/69 pass。短期限制：ngrok URL 不固定、學生綁定需前端 QR Code 頁面支援、YouTube 自動上傳尚未實作（`youtubeVideoId` 欄位待補）。

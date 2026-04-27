@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-04-27（精簡 demo-runbook、拆分 implementation-log）
+最後更新：2026-04-27（新增 STT Pipeline 自動化交接文件）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -11,6 +11,7 @@
 - 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](./todo.md)
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](./implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](./implementation-log.archive.md)）
 - 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）
+- 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
 
 ## 每份文件的用途
 

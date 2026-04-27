@@ -64,8 +64,13 @@ def scan_videos(config: PipelineConfig) -> list[VideoMetadata]:
     """Scan the input folder and produce normalized metadata records."""
     # 在掃描前解析 FFmpeg，以便環境錯誤快速失敗
     ffmpeg_binary = resolve_ffmpeg_binary(config.ffmpeg_binary)
-    # 發現視頻文件
-    video_files = discover_video_files(config.video_input_dir, config.supported_video_extensions)
+
+    # 若後端指定了單一影片路徑（由自動化觸發時傳入），只處理那一支影片
+    if config.target_video_path is not None:
+        video_files = [config.target_video_path]
+    else:
+        # 發現視頻文件
+        video_files = discover_video_files(config.video_input_dir, config.supported_video_extensions)
 
     # 如果沒有找到視頻文件，記錄警告並返回空列表
     if not video_files:

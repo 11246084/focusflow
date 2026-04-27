@@ -164,6 +164,7 @@ __pycache__/
 # Claude Code
 # ================================
 CLAUDE.local.md
+.claude/settings.local.json
 
 # ================================
 # Local planning / temp docs

@@ -11,20 +11,29 @@ const {
   buildQaRuntimeSnapshot,
 } = require('./runtimeDiagnostics.service');
 
+// LINE Bot API 的基底 URL，所有發送訊息的請求都打這裡
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
+
+// 對話狀態機：記錄使用者目前在 LINE 對話流程中的哪個步驟
+// IDLE：正常狀態，可以直接提問
+// AWAITING_COURSE_SELECTION：Bot 剛顯示課程選單，等待使用者點選
 const LINE_CONVERSATION_STATES = {
   IDLE: 'idle',
   AWAITING_COURSE_SELECTION: 'awaiting_course_selection',
 };
+
+// 回覆被跳過的原因代碼，方便 debug log 追蹤
 const LINE_REPLY_REASONS = {
   REPLY_TOKEN_MISSING: 'reply_token_missing',
   ACCESS_TOKEN_MISSING: 'line_channel_access_token_missing',
 };
 
+// 從 User 文件讀取對話狀態，若欄位不存在則預設為 IDLE
 function getLineConversationState(user) {
   return user?.lineConversationState || LINE_CONVERSATION_STATES.IDLE;
 }
 
+// 組裝 LINE 文字訊息物件（LINE API 要求特定格式）
 function buildTextMessage(text) {
   return {
     type: 'text',
@@ -32,6 +41,8 @@ function buildTextMessage(text) {
   };
 }
 
+// 把回覆結果（是否成功送出、跳過原因）合併進事件處理結果物件
+// 這樣每個 handler 回傳的物件格式都一致，方便 controller 層整理
 function attachReplyMetadata(result, replyResult) {
   return {
     ...result,
@@ -41,7 +52,11 @@ function attachReplyMetadata(result, replyResult) {
   };
 }
 
+// 實際透過 LINE Reply API 把訊息送給使用者
+// replyToken：LINE 每個事件都附帶，用來對應這次回覆的目標，且只能用一次
+// messages：要送出的訊息陣列（LINE 一次最多送 5 則）
 async function replyMessage(replyToken, messages) {
+  // 沒有 replyToken（例如某些系統事件不附帶），就跳過回覆
   if (!replyToken) {
     return {
       skipped: true,
@@ -49,6 +64,7 @@ async function replyMessage(replyToken, messages) {
     };
   }
 
+  // 沒有設定 LINE Channel Access Token，無法呼叫 LINE API
   if (!env.lineChannelAccessToken) {
     return {
       skipped: true,
@@ -56,6 +72,7 @@ async function replyMessage(replyToken, messages) {
     };
   }
 
+  // 呼叫 LINE Reply API，Authorization header 帶 Channel Access Token
   const response = await fetch(`${LINE_API_BASE}/message/reply`, {
     method: 'POST',
     headers: {
@@ -76,14 +93,18 @@ async function replyMessage(replyToken, messages) {
   };
 }
 
+// 產生綁定 Token 並存入資料庫
+// 使用 crypto.randomBytes 產生 32 bytes（= 64 字元十六進位）的安全隨機字串
 async function generateBindToken(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 分鐘後過期
 
   await LineBindToken.create({ token, userId, expiresAt });
   return token;
 }
 
+// 處理「加好友」事件：使用者第一次把 Bot 加為好友時觸發
+// 送出歡迎訊息，引導使用者完成帳號綁定
 async function handleFollow(event) {
   const replyResult = await replyMessage(event.replyToken, [
     buildTextMessage('歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。'),
@@ -95,7 +116,10 @@ async function handleFollow(event) {
   }, replyResult);
 }
 
+// 處理帳號綁定：使用者把 64 字元的 token 傳到 LINE Bot 時觸發
+// 驗證 token 有效後，把 lineUserId 寫入 User 文件，完成 LINE ↔ 系統帳號的對應
 async function handleBind(lineUserId, token, replyToken) {
+  // 在資料庫裡找這個 token
   const record = await LineBindToken.findOne({ token });
 
   if (!record) {
@@ -110,6 +134,7 @@ async function handleBind(lineUserId, token, replyToken) {
     }, replyResult);
   }
 
+  // TTL index 只會定期清理，手動再判斷一次確保即時性
   if (record.expiresAt < new Date()) {
     await LineBindToken.deleteOne({ token });
     const replyResult = await replyMessage(replyToken, [
@@ -123,12 +148,14 @@ async function handleBind(lineUserId, token, replyToken) {
     }, replyResult);
   }
 
+  // 把 LINE userId 寫入系統使用者文件，並重設對話狀態
   await User.findByIdAndUpdate(record.userId, {
     lineUserId,
     lineBindAt: new Date(),
     lineConversationState: LINE_CONVERSATION_STATES.IDLE,
   });
 
+  // Token 一次性使用，綁定成功後立即刪除
   await LineBindToken.deleteOne({ token });
   const replyResult = await replyMessage(replyToken, [
     buildTextMessage('帳號綁定成功。接下來請先選擇課程，之後就可以直接提問。'),
@@ -140,6 +167,8 @@ async function handleBind(lineUserId, token, replyToken) {
   }, replyResult);
 }
 
+// 處理「切換課程」指令：使用者傳送文字「切換課程」時觸發
+// 查詢使用者有權存取的課程，用 LINE Buttons Template 顯示最多 4 個課程按鈕
 async function handleSwitchCourse(lineUserId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
@@ -153,6 +182,7 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     }, replyResult);
   }
 
+  // 同時抓「已選課的課程」和「所有已發佈課程」，合併去重後讓使用者選擇
   const enrollments = await Enrollment.find({ studentId: user._id }).populate('courseId');
   const publishedCourses = await Course.find({ status: 'published' });
   const courseMap = new Map();
@@ -182,18 +212,20 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     }, replyResult);
   }
 
+  // LINE Buttons Template 最多只能有 4 個按鈕，所以只取前 4 筆
+  // 每個按鈕用 postback 事件，data 帶 action 和 courseId，方便後續 handleSelectCourse 解析
   const actions = selectableCourses
     .slice(0, 4)
     .map((course) => ({
       type: 'postback',
-      label: course.title.slice(0, 20),
+      label: course.title.slice(0, 20), // LINE 按鈕文字上限 20 字元
       data: `action=select_course&courseId=${course._id}`,
     }));
 
   const replyResult = await replyMessage(replyToken, [
     {
       type: 'template',
-      altText: '請選擇課程',
+      altText: '請選擇課程',   // 不支援 template 的環境（如電腦版）顯示的替代文字
       template: {
         type: 'buttons',
         text: '請選擇你要提問的課程。',
@@ -202,6 +234,7 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     },
   ]);
 
+  // 送出課程選單後，把狀態改為「等待課程選擇」，避免使用者直接提問
   await User.findByIdAndUpdate(user._id, {
     lineConversationState: LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION,
   });
@@ -212,6 +245,8 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   }, replyResult);
 }
 
+// 處理使用者點選課程按鈕後的 postback 事件
+// 驗證使用者有該課程的存取權，確認後把 activeCourseId 寫入 User 文件
 async function handleSelectCourse(lineUserId, courseId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
@@ -225,6 +260,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
     }, replyResult);
   }
 
+  // 防止使用者直接偽造 postback 跳過「切換課程」步驟
   if (getLineConversationState(user) !== LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION) {
     const replyResult = await replyMessage(replyToken, [buildTextMessage('請先輸入「切換課程」，再選擇課程。')]);
 
@@ -241,6 +277,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
     courseId,
   });
 
+  // 課程必須存在，且使用者要嘛有選課紀錄、要嘛課程是已發佈狀態（公開課程）
   if (!course || (!enrollment && course.status !== 'published')) {
     const replyResult = await replyMessage(replyToken, [buildTextMessage('你沒有這門課程的存取權限。')]);
 
@@ -251,6 +288,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
     }, replyResult);
   }
 
+  // 寫入選定的課程 ID，並把狀態恢復為 IDLE，開放提問
   await User.findByIdAndUpdate(user._id, {
     activeCourseId: new mongoose.Types.ObjectId(courseId),
     lineConversationState: LINE_CONVERSATION_STATES.IDLE,
@@ -264,12 +302,15 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
   }, replyResult);
 }
 
+// 把 QA 結果組裝成使用者看到的訊息文字行
+// 包含：fallback 提示（開發用）、AI 答案、片段時間戳、影片跳轉連結
 function buildQuestionSummaryLines(qaResult) {
   const [topMatch] = qaResult.matches;
   const summaryLines = [];
   const answerFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'answer');
   const retrievalFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'retrieval');
 
+  // 以下 [MVP提示] / [MVP fallback] 訊息是開發階段的診斷資訊，正式上線前可以移除
   if (qaResult.runtime?.matchStatus === 'no_searchable_segments') {
     summaryLines.push('[MVP提示] 這門課目前沒有可搜尋片段。');
   }
@@ -284,10 +325,12 @@ function buildQuestionSummaryLines(qaResult) {
 
   summaryLines.push(qaResult.answer);
 
+  // 附上最相關片段的時間區間，讓使用者知道答案來自影片哪個位置
   if (topMatch) {
     summaryLines.push(`片段：${topMatch.startSec}s - ${topMatch.endSec}s`);
   }
 
+  // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
   if (qaResult.clip?.jumpUrl) {
     summaryLines.push(`跳轉：${qaResult.clip.jumpUrl}`);
   }
@@ -295,6 +338,7 @@ function buildQuestionSummaryLines(qaResult) {
   return summaryLines;
 }
 
+// 把 QA service 拋出的錯誤碼轉成內部追蹤用的字串代碼
 function mapQaFailureReason(error) {
   switch (error?.code) {
     case 'QA_RUNTIME_MISCONFIGURED':
@@ -308,6 +352,7 @@ function mapQaFailureReason(error) {
   }
 }
 
+// 把 QA 錯誤轉成使用者看得懂的中文提示訊息
 function buildQaFailureMessage(error) {
   switch (error?.code) {
     case 'QA_RUNTIME_MISCONFIGURED':
@@ -321,6 +366,7 @@ function buildQaFailureMessage(error) {
   }
 }
 
+// 從 QA 錯誤物件中提取診斷快照，方便 API 回應中帶回給開發者查看
 function buildQaFailureRuntime(error) {
   const details = error?.details && typeof error.details === 'object'
     ? error.details
@@ -339,6 +385,8 @@ function buildQaFailureRuntime(error) {
   };
 }
 
+// 處理使用者的一般文字提問
+// 流程：確認綁定 → 確認對話狀態 → 確認已選課程 → 呼叫 QA service → 更新對話歷史 → 回覆答案
 async function handleQuestion(lineUserId, text, replyToken) {
   const user = await User.findOne({ lineUserId });
 
@@ -352,6 +400,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
+  // 如果使用者正在選課程流程中，不允許插入提問
   if (getLineConversationState(user) === LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION) {
     const replyResult = await replyMessage(replyToken, [buildTextMessage('請先完成課程選擇，再開始提問。')]);
 
@@ -372,6 +421,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
+  // 讀取之前的對話歷史，傳給 QA service 讓 AI 有上下文可以理解追問
   const conversationHistory = user.lineConversationHistory || [];
 
   let qaResult;
@@ -384,7 +434,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
       },
       courseId: String(user.activeCourseId),
       question: text,
-      source: 'line',
+      source: 'line',   // 標記來源，QA service 可用來區分前端和 LINE Bot 的請求
       conversationHistory: conversationHistory.length ? conversationHistory : null,
     });
   } catch (error) {
@@ -399,6 +449,8 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
+  // 把這次對話追加進歷史，並只保留最近 6 則（3 輪問答）
+  // 限制 6 則是為了避免對話歷史過長，增加 AI token 消耗
   const updatedHistory = [
     ...conversationHistory,
     { role: 'user', content: text },
@@ -407,6 +459,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
 
   await User.findByIdAndUpdate(user._id, { lineConversationHistory: updatedHistory });
 
+  // 把所有回答行用換行合併成一則訊息傳給使用者
   const replyResult = await replyMessage(replyToken, [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))]);
 
   return attachReplyMetadata({
@@ -425,28 +478,36 @@ async function handleQuestion(lineUserId, text, replyToken) {
   }, replyResult);
 }
 
+// 處理單一 LINE 事件，根據 event.type 分派給對應的 handler
+// LINE 事件類型：follow（加好友）、message（收到訊息）、postback（按下按鈕）
 async function processWebhookEvent(event) {
   const lineUserId = event.source?.userId;
   const replyToken = event.replyToken;
 
+  // 使用者加好友
   if (event.type === 'follow') {
     return handleFollow(event);
   }
 
+  // 使用者傳送文字訊息
   if (event.type === 'message' && event.message?.type === 'text') {
     const text = String(event.message.text || '').trim();
 
+    // 64 字元十六進位字串 → 視為綁定碼，觸發帳號綁定流程
     if (/^[a-f0-9]{64}$/i.test(text)) {
       return handleBind(lineUserId, text.toLowerCase(), replyToken);
     }
 
+    // 關鍵字「切換課程」→ 顯示課程選單
     if (text === '切換課程') {
       return handleSwitchCourse(lineUserId, replyToken);
     }
 
+    // 其他文字 → 視為對課程內容的提問
     return handleQuestion(lineUserId, text, replyToken);
   }
 
+  // 使用者點選 Buttons Template 的按鈕 → 解析 postback data 取得 action 和 courseId
   if (event.type === 'postback') {
     const params = new URLSearchParams(event.postback?.data || '');
     const action = params.get('action');
@@ -456,6 +517,7 @@ async function processWebhookEvent(event) {
     }
   }
 
+  // 其他不支援的事件類型（如貼圖、圖片等）一律忽略
   return {
     type: event.type,
     handled: false,
@@ -466,6 +528,8 @@ async function processWebhookEvent(event) {
   };
 }
 
+// 批次處理 Webhook 送來的所有事件（LINE 可能一次批次送多個事件）
+// 逐一處理，任一事件失敗不影響其他事件的處理
 async function processWebhookEvents(events) {
   const results = [];
 
@@ -473,6 +537,7 @@ async function processWebhookEvents(events) {
     try {
       results.push(await processWebhookEvent(event));
     } catch (error) {
+      // 單一事件處理失敗時記錄錯誤，但繼續處理下一個事件
       results.push({
         type: event?.type || 'unknown',
         handled: false,
@@ -496,6 +561,8 @@ async function processWebhookEvents(events) {
   };
 }
 
+// 工具函式：確保使用者對某門課程有選課紀錄，若沒有則自動建立
+// 主要供 demo seed 或測試情境使用，讓使用者可以直接存取指定課程
 async function ensureCourseForUser(userId, courseId) {
   const user = await User.findById(userId);
   const course = await Course.findById(courseId);
@@ -504,6 +571,7 @@ async function ensureCourseForUser(userId, courseId) {
     return null;
   }
 
+  // upsert：有選課紀錄就什麼都不做，沒有就新建一筆
   await Enrollment.findOneAndUpdate(
     { studentId: user._id, courseId: course._id },
     {

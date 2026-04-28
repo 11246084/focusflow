@@ -24,6 +24,7 @@ describe('docs routes', () => {
     assert.match(response.headers.get('content-type') || '', /yaml|plain/i);
     assert.match(text, /^openapi:\s+3\.1\.0/m);
     assert.match(text, /LINE Webhook/);
+    assert.match(text, /\/api\/v1\/line\/bind-token:/);
   });
 
   it('serves swagger ui configured to load the same-origin yaml spec', async () => {

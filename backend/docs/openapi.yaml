@@ -132,7 +132,7 @@ paths:
                         email: teacher@focusflow.local
                         role: teacher
                         isActive: true
-                        lineUserId: null
+                        isLineBound: false
                         lineBindAt: null
                         activeCourseId: null
                         lineConversationState: idle
@@ -658,6 +658,46 @@ paths:
                       code: LINE_SIGNATURE_INVALID
         '500':
           $ref: '#/components/responses/LineNotConfiguredError'
+  /api/v1/line/bind-token:
+    post:
+      tags:
+        - LINE Webhook
+      summary: 發放 LINE 帳號綁定 token
+      description: |
+        已登入使用者呼叫此端點後，backend 會建立一組 10 分鐘有效的一次性綁定碼。
+
+        Frontend 可將 `token` 直接顯示給使用者，或轉成 QR Code / 深連結輔助使用者把系統帳號綁到 LINE Bot。
+      operationId: issueLineBindToken
+      responses:
+        '201':
+          description: 成功建立 LINE 綁定 token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineBindTokenResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: Bind token issued.
+                    data:
+                      token: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                      expiresAt: '2026-04-28T10:10:00.000Z'
+                    meta:
+                      lineRuntime:
+                        signatureValidationConfigured: true
+                        liveReplyConfigured: false
+                        liveFlowReady: false
+                        readiness: degraded
+                        deliveryMode: backend_only
+                        missingConfig:
+                          - LINE_CHANNEL_ACCESS_TOKEN
+                        hardFailures: []
+                        degradedReasons:
+                          - code: LINE_CHANNEL_ACCESS_TOKEN_MISSING
+                            message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 components:
   securitySchemes:
     BearerAuth:
@@ -1043,7 +1083,7 @@ components:
         - email
         - role
         - isActive
-        - lineUserId
+        - isLineBound
         - lineBindAt
         - activeCourseId
         - lineConversationState
@@ -1059,10 +1099,9 @@ components:
           $ref: '#/components/schemas/UserRole'
         isActive:
           type: boolean
-        lineUserId:
-          anyOf:
-            - type: string
-            - type: 'null'
+        isLineBound:
+          description: 是否已綁定 LINE 帳號；不暴露實際 LINE user id。
+          type: boolean
         lineBindAt:
           anyOf:
             - type: string
@@ -2224,3 +2263,32 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/LineWebhookResult'
+    LineBindTokenResponse:
+      description: "`/api/v1/line/bind-token` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: object
+              required:
+                - token
+                - expiresAt
+              properties:
+                token:
+                  description: 10 分鐘有效的一次性 LINE 綁定碼。
+                  type: string
+                  pattern: '^[a-f0-9]{64}$'
+                expiresAt:
+                  type: string
+                  format: date-time
+            meta:
+              type: object
+              required:
+                - lineRuntime
+              properties:
+                lineRuntime:
+                  $ref: '#/components/schemas/LineRuntimeSnapshot'

@@ -11,7 +11,7 @@
     email: source.email,
     role: source.role,
     isActive: source.isActive,
-    lineUserId: source.lineUserId || null,
+    isLineBound: Boolean(source.lineUserId),
     lineBindAt: source.lineBindAt || null,
     activeCourseId: source.activeCourseId ? String(source.activeCourseId) : null,
     lineConversationState: source.lineConversationState ?? 'idle',

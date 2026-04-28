@@ -35,14 +35,19 @@ describe('auth routes', () => {
       },
     });
     const token = loginResult.body.data.token;
+    const decodedToken = jwt.verify(token, env.jwtSecret);
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
       token,
     });
 
     assert.equal(loginResult.status, 200);
+    assert.equal(decodedToken.sub, ids.teacher);
+    assert.equal(Object.hasOwn(decodedToken, 'role'), false);
+    assert.equal(Object.hasOwn(loginResult.body.data.user, 'lineUserId'), false);
     assert.equal(loginResult.body.data.user.lineConversationState, 'idle');
     assert.equal(result.status, 200);
     assert.equal(result.body.data.user.email, 'teacher@focusflow.local');
+    assert.equal(Object.hasOwn(result.body.data.user, 'lineUserId'), false);
     assert.equal(result.body.data.user.lineConversationState, 'idle');
     assert.equal(store.usageLogs[0].event, 'login');
   });

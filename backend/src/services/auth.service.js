@@ -28,7 +28,6 @@ async function login({ email, password }) {
   const token = jwt.sign(
     {
       sub: String(user._id),
-      role: user.role,
     },
     env.jwtSecret,
     {

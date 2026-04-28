@@ -29,3 +29,6 @@ Desktop.ini
 
 docs/implementation-log.md
 docs/implementation-log.archive.md
+
+UnderstandingCode/*
+!UnderstandingCode/data-model-diagram.md

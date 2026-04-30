@@ -109,6 +109,8 @@ class PipelineConfig:
     overwrite_existing: bool
     # 是否備份現有輸出
     backup_existing_outputs: bool
+    cleanup_after_upload: bool
+    cleanup_keep_checkpoints: bool
     # 日誌級別
     log_level: str
     # 後端伺服器 URL，用於回報影片處理狀態
@@ -267,6 +269,8 @@ class PipelineConfig:
             overwrite_existing=os.getenv("OVERWRITE_EXISTING", "false").lower() == "true",
             # 是否備份現有輸出，默認 true，轉換為布爾值
             backup_existing_outputs=os.getenv("BACKUP_EXISTING_OUTPUTS", "true").lower() == "true",
+            cleanup_after_upload=os.getenv("CLEANUP_AFTER_UPLOAD", "false").lower() == "true",
+            cleanup_keep_checkpoints=os.getenv("CLEANUP_KEEP_CHECKPOINTS", "true").lower() == "true",
             # 日誌級別，默認 "INFO"
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # 後端伺服器 URL，預設本機 4000 port

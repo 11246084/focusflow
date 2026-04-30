@@ -152,6 +152,54 @@ def notify_backend(config, video_id: str, endpoint: str, body: dict | None = Non
         logger.warning("Failed to notify backend (%s): %s", endpoint, exc)
 
 
+def _is_within_directory(path: Path, directory: Path) -> bool:
+    try:
+        path.resolve().relative_to(directory.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _delete_runtime_file(path: Path, allowed_root: Path) -> bool:
+    if not _is_within_directory(path, allowed_root):
+        logger.warning("Skipping cleanup outside data dir: %s", path)
+        return False
+
+    if not path.exists() or not path.is_file():
+        return False
+
+    path.unlink()
+    logger.info("Cleaned pipeline artifact: %s", path)
+    return True
+
+
+def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[str, Path], videos: list) -> None:
+    """Remove local runtime artifacts after MongoDB upload, when explicitly enabled."""
+    if not config.cleanup_after_upload:
+        return
+
+    cleanup_targets: list[Path] = []
+    for video in videos:
+        cleanup_targets.append(config.project_root / video.audio_path)
+        cleanup_targets.append(config.transcript_cache_dir / f"{video.video_id}.json")
+
+    if not config.cleanup_keep_checkpoints:
+        for output_path in output_paths.values():
+            cleanup_targets.append(output_path)
+            cleanup_targets.append(output_path.with_suffix(output_path.suffix + ".bak"))
+
+    deleted_count = 0
+    for path in cleanup_targets:
+        if _delete_runtime_file(path, config.data_dir):
+            deleted_count += 1
+
+    logger.info(
+        "Pipeline cleanup completed: deleted=%s keep_checkpoints=%s",
+        deleted_count,
+        config.cleanup_keep_checkpoints,
+    )
+
+
 def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict[str, Path], list]:
     """Execute the full local pipeline from video scan to export."""
     # 記錄管道開始
@@ -246,6 +294,8 @@ def main() -> int:
         logger.error("MongoDB upload failed.")
         notify_backend(config, args.video_id, "fail", {"errorMessage": "MongoDB upload failed."})
         return 1
+
+    cleanup_after_successful_upload(config, output_paths, pipeline_videos)
 
     # 通知後端：處理全部完成（狀態 processing → completed）
     # 同時傳入 pipeline 的 video_id（如 "video_001"），讓後端存到 Video 文件

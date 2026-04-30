@@ -160,6 +160,8 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     windowsHide: true,
     env: {
       ...process.env,
+      MONGODB_URI: env.mongodbUri,
+      MONGODB_DATABASE_NAME: 'focusflow',
       BACKEND_URL: `http://localhost:${env.port}`,
       PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
     },

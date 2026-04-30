@@ -1,10 +1,12 @@
 const path = require('path');
 const { spawn } = require('child_process');
 const Video = require('../models/video.model');
+const VideoSegment = require('../models/videoSegment.model');
 const Course = require('../models/course.model');
+const mongoose = require('mongoose');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_SOURCE_TYPES } = require('../constants/enums');
+const { VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
 const env = require('../config/env');
 const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
 const {
@@ -198,9 +200,29 @@ async function getVideoProcessingStatus(videoId, user) {
   return buildProcessingMetadata(video);
 }
 
+async function deleteVideo(videoId, user) {
+  assertObjectId(videoId, 'video');
+
+  const video = await Video.findById(videoId).lean();
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+
+  const isAdmin = user.role === USER_ROLES.ADMIN;
+  const isOwner = String(video.uploadedBy) === String(user.id);
+
+  if (!isAdmin && !isOwner) {
+    throw new AppError('You do not have permission to delete this video.', 403, 'FORBIDDEN');
+  }
+
+  const segmentKey = video.video_id || String(video._id);
+  await VideoSegment.deleteMany({ videoId: segmentKey });
+  await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
+  await Video.deleteOne({ _id: videoId });
+}
+
 module.exports = {
   createCourseVideo,
   listCourseVideos,
   getVideoById,
   getVideoProcessingStatus,
+  deleteVideo,
 };

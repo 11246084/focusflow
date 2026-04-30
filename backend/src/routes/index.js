@@ -6,6 +6,7 @@ const lineRoutes = require('./line.routes');
 const videoRoutes = require('./video.routes');
 const internalVideoRoutes = require('./internal-video.routes');
 const statsRoutes = require('./stats.routes');
+const adminRoutes = require('./admin.routes');
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.use('/qa', qaRoutes);
 router.use('/line', lineRoutes);
 router.use('/internal', internalVideoRoutes);
 router.use('/stats', statsRoutes);
+router.use('/admin', adminRoutes);
 router.use('/', videoRoutes);
 
 module.exports = router;

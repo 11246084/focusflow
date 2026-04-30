@@ -1,4 +1,6 @@
 const Course = require('../models/course.model');
+const Video = require('../models/video.model');
+const VideoSegment = require('../models/videoSegment.model');
 const Enrollment = require('../models/enrollment.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
@@ -9,7 +11,7 @@ const {
   getStudentEnrollmentCourseIds,
   assertCanAccessCourse,
 } = require('./courseAccess.service');
-const { COURSE_STATUSES } = require('../constants/enums');
+const { COURSE_STATUSES, COURSE_STATUS_VALUES } = require('../constants/enums');
 const {
   buildCourseBridgePresentation,
   collectScopedVideos,
@@ -90,9 +92,58 @@ async function ensureStudentEnrollment(studentId, courseId) {
   );
 }
 
+async function updateCourse(courseId, { title, description, status }, user) {
+  assertObjectId(courseId, 'course');
+
+  const course = await Course.findById(courseId);
+  if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+
+  if (!isAdmin(user) && String(course.teacherId) !== String(user.id)) {
+    throw new AppError('You do not have permission to update this course.', 403, 'FORBIDDEN');
+  }
+
+  if (title !== undefined) {
+    const trimmed = String(title).trim();
+    if (!trimmed) throw new AppError('Course title is required.', 400, 'VALIDATION_ERROR');
+    course.title = trimmed;
+  }
+  if (description !== undefined) course.description = String(description).trim();
+  if (status !== undefined) {
+    if (!COURSE_STATUS_VALUES.includes(status)) throw new AppError('Invalid status.', 400, 'VALIDATION_ERROR');
+    course.status = status;
+  }
+
+  await course.save();
+  const updated = await Course.findById(courseId).populate('teacherId', 'name email role isActive');
+  return buildCoursePresentation(updated);
+}
+
+async function deleteCourse(courseId, user) {
+  assertObjectId(courseId, 'course');
+
+  if (!isAdmin(user)) {
+    throw new AppError('Only admins can delete courses.', 403, 'FORBIDDEN');
+  }
+
+  const course = await Course.findById(courseId).lean();
+  if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+
+  // Cascade: delete all videos in this course and their segments
+  const videos = await Video.find({ courseId }).lean();
+  for (const v of videos) {
+    const segKey = v.video_id || String(v._id);
+    await VideoSegment.deleteMany({ videoId: segKey });
+  }
+  await Video.deleteMany({ courseId });
+  await Enrollment.deleteMany({ courseId });
+  await Course.deleteOne({ _id: courseId });
+}
+
 module.exports = {
   createCourse,
   listCourses,
   getCourseById,
+  updateCourse,
+  deleteCourse,
   ensureStudentEnrollment,
 };

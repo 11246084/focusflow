@@ -111,12 +111,18 @@ const failInternalVideoProcessing = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteVideo = asyncHandler(async (req, res) => {
+  await videoService.deleteVideo(req.params.videoId, req.user);
+  return sendSuccess(res, { message: 'Video deleted.' });
+});
+
 module.exports = {
   createVideo,
   listCourseVideos,
   getVideoById,
   getVideoProcessing,
   retryVideoProcessing,
+  deleteVideo,
   startInternalVideoProcessing,
   completeInternalVideoProcessing,
   failInternalVideoProcessing,

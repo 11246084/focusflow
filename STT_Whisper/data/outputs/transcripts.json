@@ -1,12 +1,12 @@
 [
   {
-    "video_id": "69f2cf36427421b9aa5a9736",
+    "video_id": "69f3380ad186ae3dd7ac4a0b",
     "segments": [
       {
-        "segment_id": "69f2cf36427421b9aa5a9736_seg_0001",
+        "segment_id": "69f3380ad186ae3dd7ac4a0b_seg_0001",
         "start_sec": 1.58,
         "end_sec": 12.58,
-        "text": "好,那另外呢,其實OpenCV好,在很多,比較熟悉影像處理人的那個"
+        "text": "好 那另外呢 其實open cv 再很多那個比較熟悉影像處理人的那個"
       }
     ]
   }

@@ -18,6 +18,7 @@ export const Ic = ({ n, s = 18, c = 'currentColor' }) => {
     link: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
     dot: <svg width={s} height={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/></svg>,
     spark: <svg width={s} height={s} viewBox="0 0 32 32" fill="none"><path d="M16 3l1.8 11.2L29 16l-11.2 1.8L16 29l-1.8-11.2L3 16l11.2-1.8Z" fill="currentColor" opacity=".9"/><circle cx="26" cy="6" r="2.5" fill="currentColor" opacity=".5"/><circle cx="7" cy="26" r="1.8" fill="currentColor" opacity=".4"/></svg>,
+    sync: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
   };
   return d[n] || null;
 };
@@ -34,7 +35,7 @@ export const Logo = ({ sm }) => (
 export const navItems = {
   student: [{ id: 'home', ic: 'home', label: 'Dashboard' }, { id: 'courses', ic: 'book', label: 'My Courses' }, { id: 'linebot', ic: 'chat', label: 'Line Bot' }],
   teacher: [{ id: 'home', ic: 'home', label: 'Dashboard' }, { id: 'courses', ic: 'film', label: 'Course Videos' }, { id: 'upload', ic: 'up', label: 'Upload' }],
-  admin:   [{ id: 'home', ic: 'home', label: 'Overview' }, { id: 'users', ic: 'users', label: 'Users' }, { id: 'videos', ic: 'film', label: 'Videos' }, { id: 'stats', ic: 'bar', label: 'Statistics' }],
+  admin:   [{ id: 'home', ic: 'home', label: 'Overview' }, { id: 'users', ic: 'users', label: 'Users' }, { id: 'courses', ic: 'book', label: 'Courses' }, { id: 'videos', ic: 'film', label: 'Videos' }, { id: 'stats', ic: 'bar', label: 'Statistics' }],
 };
 
 export const roleLabels = { student: '學生 · Student', teacher: '教師 · Teacher', admin: '管理員 · Admin' };
@@ -43,5 +44,5 @@ export const roleDot    = { student: '#a5b4fc', teacher: '#4ade80', admin: '#F14
 export const topbarMap = {
   student: { home: ['Dashboard', '歡迎回來，王同學'], courses: ['My Courses', '追蹤學習進度'], linebot: ['Line Bot', '即時問答 · 秒回片段'] },
   teacher: { home: ['Dashboard', '管理課程與影片'], courses: ['Course Videos', '已上傳影片清單'], upload: ['Upload Video', '影片上傳後自動建立 AI 索引'] },
-  admin:   { home: ['System Overview', '監控整體系統運作'], users: ['User Management', '學生 / 教師帳號'], videos: ['Video Library', '全系統影片管理'], stats: ['Statistics', 'usage_logs 統計'] },
+  admin:   { home: ['System Overview', '監控整體系統運作'], users: ['User Management', '學生 / 教師帳號'], courses: ['Course Management', '課程新增 / 編輯 / 刪除'], videos: ['Video Library', '全系統影片管理'], stats: ['Statistics', 'usage_logs 統計'] },
 };

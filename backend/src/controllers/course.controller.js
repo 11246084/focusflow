@@ -49,8 +49,21 @@ const getCourseById = asyncHandler(async (req, res) => {
   });
 });
 
+const updateCourse = asyncHandler(async (req, res) => {
+  const { title, description, status } = req.body;
+  const course = await courseService.updateCourse(req.params.courseId, { title, description, status }, req.user);
+  return sendSuccess(res, { message: 'Course updated.', data: { course } });
+});
+
+const deleteCourse = asyncHandler(async (req, res) => {
+  await courseService.deleteCourse(req.params.courseId, req.user);
+  return sendSuccess(res, { message: 'Course deleted.' });
+});
+
 module.exports = {
   createCourse,
   listCourses,
   getCourseById,
+  updateCourse,
+  deleteCourse,
 };

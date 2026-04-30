@@ -119,6 +119,17 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
     if args.video_id is not None:
         overrides["target_video_id"] = args.video_id
 
+        # Backend-triggered uploads can run in parallel. Keep each run's
+        # artifacts isolated so JSON/JSONL exports and MongoDB uploads do not
+        # overwrite another video's in-flight outputs.
+        run_output_dir = (args.project_root / "data" / "outputs" / "runs" / args.video_id).resolve()
+        overrides["output_dir"] = run_output_dir
+        overrides["normalized_transcript_output_path"] = run_output_dir / "transcripts_normalized.json"
+        overrides["chunks_output_path"] = run_output_dir / "chunks.jsonl"
+        overrides["text_embeddings_output_path"] = run_output_dir / "embeddings_text_gemini.jsonl"
+        overrides["audio_embeddings_output_path"] = run_output_dir / "embeddings_audio_gemini.jsonl"
+        overrides["video_embeddings_output_path"] = run_output_dir / "embeddings_video_gemini.jsonl"
+
     # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
 
@@ -231,7 +242,7 @@ def main() -> int:
     # Pipeline 完成後自動上傳結果到 MongoDB
     print("\nStarting MongoDB upload...")
     import mongodb_uploader
-    if mongodb_uploader.main() != 0:
+    if not mongodb_uploader.upload_all(config):
         logger.error("MongoDB upload failed.")
         notify_backend(config, args.video_id, "fail", {"errorMessage": "MongoDB upload failed."})
         return 1
@@ -240,8 +251,10 @@ def main() -> int:
     # 同時傳入 pipeline 的 video_id（如 "video_001"），讓後端存到 Video 文件
     # 建立 app Video._id 與 video_segments_text.video_id 的對應關係
     external_video_id = pipeline_videos[0].video_id if pipeline_videos else None
+    duration_sec = pipeline_videos[0].duration_sec if pipeline_videos else None
     notify_backend(config, args.video_id, "complete", {
         "externalVideoId": external_video_id,
+        "durationSec": duration_sec,
     })
 
     # 返回成功退出碼 0

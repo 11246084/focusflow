@@ -79,6 +79,19 @@ def safe_upsert(collection: Any, key_name: str, key_value: Any, document: dict[s
     return True
 
 
+def _as_object_id(value: Any) -> Any | None:
+    """Return a MongoDB ObjectId when value is a valid ObjectId string."""
+    try:
+        from bson import ObjectId
+    except ImportError:  # pragma: no cover - pymongo provides bson in normal runs
+        return None
+
+    if not isinstance(value, str) or not ObjectId.is_valid(value):
+        return None
+
+    return ObjectId(value)
+
+
 def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
     """Upload normalized video metadata into the existing videos collection."""
     # 初始化上傳統計
@@ -124,7 +137,23 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
 
         # 嘗試安全 upsert
         try:
-            safe_upsert(collection, "video_id", document["video_id"], document)
+            object_id = _as_object_id(document["video_id"])
+            if object_id is not None and collection.find_one({"_id": object_id}) is not None:
+                collection.update_one(
+                    {"_id": object_id},
+                    {
+                        "$set": {
+                            "video_id": document["video_id"],
+                            "file_name": document["file_name"],
+                            "file_path": document["file_path"],
+                            "audio_path": document["audio_path"],
+                            "durationSec": document["duration_sec"],
+                            "duration_sec": document["duration_sec"],
+                        },
+                    },
+                )
+            else:
+                safe_upsert(collection, "video_id", document["video_id"], document)
             stats.success += 1
         # 捕獲異常並記錄錯誤
         except Exception as exc:  # pragma: no cover - depends on external MongoDB state
@@ -226,7 +255,7 @@ def upload_text_embeddings(database: Any, config: PipelineConfig) -> UploadStats
         VIDEO_SEGMENTS_TEXT_COLLECTION,
     )
 
-    # 定義必需的鍵
+    # 定義必需的鍵（pipeline 輸出仍為 snake_case，這裡驗證原始欄位）
     required_keys = {"chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding"}
     # 遍歷每個嵌入記錄
     for record in embedding_records:
@@ -257,20 +286,20 @@ def upload_text_embeddings(database: Any, config: PipelineConfig) -> UploadStats
 
         # 獲取對應的塊記錄
         chunk_record = chunk_map.get(chunk_id, {})
-        # 構建要插入的文檔
+        # 構建要插入的文檔（欄位名稱對齊 video_segments_text index：camelCase）
         document = {
-            "chunk_id": chunk_id,
-            "video_id": record["video_id"],
-            "segment_id": chunk_record.get("segment_id"),
-            "start_sec": float(record["start_sec"]),
-            "end_sec": float(record["end_sec"]),
+            "chunkId": chunk_id,
+            "videoId": record["video_id"],
+            "segmentId": chunk_record.get("segment_id"),
+            "startSec": float(record["start_sec"]),
+            "endSec": float(record["end_sec"]),
             "text": record["text"],
             "embedding": embedding,
         }
 
         # 嘗試安全 upsert
         try:
-            safe_upsert(collection, "chunk_id", chunk_id, document)
+            safe_upsert(collection, "chunkId", chunk_id, document)
             stats.success += 1
         # 捕獲異常並記錄錯誤
         except Exception as exc:  # pragma: no cover - depends on external MongoDB state
@@ -361,6 +390,41 @@ def upload_video_embeddings(database: Any, config: PipelineConfig) -> UploadStat
     # 記錄摘要
     log_summary(VIDEO_SEGMENTS_VIDEO_COLLECTION, stats)
     return stats
+
+
+def upload_all(config: PipelineConfig) -> bool:
+    """Upload one configured pipeline output set into MongoDB."""
+    if not config.mongodb_uri:
+        LOGGER.error("MONGODB_URI is not configured in .env.")
+        return False
+
+    try:
+        from pymongo import MongoClient
+    except ImportError as exc:
+        raise RuntimeError("pymongo is not installed. Run 'pip install -r requirements.txt' first.") from exc
+
+    LOGGER.info("Connecting to MongoDB database=%s", config.mongodb_database_name)
+    client = MongoClient(config.mongodb_uri)
+
+    try:
+        client.admin.command("ping")
+    except Exception as exc:  # pragma: no cover - depends on external MongoDB state
+        LOGGER.error("Failed to connect to MongoDB: %s", exc)
+        return False
+
+    database = client[config.mongodb_database_name]
+
+    upload_videos(database, config)
+    upload_transcripts_normalized(database, config)
+    upload_text_embeddings(database, config)
+    upload_video_embeddings(database, config)
+
+    print("MongoDB upload completed.")
+    print(f"videos -> {VIDEOS_COLLECTION}")
+    print(f"transcripts_normalized -> {TRANSCRIPTS_NORMALIZED_COLLECTION}")
+    print(f"video_segments_text -> {VIDEO_SEGMENTS_TEXT_COLLECTION}")
+    print(f"video_segments_video -> {VIDEO_SEGMENTS_VIDEO_COLLECTION}")
+    return True
 
 
 def main() -> int:

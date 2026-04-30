@@ -41,6 +41,21 @@ function buildTextMessage(text) {
   };
 }
 
+function normalizeIncomingTextMessage(text) {
+  const trimmedText = String(text || '').trim();
+  const legacyTextParamMatch = trimmedText.match(/^text=(.+)$/i);
+
+  if (!legacyTextParamMatch) {
+    return trimmedText;
+  }
+
+  try {
+    return decodeURIComponent(legacyTextParamMatch[1]).trim();
+  } catch {
+    return legacyTextParamMatch[1].trim();
+  }
+}
+
 // 把回覆結果（是否成功送出、跳過原因）合併進事件處理結果物件
 // 這樣每個 handler 回傳的物件格式都一致，方便 controller 層整理
 function attachReplyMetadata(result, replyResult) {
@@ -101,6 +116,49 @@ async function generateBindToken(userId) {
 
   await LineBindToken.create({ token, userId, expiresAt });
   return token;
+}
+
+async function bindLineUserWithToken(lineUserId, token) {
+  const record = await LineBindToken.findOne({ token });
+
+  if (!record) {
+    return {
+      ok: false,
+      reason: 'token_not_found',
+    };
+  }
+
+  if (record.expiresAt < new Date()) {
+    await LineBindToken.deleteOne({ token });
+    return {
+      ok: false,
+      reason: 'token_expired',
+    };
+  }
+
+  await User.updateMany(
+    { lineUserId, _id: { $ne: record.userId } },
+    {
+      $unset: { lineUserId: '' },
+      $set: {
+        lineBindAt: null,
+        lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+      },
+    },
+  );
+
+  await User.findByIdAndUpdate(record.userId, {
+    lineUserId,
+    lineBindAt: new Date(),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+  });
+
+  await LineBindToken.deleteOne({ token });
+
+  return {
+    ok: true,
+    userId: record.userId,
+  };
 }
 
 // 處理「加好友」事件：使用者第一次把 Bot 加為好友時觸發
@@ -281,6 +339,46 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
 
 // 處理使用者點選課程按鈕後的 postback 事件
 // 驗證使用者有該課程的存取權，確認後把 activeCourseId 寫入 User 文件
+async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken) {
+  const bindResult = await bindLineUserWithToken(lineUserId, token);
+
+  if (bindResult.reason === 'token_not_found') {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('綁定連結已失效，請回到 FocusFlow 重新開啟 QR code。'),
+    ]);
+    return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'token_not_found' }, replyResult);
+  }
+
+  if (bindResult.reason === 'token_expired') {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('綁定連結已過期，請回到 FocusFlow 重新開啟 QR code。'),
+    ]);
+    return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'token_expired' }, replyResult);
+  }
+
+  const user = await User.findById(bindResult.userId);
+  const course = await Course.findById(courseId);
+  const enrollment = await Enrollment.findOne({ studentId: user._id, courseId });
+
+  if (!course || (!enrollment && course.status !== 'published')) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('LINE 帳號已綁定，但你目前無法存取這門課程。'),
+    ]);
+    return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_access_denied' }, replyResult);
+  }
+
+  await User.findByIdAndUpdate(user._id, {
+    activeCourseId: new mongoose.Types.ObjectId(courseId),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+  });
+
+  const replyResult = await replyMessage(replyToken, [
+    buildTextMessage(`LINE 帳號已綁定，並已切換到「${course.title}」。現在可以直接提問。`),
+  ]);
+
+  return attachReplyMetadata({ type: 'bind_course', handled: true }, replyResult);
+}
+
 async function handleSelectCourse(lineUserId, courseId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
@@ -525,7 +623,17 @@ async function processWebhookEvent(event) {
 
   // 使用者傳送文字訊息
   if (event.type === 'message' && event.message?.type === 'text') {
-    const text = String(event.message.text || '').trim();
+    const text = normalizeIncomingTextMessage(event.message.text);
+    const bindCourseMatch = text.match(/^BIND:([a-f0-9]{64}):COURSE:([a-f0-9]{24})$/i);
+
+    if (bindCourseMatch) {
+      return handleBindAndSelectCourse(
+        lineUserId,
+        bindCourseMatch[1].toLowerCase(),
+        bindCourseMatch[2],
+        replyToken,
+      );
+    }
 
     // 64 字元十六進位字串 → 視為綁定碼，觸發帳號綁定流程
     if (/^[a-f0-9]{64}$/i.test(text)) {

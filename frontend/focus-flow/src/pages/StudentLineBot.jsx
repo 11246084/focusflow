@@ -5,6 +5,12 @@ import { apiFetch } from '../api';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
+function lineMessageUrl(text) {
+  if (!LINE_BOT_URL || !text) return LINE_BOT_URL;
+  const base = LINE_BOT_URL.replace('/ti/p/', '/oaMessage/');
+  return `${base}/?${encodeURIComponent(text)}`;
+}
+
 export default function StudentLineBot() {
   const [user, setUser]       = useState(null);
   const [bindToken, setToken] = useState('');
@@ -16,7 +22,10 @@ export default function StudentLineBot() {
     apiFetch('/auth/me')
       .then(r => setUser(r.data?.user || null))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        getBindToken();
+      });
   }, []);
 
   async function getBindToken() {
@@ -117,7 +126,7 @@ export default function StudentLineBot() {
           {LINE_BOT_URL && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <div style={{ padding: 14, background: '#fff', borderRadius: 16 }}>
-                <QRCodeSVG value={LINE_BOT_URL} size={150} bgColor="#ffffff" fgColor="#000000" />
+                <QRCodeSVG value={bindToken ? lineMessageUrl(bindToken) : LINE_BOT_URL} size={150} bgColor="#ffffff" fgColor="#000000" />
               </div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
                 手機掃碼<br />加入 LINE Bot

@@ -5,21 +5,22 @@ import { apiFetch, BACKEND_ORIGIN } from '../api';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
-// 將 add-friend URL 轉為 oaMessage URL 並帶入課程 ID
-// line.me/R/ti/p/@id → line.me/R/oaMessage/@id/?text=COURSE:{courseId}
-function lineCourseUrl(courseId) {
-  if (!LINE_BOT_URL || !courseId) return LINE_BOT_URL;
+// 將 add-friend URL 轉為 oaMessage URL 並預填訊息
+// line.me/R/ti/p/@id -> line.me/R/oaMessage/@id/?{message}
+function lineMessageUrl(text) {
+  if (!LINE_BOT_URL || !text) return LINE_BOT_URL;
   const base = LINE_BOT_URL.replace('/ti/p/', '/oaMessage/');
-  return `${base}/?text=${encodeURIComponent('COURSE:' + courseId)}`;
+  return `${base}/?${encodeURIComponent(text)}`;
 }
 
 // 點擊後在頁面內展開 QR code 小卡，不開新分頁
 // 使用 fixed 定位避免被父容器 overflow 裁切
 function AskTAButton({ courseId, courseName, variant = 'list' }) {
   const [pos, setPos] = useState(null); // null = closed, {top,right} = open
+  const [url, setUrl] = useState(LINE_BOT_URL);
+  const [loadingUrl, setLoadingUrl] = useState(false);
   const btnRef = useRef(null);
   const cardRef = useRef(null);
-  const url = lineCourseUrl(courseId);
 
   useEffect(() => {
     if (!pos) return;
@@ -37,10 +38,26 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
 
   const isDetail = variant === 'detail';
 
-  function handleClick(e) {
+  async function buildCourseBindUrl() {
+    if (!courseId) return LINE_BOT_URL;
+
+    try {
+      setLoadingUrl(true);
+      const res = await apiFetch('/line/bind-token', { method: 'POST' });
+      const token = res.data?.token || res.data?.bindToken || '';
+      return token ? lineMessageUrl(`BIND:${token}:COURSE:${courseId}`) : lineMessageUrl(`COURSE:${courseId}`);
+    } catch {
+      return lineMessageUrl(`COURSE:${courseId}`);
+    } finally {
+      setLoadingUrl(false);
+    }
+  }
+
+  async function handleClick(e) {
     e.stopPropagation();
     if (pos) { setPos(null); return; }
     const rect = btnRef.current.getBoundingClientRect();
+    setUrl(await buildCourseBindUrl());
     setPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
   }
 
@@ -64,7 +81,7 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
             <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
-            手機掃碼開啟 LINE Bot<br />
+            {loadingUrl ? 'Building QR code' : 'Scan and send LINE message'}<br />
             <span style={{ color: '#F14F21' }}>{courseName}</span>
           </div>
         </div>

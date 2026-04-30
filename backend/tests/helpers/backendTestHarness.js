@@ -117,6 +117,12 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
     }
   }
 
+  if (update.$unset) {
+    for (const key of Object.keys(update.$unset)) {
+      setNested(target, key, undefined);
+    }
+  }
+
   if (isInsert && update.$setOnInsert) {
     for (const [key, value] of Object.entries(update.$setOnInsert)) {
       setNested(target, key, value);
@@ -165,6 +171,10 @@ function matchesQuery(document, query = {}) {
 
     if (value && typeof value === 'object' && '$in' in value) {
       return value.$in.map(normalizeValue).includes(normalizeValue(currentValue));
+    }
+
+    if (value && typeof value === 'object' && '$ne' in value) {
+      return normalizeValue(currentValue) !== normalizeValue(value.$ne);
     }
 
     return normalizeValue(currentValue) === normalizeValue(value);
@@ -344,6 +354,18 @@ function installModelStubs() {
 
     applyUpdate(user, update);
     return user;
+  };
+  User.updateMany = async (query, update) => {
+    const users = store.users.filter((item) => matchesQuery(item, query));
+
+    for (const user of users) {
+      applyUpdate(user, update);
+    }
+
+    return {
+      matchedCount: users.length,
+      modifiedCount: users.length,
+    };
   };
 
   Course.create = async (payload) => {

@@ -1107,8 +1107,8 @@ body {
 .prog-fill  { height: 100%; border-radius: 3px; background: #F14F21; }
 
 .ff-tbl { width: 100%; border-collapse: collapse; }
-.ff-tbl th { color: rgba(255,255,255,0.35); font-size: 10.5px; letter-spacing: .1em; font-weight: 600; padding: 10px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.07); text-transform: uppercase; }
-.ff-tbl td { color: rgba(255,255,255,0.82); font-size: 13px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.ff-tbl th { color: rgba(255,255,255,0.68); font-size: 10.5px; letter-spacing: .1em; font-weight: 700; padding: 10px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.09); text-transform: uppercase; }
+.ff-tbl td { color: rgba(255,255,255,0.9); font-size: 13px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: middle; }
 .ff-tbl tr:last-child td { border: none; }
 .ff-tbl tbody tr:hover td { background: rgba(255,255,255,0.025); }
 

@@ -203,7 +203,7 @@ async function collectExistingDemoTargets() {
     .filter(Boolean);
   const [courses, videos] = await Promise.all([
     Course.find({ title: { $in: DEMO_COURSE_TITLES } }),
-    Video.find({ video_id: { $in: DEMO_VIDEO_IDS } }),
+    Video.find({ videoId: { $in: DEMO_VIDEO_IDS } }),
   ]);
 
   return {
@@ -234,7 +234,7 @@ async function resetDemoData({ silent = false } = {}) {
   await Video.deleteMany({
     $or: [
       { _id: { $in: Object.values(DEMO_RECORD_IDS.videos) } },
-      { video_id: { $in: DEMO_VIDEO_IDS } },
+      { videoId: { $in: DEMO_VIDEO_IDS } },
     ],
   });
   await Course.deleteMany({
@@ -258,14 +258,13 @@ function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
     title: definition.title,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
     sourceUrl,
-    video_id: definition.videoId,
-    file_name: definition.filename,
-    file_path: storagePath,
+    videoId: definition.videoId,
+    fileName: definition.filename,
+    filePath: storagePath,
     storagePath,
     durationSec: definition.durationSec,
-    duration_sec: definition.durationSec,
-    video_source: VIDEO_SOURCE_TYPES.UPLOAD,
-    video_url: sourceUrl,
+    videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
+    videoUrl: sourceUrl,
     uploadedBy,
     processing: definition.processing,
   };
@@ -274,10 +273,9 @@ function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
 function buildPipelineStyleBridgeVideoPayload(definition) {
   return {
     title: definition.title,
-    video_id: definition.videoId,
-    file_name: definition.filename,
+    videoId: definition.videoId,
+    fileName: definition.filename,
     durationSec: definition.durationSec,
-    duration_sec: definition.durationSec,
   };
 }
 
@@ -332,7 +330,7 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const publishedVideo = await Video.findOneAndUpdate(
-    { video_id: DEMO_VIDEOS.published.videoId },
+    { videoId: DEMO_VIDEOS.published.videoId },
     {
       $set: buildDemoVideoPayload({
         courseId: publishedCourse._id,
@@ -351,7 +349,7 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const draftVideo = await Video.findOneAndUpdate(
-    { video_id: DEMO_VIDEOS.draft.videoId },
+    { videoId: DEMO_VIDEOS.draft.videoId },
     {
       $set: buildDemoVideoPayload({
         courseId: draftCourse._id,
@@ -402,7 +400,7 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const pipelineBridgeVideo = await Video.findOneAndUpdate(
-    { video_id: DEMO_VIDEOS.pipelineBridge.videoId },
+    { videoId: DEMO_VIDEOS.pipelineBridge.videoId },
     {
       $set: buildPipelineStyleBridgeVideoPayload(DEMO_VIDEOS.pipelineBridge),
       $setOnInsert: {
@@ -414,10 +412,10 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
         processing: 1,
         sourceType: 1,
         sourceUrl: 1,
-        file_path: 1,
+        filePath: 1,
         storagePath: 1,
-        video_source: 1,
-        video_url: 1,
+        videoSource: 1,
+        videoUrl: 1,
       },
     },
     {
@@ -569,21 +567,21 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
       {
         key: 'publishedVideo',
         id: String(publishedVideo._id),
-        videoId: publishedVideo.video_id,
+        videoId: publishedVideo.videoId,
         title: publishedVideo.title,
         processingStatus: publishedVideo.processing.status,
       },
       {
         key: 'draftVideo',
         id: String(draftVideo._id),
-        videoId: draftVideo.video_id,
+        videoId: draftVideo.videoId,
         title: draftVideo.title,
         processingStatus: draftVideo.processing.status,
       },
       {
         key: 'pipelineBridgeVideo',
         id: String(pipelineBridgeVideo._id),
-        videoId: pipelineBridgeVideo.video_id,
+        videoId: pipelineBridgeVideo.videoId,
         title: pipelineBridgeVideo.title,
         processingStatus: null,
       },

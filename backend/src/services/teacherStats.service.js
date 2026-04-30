@@ -18,7 +18,7 @@ async function getTeacherDashboardStats(user) {
 
   const recentVideos = videos.slice(0, 4).map((v) => ({
     id: String(v._id),
-    title: v.title || v.file_name || '未命名',
+    title: v.title || v.fileName || '未命名',
     courseName: courseMap[String(v.courseId)] || '—',
     status: v.processing?.status || null,
     updatedAt: v.updatedAt,

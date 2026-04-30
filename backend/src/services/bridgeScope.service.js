@@ -82,7 +82,6 @@ function addVideoIdentifiers(targetSet, video) {
   addIdentifier(targetSet, video._id);
   addIdentifier(targetSet, video.id);
   addIdentifier(targetSet, video.videoId);
-  addIdentifier(targetSet, video.video_id);
 }
 
 function sortByCreatedAtDesc(items) {
@@ -104,7 +103,7 @@ async function collectScopedVideos(course) {
       return;
     }
 
-    const videoKey = normalizeIdentifier(video._id, video.id, video.videoId, video.video_id);
+    const videoKey = normalizeIdentifier(video._id, video.id, video.videoId);
 
     if (!videoKey || videosById.has(videoKey)) {
       return;
@@ -161,11 +160,11 @@ function buildCourseBridgeSummary(course, scopedVideos = {}) {
     metadataOnlyVideoCount: pipelineMetadataVideos.length,
     courseVideoRefCount: courseVideoRefs.length,
     bridgeExternalVideoIds: pipelineMetadataVideos
-      .map((video) => normalizeIdentifier(video.video_id, video.videoId))
+      .map((video) => normalizeIdentifier(video.videoId))
       .filter(Boolean),
     courseVideoIds: courseVideoRefs,
     bridgeContract: 'course_video_refs_v1',
-    bridgeContractPath: 'course.videoIds -> videos.video_id -> video_segments_text.video_id',
+    bridgeContractPath: 'course.videoIds -> videos.videoId -> video_segments_text.videoId',
   };
 }
 
@@ -178,15 +177,14 @@ function buildCourseBridgePresentation(course, scopedVideos) {
 
 function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
   const plainVideo = toPlainObject(video);
-  const externalVideoId = normalizeIdentifier(plainVideo.video_id, plainVideo.videoId);
-  const durationSec = normalizeNumber(plainVideo.durationSec, plainVideo.duration_sec);
-  const fileName = normalizeTranscript(plainVideo.fileName, plainVideo.file_name);
+  const externalVideoId = normalizeIdentifier(plainVideo.videoId);
+  const durationSec = normalizeNumber(plainVideo.durationSec);
+  const fileName = normalizeTranscript(plainVideo.fileName);
 
   if (Video.isAppOwnedRecord(video)) {
     return {
       ...plainVideo,
       durationSec,
-      duration_sec: durationSec,
       fileName,
       externalVideoId,
       qaScopeOnly: false,
@@ -200,19 +198,16 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
   return {
     _id: normalizeIdentifier(plainVideo._id, plainVideo.id),
     courseId: normalizeIdentifier(courseId),
-    title: normalizeTranscript(plainVideo.title, plainVideo.file_name, externalVideoId),
+    title: normalizeTranscript(plainVideo.title, plainVideo.fileName, externalVideoId),
     sourceType: plainVideo.sourceType || null,
-    sourceUrl: pickFirstDefined(plainVideo.sourceUrl, plainVideo.video_url),
+    sourceUrl: plainVideo.sourceUrl || null,
     uploadedBy: null,
     processing: null,
-    video_id: externalVideoId,
     videoId: externalVideoId,
     externalVideoId,
-    file_name: fileName || null,
     fileName: fileName || null,
-    file_path: pickFirstDefined(plainVideo.file_path, plainVideo.filePath),
+    filePath: plainVideo.filePath || null,
     durationSec,
-    duration_sec: durationSec,
     createdAt: plainVideo.createdAt || null,
     updatedAt: plainVideo.updatedAt || null,
     qaScopeOnly: true,

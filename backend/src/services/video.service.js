@@ -124,13 +124,12 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     title: String(title || '').trim() || file.originalname,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
     sourceUrl: `/uploads/${file.filename}`,
-    file_name: file.originalname,
-    file_path: file.path,
+    fileName: file.originalname,
+    filePath: file.path,
     storagePath: file.path,
     durationSec: null,
-    duration_sec: null,
-    video_source: VIDEO_SOURCE_TYPES.UPLOAD,
-    video_url: `/uploads/${file.filename}`,
+    videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
+    videoUrl: `/uploads/${file.filename}`,
     uploadedBy,
     processing: createQueuedProcessingState(),
   });
@@ -213,7 +212,7 @@ async function deleteVideo(videoId, user) {
     throw new AppError('You do not have permission to delete this video.', 403, 'FORBIDDEN');
   }
 
-  const segmentKey = video.video_id || String(video._id);
+  const segmentKey = video.videoId || String(video._id);
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });

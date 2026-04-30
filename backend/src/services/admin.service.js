@@ -118,10 +118,10 @@ async function listVideos() {
   return videos.map(v => {
     const course = v.courseId ? courseMap[String(v.courseId)] : null;
     const teacher = course?.teacherId ? teacherMap[String(course.teacherId)] : null;
-    const segKey = v.video_id || String(v._id);
+    const segKey = v.videoId || String(v._id);
     return {
       id: String(v._id),
-      title: v.title || v.file_name || 'Untitled',
+      title: v.title || v.fileName || 'Untitled',
       course: course?.title || '—',
       teacher: teacher?.name || '—',
       status: v.processing?.status || 'pending',
@@ -177,8 +177,7 @@ async function deleteVideo(videoId) {
   const video = await Video.findById(videoId).lean();
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
 
-  // Delete associated VideoSegments (linked by video_id string or _id string)
-  const segmentKey = video.video_id || String(video._id);
+  const segmentKey = video.videoId || String(video._id);
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
 

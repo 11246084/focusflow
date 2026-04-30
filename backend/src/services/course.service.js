@@ -131,7 +131,7 @@ async function deleteCourse(courseId, user) {
   // Cascade: delete all videos in this course and their segments
   const videos = await Video.find({ courseId }).lean();
   for (const v of videos) {
-    const segKey = v.video_id || String(v._id);
+    const segKey = v.videoId || String(v._id);
     await VideoSegment.deleteMany({ videoId: segKey });
   }
   await Video.deleteMany({ courseId });

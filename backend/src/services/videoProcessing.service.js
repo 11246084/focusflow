@@ -136,19 +136,15 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
 
   if (normalizedDurationSec !== undefined) {
     $set.durationSec = normalizedDurationSec;
-    $set.duration_sec = normalizedDurationSec;
   }
 
-  // 將 pipeline 的 video_id（如 "video_001"）存回 Video 文件
-  // 讓 bridge scope 可以把 app Video._id 對應到 video_segments_text.video_id
-  // 同一支影片重新上傳時 pipeline 會產生相同的 video_id，先把舊文件的值 unset 避免 unique index 衝突
   if (externalVideoId && String(externalVideoId).trim()) {
     const cleanExternalId = String(externalVideoId).trim();
     await Video.updateMany(
-      { video_id: cleanExternalId, _id: { $ne: video._id } },
-      { $unset: { video_id: '' } },
+      { videoId: cleanExternalId, _id: { $ne: video._id } },
+      { $unset: { videoId: '' } },
     );
-    $set.video_id = cleanExternalId;
+    $set.videoId = cleanExternalId;
   }
 
   return updateVideoProcessing(videoId, { $set });

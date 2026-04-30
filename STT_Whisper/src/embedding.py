@@ -383,7 +383,7 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
                 request_id = getattr(response, "request_id", None)
 
                 # 處理每個嵌入結果
-                for chunk, embedding in zip(chunk_batch, response.embeddings, strict=True):
+                for chunk, embedding in zip(chunk_batch, response.embeddings):
                     record = _build_text_record(
                         chunk,
                         config,

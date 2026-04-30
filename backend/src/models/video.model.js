@@ -20,9 +20,7 @@ function isAppOwnedVideoRecord(video) {
 }
 
 function isPipelineMetadataRecord(video) {
-  const externalVideoId = video?.video_id ?? video?.videoId;
-
-  return Boolean(hasValue(externalVideoId) && !isAppOwnedVideoRecord(video));
+  return Boolean(hasValue(video?.videoId) && !isAppOwnedVideoRecord(video));
 }
 
 const processingSchema = new mongoose.Schema(
@@ -91,23 +89,23 @@ const videoSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
-    video_id: {
+    videoId: {
       type: String,
       trim: true,
       unique: true,
       sparse: true,
     },
-    file_name: {
+    fileName: {
       type: String,
       default: null,
       trim: true,
     },
-    file_path: {
+    filePath: {
       type: String,
       default: null,
       trim: true,
     },
-    audio_path: {
+    audioPath: {
       type: String,
       default: null,
       trim: true,
@@ -122,11 +120,6 @@ const videoSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
-    duration_sec: {
-      type: Number,
-      default: null,
-      min: 0,
-    },
     week: {
       type: Number,
       default: null,
@@ -137,12 +130,12 @@ const videoSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
-    video_source: {
+    videoSource: {
       type: String,
       default: null,
       trim: true,
     },
-    video_url: {
+    videoUrl: {
       type: String,
       default: null,
       trim: true,

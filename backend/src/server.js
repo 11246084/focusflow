@@ -8,23 +8,24 @@ const env = require('./config/env');
 const { connectDatabase } = require('./config/database');
 const { seedDemoData } = require('./services/demoSeed.service');
 
-async function migrateVideoIdNulls() {
-  // sparse unique index 只跳過「欄位不存在」的文件，不跳過 video_id: null。
-  // 把舊的 null 值 unset，讓 app-owned 文件不佔用 index slot。
+async function migrateVideoFields() {
   const Video = require('./models/video.model');
-  const result = await Video.updateMany(
-    { video_id: null },
-    { $unset: { video_id: '' } },
+  // Rename legacy snake_case fields to camelCase for any documents not yet migrated.
+  const renameResult = await Video.updateMany(
+    { video_id: { $exists: true } },
+    [{ $set: { videoId: '$video_id' } }, { $unset: 'video_id' }],
   );
-  if (result.modifiedCount > 0) {
-    console.log(`Migrated ${result.modifiedCount} video(s): unset video_id: null`);
+  if (renameResult.modifiedCount > 0) {
+    console.log(`Migrated ${renameResult.modifiedCount} video(s): video_id -> videoId`);
   }
+  // Unset videoId: null so app-owned docs don't occupy the sparse unique index slot.
+  await Video.updateMany({ videoId: null }, { $unset: { videoId: '' } });
 }
 
 async function startServer() {
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
-  await migrateVideoIdNulls();
+  await migrateVideoFields();
 
   if (env.demoSeedEnabled) {
     await seedDemoData({ silent: true });

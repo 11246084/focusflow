@@ -155,6 +155,7 @@ STT_Whisper/data/outputs/
 STT_Whisper/data/cache/
 STT_Whisper/data/video_multimodal_chunks/
 STT_Whisper/Test_video_file/
+STT_Whisper/data/
 
 __pycache__/
 *.pyc
@@ -165,12 +166,16 @@ __pycache__/
 # ================================
 CLAUDE.local.md
 .claude/settings.local.json
+.mcp.json
+
 
 # ================================
 # Local planning / temp docs
 # ================================
 # TODO.md
 DESIGN.md
+CHANGES_SUMMARY.js
+backend/image.png
 
 # DATABASE
 database/Lib/

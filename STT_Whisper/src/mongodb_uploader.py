@@ -106,11 +106,8 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
     # 記錄上傳開始
     LOGGER.info("Uploading videos from %s into collection=%s", source_path, VIDEOS_COLLECTION)
 
-    # 定義必需的鍵
     required_keys = {"video_id", "file_name", "file_path", "audio_path", "duration_sec"}
-    # 遍歷每個記錄
     for record in records:
-        # 檢查缺少的鍵
         missing_keys = sorted(required_keys - record.keys())
         if missing_keys:
             stats.skip += 1
@@ -122,46 +119,35 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
             )
             continue
 
-        # 構建要插入的文檔
+        video_id_val = record["video_id"]
         document = {
-            "video_id": record["video_id"],
-            "file_name": record["file_name"],
-            "file_path": record["file_path"],
-            "audio_path": record["audio_path"],
-            "duration_sec": float(record["duration_sec"]),
+            "videoId": video_id_val,
+            "fileName": record["file_name"],
+            "filePath": record["file_path"],
+            "audioPath": record["audio_path"],
+            "durationSec": float(record["duration_sec"]),
             "week": record.get("week"),
             "lesson": record.get("lesson"),
-            "video_source": record.get("video_source", "local"),
-            "video_url": record.get("video_url"),
+            "videoSource": record.get("video_source", "local"),
+            "videoUrl": record.get("video_url"),
         }
 
-        # 嘗試安全 upsert
         try:
-            object_id = _as_object_id(document["video_id"])
+            object_id = _as_object_id(video_id_val)
             if object_id is not None and collection.find_one({"_id": object_id}) is not None:
                 collection.update_one(
                     {"_id": object_id},
-                    {
-                        "$set": {
-                            "video_id": document["video_id"],
-                            "file_name": document["file_name"],
-                            "file_path": document["file_path"],
-                            "audio_path": document["audio_path"],
-                            "durationSec": document["duration_sec"],
-                            "duration_sec": document["duration_sec"],
-                        },
-                    },
+                    {"$set": document},
                 )
             else:
-                safe_upsert(collection, "video_id", document["video_id"], document)
+                safe_upsert(collection, "videoId", video_id_val, document)
             stats.success += 1
-        # 捕獲異常並記錄錯誤
         except Exception as exc:  # pragma: no cover - depends on external MongoDB state
             stats.error += 1
             LOGGER.error(
-                "[MongoDB Error] collection=%s key=video_id value=%s error=%s",
+                "[MongoDB Error] collection=%s key=videoId value=%s error=%s",
                 VIDEOS_COLLECTION,
-                document["video_id"],
+                video_id_val,
                 exc,
             )
 

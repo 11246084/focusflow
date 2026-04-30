@@ -414,10 +414,39 @@ def upload_all(config: PipelineConfig) -> bool:
 
     database = client[config.mongodb_database_name]
 
-    upload_videos(database, config)
-    upload_transcripts_normalized(database, config)
-    upload_text_embeddings(database, config)
-    upload_video_embeddings(database, config)
+    video_stats = upload_videos(database, config)
+    transcript_stats = upload_transcripts_normalized(database, config)
+    text_embedding_stats = upload_text_embeddings(database, config)
+    video_embedding_stats = upload_video_embeddings(database, config)
+
+    required_stats = {
+        VIDEOS_COLLECTION: video_stats,
+        TRANSCRIPTS_NORMALIZED_COLLECTION: transcript_stats,
+        VIDEO_SEGMENTS_TEXT_COLLECTION: text_embedding_stats,
+    }
+
+    for collection_name, stats in required_stats.items():
+        if stats.error:
+            LOGGER.error(
+                "MongoDB upload failed because collection=%s had %s errors.",
+                collection_name,
+                stats.error,
+            )
+            return False
+        if stats.success == 0:
+            LOGGER.error(
+                "MongoDB upload failed because collection=%s wrote 0 required records.",
+                collection_name,
+            )
+            return False
+
+    if video_embedding_stats.error:
+        LOGGER.error(
+            "MongoDB upload failed because collection=%s had %s errors.",
+            VIDEO_SEGMENTS_VIDEO_COLLECTION,
+            video_embedding_stats.error,
+        )
+        return False
 
     print("MongoDB upload completed.")
     print(f"videos -> {VIDEOS_COLLECTION}")
@@ -433,6 +462,7 @@ def main() -> int:
     config = PipelineConfig.from_env()
     # 配置日誌記錄
     configure_logging(config.log_level)
+    return 0 if upload_all(config) else 1
 
     # 檢查 MongoDB URI 是否配置
     if not config.mongodb_uri:

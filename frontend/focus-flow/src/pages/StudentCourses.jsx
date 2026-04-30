@@ -75,12 +75,11 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
 
 const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'];
 
-function QAPanel({ courseId }) {
+function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [result, setResult]     = useState(null);
   const [error, setError]       = useState('');
-  const videoRef = useRef(null);
 
   async function ask() {
     if (!question.trim()) return;
@@ -120,17 +119,44 @@ function QAPanel({ courseId }) {
       {result && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, marginBottom: 10 }}>{result.answer}</div>
+          {(result.matches || result.segments || []).length > 0 && (
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
+              命中片段
+            </div>
+          )}
           {(result.segments || result.matches || []).slice(0, 3).map((seg, i) => {
             const start = seg.startSec ?? seg.start_sec ?? 0;
-            const text  = seg.text || seg.content || '';
+            const end = seg.endSec ?? seg.end_sec ?? start;
+            const text  = seg.transcript || seg.text || seg.content || '';
+            const score = typeof seg.score === 'number' ? seg.score : null;
+            const matchedIndex = videos.findIndex((video) => (
+              String(video._id || video.id || '') === String(seg.videoId || '')
+              || String(video.videoId || video.externalVideoId || '') === String(seg.videoId || '')
+            ));
+            const matchedVideo = matchedIndex >= 0 ? videos[matchedIndex] : null;
+            const videoTitle = formatVideoLabel(seg, matchedVideo);
             return (
               <div
                 key={i}
                 style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: videoRef.current ? 'pointer' : 'default' }}
-                onClick={() => { if (videoRef.current) { videoRef.current.currentTime = start; videoRef.current.play(); } }}
+                onClick={() => {
+                  if (matchedIndex >= 0 && onJumpToVideo) {
+                    onJumpToVideo(matchedIndex, start);
+                    return;
+                  }
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = start;
+                    videoRef.current.play();
+                  }
+                }}
               >
-                <span style={{ fontSize: 11, color: '#F14F21', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace' }}>{formatTime(start)}</span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{text.slice(0, 120)}{text.length > 120 ? '…' : ''}</span>
+                <span style={{ fontSize: 11, color: '#F14F21', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace' }}>{formatTime(start)}-{formatTime(end)}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.78)', fontWeight: 700 }}>{videoTitle}</span>
+                  {' · '}
+                  {text.slice(0, 160)}{text.length > 160 ? '…' : ''}
+                  {score !== null && <span style={{ color: 'rgba(255,255,255,0.32)' }}> · score {score.toFixed(4)}</span>}
+                </span>
               </div>
             );
           })}
@@ -144,6 +170,23 @@ function formatTime(sec) {
   const m = Math.floor((sec || 0) / 60);
   const s = Math.floor((sec || 0) % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatVideoLabel(segment, video = null) {
+  const title = segment.videoTitle || segment.title || segment.fileName;
+
+  if (title) {
+    return title;
+  }
+
+  const videoTitle = video?.title || video?.fileName || video?.videoId || video?.externalVideoId;
+
+  if (videoTitle) {
+    return videoTitle;
+  }
+
+  const id = String(segment.videoId || '');
+  return id.length > 12 ? `影片 ${id.slice(-6)}` : (id || '影片');
 }
 
 export default function StudentCourses() {
@@ -172,6 +215,16 @@ export default function StudentCourses() {
       setVideos(r.data?.videos || []);
     } catch { /* ignore */ }
     finally { setVLoading(false); }
+  }
+
+  function jumpToVideo(index, startSec) {
+    setPlayingVid(index);
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = startSec || 0;
+        videoRef.current.play();
+      }
+    }, 0);
   }
 
   // Course detail view
@@ -220,7 +273,7 @@ export default function StudentCourses() {
               </div>
             )}
             {playing?.processing?.status === 'completed' && (
-              <QAPanel courseId={selectedCourse._id} videoRef={videoRef} />
+              <QAPanel courseId={selectedCourse._id} videoRef={videoRef} videos={videos} onJumpToVideo={jumpToVideo} />
             )}
           </div>
 

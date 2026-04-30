@@ -123,11 +123,66 @@ function mapSegmentMatch(segment, score) {
   return {
     segmentId: segment.segmentId,
     videoId: segment.videoId,
+    videoTitle: segment.videoTitle || null,
     startSec: segment.startSec,
     endSec: segment.endSec,
     transcript: segment.transcript,
     score: Number(score.toFixed(4)),
   };
+}
+
+function getVideoPresentationTitle(video) {
+  return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
+}
+
+function buildVideoMetadataByIdentifier(scopedVideos) {
+  const lookup = new Map();
+
+  for (const video of scopedVideos?.videos || []) {
+    const id = String(video._id || video.id || '');
+    const externalVideoId = video.videoId ? String(video.videoId) : null;
+    const metadata = {
+      id,
+      videoId: externalVideoId,
+      title: getVideoPresentationTitle(video),
+      sourceUrl: video.sourceUrl || null,
+    };
+
+    for (const identifier of [id, externalVideoId]) {
+      if (identifier) {
+        lookup.set(identifier, metadata);
+      }
+    }
+
+    // App-owned videos can store their Mongo _id in the pipeline-facing videoId
+    // field. If both identifiers differ, keep the _id title as the display value.
+    if (externalVideoId && externalVideoId !== id && lookup.has(externalVideoId)) {
+      const existing = lookup.get(externalVideoId);
+      if (existing?.id === externalVideoId) {
+        lookup.set(externalVideoId, metadata);
+      }
+    }
+  }
+
+  return lookup;
+}
+
+function enrichMatchesWithVideoMetadata(matches, scopedVideos) {
+  const videoLookup = buildVideoMetadataByIdentifier(scopedVideos);
+
+  return matches.map((match) => {
+    const video = videoLookup.get(String(match.videoId || ''));
+
+    if (!video) {
+      return match;
+    }
+
+    return {
+      ...match,
+      videoTitle: video.title,
+      sourceUrl: video.sourceUrl,
+    };
+  });
 }
 
 function buildRuntimeFallback({ stage, code, message, from = null, to = null }) {
@@ -517,7 +572,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const searchResult = env.qaVectorSearchMode === 'atlas'
     ? await searchSegmentsWithAtlas(segmentScope, queryVector)
     : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
-  const matches = searchResult.matches;
+  const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
 
   if (!matches.length) {
     const runtime = buildQaRuntime({

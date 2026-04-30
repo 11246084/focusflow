@@ -142,14 +142,21 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   // 在背景啟動 STT pipeline，不等待完成（不阻擋 HTTP 回應）
   // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
-  const sttProcess = spawn('python', [
+  // 優先使用 venv 內的 Python（已安裝 faster-whisper 等依賴），找不到則 fallback 到系統 python
+  const { existsSync, openSync } = require('fs');
+  const venvPython = path.join(sttDir, '.venv', 'Scripts', 'python.exe');
+  const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+  const logPath = path.join(sttDir, 'data', `pipeline_${video._id}.log`);
+  const logFd = openSync(logPath, 'a');
+  const sttProcess = spawn(pythonBin, [
     'src/main.py',
     '--video-path', path.resolve(file.path),
     '--video-id', String(video._id),
+    '--overwrite',
   ], {
     cwd: sttDir,
-    detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', logFd, logFd],
+    windowsHide: true,
     env: {
       ...process.env,
       BACKEND_URL: `http://localhost:${env.port}`,

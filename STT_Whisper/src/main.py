@@ -108,24 +108,30 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
         overrides["overwrite_existing"] = True
 
     # 若指定了單一影片路徑，轉換為絕對路徑並存入 config
+    # 同時將 video_input_dir 設為該檔案的父目錄，讓 scan_videos 的 relative_to 能正確運作
     if args.video_path is not None:
         video_path = args.video_path
         if not video_path.is_absolute():
             video_path = args.project_root / video_path
-        overrides["target_video_path"] = video_path.resolve()
+        video_path = video_path.resolve()
+        overrides["target_video_path"] = video_path
+        overrides["video_input_dir"] = video_path.parent
+    if args.video_id is not None:
+        overrides["target_video_id"] = args.video_id
 
     # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
 
 
-def notify_backend(config, video_id: str, endpoint: str) -> None:
+def notify_backend(config, video_id: str, endpoint: str, body: dict | None = None) -> None:
     """通知後端更新影片處理狀態（start / complete / fail）。
     若缺少設定或發生錯誤，只記錄警告不中斷 pipeline。
     """
     if not video_id or not config.backend_url or not config.processing_webhook_secret:
         return
+    import json
     url = f"{config.backend_url}/api/v1/internal/videos/{video_id}/processing/{endpoint}"
-    req = urllib.request.Request(url, method="POST", data=b"{}")
+    req = urllib.request.Request(url, method="POST", data=json.dumps(body or {}).encode())
     req.add_header("Content-Type", "application/json")
     req.add_header("X-Processing-Secret", config.processing_webhook_secret)
     try:
@@ -135,7 +141,7 @@ def notify_backend(config, video_id: str, endpoint: str) -> None:
         logger.warning("Failed to notify backend (%s): %s", endpoint, exc)
 
 
-def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, Path]:
+def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict[str, Path], list]:
     """Execute the full local pipeline from video scan to export."""
     # 記錄管道開始
     logger.info("Starting FocusFlow AI pipeline")
@@ -192,8 +198,8 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> dict[str, 
         len(text_embeddings),
         len(audio_embeddings),
     )
-    # 返回輸出文件路徑
-    return output_paths
+    # 返回輸出文件路徑與影片列表（供 main() 取得 video_id 回報後端）
+    return output_paths, videos
 
 
 def main() -> int:
@@ -210,11 +216,11 @@ def main() -> int:
 
     # 嘗試運行管道
     try:
-        output_paths = run_pipeline(config, limit=args.limit)
+        output_paths, pipeline_videos = run_pipeline(config, limit=args.limit)
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
         logger.exception("Pipeline failed: %s", exc)
-        notify_backend(config, args.video_id, "fail")
+        notify_backend(config, args.video_id, "fail", {"errorMessage": str(exc)})
         return 1
 
     # 打印成功消息和輸出路徑
@@ -227,11 +233,16 @@ def main() -> int:
     import mongodb_uploader
     if mongodb_uploader.main() != 0:
         logger.error("MongoDB upload failed.")
-        notify_backend(config, args.video_id, "fail")
+        notify_backend(config, args.video_id, "fail", {"errorMessage": "MongoDB upload failed."})
         return 1
 
     # 通知後端：處理全部完成（狀態 processing → completed）
-    notify_backend(config, args.video_id, "complete")
+    # 同時傳入 pipeline 的 video_id（如 "video_001"），讓後端存到 Video 文件
+    # 建立 app Video._id 與 video_segments_text.video_id 的對應關係
+    external_video_id = pipeline_videos[0].video_id if pipeline_videos else None
+    notify_backend(config, args.video_id, "complete", {
+        "externalVideoId": external_video_id,
+    })
 
     # 返回成功退出碼 0
     return 0

@@ -245,6 +245,40 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   }, replyResult);
 }
 
+// 處理從網頁「詢問助教」連結直接帶入課程 ID 的情境（COURSE:{courseId}）
+// 不需要經過 awaiting_course_selection 狀態，直接設定 activeCourseId
+async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
+  const user = await User.findOne({ lineUserId });
+
+  if (!user) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('請先完成帳號綁定後，再從系統進入課程。'),
+    ]);
+    return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'user_not_bound' }, replyResult);
+  }
+
+  const course = await Course.findById(courseId);
+  const enrollment = await Enrollment.findOne({ studentId: user._id, courseId });
+
+  if (!course || (!enrollment && course.status !== 'published')) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('你沒有這門課程的存取權限。'),
+    ]);
+    return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_access_denied' }, replyResult);
+  }
+
+  await User.findByIdAndUpdate(user._id, {
+    activeCourseId: new mongoose.Types.ObjectId(courseId),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+  });
+
+  const replyResult = await replyMessage(replyToken, [
+    buildTextMessage(`已進入「${course.title}」，現在可以直接提問課程內容。`),
+  ]);
+
+  return attachReplyMetadata({ type: 'direct_course_select', handled: true }, replyResult);
+}
+
 // 處理使用者點選課程按鈕後的 postback 事件
 // 驗證使用者有該課程的存取權，確認後把 activeCourseId 寫入 User 文件
 async function handleSelectCourse(lineUserId, courseId, replyToken) {
@@ -501,6 +535,11 @@ async function processWebhookEvent(event) {
     // 關鍵字「切換課程」→ 顯示課程選單
     if (text === '切換課程') {
       return handleSwitchCourse(lineUserId, replyToken);
+    }
+
+    // COURSE:{24位 ObjectId} → 從網頁「詢問助教」按鈕直接帶入課程，自動切換不需選單
+    if (/^COURSE:[a-f0-9]{24}$/i.test(text)) {
+      return handleDirectCourseSelect(lineUserId, text.slice(7), replyToken);
     }
 
     // 其他文字 → 視為對課程內容的提問

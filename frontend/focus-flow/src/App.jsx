@@ -5,6 +5,7 @@ import Button3D          from './components/Button3D';
 import BubbleScene       from './components/BubbleScene';
 import LoginPage         from './components/LoginPage';
 import DashboardApp      from './components/DashboardApp';
+import { clearToken, clearUser } from './api';
 
 function Cursor() {
   const ref = useRef(null);
@@ -27,7 +28,7 @@ export default function App() {
   const [sub,  setSub]  = useState('home');
 
   const handleLogin = (r) => { setRole(r); setSub('home'); setPage('app'); };
-  const handleLogout = () => setPage('login');
+  const handleLogout = () => { clearToken(); clearUser(); setPage('login'); };
 
   if (page === 'login') {
     return <LoginPage onBack={() => setPage('landing')} onLogin={handleLogin} />;

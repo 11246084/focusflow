@@ -93,7 +93,6 @@ const videoSchema = new mongoose.Schema(
     },
     video_id: {
       type: String,
-      default: null,
       trim: true,
       unique: true,
       sparse: true,

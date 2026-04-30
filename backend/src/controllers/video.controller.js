@@ -90,7 +90,7 @@ const startInternalVideoProcessing = asyncHandler(async (req, res) => {
 const completeInternalVideoProcessing = asyncHandler(async (req, res) => {
   const video = await videoProcessingService.completeVideoProcessing(req.params.videoId, {
     durationSec: req.body.durationSec,
-    metadata: req.body.metadata,
+    externalVideoId: req.body.externalVideoId,
   });
 
   return sendSuccess(res, {

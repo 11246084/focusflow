@@ -1,10 +1,10 @@
 [
   {
-    "video_id": "video_001",
-    "file_name": "aiA10_1140216_1.mp4",
-    "file_path": "Test_video_file/aiA10_1140216_1.mp4",
-    "audio_path": "data/processed_audio/video_001.wav",
-    "duration_sec": 1813.13,
+    "video_id": "69f2cf36427421b9aa5a9736",
+    "file_name": "1777520438787-video_001_part_0016.mp4",
+    "file_path": "C:/Users/940/Documents/GitHub/focusflow/backend/uploads/1777520438787-video_001_part_0016.mp4",
+    "audio_path": "data/processed_audio/69f2cf36427421b9aa5a9736.wav",
+    "duration_sec": 13.13,
     "course_name": null,
     "week": null,
     "lesson": null,

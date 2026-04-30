@@ -117,6 +117,8 @@ class PipelineConfig:
     processing_webhook_secret: str | None
     # 指定單一影片路徑（由後端觸發時傳入，None 表示掃描整個 video_input_dir）
     target_video_path: Path | None
+    # 由後端傳入的 MongoDB Video._id，作為本次處理的 video_id（確保每支影片有唯一 ID）
+    target_video_id: str | None
 
     @classmethod
     def from_env(cls, project_root: Path | None = None) -> "PipelineConfig":
@@ -273,6 +275,8 @@ class PipelineConfig:
             processing_webhook_secret=os.getenv("PROCESSING_WEBHOOK_SECRET") or None,
             # 單一影片路徑，由 CLI 參數傳入，預設 None（掃描整個目錄）
             target_video_path=None,
+            # 由後端傳入的 MongoDB Video._id，作為本次處理的 video_id
+            target_video_id=None,
         )
 
         # 提前創建運行時目錄，以保持下游模塊簡單

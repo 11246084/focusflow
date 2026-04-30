@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiFetch, setToken, setUser } from '../api';
 
 function Sparkle({ x, y, s = 1, op = 0.3 }) {
   return (
@@ -16,10 +17,26 @@ export default function LoginPage({ onLogin, onBack }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const go = () => {
+  const go = async () => {
+    if (!email || !pw) { setError('請輸入 Email 與密碼'); return; }
     setLoading(true);
-    setTimeout(() => { setLoading(false); onLogin(role); }, 700);
+    setError('');
+    try {
+      const res = await apiFetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pw }),
+      });
+      setToken(res.data.token);
+      setUser(res.data.user);
+      onLogin(res.data.user.role);
+    } catch (e) {
+      setError(e.message || '登入失敗，請確認帳號密碼');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -111,12 +128,19 @@ export default function LoginPage({ onLogin, onBack }) {
                   placeholder="••••••••"
                   value={pw}
                   onChange={e => setPw(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && go()}
                 />
               </div>
             </div>
 
+            {error && (
+              <div style={{ fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>
+                {error}
+              </div>
+            )}
+
             {/* Submit */}
-            <button className="btn-primary login-submit" onClick={go}>
+            <button className="btn-primary login-submit" onClick={go} disabled={loading}>
               {loading ? '驗證中…' : '登入系統'}
             </button>
 

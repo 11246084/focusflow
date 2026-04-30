@@ -1,44 +1,87 @@
+import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
+import { apiFetch } from '../api';
 
-const vids = [
-  { name: '第一講：機器學習概論.mp4',  size: '1.2 GB', status: 'done',       date: '2024-03-15', segs: 24,   course: 'ML 導論' },
-  { name: '第二講：線性迴歸.mp4',      size: '980 MB', status: 'processing', date: '2024-03-18', segs: null, course: 'ML 導論' },
-  { name: '演算法基礎 — 排序.mp4',     size: '760 MB', status: 'done',       date: '2024-03-10', segs: 18,   course: '資料結構' },
-  { name: 'Python 入門 #1.mp4',       size: '540 MB', status: 'done',       date: '2024-03-08', segs: 12,   course: 'Python' },
-  { name: 'Deep Learning Part 3.mp4', size: '1.5 GB', status: 'queue',      date: '2024-03-20', segs: null, course: 'Deep Learning' },
-];
+const STATUS_MAP = {
+  completed:  { text: '完成',  cls: 'bg' },
+  processing: { text: '處理中', cls: 'by' },
+  queued:     { text: '排隊中', cls: 'bb' },
+  failed:     { text: '失敗',  cls: 'br' },
+};
 
 export default function TeacherCourses() {
+  const [videos, setVideos]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const coursesRes = await apiFetch('/courses');
+        const courses = coursesRes.data?.courses || [];
+        const all = [];
+        await Promise.all(
+          courses.map(async (c) => {
+            try {
+              const vRes = await apiFetch(`/courses/${c._id}/videos`);
+              const vids = vRes.data?.videos || [];
+              vids.forEach(v => all.push({ ...v, courseName: c.title }));
+            } catch { /* skip courses without access */ }
+          })
+        );
+        // Sort by newest first (use processing.queuedAt or updatedAt)
+        all.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+        setVideos(all);
+      } catch (e) {
+        setError(e.message || '載入失敗');
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Course Videos</div>
       <div className="card" style={{ overflow: 'hidden' }}>
-        <table className="ff-tbl">
-          <thead>
-            <tr><th>FILENAME</th><th>COURSE</th><th>SIZE</th><th>STATUS</th><th>SEGMENTS</th><th>DATE</th></tr>
-          </thead>
-          <tbody>
-            {vids.map((v, i) => (
-              <tr key={i}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ color: '#F14F21' }}><Ic n="film" s={14} /></div>
-                    <span>{v.name}</span>
-                  </div>
-                </td>
-                <td><span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{v.course}</span></td>
-                <td>{v.size}</td>
-                <td>
-                  <span className={`badge ${v.status === 'done' ? 'bg' : v.status === 'processing' ? 'by' : 'bb'}`}>
-                    {v.status === 'done' ? '完成' : v.status === 'processing' ? '處理中' : '排隊中'}
-                  </span>
-                </td>
-                <td>{v.segs ? `${v.segs} 段` : '—'}</td>
-                <td style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12 }}>{v.date}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {loading ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>載入中…</div>
+        ) : error ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#ff6b6b', fontSize: 13 }}>{error}</div>
+        ) : videos.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>尚未上傳任何影片</div>
+        ) : (
+          <table className="ff-tbl">
+            <thead>
+              <tr><th>FILENAME</th><th>COURSE</th><th>STATUS</th><th>DATE</th></tr>
+            </thead>
+            <tbody>
+              {videos.map((v) => {
+                const status = v.processing?.status;
+                const badge = STATUS_MAP[status] || { text: status || '—', cls: 'bb' };
+                const date = v.processing?.queuedAt || v.createdAt;
+                return (
+                  <tr key={v.id || v._id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ color: '#F14F21' }}><Ic n="film" s={14} /></div>
+                        <span>{v.title || v.file_name || '未命名'}</span>
+                      </div>
+                    </td>
+                    <td><span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{v.courseName}</span></td>
+                    <td>
+                      {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : '—'}
+                    </td>
+                    <td style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12 }}>
+                      {date ? new Date(date).toLocaleDateString('zh-TW') : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

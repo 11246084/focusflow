@@ -82,8 +82,9 @@ def scan_videos(config: PipelineConfig) -> list[VideoMetadata]:
 
     # 遍歷每個發現的視頻文件
     for index, video_path in enumerate(video_files, start=1):
-        # 穩定排序創建跨重複運行的穩定 ID
-        video_id = f"video_{index:03d}"
+        # 後端觸發時使用 MongoDB Video._id 作為 video_id，確保每支影片唯一
+        # 手動掃描模式仍使用 video_001 等序號
+        video_id = config.target_video_id if (config.target_video_id and len(video_files) == 1) else f"video_{index:03d}"
         # 推斷可選元數據（課程名稱、週數、課程數）
         course_name, week, lesson = infer_optional_metadata(video_path, config.video_input_dir)
         # 探測視頻持續時間

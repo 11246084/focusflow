@@ -49,7 +49,23 @@ routes → controllers → services → models
 
 ### Middleware
 
-`auth` → JWT 驗證 / `role` → RBAC / `upload` → multer 影片上傳 / `lineSignature` → LINE HMAC 驗簽 / `internalProcessingAuth` → Processing webhook secret / `error` → 全域錯誤處理
+`auth` → JWT 驗證 / `role` → RBAC / `upload` → multer 影片上傳 / `lineSignature` → LINE HMAC 驗簽 / `internalProcessingAuth` → Processing webhook secret / `notFound` + `error` → 404 與全域錯誤處理
+
+### 路由模組
+
+`backend/src/routes/index.js` 將下列模組掛在 `/api/v1`：
+
+| 模組 | 主要路徑 | 對應 controller / service |
+|------|----------|---------------------------|
+| `auth.routes` | `/auth/login`、`/auth/me` | `auth.controller` / `auth.service` |
+| `course.routes` | `/courses`（CRUD） | `course.controller` / `course.service` |
+| `video.routes` | `/courses/:courseId/videos`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoProcessing.service` |
+| `qa.routes` | `/qa/ask` | `qa.controller` / `qa.service` + `questionRecording.service` |
+| `line.routes` | `/line/webhook`、`/line/bind-token` | `line.controller` / `line.service` |
+| `internal-video.routes` | `/internal/videos/:videoId/processing/{start,complete,fail}` | `video.controller` 內部 handlers |
+| `stats.routes` | `/stats/teacher`、`/stats/student` | `teacherStats.service` |
+| `admin.routes` | `/admin/{stats,users,videos,events,event-stats}` | `admin.controller` / `admin.service` |
+| `health.routes` | `/health` | `runtimeDiagnostics.service` |
 
 ### QA 系統
 
@@ -121,15 +137,21 @@ LINE Bot 在 `User` 文件上維護**使用者層級**的對話狀態：
 
 ## 三、前端架構
 
-登入頁採 Three.js 3D 場景（液態漸層背景、氣泡動畫、GSAP 補間）；學生 / 教師 / 管理員三套介面共 10 頁面 UI 已完成，目前進行 API 整合。
+登入頁採 Three.js 3D 場景（液態漸層背景、氣泡動畫、GSAP 補間）；學生 / 教師 / 管理員三套介面共 11 頁面 UI 已完成，目前進行 API 整合。
 
 ```
 frontend/focus-flow/src/
-├── components/     # 共用元件（LoginPage、Sidebar、Topbar、3D 場景等）
-├── pages/          # 角色頁面（Student / Teacher / Admin × 多頁）
+├── components/     # 共用元件（LoginPage、DashboardApp、Sidebar、Topbar、BubbleScene、Button3D 等）
+├── pages/          # 11 個角色頁面：
+│                   #   Student: Dashboard, Courses, LineBot
+│                   #   Teacher: Dashboard, Courses, Upload
+│                   #   Admin:   Overview, Stats, Users, Videos, Courses
+├── api.js          # 共用 fetch wrapper（JWT 注入 / token 與 user 持久化）
 ├── App.jsx
 └── main.jsx
 ```
+
+API base URL 由 `VITE_API_BASE_URL` 控制，預設 `http://localhost:4000/api/v1`。Token 存於 `localStorage.ff_token`。
 
 ---
 
@@ -156,16 +178,19 @@ frontend/focus-flow/src/
 
 | 模型 / Collection | 狀態 | 說明 |
 |-------------------|------|------|
-| `users` | 正式 | 帳號、角色、密碼雜湊 |
-| `courses` | 正式 | 課程容器 |
+| `users` | 正式 | 帳號、角色、密碼雜湊；含 LINE 對話狀態與歷史 |
+| `courses` | 正式 | 課程容器，`videoIds` 引用 `videos._id` |
 | `videos` | 混合 | App-owned video 與 pipeline metadata 混存，ownership 尚未定版 |
-| `video_segments_text` | **v1 正式** | 問答搜尋核心，text embedding index |
-| `video_segments_video` | **v1 正式** | 影片片段 + video embedding |
-| `video_segments` | **Legacy** | 舊版過渡 collection，非 v1 契約 |
-| `clips` | **Legacy** | 快取層，`video_segments_video` 尚未接手 |
-| `enrollments` | 正式 | 學生修課、LINE userId 綁定 |
-| `usagelogs` | 正式 | 使用行為記錄 |
-| `linebindtokens` | 正式 | LINE 綁定一次性 token |
+| `video_segments_text` | **v1 正式** | 問答搜尋核心，text embedding；欄位 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`） |
+| `video_segments_video` | v1 正式（QA 尚未接） | 影片片段 + video embedding；DB 文件目前仍為 snake_case（`video_id`、`clip_id`、`start_sec`） |
+| `video_segments_audio` | 預留 | Pipeline 預留位，目前 0 筆 |
+| `questions` | 正式 | 每則提問的問題、答案、matches、runtime 訊號與 `sourceUsageLogId` |
+| `transcripts_normalized` | Pipeline | 正規化逐字稿 |
+| `term_dictionary` | Pipeline | 專有名詞字典（rapidfuzz 修正用） |
+| `clips` | Legacy | 快取層，`video_segments_video` 尚未接手 |
+| `enrollments` | 正式 | 學生修課（`studentId` × `courseId` 唯一索引、`progress`、`lineNotify`） |
+| `usage_logs` | 正式 | 使用行為記錄（login / watch / ask / clip_view） |
+| `line_bind_tokens` | 正式 | LINE 綁定一次性 token，`expiresAt` TTL 自動清除 |
 
 ---
 
@@ -184,7 +209,7 @@ frontend/focus-flow/src/
  │                   │  searchSegments()────────→│ video_segments_text
  │                   │  ←──────── matches ──────│
  │                   │  generateAnswer()        │
- │                   │  recordUsage()───────────→│ usagelogs
+ │                   │  recordUsage()───────────→│ usage_logs
  │  ← answer + clip─│                          │
 
 LINE Bot             後端

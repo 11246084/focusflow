@@ -8,9 +8,16 @@
 
 ### DB / MongoDB 協作缺口
 
-**已確認（2026-04-19）：**
+**2026-05-01 更新：共享 Atlas 已被重置**
 
-- Atlas `text_embedding_index`：狀態 READY，105/105 筆 100% 索引
+- `videos` 從 9 → 1 筆，`video_segments_text` 從 105 → 9 筆，內容只剩單一新上傳影片的 chunks
+- Atlas Search / Vector Search Index 全數消失（Atlas UI 與 MCP 都驗證），`text_embedding_index` 目前不存在
+- 後果：`.env` 仍是 `QA_VECTOR_SEARCH_MODE=atlas` 但會 fail-fast；要恢復 atlas mode 需在 Atlas 重建 `text_embedding_index`（3072 維 cosine，filter：`courseId` ObjectId、`videoId` camelCase）
+- 應對：先切 `QA_VECTOR_SEARCH_MODE=memory` 即可在現有 9 筆 segments 上跑 QA
+
+**已確認（2026-04-19，舊快照保留作參考）：**
+
+- Atlas `text_embedding_index`：當時狀態 READY，105/105 筆 100% 索引
   - filter fields（向量索引搜尋時允許用來篩選的欄位，需事先登記）：`courseId`（ObjectId 型別）、`videoId`（camelCase 字串）
   - DB 組已於 2026-04-19 完成：vector index filter 改為 `videoId`（camelCase）、105 筆文件欄位遷移為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
 - M0 free cluster：vector indexes（向量索引，Atlas 做相似度搜尋所需，類似書的目錄）1 of 3 used，剩 2 個配額可用
@@ -24,9 +31,9 @@
 
 - `video_segments_text` canonical 欄位口徑：已定版為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件、backend model/service、vector index filter 三者一致（2026-04-19）
 - `video_segments_video` 的 Atlas vector index（若要開 multimodal QA，需補建 `video_embedding_index`，3072 維 cosine，filter field：`video_id`）
-- `videos` mixed collection 的 ownership 邊界（6 筆 pipeline-owned 無 `sourceType`，3 筆 app-owned 有 `sourceType: "upload"`）
-- Collections 實際 12 個，init 腳本宣稱 14，落差說明由 Database 組負責
-- shared DB 是否允許 smoke 痕跡（`usage_logs` 目前已有 23 筆）
+- `videos` mixed collection 的 ownership 邊界；共享 Atlas 目前只剩 1 筆 app-owned video，舊快照曾同時存在 pipeline-owned 與 app-owned records
+- Collections / init 腳本不同步：共享 Atlas 目前 13 個 collections；`database/tools/setup/init_collections.js` 列 15 個。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`
+- shared DB 是否允許 smoke 痕跡（`usage_logs` 目前 7 筆）
 
 **應採取的行動：**
 
@@ -36,7 +43,7 @@
 | Pipeline STT 產出 schema 確認 | **Pipeline** | 確認後續 STT 產出改為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`），與現有 backend schema 對齊 |
 | `video_segments_video` vector index | **Database** | 若 Phase-2 要開 multimodal QA，在 Atlas 補建 `video_embedding_index`（`video_segments_video`，numDimensions: 3072，similarity: cosine，filter field: `video_id`）；M0 剩 2 個配額 |
 | `videos` ownership 邊界 | **Database + Backend** | 三選一：(a) 為 pipeline-owned 文件補 `sourceType: "pipeline"` 欄位；(b) 將 pipeline metadata 拆到獨立 collection；(c) 在 backend model 加 `sourceType` 欄位並更新 `video.service.js` 查詢邏輯 |
-| Collections 12 vs 14 落差 | **Database** | 說明 init 腳本多宣稱的 2 個 collection 是哪些、是否需要建立 |
+| Collections / init 腳本不同步 | **Database + Backend** | 決定 `stt_cache`、`raw_transcripts`、`video_segments` 是否仍需建立；將 `questions` 補進 init，或明確改由 Mongoose/runtime 建立 |
 | `usage_logs` smoke 痕跡 | **整體決策** | 三選一：(a) demo 前 reseed 清除；(b) 另開隔離 demo DB instance；(c) 接受共享 DB 現況並在 demo 說明 |
 
 **backend 目前已採取的行為：**
@@ -52,11 +59,11 @@
 **已定版：**
 
 - query embedding provider：`gemini`（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- `video_segments_text`：105 筆，全部有 embedding，欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件遷移已於 2026-04-19 完成
+- `video_segments_text`：2026-04-19 舊快照為 105 筆且全部有 embedding；2026-05-01 共享 Atlas 重置後目前為 9 筆，欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
 - `videoId` 確認為 canonical（camelCase）；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 
 **仍未定版：**
-- 哪些影片目前真的已有 searchable coverage（目前全數 105 筆均屬 Pipeline Bridge Course）
+- 哪些影片目前真的已有 searchable coverage（2026-05-01 共享 Atlas 目前僅 1 支影片 / 9 筆 segments，均屬 Pipeline Bridge Course；先前 105 筆快照已不再存在）
 - `clips` 與 `video_segments_video` 的正式分工（`clips` 目前只有 1 筆）
 
 **應採取的行動：**

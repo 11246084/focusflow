@@ -34,6 +34,21 @@ cp .env.example .env      # 填入 MongoDB URI 與 JWT_SECRET
 npm run dev               # 啟動開發伺服器（port 4000）
 ```
 
+**常用 npm scripts（`backend/package.json`）：**
+
+| Script | 用途 |
+|--------|------|
+| `npm run dev` | 啟動開發模式（nodemon） |
+| `npm start` | 正式啟動 |
+| `npm run seed` | 植入示範資料（converge baseline） |
+| `npm run seed:reset` | 清除 demo 痕跡後重建 baseline |
+| `npm run db:sync-atlas` | 將本機 MongoDB 同步至 Atlas（upsert by `_id`，覆蓋 `syncLocalMongoToAtlas.js` 內 `COLLECTIONS` 清單） |
+| `npm test` | 執行全部測試（Node 內建 `node:test`） |
+
+> ⚠️ `package.json` 內的 `db:ensure-questions` 與 `db:backfill-questions` 指向 `src/scripts/ensureQuestionsCollection.js` 與 `src/scripts/backfillQuestionsFromUsageLogs.js`，**這兩個檔案目前不存在**（dangling script），執行會失敗。`questions` collection 已由 Mongoose schema 自動建立，使用上不缺；後續決定補檔或從 `package.json` 移除。
+>
+> 另有 `src/scripts/syncQuestionsToAtlas.js`（local → Atlas 單獨同步 questions、含 user 對應），目前**未掛 npm script**，需 `node src/scripts/syncQuestionsToAtlas.js` 直接執行。
+
 **主要環境變數（`backend/.env`）：**
 
 | 變數 | 說明 | 預設值 |
@@ -49,7 +64,7 @@ npm run dev               # 啟動開發伺服器（port 4000）
 | `LINE_CHANNEL_SECRET` | LINE Channel Secret（簽章驗證用） | — |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Channel Access Token（傳訊用） | — |
 
-目前共享環境主線使用 `gemini + atlas + gemini`。若只做不依賴外部服務的本機 smoke，可暫時切回 `mock + memory`，但實際 runtime 仍以 `.env` 與 `/health` 顯示為準。
+目前共享環境 `.env` 主線寫的是 `gemini + atlas + gemini`，但 2026-05-01 驗證時共享 Atlas 缺少 `text_embedding_index`；實際 QA 可用性仍以 `/health` 與 Atlas index 狀態為準。若只做不依賴外部服務的本機 smoke，可暫時切回 `mock + memory`。
 
 ### Swagger / OpenAPI
 
@@ -57,6 +72,7 @@ npm run dev               # 啟動開發伺服器（port 4000）
 - 執行時 raw spec：`/docs/openapi.yaml`
 - repo 規格檔：`backend/docs/openapi.yaml`
 - LINE webhook 已納入 OpenAPI，但屬 integration-facing endpoint，不是一般前端直接呼叫入口。
+- 目前 OpenAPI 尚未涵蓋 stats/admin 路由與 courses/videos 的 PATCH/DELETE；完整端點清單暫看下方表格與實際 route files。
 
 ### 前端
 
@@ -89,22 +105,84 @@ python src/main.py --overwrite    # 強制重新處理（不使用快取）
 
 ## API 端點一覽
 
+> [backend/docs/openapi.yaml](backend/docs/openapi.yaml)（執行時掛在 `/docs`）目前**尚未涵蓋 stats、admin 路由與 courses/videos 的 PATCH/DELETE**。下表以實際路由檔為準；OpenAPI 對齊作業見 [backend/docs/todo.md](backend/docs/todo.md)。
+
+### 認證
+
 | 方法 | 路徑 | 說明 | 權限 |
 |------|------|------|------|
 | POST | `/api/v1/auth/login` | 使用者登入，回傳 JWT | 公開 |
 | GET | `/api/v1/auth/me` | 取得目前登入使用者資訊 | 已登入 |
+
+### 課程
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
 | POST | `/api/v1/courses` | 建立課程 | 教師/管理員 |
 | GET | `/api/v1/courses` | 列出可存取的課程 | 已登入 |
 | GET | `/api/v1/courses/:courseId` | 取得課程詳細資訊 | 已登入 |
+| PATCH | `/api/v1/courses/:courseId` | 更新課程 | 教師/管理員 |
+| DELETE | `/api/v1/courses/:courseId` | 刪除課程 | 管理員 |
+
+### 影片
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
 | POST | `/api/v1/courses/:courseId/videos` | 上傳影片至課程 | 教師/管理員 |
 | GET | `/api/v1/courses/:courseId/videos` | 列出課程影片 | 已登入 |
 | GET | `/api/v1/videos/:videoId` | 取得影片詳細資訊 | 已登入 |
 | GET | `/api/v1/videos/:videoId/processing` | 查詢影片處理進度 | 已登入 |
+| POST | `/api/v1/videos/:videoId/processing/retry` | 重試失敗的處理 | 教師/管理員 |
+| DELETE | `/api/v1/videos/:videoId` | 刪除影片 | 教師/管理員 |
+
+### QA
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
 | POST | `/api/v1/qa/ask` | 提問並取得 AI 回答 | 已登入 |
+
+### LINE Bot
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
 | POST | `/api/v1/line/webhook` | LINE Bot Webhook | LINE 簽章驗證 |
 | GET | `/api/v1/line/webhook` | LINE Webhook 驗證（Console Verify 用） | 公開 |
-| POST | `/api/v1/line/bind-token` | 發放 LINE 綁定 token（10 分鐘有效） | 已登入 |
-| GET | `/health` | 服務健康檢查 | 公開 |
+| POST | `/api/v1/line/bind-token` | 發放一次性 LINE 綁定 token（10 分鐘有效） | 已登入 |
+
+### Dashboard 統計
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
+| GET | `/api/v1/stats/teacher` | 教師 dashboard 統計（課程/影片/問題數） | 教師/管理員 |
+| GET | `/api/v1/stats/student` | 學生 dashboard 統計 | 學生/管理員 |
+
+### Admin
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
+| GET | `/api/v1/admin/stats` | 全站總覽統計 | 管理員 |
+| GET | `/api/v1/admin/users` | 使用者列表 | 管理員 |
+| PATCH | `/api/v1/admin/users/:userId` | 更新使用者（停用/角色） | 管理員 |
+| GET | `/api/v1/admin/videos` | 影片列表 | 管理員 |
+| DELETE | `/api/v1/admin/videos/:videoId` | 刪除影片 | 管理員 |
+| GET | `/api/v1/admin/events` | 最近 usage 事件 | 管理員 |
+| GET | `/api/v1/admin/event-stats` | 事件統計（按類型/時段聚合） | 管理員 |
+
+### Internal
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
+| POST | `/api/v1/internal/videos/:videoId/processing/start` | Pipeline 回報開始處理 | `PROCESSING_WEBHOOK_SECRET` |
+| POST | `/api/v1/internal/videos/:videoId/processing/complete` | Pipeline 回報處理完成 | `PROCESSING_WEBHOOK_SECRET` |
+| POST | `/api/v1/internal/videos/:videoId/processing/fail` | Pipeline 回報處理失敗 | `PROCESSING_WEBHOOK_SECRET` |
+
+### 其他
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
+| GET | `/health` | 服務健康檢查（含 `runtime.qa` / `runtime.line`） | 公開 |
+| GET | `/docs` | Swagger UI | 公開 |
+| GET | `/docs/openapi.yaml` | OpenAPI raw spec | 公開 |
 
 ---
 

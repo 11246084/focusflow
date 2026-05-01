@@ -41,7 +41,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests/<file>
 ```
 
 Swagger / OpenAPI：執行中的文件入口是 `/docs`，raw spec 由 repo 內 `backend/docs/openapi.yaml` 提供。
-`POST /api/v1/line/webhook` 已納入 OpenAPI，但屬 integration-facing endpoint，不要當成一般前端 API。
+目前 OpenAPI 尚未涵蓋 stats/admin 路由與 courses/videos 的 PATCH/DELETE；完整端點清單暫以實際 route files 與 README 為準。`POST /api/v1/line/webhook` 已納入 OpenAPI，但屬 integration-facing endpoint，不要當成一般前端 API。
 
 ### Frontend
 
@@ -86,18 +86,18 @@ python src/mongodb_uploader.py                # 直接上傳至 MongoDB
 backend/src/
 ├── server.js          # 入口：連接資料庫、植入示範資料、啟動 Express；強制 Google DNS（8.8.8.8/8.8.4.4）解決部分網路環境 Atlas SRV 查詢失敗
 ├── app.js             # Express 設定、middleware 掛載、路由註冊
-├── routes/            # API 路由（auth、course、video、qa、line、health、internal-video）
+├── routes/            # API 路由（auth、course、video、qa、line、stats、admin、health、internal-video）
 ├── controllers/       # HTTP 處理器 — 呼叫 service、回傳回應
-├── services/          # 業務邏輯（auth、course、courseAccess、video、videoProcessing、qa、queryEmbedding、answerGeneration、bridgeScope、line、demoSeed、runtimeDiagnostics、usageLog）
-├── models/            # Mongoose Schema：User、Course、Video、VideoSegment、Enrollment、Clip、UsageLog、LineBindToken
+├── services/          # 業務邏輯（auth、course、courseAccess、video、videoProcessing、qa、queryEmbedding、answerGeneration、bridgeScope、questionRecording、teacherStats、admin、line、demoSeed、runtimeDiagnostics、usageLog）
+├── models/            # Mongoose Schema：User、Course、Video、VideoSegment、Question、Enrollment、Clip、UsageLog、LineBindToken
 ├── middleware/        # JWT 驗證、錯誤處理、multer 上傳、LINE 簽章驗證
 ├── config/            # env.js（型別化環境變數）、database.js
-├── constants/         # 列舉值：使用者角色、影片處理狀態
+├── constants/         # 列舉值：使用者角色、影片處理狀態、問題狀態 / 來源
 ├── utils/             # API 回應格式化、錯誤輔助函式、ObjectId 轉換
-└── scripts/           # seedDemoUsers.js
+└── scripts/           # seedDemoUsers、syncLocalMongoToAtlas、syncQuestionsToAtlas；package.json 另有兩個 dangling DB scripts 待補或移除
 ```
 
-已存在的 API 入口：`/health`、`/api/v1/auth`、`/api/v1/courses`、`/api/v1/qa`、`/api/v1/line`、`/api/v1/internal`、`/api/v1/videos...`
+已存在的 API 入口：`/health`、`/docs`（Swagger UI）、`/api/v1/auth`、`/api/v1/courses`、`/api/v1/qa`、`/api/v1/line`、`/api/v1/internal`、`/api/v1/videos...`、`/api/v1/stats`、`/api/v1/admin`
 
 ### QA 系統 Provider（可透過環境變數切換）
 

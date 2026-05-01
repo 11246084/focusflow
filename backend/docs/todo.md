@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-04-27
+最後更新：2026-05-01
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -23,11 +23,11 @@
 
 - **狀態**：Pending（由我發起）
 - **要 freeze 的議題**：
-  - Atlas vector index 健康狀態與 3072 維維度確認（`text_embedding_index` 是否已建立且正確）
-  - Atlas filter fields 契約（目前使用 `video_id`，是否定版）
+  - Atlas vector index 重建排程（共享 Atlas 2026-05-01 目前沒有 `text_embedding_index`）
+  - Atlas filter fields 契約（`video_segments_text` 目前使用 camelCase `videoId`；`video_segments_video` 仍為 snake_case `video_id`）
   - `videos` collection ownership 邊界（app-owned vs. pipeline metadata 要拆分還是加 `sourceType`）
-  - pipeline segments 如何綁定 course（加 `courseId` / 改查 `video_id` 三擇一）
-  - Collections 實際 12 vs. init 腳本宣稱 14 的落差說明
+  - pipeline segments 如何綁定 course（加 `courseId` / 改查 camelCase `videoId` 三擇一）
+  - Collections / init 腳本不同步（Atlas 13 個；`init_collections.js` 列 15 個，且缺 `questions`）
 - **我要主動做**：
   - 彙整上述議題為一頁議題單
   - 約 Database、RAG 兩組同步時間
@@ -40,7 +40,7 @@
 ### 2. 決定 demo DB 隔離策略
 
 - **狀態**：Pending（需協調各組拿出決定）
-- **背景**：DB 中 `usage_logs` 有 23 筆含 smoke test 痕跡。`line_bind_tokens` 目前乾淨（0 筆）。
+- **背景**：2026-05-01 共享 Atlas 中 `usage_logs` 有 7 筆，`line_bind_tokens` 目前 0 筆。
 - **我要主動做**：
   - 提議三選一：(a) 共享 Atlas 只讀 + 另開隔離 demo instance (b) 保留共享 Atlas 但 demo 前 reseed (c) 完全獨立 demo DB
   - 估算每個選項對 backend `.env`、seed script、CI 的影響
@@ -51,15 +51,16 @@
 
 ### 3. 確認 Atlas vector search index 健康狀態 + 修正 atlas filter 兩處 bug
 
-- **狀態**：Done（2026-04-19 Atlas UI 截圖確認 + 兩處 filter bug 已修）
+- **狀態**：Done（2026-04-19 舊快照；2026-05-01 已由新 Atlas 狀態覆蓋）
 - **完成內容**：
-  - `text_embedding_index`：狀態 READY，105/105 筆 100% 索引，filter fields：`embedding`、`courseId`、`video_id`
+  - 2026-04-19：`text_embedding_index` 當時狀態 READY，105/105 筆 100% 索引
+  - 2026-05-01：共享 Atlas 已無任何 search/vector index；若維持 atlas mode，需重建 `text_embedding_index`
   - M0 free cluster：vector indexes 1 of 3 used，剩 2 個配額
   - backend `.env` 已設定 `QA_VECTOR_SEARCH_MODE=atlas`、`QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`
   - 修正 Bug 1：`$vectorSearch` 不經 Mongoose auto-cast，`courseId` String 需手動轉 ObjectId（`castCourseIdToObjectId`）
-  - 修正 Bug 2：`videoId`（camelCase）不在 vector index filter fields，需從 atlas filter 條件中剔除（`isAtlasFilterCompatible`）；DB index 截圖確認 `videoId_1` 有 15 次使用紀錄；文件直接確認 `videoId` 欄位**不存在於文件中**，`videoId_1` 為孤立索引
-  - `video_segments_text` 文件欄位直接確認（2026-04-19）：只有 `video_id`，無 `videoId`；`segment_id` 值為 null，實際識別碼為 `chunk_id`（如 `video_001_chunk_0001`）
-  - `videoSegment.model.js` 已清除 `videoId` schema 欄位宣告
+  - 修正 Bug 2：atlas filter 僅允許 vector index 支援欄位；後續 DB 已遷移為 camelCase `videoId`
+  - `video_segments_text` 現行文件欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；2026-05-01 共享 Atlas 目前 9 筆
+  - `videoSegment.model.js` 已對齊 camelCase schema
   - `video_segments_video`：有 embedding，**無 vector search index**，multimodal QA 目前不可用
   - `video_segments_audio`：0 docs，無 vector search index
 
@@ -135,10 +136,10 @@
 
 ---
 
-### 10. Collections 數量落差（12 vs. 14）
+### 10. Collections / init 腳本對齊
 
 - **狀態**：Need Confirmation（低優先）
-- **背景**：MCP 實測 12 collections，init 腳本宣稱 14。差異說明由 Database 組負責。
+- **背景**：2026-05-01 MCP 實測共享 Atlas 為 13 collections；`database/tools/setup/init_collections.js` 目前列 15 個 collection。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`。
 - **我要主動做**：在 Phase-1 會議順帶確認；結論寫進 [handoff-known-issues.md](./handoff-known-issues.md)
 
 ---
@@ -164,6 +165,58 @@
   - `STT_Whisper/src/config.py`：新增 `backend_url`、`processing_webhook_secret`、`target_video_path`
   - `STT_Whisper/src/scan_videos.py`：支援 `target_video_path` 直接指定單一影片
   - `STT_Whisper/.env.example`：新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
+
+---
+
+### 14. Question 記錄與 dashboard 統計（2026-04-30 完成）
+
+- **狀態**：Done
+- **完成內容**：
+  - 新增 `models/question.model.js`：`questions` collection，含 matches、runtime、`sourceUsageLogId`、text/組合索引
+  - 新增 `services/questionRecording.service.js`：QA 與 LINE 路徑提問都會落庫
+  - 新增 `services/teacherStats.service.js`：聚合教師/學生 dashboard 數據
+  - 新增 `routes/stats.routes.js`：`/api/v1/stats/teacher`、`/api/v1/stats/student`
+  - 新增 `routes/admin.routes.js` + `services/admin.service.js`：`/api/v1/admin/{stats,users,videos,events,event-stats}`
+  - 新增 `db:sync-atlas`（可用，執行 `syncLocalMongoToAtlas.js`，同步清單包含 `questions`）
+  - 新增 `syncQuestionsToAtlas.js`（可直接用 node 執行，單獨同步 questions 到 Atlas；目前未掛 npm script）
+- **後續修正**：
+  - `db:ensure-questions`、`db:backfill-questions` 目前是 dangling scripts，對應 `ensureQuestionsCollection.js` / `backfillQuestionsFromUsageLogs.js` 不存在；需補檔或從 `package.json` 移除
+
+---
+
+### 17. OpenAPI 對齊 stats / admin / PATCH / DELETE
+
+- **狀態**：Pending
+- **背景**：`backend/docs/openapi.yaml` 已掛在 `/docs`，但目前尚未涵蓋 `/api/v1/stats/teacher|student`、`/api/v1/admin/*`，也缺 `PATCH/DELETE /api/v1/courses/:courseId` 與 `DELETE /api/v1/videos/:videoId`。
+- **我要主動做**：
+  - 補 OpenAPI paths 與基本 request/response schema
+  - README / current-status 暫時維持「API 清單以 route files / README 為準」的軟化口徑，等 spec 補齊後再改回以 OpenAPI 為主
+- **驗收**：`backend/tests/docs.routes.test.js` 通過，Swagger UI 能載入 raw spec
+
+---
+
+### 18. 修正 dangling DB npm scripts
+
+- **狀態**：Pending
+- **背景**：`backend/package.json` 目前掛了 `db:ensure-questions` 與 `db:backfill-questions`，但 `src/scripts/ensureQuestionsCollection.js`、`src/scripts/backfillQuestionsFromUsageLogs.js` 不存在，執行會失敗。
+- **我要主動做**：
+  - 二選一：補齊兩個 script，或移除 package scripts 並改文件說明由 Mongoose schema / `db:sync-atlas` 處理
+  - 若保留 `syncQuestionsToAtlas.js`，決定是否補 npm script（例如 `db:sync-questions-atlas`）
+- **驗收**：`npm run` 顯示的 DB scripts 都可執行或文件明確標示用途
+
+---
+
+### 15. LINE QR 綁定 + 課程交接修正（2026-04-30 完成）
+
+- **狀態**：Done（commit `c87fdad`）
+- **完成內容**：修正 LINE QR 綁定流程與課程切換 handoff
+
+---
+
+### 16. QA grounding / matched video 標籤（2026-04-30 完成）
+
+- **狀態**：Done（commit `c819bca`）
+- **完成內容**：QA 回答的 grounding metadata 與 matched video 標籤改善
 
 ---
 

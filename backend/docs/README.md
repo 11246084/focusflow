@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-04-27（新增 STT Pipeline 自動化交接文件）
+最後更新：2026-05-01（新增 question recording、teacher/student stats、admin 管理 API、Atlas 同步腳本）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -10,7 +10,7 @@
 - 要交接、找跨組缺口、整理 demo 風險與暫時口徑：看 [handoff-known-issues.md](./handoff-known-issues.md)
 - 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](./todo.md)
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](./implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](./implementation-log.archive.md)）
-- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）
+- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；目前尚未涵蓋 stats/admin 與部分 PATCH/DELETE，完整端點清單暫以 route files / README 為準
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
 
 ## 每份文件的用途
@@ -26,7 +26,7 @@
 - `todo.md`
   - 下一步規劃與優先順序
 - `openapi.yaml`
-  - REST API 契約（Swagger UI 由此生成）
+  - REST API 規格來源（Swagger UI 由此生成）；2026-05-01 尚未完整覆蓋所有現有路由
 
 ## 文件之間的關係
 

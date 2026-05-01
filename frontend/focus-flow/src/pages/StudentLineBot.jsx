@@ -6,7 +6,8 @@ import { apiFetch } from '../api';
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
 function lineMessageUrl(text) {
-  if (!LINE_BOT_URL || !text) return LINE_BOT_URL;
+  if (!text) return LINE_BOT_URL || '';
+  if (!LINE_BOT_URL) return text;
   const base = LINE_BOT_URL.replace('/ti/p/', '/oaMessage/');
   return `${base}/?${encodeURIComponent(text)}`;
 }
@@ -123,7 +124,7 @@ export default function StudentLineBot() {
           </div>
 
           {/* 右側 QR code */}
-          {LINE_BOT_URL && (
+          {(LINE_BOT_URL || bindToken) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <div style={{ padding: 14, background: '#fff', borderRadius: 16 }}>
                 <QRCodeSVG value={bindToken ? lineMessageUrl(bindToken) : LINE_BOT_URL} size={150} bgColor="#ffffff" fgColor="#000000" />

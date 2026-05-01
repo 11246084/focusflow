@@ -4,7 +4,7 @@
  * 策略：
  *  1. 把本機缺少的 courses upsert 到 Atlas（保留同一個 _id）
  *  2. 用 email 把本機 users → Atlas users 建立對應表
- *  3. 把本機每筆 question 的 studentId 換成 Atlas 的 _id（courseId 不用換，因為步驟 1 已同步）
+ *  3. 把本機每筆 question 的 userId 換成 Atlas 的 _id（courseId 不用換，因為步驟 1 已同步）
  *  4. 用 upsert-by-_id 寫入 Atlas questions（冪等）
  *
  * 環境變數：
@@ -102,12 +102,14 @@ async function main() {
     const skipped = [];
 
     for (const q of localQuestions) {
-      const atlasStudentId = userIdMap.get(String(q.studentId));
-      if (!atlasStudentId) {
-        skipped.push({ _id: q._id, reason: `no Atlas user for studentId ${q.studentId}` });
+      const localQuestionUserId = q.userId || q.studentId;
+      const atlasUserId = userIdMap.get(String(localQuestionUserId));
+      if (!atlasUserId) {
+        skipped.push({ _id: q._id, reason: `no Atlas user for userId ${localQuestionUserId}` });
         continue;
       }
-      remapped.push({ ...q, studentId: atlasStudentId });
+      const { studentId, ...question } = q;
+      remapped.push({ ...question, userId: atlasUserId });
     }
 
     console.log(`  Will upsert: ${remapped.length}, skipped: ${skipped.length}`);

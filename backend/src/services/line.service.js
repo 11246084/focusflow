@@ -6,6 +6,9 @@ const Enrollment = require('../models/enrollment.model');
 const Course = require('../models/course.model');
 const LineBindToken = require('../models/lineBindToken.model');
 const { askQuestion } = require('./qa.service');
+const { recordUsage } = require('./usageLog.service');
+const { recordQuestion } = require('./questionRecording.service');
+const { QUESTION_STATUSES, QUESTION_SOURCES, USAGE_LOG_EVENTS } = require('../constants/enums');
 const {
   buildLineRuntimeSnapshot,
   buildQaRuntimeSnapshot,
@@ -242,17 +245,12 @@ async function handleSwitchCourse(lineUserId, replyToken) {
 
   // 同時抓「已選課的課程」和「所有已發佈課程」，合併去重後讓使用者選擇
   const enrollments = await Enrollment.find({ studentId: user._id }).populate('courseId');
-  const publishedCourses = await Course.find({ status: 'published' });
   const courseMap = new Map();
 
   for (const enrollment of enrollments) {
     if (enrollment.courseId) {
       courseMap.set(String(enrollment.courseId._id), enrollment.courseId);
     }
-  }
-
-  for (const course of publishedCourses) {
-    courseMap.set(String(course._id), course);
   }
 
   const selectableCourses = Array.from(courseMap.values());
@@ -325,6 +323,10 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
     return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_access_denied' }, replyResult);
   }
 
+  if (!enrollment) {
+    await ensureCourseForUser(user._id, courseId);
+  }
+
   await User.findByIdAndUpdate(user._id, {
     activeCourseId: new mongoose.Types.ObjectId(courseId),
     lineConversationState: LINE_CONVERSATION_STATES.IDLE,
@@ -365,6 +367,10 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
       buildTextMessage('LINE 帳號已綁定，但你目前無法存取這門課程。'),
     ]);
     return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_access_denied' }, replyResult);
+  }
+
+  if (!enrollment) {
+    await ensureCourseForUser(user._id, courseId);
   }
 
   await User.findByIdAndUpdate(user._id, {
@@ -570,14 +576,41 @@ async function handleQuestion(lineUserId, text, replyToken) {
       conversationHistory: conversationHistory.length ? conversationHistory : null,
     });
   } catch (error) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage(buildQaFailureMessage(error))]);
+    const failureMessage = buildQaFailureMessage(error);
+    const failureRuntime = buildQaFailureRuntime(error);
+    const usageLog = await recordUsage({
+      userId: user._id,
+      courseId: user.activeCourseId,
+      event: USAGE_LOG_EVENTS.ASK,
+      metadata: {
+        source: QUESTION_SOURCES.LINE,
+        question: text,
+        matchCount: 0,
+        runtime: failureRuntime,
+        errorCode: error?.code || 'INTERNAL_SERVER_ERROR',
+      },
+    });
+
+    await recordQuestion({
+      userId: user._id,
+      courseId: user.activeCourseId,
+      question: text,
+      answer: failureMessage,
+      status: QUESTION_STATUSES.FAILED,
+      source: QUESTION_SOURCES.LINE,
+      matches: [],
+      runtime: failureRuntime,
+      sourceUsageLogId: usageLog?._id,
+    });
+
+    const replyResult = await replyMessage(replyToken, [buildTextMessage(failureMessage)]);
 
     return attachReplyMetadata({
       type: 'question',
       handled: false,
       reason: mapQaFailureReason(error),
       errorCode: error?.code || 'INTERNAL_SERVER_ERROR',
-      qaRuntime: buildQaFailureRuntime(error),
+      qaRuntime: failureRuntime,
     }, replyResult);
   }
 

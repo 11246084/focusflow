@@ -45,7 +45,7 @@ const questionMatchSchema = new mongoose.Schema(
 
 const questionSchema = new mongoose.Schema(
   {
-    studentId: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
@@ -101,10 +101,7 @@ const questionSchema = new mongoose.Schema(
     sourceUsageLogId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'UsageLog',
-      default: null,
-      index: true,
-      unique: true,
-      sparse: true,
+      default: undefined,
     },
     askedAt: {
       type: Date,
@@ -119,9 +116,19 @@ const questionSchema = new mongoose.Schema(
 );
 
 questionSchema.index({ courseId: 1, askedAt: -1 });
-questionSchema.index({ studentId: 1, askedAt: -1 });
+questionSchema.index({ userId: 1, askedAt: -1 });
 questionSchema.index({ courseId: 1, status: 1, askedAt: -1 });
 questionSchema.index({ courseId: 1, topSegmentId: 1 });
 questionSchema.index({ question: 'text', answer: 'text' });
+questionSchema.index(
+  { sourceUsageLogId: 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: {
+      sourceUsageLogId: { $type: 'objectId' },
+    },
+  },
+);
 
 module.exports = mongoose.model('Question', questionSchema);

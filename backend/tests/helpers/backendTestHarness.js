@@ -556,10 +556,12 @@ function installModelStubs() {
   Clip.deleteMany = async (query = {}) => deleteManyInStore(store.clips, query);
 
   UsageLog.create = async (payload) => {
-    store.usageLogs.push({
+    const usageLog = {
       _id: newObjectId(),
       ...payload,
-    });
+    };
+    store.usageLogs.push(usageLog);
+    return usageLog;
   };
   UsageLog.deleteMany = async (query = {}) => deleteManyInStore(store.usageLogs, query);
 

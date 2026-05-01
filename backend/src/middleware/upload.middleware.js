@@ -11,11 +11,28 @@ const storage = multer.diskStorage({
     cb(null, env.uploadDir);
   },
   filename(req, file, cb) {
-    const extension = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, extension).replace(/[^a-zA-Z0-9-_]/g, '-');
+    const originalName = decodeUploadFilename(file.originalname);
+    file.originalname = originalName;
+    const extension = path.extname(originalName);
+    const baseName = path.basename(originalName, extension).replace(/[^a-zA-Z0-9-_]/g, '-');
     cb(null, `${Date.now()}-${baseName}${extension}`);
   },
 });
+
+function decodeUploadFilename(filename) {
+  const raw = String(filename || '').trim();
+
+  if (!raw) {
+    return 'upload';
+  }
+
+  try {
+    const decoded = Buffer.from(raw, 'latin1').toString('utf8');
+    return decoded.includes('\uFFFD') ? raw : decoded;
+  } catch {
+    return raw;
+  }
+}
 
 const upload = multer({
   storage,
@@ -33,4 +50,5 @@ const upload = multer({
 
 module.exports = {
   uploadSingleVideo: upload.single('video'),
+  decodeUploadFilename,
 };

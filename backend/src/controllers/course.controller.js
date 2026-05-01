@@ -50,8 +50,13 @@ const getCourseById = asyncHandler(async (req, res) => {
 });
 
 const updateCourse = asyncHandler(async (req, res) => {
-  const { title, description, status } = req.body;
-  const course = await courseService.updateCourse(req.params.courseId, { title, description, status }, req.user);
+  const { title, description, status, teacherId } = req.body;
+  const course = await courseService.updateCourse(req.params.courseId, {
+    title,
+    description,
+    status,
+    teacherId: teacherId ? String(teacherId).trim() : undefined,
+  }, req.user);
   return sendSuccess(res, { message: 'Course updated.', data: { course } });
 });
 

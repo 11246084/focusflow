@@ -2,7 +2,7 @@ const Course = require('../models/course.model');
 const Enrollment = require('../models/enrollment.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { USER_ROLES, COURSE_STATUSES } = require('../constants/enums');
+const { USER_ROLES } = require('../constants/enums');
 
 function isAdmin(user) {
   return user?.role === USER_ROLES.ADMIN;
@@ -49,16 +49,14 @@ async function canAccessCourse(user, course) {
     return false;
   }
 
-  if (course.status === COURSE_STATUSES.PUBLISHED) {
-    return true;
-  }
-
-  const enrollment = await Enrollment.findOne({
-    studentId: user.id,
-    courseId: course._id,
-  });
-
-  return Boolean(enrollment);
+  // TODO: Restore enrollment-only student access after demo reset/testing.
+  // const enrollment = await Enrollment.findOne({
+  //   studentId: user.id,
+  //   courseId: course._id,
+  // });
+  //
+  // return Boolean(enrollment);
+  return true;
 }
 
 async function assertCanAccessCourse(user, course) {

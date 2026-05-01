@@ -55,6 +55,78 @@ describe('course and video routes', () => {
       studentResult.body.data.courses.map((course) => course._id),
       [ids.enrolledDraftCourse, ids.publishedCourse],
     );
+
+    const foreignPublishedCourseId = newObjectId();
+    store.courses.push({
+      _id: foreignPublishedCourseId,
+      title: 'Foreign Published Course',
+      description: 'Published but not assigned or enrolled',
+      teacherId: ids.otherTeacher,
+      videoIds: [],
+      status: 'published',
+      createdAt: '2026-04-07T10:00:00.000Z',
+    });
+
+    const teacherScopedResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: teacherToken });
+    const studentScopedResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: studentToken });
+
+    assert.equal(
+      teacherScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
+      false,
+    );
+    assert.equal(
+      studentScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
+      false,
+    );
+  });
+
+  it('requires admins to assign courses to a teacher and allows reassignment', async () => {
+    const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+
+    const missingTeacherResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        title: 'Admin Course Without Teacher',
+        status: 'published',
+      },
+    });
+    const createResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        title: 'Admin Assigned Course',
+        status: 'published',
+        teacherId: ids.otherTeacher,
+      },
+    });
+
+    const courseId = createResult.body.data.course._id;
+    const teacherBeforeResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: teacherToken });
+    const otherTeacherBeforeResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: otherTeacherToken });
+
+    const reassignResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${courseId}`, {
+      method: 'PATCH',
+      token: adminToken,
+      body: {
+        teacherId: ids.teacher,
+      },
+    });
+    const teacherAfterResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: teacherToken });
+    const otherTeacherAfterResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: otherTeacherToken });
+
+    assert.equal(missingTeacherResult.status, 400);
+    assert.equal(missingTeacherResult.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(createResult.status, 201);
+    assert.equal(String(createResult.body.data.course.teacherId._id), ids.otherTeacher);
+    assert.equal(teacherBeforeResult.body.data.courses.some((course) => course._id === courseId), false);
+    assert.equal(otherTeacherBeforeResult.body.data.courses.some((course) => course._id === courseId), true);
+    assert.equal(reassignResult.status, 200);
+    assert.equal(String(reassignResult.body.data.course.teacherId._id), ids.teacher);
+    assert.equal(teacherAfterResult.body.data.courses.some((course) => course._id === courseId), true);
+    assert.equal(otherTeacherAfterResult.body.data.courses.some((course) => course._id === courseId), false);
   });
 
   it('gets a course by id and enforces access rules', async () => {
@@ -404,6 +476,51 @@ describe('course and video routes', () => {
     assert.equal(detailResult.body.data.video.courseId, ids.pipelineBridgeCourse);
     assert.equal(processingResult.status, 409);
     assert.equal(processingResult.body.error.code, 'VIDEO_METADATA_ONLY');
+  });
+
+  it('resolves bridge videos when course videoIds reference external pipeline ids', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const bridgeCourseId = newObjectId();
+    const bridgeVideoId = newObjectId();
+    const bridgeExternalVideoId = 'pipeline-video-external-001';
+
+    store.courses.push({
+      _id: bridgeCourseId,
+      title: 'External Pipeline Bridge Course',
+      description: 'Course references pipeline video ids instead of Mongo ids.',
+      teacherId: ids.teacher,
+      videoIds: [bridgeExternalVideoId],
+      status: 'published',
+      createdAt: '2026-04-15T08:00:00.000Z',
+    });
+
+    store.videos.push({
+      _id: bridgeVideoId,
+      video_id: bridgeExternalVideoId,
+      file_name: 'external-pipeline.mp4',
+      duration_sec: 480,
+      createdAt: '2026-04-15T08:00:00.000Z',
+      updatedAt: '2026-04-15T08:00:00.000Z',
+    });
+
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${bridgeCourseId}/videos`,
+      { token: teacherToken },
+    );
+    const detailResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${bridgeVideoId}`,
+      { token: teacherToken },
+    );
+
+    assert.equal(listResult.status, 200);
+    assert.equal(listResult.body.data.videos.length, 1);
+    assert.equal(listResult.body.data.videos[0]._id, bridgeVideoId);
+    assert.equal(listResult.body.data.videos[0].externalVideoId, bridgeExternalVideoId);
+    assert.equal(listResult.body.data.videos[0].metadataOnly, true);
+    assert.equal(detailResult.status, 200);
+    assert.equal(detailResult.body.data.video.courseId, bridgeCourseId);
   });
 
   it('marks mixed bridge courses with both canonical counts and readability aliases', async () => {

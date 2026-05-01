@@ -2,6 +2,7 @@ const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Enrollment = require('../models/enrollment.model');
+const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const {
@@ -11,7 +12,7 @@ const {
   getStudentEnrollmentCourseIds,
   assertCanAccessCourse,
 } = require('./courseAccess.service');
-const { COURSE_STATUSES, COURSE_STATUS_VALUES } = require('../constants/enums');
+const { COURSE_STATUS_VALUES } = require('../constants/enums');
 const {
   buildCourseBridgePresentation,
   collectScopedVideos,
@@ -22,8 +23,35 @@ async function buildCoursePresentation(course) {
   return buildCourseBridgePresentation(course, scopedVideos);
 }
 
+async function resolveCourseTeacherId({ teacherId, creator, requiredForAdmin = false }) {
+  if (!isAdmin(creator)) {
+    return creator.id;
+  }
+
+  const normalizedTeacherId = String(teacherId || '').trim();
+  if (!normalizedTeacherId) {
+    if (requiredForAdmin) {
+      throw new AppError('Teacher is required for admin-created courses.', 400, 'VALIDATION_ERROR');
+    }
+
+    return null;
+  }
+
+  assertObjectId(normalizedTeacherId, 'teacher');
+  const teacher = await User.findById(normalizedTeacherId);
+  if (!teacher || teacher.role !== 'teacher' || teacher.isActive === false) {
+    throw new AppError('Assigned teacher not found.', 400, 'VALIDATION_ERROR');
+  }
+
+  return normalizedTeacherId;
+}
+
 async function createCourse({ title, description, teacherId, status, creator }) {
-  const ownerId = isAdmin(creator) && teacherId ? teacherId : creator.id;
+  const ownerId = await resolveCourseTeacherId({
+    teacherId,
+    creator,
+    requiredForAdmin: true,
+  });
   const course = await Course.create({
     title,
     description,
@@ -45,14 +73,13 @@ async function listCourses(user) {
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   } else if (isStudent(user)) {
-    const enrolledCourseIds = await getStudentEnrollmentCourseIds(user.id);
-
-    courses = await Course.find({
-      $or: [
-        { status: COURSE_STATUSES.PUBLISHED },
-        { _id: { $in: enrolledCourseIds } },
-      ],
-    })
+    // TODO: Restore enrollment-only student course listing after demo reset/testing.
+    // const enrolledCourseIds = await getStudentEnrollmentCourseIds(user.id);
+    //
+    // courses = await Course.find({ _id: { $in: enrolledCourseIds } })
+    //   .populate('teacherId', 'name email role isActive')
+    //   .sort({ createdAt: -1 });
+    courses = await Course.find()
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   }
@@ -92,7 +119,7 @@ async function ensureStudentEnrollment(studentId, courseId) {
   );
 }
 
-async function updateCourse(courseId, { title, description, status }, user) {
+async function updateCourse(courseId, { title, description, status, teacherId }, user) {
   assertObjectId(courseId, 'course');
 
   const course = await Course.findById(courseId);
@@ -112,8 +139,23 @@ async function updateCourse(courseId, { title, description, status }, user) {
     if (!COURSE_STATUS_VALUES.includes(status)) throw new AppError('Invalid status.', 400, 'VALIDATION_ERROR');
     course.status = status;
   }
+  if (teacherId !== undefined) {
+    if (!isAdmin(user)) {
+      throw new AppError('Only admins can reassign courses.', 403, 'FORBIDDEN');
+    }
+    course.teacherId = await resolveCourseTeacherId({ teacherId, creator: user, requiredForAdmin: true });
+  }
 
-  await course.save();
+  if (typeof course.save === 'function') {
+    await course.save();
+  } else {
+    await Course.findByIdAndUpdate(courseId, {
+      title: course.title,
+      description: course.description,
+      status: course.status,
+      teacherId: course.teacherId,
+    });
+  }
   const updated = await Course.findById(courseId).populate('teacherId', 'name email role isActive');
   return buildCoursePresentation(updated);
 }
@@ -146,4 +188,5 @@ module.exports = {
   updateCourse,
   deleteCourse,
   ensureStudentEnrollment,
+  resolveCourseTeacherId,
 };

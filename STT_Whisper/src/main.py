@@ -173,6 +173,21 @@ def _delete_runtime_file(path: Path, allowed_root: Path) -> bool:
     return True
 
 
+def _delete_empty_runtime_dirs(paths: list[Path], allowed_root: Path) -> int:
+    deleted_count = 0
+    for path in sorted({candidate.parent for candidate in paths}, key=lambda item: len(item.parts), reverse=True):
+        cursor = path
+        while _is_within_directory(cursor, allowed_root) and cursor != allowed_root:
+            try:
+                cursor.rmdir()
+            except OSError:
+                break
+            deleted_count += 1
+            logger.info("Cleaned empty pipeline directory: %s", cursor)
+            cursor = cursor.parent
+    return deleted_count
+
+
 def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[str, Path], videos: list) -> None:
     """Remove local runtime artifacts after MongoDB upload, when explicitly enabled."""
     if not config.cleanup_after_upload:
@@ -193,9 +208,12 @@ def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[s
         if _delete_runtime_file(path, config.data_dir):
             deleted_count += 1
 
+    deleted_dir_count = _delete_empty_runtime_dirs(cleanup_targets, config.data_dir)
+
     logger.info(
-        "Pipeline cleanup completed: deleted=%s keep_checkpoints=%s",
+        "Pipeline cleanup completed: deleted=%s deleted_dirs=%s keep_checkpoints=%s",
         deleted_count,
+        deleted_dir_count,
         config.cleanup_keep_checkpoints,
     )
 

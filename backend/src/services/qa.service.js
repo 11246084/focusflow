@@ -545,7 +545,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       answerResult: null,
     });
 
-    await recordUsage({
+    const usageLog = await recordUsage({
       userId: user.id,
       courseId: course._id,
       event: USAGE_LOG_EVENTS.ASK,
@@ -562,7 +562,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       : '這門課目前還沒有可搜尋的影片片段，請先確認影片索引是否已完成。';
 
     await recordQuestion({
-      studentId: user.id,
+      userId: user.id,
       courseId: course._id,
       question: trimmedQuestion,
       answer,
@@ -570,6 +570,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       source,
       matches: [],
       runtime,
+      sourceUsageLogId: usageLog?._id,
     });
 
     return {
@@ -596,18 +597,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       answerResult: null,
     });
 
-    await recordQuestion({
-      studentId: user.id,
-      courseId: course._id,
-      question: trimmedQuestion,
-      answer: '',
-      status: QUESTION_STATUSES.NO_MATCH,
-      source,
-      matches: [],
-      runtime,
-    });
-
-    await recordUsage({
+    const usageLog = await recordUsage({
       userId: user.id,
       courseId: course._id,
       event: USAGE_LOG_EVENTS.ASK,
@@ -617,6 +607,18 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
         matchCount: 0,
         runtime,
       },
+    });
+
+    await recordQuestion({
+      userId: user.id,
+      courseId: course._id,
+      question: trimmedQuestion,
+      answer: '',
+      status: QUESTION_STATUSES.NO_MATCH,
+      source,
+      matches: [],
+      runtime,
+      sourceUsageLogId: usageLog?._id,
     });
 
     return {
@@ -638,7 +640,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     answerResult,
   });
 
-  await recordUsage({
+  const usageLog = await recordUsage({
     userId: user.id,
     courseId: course._id,
     event: USAGE_LOG_EVENTS.ASK,
@@ -652,7 +654,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   });
 
   await recordQuestion({
-    studentId: user.id,
+    userId: user.id,
     courseId: course._id,
     question: trimmedQuestion,
     answer: answerResult.text,
@@ -660,6 +662,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     source,
     matches,
     runtime,
+    sourceUsageLogId: usageLog?._id,
   });
 
   if (clip) {

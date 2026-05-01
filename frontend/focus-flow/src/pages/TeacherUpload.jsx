@@ -2,49 +2,116 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch, getToken } from '../api';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+const ACTIVE_UPLOAD_KEY = 'focusflow_active_upload_video';
+
 const STATUS_LABEL = {
-  queued:     { text: '排隊中',  cls: 'bb' },
-  processing: { text: '處理中',  cls: 'by' },
-  completed:  { text: '已完成',  cls: 'bg' },
-  failed:     { text: '失敗',    cls: 'br' },
+  queued: { text: '排隊中', cls: 'bb', message: '已建立影片紀錄，等待 STT pipeline 開始。' },
+  processing: { text: '處理中', cls: 'by', message: '正在進行 Whisper、切段與 embedding，這段可以切到其他頁面。' },
+  completed: { text: '已完成', cls: 'bg', message: '索引已寫入資料庫，學生可以開始提問。' },
+  failed: { text: '失敗', cls: 'br', message: '處理失敗，請查看 STT_Whisper/data/pipeline_<videoId>.log。' },
 };
 
-function pipelineStep(stepIndex, status) {
-  // stepIndex: 0=upload done, 1=queued, 2=processing, 3=completed
-  if (status === 'completed') return stepIndex <= 3 ? 'done' : 'idle';
-  if (status === 'processing') return stepIndex === 0 ? 'done' : stepIndex === 1 ? 'done' : stepIndex === 2 ? 'active' : 'idle';
-  if (status === 'queued')     return stepIndex === 0 ? 'done' : stepIndex === 1 ? 'active' : 'idle';
-  if (status === 'failed')     return stepIndex === 0 ? 'done' : 'fail';
-  return stepIndex === 0 ? 'active' : 'idle'; // uploading
+function pipelineStep(stepIndex, status, hasVideo) {
+  if (!hasVideo) return stepIndex === 0 ? 'active' : 'idle';
+  if (status === 'completed') return 'done';
+  if (status === 'failed') return stepIndex === 0 ? 'done' : 'fail';
+  if (status === 'processing') return stepIndex <= 1 ? 'done' : stepIndex === 2 ? 'active' : 'idle';
+  if (status === 'queued') return stepIndex === 0 ? 'done' : stepIndex === 1 ? 'active' : 'idle';
+  return stepIndex === 0 ? 'done' : 'idle';
 }
 
 function StepDot({ state, n }) {
-  const colors = { done: '#22c55e', active: '#F14F21', fail: '#ef4444', idle: 'rgba(255,255,255,0.15)' };
-  const bg = `rgba(${state === 'done' ? '34,197,94' : state === 'active' ? '241,79,33' : state === 'fail' ? '239,68,68' : '255,255,255'},${state === 'idle' ? '0.08' : '0.2'})`;
+  const colors = { done: '#22c55e', active: '#F14F21', fail: '#ef4444', idle: 'rgba(255,255,255,0.35)' };
+  const bg = state === 'done'
+    ? 'rgba(34,197,94,0.18)'
+    : state === 'active'
+      ? 'rgba(241,79,33,0.2)'
+      : state === 'fail'
+        ? 'rgba(239,68,68,0.18)'
+        : 'rgba(255,255,255,0.08)';
+
   return (
-    <div style={{ width: 20, height: 20, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: colors[state], flexShrink: 0, fontFamily: "'Space Grotesk',sans-serif" }}>
+    <div style={{ width: 22, height: 22, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: colors[state], flexShrink: 0, fontFamily: "'Space Grotesk',sans-serif" }}>
       {state === 'done' ? '✓' : n}
     </div>
   );
 }
 
+function readActiveUpload() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVE_UPLOAD_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveUpload(payload) {
+  localStorage.setItem(ACTIVE_UPLOAD_KEY, JSON.stringify(payload));
+}
+
+function clearActiveUpload() {
+  localStorage.removeItem(ACTIVE_UPLOAD_KEY);
+}
+
 export default function TeacherUpload() {
-  const [drag, setDrag]           = useState(false);
-  const [courses, setCourses]     = useState([]);
-  const [courseId, setCourseId]   = useState('');
-  const [title, setTitle]         = useState('');
+  const [drag, setDrag] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [courseId, setCourseId] = useState('');
+  const [title, setTitle] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [videoId, setVideoId]     = useState(null);
-  const [procStatus, setProcStatus] = useState(null); // null | 'queued' | 'processing' | 'completed' | 'failed'
+  const [videoId, setVideoId] = useState(null);
+  const [procStatus, setProcStatus] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
 
-  // Load teacher's courses
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const applyStatus = useCallback((vid, status, persist = true) => {
+    setVideoId(vid);
+    setProcStatus(status);
+    setStatusMessage(STATUS_LABEL[status]?.message || '');
+
+    if (persist && vid) {
+      writeActiveUpload({
+        videoId: vid,
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    if (status === 'completed' || status === 'failed') {
+      stopPolling();
+      clearActiveUpload();
+    }
+  }, [stopPolling]);
+
+  const pollProcessing = useCallback(async (vid) => {
+    const res = await apiFetch(`/videos/${vid}/processing`);
+    const status = res.data?.processing?.status || 'queued';
+    applyStatus(vid, status);
+  }, [applyStatus]);
+
+  const startPolling = useCallback((vid) => {
+    if (!vid) return;
+    stopPolling();
+    pollProcessing(vid).catch(() => {});
+    pollRef.current = setInterval(() => {
+      pollProcessing(vid).catch(() => {});
+    }, 3000);
+  }, [pollProcessing, stopPolling]);
+
   useEffect(() => {
     apiFetch('/courses')
-      .then(res => {
+      .then((res) => {
         const list = res.data?.courses || [];
         setCourses(list);
         if (list.length > 0) setCourseId(list[0]._id);
@@ -52,42 +119,48 @@ export default function TeacherUpload() {
       .catch(() => {});
   }, []);
 
-  // Poll processing status after upload
-  const startPolling = useCallback((vid) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await apiFetch(`/videos/${vid}/processing`);
-        const s = res.data?.processing?.status;
-        setProcStatus(s);
-        if (s === 'completed' || s === 'failed') {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-        }
-      } catch {
-        // ignore transient poll errors
-      }
-    }, 3000);
-  }, []);
+  useEffect(() => {
+    const activeUpload = readActiveUpload();
+    if (activeUpload?.videoId) {
+      setVideoId(activeUpload.videoId);
+      setProcStatus(activeUpload.status || 'queued');
+      setStatusMessage('已恢復上一個上傳工作的進度追蹤。');
+      startPolling(activeUpload.videoId);
+    }
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
 
   function handleDrop(e) {
     e.preventDefault();
     setDrag(false);
-    const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('video/')) { setSelectedFile(f); setUploadError(''); }
-    else setUploadError('請選取影片檔案（MP4、MOV、MKV）');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) {
+      setSelectedFile(file);
+      setUploadError('');
+    } else {
+      setUploadError('請選擇影片檔案，支援 MP4、MOV、MKV。');
+    }
   }
 
   function handleFileChange(e) {
-    const f = e.target.files[0];
-    if (f) { setSelectedFile(f); setUploadError(''); }
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadError('');
+    }
   }
 
   async function handleUpload() {
-    if (!selectedFile) { setUploadError('請先選取影片檔案'); return; }
-    if (!courseId)      { setUploadError('請選擇課程'); return; }
+    if (!selectedFile) {
+      setUploadError('請先選擇影片檔案。');
+      return;
+    }
+
+    if (!courseId) {
+      setUploadError('請先選擇課程。');
+      return;
+    }
 
     const fd = new FormData();
     fd.append('video', selectedFile);
@@ -96,10 +169,11 @@ export default function TeacherUpload() {
     setUploading(true);
     setUploadError('');
     setProcStatus(null);
+    setStatusMessage('正在上傳影片到後端。');
     setVideoId(null);
 
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/courses/${courseId}/videos`, {
+      const res = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
         body: fd,
@@ -107,41 +181,54 @@ export default function TeacherUpload() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '上傳失敗');
 
-      const v = data.data?.video || data.data || {};
-      const vid = v._id || v.id || String(v._id || '');
-      setVideoId(vid);
-      setProcStatus('queued');
-      if (vid) startPolling(vid);
-    } catch (e) {
-      setUploadError(e.message || '上傳失敗，請再試一次');
+      const video = data.data?.video || data.data || {};
+      const vid = video._id || video.id || '';
+
+      if (!vid) {
+        throw new Error('上傳成功，但後端沒有回傳 videoId。');
+      }
+
+      applyStatus(vid, video.processing?.status || 'queued');
+      startPolling(vid);
+    } catch (error) {
+      setUploadError(error.message || '上傳失敗，請稍後再試。');
+      setStatusMessage('');
     } finally {
       setUploading(false);
     }
   }
 
-  const uploadDone = videoId !== null;
+  function resetForm() {
+    stopPolling();
+    clearActiveUpload();
+    setVideoId(null);
+    setProcStatus(null);
+    setSelectedFile(null);
+    setTitle('');
+    setUploadError('');
+    setStatusMessage('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  const uploadDone = Boolean(videoId);
   const steps = [
-    ['01', '上傳影片',         '存入後端並啟動 AI 管道'],
-    ['02', 'Whisper STT',     '語音轉逐字稿（背景非同步）'],
-    ['03', 'LLM + Embedding', '切段 + 向量索引寫入 MongoDB'],
-    ['04', 'Ready',           '學生可透過 Line Bot 提問'],
+    ['01', '上傳影片', '存入後端並啟動 AI 管線'],
+    ['02', '排隊等待', '背景工作已建立'],
+    ['03', 'STT + Embedding', '轉字幕、切段並寫入向量資料庫'],
+    ['04', 'Ready', '學生可透過課程頁或 Line Bot 提問'],
   ];
-  // Map each step to a pipeline state
-  const stepStates = uploadDone
-    ? [pipelineStep(0, procStatus), pipelineStep(1, procStatus), pipelineStep(2, procStatus), pipelineStep(3, procStatus)]
-    : ['active', 'idle', 'idle', 'idle'];
+  const stepStates = steps.map((_, index) => pipelineStep(index, procStatus, uploadDone));
+  const currentStatus = procStatus ? STATUS_LABEL[procStatus] : null;
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>Upload Video</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 900 }}>
-
-        {/* Left: drop zone + pipeline */}
         <div>
           <div
             className="upload-z"
             style={{ minHeight: 220, cursor: 'pointer', opacity: uploading ? 0.6 : 1 }}
-            onDragOver={e => { e.preventDefault(); setDrag(true); }}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
             onDrop={handleDrop}
             onClick={() => !uploading && fileInputRef.current?.click()}
@@ -150,14 +237,14 @@ export default function TeacherUpload() {
             <div style={{ color: '#F14F21' }}><Ic n="up" s={36} /></div>
             {selectedFile ? (
               <>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{selectedFile.name}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedFile.name}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</div>
               </>
             ) : (
               <>
                 <div style={{ fontSize: 15, fontWeight: 600, color: drag ? '#fff' : 'rgba(255,255,255,0.7)' }}>拖曳影片至此</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>或點擊選取檔案</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)' }}>支援 MP4, MOV, MKV · 最大 500 MB</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)' }}>支援 MP4, MOV, MKV，最大 500 MB</div>
               </>
             )}
           </div>
@@ -165,40 +252,49 @@ export default function TeacherUpload() {
           <div className="card-sm" style={{ padding: '16px 18px', marginTop: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em' }}>PROCESSING PIPELINE</div>
-              {procStatus && (
-                <span className={`badge ${STATUS_LABEL[procStatus]?.cls || 'bb'}`} style={{ fontSize: 10 }}>
-                  {STATUS_LABEL[procStatus]?.text}
+              {currentStatus && (
+                <span className={`badge ${currentStatus.cls}`} style={{ fontSize: 10 }}>
+                  {currentStatus.text}
                 </span>
               )}
             </div>
-            {steps.map(([n, t, d], i) => (
+            {steps.map(([n, label, description], index) => (
               <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <StepDot state={stepStates[i]} n={n} />
+                <StepDot state={stepStates[index]} n={n} />
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 12, color: stepStates[i] === 'idle' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t}</span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>{d}</span>
+                  <span style={{ fontSize: 12, color: stepStates[index] === 'idle' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.76)', fontWeight: 600 }}>{label}</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', marginLeft: 6 }}>{description}</span>
                 </div>
-                {stepStates[i] === 'active' && (
+                {stepStates[index] === 'active' && (
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#F14F21', animation: 'pulse 1.2s infinite' }} />
                 )}
               </div>
             ))}
+            {statusMessage && (
+              <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.68)', lineHeight: 1.7 }}>
+                {statusMessage}
+              </div>
+            )}
+            {videoId && (
+              <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.32)', wordBreak: 'break-all' }}>
+                videoId: {videoId}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right: form */}
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label className="ff-label">COURSE</label>
-              <select className="ff-input" value={courseId} onChange={e => setCourseId(e.target.value)} disabled={uploading || uploadDone}>
-                {courses.length === 0 && <option value="">載入課程中…</option>}
-                {courses.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
+              <select className="ff-input" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={uploading || uploadDone}>
+                {courses.length === 0 && <option value="">目前沒有可用課程</option>}
+                {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
               </select>
             </div>
             <div>
               <label className="ff-label">VIDEO TITLE（選填）</label>
-              <input className="ff-input" placeholder="e.g. 第三講：邏輯迴歸" value={title} onChange={e => setTitle(e.target.value)} disabled={uploading || uploadDone} />
+              <input className="ff-input" placeholder="e.g. 第三講：邏輯迴歸" value={title} onChange={(e) => setTitle(e.target.value)} disabled={uploading || uploadDone} />
             </div>
           </div>
 
@@ -215,22 +311,22 @@ export default function TeacherUpload() {
               onClick={handleUpload}
               disabled={uploading}
             >
-              <Ic n="up" s={16} /> {uploading ? '上傳中…' : '開始上傳並建立 AI 索引'}
+              <Ic n="up" s={16} /> {uploading ? '上傳中...' : '開始上傳並建立 AI 索引'}
             </button>
           ) : (
             <button
               className="btn-primary"
-              style={{ width: '100%', marginTop: 20, padding: '15px', background: 'rgba(255,255,255,0.08)', cursor: 'default' }}
-              onClick={() => { setVideoId(null); setProcStatus(null); setSelectedFile(null); setTitle(''); setUploadError(''); }}
+              style={{ width: '100%', marginTop: 20, padding: '15px', background: 'rgba(255,255,255,0.08)' }}
+              onClick={resetForm}
             >
-              ＋ 再上傳一支影片
+              上傳另一支影片
             </button>
           )}
 
           <div style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(241,79,33,0.08)', border: '1px solid rgba(241,79,33,0.18)', borderRadius: 12 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
-              上傳完成後系統非同步執行索引建立<br />
-              <span style={{ color: '#F14F21' }}>不阻塞 UX</span>，可繼續其他操作
+              上傳完成後系統會在背景建立索引。<br />
+              <span style={{ color: '#F14F21' }}>可切換頁面或繼續操作</span>，回到此頁會恢復追蹤最後一個上傳工作。
             </div>
           </div>
         </div>

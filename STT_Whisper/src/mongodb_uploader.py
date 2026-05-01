@@ -134,11 +134,21 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
 
         try:
             object_id = _as_object_id(video_id_val)
-            if object_id is not None and collection.find_one({"_id": object_id}) is not None:
+            existing_app_video = collection.find_one({"_id": object_id}) if object_id is not None else None
+
+            if existing_app_video is not None:
                 collection.update_one(
                     {"_id": object_id},
                     {"$set": document},
                 )
+            elif config.target_video_id and str(config.target_video_id) == str(video_id_val):
+                stats.error += 1
+                LOGGER.error(
+                    "[MongoDB Error] collection=%s key=video_id value=%s reason=missing_backend_video",
+                    VIDEOS_COLLECTION,
+                    video_id_val,
+                )
+                continue
             else:
                 safe_upsert(collection, "videoId", video_id_val, document)
             stats.success += 1

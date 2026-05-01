@@ -8,7 +8,8 @@ const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 // 將 add-friend URL 轉為 oaMessage URL 並預填訊息
 // line.me/R/ti/p/@id -> line.me/R/oaMessage/@id/?{message}
 function lineMessageUrl(text) {
-  if (!LINE_BOT_URL || !text) return LINE_BOT_URL;
+  if (!text) return LINE_BOT_URL || '';
+  if (!LINE_BOT_URL) return text;
   const base = LINE_BOT_URL.replace('/ti/p/', '/oaMessage/');
   return `${base}/?${encodeURIComponent(text)}`;
 }
@@ -17,7 +18,7 @@ function lineMessageUrl(text) {
 // 使用 fixed 定位避免被父容器 overflow 裁切
 function AskTAButton({ courseId, courseName, variant = 'list' }) {
   const [pos, setPos] = useState(null); // null = closed, {top,right} = open
-  const [url, setUrl] = useState(LINE_BOT_URL);
+  const [url, setUrl] = useState(LINE_BOT_URL || '');
   const [loadingUrl, setLoadingUrl] = useState(false);
   const btnRef = useRef(null);
   const cardRef = useRef(null);
@@ -34,12 +35,10 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [pos]);
 
-  if (!LINE_BOT_URL) return null;
-
   const isDetail = variant === 'detail';
 
   async function buildCourseBindUrl() {
-    if (!courseId) return LINE_BOT_URL;
+    if (!courseId) return LINE_BOT_URL || '';
 
     try {
       setLoadingUrl(true);
@@ -289,9 +288,7 @@ export default function StudentCourses() {
                 </div>
               </div>
             )}
-            {playing?.processing?.status === 'completed' && (
-              <QAPanel courseId={selectedCourse._id} videoRef={videoRef} videos={videos} onJumpToVideo={jumpToVideo} />
-            )}
+            <QAPanel courseId={selectedCourse._id} videoRef={videoRef} videos={videos} onJumpToVideo={jumpToVideo} />
           </div>
 
           {/* Right: video list */}

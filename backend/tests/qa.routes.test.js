@@ -181,11 +181,16 @@ describe('qa routes', () => {
 
     const askLog = store.usageLogs.find((entry) => entry.event === 'ask');
     const clipLog = store.usageLogs.find((entry) => entry.event === 'clip_view');
+    const questionRecord = store.questions.find((entry) => entry.question === 'What does the course say about JWT authentication?');
 
     assert.ok(askLog);
     assert.equal(askLog.metadata.source, 'api');
     assert.equal(askLog.metadata.topSegmentId, ids.segmentOne);
     assert.equal(askLog.metadata.runtime.matchStatus, 'matched');
+    assert.ok(questionRecord);
+    assert.equal(String(questionRecord.userId), ids.student);
+    assert.equal(questionRecord.studentId, undefined);
+    assert.equal(String(questionRecord.sourceUsageLogId), String(askLog._id));
     assert.ok(clipLog);
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
   });

@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 
 const projectRoot = path.resolve(__dirname, '../..');
 
-dotenv.config({ path: path.join(projectRoot, '.env'), override: true });
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',

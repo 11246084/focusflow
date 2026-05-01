@@ -298,10 +298,17 @@ describe('line webhook routes', () => {
       askResult.body.data.results[0].qaRuntime.fallbackCodes.includes('SEGMENT_EMBEDDING_MISSING'),
       true,
     );
-    assert.equal(
-      store.usageLogs.some((entry) => entry.event === 'ask' && entry.metadata?.source === 'line'),
-      true,
-    );
+    const lineAskLog = store.usageLogs.find((entry) => entry.event === 'ask' && entry.metadata?.source === 'line');
+    const lineQuestion = store.questions.find((entry) => (
+      entry.source === 'line'
+      && entry.question === 'What does the course say about JWT authentication?'
+    ));
+
+    assert.ok(lineAskLog);
+    assert.ok(lineQuestion);
+    assert.equal(String(lineQuestion.userId), ids.student);
+    assert.equal(lineQuestion.studentId, undefined);
+    assert.equal(String(lineQuestion.sourceUsageLogId), String(lineAskLog._id));
   });
 
   it('binds a LINE user and selects a course from a single QR message', async () => {
@@ -376,6 +383,18 @@ describe('line webhook routes', () => {
     );
     assert.equal(result.body.data.results[0].replySkipped, true);
     assert.equal(result.body.data.results[0].replyReason, 'line_channel_access_token_missing');
+    const failedAskLog = store.usageLogs.find((entry) => entry.event === 'ask' && entry.metadata?.source === 'line');
+    const failedQuestion = store.questions.find((entry) => (
+      entry.source === 'line'
+      && entry.status === 'failed'
+      && entry.question === 'What does the course say about JWT authentication?'
+    ));
+
+    assert.ok(failedAskLog);
+    assert.ok(failedQuestion);
+    assert.equal(String(failedQuestion.userId), ids.student);
+    assert.equal(failedQuestion.studentId, undefined);
+    assert.equal(String(failedQuestion.sourceUsageLogId), String(failedAskLog._id));
   });
 
   it('handles unbound users and missing active courses for question events', async () => {

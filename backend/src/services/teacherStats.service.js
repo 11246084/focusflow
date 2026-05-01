@@ -5,7 +5,7 @@ const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Question = require('../models/question.model');
 const Enrollment = require('../models/enrollment.model');
-const { USAGE_LOG_EVENTS, COURSE_STATUSES } = require('../constants/enums');
+const { USAGE_LOG_EVENTS } = require('../constants/enums');
 
 function getVideoTitle(video) {
   return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
@@ -133,9 +133,7 @@ async function getStudentDashboardStats(user) {
   const enrollmentProgressByCourse = Object.fromEntries(
     enrollments.map((enrollment) => [String(enrollment.courseId), enrollment.progress || 0]),
   );
-  const courses = await Course.find({
-    $or: [{ status: COURSE_STATUSES.PUBLISHED }, { _id: { $in: enrolledIds } }],
-  });
+  const courses = await Course.find({ _id: { $in: enrolledIds } });
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
 

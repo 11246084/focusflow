@@ -23,6 +23,7 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
 
   const save = async () => {
     if (!title.trim()) { setErr('課程名稱為必填'); return; }
+    if (!teacherId) { setErr('Please assign a teacher.'); return; }
     setSaving(true); setErr('');
     try {
       let res;
@@ -30,7 +31,7 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
         res = await apiFetch(`/courses/${course._id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, description, status }),
+          body: JSON.stringify({ title, description, status, teacherId }),
         });
         onSaved(res.data.course, 'edit');
       } else {
@@ -84,6 +85,18 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
             <label style={label}>指定教師（選填，留空則由管理員擁有）</label>
             <select style={{ ...inp, cursor: 'pointer' }} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
               <option value="">— 不指定 —</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {isEdit && (
+          <div style={{ marginBottom: 22 }}>
+            <label style={label}>TEACHER *</label>
+            <select style={{ ...inp, cursor: 'pointer' }} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
+              <option value="">Select teacher</option>
               {teachers.map(t => (
                 <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
               ))}

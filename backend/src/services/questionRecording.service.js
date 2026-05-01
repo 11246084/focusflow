@@ -26,7 +26,7 @@ function toQuestionMatch(match) {
 }
 
 async function recordQuestion({
-  studentId,
+  userId,
   courseId,
   question,
   answer = '',
@@ -34,10 +34,11 @@ async function recordQuestion({
   source = QUESTION_SOURCES.API,
   matches = [],
   runtime = {},
+  sourceUsageLogId = undefined,
 }) {
   try {
-    await Question.create({
-      studentId,
+    const payload = {
+      userId,
       courseId,
       question,
       answer,
@@ -48,7 +49,13 @@ async function recordQuestion({
       matches: matches.map(toQuestionMatch),
       runtime,
       askedAt: new Date(),
-    });
+    };
+
+    if (sourceUsageLogId) {
+      payload.sourceUsageLogId = sourceUsageLogId;
+    }
+
+    await Question.create(payload);
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
       console.error('Failed to record question.', error);

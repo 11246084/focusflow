@@ -9,6 +9,10 @@ function hasValue(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function pickField(video, camelCaseName, snakeCaseName) {
+  return video?.[camelCaseName] ?? video?.[snakeCaseName];
+}
+
 function isAppOwnedVideoRecord(video) {
   return Boolean(
     video
@@ -20,7 +24,7 @@ function isAppOwnedVideoRecord(video) {
 }
 
 function isPipelineMetadataRecord(video) {
-  return Boolean(hasValue(video?.videoId) && !isAppOwnedVideoRecord(video));
+  return Boolean(hasValue(pickField(video, 'videoId', 'video_id')) && !isAppOwnedVideoRecord(video));
 }
 
 const processingSchema = new mongoose.Schema(

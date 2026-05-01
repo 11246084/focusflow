@@ -1,4 +1,5 @@
 const Video = require('../models/video.model');
+const mongoose = require('mongoose');
 
 const COURSE_BRIDGE_MODES = {
   STANDARD: 'standard',
@@ -82,6 +83,7 @@ function addVideoIdentifiers(targetSet, video) {
   addIdentifier(targetSet, video._id);
   addIdentifier(targetSet, video.id);
   addIdentifier(targetSet, video.videoId);
+  addIdentifier(targetSet, video.video_id);
 }
 
 function sortByCreatedAtDesc(items) {
@@ -97,6 +99,7 @@ async function collectScopedVideos(course) {
   const courseVideoRefs = (course.videoIds || [])
     .map((videoId) => normalizeIdentifier(videoId))
     .filter(Boolean);
+  const courseObjectIdVideoRefs = courseVideoRefs.filter((videoId) => mongoose.Types.ObjectId.isValid(videoId));
 
   const addVideo = (video) => {
     if (!video) {
@@ -112,9 +115,22 @@ async function collectScopedVideos(course) {
     videosById.set(videoKey, video);
   };
 
+  const referencedVideoConditions = [];
+
+  if (courseObjectIdVideoRefs.length) {
+    referencedVideoConditions.push({ _id: { $in: courseObjectIdVideoRefs } });
+  }
+
+  if (courseVideoRefs.length) {
+    referencedVideoConditions.push(
+      { videoId: { $in: courseVideoRefs } },
+      { video_id: { $in: courseVideoRefs } },
+    );
+  }
+
   const [courseVideos, referencedVideos] = await Promise.all([
     Video.find({ courseId: course._id }),
-    courseVideoRefs.length ? Video.find({ _id: { $in: courseVideoRefs } }) : [],
+    referencedVideoConditions.length ? Video.find({ $or: referencedVideoConditions }) : [],
   ]);
 
   for (const video of courseVideos) {
@@ -177,28 +193,33 @@ function buildCourseBridgePresentation(course, scopedVideos) {
 
 function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
   const plainVideo = toPlainObject(video);
-  const externalVideoId = normalizeIdentifier(plainVideo.videoId);
-  const durationSec = normalizeNumber(plainVideo.durationSec);
-  const fileName = normalizeTranscript(plainVideo.fileName);
+  const externalVideoId = normalizeIdentifier(plainVideo.videoId, plainVideo.video_id);
+  const durationSec = normalizeNumber(plainVideo.durationSec, plainVideo.duration_sec);
+  const fileName = normalizeTranscript(plainVideo.fileName, plainVideo.file_name);
 
   if (Video.isAppOwnedRecord(video)) {
     return {
       ...plainVideo,
       durationSec,
+      duration_sec: durationSec,
       fileName,
+      file_name: fileName,
+      file_path: plainVideo.filePath || plainVideo.file_path || null,
       externalVideoId,
       qaScopeOnly: false,
       metadataOnly: false,
       isAppOwned: true,
       bridgeMode: summary.bridgeMode || COURSE_BRIDGE_MODES.STANDARD,
       bridgeSource: null,
+      video_source: plainVideo.videoSource || plainVideo.video_source || plainVideo.sourceType || null,
+      video_url: plainVideo.videoUrl || plainVideo.video_url || plainVideo.sourceUrl || null,
     };
   }
 
   return {
     _id: normalizeIdentifier(plainVideo._id, plainVideo.id),
     courseId: normalizeIdentifier(courseId),
-    title: normalizeTranscript(plainVideo.title, plainVideo.fileName, externalVideoId),
+    title: normalizeTranscript(plainVideo.title, plainVideo.fileName, plainVideo.file_name, externalVideoId),
     sourceType: plainVideo.sourceType || null,
     sourceUrl: plainVideo.sourceUrl || null,
     uploadedBy: null,

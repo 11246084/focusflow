@@ -21,6 +21,7 @@ const Enrollment = require('../../src/models/enrollment.model');
 const VideoSegment = require('../../src/models/videoSegment.model');
 const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
+const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 
 const uploadsDir = env.uploadDir;
@@ -35,6 +36,7 @@ const store = {
   videoSegments: [],
   clips: [],
   usageLogs: [],
+  questions: [],
   lineBindTokens: [],
 };
 
@@ -177,6 +179,10 @@ function matchesQuery(document, query = {}) {
       return normalizeValue(currentValue) !== normalizeValue(value.$ne);
     }
 
+    if (value && typeof value === 'object' && '$gte' in value) {
+      return new Date(currentValue).getTime() >= new Date(value.$gte).getTime();
+    }
+
     return normalizeValue(currentValue) === normalizeValue(value);
   });
 }
@@ -264,6 +270,13 @@ function createQuery(initialValue, options = {}) {
     sort(sortSpec) {
       if (Array.isArray(state.value) && Object.keys(sortSpec || {}).length) {
         state.value = sortItems(state.value, sortSpec);
+      }
+
+      return this;
+    },
+    limit(count) {
+      if (Array.isArray(state.value)) {
+        state.value = state.value.slice(0, count);
       }
 
       return this;
@@ -550,6 +563,16 @@ function installModelStubs() {
   };
   UsageLog.deleteMany = async (query = {}) => deleteManyInStore(store.usageLogs, query);
 
+  Question.create = async (payload) => {
+    store.questions.push({
+      _id: newObjectId(),
+      ...payload,
+    });
+  };
+  Question.find = (query = {}) => createQuery(store.questions.filter((item) => matchesQuery(item, query)));
+  Question.countDocuments = async (query = {}) => store.questions.filter((item) => matchesQuery(item, query)).length;
+  Question.deleteMany = async (query = {}) => deleteManyInStore(store.questions, query);
+
   LineBindToken.create = async (payload) => {
     const token = {
       _id: newObjectId(),
@@ -580,6 +603,7 @@ function resetStore() {
   store.videoSegments.length = 0;
   store.clips.length = 0;
   store.usageLogs.length = 0;
+  store.questions.length = 0;
   store.lineBindTokens.length = 0;
 
   store.users.push(

@@ -1,79 +1,126 @@
+import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
+import { apiFetch } from '../api';
 
-const courses = [
-  { name: 'Machine Learning 導論', teacher: '林教授', prog: 72, vids: 12, col: '#a5b4fc' },
-  { name: '資料結構與演算法',       teacher: '陳教授', prog: 45, vids: 8,  col: '#4ade80' },
-  { name: 'Python 程式設計',       teacher: '王教授', prog: 91, vids: 15, col: '#F14F21' },
-  { name: 'Deep Learning 實務',    teacher: '張教授', prog: 23, vids: 10, col: '#fb923c' },
-];
+const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'];
+
+function formatRelativeTime(value) {
+  if (!value) return '未知時間';
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return '未知時間';
+
+  const diffMs = Date.now() - timestamp;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return '剛剛';
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} 分鐘前`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} 小時前`;
+  return `${Math.floor(diffMs / day)} 天前`;
+}
 
 export default function StudentDashboard({ onNav }) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiFetch('/stats/student')
+      .then((res) => setStats(res.data))
+      .catch((err) => setError(err.message || '載入 dashboard 失敗'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const courses = stats?.courseList || [];
+  const recentQueries = stats?.recentQueries || [];
+  const cards = [
+    [stats?.weeklyQueries ?? '-', '本週提問次數', 'WEEKLY QUERIES', 'last 7 days'],
+    [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'AVG PROGRESS', `${stats?.coursesCount ?? 0} courses`],
+    [stats?.totalQueries ?? '-', '累計提問次數', 'TOTAL QUERIES', 'all time'],
+    [`${stats?.answerRate ?? 0}%`, '回答命中率', 'ANSWER RATE', 'from questions'],
+  ];
+
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
-        {[
-          ['4.2 h', '本週學習時間',  'WEEKLY STUDY',   '+0.8h vs last week'],
-          ['58%',   '平均完成進度',  'AVG PROGRESS',   '4 courses'],
-          ['31',    '累計提問次數',  'TOTAL QUERIES',  'this semester'],
-          ['87%',   '快取命中率',   'CACHE HIT RATE', 'no re-render'],
-        ].map(([v, lz, le, sub]) => (
-          <div key={le} className="stat-card">
-            <div className="stat-lbl">{le}</div>
-            <div className="stat-val">{v}</div>
-            <div className="stat-sub">{lz} · {sub}</div>
+        {cards.map(([value, label, title, sub]) => (
+          <div key={title} className="stat-card">
+            <div className="stat-lbl">{title}</div>
+            <div className="stat-val">{loading ? '-' : value}</div>
+            <div className="stat-sub">{label} · {sub}</div>
           </div>
         ))}
       </div>
 
-      {/* Main grid */}
+      {error && (
+        <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: 'rgba(220,38,38,0.12)', color: '#fca5a5', fontSize: 12 }}>
+          {error}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {/* Course progress */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Course Progress</div>
-            <span onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', letterSpacing: '.04em' }}>VIEW ALL →</span>
+            <span onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', letterSpacing: '.04em' }}>VIEW ALL</span>
           </div>
-          {courses.map((c, i) => (
-            <div key={i} style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{c.name}</span>
-                <span style={{ fontSize: 12, color: c.col, fontWeight: 700 }}>{c.prog}%</span>
-              </div>
-              <div className="prog-track"><div className="prog-fill" style={{ width: `${c.prog}%`, background: c.col }} /></div>
-            </div>
-          ))}
+
+          {loading ? (
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>載入中...</div>
+          ) : courses.length === 0 ? (
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>尚無課程資料</div>
+          ) : (
+            courses.map((course, index) => {
+              const color = COLORS[index % COLORS.length];
+
+              return (
+                <div key={course.id || course.title} style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 7 }}>
+                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.82)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{course.title}</span>
+                    <span style={{ fontSize: 12, color, fontWeight: 700 }}>{course.progress}%</span>
+                  </div>
+                  <div className="prog-track">
+                    <div className="prog-fill" style={{ width: `${course.progress}%`, background: color }} />
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Recent queries */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Recent Queries</div>
-          {[
-            { q: '反向傳播的梯度計算如何推導？', course: 'Deep Learning', t: '2 hrs ago', hit: true },
-            { q: '什麼是 Attention Mechanism？',  course: 'ML 導論',       t: 'Yesterday', hit: true },
-            { q: '快速排序法的最壞情況複雜度',     course: '演算法',        t: '3 days',    hit: false },
-            { q: 'LSTM 與 GRU 的核心差異',       course: 'Deep Learning', t: '4 days',    hit: true },
-          ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 11, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-              <div style={{ color: '#F14F21', flexShrink: 0 }}><Ic n="play" s={13} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.82)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.q}</div>
-                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.33)', marginTop: 2 }}>{item.course} · {item.t}</div>
+
+          {loading ? (
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>載入中...</div>
+          ) : recentQueries.length === 0 ? (
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>尚無提問紀錄</div>
+          ) : (
+            recentQueries.map((item, index) => (
+              <div key={item.id || index} style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 11, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                <div style={{ color: '#F14F21', flexShrink: 0 }}><Ic n="play" s={13} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.86)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.question}</div>
+                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.52)', marginTop: 2 }}>
+                    {item.courseName} · {formatRelativeTime(item.timestamp)}
+                  </div>
+                </div>
+                <span className={`badge ${item.matched ? 'bg' : 'by'}`}>{item.matched ? '命中' : '未命中'}</span>
               </div>
-              <span className={`badge ${item.hit ? 'bg' : 'by'}`}>{item.hit ? '快取' : '新建'}</span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* Line Bot CTA */}
       <div className="card" style={{ marginTop: 12, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 20, background: 'linear-gradient(135deg,rgba(6,199,85,0.1),rgba(38,12,30,0.72))' }}>
         <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(6,199,85,0.2)', border: '1px solid rgba(6,199,85,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', flexShrink: 0 }}>
           <Ic n="chat" s={22} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Line Bot 即時提問</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>輸入問題 → AI 向量檢索 → 秒回重點短影音</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', marginTop: 3 }}>輸入問題、搜尋課程內容，快速回到重點片段</div>
         </div>
         <button onClick={() => onNav('linebot')} className="btn-primary" style={{ background: '#06C755', padding: '10px 22px', fontSize: 13, flexShrink: 0 }}>開啟 Line Bot</button>
       </div>

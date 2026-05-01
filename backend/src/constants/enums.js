@@ -29,6 +29,18 @@ const USAGE_LOG_EVENTS = {
   CLIP_VIEW: 'clip_view',
 };
 
+const QUESTION_STATUSES = {
+  ANSWERED: 'answered',
+  NO_MATCH: 'no_match',
+  FAILED: 'failed',
+};
+
+const QUESTION_SOURCES = {
+  API: 'api',
+  LINE: 'line',
+  DEBUG: 'debug',
+};
+
 module.exports = {
   USER_ROLES,
   USER_ROLE_VALUES: Object.values(USER_ROLES),
@@ -40,4 +52,8 @@ module.exports = {
   VIDEO_PROCESSING_STATUS_VALUES: Object.values(VIDEO_PROCESSING_STATUSES),
   USAGE_LOG_EVENTS,
   USAGE_LOG_EVENT_VALUES: Object.values(USAGE_LOG_EVENTS),
+  QUESTION_STATUSES,
+  QUESTION_STATUS_VALUES: Object.values(QUESTION_STATUSES),
+  QUESTION_SOURCES,
+  QUESTION_SOURCE_VALUES: Object.values(QUESTION_SOURCES),
 };

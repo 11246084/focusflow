@@ -18,4 +18,14 @@ router.get(
   }),
 );
 
+router.get(
+  '/student',
+  authenticate,
+  authorizeRoles(USER_ROLES.STUDENT, USER_ROLES.ADMIN),
+  asyncHandler(async (req, res) => {
+    const stats = await getStudentDashboardStats(req.user);
+    return sendSuccess(res, { data: stats });
+  }),
+);
+
 module.exports = router;

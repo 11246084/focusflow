@@ -9,7 +9,8 @@ const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
 const { generateAnswer } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
-const { USAGE_LOG_EVENTS } = require('../constants/enums');
+const { recordQuestion } = require('./questionRecording.service');
+const { QUESTION_STATUSES, USAGE_LOG_EVENTS } = require('../constants/enums');
 const {
   normalizeSegment,
   collectScopedVideos,
@@ -560,6 +561,17 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       ? '這門課目前只有 bridge metadata，尚未有可搜尋的影片片段。請先補 searchable segments，再進行 QA 展示。'
       : '這門課目前還沒有可搜尋的影片片段，請先確認影片索引是否已完成。';
 
+    await recordQuestion({
+      studentId: user.id,
+      courseId: course._id,
+      question: trimmedQuestion,
+      answer,
+      status: QUESTION_STATUSES.NO_MATCH,
+      source,
+      matches: [],
+      runtime,
+    });
+
     return {
       answer,
       matches: [],
@@ -582,6 +594,17 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       matchStatus: 'no_relevant_match',
       searchDiagnostics: searchResult.diagnostics,
       answerResult: null,
+    });
+
+    await recordQuestion({
+      studentId: user.id,
+      courseId: course._id,
+      question: trimmedQuestion,
+      answer: '',
+      status: QUESTION_STATUSES.NO_MATCH,
+      source,
+      matches: [],
+      runtime,
     });
 
     await recordUsage({
@@ -626,6 +649,17 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       topSegmentId: matches[0].segmentId,
       runtime,
     },
+  });
+
+  await recordQuestion({
+    studentId: user.id,
+    courseId: course._id,
+    question: trimmedQuestion,
+    answer: answerResult.text,
+    status: QUESTION_STATUSES.ANSWERED,
+    source,
+    matches,
+    runtime,
   });
 
   if (clip) {

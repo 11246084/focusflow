@@ -8,6 +8,9 @@
     "start": "node src/server.js",
     "seed": "node src/scripts/seedDemoUsers.js",
     "seed:reset": "node src/scripts/seedDemoUsers.js --reset",
+    "db:ensure-questions": "node src/scripts/ensureQuestionsCollection.js",
+    "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
+    "db:sync-atlas": "node src/scripts/syncLocalMongoToAtlas.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [

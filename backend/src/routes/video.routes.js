@@ -10,6 +10,11 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post(
+  '/courses/:courseId/videos/youtube',
+  authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  videoController.createYouTubeVideo,
+);
+router.post(
   '/courses/:courseId/videos',
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
   uploadSingleVideo,

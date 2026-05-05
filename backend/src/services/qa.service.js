@@ -132,6 +132,15 @@ function mapSegmentMatch(segment, score) {
   };
 }
 
+function buildYouTubeWatchUrl(youtubeVideoId, startSec = 0) {
+  if (!youtubeVideoId) {
+    return null;
+  }
+
+  const seconds = Math.max(0, Math.floor(Number(startSec) || 0));
+  return `https://youtu.be/${youtubeVideoId}${seconds ? `?t=${seconds}` : ''}`;
+}
+
 function getVideoPresentationTitle(video) {
   return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
 }
@@ -147,6 +156,8 @@ function buildVideoMetadataByIdentifier(scopedVideos) {
       videoId: externalVideoId,
       title: getVideoPresentationTitle(video),
       sourceUrl: video.sourceUrl || null,
+      youtubeVideoId: video.youtubeVideoId || null,
+      videoUrl: video.videoUrl || null,
     };
 
     for (const identifier of [id, externalVideoId]) {
@@ -182,6 +193,9 @@ function enrichMatchesWithVideoMetadata(matches, scopedVideos) {
       ...match,
       videoTitle: video.title,
       sourceUrl: video.sourceUrl,
+      youtubeVideoId: video.youtubeVideoId,
+      videoUrl: video.videoUrl,
+      jumpUrl: buildYouTubeWatchUrl(video.youtubeVideoId, match.startSec),
     };
   });
 }
@@ -631,6 +645,13 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
 
   const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
   const clip = await findCachedClip(matches[0].segmentId);
+  const resultClip = clip || (matches[0]?.jumpUrl ? {
+    segmentId: matches[0].segmentId,
+    clipUrl: matches[0].jumpUrl,
+    jumpUrl: matches[0].jumpUrl,
+    keyPoints: [],
+    hitCount: 0,
+  } : null);
   const runtime = buildQaRuntime({
     runtimeSnapshot,
     courseSummary,
@@ -665,14 +686,14 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     sourceUsageLogId: usageLog?._id,
   });
 
-  if (clip) {
+  if (resultClip) {
     await recordUsage({
       userId: user.id,
       courseId: course._id,
       event: USAGE_LOG_EVENTS.CLIP_VIEW,
       metadata: {
         source,
-        segmentId: clip.segmentId,
+        segmentId: resultClip.segmentId,
       },
     });
   }
@@ -680,7 +701,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   return {
     answer: answerResult.text,
     matches,
-    clip,
+    clip: resultClip,
     runtime,
   };
 }

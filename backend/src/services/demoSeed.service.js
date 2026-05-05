@@ -251,7 +251,7 @@ async function resetDemoData({ silent = false } = {}) {
 
 function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
   const sourceUrl = `/uploads/${definition.filename}`;
-  const storagePath = path.join(env.uploadDir, definition.filename);
+  const filePath = path.join(env.uploadDir, definition.filename);
 
   return {
     courseId,
@@ -260,8 +260,7 @@ function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
     sourceUrl,
     videoId: definition.videoId,
     fileName: definition.filename,
-    filePath: storagePath,
-    storagePath,
+    filePath,
     durationSec: definition.durationSec,
     videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
     videoUrl: sourceUrl,
@@ -413,7 +412,6 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
         sourceType: 1,
         sourceUrl: 1,
         filePath: 1,
-        storagePath: 1,
         videoSource: 1,
         videoUrl: 1,
       },

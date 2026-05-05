@@ -59,6 +59,8 @@ export default function TeacherUpload() {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [title, setTitle] = useState('');
+  const [mode, setMode] = useState('file');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -152,32 +154,52 @@ export default function TeacherUpload() {
   }
 
   async function handleUpload() {
-    if (!selectedFile) {
-      setUploadError('請先選擇影片檔案。');
-      return;
-    }
-
     if (!courseId) {
       setUploadError('請先選擇課程。');
       return;
     }
 
-    const fd = new FormData();
-    fd.append('video', selectedFile);
-    if (title.trim()) fd.append('title', title.trim());
+    if (mode === 'file' && !selectedFile) {
+      setUploadError('請先選擇影片檔案。');
+      return;
+    }
+
+    if (mode === 'youtube' && !youtubeUrl.trim()) {
+      setUploadError('請輸入 YouTube 影片網址。');
+      return;
+    }
 
     setUploading(true);
     setUploadError('');
     setProcStatus(null);
-    setStatusMessage('正在上傳影片到後端。');
+    setStatusMessage(mode === 'youtube' ? '正在註冊 YouTube 影片並啟動 STT。' : '正在上傳影片到後端。');
     setVideoId(null);
 
     try {
-      const res = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: fd,
-      });
+      let res;
+      if (mode === 'youtube') {
+        res = await fetch(`${API_BASE}/courses/${courseId}/videos/youtube`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            youtubeUrl: youtubeUrl.trim(),
+            title: title.trim() || undefined,
+          }),
+        });
+      } else {
+        const fd = new FormData();
+        fd.append('video', selectedFile);
+        if (title.trim()) fd.append('title', title.trim());
+        res = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: fd,
+        });
+      }
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '上傳失敗');
 
@@ -204,6 +226,7 @@ export default function TeacherUpload() {
     setVideoId(null);
     setProcStatus(null);
     setSelectedFile(null);
+    setYoutubeUrl('');
     setTitle('');
     setUploadError('');
     setStatusMessage('');
@@ -225,6 +248,35 @@ export default function TeacherUpload() {
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>Upload Video</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 900 }}>
         <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => !uploading && !uploadDone && setMode('file')}
+              disabled={uploading || uploadDone}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: mode === 'file' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${mode === 'file' ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                color: mode === 'file' ? '#F14F21' : 'rgba(255,255,255,0.6)',
+              }}
+            >
+              上傳檔案
+            </button>
+            <button
+              type="button"
+              onClick={() => !uploading && !uploadDone && setMode('youtube')}
+              disabled={uploading || uploadDone}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: mode === 'youtube' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${mode === 'youtube' ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                color: mode === 'youtube' ? '#F14F21' : 'rgba(255,255,255,0.6)',
+              }}
+            >
+              YouTube 連結
+            </button>
+          </div>
+          {mode === 'file' ? (
           <div
             className="upload-z"
             style={{ minHeight: 220, cursor: 'pointer', opacity: uploading ? 0.6 : 1 }}
@@ -248,6 +300,21 @@ export default function TeacherUpload() {
               </>
             )}
           </div>
+          ) : (
+          <div className="upload-z" style={{ minHeight: 220, cursor: 'default', flexDirection: 'column', gap: 12, padding: '20px 24px' }}>
+            <div style={{ color: '#F14F21' }}><Ic n="up" s={36} /></div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>貼上 YouTube 影片網址</div>
+            <input
+              className="ff-input"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              disabled={uploading || uploadDone}
+              style={{ width: '100%' }}
+            />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>支援 youtube.com/watch、youtu.be、shorts</div>
+          </div>
+          )}
 
           <div className="card-sm" style={{ padding: '16px 18px', marginTop: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>

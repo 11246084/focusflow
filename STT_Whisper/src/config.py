@@ -121,6 +121,8 @@ class PipelineConfig:
     target_video_path: Path | None
     # 由後端傳入的 MongoDB Video._id，作為本次處理的 video_id（確保每支影片有唯一 ID）
     target_video_id: str | None
+    # YouTube 影片 URL（由後端傳入，啟用後跳過本地影片掃描，改用 yt-dlp 下載音訊）
+    youtube_url: str | None
 
     @classmethod
     def from_env(cls, project_root: Path | None = None) -> "PipelineConfig":
@@ -281,6 +283,8 @@ class PipelineConfig:
             target_video_path=None,
             # 由後端傳入的 MongoDB Video._id，作為本次處理的 video_id
             target_video_id=None,
+            # 由後端傳入的 YouTube URL（None 表示走本地檔案流程）
+            youtube_url=None,
         )
 
         # 提前創建運行時目錄，以保持下游模塊簡單

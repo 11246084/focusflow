@@ -369,7 +369,7 @@ describe('course and video routes', () => {
       title: 'Enrolled Draft Video',
       sourceType: 'upload',
       sourceUrl: '/uploads/enrolled-draft.mp4',
-      storagePath: 'uploads/enrolled-draft.mp4',
+      filePath: 'uploads/enrolled-draft.mp4',
       durationSec: null,
       uploadedBy: ids.otherTeacher,
       processing: createProcessingState({
@@ -550,7 +550,6 @@ describe('course and video routes', () => {
         video_id: 'video-mixed-app-001',
         file_name: 'mixed-app.mp4',
         file_path: 'uploads/mixed-app.mp4',
-        storagePath: 'uploads/mixed-app.mp4',
         durationSec: 120,
         duration_sec: 120,
         video_source: 'upload',

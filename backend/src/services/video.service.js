@@ -116,6 +116,79 @@ async function resolveAccessibleVideoContext(videoId, user) {
   };
 }
 
+function parseYouTubeVideoId(url) {
+  const patterns = [
+    /[?&]v=([^&#]+)/,
+    /youtu\.be\/([^?&#]+)/,
+    /\/shorts\/([^?&#]+)/,
+    /\/embed\/([^?&#]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = String(url).match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week, lesson, uploadedBy, user }) {
+  const youtubeVideoId = parseYouTubeVideoId(youtubeUrl);
+  if (!youtubeVideoId) {
+    throw new AppError('Invalid YouTube URL.', 400, 'VALIDATION_ERROR');
+  }
+
+  const course = await ensureCourseExists(courseId);
+  await assertCanManageCourse(user, course);
+
+  const video = await Video.create({
+    courseId,
+    title: String(title || '').trim() || `YouTube: ${youtubeVideoId}`,
+    sourceType: VIDEO_SOURCE_TYPES.YOUTUBE,
+    sourceUrl: null,
+    youtubeVideoId,
+    videoSource: 'youtube',
+    videoUrl: youtubeUrl,
+    week: week || null,
+    lesson: lesson || null,
+    uploadedBy,
+    processing: createQueuedProcessingState(),
+  });
+
+  await Course.findByIdAndUpdate(courseId, { $addToSet: { videoIds: video._id } });
+
+  if (process.env.NODE_ENV === 'test' || env.processingWebhookSecret === 'processing-secret-for-tests') {
+    return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
+  }
+
+  const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
+  const venvPython = path.join(sttDir, '.venv', 'Scripts', 'python.exe');
+  const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+  const logPath = path.join(sttDir, 'data', `pipeline_${video._id}.log`);
+  mkdirSync(path.dirname(logPath), { recursive: true });
+  const logFd = openSync(logPath, 'a');
+  const sttProcess = spawn(pythonBin, [
+    'src/main.py',
+    '--youtube-url', youtubeUrl,
+    '--video-id', String(video._id),
+    '--overwrite',
+  ], {
+    cwd: sttDir,
+    stdio: ['ignore', logFd, logFd],
+    windowsHide: true,
+    env: {
+      ...process.env,
+      MONGODB_URI: env.mongodbUri,
+      MONGODB_DATABASE_NAME: 'focusflow',
+      BACKEND_URL: `http://localhost:${env.port}`,
+      PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
+      CLEANUP_AFTER_UPLOAD: 'true',
+      CLEANUP_KEEP_CHECKPOINTS: 'false',
+    },
+  });
+  sttProcess.unref();
+
+  return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
+}
+
 async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   if (!file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
@@ -132,7 +205,6 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     sourceUrl: `/uploads/${file.filename}`,
     fileName: originalName,
     filePath: file.path,
-    storagePath: file.path,
     durationSec: null,
     videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
     videoUrl: `/uploads/${file.filename}`,
@@ -236,6 +308,7 @@ async function deleteVideo(videoId, user) {
 
 module.exports = {
   createCourseVideo,
+  createCourseVideoFromYouTube,
   listCourseVideos,
   getVideoById,
   getVideoProcessingStatus,

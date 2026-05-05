@@ -120,6 +120,7 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
             continue
 
         video_id_val = record["video_id"]
+        video_source = record.get("video_source", "local")
         document = {
             "videoId": video_id_val,
             "fileName": record["file_name"],
@@ -128,7 +129,7 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
             "durationSec": float(record["duration_sec"]),
             "week": record.get("week"),
             "lesson": record.get("lesson"),
-            "videoSource": record.get("video_source", "local"),
+            "videoSource": video_source,
             "videoUrl": record.get("video_url"),
         }
 
@@ -137,6 +138,13 @@ def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
             existing_app_video = collection.find_one({"_id": object_id}) if object_id is not None else None
 
             if existing_app_video is not None:
+                if video_source == "youtube":
+                    document = {
+                        "videoId": video_id_val,
+                        "durationSec": float(record["duration_sec"]),
+                        "videoSource": "youtube",
+                        "videoUrl": record.get("video_url"),
+                    }
                 collection.update_one(
                     {"_id": object_id},
                     {"$set": document},

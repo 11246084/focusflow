@@ -4,6 +4,27 @@ const { sendSuccess } = require('../utils/apiResponse');
 const videoService = require('../services/video.service');
 const videoProcessingService = require('../services/videoProcessing.service');
 
+const createYouTubeVideo = asyncHandler(async (req, res) => {
+  const { youtubeUrl, title, week, lesson } = req.body;
+  if (!youtubeUrl) {
+    throw new AppError('youtubeUrl is required.', 400, 'VALIDATION_ERROR');
+  }
+  const video = await videoService.createCourseVideoFromYouTube({
+    courseId: req.params.courseId,
+    youtubeUrl,
+    title,
+    week: week != null ? Number(week) : undefined,
+    lesson: lesson != null ? Number(lesson) : undefined,
+    uploadedBy: req.user.id,
+    user: req.user,
+  });
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'YouTube video registered successfully.',
+    data: { video },
+  });
+});
+
 const createVideo = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
@@ -117,6 +138,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  createYouTubeVideo,
   createVideo,
   listCourseVideos,
   getVideoById,

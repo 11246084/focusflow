@@ -1416,10 +1416,6 @@ components:
           anyOf:
             - type: string
             - type: 'null'
-        storagePath:
-          anyOf:
-            - type: string
-            - type: 'null'
         durationSec:
           anyOf:
             - type: number

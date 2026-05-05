@@ -13,6 +13,7 @@ const COURSE_STATUSES = {
 const VIDEO_SOURCE_TYPES = {
   UPLOAD: 'upload',
   EXTERNAL_URL: 'external_url',
+  YOUTUBE: 'youtube',
 };
 
 const VIDEO_PROCESSING_STATUSES = {

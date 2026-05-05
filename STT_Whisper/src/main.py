@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
+import subprocess
 import sys
 import urllib.request
+import wave
 from pathlib import Path
 
 from chunking import build_chunks
@@ -16,10 +19,34 @@ from extract_audio import extract_audio_for_videos
 from normalize_transcript import normalize_transcripts
 from scan_videos import scan_videos
 from transcribe import transcribe_videos
-from utils import configure_logging
+from utils import VideoMetadata, configure_logging, ensure_directory
 
 
 logger = logging.getLogger(__name__)
+
+
+def find_ffmpeg_location() -> str | None:
+    """Find an ffmpeg binary location for yt-dlp without relying only on PATH."""
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path:
+        return ffmpeg_path
+
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as exc:  # pragma: no cover - best effort fallback
+        logger.debug("imageio-ffmpeg lookup failed: %s", exc)
+
+    return None
+
+
+def get_wav_duration_sec(audio_path: Path) -> float:
+    """Return WAV duration in seconds."""
+    with wave.open(str(audio_path), "rb") as wav_file:
+        frame_count = wav_file.getnframes()
+        frame_rate = wav_file.getframerate()
+        return round(frame_count / float(frame_rate), 3) if frame_rate else 0.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,6 +106,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="MongoDB Video document ID for status webhook callbacks.",
     )
+    # 由後端自動觸發時傳入：YouTube 影片 URL，啟用後改用 yt-dlp 下載音訊
+    parser.add_argument(
+        "--youtube-url",
+        default=None,
+        help="YouTube video URL. When provided, audio is downloaded via yt-dlp and local video scanning is skipped.",
+    )
     # 解析並返回命令行參數
     return parser.parse_args()
 
@@ -129,6 +162,8 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
         overrides["text_embeddings_output_path"] = run_output_dir / "embeddings_text_gemini.jsonl"
         overrides["audio_embeddings_output_path"] = run_output_dir / "embeddings_audio_gemini.jsonl"
         overrides["video_embeddings_output_path"] = run_output_dir / "embeddings_video_gemini.jsonl"
+    if args.youtube_url is not None:
+        overrides["youtube_url"] = args.youtube_url
 
     # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
@@ -218,6 +253,39 @@ def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[s
     )
 
 
+def download_youtube_audio(youtube_url: str, output_path: Path) -> None:
+    """使用 yt-dlp 下載 YouTube 音訊並轉成 mono 16kHz WAV（與 Whisper 相容）。"""
+    ensure_directory(output_path.parent)
+    # yt-dlp 會把副檔名加在 -o 模板後面，所以先去掉 .wav 再用 %(ext)s 帶回
+    output_template = str(output_path.with_suffix("")) + ".%(ext)s"
+    command = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        "-x",  # --extract-audio
+        "--audio-format", "wav",
+        "--postprocessor-args", "ffmpeg:-ac 1 -ar 16000",
+        "-o", output_template,
+        youtube_url,
+    ]
+    ffmpeg_location = find_ffmpeg_location()
+    if ffmpeg_location:
+        command[3:3] = ["--ffmpeg-location", ffmpeg_location]
+        logger.info("Using ffmpeg for yt-dlp: %s", ffmpeg_location)
+
+    logger.info("Downloading YouTube audio: %s", youtube_url)
+    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"yt-dlp failed for {youtube_url}. stderr: {completed.stderr.strip()}"
+        )
+    if not output_path.exists():
+        raise RuntimeError(
+            f"yt-dlp completed but expected audio file not found at {output_path}"
+        )
+    logger.info("Downloaded YouTube audio -> %s", output_path)
+
+
 def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict[str, Path], list]:
     """Execute the full local pipeline from video scan to export."""
     # 記錄管道開始
@@ -228,23 +296,50 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict
             "Gemini embedding is now the final embedding path. Set ENABLE_GEMINI_EMBEDDING=true in .env."
         )
 
-    # 步驟 1：掃描視頻並構建標準化元數據
-    videos = scan_videos(config)
+    if config.youtube_url:
+        # YouTube 模式：直接下載音訊，跳過影片掃描與本地音訊抽取
+        video_id = config.target_video_id or "youtube_unknown"
+        audio_rel_posix = f"data/processed_audio/{video_id}.wav"
+        audio_abs = (config.project_root / audio_rel_posix).resolve()
 
-    # 如果指定了限制，只處理前 N 個視頻
-    if limit is not None:
-        videos = videos[:limit]
-        logger.info("Processing only the first %s videos because --limit was provided", len(videos))
+        if not audio_abs.exists() or config.overwrite_existing:
+            download_youtube_audio(config.youtube_url, audio_abs)
+        else:
+            logger.info("Reusing existing YouTube audio for %s", video_id)
+        duration_sec = get_wav_duration_sec(audio_abs)
 
-    # 如果沒有找到視頻，拋出錯誤
-    if not videos:
-        raise FileNotFoundError(
-            f"No supported video files were found in {config.video_input_dir}. "
-            "Place .mp4/.mov/.mkv files there and rerun the pipeline."
-        )
+        videos = [
+            VideoMetadata(
+                video_id=video_id,
+                file_name="",
+                file_path="",
+                audio_path=audio_rel_posix,
+                duration_sec=duration_sec,
+                course_name=None,
+                week=None,
+                lesson=None,
+                video_source="youtube",
+                video_url=config.youtube_url,
+            )
+        ]
+    else:
+        # 本地檔案模式：步驟 1 掃描視頻並構建標準化元數據
+        videos = scan_videos(config)
 
-    # 步驟 2：提取 Whisper 兼容的音頻
-    extract_audio_for_videos(videos, config)
+        # 如果指定了限制，只處理前 N 個視頻
+        if limit is not None:
+            videos = videos[:limit]
+            logger.info("Processing only the first %s videos because --limit was provided", len(videos))
+
+        # 如果沒有找到視頻，拋出錯誤
+        if not videos:
+            raise FileNotFoundError(
+                f"No supported video files were found in {config.video_input_dir}. "
+                "Place .mp4/.mov/.mkv files there and rerun the pipeline."
+            )
+
+        # 步驟 2：提取 Whisper 兼容的音頻
+        extract_audio_for_videos(videos, config)
     # 步驟 3：運行 faster-whisper STT
     transcripts = transcribe_videos(videos, config)
     # 步驟 4：在搜索分塊前標準化技術術語

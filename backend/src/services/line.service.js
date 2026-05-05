@@ -475,9 +475,11 @@ function buildQuestionSummaryLines(qaResult) {
     summaryLines.push(`片段：${topMatch.startSec}s - ${topMatch.endSec}s`);
   }
 
+  const jumpUrl = qaResult.clip?.jumpUrl || topMatch?.jumpUrl;
+
   // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
-  if (qaResult.clip?.jumpUrl) {
-    summaryLines.push(`跳轉：${qaResult.clip.jumpUrl}`);
+  if (jumpUrl) {
+    summaryLines.push(`跳轉：${jumpUrl}`);
   }
 
   return summaryLines;

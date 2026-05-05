@@ -4,6 +4,7 @@ import { Ic } from '../components/Icons';
 import { apiFetch, BACKEND_ORIGIN } from '../api';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
+let youtubeApiPromise = null;
 
 // 將 add-friend URL 轉為 oaMessage URL 並預填訊息
 // line.me/R/ti/p/@id -> line.me/R/oaMessage/@id/?{message}
@@ -12,6 +13,91 @@ function lineMessageUrl(text) {
   if (!LINE_BOT_URL) return text;
   const base = LINE_BOT_URL.replace('/ti/p/', '/oaMessage/');
   return `${base}/?${encodeURIComponent(text)}`;
+}
+
+function loadYouTubeIframeApi() {
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (!youtubeApiPromise) {
+    youtubeApiPromise = new Promise((resolve) => {
+      const previousReady = window.onYouTubeIframeAPIReady;
+
+      window.onYouTubeIframeAPIReady = () => {
+        if (typeof previousReady === 'function') previousReady();
+        resolve(window.YT);
+      };
+
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    });
+  }
+
+  return youtubeApiPromise;
+}
+
+function YouTubePlayer({ videoId, seekRequest }) {
+  const containerRef = useRef(null);
+  const playerRef = useRef(null);
+  const readyRef = useRef(false);
+  const seekRequestRef = useRef(seekRequest);
+
+  useEffect(() => {
+    seekRequestRef.current = seekRequest;
+  }, [seekRequest]);
+
+  useEffect(() => {
+    let cancelled = false;
+    readyRef.current = false;
+
+    loadYouTubeIframeApi().then((YT) => {
+      if (cancelled || !containerRef.current) return;
+
+      playerRef.current = new YT.Player(containerRef.current, {
+        width: '100%',
+        height: '100%',
+        videoId,
+        playerVars: {
+          enablejsapi: 1,
+          rel: 0,
+          modestbranding: 1,
+        },
+        events: {
+          onReady: (event) => {
+            readyRef.current = true;
+            const pendingSeek = seekRequestRef.current;
+            if (pendingSeek?.startSec != null) {
+              event.target.seekTo(Math.max(0, Number(pendingSeek.startSec) || 0), true);
+              event.target.playVideo();
+            }
+          },
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      readyRef.current = false;
+      if (playerRef.current?.destroy) {
+        playerRef.current.destroy();
+      }
+      playerRef.current = null;
+    };
+  }, [videoId]);
+
+  useEffect(() => {
+    if (!readyRef.current || !playerRef.current || seekRequest?.startSec == null) return;
+
+    playerRef.current.seekTo(Math.max(0, Number(seekRequest.startSec) || 0), true);
+    playerRef.current.playVideo();
+  }, [seekRequest]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
 
 // 點擊後在頁面內展開 QR code 小卡，不開新分頁
@@ -154,7 +240,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             return (
               <div
                 key={i}
-                style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: videoRef.current ? 'pointer' : 'default' }}
+                style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: (matchedIndex >= 0 || videoRef.current) ? 'pointer' : 'default' }}
                 onClick={() => {
                   if (matchedIndex >= 0 && onJumpToVideo) {
                     onJumpToVideo(matchedIndex, start);
@@ -212,6 +298,7 @@ export default function StudentCourses() {
   const [videos, setVideos]             = useState([]);
   const [vLoading, setVLoading]         = useState(false);
   const [playingVid, setPlayingVid]     = useState(null);
+  const [seekRequest, setSeekRequest]   = useState(null);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -224,6 +311,7 @@ export default function StudentCourses() {
   async function openCourse(course) {
     setSelected(course);
     setPlayingVid(null);
+    setSeekRequest(null);
     setVideos([]);
     setVLoading(true);
     try {
@@ -235,6 +323,7 @@ export default function StudentCourses() {
 
   function jumpToVideo(index, startSec) {
     setPlayingVid(index);
+    setSeekRequest({ videoIndex: index, startSec: startSec || 0, nonce: Date.now() });
     setTimeout(() => {
       if (videoRef.current) {
         videoRef.current.currentTime = startSec || 0;
@@ -246,12 +335,13 @@ export default function StudentCourses() {
   // Course detail view
   if (selectedCourse) {
     const playing = playingVid !== null ? videos[playingVid] : null;
-    const videoUrl = playing?.sourceUrl ? `${BACKEND_ORIGIN}${playing.sourceUrl}` : null;
+    const youtubeId = playing?.youtubeVideoId || null;
+    const videoUrl = !youtubeId && playing?.sourceUrl ? `${BACKEND_ORIGIN}${playing.sourceUrl}` : null;
 
     return (
       <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-          <div onClick={() => { setSelected(null); setPlayingVid(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+          <div onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
           </div>
           <div style={{ flex: 1 }}>
@@ -265,7 +355,13 @@ export default function StudentCourses() {
           {/* Left: video player + QA */}
           <div>
             <div style={{ borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '16/9', position: 'relative' }}>
-              {videoUrl ? (
+              {youtubeId ? (
+                <YouTubePlayer
+                  key={youtubeId}
+                  videoId={youtubeId}
+                  seekRequest={seekRequest?.videoIndex === playingVid ? seekRequest : null}
+                />
+              ) : videoUrl ? (
                 <video
                   ref={videoRef}
                   key={videoUrl}

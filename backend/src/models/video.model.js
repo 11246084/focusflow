@@ -114,11 +114,6 @@ const videoSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
-    storagePath: {
-      type: String,
-      default: null,
-      trim: true,
-    },
     durationSec: {
       type: Number,
       default: null,
@@ -140,6 +135,11 @@ const videoSchema = new mongoose.Schema(
       trim: true,
     },
     videoUrl: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    youtubeVideoId: {
       type: String,
       default: null,
       trim: true,

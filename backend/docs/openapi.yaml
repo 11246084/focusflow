@@ -374,6 +374,68 @@ paths:
                       code: COURSE_MANAGE_DENIED
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/courses/{courseId}/videos/youtube:
+    post:
+      tags:
+        - Videos
+      summary: 以 YouTube URL 建立課程影片
+      description: |
+        教師 / admin 可先手動將影片上傳到 YouTube（建議設為不公開 unlisted），再貼 URL 到 FocusFlow。
+        Backend 會解析 `youtubeVideoId`、建立 Video document，並自動啟動 STT pipeline 的 `--youtube-url` 流程。
+      operationId: createYouTubeVideo
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - youtubeUrl
+              properties:
+                youtubeUrl:
+                  type: string
+                  format: uri
+                  description: 支援 youtube.com/watch、youtu.be、shorts、embed 等常見格式。
+                  example: https://youtu.be/525ItlVdo6E
+                title:
+                  type: string
+                  description: 課程影片標題；未填時 backend 會使用 YouTube ID 產生預設標題。
+                week:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+                lesson:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+      responses:
+        '201':
+          description: YouTube 影片已建立並排入 STT pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoItemResponse'
+        '400':
+          description: YouTube URL 缺失或格式無法解析
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidYouTubeUrl:
+                  value:
+                    success: false
+                    message: Invalid YouTube URL.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
   /api/v1/videos/{videoId}:
     get:
       tags:
@@ -1009,6 +1071,7 @@ components:
       enum:
         - upload
         - external_url
+        - youtube
     VideoProcessingStatus:
       description: 影片 processing 狀態列舉。
       type: string
@@ -1431,6 +1494,14 @@ components:
             - type: string
             - type: 'null'
         video_url:
+          anyOf:
+            - type: string
+            - type: 'null'
+        videoUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        youtubeVideoId:
           anyOf:
             - type: string
             - type: 'null'

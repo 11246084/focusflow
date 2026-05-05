@@ -156,15 +156,21 @@
 
 ---
 
-### 12. STT Pipeline 自動化整合（2026-04-27 完成）
+### 12. STT Pipeline 自動化整合 + YouTube URL MVP（2026-05-05 更新）
 
 - **狀態**：Done
 - **完成內容**：
-  - `video.service.js`：影片上傳後自動 spawn STT pipeline（`child_process.spawn`，`detached: true`）
-  - `STT_Whisper/src/main.py`：新增 `--video-path`、`--video-id` 參數；新增 `notify_backend()` webhook 回報；STT 完成後自動執行 `mongodb_uploader.py`
-  - `STT_Whisper/src/config.py`：新增 `backend_url`、`processing_webhook_secret`、`target_video_path`
+  - `video.service.js`：本機影片上傳後自動 spawn STT pipeline；YouTube URL 影片走 `/courses/:courseId/videos/youtube`
+  - `Video` schema：新增 `youtubeVideoId`，並移除不再使用的 `storagePath`
+  - `STT_Whisper/src/main.py`：支援 `--video-path`、`--video-id`、`--youtube-url`；新增 `notify_backend()` webhook 回報；STT 完成後自動執行 `mongodb_uploader.py`
+  - `STT_Whisper/src/main.py`：YouTube URL 模式用 `yt-dlp` 下載音訊，並可 fallback 到 `imageio-ffmpeg` 內建 FFmpeg
+  - `STT_Whisper/src/config.py`：新增 `backend_url`、`processing_webhook_secret`、`target_video_path`、`youtube_url`
   - `STT_Whisper/src/scan_videos.py`：支援 `target_video_path` 直接指定單一影片
   - `STT_Whisper/.env.example`：新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
+  - `STT_Whisper/requirements.txt`：新增 `yt-dlp`
+  - `mongodb_uploader.py`：YouTube 影片回寫 MongoDB 時不覆蓋 `title`、`fileName`、`filePath`、`audioPath`
+  - `qa.service.js` / `line.service.js`：YouTube 影片可產生 `https://youtu.be/<youtubeVideoId>?t=<sec>` timestamp link
+  - `StudentCourses.jsx`：YouTube iframe 改用 IFrame API，QA timestamp 可 `seekTo()`
 
 ---
 
@@ -220,14 +226,15 @@
 
 ---
 
-### 13. YouTube 自動上傳整合
+### 13. YouTube Data API 自動上傳整合
 
 - **狀態**：Pending
-- **背景**：學生提問時需要回傳 YouTube 時間戳跳轉連結（`youtube.com/watch?v=ID&t=秒數`），需要先有 `youtubeVideoId`
+- **已完成前置**：YouTube URL MVP 已完成；教師可先手動上傳 YouTube（建議設為不公開 unlisted）後貼 URL，系統會保存 `youtubeVideoId` 並啟動 STT
+- **背景**：下一步若要讓老師只上傳本機影片，由 backend 自動上傳 YouTube，才需要接 YouTube Data API v3
 - **我要主動做**：
-  - `models/video.model.js` 新增 `youtubeVideoId: { type: String }` 欄位
   - `video.service.js` 上傳後呼叫 YouTube Data API v3，影片設為 unlisted
-  - QA 回答時從 Video 取 `youtubeVideoId` 組合跳轉連結
+  - 取得 YouTube video id 後存入 `Video.youtubeVideoId` / `videoUrl`
+  - 本機影片 STT 完成後可刪除 `backend/uploads` 原始檔（需先確認 demo / rollback 策略）
 - **先決條件**：專案負責人提供 FocusFlow Google 帳號 OAuth 憑證
 
 ---

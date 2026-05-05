@@ -147,11 +147,11 @@
 - `video_segments_video`：有 embedding，但無 Atlas vector search index，multimodal QA 目前不可用
 - 當前 MCP 連線目標 DB 上沒有任何 vector search index；若要在此 DB 走 atlas mode，需在 Atlas 端建立 `text_embedding_index`
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步；目前 9 個 segments 對應同一支上傳影片
-- Video model 仍未補 `youtubeVideoId` 欄位；YouTube 自動上傳與時間戳跳轉連結組合尚未實作
+- YouTube Data API 自動上傳尚未實作；目前已完成的是 YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 目前是寬鬆 `cors()`；正式環境前需限縮為 `ALLOWED_ORIGIN`
 - Collections 實際為 13；`init_collections.js` 列 15 個，且與 Atlas 清單不同步（init 多 `stt_cache` / `raw_transcripts` / `video_segments`，Atlas 多 `questions`）
 
 ## 一句話結論
 
-截至 2026-05-01，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發 + 提問自動落庫到 questions + Admin/Stats 管理 API 上線`。`video_segments_text` 欄位已全面 camelCase；但共享 Atlas 目前缺少 `text_embedding_index`，atlas mode 需重建 index 或暫切 memory。短期限制：YouTube 整合與 `youtubeVideoId` 尚未補、ngrok URL 不固定、CORS 仍寬鬆、OpenAPI 尚未補 stats/admin 與 PATCH/DELETE、`video_segments_video` 仍為 snake_case 且無 vector index。
+截至 2026-05-05，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發 + YouTube URL MVP + 提問自動落庫到 questions + Admin/Stats 管理 API 上線`。`video_segments_text` 欄位已全面 camelCase；但共享 Atlas 目前缺少 `text_embedding_index`，atlas mode 需重建 index 或暫切 memory。短期限制：YouTube Data API 自動上傳尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、CORS 仍寬鬆、OpenAPI 尚未補 stats/admin 與部分 PATCH/DELETE、`video_segments_video` 仍為 snake_case 且無 vector index。

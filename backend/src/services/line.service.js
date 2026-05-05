@@ -244,13 +244,20 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   }
 
   // 同時抓「已選課的課程」和「所有已發佈課程」，合併去重後讓使用者選擇
-  const enrollments = await Enrollment.find({ studentId: user._id }).populate('courseId');
+  const [enrollments, publishedCourses] = await Promise.all([
+    Enrollment.find({ studentId: user._id }).populate('courseId'),
+    Course.find({ status: 'published' }),
+  ]);
   const courseMap = new Map();
 
   for (const enrollment of enrollments) {
     if (enrollment.courseId) {
       courseMap.set(String(enrollment.courseId._id), enrollment.courseId);
     }
+  }
+
+  for (const course of publishedCourses) {
+    courseMap.set(String(course._id), course);
   }
 
   const selectableCourses = Array.from(courseMap.values());

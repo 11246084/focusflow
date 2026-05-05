@@ -129,11 +129,10 @@ async function getTeacherDashboardStats(user) {
 
 async function getStudentDashboardStats(user) {
   const enrollments = await Enrollment.find({ studentId: user.id });
-  const enrolledIds = enrollments.map((enrollment) => enrollment.courseId);
   const enrollmentProgressByCourse = Object.fromEntries(
     enrollments.map((enrollment) => [String(enrollment.courseId), enrollment.progress || 0]),
   );
-  const courses = await Course.find({ _id: { $in: enrolledIds } });
+  const courses = await Course.find({ status: 'published' });
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
 

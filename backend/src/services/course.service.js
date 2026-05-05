@@ -73,13 +73,7 @@ async function listCourses(user) {
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   } else if (isStudent(user)) {
-    // TODO: Restore enrollment-only student course listing after demo reset/testing.
-    // const enrolledCourseIds = await getStudentEnrollmentCourseIds(user.id);
-    //
-    // courses = await Course.find({ _id: { $in: enrolledCourseIds } })
-    //   .populate('teacherId', 'name email role isActive')
-    //   .sort({ createdAt: -1 });
-    courses = await Course.find()
+    courses = await Course.find({ status: 'published' })
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   }

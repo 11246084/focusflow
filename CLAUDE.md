@@ -1,224 +1,262 @@
 # CLAUDE.md
 
-本檔案為 Claude Code (claude.ai/code) 在此專案中運作時提供的指引。
+本檔案提供 Claude Code 在 FocusFlow 專案中的工作指引。
 
-> **本文件規則同步自 [AGENTS.md](AGENTS.md)，修改規範時請優先參考該檔案。**
+> 本文件是給 Claude Code 的操作規則；跨代理入口索引請看 [AGENTS.md](AGENTS.md)。修改規範時，兩份文件需保持一致。
 
 ## 專屬規則
 
-@.claude/rules/api-design.md
-@.claude/rules/database.md
-@.claude/rules/testing.md
-@.claude/rules/security.md
+進行對應任務前，先閱讀規則檔：
+
+| 任務類型 | 規則檔 |
+|----------|--------|
+| API route / controller / response / error code | `@.claude/rules/api-design.md` |
+| Mongoose schema / index / data access | `@.claude/rules/database.md` |
+| 測試或 test harness | `@.claude/rules/testing.md` |
+| JWT / password / validation / CORS | `@.claude/rules/security.md` |
 
 ## 專案概述
 
-**FocusFlow** 是一個全端 AI 教學影片問答系統。第一階段 MVP：教師上傳影片 → 系統自動轉錄並分段 → 學生提問 → 系統回傳 AI 生成的答案與對應影片時間戳。
+**FocusFlow** 是 Phase 1 MVP 的 AI 教學影片問答系統：
 
-專案包含三個獨立服務：
-- **Backend** — Node.js/Express REST API（埠號 4000）
-- **Frontend** — React 19 + Vite 單頁應用（埠號 5173）
-- **AI Pipeline** — Python CLI，負責影片掃描、抽音、STT、chunking 與輸出（`STT_Whisper/`）
+教師上傳影片或貼 YouTube URL → backend 觸發 STT pipeline → 產生文字片段與 embedding → 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。
+
+三個服務：
+
+- `backend/` — Node.js / Express REST API，預設 port `4000`
+- `frontend/focus-flow/` — React 19 + Vite SPA，預設 port `5173`
+- `STT_Whisper/` — Python 離線 AI Pipeline CLI
+
+最新跨服務狀態以 [docs/current-status.md](docs/current-status.md) 為準；backend 細節以 [backend/docs/current-state.md](backend/docs/current-state.md) 為準。
 
 ## 常用指令
 
 ### Backend
 
 首次設定：
-```bash
+
+```powershell
 cd backend
 npm install
-cp .env.example .env
+Copy-Item .env.example .env
 npm run dev
 ```
 
-其他常用指令：
-```bash
-npm start                                                                                          # 正式環境啟動
-npm run seed                                                                                       # 手動匯入示範資料（users/courses/videos/segments/clips）
-npm test                                                                                           # 執行全部測試
-node --test --experimental-test-isolation=none --test-concurrency=1 tests/<file>.test.js          # 執行單一測試檔
+常用指令：
+
+```powershell
+npm start
+npm run seed
+npm run seed:reset
+npm run db:sync-atlas
+npm test
+node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
 ```
 
-Swagger / OpenAPI：執行中的文件入口是 `/docs`，raw spec 由 repo 內 `backend/docs/openapi.yaml` 提供。
-目前 OpenAPI 尚未涵蓋 stats/admin 路由與 courses/videos 的 PATCH/DELETE；完整端點清單暫以實際 route files 與 README 為準。`POST /api/v1/line/webhook` 已納入 OpenAPI，但屬 integration-facing endpoint，不要當成一般前端 API。
+注意：
+
+- `npm run seed` 是 converge baseline，不清除既有資料。
+- `npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建。
+- `db:ensure-questions`、`db:backfill-questions` 目前是 dangling scripts，對應檔案不存在，除非先補檔或修 package script，否則不要執行。
+- Swagger UI 掛在 `/docs`，raw spec 掛在 `/docs/openapi.yaml`，repo 規格檔在 `backend/docs/openapi.yaml`。
+- OpenAPI 目前尚未完整涵蓋 stats/admin 與部分 PATCH/DELETE 端點，完整 API 清單暫以 route files、README、backend current-state 為準。
 
 ### Frontend
 
-首次設定：
-```bash
-cd frontend/focus-flow
+```powershell
+cd frontend\focus-flow
 npm install
+Copy-Item .env.example .env
 npm run dev
 ```
 
-其他常用指令：
-```bash
-npm run build      # 建置正式版本
-npm run lint       # 執行 ESLint（修改前端前必跑）
-npm run preview    # 預覽正式建置結果
+修改前端後至少執行：
+
+```powershell
+npm run lint
+npm run build
 ```
 
-### AI Pipeline（Python）
+### AI Pipeline
 
-首次設定：
-```bash
+```powershell
 cd STT_Whisper
-python -m venv .venv
-source .venv/Scripts/activate    # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python src/main.py
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+python src/main.py --limit 1
 ```
 
-其他常用指令：
-```bash
-python src/main.py --limit 1                  # 只處理一支影片（快速驗證）
-python src/main.py --overwrite                # 強制重新處理
-python src/video_multimodal_pipeline.py       # 執行視訊多模態 pipeline
-python src/mongodb_uploader.py                # 直接上傳至 MongoDB
-```
+Backend 自動觸發 pipeline 時會優先使用 `STT_Whisper/.venv/Scripts/python.exe`。YouTube URL MVP 需要 `yt-dlp`，已列在 `STT_Whisper/requirements.txt`。
 
-## 後端架構
+## Backend 架構
 
-嚴格遵循 `routes → controllers → services → models` 分層架構。所有業務邏輯集中於 services；controllers 僅負責處理 HTTP 請求與回應。
+遵循 `routes -> controllers -> services -> models`：
 
-```
+```text
 backend/src/
-├── server.js          # 入口：連接資料庫、植入示範資料、啟動 Express；強制 Google DNS（8.8.8.8/8.8.4.4）解決部分網路環境 Atlas SRV 查詢失敗
-├── app.js             # Express 設定、middleware 掛載、路由註冊
-├── routes/            # API 路由（auth、course、video、qa、line、stats、admin、health、internal-video）
-├── controllers/       # HTTP 處理器 — 呼叫 service、回傳回應
-├── services/          # 業務邏輯（auth、course、courseAccess、video、videoProcessing、qa、queryEmbedding、answerGeneration、bridgeScope、questionRecording、teacherStats、admin、line、demoSeed、runtimeDiagnostics、usageLog）
-├── models/            # Mongoose Schema：User、Course、Video、VideoSegment、Question、Enrollment、Clip、UsageLog、LineBindToken
-├── middleware/        # JWT 驗證、錯誤處理、multer 上傳、LINE 簽章驗證
-├── config/            # env.js（型別化環境變數）、database.js
-├── constants/         # 列舉值：使用者角色、影片處理狀態、問題狀態 / 來源
-├── utils/             # API 回應格式化、錯誤輔助函式、ObjectId 轉換
-└── scripts/           # seedDemoUsers、syncLocalMongoToAtlas、syncQuestionsToAtlas；package.json 另有兩個 dangling DB scripts 待補或移除
+├── server.js          # 連 DB、seed、啟動 Express
+├── app.js             # Express 設定、middleware、docs、route mount
+├── routes/            # auth、course、video、qa、line、stats、admin、health、internal-video
+├── controllers/       # HTTP request/response layer
+├── services/          # 業務邏輯
+├── models/            # Mongoose schema
+├── middleware/        # auth、role、upload、LINE signature、error handling
+├── config/            # env.js、database.js
+├── constants/         # enum / lifecycle constants
+├── utils/             # apiResponse、AppError、ObjectId helpers
+└── scripts/           # seedDemoUsers、syncLocalMongoToAtlas、syncQuestionsToAtlas
 ```
 
-已存在的 API 入口：`/health`、`/docs`（Swagger UI）、`/api/v1/auth`、`/api/v1/courses`、`/api/v1/qa`、`/api/v1/line`、`/api/v1/internal`、`/api/v1/videos...`、`/api/v1/stats`、`/api/v1/admin`
+Controllers 不放主要業務邏輯；新增或修改行為時，優先把規則寫進 service，controller 只負責輸入、呼叫 service、回應。
 
-### QA 系統 Provider（可透過環境變數切換）
+## Runtime 與環境變數
 
-QA 系統使用可插拔的 provider，透過 `.env` 設定：
-- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` | `openai` | `gemini`（預設 `mock`）
-- `QA_ANSWER_PROVIDER`: `template` | `openai` | `gemini`（預設 `gemini`）
-- `QA_VECTOR_SEARCH_MODE`: `memory` | `atlas`（MongoDB Atlas 向量搜尋，預設 `memory`）
+`backend/src/config/env.js` 的程式碼預設偏本機可跑；`backend/.env.example` 目前代表共享 demo 主線，偏 `gemini + atlas + gemini`。
 
-**預設答案 provider 是 `gemini`，需要 `GEMINI_API_KEY`。** 若金鑰未設定，直接拋出 `ANSWER_PROVIDER_NOT_CONFIGURED`（非 fallback）；若 Gemini API 呼叫失敗（502 等），才 fallback 到 `template`。純本機無金鑰開發請在 `.env` 加 `QA_ANSWER_PROVIDER=template`。
+共享 demo 主線：
 
-### 影片處理狀態機
-
-影片依照 `constants/` 中定義的狀態流程推進，由 `videoProcessing.service.js` 硬性強制合法轉換。修改 processing 流程時，不要自行發明另一套 naming 或 lifecycle。
-
-兩條觸發路徑：
-
-- **前端 retry**：`POST /api/v1/videos/:videoId/processing/retry`（auth + role，給 teacher/admin 重跑失敗影片）
-- **內部 webhook**：`POST /api/v1/internal/videos/:videoId/processing/{start,complete,fail}`（需 `PROCESSING_WEBHOOK_SECRET`，給 pipeline 回報進度）
-
-合法轉換：
-
-| 操作 | 前置狀態 | 目標狀態 |
-|------|----------|----------|
-| retry（前端觸發） | `failed` | `queued` |
-| start（webhook） | `queued` | `processing` |
-| complete（webhook） | `processing` | `completed` |
-| fail（webhook） | `queued` 或 `processing` | `failed` |
-
-**非法轉換直接回傳 409 `VIDEO_PROCESSING_TRANSITION_INVALID`**，沒有軟性 fallback。
-
-### Video Model 雙身份設計
-
-`videos` collection 同時存放兩種文件，靠靜態方法區分：
-- `Video.isAppOwnedRecord(video)`：`courseId` + `uploadedBy` + `title` + `processing.status` 均有值 → App 上傳的正式影片
-- `Video.isPipelineMetadataRecord(video)`：有 `video_id`（或 `videoId`）且 **不** 是 App owned → AI Pipeline 寫入的 metadata
-
-混存設計目的：讓 QA Pipeline 的外部影片資料可透過 `course.videoIds` 參照進入 QA 範圍，而不需要獨立 collection。
-
-### BridgeScope 服務
-
-`bridgeScope.service.js` 是 QA 搜尋範圍調度的核心，負責判斷課程的 bridge mode：
-
-| bridge mode | 條件 |
-|-------------|------|
-| `standard` | 只有 App owned 影片（或無影片） |
-| `qa_scope_only` | 只有 Pipeline metadata 影片（無 App owned） |
-| `mixed_scope` | 同時有 App owned 與 Pipeline metadata 影片 |
-
-`buildCourseSegmentScope()` 回傳 `allowedCourseIds` 與 `allowedVideoIds`，供 QA service 在 `video_segments_text` 中過濾可搜尋範圍。
-
-### LINE Bot 對話設計
-
-LINE Bot 在 `User` 文件上維護**使用者層級的對話狀態機**：
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| `lineConversationState` | String | `idle`（可提問）或 `awaiting_course_selection`（等待選課） |
-| `lineConversationHistory` | Array | 最近 6 則對話（`{ role: 'user'|'model', content }` 格式），傳給 Gemini 做多輪對話 |
-| `activeCourseId` | ObjectId | 目前選定的課程 |
-
-**課程清單邏輯**：切換課程時顯示的選項 = 自己的 enrollment ∪ 所有 `published` 課程（Map 合并去重，最多顯示 4 筆）。不是只顯示自己修的。
-
-### 示範資料植入（Demo Seed）
-
-當 `DEMO_SEED_ENABLED=true` 時，伺服器啟動時會自動植入示範使用者、課程、影片、QA 片段與 Clip。
-
-## 後端環境設定
-
-將 `backend/.env.example` 複製為 `backend/.env`。MongoDB 可使用本機（`mongodb://127.0.0.1:27017/focusflow`）或 Atlas。
-
-**最小化本機開發設定（完全不需要 API 金鑰）：**
+```env
+QA_QUERY_EMBEDDING_PROVIDER=gemini
+QA_VECTOR_SEARCH_MODE=atlas
+QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
+QA_ATLAS_FILTER_MODE=bridge_course_or_video
+QA_ANSWER_PROVIDER=gemini
+GEMINI_CHAT_MODEL=gemini-2.5-flash
+DEMO_SEED_ENABLED=false
 ```
+
+重要邊界：
+
+- 共享 Atlas 在 2026-05-01 驗證時已沒有 `text_embedding_index`。若維持 `QA_VECTOR_SEARCH_MODE=atlas`，需先重建 index；否則 QA 會 fail-fast。
+- 本機無 API key smoke 可改成：
+
+```env
 QA_QUERY_EMBEDDING_PROVIDER=mock
 QA_ANSWER_PROVIDER=template
 QA_VECTOR_SEARCH_MODE=memory
 ```
 
-若要使用預設值（`gemini` 答案），必須設定 `GEMINI_API_KEY`，否則提問時直接報錯。
+- `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
+- `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
+- `/health` 是判斷 `runtime.qa`、`runtime.line` 是否 ready 的入口，不要只看 `.env` 推測狀態。
+
+## QA / Video / LINE 邊界
+
+### QA Provider
+
+支援：
+
+- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` | `openai` | `gemini`
+- `QA_ANSWER_PROVIDER`: `template` | `openai` | `gemini`
+- `QA_VECTOR_SEARCH_MODE`: `memory` | `atlas`
+
+QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、runtime 與 `sourceUsageLogId`。
+
+### Video Model
+
+`videos` collection 是 mixed collection：
+
+- App-owned video：有 `courseId`、`uploadedBy`、`title`、`processing.status`
+- Pipeline metadata：有 `video_id` 或 `videoId`，但不是 app-owned
+
+QA bridge contract：
+
+```text
+course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId
+```
+
+不要誤稱 `video_segments_video` 已成為正式 clip source；它目前仍是預留 / legacy 邊界，且欄位仍偏 snake_case。
+
+### Processing State Machine
+
+影片處理由 `videoProcessing.service.js` 強制狀態轉換：
+
+| 操作 | 前置狀態 | 目標狀態 |
+|------|----------|----------|
+| retry | `failed` | `queued` |
+| start webhook | `queued` | `processing` |
+| complete webhook | `processing` | `completed` |
+| fail webhook | `queued` 或 `processing` | `failed` |
+
+非法轉換回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+
+### LINE Bot
+
+LINE Bot 在 `User` 上維護：
+
+- `lineConversationState`
+- `lineConversationHistory`，最近 6 筆訊息
+- `activeCourseId`
+
+切換課程時，選項 = 自己 enrollment ∪ 所有 `published` 課程，去重後最多顯示 4 筆。
+
+LINE live 曾端對端驗證成功，但 ngrok URL、Channel Secret、Channel Access Token 是部署時變動項。不要把暫時 ngrok URL 寫成固定正式網址。
 
 ## 測試規範
 
 ### Backend
 
-測試位於 `backend/tests/`，涵蓋 `auth.routes`、`course-video.routes`、`qa.routes`、`qa.service`、`line.routes`、`health.routes`、`docs.routes`、`api-response`、`demo-seed.service`、`answer-generation.service`、`mvp.acceptance`（端到端驗收）。
+測試位於 `backend/tests/`，使用 Node 內建 `node:test`。route tests 透過 `tests/helpers/backendTestHarness.js` 的 in-memory store，不依賴真實 MongoDB。
 
-注意事項：
-- 測試透過 `tests/helpers/backendTestHarness.js` 以 in-memory store stub 掉 Mongoose model
-- route 測試會啟動真實 Express app，但不依賴實際 MongoDB
-- 測試期間可能在 `backend/uploads/` 寫入帶有 `test-upload-` 前綴的測試檔案，helper 會自動清理
+修改 backend 後至少執行：
+
+```powershell
+cd backend
+npm test
+```
+
+若只改單一模組，可先跑單檔：
+
+```powershell
+node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
+```
 
 ### Frontend
 
-目前沒有正式的自動化測試框架。修改前端時至少執行：
-```bash
+目前沒有正式自動化測試框架。修改 frontend 後至少執行：
+
+```powershell
+cd frontend\focus-flow
 npm run lint
 npm run build
 ```
-若沒有執行，回覆中需明確說明原因。
 
 ### AI Pipeline
 
-目前沒有正式的自動化測試套件。修改 pipeline 時至少確認相關 CLI 指令可執行，若依賴 FFmpeg、外部模型或金鑰，請說明是否實際驗證。
+目前沒有正式自動化測試套件。修改 pipeline 後至少確認相關 CLI 可執行；若依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
 
 ## 開發原則
 
-- 僅專注於第一階段 MVP，不提前開發後續階段功能
-- 優先使用簡單、清楚、可維護的寫法，避免不必要的抽象化
-- 非必要不重新命名或大幅搬動專案結構；不重寫不相關的模組
-- 不加入未被要求的推測性功能；不刪除檔案，除非可明確確認安全且必要
-- 遵循現有的資料夾與命名慣例，優先配合既有結構調整
-- 新增或調整 API 時：request/response 格式一致、基本輸入驗證、清楚的錯誤回應，優先沿用 `utils/apiResponse.js` 與錯誤處理 middleware 的風格
-
-## 工作方式
-
-進行較大的修改前：
-1. 先分析目前 repo 狀態
-2. 簡短說明預計採用的方法
-3. 再開始實作
-
-完成後說明：修改內容、新增或修改的檔案、假設與限制，必要時提出下一步建議。
+- 僅專注 Phase 1 MVP，不提前實作後續階段功能。
+- 優先沿用既有資料夾、命名、service pattern、response helper 與 error middleware。
+- 非必要不重新命名、不搬動大型結構、不重寫無關模組。
+- 新增 API 時維持 request/response 格式一致，補基本輸入驗證與清楚錯誤碼。
+- 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
+- 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
+- 不刪除檔案或清資料，除非使用者明確要求且已確認影響。
 
 ## 文件更新
 
-有需要時同步更新：`README.md`、`backend/.env.example`、新增套件的安裝與設定說明。修改 frontend 或 AI pipeline 時，也需檢查對應子目錄的 README 是否需要更新。
+修改功能時，檢查是否需要同步：
+
+- [README.md](README.md)
+- [docs/current-status.md](docs/current-status.md)
+- [backend/docs/current-state.md](backend/docs/current-state.md)
+- [backend/docs/openapi.yaml](backend/docs/openapi.yaml)
+- `backend/.env.example`
+- `frontend/focus-flow/README.md`
+- `STT_Whisper/README.md`
+
+若只修內部實作且對使用方式、runtime、API contract 沒影響，可以不改文件，但完成回覆中需明確說明未改文件的理由。
+
+## 不能誤稱的邊界
+
+- 不能說目前共享 Atlas 的 atlas mode ready；`text_embedding_index` 已不存在，除非重建。
+- 不能把單次 LINE live smoke 說成正式部署完成。
+- 不能說所有前端頁面都已完整 API 串接；目前是整合中。
+- 不能說 YouTube Data API 自動上傳已完成；目前完成的是教師貼 YouTube URL。
+- 不能說 `video_segments_video` 已接成正式 multimodal QA source。
+- 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。

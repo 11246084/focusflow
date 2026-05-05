@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-05-05（補充 YouTube URL MVP、LINE timestamp link、STT yt-dlp 流程）
+最後更新：2026-05-05（依後端交接盤點重新對照 routes / models / services / tests）
 
 ## 文件角色
 
@@ -34,6 +34,7 @@
 - 若要先清掉再重建，使用 `npm run seed:reset`
 - LINE live 已可端對端接收訊息並回傳 AI 答案與影片時間戳
 - YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
+- 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
 
 目前 QA bridge contract：
 
@@ -72,7 +73,7 @@
 **已知 index 狀態：**
 
 - `video_segments_text`：5 個 classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；**目前 cluster 無任何 Atlas Search / Vector Search Index**（Atlas UI Indexes 分頁與 MCP `searchIndexes: []` 一致）。先前文件描述的 `text_embedding_index` READY 狀態屬於舊快照，此 cluster 目前不存在
-- `questions`：13 個 classic indexes，包含 `courseId`、`status`、`source`、`topSegmentId`、`askedAt`、複合索引（`courseId_1_askedAt_-1`、`userId_1_askedAt_-1`、`courseId_1_status_1_askedAt_-1`、`courseId_1_topSegmentId_1`）、text index（`question_text_answer_text`）、`sourceUsageLogId` 唯一稀疏索引
+- `questions`：13 個 classic indexes，包含 `courseId`、`status`、`source`、`topSegmentId`、`askedAt`、複合索引（`courseId_1_askedAt_-1`、`userId_1_askedAt_-1`、`courseId_1_status_1_askedAt_-1`、`courseId_1_topSegmentId_1`）、text index（`question_text_answer_text`）、`sourceUsageLogId` partial unique sparse index；schema 預設不寫入 `sourceUsageLogId: null`
 
 **對 runtime 的影響：**
 
@@ -106,6 +107,22 @@
   - `src/scripts/syncQuestionsToAtlas.js` 可單獨同步 questions 到 Atlas（含 course 補齊與 local user → Atlas user 對應），但目前未掛 npm script
   - `npm run db:ensure-questions` 與 `npm run db:backfill-questions` 是 dangling scripts：`src/scripts/ensureQuestionsCollection.js`、`src/scripts/backfillQuestionsFromUsageLogs.js` 目前不存在，執行會失敗
 - OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，但尚未涵蓋 stats/admin 路由，也缺 courses/videos 的 PATCH/DELETE；API 清單暫以實際 route files 與 README 表格為準
+
+## 2026-05-05 程式碼對照補充
+
+- Course routes：`POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`；DELETE 僅 admin，可 cascade videos / segments / enrollments。
+- Video routes：`POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`DELETE /api/v1/videos/:videoId`。
+- LINE routes：目前只有 webhook verify / webhook POST / bind-token；repo 未實作 LIFF 的 `liff-bind`、`liff-switch-course` 或前端 LIFF pages。
+- `Video` schema 已移除 `storagePath`，主欄位為 camelCase：`videoId`、`fileName`、`filePath`、`audioPath`、`durationSec`、`videoSource`、`videoUrl`、`youtubeVideoId`。
+- `bridgeScope.service.js` 仍讀 legacy `video_id`，但這是相容路徑，不代表新資料要繼續寫 `videos.video_id`。
+
+## 目前測試狀態
+
+- 2026-05-05 實跑 `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`：5 passed、3 failed。
+- 2026-05-05 實跑 `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`：18 passed、2 failed。
+- 失敗點與交接盤點一致：學生 demo 權限已放寬但舊測試仍期待 enrollment-only / 403；QA match response 已包含 `videoTitle`，舊 expected shape 尚未更新。
+- 2026-05-05 實跑 `tests\line.routes.test.js`：14 passed；`tests\docs.routes.test.js`：2 passed。
+- 另有實作風險：`teacherStats.service.js` 的 student dashboard 問題統計目前用 `studentId` 查 `questions`，但 `Question` schema 與 `recordQuestion()` 寫入的是 `userId`。這會讓 student dashboard 的 question counts 可能為 0，需修成 `userId` 後再重新驗證。
 
 ## readiness / degraded / hard_fail 怎麼解讀
 

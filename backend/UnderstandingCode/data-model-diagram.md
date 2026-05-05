@@ -1,6 +1,6 @@
 # FocusFlow 資料關聯圖
 
-> 來源：`backend/src/models/*.js`（最後同步：2026-04-28）
+> 來源：`backend/src/models/*.js`（最後同步：2026-05-05）
 >
 > 兩種版本可選：
 > - **Mermaid（本檔）**：純文字、Git 友善、GitHub/VSCode 直接預覽。改一個欄位只要改一行。
@@ -21,13 +21,16 @@ erDiagram
     Course }o--o{ Video : "videoIds[]（bridge 引用）"
     User ||--o{ Video : "uploadedBy"
 
-    Video ||--o{ VideoSegment : "video_id（字串對應）"
+    Video ||--o{ VideoSegment : "videoId（字串對應）"
     Course ||--o{ VideoSegment : "courseId（選填）"
     VideoSegment ||--|| Clip : "segmentId（字串 unique）"
     Course ||--o{ Clip : "courseId（選填）"
 
     User ||--o{ UsageLog : "userId"
     Course ||--o{ UsageLog : "courseId（選填）"
+    User ||--o{ Question : "userId"
+    Course ||--o{ Question : "courseId"
+    UsageLog |o--o| Question : "sourceUsageLogId"
     User ||--o{ LineBindToken : "userId（TTL 自動刪除）"
 
     User {
@@ -64,13 +67,16 @@ erDiagram
         ObjectId courseId FK "App-owned 必填"
         ObjectId uploadedBy FK "App-owned 必填"
         string title "App-owned 必填"
-        string sourceType "upload / external"
-        string storagePath
+        string sourceType "upload / external_url / youtube"
+        string sourceUrl "本機 uploads URL；YouTube 為 null"
         object processing "App-owned 必填，狀態機"
-        string video_id UK "Pipeline 用，sparse"
-        string file_name "Pipeline metadata"
-        string file_path "Pipeline metadata"
-        string audio_path "Pipeline metadata"
+        string videoId UK "Pipeline / segment 對應 key，sparse"
+        string fileName "上傳檔名或 pipeline metadata"
+        string filePath "本機檔案路徑"
+        string audioPath "Pipeline 音訊路徑"
+        string videoSource "upload / youtube / local"
+        string videoUrl "播放或來源 URL"
+        string youtubeVideoId "YouTube ID"
         number week "Pipeline metadata"
         number lesson "Pipeline metadata"
     }
@@ -86,6 +92,22 @@ erDiagram
         string text
         array embedding "Number[3072] — Atlas Vector"
         array corrections
+    }
+
+    Question {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId courseId FK
+        string question
+        string answer
+        string status "answered / no_match / failed"
+        string source "api / line / debug"
+        number matchCount
+        string topSegmentId
+        array matches
+        object runtime
+        ObjectId sourceUsageLogId FK "partial unique"
+        Date askedAt
     }
 
     Clip {
@@ -124,8 +146,8 @@ erDiagram
 
 | 類型 | 判別條件 | 用途 |
 |------|----------|------|
-| **App-owned** | `courseId` + `uploadedBy` + `title` + `processing.status` 全有值 | 教師從前端上傳的影片 |
-| **Pipeline metadata** | 有 `video_id` 且 **不** 是 App-owned | Python pipeline 寫入的外部影片 metadata |
+| **App-owned** | `courseId` + `uploadedBy` + `title` + `processing.status` 全有值 | 教師從前端上傳的影片或貼上的 YouTube URL |
+| **Pipeline metadata / legacy bridge** | 有 `videoId` 或 legacy `video_id` 且 **不** 是 App-owned | Python pipeline 寫入或舊資料保留的外部影片 metadata |
 
 判別邏輯位於 [video.model.js:12-26](../src/models/video.model.js#L12-L26)：`Video.isAppOwnedRecord()` / `Video.isPipelineMetadataRecord()`。
 
@@ -138,7 +160,8 @@ erDiagram
 | 主題 | 重點 |
 |------|------|
 | **VideoSegment 的 collection 名稱** | 由環境變數 `VIDEO_SEGMENT_COLLECTION` 決定（預設 `video_segments_text`），是為了對齊 AI Pipeline 寫入的 collection 並支援部署切換。正式 v1 契約另有 `video_segments_video` 用於影片多模態 embedding。 |
-| **VideoSegment.videoId 是字串** | 不是 ObjectId！對應 `Video.video_id`（也是字串），不是 `Video._id`。這是因為 Pipeline metadata 才有 `video_id`。 |
+| **VideoSegment.videoId 是字串** | 不是 ObjectId！目前主要對應 `Video.videoId`；backend 也會在部分 bridge / cleanup 路徑用 `Video._id` 字串作為 segment key。Legacy `Video.video_id` 只保留讀取相容。 |
+| **Question 使用 `userId`** | `questions` collection 的使用者欄位是 `userId`，不是 `studentId`；若統計或同步腳本讀到舊 `studentId`，需先轉成 `userId`。 |
 | **Clip.segmentId 是字串** | 與 `VideoSegment.segmentId` 對應，用 string unique 而非 ObjectId ref。 |
 | **`videoIds[]` vs `Video.courseId`** | 前者是 `Course` → `Video` 的 bridge 引用（多對多，可跨身份），後者是 `Video` → `Course` 的直接擁有（一對多）。BridgeScope 服務會合併兩者算出 QA 可搜尋範圍。 |
 | **LineBindToken TTL** | `expiresAt` 加上 `expireAfterSeconds: 0` 索引，MongoDB 自動清除過期 token（10 分鐘有效）。 |

@@ -12,6 +12,18 @@
 
 **影響**：Backend 與 Pipeline 的協作介面仍以 MongoDB schema 為主，但 pipeline 交付物不再只剩直接落庫；跨組仍需對齊 `video_segments_text` collection 的欄位口徑與 uploader 行為。
 
+**2026-05-05 補充**：Phase-1 MVP 已改為 backend 在影片建立後背景 spawn 這個 CLI（本機影片傳 `--video-path`，YouTube MVP 傳 `--youtube-url`），但決策核心不變：Whisper / embedding 不進 Express process，狀態用 internal webhook 回報，資料仍經 MongoDB 交接。
+
+---
+
+## 2026-05 | YouTube 先採 URL MVP，不先做 Data API 自動上傳
+
+**決策**：Phase-1 先支援老師手動上傳 YouTube 後貼 URL；backend 建立 `sourceType: youtube` 的 Video，pipeline 用 `yt-dlp` 抽音，前端用 YouTube iframe 播放，QA / LINE 產生 timestamp jump link。
+
+**原因**：YouTube Data API OAuth、上傳權限、playlist 與檔案清理策略都需要額外營運設定。URL MVP 可先驗證核心教學問答流程。
+
+**影響**：`backend/uploads/` 仍不能無差別清除，因為本機 upload 影片還靠 `sourceUrl` 給前端 `<video>` 播放。自動上傳 YouTube 與上傳檔清理要等 demo 流程穩定後再設計。
+
 ---
 
 ## 2026-03 | QA 系統採用可插拔 Provider 架構

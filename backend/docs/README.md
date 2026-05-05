@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-05-01（新增 question recording、teacher/student stats、admin 管理 API、Atlas 同步腳本）
+最後更新：2026-05-06（修正 student dashboard questions 統計欄位 + 同步 qa / course-video 測試 expected）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -12,6 +12,8 @@
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](./implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](./implementation-log.archive.md)）
 - 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；目前尚未涵蓋 stats/admin 與部分 PATCH/DELETE，完整端點清單暫以 route files / README 為準
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
+- 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
+- 要確認 2026-05-05 交接後最新待補：看 [todo.md](./todo.md)（YouTube / LINE smoke、Atlas index 重建等項目）
 
 ## 每份文件的用途
 
@@ -41,3 +43,4 @@
 - 協作缺口或 demo 風險變了，改 `handoff-known-issues.md`
 - 優先順序變了，改 `todo.md`
 - 只是記錄這輪做了什麼，改 `implementation-log.md`
+- 外部交接紀錄只能作為待驗證來源；正式文件需以 route files、models、services、tests 與實際 DB 狀態為準

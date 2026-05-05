@@ -4,7 +4,7 @@
 
 ## 目前真實 runtime
 
-phase-1 當前狀態（2026-04-19）：
+phase-1 當前狀態（2026-05-05）：
 
 ```env
 DEMO_SEED_ENABLED=false
@@ -22,9 +22,11 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 代表：
 
 - query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- retrieval 使用 Atlas vector search（`text_embedding_index`），query / segment 維度已對齊，語意搜尋正式主線已切到 Atlas
+- `.env` 目前指向 Atlas vector search（`text_embedding_index`），但共享 Atlas 在 2026-05-01 驗證時已沒有該 index；除非重建 index，否則需切回 `QA_VECTOR_SEARCH_MODE=memory` 才能穩定 QA
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
+- 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP
+- YouTube Data API 自動上傳尚未實作，現階段是老師手動上傳 YouTube 後貼 URL
 - startup 不會自動 seed
 
 ## 必要 env
@@ -102,7 +104,9 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 
 ### 目前最小 bridge contract
 
-`course.videoIds -> videos._id -> videos.video_id -> video_segments_text.videoId`
+`course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId`
+
+`bridgeScope.service.js` 仍保留 legacy `videos.video_id` 讀取相容，但新資料應使用 `videoId` camelCase。
 
 ### `/api/v1/qa/ask` 現在的可觀測欄位
 
@@ -161,7 +165,7 @@ bridge course 的 `/api/v1/courses/:courseId/videos` 會回 `metadataOnly=true` 
 
 端對端流程已在真實裝置走通：
 
-```
+```text
 學生在 LINE 輸入問題
 ↓
 LINE Platform → POST /api/v1/line/webhook（ngrok → localhost:4000）
@@ -170,20 +174,22 @@ lineSignature.middleware 驗證 HMAC-SHA256
 ↓
 line.service.handleQuestion()
 ↓
-embedWithGemini(question) → 3072 維 query vector
+qa.service.askQuestion()
 ↓
-Atlas vector search（text_embedding_index）→ video_segments_text
+Gemini / memory 或 Atlas 搜尋 → video_segments_text
 ↓
 Gemini gemini-2.5-flash 生成答案
 ↓
-LINE reply API 回傳答案 + 影片時間戳
+LINE reply API 回傳答案 + 影片時間戳；YouTube 影片可附 https://youtu.be/<id>?t=<sec>
 ```
 
 ### 可驗證內容
 
 - `POST /api/v1/line/bind-token` — 發放綁定代碼（需 JWT）
 - bind token → bind（LINE 傳入代碼完成帳號綁定）
+- `BIND:<token>:COURSE:<courseId>` → 綁定後直接切換課程
 - 「切換課程」→ `select_course` postback
+- `COURSE:<courseId>` → 切換目前課程；若 published 課程尚未 enrollment，後端會建立 enrollment
 - 自然語言提問 → QA 語意搜尋 → 答案 + 時間戳回傳至 LINE
 
 ### live LINE 與 backend-only 的差異
@@ -198,7 +204,23 @@ LINE reply API 回傳答案 + 影片時間戳
 ### 已知短期限制
 
 - ngrok 每次重啟 URL 會變，需手動更新 LINE Developers Console Webhook URL
-- 學生綁定代碼目前需透過 API 手動取得，正式場景需前端做登入 + QR Code 頁面
+- 目前 repo 實際存在的是 webhook + bind-token/message QR 流程；LIFF endpoints / pages 尚未實作
+
+## YouTube URL MVP
+
+已上線的 YouTube 流程：
+
+```text
+POST /api/v1/courses/:courseId/videos/youtube
+→ video.service.parseYouTubeVideoId()
+→ 建立 sourceType=youtube 的 Video
+→ 背景 spawn STT_Whisper/src/main.py --youtube-url <url> --video-id <mongoId> --overwrite
+→ yt-dlp 下載音訊
+→ STT / chunk / embedding / MongoDB upload
+→ internal webhook 回報 completed / failed
+```
+
+尚未做的是「backend 自動把本機影片上傳到 YouTube」。本機 upload 影片仍會用 `sourceUrl=/uploads/<file>` 提供前端 `<video>` 播放，所以 `backend/uploads/` 不能無差別清除。
 
 ### LINE question flow 的 hard-fail 訊號
 
@@ -246,10 +268,18 @@ npm start
 
 ## 驗證
 
-這一輪已重新確認：
+最近重新確認：
 
-- `npm.cmd test`
-  - `69 / 69 passed`（依 [backend/docs/current-state.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/current-state.md) 的 2026-04-19 記錄）
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`
+  - 2026-05-05 實跑結果：5 passed、3 failed
+  - 失敗點與交接紀錄一致：學生 demo 權限已放寬但測試仍期待 403；QA match response 已多 `videoTitle` 但測試 expected shape 尚未更新
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`
+  - 2026-05-05 實跑結果：18 passed、2 failed
+  - 失敗點同樣是學生 demo 權限放寬後，舊測試仍期待 enrollment-only course visibility
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\line.routes.test.js`
+  - 2026-05-05 實跑結果：14 passed
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\docs.routes.test.js`
+  - 2026-05-05 實跑結果：2 passed
 - `node --test --experimental-test-isolation=none --test-concurrency=1 tests\\mvp.acceptance.test.js`
   - 鎖 `health -> auth -> courses -> QA -> LINE` backend-only demo 主線
 - `tests\\health.routes.test.js`

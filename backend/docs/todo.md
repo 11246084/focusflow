@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-05-01
+最後更新：2026-05-06
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -16,6 +16,23 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### 0. 修正 QA 測試與 student dashboard questions 統計
+
+- **狀態**：Done（2026-05-06）
+- **完成內容**：
+  - `teacherStats.service.js#getStudentDashboardStats` 將 `visibleQuestionFilter` 由 `studentId` 改為 `userId`，與 Question schema 與 `recordQuestion()` 寫入欄位對齊。
+  - 新增 `tests/teacherStats.service.test.js`，鎖定 `totalQueries` / `weeklyQueries` / `answerRate` / `recentQueries` 以 `userId` 為過濾依據，並排除非本人 question。
+  - 更新 `tests/qa.routes.test.js`：access denial 場景改用非擁有者 teacher 對 draft 課程提問（學生在 demo 模型下不再被拒）；`matches[]` expected key set 補上 `videoTitle`。
+  - 更新 `tests/course-video.routes.test.js`：學生課程列表 expected 改為僅 `publishedCourse`；新增的 `foreignPublishedCourse` 對學生改為 `true`；`gets a course by id` 的 denial 場景改為非擁有者 teacher 取得 `foreignDraftCourse`，並補一筆學生 200 的 relaxed assertion。
+- **驗收結果**：
+  - `tests/qa.routes.test.js` 8 passed / 0 failed
+  - `tests/course-video.routes.test.js` 20 passed / 0 failed
+  - `tests/line.routes.test.js` 14 passed / 0 failed
+  - `tests/docs.routes.test.js` 2 passed / 0 failed
+  - `tests/teacherStats.service.test.js` 1 passed / 0 failed
 
 ---
 

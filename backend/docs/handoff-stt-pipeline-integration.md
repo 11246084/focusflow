@@ -2,6 +2,8 @@
 
 建立日期：2026-04-27
 
+最後更新：2026-05-05（補充 YouTube URL MVP、run-aware outputs 與 uploads 清理邊界）
+
 ---
 
 ## 這份文件的目的
@@ -72,6 +74,8 @@ const sttProcess = spawn(pythonBin, [
     MONGODB_DATABASE_NAME: 'focusflow',
     BACKEND_URL: `http://localhost:${env.port}`,
     PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
+    CLEANUP_AFTER_UPLOAD: 'true',
+    CLEANUP_KEEP_CHECKPOINTS: 'false',
   },
 });
 sttProcess.unref();
@@ -137,7 +141,7 @@ PROCESSING_WEBHOOK_SECRET=focusflow-dev-secret
 
 **為什麼需要：** 學生提問時，QA 回答要附上可以跳轉到對應影片時間點的連結，格式為：
 ```
-https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
+https://youtu.be/<youtubeVideoId>?t=<startSec>
 ```
 
 **需要做的事：**
@@ -160,7 +164,19 @@ https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
 
 ---
 
-## 六、測試方式
+## 六、輸出與清理邊界
+
+Backend 觸發單支影片時，pipeline 輸出會寫到：
+
+```text
+STT_Whisper/data/outputs/runs/<videoId>/
+```
+
+這是為了避免多支影片併發時覆蓋共用 `data/outputs/*.jsonl`。
+
+`CLEANUP_AFTER_UPLOAD=true` 只處理 STT 端中間產物，例如 `data/processed_audio/`、`data/cache/transcripts/` 與 run outputs。`backend/uploads/` 目前不能一起清，因為本機 upload 影片仍透過 `Video.sourceUrl=/uploads/<file>` 供前端 `<video>` 播放。
+
+## 七、測試方式
 
 ### 手動測試完整流程
 
@@ -180,7 +196,7 @@ https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
 
 ---
 
-## 七、已知限制
+## 八、已知限制
 
 - STT pipeline 與後端必須在同一台機器上才能用 `localhost` 互通；部署到伺服器時 `BACKEND_URL` 需改為實際網址
 - backend 會優先使用 `STT_Whisper/.venv/Scripts/python.exe`；若 `.venv` 建在 repo 根目錄，會 fallback 到系統 Python，STT 可能失敗

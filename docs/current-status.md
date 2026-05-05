@@ -10,7 +10,7 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線穩定 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`；LINE Bot 多輪對話歷史；提問自動寫入 `questions` |
+| **Backend** | ✅ 主線可用，測試待同步 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions` |
 | **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 11 頁面（Student/Teacher/Admin × 多頁）；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接） |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn |
 
@@ -70,6 +70,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | `videos` ownership 邊界 | Backend + DB 組 | app-owned video vs pipeline metadata 混存 |
 | Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
 | Demo 環境策略 | 全組 | 共享 DB 是否提供專屬 demo DB |
+| Route tests 與 demo 權限同步 | Backend | 2026-05-05 實跑 `qa.routes.test.js`：5 passed、3 failed；`course-video.routes.test.js`：18 passed、2 failed；需更新 student access expected 與 `matches[].videoTitle` response shape |
+| Student dashboard questions 統計 | Backend | `questions` schema 使用 `userId`，但目前 student stats filter 仍查 `studentId`，需修正後再驗證 |
 
 ### Frontend 待完成（API 整合）
 
@@ -101,9 +103,10 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 下一步優先順序
 
 1. 前端 API 整合（登入 → 課程列表 → 問答 → LINE 綁定 QR Code）
-2. YouTube / LINE demo smoke（確認 iframe timestamp seek 與 LINE timestamp link）
-3. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
-4. 跨組 freeze phase-1 契約（`videos` ownership 邊界、demo seed 流程）
+2. 後端測試同步（`qa.routes.test.js`、`course-video.routes.test.js` 權限 / response shape、student dashboard questions 統計）
+3. YouTube / LINE demo smoke（確認 iframe timestamp seek 與 LINE timestamp link）
+4. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
+5. 跨組 freeze phase-1 契約（`videos` ownership 邊界、demo seed 流程）
 
 ---
 
@@ -114,3 +117,4 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `video_segments_video` **尚未接手** clip source
 - Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**
 - LINE webhook **已納入 OpenAPI 文件**，但 stats/admin 與部分 PATCH/DELETE 尚未納入；OpenAPI 目前不是完整 API 契約
+- LIFF **不是目前 repo 已上線流程**；目前實際存在的是 LINE webhook + bind-token/message QR，LIFF endpoints / pages 尚未實作

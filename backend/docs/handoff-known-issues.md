@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-05-05（補充 YouTube URL MVP 與 STT 環境注意事項）
+最後更新：2026-05-05（依後端交接盤點重新對照程式碼）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -51,6 +51,7 @@
 - `QA_VECTOR_SEARCH_MODE=atlas` 已生效，缺 index 或 aggregate 失敗會直接 fail-fast（不靜默回 memory）
 - atlas filter 僅使用 vector index 支援欄位（`courseId` ObjectId、`videoId` camelCase）；`video_id` snake_case 已排除（文件已全面遷移為 camelCase）
 - pipeline metadata 只拿來做 QA bridge，不當正式 app-owned video 使用
+- `videos` 新資料以 camelCase 欄位為主；`storagePath` 已從 schema 移除，`videos.video_id` 僅作 legacy 讀取相容
 
 ---
 
@@ -76,7 +77,7 @@
 
 **backend 目前已採取的行為：**
 
-- retrieval 主線是 atlas，Pipeline Bridge Course 下 105 個 segments 有 embedding 可供搜尋
+- `.env` 仍可設定 atlas，但共享 Atlas 目前缺 `text_embedding_index`；實務 QA 需切 memory 或先重建 index
 - 無法做 vector scoring 時改走 lexical fallback，並在 `runtime.fallbacks` 留下訊號
 - 若課程只有 metadata，回 `runtime.matchStatus=no_searchable_segments`
 
@@ -93,7 +94,7 @@
 **仍需持續注意：**
 
 - ngrok 每次重啟 URL 會變，需手動更新 LINE Console → 正式環境需部署到固定 HTTPS
-- 學生綁定代碼目前需透過 API 手動取得 → 正式場景需前端做登入 + QR Code 頁面
+- repo 目前實際存在的是 webhook + bind-token/message QR 流程；LIFF endpoints / pages 尚未實作，不能把 `context/LIFF_QRCode_實作紀錄.md` 當成已上線狀態
 
 **應採取的行動：**
 
@@ -101,6 +102,7 @@
 |------|------|----------|
 | ngrok URL 不固定 | **DevOps / 整體** | demo 前確認 ngrok 已啟動並更新 LINE Developers Console Webhook URL；正式環境決定部署目標（Railway / Render / 自建 VPS），改用固定 HTTPS domain |
 | 學生綁定代碼 | **Frontend** | 實作登入後的綁定頁面，呼叫 `POST /api/v1/line/bind-token` 取得代碼，搭配 QR Code 顯示；Backend 側 API 已就緒，不需修改 |
+| LIFF 方案 | **Frontend + Backend** | 若決定改走 LIFF，需新增前端 LIFF pages、`@line/liff`、後端 `liff-bind` / `liff-switch-course` endpoints 與測試 |
 
 ---
 
@@ -123,6 +125,7 @@
 
 - backend 自動上傳 YouTube（YouTube Data API v3）尚未實作；目前是教師手動上傳 YouTube 後貼 URL
 - backend/uploads 原始 mp4 自動清理尚未實作
+- LINE Bot 的 YouTube timestamp link 與前端 iframe timestamp seek 已接入，但仍需實機 smoke 記錄
 
 **應採取的行動：**
 
@@ -131,6 +134,30 @@
 | YouTube 自動上傳 | **Backend** | 本機上傳影片後呼叫 YouTube Data API v3，影片設為 unlisted，取得 ID 存入 `youtubeVideoId` |
 | OAuth 憑證 | **專案負責人** | 提供 FocusFlow Google 帳號的 YouTube API OAuth 憑證給後端 |
 | uploads 清理 | **Backend + Pipeline** | YouTube 流程穩定後，補 STT 完成後清除本機原始 mp4 的策略 |
+
+注意：本機 upload 影片目前仍透過 `sourceUrl=/uploads/<file>` 給前端 `<video>` 播放；除非改為 YouTube / object storage，否則不能把 `backend/uploads/` 當純 pipeline input 清掉。
+
+---
+
+### 測試與 dashboard 統計缺口
+
+**已確認（2026-05-05 實跑）：**
+
+- `tests/qa.routes.test.js` 目前 5 passed、3 failed。
+- `tests/course-video.routes.test.js` 目前 18 passed、2 failed。
+- `tests/line.routes.test.js` 目前 14 passed；`tests/docs.routes.test.js` 目前 2 passed。
+- 失敗原因：
+  - 學生 demo 權限已放寬為可進入 published 課程，但舊測試仍期待 enrollment-only / 403。
+  - QA match response 已補 `videoTitle`，舊測試仍期待只有 `segmentId/videoId/startSec/endSec/transcript/score`。
+- `teacherStats.service.js` student dashboard 問題統計使用 `studentId` 查 `questions`，但 `Question` schema 實際欄位是 `userId`；這會讓 question counts / recent questions 可能查不到資料。
+
+**應採取的行動：**
+
+| 項目 | 誰做 | 具體動作 |
+|------|------|----------|
+| `qa.routes.test.js` | **Backend** | 依目前 demo 權限更新 student access expected，並接受 `matches[].videoTitle` / YouTube link 欄位 |
+| `course-video.routes.test.js` | **Backend** | 依目前 demo 權限更新學生課程列表與詳情 expected |
+| Student dashboard question 統計 | **Backend** | 將 `teacherStats.service.js` 的 `visibleQuestionFilter.studentId` 改為 `userId`，補 route/service 測試 |
 
 **STT_Whisper/.env 需手動補上：**
 ```

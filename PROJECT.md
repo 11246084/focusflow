@@ -12,15 +12,15 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 |------|------|------|
 | **後端 API** | Node.js、Express 4、MongoDB + Mongoose、JWT | 4000 |
 | **前端 SPA** | React 19、Vite、Three.js、GSAP | 5173 |
-| **AI Pipeline** | Python、Faster-Whisper、Gemini Embedding、FFmpeg | CLI |
+| **AI Pipeline** | Python、Faster-Whisper、Gemini Embedding、FFmpeg、yt-dlp | CLI |
 
 ---
 
 ## Phase 1 MVP 範圍
 
 1. 使用者登入與角色控制（admin / teacher / student）
-2. 課程與影片管理（教師建立、上傳，含 PATCH/DELETE）
-3. 影片處理狀態流程（queued → processing → completed / failed），上傳後自動觸發 STT pipeline
+2. 課程與影片管理（教師建立、上傳本機影片或貼 YouTube URL，含 PATCH/DELETE）
+3. 影片處理狀態流程（queued → processing → completed / failed），影片建立後由 backend 背景觸發 STT pipeline
 4. AI 問答 API（語意搜尋 + 回答生成、提問自動寫入 `questions`）
 5. LINE Bot 整合（Webhook、一次性 token 綁定、課程切換、提問、多輪對話歷史）
 6. Teacher / Student / Admin dashboard 統計與管理介面
@@ -45,7 +45,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面共 11 頁面：StudentDashboard / StudentCourses / StudentLineBot、TeacherDashboard / TeacherCourses / TeacherUpload、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses。UI 完成，API 整合進行中。
 
 ### AI Pipeline（`STT_Whisper/`）
-離線 CLI 流程：影片 → FFmpeg 音訊提取 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL；如需落庫，另由 `mongodb_uploader.py` 導入 MongoDB。
+獨立 CLI 流程：本機影片或 YouTube URL → FFmpeg / yt-dlp 音訊處理 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL → `mongodb_uploader.py` 寫入 MongoDB。Backend 建立影片後可背景 spawn 這個 CLI，並透過 internal webhook 接收處理狀態。
 
 ---
 
@@ -55,7 +55,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 |------|------|
 | `User`（`users`）| 帳號、角色、密碼雜湊；含 LINE 綁定狀態（`lineUserId`、`lineConversationState`、`lineConversationHistory`、`activeCourseId`） |
 | `Course`（`courses`）| 課程容器（draft / published / archived） |
-| `Video`（`videos`）| 影片元資料與 processing 狀態；同時混存 App-owned 與 Pipeline metadata |
+| `Video`（`videos`）| 影片元資料與 processing 狀態；App-owned 影片以 camelCase 欄位為主，支援 `sourceType: upload / youtube` 與 `youtubeVideoId`；仍保留少量 legacy pipeline metadata 相容 |
 | `VideoSegment`（`video_segments_text`，可由 `VIDEO_SEGMENT_COLLECTION` 切換）| 問答核心：文字片段 + text embedding（v1 正式，欄位 camelCase） |
 | `Question`（`questions`）| 每則 QA 提問與回答歷史，含 matches、runtime 訊號與 `sourceUsageLogId` 連結 |
 | `Enrollment`（`enrollments`）| 學生修課紀錄（`studentId`、`courseId`、`progress`、`lineNotify`） |

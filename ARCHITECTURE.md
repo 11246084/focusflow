@@ -24,11 +24,11 @@ FocusFlow 系統技術架構、資料流與資料庫契約。
                                  ┌────────┴─────────┐
                                  │   AI Pipeline    │
                                  │  Python CLI      │
-                                 │  （離線執行）    │
+                                 │ backend 可觸發   │
                                  └──────────────────┘
 ```
 
-**關鍵決策**：AI Pipeline 作為離線 CLI（非 backend subprocess）。Whisper 模型體積大、執行耗時，因此與 backend process 分離；目前主線先輸出標準化 JSON / JSONL，必要時再由 uploader 導入 MongoDB。見 [docs/decision-log.md](docs/decision-log.md)。
+**關鍵決策**：AI Pipeline 仍是獨立 Python CLI，不內嵌 Express process；但 Phase-1 目前已由 backend 在影片建立後背景 spawn CLI。Pipeline 透過 MongoDB 寫入結果，並用 internal webhook 回報 `queued → processing → completed / failed`。見 [docs/decision-log.md](docs/decision-log.md)。
 
 ---
 
@@ -59,7 +59,7 @@ routes → controllers → services → models
 |------|----------|---------------------------|
 | `auth.routes` | `/auth/login`、`/auth/me` | `auth.controller` / `auth.service` |
 | `course.routes` | `/courses`（CRUD） | `course.controller` / `course.service` |
-| `video.routes` | `/courses/:courseId/videos`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoProcessing.service` |
+| `video.routes` | `/courses/:courseId/videos`、`/courses/:courseId/videos/youtube`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoProcessing.service` |
 | `qa.routes` | `/qa/ask` | `qa.controller` / `qa.service` + `questionRecording.service` |
 | `line.routes` | `/line/webhook`、`/line/bind-token` | `line.controller` / `line.service` |
 | `internal-video.routes` | `/internal/videos/:videoId/processing/{start,complete,fail}` | `video.controller` 內部 handlers |
@@ -102,8 +102,10 @@ routes → controllers → services → models
 
 `videos` collection 同時存放兩種文件，由 Model 靜態方法區分：
 
-- `Video.isAppOwnedRecord(video)` — `courseId` + `uploadedBy` + `title` + `processing.status` 均存在 → App 上傳的正式影片
-- `Video.isPipelineMetadataRecord(video)` — 有 `video_id` 且不是 App owned → AI Pipeline 寫入的 metadata
+- `Video.isAppOwnedRecord(video)` — `courseId` + `uploadedBy` + `title` + `processing.status` 均存在 → App 建立的正式影片（本機上傳或 YouTube URL）
+- `Video.isPipelineMetadataRecord(video)` — 有 `videoId` 或 legacy `video_id`，且不是 App owned → AI Pipeline metadata / bridge 相容資料
+
+目前 `videos` 以 camelCase 欄位為主：`videoId`、`fileName`、`filePath`、`audioPath`、`durationSec`、`videoSource`、`videoUrl`、`youtubeVideoId`。`videos.video_id` 不應再新增；相容邏輯只為讀取舊資料與 bridge 範圍。
 
 混存設計目的：讓 QA Pipeline 的外部影片資料可透過 `course.videoIds` 參照進入 QA 範圍，而不需要獨立 collection。Ownership 邊界尚未定版，是 Phase-1 已知 known issue。
 
@@ -158,9 +160,9 @@ API base URL 由 `VITE_API_BASE_URL` 控制，預設 `http://localhost:4000/api/
 ## 四、AI Pipeline 流程（`STT_Whisper/`）
 
 ```
-影片檔案
-  ↓ scan_videos.py          掃描 Test_video_file/
-  ↓ extract_audio.py        FFmpeg 抽音（.wav）
+本機影片或 YouTube URL
+  ↓ scan_videos.py / yt-dlp  掃描本機檔或下載 YouTube 音訊
+  ↓ extract_audio.py        FFmpeg 抽音（本機影片）
   ↓ transcribe.py           Faster-Whisper → 含時間戳逐字稿
   ↓ normalize_transcript.py rapidfuzz 修正專有名詞
   ↓ chunking.py             三重限制分段（字數/片段數/時長）
@@ -170,7 +172,14 @@ API base URL 由 `VITE_API_BASE_URL` 控制，預設 `http://localhost:4000/api/
   ↓ mongodb_uploader.py     （可選）直接寫入 MongoDB
 ```
 
-快取：音訊 → `data/processed_audio/`；Whisper 逐字稿 → `data/cache/transcripts/`。`--overwrite` 強制重新處理。
+Backend 觸發時會傳：
+
+```text
+本機影片：python src/main.py --video-path <backend/uploads/file> --video-id <Mongo Video _id> --overwrite
+YouTube：python src/main.py --youtube-url <url> --video-id <Mongo Video _id> --overwrite
+```
+
+Backend 觸發的單支影片輸出會寫到 `STT_Whisper/data/outputs/runs/<videoId>/`，避免併發覆蓋共用 `outputs/*.jsonl`。快取：音訊 → `data/processed_audio/`；Whisper 逐字稿 → `data/cache/transcripts/`。`--overwrite` 強制重新處理。
 
 ---
 

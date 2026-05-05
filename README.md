@@ -230,10 +230,11 @@ LINE Bot 指令：
 
 截至 2026-05-05：
 
-- Backend 主線已包含 auth、courses、videos、QA、LINE、stats、admin、internal processing webhook。
+- Backend 主線已包含 auth、courses、videos、QA、LINE、stats、admin、internal processing webhook；2026-05-05 實跑 `qa.routes.test.js` 尚有 3 個舊 expected、`course-video.routes.test.js` 尚有 2 個舊 expected 需同步（主要是 demo 權限與 `matches[].videoTitle` response shape）。
 - Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已開始串接。
 - AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發。
 - `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫。
+- Student dashboard questions 統計需再修正：schema 寫入 `userId`，目前 stats service 仍有 `studentId` filter 待同步。
 - LINE live 曾端對端驗證成功，但 ngrok URL / Channel 設定屬部署時變動項。
 - 共享 Atlas 目前缺少 `text_embedding_index`，不能直接宣稱 atlas mode ready。
 - `video_segments_video` 仍是預留 / legacy 邊界，尚未成為正式 clip source。

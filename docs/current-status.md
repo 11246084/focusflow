@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-05-01
+最後更新：2026-05-05
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -12,7 +12,7 @@
 |------|------|------|
 | **Backend** | ✅ 主線穩定 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`；LINE Bot 多輪對話歷史；提問自動寫入 `questions` |
 | **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 11 頁面（Student/Teacher/Admin × 多頁）；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接） |
-| **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；上傳影片後由 backend 自動 spawn |
+| **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn |
 
 ---
 
@@ -40,6 +40,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - auth / JWT / RBAC 主線
 - courses CRUD（含 PATCH/DELETE）、videos CRUD、processing 狀態流程
 - 影片上傳後自動 spawn STT pipeline（`video.service.js`），pipeline 透過 `/api/v1/internal/videos/:id/processing/{start,complete,fail}` 回報狀態
+- YouTube URL MVP：教師可貼 YouTube URL 建立影片；STT 用 `yt-dlp` 下載音訊；學生端用 YouTube IFrame API 播放並支援 QA timestamp 跳轉；LINE Bot 可回傳 YouTube timestamp link
 - `/api/v1/qa/ask`：answer、matches、時間資訊、runtime 訊號
 - 提問自動寫入 `questions` collection（`questionRecording.service.js`，含 matches、runtime、`sourceUsageLogId` 連結）
 - bridge-first API 契約已收斂：課程與 QA runtime 會提供 `isBridgeCourse`；`appOwnedVideoCount` / `metadataOnlyVideoCount` 是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases；`resultCategory` 是 Phase-1 convenience field，細節仍以 `status` / `matchStatus` / `degradedReasons` 為準
@@ -72,9 +73,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ### Frontend 待完成（API 整合）
 
-- 頁面 UI 已完成，尚待與後端 API 整合（登入、課程列表、QA 問答、LINE 綁定流程）
-- LINE Bot 綁定 QR Code 頁面（需呼叫 `POST /api/v1/line/bind-token`，取得 token 後以 QR Code 顯示）
-- 問答頁：YouTube 影片嵌入 + 時間戳跳轉（依教授建議採 YouTube 託管）
+- 頁面 UI 已完成，登入、課程列表、QA 問答、LINE 綁定流程已開始串接
+- YouTube URL 上傳模式與學生端 YouTube iframe / timestamp 跳轉已接入，仍需實際 demo smoke
 
 ### Pipeline 待確認
 
@@ -101,7 +101,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 下一步優先順序
 
 1. 前端 API 整合（登入 → 課程列表 → 問答 → LINE 綁定 QR Code）
-2. YouTube embed 整合（替換現有影片顯示方式）
+2. YouTube / LINE demo smoke（確認 iframe timestamp seek 與 LINE timestamp link）
 3. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
 4. 跨組 freeze phase-1 契約（`videos` ownership 邊界、demo seed 流程）
 

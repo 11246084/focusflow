@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-04-27（補充 STT 自動化與 YouTube 整合缺口）
+最後更新：2026-05-05（補充 YouTube URL MVP 與 STT 環境注意事項）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -104,36 +104,46 @@
 
 ---
 
-### STT Pipeline 自動化 / YouTube 整合缺口（2026-04-27 新增）
+### STT Pipeline 自動化 / YouTube 整合狀態
 
 **已完成：**
 
 - `video.service.js` 影片上傳後自動 spawn STT pipeline（背景執行，不阻擋 HTTP 回應）
 - STT pipeline 新增 `--video-path`、`--video-id` CLI 參數
+- STT pipeline 新增 `--youtube-url` CLI 參數，YouTube URL 模式會用 `yt-dlp` 下載音訊
 - STT pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態
 - STT pipeline 完成後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
 - `STT_Whisper/.env.example` 新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
+- `Video.youtubeVideoId` 已新增
+- `POST /api/v1/courses/:courseId/videos/youtube` 已新增
+- QA / LINE 可回傳 YouTube timestamp link
+- 學生端 YouTube iframe 可用 IFrame API 跳轉 timestamp
 
 **尚未實作（需補）：**
 
-- Video model 尚未新增 `youtubeVideoId` 欄位
-- 影片上傳後自動上傳 YouTube（YouTube Data API v3）尚未實作
-- QA 回答的時間戳跳轉連結（`youtube.com/watch?v=ID&t=秒數`）需要 `youtubeVideoId` 才能組合
+- backend 自動上傳 YouTube（YouTube Data API v3）尚未實作；目前是教師手動上傳 YouTube 後貼 URL
+- backend/uploads 原始 mp4 自動清理尚未實作
 
 **應採取的行動：**
 
 | 項目 | 誰做 | 具體動作 |
 |------|------|----------|
-| Video model 補 `youtubeVideoId` | **Backend** | 在 `models/video.model.js` 新增 `youtubeVideoId: { type: String }` |
-| YouTube 自動上傳 | **Backend** | 上傳影片後呼叫 YouTube Data API v3，影片設為 unlisted，取得 ID 存入 `youtubeVideoId` |
+| YouTube 自動上傳 | **Backend** | 本機上傳影片後呼叫 YouTube Data API v3，影片設為 unlisted，取得 ID 存入 `youtubeVideoId` |
 | OAuth 憑證 | **專案負責人** | 提供 FocusFlow Google 帳號的 YouTube API OAuth 憑證給後端 |
-| QA 跳轉連結 | **Backend** | QA 回答時從 Video 取 `youtubeVideoId`，組合 `youtube.com/watch?v=ID&t=startSec` |
+| uploads 清理 | **Backend + Pipeline** | YouTube 流程穩定後，補 STT 完成後清除本機原始 mp4 的策略 |
 
 **STT_Whisper/.env 需手動補上：**
 ```
 BACKEND_URL=http://localhost:4000
 PROCESSING_WEBHOOK_SECRET=（與 backend/.env 相同的值）
 ```
+
+**STT_Whisper/.venv 注意事項：**
+
+- `.venv` 必須建立在 `STT_Whisper/.venv`
+- backend 會優先使用 `STT_Whisper/.venv/Scripts/python.exe`
+- 若 `.venv` 建在 repo 根目錄，backend 可能 fallback 到系統 Python，導致 faster-whisper / pymongo / yt-dlp 找不到
+- 不要上傳 `.venv` 到 GitHub；請用 `requirements.txt` 重建
 
 ---
 

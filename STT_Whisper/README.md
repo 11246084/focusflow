@@ -1,8 +1,13 @@
 # FocusFlow AI Pipeline MVP
 
-這個專案是 FocusFlow 的本地 AI pipeline，角色是 AI Data Producer。它會把教學影片轉成可交給 DB / Search 成員整合的標準化資料檔，不直接寫入 MongoDB 或 Vector DB。
+這個專案是 FocusFlow 的本地 AI pipeline，角色是 AI Data Producer。它會把教學影片轉成可搜尋的 transcript、chunks、Gemini embeddings，並可在 pipeline 成功後自動上傳到 MongoDB，供 backend QA 與 LINE Bot 使用。
 
-目前主流程保留為：
+目前主流程分成兩種輸入模式：
+
+1. 本機影片模式：讀取 `backend/uploads/` 或 `Test_video_file/` 的影片檔。
+2. YouTube URL 模式：由 backend 傳入 `--youtube-url`，pipeline 用 `yt-dlp` 下載音訊後處理。
+
+後段流程一致：
 
 影片  
 → 掃描影片 metadata  
@@ -11,7 +16,9 @@
 → transcript normalization  
 → chunking  
 → Gemini Embedding 2 text embedding  
-→ 匯出 JSON / JSONL
+→ 匯出 JSON / JSONL  
+→ 上傳 MongoDB  
+→ 回報 backend processing 狀態
 
 另外新增一條音訊 embedding 支線：
 
@@ -78,16 +85,35 @@ Whisper 仍然存在，但它只負責 STT / transcript / chunking，不再負�
 ## 安裝需求
 
 - Python 3.10+
-- FFmpeg
 - `pip install -r requirements.txt`
+- FFmpeg 可選：
+  - 可以安裝在系統 PATH
+  - 也可以依賴 `imageio-ffmpeg` 內建 binary，本專案會自動 fallback
+- YouTube URL 模式需要 `yt-dlp`，已列在 `requirements.txt`
 
 ### 建立虛擬環境
 
+> 重要：`.venv` 必須建立在 `STT_Whisper/` 裡。backend 觸發 STT 時會優先尋找 `STT_Whisper/.venv/Scripts/python.exe`。
+
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+cd STT_Whisper
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
+
+檢查環境：
+
+```powershell
+python --version
+python -m pip check
+python -c "from faster_whisper import WhisperModel; print('whisper ok')"
+python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+python -m yt_dlp --version
+```
+
+不要把 `.venv` 上傳到 GitHub；請用 `requirements.txt` 讓每台電腦自行重建。
 
 ### 安裝 FFmpeg
 
@@ -123,7 +149,16 @@ Copy-Item .env.example .env
 重要設定如下：
 
 ```env
+VIDEO_INPUT_DIR=Test_video_file
+FFMPEG_BINARY=
+
+WHISPER_MODEL_SIZE=tiny
+WHISPER_DEVICE=cpu
+WHISPER_COMPUTE_TYPE=int8
+WHISPER_LANGUAGE=zh
+
 ENABLE_GEMINI_EMBEDDING=true
+ENABLE_GEMINI_VIDEO_EMBEDDING=false
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_EMBEDDING_MODEL_NAME=gemini-embedding-2-preview
 GEMINI_EMBEDDING_OUTPUT_DIM=3072
@@ -134,11 +169,43 @@ GEMINI_MAX_CHUNKS_PER_RUN=
 CHUNKS_OUTPUT_PATH=data/outputs/chunks.jsonl
 TEXT_EMBEDDINGS_OUTPUT_PATH=data/outputs/embeddings_text_gemini.jsonl
 AUDIO_EMBEDDINGS_OUTPUT_PATH=data/outputs/embeddings_audio_gemini.jsonl
+
+MONGODB_URI=your_mongodb_uri
+MONGODB_DATABASE_NAME=focusflow
+BACKEND_URL=http://localhost:4000
+PROCESSING_WEBHOOK_SECRET=focusflow-dev-secret
 ```
 
 `GEMINI_MAX_CHUNKS_PER_RUN` 可用來做測試模式，只讓本次執行處理前 N 個尚未完成的 text chunks。
 
 ## 如何執行 pipeline
+
+### 從 backend 自動觸發（主要 demo 流程）
+
+老師在前端上傳本機影片或貼 YouTube URL 後，backend 會自動 spawn：
+
+```powershell
+.\.venv\Scripts\python src/main.py --video-path <backend/uploads/xxx.mp4> --video-id <mongoId> --overwrite
+```
+
+或 YouTube URL 模式：
+
+```powershell
+.\.venv\Scripts\python src/main.py --youtube-url <youtubeUrl> --video-id <mongoId> --overwrite
+```
+
+pipeline 會：
+
+1. 呼叫 backend internal webhook，將 processing 狀態改為 `processing`
+2. 執行 STT / chunking / Gemini embedding
+3. 上傳 MongoDB
+4. 成功後回報 `completed`，失敗則回報 `failed`
+
+log 會寫在：
+
+```text
+STT_Whisper/data/pipeline_<videoId>.log
+```
 
 ### 完整執行
 
@@ -163,6 +230,20 @@ python src/main.py --limit 1 --gemini-max-chunks 20
 ```powershell
 python src/main.py --overwrite
 ```
+
+### 手動測試指定本機影片
+
+```powershell
+python src/main.py --video-path ..\backend\uploads\<file>.mp4 --video-id <mongoId> --overwrite
+```
+
+### 手動測試 YouTube URL
+
+```powershell
+python src/main.py --youtube-url "https://youtu.be/<id>" --video-id <mongoId> --overwrite
+```
+
+YouTube 影片建議在 YouTube Studio 設為「不公開」，不要設為「私人」。私人影片通常無法被 iframe 或 `yt-dlp` 正常處理。
 
 ### 執行影片多模態 embedding 支線
 
@@ -199,13 +280,19 @@ Whisper 對技術術語常有誤辨，例如：
 
 術語詞庫在：
 
-[data/term_dictionary.json](C:/Users/user/Desktop/STT_Whisper/data/term_dictionary.json)
+`data/term_dictionary.json`
 
 ## 輸出檔案
 
-正式輸出都在：
+正式輸出預設在：
 
-[data/outputs](C:/Users/user/Desktop/STT_Whisper/data/outputs)
+`data/outputs`
+
+backend 觸發單支影片時，為避免多人同時處理互相覆蓋，輸出會改到：
+
+```text
+data/outputs/runs/<videoId>/
+```
 
 ### `videos.json`
 
@@ -423,7 +510,7 @@ Select-String -Path data\outputs\transcripts_normalized.json -Pattern "ChatGPT"
 
 ## MongoDB Upload Channel
 
-This project also includes a separate MongoDB upload channel that does not change the AI pipeline itself.
+This project also includes a MongoDB upload channel. `src/main.py` now calls this uploader automatically after a successful pipeline run when MongoDB settings are configured.
 
 Script:
 
@@ -454,12 +541,44 @@ Uploader inputs:
 
 MongoDB target collections and upsert keys:
 
-- `videos` -> `video_id`
+- `videos` -> `videoId`
 - `transcripts_normalized` -> `video_id`
-- `video_segments_text` -> `chunk_id`
+- `video_segments_text` -> `chunkId`
 - `video_segments_video` -> `clip_id`
 
 Notes:
 
 - `chunks.jsonl` is used as supporting metadata when building `video_segments_text`
 - empty video embeddings are skipped during upload rather than crashing the whole run
+- YouTube video documents are not overwritten with temporary `fileName`, `filePath`, or `audioPath` values during upload.
+
+## 常見問題
+
+### 有 `.env` 還需要 `.venv` 嗎？
+
+需要。兩者用途不同：
+
+- `.env`：設定與金鑰，例如 `MONGODB_URI`、`GEMINI_API_KEY`、模型參數。
+- `.venv`：Python 執行環境與套件，例如 `faster-whisper`、`pymongo`、`google-genai`、`yt-dlp`。
+
+有 `.env` 但沒有 `.venv`，Python 仍會因為找不到套件而失敗。
+
+### 本機上傳也跑不起來怎麼查？
+
+先檢查：
+
+```powershell
+cd STT_Whisper
+.\.venv\Scripts\python --version
+.\.venv\Scripts\python -m pip check
+.\.venv\Scripts\python -c "from faster_whisper import WhisperModel; print('whisper ok')"
+.\.venv\Scripts\python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+```
+
+再看對應 log：
+
+```text
+STT_Whisper/data/pipeline_<videoId>.log
+```
+
+如果 backend 觸發 STT 時使用到系統 Python，而不是 `.venv`，通常代表 `.venv` 沒有建在 `STT_Whisper/` 底下。

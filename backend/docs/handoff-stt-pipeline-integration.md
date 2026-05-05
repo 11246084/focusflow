@@ -13,20 +13,25 @@
 ## 一、完整流程說明
 
 ```
-教師在前端上傳影片
+教師在前端上傳影片或貼 YouTube URL
     ↓
 POST /api/v1/courses/:courseId/videos
+或 POST /api/v1/courses/:courseId/videos/youtube
     ↓
-backend/src/services/video.service.js → createCourseVideo()
-① 影片存至 backend/uploads/
+backend/src/services/video.service.js
+① 本機影片：存至 backend/uploads/
+   YouTube 影片：解析 youtubeVideoId，儲存 videoUrl / youtubeVideoId
 ② MongoDB 建立 Video 文件（processing.status = queued）
-③ 背景 spawn python src/main.py --video-path <路徑> --video-id <mongoId>
+③ 背景 spawn STT_Whisper/.venv/Scripts/python.exe
+   本機影片：src/main.py --video-path <路徑> --video-id <mongoId> --overwrite
+   YouTube 影片：src/main.py --youtube-url <url> --video-id <mongoId> --overwrite
     ↓
 STT_Whisper/src/main.py 啟動
 ④ 呼叫 POST /api/v1/internal/videos/:id/processing/start
    → Video 文件狀態改為 processing
     ↓
-⑤ Whisper 轉錄 → Gemini embedding → 產出 JSONL
+⑤ 本機影片先抽音；YouTube 影片先用 yt-dlp 下載音訊
+   接著 Whisper 轉錄 → Gemini embedding → 產出 JSONL
     ↓
 ⑥ 自動執行 mongodb_uploader.py → 寫入 video_segments_text
     ↓
@@ -50,16 +55,21 @@ STT_Whisper/src/main.py 啟動
 
 ```js
 const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
-const sttProcess = spawn('python', [
+const venvPython = path.join(sttDir, '.venv', 'Scripts', 'python.exe');
+const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+const sttProcess = spawn(pythonBin, [
   'src/main.py',
   '--video-path', path.resolve(file.path),
   '--video-id', String(video._id),
+  '--overwrite',
 ], {
   cwd: sttDir,
-  detached: true,
-  stdio: 'ignore',
+  stdio: ['ignore', logFd, logFd],
+  windowsHide: true,
   env: {
     ...process.env,
+    MONGODB_URI: env.mongodbUri,
+    MONGODB_DATABASE_NAME: 'focusflow',
     BACKEND_URL: `http://localhost:${env.port}`,
     PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
   },
@@ -78,9 +88,11 @@ const env = require('../config/env');
 
 | 檔案 | 修改內容 |
 |------|---------|
-| `STT_Whisper/src/config.py` | 新增三個欄位：`backend_url`、`processing_webhook_secret`、`target_video_path` |
+| `STT_Whisper/src/config.py` | 新增 `backend_url`、`processing_webhook_secret`、`target_video_path`、`target_video_id`、`youtube_url` |
 | `STT_Whisper/src/scan_videos.py` | `scan_videos()` 開頭加判斷：若 `config.target_video_path` 不為 None，只處理那一支影片 |
-| `STT_Whisper/src/main.py` | 新增 `--video-path`、`--video-id` CLI 參數；新增 `notify_backend()` 函式；pipeline 完成後自動呼叫 `mongodb_uploader.main()`；在 start/complete/fail 呼叫 `notify_backend()` |
+| `STT_Whisper/src/main.py` | 新增 `--video-path`、`--video-id`、`--youtube-url` CLI 參數；新增 `notify_backend()`；pipeline 完成後自動呼叫 MongoDB uploader；在 start/complete/fail 呼叫 `notify_backend()` |
+| `STT_Whisper/src/mongodb_uploader.py` | 上傳 `videos` 時使用 `videoId`；YouTube 影片不覆蓋暫存檔欄位 |
+| `STT_Whisper/requirements.txt` | 新增 `yt-dlp` |
 | `STT_Whisper/.env.example` | 新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET` |
 
 ---
@@ -121,7 +133,7 @@ PROCESSING_WEBHOOK_SECRET=focusflow-dev-secret
 
 ## 五、尚未實作的後續工作
 
-### YouTube 自動上傳（優先度：高）
+### YouTube 自動上傳（後續）
 
 **為什麼需要：** 學生提問時，QA 回答要附上可以跳轉到對應影片時間點的連結，格式為：
 ```
@@ -130,19 +142,21 @@ https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
 
 **需要做的事：**
 
-1. **`backend/src/models/video.model.js`**：新增欄位
-   ```js
-   youtubeVideoId: { type: String, default: null }
-   ```
+目前 MVP 已支援「教師手動上傳 YouTube，貼 URL 到 FocusFlow」：
 
-2. **`backend/src/services/video.service.js`**：影片上傳後呼叫 YouTube Data API v3
+- `Video.youtubeVideoId` 已新增。
+- `POST /api/v1/courses/:courseId/videos/youtube` 已新增。
+- STT 可用 `yt-dlp` 下載 YouTube 音訊。
+- QA / LINE 可回傳 YouTube timestamp link。
+
+尚未完成的是「backend 自動上傳影片到 YouTube」：
+
+1. **`backend/src/services/video.service.js`**：本機影片上傳後呼叫 YouTube Data API v3
    - 影片隱私設定：`unlisted`（有連結才能看，不公開列出）
    - 頻道：統一上傳到 FocusFlow 官方 YouTube 頻道
    - 取得 YouTube 影片 ID 後存入 `Video.youtubeVideoId`
 
-3. **QA 回答串接**：在 QA service 回傳的 `clip.jumpUrl` 改為 YouTube 時間戳連結
-
-4. **需要的憑證**：FocusFlow Google 帳號的 YouTube Data API OAuth 2.0 憑證（`client_id`、`client_secret`、`refresh_token`）
+2. **需要的憑證**：FocusFlow Google 帳號的 YouTube Data API OAuth 2.0 憑證（`client_id`、`client_secret`、`refresh_token`）
 
 ---
 
@@ -151,7 +165,7 @@ https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
 ### 手動測試完整流程
 
 1. 啟動後端：`cd backend && npm run dev`
-2. 啟動 STT 虛擬環境：`cd STT_Whisper && .venv/Scripts/activate`
+2. 確認 STT 虛擬環境在 `STT_Whisper/.venv`，並已安裝 `requirements.txt`
 3. 用 Postman 或前端上傳一支影片到 `POST /api/v1/courses/:courseId/videos`
 4. 觀察後端 terminal：應出現 STT pipeline 被 spawn 的 log
 5. 觀察 STT terminal：應看到 Whisper 轉錄進度
@@ -169,5 +183,5 @@ https://www.youtube.com/watch?v=<youtubeVideoId>&t=<startSec>s
 ## 七、已知限制
 
 - STT pipeline 與後端必須在同一台機器上才能用 `localhost` 互通；部署到伺服器時 `BACKEND_URL` 需改為實際網址
-- `python` 命令必須在系統 PATH 中可執行；若環境使用虛擬環境（venv），spawn 時的 `python` 路徑需對應到 venv 內的 python
+- backend 會優先使用 `STT_Whisper/.venv/Scripts/python.exe`；若 `.venv` 建在 repo 根目錄，會 fallback 到系統 Python，STT 可能失敗
 - STT pipeline 為同步處理，一次只處理一支影片；若多人同時上傳，影片會依序排隊（`processing.status = queued` 狀態會保持）

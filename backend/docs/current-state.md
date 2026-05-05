@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-05-01（新增 question recording、teacher/student stats、admin 管理 API、Atlas 同步腳本）
+最後更新：2026-05-05（補充 YouTube URL MVP、LINE timestamp link、STT yt-dlp 流程）
 
 ## 文件角色
 
@@ -33,6 +33,7 @@
 - demo 資料不自動建立，需明確執行 `npm run seed`
 - 若要先清掉再重建，使用 `npm run seed:reset`
 - LINE live 已可端對端接收訊息並回傳 AI 答案與影片時間戳
+- YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
 
 目前 QA bridge contract：
 

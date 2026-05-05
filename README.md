@@ -86,18 +86,23 @@ npm run dev               # 啟動 Vite 開發伺服器（port 5173）
 
 ```bash
 cd STT_Whisper
-python -m venv .venv
+py -3 -m venv .venv
 source .venv/Scripts/activate   # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-將影片放入 `STT_Whisper/Test_video_file/`，然後執行：
+`.venv` 必須建立在 `STT_Whisper/` 底下，backend 自動觸發 STT 時會優先使用 `STT_Whisper/.venv/Scripts/python.exe`。
+
+將影片放入 `STT_Whisper/Test_video_file/` 後可手動執行：
 
 ```bash
 python src/main.py                 # 處理所有影片
 python src/main.py --limit 1      # 只處理第一支（快速驗證）
 python src/main.py --overwrite    # 強制重新處理（不使用快取）
 ```
+
+前端上傳影片或貼 YouTube URL 時，backend 會自動 spawn STT pipeline。YouTube URL 模式需要 `yt-dlp`，已列在 `STT_Whisper/requirements.txt`；FFmpeg 可使用系統 PATH 或 `imageio-ffmpeg` 內建 binary。
 
 > 資料庫 schema 契約（v1 正式 vs legacy）見 [ARCHITECTURE.md](ARCHITECTURE.md)。`docs/05_Database_Schema_Contract/` 目前保留的 [MongoDB_契約定版_v1_已過期.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md) 僅供歷史參考；正式 runtime 與欄位命名請以 [docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準。
 
@@ -129,6 +134,7 @@ python src/main.py --overwrite    # 強制重新處理（不使用快取）
 | 方法 | 路徑 | 說明 | 權限 |
 |------|------|------|------|
 | POST | `/api/v1/courses/:courseId/videos` | 上傳影片至課程 | 教師/管理員 |
+| POST | `/api/v1/courses/:courseId/videos/youtube` | 以 YouTube URL 建立課程影片並啟動 STT | 教師/管理員 |
 | GET | `/api/v1/courses/:courseId/videos` | 列出課程影片 | 已登入 |
 | GET | `/api/v1/videos/:videoId` | 取得影片詳細資訊 | 已登入 |
 | GET | `/api/v1/videos/:videoId/processing` | 查詢影片處理進度 | 已登入 |

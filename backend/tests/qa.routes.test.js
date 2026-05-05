@@ -103,11 +103,13 @@ describe('qa routes', () => {
   });
 
   it('enforces course access rules', async () => {
-    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    // Demo permission model lets students reach every course, so the access
+    // check now denies non-owner teachers instead of students.
+    const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
       method: 'POST',
-      token: studentToken,
+      token: otherTeacherToken,
       body: {
         courseId: ids.teacherCourse,
         question: 'draft content',
@@ -161,7 +163,7 @@ describe('qa routes', () => {
     assert.equal(result.body.data.matches[0].segmentId, ids.segmentOne);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
+      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId', 'videoTitle'],
     );
     assert.equal(result.body.data.clip.segmentId, ids.segmentOne);
     assert.equal(result.body.data.runtime.status, 'degraded');
@@ -236,7 +238,7 @@ describe('qa routes', () => {
     assert.match(result.body.data.matches[0].transcript, /videoId and text fields/i);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId'],
+      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId', 'videoTitle'],
     );
     assert.equal(result.body.data.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
   });

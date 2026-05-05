@@ -162,10 +162,10 @@ async function getStudentDashboardStats(user) {
     };
   });
 
-  const studentId = new mongoose.Types.ObjectId(user.id);
+  const userId = new mongoose.Types.ObjectId(user.id);
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const visibleQuestionFilter = {
-    studentId,
+    userId,
     source: { $in: ['api', 'line'] },
   };
 

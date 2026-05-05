@@ -51,9 +51,10 @@ describe('course and video routes', () => {
     );
 
     assert.equal(studentResult.status, 200);
+    // Demo permission model: students see every published course regardless of enrollment.
     assert.deepEqual(
       studentResult.body.data.courses.map((course) => course._id),
-      [ids.enrolledDraftCourse, ids.publishedCourse],
+      [ids.publishedCourse],
     );
 
     const foreignPublishedCourseId = newObjectId();
@@ -74,9 +75,10 @@ describe('course and video routes', () => {
       teacherScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
       false,
     );
+    // Students see every published course in the demo permission model.
     assert.equal(
       studentScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
-      false,
+      true,
     );
   });
 
@@ -142,7 +144,12 @@ describe('course and video routes', () => {
     const notFoundResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${newObjectId()}`, {
       token: teacherToken,
     });
+    // Demo permission model lets students reach every course, so the access
+    // check now denies non-owner teachers instead of students.
     const deniedResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${ids.foreignDraftCourse}`, {
+      token: teacherToken,
+    });
+    const studentRelaxedResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${ids.foreignDraftCourse}`, {
       token: studentToken,
     });
 
@@ -154,6 +161,8 @@ describe('course and video routes', () => {
     assert.equal(notFoundResult.body.error.code, 'COURSE_NOT_FOUND');
     assert.equal(deniedResult.status, 403);
     assert.equal(deniedResult.body.error.code, 'COURSE_ACCESS_DENIED');
+    assert.equal(studentRelaxedResult.status, 200);
+    assert.equal(studentRelaxedResult.body.data.course._id, ids.foreignDraftCourse);
   });
 
   it('rejects students from creating courses', async () => {

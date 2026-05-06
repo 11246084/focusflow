@@ -27,7 +27,7 @@ function buildPrompt(question, matches) {
   const context = matches
     .map((match, index) => [
       `片段 ${index + 1}`,
-      `影片：${match.videoTitle || match.videoId || '未知影片'}`,
+      `影片：${match.videoTitle || '未知影片'}`,
       `時間：${match.startSec}-${match.endSec}s`,
       `內容：${match.transcript}`,
     ].join('\n'))

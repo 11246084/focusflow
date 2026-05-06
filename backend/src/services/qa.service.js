@@ -141,8 +141,17 @@ function buildYouTubeWatchUrl(youtubeVideoId, startSec = 0) {
   return `https://youtu.be/${youtubeVideoId}${seconds ? `?t=${seconds}` : ''}`;
 }
 
+function looksLikeObjectId(value) {
+  return typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value);
+}
+
 function getVideoPresentationTitle(video) {
-  return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
+  const title = video?.title;
+  if (title && !looksLikeObjectId(title)) return title;
+  if (video?.fileName) return video.fileName;
+  if (video?.youtubeVideoId) return `YouTube: ${video.youtubeVideoId}`;
+  if (video?.videoId && !looksLikeObjectId(video.videoId)) return video.videoId;
+  return '未知影片';
 }
 
 function buildVideoMetadataByIdentifier(scopedVideos) {

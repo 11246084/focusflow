@@ -1,5 +1,7 @@
 .tools
 .venv/
+.venv_broken_*/
+.tmp/
 __pycache__/
 *.pyc
 data/processed_audio/*.wav

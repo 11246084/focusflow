@@ -1,0 +1,169 @@
+{
+  "record_type": "ai_assisted_debugging_record",
+  "project": {
+    "name": "FocusFlow",
+    "description": "AI 教學影片問答系統，支援教師上傳影片或貼上 YouTube URL，並透過 STT、分段與向量嵌入建立可問答資料。"
+  },
+  "record_metadata": {
+    "date": "2026-05-06",
+    "topic": "教師端貼上 YouTube 連結後，STT Pipeline 顯示處理失敗",
+    "related_video_id": "69fb4de2069e21f4e65b763d",
+    "related_youtube_url": "https://youtu.be/yWhzdAefaQU",
+    "created_for": "學校查看人機協作過程與角色分工"
+  },
+  "initial_problem": {
+    "user_observation": "使用者在教師端 Upload Video 頁面貼上 YouTube 影片連結後，前端成功建立影片資料，但 Processing Pipeline 顯示失敗。",
+    "frontend_message": "處理失敗，請查看 STT_Whisper/data/pipeline_<videoId>.log。",
+    "affected_pipeline_stage": "YouTube 音訊下載階段，尚未進入完整 STT 與 embedding 流程。"
+  },
+  "participant_roles": {
+    "user": {
+      "role_summary": "系統測試者、問題回報者、本機環境操作協作者",
+      "responsibilities": [
+        "在前端教師端實際測試 YouTube URL 上傳流程。",
+        "發現 Processing Pipeline 失敗並提供截圖。",
+        "提供 videoId 與操作情境，讓問題可以從具體 log 開始追蹤。",
+        "在排查中要求暫停重新思考，避免盲目繼續安裝或修改。",
+        "依照建議在 PowerShell 中執行 Python 套件安裝指令。",
+        "回傳 pip 安裝結果，協助確認本機 STT 環境是否補齊依賴。"
+      ],
+      "commands_executed_by_user": [
+        ".\\.venv\\Scripts\\python -m pip install yt-dlp imageio-ffmpeg python-dotenv pymongo google-genai numpy tqdm rapidfuzz",
+        ".\\.venv\\Scripts\\python -m pip install faster-whisper sentence-transformers"
+      ],
+      "role_interpretation": "使用者不是單純等待 AI 修復，而是主動測試、提供證據、控制排查節奏，並實際執行本機環境修復步驟。"
+    },
+    "codex": {
+      "role_summary": "AI 輔助工程師與除錯協作者",
+      "responsibilities": [
+        "根據截圖中的 videoId 讀取對應 STT Pipeline log。",
+        "分析錯誤訊息並定位失敗階段。",
+        "檢查 backend 如何啟動 STT_Whisper pipeline。",
+        "確認 backend 會優先使用 STT_Whisper/.venv/Scripts/python.exe。",
+        "檢查 STT_Whisper/.venv/pyvenv.cfg，發現原 venv 依賴的 Python 路徑已不存在。",
+        "保留舊 venv 並協助重建新的 STT_Whisper/.venv。",
+        "在安裝流程過長時重新整理問題並提出分段安裝策略。",
+        "在使用者完成安裝後執行 import、yt-dlp、ffmpeg 與 pip check 驗證。",
+        "使用 pipeline 內部的 YouTube 下載函式驗證原始失敗點是否解除。",
+        "更新 STT_Whisper/.gitignore，避免本機 runtime 暫存目錄被誤提交。"
+      ]
+    }
+  },
+  "debugging_timeline": [
+    {
+      "step": 1,
+      "actor": "user",
+      "action": "在教師端貼上 YouTube URL 並發現處理失敗。",
+      "evidence": "前端畫面顯示 Processing Pipeline 狀態為失敗，並出現 videoId 69fb4de2069e21f4e65b763d。"
+    },
+    {
+      "step": 2,
+      "actor": "codex",
+      "action": "讀取 STT Pipeline log。",
+      "evidence": "STT_Whisper/data/pipeline_69fb4de2069e21f4e65b763d.log 顯示 No module named yt_dlp。"
+    },
+    {
+      "step": 3,
+      "actor": "codex",
+      "action": "檢查 backend 啟動 STT 的程式碼。",
+      "evidence": "backend/src/services/video.service.js 會以 src/main.py --youtube-url <url> --video-id <mongoId> --overwrite 啟動 pipeline。"
+    },
+    {
+      "step": 4,
+      "actor": "codex",
+      "action": "檢查 Python venv 狀態。",
+      "evidence": "STT_Whisper/.venv/pyvenv.cfg 指向 C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python314\\python.exe，但該 Python 路徑已不存在。"
+    },
+    {
+      "step": 5,
+      "actor": "codex",
+      "action": "保留舊 venv 並嘗試重建環境。",
+      "evidence": "舊環境改名為 STT_Whisper/.venv_broken_20260506_222600，新環境改用 Python 3.12.8。"
+    },
+    {
+      "step": 6,
+      "actor": "user",
+      "action": "要求暫停並重新思考問題解法。",
+      "evidence": "使用者明確要求先暫停，不繼續盲目執行安裝流程。"
+    },
+    {
+      "step": 7,
+      "actor": "codex",
+      "action": "提出分段安裝策略。",
+      "evidence": "先安裝 yt-dlp、imageio-ffmpeg、python-dotenv、pymongo、google-genai、numpy、tqdm、rapidfuzz，再安裝 faster-whisper 與 sentence-transformers。"
+    },
+    {
+      "step": 8,
+      "actor": "user",
+      "action": "在 PowerShell 中執行分段套件安裝。",
+      "evidence": "pip 輸出顯示 yt-dlp、imageio-ffmpeg、pymongo、google-genai、faster-whisper、sentence-transformers 等套件已安裝或已存在。"
+    },
+    {
+      "step": 9,
+      "actor": "codex",
+      "action": "驗證修復後的 Python 環境。",
+      "evidence": "Python 3.12.8、yt-dlp 2026.03.17、pipeline imports ok、pip check 顯示 No broken requirements found。"
+    },
+    {
+      "step": 10,
+      "actor": "codex",
+      "action": "驗證原始 YouTube 下載失敗點。",
+      "evidence": "呼叫 pipeline 內部 download_youtube_audio() 後成功產出 .tmp/youtube_download_test.wav，大小為 3840102 bytes。"
+    },
+    {
+      "step": 11,
+      "actor": "codex",
+      "action": "更新忽略規則。",
+      "evidence": "STT_Whisper/.gitignore 新增 .venv_broken_*/ 與 .tmp/，避免本機 runtime 目錄被誤提交。"
+    }
+  ],
+  "root_cause": {
+    "summary": "本次失敗不是前端表單錯誤，也不是 YouTube URL 格式錯誤，而是 STT_Whisper 的 Python 虛擬環境壞掉或不完整。",
+    "direct_error": "No module named yt_dlp",
+    "deeper_cause": "backend 會優先使用 STT_Whisper/.venv/Scripts/python.exe，但原本的 venv 依賴已不存在的 Python 3.14 路徑，且缺少 YouTube URL 模式需要的 yt-dlp 模組。",
+    "impact": "YouTube 音訊下載無法啟動，因此 pipeline 立刻回報 failed，STT、chunking、embedding 與 MongoDB upload 尚未完成。"
+  },
+  "verification_results": {
+    "python_version": "Python 3.12.8",
+    "yt_dlp_version": "2026.03.17",
+    "ffmpeg_source": "imageio_ffmpeg bundled ffmpeg",
+    "import_check": "pipeline imports ok",
+    "pip_check": "No broken requirements found.",
+    "download_test": {
+      "function": "download_youtube_audio()",
+      "output_file": "STT_Whisper/.tmp/youtube_download_test.wav",
+      "output_size_bytes": 3840102,
+      "result": "success"
+    }
+  },
+  "files_changed": [
+    {
+      "path": "STT_Whisper/.gitignore",
+      "change": "新增 .venv_broken_*/ 與 .tmp/ 忽略規則。"
+    },
+    {
+      "path": "docs/03_Chat_summary/Json/focusflow_youtube_stt_debug_record_2026-05-06.json",
+      "change": "新增本次人機協作除錯紀錄 JSON。"
+    },
+    {
+      "path": "docs/ai-assistance-debug-record-2026-05-06.md",
+      "change": "依使用者要求移除 Markdown 版本，改以 JSON 保存。"
+    }
+  ],
+  "current_status": {
+    "stt_venv": "已重建並可執行。",
+    "youtube_download_dependency": "已補齊並驗證。",
+    "original_error_point": "已用 pipeline 內部函式驗證可通過。",
+    "frontend_existing_failed_video": "原 videoId 仍是 failed 狀態，需要重新建立影片或補 retry spawn 邏輯才能重跑。"
+  },
+  "remaining_limitations": [
+    "原本失敗的 videoId 69fb4de2069e21f4e65b763d 已在資料庫中標記為 failed。",
+    "目前 backend 的 processing/retry 只會把狀態改回 queued，沒有重新 spawn STT worker。",
+    "短期最簡單的 UI 測試方式是重新貼一次同一支 YouTube URL，建立新的 video document 讓 backend 自動觸發 pipeline。",
+    "若要重跑舊影片，需要額外補 backend retry 後重新啟動 STT Pipeline 的邏輯。"
+  ],
+  "conclusion": {
+    "summary": "本次處理過程屬於人機協作除錯。使用者負責實際測試、回報問題、提供證據、控制排查方向並執行本機安裝；Codex 負責依據 log 與程式碼進行根因分析、提出修復策略並驗證結果。",
+    "final_assessment": "問題集中在 STT Pipeline 的 Python 虛擬環境，而非前端操作或 YouTube URL 本身。經過重建 venv、補齊套件與下載驗證後，原先缺少 yt_dlp 導致的 YouTube 音訊下載失敗點已解除。"
+  }
+}

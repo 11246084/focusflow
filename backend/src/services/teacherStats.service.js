@@ -17,6 +17,14 @@ function getVideoTitle(video) {
   return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
 }
 
+function getVideoSortTime(video) {
+  return Date.parse(video?.createdAt || video?.processing?.queuedAt || video?.updatedAt || 0) || 0;
+}
+
+function sortVideosByRecency(videos) {
+  return [...videos].sort((left, right) => getVideoSortTime(right) - getVideoSortTime(left));
+}
+
 function getCourseFallbackVideo(videos, courseId) {
   const courseKey = String(courseId || '');
   if (!courseKey) return null;
@@ -30,10 +38,29 @@ function getCourseFallbackVideo(videos, courseId) {
       return leftIsYouTube ? -1 : 1;
     }
 
-    const leftTime = Date.parse(left.createdAt || left.updatedAt || 0) || 0;
-    const rightTime = Date.parse(right.createdAt || right.updatedAt || 0) || 0;
-    return rightTime - leftTime;
+    return getVideoSortTime(right) - getVideoSortTime(left);
   })[0] || null;
+}
+
+function mergeTopSegmentsByDisplayVideo(topSegments) {
+  const grouped = new Map();
+
+  for (const item of topSegments) {
+    const groupKey = `${item.courseName}:${item.videoId || item.videoTitle || item.segmentId}`;
+    const current = grouped.get(groupKey);
+
+    if (!current) {
+      grouped.set(groupKey, { ...item, segmentIds: [item.segmentId] });
+      continue;
+    }
+
+    current.count += item.count;
+    current.segmentIds.push(item.segmentId);
+  }
+
+  return [...grouped.values()]
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 4);
 }
 
 function parseSegmentIdentifier(segmentIdentifier) {
@@ -95,7 +122,7 @@ async function getTeacherDashboardStats(user) {
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
 
-  const videos = await Video.find({ courseId: { $in: courseIds } }).sort({ updatedAt: -1 });
+  const videos = sortVideosByRecency(await Video.find({ courseId: { $in: courseIds } }));
 
   const [segmentsCount, queriesCount] = await Promise.all([
     VideoSegment.countDocuments(),
@@ -120,10 +147,10 @@ async function getTeacherDashboardStats(user) {
     },
     { $group: { _id: '$metadata.topSegmentId', count: { $sum: 1 }, courseId: { $first: '$courseId' } } },
     { $sort: { count: -1 } },
-    { $limit: 4 },
+    { $limit: 20 },
   ]);
 
-  const topSegments = await Promise.all(
+  const topSegments = mergeTopSegmentsByDisplayVideo(await Promise.all(
     topSegmentsAgg.map(async (item) => {
       const parsed = parseSegmentIdentifier(item._id);
       const segment = await findSegmentByUsageIdentifier(item._id);
@@ -141,7 +168,7 @@ async function getTeacherDashboardStats(user) {
         count: item.count,
       };
     }),
-  );
+  ));
 
   return {
     coursesCount: courses.length,

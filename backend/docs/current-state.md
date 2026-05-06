@@ -88,7 +88,7 @@
 - courses CRUD（含 PATCH/DELETE）、videos CRUD（含 DELETE）、processing 狀態流程已可用
 - `/api/v1/qa/ask` 已能回 answer、matches、時間資訊與 runtime 訊號
 - 提問自動寫入 `questions` collection（2026-04-30）：`questionRecording.service.js` 在 QA 與 LINE Bot 路徑都會落庫；含 matches、runtime、`sourceUsageLogId` 連結至對應 `usage_logs`
-- Teacher / Student dashboard 統計 API（2026-04-30）：`/api/v1/stats/teacher`、`/api/v1/stats/student`，由 `teacherStats.service.js` 聚合；Top Queried Segments 若命中已刪影片的歷史 segment，顯示會 fallback 到同課程現存影片，並優先 YouTube 影片
+- Teacher / Student dashboard 統計 API（2026-04-30）：`/api/v1/stats/teacher`、`/api/v1/stats/student`，由 `teacherStats.service.js` 聚合；Recent Videos 使用穩定 recency 排序；Top Queried Segments 若命中已刪影片的歷史 segment，顯示會 fallback 到同課程現存影片並優先 YouTube，且同一顯示影片的多個 segment count 會合併成一列
 - Admin 管理 API（2026-04-30）：`/api/v1/admin/{stats,users,videos,events,event-stats}`，可停用使用者、變更角色、刪除影片、查看最近事件
 - Gemini query embedding 已接上；Atlas vector search 仍由 `.env` 指向 `text_embedding_index`，但目前共享 Atlas 缺少該 index，需重建 index 或切回 memory mode
 - QA misconfig、Atlas not ready、fallback 與 `no_searchable_segments` 已可明確觀測

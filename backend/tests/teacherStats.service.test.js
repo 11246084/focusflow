@@ -94,6 +94,7 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
     const deletedVideoId = new mongoose.Types.ObjectId().toString();
     const currentVideoId = new mongoose.Types.ObjectId().toString();
     const topSegmentId = `${deletedVideoId}_chunk_0005`;
+    const currentSegmentId = `${currentVideoId}_chunk_0004`;
 
     store.videos.push({
       _id: currentVideoId,
@@ -115,17 +116,30 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
       updatedAt: '2026-05-05T13:27:00.000Z',
     });
 
-    store.videoSegments.push({
-      _id: new mongoose.Types.ObjectId().toString(),
-      segmentId: topSegmentId,
-      chunkId: topSegmentId,
-      courseId: ids.teacherCourse,
-      videoId: deletedVideoId,
-      startSec: 56.96,
-      endSec: 73.18,
-      text: 'Deleted video segment should not leak its object id in teacher stats.',
-      embedding: [],
-    });
+    store.videoSegments.push(
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        segmentId: topSegmentId,
+        chunkId: topSegmentId,
+        courseId: ids.teacherCourse,
+        videoId: deletedVideoId,
+        startSec: 56.96,
+        endSec: 73.18,
+        text: 'Deleted video segment should not leak its object id in teacher stats.',
+        embedding: [],
+      },
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        segmentId: currentSegmentId,
+        chunkId: currentSegmentId,
+        courseId: ids.teacherCourse,
+        videoId: currentVideoId,
+        startSec: 44.88,
+        endSec: 56.04,
+        text: 'Current YouTube video segment should merge with fallback display row.',
+        embedding: [],
+      },
+    );
 
     store.usageLogs.push(
       {
@@ -142,6 +156,13 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
         metadata: { topSegmentId },
         createdAt: '2026-05-06T10:05:00.000Z',
       },
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        event: 'ask',
+        courseId: ids.teacherCourse,
+        metadata: { topSegmentId: currentSegmentId },
+        createdAt: '2026-05-06T10:10:00.000Z',
+      },
     );
 
     const stats = await getTeacherDashboardStats({ id: ids.teacher });
@@ -150,6 +171,35 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
     assert.ok(segment);
     assert.equal(segment.videoTitle, 'video 001 part 0006');
     assert.equal(segment.videoId, currentVideoId);
-    assert.equal(segment.count, 2);
+    assert.deepEqual(segment.segmentIds.sort(), [currentSegmentId, topSegmentId].sort());
+    assert.equal(segment.count, 3);
+    assert.equal(stats.topSegments.filter((item) => item.videoTitle === 'video 001 part 0006').length, 1);
+  });
+
+  it('sorts recent videos by creation time so the dashboard matches uploaded videos recency', async () => {
+    const latestVideoId = new mongoose.Types.ObjectId().toString();
+
+    for (const video of store.videos) {
+      video.updatedAt = '2026-05-06T13:46:58.167Z';
+    }
+
+    store.videos.push({
+      _id: latestVideoId,
+      courseId: ids.teacherCourse,
+      title: 'video 001 part 0006',
+      sourceType: 'youtube',
+      sourceUrl: null,
+      youtubeVideoId: '525ItlVdo6E',
+      videoUrl: 'https://youtu.be/525ItlVdo6E',
+      uploadedBy: ids.teacher,
+      processing: { status: 'completed', attemptCount: 1 },
+      createdAt: '2026-05-05T13:25:05.000Z',
+      updatedAt: '2026-05-06T13:46:58.167Z',
+    });
+
+    const stats = await getTeacherDashboardStats({ id: ids.teacher });
+
+    assert.equal(stats.recentVideos[0].id, latestVideoId);
+    assert.equal(stats.recentVideos[0].title, 'video 001 part 0006');
   });
 });

@@ -41,8 +41,59 @@ function loadYouTubeIframeApi() {
   return youtubeApiPromise;
 }
 
+function extractYouTubeVideoId(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(text)) return text;
+
+  const patterns = [
+    /[?&]v=([^&#]+)/,
+    /youtu\.be\/([^?&#/]+)/,
+    /\/shorts\/([^?&#/]+)/,
+    /\/embed\/([^?&#/]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+function resolveVideoPlayback(video) {
+  if (!video) return { type: 'none', youtubeId: null, videoUrl: null };
+
+  const sourceType = String(video.sourceType || video.videoSource || video.video_source || '').toLowerCase();
+  const youtubeId = (
+    extractYouTubeVideoId(video.youtubeVideoId)
+    || extractYouTubeVideoId(video.youtube_video_id)
+    || extractYouTubeVideoId(video.videoUrl)
+    || extractYouTubeVideoId(video.video_url)
+    || extractYouTubeVideoId(video.sourceUrl)
+  );
+
+  if (youtubeId) {
+    return { type: 'youtube', youtubeId, videoUrl: null };
+  }
+
+  if (sourceType === 'youtube' || video.metadataOnly || video.qaScopeOnly) {
+    return { type: 'unavailable', youtubeId: null, videoUrl: null };
+  }
+
+  const sourceUrl = video.sourceUrl || video.videoUrl || video.video_url;
+  if (!sourceUrl) return { type: 'none', youtubeId: null, videoUrl: null };
+
+  const textUrl = String(sourceUrl);
+  const videoUrl = textUrl.startsWith('/uploads/')
+    ? `${BACKEND_ORIGIN}${textUrl}`
+    : textUrl;
+
+  return { type: 'upload', youtubeId: null, videoUrl };
+}
+
 function YouTubePlayer({ videoId, seekRequest }) {
-  const containerRef = useRef(null);
+  const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const readyRef = useRef(false);
   const seekRequestRef = useRef(seekRequest);
@@ -56,9 +107,13 @@ function YouTubePlayer({ videoId, seekRequest }) {
     readyRef.current = false;
 
     loadYouTubeIframeApi().then((YT) => {
-      if (cancelled || !containerRef.current) return;
+      if (cancelled || !wrapperRef.current) return;
 
-      playerRef.current = new YT.Player(containerRef.current, {
+      wrapperRef.current.replaceChildren();
+      const playerHost = document.createElement('div');
+      wrapperRef.current.appendChild(playerHost);
+
+      playerRef.current = new YT.Player(playerHost, {
         width: '100%',
         height: '100%',
         videoId,
@@ -83,10 +138,18 @@ function YouTubePlayer({ videoId, seekRequest }) {
     return () => {
       cancelled = true;
       readyRef.current = false;
-      if (playerRef.current?.destroy) {
-        playerRef.current.destroy();
+      try {
+        if (playerRef.current?.destroy) {
+          playerRef.current.destroy();
+        }
+      } catch {
+        // YouTube mutates its own iframe during teardown; keep React's wrapper stable.
+      } finally {
+        playerRef.current = null;
+        if (wrapperRef.current) {
+          wrapperRef.current.replaceChildren();
+        }
       }
-      playerRef.current = null;
     };
   }, [videoId]);
 
@@ -97,7 +160,7 @@ function YouTubePlayer({ videoId, seekRequest }) {
     playerRef.current.playVideo();
   }, [seekRequest]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+  return <div ref={wrapperRef} style={{ width: '100%', height: '100%' }} />;
 }
 
 // 點擊後在頁面內展開 QR code 小卡，不開新分頁
@@ -335,8 +398,9 @@ export default function StudentCourses() {
   // Course detail view
   if (selectedCourse) {
     const playing = playingVid !== null ? videos[playingVid] : null;
-    const youtubeId = playing?.youtubeVideoId || null;
-    const videoUrl = !youtubeId && playing?.sourceUrl ? `${BACKEND_ORIGIN}${playing.sourceUrl}` : null;
+    const playback = resolveVideoPlayback(playing);
+    const youtubeId = playback.youtubeId;
+    const videoUrl = playback.videoUrl;
 
     return (
       <div className="fu scrl" style={{ padding: 26, height: '100%' }}>

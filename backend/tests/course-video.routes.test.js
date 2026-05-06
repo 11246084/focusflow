@@ -281,6 +281,46 @@ describe('course and video routes', () => {
     assert.equal(result.body.error.code, 'INVALID_FILE_TYPE');
   });
 
+  it('registers YouTube videos without exposing uploads playback URLs', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const youtubeUrl = 'https://youtu.be/525ItlVdo6E';
+
+    const createResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/youtube`,
+      {
+        method: 'POST',
+        token: teacherToken,
+        body: {
+          youtubeUrl,
+          title: 'YouTube lecture',
+        },
+      },
+    );
+
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos`,
+      { token: teacherToken },
+    );
+
+    assert.equal(createResult.status, 201);
+    assert.equal(createResult.body.data.video.sourceType, 'youtube');
+    assert.equal(createResult.body.data.video.sourceUrl, null);
+    assert.equal(createResult.body.data.video.youtubeVideoId, '525ItlVdo6E');
+    assert.equal(createResult.body.data.video.youtube_video_id, '525ItlVdo6E');
+    assert.equal(createResult.body.data.video.video_source, 'youtube');
+    assert.equal(createResult.body.data.video.video_url, youtubeUrl);
+
+    const listedVideo = listResult.body.data.videos.find((video) => video._id === createResult.body.data.video._id);
+    assert.ok(listedVideo);
+    assert.equal(listedVideo.sourceType, 'youtube');
+    assert.equal(listedVideo.sourceUrl, null);
+    assert.equal(listedVideo.youtubeVideoId, '525ItlVdo6E');
+    assert.equal(listedVideo.youtube_video_id, '525ItlVdo6E');
+    assert.equal(listedVideo.video_url, youtubeUrl);
+  });
+
   it('rejects uploads from non-owner teachers', async () => {
     const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
     const formData = createVideoUploadForm({

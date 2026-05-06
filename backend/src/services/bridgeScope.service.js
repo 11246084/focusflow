@@ -196,6 +196,7 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
   const externalVideoId = normalizeIdentifier(plainVideo.videoId, plainVideo.video_id);
   const durationSec = normalizeNumber(plainVideo.durationSec, plainVideo.duration_sec);
   const fileName = normalizeTranscript(plainVideo.fileName, plainVideo.file_name);
+  const youtubeVideoId = normalizeIdentifier(plainVideo.youtubeVideoId, plainVideo.youtube_video_id);
 
   if (Video.isAppOwnedRecord(video)) {
     return {
@@ -211,6 +212,8 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
       isAppOwned: true,
       bridgeMode: summary.bridgeMode || COURSE_BRIDGE_MODES.STANDARD,
       bridgeSource: null,
+      youtubeVideoId,
+      youtube_video_id: youtubeVideoId,
       video_source: plainVideo.videoSource || plainVideo.video_source || plainVideo.sourceType || null,
       video_url: plainVideo.videoUrl || plainVideo.video_url || plainVideo.sourceUrl || null,
     };
@@ -222,6 +225,8 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
     title: normalizeTranscript(plainVideo.title, plainVideo.fileName, plainVideo.file_name, externalVideoId),
     sourceType: plainVideo.sourceType || null,
     sourceUrl: plainVideo.sourceUrl || null,
+    youtubeVideoId,
+    youtube_video_id: youtubeVideoId,
     uploadedBy: null,
     processing: null,
     videoId: externalVideoId,

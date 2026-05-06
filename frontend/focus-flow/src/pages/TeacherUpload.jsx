@@ -212,6 +212,12 @@ export default function TeacherUpload() {
 
       applyStatus(vid, video.processing?.status || 'queued');
       startPolling(vid);
+
+      // 清空輸入欄位，讓使用者可以接著上傳下一支；保留 videoId / procStatus 繼續追蹤前一支
+      setSelectedFile(null);
+      setYoutubeUrl('');
+      setTitle('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       setUploadError(error.message || '上傳失敗，請稍後再試。');
       setStatusMessage('');
@@ -251,8 +257,8 @@ export default function TeacherUpload() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <button
               type="button"
-              onClick={() => !uploading && !uploadDone && setMode('file')}
-              disabled={uploading || uploadDone}
+              onClick={() => !uploading && setMode('file')}
+              disabled={uploading}
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 background: mode === 'file' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
@@ -264,8 +270,8 @@ export default function TeacherUpload() {
             </button>
             <button
               type="button"
-              onClick={() => !uploading && !uploadDone && setMode('youtube')}
-              disabled={uploading || uploadDone}
+              onClick={() => !uploading && setMode('youtube')}
+              disabled={uploading}
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 background: mode === 'youtube' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
@@ -309,7 +315,7 @@ export default function TeacherUpload() {
               placeholder="https://www.youtube.com/watch?v=..."
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
-              disabled={uploading || uploadDone}
+              disabled={uploading}
               style={{ width: '100%' }}
             />
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>支援 youtube.com/watch、youtu.be、shorts</div>
@@ -354,14 +360,14 @@ export default function TeacherUpload() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label className="ff-label">COURSE</label>
-              <select className="ff-input" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={uploading || uploadDone}>
+              <select className="ff-input" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={uploading}>
                 {courses.length === 0 && <option value="">目前沒有可用課程</option>}
                 {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
               </select>
             </div>
             <div>
               <label className="ff-label">VIDEO TITLE（選填）</label>
-              <input className="ff-input" placeholder="e.g. 第三講：邏輯迴歸" value={title} onChange={(e) => setTitle(e.target.value)} disabled={uploading || uploadDone} />
+              <input className="ff-input" placeholder="e.g. 第三講：邏輯迴歸" value={title} onChange={(e) => setTitle(e.target.value)} disabled={uploading} />
             </div>
           </div>
 
@@ -371,22 +377,22 @@ export default function TeacherUpload() {
             </div>
           )}
 
-          {!uploadDone ? (
+          <button
+            className="btn-primary"
+            style={{ width: '100%', marginTop: 20, padding: '15px', opacity: uploading ? 0.7 : 1 }}
+            onClick={handleUpload}
+            disabled={uploading}
+          >
+            <Ic n="up" s={16} /> {uploading ? '上傳中...' : (uploadDone ? '繼續上傳下一支影片' : '開始上傳並建立 AI 索引')}
+          </button>
+
+          {uploadDone && (
             <button
-              className="btn-primary"
-              style={{ width: '100%', marginTop: 20, padding: '15px', opacity: uploading ? 0.7 : 1 }}
-              onClick={handleUpload}
-              disabled={uploading}
-            >
-              <Ic n="up" s={16} /> {uploading ? '上傳中...' : '開始上傳並建立 AI 索引'}
-            </button>
-          ) : (
-            <button
-              className="btn-primary"
-              style={{ width: '100%', marginTop: 20, padding: '15px', background: 'rgba(255,255,255,0.08)' }}
+              type="button"
               onClick={resetForm}
+              style={{ marginTop: 8, width: '100%', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
             >
-              上傳另一支影片
+              清除目前追蹤狀態
             </button>
           )}
 

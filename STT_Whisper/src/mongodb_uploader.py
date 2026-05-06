@@ -92,6 +92,26 @@ def _as_object_id(value: Any) -> Any | None:
     return ObjectId(value)
 
 
+def _target_video_exists(database: Any, config: PipelineConfig) -> bool:
+    """Return False when the backend-assigned target video has been deleted mid-pipeline.
+
+    Without this check, a teacher who deletes the video while STT is still running
+    would leave orphan segments behind (since segment upload would still proceed).
+    Returns True when no target_video_id is set (CLI / standalone runs).
+    """
+    if not config.target_video_id:
+        return True
+
+    object_id = _as_object_id(config.target_video_id)
+    if object_id is None:
+        # Non-ObjectId target IDs are pipeline-style identifiers; we can't verify
+        # their existence in the videos collection, so allow upload to continue.
+        return True
+
+    found = database[VIDEOS_COLLECTION].find_one({"_id": object_id}, {"_id": 1})
+    return found is not None
+
+
 def upload_videos(database: Any, config: PipelineConfig) -> UploadStats:
     """Upload normalized video metadata into the existing videos collection."""
     # 初始化上傳統計
@@ -417,6 +437,18 @@ def upload_all(config: PipelineConfig) -> bool:
         return False
 
     database = client[config.mongodb_database_name]
+
+    # Race-condition guard: skip all uploads when the backend-assigned video record
+    # was deleted while the pipeline was still running. Otherwise we'd write orphan
+    # segments / transcripts that point to a non-existent Video document.
+    if not _target_video_exists(database, config):
+        LOGGER.error(
+            "[MongoDB Abort] target_video_id=%s no longer exists in collection=%s. "
+            "Skipping all uploads to avoid orphan data.",
+            config.target_video_id,
+            VIDEOS_COLLECTION,
+        )
+        return False
 
     video_stats = upload_videos(database, config)
     transcript_stats = upload_transcripts_normalized(database, config)

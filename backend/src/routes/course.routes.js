@@ -12,6 +12,6 @@ router.post('/', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), courseCon
 router.get('/', courseController.listCourses);
 router.get('/:courseId', courseController.getCourseById);
 router.patch('/:courseId', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), courseController.updateCourse);
-router.delete('/:courseId', authorizeRoles(USER_ROLES.ADMIN), courseController.deleteCourse);
+router.delete('/:courseId', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), courseController.deleteCourse);
 
 module.exports = router;

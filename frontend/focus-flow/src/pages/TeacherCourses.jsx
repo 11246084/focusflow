@@ -130,7 +130,6 @@ function CreateCourseModal({ onClose, onCreated }) {
           <select style={{ ...input, cursor: 'pointer' }} value={status} onChange={e => setStatus(e.target.value)}>
             <option value="draft">草稿 draft</option>
             <option value="published">已發布 published</option>
-            <option value="archived">已封存 archived</option>
           </select>
         </div>
 
@@ -159,6 +158,8 @@ export default function TeacherCourses() {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [confirmCourse, setConfirmCourse] = useState(null);
+  const [deletingCourse, setDeletingCourse] = useState(null);
   const [creating, setCreating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -218,12 +219,52 @@ export default function TeacherCourses() {
     }
   }
 
+  async function handleDeleteCourse(course) {
+    const courseId = course._id;
+    setDeletingCourse(courseId);
+
+    try {
+      await apiFetch(`/courses/${courseId}`, { method: 'DELETE' });
+      setCourses(prev => prev.filter(item => item._id !== courseId));
+      setRefreshKey(key => key + 1);
+    } catch {
+      // 失敗時保留在列表中，讓使用者可重試。
+    } finally {
+      setDeletingCourse(null);
+      setConfirmCourse(null);
+    }
+  }
+
   const overlay = MODAL_STYLE.overlay;
   const box = { ...MODAL_STYLE.box, width: 380 };
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       {creating && <CreateCourseModal onClose={() => setCreating(false)} onCreated={onCreated} />}
+
+      {confirmCourse && (
+        <div style={overlay} onClick={() => setConfirmCourse(null)}>
+          <div style={box} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 10 }}>確認刪除課程</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)', marginBottom: 6, lineHeight: 1.7 }}>
+              刪除課程會一併移除底下所有影片、AI 片段、學生選課、提問紀錄與 LINE 課程選擇狀態，這個動作無法復原。
+            </div>
+            <div style={{ fontSize: 13, color: '#fb923c', fontWeight: 600, marginBottom: 22, wordBreak: 'break-all' }}>
+              {confirmCourse.title || '未命名課程'}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmCourse(null)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, color: 'rgba(255,255,255,0.82)', padding: '9px 18px', fontSize: 12, cursor: 'pointer' }}>取消</button>
+              <button
+                onClick={() => handleDeleteCourse(confirmCourse)}
+                disabled={!!deletingCourse}
+                style={{ background: '#dc2626', border: 'none', borderRadius: 10, color: '#fff', padding: '9px 20px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+              >
+                {deletingCourse ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirm && (
         <div style={overlay} onClick={() => setConfirm(null)}>
@@ -275,7 +316,7 @@ export default function TeacherCourses() {
         ) : (
           <table className="ff-tbl">
             <thead>
-              <tr><th>TITLE</th><th>STATUS</th><th>VIDEOS</th><th>CREATED</th></tr>
+              <tr><th>TITLE</th><th>STATUS</th><th>VIDEOS</th><th>CREATED</th><th></th></tr>
             </thead>
             <tbody>
               {courses.map((course) => (
@@ -303,6 +344,15 @@ export default function TeacherCourses() {
                   </td>
                   <td style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12 }}>
                     {course.createdAt ? new Date(course.createdAt).toLocaleDateString('zh-TW') : '未記錄'}
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => setConfirmCourse(course)}
+                      disabled={deletingCourse === course._id}
+                      style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
+                    >
+                      刪除
+                    </button>
                   </td>
                 </tr>
               ))}

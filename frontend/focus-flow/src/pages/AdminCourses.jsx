@@ -76,7 +76,7 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
           <select style={{ ...inp, cursor: 'pointer' }} value={status} onChange={e => setStatus(e.target.value)}>
             <option value="draft">草稿 draft</option>
             <option value="published">已發布 published</option>
-            <option value="archived">封存 archived</option>
+            {isEdit && <option value="archived">封存 archived</option>}
           </select>
         </div>
 

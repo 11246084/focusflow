@@ -161,12 +161,14 @@ async function updateCourse(courseId, { title, description, status, teacherId },
 async function deleteCourse(courseId, user) {
   assertObjectId(courseId, 'course');
 
-  if (!isAdmin(user)) {
-    throw new AppError('Only admins can delete courses.', 403, 'FORBIDDEN');
-  }
-
   const course = await Course.findById(courseId).lean();
   if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+
+  // Admin 可刪任何課程；教師只能刪自己擁有的課程。
+  const isOwnerTeacher = isTeacher(user) && String(course.teacherId) === String(user.id);
+  if (!isAdmin(user) && !isOwnerTeacher) {
+    throw new AppError('You do not have permission to delete this course.', 403, 'FORBIDDEN');
+  }
 
   // Cascade: collect segmentIds before deletion so we can clean orphan references.
   const videos = await Video.find({ courseId }).lean();

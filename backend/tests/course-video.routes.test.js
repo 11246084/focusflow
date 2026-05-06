@@ -45,9 +45,11 @@ describe('course and video routes', () => {
     assert.equal(adminResult.body.data.courses.length, 4);
 
     assert.equal(teacherResult.status, 200);
+    // Teachers see every published course (including admin-created ones) in addition to courses they own,
+    // so the upload/select-course UI can target courses created by admin.
     assert.deepEqual(
-      teacherResult.body.data.courses.map((course) => course._id),
-      [ids.publishedCourse, ids.teacherCourse],
+      new Set(teacherResult.body.data.courses.map((course) => course._id)),
+      new Set([ids.publishedCourse, ids.teacherCourse]),
     );
 
     assert.equal(studentResult.status, 200);
@@ -71,9 +73,11 @@ describe('course and video routes', () => {
     const teacherScopedResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: teacherToken });
     const studentScopedResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: studentToken });
 
+    // Teachers also see every published course so admin-created courses are visible
+    // in the teacher's course-selection UI.
     assert.equal(
       teacherScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
-      false,
+      true,
     );
     // Students see every published course in the demo permission model.
     assert.equal(
@@ -95,12 +99,14 @@ describe('course and video routes', () => {
         status: 'published',
       },
     });
+    // Use a draft course so the assertion specifically validates owner-based visibility.
+    // Published courses are visible to every teacher (covered by the previous test).
     const createResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', {
       method: 'POST',
       token: adminToken,
       body: {
         title: 'Admin Assigned Course',
-        status: 'published',
+        status: 'draft',
         teacherId: ids.otherTeacher,
       },
     });

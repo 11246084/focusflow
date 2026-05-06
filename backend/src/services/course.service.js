@@ -69,7 +69,9 @@ async function listCourses(user) {
   if (isAdmin(user)) {
     courses = await Course.find().populate('teacherId', 'name email role isActive').sort({ createdAt: -1 });
   } else if (isTeacher(user)) {
-    courses = await Course.find({ teacherId: user.id })
+    courses = await Course.find({
+      $or: [{ teacherId: user.id }, { status: 'published' }],
+    })
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   } else if (isStudent(user)) {

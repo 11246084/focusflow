@@ -5,6 +5,7 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Enrollment = require('../models/enrollment.model');
+const Question = require('../models/question.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { USER_ROLES, USER_ROLE_VALUES } = require('../constants/enums');
@@ -178,11 +179,24 @@ async function deleteVideo(videoId) {
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
 
   const segmentKey = video.videoId || String(video._id);
+  const segments = await VideoSegment.find({ videoId: segmentKey });
+  const segmentIds = segments.map((segment) => segment.segmentId).filter(Boolean);
+
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
-
-  // Hard delete the video document
   await Video.deleteOne({ _id: videoId });
+  if (video.courseId) {
+    await Course.findByIdAndUpdate(video.courseId, { $pull: { videoIds: video._id } });
+  }
+  if (segmentIds.length) {
+    await UsageLog.deleteMany({
+      $or: [
+        { 'metadata.topSegmentId': { $in: segmentIds } },
+        { 'metadata.segmentId': { $in: segmentIds } },
+      ],
+    });
+    await Question.deleteMany({ topSegmentId: { $in: segmentIds } });
+  }
 
   return { deletedVideoId: videoId, segmentKey };
 }

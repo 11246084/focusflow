@@ -44,8 +44,8 @@ describe('demo seed service', () => {
     const student = store.users.find((user) => user.email === 'student@focusflow.local');
     const publishedCourse = store.courses.find((course) => course.title === 'FocusFlow Demo QA Course');
     const bridgeCourse = store.courses.find((course) => course.title === 'FocusFlow Pipeline Bridge Course');
-    const draftVideo = store.videos.find((video) => video.video_id === 'focusflow-demo-video-processing');
-    const bridgeVideo = store.videos.find((video) => video.video_id === DEMO_VIDEOS.pipelineBridge.videoId);
+    const draftVideo = store.videos.find((video) => video.videoId === 'focusflow-demo-video-processing');
+    const bridgeVideo = store.videos.find((video) => video.videoId === DEMO_VIDEOS.pipelineBridge.videoId);
 
     assert.ok(student);
     assert.ok(publishedCourse);
@@ -57,7 +57,7 @@ describe('demo seed service', () => {
     assert.equal(draftVideo.processing.status, 'failed');
     assert.equal(bridgeCourse.videoIds.length, 1);
     assert.equal(String(bridgeCourse.videoIds[0]), String(bridgeVideo._id));
-    assert.equal(store.videoSegments.some((segment) => segment.video_id === DEMO_VIDEOS.pipelineBridge.videoId), false);
+    assert.equal(store.videoSegments.some((segment) => segment.videoId === DEMO_VIDEOS.pipelineBridge.videoId), false);
 
     assert.deepEqual(firstRun.courses, secondRun.courses);
     assert.deepEqual(firstRun.videos, secondRun.videos);

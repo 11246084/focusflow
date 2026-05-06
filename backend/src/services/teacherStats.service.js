@@ -161,7 +161,7 @@ async function getTeacherDashboardStats(user) {
         segmentId: item._id,
         text: segment?.text ? segment.text.slice(0, 120) : null,
         videoId: displayVideo?._id ? String(displayVideo._id) : (segment?.videoId || parsed?.videoId || null),
-        videoTitle: getVideoTitle(displayVideo) || (parsed?.videoId ? `影片 ${parsed.videoId.slice(-6)}` : null),
+        videoTitle: getVideoTitle(displayVideo) || '(已刪除影片)',
         startSec: segment?.startSec ?? null,
         endSec: segment?.endSec ?? null,
         courseName: courseMap[String(item.courseId)] || '未知課程',

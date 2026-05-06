@@ -171,16 +171,29 @@ function matchesQuery(document, query = {}) {
 
     const currentValue = getNested(document, key);
 
-    if (value && typeof value === 'object' && '$in' in value) {
-      return value.$in.map(normalizeValue).includes(normalizeValue(currentValue));
-    }
+    const isOperatorObject = value
+      && typeof value === 'object'
+      && Object.keys(value).some((operator) => operator.startsWith('$'));
 
-    if (value && typeof value === 'object' && '$ne' in value) {
-      return normalizeValue(currentValue) !== normalizeValue(value.$ne);
-    }
+    if (isOperatorObject) {
+      if ('$exists' in value) {
+        const exists = currentValue !== undefined;
+        if (exists !== Boolean(value.$exists)) return false;
+      }
 
-    if (value && typeof value === 'object' && '$gte' in value) {
-      return new Date(currentValue).getTime() >= new Date(value.$gte).getTime();
+      if ('$in' in value && !value.$in.map(normalizeValue).includes(normalizeValue(currentValue))) {
+        return false;
+      }
+
+      if ('$ne' in value && normalizeValue(currentValue) === normalizeValue(value.$ne)) {
+        return false;
+      }
+
+      if ('$gte' in value && new Date(currentValue).getTime() < new Date(value.$gte).getTime()) {
+        return false;
+      }
+
+      return true;
     }
 
     return normalizeValue(currentValue) === normalizeValue(value);
@@ -472,6 +485,7 @@ function installModelStubs() {
       },
     },
   );
+  Video.findOne = async (query = {}) => store.videos.find((item) => matchesQuery(item, query)) || null;
   Video.findById = (id) => createQuery(
     store.videos.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
     {
@@ -538,6 +552,8 @@ function installModelStubs() {
   Enrollment.deleteMany = async (query = {}) => deleteManyInStore(store.enrollments, query);
 
   VideoSegment.find = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query));
+  VideoSegment.findOne = async (query = {}) => store.videoSegments.find((item) => matchesQuery(item, query)) || null;
+  VideoSegment.countDocuments = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query)).length;
   VideoSegment.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
     store.videoSegments,
     query,
@@ -562,6 +578,45 @@ function installModelStubs() {
     };
     store.usageLogs.push(usageLog);
     return usageLog;
+  };
+  UsageLog.countDocuments = async (query = {}) => store.usageLogs.filter((item) => matchesQuery(item, query)).length;
+  UsageLog.aggregate = async (pipeline = []) => {
+    let items = [...store.usageLogs];
+
+    for (const stage of pipeline) {
+      if (stage.$match) {
+        items = items.filter((item) => matchesQuery(item, stage.$match));
+      } else if (stage.$group) {
+        const grouped = new Map();
+        const groupPath = String(stage.$group._id || '').replace(/^\$/, '');
+
+        for (const item of items) {
+          const key = getNested(item, groupPath);
+          if (!grouped.has(key)) {
+            grouped.set(key, { _id: key });
+          }
+
+          const target = grouped.get(key);
+          for (const [field, expression] of Object.entries(stage.$group)) {
+            if (field === '_id') continue;
+            if (expression?.$sum === 1) {
+              target[field] = (target[field] || 0) + 1;
+            } else if (expression?.$first) {
+              const firstPath = String(expression.$first).replace(/^\$/, '');
+              if (target[field] === undefined) target[field] = getNested(item, firstPath);
+            }
+          }
+        }
+
+        items = [...grouped.values()];
+      } else if (stage.$sort) {
+        items = sortItems(items, stage.$sort);
+      } else if (stage.$limit) {
+        items = items.slice(0, stage.$limit);
+      }
+    }
+
+    return items;
   };
   UsageLog.deleteMany = async (query = {}) => deleteManyInStore(store.usageLogs, query);
 

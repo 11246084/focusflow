@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { beforeEach, describe, it } = require('node:test');
 const mongoose = require('mongoose');
-const { getStudentDashboardStats } = require('../src/services/teacherStats.service');
+const { getTeacherDashboardStats, getStudentDashboardStats } = require('../src/services/teacherStats.service');
 const {
   ids,
   resetStore,
@@ -82,5 +82,74 @@ describe('teacherStats.service - getStudentDashboardStats', () => {
       stats.recentQueries.some((entry) => entry.question === 'Different student should not be counted.'),
       false,
     );
+  });
+});
+
+describe('teacherStats.service - getTeacherDashboardStats', () => {
+  beforeEach(() => {
+    resetStore();
+  });
+
+  it('uses the current course video title when a top segment points to a deleted video', async () => {
+    const deletedVideoId = new mongoose.Types.ObjectId().toString();
+    const currentVideoId = new mongoose.Types.ObjectId().toString();
+    const topSegmentId = `${deletedVideoId}_chunk_0005`;
+
+    store.videos.push({
+      _id: currentVideoId,
+      courseId: ids.teacherCourse,
+      title: 'video 001 part 0006',
+      sourceType: 'youtube',
+      sourceUrl: null,
+      youtubeVideoId: '525ItlVdo6E',
+      videoUrl: 'https://youtu.be/525ItlVdo6E',
+      uploadedBy: ids.teacher,
+      processing: {
+        status: 'completed',
+        queuedAt: '2026-05-05T13:25:05.000Z',
+        startedAt: '2026-05-05T13:25:20.000Z',
+        completedAt: '2026-05-05T13:27:00.000Z',
+        attemptCount: 1,
+      },
+      createdAt: '2026-05-05T13:25:05.000Z',
+      updatedAt: '2026-05-05T13:27:00.000Z',
+    });
+
+    store.videoSegments.push({
+      _id: new mongoose.Types.ObjectId().toString(),
+      segmentId: topSegmentId,
+      chunkId: topSegmentId,
+      courseId: ids.teacherCourse,
+      videoId: deletedVideoId,
+      startSec: 56.96,
+      endSec: 73.18,
+      text: 'Deleted video segment should not leak its object id in teacher stats.',
+      embedding: [],
+    });
+
+    store.usageLogs.push(
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        event: 'ask',
+        courseId: ids.teacherCourse,
+        metadata: { topSegmentId },
+        createdAt: '2026-05-06T10:00:00.000Z',
+      },
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        event: 'ask',
+        courseId: ids.teacherCourse,
+        metadata: { topSegmentId },
+        createdAt: '2026-05-06T10:05:00.000Z',
+      },
+    );
+
+    const stats = await getTeacherDashboardStats({ id: ids.teacher });
+    const segment = stats.topSegments.find((item) => item.segmentId === topSegmentId);
+
+    assert.ok(segment);
+    assert.equal(segment.videoTitle, 'video 001 part 0006');
+    assert.equal(segment.videoId, currentVideoId);
+    assert.equal(segment.count, 2);
   });
 });

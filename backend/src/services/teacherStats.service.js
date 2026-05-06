@@ -17,6 +17,25 @@ function getVideoTitle(video) {
   return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
 }
 
+function getCourseFallbackVideo(videos, courseId) {
+  const courseKey = String(courseId || '');
+  if (!courseKey) return null;
+
+  const courseVideos = videos.filter((video) => String(video.courseId) === courseKey);
+  return [...courseVideos].sort((left, right) => {
+    const leftIsYouTube = left.sourceType === 'youtube' || left.youtubeVideoId;
+    const rightIsYouTube = right.sourceType === 'youtube' || right.youtubeVideoId;
+
+    if (leftIsYouTube !== rightIsYouTube) {
+      return leftIsYouTube ? -1 : 1;
+    }
+
+    const leftTime = Date.parse(left.createdAt || left.updatedAt || 0) || 0;
+    const rightTime = Date.parse(right.createdAt || right.updatedAt || 0) || 0;
+    return rightTime - leftTime;
+  })[0] || null;
+}
+
 function parseSegmentIdentifier(segmentIdentifier) {
   const match = String(segmentIdentifier || '').match(/^(.+)_(chunk|seg)_(\d+)$/i);
 
@@ -109,12 +128,13 @@ async function getTeacherDashboardStats(user) {
       const parsed = parseSegmentIdentifier(item._id);
       const segment = await findSegmentByUsageIdentifier(item._id);
       const video = await findVideoForSegment(segment, parsed?.videoId);
+      const displayVideo = video || getCourseFallbackVideo(videos, item.courseId);
 
       return {
         segmentId: item._id,
         text: segment?.text ? segment.text.slice(0, 120) : null,
-        videoId: segment?.videoId || parsed?.videoId || null,
-        videoTitle: getVideoTitle(video) || (parsed?.videoId ? `影片 ${parsed.videoId.slice(-6)}` : null),
+        videoId: displayVideo?._id ? String(displayVideo._id) : (segment?.videoId || parsed?.videoId || null),
+        videoTitle: getVideoTitle(displayVideo) || (parsed?.videoId ? `影片 ${parsed.videoId.slice(-6)}` : null),
         startSec: segment?.startSec ?? null,
         endSec: segment?.endSec ?? null,
         courseName: courseMap[String(item.courseId)] || '未知課程',

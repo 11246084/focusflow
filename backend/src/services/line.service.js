@@ -4,6 +4,7 @@ const env = require('../config/env');
 const User = require('../models/user.model');
 const Enrollment = require('../models/enrollment.model');
 const Course = require('../models/course.model');
+const Video = require('../models/video.model');
 const LineBindToken = require('../models/lineBindToken.model');
 const { askQuestion } = require('./qa.service');
 const { recordUsage } = require('./usageLog.service');
@@ -228,6 +229,36 @@ async function handleBind(lineUserId, token, replyToken) {
   }, replyResult);
 }
 
+// 給定一組課程，回傳「至少有一個現存 Video record 對應」的子集合。
+// 用於 LINE 課程選單，避免使用者選了空課程或孤兒課程後得到「未知影片」答案。
+async function filterCoursesWithLiveVideos(courses) {
+  if (!courses.length) return [];
+
+  const courseIds = courses.map((course) => course._id);
+  const allVideoRefs = courses.flatMap((course) => course.videoIds || []);
+
+  const matchedVideos = await Video.find({
+    $or: [
+      { courseId: { $in: courseIds } },
+      ...(allVideoRefs.length ? [{ _id: { $in: allVideoRefs } }] : []),
+    ],
+  });
+
+  const coursesWithVideos = new Set();
+  for (const video of matchedVideos) {
+    if (video.courseId) {
+      coursesWithVideos.add(String(video.courseId));
+    }
+    for (const course of courses) {
+      if ((course.videoIds || []).some((id) => String(id) === String(video._id))) {
+        coursesWithVideos.add(String(course._id));
+      }
+    }
+  }
+
+  return courses.filter((course) => coursesWithVideos.has(String(course._id)));
+}
+
 // 處理「切換課程」指令：使用者傳送文字「切換課程」時觸發
 // 查詢使用者有權存取的課程，用 LINE Buttons Template 顯示最多 4 個課程按鈕
 async function handleSwitchCourse(lineUserId, replyToken) {
@@ -260,7 +291,10 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     courseMap.set(String(course._id), course);
   }
 
-  const selectableCourses = Array.from(courseMap.values());
+  // 過濾掉沒有可回答影片的課程：videoIds 為空，或 videoIds 全為孤兒（對應不到 Video record）。
+  // 同時 LINE 用課程內透過 courseId 直接掛載的影片，所以要兩條路徑一起檢查。
+  const candidateCourses = Array.from(courseMap.values());
+  const selectableCourses = await filterCoursesWithLiveVideos(candidateCourses);
 
   if (!selectableCourses.length) {
     await User.findByIdAndUpdate(user._id, {

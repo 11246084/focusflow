@@ -554,6 +554,46 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
   const scopedSegments = await loadScopedSearchableSegments(segmentScope);
 
+  // 即使 segments 還在（孤兒片段），若 course 沒有任何 Video record 對應，
+  // 視為「資料不一致 / 沒有可回答的影片」，避免 prompt 出現「未知影片」。
+  if (!scopedVideos.videos.length) {
+    const runtime = buildQaRuntime({
+      runtimeSnapshot,
+      courseSummary,
+      searchableSegmentCount: scopedSegments.length,
+      matchStatus: 'no_searchable_segments',
+      searchDiagnostics: {
+        searchBackendUsed: env.qaVectorSearchMode,
+        scoringMode: 'unavailable',
+        fallbacks: [],
+      },
+      answerResult: null,
+    });
+
+    const usageLog = await recordUsage({
+      userId: user.id,
+      courseId: course._id,
+      event: USAGE_LOG_EVENTS.ASK,
+      metadata: { source, question: trimmedQuestion, matchCount: 0, runtime },
+    });
+
+    const answer = '這門課目前沒有可回答的影片資料（影片可能已被刪除）。請聯絡老師或管理員確認課程內容。';
+
+    await recordQuestion({
+      userId: user.id,
+      courseId: course._id,
+      question: trimmedQuestion,
+      answer,
+      status: QUESTION_STATUSES.NO_MATCH,
+      source,
+      matches: [],
+      runtime,
+      sourceUsageLogId: usageLog?._id,
+    });
+
+    return { answer, matches: [], clip: null, runtime };
+  }
+
   if (!scopedSegments.length) {
     const runtime = buildQaRuntime({
       runtimeSnapshot,

@@ -3,6 +3,8 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Enrollment = require('../models/enrollment.model');
 const User = require('../models/user.model');
+const UsageLog = require('../models/usageLog.model');
+const Question = require('../models/question.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const {
@@ -166,14 +168,35 @@ async function deleteCourse(courseId, user) {
   const course = await Course.findById(courseId).lean();
   if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 
-  // Cascade: delete all videos in this course and their segments
+  // Cascade: collect segmentIds before deletion so we can clean orphan references.
   const videos = await Video.find({ courseId }).lean();
+  const allSegmentIds = [];
   for (const v of videos) {
     const segKey = v.videoId || String(v._id);
+    const segments = await VideoSegment.find({ videoId: segKey });
+    allSegmentIds.push(...segments.map((s) => s.segmentId).filter(Boolean));
     await VideoSegment.deleteMany({ videoId: segKey });
   }
   await Video.deleteMany({ courseId });
   await Enrollment.deleteMany({ courseId });
+
+  // Cascade: clean usage logs / questions tied to this course or its segments.
+  await UsageLog.deleteMany({ courseId });
+  await Question.deleteMany({ courseId });
+  if (allSegmentIds.length) {
+    // catch any logs/questions referenced by segmentId but with a different courseId
+    await UsageLog.deleteMany({
+      $or: [
+        { 'metadata.topSegmentId': { $in: allSegmentIds } },
+        { 'metadata.segmentId': { $in: allSegmentIds } },
+      ],
+    });
+    await Question.deleteMany({ topSegmentId: { $in: allSegmentIds } });
+  }
+
+  // Cascade: clear any user whose activeCourseId points to this course (LINE bot state).
+  await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } });
+
   await Course.deleteOne({ _id: courseId });
 }
 

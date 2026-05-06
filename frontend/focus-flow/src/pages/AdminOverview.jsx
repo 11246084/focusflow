@@ -44,7 +44,7 @@ export default function AdminOverview({ onNav }) {
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
         {[
-          [String(s.totalUsers ?? '—'), '用戶總數', 'TOTAL USERS', `${s.studentCount ?? 0} students, ${s.teacherCount ?? 0} teachers`],
+          [String(s.totalUsers ?? '—'), '用戶總數', 'TOTAL USERS', `${s.studentCount ?? 0} students, ${s.teacherCount ?? 0} teachers, ${s.adminCount ?? 0} admins`],
           [String(s.totalVideos ?? '—'), '影片總量', 'TOTAL VIDEOS', 'all courses'],
           [String(s.totalSegments ?? '—'), '索引片段', 'SEGMENTS', 'vector search ready'],
           [String(s.totalQueries ?? '—'), '系統提問', 'TOTAL QUERIES', 'all time'],

@@ -6,6 +6,12 @@ const UsageLog = require('../models/usageLog.model');
 const Question = require('../models/question.model');
 const Enrollment = require('../models/enrollment.model');
 const { USAGE_LOG_EVENTS } = require('../constants/enums');
+const { isLikelyEncodingDamaged } = require('../utils/textEncoding');
+
+function presentQuestionText(text) {
+  if (isLikelyEncodingDamaged(text)) return '(編碼異常)';
+  return text || '未知問題';
+}
 
 function getVideoTitle(video) {
   return video?.title || video?.fileName || video?.videoId || String(video?._id || '');
@@ -181,7 +187,7 @@ async function getStudentDashboardStats(user) {
 
   const recentQueries = recentQuestions.map((item) => ({
     id: String(item._id),
-    question: item.question || '未知問題',
+    question: presentQuestionText(item.question),
     courseName: courseMap[String(item.courseId)] || '未知課程',
     timestamp: item.askedAt,
     matched: item.status === 'answered' || item.matchCount > 0,

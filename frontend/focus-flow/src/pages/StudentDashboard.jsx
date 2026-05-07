@@ -107,7 +107,11 @@ export default function StudentDashboard({ onNav }) {
                     {item.courseName} · {formatRelativeTime(item.timestamp)}
                   </div>
                 </div>
-                <span className={`badge ${item.matched ? 'bg' : 'by'}`}>{item.matched ? '命中' : '未命中'}</span>
+                {item.contentMissing ? (
+                  <span className="badge bb" title="當時提問成功，但對應影片之後已被移除">內容已下架</span>
+                ) : (
+                  <span className={`badge ${item.matched ? 'bg' : 'by'}`}>{item.matched ? '命中' : '未命中'}</span>
+                )}
               </div>
             ))
           )}

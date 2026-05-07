@@ -150,25 +150,31 @@ async function getTeacherDashboardStats(user) {
     { $limit: 20 },
   ]);
 
-  const topSegments = mergeTopSegmentsByDisplayVideo(await Promise.all(
+  // Top Segments 是「該補強什麼」的 actionable 列表 — 過濾掉指向已刪除影片的歷史紀錄。
+  const rawTopSegments = await Promise.all(
     topSegmentsAgg.map(async (item) => {
       const parsed = parseSegmentIdentifier(item._id);
       const segment = await findSegmentByUsageIdentifier(item._id);
       const video = await findVideoForSegment(segment, parsed?.videoId);
       const displayVideo = video || getCourseFallbackVideo(videos, item.courseId);
 
+      if (!displayVideo) {
+        return null;
+      }
+
       return {
         segmentId: item._id,
         text: segment?.text ? segment.text.slice(0, 120) : null,
-        videoId: displayVideo?._id ? String(displayVideo._id) : (segment?.videoId || parsed?.videoId || null),
-        videoTitle: getVideoTitle(displayVideo) || '(已刪除影片)',
+        videoId: String(displayVideo._id),
+        videoTitle: getVideoTitle(displayVideo),
         startSec: segment?.startSec ?? null,
         endSec: segment?.endSec ?? null,
         courseName: courseMap[String(item.courseId)] || '未知課程',
         count: item.count,
       };
     }),
-  ));
+  );
+  const topSegments = mergeTopSegmentsByDisplayVideo(rawTopSegments.filter(Boolean));
 
   return {
     coursesCount: courses.length,
@@ -232,15 +238,33 @@ async function getStudentDashboardStats(user) {
     .sort({ askedAt: -1 })
     .limit(4);
 
-  const recentQueries = recentQuestions.map((item) => ({
-    id: String(item._id),
-    question: presentQuestionText(item.question),
-    courseName: courseMap[String(item.courseId)] || '未知課程',
-    timestamp: item.askedAt,
-    matched: item.status === 'answered' || item.matchCount > 0,
-    source: item.source,
-    status: item.status,
-  }));
+  // 為「內容已下架」標記做準備：解析 topSegmentId 中的 videoId，批次查 Video 是否還存在
+  const segmentRefVideoIds = recentQuestions
+    .map((q) => parseSegmentIdentifier(q.topSegmentId)?.videoId)
+    .filter(Boolean);
+  const liveVideoIds = new Set();
+  if (segmentRefVideoIds.length) {
+    const validObjectIds = segmentRefVideoIds.filter((vid) => mongoose.isValidObjectId(vid));
+    const liveVideos = await Video.find({ _id: { $in: validObjectIds } }).select('_id');
+    for (const v of liveVideos) liveVideoIds.add(String(v._id));
+  }
+
+  const recentQueries = recentQuestions.map((item) => {
+    const refVideoId = parseSegmentIdentifier(item.topSegmentId)?.videoId;
+    const contentMissing = Boolean(refVideoId) && !liveVideoIds.has(refVideoId);
+    const matched = !contentMissing && (item.status === 'answered' || item.matchCount > 0);
+
+    return {
+      id: String(item._id),
+      question: presentQuestionText(item.question),
+      courseName: courseMap[String(item.courseId)] || '未知課程',
+      timestamp: item.askedAt,
+      matched,
+      contentMissing,
+      source: item.source,
+      status: item.status,
+    };
+  });
 
   const avgProgress = courseList.length
     ? Math.round(courseList.reduce((sum, course) => sum + course.progress, 0) / courseList.length)

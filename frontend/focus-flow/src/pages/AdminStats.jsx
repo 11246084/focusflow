@@ -77,7 +77,12 @@ export default function AdminStats() {
                 <tr key={r.id}>
                   <td><span className={`badge ${EVENT_BADGE[r.event] || 'bb'}`}>{r.event}</span></td>
                   <td>{r.user}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12 }}>{r.course}</td>
+                  <td style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12 }}>
+                    <span style={{ color: r.courseDeleted ? 'rgba(255,255,255,0.3)' : 'inherit' }}>{r.course}</span>
+                    {r.contentMissing && (
+                      <span className="badge bb" style={{ marginLeft: 6, fontSize: 10 }} title="此事件指向的影片之後已被刪除">內容已下架</span>
+                    )}
+                  </td>
                   <td style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12 }}>{fmtDuration(r.durationSec)}</td>
                   <td style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>{timeAgo(r.timestamp)}</td>
                 </tr>

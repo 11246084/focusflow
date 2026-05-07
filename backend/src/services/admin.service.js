@@ -5,7 +5,6 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Enrollment = require('../models/enrollment.model');
-const Question = require('../models/question.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { USER_ROLES, USER_ROLE_VALUES } = require('../constants/enums');
@@ -148,14 +147,41 @@ async function getRecentEvents(limit = 20) {
   const courseMap = {};
   for (const c of courses) courseMap[String(c._id)] = c;
 
-  return logs.map(l => ({
-    id: String(l._id),
-    event: l.event,
-    user: l.userId ? (userMap[String(l.userId)]?.name || '—') : '—',
-    course: l.courseId ? (courseMap[String(l.courseId)]?.title || '—') : '—',
-    durationSec: l.durationSec || null,
-    timestamp: l.timestamp || l.createdAt,
-  }));
+  // 解析 segmentId 中的 videoId pattern，批次查 Video 是否還存在 → 標記「內容已下架」
+  const SEGMENT_PATTERN = /^([a-f0-9]{24})_(chunk|seg)_\d+$/i;
+  const referencedVideoIds = new Set();
+  for (const l of logs) {
+    for (const sid of [l.metadata?.topSegmentId, l.metadata?.segmentId]) {
+      const m = String(sid || '').match(SEGMENT_PATTERN);
+      if (m) referencedVideoIds.add(m[1]);
+    }
+  }
+  const liveVideoIds = new Set();
+  if (referencedVideoIds.size) {
+    const liveVideos = await Video.find({ _id: { $in: [...referencedVideoIds] } }).select('_id').lean();
+    for (const v of liveVideos) liveVideoIds.add(String(v._id));
+  }
+  const isContentMissing = (log) => {
+    for (const sid of [log.metadata?.topSegmentId, log.metadata?.segmentId]) {
+      const m = String(sid || '').match(SEGMENT_PATTERN);
+      if (m && !liveVideoIds.has(m[1])) return true;
+    }
+    return false;
+  };
+
+  return logs.map(l => {
+    const courseExists = l.courseId ? Boolean(courseMap[String(l.courseId)]) : true;
+    return {
+      id: String(l._id),
+      event: l.event,
+      user: l.userId ? (userMap[String(l.userId)]?.name || '—') : '—',
+      course: l.courseId ? (courseMap[String(l.courseId)]?.title || '(已刪除課程)') : '—',
+      courseDeleted: !courseExists,
+      contentMissing: isContentMissing(l),
+      durationSec: l.durationSec || null,
+      timestamp: l.timestamp || l.createdAt,
+    };
+  });
 }
 
 async function getEventStats() {
@@ -178,24 +204,13 @@ async function deleteVideo(videoId) {
   const video = await Video.findById(videoId).lean();
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
 
+  // 設計決策：UsageLog / Question 屬於歷史紀錄，不隨影片刪除一起清。
   const segmentKey = video.videoId || String(video._id);
-  const segments = await VideoSegment.find({ videoId: segmentKey });
-  const segmentIds = segments.map((segment) => segment.segmentId).filter(Boolean);
-
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
   if (video.courseId) {
     await Course.findByIdAndUpdate(video.courseId, { $pull: { videoIds: video._id } });
-  }
-  if (segmentIds.length) {
-    await UsageLog.deleteMany({
-      $or: [
-        { 'metadata.topSegmentId': { $in: segmentIds } },
-        { 'metadata.segmentId': { $in: segmentIds } },
-      ],
-    });
-    await Question.deleteMany({ topSegmentId: { $in: segmentIds } });
   }
 
   return { deletedVideoId: videoId, segmentKey };

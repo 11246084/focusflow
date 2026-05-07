@@ -322,7 +322,9 @@ function rankSegments(segments, question, queryVector, scope) {
 }
 
 async function loadScopedSearchableSegments(scope) {
-  const segments = await VideoSegment.find(buildSegmentLookupQuery(scope));
+  // .lean() 跳過 Mongoose hydration — 對含 3072-float embedding 的 segments 極關鍵：
+  // 實測 51 segments hydration 8.8s，lean 後降到 ~1s（省 80%+）
+  const segments = await VideoSegment.find(buildSegmentLookupQuery(scope)).lean();
 
   return segments
     .map((segment) => normalizeSegment(segment))
@@ -534,7 +536,20 @@ function buildQaRuntime({
   };
 }
 
+// Lightweight timing helper — 只在非測試環境吐出 log，方便診斷各階段瓶頸
+const QA_TIMING_ENABLED = process.env.NODE_ENV !== 'test' && process.env.QA_TIMING !== 'off';
+function qaTimingMark(label, startNs) {
+  if (!QA_TIMING_ENABLED) return process.hrtime.bigint();
+  const now = process.hrtime.bigint();
+  const ms = Number(now - startNs) / 1e6;
+  console.log(`[qa-timing] ${label}: ${ms.toFixed(0)}ms`);
+  return now;
+}
+
 async function askQuestion({ user, courseId, question, source = 'api', conversationHistory = null }) {
+  const t0 = process.hrtime.bigint();
+  let tMark = t0;
+
   const runtimeSnapshot = assertQaRuntimeConfiguration();
   assertObjectId(courseId, 'course');
 
@@ -547,15 +562,21 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   if (!course) {
     throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
   }
+  tMark = qaTimingMark('course-lookup', tMark);
 
   // 平行：權限檢查與 scoped videos 不互相依賴；access 失敗會 reject 並中斷後續
   const [, scopedVideos] = await Promise.all([
     assertCanAccessCourse(user, course),
     collectScopedVideos(course),
   ]);
+  tMark = qaTimingMark(`access+videos (${scopedVideos.videos?.length || 0} videos)`, tMark);
+
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+  tMark = qaTimingMark('build-segment-scope', tMark);
+
   const scopedSegments = await loadScopedSearchableSegments(segmentScope);
+  tMark = qaTimingMark(`load-segments (${scopedSegments.length} segments)`, tMark);
 
   // 即使 segments 還在（孤兒片段），若 course 沒有任何 Video record 對應，
   // 視為「資料不一致 / 沒有可回答的影片」，避免 prompt 出現「未知影片」。
@@ -648,9 +669,13 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   }
 
   const queryVector = await embedQuery(trimmedQuestion);
+  tMark = qaTimingMark('embed', tMark);
+
   const searchResult = env.qaVectorSearchMode === 'atlas'
     ? await searchSegmentsWithAtlas(segmentScope, queryVector)
     : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
+  tMark = qaTimingMark(`search (${env.qaVectorSearchMode})`, tMark);
+
   const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
 
   if (!matches.length) {
@@ -700,6 +725,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     generateAnswer(trimmedQuestion, matches, conversationHistory),
     findCachedClip(matches[0].segmentId),
   ]);
+  tMark = qaTimingMark(`llm+clip (matches=${matches.length}, transcript chars≈${matches.reduce((s, m) => s + (m.transcript?.length || 0), 0)})`, tMark);
   const resultClip = clip || (matches[0]?.jumpUrl ? {
     segmentId: matches[0].segmentId,
     clipUrl: matches[0].jumpUrl,
@@ -755,6 +781,12 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     }),
     clipLogPromise,
   ]);
+  tMark = qaTimingMark('writes (ASK + Question + CLIP_VIEW)', tMark);
+
+  if (QA_TIMING_ENABLED) {
+    const totalMs = Number(process.hrtime.bigint() - t0) / 1e6;
+    console.log(`[qa-timing] TOTAL: ${totalMs.toFixed(0)}ms (source=${source})`);
+  }
 
   return {
     answer: answerResult.text,

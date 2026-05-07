@@ -559,7 +559,7 @@ function installModelStubs() {
   };
   Enrollment.deleteMany = async (query = {}) => deleteManyInStore(store.enrollments, query);
 
-  VideoSegment.find = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query));
+  VideoSegment.find = (query = {}) => createQuery(store.videoSegments.filter((item) => matchesQuery(item, query)));
   VideoSegment.findOne = async (query = {}) => store.videoSegments.find((item) => matchesQuery(item, query)) || null;
   VideoSegment.countDocuments = async (query = {}) => store.videoSegments.filter((item) => matchesQuery(item, query)).length;
   VideoSegment.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(

@@ -16,7 +16,6 @@ html, body, #root {
 body {
   background: #0A0E27;
   color: #ffffff;
-  cursor: none; /* landing page custom cursor */
 }
 
 /* Restore cursor in dashboard */
@@ -520,6 +519,14 @@ body {
 .ff-input:focus { border-color: rgba(241, 79, 33, 0.55); background: rgba(255, 255, 255, 0.08); }
 .ff-input::placeholder { color: rgba(255, 255, 255, 0.28); }
 
+select.ff-input { appearance: none;
+   -webkit-appearance: none;
+    padding-right: 40px;
+     cursor: pointer; 
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff99' stroke-width='2.2'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat: no-repeat; background-position: right 16px center; }
+select.ff-input option { background-color: #1a0d1ee9; color: #fff; }
+select.ff-input option:checked, select.ff-input option:hover { background-color: #F14F21 !important; color: #fff; }
+
 .btn-primary {
   background: #F14F21;
   color: #fff;
@@ -723,7 +730,13 @@ body {
   cursor: pointer;
 }
 
-.login-submit { width: 100%; padding: 15px; font-size: 15px; margin-bottom: 16px; }
+.login-submit {
+  width: 100%;
+  padding: 15px;
+  font-size: 15px;
+  margin-bottom: 16px; 
+  margin-top: 16px;
+}
 
 .login-no-account {
   text-align: center;
@@ -968,16 +981,21 @@ body {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 220px;
+  width: 232px;
   display: flex;
   flex-direction: column;
-  padding: 24px 14px;
-  background: rgba(18, 5, 14, 0.96);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 22px 14px;
+  background: rgba(18, 5, 14, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 14px 0 14px 14px;
   flex-shrink: 0;
-  height: 100%;
+  height: calc(100% - 28px);
   overflow-y: auto;
   overflow-x: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* Logo row */
@@ -991,11 +1009,12 @@ body {
 
 /* Nav items */
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 11px 13px;
-  border-radius: 12px;
+  border-radius: 14px;
   color: rgba(255, 255, 255, 0.45);
   font-size: 13.5px;
   font-weight: 500;
@@ -1012,6 +1031,17 @@ body {
 .nav-item.active {
   background: rgba(241, 79, 33, 0.18);
   color: #F14F21;
+}
+.nav-item.active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 18px;
+  border-radius: 4px;
+  background: #F14F21;
 }
 .nav-item.active .ni {
   color: #F14F21;
@@ -1038,8 +1068,8 @@ body {
 }
 
 .sidebar-role-card {
-  padding: 11px 13px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   margin-bottom: 4px;
 }

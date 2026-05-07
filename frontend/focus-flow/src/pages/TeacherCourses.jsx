@@ -151,9 +151,20 @@ function CreateCourseModal({ onClose, onCreated }) {
   );
 }
 
+function Chevron({ open }) {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2"
+      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .18s ease' }}
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
 export default function TeacherCourses() {
   const [courses, setCourses] = useState([]);
-  const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(null);
@@ -162,6 +173,7 @@ export default function TeacherCourses() {
   const [deletingCourse, setDeletingCourse] = useState(null);
   const [creating, setCreating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [openIds, setOpenIds] = useState(() => new Set());
 
   useEffect(() => {
     async function load() {
@@ -171,23 +183,24 @@ export default function TeacherCourses() {
       try {
         const coursesRes = await apiFetch('/courses');
         const loadedCourses = coursesRes.data?.courses || [];
-        const allVideos = [];
 
-        await Promise.all(
+        const enriched = await Promise.all(
           loadedCourses.map(async (course) => {
             try {
               const vRes = await apiFetch(`/courses/${course._id}/videos`);
               const courseVideos = vRes.data?.videos || [];
-              courseVideos.forEach(video => allVideos.push({ ...video, courseName: course.title }));
+              courseVideos.sort((a, b) =>
+                new Date(b.updatedAt || b.createdAt || 0) -
+                new Date(a.updatedAt || a.createdAt || 0)
+              );
+              return { ...course, videos: courseVideos };
             } catch {
-              // Skip inaccessible or transiently unavailable video lists.
+              return { ...course, videos: [] };
             }
           }),
         );
 
-        allVideos.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
-        setCourses(loadedCourses);
-        setVideos(allVideos);
+        setCourses(enriched);
       } catch (e) {
         setError(e.message || '載入課程失敗。');
       } finally {
@@ -199,8 +212,17 @@ export default function TeacherCourses() {
   }, [refreshKey]);
 
   function onCreated(course) {
-    setCourses(prev => [course, ...prev]);
+    const withVideos = { ...course, videos: course.videos || [] };
+    setCourses(prev => [withVideos, ...prev]);
     setCreating(false);
+  }
+
+  function toggle(id) {
+    setOpenIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   async function handleDelete(video) {
@@ -209,10 +231,15 @@ export default function TeacherCourses() {
 
     try {
       await apiFetch(`/videos/${videoId}`, { method: 'DELETE' });
-      setVideos(prev => prev.filter(item => (item.id || item._id) !== videoId));
+      setCourses(prev =>
+        prev.map(c => ({
+          ...c,
+          videos: (c.videos || []).filter(v => (v.id || v._id) !== videoId),
+        })),
+      );
       setRefreshKey(key => key + 1);
     } catch {
-      // Keep the modal simple for now; failed deletes leave the row in place.
+      // Keep modal simple; failed deletes leave the row in place.
     } finally {
       setDeleting(null);
       setConfirm(null);
@@ -226,6 +253,11 @@ export default function TeacherCourses() {
     try {
       await apiFetch(`/courses/${courseId}`, { method: 'DELETE' });
       setCourses(prev => prev.filter(item => item._id !== courseId));
+      setOpenIds(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
       setRefreshKey(key => key + 1);
     } catch {
       // 失敗時保留在列表中，讓使用者可重試。
@@ -306,7 +338,7 @@ export default function TeacherCourses() {
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden', marginBottom: 18 }}>
+      <div className="card" style={{ overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>載入中...</div>
         ) : error ? (
@@ -314,99 +346,194 @@ export default function TeacherCourses() {
         ) : courses.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>尚未建立課程</div>
         ) : (
-          <table className="ff-tbl">
-            <thead>
-              <tr><th>TITLE</th><th>STATUS</th><th>VIDEOS</th><th>CREATED</th><th></th></tr>
-            </thead>
-            <tbody>
-              {courses.map((course) => (
-                <tr key={course._id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ color: '#a5b4fc', flexShrink: 0 }}><Ic n="book" s={14} /></div>
-                      <div>
-                        <div style={{ color: '#fff', fontWeight: 700 }}>{course.title}</div>
+          <>
+            {/* Header row */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 110px 90px 120px 90px',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderBottom: '1px solid rgba(255,255,255,0.07)',
+                color: 'rgba(255,255,255,0.35)',
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: '.1em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <div>Title</div>
+              <div>Status</div>
+              <div>Videos</div>
+              <div>Created</div>
+              <div />
+            </div>
+
+            {courses.map((course, idx) => {
+              const open = openIds.has(course._id);
+              const isLast = idx === courses.length - 1;
+              const videos = course.videos || [];
+              const created = course.createdAt ? new Date(course.createdAt).toLocaleDateString('zh-TW') : '未記錄';
+              return (
+                <div key={course._id} style={{ borderBottom: !isLast ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  <div
+                    onClick={() => toggle(course._id)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 110px 90px 120px 90px',
+                      alignItems: 'center',
+                      padding: '14px 20px',
+                      cursor: 'pointer',
+                      transition: 'background .15s',
+                      background: open ? 'rgba(241,79,33,0.04)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; }}
+                    onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center' }}>
+                        <Chevron open={open} />
+                      </div>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: 'rgba(165,180,252,0.12)',
+                        border: '1px solid rgba(165,180,252,0.22)',
+                        color: '#a5b4fc',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <Ic n="book" s={16} />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {course.title}
+                        </div>
                         {course.description && (
-                          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 3, maxWidth: 520, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.42)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {course.description}
                           </div>
                         )}
                       </div>
                     </div>
-                  </td>
-                  <td>
-                    <span className={`badge ${COURSE_STATUS_BADGE[course.status] || 'bb'}`}>
-                      {COURSE_STATUS_LABEL[course.status] || course.status || '未知'}
-                    </span>
-                  </td>
-                  <td style={{ fontFamily: "'Space Grotesk',sans-serif", color: 'rgba(255,255,255,0.9)' }}>
-                    {course.videoIds?.length ?? 0}
-                  </td>
-                  <td style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12 }}>
-                    {course.createdAt ? new Date(course.createdAt).toLocaleDateString('zh-TW') : '未記錄'}
-                  </td>
-                  <td>
-                    <button
-                      onClick={() => setConfirmCourse(course)}
-                      disabled={deletingCourse === course._id}
-                      style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
-                    >
-                      刪除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Uploaded Videos</div>
-      <div className="card" style={{ overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>載入中...</div>
-        ) : videos.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>尚無上傳影片</div>
-        ) : (
-          <table className="ff-tbl">
-            <thead>
-              <tr><th>FILENAME</th><th>COURSE</th><th>STATUS</th><th>DATE</th><th></th></tr>
-            </thead>
-            <tbody>
-              {videos.map((video) => {
-                const status = video.processing?.status;
-                const badge = VIDEO_STATUS_MAP[status] || { text: status || '未知', cls: 'bb' };
-                const date = video.processing?.queuedAt || video.createdAt;
-                const videoId = video.id || video._id;
-
-                return (
-                  <tr key={videoId}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ color: '#F14F21' }}><Ic n="film" s={14} /></div>
-                        <span style={{ color: '#fff', fontWeight: 700 }}>{video.title || video.fileName || video.file_name || '未命名影片'}</span>
-                      </div>
-                    </td>
-                    <td><span style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)' }}>{video.courseName}</span></td>
-                    <td>{status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : '未知'}</td>
-                    <td style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12 }}>
-                      {date ? new Date(date).toLocaleDateString('zh-TW') : '未記錄'}
-                    </td>
-                    <td>
+                    <div>
+                      <span className={`badge ${COURSE_STATUS_BADGE[course.status] || 'bb'}`}>
+                        {COURSE_STATUS_LABEL[course.status] || course.status || '未知'}
+                      </span>
+                    </div>
+                    <div style={{ fontFamily: "'Space Grotesk',sans-serif", color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: 600 }}>
+                      {videos.length}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{created}</div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
-                        onClick={() => setConfirm(video)}
-                        disabled={deleting === videoId}
+                        onClick={(e) => { e.stopPropagation(); setConfirmCourse(course); }}
+                        disabled={deletingCourse === course._id}
                         style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
                       >
                         刪除
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+
+                  {open && (
+                    <div style={{ padding: '4px 20px 18px 56px', background: 'rgba(0,0,0,0.18)' }}>
+                      {videos.length === 0 ? (
+                        <div style={{
+                          padding: '14px 16px',
+                          borderRadius: 10,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px dashed rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.5)',
+                          fontSize: 12.5,
+                        }}>
+                          此課程尚未上傳影片。前往 Upload 頁面新增第一支影片。
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 110px 110px 90px',
+                            padding: '4px 14px',
+                            color: 'rgba(255,255,255,0.32)',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            letterSpacing: '.08em',
+                            textTransform: 'uppercase',
+                          }}>
+                            <div>Filename</div>
+                            <div>Status</div>
+                            <div>Date</div>
+                            <div />
+                          </div>
+                          {videos.map((video) => {
+                            const status = video.processing?.status;
+                            const badge = VIDEO_STATUS_MAP[status] || { text: status || '未知', cls: 'bb' };
+                            const date = video.processing?.queuedAt || video.createdAt;
+                            const videoId = video.id || video._id;
+                            return (
+                              <div
+                                key={videoId}
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr 110px 110px 90px',
+                                  alignItems: 'center',
+                                  padding: '10px 14px',
+                                  borderRadius: 10,
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid rgba(255,255,255,0.05)',
+                                  transition: 'background .15s',
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                                  <div style={{ color: '#F14F21', display: 'flex' }}>
+                                    <Ic n="film" s={14} />
+                                  </div>
+                                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {video.title || video.fileName || video.file_name || '未命名影片'}
+                                  </span>
+                                </div>
+                                <div>
+                                  {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>未知</span>}
+                                </div>
+                                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+                                  {date ? new Date(date).toLocaleDateString('zh-TW') : '未記錄'}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => setConfirm(video)}
+                                    disabled={deleting === videoId}
+                                    style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
+                                  >
+                                    刪除
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
         )}
+      </div>
+
+      <div style={{
+        marginTop: 14,
+        padding: '12px 18px',
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 12,
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.4)',
+        lineHeight: 1.7,
+      }}>
+        💡 點擊課程列即可展開該課程的影片清單；新增影片請至「Upload」頁面，上傳完成會自動歸入所選課程。
       </div>
     </div>
   );

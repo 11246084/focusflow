@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-05-05（依後端交接盤點重新對照 routes / models / services / tests）
+最後更新：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流 + STT race-condition guard）
 
 ## 文件角色
 
@@ -36,6 +36,21 @@
 - YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
 - 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
+- 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；YT URL 與本機檔案 tab 處理中也可切換
+- 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade 改保留歷史紀錄
+- Display 層分流（2026-05-07）：老師 Top Segments 過濾「(已刪除影片)」；學生 Recent Queries 與管理員 Recent Events 帶 `contentMissing` flag，前端顯示「內容已下架」badge
+- QA 拒答（2026-05-07）：`scopedVideos.videos` 為空時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
+- 後端查詢平行化（2026-05-07）：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`（學生端 1.6–2.4s → ~0.8–1s）；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`（51 segments hydration 8.8s → ~1s）。API 回應格式 / 答案品質 100% 不變
+- QA 診斷 log（2026-05-07）：新增 `[qa-timing]` 7 段 mark（`course-lookup` / `access+videos` / `build-segment-scope` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉；`NODE_ENV=test` 自動靜音
+- 錯誤碼 `INVALID_ENCODING` (400)：`utils/textEncoding.js` + `qa.controller.js` 偵測客戶端送出壞 utf-8 body 時拒收；學生 dashboard 舊壞編碼 fallback 顯示「(編碼異常)」
+- AI prompt / 標題防 ObjectId 洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`qa.service.js getVideoPresentationTitle` 偵測 ObjectId 後改顯示 `YouTube: <id>`
+- STT pipeline race-condition guard：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前檢查 Video record 是否仍存在；不存在直接 return False，由 `main.py` notify_backend(fail)
+- Multer 中文檔名修正：`upload.middleware.js#decodeUploadFilename` 將 multer 預設 latin1 解析的 `originalname` 還原為 UTF-8（先 `Buffer.from(name, 'latin1').toString('utf8')`，無效時退回原字串），避免中文檔名存成亂碼
+- `dotenv.config()` 已移除 `override: true`：`.env` 不再覆蓋既有 process env，測試 / CI 注入的環境變數可正常生效
+- Backend spawn STT 時注入 `CLEANUP_AFTER_UPLOAD=true` + `CLEANUP_KEEP_CHECKPOINTS=false`：pipeline 上傳成功後自動清理 `data/outputs/runs/<videoId>/` 中的中間產物（含 checkpoints），避免長期累積
+- Pipeline run-aware outputs：backend 觸發單支影片時，pipeline 輸出改寫到 `data/outputs/runs/<videoId>/`（取代共用 `data/outputs/`），避免多教師同時處理時互相覆蓋
+- `bridgeScope.collectScopedVideos()` 已支援 `Course.videoIds` 對應到 `videos._id` / `videoId` / `video_id` 三種 key，避免歷史資料只寫其中一種時 bridge 找不到 video
+- QA 提問落庫流程（2026-05-01）：`recordUsage()` 改回傳建立的 `UsageLog` 文件；QA controller / `lineConversation.service.js` 先建 usage log，再把 `_id` 寫入對應 `questions.sourceUsageLogId`；LINE QA hard-fail 路徑也會寫 `questions`（`status: failed`），不再因為失敗就漏掉提問紀錄
 
 目前 QA bridge contract：
 
@@ -119,11 +134,10 @@
 
 ## 目前測試狀態
 
-- 2026-05-05 實跑 `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`：5 passed、3 failed。
-- 2026-05-05 實跑 `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`：18 passed、2 failed。
-- 失敗點與交接盤點一致：學生 demo 權限已放寬但舊測試仍期待 enrollment-only / 403；QA match response 已包含 `videoTitle`，舊 expected shape 尚未更新。
-- 2026-05-05 實跑 `tests\line.routes.test.js`：14 passed；`tests\docs.routes.test.js`：2 passed。
-- 另有實作風險：`teacherStats.service.js` 的 student dashboard 問題統計目前用 `studentId` 查 `questions`，但 `Question` schema 與 `recordQuestion()` 寫入的是 `userId`。這會讓 student dashboard 的 question counts 可能為 0，需修成 `userId` 後再重新驗證。
+- 2026-05-07 `npm test`：**83 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖、編碼防護等變動後）。
+- 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）。
+- 主要單檔現況：`qa.routes.test.js` 8 / `qa.service.test.js` ✓ / `course-video.routes.test.js` 20 / `line.routes.test.js` 14 / `docs.routes.test.js` 2 / `teacherStats.service.test.js` 3 / `textEncoding.test.js` 6。
+- 測試 harness（`backendTestHarness.js`）`createQuery` 已補 `.lean()` / `.select()` no-op；`VideoSegment.find` 改用 thenable 以相容 service 層 `.lean()` 呼叫。
 
 ## readiness / degraded / hard_fail 怎麼解讀
 
@@ -172,4 +186,4 @@
 
 ## 一句話結論
 
-截至 2026-05-05，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發 + YouTube URL MVP + 提問自動落庫到 questions + Admin/Stats 管理 API 上線`。`video_segments_text` 欄位已全面 camelCase；但共享 Atlas 目前缺少 `text_embedding_index`，atlas mode 需重建 index 或暫切 memory。短期限制：YouTube Data API 自動上傳尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、CORS 仍寬鬆、OpenAPI 尚未補 stats/admin 與部分 PATCH/DELETE、`video_segments_video` 仍為 snake_case 且無 vector index。
+截至 2026-05-07，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + dashboard/QA 平行化 + [qa-timing] 診斷 log`。`video_segments_text` 欄位已全面 camelCase；全測試 83/83 passed。共享 Atlas 目前缺少 `text_embedding_index`，atlas mode 需重建 index 或暫切 memory。短期限制：YouTube Data API 自動上傳尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、CORS 仍寬鬆、OpenAPI 尚未補 stats/admin 與部分 PATCH/DELETE、`video_segments_video` 仍為 snake_case 且無 vector index。

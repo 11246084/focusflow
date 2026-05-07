@@ -25,8 +25,12 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - `.env` 目前指向 Atlas vector search（`text_embedding_index`），但共享 Atlas 在 2026-05-01 驗證時已沒有該 index；除非重建 index，否則需切回 `QA_VECTOR_SEARCH_MODE=memory` 才能穩定 QA
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
-- 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP
+- 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
 - YouTube Data API 自動上傳尚未實作，現階段是老師手動上傳 YouTube 後貼 URL
+- 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
+- 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
+- 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
+- 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`）；可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音
 - startup 不會自動 seed
 
 ## 必要 env
@@ -220,7 +224,9 @@ POST /api/v1/courses/:courseId/videos/youtube
 → internal webhook 回報 completed / failed
 ```
 
-尚未做的是「backend 自動把本機影片上傳到 YouTube」。本機 upload 影片仍會用 `sourceUrl=/uploads/<file>` 提供前端 `<video>` 播放，所以 `backend/uploads/` 不能無差別清除。
+尚未做的是：「backend 自動把本機影片上傳到 YouTube」、`backend/uploads/` 自動清理、YouTube playlist 管理。本機 upload 影片仍會用 `sourceUrl=/uploads/<file>` 提供前端 `<video>` 播放，所以 `backend/uploads/` 不能無差別清除。
+
+LINE Bot 回覆會在有 YouTube videoId 時附 `跳轉：https://youtu.be/<id>?t=<sec>`；課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程，避免使用者切到無法回答的空課程。
 
 ### LINE question flow 的 hard-fail 訊號
 
@@ -270,16 +276,15 @@ npm start
 
 最近重新確認：
 
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`
-  - 2026-05-05 實跑結果：5 passed、3 failed
-  - 失敗點與交接紀錄一致：學生 demo 權限已放寬但測試仍期待 403；QA match response 已多 `videoTitle` 但測試 expected shape 尚未更新
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`
-  - 2026-05-05 實跑結果：18 passed、2 failed
-  - 失敗點同樣是學生 demo 權限放寬後，舊測試仍期待 enrollment-only course visibility
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\line.routes.test.js`
-  - 2026-05-05 實跑結果：14 passed
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\docs.routes.test.js`
-  - 2026-05-05 實跑結果：2 passed
+- `npm test` 全套
+  - 2026-05-07 實跑結果：**83 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖等變動後）
+  - 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`：8 passed
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`：20 passed（含 YouTube 註冊不暴露 `/uploads` URL）
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\line.routes.test.js`：14 passed
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\docs.routes.test.js`：2 passed
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\teacherStats.service.test.js`：3 passed（含已刪影片 fallback、Recent Videos 排序、合併同影片 top segments）
+- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\textEncoding.test.js`：6 passed
 - `node --test --experimental-test-isolation=none --test-concurrency=1 tests\\mvp.acceptance.test.js`
   - 鎖 `health -> auth -> courses -> QA -> LINE` backend-only demo 主線
 - `tests\\health.routes.test.js`

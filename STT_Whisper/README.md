@@ -89,7 +89,8 @@ Whisper 仍然存在，但它只負責 STT / transcript / chunking，不再負�
 - FFmpeg 可選：
   - 可以安裝在系統 PATH
   - 也可以依賴 `imageio-ffmpeg` 內建 binary，本專案會自動 fallback
-- YouTube URL 模式需要 `yt-dlp`，已列在 `requirements.txt`
+- YouTube URL 模式需要 `yt-dlp`（`requirements.txt` 已固定 `yt-dlp>=2026.3.17`）；pipeline 透過 `python -m yt_dlp` 呼叫，避免依賴 PATH 上的 `yt-dlp.exe`
+- 系統 PATH 沒有 `ffmpeg` 時會自動 fallback 到 `imageio-ffmpeg` 內建 binary
 
 ### 建立虛擬環境
 
@@ -551,6 +552,8 @@ Notes:
 - `chunks.jsonl` is used as supporting metadata when building `video_segments_text`
 - empty video embeddings are skipped during upload rather than crashing the whole run
 - YouTube video documents are not overwritten with temporary `fileName`, `filePath`, or `audioPath` values during upload.
+- **嚴格判定 (2026-05-05)**：`mongodb_uploader.py` 在 backend-triggered（帶 `--video-id`）模式下，若 `videos` collection 找不到對應的 app-owned Video 文件，直接報錯結束，**不再 upsert 孤兒 metadata**（避免歷史 bug：pipeline 在無對應 Video 時新建一筆只有 `video_id` snake_case 的孤兒文件）。此外，必要 collection（`video_segments_text`、`transcripts_normalized`）的成功寫入筆數需 > 0，否則整支 pipeline 視為失敗並 `notify_backend(fail)`
+- **Race-condition guard (2026-05-07)**：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前先檢查 `videos` collection 中對應的 `_id` 是否仍存在（僅在 `config.target_video_id` 為合法 ObjectId 時觸發；CLI / 非 backend-triggered 一律放行）。若 Video record 已被刪除，整個 `upload_all()` 直接 `return False`，跳過 `upload_videos / upload_transcripts_normalized / upload_text_embeddings / upload_video_embeddings`，由 `main.py` 改呼叫 `notify_backend(... "fail" ...)`，避免在教師中途刪影片的情況下重新產生孤兒 segments。
 
 ## 常見問題
 

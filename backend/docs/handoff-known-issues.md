@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-05-05（依後端交接盤點重新對照程式碼）
+最後更新：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流完成）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -34,6 +34,13 @@
 - `videos` mixed collection 的 ownership 邊界；共享 Atlas 目前只剩 1 筆 app-owned video，舊快照曾同時存在 pipeline-owned 與 app-owned records
 - Collections / init 腳本不同步：共享 Atlas 目前 13 個 collections；`database/tools/setup/init_collections.js` 列 15 個。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`
 - shared DB 是否允許 smoke 痕跡（`usage_logs` 目前 7 筆）
+
+**Atlas 維運注記（2026-05-01 ~ 2026-05-05）：**
+
+- `questions.sourceUsageLogId_1` 舊 unique index 需手動處理：必須先 `dropIndex('sourceUsageLogId_1')`，並對歷史資料執行 `$unset: { sourceUsageLogId: null }` 清除 null 值，再以 partial unique sparse index 重建（filter: `{ sourceUsageLogId: { $exists: true } }`）。否則新增 `questions` 文件遇到 null 會撞 duplicate key
+- `videos.video_id_1` 舊 snake_case index 已從 Atlas 刪除；目前保留 `_id_` / `courseId_1` / `videoId_1`，與 schema camelCase 對齊
+- `backend/uploads/` 一次性手動清理（2026-05-05）：刪除 42 個未被任何 Video 文件引用的 mp4，保留 3 個有 DB 引用的檔案；`0505test` 目錄列為孤兒（無對應 DB 紀錄），暫不處理留待後續決策
+- 一次性 Node 維運腳本連 Atlas 時若遇到 `querySrv ECONNREFUSED`，需在腳本開頭加上 `dns.setServers(['8.8.8.8','8.8.4.4'])` 強制走 Google DNS 解析 SRV record（系統 DNS 在某些環境下無法解析 `_mongodb._tcp.<cluster>.mongodb.net`）
 
 **應採取的行動：**
 
@@ -125,7 +132,14 @@
 
 - backend 自動上傳 YouTube（YouTube Data API v3）尚未實作；目前是教師手動上傳 YouTube 後貼 URL
 - backend/uploads 原始 mp4 自動清理尚未實作
+- YouTube playlist（依教師 / 課程分流）尚未做
 - LINE Bot 的 YouTube timestamp link 與前端 iframe timestamp seek 已接入，但仍需實機 smoke 記錄
+
+**2026-05-07 已補強：**
+
+- ✅ STT pipeline race-condition guard：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前檢查 Video record；不存在直接 return False，由 `main.py` notify_backend(fail)。杜絕「教師在 pipeline 跑到一半時刪影片」產生新孤兒 segments
+- ✅ `qa.service.js` 在 `scopedVideos.videos` 為空時直接拒答；`line.service.js` 加 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
+- ✅ 一次性孤兒清理：`context/cleanup-orphan-data.js`（只清 segments / `course.videoIds`，不再清 UsageLog / Question）
 
 **應採取的行動：**
 
@@ -139,25 +153,15 @@
 
 ---
 
-### 測試與 dashboard 統計缺口
+### 測試與 dashboard 統計缺口（✅ 已收斂）
 
-**已確認（2026-05-05 實跑）：**
+**已完成（2026-05-06 / 2026-05-07）：**
 
-- `tests/qa.routes.test.js` 目前 5 passed、3 failed。
-- `tests/course-video.routes.test.js` 目前 18 passed、2 failed。
-- `tests/line.routes.test.js` 目前 14 passed；`tests/docs.routes.test.js` 目前 2 passed。
-- 失敗原因：
-  - 學生 demo 權限已放寬為可進入 published 課程，但舊測試仍期待 enrollment-only / 403。
-  - QA match response 已補 `videoTitle`，舊測試仍期待只有 `segmentId/videoId/startSec/endSec/transcript/score`。
-- `teacherStats.service.js` student dashboard 問題統計使用 `studentId` 查 `questions`，但 `Question` schema 實際欄位是 `userId`；這會讓 question counts / recent questions 可能查不到資料。
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| `qa.routes.test.js` | **Backend** | 依目前 demo 權限更新 student access expected，並接受 `matches[].videoTitle` / YouTube link 欄位 |
-| `course-video.routes.test.js` | **Backend** | 依目前 demo 權限更新學生課程列表與詳情 expected |
-| Student dashboard question 統計 | **Backend** | 將 `teacherStats.service.js` 的 `visibleQuestionFilter.studentId` 改為 `userId`，補 route/service 測試 |
+- ✅ `tests/qa.routes.test.js` 8 passed；`tests/course-video.routes.test.js` 20 passed；`tests/line.routes.test.js` 14；`tests/docs.routes.test.js` 2；`teacherStats.service.test.js` 3；`textEncoding.test.js` 6
+- ✅ `npm test` 全套 83/83 passed（2026-05-07）
+- ✅ Student dashboard 問題統計 `visibleQuestionFilter` 已從 `studentId` 改為 `userId`（2026-05-06）
+- ✅ 學生 demo 權限與 `matches[].videoTitle` response shape 都已對齊
+- ✅ 測試 harness `createQuery` 補 `.lean()` / `.select()` no-op；`VideoSegment.find` 改用 thenable 相容 `.lean()`
 
 **STT_Whisper/.env 需手動補上：**
 ```

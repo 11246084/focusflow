@@ -228,16 +228,21 @@ LINE Bot 指令：
 
 ## 目前狀態與限制
 
-截至 2026-05-05：
+截至 2026-05-07：
 
-- Backend 主線已包含 auth、courses、videos、QA、LINE、stats、admin、internal processing webhook；2026-05-05 實跑 `qa.routes.test.js` 尚有 3 個舊 expected、`course-video.routes.test.js` 尚有 2 個舊 expected 需同步（主要是 demo 權限與 `matches[].videoTitle` response shape）。
-- Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已開始串接。
-- AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發。
-- `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫。
-- Student dashboard questions 統計需再修正：schema 寫入 `userId`，目前 stats service 仍有 `studentId` filter 待同步。
+- Backend 主線已包含 auth、courses、videos、QA、LINE、stats、admin、internal processing webhook；route + service 全測試 83/83 passed（含 student dashboard 改用 `userId` 與 `matches[].videoTitle` 修正）。
+- 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 Promise.all + 全 `.lean()`；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 補 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s。API 回應格式 / 答案品質 100% 不變。
+- 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音。
+- Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已串接；教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖）。
+- AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發；`mongodb_uploader._target_video_exists()` 在寫入前檢查 Video record，避免 STT 寫入時 race condition 產生孤兒 segments。
+- `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫；2026-05-07 起刪除 Video / Course 不再連動刪 UsageLog / Question（保留歷史），改由 display 層分流：老師 Top Segments 過濾「(已刪除影片)」項目；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge。
+- 教師可刪自己的課程：`DELETE /api/v1/courses/:id` 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`。
+- QA 拒答：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程。
+- 新增錯誤碼 `INVALID_ENCODING` (400)：`qa.controller.js` 偵測到客戶端送出壞 utf-8 body 時拒收。
 - LINE live 曾端對端驗證成功，但 ngrok URL / Channel 設定屬部署時變動項。
 - 共享 Atlas 目前缺少 `text_embedding_index`，不能直接宣稱 atlas mode ready。
 - `video_segments_video` 仍是預留 / legacy 邊界，尚未成為正式 clip source。
+- YouTube 整合目前是 MVP 過渡：教師手動上傳 YouTube 後貼 URL，backend 解析存 `youtubeVideoId`，pipeline 用 `yt-dlp` 下載音訊。後端自動上傳 YouTube Data API、自動清 `backend/uploads/`、playlist 管理尚未做。
 - CORS 目前仍是寬鬆設定，正式部署前需限縮。
 
 更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。

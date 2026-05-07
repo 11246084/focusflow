@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-05-06
+最後更新：2026-05-07
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -16,6 +16,29 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### -1. 2026-05-07 已完成（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流）
+
+- **狀態**：Done（2026-05-07）
+- **完成內容**：
+  - ✅ `teacherStats.service.js` `getStudentDashboardStats` / `getTeacherDashboardStats` 改為兩輪 `Promise.all`，所有 `find()` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s
+  - ✅ `qa.service.js` 三處平行：`assertCanAccessCourse + collectScopedVideos`、`generateAnswer + findCachedClip`、`recordQuestion + clipLog`；`loadScopedSearchableSegments` 加 `.lean()`（51 segments 從 8.8s 降到 ~1s）
+  - ✅ 新增 `[qa-timing]` 7 段診斷 log；`QA_TIMING=off` 可關閉，`NODE_ENV=test` 自動靜音
+  - ✅ 教師可刪自己課程：route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；前端 `TeacherCourses.jsx` 加刪除按鈕 + cascade modal
+  - ✅ 刪除 cascade 範圍收斂：`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade（保留歷史紀錄）
+  - ✅ Display 層分流：老師 Top Segments 過濾「(已刪除影片)」；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge
+  - ✅ QA 拒答無 live video 的課程；LINE 課程選單 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
+  - ✅ STT pipeline `mongodb_uploader._target_video_exists()` race-condition guard
+  - ✅ 一次性孤兒清理腳本 `context/cleanup-orphan-data.js`（只清 segments / `course.videoIds`）
+  - ✅ `INVALID_ENCODING` (400) 錯誤碼 + `utils/textEncoding.js`；學生 dashboard 舊壞編碼 fallback「(編碼異常)」
+  - ✅ AI prompt / 標題防 ObjectId 洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`getVideoPresentationTitle` 偵測 ObjectId 改顯示 `YouTube: <id>`
+  - ✅ 教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖、POST 後自動清空輸入）
+  - ✅ Top Queried Segments 合併同影片不同 segment count；Recent Videos 改穩定 recency 排序
+  - ✅ Admin Total Users 描述補 `adminCount`
+  - ✅ `StudentCourses.jsx` `resolveVideoPlayback()`：YouTube 一律用 iframe，metadata-only 不再 fallback `/uploads`
+- **驗收**：`npm test` 83/83 passed；frontend `npm run build` ok
 
 ---
 

@@ -291,10 +291,8 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     courseMap.set(String(course._id), course);
   }
 
-  // 過濾掉沒有可回答影片的課程：videoIds 為空，或 videoIds 全為孤兒（對應不到 Video record）。
-  // 同時 LINE 用課程內透過 courseId 直接掛載的影片，所以要兩條路徑一起檢查。
-  const candidateCourses = Array.from(courseMap.values());
-  const selectableCourses = await filterCoursesWithLiveVideos(candidateCourses);
+  // 列出所有有權存取的課程；沒有影片的課程仍顯示，等使用者選到時再提示無法提問。
+  const selectableCourses = Array.from(courseMap.values());
 
   if (!selectableCourses.length) {
     await User.findByIdAndUpdate(user._id, {
@@ -364,6 +362,14 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
     return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_access_denied' }, replyResult);
   }
 
+  const liveCourses = await filterCoursesWithLiveVideos([course]);
+  if (!liveCourses.length) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage(`「${course.title}」目前沒有影片，暫時無法提問。`),
+    ]);
+    return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_has_no_videos' }, replyResult);
+  }
+
   if (!enrollment) {
     await ensureCourseForUser(user._id, courseId);
   }
@@ -408,6 +414,14 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
       buildTextMessage('LINE 帳號已綁定，但你目前無法存取這門課程。'),
     ]);
     return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_access_denied' }, replyResult);
+  }
+
+  const liveCourses = await filterCoursesWithLiveVideos([course]);
+  if (!liveCourses.length) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage(`LINE 帳號已綁定，但「${course.title}」目前沒有影片，暫時無法提問。`),
+    ]);
+    return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_has_no_videos' }, replyResult);
   }
 
   if (!enrollment) {
@@ -464,6 +478,23 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
       type: 'select_course',
       handled: false,
       reason: 'course_access_denied',
+    }, replyResult);
+  }
+
+  // 課程沒有可回答的影片時，不寫入 activeCourseId，避免使用者後續提問拿到空答案
+  const liveCourses = await filterCoursesWithLiveVideos([course]);
+  if (!liveCourses.length) {
+    await User.findByIdAndUpdate(user._id, {
+      lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+    });
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage(`「${course.title}」目前沒有影片，暫時無法提問。`),
+    ]);
+
+    return attachReplyMetadata({
+      type: 'select_course',
+      handled: false,
+      reason: 'course_has_no_videos',
     }, replyResult);
   }
 

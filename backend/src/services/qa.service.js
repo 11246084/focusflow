@@ -548,8 +548,11 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
   }
 
-  await assertCanAccessCourse(user, course);
-  const scopedVideos = await collectScopedVideos(course);
+  // 平行：權限檢查與 scoped videos 不互相依賴；access 失敗會 reject 並中斷後續
+  const [, scopedVideos] = await Promise.all([
+    assertCanAccessCourse(user, course),
+    collectScopedVideos(course),
+  ]);
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
   const scopedSegments = await loadScopedSearchableSegments(segmentScope);
@@ -692,8 +695,11 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     };
   }
 
-  const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
-  const clip = await findCachedClip(matches[0].segmentId);
+  // 平行：LLM 生成答案與快取 clip 查詢完全獨立
+  const [answerResult, clip] = await Promise.all([
+    generateAnswer(trimmedQuestion, matches, conversationHistory),
+    findCachedClip(matches[0].segmentId),
+  ]);
   const resultClip = clip || (matches[0]?.jumpUrl ? {
     segmentId: matches[0].segmentId,
     clipUrl: matches[0].jumpUrl,
@@ -710,6 +716,17 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     answerResult,
   });
 
+  // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行
+  const clipLogPromise = resultClip
+    ? recordUsage({
+        userId: user.id,
+        courseId: course._id,
+        event: USAGE_LOG_EVENTS.CLIP_VIEW,
+        metadata: { source, segmentId: resultClip.segmentId },
+      })
+    : Promise.resolve();
+
+  // ASK log 必須先寫完，Question 需要它的 _id 作為 sourceUsageLogId
   const usageLog = await recordUsage({
     userId: user.id,
     courseId: course._id,
@@ -723,29 +740,21 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     },
   });
 
-  await recordQuestion({
-    userId: user.id,
-    courseId: course._id,
-    question: trimmedQuestion,
-    answer: answerResult.text,
-    status: QUESTION_STATUSES.ANSWERED,
-    source,
-    matches,
-    runtime,
-    sourceUsageLogId: usageLog?._id,
-  });
-
-  if (resultClip) {
-    await recordUsage({
+  // recordQuestion 與 clipLogPromise 平行收尾
+  await Promise.all([
+    recordQuestion({
       userId: user.id,
       courseId: course._id,
-      event: USAGE_LOG_EVENTS.CLIP_VIEW,
-      metadata: {
-        source,
-        segmentId: resultClip.segmentId,
-      },
-    });
-  }
+      question: trimmedQuestion,
+      answer: answerResult.text,
+      status: QUESTION_STATUSES.ANSWERED,
+      source,
+      matches,
+      runtime,
+      sourceUsageLogId: usageLog?._id,
+    }),
+    clipLogPromise,
+  ]);
 
   return {
     answer: answerResult.text,

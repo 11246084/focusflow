@@ -294,6 +294,14 @@ function createQuery(initialValue, options = {}) {
 
       return this;
     },
+    lean() {
+      // store 已是 plain JS objects，hydration 在這個 harness 是 no-op
+      return this;
+    },
+    select() {
+      // 測試 harness 不做欄位投影，全部回傳原物件即可
+      return this;
+    },
     then(resolve, reject) {
       return Promise.resolve(state.value).then(resolve, reject);
     },

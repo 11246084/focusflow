@@ -105,6 +105,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `COURSE_NOT_FOUND` | 404 | 課程不存在 |
 | `VIDEO_NOT_FOUND` | 404 | 影片不存在 |
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
+| `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
 

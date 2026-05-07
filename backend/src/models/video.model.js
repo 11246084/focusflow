@@ -144,6 +144,11 @@ const videoSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    fileHash: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -168,6 +173,7 @@ const videoSchema = new mongoose.Schema(
 );
 
 videoSchema.index({ courseId: 1 });
+videoSchema.index({ courseId: 1, fileHash: 1 });
 
 videoSchema.statics.isAppOwnedRecord = isAppOwnedVideoRecord;
 videoSchema.statics.isPipelineMetadataRecord = isPipelineMetadataRecord;

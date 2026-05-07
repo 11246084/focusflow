@@ -92,19 +92,27 @@ function resolveVideoPlayback(video) {
   return { type: 'upload', youtubeId: null, videoUrl };
 }
 
-function YouTubePlayer({ videoId, seekRequest }) {
+function YouTubePlayer({ videoId, seekRequest, onWatched }) {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const readyRef = useRef(false);
   const seekRequestRef = useRef(seekRequest);
+  const onWatchedRef = useRef(onWatched);
+  const watchedFiredRef = useRef(false);
+  const progressTimerRef = useRef(null);
 
   useEffect(() => {
     seekRequestRef.current = seekRequest;
   }, [seekRequest]);
 
   useEffect(() => {
+    onWatchedRef.current = onWatched;
+  }, [onWatched]);
+
+  useEffect(() => {
     let cancelled = false;
     readyRef.current = false;
+    watchedFiredRef.current = false;
 
     loadYouTubeIframeApi().then((YT) => {
       if (cancelled || !wrapperRef.current) return;
@@ -112,6 +120,12 @@ function YouTubePlayer({ videoId, seekRequest }) {
       wrapperRef.current.replaceChildren();
       const playerHost = document.createElement('div');
       wrapperRef.current.appendChild(playerHost);
+
+      const fireWatched = () => {
+        if (watchedFiredRef.current) return;
+        watchedFiredRef.current = true;
+        if (typeof onWatchedRef.current === 'function') onWatchedRef.current();
+      };
 
       playerRef.current = new YT.Player(playerHost, {
         width: '100%',
@@ -131,6 +145,27 @@ function YouTubePlayer({ videoId, seekRequest }) {
               event.target.playVideo();
             }
           },
+          onStateChange: (event) => {
+            if (event.data === YT.PlayerState.ENDED) {
+              fireWatched();
+              return;
+            }
+            if (event.data === YT.PlayerState.PLAYING && !progressTimerRef.current) {
+              progressTimerRef.current = setInterval(() => {
+                try {
+                  const cur = playerRef.current?.getCurrentTime?.() || 0;
+                  const dur = playerRef.current?.getDuration?.() || 0;
+                  if (dur > 0 && cur / dur >= 0.8) fireWatched();
+                } catch { /* ignore */ }
+              }, 5000);
+            }
+            if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+              if (progressTimerRef.current) {
+                clearInterval(progressTimerRef.current);
+                progressTimerRef.current = null;
+              }
+            }
+          },
         },
       });
     });
@@ -138,6 +173,10 @@ function YouTubePlayer({ videoId, seekRequest }) {
     return () => {
       cancelled = true;
       readyRef.current = false;
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
       try {
         if (playerRef.current?.destroy) {
           playerRef.current.destroy();
@@ -363,6 +402,19 @@ export default function StudentCourses() {
   const [playingVid, setPlayingVid]     = useState(null);
   const [seekRequest, setSeekRequest]   = useState(null);
   const videoRef = useRef(null);
+  const watchedMarkedRef = useRef(new Set());
+
+  async function markWatched(courseId, videoId) {
+    if (!courseId || !videoId) return;
+    const key = `${courseId}:${videoId}`;
+    if (watchedMarkedRef.current.has(key)) return;
+    watchedMarkedRef.current.add(key);
+    try {
+      await apiFetch(`/courses/${courseId}/videos/${videoId}/watched`, { method: 'POST' });
+    } catch {
+      watchedMarkedRef.current.delete(key);
+    }
+  }
 
   useEffect(() => {
     apiFetch('/courses')
@@ -424,6 +476,7 @@ export default function StudentCourses() {
                   key={youtubeId}
                   videoId={youtubeId}
                   seekRequest={seekRequest?.videoIndex === playingVid ? seekRequest : null}
+                  onWatched={() => markWatched(selectedCourse._id, playing?._id || playing?.id)}
                 />
               ) : videoUrl ? (
                 <video
@@ -431,6 +484,13 @@ export default function StudentCourses() {
                   key={videoUrl}
                   src={videoUrl}
                   controls
+                  onTimeUpdate={(e) => {
+                    const el = e.currentTarget;
+                    if (el.duration > 0 && el.currentTime / el.duration >= 0.8) {
+                      markWatched(selectedCourse._id, playing?._id || playing?.id);
+                    }
+                  }}
+                  onEnded={() => markWatched(selectedCourse._id, playing?._id || playing?.id)}
                   style={{ width: '100%', height: '100%', display: 'block' }}
                 />
               ) : (

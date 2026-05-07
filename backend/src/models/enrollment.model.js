@@ -22,6 +22,10 @@ const enrollmentSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    watchedVideoIds: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: [],
+    },
     lineNotify: {
       type: Boolean,
       default: false,

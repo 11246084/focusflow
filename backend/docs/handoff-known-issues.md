@@ -41,6 +41,7 @@
 - `videos.video_id_1` 舊 snake_case index 已從 Atlas 刪除；目前保留 `_id_` / `courseId_1` / `videoId_1`，與 schema camelCase 對齊
 - `backend/uploads/` 一次性手動清理（2026-05-05）：刪除 42 個未被任何 Video 文件引用的 mp4，保留 3 個有 DB 引用的檔案；`0505test` 目錄列為孤兒（無對應 DB 紀錄），暫不處理留待後續決策
 - 一次性 Node 維運腳本連 Atlas 時若遇到 `querySrv ECONNREFUSED`，需在腳本開頭加上 `dns.setServers(['8.8.8.8','8.8.4.4'])` 強制走 Google DNS 解析 SRV record（系統 DNS 在某些環境下無法解析 `_mongodb._tcp.<cluster>.mongodb.net`）
+- `usage_logs` vs `questions` 對齊診斷（2026-05-07）：真實 collection 名稱為 `usage_logs`（`UsageLog` 顯式 `collection: 'usage_logs'`，不是 Mongoose 預設 `usagelogs`）與 `questions`。歷史 cascade 殘餘可能造成 `usage_logs(event=ask).count` > `questions.count`。診斷流程：(1) dry-run 比對總筆數差距；(2) 用 `userId` 分組看分散程度（單一 user 通常不是 race）；(3) 用「同 userId + 同 courseId + 時間戳 ±5s」配對找出 orphan ASK usage_log。本次處理：找到 2 筆 2026-05-01 早期 cascade 殘餘的 ASK usage_log（指向已刪除課程 `68000000...`），刪除後 admin TOTAL QUERIES 由 25 → 23，與學生 TOTAL QUERIES 23 對齊。維運腳本見 `context/`（`reset-usagelogs-questions.js` / `diagnose-ask-vs-question-gap.js` / `reconcile-ask-vs-question.js`），不視為公用工具
 
 **應採取的行動：**
 

@@ -10,7 +10,7 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 83/83 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷 |
+| **Backend** | ✅ 主線可用，全測試 87/87 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint |
 | **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 11 頁面（Student/Teacher/Admin × 多頁）；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接）；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
@@ -53,6 +53,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade（保留歷史紀錄），改由 display 分流（老師 Top Segments filter、學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - QA 拒答（2026-05-07）：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
 - QA 效能優化（2026-05-07）：`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s；新增 `[qa-timing]` 診斷 log（可 `QA_TIMING=off` 關閉）
+- 重複上傳防呆（2026-05-07，P2-7）：YouTube 路徑於 `createCourseVideoFromYouTube` 在建立前 `Video.findOne({ courseId, youtubeVideoId })`，命中回 `409 DUPLICATE_VIDEO`；mp4 路徑於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中既存 → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index。仍未涵蓋：跨課程共用同一支影片（屬 P1-3）
+- 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`，service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`，第一次觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）；前端 `StudentCourses.jsx` mp4 用 `onTimeUpdate ≥ 80%` 或 `onEnded`、YouTube 用 `onStateChange ENDED` 或每 5 秒 poll，`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 卡片的 WATCH 從此可累加（先前永遠為 0 因為沒任何路徑寫 WATCH usage log）。仍未做：「孤兒清理後 0%」顯示異常修復
 - 錯誤碼 `INVALID_ENCODING` (400)：`utils/textEncoding.js` 偵測客戶端送出的壞 utf-8 body；學生 dashboard 舊壞編碼 fallback 顯示「(編碼異常)」
 - AI prompt / 標題防洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`getVideoPresentationTitle` 偵測 ObjectId 後改顯示 `YouTube: <id>`
 - `GET /health`：qa + line runtime 可觀察性

@@ -1,6 +1,7 @@
 const path = require('path');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
-const { existsSync, mkdirSync, openSync } = require('fs');
+const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Course = require('../models/course.model');
@@ -139,6 +140,15 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
   const course = await ensureCourseExists(courseId);
   await assertCanManageCourse(user, course);
 
+  const existing = await Video.findOne({ courseId, youtubeVideoId });
+  if (existing) {
+    throw new AppError(
+      'This YouTube video has already been added to this course.',
+      409,
+      'DUPLICATE_VIDEO',
+    );
+  }
+
   const video = await Video.create({
     courseId,
     title: String(title || '').trim() || `YouTube: ${youtubeVideoId}`,
@@ -189,6 +199,16 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
 }
 
+async function computeFileHash(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = createReadStream(filePath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
+}
+
 async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   if (!file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
@@ -198,6 +218,17 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   await assertCanManageCourse(user, course);
   const originalName = decodeUploadFilename(file.originalname);
 
+  const fileHash = await computeFileHash(file.path);
+  const existing = await Video.findOne({ courseId, fileHash });
+  if (existing) {
+    try { unlinkSync(file.path); } catch { /* ignore */ }
+    throw new AppError(
+      'This video file has already been uploaded to this course.',
+      409,
+      'DUPLICATE_VIDEO',
+    );
+  }
+
   const video = await Video.create({
     courseId,
     title: String(title || '').trim() || originalName,
@@ -205,6 +236,7 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     sourceUrl: `/uploads/${file.filename}`,
     fileName: originalName,
     filePath: file.path,
+    fileHash,
     durationSec: null,
     videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
     videoUrl: `/uploads/${file.filename}`,

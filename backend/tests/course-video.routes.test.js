@@ -321,6 +321,109 @@ describe('course and video routes', () => {
     assert.equal(listedVideo.video_url, youtubeUrl);
   });
 
+  it('rejects duplicate mp4 uploads with identical content in the same course', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const sharedContents = `dup-content-${Date.now()}`;
+
+    const firstForm = createVideoUploadForm({
+      title: 'Original mp4',
+      filename: `${Date.now()}-test-upload-dup-1.mp4`,
+      contents: sharedContents,
+    });
+    const first = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos`,
+      { method: 'POST', token: teacherToken, body: firstForm },
+    );
+    assert.equal(first.status, 201);
+
+    const secondForm = createVideoUploadForm({
+      title: 'Duplicate mp4',
+      filename: `${Date.now()}-test-upload-dup-2.mp4`,
+      contents: sharedContents,
+    });
+    const second = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos`,
+      { method: 'POST', token: teacherToken, body: secondForm },
+    );
+
+    assert.equal(second.status, 409);
+    assert.equal(second.body.error.code, 'DUPLICATE_VIDEO');
+  });
+
+  it('rejects duplicate YouTube video uploads in the same course', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const youtubeUrl = 'https://youtu.be/dupVideo123';
+
+    const first = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/youtube`,
+      { method: 'POST', token: teacherToken, body: { youtubeUrl, title: 'First upload' } },
+    );
+    assert.equal(first.status, 201);
+
+    const second = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/youtube`,
+      { method: 'POST', token: teacherToken, body: { youtubeUrl, title: 'Duplicate upload' } },
+    );
+
+    assert.equal(second.status, 409);
+    assert.equal(second.body.error.code, 'DUPLICATE_VIDEO');
+  });
+
+  it('records watched videos and updates enrollment progress', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/watched`,
+      { method: 'POST', token: studentToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.progress, 100);
+    assert.equal(result.body.data.watchedCount, 1);
+    assert.equal(result.body.data.totalVideos, 1);
+
+    const watchLogs = store.usageLogs.filter((log) => log.event === 'watch' && String(log.userId) === String(ids.student));
+    assert.equal(watchLogs.length, 1);
+    assert.equal(String(watchLogs[0].courseId), ids.publishedCourse);
+    assert.equal(watchLogs[0].metadata?.videoId, ids.publishedVideo);
+
+    const secondCall = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/watched`,
+      { method: 'POST', token: studentToken },
+    );
+    assert.equal(secondCall.status, 200);
+    const watchLogsAfter = store.usageLogs.filter((log) => log.event === 'watch' && String(log.userId) === String(ids.student));
+    assert.equal(watchLogsAfter.length, 1, 'second call should not duplicate watch log');
+
+    const dashboard = await jsonRequest(
+      serverContext.baseUrl,
+      '/api/v1/stats/student',
+      { token: studentToken },
+    );
+    const courseEntry = dashboard.body.data.courseList.find((c) => c.id === ids.publishedCourse);
+    assert.ok(courseEntry);
+    assert.equal(courseEntry.progress, 100);
+  });
+
+  it('rejects watched-mark on a video not belonging to the target course', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/watched`,
+      { method: 'POST', token: studentToken },
+    );
+
+    assert.equal(result.status, 404);
+    assert.equal(result.body.error.code, 'VIDEO_NOT_FOUND');
+  });
+
   it('rejects uploads from non-owner teachers', async () => {
     const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
     const formData = createVideoUploadForm({

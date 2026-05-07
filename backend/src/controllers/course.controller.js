@@ -65,10 +65,20 @@ const deleteCourse = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Course deleted.' });
 });
 
+const markVideoWatched = asyncHandler(async (req, res) => {
+  const result = await courseService.markVideoWatched({
+    user: req.user,
+    courseId: req.params.courseId,
+    videoId: req.params.videoId,
+  });
+  return sendSuccess(res, { message: 'Video marked as watched.', data: result });
+});
+
 module.exports = {
   createCourse,
   listCourses,
   getCourseById,
   updateCourse,
   deleteCourse,
+  markVideoWatched,
 };

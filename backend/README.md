@@ -30,6 +30,8 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
 - 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
+- 2026-05-07 重複上傳防呆：YouTube 於 `createCourseVideoFromYouTube` 在建立前以 `(courseId, youtubeVideoId)` 查重，命中回 `409 DUPLICATE_VIDEO`；mp4 於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中 `(courseId, fileHash)` 既存 video → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index。仍未涵蓋跨課程共用同一支影片
+- 2026-05-07 學生 watched 進度 endpoint：新增 `POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生身分），由 `course.service.markVideoWatched` 驗證影片屬該課程後 `$addToSet` 至 `Enrollment.watchedVideoIds` 並重算 `progress`；首次觀看時同步寫 `UsageLog event=WATCH metadata.videoId=...`（重複不重複寫），讓 admin Usage Statistics 的 WATCH 卡片可實際累加
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`）；可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音
 - startup 不會自動 seed
 
@@ -277,7 +279,7 @@ npm start
 最近重新確認：
 
 - `npm test` 全套
-  - 2026-05-07 實跑結果：**83 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖等變動後）
+  - 2026-05-07 實跑結果：**87 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖、重複上傳防呆、學生 watched endpoint 等變動後）
   - 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）
 - `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`：8 passed
 - `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`：20 passed（含 YouTube 註冊不暴露 `/uploads` URL）

@@ -13,5 +13,6 @@ router.get('/', courseController.listCourses);
 router.get('/:courseId', courseController.getCourseById);
 router.patch('/:courseId', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), courseController.updateCourse);
 router.delete('/:courseId', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), courseController.deleteCourse);
+router.post('/:courseId/videos/:videoId/watched', courseController.markVideoWatched);
 
 module.exports = router;

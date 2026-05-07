@@ -12,7 +12,8 @@ const {
   getStudentEnrollmentCourseIds,
   assertCanAccessCourse,
 } = require('./courseAccess.service');
-const { COURSE_STATUS_VALUES } = require('../constants/enums');
+const { COURSE_STATUS_VALUES, USAGE_LOG_EVENTS } = require('../constants/enums');
+const { recordUsage } = require('./usageLog.service');
 const {
   buildCourseBridgePresentation,
   collectScopedVideos,
@@ -184,6 +185,55 @@ async function deleteCourse(courseId, user) {
   await Course.deleteOne({ _id: courseId });
 }
 
+async function markVideoWatched({ user, courseId, videoId }) {
+  assertObjectId(courseId, 'course');
+  assertObjectId(videoId, 'video');
+
+  if (!isStudent(user)) {
+    throw new AppError('Only students can record watched videos.', 403, 'FORBIDDEN');
+  }
+
+  const course = await Course.findById(courseId);
+  if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+  await assertCanAccessCourse(user, course);
+
+  const video = await Video.findOne({ _id: videoId, courseId });
+  if (!video) throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
+
+  const enrollment = await ensureStudentEnrollment(user.id, courseId);
+  const previousWatched = new Set((enrollment.watchedVideoIds || []).map(String));
+  const isFirstWatch = !previousWatched.has(String(videoId));
+  const watched = new Set(previousWatched);
+  watched.add(String(videoId));
+
+  const courseVideoIds = (course.videoIds || []).map(String);
+  const totalVideos = courseVideoIds.length || 1;
+  const watchedInCourse = [...watched].filter((id) => courseVideoIds.includes(id));
+  const progress = Math.min(100, Math.round((watchedInCourse.length / totalVideos) * 100));
+
+  await Enrollment.findOneAndUpdate(
+    { studentId: user.id, courseId },
+    { $set: { watchedVideoIds: [...watched], progress } },
+  );
+
+  if (isFirstWatch) {
+    await recordUsage({
+      userId: user.id,
+      courseId,
+      event: USAGE_LOG_EVENTS.WATCH,
+      metadata: { videoId: String(videoId) },
+    });
+  }
+
+  return {
+    courseId: String(courseId),
+    videoId: String(videoId),
+    watchedCount: watchedInCourse.length,
+    totalVideos,
+    progress,
+  };
+}
+
 module.exports = {
   createCourse,
   listCourses,
@@ -192,4 +242,5 @@ module.exports = {
   deleteCourse,
   ensureStudentEnrollment,
   resolveCourseTeacherId,
+  markVideoWatched,
 };

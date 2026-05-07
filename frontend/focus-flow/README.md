@@ -36,7 +36,8 @@ Copy-Item .env.example .env
 
 說明：
 
-- 登入、課程列表、教師建立 / 刪除課程、教師上傳影片（本機檔案 / YouTube URL）、學生課程播放與 QA、LINE QR 綁定流程已串接後端 API
+- 登入、註冊（學生 / 教師自助）、課程列表、教師建立 / 刪除課程、教師上傳影片（本機檔案 / YouTube URL）、學生課程播放與 QA、LINE QR 綁定流程已串接後端 API
+- 註冊頁 [`src/components/RegisterPage.jsx`](src/components/RegisterPage.jsx)：欄位 = 姓名 / Email / 密碼（≥8）/ 確認密碼 + 身份 tab（學生 / 教師）；登入頁的「立即註冊」按鈕由 [`App.jsx`](src/App.jsx) 切換到 `page === 'register'`，後端打 `POST /api/v1/auth/register`，成功後直接 `setToken` + `setUser` 進 dashboard；admin 不開放自助註冊
 - `VITE_API_BASE_URL` 預設指向本機 backend（`http://127.0.0.1:4000/api/v1`）
 
 ## 主要頁面行為（2026-05-07 更新）

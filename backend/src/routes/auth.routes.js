@@ -1,4 +1,4 @@
-﻿// 引入 Express 框架
+// 引入 Express 框架
 const express = require('express');
 // 引入自己寫的 auth controller 模組（相對路徑），負責處理 HTTP 請求
 const authController = require('../controllers/auth.controller');
@@ -14,6 +14,11 @@ const router = express.Router();
 // 功能：使用者登入
 // middleware：無（登入前不需要驗證身份）
 router.post('/login', authController.login);
+
+// POST /api/v1/auth/register
+// 功能：使用者自助註冊（限 student / teacher）
+// middleware：無
+router.post('/register', authController.register);
 
 // GET /api/v1/auth/me
 // 功能：取得當前登入使用者的資訊

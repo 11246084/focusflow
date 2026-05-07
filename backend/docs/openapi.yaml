@@ -144,6 +144,72 @@ paths:
           $ref: '#/components/responses/InvalidCredentialsError'
         '403':
           $ref: '#/components/responses/UserInactiveError'
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: 自助註冊（限 student / teacher）
+      description: |
+        新使用者自行建立帳號。`role` 僅接受 `student` 或 `teacher`；`admin` 必須由現有管理員建立，不開放自助註冊。
+
+        成功時直接回 JWT 與 public user，前端可立即跳到 dashboard。
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+            examples:
+              studentRegister:
+                value:
+                  name: 王小明
+                  email: student-new@focusflow.local
+                  password: Student123!
+                  role: student
+      responses:
+        '201':
+          description: 註冊成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+              examples:
+                success:
+                  summary: 註冊成功範例
+                  value:
+                    success: true
+                    message: Registration successful.
+                    data:
+                      token: <jwt-token>
+                      user:
+                        id: 507f1f77bcf86cd799439099
+                        name: 王小明
+                        email: student-new@focusflow.local
+                        role: student
+                        isActive: true
+                        isLineBound: false
+                        lineBindAt: null
+                        activeCourseId: null
+                        lineConversationState: idle
+                        createdAt: '2026-05-07T09:00:00.000Z'
+                        updatedAt: '2026-05-07T09:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email 已被使用（DUPLICATE_RESOURCE）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicate:
+                  value:
+                    success: false
+                    message: Email is already registered.
+                    error:
+                      code: DUPLICATE_RESOURCE
   /api/v1/auth/me:
     get:
       tags:
@@ -1732,6 +1798,28 @@ components:
           format: email
         password:
           type: string
+    AuthRegisterRequest:
+      description: "`/api/v1/auth/register` 的 request body。Phase 1 僅開放 student / teacher 自助註冊。"
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum:
+            - student
+            - teacher
+          default: student
     AuthLoginData:
       description: 登入成功後回傳的資料主體。
       type: object

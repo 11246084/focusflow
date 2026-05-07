@@ -4,6 +4,7 @@ import LiquidGradientBg from './components/LiquidGradientBg';
 import Button3D          from './components/Button3D';
 import BubbleScene       from './components/BubbleScene';
 import LoginPage         from './components/LoginPage';
+import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
 import { clearToken, clearUser } from './api';
 
@@ -31,7 +32,22 @@ export default function App() {
   const handleLogout = () => { clearToken(); clearUser(); setPage('login'); };
 
   if (page === 'login') {
-    return <LoginPage onBack={() => setPage('landing')} onLogin={handleLogin} />;
+    return (
+      <LoginPage
+        onBack={() => setPage('landing')}
+        onLogin={handleLogin}
+        onGoRegister={() => setPage('register')}
+      />
+    );
+  }
+
+  if (page === 'register') {
+    return (
+      <RegisterPage
+        onBack={() => setPage('login')}
+        onRegistered={handleLogin}
+      />
+    );
   }
 
   if (page === 'app') {

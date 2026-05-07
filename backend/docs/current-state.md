@@ -101,7 +101,7 @@
 
 ## 已完成項目
 
-- auth / JWT / RBAC 主線已可用
+- auth / JWT / RBAC 主線已可用；2026-05-07 新增 `POST /api/v1/auth/register` 自助註冊端點，限 `student` / `teacher`（admin 仍只能由現有管理員建立），密碼以 bcrypt salt=10 hash 寫入 `users.passwordHash`，成功後直接回 JWT 與 public user
 - courses CRUD（含 PATCH/DELETE）、videos CRUD（含 DELETE）、processing 狀態流程已可用
 - `/api/v1/qa/ask` 已能回 answer、matches、時間資訊與 runtime 訊號
 - 提問自動寫入 `questions` collection（2026-04-30）：`questionRecording.service.js` 在 QA 與 LINE Bot 路徑都會落庫；含 matches、runtime、`sourceUsageLogId` 連結至對應 `usage_logs`

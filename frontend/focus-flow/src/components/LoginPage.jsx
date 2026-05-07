@@ -12,7 +12,7 @@ function Sparkle({ x, y, s = 1, op = 0.3 }) {
   );
 }
 
-export default function LoginPage({ onLogin, onBack }) {
+export default function LoginPage({ onLogin, onBack, onGoRegister }) {
   const [role, setRole] = useState('student');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -145,7 +145,24 @@ export default function LoginPage({ onLogin, onBack }) {
             </button>
 
             <div className="login-no-account">
-              沒有帳號？<span className="login-contact">聯繫管理員開通</span>
+              沒有帳號？
+              <button
+                type="button"
+                className="login-contact"
+                onClick={onGoRegister}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  marginLeft: 4,
+                  color: 'inherit',
+                  font: 'inherit',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                立即註冊
+              </button>
             </div>
 
             {/* Back link */}

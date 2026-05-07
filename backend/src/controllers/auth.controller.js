@@ -18,6 +18,18 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
+const register = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  const result = await authService.register({ name, email, password, role });
+
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Registration successful.',
+    data: result,
+  });
+});
+
 const me = asyncHandler(async (req, res) => {
   const user = await authService.getCurrentUser(req.user.id);
 
@@ -31,5 +43,6 @@ const me = asyncHandler(async (req, res) => {
 
 module.exports = {
   login,
+  register,
   me,
 };

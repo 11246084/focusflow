@@ -10,8 +10,8 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 87/87 | auth / courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint |
-| **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 11 頁面（Student/Teacher/Admin × 多頁）；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接）；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
+| **Backend** | ✅ 主線可用，全測試 87/87 | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint、`POST /api/v1/auth/register` 限 student/teacher 自助註冊 |
+| **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 註冊頁 + 11 頁面（Student/Teacher/Admin × 多頁）；登入頁「立即註冊」按鈕連到 `RegisterPage`，註冊成功直接登入；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接）；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
 ---

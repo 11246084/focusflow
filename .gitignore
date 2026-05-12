@@ -167,7 +167,7 @@ __pycache__/
 CLAUDE.local.md
 .claude/settings.local.json
 .mcp.json
-
+.agents/skills/docs-maintainer
 
 # ================================
 # Local planning / temp docs

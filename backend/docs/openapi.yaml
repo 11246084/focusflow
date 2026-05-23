@@ -10,6 +10,10 @@ info:
     - 如實描述 phase-1 的 `bridge-aware` 與 runtime 可觀測回應
     - 不把 Atlas retrieval、query embedding 對齊、或 live LINE delivery 說成 production-ready
 
+    覆蓋範圍（2026-05-23 更新）：
+    - 已涵蓋 auth / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE 的主要端點
+    - 本 spec 已涵蓋主要端點，但仍非 100% 完整契約；internal processing webhook 等少數端點以 route files 為準
+
     本輪不處理的項目：
     - 不做 route-level JSDoc generation
     - 不做 production-hardening refactor
@@ -28,6 +32,10 @@ tags:
     description: 涵蓋影片列表、詳細資料、processing 狀態、上傳與 `guarded action` 類型的操作端點。
   - name: QA
     description: 問答 API，會明確回傳 runtime diagnostics 與 phase-1 fallback 訊號。
+  - name: Stats
+    description: Teacher / Student dashboard 的彙總統計端點，回應為彙整後的 dashboard 數據。
+  - name: Admin
+    description: 僅限 admin 角色使用的後台管理端點（使用者、影片、事件統計）；全部需 Bearer token + admin 權限。
   - name: LINE Webhook
     description: |
       LINE Platform 的 `integration-facing` webhook callback 入口。
@@ -320,6 +328,67 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+    patch:
+      tags:
+        - Courses
+      summary: 部分更新課程
+      description: 僅限 teacher（owner）/ admin 使用。可更新標題、描述、狀態等課程欄位。
+      operationId: updateCourse
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateRequest'
+      responses:
+        '200':
+          description: 課程更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseItemResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+    delete:
+      tags:
+        - Courses
+      summary: 刪除課程（cascade）
+      description: |
+        僅限 admin 或該課程的 owner teacher 使用。
+
+        刪除會 cascade 清理對應的 Video / Segment / transcripts、`course.videoIds`、`Enrollment` 與 `User.activeCourseId`；
+        但**保留** UsageLog / Question 歷史紀錄（改由 display 層分流顯示「內容已下架」）。
+      operationId: deleteCourse
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 課程刪除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: cascade 刪除結果摘要（清理的關聯資源數量等）。
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
   /api/v1/courses/{courseId}/videos:
     get:
       tags:
@@ -502,6 +571,38 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/courses/{courseId}/videos/{videoId}/watched:
+    post:
+      tags:
+        - Videos
+      summary: 標記影片為已觀看完成
+      description: |
+        學生用端點。驗證學生身分與「影片屬於該課程」後，`$addToSet` 寫入 `Enrollment.watchedVideoIds`，
+        並重算 `progress = watched / total × 100`。第一次觀看時會額外寫一筆 `UsageLog event=WATCH`（重複觀看不重複寫）。
+      operationId: markVideoWatched
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 已標記觀看完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 更新後的 enrollment 進度摘要（watchedVideoIds 數量、progress 百分比等）。
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
   /api/v1/videos/{videoId}:
     get:
       tags:
@@ -527,6 +628,38 @@ paths:
           $ref: '#/components/responses/InvalidIdError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+    delete:
+      tags:
+        - Videos
+      summary: 刪除影片（cascade）
+      description: |
+        僅限 teacher（owner）/ admin 使用。
+
+        刪除會 cascade 清理對應的 Segment / transcripts，並從 `course.videoIds` `$pull`；
+        保留 UsageLog / Question 歷史紀錄。
+      operationId: deleteVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 影片刪除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: cascade 刪除結果摘要。
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
   /api/v1/videos/{videoId}/processing:
@@ -658,6 +791,244 @@ paths:
           $ref: '#/components/responses/QaRuntimeMisconfiguredError'
         '503':
           $ref: '#/components/responses/QaAtlasNotReadyError'
+  /api/v1/stats/teacher:
+    get:
+      tags:
+        - Stats
+      summary: 取得教師 dashboard 統計
+      description: 僅限 teacher / admin。回傳教師視角的彙總統計（課程數、影片、提問量、Top Queried Segments、Recent Videos 等）。
+      operationId: getTeacherDashboardStats
+      responses:
+        '200':
+          description: 成功取得教師 dashboard 統計
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 教師 dashboard 彙總數據。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/stats/student:
+    get:
+      tags:
+        - Stats
+      summary: 取得學生 dashboard 統計
+      description: 僅限 student / admin。回傳學生視角的彙總統計（已選課程、觀看進度、提問量、Recent Queries 等）。
+      operationId: getStudentDashboardStats
+      responses:
+        '200':
+          description: 成功取得學生 dashboard 統計
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 學生 dashboard 彙總數據。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/stats:
+    get:
+      tags:
+        - Admin
+      summary: 後台彙總統計
+      description: 僅限 admin。回傳全站使用者 / 影片 / 使用量等彙總統計（含 `adminCount`）。
+      operationId: getAdminStats
+      responses:
+        '200':
+          description: 成功取得後台彙總統計
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 全站彙總統計。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: 列出使用者
+      description: 僅限 admin。回傳使用者列表（已過濾敏感欄位）。
+      operationId: adminListUsers
+      responses:
+        '200':
+          description: 成功取得使用者列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/users/{userId}:
+    patch:
+      tags:
+        - Admin
+      summary: 更新使用者（角色 / 啟用狀態）
+      description: 僅限 admin。可變更使用者角色或停用 / 啟用帳號。
+      operationId: adminUpdateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: 目標使用者的 MongoDB ObjectId。
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 可更新欄位，例如 role 或 isActive。
+              properties:
+                role:
+                  $ref: '#/components/schemas/UserRole'
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: 使用者更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PublicUser'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/UserNotFoundError'
+  /api/v1/admin/videos:
+    get:
+      tags:
+        - Admin
+      summary: 列出影片（後台）
+      description: 僅限 admin。回傳後台視角的影片列表。
+      operationId: adminListVideos
+      responses:
+        '200':
+          description: 成功取得影片列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 後台影片列表。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/videos/{videoId}:
+    delete:
+      tags:
+        - Admin
+      summary: 刪除影片（後台 cascade）
+      description: 僅限 admin。cascade 清理對應 Segment / transcripts 並從 `course.videoIds` `$pull`；保留歷史紀錄。
+      operationId: adminDeleteVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 影片刪除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: cascade 刪除結果摘要。
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+  /api/v1/admin/events:
+    get:
+      tags:
+        - Admin
+      summary: 最近事件查詢
+      description: 僅限 admin。回傳最近的 UsageLog 事件（含 `contentMissing` 等 display flag）。
+      operationId: adminGetRecentEvents
+      responses:
+        '200':
+          description: 成功取得最近事件
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 最近事件列表。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/event-stats:
+    get:
+      tags:
+        - Admin
+      summary: 事件統計
+      description: 僅限 admin。回傳依 event 類型彙總的使用量統計（login / watch / ask / clip_view 等）。
+      operationId: adminGetEventStats
+      responses:
+        '200':
+          description: 成功取得事件統計
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        description: 依 event 類型彙總的統計。
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /api/v1/line/webhook:
     post:
       tags:

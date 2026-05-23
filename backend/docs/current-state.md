@@ -1,6 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流 + STT race-condition guard + 重複上傳防呆 + 學生 watched endpoint）
+最後更新：2026-05-23（文件對齊現況：Atlas `text_embedding_index` 已 READY、16 影片 / 130 segments、前端 11 頁全數串接；OpenAPI 補齊 stats/admin/watched/PATCH/DELETE）
+
+前一輪：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流 + STT race-condition guard + 重複上傳防呆 + 學生 watched endpoint）
 
 ## 文件角色
 
@@ -28,7 +30,7 @@
 這代表：
 
 - query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- `.env` 目前設定使用 Atlas vector search（`text_embedding_index`），但共享 Atlas 上該 index 已不存在；除非重建 index，否則需切回 `QA_VECTOR_SEARCH_MODE=memory` 才能穩定 QA
+- `.env` 設定使用 Atlas vector search（`text_embedding_index`），且共享 Atlas 上該 index 已存在且 READY/queryable（2026-05-23 直連驗證），atlas mode 可正常檢索
 - answer generation 使用 Gemini（`gemini-2.5-flash`）
 - demo 資料不自動建立，需明確執行 `npm run seed`
 - 若要先清掉再重建，使用 `npm run seed:reset`
@@ -58,17 +60,17 @@
 
 `course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId`
 
-## 資料庫實況（共享 Atlas, MCP + UI 驗證，2026-05-01）
+## 資料庫實況（共享 Atlas, MCP 驗證）
 
 > 連線目標：`百陶's Org` → `focusflow` cluster → `focusflow` DB（共享 Atlas）。
-> 資料相較 2026-04-19 快照已被更動：先前 105 筆 segments / 9 筆 videos 的內容已移除，目前僅留下 1 支新上傳影片與其 9 個 chunks。
+> `videos`、`video_segments_text` 筆數與 `text_embedding_index` 狀態為 2026-05-23 MCP 直連實查；其餘 collection 筆數沿用 2026-05-01 快照，可能已變動，需要精確值時請重新以 MCP 查詢。
 
 | Collection | 筆數 | 備註 |
 |---|---|---|
 | `courses` | 3 | FocusFlow Pipeline Bridge Course / Demo QA Course / Demo Processing Course |
-| `videos` | 1 | 1 筆 app-owned（`sourceType: upload`、`videoSource: local`、`processing.status: completed`），掛在 Bridge Course |
+| `videos` | 16 | 2026-05-23 實查；混存 app-owned 與 pipeline metadata |
 | `users` | 3 | Demo Teacher / Student / Admin |
-| `video_segments_text` | 9 | 全部 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`），對應同一支上傳影片，`embedding` 為 3072 維 |
+| `video_segments_text` | 130 | 2026-05-23 實查；全部 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`），`embedding` 為 3072 維 |
 | `video_segments_video` | 16 | DB 文件仍為 snake_case（`video_id`、`clip_id`、`start_sec`），尚未接 QA |
 | `video_segments_audio` | 0 | Pipeline 預留 |
 | `questions` | 1 | **新增**，每次 QA 提問自動寫入；含 matches/runtime/`sourceUsageLogId` 連結 |
@@ -90,14 +92,14 @@
 
 **已知 index 狀態：**
 
-- `video_segments_text`：5 個 classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；**目前 cluster 無任何 Atlas Search / Vector Search Index**（Atlas UI Indexes 分頁與 MCP `searchIndexes: []` 一致）。先前文件描述的 `text_embedding_index` READY 狀態屬於舊快照，此 cluster 目前不存在
+- `video_segments_text`：classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；**Atlas Vector Search Index `text_embedding_index` 已存在且 READY/queryable**（2026-05-23 MCP `$listSearchIndexes` 驗證：3072 維 cosine，filter fields=`embedding`(vector)+`courseId`+`videoId`，3 shards 全 READY，建立於 2026-04-19）
 - `questions`：13 個 classic indexes，包含 `courseId`、`status`、`source`、`topSegmentId`、`askedAt`、複合索引（`courseId_1_askedAt_-1`、`userId_1_askedAt_-1`、`courseId_1_status_1_askedAt_-1`、`courseId_1_topSegmentId_1`）、text index（`question_text_answer_text`）、`sourceUsageLogId` partial unique sparse index；schema 預設不寫入 `sourceUsageLogId: null`
 
 **對 runtime 的影響：**
 
-- `.env` 仍設定 `QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`，但 cluster 上索引已不存在，啟動或第一次 `/api/v1/qa/ask` 會走 fail-fast 路徑（`runtime.qa.readiness=hard_fail` 或 aggregate 報錯）
-- 短期方案：切回 `QA_VECTOR_SEARCH_MODE=memory`（9 筆 segments 仍可走 in-memory cosine）
-- 中期方案：在 Atlas 重建 `text_embedding_index`（3072 維 cosine，filter fields：`courseId` ObjectId、`videoId` camelCase）
+- `.env` 設定 `QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`，且 cluster 上索引已 READY，atlas mode 可正常檢索（`runtime.qa.readiness=ready`）
+- 本機無 API key 的隔離 smoke 仍可改用 `QA_VECTOR_SEARCH_MODE=memory` + `mock` embedding + `template` answer
+- 若未來 Atlas 再次被重置或 index 被刪，atlas mode 會 fail-fast；屆時需重建 `text_embedding_index`（3072 維 cosine，filter fields：`courseId` ObjectId、`videoId` camelCase）
 
 ## 已完成項目
 
@@ -107,7 +109,7 @@
 - 提問自動寫入 `questions` collection（2026-04-30）：`questionRecording.service.js` 在 QA 與 LINE Bot 路徑都會落庫；含 matches、runtime、`sourceUsageLogId` 連結至對應 `usage_logs`
 - Teacher / Student dashboard 統計 API（2026-04-30）：`/api/v1/stats/teacher`、`/api/v1/stats/student`，由 `teacherStats.service.js` 聚合；Recent Videos 使用穩定 recency 排序；Top Queried Segments 若命中已刪影片的歷史 segment，顯示會 fallback 到同課程現存影片並優先 YouTube，且同一顯示影片的多個 segment count 會合併成一列
 - Admin 管理 API（2026-04-30）：`/api/v1/admin/{stats,users,videos,events,event-stats}`，可停用使用者、變更角色、刪除影片、查看最近事件
-- Gemini query embedding 已接上；Atlas vector search 仍由 `.env` 指向 `text_embedding_index`，但目前共享 Atlas 缺少該 index，需重建 index 或切回 memory mode
+- Gemini query embedding 已接上；Atlas vector search 由 `.env` 指向 `text_embedding_index`，該 index 已 READY，atlas mode 可正常檢索
 - QA misconfig、Atlas not ready、fallback 與 `no_searchable_segments` 已可明確觀測
 - `POST /api/v1/line/bind-token`、webhook verify、bind、switch course、ask question routing 已完成
 - LINE live smoke 已完成（2026-04-19）：真實 LINE 端對端 bind → switch course → ask 全程走通
@@ -179,8 +181,8 @@
 - `video_segments_text` 欄位：已全面統一為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；`segmentId` 值通常為 null，實際識別碼為 `chunkId`（如 `<videoObjectId>_chunk_0001`）
 - `video_segments_video` 文件仍為 snake_case（`video_id`、`clip_id`、`start_sec`、`end_sec`），與 `video_segments_text` 不一致；尚未接 QA
 - `video_segments_video`：有 embedding，但無 Atlas vector search index，multimodal QA 目前不可用
-- 當前 MCP 連線目標 DB 上沒有任何 vector search index；若要在此 DB 走 atlas mode，需在 Atlas 端建立 `text_embedding_index`
-- `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步；目前 9 個 segments 對應同一支上傳影片
+- `text_embedding_index` 已 READY（2026-05-23 驗證）；atlas mode 可用。仍需注意若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
+- `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
 - YouTube Data API 自動上傳尚未實作；目前已完成的是 YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 目前是寬鬆 `cors()`；正式環境前需限縮為 `ALLOWED_ORIGIN`
@@ -188,4 +190,4 @@
 
 ## 一句話結論
 
-截至 2026-05-07，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + 重複上傳防呆（YouTube videoId / mp4 SHA-256）+ 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + dashboard/QA 平行化 + [qa-timing] 診斷 log + 學生 watched endpoint（首觀看寫 WATCH usage log）`。`video_segments_text` 欄位已全面 camelCase；全測試 87/87 passed。共享 Atlas 目前缺少 `text_embedding_index`，atlas mode 需重建 index 或暫切 memory。短期限制：YouTube Data API 自動上傳尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、CORS 仍寬鬆、OpenAPI 尚未補 stats/admin 與部分 PATCH/DELETE、`video_segments_video` 仍為 snake_case 且無 vector index。
+截至 2026-05-07，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + 重複上傳防呆（YouTube videoId / mp4 SHA-256）+ 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + dashboard/QA 平行化 + [qa-timing] 診斷 log + 學生 watched endpoint（首觀看寫 WATCH usage log）`。`video_segments_text` 欄位已全面 camelCase；全測試 87/87 passed。共享 Atlas 的 `text_embedding_index` 已 READY（2026-05-23 驗證），atlas mode 可用。OpenAPI 已補上 stats/admin/watched 與 courses/videos 的 PATCH/DELETE（仍標註為非 100% 完整契約）。短期限制：YouTube Data API 自動上傳尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、CORS 仍寬鬆、`video_segments_video` 仍為 snake_case 且無 vector index。

@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-05-06（修正 student dashboard questions 統計欄位 + 同步 qa / course-video 測試 expected）
+最後更新：2026-05-23（Phase 1 收尾：文件對齊現況 + OpenAPI 補齊 stats/admin/watched/PATCH/DELETE）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -10,10 +10,10 @@
 - 要交接、找跨組缺口、整理 demo 風險與暫時口徑：看 [handoff-known-issues.md](./handoff-known-issues.md)
 - 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](./todo.md)
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](./implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](./implementation-log.archive.md)）
-- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；目前尚未涵蓋 stats/admin 與部分 PATCH/DELETE，完整端點清單暫以 route files / README 為準
+- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；已涵蓋 stats/admin/watched 與 courses/videos 的 PATCH/DELETE，但仍非 100% 完整契約（internal processing webhook 等少數端點以 route files 為準）
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
 - 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
-- 要確認 2026-05-05 交接後最新待補：看 [todo.md](./todo.md)（YouTube / LINE smoke、Atlas index 重建等項目）
+- 要確認最新待補：看 [todo.md](./todo.md)（CORS 收緊、dangling DB scripts、YouTube Data API 等上線前 / Phase 2 項目）
 
 ## 每份文件的用途
 
@@ -28,7 +28,7 @@
 - `todo.md`
   - 下一步規劃與優先順序
 - `openapi.yaml`
-  - REST API 規格來源（Swagger UI 由此生成）；2026-05-01 尚未完整覆蓋所有現有路由
+  - REST API 規格來源（Swagger UI 由此生成）；2026-05-23 已補 stats/admin/watched/PATCH/DELETE，仍標註為非 100% 完整契約
 
 ## 文件之間的關係
 

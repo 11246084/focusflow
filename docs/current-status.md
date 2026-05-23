@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-05-07
+最後更新：2026-05-23
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -10,13 +10,13 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 87/87 | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini` 但 Atlas index 需確認；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint、`POST /api/v1/auth/register` 限 student/teacher 自助註冊 |
-| **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 註冊頁 + 11 頁面（Student/Teacher/Admin × 多頁）；登入頁「立即註冊」按鈕連到 `RegisterPage`，註冊成功直接登入；API 整合進行中（教師建立課程、LINE QR 綁定、QA grounding 已串接）；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
+| **Backend** | ✅ 主線可用，全測試 87/87 | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`，Atlas `text_embedding_index` 已 READY（2026-05-23 直連驗證）；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint、`POST /api/v1/auth/register` 限 student/teacher 自助註冊 |
+| **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 註冊頁 + 11 頁面（Student/Teacher/Admin × 多頁）；登入頁「立即註冊」按鈕連到 `RegisterPage`，註冊成功直接登入；11 頁面已全數串接 backend API（每頁皆呼叫 `apiFetch`）：教師建立課程、LINE QR 綁定、QA grounding 皆已串接；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
 ---
 
-## Backend 目前 Runtime（2026-05-01 更新）
+## Backend 目前 Runtime（2026-05-23 更新）
 
 ```
 QA_QUERY_EMBEDDING_PROVIDER = gemini
@@ -30,7 +30,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 - `/health` 可直接觀察 `runtime.qa` 與 `runtime.line` 狀態
 - QA misconfig 與 Atlas not ready 已 fail-fast，不靜默降級
-- **共享 Atlas 已被重置**（2026-05-01 驗證）：`videos` 1 筆、`video_segments_text` 9 筆，`text_embedding_index` 目前不存在；`.env` 仍寫 `atlas` mode，實務上需切回 `memory` 或重建 vector index 才能跑 QA
+- **共享 Atlas 現況**（2026-05-23 直連驗證）：`videos` 16 筆、`video_segments_text` 130 筆，`text_embedding_index` 存在且 READY/queryable（3072 維 cosine，filter=`courseId`+`videoId`，3 shards 全 READY）；`.env` 的 `atlas` mode 可正常檢索，不需切回 `memory`
 - LINE Bot 已端對端驗證；正式部署前 ngrok URL / Channel 設定須再確認
 
 ---
@@ -70,7 +70,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 | 項目 | 負責方 | 說明 |
 |------|--------|------|
-| Atlas vector index / future naming | DB / MongoDB 組 | 共享 Atlas 目前沒有 `text_embedding_index`；若要維持 atlas mode 需重建。後續若擴到 `video_segments_video` 仍需定版 |
+| Atlas vector index / future naming | DB / MongoDB 組 | `text_embedding_index` 已 READY（2026-05-23 驗證），atlas mode 可用。後續若擴到 `video_segments_video` 仍需定版 vector index |
 | init collections 與 Atlas 實況差異 | Database + Backend | Atlas 13 collections；`init_collections.js` 列 15 個。init 多 `stt_cache` / `raw_transcripts` / `video_segments`，Atlas 多 `questions` |
 | OpenAPI 對齊 | Backend | `backend/docs/openapi.yaml` 尚缺 stats/admin 與新增 PATCH/DELETE 端點 |
 | Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | 目前已改用 Gemini query embedding；仍需持續確認 coverage 與長期契約 |
@@ -80,15 +80,15 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | ~~Route tests 與 demo 權限同步~~ | ✅ 2026-05-06 完成 | qa.routes / course-video.routes 已對齊；全測試 83/83 passed |
 | ~~Student dashboard questions 統計~~ | ✅ 2026-05-06 完成 | `visibleQuestionFilter` 已改為 `userId` |
 
-### Frontend 待完成（API 整合）
+### Frontend 現況（API 整合已完成）
 
-- 頁面 UI 已完成，登入、課程列表、QA 問答、LINE 綁定流程已開始串接
-- YouTube URL 上傳模式與學生端 YouTube iframe / timestamp 跳轉已接入，仍需實際 demo smoke
+- 11 個頁面全數串接 backend API（每頁皆呼叫 `apiFetch`）：登入、課程列表、QA 問答、LINE 綁定流程皆已接通
+- YouTube URL 上傳模式與學生端 YouTube iframe / timestamp 跳轉已接入；demo 已實際執行過
 
 ### Pipeline 待確認
 
 - `clips` 與 `video_segments_video` 正式分工
-- 哪些影片已有 searchable segments 覆蓋率（共享 Atlas 重置後目前僅剩 1 支影片 + 9 筆 segments，均屬 Pipeline Bridge Course；先前 105 筆快照已不再存在）
+- 哪些影片已有 searchable segments 覆蓋率（2026-05-23 共享 Atlas 為 16 支影片 + 130 筆 segments）
 
 ---
 
@@ -109,17 +109,16 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 下一步優先順序
 
-1. 前端 API 整合（登入 → 課程列表 → 問答 → LINE 綁定 QR Code）
-2. 後端測試同步（`qa.routes.test.js`、`course-video.routes.test.js` 權限 / response shape、student dashboard questions 統計）
-3. YouTube / LINE demo smoke（確認 iframe timestamp seek 與 LINE timestamp link）
-4. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
-5. 跨組 freeze phase-1 契約（`videos` ownership 邊界、demo seed 流程）
+1. 文件收尾：OpenAPI 補齊 stats/admin 與部分 PATCH/DELETE（demo / 前端整合已完成）
+2. 上線前 hardening：CORS 限定 origin、`backend/uploads/` 自動清理策略
+3. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
+4. 跨組 freeze phase-1 契約（`videos` ownership 邊界、demo seed 流程）
 
 ---
 
 ## 不能誤稱的邊界
 
-- Atlas vector retrieval **曾在 2026-04-19 共享環境成功驗證，但 2026-05-01 共享 Atlas 已無 `text_embedding_index`，不能誤稱目前 atlas mode ready**
+- Atlas vector retrieval：`text_embedding_index` 於 2026-05-23 直連驗證為 READY/queryable，atlas mode 目前可用；仍須持續確認 query embedding 與 pipeline 資料覆蓋率的一致性
 - Query embedding **已切到 Gemini，但仍需持續確認與 pipeline 資料覆蓋率的一致性**
 - `video_segments_video` **尚未接手** clip source
 - Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**

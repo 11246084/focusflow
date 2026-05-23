@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-05-07
+最後更新：2026-05-23
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -63,7 +63,7 @@
 
 - **狀態**：Pending（由我發起）
 - **要 freeze 的議題**：
-  - Atlas vector index 重建排程（共享 Atlas 2026-05-01 目前沒有 `text_embedding_index`）
+  - ~~Atlas vector index 重建排程~~（已解決：2026-05-23 驗證 `text_embedding_index` READY；改為監控「避免再次被重置」即可）
   - Atlas filter fields 契約（`video_segments_text` 目前使用 camelCase `videoId`；`video_segments_video` 仍為 snake_case `video_id`）
   - `videos` collection ownership 邊界（app-owned vs. pipeline metadata 要拆分還是加 `sourceType`）
   - pipeline segments 如何綁定 course（加 `courseId` / 改查 camelCase `videoId` 三擇一）
@@ -91,10 +91,11 @@
 
 ### 3. 確認 Atlas vector search index 健康狀態 + 修正 atlas filter 兩處 bug
 
-- **狀態**：Done（2026-04-19 舊快照；2026-05-01 已由新 Atlas 狀態覆蓋）
+- **狀態**：Done（2026-05-23 直連驗證：索引 READY）
 - **完成內容**：
   - 2026-04-19：`text_embedding_index` 當時狀態 READY，105/105 筆 100% 索引
-  - 2026-05-01：共享 Atlas 已無任何 search/vector index；若維持 atlas mode，需重建 `text_embedding_index`
+  - 2026-05-01：曾觀察到共享 Atlas 無 search/vector index（資料被重置）
+  - **2026-05-23：MCP `$listSearchIndexes` 直連驗證 `text_embedding_index` 已存在且 READY/queryable（3072 維 cosine，filter=`courseId`+`videoId`，3 shards 全 READY）；`video_segments_text` 130 筆、`videos` 16 筆；atlas mode 可正常檢索**
   - M0 free cluster：vector indexes 1 of 3 used，剩 2 個配額
   - backend `.env` 已設定 `QA_VECTOR_SEARCH_MODE=atlas`、`QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`
   - 修正 Bug 1：`$vectorSearch` 不經 Mongoose auto-cast，`courseId` String 需手動轉 ObjectId（`castCourseIdToObjectId`）
@@ -119,9 +120,9 @@
 
 ### 5. 支援 Frontend × Backend API 整合
 
-- **狀態**：Partial（後端 API Done；Frontend 第一階段頁面已完成，API 整合進行中）
+- **狀態**：Done（2026-05-23：前端 11 頁全數串接 backend API）
 - **後端側**：Done — 登入、課程、QA、影片、LINE bind、`/health` 全數可用
-- **Frontend 側**：第一階段 7+ 頁面 UI 已完成（2026-04-21），目前進行 API 串接
+- **Frontend 側**：Done — 11 個頁面（Student/Teacher/Admin）每頁皆呼叫 `apiFetch`（共 42 處），demo 已實際執行過
 - **我要主動做**：
   - 整合過程中快速回覆 CORS、response format、token 處理相關問題
   - 若 Frontend 需要，補 Swagger 用法或 example payload
@@ -232,12 +233,12 @@
 
 ### 17. OpenAPI 對齊 stats / admin / PATCH / DELETE
 
-- **狀態**：Pending
-- **背景**：`backend/docs/openapi.yaml` 已掛在 `/docs`，但目前尚未涵蓋 `/api/v1/stats/teacher|student`、`/api/v1/admin/*`，也缺 `PATCH/DELETE /api/v1/courses/:courseId` 與 `DELETE /api/v1/videos/:videoId`。
-- **我要主動做**：
-  - 補 OpenAPI paths 與基本 request/response schema
-  - README / current-status 暫時維持「API 清單以 route files / README 為準」的軟化口徑，等 spec 補齊後再改回以 OpenAPI 為主
-- **驗收**：`backend/tests/docs.routes.test.js` 通過，Swagger UI 能載入 raw spec
+- **狀態**：Done（2026-05-23）
+- **背景**：`backend/docs/openapi.yaml` 已掛在 `/docs`，先前未涵蓋 `/api/v1/stats/teacher|student`、`/api/v1/admin/*`，也缺 `PATCH/DELETE /api/v1/courses/:courseId`、`POST /api/v1/courses/:courseId/videos/:videoId/watched` 與 `DELETE /api/v1/videos/:videoId`。
+- **完成內容**：
+  - 補上 `Stats`、`Admin` 兩個 tag 與 13 個未記錄端點（stats×2、admin×7、courses PATCH/DELETE、videos DELETE、watched），沿用既有 `$ref` 共用 response 元件
+  - `info.description` 標註本 spec 已涵蓋主要端點但仍非 100% 完整契約（internal processing webhook 等少數端點以 route files 為準）
+- **驗收**：`npm test` 87/87；`docs.routes.test.js` 通過，Swagger UI 能載入 raw spec
 
 ---
 

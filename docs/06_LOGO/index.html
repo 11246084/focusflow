@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>04 · Lens Dot — Transparent PNG exports</title>
+<style>
+  :root{--teal:#1B4D5C;--amber:#E8A93C;--cream:#F5EFE3;--ink:#15171A;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:#EFE9DC;font-family:Arial,Helvetica,"PingFang TC",sans-serif;color:var(--ink);padding:48px;}
+  .wrap{max-width:1280px;margin:0 auto;}
+  h1{font-size:28px;letter-spacing:-.01em;margin:0 0 4px;color:var(--teal);}
+  .sub{font-family:ui-monospace,Menlo,monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#666;margin-bottom:32px;}
+  h2{font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:#888;font-weight:500;margin:40px 0 16px;border-bottom:1px solid rgba(0,0,0,.1);padding-bottom:10px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .grid.wide{grid-template-columns:repeat(2,1fr);}
+  .card{background:#fff;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px;}
+  .card.checker{
+    background-color:#fff;
+    background-image:
+      linear-gradient(45deg, #eee 25%, transparent 25%),
+      linear-gradient(-45deg, #eee 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #eee 75%),
+      linear-gradient(-45deg, transparent 75%, #eee 75%);
+    background-size:16px 16px;
+    background-position:0 0,0 8px,8px -8px,-8px 0;
+  }
+  .card.dark{background:var(--teal);}
+  .card.ink{background:var(--ink);}
+  .frame{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;min-height:140px;}
+  .grid.wide .frame{min-height:120px;}
+  .frame img{max-width:100%;max-height:120px;display:block;}
+  .grid.wide .frame img{max-width:100%;max-height:100px;}
+  .meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:#666;}
+  .dark .meta,.ink .meta{color:rgba(255,255,255,.6);}
+  .name{font-weight:600;}
+  a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;opacity:.7;}
+  a:hover{opacity:1;}
+  .note{font-size:13px;line-height:1.6;color:#444;max-width:62ch;margin:0 0 12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>04 · Lens Dot — 透明背景圖檔</h1>
+  <div class="sub">focus flow · transparent png · 4× resolution</div>
+  <p class="note">所有圖檔皆為去背 PNG。右鍵另存,或下載完整 zip 取得 14 個檔案。檔名約定:<code>mark</code> = 圖標、<code>wordmark</code> = 字標、<code>lockup</code> = 圖標 + 字標水平組合。</p>
+
+  <h2>Mark · 圖標 (800×800)</h2>
+  <div class="grid">
+    <div class="card checker">
+      <div class="frame"><img src="mark-color.png" alt="mark color"/></div>
+      <div class="meta"><span class="name">mark-color</span><a href="mark-color.png" download>↓</a></div>
+    </div>
+    <div class="card dark checker" style="background-color:var(--teal)">
+      <div class="frame"><img src="mark-white.png" alt="mark white"/></div>
+      <div class="meta"><span class="name">mark-white</span><a href="mark-white.png" download>↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="mark-teal-mono.png" alt="mark teal mono"/></div>
+      <div class="meta"><span class="name">mark-teal-mono</span><a href="mark-teal-mono.png" download>↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="mark-amber-mono.png" alt="mark amber mono"/></div>
+      <div class="meta"><span class="name">mark-amber-mono</span><a href="mark-amber-mono.png" download>↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="mark-ink-mono.png" alt="mark ink mono"/></div>
+      <div class="meta"><span class="name">mark-ink-mono</span><a href="mark-ink-mono.png" download>↓</a></div>
+    </div>
+    <div class="card ink" style="background-color:var(--ink)">
+      <div class="frame"><img src="mark-white-mono.png" alt="mark white mono"/></div>
+      <div class="meta"><span class="name">mark-white-mono</span><a href="mark-white-mono.png" download>↓</a></div>
+    </div>
+  </div>
+
+  <h2>Wordmark · 字標 (1920×420)</h2>
+  <div class="grid wide">
+    <div class="card checker">
+      <div class="frame"><img src="wordmark-color.png" alt="wordmark color"/></div>
+      <div class="meta"><span class="name">wordmark-color</span><a href="wordmark-color.png" download>↓</a></div>
+    </div>
+    <div class="card" style="background-color:var(--teal)">
+      <div class="frame"><img src="wordmark-white.png" alt="wordmark white"/></div>
+      <div class="meta" style="color:rgba(255,255,255,.6)"><span class="name">wordmark-white</span><a href="wordmark-white.png" download style="color:#fff">↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="wordmark-teal-mono.png" alt="wordmark teal mono"/></div>
+      <div class="meta"><span class="name">wordmark-teal-mono</span><a href="wordmark-teal-mono.png" download>↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="wordmark-ink-mono.png" alt="wordmark ink mono"/></div>
+      <div class="meta"><span class="name">wordmark-ink-mono</span><a href="wordmark-ink-mono.png" download>↓</a></div>
+    </div>
+  </div>
+
+  <h2>Lockup · 組合 (1920×540)</h2>
+  <div class="grid wide">
+    <div class="card checker">
+      <div class="frame"><img src="lockup-color.png" alt="lockup color"/></div>
+      <div class="meta"><span class="name">lockup-color</span><a href="lockup-color.png" download>↓</a></div>
+    </div>
+    <div class="card" style="background-color:var(--teal)">
+      <div class="frame"><img src="lockup-white.png" alt="lockup white"/></div>
+      <div class="meta" style="color:rgba(255,255,255,.6)"><span class="name">lockup-white</span><a href="lockup-white.png" download style="color:#fff">↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="lockup-teal-mono.png" alt="lockup teal mono"/></div>
+      <div class="meta"><span class="name">lockup-teal-mono</span><a href="lockup-teal-mono.png" download>↓</a></div>
+    </div>
+    <div class="card checker">
+      <div class="frame"><img src="lockup-ink-mono.png" alt="lockup ink mono"/></div>
+      <div class="meta"><span class="name">lockup-ink-mono</span><a href="lockup-ink-mono.png" download>↓</a></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

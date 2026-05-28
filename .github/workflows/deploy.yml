@@ -29,7 +29,7 @@ jobs:
 
       - name: Restart services
         run: |
-          su - focusflow -c "pm2 restart focusflow-backend"
+          pm2 restart focusflow-backend
           sudo systemctl reload nginx
       - name: Restart services
         run: |

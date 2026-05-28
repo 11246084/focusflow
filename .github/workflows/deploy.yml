@@ -1,0 +1,33 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /opt/focusflow
+          git pull origin main
+
+      - name: Backend dependencies
+        run: |
+          cd /opt/focusflow/backend
+          npm install --production
+
+      - name: Build frontend
+        run: |
+          cd /opt/focusflow/frontend/focus-flow
+          npm install
+          npm run build
+
+      - name: Fix SELinux
+        run: sudo restorecon -Rv /opt/focusflow/frontend/focus-flow/dist
+
+      - name: Restart services
+        run: |
+          su - focusflow -c "pm2 restart focusflow-backend"
+          sudo systemctl reload nginx

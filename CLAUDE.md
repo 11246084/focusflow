@@ -130,7 +130,7 @@ DEMO_SEED_ENABLED=false
 
 重要邊界：
 
-- 共享 Atlas 在 2026-05-01 驗證時已沒有 `text_embedding_index`。若維持 `QA_VECTOR_SEARCH_MODE=atlas`，需先重建 index；否則 QA 會 fail-fast。
+- 共享 Atlas 的 `text_embedding_index` 狀態以實查為準：2026-05-01 曾驗證為不存在，但 2026-06-05 重新查證已存在且 `status=READY`（`video_segments_text`，3072 維，130 筆）。狀態請以連 Atlas 實查為準（不要憑文件斷言）。若哪天又查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
 - 本機無 API key smoke 可改成：
 
 ```env
@@ -254,7 +254,7 @@ npm run build
 
 ## 不能誤稱的邊界
 
-- 不能說目前共享 Atlas 的 atlas mode ready；`text_embedding_index` 已不存在，除非重建。
+- 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端頁面都已完整 API 串接；目前是整合中。
 - 不能說 YouTube Data API 自動上傳已完成；目前完成的是教師貼 YouTube URL。

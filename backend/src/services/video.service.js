@@ -1,7 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
-const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
+const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync, writeSync } = require('fs');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Course = require('../models/course.model');
@@ -25,6 +25,31 @@ const {
   buildCourseBridgeSummary,
   buildVideoBridgePresentation,
 } = require('./bridgeScope.service');
+
+// 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
+// Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
+function resolveSttPython(sttDir) {
+  const isWin = process.platform === 'win32';
+  const venvPython = isWin
+    ? path.join(sttDir, '.venv', 'Scripts', 'python.exe')
+    : path.join(sttDir, '.venv', 'bin', 'python');
+  if (existsSync(venvPython)) {
+    return venvPython;
+  }
+  // Rocky/Ubuntu 等 Linux 預設常只有 python3，沒有 python，故 fallback 也要分平台。
+  return isWin ? 'python' : 'python3';
+}
+
+// spawn 失敗時不要靜默吞掉，至少寫進 pipeline log，避免影片永遠卡在 queued。
+function attachSttSpawnErrorLogger(sttProcess, logFd, videoId) {
+  sttProcess.on('error', (err) => {
+    try {
+      writeSync(logFd, `\n[spawn error] video=${videoId} ${err.stack || err.message}\n`);
+    } catch {
+      /* ignore log write failure */
+    }
+  });
+}
 
 async function ensureCourseExists(courseId) {
   return getCourseByIdOrThrow(courseId);
@@ -170,8 +195,7 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
   }
 
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
-  const venvPython = path.join(sttDir, '.venv', 'Scripts', 'python.exe');
-  const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+  const pythonBin = resolveSttPython(sttDir);
   const logPath = path.join(sttDir, 'data', `pipeline_${video._id}.log`);
   mkdirSync(path.dirname(logPath), { recursive: true });
   const logFd = openSync(logPath, 'a');
@@ -194,6 +218,7 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
       CLEANUP_KEEP_CHECKPOINTS: 'false',
     },
   });
+  attachSttSpawnErrorLogger(sttProcess, logFd, video._id);
   sttProcess.unref();
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
@@ -260,8 +285,7 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
   // 優先使用 venv 內的 Python（已安裝 faster-whisper 等依賴），找不到則 fallback 到系統 python
-  const venvPython = path.join(sttDir, '.venv', 'Scripts', 'python.exe');
-  const pythonBin = existsSync(venvPython) ? venvPython : 'python';
+  const pythonBin = resolveSttPython(sttDir);
   const logPath = path.join(sttDir, 'data', `pipeline_${video._id}.log`);
   mkdirSync(path.dirname(logPath), { recursive: true });
   const logFd = openSync(logPath, 'a');
@@ -284,6 +308,7 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
       CLEANUP_KEEP_CHECKPOINTS: 'false',
     },
   });
+  attachSttSpawnErrorLogger(sttProcess, logFd, video._id);
   sttProcess.unref();
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {

@@ -1,0 +1,196 @@
+
+<style>
+.gantt-wrap { padding: 8px 0; font-size: 13px; color: var(--color-text-primary); }
+.gantt-header { display: grid; grid-template-columns: 130px repeat(20, 1fr); gap: 0; margin-bottom: 4px; }
+.gantt-header-label { font-size: 11px; color: var(--color-text-secondary); text-align: center; padding: 2px 0; }
+.week-label { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); text-align: center; grid-column: span 5; border-left: 1px solid var(--color-border-tertiary); padding-bottom: 4px; }
+.gantt-section { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 4px; padding-left: 4px; }
+.gantt-row { display: grid; grid-template-columns: 130px repeat(20, 1fr); align-items: center; gap: 0; min-height: 32px; border-top: 0.5px solid var(--color-border-tertiary); }
+.gantt-row:last-child { border-bottom: 0.5px solid var(--color-border-tertiary); }
+.task-name { font-size: 12px; color: var(--color-text-primary); padding: 4px 6px 4px 4px; line-height: 1.3; }
+.task-owner { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-top: 2px; }
+.bar-cell { height: 32px; display: flex; align-items: center; padding: 4px 0; }
+.bar { height: 18px; border-radius: 4px; width: 100%; }
+.blue  { background: #B5D4F4; }
+.teal  { background: #9FE1CB; }
+.amber { background: #FAC775; }
+.purple{ background: #CECBF6; }
+.milestone { width: 14px; height: 14px; border-radius: 2px; transform: rotate(45deg); margin: 0 auto; }
+.m-blue   { background: #185FA5; }
+.m-teal   { background: #0F6E56; }
+.m-amber  { background: #854F0B; }
+.m-purple { background: #534AB7; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; font-size: 12px; color: var(--color-text-secondary); }
+.leg-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+</style>
+<div class="gantt-wrap">
+
+<div class="gantt-header">
+  <div></div>
+  <div class="week-label">W1</div>
+  <div class="week-label">W2</div>
+  <div class="week-label">W3</div>
+  <div class="week-label">W4</div>
+</div>
+<div class="gantt-header">
+  <div></div>
+  <div class="gantt-header-label">M</div><div class="gantt-header-label">T</div><div class="gantt-header-label">W</div><div class="gantt-header-label">T</div><div class="gantt-header-label">F</div>
+  <div class="gantt-header-label">M</div><div class="gantt-header-label">T</div><div class="gantt-header-label">W</div><div class="gantt-header-label">T</div><div class="gantt-header-label">F</div>
+  <div class="gantt-header-label">M</div><div class="gantt-header-label">T</div><div class="gantt-header-label">W</div><div class="gantt-header-label">T</div><div class="gantt-header-label">F</div>
+  <div class="gantt-header-label">M</div><div class="gantt-header-label">T</div><div class="gantt-header-label">W</div><div class="gantt-header-label">T</div><div class="gantt-header-label">F</div>
+</div>
+
+<div class="gantt-section">A — 前端 (React/Vue)</div>
+
+<div class="gantt-row">
+  <div class="task-name">登入 + 角色路由<br><span class="task-owner blue" style="color:#0C447C;background:#E6F1FB">A</span></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar blue"></div></div>
+  <div style="grid-column: span 16"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">學生儀表板頁<br><span class="task-owner blue" style="color:#0C447C;background:#E6F1FB">A</span></div>
+  <div style="grid-column: span 3"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar blue"></div></div>
+  <div style="grid-column: span 12"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">教師上傳介面<br><span class="task-owner blue" style="color:#0C447C;background:#E6F1FB">A</span></div>
+  <div style="grid-column: span 5"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar blue"></div></div>
+  <div style="grid-column: span 11"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">管理者後台頁<br><span class="task-owner blue" style="color:#0C447C;background:#E6F1FB">A</span></div>
+  <div style="grid-column: span 8"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar blue"></div></div>
+  <div style="grid-column: span 8"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">整合測試 / UI修正<br><span class="task-owner blue" style="color:#0C447C;background:#E6F1FB">A</span></div>
+  <div style="grid-column: span 15"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar blue"></div></div>
+</div>
+
+<div class="gantt-section">B — 後端 API (Node.js)</div>
+
+<div class="gantt-row">
+  <div class="task-name">Auth + JWT + RBAC<br><span class="task-owner teal" style="color:#085041;background:#E1F5EE">B</span></div>
+  <div class="bar-cell" style="grid-column: span 3"><div class="bar teal"></div></div>
+  <div style="grid-column: span 17"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">課程 / 影片上傳 API<br><span class="task-owner teal" style="color:#085041;background:#E1F5EE">B</span></div>
+  <div style="grid-column: span 2"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar teal"></div></div>
+  <div style="grid-column: span 14"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">問答 + 檢索 API<br><span class="task-owner teal" style="color:#085041;background:#E1F5EE">B</span></div>
+  <div style="grid-column: span 5"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar teal"></div></div>
+  <div style="grid-column: span 10"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">Line Bot Webhook<br><span class="task-owner teal" style="color:#085041;background:#E1F5EE">B</span></div>
+  <div style="grid-column: span 8"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar teal"></div></div>
+  <div style="grid-column: span 7"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">API 整合測試<br><span class="task-owner teal" style="color:#085041;background:#E1F5EE">B</span></div>
+  <div style="grid-column: span 15"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar teal"></div></div>
+</div>
+
+<div class="gantt-section">C — AI / 影片處理</div>
+
+<div class="gantt-row">
+  <div class="task-name">Whisper STT 整合<br><span class="task-owner amber" style="color:#633806;background:#FAEEDA">C</span></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar amber"></div></div>
+  <div style="grid-column: span 16"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">LLM 切段 + embedding<br><span class="task-owner amber" style="color:#633806;background:#FAEEDA">C</span></div>
+  <div style="grid-column: span 3"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar amber"></div></div>
+  <div style="grid-column: span 12"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">FFmpeg 短影音剪輯<br><span class="task-owner amber" style="color:#633806;background:#FAEEDA">C</span></div>
+  <div style="grid-column: span 6"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar amber"></div></div>
+  <div style="grid-column: span 9"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">時間戳 + 跳轉連結<br><span class="task-owner amber" style="color:#633806;background:#FAEEDA">C</span></div>
+  <div style="grid-column: span 10"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar amber"></div></div>
+  <div style="grid-column: span 6"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">端對端 AI 測試<br><span class="task-owner amber" style="color:#633806;background:#FAEEDA">C</span></div>
+  <div style="grid-column: span 15"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar amber"></div></div>
+</div>
+
+<div class="gantt-section">D — 資料庫 / DevOps / Line Bot</div>
+
+<div class="gantt-row">
+  <div class="task-name">MongoDB Schema 設計<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div class="bar-cell" style="grid-column: span 3"><div class="bar purple"></div></div>
+  <div style="grid-column: span 17"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">Vector index 建立<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div style="grid-column: span 2"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar purple"></div></div>
+  <div style="grid-column: span 14"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">雲端部署 + CI 設定<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div style="grid-column: span 4"></div>
+  <div class="bar-cell" style="grid-column: span 4"><div class="bar purple"></div></div>
+  <div style="grid-column: span 12"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">Line Bot 綁定流程<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div style="grid-column: span 6"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar purple"></div></div>
+  <div style="grid-column: span 9"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">usage_logs + 系統監控<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div style="grid-column: span 10"></div>
+  <div class="bar-cell" style="grid-column: span 5"><div class="bar purple"></div></div>
+  <div style="grid-column: span 5"></div>
+</div>
+
+<div class="gantt-row">
+  <div class="task-name">正式環境壓測 / 上線<br><span class="task-owner purple" style="color:#3C3489;background:#EEEDFE">D</span></div>
+  <div style="grid-column: span 17"></div>
+  <div class="bar-cell" style="grid-column: span 3"><div class="bar purple"></div></div>
+</div>
+
+<div class="legend">
+  <span><span class="leg-dot" style="background:#B5D4F4"></span>A — 前端</span>
+  <span><span class="leg-dot" style="background:#9FE1CB"></span>B — 後端 API</span>
+  <span><span class="leg-dot" style="background:#FAC775"></span>C — AI / 影片</span>
+  <span><span class="leg-dot" style="background:#CECBF6"></span>D — DB / DevOps / Line Bot</span>
+</div>
+</div>

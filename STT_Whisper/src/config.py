@@ -25,6 +25,12 @@ class PipelineConfig:
     processed_audio_dir: Path
     # 輸出目錄路徑
     output_dir: Path
+    # 本次執行識別碼（由 Job Manager 建立）
+    run_id: str | None
+    # 本次執行的正式版本輸出目錄
+    run_output_dir: Path | None
+    # 頂層 latest 相容輸出目錄
+    active_output_dir: Path
     # 緩存目錄路徑
     cache_dir: Path
     # 轉錄緩存目錄路徑
@@ -186,6 +192,9 @@ class PipelineConfig:
             data_dir=data_dir,
             processed_audio_dir=processed_audio_dir,
             output_dir=output_dir,
+            run_id=None,
+            run_output_dir=None,
+            active_output_dir=output_dir,
             cache_dir=cache_dir,
             transcript_cache_dir=transcript_cache_dir,
             video_multimodal_chunk_dir=video_multimodal_chunk_dir,
@@ -302,6 +311,11 @@ class PipelineConfig:
         ensure_directory(self.processed_audio_dir)
         # 確保輸出目錄存在
         ensure_directory(self.output_dir)
+        # 若已建立 run，確保正式版本輸出目錄存在
+        if self.run_output_dir is not None:
+            ensure_directory(self.run_output_dir)
+        # 確保 latest 相容輸出目錄存在
+        ensure_directory(self.active_output_dir)
         # 確保緩存目錄存在
         ensure_directory(self.cache_dir)
         # 確保轉錄緩存目錄存在

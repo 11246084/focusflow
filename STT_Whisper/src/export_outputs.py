@@ -113,9 +113,8 @@ def export_all_outputs(
     audio_embeddings: list[AudioEmbeddingRecord],
     config: PipelineConfig,
 ) -> dict[str, Path]:
-    """Export every standardized artifact required by the downstream team."""
-    # 返回包含所有導出路徑的字典
-    return {
+    """Export versioned run artifacts, then refresh top-level compatibility copies."""
+    output_paths = {
         # 導出視頻元數據
         "videos": export_videos(videos, config.output_dir, config.backup_existing_outputs),
         # 導出轉錄文檔
@@ -141,3 +140,32 @@ def export_all_outputs(
             config.backup_existing_outputs,
         ),
     }
+
+    latest_dir = config.active_output_dir.resolve()
+    run_dir = config.output_dir.resolve()
+    if latest_dir != run_dir:
+        export_videos(videos, latest_dir, config.backup_existing_outputs)
+        export_transcripts(transcripts, latest_dir, config.backup_existing_outputs)
+        export_normalized_transcripts(
+            normalized_transcripts,
+            latest_dir / "transcripts_normalized.json",
+            config.backup_existing_outputs,
+        )
+        export_chunks(
+            chunks,
+            latest_dir / "chunks.jsonl",
+            config.backup_existing_outputs,
+        )
+        export_text_embeddings(
+            text_embeddings,
+            latest_dir / "embeddings_text_gemini.jsonl",
+            config.backup_existing_outputs,
+        )
+        export_audio_embeddings(
+            audio_embeddings,
+            latest_dir / "embeddings_audio_gemini.jsonl",
+            config.backup_existing_outputs,
+        )
+        logger.info("Updated latest compatibility outputs in %s", latest_dir)
+
+    return output_paths

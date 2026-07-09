@@ -10,19 +10,23 @@ import sys
 import urllib.request
 import wave
 from pathlib import Path
+from typing import Callable, TypeVar
 
 from chunking import build_chunks
 from config import PipelineConfig
 from embedding import embed_audio_tracks, embed_chunks
 from export_outputs import export_all_outputs
 from extract_audio import extract_audio_for_videos
+from job_manager import JobManager, create_manifest
 from normalize_transcript import normalize_transcripts
-from scan_videos import scan_videos
+from run_summary import write_run_summary, write_upload_summary
+from scan_videos import discover_video_files, scan_videos
 from transcribe import transcribe_videos
 from utils import VideoMetadata, configure_logging, ensure_directory
 
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 def find_ffmpeg_location() -> str | None:
@@ -151,22 +155,26 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
         overrides["video_input_dir"] = video_path.parent
     if args.video_id is not None:
         overrides["target_video_id"] = args.video_id
-
-        # Backend-triggered uploads can run in parallel. Keep each run's
-        # artifacts isolated so JSON/JSONL exports and MongoDB uploads do not
-        # overwrite another video's in-flight outputs.
-        run_output_dir = (args.project_root / "data" / "outputs" / "runs" / args.video_id).resolve()
-        overrides["output_dir"] = run_output_dir
-        overrides["normalized_transcript_output_path"] = run_output_dir / "transcripts_normalized.json"
-        overrides["chunks_output_path"] = run_output_dir / "chunks.jsonl"
-        overrides["text_embeddings_output_path"] = run_output_dir / "embeddings_text_gemini.jsonl"
-        overrides["audio_embeddings_output_path"] = run_output_dir / "embeddings_audio_gemini.jsonl"
-        overrides["video_embeddings_output_path"] = run_output_dir / "embeddings_video_gemini.jsonl"
     if args.youtube_url is not None:
         overrides["youtube_url"] = args.youtube_url
 
     # 如果有覆蓋項，應用覆蓋並返回新配置，否則返回原配置
     return config.with_overrides(**overrides) if overrides else config
+
+
+def bind_run_output(config: PipelineConfig, job_manager: JobManager) -> PipelineConfig:
+    """Point every standard artifact at the Job Manager's versioned run directory."""
+    run_output_dir = job_manager.manifest_path.parent.resolve()
+    return config.with_overrides(
+        run_id=job_manager.run_id,
+        run_output_dir=run_output_dir,
+        output_dir=run_output_dir,
+        normalized_transcript_output_path=run_output_dir / "transcripts_normalized.json",
+        chunks_output_path=run_output_dir / "chunks.jsonl",
+        text_embeddings_output_path=run_output_dir / "embeddings_text_gemini.jsonl",
+        audio_embeddings_output_path=run_output_dir / "embeddings_audio_gemini.jsonl",
+        video_embeddings_output_path=run_output_dir / "embeddings_video_gemini.jsonl",
+    )
 
 
 def notify_backend(config, video_id: str, endpoint: str, body: dict | None = None) -> None:
@@ -233,7 +241,7 @@ def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[s
         cleanup_targets.append(config.project_root / video.audio_path)
         cleanup_targets.append(config.transcript_cache_dir / f"{video.video_id}.json")
 
-    if not config.cleanup_keep_checkpoints:
+    if not config.cleanup_keep_checkpoints and config.run_output_dir is None:
         for output_path in output_paths.values():
             cleanup_targets.append(output_path)
             cleanup_targets.append(output_path.with_suffix(output_path.suffix + ".bak"))
@@ -286,7 +294,75 @@ def download_youtube_audio(youtube_url: str, output_path: Path) -> None:
     logger.info("Downloaded YouTube audio -> %s", output_path)
 
 
-def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict[str, Path], list]:
+def _register_videos(job_manager: JobManager, videos: list[VideoMetadata]) -> None:
+    for video in videos:
+        job_manager.add_video(video.video_id, video.file_name, video.file_path)
+
+
+def _build_scan_placeholders(config: PipelineConfig, limit: int | None) -> list[VideoMetadata]:
+    """Register predictable local video IDs before duration probing starts."""
+    if config.target_video_path is not None:
+        video_paths = [config.target_video_path]
+    else:
+        video_paths = discover_video_files(config.video_input_dir, config.supported_video_extensions)
+        if limit is not None:
+            video_paths = video_paths[:limit]
+
+    placeholders: list[VideoMetadata] = []
+    for index, video_path in enumerate(video_paths, start=1):
+        video_id = (
+            config.target_video_id
+            if config.target_video_id and len(video_paths) == 1
+            else f"video_{index:03d}"
+        )
+        try:
+            file_path = video_path.resolve().relative_to(config.project_root.resolve()).as_posix()
+        except ValueError:
+            file_path = video_path.resolve().as_posix()
+        placeholders.append(
+            VideoMetadata(
+                video_id=video_id,
+                file_name=video_path.name,
+                file_path=file_path,
+                audio_path="",
+                duration_sec=0.0,
+                course_name=None,
+                week=None,
+                lesson=None,
+            )
+        )
+    return placeholders
+
+
+def _run_tracked_stage(
+    job_manager: JobManager,
+    videos: list[VideoMetadata],
+    stage_name: str,
+    action: Callable[[], T],
+) -> T:
+    """Run one batch operation while recording the same stage for every video."""
+    for video in videos:
+        job_manager.start_stage(video.video_id, stage_name)
+
+    try:
+        result = action()
+    except Exception as exc:
+        for video in videos:
+            job_manager.fail_stage(video.video_id, stage_name, exc)
+            job_manager.fail_video(video.video_id, exc)
+        job_manager.fail_run(exc)
+        raise
+
+    for video in videos:
+        job_manager.complete_stage(video.video_id, stage_name)
+    return result
+
+
+def run_pipeline(
+    config: PipelineConfig,
+    job_manager: JobManager,
+    limit: int | None = None,
+) -> tuple[dict[str, Path], list]:
     """Execute the full local pipeline from video scan to export."""
     # 記錄管道開始
     logger.info("Starting FocusFlow AI pipeline")
@@ -301,13 +377,36 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict
         video_id = config.target_video_id or "youtube_unknown"
         audio_rel_posix = f"data/processed_audio/{video_id}.wav"
         audio_abs = (config.project_root / audio_rel_posix).resolve()
+        videos = [
+            VideoMetadata(
+                video_id=video_id,
+                file_name="",
+                file_path="",
+                audio_path=audio_rel_posix,
+                duration_sec=0.0,
+                course_name=None,
+                week=None,
+                lesson=None,
+                video_source="youtube",
+                video_url=config.youtube_url,
+            )
+        ]
+        _register_videos(job_manager, videos)
+        job_manager.skip_stage(video_id, "scan")
 
-        if not audio_abs.exists() or config.overwrite_existing:
-            download_youtube_audio(config.youtube_url, audio_abs)
-        else:
-            logger.info("Reusing existing YouTube audio for %s", video_id)
-        duration_sec = get_wav_duration_sec(audio_abs)
+        def prepare_youtube_audio() -> float:
+            if not audio_abs.exists() or config.overwrite_existing:
+                download_youtube_audio(config.youtube_url, audio_abs)
+            else:
+                logger.info("Reusing existing YouTube audio for %s", video_id)
+            return get_wav_duration_sec(audio_abs)
 
+        duration_sec = _run_tracked_stage(
+            job_manager,
+            videos,
+            "extract_audio",
+            prepare_youtube_audio,
+        )
         videos = [
             VideoMetadata(
                 video_id=video_id,
@@ -324,7 +423,14 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict
         ]
     else:
         # 本地檔案模式：步驟 1 掃描視頻並構建標準化元數據
-        videos = scan_videos(config)
+        scan_placeholders = _build_scan_placeholders(config, limit)
+        _register_videos(job_manager, scan_placeholders)
+        videos = _run_tracked_stage(
+            job_manager,
+            scan_placeholders,
+            "scan",
+            lambda: scan_videos(config),
+        )
 
         # 如果指定了限制，只處理前 N 個視頻
         if limit is not None:
@@ -338,27 +444,64 @@ def run_pipeline(config: PipelineConfig, limit: int | None = None) -> tuple[dict
                 "Place .mp4/.mov/.mkv files there and rerun the pipeline."
             )
 
+        _register_videos(job_manager, videos)
+
         # 步驟 2：提取 Whisper 兼容的音頻
-        extract_audio_for_videos(videos, config)
+        _run_tracked_stage(
+            job_manager,
+            videos,
+            "extract_audio",
+            lambda: extract_audio_for_videos(videos, config),
+        )
     # 步驟 3：運行 faster-whisper STT
-    transcripts = transcribe_videos(videos, config)
-    # 步驟 4：在搜索分塊前標準化技術術語
-    normalized_transcripts = normalize_transcripts(transcripts, config)
-    # 步驟 5：將標準化轉錄段合併為搜索塊
-    chunks = build_chunks(videos, normalized_transcripts, config)
-    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
-    text_embeddings = embed_chunks(chunks, config)
-    # 步驟 7：直接從提取的音頻文件生成 Gemini 音頻嵌入
-    audio_embeddings = embed_audio_tracks(videos, config)
-    # 步驟 8：導出 JSON 和 JSONL 文件供下游團隊使用
-    output_paths = export_all_outputs(
+    transcripts = _run_tracked_stage(
+        job_manager,
         videos,
-        transcripts,
-        normalized_transcripts,
-        chunks,
-        text_embeddings,
-        audio_embeddings,
-        config,
+        "transcribe",
+        lambda: transcribe_videos(videos, config),
+    )
+    # 步驟 4：在搜索分塊前標準化技術術語
+    normalized_transcripts = _run_tracked_stage(
+        job_manager,
+        videos,
+        "normalize",
+        lambda: normalize_transcripts(transcripts, config),
+    )
+    # 步驟 5：將標準化轉錄段合併為搜索塊
+    chunks = _run_tracked_stage(
+        job_manager,
+        videos,
+        "chunk",
+        lambda: build_chunks(videos, normalized_transcripts, config),
+    )
+    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
+    text_embeddings = _run_tracked_stage(
+        job_manager,
+        videos,
+        "text_embedding",
+        lambda: embed_chunks(chunks, config),
+    )
+    # 步驟 7：直接從提取的音頻文件生成 Gemini 音頻嵌入
+    audio_embeddings = _run_tracked_stage(
+        job_manager,
+        videos,
+        "audio_embedding",
+        lambda: embed_audio_tracks(videos, config),
+    )
+    # 步驟 8：導出 JSON 和 JSONL 文件供下游團隊使用
+    output_paths = _run_tracked_stage(
+        job_manager,
+        videos,
+        "export",
+        lambda: export_all_outputs(
+            videos,
+            transcripts,
+            normalized_transcripts,
+            chunks,
+            text_embeddings,
+            audio_embeddings,
+            config,
+        ),
     )
 
     # 記錄管道完成統計
@@ -382,43 +525,112 @@ def main() -> int:
     config = build_runtime_config(args)
     # 配置日誌記錄
     configure_logging(config.log_level)
+    job_manager = create_manifest(config.project_root / "data" / "outputs" / "runs")
+    config = bind_run_output(config, job_manager)
+    logger.info(
+        "Pipeline run initialized: run_id=%s run_output_dir=%s",
+        config.run_id,
+        config.run_output_dir,
+    )
 
     # 通知後端：STT 開始處理（狀態 queued → processing）
     notify_backend(config, args.video_id, "start")
 
     # 嘗試運行管道
     try:
-        output_paths, pipeline_videos = run_pipeline(config, limit=args.limit)
+        output_paths, pipeline_videos = run_pipeline(config, job_manager, limit=args.limit)
+
+        # Pipeline 完成後自動上傳結果到 MongoDB
+        print("\nStarting MongoDB upload...")
+        import mongodb_uploader
+
+        def upload_to_mongodb() -> None:
+            try:
+                if not mongodb_uploader.upload_all(config):
+                    raise RuntimeError("MongoDB upload failed.")
+            except Exception as exc:
+                write_upload_summary(config.run_output_dir, job_manager.run_id, "failed", exc)
+                raise
+            write_upload_summary(config.run_output_dir, job_manager.run_id, "completed")
+
+        _run_tracked_stage(
+            job_manager,
+            pipeline_videos,
+            "mongodb_upload",
+            upload_to_mongodb,
+        )
+
+        cleanup_after_successful_upload(config, output_paths, pipeline_videos)
+
+        # 通知後端：處理全部完成（狀態 processing → completed）
+        external_video_id = pipeline_videos[0].video_id if pipeline_videos else None
+        duration_sec = pipeline_videos[0].duration_sec if pipeline_videos else None
+        if args.video_id and config.backend_url and config.processing_webhook_secret:
+            _run_tracked_stage(
+                job_manager,
+                pipeline_videos,
+                "backend_webhook",
+                lambda: notify_backend(config, args.video_id, "complete", {
+                    "externalVideoId": external_video_id,
+                    "durationSec": duration_sec,
+                }),
+            )
+        else:
+            for video in pipeline_videos:
+                job_manager.skip_stage(video.video_id, "backend_webhook")
+
+        for video in pipeline_videos:
+            job_manager.complete_video(video.video_id)
+        job_manager.complete_run()
+        write_run_summary(
+            config.run_output_dir,
+            job_manager.run_id,
+            "completed",
+            job_manager.manifest["created_at"],
+        )
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
         logger.exception("Pipeline failed: %s", exc)
-        notify_backend(config, args.video_id, "fail", {"errorMessage": str(exc)})
+        registered_video_ids = [video["video_id"] for video in job_manager.manifest["videos"]]
+        webhook_configured = bool(
+            args.video_id and config.backend_url and config.processing_webhook_secret
+        )
+        if webhook_configured and registered_video_ids:
+            for video_id in registered_video_ids:
+                job_manager.start_stage(video_id, "backend_webhook")
+            notify_backend(config, args.video_id, "fail", {"errorMessage": str(exc)})
+            for video_id in registered_video_ids:
+                job_manager.complete_stage(video_id, "backend_webhook")
+        else:
+            notify_backend(config, args.video_id, "fail", {"errorMessage": str(exc)})
+            for video_id in registered_video_ids:
+                job_manager.skip_stage(video_id, "backend_webhook")
+
+        for video_id in registered_video_ids:
+            job_manager.fail_video(video_id, exc)
+        job_manager.fail_run(exc)
+        if not (config.run_output_dir / "upload_summary.json").exists():
+            write_upload_summary(
+                config.run_output_dir,
+                job_manager.run_id,
+                "skipped",
+                "MongoDB upload was not completed for this run.",
+            )
+        write_run_summary(
+            config.run_output_dir,
+            job_manager.run_id,
+            "failed",
+            job_manager.manifest["created_at"],
+            exc,
+        )
         return 1
 
     # 打印成功消息和輸出路徑
     print("FocusFlow AI pipeline completed successfully.")
     for name, path in output_paths.items():
         print(f"{name}: {path}")
-
-    # Pipeline 完成後自動上傳結果到 MongoDB
-    print("\nStarting MongoDB upload...")
-    import mongodb_uploader
-    if not mongodb_uploader.upload_all(config):
-        logger.error("MongoDB upload failed.")
-        notify_backend(config, args.video_id, "fail", {"errorMessage": "MongoDB upload failed."})
-        return 1
-
-    cleanup_after_successful_upload(config, output_paths, pipeline_videos)
-
-    # 通知後端：處理全部完成（狀態 processing → completed）
-    # 同時傳入 pipeline 的 video_id（如 "video_001"），讓後端存到 Video 文件
-    # 建立 app Video._id 與 video_segments_text.video_id 的對應關係
-    external_video_id = pipeline_videos[0].video_id if pipeline_videos else None
-    duration_sec = pipeline_videos[0].duration_sec if pipeline_videos else None
-    notify_backend(config, args.video_id, "complete", {
-        "externalVideoId": external_video_id,
-        "durationSec": duration_sec,
-    })
+    print(f"manifest: {job_manager.manifest_path}")
+    print(f"run_summary: {config.run_output_dir / 'run_summary.json'}")
 
     # 返回成功退出碼 0
     return 0

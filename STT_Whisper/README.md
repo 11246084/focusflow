@@ -585,3 +585,47 @@ STT_Whisper/data/pipeline_<videoId>.log
 ```
 
 如果 backend 觸發 STT 時使用到系統 Python，而不是 `.venv`，通常代表 `.venv` 沒有建在 `STT_Whisper/` 底下。
+
+## Phase 2 - Pipeline Job Manager
+
+每次執行 `src/main.py` 都會建立一個獨立的 run manifest：
+
+```text
+data/outputs/runs/<run_id>/manifest.json
+```
+
+`run_id` 使用 `run_YYYYMMDD_HHMMSS` 格式識別一次 pipeline 執行；同一秒若有多個 run，會自動加上流水號避免互相覆寫。Manifest 會記錄整體 run、每支影片，以及 `scan`、`extract_audio`、`transcribe`、`normalize`、`chunk`、`text_embedding`、`audio_embedding`、`export`、`mongodb_upload`、`backend_webhook` 各 stage 的狀態與時間。
+
+要查看某支影片目前處理到哪裡，可開啟該 run 的 `manifest.json`，找到對應 `video_id`，查看：
+
+- `status`：影片整體狀態。
+- `current_stage`：目前或最後執行的 stage。
+- `stages.<stage_name>.status`：該 stage 是 `pending`、`running`、`completed`、`failed` 或 `skipped`。
+- `started_at`、`ended_at`、`error`：處理時間與失敗原因。
+
+Manifest 會在每次狀態改變時以 UTF-8 原子寫入，降低執行中斷造成 JSON 損壞的風險。這套紀錄是未來 Resume／Retry 的基礎；目前版本只記錄狀態，**尚未實作 Resume 或 Retry**。
+
+## Phase 2 - Run / Output Version Management
+
+Job Manager 建立 `run_id` 後，本次執行的正式輸出會集中在同一個版本目錄：
+
+```text
+data/outputs/runs/<run_id>/
+├─ manifest.json
+├─ videos.json
+├─ transcripts.json
+├─ transcripts_normalized.json
+├─ chunks.jsonl
+├─ embeddings_text_gemini.jsonl
+├─ embeddings_audio_gemini.jsonl
+├─ upload_summary.json
+└─ run_summary.json
+```
+
+- `manifest.json`：記錄 run、影片及各 stage 的即時狀態與錯誤。
+- `run_summary.json`：記錄 run 最終狀態、輸出檔名與各類資料筆數；失敗或缺檔時以 0 計數，不會因 partial output 中斷。
+- `upload_summary.json`：記錄本次 MongoDB upload 的完成、失敗或未執行狀態。
+- `data/outputs/` 頂層標準檔案：維持舊流程使用的 latest compatibility copy。
+- `data/outputs/runs/<run_id>/`：Phase 2 後正式、可追蹤與可回溯的批次資料來源。
+
+舊有 `bak/`、deprecated 資料及歷史輸出不會自動搬移或刪除。這套版本管理是未來 Resume／Retry 的資料基礎；目前仍**尚未實作 Resume 或 Retry**。

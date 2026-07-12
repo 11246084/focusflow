@@ -46,7 +46,10 @@ function mergeTopSegmentsByDisplayVideo(topSegments) {
   const grouped = new Map();
 
   for (const item of topSegments) {
-    const groupKey = `${item.courseName}:${item.videoId || item.videoTitle || item.segmentId}`;
+    // 已下架內容以課程為單位合併成一列，避免多個孤兒 segment 佔滿版面。
+    const groupKey = item.contentMissing
+      ? `${item.courseName}:__content_missing__`
+      : `${item.courseName}:${item.videoId || item.videoTitle || item.segmentId}`;
     const current = grouped.get(groupKey);
 
     if (!current) {
@@ -150,7 +153,9 @@ async function getTeacherDashboardStats(user) {
     updatedAt: video.updatedAt,
   }));
 
-  // Top Segments 是「該補強什麼」的 actionable 列表 — 過濾掉指向已刪除影片的歷史紀錄。
+  // Top Segments 是「該補強什麼」的 actionable 列表。
+  // 指向已刪除影片的歷史紀錄優先 fallback 到該課程現存影片；課程已無現存影片時
+  // 不能整列丟掉（會讓整個課程從統計消失），改標 contentMissing 讓前端顯示「內容已下架」。
   const rawTopSegments = await Promise.all(
     topSegmentsAgg.map(async (item) => {
       const parsed = parseSegmentIdentifier(item._id);
@@ -158,15 +163,12 @@ async function getTeacherDashboardStats(user) {
       const video = await findVideoForSegment(segment, parsed?.videoId);
       const displayVideo = video || getCourseFallbackVideo(videos, item.courseId);
 
-      if (!displayVideo) {
-        return null;
-      }
-
       return {
         segmentId: item._id,
         text: segment?.text ? segment.text.slice(0, 120) : null,
-        videoId: String(displayVideo._id),
-        videoTitle: getVideoTitle(displayVideo),
+        videoId: displayVideo ? String(displayVideo._id) : null,
+        videoTitle: displayVideo ? getVideoTitle(displayVideo) : null,
+        contentMissing: !displayVideo,
         startSec: segment?.startSec ?? null,
         endSec: segment?.endSec ?? null,
         courseName: courseMap[String(item.courseId)] || '未知課程',
@@ -174,7 +176,7 @@ async function getTeacherDashboardStats(user) {
       };
     }),
   );
-  const topSegments = mergeTopSegmentsByDisplayVideo(rawTopSegments.filter(Boolean));
+  const topSegments = mergeTopSegmentsByDisplayVideo(rawTopSegments);
 
   return {
     coursesCount: courses.length,

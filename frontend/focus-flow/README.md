@@ -42,11 +42,12 @@ Copy-Item .env.example .env
 
 ## 主要頁面行為（2026-05-07 更新）
 
-- **TeacherUpload**：支援「上傳檔案 / YouTube 連結」切換；移除 `uploadDone` 鎖，前一支處理中也能切 tab、貼新 URL、選新檔案；POST 成功後自動清空輸入欄位；主上傳按鈕文字隨狀態切換（「開始上傳並建立 AI 索引」/「上傳中...」/「繼續上傳下一支影片」）；POST 成功後將回傳的 `videoId` 寫入 `localStorage`，使用者離開或重整頁面再回到上傳頁時會自動恢復處理進度輪詢（`GET /api/v1/videos/:videoId/processing`），完成或失敗後再清除該 key
-- **TeacherCourses**：課程列表加刪除按鈕 + cascade 確認 modal；CREATE 表單不顯示 `archived` 選項
+- **TeacherUpload**：2026-07-12 起收斂為**單一上傳軌道（本地檔案）**，移除 YouTube URL tab（後端 `POST /courses/:courseId/videos/youtube` API 保留，僅 UI 不露出）；上傳後系統自動跑 STT + 向量索引，後端設定 YouTube 憑證時亦自動上傳 YouTube。移除 `uploadDone` 鎖，前一支處理中也能選新檔案；POST 成功後自動清空輸入欄位；主上傳按鈕文字隨狀態切換（「開始上傳並建立 AI 索引」/「上傳中...」/「繼續上傳下一支影片」）；POST 成功後將回傳的 `videoId` 寫入 `localStorage`，使用者離開或重整頁面再回到上傳頁時會自動恢復處理進度輪詢（`GET /api/v1/videos/:videoId/processing`），完成或失敗後再清除該 key
+- **TeacherCourses**：課程列表加刪除按鈕 + cascade 確認 modal；CREATE 表單不顯示 `archived` 選項；2026-07-12 新增「掛載既有影片」modal（`POST /courses/:courseId/videos/:videoId/attach`），掛載進來的影片顯示「掛載」badge 與「解除」按鈕（detach，不刪影片本身）
 - **AdminCourses**：CourseModal 僅在編輯既有課程時顯示 `archived` 選項
 - **StudentCourses**：`resolveVideoPlayback()` 統一解析 `youtubeVideoId` / `youtube_video_id` / `videoUrl` / `sourceUrl`，YouTube 一律用 IFrame API 播放並支援 QA timestamp `seekTo`；metadata-only / QA-only 影片不再 fallback `/uploads`；`YouTubePlayer` 用 React-owned wrapper 承接 iframe，避免切頁 / 切影片時 React root 黑屏。新增 watch 標記：mp4 `<video>` 透過 `onTimeUpdate ≥ 80%` 或 `onEnded` 觸發 `POST /api/v1/courses/:courseId/videos/:videoId/watched`；YouTube IFrame 透過 `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%` 觸發；`watchedMarkedRef` Set 確保同一 video session 只 POST 一次，後端首次觀看會寫 `UsageLog event=WATCH` 並更新 `Enrollment.progress`
 - **StudentDashboard**：Recent Queries 帶 `contentMissing` 旗標時顯示「內容已下架」badge（藍色）
+- **TeacherDashboard**：Top Queried Segments 帶 `contentMissing` 旗標的列顯示「已刪除影片的提問」+「內容已下架」badge（2026-07-12，修老師 #13 中文課程統計消失）
 - **AdminOverview**：Total Users 描述補 `adminCount`
 - **AdminStats**：Recent Events COURSE 欄位 — 課程被刪時 dim 顯示；`contentMissing` 時加「內容已下架」inline badge
 

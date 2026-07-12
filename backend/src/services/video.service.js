@@ -12,6 +12,7 @@ const { VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
 const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
+const { scheduleYouTubeAutoUpload } = require('./youtubeUpload.service');
 const {
   assertCanAccessCourse,
   assertCanManageCourse,
@@ -110,8 +111,18 @@ async function resolveAccessibleVideoContext(videoId, user) {
   }
 
   if (Video.isAppOwnedRecord(video)) {
-    const course = await ensureCourseExists(video.courseId?._id || video.courseId);
-    await assertCanAccessCourse(user, course);
+    // 影片可掛載到多個課程：主課程無權限時，改找任一有權限且引用此影片的課程。
+    let course = null;
+    try {
+      const primaryCourse = await ensureCourseExists(video.courseId?._id || video.courseId);
+      await assertCanAccessCourse(user, primaryCourse);
+      course = primaryCourse;
+    } catch (primaryAccessError) {
+      course = await findAccessibleCourseReferencingVideo(video, user);
+      if (!course) {
+        throw primaryAccessError;
+      }
+    }
 
     return {
       video,
@@ -311,6 +322,9 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   attachSttSpawnErrorLogger(sttProcess, logFd, video._id);
   sttProcess.unref();
 
+  // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。
+  scheduleYouTubeAutoUpload(video);
+
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {
     courseId,
   });
@@ -363,9 +377,68 @@ async function deleteVideo(videoId, user) {
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
-  if (video.courseId) {
-    await Course.findByIdAndUpdate(video.courseId, { $pull: { videoIds: video._id } });
+  // 影片可能掛載到多個課程，從所有課程的 videoIds 清掉引用（含主課程）。
+  await Course.updateMany({}, { $pull: { videoIds: video._id } });
+}
+
+async function attachVideoToCourse({ courseId, videoId, user }) {
+  assertObjectId(courseId, 'course');
+  assertObjectId(videoId, 'video');
+
+  const course = await ensureCourseExists(courseId);
+  await assertCanManageCourse(user, course);
+
+  const video = await Video.findById(videoId);
+  if (!video || !Video.isAppOwnedRecord(video)) {
+    throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   }
+
+  // 只能掛載自己管得動的影片：需同時具備影片主課程的管理權限（或 admin）。
+  const primaryCourse = await ensureCourseExists(video.courseId?._id || video.courseId);
+  await assertCanManageCourse(user, primaryCourse);
+
+  if (String(primaryCourse._id) === String(course._id)) {
+    throw new AppError('Video already belongs to this course.', 409, 'DUPLICATE_VIDEO');
+  }
+
+  const alreadyAttached = (course.videoIds || [])
+    .some((existingId) => String(existingId) === String(video._id));
+  if (alreadyAttached) {
+    throw new AppError('Video is already attached to this course.', 409, 'DUPLICATE_VIDEO');
+  }
+
+  await Course.findByIdAndUpdate(courseId, { $addToSet: { videoIds: video._id } });
+
+  return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
+}
+
+async function detachVideoFromCourse({ courseId, videoId, user }) {
+  assertObjectId(courseId, 'course');
+  assertObjectId(videoId, 'video');
+
+  const course = await ensureCourseExists(courseId);
+  await assertCanManageCourse(user, course);
+
+  const video = await Video.findById(videoId);
+  if (!video) {
+    throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+  }
+
+  if (String(video.courseId?._id || video.courseId) === String(course._id)) {
+    throw new AppError(
+      'Cannot detach a video from its primary course. Delete the video instead.',
+      400,
+      'VALIDATION_ERROR',
+    );
+  }
+
+  const isAttached = (course.videoIds || [])
+    .some((existingId) => String(existingId) === String(video._id));
+  if (!isAttached) {
+    throw new AppError('Video is not attached to this course.', 404, 'VIDEO_NOT_FOUND');
+  }
+
+  await Course.findByIdAndUpdate(courseId, { $pull: { videoIds: video._id } });
 }
 
 module.exports = {
@@ -375,4 +448,6 @@ module.exports = {
   getVideoById,
   getVideoProcessingStatus,
   deleteVideo,
+  attachVideoToCourse,
+  detachVideoFromCourse,
 };

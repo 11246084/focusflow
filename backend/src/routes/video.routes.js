@@ -21,6 +21,16 @@ router.post(
   videoController.createVideo,
 );
 router.get('/courses/:courseId/videos', videoController.listCourseVideos);
+router.post(
+  '/courses/:courseId/videos/:videoId/attach',
+  authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  videoController.attachVideo,
+);
+router.post(
+  '/courses/:courseId/videos/:videoId/detach',
+  authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  videoController.detachVideo,
+);
 router.get('/videos/:videoId', videoController.getVideoById);
 router.get('/videos/:videoId/processing', videoController.getVideoProcessing);
 router.post('/videos/:videoId/processing/retry', videoController.retryVideoProcessing);

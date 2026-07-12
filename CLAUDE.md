@@ -19,7 +19,7 @@
 
 **FocusFlow** 是 Phase 1 MVP 的 AI 教學影片問答系統：
 
-教師上傳影片或貼 YouTube URL → backend 觸發 STT pipeline → 產生文字片段與 embedding → 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。
+教師本地上傳影片（單一軌道，2026-07-12 起）→ backend 觸發 STT pipeline → 產生文字片段與 embedding（設定憑證時另自動上傳 YouTube）→ 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。貼 YouTube URL 的 API 保留但不在教師上傳頁露出。
 
 三個服務：
 
@@ -257,6 +257,6 @@ npm run build
 - 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端頁面都已完整 API 串接；目前是整合中。
-- 不能說 YouTube Data API 自動上傳已完成；目前完成的是教師貼 YouTube URL。
+- YouTube Data API 自動上傳：程式已實作（2026-07-12，`youtubeUpload.service.js`，feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉），但尚未以真實 OAuth 憑證做過 live 端對端驗證，不能說已完成驗證；教師貼 YouTube URL 仍是目前已驗證的主路徑。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
 - 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。

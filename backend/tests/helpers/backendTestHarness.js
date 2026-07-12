@@ -146,6 +146,21 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
     }
   }
 
+  if (update.$pull) {
+    for (const [key, value] of Object.entries(update.$pull)) {
+      const currentValue = getNested(target, key);
+
+      if (!Array.isArray(currentValue)) {
+        continue;
+      }
+
+      const removable = value && typeof value === 'object' && Array.isArray(value.$in)
+        ? value.$in.map(normalizeValue)
+        : [normalizeValue(value)];
+      setNested(target, key, currentValue.filter((item) => !removable.includes(normalizeValue(item))));
+    }
+  }
+
   if (update.$addToSet) {
     for (const [key, value] of Object.entries(update.$addToSet)) {
       const currentValue = getNested(target, key);
@@ -358,6 +373,21 @@ function installModelStubs() {
     return;
   }
 
+  // 測試不連真實 MongoDB；deleteVideo 會直接操作 raw collection（transcripts_normalized），
+  // 這裡給 mongoose.connection.db 一個 no-op stub 避免 500。
+  if (!mongoose.connection.db) {
+    Object.defineProperty(mongoose.connection, 'db', {
+      configurable: true,
+      get() {
+        return {
+          collection: () => ({
+            deleteMany: async () => ({ deletedCount: 0 }),
+          }),
+        };
+      },
+    });
+  }
+
   // Monkey-patch the mongoose models once so production services can run unchanged.
   User.findOne = async (query = {}) => store.users.find((item) => matchesQuery(item, query)) || null;
   User.findById = async (id) => findUserById(id);
@@ -456,6 +486,19 @@ function installModelStubs() {
     course.updatedAt = new Date().toISOString();
     return course;
   };
+  Course.updateMany = async (query, update) => {
+    const courses = store.courses.filter((item) => matchesQuery(item, query));
+
+    for (const course of courses) {
+      applyUpdate(course, update);
+      course.updatedAt = new Date().toISOString();
+    }
+
+    return {
+      matchedCount: courses.length,
+      modifiedCount: courses.length,
+    };
+  };
 
   Video.create = async (payload) => {
     const video = {
@@ -474,6 +517,16 @@ function installModelStubs() {
     options,
   );
   Video.deleteMany = async (query = {}) => deleteManyInStore(store.videos, query);
+  Video.deleteOne = async (query = {}) => {
+    const index = store.videos.findIndex((item) => matchesQuery(item, query));
+
+    if (index === -1) {
+      return { deletedCount: 0 };
+    }
+
+    store.videos.splice(index, 1);
+    return { deletedCount: 1 };
+  };
   Video.find = (query = {}) => createQuery(
     store.videos.filter((item) => matchesQuery(item, query)),
     {

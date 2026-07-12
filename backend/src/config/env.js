@@ -29,5 +29,10 @@ module.exports = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
+  youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
+  youtubeClientId: process.env.YOUTUBE_CLIENT_ID || '',
+  youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',
+  youtubeRefreshToken: process.env.YOUTUBE_REFRESH_TOKEN || '',
+  youtubeUploadPrivacy: process.env.YOUTUBE_UPLOAD_PRIVACY || 'unlisted',
   projectRoot,
 };

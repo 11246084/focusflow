@@ -3,6 +3,7 @@ const {
   VIDEO_SOURCE_TYPE_VALUES,
   VIDEO_SOURCE_TYPES,
   VIDEO_PROCESSING_STATUS_VALUES,
+  YOUTUBE_UPLOAD_STATUS_VALUES,
 } = require('../constants/enums');
 
 function hasValue(value) {
@@ -148,6 +149,29 @@ const videoSchema = new mongoose.Schema(
       type: String,
       default: null,
       trim: true,
+    },
+    // 本地上傳影片自動上傳 YouTube 的狀態；未啟用或 YouTube URL 影片為 null。
+    youtubeUpload: {
+      type: new mongoose.Schema(
+        {
+          status: {
+            type: String,
+            enum: YOUTUBE_UPLOAD_STATUS_VALUES,
+            required: true,
+          },
+          error: {
+            type: String,
+            default: null,
+            trim: true,
+          },
+          uploadedAt: {
+            type: Date,
+            default: null,
+          },
+        },
+        { _id: false },
+      ),
+      default: null,
     },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,

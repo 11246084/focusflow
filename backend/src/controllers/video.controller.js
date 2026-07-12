@@ -137,6 +137,30 @@ const deleteVideo = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Video deleted.' });
 });
 
+const attachVideo = asyncHandler(async (req, res) => {
+  const video = await videoService.attachVideoToCourse({
+    courseId: req.params.courseId,
+    videoId: req.params.videoId,
+    user: req.user,
+  });
+
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Video attached to course.',
+    data: { video },
+  });
+});
+
+const detachVideo = asyncHandler(async (req, res) => {
+  await videoService.detachVideoFromCourse({
+    courseId: req.params.courseId,
+    videoId: req.params.videoId,
+    user: req.user,
+  });
+
+  return sendSuccess(res, { message: 'Video detached from course.' });
+});
+
 module.exports = {
   createYouTubeVideo,
   createVideo,
@@ -145,6 +169,8 @@ module.exports = {
   getVideoProcessing,
   retryVideoProcessing,
   deleteVideo,
+  attachVideo,
+  detachVideo,
   startInternalVideoProcessing,
   completeInternalVideoProcessing,
   failInternalVideoProcessing,

@@ -1041,4 +1041,170 @@ describe('course and video routes', () => {
     assert.equal(invalidTransitionResult.status, 409);
     assert.equal(invalidTransitionResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
   });
+
+  it('教師可將自己的影片掛載到另一個自己的課程並出現在課程影片列表', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const attachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(attachResult.status, 201);
+    assert.equal(attachResult.body.success, true);
+
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos`,
+      { token: teacherToken },
+    );
+
+    assert.equal(listResult.status, 200);
+    assert.equal(
+      listResult.body.data.videos.some((video) => video._id === ids.publishedVideo),
+      true,
+      '掛載後課程影片列表應包含該影片',
+    );
+  });
+
+  it('重複掛載同一支影片回傳 409 DUPLICATE_VIDEO', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const attachPath = `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`;
+
+    await jsonRequest(serverContext.baseUrl, attachPath, { method: 'POST', token: teacherToken });
+    const duplicateResult = await jsonRequest(serverContext.baseUrl, attachPath, { method: 'POST', token: teacherToken });
+
+    assert.equal(duplicateResult.status, 409);
+    assert.equal(duplicateResult.body.error.code, 'DUPLICATE_VIDEO');
+  });
+
+  it('掛載影片到影片本身的主課程回傳 409 DUPLICATE_VIDEO', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const selfAttachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(selfAttachResult.status, 409);
+    assert.equal(selfAttachResult.body.error.code, 'DUPLICATE_VIDEO');
+  });
+
+  it('學生不可掛載影片', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const attachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: studentToken },
+    );
+
+    assert.equal(attachResult.status, 403);
+  });
+
+  it('教師不可掛載其他老師課程的影片', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const foreignVideoId = newObjectId();
+
+    store.videos.push({
+      _id: foreignVideoId,
+      courseId: ids.enrolledDraftCourse,
+      title: 'Foreign Teacher Video',
+      sourceType: 'upload',
+      sourceUrl: '/uploads/foreign.mp4',
+      uploadedBy: ids.otherTeacher,
+      processing: createProcessingState({ status: 'completed' }),
+      createdAt: '2026-04-07T09:00:00.000Z',
+      updatedAt: '2026-04-07T09:00:00.000Z',
+    });
+
+    const attachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${foreignVideoId}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(attachResult.status, 403);
+    assert.equal(attachResult.body.error.code, 'COURSE_MANAGE_DENIED');
+  });
+
+  it('可解除掛載影片，但不可從主課程解除', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    const detachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/detach`,
+      { method: 'POST', token: teacherToken },
+    );
+    assert.equal(detachResult.status, 200);
+
+    const listResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos`,
+      { token: teacherToken },
+    );
+    assert.equal(
+      listResult.body.data.videos.some((video) => video._id === ids.publishedVideo),
+      false,
+      '解除掛載後列表不應再包含該影片',
+    );
+
+    const primaryDetachResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/detach`,
+      { method: 'POST', token: teacherToken },
+    );
+    assert.equal(primaryDetachResult.status, 400);
+    assert.equal(primaryDetachResult.body.error.code, 'VALIDATION_ERROR');
+  });
+
+  it('刪除影片會從所有掛載課程的 videoIds 移除引用', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    const deleteResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token: teacherToken },
+    );
+    assert.equal(deleteResult.status, 200);
+
+    const teacherCourse = store.courses.find((course) => course._id === ids.teacherCourse);
+    const publishedCourse = store.courses.find((course) => course._id === ids.publishedCourse);
+    assert.equal(teacherCourse.videoIds.map(String).includes(ids.publishedVideo), false);
+    assert.equal(publishedCourse.videoIds.map(String).includes(ids.publishedVideo), false);
+  });
+
+  it('學生可對掛載到已發布課程的影片記錄觀看進度', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.teacherVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    const watchedResult = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.teacherVideo}/watched`,
+      { method: 'POST', token: studentToken },
+    );
+
+    assert.equal(watchedResult.status, 200);
+    assert.equal(watchedResult.body.data.videoId, ids.teacherVideo);
+  });
 });

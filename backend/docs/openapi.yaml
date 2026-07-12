@@ -603,6 +603,70 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
+  /api/v1/courses/{courseId}/videos/{videoId}/attach:
+    post:
+      tags:
+        - Videos
+      summary: 將既有影片掛載到另一個課程
+      description: |
+        僅限 teacher / admin。影片主課程仍記在 `video.courseId`，掛載透過 `course.videoIds` 引用。
+        呼叫者需同時可管理目標課程與影片主課程。掛載到主課程本身或重複掛載回 `409 DUPLICATE_VIDEO`。
+      operationId: attachVideoToCourse
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '201':
+          description: 掛載成功，回傳影片 bridge-aware 呈現資料
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBase'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: 影片已屬於此課程或已被掛載
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/courses/{courseId}/videos/{videoId}/detach:
+    post:
+      tags:
+        - Videos
+      summary: 解除影片在此課程的掛載
+      description: |
+        僅限 teacher / admin。只能解除「掛載」引用；影片的主課程（`video.courseId`）不可解除，
+        會回 `400 VALIDATION_ERROR`（主課程要移除影片請用 `DELETE /api/v1/videos/{videoId}`）。
+      operationId: detachVideoFromCourse
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 解除掛載成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBase'
+        '400':
+          description: ID 格式錯誤，或嘗試從主課程解除掛載
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
   /api/v1/videos/{videoId}:
     get:
       tags:

@@ -177,6 +177,11 @@ async function deleteCourse(courseId, user) {
     await VideoSegment.deleteMany({ videoId: segKey });
   }
   await Video.deleteMany({ courseId });
+  // 主課程刪除連同影片刪除後，清掉其他課程對這些影片的掛載引用。
+  const deletedVideoIds = videos.map((v) => v._id);
+  if (deletedVideoIds.length) {
+    await Course.updateMany({}, { $pull: { videoIds: { $in: deletedVideoIds } } });
+  }
   await Enrollment.deleteMany({ courseId });
 
   // 仍保留：清空 LINE 對話狀態（這是 runtime state，不是歷史紀錄）。
@@ -197,8 +202,13 @@ async function markVideoWatched({ user, courseId, videoId }) {
   if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
   await assertCanAccessCourse(user, course);
 
-  const video = await Video.findOne({ _id: videoId, courseId });
-  if (!video) throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
+  // 影片可能屬於主課程（video.courseId）或被此課程掛載（course.videoIds）。
+  const video = await Video.findById(videoId);
+  const isPrimaryCourseVideo = video && String(video.courseId) === String(courseId);
+  const isAttachedVideo = (course.videoIds || []).some((id) => String(id) === String(videoId));
+  if (!video || (!isPrimaryCourseVideo && !isAttachedVideo)) {
+    throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
+  }
 
   const enrollment = await ensureStudentEnrollment(user.id, courseId);
   const previousWatched = new Set((enrollment.watchedVideoIds || []).map(String));

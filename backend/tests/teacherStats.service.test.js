@@ -176,6 +176,46 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
     assert.equal(stats.topSegments.filter((item) => item.videoTitle === 'video 001 part 0006').length, 1);
   });
 
+  it('課程所有影片被刪除時仍以「內容已下架」保留在 top segments，不會整個課程消失', async () => {
+    const chineseCourseId = new mongoose.Types.ObjectId().toString();
+    const deletedVideoA = new mongoose.Types.ObjectId().toString();
+    const deletedVideoB = new mongoose.Types.ObjectId().toString();
+
+    store.courses.push({
+      _id: chineseCourseId,
+      title: '影像處理導論',
+      teacherId: ids.teacher,
+      status: 'published',
+      videoIds: [],
+    });
+
+    // 該課程沒有任何現存影片，segments 也已隨影片刪除，只剩 usage logs。
+    store.usageLogs.push(
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        event: 'ask',
+        courseId: chineseCourseId,
+        metadata: { topSegmentId: `${deletedVideoA}_chunk_0005` },
+        createdAt: '2026-05-06T10:00:00.000Z',
+      },
+      {
+        _id: new mongoose.Types.ObjectId().toString(),
+        event: 'ask',
+        courseId: chineseCourseId,
+        metadata: { topSegmentId: `${deletedVideoB}_chunk_0004` },
+        createdAt: '2026-05-06T10:05:00.000Z',
+      },
+    );
+
+    const stats = await getTeacherDashboardStats({ id: ids.teacher });
+    const missingRows = stats.topSegments.filter((item) => item.courseName === '影像處理導論');
+
+    assert.equal(missingRows.length, 1, '同課程的已下架 segment 應合併為一列');
+    assert.equal(missingRows[0].contentMissing, true);
+    assert.equal(missingRows[0].count, 2);
+    assert.equal(missingRows[0].videoId, null);
+  });
+
   it('sorts recent videos by creation time so the dashboard matches uploaded videos recency', async () => {
     const latestVideoId = new mongoose.Types.ObjectId().toString();
 

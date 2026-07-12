@@ -129,6 +129,7 @@
   - `src/scripts/syncQuestionsToAtlas.js` 可單獨同步 questions 到 Atlas（含 course 補齊與 local user → Atlas user 對應），但目前未掛 npm script
   - `npm run db:ensure-questions` 與 `npm run db:backfill-questions` 是 dangling scripts：`src/scripts/ensureQuestionsCollection.js`、`src/scripts/backfillQuestionsFromUsageLogs.js` 目前不存在，執行會失敗
 - OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，但尚未涵蓋 stats/admin 路由，也缺 courses/videos 的 PATCH/DELETE；API 清單暫以實際 route files 與 README 表格為準
+- FAQ 快取／常見問題資料庫（2026-07-13）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）——第一層正規化文字完全相同直接命中（零 token，連 embedding 都不算）；第二層以 query embedding 對課程 FAQ 做 cosine 相似度（預設門檻 0.95），命中則跳過向量搜尋與 LLM 生成。只快取 runtime ready 且不帶對話歷史的回答；命中仍照常寫 `usage_logs` 與 `questions`（runtime 帶 `faqCache.hit/matchType`，`answerProviderUsed=faq_cache`）。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`（依 hitCount 排序）、`DELETE /api/v1/courses/:courseId/faqs`（teacher/admin）。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充
 

@@ -3,6 +3,7 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Enrollment = require('../models/enrollment.model');
 const User = require('../models/user.model');
+const Faq = require('../models/faq.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const {
@@ -183,6 +184,7 @@ async function deleteCourse(courseId, user) {
     await Course.updateMany({}, { $pull: { videoIds: { $in: deletedVideoIds } } });
   }
   await Enrollment.deleteMany({ courseId });
+  await Faq.deleteMany({ courseId });
 
   // 仍保留：清空 LINE 對話狀態（這是 runtime state，不是歷史紀錄）。
   await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } });
@@ -216,9 +218,15 @@ async function markVideoWatched({ user, courseId, videoId }) {
   const watched = new Set(previousWatched);
   watched.add(String(videoId));
 
-  const courseVideoIds = (course.videoIds || []).map(String);
-  const totalVideos = courseVideoIds.length || 1;
-  const watchedInCourse = [...watched].filter((id) => courseVideoIds.includes(id));
+  // 進度分母 = 主課程影片（video.courseId）∪ 掛載影片（course.videoIds）。
+  // 只算 course.videoIds 會漏掉未掛載的主課程影片，看完仍顯示 0%。
+  const primaryVideos = await Video.find({ courseId }).select('_id').lean();
+  const courseVideoIdSet = new Set([
+    ...primaryVideos.map((item) => String(item._id)),
+    ...(course.videoIds || []).map(String),
+  ]);
+  const totalVideos = courseVideoIdSet.size || 1;
+  const watchedInCourse = [...watched].filter((id) => courseVideoIdSet.has(id));
   const progress = Math.min(100, Math.round((watchedInCourse.length / totalVideos) * 100));
 
   await Enrollment.findOneAndUpdate(

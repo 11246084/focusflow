@@ -26,6 +26,7 @@ const {
   buildCourseBridgeSummary,
   buildVideoBridgePresentation,
 } = require('./bridgeScope.service');
+const { clearFaqsForVideoCourses } = require('./faqCache.service');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -377,6 +378,8 @@ async function deleteVideo(videoId, user) {
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
+  // FAQ 快取的答案引用了這支影片的片段；趁課程引用還在時清掉相關課程的快取。
+  await clearFaqsForVideoCourses(video);
   // 影片可能掛載到多個課程，從所有課程的 videoIds 清掉引用（含主課程）。
   await Course.updateMany({}, { $pull: { videoIds: video._id } });
 }

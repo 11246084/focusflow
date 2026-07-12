@@ -667,6 +667,102 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
+  /api/v1/courses/{courseId}/faqs:
+    get:
+      tags:
+        - QA
+      summary: 取得課程常見問題（FAQ 快取）
+      description: |
+        回傳該課程的 FAQ 快取條目，依 `hitCount` 由高到低排序（預設 20 筆，`limit` 最大 100）。
+        條目由 QA 成功回答自動累積：重複提問會直接命中快取（跳過 embedding／向量搜尋／LLM），
+        `hitCount` 表示被重複命中的次數。不回傳 `questionEmbedding`。
+      operationId: listCourseFaqs
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 課程常見問題清單
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            question:
+                              type: string
+                            answer:
+                              type: string
+                            matches:
+                              type: array
+                              items:
+                                type: object
+                            hitCount:
+                              type: integer
+                            lastHitAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                            updatedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+    delete:
+      tags:
+        - QA
+      summary: 清空課程 FAQ 快取
+      description: |
+        僅限 teacher（課程擁有者）/ admin。清空後，下一次提問會重新走完整 QA 流程並重建快取。
+        影片刪除或重新處理完成時，backend 也會自動清該課程的 FAQ 快取。
+      operationId: clearCourseFaqs
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 已清空，回傳刪除筆數
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          deletedCount:
+                            type: integer
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
   /api/v1/videos/{videoId}:
     get:
       tags:

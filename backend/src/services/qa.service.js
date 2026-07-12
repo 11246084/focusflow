@@ -10,6 +10,13 @@ const { embedQuery } = require('./queryEmbedding.service');
 const { generateAnswer } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
 const { recordQuestion } = require('./questionRecording.service');
+const {
+  isFaqCacheEnabled,
+  findFaqByExactQuestion,
+  findFaqBySimilarEmbedding,
+  recordFaqHit,
+  saveFaqEntry,
+} = require('./faqCache.service');
 const { QUESTION_STATUSES, USAGE_LOG_EVENTS } = require('../constants/enums');
 const {
   normalizeSegment,
@@ -536,6 +543,76 @@ function buildQaRuntime({
   };
 }
 
+// FAQ 快取命中：直接以快取的答案/matches/clip 回應，
+// 只補記 usage log 與 question 紀錄，維持統計與歷史行為一致。
+async function respondFromFaqCache({
+  user,
+  course,
+  courseSummary,
+  runtimeSnapshot,
+  faq,
+  matchType,
+  similarity = null,
+  source,
+  trimmedQuestion,
+}) {
+  const hitFaq = await recordFaqHit(faq._id) || faq;
+  const matches = Array.isArray(faq.matches) ? faq.matches : [];
+
+  const runtime = buildQaRuntime({
+    runtimeSnapshot,
+    courseSummary,
+    // 命中時跳過 segment 載入，數量未知 → null（不是 0，避免誤判為無資料）
+    searchableSegmentCount: null,
+    matchStatus: 'matched',
+    searchDiagnostics: {
+      searchBackendUsed: 'faq_cache',
+      scoringMode: 'faq_cache',
+      fallbacks: [],
+    },
+    answerResult: { provider: 'faq_cache' },
+  });
+  runtime.faqCache = {
+    hit: true,
+    matchType,
+    similarity,
+    faqId: String(faq._id),
+    hitCount: hitFaq?.hitCount ?? faq.hitCount ?? 0,
+  };
+
+  const usageLog = await recordUsage({
+    userId: user.id,
+    courseId: course._id,
+    event: USAGE_LOG_EVENTS.ASK,
+    metadata: {
+      source,
+      question: trimmedQuestion,
+      matchCount: matches.length,
+      topSegmentId: matches[0]?.segmentId || null,
+      runtime,
+    },
+  });
+
+  await recordQuestion({
+    userId: user.id,
+    courseId: course._id,
+    question: trimmedQuestion,
+    answer: faq.answer,
+    status: QUESTION_STATUSES.ANSWERED,
+    source,
+    matches,
+    runtime,
+    sourceUsageLogId: usageLog?._id,
+  });
+
+  return {
+    answer: faq.answer,
+    matches,
+    clip: faq.clip || null,
+    runtime,
+  };
+}
+
 // Lightweight timing helper — 只在非測試環境吐出 log，方便診斷各階段瓶頸
 const QA_TIMING_ENABLED = process.env.NODE_ENV !== 'test' && process.env.QA_TIMING !== 'off';
 function qaTimingMark(label, startNs) {
@@ -564,14 +641,36 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   }
   tMark = qaTimingMark('course-lookup', tMark);
 
-  // 平行：權限檢查與 scoped videos 不互相依賴；access 失敗會 reject 並中斷後續
-  const [, scopedVideos] = await Promise.all([
+  const faqCacheEnabled = isFaqCacheEnabled();
+
+  // 平行：權限檢查、scoped videos、FAQ exact 查詢三者互不依賴；
+  // access 失敗會 reject 並中斷後續（FAQ 命中結果也不會外洩）
+  const [, scopedVideos, exactFaq] = await Promise.all([
     assertCanAccessCourse(user, course),
     collectScopedVideos(course),
+    faqCacheEnabled
+      ? findFaqByExactQuestion({ courseId: course._id, question: trimmedQuestion })
+      : Promise.resolve(null),
   ]);
   tMark = qaTimingMark(`access+videos (${scopedVideos.videos?.length || 0} videos)`, tMark);
 
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
+
+  // FAQ 快取第一層：正規化文字完全相同 → 零 token，直接回快取答案
+  if (exactFaq) {
+    const cachedResult = await respondFromFaqCache({
+      user,
+      course,
+      courseSummary,
+      runtimeSnapshot,
+      faq: exactFaq,
+      matchType: 'exact',
+      source,
+      trimmedQuestion,
+    });
+    qaTimingMark('faq-cache-exact-hit TOTAL', t0);
+    return cachedResult;
+  }
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
   tMark = qaTimingMark('build-segment-scope', tMark);
 
@@ -671,6 +770,29 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const queryVector = await embedQuery(trimmedQuestion);
   tMark = qaTimingMark('embed', tMark);
 
+  // FAQ 快取第二層：embedding 已算好，先跟課程 FAQ 比 cosine 相似度，
+  // 命中即跳過向量搜尋與 LLM 生成（miss 時 embedding 直接沿用，無額外成本）
+  if (faqCacheEnabled) {
+    const semanticHit = await findFaqBySimilarEmbedding({ courseId: course._id, queryVector });
+    tMark = qaTimingMark('faq-semantic-lookup', tMark);
+
+    if (semanticHit) {
+      const cachedResult = await respondFromFaqCache({
+        user,
+        course,
+        courseSummary,
+        runtimeSnapshot,
+        faq: semanticHit.faq,
+        matchType: 'semantic',
+        similarity: semanticHit.similarity,
+        source,
+        trimmedQuestion,
+      });
+      qaTimingMark('faq-cache-semantic-hit TOTAL', t0);
+      return cachedResult;
+    }
+  }
+
   const searchResult = env.qaVectorSearchMode === 'atlas'
     ? await searchSegmentsWithAtlas(segmentScope, queryVector)
     : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
@@ -741,6 +863,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     searchDiagnostics: searchResult.diagnostics,
     answerResult,
   });
+  runtime.faqCache = { hit: false, enabled: faqCacheEnabled };
 
   // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行
   const clipLogPromise = resultClip
@@ -766,7 +889,13 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     },
   });
 
-  // recordQuestion 與 clipLogPromise 平行收尾
+  // 只快取「乾淨」的回答：runtime 完全 ready（無任何 retrieval / answer fallback），
+  // 且不帶對話歷史（帶歷史的回答可能依賴上下文，快取後對其他人不成立）
+  const shouldSaveFaq = faqCacheEnabled
+    && !runtime.degraded
+    && !(Array.isArray(conversationHistory) && conversationHistory.length);
+
+  // recordQuestion、clipLogPromise 與 FAQ 快取寫入平行收尾
   await Promise.all([
     recordQuestion({
       userId: user.id,
@@ -780,6 +909,16 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       sourceUsageLogId: usageLog?._id,
     }),
     clipLogPromise,
+    shouldSaveFaq
+      ? saveFaqEntry({
+          courseId: course._id,
+          question: trimmedQuestion,
+          answer: answerResult.text,
+          matches,
+          clip: resultClip,
+          questionEmbedding: queryVector,
+        })
+      : Promise.resolve(),
   ]);
   tMark = qaTimingMark('writes (ASK + Question + CLIP_VIEW)', tMark);
 

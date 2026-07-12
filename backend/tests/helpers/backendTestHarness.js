@@ -23,6 +23,7 @@ const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
+const Faq = require('../../src/models/faq.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -38,6 +39,7 @@ const store = {
   usageLogs: [],
   questions: [],
   lineBindTokens: [],
+  faqs: [],
 };
 
 const ids = {
@@ -691,6 +693,17 @@ function installModelStubs() {
   Question.countDocuments = async (query = {}) => store.questions.filter((item) => matchesQuery(item, query)).length;
   Question.deleteMany = async (query = {}) => deleteManyInStore(store.questions, query);
 
+  Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
+  Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;
+  Faq.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.faqs,
+    query,
+    update,
+    options,
+  );
+  Faq.countDocuments = async (query = {}) => store.faqs.filter((item) => matchesQuery(item, query)).length;
+  Faq.deleteMany = async (query = {}) => deleteManyInStore(store.faqs, query);
+
   LineBindToken.create = async (payload) => {
     const token = {
       _id: newObjectId(),
@@ -723,6 +736,7 @@ function resetStore() {
   store.usageLogs.length = 0;
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
+  store.faqs.length = 0;
 
   store.users.push(
     {

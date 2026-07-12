@@ -208,8 +208,8 @@ async function getStudentDashboardStats(user) {
 
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
-  const enrollmentProgressByCourse = Object.fromEntries(
-    enrollments.map((enrollment) => [String(enrollment.courseId), enrollment.progress || 0]),
+  const enrollmentByCourse = Object.fromEntries(
+    enrollments.map((enrollment) => [String(enrollment.courseId), enrollment]),
   );
 
   // Round 2: 平行抓 allVideos（依賴 courseIds）+ 查 recentQuestions 引用的 video 是否還存在
@@ -230,22 +230,41 @@ async function getStudentDashboardStats(user) {
   const videosByCourse = {};
   for (const video of allVideos) {
     const key = String(video.courseId);
-    if (!videosByCourse[key]) videosByCourse[key] = { total: 0, completed: 0 };
-    videosByCourse[key].total += 1;
+    if (!videosByCourse[key]) videosByCourse[key] = { ids: [], completed: 0 };
+    videosByCourse[key].ids.push(String(video._id));
     if (video.processing?.status === 'completed') videosByCourse[key].completed += 1;
   }
 
   const courseList = courses.slice(0, 6).map((course) => {
-    const counts = videosByCourse[String(course._id)] || { total: 0, completed: 0 };
-    const storedProgress = enrollmentProgressByCourse[String(course._id)];
-    const progress = storedProgress !== undefined
-      ? Math.round(storedProgress)
-      : (counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0);
+    const courseKey = String(course._id);
+    const counts = videosByCourse[courseKey] || { ids: [], completed: 0 };
+    // 影片集合 = 主課程影片 ∪ 掛載影片，與 markVideoWatched 的分母一致。
+    const courseVideoIdSet = new Set([
+      ...counts.ids,
+      ...(course.videoIds || []).map(String),
+    ]);
+    const enrollment = enrollmentByCourse[courseKey];
+    const watchedIds = (enrollment?.watchedVideoIds || []).map(String);
+
+    let progress;
+    if (enrollment) {
+      // 有觀看紀錄就即時重算，避免舊資料存到過期的 progress 而顯示 0%；
+      // 舊 enrollment 只有 progress 數值時沿用儲存值。
+      progress = watchedIds.length && courseVideoIdSet.size
+        ? Math.min(100, Math.round(
+          (watchedIds.filter((id) => courseVideoIdSet.has(id)).length / courseVideoIdSet.size) * 100,
+        ))
+        : Math.round(enrollment.progress || 0);
+    } else {
+      progress = courseVideoIdSet.size > 0
+        ? Math.round((counts.completed / courseVideoIdSet.size) * 100)
+        : 0;
+    }
 
     return {
-      id: String(course._id),
+      id: courseKey,
       title: course.title,
-      videoCount: counts.total,
+      videoCount: courseVideoIdSet.size,
       completedVideos: counts.completed,
       progress,
     };

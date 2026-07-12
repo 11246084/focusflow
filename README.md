@@ -176,7 +176,7 @@ python src/main.py --overwrite
 | Auth | `POST /api/v1/auth/login`、`GET /api/v1/auth/me` |
 | Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId` |
 | Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry` |
-| QA | `POST /api/v1/qa/ask` |
+| QA | `POST /api/v1/qa/ask`、`GET/DELETE /api/v1/courses/:courseId/faqs`（常見問題／FAQ 快取） |
 | LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token` |
 | Stats | `GET /api/v1/stats/teacher`、`GET /api/v1/stats/student` |
 | Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats` |
@@ -237,6 +237,7 @@ LINE Bot 指令：
 - AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發；`mongodb_uploader._target_video_exists()` 在寫入前檢查 Video record，避免 STT 寫入時 race condition 產生孤兒 segments。
 - `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫；2026-05-07 起刪除 Video / Course 不再連動刪 UsageLog / Question（保留歷史），改由 display 層分流：老師 Top Segments 指向已刪影片時 fallback 到課程現存影片、課程無現存影片時標「內容已下架」（2026-07-12 修正，先前會整列消失）；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge。
 - 影片可掛載多課程（2026-07-12，P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；QA / 播放 / watched 進度都支援掛載課程。
+- FAQ 快取／常見問題資料庫（2026-07-13）：重複提問直接命中 `faqs` collection 快取，跳過 embedding／向量搜尋／LLM 生成（文字完全相同零 token；語意相似度 ≥ 0.95 亦命中）。只快取 runtime ready 且無對話歷史的回答，影片刪除／重新處理完成自動清該課程快取；`GET /api/v1/courses/:courseId/faqs` 可取常見問題排行、`DELETE` 同路徑（teacher/admin）手動清空；env `FAQ_CACHE_ENABLED`（預設開）。
 - 教師可刪自己的課程：`DELETE /api/v1/courses/:id` 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`。
 - QA 拒答：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程。
 - 新增錯誤碼 `INVALID_ENCODING` (400)：`qa.controller.js` 偵測到客戶端送出壞 utf-8 body 時拒收。

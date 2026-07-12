@@ -411,6 +411,43 @@ describe('course and video routes', () => {
     assert.equal(courseEntry.progress, 100);
   });
 
+  it('主課程影片未列在 course.videoIds 時，觀看進度仍正確計算而非 0%', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const course = store.courses.find((item) => item._id === ids.publishedCourse);
+    course.videoIds = [];
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/watched`,
+      { method: 'POST', token: studentToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.totalVideos, 1);
+    assert.equal(result.body.data.watchedCount, 1);
+    assert.equal(result.body.data.progress, 100);
+  });
+
+  it('學生 dashboard 依 watchedVideoIds 即時重算進度，不受過期的 enrollment.progress 影響', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const enrollment = store.enrollments.find(
+      (item) => String(item.studentId) === ids.student && String(item.courseId) === ids.publishedCourse,
+    );
+    enrollment.progress = 0;
+    enrollment.watchedVideoIds = [ids.publishedVideo];
+
+    const dashboard = await jsonRequest(
+      serverContext.baseUrl,
+      '/api/v1/stats/student',
+      { token: studentToken },
+    );
+
+    assert.equal(dashboard.status, 200);
+    const courseEntry = dashboard.body.data.courseList.find((c) => c.id === ids.publishedCourse);
+    assert.ok(courseEntry);
+    assert.equal(courseEntry.progress, 100);
+  });
+
   it('rejects watched-mark on a video not belonging to the target course', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 

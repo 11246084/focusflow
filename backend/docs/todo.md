@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-05-23
+最後更新：2026-07-10
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -38,7 +38,7 @@
   - ✅ Top Queried Segments 合併同影片不同 segment count；Recent Videos 改穩定 recency 排序
   - ✅ Admin Total Users 描述補 `adminCount`
   - ✅ `StudentCourses.jsx` `resolveVideoPlayback()`：YouTube 一律用 iframe，metadata-only 不再 fallback `/uploads`
-- **驗收**：`npm test` 83/83 passed；frontend `npm run build` ok
+- **驗收**：`npm test` 83/83 passed；frontend `npm run build` ok（當輪結果；最新 backend 全測試見 2026-07-10 記錄）
 
 ---
 
@@ -56,6 +56,19 @@
   - `tests/line.routes.test.js` 14 passed / 0 failed
   - `tests/docs.routes.test.js` 2 passed / 0 failed
   - `tests/teacherStats.service.test.js` 1 passed / 0 failed
+
+---
+
+### 0.1. Phase 2 QA 回傳契約收斂
+
+- **狀態**：Done（2026-07-10）
+- **完成內容**：
+  - `/api/v1/qa/ask` 新增 `citations[]`，包含 `citationId`、source video、timestamp、jump URL、match score/confidence 與 transcript snippet。
+  - `/api/v1/qa/ask` 新增 `answerStatus`，包含 `answered/no_answer`、`isAnswerable`、`matchStatus`、`confidence`、`noAnswerReason`。
+  - `matches[]` 保留為 legacy/debug 相容欄位，並補齊 legacy `video_id` → source video metadata lookup。
+  - LINE 回覆摘要優先使用 `citations[]` 的 timestamp / jump URL。
+  - OpenAPI `QaAskResponse` 已補 `citations`、`answerStatus` schema。
+- **驗收**：`qa.routes.test.js` / `qa.service.test.js` 已新增契約 assertions；全測試結果見本輪驗證。
 
 ---
 
@@ -102,7 +115,7 @@
   - 修正 Bug 2：atlas filter 僅允許 vector index 支援欄位；後續 DB 已遷移為 camelCase `videoId`
   - `video_segments_text` 現行文件欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；2026-05-01 共享 Atlas 目前 9 筆
   - `videoSegment.model.js` 已對齊 camelCase schema
-  - `video_segments_video`：有 embedding，**無 vector search index**，multimodal QA 目前不可用
+  - `video_segments_video`：有 embedding，`video_embedding_index` 已 READY；backend 已從 course-scoped videos 的檔名 / URL 解析 `video_001` 類 visual ID 並接入初版 course-scoped visual citation retrieval。限制：視覺片段目前沒有 transcript / caption，不提供畫面內容生成
   - `video_segments_audio`：0 docs，無 vector search index
 
 ---
@@ -187,12 +200,11 @@
 
 ### 11. 生產環境前：CORS 限定 origin
 
-- **狀態**：Pending（phase-1 MVP 可接受，demo/生產前必做）
-- **背景**：`app.js` 目前使用寬鬆 `cors()`
-- **我要主動做**：
-  - `.env.example` 補 `ALLOWED_ORIGIN`
-  - `app.js` 改為 `cors({ origin: env.ALLOWED_ORIGIN })`
-  - 加一個驗證 preflight 的 route test
+- **狀態**：Done（2026-07-10）
+- **完成內容**：
+  - `.env.example` 補 `ALLOWED_ORIGINS`
+  - `app.js` 改用 `buildCorsOptions()`；未設定時保留開發相容，設定後只允許白名單 origins
+  - `tests/cors.config.test.js` 鎖住未設定、允許 origin、拒絕 origin 三種情境
 - **先決條件**：Frontend 確認正式部署的 origin
 
 ---
@@ -227,7 +239,7 @@
   - 新增 `db:sync-atlas`（可用，執行 `syncLocalMongoToAtlas.js`，同步清單包含 `questions`）
   - 新增 `syncQuestionsToAtlas.js`（可直接用 node 執行，單獨同步 questions 到 Atlas；目前未掛 npm script）
 - **後續修正**：
-  - `db:ensure-questions`、`db:backfill-questions` 目前是 dangling scripts，對應 `ensureQuestionsCollection.js` / `backfillQuestionsFromUsageLogs.js` 不存在；需補檔或從 `package.json` 移除
+  - `db:ensure-questions`、`db:backfill-questions` 已於 2026-07-10 補齊實體 script；`db:backfill-questions` 預設 dry-run
 
 ---
 
@@ -244,12 +256,24 @@
 
 ### 18. 修正 dangling DB npm scripts
 
-- **狀態**：Pending
-- **背景**：`backend/package.json` 目前掛了 `db:ensure-questions` 與 `db:backfill-questions`，但 `src/scripts/ensureQuestionsCollection.js`、`src/scripts/backfillQuestionsFromUsageLogs.js` 不存在，執行會失敗。
-- **我要主動做**：
-  - 二選一：補齊兩個 script，或移除 package scripts 並改文件說明由 Mongoose schema / `db:sync-atlas` 處理
-  - 若保留 `syncQuestionsToAtlas.js`，決定是否補 npm script（例如 `db:sync-questions-atlas`）
-- **驗收**：`npm run` 顯示的 DB scripts 都可執行或文件明確標示用途
+- **狀態**：Done（2026-07-10）
+- **完成內容**：
+  - 新增 `src/scripts/ensureQuestionsCollection.js`：建立 `questions` collection 並同步 schema indexes。
+  - 新增 `src/scripts/backfillQuestionsFromUsageLogs.js`：從 legacy ASK usage logs 找出缺失 question records；預設 dry-run，需加 `--write` 才會寫入。
+  - README / current-status / current-state 已同步說明兩個 script 的用途與安全預設。
+- **驗收**：`node --check` 通過；實際 DB 寫入需由維運者明確執行 `npm run db:backfill-questions -- --write`
+
+---
+
+### 19. QA 監控與成本控制 guardrails
+
+- **狀態**：Done（2026-07-10）
+- **完成內容**：
+  - 新增 `costControl.service.js`：以 UTC calendar month 為重置週期，檢查全站 QA 月 token budget 與單一使用者月 quota。
+  - 新增 env：`QA_ESTIMATED_TOKENS_PER_ASK`、`QA_MONTHLY_TOKEN_BUDGET`、`QA_USER_MONTHLY_TOKEN_QUOTA`；任一 quota 設為 `0` 表示該 scope 不限制。
+  - `/api/v1/qa/ask` 會在 embedding / LLM 前做 quota preflight；超額回 `429 QA_QUOTA_EXCEEDED`，不呼叫外部 AI provider。
+  - 成功 ASK 會在 `UsageLog.metadata.costControl` 保存當月 quota snapshot；`/health.runtime.qa.costControl` 可觀察目前設定。
+- **驗收**：`health.routes.test.js`、`qa.service.test.js`、`qa.routes.test.js` 已補 guardrail assertions。
 
 ---
 
@@ -269,24 +293,41 @@
 
 ### 13. YouTube Data API 自動上傳整合
 
-- **狀態**：Pending
-- **已完成前置**：YouTube URL MVP 已完成；教師可先手動上傳 YouTube（建議設為不公開 unlisted）後貼 URL，系統會保存 `youtubeVideoId` 並啟動 STT
-- **背景**：下一步若要讓老師只上傳本機影片，由 backend 自動上傳 YouTube，才需要接 YouTube Data API v3
-- **我要主動做**：
-  - `video.service.js` 上傳後呼叫 YouTube Data API v3，影片設為 unlisted
-  - 取得 YouTube video id 後存入 `Video.youtubeVideoId` / `videoUrl`
-  - 本機影片 STT 完成後可刪除 `backend/uploads` 原始檔（需先確認 demo / rollback 策略）
-- **先決條件**：專案負責人提供 FocusFlow Google 帳號 OAuth 憑證
+- **狀態**：Testing（2026-07-10）
+- **已完成**：
+  - `youtubeUpload.service.js`：支援 OAuth refresh token、短期 access token override、YouTube Data API v3 resumable upload、預設 `unlisted`
+  - `video.service.createCourseVideo()`：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 時，本機檔案上傳後先寫入 YouTube，再把 `youtubeVideoId` / `videoUrl` / `sourceUrl` 寫回 app-owned `Video`
+  - `.env.example`：補 `YOUTUBE_OAUTH_CLIENT_ID` / `YOUTUBE_OAUTH_CLIENT_SECRET` / `YOUTUBE_OAUTH_REFRESH_TOKEN` / `YOUTUBE_UPLOAD_PRIVACY_STATUS` 等設定
+  - 測試：`youtube-upload.service.test.js`、`course-video.routes.test.js` auto-upload branch；2026-07-10 `npm.cmd test` 103/103
+- **仍需**：
+  - 專案負責人提供 FocusFlow Google 帳號 OAuth refresh token 後做一次真實 upload smoke
+  - playlist / Shorts 發布策略定版
+  - 本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開
+
+---
+
+### 20. `video_segments_video` 初版 visual citation retrieval
+
+- **狀態**：Done（2026-07-10）
+- **完成內容**：
+  - 新增 `videoSegmentVideo.model.js` 對應 `video_segments_video` snake_case 文件。
+  - `bridgeScope.service.js` 可從 course-scoped videos 的 `fileName` / `sourceUrl` / `videoUrl` 等欄位解析 `video_001`、`video_001_part_0001` 類 pipeline visual ID。
+  - `qa.service.js` 在文字 segments 無命中時，以 Atlas `video_embedding_index` + `video_id` filter 檢索同課程視覺片段。
+  - QA response 的 `matches[]` / `citations[]` 會標示 `modality=video`，並回 `clipPath`、timestamp、score、runtime `matchModality=video`、`visualSearch` diagnostics。
+  - 視覺片段沒有 transcript / caption 時使用保守 template answer，只提示找到相關影像片段與 citation，不讓 LLM 編造畫面內容。
+- **驗收**：`qa.service.test.js` 新增 course-scoped visual match 測試；2026-07-10 `npm.cmd test` 103/103。
+- **後續可做**：若 Pipeline 提供 caption / OCR / frame description，再升級為可生成畫面內容的 multimodal answer。
 
 ---
 
 ## 本輪刻意不碰
 
 - Frontend 程式碼
+- Clip / Shorts 正式 routes、models、background worker 與發布流程（本輪只定義 contract）
 - `database/` 內的 init / import 腳本（由 Database 組負責）
 - `STT_Whisper/` pipeline 程式（由 RAG 組負責）
 - MongoDB 內實際資料（不直接寫 Atlas，交由 Database 執行匯入）
-- phase-2 功能：`video_segments_video` 正式 clip source、multimodal retrieval
+- phase-2 功能：Clip / Shorts 正式 routes、models、background worker、caption / OCR / frame description 與 YouTube Shorts publish flow
 
 ---
 

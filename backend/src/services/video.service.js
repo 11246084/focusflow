@@ -12,6 +12,7 @@ const { VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
 const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
+const youtubeUploadService = require('./youtubeUpload.service');
 const {
   assertCanAccessCourse,
   assertCanManageCourse,
@@ -254,17 +255,32 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     );
   }
 
+  let youtubeUpload = null;
+  const normalizedTitle = String(title || '').trim() || originalName;
+
+  if (youtubeUploadService.isAutoUploadEnabled()) {
+    youtubeUpload = await youtubeUploadService.uploadLocalVideo({
+      filePath: file.path,
+      title: normalizedTitle,
+      description: `FocusFlow course video: ${course.title}`,
+      mimeType: file.mimetype,
+    });
+  }
+
+  const playbackUrl = youtubeUpload?.videoUrl || `/uploads/${file.filename}`;
+
   const video = await Video.create({
     courseId,
-    title: String(title || '').trim() || originalName,
+    title: normalizedTitle,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
-    sourceUrl: `/uploads/${file.filename}`,
+    sourceUrl: playbackUrl,
     fileName: originalName,
     filePath: file.path,
     fileHash,
     durationSec: null,
-    videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
-    videoUrl: `/uploads/${file.filename}`,
+    videoSource: youtubeUpload ? VIDEO_SOURCE_TYPES.YOUTUBE : VIDEO_SOURCE_TYPES.UPLOAD,
+    videoUrl: playbackUrl,
+    youtubeVideoId: youtubeUpload?.youtubeVideoId || null,
     uploadedBy,
     processing: createQueuedProcessingState(),
   });

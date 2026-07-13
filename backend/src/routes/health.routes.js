@@ -4,6 +4,7 @@ const { sendSuccess } = require('../utils/apiResponse');
 const {
   buildQaRuntimeSnapshot,
   buildLineRuntimeSnapshot,
+  buildMultimodalRuntimeSnapshot,
 } = require('../services/runtimeDiagnostics.service');
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get('/', (req, res) => {
       runtime: {
         qa: buildQaRuntimeSnapshot(),
         line: buildLineRuntimeSnapshot(),
+        multimodal: buildMultimodalRuntimeSnapshot(),
       },
     },
   });

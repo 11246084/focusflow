@@ -1,5 +1,10 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
+const { buildCostControlSnapshot } = require('./costControl.service');
+const {
+  DEFAULT_VIDEO_VECTOR_INDEX_NAME,
+  buildVideoVectorSearchIndexDefinition,
+} = require('./videoVectorIndex.service');
 
 const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
@@ -123,6 +128,7 @@ function buildQaRuntimeSnapshot() {
     ...snapshot,
     readiness: hardFailures.length ? 'hard_fail' : 'ready',
     readyForAsk: hardFailures.length === 0,
+    costControl: buildCostControlSnapshot(),
     warnings: buildQaWarnings(snapshot),
     hardFailures,
   };
@@ -176,6 +182,41 @@ function buildLineRuntimeSnapshot() {
     missingConfig,
     hardFailures,
     degradedReasons,
+  };
+}
+
+function buildMultimodalRuntimeSnapshot() {
+  const hardFailures = [];
+  const vectorIndexName = env.videoSegmentVideoVectorIndexName || DEFAULT_VIDEO_VECTOR_INDEX_NAME;
+  const blockers = [
+    buildDiagnostic(
+      'MULTIMODAL_QA_NOT_INTEGRATED',
+      'video_segments_video is not wired into QA retrieval yet.',
+    ),
+    buildDiagnostic(
+      'VIDEO_SEGMENTS_VIDEO_SCOPE_MAPPING_UNVERIFIED',
+      'video_segments_video.video_id must map to videos before course-scoped QA can use it.',
+    ),
+  ];
+
+  if (!env.videoSegmentVideoVectorIndexName) {
+    hardFailures.push(buildDiagnostic(
+      'VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_MISSING',
+      'Set VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME before multimodal QA can be enabled.',
+    ));
+  }
+
+  return {
+    segmentCollection: env.videoSegmentVideoCollection,
+    vectorIndexName: env.videoSegmentVideoVectorIndexName || null,
+    expectedVectorIndexName: vectorIndexName,
+    vectorIndexConfigured: Boolean(env.videoSegmentVideoVectorIndexName),
+    expectedVectorIndexDefinition: buildVideoVectorSearchIndexDefinition(),
+    setupCommand: 'npm run db:ensure-video-vector-index',
+    readiness: 'not_enabled',
+    readyForQa: false,
+    blockers,
+    hardFailures,
   };
 }
 
@@ -284,5 +325,6 @@ module.exports = {
   QA_ATLAS_FILTER_MODES,
   buildQaRuntimeSnapshot,
   buildLineRuntimeSnapshot,
+  buildMultimodalRuntimeSnapshot,
   assertQaRuntimeConfiguration,
 };

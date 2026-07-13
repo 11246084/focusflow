@@ -30,6 +30,38 @@
 
 ---
 
+## AI Agent 實作前讀取清單
+
+Claude Code、Codex 或其他 AI agent 接手前，先讀本清單，不要只看單一功能文件。
+
+| 文件 / 入口 | 誰需要看 |
+|-------------|----------|
+| `AGENTS.md` | Codex、所有 AI agent |
+| `CLAUDE.md` | Claude Code、Codex 參考既有工作規則 |
+| `.claude/rules/api-design.md` | API、後端、前端串接 |
+| `.claude/rules/database.md` | 資料庫、RAG、STT、後端 |
+| `.claude/rules/testing.md` | 測試、後端、QA/RAG |
+| `.claude/rules/security.md` | 安全、登入、LINE、CORS、OAuth |
+| `README.md` | 全部角色 |
+| `PROJECT.md` | 產品背景、專題範圍 |
+| `ARCHITECTURE.md` | 前端、後端、資料庫、RAG、STT |
+| `docs/current-status.md` | 全部角色 |
+| `docs/decision-log.md` | 架構、後端、資料庫 |
+| `backend/docs/current-state.md` | 後端、RAG、LINE、YouTube、資料庫 |
+| `backend/docs/phase2-api-contract.md` | 前端、後端、RAG、LINE、Dashboard |
+| `backend/docs/openapi.yaml` | 前端、後端、API |
+| `backend/docs/handoff-stt-pipeline-integration.md` | 後端、STT、YouTube |
+| `database/README.md` | 資料庫、後端、STT |
+| `database/docs/db-handoff-current.txt` | 資料庫、RAG、後端 |
+| `frontend/focus-flow/README.md` | 前端、後端串接 |
+
+注意：
+- `docs/current-status.md` 與 `backend/docs/current-state.md` 比舊會議紀錄更接近目前狀態。
+- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
+- `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
+
+---
+
 ## 規則索引（`.claude/rules/`）
 
 執行對應任務前，優先閱讀規則檔案：

@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流完成）
+最後更新：2026-07-10（visual citation retrieval 已接入；仍待 caption / clip source 定版）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -25,12 +25,12 @@
 - Atlas filter 兩處 bug 已修（`qa.service.js`）：
   - ① `courseId` 型別不符：backend 傳純字串，但 DB 存的是 ObjectId（MongoDB 的專用 ID 型別，外觀相似但 Atlas 視為不同型別，比對不到就回傳 0 筆）→ 已修正為傳 ObjectId
   - ② `videoId`（camelCase）不在舊 vector index filter fields，Atlas 拒絕此條件 → 已從 atlas filter 中剔除；DB 組已將 vector index filter 更新為 `videoId`，backend `isAtlasFilterCompatible` 同步對齊
-- `video_segments_video`：有 embedding（3072 維），**無 vector search index**，multimodal QA 目前不可用
+- `video_segments_video`：有 embedding（3072 維），`video_embedding_index` 已 READY；backend 已接初版 course-scoped visual citation retrieval。限制：視覺片段沒有 transcript / caption，不提供畫面內容生成
 
 **尚未定版：**
 
 - `video_segments_text` canonical 欄位口徑：已定版為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件、backend model/service、vector index filter 三者一致（2026-04-19）
-- `video_segments_video` 的 Atlas vector index（若要開 multimodal QA，需補建 `video_embedding_index`，3072 維 cosine，filter field：`video_id`）
+- `video_segments_video` 的 caption / OCR / frame description 與正式 clip source 分工；目前只作 visual citation retrieval
 - `videos` mixed collection 的 ownership 邊界；共享 Atlas 目前只剩 1 筆 app-owned video，舊快照曾同時存在 pipeline-owned 與 app-owned records
 - Collections / init 腳本不同步：共享 Atlas 目前 13 個 collections；`database/tools/setup/init_collections.js` 列 15 個。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`
 - shared DB 是否允許 smoke 痕跡（`usage_logs` 目前 7 筆）
@@ -49,7 +49,7 @@
 |------|------|----------|
 | `video_segments_text` 文件遷移 | **Done（2026-04-19）** | 105 筆文件已遷移為 camelCase；`videoId_1`、`segmentId_1` regular index 現在對應真實欄位，不再是孤立索引 |
 | Pipeline STT 產出 schema 確認 | **Pipeline** | 確認後續 STT 產出改為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`），與現有 backend schema 對齊 |
-| `video_segments_video` vector index | **Database** | 若 Phase-2 要開 multimodal QA，在 Atlas 補建 `video_embedding_index`（`video_segments_video`，numDimensions: 3072，similarity: cosine，filter field: `video_id`）；M0 剩 2 個配額 |
+| `video_segments_video` visual retrieval | **Done（2026-07-10）** | `video_embedding_index` 已 READY；backend 以 course-scoped visual ID + `video_id` filter 接入 QA citation。後續若要生成畫面內容，需 Pipeline 提供 caption / OCR / frame description |
 | `videos` ownership 邊界 | **Database + Backend** | 三選一：(a) 為 pipeline-owned 文件補 `sourceType: "pipeline"` 欄位；(b) 將 pipeline metadata 拆到獨立 collection；(c) 在 backend model 加 `sourceType` 欄位並更新 `video.service.js` 查詢邏輯 |
 | Collections / init 腳本不同步 | **Database + Backend** | 決定 `stt_cache`、`raw_transcripts`、`video_segments` 是否仍需建立；將 `questions` 補進 init，或明確改由 Mongoose/runtime 建立 |
 | `usage_logs` smoke 痕跡 | **整體決策** | 三選一：(a) demo 前 reseed 清除；(b) 另開隔離 demo DB instance；(c) 接受共享 DB 現況並在 demo 說明 |

@@ -4,6 +4,20 @@
 
 > 本文件是給 Claude Code 的操作規則；跨代理入口索引請看 [AGENTS.md](AGENTS.md)。修改規範時，兩份文件需保持一致。
 
+## 接手讀取順序
+
+Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修改：
+
+1. 先讀 [AGENTS.md](AGENTS.md)，確認跨 agent 入口、專案服務與文件索引。
+2. 依 `AGENTS.md` 的「AI Agent 實作前讀取清單」選擇任務相關文件。
+3. 依任務類型讀 `.claude/rules/` 對應規則。
+4. 再讀實際程式碼與測試，避免只根據單一文件或舊會議紀錄推論現況。
+
+注意：
+- `docs/current-status.md` 與 `backend/docs/current-state.md` 是目前狀態入口。
+- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
+- `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
+
 ## 專屬規則
 
 進行對應任務前，先閱讀規則檔：

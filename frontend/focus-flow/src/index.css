@@ -109,7 +109,7 @@ body {
 }
 
 .logo img {
-  height: 44px;
+  height: 55px;
   width: auto;
   object-fit: contain;
 }
@@ -579,7 +579,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 
 .login-logo img {
-  height: 44px;
+  height: 60px;
   width: auto;
   object-fit: contain;
 }
@@ -794,10 +794,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   }
 
   .phone-img {
-    top: 2%;
-    right: 1%;
-    width: 50%;
-    height: 41%;
+    display: none;
   }
 
   .bubble-container {
@@ -833,7 +830,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   .left-panel {
     flex: none;
     width: 100%;
-    height: 280px;
+    height: 60px;
     overflow: hidden;
   }
 
@@ -842,13 +839,18 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
     display: none;
   }
 
+  .orangebox,.purplebox{
+    display: none;
+  }
+
   .left-panel::before {
-    content: '';
+    display: none;
+    /* content: '';
     position: absolute;
     inset: 0;
     background: rgba(210, 62, 16, 0.88);
     border-radius: 20px;
-    z-index: 0;
+    z-index: 0; */
   }
 
   .logo {
@@ -857,10 +859,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   }
 
   .waveform-img {
-    top: 10%;
-    left: 3%;
-    width: 22%;
-    height: 75%;
+    display: none;
   }
 
   .phone-img {
@@ -895,8 +894,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   }
 
   .bubble-container {
-    flex: 0 0 160px;
-    height: 160px;
+    display: none;
   }
 
   .features-row {

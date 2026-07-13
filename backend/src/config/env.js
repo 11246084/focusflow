@@ -33,6 +33,7 @@ module.exports = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
+  youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
   youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
   youtubeClientId: process.env.YOUTUBE_CLIENT_ID || '',
   youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',

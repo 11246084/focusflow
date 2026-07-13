@@ -104,6 +104,46 @@ def export_audio_embeddings(
     return output_path
 
 
+def export_latest_compatibility_outputs(
+    videos: list[VideoMetadata],
+    transcripts: list[TranscriptDocument],
+    normalized_transcripts: list[TranscriptDocument],
+    chunks: list[ChunkRecord],
+    text_embeddings: list[EmbeddingRecord],
+    audio_embeddings: list[AudioEmbeddingRecord],
+    config: PipelineConfig,
+) -> None:
+    """Refresh top-level latest outputs for older consumers."""
+    latest_dir = config.active_output_dir.resolve()
+    run_dir = config.output_dir.resolve()
+    if latest_dir == run_dir:
+        return
+
+    export_videos(videos, latest_dir, config.backup_existing_outputs)
+    export_transcripts(transcripts, latest_dir, config.backup_existing_outputs)
+    export_normalized_transcripts(
+        normalized_transcripts,
+        latest_dir / "transcripts_normalized.json",
+        config.backup_existing_outputs,
+    )
+    export_chunks(
+        chunks,
+        latest_dir / "chunks.jsonl",
+        config.backup_existing_outputs,
+    )
+    export_text_embeddings(
+        text_embeddings,
+        latest_dir / "embeddings_text_gemini.jsonl",
+        config.backup_existing_outputs,
+    )
+    export_audio_embeddings(
+        audio_embeddings,
+        latest_dir / "embeddings_audio_gemini.jsonl",
+        config.backup_existing_outputs,
+    )
+    logger.info("Updated latest compatibility outputs in %s", latest_dir)
+
+
 def export_all_outputs(
     videos: list[VideoMetadata],
     transcripts: list[TranscriptDocument],
@@ -112,6 +152,7 @@ def export_all_outputs(
     text_embeddings: list[EmbeddingRecord],
     audio_embeddings: list[AudioEmbeddingRecord],
     config: PipelineConfig,
+    update_latest: bool = True,
 ) -> dict[str, Path]:
     """Export versioned run artifacts, then refresh top-level compatibility copies."""
     output_paths = {
@@ -141,31 +182,15 @@ def export_all_outputs(
         ),
     }
 
-    latest_dir = config.active_output_dir.resolve()
-    run_dir = config.output_dir.resolve()
-    if latest_dir != run_dir:
-        export_videos(videos, latest_dir, config.backup_existing_outputs)
-        export_transcripts(transcripts, latest_dir, config.backup_existing_outputs)
-        export_normalized_transcripts(
+    if update_latest:
+        export_latest_compatibility_outputs(
+            videos,
+            transcripts,
             normalized_transcripts,
-            latest_dir / "transcripts_normalized.json",
-            config.backup_existing_outputs,
-        )
-        export_chunks(
             chunks,
-            latest_dir / "chunks.jsonl",
-            config.backup_existing_outputs,
-        )
-        export_text_embeddings(
             text_embeddings,
-            latest_dir / "embeddings_text_gemini.jsonl",
-            config.backup_existing_outputs,
-        )
-        export_audio_embeddings(
             audio_embeddings,
-            latest_dir / "embeddings_audio_gemini.jsonl",
-            config.backup_existing_outputs,
+            config,
         )
-        logger.info("Updated latest compatibility outputs in %s", latest_dir)
 
     return output_paths

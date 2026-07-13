@@ -15,10 +15,11 @@ from typing import Callable, TypeVar
 from chunking import build_chunks
 from config import PipelineConfig
 from embedding import embed_audio_tracks, embed_chunks
-from export_outputs import export_all_outputs
+from export_outputs import export_all_outputs, export_latest_compatibility_outputs
 from extract_audio import extract_audio_for_videos
-from job_manager import JobManager, create_manifest
+from job_manager import JobManager, create_manifest, load_manifest
 from normalize_transcript import normalize_transcripts
+from resume_checkpoint import ResumePlan, build_resume_plan
 from run_summary import write_run_summary, write_upload_summary
 from scan_videos import discover_video_files, scan_videos
 from transcribe import transcribe_videos
@@ -82,6 +83,11 @@ def parse_args() -> argparse.Namespace:
         "--overwrite",
         action="store_true",
         help="Rebuild cached audio/transcripts instead of reusing existing intermediate files.",
+    )
+    parser.add_argument(
+        "--resume-run-id",
+        default=None,
+        help="Resume an existing run from data/outputs/runs/<run_id>/manifest.json.",
     )
     # 添加處理視頻數量限制參數，用於快速測試
     parser.add_argument(
@@ -235,6 +241,9 @@ def cleanup_after_successful_upload(config: PipelineConfig, output_paths: dict[s
     """Remove local runtime artifacts after MongoDB upload, when explicitly enabled."""
     if not config.cleanup_after_upload:
         return
+    if config.cleanup_keep_checkpoints:
+        logger.info("Skipping pipeline cleanup because cleanup_keep_checkpoints=true")
+        return
 
     cleanup_targets: list[Path] = []
     for video in videos:
@@ -362,17 +371,29 @@ def run_pipeline(
     config: PipelineConfig,
     job_manager: JobManager,
     limit: int | None = None,
-) -> tuple[dict[str, Path], list]:
+    resume_plan: ResumePlan | None = None,
+) -> tuple[dict[str, Path], list, dict[str, object]]:
     """Execute the full local pipeline from video scan to export."""
     # 記錄管道開始
     logger.info("Starting FocusFlow AI pipeline")
     # 檢查 Gemini 嵌入是否啟用（現在是唯一的嵌入路徑）
-    if not config.gemini_embedding_enabled:
+    embedding_stages_skipped = (
+        resume_plan is not None
+        and resume_plan.should_skip("text_embedding")
+        and resume_plan.should_skip("audio_embedding")
+    )
+    if not config.gemini_embedding_enabled and not embedding_stages_skipped:
         raise RuntimeError(
             "Gemini embedding is now the final embedding path. Set ENABLE_GEMINI_EMBEDDING=true in .env."
         )
 
-    if config.youtube_url:
+    is_resume = resume_plan is not None
+    resume_data = resume_plan.data if resume_plan is not None else {}
+    youtube_extract_done = False
+
+    if resume_plan is not None and resume_plan.should_skip("scan"):
+        videos = resume_data["videos"]
+    elif config.youtube_url:
         # YouTube 模式：直接下載音訊，跳過影片掃描與本地音訊抽取
         video_id = config.target_video_id or "youtube_unknown"
         audio_rel_posix = f"data/processed_audio/{video_id}.wav"
@@ -407,6 +428,7 @@ def run_pipeline(
             "extract_audio",
             prepare_youtube_audio,
         )
+        youtube_extract_done = True
         videos = [
             VideoMetadata(
                 video_id=video_id,
@@ -446,63 +468,117 @@ def run_pipeline(
 
         _register_videos(job_manager, videos)
 
+    if resume_plan is not None and resume_plan.should_skip("extract_audio"):
+        logger.info("Checkpoint valid, skipping stage: extract_audio")
+    elif not youtube_extract_done:
         # 步驟 2：提取 Whisper 兼容的音頻
-        _run_tracked_stage(
+        if config.youtube_url and videos and videos[0].video_source == "youtube":
+            video = videos[0]
+            audio_abs = (config.project_root / video.audio_path).resolve()
+
+            def prepare_resumed_youtube_audio() -> float:
+                if not audio_abs.exists() or config.overwrite_existing:
+                    download_youtube_audio(config.youtube_url, audio_abs)
+                else:
+                    logger.info("Reusing existing YouTube audio for %s", video.video_id)
+                return get_wav_duration_sec(audio_abs)
+
+            duration_sec = _run_tracked_stage(
+                job_manager,
+                videos,
+                "extract_audio",
+                prepare_resumed_youtube_audio,
+            )
+            videos = [
+                VideoMetadata(
+                    video_id=video.video_id,
+                    file_name=video.file_name,
+                    file_path=video.file_path,
+                    audio_path=video.audio_path,
+                    duration_sec=duration_sec,
+                    course_name=video.course_name,
+                    week=video.week,
+                    lesson=video.lesson,
+                    video_source=video.video_source,
+                    video_url=video.video_url,
+                )
+            ]
+        else:
+            _run_tracked_stage(
+                job_manager,
+                videos,
+                "extract_audio",
+                lambda: extract_audio_for_videos(videos, config),
+            )
+    # 步驟 3：運行 faster-whisper STT
+    if resume_plan is not None and resume_plan.should_skip("transcribe"):
+        transcripts = resume_data["transcripts"]
+    else:
+        transcripts = _run_tracked_stage(
             job_manager,
             videos,
-            "extract_audio",
-            lambda: extract_audio_for_videos(videos, config),
+            "transcribe",
+            lambda: transcribe_videos(videos, config),
         )
-    # 步驟 3：運行 faster-whisper STT
-    transcripts = _run_tracked_stage(
-        job_manager,
-        videos,
-        "transcribe",
-        lambda: transcribe_videos(videos, config),
-    )
     # 步驟 4：在搜索分塊前標準化技術術語
-    normalized_transcripts = _run_tracked_stage(
-        job_manager,
-        videos,
-        "normalize",
-        lambda: normalize_transcripts(transcripts, config),
-    )
-    # 步驟 5：將標準化轉錄段合併為搜索塊
-    chunks = _run_tracked_stage(
-        job_manager,
-        videos,
-        "chunk",
-        lambda: build_chunks(videos, normalized_transcripts, config),
-    )
-    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
-    text_embeddings = _run_tracked_stage(
-        job_manager,
-        videos,
-        "text_embedding",
-        lambda: embed_chunks(chunks, config),
-    )
-    # 步驟 7：直接從提取的音頻文件生成 Gemini 音頻嵌入
-    audio_embeddings = _run_tracked_stage(
-        job_manager,
-        videos,
-        "audio_embedding",
-        lambda: embed_audio_tracks(videos, config),
-    )
-    # 步驟 8：導出 JSON 和 JSONL 文件供下游團隊使用
-    output_paths = _run_tracked_stage(
-        job_manager,
-        videos,
-        "export",
-        lambda: export_all_outputs(
+    if resume_plan is not None and resume_plan.should_skip("normalize"):
+        normalized_transcripts = resume_data["normalized_transcripts"]
+    else:
+        normalized_transcripts = _run_tracked_stage(
+            job_manager,
             videos,
-            transcripts,
-            normalized_transcripts,
-            chunks,
-            text_embeddings,
-            audio_embeddings,
-            config,
-        ),
-    )
+            "normalize",
+            lambda: normalize_transcripts(transcripts, config),
+        )
+    # 步驟 5：將標準化轉錄段合併為搜索塊
+    if resume_plan is not None and resume_plan.should_skip("chunk"):
+        chunks = resume_data["chunks"]
+    else:
+        chunks = _run_tracked_stage(
+            job_manager,
+            videos,
+            "chunk",
+            lambda: build_chunks(videos, normalized_transcripts, config),
+        )
+    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
+    if resume_plan is not None and resume_plan.should_skip("text_embedding"):
+        text_embeddings = resume_data["text_embeddings"]
+    else:
+        text_embeddings = _run_tracked_stage(
+            job_manager,
+            videos,
+            "text_embedding",
+            lambda: embed_chunks(chunks, config),
+        )
+    # 步驟 7：直接從提取的音頻文件生成 Gemini 音頻嵌入
+    if resume_plan is not None and resume_plan.should_skip("audio_embedding"):
+        audio_embeddings = resume_data["audio_embeddings"]
+    else:
+        audio_embeddings = _run_tracked_stage(
+            job_manager,
+            videos,
+            "audio_embedding",
+            lambda: embed_audio_tracks(videos, config),
+        )
+    # 步驟 8：導出 JSON 和 JSONL 文件供下游團隊使用
+    if resume_plan is not None and resume_plan.should_skip("export"):
+        output_paths = resume_data["output_paths"]
+    else:
+        output_paths = _run_tracked_stage(
+            job_manager,
+            videos,
+            "export",
+            lambda: export_all_outputs(
+                videos,
+                transcripts,
+                normalized_transcripts,
+                chunks,
+                text_embeddings,
+                audio_embeddings,
+                config,
+                update_latest=not is_resume,
+            ),
+        )
 
     # 記錄管道完成統計
     logger.info(
@@ -514,7 +590,14 @@ def run_pipeline(
         len(audio_embeddings),
     )
     # 返回輸出文件路徑與影片列表（供 main() 取得 video_id 回報後端）
-    return output_paths, videos
+    pipeline_data: dict[str, object] = {
+        "transcripts": transcripts,
+        "normalized_transcripts": normalized_transcripts,
+        "chunks": chunks,
+        "text_embeddings": text_embeddings,
+        "audio_embeddings": audio_embeddings,
+    }
+    return output_paths, videos, pipeline_data
 
 
 def main() -> int:
@@ -525,47 +608,89 @@ def main() -> int:
     config = build_runtime_config(args)
     # 配置日誌記錄
     configure_logging(config.log_level)
-    job_manager = create_manifest(config.project_root / "data" / "outputs" / "runs")
-    config = bind_run_output(config, job_manager)
+    if args.overwrite and args.resume_run_id:
+        logger.error("--overwrite cannot be used together with --resume-run-id")
+        print("--overwrite cannot be used together with --resume-run-id", file=sys.stderr)
+        return 2
+
+    runs_dir = config.project_root / "data" / "outputs" / "runs"
+    resume_plan: ResumePlan | None = None
+    try:
+        if args.resume_run_id:
+            logger.info("Resuming pipeline run: %s", args.resume_run_id)
+            job_manager = load_manifest(runs_dir, args.resume_run_id)
+            config = bind_run_output(config, job_manager)
+            logger.info("Loaded manifest: %s", job_manager.manifest_path)
+            resume_plan = build_resume_plan(job_manager, config.project_root)
+        else:
+            job_manager = create_manifest(runs_dir)
+            config = bind_run_output(config, job_manager)
+    except Exception as exc:
+        logger.error("Unable to initialize pipeline run: %s", exc)
+        print(f"Unable to initialize pipeline run: {exc}", file=sys.stderr)
+        return 1
+
     logger.info(
         "Pipeline run initialized: run_id=%s run_output_dir=%s",
         config.run_id,
         config.run_output_dir,
     )
 
-    # 通知後端：STT 開始處理（狀態 queued → processing）
-    notify_backend(config, args.video_id, "start")
+    # 通知後端：STT 開始處理（狀態 queued → processing）。
+    # 若 resume 已確認 backend_webhook completed，避免重複送出 start 通知。
+    should_notify_start = not (
+        resume_plan is not None and resume_plan.should_skip("backend_webhook")
+    )
+    if should_notify_start:
+        notify_backend(config, args.video_id, "start")
+    else:
+        logger.info("Skipping backend start webhook for completed resume run: %s", job_manager.run_id)
 
     # 嘗試運行管道
     try:
-        output_paths, pipeline_videos = run_pipeline(config, job_manager, limit=args.limit)
-
-        # Pipeline 完成後自動上傳結果到 MongoDB
-        print("\nStarting MongoDB upload...")
-        import mongodb_uploader
-
-        def upload_to_mongodb() -> None:
-            try:
-                if not mongodb_uploader.upload_all(config):
-                    raise RuntimeError("MongoDB upload failed.")
-            except Exception as exc:
-                write_upload_summary(config.run_output_dir, job_manager.run_id, "failed", exc)
-                raise
-            write_upload_summary(config.run_output_dir, job_manager.run_id, "completed")
-
-        _run_tracked_stage(
+        output_paths, pipeline_videos, pipeline_data = run_pipeline(
+            config,
             job_manager,
-            pipeline_videos,
-            "mongodb_upload",
-            upload_to_mongodb,
+            limit=args.limit,
+            resume_plan=resume_plan,
         )
 
-        cleanup_after_successful_upload(config, output_paths, pipeline_videos)
+        # Pipeline 完成後自動上傳結果到 MongoDB
+        upload_executed = False
+        if resume_plan is not None and resume_plan.should_skip("mongodb_upload"):
+            logger.info("Checkpoint valid, skipping stage: mongodb_upload")
+        else:
+            print("\nStarting MongoDB upload...")
+            import mongodb_uploader
+
+            def upload_to_mongodb() -> None:
+                try:
+                    if not mongodb_uploader.upload_all(config):
+                        raise RuntimeError("MongoDB upload failed.")
+                except Exception as exc:
+                    write_upload_summary(config.run_output_dir, job_manager.run_id, "failed", exc)
+                    raise
+                write_upload_summary(config.run_output_dir, job_manager.run_id, "completed")
+
+            _run_tracked_stage(
+                job_manager,
+                pipeline_videos,
+                "mongodb_upload",
+                upload_to_mongodb,
+            )
+            upload_executed = True
+
+        if upload_executed:
+            cleanup_after_successful_upload(config, output_paths, pipeline_videos)
+        else:
+            logger.info("Skipping cleanup because MongoDB upload was not executed in this run")
 
         # 通知後端：處理全部完成（狀態 processing → completed）
         external_video_id = pipeline_videos[0].video_id if pipeline_videos else None
         duration_sec = pipeline_videos[0].duration_sec if pipeline_videos else None
-        if args.video_id and config.backend_url and config.processing_webhook_secret:
+        if resume_plan is not None and resume_plan.should_skip("backend_webhook"):
+            logger.info("Checkpoint valid, skipping stage: backend_webhook")
+        elif args.video_id and config.backend_url and config.processing_webhook_secret:
             _run_tracked_stage(
                 job_manager,
                 pipeline_videos,
@@ -582,6 +707,17 @@ def main() -> int:
         for video in pipeline_videos:
             job_manager.complete_video(video.video_id)
         job_manager.complete_run()
+        if resume_plan is not None:
+            export_latest_compatibility_outputs(
+                pipeline_videos,
+                pipeline_data["transcripts"],
+                pipeline_data["normalized_transcripts"],
+                pipeline_data["chunks"],
+                pipeline_data["text_embeddings"],
+                pipeline_data["audio_embeddings"],
+                config,
+            )
+            logger.info("Resume completed successfully: %s", job_manager.run_id)
         write_run_summary(
             config.run_output_dir,
             job_manager.run_id,

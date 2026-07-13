@@ -72,6 +72,35 @@ class JobManager:
         manager._persist()
         return manager
 
+    @classmethod
+    def load_manifest(cls, runs_dir: Path, run_id: str) -> "JobManager":
+        """Load an existing manifest for resume without creating or overwriting it."""
+        run_dir = runs_dir.resolve() / run_id
+        if not run_dir.exists():
+            raise FileNotFoundError(f"Resume run directory does not exist: {run_dir}")
+        if not run_dir.is_dir():
+            raise NotADirectoryError(f"Resume run path is not a directory: {run_dir}")
+
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"Resume manifest does not exist: {manifest_path}")
+
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Resume manifest is not valid JSON: {manifest_path}") from exc
+
+        if not isinstance(manifest, dict):
+            raise ValueError(f"Resume manifest root must be a JSON object: {manifest_path}")
+        if manifest.get("run_id") != run_id:
+            raise ValueError(
+                f"Resume manifest run_id mismatch: expected {run_id}, got {manifest.get('run_id')}"
+            )
+        if not isinstance(manifest.get("videos"), list):
+            raise ValueError(f"Resume manifest is missing a videos list: {manifest_path}")
+
+        return cls(manifest_path, manifest)
+
     @property
     def run_id(self) -> str:
         return str(self.manifest["run_id"])
@@ -143,6 +172,22 @@ class JobManager:
         self.manifest.update(status="failed", error=str(error))
         self._persist()
 
+    def reset_stages_from(self, stage_name: str) -> None:
+        """Mark one stage and all later stages pending before a linear resume rerun."""
+        if stage_name not in STAGE_NAMES:
+            raise ValueError(f"Unknown pipeline stage: {stage_name}")
+
+        start_index = STAGE_NAMES.index(stage_name)
+        for video in self.manifest["videos"]:
+            video["status"] = "pending"
+            video["current_stage"] = stage_name
+            video["error"] = None
+            stages = video.get("stages", {})
+            for downstream_stage in STAGE_NAMES[start_index:]:
+                stages[downstream_stage] = _new_stage()
+        self.manifest.update(status="pending", error=None)
+        self._persist()
+
     def _find_video(self, video_id: str) -> dict[str, Any] | None:
         return next(
             (video for video in self.manifest["videos"] if video["video_id"] == video_id),
@@ -189,3 +234,8 @@ class JobManager:
 def create_manifest(runs_dir: Path, run_id: str | None = None) -> JobManager:
     """Convenience factory matching the pipeline-facing API."""
     return JobManager.create_manifest(runs_dir, run_id)
+
+
+def load_manifest(runs_dir: Path, run_id: str) -> JobManager:
+    """Convenience loader for resume mode."""
+    return JobManager.load_manifest(runs_dir, run_id)

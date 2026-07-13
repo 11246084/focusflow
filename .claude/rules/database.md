@@ -24,6 +24,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `Clip` | `clips` |
 | `UsageLog` | `usagelogs` |
 | `LineBindToken` | `linebindtokens` |
+| `Faq` | `faqs` |
 
 目前 repo 內已有明確理由的例外：
 

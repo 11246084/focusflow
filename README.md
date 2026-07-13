@@ -228,9 +228,9 @@ LINE Bot 指令：
 
 ## 目前狀態與限制
 
-截至 2026-05-07：
+截至 2026-07-13：
 
-- Backend 主線已包含 auth、courses、videos、QA、LINE、stats、admin、internal processing webhook；route + service 全測試 83/83 passed（含 student dashboard 改用 `userId` 與 `matches[].videoTitle` 修正）。
+- Backend 主線已包含 auth、courses、videos、QA（含 FAQ 快取）、LINE、stats、admin、internal processing webhook；route + service 全測試 119/119 passed（2026-07-13 實測）。
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 Promise.all + 全 `.lean()`；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 補 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s。API 回應格式 / 答案品質 100% 不變。
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音。
 - Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已串接；教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖）。

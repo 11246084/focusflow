@@ -46,7 +46,7 @@ Copy-Item .env.example .env
 - **TeacherCourses**：課程列表加刪除按鈕 + cascade 確認 modal；CREATE 表單不顯示 `archived` 選項；2026-07-12 新增「掛載既有影片」modal（`POST /courses/:courseId/videos/:videoId/attach`），掛載進來的影片顯示「掛載」badge 與「解除」按鈕（detach，不刪影片本身）
 - **AdminCourses**：CourseModal 僅在編輯既有課程時顯示 `archived` 選項
 - **StudentCourses**：`resolveVideoPlayback()` 統一解析 `youtubeVideoId` / `youtube_video_id` / `videoUrl` / `sourceUrl`，YouTube 一律用 IFrame API 播放並支援 QA timestamp `seekTo`；metadata-only / QA-only 影片不再 fallback `/uploads`；`YouTubePlayer` 用 React-owned wrapper 承接 iframe，避免切頁 / 切影片時 React root 黑屏。新增 watch 標記：mp4 `<video>` 透過 `onTimeUpdate ≥ 80%` 或 `onEnded` 觸發 `POST /api/v1/courses/:courseId/videos/:videoId/watched`；YouTube IFrame 透過 `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%` 觸發；`watchedMarkedRef` Set 確保同一 video session 只 POST 一次，後端首次觀看會寫 `UsageLog event=WATCH` 並更新 `Enrollment.progress`
-- **StudentDashboard**：Recent Queries 帶 `contentMissing` 旗標時顯示「內容已下架」badge（藍色）
+- **StudentDashboard**：Recent Queries 帶 `contentMissing` 旗標時顯示「內容已下架」badge（藍色）；2026-07-13 統計卡片副標改中文說明並加 hover tooltip（本週提問＝最近 7 天滾動、含網頁 + LINE；累計＝開始使用至今；回答命中率＝成功回答 ÷ 累計提問），卡片下方加一行註解說明「本週」與「累計」統計範圍不同
 - **TeacherDashboard**：Top Queried Segments 帶 `contentMissing` 旗標的列顯示「已刪除影片的提問」+「內容已下架」badge（2026-07-12，修老師 #13 中文課程統計消失）
 - **AdminOverview**：Total Users 描述補 `adminCount`
 - **AdminStats**：Recent Events COURSE 欄位 — 課程被刪時 dim 顯示；`contentMissing` 時加「內容已下架」inline badge

@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-05-23
+最後更新：2026-07-13（影片多課程掛載 P1-3、老師 #13 統計修復、本地影片自動上傳 YouTube feature flag、教師上傳單一軌道、學生進度 0% 修復、FAQ 快取）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -10,7 +10,7 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 87/87 | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`，Atlas `text_embedding_index` 已 READY（2026-05-23 直連驗證）；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint、`POST /api/v1/auth/register` 限 student/teacher 自助註冊 |
+| **Backend** | ✅ 主線可用，全測試 119/119（2026-07-13 實測） | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`，Atlas `text_embedding_index` 已 READY（2026-05-23 直連驗證）；LINE Bot 多輪對話歷史；提問自動寫入 `questions`；2026-05-07 完成 dashboard / QA 平行化 + `.lean()` + `[qa-timing]` 診斷、重複上傳防呆（YouTube + mp4 SHA-256）、學生 watched 進度 endpoint、`POST /api/v1/auth/register` 限 student/teacher 自助註冊 |
 | **Frontend** | ✅ 第一階段頁面完成 | 登入頁 + 註冊頁 + 11 頁面（Student/Teacher/Admin × 多頁）；登入頁「立即註冊」按鈕連到 `RegisterPage`，註冊成功直接登入；11 頁面已全數串接 backend API（每頁皆呼叫 `apiFetch`）：教師建立課程、LINE QR 綁定、QA grounding 皆已串接；教師上傳表單支援多支影片連續上傳；學生端 YouTube 影片用 IFrame API 播放 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
@@ -57,7 +57,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 影片多課程掛載（2026-07-12，P1-3）：主課程仍記在 `video.courseId`，其他課程用 `course.videoIds` 掛載引用；新 API `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；刪影片/刪課程會清所有課程的引用；掛載課程的學生可播放、記 watched、QA 檢索可命中（memory `segmentMatchesScope` fallback videoId + atlas `bridge_course_or_video` filter 原生支援）；前端 TeacherCourses 提供「掛載既有影片」與「解除」UI
 - 老師 dashboard 統計修復（2026-07-12，老師 #13）：Top Queried Segments 在課程所有影片被刪除後不再整列丟棄（先前中文課程「影像處理導論」因此消失），改標 `contentMissing` 並同課程合併一列，前端顯示「內容已下架」badge
 - 本地影片自動上傳 YouTube（2026-07-12，feature flag 預設關閉，未經 live 憑證端對端驗證）：設定 `YOUTUBE_UPLOAD_ENABLED=true` + OAuth 憑證後，教師上傳本地影片會背景自動傳到 YouTube（預設 unlisted），成功回寫 `youtubeVideoId`，學生端自動改用 YouTube iframe 播放；狀態在 `videos.youtubeUpload`
-- 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`，service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`，第一次觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）；前端 `StudentCourses.jsx` mp4 用 `onTimeUpdate ≥ 80%` 或 `onEnded`、YouTube 用 `onStateChange ENDED` 或每 5 秒 poll，`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 卡片的 WATCH 從此可累加（先前永遠為 0 因為沒任何路徑寫 WATCH usage log）。仍未做：「孤兒清理後 0%」顯示異常修復
+- 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`，service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`，第一次觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）；前端 `StudentCourses.jsx` mp4 用 `onTimeUpdate ≥ 80%` 或 `onEnded`、YouTube 用 `onStateChange ENDED` 或每 5 秒 poll，`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 卡片的 WATCH 從此可累加（先前永遠為 0 因為沒任何路徑寫 WATCH usage log）
+- 學生進度 0% 修復 + 統計語意（2026-07-13）：watched 進度分母補算主課程影片、dashboard 依 `watchedVideoIds` 即時重算，解決「孤兒清理後 0%」誤顯（P3-2 收尾）；`StudentDashboard.jsx` 統計卡片加中文說明與 tooltip（本週＝最近 7 天 vs 累計）；LINE 命中影片無 YouTube 連結時改附「請到網站播放對應時間點」提示，跳轉資訊不再整行消失
 - FAQ 快取／常見問題資料庫（2026-07-13）：新增 `faqs` collection 與 `faqCache.service.js`，`qa.service.askQuestion`（API 與 LINE 共用）接兩層快取——正規化文字完全相同直接命中（零 token），或 query embedding cosine 相似度 ≥ 門檻（預設 0.95）命中跳過向量搜尋與 LLM。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除自動清快取。新 API：`GET/DELETE /api/v1/courses/:courseId/faqs`；設定 `FAQ_CACHE_ENABLED`（預設開）、`FAQ_CACHE_SIMILARITY_THRESHOLD`、`FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 - 錯誤碼 `INVALID_ENCODING` (400)：`utils/textEncoding.js` 偵測客戶端送出的壞 utf-8 body；學生 dashboard 舊壞編碼 fallback 顯示「(編碼異常)」
 - AI prompt / 標題防洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`getVideoPresentationTitle` 偵測 ObjectId 後改顯示 `YouTube: <id>`

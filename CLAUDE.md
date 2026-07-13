@@ -155,6 +155,10 @@ QA_VECTOR_SEARCH_MODE=memory
 
 QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、runtime 與 `sourceUsageLogId`。
 
+### FAQ 快取（2026-07-13）
+
+`askQuestion` 內建兩層 FAQ 快取（`faqs` collection + `faqCache.service.js`，API 與 LINE 共用）：正規化文字完全相同直接命中（零 token）；否則以 query embedding 對課程 FAQ 比 cosine 相似度 ≥ `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）命中，跳過向量搜尋與 LLM。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除會自動清該課程快取。修改 QA 回應格式時，快取命中路徑（`respondFromFaqCache`）需同步；測試要走非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
+
 ### Video Model
 
 `videos` collection 是 mixed collection：

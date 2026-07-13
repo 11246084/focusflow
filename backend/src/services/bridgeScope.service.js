@@ -7,6 +7,11 @@ const COURSE_BRIDGE_MODES = {
   MIXED_SCOPE: 'mixed_scope',
 };
 
+const VIDEO_OWNERSHIP_TYPES = {
+  APP_OWNED: 'app_owned',
+  PIPELINE_METADATA: 'pipeline_metadata',
+};
+
 function pickFirstDefined(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null) {
@@ -84,6 +89,41 @@ function addVideoIdentifiers(targetSet, video) {
   addIdentifier(targetSet, video.id);
   addIdentifier(targetSet, video.videoId);
   addIdentifier(targetSet, video.video_id);
+}
+
+function extractPipelineVisualVideoId(value) {
+  const normalizedValue = normalizeIdentifier(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const match = normalizedValue.match(/\b(video_\d+)(?:_part_\d+)?\b/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function addVisualVideoIdentifier(targetSet, value) {
+  const visualVideoId = extractPipelineVisualVideoId(value);
+
+  if (visualVideoId) {
+    targetSet.add(visualVideoId);
+  }
+}
+
+function addVisualVideoIdentifiers(targetSet, video) {
+  if (!video) {
+    return;
+  }
+
+  addVisualVideoIdentifier(targetSet, video.videoId);
+  addVisualVideoIdentifier(targetSet, video.video_id);
+  addVisualVideoIdentifier(targetSet, video.fileName);
+  addVisualVideoIdentifier(targetSet, video.file_name);
+  addVisualVideoIdentifier(targetSet, video.filePath);
+  addVisualVideoIdentifier(targetSet, video.file_path);
+  addVisualVideoIdentifier(targetSet, video.sourceUrl);
+  addVisualVideoIdentifier(targetSet, video.videoUrl);
+  addVisualVideoIdentifier(targetSet, video.video_url);
 }
 
 function sortByCreatedAtDesc(items) {
@@ -207,6 +247,7 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
       file_name: fileName,
       file_path: plainVideo.filePath || plainVideo.file_path || null,
       externalVideoId,
+      ownership: VIDEO_OWNERSHIP_TYPES.APP_OWNED,
       qaScopeOnly: false,
       metadataOnly: false,
       isAppOwned: true,
@@ -231,6 +272,7 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
     processing: null,
     videoId: externalVideoId,
     externalVideoId,
+    ownership: VIDEO_OWNERSHIP_TYPES.PIPELINE_METADATA,
     fileName: fileName || null,
     filePath: plainVideo.filePath || null,
     durationSec,
@@ -259,6 +301,18 @@ async function buildCourseSegmentScope(course, scopedVideos) {
 
   return {
     allowedCourseIds,
+    allowedVideoIds,
+  };
+}
+
+function buildCourseVisualSegmentScope(scopedVideos) {
+  const allowedVideoIds = new Set();
+
+  for (const video of scopedVideos?.videos || []) {
+    addVisualVideoIdentifiers(allowedVideoIds, video);
+  }
+
+  return {
     allowedVideoIds,
   };
 }
@@ -302,16 +356,19 @@ function segmentMatchesScope(segment, scope) {
 
 module.exports = {
   COURSE_BRIDGE_MODES,
+  VIDEO_OWNERSHIP_TYPES,
   pickFirstDefined,
   normalizeIdentifier,
   normalizeNumber,
   normalizeTranscript,
   normalizeSegment,
+  extractPipelineVisualVideoId,
   collectScopedVideos,
   buildCourseBridgeSummary,
   buildCourseBridgePresentation,
   buildVideoBridgePresentation,
   buildCourseSegmentScope,
+  buildCourseVisualSegmentScope,
   buildSegmentLookupQuery,
   segmentMatchesScope,
 };

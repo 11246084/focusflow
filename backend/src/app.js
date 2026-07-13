@@ -4,6 +4,7 @@ const cors = require('cors');                 // CORS 跨域資源共享
 const morgan = require('morgan');              // HTTP 請求日誌
 const swaggerUi = require('swagger-ui-express'); // Swagger API 文件
 const env = require('./config/env');            // 環境變數
+const { buildCorsOptions } = require('./config/cors'); // CORS 設定
 const healthRoutes = require('./routes/health.routes'); // 健康檢查路由
 const apiRoutes = require('./routes');          // API 路由聚合（來自 routes/index.js）
 const { notFoundHandler } = require('./middleware/notFound.middleware'); // 404 處理
@@ -18,8 +19,8 @@ const swaggerCustomCss = readSwaggerCustomCss(); // 讀取自訂 CSS
 
 // ========== 全域 Middleware =========-
 
-// CORS：允許跨域請求
-app.use(cors());
+// CORS：未設定 ALLOWED_ORIGINS 時維持開發期相容；正式部署可改為逗號分隔白名單
+app.use(cors(buildCorsOptions()));
 
 // LINE Webhook：使用原始 body 解析（供簽章驗證）
 app.use('/api/v1/line/webhook', express.raw({ type: 'application/json' }));

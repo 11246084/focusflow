@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const VideoSegment = require('../models/videoSegment.model');
+const VideoSegmentVideo = require('../models/videoSegmentVideo.model');
 const Clip = require('../models/clip.model');
 const AppError = require('../utils/appError');
 const env = require('../config/env');
@@ -9,6 +10,7 @@ const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
 const { generateAnswer } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
+const { assertQaQuotaAvailable } = require('./costControl.service');
 const { recordQuestion } = require('./questionRecording.service');
 const {
   isFaqCacheEnabled,
@@ -23,8 +25,10 @@ const {
   collectScopedVideos,
   buildCourseBridgeSummary,
   buildCourseSegmentScope,
+  buildCourseVisualSegmentScope,
   buildSegmentLookupQuery,
   segmentMatchesScope,
+  extractPipelineVisualVideoId,
 } = require('./bridgeScope.service');
 const {
   buildQaRuntimeSnapshot,
@@ -148,6 +152,35 @@ function buildYouTubeWatchUrl(youtubeVideoId, startSec = 0) {
   return `https://youtu.be/${youtubeVideoId}${seconds ? `?t=${seconds}` : ''}`;
 }
 
+function mapVisualSegmentMatch(segment, score) {
+  return {
+    modality: 'video',
+    segmentId: segment.clip_id || String(segment._id || ''),
+    videoId: segment.video_id || null,
+    videoTitle: null,
+    startSec: Number(segment.start_sec ?? 0),
+    endSec: Number(segment.end_sec ?? segment.start_sec ?? 0),
+    transcript: '',
+    clipPath: segment.clip_path || null,
+    score: Number(score.toFixed(4)),
+  };
+}
+
+function formatTimestampLabel(seconds = 0) {
+  const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function buildTranscriptSnippet(text, limit = 180) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `${normalized.slice(0, limit - 1).trim()}…`;
+}
+
 function looksLikeObjectId(value) {
   return typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value);
 }
@@ -166,19 +199,35 @@ function buildVideoMetadataByIdentifier(scopedVideos) {
 
   for (const video of scopedVideos?.videos || []) {
     const id = String(video._id || video.id || '');
-    const externalVideoId = video.videoId ? String(video.videoId) : null;
+    const externalVideoId = video.videoId || video.video_id ? String(video.videoId || video.video_id) : null;
     const metadata = {
       id,
       videoId: externalVideoId,
       title: getVideoPresentationTitle(video),
       sourceUrl: video.sourceUrl || null,
       youtubeVideoId: video.youtubeVideoId || null,
-      videoUrl: video.videoUrl || null,
+      videoUrl: video.videoUrl || video.sourceUrl || null,
     };
 
     for (const identifier of [id, externalVideoId]) {
       if (identifier) {
         lookup.set(identifier, metadata);
+      }
+    }
+
+    for (const candidate of [
+      video.fileName,
+      video.file_name,
+      video.filePath,
+      video.file_path,
+      video.sourceUrl,
+      video.videoUrl,
+      video.video_url,
+      externalVideoId,
+    ]) {
+      const visualVideoId = extractPipelineVisualVideoId(candidate);
+      if (visualVideoId) {
+        lookup.set(visualVideoId, metadata);
       }
     }
 
@@ -484,6 +533,159 @@ function buildQaResultCategory({ status, matchStatus }) {
   return matchStatus;
 }
 
+async function searchVisualSegmentsWithAtlas(scope, queryVector) {
+  if (!scope.allowedVideoIds?.size) {
+    return {
+      matches: [],
+      diagnostics: {
+        searchBackendUsed: 'atlas_video',
+        scoringMode: 'unavailable',
+        fallbacks: [buildRuntimeFallback({
+          stage: 'retrieval',
+          code: 'VIDEO_SEGMENTS_VIDEO_SCOPE_EMPTY',
+          message: 'No course-scoped video_segments_video identifiers were available.',
+        })],
+      },
+    };
+  }
+
+  if (!Array.isArray(queryVector) || !queryVector.length || !env.videoSegmentVideoVectorIndexName) {
+    return {
+      matches: [],
+      diagnostics: {
+        searchBackendUsed: 'atlas_video',
+        scoringMode: 'unavailable',
+        fallbacks: [buildRuntimeFallback({
+          stage: 'retrieval',
+          code: 'VIDEO_SEGMENTS_VIDEO_SEARCH_NOT_CONFIGURED',
+          message: 'Multimodal video retrieval needs a query embedding and VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME.',
+        })],
+      },
+    };
+  }
+
+  try {
+    const results = await VideoSegmentVideo.aggregate([
+      {
+        $vectorSearch: {
+          index: env.videoSegmentVideoVectorIndexName,
+          path: 'embedding',
+          queryVector,
+          numCandidates: Math.max(env.qaMatchLimit * 5, 10),
+          limit: env.qaMatchLimit,
+          filter: { video_id: { $in: [...scope.allowedVideoIds] } },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          video_id: 1,
+          clip_id: 1,
+          clip_path: 1,
+          start_sec: 1,
+          end_sec: 1,
+          score: { $meta: 'vectorSearchScore' },
+        },
+      },
+    ]);
+
+    return {
+      matches: results
+        .map((item) => mapVisualSegmentMatch(item, item.score || 0))
+        .filter((item) => item.score > 0),
+      diagnostics: {
+        searchBackendUsed: 'atlas_video',
+        scoringMode: 'visual_vector',
+        fallbacks: [],
+      },
+    };
+  } catch (error) {
+    return {
+      matches: [],
+      diagnostics: {
+        searchBackendUsed: 'atlas_video',
+        scoringMode: 'unavailable',
+        fallbacks: [buildRuntimeFallback({
+          stage: 'retrieval',
+          code: 'VIDEO_SEGMENTS_VIDEO_ATLAS_NOT_READY',
+          message: `video_segments_video Atlas vector search failed: ${error.message}`,
+        })],
+      },
+    };
+  }
+}
+
+function buildCitation(match, index) {
+  return {
+    citationId: `C${index + 1}`,
+    modality: match.modality || 'text',
+    segmentId: match.segmentId,
+    videoId: match.videoId,
+    videoTitle: match.videoTitle || null,
+    sourceVideo: {
+      videoId: match.videoId,
+      title: match.videoTitle || null,
+      sourceUrl: match.sourceUrl || null,
+      videoUrl: match.videoUrl || match.sourceUrl || null,
+      youtubeVideoId: match.youtubeVideoId || null,
+    },
+    timestamp: {
+      startSec: match.startSec,
+      endSec: match.endSec,
+      label: formatTimestampLabel(match.startSec),
+      jumpUrl: match.jumpUrl || null,
+    },
+    match: {
+      status: 'matched',
+      score: match.score,
+      confidence: match.score >= 0.5 ? 'high' : match.score >= 0.2 ? 'medium' : 'low',
+    },
+    clipPath: match.clipPath || null,
+    transcriptSnippet: buildTranscriptSnippet(match.transcript),
+  };
+}
+
+function buildCitations(matches) {
+  return matches.map(buildCitation);
+}
+
+function buildAnswerStatus(runtime, citations) {
+  if (runtime.matchStatus === 'matched') {
+    return {
+      status: 'answered',
+      isAnswerable: true,
+      matchStatus: runtime.matchStatus,
+      confidence: citations[0]?.match?.confidence || 'low',
+      noAnswerReason: null,
+    };
+  }
+
+  const noAnswerReason = runtime.matchStatus === 'no_searchable_segments'
+    ? 'NO_SEARCHABLE_SEGMENTS'
+    : 'NO_RELEVANT_MATCH';
+
+  return {
+    status: 'no_answer',
+    isAnswerable: false,
+    matchStatus: runtime.matchStatus,
+    confidence: 'none',
+    noAnswerReason,
+  };
+}
+
+function buildQaResponse({ answer, matches, clip, runtime }) {
+  const citations = buildCitations(matches);
+
+  return {
+    answer,
+    matches,
+    citations,
+    answerStatus: buildAnswerStatus(runtime, citations),
+    clip,
+    runtime,
+  };
+}
+
 async function findCachedClip(segmentId) {
   const clip = await Clip.findOneAndUpdate(
     { segmentId },
@@ -511,6 +713,8 @@ function buildQaRuntime({
   matchStatus,
   searchDiagnostics,
   answerResult,
+  matchModality = 'text',
+  visualSearchDiagnostics = null,
 }) {
   const answerFallbacks = answerResult?.fallback ? [answerResult.fallback] : [];
   const fallbacks = [...(searchDiagnostics?.fallbacks || []), ...answerFallbacks];
@@ -536,11 +740,25 @@ function buildQaRuntime({
     scoringMode: searchDiagnostics?.scoringMode || 'lexical',
     searchableSegmentCount,
     matchStatus,
+    matchModality,
     resultCategory,
     course: buildCourseRuntimeSummary(courseSummary),
     answerProviderUsed: answerResult?.provider || null,
+    visualSearch: visualSearchDiagnostics,
     fallbacks,
   };
+}
+
+function buildVisualOnlyAnswer(matches) {
+  const [topMatch] = matches;
+
+  if (!topMatch) {
+    return '目前找不到可對應的影像片段。';
+  }
+
+  const title = topMatch.videoTitle || topMatch.videoId || '目標影片';
+  const timeLabel = `${formatTimestampLabel(topMatch.startSec)}-${formatTimestampLabel(topMatch.endSec)}`;
+  return `我找到可能相關的影像片段：${title} ${timeLabel}。這些片段目前只有影像 embedding，沒有可引用的 transcript，因此請以 citation 位置檢視畫面，不應把它當成完整文字答案。`;
 }
 
 // FAQ 快取命中：直接以快取的答案/matches/clip 回應，
@@ -605,12 +823,12 @@ async function respondFromFaqCache({
     sourceUsageLogId: usageLog?._id,
   });
 
-  return {
+  return buildQaResponse({
     answer: faq.answer,
     matches,
     clip: faq.clip || null,
     runtime,
-  };
+  });
 }
 
 // Lightweight timing helper — 只在非測試環境吐出 log，方便診斷各階段瓶頸
@@ -671,7 +889,10 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     qaTimingMark('faq-cache-exact-hit TOTAL', t0);
     return cachedResult;
   }
+
+  const costControl = await assertQaQuotaAvailable({ userId: user.id });
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+  const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
   tMark = qaTimingMark('build-segment-scope', tMark);
 
   const scopedSegments = await loadScopedSearchableSegments(segmentScope);
@@ -697,7 +918,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       userId: user.id,
       courseId: course._id,
       event: USAGE_LOG_EVENTS.ASK,
-      metadata: { source, question: trimmedQuestion, matchCount: 0, runtime },
+      metadata: { source, question: trimmedQuestion, matchCount: 0, runtime, costControl },
     });
 
     const answer = '這門課目前沒有可回答的影片資料（影片可能已被刪除）。請聯絡老師或管理員確認課程內容。';
@@ -714,10 +935,10 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       sourceUsageLogId: usageLog?._id,
     });
 
-    return { answer, matches: [], clip: null, runtime };
+    return buildQaResponse({ answer, matches: [], clip: null, runtime });
   }
 
-  if (!scopedSegments.length) {
+  if (!scopedSegments.length && !visualSegmentScope.allowedVideoIds.size) {
     const runtime = buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
@@ -740,6 +961,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
         question: trimmedQuestion,
         matchCount: 0,
         runtime,
+        costControl,
       },
     });
 
@@ -759,12 +981,12 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       sourceUsageLogId: usageLog?._id,
     });
 
-    return {
+    return buildQaResponse({
       answer,
       matches: [],
       clip: null,
       runtime,
-    };
+    });
   }
 
   const queryVector = await embedQuery(trimmedQuestion);
@@ -793,20 +1015,80 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     }
   }
 
-  const searchResult = env.qaVectorSearchMode === 'atlas'
-    ? await searchSegmentsWithAtlas(segmentScope, queryVector)
-    : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
+  const searchResult = scopedSegments.length
+    ? env.qaVectorSearchMode === 'atlas'
+      ? await searchSegmentsWithAtlas(segmentScope, queryVector)
+      : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments)
+    : {
+        matches: [],
+        diagnostics: {
+          searchBackendUsed: env.qaVectorSearchMode,
+          scoringMode: 'unavailable',
+          fallbacks: [],
+        },
+      };
   tMark = qaTimingMark(`search (${env.qaVectorSearchMode})`, tMark);
 
   const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
 
   if (!matches.length) {
+    const visualSearchResult = await searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector);
+    const visualMatches = enrichMatchesWithVideoMetadata(visualSearchResult.matches, scopedVideos);
+
+    if (visualMatches.length) {
+      const runtime = buildQaRuntime({
+        runtimeSnapshot,
+        courseSummary,
+        searchableSegmentCount: scopedSegments.length,
+        matchStatus: 'matched',
+        matchModality: 'video',
+        searchDiagnostics: visualSearchResult.diagnostics,
+        visualSearchDiagnostics: visualSearchResult.diagnostics,
+        answerResult: { provider: 'template' },
+      });
+
+      const answer = buildVisualOnlyAnswer(visualMatches);
+      const usageLog = await recordUsage({
+        userId: user.id,
+        courseId: course._id,
+        event: USAGE_LOG_EVENTS.ASK,
+        metadata: {
+          source,
+          question: trimmedQuestion,
+          matchCount: visualMatches.length,
+          topSegmentId: visualMatches[0].segmentId,
+          runtime,
+          costControl,
+        },
+      });
+
+      await recordQuestion({
+        userId: user.id,
+        courseId: course._id,
+        question: trimmedQuestion,
+        answer,
+        status: QUESTION_STATUSES.ANSWERED,
+        source,
+        matches: visualMatches,
+        runtime,
+        sourceUsageLogId: usageLog?._id,
+      });
+
+      return buildQaResponse({
+        answer,
+        matches: visualMatches,
+        clip: null,
+        runtime,
+      });
+    }
+
     const runtime = buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
       searchableSegmentCount: scopedSegments.length,
       matchStatus: 'no_relevant_match',
       searchDiagnostics: searchResult.diagnostics,
+      visualSearchDiagnostics: visualSearchResult.diagnostics,
       answerResult: null,
     });
 
@@ -819,6 +1101,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
         question: trimmedQuestion,
         matchCount: 0,
         runtime,
+        costControl,
       },
     });
 
@@ -834,12 +1117,12 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       sourceUsageLogId: usageLog?._id,
     });
 
-    return {
+    return buildQaResponse({
       answer: '目前找不到足夠相關的影片片段，請換個問法或確認課程是否已完成索引。',
       matches: [],
       clip: null,
       runtime,
-    };
+    });
   }
 
   // 平行：LLM 生成答案與快取 clip 查詢完全獨立
@@ -886,6 +1169,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       matchCount: matches.length,
       topSegmentId: matches[0].segmentId,
       runtime,
+      costControl,
     },
   });
 
@@ -927,12 +1211,12 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     console.log(`[qa-timing] TOTAL: ${totalMs.toFixed(0)}ms (source=${source})`);
   }
 
-  return {
+  return buildQaResponse({
     answer: answerResult.text,
     matches,
     clip: resultClip,
     runtime,
-  };
+  });
 }
 
 module.exports = {

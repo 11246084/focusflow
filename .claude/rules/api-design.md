@@ -107,6 +107,8 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
 | `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |
+| `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整 |
+| `YOUTUBE_UPLOAD_FAILED` | 502 | YouTube OAuth 或影片上傳 API 失敗 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
 
 新增自訂錯誤碼時，使用 **SCREAMING_SNAKE_CASE**，並在此表格補充說明。

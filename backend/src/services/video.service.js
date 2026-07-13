@@ -12,7 +12,7 @@ const { VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
 const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
-const { scheduleYouTubeAutoUpload } = require('./youtubeUpload.service');
+const youtubeUploadService = require('./youtubeUpload.service');
 const {
   assertCanAccessCourse,
   assertCanManageCourse,
@@ -266,17 +266,34 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     );
   }
 
+  let youtubeUpload = null;
+  const normalizedTitle = String(title || '').trim() || originalName;
+
+  // Legacy synchronous adapter: kept for existing local environments and API compatibility.
+  // The canonical YOUTUBE_UPLOAD_ENABLED flow runs in the background after the video is created.
+  if (youtubeUploadService.isAutoUploadEnabled()) {
+    youtubeUpload = await youtubeUploadService.uploadLocalVideo({
+      filePath: file.path,
+      title: normalizedTitle,
+      description: `FocusFlow course video: ${course.title}`,
+      mimeType: file.mimetype,
+    });
+  }
+
+  const playbackUrl = youtubeUpload?.videoUrl || `/uploads/${file.filename}`;
+
   const video = await Video.create({
     courseId,
-    title: String(title || '').trim() || originalName,
+    title: normalizedTitle,
     sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
-    sourceUrl: `/uploads/${file.filename}`,
+    sourceUrl: playbackUrl,
     fileName: originalName,
     filePath: file.path,
     fileHash,
     durationSec: null,
-    videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
-    videoUrl: `/uploads/${file.filename}`,
+    videoSource: youtubeUpload ? VIDEO_SOURCE_TYPES.YOUTUBE : VIDEO_SOURCE_TYPES.UPLOAD,
+    videoUrl: playbackUrl,
+    youtubeVideoId: youtubeUpload?.youtubeVideoId || null,
     uploadedBy,
     processing: createQueuedProcessingState(),
   });
@@ -324,7 +341,7 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
   sttProcess.unref();
 
   // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。
-  scheduleYouTubeAutoUpload(video);
+  youtubeUploadService.scheduleYouTubeAutoUpload(video);
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {
     courseId,

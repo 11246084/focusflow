@@ -516,6 +516,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
 // 包含：fallback 提示（開發用）、AI 答案、片段時間戳、影片跳轉連結
 function buildQuestionSummaryLines(qaResult) {
   const [topMatch] = qaResult.matches;
+  const [topCitation] = qaResult.citations || [];
   const summaryLines = [];
   const answerFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'answer');
   const retrievalFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'retrieval');
@@ -536,11 +537,13 @@ function buildQuestionSummaryLines(qaResult) {
   summaryLines.push(qaResult.answer);
 
   // 附上最相關片段的時間區間，讓使用者知道答案來自影片哪個位置
-  if (topMatch) {
+  if (topCitation) {
+    summaryLines.push(`片段：${topCitation.timestamp.startSec}s - ${topCitation.timestamp.endSec}s`);
+  } else if (topMatch) {
     summaryLines.push(`片段：${topMatch.startSec}s - ${topMatch.endSec}s`);
   }
 
-  const jumpUrl = qaResult.clip?.jumpUrl || topMatch?.jumpUrl;
+  const jumpUrl = qaResult.clip?.jumpUrl || topCitation?.timestamp?.jumpUrl || topMatch?.jumpUrl;
 
   // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
   if (jumpUrl) {

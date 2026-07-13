@@ -19,6 +19,7 @@ const Course = require('../../src/models/course.model');
 const Video = require('../../src/models/video.model');
 const Enrollment = require('../../src/models/enrollment.model');
 const VideoSegment = require('../../src/models/videoSegment.model');
+const VideoSegmentVideo = require('../../src/models/videoSegmentVideo.model');
 const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
@@ -35,6 +36,7 @@ const store = {
   videos: [],
   enrollments: [],
   videoSegments: [],
+  videoSegmentVideos: [],
   clips: [],
   usageLogs: [],
   questions: [],
@@ -207,6 +209,10 @@ function matchesQuery(document, query = {}) {
       }
 
       if ('$gte' in value && new Date(currentValue).getTime() < new Date(value.$gte).getTime()) {
+        return false;
+      }
+
+      if ('$lt' in value && new Date(currentValue).getTime() >= new Date(value.$lt).getTime()) {
         return false;
       }
 
@@ -626,6 +632,24 @@ function installModelStubs() {
   VideoSegment.deleteMany = async (query = {}) => deleteManyInStore(store.videoSegments, query);
   VideoSegment.aggregate = async () => [];
 
+  VideoSegmentVideo.find = (query = {}) => createQuery(store.videoSegmentVideos.filter((item) => matchesQuery(item, query)));
+  VideoSegmentVideo.findOne = async (query = {}) => store.videoSegmentVideos.find((item) => matchesQuery(item, query)) || null;
+  VideoSegmentVideo.countDocuments = async (query = {}) => store.videoSegmentVideos.filter((item) => matchesQuery(item, query)).length;
+  VideoSegmentVideo.deleteMany = async (query = {}) => deleteManyInStore(store.videoSegmentVideos, query);
+  VideoSegmentVideo.aggregate = async (pipeline = []) => {
+    const vectorStage = pipeline.find((stage) => stage.$vectorSearch)?.$vectorSearch;
+    const allowedVideoIds = vectorStage?.filter?.video_id?.$in || [];
+    const limit = vectorStage?.limit || store.videoSegmentVideos.length;
+
+    return store.videoSegmentVideos
+      .filter((item) => !allowedVideoIds.length || allowedVideoIds.includes(item.video_id))
+      .slice(0, limit)
+      .map((item, index) => ({
+        ...item,
+        score: item.score ?? Math.max(0.1, 0.95 - (index * 0.05)),
+      }));
+  };
+
   Clip.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
     store.clips,
     query,
@@ -732,6 +756,7 @@ function resetStore() {
   store.videos.length = 0;
   store.enrollments.length = 0;
   store.videoSegments.length = 0;
+  store.videoSegmentVideos.length = 0;
   store.clips.length = 0;
   store.usageLogs.length = 0;
   store.questions.length = 0;

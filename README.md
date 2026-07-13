@@ -20,6 +20,7 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 |------|------|
 | [docs/current-status.md](docs/current-status.md) | 跨服務最新進度與缺口 |
 | [backend/docs/current-state.md](backend/docs/current-state.md) | Backend runtime、DB 實況、已知限制 |
+| [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | Phase 2 QA / Video / Clip / YouTube 回傳語意 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 架構、資料流與 schema 邊界 |
 | [backend/docs/openapi.yaml](backend/docs/openapi.yaml) | OpenAPI 規格檔，執行時掛在 `/docs` |
 
@@ -60,7 +61,7 @@ QA_ANSWER_PROVIDER=template
 QA_VECTOR_SEARCH_MODE=memory
 ```
 
-共享 demo env 目前偏向 `gemini + atlas + gemini`，但共享 Atlas 在 2026-05-01 驗證時已沒有 `text_embedding_index`。若 `QA_VECTOR_SEARCH_MODE=atlas`，必須先確認 Atlas vector index 存在，否則 `/health` 或提問會 fail-fast。
+共享 demo env 目前偏向 `gemini + atlas + gemini`；共享 Atlas 的 `text_embedding_index` 已在 2026-05-23 重新驗證為 READY。若環境被重置，`QA_VECTOR_SEARCH_MODE=atlas` 仍會 fail-fast，請先用 `/health` 確認 runtime。
 
 ### 2. 植入示範資料
 
@@ -136,7 +137,7 @@ python src/main.py --overwrite
 | `npm run db:sync-atlas` | 將本機 MongoDB 同步至 Atlas |
 | `npm test` | 執行 backend 全部測試 |
 
-注意：`db:ensure-questions` 與 `db:backfill-questions` 目前是 dangling scripts，指向的 `src/scripts/ensureQuestionsCollection.js`、`src/scripts/backfillQuestionsFromUsageLogs.js` 不存在，執行會失敗。`questions` collection 目前由 Mongoose schema 與 QA 記錄流程建立。
+注意：`db:ensure-questions` 會建立 `questions` collection 並同步 indexes；`db:backfill-questions` 預設為 dry-run，只列出可從 legacy ASK usage logs 補回的 questions，需手動加 `-- --write` 才會寫入。
 
 ### Frontend
 
@@ -182,7 +183,7 @@ python src/main.py --overwrite
 | Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats` |
 | Internal Pipeline | `POST /api/v1/internal/videos/:videoId/processing/start`、`complete`、`fail` |
 
-OpenAPI 目前尚未完整涵蓋 stats/admin 與部分 PATCH/DELETE 端點；完整狀態以實際 route files、此 README 與 [backend/docs/current-state.md](backend/docs/current-state.md) 為準。
+OpenAPI 已涵蓋主要 auth / courses / videos / watched / QA / stats / admin / LINE 端點；internal processing webhook 等少數內部端點仍以 route files 為準。
 
 ---
 
@@ -228,9 +229,9 @@ LINE Bot 指令：
 
 ## 目前狀態與限制
 
-截至 2026-07-13：
+截至 2026-07-14：
 
-- Backend 主線已包含 auth、courses、videos、QA（含 FAQ 快取）、LINE、stats、admin、internal processing webhook；route + service 全測試 119/119 passed（2026-07-13 實測）。
+- Backend 主線已包含 auth、courses、videos、QA（含 FAQ 快取、Phase 2 `citations` / `answerStatus` contract、visual citation retrieval 與 quota guardrails）、LINE、stats、admin、YouTube Shorts proxy、YouTube auto-upload adapter、CORS allowlist 與 internal processing webhook；2026-07-14 合併後全測試 135/135 passed。
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 Promise.all + 全 `.lean()`；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 補 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s。API 回應格式 / 答案品質 100% 不變。
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音。
 - Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已串接；教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖）。
@@ -242,10 +243,12 @@ LINE Bot 指令：
 - QA 拒答：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程。
 - 新增錯誤碼 `INVALID_ENCODING` (400)：`qa.controller.js` 偵測到客戶端送出壞 utf-8 body 時拒收。
 - LINE live 曾端對端驗證成功，但 ngrok URL / Channel 設定屬部署時變動項。
-- 共享 Atlas 目前缺少 `text_embedding_index`，不能直接宣稱 atlas mode ready。
-- `video_segments_video` 仍是預留 / legacy 邊界，尚未成為正式 clip source。
-- YouTube 整合：教師可貼 URL（backend 解析存 `youtubeVideoId`，pipeline 用 `yt-dlp` 下載音訊）；2026-07-12 起本地影片可透過 YouTube Data API 自動上傳（feature flag `YOUTUBE_UPLOAD_ENABLED`，預設關閉，需 OAuth 憑證，**尚未以 live 憑證端對端驗證**）。自動清 `backend/uploads/`、playlist 管理尚未做。
-- CORS 目前仍是寬鬆設定，正式部署前需限縮。
+- 2026-07-10 Phase 2 QA contract 已新增 `citations` 與 `answerStatus`，前端與 LINE 可用同一份來源、時間戳、match/no-answer 狀態顯示；`matches` 保留為 legacy / debug 相容欄位。
+- QA cost guardrails 已接入：可用 `QA_MONTHLY_TOKEN_BUDGET` / `QA_USER_MONTHLY_TOKEN_QUOTA` / `QA_ESTIMATED_TOKENS_PER_ASK` 設定全站與單一使用者月 quota，超額時回 `429 QA_QUOTA_EXCEEDED`，`/health.runtime.qa.costControl` 可觀察設定。
+- 共享 Atlas 的 `text_embedding_index` 已於 2026-05-23 驗證 READY；若共享 DB 或 index 被重置，仍需以 `/health` 現況為準。
+- `video_segments_video` 已接入初版 course-scoped visual citation retrieval；目前只回影像片段 citation / timestamp / `clipPath`，尚未成為 caption QA 或正式 clip publishing source。
+- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke、playlist 管理與自動清 `backend/uploads/` 尚未做。
+- CORS 已支援 `ALLOWED_ORIGINS` 逗號分隔白名單；未設定時維持開發期相容，正式部署需填入實際前端 origin。
 
 更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。
 

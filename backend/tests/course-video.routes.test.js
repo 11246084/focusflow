@@ -14,6 +14,7 @@ const {
   env,
   createProcessingState,
 } = require('./helpers/backendTestHarness');
+const youtubeUploadService = require('../src/services/youtubeUpload.service');
 
 describe('course and video routes', () => {
   let serverContext;
@@ -237,6 +238,51 @@ describe('course and video routes', () => {
       store.courses.find((course) => course._id === createCourseResult.body.data.course._id).videoIds,
       [uploadResult.body.data.video._id],
     );
+  });
+
+  it('stores YouTube metadata when local-file auto upload is enabled', async () => {
+    const originalIsAutoUploadEnabled = youtubeUploadService.isAutoUploadEnabled;
+    const originalUploadLocalVideo = youtubeUploadService.uploadLocalVideo;
+    youtubeUploadService.isAutoUploadEnabled = () => true;
+    youtubeUploadService.uploadLocalVideo = async ({ filePath, title, mimeType }) => ({
+      youtubeVideoId: 'yt-auto-001',
+      videoUrl: 'https://www.youtube.com/watch?v=yt-auto-001',
+      privacyStatus: 'unlisted',
+      received: { filePath, title, mimeType },
+    });
+
+    try {
+      const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+      const formData = createVideoUploadForm({
+        title: 'Auto-uploaded lecture',
+        filename: `${Date.now()}-test-upload-youtube-auto.mp4`,
+      });
+
+      const uploadResult = await jsonRequest(
+        serverContext.baseUrl,
+        `/api/v1/courses/${ids.teacherCourse}/videos`,
+        {
+          method: 'POST',
+          token: teacherToken,
+          body: formData,
+        },
+      );
+
+      const storedVideo = store.videos.find((video) => video._id === uploadResult.body.data.video._id);
+      assert.equal(uploadResult.status, 201);
+      assert.equal(uploadResult.body.data.video.sourceType, 'upload');
+      assert.equal(uploadResult.body.data.video.youtubeVideoId, 'yt-auto-001');
+      assert.equal(uploadResult.body.data.video.youtube_video_id, 'yt-auto-001');
+      assert.equal(uploadResult.body.data.video.video_source, 'youtube');
+      assert.equal(uploadResult.body.data.video.sourceUrl, 'https://www.youtube.com/watch?v=yt-auto-001');
+      assert.equal(uploadResult.body.data.video.video_url, 'https://www.youtube.com/watch?v=yt-auto-001');
+      assert.equal(storedVideo.youtubeVideoId, 'yt-auto-001');
+      assert.ok(storedVideo.filePath);
+      assert.ok(storedVideo.fileHash);
+    } finally {
+      youtubeUploadService.isAutoUploadEnabled = originalIsAutoUploadEnabled;
+      youtubeUploadService.uploadLocalVideo = originalUploadLocalVideo;
+    }
   });
 
   it('rejects uploads without a file', async () => {
@@ -665,9 +711,11 @@ describe('course and video routes', () => {
     assert.equal(listResult.body.data.videos[0].metadataOnly, true);
     assert.equal(listResult.body.data.videos[0].qaScopeOnly, true);
     assert.equal(listResult.body.data.videos[0].isAppOwned, false);
+    assert.equal(listResult.body.data.videos[0].ownership, 'pipeline_metadata');
     assert.equal(listResult.body.data.videos[0].externalVideoId, ids.pipelineBridgeVideoExternal);
     assert.equal(detailResult.status, 200);
     assert.equal(detailResult.body.data.video.metadataOnly, true);
+    assert.equal(detailResult.body.data.video.ownership, 'pipeline_metadata');
     assert.equal(detailResult.body.data.video.courseId, ids.pipelineBridgeCourse);
     assert.equal(processingResult.status, 409);
     assert.equal(processingResult.body.error.code, 'VIDEO_METADATA_ONLY');
@@ -799,6 +847,8 @@ describe('course and video routes', () => {
     assert.equal(listResult.body.data.videos.length, 2);
     assert.equal(listResult.body.data.videos.some((video) => video.metadataOnly === true), true);
     assert.equal(listResult.body.data.videos.some((video) => video.isAppOwned === true), true);
+    assert.equal(listResult.body.data.videos.some((video) => video.ownership === 'pipeline_metadata'), true);
+    assert.equal(listResult.body.data.videos.some((video) => video.ownership === 'app_owned'), true);
   });
 
   it('allows owner teacher and admin to retry failed videos but rejects other roles', async () => {

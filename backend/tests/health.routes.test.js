@@ -8,6 +8,11 @@ function resetRuntimeEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.qaEstimatedTokensPerAsk = 1000;
+  env.qaMonthlyTokenBudget = 0;
+  env.qaUserMonthlyTokenQuota = 0;
+  env.videoSegmentVideoCollection = 'video_segments_video';
+  env.videoSegmentVideoVectorIndexName = '';
   env.geminiApiKey = '';
   env.openaiApiKey = '';
   env.lineChannelSecret = 'line-secret-for-tests';
@@ -39,12 +44,22 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.vectorSearchMode, 'memory');
     assert.equal(result.body.data.runtime.qa.readiness, 'ready');
     assert.equal(result.body.data.runtime.qa.readyForAsk, true);
+    assert.equal(result.body.data.runtime.qa.costControl.enabled, false);
+    assert.equal(result.body.data.runtime.qa.costControl.resetCadence, 'calendar_month_utc');
     assert.equal(result.body.data.runtime.qa.warnings.some((item) => item.code === 'PHASE1_MEMORY_SEARCH'), true);
     assert.equal(result.body.data.runtime.line.signatureValidationConfigured, true);
     assert.equal(result.body.data.runtime.line.liveReplyConfigured, false);
     assert.equal(result.body.data.runtime.line.readiness, 'degraded');
     assert.equal(result.body.data.runtime.line.deliveryMode, 'backend_only');
     assert.equal(result.body.data.runtime.line.degradedReasons.some((item) => item.code === 'LINE_CHANNEL_ACCESS_TOKEN_MISSING'), true);
+    assert.equal(result.body.data.runtime.multimodal.segmentCollection, 'video_segments_video');
+    assert.equal(result.body.data.runtime.multimodal.expectedVectorIndexName, 'video_embedding_index');
+    assert.equal(result.body.data.runtime.multimodal.setupCommand, 'npm run db:ensure-video-vector-index');
+    assert.equal(result.body.data.runtime.multimodal.readyForQa, false);
+    assert.equal(
+      result.body.data.runtime.multimodal.hardFailures.some((item) => item.code === 'VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_MISSING'),
+      true,
+    );
   });
 
   it('marks qa runtime as hard-fail when the configured answer provider is missing required keys', async () => {
@@ -57,5 +72,17 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.readiness, 'hard_fail');
     assert.equal(result.body.data.runtime.qa.readyForAsk, false);
     assert.equal(result.body.data.runtime.qa.hardFailures.some((item) => item.code === 'GEMINI_API_KEY_MISSING'), true);
+  });
+
+  it('reports configured QA cost guardrails in the health snapshot', async () => {
+    env.qaMonthlyTokenBudget = 5000;
+    env.qaUserMonthlyTokenQuota = 2000;
+
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.runtime.qa.costControl.enabled, true);
+    assert.equal(result.body.data.runtime.qa.costControl.monthlyTokenBudget, 5000);
+    assert.equal(result.body.data.runtime.qa.costControl.userMonthlyTokenQuota, 2000);
   });
 });

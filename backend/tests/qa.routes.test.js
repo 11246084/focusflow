@@ -18,6 +18,9 @@ function resetQaEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.qaEstimatedTokensPerAsk = 1000;
+  env.qaMonthlyTokenBudget = 0;
+  env.qaUserMonthlyTokenQuota = 0;
   env.geminiApiKey = '';
   env.openaiApiKey = '';
 }
@@ -134,6 +137,12 @@ describe('qa routes', () => {
 
     assert.equal(result.status, 200);
     assert.equal(result.body.data.matches.length, 0);
+    assert.deepEqual(result.body.data.citations, []);
+    assert.equal(result.body.data.answerStatus.status, 'no_answer');
+    assert.equal(result.body.data.answerStatus.isAnswerable, false);
+    assert.equal(result.body.data.answerStatus.matchStatus, 'no_relevant_match');
+    assert.equal(result.body.data.answerStatus.confidence, 'none');
+    assert.equal(result.body.data.answerStatus.noAnswerReason, 'NO_RELEVANT_MATCH');
     assert.equal(result.body.data.clip, null);
     assert.equal(result.body.data.runtime.status, 'degraded');
     assert.equal(result.body.data.runtime.degraded, true);
@@ -163,8 +172,26 @@ describe('qa routes', () => {
     assert.equal(result.body.data.matches[0].segmentId, ids.segmentOne);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId', 'videoTitle'],
+      ['endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
     );
+    assert.equal(result.body.data.citations.length, result.body.data.matches.length);
+    assert.deepEqual(
+      Object.keys(result.body.data.citations[0]).sort(),
+      ['citationId', 'clipPath', 'match', 'modality', 'segmentId', 'sourceVideo', 'timestamp', 'transcriptSnippet', 'videoId', 'videoTitle'],
+    );
+    assert.equal(result.body.data.citations[0].citationId, 'C1');
+    assert.equal(result.body.data.citations[0].modality, 'text');
+    assert.equal(result.body.data.citations[0].clipPath, null);
+    assert.equal(result.body.data.citations[0].segmentId, ids.segmentOne);
+    assert.equal(result.body.data.citations[0].sourceVideo.title, 'Published Video');
+    assert.equal(result.body.data.citations[0].sourceVideo.sourceUrl, '/uploads/published.mp4');
+    assert.equal(result.body.data.citations[0].timestamp.startSec, 12);
+    assert.equal(result.body.data.citations[0].timestamp.label, '0:12');
+    assert.equal(result.body.data.citations[0].match.status, 'matched');
+    assert.equal(result.body.data.answerStatus.status, 'answered');
+    assert.equal(result.body.data.answerStatus.isAnswerable, true);
+    assert.equal(result.body.data.answerStatus.matchStatus, 'matched');
+    assert.equal(result.body.data.answerStatus.noAnswerReason, null);
     assert.equal(result.body.data.clip.segmentId, ids.segmentOne);
     assert.equal(result.body.data.runtime.status, 'degraded');
     assert.equal(result.body.data.runtime.degraded, true);
@@ -189,6 +216,8 @@ describe('qa routes', () => {
     assert.equal(askLog.metadata.source, 'api');
     assert.equal(askLog.metadata.topSegmentId, ids.segmentOne);
     assert.equal(askLog.metadata.runtime.matchStatus, 'matched');
+    assert.equal(askLog.metadata.costControl.month, new Date().toISOString().slice(0, 7));
+    assert.equal(askLog.metadata.costControl.estimatedTokens, 1000);
     assert.ok(questionRecord);
     assert.equal(String(questionRecord.userId), ids.student);
     assert.equal(questionRecord.studentId, undefined);
@@ -197,7 +226,39 @@ describe('qa routes', () => {
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
   });
 
-  it('supports camelCase segments with videoId and text fields without changing response shape', async () => {
+  it('returns quota errors when the monthly user QA token quota is exhausted', async () => {
+    env.qaEstimatedTokensPerAsk = 1000;
+    env.qaUserMonthlyTokenQuota = 1000;
+    store.usageLogs.push({
+      _id: newObjectId(),
+      userId: ids.student,
+      courseId: ids.publishedCourse,
+      event: 'ask',
+      metadata: {
+        costControl: {
+          estimatedTokens: 1000,
+        },
+      },
+      timestamp: new Date(),
+    });
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        courseId: ids.publishedCourse,
+        question: 'What does the course say about JWT authentication?',
+      },
+    });
+
+    assert.equal(result.status, 429);
+    assert.equal(result.body.error.code, 'QA_QUOTA_EXCEEDED');
+    assert.equal(result.body.error.details.scope, 'user');
+    assert.equal(result.body.error.details.limitTokens, 1000);
+  });
+
+  it('supports camelCase segments with videoId and text fields while exposing source metadata', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 
     store.videoSegments.push(
@@ -238,7 +299,7 @@ describe('qa routes', () => {
     assert.match(result.body.data.matches[0].transcript, /videoId and text fields/i);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'score', 'segmentId', 'startSec', 'transcript', 'videoId', 'videoTitle'],
+      ['endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
     );
     assert.equal(result.body.data.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
   });
@@ -276,6 +337,10 @@ describe('qa routes', () => {
 
     assert.equal(result.status, 200);
     assert.equal(result.body.data.matches.length, 0);
+    assert.deepEqual(result.body.data.citations, []);
+    assert.equal(result.body.data.answerStatus.status, 'no_answer');
+    assert.equal(result.body.data.answerStatus.matchStatus, 'no_searchable_segments');
+    assert.equal(result.body.data.answerStatus.noAnswerReason, 'NO_SEARCHABLE_SEGMENTS');
     assert.equal(result.body.data.runtime.status, 'degraded');
     assert.equal(result.body.data.runtime.degraded, true);
     assert.equal(result.body.data.runtime.matchStatus, 'no_searchable_segments');

@@ -8,6 +8,7 @@ async function recordUsage({ userId, courseId = null, event, durationSec = null,
       event,
       durationSec,
       metadata,
+      timestamp: new Date(),
     });
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {

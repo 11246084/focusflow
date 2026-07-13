@@ -85,7 +85,35 @@ paths:
                           openaiConfigured: false
                           readiness: ready
                           readyForAsk: true
+                          costControl:
+                            enabled: false
+                            resetCadence: calendar_month_utc
+                            estimatedTokensPerAsk: 1000
+                            monthlyTokenBudget: 0
+                            userMonthlyTokenQuota: 0
                           warnings: []
+                          hardFailures: []
+                        multimodal:
+                          segmentCollection: video_segments_video
+                          vectorIndexName: video_embedding_index
+                          expectedVectorIndexName: video_embedding_index
+                          vectorIndexConfigured: true
+                          expectedVectorIndexDefinition:
+                            fields:
+                              - type: vector
+                                path: embedding
+                                numDimensions: 3072
+                                similarity: cosine
+                              - type: filter
+                                path: video_id
+                          setupCommand: npm run db:ensure-video-vector-index
+                          readiness: not_enabled
+                          readyForQa: false
+                          blockers:
+                            - code: MULTIMODAL_QA_NOT_INTEGRATED
+                              message: video_segments_video is not wired into QA retrieval yet.
+                            - code: VIDEO_SEGMENTS_VIDEO_SCOPE_MAPPING_UNVERIFIED
+                              message: video_segments_video.video_id must map to videos before course-scoped QA can use it.
                           hardFailures: []
                         line:
                           signatureValidationConfigured: true
@@ -424,7 +452,10 @@ paths:
       tags:
         - Videos
       summary: 上傳課程影片
-      description: 僅限 teacher / admin 使用，並且用於建立 app-owned course video 的上傳端點。
+      description: |
+        僅限 teacher / admin 使用，並且用於建立 app-owned course video 的上傳端點。
+        若 `YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會先以 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，
+        成功後把 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl` 寫回同一筆 `Video`，再沿用既有本機檔案 STT processing flow。
       operationId: createVideo
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -509,6 +540,32 @@ paths:
                       code: COURSE_MANAGE_DENIED
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+        '502':
+          description: YouTube OAuth 或影片上傳 API 失敗（僅 auto-upload 啟用時可能發生）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                youtubeUploadFailed:
+                  value:
+                    success: false
+                    message: Failed to upload video to YouTube.
+                    error:
+                      code: YOUTUBE_UPLOAD_FAILED
+        '503':
+          description: YouTube auto-upload 已啟用，但 OAuth 憑證不完整
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                youtubeNotConfigured:
+                  value:
+                    success: false
+                    message: YouTube OAuth credentials are not configured.
+                    error:
+                      code: YOUTUBE_UPLOAD_NOT_CONFIGURED
   /api/v1/courses/{courseId}/videos/youtube:
     post:
       tags:
@@ -886,7 +943,7 @@ paths:
         - QA
       summary: 對課程提出問題
       description: |
-        這是 Phase-1 的 QA 端點，會明確回傳 runtime diagnostics。
+        這是 Phase-2 收斂後的 QA 端點，會明確回傳 runtime diagnostics、answerStatus 與 citations。
 
         即使回應成功，runtime 狀態仍可能是 `degraded`；這表示系統可以回答，但目前執行條件不是理想狀態。呼叫端應至少檢查：
         - `runtime.status`
@@ -894,9 +951,12 @@ paths:
         - `runtime.resultCategory`
         - `runtime.fallbacks`
         - `runtime.course.qaScopeOnly`
+        - `answerStatus.status`
+        - `citations[]`
 
         若 `runtime.matchStatus=no_searchable_segments`，代表這門課目前沒有可搜尋的片段資料，而不是單純找不到相關答案。
-        `runtime.resultCategory` 是 Phase-1 的 convenience field，方便 frontend / demo 先做分流；真正細節仍應以 `status`、`matchStatus` 與 `degradedReasons` 為準。
+        `answerStatus` 是 Phase-2 client 的主要分流欄位；`matches` 保留為 legacy / debug 相容欄位。
+        `citations[]` 會整理 source video、timestamp、jump URL、match score 與 transcript snippet，供前端與 LINE 顯示來源。
 
         這個端點不代表 Atlas retrieval 已 production-ready。Phase-1 目前可能仍使用 memory-mode retrieval、mock embeddings、bridge-only scope，或 answer-generation fallback。
       operationId: askQuestion
@@ -947,6 +1007,29 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+        '429':
+          description: QA 月 token budget 或 user quota 已超額
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                quotaExceeded:
+                  summary: 單一使用者月 quota 超額
+                  value:
+                    success: false
+                    message: Monthly QA token quota exceeded for this user.
+                    error:
+                      code: QA_QUOTA_EXCEEDED
+                      details:
+                        scope: user
+                        month: 2026-07
+                        resetCadence: calendar_month_utc
+                        usedEvents: 1
+                        projectedEvents: 2
+                        usedTokens: 1000
+                        projectedTokens: 2000
+                        limitTokens: 1000
         '500':
           $ref: '#/components/responses/QaRuntimeMisconfiguredError'
         '503':
@@ -2022,6 +2105,7 @@ components:
         - qaScopeOnly
         - metadataOnly
         - isAppOwned
+        - ownership
         - bridgeMode
         - bridgeSource
       properties:
@@ -2121,6 +2205,12 @@ components:
         isAppOwned:
           description: "`true` 代表這支影片是 backend app 直接管理的 app-owned record。"
           type: boolean
+        ownership:
+          description: 明確標示這支影片目前在 mixed `videos` collection 中的後端 ownership 邊界。
+          type: string
+          enum:
+            - app_owned
+            - pipeline_metadata
         bridgeMode:
           description: 這支影片目前所屬的 `bridge` 呈現模式。
           $ref: '#/components/schemas/BridgeMode'
@@ -2212,6 +2302,7 @@ components:
         - openaiConfigured
         - readiness
         - readyForAsk
+        - costControl
         - warnings
         - hardFailures
       properties:
@@ -2220,6 +2311,7 @@ components:
           enum:
             - mock
             - openai
+            - gemini
         vectorSearchMode:
           type: string
           enum:
@@ -2248,6 +2340,8 @@ components:
             - hard_fail
         readyForAsk:
           type: boolean
+        costControl:
+          $ref: '#/components/schemas/QaCostControlSnapshot'
         warnings:
           type: array
           items:
@@ -2291,6 +2385,75 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+    QaCostControlSnapshot:
+      description: QA cost guardrail 設定快照。`0` 代表該 scope 不限制。
+      type: object
+      required:
+        - enabled
+        - resetCadence
+        - estimatedTokensPerAsk
+        - monthlyTokenBudget
+        - userMonthlyTokenQuota
+      properties:
+        enabled:
+          type: boolean
+        resetCadence:
+          type: string
+          enum:
+            - calendar_month_utc
+        estimatedTokensPerAsk:
+          type: integer
+          minimum: 1
+        monthlyTokenBudget:
+          type: integer
+          minimum: 0
+        userMonthlyTokenQuota:
+          type: integer
+          minimum: 0
+    MultimodalRuntimeSnapshot:
+      description: `video_segments_video` / multimodal QA 的 runtime readiness 快照。目前僅用來顯示尚未接入 QA 的阻塞條件。
+      type: object
+      required:
+        - segmentCollection
+        - vectorIndexName
+        - expectedVectorIndexName
+        - vectorIndexConfigured
+        - expectedVectorIndexDefinition
+        - setupCommand
+        - readiness
+        - readyForQa
+        - blockers
+        - hardFailures
+      properties:
+        segmentCollection:
+          type: string
+        vectorIndexName:
+          anyOf:
+            - type: string
+            - type: 'null'
+        expectedVectorIndexName:
+          type: string
+        vectorIndexConfigured:
+          type: boolean
+        expectedVectorIndexDefinition:
+          type: object
+          additionalProperties: true
+        setupCommand:
+          type: string
+        readiness:
+          type: string
+          enum:
+            - not_enabled
+        readyForQa:
+          type: boolean
+        blockers:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+        hardFailures:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
     HealthData:
       description: "`/health` 回應中的主要資料區塊。"
       type: object
@@ -2312,11 +2475,14 @@ components:
           required:
             - qa
             - line
+            - multimodal
           properties:
             qa:
               $ref: '#/components/schemas/QaRuntimeSnapshot'
             line:
               $ref: '#/components/schemas/LineRuntimeSnapshot'
+            multimodal:
+              $ref: '#/components/schemas/MultimodalRuntimeSnapshot'
     AuthLoginRequest:
       description: "`/api/v1/auth/login` 的 request body。"
       type: object
@@ -2408,6 +2574,12 @@ components:
       properties:
         segmentId:
           type: string
+        modality:
+          type: string
+          enum:
+            - text
+            - video
+          default: text
         videoId:
           type: string
         startSec:
@@ -2421,6 +2593,170 @@ components:
         score:
           type: number
           minimum: 0
+        sourceUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        videoUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        youtubeVideoId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        jumpUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        clipPath:
+          anyOf:
+            - type: string
+            - type: 'null'
+    QaCitation:
+      description: |
+        Phase-2 QA 引用欄位。前端與 LINE 顯示來源時應優先使用 `citations[]`，
+        `matches[]` 則保留作為 legacy/debug 的命中片段資料。
+      type: object
+      required:
+        - citationId
+        - modality
+        - segmentId
+        - videoId
+        - videoTitle
+        - sourceVideo
+        - timestamp
+        - match
+        - clipPath
+        - transcriptSnippet
+      properties:
+        citationId:
+          type: string
+          example: C1
+        modality:
+          type: string
+          enum:
+            - text
+            - video
+        segmentId:
+          type: string
+        videoId:
+          type: string
+        videoTitle:
+          anyOf:
+            - type: string
+            - type: 'null'
+        sourceVideo:
+          type: object
+          required:
+            - videoId
+            - title
+            - sourceUrl
+            - videoUrl
+            - youtubeVideoId
+          properties:
+            videoId:
+              type: string
+            title:
+              anyOf:
+                - type: string
+                - type: 'null'
+            sourceUrl:
+              anyOf:
+                - type: string
+                - type: 'null'
+            videoUrl:
+              anyOf:
+                - type: string
+                - type: 'null'
+            youtubeVideoId:
+              anyOf:
+                - type: string
+                - type: 'null'
+        timestamp:
+          type: object
+          required:
+            - startSec
+            - endSec
+            - label
+            - jumpUrl
+          properties:
+            startSec:
+              type: number
+              minimum: 0
+            endSec:
+              type: number
+              minimum: 0
+            label:
+              type: string
+              example: '0:12'
+            jumpUrl:
+              anyOf:
+                - type: string
+                - type: 'null'
+        match:
+          type: object
+          required:
+            - status
+            - score
+            - confidence
+          properties:
+            status:
+              type: string
+              enum:
+                - matched
+            score:
+              type: number
+              minimum: 0
+            confidence:
+              type: string
+              enum:
+                - high
+                - medium
+                - low
+        transcriptSnippet:
+          type: string
+        clipPath:
+          anyOf:
+            - type: string
+            - type: 'null'
+    QaAnswerStatus:
+      description: QA 回答狀態。前端與 LINE Bot 應以此欄位判斷是否可顯示答案、低信心或無答案狀態。
+      type: object
+      required:
+        - status
+        - isAnswerable
+        - matchStatus
+        - confidence
+        - noAnswerReason
+      properties:
+        status:
+          type: string
+          enum:
+            - answered
+            - no_answer
+        isAnswerable:
+          type: boolean
+        matchStatus:
+          type: string
+          enum:
+            - matched
+            - no_relevant_match
+            - no_searchable_segments
+        confidence:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+            - none
+        noAnswerReason:
+          anyOf:
+            - type: string
+              enum:
+                - NO_RELEVANT_MATCH
+                - NO_SEARCHABLE_SEGMENTS
+            - type: 'null'
     QaClip:
       description: QA 命中的 clip 快取資訊；若目前沒有 clip，回應中可能為 null。
       type: object
@@ -2531,9 +2867,11 @@ components:
             - scoringMode
             - searchableSegmentCount
             - matchStatus
+            - matchModality
             - resultCategory
             - course
             - answerProviderUsed
+            - visualSearch
             - fallbacks
           properties:
             status:
@@ -2567,6 +2905,12 @@ components:
                 - matched
                 - no_relevant_match
                 - no_searchable_segments
+            matchModality:
+              description: 命中來源；文字 transcript 命中為 `text`，`video_segments_video` 命中為 `video`。
+              type: string
+              enum:
+                - text
+                - video
             resultCategory:
               description: Phase-1 的 convenience field，方便 frontend / demo 先分流結果；真正細節仍應以 `status`、`matchStatus` 與 `degradedReasons` 為準。
               type: string
@@ -2581,6 +2925,12 @@ components:
               description: 本次實際用來產生答案的 provider；若未產生答案則可能為 null。
               anyOf:
                 - type: string
+                - type: 'null'
+            visualSearch:
+              description: 若文字片段未命中，嘗試 `video_segments_video` 檢索時的診斷；未嘗試時為 null。
+              anyOf:
+                - type: object
+                  additionalProperties: true
                 - type: 'null'
             fallbacks:
               description: 本次請求中發生的 fallback 列表。
@@ -2906,6 +3256,8 @@ components:
               required:
                 - answer
                 - matches
+                - citations
+                - answerStatus
                 - clip
                 - runtime
               properties:
@@ -2915,6 +3267,12 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/QaMatch'
+                citations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/QaCitation'
+                answerStatus:
+                  $ref: '#/components/schemas/QaAnswerStatus'
                 clip:
                   anyOf:
                     - $ref: '#/components/schemas/QaClip'

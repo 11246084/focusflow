@@ -5,6 +5,7 @@ const env = require('../src/config/env');
 const VideoSegment = require('../src/models/videoSegment.model');
 const {
   ids,
+  newObjectId,
   resetStore,
   store,
 } = require('./helpers/backendTestHarness');
@@ -17,6 +18,10 @@ function resetQaEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.videoSegmentVideoVectorIndexName = 'video_embedding_index';
+  env.qaEstimatedTokensPerAsk = 1000;
+  env.qaMonthlyTokenBudget = 0;
+  env.qaUserMonthlyTokenQuota = 0;
   env.geminiApiKey = '';
   env.openaiApiKey = '';
 }
@@ -52,6 +57,11 @@ describe('qa service', () => {
 
     assert.equal(result.matches[0].segmentId, ids.segmentOne);
     assert.equal(result.matches.length, 3);
+    assert.equal(result.citations.length, 3);
+    assert.equal(result.citations[0].citationId, 'C1');
+    assert.equal(result.citations[0].timestamp.label, '0:12');
+    assert.equal(result.answerStatus.status, 'answered');
+    assert.equal(result.answerStatus.matchStatus, 'matched');
     assert.equal(result.runtime.queryEmbeddingProvider, 'mock');
     assert.equal(result.runtime.searchBackendUsed, 'memory');
     assert.equal(result.runtime.answerProviderUsed, 'template');
@@ -376,6 +386,9 @@ describe('qa service', () => {
     });
 
     assert.equal(result.matches.length, 0);
+    assert.deepEqual(result.citations, []);
+    assert.equal(result.answerStatus.status, 'no_answer');
+    assert.equal(result.answerStatus.noAnswerReason, 'NO_SEARCHABLE_SEGMENTS');
     assert.equal(result.clip, null);
     assert.equal(result.runtime.status, 'degraded');
     assert.equal(result.runtime.degraded, true);
@@ -384,6 +397,76 @@ describe('qa service', () => {
     assert.equal(result.runtime.degradedReasons.includes('NO_SEARCHABLE_SEGMENTS'), true);
     assert.equal(result.runtime.course.qaScopeOnly, true);
     assert.match(result.answer, /只有 bridge metadata/);
+  });
+
+  it('uses course-scoped video_segments_video matches when no text segments are available', async () => {
+    const visualCourseId = newObjectId();
+    const visualVideoId = newObjectId();
+
+    store.courses.push({
+      _id: visualCourseId,
+      title: 'Visual Retrieval Course',
+      description: 'Course with visual chunks',
+      teacherId: ids.teacher,
+      videoIds: [visualVideoId],
+      status: 'published',
+      createdAt: '2026-07-10T08:00:00.000Z',
+    });
+
+    store.videos.push({
+      _id: visualVideoId,
+      courseId: visualCourseId,
+      title: 'Visual Source Video',
+      sourceUrl: '/uploads/video_001_part_0001.mp4',
+      fileName: 'video_001_part_0001.mp4',
+      processing: { status: 'completed' },
+      createdAt: '2026-07-10T08:01:00.000Z',
+    });
+
+    store.videoSegmentVideos.push(
+      {
+        _id: 'visual-segment-1',
+        video_id: 'video_001',
+        clip_id: 'video_001_part_0001',
+        clip_path: 'data/video_multimodal_chunks/video_001_part_0001.mp4',
+        start_sec: 0,
+        end_sec: 120,
+        score: 0.91,
+      },
+      {
+        _id: 'visual-segment-foreign',
+        video_id: 'video_999',
+        clip_id: 'video_999_part_0001',
+        clip_path: 'data/video_multimodal_chunks/video_999_part_0001.mp4',
+        start_sec: 0,
+        end_sec: 120,
+        score: 0.99,
+      },
+    );
+
+    const result = await askQuestion({
+      user: {
+        id: ids.student,
+        role: 'student',
+      },
+      courseId: visualCourseId,
+      question: 'Which visual scene is relevant?',
+      source: 'service-test',
+    });
+
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0].modality, 'video');
+    assert.equal(result.matches[0].segmentId, 'video_001_part_0001');
+    assert.equal(result.matches[0].videoId, 'video_001');
+    assert.equal(result.matches[0].videoTitle, 'Visual Source Video');
+    assert.equal(result.citations[0].modality, 'video');
+    assert.equal(result.citations[0].clipPath, 'data/video_multimodal_chunks/video_001_part_0001.mp4');
+    assert.equal(result.answerStatus.status, 'answered');
+    assert.equal(result.runtime.matchModality, 'video');
+    assert.equal(result.runtime.searchBackendUsed, 'atlas_video');
+    assert.equal(result.runtime.scoringMode, 'visual_vector');
+    assert.equal(result.runtime.visualSearch.searchBackendUsed, 'atlas_video');
+    assert.match(result.answer, /影像片段/);
   });
 
   it('returns null clip data when no cached clip exists and skips clip_view logging', async () => {
@@ -402,6 +485,43 @@ describe('qa service', () => {
     assert.equal(result.clip, null);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'ask'), true);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
+  });
+
+  it('blocks QA before retrieval when the monthly user token quota is exhausted', async () => {
+    env.qaEstimatedTokensPerAsk = 1000;
+    env.qaUserMonthlyTokenQuota = 1000;
+    store.usageLogs.push({
+      _id: newObjectId(),
+      userId: ids.student,
+      courseId: ids.publishedCourse,
+      event: 'ask',
+      metadata: {
+        source: 'service-test',
+        costControl: {
+          estimatedTokens: 1000,
+        },
+      },
+      timestamp: new Date(),
+    });
+
+    await assert.rejects(
+      () => askQuestion({
+        user: {
+          id: ids.student,
+          role: 'student',
+        },
+        courseId: ids.publishedCourse,
+        question: 'What does the course say about JWT authentication?',
+        source: 'service-test',
+      }),
+      (error) => {
+        assert.equal(error.code, 'QA_QUOTA_EXCEEDED');
+        assert.equal(error.statusCode, 429);
+        assert.equal(error.details.scope, 'user');
+        assert.equal(error.details.projectedTokens, 2000);
+        return true;
+      },
+    );
   });
 
   it('fails fast when atlas mode is combined with mock query embeddings', async () => {

@@ -1305,16 +1305,38 @@ compare(10) → 58.8 ms
 
 **✅ 帳號層級（停權/刪帳號）→ 幾乎即時** — `authenticate` **每個請求都回 DB 撈 user 並查狀態**（[auth.middleware.js:18](../../backend/src/middleware/auth.middleware.js#L18)）：
 ```js
-const user = await User.findById(payload.sub);
+const payload = jwt.verify(token, env.jwtSecret); // ① 先驗章
+const user = await User.findById(payload.sub);    // ② 再回 DB 撈本人
 if (!user || !user.isActive) { /* 401 UNAUTHORIZED */ }
 ```
-admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被刪 → `findById` 回 null → 一樣立刻擋。等於有 **帳號級即時撤銷**，代價是每請求多一次 DB 查詢。
+admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被刪 → `findById` 回 null → 一樣立刻擋。
 
-**❌ 單張 token 層級（個別撤銷 / 登出立即失效）→ 目前沒做** — 沒有 token 黑名單、沒有 server 端 logout、沒有 tokenVersion。「登出」是前端丟掉 token。被偷的未過期 token 無法只撤一張，只能停權該 user（他所有裝置一起失效）或等過期。
+#### 深入：這其實是「半狀態化的 JWT」
 
-**🔧 補強方向（未實作）**：`tokenVersion`/`passwordChangedAt`、Redis jti 黑名單、縮短效期 + refresh token。
+純無狀態 JWT 的理念是「**只驗章、不查 DB**」——快，但代價是 token 一旦發出，效期內無法收回。你們刻意**多走了第 ② 步（每請求查 DB）**，等於把 JWT 退化成「**用 token 當索引去查一次 session**」。這個取捨值得講清楚：
 
-⚠️ **誠實邊界**：停權/刪除是即時的；但「單獨作廢某張未過期 token / 登出即時失效」沒做。
+| | 純無狀態 JWT | 你們的做法（驗章 + 查 DB） |
+|---|---|---|
+| 速度 | 最快，零 DB | 每請求一次 `findById` |
+| 帳號撤銷 | ❌ 只能等過期 | ✅ 下一個請求即時生效 |
+| 水平擴展 | 完美（不依賴共享狀態） | 仍可，但每節點都要連 DB |
+| 適合 | 超大流量、可容忍延遲撤銷 | 中小規模、要即時控管權限 |
+
+→ 所以「7 天效期」聽起來很長，但因為**每個請求都重新對 DB 驗 `isActive`**，帳號層級的安全控制其實是即時的，7 天只影響「**沒被停權、token 又外洩**」這個情境。
+
+**❌ 單張 token 層級（個別撤銷 / 登出立即失效）→ 目前沒做**
+
+沒有 token 黑名單、沒有 server 端 logout、沒有 `tokenVersion`。「登出」是前端丟掉 token；被偷的未過期 token 無法只撤一張，只能停權該 user（他**所有**裝置一起失效）或等過期。
+
+#### 深入：補強方向與各自代價
+
+- **`tokenVersion` / `passwordChangedAt`**：user 文件存一個版本號，簽進 token；改密碼/登出時 +1，middleware 比對不符就拒。**幾乎零成本**（反正已經在查 DB），是這裡 CP 值最高的補法。
+- **Redis jti 黑名單**：存「已撤銷 token 的 id 直到過期」。能精準撤單張，但**多一個 Redis 依賴**。
+- **縮短效期 + refresh token**：access token 改 15 分、refresh 7 天。撤銷窗口小，但要實作 refresh 流程。
+
+⚠️ **誠實邊界**：① 「單獨作廢某張未過期 token / 登出即時失效」沒做。② `env.jwtSecret` 預設值是 `'change-me-in-local-env'`（[env.js:13](../../backend/src/config/env.js#L13)）——**正式部署一定要用環境變數覆蓋成高熵密鑰**，否則簽章可被偽造，整套驗證形同虛設。
+
+> **一句話（評審版）**：我們不是純無狀態 JWT，而是「驗章 + 每請求查 DB 的 `isActive`」，所以**帳號停權/刪除是即時生效**的；只差「個別 token 撤銷」，補一個 `tokenVersion` 就能解，因為查 DB 的成本本來就付了。
 
 ---
 
@@ -1324,11 +1346,35 @@ admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被�
 
 **A：role 不放進 JWT，每次請求從 DB 即時撈。**
 
-- `authenticate` 每次 `findById` 撈完整 user，把 `role` 放進 `req.user`；`requireRole` 只檢查 `req.user.role`（[role.middleware.js:9](../../backend/src/middleware/role.middleware.js#L9)）。
-- **好處**：角色是 DB 最新值。把 teacher 降成 student，**下一個請求立刻生效**，不會因 token 帶舊 role 而續用老師權限。
-- **代價**：每請求多一次 DB 查詢——但這查詢 `authenticate` 本來就要做（順便拿 role），等於沒額外成本。
+#### 深入：先分清「認證」和「授權」是兩件事
 
-⚠️ **誠實邊界**：好處是即時、安全；壞處是無法純靠驗章離線授權（一定要連 DB）。對我們規模划算。
+- **認證（Authentication，你是誰）**：`authenticate` 驗 token + `findById` → 確認身分，把完整 user 掛上 `req.user`（含 `role`）。
+- **授權（Authorization，你能做什麼）**：`requireRole(...roles)` 只是一個 guard，檢查 `req.user.role` 在不在允許清單（[role.middleware.js:9](../../backend/src/middleware/role.middleware.js#L9)）。
+
+route 上的掛載順序固定是 **`authenticate` → `requireRole`**——必須先知道你是誰，才能判斷你能不能做。`role` 全程來自**那一次的 DB 讀取**，不是來自 token。
+
+#### 深入：為什麼「role 不放 token」是刻意的
+
+如果把 `role` 簽進 token，會有個經典漏洞：**admin 把某人從 teacher 降成 student 後，他手上那張舊 token 仍寫著 `role: teacher`，效期內可繼續用老師權限**。把 role 留在 DB、每請求現撈，就**從根本避免「stale role」**——降權下一個請求立刻生效。
+
+| | role 放 token | role 放 DB（你們） |
+|---|---|---|
+| 改角色生效 | ❌ 要等 token 過期 | ✅ 立即 |
+| 每請求成本 | 0（token 自帶） | 一次 DB 查詢 |
+| 偽造風險 | 靠簽章保護 | 不存在（不在 token 裡） |
+
+- **代價**：每請求多一次 DB 查詢——但這查詢 `authenticate` **本來就要做**（為了驗 `isActive`），順手把 `role` 一起拿回來，等於**沒有額外成本**。這跟第 4 題是同一個設計：用「每請求查 DB」一次換來「即時撤銷 + 即時改權」兩個好處。
+> 💡 **釐清：是「查一次 DB」，不是「查兩個東西／查兩次」。** `findById(payload.sub)` 一次就撈回 **整筆 user 文件**（`name`、`email`、`role`、`isActive`… 全部欄位一起回來）。`isActive` 和 `role` 只是這筆文件上的 **兩個欄位、兩種用途**：
+> - `isActive` → 決定「**能不能進來**」，`authenticate` 當場檢查，false 就擋 401。
+> - `role` → 決定「**能做什麼**」，留給之後的 `requireRole` 判斷權限。
+>
+> 撈資料 **一次**，用途 **兩個**——這就是「成本一次、好處兩個（即時撤銷＋即時改權）」的由來。
+> 比喻：刷門禁卡時，系統用卡號撈出你 **整張員工檔（一次查詢）**，同時看到「在職狀態」（=`isActive`，離職就擋在門口）和「職級」（=`role`，要進高權限房間時才用）。
+
+
+⚠️ **誠實邊界**：① 無法純靠驗章離線授權（一定要連 DB）。② 目前**學生對課程的存取是放寬的**——`courseAccess.service.js` 裡 enrollment-only 的學生限制被註解掉、暫時 `return true`（demo 期間方便測試），正式上線應恢復「學生只能存取已選課程」。授權的**角色層**是嚴謹的，但**資源層（哪個學生能看哪堂課）目前偏寬**，這點要誠實講。
+
+> **一句話**：認證和授權拆開，role 每次從 DB 現撈以避免 stale role、改權即時生效，成本與認證共用一次查詢；但學生的課程級存取目前為 demo 放寬，需上線前收緊。
 
 ---
 
@@ -1336,14 +1382,40 @@ admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被�
 
 **Q：** embedding 3072 維、片段 130 筆。memory 把全部撈進記憶體算 cosine——能撐到幾筆？1 萬、10 萬筆會怎樣？`.lean()` 解決了什麼、又沒解決什麼？
 
-**A：memory 是暴力法，撐得住現在但不撐規模；`.lean()` 治標不治本。**
+**A：memory 是暴力法（brute-force / 線性掃描），撐得住現在但不撐規模；`.lean()` 治標不治本。**
 
-- **能撐多少**：130 筆毫秒級 ✅；上千～數千還行；**1 萬筆**開始明顯慢、吃 RAM ⚠️；**10 萬筆以上** 記憶體與延遲都爆 ❌。
-- **`.lean()` 解決**：跳過 Mongoose 物件包裝（hydration），實測 51 筆 8.8s→1s。省的是「撈出來的處理成本」。
-- **`.lean()` 沒解決**：沒減少「載入的資料量」和「要算的次數」——還是得把範圍內所有 embedding 載進記憶體、逐一算 O(n)。資料一多瓶頸從 hydration 變成 **記憶體 + 線性掃描**。
-- **真正解法**：切 atlas，用 Vector Search 的 **ANN 索引**（不用逐一比對）。
+#### 深入：先算清楚成本量級
 
-⚠️ **誠實邊界**：規模化答案是 atlas 向量索引，不是繼續優化 memory。
+每次提問，memory 模式要做的事：
+
+```
+① 把範圍內所有片段的 embedding 載進記憶體   → 記憶體 = n 筆 × 3072 × 8 bytes(float)
+② 對每一筆算一次 cosine（O(3072) 點積）     → 計算 = O(n × 3072)
+```
+
+cosine 的實作（[qa.service.js:80-99](../../backend/src/services/qa.service.js#L80)）就是「點積 ÷ (兩邊模長相乘)」，**每筆都要把 3072 個數字乘加一遍**。換算記憶體：
+
+| 片段數 | 記憶體（約） | 單次計算 | 體感 |
+|---|---|---|---|
+| 130（現在） | ~3 MB | 13 萬次乘加 | 毫秒級 ✅ |
+| 1 萬 | ~240 MB | 3000 萬次 | 開始慢、吃 RAM ⚠️ |
+| 10 萬 | ~2.4 GB | 3 億次 | 記憶體＋延遲爆 ❌ |
+
+而且這是**每一次提問都重來一遍**（沒有快取片段向量、也沒快取 query 向量）。
+
+#### 深入：`.lean()` 到底治了哪一段、沒治哪一段
+
+- **治的**：`.lean()` 省掉 Mongoose 的 hydration（把每筆 3072 數字包成「功能完整物件」的開銷），實測 51 筆 8.8s→1s。它優化的是上面流程的 **①「撈出來的處理成本」**。
+- **沒治的**：它**沒有**減少「要載入多少資料」和「要算多少次」。瓶頸隨資料量上升會從 hydration 轉移到 **記憶體佔用 + O(n) 線性掃描**，`.lean()` 對這兩個無能為力。
+- 另外還有一段沒被 `.lean()` 影響的成本：**每次提問都要呼叫 Gemini 把問題轉成向量**（實測 ~780ms 的網路往返），這跟片段數無關，但也是延遲來源。
+
+#### 深入：為什麼規模化的答案是 atlas 而不是「再優化 memory」
+
+memory 的天花板是「**逐一比對**」這個演算法本質（線性）。Atlas Vector Search 用的是 **ANN（近似最近鄰）索引**，預先把向量組織成特殊結構，查詢時**不用掃過全部**就能找到最近的幾個（次線性）——這才是百萬級資料的正解。所以正確結論是「**換引擎（atlas）**」，不是「把 memory 調快」。
+
+⚠️ **誠實邊界**：memory 對現在的 130 筆是最佳解（快、穩、零依賴），但它是 O(n) 暴力法；規模化必須切 atlas 的 ANN 索引，`.lean()` 只是讓小資料下夠用，不是擴展性解法。
+
+> **一句話**：memory 是線性暴力比對，130 筆毫秒級但每請求重算、記憶體與時間都隨 n 線性成長；`.lean()` 省的是 hydration、救不了載入量與掃描次數，真正擴展靠 atlas 的 ANN 索引。
 
 ---
 
@@ -1351,13 +1423,67 @@ admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被�
 
 **Q：** `videos` 同住 app-owned 和 pipeline metadata，靠欄位區分。為何不拆兩個 collection？查詢忘了加區分條件會怎樣？
 
-**A：不拆是為對齊 pipeline 寫入；風險靠 model 判斷方法集中控管。**
+**A：不拆是為對齊 pipeline 寫入；風險靠 model 的 static 判斷方法集中控管。**
 
-- **為何不拆**：Python pipeline 直接寫進同一 collection 是既有資料契約，硬拆要改 pipeline + 搬資料，MVP 不划算。
-- **怎麼防混淆**：`video.model.js` 提供 `isAppOwnedRecord` / `isPipelineMetadataRecord` 兩個 static 方法**集中判斷**，依 `courseId`/`uploadedBy`/`processing` 等欄位，不是只看 `videoId`。
-- **忘了過濾會怎樣**：可能把 pipeline metadata 當 app 影片回給前端（多出沒 title/processing 的怪資料）或統計灌水。所以把判斷收進 model 方法、不散落各 service。
+#### 深入：兩種文件到底長什麼樣、怎麼區分
 
-⚠️ **誠實邊界**：這是為相容性接受的技術債，長期更乾淨是拆 collection 或加 `kind` 欄位。
+[video.model.js:16-28](../../backend/src/models/video.model.js#L16) 用兩個 static 函式做判斷，依據是「**有沒有 app 該有的那組欄位**」：
+
+```js
+isAppOwnedVideoRecord(v) =
+  v.courseId && v.uploadedBy && v.title && v.processing?.status   // 四個都要有
+isPipelineMetadataRecord(v) =
+  (v.videoId || v.video_id) && !isAppOwnedVideoRecord(v)         // 有字串 id、但不是 app 的
+```
+
+- **App-owned**：老師上傳/貼 URL 產生，有完整的 `courseId`/`uploadedBy`/`title`/`processing`。
+- **Pipeline metadata**：Python 寫的，只帶 `videoId`/`video_id`（還偏 snake_case），缺 app 那組欄位。
+
+#### 深入：為什麼「忘了過濾」其實沒想像中危險
+
+關鍵觀察：**pipeline metadata 沒有 `courseId`**。所以最常見的查詢 `Video.find({ courseId })`（QA bridge、列課程影片都用這個）**天然就過濾掉了 pipeline 文件**——它們根本不符合條件。真正會出事的是**無條件查詢**：
+
+```js
+Video.find({})        // ⚠️ 這種會把兩種文件一起撈出來
+```
+
+例如後台「列出所有影片」若不加判斷，就可能把 pipeline metadata 當成 app 影片顯示（出現沒有 title/processing 的怪列）或讓統計灌水。`admin.service.js` 的影片清單就用 `v.videoId || String(v._id)` 當 key、`v.title || v.fileName || 'Untitled'` 兜底，正是在處理這種混住。
+
+#### 深入：還有一層歷史包袱的清理
+
+[server.js](../../backend/src/server.js) 啟動時會做一次性遷移：把舊的 `video_id` 改名成 `videoId`、並把 app-owned 文件的 `videoId: null` `$unset` 掉（避免佔用 sparse unique index 的位置）。這說明「mixed collection」不只是讀取要小心，連**索引唯一性**都要特別處理。
+
+#### 深入：一部影片只有「一筆」紀錄 —— pipeline 是補進同一筆，不是再開一筆
+
+常見誤解：「上傳 + pipeline = 在 videos 寫兩筆」。**正常流程其實是一部影片一筆**，pipeline 只是把資料補進**同一筆**：
+
+```
+① 老師上傳（mp4 或 YouTube）
+   → 後端 Video.create 建「一筆」，processing.status = queued
+② 後端觸發 Python pipeline 做 STT
+③ pipeline 回寫：
+   ├─ 切片 + 向量 → 寫進「另一個 collection」video_segments_text（不是 videos）
+   └─ 同一筆 video 的 processing.status → queued → processing → completed
+```
+
+→ `videos` 裡那部影片**始終是一筆**：app 部分（`courseId`/`title`/`processing`）和橋接用的 `videoId` 都在同一筆上；真正的內容（切片）放在 `video_segments_text`。**狀態機是「更新原本那筆」，不是新增。**
+
+**關鍵程式碼：**
+
+| 步驟 | 檔案 | 做什麼 |
+|---|---|---|
+| 上傳建一筆（檔案） | [video.service.js:152](../../backend/src/services/video.service.js#L152) | `Video.create({... processing.status: queued})` |
+| 上傳建一筆（貼 URL） | [video.service.js:232](../../backend/src/services/video.service.js#L232) | 同上，另一條來源路徑 |
+| queued → processing | [videoProcessing.service.js:100](../../backend/src/services/videoProcessing.service.js#L100) | `findByIdAndUpdate` 更新**同一筆** |
+| processing → completed | [videoProcessing.service.js:120](../../backend/src/services/videoProcessing.service.js#L120) | 更新同一筆狀態 + 寫入 `videoId` 橋接 key |
+
+> 💡 **系統還主動「防重複」**：完成處理要寫 `videoId` 時，會先把「**其他**也用這個 videoId 的紀錄」的 `videoId` `$unset` 掉，確保一個 videoId 只掛在一筆上（[videoProcessing.service.js:143-147](../../backend/src/services/videoProcessing.service.js#L143)）。啟動時的 `video_id → videoId` 遷移（[server.js:15-22](../../backend/src/server.js#L15)）也是把橋接 key 正規化到 app-owned 那筆——都是在**維持「一部影片一筆」**。
+
+> 所以「混住兩種文件」是指**萬一**有 pipeline 自己多寫的殘留紀錄（pipeline-only）才會多一筆；**正常上傳→處理流程不會**。
+
+⚠️ **誠實邊界**：這是「為了相容 pipeline 既有寫入而接受的技術債」。更乾淨的長期做法是**拆成兩個 collection**，或加一個明確的 `kind: 'app' | 'pipeline'` 欄位，而不是靠「有沒有某組欄位」隱性判斷。目前用 static 方法把判斷**集中在 model**，至少避免每個 service 各寫各的、各漏各的。
+
+> **一句話**：共用 collection 是為對齊 pipeline 寫入；因 pipeline 文件沒 `courseId`，正常的帶條件查詢天然排除它，風險主要在無條件 `find({})`，我們用 model 的 static 判斷方法集中控管，並在啟動時做欄位/索引遷移。
 
 ---
 
@@ -1365,26 +1491,95 @@ admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被�
 
 **Q：** 串接鏈 course → videos → videoId → segments，且 `ref` 不強制檢查。影片被刪但 segment 還在、或 videoId 對不上，QA 會怎樣？會回傳孤兒片段嗎？
 
-**A：因為 scope 是「從影片反推」，孤兒片段天然被排除，不會被當答案。**
+**A：因為 scope 是「從影片反推」，孤兒片段天然被排除，不會被當答案。三層防護。**
 
-- **關鍵**：scope 從 `videos` 出發建（course → videos → videoId → segments）。影片記錄被刪 → 收不到它的 videoId → 它的 segment **進不了搜尋範圍**。
-- **刪影片時**：[admin.service.js:209](../../backend/src/services/admin.service.js#L209) 的 `deleteVideo` 會 **連帶 `VideoSegment.deleteMany`**，從源頭清掉。
-- **保險絲**：就算 scope 空了，`qa.service.js` 有 `if (!scopedVideos.videos.length)` → 回 `no_searchable_segments`，不硬湊；admin 統計把這種標「內容已下架」。
+#### 深入：第一層 — scope 的方向決定了孤兒進不來
 
-⚠️ **誠實邊界**：`ref` 確實不強制外鍵，理論上可能有真孤兒片段，但因 scope 從 video 端建，這些片段進不了搜尋，**最壞是「查無資料」，不會回錯答案**。
+QA 的搜尋範圍是**從 `videos` 出發**建的（course → videos → 收集 videoId → 撈 segments）。所以邏輯上：
+
+```
+影片記錄還在 → 它的 videoId 會被收進 scope → 它的 segment 才會被搜尋
+影片記錄被刪 → 收不到那個 videoId → 它的 segment 根本進不了 scope（= 被無視）
+```
+
+換句話說，**孤兒片段（有 segment、但對應的 video 不存在）不會被納入搜尋**，因為 scope 不是「列出所有 segment」，而是「列出**現存影片**的 segment」。這是設計上就避開了孤兒，不是靠事後過濾。
+
+#### 深入：第二層 — 刪影片時連帶清理（從源頭不留孤兒）
+
+[admin.service.js:201-216](../../backend/src/services/admin.service.js#L201) 的 `deleteVideo` 是**連帶刪除**：
+
+```js
+await VideoSegment.deleteMany({ videoId: segmentKey });                       // 刪片段
+await db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey }); // 連逐字稿也刪
+await Video.deleteOne({ _id: videoId });
+await Course.findByIdAndUpdate(video.courseId, { $pull: { videoIds: video._id } }); // 從課程移除引用
+```
+
+→ 影片、片段、正規化逐字稿、課程裡的 `videoIds` 引用**一起清**，從源頭就不製造孤兒。（但**刻意保留** UsageLog/Question 歷史紀錄，見下。）
+
+#### 深入：第三層 — 歷史紀錄的「內容已下架」標記
+
+問答歷史（`questions`/`usage_logs`）不隨影片刪除，所以**舊紀錄可能引用到已不存在的片段**。後台 `getRecentEvents`（[admin.service.js:150-170](../../backend/src/services/admin.service.js#L150)）用一個 regex 解析 `segmentId` 裡的 videoId、批次查 Video 是否還在，**標記 `contentMissing: true`**——讓「答案的來源影片已下架」這件事在後台被誠實呈現，而不是裝沒事。
+
+#### 深入：保險絲 — scope 空了也不硬湊
+
+就算極端情況 scope 是空的（影片都沒了但 segment 還在），`qa.service.js` 有 `if (!scopedVideos.videos.length)` → 直接回 `no_searchable_segments`，**不會把孤兒片段塞給 LLM 當依據**。
+
+⚠️ **誠實邊界**：MongoDB 的 `ref` 確實不強制外鍵，理論上仍可能存在「videoId 對不到任何 video」的真孤兒片段（例如 pipeline 寫了 segment 但 app 端沒有對應 video）。但因為 scope 從 video 端建立，這些片段**進不了搜尋**，最壞結果是「**查無相關資料**」，**不會變成錯誤答案**——這是這個設計最關鍵的安全性質。
+
+> **一句話**：scope 從影片端建立（孤兒天然被無視）＋刪影片連帶刪片段/逐字稿（源頭不留孤兒）＋歷史紀錄標「內容已下架」＋空範圍保險絲，四層讓孤兒片段最多造成「查不到」，絕不會回錯答案。
 
 ---
 
-### 9. LINE 綁定安全（QR 攔截 / token 在 URL）
+### 9. LINE 綁定安全（QR 攔截 / token 在 URL）🔴
 
 **Q：** `line_bind_tokens` 一次性、10 分過期。綁定那刻怎麼確定「掃碼這支 LINE」是本人而非攔截 QR 的人？token 在 URL 傳遞會洩漏嗎？
 
-**A：靠「短時效 + 一次性 + LIFF 提供已驗證 lineUserId」三重緩解，URL 殘餘風險誠實承認。**
+**A：`lineUserId` 由 LINE 加密背書（不可偽造），真正的弱點是 token 是 bearer token、洩漏會綁錯人；用四重機制把窗口與損害壓到很小。**
 
-- **身分**：`lineUserId` 是 LINE/LIFF **平台已驗證** 提供的（非使用者自填）；網頁帳號身分由產生 token 的登入者保證。
-- **token 在 URL 風險**：10 分內被攔截搶先掃，理論上能把攻擊者的 LINE 綁到該帳號。緩解：① 10 分過期（TTL index）② 一次性用完即刪 ③ `crypto.randomBytes(32)` 64 字元隨機碼猜不到。
+#### 深入：綁定連接的是「兩個身分」，信任來源不同
 
-⚠️ **誠實邊界**：沒做「原帳號二次確認 / 綁定綁發起裝置」，對 MVP 威脅模型（自己掃自己碼）足夠，要對抗主動攔截需再加一層。
+綁定本質是建立對應：**系統帳號 `record.userId` ↔ LINE 帳號 `lineUserId`**。
+
+| 身分 | 哪來的 | 為什麼可信 |
+|---|---|---|
+| `record.userId`（系統帳號） | 產生 token 時寫入（[line.service.js:117](../../backend/src/services/line.service.js#L117)）| 登入中的學生點「取得綁定碼」才產生 → **JWT 認證背書** |
+| `lineUserId`（LINE 帳號） | LINE 平台給 | **LINE 背書**：LIFF 路徑由 LIFF SDK 取得；傳 token 給 Bot 的路徑由 **webhook 簽章** 保護 |
+
+→ 所以「冒充 `lineUserId`」很難（兩條路都由 LINE 加密背書）。評審問的「會不會被別人冒充」，答案是**身分本身難冒充**，弱點在 token。
+
+#### 深入：真正的威脅 — bearer token 模型
+
+綁定 token 是 **bearer token（持有即有權）**：誰拿到那 64 字元、誰就能完成綁定，系統不會再問「你是不是當初產生它的人」。攻擊情境：
+
+```
+1. 受害者（登入中）產生 token → 包進 QR URL
+2. 攻擊者在 10 分鐘內拿到 token（肩窺 QR、URL 從歷史/截圖外洩、側錄…）
+3. 攻擊者用「自己的 LINE」掃碼/傳 token
+4. 綁定結果 = 受害者的系統帳號 ↔ 攻擊者的 LINE   ← 綁錯人
+5. 攻擊者的 LINE 能以受害者身分透過 Bot 提問
+```
+
+#### 深入：程式碼裡的四重防護
+
+| 防護 | 程式碼 | 擋什麼 |
+|---|---|---|
+| 256-bit 隨機 | `crypto.randomBytes(32)`（[:118](../../backend/src/services/line.service.js#L118)）| 暴力猜 token 不可能 |
+| 10 分過期 | `expiresAt` + TTL index（[:119](../../backend/src/services/line.service.js#L119)、[:135](../../backend/src/services/line.service.js#L135)）| 壓縮攔截窗口 |
+| 一次性即刪 | `deleteOne({ token })`（[:160](../../backend/src/services/line.service.js#L160)）| 防重放 |
+| 唯一綁定（踢舊） | `updateMany({ lineUserId, _id:{$ne} }, {$unset})`（[:143](../../backend/src/services/line.service.js#L143)）| 一支 LINE 只能綁一個帳號，換綁自動解除舊的 |
+
+> 💡 那個 `updateMany` 是亮點：綁定前先把「這支 `lineUserId` 綁在別帳號」的舊紀錄 `$unset` 掉，保證 `lineUserId` 唯一（配合 schema `unique+sparse`），不留髒資料；受害者也能用它**重綁回自己的 LINE 踢掉攻擊者**。
+
+#### 深入：為什麼 MVP 可接受、損害有限
+
+1. **正常窗口極小**：學生在自己螢幕產生 QR、用自己手機幾秒掃完，token 從沒離開掌控。
+2. **損害侷限**：綁錯只給「Bot 提問權」，**不是網頁帳號接管**——攻擊者無法登入網頁、改密碼（那是另一條 JWT）。
+3. **可補救**：重綁機制踢掉攻擊者。
+
+⚠️ **誠實邊界**：沒驗證「掃碼者 = 產生 token 者」（bearer token 先天限制）；token 走 URL 可能經瀏覽器歷史/Referer/截圖外洩；沒有 out-of-band 二次確認。更強做法：改用 LINE Login OIDC `id_token` 直接拿已驗證 `lineUserId`（少一個 token 在外流動）、綁定後對網頁端推確認、token 綁發起裝置。
+
+> **一句話**：`lineUserId` 由 LINE/LIFF 與 webhook 簽章背書、冒充很難；真正風險是 bearer token 在 10 分內洩漏會綁錯人，我們用 256-bit 隨機＋10 分過期＋一次性即刪＋唯一綁定踢舊把窗口和損害壓到很小，且綁錯也只是 Bot 提問權、非帳號接管。
 
 ---
 
@@ -1392,10 +1587,27 @@ admin 把 `isActive` 設 false → 他**下一個請求**就被擋；帳號被�
 
 **Q：** 你們提到 `video_segments_video`、`video_segments_audio`。這兩個真的接進 QA 了嗎，還是只建了 collection？目前其實只用文字片段對吧——「多模態」會不會言過其實？
 
-**A：誠實說——目前 QA 只用文字片段，影片/音訊向量只是預留，還沒接進 QA。**
+**A：誠實說——目前 QA 只用文字片段，影片/音訊向量只是預留 schema，還沒接進 QA。**
 
-- **事實**：全 backend **搜不到任何** `video_segments_video`/`video_segments_audio` 的引用，QA 只跑 `video_segments_text`。
-- **那兩個 collection**：影片向量（16 筆）、音訊向量（0 筆）是 **為未來多模態預留的 schema**，尚未接入問答。
-- **正確說法**：「資料結構與分 collection 設計已為多模態鋪好路（text/video/audio 分開存向量），但 Phase 1 MVP 的 QA 主線只用文字片段，影片/音訊是下一階段才接。」
+#### 深入：用證據說話
 
-⚠️ **誠實邊界**（CLAUDE.md 明文禁止）：不能說 `video_segments_video` 已成為正式 multimodal QA source。講「架構支援多模態、實作只做文字」可以；講「已經是多模態問答」不行。
+- **程式碼證據**：全 backend `grep` 過，**完全沒有任何檔案引用** `video_segments_video` / `video_segments_audio`。QA 的搜尋（memory 與 atlas 兩條路）都只跑 `video_segments_text`。
+- **資料證據**：`video_segments_video` 16 筆（pipeline 寫的影片向量）、`video_segments_audio` 0 筆（空）。它們有 schema、有資料表，但**沒有被任何問答流程讀取**。
+- **契約證據**：v1 資料庫契約刻意採**分 collection 設計**（text/video/audio 各自的 embedding + 各自的向量索引），這是**為未來多模態鋪的路**，不是「已經是多模態」。
+
+#### 深入：怎麼講才精準（不過頭也不貶低自己）
+
+| 講法 | 可不可以 |
+|---|---|
+| 「我們的**資料底層已為多模態鋪好路**（text/video/audio 分 collection 存向量）」 | ✅ 可以，這是事實 |
+| 「Phase 1 MVP 的 QA **主線只用文字片段**，影片/音訊是下一階段才接」 | ✅ 誠實 |
+| 「我們**現在就是多模態問答**」 | ❌ 言過其實 |
+| 「`video_segments_video` 已是正式 multimodal QA source」 | ❌ CLAUDE.md 明文禁止 |
+
+#### 深入：為什麼這樣設計仍有價值
+
+把 text/video/audio **拆開存、各建索引**，比塞進同一個 collection 更好——未來要接影片或音訊向量時，**不用改動現有文字 QA 的結構**，只要在搜尋層多查一個 collection、再做結果融合（fusion）即可。所以「預留」不是空話，是**有意義的架構鋪墊**，只是實作排在 Phase 1 之後。
+
+⚠️ **誠實邊界**（CLAUDE.md 明文禁止）：不能說 `video_segments_video` 已成為正式 multimodal QA source。講「架構支援多模態、目前實作只做文字」可以；講「已經是多模態問答」不行。
+
+> **一句話**：目前是「**架構支援多模態、實作只做文字**」——資料層用分 collection 為多模態鋪好路（且已有影片向量 16 筆），但 QA 主線只讀 `video_segments_text`，影片/音訊向量尚未接入問答，這點絕不誇大。

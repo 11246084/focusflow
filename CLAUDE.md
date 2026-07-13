@@ -33,7 +33,7 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 **FocusFlow** 是 Phase 1 MVP 的 AI 教學影片問答系統：
 
-教師上傳影片或貼 YouTube URL → backend 觸發 STT pipeline → 產生文字片段與 embedding → 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。
+教師本地上傳影片（單一軌道，2026-07-12 起）→ backend 觸發 STT pipeline → 產生文字片段與 embedding（設定憑證時另自動上傳 YouTube）→ 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。貼 YouTube URL 的 API 保留但不在教師上傳頁露出。
 
 三個服務：
 
@@ -169,6 +169,10 @@ QA_VECTOR_SEARCH_MODE=memory
 
 QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、runtime 與 `sourceUsageLogId`。
 
+### FAQ 快取（2026-07-13）
+
+`askQuestion` 內建兩層 FAQ 快取（`faqs` collection + `faqCache.service.js`，API 與 LINE 共用）：正規化文字完全相同直接命中（零 token）；否則以 query embedding 對課程 FAQ 比 cosine 相似度 ≥ `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）命中，跳過向量搜尋與 LLM。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除會自動清該課程快取。修改 QA 回應格式時，快取命中路徑（`respondFromFaqCache`）需同步；測試要走非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
+
 ### Video Model
 
 `videos` collection 是 mixed collection：
@@ -271,6 +275,6 @@ npm run build
 - 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端頁面都已完整 API 串接；目前是整合中。
-- 不能說 YouTube Data API 自動上傳已完成；目前完成的是教師貼 YouTube URL。
+- YouTube Data API 自動上傳：程式已實作（2026-07-12，`youtubeUpload.service.js`，feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉），但尚未以真實 OAuth 憑證做過 live 端對端驗證，不能說已完成驗證；教師貼 YouTube URL 仍是目前已驗證的主路徑。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
 - 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。

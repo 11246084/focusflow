@@ -341,8 +341,10 @@ function buildSegmentLookupQuery(scope) {
 }
 
 function segmentMatchesScope(segment, scope) {
-  if (segment.courseId) {
-    return scope.allowedCourseIds.has(segment.courseId);
+  // segment.courseId 記錄的是影片的主課程；影片掛載到其他課程時
+  // courseId 對不上，仍需 fallback 用 videoId 判斷是否在 scope 內。
+  if (segment.courseId && scope.allowedCourseIds.has(segment.courseId)) {
+    return true;
   }
 
   if (!segment.videoId) {

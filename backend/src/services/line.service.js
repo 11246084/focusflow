@@ -548,6 +548,11 @@ function buildQuestionSummaryLines(qaResult) {
   // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
   if (jumpUrl) {
     summaryLines.push(`跳轉：${jumpUrl}`);
+  } else if (topMatch) {
+    // 命中影片沒有 YouTube 連結（例如本地上傳尚未同步 YouTube）時，
+    // 不能讓跳轉資訊整行消失，改提示改用網站觀看。
+    const videoLabel = topMatch.videoTitle ? `「${topMatch.videoTitle}」` : '';
+    summaryLines.push(`此片段${videoLabel}尚未提供跳轉連結，請到 FocusFlow 網站的課程頁播放對應時間點。`);
   }
 
   return summaryLines;
@@ -852,4 +857,5 @@ module.exports = {
   generateBindToken,
   processWebhookEvents,
   ensureCourseForUser,
+  buildQuestionSummaryLines,
 };

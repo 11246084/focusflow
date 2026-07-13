@@ -3,6 +3,7 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Enrollment = require('../models/enrollment.model');
 const User = require('../models/user.model');
+const Faq = require('../models/faq.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const {
@@ -177,7 +178,13 @@ async function deleteCourse(courseId, user) {
     await VideoSegment.deleteMany({ videoId: segKey });
   }
   await Video.deleteMany({ courseId });
+  // 主課程刪除連同影片刪除後，清掉其他課程對這些影片的掛載引用。
+  const deletedVideoIds = videos.map((v) => v._id);
+  if (deletedVideoIds.length) {
+    await Course.updateMany({}, { $pull: { videoIds: { $in: deletedVideoIds } } });
+  }
   await Enrollment.deleteMany({ courseId });
+  await Faq.deleteMany({ courseId });
 
   // 仍保留：清空 LINE 對話狀態（這是 runtime state，不是歷史紀錄）。
   await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } });
@@ -197,8 +204,13 @@ async function markVideoWatched({ user, courseId, videoId }) {
   if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
   await assertCanAccessCourse(user, course);
 
-  const video = await Video.findOne({ _id: videoId, courseId });
-  if (!video) throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
+  // 影片可能屬於主課程（video.courseId）或被此課程掛載（course.videoIds）。
+  const video = await Video.findById(videoId);
+  const isPrimaryCourseVideo = video && String(video.courseId) === String(courseId);
+  const isAttachedVideo = (course.videoIds || []).some((id) => String(id) === String(videoId));
+  if (!video || (!isPrimaryCourseVideo && !isAttachedVideo)) {
+    throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
+  }
 
   const enrollment = await ensureStudentEnrollment(user.id, courseId);
   const previousWatched = new Set((enrollment.watchedVideoIds || []).map(String));
@@ -206,9 +218,15 @@ async function markVideoWatched({ user, courseId, videoId }) {
   const watched = new Set(previousWatched);
   watched.add(String(videoId));
 
-  const courseVideoIds = (course.videoIds || []).map(String);
-  const totalVideos = courseVideoIds.length || 1;
-  const watchedInCourse = [...watched].filter((id) => courseVideoIds.includes(id));
+  // 進度分母 = 主課程影片（video.courseId）∪ 掛載影片（course.videoIds）。
+  // 只算 course.videoIds 會漏掉未掛載的主課程影片，看完仍顯示 0%。
+  const primaryVideos = await Video.find({ courseId }).select('_id').lean();
+  const courseVideoIdSet = new Set([
+    ...primaryVideos.map((item) => String(item._id)),
+    ...(course.videoIds || []).map(String),
+  ]);
+  const totalVideos = courseVideoIdSet.size || 1;
+  const watchedInCourse = [...watched].filter((id) => courseVideoIdSet.has(id));
   const progress = Math.min(100, Math.round((watchedInCourse.length / totalVideos) * 100));
 
   await Enrollment.findOneAndUpdate(

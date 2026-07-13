@@ -46,7 +46,10 @@ function mergeTopSegmentsByDisplayVideo(topSegments) {
   const grouped = new Map();
 
   for (const item of topSegments) {
-    const groupKey = `${item.courseName}:${item.videoId || item.videoTitle || item.segmentId}`;
+    // 已下架內容以課程為單位合併成一列，避免多個孤兒 segment 佔滿版面。
+    const groupKey = item.contentMissing
+      ? `${item.courseName}:__content_missing__`
+      : `${item.courseName}:${item.videoId || item.videoTitle || item.segmentId}`;
     const current = grouped.get(groupKey);
 
     if (!current) {
@@ -150,7 +153,9 @@ async function getTeacherDashboardStats(user) {
     updatedAt: video.updatedAt,
   }));
 
-  // Top Segments 是「該補強什麼」的 actionable 列表 — 過濾掉指向已刪除影片的歷史紀錄。
+  // Top Segments 是「該補強什麼」的 actionable 列表。
+  // 指向已刪除影片的歷史紀錄優先 fallback 到該課程現存影片；課程已無現存影片時
+  // 不能整列丟掉（會讓整個課程從統計消失），改標 contentMissing 讓前端顯示「內容已下架」。
   const rawTopSegments = await Promise.all(
     topSegmentsAgg.map(async (item) => {
       const parsed = parseSegmentIdentifier(item._id);
@@ -158,15 +163,12 @@ async function getTeacherDashboardStats(user) {
       const video = await findVideoForSegment(segment, parsed?.videoId);
       const displayVideo = video || getCourseFallbackVideo(videos, item.courseId);
 
-      if (!displayVideo) {
-        return null;
-      }
-
       return {
         segmentId: item._id,
         text: segment?.text ? segment.text.slice(0, 120) : null,
-        videoId: String(displayVideo._id),
-        videoTitle: getVideoTitle(displayVideo),
+        videoId: displayVideo ? String(displayVideo._id) : null,
+        videoTitle: displayVideo ? getVideoTitle(displayVideo) : null,
+        contentMissing: !displayVideo,
         startSec: segment?.startSec ?? null,
         endSec: segment?.endSec ?? null,
         courseName: courseMap[String(item.courseId)] || '未知課程',
@@ -174,7 +176,7 @@ async function getTeacherDashboardStats(user) {
       };
     }),
   );
-  const topSegments = mergeTopSegmentsByDisplayVideo(rawTopSegments.filter(Boolean));
+  const topSegments = mergeTopSegmentsByDisplayVideo(rawTopSegments);
 
   return {
     coursesCount: courses.length,
@@ -206,8 +208,8 @@ async function getStudentDashboardStats(user) {
 
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
-  const enrollmentProgressByCourse = Object.fromEntries(
-    enrollments.map((enrollment) => [String(enrollment.courseId), enrollment.progress || 0]),
+  const enrollmentByCourse = Object.fromEntries(
+    enrollments.map((enrollment) => [String(enrollment.courseId), enrollment]),
   );
 
   // Round 2: 平行抓 allVideos（依賴 courseIds）+ 查 recentQuestions 引用的 video 是否還存在
@@ -228,22 +230,41 @@ async function getStudentDashboardStats(user) {
   const videosByCourse = {};
   for (const video of allVideos) {
     const key = String(video.courseId);
-    if (!videosByCourse[key]) videosByCourse[key] = { total: 0, completed: 0 };
-    videosByCourse[key].total += 1;
+    if (!videosByCourse[key]) videosByCourse[key] = { ids: [], completed: 0 };
+    videosByCourse[key].ids.push(String(video._id));
     if (video.processing?.status === 'completed') videosByCourse[key].completed += 1;
   }
 
   const courseList = courses.slice(0, 6).map((course) => {
-    const counts = videosByCourse[String(course._id)] || { total: 0, completed: 0 };
-    const storedProgress = enrollmentProgressByCourse[String(course._id)];
-    const progress = storedProgress !== undefined
-      ? Math.round(storedProgress)
-      : (counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0);
+    const courseKey = String(course._id);
+    const counts = videosByCourse[courseKey] || { ids: [], completed: 0 };
+    // 影片集合 = 主課程影片 ∪ 掛載影片，與 markVideoWatched 的分母一致。
+    const courseVideoIdSet = new Set([
+      ...counts.ids,
+      ...(course.videoIds || []).map(String),
+    ]);
+    const enrollment = enrollmentByCourse[courseKey];
+    const watchedIds = (enrollment?.watchedVideoIds || []).map(String);
+
+    let progress;
+    if (enrollment) {
+      // 有觀看紀錄就即時重算，避免舊資料存到過期的 progress 而顯示 0%；
+      // 舊 enrollment 只有 progress 數值時沿用儲存值。
+      progress = watchedIds.length && courseVideoIdSet.size
+        ? Math.min(100, Math.round(
+          (watchedIds.filter((id) => courseVideoIdSet.has(id)).length / courseVideoIdSet.size) * 100,
+        ))
+        : Math.round(enrollment.progress || 0);
+    } else {
+      progress = courseVideoIdSet.size > 0
+        ? Math.round((counts.completed / courseVideoIdSet.size) * 100)
+        : 0;
+    }
 
     return {
-      id: String(course._id),
+      id: courseKey,
       title: course.title,
-      videoCount: counts.total,
+      videoCount: courseVideoIdSet.size,
       completedVideos: counts.completed,
       progress,
     };

@@ -36,22 +36,29 @@ export default function StudentDashboard({ onNav }) {
   const courses = stats?.courseList || [];
   const recentQueries = stats?.recentQueries || [];
   const cards = [
-    [stats?.weeklyQueries ?? '-', '本週提問次數', 'WEEKLY QUERIES', 'last 7 days'],
-    [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'AVG PROGRESS', `${stats?.coursesCount ?? 0} courses`],
-    [stats?.totalQueries ?? '-', '累計提問次數', 'TOTAL QUERIES', 'all time'],
-    [`${stats?.answerRate ?? 0}%`, '回答命中率', 'ANSWER RATE', 'from questions'],
+    [stats?.weeklyQueries ?? '-', '本週提問次數', 'WEEKLY QUERIES', '最近 7 天 · 網頁 + LINE',
+      '以「最近 7 天」滾動計算（不是從週一起算），來源包含網頁 AI 問答與 LINE Bot。'],
+    [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'AVG PROGRESS', `${stats?.coursesCount ?? 0} 門課程平均`,
+      '所有已發布課程的觀看進度平均，尚未開始的課程以 0% 列入計算。'],
+    [stats?.totalQueries ?? '-', '累計提問次數', 'TOTAL QUERIES', '開始使用至今 · 網頁 + LINE',
+      '從開始使用至今的所有提問（網頁 + LINE），所以會大於等於「本週提問次數」。'],
+    [`${stats?.answerRate ?? 0}%`, '回答命中率', 'ANSWER RATE', '成功回答 ÷ 累計提問',
+      '成功產生答案的提問數除以累計提問數。'],
   ];
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
-        {cards.map(([value, label, title, sub]) => (
-          <div key={title} className="stat-card">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 8 }}>
+        {cards.map(([value, label, title, sub, tooltip]) => (
+          <div key={title} className="stat-card" title={tooltip}>
             <div className="stat-lbl">{title}</div>
             <div className="stat-val">{loading ? '-' : value}</div>
             <div className="stat-sub">{label} · {sub}</div>
           </div>
         ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)', marginBottom: 18, lineHeight: 1.6 }}>
+        「本週」為最近 7 天的滾動區間，「累計」為開始使用至今的總數，兩者統計範圍不同；將滑鼠移到卡片上可看完整說明。
       </div>
 
       {error && (

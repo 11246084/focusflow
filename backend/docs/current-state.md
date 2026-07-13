@@ -1,8 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-07-10（Phase 2 QA contract：`citations` / `answerStatus`；DB question scripts 補齊）
+最後更新：2026-07-14（整合 Phase 2 QA contract、FAQ 快取、QA quota guardrails、visual citation retrieval、YouTube auto-upload 與 Shorts proxy）
 
-前一輪：2026-05-07（dashboard / QA 平行化 + 刪除 cascade 收斂 + display 分流 + STT race-condition guard + 重複上傳防呆 + 學生 watched endpoint）
+前一輪：2026-07-12（影片多課程掛載 P1-3 + 老師 Top Segments contentMissing 修復（老師 #13）+ 本地影片自動上傳 YouTube feature flag）
 
 ## 文件角色
 
@@ -39,9 +39,11 @@
 - YouTube auto-upload adapter 已接入：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案上傳會先由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`，再用本機暫存檔接續既有 STT flow；仍需 FocusFlow Google refresh token 做真實 upload smoke
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
 - 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
-- 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；YT URL 與本機檔案 tab 處理中也可切換
+- 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；2026-07-12 起前端收斂為單一軌道（本地檔案），YouTube URL tab 已從 UI 移除（backend `POST /courses/:courseId/videos/youtube` API 保留）
 - 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade 改保留歷史紀錄
-- Display 層分流（2026-05-07）：老師 Top Segments 過濾「(已刪除影片)」；學生 Recent Queries 與管理員 Recent Events 帶 `contentMissing` flag，前端顯示「內容已下架」badge
+- Display 層分流（2026-05-07；2026-07-12 修正老師 #13）：老師 Top Segments 指向已刪除影片時優先 fallback 到該課程現存影片；課程已無現存影片時**不再整列丟棄**（先前會讓整個課程從統計消失），改帶 `contentMissing` flag 且同課程合併為一列；學生 Recent Queries 與管理員 Recent Events 同樣帶 `contentMissing` flag，前端顯示「內容已下架」badge
+- 影片多課程掛載（2026-07-12，P1-3）：保留 `video.courseId` 為主課程，其他課程透過 `course.videoIds` 掛載引用（沿用 bridge contract，`collectScopedVideos` 原生支援）。新增 `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`（TEACHER/ADMIN；attach 需同時可管理目標課程與影片主課程，主課程不可 detach 回 `400 VALIDATION_ERROR`，重複掛載回 `409 DUPLICATE_VIDEO`）；`resolveAccessibleVideoContext` 主課程無權限時 fallback 到任一有權限的掛載課程；`deleteVideo` / `deleteCourse` 會從**所有**課程 `videoIds` 清引用；`markVideoWatched` 接受主課程或掛載課程的影片；`segmentMatchesScope` 修正為 courseId 對不上時 fallback 用 videoId 判斷（掛載影片的 segments 帶主課程 courseId）。前端 TeacherCourses 課程展開面板有「掛載既有影片」與掛載列「解除」按鈕。注意：stats 的 videosCount 仍按主課程歸屬計算
+- 本地影片自動上傳 YouTube（2026-07-12，feature flag 預設關閉、**未經 live 憑證端對端驗證**）：`youtubeUpload.service.js` 以 OAuth2 refresh token 換 access token 後走 YouTube Data API v3 resumable upload；`createCourseVideo`（本地檔案路徑）在 spawn STT 後 fire-and-forget 觸發，成功回寫 `youtubeVideoId` + `videoUrl`（前端播放器自動改用 YouTube iframe），狀態記錄在 `videos.youtubeUpload {status: uploading|uploaded|failed, error, uploadedAt}`。需 `YOUTUBE_UPLOAD_ENABLED=true` + `YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN`（scope `youtube.upload`）四項齊備，缺任一項靜默略過，失敗不影響本地播放與 STT pipeline
 - QA 拒答（2026-05-07）：`scopedVideos.videos` 為空時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
 - 後端查詢平行化（2026-05-07）：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`（學生端 1.6–2.4s → ~0.8–1s）；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`（51 segments hydration 8.8s → ~1s）。API 回應格式 / 答案品質 100% 不變
 - QA 診斷 log（2026-05-07）：新增 `[qa-timing]` 7 段 mark（`course-lookup` / `access+videos` / `build-segment-scope` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉；`NODE_ENV=test` 自動靜音
@@ -57,7 +59,12 @@
 - `videos` ownership 回應 contract 已固定：app-owned 影片回 `ownership=app_owned` / `isAppOwned=true` / `metadataOnly=false`；pipeline metadata 影片回 `ownership=pipeline_metadata` / `isAppOwned=false` / `metadataOnly=true`
 - QA 提問落庫流程（2026-05-01）：`recordUsage()` 改回傳建立的 `UsageLog` 文件；QA controller / `lineConversation.service.js` 先建 usage log，再把 `_id` 寫入對應 `questions.sourceUsageLogId`；LINE QA hard-fail 路徑也會寫 `questions`（`status: failed`），不再因為失敗就漏掉提問紀錄
 - 重複上傳防呆（2026-05-07，P2-7）：`video.model.js` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index；`video.service.createCourseVideoFromYouTube` 建立前 `Video.findOne({ courseId, youtubeVideoId })` 命中回 `409 DUPLICATE_VIDEO`；`video.service.createCourseVideo` 上傳完成後對暫存檔做 SHA-256 stream-hash，命中既存 → `unlinkSync` → 回 `409 DUPLICATE_VIDEO`。仍未涵蓋跨課程共用同一支影片（屬 P1-3）
-- 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`（`course.routes.js` + `course.controller.js`），service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`；**第一次**觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）。前端 `StudentCourses.jsx` 觸發來源：mp4 `<video>` `onTimeUpdate ≥ 80%` 或 `onEnded`；YouTube IFrame `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%`；`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 的 WATCH 從此可累加（先前永遠為 0）。仍未做：「孤兒清理後 0%」顯示異常修復
+- 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`（`course.routes.js` + `course.controller.js`），service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`；**第一次**觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）。前端 `StudentCourses.jsx` 觸發來源：mp4 `<video>` `onTimeUpdate ≥ 80%` 或 `onEnded`；YouTube IFrame `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%`；`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 的 WATCH 從此可累加（先前永遠為 0）。「進度誤顯 0%」已於 2026-07-13 修復（見下一條）
+- 學生進度 0% 修復 + LINE 跳轉 fallback（2026-07-13）：
+  - `markVideoWatched` 進度分母改為「主課程影片（`video.courseId`）∪ 掛載影片（`course.videoIds`）」聯集。先前只算 `course.videoIds`，未掛載的主課程影片看完不被計入，進度永遠 0%
+  - `getStudentDashboardStats` 的 `courseList.progress` 改為：enrollment 有 `watchedVideoIds` 就用同一聯集分母即時重算（上限 100%），不再只讀儲存的 `enrollment.progress`（過期的 0 會一直顯示）；舊 enrollment 只有 progress 數值時沿用儲存值；未選課課程維持 processing-completed 比例 fallback。`courseList.videoCount` 改為聯集大小（頂層 `videosCount` 仍按主課程歸屬計算）
+  - LINE `buildQuestionSummaryLines`：命中影片無 `youtubeVideoId`（組不出 `youtu.be` 跳轉連結，常見於本地上傳未同步 YouTube）時，改附「此片段「{影片名}」尚未提供跳轉連結，請到 FocusFlow 網站的課程頁播放對應時間點」提示，先前是整行「跳轉：」直接消失；clip 快取 jumpUrl 仍優先於 match jumpUrl
+  - API response 形狀不變；新增 5 條回歸測試（course-video.routes ×2、line.routes ×3）
 
 目前 QA bridge contract：
 
@@ -134,6 +141,7 @@
   - `npm run db:ensure-questions` 可建立 `questions` collection 並同步 schema indexes
   - `npm run db:backfill-questions` 預設 dry-run；需要寫入時使用 `npm run db:backfill-questions -- --write`，從 legacy ASK usage logs 補回缺失 questions
 - OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，已涵蓋主要 auth / courses / videos / watched / QA / stats / admin / LINE 端點；internal processing webhook 等少數內部端點以 route files 為準
+- FAQ 快取／常見問題資料庫（2026-07-13）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）——第一層正規化文字完全相同直接命中（零 token，連 embedding 都不算）；第二層以 query embedding 對課程 FAQ 做 cosine 相似度（預設門檻 0.95），命中則跳過向量搜尋與 LLM 生成。只快取 runtime ready 且不帶對話歷史的回答；命中仍照常寫 `usage_logs` 與 `questions`（runtime 帶 `faqCache.hit/matchType`，`answerProviderUsed=faq_cache`）。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`（依 hitCount 排序）、`DELETE /api/v1/courses/:courseId/faqs`（teacher/admin）。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充
 
@@ -145,7 +153,10 @@
 
 ## 目前測試狀態
 
+- 2026-07-14 `npm.cmd test`：**135 passed / 0 failed**（整合 Phase 2 QA contract、FAQ 快取、QA quota guardrails、visual citation retrieval、YouTube auto-upload 新舊設定相容與 Shorts proxy 後重驗）。
 - 2026-07-10 `npm.cmd test`：**103 passed / 0 failed**（含 Phase 2 QA contract、初版 visual citation retrieval、YouTube auto-upload adapter、CORS allowlist、QA quota guardrails）。
+- 2026-07-13 `npm test`：**119 passed / 0 failed**（含 FAQ 快取 13 個新測試：`faq-cache.service.test.js` 6 + `faq.routes.test.js` 7；harness 補 `store.faqs` 與 Faq model stubs）。
+- 2026-05-07 `npm test`：**87 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖、編碼防護等變動後）。
 - 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）。
 - 主要單檔現況：`qa.routes.test.js` 9 / `qa.service.test.js` 13 / `course-video.routes.test.js` 26 / `line.routes.test.js` 14 / `docs.routes.test.js` 2 / `teacherStats.service.test.js` 3 / `textEncoding.test.js` 6。
 - 測試 harness（`backendTestHarness.js`）`createQuery` 已補 `.lean()` / `.select()` no-op；`VideoSegment.find` 改用 thenable 以相容 service 層 `.lean()` 呼叫。
@@ -197,4 +208,4 @@
 
 ## 一句話結論
 
-截至 2026-07-10，backend 主線為 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + YouTube auto-upload adapter + 重複上傳防呆（YouTube videoId / mp4 SHA-256）+ Phase 2 QA citations/answerStatus contract + 初版 visual citation retrieval + QA quota guardrails + 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + dashboard/QA 平行化 + [qa-timing] 診斷 log + 學生 watched endpoint（首觀看寫 WATCH usage log）`。`video_segments_text` 欄位已全面 camelCase；共享 Atlas 的 `text_embedding_index` 已 READY（2026-05-23 驗證），`video_segments_video.video_embedding_index` 已 READY（2026-07-10 驗證），atlas mode 可用。OpenAPI 已補上 stats/admin/watched、courses/videos PATCH/DELETE 與 QA Phase 2 contract（仍標註 internal processing webhook 等少數內部端點以 route files 為準）。短期限制：YouTube Data API 真實 OAuth upload smoke 尚未做、backend/uploads 自動清理尚未做、ngrok URL 不固定、`video_segments_video` 沒有 transcript / caption，僅能作 visual citation retrieval。
+截至 2026-07-14，backend 主線整合 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + YouTube auto-upload adapter + Shorts playlist proxy + 重複上傳防呆（YouTube videoId / mp4 SHA-256）+ Phase 2 QA citations/answerStatus contract + 初版 visual citation retrieval + QA quota guardrails + FAQ 兩層快取（文字相同零 token／語意相似 ≥ 0.95）+ 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + 影片多課程掛載（attach/detach）+ dashboard/QA 平行化 + [qa-timing] 診斷 log + 學生 watched endpoint`。教師上傳 UI 為單一軌道（本地檔案），YouTube URL API 保留。`video_segments_text` 欄位已全面 camelCase；共享 Atlas 的 `text_embedding_index` 與 `video_segments_video.video_embedding_index` 均已有 READY 驗證紀錄，實際狀態仍以 `/health` 與 Atlas 現況為準。短期限制：YouTube 自動上傳尚未以正式 OAuth 憑證 live 驗證、backend/uploads 自動清理尚未做、ngrok URL 不固定、`video_segments_video` 沒有 transcript / caption，僅能作 visual citation retrieval。

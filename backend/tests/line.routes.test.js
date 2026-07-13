@@ -578,3 +578,57 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
   });
 });
+
+describe('line question summary lines', () => {
+  const { buildQuestionSummaryLines } = require('../src/services/line.service');
+
+  it('命中片段有 jumpUrl 時回覆包含跳轉連結', () => {
+    const lines = buildQuestionSummaryLines({
+      answer: 'JWT 用於身分驗證。',
+      matches: [{
+        segmentId: 'seg-1',
+        videoTitle: 'JWT 課程影片',
+        startSec: 12,
+        endSec: 32,
+        jumpUrl: 'https://youtu.be/abc123def45?t=12',
+      }],
+      clip: null,
+      runtime: {},
+    });
+
+    assert.equal(lines.includes('跳轉：https://youtu.be/abc123def45?t=12'), true);
+    assert.equal(lines.includes('片段：12s - 32s'), true);
+  });
+
+  it('命中片段沒有 jumpUrl 時回覆包含改用網站觀看的提示，而非整行消失', () => {
+    const lines = buildQuestionSummaryLines({
+      answer: 'JWT 用於身分驗證。',
+      matches: [{
+        segmentId: 'seg-1',
+        videoTitle: '本地上傳影片',
+        startSec: 12,
+        endSec: 32,
+        jumpUrl: null,
+      }],
+      clip: null,
+      runtime: {},
+    });
+
+    assert.equal(lines.some((line) => line.startsWith('跳轉：')), false);
+    assert.equal(
+      lines.includes('此片段「本地上傳影片」尚未提供跳轉連結，請到 FocusFlow 網站的課程頁播放對應時間點。'),
+      true,
+    );
+  });
+
+  it('快取 clip 的 jumpUrl 優先於 match 的 jumpUrl', () => {
+    const lines = buildQuestionSummaryLines({
+      answer: 'JWT 用於身分驗證。',
+      matches: [{ segmentId: 'seg-1', startSec: 12, endSec: 32, jumpUrl: 'https://youtu.be/matchurl0001?t=12' }],
+      clip: { jumpUrl: 'https://videos.local/watch?v=cached&t=12' },
+      runtime: {},
+    });
+
+    assert.equal(lines.includes('跳轉：https://videos.local/watch?v=cached&t=12'), true);
+  });
+});

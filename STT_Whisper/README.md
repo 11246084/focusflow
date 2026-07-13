@@ -629,3 +629,51 @@ data/outputs/runs/<run_id>/
 - `data/outputs/runs/<run_id>/`：Phase 2 後正式、可追蹤與可回溯的批次資料來源。
 
 舊有 `bak/`、deprecated 資料及歷史輸出不會自動搬移或刪除。這套版本管理是未來 Resume／Retry 的資料基礎；目前仍**尚未實作 Resume 或 Retry**。
+
+## Phase 2-3 - Resume / Checkpoint
+
+Resume 用於接續既有 `run_id` 的 pipeline 執行，避免已完成且 checkpoint 有效的 stage 被重跑。使用方式：
+
+```powershell
+python src/main.py --resume-run-id <run_id>
+```
+
+Resume 會讀取：
+
+```text
+data/outputs/runs/<run_id>/manifest.json
+```
+
+若 run 目錄不存在、`manifest.json` 不存在、或 manifest 不是合法 JSON，程式會清楚失敗，且不會自動建立新的 manifest 覆蓋舊資料。`--overwrite` 不可與 `--resume-run-id` 同時使用；若同時指定，程式會拒絕執行：
+
+```text
+--overwrite cannot be used together with --resume-run-id
+```
+
+目前 pipeline 採線性 Resume 規則。程式會從 `scan`、`extract_audio`、`transcribe`、`normalize`、`chunk`、`text_embedding`、`audio_embedding`、`export`、`mongodb_upload`、`backend_webhook` 依序檢查，找出第一個無法安全跳過的 stage；從該 stage 開始，後續所有 stage 都會重新執行。
+
+Stage 狀態處理：
+
+- `completed`：只有該 stage 在 manifest 中為完成狀態、checkpoint 檔案存在、非空、JSON / JSONL 可解析，且資料可供下一個 stage 使用時才會跳過。若先前 run 是後段 stage 失敗，前段已完成且 checkpoint 有效的 stage 仍可跳過。
+- `failed`：從該 stage 開始重新執行。
+- `pending`：正常執行。
+- `running`：視為上次中斷，從該 stage 開始重新執行。
+
+Checkpoint 遺失、空白、損壞或格式錯誤時，不會跳過該 stage，而是從該 stage 起重新執行後續流程。例如 `chunk` 顯示 `completed`，但 `chunks.jsonl` 遺失或無法解析，Resume 會從 `chunk` 開始重跑，後面的 embedding、export、upload、webhook 也會重跑。
+
+目前 checkpoint 對照如下：
+
+- `scan` -> `videos.json`
+- `extract_audio` -> `videos.json` 內每支影片的 `audio_path` 對應 WAV 檔
+- `transcribe` -> `transcripts.json`
+- `normalize` -> `transcripts_normalized.json`
+- `chunk` -> `chunks.jsonl`
+- `text_embedding` -> `embeddings_text_gemini.jsonl`
+- `audio_embedding` -> `embeddings_audio_gemini.jsonl`
+- `export` -> run 目錄內的正式 JSON / JSONL 輸出檔
+- `mongodb_upload` -> `upload_summary.json` 且狀態為 `completed`
+- `backend_webhook` -> 只在 manifest 已完成時視為可跳過
+
+Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 Resume 時不會覆蓋 `data/outputs/` 頂層 latest compatibility copy；只有 Resume 全部成功後，才會刷新頂層 latest copy。
+
+本 Sprint 只實作 Resume / Checkpoint 的線性接續能力，**不包含 Retry**，也不會改變既有 JSON / JSONL schema 或 MongoDB collection contract。

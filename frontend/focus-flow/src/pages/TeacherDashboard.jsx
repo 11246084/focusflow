@@ -10,6 +10,7 @@ const STATUS_MAP = {
 };
 
 function formatSegmentSource(item) {
+  if (item.contentMissing) return '已刪除影片的提問';
   return item.videoTitle || (item.videoId ? `影片 ${String(item.videoId).slice(-6)}` : '未知影片');
 }
 
@@ -83,7 +84,10 @@ export default function TeacherDashboard({ onNav }) {
             stats.topSegments.map((item, index) => (
               <div key={item.segmentId || index} style={{ marginBottom: 11, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'baseline', gap: 14 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatSegmentSource(item)}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatSegmentSource(item)}
+                    {item.contentMissing && <span className="badge bb" style={{ marginLeft: 8 }} title="提問對應的影片已被刪除，僅保留統計">內容已下架</span>}
+                  </div>
                   <div style={{ fontSize: 16, fontWeight: 900, color: '#F14F21', fontFamily: "'Space Grotesk',sans-serif", whiteSpace: 'nowrap' }}>{item.count}次</div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 14, marginTop: 4 }}>

@@ -1,7 +1,9 @@
-const { createReadStream, statSync } = require('fs');
+const { createReadStream, existsSync, statSync } = require('fs');
 const path = require('path');
-const AppError = require('../utils/appError');
 const env = require('../config/env');
+const Video = require('../models/video.model');
+const { YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
+const AppError = require('../utils/appError');
 
 const YOUTUBE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable';
@@ -28,11 +30,23 @@ function isAutoUploadEnabled() {
   return Boolean(env.youtubeAutoUploadEnabled);
 }
 
+function getOAuthCredentials() {
+  return {
+    clientId: env.youtubeClientId || env.youtubeOAuthClientId || '',
+    clientSecret: env.youtubeClientSecret || env.youtubeOAuthClientSecret || '',
+    refreshToken: env.youtubeRefreshToken || env.youtubeOAuthRefreshToken || '',
+  };
+}
+
 function hasRefreshCredentials() {
+  const credentials = getOAuthCredentials();
+  return Boolean(credentials.clientId && credentials.clientSecret && credentials.refreshToken);
+}
+
+function isYouTubeUploadConfigured() {
   return Boolean(
-    env.youtubeOAuthClientId
-    && env.youtubeOAuthClientSecret
-    && env.youtubeOAuthRefreshToken,
+    env.youtubeUploadEnabled
+    && (env.youtubeUploadAccessToken || hasRefreshCredentials()),
   );
 }
 
@@ -61,30 +75,28 @@ async function fetchAccessToken({ fetchImpl = global.fetch } = {}) {
   }
 
   assertFetch(fetchImpl);
-
+  const credentials = getOAuthCredentials();
   const body = new URLSearchParams({
-    client_id: env.youtubeOAuthClientId,
-    client_secret: env.youtubeOAuthClientSecret,
-    refresh_token: env.youtubeOAuthRefreshToken,
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    refresh_token: credentials.refreshToken,
     grant_type: 'refresh_token',
   });
 
   const response = await fetchImpl(YOUTUBE_TOKEN_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
 
   if (!response.ok) {
     const responseText = await response.text().catch(() => '');
-    throw createYouTubeApiError('Failed to refresh YouTube OAuth token.', responseText);
+    throw createYouTubeApiError('YouTube OAuth token refresh failed.', responseText);
   }
 
   const payload = await response.json();
   if (!payload.access_token) {
-    throw createYouTubeApiError('YouTube OAuth token response did not include access_token.');
+    throw createYouTubeApiError('YouTube OAuth token response did not include an access token.');
   }
 
   return payload.access_token;
@@ -95,7 +107,7 @@ async function uploadLocalVideo({
   title,
   description,
   mimeType,
-  privacyStatus = env.youtubeUploadPrivacyStatus,
+  privacyStatus = env.youtubeUploadPrivacy || env.youtubeUploadPrivacyStatus,
   fetchImpl = global.fetch,
 } = {}) {
   if (!filePath) {
@@ -103,19 +115,19 @@ async function uploadLocalVideo({
   }
 
   assertFetch(fetchImpl);
-
   const accessToken = await fetchAccessToken({ fetchImpl });
   const fileStats = statSync(filePath);
   const normalizedMimeType = mimeType || guessMimeType(filePath);
   const normalizedPrivacyStatus = normalizePrivacyStatus(privacyStatus);
   const metadata = {
     snippet: {
-      title: String(title || path.basename(filePath)).trim(),
+      title: String(title || path.basename(filePath)).trim().slice(0, 100),
       description: String(description || '').trim(),
-      categoryId: env.youtubeUploadCategoryId,
+      categoryId: env.youtubeUploadCategoryId || '27',
     },
     status: {
       privacyStatus: normalizedPrivacyStatus,
+      selfDeclaredMadeForKids: false,
     },
   };
 
@@ -168,13 +180,103 @@ async function uploadLocalVideo({
   };
 }
 
+async function uploadVideoFileToYouTube({ filePath, title, description = '' }, fetchImpl = global.fetch) {
+  const result = await uploadLocalVideo({ filePath, title, description, fetchImpl });
+  return result.youtubeVideoId;
+}
+
+async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = {}) {
+  const video = await Video.findById(videoId);
+
+  if (!video || video.youtubeVideoId) {
+    return null;
+  }
+
+  const filePath = video.filePath;
+  if (!filePath || !existsSync(filePath)) {
+    await Video.findByIdAndUpdate(videoId, {
+      $set: {
+        youtubeUpload: {
+          status: YOUTUBE_UPLOAD_STATUSES.FAILED,
+          error: 'Local video file is missing; cannot upload to YouTube.',
+          uploadedAt: null,
+        },
+      },
+    });
+    return null;
+  }
+
+  await Video.findByIdAndUpdate(videoId, {
+    $set: {
+      youtubeUpload: { status: YOUTUBE_UPLOAD_STATUSES.UPLOADING, error: null, uploadedAt: null },
+    },
+  });
+
+  try {
+    const uploadResult = await uploadLocalVideo({
+      filePath,
+      title: video.title,
+      description: `Uploaded by FocusFlow (video ${videoId}).`,
+      fetchImpl,
+    });
+
+    await Video.findByIdAndUpdate(videoId, {
+      $set: {
+        youtubeVideoId: uploadResult.youtubeVideoId,
+        videoUrl: uploadResult.videoUrl,
+        youtubeUpload: {
+          status: YOUTUBE_UPLOAD_STATUSES.UPLOADED,
+          error: null,
+          uploadedAt: new Date(),
+        },
+      },
+    });
+
+    return uploadResult.youtubeVideoId;
+  } catch (error) {
+    await Video.findByIdAndUpdate(videoId, {
+      $set: {
+        youtubeUpload: {
+          status: YOUTUBE_UPLOAD_STATUSES.FAILED,
+          error: String(error.message || error).slice(0, 500),
+          uploadedAt: null,
+        },
+      },
+    });
+
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`YouTube auto upload failed for video ${videoId}.`, error);
+    }
+
+    return null;
+  }
+}
+
+// 上傳流程的 fire-and-forget 入口：未設定憑證時靜默略過，不影響本地上傳與 STT pipeline。
+function scheduleYouTubeAutoUpload(video) {
+  if (!isYouTubeUploadConfigured()) {
+    return null;
+  }
+
+  return autoUploadVideoToYouTube(String(video._id)).catch((error) => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`YouTube auto upload scheduling failed for video ${video._id}.`, error);
+    }
+    return null;
+  });
+}
+
 module.exports = {
   YOUTUBE_TOKEN_URL,
   YOUTUBE_UPLOAD_URL,
+  autoUploadVideoToYouTube,
   buildYouTubeWatchUrl,
   fetchAccessToken,
   guessMimeType,
   isAutoUploadEnabled,
+  isYouTubeUploadConfigured,
   normalizePrivacyStatus,
+  scheduleYouTubeAutoUpload,
   uploadLocalVideo,
+  uploadVideoFileToYouTube,
 };

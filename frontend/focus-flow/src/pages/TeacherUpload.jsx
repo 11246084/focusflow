@@ -59,8 +59,6 @@ export default function TeacherUpload() {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [title, setTitle] = useState('');
-  const [mode, setMode] = useState('file');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -159,46 +157,26 @@ export default function TeacherUpload() {
       return;
     }
 
-    if (mode === 'file' && !selectedFile) {
+    if (!selectedFile) {
       setUploadError('請先選擇影片檔案。');
-      return;
-    }
-
-    if (mode === 'youtube' && !youtubeUrl.trim()) {
-      setUploadError('請輸入 YouTube 影片網址。');
       return;
     }
 
     setUploading(true);
     setUploadError('');
     setProcStatus(null);
-    setStatusMessage(mode === 'youtube' ? '正在註冊 YouTube 影片並啟動 STT。' : '正在上傳影片到後端。');
+    setStatusMessage('正在上傳影片到後端。');
     setVideoId(null);
 
     try {
-      let res;
-      if (mode === 'youtube') {
-        res = await fetch(`${API_BASE}/courses/${courseId}/videos/youtube`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            youtubeUrl: youtubeUrl.trim(),
-            title: title.trim() || undefined,
-          }),
-        });
-      } else {
-        const fd = new FormData();
-        fd.append('video', selectedFile);
-        if (title.trim()) fd.append('title', title.trim());
-        res = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${getToken()}` },
-          body: fd,
-        });
-      }
+      const fd = new FormData();
+      fd.append('video', selectedFile);
+      if (title.trim()) fd.append('title', title.trim());
+      const res = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: fd,
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '上傳失敗');
@@ -215,7 +193,6 @@ export default function TeacherUpload() {
 
       // 清空輸入欄位，讓使用者可以接著上傳下一支；保留 videoId / procStatus 繼續追蹤前一支
       setSelectedFile(null);
-      setYoutubeUrl('');
       setTitle('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
@@ -232,7 +209,6 @@ export default function TeacherUpload() {
     setVideoId(null);
     setProcStatus(null);
     setSelectedFile(null);
-    setYoutubeUrl('');
     setTitle('');
     setUploadError('');
     setStatusMessage('');
@@ -254,35 +230,6 @@ export default function TeacherUpload() {
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>Upload Video</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 900 }}>
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button
-              type="button"
-              onClick={() => !uploading && setMode('file')}
-              disabled={uploading}
-              style={{
-                flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                background: mode === 'file' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${mode === 'file' ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                color: mode === 'file' ? '#F14F21' : 'rgba(255,255,255,0.6)',
-              }}
-            >
-              上傳檔案
-            </button>
-            <button
-              type="button"
-              onClick={() => !uploading && setMode('youtube')}
-              disabled={uploading}
-              style={{
-                flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                background: mode === 'youtube' ? 'rgba(241,79,33,0.18)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${mode === 'youtube' ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                color: mode === 'youtube' ? '#F14F21' : 'rgba(255,255,255,0.6)',
-              }}
-            >
-              YouTube 連結
-            </button>
-          </div>
-          {mode === 'file' ? (
           <div
             className="upload-z"
             style={{ minHeight: 220, cursor: 'pointer', opacity: uploading ? 0.6 : 1 }}
@@ -306,21 +253,6 @@ export default function TeacherUpload() {
               </>
             )}
           </div>
-          ) : (
-          <div className="upload-z" style={{ minHeight: 220, cursor: 'default', flexDirection: 'column', gap: 12, padding: '20px 24px' }}>
-            <div style={{ color: '#F14F21' }}><Ic n="up" s={36} /></div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>貼上 YouTube 影片網址</div>
-            <input
-              className="ff-input"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              disabled={uploading}
-              style={{ width: '100%' }}
-            />
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>支援 youtube.com/watch、youtu.be、shorts</div>
-          </div>
-          )}
 
           <div className="card-sm" style={{ padding: '16px 18px', marginTop: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -398,7 +330,7 @@ export default function TeacherUpload() {
 
           <div style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(241,79,33,0.08)', border: '1px solid rgba(241,79,33,0.18)', borderRadius: 12 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
-              上傳完成後系統會在背景建立索引。<br />
+              上傳後系統自動完成後續步驟：STT 轉字幕、切段、向量索引；若後端已設定 YouTube 憑證，也會自動上傳 YouTube 供學生播放。<br />
               <span style={{ color: '#F14F21' }}>可切換頁面或繼續操作</span>，回到此頁會恢復追蹤最後一個上傳工作。
             </div>
           </div>

@@ -89,7 +89,7 @@ export default function App() {
 
           {/* Logo — top-left of step 1 */}
           <div className="logo">
-            <img src="/assets/logo.png" alt="Focus Flow" />
+            <img src="/assets/lockup-ink-mono.png" alt="Focus Flow" />
           </div>
 
           {/* Waveform — tall narrow, inside step 1 */}

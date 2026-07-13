@@ -24,6 +24,7 @@ const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
+const Faq = require('../../src/models/faq.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -40,6 +41,7 @@ const store = {
   usageLogs: [],
   questions: [],
   lineBindTokens: [],
+  faqs: [],
 };
 
 const ids = {
@@ -145,6 +147,21 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
       const currentValue = getNested(target, key);
       const nextValue = Array.isArray(currentValue) ? [...currentValue, value] : [value];
       setNested(target, key, nextValue);
+    }
+  }
+
+  if (update.$pull) {
+    for (const [key, value] of Object.entries(update.$pull)) {
+      const currentValue = getNested(target, key);
+
+      if (!Array.isArray(currentValue)) {
+        continue;
+      }
+
+      const removable = value && typeof value === 'object' && Array.isArray(value.$in)
+        ? value.$in.map(normalizeValue)
+        : [normalizeValue(value)];
+      setNested(target, key, currentValue.filter((item) => !removable.includes(normalizeValue(item))));
     }
   }
 
@@ -364,6 +381,21 @@ function installModelStubs() {
     return;
   }
 
+  // 測試不連真實 MongoDB；deleteVideo 會直接操作 raw collection（transcripts_normalized），
+  // 這裡給 mongoose.connection.db 一個 no-op stub 避免 500。
+  if (!mongoose.connection.db) {
+    Object.defineProperty(mongoose.connection, 'db', {
+      configurable: true,
+      get() {
+        return {
+          collection: () => ({
+            deleteMany: async () => ({ deletedCount: 0 }),
+          }),
+        };
+      },
+    });
+  }
+
   // Monkey-patch the mongoose models once so production services can run unchanged.
   User.findOne = async (query = {}) => store.users.find((item) => matchesQuery(item, query)) || null;
   User.findById = async (id) => findUserById(id);
@@ -462,6 +494,19 @@ function installModelStubs() {
     course.updatedAt = new Date().toISOString();
     return course;
   };
+  Course.updateMany = async (query, update) => {
+    const courses = store.courses.filter((item) => matchesQuery(item, query));
+
+    for (const course of courses) {
+      applyUpdate(course, update);
+      course.updatedAt = new Date().toISOString();
+    }
+
+    return {
+      matchedCount: courses.length,
+      modifiedCount: courses.length,
+    };
+  };
 
   Video.create = async (payload) => {
     const video = {
@@ -480,6 +525,16 @@ function installModelStubs() {
     options,
   );
   Video.deleteMany = async (query = {}) => deleteManyInStore(store.videos, query);
+  Video.deleteOne = async (query = {}) => {
+    const index = store.videos.findIndex((item) => matchesQuery(item, query));
+
+    if (index === -1) {
+      return { deletedCount: 0 };
+    }
+
+    store.videos.splice(index, 1);
+    return { deletedCount: 1 };
+  };
   Video.find = (query = {}) => createQuery(
     store.videos.filter((item) => matchesQuery(item, query)),
     {
@@ -662,6 +717,17 @@ function installModelStubs() {
   Question.countDocuments = async (query = {}) => store.questions.filter((item) => matchesQuery(item, query)).length;
   Question.deleteMany = async (query = {}) => deleteManyInStore(store.questions, query);
 
+  Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
+  Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;
+  Faq.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.faqs,
+    query,
+    update,
+    options,
+  );
+  Faq.countDocuments = async (query = {}) => store.faqs.filter((item) => matchesQuery(item, query)).length;
+  Faq.deleteMany = async (query = {}) => deleteManyInStore(store.faqs, query);
+
   LineBindToken.create = async (payload) => {
     const token = {
       _id: newObjectId(),
@@ -695,6 +761,7 @@ function resetStore() {
   store.usageLogs.length = 0;
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
+  store.faqs.length = 0;
 
   store.users.push(
     {

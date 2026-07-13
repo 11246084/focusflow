@@ -151,6 +151,94 @@ function CreateCourseModal({ onClose, onCreated }) {
   );
 }
 
+function AttachVideoModal({ course, candidates, onClose, onAttached }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const { overlay, box, label, input } = MODAL_STYLE;
+
+  async function attach() {
+    if (!selectedId) {
+      setError('請選擇要掛載的影片。');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      await apiFetch(`/courses/${course._id}/videos/${selectedId}/attach`, { method: 'POST' });
+      onAttached();
+    } catch (e) {
+      setError(e.message || '掛載影片失敗。');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={overlay} onClick={onClose}>
+      <div style={box} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>
+            掛載既有影片
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1 }}
+          >
+            x
+          </button>
+        </div>
+
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginBottom: 16, lineHeight: 1.7 }}>
+          將其他課程的影片掛載到「{course.title}」。同一支影片可同時屬於多個課程，掛載不會複製檔案或重新處理。
+        </div>
+
+        {candidates.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', padding: '10px 0 18px' }}>
+            沒有可掛載的影片：其他課程中沒有尚未加入此課程的影片。
+          </div>
+        ) : (
+          <div style={{ marginBottom: 18 }}>
+            <label style={label}>選擇影片</label>
+            <select style={{ ...input, cursor: 'pointer' }} value={selectedId} onChange={e => setSelectedId(e.target.value)}>
+              <option value="">— 請選擇 —</option>
+              {candidates.map(({ video, courseTitle }) => {
+                const videoId = video.id || video._id;
+                return (
+                  <option key={videoId} value={videoId}>
+                    {(video.title || video.fileName || video.file_name || '未命名影片')}（{courseTitle}）
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
+
+        {error && <div style={{ fontSize: 12, color: '#fb923c', marginBottom: 14 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, color: 'rgba(255,255,255,0.82)', padding: '9px 18px', fontSize: 12, cursor: 'pointer' }}
+          >
+            取消
+          </button>
+          <button
+            className="btn-primary"
+            onClick={attach}
+            disabled={saving || candidates.length === 0}
+            style={{ padding: '9px 20px', fontSize: 12 }}
+          >
+            {saving ? '掛載中...' : '掛載影片'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Chevron({ open }) {
   return (
     <svg
@@ -172,6 +260,8 @@ export default function TeacherCourses() {
   const [confirmCourse, setConfirmCourse] = useState(null);
   const [deletingCourse, setDeletingCourse] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [attaching, setAttaching] = useState(null);
+  const [detachingId, setDetachingId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
 
@@ -246,6 +336,41 @@ export default function TeacherCourses() {
     }
   }
 
+  // 可掛載到 course 的候選影片 = 其他課程的 app-owned 影片，排除已在此課程列表中的
+  function attachCandidates(course) {
+    const existingIds = new Set((course.videos || []).map(v => String(v.id || v._id)));
+    const seen = new Set();
+    const candidates = [];
+
+    for (const other of courses) {
+      if (other._id === course._id) continue;
+      for (const video of other.videos || []) {
+        const videoId = String(video.id || video._id);
+        if (video.metadataOnly || existingIds.has(videoId) || seen.has(videoId)) continue;
+        // 只列主課程屬於該課程的影片，避免同一支掛載影片重複出現
+        if (String(video.courseId) !== String(other._id)) continue;
+        seen.add(videoId);
+        candidates.push({ video, courseTitle: other.title });
+      }
+    }
+
+    return candidates;
+  }
+
+  async function handleDetach(course, video) {
+    const videoId = video.id || video._id;
+    setDetachingId(videoId);
+
+    try {
+      await apiFetch(`/courses/${course._id}/videos/${videoId}/detach`, { method: 'POST' });
+      setRefreshKey(key => key + 1);
+    } catch {
+      // 失敗時保留在列表中，讓使用者可重試。
+    } finally {
+      setDetachingId(null);
+    }
+  }
+
   async function handleDeleteCourse(course) {
     const courseId = course._id;
     setDeletingCourse(courseId);
@@ -273,6 +398,15 @@ export default function TeacherCourses() {
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       {creating && <CreateCourseModal onClose={() => setCreating(false)} onCreated={onCreated} />}
+
+      {attaching && (
+        <AttachVideoModal
+          course={attaching}
+          candidates={attachCandidates(attaching)}
+          onClose={() => setAttaching(null)}
+          onAttached={() => { setAttaching(null); setRefreshKey(key => key + 1); }}
+        />
+      )}
 
       {confirmCourse && (
         <div style={overlay} onClick={() => setConfirmCourse(null)}>
@@ -437,6 +571,14 @@ export default function TeacherCourses() {
 
                   {open && (
                     <div style={{ padding: '4px 20px 18px 56px', background: 'rgba(0,0,0,0.18)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                        <button
+                          onClick={() => setAttaching(course)}
+                          style={{ background: 'rgba(165,180,252,0.08)', border: '1px solid rgba(165,180,252,0.3)', borderRadius: 8, color: '#a5b4fc', padding: '5px 12px', fontSize: 11, cursor: 'pointer' }}
+                        >
+                          <Ic n="link" s={11} /> 掛載既有影片
+                        </button>
+                      </div>
                       {videos.length === 0 ? (
                         <div style={{
                           padding: '14px 16px',
@@ -470,6 +612,8 @@ export default function TeacherCourses() {
                             const badge = VIDEO_STATUS_MAP[status] || { text: status || '未知', cls: 'bb' };
                             const date = video.processing?.queuedAt || video.createdAt;
                             const videoId = video.id || video._id;
+                            // 主課程 courseId 不是本課程 → 這支影片是從其他課程掛載進來的
+                            const isAttached = !video.metadataOnly && video.courseId && String(video.courseId) !== String(course._id);
                             return (
                               <div
                                 key={videoId}
@@ -493,6 +637,7 @@ export default function TeacherCourses() {
                                   <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {video.title || video.fileName || video.file_name || '未命名影片'}
                                   </span>
+                                  {isAttached && <span className="badge bb" title="這支影片的主課程在其他課程，此處為掛載引用">掛載</span>}
                                 </div>
                                 <div>
                                   {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>未知</span>}
@@ -501,13 +646,24 @@ export default function TeacherCourses() {
                                   {date ? new Date(date).toLocaleDateString('zh-TW') : '未記錄'}
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                  <button
-                                    onClick={() => setConfirm(video)}
-                                    disabled={deleting === videoId}
-                                    style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
-                                  >
-                                    刪除
-                                  </button>
+                                  {isAttached ? (
+                                    <button
+                                      onClick={() => handleDetach(course, video)}
+                                      disabled={detachingId === videoId}
+                                      title="從此課程解除掛載，不會刪除影片本身"
+                                      style={{ background: 'none', border: '1px solid rgba(165,180,252,0.4)', borderRadius: 8, color: '#a5b4fc', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
+                                    >
+                                      {detachingId === videoId ? '解除中...' : '解除'}
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirm(video)}
+                                      disabled={deleting === videoId}
+                                      style={{ background: 'none', border: '1px solid rgba(220,38,38,0.5)', borderRadius: 8, color: '#fca5a5', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}
+                                    >
+                                      刪除
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );

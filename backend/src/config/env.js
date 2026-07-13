@@ -24,6 +24,10 @@ module.exports = {
   qaAtlasVectorIndexName: process.env.QA_ATLAS_VECTOR_INDEX_NAME || '',
   qaAtlasFilterMode: process.env.QA_ATLAS_FILTER_MODE || 'bridge_course_or_video',
   qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 3,
+  faqCacheEnabled: String(process.env.FAQ_CACHE_ENABLED || 'true').toLowerCase() === 'true',
+  // <= 0 或 > 1 視為停用語意相似層，只保留正規化文字完全相同的快取命中
+  faqCacheSimilarityThreshold: Number(process.env.FAQ_CACHE_SIMILARITY_THRESHOLD ?? 0.95),
+  faqCacheMaxEntriesPerCourse: Number(process.env.FAQ_CACHE_MAX_ENTRIES_PER_COURSE) || 200,
   qaMockEmbeddingDimensions: Number(process.env.QA_MOCK_EMBEDDING_DIMENSIONS) || 32,
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,
@@ -36,12 +40,22 @@ module.exports = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
+  youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
+  youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
   youtubeAutoUploadEnabled: String(process.env.YOUTUBE_AUTO_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
-  youtubeOAuthClientId: process.env.YOUTUBE_OAUTH_CLIENT_ID || '',
-  youtubeOAuthClientSecret: process.env.YOUTUBE_OAUTH_CLIENT_SECRET || '',
-  youtubeOAuthRefreshToken: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || '',
+  youtubeClientId: process.env.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_OAUTH_CLIENT_ID || '',
+  youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || process.env.YOUTUBE_OAUTH_CLIENT_SECRET || '',
+  youtubeRefreshToken: process.env.YOUTUBE_REFRESH_TOKEN || process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || '',
+  youtubeOAuthClientId: process.env.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_OAUTH_CLIENT_ID || '',
+  youtubeOAuthClientSecret: process.env.YOUTUBE_CLIENT_SECRET || process.env.YOUTUBE_OAUTH_CLIENT_SECRET || '',
+  youtubeOAuthRefreshToken: process.env.YOUTUBE_REFRESH_TOKEN || process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || '',
   youtubeUploadAccessToken: process.env.YOUTUBE_UPLOAD_ACCESS_TOKEN || '',
-  youtubeUploadPrivacyStatus: process.env.YOUTUBE_UPLOAD_PRIVACY_STATUS || 'unlisted',
+  youtubeUploadPrivacy: process.env.YOUTUBE_UPLOAD_PRIVACY
+    || process.env.YOUTUBE_UPLOAD_PRIVACY_STATUS
+    || 'unlisted',
+  youtubeUploadPrivacyStatus: process.env.YOUTUBE_UPLOAD_PRIVACY
+    || process.env.YOUTUBE_UPLOAD_PRIVACY_STATUS
+    || 'unlisted',
   youtubeUploadCategoryId: process.env.YOUTUBE_UPLOAD_CATEGORY_ID || '27',
   allowedOrigins: String(process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
     .split(',')

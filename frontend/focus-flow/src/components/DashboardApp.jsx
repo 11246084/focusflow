@@ -2,9 +2,10 @@ import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
 import { topbarMap } from './Icons';
 
-import StudentDashboard from '../pages/StudentDashboard';
-import StudentCourses   from '../pages/StudentCourses';
-import StudentLineBot   from '../pages/StudentLineBot';
+import StudentDashboard  from '../pages/StudentDashboard';
+import StudentCourses    from '../pages/StudentCourses';
+import StudentLineBot    from '../pages/StudentLineBot';
+import StudentShortsWall from '../pages/StudentShortsWall';
 import TeacherDashboard from '../pages/TeacherDashboard';
 import TeacherCourses   from '../pages/TeacherCourses';
 import TeacherUpload    from '../pages/TeacherUpload';
@@ -16,7 +17,7 @@ import AdminStats       from '../pages/AdminStats';
 
 function DashboardRouter({ role, sub, onNav }) {
   const map = {
-    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot /> },
+    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall /> },
     teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload /> },
     admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats /> },
   };

@@ -26,12 +26,16 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
-- YouTube Data API 自動上傳尚未實作，現階段是老師手動上傳 YouTube 後貼 URL
+- 2026-07-12 本地影片自動上傳 YouTube：`youtubeUpload.service.js`（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 OAuth 憑證，尚未以真實憑證 live 驗證）；教師上傳頁已收斂為單一軌道（本地檔案），貼 YouTube URL 的 API 保留但 UI 不露出
 - 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
 - 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
 - 2026-05-07 自助註冊：新增 `POST /api/v1/auth/register`（無 auth），限 `student` / `teacher`；validation：姓名必填、email 格式、密碼 ≥ 8；email 重複 → `409 DUPLICATE_RESOURCE`；bcrypt salt=10；成功回 `201 + { token, user }` 並寫 `UsageLog event=login metadata.via=register`
-- 2026-05-07 重複上傳防呆：YouTube 於 `createCourseVideoFromYouTube` 在建立前以 `(courseId, youtubeVideoId)` 查重，命中回 `409 DUPLICATE_VIDEO`；mp4 於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中 `(courseId, fileHash)` 既存 video → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index。仍未涵蓋跨課程共用同一支影片
+- 2026-05-07 重複上傳防呆：YouTube 於 `createCourseVideoFromYouTube` 在建立前以 `(courseId, youtubeVideoId)` 查重，命中回 `409 DUPLICATE_VIDEO`；mp4 於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中 `(courseId, fileHash)` 既存 video → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index
+- 2026-07-12 影片多課程掛載（P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；刪影片/刪課程清所有課程引用；QA / 播放 / watched 進度支援掛載課程
+- 2026-07-12 老師 Top Segments 修復（老師 #13）：課程所有影片被刪除後不再整列丟棄，改標 `contentMissing` 併同課程合併一列，前端顯示「內容已下架」badge
+- 2026-07-13 學生進度 0% 修復 + 統計語意：watched 進度分母補上主課程影片、dashboard 依 `watchedVideoIds` 即時重算；學生統計卡片加「本週（最近 7 天）/ 累計」中文說明；LINE 命中影片無 YouTube 連結時改附「請到網站播放對應時間點」提示
+- 2026-07-13 FAQ 快取：`faqs` collection + `faqCache.service.js` 兩層快取（正規化文字相同零 token 直接命中；query embedding 相似度 ≥ 0.95 跳過向量搜尋與 LLM），API 與 LINE 共用；影片刪除/重新處理完成/課程刪除自動清該課程快取；`GET/DELETE /api/v1/courses/:courseId/faqs`；env `FAQ_CACHE_ENABLED`（預設開）、`FAQ_CACHE_SIMILARITY_THRESHOLD`、`FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 - 2026-05-07 學生 watched 進度 endpoint：新增 `POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生身分），由 `course.service.markVideoWatched` 驗證影片屬該課程後 `$addToSet` 至 `Enrollment.watchedVideoIds` 並重算 `progress`；首次觀看時同步寫 `UsageLog event=WATCH metadata.videoId=...`（重複不重複寫），讓 admin Usage Statistics 的 WATCH 卡片可實際累加
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`）；可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音
 - startup 不會自動 seed

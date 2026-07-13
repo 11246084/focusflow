@@ -3,6 +3,7 @@ const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
+const { clearFaqsForVideoCourses } = require('./faqCache.service');
 
 function createQueuedProcessingState(now = new Date()) {
   return {
@@ -147,7 +148,12 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
     $set.videoId = cleanExternalId;
   }
 
-  return updateVideoProcessing(videoId, { $set });
+  const updated = await updateVideoProcessing(videoId, { $set });
+
+  // 影片重新處理完成代表片段內容更新，相關課程的 FAQ 快取答案可能過期，清掉重建。
+  await clearFaqsForVideoCourses(video);
+
+  return updated;
 }
 
 async function failVideoProcessing(videoId, { errorMessage, errorCode } = {}) {

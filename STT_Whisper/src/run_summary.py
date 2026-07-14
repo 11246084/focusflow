@@ -65,13 +65,29 @@ def write_upload_summary(
     run_id: str,
     status: str,
     error: Exception | str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> Path:
-    """Persist the MongoDB upload outcome without changing database schemas."""
+    """Persist a detailed MongoDB upload outcome without changing DB schemas."""
     output_path = run_output_dir / OUTPUT_FILES["upload_summary"]
+    report = details or {}
+    collections = report.get("collections", {})
+    count_fields = ("attempted", "inserted", "updated", "matched", "skipped", "failed")
+    totals = {
+        field_name: sum(
+            int(collection_stats.get(field_name, 0) or 0)
+            for collection_stats in collections.values()
+            if isinstance(collection_stats, dict)
+        )
+        for field_name in count_fields
+    }
     payload = {
         "run_id": run_id,
         "status": status,
-        "finished_at": _utc_timestamp(),
+        "started_at": report.get("started_at"),
+        "finished_at": report.get("finished_at") or _utc_timestamp(),
+        "collections": collections,
+        "totals": totals,
+        "errors": report.get("errors", []),
         "error": str(error) if error is not None else None,
     }
     write_json_file(output_path, payload, backup_existing=False)

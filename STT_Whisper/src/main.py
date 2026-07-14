@@ -387,7 +387,6 @@ def run_pipeline(
             "Gemini embedding is now the final embedding path. Set ENABLE_GEMINI_EMBEDDING=true in .env."
         )
 
-    is_resume = resume_plan is not None
     resume_data = resume_plan.data if resume_plan is not None else {}
     youtube_extract_done = False
 
@@ -576,7 +575,7 @@ def run_pipeline(
                 text_embeddings,
                 audio_embeddings,
                 config,
-                update_latest=not is_resume,
+                update_latest=False,
             ),
         )
 
@@ -665,12 +664,39 @@ def main() -> int:
 
             def upload_to_mongodb() -> None:
                 try:
-                    if not mongodb_uploader.upload_all(config):
-                        raise RuntimeError("MongoDB upload failed.")
-                except Exception as exc:
-                    write_upload_summary(config.run_output_dir, job_manager.run_id, "failed", exc)
+                    report = mongodb_uploader.upload_all(config)
+                except mongodb_uploader.MongoUploadError as exc:
+                    write_upload_summary(
+                        config.run_output_dir,
+                        job_manager.run_id,
+                        exc.report.status,
+                        exc,
+                        exc.report.to_dict(),
+                    )
                     raise
-                write_upload_summary(config.run_output_dir, job_manager.run_id, "completed")
+                except Exception:
+                    safe_error = "MongoDB upload failed unexpectedly."
+                    write_upload_summary(
+                        config.run_output_dir,
+                        job_manager.run_id,
+                        "failed",
+                        safe_error,
+                        {
+                            "errors": [
+                                {
+                                    "category": "unknown_error",
+                                    "message": safe_error,
+                                }
+                            ]
+                        },
+                    )
+                    raise RuntimeError(safe_error) from None
+                write_upload_summary(
+                    config.run_output_dir,
+                    job_manager.run_id,
+                    report.status,
+                    details=report.to_dict(),
+                )
 
             _run_tracked_stage(
                 job_manager,
@@ -707,16 +733,16 @@ def main() -> int:
         for video in pipeline_videos:
             job_manager.complete_video(video.video_id)
         job_manager.complete_run()
+        export_latest_compatibility_outputs(
+            pipeline_videos,
+            pipeline_data["transcripts"],
+            pipeline_data["normalized_transcripts"],
+            pipeline_data["chunks"],
+            pipeline_data["text_embeddings"],
+            pipeline_data["audio_embeddings"],
+            config,
+        )
         if resume_plan is not None:
-            export_latest_compatibility_outputs(
-                pipeline_videos,
-                pipeline_data["transcripts"],
-                pipeline_data["normalized_transcripts"],
-                pipeline_data["chunks"],
-                pipeline_data["text_embeddings"],
-                pipeline_data["audio_embeddings"],
-                config,
-            )
             logger.info("Resume completed successfully: %s", job_manager.run_id)
         write_run_summary(
             config.run_output_dir,
@@ -749,8 +775,16 @@ def main() -> int:
             write_upload_summary(
                 config.run_output_dir,
                 job_manager.run_id,
-                "skipped",
+                "failed",
                 "MongoDB upload was not completed for this run.",
+                {
+                    "errors": [
+                        {
+                            "category": "unknown_error",
+                            "message": "MongoDB upload was not completed for this run.",
+                        }
+                    ]
+                },
             )
         write_run_summary(
             config.run_output_dir,

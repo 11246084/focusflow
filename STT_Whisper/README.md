@@ -553,7 +553,7 @@ Notes:
 - empty video embeddings are skipped during upload rather than crashing the whole run
 - YouTube video documents are not overwritten with temporary `fileName`, `filePath`, or `audioPath` values during upload.
 - **嚴格判定 (2026-05-05)**：`mongodb_uploader.py` 在 backend-triggered（帶 `--video-id`）模式下，若 `videos` collection 找不到對應的 app-owned Video 文件，直接報錯結束，**不再 upsert 孤兒 metadata**（避免歷史 bug：pipeline 在無對應 Video 時新建一筆只有 `video_id` snake_case 的孤兒文件）。此外，必要 collection（`video_segments_text`、`transcripts_normalized`）的成功寫入筆數需 > 0，否則整支 pipeline 視為失敗並 `notify_backend(fail)`
-- **Race-condition guard (2026-05-07)**：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前先檢查 `videos` collection 中對應的 `_id` 是否仍存在（僅在 `config.target_video_id` 為合法 ObjectId 時觸發；CLI / 非 backend-triggered 一律放行）。若 Video record 已被刪除，整個 `upload_all()` 直接 `return False`，跳過 `upload_videos / upload_transcripts_normalized / upload_text_embeddings / upload_video_embeddings`，由 `main.py` 改呼叫 `notify_backend(... "fail" ...)`，避免在教師中途刪影片的情況下重新產生孤兒 segments。
+- **Race-condition guard (2026-05-07)**：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前先檢查 `videos` collection 中對應的 `_id` 是否仍存在（僅在 `config.target_video_id` 為合法 ObjectId 時觸發；CLI / 非 backend-triggered 一律放行）。若 Video record 已被刪除，`upload_all()` 會以 `validation_error` 失敗並跳過所有 collection upload，由 `main.py` 將 stage 與 run 標記為 failed，避免在教師中途刪影片的情況下重新產生孤兒 segments。
 
 ## 常見問題
 
@@ -677,3 +677,40 @@ Checkpoint 遺失、空白、損壞或格式錯誤時，不會跳過該 stage，
 Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 Resume 時不會覆蓋 `data/outputs/` 頂層 latest compatibility copy；只有 Resume 全部成功後，才會刷新頂層 latest copy。
 
 本 Sprint 只實作 Resume / Checkpoint 的線性接續能力，**不包含 Retry**，也不會改變既有 JSON / JSONL schema 或 MongoDB collection contract。
+
+## Phase 2 - Sprint 4: MongoDB Upload Improvement
+
+本 Sprint 將原本逐筆 `update_one(..., upsert=True)` 的上傳改為有上限的 `bulk_write(UpdateOne(...), ordered=False)`，減少大量 segment 上傳時的網路往返。批次大小由 `MONGODB_BULK_BATCH_SIZE` 控制，預設為 `200`；每個 collection 分開分批，不會一次送出無限制資料。
+
+上傳仍使用既有文件欄位與識別條件，不新增 MongoDB 文件欄位：
+
+- `videos`：Backend app-owned Video 使用 `_id` 更新且不 upsert；standalone pipeline metadata 使用 `videoId` upsert。
+- `transcripts_normalized`：使用 `video_id` upsert。
+- `video_segments_text`：使用 `chunkId` upsert，文件維持 Backend 使用的 camelCase 欄位。
+- `video_segments_video`：使用 `clip_id` upsert，維持既有 snake_case contract。
+
+其中 `videos`、`transcripts_normalized`、`video_segments_text` 是目前主 Pipeline 完成 upload 的必要 collections；`video_segments_video` 是選用的 multimodal/legacy 邊界。主 Pipeline 沒有獨立 `video_embedding` stage，因此 `embeddings_video_gemini.jsonl` 不存在或沒有資料時，只要三個必要 collections 成功，upload 仍可為 `completed`。
+
+相同資料再次上傳時會 match 並更新既有文件，不會在一般循序執行情境下無限制新增重複文件。正式 unique index 不在本 Sprint 的部署範圍內；併發寫入的資料庫層唯一性仍取決於環境中既有 index。
+
+每次上傳都會在 run 目錄寫入 `upload_summary.json`。格式包含 `run_id`、`status`、`started_at`、`finished_at`、各 collection 的 `attempted / inserted / updated / matched / skipped / failed`、合計 `totals`、安全分類後的 `errors`，以及向後相容的頂層 `error`。`updated` 是 PyMongo 的 `modified_count`，`matched` 是 `matched_count`，兩者不可相加解讀為不同文件數；程式不會推測 PyMongo 未提供的數據。
+
+狀態規則：
+
+- `completed`：必要 collections（`videos`、`transcripts_normalized`、`video_segments_text`）都有成功寫入或 match，且沒有 skipped / failed / error。
+- `partial`：至少有部分文件成功，但另有 validation skip 或 collection/batch failure。
+- `failed`：沒有任何文件成功，或在連線、驗證等前置階段即失敗。
+
+錯誤只分類為 `configuration_error`、`connection_error`、`authentication_error`、`validation_error`、`duplicate_or_write_error`、`unknown_error`；summary 與 uploader log 不寫入 MongoDB URI、帳號、密碼或原始 driver error。發生 partial / failed 時仍會先寫出 summary，然後讓 exception 繼續使 `mongodb_upload` stage 失敗，不會誤標 completed。
+
+Resume 相容規則不變：只有 `upload_summary.json` 可解析且 `status=completed` 時才跳過 upload；`partial`、`failed`、缺檔、空白或損壞都會重新執行 upload。跳過 upload 時不執行 cleanup，也不重複完成 webhook；Resume 全部成功後才更新 latest compatibility copy。
+
+本 Sprint **沒有**自動 Retry、Exponential Backoff、unique index 部署、schema migration、正式資料清理或 Retrieval / Reranker / Chunking / QA 修改。
+
+離線驗證（不連 MongoDB、不呼叫 Gemini、不執行 Whisper）：
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall src tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+git diff --check
+```

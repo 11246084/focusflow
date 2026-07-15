@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
 PIPELINE_VERSION = "phase2_job_manager_v1"
+MANIFEST_REPLACE_MAX_ATTEMPTS = 5
+MANIFEST_REPLACE_RETRY_DELAY_SECONDS = 0.05
+logger = logging.getLogger(__name__)
 STAGE_NAMES = (
     "scan",
     "extract_audio",
@@ -222,7 +227,25 @@ class JobManager:
                 temp_file.write(content)
                 temp_file.flush()
                 os.fsync(temp_file.fileno())
-            os.replace(temp_name, self.manifest_path)
+            for attempt in range(1, MANIFEST_REPLACE_MAX_ATTEMPTS + 1):
+                try:
+                    os.replace(temp_name, self.manifest_path)
+                    break
+                except OSError as exc:
+                    is_transient_windows_lock = isinstance(exc, PermissionError) or getattr(
+                        exc, "winerror", None
+                    ) in {5, 32}
+                    if not is_transient_windows_lock or attempt == MANIFEST_REPLACE_MAX_ATTEMPTS:
+                        raise
+                    delay = MANIFEST_REPLACE_RETRY_DELAY_SECONDS * attempt
+                    logger.warning(
+                        "Manifest replace temporarily blocked; retrying (%s/%s) in %.2fs: %s",
+                        attempt,
+                        MANIFEST_REPLACE_MAX_ATTEMPTS,
+                        delay,
+                        self.manifest_path,
+                    )
+                    time.sleep(delay)
         except Exception:
             try:
                 os.unlink(temp_name)

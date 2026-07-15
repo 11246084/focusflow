@@ -358,11 +358,13 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
         text_embeddings_by_chunk[chunk.chunk_id] = record
         logger.info("[Gemini Skip] record_id=%s modality=%s status=%s", chunk.chunk_id, TEXT_MODALITY, record.embedding_status)
 
-    # 按批次處理可運行的塊
-    # Gemini's embedding endpoint can return a single embedding even when the
-    # client accepts a list of contents. Process text chunks one at a time so a
-    # response-size mismatch cannot mark a whole video as failed.
-    for batch_index, chunk_batch in enumerate(chunked(runnable_chunks, 1), start=1):
+    # Gemini embed_content 支援多筆 contents；使用設定的批次大小可減少網路往返，
+    # 但仍逐筆建立 EmbeddingRecord 並保持原始順序與輸出 schema。
+    embedding_batch_size = max(config.gemini_embedding_batch_size, 1)
+    for batch_index, chunk_batch in enumerate(
+        chunked(runnable_chunks, embedding_batch_size),
+        start=1,
+    ):
         attempt_number = 0
         text_batch = [chunk.text for chunk in chunk_batch]
 
@@ -381,9 +383,15 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
                 )
                 # 獲取請求ID
                 request_id = getattr(response, "request_id", None)
+                response_embeddings = list(response.embeddings or [])
+                if len(response_embeddings) != len(chunk_batch):
+                    raise RuntimeError(
+                        "Gemini embedding response count mismatch: "
+                        f"requested={len(chunk_batch)} returned={len(response_embeddings)}"
+                    )
 
                 # 處理每個嵌入結果
-                for chunk, embedding in zip(chunk_batch, response.embeddings):
+                for chunk, embedding in zip(chunk_batch, response_embeddings):
                     record = _build_text_record(
                         chunk,
                         config,

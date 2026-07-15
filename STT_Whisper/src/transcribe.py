@@ -23,16 +23,19 @@ def _load_whisper_model(config: PipelineConfig):
 
     # 記錄模型加載信息
     logger.info(
-        "Loading Whisper model '%s' on device=%s compute_type=%s",
+        "Loading Whisper model '%s' on device=%s compute_type=%s cpu_threads=%s",
         config.whisper_model_size,
         config.whisper_device,
         config.whisper_compute_type,
+        config.whisper_cpu_threads,
     )
     # 創建並返回 Whisper 模型實例
     return WhisperModel(
         model_size_or_path=config.whisper_model_size,
         device=config.whisper_device,
         compute_type=config.whisper_compute_type,
+        cpu_threads=config.whisper_cpu_threads,
+        num_workers=1,
     )
 
 

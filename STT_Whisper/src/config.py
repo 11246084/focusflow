@@ -65,6 +65,8 @@ class PipelineConfig:
     whisper_beam_size: int
     # Whisper VAD 過濾器是否啟用
     whisper_vad_filter: bool
+    # Whisper CPU 推論執行緒數
+    whisper_cpu_threads: int
     # 塊最大字符數
     chunk_max_chars: int
     # 塊最大段數
@@ -220,6 +222,10 @@ class PipelineConfig:
             whisper_beam_size=int(os.getenv("WHISPER_BEAM_SIZE", "5")),
             # Whisper VAD 過濾器，默認 true，轉換為布爾值
             whisper_vad_filter=os.getenv("WHISPER_VAD_FILTER", "true").lower() == "true",
+            # CPU 推論預設最多使用 8 threads；不改模型或解碼品質
+            whisper_cpu_threads=int(
+                os.getenv("WHISPER_CPU_THREADS", str(min(os.cpu_count() or 4, 8)))
+            ),
             # 塊最大字符數，默認 220，轉換為整數
             chunk_max_chars=int(os.getenv("CHUNK_MAX_CHARS", "220")),
             # 塊最大段數，默認 6，轉換為整數

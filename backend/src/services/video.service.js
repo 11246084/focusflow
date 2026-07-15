@@ -1,17 +1,25 @@
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
-const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync, writeSync } = require('fs');
+const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Course = require('../models/course.model');
 const mongoose = require('mongoose');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
+const { VIDEO_PROCESSING_STATUSES, VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
-const { buildProcessingMetadata, createQueuedProcessingState } = require('./videoProcessing.service');
+const {
+  buildProcessingMetadata,
+  createQueuedProcessingState,
+  failVideoProcessing,
+} = require('./videoProcessing.service');
+const {
+  attachSttProcessLifecycle,
+  buildSttProcessEnvironment,
+} = require('./sttProcessLifecycle.service');
 const youtubeUploadService = require('./youtubeUpload.service');
 const {
   assertCanAccessCourse,
@@ -42,15 +50,17 @@ function resolveSttPython(sttDir) {
   return isWin ? 'python' : 'python3';
 }
 
-// spawn 失敗時不要靜默吞掉，至少寫進 pipeline log，避免影片永遠卡在 queued。
-function attachSttSpawnErrorLogger(sttProcess, logFd, videoId) {
-  sttProcess.on('error', (err) => {
-    try {
-      writeSync(logFd, `\n[spawn error] video=${videoId} ${err.stack || err.message}\n`);
-    } catch {
-      /* ignore log write failure */
-    }
-  });
+async function markUnexpectedSttExitFailed(videoId, failure) {
+  const video = await Video.findById(videoId);
+  const currentStatus = video?.processing?.status;
+  if (![
+    VIDEO_PROCESSING_STATUSES.QUEUED,
+    VIDEO_PROCESSING_STATUSES.PROCESSING,
+  ].includes(currentStatus)) {
+    return;
+  }
+
+  await failVideoProcessing(videoId, failure);
 }
 
 async function ensureCourseExists(courseId) {
@@ -220,17 +230,21 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
     cwd: sttDir,
     stdio: ['ignore', logFd, logFd],
     windowsHide: true,
-    env: {
-      ...process.env,
+    env: buildSttProcessEnvironment(process.env, {
       MONGODB_URI: env.mongodbUri,
       MONGODB_DATABASE_NAME: 'focusflow',
       BACKEND_URL: `http://localhost:${env.port}`,
       PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
       CLEANUP_AFTER_UPLOAD: 'true',
       CLEANUP_KEEP_CHECKPOINTS: 'false',
-    },
+    }),
   });
-  attachSttSpawnErrorLogger(sttProcess, logFd, video._id);
+  attachSttProcessLifecycle({
+    sttProcess,
+    logFd,
+    videoId: String(video._id),
+    onUnexpectedExit: (failure) => markUnexpectedSttExitFailed(String(video._id), failure),
+  });
   sttProcess.unref();
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
@@ -327,17 +341,21 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     cwd: sttDir,
     stdio: ['ignore', logFd, logFd],
     windowsHide: true,
-    env: {
-      ...process.env,
+    env: buildSttProcessEnvironment(process.env, {
       MONGODB_URI: env.mongodbUri,
       MONGODB_DATABASE_NAME: 'focusflow',
       BACKEND_URL: `http://localhost:${env.port}`,
       PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
       CLEANUP_AFTER_UPLOAD: 'true',
       CLEANUP_KEEP_CHECKPOINTS: 'false',
-    },
+    }),
   });
-  attachSttSpawnErrorLogger(sttProcess, logFd, video._id);
+  attachSttProcessLifecycle({
+    sttProcess,
+    logFd,
+    videoId: String(video._id),
+    onUnexpectedExit: (failure) => markUnexpectedSttExitFailed(String(video._id), failure),
+  });
   sttProcess.unref();
 
   // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。

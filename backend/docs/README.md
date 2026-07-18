@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-07-10（Phase 2 QA contract + visual citation retrieval + YouTube auto-upload skeleton）
+最後更新：2026-07-18（ShortAsset feed/sync 與前端串接方案）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -10,9 +10,10 @@
 - 要交接、找跨組缺口、整理 demo 風險與暫時口徑：看 [handoff-known-issues.md](./handoff-known-issues.md)
 - 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](./todo.md)
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](./implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](./implementation-log.archive.md)）
-- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；已涵蓋 stats/admin/watched、courses/videos PATCH/DELETE 與 QA `citations` / `answerStatus`，但 internal processing webhook 等少數內部端點以 route files 為準
-- 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](./phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、Clip/Shorts 草案、YouTube 系統帳號上傳策略）
+- 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；已涵蓋 stats/admin/watched、courses/videos PATCH/DELETE、QA `citations` / `answerStatus` 與 student Shorts feed，但 internal processing webhook 等少數內部端點以 route files 為準
+- 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](./phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、已實作的 ShortAsset feed/sync 與仍待實作的 Clip/發布產線）
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
+- 要審核學生 Short 修課過濾的前端串接方案（JWT、課程顯示、空狀態、分頁與 modal 保留方式）：看 [handoff-shorts-frontend-plan.md](./handoff-shorts-frontend-plan.md)；本輪只有方案，尚未修改前端
 - 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
 - 要確認最新待補：看 [todo.md](./todo.md)（YouTube 真實 OAuth smoke、caption / OCR / frame description、Clip / Shorts 正式 routes 等上線前 / Phase 2 項目）
 
@@ -29,9 +30,11 @@
 - `todo.md`
   - 下一步規劃與優先順序
 - `openapi.yaml`
-  - REST API 規格來源（Swagger UI 由此生成）；2026-07-10 已補 QA `citations` / `answerStatus`，並保留 internal processing webhook 等少數內部端點以 route files 為準
+  - REST API 規格來源（Swagger UI 由此生成）；包含 QA `citations` / `answerStatus` 與 student Shorts feed，並保留 internal processing webhook 等少數內部端點以 route files 為準
 - `phase2-api-contract.md`
-  - Phase 2 API contract 補充文件：QA、video display states、Clip/Shorts、YouTube auto-upload strategy
+  - Phase 2 API contract 補充文件：QA、video display states、已實作的 ShortAsset feed/sync，以及尚未實作的 Clip/發布 worker
+- `handoff-shorts-frontend-plan.md`
+  - 學生 Short 修課過濾的前端串接方案；記錄既有 authenticated helper、預計 UI 改動、小改動判準與待確認契約，本輪不含前端程式碼修改
 
 ## 文件之間的關係
 

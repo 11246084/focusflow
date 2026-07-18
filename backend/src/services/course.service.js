@@ -19,6 +19,10 @@ const {
   buildCourseBridgePresentation,
   collectScopedVideos,
 } = require('./bridgeScope.service');
+const {
+  archiveForCourseDeletion,
+  rollbackCourseDeletionArchive,
+} = require('./shortAsset.service');
 
 async function buildCoursePresentation(course) {
   const scopedVideos = await collectScopedVideos(course);
@@ -189,7 +193,22 @@ async function deleteCourse(courseId, user) {
   // 仍保留：清空 LINE 對話狀態（這是 runtime state，不是歷史紀錄）。
   await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } });
 
-  await Course.deleteOne({ _id: courseId });
+  // ShortAsset 不隨課程 hard delete 消失。此步驟 retry-safe，但整段 cascade
+  // 沒有 transaction/atomicity 保證；只有最後 Course delete 失敗時做 best-effort 還原。
+  const archivedShortAssets = await archiveForCourseDeletion(course);
+  try {
+    const result = await Course.deleteOne({ _id: courseId });
+    if (result?.deletedCount !== 1) {
+      throw new AppError('Course could not be deleted.', 500, 'COURSE_DELETE_FAILED');
+    }
+  } catch (error) {
+    try {
+      await rollbackCourseDeletionArchive(archivedShortAssets);
+    } catch (rollbackError) {
+      console.error('Failed to roll back ShortAsset course deletion archive.', rollbackError);
+    }
+    throw error;
+  }
 }
 
 async function markVideoWatched({ user, courseId, videoId }) {

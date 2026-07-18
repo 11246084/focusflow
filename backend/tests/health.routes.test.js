@@ -17,6 +17,7 @@ function resetRuntimeEnv() {
   env.openaiApiKey = '';
   env.lineChannelSecret = 'line-secret-for-tests';
   env.lineChannelAccessToken = '';
+  env.shortsSyncIntervalMs = 600000;
 }
 
 describe('health routes', () => {
@@ -60,6 +61,11 @@ describe('health routes', () => {
       result.body.data.runtime.multimodal.hardFailures.some((item) => item.code === 'VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_MISSING'),
       true,
     );
+    assert.equal(result.body.data.runtime.shortsSync.enabled, true);
+    assert.equal('lastAttemptAt' in result.body.data.runtime.shortsSync, true);
+    assert.equal('lastSuccessAt' in result.body.data.runtime.shortsSync, true);
+    assert.equal('lastError' in result.body.data.runtime.shortsSync, true);
+    assert.equal('degraded' in result.body.data.runtime.shortsSync, true);
   });
 
   it('marks qa runtime as hard-fail when the configured answer provider is missing required keys', async () => {
@@ -84,5 +90,13 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.costControl.enabled, true);
     assert.equal(result.body.data.runtime.qa.costControl.monthlyTokenBudget, 5000);
     assert.equal(result.body.data.runtime.qa.costControl.userMonthlyTokenQuota, 2000);
+  });
+
+  it('SHORTS_SYNC_INTERVAL_MS=0 時回報 shorts sync disabled', async () => {
+    env.shortsSyncIntervalMs = 0;
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.runtime.shortsSync.enabled, false);
   });
 });

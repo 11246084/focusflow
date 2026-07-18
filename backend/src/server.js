@@ -7,6 +7,10 @@ const app = require('./app');
 const env = require('./config/env');
 const { connectDatabase } = require('./config/database');
 const { seedDemoData } = require('./services/demoSeed.service');
+const {
+  startShortsSyncScheduler,
+  stopShortsSyncScheduler,
+} = require('./services/shortsSync.service');
 
 async function migrateVideoFields() {
   const Video = require('./models/video.model');
@@ -34,8 +38,10 @@ async function startServer() {
   const server = app.listen(env.port, () => {
     console.log(`Focus Flow backend listening on port ${env.port}`);
   });
+  startShortsSyncScheduler();
 
   const shutdown = async () => {
+    stopShortsSyncScheduler();
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

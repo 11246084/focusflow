@@ -1,6 +1,6 @@
 # Phase 2 API Contract
 
-最後更新：2026-07-10
+最後更新：2026-07-18
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
@@ -98,7 +98,9 @@
 - 老師 Top Segments：只顯示仍可操作的影片片段，過濾已刪除來源。
 - 管理員 Recent Events：保留稽核歷史，若來源不存在顯示已刪除標籤。
 
-## 3. Clip / Shorts 契約草案
+## 3. Clip / Shorts 契約（部分已實作）
+
+目前已實作的是 `ShortAsset` 儲存層、內部建立／更新 service、學生修課限定 feed、課程 hard delete 封存、YouTube metadata 同步與 health 診斷。自動選片、Clip candidate/job、FFmpeg 剪輯、自動字幕、YouTube 發布 worker、教師管理 API/UI 仍未實作。
 
 Phase 2 不再新增零散卡片，統一用三層語意：
 
@@ -172,7 +174,7 @@ Clip job 是背景任務。它持有輸入範圍、處理狀態與錯誤資訊�
 - `failed -> queued`：僅 owner teacher/admin 可 retry；保留 `attemptCount`。
 - `completed` 不可直接重跑；若輸入或模板改變，建立新 job。
 
-### 3.3 Shorts asset
+### 3.3 Shorts asset（已實作儲存層）
 
 Shorts asset 是可管理的短影片成果。它可能只是 local/cloud draft，也可能已發布到 YouTube。
 
@@ -185,14 +187,34 @@ Shorts asset 是可管理的短影片成果。它可能只是 local/cloud draft�
   "title": "JWT auth overview",
   "description": "FocusFlow auto-generated short",
   "status": "draft",
-  "assetUrl": "https://storage.example/short.mp4",
-  "youtubeVideoId": null,
-  "youtubeUrl": null,
-  "visibility": "unlisted",
-  "createdAt": "2026-07-10T00:00:00.000Z",
-  "publishedAt": null
+  "youtubeVideoId": "youtube-id",
+  "youtubeUrl": "https://www.youtube.com/watch?v=youtube-id",
+  "thumbnail": "https://i.ytimg.com/vi/youtube-id/hqdefault.jpg",
+  "publishedAt": "2026-07-18T00:00:00.000Z",
+  "archivedAt": null,
+  "archivedBy": null,
+  "archiveReason": null,
+  "statusBeforeArchive": null,
+  "courseSnapshot": null,
+  "youtubeAvailability": "playable",
+  "youtubePrivacyStatus": "unlisted",
+  "lastCheckedAt": "2026-07-18T00:00:00.000Z"
 }
 ```
+
+索引：
+
+- `{ courseId: 1, status: 1, youtubeAvailability: 1, publishedAt: -1, _id: -1 }`
+- `{ youtubeVideoId: 1 }`（`unique + sparse`；缺值時不持久化 `null`）
+
+學生 feed：`GET /api/v1/youtube/shorts` 需要 Bearer JWT 且只允許 student。可見集合固定為 `Enrollment ∩ Course.status=published ∩ ShortAsset.status=published ∩ youtubeAvailability=playable`，以 `publishedAt + _id` opaque cursor 降冪分頁；預設 20、最多 50 筆，非法或重複 token 回 400。內部 create/update 在進入 published+playable 前強制要求非空 `youtubeVideoId` 與有效 `publishedAt`，feed 也會排除 legacy 異常資料。回傳保留 `videoId/title/thumbnail/publishedAt/nextPageToken`，並新增 `assetId`、`course: { courseId, title }`、`youtubeUrl`。
+
+課程生命週期：
+
+- Course 改成 `archived` 時不修改 ShortAsset；feed 會因 Course status 自動隱藏，恢復 `published` 後重新顯示。
+- Course hard delete 時，在既有 cascade 成功後、`Course.deleteOne()` 前 idempotent 封存該課程尚未封存的 ShortAsset，保存最小 `courseSnapshot`；Course 刪除失敗時只 best-effort 還原本輪封存，不提供 transaction/atomicity 保證，也不刪除 ShortAsset。
+
+YouTube metadata 同步只使用 `YOUTUBE_API_KEY` 呼叫 `videos.list`（每批最多 50 IDs）。`SHORTS_SYNC_INTERVAL_MS` 預設 600000，設 0 停用；startup、interval 與直接呼叫共用 single-flight promise，避免重疊消耗 quota 或舊結果覆寫新狀態。只有 public/unlisted 會標為 playable；private 或成功回應中缺少 ID 會標為 unavailable。網路、429、5xx 依 Retry-After 或 1s/2s/4s+jitter 最多重試三次；400/401/404 與 quotaExceeded 不重試。暫時性整批失敗保留上次成功 availability/privacy，只更新 `lastCheckedAt`。`youtube_video_not_returned` 與 `private` 原因只寫結構化 server log，不持久化到 ShortAsset。
 
 狀態轉移：
 
@@ -204,12 +226,12 @@ Shorts asset 是可管理的短影片成果。它可能只是 local/cloud draft�
 
 權限：
 
-- student：只能讀取已發布或已公開給課程的 Shorts asset；不可建立 / 發布 / archive。
+- student：只能透過 `GET /api/v1/youtube/shorts` 讀取自己已修課、課程已發布、asset 已發布且 YouTube 狀態可播放的 Shorts；不可建立 / 發布 / archive。
 - teacher：可管理自己課程的 candidate、job、asset。
 - admin：可管理所有課程的 candidate、job、asset。
 - metadata-only / QA-only bridge video：可產生 candidate，但在沒有可剪輯來源檔前不得建立 job，需回 `CLIP_SOURCE_NOT_FOUND` 或 `CLIP_SOURCE_NOT_ACTIONABLE`。
 
-預留端點（尚未實作，先作為 Phase 2 contract）：
+預留管理端點（尚未實作，先作為 Phase 2 contract；不包含已實作的學生 feed）：
 
 | Endpoint | 用途 |
 |------|------|
@@ -288,11 +310,13 @@ YOUTUBE_UPLOAD_CATEGORY_ID=27
 - `/health.runtime.multimodal` 監控 snapshot，顯示 `video_segments_video` / `video_embedding_index` 狀態與目前 QA 接入邊界。
 - `video_segments_video` 初版 visual citation retrieval：backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID，並用 Atlas `video_embedding_index` + `video_id` filter 檢索同課程視覺片段；回覆標示 `modality=video`、`clipPath` 與 timestamp citation。
 - Video presentation ownership：`ownership=app_owned|pipeline_metadata`、`isAppOwned`、`metadataOnly` 已固定為前端/LINE 共用語意。
+- `ShortAsset` model、內部 create/update service、修課限定學生 feed、Course hard delete idempotent 封存與 best-effort rollback。
+- YouTube metadata `videos.list` 批次同步、retry/backoff、結構化 unavailable log 與 `/health.runtime.shortsSync` 診斷。
 
 待定版：
 
 - FocusFlow Google 帳號 OAuth refresh token 與一次真實 YouTube upload smoke。
 - 跨課程共用同一支影片的多對多資料模型。
 - mixed `videos` collection 是否拆分為 app-owned / pipeline-owned 實體 collection。
-- Clip/Shorts endpoint 與 background job 實作。
+- Clip candidate/job、自動選片、FFmpeg／字幕、Short 發布與教師管理 endpoints/background workers。
 - 視覺片段 caption / OCR / frame description；目前 visual retrieval 只提供 citation，不生成畫面內容。

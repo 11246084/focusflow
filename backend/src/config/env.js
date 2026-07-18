@@ -5,6 +5,12 @@ const projectRoot = path.resolve(__dirname, '../..');
 
 dotenv.config({ path: path.join(projectRoot, '.env') });
 
+function parseNonNegativeNumber(value, fallback) {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
@@ -41,6 +47,7 @@ module.exports = {
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
+  shortsSyncIntervalMs: parseNonNegativeNumber(process.env.SHORTS_SYNC_INTERVAL_MS, 600000),
   youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
   youtubeAutoUploadEnabled: String(process.env.YOUTUBE_AUTO_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
   youtubeClientId: process.env.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_OAUTH_CLIENT_ID || '',

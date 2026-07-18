@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-07-14（整合 Phase 2 QA contract、FAQ 快取、QA quota guardrails、visual citation retrieval、YouTube auto-upload 與 Shorts proxy）
+最後更新：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
 
 前一輪：2026-07-12（影片多課程掛載 P1-3 + 老師 Top Segments contentMissing 修復（老師 #13）+ 本地影片自動上傳 YouTube feature flag）
 
@@ -25,6 +25,7 @@
 - `QA_ANSWER_PROVIDER=gemini`
 - `GEMINI_CHAT_MODEL=gemini-2.5-flash`
 - `DEMO_SEED_ENABLED=false`
+- `SHORTS_SYNC_INTERVAL_MS=600000`（設 0 停用 startup/interval sync）
 - LINE live：`readiness=ready`、`deliveryMode=live`
 
 這代表：
@@ -37,6 +38,8 @@
 - LINE live 已可端對端接收訊息並回傳 AI 答案與影片時間戳
 - YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
 - YouTube auto-upload adapter 已接入：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案上傳會先由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`，再用本機暫存檔接續既有 STT flow；仍需 FocusFlow Google refresh token 做真實 upload smoke
+- 學生 Shorts feed 已改為本地 `ShortAsset` 查詢：`GET /api/v1/youtube/shorts` 需要 JWT 且只允許 student，回傳 `Enrollment ∩ published Course ∩ published ShortAsset ∩ youtubeAvailability=playable`；使用 `publishedAt + _id` opaque cursor（預設 20、最多 50）。目前前端 `StudentShortsWall.jsx` 仍需另案改用 authenticated `apiFetch`，本輪只提供 [前端串接方案](./handoff-shorts-frontend-plan.md)，未修改 `frontend/`
+- Short YouTube metadata sync 只用 `YOUTUBE_API_KEY` 的 `videos.list`（每批 50），啟動後非阻塞執行並依 `SHORTS_SYNC_INTERVAL_MS` 排程；startup/interval/direct 共用 single-flight promise。public/unlisted 可播放，private/成功回應缺 ID 不可播放，暫時性整批失敗保留上次成功狀態。`/health.runtime.shortsSync` 提供 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
 - 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
 - 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；2026-07-12 起前端收斂為單一軌道（本地檔案），YouTube URL tab 已從 UI 移除（backend `POST /courses/:courseId/videos/youtube` API 保留）
@@ -132,6 +135,8 @@
 - `queryEmbedding.service.js` 支援 `gemini-embedding-2-preview`（3072 維）
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa`、`runtime.line` 與 `runtime.multimodal`
+- `ShortAsset` model 與內部 create/update service 已完成；保存 course/source/job/title/description/status/YouTube metadata、封存欄位與只含 `courseId/title/teacherId/status` 的 `courseSnapshot`。published+playable 必須具備非空 `youtubeVideoId` 與有效 `publishedAt`，legacy 空值不進 feed。feed 索引為 course/status/youtubeAvailability/publishedAt/_id，另有 `youtubeVideoId` unique+sparse（缺值不存 `null`）
+- Course hard delete 會在其他 cascade 成功後、`Course.deleteOne()` 前 idempotent 封存該課程尚未封存的 ShortAsset；已封存資料不覆寫 `statusBeforeArchive`，Course 刪除失敗時只 best-effort 還原本輪封存，不宣稱 transaction/atomicity
 - `video_segments_video` 初版 visual citation retrieval 已接入 QA：backend 會從 course-scoped videos 的 `fileName` / `sourceUrl` / `videoUrl` 等欄位解析 `video_001` 類 pipeline visual ID，再以 Atlas `video_embedding_index` + `video_id` filter 檢索視覺片段；命中時回 `modality=video`、`clipPath`、timestamp citation 與保守答案。限制：目前視覺片段無 transcript / caption，不讓 LLM 編造畫面內容
 - backend-only acceptance smoke 已存在，可在不碰共享 MongoDB 的前提下重驗主線
 - demo baseline 可用 `npm run seed` 收斂，`npm run seed:reset` 可保守清除後重建
@@ -153,6 +158,7 @@
 
 ## 目前測試狀態
 
+- 2026-07-18 `npm.cmd test`：**163 passed / 0 failed**（25 suites；含 ShortAsset lifecycle、修課 feed/cursor、YouTube sync/retry/log/single-flight、health、course delete rollback、invalid asset 與 repeated cursor）。
 - 2026-07-14 `npm.cmd test`：**135 passed / 0 failed**（整合 Phase 2 QA contract、FAQ 快取、QA quota guardrails、visual citation retrieval、YouTube auto-upload 新舊設定相容與 Shorts proxy 後重驗）。
 - 2026-07-10 `npm.cmd test`：**103 passed / 0 failed**（含 Phase 2 QA contract、初版 visual citation retrieval、YouTube auto-upload adapter、CORS allowlist、QA quota guardrails）。
 - 2026-07-13 `npm test`：**119 passed / 0 failed**（含 FAQ 快取 13 個新測試：`faq-cache.service.test.js` 6 + `faq.routes.test.js` 7；harness 補 `store.faqs` 與 Faq model stubs）。
@@ -175,6 +181,8 @@
   - backend routing 可驗證，但 live delivery 未 ready（最常見：`deliveryMode=backend_only`）
 - `runtime.line.readiness=hard_fail`
   - LINE 必要條件不成立（驗簽或 channel 設定無法成立）
+- `runtime.shortsSync.degraded=true`
+  - YouTube Data API 回覆 `403 quotaExceeded`；本輪不重試，保留最後成功的 ShortAsset availability/privacy，等待下一輪排程
 
 ### `/api/v1/qa/ask`
 
@@ -192,6 +200,7 @@
 - 不能說 bridge course 的所有影片都已有 searchable segments
 - 不能把 ngrok 暫時端點誤稱為固定正式部署網址
 - 不能說 `video_segments_video` 已是正式 clip source 或 caption QA source；目前只作 course-scoped visual citation retrieval
+- 不能把 ShortAsset feed 與 metadata sync 誤稱為完整 Short 產線；自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker與教師管理仍未實作
 
 ## 已知限制
 
@@ -202,10 +211,11 @@
 - `text_embedding_index` 已 READY（2026-05-23 驗證）；atlas mode 可用。仍需注意若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
 - YouTube Data API auto-upload adapter 已實作並有 fake-fetch 測試；仍需 FocusFlow Google OAuth refresh token 做一次真實 upload smoke。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
+- ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端尚未帶 JWT 呼叫新 feed，需先依 handoff 方案完成另案實作
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容，正式環境需填入實際前端 origin
 - Collections 實際為 13；`init_collections.js` 列 15 個，且與 Atlas 清單不同步（init 多 `stt_cache` / `raw_transcripts` / `video_segments`，Atlas 多 `questions`）
 
 ## 一句話結論
 
-截至 2026-07-14，backend 主線整合 `gemini query embedding + gemini answer（gemini-2.5-flash）+ LINE live + 多輪對話歷史 + STT Pipeline 自動觸發（含 race-condition guard）+ YouTube URL MVP + YouTube auto-upload adapter + Shorts playlist proxy + 重複上傳防呆（YouTube videoId / mp4 SHA-256）+ Phase 2 QA citations/answerStatus contract + 初版 visual citation retrieval + QA quota guardrails + FAQ 兩層快取（文字相同零 token／語意相似 ≥ 0.95）+ 提問自動落庫到 questions + Admin/Stats 管理 API + 教師可刪自課程 + 刪除 cascade（保留歷史）+ display 分流 + 影片多課程掛載（attach/detach）+ dashboard/QA 平行化 + [qa-timing] 診斷 log + 學生 watched endpoint`。教師上傳 UI 為單一軌道（本地檔案），YouTube URL API 保留。`video_segments_text` 欄位已全面 camelCase；共享 Atlas 的 `text_embedding_index` 與 `video_segments_video.video_embedding_index` 均已有 READY 驗證紀錄，實際狀態仍以 `/health` 與 Atlas 現況為準。短期限制：YouTube 自動上傳尚未以正式 OAuth 憑證 live 驗證、backend/uploads 自動清理尚未做、ngrok URL 不固定、`video_segments_video` 沒有 transcript / caption，僅能作 visual citation retrieval。
+截至 2026-07-18，backend 主線另已整合 `ShortAsset + 修課限定 student Shorts feed + YouTube metadata sync + Course hard-delete ShortAsset 封存/rollback`。這只完成 feed、資產保存與可用性同步，不代表自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker或教師管理已完成。教師上傳 UI 仍為單一軌道（本地檔案），YouTube URL API 保留；Shorts 前端 JWT 串接待另案依 handoff 實作。共享 Atlas 與 YouTube live 狀態仍須以實查為準。

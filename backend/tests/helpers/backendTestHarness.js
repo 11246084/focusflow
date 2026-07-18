@@ -25,6 +25,7 @@ const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
+const ShortAsset = require('../../src/models/shortAsset.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -42,6 +43,7 @@ const store = {
   questions: [],
   lineBindTokens: [],
   faqs: [],
+  shortAssets: [],
 };
 
 const ids = {
@@ -98,6 +100,10 @@ function setNested(target, key, value) {
 function normalizeValue(value) {
   if (value == null) {
     return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
   }
 
   if (typeof value === 'object' && value._id) {
@@ -204,6 +210,10 @@ function matchesQuery(document, query = {}) {
         return false;
       }
 
+      if ('$nin' in value && value.$nin.map(normalizeValue).includes(normalizeValue(currentValue))) {
+        return false;
+      }
+
       if ('$ne' in value && normalizeValue(currentValue) === normalizeValue(value.$ne)) {
         return false;
       }
@@ -212,8 +222,11 @@ function matchesQuery(document, query = {}) {
         return false;
       }
 
-      if ('$lt' in value && new Date(currentValue).getTime() >= new Date(value.$lt).getTime()) {
-        return false;
+      if ('$lt' in value) {
+        const leftDate = new Date(currentValue).getTime();
+        const rightDate = new Date(value.$lt).getTime();
+        const isDateComparison = !Number.isNaN(leftDate) && !Number.isNaN(rightDate);
+        if (isDateComparison ? leftDate >= rightDate : normalizeValue(currentValue) >= normalizeValue(value.$lt)) return false;
       }
 
       return true;
@@ -230,20 +243,15 @@ function sortItems(items, sortSpec = {}) {
     return [...items];
   }
 
-  const [[field, direction]] = entries;
   return [...items].sort((left, right) => {
-    const leftValue = getNested(left, field);
-    const rightValue = getNested(right, field);
-
-    if (leftValue === rightValue) {
-      return 0;
+    for (const [field, direction] of entries) {
+      const leftValue = normalizeValue(getNested(left, field));
+      const rightValue = normalizeValue(getNested(right, field));
+      if (leftValue === rightValue) continue;
+      if (direction < 0) return leftValue > rightValue ? -1 : 1;
+      return leftValue > rightValue ? 1 : -1;
     }
-
-    if (direction < 0) {
-      return leftValue > rightValue ? -1 : 1;
-    }
-
-    return leftValue > rightValue ? 1 : -1;
+    return 0;
   });
 }
 
@@ -376,6 +384,19 @@ function deleteManyInStore(collection, query = {}) {
   };
 }
 
+async function bulkWriteInStore(collection, operations = []) {
+  let modifiedCount = 0;
+  for (const operation of operations) {
+    const { filter = {}, update = {} } = operation.updateOne || {};
+    const document = collection.find((item) => matchesQuery(item, filter));
+    if (!document) continue;
+    applyUpdate(document, update);
+    document.updatedAt = new Date().toISOString();
+    modifiedCount += 1;
+  }
+  return { modifiedCount };
+}
+
 function installModelStubs() {
   if (installModelStubs.installed) {
     return;
@@ -457,6 +478,12 @@ function installModelStubs() {
     options,
   );
   Course.deleteMany = async (query = {}) => deleteManyInStore(store.courses, query);
+  Course.deleteOne = async (query = {}) => {
+    const index = store.courses.findIndex((item) => matchesQuery(item, query));
+    if (index === -1) return { deletedCount: 0 };
+    store.courses.splice(index, 1);
+    return { deletedCount: 1 };
+  };
   Course.find = (query = {}) => createQuery(
     store.courses.filter((item) => matchesQuery(item, query)),
     {
@@ -728,6 +755,31 @@ function installModelStubs() {
   Faq.countDocuments = async (query = {}) => store.faqs.filter((item) => matchesQuery(item, query)).length;
   Faq.deleteMany = async (query = {}) => deleteManyInStore(store.faqs, query);
 
+  ShortAsset.create = async (payload) => {
+    const asset = {
+      _id: payload._id || newObjectId(),
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      youtubeAvailability: 'pending',
+      youtubePrivacyStatus: 'unknown',
+      ...payload,
+    };
+    store.shortAssets.push(asset);
+    return asset;
+  };
+  ShortAsset.find = (query = {}) => createQuery(store.shortAssets.filter((item) => matchesQuery(item, query)));
+  ShortAsset.findById = (id) => createQuery(
+    store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
+  );
+  ShortAsset.findByIdAndUpdate = async (id, update) => {
+    const asset = store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id));
+    if (!asset) return null;
+    applyUpdate(asset, update);
+    asset.updatedAt = new Date().toISOString();
+    return asset;
+  };
+  ShortAsset.bulkWrite = async (operations = []) => bulkWriteInStore(store.shortAssets, operations);
+
   LineBindToken.create = async (payload) => {
     const token = {
       _id: newObjectId(),
@@ -762,6 +814,7 @@ function resetStore() {
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
   store.faqs.length = 0;
+  store.shortAssets.length = 0;
 
   store.users.push(
     {

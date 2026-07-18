@@ -6,6 +6,7 @@ const {
   buildLineRuntimeSnapshot,
   buildMultimodalRuntimeSnapshot,
 } = require('../services/runtimeDiagnostics.service');
+const { buildShortsSyncSnapshot } = require('../services/shortsSync.service');
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.get('/', (req, res) => {
         qa: buildQaRuntimeSnapshot(),
         line: buildLineRuntimeSnapshot(),
         multimodal: buildMultimodalRuntimeSnapshot(),
+        shortsSync: buildShortsSyncSnapshot(),
       },
     },
   });

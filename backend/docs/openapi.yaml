@@ -10,9 +10,10 @@ info:
     - 如實描述 phase-1 的 `bridge-aware` 與 runtime 可觀測回應
     - 不把 Atlas retrieval、query embedding 對齊、或 live LINE delivery 說成 production-ready
 
-    覆蓋範圍（2026-05-23 更新）：
-    - 已涵蓋 auth / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE 的主要端點
+    覆蓋範圍（2026-07-18 更新）：
+    - 已涵蓋 auth / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE / student Shorts feed 的主要端點
     - 本 spec 已涵蓋主要端點，但仍非 100% 完整契約；internal processing webhook 等少數端點以 route files 為準
+    - Shorts 僅代表修課 feed 與 metadata sync 已實作，不代表自動選片、剪輯、字幕或發布 worker 已完成
 
     本輪不處理的項目：
     - 不做 route-level JSDoc generation
@@ -30,6 +31,8 @@ tags:
     description: 已登入後可使用的課程 API。Phase-1 的課程回應是 `bridge-aware`，可能會揭露 QA scope 相關 metadata。
   - name: Videos
     description: 涵蓋影片列表、詳細資料、processing 狀態、上傳與 `guarded action` 類型的操作端點。
+  - name: Shorts
+    description: 學生修課限定的已發布 ShortAsset feed；需要 Bearer JWT 與 student 角色。
   - name: QA
     description: 問答 API，會明確回傳 runtime diagnostics 與 phase-1 fallback 訊號。
   - name: Stats
@@ -115,6 +118,12 @@ paths:
                             - code: VIDEO_SEGMENTS_VIDEO_SCOPE_MAPPING_UNVERIFIED
                               message: video_segments_video.video_id must map to videos before course-scoped QA can use it.
                           hardFailures: []
+                        shortsSync:
+                          enabled: true
+                          lastAttemptAt: '2026-07-18T02:00:00.000Z'
+                          lastSuccessAt: '2026-07-18T02:00:01.000Z'
+                          lastError: null
+                          degraded: false
                         line:
                           signatureValidationConfigured: true
                           liveReplyConfigured: false
@@ -1440,6 +1449,78 @@ paths:
                             message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/youtube/shorts:
+    get:
+      tags:
+        - Shorts
+      summary: 取得學生修課範圍內可播放的教學短片
+      description: |
+        只回傳目前學生 Enrollment 對應、Course.status=published、ShortAsset.status=published，且 youtubeAvailability=playable 的資產。
+        使用 publishedAt + _id 的 opaque pageToken 做穩定降冪分頁；相同發布時間以 _id 作 tie-break。
+      operationId: listStudentShorts
+      parameters:
+        - name: pageToken
+          in: query
+          required: false
+          description: 後端產生的 opaque cursor；不可由客戶端自行組裝。
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: 每頁筆數，預設 20，最多 50。
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 成功取得修課 Shorts feed；無修課或無可播放 Short 時 items 為空陣列。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortsFeedResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: OK
+                    data:
+                      items:
+                        - videoId: youtube-video-id
+                          title: JWT auth overview
+                          thumbnail: https://i.ytimg.com/vi/youtube-video-id/hqdefault.jpg
+                          publishedAt: '2026-07-18T00:00:00.000Z'
+                          assetId: 507f1f77bcf86cd799439011
+                          course:
+                            courseId: 507f1f77bcf86cd799439012
+                            title: Backend Fundamentals
+                          youtubeUrl: https://www.youtube.com/watch?v=youtube-video-id
+                      nextPageToken: opaque-token
+        '400':
+          description: pageToken 無法解析，或 limit 不在 1–50 範圍。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidPageToken:
+                  value:
+                    success: false
+                    message: Invalid pageToken.
+                    error:
+                      code: INVALID_PAGE_TOKEN
+                invalidLimit:
+                  value:
+                    success: false
+                    message: limit must be an integer between 1 and 50.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 components:
   securitySchemes:
     BearerAuth:
@@ -2411,7 +2492,7 @@ components:
           type: integer
           minimum: 0
     MultimodalRuntimeSnapshot:
-      description: `video_segments_video` / multimodal QA 的 runtime readiness 快照。目前僅用來顯示尚未接入 QA 的阻塞條件。
+      description: "`video_segments_video` / multimodal QA 的 runtime readiness 快照。目前僅用來顯示尚未接入 QA 的阻塞條件。"
       type: object
       required:
         - segmentCollection
@@ -2454,6 +2535,90 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+    ShortsSyncRuntimeSnapshot:
+      description: ShortAsset 的 YouTube metadata sync 診斷快照；不代表自動剪輯或發布 worker 已完成。
+      type: object
+      required:
+        - enabled
+        - lastAttemptAt
+        - lastSuccessAt
+        - lastError
+        - degraded
+      properties:
+        enabled:
+          type: boolean
+        lastAttemptAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastSuccessAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastError:
+          anyOf:
+            - type: string
+            - type: 'null'
+        degraded:
+          type: boolean
+    ShortsCourseSummary:
+      type: object
+      required:
+        - courseId
+        - title
+      properties:
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+    ShortsFeedItem:
+      type: object
+      required:
+        - videoId
+        - title
+        - thumbnail
+        - publishedAt
+        - assetId
+        - course
+        - youtubeUrl
+      properties:
+        videoId:
+          type: string
+        title:
+          type: string
+        thumbnail:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+        publishedAt:
+          type: string
+          format: date-time
+        assetId:
+          $ref: '#/components/schemas/ObjectId'
+        course:
+          $ref: '#/components/schemas/ShortsCourseSummary'
+        youtubeUrl:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+    ShortsFeedData:
+      type: object
+      required:
+        - items
+        - nextPageToken
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortsFeedItem'
+        nextPageToken:
+          anyOf:
+            - type: string
+            - type: 'null'
     HealthData:
       description: "`/health` 回應中的主要資料區塊。"
       type: object
@@ -2476,6 +2641,7 @@ components:
             - qa
             - line
             - multimodal
+            - shortsSync
           properties:
             qa:
               $ref: '#/components/schemas/QaRuntimeSnapshot'
@@ -2483,6 +2649,8 @@ components:
               $ref: '#/components/schemas/LineRuntimeSnapshot'
             multimodal:
               $ref: '#/components/schemas/MultimodalRuntimeSnapshot'
+            shortsSync:
+              $ref: '#/components/schemas/ShortsSyncRuntimeSnapshot'
     AuthLoginRequest:
       description: "`/api/v1/auth/login` 的 request body。"
       type: object
@@ -3146,6 +3314,16 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/HealthData'
+    ShortsFeedResponse:
+      description: 學生 Shorts feed 成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ShortsFeedData'
     AuthLoginResponse:
       description: "`/api/v1/auth/login` 的成功回應 envelope。"
       allOf:

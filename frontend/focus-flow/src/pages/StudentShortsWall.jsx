@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BACKEND_ORIGIN } from '../api';
+import { apiFetch } from '../api';
 
 const CHANNEL_URL = 'https://www.youtube.com/@FocusFlow-ai413';
 
@@ -160,6 +160,9 @@ function VideoCard({ video, onClick }) {
         }}>
           {video.title}
         </p>
+        <p style={{ margin: '0 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+          {video.course.title}
+        </p>
         <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
           {relativeTime(video.publishedAt)}
         </p>
@@ -178,9 +181,7 @@ export default function StudentShortsWall() {
 
   const fetchPage = useCallback(async (pageToken = '') => {
     const qs = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : '';
-    const res = await fetch(`${BACKEND_ORIGIN}/api/v1/youtube/shorts${qs}`);
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.message || `伺服器錯誤 (${res.status})`);
+    const body = await apiFetch('/youtube/shorts' + qs);
     return body.data;
   }, []);
 
@@ -284,7 +285,7 @@ export default function StudentShortsWall() {
       {/* Empty */}
       {!loading && !error && items.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>
-          目前頻道尚無影片
+          目前修課尚無教學短片
         </div>
       )}
 

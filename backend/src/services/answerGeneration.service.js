@@ -41,11 +41,12 @@ function buildPrompt(question, matches) {
     '',
     '回答規則：',
     '1. 只能根據「可用資料庫片段」回答。',
-    '2. 不可以使用外部知識、常識、推測或補充說明。',
-    '3. transcript 可能有 STT 專有名詞誤寫；只允許把命中片段中的相近專有名詞對齊到使用者問題中的名詞。',
-    '4. 不可以替其他 transcript 詞語加括號解釋、改寫或補註；片段寫什麼就引用什麼。',
-    '5. 如果片段沒有直接支持答案，請只回答：「目前資料庫片段不足以回答這個問題。」',
-    '6. 回答最後用括號標出依據影片與時間，例如「依據：video_001.mp4 12-20s」。',
+    '2. 綜合所有相關片段整理答案，不可只摘錄或改寫第一筆。',
+    '3. 不可以使用外部知識、常識、推測，或補充影片片段未提及的資訊。',
+    '4. transcript 可能有 STT 專有名詞誤寫；只允許把命中片段中的相近專有名詞對齊到使用者問題中的名詞。',
+    '5. 如果片段沒有直接支持答案，請明確回答：「無法從提供的影片片段判斷。」',
+    '6. 自然整理重點，不要直接貼上逐字稿，也不要替其他 transcript 詞語加括號解釋或補註。',
+    '7. 回答最後用括號標出依據影片與時間，例如「依據：video_001.mp4 12-20s」。',
   ].join('\n');
 }
 
@@ -97,6 +98,30 @@ function extractGeminiText(payload) {
     .trim();
 }
 
+function buildGeminiErrorDetails({ response = null, responseBody = null, payload = null } = {}) {
+  return {
+    responseStatus: response?.status ?? null,
+    responseStatusText: response?.statusText ?? null,
+    responseBody,
+    finishReason: payload?.candidates?.[0]?.finishReason ?? null,
+    blockReason: payload?.promptFeedback?.blockReason ?? null,
+  };
+}
+
+function logGeminiFailure(error) {
+  const details = error?.details && typeof error.details === 'object' ? error.details : {};
+
+  console.error('[answer-generation] Gemini request failed', {
+    responseStatus: details.responseStatus ?? null,
+    responseStatusText: details.responseStatusText ?? null,
+    responseBody: details.responseBody ?? null,
+    errorName: error?.name ?? null,
+    errorMessage: error?.message ?? null,
+    errorCode: error?.code ?? error?.cause?.code ?? null,
+    stack: error?.stack ?? null,
+  });
+}
+
 async function generateAnswerWithGemini(question, matches, conversationHistory = null) {
   if (!env.geminiApiKey) {
     throw new AppError('GEMINI_API_KEY is required for Gemini answers.', 500, 'ANSWER_PROVIDER_NOT_CONFIGURED');
@@ -117,7 +142,7 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
     },
   ];
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.geminiChatModel}:generateContent`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.geminiChatModel)}:generateContent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -150,12 +175,30 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
   });
 
   if (!response.ok) {
-    const payload = await response.text();
-    throw new AppError('Failed to generate answer.', 502, 'ANSWER_PROVIDER_ERROR', payload);
+    const responseBody = await response.text();
+    throw new AppError('Failed to generate answer.', 502, 'ANSWER_PROVIDER_ERROR',
+      buildGeminiErrorDetails({ response, responseBody }));
   }
 
-  const payload = await response.json();
-  return extractGeminiText(payload) || buildTemplateAnswer(question, matches);
+  const responseBody = await response.text();
+  let payload;
+
+  try {
+    payload = JSON.parse(responseBody);
+  } catch (error) {
+    throw new AppError('Gemini returned invalid JSON.', 502, 'ANSWER_PROVIDER_INVALID_RESPONSE', {
+      ...buildGeminiErrorDetails({ response, responseBody }),
+      parseError: error.message,
+    });
+  }
+  const text = extractGeminiText(payload);
+
+  if (!text) {
+    throw new AppError('Gemini returned no answer text.', 502, 'ANSWER_PROVIDER_EMPTY_RESPONSE',
+      buildGeminiErrorDetails({ response, responseBody, payload }));
+  }
+
+  return text;
 }
 
 async function generateAnswer(question, matches, conversationHistory = null) {
@@ -190,6 +233,8 @@ async function generateAnswer(question, matches, conversationHistory = null) {
       if (error instanceof AppError && error.code === 'ANSWER_PROVIDER_NOT_CONFIGURED') {
         throw error;
       }
+
+      logGeminiFailure(error);
 
       return buildAnswerResult({
         text: buildTemplateAnswer(question, matches),

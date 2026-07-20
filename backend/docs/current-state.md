@@ -23,7 +23,7 @@
 - `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`
 - `QA_ATLAS_FILTER_MODE=bridge_course_or_video`
 - `QA_ANSWER_PROVIDER=gemini`
-- `GEMINI_CHAT_MODEL=gemini-2.5-flash`
+- `GEMINI_CHAT_MODEL=gemini-3.5-flash`
 - `DEMO_SEED_ENABLED=false`
 - `SHORTS_SYNC_INTERVAL_MS=600000`（設 0 停用 startup/interval sync）
 - LINE live：`readiness=ready`、`deliveryMode=live`
@@ -32,7 +32,7 @@
 
 - query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
 - `.env` 設定使用 Atlas vector search（`text_embedding_index`），且共享 Atlas 上該 index 已存在且 READY/queryable（2026-05-23 直連驗證），atlas mode 可正常檢索
-- answer generation 使用 Gemini（`gemini-2.5-flash`）
+- answer generation 使用 Gemini（`gemini-3.5-flash`）
 - demo 資料不自動建立，需明確執行 `npm run seed`
 - 若要先清掉再重建，使用 `npm run seed:reset`
 - LINE live 已可端對端接收訊息並回傳 AI 答案與影片時間戳

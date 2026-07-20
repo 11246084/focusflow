@@ -24,7 +24,7 @@ QA_VECTOR_SEARCH_MODE       = atlas
 QA_ATLAS_VECTOR_INDEX_NAME  = text_embedding_index
 QA_ATLAS_FILTER_MODE        = bridge_course_or_video
 QA_ANSWER_PROVIDER          = gemini
-GEMINI_CHAT_MODEL           = gemini-2.5-flash
+GEMINI_CHAT_MODEL           = gemini-3.5-flash
 DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ```
 

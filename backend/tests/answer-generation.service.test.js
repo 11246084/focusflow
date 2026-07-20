@@ -4,6 +4,7 @@ const { env } = require('./helpers/backendTestHarness');
 const { buildTemplateAnswer, generateAnswer } = require('../src/services/answerGeneration.service');
 
 const originalFetch = global.fetch;
+const originalConsoleError = console.error;
 
 function createMatches() {
   return [
@@ -15,14 +16,31 @@ function createMatches() {
       transcript: '學生只能存取已發布課程或已選課課程，teacher 與 admin 可以管理課程與影片。',
       score: 0.9,
     },
+    {
+      segmentId: 'segment-2',
+      videoId: 'video-1',
+      startSec: 35,
+      endSec: 50,
+      transcript: '第二段說明教師可以發布課程。',
+      score: 0.8,
+    },
+    {
+      segmentId: 'segment-3',
+      videoId: 'video-1',
+      startSec: 51,
+      endSec: 70,
+      transcript: '第三段補充管理員可以管理所有使用者。',
+      score: 0.7,
+    },
   ];
 }
 
 afterEach(() => {
   global.fetch = originalFetch;
+  console.error = originalConsoleError;
   env.qaAnswerProvider = 'template';
   env.geminiApiKey = '';
-  env.geminiChatModel = 'gemini-2.5-flash';
+  env.geminiChatModel = 'gemini-3.5-flash';
 });
 
 describe('answer generation service', () => {
@@ -32,14 +50,14 @@ describe('answer generation service', () => {
 
     env.qaAnswerProvider = 'gemini';
     env.geminiApiKey = 'gemini-test-key';
-    env.geminiChatModel = 'gemini-2.5-flash';
+    env.geminiChatModel = 'gemini-3.5-flash';
     global.fetch = async (url, options) => {
       capturedRequests.push({ url, options });
 
       return {
         ok: true,
-        async json() {
-          return {
+        async text() {
+          return JSON.stringify({
             candidates: [
               {
                 content: {
@@ -51,7 +69,7 @@ describe('answer generation service', () => {
                 },
               },
             ],
-          };
+          });
         },
       };
     };
@@ -62,10 +80,12 @@ describe('answer generation service', () => {
     assert.equal(result.provider, 'gemini');
     assert.equal(result.fallback, null);
     assert.equal(capturedRequests.length, 1);
-    assert.match(capturedRequests[0].url, /models\/gemini-2\.5-flash:generateContent$/);
+    assert.match(capturedRequests[0].url, /models\/gemini-3\.5-flash:generateContent$/);
     assert.equal(capturedRequests[0].options.headers['x-goog-api-key'], 'gemini-test-key');
     assert.match(capturedRequests[0].options.body, /學生與老師的權限差在哪裡/);
     assert.match(capturedRequests[0].options.body, /teacher 與 admin 可以管理課程與影片/);
+    assert.match(capturedRequests[0].options.body, /第二段說明教師可以發布課程/);
+    assert.match(capturedRequests[0].options.body, /第三段補充管理員可以管理所有使用者/);
   });
 
   it('marks template fallback explicitly when Gemini fails', async () => {
@@ -73,6 +93,7 @@ describe('answer generation service', () => {
 
     env.qaAnswerProvider = 'gemini';
     env.geminiApiKey = 'gemini-test-key';
+    console.error = () => {};
     global.fetch = async () => {
       throw new Error('network timeout');
     };
@@ -85,6 +106,26 @@ describe('answer generation service', () => {
     assert.equal(result.fallback.from, 'gemini');
     assert.equal(result.fallback.to, 'template');
     assert.equal(result.fallback.code, 'ANSWER_PROVIDER_ERROR');
+  });
+
+  it('treats empty Gemini content as a provider failure', async () => {
+    const matches = createMatches();
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    console.error = () => {};
+    global.fetch = async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      async text() {
+        return JSON.stringify({ candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }] });
+      },
+    });
+
+    const result = await generateAnswer('學生與老師的權限差在哪裡？', matches);
+
+    assert.equal(result.provider, 'template');
+    assert.equal(result.fallback.code, 'ANSWER_PROVIDER_EMPTY_RESPONSE');
   });
 
   it('fails fast when gemini is selected without an API key', async () => {

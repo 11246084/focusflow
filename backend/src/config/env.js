@@ -39,7 +39,7 @@ module.exports = {
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,
   qaUserMonthlyTokenQuota: Number(process.env.QA_USER_MONTHLY_TOKEN_QUOTA) || 0,
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash',
+  geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
   openaiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',

@@ -189,7 +189,7 @@ qa.service.askQuestion()
 ↓
 Gemini / memory 或 Atlas 搜尋 → video_segments_text
 ↓
-Gemini gemini-2.5-flash 生成答案
+Gemini gemini-3.5-flash 生成答案
 ↓
 LINE reply API 回傳答案 + 影片時間戳；YouTube 影片可附 https://youtu.be/<id>?t=<sec>
 ```

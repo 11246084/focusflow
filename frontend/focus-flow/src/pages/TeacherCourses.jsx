@@ -36,7 +36,7 @@ const MODAL_STYLE = {
     border: '1px solid rgba(255,255,255,0.14)',
     borderRadius: 18,
     padding: 28,
-    width: 420,
+    width: 'min(420px, 92vw)',
     boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
   },
   label: {
@@ -393,7 +393,7 @@ export default function TeacherCourses() {
   }
 
   const overlay = MODAL_STYLE.overlay;
-  const box = { ...MODAL_STYLE.box, width: 380 };
+  const box = { ...MODAL_STYLE.box, width: 'min(380px, 92vw)' };
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
@@ -480,7 +480,8 @@ export default function TeacherCourses() {
         ) : courses.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>尚未建立課程</div>
         ) : (
-          <>
+          <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 640 }}>
             {/* Header row */}
             <div
               style={{
@@ -591,7 +592,8 @@ export default function TeacherCourses() {
                           此課程尚未上傳影片。前往 Upload 頁面新增第一支影片。
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                        <div style={{ overflowX: 'auto' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6, minWidth: 480 }}>
                           <div style={{
                             display: 'grid',
                             gridTemplateColumns: '1fr 110px 110px 90px',
@@ -669,13 +671,15 @@ export default function TeacherCourses() {
                             );
                           })}
                         </div>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
               );
             })}
-          </>
+          </div>
+          </div>
         )}
       </div>
 

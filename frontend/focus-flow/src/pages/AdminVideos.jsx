@@ -35,7 +35,7 @@ export default function AdminVideos() {
   };
 
   const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 380, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
+  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 'min(380px, 92vw)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
@@ -69,6 +69,7 @@ export default function AdminVideos() {
         ) : videos.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>尚無影片資料</div>
         ) : (
+          <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
               <tr><th>FILENAME</th><th>COURSE</th><th>TEACHER</th><th>STATUS</th><th>SEGMENTS</th><th>CREATED</th><th></th></tr>
@@ -108,6 +109,7 @@ export default function AdminVideos() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

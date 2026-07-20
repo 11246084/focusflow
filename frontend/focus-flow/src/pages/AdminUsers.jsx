@@ -29,7 +29,7 @@ function EditModal({ user, onClose, onSaved }) {
   };
 
   const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 380, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
+  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 'min(380px, 92vw)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
   const label = { fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 6, display: 'block' };
   const inp = { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
   const sel = { ...inp, cursor: 'pointer' };
@@ -116,6 +116,7 @@ export default function AdminUsers() {
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>載入中...</div>
         ) : (
+          <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
               <tr><th>USER</th><th>EMAIL</th><th>ROLE</th><th>COURSES</th><th>QUERIES</th><th>STATUS</th><th>JOINED</th><th></th></tr>
@@ -153,6 +154,7 @@ export default function AdminUsers() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

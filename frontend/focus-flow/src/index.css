@@ -726,7 +726,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 .login-forgot {
   font-size: 12px;
-  color: #F14F21;
+  color: #ffffff88;
   cursor: pointer;
 }
 
@@ -987,7 +987,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 24px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  margin: 14px 0 14px 14px;
+  margin: 14px 14px 14px 14px;
   flex-shrink: 0;
   height: calc(100% - 28px);
   overflow-y: auto;
@@ -1117,7 +1117,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 
 /* ── Shared dashboard classes (from sample CSS) ── */
-.card { background: rgba(38,12,30,0.85); border: 1px solid rgba(255,255,255,0.09); border-radius: 22px; }
+.card { background: rgb(38, 12, 30); border: 1px solid rgba(255,255,255,0.09); border-radius: 22px; }
 .card-solid { background: #260c1e; border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; }
 .card-sm { background: rgba(38,12,30,0.88); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; }
 
@@ -1176,6 +1176,12 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* Topbar */
 .topbar { height: 62px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; }
 
+/* Topbar light dropdown panels (notifications / user menu) */
+.dd-item { padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #27272a; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background .15s; font-family: 'Noto Sans TC', sans-serif; }
+.dd-item:hover { background: rgba(0,0,0,0.05); }
+.dd-item .ni { color: rgba(0,0,0,0.4); display: flex; align-items: center; }
+.dd-row:hover { background: rgba(0,0,0,0.03); }
+
 /* Course detail grid */
 .course-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 
@@ -1217,6 +1223,16 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
    DASHBOARD RWD
 ══════════════════════════════ */
 
+/* Reusable responsive grid utilities — pair with an inline gridTemplateColumns
+   (desktop columns), these classes only override at breakpoints via !important
+   since inline styles otherwise win on specificity. */
+.ff-grid-4, .ff-grid-2, .ff-grid-auto { min-width: 0; }
+
+/* Table / dense-grid horizontal scroll wrapper — prevents columns being
+   crushed illegibly on narrow screens; scrolls instead of breaking layout. */
+.ff-tbl-wrap { overflow-x: auto; }
+.ff-tbl-wrap .ff-tbl { min-width: 640px; }
+
 /* Tablet: compact sidebar */
 @media (max-width: 1024px) {
   .sidebar { width: 160px; padding: 18px 8px; }
@@ -1236,7 +1252,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
   /* Sidebar becomes a horizontal top bar on mobile */
   .sidebar {
-    width: 100%;
+    width: 93%;
     height: auto;
     flex-direction: row;
     flex-wrap: wrap;
@@ -1256,15 +1272,23 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   .stat-card { padding: 14px 16px; }
   .stat-val { font-size: 22px; }
 
-  /* Any 4-col stat grid → 2-col */
-  [style*="gridTemplateColumns: repeat(4"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
+  .topbar { padding: 0 16px; }
 
-  /* Any 2-col grids → 1-col on mobile */
-  .course-detail-grid { grid-template-columns: 1fr; }
+  /* Any 4-col stat grid → 2-col */
+  .ff-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Any 2-col / text+QR grids → 1-col on mobile */
+  .ff-grid-2, .ff-grid-auto, .course-detail-grid { grid-template-columns: 1fr !important; }
 
   /* Table scrollable on mobile */
   .ff-tbl { font-size: 12px; }
   .ff-tbl th, .ff-tbl td { padding: 8px 10px; }
+
+  /* Page padding a bit tighter on phones */
+  .dashboard-content > div { padding-left: 16px !important; padding-right: 16px !important; }
+}
+
+/* Small phones: 4-col stat grids drop to single column too */
+@media (max-width: 480px) {
+  .ff-grid-4 { grid-template-columns: 1fr !important; }
 }

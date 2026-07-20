@@ -42,7 +42,7 @@ export default function AdminOverview({ onNav }) {
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
+      <div className="ff-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
         {[
           [String(s.totalUsers ?? '—'), '用戶總數', 'TOTAL USERS', `${s.studentCount ?? 0} students, ${s.teacherCount ?? 0} teachers, ${s.adminCount ?? 0} admins`],
           [String(s.totalVideos ?? '—'), '影片總量', 'TOTAL VIDEOS', 'all courses'],
@@ -57,7 +57,7 @@ export default function AdminOverview({ onNav }) {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* User Distribution */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>

@@ -7,7 +7,7 @@ const STATUS_BADGE = { draft: 'bb', published: 'bg', archived: 'by' };
 
 const MODAL_STYLE = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  box: { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' },
+  box: { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 'min(420px, 92vw)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' },
   label: { fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 6, display: 'block' },
   inp: { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' },
 };
@@ -208,6 +208,7 @@ export default function AdminCourses() {
         ) : courses.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>尚無課程</div>
         ) : (
+          <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
               <tr><th>TITLE</th><th>TEACHER</th><th>STATUS</th><th>VIDEOS</th><th>CREATED</th><th></th></tr>
@@ -251,6 +252,7 @@ export default function AdminCourses() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

@@ -27,16 +27,21 @@ export default function Button3D({ children, onClick }) {
     const mouse = { x: 0, y: 0 };
 
     // Lights
-    scene.add(new THREE.AmbientLight(0x111111));
-    const spot = new THREE.SpotLight(0xf2056f, 0.8, 0);
+    scene.add(new THREE.AmbientLight(0x0085ff));
+    // 環境光，非常暗的灰色，讓整個場景有最低限度的底色光，避免完全黑暗的地方變成死黑。
+    const spot = new THREE.SpotLight(0xff6969, 0.5, 0);
+    // 聚光燈，粉紅/玫瑰色，強度 0.8，從座標 (150, 150, 0) 打過來，像舞台聚光燈，會製造明顯的光影效果。
     spot.position.set(150, 150, 0);
     scene.add(spot);
-    scene.add(new THREE.HemisphereLight(0xd8c7f3, 0x61dafb, 1.2));
+    scene.add(new THREE.HemisphereLight(0xffbe00,0x4e0099, 1.2));
+    // 半球光，上方是淡紫色、下方是亮藍色（React 的藍），強度 1.2，模擬天空+地面的自然環境光，讓物體看起來更有立體感。
 
     const mat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
+      color: 0xf8a790,
       roughness: 0.25,
+      // 	0 = 完美鏡面，1 = 全霧面
       metalness: 0.15,
+      // 	0 = 非金屬，1 = 完全金屬
       transparent: true,
       opacity: 0.92,
     });
@@ -66,7 +71,7 @@ export default function Button3D({ children, onClick }) {
       gsap.fromTo(sphere.scale,   { x:.8,y:.8,z:.8 }, { x:1.15,y:1.15,z:1.15, duration:.6 });
       gsap.fromTo(sphere.position,{ x:-10,y:-10 },    { x:-30,y:-40, duration:.6 });
       gsap.fromTo(cone.scale,     { x:.8,y:.8,z:.8 }, { x:1.35,y:1.35,z:1.35, duration:.6 });
-      gsap.fromTo(cone.position,  { x:-30,y:2,z:3 },  { x:-70,y:12,z:3, duration:.6 });
+      gsap.fromTo(cone.position,  { x:-30,y:2,z:3 },  { x:-100,y:12,z:3, duration:.6 });
       gsap.fromTo(cone.rotation,  { x:-.2,z:0 },      { x:-.3,z:.7, duration:.6 });
     };
 

@@ -1,4 +1,4 @@
-import { Ic, Logo, navItems, roleLabels, roleDot } from './Icons';
+import { Ic, navItems, roleLabels, roleDot } from './Icons';
 
 export default function Sidebar({ role, active, onNav, onLogout }) {
   const items = navItems[role] || [];
@@ -7,7 +7,7 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
 
       {/* Logo */}
       <div className="sidebar-logo">
-        <Logo sm />
+        <img src="/assets/lockup-white.png" alt="Focus Flow" style={{ width: '100%' }} />
       </div>
 
       {/* Nav items */}

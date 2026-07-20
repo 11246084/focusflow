@@ -49,7 +49,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
         <div className="login-left">
           {/* Logo */}
           <div className="login-logo">
-            <img src="/assets/lockup-color.png" alt="Focus Flow" />
+            <img src="/assets/lockup-white.png" alt="Focus Flow" />
           </div>
 
           {/* Brand copy */}

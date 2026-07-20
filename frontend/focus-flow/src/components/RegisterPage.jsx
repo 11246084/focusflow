@@ -41,7 +41,7 @@ export default function RegisterPage({ onRegistered, onBack }) {
       <div className="login-shell">
         <div className="login-left">
           <div className="login-logo">
-            <img src="/assets/logo.png" alt="Focus Flow" />
+            <img src="/assets/lockup-white.png" alt="Focus Flow" />
           </div>
 
           <div className="login-brand-body">

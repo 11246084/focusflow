@@ -76,7 +76,7 @@ export default function StudentLineBot() {
         </div>
 
         {/* Body: 左文字區 + 右 QR code */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 36, alignItems: 'start' }}>
+        <div className="ff-grid-auto" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 36, alignItems: 'start' }}>
 
           {/* 左側 */}
           <div>

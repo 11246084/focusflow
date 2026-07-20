@@ -228,7 +228,7 @@ export default function TeacherUpload() {
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>Upload Video</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 900 }}>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: '90%' }}>
         <div>
           <div
             className="upload-z"

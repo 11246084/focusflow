@@ -44,7 +44,7 @@ export default function AdminStats() {
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Usage Statistics</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {statCards.map(s => (
           <div key={s.ev} className="card" style={{ padding: 24, display: 'flex', gap: 20, alignItems: 'center' }}>
             <div style={{ width: 52, height: 52, borderRadius: 14, background: `${s.col}18`, border: `1px solid ${s.col}35`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.col, flexShrink: 0 }}>
@@ -68,6 +68,7 @@ export default function AdminStats() {
         ) : events.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13, padding: 20 }}>尚無事件記錄</div>
         ) : (
+          <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
               <tr><th>EVENT</th><th>USER</th><th>COURSE</th><th>DURATION</th><th>TIME</th></tr>
@@ -89,6 +90,7 @@ export default function AdminStats() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

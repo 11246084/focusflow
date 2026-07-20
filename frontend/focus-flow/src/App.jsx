@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import './index.css';
 import LiquidGradientBg from './components/LiquidGradientBg';
 import Button3D          from './components/Button3D';
-import BubbleScene       from './components/BubbleScene';
 import LoginPage         from './components/LoginPage';
 import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
@@ -150,7 +149,6 @@ export default function App() {
                 現 在 就 開 始 與 知 識 互 動
               </div>
             </div>
-            <BubbleScene />
           </div>
 
           {/* Features row — no border on items, separator at top */}

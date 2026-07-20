@@ -48,7 +48,7 @@ export default function StudentDashboard({ onNav }) {
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 8 }}>
+      <div className="ff-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 8 }}>
         {cards.map(([value, label, title, sub, tooltip]) => (
           <div key={title} className="stat-card" title={tooltip}>
             <div className="stat-lbl">{title}</div>
@@ -67,7 +67,7 @@ export default function StudentDashboard({ onNav }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Course Progress</div>

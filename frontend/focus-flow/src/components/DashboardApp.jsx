@@ -14,12 +14,13 @@ import AdminUsers       from '../pages/AdminUsers';
 import AdminCourses     from '../pages/AdminCourses';
 import AdminVideos      from '../pages/AdminVideos';
 import AdminStats       from '../pages/AdminStats';
+import Profile           from '../pages/Profile';
 
 function DashboardRouter({ role, sub, onNav }) {
   const map = {
-    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall /> },
-    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload /> },
-    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats /> },
+    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile: <Profile role={role} /> },
+    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, profile: <Profile role={role} /> },
+    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats />, profile: <Profile role={role} /> },
   };
   return map[role]?.[sub] || null;
 }
@@ -32,7 +33,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
       <div className="dashboard-inner">
         <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} />
         <div className="dashboard-main">
-          <Topbar title={tb[0]} sub={tb[1]} />
+          <Topbar title={tb[0]} sub={tb[1]} onNav={onNav} onLogout={onLogout} />
           <div className="dashboard-content">
             <DashboardRouter role={role} sub={sub} onNav={onNav} />
           </div>

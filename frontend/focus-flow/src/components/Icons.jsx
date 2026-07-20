@@ -44,5 +44,7 @@ export const roleDot    = { student: '#a5b4fc', teacher: '#4ade80', admin: '#F14
 export const topbarMap = {
   student: { home: ['Dashboard', '歡迎回來，王同學'], courses: ['My Courses', '追蹤學習進度'], linebot: ['Line Bot', '即時問答 · 秒回片段'], shorts: ['教學短片', '瀏覽 FocusFlow 頻道影片'] },
   teacher: { home: ['Dashboard', '管理課程與影片'], courses: ['Course Videos', '已上傳影片清單'], upload: ['Upload Video', '影片上傳後自動建立 AI 索引'] },
-  admin:   { home: ['System Overview', '監控整體系統運作'], users: ['User Management', '學生 / 教師帳號'], courses: ['Course Management', '課程新增 / 編輯 / 刪除'], videos: ['Video Library', '全系統影片管理'], stats: ['Statistics', 'usage_logs 統計'] },
+  student: { home: ['Dashboard', '歡迎回來，王同學'], courses: ['My Courses', '追蹤學習進度'], linebot: ['Line Bot', '即時問答 · 秒回片段'], shorts: ['教學短片', '瀏覽 FocusFlow 頻道影片'], profile: ['個人資料', '管理帳號資訊'] },
+  teacher: { home: ['Dashboard', '管理課程與影片'], courses: ['Course Videos', '已上傳影片清單'], upload: ['Upload Video', '影片上傳後自動建立 AI 索引'], profile: ['個人資料', '管理帳號資訊'] },
+  admin:   { home: ['System Overview', '監控整體系統運作'], users: ['User Management', '學生 / 教師帳號'], courses: ['Course Management', '課程新增 / 編輯 / 刪除'], videos: ['Video Library', '全系統影片管理'], stats: ['Statistics', 'usage_logs 統計'], profile: ['個人資料', '管理帳號資訊'] },
 };

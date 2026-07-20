@@ -300,7 +300,7 @@
   - `.env.example`：補 `YOUTUBE_OAUTH_CLIENT_ID` / `YOUTUBE_OAUTH_CLIENT_SECRET` / `YOUTUBE_OAUTH_REFRESH_TOKEN` / `YOUTUBE_UPLOAD_PRIVACY_STATUS` 等設定
   - 測試：`youtube-upload.service.test.js`、`course-video.routes.test.js` auto-upload branch；2026-07-10 `npm.cmd test` 103/103
 - **仍需**：
-  - 專案負責人提供 FocusFlow Google 帳號 OAuth refresh token 後做一次真實 upload smoke
+  - ~~專案負責人提供 FocusFlow Google 帳號 OAuth refresh token~~（2026-07-20 已取得，流程見 [youtube-upload-setup.md](./youtube-upload-setup.md)）→ 做一次真實 upload smoke；注意 OAuth 同意畫面 Testing 狀態 refresh token 7 天過期，長期使用需發布應用程式後換新 token
   - playlist / Shorts 發布策略定版
   - 本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開
 

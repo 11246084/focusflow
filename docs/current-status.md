@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
+最後更新：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -43,7 +43,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - courses CRUD（含 PATCH/DELETE）、videos CRUD、processing 狀態流程
 - 影片上傳後自動 spawn STT pipeline（`video.service.js`），pipeline 透過 `/api/v1/internal/videos/:id/processing/{start,complete,fail}` 回報狀態
 - YouTube URL MVP：`POST /courses/:courseId/videos/youtube` 可貼 YouTube URL 建立影片；STT 用 `yt-dlp` 下載音訊；學生端用 YouTube IFrame API 播放並支援 QA timestamp 跳轉；LINE Bot 可回傳 YouTube timestamp link。2026-07-12 起教師上傳頁收斂為單一軌道（本地檔案），URL 入口從 UI 移除、API 保留
-- YouTube auto-upload adapter：`YOUTUBE_UPLOAD_ENABLED=true` 時，本機影片可由 backend 用 FocusFlow OAuth refresh token 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId/videoUrl`；舊版 `YOUTUBE_AUTO_UPLOAD_ENABLED` / `YOUTUBE_OAUTH_*` 名稱仍相容；仍需真實 OAuth 憑證 smoke
+- YouTube auto-upload adapter：`YOUTUBE_UPLOAD_ENABLED=true` 時，本機影片可由 backend 用 FocusFlow OAuth refresh token 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId/videoUrl`；舊版 `YOUTUBE_AUTO_UPLOAD_ENABLED` / `YOUTUBE_OAUTH_*` 名稱仍相容；2026-07-20 OAuth 憑證已取得（設定流程見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)），仍需 live upload smoke
 - Shorts 修課過濾與同步（backend 已完成，frontend 待另案）：`GET /api/v1/youtube/shorts` 現需 JWT 且只允許 student，僅回 Enrollment ∩ published Course ∩ published/playable ShortAsset，採 `publishedAt + _id` opaque cursor；Course hard delete 會保存並封存 ShortAsset，YouTube `videos.list` metadata sync 具 retry/backoff 與 health 診斷。現有學生 9:16 卡片牆仍需依 `backend/docs/handoff-shorts-frontend-plan.md` 改用 authenticated `apiFetch`，本輪未修改 `frontend/`
 - `/api/v1/qa/ask`：answer、matches、時間資訊、runtime 訊號
 - `/api/v1/qa/ask` Phase 2 contract：新增 `citations[]`（source video、timestamp、jump URL、match confidence、transcript snippet）與 `answerStatus`（answered/no_answer、confidence、noAnswerReason），`matches[]` 保留為 legacy/debug 相容欄位
@@ -124,7 +124,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 下一步優先順序
 
 1. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook
-2. YouTube auto-upload 真實 OAuth smoke
+2. YouTube auto-upload 真實 OAuth smoke（2026-07-20 憑證已備妥，照 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md) D 段執行；注意 Testing 狀態 refresh token 7 天過期）
 3. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
 4. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
 

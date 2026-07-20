@@ -117,6 +117,10 @@ class FakePipelineConfig:
         self.active_output_dir = self.output_dir
         self.backend_url = ""
         self.processing_webhook_secret = None
+        self.chunk_max_chars = 220
+        self.chunk_max_duration_sec = 45.0
+        self.chunk_max_segments = 6
+        self.chunk_overlap_segments = 0
 
     def with_overrides(self, **overrides):
         for name, value in overrides.items():

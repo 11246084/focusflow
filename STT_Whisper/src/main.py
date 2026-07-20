@@ -12,6 +12,7 @@ import wave
 from pathlib import Path
 from typing import Callable, TypeVar
 
+from chunk_strategy import build_chunk_config_fingerprint, build_chunk_config_snapshot
 from chunking import build_chunks
 from config import PipelineConfig
 from embedding import embed_audio_tracks, embed_chunks
@@ -613,6 +614,8 @@ def main() -> int:
         return 2
 
     runs_dir = config.project_root / "data" / "outputs" / "runs"
+    chunk_config = build_chunk_config_snapshot(config)
+    chunk_config_fingerprint = build_chunk_config_fingerprint(chunk_config)
     resume_plan: ResumePlan | None = None
     try:
         if args.resume_run_id:
@@ -620,9 +623,19 @@ def main() -> int:
             job_manager = load_manifest(runs_dir, args.resume_run_id)
             config = bind_run_output(config, job_manager)
             logger.info("Loaded manifest: %s", job_manager.manifest_path)
-            resume_plan = build_resume_plan(job_manager, config.project_root)
+            resume_plan = build_resume_plan(
+                job_manager,
+                config.project_root,
+                chunk_config,
+                chunk_config_fingerprint,
+            )
+            job_manager.set_chunk_config(chunk_config, chunk_config_fingerprint)
         else:
-            job_manager = create_manifest(runs_dir)
+            job_manager = create_manifest(
+                runs_dir,
+                chunk_config=chunk_config,
+                chunk_config_fingerprint=chunk_config_fingerprint,
+            )
             config = bind_run_output(config, job_manager)
     except Exception as exc:
         logger.error("Unable to initialize pipeline run: %s", exc)
@@ -749,6 +762,8 @@ def main() -> int:
             job_manager.run_id,
             "completed",
             job_manager.manifest["created_at"],
+            chunk_config=chunk_config,
+            chunk_config_fingerprint=chunk_config_fingerprint,
         )
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
@@ -792,6 +807,8 @@ def main() -> int:
             "failed",
             job_manager.manifest["created_at"],
             exc,
+            chunk_config=chunk_config,
+            chunk_config_fingerprint=chunk_config_fingerprint,
         )
         return 1
 

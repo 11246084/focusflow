@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from chunk_strategy import (
+    build_chunk_config_fingerprint,
+    is_legacy_compatible_chunk_config,
+)
 from job_manager import STAGE_NAMES, JobManager
 from run_summary import OUTPUT_FILES
 from utils import (
@@ -175,6 +179,36 @@ def _validate_upload_summary(run_output_dir: Path) -> None:
     logger.info("Loaded checkpoint: %s", path)
 
 
+def _validate_chunk_config_fingerprint(
+    manifest: dict[str, Any],
+    current_chunk_config: dict[str, Any],
+    current_chunk_config_fingerprint: str,
+) -> None:
+    """Reject Chunk checkpoints produced with different or corrupt settings."""
+    stored_fingerprint = manifest.get("chunk_config_fingerprint")
+    stored_config = manifest.get("chunk_config")
+
+    if stored_fingerprint is None:
+        if is_legacy_compatible_chunk_config(current_chunk_config):
+            return
+        raise CheckpointError(
+            "legacy manifest has no chunk fingerprint and current Chunk config is not legacy-compatible"
+        )
+
+    if not isinstance(stored_fingerprint, str) or len(stored_fingerprint) != 64:
+        raise CheckpointError("manifest chunk_config_fingerprint is invalid")
+    try:
+        int(stored_fingerprint, 16)
+    except ValueError as exc:
+        raise CheckpointError("manifest chunk_config_fingerprint is invalid") from exc
+    if not isinstance(stored_config, dict):
+        raise CheckpointError("manifest chunk_config is missing or invalid")
+    if build_chunk_config_fingerprint(stored_config) != stored_fingerprint:
+        raise CheckpointError("manifest Chunk config fingerprint does not match its snapshot")
+    if stored_fingerprint != current_chunk_config_fingerprint:
+        raise CheckpointError("Chunk config fingerprint differs from the current runtime")
+
+
 def _stage_statuses(job_manager: JobManager, stage_name: str) -> list[str]:
     return [
         str(video.get("stages", {}).get(stage_name, {}).get("status", "pending"))
@@ -223,7 +257,12 @@ def _checkpoint_for_stage(
         raise CheckpointError(f"unknown stage: {stage_name}")
 
 
-def build_resume_plan(job_manager: JobManager, project_root: Path) -> ResumePlan:
+def build_resume_plan(
+    job_manager: JobManager,
+    project_root: Path,
+    current_chunk_config: dict[str, Any],
+    current_chunk_config_fingerprint: str,
+) -> ResumePlan:
     """Find the first stage that cannot be safely skipped and load prior checkpoints."""
     plan = ResumePlan(
         run_id=job_manager.run_id,
@@ -235,6 +274,12 @@ def build_resume_plan(job_manager: JobManager, project_root: Path) -> ResumePlan
         statuses = _stage_statuses(job_manager, stage_name)
         if _all_completed_or_skipped(statuses):
             try:
+                if stage_name == "chunk":
+                    _validate_chunk_config_fingerprint(
+                        job_manager.manifest,
+                        current_chunk_config,
+                        current_chunk_config_fingerprint,
+                    )
                 _checkpoint_for_stage(
                     stage_name,
                     plan,

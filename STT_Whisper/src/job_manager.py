@@ -51,7 +51,13 @@ class JobManager:
         self.manifest = manifest
 
     @classmethod
-    def create_manifest(cls, runs_dir: Path, run_id: str | None = None) -> "JobManager":
+    def create_manifest(
+        cls,
+        runs_dir: Path,
+        run_id: str | None = None,
+        chunk_config: dict[str, Any] | None = None,
+        chunk_config_fingerprint: str | None = None,
+    ) -> "JobManager":
         """Create and persist a new manifest under runs/<run_id>/manifest.json."""
         runs_dir = runs_dir.resolve()
         runs_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +79,10 @@ class JobManager:
             "error": None,
             "videos": [],
         }
+        if chunk_config is not None:
+            manifest["chunk_config"] = dict(chunk_config)
+        if chunk_config_fingerprint is not None:
+            manifest["chunk_config_fingerprint"] = chunk_config_fingerprint
         manager = cls(runs_dir / resolved_run_id / "manifest.json", manifest)
         manager._persist()
         return manager
@@ -177,6 +187,21 @@ class JobManager:
         self.manifest.update(status="failed", error=str(error))
         self._persist()
 
+    def set_chunk_config(
+        self,
+        chunk_config: dict[str, Any],
+        chunk_config_fingerprint: str,
+    ) -> None:
+        """Persist the Chunk settings used by a new or resumed run."""
+        if (
+            self.manifest.get("chunk_config") == chunk_config
+            and self.manifest.get("chunk_config_fingerprint") == chunk_config_fingerprint
+        ):
+            return
+        self.manifest["chunk_config"] = dict(chunk_config)
+        self.manifest["chunk_config_fingerprint"] = chunk_config_fingerprint
+        self._persist()
+
     def reset_stages_from(self, stage_name: str) -> None:
         """Mark one stage and all later stages pending before a linear resume rerun."""
         if stage_name not in STAGE_NAMES:
@@ -254,9 +279,19 @@ class JobManager:
             raise
 
 
-def create_manifest(runs_dir: Path, run_id: str | None = None) -> JobManager:
+def create_manifest(
+    runs_dir: Path,
+    run_id: str | None = None,
+    chunk_config: dict[str, Any] | None = None,
+    chunk_config_fingerprint: str | None = None,
+) -> JobManager:
     """Convenience factory matching the pipeline-facing API."""
-    return JobManager.create_manifest(runs_dir, run_id)
+    return JobManager.create_manifest(
+        runs_dir,
+        run_id,
+        chunk_config,
+        chunk_config_fingerprint,
+    )
 
 
 def load_manifest(runs_dir: Path, run_id: str) -> JobManager:

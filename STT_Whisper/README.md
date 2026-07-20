@@ -714,3 +714,33 @@ Resume 相容規則不變：只有 `upload_summary.json` 可解析且 `status=co
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 git diff --check
 ```
+
+## Phase 2 - Chunk Strategy Optimization Sprint 1
+
+本 Sprint 新增 adaptive Segment-based Chunk Overlap。既有 `CHUNK_MAX_CHARS`、`CHUNK_MAX_SEGMENTS`、`CHUNK_MAX_DURATION_SEC` 仍共同決定 Chunk 邊界；不是固定 Sliding Window，也不切割單一 Whisper segment。
+
+```env
+CHUNK_OVERLAP_SEGMENTS=0
+```
+
+- 允許值：`0`、`1`、`2`，且必須小於 `CHUNK_MAX_SEGMENTS`。
+- 預設 `0`：輸出與舊版無 overlap 行為一致。
+- 設為 `1` 或 `2`：新 Chunk 最多帶入前一 Chunk 最後 N 個完整 segments。
+- carry-over 仍計入字數、segment count 與時間限制；若新 segment 無法加入，會由 `2 -> 1 -> 0` 自動縮減。
+- 每個新 Chunk 至少包含一個尚未處理的新 segment，不會產生只含 overlap 的尾 Chunk。
+- `start_sec` 取 Chunk 第一個 segment，`end_sec` 取最後一個 segment；`chunk_id` 與 `chunks.jsonl` 欄位不變。
+
+新 run 的 `manifest.json` 與 `run_summary.json` 會保存 `chunk_config` 與 SHA-256 `chunk_config_fingerprint`。Resume 只有在 fingerprint 相同時才能沿用 Chunk checkpoint。舊 manifest 沒有 fingerprint 時，只有 `220 chars / 45 sec / 6 segments / overlap=0` 可視為 legacy-compatible；其他設定會從 `chunk` 起重跑所有後續 stages。
+
+離線測試與 A/B：
+
+```powershell
+cd STT_Whisper
+.\.venv\Scripts\python.exe -m unittest tests.test_chunking -v
+.\.venv\Scripts\python.exe -m unittest tests.test_resume_checkpoint -v
+.\.venv\Scripts\python.exe tools\chunk_ab_test.py
+```
+
+A/B 工具只使用固定假 Transcript 與 character n-gram，不寫入正式 outputs、不呼叫 Gemini/Whisper、不連 MongoDB，也不需要 Docker。
+
+本 Sprint **尚未 rollout 共享 MongoDB Atlas**。同一影片用不同 Chunk Strategy 重跑時，現有 `<video_id>_chunk_<序號>` 可能覆寫相同序號，而 uploader 不會自動清除 stale Chunk。正式 rollout 前仍需資料庫負責人定版 replace-by-video 或 stale chunk cleanup 規則。

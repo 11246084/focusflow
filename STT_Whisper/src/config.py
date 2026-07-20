@@ -8,6 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from chunk_strategy import validate_chunk_settings
 from utils import ensure_directory
 
 
@@ -73,6 +74,8 @@ class PipelineConfig:
     chunk_max_segments: int
     # 塊最大持續時間（秒）
     chunk_max_duration_sec: float
+    # 相鄰塊最多共用的完整 Whisper segment 數
+    chunk_overlap_segments: int
     # 模糊匹配閾值
     fuzzy_threshold: int
     # Gemini 嵌入是否啟用
@@ -186,6 +189,14 @@ class PipelineConfig:
             "data/outputs/embeddings_video_gemini.jsonl",
         )
 
+        raw_chunk_overlap_segments = os.getenv("CHUNK_OVERLAP_SEGMENTS", "0")
+        try:
+            chunk_overlap_segments = int(raw_chunk_overlap_segments)
+        except ValueError as exc:
+            raise ValueError(
+                "CHUNK_OVERLAP_SEGMENTS must be an integer: 0, 1, or 2."
+            ) from exc
+
         # 使用收集的路徑創建 PipelineConfig 實例
         config = cls(
             project_root=resolved_root,
@@ -232,6 +243,8 @@ class PipelineConfig:
             chunk_max_segments=int(os.getenv("CHUNK_MAX_SEGMENTS", "6")),
             # 塊最大持續時間，默認 45.0，轉換為浮點數
             chunk_max_duration_sec=float(os.getenv("CHUNK_MAX_DURATION_SEC", "45")),
+            # 相鄰塊完整 segment 重疊數，預設 0 以維持舊行為
+            chunk_overlap_segments=chunk_overlap_segments,
             # 模糊匹配閾值，默認 85，轉換為整數
             fuzzy_threshold=int(os.getenv("FUZZY_THRESHOLD", "85")),
             # Gemini 嵌入是否啟用，默認 false，轉換為布爾值
@@ -302,6 +315,7 @@ class PipelineConfig:
             youtube_url=None,
         )
 
+        config.validate()
         # 提前創建運行時目錄，以保持下游模塊簡單
         config.ensure_runtime_directories()
         # 返回配置對象
@@ -341,10 +355,18 @@ class PipelineConfig:
         # 確保視頻嵌入輸出路徑的父目錄存在
         ensure_directory(self.video_embeddings_output_path.parent)
 
+    def validate(self) -> None:
+        """Validate settings whose combinations affect pipeline correctness."""
+        validate_chunk_settings(
+            max_segments=self.chunk_max_segments,
+            overlap_segments=self.chunk_overlap_segments,
+        )
+
     def with_overrides(self, **overrides: object) -> "PipelineConfig":
         """Create a modified config copy for CLI overrides."""
         # 使用 dataclass replace 創建修改後的配置副本，保持覆蓋流程可讀和明確
         updated_config = replace(self, **overrides)
+        updated_config.validate()
         # 確保更新後的配置也有運行時目錄
         updated_config.ensure_runtime_directories()
         # 返回更新後的配置

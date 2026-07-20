@@ -100,6 +100,8 @@ def write_run_summary(
     status: str,
     created_at: str,
     error: Exception | str | None = None,
+    chunk_config: dict[str, Any] | None = None,
+    chunk_config_fingerprint: str | None = None,
 ) -> Path:
     """Write a final summary for either a completed or failed run."""
     output_path = run_output_dir / "run_summary.json"
@@ -112,5 +114,10 @@ def write_run_summary(
         "counts": collect_output_counts(run_output_dir),
         "error": str(error) if error is not None else None,
     }
+    if chunk_config is not None:
+        payload["chunk_config"] = dict(chunk_config)
+        payload["chunk_overlap_segments"] = chunk_config.get("overlap_segments")
+    if chunk_config_fingerprint is not None:
+        payload["chunk_config_fingerprint"] = chunk_config_fingerprint
     write_json_file(output_path, payload, backup_existing=False)
     return output_path

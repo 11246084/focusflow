@@ -279,15 +279,24 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
 
 const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'];
 
+// 命中片段預設顯示筆數。backend 回傳筆數由 QA_MATCH_LIMIT 決定（2026-07-25 起為 15），
+// 全列會洗掉整個問答面板，因此預設只列前幾筆、可展開。
+// 展開能力是必要的：答案結尾的「依據」可能引用超過這個數量的片段，
+// 學生要能點到每一個被引用的時間戳。
+const SEGMENT_PREVIEW_COUNT = 3;
+
 function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [result, setResult]     = useState(null);
   const [error, setError]       = useState('');
+  // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
+  // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
+  const [showAllSegments, setShowAllSegments] = useState(false);
 
   async function ask() {
     if (!question.trim()) return;
-    setLoading(true); setError(''); setResult(null);
+    setLoading(true); setError(''); setResult(null); setShowAllSegments(false);
     try {
       const res = await apiFetch('/qa/ask', {
         method: 'POST',
@@ -326,9 +335,17 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           {(result.matches || result.segments || []).length > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
               命中片段
+              {(result.segments || result.matches || []).length > SEGMENT_PREVIEW_COUNT && (
+                <span style={{ fontWeight: 400, letterSpacing: 0 }}>
+                  {' '}（共 {(result.segments || result.matches || []).length} 筆）
+                </span>
+              )}
             </div>
           )}
-          {(result.segments || result.matches || []).slice(0, 3).map((seg, i) => {
+          {(showAllSegments
+            ? (result.segments || result.matches || [])
+            : (result.segments || result.matches || []).slice(0, SEGMENT_PREVIEW_COUNT)
+          ).map((seg, i) => {
             const start = seg.startSec ?? seg.start_sec ?? 0;
             const end = seg.endSec ?? seg.end_sec ?? start;
             const text  = seg.transcript || seg.text || seg.content || '';
@@ -364,6 +381,27 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
               </div>
             );
           })}
+          {(result.segments || result.matches || []).length > SEGMENT_PREVIEW_COUNT && (
+            <button
+              type="button"
+              onClick={() => setShowAllSegments((prev) => !prev)}
+              style={{
+                marginTop: 2,
+                padding: '6px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#F14F21',
+                background: 'transparent',
+                border: '1px solid rgba(241,79,33,0.32)',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
+            >
+              {showAllSegments
+                ? '收合'
+                : `顯示全部 ${(result.segments || result.matches || []).length} 筆`}
+            </button>
+          )}
         </div>
       )}
     </div>

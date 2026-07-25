@@ -1,6 +1,8 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
+最後更新：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正 QA 答不出跨片段問題；FAQ 快取語意命中 3133ms→1240ms；FAQ 快取失效缺口盤點，詳見 [backend/docs/current-state.md](../backend/docs/current-state.md)）
+
+前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 

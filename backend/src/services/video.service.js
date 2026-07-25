@@ -446,6 +446,9 @@ async function attachVideoToCourse({ courseId, videoId, user }) {
   }
 
   await Course.findByIdAndUpdate(courseId, { $addToSet: { videoIds: video._id } });
+  // 課程的 QA scope 多了一支影片，既有快取答案是舊範圍算出來的，清掉讓下次提問重建。
+  // 必須在 $addToSet 之後呼叫，clearFaqsForVideoCourses 是靠 Course.videoIds 反查課程的。
+  await clearFaqsForVideoCourses(video);
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), { courseId });
 }
@@ -476,6 +479,9 @@ async function detachVideoFromCourse({ courseId, videoId, user }) {
     throw new AppError('Video is not attached to this course.', 404, 'VIDEO_NOT_FOUND');
   }
 
+  // 快取答案可能引用這支影片的片段，移除後那些跳轉對本課程學生已不成立。
+  // 必須在 $pull 之前呼叫，否則引用一被移除就反查不到這門課（與 deleteVideo 同一個順序理由）。
+  await clearFaqsForVideoCourses(video);
   await Course.findByIdAndUpdate(courseId, { $pull: { videoIds: video._id } });
 }
 

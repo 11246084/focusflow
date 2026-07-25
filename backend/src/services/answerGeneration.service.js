@@ -1,6 +1,32 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
 
+// prompt 要求模型「答不出來」時原句回覆的兩個字串。
+// 這裡集中定義並直接插進 prompt，避免 prompt 文案與 isNoAnswerReply() 的比對字串走鐘。
+const NO_ANSWER_INSUFFICIENT = '目前資料庫片段不足以回答這個問題。';
+const NO_ANSWER_UNDETERMINED = '無法從提供的影片片段判斷。';
+
+// 正規化後比對：模型偶爾會多包引號或改動結尾標點，這些都算同一句「答不出來」。
+function normalizeReply(text) {
+  return String(text || '')
+    .trim()
+    .replace(/^[「『"']+|[」』"']+$/g, '')
+    .replace(/[。.!！\s]+$/g, '')
+    .trim();
+}
+
+// 給 FAQ 快取用：「答不出來」的回覆不該被快取，否則問題修好後仍會永久回舊答案。
+function isNoAnswerReply(text) {
+  const normalized = normalizeReply(text);
+
+  if (!normalized) {
+    return false;
+  }
+
+  return [NO_ANSWER_INSUFFICIENT, NO_ANSWER_UNDETERMINED]
+    .some((canned) => normalized === normalizeReply(canned));
+}
+
 function buildTemplateAnswer(question, matches) {
   const [topMatch] = matches;
 
@@ -44,7 +70,7 @@ function buildPrompt(question, matches) {
     '2. 綜合所有相關片段整理答案，不可只摘錄或改寫第一筆。',
     '3. 不可以使用外部知識、常識、推測，或補充影片片段未提及的資訊。',
     '4. transcript 可能有 STT 專有名詞誤寫；只允許把命中片段中的相近專有名詞對齊到使用者問題中的名詞。',
-    '5. 如果片段沒有直接支持答案，請明確回答：「無法從提供的影片片段判斷。」',
+    `5. 如果片段沒有直接支持答案，請明確回答：「${NO_ANSWER_UNDETERMINED}」`,
     '6. 自然整理重點，不要直接貼上逐字稿，也不要替其他 transcript 詞語加括號解釋或補註。',
     '7. 回答最後用括號標出依據影片與時間，例如「依據：video_001.mp4 12-20s」。',
   ].join('\n');
@@ -158,7 +184,7 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
               'Do not use outside knowledge, prior knowledge, assumptions, or general explanations.',
               'Transcript snippets may contain speech-to-text mistakes in proper nouns. You may align a matched proper noun to the term in the user question only when it is clearly the same term.',
               'Do not add parenthetical explanations, corrections, or interpretations for any other transcript words.',
-              'If the snippets do not explicitly support the answer, reply exactly in Traditional Chinese: 目前資料庫片段不足以回答這個問題。',
+              `If the snippets do not explicitly support the answer, reply exactly in Traditional Chinese: ${NO_ANSWER_INSUFFICIENT}`,
               'When answering, keep it concise and include the supporting video title and snippet time range.',
             ].join(' '),
           },
@@ -264,4 +290,7 @@ module.exports = {
   generateAnswer,
   buildTemplateAnswer,
   buildAnswerResult,
+  isNoAnswerReply,
+  NO_ANSWER_INSUFFICIENT,
+  NO_ANSWER_UNDETERMINED,
 };

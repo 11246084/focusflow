@@ -1,8 +1,10 @@
 # Backend 目前狀態
 
-最後更新：2026-07-20（YouTube 自動上傳 OAuth 憑證取得＋設定指南 `youtube-upload-setup.md`；live upload smoke 待執行）
+最後更新：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正跨片段歸納答不出來；FAQ 快取語意命中路徑順序優化 3133ms→1240ms；FAQ 快取失效缺口盤點）
 
-前一輪：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
+前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得＋設定指南 `youtube-upload-setup.md`；live upload smoke 待執行）
+
+再前一輪：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
 
 ## 文件角色
 
@@ -49,6 +51,9 @@
 - 本地影片自動上傳 YouTube（2026-07-12，feature flag 預設關閉、**未經 live 憑證端對端驗證**）：`youtubeUpload.service.js` 以 OAuth2 refresh token 換 access token 後走 YouTube Data API v3 resumable upload；`createCourseVideo`（本地檔案路徑）在 spawn STT 後 fire-and-forget 觸發，成功回寫 `youtubeVideoId` + `videoUrl`（前端播放器自動改用 YouTube iframe），狀態記錄在 `videos.youtubeUpload {status: uploading|uploaded|failed, error, uploadedAt}`。需 `YOUTUBE_UPLOAD_ENABLED=true` + `YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN`（scope `youtube.upload`）四項齊備，缺任一項靜默略過，失敗不影響本地播放與 STT pipeline
 - QA 拒答（2026-05-07）：`scopedVideos.videos` 為空時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
 - 後端查詢平行化（2026-05-07）：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`（學生端 1.6–2.4s → ~0.8–1s）；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`（51 segments hydration 8.8s → ~1s）。API 回應格式 / 答案品質 100% 不變
+- `QA_MATCH_LIMIT` 3 → 15（2026-07-25）：`5df3148` 把 answer prompt 改成「綜合所有相關片段」，但片段數上限自最初 MVP commit `e69580b` 起一直是 `3`，導致整門課只有約 166 字進 prompt（實測課程逐字稿總量約 6,700 字，佔 2.5%），跨片段歸納型問題（例如「這門課在講什麼」）一律回「目前資料庫片段不足以回答這個問題。」。調成 `15` 後可正確產出跨 4 支影片、6 個片段的整理答案並標註依據時間。`.env.example` 同步更新；**已存在的 FAQ 快取不會因此失效，需手動 `DELETE /api/v1/courses/:courseId/faqs`**
+- FAQ 快取語意命中路徑順序優化（2026-07-25）：`askQuestion` 原本「載入片段 → 算 embedding → 查快取第二層」串行，語意命中時前面那次片段載入（實測約 1,800ms）完全白做。改為先啟動 `loadScopedSearchableSegments` 的 promise 不 await → 算 embedding → 查快取 → 命中直接回應，只有 miss 才 await（附 no-op catch 避免提早 return 造成 unhandled rejection）。實測語意命中 3,133ms → 1,240ms，完整 miss 也因兩段重疊快約 900ms。API 回應格式不變。副作用：對「完全沒有已索引片段」的課程會多付一次 embedding 呼叫才回錯誤訊息；語意命中時不再執行 no-searchable-segments 檢查
+- FAQ 快取失效缺口修補（2026-07-25）：(1) 「答不出來」的回覆不再入快取 —— `answerGeneration.service.js` 新增 `isNoAnswerReply()` 與 `NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED` 兩個常數（常數直接插進 system instruction 與 `buildPrompt` 規則 5，避免 prompt 文案與比對字串走鐘），`qa.service.js` 的 `shouldSaveFaq` 加上這個條件。先前這類回覆因 `runtime.degraded=false` 被當成正常答案快取，導致資料補齊或設定調好後仍永久回舊答案。(2) `attachVideoToCourse`（`$addToSet` 之後呼叫）與 `detachVideoFromCourse`（`$pull` 之前呼叫，與 `deleteVideo` 同一個反查順序理由）補上 `clearFaqsForVideoCourses`。新增 6 條 `isNoAnswerReply` 單元測試
 - QA 診斷 log（2026-05-07）：新增 `[qa-timing]` 7 段 mark（`course-lookup` / `access+videos` / `build-segment-scope` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉；`NODE_ENV=test` 自動靜音
 - 錯誤碼 `INVALID_ENCODING` (400)：`utils/textEncoding.js` + `qa.controller.js` 偵測客戶端送出壞 utf-8 body 時拒收；學生 dashboard 舊壞編碼 fallback 顯示「(編碼異常)」
 - AI prompt / 標題防 ObjectId 洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`qa.service.js getVideoPresentationTitle` 偵測 ObjectId 後改顯示 `YouTube: <id>`
@@ -71,7 +76,9 @@
 
 目前 QA bridge contract：
 
-`course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId`
+`course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId`
+
+`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` 三種 key 全部放進 allowed set，命中任一即納入 scope。實務上 **app-owned 影片沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`；只有 pipeline metadata 影片才有 `videoId` / `video_id`。因此手動查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到（2026-07-25 排查實測）。
 
 ## 資料庫實況（共享 Atlas, MCP 驗證）
 

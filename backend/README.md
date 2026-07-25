@@ -115,9 +115,11 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 
 ### 目前最小 bridge contract
 
-`course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId`
+`course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId`
 
-`bridgeScope.service.js` 仍保留 legacy `videos.video_id` 讀取相容，但新資料應使用 `videoId` camelCase。
+`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` 三種 key 全部放進 allowed set，命中任一即納入 scope（`video_id` 是 legacy 相容讀取）。
+
+實務分佈（2026-07-25 實查）：**app-owned 影片沒有 `videoId` 欄位**，pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`；只有 pipeline metadata 影片才帶 `videoId` / `video_id`。手動查 collection 時要用 `String(videos._id)` 對 `video_segments_text.videoId`，用 `videos.videoId` 會全部對不到。
 
 ### `/api/v1/qa/ask` 現在的可觀測欄位
 

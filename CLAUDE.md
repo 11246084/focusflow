@@ -138,7 +138,8 @@ QA_VECTOR_SEARCH_MODE=atlas
 QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
 QA_ATLAS_FILTER_MODE=bridge_course_or_video
 QA_ANSWER_PROVIDER=gemini
-GEMINI_CHAT_MODEL=gemini-2.5-flash
+GEMINI_CHAT_MODEL=gemini-3.5-flash
+QA_MATCH_LIMIT=15
 DEMO_SEED_ENABLED=false
 ```
 
@@ -155,6 +156,7 @@ QA_VECTOR_SEARCH_MODE=memory
 
 - `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
 - `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
+- `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
 - `/health` 是判斷 `runtime.qa`、`runtime.line` 是否 ready 的入口，不要只看 `.env` 推測狀態。
 
 ## QA / Video / LINE 邊界
@@ -173,6 +175,12 @@ QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、
 
 `askQuestion` 內建兩層 FAQ 快取（`faqs` collection + `faqCache.service.js`，API 與 LINE 共用）：正規化文字完全相同直接命中（零 token）；否則以 query embedding 對課程 FAQ 比 cosine 相似度 ≥ `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）命中，跳過向量搜尋與 LLM。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除會自動清該課程快取。修改 QA 回應格式時，快取命中路徑（`respondFromFaqCache`）需同步；測試要走非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
 
+自動失效時機（`faqs` 無 TTL，只有事件驅動失效）：影片刪除、影片重新處理完成、課程刪除、影片掛載到課程（`attachVideoToCourse`）、影片自課程移除（`detachVideoFromCourse`）。另有容量淘汰：單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時砍 `hitCount` 最低的。
+
+「答不出來」的回覆不會被快取（2026-07-25 起）：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`，同一份常數直接插進 prompt 避免走鐘），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
+
+**尚存缺口：設定 / 模型 / prompt 變更不會讓快取失效**。改 `QA_MATCH_LIMIT`、`GEMINI_CHAT_MODEL` 或 prompt 規則後，舊快取仍回舊答案，必須手動 `DELETE /api/v1/courses/:courseId/faqs`。
+
 ### Video Model
 
 `videos` collection 是 mixed collection：
@@ -183,8 +191,15 @@ QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、
 QA bridge contract：
 
 ```text
-course.videoIds -> videos._id -> videos.videoId -> video_segments_text.videoId
+course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId
 ```
+
+`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` **三種 key 全部**放進 allowed set，命中任一即納入 scope。實務分佈：
+
+- App-owned 影片**沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`
+- 只有 pipeline metadata 影片才有 `videoId` / `video_id`
+
+所以查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到（2026-07-25 排查時踩過）。要用 `String(videos._id)`。
 
 不要誤稱 `video_segments_video` 已成為正式 clip source；它目前仍是預留 / legacy 邊界，且欄位仍偏 snake_case。
 

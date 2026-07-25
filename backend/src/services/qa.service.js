@@ -8,7 +8,7 @@ const env = require('../config/env');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
-const { generateAnswer } = require('./answerGeneration.service');
+const { generateAnswer, isNoAnswerReply } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
 const { assertQaQuotaAvailable } = require('./costControl.service');
 const { recordQuestion } = require('./questionRecording.service');
@@ -895,7 +895,41 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
   tMark = qaTimingMark('build-segment-scope', tMark);
 
-  const scopedSegments = await loadScopedSearchableSegments(segmentScope);
+  // 投機性啟動：片段載入與 query embedding 互不依賴，先讓 DB 查詢跑起來，
+  // 之後第二層 FAQ 快取命中時直接 return，不 await 這個 promise，
+  // 讓載入耗時不計入回應延遲（原本順序會白等一次完整載入）。
+  const scopedSegmentsPromise = loadScopedSearchableSegments(segmentScope);
+  // 命中提早 return 時沒人 await 這個 promise，補 no-op catch 避免 unhandled rejection；
+  // miss 路徑仍 await 原 promise，載入失敗照樣往外拋。
+  scopedSegmentsPromise.catch(() => {});
+
+  const queryVector = await embedQuery(trimmedQuestion);
+  tMark = qaTimingMark('embed', tMark);
+
+  // FAQ 快取第二層：embedding 已算好，先跟課程 FAQ 比 cosine 相似度，
+  // 命中即跳過向量搜尋與 LLM 生成（miss 時 embedding 直接沿用，無額外成本）
+  if (faqCacheEnabled) {
+    const semanticHit = await findFaqBySimilarEmbedding({ courseId: course._id, queryVector });
+    tMark = qaTimingMark('faq-semantic-lookup', tMark);
+
+    if (semanticHit) {
+      const cachedResult = await respondFromFaqCache({
+        user,
+        course,
+        courseSummary,
+        runtimeSnapshot,
+        faq: semanticHit.faq,
+        matchType: 'semantic',
+        similarity: semanticHit.similarity,
+        source,
+        trimmedQuestion,
+      });
+      qaTimingMark('faq-cache-semantic-hit TOTAL', t0);
+      return cachedResult;
+    }
+  }
+
+  const scopedSegments = await scopedSegmentsPromise;
   tMark = qaTimingMark(`load-segments (${scopedSegments.length} segments)`, tMark);
 
   // 即使 segments 還在（孤兒片段），若 course 沒有任何 Video record 對應，
@@ -987,32 +1021,6 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
       clip: null,
       runtime,
     });
-  }
-
-  const queryVector = await embedQuery(trimmedQuestion);
-  tMark = qaTimingMark('embed', tMark);
-
-  // FAQ 快取第二層：embedding 已算好，先跟課程 FAQ 比 cosine 相似度，
-  // 命中即跳過向量搜尋與 LLM 生成（miss 時 embedding 直接沿用，無額外成本）
-  if (faqCacheEnabled) {
-    const semanticHit = await findFaqBySimilarEmbedding({ courseId: course._id, queryVector });
-    tMark = qaTimingMark('faq-semantic-lookup', tMark);
-
-    if (semanticHit) {
-      const cachedResult = await respondFromFaqCache({
-        user,
-        course,
-        courseSummary,
-        runtimeSnapshot,
-        faq: semanticHit.faq,
-        matchType: 'semantic',
-        similarity: semanticHit.similarity,
-        source,
-        trimmedQuestion,
-      });
-      qaTimingMark('faq-cache-semantic-hit TOTAL', t0);
-      return cachedResult;
-    }
   }
 
   const searchResult = scopedSegments.length
@@ -1173,10 +1181,13 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     },
   });
 
-  // 只快取「乾淨」的回答：runtime 完全 ready（無任何 retrieval / answer fallback），
-  // 且不帶對話歷史（帶歷史的回答可能依賴上下文，快取後對其他人不成立）
+  // 只快取「乾淨」的回答：runtime 完全 ready（無任何 retrieval / answer fallback）、
+  // 不帶對話歷史（帶歷史的回答可能依賴上下文，快取後對其他人不成立），
+  // 且不是「答不出來」的罐頭回覆 —— 那種回答不算 fallback（degraded=false），
+  // 但快取它只會讓「資料補齊 / 設定調好」之後仍永久回舊答案。
   const shouldSaveFaq = faqCacheEnabled
     && !runtime.degraded
+    && !isNoAnswerReply(answerResult.text)
     && !(Array.isArray(conversationHistory) && conversationHistory.length);
 
   // recordQuestion、clipLogPromise 與 FAQ 快取寫入平行收尾

@@ -1,7 +1,13 @@
 const assert = require('node:assert/strict');
 const { afterEach, describe, it } = require('node:test');
 const { env } = require('./helpers/backendTestHarness');
-const { buildTemplateAnswer, generateAnswer } = require('../src/services/answerGeneration.service');
+const {
+  buildTemplateAnswer,
+  generateAnswer,
+  isNoAnswerReply,
+  NO_ANSWER_INSUFFICIENT,
+  NO_ANSWER_UNDETERMINED,
+} = require('../src/services/answerGeneration.service');
 
 const originalFetch = global.fetch;
 const originalConsoleError = console.error;
@@ -41,6 +47,40 @@ afterEach(() => {
   env.qaAnswerProvider = 'template';
   env.geminiApiKey = '';
   env.geminiChatModel = 'gemini-3.5-flash';
+});
+
+describe('isNoAnswerReply', () => {
+  it('辨識「資料庫片段不足」的罐頭回覆', () => {
+    assert.equal(isNoAnswerReply(NO_ANSWER_INSUFFICIENT), true);
+  });
+
+  it('辨識「無法從提供的影片片段判斷」的罐頭回覆', () => {
+    assert.equal(isNoAnswerReply(NO_ANSWER_UNDETERMINED), true);
+  });
+
+  it('容許模型多包引號或改動結尾標點', () => {
+    assert.equal(isNoAnswerReply('「目前資料庫片段不足以回答這個問題」'), true);
+  });
+
+  it('不誤判正常答案', () => {
+    assert.equal(
+      isNoAnswerReply('這門課主要講授 AI 應用中的影像處理部分。（依據：第一講 4.53-32.22s）'),
+      false,
+    );
+  });
+
+  it('不誤判只是提到片段不足的長答案', () => {
+    assert.equal(
+      isNoAnswerReply('目前資料庫片段不足以回答這個問題，但根據第三講可以推測影像處理的流程。'),
+      false,
+    );
+  });
+
+  it('空值不算罐頭回覆', () => {
+    assert.equal(isNoAnswerReply(''), false);
+    assert.equal(isNoAnswerReply(null), false);
+    assert.equal(isNoAnswerReply(undefined), false);
+  });
 });
 
 describe('answer generation service', () => {

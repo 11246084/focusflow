@@ -8,6 +8,7 @@ const VideoSegment = require('../models/videoSegment.model');
 const Clip = require('../models/clip.model');
 const UsageLog = require('../models/usageLog.model');
 const LineBindToken = require('../models/lineBindToken.model');
+const Notification = require('../models/notification.model');
 const env = require('../config/env');
 const {
   USER_ROLES,
@@ -18,6 +19,7 @@ const {
 const { buildMockEmbedding, embedQuery } = require('./queryEmbedding.service');
 const { COURSE_BRIDGE_MODES } = require('./bridgeScope.service');
 
+// Stable IDs keep repeated demo seeding convergent and make walkthrough references reproducible.
 const DEMO_RECORD_IDS = {
   courses: {
     published: '680000000000000000000101',
@@ -184,16 +186,24 @@ async function seedDemoUsers({ silent = false } = {}) {
 function buildDemoResetSelectors(existingTargets) {
   const courseIds = existingTargets.courses.map((course) => String(course._id));
   const userIds = existingTargets.users.map((user) => String(user._id));
+  const videoIds = existingTargets.videos.map((video) => String(video._id));
 
   return {
     courseIds,
     userIds,
+    videoIds,
     lineBindTokenQuery: userIds.length
       ? { userId: { $in: userIds } }
       : null,
     usageLogQuery: [
       userIds.length ? { userId: { $in: userIds } } : null,
       courseIds.length ? { courseId: { $in: courseIds } } : null,
+    ].filter(Boolean),
+    notificationQuery: [
+      userIds.length ? { recipientId: { $in: userIds } } : null,
+      userIds.length ? { createdBy: { $in: userIds } } : null,
+      courseIds.length ? { courseIds: { $in: courseIds } } : null,
+      videoIds.length ? { videoId: { $in: videoIds } } : null,
     ].filter(Boolean),
   };
 }
@@ -214,6 +224,7 @@ async function collectExistingDemoTargets() {
 }
 
 async function resetDemoData({ silent = false } = {}) {
+  // Reset only records traceable to the demo baseline so unrelated developer data survives.
   const existingTargets = await collectExistingDemoTargets();
   const selectors = buildDemoResetSelectors(existingTargets);
 
@@ -223,6 +234,10 @@ async function resetDemoData({ silent = false } = {}) {
 
   if (selectors.usageLogQuery.length) {
     await UsageLog.deleteMany({ $or: selectors.usageLogQuery });
+  }
+
+  if (selectors.notificationQuery.length) {
+    await Notification.deleteMany({ $or: selectors.notificationQuery });
   }
 
   if (selectors.courseIds.length) {
@@ -270,6 +285,7 @@ function buildDemoVideoPayload({ courseId, uploadedBy, definition }) {
 }
 
 function buildPipelineStyleBridgeVideoPayload(definition) {
+  // Bridge videos intentionally carry pipeline metadata only, not app-owned course/upload fields.
   return {
     title: definition.title,
     videoId: definition.videoId,
@@ -436,6 +452,7 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
         ? await embedQuery(segment.transcript)
         : buildMockEmbedding(`${segment.transcript} ${index}`);
     } catch {
+      // Demo setup must remain usable offline even when the configured embedding provider is unavailable.
       embedding = buildMockEmbedding(`${segment.transcript} ${index}`);
     }
 

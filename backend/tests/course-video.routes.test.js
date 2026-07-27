@@ -1037,8 +1037,8 @@ describe('course and video routes', () => {
     assert.equal(completeResult.body.data.processing.status, 'completed');
     assert.ok(completeResult.body.data.processing.completedAt);
     assert.equal(store.videos.find((video) => video._id === ids.teacherVideo).durationSec, 123);
-    assert.equal(secondCompleteResult.status, 409);
-    assert.equal(secondCompleteResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+    assert.equal(secondCompleteResult.status, 200);
+    assert.equal(secondCompleteResult.body.data.processing.status, 'completed');
   });
 
   it('fails processing from queued or processing states and requires errorMessage', async () => {

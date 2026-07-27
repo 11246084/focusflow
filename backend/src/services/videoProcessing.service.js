@@ -4,6 +4,7 @@ const { assertObjectId } = require('../utils/objectId');
 const { VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
+const { fanoutVideoCompletedNotifications } = require('./notification.service');
 
 function createQueuedProcessingState(now = new Date()) {
   return {
@@ -76,6 +77,24 @@ async function updateVideoProcessing(videoId, update) {
   return video;
 }
 
+async function runCompletionSideEffects(video) {
+  // Attempt both repairs even if one fails, then surface every failure so the webhook can be retried safely.
+  const results = await Promise.allSettled([
+    clearFaqsForVideoCourses(video, { throwOnError: true }),
+    fanoutVideoCompletedNotifications(video),
+  ]);
+  const errors = results
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason);
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
+    throw new AggregateError(errors, 'Video completion side effects failed.');
+  }
+}
+
 async function queueVideoForProcessing(videoId) {
   const video = await getVideoByIdOrThrow(videoId);
   const currentStatus = video.processing?.status;
@@ -122,6 +141,13 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
   const video = await getVideoByIdOrThrow(videoId);
   const currentStatus = video.processing?.status;
 
+  // The completion webhook is idempotent so a worker can retry after a
+  // notification fanout failure. Dedupe indexes make partial fanout repair safe.
+  if (currentStatus === VIDEO_PROCESSING_STATUSES.COMPLETED) {
+    await runCompletionSideEffects(video);
+    return video;
+  }
+
   if (currentStatus !== VIDEO_PROCESSING_STATUSES.PROCESSING) {
     throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.COMPLETED);
   }
@@ -141,6 +167,7 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
 
   if (externalVideoId && String(externalVideoId).trim()) {
     const cleanExternalId = String(externalVideoId).trim();
+    // A pipeline external ID may identify only one video; clear stale ownership before assigning it.
     await Video.updateMany(
       { videoId: cleanExternalId, _id: { $ne: video._id } },
       { $unset: { videoId: '' } },
@@ -151,7 +178,7 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
   const updated = await updateVideoProcessing(videoId, { $set });
 
   // 影片重新處理完成代表片段內容更新，相關課程的 FAQ 快取答案可能過期，清掉重建。
-  await clearFaqsForVideoCourses(video);
+  await runCompletionSideEffects(updated);
 
   return updated;
 }

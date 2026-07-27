@@ -144,6 +144,7 @@ async function saveFaqEntry({ courseId, question, answer, matches, clip, questio
       return null;
     }
 
+    // One normalized question owns one entry, so regenerated answers refresh rather than duplicate the cache.
     const faq = await Faq.findOneAndUpdate(
       { courseId, normalizedQuestion },
       {
@@ -170,7 +171,7 @@ async function saveFaqEntry({ courseId, question, answer, matches, clip, questio
 
 // 影片內容變動（刪除 / 重新處理完成）時，主課程與所有掛載該影片的課程
 // 快取答案都可能過期，一律清除讓下一次提問重建。
-async function clearFaqsForVideoCourses(video) {
+async function clearFaqsForVideoCourses(video, { throwOnError = false } = {}) {
   try {
     const courseIds = new Set();
     const primaryCourseId = video?.courseId?._id || video?.courseId;
@@ -191,6 +192,9 @@ async function clearFaqsForVideoCourses(video) {
     await Faq.deleteMany({ courseId: { $in: [...courseIds] } });
   } catch (error) {
     logCacheError('FAQ cache invalidation failed.', error);
+    if (throwOnError) {
+      throw error;
+    }
   }
 }
 
@@ -214,6 +218,7 @@ function toPublicFaq(faq) {
 }
 
 async function listCourseFaqs({ user, courseId, limit = 20 }) {
+  // Resolve authorization before reading cached course content.
   const course = await getCourseByIdOrThrow(courseId);
   await assertCanAccessCourse(user, course);
 

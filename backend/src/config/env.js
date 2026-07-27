@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 
 const projectRoot = path.resolve(__dirname, '../..');
 
+// Resolve the backend .env explicitly so startup does not depend on the caller's working directory.
 dotenv.config({ path: path.join(projectRoot, '.env') });
 
 function parseNonNegativeNumber(value, fallback) {
@@ -10,6 +11,26 @@ function parseNonNegativeNumber(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
+
+function isSameOrDescendantPath(parentPath, candidatePath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function assertPrivateAvatarUploadDir(uploadDir, avatarUploadDir) {
+  if (isSameOrDescendantPath(uploadDir, avatarUploadDir)) {
+    throw new Error('AVATAR_UPLOAD_DIR must be outside UPLOAD_DIR.');
+  }
+}
+
+const uploadDir = path.resolve(projectRoot, process.env.UPLOAD_DIR || 'uploads');
+const avatarUploadDir = path.resolve(
+  projectRoot,
+  process.env.AVATAR_UPLOAD_DIR || path.join('private-data', 'avatars'),
+);
+
+// Avatar bytes must never sit under the public video upload tree.
+assertPrivateAvatarUploadDir(uploadDir, avatarUploadDir);
 
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -23,7 +44,8 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-local-env',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   demoSeedEnabled: String(process.env.DEMO_SEED_ENABLED || 'false').toLowerCase() === 'true',
-  uploadDir: path.resolve(projectRoot, process.env.UPLOAD_DIR || 'uploads'),
+  uploadDir,
+  avatarUploadDir,
   qaQueryEmbeddingProvider: process.env.QA_QUERY_EMBEDDING_PROVIDER || 'mock',
   qaAnswerProvider: process.env.QA_ANSWER_PROVIDER || 'gemini',
   qaVectorSearchMode: process.env.QA_VECTOR_SEARCH_MODE || 'memory',
@@ -50,6 +72,7 @@ module.exports = {
   shortsSyncIntervalMs: parseNonNegativeNumber(process.env.SHORTS_SYNC_INTERVAL_MS, 600000),
   youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
   youtubeAutoUploadEnabled: String(process.env.YOUTUBE_AUTO_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
+  // Keep the earlier OAuth variable names readable while deployments migrate to the canonical names.
   youtubeClientId: process.env.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_OAUTH_CLIENT_ID || '',
   youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || process.env.YOUTUBE_OAUTH_CLIENT_SECRET || '',
   youtubeRefreshToken: process.env.YOUTUBE_REFRESH_TOKEN || process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || '',
@@ -69,4 +92,5 @@ module.exports = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   projectRoot,
+  assertPrivateAvatarUploadDir,
 };

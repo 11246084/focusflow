@@ -1,23 +1,58 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
-import { apiFetch, getUser } from '../api';
+import {
+  apiFetch,
+  BACKEND_ORIGIN,
+  getToken,
+  getUser,
+  setUser,
+} from '../api';
 
 const ROLE_LABELS = { student: '學生 · Student', teacher: '教師 · Teacher', admin: '管理員 · Admin' };
+const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
-function AvatarUploader({ name, previewUrl, onPick }) {
+function isAbortError(error) {
+  return error?.name === 'AbortError';
+}
+
+async function fetchAvatarObjectUrl({ token, signal }) {
+  const response = await fetch(`${BACKEND_ORIGIN}/api/v1/auth/me/avatar`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    cache: 'no-store',
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const error = new Error(errorBody.message || '頭像讀取失敗。');
+    error.code = errorBody.error?.code;
+    throw error;
+  }
+
+  return URL.createObjectURL(await response.blob());
+}
+
+function AvatarUploader({ name, previewUrl, onPick, disabled }) {
   const fileInputRef = useRef(null);
+  const openPicker = () => {
+    if (!disabled) fileInputRef.current?.click();
+  };
   return (
-    <div style={{ position: 'relative', width: 84, height: 84, flexShrink: 0}}>
+    <div
+      aria-disabled={disabled}
+      style={{ position: 'relative', width: 84, height: 84, flexShrink: 0, opacity: disabled ? 0.6 : 1 }}
+    >
       <div
-        onClick={() => fileInputRef.current?.click()}
+        onClick={openPicker}
         style={{
-          width: 84, height: 84, borderRadius: '50%', cursor: 'pointer', overflow: 'hidden',
+          width: 84, height: 84, borderRadius: '50%', cursor: disabled ? 'wait' : 'pointer', overflow: 'hidden',
           background: previewUrl ? undefined : 'linear-gradient(135deg,#F14F21,#a01a50)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 30, color: '#fff',
           border: '2px solid rgba(255,255,255,0.14)',
         }}
-        title="點擊更換頭像"
+        title={disabled ? '頭像上傳中' : '點擊更換頭像'}
       >
         {previewUrl ? (
           <img src={previewUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover',cursor: 'pointer'}} />
@@ -26,11 +61,11 @@ function AvatarUploader({ name, previewUrl, onPick }) {
         )}
       </div>
       <div
-        onClick={() => fileInputRef.current?.click()}
+        onClick={openPicker}
         style={{
           position: 'absolute', bottom: -2, right: -2, width: 32, height: 32, borderRadius: '50%',
           background: '#F14F21', border: '2px solid #260c1e', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', color: '#fff', cursor: 'pointer',
+          justifyContent: 'center', color: '#fff', cursor: disabled ? 'wait' : 'pointer',
         }}
       >
         <Ic n="up" s={13} />
@@ -38,11 +73,13 @@ function AvatarUploader({ name, previewUrl, onPick }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={disabled}
         style={{ display: 'none' }}
         onChange={(e) => {
           const file = e.target.files[0];
-          if (file) onPick(file);
+          e.target.value = '';
+          if (file) void onPick(file);
         }}
       />
     </div>
@@ -88,11 +125,109 @@ function TeacherExtra({ stats, loading }) {
 }
 
 export default function Profile({ role }) {
-  const user = getUser() || {};
+  const [user, setCurrentUser] = useState(() => getUser() || {});
   const displayName = user.name || '訪客';
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [avatarLoading, setAvatarLoading] = useState(true);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const [avatarMessage, setAvatarMessage] = useState('');
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(role === 'student' || role === 'teacher');
+  const mountedRef = useRef(false);
+  const profileGenerationRef = useRef(0);
+  const profileAbortRef = useRef(null);
+  const uploadGenerationRef = useRef(0);
+  const uploadAbortRef = useRef(null);
+  const uploadPendingRef = useRef(false);
+
+  const refreshProfile = useCallback(async ({ showLoading = true } = {}) => {
+    const sessionToken = getToken();
+    if (!mountedRef.current || !sessionToken) return false;
+
+    // Cancel the prior generation so an older profile read cannot win this request race.
+    const requestId = profileGenerationRef.current + 1;
+    profileGenerationRef.current = requestId;
+    profileAbortRef.current?.abort();
+    const controller = new AbortController();
+    profileAbortRef.current = controller;
+
+    const requestIsCurrent = () => (
+      mountedRef.current
+      && !controller.signal.aborted
+      && requestId === profileGenerationRef.current
+      // A response from a previous login session must never replace the current user's profile.
+      && getToken() === sessionToken
+    );
+
+    if (showLoading && requestIsCurrent()) {
+      setAvatarLoading(true);
+      setAvatarError('');
+    }
+
+    // This request owns its blob URL until it is committed to preview state or revoked.
+    let objectUrl = null;
+    try {
+      const res = await apiFetch('/auth/me', { signal: controller.signal });
+      if (!requestIsCurrent()) return false;
+
+      const freshUser = res.data.user;
+      if (freshUser.hasAvatar) {
+        objectUrl = await fetchAvatarObjectUrl({
+          token: sessionToken,
+          signal: controller.signal,
+        });
+      }
+
+      if (!requestIsCurrent()) {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+        return false;
+      }
+
+      setCurrentUser(freshUser);
+      setUser(freshUser);
+      setPreviewUrl(objectUrl);
+      objectUrl = null;
+      return true;
+    } catch (error) {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+      if (isAbortError(error) || !requestIsCurrent()) return false;
+      setAvatarError(error.message || '個人資料讀取失敗。');
+      return false;
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (requestId === profileGenerationRef.current) {
+        profileAbortRef.current = null;
+      }
+      if (showLoading && requestIsCurrent()) {
+        setAvatarLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void refreshProfile();
+    return () => {
+      mountedRef.current = false;
+      profileGenerationRef.current += 1;
+      uploadGenerationRef.current += 1;
+      profileAbortRef.current?.abort();
+      uploadAbortRef.current?.abort();
+      profileAbortRef.current = null;
+      uploadAbortRef.current = null;
+      uploadPendingRef.current = false;
+    };
+  }, [refreshProfile]);
+
+  useEffect(() => (
+    () => {
+      // Revoke the previous blob URL when the preview changes or the page unmounts.
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    }
+  ), [previewUrl]);
 
   useEffect(() => {
     if (role !== 'student' && role !== 'teacher') return;
@@ -102,20 +237,84 @@ export default function Profile({ role }) {
       .finally(() => setStatsLoading(false));
   }, [role]);
 
-  function handlePickAvatar(file) {
-    // 前端預覽用 — 之後改成上傳到後端頭像 API 再改用回傳的 URL
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+  async function handlePickAvatar(file) {
+    if (uploadPendingRef.current) return;
+
+    const sessionToken = getToken();
+    if (!mountedRef.current || !sessionToken) return;
+
+    setAvatarError('');
+    setAvatarMessage('');
+
+    if (!AVATAR_TYPES.has(file.type)) {
+      setAvatarError('僅支援 JPEG、PNG 或 WebP 頭像。');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError('頭像檔案不可超過 5 MiB。');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+    // Upload generations prevent a stale completion from refreshing a newer session's avatar.
+    const requestId = uploadGenerationRef.current + 1;
+    uploadGenerationRef.current = requestId;
+    uploadAbortRef.current?.abort();
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    uploadPendingRef.current = true;
+    setAvatarUploading(true);
+
+    const requestIsCurrent = () => (
+      mountedRef.current
+      && !controller.signal.aborted
+      && requestId === uploadGenerationRef.current
+      && getToken() === sessionToken
+    );
+
+    try {
+      await apiFetch('/auth/me/avatar', {
+        method: 'PUT',
+        body: formData,
+        signal: controller.signal,
+      });
+      if (!requestIsCurrent()) return;
+
+      const refreshed = await refreshProfile({ showLoading: false });
+      if (refreshed && requestIsCurrent()) {
+        setAvatarMessage('頭像已更新。');
+      }
+    } catch (error) {
+      if (isAbortError(error) || !requestIsCurrent()) return;
+      setAvatarError(error.message || '頭像上傳失敗，請稍後再試。');
+    } finally {
+      if (requestId === uploadGenerationRef.current) {
+        uploadPendingRef.current = false;
+        uploadAbortRef.current = null;
+        if (mountedRef.current && getToken() === sessionToken) {
+          setAvatarUploading(false);
+        }
+      }
+    }
   }
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div className="card" style={{ padding: 26, maxWidth: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 22, marginBottom: 20 }}>
-        <AvatarUploader name={displayName} previewUrl={previewUrl} onPick={handlePickAvatar} />
+        <AvatarUploader
+          name={displayName}
+          previewUrl={previewUrl}
+          onPick={handlePickAvatar}
+          disabled={avatarUploading}
+        />
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 20, fontWeight: 700, color: '#fff' }}>{displayName}</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>{user.email || '未提供 Email'}</div>
           <span className="badge bo" style={{ marginTop: 10 }}>{ROLE_LABELS[role] || role}</span>
+          <div style={{ fontSize: 12, marginTop: 10, minHeight: 18, color: avatarError ? '#ff8a8a' : 'rgba(255,255,255,0.55)' }}>
+            {avatarError || avatarMessage || (avatarUploading ? '頭像上傳中…' : (avatarLoading ? '頭像讀取中…' : '點擊頭像可上傳 JPEG、PNG 或 WebP，最大 5 MiB。'))}
+          </div>
         </div>
       </div>
 

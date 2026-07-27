@@ -24,16 +24,21 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
     setLoading(true);
     setError('');
     try {
+      // Role is part of the auth contract so a valid account cannot enter through another role's portal.
       const res = await apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw }),
+        body: JSON.stringify({ email, password: pw, role }),
       });
       setToken(res.data.token);
       setUser(res.data.user);
       onLogin(res.data.user.role);
     } catch (e) {
-      setError(e.message || '登入失敗，請確認帳號密碼');
+      setError(
+        e.code === 'ROLE_MISMATCH'
+          ? '所選身分與此帳號類型不符，請切換正確身分後再登入。'
+          : (e.message || '登入失敗，請確認帳號密碼'),
+      );
     } finally {
       setLoading(false);
     }

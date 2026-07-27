@@ -10,8 +10,8 @@ info:
     - 如實描述 phase-1 的 `bridge-aware` 與 runtime 可觀測回應
     - 不把 Atlas retrieval、query embedding 對齊、或 live LINE delivery 說成 production-ready
 
-    覆蓋範圍（2026-07-18 更新）：
-    - 已涵蓋 auth / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE / student Shorts feed 的主要端點
+    覆蓋範圍（2026-07-24 更新）：
+    - 已涵蓋 auth（含 role 驗證與 avatar）/ notifications / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE / student Shorts feed 的主要端點
     - 本 spec 已涵蓋主要端點，但仍非 100% 完整契約；internal processing webhook 等少數端點以 route files 為準
     - Shorts 僅代表修課 feed 與 metadata sync 已實作，不代表自動選片、剪輯、字幕或發布 worker 已完成
 
@@ -26,7 +26,9 @@ tags:
   - name: Health
     description: Phase-1 的 observability 與 bootstrap 檢查入口，適合用於 demo 前的安全驗證路徑。
   - name: Auth
-    description: 提供 frontend 與測試客戶端使用的 JWT login 與 current-user 查詢。
+    description: 提供 JWT login、current-user 查詢與 authenticated avatar 上傳／讀取。
+  - name: Notifications
+    description: 目前登入使用者的站內通知列表、已讀狀態與 admin 系統公告。
   - name: Courses
     description: 已登入後可使用的課程 API。Phase-1 的課程回應是 `bridge-aware`，可能會揭露 QA scope 相關 metadata。
   - name: Videos
@@ -155,6 +157,7 @@ paths:
                 value:
                   email: teacher@focusflow.local
                   password: Teacher123!
+                  role: teacher
       responses:
         '200':
           description: 登入成功
@@ -177,6 +180,8 @@ paths:
                         email: teacher@focusflow.local
                         role: teacher
                         isActive: true
+                        hasAvatar: false
+                        avatarUpdatedAt: null
                         isLineBound: false
                         lineBindAt: null
                         activeCourseId: null
@@ -188,7 +193,24 @@ paths:
         '401':
           $ref: '#/components/responses/InvalidCredentialsError'
         '403':
-          $ref: '#/components/responses/UserInactiveError'
+          description: 帳號停用，或帳號角色與登入入口不符
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                inactive:
+                  value:
+                    success: false
+                    message: User is inactive.
+                    error:
+                      code: USER_INACTIVE
+                roleMismatch:
+                  value:
+                    success: false
+                    message: Account type does not match the selected role.
+                    error:
+                      code: ROLE_MISMATCH
   /api/v1/auth/register:
     post:
       tags:
@@ -234,6 +256,8 @@ paths:
                         email: student-new@focusflow.local
                         role: student
                         isActive: true
+                        hasAvatar: false
+                        avatarUpdatedAt: null
                         isLineBound: false
                         lineBindAt: null
                         activeCourseId: null
@@ -294,6 +318,196 @@ paths:
                       code: INVALID_TOKEN
         '404':
           $ref: '#/components/responses/UserNotFoundError'
+  /api/v1/auth/me/avatar:
+    get:
+      tags:
+        - Auth
+      summary: 讀取目前登入使用者的頭貼
+      operationId: getCurrentUserAvatar
+      responses:
+        '200':
+          description: 頭貼 binary；實際 Content-Type 為 image/jpeg、image/png 或 image/webp
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: private, max-age=0, must-revalidate
+            X-Content-Type-Options:
+              schema:
+                type: string
+              example: nosniff
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: 目前使用者沒有可讀取的頭貼（AVATAR_NOT_FOUND）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Auth
+      summary: 上傳或替換目前登入使用者的頭貼
+      operationId: updateCurrentUserAvatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: JPEG、PNG 或 WebP，最大 5 MiB；伺服器會驗證 MIME 與檔案 signature。
+      responses:
+        '200':
+          description: 頭貼更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarUpdateResponse'
+        '400':
+          description: 缺檔、格式不符、multipart 錯誤或內容 signature 不符
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: 同一帳號的頭貼在上傳期間已被其他請求更新（AVATAR_UPDATE_CONFLICT）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: 檔案超過 5 MiB（AVATAR_TOO_LARGE）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: 列出目前登入使用者的站內通知
+      operationId: listNotifications
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          description: 後端回傳的 opaque cursor，不應由 client 自行解析。
+          schema:
+            type: string
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: 通知列表、總未讀數與下一頁 cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/notifications/{notificationId}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: 將目前登入使用者的一筆通知標為已讀
+      operationId: markNotificationRead
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: 已讀狀態更新成功；重複呼叫保持首次 readAt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationReadResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: 通知不存在，或不屬於目前登入使用者
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      summary: 將目前登入使用者的所有未讀通知標為已讀
+      operationId: markAllNotificationsRead
+      responses:
+        '200':
+          description: 全部已讀更新結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationReadAllResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/admin/notifications:
+    post:
+      tags:
+        - Admin
+        - Notifications
+      summary: 管理員發送系統／維護公告
+      description: 僅發送給 `role=student` 且 `isActive=true` 的使用者。
+      operationId: broadcastSystemNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminNotificationRequest'
+      responses:
+        '201':
+          description: 公告已建立並發送給目前所有 active students
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminNotificationResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /api/v1/courses:
     get:
       tags:
@@ -1907,6 +2121,8 @@ components:
         - email
         - role
         - isActive
+        - hasAvatar
+        - avatarUpdatedAt
         - isLineBound
         - lineBindAt
         - activeCourseId
@@ -1923,6 +2139,14 @@ components:
           $ref: '#/components/schemas/UserRole'
         isActive:
           type: boolean
+        hasAvatar:
+          description: 目前帳號是否有可由 authenticated avatar API 讀取的頭貼。
+          type: boolean
+        avatarUpdatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
         isLineBound:
           description: 是否已綁定 LINE 帳號；不暴露實際 LINE user id。
           type: boolean
@@ -2657,12 +2881,15 @@ components:
       required:
         - email
         - password
+        - role
       properties:
         email:
           type: string
           format: email
         password:
           type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
     AuthRegisterRequest:
       description: "`/api/v1/auth/register` 的 request body。Phase 1 僅開放 student / teacher 自助註冊。"
       type: object
@@ -2685,6 +2912,187 @@ components:
             - student
             - teacher
           default: student
+    Notification:
+      description: 目前登入使用者可見的單筆站內通知。
+      type: object
+      required:
+        - id
+        - source
+        - title
+        - content
+        - urgent
+        - read
+        - readAt
+        - courseIds
+        - videoId
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        source:
+          type: string
+          enum:
+            - video_completed
+            - system_maintenance
+        title:
+          type: string
+          maxLength: 120
+        content:
+          type: string
+          maxLength: 2000
+        urgent:
+          type: boolean
+        read:
+          type: boolean
+        readAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        courseIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectId'
+        videoId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+    AdminNotificationRequest:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        urgent:
+          type: boolean
+          default: false
+    NotificationListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - notifications
+                - unreadCount
+                - nextCursor
+              properties:
+                notifications:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Notification'
+                unreadCount:
+                  type: integer
+                  minimum: 0
+                nextCursor:
+                  anyOf:
+                    - type: string
+                    - type: 'null'
+    NotificationReadResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - notification
+              properties:
+                notification:
+                  $ref: '#/components/schemas/Notification'
+    NotificationReadAllResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - updatedCount
+              properties:
+                updatedCount:
+                  type: integer
+                  minimum: 0
+    AdminNotificationResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - recipientCount
+                - summary
+              properties:
+                recipientCount:
+                  type: integer
+                  minimum: 0
+                summary:
+                  type: object
+                  required:
+                    - source
+                    - title
+                    - content
+                    - urgent
+                  properties:
+                    source:
+                      const: system_maintenance
+                    title:
+                      type: string
+                    content:
+                      type: string
+                    urgent:
+                      type: boolean
+    AvatarUpdateResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - user
+                - avatar
+              properties:
+                user:
+                  $ref: '#/components/schemas/PublicUser'
+                avatar:
+                  type: object
+                  required:
+                    - mimeType
+                    - updatedAt
+                  properties:
+                    mimeType:
+                      type: string
+                      enum:
+                        - image/jpeg
+                        - image/png
+                        - image/webp
+                    updatedAt:
+                      type: string
+                      format: date-time
     AuthLoginData:
       description: 登入成功後回傳的資料主體。
       type: object

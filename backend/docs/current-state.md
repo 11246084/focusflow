@@ -1,10 +1,12 @@
 # Backend 目前狀態
 
-最後更新：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正跨片段歸納答不出來；FAQ 快取語意命中路徑順序優化 3133ms→1240ms；FAQ 快取失效缺口盤點）
+最後更新：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；262/262 tests、frontend lint/build 通過）
 
-前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得＋設定指南 `youtube-upload-setup.md`；live upload smoke 待執行）
+前一輪：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正跨片段歸納答不出來；FAQ 快取語意命中路徑順序優化 3133ms→1240ms；FAQ 快取失效缺口盤點）
 
-再前一輪：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
+再前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得＋設定指南 `youtube-upload-setup.md`；live upload smoke 待執行）
+
+更早一輪：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
 
 ## 文件角色
 
@@ -83,7 +85,7 @@
 ## 資料庫實況（共享 Atlas, MCP 驗證）
 
 > 連線目標：`百陶's Org` → `focusflow` cluster → `focusflow` DB（共享 Atlas）。
-> `videos`、`video_segments_text` 筆數與 `text_embedding_index` 狀態為 2026-05-23 MCP 直連實查；其餘 collection 筆數沿用 2026-05-01 快照，可能已變動，需要精確值時請重新以 MCP 查詢。
+> 下表多數筆數沿用舊快照；2026-07-24 唯讀實查共享 Atlas 為 15 collections，仍沒有 `notifications`，因此不得把下表總數視為目前 live 真相。
 
 | Collection | 筆數 | 備註 |
 |---|---|---|
@@ -101,14 +103,14 @@
 | `transcripts_normalized` | 1 | Pipeline 產出 |
 | `term_dictionary` | 14 | Pipeline 產出 |
 
-**Collections 總計：13**（含 2026-04-30 新增的 `questions`；先前快照為 12）
+**下表快照總計：13**；2026-07-24 共享 Atlas live 清單為 15 collections。
 
-**與 init 腳本差異（2026-05-01）：**
+**與 init 腳本差異（2026-07-24 唯讀實查）：**
 
-- `database/tools/setup/init_collections.js` 目前列 15 個 collection，不是舊文件寫的 14 個
-- init 有、Atlas 目前沒有：`stt_cache`、`raw_transcripts`、`video_segments`
-- Atlas 有、init 目前沒有：`questions`
-- 結論：問題不是單純 collection 數量差，而是 init 腳本與共享 Atlas 實況清單不同步；後續需由 Database/Backend 決定要補 init 腳本、建立缺漏 collection，或把 legacy collection 從 init 移除
+- `database/tools/setup/init_collections.js` 目前列 16 個 collection，已加入 `notifications`
+- init 有、Atlas 目前沒有：`stt_cache`、`raw_transcripts`、`video_segments`、`notifications`
+- Atlas 有、init 目前沒有：`questions`、`faqs`、`shortassets`
+- 結論：Notification bootstrap source 已補齊，但共享 Atlas 尚未建立 collection/index；正式 rollout 需 DB owner 核准並以 `listIndexes()` 驗證，release E2E 不得 fallback 到 shared Atlas
 
 **已知 index 狀態：**
 
@@ -124,7 +126,9 @@
 
 ## 已完成項目
 
-- auth / JWT / RBAC 主線已可用；2026-05-07 新增 `POST /api/v1/auth/register` 自助註冊端點，限 `student` / `teacher`（admin 仍只能由現有管理員建立），密碼以 bcrypt salt=10 hash 寫入 `users.passwordHash`，成功後直接回 JWT 與 public user
+- auth / JWT / RBAC 主線已可用；login 必填預期 `role`，跨身分入口回 `403 ROLE_MISMATCH`；register 限 `student` / `teacher`，已涵蓋 duplicate index race、bcrypt 與 public-user 敏感欄位測試
+- 站內通知已完成：使用者列表／cursor／未讀／單筆與全部已讀；admin 可發維護公告；影片完成對主課程與掛載課程的 active enrolled students 以 partial-unique dedupe 做可重送 fanout
+- private avatar 已完成：User nullable metadata、authenticated JPEG/PNG/WebP 上傳與 binary 讀取、5 MiB/magic 驗證、private storage、CAS 並發保護；跨環境 user sync 保留 target-local avatar
 - courses CRUD（含 PATCH/DELETE）、videos CRUD（含 DELETE）、processing 狀態流程已可用
 - `/api/v1/qa/ask` 已能回 answer、matches、時間資訊與 runtime 訊號
 - `/api/v1/qa/ask` 已新增 Phase 2 contract 欄位：`citations[]`（source video、timestamp、jump URL、match confidence、transcript snippet）與 `answerStatus`（answered/no_answer、confidence、noAnswerReason）。`matches[]` 保留為 legacy / debug 相容欄位。
@@ -152,7 +156,7 @@
   - `src/scripts/syncQuestionsToAtlas.js` 可單獨同步 questions 到 Atlas（含 course 補齊與 local user → Atlas user 對應），但目前未掛 npm script
   - `npm run db:ensure-questions` 可建立 `questions` collection 並同步 schema indexes
   - `npm run db:backfill-questions` 預設 dry-run；需要寫入時使用 `npm run db:backfill-questions -- --write`，從 legacy ASK usage logs 補回缺失 questions
-- OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，已涵蓋主要 auth / courses / videos / watched / QA / stats / admin / LINE 端點；internal processing webhook 等少數內部端點以 route files 為準
+- OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，已同步 login role、notifications、avatar 與主要既有端點；internal processing webhook 等少數內部端點以 route files 為準
 - FAQ 快取／常見問題資料庫（2026-07-13）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）——第一層正規化文字完全相同直接命中（零 token，連 embedding 都不算）；第二層以 query embedding 對課程 FAQ 做 cosine 相似度（預設門檻 0.95），命中則跳過向量搜尋與 LLM 生成。只快取 runtime ready 且不帶對話歷史的回答；命中仍照常寫 `usage_logs` 與 `questions`（runtime 帶 `faqCache.hit/matchType`，`answerProviderUsed=faq_cache`）。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`（依 hitCount 排序）、`DELETE /api/v1/courses/:courseId/faqs`（teacher/admin）。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充
@@ -165,12 +169,14 @@
 
 ## 目前測試狀態
 
+- 2026-07-26 `npm.cmd test`：**262 passed / 0 failed**（31 suites；含 `QA_MATCH_LIMIT=15`、answer-generation、role-aware auth、registration `lineUserId` sparse-index、notifications 與 avatar 回歸）。
+- 2026-07-24 `npm.cmd test`：**251 passed / 0 failed**（29 suites；新增 register defensive body cases 後重跑，涵蓋 auth role/register、notifications、avatar、sync ownership 與既有主線）。
 - 2026-07-18 `npm.cmd test`：**163 passed / 0 failed**（25 suites；含 ShortAsset lifecycle、修課 feed/cursor、YouTube sync/retry/log/single-flight、health、course delete rollback、invalid asset 與 repeated cursor）。
 - 2026-07-14 `npm.cmd test`：**135 passed / 0 failed**（整合 Phase 2 QA contract、FAQ 快取、QA quota guardrails、visual citation retrieval、YouTube auto-upload 新舊設定相容與 Shorts proxy 後重驗）。
 - 2026-07-10 `npm.cmd test`：**103 passed / 0 failed**（含 Phase 2 QA contract、初版 visual citation retrieval、YouTube auto-upload adapter、CORS allowlist、QA quota guardrails）。
 - 2026-07-13 `npm test`：**119 passed / 0 failed**（含 FAQ 快取 13 個新測試：`faq-cache.service.test.js` 6 + `faq.routes.test.js` 7；harness 補 `store.faqs` 與 Faq model stubs）。
 - 2026-05-07 `npm test`：**87 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖、編碼防護等變動後）。
-- 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）。
+- 整套時間會依機器與檔案系統而變；2026-07-24 reviewer 實跑約 80.9s，不再沿用舊版約 20s 的估計。
 - 主要單檔現況：`qa.routes.test.js` 9 / `qa.service.test.js` 13 / `course-video.routes.test.js` 26 / `line.routes.test.js` 14 / `docs.routes.test.js` 2 / `teacherStats.service.test.js` 3 / `textEncoding.test.js` 6。
 - 測試 harness（`backendTestHarness.js`）`createQuery` 已補 `.lean()` / `.select()` no-op；`VideoSegment.find` 改用 thenable 以相容 service 層 `.lean()` 呼叫。
 
@@ -221,8 +227,8 @@
 - ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端尚未帶 JWT 呼叫新 feed，需先依 handoff 方案完成另案實作
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容，正式環境需填入實際前端 origin
-- Collections 實際為 13；`init_collections.js` 列 15 個，且與 Atlas 清單不同步（init 多 `stt_cache` / `raw_transcripts` / `video_segments`，Atlas 多 `questions`）
+- 2026-07-24 共享 Atlas 唯讀實查為 15 collections、尚無 `notifications`；`init_collections.js` 列 16 個並已含 `notifications`，shared Atlas rollout 仍需人工核准
 
 ## 一句話結論
 
-截至 2026-07-18，backend 主線另已整合 `ShortAsset + 修課限定 student Shorts feed + YouTube metadata sync + Course hard-delete ShortAsset 封存/rollback`。這只完成 feed、資產保存與可用性同步，不代表自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker或教師管理已完成。教師上傳 UI 仍為單一軌道（本地檔案），YouTube URL API 保留；Shorts 前端 JWT 串接待另案依 handoff 實作。共享 Atlas 與 YouTube live 狀態仍須以實查為準。
+截至 2026-07-26，backend 已整合 `QA_MATCH_LIMIT=15`、role-aware auth、站內通知、private avatar 與既有 Shorts/YouTube 主線；262/262 測試、frontend lint/build 與一次性 MongoDB 7 + Playwright 的指定功能 E2E 已通過。這不等於 shared Atlas 或 Gemini／LINE／YouTube／STT live provider 已驗證；本輪依要求停用所有外部流程。

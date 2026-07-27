@@ -26,13 +26,17 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
       const res = await apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw }),
+        body: JSON.stringify({ email, password: pw, role: 'admin' }),
       });
       setToken(res.data.token);
       setUser(res.data.user);
       onLogin(res.data.user);
     } catch (e) {
-      setError(e.message || '登入失敗，請確認帳號密碼');
+      setError(
+        e.code === 'ROLE_MISMATCH'
+          ? '此帳號不是管理員，請改用一般登入入口。'
+          : (e.message || '登入失敗，請確認帳號密碼'),
+      );
     } finally {
       setLoading(false);
     }

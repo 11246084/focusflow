@@ -1,6 +1,6 @@
 import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
-import { topbarMap } from './Icons';
+import { topbarMap } from './navigationConfig';
 
 import StudentDashboard  from '../pages/StudentDashboard';
 import StudentCourses    from '../pages/StudentCourses';

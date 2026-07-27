@@ -1,4 +1,5 @@
-import { Ic, navItems, roleLabels, roleDot } from './Icons';
+import { Ic } from './Icons';
+import { navItems, roleLabels, roleDot } from './navigationConfig';
 
 export default function Sidebar({ role, active, onNav, onLogout }) {
   const items = navItems[role] || [];

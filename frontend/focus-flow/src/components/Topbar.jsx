@@ -13,7 +13,6 @@ function formatNotificationTime(value) {
     minute: '2-digit',
   });
 }
-
 function mergeNotifications(current, incoming) {
   const merged = new Map(current.map((notification) => [notification.id, notification]));
   incoming.forEach((notification) => {
@@ -33,7 +32,7 @@ function DropdownPanel({ anchorRect, width, panelRef, children, centerOnMobile =
   if (!anchorRect) return null;
   const isMobile = window.innerWidth <= 768;
   const safeWidth = Math.min(width, window.innerWidth - 24);
-<<<<<<< HEAD
+  const panelTop = anchorRect.bottom + 10;
   // Mobile: notification panel centers horizontally instead of anchoring
   // under the bell icon (anchor-based positioning skewed off-center on
   // narrow viewports). The user menu stays anchored under the avatar.
@@ -42,15 +41,8 @@ function DropdownPanel({ anchorRect, width, panelRef, children, centerOnMobile =
     : Math.max(12, Math.min(anchorRect.right - safeWidth, window.innerWidth - safeWidth - 12));
   const style = {
     position: 'fixed',
-    top: anchorRect.bottom + 10,
-    left,
-=======
-  const panelTop = anchorRect.bottom + 10;
-  const style = {
-    position: 'fixed',
     top: panelTop,
-    left: Math.max(12, Math.min(anchorRect.right - safeWidth, window.innerWidth - safeWidth - 12)),
->>>>>>> cee236992c9208a3e3a88c083a07d58c6cd61f65
+    left,
     width: safeWidth,
     maxHeight: Math.max(96, window.innerHeight - panelTop - 12),
     zIndex: 700,

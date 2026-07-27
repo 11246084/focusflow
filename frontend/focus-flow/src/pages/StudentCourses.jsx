@@ -111,15 +111,17 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Capture this effect's host so cleanup never mutates a newer render's DOM node.
+    const wrapperElement = wrapperRef.current;
     readyRef.current = false;
     watchedFiredRef.current = false;
 
     loadYouTubeIframeApi().then((YT) => {
-      if (cancelled || !wrapperRef.current) return;
+      if (cancelled || !wrapperElement) return;
 
-      wrapperRef.current.replaceChildren();
+      wrapperElement.replaceChildren();
       const playerHost = document.createElement('div');
-      wrapperRef.current.appendChild(playerHost);
+      wrapperElement.appendChild(playerHost);
 
       const fireWatched = () => {
         if (watchedFiredRef.current) return;
@@ -185,8 +187,8 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
         // YouTube mutates its own iframe during teardown; keep React's wrapper stable.
       } finally {
         playerRef.current = null;
-        if (wrapperRef.current) {
-          wrapperRef.current.replaceChildren();
+        if (wrapperElement) {
+          wrapperElement.replaceChildren();
         }
       }
     };

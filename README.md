@@ -174,13 +174,14 @@ python src/main.py --overwrite
 
 | 模組 | 端點 |
 |------|------|
-| Auth | `POST /api/v1/auth/login`、`GET /api/v1/auth/me` |
+| Auth | `POST /api/v1/auth/login`、`POST /api/v1/auth/register`、`GET /api/v1/auth/me`、`PUT/GET /api/v1/auth/me/avatar` |
+| Notifications | `GET /api/v1/notifications`、`PATCH /api/v1/notifications/:notificationId/read`、`POST /api/v1/notifications/read-all` |
 | Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId` |
 | Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry` |
 | QA | `POST /api/v1/qa/ask`、`GET/DELETE /api/v1/courses/:courseId/faqs`（常見問題／FAQ 快取） |
 | LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token` |
 | Stats | `GET /api/v1/stats/teacher`、`GET /api/v1/stats/student` |
-| Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats` |
+| Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats`、`POST /api/v1/admin/notifications` |
 | Internal Pipeline | `POST /api/v1/internal/videos/:videoId/processing/start`、`complete`、`fail` |
 
 OpenAPI 已涵蓋主要 auth / courses / videos / watched / QA / stats / admin / LINE 端點；internal processing webhook 等少數內部端點仍以 route files 為準。
@@ -231,7 +232,7 @@ LINE Bot 指令：
 
 截至 2026-07-14：
 
-- Backend 主線已包含 auth、courses、videos、QA（含 FAQ 快取、Phase 2 `citations` / `answerStatus` contract、visual citation retrieval 與 quota guardrails）、LINE、stats、admin、YouTube Shorts proxy、YouTube auto-upload adapter、CORS allowlist 與 internal processing webhook；2026-07-14 合併後全測試 135/135 passed。
+- Backend 主線已包含 role-aware auth、private avatar、站內 notifications、courses、videos、QA、LINE、stats、admin、YouTube Shorts proxy、YouTube auto-upload adapter、CORS allowlist 與 internal processing webhook；2026-07-26 全測試 262/262 passed，隔離 MongoDB + Playwright 的本輪指定功能全數通過。
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 Promise.all + 全 `.lean()`；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 補 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s。API 回應格式 / 答案品質 100% 不變。
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音。
 - Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已串接；教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖）。

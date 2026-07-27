@@ -2,6 +2,7 @@ const dns = require('dns');
 const { MongoClient } = require('mongodb');
 const env = require('../config/env');
 
+// Use public resolvers for Atlas SRV lookups in local environments with incomplete DNS forwarding.
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const COLLECTIONS = [
@@ -14,10 +15,40 @@ const COLLECTIONS = [
   'usage_logs',
   'questions',
   'line_bind_tokens',
+  'notifications',
 ];
 
 function redactUri(uri) {
   return String(uri || '').replace(/\/\/([^:]+):([^@]+)@/, (_, user) => `//${user}:***@`);
+}
+
+function buildSyncOperation(collectionName, document) {
+  if (collectionName === 'users') {
+    const { _id } = document;
+    const backendOwnedFields = { ...document };
+    delete backendOwnedFields._id;
+    // Avatar files are target-local, so syncing user data must preserve the target's avatar metadata.
+    delete backendOwnedFields.avatar;
+
+    return {
+      updateOne: {
+        filter: { _id },
+        update: {
+          $set: backendOwnedFields,
+        },
+        upsert: true,
+      },
+    };
+  }
+
+  return {
+    // Non-user collections mirror the complete local document by stable _id.
+    replaceOne: {
+      filter: { _id: document._id },
+      replacement: document,
+      upsert: true,
+    },
+  };
 }
 
 async function syncCollection(sourceDb, targetDb, collectionName) {
@@ -30,13 +61,7 @@ async function syncCollection(sourceDb, targetDb, collectionName) {
   }
 
   const result = await targetCollection.bulkWrite(
-    documents.map((document) => ({
-      replaceOne: {
-        filter: { _id: document._id },
-        replacement: document,
-        upsert: true,
-      },
-    })),
+    documents.map((document) => buildSyncOperation(collectionName, document)),
     { ordered: false },
   );
 
@@ -58,6 +83,7 @@ async function main() {
   }
 
   if (localUri === atlasUri) {
+    // Guard against accidentally treating one database as both source and destination.
     throw new Error('Local and Atlas MongoDB URIs are identical; refusing to sync.');
   }
 
@@ -101,7 +127,16 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Failed to sync local MongoDB to Atlas.', error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Failed to sync local MongoDB to Atlas.', error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  COLLECTIONS,
+  buildSyncOperation,
+  redactUri,
+  syncCollection,
+};

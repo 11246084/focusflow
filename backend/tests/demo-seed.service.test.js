@@ -15,6 +15,7 @@ function clearDemoStore() {
   store.clips.length = 0;
   store.usageLogs.length = 0;
   store.lineBindTokens.length = 0;
+  store.notifications.length = 0;
 }
 
 describe('demo seed service', () => {
@@ -93,6 +94,24 @@ describe('demo seed service', () => {
     assert.deepEqual(result.pipelineBridge?.externalVideoIds, [DEMO_VIDEOS.pipelineBridge.videoId]);
   });
 
+  it('seed 與 reset 都保留 demo user 的 target-local avatar metadata', async () => {
+    await seedDemoData({ silent: true });
+    const student = store.users.find((user) => user.email === 'student@focusflow.local');
+    const targetLocalAvatar = {
+      filename: '123e4567-e89b-42d3-a456-426614174000.png',
+      mimeType: 'image/png',
+      updatedAt: '2026-07-24T12:00:00.000Z',
+    };
+    student.avatar = { ...targetLocalAvatar };
+
+    await seedDemoData({ silent: true });
+    assert.deepEqual(student.avatar, targetLocalAvatar);
+
+    await seedDemoData({ silent: true, reset: true });
+    const resetStudent = store.users.find((user) => user.email === 'student@focusflow.local');
+    assert.deepEqual(resetStudent.avatar, targetLocalAvatar);
+  });
+
   it('reset clears demo-derived mutable state before rebuilding the baseline', async () => {
     await seedDemoData({ silent: true });
 
@@ -112,6 +131,32 @@ describe('demo seed service', () => {
       event: 'ask',
       metadata: { source: 'demo-reset-test' },
     });
+    store.notifications.push(
+      {
+        _id: '680000000000000000000901',
+        recipientId: student._id,
+        source: 'system_maintenance',
+        title: 'Demo notification',
+        content: 'Should be reset',
+        urgent: false,
+        readAt: null,
+        createdBy: null,
+        courseIds: [],
+        videoId: null,
+      },
+      {
+        _id: '680000000000000000000902',
+        recipientId: '680000000000000000000999',
+        source: 'system_maintenance',
+        title: 'Foreign notification',
+        content: 'Should remain',
+        urgent: false,
+        readAt: null,
+        createdBy: null,
+        courseIds: [],
+        videoId: null,
+      },
+    );
     student.activeCourseId = 'foreign-course-id';
     student.lineUserId = 'line-user-mutated';
     student.lineConversationState = 'selecting_course';
@@ -122,6 +167,10 @@ describe('demo seed service', () => {
     assert.equal(result.resetApplied, true);
     assert.equal(store.lineBindTokens.length, 0);
     assert.equal(store.usageLogs.length, 0);
+    assert.deepEqual(
+      store.notifications.map((notification) => notification.title),
+      ['Foreign notification'],
+    );
     assert.equal(String(resetStudent.activeCourseId), String(publishedCourse._id));
     assert.equal(resetStudent.lineUserId, 'demo-line-student-001');
     assert.equal(resetStudent.lineConversationState, 'idle');

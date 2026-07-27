@@ -24,6 +24,7 @@ const collections = [
   "video_segments",
   "clips",
   "line_bind_tokens",
+  "notifications",
 ];
 
 collections.forEach((name) => {

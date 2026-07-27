@@ -1,5 +1,16 @@
 FocusFlow 資料庫現況交接給後端
-最後更新：2026-04-19
+最後更新：2026-07-24
+
+2026-07-24 補充：notifications 與 avatar
+1. notifications 是 backend app-owned collection，STT / embedding uploader 不得寫入。
+2. repo bootstrap 已加入 notifications 與三個 indexes：
+   - recipientId + createdAt desc + _id desc
+   - recipientId + readAt + createdAt desc + _id desc
+   - recipientId + dedupeKey 的 partial unique index，只索引 string dedupeKey
+3. 共享 Atlas 唯讀實查仍沒有 notifications；這是 live readiness 缺口，不代表可由本機自動建立。正式建立前需 DB owner 核准並核對 listIndexes。
+4. User avatar 是 nullable nested metadata：filename、mimeType、updatedAt。filename 是單一部署儲存目錄的私有 key，不是公開 URL。
+5. local-to-Atlas user sync 會保留 target avatar，不會把來源機器的 local filename 寫入目標環境。
+6. Release E2E 必須覆寫到隔離 DB，並使用位於 UPLOAD_DIR 外的唯一 AVATAR_UPLOAD_DIR；不得 fallback 到共享 focusflow DB。
 
 用途
 這份純文字檔是給 backend 同學的現況摘要，目的是統一目前真正可採用的資料庫口徑，避免再被舊版 snake_case 文件誤導。
@@ -19,8 +30,8 @@ FocusFlow 資料庫現況交接給後端
 5. 目前主要風險已不是 video_segments_text 本身，而是 bridge 對應、videos ownership 邊界，以及 video_segments_video 還沒補齊 vector index。
 
 已確認的現況
-1. video_segments_text 目前共有 105 筆文件。
-2. 105 筆都是 camelCase 文件，具有 chunkId。
+1. 2026-04-19 快照的 video_segments_text 為 105 筆；2026-07-24 唯讀實查總數為 313。
+2. 105 筆 camelCase／來源拆分是 2026-04-19 快照；新增資料的欄位分布需另行重新統計。
 3. snake_case 文件（chunk_id）目前是 0 筆。
 4. mongodb_uploader.py 目前寫入的 text segment 欄位為：
    - chunkId

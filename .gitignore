@@ -168,6 +168,8 @@ CLAUDE.local.md
 .claude/settings.local.json
 .mcp.json
 .playwright-mcp/
+/.playwright-cli/
+/output/playwright/
 .agents/skills/docs-maintainer
 
 # ================================

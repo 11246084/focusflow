@@ -1,8 +1,10 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正 QA 答不出跨片段問題；FAQ 快取語意命中 3133ms→1240ms；FAQ 快取失效缺口盤點，詳見 [backend/docs/current-state.md](../backend/docs/current-state.md)）
+最後更新：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；backend 262/262、frontend lint/build 通過，指定功能 PASS）
 
-前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
+前一輪：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正 QA 答不出跨片段問題；FAQ 快取語意命中 3133ms→1240ms；FAQ 快取失效缺口盤點，詳見 [backend/docs/current-state.md](../backend/docs/current-state.md)）
+
+再前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -12,8 +14,8 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 163/163（2026-07-18 實測） | auth（login + 自助 register）/ courses（CRUD）/ videos / qa / LINE / stats / admin 已可用；共享環境設定為 `gemini + atlas + gemini`；QA 已整合 Phase 2 `citations` / `answerStatus`、visual citation retrieval、quota guardrails 與 FAQ 兩層快取；Shorts backend 已改為 JWT student-only 的修課限定 ShortAsset feed，並加入 single-flight YouTube metadata sync |
-| **Frontend** | ✅ 第一階段頁面與 Shorts 頻道頁完成 | 登入頁 + 註冊頁 + Student/Teacher/Admin 角色頁面；登入、課程、QA grounding、LINE QR 綁定皆已串接；教師上傳表單支援多支影片連續上傳；學生端新增「教學短片」9:16 卡片牆、分頁載入與 modal iframe 播放 |
+| **Backend** | ✅ 主線可用，全測試 262/262（2026-07-26 實測） | `QA_MATCH_LIMIT=15`、auth（role-aware login + 自助 register + private avatar）/ notifications / courses / videos / qa / LINE / stats / admin 已可用；本輪指定功能已在一次性 MongoDB 7 隔離環境通過完整 E2E |
+| **Frontend** | ✅ 第一階段頁面與本輪串接完成，lint/build 通過 | Login 會送出 role；Topbar 已串通知列表、分頁、已讀與 admin 公告；Profile 已串 authenticated avatar 上傳／讀取；`Icons.jsx` 非元件設定已原樣拆分，`StudentCourses.jsx` effect cleanup warning 已修正 |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
 ---
@@ -42,6 +44,10 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 已完成
 
 - auth / JWT / RBAC 主線
+- `POST /api/v1/auth/login` 現在必填 `role=student|teacher|admin`；密碼與停用狀態驗證後才比較帳號角色，跨入口登入回 `403 ROLE_MISMATCH`，不發 token
+- `POST /api/v1/auth/register` 已補 duplicate unique-index race、嚴格欄位型別與完整 route tests；student / teacher 可註冊，admin 禁止自助註冊
+- 站內通知：`GET /api/v1/notifications`、單筆／全部已讀、`POST /api/v1/admin/notifications`；影片 processing complete 會對相關課程的 active enrolled students 做 idempotent fanout
+- 頭貼：`PUT/GET /api/v1/auth/me/avatar`；JPEG/PNG/WebP、5 MiB、magic signature、private storage、CAS 並發保護；public user 只回 `hasAvatar/avatarUpdatedAt`
 - courses CRUD（含 PATCH/DELETE）、videos CRUD、processing 狀態流程
 - 影片上傳後自動 spawn STT pipeline（`video.service.js`），pipeline 透過 `/api/v1/internal/videos/:id/processing/{start,complete,fail}` 回報狀態
 - YouTube URL MVP：`POST /courses/:courseId/videos/youtube` 可貼 YouTube URL 建立影片；STT 用 `yt-dlp` 下載音訊；學生端用 YouTube IFrame API 播放並支援 QA timestamp 跳轉；LINE Bot 可回傳 YouTube timestamp link。2026-07-12 起教師上傳頁收斂為單一軌道（本地檔案），URL 入口從 UI 移除、API 保留
@@ -74,8 +80,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 錯誤碼 `INVALID_ENCODING` (400)：`utils/textEncoding.js` 偵測客戶端送出的壞 utf-8 body；學生 dashboard 舊壞編碼 fallback 顯示「(編碼異常)」
 - AI prompt / 標題防洩漏：`answerGeneration.service.js` 移除 `match.videoId` fallback；`getVideoPresentationTitle` 偵測 ObjectId 後改顯示 `YouTube: <id>`
 - `GET /health`：qa + line runtime 可觀察性
-- backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，但尚未涵蓋 stats/admin 路由，也缺 courses/videos 的 PATCH/DELETE，API 清單暫以實際 route files 與 README 為準
-- backend tests：2026-07-18 全測 163/163 passed；新增 ShortAsset lifecycle、修課 feed/cursor、YouTube sync/retry/log/single-flight、invalid asset/repeated cursor 與 course delete rollback 測試，in-memory harness 不依賴真實 MongoDB 或 YouTube API
+- backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，已同步 login role、notifications 與 avatar 契約；internal processing webhook 等少數端點仍以 route files 為準
+- backend tests：2026-07-26 全測 262/262 passed；隔離 MongoDB 7 已實證三個無 LINE 綁定帳號可穿過 `lineUserId` unique+sparse index，註冊 A/B/C 為 201/409/201；CAS 與併發邊界仍以既有測試與本輪頭貼 E2E 證據為準
 - Frontend 11 頁面（Student/Teacher/Admin 各角色 dashboard），登入、教師建立課程、QA grounding、LINE QR 綁定流程已開始串接
 
 ---
@@ -87,7 +93,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | 項目 | 負責方 | 說明 |
 |------|--------|------|
 | Atlas vector index / future naming | DB / MongoDB 組 | `text_embedding_index` 已 READY（2026-05-23 驗證），atlas mode 可用。`video_segments_video` 的 `video_embedding_index` 已建立且 READY（2026-07-10 驗證）；backend 已用 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID，並以 `video_id` filter 接入初版 multimodal visual citation retrieval。限制：視覺片段目前無 transcript / caption，因此回覆只給保守答案與可檢視 citation，不編造畫面內容 |
-| init collections 與 Atlas 實況差異 | Database + Backend | Atlas 13 collections；`init_collections.js` 列 15 個。init 多 `stt_cache` / `raw_transcripts` / `video_segments`，Atlas 多 `questions` |
+| init collections 與 Atlas 實況差異 | Database + Backend | 2026-07-24 唯讀實查 Atlas 15 collections、尚無 `notifications`；`init_collections.js` 現列 16 個並已含 `notifications`。不得未核准直接用 shared Atlas 啟服觸發 autoIndex |
 | OpenAPI 維護 | Backend | `backend/docs/openapi.yaml` 已涵蓋主要 auth / courses / videos / QA / LINE / stats / admin 端點與 Phase 2 QA contract；internal processing webhook 等少數內部端點仍以 route files 為準 |
 | Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | 目前已改用 Gemini query embedding；仍需持續確認 coverage 與長期契約 |
 | `videos` physical storage 邊界 | Backend + DB 組 | 後端回應 contract 已用 `ownership` / `isAppOwned` / `metadataOnly` 固定語意；是否拆 collection 或調整 DB 實體模型仍屬跨組資料庫決策 |
@@ -98,7 +104,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ### Frontend 現況（API 整合已完成）
 
-- 11 個頁面全數串接 backend API（每頁皆呼叫 `apiFetch`）：登入、課程列表、QA 問答、LINE 綁定流程皆已接通
+- 11 個頁面全數串接 backend API：登入、課程列表、QA、LINE 綁定、Topbar 站內通知與 Profile 頭貼皆已接通
 - YouTube URL 上傳模式與學生端 YouTube iframe / timestamp 跳轉已接入；demo 已實際執行過
 
 ### Pipeline 待確認

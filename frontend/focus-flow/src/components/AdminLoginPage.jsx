@@ -12,8 +12,7 @@ function Sparkle({ x, y, s = 1, op = 0.3 }) {
   );
 }
 
-export default function LoginPage({ onLogin, onBack, onGoRegister }) {
-  const [role, setRole] = useState('student');
+export default function AdminLoginPage({ onLogin, error: externalError }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,25 +23,22 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
     setLoading(true);
     setError('');
     try {
-      // Role is part of the auth contract so a valid account cannot enter through another role's portal.
       const res = await apiFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, role }),
+        body: JSON.stringify({ email, password: pw }),
       });
       setToken(res.data.token);
       setUser(res.data.user);
-      onLogin(res.data.user.role);
+      onLogin(res.data.user);
     } catch (e) {
-      setError(
-        e.code === 'ROLE_MISMATCH'
-          ? '所選身分與此帳號類型不符，請切換正確身分後再登入。'
-          : (e.message || '登入失敗，請確認帳號密碼'),
-      );
+      setError(e.message || '登入失敗，請確認帳號密碼');
     } finally {
       setLoading(false);
     }
   };
+
+  const shownError = error || externalError;
 
   return (
     <div className="login-page">
@@ -59,25 +55,14 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
 
           {/* Brand copy */}
           <div className="login-brand-body">
-            <div className="login-brand-eyebrow">AI-Powered Learning Platform</div>
+            <div className="login-brand-eyebrow">Admin Console</div>
             <h2 className="login-brand-title">
-              讓學習<br />
-              <span style={{ color: '#F14F21' }}>智慧化</span><br />
-              從這裡開始
+              管理員<br />
+              <span style={{ color: '#F14F21' }}>後台入口</span>
             </h2>
             <p className="login-brand-desc">
-              整合語音轉文字、向量檢索與生成式 AI 技術，自動建立影片語意索引，精準定位知識片段。
+              僅供 FocusFlow 系統管理員登入，管理課程、影片、使用者與系統統計資料。
             </p>
-          </div>
-
-          {/* Stat pills */}
-          <div className="login-stats">
-            {[['98%', '問答準確率'], ['< 3s', '平均回應時間'], ['Vector', '語意索引']].map(([v, l]) => (
-              <div key={l} className="login-stat-pill">
-                <div className="login-stat-val">{v}</div>
-                <div className="login-stat-lbl">{l}</div>
-              </div>
-            ))}
           </div>
 
           {/* Decorative sparkles */}
@@ -93,21 +78,8 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
           <div className="login-form-card">
             {/* Header */}
             <div className="login-form-header">
-              <div className="login-form-title">Welcome Back</div>
-              <div className="login-form-sub">選擇身份後登入系統</div>
-            </div>
-
-            {/* Role selector */}
-            <div className="login-role-tabs">
-              {[['student', '學生'], ['teacher', '教師'], ['admin', '管理員']].map(([r, lb]) => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className={`login-role-btn${role === r ? ' active' : ''}`}
-                >
-                  {lb}
-                </button>
-              ))}
+              <div className="login-form-title">管理員登入</div>
+              <div className="login-form-sub">此入口僅供管理員使用</div>
             </div>
 
             {/* Form fields */}
@@ -117,7 +89,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
                 <input
                   className="ff-input"
                   type="email"
-                  placeholder="your@school.edu"
+                  placeholder="admin@focusflow.local"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />
@@ -125,7 +97,6 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
               <div>
                 <div className="login-pw-header">
                   <label className="ff-label" style={{ marginBottom: 0 }}>PASSWORD</label>
-                  <span className="login-forgot">忘記密碼？</span>
                 </div>
                 <input
                   className="ff-input"
@@ -138,44 +109,16 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
               </div>
             </div>
 
-            {error && (
+            {shownError && (
               <div style={{ fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>
-                {error}
+                {shownError}
               </div>
             )}
 
             {/* Submit */}
             <button className="btn-primary login-submit" onClick={go} disabled={loading}>
-              {loading ? '驗證中…' : '登入系統'}
+              {loading ? '驗證中…' : '登入管理後台'}
             </button>
-
-            <div className="login-no-account">
-              沒有帳號？
-              <button
-                type="button"
-                className="login-contact"
-                onClick={onGoRegister}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  marginLeft: 4,
-                  color: 'inherit',
-                  font: 'inherit',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
-                立即註冊
-              </button>
-            </div>
-
-            {/* Back link */}
-            {onBack && (
-              <button className="login-back-btn" onClick={onBack}>
-                ← 返回首頁
-              </button>
-            )}
           </div>
         </div>
       </div>

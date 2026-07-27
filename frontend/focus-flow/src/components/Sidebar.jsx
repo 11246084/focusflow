@@ -1,4 +1,5 @@
-import { Ic, navItems, roleLabels, roleDot } from './Icons';
+import { Ic } from './Icons';
+import { navItems, roleLabels, roleDot } from './navigationConfig';
 
 export default function Sidebar({ role, active, onNav, onLogout }) {
   const items = navItems[role] || [];
@@ -11,7 +12,7 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
       </div>
 
       {/* Nav items */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+      <div className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
         {items.map(it => (
           <div
             key={it.id}

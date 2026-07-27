@@ -4,6 +4,7 @@ const express = require('express');
 const authController = require('../controllers/auth.controller');
 // 引入 auth middleware，負責驗證 JWT Token
 const { authenticate } = require('../middleware/auth.middleware');
+const { uploadSingleAvatar } = require('../middleware/avatarUpload.middleware');
 
 // 建立 Express Router 實例，用於定義路由
 const router = express.Router();
@@ -24,6 +25,9 @@ router.post('/register', authController.register);
 // 功能：取得當前登入使用者的資訊
 // middleware：authenticate - 驗證 JWT Token，確認用戶已登入
 router.get('/me', authenticate, authController.me);
+// Avatar files stay private: authentication gates both upload replacement and binary reads.
+router.put('/me/avatar', authenticate, uploadSingleAvatar, authController.updateAvatar);
+router.get('/me/avatar', authenticate, authController.getAvatar);
 
 // 匯出 router，供 app.js 註冊路由使用
 module.exports = router;

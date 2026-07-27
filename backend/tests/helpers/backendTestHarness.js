@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
@@ -11,6 +12,8 @@ process.env.QA_ANSWER_PROVIDER = 'template';
 process.env.LINE_CHANNEL_SECRET = 'line-secret-for-tests';
 process.env.LINE_CHANNEL_ACCESS_TOKEN = '';
 process.env.PROCESSING_WEBHOOK_SECRET = 'processing-secret-for-tests';
+const avatarTestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-avatar-tests-'));
+process.env.AVATAR_UPLOAD_DIR = path.join(avatarTestRoot, 'avatars');
 
 const app = require('../../src/app');
 const env = require('../../src/config/env');
@@ -26,6 +29,7 @@ const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
+const Notification = require('../../src/models/notification.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -44,6 +48,12 @@ const store = {
   lineBindTokens: [],
   faqs: [],
   shortAssets: [],
+  notifications: [],
+  nextUserCreateError: null,
+  nextUserFindByIdAndUpdateError: null,
+  beforeUserAvatarCompareAndSwap: null,
+  nextNotificationBulkWriteError: null,
+  nextFaqDeleteManyError: null,
 };
 
 const ids = {
@@ -230,6 +240,10 @@ function matchesQuery(document, query = {}) {
       }
 
       return true;
+    }
+
+    if (Array.isArray(currentValue)) {
+      return currentValue.some((item) => normalizeValue(item) === normalizeValue(value));
     }
 
     return normalizeValue(currentValue) === normalizeValue(value);
@@ -420,7 +434,52 @@ function installModelStubs() {
   // Monkey-patch the mongoose models once so production services can run unchanged.
   User.findOne = async (query = {}) => store.users.find((item) => matchesQuery(item, query)) || null;
   User.findById = async (id) => findUserById(id);
+  User.find = (query = {}) => createQuery(store.users.filter((item) => matchesQuery(item, query)));
+  User.create = async (payload) => {
+    if (store.nextUserCreateError) {
+      const error = store.nextUserCreateError;
+      store.nextUserCreateError = null;
+      throw error;
+    }
+
+    if (store.users.some((item) => item.email === payload.email)) {
+      const error = new Error('Duplicate user email.');
+      error.code = 11000;
+      error.keyValue = { email: payload.email };
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    const user = {
+      _id: payload._id || newObjectId(),
+      isActive: payload.isActive ?? true,
+      avatar: payload.avatar ?? null,
+      createdAt: payload.createdAt || now,
+      updatedAt: now,
+      ...payload,
+    };
+    store.users.push(user);
+    return user;
+  };
   User.findOneAndUpdate = async (query, update, options = {}) => {
+    const isAvatarCompareAndSwap = Boolean(
+      query?._id
+      && (
+        Object.prototype.hasOwnProperty.call(query, 'avatar')
+        || Object.prototype.hasOwnProperty.call(query, 'avatar.filename')
+      )
+    );
+
+    if (isAvatarCompareAndSwap && store.beforeUserAvatarCompareAndSwap) {
+      await store.beforeUserAvatarCompareAndSwap(query, update);
+    }
+
+    if (isAvatarCompareAndSwap && store.nextUserFindByIdAndUpdateError) {
+      const error = store.nextUserFindByIdAndUpdateError;
+      store.nextUserFindByIdAndUpdateError = null;
+      throw error;
+    }
+
     let user = store.users.find((item) => matchesQuery(item, query));
 
     if (!user && options.upsert) {
@@ -439,6 +498,12 @@ function installModelStubs() {
     return user;
   };
   User.findByIdAndUpdate = async (id, update) => {
+    if (store.nextUserFindByIdAndUpdateError) {
+      const error = store.nextUserFindByIdAndUpdateError;
+      store.nextUserFindByIdAndUpdateError = null;
+      throw error;
+    }
+
     const user = findUserById(id);
 
     if (!user) {
@@ -734,6 +799,110 @@ function installModelStubs() {
   };
   UsageLog.deleteMany = async (query = {}) => deleteManyInStore(store.usageLogs, query);
 
+  Notification.create = async (payload) => {
+    const now = new Date().toISOString();
+    const notification = {
+      _id: payload._id || newObjectId(),
+      urgent: false,
+      readAt: null,
+      createdBy: null,
+      courseIds: [],
+      videoId: null,
+      createdAt: payload.createdAt || now,
+      updatedAt: now,
+      ...payload,
+    };
+    store.notifications.push(notification);
+    return notification;
+  };
+  Notification.insertMany = async (payloads = []) => Promise.all(
+    payloads.map((payload) => Notification.create(payload)),
+  );
+  Notification.find = (query = {}) => createQuery(
+    store.notifications.filter((item) => matchesQuery(item, query)),
+  );
+  Notification.findOne = async (query = {}) => (
+    store.notifications.find((item) => matchesQuery(item, query)) || null
+  );
+  Notification.findOneAndUpdate = async (query, update) => {
+    const notification = store.notifications.find((item) => matchesQuery(item, query));
+    if (!notification) return null;
+    applyUpdate(notification, update);
+    notification.updatedAt = new Date().toISOString();
+    return notification;
+  };
+  Notification.updateMany = async (query, update) => {
+    const notifications = store.notifications.filter((item) => matchesQuery(item, query));
+    for (const notification of notifications) {
+      applyUpdate(notification, update);
+      notification.updatedAt = new Date().toISOString();
+    }
+    return {
+      matchedCount: notifications.length,
+      modifiedCount: notifications.length,
+    };
+  };
+  Notification.countDocuments = async (query = {}) => (
+    store.notifications.filter((item) => matchesQuery(item, query)).length
+  );
+  Notification.deleteMany = async (query = {}) => deleteManyInStore(
+    store.notifications,
+    query,
+  );
+  const applyNotificationBulkOperation = (operation) => {
+    const { filter = {}, update = {}, upsert = false } = operation.updateOne || {};
+    let notification = store.notifications.find((item) => matchesQuery(item, filter));
+
+    if (notification) {
+      applyUpdate(notification, update);
+      notification.updatedAt = new Date().toISOString();
+      return { matchedCount: 1, upsertedCount: 0 };
+    }
+
+    if (!upsert) {
+      return { matchedCount: 0, upsertedCount: 0 };
+    }
+
+    const now = new Date().toISOString();
+    notification = {
+      _id: newObjectId(),
+      urgent: false,
+      readAt: null,
+      createdBy: null,
+      courseIds: [],
+      videoId: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    applyUpdate(notification, filter, { isInsert: true });
+    applyUpdate(notification, update, { isInsert: true });
+    store.notifications.push(notification);
+    return { matchedCount: 0, upsertedCount: 1 };
+  };
+  Notification.bulkWrite = async (operations = []) => {
+    if (store.nextNotificationBulkWriteError) {
+      const error = store.nextNotificationBulkWriteError;
+      store.nextNotificationBulkWriteError = null;
+      for (const index of error.appliedOperationIndexes || []) {
+        if (operations[index]) {
+          applyNotificationBulkOperation(operations[index]);
+        }
+      }
+      throw error;
+    }
+
+    return operations.reduce(
+      (totals, operation) => {
+        const result = applyNotificationBulkOperation(operation);
+        return {
+          matchedCount: totals.matchedCount + result.matchedCount,
+          upsertedCount: totals.upsertedCount + result.upsertedCount,
+        };
+      },
+      { matchedCount: 0, upsertedCount: 0 },
+    );
+  };
+
   Question.create = async (payload) => {
     store.questions.push({
       _id: newObjectId(),
@@ -753,7 +922,14 @@ function installModelStubs() {
     options,
   );
   Faq.countDocuments = async (query = {}) => store.faqs.filter((item) => matchesQuery(item, query)).length;
-  Faq.deleteMany = async (query = {}) => deleteManyInStore(store.faqs, query);
+  Faq.deleteMany = async (query = {}) => {
+    if (store.nextFaqDeleteManyError) {
+      const error = store.nextFaqDeleteManyError;
+      store.nextFaqDeleteManyError = null;
+      throw error;
+    }
+    return deleteManyInStore(store.faqs, query);
+  };
 
   ShortAsset.create = async (payload) => {
     const asset = {
@@ -803,6 +979,7 @@ function installModelStubs() {
 
 function resetStore() {
   // Rehydrate the baseline fixtures before each test to keep suites isolated.
+  cleanupTestAvatars();
   store.users.length = 0;
   store.courses.length = 0;
   store.videos.length = 0;
@@ -815,6 +992,12 @@ function resetStore() {
   store.lineBindTokens.length = 0;
   store.faqs.length = 0;
   store.shortAssets.length = 0;
+  store.notifications.length = 0;
+  store.nextUserCreateError = null;
+  store.nextUserFindByIdAndUpdateError = null;
+  store.beforeUserAvatarCompareAndSwap = null;
+  store.nextNotificationBulkWriteError = null;
+  store.nextFaqDeleteManyError = null;
 
   store.users.push(
     {
@@ -824,6 +1007,7 @@ function resetStore() {
       passwordHash: bcrypt.hashSync('Teacher123!', 10),
       role: 'teacher',
       isActive: true,
+      avatar: null,
       lineUserId: null,
       lineBindAt: null,
       activeCourseId: null,
@@ -836,6 +1020,7 @@ function resetStore() {
       passwordHash: bcrypt.hashSync('Student123!', 10),
       role: 'student',
       isActive: true,
+      avatar: null,
       lineUserId: 'line-student-001',
       lineBindAt: null,
       activeCourseId: null,
@@ -848,6 +1033,7 @@ function resetStore() {
       passwordHash: bcrypt.hashSync('Admin123!', 10),
       role: 'admin',
       isActive: true,
+      avatar: null,
       lineUserId: null,
       lineBindAt: null,
       activeCourseId: null,
@@ -860,6 +1046,7 @@ function resetStore() {
       passwordHash: bcrypt.hashSync('Teacher123!', 10),
       role: 'teacher',
       isActive: true,
+      avatar: null,
       lineUserId: null,
       lineBindAt: null,
       activeCourseId: null,
@@ -1055,10 +1242,11 @@ async function jsonRequest(baseUrl, pathname, { method = 'GET', token, body, hea
   };
 }
 
-async function loginAs(baseUrl, email, password) {
+async function loginAs(baseUrl, email, password, role) {
+  const requestedRole = role || store.users.find((user) => user.email === email)?.role;
   const result = await jsonRequest(baseUrl, '/api/v1/auth/login', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, role: requestedRole },
   });
 
   if (result.status !== 200) {
@@ -1113,6 +1301,21 @@ function cleanupTestUploads() {
   }
 }
 
+function cleanupTestAvatars() {
+  fs.rmSync(env.avatarUploadDir, {
+    recursive: true,
+    force: true,
+  });
+  fs.mkdirSync(env.avatarUploadDir, { recursive: true });
+}
+
+process.once('exit', () => {
+  fs.rmSync(avatarTestRoot, {
+    recursive: true,
+    force: true,
+  });
+});
+
 installModelStubs();
 resetStore();
 cleanupTestUploads();
@@ -1131,5 +1334,6 @@ module.exports = {
   postLineWebhook,
   createVideoUploadForm,
   cleanupTestUploads,
+  cleanupTestAvatars,
   createProcessingState,
 };

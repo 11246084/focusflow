@@ -77,6 +77,23 @@ mongosh "你的連線字串" --file database/tools/setup/init_indexes.js
 
 請先確認 `init_collections.js` 已執行完畢再跑這一步。
 
+#### `notifications` application-owned contract
+
+`notifications` 由 backend app 寫入，不屬於 STT／embedding uploader。主要欄位：
+
+- `recipientId`、`source=video_completed|system_maintenance`
+- `title`、`content`、`urgent`、`readAt`
+- `createdBy`、`courseIds[]`、`videoId`
+- 選用 `dedupeKey` 與 `createdAt/updatedAt`
+
+必要 indexes：
+
+- `{ recipientId: 1, createdAt: -1, _id: -1 }`
+- `{ recipientId: 1, readAt: 1, createdAt: -1, _id: -1 }`
+- `{ recipientId: 1, dedupeKey: 1 }`，`unique` 且只在 `dedupeKey` 為 string 時套用 partial filter
+
+2026-07-24 唯讀實查的共享 Atlas 尚無 `notifications`。不要直接用目前 backend `.env` 啟服觸發 autoIndex；正式建立需 DB owner 核准並用 `listIndexes()` 驗證。Release／Playwright 應使用隔離 MongoDB。
+
 ---
 
 ### 步驟 4：安裝 Python 套件
@@ -199,7 +216,9 @@ python database/tools/mongodb_uploader.py --only video_clips
 
 ---
 
-## 目前資料庫狀態（2026-04-19）
+## 資料庫快照（2026-04-19）
+
+> 下表是 2026-04-19 快照，不是即時總數。2026-07-24 唯讀實查 `video_segments_text` 總數為 313；camelCase／來源拆分未在本輪重新統計。
 
 ### `video_segments_text`
 

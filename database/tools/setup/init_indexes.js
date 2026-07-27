@@ -13,8 +13,8 @@ use("focusflow");
 db.users.createIndex({ email: 1 }, { unique: true });
 print("✅ users.email（unique）");
 
-db.users.createIndex({ lineUserId: 1 }, { sparse: true });
-print("✅ users.lineUserId（sparse）");
+db.users.createIndex({ lineUserId: 1 }, { unique: true, sparse: true });
+print("✅ users.lineUserId（unique + sparse）");
 
 // ── courses ────────────────────────────────────────────────
 db.courses.createIndex({ teacherId: 1 });
@@ -116,6 +116,36 @@ db.line_bind_tokens.createIndex(
   { expireAfterSeconds: 0 }
 );
 print("✅ line_bind_tokens.expiresAt（TTL）");
+
+// ── notifications ──────────────────────────────────────────
+db.notifications.createIndex({
+  recipientId: 1,
+  createdAt: -1,
+  _id: -1,
+});
+print("✅ notifications.recipientId + createdAt + _id");
+
+db.notifications.createIndex({
+  recipientId: 1,
+  readAt: 1,
+  createdAt: -1,
+  _id: -1,
+});
+print("✅ notifications.recipientId + readAt + createdAt + _id");
+
+db.notifications.createIndex(
+  {
+    recipientId: 1,
+    dedupeKey: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      dedupeKey: { $type: "string" },
+    },
+  }
+);
+print("✅ notifications.recipientId + dedupeKey（partial unique）");
 
 print("\n🎉 所有 Indexes 建立完成！");
 

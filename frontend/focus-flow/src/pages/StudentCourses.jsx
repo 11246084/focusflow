@@ -111,15 +111,17 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Capture this effect's host so cleanup never mutates a newer render's DOM node.
+    const wrapperElement = wrapperRef.current;
     readyRef.current = false;
     watchedFiredRef.current = false;
 
     loadYouTubeIframeApi().then((YT) => {
-      if (cancelled || !wrapperRef.current) return;
+      if (cancelled || !wrapperElement) return;
 
-      wrapperRef.current.replaceChildren();
+      wrapperElement.replaceChildren();
       const playerHost = document.createElement('div');
-      wrapperRef.current.appendChild(playerHost);
+      wrapperElement.appendChild(playerHost);
 
       const fireWatched = () => {
         if (watchedFiredRef.current) return;
@@ -185,8 +187,8 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
         // YouTube mutates its own iframe during teardown; keep React's wrapper stable.
       } finally {
         playerRef.current = null;
-        if (wrapperRef.current) {
-          wrapperRef.current.replaceChildren();
+        if (wrapperElement) {
+          wrapperElement.replaceChildren();
         }
       }
     };
@@ -594,7 +596,7 @@ export default function StudentCourses() {
           {courses.map((c, i) => {
             const col = COLORS[i % COLORS.length];
             return (
-              <div key={c._id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderBottom: i < courses.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', cursor: 'pointer' }}
+              <div key={c._id} className="course-row" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderBottom: i < courses.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', cursor: 'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <div style={{ width: 46, height: 46, borderRadius: 13, background: `${col}18`, border: `1px solid ${col}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: col, flexShrink: 0 }}>
@@ -604,7 +606,7 @@ export default function StudentCourses() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{c.title}</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>{c.description || '點擊進入課程'}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <div className="course-row-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   <AskTAButton courseId={c._id} courseName={c.title} variant="list" />
                   <button onClick={() => openCourse(c)} className="btn-enter-course">進入課程 →</button>
                 </div>

@@ -12,6 +12,14 @@ from chunk_strategy import validate_chunk_settings
 from utils import ensure_directory
 
 
+def _parse_env_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name, str(default))
+    try:
+        return int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer.") from exc
+
+
 @dataclass(slots=True)
 class PipelineConfig:
     """Centralized runtime settings loaded from env and CLI overrides."""
@@ -100,6 +108,10 @@ class PipelineConfig:
     video_chunk_duration_sec: int
     # 每次運行最大文件數
     video_max_files_per_run: int
+    # Batch 同時執行的單支 Pipeline 數量
+    batch_max_concurrency: int
+    # Batch Item 失敗後可使用既有 Resume 流程重試的次數
+    batch_item_max_retries: int
     # MongoDB URI（可選）
     mongodb_uri: str | None
     # MongoDB 數據庫名稱
@@ -273,6 +285,8 @@ class PipelineConfig:
             video_chunk_duration_sec=int(os.getenv("VIDEO_CHUNK_DURATION_SEC", "120")),
             # 每次運行最大文件數，默認 1，轉換為整數
             video_max_files_per_run=int(os.getenv("VIDEO_MAX_FILES_PER_RUN", "1")),
+            batch_max_concurrency=_parse_env_int("BATCH_MAX_CONCURRENCY", 1),
+            batch_item_max_retries=_parse_env_int("BATCH_ITEM_MAX_RETRIES", 0),
             # MongoDB URI，可選
             mongodb_uri=os.getenv("MONGODB_URI") or None,
             # MongoDB 數據庫名稱，默認 "focusflow"
@@ -361,6 +375,10 @@ class PipelineConfig:
             max_segments=self.chunk_max_segments,
             overlap_segments=self.chunk_overlap_segments,
         )
+        if not 1 <= self.batch_max_concurrency <= 2:
+            raise ValueError("BATCH_MAX_CONCURRENCY must be an integer between 1 and 2.")
+        if not 0 <= self.batch_item_max_retries <= 2:
+            raise ValueError("BATCH_ITEM_MAX_RETRIES must be an integer between 0 and 2.")
 
     def with_overrides(self, **overrides: object) -> "PipelineConfig":
         """Create a modified config copy for CLI overrides."""

@@ -220,6 +220,42 @@ python src/main.py
 python src/main.py --limit 1
 ```
 
+## Batch Video Processing
+
+Batch 模式只負責排程；每支影片仍由既有 `src/main.py` 建立獨立的 run、manifest、
+checkpoint、output 與 run summary。單支失敗不會中止其他影片。
+
+```powershell
+python src/batch_main.py --batch-input Test_video_file
+```
+
+設定：
+
+```env
+BATCH_MAX_CONCURRENCY=1
+BATCH_ITEM_MAX_RETRIES=0
+```
+
+- `BATCH_MAX_CONCURRENCY` 僅允許 `1`～`2`，預設 `1`，避免 Whisper、FFmpeg、
+  Embedding 同時競爭 CPU、GPU、RAM 與 Disk I/O。
+- `BATCH_ITEM_MAX_RETRIES` 僅允許 `0`～`2`。Retry 使用同一個 `run_id` 呼叫既有
+  `--resume-run-id`，不重做已通過 checkpoint 驗證的 stage。
+- Batch manifest 與 summary 位於
+  `data/outputs/batches/<batch_id>/batch_manifest.json` 及 `batch_summary.json`。
+- Resume：`python src/batch_main.py --batch-resume <batch_id>`。已完成項目不重跑；
+  中斷時的 running 項目會轉為 retrying，queued 項目繼續執行。
+- Batch JSON 使用 temporary file、flush、fsync、atomic replace，避免留下半份正式檔案。
+
+完全離線測試：
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_batch_manager -v
+```
+
+Batch 測試只使用 Fake Runner，不會呼叫 FFmpeg、Whisper、Gemini、Embedding、
+MongoDB、Backend Webhook 或 Docker。目前尚未執行真實影片與多 worker 壓力測試；
+正式環境應先維持 concurrency `1`。
+
 ### 只讓 Gemini text embedding 跑前 20 個 pending chunks
 
 ```powershell

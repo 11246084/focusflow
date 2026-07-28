@@ -90,6 +90,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Resume an existing run from data/outputs/runs/<run_id>/manifest.json.",
     )
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     # 添加處理視頻數量限制參數，用於快速測試
     parser.add_argument(
         "--limit",
@@ -612,6 +617,11 @@ def main() -> int:
         logger.error("--overwrite cannot be used together with --resume-run-id")
         print("--overwrite cannot be used together with --resume-run-id", file=sys.stderr)
         return 2
+    requested_run_id = getattr(args, "run_id", None)
+    if requested_run_id and args.resume_run_id:
+        logger.error("--run-id cannot be used together with --resume-run-id")
+        print("--run-id cannot be used together with --resume-run-id", file=sys.stderr)
+        return 2
 
     runs_dir = config.project_root / "data" / "outputs" / "runs"
     chunk_config = build_chunk_config_snapshot(config)
@@ -633,6 +643,7 @@ def main() -> int:
         else:
             job_manager = create_manifest(
                 runs_dir,
+                run_id=requested_run_id,
                 chunk_config=chunk_config,
                 chunk_config_fingerprint=chunk_config_fingerprint,
             )

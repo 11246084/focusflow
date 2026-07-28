@@ -48,16 +48,21 @@ def probe_video_duration(video_path: Path, ffmpeg_binary: str) -> float:
     return round_seconds(duration_sec)
 
 
+def iter_input_files(video_input_dir: Path):
+    """Yield deterministic file paths without loading file contents."""
+    yield from sorted(
+        (path for path in video_input_dir.rglob("*") if path.is_file()),
+        key=lambda item: item.as_posix().lower(),
+    )
+
+
 def discover_video_files(video_input_dir: Path, supported_extensions: tuple[str, ...]) -> list[Path]:
     """Find all supported video files recursively under the input directory."""
-    # 使用遞歸通配符查找所有支持的視頻文件
-    discovered_files = [
+    return [
         path
-        for path in video_input_dir.rglob("*")
-        if path.is_file() and path.suffix.lower() in supported_extensions
+        for path in iter_input_files(video_input_dir)
+        if path.suffix.lower() in supported_extensions
     ]
-    # 按 POSIX 路徑排序以確保穩定順序
-    return sorted(discovered_files, key=lambda item: item.as_posix().lower())
 
 
 def scan_videos(config: PipelineConfig) -> list[VideoMetadata]:

@@ -1,67 +1,88 @@
 ---
 name: github-copy
-description: Generate short Traditional Chinese GitHub commit, upload, push, or PR summary and description text. Use when Codex needs concise GitHub Desktop or VS Code submission copy with a one-line Summary and a short Description.
+description: Generate concise, directly pasteable Traditional Chinese Summary and Description text for FocusFlow commits, GitHub Desktop, VS Code commit dialogs, pushes, uploads, or pull requests. Use when Codex is asked to draft commit messages or submission copy from the current repository changes.
 ---
 
-# Github Copy
+# GitHub Copy
 
-## Overview
+## Workflow
 
-Use this skill to produce short GitHub submission copy for this repository. Keep the output directly pasteable into GitHub Desktop or VS Code commit fields.
-
-## Usage
-
-呼叫方式：在對話中輸入 `/github-copy`，Codex 會根據目前的修改內容自動產出 Summary 與 Description。
-
-```
-/github-copy
-```
-
-也可以附上說明，讓輸出更精準：
-
-```
-/github-copy 這次新增了 LINE 綁定 API 和修正 webhook GET handler
-```
-
-輸出範例：
-
-```
-Summary
-Add LINE bind-token API and fix webhook GET handler
-
-Description
-新增 POST /api/v1/line/bind-token，讓前端可為學生發放 10 分鐘有效的綁定 token。
-補上 GET /api/v1/line/webhook，通過 LINE Developers Console Verify 驗證。
-```
+1. Inspect the current repository evidence before writing:
+   - Run `git status --short`.
+   - Review `git diff --stat`, `git diff --name-status`, and the relevant diff.
+   - Include untracked files when they belong to the requested change.
+2. Separate the changes into the smallest useful groups:
+   - Feature or behavior changes.
+   - Fixes and compatibility changes.
+   - Documentation, API contracts, schemas, configuration, or indexes.
+   - Tests, lint, build, smoke checks, or other verification actually completed.
+3. Draft one Traditional Chinese Summary and a 2–4 line Traditional Chinese Description.
+4. Keep unrelated dirty-worktree changes out of the copy. If the intended commit scope is ambiguous, state the boundary or ask the user which files will be committed.
 
 ## Output Rules
 
-- Write `Summary` in English, exactly one line.
-- Write `Description` in Traditional Chinese, 2 to 4 short lines.
-- Default to short-form output.
-- Focus on what changed first; add why only when it improves clarity.
+- Write `Summary` in Traditional Chinese, exactly one line.
+- Start Summary with a concrete action such as「新增」「修正」「同步」「更新」「完成」「支援」「整合」or「對齊」.
+- Keep Summary concise and focused on the primary outcome. Preserve necessary product names, paths, API names, and technical identifiers in English.
+- Write `Description` in Traditional Chinese, using 2–4 short lines.
+- Put one coherent change group on each Description line.
+- Mention tests or verification only when they were actually executed and passed.
+- Describe renames, migrations, contract changes, or source synchronization when they materially affect review.
+- Do not add `feat:`, `fix:`, `docs:`, `chore:`, or other conventional-commit prefixes unless the user requests them.
+- Do not claim deployment, production readiness, test success, or completion beyond the inspected evidence.
+- Default to commit-sized copy. Expand into a PR body only when explicitly requested.
 
-## Style Rules
+## FocusFlow Priorities
 
-- Keep the wording direct and readable.
-- Do not expand into long PR-body sections unless the user explicitly asks.
-- Do not add `feat:`, `fix:`, or `chore:` prefixes unless the user asks.
-- Prefer wording that can be pasted without further editing.
+- For backend or API work, name the user-visible behavior first, then important contract or security changes.
+- For frontend work, name the affected flow or page and the resulting behavior.
+- For AI Pipeline or RAG work, distinguish processing, retrieval, quality, recovery, and cost changes.
+- For documentation-only work, name the synchronized source and the updated document set or index.
+- When a change spans code, documentation, and tests, use the Description lines in that order.
+- Keep pre-existing failures separate from verification performed for the current change.
 
 ## Response Format
 
-Use this exact structure unless the user requests another format:
+Use this exact structure:
 
 ```text
 Summary
-<one line>
+<繁體中文單行摘要>
 
 Description
-<2 to 4 short lines>
+<變更重點一>
+<變更重點二>
+<選填：變更重點三或實際驗證結果>
+```
+
+## Examples
+
+### Notion meeting-note synchronization
+
+```text
+Summary
+同步 Notion 會議紀錄與索引
+
+Description
+依 Notion 編號與標題對齊 15 份組內會議紀錄，補上缺失的 Codex 使用報告。
+新增教授會議紀錄並整理專案進度、成本與競賽決議。
+更新 meeting-notes 索引與各紀錄的 Notion 來源連結。
+```
+
+### Backend feature with verification
+
+```text
+Summary
+完成角色登入、站內通知與私有頭貼
+
+Description
+防止跨身分登入並強化註冊錯誤處理。
+加入通知查詢、已讀、管理員公告與影片完成通知。
+加入私有頭貼上傳與讀取，並補齊相關整合測試。
 ```
 
 ## Defaults
 
-- If the user only asks for GitHub upload copy, return the short version immediately.
-- If the user mentions GitHub Desktop or the VS Code commit dialog, optimize for copy-paste brevity.
-- If the user asks for a PR body, expand only then.
+- If the user only asks for commit copy, return the short format immediately after inspecting the changes.
+- If the user provides an intended scope, use it to filter the working-tree evidence.
+- If the user asks only for wording, do not stage, commit, push, or create a pull request.

@@ -313,6 +313,17 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
     }
   }
 
+  function handleCitationClick(matchedIndex, startSec) {
+    if (matchedIndex >= 0 && onJumpToVideo) {
+      onJumpToVideo(matchedIndex, startSec);
+      return;
+    }
+    if (videoRef.current) {
+      videoRef.current.currentTime = startSec;
+      videoRef.current.play();
+    }
+  }
+
   return (
     <div style={{ marginTop: 14, padding: '16px 18px', background: 'rgba(241,79,33,0.06)', border: '1px solid rgba(241,79,33,0.18)', borderRadius: 14 }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em', marginBottom: 10 }}>AI 問答</div>
@@ -358,18 +369,20 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             ));
             const matchedVideo = matchedIndex >= 0 ? videos[matchedIndex] : null;
             const videoTitle = formatVideoLabel(seg, matchedVideo);
+            const canJump = (matchedIndex >= 0 && Boolean(onJumpToVideo)) || Boolean(videoRef.current);
             return (
               <div
                 key={i}
-                style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: (matchedIndex >= 0 || videoRef.current) ? 'pointer' : 'default' }}
-                onClick={() => {
-                  if (matchedIndex >= 0 && onJumpToVideo) {
-                    onJumpToVideo(matchedIndex, start);
-                    return;
-                  }
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = start;
-                    videoRef.current.play();
+                className="citation-card"
+                role={canJump ? 'button' : undefined}
+                tabIndex={canJump ? 0 : undefined}
+                aria-label={canJump ? `跳至 ${videoTitle} ${formatTime(start)}` : undefined}
+                style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: canJump ? 'pointer' : 'default' }}
+                onClick={() => handleCitationClick(matchedIndex, start)}
+                onKeyDown={(event) => {
+                  if (canJump && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    handleCitationClick(matchedIndex, start);
                   }
                 }}
               >

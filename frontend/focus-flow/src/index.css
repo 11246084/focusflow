@@ -1185,6 +1185,19 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* Course detail grid */
 .course-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 
+.citation-card[role="button"] {
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.citation-card[role="button"]:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.citation-card[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(241, 79, 33, 0.72);
+}
+
 /* Course action buttons */
 .btn-ask-ta {
   background: rgba(6,199,85,0.12);

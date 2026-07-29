@@ -780,3 +780,28 @@ cd STT_Whisper
 A/B 工具只使用固定假 Transcript 與 character n-gram，不寫入正式 outputs、不呼叫 Gemini/Whisper、不連 MongoDB，也不需要 Docker。
 
 本 Sprint **尚未 rollout 共享 MongoDB Atlas**。同一影片用不同 Chunk Strategy 重跑時，現有 `<video_id>_chunk_<序號>` 可能覆寫相同序號，而 uploader 不會自動清除 stale Chunk。正式 rollout 前仍需資料庫負責人定版 replace-by-video 或 stale chunk cleanup 規則。
+
+## Phase 2-2 - Hierarchical Chunk Generation Sprint 1
+
+Deterministic Parent Chunk Generation 預設關閉，啟用後會在 `chunk` 與
+`text_embedding` 之間執行獨立 `hierarchy` stage：
+
+```env
+HIERARCHY_ENABLED=false
+HIERARCHY_PARENT_LEAF_COUNT=3
+HIERARCHY_PARENT_OVERLAP_LEAVES=0
+PARENT_CHUNKS_OUTPUT_PATH=data/outputs/parent_chunks.jsonl
+```
+
+- `HIERARCHY_PARENT_LEAF_COUNT` 允許 `2` 到 `8`。
+- `HIERARCHY_PARENT_OVERLAP_LEAVES` 允許 `0` 到 `2`，且必須小於 group size。
+- Parent 依 `chunks.jsonl` 原始順序固定分組，步長為
+  `parent_leaf_count - parent_overlap_leaves`。
+- Parent ID 為 `<video_id>_parent_<四位流水號>`，文字使用 canonical newline
+  合併，不做文字去重、改寫、topic detection 或 LLM summary。
+- 獨立輸出 `parent_chunks.jsonl`；既有 `chunks.jsonl`、Leaf ID、Leaf text
+  embedding、MongoDB uploader 與 retrieval 契約均不變。
+- Manifest 與 run summary 保存 hierarchy config、依賴 Leaf Chunk fingerprint
+  的 SHA-256 hierarchy fingerprint、來源 Leaf 數及 Parent 數。
+- 本輸出只供後續 Sprint 使用；本 Sprint 不建立 Parent embedding、不寫入
+  MongoDB，也不接入 Backend retrieval。

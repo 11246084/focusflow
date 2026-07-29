@@ -22,6 +22,7 @@ STAGE_NAMES = (
     "transcribe",
     "normalize",
     "chunk",
+    "hierarchy",
     "text_embedding",
     "audio_embedding",
     "export",
@@ -57,6 +58,8 @@ class JobManager:
         run_id: str | None = None,
         chunk_config: dict[str, Any] | None = None,
         chunk_config_fingerprint: str | None = None,
+        hierarchy_config: dict[str, Any] | None = None,
+        hierarchy_config_fingerprint: str | None = None,
     ) -> "JobManager":
         """Create and persist a new manifest under runs/<run_id>/manifest.json."""
         runs_dir = runs_dir.resolve()
@@ -83,6 +86,10 @@ class JobManager:
             manifest["chunk_config"] = dict(chunk_config)
         if chunk_config_fingerprint is not None:
             manifest["chunk_config_fingerprint"] = chunk_config_fingerprint
+        if hierarchy_config is not None:
+            manifest["hierarchy_config"] = dict(hierarchy_config)
+        if hierarchy_config_fingerprint is not None:
+            manifest["hierarchy_config_fingerprint"] = hierarchy_config_fingerprint
         manager = cls(runs_dir / resolved_run_id / "manifest.json", manifest)
         manager._persist()
         return manager
@@ -202,6 +209,32 @@ class JobManager:
         self.manifest["chunk_config_fingerprint"] = chunk_config_fingerprint
         self._persist()
 
+    def set_hierarchy_metadata(
+        self,
+        hierarchy_config: dict[str, Any],
+        hierarchy_config_fingerprint: str,
+        *,
+        artifact_path: str | None = None,
+        parent_count: int | None = None,
+        source_leaf_count: int | None = None,
+        failure_summary: str | None = None,
+    ) -> None:
+        """Persist hierarchy config and compact generation metadata."""
+        self.manifest["hierarchy_config"] = dict(hierarchy_config)
+        self.manifest["hierarchy_config_fingerprint"] = hierarchy_config_fingerprint
+        metadata = self.manifest.setdefault("hierarchy", {})
+        metadata.update(
+            {
+                "enabled": bool(hierarchy_config.get("enabled")),
+                "strategy": hierarchy_config.get("strategy"),
+                "artifact_path": artifact_path,
+                "parent_count": parent_count,
+                "source_leaf_count": source_leaf_count,
+                "failure_summary": failure_summary,
+            }
+        )
+        self._persist()
+
     def reset_stages_from(self, stage_name: str) -> None:
         """Mark one stage and all later stages pending before a linear resume rerun."""
         if stage_name not in STAGE_NAMES:
@@ -234,7 +267,8 @@ class JobManager:
         if stage_name not in STAGE_NAMES:
             raise ValueError(f"Unknown pipeline stage: {stage_name}")
         video = self._require_video(video_id)
-        return video, video["stages"][stage_name]
+        stage = video.setdefault("stages", {}).setdefault(stage_name, _new_stage())
+        return video, stage
 
     def _persist(self) -> None:
         """Atomically replace the UTF-8 manifest after every state change."""
@@ -284,6 +318,8 @@ def create_manifest(
     run_id: str | None = None,
     chunk_config: dict[str, Any] | None = None,
     chunk_config_fingerprint: str | None = None,
+    hierarchy_config: dict[str, Any] | None = None,
+    hierarchy_config_fingerprint: str | None = None,
 ) -> JobManager:
     """Convenience factory matching the pipeline-facing API."""
     return JobManager.create_manifest(
@@ -291,6 +327,8 @@ def create_manifest(
         run_id,
         chunk_config,
         chunk_config_fingerprint,
+        hierarchy_config,
+        hierarchy_config_fingerprint,
     )
 
 

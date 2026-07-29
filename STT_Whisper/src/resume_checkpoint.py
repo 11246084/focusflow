@@ -11,6 +11,8 @@ from chunk_strategy import (
     build_chunk_config_fingerprint,
     is_legacy_compatible_chunk_config,
 )
+from hierarchy_chunking import validate_parent_artifact
+from hierarchy_strategy import build_hierarchy_config_fingerprint
 from job_manager import STAGE_NAMES, JobManager
 from run_summary import OUTPUT_FILES
 from utils import (
@@ -209,6 +211,29 @@ def _validate_chunk_config_fingerprint(
         raise CheckpointError("Chunk config fingerprint differs from the current runtime")
 
 
+def _validate_hierarchy_config_fingerprint(
+    manifest: dict[str, Any],
+    current_hierarchy_config: dict[str, Any],
+    current_hierarchy_fingerprint: str,
+    current_chunk_fingerprint: str,
+) -> None:
+    stored_config = manifest.get("hierarchy_config")
+    stored_fingerprint = manifest.get("hierarchy_config_fingerprint")
+    if not isinstance(stored_config, dict) or not isinstance(stored_fingerprint, str):
+        raise CheckpointError("manifest has no reusable hierarchy fingerprint")
+    if len(stored_fingerprint) != 64:
+        raise CheckpointError("manifest hierarchy_config_fingerprint is invalid")
+    try:
+        int(stored_fingerprint, 16)
+    except ValueError as exc:
+        raise CheckpointError("manifest hierarchy_config_fingerprint is invalid") from exc
+    expected = build_hierarchy_config_fingerprint(stored_config, current_chunk_fingerprint)
+    if expected != stored_fingerprint:
+        raise CheckpointError("manifest hierarchy fingerprint does not match its dependencies")
+    if stored_config != current_hierarchy_config or stored_fingerprint != current_hierarchy_fingerprint:
+        raise CheckpointError("Hierarchy config fingerprint differs from the current runtime")
+
+
 def _stage_statuses(job_manager: JobManager, stage_name: str) -> list[str]:
     return [
         str(video.get("stages", {}).get(stage_name, {}).get("status", "pending"))
@@ -242,6 +267,14 @@ def _checkpoint_for_stage(
         )
     elif stage_name == "chunk":
         data["chunks"] = _load_chunks(run_output_dir)
+    elif stage_name == "hierarchy":
+        try:
+            data["parent_chunks"] = validate_parent_artifact(
+                run_output_dir / OUTPUT_FILES["parent_chunks"],
+                data.get("chunks", []),
+            )
+        except ValueError as exc:
+            raise CheckpointError(str(exc)) from exc
     elif stage_name == "text_embedding":
         data["text_embeddings"] = _load_text_embeddings(run_output_dir)
     elif stage_name == "audio_embedding":
@@ -262,6 +295,8 @@ def build_resume_plan(
     project_root: Path,
     current_chunk_config: dict[str, Any],
     current_chunk_config_fingerprint: str,
+    current_hierarchy_config: dict[str, Any] | None = None,
+    current_hierarchy_fingerprint: str | None = None,
 ) -> ResumePlan:
     """Find the first stage that cannot be safely skipped and load prior checkpoints."""
     plan = ResumePlan(
@@ -269,8 +304,15 @@ def build_resume_plan(
         run_output_dir=job_manager.manifest_path.parent,
         restart_stage=None,
     )
+    hierarchy_enabled = bool(
+        current_hierarchy_config and current_hierarchy_config.get("enabled")
+    )
 
     for stage_name in STAGE_NAMES:
+        if stage_name == "hierarchy" and not hierarchy_enabled:
+            plan.skipped_stages.add(stage_name)
+            logger.info("Hierarchy disabled, treating stage as skipped.")
+            continue
         statuses = _stage_statuses(job_manager, stage_name)
         if _all_completed_or_skipped(statuses):
             try:
@@ -278,6 +320,15 @@ def build_resume_plan(
                     _validate_chunk_config_fingerprint(
                         job_manager.manifest,
                         current_chunk_config,
+                        current_chunk_config_fingerprint,
+                    )
+                elif stage_name == "hierarchy":
+                    if current_hierarchy_config is None or current_hierarchy_fingerprint is None:
+                        raise CheckpointError("current hierarchy config is missing")
+                    _validate_hierarchy_config_fingerprint(
+                        job_manager.manifest,
+                        current_hierarchy_config,
+                        current_hierarchy_fingerprint,
                         current_chunk_config_fingerprint,
                     )
                 _checkpoint_for_stage(

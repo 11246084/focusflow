@@ -9,6 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from chunk_strategy import validate_chunk_settings
+from hierarchy_strategy import validate_hierarchy_settings
 from utils import ensure_directory
 
 
@@ -18,6 +19,13 @@ def _parse_env_int(name: str, default: int) -> int:
         return int(raw_value)
     except ValueError as exc:
         raise ValueError(f"{name} must be an integer.") from exc
+
+
+def _parse_env_bool(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name, str(default).lower()).strip().lower()
+    if raw_value not in {"true", "false"}:
+        raise ValueError(f"{name} must be either true or false.")
+    return raw_value == "true"
 
 
 @dataclass(slots=True)
@@ -52,6 +60,8 @@ class PipelineConfig:
     normalized_transcript_output_path: Path
     # 塊輸出路徑
     chunks_output_path: Path
+    # Level-1 Parent Chunk 獨立輸出路徑
+    parent_chunks_output_path: Path
     # 文本嵌入輸出路徑
     text_embeddings_output_path: Path
     # 音頻嵌入輸出路徑
@@ -84,6 +94,12 @@ class PipelineConfig:
     chunk_max_duration_sec: float
     # 相鄰塊最多共用的完整 Whisper segment 數
     chunk_overlap_segments: int
+    # 是否產生 deterministic Level-1 Parent Chunks
+    hierarchy_enabled: bool
+    # 每個 Parent 最多包含的 Leaf Chunk 數
+    hierarchy_parent_leaf_count: int
+    # 相鄰 Parent 共用的 Leaf Chunk 數
+    hierarchy_parent_overlap_leaves: int
     # 模糊匹配閾值
     fuzzy_threshold: int
     # Gemini 嵌入是否啟用
@@ -185,6 +201,10 @@ class PipelineConfig:
         )
         # 設置塊輸出路徑，默認為 "data/outputs/chunks.jsonl"
         chunks_output_path = resolved_root / os.getenv("CHUNKS_OUTPUT_PATH", "data/outputs/chunks.jsonl")
+        parent_chunks_output_path = resolved_root / os.getenv(
+            "PARENT_CHUNKS_OUTPUT_PATH",
+            "data/outputs/parent_chunks.jsonl",
+        )
         # 設置文本嵌入輸出路徑，默認為 "data/outputs/embeddings_text_gemini.jsonl"
         text_embeddings_output_path = resolved_root / os.getenv(
             "TEXT_EMBEDDINGS_OUTPUT_PATH",
@@ -226,6 +246,7 @@ class PipelineConfig:
             term_dictionary_path=term_dictionary_path,
             normalized_transcript_output_path=normalized_transcript_output_path,
             chunks_output_path=chunks_output_path,
+            parent_chunks_output_path=parent_chunks_output_path,
             text_embeddings_output_path=text_embeddings_output_path,
             audio_embeddings_output_path=audio_embeddings_output_path,
             video_embeddings_output_path=video_embeddings_output_path,
@@ -257,6 +278,12 @@ class PipelineConfig:
             chunk_max_duration_sec=float(os.getenv("CHUNK_MAX_DURATION_SEC", "45")),
             # 相鄰塊完整 segment 重疊數，預設 0 以維持舊行為
             chunk_overlap_segments=chunk_overlap_segments,
+            hierarchy_enabled=_parse_env_bool("HIERARCHY_ENABLED", False),
+            hierarchy_parent_leaf_count=_parse_env_int("HIERARCHY_PARENT_LEAF_COUNT", 3),
+            hierarchy_parent_overlap_leaves=_parse_env_int(
+                "HIERARCHY_PARENT_OVERLAP_LEAVES",
+                0,
+            ),
             # 模糊匹配閾值，默認 85，轉換為整數
             fuzzy_threshold=int(os.getenv("FUZZY_THRESHOLD", "85")),
             # Gemini 嵌入是否啟用，默認 false，轉換為布爾值
@@ -362,6 +389,7 @@ class PipelineConfig:
         ensure_directory(self.normalized_transcript_output_path.parent)
         # 確保塊輸出路徑的父目錄存在
         ensure_directory(self.chunks_output_path.parent)
+        ensure_directory(self.parent_chunks_output_path.parent)
         # 確保文本嵌入輸出路徑的父目錄存在
         ensure_directory(self.text_embeddings_output_path.parent)
         # 確保音頻嵌入輸出路徑的父目錄存在
@@ -374,6 +402,11 @@ class PipelineConfig:
         validate_chunk_settings(
             max_segments=self.chunk_max_segments,
             overlap_segments=self.chunk_overlap_segments,
+        )
+        validate_hierarchy_settings(
+            self.hierarchy_enabled,
+            self.hierarchy_parent_leaf_count,
+            self.hierarchy_parent_overlap_leaves,
         )
         if not 1 <= self.batch_max_concurrency <= 2:
             raise ValueError("BATCH_MAX_CONCURRENCY must be an integer between 1 and 2.")

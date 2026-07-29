@@ -17,6 +17,11 @@ from chunking import build_chunks
 from config import PipelineConfig
 from embedding import embed_audio_tracks, embed_chunks
 from export_outputs import export_all_outputs, export_latest_compatibility_outputs
+from hierarchy_chunking import build_parent_chunks, write_parent_chunks
+from hierarchy_strategy import (
+    build_hierarchy_config_fingerprint,
+    build_hierarchy_config_snapshot,
+)
 from extract_audio import extract_audio_for_videos
 from job_manager import JobManager, create_manifest, load_manifest
 from normalize_transcript import normalize_transcripts
@@ -183,6 +188,7 @@ def bind_run_output(config: PipelineConfig, job_manager: JobManager) -> Pipeline
         output_dir=run_output_dir,
         normalized_transcript_output_path=run_output_dir / "transcripts_normalized.json",
         chunks_output_path=run_output_dir / "chunks.jsonl",
+        parent_chunks_output_path=run_output_dir / "parent_chunks.jsonl",
         text_embeddings_output_path=run_output_dir / "embeddings_text_gemini.jsonl",
         audio_embeddings_output_path=run_output_dir / "embeddings_audio_gemini.jsonl",
         video_embeddings_output_path=run_output_dir / "embeddings_video_gemini.jsonl",
@@ -545,7 +551,42 @@ def run_pipeline(
             "chunk",
             lambda: build_chunks(videos, normalized_transcripts, config),
         )
-    # 步驟 6：從標準化塊生成 Gemini 文本嵌入
+    # 步驟 6：選擇性地由 Leaf Chunks 產生 deterministic Level-1 Parent Chunks
+    if not config.hierarchy_enabled:
+        parent_chunks = []
+        if resume_plan is None or not resume_plan.should_skip("hierarchy"):
+            for video in videos:
+                job_manager.skip_stage(video.video_id, "hierarchy")
+    elif resume_plan is not None and resume_plan.should_skip("hierarchy"):
+        parent_chunks = resume_data["parent_chunks"]
+    else:
+        def generate_hierarchy():
+            try:
+                records = build_parent_chunks(
+                    chunks,
+                    config.hierarchy_parent_leaf_count,
+                    config.hierarchy_parent_overlap_leaves,
+                )
+                write_parent_chunks(config.parent_chunks_output_path, records)
+                return records
+            except Exception as exc:
+                job_manager.set_hierarchy_metadata(
+                    dict(job_manager.manifest.get("hierarchy_config", {})),
+                    str(job_manager.manifest.get("hierarchy_config_fingerprint", "")),
+                    artifact_path="parent_chunks.jsonl",
+                    parent_count=0,
+                    source_leaf_count=len(chunks),
+                    failure_summary=str(exc),
+                )
+                raise
+
+        parent_chunks = _run_tracked_stage(
+            job_manager,
+            videos,
+            "hierarchy",
+            generate_hierarchy,
+        )
+    # 步驟 7：從標準化 Leaf Chunks 生成 Gemini 文本嵌入
     if resume_plan is not None and resume_plan.should_skip("text_embedding"):
         text_embeddings = resume_data["text_embeddings"]
     else:
@@ -599,6 +640,7 @@ def run_pipeline(
         "transcripts": transcripts,
         "normalized_transcripts": normalized_transcripts,
         "chunks": chunks,
+        "parent_chunks": parent_chunks,
         "text_embeddings": text_embeddings,
         "audio_embeddings": audio_embeddings,
     }
@@ -626,6 +668,11 @@ def main() -> int:
     runs_dir = config.project_root / "data" / "outputs" / "runs"
     chunk_config = build_chunk_config_snapshot(config)
     chunk_config_fingerprint = build_chunk_config_fingerprint(chunk_config)
+    hierarchy_config = build_hierarchy_config_snapshot(config)
+    hierarchy_config_fingerprint = build_hierarchy_config_fingerprint(
+        hierarchy_config,
+        chunk_config_fingerprint,
+    )
     resume_plan: ResumePlan | None = None
     try:
         if args.resume_run_id:
@@ -638,16 +685,34 @@ def main() -> int:
                 config.project_root,
                 chunk_config,
                 chunk_config_fingerprint,
+                hierarchy_config,
+                hierarchy_config_fingerprint,
             )
             job_manager.set_chunk_config(chunk_config, chunk_config_fingerprint)
+            job_manager.set_hierarchy_metadata(
+                hierarchy_config,
+                hierarchy_config_fingerprint,
+                artifact_path=(
+                    "parent_chunks.jsonl" if hierarchy_config["enabled"] else None
+                ),
+            )
         else:
             job_manager = create_manifest(
                 runs_dir,
                 run_id=requested_run_id,
                 chunk_config=chunk_config,
                 chunk_config_fingerprint=chunk_config_fingerprint,
+                hierarchy_config=hierarchy_config,
+                hierarchy_config_fingerprint=hierarchy_config_fingerprint,
             )
             config = bind_run_output(config, job_manager)
+            job_manager.set_hierarchy_metadata(
+                hierarchy_config,
+                hierarchy_config_fingerprint,
+                artifact_path=(
+                    "parent_chunks.jsonl" if hierarchy_config["enabled"] else None
+                ),
+            )
     except Exception as exc:
         logger.error("Unable to initialize pipeline run: %s", exc)
         print(f"Unable to initialize pipeline run: {exc}", file=sys.stderr)
@@ -676,6 +741,13 @@ def main() -> int:
             job_manager,
             limit=args.limit,
             resume_plan=resume_plan,
+        )
+        job_manager.set_hierarchy_metadata(
+            hierarchy_config,
+            hierarchy_config_fingerprint,
+            artifact_path=("parent_chunks.jsonl" if hierarchy_config["enabled"] else None),
+            parent_count=len(pipeline_data.get("parent_chunks", [])),
+            source_leaf_count=len(pipeline_data.get("chunks", [])),
         )
 
         # Pipeline 完成後自動上傳結果到 MongoDB
@@ -775,6 +847,9 @@ def main() -> int:
             job_manager.manifest["created_at"],
             chunk_config=chunk_config,
             chunk_config_fingerprint=chunk_config_fingerprint,
+            hierarchy_config=hierarchy_config,
+            hierarchy_config_fingerprint=hierarchy_config_fingerprint,
+            hierarchy_metadata=job_manager.manifest.get("hierarchy"),
         )
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
@@ -820,6 +895,9 @@ def main() -> int:
             exc,
             chunk_config=chunk_config,
             chunk_config_fingerprint=chunk_config_fingerprint,
+            hierarchy_config=hierarchy_config,
+            hierarchy_config_fingerprint=hierarchy_config_fingerprint,
+            hierarchy_metadata=job_manager.manifest.get("hierarchy"),
         )
         return 1
 

@@ -14,6 +14,7 @@ OUTPUT_FILES = {
     "transcripts": "transcripts.json",
     "transcripts_normalized": "transcripts_normalized.json",
     "chunks": "chunks.jsonl",
+    "parent_chunks": "parent_chunks.jsonl",
     "text_embeddings": "embeddings_text_gemini.jsonl",
     "audio_embeddings": "embeddings_audio_gemini.jsonl",
     "upload_summary": "upload_summary.json",
@@ -55,6 +56,7 @@ def collect_output_counts(run_output_dir: Path) -> dict[str, int]:
             run_output_dir / OUTPUT_FILES["transcripts_normalized"]
         ),
         "chunks": _jsonl_count(run_output_dir / OUTPUT_FILES["chunks"]),
+        "parent_chunks": _jsonl_count(run_output_dir / OUTPUT_FILES["parent_chunks"]),
         "text_embeddings": _jsonl_count(run_output_dir / OUTPUT_FILES["text_embeddings"]),
         "audio_embeddings": _jsonl_count(run_output_dir / OUTPUT_FILES["audio_embeddings"]),
     }
@@ -102,6 +104,9 @@ def write_run_summary(
     error: Exception | str | None = None,
     chunk_config: dict[str, Any] | None = None,
     chunk_config_fingerprint: str | None = None,
+    hierarchy_config: dict[str, Any] | None = None,
+    hierarchy_config_fingerprint: str | None = None,
+    hierarchy_metadata: dict[str, Any] | None = None,
 ) -> Path:
     """Write a final summary for either a completed or failed run."""
     output_path = run_output_dir / "run_summary.json"
@@ -119,5 +124,17 @@ def write_run_summary(
         payload["chunk_overlap_segments"] = chunk_config.get("overlap_segments")
     if chunk_config_fingerprint is not None:
         payload["chunk_config_fingerprint"] = chunk_config_fingerprint
+    if hierarchy_config is not None:
+        payload["hierarchy"] = {
+            "enabled": bool(hierarchy_config.get("enabled")),
+            "strategy": hierarchy_config.get("strategy"),
+            "parent_leaf_count": hierarchy_config.get("parent_leaf_count"),
+            "parent_overlap_leaves": hierarchy_config.get("parent_overlap_leaves"),
+            "fingerprint": hierarchy_config_fingerprint,
+            "output_path": OUTPUT_FILES["parent_chunks"] if hierarchy_config.get("enabled") else None,
+            "parent_count": payload["counts"]["parent_chunks"],
+            "source_leaf_count": payload["counts"]["chunks"],
+            **(hierarchy_metadata or {}),
+        }
     write_json_file(output_path, payload, backup_existing=False)
     return output_path

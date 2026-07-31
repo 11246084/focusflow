@@ -287,6 +287,39 @@ const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'
 // 學生要能點到每一個被引用的時間戳。
 const SEGMENT_PREVIEW_COUNT = 3;
 
+function normalizeAnswerLines(value) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    // AI responses sometimes place numbered or bulleted items in one paragraph.
+    .replace(/([^\n])\s+(?=(?:\d+[.)](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
+    .split('\n');
+}
+
+function renderAnswerInline(text, lineIndex) {
+  const parts = String(text).split(/(\*\*[^*\n]+\*\*)/g);
+
+  return parts.map((part, partIndex) => {
+    const key = `${lineIndex}-${partIndex}`;
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    // Never leak incomplete Markdown bold delimiters into the visible answer.
+    return <span key={key}>{part.replaceAll('**', '')}</span>;
+  });
+}
+
+function AnswerContent({ answer }) {
+  return (
+    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, marginBottom: 10 }}>
+      {normalizeAnswerLines(answer).map((line, index) => (
+        <div key={index} style={{ minHeight: line ? undefined : '0.85em' }}>
+          {renderAnswerInline(line, index)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -344,7 +377,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
       {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
       {result && (
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, marginBottom: 10 }}>{result.answer}</div>
+          <AnswerContent answer={result.answer} />
           {(result.matches || result.segments || []).length > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
               命中片段

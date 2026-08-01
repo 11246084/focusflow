@@ -23,6 +23,7 @@ STAGE_NAMES = (
     "normalize",
     "chunk",
     "hierarchy",
+    "parent_embedding",
     "text_embedding",
     "audio_embedding",
     "export",
@@ -60,6 +61,8 @@ class JobManager:
         chunk_config_fingerprint: str | None = None,
         hierarchy_config: dict[str, Any] | None = None,
         hierarchy_config_fingerprint: str | None = None,
+        parent_embedding_config: dict[str, Any] | None = None,
+        parent_embedding_fingerprint: str | None = None,
     ) -> "JobManager":
         """Create and persist a new manifest under runs/<run_id>/manifest.json."""
         runs_dir = runs_dir.resolve()
@@ -90,6 +93,10 @@ class JobManager:
             manifest["hierarchy_config"] = dict(hierarchy_config)
         if hierarchy_config_fingerprint is not None:
             manifest["hierarchy_config_fingerprint"] = hierarchy_config_fingerprint
+        if parent_embedding_config is not None:
+            manifest["parent_embedding_config"] = dict(parent_embedding_config)
+        if parent_embedding_fingerprint is not None:
+            manifest["parent_embedding_fingerprint"] = parent_embedding_fingerprint
         manager = cls(runs_dir / resolved_run_id / "manifest.json", manifest)
         manager._persist()
         return manager
@@ -251,6 +258,46 @@ class JobManager:
         self.manifest.update(status="pending", error=None)
         self._persist()
 
+    def set_parent_embedding_metadata(
+        self,
+        config_snapshot: dict[str, Any],
+        fingerprint: str | None,
+        *,
+        artifact_path: str | None = None,
+        required_count: int = 0,
+        success_count: int = 0,
+        reused_count: int = 0,
+        failed_count: int = 0,
+        status: str | None = None,
+        failure_summary: str | None = None,
+    ) -> None:
+        """Persist compact Parent Embedding state without vectors or secrets."""
+        self.manifest["parent_embedding_config"] = dict(config_snapshot)
+        if fingerprint is None:
+            self.manifest.pop("parent_embedding_fingerprint", None)
+        else:
+            self.manifest["parent_embedding_fingerprint"] = fingerprint
+        metadata = self.manifest.setdefault("parent_embedding", {})
+        metadata.update(
+            {
+                "enabled": bool(config_snapshot.get("enabled")),
+                "status": status,
+                "config_snapshot": dict(config_snapshot),
+                "fingerprint": fingerprint,
+                "provider": config_snapshot.get("provider"),
+                "model": config_snapshot.get("model"),
+                "dimension": config_snapshot.get("dimension"),
+                "schema_version": config_snapshot.get("schema_version"),
+                "artifact_path": artifact_path,
+                "required_count": required_count,
+                "success_count": success_count,
+                "reused_count": reused_count,
+                "failed_count": failed_count,
+                "failure_summary": failure_summary,
+            }
+        )
+        self._persist()
+
     def _find_video(self, video_id: str) -> dict[str, Any] | None:
         return next(
             (video for video in self.manifest["videos"] if video["video_id"] == video_id),
@@ -320,6 +367,8 @@ def create_manifest(
     chunk_config_fingerprint: str | None = None,
     hierarchy_config: dict[str, Any] | None = None,
     hierarchy_config_fingerprint: str | None = None,
+    parent_embedding_config: dict[str, Any] | None = None,
+    parent_embedding_fingerprint: str | None = None,
 ) -> JobManager:
     """Convenience factory matching the pipeline-facing API."""
     return JobManager.create_manifest(
@@ -329,6 +378,8 @@ def create_manifest(
         chunk_config_fingerprint,
         hierarchy_config,
         hierarchy_config_fingerprint,
+        parent_embedding_config,
+        parent_embedding_fingerprint,
     )
 
 

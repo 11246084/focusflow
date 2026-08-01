@@ -62,6 +62,8 @@ class PipelineConfig:
     chunks_output_path: Path
     # Level-1 Parent Chunk 獨立輸出路徑
     parent_chunks_output_path: Path
+    # Parent Chunk 向量獨立輸出路徑
+    parent_embeddings_output_path: Path
     # 文本嵌入輸出路徑
     text_embeddings_output_path: Path
     # 音頻嵌入輸出路徑
@@ -100,6 +102,8 @@ class PipelineConfig:
     hierarchy_parent_leaf_count: int
     # 相鄰 Parent 共用的 Leaf Chunk 數
     hierarchy_parent_overlap_leaves: int
+    # 是否執行 blocking Parent Embedding Stage
+    parent_embedding_enabled: bool
     # 模糊匹配閾值
     fuzzy_threshold: int
     # Gemini 嵌入是否啟用
@@ -205,6 +209,10 @@ class PipelineConfig:
             "PARENT_CHUNKS_OUTPUT_PATH",
             "data/outputs/parent_chunks.jsonl",
         )
+        parent_embeddings_output_path = resolved_root / os.getenv(
+            "PARENT_EMBEDDINGS_OUTPUT_PATH",
+            "data/outputs/embeddings_parent_gemini.jsonl",
+        )
         # 設置文本嵌入輸出路徑，默認為 "data/outputs/embeddings_text_gemini.jsonl"
         text_embeddings_output_path = resolved_root / os.getenv(
             "TEXT_EMBEDDINGS_OUTPUT_PATH",
@@ -247,6 +255,7 @@ class PipelineConfig:
             normalized_transcript_output_path=normalized_transcript_output_path,
             chunks_output_path=chunks_output_path,
             parent_chunks_output_path=parent_chunks_output_path,
+            parent_embeddings_output_path=parent_embeddings_output_path,
             text_embeddings_output_path=text_embeddings_output_path,
             audio_embeddings_output_path=audio_embeddings_output_path,
             video_embeddings_output_path=video_embeddings_output_path,
@@ -284,6 +293,7 @@ class PipelineConfig:
                 "HIERARCHY_PARENT_OVERLAP_LEAVES",
                 0,
             ),
+            parent_embedding_enabled=_parse_env_bool("PARENT_EMBEDDING_ENABLED", False),
             # 模糊匹配閾值，默認 85，轉換為整數
             fuzzy_threshold=int(os.getenv("FUZZY_THRESHOLD", "85")),
             # Gemini 嵌入是否啟用，默認 false，轉換為布爾值
@@ -390,6 +400,7 @@ class PipelineConfig:
         # 確保塊輸出路徑的父目錄存在
         ensure_directory(self.chunks_output_path.parent)
         ensure_directory(self.parent_chunks_output_path.parent)
+        ensure_directory(self.parent_embeddings_output_path.parent)
         # 確保文本嵌入輸出路徑的父目錄存在
         ensure_directory(self.text_embeddings_output_path.parent)
         # 確保音頻嵌入輸出路徑的父目錄存在
@@ -408,6 +419,8 @@ class PipelineConfig:
             self.hierarchy_parent_leaf_count,
             self.hierarchy_parent_overlap_leaves,
         )
+        if self.parent_embedding_enabled and not self.hierarchy_enabled:
+            raise ValueError("PARENT_EMBEDDING_ENABLED requires HIERARCHY_ENABLED=true")
         if not 1 <= self.batch_max_concurrency <= 2:
             raise ValueError("BATCH_MAX_CONCURRENCY must be an integer between 1 and 2.")
         if not 0 <= self.batch_item_max_retries <= 2:

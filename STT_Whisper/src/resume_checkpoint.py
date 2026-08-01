@@ -13,6 +13,8 @@ from chunk_strategy import (
 )
 from hierarchy_chunking import validate_parent_artifact
 from hierarchy_strategy import build_hierarchy_config_fingerprint
+from parent_embedding import validate_parent_embedding_artifact
+from parent_embedding_strategy import build_parent_embedding_fingerprint
 from job_manager import STAGE_NAMES, JobManager
 from run_summary import OUTPUT_FILES
 from utils import (
@@ -234,6 +236,29 @@ def _validate_hierarchy_config_fingerprint(
         raise CheckpointError("Hierarchy config fingerprint differs from the current runtime")
 
 
+def _validate_parent_embedding_fingerprint(
+    manifest: dict[str, Any],
+    current_config: dict[str, Any],
+    current_fingerprint: str,
+    current_hierarchy_fingerprint: str,
+) -> None:
+    stored_config = manifest.get("parent_embedding_config")
+    stored_fingerprint = manifest.get("parent_embedding_fingerprint")
+    if not isinstance(stored_config, dict) or not isinstance(stored_fingerprint, str):
+        raise CheckpointError("manifest has no reusable Parent Embedding metadata")
+    if len(stored_fingerprint) != 64:
+        raise CheckpointError("manifest Parent Embedding fingerprint is invalid")
+    try:
+        int(stored_fingerprint, 16)
+    except ValueError as exc:
+        raise CheckpointError("manifest Parent Embedding fingerprint is invalid") from exc
+    expected = build_parent_embedding_fingerprint(stored_config, current_hierarchy_fingerprint)
+    if expected != stored_fingerprint:
+        raise CheckpointError("manifest Parent Embedding fingerprint does not match its dependencies")
+    if stored_config != current_config or stored_fingerprint != current_fingerprint:
+        raise CheckpointError("Parent Embedding fingerprint differs from the current runtime")
+
+
 def _stage_statuses(job_manager: JobManager, stage_name: str) -> list[str]:
     return [
         str(video.get("stages", {}).get(stage_name, {}).get("status", "pending"))
@@ -250,6 +275,7 @@ def _checkpoint_for_stage(
     plan: ResumePlan,
     project_root: Path,
     run_status: str,
+    manifest: dict[str, Any],
 ) -> None:
     data = plan.data
     run_output_dir = plan.run_output_dir
@@ -275,6 +301,20 @@ def _checkpoint_for_stage(
             )
         except ValueError as exc:
             raise CheckpointError(str(exc)) from exc
+    elif stage_name == "parent_embedding":
+        config_snapshot = manifest.get("parent_embedding_config", {})
+        try:
+            data["parent_embeddings"] = validate_parent_embedding_artifact(
+                run_output_dir / OUTPUT_FILES["parent_embeddings"],
+                data.get("parent_chunks", []),
+                int(config_snapshot.get("dimension", 0)),
+                str(config_snapshot.get("model", "")),
+                str(manifest.get("hierarchy_config_fingerprint", "")),
+                str(manifest.get("chunk_config_fingerprint", "")),
+                str(manifest.get("parent_embedding_fingerprint", "")),
+            )
+        except (ValueError, TypeError) as exc:
+            raise CheckpointError(str(exc)) from exc
     elif stage_name == "text_embedding":
         data["text_embeddings"] = _load_text_embeddings(run_output_dir)
     elif stage_name == "audio_embedding":
@@ -297,6 +337,8 @@ def build_resume_plan(
     current_chunk_config_fingerprint: str,
     current_hierarchy_config: dict[str, Any] | None = None,
     current_hierarchy_fingerprint: str | None = None,
+    current_parent_embedding_config: dict[str, Any] | None = None,
+    current_parent_embedding_fingerprint: str | None = None,
 ) -> ResumePlan:
     """Find the first stage that cannot be safely skipped and load prior checkpoints."""
     plan = ResumePlan(
@@ -307,11 +349,18 @@ def build_resume_plan(
     hierarchy_enabled = bool(
         current_hierarchy_config and current_hierarchy_config.get("enabled")
     )
+    parent_embedding_enabled = bool(
+        current_parent_embedding_config and current_parent_embedding_config.get("enabled")
+    )
 
     for stage_name in STAGE_NAMES:
         if stage_name == "hierarchy" and not hierarchy_enabled:
             plan.skipped_stages.add(stage_name)
             logger.info("Hierarchy disabled, treating stage as skipped.")
+            continue
+        if stage_name == "parent_embedding" and not parent_embedding_enabled:
+            plan.skipped_stages.add(stage_name)
+            logger.info("Parent Embedding disabled, treating stage as skipped.")
             continue
         statuses = _stage_statuses(job_manager, stage_name)
         if _all_completed_or_skipped(statuses):
@@ -331,11 +380,21 @@ def build_resume_plan(
                         current_hierarchy_fingerprint,
                         current_chunk_config_fingerprint,
                     )
+                elif stage_name == "parent_embedding":
+                    if current_parent_embedding_config is None or current_parent_embedding_fingerprint is None or current_hierarchy_fingerprint is None:
+                        raise CheckpointError("current Parent Embedding config is missing")
+                    _validate_parent_embedding_fingerprint(
+                        job_manager.manifest,
+                        current_parent_embedding_config,
+                        current_parent_embedding_fingerprint,
+                        current_hierarchy_fingerprint,
+                    )
                 _checkpoint_for_stage(
                     stage_name,
                     plan,
                     project_root,
                     str(job_manager.manifest.get("status")),
+                    job_manager.manifest,
                 )
             except CheckpointError as exc:
                 logger.info("Checkpoint invalid, restarting from stage: %s (%s)", stage_name, exc)

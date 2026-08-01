@@ -130,6 +130,25 @@ def _log_embedding_event(
     )
 
 
+def embed_text_contents(client: Any, texts: list[str], config: PipelineConfig) -> tuple[list[list[float]], str | None]:
+    """Call the shared Gemini text-vector operation used by Leaf and Parent records."""
+    from google.genai import types
+
+    response = client.models.embed_content(
+        model=config.gemini_embedding_model_name,
+        contents=texts,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=config.gemini_embedding_output_dim,
+        ),
+    )
+    vectors = [
+        _normalize_vector([float(value) for value in embedding.values])
+        for embedding in list(response.embeddings or [])
+    ]
+    return vectors, getattr(response, "request_id", None)
+
+
 def _build_text_record(
     chunk: ChunkRecord,
     config: PipelineConfig,
@@ -308,9 +327,6 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
     if not chunks:
         return []
 
-    # 導入必要的類型
-    from google.genai import types
-
     # 加載文本檢查點記錄
     checkpoint_records = _load_text_checkpoint(config)
     # 初始化嵌入記錄字典和待處理塊列表
@@ -373,17 +389,7 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
             batch_timestamp = utc_timestamp()
             try:
                 # 調用 Gemini API 進行嵌入
-                response = client.models.embed_content(
-                    model=config.gemini_embedding_model_name,
-                    contents=text_batch,
-                    config=types.EmbedContentConfig(
-                        task_type="RETRIEVAL_DOCUMENT",
-                        output_dimensionality=config.gemini_embedding_output_dim,
-                    ),
-                )
-                # 獲取請求ID
-                request_id = getattr(response, "request_id", None)
-                response_embeddings = list(response.embeddings or [])
+                response_embeddings, request_id = embed_text_contents(client, text_batch, config)
                 if len(response_embeddings) != len(chunk_batch):
                     raise RuntimeError(
                         "Gemini embedding response count mismatch: "
@@ -391,11 +397,11 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
                     )
 
                 # 處理每個嵌入結果
-                for chunk, embedding in zip(chunk_batch, response_embeddings):
+                for chunk, vector in zip(chunk_batch, response_embeddings):
                     record = _build_text_record(
                         chunk,
                         config,
-                        embedding=_normalize_vector([float(value) for value in embedding.values]),
+                        embedding=vector,
                         status=EMBEDDING_STATUS_SUCCESS,
                         embedding_request_id=request_id,
                         embedding_timestamp=batch_timestamp,

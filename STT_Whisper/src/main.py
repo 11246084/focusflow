@@ -22,6 +22,11 @@ from hierarchy_strategy import (
     build_hierarchy_config_fingerprint,
     build_hierarchy_config_snapshot,
 )
+from parent_embedding import ParentEmbeddingStageError, embed_parent_chunks
+from parent_embedding_strategy import (
+    build_parent_embedding_config_snapshot,
+    build_parent_embedding_fingerprint,
+)
 from extract_audio import extract_audio_for_videos
 from job_manager import JobManager, create_manifest, load_manifest
 from normalize_transcript import normalize_transcripts
@@ -189,6 +194,7 @@ def bind_run_output(config: PipelineConfig, job_manager: JobManager) -> Pipeline
         normalized_transcript_output_path=run_output_dir / "transcripts_normalized.json",
         chunks_output_path=run_output_dir / "chunks.jsonl",
         parent_chunks_output_path=run_output_dir / "parent_chunks.jsonl",
+        parent_embeddings_output_path=run_output_dir / "embeddings_parent_gemini.jsonl",
         text_embeddings_output_path=run_output_dir / "embeddings_text_gemini.jsonl",
         audio_embeddings_output_path=run_output_dir / "embeddings_audio_gemini.jsonl",
         video_embeddings_output_path=run_output_dir / "embeddings_video_gemini.jsonl",
@@ -587,6 +593,62 @@ def run_pipeline(
             generate_hierarchy,
         )
     # 步驟 7：從標準化 Leaf Chunks 生成 Gemini 文本嵌入
+    if not config.parent_embedding_enabled:
+        parent_embeddings = []
+        if resume_plan is None or not resume_plan.should_skip("parent_embedding"):
+            for video in videos:
+                job_manager.skip_stage(video.video_id, "parent_embedding")
+    elif resume_plan is not None and resume_plan.should_skip("parent_embedding"):
+        parent_embeddings = resume_data["parent_embeddings"]
+    else:
+        def generate_parent_embeddings():
+            try:
+                records = embed_parent_chunks(
+                    parent_chunks,
+                    config,
+                    str(job_manager.manifest["hierarchy_config_fingerprint"]),
+                    str(job_manager.manifest["chunk_config_fingerprint"]),
+                    str(job_manager.manifest["parent_embedding_fingerprint"]),
+                )
+            except ParentEmbeddingStageError as exc:
+                records = exc.records
+                success_count = sum(record.embedding_status == "success" for record in records)
+                reused_count = sum(record.embedding_status == "reused_checkpoint" for record in records)
+                failed_count = len(records) - success_count - reused_count
+                job_manager.set_parent_embedding_metadata(
+                    dict(job_manager.manifest["parent_embedding_config"]),
+                    str(job_manager.manifest["parent_embedding_fingerprint"]),
+                    artifact_path="embeddings_parent_gemini.jsonl",
+                    required_count=len(parent_chunks),
+                    success_count=success_count,
+                    reused_count=reused_count,
+                    failed_count=failed_count,
+                    status="failed",
+                    failure_summary=str(exc),
+                )
+                raise
+            success_count = sum(record.embedding_status == "success" for record in records)
+            reused_count = sum(record.embedding_status == "reused_checkpoint" for record in records)
+            job_manager.set_parent_embedding_metadata(
+                dict(job_manager.manifest["parent_embedding_config"]),
+                str(job_manager.manifest["parent_embedding_fingerprint"]),
+                artifact_path="embeddings_parent_gemini.jsonl",
+                required_count=len(parent_chunks),
+                success_count=success_count,
+                reused_count=reused_count,
+                failed_count=0,
+                status="completed",
+            )
+            return records
+
+        parent_embeddings = _run_tracked_stage(
+            job_manager,
+            videos,
+            "parent_embedding",
+            generate_parent_embeddings,
+        )
+
+    # 步驟 8：從標準化 Leaf Chunks 生成 Gemini 文本嵌入
     if resume_plan is not None and resume_plan.should_skip("text_embedding"):
         text_embeddings = resume_data["text_embeddings"]
     else:
@@ -641,6 +703,7 @@ def run_pipeline(
         "normalized_transcripts": normalized_transcripts,
         "chunks": chunks,
         "parent_chunks": parent_chunks,
+        "parent_embeddings": parent_embeddings,
         "text_embeddings": text_embeddings,
         "audio_embeddings": audio_embeddings,
     }
@@ -673,6 +736,15 @@ def main() -> int:
         hierarchy_config,
         chunk_config_fingerprint,
     )
+    parent_embedding_config = build_parent_embedding_config_snapshot(config)
+    parent_embedding_fingerprint = (
+        build_parent_embedding_fingerprint(
+            parent_embedding_config,
+            hierarchy_config_fingerprint,
+        )
+        if parent_embedding_config["enabled"]
+        else None
+    )
     resume_plan: ResumePlan | None = None
     try:
         if args.resume_run_id:
@@ -687,6 +759,8 @@ def main() -> int:
                 chunk_config_fingerprint,
                 hierarchy_config,
                 hierarchy_config_fingerprint,
+                parent_embedding_config,
+                parent_embedding_fingerprint,
             )
             job_manager.set_chunk_config(chunk_config, chunk_config_fingerprint)
             job_manager.set_hierarchy_metadata(
@@ -696,6 +770,13 @@ def main() -> int:
                     "parent_chunks.jsonl" if hierarchy_config["enabled"] else None
                 ),
             )
+            if not parent_embedding_config["enabled"] or not resume_plan.should_skip("parent_embedding"):
+                job_manager.set_parent_embedding_metadata(
+                    parent_embedding_config,
+                    parent_embedding_fingerprint,
+                    artifact_path=("embeddings_parent_gemini.jsonl" if parent_embedding_config["enabled"] else None),
+                    status=(None if parent_embedding_config["enabled"] else "skipped"),
+                )
         else:
             job_manager = create_manifest(
                 runs_dir,
@@ -704,6 +785,8 @@ def main() -> int:
                 chunk_config_fingerprint=chunk_config_fingerprint,
                 hierarchy_config=hierarchy_config,
                 hierarchy_config_fingerprint=hierarchy_config_fingerprint,
+                parent_embedding_config=parent_embedding_config,
+                parent_embedding_fingerprint=parent_embedding_fingerprint,
             )
             config = bind_run_output(config, job_manager)
             job_manager.set_hierarchy_metadata(
@@ -712,6 +795,12 @@ def main() -> int:
                 artifact_path=(
                     "parent_chunks.jsonl" if hierarchy_config["enabled"] else None
                 ),
+            )
+            job_manager.set_parent_embedding_metadata(
+                parent_embedding_config,
+                parent_embedding_fingerprint,
+                artifact_path=("embeddings_parent_gemini.jsonl" if parent_embedding_config["enabled"] else None),
+                status=(None if parent_embedding_config["enabled"] else "skipped"),
             )
     except Exception as exc:
         logger.error("Unable to initialize pipeline run: %s", exc)
@@ -850,6 +939,9 @@ def main() -> int:
             hierarchy_config=hierarchy_config,
             hierarchy_config_fingerprint=hierarchy_config_fingerprint,
             hierarchy_metadata=job_manager.manifest.get("hierarchy"),
+            parent_embedding_config=parent_embedding_config,
+            parent_embedding_fingerprint=parent_embedding_fingerprint,
+            parent_embedding_metadata=job_manager.manifest.get("parent_embedding"),
         )
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
@@ -898,6 +990,9 @@ def main() -> int:
             hierarchy_config=hierarchy_config,
             hierarchy_config_fingerprint=hierarchy_config_fingerprint,
             hierarchy_metadata=job_manager.manifest.get("hierarchy"),
+            parent_embedding_config=parent_embedding_config,
+            parent_embedding_fingerprint=parent_embedding_fingerprint,
+            parent_embedding_metadata=job_manager.manifest.get("parent_embedding"),
         )
         return 1
 

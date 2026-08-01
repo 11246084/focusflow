@@ -1,5 +1,21 @@
 # FocusFlow AI Pipeline MVP
 
+## Phase 2-2 Sprint 2A：Parent Embedding
+
+Parent Embedding 是位於 `hierarchy` 與 Leaf `text_embedding` 之間的獨立 blocking stage。它預設關閉，只有同時設定 `HIERARCHY_ENABLED=true` 與 `PARENT_EMBEDDING_ENABLED=true` 才會執行；若只啟用 Parent Embedding，設定驗證會在 Run 建立前失敗。
+
+啟用後，Pipeline 將 `parent_chunks.jsonl` 轉為 run-scoped `embeddings_parent_gemini.jsonl`。每筆記錄保留 `parent_id`、`video_id`、有序 `child_chunk_ids`、Parent 文字與時間範圍、向量與兩層 fingerprint，使 Sprint 2B 可建立 Parent Document，Sprint 3 可由 Parent 命中展開回 Leaf。Parent 與 Leaf 使用相同 provider、model、dimension、`RETRIEVAL_DOCUMENT` task type與 L2 normalization，但兩者的 ID、artifact、fingerprint、resume 邊界完全分離。
+
+Parent Embedding fingerprint 依賴 Hierarchy fingerprint 及非敏感向量設定。Resume 只有在 fingerprint 相同且 artifact 通過完整 schema、mapping、向量維度與 finite-number 驗證時才會 reuse；缺檔、損毀、舊 manifest 或設定改變會從 `parent_embedding` 重跑。Feature Gate 關閉時 stage 為 `skipped`，不建立假 artifact，也不讓既有 Parent Artifact 影響 Leaf-only 流程。
+
+Failure policy 採 explicit opt-in + blocking：所有 required Parent 必須為成功或合法 reuse，任一失敗都不會將 stage 標示為 completed 或 publishable。測試以 Fake Provider 完全離線執行：
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_parent_embedding
+```
+
+本 Sprint 只產生可交接的 Parent Embedding Artifact，不修改 MongoDB、Backend、Frontend，也尚未啟用 Parent Storage、Parent Search、Child Expansion 或 Hierarchical Retrieval。`courseId` 仍須在 Sprint 2B 由 uploader／資料庫映射確認；最終 Citation 仍由 Leaf Chunk 產生。
+
 這個專案是 FocusFlow 的本地 AI pipeline，角色是 AI Data Producer。它會把教學影片轉成可搜尋的 transcript、chunks、Gemini embeddings，並可在 pipeline 成功後自動上傳到 MongoDB，供 backend QA 與 LINE Bot 使用。
 
 目前主流程分成兩種輸入模式：

@@ -15,6 +15,7 @@ OUTPUT_FILES = {
     "transcripts_normalized": "transcripts_normalized.json",
     "chunks": "chunks.jsonl",
     "parent_chunks": "parent_chunks.jsonl",
+    "parent_embeddings": "embeddings_parent_gemini.jsonl",
     "text_embeddings": "embeddings_text_gemini.jsonl",
     "audio_embeddings": "embeddings_audio_gemini.jsonl",
     "upload_summary": "upload_summary.json",
@@ -57,6 +58,7 @@ def collect_output_counts(run_output_dir: Path) -> dict[str, int]:
         ),
         "chunks": _jsonl_count(run_output_dir / OUTPUT_FILES["chunks"]),
         "parent_chunks": _jsonl_count(run_output_dir / OUTPUT_FILES["parent_chunks"]),
+        "parent_embeddings": _jsonl_count(run_output_dir / OUTPUT_FILES["parent_embeddings"]),
         "text_embeddings": _jsonl_count(run_output_dir / OUTPUT_FILES["text_embeddings"]),
         "audio_embeddings": _jsonl_count(run_output_dir / OUTPUT_FILES["audio_embeddings"]),
     }
@@ -107,6 +109,9 @@ def write_run_summary(
     hierarchy_config: dict[str, Any] | None = None,
     hierarchy_config_fingerprint: str | None = None,
     hierarchy_metadata: dict[str, Any] | None = None,
+    parent_embedding_config: dict[str, Any] | None = None,
+    parent_embedding_fingerprint: str | None = None,
+    parent_embedding_metadata: dict[str, Any] | None = None,
 ) -> Path:
     """Write a final summary for either a completed or failed run."""
     output_path = run_output_dir / "run_summary.json"
@@ -135,6 +140,23 @@ def write_run_summary(
             "parent_count": payload["counts"]["parent_chunks"],
             "source_leaf_count": payload["counts"]["chunks"],
             **(hierarchy_metadata or {}),
+        }
+    if parent_embedding_config is not None:
+        metadata = dict(parent_embedding_metadata or {})
+        payload["parent_embedding"] = {
+            "enabled": bool(parent_embedding_config.get("enabled")),
+            "status": metadata.get("status", "skipped" if not parent_embedding_config.get("enabled") else None),
+            "counts": {
+                "required": int(metadata.get("required_count", 0) or 0),
+                "success": int(metadata.get("success_count", 0) or 0),
+                "reused": int(metadata.get("reused_count", 0) or 0),
+                "failed": int(metadata.get("failed_count", 0) or 0),
+            },
+            "provider": parent_embedding_config.get("provider"),
+            "model": parent_embedding_config.get("model"),
+            "dimension": parent_embedding_config.get("dimension"),
+            "fingerprint": parent_embedding_fingerprint,
+            "output_path": metadata.get("artifact_path"),
         }
     write_json_file(output_path, payload, backup_existing=False)
     return output_path

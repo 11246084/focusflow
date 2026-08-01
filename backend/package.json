@@ -11,6 +11,7 @@
     "db:ensure-questions": "node src/scripts/ensureQuestionsCollection.js",
     "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
     "db:ensure-video-vector-index": "node src/scripts/ensureVideoVectorIndex.js",
+    "db:ensure-parent-storage": "node src/scripts/ensureParentStorage.js",
     "db:sync-atlas": "node src/scripts/syncLocalMongoToAtlas.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },

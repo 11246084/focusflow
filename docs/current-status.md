@@ -1,10 +1,12 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；backend 262/262、frontend lint/build 通過，指定功能 PASS）
+最後更新：2026-08-02（Phase 2-2 Parent Storage：`video_segments_parent` collection、3 個 regular index 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；backend 310/310 tests 通過。Parent uploader 與正式 Parent Search adapter 尚未實作，`HIERARCHICAL_RETRIEVAL_ENABLED` 維持 false）
 
-前一輪：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正 QA 答不出跨片段問題；FAQ 快取語意命中 3133ms→1240ms；FAQ 快取失效缺口盤點，詳見 [backend/docs/current-state.md](../backend/docs/current-state.md)）
+前一輪：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；backend 262/262、frontend lint/build 通過，指定功能 PASS）
 
-再前一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
+再前一輪：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正 QA 答不出跨片段問題；FAQ 快取語意命中 3133ms→1240ms；FAQ 快取失效缺口盤點，詳見 [backend/docs/current-state.md](../backend/docs/current-state.md)）
+
+更早一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；設定指南見 [backend/docs/youtube-upload-setup.md](../backend/docs/youtube-upload-setup.md)，live smoke 待執行）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
 
@@ -83,6 +85,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，已同步 login role、notifications 與 avatar 契約；internal processing webhook 等少數端點仍以 route files 為準
 - backend tests：2026-07-26 全測 262/262 passed；隔離 MongoDB 7 已實證三個無 LINE 綁定帳號可穿過 `lineUserId` unique+sparse index，註冊 A/B/C 為 201/409/201；CAS 與併發邊界仍以既有測試與本輪頭貼 E2E 證據為準
 - Frontend 11 頁面（Student/Teacher/Admin 各角色 dashboard），登入、教師建立課程、QA grounding、LINE QR 綁定流程已開始串接
+- **Phase 2-2 Hierarchical Retrieval Round 1（`3d9a234`）**：backend 新增 `parentSearch` / `hierarchicalRetrieval` / `childExpansion` / `leafContextAssembly` 四支 service 與 Leaf-only fallback；`HIERARCHICAL_RETRIEVAL_ENABLED` 預設 false，`HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF` 預設 true。正式 Parent search 仍是刻意保留的 `createUnavailableParentRepository()` stub
+- **Phase 2-2 Parent Storage（2026-08-02，DB 組）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`（支援 `--dry-run`，輸出自動遮蔽連線字串）。共享 Atlas 已建立 `video_segments_parent`（目前 0 筆）、regular index `parentId_1`（unique）/ `courseId_1_videoId_1` / `videoId_1_hierarchyFingerprint_1`，以及 Atlas Vector Index `parent_embedding_index`（3072 維 cosine，filter=`courseId`+`videoId`），2026-08-02 直連驗證 READY/queryable。跨組決策定案：MVP 採單一 generation（unique `parentId`）、`generationVersion`/`isActive` 保留欄位但不參與 index 與查詢、cleanup 走契約 §12 的 D→A 路線（現階段只 upsert 不刪）、rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。契約見 [docs/Phase2-2_Hierarchy_Data_Contract_v1.md](Phase2-2_Hierarchy_Data_Contract_v1.md)
 
 ---
 
@@ -98,6 +102,9 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | 目前已改用 Gemini query embedding；仍需持續確認 coverage 與長期契約 |
 | `videos` physical storage 邊界 | Backend + DB 組 | 後端回應 contract 已用 `ownership` / `isAppOwned` / `metadataOnly` 固定語意；是否拆 collection 或調整 DB 實體模型仍屬跨組資料庫決策 |
 | Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
+| Phase 2-2 Parent uploader | AI Pipeline 組 | `STT_Whisper/src/mongodb_uploader.py` 目前**完全沒有 parent 相關程式碼**；需新增獨立 upload 路徑讀取 `embeddings_parent_gemini.jsonl`、snake_case→camelCase、以 `parentId` idempotent upsert、產出獨立 upload summary。Storage 端（collection / index）已就緒 |
+| Phase 2-2 正式 Parent Search adapter | Backend 組 | `qa.service.js` 仍接 `createUnavailableParentRepository`；需實作符合現有 `searchParents()` 介面的 Atlas adapter，collection / index 名稱從 `VIDEO_SEGMENT_PARENT_COLLECTION`、`VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME` 讀取 |
+| Leaf `courseId` 全為空 | AI Pipeline + DB 組 | 2026-08-02 實查：`video_segments_text` 1,651 筆的 `courseId` **全部 missing**，`text_embedding_index` 的 courseId filter 從未真正生效，實際靠 `videoId` bridge 過濾。Parent upload 需把 courseId 解析成功列為 blocking 條件並於 upload summary 回報，否則同一問題會複製到 parent |
 | Demo 環境策略 | 全組 | 共享 DB 是否提供專屬 demo DB |
 | ~~Route tests 與 demo 權限同步~~ | ✅ 2026-05-06 完成 | qa.routes / course-video.routes 已對齊；全測試 83/83 passed |
 | ~~Student dashboard questions 統計~~ | ✅ 2026-05-06 完成 | `visibleQuestionFilter` 已改為 `userId` |
@@ -147,3 +154,5 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - LINE webhook **已納入 OpenAPI 文件**，但 stats/admin 與部分 PATCH/DELETE 尚未納入；OpenAPI 目前不是完整 API 契約
 - LIFF **不是目前 repo 已上線流程**；目前實際存在的是 LINE webhook + bind-token/message QR，LIFF endpoints / pages 尚未實作
 - Shorts backend **只完成修課 feed、ShortAsset 保存/封存與 YouTube metadata 可用性同步**；自動選片、剪輯、字幕、發布 worker與教師管理尚未實作，現有前端也尚未帶 JWT 呼叫新 feed
+- Phase 2-2 **只完成 storage 層**（collection + index 已建立並 READY）。不能誤稱 hierarchical retrieval 已啟用或已驗證：`video_segments_parent` 目前 **0 筆資料**、Parent uploader 尚未實作、`qa.service.js` 仍接 unavailable stub、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Leaf → Answer 的端對端流程尚未跑過任何一次
+- Phase 2-2 契約文件 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項

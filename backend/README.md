@@ -16,6 +16,31 @@ Round 1 已建立 Parent Search interface、離線 Fake repository、Child Expan
 npm test
 ```
 
+## Phase 2-2 Parent Storage（2026-08-02）
+
+Storage 層已由 DB 組完成。共享 Atlas 上已建立 `video_segments_parent`，含 regular index `parentId_1`（unique）、`courseId_1_videoId_1`、`videoId_1_hierarchyFingerprint_1`，以及 Atlas Vector Index `parent_embedding_index`（3072 維 cosine，filter=`courseId`+`videoId`），實查為 READY/queryable。
+
+建立與重建（冪等，既存 index 會直接略過）：
+
+```powershell
+npm run db:ensure-parent-storage -- --dry-run
+```
+
+```powershell
+npm run db:ensure-parent-storage
+```
+
+相關設定（`.env.example` 已同步）：
+
+```env
+VIDEO_SEGMENT_PARENT_COLLECTION=video_segments_parent
+VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME=parent_embedding_index
+```
+
+DB 組拍板的決策：MVP 採單一 generation，unique key 用單鍵 `parentId`（重跑同影片以 idempotent upsert 覆蓋）；`generationVersion` / `isActive` 保留欄位但不進 index 與 filter；cleanup 現階段只 upsert 不刪，正式開檢索前才啟用 guarded stale 清理；rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。
+
+**目前 collection 是 0 筆。** Parent uploader（AI Pipeline 組）與正式 `searchParents()` Atlas adapter（Backend 組）都尚未實作，Gate 維持關閉，不能誤稱 Hierarchical Retrieval 已可用。
+
 ## 目前真實 runtime
 
 phase-1 當前狀態（2026-05-05）：

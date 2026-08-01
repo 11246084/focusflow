@@ -58,6 +58,9 @@ module.exports = {
   videoSegmentVideoVectorIndexName: process.env.VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME
     || process.env.VIDEO_SEGMENT_VIDEO_VECTOR_INDEX_NAME
     || 'video_embedding_index',
+  videoSegmentParentCollection: process.env.VIDEO_SEGMENT_PARENT_COLLECTION || 'video_segments_parent',
+  videoSegmentParentVectorIndexName: process.env.VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME
+    || 'parent_embedding_index',
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-local-env',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   demoSeedEnabled: String(process.env.DEMO_SEED_ENABLED || 'false').toLowerCase() === 'true',

@@ -266,6 +266,18 @@ def _stage_statuses(job_manager: JobManager, stage_name: str) -> list[str]:
     ]
 
 
+def _validate_stage_fingerprint(manifest: dict[str, Any], prefix: str, current_config: dict[str, Any], current_fingerprint: str) -> None:
+    from stt_accuracy import build_config_fingerprint
+    stored_config = manifest.get(f"{prefix}_config")
+    stored_fingerprint = manifest.get(f"{prefix}_config_fingerprint")
+    if not isinstance(stored_config, dict) or not isinstance(stored_fingerprint, str):
+        raise CheckpointError(f"legacy manifest has no reusable {prefix} fingerprint")
+    if build_config_fingerprint(stored_config) != stored_fingerprint:
+        raise CheckpointError(f"manifest {prefix} fingerprint does not match its snapshot")
+    if stored_config != current_config or stored_fingerprint != current_fingerprint:
+        raise CheckpointError(f"{prefix} config fingerprint differs from the current runtime")
+
+
 def _all_completed_or_skipped(statuses: list[str]) -> bool:
     return bool(statuses) and all(status in {"completed", "skipped"} for status in statuses)
 
@@ -339,6 +351,10 @@ def build_resume_plan(
     current_hierarchy_fingerprint: str | None = None,
     current_parent_embedding_config: dict[str, Any] | None = None,
     current_parent_embedding_fingerprint: str | None = None,
+    current_stt_config: dict[str, Any] | None = None,
+    current_stt_fingerprint: str | None = None,
+    current_normalize_config: dict[str, Any] | None = None,
+    current_normalize_fingerprint: str | None = None,
 ) -> ResumePlan:
     """Find the first stage that cannot be safely skipped and load prior checkpoints."""
     plan = ResumePlan(
@@ -371,6 +387,10 @@ def build_resume_plan(
                         current_chunk_config,
                         current_chunk_config_fingerprint,
                     )
+                elif stage_name == "transcribe" and current_stt_config is not None and current_stt_fingerprint is not None:
+                    _validate_stage_fingerprint(job_manager.manifest, "stt", current_stt_config, current_stt_fingerprint)
+                elif stage_name == "normalize" and current_normalize_config is not None and current_normalize_fingerprint is not None:
+                    _validate_stage_fingerprint(job_manager.manifest, "normalize", current_normalize_config, current_normalize_fingerprint)
                 elif stage_name == "hierarchy":
                     if current_hierarchy_config is None or current_hierarchy_fingerprint is None:
                         raise CheckpointError("current hierarchy config is missing")

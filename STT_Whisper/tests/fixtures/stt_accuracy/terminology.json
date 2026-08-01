@@ -1,0 +1,9 @@
+[
+  {"canonical":"GPT","aliases":["G P T","gp t"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"LLM","aliases":["L L M"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"Gemini","aliases":["Jimini","Geminy"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"ChatGPT","aliases":["Chat GPT","Chat G P T"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"Google","aliases":["Go ogle"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"API","aliases":["A P I"],"case_sensitive":false,"word_boundary":true},
+  {"canonical":"BERT","aliases":["B E R T"],"case_sensitive":false,"word_boundary":true}
+]

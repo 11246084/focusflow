@@ -1,0 +1,14 @@
+[
+  {"id":"zh","reference":"今天介紹人工智慧","raw":"今天介紹人工智慧","terms":[]},
+  {"id":"gpt","reference":"今天介紹 GPT 模型","raw":"今天介紹 G P T 模型","terms":["GPT"]},
+  {"id":"llm","reference":"LLM 是大型語言模型","raw":"L L M 是大型語言模型","terms":["LLM"]},
+  {"id":"gemini","reference":"Gemini 可以產生文字","raw":"Jimini 可以產生文字","terms":["Gemini"]},
+  {"id":"chatgpt","reference":"使用 ChatGPT 示範","raw":"使用 Chat GPT 示範","terms":["ChatGPT"]},
+  {"id":"google","reference":"這是 Google 的服務","raw":"這是 Go ogle 的服務","terms":["Google"]},
+  {"id":"api","reference":"呼叫 API 取得資料","raw":"呼叫 A P I 取得資料","terms":["API"]},
+  {"id":"bert","reference":"BERT 是一種模型","raw":"B E R T 是一種模型","terms":["BERT"]},
+  {"id":"version","reference":"版本是 2.1.0","raw":"版本是 2.1.0","terms":[]},
+  {"id":"homophone","reference":"模型訓練需要資料","raw":"模型訓練需要資料","terms":[]},
+  {"id":"boundary","reference":"capitol 不是 API","raw":"capitol 不是 API","terms":["API"]},
+  {"id":"no_cross_word","reference":"geminified 不應修改","raw":"geminified 不應修改","terms":[]}
+]

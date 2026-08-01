@@ -88,6 +88,13 @@ class PipelineConfig:
     whisper_vad_filter: bool
     # Whisper CPU 推論執行緒數
     whisper_cpu_threads: int
+    stt_task: str
+    stt_initial_prompt: str
+    stt_condition_on_previous_text: bool
+    stt_terminology_enabled: bool
+    stt_terminology_path: Path
+    stt_correction_audit_enabled: bool
+    correction_audit_output_path: Path
     # 塊最大字符數
     chunk_max_chars: int
     # 塊最大段數
@@ -228,6 +235,8 @@ class PipelineConfig:
             "VIDEO_EMBEDDINGS_OUTPUT_PATH",
             "data/outputs/embeddings_video_gemini.jsonl",
         )
+        terminology_setting = Path(os.getenv("STT_TERMINOLOGY_PATH", "data/term_dictionary.json"))
+        stt_terminology_path = terminology_setting if terminology_setting.is_absolute() else resolved_root / terminology_setting
 
         raw_chunk_overlap_segments = os.getenv("CHUNK_OVERLAP_SEGMENTS", "0")
         try:
@@ -293,6 +302,13 @@ class PipelineConfig:
                 "HIERARCHY_PARENT_OVERLAP_LEAVES",
                 0,
             ),
+            stt_task=os.getenv("STT_TASK", "transcribe"),
+            stt_initial_prompt=os.getenv("STT_INITIAL_PROMPT", ""),
+            stt_condition_on_previous_text=_parse_env_bool("STT_CONDITION_ON_PREVIOUS_TEXT", True),
+            stt_terminology_enabled=_parse_env_bool("STT_TERMINOLOGY_ENABLED", False),
+            stt_terminology_path=stt_terminology_path,
+            stt_correction_audit_enabled=_parse_env_bool("STT_CORRECTION_AUDIT_ENABLED", True),
+            correction_audit_output_path=resolved_root / os.getenv("STT_CORRECTION_AUDIT_OUTPUT_PATH", "data/outputs/correction_audit.jsonl"),
             parent_embedding_enabled=_parse_env_bool("PARENT_EMBEDDING_ENABLED", False),
             # 模糊匹配閾值，默認 85，轉換為整數
             fuzzy_threshold=int(os.getenv("FUZZY_THRESHOLD", "85")),
@@ -391,6 +407,7 @@ class PipelineConfig:
         ensure_directory(self.cache_dir)
         # 確保轉錄緩存目錄存在
         ensure_directory(self.transcript_cache_dir)
+        ensure_directory(self.correction_audit_output_path.parent)
         # 確保視頻多模態塊目錄存在
         ensure_directory(self.video_multimodal_chunk_dir)
         # 確保術語字典路徑的父目錄存在
@@ -425,6 +442,10 @@ class PipelineConfig:
             raise ValueError("BATCH_MAX_CONCURRENCY must be an integer between 1 and 2.")
         if not 0 <= self.batch_item_max_retries <= 2:
             raise ValueError("BATCH_ITEM_MAX_RETRIES must be an integer between 0 and 2.")
+        if self.stt_task != "transcribe":
+            raise ValueError("STT_TASK must be transcribe.")
+        if self.stt_terminology_enabled and not self.stt_terminology_path.is_file():
+            raise ValueError(f"STT terminology dictionary was not found: {self.stt_terminology_path}")
 
     def with_overrides(self, **overrides: object) -> "PipelineConfig":
         """Create a modified config copy for CLI overrides."""

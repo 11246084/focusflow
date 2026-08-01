@@ -10,7 +10,7 @@ from pathlib import Path
 from rapidfuzz import fuzz, process
 
 from config import PipelineConfig
-from utils import CorrectionRecord, TranscriptDocument, TranscriptSegment, load_json_file, normalize_text, write_json_file
+from utils import CorrectionRecord, TranscriptDocument, TranscriptSegment, load_json_file, normalize_text, write_json_file, write_jsonl_file
 
 
 logger = logging.getLogger(__name__)
@@ -57,12 +57,27 @@ def load_term_dictionary(term_dictionary_path: Path) -> dict[str, list[str]]:
 
     # 加載 JSON 文件內容
     payload = load_json_file(term_dictionary_path)
+    if isinstance(payload, list):
+        converted: dict[str, list[str]] = {}
+        for rule in payload:
+            if not isinstance(rule, dict) or not isinstance(rule.get("canonical"), str):
+                raise ValueError("Each terminology rule must contain a canonical string.")
+            aliases = rule.get("aliases")
+            if not isinstance(aliases, list) or not all(isinstance(alias, str) for alias in aliases):
+                raise ValueError("Each terminology rule must contain a string aliases list.")
+            if rule.get("case_sensitive", False):
+                raise ValueError("case_sensitive=true is not supported by safe_terminology_v1.")
+            if rule.get("word_boundary", True) is not True:
+                raise ValueError("word_boundary=false is not allowed by safe_terminology_v1.")
+            converted[rule["canonical"]] = aliases
+        payload = converted
     # 驗證根對象是字典
     if not isinstance(payload, dict):
         raise ValueError("Term dictionary must be a JSON object of canonical term -> alias list.")
 
     # 初始化術語字典
     term_dictionary: dict[str, list[str]] = {}
+    alias_owners: dict[str, str] = {}
     # 遍歷每個規範術語和其別名列表
     for canonical, aliases in payload.items():
         # 驗證規範術語是字符串
@@ -71,6 +86,13 @@ def load_term_dictionary(term_dictionary_path: Path) -> dict[str, list[str]]:
         # 驗證別名是字符串列表
         if not isinstance(aliases, list) or not all(isinstance(alias, str) for alias in aliases):
             raise ValueError(f"Aliases for '{canonical}' must be a list of strings.")
+        for alias in aliases:
+            alias_key = _normalize_term_key(alias)
+            owner = alias_owners.get(alias_key)
+            if alias_key and owner is not None and owner != canonical:
+                raise ValueError(f"Terminology alias collision: '{alias}' belongs to both '{owner}' and '{canonical}'.")
+            if alias_key:
+                alias_owners[alias_key] = canonical
         term_dictionary[canonical] = aliases
     return term_dictionary
 
@@ -145,7 +167,7 @@ class TermNormalizer:
                     CorrectionRecord(
                         from_text=matched_text,
                         to_text=rule.canonical,
-                        method="dictionary",
+                        method=f"terminology:{rule.canonical}",
                     )
                 )
                 # 返回規範術語
@@ -213,7 +235,8 @@ class TermNormalizer:
         # 應用精確規則
         corrected_text = self._apply_exact_rules(original_text, corrections)
         # 應用模糊規則
-        corrected_text = self._apply_fuzzy_rules(corrected_text, corrections)
+        # Sprint 1 intentionally disables unconstrained fuzzy replacement. Only explicit,
+        # boundary-aware aliases are allowed to modify transcript text.
         # 應用通用文本標準化
         corrected_text = normalize_text(corrected_text)
 
@@ -233,10 +256,10 @@ def normalize_transcripts(
     config: PipelineConfig,
 ) -> list[TranscriptDocument]:
     """Normalize transcript documents in memory for downstream chunking."""
-    # 加載術語字典
-    term_dictionary = load_term_dictionary(config.term_dictionary_path)
-    # 創建術語標準化器
-    normalizer = TermNormalizer(term_dictionary=term_dictionary, fuzzy_threshold=config.fuzzy_threshold)
+    normalizer = None
+    if config.stt_terminology_enabled:
+        term_dictionary = load_term_dictionary(config.stt_terminology_path)
+        normalizer = TermNormalizer(term_dictionary=term_dictionary, fuzzy_threshold=config.fuzzy_threshold)
 
     # 初始化標準化文檔列表
     normalized_documents: list[TranscriptDocument] = []
@@ -246,7 +269,19 @@ def normalize_transcripts(
     # 處理每個文檔
     for document in transcripts:
         # 標準化所有段落
-        normalized_segments = [normalizer.normalize_segment(segment) for segment in document.segments]
+        normalized_segments = [
+            normalizer.normalize_segment(segment)
+            if normalizer is not None
+            else TranscriptSegment(
+                segment_id=segment.segment_id,
+                start_sec=segment.start_sec,
+                end_sec=segment.end_sec,
+                text=segment.text,
+                original_text=segment.text,
+                corrections=[],
+            )
+            for segment in document.segments
+        ]
         # 累計更正數量
         total_corrections += sum(len(segment.corrections) for segment in normalized_segments)
         # 添加標準化文檔
@@ -258,6 +293,27 @@ def normalize_transcripts(
         len(normalized_documents),
         total_corrections,
     )
+    if config.stt_correction_audit_enabled:
+        audit_records = [
+            {
+                "video_id": document.video_id,
+                "segment_id": segment.segment_id,
+                "start_sec": segment.start_sec,
+                "end_sec": segment.end_sec,
+                "original": segment.original_text,
+                "normalized": segment.text,
+                "applied_rules": [correction.method for correction in segment.corrections],
+                "correction_count": len(segment.corrections),
+            }
+            for document in normalized_documents
+            for segment in document.segments
+            if segment.corrections
+        ]
+        write_jsonl_file(
+            config.correction_audit_output_path,
+            audit_records,
+            backup_existing=config.backup_existing_outputs,
+        )
     return normalized_documents
 
 

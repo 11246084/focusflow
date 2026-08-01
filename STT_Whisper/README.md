@@ -1,5 +1,11 @@
 # FocusFlow AI Pipeline MVP
 
+## Phase 2 STT Accuracy Optimization Sprint 1
+
+Pipeline 使用 `faster-whisper`，並提供可選 `STT_INITIAL_PROMPT`、安全的 boundary-aware terminology normalization、run-specific `correction_audit.jsonl`、STT／Normalize fingerprints 與品質摘要。術語校正只接受字典明列 alias，不再執行未受限的 fuzzy 全域替換；raw `transcripts.json` 不會被覆蓋，校正結果與稽核資訊位於 normalized transcript 與 correction audit。
+
+完全離線評估可執行 `python tools/evaluate_stt_accuracy.py`。文字 fixture 可驗證 CER、WER、Term Accuracy、False Replacement 與校正契約，但不能證明真實音訊辨識率；真實效果仍需用同一段音訊比較 baseline、prompt only 與 prompt + safe terminology。
+
 ## Phase 2-2 Sprint 2A：Parent Embedding
 
 Parent Embedding 是位於 `hierarchy` 與 Leaf `text_embedding` 之間的獨立 blocking stage。它預設關閉，只有同時設定 `HIERARCHY_ENABLED=true` 與 `PARENT_EMBEDDING_ENABLED=true` 才會執行；若只啟用 Parent Embedding，設定驗證會在 Run 建立前失敗。

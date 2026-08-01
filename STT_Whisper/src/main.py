@@ -32,6 +32,7 @@ from job_manager import JobManager, create_manifest, load_manifest
 from normalize_transcript import normalize_transcripts
 from resume_checkpoint import ResumePlan, build_resume_plan
 from run_summary import write_run_summary, write_upload_summary
+from stt_accuracy import build_config_fingerprint, build_normalize_config_snapshot, build_stt_config_snapshot, transcript_diagnostics
 from scan_videos import discover_video_files, scan_videos
 from transcribe import transcribe_videos
 from utils import VideoMetadata, configure_logging, ensure_directory
@@ -194,6 +195,7 @@ def bind_run_output(config: PipelineConfig, job_manager: JobManager) -> Pipeline
         normalized_transcript_output_path=run_output_dir / "transcripts_normalized.json",
         chunks_output_path=run_output_dir / "chunks.jsonl",
         parent_chunks_output_path=run_output_dir / "parent_chunks.jsonl",
+        correction_audit_output_path=run_output_dir / "correction_audit.jsonl",
         parent_embeddings_output_path=run_output_dir / "embeddings_parent_gemini.jsonl",
         text_embeddings_output_path=run_output_dir / "embeddings_text_gemini.jsonl",
         audio_embeddings_output_path=run_output_dir / "embeddings_audio_gemini.jsonl",
@@ -737,6 +739,10 @@ def main() -> int:
         chunk_config_fingerprint,
     )
     parent_embedding_config = build_parent_embedding_config_snapshot(config)
+    stt_config = build_stt_config_snapshot(config)
+    stt_config_fingerprint = build_config_fingerprint(stt_config)
+    normalize_config = build_normalize_config_snapshot(config)
+    normalize_config_fingerprint = build_config_fingerprint(normalize_config)
     parent_embedding_fingerprint = (
         build_parent_embedding_fingerprint(
             parent_embedding_config,
@@ -761,6 +767,16 @@ def main() -> int:
                 hierarchy_config_fingerprint,
                 parent_embedding_config,
                 parent_embedding_fingerprint,
+                stt_config,
+                stt_config_fingerprint,
+                normalize_config,
+                normalize_config_fingerprint,
+            )
+            job_manager.set_stt_accuracy_configs(
+                stt_config,
+                stt_config_fingerprint,
+                normalize_config,
+                normalize_config_fingerprint,
             )
             job_manager.set_chunk_config(chunk_config, chunk_config_fingerprint)
             job_manager.set_hierarchy_metadata(
@@ -787,6 +803,10 @@ def main() -> int:
                 hierarchy_config_fingerprint=hierarchy_config_fingerprint,
                 parent_embedding_config=parent_embedding_config,
                 parent_embedding_fingerprint=parent_embedding_fingerprint,
+                stt_config=stt_config,
+                stt_config_fingerprint=stt_config_fingerprint,
+                normalize_config=normalize_config,
+                normalize_config_fingerprint=normalize_config_fingerprint,
             )
             config = bind_run_output(config, job_manager)
             job_manager.set_hierarchy_metadata(
@@ -942,6 +962,11 @@ def main() -> int:
             parent_embedding_config=parent_embedding_config,
             parent_embedding_fingerprint=parent_embedding_fingerprint,
             parent_embedding_metadata=job_manager.manifest.get("parent_embedding"),
+            stt_config=stt_config,
+            stt_config_fingerprint=stt_config_fingerprint,
+            normalize_config=normalize_config,
+            normalize_config_fingerprint=normalize_config_fingerprint,
+            stt_quality=transcript_diagnostics(pipeline_data.get("normalized_transcripts", [])),
         )
     # 如果出現異常，通知後端失敗並返回退出碼 1
     except Exception as exc:
@@ -993,6 +1018,10 @@ def main() -> int:
             parent_embedding_config=parent_embedding_config,
             parent_embedding_fingerprint=parent_embedding_fingerprint,
             parent_embedding_metadata=job_manager.manifest.get("parent_embedding"),
+            stt_config=stt_config,
+            stt_config_fingerprint=stt_config_fingerprint,
+            normalize_config=normalize_config,
+            normalize_config_fingerprint=normalize_config_fingerprint,
         )
         return 1
 

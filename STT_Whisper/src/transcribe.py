@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from config import PipelineConfig
+from stt_accuracy import build_config_fingerprint, build_stt_config_snapshot
 from utils import TranscriptDocument, TranscriptSegment, VideoMetadata, load_json_file, normalize_text, round_seconds, write_json_file
 
 
@@ -56,6 +58,10 @@ def _load_cached_transcript(video_id: str, config: PipelineConfig) -> Transcript
 
     # 加載緩存的 JSON 文件
     payload = load_json_file(cache_path)
+    current_fingerprint = build_config_fingerprint(build_stt_config_snapshot(config))
+    if payload.get("stt_config_fingerprint") != current_fingerprint:
+        logger.info("Ignoring stale transcript cache for %s", video_id)
+        return None
     # 將段落字典轉換為 TranscriptSegment 對象
     segments = [TranscriptSegment.from_dict(segment) for segment in payload["segments"]]
     # 記錄緩存加載信息
@@ -71,7 +77,10 @@ def _save_transcript_cache(document: TranscriptDocument, config: PipelineConfig)
     # 將轉錄文檔寫入 JSON 文件
     write_json_file(
         cache_path,
-        document.to_dict(),
+        {
+            **document.to_dict(),
+            "stt_config_fingerprint": build_config_fingerprint(build_stt_config_snapshot(config)),
+        },
         backup_existing=config.backup_existing_outputs,
     )
 
@@ -92,6 +101,9 @@ def transcribe_video(video: VideoMetadata, model, config: PipelineConfig) -> Tra
         beam_size=config.whisper_beam_size,
         language=config.whisper_language,
         vad_filter=config.whisper_vad_filter,
+        task=config.stt_task,
+        initial_prompt=config.stt_initial_prompt or None,
+        condition_on_previous_text=config.stt_condition_on_previous_text,
     )
 
     # 記錄轉錄開始信息

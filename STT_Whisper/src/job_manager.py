@@ -63,6 +63,10 @@ class JobManager:
         hierarchy_config_fingerprint: str | None = None,
         parent_embedding_config: dict[str, Any] | None = None,
         parent_embedding_fingerprint: str | None = None,
+        stt_config: dict[str, Any] | None = None,
+        stt_config_fingerprint: str | None = None,
+        normalize_config: dict[str, Any] | None = None,
+        normalize_config_fingerprint: str | None = None,
     ) -> "JobManager":
         """Create and persist a new manifest under runs/<run_id>/manifest.json."""
         runs_dir = runs_dir.resolve()
@@ -97,6 +101,14 @@ class JobManager:
             manifest["parent_embedding_config"] = dict(parent_embedding_config)
         if parent_embedding_fingerprint is not None:
             manifest["parent_embedding_fingerprint"] = parent_embedding_fingerprint
+        if stt_config is not None:
+            manifest["stt_config"] = dict(stt_config)
+        if stt_config_fingerprint is not None:
+            manifest["stt_config_fingerprint"] = stt_config_fingerprint
+        if normalize_config is not None:
+            manifest["normalize_config"] = dict(normalize_config)
+        if normalize_config_fingerprint is not None:
+            manifest["normalize_config_fingerprint"] = normalize_config_fingerprint
         manager = cls(runs_dir / resolved_run_id / "manifest.json", manifest)
         manager._persist()
         return manager
@@ -214,6 +226,20 @@ class JobManager:
             return
         self.manifest["chunk_config"] = dict(chunk_config)
         self.manifest["chunk_config_fingerprint"] = chunk_config_fingerprint
+        self._persist()
+
+    def set_stt_accuracy_configs(
+        self,
+        stt_config: dict[str, Any],
+        stt_fingerprint: str,
+        normalize_config: dict[str, Any],
+        normalize_fingerprint: str,
+    ) -> None:
+        """Persist STT and normalization snapshots after resume planning."""
+        self.manifest["stt_config"] = dict(stt_config)
+        self.manifest["stt_config_fingerprint"] = stt_fingerprint
+        self.manifest["normalize_config"] = dict(normalize_config)
+        self.manifest["normalize_config_fingerprint"] = normalize_fingerprint
         self._persist()
 
     def set_hierarchy_metadata(
@@ -369,6 +395,10 @@ def create_manifest(
     hierarchy_config_fingerprint: str | None = None,
     parent_embedding_config: dict[str, Any] | None = None,
     parent_embedding_fingerprint: str | None = None,
+    stt_config: dict[str, Any] | None = None,
+    stt_config_fingerprint: str | None = None,
+    normalize_config: dict[str, Any] | None = None,
+    normalize_config_fingerprint: str | None = None,
 ) -> JobManager:
     """Convenience factory matching the pipeline-facing API."""
     return JobManager.create_manifest(
@@ -380,6 +410,10 @@ def create_manifest(
         hierarchy_config_fingerprint,
         parent_embedding_config,
         parent_embedding_fingerprint,
+        stt_config,
+        stt_config_fingerprint,
+        normalize_config,
+        normalize_config_fingerprint,
     )
 
 

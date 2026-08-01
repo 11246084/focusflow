@@ -112,6 +112,11 @@ def write_run_summary(
     parent_embedding_config: dict[str, Any] | None = None,
     parent_embedding_fingerprint: str | None = None,
     parent_embedding_metadata: dict[str, Any] | None = None,
+    stt_config: dict[str, Any] | None = None,
+    stt_config_fingerprint: str | None = None,
+    normalize_config: dict[str, Any] | None = None,
+    normalize_config_fingerprint: str | None = None,
+    stt_quality: dict[str, Any] | None = None,
 ) -> Path:
     """Write a final summary for either a completed or failed run."""
     output_path = run_output_dir / "run_summary.json"
@@ -157,6 +162,17 @@ def write_run_summary(
             "dimension": parent_embedding_config.get("dimension"),
             "fingerprint": parent_embedding_fingerprint,
             "output_path": metadata.get("artifact_path"),
+        }
+    if stt_config is not None:
+        payload["stt"] = {
+            "config": dict(stt_config),
+            "fingerprint": stt_config_fingerprint,
+            "quality": dict(stt_quality or {}),
+        }
+    if normalize_config is not None:
+        payload["normalization"] = {
+            "config": dict(normalize_config),
+            "fingerprint": normalize_config_fingerprint,
         }
     write_json_file(output_path, payload, backup_existing=False)
     return output_path

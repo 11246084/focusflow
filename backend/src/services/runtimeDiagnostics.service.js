@@ -120,6 +120,9 @@ function buildQaRuntimeSnapshot() {
     atlasFilterMode: env.qaAtlasFilterMode,
     geminiConfigured: Boolean(env.geminiApiKey),
     openaiConfigured: Boolean(env.openaiApiKey),
+    hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,
+    hierarchicalRetrievalFallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
+    hierarchicalParentStorageMode: 'unavailable_round_1',
   };
 
   const hardFailures = buildQaHardFailures(snapshot);

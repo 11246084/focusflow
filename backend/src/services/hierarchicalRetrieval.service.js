@@ -1,0 +1,134 @@
+const AppError = require('../utils/appError');
+const { searchParents } = require('./parentSearch.service');
+const { expandParentHits } = require('./childExpansion.service');
+const { assembleLeafContext } = require('./leafContextAssembly.service');
+
+function fallbackDiagnostic(code) {
+  return {
+    stage: 'retrieval',
+    code,
+    from: 'hierarchical',
+    to: 'leaf',
+    message: 'Hierarchical retrieval was unavailable, so the backend used leaf retrieval.',
+  };
+}
+
+async function retrieveWithHierarchy({
+  enabled,
+  fallbackToLeaf,
+  parentRepositoryFactory,
+  leafRepositoryFactory,
+  leafSearch,
+  queryEmbedding,
+  courseId,
+  videoId = null,
+  scope,
+  parentLimit,
+  childExpansionLimit,
+  contextMaxLeaves,
+  contextMaxCharacters,
+  parentTimeoutMs,
+}) {
+  if (!enabled) {
+    return leafSearch();
+  }
+
+  const startedAt = Date.now();
+  try {
+    const parentRepository = parentRepositoryFactory();
+    const parentHits = await searchParents({
+      repository: parentRepository,
+      queryEmbedding,
+      courseId,
+      videoId,
+      limit: parentLimit,
+      timeoutMs: parentTimeoutMs,
+    });
+    if (!parentHits.length) {
+      const error = new Error('Parent search returned no hits.');
+      error.code = 'PARENT_NO_HITS';
+      throw error;
+    }
+
+    const expansion = await expandParentHits({
+      parentHits,
+      leafRepository: leafRepositoryFactory(),
+      scope,
+      courseId,
+      videoId,
+      limit: childExpansionLimit,
+    });
+    if (!expansion.leaves.length) {
+      const error = new Error('Parent child expansion returned no scoped leaves.');
+      error.code = 'PARENT_CHILD_EXPANSION_EMPTY';
+      throw error;
+    }
+
+    const context = assembleLeafContext({
+      leaves: expansion.leaves,
+      maxLeaves: contextMaxLeaves,
+      maxCharacters: contextMaxCharacters,
+    });
+    if (!context.matches.length) {
+      const error = new Error('Parent context assembly returned no leaves.');
+      error.code = 'PARENT_CONTEXT_EMPTY';
+      throw error;
+    }
+
+    return {
+      matches: context.matches,
+      diagnostics: {
+        searchBackendUsed: 'mock_parent',
+        scoringMode: 'parent_vector_child_expansion',
+        fallbacks: [],
+        hierarchical: {
+          retrievalMode: 'hierarchical',
+          parentHitCount: parentHits.length,
+          expandedLeafCount: expansion.diagnostics.requestedChildCount,
+          deduplicatedLeafCount: context.diagnostics.deduplicatedLeafCount,
+          selectedLeafCount: context.diagnostics.selectedLeafCount,
+          fallbackUsed: false,
+          fallbackReason: null,
+          retrievalLatencyMs: Date.now() - startedAt,
+          missingChildCount: expansion.diagnostics.missingChildCount,
+          scopeMismatchCount: expansion.diagnostics.scopeMismatchCount,
+        },
+      },
+    };
+  } catch (error) {
+    const reason = error?.code || 'PARENT_RETRIEVAL_FAILED';
+    if (!fallbackToLeaf) {
+      throw new AppError(
+        'Hierarchical retrieval is unavailable.',
+        503,
+        'HIERARCHICAL_RETRIEVAL_UNAVAILABLE',
+        { reason },
+      );
+    }
+
+    console.warn('[hierarchical-retrieval] leaf fallback', { reason });
+    const leafResult = await leafSearch();
+    return {
+      ...leafResult,
+      diagnostics: {
+        ...(leafResult.diagnostics || {}),
+        fallbacks: [
+          ...(leafResult.diagnostics?.fallbacks || []),
+          fallbackDiagnostic(reason),
+        ],
+        hierarchical: {
+          retrievalMode: 'leaf_fallback',
+          parentHitCount: 0,
+          expandedLeafCount: 0,
+          deduplicatedLeafCount: 0,
+          selectedLeafCount: leafResult.matches?.length || 0,
+          fallbackUsed: true,
+          fallbackReason: reason,
+          retrievalLatencyMs: Date.now() - startedAt,
+        },
+      },
+    };
+  }
+}
+
+module.exports = { retrieveWithHierarchy };

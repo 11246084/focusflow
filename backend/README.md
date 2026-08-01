@@ -2,6 +2,20 @@
 
 `focusflow` phase-1 MVP 的 backend 目前已整理到可穩定 demo、可重現、可交接的狀態，但仍明確保留 phase-1 的 bridge 與協作邊界。
 
+## Phase 2-2 Hierarchical Retrieval Round 1
+
+本輪加入預設關閉的 `HIERARCHICAL_RETRIEVAL_ENABLED` Kill Switch，以及預設開啟的 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF`。Gate 關閉時完全沿用既有 Leaf-only QA；Gate 開啟但 Parent repository unavailable、timeout、無命中、文件無效或 Child expansion 無有效 Leaf 時，會安全退回 Leaf retrieval，並只在 `runtime.hierarchicalRetrieval` 保存診斷 metadata。
+
+Round 1 已建立 Parent Search interface、離線 Fake repository、Child Expansion、deterministic Leaf deduplication、有限制的 Leaf Context Assembly，以及 Leaf Citation 相容測試。正式 Parent adapter 目前是明確的 unavailable stub：本輪沒有建立 `video_segments_parent`、沒有部署 Parent Atlas Vector Index、沒有連線真實 Parent MongoDB，也沒有修改 Frontend 或 Citation response contract。
+
+本輪測試只證明安全整合、fallback 與契約行為，不能證明 AI 回覆品質已提升。正式 Parent Storage／Vector Search 屬於後續 Database handoff。
+
+離線驗證：
+
+```powershell
+npm test
+```
+
 ## 目前真實 runtime
 
 phase-1 當前狀態（2026-05-05）：

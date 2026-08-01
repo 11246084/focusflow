@@ -12,6 +12,23 @@ function parseNonNegativeNumber(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseBoolean(value, fallback, name) {
+  if (value === undefined || value === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new Error(`${name} must be true or false.`);
+}
+
+function parsePositiveInteger(value, fallback, name) {
+  if (value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
 function isSameOrDescendantPath(parentPath, candidatePath) {
   const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
@@ -52,6 +69,29 @@ module.exports = {
   qaAtlasVectorIndexName: process.env.QA_ATLAS_VECTOR_INDEX_NAME || '',
   qaAtlasFilterMode: process.env.QA_ATLAS_FILTER_MODE || 'bridge_course_or_video',
   qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 3,
+  hierarchicalRetrievalEnabled: parseBoolean(
+    process.env.HIERARCHICAL_RETRIEVAL_ENABLED,
+    false,
+    'HIERARCHICAL_RETRIEVAL_ENABLED',
+  ),
+  hierarchicalRetrievalFallbackToLeaf: parseBoolean(
+    process.env.HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF,
+    true,
+    'HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF',
+  ),
+  hierarchicalParentLimit: parsePositiveInteger(process.env.HIERARCHICAL_PARENT_LIMIT, 5, 'HIERARCHICAL_PARENT_LIMIT'),
+  hierarchicalChildExpansionLimit: parsePositiveInteger(
+    process.env.HIERARCHICAL_CHILD_EXPANSION_LIMIT, 30, 'HIERARCHICAL_CHILD_EXPANSION_LIMIT',
+  ),
+  hierarchicalContextMaxLeaves: parsePositiveInteger(
+    process.env.HIERARCHICAL_CONTEXT_MAX_LEAVES, 15, 'HIERARCHICAL_CONTEXT_MAX_LEAVES',
+  ),
+  hierarchicalContextMaxCharacters: parsePositiveInteger(
+    process.env.HIERARCHICAL_CONTEXT_MAX_CHARACTERS, 5000, 'HIERARCHICAL_CONTEXT_MAX_CHARACTERS',
+  ),
+  hierarchicalParentTimeoutMs: parsePositiveInteger(
+    process.env.HIERARCHICAL_PARENT_TIMEOUT_MS, 1000, 'HIERARCHICAL_PARENT_TIMEOUT_MS',
+  ),
   faqCacheEnabled: String(process.env.FAQ_CACHE_ENABLED || 'true').toLowerCase() === 'true',
   // <= 0 或 > 1 視為停用語意相似層，只保留正規化文字完全相同的快取命中
   faqCacheSimilarityThreshold: Number(process.env.FAQ_CACHE_SIMILARITY_THRESHOLD ?? 0.95),
@@ -93,4 +133,6 @@ module.exports = {
     .filter(Boolean),
   projectRoot,
   assertPrivateAvatarUploadDir,
+  parseBoolean,
+  parsePositiveInteger,
 };

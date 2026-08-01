@@ -34,6 +34,9 @@ const {
   buildQaRuntimeSnapshot,
   assertQaRuntimeConfiguration,
 } = require('./runtimeDiagnostics.service');
+const { createUnavailableParentRepository } = require('./parentSearch.service');
+const { createLeafRepository } = require('./childExpansion.service');
+const { retrieveWithHierarchy } = require('./hierarchicalRetrieval.service');
 
 function normalizeWords(text) {
   return String(text || '')
@@ -746,6 +749,9 @@ function buildQaRuntime({
     answerProviderUsed: answerResult?.provider || null,
     visualSearch: visualSearchDiagnostics,
     fallbacks,
+    ...(searchDiagnostics?.hierarchical
+      ? { hierarchicalRetrieval: searchDiagnostics.hierarchical }
+      : {}),
   };
 }
 
@@ -1023,10 +1029,10 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     });
   }
 
-  const searchResult = scopedSegments.length
+  const leafSearch = async () => (scopedSegments.length
     ? env.qaVectorSearchMode === 'atlas'
-      ? await searchSegmentsWithAtlas(segmentScope, queryVector)
-      : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments)
+      ? searchSegmentsWithAtlas(segmentScope, queryVector)
+      : searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments)
     : {
         matches: [],
         diagnostics: {
@@ -1034,7 +1040,22 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
           scoringMode: 'unavailable',
           fallbacks: [],
         },
-      };
+      });
+  const searchResult = await retrieveWithHierarchy({
+    enabled: env.hierarchicalRetrievalEnabled,
+    fallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
+    parentRepositoryFactory: createUnavailableParentRepository,
+    leafRepositoryFactory: createLeafRepository,
+    leafSearch,
+    queryEmbedding: queryVector,
+    courseId: String(course._id),
+    scope: segmentScope,
+    parentLimit: env.hierarchicalParentLimit,
+    childExpansionLimit: env.hierarchicalChildExpansionLimit,
+    contextMaxLeaves: env.hierarchicalContextMaxLeaves,
+    contextMaxCharacters: env.hierarchicalContextMaxCharacters,
+    parentTimeoutMs: env.hierarchicalParentTimeoutMs,
+  });
   tMark = qaTimingMark(`search (${env.qaVectorSearchMode})`, tMark);
 
   const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
@@ -1232,4 +1253,5 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
 
 module.exports = {
   askQuestion,
+  buildCitations,
 };

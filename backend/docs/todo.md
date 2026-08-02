@@ -293,14 +293,16 @@
 
 ### 13. YouTube Data API 自動上傳整合
 
-- **狀態**：Testing（2026-07-10）
+- **狀態**：Live 驗證通過（2026-08-02）
 - **已完成**：
   - `youtubeUpload.service.js`：支援 OAuth refresh token、短期 access token override、YouTube Data API v3 resumable upload、預設 `unlisted`
+  - 刪除轉 private（2026-08-02，教授決議）：`setVideoPrivacy` / `privatizeVideoOnDelete` / `privatizeVideosOnDelete`，接在 `deleteVideo` 與 `deleteCourse`；只處理自家頻道影片，失敗不中斷刪除；`YOUTUBE_PRIVATIZE_ON_DELETE` 可停用
+  - Live 端對端驗證（2026-08-02）：上傳後影片以 unlisted 出現在 FocusFlow 頻道，系統刪除後 YouTube Studio 顯示「私人」；backend 316/316 tests
   - `video.service.createCourseVideo()`：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 時，本機檔案上傳後先寫入 YouTube，再把 `youtubeVideoId` / `videoUrl` / `sourceUrl` 寫回 app-owned `Video`
   - `.env.example`：補 `YOUTUBE_OAUTH_CLIENT_ID` / `YOUTUBE_OAUTH_CLIENT_SECRET` / `YOUTUBE_OAUTH_REFRESH_TOKEN` / `YOUTUBE_UPLOAD_PRIVACY_STATUS` 等設定
   - 測試：`youtube-upload.service.test.js`、`course-video.routes.test.js` auto-upload branch；2026-07-10 `npm.cmd test` 103/103
 - **仍需**：
-  - ~~專案負責人提供 FocusFlow Google 帳號 OAuth refresh token~~（2026-07-20 已取得，流程見 [youtube-upload-setup.md](./youtube-upload-setup.md)）→ 做一次真實 upload smoke；注意 OAuth 同意畫面 Testing 狀態 refresh token 7 天過期，長期使用需發布應用程式後換新 token
+  - **OAuth 同意畫面從 Testing 切到正式發布**：目前 refresh token 7 天過期，過期後上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 靜默失敗。發布後需重走 OAuth 流程換新 token（scope 維持 `youtube.force-ssl`）
   - playlist / Shorts 發布策略定版
   - 本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開
 

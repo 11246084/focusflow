@@ -23,6 +23,7 @@ const {
   archiveForCourseDeletion,
   rollbackCourseDeletionArchive,
 } = require('./shortAsset.service');
+const { privatizeVideosOnDelete } = require('./youtubeUpload.service');
 
 async function buildCoursePresentation(course) {
   const scopedVideos = await collectScopedVideos(course);
@@ -187,6 +188,9 @@ async function deleteCourse(courseId, user) {
   if (deletedVideoIds.length) {
     await Course.updateMany({}, { $pull: { videoIds: { $in: deletedVideoIds } } });
   }
+  // 影片已從 DB 移除，YouTube 上的副本一併轉 private，避免舊連結仍可播放。
+  // 放在 Course.deleteOne 之前：影片刪除本身不可逆，course delete 失敗也不該讓影片繼續公開。
+  await privatizeVideosOnDelete(videos);
   await Enrollment.deleteMany({ courseId });
   await Faq.deleteMany({ courseId });
 

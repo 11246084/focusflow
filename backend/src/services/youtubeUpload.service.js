@@ -7,7 +7,12 @@ const AppError = require('../utils/appError');
 
 const YOUTUBE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable';
+const YOUTUBE_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
 const VALID_PRIVACY_STATUSES = new Set(['private', 'unlisted', 'public']);
+// videos.update 會覆寫整個 status part，未帶到的可寫欄位會被重設為預設值，
+// 因此改隱私前要先讀回現有 status 並帶回這些欄位。
+// 刻意不帶 publishAt：排程公開會讓影片稍後自動脫離 private。
+const WRITABLE_STATUS_FIELDS = ['license', 'embeddable', 'publicStatsViewable', 'selfDeclaredMadeForKids'];
 
 function normalizePrivacyStatus(value) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -47,6 +52,24 @@ function isYouTubeUploadConfigured() {
   return Boolean(
     env.youtubeUploadEnabled
     && (env.youtubeUploadAccessToken || hasRefreshCredentials()),
+  );
+}
+
+// 影片刪除時把自家頻道的影片轉 private。與上傳共用 OAuth 憑證，但獨立於
+// YOUTUBE_UPLOAD_ENABLED：關掉自動上傳後，既有影片仍需要能被下架。
+function isPrivatizeOnDeleteConfigured() {
+  return Boolean(
+    env.youtubePrivatizeOnDelete
+    && (env.youtubeUploadAccessToken || hasRefreshCredentials()),
+  );
+}
+
+// 只處理 FocusFlow 自己上傳到自家頻道的影片。教師貼 YouTube URL 建立的影片
+// 位於他人頻道，既無權限也不應該去動它。
+function isFocusFlowUploadedVideo(video) {
+  return Boolean(
+    video?.youtubeVideoId
+    && video?.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED,
   );
 }
 
@@ -252,6 +275,89 @@ async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = 
   }
 }
 
+// 把頻道上的影片改成指定隱私狀態（預設 private）。需要 `youtube.force-ssl` scope；
+// 只帶 upload scope 的 refresh token 會被 YouTube 以 403 拒絕。
+async function setVideoPrivacy({
+  youtubeVideoId,
+  privacyStatus = 'private',
+  fetchImpl = global.fetch,
+} = {}) {
+  if (!youtubeVideoId) {
+    throw new AppError('youtubeVideoId is required to change privacy.', 400, 'VALIDATION_ERROR');
+  }
+
+  const targetPrivacy = String(privacyStatus || '').trim().toLowerCase();
+  if (!VALID_PRIVACY_STATUSES.has(targetPrivacy)) {
+    throw new AppError(`Unsupported privacy status: ${privacyStatus}`, 400, 'VALIDATION_ERROR');
+  }
+
+  assertFetch(fetchImpl);
+  const accessToken = await fetchAccessToken({ fetchImpl });
+  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+
+  const listUrl = `${YOUTUBE_VIDEOS_URL}?part=status&id=${encodeURIComponent(youtubeVideoId)}`;
+  const listResponse = await fetchImpl(listUrl, { headers: authHeaders });
+  if (!listResponse.ok) {
+    const responseText = await listResponse.text().catch(() => '');
+    throw createYouTubeApiError('Failed to read YouTube video status.', responseText);
+  }
+
+  const listPayload = await listResponse.json();
+  const currentStatus = listPayload?.items?.[0]?.status;
+  if (!currentStatus) {
+    throw createYouTubeApiError(`YouTube video ${youtubeVideoId} was not found.`);
+  }
+
+  const nextStatus = { privacyStatus: targetPrivacy };
+  for (const field of WRITABLE_STATUS_FIELDS) {
+    if (currentStatus[field] !== undefined) nextStatus[field] = currentStatus[field];
+  }
+
+  const updateResponse = await fetchImpl(`${YOUTUBE_VIDEOS_URL}?part=status`, {
+    method: 'PUT',
+    headers: { ...authHeaders, 'Content-Type': 'application/json; charset=UTF-8' },
+    body: JSON.stringify({ id: youtubeVideoId, status: nextStatus }),
+  });
+
+  if (!updateResponse.ok) {
+    const responseText = await updateResponse.text().catch(() => '');
+    throw createYouTubeApiError('Failed to update YouTube video privacy.', responseText);
+  }
+
+  return { youtubeVideoId, privacyStatus: targetPrivacy };
+}
+
+// 刪除流程的 best-effort 入口：轉 private 失敗不會中斷刪除，但會把 youtubeVideoId
+// 記進 log，方便之後人工到 YouTube Studio 處理。
+async function privatizeVideoOnDelete(video, { fetchImpl = global.fetch } = {}) {
+  if (!isPrivatizeOnDeleteConfigured() || !isFocusFlowUploadedVideo(video)) {
+    return null;
+  }
+
+  try {
+    return await setVideoPrivacy({ youtubeVideoId: video.youtubeVideoId, fetchImpl });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(
+        `YouTube privacy update failed for youtubeVideoId=${video.youtubeVideoId}; `
+        + 'the video is still visible to anyone holding the link.',
+        error,
+      );
+    }
+    return null;
+  }
+}
+
+// 課程刪除會一次帶走多支影片；逐支處理避免瞬間打爆 API 配額。
+async function privatizeVideosOnDelete(videos = [], { fetchImpl = global.fetch } = {}) {
+  const results = [];
+  for (const video of videos) {
+    const result = await privatizeVideoOnDelete(video, { fetchImpl });
+    if (result) results.push(result);
+  }
+  return results;
+}
+
 // 上傳流程的 fire-and-forget 入口：未設定憑證時靜默略過，不影響本地上傳與 STT pipeline。
 function scheduleYouTubeAutoUpload(video) {
   if (!isYouTubeUploadConfigured()) {
@@ -269,14 +375,20 @@ function scheduleYouTubeAutoUpload(video) {
 module.exports = {
   YOUTUBE_TOKEN_URL,
   YOUTUBE_UPLOAD_URL,
+  YOUTUBE_VIDEOS_URL,
   autoUploadVideoToYouTube,
   buildYouTubeWatchUrl,
   fetchAccessToken,
   guessMimeType,
   isAutoUploadEnabled,
+  isFocusFlowUploadedVideo,
+  isPrivatizeOnDeleteConfigured,
   isYouTubeUploadConfigured,
   normalizePrivacyStatus,
+  privatizeVideoOnDelete,
+  privatizeVideosOnDelete,
   scheduleYouTubeAutoUpload,
+  setVideoPrivacy,
   uploadLocalVideo,
   uploadVideoFileToYouTube,
 };

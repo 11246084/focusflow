@@ -1,15 +1,25 @@
 const VideoSegment = require('../models/videoSegment.model');
-const { normalizeIdentifier, normalizeNumber, segmentMatchesScope } = require('./bridgeScope.service');
+const {
+  buildSegmentLookupQuery,
+  normalizeIdentifier,
+  normalizeNumber,
+  segmentMatchesScope,
+} = require('./bridgeScope.service');
 
 function createLeafRepository() {
   return {
-    async findLeavesByChunkIds(chunkIds) {
-      return VideoSegment.find({
+    async findLeavesByChunkIds(chunkIds, { scope }) {
+      const idQuery = {
         $or: [
           { chunkId: { $in: chunkIds } },
           { segmentId: { $in: chunkIds } },
         ],
-      }).lean();
+      };
+      const scopeQuery = buildSegmentLookupQuery(scope);
+      // Apply access scope in MongoDB as well as after normalization; post-filtering remains defense in depth.
+      return VideoSegment.find(Object.keys(scopeQuery).length
+        ? { $and: [idQuery, scopeQuery] }
+        : idQuery).lean();
     },
   };
 }
@@ -62,7 +72,7 @@ async function expandParentHits({
   }
 
   const uniqueRequestedIds = [...new Set(requestedIds)];
-  const documents = await leafRepository.findLeavesByChunkIds(uniqueRequestedIds, { courseId, videoId });
+  const documents = await leafRepository.findLeavesByChunkIds(uniqueRequestedIds, { scope, courseId, videoId });
   const byId = new Map();
   for (const document of Array.isArray(documents) ? documents : []) {
     const leaf = normalizeLeaf(document);

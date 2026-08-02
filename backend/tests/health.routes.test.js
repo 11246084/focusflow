@@ -8,6 +8,10 @@ function resetRuntimeEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.hierarchicalRetrievalEnabled = false;
+  env.hierarchicalRetrievalFallbackToLeaf = true;
+  env.qaMockEmbeddingDimensions = 32;
+  env.openaiEmbeddingModel = 'text-embedding-3-small';
   env.qaEstimatedTokensPerAsk = 1000;
   env.qaMonthlyTokenBudget = 0;
   env.qaUserMonthlyTokenQuota = 0;
@@ -90,6 +94,36 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.costControl.enabled, true);
     assert.equal(result.body.data.runtime.qa.costControl.monthlyTokenBudget, 5000);
     assert.equal(result.body.data.runtime.qa.costControl.userMonthlyTokenQuota, 2000);
+  });
+
+  it('marks incompatible Parent query embeddings as degraded when Leaf fallback is available', async () => {
+    env.hierarchicalRetrievalEnabled = true;
+    env.hierarchicalRetrievalFallbackToLeaf = true;
+    env.qaQueryEmbeddingProvider = 'openai';
+    env.openaiApiKey = 'test-openai-key';
+
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.body.data.runtime.qa.readiness, 'degraded');
+    assert.equal(result.body.data.runtime.qa.readyForAsk, true);
+    assert.equal(result.body.data.runtime.qa.warnings.some(
+      (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+    ), true);
+  });
+
+  it('hard-fails incompatible Parent query embeddings when Leaf fallback is disabled', async () => {
+    env.hierarchicalRetrievalEnabled = true;
+    env.hierarchicalRetrievalFallbackToLeaf = false;
+    env.qaQueryEmbeddingProvider = 'openai';
+    env.openaiApiKey = 'test-openai-key';
+
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.body.data.runtime.qa.readiness, 'hard_fail');
+    assert.equal(result.body.data.runtime.qa.readyForAsk, false);
+    assert.equal(result.body.data.runtime.qa.hardFailures.some(
+      (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+    ), true);
   });
 
   it('SHORTS_SYNC_INTERVAL_MS=0 時回報 shorts sync disabled', async () => {

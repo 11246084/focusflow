@@ -10,28 +10,36 @@ function normalizeId(value) {
   return value == null ? '' : String(value).trim();
 }
 
-function validateParentHit(hit, { courseId, videoId } = {}) {
+function validateParentHit(hit, { courseId, videoId, allowedVideoIds = [] } = {}) {
   if (!hit || typeof hit !== 'object') {
     throw new ParentRetrievalError('Parent search returned an invalid document.', 'PARENT_DOCUMENT_INVALID');
   }
 
   const parentId = normalizeId(hit.parentId);
   const parentVideoId = normalizeId(hit.videoId);
+  const parentCourseId = normalizeId(hit.courseId);
   const childChunkIds = Array.isArray(hit.childChunkIds)
-    ? hit.childChunkIds.map(normalizeId).filter(Boolean)
+    ? hit.childChunkIds.map(normalizeId)
     : null;
   const score = Number(hit.score);
   const startSec = Number(hit.startSec);
   const endSec = Number(hit.endSec);
   const order = Number(hit.order);
+  const hierarchyLevel = hit.hierarchyLevel;
+  const documentType = normalizeId(hit.documentType);
 
-  if (!parentId || !parentVideoId || !childChunkIds || !childChunkIds.length
+  if (!parentId || !parentVideoId || !parentCourseId || !childChunkIds || !childChunkIds.length
+      || childChunkIds.some((childId) => !childId)
       || !Number.isFinite(score) || !Number.isFinite(startSec) || !Number.isFinite(endSec)
-      || !Number.isInteger(order) || startSec < 0 || endSec < startSec) {
+      || !Number.isInteger(order) || startSec < 0 || endSec < startSec
+      || typeof hierarchyLevel !== 'number' || hierarchyLevel !== 1
+      || documentType !== 'parent_chunk') {
     throw new ParentRetrievalError('Parent search returned an invalid document.', 'PARENT_DOCUMENT_INVALID');
   }
 
-  if (hit.courseId != null && normalizeId(hit.courseId) !== normalizeId(courseId)) {
+  // Mounted videos retain their primary courseId, so a Parent is in scope by course OR an allowed video ID.
+  const allowedVideoSet = new Set(Array.from(allowedVideoIds || []).map(normalizeId).filter(Boolean));
+  if (parentCourseId !== normalizeId(courseId) && !allowedVideoSet.has(parentVideoId)) {
     throw new ParentRetrievalError('Parent search returned a document outside the course scope.', 'PARENT_SCOPE_MISMATCH');
   }
 
@@ -47,8 +55,8 @@ function validateParentHit(hit, { courseId, videoId } = {}) {
     startSec,
     endSec,
     order,
-    hierarchyLevel: hit.hierarchyLevel || 'parent',
-    documentType: hit.documentType || 'parent_chunk',
+    hierarchyLevel,
+    documentType,
   };
 }
 
@@ -68,6 +76,7 @@ async function searchParents({
   queryEmbedding,
   courseId,
   videoId = null,
+  allowedVideoIds = [],
   limit,
   timeoutMs = 1000,
 }) {
@@ -84,7 +93,14 @@ async function searchParents({
   let timer;
   try {
     const result = await Promise.race([
-      Promise.resolve(repository.searchParents({ queryEmbedding, courseId, videoId, limit: safeLimit })),
+      Promise.resolve(repository.searchParents({
+        queryEmbedding,
+        courseId,
+        videoId,
+        allowedVideoIds,
+        limit: safeLimit,
+        timeoutMs,
+      })),
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new ParentRetrievalError(
           'Parent search timed out.',
@@ -97,7 +113,11 @@ async function searchParents({
       throw new ParentRetrievalError('Parent search returned an invalid result.', 'PARENT_DOCUMENT_INVALID');
     }
 
-    return result.slice(0, safeLimit).map((hit) => validateParentHit(hit, { courseId, videoId }));
+    return result.slice(0, safeLimit).map((hit) => validateParentHit(hit, {
+      courseId,
+      videoId,
+      allowedVideoIds,
+    }));
   } catch (error) {
     if (error instanceof ParentRetrievalError) throw error;
     throw new ParentRetrievalError('Parent search failed.', error?.code || 'PARENT_SEARCH_FAILED');

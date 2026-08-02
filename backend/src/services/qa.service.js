@@ -34,7 +34,7 @@ const {
   buildQaRuntimeSnapshot,
   assertQaRuntimeConfiguration,
 } = require('./runtimeDiagnostics.service');
-const { createUnavailableParentRepository } = require('./parentSearch.service');
+const { createParentSearchRepository } = require('./parentSearchAdapter.service');
 const { createLeafRepository } = require('./childExpansion.service');
 const { retrieveWithHierarchy } = require('./hierarchicalRetrieval.service');
 
@@ -1044,11 +1044,13 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const searchResult = await retrieveWithHierarchy({
     enabled: env.hierarchicalRetrievalEnabled,
     fallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
-    parentRepositoryFactory: createUnavailableParentRepository,
+    // The factory is invoked only when the hierarchy Gate is enabled; the default false path stays Leaf-only.
+    parentRepositoryFactory: createParentSearchRepository,
     leafRepositoryFactory: createLeafRepository,
     leafSearch,
     queryEmbedding: queryVector,
     courseId: String(course._id),
+    allowedVideoIds: segmentScope.allowedVideoIds,
     scope: segmentScope,
     parentLimit: env.hierarchicalParentLimit,
     childExpansionLimit: env.hierarchicalChildExpansionLimit,

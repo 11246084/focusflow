@@ -5,6 +5,7 @@ const {
   DEFAULT_VIDEO_VECTOR_INDEX_NAME,
   buildVideoVectorSearchIndexDefinition,
 } = require('./videoVectorIndex.service');
+const { PARENT_VECTOR_EMBEDDING_DIMENSIONS } = require('./parentVectorIndex.service');
 
 const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
@@ -13,6 +14,27 @@ const QA_ATLAS_FILTER_MODES = ['bridge_course_or_video'];
 
 function buildDiagnostic(code, message) {
   return { code, message };
+}
+
+function expectedQueryEmbeddingDimensions(provider) {
+  if (provider === 'gemini') return PARENT_VECTOR_EMBEDDING_DIMENSIONS;
+  if (provider === 'mock') return env.qaMockEmbeddingDimensions;
+  if (provider === 'openai') {
+    if (env.openaiEmbeddingModel === 'text-embedding-3-large') return 3072;
+    if (['text-embedding-3-small', 'text-embedding-ada-002'].includes(env.openaiEmbeddingModel)) return 1536;
+  }
+  return null;
+}
+
+function isParentQueryEmbeddingCompatible(snapshot) {
+  // Parent documents are Gemini RETRIEVAL_DOCUMENT vectors; only the matching query space is valid in runtime.
+  if (snapshot.queryEmbeddingProvider === 'gemini') {
+    return snapshot.queryEmbeddingDimensions === PARENT_VECTOR_EMBEDDING_DIMENSIONS;
+  }
+  // Isolated tests may exercise the adapter with a deterministic 3072-dimensional mock vector.
+  // Atlas mode still rejects mock embeddings through the existing QA runtime check.
+  return snapshot.queryEmbeddingProvider === 'mock'
+    && snapshot.queryEmbeddingDimensions === PARENT_VECTOR_EMBEDDING_DIMENSIONS;
 }
 
 function buildQaHardFailures(snapshot) {
@@ -88,6 +110,15 @@ function buildQaHardFailures(snapshot) {
     ));
   }
 
+  if (snapshot.hierarchicalRetrievalEnabled
+      && !snapshot.hierarchicalRetrievalFallbackToLeaf
+      && !snapshot.parentQueryEmbeddingCompatible) {
+    hardFailures.push(buildDiagnostic(
+      'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+      'Hierarchical retrieval requires a Gemini RETRIEVAL_QUERY embedding with 3072 dimensions.',
+    ));
+  }
+
   return hardFailures;
 }
 
@@ -108,10 +139,19 @@ function buildQaWarnings(snapshot) {
     ));
   }
 
+
+  if (snapshot.hierarchicalRetrievalEnabled && !snapshot.parentQueryEmbeddingCompatible) {
+    warnings.push(buildDiagnostic(
+      'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+      'Parent search will remain unavailable until query embeddings use Gemini RETRIEVAL_QUERY at 3072 dimensions.',
+    ));
+  }
+
   return warnings;
 }
 
 function buildQaRuntimeSnapshot() {
+  const queryEmbeddingDimensions = expectedQueryEmbeddingDimensions(env.qaQueryEmbeddingProvider);
   const snapshot = {
     queryEmbeddingProvider: env.qaQueryEmbeddingProvider,
     vectorSearchMode: env.qaVectorSearchMode,
@@ -122,17 +162,23 @@ function buildQaRuntimeSnapshot() {
     openaiConfigured: Boolean(env.openaiApiKey),
     hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,
     hierarchicalRetrievalFallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
-    hierarchicalParentStorageMode: 'unavailable_round_1',
+    hierarchicalParentStorageMode: 'atlas_parent_vector',
+    queryEmbeddingDimensions,
   };
+  snapshot.parentQueryEmbeddingCompatible = isParentQueryEmbeddingCompatible(snapshot);
 
   const hardFailures = buildQaHardFailures(snapshot);
+  const warnings = buildQaWarnings(snapshot);
+  const hierarchyDegraded = warnings.some(
+    (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+  );
 
   return {
     ...snapshot,
-    readiness: hardFailures.length ? 'hard_fail' : 'ready',
+    readiness: hardFailures.length ? 'hard_fail' : hierarchyDegraded ? 'degraded' : 'ready',
     readyForAsk: hardFailures.length === 0,
     costControl: buildCostControlSnapshot(),
-    warnings: buildQaWarnings(snapshot),
+    warnings,
     hardFailures,
   };
 }
@@ -296,6 +342,17 @@ function assertQaRuntimeConfiguration() {
     );
   }
 
+  if (env.hierarchicalRetrievalEnabled
+      && !env.hierarchicalRetrievalFallbackToLeaf
+      && !snapshot.parentQueryEmbeddingCompatible) {
+    throw new AppError(
+      'Hierarchical retrieval requires a Gemini RETRIEVAL_QUERY embedding with 3072 dimensions.',
+      500,
+      'QA_RUNTIME_MISCONFIGURED',
+      snapshot,
+    );
+  }
+
   if (env.qaVectorSearchMode !== 'atlas') {
     return snapshot;
   }
@@ -329,5 +386,7 @@ module.exports = {
   buildQaRuntimeSnapshot,
   buildLineRuntimeSnapshot,
   buildMultimodalRuntimeSnapshot,
+  expectedQueryEmbeddingDimensions,
+  isParentQueryEmbeddingCompatible,
   assertQaRuntimeConfiguration,
 };

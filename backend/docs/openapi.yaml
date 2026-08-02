@@ -88,6 +88,11 @@ paths:
                           atlasFilterMode: bridge_course_or_video
                           geminiConfigured: true
                           openaiConfigured: false
+                          hierarchicalRetrievalEnabled: false
+                          hierarchicalRetrievalFallbackToLeaf: true
+                          hierarchicalParentStorageMode: atlas_parent_vector
+                          queryEmbeddingDimensions: 3072
+                          parentQueryEmbeddingCompatible: true
                           readiness: ready
                           readyForAsk: true
                           costControl:
@@ -2629,6 +2634,11 @@ components:
         - atlasFilterMode
         - geminiConfigured
         - openaiConfigured
+        - hierarchicalRetrievalEnabled
+        - hierarchicalRetrievalFallbackToLeaf
+        - hierarchicalParentStorageMode
+        - queryEmbeddingDimensions
+        - parentQueryEmbeddingCompatible
         - readiness
         - readyForAsk
         - costControl
@@ -2662,11 +2672,28 @@ components:
           type: boolean
         openaiConfigured:
           type: boolean
-        readiness:
+        hierarchicalRetrievalEnabled:
+          description: 是否已開啟 Parent-first hierarchical retrieval gate。
+          type: boolean
+        hierarchicalRetrievalFallbackToLeaf:
+          description: Parent retrieval 不可用時是否允許安全退回既有 Leaf-only retrieval。
+          type: boolean
+        hierarchicalParentStorageMode:
+          description: Parent 查詢使用的 storage adapter 類型。
           type: string
           enum:
-            - ready
-            - hard_fail
+            - atlas_parent_vector
+        queryEmbeddingDimensions:
+          description: 目前 query embedding provider 預期輸出的向量維度；無法判定時為 null。
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+        parentQueryEmbeddingCompatible:
+          description: Query embedding 是否符合 Parent vector space 的 provider 與 3072 維契約。
+          type: boolean
+        readiness:
+          $ref: '#/components/schemas/ReadinessStatus'
         readyForAsk:
           type: boolean
         costControl:

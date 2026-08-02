@@ -22,6 +22,7 @@ async function retrieveWithHierarchy({
   queryEmbedding,
   courseId,
   videoId = null,
+  allowedVideoIds = [],
   scope,
   parentLimit,
   childExpansionLimit,
@@ -41,6 +42,7 @@ async function retrieveWithHierarchy({
       queryEmbedding,
       courseId,
       videoId,
+      allowedVideoIds,
       limit: parentLimit,
       timeoutMs: parentTimeoutMs,
     });
@@ -78,13 +80,14 @@ async function retrieveWithHierarchy({
     return {
       matches: context.matches,
       diagnostics: {
-        searchBackendUsed: 'mock_parent',
+        searchBackendUsed: 'parent_vector',
         scoringMode: 'parent_vector_child_expansion',
         fallbacks: [],
         hierarchical: {
           retrievalMode: 'hierarchical',
           parentHitCount: parentHits.length,
-          expandedLeafCount: expansion.diagnostics.requestedChildCount,
+          requestedChildCount: expansion.diagnostics.requestedChildCount,
+          expandedLeafCount: expansion.leaves.length,
           deduplicatedLeafCount: context.diagnostics.deduplicatedLeafCount,
           selectedLeafCount: context.diagnostics.selectedLeafCount,
           fallbackUsed: false,

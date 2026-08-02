@@ -1,11 +1,28 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
 
+const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-2-preview';
+const GEMINI_QUERY_EMBEDDING_DIMENSIONS = 3072;
+
 function normalizeText(text) {
   return String(text || '')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ');
+}
+
+function normalizeEmbeddingVector(values, expectedDimensions = null) {
+  const vector = Array.isArray(values) ? values : [];
+  if (!vector.length
+      || (expectedDimensions != null && vector.length !== expectedDimensions)
+      || vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+    throw new AppError('Embedding provider returned an invalid vector.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
+  const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + (value * value), 0));
+  if (!Number.isFinite(magnitude) || magnitude === 0) {
+    throw new AppError('Embedding provider returned an invalid vector.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
+  return vector.map((value) => value / magnitude);
 }
 
 function buildMockEmbedding(text, dimensions = env.qaMockEmbeddingDimensions) {
@@ -53,7 +70,7 @@ async function embedWithGemini(text) {
     throw new AppError('GEMINI_API_KEY is required for Gemini embeddings.', 500, 'EMBEDDING_PROVIDER_NOT_CONFIGURED');
   }
 
-  const model = 'gemini-embedding-2-preview';
+  const model = GEMINI_EMBEDDING_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${env.geminiApiKey}`;
 
   const response = await fetch(url, {
@@ -62,6 +79,11 @@ async function embedWithGemini(text) {
     body: JSON.stringify({
       model: `models/${model}`,
       content: { parts: [{ text }] },
+      // Parent documents use RETRIEVAL_DOCUMENT; queries must use the paired query task in the same 3072-D space.
+      embedContentConfig: {
+        taskType: 'RETRIEVAL_QUERY',
+        outputDimensionality: GEMINI_QUERY_EMBEDDING_DIMENSIONS,
+      },
     }),
   });
 
@@ -71,7 +93,7 @@ async function embedWithGemini(text) {
   }
 
   const payload = await response.json();
-  return payload.embedding?.values || [];
+  return normalizeEmbeddingVector(payload.embedding?.values, GEMINI_QUERY_EMBEDDING_DIMENSIONS);
 }
 
 async function embedQuery(text) {
@@ -87,6 +109,10 @@ async function embedQuery(text) {
 }
 
 module.exports = {
+  GEMINI_EMBEDDING_MODEL,
+  GEMINI_QUERY_EMBEDDING_DIMENSIONS,
+  embedWithGemini,
   embedQuery,
   buildMockEmbedding,
+  normalizeEmbeddingVector,
 };

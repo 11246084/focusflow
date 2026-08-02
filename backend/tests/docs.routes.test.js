@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, before, describe, it } = require('node:test');
+const yaml = require('js-yaml');
 const {
   startServer,
   stopServer,
@@ -25,6 +26,30 @@ describe('docs routes', () => {
     assert.match(text, /^openapi:\s+3\.1\.0/m);
     assert.match(text, /LINE Webhook/);
     assert.match(text, /\/api\/v1\/line\/bind-token:/);
+  });
+
+  it('OpenAPI health schema 與 Phase 2-2 runtime diagnostics 契約一致', async () => {
+    const response = await fetch(`${serverContext.baseUrl}/docs/openapi.yaml`);
+    const spec = yaml.load(await response.text());
+    const qaRuntime = spec.components.schemas.QaRuntimeSnapshot;
+    const hierarchyFields = [
+      'hierarchicalRetrievalEnabled',
+      'hierarchicalRetrievalFallbackToLeaf',
+      'hierarchicalParentStorageMode',
+      'queryEmbeddingDimensions',
+      'parentQueryEmbeddingCompatible',
+    ];
+
+    assert.equal(response.status, 200);
+    // QaRuntimeSnapshot is shared by /health and /qa/ask; required fields must match the runtime builder.
+    hierarchyFields.forEach((field) => {
+      assert.equal(qaRuntime.required.includes(field), true);
+      assert.ok(qaRuntime.properties[field]);
+    });
+    assert.equal(
+      qaRuntime.properties.readiness.$ref,
+      '#/components/schemas/ReadinessStatus',
+    );
   });
 
   it('serves swagger ui configured to load the same-origin yaml spec', async () => {

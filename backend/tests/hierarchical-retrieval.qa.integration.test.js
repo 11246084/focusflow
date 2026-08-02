@@ -4,8 +4,13 @@ const {
   env,
   ids,
   resetStore,
+  store,
 } = require('./helpers/backendTestHarness');
+const VideoSegmentParent = require('../src/models/videoSegmentParent.model');
 const { askQuestion } = require('../src/services/qa.service');
+
+const originalParentAggregate = VideoSegmentParent.aggregate;
+const originalMockEmbeddingDimensions = env.qaMockEmbeddingDimensions;
 
 function ask() {
   return askQuestion({
@@ -26,8 +31,10 @@ describe('hierarchical retrieval QA integration', () => {
   });
 
   afterEach(() => {
+    VideoSegmentParent.aggregate = originalParentAggregate;
     env.hierarchicalRetrievalEnabled = false;
     env.hierarchicalRetrievalFallbackToLeaf = true;
+    env.qaMockEmbeddingDimensions = originalMockEmbeddingDimensions;
     env.qaAnswerProvider = 'template';
     env.qaQueryEmbeddingProvider = 'mock';
     env.qaVectorSearchMode = 'memory';
@@ -42,7 +49,7 @@ describe('hierarchical retrieval QA integration', () => {
     assert.equal(result.runtime.hierarchicalRetrieval, undefined);
   });
 
-  it('gate=true safely falls back from unavailable parent storage to leaf citations', async () => {
+  it('gate=true safely falls back when the query embedding does not match the Parent index', async () => {
     env.hierarchicalRetrievalEnabled = true;
     env.hierarchicalRetrievalFallbackToLeaf = true;
     const originalWarn = console.warn;
@@ -52,16 +59,54 @@ describe('hierarchical retrieval QA integration', () => {
       assert.equal(result.matches.length > 0, true);
       assert.equal(result.citations[0].segmentId, result.matches[0].segmentId);
       assert.equal(result.runtime.hierarchicalRetrieval.retrievalMode, 'leaf_fallback');
-      assert.equal(result.runtime.hierarchicalRetrieval.fallbackReason, 'PARENT_REPOSITORY_UNAVAILABLE');
-      assert.equal(result.runtime.fallbacks.some((item) => item.code === 'PARENT_REPOSITORY_UNAVAILABLE'), true);
+      assert.equal(result.runtime.hierarchicalRetrieval.fallbackReason, 'PARENT_EMBEDDING_DIMENSION_MISMATCH');
+      assert.equal(result.runtime.fallbacks.some((item) => item.code === 'PARENT_EMBEDDING_DIMENSION_MISMATCH'), true);
     } finally {
       console.warn = originalWarn;
     }
   });
 
+  it('gate=true uses the formal Parent adapter for an allowed mounted video and returns Leaf citations', async () => {
+    env.hierarchicalRetrievalEnabled = true;
+    env.qaMockEmbeddingDimensions = 3072;
+    for (const segment of store.videoSegments) segment.videoId = ids.publishedVideo;
+
+    let capturedPipeline;
+    VideoSegmentParent.aggregate = async (pipeline) => {
+      capturedPipeline = pipeline;
+      return [{
+        parentId: `${ids.publishedVideo}_parent_0001`,
+        courseId: ids.teacherCourse,
+        videoId: ids.publishedVideo,
+        childChunkIds: [ids.segmentOne, ids.segmentTwo],
+        score: 0.93,
+        startSec: 12,
+        endSec: 58,
+        order: 1,
+        hierarchyLevel: 1,
+        documentType: 'parent_chunk',
+      }];
+    };
+
+    const result = await ask();
+    const vectorSearch = capturedPipeline[0].$vectorSearch;
+    assert.equal(String(vectorSearch.filter.$or[0].courseId), ids.publishedCourse);
+    assert.equal(vectorSearch.filter.$or[1].videoId.$in.includes(ids.publishedVideo), true);
+    assert.equal(vectorSearch.index, env.videoSegmentParentVectorIndexName);
+    assert.equal(result.runtime.searchBackendUsed, 'parent_vector');
+    assert.equal(result.runtime.hierarchicalRetrieval.retrievalMode, 'hierarchical');
+    assert.deepEqual(result.citations.map((citation) => citation.segmentId), [ids.segmentOne, ids.segmentTwo]);
+  });
+
   it('fallback=false returns the existing safe AppError contract without crashing', async () => {
     env.hierarchicalRetrievalEnabled = true;
     env.hierarchicalRetrievalFallbackToLeaf = false;
+    env.qaMockEmbeddingDimensions = 3072;
+    VideoSegmentParent.aggregate = async () => {
+      const error = new Error('index unavailable');
+      error.codeName = 'IndexNotFound';
+      throw error;
+    };
     await assert.rejects(
       ask(),
       (error) => error.code === 'HIERARCHICAL_RETRIEVAL_UNAVAILABLE' && error.statusCode === 503,

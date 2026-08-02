@@ -12,6 +12,7 @@ const originalWarn = console.warn;
 const parentHit = {
   parentId: 'video-1_parent_0001', courseId: 'course-1', videoId: 'video-1',
   childChunkIds: ['c1', 'c2'], score: 0.9, startSec: 10, endSec: 30, order: 1,
+  hierarchyLevel: 1, documentType: 'parent_chunk',
 };
 const leafDocuments = [
   { chunkId: 'c1', videoId: 'video-1', courseId: 'course-1', startSec: 10, endSec: 20, text: 'first leaf' },
@@ -74,7 +75,10 @@ describe('hierarchical retrieval orchestrator', () => {
     const citations = buildCitations(result.matches);
     assert.deepEqual(result.matches.map((match) => match.segmentId), ['c1', 'c2']);
     assert.equal(result.diagnostics.hierarchical.retrievalMode, 'hierarchical');
+    assert.equal(result.diagnostics.searchBackendUsed, 'parent_vector');
     assert.equal(result.diagnostics.hierarchical.parentHitCount, 1);
+    assert.equal(result.diagnostics.hierarchical.requestedChildCount, 2);
+    assert.equal(result.diagnostics.hierarchical.expandedLeafCount, 2);
     assert.equal(answer.provider, 'template');
     assert.equal(citations[0].segmentId, 'c1');
     assert.equal(citations[0].timestamp.startSec, 10);

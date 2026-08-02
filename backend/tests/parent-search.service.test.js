@@ -15,7 +15,7 @@ const validHit = {
   startSec: 10,
   endSec: 40,
   order: 1,
-  hierarchyLevel: 'parent',
+  hierarchyLevel: 1,
   documentType: 'parent_chunk',
 };
 
@@ -65,6 +65,21 @@ describe('parent search service', () => {
     );
   });
 
+  it('requires explicit course and Parent document contract fields', async () => {
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [{ ...validHit, courseId: null }] })),
+      (error) => error.code === 'PARENT_DOCUMENT_INVALID',
+    );
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [{ ...validHit, hierarchyLevel: 'parent' }] })),
+      (error) => error.code === 'PARENT_DOCUMENT_INVALID',
+    );
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [{ ...validHit, hierarchyLevel: '1' }] })),
+      (error) => error.code === 'PARENT_DOCUMENT_INVALID',
+    );
+  });
+
   it('rejects course and video scope mismatch', async () => {
     await assert.rejects(
       run(createFakeParentRepository({ hits: [{ ...validHit, courseId: 'foreign' }] })),
@@ -76,7 +91,21 @@ describe('parent search service', () => {
     );
   });
 
-  it('uses an explicit unavailable production stub', async () => {
+  it('accepts a mounted-video Parent through the allowed video scope', async () => {
+    const mountedHit = { ...validHit, courseId: 'primary-course' };
+    const hits = await run(
+      createFakeParentRepository({ hits: [mountedHit] }),
+      { allowedVideoIds: ['video-1'] },
+    );
+    assert.equal(hits[0].videoId, 'video-1');
+
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [mountedHit] }), { allowedVideoIds: ['foreign-video'] }),
+      (error) => error.code === 'PARENT_SCOPE_MISMATCH',
+    );
+  });
+
+  it('keeps an explicit unavailable stub for fallback-only tests', async () => {
     await assert.rejects(
       run(createUnavailableParentRepository()),
       (error) => error.code === 'PARENT_REPOSITORY_UNAVAILABLE',

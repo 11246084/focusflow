@@ -4,11 +4,11 @@
 
 ## Phase 2-2 Hierarchical Retrieval Round 1
 
-本輪加入預設關閉的 `HIERARCHICAL_RETRIEVAL_ENABLED` Kill Switch，以及預設開啟的 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF`。Gate 關閉時完全沿用既有 Leaf-only QA；Gate 開啟但 Parent repository unavailable、timeout、無命中、文件無效或 Child expansion 無有效 Leaf 時，會安全退回 Leaf retrieval，並只在 `runtime.hierarchicalRetrieval` 保存診斷 metadata。
+本輪加入預設關閉的 `HIERARCHICAL_RETRIEVAL_ENABLED` Kill Switch，以及預設開啟的 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF`。Gate 關閉時完全沿用既有 Leaf-only QA；Gate 開啟但 Parent collection／index unavailable、timeout、無命中、文件無效或 Child expansion 無有效 Leaf 時，會安全退回 Leaf retrieval，並只在 `runtime.hierarchicalRetrieval` 保存診斷 metadata。
 
-Round 1 已建立 Parent Search interface、離線 Fake repository、Child Expansion、deterministic Leaf deduplication、有限制的 Leaf Context Assembly，以及 Leaf Citation 相容測試。正式 Parent adapter 目前是明確的 unavailable stub：本輪沒有建立 `video_segments_parent`、沒有部署 Parent Atlas Vector Index、沒有連線真實 Parent MongoDB，也沒有修改 Frontend 或 Citation response contract。
+Round 1 已建立 Parent Search interface、離線 Fake repository、Child Expansion、deterministic Leaf deduplication、有限制的 Leaf Context Assembly，以及 Leaf Citation 相容測試。2026-08-02 已補上正式 Atlas Parent Search adapter，從環境變數讀取 collection／index 契約，以 `courseId` ObjectId 或課程允許的掛載 `videoId` 執行 scoped `$vectorSearch`，並接入 QA；Frontend 與 Citation response contract 未變更。
 
-本輪測試只證明安全整合、fallback 與契約行為，不能證明 AI 回覆品質已提升。正式 Parent Storage／Vector Search 屬於後續 Database handoff。
+本輪測試只證明 adapter、QA 接線、安全 fallback 與契約行為，不能證明 AI 回覆品質已提升。真實 Parent 資料上傳與 Atlas 端對端查詢仍是後續聯合驗收。
 
 離線驗證：
 
@@ -39,7 +39,9 @@ VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME=parent_embedding_index
 
 DB 組拍板的決策：MVP 採單一 generation，unique key 用單鍵 `parentId`（重跑同影片以 idempotent upsert 覆蓋）；`generationVersion` / `isActive` 保留欄位但不進 index 與 filter；cleanup 現階段只 upsert 不刪，正式開檢索前才啟用 guarded stale 清理；rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。
 
-**目前 collection 是 0 筆。** Parent uploader（AI Pipeline 組）與正式 `searchParents()` Atlas adapter（Backend 組）都尚未實作，Gate 維持關閉，不能誤稱 Hierarchical Retrieval 已可用。
+**目前 collection 是 0 筆。** 正式 `searchParents()` Atlas adapter 已實作並接入 QA，但 Parent uploader（AI Pipeline 組）尚未實作，Gate 維持關閉；尚未以真實 Parent 文件驗證 Parent → Child → Leaf Citation 端對端流程，不能誤稱 Hierarchical Retrieval 已可用。
+
+另須在開 Gate 前完成 embedding 模型遷移：Backend 與 Pipeline 目前同用 `gemini-embedding-2-preview`，Google 公告對應 preview 模型最早於 2026-08-10 停用，建議替代為 `gemini-embedding-2`。新舊向量空間與 retrieval instruction 契約不可混用，必須同步修改 Query／Document embedding 並重建既有向量；不能只切 Backend model。
 
 ## 目前真實 runtime
 
@@ -126,18 +128,23 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 
 - `runtime.qa`
 - `runtime.line`
+- `runtime.multimodal`
+- `runtime.shortsSync`
+- `runtime.youtubeUpload`
 
 可快速看出：
 
 - 目前 QA provider / search mode / answer mode
 - `runtime.qa.readiness`
   - `ready`
+  - `degraded`
   - `hard_fail`
 - `runtime.qa.readyForAsk`
 - `runtime.qa.warnings`
 - `runtime.qa.hardFailures`
 - Atlas index 是否有配置
 - Gemini / OpenAI key 是否已配置
+- Hierarchical Retrieval gate、Leaf fallback、Parent storage mode 與 query embedding 相容性
 - LINE live flow 是否真的 ready
 - `runtime.line.readiness`
   - `ready`
@@ -149,6 +156,10 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
   - `disabled`
 - `runtime.line.degradedReasons`
 - `runtime.line.hardFailures`
+- YouTube upload／刪除轉 private 的憑證、scope 與最近執行狀態
+- Shorts metadata sync 與 multimodal index readiness
+
+完整欄位與狀態語意以 [`docs/current-state.md`](./docs/current-state.md) 與 [`docs/openapi.yaml`](./docs/openapi.yaml) 為準。
 
 ## QA API
 

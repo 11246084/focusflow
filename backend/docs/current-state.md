@@ -1,8 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉 private；316/316 tests 通過。**同日以 `youtube.force-ssl` refresh token 完成 live 端對端驗證**：上傳出現在頻道、系統刪除後 YouTube Studio 顯示「私人」）
+最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter／QA 接線已完成；`video_segments_parent` 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；合併 YouTube 更新並補齊 Health/OpenAPI 契約後 backend 336/336 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
 
-同日前一項：2026-08-02（Phase 2-2 Parent Storage：`video_segments_parent` 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；310/310 tests 通過。Parent uploader 與正式 adapter 未實作，Gate 維持 false）
+同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉 private；並以 `youtube.force-ssl` refresh token 完成 live 端對端驗證：上傳出現在頻道、系統刪除後 YouTube Studio 顯示「私人」）
 
 前一輪：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；262/262 tests、frontend lint/build 通過）
 
@@ -132,13 +132,14 @@
 - `.env` 設定 `QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`，且 cluster 上索引已 READY，atlas mode 可正常檢索（`runtime.qa.readiness=ready`）
 - 本機無 API key 的隔離 smoke 仍可改用 `QA_VECTOR_SEARCH_MODE=memory` + `mock` embedding + `template` answer
 - 若未來 Atlas 再次被重置或 index 被刪，atlas mode 會 fail-fast；屆時需重建 `text_embedding_index`（3072 維 cosine，filter fields：`courseId` ObjectId、`videoId` camelCase）
-- Parent storage 目前**不影響任何 runtime 行為**：`HIERARCHICAL_RETRIEVAL_ENABLED=false`，`qa.service.js` 直接走 leaf-only 路徑；即使誤開 Gate，`createUnavailableParentRepository()` 會丟 `PARENT_REPOSITORY_UNAVAILABLE`，再由 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true` 安全退回 Leaf retrieval
+- Parent storage 目前**不影響預設 runtime 行為**：`HIERARCHICAL_RETRIEVAL_ENABLED=false` 時 `qa.service.js` 直接走 leaf-only 路徑。正式 Parent Search adapter 已接入 Gate 開啟路徑；collection／index、維度、scope、timeout、無命中或 Child expansion 發生問題時，由 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true` 安全退回 Leaf retrieval
 - Parent storage 若要重建或退場：`npm run db:ensure-parent-storage` 為冪等（既存 index 直接略過）；rollback 只需關閉 Gate，collection 完全獨立，最壞情況可整個 drop 而不影響 `video_segments_text`
 
 ## 已完成項目
 
 - **Phase 2-2 Hierarchical Retrieval Round 1（`3d9a234`）**：新增 `parentSearch.service.js`（`searchParents()` 介面 + `validateParentHit()` + 刻意保留的 `createUnavailableParentRepository()` stub）、`hierarchicalRetrieval.service.js`（Parent → Child → Context 主流程與 Leaf fallback）、`childExpansion.service.js`（依有序 `childChunkIds` 查回 Leaf、去重、scope 驗證）、`leafContextAssembly.service.js`（Leaf 數量與字元上限）。新增 7 個環境變數（`HIERARCHICAL_RETRIEVAL_ENABLED=false`、`HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true`、`HIERARCHICAL_PARENT_LIMIT=5`、`HIERARCHICAL_CHILD_EXPANSION_LIMIT=30`、`HIERARCHICAL_CONTEXT_MAX_LEAVES=15`、`HIERARCHICAL_CONTEXT_MAX_CHARACTERS=5000`、`HIERARCHICAL_PARENT_TIMEOUT_MS=1000`）。Gate 關閉時完全沿用 Leaf-only QA；診斷資訊只寫進 `runtime.hierarchicalRetrieval`
 - **Phase 2-2 Parent Storage（2026-08-02，DB 組）**：新增 `models/videoSegmentParent.model.js`（契約 §10 欄位 + `parentId` unique index）、`services/parentVectorIndex.service.js`（regular index 與 Atlas vector index 的冪等 ensure 邏輯）、`scripts/ensureParentStorage.js` 與 `npm run db:ensure-parent-storage`（支援 `--dry-run`，輸出遮蔽連線字串）、`tests/parent-vector-index.service.test.js`（8 條）。環境變數 `VIDEO_SEGMENT_PARENT_COLLECTION`（預設 `video_segments_parent`）與 `VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME`（預設 `parent_embedding_index`），`.env.example` 已同步。已於共享 Atlas 實際建立並驗證 READY。**DB 組拍板的五項決策**：(1) 採獨立 collection `video_segments_parent`；(2) unique key 用單鍵 `parentId`（MVP 單 generation，重跑同影片 idempotent upsert 覆蓋）；(3) `generationVersion` / `isActive` 保留欄位與 default，但不進 unique key、不進 regular index、不進 vector index filter，正式採 generation switch 時才啟用；(4) vector index 名 `parent_embedding_index`，3072 cosine，filter=`courseId`+`videoId`；(5) cleanup 走契約 §12 的 D→A 路線 —— 現階段只 upsert 不刪，正式開檢索前才啟用「全批 upsert 成功且驗證通過後刪同影片 stale parentId」，partial upload 絕不 cleanup，rollback 即關閉 Gate
+- **Phase 2-2 正式 Parent Search adapter（2026-08-02，Backend 組）**：新增 `parentSearchAdapter.service.js`，依環境變數使用 `video_segments_parent`／`parent_embedding_index`，強制 3072 維有限數值向量，並以 `courseId` ObjectId **或課程允許的掛載 `videoId`** 套用 Atlas scope；QA Gate 開啟路徑已由 unavailable stub 改接正式 adapter。Parent Model 強制 `courseId`、3072 維 embedding 與 `embeddingDimension=3072`；Gemini query 明確使用 `RETRIEVAL_QUERY`／3072 維。Parent hit 會再次驗證 course／video scope、`hierarchyLevel=1`、`documentType=parent_chunk` 與有序 Child IDs；Atlas 查詢套用 `maxTimeMS`，MongoDB 原始錯誤不對外傳遞，索引／collection／維度／scope 等失敗均可依既有設定安全回退 Leaf-only。成功診斷改為 `searchBackendUsed=parent_vector`
 - auth / JWT / RBAC 主線已可用；login 必填預期 `role`，跨身分入口回 `403 ROLE_MISMATCH`；register 限 `student` / `teacher`，已涵蓋 duplicate index race、bcrypt 與 public-user 敏感欄位測試
 - 站內通知已完成：使用者列表／cursor／未讀／單筆與全部已讀；admin 可發維護公告；影片完成對主課程與掛載課程的 active enrolled students 以 partial-unique dedupe 做可重送 fanout
 - private avatar 已完成：User nullable metadata、authenticated JPEG/PNG/WebP 上傳與 binary 讀取、5 MiB/magic 驗證、private storage、CAS 並發保護；跨環境 user sync 保留 target-local avatar
@@ -182,7 +183,7 @@
 
 ## 目前測試狀態
 
-- 2026-08-02 `npm test`：**310 passed / 0 failed**（38 suites；含 Phase 2-2 Round 1 的 6 支測試與 Parent Storage 新增的 `parent-vector-index.service.test.js` 8 條）。
+- 2026-08-02 `npm test`：**336 passed / 0 failed**（40 suites；含 Phase 2-2 Round 1、Parent Storage、正式 Parent Search adapter／QA 接線、mounted-video scope、Health/OpenAPI compatibility、Gemini query 契約，以及 YouTube 上傳／刪除轉 private 回歸測試）。
 - 2026-07-26 `npm.cmd test`：**262 passed / 0 failed**（31 suites；含 `QA_MATCH_LIMIT=15`、answer-generation、role-aware auth、registration `lineUserId` sparse-index、notifications 與 avatar 回歸）。
 - 2026-07-24 `npm.cmd test`：**251 passed / 0 failed**（29 suites；新增 register defensive body cases 後重跑，涵蓋 auth role/register、notifications、avatar、sync ownership 與既有主線）。
 - 2026-07-18 `npm.cmd test`：**163 passed / 0 failed**（25 suites；含 ShortAsset lifecycle、修課 feed/cursor、YouTube sync/retry/log/single-flight、health、course delete rollback、invalid asset 與 repeated cursor）。
@@ -228,7 +229,7 @@
 - 不能把 ngrok 暫時端點誤稱為固定正式部署網址
 - 不能說 `video_segments_video` 已是正式 clip source 或 caption QA source；目前只作 course-scoped visual citation retrieval
 - 不能把 ShortAsset feed 與 metadata sync 誤稱為完整 Short 產線；自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker與教師管理仍未實作
-- **不能說 Hierarchical Retrieval 已啟用或已驗證**。目前只完成 storage 層（collection + index 建好且 READY）：`video_segments_parent` 是 **0 筆**、Pipeline 的 Parent uploader 尚未實作（`mongodb_uploader.py` 完全沒有 parent 程式碼）、`qa.service.js` 仍接 `createUnavailableParentRepository` stub、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Child expansion → Leaf context → Answer 的端對端流程一次都沒跑過
+- **不能說 Hierarchical Retrieval 已啟用或已完成 live 驗證**。Storage 與正式 Backend adapter 已完成，但 `video_segments_parent` 是 **0 筆**、Pipeline 的 Parent uploader 尚未實作（`mongodb_uploader.py` 完全沒有 parent 程式碼）、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Child expansion → Leaf context → Answer 尚未以真實 Atlas Parent 文件跑過端對端流程
 - 不能把「index 已建立」講成「檢索已可用」。`parent_embedding_index` 是在空 collection 上建立的，READY 只代表索引本身就緒，尚未以任何真實 parent 文件驗證維度、filter 型別或 scope 隔離
 - 不能把 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 整份當成已定案契約；全文有 109 處 `[Proposed for v1]`、16 處 `[Database review required]`，目前 DB 組只拍板了 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
 
@@ -249,10 +250,10 @@
 - 2026-07-24 共享 Atlas 唯讀實查為 15 collections、尚無 `notifications`；`init_collections.js` 列 16 個並已含 `notifications`，shared Atlas rollout 仍需人工核准
 - **`video_segments_text` 全部 1,651 筆的 `courseId` 皆為 missing**（2026-08-02 型別分佈實查）。`text_embedding_index` 雖宣告 `courseId` 為 filter field，但實際從未生效；course scope 完全依賴 `QA_ATLAS_FILTER_MODE=bridge_course_or_video` 展開的 `videoId $in [...]`。Parent uploader 需把 courseId 解析成功列為 blocking 條件並於 upload summary 回報，否則 parent collection 會複製同一缺陷
 - `videos` 31 筆中 **0 筆有 `videoId` / `video_id` 欄位**（2026-08-02 實查）。bridge 實際靠 `String(videos._id)` 對上 `video_segments_text.videoId`，因此 Parent 的 `videoId` 必須沿用同一 canonical string，不需要另存 `sourceVideoId` / `backendVideoId`
-- `parentSearch.service.js` 的 `hierarchyLevel: hit.hierarchyLevel || 'parent'` 預設值是字串，契約 §10.1 規定為數字 `1`；有值時不影響，但預設值型別與契約不一致
-- `hierarchicalRetrieval.service.js` 的 `searchBackendUsed: 'mock_parent'` 為寫死值，接上正式 Atlas adapter 時需同步更新
 - `HIERARCHICAL_PARENT_TIMEOUT_MS` 預設 1000ms 對 Atlas vector search 偏緊，正式接線後可能頻繁 timeout 而靜默 fallback 到 leaf，需以實測調整
+- Parent Child Expansion 主要依 `video_segments_text.chunkId` 回查 Leaf，但共享 Atlas 目前沒有 `chunkId` classic index；正式開 Gate 前需由 DB owner 唯讀確認重複／null 分布，再建立並以 `explain("executionStats")` 驗證不走 COLLSCAN
+- Backend 與 Pipeline 目前同用 `gemini-embedding-2-preview`；Google 官方 deprecation 表列對應 `embedding-2-preview` 最早於 **2026-08-10** 停用，替代為 `gemini-embedding-2`。正式模型不再使用舊 `task_type`，且 embedding space 遷移需重做既有 Leaf／Parent vectors，因此不可只改 Backend 常數；需由 Backend + AI Pipeline + DB 組共同完成 query/document prompt 契約、re-embedding、Atlas smoke 與 rollback
 
 ## 一句話結論
 
-截至 2026-08-02，backend 已整合 `QA_MATCH_LIMIT=15`、role-aware auth、站內通知、private avatar 與既有 Shorts/YouTube 主線，並完成 Phase 2-2 的 Hierarchical Retrieval Round 1 與 Parent Storage 層（`video_segments_parent` + `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY）；310/310 測試通過。但 Phase 2-2 只到 storage 為止 —— parent collection 目前 0 筆、Parent uploader 與正式 Parent Search adapter 都未實作、Gate 維持關閉，不能誤稱 Hierarchical Retrieval 已可用。這也不等於 shared Atlas 或 Gemini／LINE／YouTube／STT live provider 已完成驗證。
+截至 2026-08-02，backend 已整合 `QA_MATCH_LIMIT=15`、role-aware auth、站內通知、private avatar 與既有 Shorts/YouTube 主線，並完成 Phase 2-2 的 Hierarchical Retrieval Round 1、Parent Storage 與正式 Parent Search adapter 接線（`video_segments_parent` + `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY）。但 parent collection 目前 0 筆、Parent uploader 尚未實作、Gate 維持關閉，仍不能誤稱 Hierarchical Retrieval 已可用；也不等於 shared Atlas 真實 Parent 查詢或 Gemini／LINE／YouTube／STT live provider 已完成驗證。

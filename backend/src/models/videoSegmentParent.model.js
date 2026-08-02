@@ -19,7 +19,8 @@ const videoSegmentParentSchema = new mongoose.Schema(
     courseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',
-      default: null,
+      // Parent retrieval always filters by course scope; an unresolved courseId is not publishable.
+      required: true,
     },
     hierarchyLevel: {
       type: Number,
@@ -68,6 +69,12 @@ const videoSegmentParentSchema = new mongoose.Schema(
     embedding: {
       type: [Number],
       required: true,
+      validate: {
+        validator: (value) => Array.isArray(value)
+          && value.length === 3072
+          && value.every((item) => typeof item === 'number' && Number.isFinite(item)),
+        message: 'embedding must contain exactly 3072 finite numbers.',
+      },
     },
     embeddingProvider: {
       type: String,
@@ -81,7 +88,8 @@ const videoSegmentParentSchema = new mongoose.Schema(
     },
     embeddingDimension: {
       type: Number,
-      default: null,
+      required: true,
+      enum: [3072],
     },
     embeddingTaskType: {
       type: String,

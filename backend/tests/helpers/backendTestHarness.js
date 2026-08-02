@@ -200,6 +200,10 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
 
 function matchesQuery(document, query = {}) {
   return Object.entries(query).every(([key, value]) => {
+    if (key === '$and') {
+      return value.every((candidate) => matchesQuery(document, candidate));
+    }
+
     if (key === '$or') {
       return value.some((candidate) => matchesQuery(document, candidate));
     }

@@ -290,7 +290,7 @@ npm run build
 - 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端頁面都已完整 API 串接；目前是整合中。
-- YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token；OAuth 同意畫面在 Testing 狀態時 refresh token 7 天過期，不能把「已驗證」說成「已長期穩定運作」。
+- YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
 - 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
 - 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。

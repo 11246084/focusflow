@@ -239,7 +239,7 @@
 - `video_segments_video`：有 embedding，Atlas vector search index `video_embedding_index` 已建立且 READY/queryable（2026-07-10 驗證，3072 維 cosine，filter=`video_id`）；backend 已從 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID 以安全套用 course access scope。限制：資料沒有 transcript / caption，因此 multimodal QA 目前只提供 visual citation，不提供畫面內容生成
 - `text_embedding_index` 已 READY（2026-05-23 驗證）；atlas mode 可用。仍需注意若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
-- YouTube Data API auto-upload 與刪除轉 private 已於 2026-08-02 完成 live 驗證；但 OAuth 同意畫面仍在 Testing 狀態，**refresh token 7 天過期**，過期後上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 靜默失敗。長期使用需在 Google Auth Platform 發布應用程式後重換 token。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
+- YouTube Data API auto-upload 與刪除轉 private 已於 2026-08-02 完成 live 驗證；同日 OAuth 同意畫面已發布為正式版並重換 refresh token（scope `youtube.force-ssl`，已驗證可換發 access token），**不再 7 天過期**。未送 Google 驗證，授權畫面仍顯示未驗證警告、未驗證 app 有 100 使用者上限（本專案只需 1 個授權帳號）。憑證若失效，上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 靜默失敗，目前 `/health` 沒有 YouTube 憑證狀態指標。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
 - 轉 private 沒有 backend 還原入口（DB 紀錄已刪），需人工到 YouTube Studio 把瀏覽權限改回；轉 private 失敗只記 log 不中斷刪除，該影片會留在頻道上且仍可用連結播放
 - 上傳預設 unlisted 無法改成 private：YouTube private 影片不支援 iframe 嵌入播放，設 private 會讓學生端全部播不出來。因此「未修課者拿到連結仍可觀看」是採 YouTube 託管的固有限制
 - ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端尚未帶 JWT 呼叫新 feed，需先依 handoff 方案完成另案實作

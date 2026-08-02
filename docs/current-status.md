@@ -142,7 +142,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 下一步優先順序
 
 1. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook
-2. ~~YouTube auto-upload 真實 OAuth smoke~~（✅ 2026-08-02 完成，含刪除轉 private）→ 改為：OAuth 同意畫面從 Testing 切到正式發布，避免 refresh token 每 7 天過期
+2. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
 3. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
 4. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
 
@@ -150,7 +150,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 不能誤稱的邊界
 
-- YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，但 OAuth 同意畫面仍在 Testing 狀態（refresh token 7 天過期），不能說成「已長期穩定運作」
+- YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
 - Atlas vector retrieval：`text_embedding_index` 於 2026-05-23 直連驗證為 READY/queryable，atlas mode 目前可用；仍須持續確認 query embedding 與 pipeline 資料覆蓋率的一致性
 - Query embedding **已切到 Gemini，但仍需持續確認與 pipeline 資料覆蓋率的一致性**

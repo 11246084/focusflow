@@ -13,6 +13,34 @@ const VALID_PRIVACY_STATUSES = new Set(['private', 'unlisted', 'public']);
 // 因此改隱私前要先讀回現有 status 並帶回這些欄位。
 // 刻意不帶 publishAt：排程公開會讓影片稍後自動脫離 private。
 const WRITABLE_STATUS_FIELDS = ['license', 'embeddable', 'publicStatsViewable', 'selfDeclaredMadeForKids'];
+// videos.update（轉 private）接受的 scope。youtube.upload 不在其中，帶它只能上傳。
+// 必須整段字串精確比對：`youtube.upload` 也包含 `auth/youtube` 子字串。
+const PRIVACY_CAPABLE_SCOPES = new Set([
+  'https://www.googleapis.com/auth/youtube',
+  'https://www.googleapis.com/auth/youtube.force-ssl',
+  'https://www.googleapis.com/auth/youtubepartner',
+]);
+
+// /health 用的觀察狀態。轉 private 是 best-effort、失敗只寫 log，沒有這層就沒有
+// 任何集中可觀察的入口。只存最後一次結果，不累積歷史。
+const credentialState = {
+  lastTokenAttemptAt: null,
+  lastTokenSuccessAt: null,
+  lastTokenError: null,
+  grantedScopes: [],
+  lastPrivatizeAttemptAt: null,
+  lastPrivatizeSuccessAt: null,
+  lastPrivatizeError: null,
+  lastPrivatizeVideoId: null,
+};
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function shortErrorMessage(error) {
+  return String(error?.message || error || 'Unknown error').slice(0, 300);
+}
 
 function normalizePrivacyStatus(value) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -106,23 +134,35 @@ async function fetchAccessToken({ fetchImpl = global.fetch } = {}) {
     grant_type: 'refresh_token',
   });
 
-  const response = await fetchImpl(YOUTUBE_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
+  credentialState.lastTokenAttemptAt = nowIso();
 
-  if (!response.ok) {
-    const responseText = await response.text().catch(() => '');
-    throw createYouTubeApiError('YouTube OAuth token refresh failed.', responseText);
+  try {
+    const response = await fetchImpl(YOUTUBE_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => '');
+      throw createYouTubeApiError('YouTube OAuth token refresh failed.', responseText);
+    }
+
+    const payload = await response.json();
+    if (!payload.access_token) {
+      throw createYouTubeApiError('YouTube OAuth token response did not include an access token.');
+    }
+
+    // token response 會帶回實際授權的 scope，用來判斷這顆 token 能不能做轉 private。
+    credentialState.grantedScopes = String(payload.scope || '').split(/\s+/).filter(Boolean);
+    credentialState.lastTokenSuccessAt = nowIso();
+    credentialState.lastTokenError = null;
+
+    return payload.access_token;
+  } catch (error) {
+    credentialState.lastTokenError = shortErrorMessage(error);
+    throw error;
   }
-
-  const payload = await response.json();
-  if (!payload.access_token) {
-    throw createYouTubeApiError('YouTube OAuth token response did not include an access token.');
-  }
-
-  return payload.access_token;
 }
 
 async function uploadLocalVideo({
@@ -334,9 +374,16 @@ async function privatizeVideoOnDelete(video, { fetchImpl = global.fetch } = {}) 
     return null;
   }
 
+  credentialState.lastPrivatizeAttemptAt = nowIso();
+  credentialState.lastPrivatizeVideoId = video.youtubeVideoId;
+
   try {
-    return await setVideoPrivacy({ youtubeVideoId: video.youtubeVideoId, fetchImpl });
+    const result = await setVideoPrivacy({ youtubeVideoId: video.youtubeVideoId, fetchImpl });
+    credentialState.lastPrivatizeSuccessAt = nowIso();
+    credentialState.lastPrivatizeError = null;
+    return result;
   } catch (error) {
+    credentialState.lastPrivatizeError = shortErrorMessage(error);
     if (process.env.NODE_ENV !== 'test') {
       console.error(
         `YouTube privacy update failed for youtubeVideoId=${video.youtubeVideoId}; `
@@ -372,11 +419,141 @@ function scheduleYouTubeAutoUpload(video) {
   });
 }
 
+// 啟動時做一次 token 交換，讓 /health 從開機就有憑證狀態可看（不必等到第一次上傳）。
+// 只換 access token，不呼叫 YouTube API，因此不消耗 YouTube 配額。
+async function verifyYouTubeCredentials({ fetchImpl = global.fetch } = {}) {
+  if (!isYouTubeUploadConfigured() && !isPrivatizeOnDeleteConfigured()) {
+    return false;
+  }
+
+  try {
+    await fetchAccessToken({ fetchImpl });
+    return true;
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error('YouTube credential check failed at startup.', error);
+    }
+    return false;
+  }
+}
+
+function hasPrivacyCapableScope() {
+  return credentialState.grantedScopes.some((scope) => PRIVACY_CAPABLE_SCOPES.has(scope));
+}
+
+function buildYouTubeUploadSnapshot() {
+  const missingConfig = [];
+  if (!env.youtubeClientId && !env.youtubeOAuthClientId) missingConfig.push('YOUTUBE_CLIENT_ID');
+  if (!env.youtubeClientSecret && !env.youtubeOAuthClientSecret) missingConfig.push('YOUTUBE_CLIENT_SECRET');
+  if (!env.youtubeRefreshToken && !env.youtubeOAuthRefreshToken) missingConfig.push('YOUTUBE_REFRESH_TOKEN');
+
+  const usingAccessTokenOverride = Boolean(env.youtubeUploadAccessToken);
+  const credentialsConfigured = usingAccessTokenOverride || hasRefreshCredentials();
+  const uploadReady = isYouTubeUploadConfigured();
+  const privatizeOnDeleteReady = isPrivatizeOnDeleteConfigured();
+  const anyFeatureEnabled = Boolean(env.youtubeUploadEnabled || env.youtubePrivatizeOnDelete);
+
+  const hardFailures = [];
+  const warnings = [];
+
+  if (anyFeatureEnabled && !credentialsConfigured) {
+    hardFailures.push({
+      code: 'YOUTUBE_CREDENTIALS_MISSING',
+      message: 'YouTube features are enabled but OAuth credentials are incomplete; every call is silently skipped.',
+    });
+  }
+
+  let credentialCheckStatus = 'unknown';
+  if (credentialState.lastTokenError) {
+    credentialCheckStatus = 'failed';
+  } else if (credentialState.lastTokenSuccessAt) {
+    credentialCheckStatus = 'ok';
+  }
+
+  if (credentialCheckStatus === 'failed') {
+    warnings.push({
+      code: 'YOUTUBE_TOKEN_EXCHANGE_FAILED',
+      message: `Last OAuth token exchange failed: ${credentialState.lastTokenError}`,
+    });
+  }
+
+  if (credentialsConfigured && credentialCheckStatus === 'unknown') {
+    warnings.push({
+      code: 'YOUTUBE_CREDENTIALS_UNVERIFIED',
+      message: 'Credentials are configured but no token exchange has run yet in this process.',
+    });
+  }
+
+  // 轉 private 用 upload-only token 會被 403 拒絕，且失敗只寫 log；先在這裡示警。
+  const privatizeScopeSatisfied = credentialCheckStatus === 'ok' ? hasPrivacyCapableScope() : null;
+  if (env.youtubePrivatizeOnDelete && privatizeScopeSatisfied === false) {
+    warnings.push({
+      code: 'YOUTUBE_PRIVACY_SCOPE_MISSING',
+      message: 'Granted scope cannot call videos.update; deleting a video will not switch it to private.',
+    });
+  }
+
+  if (credentialState.lastPrivatizeError) {
+    warnings.push({
+      code: 'YOUTUBE_PRIVATIZE_FAILED',
+      message: `Last privacy update failed (${credentialState.lastPrivatizeVideoId}): ${credentialState.lastPrivatizeError}`,
+    });
+  }
+
+  let readiness = 'ready';
+  if (!anyFeatureEnabled) {
+    readiness = 'not_enabled';
+  } else if (hardFailures.length) {
+    readiness = 'hard_fail';
+  } else if (credentialCheckStatus === 'failed' || privatizeScopeSatisfied === false) {
+    readiness = 'degraded';
+  }
+
+  return {
+    uploadEnabled: Boolean(env.youtubeUploadEnabled),
+    privatizeOnDeleteEnabled: Boolean(env.youtubePrivatizeOnDelete),
+    credentialsConfigured,
+    usingAccessTokenOverride,
+    uploadReady,
+    privatizeOnDeleteReady,
+    privatizeScopeSatisfied,
+    readiness,
+    credentialCheck: {
+      status: credentialCheckStatus,
+      lastAttemptAt: credentialState.lastTokenAttemptAt,
+      lastSuccessAt: credentialState.lastTokenSuccessAt,
+      lastError: credentialState.lastTokenError,
+      grantedScopes: [...credentialState.grantedScopes],
+    },
+    lastPrivatize: {
+      youtubeVideoId: credentialState.lastPrivatizeVideoId,
+      lastAttemptAt: credentialState.lastPrivatizeAttemptAt,
+      lastSuccessAt: credentialState.lastPrivatizeSuccessAt,
+      lastError: credentialState.lastPrivatizeError,
+    },
+    missingConfig,
+    hardFailures,
+    warnings,
+  };
+}
+
+function resetYouTubeUploadState() {
+  credentialState.lastTokenAttemptAt = null;
+  credentialState.lastTokenSuccessAt = null;
+  credentialState.lastTokenError = null;
+  credentialState.grantedScopes = [];
+  credentialState.lastPrivatizeAttemptAt = null;
+  credentialState.lastPrivatizeSuccessAt = null;
+  credentialState.lastPrivatizeError = null;
+  credentialState.lastPrivatizeVideoId = null;
+}
+
 module.exports = {
   YOUTUBE_TOKEN_URL,
   YOUTUBE_UPLOAD_URL,
   YOUTUBE_VIDEOS_URL,
   autoUploadVideoToYouTube,
+  buildYouTubeUploadSnapshot,
   buildYouTubeWatchUrl,
   fetchAccessToken,
   guessMimeType,
@@ -387,8 +564,10 @@ module.exports = {
   normalizePrivacyStatus,
   privatizeVideoOnDelete,
   privatizeVideosOnDelete,
+  resetYouTubeUploadState,
   scheduleYouTubeAutoUpload,
   setVideoPrivacy,
   uploadLocalVideo,
   uploadVideoFileToYouTube,
+  verifyYouTubeCredentials,
 };

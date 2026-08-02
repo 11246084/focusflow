@@ -39,6 +39,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `/health` 可直接觀察 `runtime.qa`、`runtime.line` 與 `runtime.multimodal` 狀態
 - `/health.runtime.qa.costControl` 可觀察 QA 月 token budget / user quota 是否啟用；quota 以 UTC calendar month 自動重置
 - `/health.runtime.shortsSync` 可觀察 Shorts metadata sync 的 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded；`SHORTS_SYNC_INTERVAL_MS` 預設 600000，設 0 停用
+- `/health.runtime.youtubeUpload`（2026-08-02）可觀察 YouTube OAuth 憑證健康度：readiness、最後一次 token 交換結果與授權 scope、最後一次刪除轉 private 的結果；scope 不足以轉 private 時會示警
 - QA misconfig 與 Atlas not ready 已 fail-fast，不靜默降級
 - **共享 Atlas 現況**（2026-05-23 直連驗證）：`videos` 16 筆、`video_segments_text` 130 筆，`text_embedding_index` 存在且 READY/queryable（3072 維 cosine，filter=`courseId`+`videoId`，3 shards 全 READY）；`.env` 的 `atlas` mode 可正常檢索，不需切回 `memory`
 - LINE Bot 已端對端驗證；正式部署前 ngrok URL / Channel 設定須再確認

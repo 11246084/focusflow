@@ -303,7 +303,7 @@
   - 測試：`youtube-upload.service.test.js`、`course-video.routes.test.js` auto-upload branch；2026-07-10 `npm.cmd test` 103/103
 - **仍需**：
   - ~~OAuth 同意畫面從 Testing 切到正式發布 + 重換 refresh token~~（✅ 2026-08-02 完成，token 已驗證可換發 access token、scope `youtube.force-ssl`）
-  - `/health` 補 YouTube 憑證狀態指標：目前憑證失效時，上傳會留 `videos.youtubeUpload.failed`，但轉 private 是靜默失敗，沒有集中可觀察的入口
+  - ~~`/health` 補 YouTube 憑證狀態指標~~（✅ 2026-08-02 完成：`/health.runtime.youtubeUpload`，含 scope 檢查與最後一次轉 private 結果）
   - playlist / Shorts 發布策略定版
   - 本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開
 

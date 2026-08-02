@@ -7,6 +7,7 @@ const {
   buildMultimodalRuntimeSnapshot,
 } = require('../services/runtimeDiagnostics.service');
 const { buildShortsSyncSnapshot } = require('../services/shortsSync.service');
+const { buildYouTubeUploadSnapshot } = require('../services/youtubeUpload.service');
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ router.get('/', (req, res) => {
         line: buildLineRuntimeSnapshot(),
         multimodal: buildMultimodalRuntimeSnapshot(),
         shortsSync: buildShortsSyncSnapshot(),
+        youtubeUpload: buildYouTubeUploadSnapshot(),
       },
     },
   });

@@ -13,7 +13,7 @@
 - 要查 API spec：看 [openapi.yaml](./openapi.yaml)（執行時掛在 `/docs`）；已涵蓋 stats/admin/watched、courses/videos PATCH/DELETE、QA `citations` / `answerStatus` 與 student Shorts feed，但 internal processing webhook 等少數內部端點以 route files 為準
 - 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](./phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、已實作的 ShortAsset feed/sync 與仍待實作的 Clip/發布產線）
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](./handoff-stt-pipeline-integration.md)
-- 要啟用 YouTube 自動上傳（OAuth 憑證取得步驟、.env 設定、smoke 驗證與 token 過期注意事項）：看 [youtube-upload-setup.md](./youtube-upload-setup.md)
+- 要啟用 YouTube 自動上傳與刪除轉 private：設定項與行為邊界見 [current-state.md](./current-state.md) 與 `backend/.env.example`；憑證是否有效看 `/health.runtime.youtubeUpload`（schema 在 [openapi.yaml](./openapi.yaml) 的 `YouTubeUploadRuntimeSnapshot`）；OAuth 憑證取得的逐步操作紀錄留在個人筆記（`context/`，未進版控）
 - 要審核學生 Short 修課過濾的前端串接方案（JWT、課程顯示、空狀態、分頁與 modal 保留方式）：看 [handoff-shorts-frontend-plan.md](./handoff-shorts-frontend-plan.md)；本輪只有方案，尚未修改前端
 - 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
 - 要確認最新待補：看 [todo.md](./todo.md)（YouTube 真實 OAuth smoke、caption / OCR / frame description、Clip / Shorts 正式 routes 等上線前 / Phase 2 項目）

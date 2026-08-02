@@ -11,6 +11,7 @@ const {
   startShortsSyncScheduler,
   stopShortsSyncScheduler,
 } = require('./services/shortsSync.service');
+const { verifyYouTubeCredentials } = require('./services/youtubeUpload.service');
 
 async function migrateVideoFields() {
   const Video = require('./models/video.model');
@@ -39,6 +40,8 @@ async function startServer() {
     console.log(`Focus Flow backend listening on port ${env.port}`);
   });
   startShortsSyncScheduler();
+  // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
+  verifyYouTubeCredentials().catch(() => null);
 
   const shutdown = async () => {
     stopShortsSyncScheduler();

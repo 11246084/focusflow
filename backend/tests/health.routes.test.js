@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { after, before, beforeEach, describe, it } = require('node:test');
 const { env, startServer, stopServer, jsonRequest } = require('./helpers/backendTestHarness');
+const { resetYouTubeUploadState } = require('../src/services/youtubeUpload.service');
 
 function resetRuntimeEnv() {
   env.qaQueryEmbeddingProvider = 'mock';
@@ -22,6 +23,18 @@ function resetRuntimeEnv() {
   env.lineChannelSecret = 'line-secret-for-tests';
   env.lineChannelAccessToken = '';
   env.shortsSyncIntervalMs = 600000;
+  env.youtubeUploadEnabled = false;
+  env.youtubeAutoUploadEnabled = false;
+  env.youtubePrivatizeOnDelete = false;
+  env.youtubeClientId = '';
+  env.youtubeClientSecret = '';
+  env.youtubeRefreshToken = '';
+  env.youtubeOAuthClientId = '';
+  env.youtubeOAuthClientSecret = '';
+  env.youtubeOAuthRefreshToken = '';
+  env.youtubeUploadAccessToken = '';
+  // Reset process-local diagnostics so route assertions do not depend on test execution order.
+  resetYouTubeUploadState();
 }
 
 describe('health routes', () => {
@@ -70,6 +83,10 @@ describe('health routes', () => {
     assert.equal('lastSuccessAt' in result.body.data.runtime.shortsSync, true);
     assert.equal('lastError' in result.body.data.runtime.shortsSync, true);
     assert.equal('degraded' in result.body.data.runtime.shortsSync, true);
+    assert.equal(result.body.data.runtime.youtubeUpload.uploadEnabled, false);
+    assert.equal(result.body.data.runtime.youtubeUpload.privatizeOnDeleteEnabled, false);
+    assert.equal(result.body.data.runtime.youtubeUpload.readiness, 'not_enabled');
+    assert.equal(result.body.data.runtime.youtubeUpload.credentialCheck.status, 'unknown');
   });
 
   it('marks qa runtime as hard-fail when the configured answer provider is missing required keys', async () => {

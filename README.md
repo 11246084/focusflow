@@ -248,7 +248,7 @@ LINE Bot 指令：
 - QA cost guardrails 已接入：可用 `QA_MONTHLY_TOKEN_BUDGET` / `QA_USER_MONTHLY_TOKEN_QUOTA` / `QA_ESTIMATED_TOKENS_PER_ASK` 設定全站與單一使用者月 quota，超額時回 `429 QA_QUOTA_EXCEEDED`，`/health.runtime.qa.costControl` 可觀察設定。
 - 共享 Atlas 的 `text_embedding_index` 已於 2026-05-23 驗證 READY；若共享 DB 或 index 被重置，仍需以 `/health` 現況為準。
 - `video_segments_video` 已接入初版 course-scoped visual citation retrieval；目前只回影像片段 citation / timestamp / `clipPath`，尚未成為 caption QA 或正式 clip publishing source。
-- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke、playlist 管理與自動清 `backend/uploads/` 尚未做。
+- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；playlist 管理與自動清 `backend/uploads/` 尚未做。
 - CORS 已支援 `ALLOWED_ORIGINS` 逗號分隔白名單；未設定時維持開發期相容，正式部署需填入實際前端 origin。
 
 更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。

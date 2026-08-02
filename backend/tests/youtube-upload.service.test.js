@@ -42,12 +42,29 @@ function buildSuccessfulFetchMock(calls) {
   };
 }
 
+function buildPrivacyFetchMock(calls, currentStatus = { privacyStatus: 'unlisted' }, {
+  scope = 'https://www.googleapis.com/auth/youtube.force-ssl',
+} = {}) {
+  return async (url, options = {}) => {
+    calls.push({ url, options });
+
+    if (String(url).includes('oauth2.googleapis.com/token')) {
+      return jsonResponse({ access_token: 'access-token-for-tests', scope });
+    }
+    if (options.method === 'PUT') {
+      return jsonResponse({ id: 'ytVideo123', status: JSON.parse(options.body).status });
+    }
+    return jsonResponse({ items: [{ id: 'ytVideo123', status: currentStatus }] });
+  };
+}
+
 describe('youtubeUpload.service', () => {
   let originalEnv;
   let tempFilePath;
 
   beforeEach(() => {
     resetStore();
+    youtubeUploadService.resetYouTubeUploadState();
     originalEnv = {
       youtubeUploadEnabled: env.youtubeUploadEnabled,
       youtubeAutoUploadEnabled: env.youtubeAutoUploadEnabled,
@@ -61,6 +78,7 @@ describe('youtubeUpload.service', () => {
       youtubeUploadPrivacy: env.youtubeUploadPrivacy,
       youtubeUploadPrivacyStatus: env.youtubeUploadPrivacyStatus,
       youtubeUploadCategoryId: env.youtubeUploadCategoryId,
+      youtubePrivatizeOnDelete: env.youtubePrivatizeOnDelete,
     };
 
     env.youtubeUploadEnabled = true;
@@ -75,6 +93,7 @@ describe('youtubeUpload.service', () => {
     env.youtubeUploadPrivacy = 'unlisted';
     env.youtubeUploadPrivacyStatus = 'unlisted';
     env.youtubeUploadCategoryId = '27';
+    env.youtubePrivatizeOnDelete = true;
 
     tempFilePath = path.join(os.tmpdir(), `focusflow-yt-test-${Date.now()}.mp4`);
     fs.writeFileSync(tempFilePath, 'fake video bytes');
@@ -189,6 +208,199 @@ describe('youtubeUpload.service', () => {
     assert.equal(result, null);
     assert.equal(video.youtubeUpload.status, 'failed');
     assert.match(video.youtubeUpload.error, /token refresh failed/i);
+  });
+
+  it('setVideoPrivacy 讀回現有 status 後只覆寫 privacyStatus', async () => {
+    const calls = [];
+    const result = await youtubeUploadService.setVideoPrivacy({
+      youtubeVideoId: 'ytVideo123',
+      fetchImpl: buildPrivacyFetchMock(calls, {
+        privacyStatus: 'unlisted',
+        license: 'creativeCommon',
+        embeddable: false,
+        uploadStatus: 'processed',
+      }),
+    });
+
+    assert.deepEqual(result, { youtubeVideoId: 'ytVideo123', privacyStatus: 'private' });
+
+    const updateCall = calls.find((call) => call.options.method === 'PUT');
+    const body = JSON.parse(updateCall.options.body);
+    assert.equal(body.id, 'ytVideo123');
+    assert.equal(body.status.privacyStatus, 'private');
+    assert.equal(body.status.license, 'creativeCommon');
+    assert.equal(body.status.embeddable, false);
+    // uploadStatus 是唯讀欄位，不應該被帶回 update request
+    assert.equal(body.status.uploadStatus, undefined);
+  });
+
+  it('setVideoPrivacy 不接受未支援的隱私狀態', async () => {
+    await assert.rejects(
+      () => youtubeUploadService.setVideoPrivacy({
+        youtubeVideoId: 'ytVideo123',
+        privacyStatus: 'secret',
+        fetchImpl: buildPrivacyFetchMock([]),
+      }),
+      (error) => error.statusCode === 400 && error.code === 'VALIDATION_ERROR',
+    );
+  });
+
+  it('privatizeVideoOnDelete 只處理 FocusFlow 自己上傳的影片', async () => {
+    const calls = [];
+    // 教師貼 YouTube URL 建立的影片：有 youtubeVideoId 但沒有 youtubeUpload 紀錄
+    const pastedVideo = { youtubeVideoId: 'someoneElseVideo', youtubeUpload: null };
+
+    assert.equal(youtubeUploadService.isFocusFlowUploadedVideo(pastedVideo), false);
+    const result = await youtubeUploadService.privatizeVideoOnDelete(pastedVideo, {
+      fetchImpl: buildPrivacyFetchMock(calls),
+    });
+
+    assert.equal(result, null);
+    assert.equal(calls.length, 0);
+  });
+
+  it('privatizeVideoOnDelete 在 YouTube 失敗時不拋出，讓刪除流程繼續', async () => {
+    const video = {
+      youtubeVideoId: 'ytVideo123',
+      youtubeUpload: { status: 'uploaded' },
+    };
+
+    const result = await youtubeUploadService.privatizeVideoOnDelete(video, {
+      fetchImpl: async (url) => {
+        if (String(url).includes('oauth2.googleapis.com/token')) {
+          return jsonResponse({ access_token: 'access-token-for-tests' });
+        }
+        return jsonResponse({ error: { message: 'insufficient scope' } }, { status: 403 });
+      },
+    });
+
+    assert.equal(result, null);
+  });
+
+  it('未設定憑證時 privatizeVideoOnDelete 靜默略過', async () => {
+    env.youtubeClientId = '';
+    env.youtubeClientSecret = '';
+    env.youtubeRefreshToken = '';
+    env.youtubeUploadAccessToken = '';
+    const calls = [];
+
+    assert.equal(youtubeUploadService.isPrivatizeOnDeleteConfigured(), false);
+    const result = await youtubeUploadService.privatizeVideoOnDelete(
+      { youtubeVideoId: 'ytVideo123', youtubeUpload: { status: 'uploaded' } },
+      { fetchImpl: buildPrivacyFetchMock(calls) },
+    );
+
+    assert.equal(result, null);
+    assert.equal(calls.length, 0);
+  });
+
+  it('privatizeVideosOnDelete 逐支處理課程底下的影片', async () => {
+    const calls = [];
+    const results = await youtubeUploadService.privatizeVideosOnDelete(
+      [
+        { youtubeVideoId: 'ytA', youtubeUpload: { status: 'uploaded' } },
+        { youtubeVideoId: 'ytB', youtubeUpload: { status: 'failed' } },
+        { youtubeVideoId: 'ytC', youtubeUpload: { status: 'uploaded' } },
+      ],
+      { fetchImpl: buildPrivacyFetchMock(calls) },
+    );
+
+    assert.deepEqual(results.map((item) => item.youtubeVideoId), ['ytA', 'ytC']);
+    assert.equal(calls.filter((call) => call.options.method === 'PUT').length, 2);
+  });
+
+  it('health snapshot 在尚未做過 token 交換時標記 unverified', () => {
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(snapshot.readiness, 'ready');
+    assert.equal(snapshot.credentialsConfigured, true);
+    assert.equal(snapshot.credentialCheck.status, 'unknown');
+    assert.equal(snapshot.privatizeScopeSatisfied, null);
+    assert.ok(snapshot.warnings.some((item) => item.code === 'YOUTUBE_CREDENTIALS_UNVERIFIED'));
+  });
+
+  it('health snapshot 在憑證缺漏時回 hard_fail 並列出缺少的設定', () => {
+    env.youtubeClientId = '';
+    env.youtubeClientSecret = '';
+    env.youtubeRefreshToken = '';
+
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(snapshot.readiness, 'hard_fail');
+    assert.equal(snapshot.credentialsConfigured, false);
+    assert.deepEqual(snapshot.missingConfig, [
+      'YOUTUBE_CLIENT_ID',
+      'YOUTUBE_CLIENT_SECRET',
+      'YOUTUBE_REFRESH_TOKEN',
+    ]);
+    assert.ok(snapshot.hardFailures.some((item) => item.code === 'YOUTUBE_CREDENTIALS_MISSING'));
+  });
+
+  it('health snapshot 在兩個 feature 都關閉時回 not_enabled', () => {
+    env.youtubeUploadEnabled = false;
+    env.youtubePrivatizeOnDelete = false;
+
+    assert.equal(youtubeUploadService.buildYouTubeUploadSnapshot().readiness, 'not_enabled');
+  });
+
+  it('verifyYouTubeCredentials 成功後 health snapshot 記錄 scope 與成功時間', async () => {
+    const verified = await youtubeUploadService.verifyYouTubeCredentials({
+      fetchImpl: buildPrivacyFetchMock([]),
+    });
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(verified, true);
+    assert.equal(snapshot.readiness, 'ready');
+    assert.equal(snapshot.credentialCheck.status, 'ok');
+    assert.ok(snapshot.credentialCheck.lastSuccessAt);
+    assert.equal(snapshot.privatizeScopeSatisfied, true);
+    assert.deepEqual(snapshot.credentialCheck.grantedScopes, [
+      'https://www.googleapis.com/auth/youtube.force-ssl',
+    ]);
+  });
+
+  it('只有 upload scope 時 health snapshot 示警轉 private 不會生效', async () => {
+    await youtubeUploadService.verifyYouTubeCredentials({
+      fetchImpl: buildPrivacyFetchMock([], undefined, {
+        scope: 'https://www.googleapis.com/auth/youtube.upload',
+      }),
+    });
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(snapshot.privatizeScopeSatisfied, false);
+    assert.equal(snapshot.readiness, 'degraded');
+    assert.ok(snapshot.warnings.some((item) => item.code === 'YOUTUBE_PRIVACY_SCOPE_MISSING'));
+  });
+
+  it('token 交換失敗後 health snapshot 轉為 degraded 並保留錯誤', async () => {
+    await youtubeUploadService.verifyYouTubeCredentials({
+      fetchImpl: async () => jsonResponse({ error: 'invalid_grant' }, { status: 400 }),
+    });
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(snapshot.credentialCheck.status, 'failed');
+    assert.equal(snapshot.readiness, 'degraded');
+    assert.match(snapshot.credentialCheck.lastError, /token refresh failed/i);
+  });
+
+  it('轉 private 失敗會留在 health snapshot 的 lastPrivatize', async () => {
+    await youtubeUploadService.privatizeVideoOnDelete(
+      { youtubeVideoId: 'ytVideo123', youtubeUpload: { status: 'uploaded' } },
+      {
+        fetchImpl: async (url) => {
+          if (String(url).includes('oauth2.googleapis.com/token')) {
+            return jsonResponse({ access_token: 'token', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
+          }
+          return jsonResponse({ error: { message: 'insufficient scope' } }, { status: 403 });
+        },
+      },
+    );
+    const snapshot = youtubeUploadService.buildYouTubeUploadSnapshot();
+
+    assert.equal(snapshot.lastPrivatize.youtubeVideoId, 'ytVideo123');
+    assert.ok(snapshot.lastPrivatize.lastAttemptAt);
+    assert.equal(snapshot.lastPrivatize.lastSuccessAt, null);
+    assert.ok(snapshot.warnings.some((item) => item.code === 'YOUTUBE_PRIVATIZE_FAILED'));
   });
 
   it('本地檔案不存在時標記 failed 且不呼叫 YouTube API', async () => {

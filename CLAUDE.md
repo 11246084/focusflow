@@ -157,7 +157,7 @@ QA_VECTOR_SEARCH_MODE=memory
 - `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
 - `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
 - `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
-- `/health` 是判斷 `runtime.qa`、`runtime.line` 是否 ready 的入口，不要只看 `.env` 推測狀態。
+- `/health` 是判斷 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload` 是否 ready 的入口，不要只看 `.env` 推測狀態。YouTube 憑證是否有效、scope 夠不夠轉 private，都要看 `/health.runtime.youtubeUpload`，不要憑 `.env` 有填就當作可用。
 
 ## QA / Video / LINE 邊界
 
@@ -290,6 +290,8 @@ npm run build
 - 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端頁面都已完整 API 串接；目前是整合中。
-- YouTube Data API 自動上傳：程式已實作（2026-07-12，`youtubeUpload.service.js`，feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉），但尚未以真實 OAuth 憑證做過 live 端對端驗證，不能說已完成驗證；教師貼 YouTube URL 仍是目前已驗證的主路徑。
+- YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
+- 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
+- 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
 - 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。

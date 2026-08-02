@@ -88,6 +88,11 @@ paths:
                           atlasFilterMode: bridge_course_or_video
                           geminiConfigured: true
                           openaiConfigured: false
+                          hierarchicalRetrievalEnabled: false
+                          hierarchicalRetrievalFallbackToLeaf: true
+                          hierarchicalParentStorageMode: atlas_parent_vector
+                          queryEmbeddingDimensions: 3072
+                          parentQueryEmbeddingCompatible: true
                           readiness: ready
                           readyForAsk: true
                           costControl:
@@ -126,6 +131,30 @@ paths:
                           lastSuccessAt: '2026-07-18T02:00:01.000Z'
                           lastError: null
                           degraded: false
+                        youtubeUpload:
+                          uploadEnabled: true
+                          privatizeOnDeleteEnabled: true
+                          credentialsConfigured: true
+                          usingAccessTokenOverride: false
+                          uploadReady: true
+                          privatizeOnDeleteReady: true
+                          privatizeScopeSatisfied: true
+                          readiness: ready
+                          credentialCheck:
+                            status: ok
+                            lastAttemptAt: '2026-08-02T09:19:38.511Z'
+                            lastSuccessAt: '2026-08-02T09:19:38.705Z'
+                            lastError: null
+                            grantedScopes:
+                              - https://www.googleapis.com/auth/youtube.force-ssl
+                          lastPrivatize:
+                            youtubeVideoId: null
+                            lastAttemptAt: null
+                            lastSuccessAt: null
+                            lastError: null
+                          missingConfig: []
+                          hardFailures: []
+                          warnings: []
                         line:
                           signatureValidationConfigured: true
                           liveReplyConfigured: false
@@ -2605,6 +2634,11 @@ components:
         - atlasFilterMode
         - geminiConfigured
         - openaiConfigured
+        - hierarchicalRetrievalEnabled
+        - hierarchicalRetrievalFallbackToLeaf
+        - hierarchicalParentStorageMode
+        - queryEmbeddingDimensions
+        - parentQueryEmbeddingCompatible
         - readiness
         - readyForAsk
         - costControl
@@ -2638,11 +2672,28 @@ components:
           type: boolean
         openaiConfigured:
           type: boolean
-        readiness:
+        hierarchicalRetrievalEnabled:
+          description: 是否已開啟 Parent-first hierarchical retrieval gate。
+          type: boolean
+        hierarchicalRetrievalFallbackToLeaf:
+          description: Parent retrieval 不可用時是否允許安全退回既有 Leaf-only retrieval。
+          type: boolean
+        hierarchicalParentStorageMode:
+          description: Parent 查詢使用的 storage adapter 類型。
           type: string
           enum:
-            - ready
-            - hard_fail
+            - atlas_parent_vector
+        queryEmbeddingDimensions:
+          description: 目前 query embedding provider 預期輸出的向量維度；無法判定時為 null。
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+        parentQueryEmbeddingCompatible:
+          description: Query embedding 是否符合 Parent vector space 的 provider 與 3072 維契約。
+          type: boolean
+        readiness:
+          $ref: '#/components/schemas/ReadinessStatus'
         readyForAsk:
           type: boolean
         costControl:
@@ -2787,6 +2838,120 @@ components:
             - type: 'null'
         degraded:
           type: boolean
+    YouTubeUploadRuntimeSnapshot:
+      description: >-
+        YouTube 自動上傳與「刪除時轉 private」的憑證診斷快照。狀態只保留 process 內最後一次結果，不持久化。
+        server 啟動時會做一次非阻塞 OAuth token 交換，因此開機後即有 `credentialCheck` 可看（只換 access token，不消耗 YouTube 配額）。
+      type: object
+      required:
+        - uploadEnabled
+        - privatizeOnDeleteEnabled
+        - credentialsConfigured
+        - readiness
+        - credentialCheck
+        - lastPrivatize
+      properties:
+        uploadEnabled:
+          type: boolean
+          description: "`YOUTUBE_UPLOAD_ENABLED`"
+        privatizeOnDeleteEnabled:
+          type: boolean
+          description: "`YOUTUBE_PRIVATIZE_ON_DELETE`"
+        credentialsConfigured:
+          type: boolean
+          description: OAuth client id/secret/refresh token 齊備，或設了 access token override。
+        usingAccessTokenOverride:
+          type: boolean
+        uploadReady:
+          type: boolean
+        privatizeOnDeleteReady:
+          type: boolean
+        privatizeScopeSatisfied:
+          description: >-
+            授權 scope 是否足以呼叫 `videos.update`（轉 private）。尚未做過 token 交換時為 null；
+            只帶 `youtube.upload` 時為 false，代表刪除影片後不會轉成 private。
+          anyOf:
+            - type: boolean
+            - type: 'null'
+        readiness:
+          type: string
+          enum:
+            - ready
+            - degraded
+            - hard_fail
+            - not_enabled
+        credentialCheck:
+          type: object
+          required:
+            - status
+            - lastAttemptAt
+            - lastSuccessAt
+            - lastError
+            - grantedScopes
+          properties:
+            status:
+              type: string
+              enum:
+                - ok
+                - failed
+                - unknown
+            lastAttemptAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastSuccessAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastError:
+              anyOf:
+                - type: string
+                - type: 'null'
+            grantedScopes:
+              type: array
+              items:
+                type: string
+        lastPrivatize:
+          description: 最後一次「刪除影片時轉 private」的結果。失敗只寫 log 不中斷刪除，此處是唯一集中觀察點。
+          type: object
+          required:
+            - youtubeVideoId
+            - lastAttemptAt
+            - lastSuccessAt
+            - lastError
+          properties:
+            youtubeVideoId:
+              anyOf:
+                - type: string
+                - type: 'null'
+            lastAttemptAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastSuccessAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastError:
+              anyOf:
+                - type: string
+                - type: 'null'
+        missingConfig:
+          type: array
+          items:
+            type: string
+        hardFailures:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagnosticItem'
     ShortsCourseSummary:
       type: object
       required:
@@ -2866,6 +3031,7 @@ components:
             - line
             - multimodal
             - shortsSync
+            - youtubeUpload
           properties:
             qa:
               $ref: '#/components/schemas/QaRuntimeSnapshot'
@@ -2875,6 +3041,8 @@ components:
               $ref: '#/components/schemas/MultimodalRuntimeSnapshot'
             shortsSync:
               $ref: '#/components/schemas/ShortsSyncRuntimeSnapshot'
+            youtubeUpload:
+              $ref: '#/components/schemas/YouTubeUploadRuntimeSnapshot'
     AuthLoginRequest:
       description: "`/api/v1/auth/login` 的 request body。"
       type: object

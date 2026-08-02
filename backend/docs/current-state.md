@@ -1,12 +1,14 @@
 # Backend 目前狀態
 
-最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter 已完成；`video_segments_parent` 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；322/322 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
+最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter／QA 接線已完成；`video_segments_parent` 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；合併 YouTube 更新並補齊 Health/OpenAPI 契約後 backend 336/336 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
+
+同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉 private；並以 `youtube.force-ssl` refresh token 完成 live 端對端驗證：上傳出現在頻道、系統刪除後 YouTube Studio 顯示「私人」）
 
 前一輪：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；262/262 tests、frontend lint/build 通過）
 
 再前一輪：2026-07-25（`QA_MATCH_LIMIT` 3→15 修正跨片段歸納答不出來；FAQ 快取語意命中路徑順序優化 3133ms→1240ms；FAQ 快取失效缺口盤點）
 
-更早一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得＋設定指南 `youtube-upload-setup.md`；live upload smoke 待執行）
+更早一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得）
 
 更早一輪：2026-07-18（ShortAsset、修課限定 Shorts feed、YouTube metadata sync 與課程刪除封存）
 
@@ -43,16 +45,18 @@
 - 若要先清掉再重建，使用 `npm run seed:reset`
 - LINE live 已可端對端接收訊息並回傳 AI 答案與影片時間戳
 - YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
-- YouTube auto-upload adapter 已接入：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案上傳會先由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`，再用本機暫存檔接續既有 STT flow；2026-07-20 已依 [youtube-upload-setup.md](./youtube-upload-setup.md) 取得 OAuth 憑證（Client ID/Secret + refresh token），仍需做一次真實 upload smoke
+- YouTube auto-upload adapter 已接入：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案上傳會先由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`，再用本機暫存檔接續既有 STT flow；2026-08-02 已用真實 OAuth 憑證（`youtube.force-ssl`）完成 live upload 驗證
+- 刪除轉 private（2026-08-02，教授決議「轉 private 而非直接刪除」）：`deleteVideo` 與 `deleteCourse` 完成 DB 刪除後，呼叫 `youtubeUpload.privatizeVideoOnDelete` / `privatizeVideosOnDelete` 把影片改為 private。原因是 unlisted 影片只要有連結就能播，只清 DB 會讓學生舊連結與 LINE timestamp link 仍然有效。邊界：只處理 `youtubeUpload.status === 'uploaded'`（FocusFlow 自家頻道）的影片，教師貼 URL 的他人影片不碰；`videos.update` 前先 `videos.list` 讀回 status 只覆寫 `privacyStatus`（不帶 `publishAt`，避免排程公開把影片救回公開）；失敗只記 log 不中斷刪除。需 `youtube.force-ssl` scope 的 refresh token，舊 upload-only token 會被 403 拒絕；`YOUTUBE_PRIVATIZE_ON_DELETE=false` 可停用
 - 學生 Shorts feed 已改為本地 `ShortAsset` 查詢：`GET /api/v1/youtube/shorts` 需要 JWT 且只允許 student，回傳 `Enrollment ∩ published Course ∩ published ShortAsset ∩ youtubeAvailability=playable`；使用 `publishedAt + _id` opaque cursor（預設 20、最多 50）。目前前端 `StudentShortsWall.jsx` 仍需另案改用 authenticated `apiFetch`，本輪只提供 [前端串接方案](./handoff-shorts-frontend-plan.md)，未修改 `frontend/`
 - Short YouTube metadata sync 只用 `YOUTUBE_API_KEY` 的 `videos.list`（每批 50），啟動後非阻塞執行並依 `SHORTS_SYNC_INTERVAL_MS` 排程；startup/interval/direct 共用 single-flight promise。public/unlisted 可播放，private/成功回應缺 ID 不可播放，暫時性整批失敗保留上次成功狀態。`/health.runtime.shortsSync` 提供 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded
+- `/health.runtime.youtubeUpload`（2026-08-02）：`readiness` = `ready` / `degraded` / `hard_fail` / `not_enabled`；`credentialCheck` 記錄最後一次 OAuth token 交換的時間、錯誤與 `grantedScopes`；`lastPrivatize` 記錄最後一次轉 private 的結果。**`privatizeScopeSatisfied`** 在 token 只有 `youtube.upload` scope 時轉 false 並示警——這正是「刪除後影片仍是 unlisted」的靜默失敗成因。server 啟動時做一次非阻塞 token 交換（只換 access token，不耗 YouTube 配額），開機後即有狀態可看；只保留最後一次結果，不持久化
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
 - 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
 - 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；2026-07-12 起前端收斂為單一軌道（本地檔案），YouTube URL tab 已從 UI 移除（backend `POST /courses/:courseId/videos/youtube` API 保留）
 - 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade 改保留歷史紀錄
 - Display 層分流（2026-05-07；2026-07-12 修正老師 #13）：老師 Top Segments 指向已刪除影片時優先 fallback 到該課程現存影片；課程已無現存影片時**不再整列丟棄**（先前會讓整個課程從統計消失），改帶 `contentMissing` flag 且同課程合併為一列；學生 Recent Queries 與管理員 Recent Events 同樣帶 `contentMissing` flag，前端顯示「內容已下架」badge
 - 影片多課程掛載（2026-07-12，P1-3）：保留 `video.courseId` 為主課程，其他課程透過 `course.videoIds` 掛載引用（沿用 bridge contract，`collectScopedVideos` 原生支援）。新增 `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`（TEACHER/ADMIN；attach 需同時可管理目標課程與影片主課程，主課程不可 detach 回 `400 VALIDATION_ERROR`，重複掛載回 `409 DUPLICATE_VIDEO`）；`resolveAccessibleVideoContext` 主課程無權限時 fallback 到任一有權限的掛載課程；`deleteVideo` / `deleteCourse` 會從**所有**課程 `videoIds` 清引用；`markVideoWatched` 接受主課程或掛載課程的影片；`segmentMatchesScope` 修正為 courseId 對不上時 fallback 用 videoId 判斷（掛載影片的 segments 帶主課程 courseId）。前端 TeacherCourses 課程展開面板有「掛載既有影片」與掛載列「解除」按鈕。注意：stats 的 videosCount 仍按主課程歸屬計算
-- 本地影片自動上傳 YouTube（2026-07-12，feature flag 預設關閉、**未經 live 憑證端對端驗證**）：`youtubeUpload.service.js` 以 OAuth2 refresh token 換 access token 後走 YouTube Data API v3 resumable upload；`createCourseVideo`（本地檔案路徑）在 spawn STT 後 fire-and-forget 觸發，成功回寫 `youtubeVideoId` + `videoUrl`（前端播放器自動改用 YouTube iframe），狀態記錄在 `videos.youtubeUpload {status: uploading|uploaded|failed, error, uploadedAt}`。需 `YOUTUBE_UPLOAD_ENABLED=true` + `YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN`（scope `youtube.upload`）四項齊備，缺任一項靜默略過，失敗不影響本地播放與 STT pipeline
+- 本地影片自動上傳 YouTube（2026-07-12 實作，feature flag 預設關閉；**2026-08-02 完成 live 憑證端對端驗證**）：`youtubeUpload.service.js` 以 OAuth2 refresh token 換 access token 後走 YouTube Data API v3 resumable upload；`createCourseVideo`（本地檔案路徑）在 spawn STT 後 fire-and-forget 觸發，成功回寫 `youtubeVideoId` + `videoUrl`（前端播放器自動改用 YouTube iframe），狀態記錄在 `videos.youtubeUpload {status: uploading|uploaded|failed, error, uploadedAt}`。需 `YOUTUBE_UPLOAD_ENABLED=true` + `YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN`（scope 需 `youtube.force-ssl`，才能同時支援上傳與刪除轉 private）四項齊備，缺任一項靜默略過，失敗不影響本地播放與 STT pipeline
 - QA 拒答（2026-05-07）：`scopedVideos.videos` 為空時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
 - 後端查詢平行化（2026-05-07）：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`（學生端 1.6–2.4s → ~0.8–1s）；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`（51 segments hydration 8.8s → ~1s）。API 回應格式 / 答案品質 100% 不變
 - `QA_MATCH_LIMIT` 3 → 15（2026-07-25）：`5df3148` 把 answer prompt 改成「綜合所有相關片段」，但片段數上限自最初 MVP commit `e69580b` 起一直是 `3`，導致整門課只有約 166 字進 prompt（實測課程逐字稿總量約 6,700 字，佔 2.5%），跨片段歸納型問題（例如「這門課在講什麼」）一律回「目前資料庫片段不足以回答這個問題。」。調成 `15` 後可正確產出跨 4 支影片、6 個片段的整理答案並標註依據時間。`.env.example` 同步更新；**已存在的 FAQ 快取不會因此失效，需手動 `DELETE /api/v1/courses/:courseId/faqs`**
@@ -179,7 +183,7 @@
 
 ## 目前測試狀態
 
-- 2026-08-02 `npm test`：**322 passed / 0 failed**（40 suites；含 Phase 2-2 Round 1、Parent Storage、正式 Parent Search adapter／QA 接線、mounted-video scope、Health compatibility 與 Gemini query 契約測試）。
+- 2026-08-02 `npm test`：**336 passed / 0 failed**（40 suites；含 Phase 2-2 Round 1、Parent Storage、正式 Parent Search adapter／QA 接線、mounted-video scope、Health/OpenAPI compatibility、Gemini query 契約，以及 YouTube 上傳／刪除轉 private 回歸測試）。
 - 2026-07-26 `npm.cmd test`：**262 passed / 0 failed**（31 suites；含 `QA_MATCH_LIMIT=15`、answer-generation、role-aware auth、registration `lineUserId` sparse-index、notifications 與 avatar 回歸）。
 - 2026-07-24 `npm.cmd test`：**251 passed / 0 failed**（29 suites；新增 register defensive body cases 後重跑，涵蓋 auth role/register、notifications、avatar、sync ownership 與既有主線）。
 - 2026-07-18 `npm.cmd test`：**163 passed / 0 failed**（25 suites；含 ShortAsset lifecycle、修課 feed/cursor、YouTube sync/retry/log/single-flight、health、course delete rollback、invalid asset 與 repeated cursor）。
@@ -237,7 +241,9 @@
 - `video_segments_video`：有 embedding，Atlas vector search index `video_embedding_index` 已建立且 READY/queryable（2026-07-10 驗證，3072 維 cosine，filter=`video_id`）；backend 已從 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID 以安全套用 course access scope。限制：資料沒有 transcript / caption，因此 multimodal QA 目前只提供 visual citation，不提供畫面內容生成
 - `text_embedding_index` 已 READY（2026-05-23 驗證）；atlas mode 可用。仍需注意若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
-- YouTube Data API auto-upload adapter 已實作並有 fake-fetch 測試；2026-07-20 OAuth 憑證已取得（流程見 [youtube-upload-setup.md](./youtube-upload-setup.md)），仍需做一次真實 upload smoke 才能稱已驗證。注意 OAuth 同意畫面在 Testing 狀態時 refresh token 7 天過期。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
+- YouTube Data API auto-upload 與刪除轉 private 已於 2026-08-02 完成 live 驗證；同日 OAuth 同意畫面已發布為正式版並重換 refresh token（scope `youtube.force-ssl`，已驗證可換發 access token），**不再 7 天過期**。未送 Google 驗證，授權畫面仍顯示未驗證警告、未驗證 app 有 100 使用者上限（本專案只需 1 個授權帳號）。憑證若失效，上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 只寫 log，但 `/health.runtime.youtubeUpload` 可觀察（見下方）。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
+- 轉 private 沒有 backend 還原入口（DB 紀錄已刪），需人工到 YouTube Studio 把瀏覽權限改回；轉 private 失敗只記 log 不中斷刪除，該影片會留在頻道上且仍可用連結播放
+- 上傳預設 unlisted 無法改成 private：YouTube private 影片不支援 iframe 嵌入播放，設 private 會讓學生端全部播不出來。因此「未修課者拿到連結仍可觀看」是採 YouTube 託管的固有限制
 - ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端尚未帶 JWT 呼叫新 feed，需先依 handoff 方案完成另案實作
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容，正式環境需填入實際前端 origin

@@ -417,6 +417,8 @@ async function deleteVideo(videoId, user) {
   await clearFaqsForVideoCourses(video);
   // 影片可能掛載到多個課程，從所有課程的 videoIds 清掉引用（含主課程）。
   await Course.updateMany({}, { $pull: { videoIds: video._id } });
+  // 系統刪除不會刪 YouTube 上的影片，否則舊連結仍可播放；改轉 private（可還原）。
+  await youtubeUploadService.privatizeVideoOnDelete(video);
 }
 
 async function attachVideoToCourse({ courseId, videoId, user }) {

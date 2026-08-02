@@ -130,6 +130,10 @@ module.exports = {
     || process.env.YOUTUBE_UPLOAD_PRIVACY_STATUS
     || 'unlisted',
   youtubeUploadCategoryId: process.env.YOUTUBE_UPLOAD_CATEGORY_ID || '27',
+  // 刪除影片時把 FocusFlow 自己上傳的 YouTube 影片轉為 private（不刪除，可還原）。
+  // 需要 `youtube.force-ssl` scope 的 refresh token；只有憑證齊備時才會實際執行。
+  youtubePrivatizeOnDelete:
+    String(process.env.YOUTUBE_PRIVATIZE_ON_DELETE || 'true').toLowerCase() === 'true',
   allowedOrigins: String(process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim())

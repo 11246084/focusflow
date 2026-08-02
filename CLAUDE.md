@@ -157,7 +157,7 @@ QA_VECTOR_SEARCH_MODE=memory
 - `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
 - `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
 - `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
-- `/health` 是判斷 `runtime.qa`、`runtime.line` 是否 ready 的入口，不要只看 `.env` 推測狀態。
+- `/health` 是判斷 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload` 是否 ready 的入口，不要只看 `.env` 推測狀態。YouTube 憑證是否有效、scope 夠不夠轉 private，都要看 `/health.runtime.youtubeUpload`，不要憑 `.env` 有填就當作可用。
 
 ## QA / Video / LINE 邊界
 

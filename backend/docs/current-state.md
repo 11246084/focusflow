@@ -78,7 +78,7 @@
 - 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`（`course.routes.js` + `course.controller.js`），service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`；**第一次**觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）。前端 `StudentCourses.jsx` 觸發來源：mp4 `<video>` `onTimeUpdate ≥ 80%` 或 `onEnded`；YouTube IFrame `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%`；`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 的 WATCH 從此可累加（先前永遠為 0）。「進度誤顯 0%」已於 2026-07-13 修復（見下一條）
 - 學生進度 0% 修復 + LINE 跳轉 fallback（2026-07-13）：
   - `markVideoWatched` 進度分母改為「主課程影片（`video.courseId`）∪ 掛載影片（`course.videoIds`）」聯集。先前只算 `course.videoIds`，未掛載的主課程影片看完不被計入，進度永遠 0%
-  - `getStudentDashboardStats` 的 `courseList.progress` 改為：enrollment 有 `watchedVideoIds` 就用同一聯集分母即時重算（上限 100%），不再只讀儲存的 `enrollment.progress`（過期的 0 會一直顯示）；舊 enrollment 只有 progress 數值時沿用儲存值；未選課課程維持 processing-completed 比例 fallback。`courseList.videoCount` 改為聯集大小（頂層 `videosCount` 仍按主課程歸屬計算）
+  - `getStudentDashboardStats` 的 `courseList.progress` 改為：enrollment 有 `watchedVideoIds` 就用同一聯集分母即時重算（上限 100%），不再只讀儲存的 `enrollment.progress`（過期的 0 會一直顯示）；舊 enrollment 只有 progress 數值時沿用儲存值。2026-08-02 起 Dashboard 只統計 `Enrollment ∩ published Course`，新註冊且尚未修課的學生固定回傳 200 zero-state（所有 count/rate/progress 為 0，`courseList`／`recentQueries` 為空），不再把公開課程目錄誤算成個人學習進度。`courseList.videoCount` 改為聯集大小（頂層 `videosCount` 仍按已修課之主課程歸屬計算）
   - LINE `buildQuestionSummaryLines`：命中影片無 `youtubeVideoId`（組不出 `youtu.be` 跳轉連結，常見於本地上傳未同步 YouTube）時，改附「此片段「{影片名}」尚未提供跳轉連結，請到 FocusFlow 網站的課程頁播放對應時間點」提示，先前是整行「跳轉：」直接消失；clip 快取 jumpUrl 仍優先於 match jumpUrl
   - API response 形狀不變；新增 5 條回歸測試（course-video.routes ×2、line.routes ×3）
 
@@ -183,6 +183,7 @@
 
 ## 目前測試狀態
 
+- 2026-08-02 `npm.cmd test`：**341 passed / 0 failed**（42 suites；新增新註冊學生 Dashboard zero-state與 Admin Enrollment `studentId` 聚合回歸測試）。
 - 2026-08-02 `npm test`：**336 passed / 0 failed**（40 suites；含 Phase 2-2 Round 1、Parent Storage、正式 Parent Search adapter／QA 接線、mounted-video scope、Health/OpenAPI compatibility、Gemini query 契約，以及 YouTube 上傳／刪除轉 private 回歸測試）。
 - 2026-07-26 `npm.cmd test`：**262 passed / 0 failed**（31 suites；含 `QA_MATCH_LIMIT=15`、answer-generation、role-aware auth、registration `lineUserId` sparse-index、notifications 與 avatar 回歸）。
 - 2026-07-24 `npm.cmd test`：**251 passed / 0 failed**（29 suites；新增 register defensive body cases 後重跑，涵蓋 auth role/register、notifications、avatar、sync ownership 與既有主線）。

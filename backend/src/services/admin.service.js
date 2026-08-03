@@ -41,7 +41,8 @@ async function listUsers() {
   const users = await User.find({}).sort({ createdAt: -1 }).lean();
 
   const [enrollCounts, queryCounts] = await Promise.all([
-    Enrollment.aggregate([{ $group: { _id: '$userId', count: { $sum: 1 } } }]),
+    // Enrollment ownership is stored in studentId; userId belongs to usage records.
+    Enrollment.aggregate([{ $group: { _id: '$studentId', count: { $sum: 1 } } }]),
     UsageLog.aggregate([{ $match: { event: 'ask' } }, { $group: { _id: '$userId', count: { $sum: 1 } } }]),
   ]);
 

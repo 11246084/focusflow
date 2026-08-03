@@ -714,6 +714,25 @@ function installModelStubs() {
     applyUpdate(enrollment, update);
     return enrollment;
   };
+  Enrollment.aggregate = async (pipeline = []) => {
+    const group = pipeline.find((stage) => stage.$group)?.$group;
+    if (!group) return [...store.enrollments];
+
+    const grouped = new Map();
+    const groupPath = String(group._id || '').replace(/^\$/, '');
+    for (const enrollment of store.enrollments) {
+      const key = getNested(enrollment, groupPath);
+      const normalizedKey = normalizeValue(key);
+      const current = grouped.get(normalizedKey) || { _id: key };
+      for (const [field, expression] of Object.entries(group)) {
+        if (field !== '_id' && expression?.$sum === 1) {
+          current[field] = (current[field] || 0) + 1;
+        }
+      }
+      grouped.set(normalizedKey, current);
+    }
+    return [...grouped.values()];
+  };
   Enrollment.deleteMany = async (query = {}) => deleteManyInStore(store.enrollments, query);
 
   VideoSegment.find = (query = {}) => createQuery(store.videoSegments.filter((item) => matchesQuery(item, query)));

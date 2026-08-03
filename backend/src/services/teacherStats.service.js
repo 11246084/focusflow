@@ -197,7 +197,7 @@ async function getStudentDashboardStats(user) {
   };
 
   // Round 1: 平行抓 6 條互不相依的資料（原本散在 5 次 await，~700-900ms → ~150-200ms）
-  const [enrollments, courses, totalQueries, weeklyQueries, answeredQueries, recentQuestions] = await Promise.all([
+  const [enrollments, publishedCourses, totalQueries, weeklyQueries, answeredQueries, recentQuestions] = await Promise.all([
     Enrollment.find({ studentId: user.id }).lean(),
     Course.find({ status: 'published' }).lean(),
     Question.countDocuments(visibleQuestionFilter),
@@ -206,6 +206,9 @@ async function getStudentDashboardStats(user) {
     Question.find(visibleQuestionFilter).sort({ askedAt: -1 }).limit(4).lean(),
   ]);
 
+  const enrolledCourseIds = new Set(enrollments.map((enrollment) => String(enrollment.courseId)));
+  // Dashboard counters describe the student's enrolled learning activity, not the public catalog.
+  const courses = publishedCourses.filter((course) => enrolledCourseIds.has(String(course._id)));
   const courseIds = courses.map((course) => course._id);
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
   const enrollmentByCourse = Object.fromEntries(

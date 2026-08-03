@@ -167,3 +167,9 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - Phase 2-2 已完成 storage 與正式 Backend Parent Search adapter，但**尚未啟用或完成 live E2E**：`video_segments_parent` 目前 **0 筆資料**、Parent uploader 尚未實作、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Leaf → Answer 尚未以真實 Atlas Parent 文件跑過端對端流程
 - Embedding 模型遷移尚未完成：目前 Backend／Pipeline 使用的 preview model 對應 Google deprecation 表中的 `embedding-2-preview`，最早停用日為 **2026-08-10**；替代模型 `gemini-embedding-2` 的 task instruction 與向量空間需跨組同步，既有向量不可直接混用
 - Phase 2-2 契約文件 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
+## 2026-08-03 Phase 2-2 Parent Uploader（offline/mock）
+
+- 新增 `STT_Whisper/src/parent_mongodb_uploader.py`：對 Parent Embedding JSONL 執行 blocking batch preflight、權威 `courseId` 驗證、白名單 snake_case → camelCase mapping，並規劃以 `{ parentId }` 為唯一 filter 的 unordered bulk upsert。
+- 模組不建立 MongoDB client，尚未接入正式 Pipeline upload stage；本輪只使用 fake collection / mock operations 驗證，shared Atlas write 為 0。
+- `generationVersion` 只保留 nullable audit 值、`isActive=true`；stale cleanup 與 generation switching 均未啟用。
+- 真實 Parent artifacts、隔離 Atlas upload、重跑 upsert、Parent Vector Search 與 E2E 仍待後續驗收。

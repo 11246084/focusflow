@@ -587,6 +587,7 @@ MONGODB_TRANSCRIPTS_COLLECTION=transcripts_normalized
 MONGODB_CHUNKS_COLLECTION=video_segments_text
 MONGODB_TEXT_EMBEDDINGS_COLLECTION=video_segments_text
 MONGODB_VIDEO_EMBEDDINGS_COLLECTION=video_segments_video
+VIDEO_SEGMENT_PARENT_COLLECTION=video_segments_parent
 MONGODB_BULK_BATCH_SIZE=200
 ```
 
@@ -739,6 +740,14 @@ Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 
 ## Phase 2 - Sprint 4: MongoDB Upload Improvement
 
 本 Sprint 將原本逐筆 `update_one(..., upsert=True)` 的上傳改為有上限的 `bulk_write(UpdateOne(...), ordered=False)`，減少大量 segment 上傳時的網路往返。批次大小由 `MONGODB_BULK_BATCH_SIZE` 控制，預設為 `200`；每個 collection 分開分批，不會一次送出無限制資料。
+
+### Parent publication adapter（Phase 2-2）
+
+`src/parent_mongodb_uploader.py` 是 Parent artifact 的正式 publication adapter，但目前刻意不接入 `main.py` 或既有 Leaf `upload_all()`。它只接受已通過 Parent Embedding stage 的 `embeddings_parent_gemini.jsonl`，且呼叫端必須顯式注入 MongoDB collection 與權威 `courseId`（或可替換的 resolver）。模組本身不建立 MongoDB client，也不會從 `videoId`、第一門課或本機資料猜測 `courseId`。
+
+發布前會整批驗證 JSONL、Parent 欄位、fingerprints，以及固定的 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 contract。任何一筆失敗時整批阻擋且 write count 為 0。通過後才把白名單 snake_case 欄位集中映射成 Backend schema 的 camelCase document，並使用唯一 filter `{ parentId }` 建立 `upsert=True`、`ordered=False` 的 bulk operations。
+
+Collection 名稱由 `VIDEO_SEGMENT_PARENT_COLLECTION` 設定，預設 `video_segments_parent`。`generationVersion` 僅保留為 nullable audit 欄位、`isActive` 預設 `true`；目前不做 generation switching、stale cleanup 或 delete。這一階段只完成 offline/mock 驗證，尚未代表 shared Atlas 已發布或 live upsert 已驗收。
 
 上傳仍使用既有文件欄位與識別條件，不新增 MongoDB 文件欄位：
 

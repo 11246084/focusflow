@@ -153,6 +153,8 @@ class PipelineConfig:
     mongodb_text_embeddings_collection: str
     # MongoDB 視頻嵌入集合名稱
     mongodb_video_embeddings_collection: str
+    # Parent Chunk documents (publication remains an explicit, separate operation).
+    mongodb_parent_segments_collection: str
     # MongoDB 批量批次大小
     mongodb_bulk_batch_size: int
     # 是否覆蓋現有文件
@@ -359,6 +361,10 @@ class PipelineConfig:
             mongodb_video_embeddings_collection=os.getenv(
                 "MONGODB_VIDEO_EMBEDDINGS_COLLECTION",
                 "video_segments_video",
+            ),
+            mongodb_parent_segments_collection=os.getenv(
+                "VIDEO_SEGMENT_PARENT_COLLECTION",
+                "video_segments_parent",
             ),
             # MongoDB 批量批次大小，默認 200，轉換為整數
             mongodb_bulk_batch_size=int(os.getenv("MONGODB_BULK_BATCH_SIZE", "200")),

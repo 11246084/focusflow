@@ -383,6 +383,16 @@ User Question
 - **[Proposed for v1]** Parent artifact validator 與 Parent embedding artifact validator分離；後者另驗證 record count/ID set、text、metadata、vector dimension、status 與 fingerprints。
 - **[Proposed for v1]** partial artifact 可作 per-record checkpoint，但 Sprint 2A 只有 100% required Parent success/reuse 才 completed；任一最終 failure 即 stage/run failed，且不可發布。
 
+## 17.1 Parent Publication Adapter（2026-08-03 offline implementation）
+
+- **[Confirmed by current code]** 正式模組為 `STT_Whisper/src/parent_mongodb_uploader.py`；它不建立 MongoDB client，collection 由呼叫端注入，且尚未接入 Pipeline `main.py` 或 Leaf `upload_all()`。
+- **[Confirmed by current code]** 輸入只接受已驗證的 `embeddings_parent_gemini.jsonl`。發布前會整批驗證 JSONL、Parent 欄位、批次 scope、fingerprints，以及 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 contract；任一錯誤使整批 write count 為 0。
+- **[Confirmed by current code]** `courseId` 必須由呼叫端顯式提供，或由呼叫端注入的權威 resolver 對每筆解析；格式為 MongoDB ObjectId，缺失、無效或同批衝突皆拒絕。不得從 `videoId`、課名或第一門課推測。
+- **[Confirmed by current code]** artifact 到 storage 使用集中式白名單 snake_case → camelCase mapping。artifact-only 的 `embedding_status`、`embedding_timestamp`、`embedding_error`、`embedding_request_id` 不寫入 Backend schema。
+- **[Confirmed by current code]** upsert filter 唯一為 `{ parentId }`，operation 使用 `$set`、`upsert=True`，bulk write 使用 `ordered=False`。不把 `courseId` 或 `generationVersion` 放入 filter，不執行 delete 或 stale cleanup。
+- **[Confirmed by current code]** `documentSchemaVersion=parent_document_v1`、`generationVersion=null`（可由呼叫端保留 audit 值）、`isActive=true`；generation switching 尚未啟用。
+- **[Offline only]** mock tests 已覆蓋 mapping、整批 preflight、course scope、向量 contract、idempotent upsert、partial failure 與敏感錯誤安全化。尚未產生真實 Parent artifacts，亦未連線或寫入 shared Atlas。
+
 ## 18. Ownership Matrix
 
 | 工作項目 | AI Pipeline | Backend | Database | 共同決策 | DB 權限需求 |

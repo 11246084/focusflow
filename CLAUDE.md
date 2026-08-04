@@ -159,6 +159,18 @@ QA_VECTOR_SEARCH_MODE=memory
 - `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
 - `/health` 是判斷 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload` 是否 ready 的入口，不要只看 `.env` 推測狀態。YouTube 憑證是否有效、scope 夠不夠轉 private，都要看 `/health.runtime.youtubeUpload`，不要憑 `.env` 有填就當作可用。
 
+## 部署與對外連線（VM）
+
+正式環境跑在 Rocky Linux 9 VM（`rocky101702`，`140.131.115.105`），程式在 `/opt/focusflow`（owner `focusflow`）。push 到 `main` 會由 GitHub Actions self-hosted runner 觸發 `.github/workflows/deploy.yml`：`git pull` → backend `npm install` → frontend build → `restorecon` → `pm2 restart focusflow-backend` + `systemctl reload nginx`。**push `main` 等於 production deploy。**
+
+必須知道的邊界（2026-08-04 實測）：
+
+- **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 只能在 VM 上手動維護（`sudo -u focusflow`）。新增任何環境變數後，本機可跑不代表 VM 可跑——YouTube 憑證就曾只存在本機、VM 上整組缺失，直到 `/health` 才發現。判斷 VM 實際狀態一律看 `/health`，不要看 repo 的 `.env.example`。
+- nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。
+- HTTPS 目前是**自簽憑證**（2026-08-04 重產，CN=`focusflow.ntub.edu.tw`、SAN 含 IP、效期至 2027-08-04），瀏覽器仍會警告。Let's Encrypt 需要外部連得進 port 80，在對外連線修好前無法申請。
+- port 80 上 Rocky 預設歡迎頁仍會蓋過 `focusflow.conf`（其 `server_name _` 永不匹配且未標 `default_server`），443 不受影響。
+- `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。
+
 ## QA / Video / LINE 邊界
 
 ### QA Provider
@@ -295,3 +307,4 @@ npm run build
 - 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
 - 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。
+- **不能說系統「已對外上線」**：`focusflow.ntub.edu.tw` 的 DNS 已在學校 NS 建好並指向 `140.131.115.105`，但 2026-08-04 實測外部幾乎連不進來（check-host.net 57 個國外節點僅 1 個連上；一般家用網路連 22 都不通）。校內／學校 VPN 則 22/80/443 全部穩定。VM 端已排除（nginx 運行、firewalld runtime 與 permanent 皆放行 http/https、`ss` 顯示 `0.0.0.0:80/443`、backend health 全綠），問題在學校邊界設備，待電算中心確認開放規則。判斷這類問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；學校對進站流量做 NAT，來源會顯示成 `10.x`。

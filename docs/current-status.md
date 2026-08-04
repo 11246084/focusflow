@@ -2,6 +2,8 @@
 
 最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter／QA 接線已完成；`video_segments_parent`、3 個 regular index 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；合併 YouTube 更新並補齊 Health/OpenAPI 契約後 backend 336/336 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，`HIERARCHICAL_RETRIEVAL_ENABLED` 維持 false）
 
+後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
+
 同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉為 private，教授決議「轉 private 而非直接刪除」；並完成真實 OAuth 憑證 live 驗證：上傳後影片以 unlisted 出現在頻道，系統刪除後轉為「私人」）
 
 前一輪：2026-07-26（role-aware auth、註冊、站內通知與 private avatar 已完成隔離 MongoDB + Playwright 驗證；backend 262/262、frontend lint/build 通過，指定功能 PASS）
@@ -42,7 +44,30 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `/health.runtime.youtubeUpload`（2026-08-02）可觀察 YouTube OAuth 憑證健康度：readiness、最後一次 token 交換結果與授權 scope、最後一次刪除轉 private 的結果；scope 不足以轉 private 時會示警
 - QA misconfig 與 Atlas not ready 已 fail-fast，不靜默降級
 - **共享 Atlas 現況**（2026-05-23 直連驗證）：`videos` 16 筆、`video_segments_text` 130 筆，`text_embedding_index` 存在且 READY/queryable（3072 維 cosine，filter=`courseId`+`videoId`，3 shards 全 READY）；`.env` 的 `atlas` mode 可正常檢索，不需切回 `memory`
-- LINE Bot 已端對端驗證；正式部署前 ngrok URL / Channel 設定須再確認
+- LINE Bot 已端對端驗證；VM 上的 `ngrok.service`（systemd，開機自啟）使用保留網域 `chevy-cradling-elevate.ngrok-free.dev` → port 4000，URL 不再每次重開變動，但 Channel Secret / Access Token 仍是部署變動項
+
+---
+
+## 部署與對外連線（2026-08-04 實測）
+
+正式環境：Rocky Linux 9 VM（`rocky101702`，`140.131.115.105`），程式在 `/opt/focusflow`（owner `focusflow`），backend 由該帳號的 PM2（`focusflow-backend`）執行，nginx 服務前端靜態檔並把 `/api/` 反代到 `localhost:4000`。push `main` 由 GitHub Actions self-hosted runner 觸發部署，**等同 production deploy**。
+
+| 項目 | 狀態 |
+|------|------|
+| nginx / firewalld / 監聽 `0.0.0.0:80,443` | ✅ 正常，firewalld runtime 與 permanent 一致（重開機安全） |
+| backend / Atlas / QA / LINE | ✅ `/health` 全綠 |
+| DNS `focusflow.ntub.edu.tw` → `140.131.115.105` | ✅ 學校 NS 已建 A record，公開可解析 |
+| 校內 / 學校 VPN 連線 | ✅ 22 / 80 / 443 全通且穩定 |
+| **校外連線** | ❌ 幾乎不通：check-host.net 57 個國外節點僅 1 個 connect；一般家用網路連 22 都 timeout |
+| HTTPS 憑證 | ⚠️ 自簽（CN=`focusflow.ntub.edu.tw`、SAN 含 IP、2027-08-04 到期），瀏覽器仍警告 |
+| port 80 首頁 | ⚠️ Rocky 預設歡迎頁蓋過 `focusflow.conf`（其 `server_name _` 永不匹配且未標 `default_server`）；443 不受影響 |
+
+重點：
+
+- **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 需在 VM 上手動維護。YouTube 憑證即因此只存在本機、VM 上整組缺失，直到 `/health` 的 `shortsSync.lastError` 才發現。新增環境變數後務必另外補 VM 一次，並以 `/health` 而非 `.env.example` 判斷實際狀態。
+- 外部連線問題已排除 VM 端，判定在學校邊界設備，待電算中心確認開放規則是否有來源限制。診斷用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'` 可分辨「封包沒到」與「到了被拒」；學校對進站流量做 NAT，來源會顯示為 `10.x`。
+- Let's Encrypt 正式憑證需要外部連得進 port 80 完成 HTTP-01 驗證，**在對外連線修好前無法申請**。
+- 手動維護、不在 repo 的設定：nginx server block 與自簽憑證、`/etc/nginx/conf.d/upload_size.conf`（`client_max_body_size 500M`，缺少會讓影片上傳被 413 擋下）、兩份 `.env`、`ngrok.service`。
 
 ---
 
@@ -146,7 +171,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 2. AI Pipeline 完成 Parent uploader，將 `courseId` 解析成功、3072 維 embedding 與 upload summary 列為發布必要條件
 3. 以隔離資料驗證 Parent Atlas Search → Child expansion → Leaf Citation，再依 latency 實測調整 timeout；全部通過前維持 Gate 關閉
 4. DB owner 稽核 `video_segments_text.chunkId` 的重複／null 分布，建立 classic index 並用 explain 確認 Child Expansion 不走 COLLSCAN
-5. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook
+5. 與電算中心確認 `140.131.115.105` 的 80/443 開放規則是否有來源限制（證據：check-host.net 57 節點僅 1 連通、校內／VPN 全通、VM 端已排除）；通了之後才能申請 Let's Encrypt 憑證並讓 LINE webhook 脫離 ngrok
+6. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook；`ALLOWED_ORIGINS` 在 VM 上尚未設定，CORS 目前為開發期全開
 6. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
 7. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
 8. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
@@ -156,6 +182,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 ## 不能誤稱的邊界
 
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
+- **不能說系統「已對外上線」**：VM、nginx、backend、DNS 都就緒且校內／VPN 連線穩定，但 2026-08-04 實測校外幾乎連不進來（57 個國外節點僅 1 個 connect），同學與一般家用網路皆 timeout。問題在學校邊界設備、待電算中心處理；在此之前對外可用的通道只有 ngrok
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
 - Atlas vector retrieval：`text_embedding_index` 於 2026-05-23 直連驗證為 READY/queryable，atlas mode 目前可用；仍須持續確認 query embedding 與 pipeline 資料覆蓋率的一致性
 - Query embedding **已切到 Gemini，但仍需持續確認與 pipeline 資料覆蓋率的一致性**

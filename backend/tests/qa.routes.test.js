@@ -177,7 +177,7 @@ describe('qa routes', () => {
     assert.equal(result.body.data.citations.length, result.body.data.matches.length);
     assert.deepEqual(
       Object.keys(result.body.data.citations[0]).sort(),
-      ['citationId', 'clipPath', 'match', 'modality', 'segmentId', 'sourceVideo', 'timestamp', 'transcriptSnippet', 'videoId', 'videoTitle'],
+      ['chunkId', 'citationId', 'clipPath', 'match', 'modality', 'segmentId', 'sourceVideo', 'timestamp', 'transcriptSnippet', 'videoId', 'videoTitle'],
     );
     assert.equal(result.body.data.citations[0].citationId, 'C1');
     assert.equal(result.body.data.citations[0].modality, 'text');

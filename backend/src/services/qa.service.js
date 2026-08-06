@@ -622,6 +622,12 @@ function buildCitation(match, index) {
   return {
     citationId: `C${index + 1}`,
     modality: match.modality || 'text',
+    // Keep the canonical Leaf identity explicit. Legacy matches that only have
+    // segmentId remain supported, but segmentId must not be presented as a
+    // canonical chunkId.
+    chunkId: match.chunkId == null || String(match.chunkId).trim() === ''
+      ? null
+      : String(match.chunkId),
     segmentId: match.segmentId,
     videoId: match.videoId,
     videoTitle: match.videoTitle || null,

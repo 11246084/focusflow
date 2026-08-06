@@ -3365,6 +3365,7 @@ components:
       required:
         - citationId
         - modality
+        - chunkId
         - segmentId
         - videoId
         - videoTitle
@@ -3382,6 +3383,11 @@ components:
           enum:
             - text
             - video
+        chunkId:
+          description: Canonical Leaf chunk identity; null for legacy segmentId-only matches.
+          anyOf:
+            - type: string
+            - type: 'null'
         segmentId:
           type: string
         videoId:

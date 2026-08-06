@@ -95,6 +95,15 @@ async function retrieveWithHierarchy({
           retrievalLatencyMs: Date.now() - startedAt,
           missingChildCount: expansion.diagnostics.missingChildCount,
           scopeMismatchCount: expansion.diagnostics.scopeMismatchCount,
+          diagnostics: {
+            requestedChildCount: expansion.diagnostics.requestedChildCount,
+            foundChildCount: expansion.leaves.length,
+            missingChildCount: expansion.diagnostics.missingChildCount,
+            duplicateChildCount: expansion.diagnostics.duplicateChildCount,
+            scopeMismatchCount: expansion.diagnostics.scopeMismatchCount,
+            truncatedChildCount: expansion.diagnostics.truncatedChildCount,
+            contextTruncated: context.diagnostics.contextTruncated,
+          },
         },
       },
     };
@@ -128,6 +137,7 @@ async function retrieveWithHierarchy({
           fallbackUsed: true,
           fallbackReason: reason,
           retrievalLatencyMs: Date.now() - startedAt,
+          diagnostics: null,
         },
       },
     };

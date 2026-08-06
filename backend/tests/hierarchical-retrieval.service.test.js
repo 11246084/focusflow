@@ -79,7 +79,17 @@ describe('hierarchical retrieval orchestrator', () => {
     assert.equal(result.diagnostics.hierarchical.parentHitCount, 1);
     assert.equal(result.diagnostics.hierarchical.requestedChildCount, 2);
     assert.equal(result.diagnostics.hierarchical.expandedLeafCount, 2);
+    assert.deepEqual(result.diagnostics.hierarchical.diagnostics, {
+      requestedChildCount: 2,
+      foundChildCount: 2,
+      missingChildCount: 0,
+      duplicateChildCount: 0,
+      scopeMismatchCount: 0,
+      truncatedChildCount: 0,
+      contextTruncated: false,
+    });
     assert.equal(answer.provider, 'template');
+    assert.equal(citations[0].chunkId, 'c1');
     assert.equal(citations[0].segmentId, 'c1');
     assert.equal(citations[0].timestamp.startSec, 10);
   });

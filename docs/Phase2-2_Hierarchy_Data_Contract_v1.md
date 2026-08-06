@@ -500,3 +500,40 @@ User Question
 - **[Confirmed by current code]** 本 Sprint 只新增本 Markdown 設計文件。
 - **[Deferred]** 未修改 Python、Backend、Frontend、uploader、Mongoose model、config、`.env.example`、README 或 tests。
 - **[Deferred]** 未呼叫 Gemini、MongoDB 或其他外部服務；未建立 collection/index、未 migration、未刪資料、未跑 Docker、未 commit/push/pull/fetch/merge/rebase/reset/restore/stash。
+## Step 10 Citation 與隔離 E2E 契約（2026-08-06）
+
+### Citation identity
+
+- 正式 `citations[]` 保留所有既有欄位並新增 `chunkId: string | null`。
+- `chunkId` 只能來自實際 Leaf match；legacy match 只有 `segmentId` 時輸出 `null`，不得複製或推測 ID。
+- `timestamp.startSec/endSec` 永遠來自 Leaf，不得以 Parent 聚合時間取代。
+- Citation transcript 仍只輸出既有長度限制的 snippet，不輸出完整 Leaf transcript。
+- Parent lineage 不納入正式 Citation API。多 Parent 命中同一 Leaf 時仍去重並採最高 Parent score；lineage 僅供隔離 runner evidence 使用。
+
+### Hierarchical diagnostics
+
+成功的 `runtime.hierarchicalRetrieval.diagnostics` 以 additive contract 提供：
+
+```json
+{
+  "requestedChildCount": 0,
+  "foundChildCount": 0,
+  "missingChildCount": 0,
+  "duplicateChildCount": 0,
+  "scopeMismatchCount": 0,
+  "truncatedChildCount": 0,
+  "contextTruncated": false
+}
+```
+
+Gate=false 時維持既有 Leaf-only response。若在取得完整 counts 前 fallback，`diagnostics` 為 `null`，不得捏造零值。
+
+### Zero-write isolated runner
+
+- 入口：`backend/src/scripts/phase2_2_hierarchical_e2e_runner.js`。
+- Runner 直接串接 query embedding、Parent Search、Child Expansion、Leaf Context、可選 Answer Generation與 Citation builder；禁止呼叫具副作用的完整 `askQuestion()`。
+- 預設 `--with-answer=false`；live Answer Generation 必須明確開啟。
+- Runner 不修改 shared Gate；啟動時要求 shared Gate=false、fallback=true、FAQ cache=false。
+- 啟動前要求 `chunkId_1` 存在，並要求等價 Child lookup explain 的 winning plan實際包含 `chunkId_1`。
+- MongoDB command monitor 對 write command標記 `WRITE_OPERATION_DETECTED`；live run仍應搭配read-only MongoDB credential。
+- Live E2E 尚未執行；此 runner不代表Step 9或Step 10已完成。

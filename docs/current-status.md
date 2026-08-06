@@ -200,3 +200,13 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 模組不建立 MongoDB client，尚未接入正式 Pipeline upload stage；本輪只使用 fake collection / mock operations 驗證，shared Atlas write 為 0。
 - `generationVersion` 只保留 nullable audit 值、`isActive=true`；stale cleanup 與 generation switching 均未啟用。
 - 真實 Parent artifacts、隔離 Atlas upload、重跑 upsert、Parent Vector Search 與 E2E 仍待後續驗收。
+## Phase 2-2 Step 10 前置狀態（2026-08-06）
+
+- Step 9 仍等待 Database owner 在 shared Atlas `video_segments_text` 建立並驗證 camelCase `chunkId_1`；Step 9 與 live Child Expansion 尚未完成。
+- QA citation 已以向下相容方式新增 nullable `chunkId`。值只可來自實際 Leaf match；legacy `segmentId` 不會被偽裝成 canonical `chunkId`。
+- 正式 citation 暫不公開 Parent lineage；Parent → Child 關係只由隔離 E2E runner 的安全化 evidence 記錄。
+- Hierarchical Retrieval 成功路徑新增 requested、found、missing、duplicate、scope mismatch、truncated 與 context truncated diagnostics。
+- 新增零寫入隔離 runner `backend/src/scripts/phase2_2_hierarchical_e2e_runner.js`，不呼叫 `askQuestion()` 或其寫入路徑。
+- Runner 預設不執行 Answer Generation；`chunkId_1` 不存在或 explain 未實際使用它時，以 `E2E_CHUNK_ID_INDEX_NOT_READY` 阻擋。
+- Shared `HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 `false`；live Child Expansion、Gemini live call 與 live E2E 均尚未執行。
+- 詳細規格見 [Phase2-2 Step 10 E2E Test Plan](Phase2-2_Step10_E2E_Test_Plan.md)。

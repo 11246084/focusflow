@@ -95,6 +95,7 @@ describe('hierarchical retrieval QA integration', () => {
     assert.equal(vectorSearch.index, env.videoSegmentParentVectorIndexName);
     assert.equal(result.runtime.searchBackendUsed, 'parent_vector');
     assert.equal(result.runtime.hierarchicalRetrieval.retrievalMode, 'hierarchical');
+    assert.deepEqual(result.citations.map((citation) => citation.chunkId), [ids.segmentOne, ids.segmentTwo]);
     assert.deepEqual(result.citations.map((citation) => citation.segmentId), [ids.segmentOne, ids.segmentTwo]);
   });
 

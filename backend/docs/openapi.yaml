@@ -3316,6 +3316,11 @@ components:
         - transcript
         - score
       properties:
+        chunkId:
+          description: Canonical Leaf chunk identity; null for legacy segmentId-only matches.
+          anyOf:
+            - type: string
+            - type: 'null'
         segmentId:
           type: string
         modality:

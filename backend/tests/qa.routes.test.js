@@ -170,9 +170,10 @@ describe('qa routes', () => {
     assert.match(result.body.data.answer, /JWT authentication/i);
     assert.equal(result.body.data.matches.length > 0, true);
     assert.equal(result.body.data.matches[0].segmentId, ids.segmentOne);
+    assert.equal(result.body.data.matches[0].chunkId, ids.segmentOne);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
+      ['chunkId', 'endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
     );
     assert.equal(result.body.data.citations.length, result.body.data.matches.length);
     assert.deepEqual(
@@ -182,6 +183,7 @@ describe('qa routes', () => {
     assert.equal(result.body.data.citations[0].citationId, 'C1');
     assert.equal(result.body.data.citations[0].modality, 'text');
     assert.equal(result.body.data.citations[0].clipPath, null);
+    assert.equal(result.body.data.citations[0].chunkId, ids.segmentOne);
     assert.equal(result.body.data.citations[0].segmentId, ids.segmentOne);
     assert.equal(result.body.data.citations[0].sourceVideo.title, 'Published Video');
     assert.equal(result.body.data.citations[0].sourceVideo.sourceUrl, '/uploads/published.mp4');
@@ -299,8 +301,10 @@ describe('qa routes', () => {
     assert.match(result.body.data.matches[0].transcript, /videoId and text fields/i);
     assert.deepEqual(
       Object.keys(result.body.data.matches[0]).sort(),
-      ['endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
+      ['chunkId', 'endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
     );
+    assert.equal(result.body.data.matches[0].chunkId, null);
+    assert.equal(result.body.data.citations[0].chunkId, null);
     assert.equal(result.body.data.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
   });
 

@@ -136,6 +136,7 @@ function computeLexicalScore(question, transcript) {
 
 function mapSegmentMatch(segment, score) {
   return {
+    chunkId: segment.chunkId,
     segmentId: segment.segmentId,
     videoId: segment.videoId,
     videoTitle: segment.videoTitle || null,

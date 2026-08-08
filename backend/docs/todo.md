@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-07-10
+最後更新：2026-08-08
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
@@ -125,7 +125,7 @@
 - **狀態**：Done（2026-04-19）
 - **完成內容**：
   - `.env` 已設定 `QA_QUERY_EMBEDDING_PROVIDER=gemini`
-  - `queryEmbedding.service.js` 支援 `gemini-embedding-2-preview`（3072 維）
+  - Backend `queryEmbedding.service.js` 已切換 stable `gemini-embedding-2`（3072 維、文字 instruction、無 task type）；Pipeline／Database preview vectors 仍待跨組重建與 read-only compatibility evidence
   - 維度動態配置（`QA_QUERY_EMBEDDING_DIM`）
   - `video_segments_text` 105 筆 segments 全部有 embedding，維度一致
 

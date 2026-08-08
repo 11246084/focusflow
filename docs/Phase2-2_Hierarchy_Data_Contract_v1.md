@@ -1,6 +1,6 @@
 # Phase 2-2 — Hierarchy Data Contract Design v1
 
-> 狀態：Design Sprint / implementation-ready draft  
+> 狀態：Design Sprint / implementation-ready draft；2026-08-08 Backend query contract 已切換 stable，但 Pipeline／Database 的既有 preview artifacts 尚未遷移。Backend 詳細契約見 [backend/docs/embedding-search-contract.md](../backend/docs/embedding-search-contract.md)。
 > 範圍：Sprint 2A Parent Embedding、Sprint 2B Parent Storage、Sprint 3 Hierarchical Retrieval、Sprint 4 Retrieval Evaluation  
 > 原則：不改寫既有 Leaf Chunk、不污染 Leaf-only QA、Citation 最終仍指向 Leaf。
 
@@ -16,6 +16,8 @@
 - **[Database review required]**：需 Database owner 確認或執行；不代表 live DB 已具備。
 - **[Joint decision required]**：跨組決策尚未定版。
 - **[Deferred]**：不納入目前 MVP。
+
+2026-08-08 cross-group gate：`gemini-embedding-2-preview` 與 stable `gemini-embedding-2` 不可混用；兩者同為 3072 維也不能視為同一向量空間。以下仍標記為「目前程式」的 Pipeline／Database 欄位，若尚未更新為 stable text-search contract，只能作為 legacy 現況，不是 Backend 可啟用的 active compatibility 證據。
 
 ## 2. Repository 與 Git 基線
 
@@ -89,7 +91,7 @@ Video
 - **[Confirmed by current code]** `text_embedding` 呼叫 `embed_chunks(chunks, config)`，輸入是 Leaf，不讀 Parent。
 - **[Confirmed by current code]** run-specific artifact 為 `embeddings_text_gemini.jsonl`。
 - **[Confirmed by current code]** record 欄位為 `chunk_id`、`video_id`、`start_sec`、`end_sec`、`text`、`embedding`、`embedding_model`、`embedding_modality`、`embedding_dim`、`embedding_timestamp`、`embedding_status`、`embedding_error`、`embedding_request_id`。
-- **[Confirmed by current code]** provider 是 Gemini；預設 model `gemini-embedding-2-preview`、dimension `3072`、task type `RETRIEVAL_DOCUMENT`，輸出會做 unit normalization。
+- **[Current cross-group gap, verified 2026-08-08]** STT Pipeline 目前仍是 Gemini、預設 `gemini-embedding-2-preview`、3072 維、`RETRIEVAL_DOCUMENT` 與 unit normalization；Backend query 已改成 stable `gemini-embedding-2` 的文字 instruction，兩者在 Pipeline 重建前不可混用。
 - **[Confirmed by current code]** runtime config 的 batch default 是 `16`；`.env.example` 是 `1`、README 範例是 `8`，真正 runtime source of truth 是 `PipelineConfig` 加當次環境值。
 - **[Confirmed by current code]** 只有 quota/429 類錯誤依 `GEMINI_MAX_RETRIES` 與 backoff retry；失敗 batch 會輸出空 vector 與 failure status，其他 batch 可繼續，形成 partial artifact。
 - **[Confirmed by current code]** checkpoint reuse 會驗證 ID、text、model、modality、dimension 與非空 vector；目前沒有獨立 embedding config snapshot 或 embedding fingerprint。
@@ -174,7 +176,7 @@ PARENT_EMBEDDING_ENABLED=false
 | `embedding_provider` | 是 | `gemini` |
 | `embedding_model` | 是 | runtime model |
 | `embedding_dimension` | 是 | runtime dimension |
-| `embedding_task_type` | 是 | `RETRIEVAL_DOCUMENT` |
+| `embedding_task_type` | 是 | stable `gemini-embedding-2` 應為 `null`；現有 preview artifact 的 `RETRIEVAL_DOCUMENT` 只作 legacy audit，未遷移前不可發布 |
 | `embedding_status`, `embedding_error` | 是 | partial failure contract |
 | `embedding_timestamp`, `embedding_request_id` | 否 | 稽核欄位，不進 fingerprint |
 | `embedding_schema_version` | 是 | `parent_embedding_v1` |
@@ -386,7 +388,7 @@ User Question
 ## 17.1 Parent Publication Adapter（2026-08-03 offline implementation）
 
 - **[Confirmed by current code]** 正式模組為 `STT_Whisper/src/parent_mongodb_uploader.py`；它不建立 MongoDB client，collection 由呼叫端注入，且尚未接入 Pipeline `main.py` 或 Leaf `upload_all()`。
-- **[Confirmed by current code]** 輸入只接受已驗證的 `embeddings_parent_gemini.jsonl`。發布前會整批驗證 JSONL、Parent 欄位、批次 scope、fingerprints，以及 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 contract；任一錯誤使整批 write count 為 0。
+- **[Current cross-group gap, verified 2026-08-08]** 輸入目前仍驗證 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 legacy contract；在 Pipeline uploader 改成 stable text-search contract 並重建 artifacts 前，整批不得視為可供 Backend active compatibility 使用。
 - **[Confirmed by current code]** `courseId` 必須由呼叫端顯式提供，或由呼叫端注入的權威 resolver 對每筆解析；格式為 MongoDB ObjectId，缺失、無效或同批衝突皆拒絕。不得從 `videoId`、課名或第一門課推測。
 - **[Confirmed by current code]** artifact 到 storage 使用集中式白名單 snake_case → camelCase mapping。artifact-only 的 `embedding_status`、`embedding_timestamp`、`embedding_error`、`embedding_request_id` 不寫入 Backend schema。
 - **[Confirmed by current code]** upsert filter 唯一為 `{ parentId }`，operation 使用 `$set`、`upsert=True`，bulk write 使用 `ordered=False`。不把 `courseId` 或 `generationVersion` 放入 filter，不執行 delete 或 stale cleanup。

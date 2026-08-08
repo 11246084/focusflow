@@ -1,8 +1,14 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
+const {
+  GEMINI_EMBEDDING_2_MODEL,
+  GEMINI_EMBEDDING_DIMENSIONS,
+  buildGeminiSearchQueryText,
+  isStableGeminiEmbeddingModel,
+} = require('./embeddingContract.service');
 
-const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-2-preview';
-const GEMINI_QUERY_EMBEDDING_DIMENSIONS = 3072;
+const GEMINI_EMBEDDING_MODEL = GEMINI_EMBEDDING_2_MODEL;
+const GEMINI_QUERY_EMBEDDING_DIMENSIONS = GEMINI_EMBEDDING_DIMENSIONS;
 
 function normalizeText(text) {
   return String(text || '')
@@ -13,15 +19,18 @@ function normalizeText(text) {
 
 function normalizeEmbeddingVector(values, expectedDimensions = null) {
   const vector = Array.isArray(values) ? values : [];
+
   if (!vector.length
       || (expectedDimensions != null && vector.length !== expectedDimensions)
       || vector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
     throw new AppError('Embedding provider returned an invalid vector.', 502, 'EMBEDDING_PROVIDER_ERROR');
   }
+
   const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + (value * value), 0));
   if (!Number.isFinite(magnitude) || magnitude === 0) {
     throw new AppError('Embedding provider returned an invalid vector.', 502, 'EMBEDDING_PROVIDER_ERROR');
   }
+
   return vector.map((value) => value / magnitude);
 }
 
@@ -30,8 +39,7 @@ function buildMockEmbedding(text, dimensions = env.qaMockEmbeddingDimensions) {
   const vector = Array.from({ length: dimensions }, () => 0);
 
   for (const [index, char] of Array.from(normalized).entries()) {
-    const code = char.charCodeAt(0);
-    const slot = code % dimensions;
+    const slot = char.charCodeAt(0) % dimensions;
     vector[slot] += 1 + ((index % 7) / 10);
   }
 
@@ -41,70 +49,103 @@ function buildMockEmbedding(text, dimensions = env.qaMockEmbeddingDimensions) {
 
 async function embedWithOpenAI(text) {
   if (!env.openaiApiKey) {
-    throw new AppError('OPENAI_API_KEY is required for OpenAI embeddings.', 500, 'EMBEDDING_PROVIDER_NOT_CONFIGURED');
+    throw new AppError(
+      'OPENAI_API_KEY is required for OpenAI embeddings.',
+      500,
+      'EMBEDDING_PROVIDER_NOT_CONFIGURED',
+    );
   }
 
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: env.openaiEmbeddingModel,
-    }),
-  });
+  let response;
+  try {
+    response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.openaiApiKey}`,
+      },
+      body: JSON.stringify({
+        input: text,
+        model: env.openaiEmbeddingModel,
+      }),
+    });
+  } catch {
+    throw new AppError('Failed to reach the OpenAI embedding provider.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
 
   if (!response.ok) {
-    const payload = await response.text();
-    throw new AppError('Failed to generate query embedding.', 502, 'EMBEDDING_PROVIDER_ERROR', payload);
+    throw new AppError('Failed to generate query embedding.', 502, 'EMBEDDING_PROVIDER_ERROR');
   }
 
-  const payload = await response.json();
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new AppError('OpenAI embedding response was invalid JSON.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
+
   return payload.data?.[0]?.embedding || [];
 }
 
 async function embedWithGemini(text) {
   if (!env.geminiApiKey) {
-    throw new AppError('GEMINI_API_KEY is required for Gemini embeddings.', 500, 'EMBEDDING_PROVIDER_NOT_CONFIGURED');
+    throw new AppError(
+      'GEMINI_API_KEY is required for Gemini embeddings.',
+      500,
+      'EMBEDDING_PROVIDER_NOT_CONFIGURED',
+    );
   }
 
-  const model = GEMINI_EMBEDDING_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${env.geminiApiKey}`;
+  const model = String(env.geminiEmbeddingModelName || '').trim();
+  if (!isStableGeminiEmbeddingModel(model)) {
+    throw new AppError(
+      'GEMINI_EMBEDDING_MODEL_NAME must be the stable gemini-embedding-2 model.',
+      500,
+      'EMBEDDING_CONTRACT_INVALID',
+    );
+  }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: `models/${model}`,
-      content: { parts: [{ text }] },
-      // Parent documents use RETRIEVAL_DOCUMENT; queries must use the paired query task in the same 3072-D space.
-      embedContentConfig: {
-        taskType: 'RETRIEVAL_QUERY',
-        outputDimensionality: GEMINI_QUERY_EMBEDDING_DIMENSIONS,
+  let response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': env.geminiApiKey,
+        },
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: {
+            parts: [{ text: buildGeminiSearchQueryText(text) }],
+          },
+          // Raw REST uses snake_case output_dimensionality; taskType is unsupported.
+          output_dimensionality: GEMINI_QUERY_EMBEDDING_DIMENSIONS,
+        }),
       },
-    }),
-  });
+    );
+  } catch {
+    throw new AppError('Failed to reach the Gemini embedding provider.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
 
   if (!response.ok) {
-    const payload = await response.text();
-    throw new AppError('Failed to generate Gemini query embedding.', 502, 'EMBEDDING_PROVIDER_ERROR', payload);
+    throw new AppError('Failed to generate Gemini query embedding.', 502, 'EMBEDDING_PROVIDER_ERROR');
   }
 
-  const payload = await response.json();
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new AppError('Gemini embedding response was invalid JSON.', 502, 'EMBEDDING_PROVIDER_ERROR');
+  }
+
   return normalizeEmbeddingVector(payload.embedding?.values, GEMINI_QUERY_EMBEDDING_DIMENSIONS);
 }
 
 async function embedQuery(text) {
-  if (env.qaQueryEmbeddingProvider === 'openai') {
-    return embedWithOpenAI(text);
-  }
-
-  if (env.qaQueryEmbeddingProvider === 'gemini') {
-    return embedWithGemini(text);
-  }
-
+  if (env.qaQueryEmbeddingProvider === 'openai') return embedWithOpenAI(text);
+  if (env.qaQueryEmbeddingProvider === 'gemini') return embedWithGemini(text);
   return buildMockEmbedding(text);
 }
 

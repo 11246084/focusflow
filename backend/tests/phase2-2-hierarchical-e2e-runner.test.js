@@ -12,6 +12,8 @@ const {
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
 
 const originalGate = env.hierarchicalRetrievalEnabled;
+const originalProvider = env.qaQueryEmbeddingProvider;
+const originalGeminiEmbeddingModelName = env.geminiEmbeddingModelName;
 const courseId = '6a6da68456dd124511ec5196';
 const videoId = '6a6da69556dd124511ec51eb';
 
@@ -71,6 +73,8 @@ function dependencies(overrides = {}) {
 
 afterEach(() => {
   env.hierarchicalRetrievalEnabled = originalGate;
+  env.qaQueryEmbeddingProvider = originalProvider;
+  env.geminiEmbeddingModelName = originalGeminiEmbeddingModelName;
 });
 
 describe('Phase 2-2 isolated hierarchical E2E runner', () => {
@@ -164,6 +168,19 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     const result = await runIsolatedE2E(options(), dependencies());
     assert.deepEqual(result.gate, { sharedValue: false, isolatedValue: true });
     assert.equal(env.hierarchicalRetrievalEnabled, false);
+  });
+
+  it('includes stable embedding-contract evidence without changing the shared Gate', async () => {
+    env.qaQueryEmbeddingProvider = 'gemini';
+    env.geminiEmbeddingModelName = 'gemini-embedding-2';
+    const result = await runIsolatedE2E(options(), dependencies());
+    assert.equal(result.gate.sharedValue, false);
+    assert.deepEqual(result.query, {
+      length: options().question.length, embeddingProvider: 'gemini', embeddingModel: 'gemini-embedding-2',
+      instructionVersion: 'gemini_embedding_2_search_v1', generationVersion: 'text_search_generation_v1',
+      normalizationVersion: 'unit_l2_v1', contractVersion: 'gemini_embedding_2_text_v1',
+      schemaVersion: 'gemini_embedding_2_text_v1', taskType: null, dimension: 3072, apiCalls: 1,
+    });
   });
 
   it('does not import known write-side services used by askQuestion', () => {

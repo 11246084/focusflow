@@ -1,6 +1,6 @@
 # Backend 目前狀態
 
-最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter／QA 接線已完成；`video_segments_parent` 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；合併 YouTube 更新並補齊 Health/OpenAPI 契約後 backend 336/336 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
+最後更新：2026-08-08（Backend query embedding 已切換到可設定的 stable `gemini-embedding-2` contract，補上 instruction／generation／normalization／active data compatibility diagnostics 與測試；Pipeline／Database 既有 vectors 尚未重建或 live 確認，Atlas readiness 不得只由 3072 維判定，Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
 
 同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉 private；並以 `youtube.force-ssl` refresh token 完成 live 端對端驗證：上傳出現在頻道、系統刪除後 YouTube Studio 顯示「私人」）
 
@@ -38,8 +38,8 @@
 
 這代表：
 
-- query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- `.env` 設定使用 Atlas vector search（`text_embedding_index`），且共享 Atlas 上該 index 已存在且 READY/queryable（2026-05-23 直連驗證），atlas mode 可正常檢索
+- query embedding 使用 `GEMINI_EMBEDDING_MODEL_NAME`（預設 stable `gemini-embedding-2`，3072 維），request 以 `task: search result | query: ...` instruction 取代 legacy task type，並以 `unit_l2_v1` 驗證／正規化；既有 Pipeline／Database 向量是否已同 contract 必須由 `/health.runtime.qa.dataContractCompatibility` 與跨組證據確認
+- `.env` 設定使用 Atlas vector search（`text_embedding_index`）；該 index 的 READY/queryable 結果是 2026-05-23 的歷史 snapshot，本輪未連線重查，且在 active Leaf contract 未確認前不可宣稱 Atlas ready
 - answer generation 使用 Gemini（`gemini-3.5-flash`）
 - demo 資料不自動建立，需明確執行 `npm run seed`
 - 若要先清掉再重建，使用 `npm run seed:reset`
@@ -122,14 +122,14 @@
 
 **已知 index 狀態：**
 
-- `video_segments_text`：classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；**Atlas Vector Search Index `text_embedding_index` 已存在且 READY/queryable**（2026-05-23 MCP `$listSearchIndexes` 驗證：3072 維 cosine，filter fields=`embedding`(vector)+`courseId`+`videoId`，3 shards 全 READY，建立於 2026-04-19）
-- `video_segments_video`：**Atlas Vector Search Index `video_embedding_index` 已存在且 READY/queryable**（2026-07-10 MCP 驗證：3072 維 cosine，filter fields=`embedding`(vector)+`video_id`）
+- `video_segments_text`：classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；`text_embedding_index` 的 3072 維／filter 設定僅為 2026-05-23 歷史 snapshot，本輪未重查，不能取代 active embedding contract 證據
+- `video_segments_video`：`video_embedding_index` 的 READY/queryable 結果僅為 2026-07-10 歷史 snapshot，本輪未重查
 - `questions`：13 個 classic indexes，包含 `courseId`、`status`、`source`、`topSegmentId`、`askedAt`、複合索引（`courseId_1_askedAt_-1`、`userId_1_askedAt_-1`、`courseId_1_status_1_askedAt_-1`、`courseId_1_topSegmentId_1`）、text index（`question_text_answer_text`）、`sourceUsageLogId` partial unique sparse index；schema 預設不寫入 `sourceUsageLogId: null`
-- `video_segments_parent`：**2026-08-02 由 DB 組建立**。classic indexes：`_id_`、`parentId_1`（**unique**）、`courseId_1_videoId_1`、`videoId_1_hierarchyFingerprint_1`；**Atlas Vector Search Index `parent_embedding_index` 已建立且 READY/queryable**（2026-08-02 直連 `$listSearchIndexes` 驗證：3072 維 cosine，filter fields=`embedding`(vector)+`courseId`+`videoId`）。目前 0 筆資料，等待 Pipeline 組實作 Parent uploader
+- `video_segments_parent`：2026-08-02 的 DB setup／index 結果屬歷史 snapshot；目前仍須由 Database／Pipeline 以 read-only 證據確認 collection、index、active Parent contract 與資料筆數，且等待 Pipeline uploader 完成
 
 **對 runtime 的影響：**
 
-- `.env` 設定 `QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`，且 cluster 上索引已 READY，atlas mode 可正常檢索（`runtime.qa.readiness=ready`）
+- `.env` 設定 `QA_VECTOR_SEARCH_MODE=atlas` + `QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index`；cluster/index READY 是歷史 snapshot，未代表本輪 active Leaf contract 已驗證。現在若缺少或不相容的 Leaf metadata，`runtime.qa.readiness=hard_fail`，不得宣稱 Atlas ready
 - 本機無 API key 的隔離 smoke 仍可改用 `QA_VECTOR_SEARCH_MODE=memory` + `mock` embedding + `template` answer
 - 若未來 Atlas 再次被重置或 index 被刪，atlas mode 會 fail-fast；屆時需重建 `text_embedding_index`（3072 維 cosine，filter fields：`courseId` ObjectId、`videoId` camelCase）
 - Parent storage 目前**不影響預設 runtime 行為**：`HIERARCHICAL_RETRIEVAL_ENABLED=false` 時 `qa.service.js` 直接走 leaf-only 路徑。正式 Parent Search adapter 已接入 Gate 開啟路徑；collection／index、維度、scope、timeout、無命中或 Child expansion 發生問題時，由 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true` 安全退回 Leaf retrieval
@@ -139,7 +139,7 @@
 
 - **Phase 2-2 Hierarchical Retrieval Round 1（`3d9a234`）**：新增 `parentSearch.service.js`（`searchParents()` 介面 + `validateParentHit()` + 刻意保留的 `createUnavailableParentRepository()` stub）、`hierarchicalRetrieval.service.js`（Parent → Child → Context 主流程與 Leaf fallback）、`childExpansion.service.js`（依有序 `childChunkIds` 查回 Leaf、去重、scope 驗證）、`leafContextAssembly.service.js`（Leaf 數量與字元上限）。新增 7 個環境變數（`HIERARCHICAL_RETRIEVAL_ENABLED=false`、`HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true`、`HIERARCHICAL_PARENT_LIMIT=5`、`HIERARCHICAL_CHILD_EXPANSION_LIMIT=30`、`HIERARCHICAL_CONTEXT_MAX_LEAVES=15`、`HIERARCHICAL_CONTEXT_MAX_CHARACTERS=5000`、`HIERARCHICAL_PARENT_TIMEOUT_MS=1000`）。Gate 關閉時完全沿用 Leaf-only QA；診斷資訊只寫進 `runtime.hierarchicalRetrieval`
 - **Phase 2-2 Parent Storage（2026-08-02，DB 組）**：新增 `models/videoSegmentParent.model.js`（契約 §10 欄位 + `parentId` unique index）、`services/parentVectorIndex.service.js`（regular index 與 Atlas vector index 的冪等 ensure 邏輯）、`scripts/ensureParentStorage.js` 與 `npm run db:ensure-parent-storage`（支援 `--dry-run`，輸出遮蔽連線字串）、`tests/parent-vector-index.service.test.js`（8 條）。環境變數 `VIDEO_SEGMENT_PARENT_COLLECTION`（預設 `video_segments_parent`）與 `VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME`（預設 `parent_embedding_index`），`.env.example` 已同步。已於共享 Atlas 實際建立並驗證 READY。**DB 組拍板的五項決策**：(1) 採獨立 collection `video_segments_parent`；(2) unique key 用單鍵 `parentId`（MVP 單 generation，重跑同影片 idempotent upsert 覆蓋）；(3) `generationVersion` / `isActive` 保留欄位與 default，但不進 unique key、不進 regular index、不進 vector index filter，正式採 generation switch 時才啟用；(4) vector index 名 `parent_embedding_index`，3072 cosine，filter=`courseId`+`videoId`；(5) cleanup 走契約 §12 的 D→A 路線 —— 現階段只 upsert 不刪，正式開檢索前才啟用「全批 upsert 成功且驗證通過後刪同影片 stale parentId」，partial upload 絕不 cleanup，rollback 即關閉 Gate
-- **Phase 2-2 正式 Parent Search adapter（2026-08-02，Backend 組）**：新增 `parentSearchAdapter.service.js`，依環境變數使用 `video_segments_parent`／`parent_embedding_index`，強制 3072 維有限數值向量，並以 `courseId` ObjectId **或課程允許的掛載 `videoId`** 套用 Atlas scope；QA Gate 開啟路徑已由 unavailable stub 改接正式 adapter。Parent Model 強制 `courseId`、3072 維 embedding 與 `embeddingDimension=3072`；Gemini query 明確使用 `RETRIEVAL_QUERY`／3072 維。Parent hit 會再次驗證 course／video scope、`hierarchyLevel=1`、`documentType=parent_chunk` 與有序 Child IDs；Atlas 查詢套用 `maxTimeMS`，MongoDB 原始錯誤不對外傳遞，索引／collection／維度／scope 等失敗均可依既有設定安全回退 Leaf-only。成功診斷改為 `searchBackendUsed=parent_vector`
+- **Phase 2-2 正式 Parent Search adapter（2026-08-02，Backend 組）**：新增 `parentSearchAdapter.service.js`，依環境變數使用 `video_segments_parent`／`parent_embedding_index`，強制 3072 維有限數值向量，並以 `courseId` ObjectId **或課程允許的掛載 `videoId`** 套用 Atlas scope；QA Gate 開啟路徑已由 unavailable stub 改接正式 adapter。Parent Model 強制 `courseId`、3072 維 embedding 與 `embeddingDimension=3072`，並保留新版 embedding contract metadata；Gemini query 使用 stable instruction contract，不再送 `RETRIEVAL_QUERY` task type。Parent hit 會再次驗證 course／video scope、`hierarchyLevel=1`、`documentType=parent_chunk` 與有序 Child IDs；Atlas 查詢套用 `maxTimeMS`，MongoDB 原始錯誤不對外傳遞，索引／collection／維度／scope 等失敗均可依既有設定安全回退 Leaf-only。成功診斷改為 `searchBackendUsed=parent_vector`
 - auth / JWT / RBAC 主線已可用；login 必填預期 `role`，跨身分入口回 `403 ROLE_MISMATCH`；register 限 `student` / `teacher`，已涵蓋 duplicate index race、bcrypt 與 public-user 敏感欄位測試
 - 站內通知已完成：使用者列表／cursor／未讀／單筆與全部已讀；admin 可發維護公告；影片完成對主課程與掛載課程的 active enrolled students 以 partial-unique dedupe 做可重送 fanout
 - private avatar 已完成：User nullable metadata、authenticated JPEG/PNG/WebP 上傳與 binary 讀取、5 MiB/magic 驗證、private storage、CAS 並發保護；跨環境 user sync 保留 target-local avatar
@@ -157,7 +157,7 @@
 - LINE QR 綁定 + 課程交接流程修正（2026-04-30，commit `c87fdad`）
 - QA grounding / matched video 標籤改善（2026-04-30，commit `c819bca`）
 - STT Pipeline 自動化整合（2026-04-27）：影片上傳後 `video.service.js` 自動 spawn STT pipeline；pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態；pipeline 結束後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
-- `queryEmbedding.service.js` 支援 `gemini-embedding-2-preview`（3072 維）
+- `queryEmbedding.service.js` 使用可設定的 stable `gemini-embedding-2`（3072 維），以 `gemini_embedding_2_search_v1` instruction、`text_search_generation_v1` generation 與 `unit_l2_v1` normalization 組成可檢查的 query contract；preview model 與 legacy task type 不會被 runtime 呼叫
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa`、`runtime.line` 與 `runtime.multimodal`
 - `ShortAsset` model 與內部 create/update service 已完成；保存 course/source/job/title/description/status/YouTube metadata、封存欄位與只含 `courseId/title/teacherId/status` 的 `courseSnapshot`。published+playable 必須具備非空 `youtubeVideoId` 與有效 `publishedAt`，legacy 空值不進 feed。feed 索引為 course/status/youtubeAvailability/publishedAt/_id，另有 `youtubeVideoId` unique+sparse（缺值不存 `null`）
@@ -253,7 +253,7 @@
 - `videos` 31 筆中 **0 筆有 `videoId` / `video_id` 欄位**（2026-08-02 實查）。bridge 實際靠 `String(videos._id)` 對上 `video_segments_text.videoId`，因此 Parent 的 `videoId` 必須沿用同一 canonical string，不需要另存 `sourceVideoId` / `backendVideoId`
 - `HIERARCHICAL_PARENT_TIMEOUT_MS` 預設 1000ms 對 Atlas vector search 偏緊，正式接線後可能頻繁 timeout 而靜默 fallback 到 leaf，需以實測調整
 - Parent Child Expansion 主要依 `video_segments_text.chunkId` 回查 Leaf，但共享 Atlas 目前沒有 `chunkId` classic index；正式開 Gate 前需由 DB owner 唯讀確認重複／null 分布，再建立並以 `explain("executionStats")` 驗證不走 COLLSCAN
-- Backend 與 Pipeline 目前同用 `gemini-embedding-2-preview`；Google 官方 deprecation 表列對應 `embedding-2-preview` 最早於 **2026-08-10** 停用，替代為 `gemini-embedding-2`。正式模型不再使用舊 `task_type`，且 embedding space 遷移需重做既有 Leaf／Parent vectors，因此不可只改 Backend 常數；需由 Backend + AI Pipeline + DB 組共同完成 query/document prompt 契約、re-embedding、Atlas smoke 與 rollback
+- Backend query code 已切換至可設定的 stable `gemini-embedding-2`；Pipeline／Database 的既有 preview artifacts 與 vectors 尚未由本輪重建。stable 模型不使用舊 `task_type`，而採 query/document prompt contract；embedding space 遷移仍需由 Backend + AI Pipeline + DB 組共同完成 re-embedding、active metadata、Atlas smoke 與 rollback，因此不能把 Backend code change 說成正式資料已切換
 
 ## 一句話結論
 

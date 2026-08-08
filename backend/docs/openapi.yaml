@@ -92,6 +92,68 @@ paths:
                           hierarchicalRetrievalFallbackToLeaf: true
                           hierarchicalParentStorageMode: atlas_parent_vector
                           queryEmbeddingDimensions: 3072
+                          queryEmbeddingContract:
+                            provider: gemini
+                            model: gemini-embedding-2
+                            dimension: 3072
+                            instructionVersion: gemini_embedding_2_search_v1
+                            generationVersion: text_search_generation_v1
+                            normalizationVersion: unit_l2_v1
+                            contractVersion: gemini_embedding_2_text_v1
+                            schemaVersion: gemini_embedding_2_text_v1
+                            taskType: null
+                          dataContractCompatibility:
+                            leaf:
+                              expected:
+                                provider: gemini
+                                model: gemini-embedding-2
+                                dimension: 3072
+                                instructionVersion: gemini_embedding_2_search_v1
+                                generationVersion: text_search_generation_v1
+                                normalizationVersion: unit_l2_v1
+                                contractVersion: gemini_embedding_2_text_v1
+                                schemaVersion: gemini_embedding_2_text_v1
+                                taskType: null
+                              active:
+                                provider: gemini
+                                model: gemini-embedding-2
+                                dimension: 3072
+                                instructionVersion: gemini_embedding_2_search_v1
+                                generationVersion: text_search_generation_v1
+                                normalizationVersion: unit_l2_v1
+                                contractVersion: gemini_embedding_2_text_v1
+                                schemaVersion: gemini_embedding_2_text_v1
+                                taskType: null
+                              source: QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON
+                              status: compatible
+                              mismatches: []
+                              error: null
+                            parent:
+                              expected:
+                                provider: gemini
+                                model: gemini-embedding-2
+                                dimension: 3072
+                                instructionVersion: gemini_embedding_2_search_v1
+                                generationVersion: text_search_generation_v1
+                                normalizationVersion: unit_l2_v1
+                                contractVersion: gemini_embedding_2_text_v1
+                                schemaVersion: gemini_embedding_2_text_v1
+                                taskType: null
+                              active:
+                                provider: gemini
+                                model: gemini-embedding-2
+                                dimension: 3072
+                                instructionVersion: gemini_embedding_2_search_v1
+                                generationVersion: text_search_generation_v1
+                                normalizationVersion: unit_l2_v1
+                                contractVersion: gemini_embedding_2_text_v1
+                                schemaVersion: gemini_embedding_2_text_v1
+                                taskType: null
+                              source: QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON
+                              status: compatible
+                              mismatches: []
+                              error: null
+                          leafQueryEmbeddingCompatible: true
                           parentQueryEmbeddingCompatible: true
                           readiness: ready
                           readyForAsk: true
@@ -2638,6 +2700,9 @@ components:
         - hierarchicalRetrievalFallbackToLeaf
         - hierarchicalParentStorageMode
         - queryEmbeddingDimensions
+        - queryEmbeddingContract
+        - dataContractCompatibility
+        - leafQueryEmbeddingCompatible
         - parentQueryEmbeddingCompatible
         - readiness
         - readyForAsk
@@ -2689,8 +2754,18 @@ components:
             - type: integer
               minimum: 1
             - type: 'null'
+        queryEmbeddingContract:
+          $ref: '#/components/schemas/EmbeddingContract'
+        queryContract:
+          description: "queryEmbeddingContract 的相容性 alias；新整合應使用明確命名欄位。"
+          $ref: '#/components/schemas/EmbeddingContract'
+        dataContractCompatibility:
+          $ref: '#/components/schemas/EmbeddingDataContractCompatibility'
+        leafQueryEmbeddingCompatible:
+          description: Active Leaf metadata 是否完整符合目前 query contract。
+          type: boolean
         parentQueryEmbeddingCompatible:
-          description: Query embedding 是否符合 Parent vector space 的 provider 與 3072 維契約。
+          description: Active Parent metadata 是否完整符合目前 query contract；不只比較 dimension。
           type: boolean
         readiness:
           $ref: '#/components/schemas/ReadinessStatus'
@@ -2706,6 +2781,97 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+    EmbeddingContract:
+      description: Backend query 與 active Leaf/Parent data 必須共同遵守的文字搜尋 embedding 契約。
+      type: object
+      required:
+        - provider
+        - model
+        - dimension
+        - instructionVersion
+        - generationVersion
+        - normalizationVersion
+        - contractVersion
+        - schemaVersion
+        - taskType
+      properties:
+        provider:
+          type: string
+        model:
+          type: string
+        dimension:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+        instructionVersion:
+          anyOf:
+            - type: string
+            - type: 'null'
+        generationVersion:
+          anyOf:
+            - type: string
+            - type: 'null'
+        normalizationVersion:
+          anyOf:
+            - type: string
+            - type: 'null'
+        contractVersion:
+          anyOf:
+            - type: string
+            - type: 'null'
+        schemaVersion:
+          anyOf:
+            - type: string
+            - type: 'null'
+        taskType:
+          description: Stable gemini-embedding-2 query contracts must use null.
+          anyOf:
+            - type: string
+            - type: 'null'
+    EmbeddingDataContractCompatibility:
+      description: Active Leaf/Parent metadata comparison against the current query contract.
+      type: object
+      required:
+        - leaf
+        - parent
+      properties:
+        leaf:
+          $ref: '#/components/schemas/EmbeddingContractCompatibility'
+        parent:
+          $ref: '#/components/schemas/EmbeddingContractCompatibility'
+    EmbeddingContractCompatibility:
+      type: object
+      required:
+        - expected
+        - active
+        - source
+        - status
+        - mismatches
+        - error
+      properties:
+        expected:
+          $ref: '#/components/schemas/EmbeddingContract'
+        active:
+          anyOf:
+            - $ref: '#/components/schemas/EmbeddingContract'
+            - type: 'null'
+        source:
+          type: string
+        status:
+          type: string
+          enum:
+            - not_declared
+            - compatible
+            - incompatible
+        mismatches:
+          type: array
+          items:
+            type: string
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
     LineRuntimeSnapshot:
       description: LINE runtime 的靜態快照，用來描述簽章驗證、reply 能力與 delivery mode。
       type: object

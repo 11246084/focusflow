@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const env = require('../config/env');
 const VideoSegment = require('../models/videoSegment.model');
 const VideoSegmentParent = require('../models/videoSegmentParent.model');
-const { embedQuery, GEMINI_EMBEDDING_MODEL } = require('../services/queryEmbedding.service');
+const { embedQuery } = require('../services/queryEmbedding.service');
+const { buildGeminiTextSearchContract } = require('../services/embeddingContract.service');
 const { createParentSearchRepository } = require('../services/parentSearchAdapter.service');
 const { searchParents } = require('../services/parentSearch.service');
 const { expandParentHits } = require('../services/childExpansion.service');
@@ -208,14 +209,32 @@ async function runIsolatedE2E(options, dependencies) {
 
   commandMonitor.assertNoWrites();
   const safety = commandMonitor.snapshot();
+  const queryContract = env.qaQueryEmbeddingProvider === 'gemini'
+    ? buildGeminiTextSearchContract(env.geminiEmbeddingModelName)
+    : {
+      provider: env.qaQueryEmbeddingProvider,
+      model: env.qaQueryEmbeddingProvider,
+      instructionVersion: null,
+      generationVersion: null,
+      normalizationVersion: null,
+      contractVersion: null,
+      schemaVersion: null,
+      taskType: null,
+    };
   return {
     runMode: 'phase2_2_isolated_e2e',
     writesAllowed: false,
     gate: { sharedValue: false, isolatedValue: true },
     query: {
       length: options.question.length,
-      embeddingProvider: env.qaQueryEmbeddingProvider,
-      embeddingModel: env.qaQueryEmbeddingProvider === 'gemini' ? GEMINI_EMBEDDING_MODEL : env.qaQueryEmbeddingProvider,
+      embeddingProvider: queryContract.provider,
+      embeddingModel: queryContract.model,
+      instructionVersion: queryContract.instructionVersion,
+      generationVersion: queryContract.generationVersion,
+      normalizationVersion: queryContract.normalizationVersion,
+      contractVersion: queryContract.contractVersion,
+      schemaVersion: queryContract.schemaVersion,
+      taskType: queryContract.taskType,
       dimension: queryVector.length,
       apiCalls: 1,
     },

@@ -92,11 +92,22 @@ const videoSegmentParentSchema = new mongoose.Schema(
       enum: [3072],
     },
     embeddingTaskType: {
+      // Legacy taskType is retained for audit; stable gemini-embedding-2 must store null.
       type: String,
       default: null,
       trim: true,
     },
     embeddingSchemaVersion: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    embeddingInstructionVersion: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    embeddingContractVersion: {
       type: String,
       default: null,
       trim: true,

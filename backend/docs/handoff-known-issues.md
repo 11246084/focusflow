@@ -1,6 +1,6 @@
 # Handoff / Known Issues
 
-最後更新：2026-07-10（visual citation retrieval 已接入；仍待 caption / clip source 定版）
+最後更新：2026-08-08（stable embedding query contract 已在 Backend 落地；Pipeline／Database active vector migration 仍待跨組完成）
 
 這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
 
@@ -67,7 +67,7 @@
 
 **已定版：**
 
-- query embedding provider：`gemini`（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
+- query embedding provider：Backend 使用可設定的 stable `gemini-embedding-2`（3072 維、文字 instruction、無 task type）；STT pipeline 目前仍是 preview／legacy task contract，尚未重建 vectors，兩者不可宣稱一致
 - `video_segments_text`：2026-04-19 舊快照為 105 筆且全部有 embedding；2026-05-01 共享 Atlas 重置後目前為 9 筆，欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
 - `videoId` 確認為 canonical（camelCase）；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
 

@@ -1,6 +1,6 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-最後更新：2026-08-02（Phase 2-2 Parent Storage 與正式 Backend Parent Search adapter／QA 接線已完成；`video_segments_parent`、3 個 regular index 與 `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY/queryable；合併 YouTube 更新並補齊 Health/OpenAPI 契約後 backend 336/336 tests 通過。Parent uploader 與 live Parent E2E 尚未完成，`HIERARCHICAL_RETRIEVAL_ENABLED` 維持 false）
+最後更新：2026-08-08（Backend query embedding 已改用可設定的 stable `gemini-embedding-2` 文字搜尋 contract，health／OpenAPI／env 與測試同步補上完整 compatibility diagnostics；Pipeline／Database 既有 vectors 尚未重建或 live 確認，Parent uploader 與 live Parent E2E 尚未完成，`HIERARCHICAL_RETRIEVAL_ENABLED` 維持 false）
 
 後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
 
@@ -43,7 +43,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `/health.runtime.shortsSync` 可觀察 Shorts metadata sync 的 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded；`SHORTS_SYNC_INTERVAL_MS` 預設 600000，設 0 停用
 - `/health.runtime.youtubeUpload`（2026-08-02）可觀察 YouTube OAuth 憑證健康度：readiness、最後一次 token 交換結果與授權 scope、最後一次刪除轉 private 的結果；scope 不足以轉 private 時會示警
 - QA misconfig 與 Atlas not ready 已 fail-fast，不靜默降級
-- **共享 Atlas 現況**（2026-05-23 直連驗證）：`videos` 16 筆、`video_segments_text` 130 筆，`text_embedding_index` 存在且 READY/queryable（3072 維 cosine，filter=`courseId`+`videoId`，3 shards 全 READY）；`.env` 的 `atlas` mode 可正常檢索，不需切回 `memory`
+- **共享 Atlas 歷史 snapshot**（2026-05-23 直連驗證）：當時 `videos` 16 筆、`video_segments_text` 130 筆，`text_embedding_index` READY/queryable；本輪未連線重查，且在 active Leaf contract 未確認前不可宣稱目前 Atlas ready
 - LINE Bot 已端對端驗證；VM 上的 `ngrok.service`（systemd，開機自啟）使用保留網域 `chevy-cradling-elevate.ngrok-free.dev` → port 4000，URL 不再每次重開變動，但 Channel Secret / Access Token 仍是部署變動項
 
 ---
@@ -114,8 +114,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，已同步 login role、notifications 與 avatar 契約；internal processing webhook 等少數端點仍以 route files 為準
 - backend tests：2026-08-02 全測 341/341 passed（42 suites；含 Dashboard zero-state 與 Admin Enrollment `studentId` 聚合）；隔離 MongoDB 7 已實證三個無 LINE 綁定帳號可穿過 `lineUserId` unique+sparse index，註冊 A/B/C 為 201/409/201；CAS 與併發邊界仍以既有測試與本輪頭貼 E2E 證據為準
 - Frontend 11 頁面（Student/Teacher/Admin 各角色 dashboard），登入、教師建立課程、QA grounding、LINE QR 綁定流程已開始串接
-- **Phase 2-2 Hierarchical Retrieval Backend 接線（2026-08-02）**：既有 `parentSearch` / `hierarchicalRetrieval` / `childExpansion` / `leafContextAssembly` 與 Leaf-only fallback 保留；新增正式 Atlas Parent Search adapter，依 env 契約執行 `courseId OR allowedVideoIds` scoped 3072 維 `$vectorSearch` 並接入 QA，支援多課程掛載影片。Model 強制 Parent `courseId`／3072 維 embedding，Gemini query 明確使用 `RETRIEVAL_QUERY`／3072 維，Health 會回報不相容 provider。`HIERARCHICAL_RETRIEVAL_ENABLED` 預設仍為 false，Parent 查詢或資料驗證失敗時仍可安全回退 Leaf-only
-- **Phase 2-2 Parent Storage（2026-08-02，DB 組）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`（支援 `--dry-run`，輸出自動遮蔽連線字串）。共享 Atlas 已建立 `video_segments_parent`（目前 0 筆）、regular index `parentId_1`（unique）/ `courseId_1_videoId_1` / `videoId_1_hierarchyFingerprint_1`，以及 Atlas Vector Index `parent_embedding_index`（3072 維 cosine，filter=`courseId`+`videoId`），2026-08-02 直連驗證 READY/queryable。跨組決策定案：MVP 採單一 generation（unique `parentId`）、`generationVersion`/`isActive` 保留欄位但不參與 index 與查詢、cleanup 走契約 §12 的 D→A 路線（現階段只 upsert 不刪）、rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。契約見 [docs/Phase2-2_Hierarchy_Data_Contract_v1.md](Phase2-2_Hierarchy_Data_Contract_v1.md)
+- **Phase 2-2 Hierarchical Retrieval Backend 接線（2026-08-02～08-08）**：既有 `parentSearch` / `hierarchicalRetrieval` / `childExpansion` / `leafContextAssembly` 與 Leaf-only fallback 保留；新增正式 Atlas Parent Search adapter，依 env 契約執行 `courseId OR allowedVideoIds` scoped 3072 維 `$vectorSearch` 並接入 QA，支援多課程掛載影片。Backend query 改用 stable `gemini-embedding-2` 文字 instruction contract，不再送 legacy `RETRIEVAL_QUERY` task type；Health 會比較 model、dimension、instruction、generation 與 normalization，active data 未提供或不相容時不會誤報正常。`HIERARCHICAL_RETRIEVAL_ENABLED` 預設仍為 false，Parent 查詢或資料驗證失敗時仍可安全回退 Leaf-only
+- **Phase 2-2 Parent Storage（2026-08-02，DB 組；歷史 snapshot）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`；當時直連驗證 `video_segments_parent`、regular indexes 與 `parent_embedding_index` READY/queryable。跨組決策仍是 MVP 單一 generation、rollback 關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`；本輪未對 shared Atlas 重查或寫入，契約一致性須另由 read-only evidence 確認。契約見 [docs/Phase2-2_Hierarchy_Data_Contract_v1.md](Phase2-2_Hierarchy_Data_Contract_v1.md)
 
 ---
 
@@ -128,7 +128,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | Atlas vector index / future naming | DB / MongoDB 組 | `text_embedding_index` 已 READY（2026-05-23 驗證），atlas mode 可用。`video_segments_video` 的 `video_embedding_index` 已建立且 READY（2026-07-10 驗證）；backend 已用 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID，並以 `video_id` filter 接入初版 multimodal visual citation retrieval。限制：視覺片段目前無 transcript / caption，因此回覆只給保守答案與可檢視 citation，不編造畫面內容 |
 | init collections 與 Atlas 實況差異 | Database + Backend | 2026-07-24 唯讀實查 Atlas 15 collections、尚無 `notifications`；`init_collections.js` 現列 16 個並已含 `notifications`。不得未核准直接用 shared Atlas 啟服觸發 autoIndex |
 | OpenAPI 維護 | Backend | `backend/docs/openapi.yaml` 已涵蓋主要 auth / courses / videos / QA / LINE / stats / admin 端點與 Phase 2 QA contract；internal processing webhook 等少數內部端點仍以 route files 為準 |
-| Query embedding 與 pipeline 維度對齊 | AI Pipeline 組 | 目前已改用 Gemini query embedding；仍需持續確認 coverage 與長期契約 |
+| Query embedding 與 pipeline contract 對齊 | Backend + AI Pipeline + DB 組 | Backend query contract 已切 stable；既有 Pipeline／Database preview vectors 尚未重建，需以 active metadata、read-only Atlas evidence 與 rollback 條件完成跨組確認 |
 | `videos` physical storage 邊界 | Backend + DB 組 | 後端回應 contract 已用 `ownership` / `isAppOwned` / `metadataOnly` 固定語意；是否拆 collection 或調整 DB 實體模型仍屬跨組資料庫決策 |
 | Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
 | Phase 2-2 Parent uploader | AI Pipeline 組 | `STT_Whisper/src/mongodb_uploader.py` 目前**完全沒有 parent 相關程式碼**；需新增獨立 upload 路徑讀取 `embeddings_parent_gemini.jsonl`、snake_case→camelCase、以 `parentId` idempotent upsert、產出獨立 upload summary。Storage 端（collection / index）已就緒 |
@@ -184,15 +184,15 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
 - **不能說系統「已對外上線」**：VM、nginx、backend、DNS 都就緒且校內／VPN 連線穩定，但 2026-08-04 實測校外幾乎連不進來（57 個國外節點僅 1 個 connect），同學與一般家用網路皆 timeout。問題在學校邊界設備、待電算中心處理；在此之前對外可用的通道只有 ngrok
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
-- Atlas vector retrieval：`text_embedding_index` 於 2026-05-23 直連驗證為 READY/queryable，atlas mode 目前可用；仍須持續確認 query embedding 與 pipeline 資料覆蓋率的一致性
-- Query embedding **已切到 Gemini，但仍需持續確認與 pipeline 資料覆蓋率的一致性**
+- Atlas vector retrieval：`text_embedding_index` 的 READY/queryable 結果是 2026-05-23 歷史 snapshot；本輪未連線重查，且 active Leaf contract 未確認前不可宣稱 atlas mode 可用
+- Query embedding **Backend 已切到 stable Gemini contract，但 Pipeline／Database preview vectors 尚未重建，仍需完成 cross-group compatibility evidence**
 - `video_segments_video` **已接入初版 visual citation retrieval**；目前 Atlas `video_embedding_index` 已 READY，backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID 後用 `video_id` filter 檢索。仍不能誤稱為 caption QA 或正式 clip publishing source，因為視覺片段沒有 transcript / caption
 - Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**
 - LINE webhook **已納入 OpenAPI 文件**，但 stats/admin 與部分 PATCH/DELETE 尚未納入；OpenAPI 目前不是完整 API 契約
 - LIFF **不是目前 repo 已上線流程**；目前實際存在的是 LINE webhook + bind-token/message QR，LIFF endpoints / pages 尚未實作
 - Shorts backend **只完成修課 feed、ShortAsset 保存/封存與 YouTube metadata 可用性同步**；自動選片、剪輯、字幕、發布 worker與教師管理尚未實作，現有前端也尚未帶 JWT 呼叫新 feed
 - Phase 2-2 已完成 storage 與正式 Backend Parent Search adapter，但**尚未啟用或完成 live E2E**：`video_segments_parent` 目前 **0 筆資料**、Parent uploader 尚未實作、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Leaf → Answer 尚未以真實 Atlas Parent 文件跑過端對端流程
-- Embedding 模型遷移尚未完成：目前 Backend／Pipeline 使用的 preview model 對應 Google deprecation 表中的 `embedding-2-preview`，最早停用日為 **2026-08-10**；替代模型 `gemini-embedding-2` 的 task instruction 與向量空間需跨組同步，既有向量不可直接混用
+- Embedding 模型遷移仍是跨組未完成項：Backend query code 已切 stable `gemini-embedding-2`，但 Pipeline／Database 既有 preview artifacts 與 vectors 尚未重建；新版 task instruction、generation、normalization 與 active data metadata 需跨組同步，既有向量不可直接混用
 - Phase 2-2 契約文件 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
 ## 2026-08-03 Phase 2-2 Parent Uploader（offline/mock）
 

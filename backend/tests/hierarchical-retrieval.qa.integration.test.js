@@ -28,6 +28,8 @@ describe('hierarchical retrieval QA integration', () => {
     env.qaQueryEmbeddingProvider = 'mock';
     env.qaVectorSearchMode = 'memory';
     env.faqCacheEnabled = false;
+    env.qaActiveLeafEmbeddingContractJson = '';
+    env.qaActiveParentEmbeddingContractJson = '';
   });
 
   afterEach(() => {
@@ -39,6 +41,8 @@ describe('hierarchical retrieval QA integration', () => {
     env.qaQueryEmbeddingProvider = 'mock';
     env.qaVectorSearchMode = 'memory';
     env.faqCacheEnabled = true;
+    env.qaActiveLeafEmbeddingContractJson = '';
+    env.qaActiveParentEmbeddingContractJson = '';
   });
 
   it('gate=false preserves leaf-only response and citation contract', async () => {
@@ -103,6 +107,17 @@ describe('hierarchical retrieval QA integration', () => {
     env.hierarchicalRetrievalEnabled = true;
     env.hierarchicalRetrievalFallbackToLeaf = false;
     env.qaMockEmbeddingDimensions = 3072;
+    env.qaActiveParentEmbeddingContractJson = JSON.stringify({
+      provider: 'mock',
+      model: 'mock',
+      dimension: 3072,
+      instructionVersion: null,
+      generationVersion: null,
+      normalizationVersion: null,
+      contractVersion: null,
+      schemaVersion: null,
+      taskType: null,
+    });
     VideoSegmentParent.aggregate = async () => {
       const error = new Error('index unavailable');
       error.codeName = 'IndexNotFound';

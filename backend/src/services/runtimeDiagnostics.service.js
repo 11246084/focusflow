@@ -5,36 +5,103 @@ const {
   DEFAULT_VIDEO_VECTOR_INDEX_NAME,
   buildVideoVectorSearchIndexDefinition,
 } = require('./videoVectorIndex.service');
-const { PARENT_VECTOR_EMBEDDING_DIMENSIONS } = require('./parentVectorIndex.service');
+const {
+  GEMINI_EMBEDDING_DIMENSIONS,
+  buildGeminiTextSearchContract,
+  compareEmbeddingContracts,
+  isStableGeminiEmbeddingModel,
+  parseActiveEmbeddingContract,
+} = require('./embeddingContract.service');
 
 const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
 const QA_ANSWER_PROVIDERS = ['template', 'openai', 'gemini'];
 const QA_ATLAS_FILTER_MODES = ['bridge_course_or_video'];
+const DATA_CONTRACT_ENV_KEYS = {
+  leaf: {
+    key: 'qaActiveLeafEmbeddingContractJson',
+    source: 'QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON',
+  },
+  parent: {
+    key: 'qaActiveParentEmbeddingContractJson',
+    source: 'QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON',
+  },
+};
 
 function buildDiagnostic(code, message) {
   return { code, message };
 }
 
 function expectedQueryEmbeddingDimensions(provider) {
-  if (provider === 'gemini') return PARENT_VECTOR_EMBEDDING_DIMENSIONS;
+  if (provider === 'gemini') return GEMINI_EMBEDDING_DIMENSIONS;
   if (provider === 'mock') return env.qaMockEmbeddingDimensions;
+
   if (provider === 'openai') {
     if (env.openaiEmbeddingModel === 'text-embedding-3-large') return 3072;
-    if (['text-embedding-3-small', 'text-embedding-ada-002'].includes(env.openaiEmbeddingModel)) return 1536;
+    if (['text-embedding-3-small', 'text-embedding-ada-002'].includes(env.openaiEmbeddingModel)) {
+      return 1536;
+    }
   }
+
   return null;
 }
 
-function isParentQueryEmbeddingCompatible(snapshot) {
-  // Parent documents are Gemini RETRIEVAL_DOCUMENT vectors; only the matching query space is valid in runtime.
-  if (snapshot.queryEmbeddingProvider === 'gemini') {
-    return snapshot.queryEmbeddingDimensions === PARENT_VECTOR_EMBEDDING_DIMENSIONS;
+function buildQueryContract() {
+  if (env.qaQueryEmbeddingProvider === 'gemini') {
+    return buildGeminiTextSearchContract(env.geminiEmbeddingModelName);
   }
-  // Isolated tests may exercise the adapter with a deterministic 3072-dimensional mock vector.
-  // Atlas mode still rejects mock embeddings through the existing QA runtime check.
-  return snapshot.queryEmbeddingProvider === 'mock'
-    && snapshot.queryEmbeddingDimensions === PARENT_VECTOR_EMBEDDING_DIMENSIONS;
+
+  return {
+    provider: env.qaQueryEmbeddingProvider,
+    model: env.qaQueryEmbeddingProvider === 'openai'
+      ? env.openaiEmbeddingModel
+      : 'mock',
+    dimension: expectedQueryEmbeddingDimensions(env.qaQueryEmbeddingProvider),
+    instructionVersion: null,
+    generationVersion: null,
+    normalizationVersion: null,
+    contractVersion: null,
+    schemaVersion: null,
+    taskType: null,
+  };
+}
+
+function buildDataContractCompatibility(expected) {
+  return Object.entries(DATA_CONTRACT_ENV_KEYS).reduce((result, [kind, definition]) => {
+    const parsed = parseActiveEmbeddingContract(env[definition.key], definition.source);
+    const mismatches = parsed.error
+      ? ['invalid_json']
+      : parsed.declared
+        ? compareEmbeddingContracts(expected, parsed.contract)
+        : [];
+
+    result[kind] = {
+      expected,
+      active: parsed.contract,
+      source: parsed.source,
+      status: !parsed.declared
+        ? 'not_declared'
+        : mismatches.length
+          ? 'incompatible'
+          : 'compatible',
+      mismatches,
+      error: parsed.error,
+    };
+    return result;
+  }, {});
+}
+
+function isParentQueryEmbeddingCompatible(snapshot) {
+  return snapshot.dataContractCompatibility.parent.status === 'compatible';
+}
+
+function isLeafQueryEmbeddingCompatible(snapshot) {
+  return snapshot.dataContractCompatibility.leaf.status === 'compatible';
+}
+
+function hasStableGeminiModelFailure(snapshot) {
+  return snapshot.queryEmbeddingProvider === 'gemini'
+    && !isStableGeminiEmbeddingModel(snapshot.queryEmbeddingContract.model);
 }
 
 function buildQaHardFailures(snapshot) {
@@ -65,6 +132,13 @@ function buildQaHardFailures(snapshot) {
     hardFailures.push(buildDiagnostic(
       'QA_ATLAS_FILTER_MODE_UNSUPPORTED',
       `QA_ATLAS_FILTER_MODE "${snapshot.atlasFilterMode}" is not supported.`,
+    ));
+  }
+
+  if (hasStableGeminiModelFailure(snapshot)) {
+    hardFailures.push(buildDiagnostic(
+      'GEMINI_EMBEDDING_MODEL_CONTRACT_INVALID',
+      'GEMINI_EMBEDDING_MODEL_NAME must be stable gemini-embedding-2; preview and taskType contracts are not supported.',
     ));
   }
 
@@ -110,12 +184,21 @@ function buildQaHardFailures(snapshot) {
     ));
   }
 
+  // Atlas searches the active Leaf collection directly. Unknown metadata is not
+  // safe to treat as compatible, even when the vector index has the right size.
+  if (snapshot.vectorSearchMode === 'atlas' && !isLeafQueryEmbeddingCompatible(snapshot)) {
+    hardFailures.push(buildDiagnostic(
+      'QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_INCOMPATIBLE',
+      'Atlas Leaf vectors are missing or incompatible with the current query embedding contract.',
+    ));
+  }
+
   if (snapshot.hierarchicalRetrievalEnabled
       && !snapshot.hierarchicalRetrievalFallbackToLeaf
-      && !snapshot.parentQueryEmbeddingCompatible) {
+      && !isParentQueryEmbeddingCompatible(snapshot)) {
     hardFailures.push(buildDiagnostic(
       'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
-      'Hierarchical retrieval requires a Gemini RETRIEVAL_QUERY embedding with 3072 dimensions.',
+      'Hierarchical retrieval requires active Parent metadata matching the complete query embedding contract.',
     ));
   }
 
@@ -139,11 +222,10 @@ function buildQaWarnings(snapshot) {
     ));
   }
 
-
-  if (snapshot.hierarchicalRetrievalEnabled && !snapshot.parentQueryEmbeddingCompatible) {
+  if (snapshot.hierarchicalRetrievalEnabled && !isParentQueryEmbeddingCompatible(snapshot)) {
     warnings.push(buildDiagnostic(
       'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
-      'Parent search will remain unavailable until query embeddings use Gemini RETRIEVAL_QUERY at 3072 dimensions.',
+      'Parent search remains unavailable until active Parent metadata matches the complete stable embedding contract.',
     ));
   }
 
@@ -151,7 +233,8 @@ function buildQaWarnings(snapshot) {
 }
 
 function buildQaRuntimeSnapshot() {
-  const queryEmbeddingDimensions = expectedQueryEmbeddingDimensions(env.qaQueryEmbeddingProvider);
+  const queryEmbeddingContract = buildQueryContract();
+  const dataContractCompatibility = buildDataContractCompatibility(queryEmbeddingContract);
   const snapshot = {
     queryEmbeddingProvider: env.qaQueryEmbeddingProvider,
     vectorSearchMode: env.qaVectorSearchMode,
@@ -163,19 +246,26 @@ function buildQaRuntimeSnapshot() {
     hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,
     hierarchicalRetrievalFallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
     hierarchicalParentStorageMode: 'atlas_parent_vector',
-    queryEmbeddingDimensions,
+    queryEmbeddingDimensions: queryEmbeddingContract.dimension,
+    queryEmbeddingContract,
+    // Keep the short alias for existing consumers while the explicit field is
+    // adopted by the documented health contract.
+    queryContract: queryEmbeddingContract,
+    dataContractCompatibility,
   };
+
   snapshot.parentQueryEmbeddingCompatible = isParentQueryEmbeddingCompatible(snapshot);
+  snapshot.leafQueryEmbeddingCompatible = isLeafQueryEmbeddingCompatible(snapshot);
 
   const hardFailures = buildQaHardFailures(snapshot);
   const warnings = buildQaWarnings(snapshot);
-  const hierarchyDegraded = warnings.some(
+  const degraded = warnings.some(
     (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
   );
 
   return {
     ...snapshot,
-    readiness: hardFailures.length ? 'hard_fail' : hierarchyDegraded ? 'degraded' : 'ready',
+    readiness: hardFailures.length ? 'hard_fail' : degraded ? 'degraded' : 'ready',
     readyForAsk: hardFailures.length === 0,
     costControl: buildCostControlSnapshot(),
     warnings,
@@ -186,13 +276,8 @@ function buildQaRuntimeSnapshot() {
 function buildLineRuntimeSnapshot() {
   const missingConfig = [];
 
-  if (!env.lineChannelSecret) {
-    missingConfig.push('LINE_CHANNEL_SECRET');
-  }
-
-  if (!env.lineChannelAccessToken) {
-    missingConfig.push('LINE_CHANNEL_ACCESS_TOKEN');
-  }
+  if (!env.lineChannelSecret) missingConfig.push('LINE_CHANNEL_SECRET');
+  if (!env.lineChannelAccessToken) missingConfig.push('LINE_CHANNEL_ACCESS_TOKEN');
 
   const signatureValidationConfigured = Boolean(env.lineChannelSecret);
   const liveReplyConfigured = Boolean(env.lineChannelAccessToken);
@@ -235,8 +320,13 @@ function buildLineRuntimeSnapshot() {
 }
 
 function buildMultimodalRuntimeSnapshot() {
-  const hardFailures = [];
   const vectorIndexName = env.videoSegmentVideoVectorIndexName || DEFAULT_VIDEO_VECTOR_INDEX_NAME;
+  const hardFailures = !env.videoSegmentVideoVectorIndexName
+    ? [buildDiagnostic(
+      'VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_MISSING',
+      'Set VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME before multimodal QA can be enabled.',
+    )]
+    : [];
   const blockers = [
     buildDiagnostic(
       'MULTIMODAL_QA_NOT_INTEGRATED',
@@ -247,13 +337,6 @@ function buildMultimodalRuntimeSnapshot() {
       'video_segments_video.video_id must map to videos before course-scoped QA can use it.',
     ),
   ];
-
-  if (!env.videoSegmentVideoVectorIndexName) {
-    hardFailures.push(buildDiagnostic(
-      'VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_MISSING',
-      'Set VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME before multimodal QA can be enabled.',
-    ));
-  }
 
   return {
     segmentCollection: env.videoSegmentVideoCollection,
@@ -269,106 +352,12 @@ function buildMultimodalRuntimeSnapshot() {
   };
 }
 
-function assertAllowedRuntimeValue({ label, value, allowedValues, snapshot }) {
-  if (allowedValues.includes(value)) {
-    return;
-  }
-
-  throw new AppError(
-    `${label} "${value}" is not supported.`,
-    500,
-    'QA_RUNTIME_MISCONFIGURED',
-    {
-      ...snapshot,
-      invalidSetting: label,
-      invalidValue: value,
-      allowedValues,
-    },
-  );
-}
-
 function assertQaRuntimeConfiguration() {
   const snapshot = buildQaRuntimeSnapshot();
 
-  assertAllowedRuntimeValue({
-    label: 'QA_QUERY_EMBEDDING_PROVIDER',
-    value: env.qaQueryEmbeddingProvider,
-    allowedValues: QA_QUERY_EMBEDDING_PROVIDERS,
-    snapshot,
-  });
-  assertAllowedRuntimeValue({
-    label: 'QA_VECTOR_SEARCH_MODE',
-    value: env.qaVectorSearchMode,
-    allowedValues: QA_VECTOR_SEARCH_MODES,
-    snapshot,
-  });
-  assertAllowedRuntimeValue({
-    label: 'QA_ANSWER_PROVIDER',
-    value: env.qaAnswerProvider,
-    allowedValues: QA_ANSWER_PROVIDERS,
-    snapshot,
-  });
-  assertAllowedRuntimeValue({
-    label: 'QA_ATLAS_FILTER_MODE',
-    value: env.qaAtlasFilterMode,
-    allowedValues: QA_ATLAS_FILTER_MODES,
-    snapshot,
-  });
-
-  if (env.qaQueryEmbeddingProvider === 'openai' && !env.openaiApiKey) {
+  if (snapshot.hardFailures.length) {
     throw new AppError(
-      'OPENAI_API_KEY is required when QA_QUERY_EMBEDDING_PROVIDER=openai.',
-      500,
-      'QA_RUNTIME_MISCONFIGURED',
-      snapshot,
-    );
-  }
-
-  if (env.qaAnswerProvider === 'openai' && !env.openaiApiKey) {
-    throw new AppError(
-      'OPENAI_API_KEY is required when QA_ANSWER_PROVIDER=openai.',
-      500,
-      'QA_RUNTIME_MISCONFIGURED',
-      snapshot,
-    );
-  }
-
-  if (env.qaAnswerProvider === 'gemini' && !env.geminiApiKey) {
-    throw new AppError(
-      'GEMINI_API_KEY is required when QA_ANSWER_PROVIDER=gemini.',
-      500,
-      'QA_RUNTIME_MISCONFIGURED',
-      snapshot,
-    );
-  }
-
-  if (env.hierarchicalRetrievalEnabled
-      && !env.hierarchicalRetrievalFallbackToLeaf
-      && !snapshot.parentQueryEmbeddingCompatible) {
-    throw new AppError(
-      'Hierarchical retrieval requires a Gemini RETRIEVAL_QUERY embedding with 3072 dimensions.',
-      500,
-      'QA_RUNTIME_MISCONFIGURED',
-      snapshot,
-    );
-  }
-
-  if (env.qaVectorSearchMode !== 'atlas') {
-    return snapshot;
-  }
-
-  if (!env.qaAtlasVectorIndexName) {
-    throw new AppError(
-      'QA atlas mode requires QA_ATLAS_VECTOR_INDEX_NAME.',
-      500,
-      'QA_RUNTIME_MISCONFIGURED',
-      snapshot,
-    );
-  }
-
-  if (env.qaQueryEmbeddingProvider === 'mock') {
-    throw new AppError(
-      'QA atlas mode is not compatible with mock query embeddings. Set QA_QUERY_EMBEDDING_PROVIDER=gemini or openai.',
+      snapshot.hardFailures[0].message,
       500,
       'QA_RUNTIME_MISCONFIGURED',
       snapshot,

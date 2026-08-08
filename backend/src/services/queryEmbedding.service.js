@@ -31,6 +31,7 @@ function normalizeEmbeddingVector(values, expectedDimensions = null) {
     throw new AppError('Embedding provider returned an invalid vector.', 502, 'EMBEDDING_PROVIDER_ERROR');
   }
 
+  // Query 與資料向量必須採用同一正規化規則；這裡固定輸出 unit L2 vector。
   return vector.map((value) => value / magnitude);
 }
 
@@ -97,6 +98,7 @@ async function embedWithGemini(text) {
   }
 
   const model = String(env.geminiEmbeddingModelName || '').trim();
+  // 禁止透過設定退回 preview 模型，避免 query 與資料落在不同向量空間卻靜默失準。
   if (!isStableGeminiEmbeddingModel(model)) {
     throw new AppError(
       'GEMINI_EMBEDDING_MODEL_NAME must be the stable gemini-embedding-2 model.',
@@ -120,7 +122,7 @@ async function embedWithGemini(text) {
           content: {
             parts: [{ text: buildGeminiSearchQueryText(text) }],
           },
-          // Raw REST uses snake_case output_dimensionality; taskType is unsupported.
+          // Stable REST 以文字 instruction 取代 preview taskType，並以 snake_case 指定輸出維度。
           output_dimensionality: GEMINI_QUERY_EMBEDDING_DIMENSIONS,
         }),
       },

@@ -17,6 +17,7 @@ const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
 const QA_ANSWER_PROVIDERS = ['template', 'openai', 'gemini'];
 const QA_ATLAS_FILTER_MODES = ['bridge_course_or_video'];
+// 由 Pipeline／Database 在資料完成驗證後宣告；沒有宣告時不能假設現有資料相容。
 const DATA_CONTRACT_ENV_KEYS = {
   leaf: {
     key: 'qaActiveLeafEmbeddingContractJson',
@@ -66,6 +67,7 @@ function buildQueryContract() {
   };
 }
 
+// 同為 3072 維仍可能來自不同模型或 instruction，因此必須比較完整向量契約。
 function buildDataContractCompatibility(expected) {
   return Object.entries(DATA_CONTRACT_ENV_KEYS).reduce((result, [kind, definition]) => {
     const parsed = parseActiveEmbeddingContract(env[definition.key], definition.source);
@@ -193,6 +195,7 @@ function buildQaHardFailures(snapshot) {
     ));
   }
 
+  // 沒有 Leaf fallback 時，Parent 不相容會讓整條檢索路徑失效，必須直接判定不健康。
   if (snapshot.hierarchicalRetrievalEnabled
       && !snapshot.hierarchicalRetrievalFallbackToLeaf
       && !isParentQueryEmbeddingCompatible(snapshot)) {

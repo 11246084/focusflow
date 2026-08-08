@@ -49,6 +49,7 @@ const videoSegmentSchema = new mongoose.Schema(
       type: [Number],
       default: [],
     },
+    // Leaf 保存產生向量時的完整契約，供 health 判斷資料能否由目前的 query 安全查詢。
     embeddingProvider: { type: String, default: null, trim: true },
     embeddingModel: { type: String, default: null, trim: true },
     embeddingDimension: { type: Number, default: null },

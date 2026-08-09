@@ -20,13 +20,18 @@ from parent_embedding_strategy import (
     PARENT_EMBEDDING_PROVIDER,
     PARENT_EMBEDDING_SCHEMA_VERSION,
     PARENT_EMBEDDING_TASK_TYPE,
+    PARENT_EMBEDDING_INSTRUCTION,
+    PARENT_EMBEDDING_INSTRUCTION_VERSION,
+    PARENT_EMBEDDING_GENERATION_VERSION,
+    PARENT_EMBEDDING_CONTRACT_VERSION,
+    PARENT_EMBEDDING_ROLE,
 )
 from utils import chunked
 
 
 PARENT_COLLECTION_DEFAULT = "video_segments_parent"
 PARENT_DOCUMENT_SCHEMA_VERSION = "parent_document_v1"
-EXPECTED_MODEL = "gemini-embedding-2-preview"
+EXPECTED_MODEL = "gemini-embedding-2"
 EXPECTED_DIMENSION = 3072
 
 # Storage is an explicit whitelist. Artifact-only diagnostics are deliberately absent.
@@ -46,6 +51,8 @@ PARENT_FIELD_MAPPING = {
     "embedding_model": "embeddingModel",
     "embedding_dimension": "embeddingDimension",
     "embedding_task_type": "embeddingTaskType",
+    "embedding_instruction_version": "embeddingInstructionVersion",
+    "embedding_contract_version": "embeddingContractVersion",
     "embedding_schema_version": "embeddingSchemaVersion",
     "preprocessing_version": "preprocessingVersion",
     "normalization_version": "normalizationVersion",
@@ -56,7 +63,14 @@ PARENT_FIELD_MAPPING = {
 
 REQUIRED_ARTIFACT_FIELDS = frozenset(
     set(PARENT_FIELD_MAPPING)
-    | {"embedding_status", "embedding_timestamp", "embedding_error"}
+    | {
+        "embedding_status",
+        "embedding_timestamp",
+        "embedding_error",
+        "embedding_instruction",
+        "embedding_generation_version",
+        "embedding_role",
+    }
 )
 
 
@@ -195,11 +209,16 @@ def _validate_record(record: dict[str, Any]) -> list[dict[str, Any]]:
         errors.append(_error("model_mismatch", "embedding_model does not match the Parent contract.", **context))
     if record["embedding_dimension"] != EXPECTED_DIMENSION:
         errors.append(_error("dimension_metadata_mismatch", "embedding_dimension does not match the Parent contract.", **context))
-    if record["embedding_task_type"] != PARENT_EMBEDDING_TASK_TYPE:
+    if record["embedding_task_type"] is not PARENT_EMBEDDING_TASK_TYPE:
         errors.append(_error("task_type_mismatch", "embedding_task_type does not match the Parent contract.", **context))
     expected_metadata = {
         "embedding_timestamp": None,
         "embedding_schema_version": PARENT_EMBEDDING_SCHEMA_VERSION,
+        "embedding_instruction": PARENT_EMBEDDING_INSTRUCTION,
+        "embedding_instruction_version": PARENT_EMBEDDING_INSTRUCTION_VERSION,
+        "embedding_generation_version": PARENT_EMBEDDING_GENERATION_VERSION,
+        "embedding_contract_version": PARENT_EMBEDDING_CONTRACT_VERSION,
+        "embedding_role": PARENT_EMBEDDING_ROLE,
         "preprocessing_version": PARENT_EMBEDDING_PREPROCESSING_VERSION,
         "normalization_version": PARENT_EMBEDDING_NORMALIZATION_VERSION,
         "hierarchy_fingerprint": None,

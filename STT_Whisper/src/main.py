@@ -196,7 +196,7 @@ def bind_run_output(config: PipelineConfig, job_manager: JobManager) -> Pipeline
         chunks_output_path=run_output_dir / "chunks.jsonl",
         parent_chunks_output_path=run_output_dir / "parent_chunks.jsonl",
         correction_audit_output_path=run_output_dir / "correction_audit.jsonl",
-        parent_embeddings_output_path=run_output_dir / "embeddings_parent_gemini.jsonl",
+        parent_embeddings_output_path=run_output_dir / "embeddings_parent_gemini_stable.jsonl",
         text_embeddings_output_path=run_output_dir / "embeddings_text_gemini.jsonl",
         audio_embeddings_output_path=run_output_dir / "embeddings_audio_gemini.jsonl",
         video_embeddings_output_path=run_output_dir / "embeddings_video_gemini.jsonl",
@@ -620,7 +620,7 @@ def run_pipeline(
                 job_manager.set_parent_embedding_metadata(
                     dict(job_manager.manifest["parent_embedding_config"]),
                     str(job_manager.manifest["parent_embedding_fingerprint"]),
-                    artifact_path="embeddings_parent_gemini.jsonl",
+                    artifact_path="embeddings_parent_gemini_stable.jsonl",
                     required_count=len(parent_chunks),
                     success_count=success_count,
                     reused_count=reused_count,
@@ -634,7 +634,7 @@ def run_pipeline(
             job_manager.set_parent_embedding_metadata(
                 dict(job_manager.manifest["parent_embedding_config"]),
                 str(job_manager.manifest["parent_embedding_fingerprint"]),
-                artifact_path="embeddings_parent_gemini.jsonl",
+                artifact_path="embeddings_parent_gemini_stable.jsonl",
                 required_count=len(parent_chunks),
                 success_count=success_count,
                 reused_count=reused_count,
@@ -790,7 +790,7 @@ def main() -> int:
                 job_manager.set_parent_embedding_metadata(
                     parent_embedding_config,
                     parent_embedding_fingerprint,
-                    artifact_path=("embeddings_parent_gemini.jsonl" if parent_embedding_config["enabled"] else None),
+                    artifact_path=("embeddings_parent_gemini_stable.jsonl" if parent_embedding_config["enabled"] else None),
                     status=(None if parent_embedding_config["enabled"] else "skipped"),
                 )
         else:
@@ -819,7 +819,7 @@ def main() -> int:
             job_manager.set_parent_embedding_metadata(
                 parent_embedding_config,
                 parent_embedding_fingerprint,
-                artifact_path=("embeddings_parent_gemini.jsonl" if parent_embedding_config["enabled"] else None),
+                artifact_path=("embeddings_parent_gemini_stable.jsonl" if parent_embedding_config["enabled"] else None),
                 status=(None if parent_embedding_config["enabled"] else "skipped"),
             )
     except Exception as exc:

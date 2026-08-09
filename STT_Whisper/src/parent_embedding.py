@@ -26,6 +26,11 @@ from parent_embedding_strategy import (
     PARENT_EMBEDDING_PROVIDER,
     PARENT_EMBEDDING_SCHEMA_VERSION,
     PARENT_EMBEDDING_TASK_TYPE,
+    PARENT_EMBEDDING_INSTRUCTION,
+    PARENT_EMBEDDING_INSTRUCTION_VERSION,
+    PARENT_EMBEDDING_GENERATION_VERSION,
+    PARENT_EMBEDDING_CONTRACT_VERSION,
+    PARENT_EMBEDDING_ROLE,
 )
 from utils import chunked, load_jsonl_file, utc_timestamp, write_jsonl_file
 
@@ -58,7 +63,12 @@ class ParentEmbeddingRecord:
     embedding_provider: str
     embedding_model: str
     embedding_dimension: int
-    embedding_task_type: str
+    embedding_task_type: str | None
+    embedding_instruction: str
+    embedding_instruction_version: str
+    embedding_generation_version: str
+    embedding_contract_version: str
+    embedding_role: str
     embedding_status: str
     embedding_timestamp: str
     embedding_schema_version: str
@@ -115,6 +125,11 @@ def _build_record(
         embedding_model=config.gemini_embedding_model_name,
         embedding_dimension=(len(vector) if vector else config.gemini_embedding_output_dim),
         embedding_task_type=PARENT_EMBEDDING_TASK_TYPE,
+        embedding_instruction=PARENT_EMBEDDING_INSTRUCTION,
+        embedding_instruction_version=PARENT_EMBEDDING_INSTRUCTION_VERSION,
+        embedding_generation_version=PARENT_EMBEDDING_GENERATION_VERSION,
+        embedding_contract_version=PARENT_EMBEDDING_CONTRACT_VERSION,
+        embedding_role=PARENT_EMBEDDING_ROLE,
         embedding_status=status,
         embedding_timestamp=timestamp or utc_timestamp(),
         embedding_schema_version=PARENT_EMBEDDING_SCHEMA_VERSION,
@@ -310,8 +325,17 @@ def validate_parent_embedding_artifact(
             raise ValueError(f"Parent embedding vector contains non-finite or non-numeric values: {record.parent_id}")
         if record.embedding_dimension != expected_dimension:
             raise ValueError(f"Parent embedding metadata dimension mismatch: {record.parent_id}")
-        if record.embedding_provider != PARENT_EMBEDDING_PROVIDER or record.embedding_model != expected_model or record.embedding_task_type != PARENT_EMBEDDING_TASK_TYPE:
+        if record.embedding_provider != PARENT_EMBEDDING_PROVIDER or record.embedding_model != expected_model or record.embedding_task_type is not PARENT_EMBEDDING_TASK_TYPE:
             raise ValueError(f"Parent embedding provider metadata mismatch: {record.parent_id}")
+        stable_metadata = {
+            "embedding_instruction": PARENT_EMBEDDING_INSTRUCTION,
+            "embedding_instruction_version": PARENT_EMBEDDING_INSTRUCTION_VERSION,
+            "embedding_generation_version": PARENT_EMBEDDING_GENERATION_VERSION,
+            "embedding_contract_version": PARENT_EMBEDDING_CONTRACT_VERSION,
+            "embedding_role": PARENT_EMBEDDING_ROLE,
+        }
+        if any(getattr(record, key) != value for key, value in stable_metadata.items()):
+            raise ValueError(f"Parent embedding stable contract mismatch: {record.parent_id}")
         if record.embedding_schema_version != PARENT_EMBEDDING_SCHEMA_VERSION:
             raise ValueError(f"Parent embedding schema version mismatch: {record.parent_id}")
         if record.preprocessing_version != PARENT_EMBEDDING_PREPROCESSING_VERSION or record.normalization_version != PARENT_EMBEDDING_NORMALIZATION_VERSION:

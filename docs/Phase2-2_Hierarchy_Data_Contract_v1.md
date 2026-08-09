@@ -1,6 +1,21 @@
 # Phase 2-2 — Hierarchy Data Contract Design v1
 
-> 狀態：Design Sprint / implementation-ready draft；2026-08-08 Backend query contract 已切換 stable，但 Pipeline／Database 的既有 preview artifacts 尚未遷移。Backend 詳細契約見 [backend/docs/embedding-search-contract.md](../backend/docs/embedding-search-contract.md)。
+## 2026-08-09 Stable Parent Embedding implementation
+
+目前 production contract 已更新為：Gemini `gemini-embedding-2`、3072 維、
+`taskType=null`、Parent instruction `task: search result | document: <parent_text>`、
+instruction version `gemini_embedding_2_search_v1`、generation version
+`text_search_generation_v1`、normalization `unit_l2_v1`、contract version
+`gemini_embedding_2_text_v1`。Parent artifact schema 為 `parent_embedding_v2`，輸出檔為
+`embeddings_parent_gemini_stable.jsonl`。
+
+Fingerprint 依賴 Hierarchy fingerprint、provider、model、dimension、null task type、
+instruction、instruction version、generation version、normalization、contract version、
+role、schema 與 preprocessing version。Preview artifact 保留供 audit，但 stable resume、
+validator 與 uploader 均拒絕混用。本次只完成 offline/mock implementation；live stable
+vectors 與 Atlas Parent 更新尚未執行。
+
+> 狀態：2026-08-09 Backend Query 與 STT Parent production contract 已切換 stable；live Parent artifact／Atlas vectors 尚未遷移。Backend 詳細契約見 [backend/docs/embedding-search-contract.md](../backend/docs/embedding-search-contract.md)。
 > 範圍：Sprint 2A Parent Embedding、Sprint 2B Parent Storage、Sprint 3 Hierarchical Retrieval、Sprint 4 Retrieval Evaluation  
 > 原則：不改寫既有 Leaf Chunk、不污染 Leaf-only QA、Citation 最終仍指向 Leaf。
 
@@ -91,7 +106,7 @@ Video
 - **[Confirmed by current code]** `text_embedding` 呼叫 `embed_chunks(chunks, config)`，輸入是 Leaf，不讀 Parent。
 - **[Confirmed by current code]** run-specific artifact 為 `embeddings_text_gemini.jsonl`。
 - **[Confirmed by current code]** record 欄位為 `chunk_id`、`video_id`、`start_sec`、`end_sec`、`text`、`embedding`、`embedding_model`、`embedding_modality`、`embedding_dim`、`embedding_timestamp`、`embedding_status`、`embedding_error`、`embedding_request_id`。
-- **[Current cross-group gap, verified 2026-08-08]** STT Pipeline 目前仍是 Gemini、預設 `gemini-embedding-2-preview`、3072 維、`RETRIEVAL_DOCUMENT` 與 unit normalization；Backend query 已改成 stable `gemini-embedding-2` 的文字 instruction，兩者在 Pipeline 重建前不可混用。
+- **[Implemented 2026-08-09]** STT text/Parent Pipeline 預設 stable `gemini-embedding-2`、3072 維、`taskType=null`、versioned document instruction 與 unit normalization；既有 preview artifacts 仍不可混用。
 - **[Confirmed by current code]** runtime config 的 batch default 是 `16`；`.env.example` 是 `1`、README 範例是 `8`，真正 runtime source of truth 是 `PipelineConfig` 加當次環境值。
 - **[Confirmed by current code]** 只有 quota/429 類錯誤依 `GEMINI_MAX_RETRIES` 與 backoff retry；失敗 batch 會輸出空 vector 與 failure status，其他 batch 可繼續，形成 partial artifact。
 - **[Confirmed by current code]** checkpoint reuse 會驗證 ID、text、model、modality、dimension 與非空 vector；目前沒有獨立 embedding config snapshot 或 embedding fingerprint。
@@ -156,9 +171,9 @@ PARENT_EMBEDDING_ENABLED=false
 
 ### 7.3 Artifact
 
-- **[Proposed for v1]** 檔名：`embeddings_parent_gemini.jsonl`。
+- **[Implemented stable contract]** 檔名：`embeddings_parent_gemini_stable.jsonl`；舊檔名保留作 preview audit。
 - **[Proposed for v1]** 路徑：`data/outputs/runs/<run_id>/embeddings_parent_gemini.jsonl`；Sprint 2A 不建立 latest copy。
-- **[Proposed for v1]** artifact schema version：`parent_embedding_v1`。
+- **[Implemented stable contract]** artifact schema version：`parent_embedding_v2`。
 - **[Proposed for v1]** empty Parent input 產生合法空 JSONL、count `0`、stage completed；若 hierarchy disabled 則 stage skipped 且不要求檔案。
 - **[Proposed for v1]** partial failure 保留每筆 status/error；只有非空、維度正確、success/reused 的 vector 可進 Sprint 2B storage。
 
@@ -179,7 +194,12 @@ PARENT_EMBEDDING_ENABLED=false
 | `embedding_task_type` | 是 | stable `gemini-embedding-2` 應為 `null`；現有 preview artifact 的 `RETRIEVAL_DOCUMENT` 只作 legacy audit，未遷移前不可發布 |
 | `embedding_status`, `embedding_error` | 是 | partial failure contract |
 | `embedding_timestamp`, `embedding_request_id` | 否 | 稽核欄位，不進 fingerprint |
-| `embedding_schema_version` | 是 | `parent_embedding_v1` |
+| `embedding_schema_version` | 是 | `parent_embedding_v2` |
+| `embedding_instruction` | 是 | canonical document instruction template |
+| `embedding_instruction_version` | 是 | `gemini_embedding_2_search_v1` |
+| `embedding_generation_version` | 是 | `text_search_generation_v1` |
+| `embedding_contract_version` | 是 | `gemini_embedding_2_text_v1` |
+| `embedding_role` | 是 | `document` |
 | `hierarchy_fingerprint` | 是 | Parent source generation |
 | `source_leaf_fingerprint` | 是 | 上游 Leaf generation |
 | `parent_embedding_fingerprint` | 是 | 本 stage deterministic contract |
@@ -357,7 +377,7 @@ User Question
 |---|---|---|
 | Leaf chunk | chunk strategy + Leaf fingerprint | normalization/chunk config |
 | Hierarchy | strategy `fixed_leaf_grouping_v1`、schema `1`、joiner `newline_v1`、Hierarchy fingerprint | Leaf fingerprint |
-| Parent embedding | `parent_embedding_v1` + Parent embedding fingerprint | Hierarchy fingerprint + provider/model/dim/task/preprocess/normalize |
+| Parent embedding | `parent_embedding_v2` + Parent embedding fingerprint | Hierarchy fingerprint + provider/model/dim/task/instruction/instruction version/generation/preprocess/normalize/contract/role |
 | Parent document | `parent_document_v1` | artifact contract + storage mapping |
 | Retrieval | `parent_child_v1` | collection/index/filter/expansion/context rules |
 | Generation | `generationVersion`（若採用） | 一次可發布 Parent dataset |
@@ -388,7 +408,7 @@ User Question
 ## 17.1 Parent Publication Adapter（2026-08-03 offline implementation）
 
 - **[Confirmed by current code]** 正式模組為 `STT_Whisper/src/parent_mongodb_uploader.py`；它不建立 MongoDB client，collection 由呼叫端注入，且尚未接入 Pipeline `main.py` 或 Leaf `upload_all()`。
-- **[Current cross-group gap, verified 2026-08-08]** 輸入目前仍驗證 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 legacy contract；在 Pipeline uploader 改成 stable text-search contract 並重建 artifacts 前，整批不得視為可供 Backend active compatibility 使用。
+- **[Implemented 2026-08-09]** Uploader 只接受 `gemini-embedding-2`／`taskType=null`／stable instruction metadata／3072 維 contract；preview artifact 會整批阻擋且 write count 為 0。
 - **[Confirmed by current code]** `courseId` 必須由呼叫端顯式提供，或由呼叫端注入的權威 resolver 對每筆解析；格式為 MongoDB ObjectId，缺失、無效或同批衝突皆拒絕。不得從 `videoId`、課名或第一門課推測。
 - **[Confirmed by current code]** artifact 到 storage 使用集中式白名單 snake_case → camelCase mapping。artifact-only 的 `embedding_status`、`embedding_timestamp`、`embedding_error`、`embedding_request_id` 不寫入 Backend schema。
 - **[Confirmed by current code]** upsert filter 唯一為 `{ parentId }`，operation 使用 `$set`、`upsert=True`，bulk write 使用 `ordered=False`。不把 `courseId` 或 `generationVersion` 放入 filter，不執行 delete 或 stale cleanup。

@@ -254,9 +254,13 @@ def _validate_parent_embedding_fingerprint(
         raise CheckpointError("manifest Parent Embedding fingerprint is invalid") from exc
     expected = build_parent_embedding_fingerprint(stored_config, current_hierarchy_fingerprint)
     if expected != stored_fingerprint:
-        raise CheckpointError("manifest Parent Embedding fingerprint does not match its dependencies")
+        raise CheckpointError(
+            "PARENT_EMBEDDING_CONTRACT_MISMATCH: manifest fingerprint does not match its dependencies"
+        )
     if stored_config != current_config or stored_fingerprint != current_fingerprint:
-        raise CheckpointError("Parent Embedding fingerprint differs from the current runtime")
+        raise CheckpointError(
+            "PARENT_EMBEDDING_CONTRACT_MISMATCH: checkpoint differs from the stable runtime contract"
+        )
 
 
 def _stage_statuses(job_manager: JobManager, stage_name: str) -> list[str]:

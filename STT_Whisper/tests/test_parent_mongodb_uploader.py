@@ -34,12 +34,17 @@ def valid_record(parent_id="video-1_parent_0001", order=1):
         "order": order,
         "embedding": [0.25] * 3072,
         "embedding_provider": "gemini",
-        "embedding_model": "gemini-embedding-2-preview",
+        "embedding_model": "gemini-embedding-2",
         "embedding_dimension": 3072,
-        "embedding_task_type": "RETRIEVAL_DOCUMENT",
+        "embedding_task_type": None,
         "embedding_status": "success",
         "embedding_timestamp": "2026-08-03T00:00:00+00:00",
-        "embedding_schema_version": "parent_embedding_v1",
+        "embedding_schema_version": "parent_embedding_v2",
+        "embedding_instruction": "task: search result | document: {content}",
+        "embedding_instruction_version": "gemini_embedding_2_search_v1",
+        "embedding_generation_version": "text_search_generation_v1",
+        "embedding_contract_version": "gemini_embedding_2_text_v1",
+        "embedding_role": "document",
         "preprocessing_version": "parent_text_passthrough_v1",
         "normalization_version": "unit_l2_v1",
         "hierarchy_fingerprint": "hierarchy-a",
@@ -84,7 +89,7 @@ def fake_operation(filter_document, document):
 class ParentUploaderTestCase(unittest.TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
-        self.path = Path(self.tempdir.name) / "embeddings_parent_gemini.jsonl"
+        self.path = Path(self.tempdir.name) / "embeddings_parent_gemini_stable.jsonl"
 
     def tearDown(self):
         self.tempdir.cleanup()
@@ -106,6 +111,9 @@ class ParentUploaderTestCase(unittest.TestCase):
         document = documents[0]
         self.assertEqual(document["childChunkIds"], record["child_chunk_ids"])
         self.assertEqual(document["embeddingModel"], record["embedding_model"])
+        self.assertIsNone(document["embeddingTaskType"])
+        self.assertEqual(document["embeddingInstructionVersion"], record["embedding_instruction_version"])
+        self.assertEqual(document["embeddingContractVersion"], record["embedding_contract_version"])
         self.assertEqual(document["generationVersion"], "audit-v1")
         self.assertTrue(document["isActive"])
         self.assertEqual(document["documentSchemaVersion"], "parent_document_v1")
@@ -155,6 +163,10 @@ class ParentUploaderTestCase(unittest.TestCase):
             "zero": lambda r: r.update(embedding=[0.0] * 3072),
             "model": lambda r: r.update(embedding_model="old-model"),
             "task": lambda r: r.update(embedding_task_type="OTHER"),
+            "instruction": lambda r: r.update(embedding_instruction="legacy"),
+            "instruction_version": lambda r: r.update(embedding_instruction_version="legacy"),
+            "generation": lambda r: r.update(embedding_generation_version="legacy"),
+            "contract": lambda r: r.update(embedding_contract_version="legacy"),
             "metadata_dimension": lambda r: r.update(embedding_dimension=768),
             "status": lambda r: r.update(embedding_status="failed"),
             "error": lambda r: r.update(embedding_error="provider failed"),
@@ -163,6 +175,27 @@ class ParentUploaderTestCase(unittest.TestCase):
             with self.subTest(name=name):
                 record = valid_record()
                 mutate(record)
+                self.write([record])
+                collection = FakeCollection()
+                summary = upload_parent_embeddings(
+                    self.path, collection, course_id=COURSE_ID, operation_factory=fake_operation
+                )
+                self.assertFalse(summary.success)
+                self.assertEqual(collection.calls, [])
+
+    def test_preview_and_missing_stable_metadata_are_rejected(self):
+        scenarios = []
+        preview = valid_record()
+        preview.update(
+            embedding_model="gemini-embedding-2-preview",
+            embedding_task_type="RETRIEVAL_DOCUMENT",
+        )
+        scenarios.append(preview)
+        missing = valid_record()
+        missing.pop("embedding_instruction_version")
+        scenarios.append(missing)
+        for record in scenarios:
+            with self.subTest(model=record.get("embedding_model")):
                 self.write([record])
                 collection = FakeCollection()
                 summary = upload_parent_embeddings(

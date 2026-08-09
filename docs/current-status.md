@@ -1,5 +1,14 @@
 # docs/current-status.md — FocusFlow 目前進度
 
+> 2026-08-09 Phase 2-2 更新：STT Parent Embedding production contract 已遷移至
+> stable `gemini-embedding-2`、3072 維、`taskType=null`，Parent document instruction
+> 為 `task: search result | document: <parent_text>`。新版 `parent_embedding_v2`
+> artifact 使用 `embeddings_parent_gemini_stable.jsonl`，fingerprint／resume／validator／
+> Parent Uploader 均拒絕 preview contract。47 筆 mock dry-run 已通過；尚未呼叫 Gemini
+> 產生 live stable vectors、尚未更新 Atlas 三筆隔離 Parent，Step 10 Live E2E 仍阻擋。
+> Step 9 live `chunkId_1`／Explain／Child Expansion 已由 Database owner 驗收，但本 repo
+> 的 `database/tools/setup/init_indexes.js` 仍是 snake_case，bootstrap Commit／Push 待同步。
+
 最後更新：2026-08-08（Backend query embedding 已改用可設定的 stable `gemini-embedding-2` 文字搜尋 contract，health／OpenAPI／env 與測試同步補上完整 compatibility diagnostics；Pipeline／Database 既有 vectors 尚未重建或 live 確認，Parent uploader 與 live Parent E2E 尚未完成，`HIERARCHICAL_RETRIEVAL_ENABLED` 維持 false）
 
 後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
@@ -131,7 +140,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | Query embedding 與 pipeline contract 對齊 | Backend + AI Pipeline + DB 組 | Backend query contract 已切 stable；既有 Pipeline／Database preview vectors 尚未重建，需以 active metadata、read-only Atlas evidence 與 rollback 條件完成跨組確認 |
 | `videos` physical storage 邊界 | Backend + DB 組 | 後端回應 contract 已用 `ownership` / `isAppOwned` / `metadataOnly` 固定語意；是否拆 collection 或調整 DB 實體模型仍屬跨組資料庫決策 |
 | Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
-| Phase 2-2 Parent uploader | AI Pipeline 組 | `STT_Whisper/src/mongodb_uploader.py` 目前**完全沒有 parent 相關程式碼**；需新增獨立 upload 路徑讀取 `embeddings_parent_gemini.jsonl`、snake_case→camelCase、以 `parentId` idempotent upsert、產出獨立 upload summary。Storage 端（collection / index）已就緒 |
+| Phase 2-2 Parent uploader | AI Pipeline 組 | `STT_Whisper/src/parent_mongodb_uploader.py` 已完成 stable-only blocking preflight、snake_case→camelCase mapping、`parentId` idempotent upsert planning 與 mock tests；尚未以 stable live artifact 更新 Atlas。Storage 端（collection / index）已就緒 |
 | ~~Phase 2-2 正式 Parent Search adapter~~ | ✅ Backend 組，2026-08-02 完成 | 已新增 env-backed Atlas adapter、QA 接線、scope／文件契約驗證、安全錯誤分類、Leaf fallback 與測試；待 Parent uploader 提供真實資料後做 live E2E |
 | Leaf `courseId` 全為空 | AI Pipeline + DB 組 | 2026-08-02 實查：`video_segments_text` 1,651 筆的 `courseId` **全部 missing**，`text_embedding_index` 的 courseId filter 從未真正生效，實際靠 `videoId` bridge 過濾。Parent upload 需把 courseId 解析成功列為 blocking 條件並於 upload summary 回報，否則同一問題會複製到 parent |
 | Demo 環境策略 | 全組 | 共享 DB 是否提供專屬 demo DB |
@@ -167,7 +176,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 下一步優先順序
 
-1. Backend + AI Pipeline + DB 組共同把即將停用的 `gemini-embedding-2-preview` 遷移到 `gemini-embedding-2`：定版 query/document instruction、重建既有 Leaf／Parent embeddings、驗證 Atlas 查詢與 rollback；不可只切 Backend model
+1. 使用已完成的 stable STT contract 產生正式 `gemini-embedding-2` Parent artifact，更新三筆隔離 Parent，驗證 Atlas 查詢與 rollback；既有 preview vectors 不可混用
 2. AI Pipeline 完成 Parent uploader，將 `courseId` 解析成功、3072 維 embedding 與 upload summary 列為發布必要條件
 3. 以隔離資料驗證 Parent Atlas Search → Child expansion → Leaf Citation，再依 latency 實測調整 timeout；全部通過前維持 Gate 關閉
 4. DB owner 稽核 `video_segments_text.chunkId` 的重複／null 分布，建立 classic index 並用 explain 確認 Child Expansion 不走 COLLSCAN

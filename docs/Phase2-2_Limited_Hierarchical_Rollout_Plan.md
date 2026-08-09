@@ -4,6 +4,10 @@ Planning date: 2026-08-09
 
 Status: planning only. The shared `HIERARCHICAL_RETRIEVAL_ENABLED` Gate remains `false`; this document does not authorize a live rollout.
 
+## Implementation status
+
+Offline implementation is now present for fail-closed `off` / `shadow` / `serve` routing, course/video/user allowlists, authorized-supported video intersection, active Parent contract eligibility, additive runtime diagnostics, and shadow response isolation. The shared defaults remain Gate=false and rollout mode=off. Live shadow and serve validation have not been executed, and this implementation remains uncommitted pending review.
+
 ## 1. Scope
 
 This plan converts the Gate Review decision `READY_FOR_LIMITED_HIERARCHICAL_ROLLOUT` into a controlled implementation sequence. It covers rollout routing, shadow execution, Parent coverage, relevance evidence, observability, rollback, and release prerequisites. It does not implement a rollout control, change `.env`, mutate Atlas, publish the remaining 44 Parents, or enable production traffic.

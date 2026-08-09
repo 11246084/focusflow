@@ -2698,6 +2698,10 @@ components:
         - openaiConfigured
         - hierarchicalRetrievalEnabled
         - hierarchicalRetrievalFallbackToLeaf
+        - hierarchicalRetrievalRolloutMode
+        - hierarchicalRetrievalRolloutModeValid
+        - hierarchicalRetrievalAllowlistsValid
+        - hierarchicalRolloutContractStatus
         - hierarchicalParentStorageMode
         - queryEmbeddingDimensions
         - queryEmbeddingContract
@@ -2743,6 +2747,20 @@ components:
         hierarchicalRetrievalFallbackToLeaf:
           description: Parent retrieval 不可用時是否允許安全退回既有 Leaf-only retrieval。
           type: boolean
+        hierarchicalRetrievalRolloutMode:
+          description: Fail-closed rollout mode. The global Gate remains the highest-priority kill switch.
+          type: string
+          enum: [off, shadow, serve]
+        hierarchicalRetrievalRolloutModeValid:
+          description: Whether the configured rollout mode was recognized.
+          type: boolean
+        hierarchicalRetrievalAllowlistsValid:
+          description: Whether all configured rollout identifier lists parsed safely.
+          type: boolean
+        hierarchicalRolloutContractStatus:
+          description: Stable Parent-to-Query contract-family status used by fail-closed rollout eligibility.
+          type: string
+          enum: [compatible, incompatible, not_declared]
         hierarchicalParentStorageMode:
           description: Parent 查詢使用的 storage adapter 類型。
           type: string
@@ -3858,6 +3876,10 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/QaFallback'
+            hierarchicalRollout:
+              description: Optional additive rollout eligibility and shadow diagnostics; contains counts and scores only.
+              type: object
+              additionalProperties: true
     LineEventSource:
       description: LINE event 內的來源資訊。
       type: object

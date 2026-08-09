@@ -1,5 +1,9 @@
 ﻿const path = require('path');
 const dotenv = require('dotenv');
+const {
+  parseIdentifierAllowlist,
+  parseRolloutMode,
+} = require('../services/hierarchicalRollout.service');
 
 const projectRoot = path.resolve(__dirname, '../..');
 
@@ -28,6 +32,19 @@ function parsePositiveInteger(value, fallback, name) {
   }
   return parsed;
 }
+
+const hierarchicalRolloutModeConfig = parseRolloutMode(
+  process.env.HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE,
+);
+const hierarchicalAllowedCourseIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_COURSE_IDS,
+);
+const hierarchicalAllowedVideoIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_VIDEO_IDS,
+);
+const hierarchicalAllowedUserIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_USER_IDS,
+);
 
 function isSameOrDescendantPath(parentPath, candidatePath) {
   const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
@@ -82,6 +99,17 @@ module.exports = {
     true,
     'HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF',
   ),
+  hierarchicalRetrievalRolloutMode: hierarchicalRolloutModeConfig.value,
+  hierarchicalRetrievalRolloutModeValid: hierarchicalRolloutModeConfig.valid,
+  hierarchicalRetrievalRolloutModeRequested: hierarchicalRolloutModeConfig.requested,
+  hierarchicalRetrievalAllowedCourseIds: hierarchicalAllowedCourseIdsConfig.values,
+  hierarchicalRetrievalAllowedVideoIds: hierarchicalAllowedVideoIdsConfig.values,
+  hierarchicalRetrievalAllowedUserIds: hierarchicalAllowedUserIdsConfig.values,
+  hierarchicalRetrievalAllowlistsValid: [
+    hierarchicalAllowedCourseIdsConfig,
+    hierarchicalAllowedVideoIdsConfig,
+    hierarchicalAllowedUserIdsConfig,
+  ].every((config) => config.valid),
   hierarchicalParentLimit: parsePositiveInteger(process.env.HIERARCHICAL_PARENT_LIMIT, 5, 'HIERARCHICAL_PARENT_LIMIT'),
   hierarchicalChildExpansionLimit: parsePositiveInteger(
     process.env.HIERARCHICAL_CHILD_EXPANSION_LIMIT, 30, 'HIERARCHICAL_CHILD_EXPANSION_LIMIT',
@@ -145,4 +173,6 @@ module.exports = {
   assertPrivateAvatarUploadDir,
   parseBoolean,
   parsePositiveInteger,
+  parseRolloutMode,
+  parseIdentifierAllowlist,
 };

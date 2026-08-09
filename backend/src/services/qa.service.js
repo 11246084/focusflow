@@ -37,6 +37,10 @@ const {
 const { createParentSearchRepository } = require('./parentSearchAdapter.service');
 const { createLeafRepository } = require('./childExpansion.service');
 const { retrieveWithHierarchy } = require('./hierarchicalRetrieval.service');
+const {
+  evaluateHierarchicalRollout,
+  executeHierarchicalRollout,
+} = require('./hierarchicalRollout.service');
 
 function normalizeWords(text) {
   return String(text || '')
@@ -759,6 +763,9 @@ function buildQaRuntime({
     ...(searchDiagnostics?.hierarchical
       ? { hierarchicalRetrieval: searchDiagnostics.hierarchical }
       : {}),
+    ...(searchDiagnostics?.rollout
+      ? { hierarchicalRollout: searchDiagnostics.rollout }
+      : {}),
   };
 }
 
@@ -1048,22 +1055,41 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
           fallbacks: [],
         },
       });
-  const searchResult = await retrieveWithHierarchy({
-    enabled: env.hierarchicalRetrievalEnabled,
-    fallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
-    // The factory is invoked only when the hierarchy Gate is enabled; the default false path stays Leaf-only.
+  const rolloutDecision = evaluateHierarchicalRollout({
+    globalEnabled: env.hierarchicalRetrievalEnabled,
+    rolloutMode: env.hierarchicalRetrievalRolloutMode,
+    rolloutModeValid: env.hierarchicalRetrievalRolloutModeValid,
+    userId: user.id,
+    courseId: String(course._id),
+    allowedVideoIds: segmentScope.allowedVideoIds,
+    allowedCourseIds: env.hierarchicalRetrievalAllowedCourseIds,
+    rolloutVideoIds: env.hierarchicalRetrievalAllowedVideoIds,
+    rolloutUserIds: env.hierarchicalRetrievalAllowedUserIds,
+    allowlistsValid: env.hierarchicalRetrievalAllowlistsValid,
+    embeddingContractStatus: runtimeSnapshot.hierarchicalRolloutContractStatus,
+  });
+  const hierarchicalSearch = ({ shadow = false } = {}) => retrieveWithHierarchy({
+    enabled: true,
+    // Shadow must never invoke a second Leaf search or affect the foreground response.
+    fallbackToLeaf: shadow ? false : env.hierarchicalRetrievalFallbackToLeaf,
     parentRepositoryFactory: createParentSearchRepository,
     leafRepositoryFactory: createLeafRepository,
     leafSearch,
     queryEmbedding: queryVector,
     courseId: String(course._id),
     allowedVideoIds: segmentScope.allowedVideoIds,
+    restrictedVideoIds: rolloutDecision.authorizedSupportedVideoIds,
     scope: segmentScope,
     parentLimit: env.hierarchicalParentLimit,
     childExpansionLimit: env.hierarchicalChildExpansionLimit,
     contextMaxLeaves: env.hierarchicalContextMaxLeaves,
     contextMaxCharacters: env.hierarchicalContextMaxCharacters,
     parentTimeoutMs: env.hierarchicalParentTimeoutMs,
+  });
+  const searchResult = await executeHierarchicalRollout({
+    decision: rolloutDecision,
+    leafSearch,
+    hierarchicalSearch,
   });
   tMark = qaTimingMark(`search (${env.qaVectorSearchMode})`, tMark);
 

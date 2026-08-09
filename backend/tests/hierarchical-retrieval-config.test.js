@@ -6,6 +6,24 @@ describe('hierarchical retrieval config', () => {
   it('defaults to disabled with leaf fallback enabled', () => {
     assert.equal(env.hierarchicalRetrievalEnabled, false);
     assert.equal(env.hierarchicalRetrievalFallbackToLeaf, true);
+    assert.equal(env.hierarchicalRetrievalRolloutMode, 'off');
+    assert.deepEqual(env.hierarchicalRetrievalAllowedCourseIds, []);
+    assert.deepEqual(env.hierarchicalRetrievalAllowedVideoIds, []);
+    assert.deepEqual(env.hierarchicalRetrievalAllowedUserIds, []);
+  });
+
+  it('parses rollout mode and identifier allowlists safely', () => {
+    assert.deepEqual(env.parseRolloutMode(' SHADOW '), {
+      value: 'shadow', requested: 'shadow', valid: true,
+    });
+    assert.deepEqual(env.parseRolloutMode('invalid'), {
+      value: 'off', requested: 'invalid', valid: false,
+    });
+    assert.deepEqual(
+      env.parseIdentifierAllowlist('507f191e810c19729de860ea, 507f191e810c19729de860ea'),
+      { values: ['507f191e810c19729de860ea'], valid: true, configured: true },
+    );
+    assert.equal(env.parseIdentifierAllowlist('bad-id').valid, false);
   });
 
   it('parses explicit boolean strings', () => {

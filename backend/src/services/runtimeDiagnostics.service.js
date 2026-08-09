@@ -101,6 +101,18 @@ function isLeafQueryEmbeddingCompatible(snapshot) {
   return snapshot.dataContractCompatibility.leaf.status === 'compatible';
 }
 
+function buildHierarchicalRolloutContractStatus(dataContractCompatibility) {
+  const parent = dataContractCompatibility?.parent;
+  if (!parent || parent.status === 'not_declared') return 'not_declared';
+  if (parent.error) return 'incompatible';
+  // Parent artifact schema/role representation may differ from the Query schema,
+  // while the stable embedding-space contract fields must remain identical.
+  const contractMismatches = (parent.mismatches || []).filter(
+    (field) => field !== 'schemaVersion',
+  );
+  return contractMismatches.length ? 'incompatible' : 'compatible';
+}
+
 function hasStableGeminiModelFailure(snapshot) {
   return snapshot.queryEmbeddingProvider === 'gemini'
     && !isStableGeminiEmbeddingModel(snapshot.queryEmbeddingContract.model);
@@ -248,6 +260,9 @@ function buildQaRuntimeSnapshot() {
     openaiConfigured: Boolean(env.openaiApiKey),
     hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,
     hierarchicalRetrievalFallbackToLeaf: env.hierarchicalRetrievalFallbackToLeaf,
+    hierarchicalRetrievalRolloutMode: env.hierarchicalRetrievalRolloutMode,
+    hierarchicalRetrievalRolloutModeValid: env.hierarchicalRetrievalRolloutModeValid,
+    hierarchicalRetrievalAllowlistsValid: env.hierarchicalRetrievalAllowlistsValid,
     hierarchicalParentStorageMode: 'atlas_parent_vector',
     queryEmbeddingDimensions: queryEmbeddingContract.dimension,
     queryEmbeddingContract,
@@ -255,6 +270,9 @@ function buildQaRuntimeSnapshot() {
     // adopted by the documented health contract.
     queryContract: queryEmbeddingContract,
     dataContractCompatibility,
+    hierarchicalRolloutContractStatus: buildHierarchicalRolloutContractStatus(
+      dataContractCompatibility,
+    ),
   };
 
   snapshot.parentQueryEmbeddingCompatible = isParentQueryEmbeddingCompatible(snapshot);
@@ -380,5 +398,6 @@ module.exports = {
   buildMultimodalRuntimeSnapshot,
   expectedQueryEmbeddingDimensions,
   isParentQueryEmbeddingCompatible,
+  buildHierarchicalRolloutContractStatus,
   assertQaRuntimeConfiguration,
 };

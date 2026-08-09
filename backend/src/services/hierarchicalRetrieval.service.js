@@ -23,6 +23,7 @@ async function retrieveWithHierarchy({
   courseId,
   videoId = null,
   allowedVideoIds = [],
+  restrictedVideoIds = [],
   scope,
   parentLimit,
   childExpansionLimit,
@@ -43,6 +44,7 @@ async function retrieveWithHierarchy({
       courseId,
       videoId,
       allowedVideoIds,
+      restrictedVideoIds,
       limit: parentLimit,
       timeoutMs: parentTimeoutMs,
     });
@@ -51,6 +53,7 @@ async function retrieveWithHierarchy({
       error.code = 'PARENT_NO_HITS';
       throw error;
     }
+    const parentScores = parentHits.map((hit) => Number(hit.score)).filter(Number.isFinite);
 
     const expansion = await expandParentHits({
       parentHits,
@@ -86,6 +89,11 @@ async function retrieveWithHierarchy({
         hierarchical: {
           retrievalMode: 'hierarchical',
           parentHitCount: parentHits.length,
+          parentTopScore: parentScores[0] ?? null,
+          parentSecondScore: parentScores[1] ?? null,
+          parentTopTwoGap: parentScores.length > 1
+            ? Number((parentScores[0] - parentScores[1]).toFixed(6))
+            : null,
           requestedChildCount: expansion.diagnostics.requestedChildCount,
           expandedLeafCount: expansion.leaves.length,
           deduplicatedLeafCount: context.diagnostics.deduplicatedLeafCount,
@@ -131,6 +139,9 @@ async function retrieveWithHierarchy({
         hierarchical: {
           retrievalMode: 'leaf_fallback',
           parentHitCount: 0,
+          parentTopScore: null,
+          parentSecondScore: null,
+          parentTopTwoGap: null,
           expandedLeafCount: 0,
           deduplicatedLeafCount: 0,
           selectedLeafCount: leafResult.matches?.length || 0,

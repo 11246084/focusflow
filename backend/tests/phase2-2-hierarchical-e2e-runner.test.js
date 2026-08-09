@@ -6,6 +6,7 @@ const env = require('../src/config/env');
 const {
   IsolatedE2EError,
   createCommandMonitor,
+  hasRequiredCollections,
   parseCliArgs,
   runIsolatedE2E,
   safeFailure,
@@ -78,6 +79,13 @@ afterEach(() => {
 });
 
 describe('Phase 2-2 isolated hierarchical E2E runner', () => {
+  it('checks required collection names without relying on an Atlas listCollections name filter', () => {
+    const required = ['video_segments_text', 'video_segments_parent', 'videos', 'courses'];
+    assert.equal(hasRequiredCollections(required.map((name) => ({ name })), required), true);
+    assert.equal(hasRequiredCollections(required.slice(1).map((name) => ({ name })), required), false);
+    assert.equal(hasRequiredCollections([...required.map((name) => ({ name })), { name: 'extra' }], required), true);
+  });
+
   it('parses a safe CLI contract with answer generation disabled by default', () => {
     const parsed = parseCliArgs([
       '--question', 'question', '--course-id', courseId, '--video-id', videoId, '--json',

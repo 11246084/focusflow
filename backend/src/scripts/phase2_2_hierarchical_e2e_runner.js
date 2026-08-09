@@ -140,6 +140,11 @@ function buildLeafLookupQuery(childChunkIds, scope) {
   return Object.keys(scopeQuery).length ? { $and: [identity, scopeQuery] } : identity;
 }
 
+function hasRequiredCollections(collections, requiredCollections) {
+  const available = new Set((collections || []).map((item) => String(item?.name || '')).filter(Boolean));
+  return requiredCollections.every((name) => available.has(name));
+}
+
 async function runIsolatedE2E(options, dependencies) {
   const {
     preflight,
@@ -319,7 +324,9 @@ async function createLiveDependencies(commandMonitor) {
       const courseObjectId = new mongoose.Types.ObjectId(options.courseId);
       const videoObjectId = new mongoose.Types.ObjectId(options.videoId);
       const [collections, indexes, searchIndexes, video, course] = await Promise.all([
-        connection.db.listCollections({ name: { $in: requiredCollections } }).toArray(),
+        // Atlas does not consistently accept `$in` in a listCollections name filter.
+        // Read name-only metadata and enforce the required set in application code.
+        connection.db.listCollections({}, { nameOnly: true }).toArray(),
         leafCollection.listIndexes().toArray(),
         parentCollection.listSearchIndexes(env.videoSegmentParentVectorIndexName).toArray(),
         videoCollection.findOne(
@@ -332,7 +339,7 @@ async function createLiveDependencies(commandMonitor) {
         ),
       ]);
       commandMonitor.assertNoWrites();
-      if (collections.length !== requiredCollections.length) {
+      if (!hasRequiredCollections(collections, requiredCollections)) {
         throw new IsolatedE2EError('Required Parent or Leaf collection is unavailable.', 'E2E_COLLECTION_NOT_READY');
       }
       const courseContainsVideo = Array.isArray(course?.videoIds)
@@ -418,6 +425,7 @@ module.exports = {
   createLiveDependencies,
   collectIndexNames,
   hasIxscan,
+  hasRequiredCollections,
   main,
   parseCliArgs,
   runIsolatedE2E,

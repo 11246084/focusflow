@@ -29,6 +29,8 @@ const usageLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    // 刻意不設 TTL：UsageLog 屬於歷史紀錄，刪影片／刪課程都保留，
+    // 後台統計與 backfillQuestionsFromUsageLogs.js 都依賴完整歷史。
     timestamp: {
       type: Date,
       default: Date.now,

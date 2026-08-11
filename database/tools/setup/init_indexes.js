@@ -42,16 +42,29 @@ print("✅ transcripts_normalized.video_id（unique）");
 db.transcripts_normalized.createIndex({ "segments.segment_id": 1 });
 print("✅ transcripts_normalized.segments.segment_id");
 
-// ── video_segments_text ───────────────────────────────────
-db.video_segments_text.createIndex({ video_id: 1 });
-print("✅ video_segments_text.video_id");
+// ── video_segments_text（Leaf）─────────────────────────────
+// ⚠️ 正式欄位一律 camelCase：pipeline 的 mongodb_uploader.py 以
+//    { chunkId } 為 upsert key 寫入 videoId / chunkId / segmentId，
+//    Backend 也只查 camelCase，不再建立 snake_case 索引。
+db.video_segments_text.createIndex({ videoId: 1 });
+print("✅ video_segments_text.videoId");
 
-db.video_segments_text.createIndex({ chunk_id: 1 }, { unique: true });
-print("✅ video_segments_text.chunk_id（unique）");
+// Child Expansion 依 Parent.childChunkIds 回查 Leaf，缺此索引會 COLLSCAN。
+// 目前保守採 non-unique：live 1,651 筆 chunkId 全部唯一，
+// 但尚未確認所有 Leaf importer 永遠保證全域唯一，故先不加 unique。
+db.video_segments_text.createIndex({ chunkId: 1 });
+print("✅ video_segments_text.chunkId");
 
-// QA 查詢同時過濾 video_id + courseId，加複合索引避免全表掃描
-db.video_segments_text.createIndex({ video_id: 1, courseId: 1 });
-print("✅ video_segments_text.video_id + courseId（複合）");
+// Child Expansion 的 id branch 為 (chunkId OR segmentId)，兩邊都需要索引。
+db.video_segments_text.createIndex({ segmentId: 1 });
+print("✅ video_segments_text.segmentId");
+
+// QA scope 查詢同時過濾 courseId + videoId，加複合索引避免全表掃描
+db.video_segments_text.createIndex({ courseId: 1 });
+print("✅ video_segments_text.courseId");
+
+db.video_segments_text.createIndex({ courseId: 1, videoId: 1 });
+print("✅ video_segments_text.courseId + videoId（複合）");
 
 // ── video_segments_audio ──────────────────────────────────
 db.video_segments_audio.createIndex({ video_id: 1 });
@@ -89,18 +102,20 @@ db.enrollments.createIndex({ courseId: 1 });
 print("✅ enrollments.courseId");
 
 // ── usage_logs ─────────────────────────────────────────────
+// ⚠️ 不要加 TTL。UsageLog 是歷史紀錄：刪影片、刪課程都刻意保留
+//    （admin.service.js / course.service.js 的設計決策），後台「總提問數」
+//    是全期統計，backfillQuestionsFromUsageLogs.js 也靠它重建問答紀錄。
+//    此處定義必須與 backend/src/models/usageLog.model.js 一致，
+//    否則同名不同選項的 index 會讓 mongosh 以 IndexOptionsConflict 中斷。
 db.usage_logs.createIndex({ userId: 1 });
 print("✅ usage_logs.userId");
 
-db.usage_logs.createIndex({ timestamp: -1 });
-print("✅ usage_logs.timestamp（倒序）");
+db.usage_logs.createIndex({ courseId: 1 });
+print("✅ usage_logs.courseId");
 
-// TTL Index：90 天後自動刪除過期 log
-db.usage_logs.createIndex(
-  { timestamp: 1 },
-  { expireAfterSeconds: 7776000 }
-);
-print("✅ usage_logs.timestamp（TTL 90 天）");
+// 單欄位索引可雙向掃描，{ timestamp: 1 } 已能服務 sort({ timestamp: -1 })。
+db.usage_logs.createIndex({ timestamp: 1 });
+print("✅ usage_logs.timestamp");
 
 // ── term_dictionary ────────────────────────────────────────
 db.term_dictionary.createIndex({ correct: 1 });

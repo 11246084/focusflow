@@ -15,10 +15,12 @@ const videoSegmentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    // Child Expansion 依 Parent.childChunkIds 回查 Leaf，缺索引會掃過整個 collection。
     chunkId: {
       type: String,
       default: null,
       trim: true,
+      index: true,
     },
     videoId: {
       type: String,
@@ -55,5 +57,8 @@ const videoSegmentSchema = new mongoose.Schema(
     collection: env.videoSegmentCollection,
   },
 );
+
+// QA scope 查詢同時過濾 courseId + videoId，補上複合索引與 shared Atlas 現況對齊。
+videoSegmentSchema.index({ courseId: 1, videoId: 1 });
 
 module.exports = mongoose.model('VideoSegment', videoSegmentSchema);

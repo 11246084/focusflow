@@ -180,6 +180,9 @@ DESIGN.md
 Context
 backend/image.png
 
+# 編輯器自動產生的備份檔（Word 等），不進版控
+*.bak
+
 # DATABASE
 database/Lib/
 database/Scripts/

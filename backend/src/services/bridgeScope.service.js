@@ -62,6 +62,10 @@ function normalizeTranscript(...values) {
 
 function normalizeSegment(segment) {
   return {
+    // Preserve only the canonical Leaf identity when it is actually present.
+    // Do not fall back to segmentId: legacy segment-only records must remain
+    // distinguishable so Citation can return chunkId: null.
+    chunkId: normalizeIdentifier(segment.chunkId),
     segmentId: normalizeIdentifier(segment.segmentId, segment.chunkId, segment._id),
     videoId: normalizeIdentifier(segment.videoId),
     courseId: normalizeIdentifier(segment.courseId),

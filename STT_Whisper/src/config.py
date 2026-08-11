@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from chunk_strategy import validate_chunk_settings
 from hierarchy_strategy import validate_hierarchy_settings
+from embedding_contract import GEMINI_EMBEDDING_MODEL, validate_stable_embedding_settings
 from utils import ensure_directory
 
 
@@ -220,7 +221,7 @@ class PipelineConfig:
         )
         parent_embeddings_output_path = resolved_root / os.getenv(
             "PARENT_EMBEDDINGS_OUTPUT_PATH",
-            "data/outputs/embeddings_parent_gemini.jsonl",
+            "data/outputs/embeddings_parent_gemini_stable.jsonl",
         )
         # 設置文本嵌入輸出路徑，默認為 "data/outputs/embeddings_text_gemini.jsonl"
         text_embeddings_output_path = resolved_root / os.getenv(
@@ -320,8 +321,8 @@ class PipelineConfig:
             gemini_video_embedding_enabled=os.getenv("ENABLE_GEMINI_VIDEO_EMBEDDING", "false").lower() == "true",
             # Gemini API 金鑰，可選
             gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
-            # Gemini 嵌入模型名稱，默認 "gemini-embedding-2-preview"
-            gemini_embedding_model_name=os.getenv("GEMINI_EMBEDDING_MODEL_NAME", "gemini-embedding-2-preview"),
+            # Gemini stable text-search embedding model.
+            gemini_embedding_model_name=os.getenv("GEMINI_EMBEDDING_MODEL_NAME", GEMINI_EMBEDDING_MODEL),
             # Gemini 嵌入輸出維度，默認 3072，轉換為整數
             gemini_embedding_output_dim=int(os.getenv("GEMINI_EMBEDDING_OUTPUT_DIM", "3072")),
             # Gemini 嵌入批次大小，默認 16，轉換為整數
@@ -444,6 +445,11 @@ class PipelineConfig:
         )
         if self.parent_embedding_enabled and not self.hierarchy_enabled:
             raise ValueError("PARENT_EMBEDDING_ENABLED requires HIERARCHY_ENABLED=true")
+        if self.parent_embedding_enabled:
+            validate_stable_embedding_settings(
+                self.gemini_embedding_model_name,
+                self.gemini_embedding_output_dim,
+            )
         if not 1 <= self.batch_max_concurrency <= 2:
             raise ValueError("BATCH_MAX_CONCURRENCY must be an integer between 1 and 2.")
         if not 0 <= self.batch_item_max_retries <= 2:

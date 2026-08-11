@@ -19,6 +19,9 @@ function resetRuntimeEnv() {
   env.videoSegmentVideoCollection = 'video_segments_video';
   env.videoSegmentVideoVectorIndexName = '';
   env.geminiApiKey = '';
+  env.geminiEmbeddingModelName = 'gemini-embedding-2';
+  env.qaActiveLeafEmbeddingContractJson = '';
+  env.qaActiveParentEmbeddingContractJson = '';
   env.openaiApiKey = '';
   env.lineChannelSecret = 'line-secret-for-tests';
   env.lineChannelAccessToken = '';
@@ -62,6 +65,10 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.vectorSearchMode, 'memory');
     assert.equal(result.body.data.runtime.qa.readiness, 'ready');
     assert.equal(result.body.data.runtime.qa.readyForAsk, true);
+    assert.equal(result.body.data.runtime.qa.queryEmbeddingContract.dimension, 32);
+    assert.equal(result.body.data.runtime.qa.queryContract.dimension, 32);
+    assert.equal(result.body.data.runtime.qa.leafQueryEmbeddingCompatible, false);
+    assert.equal(result.body.data.runtime.qa.dataContractCompatibility.leaf.status, 'not_declared');
     assert.equal(result.body.data.runtime.qa.costControl.enabled, false);
     assert.equal(result.body.data.runtime.qa.costControl.resetCadence, 'calendar_month_utc');
     assert.equal(result.body.data.runtime.qa.warnings.some((item) => item.code === 'PHASE1_MEMORY_SEARCH'), true);
@@ -141,6 +148,108 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.hardFailures.some(
       (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
     ), true);
+  });
+
+  it('hard-fails hierarchy without fallback when active Parent metadata is missing, including mock mode', async () => {
+    env.hierarchicalRetrievalEnabled = true;
+    env.hierarchicalRetrievalFallbackToLeaf = false;
+    env.qaMockEmbeddingDimensions = 3072;
+
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.body.data.runtime.qa.readiness, 'hard_fail');
+    assert.equal(result.body.data.runtime.qa.readyForAsk, false);
+    assert.equal(result.body.data.runtime.qa.hardFailures.some(
+      (item) => item.code === 'HIERARCHICAL_QUERY_EMBEDDING_INCOMPATIBLE',
+    ), true);
+  });
+
+  it('reports full active data-contract mismatches as degraded with Leaf fallback', async () => {
+    env.qaQueryEmbeddingProvider = 'gemini';
+    env.geminiApiKey = 'test-gemini-key';
+    env.hierarchicalRetrievalEnabled = true;
+    env.qaActiveLeafEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2', dimension: 3072, instructionVersion: 'wrong', generationVersion: 'text_search_generation_v1', normalizationVersion: 'unit_l2_v1', taskType: null });
+    env.qaActiveParentEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2-preview', dimension: 3072, instructionVersion: 'gemini_embedding_2_search_v1', generationVersion: 'text_search_generation_v1', normalizationVersion: 'unit_l2_v1', taskType: 'RETRIEVAL_DOCUMENT' });
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+    assert.equal(result.body.data.runtime.qa.readiness, 'degraded');
+    assert.deepEqual(result.body.data.runtime.qa.dataContractCompatibility.leaf.mismatches, [
+      'instructionVersion',
+      'contractVersion',
+      'schemaVersion',
+    ]);
+    assert.equal(result.body.data.runtime.qa.dataContractCompatibility.parent.mismatches.includes('model'), true);
+    assert.equal(result.body.data.runtime.qa.dataContractCompatibility.parent.mismatches.includes('taskType'), true);
+    assert.equal(result.body.data.runtime.qa.parentQueryEmbeddingCompatible, false);
+  });
+
+  it('hard-fails preview Gemini configuration and missing active contracts when fallback is disabled', async () => {
+    env.qaQueryEmbeddingProvider = 'gemini'; env.geminiApiKey = 'test-gemini-key'; env.geminiEmbeddingModelName = 'gemini-embedding-2-preview'; env.hierarchicalRetrievalEnabled = true; env.hierarchicalRetrievalFallbackToLeaf = false;
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+    assert.equal(result.body.data.runtime.qa.readiness, 'hard_fail');
+    assert.equal(result.body.data.runtime.qa.hardFailures.some((item) => item.code === 'GEMINI_EMBEDDING_MODEL_CONTRACT_INVALID'), true);
+  });
+
+  it('requires a complete active Leaf contract for Atlas readiness', async () => {
+    env.qaQueryEmbeddingProvider = 'gemini';
+    env.geminiApiKey = 'test-gemini-key';
+    env.qaVectorSearchMode = 'atlas';
+    env.qaAtlasVectorIndexName = 'text_embedding_index';
+
+    const missing = await jsonRequest(serverContext.baseUrl, '/health');
+    assert.equal(missing.body.data.runtime.qa.readiness, 'hard_fail');
+    assert.equal(missing.body.data.runtime.qa.readyForAsk, false);
+    assert.equal(
+      missing.body.data.runtime.qa.hardFailures.some(
+        (item) => item.code === 'QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_INCOMPATIBLE',
+      ),
+      true,
+    );
+
+    env.qaActiveLeafEmbeddingContractJson = JSON.stringify({
+      provider: 'gemini',
+      model: 'gemini-embedding-2',
+      dimension: 3072,
+      instructionVersion: 'gemini_embedding_2_search_v1',
+      generationVersion: 'text_search_generation_v1',
+      normalizationVersion: 'unit_l2_v1',
+      contractVersion: 'gemini_embedding_2_text_v1',
+      taskType: null,
+    });
+
+    const compatible = await jsonRequest(serverContext.baseUrl, '/health');
+    assert.equal(compatible.body.data.runtime.qa.readiness, 'ready');
+    assert.equal(compatible.body.data.runtime.qa.leafQueryEmbeddingCompatible, true);
+    assert.equal(compatible.body.data.runtime.qa.dataContractCompatibility.leaf.status, 'compatible');
+    assert.equal(compatible.body.data.runtime.qa.parentQueryEmbeddingCompatible, false);
+  });
+
+  it('reports compatible Leaf and Parent contracts when hierarchy is explicitly enabled', async () => {
+    const stableContract = {
+      provider: 'gemini',
+      model: 'gemini-embedding-2',
+      dimension: 3072,
+      instructionVersion: 'gemini_embedding_2_search_v1',
+      generationVersion: 'text_search_generation_v1',
+      normalizationVersion: 'unit_l2_v1',
+      contractVersion: 'gemini_embedding_2_text_v1',
+      schemaVersion: 'gemini_embedding_2_text_v1',
+      taskType: null,
+    };
+    env.qaQueryEmbeddingProvider = 'gemini';
+    env.geminiApiKey = 'test-gemini-key';
+    env.hierarchicalRetrievalEnabled = true;
+    env.hierarchicalRetrievalFallbackToLeaf = false;
+    env.qaActiveLeafEmbeddingContractJson = JSON.stringify(stableContract);
+    env.qaActiveParentEmbeddingContractJson = JSON.stringify(stableContract);
+
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+
+    assert.equal(result.body.data.runtime.qa.readiness, 'ready');
+    assert.equal(result.body.data.runtime.qa.readyForAsk, true);
+    assert.equal(result.body.data.runtime.qa.leafQueryEmbeddingCompatible, true);
+    assert.equal(result.body.data.runtime.qa.parentQueryEmbeddingCompatible, true);
+    assert.equal(result.body.data.runtime.qa.dataContractCompatibility.leaf.status, 'compatible');
+    assert.equal(result.body.data.runtime.qa.dataContractCompatibility.parent.status, 'compatible');
   });
 
   it('SHORTS_SYNC_INTERVAL_MS=0 時回報 shorts sync disabled', async () => {

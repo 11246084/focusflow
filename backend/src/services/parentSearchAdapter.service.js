@@ -39,6 +39,7 @@ function buildParentSearchPipeline({
   courseId,
   videoId = null,
   allowedVideoIds = [],
+  restrictedVideoIds = [],
   limit,
   indexName,
 }) {
@@ -62,9 +63,13 @@ function buildParentSearchPipeline({
     }
     : { courseId: toCourseObjectId(courseId) };
   const requestedVideoId = String(videoId || '').trim();
-  const filter = requestedVideoId
+  const normalizedRestrictedVideoIds = normalizeAllowedVideoIds(restrictedVideoIds);
+  let filter = requestedVideoId
     ? { $and: [scopeFilter, { videoId: requestedVideoId }] }
     : scopeFilter;
+  if (normalizedRestrictedVideoIds.length) {
+    filter = { $and: [filter, { videoId: { $in: normalizedRestrictedVideoIds } }] };
+  }
 
   return [
     {
@@ -125,6 +130,7 @@ function createParentSearchRepository({
       courseId,
       videoId = null,
       allowedVideoIds = [],
+      restrictedVideoIds = [],
       limit,
       timeoutMs,
     }) {
@@ -134,6 +140,7 @@ function createParentSearchRepository({
         courseId,
         videoId,
         allowedVideoIds,
+        restrictedVideoIds,
         limit,
         indexName,
       });

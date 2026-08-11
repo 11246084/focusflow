@@ -1,5 +1,9 @@
 ﻿const path = require('path');
 const dotenv = require('dotenv');
+const {
+  parseIdentifierAllowlist,
+  parseRolloutMode,
+} = require('../services/hierarchicalRollout.service');
 
 const projectRoot = path.resolve(__dirname, '../..');
 
@@ -28,6 +32,19 @@ function parsePositiveInteger(value, fallback, name) {
   }
   return parsed;
 }
+
+const hierarchicalRolloutModeConfig = parseRolloutMode(
+  process.env.HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE,
+);
+const hierarchicalAllowedCourseIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_COURSE_IDS,
+);
+const hierarchicalAllowedVideoIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_VIDEO_IDS,
+);
+const hierarchicalAllowedUserIdsConfig = parseIdentifierAllowlist(
+  process.env.HIERARCHICAL_RETRIEVAL_ALLOWED_USER_IDS,
+);
 
 function isSameOrDescendantPath(parentPath, candidatePath) {
   const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
@@ -82,6 +99,17 @@ module.exports = {
     true,
     'HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF',
   ),
+  hierarchicalRetrievalRolloutMode: hierarchicalRolloutModeConfig.value,
+  hierarchicalRetrievalRolloutModeValid: hierarchicalRolloutModeConfig.valid,
+  hierarchicalRetrievalRolloutModeRequested: hierarchicalRolloutModeConfig.requested,
+  hierarchicalRetrievalAllowedCourseIds: hierarchicalAllowedCourseIdsConfig.values,
+  hierarchicalRetrievalAllowedVideoIds: hierarchicalAllowedVideoIdsConfig.values,
+  hierarchicalRetrievalAllowedUserIds: hierarchicalAllowedUserIdsConfig.values,
+  hierarchicalRetrievalAllowlistsValid: [
+    hierarchicalAllowedCourseIdsConfig,
+    hierarchicalAllowedVideoIdsConfig,
+    hierarchicalAllowedUserIdsConfig,
+  ].every((config) => config.valid),
   hierarchicalParentLimit: parsePositiveInteger(process.env.HIERARCHICAL_PARENT_LIMIT, 5, 'HIERARCHICAL_PARENT_LIMIT'),
   hierarchicalChildExpansionLimit: parsePositiveInteger(
     process.env.HIERARCHICAL_CHILD_EXPANSION_LIMIT, 30, 'HIERARCHICAL_CHILD_EXPANSION_LIMIT',
@@ -104,6 +132,9 @@ module.exports = {
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,
   qaUserMonthlyTokenQuota: Number(process.env.QA_USER_MONTHLY_TOKEN_QUOTA) || 0,
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiEmbeddingModelName: process.env.GEMINI_EMBEDDING_MODEL_NAME || 'gemini-embedding-2',
+  qaActiveLeafEmbeddingContractJson: process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON || '',
+  qaActiveParentEmbeddingContractJson: process.env.QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON || '',
   geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
@@ -142,4 +173,6 @@ module.exports = {
   assertPrivateAvatarUploadDir,
   parseBoolean,
   parsePositiveInteger,
+  parseRolloutMode,
+  parseIdentifierAllowlist,
 };

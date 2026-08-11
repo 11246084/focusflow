@@ -15,7 +15,7 @@ OUTPUT_FILES = {
     "transcripts_normalized": "transcripts_normalized.json",
     "chunks": "chunks.jsonl",
     "parent_chunks": "parent_chunks.jsonl",
-    "parent_embeddings": "embeddings_parent_gemini.jsonl",
+    "parent_embeddings": "embeddings_parent_gemini_stable.jsonl",
     "text_embeddings": "embeddings_text_gemini.jsonl",
     "audio_embeddings": "embeddings_audio_gemini.jsonl",
     "upload_summary": "upload_summary.json",

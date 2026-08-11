@@ -12,6 +12,20 @@ const courseId = '507f191e810c19729de860eb';
 const queryEmbedding = Array.from({ length: 3072 }, (_, index) => index / 3072);
 
 describe('parent search Atlas adapter', () => {
+  it('intersects the authorized scope with rollout-supported videos', () => {
+    const pipeline = buildParentSearchPipeline({
+      queryEmbedding,
+      courseId: courseId,
+      allowedVideoIds: ['video-authorized', 'video-supported'],
+      restrictedVideoIds: ['video-supported'],
+      limit: 3,
+      indexName: 'parent_embedding_index',
+    });
+    assert.deepEqual(
+      pipeline[0].$vectorSearch.filter.$and[1],
+      { videoId: { $in: ['video-supported'] } },
+    );
+  });
   it('builds the scoped Atlas pipeline from env-backed index contract', () => {
     const pipeline = buildParentSearchPipeline({
       queryEmbedding,

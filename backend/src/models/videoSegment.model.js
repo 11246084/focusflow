@@ -51,6 +51,16 @@ const videoSegmentSchema = new mongoose.Schema(
       type: [Number],
       default: [],
     },
+    // Leaf 保存產生向量時的完整契約，供 health 判斷資料能否由目前的 query 安全查詢。
+    embeddingProvider: { type: String, default: null, trim: true },
+    embeddingModel: { type: String, default: null, trim: true },
+    embeddingDimension: { type: Number, default: null },
+    // Legacy pipeline metadata is retained for audit only; stable gemini-embedding-2 uses null.
+    embeddingTaskType: { type: String, default: null, trim: true },
+    embeddingInstructionVersion: { type: String, default: null, trim: true },
+    generationVersion: { type: String, default: null, trim: true },
+    normalizationVersion: { type: String, default: null, trim: true },
+    embeddingContractVersion: { type: String, default: null, trim: true },
   },
   {
     timestamps: true,

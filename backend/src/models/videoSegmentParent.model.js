@@ -76,6 +76,7 @@ const videoSegmentParentSchema = new mongoose.Schema(
         message: 'embedding must contain exactly 3072 finite numbers.',
       },
     },
+    // Parent 也必須保存完整向量契約；僅有相同維度不足以證明兩邊可以互相查詢。
     embeddingProvider: {
       type: String,
       default: null,
@@ -92,11 +93,22 @@ const videoSegmentParentSchema = new mongoose.Schema(
       enum: [3072],
     },
     embeddingTaskType: {
+      // Legacy taskType is retained for audit; stable gemini-embedding-2 must store null.
       type: String,
       default: null,
       trim: true,
     },
     embeddingSchemaVersion: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    embeddingInstructionVersion: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    embeddingContractVersion: {
       type: String,
       default: null,
       trim: true,

@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const env = require('../config/env');
 const VideoSegment = require('../models/videoSegment.model');
 const VideoSegmentParent = require('../models/videoSegmentParent.model');
-const { embedQuery, GEMINI_EMBEDDING_MODEL } = require('../services/queryEmbedding.service');
+const { embedQuery } = require('../services/queryEmbedding.service');
+const { buildGeminiTextSearchContract } = require('../services/embeddingContract.service');
 const { createParentSearchRepository } = require('../services/parentSearchAdapter.service');
 const { searchParents } = require('../services/parentSearch.service');
 const { expandParentHits } = require('../services/childExpansion.service');
@@ -139,6 +140,11 @@ function buildLeafLookupQuery(childChunkIds, scope) {
   return Object.keys(scopeQuery).length ? { $and: [identity, scopeQuery] } : identity;
 }
 
+function hasRequiredCollections(collections, requiredCollections) {
+  const available = new Set((collections || []).map((item) => String(item?.name || '')).filter(Boolean));
+  return requiredCollections.every((name) => available.has(name));
+}
+
 async function runIsolatedE2E(options, dependencies) {
   const {
     preflight,
@@ -208,14 +214,32 @@ async function runIsolatedE2E(options, dependencies) {
 
   commandMonitor.assertNoWrites();
   const safety = commandMonitor.snapshot();
+  const queryContract = env.qaQueryEmbeddingProvider === 'gemini'
+    ? buildGeminiTextSearchContract(env.geminiEmbeddingModelName)
+    : {
+      provider: env.qaQueryEmbeddingProvider,
+      model: env.qaQueryEmbeddingProvider,
+      instructionVersion: null,
+      generationVersion: null,
+      normalizationVersion: null,
+      contractVersion: null,
+      schemaVersion: null,
+      taskType: null,
+    };
   return {
     runMode: 'phase2_2_isolated_e2e',
     writesAllowed: false,
     gate: { sharedValue: false, isolatedValue: true },
     query: {
       length: options.question.length,
-      embeddingProvider: env.qaQueryEmbeddingProvider,
-      embeddingModel: env.qaQueryEmbeddingProvider === 'gemini' ? GEMINI_EMBEDDING_MODEL : env.qaQueryEmbeddingProvider,
+      embeddingProvider: queryContract.provider,
+      embeddingModel: queryContract.model,
+      instructionVersion: queryContract.instructionVersion,
+      generationVersion: queryContract.generationVersion,
+      normalizationVersion: queryContract.normalizationVersion,
+      contractVersion: queryContract.contractVersion,
+      schemaVersion: queryContract.schemaVersion,
+      taskType: queryContract.taskType,
       dimension: queryVector.length,
       apiCalls: 1,
     },
@@ -300,7 +324,9 @@ async function createLiveDependencies(commandMonitor) {
       const courseObjectId = new mongoose.Types.ObjectId(options.courseId);
       const videoObjectId = new mongoose.Types.ObjectId(options.videoId);
       const [collections, indexes, searchIndexes, video, course] = await Promise.all([
-        connection.db.listCollections({ name: { $in: requiredCollections } }).toArray(),
+        // Atlas does not consistently accept `$in` in a listCollections name filter.
+        // Read name-only metadata and enforce the required set in application code.
+        connection.db.listCollections({}, { nameOnly: true }).toArray(),
         leafCollection.listIndexes().toArray(),
         parentCollection.listSearchIndexes(env.videoSegmentParentVectorIndexName).toArray(),
         videoCollection.findOne(
@@ -313,7 +339,7 @@ async function createLiveDependencies(commandMonitor) {
         ),
       ]);
       commandMonitor.assertNoWrites();
-      if (collections.length !== requiredCollections.length) {
+      if (!hasRequiredCollections(collections, requiredCollections)) {
         throw new IsolatedE2EError('Required Parent or Leaf collection is unavailable.', 'E2E_COLLECTION_NOT_READY');
       }
       const courseContainsVideo = Array.isArray(course?.videoIds)
@@ -399,6 +425,7 @@ module.exports = {
   createLiveDependencies,
   collectIndexNames,
   hasIxscan,
+  hasRequiredCollections,
   main,
   parseCliArgs,
   runIsolatedE2E,

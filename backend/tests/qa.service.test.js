@@ -24,6 +24,8 @@ function resetQaEnv() {
   env.qaUserMonthlyTokenQuota = 0;
   env.geminiApiKey = '';
   env.openaiApiKey = '';
+  env.qaActiveLeafEmbeddingContractJson = '';
+  env.qaActiveParentEmbeddingContractJson = '';
 }
 
 describe('qa service', () => {
@@ -549,6 +551,16 @@ describe('qa service', () => {
     env.openaiApiKey = 'openai-test-key';
     env.qaVectorSearchMode = 'atlas';
     env.qaAtlasVectorIndexName = 'text_embedding_index';
+    env.qaActiveLeafEmbeddingContractJson = JSON.stringify({
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      dimension: 1536,
+      instructionVersion: null,
+      generationVersion: null,
+      normalizationVersion: null,
+      contractVersion: null,
+      taskType: null,
+    });
     global.fetch = async () => ({
       ok: true,
       async json() {

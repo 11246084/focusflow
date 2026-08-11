@@ -10,7 +10,12 @@ function normalizeId(value) {
   return value == null ? '' : String(value).trim();
 }
 
-function validateParentHit(hit, { courseId, videoId, allowedVideoIds = [] } = {}) {
+function validateParentHit(hit, {
+  courseId,
+  videoId,
+  allowedVideoIds = [],
+  restrictedVideoIds = [],
+} = {}) {
   if (!hit || typeof hit !== 'object') {
     throw new ParentRetrievalError('Parent search returned an invalid document.', 'PARENT_DOCUMENT_INVALID');
   }
@@ -47,6 +52,16 @@ function validateParentHit(hit, { courseId, videoId, allowedVideoIds = [] } = {}
     throw new ParentRetrievalError('Parent search returned a document outside the video scope.', 'PARENT_SCOPE_MISMATCH');
   }
 
+  const restrictedVideoSet = new Set(
+    Array.from(restrictedVideoIds || []).map(normalizeId).filter(Boolean),
+  );
+  if (restrictedVideoSet.size && !restrictedVideoSet.has(parentVideoId)) {
+    throw new ParentRetrievalError(
+      'Parent search returned a document outside the rollout video scope.',
+      'PARENT_SCOPE_MISMATCH',
+    );
+  }
+
   return {
     parentId,
     videoId: parentVideoId,
@@ -77,6 +92,7 @@ async function searchParents({
   courseId,
   videoId = null,
   allowedVideoIds = [],
+  restrictedVideoIds = [],
   limit,
   timeoutMs = 1000,
 }) {
@@ -98,6 +114,7 @@ async function searchParents({
         courseId,
         videoId,
         allowedVideoIds,
+        restrictedVideoIds,
         limit: safeLimit,
         timeoutMs,
       })),
@@ -117,6 +134,7 @@ async function searchParents({
       courseId,
       videoId,
       allowedVideoIds,
+      restrictedVideoIds,
     }));
   } catch (error) {
     if (error instanceof ParentRetrievalError) throw error;

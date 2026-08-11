@@ -37,6 +37,9 @@ describe('docs routes', () => {
       'hierarchicalRetrievalFallbackToLeaf',
       'hierarchicalParentStorageMode',
       'queryEmbeddingDimensions',
+      'queryEmbeddingContract',
+      'dataContractCompatibility',
+      'leafQueryEmbeddingCompatible',
       'parentQueryEmbeddingCompatible',
     ];
 
@@ -50,6 +53,19 @@ describe('docs routes', () => {
       qaRuntime.properties.readiness.$ref,
       '#/components/schemas/ReadinessStatus',
     );
+    assert.equal(spec.components.schemas.EmbeddingContract.properties.taskType.anyOf.some(
+      (item) => item.type === 'null',
+    ), true);
+    assert.equal(
+      spec.components.schemas.EmbeddingDataContractCompatibility.properties.parent.$ref,
+      '#/components/schemas/EmbeddingContractCompatibility',
+    );
+    const healthExample = spec.paths['/health'].get.responses['200']
+      .content['application/json'].examples.healthy.value.data.runtime.qa;
+    for (const kind of ['leaf', 'parent']) {
+      assert.ok(healthExample.dataContractCompatibility[kind].expected);
+      assert.ok(healthExample.dataContractCompatibility[kind].active);
+    }
   });
 
   it('serves swagger ui configured to load the same-origin yaml spec', async () => {

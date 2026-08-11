@@ -22,7 +22,10 @@ class _FakeModels:
         del model, config
         self.calls.append(list(contents))
         return SimpleNamespace(
-            embeddings=[SimpleNamespace(values=[1.0, float(index + 1)]) for index in range(len(contents))],
+            embeddings=[
+                SimpleNamespace(values=[1.0, float(index + 1)] + [0.0] * 3070)
+                for index in range(len(contents))
+            ],
             request_id=f"request-{len(self.calls)}",
         )
 
@@ -36,8 +39,8 @@ class GeminiTextBatchingTests(unittest.TestCase):
                 text_embeddings_output_path=Path(temp_dir) / "embeddings_text_gemini.jsonl",
                 gemini_embedding_enabled=True,
                 gemini_api_key="offline-test-key",
-                gemini_embedding_model_name="offline-model",
-                gemini_embedding_output_dim=2,
+                gemini_embedding_model_name="gemini-embedding-2",
+                gemini_embedding_output_dim=3072,
                 gemini_embedding_batch_size=8,
                 gemini_max_chunks_per_run=None,
                 gemini_max_retries=0,
@@ -63,7 +66,7 @@ class GeminiTextBatchingTests(unittest.TestCase):
             self.assertEqual([len(call) for call in fake_models.calls], [8, 1])
             self.assertEqual([record.chunk_id for record in records], [chunk.chunk_id for chunk in chunks])
             self.assertTrue(all(record.embedding_status == embedding.EMBEDDING_STATUS_SUCCESS for record in records))
-            self.assertTrue(all(len(record.embedding) == 2 for record in records))
+            self.assertTrue(all(len(record.embedding) == 3072 for record in records))
 
 
 if __name__ == "__main__":

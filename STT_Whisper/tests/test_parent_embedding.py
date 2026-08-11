@@ -7,6 +7,7 @@ import math
 import os
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,8 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from config import PipelineConfig  # noqa: E402
+from embedding import embed_text_contents  # noqa: E402
+from embedding_contract import build_parent_document_text  # noqa: E402
 from hierarchy_chunking import ParentChunkRecord  # noqa: E402
 from job_manager import STAGE_NAMES, create_manifest  # noqa: E402
 from parent_embedding import (  # noqa: E402
@@ -25,8 +28,16 @@ from parent_embedding import (  # noqa: E402
     validate_parent_embedding_artifact,
 )
 from parent_embedding_strategy import (  # noqa: E402
+    PARENT_EMBEDDING_CONTRACT_VERSION,
+    PARENT_EMBEDDING_GENERATION_VERSION,
+    PARENT_EMBEDDING_INSTRUCTION,
+    PARENT_EMBEDDING_INSTRUCTION_VERSION,
     build_parent_embedding_config_snapshot,
     build_parent_embedding_fingerprint,
+)
+from resume_checkpoint import (  # noqa: E402
+    CheckpointError,
+    _validate_parent_embedding_fingerprint,
 )
 from utils import load_jsonl_file, write_jsonl_file  # noqa: E402
 
@@ -42,7 +53,7 @@ class ParentEmbeddingTests(unittest.TestCase):
                 "HIERARCHY_ENABLED": "true",
                 "PARENT_EMBEDDING_ENABLED": "true",
                 "ENABLE_GEMINI_EMBEDDING": "false",
-                "GEMINI_EMBEDDING_OUTPUT_DIM": "3",
+                "GEMINI_EMBEDDING_OUTPUT_DIM": "3072",
             },
             clear=False,
         )
@@ -94,7 +105,7 @@ class ParentEmbeddingTests(unittest.TestCase):
 
     @staticmethod
     def fake_provider(texts: list[str], _: PipelineConfig):
-        return [[1.0, 0.0, 0.0] for _ in texts], "fake-request"
+        return [[1.0] + [0.0] * 3071 for _ in texts], "fake-request"
 
     def generate(self):
         return embed_parent_chunks(
@@ -110,7 +121,7 @@ class ParentEmbeddingTests(unittest.TestCase):
         return validate_parent_embedding_artifact(
             self.config.parent_embeddings_output_path,
             self.parents,
-            3,
+            3072,
             self.config.gemini_embedding_model_name,
             self.hierarchy_fp,
             self.leaf_fp,
@@ -133,6 +144,41 @@ class ParentEmbeddingTests(unittest.TestCase):
             os.environ.pop("PARENT_EMBEDDING_ENABLED", None)
             config = PipelineConfig.from_env(self.root)
         self.assertFalse(config.parent_embedding_enabled)
+        self.assertEqual(config.gemini_embedding_model_name, "gemini-embedding-2")
+
+    def test_parent_enabled_rejects_preview_model(self):
+        with self.assertRaisesRegex(ValueError, "stable gemini-embedding-2"):
+            self.config.with_overrides(gemini_embedding_model_name="gemini-embedding-2-preview")
+
+    def test_stable_wrapper_uses_document_instruction_without_task_type(self):
+        captured = {}
+
+        class Models:
+            def embed_content(self, **kwargs):
+                captured.update(kwargs)
+                return types.SimpleNamespace(
+                    embeddings=[types.SimpleNamespace(values=[1.0] + [0.0] * 3071)],
+                    request_id="request-1",
+                )
+
+        class EmbedContentConfig:
+            def __init__(self, **kwargs):
+                self.values = kwargs
+
+        google_module = types.ModuleType("google")
+        genai_module = types.ModuleType("google.genai")
+        genai_module.types = types.SimpleNamespace(EmbedContentConfig=EmbedContentConfig)
+        google_module.genai = genai_module
+        with patch.dict(sys.modules, {"google": google_module, "google.genai": genai_module}):
+            vectors, request_id = embed_text_contents(
+                types.SimpleNamespace(models=Models()),
+                [" alpha beta "],
+                self.config,
+            )
+        self.assertEqual(captured["contents"], [build_parent_document_text("alpha beta")])
+        self.assertEqual(captured["config"].values, {"output_dimensionality": 3072})
+        self.assertEqual(len(vectors[0]), 3072)
+        self.assertEqual(request_id, "request-1")
 
     def test_config_parses_explicit_false(self):
         with patch.dict(os.environ, {"HIERARCHY_ENABLED": "false", "PARENT_EMBEDDING_ENABLED": "false"}, clear=False):
@@ -158,9 +204,14 @@ class ParentEmbeddingTests(unittest.TestCase):
         self.assertEqual([r.parent_id for r in records], [r.parent_id for r in loaded])
         self.assertEqual(loaded[0].child_chunk_ids, self.parents[0].child_chunk_ids)
         self.assertEqual(loaded[0].video_id, "video-1")
-        self.assertEqual(loaded[0].embedding_dimension, 3)
+        self.assertEqual(loaded[0].embedding_dimension, 3072)
         raw = load_jsonl_file(self.config.parent_embeddings_output_path)[0]
-        self.assertEqual(raw["embedding_schema_version"], "parent_embedding_v1")
+        self.assertEqual(raw["embedding_schema_version"], "parent_embedding_v2")
+        self.assertIsNone(raw["embedding_task_type"])
+        self.assertEqual(raw["embedding_instruction"], PARENT_EMBEDDING_INSTRUCTION)
+        self.assertEqual(raw["embedding_instruction_version"], PARENT_EMBEDDING_INSTRUCTION_VERSION)
+        self.assertEqual(raw["embedding_generation_version"], PARENT_EMBEDDING_GENERATION_VERSION)
+        self.assertEqual(raw["embedding_contract_version"], PARENT_EMBEDDING_CONTRACT_VERSION)
         self.assertIn("embedding_error", raw)
 
     def test_empty_input_is_valid_completed_artifact(self):
@@ -169,7 +220,7 @@ class ParentEmbeddingTests(unittest.TestCase):
         self.assertEqual(self.validate_empty(), [])
 
     def validate_empty(self):
-        return validate_parent_embedding_artifact(self.config.parent_embeddings_output_path, [], 3, self.config.gemini_embedding_model_name, self.hierarchy_fp, self.leaf_fp, self.parent_fp)
+        return validate_parent_embedding_artifact(self.config.parent_embeddings_output_path, [], 3072, self.config.gemini_embedding_model_name, self.hierarchy_fp, self.leaf_fp, self.parent_fp)
 
     def test_duplicate_parent_id_rejected(self):
         self.assert_invalid(lambda rows: rows.append(dict(rows[0])))
@@ -200,6 +251,23 @@ class ParentEmbeddingTests(unittest.TestCase):
 
     def test_wrong_model_rejected(self):
         self.assert_invalid(lambda rows: rows[0].update(embedding_model="wrong-model"))
+
+    def test_preview_and_legacy_task_type_are_rejected(self):
+        self.assert_invalid(lambda rows: rows[0].update(
+            embedding_model="gemini-embedding-2-preview",
+            embedding_task_type="RETRIEVAL_DOCUMENT",
+        ))
+
+    def test_stable_contract_metadata_mismatch_is_rejected(self):
+        for field_name in (
+            "embedding_instruction",
+            "embedding_instruction_version",
+            "embedding_generation_version",
+            "embedding_contract_version",
+            "embedding_role",
+        ):
+            with self.subTest(field=field_name):
+                self.assert_invalid(lambda rows, field_name=field_name: rows[0].update({field_name: "legacy"}))
 
     def test_nan_rejected(self):
         self.assert_invalid(lambda rows: rows[0].update(embedding=[math.nan, 0.0, 0.0]))
@@ -233,6 +301,11 @@ class ParentEmbeddingTests(unittest.TestCase):
             "model": "other-model",
             "dimension": 4,
             "task_type": "OTHER",
+            "instruction": "other",
+            "instruction_version": "v2",
+            "generation_version": "v2",
+            "contract_version": "v2",
+            "role": "other",
             "schema_version": "v2",
             "preprocessing_version": "v2",
             "normalization_version": "v2",
@@ -249,6 +322,32 @@ class ParentEmbeddingTests(unittest.TestCase):
         second = build_parent_embedding_config_snapshot(changed_config)
         self.assertEqual(first, second)
 
+    def test_resume_accepts_same_contract_and_rejects_preview_contract(self):
+        stable = build_parent_embedding_config_snapshot(self.config)
+        stable_fp = build_parent_embedding_fingerprint(stable, self.hierarchy_fp)
+        _validate_parent_embedding_fingerprint(
+            {
+                "parent_embedding_config": stable,
+                "parent_embedding_fingerprint": stable_fp,
+            },
+            stable,
+            stable_fp,
+            self.hierarchy_fp,
+        )
+        preview = dict(stable)
+        preview.update(model="gemini-embedding-2-preview", task_type="RETRIEVAL_DOCUMENT")
+        preview_fp = build_parent_embedding_fingerprint(preview, self.hierarchy_fp)
+        with self.assertRaisesRegex(CheckpointError, "PARENT_EMBEDDING_CONTRACT_MISMATCH"):
+            _validate_parent_embedding_fingerprint(
+                {
+                    "parent_embedding_config": preview,
+                    "parent_embedding_fingerprint": preview_fp,
+                },
+                stable,
+                stable_fp,
+                self.hierarchy_fp,
+            )
+
     def test_valid_artifact_is_reused_without_provider_call(self):
         first = self.generate()
         calls = []
@@ -263,7 +362,7 @@ class ParentEmbeddingTests(unittest.TestCase):
         calls = []
         def provider(texts, _):
             calls.append(texts)
-            return [[1.0, 0.0, 0.0] for _ in texts], None
+            return [[1.0] + [0.0] * 3071 for _ in texts], None
         embed_parent_chunks(self.parents, self.config, self.hierarchy_fp, self.leaf_fp, self.parent_fp, provider=provider)
         self.assertTrue(calls)
 
@@ -287,7 +386,7 @@ class ParentEmbeddingTests(unittest.TestCase):
             calls += 1
             if calls == 2:
                 raise RuntimeError("failed")
-            return [[1.0, 0.0, 0.0]], None
+            return [[1.0] + [0.0] * 3071], None
         with self.assertRaises(ParentEmbeddingStageError):
             embed_parent_chunks(self.parents, self.config, self.hierarchy_fp, self.leaf_fp, self.parent_fp, provider=provider)
         with self.assertRaises(ValueError):
@@ -308,7 +407,7 @@ class ParentEmbeddingTests(unittest.TestCase):
         manager.set_parent_embedding_metadata(
             snapshot,
             self.parent_fp,
-            artifact_path="embeddings_parent_gemini.jsonl",
+            artifact_path="embeddings_parent_gemini_stable.jsonl",
             required_count=2,
             success_count=1,
             reused_count=1,

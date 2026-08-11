@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from config import PipelineConfig
+from embedding_contract import build_parent_document_text, validate_stable_embedding_settings
 from utils import (
     AudioEmbeddingRecord,
     ChunkRecord,
@@ -131,14 +132,18 @@ def _log_embedding_event(
 
 
 def embed_text_contents(client: Any, texts: list[str], config: PipelineConfig) -> tuple[list[list[float]], str | None]:
-    """Call the shared Gemini text-vector operation used by Leaf and Parent records."""
+    """Call Gemini's stable searchable-document operation for Leaf and Parent text."""
     from google.genai import types
+
+    validate_stable_embedding_settings(
+        config.gemini_embedding_model_name,
+        config.gemini_embedding_output_dim,
+    )
 
     response = client.models.embed_content(
         model=config.gemini_embedding_model_name,
-        contents=texts,
+        contents=[build_parent_document_text(text) for text in texts],
         config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_DOCUMENT",
             output_dimensionality=config.gemini_embedding_output_dim,
         ),
     )

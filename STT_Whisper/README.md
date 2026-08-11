@@ -1,5 +1,28 @@
 # FocusFlow AI Pipeline MVP
 
+## Phase 2-2 Stable Parent Embedding Contract（2026-08-09）
+
+Parent Embedding production path 現已只接受 Gemini stable text-search contract：
+
+- model：`gemini-embedding-2`
+- dimension：`3072`
+- task type：`null`（request 不再傳 preview `task_type`）
+- Parent document instruction：`task: search result | document: <parent_text>`
+- instruction version：`gemini_embedding_2_search_v1`
+- generation version：`text_search_generation_v1`
+- normalization：`unit_l2_v1`
+- contract version：`gemini_embedding_2_text_v1`
+- artifact schema：`parent_embedding_v2`
+
+新 artifact 使用 run-scoped `embeddings_parent_gemini_stable.jsonl`。既有
+`embeddings_parent_gemini.jsonl` preview artifact 只保留作 audit，不會被 stable
+resume 或 Parent Uploader 接受，也不會被自動覆蓋或發布。Parent fingerprint 包含
+model、dimension、null task type、instruction、instruction/generation/normalization/
+contract version 與 Hierarchy fingerprint。
+
+本次只完成 offline production contract 與 mock validation；尚未呼叫 Gemini 產生
+live stable vectors，也尚未更新 Atlas Parent documents。
+
 ## Phase 2 STT Accuracy Optimization Sprint 1
 
 Pipeline 使用 `faster-whisper`，並提供可選 `STT_INITIAL_PROMPT`、安全的 boundary-aware terminology normalization、run-specific `correction_audit.jsonl`、STT／Normalize fingerprints 與品質摘要。術語校正只接受字典明列 alias，不再執行未受限的 fuzzy 全域替換；raw `transcripts.json` 不會被覆蓋，校正結果與稽核資訊位於 normalized transcript 與 correction audit。
@@ -10,7 +33,7 @@ Pipeline 使用 `faster-whisper`，並提供可選 `STT_INITIAL_PROMPT`、安全
 
 Parent Embedding 是位於 `hierarchy` 與 Leaf `text_embedding` 之間的獨立 blocking stage。它預設關閉，只有同時設定 `HIERARCHY_ENABLED=true` 與 `PARENT_EMBEDDING_ENABLED=true` 才會執行；若只啟用 Parent Embedding，設定驗證會在 Run 建立前失敗。
 
-啟用後，Pipeline 將 `parent_chunks.jsonl` 轉為 run-scoped `embeddings_parent_gemini.jsonl`。每筆記錄保留 `parent_id`、`video_id`、有序 `child_chunk_ids`、Parent 文字與時間範圍、向量與兩層 fingerprint，使 Sprint 2B 可建立 Parent Document，Sprint 3 可由 Parent 命中展開回 Leaf。Parent 與 Leaf 使用相同 provider、model、dimension、`RETRIEVAL_DOCUMENT` task type與 L2 normalization，但兩者的 ID、artifact、fingerprint、resume 邊界完全分離。
+啟用後，Pipeline 將 `parent_chunks.jsonl` 轉為 run-scoped `embeddings_parent_gemini_stable.jsonl`。每筆記錄保留 Parent identity、Child lineage、向量與完整 stable contract metadata。Parent 與 Query 共用 stable model、dimension、generation、normalization 與 contract version，但以 `document:`／`query:` instruction 區分角色，且 task type 均為 `null`。
 
 Parent Embedding fingerprint 依賴 Hierarchy fingerprint 及非敏感向量設定。Resume 只有在 fingerprint 相同且 artifact 通過完整 schema、mapping、向量維度與 finite-number 驗證時才會 reuse；缺檔、損毀、舊 manifest 或設定改變會從 `parent_embedding` 重跑。Feature Gate 關閉時 stage 為 `skipped`，不建立假 artifact，也不讓既有 Parent Artifact 影響 Leaf-only 流程。
 
@@ -183,7 +206,7 @@ WHISPER_LANGUAGE=zh
 ENABLE_GEMINI_EMBEDDING=true
 ENABLE_GEMINI_VIDEO_EMBEDDING=false
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_EMBEDDING_MODEL_NAME=gemini-embedding-2-preview
+GEMINI_EMBEDDING_MODEL_NAME=gemini-embedding-2
 GEMINI_EMBEDDING_OUTPUT_DIM=3072
 GEMINI_EMBEDDING_BATCH_SIZE=8
 GEMINI_MAX_RETRIES=3
@@ -743,9 +766,9 @@ Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 
 
 ### Parent publication adapter（Phase 2-2）
 
-`src/parent_mongodb_uploader.py` 是 Parent artifact 的正式 publication adapter，但目前刻意不接入 `main.py` 或既有 Leaf `upload_all()`。它只接受已通過 Parent Embedding stage 的 `embeddings_parent_gemini.jsonl`，且呼叫端必須顯式注入 MongoDB collection 與權威 `courseId`（或可替換的 resolver）。模組本身不建立 MongoDB client，也不會從 `videoId`、第一門課或本機資料猜測 `courseId`。
+`src/parent_mongodb_uploader.py` 是 Parent artifact 的正式 publication adapter，但目前刻意不接入 `main.py` 或既有 Leaf `upload_all()`。它只接受已通過 Parent Embedding stage 的 `embeddings_parent_gemini_stable.jsonl`，且呼叫端必須顯式注入 MongoDB collection 與權威 `courseId`（或可替換的 resolver）。模組本身不建立 MongoDB client，也不會從 `videoId`、第一門課或本機資料猜測 `courseId`。
 
-發布前會整批驗證 JSONL、Parent 欄位、fingerprints，以及固定的 `gemini-embedding-2-preview`／`RETRIEVAL_DOCUMENT`／3072 維 contract。任何一筆失敗時整批阻擋且 write count 為 0。通過後才把白名單 snake_case 欄位集中映射成 Backend schema 的 camelCase document，並使用唯一 filter `{ parentId }` 建立 `upsert=True`、`ordered=False` 的 bulk operations。
+發布前會整批驗證 JSONL、Parent 欄位、fingerprints，以及固定的 `gemini-embedding-2`／`taskType=null`／stable document instruction／3072 維 contract。Preview artifact 或任何 stable metadata mismatch 都會整批阻擋且 write count 為 0。通過後才把白名單 snake_case 欄位集中映射成 Backend schema 的 camelCase document，並使用唯一 filter `{ parentId }` 建立 `upsert=True`、`ordered=False` 的 bulk operations。
 
 Collection 名稱由 `VIDEO_SEGMENT_PARENT_COLLECTION` 設定，預設 `video_segments_parent`。`generationVersion` 僅保留為 nullable audit 欄位、`isActive` 預設 `true`；目前不做 generation switching、stale cleanup 或 delete。這一階段只完成 offline/mock 驗證，尚未代表 shared Atlas 已發布或 live upsert 已驗收。
 

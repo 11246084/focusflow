@@ -26,6 +26,14 @@ async function drainStream(stream) {
   });
 }
 
+async function waitFor(predicate, attempts = 100) {
+  for (let index = 0; index < attempts; index += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for asynchronous upload state.');
+}
+
 function buildSuccessfulFetchMock(calls) {
   return async (url, options = {}) => {
     calls.push({ url, options });
@@ -79,6 +87,12 @@ describe('youtubeUpload.service', () => {
       youtubeUploadPrivacyStatus: env.youtubeUploadPrivacyStatus,
       youtubeUploadCategoryId: env.youtubeUploadCategoryId,
       youtubePrivatizeOnDelete: env.youtubePrivatizeOnDelete,
+      youtubeUploadMaxAttempts: env.youtubeUploadMaxAttempts,
+      youtubeUploadRetryBaseMs: env.youtubeUploadRetryBaseMs,
+      youtubeUploadRecoveryEnabled: env.youtubeUploadRecoveryEnabled,
+      youtubeUploadRecoveryBatchSize: env.youtubeUploadRecoveryBatchSize,
+      youtubeUploadStuckAfterMs: env.youtubeUploadStuckAfterMs,
+      youtubeUploadCleanupEnabled: env.youtubeUploadCleanupEnabled,
     };
 
     env.youtubeUploadEnabled = true;
@@ -94,6 +108,12 @@ describe('youtubeUpload.service', () => {
     env.youtubeUploadPrivacyStatus = 'unlisted';
     env.youtubeUploadCategoryId = '27';
     env.youtubePrivatizeOnDelete = true;
+    env.youtubeUploadMaxAttempts = 3;
+    env.youtubeUploadRetryBaseMs = 0;
+    env.youtubeUploadRecoveryEnabled = false;
+    env.youtubeUploadRecoveryBatchSize = 5;
+    env.youtubeUploadStuckAfterMs = 900000;
+    env.youtubeUploadCleanupEnabled = false;
 
     tempFilePath = path.join(os.tmpdir(), `focusflow-yt-test-${Date.now()}.mp4`);
     fs.writeFileSync(tempFilePath, 'fake video bytes');
@@ -189,6 +209,9 @@ describe('youtubeUpload.service', () => {
     assert.equal(video.videoUrl, 'https://www.youtube.com/watch?v=ytVideo123');
     assert.equal(video.youtubeUpload.status, 'uploaded');
     assert.ok(video.youtubeUpload.uploadedAt);
+    assert.equal(video.youtubeUpload.attemptCount, 1);
+    assert.equal(video.sourceUrl, 'https://www.youtube.com/watch?v=ytVideo123');
+    assert.equal(video.videoSource, 'youtube');
   });
 
   it('上傳失敗時標記 failed 並保留錯誤訊息', async () => {
@@ -208,6 +231,166 @@ describe('youtubeUpload.service', () => {
     assert.equal(result, null);
     assert.equal(video.youtubeUpload.status, 'failed');
     assert.match(video.youtubeUpload.error, /token refresh failed/i);
+    assert.equal(video.youtubeUpload.retrySafe, true);
+    assert.ok(video.youtubeUpload.nextRetryAt);
+  });
+
+  it('上傳串流階段發生不確定錯誤時禁止自動重試以避免重複影片', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+
+    await youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo, {
+      fetchImpl: async (url) => {
+        if (String(url).includes('oauth2.googleapis.com/token')) {
+          return jsonResponse({ access_token: 'token' });
+        }
+        if (String(url).includes('uploadType=resumable')) {
+          return jsonResponse({}, { headers: { location: 'https://upload.youtube.test/ambiguous' } });
+        }
+        throw new Error('socket closed after upload bytes were sent');
+      },
+    });
+
+    assert.equal(video.youtubeUpload.status, 'failed');
+    assert.equal(video.youtubeUpload.retrySafe, false);
+    assert.equal(video.youtubeUpload.nextRetryAt, null);
+  });
+
+  it('啟動 recovery 只重試安全失敗，並隔離逾時 uploading 紀錄', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = {
+      status: 'failed',
+      attemptCount: 1,
+      retrySafe: true,
+      nextRetryAt: new Date(0),
+    };
+
+    const recovered = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: buildSuccessfulFetchMock([]),
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    assert.deepEqual(recovered, { recovered: 1, quarantined: 0, skipped: false });
+    assert.equal(video.youtubeUpload.status, 'uploaded');
+
+    resetStore();
+    const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+    stale.youtubeVideoId = null;
+    stale.youtubeUpload = {
+      status: 'uploading',
+      attemptCount: 1,
+      lastAttemptAt: '2026-08-11T00:00:00.000Z',
+    };
+    const quarantined = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: async () => { throw new Error('must not call YouTube'); },
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    assert.deepEqual(quarantined, { recovered: 0, quarantined: 1, skipped: false });
+    assert.equal(stale.youtubeUpload.status, 'failed');
+    assert.equal(stale.youtubeUpload.retrySafe, false);
+    assert.match(stale.youtubeUpload.error, /review YouTube Studio/i);
+  });
+
+  it('課程 owner 可排程安全失敗的重試，完成後受 bounded attempt 保護', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = { status: 'failed', attemptCount: 1, retrySafe: true };
+
+    const result = await youtubeUploadService.scheduleYouTubeUploadRetry(
+      ids.teacherVideo,
+      { id: ids.teacher, role: 'teacher' },
+      { fetchImpl: buildSuccessfulFetchMock([]) },
+    );
+    await waitFor(() => video.youtubeUpload?.status === 'uploaded');
+
+    assert.deepEqual(result, { videoId: ids.teacherVideo, status: 'retry_scheduled' });
+    assert.equal(video.youtubeUpload.attemptCount, 2);
+    assert.equal(video.youtubeVideoId, 'ytVideo123');
+  });
+
+  it('不確定是否已完成的 upload 禁止由 retry API 重傳', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = { status: 'failed', attemptCount: 1, retrySafe: false };
+
+    await assert.rejects(
+      () => youtubeUploadService.scheduleYouTubeUploadRetry(
+        ids.teacherVideo,
+        { id: ids.teacher, role: 'teacher' },
+        { fetchImpl: async () => { throw new Error('must not upload'); } },
+      ),
+      (error) => error.code === 'YOUTUBE_UPLOAD_RETRY_UNSAFE' && error.statusCode === 409,
+    );
+  });
+
+  it('安全清理只在 YouTube 與 processing 都完成且路徑位於 UPLOAD_DIR 時刪除', async () => {
+    env.youtubeUploadCleanupEnabled = true;
+    const cleanupPath = path.join(env.uploadDir, `test-upload-youtube-cleanup-${Date.now()}.mp4`);
+    fs.mkdirSync(env.uploadDir, { recursive: true });
+    fs.writeFileSync(cleanupPath, 'cleanup fixture');
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = cleanupPath;
+    video.youtubeVideoId = 'ytCleanup123';
+    video.youtubeUpload = { status: 'uploaded', uploadedAt: new Date() };
+    video.processing = { status: 'completed' };
+
+    const result = await youtubeUploadService.cleanupUploadedLocalVideo(ids.teacherVideo);
+
+    assert.deepEqual(result, { cleaned: true, reason: null });
+    assert.equal(fs.existsSync(cleanupPath), false);
+    assert.equal(video.filePath, null);
+    assert.equal(video.sourceUrl, 'https://www.youtube.com/watch?v=ytCleanup123');
+    assert.equal(video.videoSource, 'youtube');
+    assert.ok(video.youtubeUpload.localCleanupAt);
+  });
+
+  it('安全清理拒絕 UPLOAD_DIR 外的檔案', async () => {
+    env.youtubeUploadCleanupEnabled = true;
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = 'ytOutside123';
+    video.youtubeUpload = { status: 'uploaded', uploadedAt: new Date() };
+    video.processing = { status: 'completed' };
+
+    const result = await youtubeUploadService.cleanupUploadedLocalVideo(ids.teacherVideo);
+
+    assert.deepEqual(result, { cleaned: false, reason: 'unsafe_path' });
+    assert.equal(fs.existsSync(tempFilePath), true);
+    assert.match(video.youtubeUpload.localCleanupError, /outside UPLOAD_DIR/i);
+  });
+
+  it('安全清理拒絕仍被其他 Video 共用的本地檔案', async () => {
+    env.youtubeUploadCleanupEnabled = true;
+    const cleanupPath = path.join(env.uploadDir, `test-upload-youtube-shared-${Date.now()}.mp4`);
+    fs.mkdirSync(env.uploadDir, { recursive: true });
+    fs.writeFileSync(cleanupPath, 'shared cleanup fixture');
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = cleanupPath;
+    video.youtubeVideoId = 'ytShared123';
+    video.youtubeUpload = { status: 'uploaded', uploadedAt: new Date() };
+    video.processing = { status: 'completed' };
+    store.videos.push({
+      _id: '507f191e810c19729de86fff',
+      courseId: ids.teacherCourse,
+      filePath: cleanupPath,
+    });
+
+    try {
+      const result = await youtubeUploadService.cleanupUploadedLocalVideo(ids.teacherVideo);
+
+      assert.deepEqual(result, { cleaned: false, reason: 'shared_reference' });
+      assert.equal(fs.existsSync(cleanupPath), true);
+      assert.match(video.youtubeUpload.localCleanupError, /another Video/i);
+    } finally {
+      const sharedIndex = store.videos.findIndex((item) => item._id === '507f191e810c19729de86fff');
+      if (sharedIndex >= 0) store.videos.splice(sharedIndex, 1);
+      if (fs.existsSync(cleanupPath)) fs.unlinkSync(cleanupPath);
+    }
   });
 
   it('setVideoPrivacy 讀回現有 status 後只覆寫 privacyStatus', async () => {

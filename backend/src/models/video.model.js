@@ -168,6 +168,38 @@ const videoSchema = new mongoose.Schema(
             type: Date,
             default: null,
           },
+          // Recovery metadata distinguishes failures that are safe to replay
+          // from uncertain uploads that require a YouTube Studio review.
+          attemptCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+          },
+          lastAttemptAt: {
+            type: Date,
+            default: null,
+          },
+          failedAt: {
+            type: Date,
+            default: null,
+          },
+          retrySafe: {
+            type: Boolean,
+            default: false,
+          },
+          nextRetryAt: {
+            type: Date,
+            default: null,
+          },
+          localCleanupAt: {
+            type: Date,
+            default: null,
+          },
+          localCleanupError: {
+            type: String,
+            default: null,
+            trim: true,
+          },
         },
         { _id: false },
       ),

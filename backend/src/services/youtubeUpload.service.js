@@ -1,9 +1,15 @@
-const { createReadStream, existsSync, statSync } = require('fs');
+const { createReadStream, existsSync, statSync, unlinkSync } = require('fs');
 const path = require('path');
 const env = require('../config/env');
 const Video = require('../models/video.model');
-const { YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
+const {
+  VIDEO_PROCESSING_STATUSES,
+  VIDEO_SOURCE_TYPES,
+  YOUTUBE_UPLOAD_STATUSES,
+} = require('../constants/enums');
 const AppError = require('../utils/appError');
+const { assertObjectId } = require('../utils/objectId');
+const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 
 const YOUTUBE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable';
@@ -32,7 +38,17 @@ const credentialState = {
   lastPrivatizeSuccessAt: null,
   lastPrivatizeError: null,
   lastPrivatizeVideoId: null,
+  lastRecoveryAttemptAt: null,
+  lastRecoverySuccessAt: null,
+  lastRecoveryError: null,
+  lastRecoveryRecoveredCount: 0,
+  lastRecoveryQuarantinedCount: 0,
+  lastCleanupAttemptAt: null,
+  lastCleanupSuccessAt: null,
+  lastCleanupError: null,
+  lastCleanupVideoId: null,
 };
+const runningUploadIds = new Set();
 
 function nowIso() {
   return new Date().toISOString();
@@ -40,6 +56,24 @@ function nowIso() {
 
 function shortErrorMessage(error) {
   return String(error?.message || error || 'Unknown error').slice(0, 300);
+}
+
+function tagRetrySafety(error, retrySafe) {
+  if (error && error.youtubeRetrySafe === undefined) {
+    error.youtubeRetrySafe = retrySafe;
+  }
+  return error;
+}
+
+function resolveLocalUploadPath(filePath) {
+  return path.isAbsolute(filePath || '')
+    ? path.resolve(filePath)
+    : path.resolve(env.projectRoot, filePath || '');
+}
+
+function isPathInside(parentPath, candidatePath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function normalizePrivacyStatus(value) {
@@ -178,7 +212,12 @@ async function uploadLocalVideo({
   }
 
   assertFetch(fetchImpl);
-  const accessToken = await fetchAccessToken({ fetchImpl });
+  let accessToken;
+  try {
+    accessToken = await fetchAccessToken({ fetchImpl });
+  } catch (error) {
+    throw tagRetrySafety(error, true);
+  }
   const fileStats = statSync(filePath);
   const normalizedMimeType = mimeType || guessMimeType(filePath);
   const normalizedPrivacyStatus = normalizePrivacyStatus(privacyStatus);
@@ -194,46 +233,61 @@ async function uploadLocalVideo({
     },
   };
 
-  const sessionResponse = await fetchImpl(YOUTUBE_UPLOAD_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json; charset=UTF-8',
-      'X-Upload-Content-Type': normalizedMimeType,
-      'X-Upload-Content-Length': String(fileStats.size),
-    },
-    body: JSON.stringify(metadata),
-  });
+  let sessionResponse;
+  try {
+    sessionResponse = await fetchImpl(YOUTUBE_UPLOAD_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': normalizedMimeType,
+        'X-Upload-Content-Length': String(fileStats.size),
+      },
+      body: JSON.stringify(metadata),
+    });
+  } catch (error) {
+    throw tagRetrySafety(error, true);
+  }
 
   if (!sessionResponse.ok) {
     const responseText = await sessionResponse.text().catch(() => '');
-    throw createYouTubeApiError('Failed to create YouTube upload session.', responseText);
+    throw tagRetrySafety(createYouTubeApiError('Failed to create YouTube upload session.', responseText), true);
   }
 
   const uploadUrl = sessionResponse.headers?.get?.('location');
   if (!uploadUrl) {
-    throw createYouTubeApiError('YouTube upload session did not return a Location header.');
+    throw tagRetrySafety(createYouTubeApiError('YouTube upload session did not return a Location header.'), true);
   }
 
-  const uploadResponse = await fetchImpl(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': normalizedMimeType,
-      'Content-Length': String(fileStats.size),
-    },
-    body: createReadStream(filePath),
-    duplex: 'half',
-  });
+  let uploadResponse;
+  const uploadStream = createReadStream(filePath);
+  try {
+    uploadResponse = await fetchImpl(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': normalizedMimeType,
+        'Content-Length': String(fileStats.size),
+      },
+      body: uploadStream,
+      duplex: 'half',
+    });
+  } catch (error) {
+    uploadStream.once('error', () => {});
+    uploadStream.destroy();
+    // A network failure after bytes started flowing is ambiguous: YouTube may have
+    // finalized the video even though FocusFlow did not receive the response.
+    throw tagRetrySafety(error, false);
+  }
 
   if (!uploadResponse.ok) {
     const responseText = await uploadResponse.text().catch(() => '');
-    throw createYouTubeApiError('Failed to upload video to YouTube.', responseText);
+    throw tagRetrySafety(createYouTubeApiError('Failed to upload video to YouTube.', responseText), false);
   }
 
   const uploadPayload = await uploadResponse.json();
   if (!uploadPayload.id) {
-    throw createYouTubeApiError('YouTube upload response did not include a video id.');
+    throw tagRetrySafety(createYouTubeApiError('YouTube upload response did not include a video id.'), false);
   }
 
   return {
@@ -248,70 +302,263 @@ async function uploadVideoFileToYouTube({ filePath, title, description = '' }, f
   return result.youtubeVideoId;
 }
 
-async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = {}) {
+async function cleanupUploadedLocalVideo(videoId) {
+  // Cleanup requires both lifecycles to be terminal and verifies that no other
+  // Video references the path. Feature-off is the default deployment posture.
+  if (!env.youtubeUploadCleanupEnabled) return { cleaned: false, reason: 'disabled' };
+
   const video = await Video.findById(videoId);
+  if (!video) return { cleaned: false, reason: 'video_not_found' };
+  if (
+    !video.youtubeVideoId
+    || video.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.UPLOADED
+    || video.processing?.status !== VIDEO_PROCESSING_STATUSES.COMPLETED
+  ) {
+    return { cleaned: false, reason: 'lifecycle_not_complete' };
+  }
+  if (!video.filePath) return { cleaned: false, reason: 'already_cleaned' };
 
-  if (!video || video.youtubeVideoId) {
-    return null;
+  const localPath = resolveLocalUploadPath(video.filePath);
+  if (!isPathInside(env.uploadDir, localPath) || localPath === path.resolve(env.uploadDir)) {
+    const message = 'Refusing to clean a video path outside UPLOAD_DIR.';
+    await Video.findByIdAndUpdate(videoId, { $set: { 'youtubeUpload.localCleanupError': message } });
+    return { cleaned: false, reason: 'unsafe_path' };
   }
 
-  const filePath = video.filePath;
-  if (!filePath || !existsSync(filePath)) {
-    await Video.findByIdAndUpdate(videoId, {
-      $set: {
-        youtubeUpload: {
-          status: YOUTUBE_UPLOAD_STATUSES.FAILED,
-          error: 'Local video file is missing; cannot upload to YouTube.',
-          uploadedAt: null,
-        },
-      },
-    });
-    return null;
+  const sharedReference = await Video.findOne({ _id: { $ne: video._id }, filePath: video.filePath });
+  if (sharedReference) {
+    const message = 'Refusing to clean a local file referenced by another Video.';
+    await Video.findByIdAndUpdate(videoId, { $set: { 'youtubeUpload.localCleanupError': message } });
+    return { cleaned: false, reason: 'shared_reference' };
   }
 
+  credentialState.lastCleanupAttemptAt = nowIso();
+  credentialState.lastCleanupVideoId = String(videoId);
+  const youtubeUrl = buildYouTubeWatchUrl(video.youtubeVideoId);
+
+  // Switch every playback field before touching disk. If deletion fails, playback
+  // remains valid and the local file is simply retained for a later retry.
   await Video.findByIdAndUpdate(videoId, {
     $set: {
-      youtubeUpload: { status: YOUTUBE_UPLOAD_STATUSES.UPLOADING, error: null, uploadedAt: null },
+      sourceUrl: youtubeUrl,
+      videoUrl: youtubeUrl,
+      videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
     },
   });
 
   try {
-    const uploadResult = await uploadLocalVideo({
-      filePath,
-      title: video.title,
-      description: `Uploaded by FocusFlow (video ${videoId}).`,
-      fetchImpl,
-    });
-
+    if (existsSync(localPath)) unlinkSync(localPath);
+    const cleanedAt = new Date();
     await Video.findByIdAndUpdate(videoId, {
       $set: {
-        youtubeVideoId: uploadResult.youtubeVideoId,
-        videoUrl: uploadResult.videoUrl,
-        youtubeUpload: {
-          status: YOUTUBE_UPLOAD_STATUSES.UPLOADED,
-          error: null,
-          uploadedAt: new Date(),
+        filePath: null,
+        'youtubeUpload.localCleanupAt': cleanedAt,
+        'youtubeUpload.localCleanupError': null,
+      },
+    });
+    credentialState.lastCleanupSuccessAt = cleanedAt.toISOString();
+    credentialState.lastCleanupError = null;
+    return { cleaned: true, reason: null };
+  } catch (error) {
+    const message = shortErrorMessage(error);
+    credentialState.lastCleanupError = message;
+    await Video.findByIdAndUpdate(videoId, {
+      $set: { 'youtubeUpload.localCleanupError': message },
+    });
+    return { cleaned: false, reason: 'delete_failed' };
+  }
+}
+
+async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = {}) {
+  const id = String(videoId);
+  if (runningUploadIds.has(id)) return null;
+
+  const video = await Video.findById(id);
+  if (!video || video.youtubeVideoId) return null;
+  if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) return null;
+
+  const previousAttempts = Number(video.youtubeUpload?.attemptCount || 0);
+  if (previousAttempts >= env.youtubeUploadMaxAttempts) return null;
+
+  const attemptCount = previousAttempts + 1;
+  const attemptStartedAt = new Date();
+  const filePath = resolveLocalUploadPath(video.filePath);
+  runningUploadIds.add(id);
+
+  try {
+    if (!video.filePath || !existsSync(filePath)) {
+      await Video.findByIdAndUpdate(id, {
+        $set: {
+          'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+          'youtubeUpload.error': 'Local video file is missing; cannot upload to YouTube.',
+          'youtubeUpload.uploadedAt': null,
+          'youtubeUpload.attemptCount': attemptCount,
+          'youtubeUpload.lastAttemptAt': attemptStartedAt,
+          'youtubeUpload.failedAt': new Date(),
+          'youtubeUpload.retrySafe': false,
+          'youtubeUpload.nextRetryAt': null,
         },
+      });
+      return null;
+    }
+
+    await Video.findByIdAndUpdate(id, {
+      $set: {
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
+        'youtubeUpload.error': null,
+        'youtubeUpload.uploadedAt': null,
+        'youtubeUpload.attemptCount': attemptCount,
+        'youtubeUpload.lastAttemptAt': attemptStartedAt,
+        'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false,
+        'youtubeUpload.nextRetryAt': null,
       },
     });
 
+    const uploadResult = await uploadLocalVideo({
+      filePath,
+      title: video.title,
+      description: `Uploaded by FocusFlow (video ${id}).`,
+      fetchImpl,
+    });
+    const uploadedAt = new Date();
+
+    await Video.findByIdAndUpdate(id, {
+      $set: {
+        youtubeVideoId: uploadResult.youtubeVideoId,
+        sourceUrl: uploadResult.videoUrl,
+        videoUrl: uploadResult.videoUrl,
+        videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
+        'youtubeUpload.error': null,
+        'youtubeUpload.uploadedAt': uploadedAt,
+        'youtubeUpload.attemptCount': attemptCount,
+        'youtubeUpload.lastAttemptAt': attemptStartedAt,
+        'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false,
+        'youtubeUpload.nextRetryAt': null,
+      },
+    });
+
+    await cleanupUploadedLocalVideo(id);
     return uploadResult.youtubeVideoId;
   } catch (error) {
-    await Video.findByIdAndUpdate(videoId, {
+    const retrySafe = error?.youtubeRetrySafe === true;
+    const canRetry = retrySafe && attemptCount < env.youtubeUploadMaxAttempts;
+    const nextRetryAt = canRetry
+      ? new Date(Date.now() + (env.youtubeUploadRetryBaseMs * (2 ** (attemptCount - 1))))
+      : null;
+
+    await Video.findByIdAndUpdate(id, {
       $set: {
-        youtubeUpload: {
-          status: YOUTUBE_UPLOAD_STATUSES.FAILED,
-          error: String(error.message || error).slice(0, 500),
-          uploadedAt: null,
-        },
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+        'youtubeUpload.error': String(error.message || error).slice(0, 500),
+        'youtubeUpload.uploadedAt': null,
+        'youtubeUpload.attemptCount': attemptCount,
+        'youtubeUpload.lastAttemptAt': attemptStartedAt,
+        'youtubeUpload.failedAt': new Date(),
+        'youtubeUpload.retrySafe': retrySafe,
+        'youtubeUpload.nextRetryAt': nextRetryAt,
       },
     });
 
     if (process.env.NODE_ENV !== 'test') {
-      console.error(`YouTube auto upload failed for video ${videoId}.`, error);
+      console.error(`YouTube auto upload failed for video ${id}.`, error);
+    }
+    return null;
+  } finally {
+    runningUploadIds.delete(id);
+  }
+}
+
+async function assertRetryableUpload(videoId, user) {
+  assertObjectId(videoId, 'video');
+  const video = await Video.findById(videoId);
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+  const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
+  await assertCanManageCourse(user, course);
+
+  if (video.youtubeVideoId || video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED) {
+    throw new AppError('Video is already uploaded to YouTube.', 409, 'YOUTUBE_UPLOAD_ALREADY_COMPLETED');
+  }
+  if (video.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.FAILED) {
+    throw new AppError('Only failed YouTube uploads can be retried.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+  }
+  if (video.youtubeUpload?.retrySafe !== true) {
+    throw new AppError(
+      'This upload may already exist on YouTube; review YouTube Studio before retrying.',
+      409,
+      'YOUTUBE_UPLOAD_RETRY_UNSAFE',
+    );
+  }
+  if (Number(video.youtubeUpload?.attemptCount || 0) >= env.youtubeUploadMaxAttempts) {
+    throw new AppError('YouTube upload retry limit reached.', 409, 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED');
+  }
+  if (!isYouTubeUploadConfigured()) {
+    throw new AppError('YouTube upload is not configured.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+  }
+  return video;
+}
+
+async function scheduleYouTubeUploadRetry(videoId, user, { fetchImpl = global.fetch } = {}) {
+  const video = await assertRetryableUpload(videoId, user);
+  Promise.resolve()
+    .then(() => autoUploadVideoToYouTube(String(video._id), { fetchImpl }))
+    .catch(() => null);
+  return { videoId: String(video._id), status: 'retry_scheduled' };
+}
+
+async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = new Date() } = {}) {
+  // Only explicitly retry-safe failures are replayed. Stale "uploading" rows
+  // are quarantined because the remote upload may have succeeded already.
+  if (!env.youtubeUploadRecoveryEnabled || !isYouTubeUploadConfigured()) {
+    return { recovered: 0, quarantined: 0, skipped: true };
+  }
+
+  credentialState.lastRecoveryAttemptAt = now.toISOString();
+  try {
+    const candidates = await Video.find({
+      youtubeVideoId: null,
+      'youtubeUpload.status': { $in: [YOUTUBE_UPLOAD_STATUSES.FAILED, YOUTUBE_UPLOAD_STATUSES.UPLOADING] },
+    }).limit(env.youtubeUploadRecoveryBatchSize).lean();
+    const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
+    let recovered = 0;
+    let quarantined = 0;
+
+    for (const video of candidates) {
+      if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
+        const lastAttemptMs = new Date(video.youtubeUpload?.lastAttemptAt || 0).getTime();
+        if (lastAttemptMs <= staleBefore) {
+          await Video.findByIdAndUpdate(video._id, {
+            $set: {
+              'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+              'youtubeUpload.error': 'Stale upload quarantined: review YouTube Studio before retrying.',
+              'youtubeUpload.failedAt': now,
+              'youtubeUpload.retrySafe': false,
+              'youtubeUpload.nextRetryAt': null,
+            },
+          });
+          quarantined += 1;
+        }
+        continue;
+      }
+
+      const nextRetryMs = new Date(video.youtubeUpload?.nextRetryAt || 0).getTime();
+      const attempts = Number(video.youtubeUpload?.attemptCount || 0);
+      if (video.youtubeUpload?.retrySafe === true && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
+        await autoUploadVideoToYouTube(String(video._id), { fetchImpl });
+        recovered += 1;
+      }
     }
 
-    return null;
+    credentialState.lastRecoverySuccessAt = nowIso();
+    credentialState.lastRecoveryError = null;
+    credentialState.lastRecoveryRecoveredCount = recovered;
+    credentialState.lastRecoveryQuarantinedCount = quarantined;
+    return { recovered, quarantined, skipped: false };
+  } catch (error) {
+    credentialState.lastRecoveryError = shortErrorMessage(error);
+    throw error;
   }
 }
 
@@ -451,7 +698,12 @@ function buildYouTubeUploadSnapshot() {
   const credentialsConfigured = usingAccessTokenOverride || hasRefreshCredentials();
   const uploadReady = isYouTubeUploadConfigured();
   const privatizeOnDeleteReady = isPrivatizeOnDeleteConfigured();
-  const anyFeatureEnabled = Boolean(env.youtubeUploadEnabled || env.youtubePrivatizeOnDelete);
+  const anyFeatureEnabled = Boolean(
+    env.youtubeUploadEnabled
+    || env.youtubeUploadRecoveryEnabled
+    || env.youtubeUploadCleanupEnabled
+    || env.youtubePrivatizeOnDelete,
+  );
 
   const hardFailures = [];
   const warnings = [];
@@ -500,17 +752,39 @@ function buildYouTubeUploadSnapshot() {
     });
   }
 
+  if (credentialState.lastRecoveryError) {
+    warnings.push({
+      code: 'YOUTUBE_RECOVERY_FAILED',
+      message: `Last upload recovery failed: ${credentialState.lastRecoveryError}`,
+    });
+  }
+
+  if (credentialState.lastCleanupError) {
+    warnings.push({
+      code: 'YOUTUBE_LOCAL_CLEANUP_FAILED',
+      message: `Last local cleanup failed (${credentialState.lastCleanupVideoId}): ${credentialState.lastCleanupError}`,
+    });
+  }
+
   let readiness = 'ready';
   if (!anyFeatureEnabled) {
     readiness = 'not_enabled';
   } else if (hardFailures.length) {
     readiness = 'hard_fail';
-  } else if (credentialCheckStatus === 'failed' || privatizeScopeSatisfied === false) {
+  } else if (
+    credentialCheckStatus === 'failed'
+    || privatizeScopeSatisfied === false
+    || credentialState.lastRecoveryError
+    || credentialState.lastCleanupError
+  ) {
     readiness = 'degraded';
   }
 
   return {
     uploadEnabled: Boolean(env.youtubeUploadEnabled),
+    recoveryEnabled: Boolean(env.youtubeUploadRecoveryEnabled),
+    cleanupEnabled: Boolean(env.youtubeUploadCleanupEnabled),
+    maxAttempts: env.youtubeUploadMaxAttempts,
     privatizeOnDeleteEnabled: Boolean(env.youtubePrivatizeOnDelete),
     credentialsConfigured,
     usingAccessTokenOverride,
@@ -531,6 +805,19 @@ function buildYouTubeUploadSnapshot() {
       lastSuccessAt: credentialState.lastPrivatizeSuccessAt,
       lastError: credentialState.lastPrivatizeError,
     },
+    lastRecovery: {
+      lastAttemptAt: credentialState.lastRecoveryAttemptAt,
+      lastSuccessAt: credentialState.lastRecoverySuccessAt,
+      lastError: credentialState.lastRecoveryError,
+      recoveredCount: credentialState.lastRecoveryRecoveredCount,
+      quarantinedCount: credentialState.lastRecoveryQuarantinedCount,
+    },
+    lastCleanup: {
+      videoId: credentialState.lastCleanupVideoId,
+      lastAttemptAt: credentialState.lastCleanupAttemptAt,
+      lastSuccessAt: credentialState.lastCleanupSuccessAt,
+      lastError: credentialState.lastCleanupError,
+    },
     missingConfig,
     hardFailures,
     warnings,
@@ -546,6 +833,16 @@ function resetYouTubeUploadState() {
   credentialState.lastPrivatizeSuccessAt = null;
   credentialState.lastPrivatizeError = null;
   credentialState.lastPrivatizeVideoId = null;
+  credentialState.lastRecoveryAttemptAt = null;
+  credentialState.lastRecoverySuccessAt = null;
+  credentialState.lastRecoveryError = null;
+  credentialState.lastRecoveryRecoveredCount = 0;
+  credentialState.lastRecoveryQuarantinedCount = 0;
+  credentialState.lastCleanupAttemptAt = null;
+  credentialState.lastCleanupSuccessAt = null;
+  credentialState.lastCleanupError = null;
+  credentialState.lastCleanupVideoId = null;
+  runningUploadIds.clear();
 }
 
 module.exports = {
@@ -555,6 +852,7 @@ module.exports = {
   autoUploadVideoToYouTube,
   buildYouTubeUploadSnapshot,
   buildYouTubeWatchUrl,
+  cleanupUploadedLocalVideo,
   fetchAccessToken,
   guessMimeType,
   isAutoUploadEnabled,
@@ -564,8 +862,10 @@ module.exports = {
   normalizePrivacyStatus,
   privatizeVideoOnDelete,
   privatizeVideosOnDelete,
+  recoverPendingYouTubeUploads,
   resetYouTubeUploadState,
   scheduleYouTubeAutoUpload,
+  scheduleYouTubeUploadRetry,
   setVideoPrivacy,
   uploadLocalVideo,
   uploadVideoFileToYouTube,

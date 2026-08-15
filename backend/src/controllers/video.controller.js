@@ -3,6 +3,10 @@ const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const videoService = require('../services/video.service');
 const videoProcessingService = require('../services/videoProcessing.service');
+const youtubeUploadService = require('../services/youtubeUpload.service');
+
+// Retry authorization and replay-safety checks stay in the service; this
+// controller only exposes the accepted request as an asynchronous 202 action.
 
 const createYouTubeVideo = asyncHandler(async (req, res) => {
   const { youtubeUrl, title, week, lesson } = req.body;
@@ -99,6 +103,18 @@ const retryVideoProcessing = asyncHandler(async (req, res) => {
   });
 });
 
+const retryYouTubeUpload = asyncHandler(async (req, res) => {
+  const result = await youtubeUploadService.scheduleYouTubeUploadRetry(
+    req.params.videoId,
+    req.user,
+  );
+  return sendSuccess(res, {
+    statusCode: 202,
+    message: 'YouTube upload retry scheduled.',
+    data: result,
+  });
+});
+
 const startInternalVideoProcessing = asyncHandler(async (req, res) => {
   const video = await videoProcessingService.startVideoProcessing(req.params.videoId);
 
@@ -168,6 +184,7 @@ module.exports = {
   getVideoById,
   getVideoProcessing,
   retryVideoProcessing,
+  retryYouTubeUpload,
   deleteVideo,
   attachVideo,
   detachVideo,

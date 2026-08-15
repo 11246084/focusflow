@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const User = require('../models/user.model');
 const Course = require('../models/course.model');
 const Video = require('../models/video.model');
@@ -8,6 +7,8 @@ const Enrollment = require('../models/enrollment.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { USER_ROLES, USER_ROLE_VALUES } = require('../constants/enums');
+const videoService = require('./video.service');
+const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 
 async function getStats() {
   const [
@@ -42,7 +43,10 @@ async function listUsers() {
 
   const [enrollCounts, queryCounts] = await Promise.all([
     // Enrollment ownership is stored in studentId; userId belongs to usage records.
-    Enrollment.aggregate([{ $group: { _id: '$studentId', count: { $sum: 1 } } }]),
+    Enrollment.aggregate([
+      { $match: buildActiveEnrollmentFilter() },
+      { $group: { _id: '$studentId', count: { $sum: 1 } } },
+    ]),
     UsageLog.aggregate([{ $match: { event: 'ask' } }, { $group: { _id: '$userId', count: { $sum: 1 } } }]),
   ]);
 
@@ -200,21 +204,10 @@ async function getEventStats() {
 }
 
 async function deleteVideo(videoId) {
-  assertObjectId(videoId, 'video');
-
-  const video = await Video.findById(videoId).lean();
-  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
-
-  // 設計決策：UsageLog / Question 屬於歷史紀錄，不隨影片刪除一起清。
-  const segmentKey = video.videoId || String(video._id);
-  await VideoSegment.deleteMany({ videoId: segmentKey });
-  await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
-  await Video.deleteOne({ _id: videoId });
-  if (video.courseId) {
-    await Course.findByIdAndUpdate(video.courseId, { $pull: { videoIds: video._id } });
-  }
-
-  return { deletedVideoId: videoId, segmentKey };
+  return videoService.deleteVideo(videoId, {
+    id: null,
+    role: USER_ROLES.ADMIN,
+  });
 }
 
 module.exports = { getStats, listUsers, updateUser, listVideos, getRecentEvents, getEventStats, deleteVideo };

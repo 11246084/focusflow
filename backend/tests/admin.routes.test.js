@@ -13,9 +13,10 @@ const {
   resetStore,
   startServer,
   stopServer,
+  store,
 } = require('./helpers/backendTestHarness');
 
-describe('GET /api/v1/admin/users', () => {
+describe('admin routes', () => {
   let serverContext;
 
   before(async () => {
@@ -57,5 +58,41 @@ describe('GET /api/v1/admin/users', () => {
 
     assert.equal(result.status, 403);
     assert.equal(result.body.error.code, 'FORBIDDEN');
+  });
+
+  it('管理員刪除影片也受 FAQ strict gate 保護並可安全重試', async () => {
+    const token = await loginAs(
+      serverContext.baseUrl,
+      'admin@focusflow.local',
+      'Admin123!',
+      'admin',
+    );
+    store.faqs.push({
+      _id: '507f191e810c19729de86999',
+      courseId: ids.publishedCourse,
+      question: 'Admin delete FAQ',
+    });
+    store.nextFaqDeleteManyError = new Error('simulated FAQ delete failure');
+
+    const failed = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token },
+    );
+
+    assert.equal(failed.status, 503);
+    assert.equal(failed.body.error.code, 'FAQ_INVALIDATION_FAILED');
+    assert.ok(store.videos.some((video) => video._id === ids.publishedVideo));
+    assert.equal(store.faqs.length, 1);
+
+    const retried = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token },
+    );
+
+    assert.equal(retried.status, 200);
+    assert.equal(store.videos.some((video) => video._id === ids.publishedVideo), false);
+    assert.equal(store.faqs.length, 0);
   });
 });

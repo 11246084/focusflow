@@ -1,7 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
-const { createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
+const { closeSync, createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const Course = require('../models/course.model');
@@ -63,6 +63,66 @@ async function markUnexpectedSttExitFailed(videoId, failure) {
   await failVideoProcessing(videoId, failure);
 }
 
+function isSameOrDescendant(parentPath, candidatePath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function spawnLocalVideoPipeline({ videoId, filePath }) {
+  const normalizedVideoId = String(videoId || '').trim();
+  const normalizedPath = path.resolve(String(filePath || ''));
+  if (!normalizedVideoId || !filePath || !isSameOrDescendant(env.uploadDir, normalizedPath) || !existsSync(normalizedPath)) {
+    throw new AppError(
+      'The local source file is unavailable for processing retry.',
+      409,
+      'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE',
+    );
+  }
+
+  const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
+  const logPath = path.join(sttDir, 'data', `pipeline_${normalizedVideoId}.log`);
+  mkdirSync(path.dirname(logPath), { recursive: true });
+  const logFd = openSync(logPath, 'a');
+  let sttProcess;
+  try {
+    sttProcess = spawn(resolveSttPython(sttDir), [
+      'src/main.py',
+      '--video-path', normalizedPath,
+      '--video-id', normalizedVideoId,
+      '--overwrite',
+    ], {
+      cwd: sttDir,
+      stdio: ['ignore', logFd, logFd],
+      windowsHide: true,
+      env: buildSttProcessEnvironment(process.env, {
+        MONGODB_URI: env.mongodbUri,
+        MONGODB_DATABASE_NAME: 'focusflow',
+        BACKEND_URL: `http://localhost:${env.port}`,
+        PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
+        CLEANUP_AFTER_UPLOAD: 'true',
+        CLEANUP_KEEP_CHECKPOINTS: 'false',
+      }),
+    });
+  } catch (error) {
+    try { closeSync(logFd); } catch { /* best effort */ }
+    throw error;
+  }
+  attachSttProcessLifecycle({
+    sttProcess,
+    logFd,
+    videoId: normalizedVideoId,
+    onUnexpectedExit: (failure) => markUnexpectedSttExitFailed(normalizedVideoId, failure),
+  });
+  sttProcess.unref();
+  return { pid: sttProcess.pid || null };
+}
+
+async function scheduleExistingVideoProcessing(videoId) {
+  const video = await Video.findById(videoId);
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+  return spawnLocalVideoPipeline({ videoId: video._id, filePath: video.filePath });
+}
+
 async function ensureCourseExists(courseId) {
   return getCourseByIdOrThrow(courseId);
 }
@@ -72,6 +132,20 @@ function buildStandardCourseSummary() {
     qaScopeOnly: false,
     bridgeMode: COURSE_BRIDGE_MODES.STANDARD,
   };
+}
+
+async function clearVideoFaqsBeforeMutation(video) {
+  try {
+    await clearFaqsForVideoCourses(video, { throwOnError: true });
+  } catch (error) {
+    const operationalError = new AppError(
+      'FAQ cache cleanup failed. No video changes were applied; please retry.',
+      503,
+      'FAQ_INVALIDATION_FAILED',
+    );
+    operationalError.cause = error;
+    throw operationalError;
+  }
 }
 
 async function buildCourseVideoListing(course) {
@@ -260,7 +334,14 @@ async function computeFileHash(filePath) {
   });
 }
 
-async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
+async function createCourseVideo({
+  courseId,
+  title,
+  file,
+  uploadedBy,
+  user,
+  deferProcessingStart = false,
+}) {
   if (!file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
   }
@@ -318,7 +399,11 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
     },
   });
 
-  if (process.env.NODE_ENV === 'test' || env.processingWebhookSecret === 'processing-secret-for-tests') {
+  if (
+    deferProcessingStart
+    || process.env.NODE_ENV === 'test'
+    || env.processingWebhookSecret === 'processing-secret-for-tests'
+  ) {
     return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {
       courseId,
     });
@@ -326,37 +411,7 @@ async function createCourseVideo({ courseId, title, file, uploadedBy, user }) {
 
   // 在背景啟動 STT pipeline，不等待完成（不阻擋 HTTP 回應）
   // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
-  const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
-  // 優先使用 venv 內的 Python（已安裝 faster-whisper 等依賴），找不到則 fallback 到系統 python
-  const pythonBin = resolveSttPython(sttDir);
-  const logPath = path.join(sttDir, 'data', `pipeline_${video._id}.log`);
-  mkdirSync(path.dirname(logPath), { recursive: true });
-  const logFd = openSync(logPath, 'a');
-  const sttProcess = spawn(pythonBin, [
-    'src/main.py',
-    '--video-path', path.resolve(file.path),
-    '--video-id', String(video._id),
-    '--overwrite',
-  ], {
-    cwd: sttDir,
-    stdio: ['ignore', logFd, logFd],
-    windowsHide: true,
-    env: buildSttProcessEnvironment(process.env, {
-      MONGODB_URI: env.mongodbUri,
-      MONGODB_DATABASE_NAME: 'focusflow',
-      BACKEND_URL: `http://localhost:${env.port}`,
-      PROCESSING_WEBHOOK_SECRET: env.processingWebhookSecret,
-      CLEANUP_AFTER_UPLOAD: 'true',
-      CLEANUP_KEEP_CHECKPOINTS: 'false',
-    }),
-  });
-  attachSttProcessLifecycle({
-    sttProcess,
-    logFd,
-    videoId: String(video._id),
-    onUnexpectedExit: (failure) => markUnexpectedSttExitFailed(String(video._id), failure),
-  });
-  sttProcess.unref();
+  spawnLocalVideoPipeline({ videoId: video._id, filePath: file.path });
 
   // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。
   youtubeUploadService.scheduleYouTubeAutoUpload(video);
@@ -409,16 +464,19 @@ async function deleteVideo(videoId, user) {
 
   // 設計決策：UsageLog / Question 屬於歷史紀錄，不隨影片刪除一起清。
   // 顯示層（teacherStats / admin recent events）會自行 filter / 標示已刪除。
-  const segmentKey = video.videoId || String(video._id);
+  // FAQ 必須先清除成功；失敗時不可開始任何不可逆的影片／片段／關聯 mutation。
+  await clearVideoFaqsBeforeMutation(video);
+
+  const segmentKey = normalizeIdentifier(video.videoId, video.video_id, video._id);
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
-  // FAQ 快取的答案引用了這支影片的片段；趁課程引用還在時清掉相關課程的快取。
-  await clearFaqsForVideoCourses(video);
   // 影片可能掛載到多個課程，從所有課程的 videoIds 清掉引用（含主課程）。
   await Course.updateMany({}, { $pull: { videoIds: video._id } });
   // 系統刪除不會刪 YouTube 上的影片，否則舊連結仍可播放；改轉 private（可還原）。
   await youtubeUploadService.privatizeVideoOnDelete(video);
+
+  return { deletedVideoId: videoId, segmentKey };
 }
 
 async function attachVideoToCourse({ courseId, videoId, user }) {
@@ -483,7 +541,7 @@ async function detachVideoFromCourse({ courseId, videoId, user }) {
 
   // 快取答案可能引用這支影片的片段，移除後那些跳轉對本課程學生已不成立。
   // 必須在 $pull 之前呼叫，否則引用一被移除就反查不到這門課（與 deleteVideo 同一個順序理由）。
-  await clearFaqsForVideoCourses(video);
+  await clearVideoFaqsBeforeMutation(video);
   await Course.findByIdAndUpdate(courseId, { $pull: { videoIds: video._id } });
 }
 
@@ -496,4 +554,6 @@ module.exports = {
   deleteVideo,
   attachVideoToCourse,
   detachVideoFromCourse,
+  scheduleExistingVideoProcessing,
+  spawnLocalVideoPipeline,
 };

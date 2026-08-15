@@ -44,6 +44,86 @@ class BatchValidationError(ValueError):
     """An item error that must never consume retry allowance."""
 
 
+class BatchAlreadyRunningError(RuntimeError):
+    """Raised when another live process owns the batch execution lease."""
+
+
+def _process_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except (OSError, SystemError):
+        return False
+    return True
+
+
+class BatchExecutionLease:
+    """Cross-process lease preventing concurrent mutation of one batch manifest."""
+
+    def __init__(self, batch_dir: Path) -> None:
+        self.batch_dir = batch_dir.resolve()
+        self.path = self.batch_dir / ".execution.lock"
+        self.token = uuid.uuid4().hex
+        self.acquired = False
+
+    def acquire(self) -> "BatchExecutionLease":
+        self.batch_dir.mkdir(parents=True, exist_ok=True)
+        payload = json.dumps({
+            "pid": os.getpid(),
+            "token": self.token,
+            "acquired_at": utc_now(),
+        })
+        for _attempt in range(2):
+            try:
+                descriptor = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+            except FileExistsError:
+                try:
+                    owner = json.loads(self.path.read_text(encoding="utf-8"))
+                    owner_pid = int(owner.get("pid") or 0)
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    owner_pid = 0
+                if _process_is_alive(owner_pid):
+                    raise BatchAlreadyRunningError(
+                        f"Batch is already running in process {owner_pid}."
+                    )
+                try:
+                    self.path.unlink()
+                except FileNotFoundError:
+                    pass
+                continue
+            try:
+                os.write(descriptor, payload.encode("utf-8"))
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+            self.acquired = True
+            return self
+        raise BatchAlreadyRunningError("Batch execution lease could not be acquired.")
+
+    def release(self) -> None:
+        if not self.acquired:
+            return
+        try:
+            owner = json.loads(self.path.read_text(encoding="utf-8"))
+            if owner.get("token") == self.token:
+                self.path.unlink()
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            pass
+        finally:
+            self.acquired = False
+
+    def __enter__(self) -> "BatchExecutionLease":
+        return self.acquire()
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> None:
+        self.release()
+
+
 @dataclass(slots=True)
 class PipelineRunResult:
     run_id: str
@@ -52,7 +132,13 @@ class PipelineRunResult:
 
 
 class PipelineRunner(Protocol):
-    def run(self, video_path: Path, run_id: str, resume: bool) -> PipelineRunResult:
+    def run(
+        self,
+        video_path: Path,
+        run_id: str,
+        resume: bool,
+        video_id: str | None = None,
+    ) -> PipelineRunResult:
         """Run or resume exactly one existing single-video pipeline."""
 
 
@@ -61,6 +147,7 @@ class BatchItem:
     item_id: str
     video_path: str
     run_id: str
+    requested_video_id: str | None = None
     status: str = "queued"
     video_id: str | None = None
     attempt_count: int = 0
@@ -212,6 +299,79 @@ def create_batch(
     return manager
 
 
+def create_batch_from_request(
+    request_items: Iterable[dict[str, object]],
+    output_root: Path,
+    *,
+    batch_id: str,
+    input_source: str,
+    max_concurrency: int = 1,
+    max_retries: int = 0,
+    supported_extensions: tuple[str, ...] = (".mp4", ".mov", ".mkv"),
+) -> "BatchManager":
+    if not re.fullmatch(r"batch_[0-9]{14}_[a-f0-9]{8}", str(batch_id), re.IGNORECASE):
+        raise BatchValidationError("Invalid requested batch_id.")
+    if not 1 <= max_concurrency <= 2:
+        raise BatchValidationError("max_concurrency must be between 1 and 2.")
+    if not 0 <= max_retries <= 2:
+        raise BatchValidationError("max_retries must be between 0 and 2.")
+
+    items: list[BatchItem] = []
+    seen_item_ids: set[str] = set()
+    seen_paths: set[str] = set()
+    for raw in request_items:
+        item_id = str(raw.get("itemId") or "").strip()
+        video_id = str(raw.get("videoId") or "").strip()
+        raw_path = str(raw.get("videoPath") or "").strip()
+        if not re.fullmatch(r"item_[0-9]{4}", item_id):
+            raise BatchValidationError("Invalid requested itemId.")
+        if not video_id or not raw_path:
+            raise BatchValidationError("Each requested item requires videoId and videoPath.")
+        path = Path(raw_path).expanduser().resolve()
+        normalized_path = os.path.normcase(str(path))
+        if item_id in seen_item_ids or normalized_path in seen_paths:
+            raise BatchValidationError("Requested batch contains duplicate itemId or videoPath.")
+        seen_item_ids.add(item_id)
+        seen_paths.add(normalized_path)
+        error_code = None
+        error_message = None
+        status = "queued"
+        completed_at = None
+        if not path.exists() or not path.is_file():
+            status = "skipped"
+            completed_at = utc_now()
+            error_code = "INPUT_NOT_FOUND"
+            error_message = "Input video file does not exist."
+        elif path.suffix.lower() not in supported_extensions:
+            status = "skipped"
+            completed_at = utc_now()
+            error_code = "UNSUPPORTED_VIDEO_FORMAT"
+            error_message = "Unsupported video file extension."
+        items.append(BatchItem(
+            item_id=item_id,
+            video_path=str(path),
+            run_id=f"run_{batch_id}_{item_id}",
+            requested_video_id=video_id,
+            video_id=video_id,
+            status=status,
+            max_attempts=1 + max_retries,
+            completed_at=completed_at,
+            last_error_code=error_code,
+            last_error_message=error_message,
+        ))
+
+    job = BatchJob(
+        batch_id=batch_id,
+        max_concurrency=max_concurrency,
+        max_retries=max_retries,
+        input_source=input_source,
+        items=items,
+    )
+    manager = BatchManager(output_root / "batches" / batch_id, job)
+    manager.persist()
+    return manager
+
+
 class BatchManager:
     def __init__(self, batch_dir: Path, job: BatchJob) -> None:
         self.batch_dir = batch_dir.resolve()
@@ -244,6 +404,32 @@ class BatchManager:
         _atomic_write_json(self.manifest_path, payload)
         _atomic_write_json(self.summary_path, payload)
 
+    def request_manual_retry(self, video_id: str) -> BatchItem:
+        """Grant exactly one additional attempt to one failed Backend batch item."""
+        normalized = str(video_id or "").strip()
+        item = next(
+            (
+                candidate
+                for candidate in self.job.items
+                if normalized
+                and normalized in {candidate.requested_video_id, candidate.video_id}
+            ),
+            None,
+        )
+        if item is None:
+            raise BatchValidationError("Manual retry videoId is not part of this batch.")
+        if item.status != "failed":
+            raise BatchValidationError("Manual retry requires a failed batch item.")
+        item.max_attempts = max(item.max_attempts, item.attempt_count + 1)
+        item.status = "retrying"
+        item.completed_at = None
+        item.last_error_code = "MANUAL_RETRY_REQUESTED"
+        item.last_error_message = "A manual retry was requested."
+        self.job.status = "running"
+        self.job.completed_at = None
+        self.persist()
+        return item
+
     def _transition(self, item: BatchItem, status: str) -> None:
         if status not in ITEM_STATUSES:
             raise BatchValidationError(f"Unknown item status: {status}")
@@ -259,7 +445,12 @@ class BatchManager:
                 item.started_at = item.started_at or utc_now()
                 self._transition(item, "running")
             try:
-                result = runner.run(Path(item.video_path), item.run_id, resume)
+                result = runner.run(
+                    Path(item.video_path),
+                    item.run_id,
+                    resume,
+                    item.requested_video_id,
+                )
             except BatchValidationError as exc:
                 with self._lock:
                     item.last_error_code = type(exc).__name__
@@ -323,7 +514,13 @@ class SubprocessPipelineRunner:
         self.project_root = project_root.resolve()
         self.python_executable = python_executable or sys.executable
 
-    def run(self, video_path: Path, run_id: str, resume: bool) -> PipelineRunResult:
+    def run(
+        self,
+        video_path: Path,
+        run_id: str,
+        resume: bool,
+        video_id: str | None = None,
+    ) -> PipelineRunResult:
         if resume:
             command = [
                 self.python_executable,
@@ -344,8 +541,14 @@ class SubprocessPipelineRunner:
                 "--run-id",
                 run_id,
             ]
+            if video_id:
+                command.extend(["--video-id", video_id])
         completed = subprocess.run(command, cwd=self.project_root, check=False)
         if completed.returncode != 0:
             raise RuntimeError(f"Single-video pipeline exited with code {completed.returncode}.")
         output_directory = self.project_root / "data" / "outputs" / "runs" / run_id
-        return PipelineRunResult(run_id=run_id, output_directory=str(output_directory))
+        return PipelineRunResult(
+            run_id=run_id,
+            output_directory=str(output_directory),
+            video_id=video_id,
+        )

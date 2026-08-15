@@ -42,6 +42,8 @@ function attachSttProcessLifecycle({
   logFd,
   videoId,
   onUnexpectedExit,
+  successfulExitCodes = [0],
+  onClose = null,
 }) {
   let spawnError = null;
 
@@ -61,7 +63,7 @@ function attachSttProcessLifecycle({
   });
 
   sttProcess.once('close', async (code, signal) => {
-    const successfulExit = !spawnError && code === 0 && !signal;
+    const successfulExit = !spawnError && successfulExitCodes.includes(code) && !signal;
     const description = buildExitDescription(code, signal, spawnError);
 
     appendLifecycleLog(
@@ -82,6 +84,16 @@ function attachSttProcessLifecycle({
         `[pipeline status update failed] video=${videoId} ${error.stack || error.message}`,
       );
     } finally {
+      if (onClose) {
+        try {
+          await onClose({ code, signal, successfulExit });
+        } catch (error) {
+          appendLifecycleLog(
+            logFd,
+            `[pipeline close callback failed] video=${videoId} ${error.stack || error.message}`,
+          );
+        }
+      }
       try {
         closeSync(logFd);
       } catch {

@@ -12,6 +12,7 @@ import {
 
 const ACTIVE_UPLOAD_KEY = 'focusflow_active_upload_videos';
 const TRACKING_QUERY_KEY = 'uploadVideos';
+const BATCH_QUERY_KEY = 'uploadBatch';
 
 const STATUS_LABEL = {
   queued: { text: '排隊中', cls: 'bb', message: '已建立影片紀錄，等待 STT pipeline 開始。' },
@@ -58,28 +59,74 @@ function readTracking() {
   }
 }
 
+function trackingBatchIdFromUrl() {
+  return new URLSearchParams(window.location.search).get(BATCH_QUERY_KEY) || '';
+}
+
 function trackingIdsFromUrl() {
   return new URLSearchParams(window.location.search).get(TRACKING_QUERY_KEY)?.split(',').filter(Boolean) || [];
 }
 
 function readInitialTracking() {
+  // Prefer the URL batch id for shareable/reload-safe tracking, then fall back
+  // to the last local session for uploads created before navigation.
   const stored = readTracking();
+  const batchId = trackingBatchIdFromUrl() || stored.find((item) => item.batchId)?.batchId || '';
   const ids = trackingIdsFromUrl();
-  return ids.length
+  const items = ids.length
     ? ids.map((videoId) => stored.find((item) => item.videoId === videoId) || { videoId, name: `影片 ${videoId.slice(-6)}`, processingStatus: 'queued' })
     : stored;
+  return { batchId, items };
 }
 
-function persistTracking(items) {
-  const safeItems = items.filter((item) => item.videoId).map(({ videoId, name, processingStatus }) => ({ videoId, name, processingStatus }));
+function persistTracking(items, batchId = '') {
+  // Persist only presentation-safe identifiers/status, never File objects or
+  // authentication data. The URL stores either a batch id or legacy video ids.
+  const safeItems = items.map(({ itemId, videoId, name, processingStatus, uploadStatus, error }) => ({
+    batchId,
+    itemId: itemId || '',
+    videoId: videoId || '',
+    name,
+    processingStatus,
+    uploadStatus,
+    error: error || '',
+  }));
   localStorage.setItem(ACTIVE_UPLOAD_KEY, JSON.stringify(safeItems));
   const url = new URL(window.location.href);
-  if (safeItems.length) url.searchParams.set(TRACKING_QUERY_KEY, safeItems.map((item) => item.videoId).join(','));
-  else url.searchParams.delete(TRACKING_QUERY_KEY);
+  if (batchId) {
+    url.searchParams.set(BATCH_QUERY_KEY, batchId);
+    url.searchParams.delete(TRACKING_QUERY_KEY);
+  } else if (safeItems.some((item) => item.videoId)) {
+    url.searchParams.set(TRACKING_QUERY_KEY, safeItems.map((item) => item.videoId).filter(Boolean).join(','));
+    url.searchParams.delete(BATCH_QUERY_KEY);
+  } else {
+    url.searchParams.delete(TRACKING_QUERY_KEY);
+    url.searchParams.delete(BATCH_QUERY_KEY);
+  }
   window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+function mergeBatchItems(batchItems, current = []) {
+  return batchItems.map((item, index) => {
+    const existing = current.find((candidate) => candidate.itemId === item.itemId)
+      || current.find((candidate) => candidate.videoId && candidate.videoId === item.videoId)
+      || current[index]
+      || {};
+    return {
+      ...existing,
+      key: existing.key || item.itemId,
+      itemId: item.itemId,
+      name: item.originalName || existing.name || `影片 ${index + 1}`,
+      videoId: item.videoId || '',
+      uploadStatus: item.uploadStatus === 'failed' ? 'failed' : 'processing',
+      processingStatus: item.processingStatus || item.status || 'queued',
+      error: item.errorMessage || '',
+    };
+  });
+}
+
 export default function TeacherUpload() {
+  const initialTracking = useRef(readInitialTracking()).current;
   const [drag, setDrag] = useState(false);
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
@@ -87,8 +134,9 @@ export default function TeacherUpload() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [trackedItems, setTrackedItems] = useState(readInitialTracking);
-  const initialTrackingRef = useRef(trackedItems);
+  const [trackedItems, setTrackedItems] = useState(initialTracking.items);
+  const [batchId, setBatchId] = useState(initialTracking.batchId);
+  const initialTrackingRef = useRef(initialTracking);
   const fileInputRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -97,7 +145,22 @@ export default function TeacherUpload() {
     pollRef.current = null;
   }, []);
 
-  const pollProcessing = useCallback(async () => {
+  const pollProcessing = useCallback(async (targetBatchId = batchId) => {
+    if (targetBatchId) {
+      try {
+        const response = await apiFetch(`/video-batches/${targetBatchId}`);
+        const batchItems = response.data?.batch?.items || [];
+        setTrackedItems((current) => {
+          const next = mergeBatchItems(batchItems, current);
+          persistTracking(next, targetBatchId);
+          if (next.length && next.every((item) => isTerminalStatus(item.processingStatus))) stopPolling();
+          return next;
+        });
+      } catch {
+        // Keep the last known state and retry on the next poll.
+      }
+      return;
+    }
     const snapshot = readTracking();
     const pending = snapshot.filter((item) => !isTerminalStatus(item.processingStatus));
     if (!pending.length) {
@@ -115,17 +178,17 @@ export default function TeacherUpload() {
     const byId = new Map(updates.map((item) => [item.videoId, item]));
     setTrackedItems((current) => {
       const next = current.map((item) => byId.get(item.videoId) || item);
-      persistTracking(next);
+      persistTracking(next, '');
       if (next.every((item) => isTerminalStatus(item.processingStatus))) stopPolling();
       return next;
     });
-  }, [stopPolling]);
+  }, [batchId, stopPolling]);
 
-  const startPolling = useCallback(() => {
+  const startPolling = useCallback((targetBatchId = batchId) => {
     stopPolling();
-    void pollProcessing();
-    pollRef.current = setInterval(() => void pollProcessing(), 3000);
-  }, [pollProcessing, stopPolling]);
+    void pollProcessing(targetBatchId);
+    pollRef.current = setInterval(() => void pollProcessing(targetBatchId), 3000);
+  }, [batchId, pollProcessing, stopPolling]);
 
   useEffect(() => {
     apiFetch('/courses').then((response) => {
@@ -138,9 +201,9 @@ export default function TeacherUpload() {
   useEffect(() => {
     const restored = initialTrackingRef.current;
     let restartTimer = null;
-    if (restored.length) {
-      persistTracking(restored);
-      if (restored.some((item) => !isTerminalStatus(item.processingStatus))) {
+    if (restored.batchId || restored.items.length) {
+      persistTracking(restored.items, restored.batchId);
+      if (restored.batchId || restored.items.some((item) => !isTerminalStatus(item.processingStatus))) {
         restartTimer = window.setTimeout(startPolling, 0);
       }
     }
@@ -191,22 +254,50 @@ export default function TeacherUpload() {
     setUploading(true);
     setUploadError('');
     setTrackedItems(items);
-    const uploaded = await uploadCourseVideos({ courseId, items, onItemChange: updateTrackedItem });
-    setTrackedItems((current) => {
-      const next = current.map((item) => uploaded.find((result) => result.key === item.key) ? { ...item, ...uploaded.find((result) => result.key === item.key), uploadStatus: 'processing' } : item);
-      persistTracking(next);
-      return next;
-    });
-    setUploading(false);
-    setSelectedFiles([]);
-    setTitle('');
-    if (uploaded.length) startPolling();
+    try {
+      const uploaded = await uploadCourseVideos({ courseId, items, onItemChange: updateTrackedItem });
+      setBatchId(uploaded.batchId);
+      setTrackedItems(uploaded.items);
+      persistTracking(uploaded.items, uploaded.batchId);
+      setSelectedFiles([]);
+      setTitle('');
+      startPolling(uploaded.batchId);
+    } catch (error) {
+      setUploadError(error.message || '批次上傳失敗，請稍後再試。');
+      setTrackedItems((current) => current.map((item) => ({
+        ...item,
+        uploadStatus: 'failed',
+        processingStatus: 'failed',
+        error: error.message || '批次上傳失敗，請稍後再試。',
+      })));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function retryItem(item) {
+    if (!batchId || !item.videoId) return;
+    setUploadError('');
+    try {
+      const response = await apiFetch(`/video-batches/${batchId}/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: item.videoId }),
+      });
+      const next = mergeBatchItems(response.data?.batch?.items || [], trackedItems);
+      setTrackedItems(next);
+      persistTracking(next, batchId);
+      startPolling();
+    } catch (error) {
+      setUploadError(error.message || '重新處理失敗，請稍後再試。');
+    }
   }
 
   function resetTracking() {
     stopPolling();
     setTrackedItems([]);
-    persistTracking([]);
+    setBatchId('');
+    persistTracking([], '');
     setUploadError('');
   }
 
@@ -279,7 +370,14 @@ export default function TeacherUpload() {
               </div>
             ))}
             {allTerminal && <div style={{ marginTop: 10, fontSize: 12, color: failedCount ? '#ffb080' : '#86efac' }}>{failedCount ? `${completedCount} 支完成，${failedCount} 支失敗` : `${completedCount} 支影片皆已完成 AI 索引`}</div>}
-            {trackedItems.map((item) => item.error ? <div key={item.key || item.videoId} style={{ marginTop: 6, fontSize: 11, color: '#ff8b72' }}>{item.name}：{item.error}</div> : null)}
+            {trackedItems.map((item) => item.error ? (
+              <div key={item.key || item.videoId} style={{ marginTop: 6, fontSize: 11, color: '#ff8b72' }}>
+                {item.name}：{item.error}
+                {batchId && item.videoId && item.processingStatus === 'failed' && (
+                  <button type="button" onClick={() => retryItem(item)} style={{ marginLeft: 8, border: 0, background: 'transparent', color: '#F14F21', cursor: 'pointer', textDecoration: 'underline' }}>重新處理</button>
+                )}
+              </div>
+            ) : null)}
           </div>
         </div>
 

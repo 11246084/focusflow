@@ -74,6 +74,30 @@ describe('STT child process lifecycle', () => {
     assert.match(readFileSync(logPath, 'utf8'), /pipeline exit.*code=1/);
   });
 
+  it('可將已知的批次租約退出碼視為安全，並執行 close callback', async () => {
+    const sttProcess = new EventEmitter();
+    const { logFd } = createLogFile();
+    const failures = [];
+    let closeDetails;
+
+    attachSttProcessLifecycle({
+      sttProcess,
+      logFd,
+      videoId: 'batch_001',
+      onUnexpectedExit: async (failure) => failures.push(failure),
+      successfulExitCodes: [0, 1, 75],
+      onClose: async (details) => { closeDetails = details; },
+    });
+
+    sttProcess.emit('exit', 75, null);
+    sttProcess.emit('close', 75, null);
+    await waitForEventLoop();
+
+    assert.deepEqual(failures, []);
+    assert.equal(closeDetails.successfulExit, true);
+    assert.equal(closeDetails.code, 75);
+  });
+
   it('spawn error 後只在 close 時回報一次失敗', async () => {
     const sttProcess = new EventEmitter();
     const { logFd } = createLogFile();

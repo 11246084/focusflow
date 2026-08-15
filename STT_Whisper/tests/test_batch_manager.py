@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -14,10 +15,14 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from batch_manager import (
+    BatchAlreadyRunningError,
+    BatchExecutionLease,
     BatchManager,
     BatchValidationError,
     PipelineRunResult,
+    SubprocessPipelineRunner,
     create_batch,
+    create_batch_from_request,
 )
 from config import PipelineConfig
 
@@ -31,9 +36,9 @@ class FakeRunner:
         self.max_running = 0
         self.lock = threading.Lock()
 
-    def run(self, video_path, run_id, resume):
+    def run(self, video_path, run_id, resume, video_id=None):
         with self.lock:
-            self.calls.append((video_path.name, run_id, resume))
+            self.calls.append((video_path.name, run_id, resume, video_id))
             self.running += 1
             self.max_running = max(self.max_running, self.running)
             remaining = self.failures.get(video_path.name, 0)
@@ -48,7 +53,7 @@ class FakeRunner:
             return PipelineRunResult(
                 run_id=run_id,
                 output_directory=f"outputs/{run_id}",
-                video_id=video_path.stem,
+                video_id=video_id or video_path.stem,
             )
         finally:
             with self.lock:
@@ -230,6 +235,137 @@ class BatchManagerTests(unittest.TestCase):
         manager.run(FakeRunner())
         self.assertEqual(json.loads(manager.manifest_path.read_text(encoding="utf-8"))["status"], "completed")
         self.assertEqual(json.loads(manager.summary_path.read_text(encoding="utf-8"))["status"], "completed")
+
+    def test_backend_request_preserves_item_and_video_ids(self):
+        first = self.video("first.mp4")
+        second = self.video("second.mov")
+        manager = create_batch_from_request(
+            [
+                {"itemId": "item_0001", "videoId": "mongo-video-1", "videoPath": str(first)},
+                {"itemId": "item_0002", "videoId": "mongo-video-2", "videoPath": str(second)},
+            ],
+            self.root / "outputs",
+            batch_id="batch_20260812010101_abcdef12",
+            input_source="backend-test",
+        )
+        runner = FakeRunner()
+        manager.run(runner)
+        self.assertEqual([item.item_id for item in manager.job.items], ["item_0001", "item_0002"])
+        self.assertEqual([item.video_id for item in manager.job.items], ["mongo-video-1", "mongo-video-2"])
+        self.assertEqual([call[3] for call in runner.calls], ["mongo-video-1", "mongo-video-2"])
+
+    def test_backend_request_rejects_duplicate_paths(self):
+        video = self.video("same.mp4")
+        with self.assertRaises(BatchValidationError):
+            create_batch_from_request(
+                [
+                    {"itemId": "item_0001", "videoId": "one", "videoPath": str(video)},
+                    {"itemId": "item_0002", "videoId": "two", "videoPath": str(video)},
+                ],
+                self.root / "outputs",
+                batch_id="batch_20260812010101_abcdef12",
+                input_source="backend-test",
+            )
+
+    def test_manual_retry_grants_exactly_one_attempt_to_requested_failed_video(self):
+        video = self.video("retry.mp4")
+        manager = create_batch_from_request(
+            [{"itemId": "item_0001", "videoId": "mongo-video-1", "videoPath": str(video)}],
+            self.root / "outputs",
+            batch_id="batch_20260812010101_abcdef12",
+            input_source="backend-test",
+            max_retries=0,
+        )
+        manager.run(FakeRunner(failures={"retry.mp4": 1}, delay=0))
+        item = manager.job.items[0]
+        self.assertEqual(item.status, "failed")
+        self.assertEqual(item.attempt_count, 1)
+
+        manager.request_manual_retry("mongo-video-1")
+        manager.run(FakeRunner(delay=0))
+
+        self.assertEqual(item.status, "completed")
+        self.assertEqual(item.attempt_count, 2)
+        self.assertEqual(item.max_attempts, 2)
+        with self.assertRaises(BatchValidationError):
+            manager.request_manual_retry("mongo-video-1")
+
+    def test_execution_lease_rejects_a_second_live_owner(self):
+        batch_dir = self.root / "outputs" / "batches" / "batch_lock"
+        first = BatchExecutionLease(batch_dir).acquire()
+        try:
+            with self.assertRaises(BatchAlreadyRunningError):
+                BatchExecutionLease(batch_dir).acquire()
+        finally:
+            first.release()
+        self.assertFalse((batch_dir / ".execution.lock").exists())
+
+    def test_execution_lease_reclaims_a_dead_owner(self):
+        batch_dir = self.root / "outputs" / "batches" / "batch_stale"
+        batch_dir.mkdir(parents=True)
+        (batch_dir / ".execution.lock").write_text(
+            json.dumps({"pid": 999999999, "token": "stale"}),
+            encoding="utf-8",
+        )
+        lease = BatchExecutionLease(batch_dir).acquire()
+        lease.release()
+        self.assertFalse((batch_dir / ".execution.lock").exists())
+
+    def test_subprocess_runner_passes_requested_video_id_once(self):
+        runner = SubprocessPipelineRunner(self.root, python_executable="python-test")
+        with patch("batch_manager.subprocess.run") as run:
+            run.return_value.returncode = 0
+            runner.run(self.video("one.mp4"), "run-1", False, "video-1")
+        command = run.call_args.args[0]
+        self.assertEqual(command.count("--video-id"), 1)
+        self.assertEqual(command[command.index("--video-id") + 1], "video-1")
+
+    def test_killed_batch_process_reclaims_lease_and_resumes_only_interrupted_item(self):
+        video = self.video("interrupt.mp4")
+        output_root = self.root / "outputs"
+        batch_id = "batch_20260813010101_deadbeef"
+        batch_dir = output_root / "batches" / batch_id
+        script = "\n".join([
+            "import sys, time",
+            "from pathlib import Path",
+            f"sys.path.insert(0, {str(SRC_DIR)!r})",
+            "from batch_manager import BatchExecutionLease, PipelineRunResult, create_batch",
+            "class BlockingRunner:",
+            "    def run(self, video_path, run_id, resume, video_id=None):",
+            "        time.sleep(30)",
+            "        return PipelineRunResult(run_id=run_id, video_id=video_id)",
+            f"manager = create_batch([Path({str(video)!r})], Path({str(output_root)!r}), input_source='kill-test', batch_id={batch_id!r})",
+            "with BatchExecutionLease(manager.batch_dir):",
+            "    manager.run(BlockingRunner())",
+        ])
+        child = subprocess.Popen([sys.executable, "-c", script])
+        try:
+            manifest_path = batch_dir / "batch_manifest.json"
+            deadline = time.time() + 10
+            while time.time() < deadline:
+                if manifest_path.exists():
+                    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if payload["items"][0]["status"] == "running":
+                        break
+                time.sleep(0.05)
+            else:
+                self.fail("Child batch never reached running state.")
+
+            child.terminate()
+            child.wait(timeout=10)
+            with BatchExecutionLease(batch_dir):
+                loaded = BatchManager.load(batch_dir)
+                runner = FakeRunner(delay=0)
+                loaded.run(runner)
+
+            self.assertEqual(child.returncode == 0, False)
+            self.assertEqual([call[2] for call in runner.calls], [True])
+            self.assertEqual(loaded.job.items[0].status, "completed")
+            self.assertEqual(loaded.job.items[0].attempt_count, 1)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=10)
 
     def test_atomic_write_failure_leaves_no_temporary_file(self):
         manager = self.create(["a.mp4"])

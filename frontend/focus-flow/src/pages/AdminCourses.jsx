@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
+import EnrollmentManagerModal from '../components/EnrollmentManagerModal';
 import { apiFetch } from '../api';
 
 const STATUS_LABEL = { draft: '草稿', published: '已發布', archived: '封存' };
@@ -161,6 +162,9 @@ export default function AdminCourses() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  // Keep roster management in a separate modal so editing/deleting course
+  // metadata cannot accidentally mutate enrollment state.
+  const [managingEnrollments, setManagingEnrollments] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -189,6 +193,7 @@ export default function AdminCourses() {
       {creating && <CourseModal teachers={teachers} onClose={() => setCreating(false)} onSaved={onSaved} />}
       {editing && <CourseModal course={editing} teachers={teachers} onClose={() => setEditing(null)} onSaved={onSaved} />}
       {deleting && <DeleteModal course={deleting} onClose={() => setDeleting(null)} onDeleted={onDeleted} />}
+      {managingEnrollments && <EnrollmentManagerModal course={managingEnrollments} onClose={() => setManagingEnrollments(null)} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
         <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>Course Management</div>
@@ -239,6 +244,9 @@ export default function AdminCourses() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => setManagingEnrollments(c)} style={{ background: 'none', border: '1px solid rgba(165,180,252,0.35)', borderRadius: 8, color: '#c7d2fe', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>
+                          學生
+                        </button>
                         <button onClick={() => setEditing(c)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: 'rgba(255,255,255,0.55)', padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>
                           編輯
                         </button>

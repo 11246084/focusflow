@@ -9,7 +9,16 @@ const LineBindToken = require('../models/lineBindToken.model');
 const { askQuestion } = require('./qa.service');
 const { recordUsage } = require('./usageLog.service');
 const { recordQuestion } = require('./questionRecording.service');
-const { QUESTION_STATUSES, QUESTION_SOURCES, USAGE_LOG_EVENTS } = require('../constants/enums');
+const {
+  QUESTION_STATUSES,
+  QUESTION_SOURCES,
+  USAGE_LOG_EVENTS,
+  COURSE_STATUSES,
+} = require('../constants/enums');
+const {
+  buildActiveEnrollmentFilter,
+  findActiveEnrollment,
+} = require('./courseAccess.service');
 const {
   buildLineRuntimeSnapshot,
   buildQaRuntimeSnapshot,
@@ -274,25 +283,13 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     }, replyResult);
   }
 
-  // 同時抓「已選課的課程」和「所有已發佈課程」，合併去重後讓使用者選擇
-  const [enrollments, publishedCourses] = await Promise.all([
-    Enrollment.find({ studentId: user._id }).populate('courseId'),
-    Course.find({ status: 'published' }),
-  ]);
-  const courseMap = new Map();
-
-  for (const enrollment of enrollments) {
-    if (enrollment.courseId) {
-      courseMap.set(String(enrollment.courseId._id), enrollment.courseId);
-    }
-  }
-
-  for (const course of publishedCourses) {
-    courseMap.set(String(course._id), course);
-  }
-
-  // 列出所有有權存取的課程；沒有影片的課程仍顯示，等使用者選到時再提示無法提問。
-  const selectableCourses = Array.from(courseMap.values());
+  const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({ studentId: user._id }))
+    .populate('courseId');
+  // Published is discoverability metadata, not authorization. LINE only lists
+  // active enrollments whose course is currently published.
+  const selectableCourses = enrollments
+    .map((enrollment) => enrollment.courseId)
+    .filter((course) => course && course.status === COURSE_STATUSES.PUBLISHED);
 
   if (!selectableCourses.length) {
     await User.findByIdAndUpdate(user._id, {
@@ -353,9 +350,9 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
   }
 
   const course = await Course.findById(courseId);
-  const enrollment = await Enrollment.findOne({ studentId: user._id, courseId });
+  const enrollment = await findActiveEnrollment(user._id, courseId);
 
-  if (!course || (!enrollment && course.status !== 'published')) {
+  if (!course || course.status !== COURSE_STATUSES.PUBLISHED || !enrollment) {
     const replyResult = await replyMessage(replyToken, [
       buildTextMessage('你沒有這門課程的存取權限。'),
     ]);
@@ -368,10 +365,6 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
       buildTextMessage(`「${course.title}」目前沒有影片，暫時無法提問。`),
     ]);
     return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_has_no_videos' }, replyResult);
-  }
-
-  if (!enrollment) {
-    await ensureCourseForUser(user._id, courseId);
   }
 
   await User.findByIdAndUpdate(user._id, {
@@ -407,9 +400,9 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
 
   const user = await User.findById(bindResult.userId);
   const course = await Course.findById(courseId);
-  const enrollment = await Enrollment.findOne({ studentId: user._id, courseId });
+  const enrollment = await findActiveEnrollment(user._id, courseId);
 
-  if (!course || (!enrollment && course.status !== 'published')) {
+  if (!course || course.status !== COURSE_STATUSES.PUBLISHED || !enrollment) {
     const replyResult = await replyMessage(replyToken, [
       buildTextMessage('LINE 帳號已綁定，但你目前無法存取這門課程。'),
     ]);
@@ -422,10 +415,6 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
       buildTextMessage(`LINE 帳號已綁定，但「${course.title}」目前沒有影片，暫時無法提問。`),
     ]);
     return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_has_no_videos' }, replyResult);
-  }
-
-  if (!enrollment) {
-    await ensureCourseForUser(user._id, courseId);
   }
 
   await User.findByIdAndUpdate(user._id, {
@@ -465,13 +454,9 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
   }
 
   const course = await Course.findById(courseId);
-  const enrollment = await Enrollment.findOne({
-    studentId: user._id,
-    courseId,
-  });
+  const enrollment = await findActiveEnrollment(user._id, courseId);
 
-  // 課程必須存在，且使用者要嘛有選課紀錄、要嘛課程是已發佈狀態（公開課程）
-  if (!course || (!enrollment && course.status !== 'published')) {
+  if (!course || course.status !== COURSE_STATUSES.PUBLISHED || !enrollment) {
     const replyResult = await replyMessage(replyToken, [buildTextMessage('你沒有這門課程的存取權限。')]);
 
     return attachReplyMetadata({
@@ -638,6 +623,27 @@ async function handleQuestion(lineUserId, text, replyToken) {
       type: 'question',
       handled: false,
       reason: 'active_course_missing',
+    }, replyResult);
+  }
+
+  const [activeCourse, activeEnrollment] = await Promise.all([
+    Course.findById(user.activeCourseId),
+    findActiveEnrollment(user._id, user.activeCourseId),
+  ]);
+  if (!activeCourse
+      || activeCourse.status !== COURSE_STATUSES.PUBLISHED
+      || !activeEnrollment) {
+    await User.findByIdAndUpdate(user._id, {
+      $unset: { activeCourseId: 1 },
+      $set: { lineConversationState: LINE_CONVERSATION_STATES.IDLE, lineConversationHistory: [] },
+    });
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('你目前沒有可使用的課程，請聯絡老師或管理員確認修課資格。'),
+    ]);
+    return attachReplyMetadata({
+      type: 'question',
+      handled: false,
+      reason: 'course_access_denied',
     }, replyResult);
   }
 
@@ -823,39 +829,8 @@ async function processWebhookEvents(events) {
   };
 }
 
-// 工具函式：確保使用者對某門課程有選課紀錄，若沒有則自動建立
-// 主要供 demo seed 或測試情境使用，讓使用者可以直接存取指定課程
-async function ensureCourseForUser(userId, courseId) {
-  const user = await User.findById(userId);
-  const course = await Course.findById(courseId);
-
-  if (!user || !course) {
-    return null;
-  }
-
-  // upsert：有選課紀錄就什麼都不做，沒有就新建一筆
-  await Enrollment.findOneAndUpdate(
-    { studentId: user._id, courseId: course._id },
-    {
-      $setOnInsert: {
-        studentId: user._id,
-        courseId: course._id,
-        enrolledAt: new Date(),
-      },
-    },
-    {
-      new: true,
-      upsert: true,
-      setDefaultsOnInsert: true,
-    },
-  );
-
-  return course;
-}
-
 module.exports = {
   generateBindToken,
   processWebhookEvents,
-  ensureCourseForUser,
   buildQuestionSummaryLines,
 };

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Notification = require('../models/notification.model');
 const Course = require('../models/course.model');
 const Enrollment = require('../models/enrollment.model');
+const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
@@ -256,9 +257,9 @@ async function fanoutVideoCompletedNotifications(video) {
     };
   }
 
-  const enrollments = await Enrollment.find({
+  const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({
     courseId: { $in: courseIds },
-  })
+  }))
     .select('studentId courseId')
     .lean();
   const enrolledStudentIds = [...new Set(

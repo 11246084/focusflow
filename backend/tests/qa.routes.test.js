@@ -320,6 +320,13 @@ describe('qa routes', () => {
       status: 'published',
       createdAt: '2026-04-13T08:00:00.000Z',
     });
+    store.enrollments.push({
+      _id: newObjectId(),
+      studentId: ids.student,
+      courseId: ids.pipelineBridgeCourse,
+      status: 'active',
+      enrolledAt: '2026-04-13T08:00:00.000Z',
+    });
 
     store.videos.push({
       _id: ids.pipelineBridgeVideo,

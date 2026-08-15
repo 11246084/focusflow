@@ -345,7 +345,12 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const publishedVideo = await Video.findOneAndUpdate(
-    { videoId: DEMO_VIDEOS.published.videoId },
+    {
+      $or: [
+        { _id: DEMO_RECORD_IDS.videos.published },
+        { videoId: DEMO_VIDEOS.published.videoId },
+      ],
+    },
     {
       $set: buildDemoVideoPayload({
         courseId: publishedCourse._id,
@@ -364,7 +369,12 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const draftVideo = await Video.findOneAndUpdate(
-    { videoId: DEMO_VIDEOS.draft.videoId },
+    {
+      $or: [
+        { _id: DEMO_RECORD_IDS.videos.draft },
+        { videoId: DEMO_VIDEOS.draft.videoId },
+      ],
+    },
     {
       $set: buildDemoVideoPayload({
         courseId: draftCourse._id,
@@ -415,7 +425,12 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
   );
 
   const pipelineBridgeVideo = await Video.findOneAndUpdate(
-    { videoId: DEMO_VIDEOS.pipelineBridge.videoId },
+    {
+      $or: [
+        { _id: DEMO_RECORD_IDS.videos.pipelineBridge },
+        { videoId: DEMO_VIDEOS.pipelineBridge.videoId },
+      ],
+    },
     {
       $set: buildPipelineStyleBridgeVideoPayload(DEMO_VIDEOS.pipelineBridge),
       $setOnInsert: {
@@ -506,9 +521,12 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
       $set: {
         studentId: student._id,
         courseId: publishedCourse._id,
+        status: 'active',
+        assignedBy: teacher._id,
         progress: 15,
         lineNotify: false,
       },
+      $unset: { revokedAt: 1, revokedBy: 1 },
       $setOnInsert: {
         enrolledAt: new Date('2026-04-06T09:30:00.000Z'),
       },
@@ -526,9 +544,12 @@ async function seedDemoData({ silent = false, reset = false } = {}) {
       $set: {
         studentId: student._id,
         courseId: pipelineBridgeCourse._id,
+        status: 'active',
+        assignedBy: teacher._id,
         progress: 0,
         lineNotify: false,
       },
+      $unset: { revokedAt: 1, revokedBy: 1 },
       $setOnInsert: {
         enrolledAt: new Date('2026-04-13T08:00:00.000Z'),
       },

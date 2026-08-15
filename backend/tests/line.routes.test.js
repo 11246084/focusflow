@@ -549,7 +549,7 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
   });
 
-  it('isolates per-event internal errors without failing the batch', async () => {
+  it('clears an invalid active course without failing the batch', async () => {
     store.users.find((user) => user._id === ids.student).activeCourseId = 'not-an-object-id';
 
     const payload = JSON.stringify({
@@ -572,8 +572,7 @@ describe('line webhook routes', () => {
     });
 
     assert.equal(result.status, 200);
-    assert.equal(result.body.data.results[0].reason, 'qa_internal_error');
-    assert.equal(result.body.data.results[0].errorCode, 'INVALID_ID');
+    assert.equal(result.body.data.results[0].reason, 'course_access_denied');
     assert.equal(result.body.data.results[0].replySkipped, true);
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
   });

@@ -64,6 +64,18 @@ describe('demo seed service', () => {
     assert.deepEqual(firstRun.videos, secondRun.videos);
   });
 
+  it('repairs a fixed demo video whose natural videoId key is missing', async () => {
+    await seedDemoData({ silent: true, reset: true });
+    const published = store.videos.find((video) => video.title === DEMO_VIDEOS.published.title);
+    delete published.videoId;
+
+    const result = await seedDemoData({ silent: true });
+
+    assert.equal(store.videos.filter((video) => video._id === published._id).length, 1);
+    assert.equal(published.videoId, DEMO_VIDEOS.published.videoId);
+    assert.equal(result.videos.length, 3);
+  });
+
   it('keeps non-demo pipeline data untouched while rebuilding the pipeline-style demo bridge baseline', async () => {
     store.videos.push({
       _id: 'pipeline-video-001',

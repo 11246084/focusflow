@@ -11,6 +11,7 @@ const {
   isTeacher,
   isStudent,
   getStudentEnrollmentCourseIds,
+  findActiveEnrollment,
   assertCanAccessCourse,
 } = require('./courseAccess.service');
 const { COURSE_STATUS_VALUES, USAGE_LOG_EVENTS } = require('../constants/enums');
@@ -82,7 +83,11 @@ async function listCourses(user) {
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   } else if (isStudent(user)) {
-    courses = await Course.find({ status: 'published' })
+    const enrolledCourseIds = await getStudentEnrollmentCourseIds(user.id);
+    courses = await Course.find({
+      _id: { $in: enrolledCourseIds },
+      status: 'published',
+    })
       .populate('teacherId', 'name email role isActive')
       .sort({ createdAt: -1 });
   }
@@ -102,24 +107,6 @@ async function getCourseById(courseId, user) {
   await assertCanAccessCourse(user, course);
 
   return buildCoursePresentation(course);
-}
-
-async function ensureStudentEnrollment(studentId, courseId) {
-  return Enrollment.findOneAndUpdate(
-    { studentId, courseId },
-    {
-      $setOnInsert: {
-        studentId,
-        courseId,
-        enrolledAt: new Date(),
-      },
-    },
-    {
-      new: true,
-      upsert: true,
-      setDefaultsOnInsert: true,
-    },
-  );
 }
 
 async function updateCourse(courseId, { title, description, status, teacherId }, user) {
@@ -235,7 +222,12 @@ async function markVideoWatched({ user, courseId, videoId }) {
     throw new AppError('Video not found in this course.', 404, 'VIDEO_NOT_FOUND');
   }
 
-  const enrollment = await ensureStudentEnrollment(user.id, courseId);
+  const enrollment = await findActiveEnrollment(user.id, courseId);
+  if (!enrollment) {
+    // Defense in depth: assertCanAccessCourse already rejects this path, but a
+    // second explicit guard prevents watched tracking from ever granting access.
+    throw new AppError('You do not have access to this course.', 403, 'COURSE_ACCESS_DENIED');
+  }
   const previousWatched = new Set((enrollment.watchedVideoIds || []).map(String));
   const isFirstWatch = !previousWatched.has(String(videoId));
   const watched = new Set(previousWatched);
@@ -281,7 +273,6 @@ module.exports = {
   getCourseById,
   updateCourse,
   deleteCourse,
-  ensureStudentEnrollment,
   resolveCourseTeacherId,
   markVideoWatched,
 };

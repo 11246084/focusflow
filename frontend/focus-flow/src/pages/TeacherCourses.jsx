@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
+import EnrollmentManagerModal from '../components/EnrollmentManagerModal';
 import { apiFetch } from '../api';
 
 const COURSE_STATUS_LABEL = {
@@ -261,6 +262,7 @@ export default function TeacherCourses() {
   const [deletingCourse, setDeletingCourse] = useState(null);
   const [creating, setCreating] = useState(false);
   const [attaching, setAttaching] = useState(null);
+  const [managingEnrollments, setManagingEnrollments] = useState(null);
   const [detachingId, setDetachingId] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
@@ -398,6 +400,13 @@ export default function TeacherCourses() {
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       {creating && <CreateCourseModal onClose={() => setCreating(false)} onCreated={onCreated} />}
+
+      {managingEnrollments && (
+        <EnrollmentManagerModal
+          course={managingEnrollments}
+          onClose={() => setManagingEnrollments(null)}
+        />
+      )}
 
       {attaching && (
         <AttachVideoModal
@@ -559,7 +568,13 @@ export default function TeacherCourses() {
                       {videos.length}
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{created}</div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setManagingEnrollments(course); }}
+                        style={{ background: 'none', border: '1px solid rgba(165,180,252,0.4)', borderRadius: 8, color: '#c7d2fe', padding: '5px 9px', fontSize: 11, cursor: 'pointer' }}
+                      >
+                        學生
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setConfirmCourse(course); }}
                         disabled={deletingCourse === course._id}

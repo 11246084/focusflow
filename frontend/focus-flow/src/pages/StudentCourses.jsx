@@ -636,7 +636,9 @@ export default function StudentCourses() {
       {loading ? (
         <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>載入中…</div>
       ) : courses.length === 0 ? (
-        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>目前沒有可用課程</div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, lineHeight: 1.7, textAlign: 'center' }}>
+                你目前尚未加入任何課程。<br />請聯絡老師或管理員取得修課資格。
+              </div>
       ) : (
         <div className="card" style={{ overflow: 'hidden', marginBottom: 14 }}>
           {courses.map((c, i) => {

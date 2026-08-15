@@ -5,6 +5,7 @@ const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Question = require('../models/question.model');
 const Enrollment = require('../models/enrollment.model');
+const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const { USAGE_LOG_EVENTS } = require('../constants/enums');
 const { isLikelyEncodingDamaged } = require('../utils/textEncoding');
 
@@ -198,7 +199,7 @@ async function getStudentDashboardStats(user) {
 
   // Round 1: 平行抓 6 條互不相依的資料（原本散在 5 次 await，~700-900ms → ~150-200ms）
   const [enrollments, publishedCourses, totalQueries, weeklyQueries, answeredQueries, recentQuestions] = await Promise.all([
-    Enrollment.find({ studentId: user.id }).lean(),
+    Enrollment.find(buildActiveEnrollmentFilter({ studentId: user.id })).lean(),
     Course.find({ status: 'published' }).lean(),
     Question.countDocuments(visibleQuestionFilter),
     Question.countDocuments({ ...visibleQuestionFilter, askedAt: { $gte: weekAgo } }),

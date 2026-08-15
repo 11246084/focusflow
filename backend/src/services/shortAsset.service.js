@@ -3,6 +3,7 @@ const Course = require('../models/course.model');
 const Enrollment = require('../models/enrollment.model');
 const ShortAsset = require('../models/shortAsset.model');
 const AppError = require('../utils/appError');
+const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const { assertObjectId } = require('../utils/objectId');
 const {
   COURSE_STATUSES,
@@ -140,7 +141,11 @@ async function updateShortAsset(assetId, patch) {
 async function listStudentShorts({ studentId, pageToken, limit }) {
   const pageSize = normalizeLimit(limit);
   const cursor = decodePageToken(pageToken);
-  const enrollments = await Enrollment.find({ studentId }).select('courseId').lean();
+  // Revoked enrollment removes feed authorization immediately even though the
+  // historical Enrollment row remains available for audit/reactivation.
+  const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({ studentId }))
+    .select('courseId')
+    .lean();
   const enrolledCourseIds = enrollments.map((item) => item.courseId?._id || item.courseId);
 
   if (!enrolledCourseIds.length) {

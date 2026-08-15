@@ -28,6 +28,16 @@ function resetQaEnv() {
   env.qaActiveParentEmbeddingContractJson = '';
 }
 
+function grantStudentCourseAccess(courseId) {
+  store.enrollments.push({
+    _id: newObjectId(),
+    studentId: ids.student,
+    courseId,
+    status: 'active',
+    enrolledAt: '2026-04-13T08:00:00.000Z',
+  });
+}
+
 describe('qa service', () => {
   beforeEach(() => {
     resetStore();
@@ -258,6 +268,7 @@ describe('qa service', () => {
       status: 'published',
       createdAt: '2026-04-13T08:00:00.000Z',
     });
+    grantStudentCourseAccess(ids.pipelineBridgeCourse);
 
     store.videos.push({
       _id: ids.pipelineBridgeVideo,
@@ -318,6 +329,7 @@ describe('qa service', () => {
       status: 'published',
       createdAt: '2026-04-13T08:00:00.000Z',
     });
+    grantStudentCourseAccess(ids.pipelineBridgeCourse);
 
     store.videos.push({
       _id: ids.pipelineBridgeVideo,
@@ -367,6 +379,7 @@ describe('qa service', () => {
       status: 'published',
       createdAt: '2026-04-13T08:00:00.000Z',
     });
+    grantStudentCourseAccess(ids.pipelineBridgeCourse);
 
     store.videos.push({
       _id: ids.pipelineBridgeVideo,
@@ -414,6 +427,7 @@ describe('qa service', () => {
       status: 'published',
       createdAt: '2026-07-10T08:00:00.000Z',
     });
+    grantStudentCourseAccess(visualCourseId);
 
     store.videos.push({
       _id: visualVideoId,

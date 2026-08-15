@@ -2,7 +2,11 @@ const Course = require('../models/course.model');
 const Enrollment = require('../models/enrollment.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { USER_ROLES } = require('../constants/enums');
+const {
+  USER_ROLES,
+  COURSE_STATUSES,
+  ENROLLMENT_STATUSES,
+} = require('../constants/enums');
 
 function isAdmin(user) {
   return user?.role === USER_ROLES.ADMIN;
@@ -20,8 +24,24 @@ function isCourseOwner(user, course) {
   return String(course.teacherId?._id || course.teacherId) === String(user.id);
 }
 
+function buildActiveEnrollmentFilter(filter = {}) {
+  return {
+    ...filter,
+    // Legacy Enrollment rows predate the status field. Treat missing as active
+    // until an explicit backfill is approved; revoked rows are always denied.
+    $or: [
+      { status: ENROLLMENT_STATUSES.ACTIVE },
+      { status: { $exists: false } },
+    ],
+  };
+}
+
+async function findActiveEnrollment(studentId, courseId) {
+  return Enrollment.findOne(buildActiveEnrollmentFilter({ studentId, courseId }));
+}
+
 async function getStudentEnrollmentCourseIds(userId) {
-  const enrollments = await Enrollment.find({ studentId: userId });
+  const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({ studentId: userId }));
   return enrollments.map((item) => String(item.courseId?._id || item.courseId));
 }
 
@@ -49,14 +69,11 @@ async function canAccessCourse(user, course) {
     return false;
   }
 
-  // TODO: Restore enrollment-only student access after demo reset/testing.
-  // const enrollment = await Enrollment.findOne({
-  //   studentId: user.id,
-  //   courseId: course._id,
-  // });
-  //
-  // return Boolean(enrollment);
-  return true;
+  if (course.status !== COURSE_STATUSES.PUBLISHED) {
+    return false;
+  }
+
+  return Boolean(await findActiveEnrollment(user.id, course._id));
 }
 
 async function assertCanAccessCourse(user, course) {
@@ -83,6 +100,8 @@ module.exports = {
   isAdmin,
   isTeacher,
   isStudent,
+  buildActiveEnrollmentFilter,
+  findActiveEnrollment,
   getStudentEnrollmentCourseIds,
   getCourseByIdOrThrow,
   canAccessCourse,

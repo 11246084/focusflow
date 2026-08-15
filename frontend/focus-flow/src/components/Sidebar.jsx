@@ -1,8 +1,11 @@
 import { Ic } from './Icons';
 import { navItems, roleLabels, roleDot } from './navigationConfig';
+import { getUser } from '../api';
+import { getDisplayName } from '../utils/userDisplay';
 
 export default function Sidebar({ role, active, onNav, onLogout }) {
   const items = navItems[role] || [];
+  const displayName = getDisplayName(getUser());
   return (
     <div className="sidebar">
 
@@ -32,7 +35,7 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
             <div className="sidebar-role-dot" style={{ background: roleDot[role] }} />
             <span className="sidebar-role-text">{roleLabels[role]}</span>
           </div>
-          <div className="sidebar-username">王小明</div>
+          <div className="sidebar-username">{displayName}</div>
         </div>
 
         <div className="nav-item" onClick={onLogout}>

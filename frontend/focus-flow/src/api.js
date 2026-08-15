@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+// Optional chaining keeps the API client usable in Node-based unit tests where
+// Vite environment injection is intentionally absent.
+const BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 export const BACKEND_ORIGIN = BASE.replace(/\/api\/v1\/?$/, '');
 
 export function getToken() { return localStorage.getItem('ff_token'); }

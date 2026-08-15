@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ic } from './Icons';
 import { apiFetch, getUser } from '../api';
+import { getDisplayName } from '../utils/userDisplay';
 
 function formatNotificationTime(value) {
   const date = new Date(value);
@@ -63,7 +64,7 @@ function DropdownPanel({ anchorRect, width, panelRef, children, centerOnMobile =
 
 export default function Topbar({ title, sub, onNav, onLogout }) {
   const user = getUser() || {};
-  const displayName = user.name || '訪客';
+  const displayName = getDisplayName(user);
   const roleLabel = { student: '學生', teacher: '教師', admin: '管理員' }[user.role] || '';
 
   const [notifications, setNotifications] = useState([]);

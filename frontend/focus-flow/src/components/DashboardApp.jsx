@@ -1,6 +1,8 @@
 import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
 import { topbarMap } from './navigationConfig';
+import { getUser } from '../api';
+import { getStudentWelcomeSubtitle } from '../utils/userDisplay';
 
 import StudentDashboard  from '../pages/StudentDashboard';
 import StudentCourses    from '../pages/StudentCourses';
@@ -27,13 +29,18 @@ function DashboardRouter({ role, sub, onNav }) {
 
 export default function DashboardApp({ role, sub, onNav, onLogout }) {
   const tb = topbarMap[role]?.[sub] || ['Dashboard', ''];
+  // Personalize only the student home subtitle; all other pages keep the
+  // role/navigation copy declared in navigationConfig.
+  const subtitle = role === 'student' && sub === 'home'
+    ? getStudentWelcomeSubtitle(getUser())
+    : tb[1];
   return (
     <div className="dashboard-shell">
       <div className="ff-bg" />
       <div className="dashboard-inner">
         <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} />
         <div className="dashboard-main">
-          <Topbar title={tb[0]} sub={tb[1]} onNav={onNav} onLogout={onLogout} />
+          <Topbar title={tb[0]} sub={subtitle} onNav={onNav} onLogout={onLogout} />
           <div className="dashboard-content">
             <DashboardRouter role={role} sub={sub} onNav={onNav} />
           </div>

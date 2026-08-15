@@ -38,8 +38,10 @@ export default function StudentDashboard({ onNav }) {
   const cards = [
     [stats?.weeklyQueries ?? '-', '本週提問次數', 'WEEKLY QUERIES', '最近 7 天 · 網頁 + LINE',
       '以「最近 7 天」滾動計算（不是從週一起算），來源包含網頁 AI 問答與 LINE Bot。'],
+    // The backend now scopes course counts/progress to active enrollments; keep
+    // the explanatory tooltip aligned with that authorization rule.
     [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'AVG PROGRESS', `${stats?.coursesCount ?? 0} 門課程平均`,
-      '所有已發布課程的觀看進度平均，尚未開始的課程以 0% 列入計算。'],
+      '目前已修課且已發布課程的觀看進度平均，尚未開始的課程以 0% 列入計算。'],
     [stats?.totalQueries ?? '-', '累計提問次數', 'TOTAL QUERIES', '開始使用至今 · 網頁 + LINE',
       '從開始使用至今的所有提問（網頁 + LINE），所以會大於等於「本週提問次數」。'],
     [`${stats?.answerRate ?? 0}%`, '回答命中率', 'ANSWER RATE', '成功回答 ÷ 累計提問',

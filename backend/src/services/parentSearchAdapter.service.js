@@ -3,6 +3,7 @@ const env = require('../config/env');
 const VideoSegmentParent = require('../models/videoSegmentParent.model');
 const { PARENT_VECTOR_EMBEDDING_DIMENSIONS } = require('./parentVectorIndex.service');
 const { ParentRetrievalError } = require('./parentSearch.service');
+const { TEXT_SEARCH_GENERATION_VERSION } = require('./embeddingContract.service');
 
 const DEFAULT_NUM_CANDIDATES_MULTIPLIER = 5;
 
@@ -64,12 +65,18 @@ function buildParentSearchPipeline({
     : { courseId: toCourseObjectId(courseId) };
   const requestedVideoId = String(videoId || '').trim();
   const normalizedRestrictedVideoIds = normalizeAllowedVideoIds(restrictedVideoIds);
-  let filter = requestedVideoId
-    ? { $and: [scopeFilter, { videoId: requestedVideoId }] }
-    : scopeFilter;
+  const filterClauses = [
+    scopeFilter,
+    {
+      generationVersion: TEXT_SEARCH_GENERATION_VERSION,
+      isActive: true,
+    },
+  ];
+  if (requestedVideoId) filterClauses.push({ videoId: requestedVideoId });
   if (normalizedRestrictedVideoIds.length) {
-    filter = { $and: [filter, { videoId: { $in: normalizedRestrictedVideoIds } }] };
+    filterClauses.push({ videoId: { $in: normalizedRestrictedVideoIds } });
   }
+  const filter = { $and: filterClauses };
 
   return [
     {
@@ -94,6 +101,16 @@ function buildParentSearchPipeline({
         order: 1,
         hierarchyLevel: 1,
         documentType: 1,
+        isActive: 1,
+        generationVersion: 1,
+        embeddingProvider: 1,
+        embeddingModel: 1,
+        embeddingDimension: 1,
+        embeddingTaskType: 1,
+        embeddingInstructionVersion: 1,
+        normalizationVersion: 1,
+        embeddingContractVersion: 1,
+        embeddingSchemaVersion: 1,
         score: { $meta: 'vectorSearchScore' },
       },
     },

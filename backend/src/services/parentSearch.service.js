@@ -1,3 +1,8 @@
+const {
+  buildGeminiTextSearchContract,
+  compareEmbeddingContracts,
+} = require('./embeddingContract.service');
+
 class ParentRetrievalError extends Error {
   constructor(message, code = 'PARENT_SEARCH_FAILED') {
     super(message);
@@ -15,6 +20,7 @@ function validateParentHit(hit, {
   videoId,
   allowedVideoIds = [],
   restrictedVideoIds = [],
+  expectedContract = buildGeminiTextSearchContract(),
 } = {}) {
   if (!hit || typeof hit !== 'object') {
     throw new ParentRetrievalError('Parent search returned an invalid document.', 'PARENT_DOCUMENT_INVALID');
@@ -32,13 +38,29 @@ function validateParentHit(hit, {
   const order = Number(hit.order);
   const hierarchyLevel = hit.hierarchyLevel;
   const documentType = normalizeId(hit.documentType);
+  const activeContract = {
+    provider: hit.embeddingProvider,
+    model: hit.embeddingModel,
+    dimension: hit.embeddingDimension,
+    instructionVersion: hit.embeddingInstructionVersion,
+    generationVersion: hit.generationVersion,
+    normalizationVersion: hit.normalizationVersion,
+    contractVersion: hit.embeddingContractVersion,
+    schemaVersion: hit.embeddingSchemaVersion,
+    taskType: hit.embeddingTaskType ?? null,
+  };
+  const contractMismatches = compareEmbeddingContracts(
+    expectedContract,
+    activeContract,
+  ).filter((field) => field !== 'schemaVersion');
 
   if (!parentId || !parentVideoId || !parentCourseId || !childChunkIds || !childChunkIds.length
       || childChunkIds.some((childId) => !childId)
       || !Number.isFinite(score) || !Number.isFinite(startSec) || !Number.isFinite(endSec)
       || !Number.isInteger(order) || startSec < 0 || endSec < startSec
       || typeof hierarchyLevel !== 'number' || hierarchyLevel !== 1
-      || documentType !== 'parent_chunk') {
+      || documentType !== 'parent_chunk' || hit.isActive !== true
+      || contractMismatches.length) {
     throw new ParentRetrievalError('Parent search returned an invalid document.', 'PARENT_DOCUMENT_INVALID');
   }
 
@@ -72,6 +94,8 @@ function validateParentHit(hit, {
     order,
     hierarchyLevel,
     documentType,
+    generationVersion: activeContract.generationVersion,
+    isActive: true,
   };
 }
 
@@ -95,6 +119,7 @@ async function searchParents({
   restrictedVideoIds = [],
   limit,
   timeoutMs = 1000,
+  expectedContract = buildGeminiTextSearchContract(),
 }) {
   if (!repository || typeof repository.searchParents !== 'function') {
     throw new ParentRetrievalError('Parent repository is unavailable.', 'PARENT_REPOSITORY_UNAVAILABLE');
@@ -135,6 +160,7 @@ async function searchParents({
       videoId,
       allowedVideoIds,
       restrictedVideoIds,
+      expectedContract,
     }));
   } catch (error) {
     if (error instanceof ParentRetrievalError) throw error;

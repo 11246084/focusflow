@@ -153,6 +153,13 @@ class EmbeddingRecord:
     embedding_modality: str
     embedding_dim: int
     embedding_timestamp: str
+    embedding_provider: str
+    embedding_task_type: str | None
+    embedding_instruction_version: str
+    embedding_generation_version: str
+    embedding_normalization_version: str
+    embedding_contract_version: str
+    embedding_schema_version: str
     embedding_status: str = "success"
     embedding_error: str | None = None
     embedding_request_id: str | None = None

@@ -6,13 +6,13 @@ Status: planning only. The shared `HIERARCHICAL_RETRIEVAL_ENABLED` Gate remains 
 
 ## Implementation status
 
-Offline implementation is now present for fail-closed `off` / `shadow` / `serve` routing, course/video/user allowlists, authorized-supported video intersection, active Parent contract eligibility, additive runtime diagnostics, and shadow response isolation. The shared defaults remain Gate=false and rollout mode=off. Live shadow and serve validation have not been executed, and this implementation remains uncommitted pending review.
+Offline implementation is now present for fail-closed `off` / `shadow` / `serve` routing, course/video/user allowlists, authorized-supported video intersection, active Parent contract eligibility, additive runtime diagnostics, shadow response isolation, active-generation Parent filtering, and startup live read-only readiness. Stable Leaf and Parent uploaders now persist complete generation metadata. The shared defaults remain Gate=false and rollout mode=off. Shared Atlas publication/index updates, live Gemini, shadow and serve validation have not been executed.
 
 ## 1. Scope
 
 This plan converts the Gate Review decision `READY_FOR_LIMITED_HIERARCHICAL_ROLLOUT` into a controlled implementation sequence. It covers rollout routing, shadow execution, Parent coverage, relevance evidence, observability, rollback, and release prerequisites. It does not implement a rollout control, change `.env`, mutate Atlas, publish the remaining 44 Parents, or enable production traffic.
 
-The currently validated data scope is:
+The last recorded isolated evidence scope was:
 
 - course: `6a6da68456dd124511ec5196`;
 - video: `6a6da69556dd124511ec51eb`;
@@ -21,7 +21,7 @@ The currently validated data scope is:
 
 ## 2. Current readiness
 
-Technical readiness is proven for Stable Query Embedding, Parent Vector Search, Child Expansion, Leaf Context, Answer Generation, Citation Assembly, fallback, and the zero-write E2E path. The live `chunkId_1` lookup uses IXSCAN and the three isolated Parents pass stable-contract validation.
+Local code paths and historical isolated evidence cover Stable Query Embedding, Parent Vector Search, Child Expansion, Leaf Context, Answer Generation, Citation Assembly, fallback, and the zero-write E2E path. The previously recorded `chunkId_1` IXSCAN and three-Parent result are not current production proof; this round has not re-read shared Atlas or executed live Gemini.
 
 Limited rollout is ready for implementation planning, not activation. The Backend currently has only one global boolean Gate. There is no course, video, user, allowlist, percentage, or shadow-mode router.
 
@@ -30,7 +30,7 @@ Limited rollout is ready for implementation planning, not activation. The Backen
 - Live Parent coverage is limited to three Parents for one video.
 - The QA request carries `courseId` and question, not an explicit requested `videoId`.
 - Database bootstrap still defines Leaf `chunk_id` and `video_id` indexes although live Atlas uses camelCase.
-- Active Leaf and Parent embedding-contract JSON declarations are empty in the current runtime.
+- Active Leaf and Parent embedding-contract JSON declarations are empty in the current runtime; even after configuration, declarations alone are insufficient without live read-only data/index evidence.
 - Four E2E questions are insufficient for a relevance threshold.
 - There is no production latency p50/p95, fallback-rate, or capacity evidence.
 - Runtime diagnostics are useful per response but are not yet aggregated into rollout metrics.
@@ -256,15 +256,16 @@ This is required before any limited Gate activation because environment rebuilds
 
 ## 13. Active embedding-contract dependency
 
-Backend has centralized stable constants and parsers in `embeddingContract.service.js`, plus runtime diagnostics for `QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON` and `QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON`. Both declarations are currently empty, so runtime reports them as not declared.
+Backend has centralized stable constants and parsers in `embeddingContract.service.js`, runtime diagnostics for `QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON` and `QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON`, and `hierarchicalDataReadiness.service.js` for live read-only evidence. Both declarations are currently empty; declarations are deployment assertions, not proof of the active MongoDB records.
 
-The expected Query and Parent declarations share provider `gemini`, model `gemini-embedding-2`, dimension 3072, null task type, instruction version `gemini_embedding_2_search_v1`, generation version `text_search_generation_v1`, normalization `unit_l2_v1`, and contract/schema version `gemini_embedding_2_text_v1`. Query and Parent roles differ in their canonical instruction text; Parent artifacts additionally use schema `parent_embedding_v2`, which must not be confused with the embedding contract version.
+The expected Query and Parent declarations share provider `gemini`, model `gemini-embedding-2`, dimension 3072, null task type, instruction version `gemini_embedding_2_asymmetric_retrieval_v2`, generation version `text_search_generation_v2`, normalization `unit_l2_v1`, and contract/schema version `gemini_embedding_2_text_v2`. Query text uses `task: search result | query: ...`; document text uses `title: none | text: ...`. Parent artifacts additionally use schema `parent_embedding_v2`, which must not be confused with the embedding contract version.
 
 Minimum design:
 
 - keep stable constants centralized rather than duplicating literals in routing;
 - declare active Leaf and Parent metadata through reviewed deployment configuration;
-- validate declarations through the existing runtime health snapshot before eligibility can become true;
+- validate actual allowlisted Parent／Child Leaf records, generation and indexes through startup live read-only readiness;
+- require the live evidence contract hash to match the current query contract before eligibility can become true;
 - expose compatible/incompatible/not-declared status without secrets;
 - fail closed for Hierarchical eligibility when the Parent contract is not compatible.
 
@@ -274,4 +275,4 @@ Minimum design:
 
 The validated Parent coverage is too narrow for a global switch, relevance and performance evidence remain limited, and the current request is course-scoped rather than video-scoped. Combining an allowlisted test cohort with supported-video intersection and shadow response isolation provides the best balance of safety, evidence quality, cost control and implementation clarity.
 
-Next implementation task: Phase 2-2 Limited Rollout Control Implementation. It must remain disabled by default and requires separate human approval before any live configuration change.
+Next task: Database owner creates a dedicated credential whose sole role is built-in `read` on `focusflow`, then place it only in `PHASE2_2_READONLY_MONGODB_URI`. The 2026-08-13 role check showed the existing Backend credential is `atlasAdmin`, so no business-data query was run with it. After current shared Atlas read-only evidence is obtained, any stable-generation publication or index update still requires separate data-owner approval. A separate human decision may authorize an allowlisted shadow rollout only after a zero-write Parent → Child → Citation run passes. Gate=false remains the default.

@@ -115,7 +115,13 @@ def import_segments(db: object) -> None:
     print(f"📂 讀取 {embeddings_path}...")
     records, skip_count = read_jsonl(
         embeddings_path,
-        required_keys={"chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding"},
+        required_keys={
+            "chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding",
+            "embedding_provider", "embedding_model", "embedding_dim", "embedding_task_type",
+            "embedding_instruction_version", "embedding_generation_version",
+            "embedding_normalization_version", "embedding_contract_version",
+            "embedding_schema_version",
+        },
         id_key="chunk_id",
     )
     print(f"✅ 載入 {len(records)} 筆，跳過 {skip_count} 筆")
@@ -133,6 +139,25 @@ def import_segments(db: object) -> None:
     success_count = error_count = 0
     for record in records:
         chunk_id = record["chunk_id"]
+        # Keep this importer aligned with the Pipeline's stable Leaf contract;
+        # incompatible vectors are skipped instead of contaminating live search.
+        contract_matches = (
+            record.get("embedding_provider") == "gemini"
+            and record.get("embedding_model") == "gemini-embedding-2"
+            and record.get("embedding_dim") == 3072
+            and record.get("embedding_task_type") is None
+            and record.get("embedding_instruction_version") == "gemini_embedding_2_asymmetric_retrieval_v2"
+            and record.get("embedding_generation_version") == "text_search_generation_v2"
+            and record.get("embedding_normalization_version") == "unit_l2_v1"
+            and record.get("embedding_contract_version") == "gemini_embedding_2_text_v2"
+            and record.get("embedding_schema_version") == "gemini_embedding_2_text_v2"
+            and isinstance(record.get("embedding"), list)
+            and len(record["embedding"]) == 3072
+        )
+        if not contract_matches:
+            print(f"  ⚠️  跳過（Leaf embedding 契約不相容）：{chunk_id}")
+            skip_count += 1
+            continue
         document = {
             "chunkId":   chunk_id,
             "videoId":   record["video_id"],
@@ -141,6 +166,15 @@ def import_segments(db: object) -> None:
             "endSec":    float(record["end_sec"]),
             "text":      record["text"],
             "embedding": record["embedding"],
+            "embeddingProvider": record["embedding_provider"],
+            "embeddingModel": record["embedding_model"],
+            "embeddingDimension": record["embedding_dim"],
+            "embeddingTaskType": record["embedding_task_type"],
+            "embeddingInstructionVersion": record["embedding_instruction_version"],
+            "generationVersion": record["embedding_generation_version"],
+            "normalizationVersion": record["embedding_normalization_version"],
+            "embeddingContractVersion": record["embedding_contract_version"],
+            "embeddingSchemaVersion": record["embedding_schema_version"],
         }
         if course_object_id is not None:
             document["courseId"] = course_object_id

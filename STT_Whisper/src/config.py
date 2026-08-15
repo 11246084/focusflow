@@ -445,7 +445,7 @@ class PipelineConfig:
         )
         if self.parent_embedding_enabled and not self.hierarchy_enabled:
             raise ValueError("PARENT_EMBEDDING_ENABLED requires HIERARCHY_ENABLED=true")
-        if self.parent_embedding_enabled:
+        if self.gemini_embedding_enabled or self.parent_embedding_enabled:
             validate_stable_embedding_settings(
                 self.gemini_embedding_model_name,
                 self.gemini_embedding_output_dim,

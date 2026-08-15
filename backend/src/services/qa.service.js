@@ -1067,6 +1067,9 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     rolloutUserIds: env.hierarchicalRetrievalAllowedUserIds,
     allowlistsValid: env.hierarchicalRetrievalAllowlistsValid,
     embeddingContractStatus: runtimeSnapshot.hierarchicalRolloutContractStatus,
+    activeDataStatus: runtimeSnapshot.hierarchicalActiveDataCompatible
+      ? 'verified'
+      : 'not_verified',
   });
   const hierarchicalSearch = ({ shadow = false } = {}) => retrieveWithHierarchy({
     enabled: true,
@@ -1085,6 +1088,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     contextMaxLeaves: env.hierarchicalContextMaxLeaves,
     contextMaxCharacters: env.hierarchicalContextMaxCharacters,
     parentTimeoutMs: env.hierarchicalParentTimeoutMs,
+    expectedContract: runtimeSnapshot.queryEmbeddingContract,
   });
   const searchResult = await executeHierarchicalRollout({
     decision: rolloutDecision,

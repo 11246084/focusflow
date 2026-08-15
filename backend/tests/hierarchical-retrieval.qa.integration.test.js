@@ -8,6 +8,11 @@ const {
 } = require('./helpers/backendTestHarness');
 const VideoSegmentParent = require('../src/models/videoSegmentParent.model');
 const { askQuestion } = require('../src/services/qa.service');
+const {
+  contractHash,
+  resetHierarchicalDataReadinessForTests,
+  setHierarchicalDataReadinessForTests,
+} = require('../src/services/hierarchicalDataReadiness.service');
 
 const originalParentAggregate = VideoSegmentParent.aggregate;
 const originalMockEmbeddingDimensions = env.qaMockEmbeddingDimensions;
@@ -21,6 +26,30 @@ const rolloutKeys = [
 ];
 const originalRollout = Object.fromEntries(rolloutKeys.map((key) => [key, env[key]]));
 
+function mockContract() {
+  return {
+    provider: 'mock', model: 'mock', dimension: env.qaMockEmbeddingDimensions,
+    instructionVersion: null, generationVersion: null, normalizationVersion: null,
+    contractVersion: null, schemaVersion: null, taskType: null,
+  };
+}
+
+function mockParentMetadata() {
+  const contract = mockContract();
+  return {
+    isActive: true,
+    embeddingProvider: contract.provider,
+    embeddingModel: contract.model,
+    embeddingDimension: contract.dimension,
+    embeddingTaskType: contract.taskType,
+    embeddingInstructionVersion: contract.instructionVersion,
+    generationVersion: contract.generationVersion,
+    normalizationVersion: contract.normalizationVersion,
+    embeddingContractVersion: contract.contractVersion,
+    embeddingSchemaVersion: contract.schemaVersion,
+  };
+}
+
 function enableEligibleRollout(mode = 'serve') {
   env.hierarchicalRetrievalEnabled = true;
   env.hierarchicalRetrievalRolloutMode = mode;
@@ -29,10 +58,11 @@ function enableEligibleRollout(mode = 'serve') {
   env.hierarchicalRetrievalAllowedVideoIds = [ids.publishedVideo];
   env.hierarchicalRetrievalAllowedUserIds = [ids.student];
   env.hierarchicalRetrievalAllowlistsValid = true;
-  env.qaActiveParentEmbeddingContractJson = JSON.stringify({
-    provider: 'mock', model: 'mock', dimension: env.qaMockEmbeddingDimensions,
-    instructionVersion: null, generationVersion: null, normalizationVersion: null,
-    contractVersion: null, schemaVersion: null, taskType: null,
+  const contract = mockContract();
+  env.qaActiveParentEmbeddingContractJson = JSON.stringify(contract);
+  setHierarchicalDataReadinessForTests({
+    status: 'verified', ready: true, checkedAt: new Date(0).toISOString(), source: 'test',
+    reason: null, failures: [], evidence: { contractHash: contractHash(contract) },
   });
 }
 
@@ -60,6 +90,7 @@ describe('hierarchical retrieval QA integration', () => {
     env.hierarchicalRetrievalAllowedVideoIds = [];
     env.hierarchicalRetrievalAllowedUserIds = [];
     env.hierarchicalRetrievalAllowlistsValid = true;
+    resetHierarchicalDataReadinessForTests();
   });
 
   afterEach(() => {
@@ -74,6 +105,7 @@ describe('hierarchical retrieval QA integration', () => {
     env.qaActiveLeafEmbeddingContractJson = '';
     env.qaActiveParentEmbeddingContractJson = '';
     Object.assign(env, originalRollout);
+    resetHierarchicalDataReadinessForTests();
   });
 
   it('gate=false preserves leaf-only response and citation contract', async () => {
@@ -120,16 +152,19 @@ describe('hierarchical retrieval QA integration', () => {
         order: 1,
         hierarchyLevel: 1,
         documentType: 'parent_chunk',
+        ...mockParentMetadata(),
       }];
     };
 
     const result = await ask();
     const vectorSearch = capturedPipeline[0].$vectorSearch;
     const authorizedScope = vectorSearch.filter.$and[0];
-    const rolloutScope = vectorSearch.filter.$and[1];
+    const activeGeneration = vectorSearch.filter.$and[1];
+    const rolloutScope = vectorSearch.filter.$and[2];
     assert.equal(String(authorizedScope.$or[0].courseId), ids.publishedCourse);
     assert.equal(authorizedScope.$or[1].videoId.$in.includes(ids.publishedVideo), true);
     assert.deepEqual(rolloutScope.videoId.$in, [ids.publishedVideo]);
+    assert.equal(activeGeneration.isActive, true);
     assert.equal(vectorSearch.index, env.videoSegmentParentVectorIndexName);
     assert.equal(result.runtime.searchBackendUsed, 'parent_vector');
     assert.equal(result.runtime.hierarchicalRetrieval.retrievalMode, 'hierarchical');
@@ -171,6 +206,7 @@ describe('hierarchical retrieval QA integration', () => {
       order: 1,
       hierarchyLevel: 1,
       documentType: 'parent_chunk',
+      ...mockParentMetadata(),
     }].map((parent) => {
       shadowCalls += 1;
       return parent;

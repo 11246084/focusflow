@@ -34,6 +34,7 @@ function evaluate(overrides = {}) {
     rolloutUserIds: [ids.user],
     allowlistsValid: true,
     embeddingContractStatus: 'compatible',
+    activeDataStatus: 'verified',
     ...overrides,
   });
 }
@@ -148,6 +149,13 @@ describe('hierarchical rollout policy', () => {
     );
   });
 
+  it('rejects hierarchy when live active-data evidence is absent', () => {
+    assert.equal(
+      evaluate({ activeDataStatus: 'not_verified' }).reason,
+      ROLLOUT_REASONS.ACTIVE_DATA_NOT_VERIFIED,
+    );
+  });
+
   it('accepts an eligible shadow request', () => {
     const result = evaluate();
     assert.equal(result.eligible, true);
@@ -172,6 +180,7 @@ describe('hierarchical rollout policy', () => {
       [{ rolloutMode: 'serve' }, true, 'SERVE_ELIGIBLE'],
       [{ rolloutMode: 'serve', rolloutVideoIds: [ids.otherVideo] }, false, 'NO_SUPPORTED_VIDEO_INTERSECTION'],
       [{ embeddingContractStatus: 'incompatible' }, false, 'EMBEDDING_CONTRACT_INCOMPATIBLE'],
+      [{ activeDataStatus: 'not_verified' }, false, 'ACTIVE_DATA_NOT_VERIFIED'],
     ];
     for (const [overrides, eligible, reason] of cases) {
       const result = evaluate(overrides);

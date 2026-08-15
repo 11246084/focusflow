@@ -61,6 +61,7 @@ const videoSegmentSchema = new mongoose.Schema(
     generationVersion: { type: String, default: null, trim: true },
     normalizationVersion: { type: String, default: null, trim: true },
     embeddingContractVersion: { type: String, default: null, trim: true },
+    embeddingSchemaVersion: { type: String, default: null, trim: true },
   },
   {
     timestamps: true,

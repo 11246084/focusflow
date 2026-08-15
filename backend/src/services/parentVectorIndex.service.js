@@ -8,6 +8,10 @@ const PARENT_REGULAR_INDEXES = [
   { key: { parentId: 1 }, options: { name: 'parentId_1', unique: true } },
   { key: { courseId: 1, videoId: 1 }, options: { name: 'courseId_1_videoId_1' } },
   { key: { videoId: 1, hierarchyFingerprint: 1 }, options: { name: 'videoId_1_hierarchyFingerprint_1' } },
+  {
+    key: { videoId: 1, generationVersion: 1, isActive: 1 },
+    options: { name: 'videoId_1_generationVersion_1_isActive_1' },
+  },
 ];
 
 function buildParentVectorSearchIndexDefinition() {
@@ -26,6 +30,14 @@ function buildParentVectorSearchIndexDefinition() {
       {
         type: 'filter',
         path: 'videoId',
+      },
+      {
+        type: 'filter',
+        path: 'generationVersion',
+      },
+      {
+        type: 'filter',
+        path: 'isActive',
       },
     ],
   };

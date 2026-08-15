@@ -5,6 +5,7 @@ const { afterEach, describe, it } = require('node:test');
 const env = require('../src/config/env');
 const {
   IsolatedE2EError,
+  assertStrictReadOnlyRoles,
   createCommandMonitor,
   hasRequiredCollections,
   parseCliArgs,
@@ -22,6 +23,14 @@ function vector() {
   return Array.from({ length: 3072 }, (_, index) => (index === 0 ? 1 : 0));
 }
 
+const stableParentMetadata = {
+  isActive: true,
+  embeddingProvider: 'gemini', embeddingModel: 'gemini-embedding-2', embeddingDimension: 3072,
+  embeddingTaskType: null, embeddingInstructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+  generationVersion: 'text_search_generation_v2', normalizationVersion: 'unit_l2_v1',
+  embeddingContractVersion: 'gemini_embedding_2_text_v2', embeddingSchemaVersion: 'parent_embedding_v2',
+};
+
 function options(overrides = {}) {
   return {
     question: 'safe test question',
@@ -29,6 +38,7 @@ function options(overrides = {}) {
     videoId,
     allowedVideoIds: [videoId],
     withAnswer: false,
+    preflightOnly: false,
     maxParents: 3,
     maxChildren: 10,
     json: true,
@@ -42,6 +52,10 @@ function dependencies(overrides = {}) {
     commandMonitor: monitor,
     async preflight() {
       return {
+        activeDataReadiness: {
+          status: 'verified', ready: true, reason: null,
+          evidence: { contractHash: 'test-contract-hash' },
+        },
         scope: {
           allowedCourseIds: new Set([courseId]),
           allowedVideoIds: new Set([videoId]),
@@ -55,6 +69,7 @@ function dependencies(overrides = {}) {
           parentId: `${videoId}_parent_0001`, courseId, videoId,
           childChunkIds: ['child-1', 'missing-child'], score: 0.91,
           startSec: 0, endSec: 30, order: 1, hierarchyLevel: 1, documentType: 'parent_chunk',
+          ...stableParentMetadata,
         }];
       },
     }),
@@ -86,12 +101,47 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(hasRequiredCollections([...required.map((name) => ({ name })), { name: 'extra' }], required), true);
   });
 
+  it('accepts only one built-in read role on the target database', () => {
+    assert.deepEqual(
+      assertStrictReadOnlyRoles([{ role: 'read', db: 'focusflow' }], 'focusflow'),
+      { verified: true, role: 'read', database: 'focusflow' },
+    );
+    for (const roles of [
+      [],
+      [{ role: 'atlasAdmin', db: 'admin' }],
+      [{ role: 'readWrite', db: 'focusflow' }],
+      [{ role: 'read', db: 'another_database' }],
+      [{ role: 'read', db: 'focusflow' }, { role: 'read', db: 'another_database' }],
+    ]) {
+      assert.throws(
+        () => assertStrictReadOnlyRoles(roles, 'focusflow'),
+        (error) => error.code === 'E2E_DATABASE_ROLE_NOT_READ_ONLY',
+      );
+    }
+  });
+
   it('parses a safe CLI contract with answer generation disabled by default', () => {
     const parsed = parseCliArgs([
       '--question', 'question', '--course-id', courseId, '--video-id', videoId, '--json',
     ]);
     assert.equal(parsed.withAnswer, false);
+    assert.equal(parsed.preflightOnly, false);
     assert.deepEqual(parsed.allowedVideoIds, [videoId]);
+  });
+
+  it('allows a question-free preflight-only CLI and rejects answer generation in that mode', () => {
+    const parsed = parseCliArgs([
+      '--preflight-only', '--course-id', courseId, '--video-id', videoId, '--json',
+    ]);
+    assert.equal(parsed.question, '');
+    assert.equal(parsed.preflightOnly, true);
+    assert.equal(parsed.withAnswer, false);
+    assert.throws(
+      () => parseCliArgs([
+        '--preflight-only', '--with-answer', '--course-id', courseId, '--video-id', videoId,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
   });
 
   it('rejects a non-canonical video scope before creating live dependencies', () => {
@@ -115,6 +165,7 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.deepEqual(result.citations.chunkIds, ['child-1']);
     assert.deepEqual(result.citations.segmentIds, ['segment-1']);
     assert.equal(result.safety.mongoWrites, 0);
+    assert.equal(result.activeDataReadiness.ready, true);
     assert.equal(JSON.stringify(result).includes('private leaf transcript'), false);
     assert.equal(Object.hasOwn(result.query, 'embedding'), false);
   });
@@ -185,9 +236,9 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(result.gate.sharedValue, false);
     assert.deepEqual(result.query, {
       length: options().question.length, embeddingProvider: 'gemini', embeddingModel: 'gemini-embedding-2',
-      instructionVersion: 'gemini_embedding_2_search_v1', generationVersion: 'text_search_generation_v1',
-      normalizationVersion: 'unit_l2_v1', contractVersion: 'gemini_embedding_2_text_v1',
-      schemaVersion: 'gemini_embedding_2_text_v1', taskType: null, dimension: 3072, apiCalls: 1,
+      instructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2', generationVersion: 'text_search_generation_v2',
+      normalizationVersion: 'unit_l2_v1', contractVersion: 'gemini_embedding_2_text_v2',
+      schemaVersion: 'gemini_embedding_2_text_v2', taskType: null, dimension: 3072, apiCalls: 1,
     });
   });
 
@@ -200,12 +251,57 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     ]) {
       assert.equal(source.includes(forbidden), false, `${forbidden} must remain outside the isolated runner`);
     }
+    assert.equal(source.includes('PHASE2_2_READONLY_MONGODB_URI'), true);
+    assert.equal(source.includes('mongoose.createConnection(env.mongodbUri'), false);
+  });
+
+  it('does not reflect an unsupported CLI value into the safe error message', () => {
+    const sensitiveValue = ['--mongodb+srv:', '//reader:secret@example'].join('');
+    assert.throws(
+      () => parseCliArgs([sensitiveValue]),
+      (error) => error.code === 'E2E_CLI_INVALID'
+        && error.message === 'Unsupported CLI option.'
+        && !error.message.includes('secret'),
+    );
+  });
+
+  it('runs read-only preflight without embedding, Parent Search, Child Expansion, or external calls', async () => {
+    let embedCalls = 0;
+    let parentCalls = 0;
+    let leafCalls = 0;
+    const result = await runIsolatedE2E(
+      options({ question: '', preflightOnly: true }),
+      dependencies({
+        async embed() { embedCalls += 1; return vector(); },
+        parentRepositoryFactory: () => ({
+          async searchParents() { parentCalls += 1; return []; },
+        }),
+        leafRepositoryFactory: () => ({
+          async findLeavesByChunkIds() { leafCalls += 1; return []; },
+        }),
+      }),
+    );
+
+    assert.equal(embedCalls, 0);
+    assert.equal(parentCalls, 0);
+    assert.equal(leafCalls, 0);
+    assert.equal(result.runMode, 'phase2_2_readonly_preflight');
+    assert.equal(result.activeDataReadiness.ready, true);
+    assert.deepEqual(result.execution, {
+      queryEmbedding: false,
+      parentSearch: false,
+      childExpansion: false,
+      answerGeneration: false,
+      externalCalls: 0,
+    });
+    assert.equal(result.safety.externalCalls, 0);
+    assert.equal(result.safety.mongoWrites, 0);
   });
 
   it('keeps the safety-oriented output schema stable', async () => {
     const result = await runIsolatedE2E(options(), dependencies());
     assert.deepEqual(Object.keys(result), [
-      'runMode', 'writesAllowed', 'gate', 'query', 'parentSearch', 'childExpansion',
+      'runMode', 'writesAllowed', 'gate', 'activeDataReadiness', 'query', 'parentSearch', 'childExpansion',
       'context', 'answer', 'citations', 'safety',
     ]);
     assert.equal(result.runMode, 'phase2_2_isolated_e2e');

@@ -15,6 +15,7 @@ const ROLLOUT_REASONS = Object.freeze({
   NO_SUPPORTED_VIDEO_INTERSECTION: 'NO_SUPPORTED_VIDEO_INTERSECTION',
   EMBEDDING_CONTRACT_NOT_DECLARED: 'EMBEDDING_CONTRACT_NOT_DECLARED',
   EMBEDDING_CONTRACT_INCOMPATIBLE: 'EMBEDDING_CONTRACT_INCOMPATIBLE',
+  ACTIVE_DATA_NOT_VERIFIED: 'ACTIVE_DATA_NOT_VERIFIED',
   SHADOW_ELIGIBLE: 'SHADOW_ELIGIBLE',
   SERVE_ELIGIBLE: 'SERVE_ELIGIBLE',
 });
@@ -89,6 +90,9 @@ function evaluateHierarchicalRollout({
   rolloutUserIds = [],
   allowlistsValid = true,
   embeddingContractStatus,
+  // Code/config eligibility is insufficient: active Parent/Leaf/index evidence
+  // must be verified independently before shadow or serving eligibility.
+  activeDataStatus = 'not_verified',
 }) {
   const mode = Object.values(ROLLOUT_MODES).includes(rolloutMode)
     ? rolloutMode
@@ -111,6 +115,8 @@ function evaluateHierarchicalRollout({
     reason = ROLLOUT_REASONS.EMBEDDING_CONTRACT_NOT_DECLARED;
   } else if (embeddingContractStatus !== 'compatible') {
     reason = ROLLOUT_REASONS.EMBEDDING_CONTRACT_INCOMPATIBLE;
+  } else if (activeDataStatus !== 'verified') {
+    reason = ROLLOUT_REASONS.ACTIVE_DATA_NOT_VERIFIED;
   } else if (courseAllowlist.length && !courseAllowlist.includes(String(courseId || ''))) {
     reason = ROLLOUT_REASONS.COURSE_NOT_ALLOWLISTED;
   } else if (userAllowlist.length && !userAllowlist.includes(String(userId || ''))) {

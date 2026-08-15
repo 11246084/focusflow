@@ -40,10 +40,10 @@ def valid_record(parent_id="video-1_parent_0001", order=1):
         "embedding_status": "success",
         "embedding_timestamp": "2026-08-03T00:00:00+00:00",
         "embedding_schema_version": "parent_embedding_v2",
-        "embedding_instruction": "task: search result | document: {content}",
-        "embedding_instruction_version": "gemini_embedding_2_search_v1",
-        "embedding_generation_version": "text_search_generation_v1",
-        "embedding_contract_version": "gemini_embedding_2_text_v1",
+        "embedding_instruction": "title: none | text: {content}",
+        "embedding_instruction_version": "gemini_embedding_2_asymmetric_retrieval_v2",
+        "embedding_generation_version": "text_search_generation_v2",
+        "embedding_contract_version": "gemini_embedding_2_text_v2",
         "embedding_role": "document",
         "preprocessing_version": "parent_text_passthrough_v1",
         "normalization_version": "unit_l2_v1",
@@ -108,6 +108,7 @@ class ParentUploaderTestCase(unittest.TestCase):
         record["sourceVideoId"] = "forbidden"
         documents, summary = self.preflight([record], generation_version="audit-v1")
         self.assertEqual(summary.validated_count, 1)
+        self.assertTrue(summary.success)
         document = documents[0]
         self.assertEqual(document["childChunkIds"], record["child_chunk_ids"])
         self.assertEqual(document["embeddingModel"], record["embedding_model"])
@@ -259,6 +260,10 @@ class ParentUploaderTestCase(unittest.TestCase):
         self.assertTrue(first.success)
         self.assertEqual(first.upserted_count, 2)
         self.assertEqual(len(collection.documents), 2)
+        self.assertTrue(all(
+            document["generationVersion"] == "text_search_generation_v2"
+            for document in collection.documents.values()
+        ))
         operations, ordered = collection.calls[0]
         self.assertFalse(ordered)
         for operation in operations:

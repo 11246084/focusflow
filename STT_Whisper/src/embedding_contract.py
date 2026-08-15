@@ -6,16 +6,16 @@ from __future__ import annotations
 GEMINI_EMBEDDING_MODEL = "gemini-embedding-2"
 GEMINI_EMBEDDING_DIMENSION = 3072
 GEMINI_EMBEDDING_TASK_TYPE = None
-GEMINI_EMBEDDING_INSTRUCTION_VERSION = "gemini_embedding_2_search_v1"
-GEMINI_EMBEDDING_GENERATION_VERSION = "text_search_generation_v1"
+GEMINI_EMBEDDING_INSTRUCTION_VERSION = "gemini_embedding_2_asymmetric_retrieval_v2"
+GEMINI_EMBEDDING_GENERATION_VERSION = "text_search_generation_v2"
 GEMINI_EMBEDDING_NORMALIZATION_VERSION = "unit_l2_v1"
-GEMINI_EMBEDDING_CONTRACT_VERSION = "gemini_embedding_2_text_v1"
+GEMINI_EMBEDDING_CONTRACT_VERSION = "gemini_embedding_2_text_v2"
 PARENT_DOCUMENT_ROLE = "document"
-PARENT_DOCUMENT_INSTRUCTION_TEMPLATE = "task: search result | document: {content}"
+PARENT_DOCUMENT_INSTRUCTION_TEMPLATE = "title: none | text: {content}"
 
 
 def build_parent_document_text(content: str) -> str:
-    """Apply the versioned searchable-document role without preview task types."""
+    """Apply Gemini Embedding 2's asymmetric retrieval document structure."""
     return PARENT_DOCUMENT_INSTRUCTION_TEMPLATE.format(content=str(content or "").strip())
 
 

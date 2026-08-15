@@ -17,6 +17,16 @@ const validHit = {
   order: 1,
   hierarchyLevel: 1,
   documentType: 'parent_chunk',
+  isActive: true,
+  embeddingProvider: 'gemini',
+  embeddingModel: 'gemini-embedding-2',
+  embeddingDimension: 3072,
+  embeddingTaskType: null,
+  embeddingInstructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+  generationVersion: 'text_search_generation_v2',
+  normalizationVersion: 'unit_l2_v1',
+  embeddingContractVersion: 'gemini_embedding_2_text_v2',
+  embeddingSchemaVersion: 'parent_embedding_v2',
 };
 
 function run(repository, overrides = {}) {
@@ -76,6 +86,14 @@ describe('parent search service', () => {
     );
     await assert.rejects(
       run(createFakeParentRepository({ hits: [{ ...validHit, hierarchyLevel: '1' }] })),
+      (error) => error.code === 'PARENT_DOCUMENT_INVALID',
+    );
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [{ ...validHit, generationVersion: 'stale' }] })),
+      (error) => error.code === 'PARENT_DOCUMENT_INVALID',
+    );
+    await assert.rejects(
+      run(createFakeParentRepository({ hits: [{ ...validHit, isActive: false }] })),
       (error) => error.code === 'PARENT_DOCUMENT_INVALID',
     );
   });

@@ -170,15 +170,15 @@ class ParentEmbeddingTests(unittest.TestCase):
         genai_module.types = types.SimpleNamespace(EmbedContentConfig=EmbedContentConfig)
         google_module.genai = genai_module
         with patch.dict(sys.modules, {"google": google_module, "google.genai": genai_module}):
-            vectors, request_id = embed_text_contents(
+            vectors, request_ids = embed_text_contents(
                 types.SimpleNamespace(models=Models()),
                 [" alpha beta "],
                 self.config,
             )
-        self.assertEqual(captured["contents"], [build_parent_document_text("alpha beta")])
+        self.assertEqual(captured["contents"], build_parent_document_text("alpha beta"))
         self.assertEqual(captured["config"].values, {"output_dimensionality": 3072})
         self.assertEqual(len(vectors[0]), 3072)
-        self.assertEqual(request_id, "request-1")
+        self.assertEqual(request_ids, ["request-1"])
 
     def test_config_parses_explicit_false(self):
         with patch.dict(os.environ, {"HIERARCHY_ENABLED": "false", "PARENT_EMBEDDING_ENABLED": "false"}, clear=False):

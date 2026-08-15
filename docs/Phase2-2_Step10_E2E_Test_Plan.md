@@ -1,6 +1,6 @@
 # Phase 2-2 Step 10：Parent → Child → Citation 隔離 E2E 計畫
 
-> 狀態：準備完成、尚未 live 執行。Step 9 仍等待 Database owner 建立並驗證 shared Atlas `chunkId_1`。Shared Gate 必須保持 `false`。
+> 狀態：準備完成、尚未 live 執行。Step 9 的歷史證據仍需 Database owner 以目前資料重新驗證 shared Atlas `chunkId_1`。2026-08-13 檢查發現現有 Backend Atlas credential 是 `atlasAdmin`，不可用於本驗收；Shared Gate 必須保持 `false`。
 
 ## 1. 目的與邊界
 
@@ -25,16 +25,32 @@ Question → Query Embedding → Parent Vector Search → Parent Validation
 7. `video_segments_text.chunkId_1`存在且可用。
 8. 正式Child lookup explain包含`chunkId_1` IXSCAN。
 9. Step 9三筆隔離Parent完整展開且無missing/scope mismatch。
-10. 使用read-only MongoDB credential。
+10. 使用專用 MongoDB credential，且登入角色必須**只有** target database 的 built-in `read`；`atlasAdmin`、`readWrite`、跨 DB 或多角色帳號一律拒絕。
 
 缺少`chunkId_1`或explain未使用時，Runner必須在Answer call與Child Expansion前以`E2E_CHUNK_ID_INDEX_NOT_READY`結束。
 
 ## 3. CLI
 
+先執行零 Gemini／零 Answer 的 DB-only preflight。這一步只檢查專用唯讀角色、scope、collections、active Parent／Leaf contract、`chunkId_1` 與 Parent vector index definition：
+
 ```powershell
 cd backend
 $env:FAQ_CACHE_ENABLED='false'
-node src/scripts/phase2_2_hierarchical_e2e_runner.js `
+npm.cmd run preflight:phase2-2:readonly -- `
+  --course-id 6a6da68456dd124511ec5196 `
+  --video-id 6a6da69556dd124511ec51eb `
+  --allowed-video-id 6a6da69556dd124511ec51eb `
+  --json
+```
+
+`preflight:phase2-2:readonly` 不需要 `--question` 或 `GEMINI_API_KEY`，輸出必須顯示所有 external execution 為 `false`、`externalCalls=0`。它不執行 Parent Search 或 Child explain；通過後才能另行核准下面的一次 Gemini query embedding E2E。
+
+```powershell
+cd backend
+$env:FAQ_CACHE_ENABLED='false'
+# 在 backend/.env 或目前 process 設定專用 URI；不要把真正 URI 貼進 shell history。
+# PHASE2_2_READONLY_MONGODB_URI=mongodb+srv://<dedicated-reader>:<password>@.../focusflow
+npm.cmd run e2e:phase2-2:readonly -- `
   --question "知識圖譜如何提升人工智慧回答的準確性？" `
   --course-id 6a6da68456dd124511ec5196 `
   --video-id 6a6da69556dd124511ec51eb `
@@ -44,16 +60,16 @@ node src/scripts/phase2_2_hierarchical_e2e_runner.js `
   --json
 ```
 
-預設不執行Answer Generation。只有經明確核准才加入`--with-answer`。Runner不會把shared Gate改成true或修改`.env`。
+預設不執行Answer Generation。只有經明確核准才加入`--with-answer`。Runner不會把shared Gate改成true或修改`.env`；若未提供專用 URI，或登入角色不是單一 `read@focusflow`，會在查詢業務資料前安全結束。
 
 ## 4. 必要環境
 
-- `MONGODB_URI`：使用read-only credential。
+- `PHASE2_2_READONLY_MONGODB_URI`：專供本 runner；不得 fallback 到一般 `MONGODB_URI`。
 - `VIDEO_SEGMENT_COLLECTION=video_segments_text`
 - `VIDEO_SEGMENT_PARENT_COLLECTION=video_segments_parent`
 - `VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME=parent_embedding_index`
 - `QA_QUERY_EMBEDDING_PROVIDER=gemini`
-- `GEMINI_API_KEY`
+- `GEMINI_API_KEY`：只供完整 E2E 的 query embedding；DB-only preflight 不需要。
 - `QA_ANSWER_PROVIDER=gemini`與`GEMINI_CHAT_MODEL`：僅`--with-answer`使用。
 - `FAQ_CACHE_ENABLED=false`
 - `HIERARCHICAL_RETRIEVAL_ENABLED=false`
@@ -84,6 +100,7 @@ Runner只輸出：
 - Answer executed/provider/status/length，不預設輸出answer全文。
 - Citation chunk/segment/video IDs與timestamps。
 - Mongo read/write command counts與external call count。
+- 經角色檢查的 database access evidence（只輸出 `read` 與 database name，不輸出帳密或 URI）。
 
 Live evidence另需保存執行前後collection counts、`mongoWrites=0`、read-only credential證據、Gate前後均為false、Gemini call數與完整回歸結果。
 

@@ -13,6 +13,11 @@ const parentHit = {
   parentId: 'video-1_parent_0001', courseId: 'course-1', videoId: 'video-1',
   childChunkIds: ['c1', 'c2'], score: 0.9, startSec: 10, endSec: 30, order: 1,
   hierarchyLevel: 1, documentType: 'parent_chunk',
+  isActive: true,
+  embeddingProvider: 'gemini', embeddingModel: 'gemini-embedding-2', embeddingDimension: 3072,
+  embeddingTaskType: null, embeddingInstructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+  generationVersion: 'text_search_generation_v2', normalizationVersion: 'unit_l2_v1',
+  embeddingContractVersion: 'gemini_embedding_2_text_v2', embeddingSchemaVersion: 'parent_embedding_v2',
 };
 const leafDocuments = [
   { chunkId: 'c1', videoId: 'video-1', courseId: 'course-1', startSec: 10, endSec: 20, text: 'first leaf' },

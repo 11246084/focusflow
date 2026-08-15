@@ -16,22 +16,19 @@ from utils import ChunkRecord
 
 class _FakeModels:
     def __init__(self) -> None:
-        self.calls: list[list[str]] = []
+        self.calls: list[str] = []
 
     def embed_content(self, *, model, contents, config):
         del model, config
-        self.calls.append(list(contents))
+        self.calls.append(contents)
         return SimpleNamespace(
-            embeddings=[
-                SimpleNamespace(values=[1.0, float(index + 1)] + [0.0] * 3070)
-                for index in range(len(contents))
-            ],
+            embeddings=[SimpleNamespace(values=[1.0, float(len(self.calls))] + [0.0] * 3070)],
             request_id=f"request-{len(self.calls)}",
         )
 
 
 class GeminiTextBatchingTests(unittest.TestCase):
-    def test_configured_batch_size_preserves_all_chunk_records(self) -> None:
+    def test_configured_batch_size_uses_independent_requests_and_preserves_records(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fake_models = _FakeModels()
             fake_client = SimpleNamespace(models=fake_models)
@@ -63,7 +60,8 @@ class GeminiTextBatchingTests(unittest.TestCase):
             with patch.object(embedding, "_load_gemini_client", return_value=fake_client):
                 records = embedding.embed_chunks(chunks, config)
 
-            self.assertEqual([len(call) for call in fake_models.calls], [8, 1])
+            self.assertEqual(len(fake_models.calls), 9)
+            self.assertTrue(all(call.startswith("title: none | text: 第 ") for call in fake_models.calls))
             self.assertEqual([record.chunk_id for record in records], [chunk.chunk_id for chunk in chunks])
             self.assertTrue(all(record.embedding_status == embedding.EMBEDDING_STATUS_SUCCESS for record in records))
             self.assertTrue(all(len(record.embedding) == 3072 for record in records))

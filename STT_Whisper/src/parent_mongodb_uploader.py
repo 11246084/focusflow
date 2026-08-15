@@ -246,7 +246,7 @@ def map_parent_document(
         {
             "courseId": course_id,
             "documentSchemaVersion": PARENT_DOCUMENT_SCHEMA_VERSION,
-            "generationVersion": generation_version,
+            "generationVersion": generation_version or record["embedding_generation_version"],
             "isActive": is_active,
         }
     )
@@ -323,6 +323,7 @@ def preflight_parent_publication(
     ]
     summary.validated_count = len(documents)
     summary.status = "validated"
+    summary.success = True
     return documents, summary
 
 

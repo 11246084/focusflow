@@ -12,6 +12,10 @@ const {
   isStableGeminiEmbeddingModel,
   parseActiveEmbeddingContract,
 } = require('./embeddingContract.service');
+const {
+  contractHash,
+  getHierarchicalDataReadinessSnapshot,
+} = require('./hierarchicalDataReadiness.service');
 
 const QA_QUERY_EMBEDDING_PROVIDERS = ['mock', 'openai', 'gemini'];
 const QA_VECTOR_SEARCH_MODES = ['memory', 'atlas'];
@@ -217,6 +221,15 @@ function buildQaHardFailures(snapshot) {
     ));
   }
 
+  if (snapshot.hierarchicalRetrievalEnabled
+      && !snapshot.hierarchicalRetrievalFallbackToLeaf
+      && !snapshot.hierarchicalActiveDataCompatible) {
+    hardFailures.push(buildDiagnostic(
+      'HIERARCHICAL_ACTIVE_DATA_NOT_READY',
+      'Hierarchical retrieval without Leaf fallback requires verified active Parent and Leaf data plus queryable indexes.',
+    ));
+  }
+
   return hardFailures;
 }
 
@@ -243,6 +256,12 @@ function buildQaWarnings(snapshot) {
       'Parent search remains unavailable until active Parent metadata matches the complete stable embedding contract.',
     ));
   }
+  if (snapshot.hierarchicalRetrievalEnabled && !snapshot.hierarchicalActiveDataCompatible) {
+    warnings.push(buildDiagnostic(
+      'HIERARCHICAL_ACTIVE_DATA_NOT_READY',
+      'Hierarchical rollout remains unavailable until a live read-only check verifies active Parent and Leaf data plus indexes.',
+    ));
+  }
 
   return warnings;
 }
@@ -250,6 +269,9 @@ function buildQaWarnings(snapshot) {
 function buildQaRuntimeSnapshot() {
   const queryEmbeddingContract = buildQueryContract();
   const dataContractCompatibility = buildDataContractCompatibility(queryEmbeddingContract);
+  const hierarchicalActiveDataReadiness = getHierarchicalDataReadinessSnapshot();
+  const hierarchicalActiveDataCompatible = hierarchicalActiveDataReadiness.ready === true
+    && hierarchicalActiveDataReadiness.evidence?.contractHash === contractHash(queryEmbeddingContract);
   const snapshot = {
     queryEmbeddingProvider: env.qaQueryEmbeddingProvider,
     vectorSearchMode: env.qaVectorSearchMode,
@@ -264,6 +286,8 @@ function buildQaRuntimeSnapshot() {
     hierarchicalRetrievalRolloutModeValid: env.hierarchicalRetrievalRolloutModeValid,
     hierarchicalRetrievalAllowlistsValid: env.hierarchicalRetrievalAllowlistsValid,
     hierarchicalParentStorageMode: 'atlas_parent_vector',
+    hierarchicalActiveDataReadiness,
+    hierarchicalActiveDataCompatible,
     queryEmbeddingDimensions: queryEmbeddingContract.dimension,
     queryEmbeddingContract,
     // Keep the short alias for existing consumers while the explicit field is

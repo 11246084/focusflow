@@ -26,10 +26,10 @@ describe('embedding contract service', () => {
       embeddingProvider: 'gemini',
       embeddingModel: 'gemini-embedding-2',
       embeddingDimension: 3072,
-      embeddingInstructionVersion: 'gemini_embedding_2_search_v1',
-      generationVersion: 'text_search_generation_v1',
+      embeddingInstructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+      generationVersion: 'text_search_generation_v2',
       normalizationVersion: 'unit_l2_v1',
-      embeddingSchemaVersion: 'gemini_embedding_2_text_v1',
+      embeddingSchemaVersion: 'gemini_embedding_2_text_v2',
       embeddingTaskType: null,
       secret: 'must-not-be-exposed',
     }), 'leaf-source');
@@ -37,7 +37,7 @@ describe('embedding contract service', () => {
     assert.equal(parsed.declared, true);
     assert.equal(parsed.error, null);
     assert.equal(parsed.contract.provider, 'gemini');
-    assert.equal(parsed.contract.contractVersion, 'gemini_embedding_2_text_v1');
+    assert.equal(parsed.contract.contractVersion, 'gemini_embedding_2_text_v2');
     assert.equal(Object.hasOwn(parsed.contract, 'secret'), false);
   });
 

@@ -2,10 +2,10 @@
 // 維度相同不代表相容；模型、instruction、generation 與正規化版本也必須一致。
 const GEMINI_EMBEDDING_2_MODEL = 'gemini-embedding-2';
 const GEMINI_EMBEDDING_DIMENSIONS = 3072;
-const GEMINI_EMBEDDING_INSTRUCTION_VERSION = 'gemini_embedding_2_search_v1';
-const TEXT_SEARCH_GENERATION_VERSION = 'text_search_generation_v1';
+const GEMINI_EMBEDDING_INSTRUCTION_VERSION = 'gemini_embedding_2_asymmetric_retrieval_v2';
+const TEXT_SEARCH_GENERATION_VERSION = 'text_search_generation_v2';
 const UNIT_L2_NORMALIZATION_VERSION = 'unit_l2_v1';
-const GEMINI_EMBEDDING_CONTRACT_VERSION = 'gemini_embedding_2_text_v1';
+const GEMINI_EMBEDDING_CONTRACT_VERSION = 'gemini_embedding_2_text_v2';
 
 // health 逐欄比較完整契約，避免只檢查 3072 維而誤判新舊向量可以混用。
 const CONTRACT_FIELDS = [

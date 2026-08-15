@@ -158,6 +158,8 @@ def make_config(root: Path, *, uri: str | None = "mongodb://offline.invalid", ba
         mongodb_video_embeddings_collection="video_segments_video",
         mongodb_bulk_batch_size=batch_size,
         target_video_id=None,
+        gemini_embedding_model_name="gemini-embedding-2",
+        gemini_embedding_output_dim=3072,
     )
 
 
@@ -189,7 +191,16 @@ def write_pipeline_outputs(root: Path, text_count: int = 451) -> None:
             "start_sec": float(index),
             "end_sec": float(index + 1),
             "text": f"中文內容 {index}",
-            "embedding": [0.1, 0.2],
+            "embedding": [0.1] * 3072,
+            "embedding_provider": "gemini",
+            "embedding_model": "gemini-embedding-2",
+            "embedding_dim": 3072,
+            "embedding_task_type": None,
+            "embedding_instruction_version": "gemini_embedding_2_asymmetric_retrieval_v2",
+            "embedding_generation_version": "text_search_generation_v2",
+            "embedding_normalization_version": "unit_l2_v1",
+            "embedding_contract_version": "gemini_embedding_2_text_v2",
+            "embedding_schema_version": "gemini_embedding_2_text_v2",
         }
         for index in range(text_count)
     ]
@@ -253,6 +264,25 @@ class MongoUploaderOfflineTests(unittest.TestCase):
             self.assertEqual(database["video_segments_text"].bulk_calls, [200, 200, 51, 200, 200, 51])
             self.assertEqual(database["videos"].documents[0]["fileName"], "中文教學影片.mp4")
             self.assertNotIn("run_id", database["videos"].documents[0])
+            leaf = database["video_segments_text"].documents[0]
+            self.assertEqual(leaf["embeddingProvider"], "gemini")
+            self.assertEqual(leaf["embeddingModel"], "gemini-embedding-2")
+            self.assertEqual(leaf["embeddingDimension"], 3072)
+            self.assertEqual(leaf["generationVersion"], "text_search_generation_v2")
+            self.assertEqual(leaf["embeddingContractVersion"], "gemini_embedding_2_text_v2")
+
+    def test_incompatible_leaf_contract_is_blocked_before_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            write_pipeline_outputs(root, text_count=1)
+            records = mongodb_uploader.read_jsonl(root / "embeddings_text_gemini.jsonl")
+            records[0]["embedding_generation_version"] = "stale_generation"
+            write_jsonl(root / "embeddings_text_gemini.jsonl", records)
+            config = make_config(root)
+            database = FakeDatabase()
+            stats = mongodb_uploader.upload_text_embeddings(database, config)
+            self.assertEqual(stats.skipped, 1)
+            self.assertEqual(database["video_segments_text"].documents, [])
 
     def test_one_failed_batch_produces_partial_report(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

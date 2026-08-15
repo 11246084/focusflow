@@ -143,7 +143,7 @@ const videoSegmentParentSchema = new mongoose.Schema(
       default: 'parent_document_v1',
       trim: true,
     },
-    // MVP 採單一 generation（unique parentId）；欄位先保留，正式 generation switch 前不參與查詢
+    // Active generation is part of the retrieval filter; stale generations must never be served.
     generationVersion: {
       type: String,
       default: null,
@@ -166,5 +166,6 @@ videoSegmentParentSchema.index({ parentId: 1 }, { unique: true });
 videoSegmentParentSchema.index({ courseId: 1, videoId: 1 });
 // Generation audit / stale cleanup（契約 §11）
 videoSegmentParentSchema.index({ videoId: 1, hierarchyFingerprint: 1 });
+videoSegmentParentSchema.index({ videoId: 1, generationVersion: 1, isActive: 1 });
 
 module.exports = mongoose.model('VideoSegmentParent', videoSegmentParentSchema);

@@ -53,3 +53,13 @@
 **原因**：靜默降級曾導致 demo 環境誤以為 Atlas 已上線，實際跑的是 memory mode。Fail-fast 讓問題可被觀察，避免口徑錯誤。
 
 **影響**：`/health` 回傳 `runtime.qa.readiness=hard_fail` 時需明確修復設定，不是重啟就好。
+
+---
+
+## 2026-08 | Hierarchical Retrieval 採 active generation + live evidence fail-closed
+
+**決策**：Parent Search 只查 `generationVersion=text_search_generation_v2` 且 `isActive=true` 的文件，並在命中後重驗完整 embedding contract。Hierarchy Gate 開啟時，Backend 還必須以唯讀方式核對 rollout scope 內的 Parent／Child Leaf metadata、`chunkId_1` 與 Parent vector filter definition；部署環境的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 不能單獨構成 readiness 證據。
+
+**原因**：相同的 3072 維可能來自不同模型、instruction 或 generation；只靠環境宣告會讓 stale／混合向量被誤當成相容資料。
+
+**影響**：Parent Atlas index 必須能 filter `courseId`、`videoId`、`generationVersion`、`isActive`。任一 active data 或 index 條件缺失時，shadow／serve 都不具 eligibility；Leaf fallback 與全域 Gate=false 仍是 rollback 路徑。Shared Atlas publication／index update 與 live Gemini E2E 仍需分別授權。

@@ -60,6 +60,14 @@ describe('parent vector index service', () => {
         type: 'filter',
         path: 'videoId',
       },
+      {
+        type: 'filter',
+        path: 'generationVersion',
+      },
+      {
+        type: 'filter',
+        path: 'isActive',
+      },
     ]);
   });
 

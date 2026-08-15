@@ -30,6 +30,9 @@ async function retrieveWithHierarchy({
   contextMaxLeaves,
   contextMaxCharacters,
   parentTimeoutMs,
+  // Forward the active embedding contract so Parent hits from older
+  // generations fail closed before Child expansion.
+  expectedContract,
 }) {
   if (!enabled) {
     return leafSearch();
@@ -47,6 +50,7 @@ async function retrieveWithHierarchy({
       restrictedVideoIds,
       limit: parentLimit,
       timeoutMs: parentTimeoutMs,
+      expectedContract,
     });
     if (!parentHits.length) {
       const error = new Error('Parent search returned no hits.');

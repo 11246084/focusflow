@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from config import PipelineConfig
+from embedding_contract import (
+    GEMINI_EMBEDDING_CONTRACT_VERSION,
+    GEMINI_EMBEDDING_GENERATION_VERSION,
+    GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+    GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+    GEMINI_EMBEDDING_TASK_TYPE,
+)
 from utils import chunked, configure_logging, load_json_file, load_jsonl_file
 
 LOGGER = logging.getLogger(__name__)
@@ -447,7 +454,13 @@ def upload_text_embeddings(
     }
     stats = UploadStats(attempted=len(embedding_records))
     operations: list[Any] = []
-    required_keys = {"chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding"}
+    required_keys = {
+        "chunk_id", "video_id", "start_sec", "end_sec", "text", "embedding",
+        "embedding_provider", "embedding_model", "embedding_dim", "embedding_task_type",
+        "embedding_instruction_version", "embedding_generation_version",
+        "embedding_normalization_version", "embedding_contract_version",
+        "embedding_schema_version",
+    }
 
     LOGGER.info(
         "Uploading text embeddings from %s into collection=%s",
@@ -458,7 +471,21 @@ def upload_text_embeddings(
         missing_keys = sorted(required_keys - record.keys())
         chunk_id = record.get("chunk_id")
         embedding = record.get("embedding")
-        if missing_keys or not isinstance(embedding, list) or not embedding:
+        # Fail closed: mixing embeddings from a different model, dimension, or
+        # retrieval generation in one collection makes similarity scores unsafe.
+        contract_matches = (
+            record.get("embedding_provider") == "gemini"
+            and record.get("embedding_model") == config.gemini_embedding_model_name
+            and record.get("embedding_dim") == config.gemini_embedding_output_dim
+            and record.get("embedding_task_type") is GEMINI_EMBEDDING_TASK_TYPE
+            and record.get("embedding_instruction_version") == GEMINI_EMBEDDING_INSTRUCTION_VERSION
+            and record.get("embedding_generation_version") == GEMINI_EMBEDDING_GENERATION_VERSION
+            and record.get("embedding_normalization_version") == GEMINI_EMBEDDING_NORMALIZATION_VERSION
+            and record.get("embedding_contract_version") == GEMINI_EMBEDDING_CONTRACT_VERSION
+            and record.get("embedding_schema_version") == GEMINI_EMBEDDING_CONTRACT_VERSION
+        )
+        if (missing_keys or not isinstance(embedding, list)
+                or len(embedding) != config.gemini_embedding_output_dim or not contract_matches):
             stats.skipped += 1
             LOGGER.warning(
                 "[MongoDB Skip] collection=%s reason=invalid_embedding_record",
@@ -475,6 +502,15 @@ def upload_text_embeddings(
                 "endSec": float(record["end_sec"]),
                 "text": record["text"],
                 "embedding": embedding,
+                "embeddingProvider": record["embedding_provider"],
+                "embeddingModel": record["embedding_model"],
+                "embeddingDimension": record["embedding_dim"],
+                "embeddingTaskType": record["embedding_task_type"],
+                "embeddingInstructionVersion": record["embedding_instruction_version"],
+                "generationVersion": record["embedding_generation_version"],
+                "normalizationVersion": record["embedding_normalization_version"],
+                "embeddingContractVersion": record["embedding_contract_version"],
+                "embeddingSchemaVersion": record["embedding_schema_version"],
             }
         except (TypeError, ValueError):
             stats.skipped += 1

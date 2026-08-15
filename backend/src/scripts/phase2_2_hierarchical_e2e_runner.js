@@ -11,6 +11,12 @@ const { assembleLeafContext } = require('../services/leafContextAssembly.service
 const { generateAnswer } = require('../services/answerGeneration.service');
 const { buildCitations } = require('../services/qa.service');
 const { buildSegmentLookupQuery } = require('../services/bridgeScope.service');
+const {
+  evaluateActiveDataEvidence,
+} = require('../services/hierarchicalDataReadiness.service');
+
+// This runner is an isolated, read-only acceptance harness. Command monitoring
+// rejects MongoDB writes, and answer generation stays disabled unless requested.
 
 const WRITE_COMMANDS = new Set([
   'insert', 'update', 'delete', 'findandmodify', 'bulkwrite', 'create',
@@ -18,7 +24,7 @@ const WRITE_COMMANDS = new Set([
 ]);
 const READ_COMMANDS = new Set([
   'find', 'aggregate', 'getmore', 'explain', 'ping', 'count', 'distinct',
-  'listcollections', 'listindexes', 'listsearchindexes',
+  'listcollections', 'listindexes', 'listsearchindexes', 'connectionstatus',
 ]);
 
 class IsolatedE2EError extends Error {
@@ -60,6 +66,24 @@ function createCommandMonitor() {
   };
 }
 
+function assertStrictReadOnlyRoles(authenticatedUserRoles, databaseName) {
+  const roles = Array.isArray(authenticatedUserRoles) ? authenticatedUserRoles : [];
+  const expectedDatabase = String(databaseName || '').trim();
+  const isStrictReadOnly = expectedDatabase
+    && roles.length === 1
+    && roles[0]?.role === 'read'
+    && roles[0]?.db === expectedDatabase;
+
+  if (!isStrictReadOnly) {
+    throw new IsolatedE2EError(
+      'The isolated E2E runner requires a dedicated MongoDB user with only the read role on the target database.',
+      'E2E_DATABASE_ROLE_NOT_READ_ONLY',
+    );
+  }
+
+  return { verified: true, role: 'read', database: expectedDatabase };
+}
+
 function parsePositiveInteger(value, flag) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) {
@@ -75,6 +99,7 @@ function parseCliArgs(argv = []) {
     videoId: '',
     allowedVideoIds: [],
     withAnswer: false,
+    preflightOnly: false,
     maxParents: env.hierarchicalParentLimit,
     maxChildren: env.hierarchicalChildExpansionLimit,
     json: false,
@@ -83,6 +108,7 @@ function parseCliArgs(argv = []) {
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === '--with-answer') options.withAnswer = true;
+    else if (flag === '--preflight-only') options.preflightOnly = true;
     else if (flag === '--json') options.json = true;
     else if (flag === '--question') options.question = argv[++index] || '';
     else if (flag === '--course-id') options.courseId = argv[++index] || '';
@@ -90,7 +116,7 @@ function parseCliArgs(argv = []) {
     else if (flag === '--allowed-video-id') options.allowedVideoIds.push(argv[++index] || '');
     else if (flag === '--max-parents') options.maxParents = parsePositiveInteger(argv[++index], flag);
     else if (flag === '--max-children') options.maxChildren = parsePositiveInteger(argv[++index], flag);
-    else throw new IsolatedE2EError(`Unsupported option: ${flag}`, 'E2E_CLI_INVALID');
+    else throw new IsolatedE2EError('Unsupported CLI option.', 'E2E_CLI_INVALID');
   }
 
   options.question = String(options.question).trim();
@@ -99,10 +125,16 @@ function parseCliArgs(argv = []) {
   options.allowedVideoIds = [...new Set(options.allowedVideoIds.map((id) => String(id).trim()).filter(Boolean))];
   if (!options.allowedVideoIds.includes(options.videoId)) options.allowedVideoIds.push(options.videoId);
 
-  if (!options.question || !/^[0-9a-f]{24}$/i.test(options.courseId)
+  if ((!options.preflightOnly && !options.question) || !/^[0-9a-f]{24}$/i.test(options.courseId)
       || !/^[0-9a-f]{24}$/i.test(options.videoId)) {
     throw new IsolatedE2EError(
-      '--question, a canonical --course-id, and --video-id are required.',
+      '--question (except preflight-only), a canonical --course-id, and --video-id are required.',
+      'E2E_CLI_INVALID',
+    );
+  }
+  if (options.preflightOnly && options.withAnswer) {
+    throw new IsolatedE2EError(
+      '--preflight-only cannot be combined with --with-answer.',
       'E2E_CLI_INVALID',
     );
   }
@@ -161,6 +193,28 @@ async function runIsolatedE2E(options, dependencies) {
   const preflightResult = await preflight(options);
   commandMonitor.assertNoWrites();
 
+  if (options.preflightOnly) {
+    return {
+      runMode: 'phase2_2_readonly_preflight',
+      writesAllowed: false,
+      gate: { sharedValue: false, isolatedValue: false },
+      activeDataReadiness: preflightResult.activeDataReadiness || null,
+      execution: {
+        queryEmbedding: false,
+        parentSearch: false,
+        childExpansion: false,
+        answerGeneration: false,
+        externalCalls: 0,
+      },
+      safety: {
+        ...commandMonitor.snapshot(),
+        databaseAccess: preflightResult.databaseAccess || null,
+        externalCalls: 0,
+        sensitiveOutput: false,
+      },
+    };
+  }
+
   const queryVector = await embed(options.question);
   if (!Array.isArray(queryVector) || queryVector.length !== 3072
       || queryVector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
@@ -175,6 +229,7 @@ async function runIsolatedE2E(options, dependencies) {
     allowedVideoIds: options.allowedVideoIds,
     limit: options.maxParents,
     timeoutMs: env.hierarchicalParentTimeoutMs,
+    expectedContract: buildGeminiTextSearchContract(env.geminiEmbeddingModelName),
   });
   if (!parentHits.length) {
     throw new IsolatedE2EError('Parent search returned no hits.', 'E2E_PARENT_NO_HITS');
@@ -230,6 +285,7 @@ async function runIsolatedE2E(options, dependencies) {
     runMode: 'phase2_2_isolated_e2e',
     writesAllowed: false,
     gate: { sharedValue: false, isolatedValue: true },
+    activeDataReadiness: preflightResult.activeDataReadiness || null,
     query: {
       length: options.question.length,
       embeddingProvider: queryContract.provider,
@@ -276,6 +332,7 @@ async function runIsolatedE2E(options, dependencies) {
     },
     safety: {
       ...safety,
+      databaseAccess: preflightResult.databaseAccess || null,
       externalCalls: options.withAnswer ? 2 : 1,
       sensitiveOutput: false,
     },
@@ -296,13 +353,39 @@ async function createLiveDependencies(commandMonitor) {
     throw new IsolatedE2EError('FAQ cache must be disabled for the isolated runner.', 'E2E_FAQ_CACHE_NOT_DISABLED');
   }
 
-  const connection = await mongoose.createConnection(env.mongodbUri, {
+  const readOnlyMongoUri = String(process.env.PHASE2_2_READONLY_MONGODB_URI || '').trim();
+  if (!readOnlyMongoUri) {
+    throw new IsolatedE2EError(
+      'PHASE2_2_READONLY_MONGODB_URI is required for the isolated E2E runner.',
+      'E2E_READONLY_DATABASE_URI_REQUIRED',
+    );
+  }
+
+  const connection = await mongoose.createConnection(readOnlyMongoUri, {
     autoCreate: false,
     autoIndex: false,
     monitorCommands: true,
+    readPreference: 'secondaryPreferred',
+    retryWrites: false,
     serverSelectionTimeoutMS: 10000,
   }).asPromise();
   connection.getClient().on('commandStarted', (event) => commandMonitor.observe(event));
+
+  let databaseAccess;
+  try {
+    const connectionStatus = await connection.db.admin().command({
+      connectionStatus: 1,
+      showPrivileges: false,
+    });
+    databaseAccess = assertStrictReadOnlyRoles(
+      connectionStatus?.authInfo?.authenticatedUserRoles,
+      connection.name,
+    );
+    commandMonitor.assertNoWrites();
+  } catch (error) {
+    await connection.close();
+    throw error;
+  }
 
   const leafModel = connection.model('Phase22RunnerLeaf', VideoSegment.schema, env.videoSegmentCollection);
   const parentModel = connection.model(
@@ -359,7 +442,45 @@ async function createLiveDependencies(commandMonitor) {
       if (!vectorIndex || vectorIndex.status !== 'READY' || vectorIndex.queryable === false) {
         throw new IsolatedE2EError('The Parent vector index is unavailable.', 'E2E_PARENT_INDEX_NOT_READY');
       }
+      const parents = await parentCollection.find(
+        { videoId: { $in: options.allowedVideoIds }, isActive: true },
+        { projection: {
+          _id: 0, videoId: 1, childChunkIds: 1, isActive: 1,
+          embeddingProvider: 1, embeddingModel: 1, embeddingDimension: 1,
+          embeddingTaskType: 1, embeddingInstructionVersion: 1, generationVersion: 1,
+          normalizationVersion: 1, embeddingContractVersion: 1, embeddingSchemaVersion: 1,
+        } },
+      ).toArray();
+      const leaves = await leafCollection.find(
+        { videoId: { $in: options.allowedVideoIds } },
+        { projection: {
+          _id: 0, chunkId: 1, videoId: 1,
+          embeddingProvider: 1, embeddingModel: 1, embeddingDimension: 1,
+          embeddingTaskType: 1, embeddingInstructionVersion: 1, generationVersion: 1,
+          normalizationVersion: 1, embeddingContractVersion: 1, embeddingSchemaVersion: 1,
+        } },
+      ).toArray();
+      const activeDataReadiness = {
+        ...evaluateActiveDataEvidence({
+        allowedVideoIds: options.allowedVideoIds,
+        parents,
+        leaves,
+        leafIndexes: indexes,
+        parentSearchIndexes: searchIndexes,
+        parentIndexName: env.videoSegmentParentVectorIndexName,
+        }),
+        checkedAt: new Date().toISOString(),
+        source: 'live_read_only',
+      };
+      if (!activeDataReadiness.ready) {
+        throw new IsolatedE2EError(
+          'Active Parent or Leaf data does not satisfy the stable generation contract.',
+          'E2E_ACTIVE_DATA_NOT_READY',
+        );
+      }
       return {
+        activeDataReadiness,
+        databaseAccess,
         scope: {
           allowedCourseIds: new Set([options.courseId]),
           allowedVideoIds: new Set(options.allowedVideoIds),
@@ -400,10 +521,10 @@ function safeFailure(error) {
 }
 
 async function main(argv = process.argv.slice(2)) {
-  const options = parseCliArgs(argv);
   const commandMonitor = createCommandMonitor();
   let dependencies;
   try {
+    const options = parseCliArgs(argv);
     dependencies = await createLiveDependencies(commandMonitor);
     const result = await runIsolatedE2E(options, dependencies);
     console.log(JSON.stringify(result, null, options.json ? 2 : 0));
@@ -420,6 +541,7 @@ if (require.main === module) main();
 module.exports = {
   IsolatedE2EError,
   WRITE_COMMANDS,
+  assertStrictReadOnlyRoles,
   buildLeafLookupQuery,
   createCommandMonitor,
   createLiveDependencies,

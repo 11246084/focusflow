@@ -8,6 +8,13 @@ from collections import Counter
 from pathlib import Path
 
 from config import PipelineConfig
+from embedding_contract import (
+    GEMINI_EMBEDDING_CONTRACT_VERSION,
+    GEMINI_EMBEDDING_GENERATION_VERSION,
+    GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+    GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+    GEMINI_EMBEDDING_TASK_TYPE,
+)
 
 
 TEXT_REQUIRED_FIELDS = (
@@ -22,6 +29,13 @@ TEXT_REQUIRED_FIELDS = (
     "embedding_dim",
     "embedding_timestamp",
     "embedding_status",
+    "embedding_provider",
+    "embedding_task_type",
+    "embedding_instruction_version",
+    "embedding_generation_version",
+    "embedding_normalization_version",
+    "embedding_contract_version",
+    "embedding_schema_version",
 )
 
 AUDIO_REQUIRED_FIELDS = (
@@ -174,6 +188,21 @@ def main() -> int:
         # 驗證嵌入維度是否符合預期
         if embedding_dim != expected_dim:
             invalid_records.append(f"{record_id}: unexpected embedding_dim={embedding_dim}")
+        expected_contract = {
+            "embedding_provider": "gemini",
+            "embedding_task_type": GEMINI_EMBEDDING_TASK_TYPE,
+            "embedding_instruction_version": GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+            "embedding_generation_version": GEMINI_EMBEDDING_GENERATION_VERSION,
+            "embedding_normalization_version": GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+            "embedding_contract_version": GEMINI_EMBEDDING_CONTRACT_VERSION,
+            "embedding_schema_version": GEMINI_EMBEDDING_CONTRACT_VERSION,
+        }
+        if args.modality == "text":
+            for field_name, expected_value in expected_contract.items():
+                if record.get(field_name) != expected_value:
+                    invalid_records.append(
+                        f"{record_id}: unexpected {field_name}={record.get(field_name)}"
+                    )
         # 驗證嵌入模態是否符合參數
         if embedding_modality != args.modality:
             invalid_records.append(f"{record_id}: unexpected embedding_modality={embedding_modality}")

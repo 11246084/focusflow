@@ -11,7 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from config import PipelineConfig
-from embedding_contract import build_parent_document_text, validate_stable_embedding_settings
+from embedding_contract import (
+    GEMINI_EMBEDDING_CONTRACT_VERSION,
+    GEMINI_EMBEDDING_GENERATION_VERSION,
+    GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+    GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+    GEMINI_EMBEDDING_TASK_TYPE,
+    build_parent_document_text,
+    validate_stable_embedding_settings,
+)
 from utils import (
     AudioEmbeddingRecord,
     ChunkRecord,
@@ -131,8 +139,12 @@ def _log_embedding_event(
     )
 
 
-def embed_text_contents(client: Any, texts: list[str], config: PipelineConfig) -> tuple[list[list[float]], str | None]:
-    """Call Gemini's stable searchable-document operation for Leaf and Parent text."""
+def embed_text_contents(
+    client: Any,
+    texts: list[str],
+    config: PipelineConfig,
+) -> tuple[list[list[float]], list[str | None]]:
+    """Embed documents independently so Gemini never aggregates multiple inputs."""
     from google.genai import types
 
     validate_stable_embedding_settings(
@@ -140,18 +152,31 @@ def embed_text_contents(client: Any, texts: list[str], config: PipelineConfig) -
         config.gemini_embedding_output_dim,
     )
 
-    response = client.models.embed_content(
-        model=config.gemini_embedding_model_name,
-        contents=[build_parent_document_text(text) for text in texts],
-        config=types.EmbedContentConfig(
-            output_dimensionality=config.gemini_embedding_output_dim,
-        ),
-    )
-    vectors = [
-        _normalize_vector([float(value) for value in embedding.values])
-        for embedding in list(response.embeddings or [])
-    ]
-    return vectors, getattr(response, "request_id", None)
+    vectors: list[list[float]] = []
+    request_ids: list[str | None] = []
+    for text in texts:
+        response = client.models.embed_content(
+            model=config.gemini_embedding_model_name,
+            contents=build_parent_document_text(text),
+            config=types.EmbedContentConfig(
+                output_dimensionality=config.gemini_embedding_output_dim,
+            ),
+        )
+        embeddings = list(response.embeddings or [])
+        if len(embeddings) != 1:
+            raise RuntimeError(
+                "Gemini embedding response count mismatch: requested=1 "
+                f"returned={len(embeddings)}"
+            )
+        vector = [float(value) for value in embeddings[0].values]
+        if len(vector) != config.gemini_embedding_output_dim:
+            raise RuntimeError(
+                "Gemini embedding dimension mismatch: "
+                f"expected={config.gemini_embedding_output_dim} returned={len(vector)}"
+            )
+        vectors.append(_normalize_vector(vector))
+        request_ids.append(getattr(response, "request_id", None))
+    return vectors, request_ids
 
 
 def _build_text_record(
@@ -179,6 +204,13 @@ def _build_text_record(
         embedding_modality=TEXT_MODALITY,
         embedding_dim=len(vector) if vector else config.gemini_embedding_output_dim,
         embedding_timestamp=embedding_timestamp or utc_timestamp(),
+        embedding_provider="gemini",
+        embedding_task_type=GEMINI_EMBEDDING_TASK_TYPE,
+        embedding_instruction_version=GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+        embedding_generation_version=GEMINI_EMBEDDING_GENERATION_VERSION,
+        embedding_normalization_version=GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+        embedding_contract_version=GEMINI_EMBEDDING_CONTRACT_VERSION,
+        embedding_schema_version=GEMINI_EMBEDDING_CONTRACT_VERSION,
         embedding_status=status,
         embedding_error=embedding_error,
         embedding_request_id=embedding_request_id,
@@ -236,6 +268,20 @@ def _load_text_checkpoint(config: PipelineConfig) -> dict[str, EmbeddingRecord]:
             continue
         if int(record.get("embedding_dim", 0) or 0) != config.gemini_embedding_output_dim:
             continue
+        if record.get("embedding_provider") != "gemini":
+            continue
+        if record.get("embedding_task_type") is not GEMINI_EMBEDDING_TASK_TYPE:
+            continue
+        if record.get("embedding_instruction_version") != GEMINI_EMBEDDING_INSTRUCTION_VERSION:
+            continue
+        if record.get("embedding_generation_version") != GEMINI_EMBEDDING_GENERATION_VERSION:
+            continue
+        if record.get("embedding_normalization_version") != GEMINI_EMBEDDING_NORMALIZATION_VERSION:
+            continue
+        if record.get("embedding_contract_version") != GEMINI_EMBEDDING_CONTRACT_VERSION:
+            continue
+        if record.get("embedding_schema_version") != GEMINI_EMBEDDING_CONTRACT_VERSION:
+            continue
         if not isinstance(vector, list) or not vector:
             continue
 
@@ -251,6 +297,13 @@ def _load_text_checkpoint(config: PipelineConfig) -> dict[str, EmbeddingRecord]:
             embedding_modality=str(record["embedding_modality"]),
             embedding_dim=int(record["embedding_dim"]),
             embedding_timestamp=str(record.get("embedding_timestamp", utc_timestamp())),
+            embedding_provider=str(record["embedding_provider"]),
+            embedding_task_type=None,
+            embedding_instruction_version=str(record["embedding_instruction_version"]),
+            embedding_generation_version=str(record["embedding_generation_version"]),
+            embedding_normalization_version=str(record["embedding_normalization_version"]),
+            embedding_contract_version=str(record["embedding_contract_version"]),
+            embedding_schema_version=str(record["embedding_schema_version"]),
             embedding_status=EMBEDDING_STATUS_REUSED_CHECKPOINT,
             embedding_error=None,
             embedding_request_id=(
@@ -379,11 +432,10 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
         text_embeddings_by_chunk[chunk.chunk_id] = record
         logger.info("[Gemini Skip] record_id=%s modality=%s status=%s", chunk.chunk_id, TEXT_MODALITY, record.embedding_status)
 
-    # Gemini embed_content 支援多筆 contents；使用設定的批次大小可減少網路往返，
-    # 但仍逐筆建立 EmbeddingRecord 並保持原始順序與輸出 schema。
-    embedding_batch_size = max(config.gemini_embedding_batch_size, 1)
+    # gemini-embedding-2 會把同一 request 的多個 inputs 聚合成一個向量。
+    # 每筆文件獨立成為 retry 單位，避免某一筆失敗時重送同組其他成功 request。
     for batch_index, chunk_batch in enumerate(
-        chunked(runnable_chunks, embedding_batch_size),
+        chunked(runnable_chunks, 1),
         start=1,
     ):
         attempt_number = 0
@@ -394,15 +446,15 @@ def embed_chunks(chunks: list[ChunkRecord], config: PipelineConfig) -> list[Embe
             batch_timestamp = utc_timestamp()
             try:
                 # 調用 Gemini API 進行嵌入
-                response_embeddings, request_id = embed_text_contents(client, text_batch, config)
-                if len(response_embeddings) != len(chunk_batch):
+                response_embeddings, request_ids = embed_text_contents(client, text_batch, config)
+                if len(response_embeddings) != len(chunk_batch) or len(request_ids) != len(chunk_batch):
                     raise RuntimeError(
                         "Gemini embedding response count mismatch: "
                         f"requested={len(chunk_batch)} returned={len(response_embeddings)}"
                     )
 
                 # 處理每個嵌入結果
-                for chunk, vector in zip(chunk_batch, response_embeddings):
+                for chunk, vector, request_id in zip(chunk_batch, response_embeddings, request_ids):
                     record = _build_text_record(
                         chunk,
                         config,

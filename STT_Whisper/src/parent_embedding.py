@@ -35,7 +35,8 @@ from parent_embedding_strategy import (
 from utils import chunked, load_jsonl_file, utc_timestamp, write_jsonl_file
 
 
-ParentProvider = Callable[[list[str], PipelineConfig], tuple[list[list[float]], str | None]]
+ParentRequestIds = list[str | None] | str | None
+ParentProvider = Callable[[list[str], PipelineConfig], tuple[list[list[float]], ParentRequestIds]]
 PUBLISHABLE_STATUSES = {EMBEDDING_STATUS_SUCCESS, EMBEDDING_STATUS_REUSED_CHECKPOINT}
 
 
@@ -91,7 +92,10 @@ def _safe_provider_error(_: Exception) -> str:
     return "Parent embedding provider request failed."
 
 
-def _default_provider(texts: list[str], config: PipelineConfig) -> tuple[list[list[float]], str | None]:
+def _default_provider(
+    texts: list[str],
+    config: PipelineConfig,
+) -> tuple[list[list[float]], list[str | None]]:
     client = _load_gemini_client(config)
     return embed_text_contents(client, texts, config)
 
@@ -201,16 +205,24 @@ def embed_parent_chunks(
         parent_embedding_fingerprint,
     )
     pending = [parent for parent in parents if parent.parent_id not in completed]
-    batch_size = max(config.gemini_embedding_batch_size, 1)
-    for parent_batch in chunked(pending, batch_size):
+    # Stable Gemini aggregates multi-input requests. Keep each Parent as an
+    # independent request and retry unit until an async Batch API is implemented.
+    for parent_batch in chunked(pending, 1):
         attempt = 0
         while True:
             timestamp = utc_timestamp()
             try:
-                vectors, request_id = provider_fn([parent.text for parent in parent_batch], config)
+                vectors, raw_request_ids = provider_fn([parent.text for parent in parent_batch], config)
                 if len(vectors) != len(parent_batch):
                     raise RuntimeError("Parent embedding response count mismatch.")
-                for parent, vector in zip(parent_batch, vectors):
+                request_ids = (
+                    raw_request_ids
+                    if isinstance(raw_request_ids, list)
+                    else [raw_request_ids] * len(parent_batch)
+                )
+                if len(request_ids) != len(parent_batch):
+                    raise RuntimeError("Parent embedding request-id count mismatch.")
+                for parent, vector, request_id in zip(parent_batch, vectors, request_ids):
                     completed[parent.parent_id] = _build_record(
                         parent,
                         config,

@@ -22,7 +22,7 @@ describe('parent search Atlas adapter', () => {
       indexName: 'parent_embedding_index',
     });
     assert.deepEqual(
-      pipeline[0].$vectorSearch.filter.$and[1],
+      pipeline[0].$vectorSearch.filter.$and[2],
       { videoId: { $in: ['video-supported'] } },
     );
   });
@@ -44,7 +44,13 @@ describe('parent search Atlas adapter', () => {
       vectorSearch.filter.$and[0].$or[1].videoId.$in,
       ['507f191e810c19729de860ed', '507f191e810c19729de860ef'],
     );
-    assert.equal(vectorSearch.filter.$and[1].videoId, '507f191e810c19729de860ed');
+    assert.deepEqual(vectorSearch.filter.$and[1], {
+      generationVersion: 'text_search_generation_v2',
+      isActive: true,
+    });
+    assert.equal(vectorSearch.filter.$and[2].videoId, '507f191e810c19729de860ed');
+    assert.equal(pipeline[1].$project.generationVersion, 1);
+    assert.equal(pipeline[1].$project.isActive, 1);
     assert.equal(vectorSearch.numCandidates, 25);
     assert.deepEqual(pipeline[1].$project.score, { $meta: 'vectorSearchScore' });
   });

@@ -19,12 +19,12 @@
 | dimension | 3072 | 3072 |
 | query instruction | `task: search result \| query: {content}` | — |
 | document instruction | — | `title: {title} \| text: {content}`；沒有標題時使用 `title: none` |
-| instruction version | `gemini_embedding_2_search_v1` | 與 query 使用同一搜尋規則版本 |
+| instruction version | `gemini_embedding_2_asymmetric_retrieval_v2` | Query 使用 `task: search result \| query: ...`，Document 使用 `title: none \| text: ...` |
 | task type | 不傳 `taskType`／`task_type`（stable Embedding 2 不支援） | 不使用 legacy `RETRIEVAL_DOCUMENT`／`RETRIEVAL_QUERY` task type |
-| generation version | `text_search_generation_v1` | 必須相同 |
+| generation version | `text_search_generation_v2` | 必須相同 |
 | normalization | `unit_l2_v1`，輸出為非零 unit vector | 必須相同 |
-| contract version | `gemini_embedding_2_text_v1` | 必須相同 |
-| schema version | `gemini_embedding_2_text_v1` | 必須相同；legacy `embeddingSchemaVersion` 會納入比較 |
+| contract version | `gemini_embedding_2_text_v2` | 必須相同 |
+| schema version | `gemini_embedding_2_text_v2` | 必須相同；legacy `embeddingSchemaVersion` 會納入比較 |
 
 模型名稱可以設定，但 runtime 不得呼叫 preview 或其他未通過此契約的模型。query response 必須恰好包含 3072 個 finite number；Backend 仍會自行做 L2 normalization，避免把 provider 的正常化行為當成未驗證的假設。
 

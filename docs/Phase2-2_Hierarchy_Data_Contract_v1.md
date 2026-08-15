@@ -3,10 +3,10 @@
 ## 2026-08-09 Stable Parent Embedding implementation
 
 目前 production contract 已更新為：Gemini `gemini-embedding-2`、3072 維、
-`taskType=null`、Parent instruction `task: search result | document: <parent_text>`、
-instruction version `gemini_embedding_2_search_v1`、generation version
-`text_search_generation_v1`、normalization `unit_l2_v1`、contract version
-`gemini_embedding_2_text_v1`。Parent artifact schema 為 `parent_embedding_v2`，輸出檔為
+`taskType=null`、Parent instruction `title: none | text: <parent_text>`、
+instruction version `gemini_embedding_2_asymmetric_retrieval_v2`、generation version
+`text_search_generation_v2`、normalization `unit_l2_v1`、contract version
+`gemini_embedding_2_text_v2`。Parent artifact schema 為 `parent_embedding_v2`，輸出檔為
 `embeddings_parent_gemini_stable.jsonl`。
 
 Fingerprint 依賴 Hierarchy fingerprint、provider、model、dimension、null task type、
@@ -196,9 +196,9 @@ PARENT_EMBEDDING_ENABLED=false
 | `embedding_timestamp`, `embedding_request_id` | 否 | 稽核欄位，不進 fingerprint |
 | `embedding_schema_version` | 是 | `parent_embedding_v2` |
 | `embedding_instruction` | 是 | canonical document instruction template |
-| `embedding_instruction_version` | 是 | `gemini_embedding_2_search_v1` |
-| `embedding_generation_version` | 是 | `text_search_generation_v1` |
-| `embedding_contract_version` | 是 | `gemini_embedding_2_text_v1` |
+| `embedding_instruction_version` | 是 | `gemini_embedding_2_asymmetric_retrieval_v2` |
+| `embedding_generation_version` | 是 | `text_search_generation_v2` |
+| `embedding_contract_version` | 是 | `gemini_embedding_2_text_v2` |
 | `embedding_role` | 是 | `document` |
 | `hierarchy_fingerprint` | 是 | Parent source generation |
 | `source_leaf_fingerprint` | 是 | 上游 Leaf generation |

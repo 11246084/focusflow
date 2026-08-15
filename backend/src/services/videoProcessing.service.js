@@ -5,6 +5,7 @@ const { VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { fanoutVideoCompletedNotifications } = require('./notification.service');
+const { cleanupUploadedLocalVideo } = require('./youtubeUpload.service');
 
 function createQueuedProcessingState(now = new Date()) {
   return {
@@ -93,6 +94,10 @@ async function runCompletionSideEffects(video) {
   if (errors.length > 1) {
     throw new AggregateError(errors, 'Video completion side effects failed.');
   }
+
+  // Cleanup is opt-in and best-effort. It has its own safety gates and must not
+  // turn a successful processing webhook into a failure.
+  await cleanupUploadedLocalVideo(video._id).catch(() => null);
 }
 
 async function queueVideoForProcessing(videoId) {
@@ -120,6 +125,12 @@ async function queueVideoForProcessing(videoId) {
 async function startVideoProcessing(videoId) {
   const video = await getVideoByIdOrThrow(videoId);
   const currentStatus = video.processing?.status;
+
+  // Workers and manifest reconciliation may replay the same notification.
+  // A replay must not increment attemptCount or replace the original startedAt.
+  if (currentStatus === VIDEO_PROCESSING_STATUSES.PROCESSING) {
+    return video;
+  }
 
   if (currentStatus !== VIDEO_PROCESSING_STATUSES.QUEUED) {
     throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.PROCESSING);
@@ -192,6 +203,12 @@ async function failVideoProcessing(videoId, { errorMessage, errorCode } = {}) {
 
   const video = await getVideoByIdOrThrow(videoId);
   const currentStatus = video.processing?.status;
+
+  // Preserve the first terminal failure. Duplicate worker/reconciliation calls
+  // acknowledge the same state without rewriting its reason or timestamp.
+  if (currentStatus === VIDEO_PROCESSING_STATUSES.FAILED) {
+    return video;
+  }
 
   if (![VIDEO_PROCESSING_STATUSES.QUEUED, VIDEO_PROCESSING_STATUSES.PROCESSING].includes(currentStatus)) {
     throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.FAILED);

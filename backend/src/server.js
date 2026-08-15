@@ -11,26 +11,28 @@ const {
   startShortsSyncScheduler,
   stopShortsSyncScheduler,
 } = require('./services/shortsSync.service');
-const { verifyYouTubeCredentials } = require('./services/youtubeUpload.service');
-
-async function migrateVideoFields() {
-  const Video = require('./models/video.model');
-  // Rename legacy snake_case fields to camelCase for any documents not yet migrated.
-  const renameResult = await Video.updateMany(
-    { video_id: { $exists: true } },
-    [{ $set: { videoId: '$video_id' } }, { $unset: 'video_id' }],
-  );
-  if (renameResult.modifiedCount > 0) {
-    console.log(`Migrated ${renameResult.modifiedCount} video(s): video_id -> videoId`);
-  }
-  // Unset videoId: null so app-owned docs don't occupy the sparse unique index slot.
-  await Video.updateMany({ videoId: null }, { $unset: { videoId: '' } });
-}
+const {
+  recoverPendingYouTubeUploads,
+  verifyYouTubeCredentials,
+} = require('./services/youtubeUpload.service');
+const {
+  refreshHierarchicalDataReadiness,
+} = require('./services/hierarchicalDataReadiness.service');
+const {
+  startVideoBatchReconciliationScheduler,
+  stopVideoBatchReconciliationScheduler,
+} = require('./services/videoBatchReconciliation.service');
+const { migrateVideoFields } = require('./services/videoMigration.service');
 
 async function startServer() {
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
   await migrateVideoFields();
+
+  if (env.hierarchicalRetrievalEnabled) {
+    // Read-only and fail-closed: an unsuccessful check keeps rollout ineligible while Leaf fallback stays available.
+    await refreshHierarchicalDataReadiness();
+  }
 
   if (env.demoSeedEnabled) {
     await seedDemoData({ silent: true });
@@ -40,11 +42,15 @@ async function startServer() {
     console.log(`Focus Flow backend listening on port ${env.port}`);
   });
   startShortsSyncScheduler();
+  startVideoBatchReconciliationScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
-  verifyYouTubeCredentials().catch(() => null);
+  verifyYouTubeCredentials()
+    .then((verified) => (verified ? recoverPendingYouTubeUploads() : null))
+    .catch(() => null);
 
   const shutdown = async () => {
     stopShortsSyncScheduler();
+    stopVideoBatchReconciliationScheduler();
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

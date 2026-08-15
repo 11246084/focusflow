@@ -86,7 +86,7 @@ python src/batch_main.py --batch-input Test_video_file
 python src/batch_main.py --batch-resume <batch_id>
 ```
 
-Parent hierarchy 預設由 `HIERARCHY_ENABLED=false` 關閉。啟用後只產生 deterministic parent artifact 與 checkpoint metadata；**目前不建立 parent embedding、不寫入 MongoDB，也不接 backend retrieval**。
+Parent hierarchy 預設由 `HIERARCHY_ENABLED=false` 關閉。Pipeline 已能產生 stable Parent embedding artifact，`parent_mongodb_uploader.py` 具 blocking preflight 與 idempotent upsert；Backend 也已接 Parent → Child retrieval，但 production Gate 仍為 false。沒有 active Leaf／Parent generation、`chunkId_1`、Parent vector filter/index 與唯讀 live E2E 證據時，不可啟用或宣稱 production-ready。
 
 ### Database
 

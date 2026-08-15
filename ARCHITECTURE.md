@@ -58,8 +58,8 @@ routes → controllers → services → models
 | 模組 | 主要路徑 | 對應 controller / service |
 |------|----------|---------------------------|
 | `auth.routes` | `/auth/login`、`/auth/me` | `auth.controller` / `auth.service` |
-| `course.routes` | `/courses`（CRUD） | `course.controller` / `course.service` |
-| `video.routes` | `/courses/:courseId/videos`、`/courses/:courseId/videos/youtube`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoProcessing.service` |
+| `course.routes` | `/courses`（CRUD）、`/courses/:courseId/enrollments` | `course.controller` / `course.service` + `enrollment.controller` / `enrollment.service` |
+| `video.routes` | `/courses/:courseId/videos`、`/courses/:courseId/video-batches`、`/video-batches/:batchId`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoBatch.controller` / batch services + `videoProcessing.service` |
 | `qa.routes` | `/qa/ask` | `qa.controller` / `qa.service` + `questionRecording.service` |
 | `line.routes` | `/line/webhook`、`/line/bind-token` | `line.controller` / `line.service` |
 | `internal-video.routes` | `/internal/videos/:videoId/processing/{start,complete,fail}` | `video.controller` 內部 handlers |
@@ -123,6 +123,8 @@ queued → processing → completed
 
 合法狀態轉換由 `videoProcessing.service.js` 硬性強制，非法轉換直接回傳 409 `VIDEO_PROCESSING_TRANSITION_INVALID`，沒有軟性 fallback。
 
+多影片批次的手動 retry 不會另建新批次：`single_adapter` 以原本受控本機來源重啟單片 worker；`pipeline_batch` 則在既有 manifest 對指定 `videoId` 授予一次額外嘗試並沿用同一 checkpoint。execution lease 仍禁止兩個 worker 同時修改同一批次。
+
 ### LINE Bot 對話狀態機
 
 LINE Bot 在 `User` 文件上維護**使用者層級**的對話狀態：
@@ -133,21 +135,28 @@ LINE Bot 在 `User` 文件上維護**使用者層級**的對話狀態：
 | `lineConversationHistory` | 最近 6 則對話（3 輪 Q&A），傳給 Gemini 做多輪上下文 |
 | `activeCourseId` | 目前選定的課程 |
 
-切換課程時顯示的選項 = 自己的 enrollment ∪ 所有 `published` 課程（去重，最多 4 筆），不是只顯示自己修的。
+切換課程時顯示的選項 = `active Enrollment ∩ published Course`（最多 4 筆）。直接選擇、綁定後選擇與每次提問都重新驗證同一規則；資格撤銷時立即清除相符的 `activeCourseId` 與對話上下文。
+
+### Enrollment 存取政策
+
+- student 對課程內容一律採 default deny；只有 `active Enrollment ∩ published Course` 可存取 Course、Video、QA／FAQ、Shorts、課程通知與 LINE 問答。
+- 只有課程 owner teacher 與 admin 可用完整學生 Email 指派或撤銷資格；目前沒有自助選課、邀請碼、審核流程或一般註冊自動加入。
+- 撤銷採 soft revoke 並保留 Question／UsageLog 歷史；舊資料若尚未有 `status`，視為既有 active grant，避免升級時意外中斷已授權學生。
 
 ---
 
 ## 三、前端架構
 
-登入頁採 Three.js 3D 場景（液態漸層背景、氣泡動畫、GSAP 補間）；學生 / 教師 / 管理員三套介面共 11 頁面 UI 已完成，目前進行 API 整合。
+登入頁採 Three.js 3D 場景（液態漸層背景、氣泡動畫、GSAP 補間）；學生 / 教師 / 管理員三套介面目前有 13 個頁面檔，第一階段 API 整合已完成。
 
 ```
 frontend/focus-flow/src/
 ├── components/     # 共用元件（LoginPage、DashboardApp、Sidebar、Topbar、BubbleScene、Button3D 等）
-├── pages/          # 11 個角色頁面：
-│                   #   Student: Dashboard, Courses, LineBot
+├── pages/          # 13 個角色／共用頁面：
+│                   #   Student: Dashboard, Courses, LineBot, ShortsWall
 │                   #   Teacher: Dashboard, Courses, Upload
 │                   #   Admin:   Overview, Stats, Users, Videos, Courses
+│                   #   Shared:  Profile
 ├── api.js          # 共用 fetch wrapper（JWT 注入 / token 與 user 持久化）
 ├── App.jsx
 └── main.jsx
@@ -181,6 +190,13 @@ YouTube：python src/main.py --youtube-url <url> --video-id <Mongo Video _id> --
 
 Backend 觸發的單支影片輸出會寫到 `STT_Whisper/data/outputs/runs/<videoId>/`，避免併發覆蓋共用 `outputs/*.jsonl`。快取：音訊 → `data/processed_audio/`；Whisper 逐字稿 → `data/cache/transcripts/`。`--overwrite` 強制重新處理。
 
+### Stable embedding generation 與 Hierarchical Retrieval 安全門
+
+- Leaf 與 Parent artifact 都必須攜帶 provider、model、dimension、instruction、generation、normalization、contract/schema 與 task type；uploader 會在寫入前阻擋缺欄或不相容資料。
+- Parent publication 預設把 artifact 的 `embedding_generation_version` 寫入 `generationVersion`，並以 `isActive=true` 標示可檢索資料；Backend Parent Search 同時用這兩個欄位過濾，且命中後再驗完整契約。
+- Backend 啟用 hierarchy 時，會先對 rollout video allowlist 做唯讀 live readiness：確認 active Parent／其 Child Leaf 都屬同一 embedding generation、`chunkId_1` 可用，以及 Parent vector index 為 READY 且能 filter `courseId`、`videoId`、`generationVersion`、`isActive`。
+- `.env` 的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 只屬部署宣告，不能取代實際 MongoDB 證據。任一 live check 缺失或不相容時，shadow／serve 均 fail closed；預設 Gate 仍為 false，Leaf fallback 保留。
+
 ---
 
 ## 五、資料庫模型與 Legacy 差異
@@ -197,7 +213,7 @@ Backend 觸發的單支影片輸出會寫到 `STT_Whisper/data/outputs/runs/<vid
 | `transcripts_normalized` | Pipeline | 正規化逐字稿 |
 | `term_dictionary` | Pipeline | 專有名詞字典（rapidfuzz 修正用） |
 | `clips` | Legacy | 快取層，`video_segments_video` 尚未接手 |
-| `enrollments` | 正式 | 學生修課（`studentId` × `courseId` 唯一索引、`progress`、`lineNotify`） |
+| `enrollments` | 正式 | 學生修課授權（`studentId` × `courseId` 唯一索引、`active/revoked`、指派／撤銷稽核欄位、`progress`、`lineNotify`） |
 | `usage_logs` | 正式 | 使用行為記錄（login / watch / ask / clip_view） |
 | `line_bind_tokens` | 正式 | LINE 綁定一次性 token，`expiresAt` TTL 自動清除 |
 

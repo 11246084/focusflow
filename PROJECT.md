@@ -42,7 +42,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 - **demoSeed** — 透過 `npm run seed` / `seed:reset` 植入示範資料
 
 ### Frontend（`frontend/focus-flow/`）
-登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面共 11 頁面：StudentDashboard / StudentCourses / StudentLineBot、TeacherDashboard / TeacherCourses / TeacherUpload、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses。UI 完成，API 整合進行中。
+登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面目前有 13 個頁面檔：StudentDashboard / StudentCourses / StudentLineBot / StudentShortsWall、TeacherDashboard / TeacherCourses / TeacherUpload、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses，以及共用 Profile。第一階段 API 整合已完成；正式供應商與部署驗收仍依功能各自判定。
 
 ### AI Pipeline（`STT_Whisper/`）
 獨立 CLI 流程：本機影片或 YouTube URL → FFmpeg / yt-dlp 音訊處理 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL → `mongodb_uploader.py` 寫入 MongoDB。Backend 建立影片後可背景 spawn 這個 CLI，並透過 internal webhook 接收處理狀態。
@@ -58,7 +58,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 | `Video`（`videos`）| 影片元資料與 processing 狀態；App-owned 影片以 camelCase 欄位為主，支援 `sourceType: upload / youtube` 與 `youtubeVideoId`；仍保留少量 legacy pipeline metadata 相容 |
 | `VideoSegment`（`video_segments_text`，可由 `VIDEO_SEGMENT_COLLECTION` 切換）| 問答核心：文字片段 + text embedding（v1 正式，欄位 camelCase） |
 | `Question`（`questions`）| 每則 QA 提問與回答歷史，含 matches、runtime 訊號與 `sourceUsageLogId` 連結 |
-| `Enrollment`（`enrollments`）| 學生修課紀錄（`studentId`、`courseId`、`progress`、`lineNotify`） |
+| `Enrollment`（`enrollments`）| 學生修課授權（`studentId`、`courseId`、`active/revoked`、指派／撤銷稽核欄位、`progress`、`lineNotify`）；學生內容存取需同時符合 active Enrollment 與 published Course |
 | `Clip`（`clips`）| 影片精華片段；目前定位為過渡層，`video_segments_video` 尚未接手 |
 | `UsageLog`（`usage_logs`）| 使用行為記錄（login / watch / ask / clip_view） |
 | `LineBindToken`（`line_bind_tokens`）| LINE 帳號綁定一次性 token，TTL 索引自動清除 |

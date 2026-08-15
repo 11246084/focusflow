@@ -1,17 +1,17 @@
 # FocusFlow AI Pipeline MVP
 
-## Phase 2-2 Stable Parent Embedding Contract（2026-08-09）
+## Phase 2-2 Stable Parent Embedding Contract（2026-08-14）
 
 Parent Embedding production path 現已只接受 Gemini stable text-search contract：
 
 - model：`gemini-embedding-2`
 - dimension：`3072`
 - task type：`null`（request 不再傳 preview `task_type`）
-- Parent document instruction：`task: search result | document: <parent_text>`
-- instruction version：`gemini_embedding_2_search_v1`
-- generation version：`text_search_generation_v1`
+- Parent document instruction：`title: none | text: <parent_text>`
+- instruction version：`gemini_embedding_2_asymmetric_retrieval_v2`
+- generation version：`text_search_generation_v2`
 - normalization：`unit_l2_v1`
-- contract version：`gemini_embedding_2_text_v1`
+- contract version：`gemini_embedding_2_text_v2`
 - artifact schema：`parent_embedding_v2`
 
 新 artifact 使用 run-scoped `embeddings_parent_gemini_stable.jsonl`。既有
@@ -33,7 +33,7 @@ Pipeline 使用 `faster-whisper`，並提供可選 `STT_INITIAL_PROMPT`、安全
 
 Parent Embedding 是位於 `hierarchy` 與 Leaf `text_embedding` 之間的獨立 blocking stage。它預設關閉，只有同時設定 `HIERARCHY_ENABLED=true` 與 `PARENT_EMBEDDING_ENABLED=true` 才會執行；若只啟用 Parent Embedding，設定驗證會在 Run 建立前失敗。
 
-啟用後，Pipeline 將 `parent_chunks.jsonl` 轉為 run-scoped `embeddings_parent_gemini_stable.jsonl`。每筆記錄保留 Parent identity、Child lineage、向量與完整 stable contract metadata。Parent 與 Query 共用 stable model、dimension、generation、normalization 與 contract version，但以 `document:`／`query:` instruction 區分角色，且 task type 均為 `null`。
+啟用後，Pipeline 將 `parent_chunks.jsonl` 轉為 run-scoped `embeddings_parent_gemini_stable.jsonl`。每筆記錄保留 Parent identity、Child lineage、向量與完整 stable contract metadata。Parent 與 Query 共用 stable model、dimension、generation、normalization 與 contract version；Query 使用 `task: search result | query: ...`，Leaf／Parent document 使用 `title: none | text: ...`，且 task type 均為 `null`。Gemini Embedding 2 會聚合同一 request 內的多筆 input，因此 Pipeline 對每筆 Leaf／Parent 發出獨立 request，避免多筆內容被壓成單一向量。
 
 Parent Embedding fingerprint 依賴 Hierarchy fingerprint 及非敏感向量設定。Resume 只有在 fingerprint 相同且 artifact 通過完整 schema、mapping、向量維度與 finite-number 驗證時才會 reuse；缺檔、損毀、舊 manifest 或設定改變會從 `parent_embedding` 重跑。Feature Gate 關閉時 stage 為 `skipped`，不建立假 artifact，也不讓既有 Parent Artifact 影響 Leaf-only 流程。
 
@@ -43,7 +43,34 @@ Failure policy 採 explicit opt-in + blocking：所有 required Parent 必須為
 .\.venv\Scripts\python.exe -m unittest tests.test_parent_embedding
 ```
 
-本 Sprint 只產生可交接的 Parent Embedding Artifact，不修改 MongoDB、Backend、Frontend，也尚未啟用 Parent Storage、Parent Search、Child Expansion 或 Hierarchical Retrieval。`courseId` 仍須在 Sprint 2B 由 uploader／資料庫映射確認；最終 Citation 仍由 Leaf Chunk 產生。
+Parent Embedding Artifact、正式 publication adapter 與預設離線的 CLI 已存在；`courseId` 與 `expectedVideoId` 都必須由呼叫端明確提供。尚未執行 shared Atlas publication、active generation 切換或 live Hierarchical E2E；最終 Citation 仍由 Leaf Chunk 產生。
+
+若已有可追溯的 Leaf `chunks.jsonl`，可在不重跑 STT、也不呼叫 Gemini／MongoDB 的情況下重建 deterministic Parent artifact：
+
+```powershell
+python src/build_parent_chunk_artifact.py `
+  --leaf-artifact <leaf-chunks.jsonl> `
+  --parent-artifact <parent-chunks.jsonl> `
+  --expected-video-id <canonical-video-id> `
+  --report <parent-build-evidence.json>
+```
+
+此命令會拒絕混合 video scope、重複 Leaf ID、無效 hierarchy 參數與空 artifact，並在報告中保存 Leaf／Parent SHA-256、record counts、hierarchy config 及 fingerprint。它只建立 Parent chunk，不產生 embedding，也不發布 Atlas。
+
+Parent chunk 與 build evidence 都通過後，可先執行完全不呼叫 provider 的 embedding preflight：
+
+```powershell
+python src/embed_parent_chunk_artifact.py `
+  --leaf-artifact <leaf-chunks.jsonl> `
+  --parent-artifact <parent-chunks.jsonl> `
+  --build-report <parent-build-evidence.json> `
+  --output <embeddings-parent-gemini-stable.jsonl> `
+  --expected-video-id <canonical-video-id> `
+  --expected-parent-count <exact-count> `
+  --report <parent-embedding-preflight.json>
+```
+
+預設模式只驗證來源 hashes、build evidence、lineage、scope、record count、stable model contract 與 fingerprints。真實 Gemini 呼叫另需同時加入 `--execute --confirm-live EMBED_PARENT_V2`；`--max-retries` 預設為 `0`，避免首次 live 執行因自動重試放大請求量，且只允許 `0`～`3`。此 CLI 永遠不連線 MongoDB，publication 仍須使用獨立的 `publish_parent_embeddings.py` 與另一階段授權。
 
 這個專案是 FocusFlow 的本地 AI pipeline，角色是 AI Data Producer。它會把教學影片轉成可搜尋的 transcript、chunks、Gemini embeddings，並可在 pipeline 成功後自動上傳到 MongoDB，供 backend QA 與 LINE Bot 使用。
 
@@ -289,6 +316,7 @@ BATCH_ITEM_MAX_RETRIES=0
   `data/outputs/batches/<batch_id>/batch_manifest.json` 及 `batch_summary.json`。
 - Resume：`python src/batch_main.py --batch-resume <batch_id>`。已完成項目不重跑；
   中斷時的 running 項目會轉為 retrying，queued 項目繼續執行。
+- 每個 batch 目錄有 `.execution.lock` 跨程序租約。同一批次已有存活 PID 時，第二個 CLI 以 exit code `75` 安全退出；原程序被終止後，下一次 resume 會回收 stale lock，避免 Backend 重啟或重複排程造成同一影片同時執行兩次。
 - Batch JSON 使用 temporary file、flush、fsync、atomic replace，避免留下半份正式檔案。
 
 完全離線測試：
@@ -297,8 +325,8 @@ BATCH_ITEM_MAX_RETRIES=0
 .\.venv\Scripts\python.exe -m unittest tests.test_batch_manager -v
 ```
 
-Batch 測試只使用 Fake Runner，不會呼叫 FFmpeg、Whisper、Gemini、Embedding、
-MongoDB、Backend Webhook 或 Docker。目前尚未執行真實影片與多 worker 壓力測試；
+Batch 測試以 Fake Runner 為主，另有實際啟動並終止 Python 子程序、回收 execution lease、沿用同一 run/checkpoint 恢復的中斷測試；不會呼叫 FFmpeg、Whisper、Gemini、Embedding、
+MongoDB、Backend Webhook 或 Docker。目前尚未執行真實 STT/Gemini 影片與多 worker 壓力測試；
 正式環境應先維持 concurrency `1`。
 
 ### 只讓 Gemini text embedding 跑前 20 個 pending chunks
@@ -766,11 +794,21 @@ Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 
 
 ### Parent publication adapter（Phase 2-2）
 
-`src/parent_mongodb_uploader.py` 是 Parent artifact 的正式 publication adapter，但目前刻意不接入 `main.py` 或既有 Leaf `upload_all()`。它只接受已通過 Parent Embedding stage 的 `embeddings_parent_gemini_stable.jsonl`，且呼叫端必須顯式注入 MongoDB collection 與權威 `courseId`（或可替換的 resolver）。模組本身不建立 MongoDB client，也不會從 `videoId`、第一門課或本機資料猜測 `courseId`。
+`src/parent_mongodb_uploader.py` 是 Parent artifact 的正式 publication adapter，但刻意不接入 `main.py` 或既有 Leaf `upload_all()`。它只接受已通過 Parent Embedding stage 的 `embeddings_parent_gemini_stable.jsonl`，且呼叫端必須顯式注入 MongoDB collection 與權威 `courseId`（或可替換的 resolver）。模組本身不建立 MongoDB client，也不會從 `videoId`、第一門課或本機資料猜測 `courseId`。
 
 發布前會整批驗證 JSONL、Parent 欄位、fingerprints，以及固定的 `gemini-embedding-2`／`taskType=null`／stable document instruction／3072 維 contract。Preview artifact 或任何 stable metadata mismatch 都會整批阻擋且 write count 為 0。通過後才把白名單 snake_case 欄位集中映射成 Backend schema 的 camelCase document，並使用唯一 filter `{ parentId }` 建立 `upsert=True`、`ordered=False` 的 bulk operations。
 
-Collection 名稱由 `VIDEO_SEGMENT_PARENT_COLLECTION` 設定，預設 `video_segments_parent`。`generationVersion` 僅保留為 nullable audit 欄位、`isActive` 預設 `true`；目前不做 generation switching、stale cleanup 或 delete。這一階段只完成 offline/mock 驗證，尚未代表 shared Atlas 已發布或 live upsert 已驗收。
+正式入口為 `src/publish_parent_embeddings.py`。預設只做離線 preflight，完全不建立 MongoDB client，並可用 `--report` 保存 artifact path、SHA-256、scope、v2 contract 與驗證摘要：
+
+```powershell
+.\.venv\Scripts\python.exe src\publish_parent_embeddings.py `
+  --artifact data\outputs\embeddings_parent_gemini_stable.jsonl `
+  --course-id <MongoDB ObjectId> `
+  --expected-video-id <canonical videoId> `
+  --report data\outputs\parent_publication_preflight.json
+```
+
+寫入是另外的高風險步驟：必須加入 `--write` 與精確確認字串。預設寫成 `isActive=false`；只有再加入 `--activate --confirm-write PUBLISH_ACTIVE_PARENT_V2` 才能建立 active Parent。CLI 從指定的環境變數（預設 `MONGODB_URI`）取得 URI，不接受 URI 命令列參數，避免憑證出現在 process list。`generationVersion` 固定為 `text_search_generation_v2`；目前不做 stale cleanup 或 delete。程式與 mock 驗證通過不代表 shared Atlas 已發布或 live upsert 已驗收。
 
 上傳仍使用既有文件欄位與識別條件，不新增 MongoDB 文件欄位：
 

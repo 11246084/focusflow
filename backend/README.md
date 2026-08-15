@@ -67,7 +67,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
-- 2026-07-12 本地影片自動上傳 YouTube：`youtubeUpload.service.js`（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 `youtube.force-ssl` scope 的 OAuth 憑證；2026-08-02 已完成 live 驗證，並於刪除影片／課程時自動把影片轉為 private）；教師上傳頁已收斂為單一軌道（本地檔案），貼 YouTube URL 的 API 保留但 UI 不露出
+- 2026-07-12 本地影片自動上傳 YouTube：`youtubeUpload.service.js`（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 `youtube.force-ssl` scope 的 OAuth 憑證；2026-08-02 已完成 live 驗證，並於刪除影片／課程時自動把影片轉為 private）；2026-08-12 補上 pre-byte-only 有限重試、stale upload 隔離、owner/admin retry API 與生命週期完成後的安全本地清理，recovery/cleanup 仍預設關閉
 - 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
 - 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
@@ -77,6 +77,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - 2026-07-12 老師 Top Segments 修復（老師 #13）：課程所有影片被刪除後不再整列丟棄，改標 `contentMissing` 併同課程合併一列，前端顯示「內容已下架」badge
 - 2026-07-13 學生進度 0% 修復 + 統計語意：watched 進度分母補上主課程影片、dashboard 依 `watchedVideoIds` 即時重算；學生統計卡片加「本週（最近 7 天）/ 累計」中文說明；LINE 命中影片無 YouTube 連結時改附「請到網站播放對應時間點」提示
 - 2026-07-13 FAQ 快取：`faqs` collection + `faqCache.service.js` 兩層快取（正規化文字相同零 token 直接命中；query embedding 相似度 ≥ 0.95 跳過向量搜尋與 LLM），API 與 LINE 共用；影片刪除/重新處理完成/課程刪除自動清該課程快取；`GET/DELETE /api/v1/courses/:courseId/faqs`；env `FAQ_CACHE_ENABLED`（預設開）、`FAQ_CACHE_SIMILARITY_THRESHOLD`、`FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
+- 2026-08-14 多影片批次整合：`POST /courses/:courseId/video-batches` 建立可追蹤 batch；`VIDEO_BATCH_PIPELINE_ENABLED=true` 時產生 versioned Python request。Backend 會以 `VIDEO_BATCH_RECONCILE_INTERVAL_MS` 對帳 `batch_manifest.json`，重啟後排程 `--batch-resume`；Python execution lease 阻擋同批次雙重執行。單項手動 retry 會對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint；single adapter 則會安全重啟本機來源 worker。功能旗標預設 false，真實 STT/Gemini 與正式部署仍須獨立驗收。
 - 2026-05-07 學生 watched 進度 endpoint：新增 `POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生身分），由 `course.service.markVideoWatched` 驗證影片屬該課程後 `$addToSet` 至 `Enrollment.watchedVideoIds` 並重算 `progress`；首次觀看時同步寫 `UsageLog event=WATCH metadata.videoId=...`（重複不重複寫），讓 admin Usage Statistics 的 WATCH 卡片可實際累加
 - 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`）；可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音
 - startup 不會自動 seed
@@ -283,7 +284,7 @@ POST /api/v1/courses/:courseId/videos/youtube
 → internal webhook 回報 completed / failed
 ```
 
-尚未做的是：「backend 自動把本機影片上傳到 YouTube」、`backend/uploads/` 自動清理、YouTube playlist 管理。本機 upload 影片仍會用 `sourceUrl=/uploads/<file>` 提供前端 `<video>` 播放，所以 `backend/uploads/` 不能無差別清除。
+Backend 已可自動把本機影片上傳到 YouTube。`backend/uploads/` 清理由 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 明確控制，且只在 YouTube upload 與 processing 都完成、路徑位於 `UPLOAD_DIR`、沒有其他 Video 共用時執行；不能無差別清除。YouTube playlist 管理仍未實作。
 
 LINE Bot 回覆會在有 YouTube videoId 時附 `跳轉：https://youtu.be/<id>?t=<sec>`；課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程，避免使用者切到無法回答的空課程。
 

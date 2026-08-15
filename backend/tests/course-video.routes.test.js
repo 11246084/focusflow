@@ -54,7 +54,7 @@ describe('course and video routes', () => {
     );
 
     assert.equal(studentResult.status, 200);
-    // Demo permission model: students see every published course regardless of enrollment.
+    // Students only see active enrollments whose course is published.
     assert.deepEqual(
       studentResult.body.data.courses.map((course) => course._id),
       [ids.publishedCourse],
@@ -80,10 +80,10 @@ describe('course and video routes', () => {
       teacherScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
       true,
     );
-    // Students see every published course in the demo permission model.
+    // A published course is not authorization by itself.
     assert.equal(
       studentScopedResult.body.data.courses.some((course) => course._id === foreignPublishedCourseId),
-      true,
+      false,
     );
   });
 
@@ -156,7 +156,7 @@ describe('course and video routes', () => {
     const deniedResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${ids.foreignDraftCourse}`, {
       token: teacherToken,
     });
-    const studentRelaxedResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${ids.foreignDraftCourse}`, {
+    const studentDeniedResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${ids.foreignDraftCourse}`, {
       token: studentToken,
     });
 
@@ -168,8 +168,8 @@ describe('course and video routes', () => {
     assert.equal(notFoundResult.body.error.code, 'COURSE_NOT_FOUND');
     assert.equal(deniedResult.status, 403);
     assert.equal(deniedResult.body.error.code, 'COURSE_ACCESS_DENIED');
-    assert.equal(studentRelaxedResult.status, 200);
-    assert.equal(studentRelaxedResult.body.data.course._id, ids.foreignDraftCourse);
+    assert.equal(studentDeniedResult.status, 403);
+    assert.equal(studentDeniedResult.body.error.code, 'COURSE_ACCESS_DENIED');
   });
 
   it('rejects students from creating courses', async () => {
@@ -503,8 +503,8 @@ describe('course and video routes', () => {
       { method: 'POST', token: studentToken },
     );
 
-    assert.equal(result.status, 404);
-    assert.equal(result.body.error.code, 'VIDEO_NOT_FOUND');
+    assert.equal(result.status, 403);
+    assert.equal(result.body.error.code, 'COURSE_ACCESS_DENIED');
   });
 
   it('rejects uploads from non-owner teachers', async () => {
@@ -600,7 +600,7 @@ describe('course and video routes', () => {
     assert.equal(result.body.error.code, 'INVALID_ID');
   });
 
-  it('allows students to read draft videos only when enrolled in the course', async () => {
+  it('rejects draft course content even when the student has an active enrollment', async () => {
     const enrolledVideoId = newObjectId();
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 
@@ -628,8 +628,8 @@ describe('course and video routes', () => {
       token: studentToken,
     });
 
-    assert.equal(result.status, 200);
-    assert.equal(result.body.data.video._id, enrolledVideoId);
+    assert.equal(result.status, 403);
+    assert.equal(result.body.error.code, 'COURSE_ACCESS_DENIED');
   });
 
   it('marks bridge courses and returns metadata-only bridge videos for QA-scope presentation', async () => {
@@ -944,7 +944,7 @@ describe('course and video routes', () => {
     assert.equal(result.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
   });
 
-  it('requires the processing secret for internal start and enforces strict transitions', async () => {
+  it('requires the processing secret and makes duplicate internal start idempotent', async () => {
     const missingSecretResult = await jsonRequest(
       serverContext.baseUrl,
       `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
@@ -972,7 +972,7 @@ describe('course and video routes', () => {
         },
       },
     );
-    const invalidTransitionResult = await jsonRequest(
+    const replayResult = await jsonRequest(
       serverContext.baseUrl,
       `/api/v1/internal/videos/${ids.teacherVideo}/processing/start`,
       {
@@ -990,8 +990,9 @@ describe('course and video routes', () => {
     assert.equal(successResult.body.data.processing.status, 'processing');
     assert.ok(successResult.body.data.processing.startedAt);
     assert.equal(successResult.body.data.processing.attemptCount, 1);
-    assert.equal(invalidTransitionResult.status, 409);
-    assert.equal(invalidTransitionResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+    assert.equal(replayResult.status, 200);
+    assert.equal(replayResult.body.data.processing.status, 'processing');
+    assert.equal(replayResult.body.data.processing.attemptCount, 1);
   });
 
   it('completes processing only from processing state and updates durationSec', async () => {
@@ -1099,7 +1100,7 @@ describe('course and video routes', () => {
         },
       },
     );
-    const invalidTransitionResult = await jsonRequest(
+    const replayFailResult = await jsonRequest(
       serverContext.baseUrl,
       `/api/v1/internal/videos/${ids.teacherVideo}/processing/fail`,
       {
@@ -1125,8 +1126,8 @@ describe('course and video routes', () => {
     assert.equal(processingFailResult.body.data.processing.status, 'failed');
     assert.equal(processingFailResult.body.data.processing.errorMessage, 'chunking failed');
     assert.ok(processingFailResult.body.data.processing.failedAt);
-    assert.equal(invalidTransitionResult.status, 409);
-    assert.equal(invalidTransitionResult.body.error.code, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+    assert.equal(replayFailResult.status, 200);
+    assert.equal(replayFailResult.body.data.processing.errorMessage, 'chunking failed');
   });
 
   it('教師可將自己的影片掛載到另一個自己的課程並出現在課程影片列表', async () => {
@@ -1253,6 +1254,54 @@ describe('course and video routes', () => {
     assert.equal(primaryDetachResult.body.error.code, 'VALIDATION_ERROR');
   });
 
+  it('解除掛載前 FAQ 清除失敗時不改關聯，重試成功後才移除', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+    store.faqs.push(
+      { _id: newObjectId(), courseId: ids.publishedCourse, question: 'Primary FAQ' },
+      { _id: newObjectId(), courseId: ids.teacherCourse, question: 'Attached FAQ' },
+    );
+    store.nextFaqDeleteManyError = new Error('simulated FAQ delete failure');
+
+    const failed = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/detach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(failed.status, 503);
+    assert.equal(failed.body.error.code, 'FAQ_INVALIDATION_FAILED');
+    assert.equal(
+      store.courses
+        .find((course) => course._id === ids.teacherCourse)
+        .videoIds.map(String)
+        .includes(ids.publishedVideo),
+      true,
+    );
+    assert.equal(store.faqs.length, 2);
+
+    const retried = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/detach`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(retried.status, 200);
+    assert.equal(
+      store.courses
+        .find((course) => course._id === ids.teacherCourse)
+        .videoIds.map(String)
+        .includes(ids.publishedVideo),
+      false,
+    );
+    assert.equal(store.faqs.length, 0);
+  });
+
   it('刪除影片會從所有掛載課程的 videoIds 移除引用', async () => {
     const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
 
@@ -1273,6 +1322,64 @@ describe('course and video routes', () => {
     const publishedCourse = store.courses.find((course) => course._id === ids.publishedCourse);
     assert.equal(teacherCourse.videoIds.map(String).includes(ids.publishedVideo), false);
     assert.equal(publishedCourse.videoIds.map(String).includes(ids.publishedVideo), false);
+  });
+
+  it('刪除影片前 FAQ 清除失敗時不做 cascade，重試成功後才刪除', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/videos/${ids.publishedVideo}/attach`,
+      { method: 'POST', token: teacherToken },
+    );
+    store.faqs.push(
+      { _id: newObjectId(), courseId: ids.publishedCourse, question: 'Primary FAQ' },
+      { _id: newObjectId(), courseId: ids.teacherCourse, question: 'Attached FAQ' },
+    );
+    const segmentCountBefore = store.videoSegments.filter(
+      (segment) => String(segment.videoId) === ids.publishedVideoExternal,
+    ).length;
+    store.nextFaqDeleteManyError = new Error('simulated FAQ delete failure');
+
+    const failed = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token: teacherToken },
+    );
+
+    assert.equal(failed.status, 503);
+    assert.equal(failed.body.error.code, 'FAQ_INVALIDATION_FAILED');
+    assert.ok(store.videos.some((video) => video._id === ids.publishedVideo));
+    assert.equal(
+      store.videoSegments.filter(
+        (segment) => String(segment.videoId) === ids.publishedVideoExternal,
+      ).length,
+      segmentCountBefore,
+    );
+    assert.equal(
+      store.courses
+        .find((course) => course._id === ids.teacherCourse)
+        .videoIds.map(String)
+        .includes(ids.publishedVideo),
+      true,
+    );
+    assert.equal(store.faqs.length, 2);
+
+    const retried = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token: teacherToken },
+    );
+
+    assert.equal(retried.status, 200);
+    assert.equal(store.videos.some((video) => video._id === ids.publishedVideo), false);
+    assert.equal(
+      store.videoSegments.some(
+        (segment) => String(segment.videoId) === ids.publishedVideoExternal,
+      ),
+      false,
+    );
+    assert.equal(store.faqs.length, 0);
   });
 
   it('學生可對掛載到已發布課程的影片記錄觀看進度', async () => {

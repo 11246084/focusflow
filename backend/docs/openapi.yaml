@@ -96,11 +96,11 @@ paths:
                             provider: gemini
                             model: gemini-embedding-2
                             dimension: 3072
-                            instructionVersion: gemini_embedding_2_search_v1
-                            generationVersion: text_search_generation_v1
+                            instructionVersion: gemini_embedding_2_asymmetric_retrieval_v2
+                            generationVersion: text_search_generation_v2
                             normalizationVersion: unit_l2_v1
-                            contractVersion: gemini_embedding_2_text_v1
-                            schemaVersion: gemini_embedding_2_text_v1
+                            contractVersion: gemini_embedding_2_text_v2
+                            schemaVersion: gemini_embedding_2_text_v2
                             taskType: null
                           dataContractCompatibility:
                             leaf:
@@ -108,21 +108,21 @@ paths:
                                 provider: gemini
                                 model: gemini-embedding-2
                                 dimension: 3072
-                                instructionVersion: gemini_embedding_2_search_v1
-                                generationVersion: text_search_generation_v1
+                                instructionVersion: gemini_embedding_2_asymmetric_retrieval_v2
+                                generationVersion: text_search_generation_v2
                                 normalizationVersion: unit_l2_v1
-                                contractVersion: gemini_embedding_2_text_v1
-                                schemaVersion: gemini_embedding_2_text_v1
+                                contractVersion: gemini_embedding_2_text_v2
+                                schemaVersion: gemini_embedding_2_text_v2
                                 taskType: null
                               active:
                                 provider: gemini
                                 model: gemini-embedding-2
                                 dimension: 3072
-                                instructionVersion: gemini_embedding_2_search_v1
-                                generationVersion: text_search_generation_v1
+                                instructionVersion: gemini_embedding_2_asymmetric_retrieval_v2
+                                generationVersion: text_search_generation_v2
                                 normalizationVersion: unit_l2_v1
-                                contractVersion: gemini_embedding_2_text_v1
-                                schemaVersion: gemini_embedding_2_text_v1
+                                contractVersion: gemini_embedding_2_text_v2
+                                schemaVersion: gemini_embedding_2_text_v2
                                 taskType: null
                               source: QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON
                               status: compatible
@@ -133,21 +133,21 @@ paths:
                                 provider: gemini
                                 model: gemini-embedding-2
                                 dimension: 3072
-                                instructionVersion: gemini_embedding_2_search_v1
-                                generationVersion: text_search_generation_v1
+                                instructionVersion: gemini_embedding_2_asymmetric_retrieval_v2
+                                generationVersion: text_search_generation_v2
                                 normalizationVersion: unit_l2_v1
-                                contractVersion: gemini_embedding_2_text_v1
-                                schemaVersion: gemini_embedding_2_text_v1
+                                contractVersion: gemini_embedding_2_text_v2
+                                schemaVersion: gemini_embedding_2_text_v2
                                 taskType: null
                               active:
                                 provider: gemini
                                 model: gemini-embedding-2
                                 dimension: 3072
-                                instructionVersion: gemini_embedding_2_search_v1
-                                generationVersion: text_search_generation_v1
+                                instructionVersion: gemini_embedding_2_asymmetric_retrieval_v2
+                                generationVersion: text_search_generation_v2
                                 normalizationVersion: unit_l2_v1
-                                contractVersion: gemini_embedding_2_text_v1
-                                schemaVersion: gemini_embedding_2_text_v1
+                                contractVersion: gemini_embedding_2_text_v2
+                                schemaVersion: gemini_embedding_2_text_v2
                                 taskType: null
                               source: QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON
                               status: compatible
@@ -607,6 +607,8 @@ paths:
       description: |
         依照目前登入者的角色與存取規則，回傳可見的課程列表。
 
+        student 僅回傳 `active Enrollment ∩ Course.status=published`；公開狀態本身不是學生存取授權。teacher / admin 依各自管理範圍回傳。
+
         這個回應在 Phase-1 是 `bridge-aware`，可能會帶出 `qaScopeOnly`、`bridgeMode` 等欄位，讓 frontend 或 demo 使用者可以區分一般課程與 QA-only 的 bridge 呈現。
       operationId: listCourses
       responses:
@@ -731,6 +733,96 @@ paths:
           $ref: '#/components/responses/CourseManageDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/courses/{courseId}/enrollments:
+    get:
+      tags:
+        - Courses
+      summary: 列出課程目前有效的修課學生
+      description: 僅限該課程 owner teacher 或 admin；只回 active（含 legacy 未設 status）Enrollment，不提供全站學生清單。
+      operationId: listCourseEnrollments
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 有效修課名單
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+    post:
+      tags:
+        - Courses
+      summary: 以完整 Email 指派學生修課
+      description: 僅限該課程 owner teacher 或 admin。重複指派為冪等操作；已撤銷的紀錄會重新啟用。不提供學生自助選課、邀請碼或一般註冊自動加入。
+      operationId: assignCourseEnrollment
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentAssignRequest'
+      responses:
+        '200':
+          description: 修課資格已建立或重新啟用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentItemResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          description: 課程或 active student 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/courses/{courseId}/enrollments/{studentId}:
+    delete:
+      tags:
+        - Courses
+      summary: 撤銷學生修課資格
+      description: 僅限該課程 owner teacher 或 admin。採 soft revoke；立即清除相符的 `User.activeCourseId` 與 LINE 對話上下文，但保留 Question / UsageLog 歷史。
+      operationId: revokeCourseEnrollment
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: 修課資格已撤銷
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentItemResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          description: 課程、學生或 active Enrollment 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/courses/{courseId}/videos:
     get:
       tags:
@@ -880,6 +972,165 @@ paths:
                     message: YouTube OAuth credentials are not configured.
                     error:
                       code: YOUTUBE_UPLOAD_NOT_CONFIGURED
+  /api/v1/courses/{courseId}/video-batches:
+    post:
+      tags:
+        - Videos
+      summary: 建立多影片批次
+      description: |
+        限 owner teacher 或 admin。一次接受 1 至 10 支影片，建立可恢復追蹤的 batchId；
+        `VIDEO_BATCH_PIPELINE_ENABLED=false` 時為 `processingMode=single_adapter`，每支影片沿用既有單片 STT flow；
+        開啟後改用 versioned batch request、manifest reconciliation、execution lease 與 checkpoint resume。
+        兩種模式都隔離單項失敗，不會回退已成功項目。
+      operationId: createVideoBatch
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - videos
+              properties:
+                videos:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: binary
+                titles:
+                  type: string
+                  description: JSON 字串陣列；提供時必須與 videos 數量一致。
+                  example: '["第一講", "第二講"]'
+      responses:
+        '201':
+          description: 批次已建立；個別項目可能已標為 failed。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoBatchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+    get:
+      tags:
+        - Videos
+      summary: 列出課程最近的影片批次
+      operationId: listCourseVideoBatches
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 最多回傳最近 20 個批次。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoBatchListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
+  /api/v1/video-batches/{batchId}:
+    get:
+      tags:
+        - Videos
+      summary: 取得影片批次即時進度
+      operationId: getVideoBatch
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: 成功取得批次與各項目狀態。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoBatchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          description: 批次不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/video-batches/{batchId}/retry:
+    post:
+      tags:
+        - Videos
+      summary: 重新處理批次中的單支失敗影片
+      description: |
+        限 owner teacher 或 admin，且目標影片必須屬於該批次並處於 failed。
+        `single_adapter` 會以仍存在且位於 `UPLOAD_DIR` 的本機來源重新啟動單片 worker；
+        `pipeline_batch` 會在既有 manifest 中只授予指定 videoId 一次額外嘗試並沿用 checkpoint。
+        同一 pipeline batch 尚有 worker 執行時會回 409，不會併發修改同一 manifest。
+      operationId: retryVideoBatchItem
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - videoId
+              properties:
+                videoId:
+                  $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: 單支影片已重新排入既有 processing flow。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoBatchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          description: 批次、批次項目或影片不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 影片不是 failed、批次仍在執行，或重試所需本機來源已不可用。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                batchRunning:
+                  value:
+                    success: false
+                    message: The video batch is still running. Retry after the current batch process finishes.
+                    error:
+                      code: VIDEO_BATCH_RETRY_IN_PROGRESS
+                sourceUnavailable:
+                  value:
+                    success: false
+                    message: The local source file is unavailable for processing retry.
+                    error:
+                      code: VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE
   /api/v1/courses/{courseId}/videos/youtube:
     post:
       tags:
@@ -1015,6 +1266,7 @@ paths:
       description: |
         僅限 teacher / admin。只能解除「掛載」引用；影片的主課程（`video.courseId`）不可解除，
         會回 `400 VALIDATION_ERROR`（主課程要移除影片請用 `DELETE /api/v1/videos/{videoId}`）。
+        mutation 前會先嚴格清除受影響課程的 FAQ；清除失敗時回 `503 FAQ_INVALIDATION_FAILED`，影片關聯維持不變，可安全重試。
       operationId: detachVideoFromCourse
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -1038,6 +1290,8 @@ paths:
           $ref: '#/components/responses/CourseAccessDeniedError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
+        '503':
+          $ref: '#/components/responses/FaqInvalidationFailedError'
   /api/v1/courses/{courseId}/faqs:
     get:
       tags:
@@ -1169,7 +1423,8 @@ paths:
         僅限 teacher（owner）/ admin 使用。
 
         刪除會 cascade 清理對應的 Segment / transcripts，並從 `course.videoIds` `$pull`；
-        保留 UsageLog / Question 歷史紀錄。
+        保留 UsageLog / Question 歷史紀錄。刪除前會先嚴格清除所有受影響課程的 FAQ；
+        清除失敗時回 `503 FAQ_INVALIDATION_FAILED`，且不開始影片、片段、逐字稿或課程關聯 mutation。
       operationId: deleteVideo
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -1193,6 +1448,8 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
+        '503':
+          $ref: '#/components/responses/FaqInvalidationFailedError'
   /api/v1/videos/{videoId}/processing:
     get:
       tags:
@@ -1251,6 +1508,59 @@ paths:
           $ref: '#/components/responses/VideoNotFoundError'
         '409':
           $ref: '#/components/responses/VideoProcessingTransitionInvalidError'
+  /api/v1/videos/{videoId}/youtube-upload/retry:
+    post:
+      tags:
+        - Videos
+      summary: 安全地重新排入失敗的 YouTube 上傳
+      description: |
+        只有 course owner teacher 或 admin 可呼叫。Backend 僅接受明確標記為 `retrySafe=true`、
+        尚未達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS` 且目前為 `failed` 的上傳。若傳輸可能已把 bytes
+        送到 YouTube，或啟動後發現 stale `uploading`，會回 409 並要求先到 YouTube Studio
+        人工確認，避免重複發布。成功排程不代表上傳已完成，呼叫端應再讀取 Video 狀態。
+      operationId: retryYouTubeUpload
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '202':
+          description: 已通過安全檢查並排入背景重試
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YouTubeUploadRetryResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: 已完成、狀態不允許、重試不安全或已達重試上限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                retryUnsafe:
+                  value:
+                    success: false
+                    message: This upload may already exist on YouTube; review YouTube Studio before retrying.
+                    error:
+                      code: YOUTUBE_UPLOAD_RETRY_UNSAFE
+                retryLimitReached:
+                  value:
+                    success: false
+                    message: YouTube upload retry limit reached.
+                    error:
+                      code: YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED
+        '503':
+          description: YouTube OAuth 設定不完整
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/qa/ask:
     post:
       tags:
@@ -1516,7 +1826,7 @@ paths:
       tags:
         - Admin
       summary: 刪除影片（後台 cascade）
-      description: 僅限 admin。cascade 清理對應 Segment / transcripts 並從 `course.videoIds` `$pull`；保留歷史紀錄。
+      description: 僅限 admin。與一般影片刪除共用 strict FAQ invalidation gate；FAQ 清除成功後才 cascade 清理 Segment / transcripts 並從所有 `course.videoIds` `$pull`，且保留歷史紀錄。
       operationId: adminDeleteVideo
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -1540,6 +1850,8 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
+        '503':
+          $ref: '#/components/responses/FaqInvalidationFailedError'
   /api/v1/admin/events:
     get:
       tags:
@@ -1855,6 +2167,14 @@ components:
       description: 目標影片的 MongoDB ObjectId。
       schema:
         $ref: '#/components/schemas/ObjectId'
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      description: 後端產生的影片批次 ID。
+      schema:
+        type: string
+        pattern: '^batch_[0-9]{14}_[a-f0-9]{8}$'
   responses:
     ValidationError:
       description: request payload 驗證失敗。
@@ -2023,6 +2343,20 @@ components:
                 message: Video not found.
                 error:
                   code: VIDEO_NOT_FOUND
+    FaqInvalidationFailedError:
+      description: mutation 前的 FAQ 快取清除失敗；影片與課程關聯尚未修改，可安全重試。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            faqInvalidationFailed:
+              summary: FAQ 清除失敗，mutation 未開始
+              value:
+                success: false
+                message: FAQ cache cleanup failed. No video changes were applied; please retry.
+                error:
+                  code: FAQ_INVALIDATION_FAILED
     VideoMetadataOnlyError:
       description: "`metadataOnly` 的 bridge video 不提供 processing state。"
       content:
@@ -2145,6 +2479,14 @@ components:
         - queued
         - processing
         - completed
+        - failed
+    VideoBatchStatus:
+      type: string
+      enum:
+        - creating
+        - processing
+        - completed
+        - partial
         - failed
     ReadinessStatus:
       description: runtime readiness 狀態列舉。
@@ -2408,6 +2750,85 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - $ref: '#/components/schemas/TeacherSummary'
+    EnrollmentStudent:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - isActive
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        isActive:
+          type: boolean
+    Enrollment:
+      type: object
+      required:
+        - id
+        - courseId
+        - status
+        - progress
+        - student
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        status:
+          type: string
+          enum: [active, revoked]
+        enrolledAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+        student:
+          $ref: '#/components/schemas/EnrollmentStudent'
+    EnrollmentAssignRequest:
+      type: object
+      required:
+        - studentEmail
+      properties:
+        studentEmail:
+          type: string
+          format: email
+          description: 已註冊 active student 的完整 Email；後端會 trim 並轉小寫後精確比對。
+    EnrollmentItemResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - enrollment
+              properties:
+                enrollment:
+                  $ref: '#/components/schemas/Enrollment'
+    EnrollmentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              required:
+                - enrollments
+              properties:
+                enrollments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Enrollment'
     UserRef:
       description: 巢狀回應中使用的最小使用者參考資料。
       type: object
@@ -2472,6 +2893,149 @@ components:
         attemptCount:
           type: integer
           minimum: 0
+    VideoBatchItem:
+      type: object
+      required:
+        - itemId
+        - originalName
+        - title
+        - uploadStatus
+        - status
+      properties:
+        itemId:
+          type: string
+        originalName:
+          type: string
+        title:
+          type: string
+        videoId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        uploadStatus:
+          type: string
+          enum: [uploaded, failed]
+        processingStatus:
+          anyOf:
+            - $ref: '#/components/schemas/VideoProcessingStatus'
+            - type: 'null'
+        status:
+          $ref: '#/components/schemas/VideoBatchStatus'
+        errorCode:
+          anyOf:
+            - type: string
+            - type: 'null'
+        errorMessage:
+          anyOf:
+            - type: string
+            - type: 'null'
+        attemptCount:
+          type: integer
+          minimum: 0
+    VideoBatch:
+      type: object
+      required:
+        - batchId
+        - courseId
+        - createdBy
+        - status
+        - processingMode
+        - counts
+        - progressPercent
+        - items
+      properties:
+        batchId:
+          type: string
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        createdBy:
+          $ref: '#/components/schemas/ObjectId'
+        status:
+          $ref: '#/components/schemas/VideoBatchStatus'
+        processingMode:
+          type: string
+          enum:
+            - single_adapter
+            - pipeline_batch
+        counts:
+          type: object
+          required: [total, completed, failed, processing]
+          properties:
+            total: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }
+            processing: { type: integer, minimum: 0 }
+        progressPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoBatchItem'
+        createdAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    YouTubeUploadLifecycle:
+      description: YouTube 自動上傳、有限重試與本地來源清理的持久化狀態。
+      type: object
+      required:
+        - status
+        - attemptCount
+        - retrySafe
+      properties:
+        status:
+          type: string
+          enum:
+            - uploading
+            - uploaded
+            - failed
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+        uploadedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        attemptCount:
+          type: integer
+          minimum: 0
+        lastAttemptAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        failedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        retrySafe:
+          type: boolean
+          description: 僅在確認尚未開始傳送影片 bytes 時才會是 true。
+        nextRetryAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        localCleanupAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        localCleanupError:
+          anyOf:
+            - type: string
+            - type: 'null'
     Video:
       description: |
         影片回應主體。
@@ -2581,6 +3145,10 @@ components:
         youtubeVideoId:
           anyOf:
             - type: string
+            - type: 'null'
+        youtubeUpload:
+          anyOf:
+            - $ref: '#/components/schemas/YouTubeUploadLifecycle'
             - type: 'null'
         createdAt:
           anyOf:
@@ -3024,20 +3592,35 @@ components:
           type: boolean
     YouTubeUploadRuntimeSnapshot:
       description: >-
-        YouTube 自動上傳與「刪除時轉 private」的憑證診斷快照。狀態只保留 process 內最後一次結果，不持久化。
+        YouTube 自動上傳、有限恢復、本地來源清理與「刪除時轉 private」的診斷快照。狀態只保留 process 內最後一次結果，不持久化。
         server 啟動時會做一次非阻塞 OAuth token 交換，因此開機後即有 `credentialCheck` 可看（只換 access token，不消耗 YouTube 配額）。
       type: object
       required:
         - uploadEnabled
+        - recoveryEnabled
+        - cleanupEnabled
+        - maxAttempts
         - privatizeOnDeleteEnabled
         - credentialsConfigured
         - readiness
         - credentialCheck
         - lastPrivatize
+        - lastRecovery
+        - lastCleanup
       properties:
         uploadEnabled:
           type: boolean
           description: "`YOUTUBE_UPLOAD_ENABLED`"
+        recoveryEnabled:
+          type: boolean
+          description: "`YOUTUBE_UPLOAD_RECOVERY_ENABLED`；預設 false。"
+        cleanupEnabled:
+          type: boolean
+          description: "`YOUTUBE_UPLOAD_CLEANUP_ENABLED`；預設 false。"
+        maxAttempts:
+          type: integer
+          minimum: 1
+          description: 單支影片允許的上傳總嘗試次數。
         privatizeOnDeleteEnabled:
           type: boolean
           description: "`YOUTUBE_PRIVATIZE_ON_DELETE`"
@@ -3107,6 +3690,61 @@ components:
             - lastError
           properties:
             youtubeVideoId:
+              anyOf:
+                - type: string
+                - type: 'null'
+            lastAttemptAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastSuccessAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastError:
+              anyOf:
+                - type: string
+                - type: 'null'
+        lastRecovery:
+          type: object
+          required:
+            - lastAttemptAt
+            - lastSuccessAt
+            - lastError
+            - recoveredCount
+            - quarantinedCount
+          properties:
+            lastAttemptAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastSuccessAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            lastError:
+              anyOf:
+                - type: string
+                - type: 'null'
+            recoveredCount:
+              type: integer
+              minimum: 0
+            quarantinedCount:
+              type: integer
+              minimum: 0
+        lastCleanup:
+          type: object
+          required:
+            - videoId
+            - lastAttemptAt
+            - lastSuccessAt
+            - lastError
+          properties:
+            videoId:
               anyOf:
                 - type: string
                 - type: 'null'
@@ -4196,6 +4834,54 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/VideoProcessingPayload'
+    VideoBatchResponse:
+      description: 單一影片批次端點的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [batch]
+              properties:
+                batch:
+                  $ref: '#/components/schemas/VideoBatch'
+    VideoBatchListResponse:
+      description: 影片批次列表成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [batches]
+              properties:
+                batches:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VideoBatch'
+    YouTubeUploadRetryResponse:
+      description: YouTube 上傳重試已排程的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - videoId
+                - status
+              properties:
+                videoId:
+                  $ref: '#/components/schemas/ObjectId'
+                status:
+                  type: string
+                  enum:
+                    - retry_scheduled
     QaAskResponse:
       description: "`/api/v1/qa/ask` 的成功回應 envelope。"
       allOf:

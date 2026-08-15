@@ -2,6 +2,11 @@ const assert = require('node:assert/strict');
 const { after, before, beforeEach, describe, it } = require('node:test');
 const { env, startServer, stopServer, jsonRequest } = require('./helpers/backendTestHarness');
 const { resetYouTubeUploadState } = require('../src/services/youtubeUpload.service');
+const {
+  contractHash,
+  resetHierarchicalDataReadinessForTests,
+  setHierarchicalDataReadinessForTests,
+} = require('../src/services/hierarchicalDataReadiness.service');
 
 function resetRuntimeEnv() {
   env.qaQueryEmbeddingProvider = 'mock';
@@ -38,6 +43,7 @@ function resetRuntimeEnv() {
   env.youtubeUploadAccessToken = '';
   // Reset process-local diagnostics so route assertions do not depend on test execution order.
   resetYouTubeUploadState();
+  resetHierarchicalDataReadinessForTests();
 }
 
 describe('health routes', () => {
@@ -168,8 +174,8 @@ describe('health routes', () => {
     env.qaQueryEmbeddingProvider = 'gemini';
     env.geminiApiKey = 'test-gemini-key';
     env.hierarchicalRetrievalEnabled = true;
-    env.qaActiveLeafEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2', dimension: 3072, instructionVersion: 'wrong', generationVersion: 'text_search_generation_v1', normalizationVersion: 'unit_l2_v1', taskType: null });
-    env.qaActiveParentEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2-preview', dimension: 3072, instructionVersion: 'gemini_embedding_2_search_v1', generationVersion: 'text_search_generation_v1', normalizationVersion: 'unit_l2_v1', taskType: 'RETRIEVAL_DOCUMENT' });
+    env.qaActiveLeafEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2', dimension: 3072, instructionVersion: 'wrong', generationVersion: 'text_search_generation_v2', normalizationVersion: 'unit_l2_v1', taskType: null });
+    env.qaActiveParentEmbeddingContractJson = JSON.stringify({ provider: 'gemini', model: 'gemini-embedding-2-preview', dimension: 3072, instructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2', generationVersion: 'text_search_generation_v2', normalizationVersion: 'unit_l2_v1', taskType: 'RETRIEVAL_DOCUMENT' });
     const result = await jsonRequest(serverContext.baseUrl, '/health');
     assert.equal(result.body.data.runtime.qa.readiness, 'degraded');
     assert.deepEqual(result.body.data.runtime.qa.dataContractCompatibility.leaf.mismatches, [
@@ -209,10 +215,10 @@ describe('health routes', () => {
       provider: 'gemini',
       model: 'gemini-embedding-2',
       dimension: 3072,
-      instructionVersion: 'gemini_embedding_2_search_v1',
-      generationVersion: 'text_search_generation_v1',
+      instructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+      generationVersion: 'text_search_generation_v2',
       normalizationVersion: 'unit_l2_v1',
-      contractVersion: 'gemini_embedding_2_text_v1',
+      contractVersion: 'gemini_embedding_2_text_v2',
       taskType: null,
     });
 
@@ -228,11 +234,11 @@ describe('health routes', () => {
       provider: 'gemini',
       model: 'gemini-embedding-2',
       dimension: 3072,
-      instructionVersion: 'gemini_embedding_2_search_v1',
-      generationVersion: 'text_search_generation_v1',
+      instructionVersion: 'gemini_embedding_2_asymmetric_retrieval_v2',
+      generationVersion: 'text_search_generation_v2',
       normalizationVersion: 'unit_l2_v1',
-      contractVersion: 'gemini_embedding_2_text_v1',
-      schemaVersion: 'gemini_embedding_2_text_v1',
+      contractVersion: 'gemini_embedding_2_text_v2',
+      schemaVersion: 'gemini_embedding_2_text_v2',
       taskType: null,
     };
     env.qaQueryEmbeddingProvider = 'gemini';
@@ -241,6 +247,10 @@ describe('health routes', () => {
     env.hierarchicalRetrievalFallbackToLeaf = false;
     env.qaActiveLeafEmbeddingContractJson = JSON.stringify(stableContract);
     env.qaActiveParentEmbeddingContractJson = JSON.stringify(stableContract);
+    setHierarchicalDataReadinessForTests({
+      status: 'verified', ready: true, checkedAt: new Date(0).toISOString(), source: 'test',
+      reason: null, failures: [], evidence: { contractHash: contractHash(stableContract) },
+    });
 
     const result = await jsonRequest(serverContext.baseUrl, '/health');
 
@@ -248,6 +258,7 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.qa.readyForAsk, true);
     assert.equal(result.body.data.runtime.qa.leafQueryEmbeddingCompatible, true);
     assert.equal(result.body.data.runtime.qa.parentQueryEmbeddingCompatible, true);
+    assert.equal(result.body.data.runtime.qa.hierarchicalActiveDataCompatible, true);
     assert.equal(result.body.data.runtime.qa.dataContractCompatibility.leaf.status, 'compatible');
     assert.equal(result.body.data.runtime.qa.dataContractCompatibility.parent.status, 'compatible');
   });

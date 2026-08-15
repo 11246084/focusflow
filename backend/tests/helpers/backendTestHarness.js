@@ -20,6 +20,7 @@ const env = require('../../src/config/env');
 const User = require('../../src/models/user.model');
 const Course = require('../../src/models/course.model');
 const Video = require('../../src/models/video.model');
+const VideoBatch = require('../../src/models/videoBatch.model');
 const Enrollment = require('../../src/models/enrollment.model');
 const VideoSegment = require('../../src/models/videoSegment.model');
 const VideoSegmentVideo = require('../../src/models/videoSegmentVideo.model');
@@ -39,6 +40,7 @@ const store = {
   users: [],
   courses: [],
   videos: [],
+  videoBatches: [],
   enrollments: [],
   videoSegments: [],
   videoSegmentVideos: [],
@@ -682,6 +684,27 @@ function installModelStubs() {
     return video;
   };
 
+  VideoBatch.create = async (payload) => {
+    const batch = {
+      _id: payload._id || newObjectId(),
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...payload,
+    };
+    store.videoBatches.push(batch);
+    return batch;
+  };
+  VideoBatch.findOne = async (query = {}) => store.videoBatches.find((item) => matchesQuery(item, query)) || null;
+  VideoBatch.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
+    store.videoBatches,
+    query,
+    update,
+    options,
+  );
+  VideoBatch.find = (query = {}) => createQuery(
+    store.videoBatches.filter((item) => matchesQuery(item, query)),
+  );
+
   Enrollment.find = (query = {}) => createQuery(
     store.enrollments.filter((item) => matchesQuery(item, query)),
     {
@@ -715,12 +738,16 @@ function installModelStubs() {
     return enrollment;
   };
   Enrollment.aggregate = async (pipeline = []) => {
+    const match = pipeline.find((stage) => stage.$match)?.$match;
     const group = pipeline.find((stage) => stage.$group)?.$group;
-    if (!group) return [...store.enrollments];
+    const source = match
+      ? store.enrollments.filter((item) => matchesQuery(item, match))
+      : store.enrollments;
+    if (!group) return [...source];
 
     const grouped = new Map();
     const groupPath = String(group._id || '').replace(/^\$/, '');
-    for (const enrollment of store.enrollments) {
+    for (const enrollment of source) {
       const key = getNested(enrollment, groupPath);
       const normalizedKey = normalizeValue(key);
       const current = grouped.get(normalizedKey) || { _id: key };
@@ -1006,6 +1033,7 @@ function resetStore() {
   store.users.length = 0;
   store.courses.length = 0;
   store.videos.length = 0;
+  store.videoBatches.length = 0;
   store.enrollments.length = 0;
   store.videoSegments.length = 0;
   store.videoSegmentVideos.length = 0;
@@ -1141,6 +1169,7 @@ function resetStore() {
     {
       _id: ids.publishedVideo,
       courseId: ids.publishedCourse,
+      status: 'active',
       title: 'Published Video',
       sourceType: 'upload',
       sourceUrl: '/uploads/published.mp4',
@@ -1176,6 +1205,7 @@ function resetStore() {
       _id: newObjectId(),
       studentId: ids.student,
       courseId: ids.enrolledDraftCourse,
+      status: 'active',
       progress: 5,
       lineNotify: false,
     },
@@ -1311,6 +1341,24 @@ function createVideoUploadForm({
   return formData;
 }
 
+function createVideoBatchUploadForm({ files, titles } = {}) {
+  const entries = files || [
+    { filename: `${TEST_UPLOAD_PREFIX}batch-1.mp4`, contents: 'batch video one' },
+    { filename: `${TEST_UPLOAD_PREFIX}batch-2.mp4`, contents: 'batch video two' },
+  ];
+  const formData = new FormData();
+  const normalizedTitles = titles || entries.map((entry, index) => entry.title || `Batch video ${index + 1}`);
+  formData.append('titles', JSON.stringify(normalizedTitles));
+  for (const entry of entries) {
+    formData.append(
+      'videos',
+      new Blob([entry.contents || 'test video binary'], { type: entry.type || 'video/mp4' }),
+      entry.filename,
+    );
+  }
+  return formData;
+}
+
 function cleanupTestUploads() {
   if (!fs.existsSync(uploadsDir)) {
     return;
@@ -1356,6 +1404,7 @@ module.exports = {
   loginAs,
   postLineWebhook,
   createVideoUploadForm,
+  createVideoBatchUploadForm,
   cleanupTestUploads,
   cleanupTestAvatars,
   createProcessingState,

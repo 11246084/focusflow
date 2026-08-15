@@ -21,6 +21,7 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 | [docs/current-status.md](docs/current-status.md) | 跨服務最新進度與缺口 |
 | [backend/docs/current-state.md](backend/docs/current-state.md) | Backend runtime、DB 實況、已知限制 |
 | [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | Phase 2 QA / Video / Clip / YouTube 回傳語意 |
+| [docs/ai-code-understanding-guide.md](docs/ai-code-understanding-guide.md) | AI Pipeline、embedding、cosine、QA 與 citation 的教授說明版 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 架構、資料流與 schema 邊界 |
 | [backend/docs/openapi.yaml](backend/docs/openapi.yaml) | OpenAPI 規格檔，執行時掛在 `/docs` |
 
@@ -176,8 +177,8 @@ python src/main.py --overwrite
 |------|------|
 | Auth | `POST /api/v1/auth/login`、`POST /api/v1/auth/register`、`GET /api/v1/auth/me`、`PUT/GET /api/v1/auth/me/avatar` |
 | Notifications | `GET /api/v1/notifications`、`PATCH /api/v1/notifications/:notificationId/read`、`POST /api/v1/notifications/read-all` |
-| Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId` |
-| Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry` |
+| Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`、`GET/POST /api/v1/courses/:courseId/enrollments`、`DELETE /api/v1/courses/:courseId/enrollments/:studentId` |
+| Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`POST /api/v1/videos/:videoId/youtube-upload/retry`、`POST/GET /api/v1/courses/:courseId/video-batches`、`GET /api/v1/video-batches/:batchId`、`POST /api/v1/video-batches/:batchId/retry` |
 | QA | `POST /api/v1/qa/ask`、`GET/DELETE /api/v1/courses/:courseId/faqs`（常見問題／FAQ 快取） |
 | LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token` |
 | Stats | `GET /api/v1/stats/teacher`、`GET /api/v1/stats/student` |
@@ -239,6 +240,7 @@ LINE Bot 指令：
 - AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發；`mongodb_uploader._target_video_exists()` 在寫入前檢查 Video record，避免 STT 寫入時 race condition 產生孤兒 segments。
 - `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫；2026-05-07 起刪除 Video / Course 不再連動刪 UsageLog / Question（保留歷史），改由 display 層分流：老師 Top Segments 指向已刪影片時 fallback 到課程現存影片、課程無現存影片時標「內容已下架」（2026-07-12 修正，先前會整列消失）；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge。
 - 影片可掛載多課程（2026-07-12，P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；QA / 播放 / watched 進度都支援掛載課程。
+- Enrollment 採嚴格授權（2026-08-12）：student 只有在 `active Enrollment ∩ published Course` 時才能使用課程內容、QA、Shorts、通知與 LINE；owner teacher／admin 可透過 `/api/v1/courses/:courseId/enrollments` 以完整 Email 指派、列出或 soft revoke。沒有自助選課、邀請碼或一般註冊自動加入。
 - FAQ 快取／常見問題資料庫（2026-07-13）：重複提問直接命中 `faqs` collection 快取，跳過 embedding／向量搜尋／LLM 生成（文字完全相同零 token；語意相似度 ≥ 0.95 亦命中）。只快取 runtime ready 且無對話歷史的回答，影片刪除／重新處理完成自動清該課程快取；`GET /api/v1/courses/:courseId/faqs` 可取常見問題排行、`DELETE` 同路徑（teacher/admin）手動清空；env `FAQ_CACHE_ENABLED`（預設開）。
 - 教師可刪自己的課程：`DELETE /api/v1/courses/:id` 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`。
 - QA 拒答：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程。
@@ -248,7 +250,7 @@ LINE Bot 指令：
 - QA cost guardrails 已接入：可用 `QA_MONTHLY_TOKEN_BUDGET` / `QA_USER_MONTHLY_TOKEN_QUOTA` / `QA_ESTIMATED_TOKENS_PER_ASK` 設定全站與單一使用者月 quota，超額時回 `429 QA_QUOTA_EXCEEDED`，`/health.runtime.qa.costControl` 可觀察設定。
 - 共享 Atlas 的 `text_embedding_index` 已於 2026-05-23 驗證 READY；若共享 DB 或 index 被重置，仍需以 `/health` 現況為準。
 - `video_segments_video` 已接入初版 course-scoped visual citation retrieval；目前只回影像片段 citation / timestamp / `clipPath`，尚未成為 caption QA 或正式 clip publishing source。
-- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；playlist 管理與自動清 `backend/uploads/` 尚未做。
+- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；2026-08-12 補上預設關閉的有限 recovery 與安全本地清理，playlist 管理仍未做。
 - CORS 已支援 `ALLOWED_ORIGINS` 逗號分隔白名單；未設定時維持開發期相容，正式部署需填入實際前端 origin。
 
 更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。

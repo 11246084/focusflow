@@ -260,13 +260,13 @@ YouTube metadata 同步只使用 `YOUTUBE_API_KEY` 呼叫 `videos.list`（每批
 目前有兩條路徑：
 
 - YouTube URL MVP：教師先手動上傳 YouTube，再貼 URL，後端保存 `youtubeVideoId` / `videoUrl` 並觸發 STT。
-- 本機檔案 auto-upload skeleton：教師上傳本地影片後，若 `YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會先用 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，再把 `youtubeVideoId` / `videoUrl` 寫回同一筆 `Video`。
+- 本機檔案 auto-upload：教師上傳本地影片後，若 `YOUTUBE_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會用 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，再把 `youtubeVideoId` / `videoUrl` 寫回同一筆 `Video`。
 
 Phase 2 自動上傳流程定義如下：
 
 1. 教師上傳本地影片到 backend。
 2. 後端先完成同課程 mp4 SHA-256 去重。
-3. 若 `YOUTUBE_AUTO_UPLOAD_ENABLED=true`，用 FocusFlow 系統 YouTube 帳號上傳。
+3. 若 `YOUTUBE_UPLOAD_ENABLED=true`，用 FocusFlow 系統 YouTube 帳號上傳。
 4. YouTube 回傳 `youtubeVideoId` 後，後端建立 `Video`，狀態為 `queued`，並保存：
    - `youtubeVideoId`
    - `videoUrl=https://www.youtube.com/watch?v=<id>`
@@ -275,18 +275,25 @@ Phase 2 自動上傳流程定義如下：
    - `videoSource=youtube`
    - `YOUTUBE_UPLOAD_PRIVACY_STATUS=unlisted`
 5. STT / embedding processing 繼續以本地暫存檔接續，避免重新下載剛上傳的影片。
-6. 只有在 YouTube 上傳成功、STT/embedding 已完成或可重試狀態明確後，才清理 `backend/uploads` 原始檔。
+6. 只有在 YouTube 上傳成功且 STT/embedding 已完成後，才允許清理 `backend/uploads` 原始檔；清理前先把播放欄位切到 YouTube，並拒絕 `UPLOAD_DIR` 外路徑或仍被其他 Video 共用的檔案。
+7. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。啟動後發現 stale `uploading` 也只隔離並要求人工確認 YouTube Studio，不自動重送。
 
 建議環境變數：
 
 ```env
-YOUTUBE_AUTO_UPLOAD_ENABLED=false
-YOUTUBE_OAUTH_CLIENT_ID=
-YOUTUBE_OAUTH_CLIENT_SECRET=
-YOUTUBE_OAUTH_REFRESH_TOKEN=
+YOUTUBE_UPLOAD_ENABLED=false
+YOUTUBE_CLIENT_ID=
+YOUTUBE_CLIENT_SECRET=
+YOUTUBE_REFRESH_TOKEN=
 YOUTUBE_UPLOAD_ACCESS_TOKEN=
-YOUTUBE_UPLOAD_PRIVACY_STATUS=unlisted
+YOUTUBE_UPLOAD_PRIVACY=unlisted
 YOUTUBE_UPLOAD_CATEGORY_ID=27
+YOUTUBE_UPLOAD_RECOVERY_ENABLED=false
+YOUTUBE_UPLOAD_MAX_ATTEMPTS=3
+YOUTUBE_UPLOAD_RETRY_BASE_MS=60000
+YOUTUBE_UPLOAD_RECOVERY_BATCH_SIZE=5
+YOUTUBE_UPLOAD_STUCK_AFTER_MS=900000
+YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
 ```
 
 預設策略：
@@ -294,7 +301,7 @@ YOUTUBE_UPLOAD_CATEGORY_ID=27
 - `visibility`：`unlisted`，避免公開發布未審核影片。
 - Shorts：不要自動判定；由 Clip/Shorts job 決定是否發布為 Shorts。
 - playlist：可選，等課程/教師分流策略定版後再啟用。
-- uploads 清理：預設不清本地原始檔，等 YouTube/cloud + processing retry 策略穩定後再開。
+- recovery 與 uploads 清理：兩個 feature flag 都預設關閉；先觀察 `/health.runtime.youtubeUpload` 與持久化的 `youtubeUpload` 狀態，再由部署者明確開啟。
 
 ## 5. 已完成與待定版
 
@@ -305,6 +312,7 @@ YOUTUBE_UPLOAD_CATEGORY_ID=27
 - UsageLog / Question 歷史保留，dashboard display 分流。
 - 同課程重複 YouTube URL 與相同 mp4 SHA-256 防呆。
 - 本機檔案 YouTube auto-upload adapter：OAuth refresh token、resumable upload、`youtubeVideoId` / `videoUrl` 寫回路徑與測試。
+- YouTube 上傳有限恢復與安全清理：`POST /videos/:videoId/youtube-upload/retry`、pre-byte-only retry、stale upload quarantine、attempt/backoff 狀態、完成後 path/shared-reference guard，以及 health diagnostics；recovery/cleanup 預設關閉。
 - `db:ensure-questions` / `db:backfill-questions` scripts 補齊。
 - `/health.runtime.qa.costControl` 監控 snapshot，顯示 guardrails 是否啟用與 UTC 月重置口徑。
 - `/health.runtime.multimodal` 監控 snapshot，顯示 `video_segments_video` / `video_embedding_index` 狀態與目前 QA 接入邊界。
@@ -315,7 +323,7 @@ YOUTUBE_UPLOAD_CATEGORY_ID=27
 
 待定版：
 
-- FocusFlow Google 帳號 OAuth refresh token 與一次真實 YouTube upload smoke。
+- recovery／cleanup feature flag 開啟後的正式環境長期觀察（本輪沒有呼叫 YouTube live API，也沒有清正式檔案）。
 - 跨課程共用同一支影片的多對多資料模型。
 - mixed `videos` collection 是否拆分為 app-owned / pipeline-owned 實體 collection。
 - Clip candidate/job、自動選片、FFmpeg／字幕、Short 發布與教師管理 endpoints/background workers。

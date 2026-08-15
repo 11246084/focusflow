@@ -142,6 +142,17 @@ module.exports = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
+  // Batch orchestration is opt-in so the existing single-video adapter remains
+  // the safe fallback until the Pipeline handoff is enabled deliberately.
+  videoBatchPipelineEnabled: parseBoolean(
+    process.env.VIDEO_BATCH_PIPELINE_ENABLED,
+    false,
+    'VIDEO_BATCH_PIPELINE_ENABLED',
+  ),
+  videoBatchReconcileIntervalMs: parseNonNegativeNumber(
+    process.env.VIDEO_BATCH_RECONCILE_INTERVAL_MS,
+    60000,
+  ),
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
   shortsSyncIntervalMs: parseNonNegativeNumber(process.env.SHORTS_SYNC_INTERVAL_MS, 600000),
   youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
@@ -161,6 +172,28 @@ module.exports = {
     || process.env.YOUTUBE_UPLOAD_PRIVACY_STATUS
     || 'unlisted',
   youtubeUploadCategoryId: process.env.YOUTUBE_UPLOAD_CATEGORY_ID || '27',
+  // Recovery and local cleanup are separate kill switches: deployments may
+  // ship the code without automatically retrying uploads or deleting files.
+  youtubeUploadMaxAttempts: parsePositiveInteger(
+    process.env.YOUTUBE_UPLOAD_MAX_ATTEMPTS,
+    3,
+    'YOUTUBE_UPLOAD_MAX_ATTEMPTS',
+  ),
+  youtubeUploadRetryBaseMs: parseNonNegativeNumber(process.env.YOUTUBE_UPLOAD_RETRY_BASE_MS, 60000),
+  youtubeUploadRecoveryEnabled:
+    String(process.env.YOUTUBE_UPLOAD_RECOVERY_ENABLED || 'false').toLowerCase() === 'true',
+  youtubeUploadRecoveryBatchSize: parsePositiveInteger(
+    process.env.YOUTUBE_UPLOAD_RECOVERY_BATCH_SIZE,
+    5,
+    'YOUTUBE_UPLOAD_RECOVERY_BATCH_SIZE',
+  ),
+  youtubeUploadStuckAfterMs: parsePositiveInteger(
+    process.env.YOUTUBE_UPLOAD_STUCK_AFTER_MS,
+    900000,
+    'YOUTUBE_UPLOAD_STUCK_AFTER_MS',
+  ),
+  youtubeUploadCleanupEnabled:
+    String(process.env.YOUTUBE_UPLOAD_CLEANUP_ENABLED || 'false').toLowerCase() === 'true',
   // 刪除影片時把 FocusFlow 自己上傳的 YouTube 影片轉為 private（不刪除，可還原）。
   // 需要 `youtube.force-ssl` scope 的 refresh token；只有憑證齊備時才會實際執行。
   youtubePrivatizeOnDelete:

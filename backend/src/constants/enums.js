@@ -10,6 +10,12 @@ const COURSE_STATUSES = {
   ARCHIVED: 'archived',
 };
 
+// Revocation is retained as history instead of deleting the relationship.
+const ENROLLMENT_STATUSES = {
+  ACTIVE: 'active',
+  REVOKED: 'revoked',
+};
+
 const VIDEO_SOURCE_TYPES = {
   UPLOAD: 'upload',
   EXTERNAL_URL: 'external_url',
@@ -20,6 +26,21 @@ const VIDEO_PROCESSING_STATUSES = {
   QUEUED: 'queued',
   PROCESSING: 'processing',
   COMPLETED: 'completed',
+  FAILED: 'failed',
+};
+
+// Batch state describes the aggregate; each item keeps its own upload and
+// processing state so partial success remains observable and retryable.
+const VIDEO_BATCH_STATUSES = {
+  CREATING: 'creating',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  PARTIAL: 'partial',
+  FAILED: 'failed',
+};
+
+const VIDEO_BATCH_UPLOAD_STATUSES = {
+  UPLOADED: 'uploaded',
   FAILED: 'failed',
 };
 
@@ -79,10 +100,16 @@ module.exports = {
   USER_ROLE_VALUES: Object.values(USER_ROLES),
   COURSE_STATUSES,
   COURSE_STATUS_VALUES: Object.values(COURSE_STATUSES),
+  ENROLLMENT_STATUSES,
+  ENROLLMENT_STATUS_VALUES: Object.values(ENROLLMENT_STATUSES),
   VIDEO_SOURCE_TYPES,
   VIDEO_SOURCE_TYPE_VALUES: Object.values(VIDEO_SOURCE_TYPES),
   VIDEO_PROCESSING_STATUSES,
   VIDEO_PROCESSING_STATUS_VALUES: Object.values(VIDEO_PROCESSING_STATUSES),
+  VIDEO_BATCH_STATUSES,
+  VIDEO_BATCH_STATUS_VALUES: Object.values(VIDEO_BATCH_STATUSES),
+  VIDEO_BATCH_UPLOAD_STATUSES,
+  VIDEO_BATCH_UPLOAD_STATUS_VALUES: Object.values(VIDEO_BATCH_UPLOAD_STATUSES),
   YOUTUBE_UPLOAD_STATUSES,
   YOUTUBE_UPLOAD_STATUS_VALUES: Object.values(YOUTUBE_UPLOAD_STATUSES),
   SHORT_ASSET_STATUSES,

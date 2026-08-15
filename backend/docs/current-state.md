@@ -1,6 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-08-08（Backend query embedding 已切換到可設定的 stable `gemini-embedding-2` contract，補上 instruction／generation／normalization／active data compatibility diagnostics 與測試；Pipeline／Database 既有 vectors 尚未重建或 live 確認，Atlas readiness 不得只由 3072 維判定，Parent uploader 與 live Parent E2E 尚未完成，Gate 維持 false）
+最後更新：2026-08-13（補齊多影片 batch execution lease、Backend restart resume／manifest reconciliation、冪等 processing webhook 與隔離 Mongo 重啟 E2E；另修正 startup legacy migration 因 Mongoose strictQuery 可能變成全表更新，以及 demo seed natural key 遺失時無法重啟。真實 STT/Gemini 與正式批次部署尚未驗證，`VIDEO_BATCH_PIPELINE_ENABLED` 維持 false）
+
+同日另一項：補齊 stable Leaf artifact／uploader metadata、Parent active generation filter 與啟動後唯讀 active-data readiness；隔離 E2E 強制使用單一 `read` 角色的專用 URI，拒絕一般 `MONGODB_URI` 與 `atlasAdmin`／`readWrite`。部署 JSON 宣告不能單獨放行 hierarchy。Shared Atlas data/index、live Gemini 與 Parent live E2E 尚未驗證，Gate 維持 false。
 
 同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉 private；並以 `youtube.force-ssl` refresh token 完成 live 端對端驗證：上傳出現在頻道、系統刪除後 YouTube Studio 顯示「私人」）
 
@@ -47,12 +49,16 @@
 - YouTube URL MVP 已接入：教師可貼 YouTube URL 建立影片，STT 用 `yt-dlp` 下載音訊，學生端用 YouTube iframe 播放，QA / LINE 可產生 `https://youtu.be/<id>?t=<sec>` 跳轉連結
 - YouTube auto-upload adapter 已接入：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案上傳會先由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`，再用本機暫存檔接續既有 STT flow；2026-08-02 已用真實 OAuth 憑證（`youtube.force-ssl`）完成 live upload 驗證
 - 刪除轉 private（2026-08-02，教授決議「轉 private 而非直接刪除」）：`deleteVideo` 與 `deleteCourse` 完成 DB 刪除後，呼叫 `youtubeUpload.privatizeVideoOnDelete` / `privatizeVideosOnDelete` 把影片改為 private。原因是 unlisted 影片只要有連結就能播，只清 DB 會讓學生舊連結與 LINE timestamp link 仍然有效。邊界：只處理 `youtubeUpload.status === 'uploaded'`（FocusFlow 自家頻道）的影片，教師貼 URL 的他人影片不碰；`videos.update` 前先 `videos.list` 讀回 status 只覆寫 `privacyStatus`（不帶 `publishAt`，避免排程公開把影片救回公開）；失敗只記 log 不中斷刪除。需 `youtube.force-ssl` scope 的 refresh token，舊 upload-only token 會被 403 拒絕；`YOUTUBE_PRIVATIZE_ON_DELETE=false` 可停用
+- YouTube recovery／安全清理（2026-08-12）：`videos.youtubeUpload` 保存 attempt、失敗時間、`retrySafe`、下一次重試與本地清理結果；只有確認尚未傳送影片 bytes 的失敗才會有限重試，可能已送出 bytes 或 stale `uploading` 會隔離並要求人工確認 YouTube Studio。Owner teacher/admin 可呼叫 `POST /api/v1/videos/:videoId/youtube-upload/retry`。清理只在 YouTube upload + processing 都完成、檔案位於 `UPLOAD_DIR` 且無其他 Video 共用時執行，並先切換播放來源。`YOUTUBE_UPLOAD_RECOVERY_ENABLED` 與 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 都預設 false；本輪只做 mock/in-memory 測試，沒有新的 live API 呼叫或正式檔案刪除
 - 學生 Shorts feed 已改為本地 `ShortAsset` 查詢：`GET /api/v1/youtube/shorts` 需要 JWT 且只允許 student，回傳 `Enrollment ∩ published Course ∩ published ShortAsset ∩ youtubeAvailability=playable`；使用 `publishedAt + _id` opaque cursor（預設 20、最多 50）。目前前端 `StudentShortsWall.jsx` 仍需另案改用 authenticated `apiFetch`，本輪只提供 [前端串接方案](./handoff-shorts-frontend-plan.md)，未修改 `frontend/`
 - Short YouTube metadata sync 只用 `YOUTUBE_API_KEY` 的 `videos.list`（每批 50），啟動後非阻塞執行並依 `SHORTS_SYNC_INTERVAL_MS` 排程；startup/interval/direct 共用 single-flight promise。public/unlisted 可播放，private/成功回應缺 ID 不可播放，暫時性整批失敗保留上次成功狀態。`/health.runtime.shortsSync` 提供 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded
-- `/health.runtime.youtubeUpload`（2026-08-02）：`readiness` = `ready` / `degraded` / `hard_fail` / `not_enabled`；`credentialCheck` 記錄最後一次 OAuth token 交換的時間、錯誤與 `grantedScopes`；`lastPrivatize` 記錄最後一次轉 private 的結果。**`privatizeScopeSatisfied`** 在 token 只有 `youtube.upload` scope 時轉 false 並示警——這正是「刪除後影片仍是 unlisted」的靜默失敗成因。server 啟動時做一次非阻塞 token 交換（只換 access token，不耗 YouTube 配額），開機後即有狀態可看；只保留最後一次結果，不持久化
+- `/health.runtime.youtubeUpload`（2026-08-12）：`readiness` = `ready` / `degraded` / `hard_fail` / `not_enabled`；除 `credentialCheck`、`lastPrivatize` 外，也回報 recovery/cleanup flags、最大嘗試次數、`lastRecovery` 與 `lastCleanup`。失敗會進 warnings 並使 readiness degraded；server 只在 OAuth token 驗證成功後才非阻塞啟動 recovery。process snapshot 不持久化，單支影片狀態以 `videos.youtubeUpload` 為準
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
 - 本機 upload 影片仍以 `sourceUrl=/uploads/<file>` 供前端 `<video>` 播放，`backend/uploads/` 不能無差別自動清除
 - 教師上傳表單支援多支影片連續上傳：移除 `uploadDone` 鎖、POST 後自動清空輸入；2026-07-12 起前端收斂為單一軌道（本地檔案），YouTube URL tab 已從 UI 移除（backend `POST /courses/:courseId/videos/youtube` API 保留）
+- 多影片批次整合（2026-08-13）：Backend batch API 保存批次／項目並可切換成單一 Python batch request；Python `.execution.lock` 以 PID/token 阻擋同一 batch 的雙重執行，stale owner 可由 resume 回收。Backend 啟動及週期工作會唯讀驗證 manifest 的 batch/item/video identity，再補做漏失的 start/complete/fail，並在重啟後排程 `--batch-resume`；CLI `0/1/75` 分別視為成功／正常 partial-failed／已有 owner，不會把整批覆寫為 generic process failure。`VIDEO_BATCH_PIPELINE_ENABLED=false` 與 `VIDEO_BATCH_RECONCILE_INTERVAL_MS=60000` 為安全預設。
+- 隔離驗收（2026-08-13）：MongoDB 7 localhost 容器中，上傳兩支影片後以內部 webhook形成 `1 completed + 1 failed = partial`；重播 start/fail 不增加 attempt 或覆寫原錯誤，新建另一教師讀取回 403，Backend 重啟後批次與錯誤仍完整。Python 測試另實際終止 batch process，再以同一 run/checkpoint 恢復。未呼叫 Whisper、Gemini、shared Atlas 或正式部署。
+- Startup migration／demo seed 修復（2026-08-13）：legacy `video_id` rename 改用 raw collection，避免 Mongoose strictQuery 把未知 snake_case filter 移除成全表更新；`videoId:null` cleanup 改限 BSON null，不再匹配缺欄位。Demo video upsert 同時認 fixed `_id` 與 natural `videoId`，可修復遺失鍵並連續重啟。
 - 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade 改保留歷史紀錄
 - Display 層分流（2026-05-07；2026-07-12 修正老師 #13）：老師 Top Segments 指向已刪除影片時優先 fallback 到該課程現存影片；課程已無現存影片時**不再整列丟棄**（先前會讓整個課程從統計消失），改帶 `contentMissing` flag 且同課程合併為一列；學生 Recent Queries 與管理員 Recent Events 同樣帶 `contentMissing` flag，前端顯示「內容已下架」badge
 - 影片多課程掛載（2026-07-12，P1-3）：保留 `video.courseId` 為主課程，其他課程透過 `course.videoIds` 掛載引用（沿用 bridge contract，`collectScopedVideos` 原生支援）。新增 `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`（TEACHER/ADMIN；attach 需同時可管理目標課程與影片主課程，主課程不可 detach 回 `400 VALIDATION_ERROR`，重複掛載回 `409 DUPLICATE_VIDEO`）；`resolveAccessibleVideoContext` 主課程無權限時 fallback 到任一有權限的掛載課程；`deleteVideo` / `deleteCourse` 會從**所有**課程 `videoIds` 清引用；`markVideoWatched` 接受主課程或掛載課程的影片；`segmentMatchesScope` 修正為 courseId 對不上時 fallback 用 videoId 判斷（掛載影片的 segments 帶主課程 courseId）。前端 TeacherCourses 課程展開面板有「掛載既有影片」與掛載列「解除」按鈕。注意：stats 的 videosCount 仍按主課程歸屬計算
@@ -76,6 +82,7 @@
 - QA 提問落庫流程（2026-05-01）：`recordUsage()` 改回傳建立的 `UsageLog` 文件；QA controller / `lineConversation.service.js` 先建 usage log，再把 `_id` 寫入對應 `questions.sourceUsageLogId`；LINE QA hard-fail 路徑也會寫 `questions`（`status: failed`），不再因為失敗就漏掉提問紀錄
 - 重複上傳防呆（2026-05-07，P2-7）：`video.model.js` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index；`video.service.createCourseVideoFromYouTube` 建立前 `Video.findOne({ courseId, youtubeVideoId })` 命中回 `409 DUPLICATE_VIDEO`；`video.service.createCourseVideo` 上傳完成後對暫存檔做 SHA-256 stream-hash，命中既存 → `unlinkSync` → 回 `409 DUPLICATE_VIDEO`。仍未涵蓋跨課程共用同一支影片（屬 P1-3）
 - 學生 Course Progress 真實串接（2026-05-07，P3-2 選項 A 部分完成）：`Enrollment` 新增 `watchedVideoIds: [ObjectId]`；新 endpoint `POST /api/v1/courses/:courseId/videos/:videoId/watched`（`course.routes.js` + `course.controller.js`），service `markVideoWatched` 驗證學生身分 + 影片屬該課程，`$addToSet` 後重算 `progress = watched/total × 100`；**第一次**觀看時額外寫 `UsageLog event=WATCH metadata.videoId=...`（重複觀看不重複寫）。前端 `StudentCourses.jsx` 觸發來源：mp4 `<video>` `onTimeUpdate ≥ 80%` 或 `onEnded`；YouTube IFrame `onStateChange ENDED` 或每 5 秒 poll `cur/dur ≥ 80%`；`watchedMarkedRef` 確保同 session 只 POST 一次。副作用：admin Usage Statistics 的 WATCH 從此可累加（先前永遠為 0）。「進度誤顯 0%」已於 2026-07-13 修復（見下一條）
+- 嚴格 Enrollment 授權（2026-08-12）：student 內容存取統一為 `active Enrollment ∩ published Course`，涵蓋 Course、Video、QA／FAQ、Shorts、課程通知與 LINE；`GET/POST /api/v1/courses/:courseId/enrollments`、`DELETE /api/v1/courses/:courseId/enrollments/:studentId` 僅供 owner teacher／admin。指派以完整 Email 精確比對 active student，撤銷採 soft revoke、清除相符 LINE scope 且保留 Question／UsageLog；沒有自助選課、邀請碼或一般註冊自動加入。legacy 未設 `status` 的紀錄視為既有 active grant。
 - 學生進度 0% 修復 + LINE 跳轉 fallback（2026-07-13）：
   - `markVideoWatched` 進度分母改為「主課程影片（`video.courseId`）∪ 掛載影片（`course.videoIds`）」聯集。先前只算 `course.videoIds`，未掛載的主課程影片看完不被計入，進度永遠 0%
   - `getStudentDashboardStats` 的 `courseList.progress` 改為：enrollment 有 `watchedVideoIds` 就用同一聯集分母即時重算（上限 100%），不再只讀儲存的 `enrollment.progress`（過期的 0 會一直顯示）；舊 enrollment 只有 progress 數值時沿用儲存值。2026-08-02 起 Dashboard 只統計 `Enrollment ∩ published Course`，新註冊且尚未修課的學生固定回傳 200 zero-state（所有 count/rate/progress 為 0，`courseList`／`recentQueries` 為空），不再把公開課程目錄誤算成個人學習進度。`courseList.videoCount` 改為聯集大小（頂層 `videosCount` 仍按已修課之主課程歸屬計算）
@@ -125,7 +132,8 @@
 - `video_segments_text`：classic indexes（`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`）；`text_embedding_index` 的 3072 維／filter 設定僅為 2026-05-23 歷史 snapshot，本輪未重查，不能取代 active embedding contract 證據
 - `video_segments_video`：`video_embedding_index` 的 READY/queryable 結果僅為 2026-07-10 歷史 snapshot，本輪未重查
 - `questions`：13 個 classic indexes，包含 `courseId`、`status`、`source`、`topSegmentId`、`askedAt`、複合索引（`courseId_1_askedAt_-1`、`userId_1_askedAt_-1`、`courseId_1_status_1_askedAt_-1`、`courseId_1_topSegmentId_1`）、text index（`question_text_answer_text`）、`sourceUsageLogId` partial unique sparse index；schema 預設不寫入 `sourceUsageLogId: null`
-- `video_segments_parent`：2026-08-02 的 DB setup／index 結果屬歷史 snapshot；目前仍須由 Database／Pipeline 以 read-only 證據確認 collection、index、active Parent contract 與資料筆數，且等待 Pipeline uploader 完成
+- `video_segments_parent`：2026-08-02 的 DB setup／index 結果屬歷史 snapshot；Parent uploader 已在 repo 具 stable-only preflight 與 generation publication，但本輪仍須以 read-only 證據確認 collection、active Parent／Leaf contract、資料筆數與新版 vector filter definition
+- Parent live 驗收已拆成兩道命令：`npm run preflight:phase2-2:readonly` 只做 DB-only preflight（零 Gemini、零 Parent Search、零 Answer），通過後才可另行核准 `npm run e2e:phase2-2:readonly` 的一次 query embedding。兩者都只接受 `PHASE2_2_READONLY_MONGODB_URI` 的單一 `read@focusflow` 角色，不 fallback 到一般 Backend URI。
 
 **對 runtime 的影響：**
 
@@ -138,8 +146,8 @@
 ## 已完成項目
 
 - **Phase 2-2 Hierarchical Retrieval Round 1（`3d9a234`）**：新增 `parentSearch.service.js`（`searchParents()` 介面 + `validateParentHit()` + 刻意保留的 `createUnavailableParentRepository()` stub）、`hierarchicalRetrieval.service.js`（Parent → Child → Context 主流程與 Leaf fallback）、`childExpansion.service.js`（依有序 `childChunkIds` 查回 Leaf、去重、scope 驗證）、`leafContextAssembly.service.js`（Leaf 數量與字元上限）。新增 7 個環境變數（`HIERARCHICAL_RETRIEVAL_ENABLED=false`、`HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF=true`、`HIERARCHICAL_PARENT_LIMIT=5`、`HIERARCHICAL_CHILD_EXPANSION_LIMIT=30`、`HIERARCHICAL_CONTEXT_MAX_LEAVES=15`、`HIERARCHICAL_CONTEXT_MAX_CHARACTERS=5000`、`HIERARCHICAL_PARENT_TIMEOUT_MS=1000`）。Gate 關閉時完全沿用 Leaf-only QA；診斷資訊只寫進 `runtime.hierarchicalRetrieval`
-- **Phase 2-2 Parent Storage（2026-08-02，DB 組）**：新增 `models/videoSegmentParent.model.js`（契約 §10 欄位 + `parentId` unique index）、`services/parentVectorIndex.service.js`（regular index 與 Atlas vector index 的冪等 ensure 邏輯）、`scripts/ensureParentStorage.js` 與 `npm run db:ensure-parent-storage`（支援 `--dry-run`，輸出遮蔽連線字串）、`tests/parent-vector-index.service.test.js`（8 條）。環境變數 `VIDEO_SEGMENT_PARENT_COLLECTION`（預設 `video_segments_parent`）與 `VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME`（預設 `parent_embedding_index`），`.env.example` 已同步。已於共享 Atlas 實際建立並驗證 READY。**DB 組拍板的五項決策**：(1) 採獨立 collection `video_segments_parent`；(2) unique key 用單鍵 `parentId`（MVP 單 generation，重跑同影片 idempotent upsert 覆蓋）；(3) `generationVersion` / `isActive` 保留欄位與 default，但不進 unique key、不進 regular index、不進 vector index filter，正式採 generation switch 時才啟用；(4) vector index 名 `parent_embedding_index`，3072 cosine，filter=`courseId`+`videoId`；(5) cleanup 走契約 §12 的 D→A 路線 —— 現階段只 upsert 不刪，正式開檢索前才啟用「全批 upsert 成功且驗證通過後刪同影片 stale parentId」，partial upload 絕不 cleanup，rollback 即關閉 Gate
-- **Phase 2-2 正式 Parent Search adapter（2026-08-02，Backend 組）**：新增 `parentSearchAdapter.service.js`，依環境變數使用 `video_segments_parent`／`parent_embedding_index`，強制 3072 維有限數值向量，並以 `courseId` ObjectId **或課程允許的掛載 `videoId`** 套用 Atlas scope；QA Gate 開啟路徑已由 unavailable stub 改接正式 adapter。Parent Model 強制 `courseId`、3072 維 embedding 與 `embeddingDimension=3072`，並保留新版 embedding contract metadata；Gemini query 使用 stable instruction contract，不再送 `RETRIEVAL_QUERY` task type。Parent hit 會再次驗證 course／video scope、`hierarchyLevel=1`、`documentType=parent_chunk` 與有序 Child IDs；Atlas 查詢套用 `maxTimeMS`，MongoDB 原始錯誤不對外傳遞，索引／collection／維度／scope 等失敗均可依既有設定安全回退 Leaf-only。成功診斷改為 `searchBackendUsed=parent_vector`
+- **Phase 2-2 Parent Storage／generation hardening（2026-08-02～08-13）**：保留獨立 `video_segments_parent` 與單鍵 unique `parentId`，新增 `{videoId,generationVersion,isActive}` regular index；Parent vector definition 除 3072 cosine、`courseId`、`videoId` 外，另要求 `generationVersion` 與 `isActive` filter。這是新版 source contract，2026-08-02 的 READY index 不代表已含新增 filter；更新 shared Atlas index 需 Database owner 另行核准與驗證
+- **Phase 2-2 正式 Parent Search／readiness（2026-08-02～08-14）**：Atlas query 以授權 scope 加上 `generationVersion=text_search_generation_v2`、`isActive=true` 過濾，命中後再驗 provider／model／dimension／instruction／generation／normalization／contract、Parent level/type 與 Child IDs。`hierarchicalDataReadiness.service.js` 於 Gate 開啟的 backend startup 執行唯讀檢查，確認 rollout videos 的 active Parent、Child Leaf、`chunkId_1` 與 Parent search index filter contract；結果與 query contract hash 不一致時 shadow／serve fail closed。Leaf fallback、safe error classification 與 `maxTimeMS` 保留
 - auth / JWT / RBAC 主線已可用；login 必填預期 `role`，跨身分入口回 `403 ROLE_MISMATCH`；register 限 `student` / `teacher`，已涵蓋 duplicate index race、bcrypt 與 public-user 敏感欄位測試
 - 站內通知已完成：使用者列表／cursor／未讀／單筆與全部已讀；admin 可發維護公告；影片完成對主課程與掛載課程的 active enrolled students 以 partial-unique dedupe 做可重送 fanout
 - private avatar 已完成：User nullable metadata、authenticated JPEG/PNG/WebP 上傳與 binary 讀取、5 MiB/magic 驗證、private storage、CAS 並發保護；跨環境 user sync 保留 target-local avatar
@@ -157,7 +165,7 @@
 - LINE QR 綁定 + 課程交接流程修正（2026-04-30，commit `c87fdad`）
 - QA grounding / matched video 標籤改善（2026-04-30，commit `c819bca`）
 - STT Pipeline 自動化整合（2026-04-27）：影片上傳後 `video.service.js` 自動 spawn STT pipeline；pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態；pipeline 結束後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
-- `queryEmbedding.service.js` 使用可設定的 stable `gemini-embedding-2`（3072 維），以 `gemini_embedding_2_search_v1` instruction、`text_search_generation_v1` generation 與 `unit_l2_v1` normalization 組成可檢查的 query contract；preview model 與 legacy task type 不會被 runtime 呼叫
+- `queryEmbedding.service.js` 使用可設定的 stable `gemini-embedding-2`（3072 維），以 `gemini_embedding_2_asymmetric_retrieval_v2` instruction、`text_search_generation_v2` generation 與 `unit_l2_v1` normalization 組成可檢查的 query contract；query 採 `task: search result | query: ...`，Leaf／Parent document 採 `title: none | text: ...`；preview model 與 legacy task type 不會被 runtime 呼叫
 - LINE non-live、backend-only、QA hard-fail 訊號已補齊
 - `GET /health` 已能直接顯示 `runtime.qa`、`runtime.line` 與 `runtime.multimodal`
 - `ShortAsset` model 與內部 create/update service 已完成；保存 course/source/job/title/description/status/YouTube metadata、封存欄位與只含 `courseId/title/teacherId/status` 的 `courseSnapshot`。published+playable 必須具備非空 `youtubeVideoId` 與有效 `publishedAt`，legacy 空值不進 feed。feed 索引為 course/status/youtubeAvailability/publishedAt/_id，另有 `youtubeVideoId` unique+sparse（缺值不存 `null`）
@@ -175,14 +183,16 @@
 
 ## 2026-05-05 程式碼對照補充
 
-- Course routes：`POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`；DELETE 僅 admin，可 cascade videos / segments / enrollments。
-- Video routes：`POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`DELETE /api/v1/videos/:videoId`、`POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生標記觀看完成）。
+- Course routes：`POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`、owner teacher／admin 的 Enrollment list／assign／revoke；DELETE 限 admin 或 owner teacher，可 cascade videos / segments / enrollments。
+- Video routes：`POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`POST /api/v1/videos/:videoId/youtube-upload/retry`、`DELETE /api/v1/videos/:videoId`、`POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生標記觀看完成）。
 - LINE routes：目前只有 webhook verify / webhook POST / bind-token；repo 未實作 LIFF 的 `liff-bind`、`liff-switch-course` 或前端 LIFF pages。
 - `Video` schema 已移除 `storagePath`，主欄位為 camelCase：`videoId`、`fileName`、`filePath`、`audioPath`、`durationSec`、`videoSource`、`videoUrl`、`youtubeVideoId`。
 - `bridgeScope.service.js` 仍讀 legacy `video_id`，但這是相容路徑，不代表新資料要繼續寫 `videos.video_id`。
 
 ## 目前測試狀態
 
+- 2026-08-13 `npm.cmd test`：**445 passed / 0 failed**（54 suites；含多影片 batch restart／reconciliation、Parent DB-only preflight、嚴格 Enrollment、YouTube recovery／cleanup 與既有 Backend 主線）。Parent runner 專項 **17/17**；`git diff --check` 通過。這仍是本機／mock／隔離測試，不是 shared Atlas 或 live Gemini 證據。
+- 2026-08-12 `npm.cmd test`：**421 passed / 0 failed**（50 suites；含嚴格 Enrollment、FAQ strict invalidation、Shorts deployment smoke，以及 YouTube bounded recovery／safe cleanup／retry route 回歸測試）。OpenAPI YAML 以 `js-yaml` 解析通過；YouTube recovery/cleanup 本輪只用 mock/in-memory 與暫存測試檔驗證，沒有 live API 或正式檔案刪除。
 - 2026-08-02 `npm.cmd test`：**341 passed / 0 failed**（42 suites；新增新註冊學生 Dashboard zero-state與 Admin Enrollment `studentId` 聚合回歸測試）。
 - 2026-08-02 `npm test`：**336 passed / 0 failed**（40 suites；含 Phase 2-2 Round 1、Parent Storage、正式 Parent Search adapter／QA 接線、mounted-video scope、Health/OpenAPI compatibility、Gemini query 契約，以及 YouTube 上傳／刪除轉 private 回歸測試）。
 - 2026-07-26 `npm.cmd test`：**262 passed / 0 failed**（31 suites；含 `QA_MATCH_LIMIT=15`、answer-generation、role-aware auth、registration `lineUserId` sparse-index、notifications 與 avatar 回歸）。
@@ -230,8 +240,8 @@
 - 不能把 ngrok 暫時端點誤稱為固定正式部署網址
 - 不能說 `video_segments_video` 已是正式 clip source 或 caption QA source；目前只作 course-scoped visual citation retrieval
 - 不能把 ShortAsset feed 與 metadata sync 誤稱為完整 Short 產線；自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker與教師管理仍未實作
-- **不能說 Hierarchical Retrieval 已啟用或已完成 live 驗證**。Storage 與正式 Backend adapter 已完成，但 `video_segments_parent` 是 **0 筆**、Pipeline 的 Parent uploader 尚未實作（`mongodb_uploader.py` 完全沒有 parent 程式碼）、`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false。Parent → Child expansion → Leaf context → Answer 尚未以真實 Atlas Parent 文件跑過端對端流程
-- 不能把「index 已建立」講成「檢索已可用」。`parent_embedding_index` 是在空 collection 上建立的，READY 只代表索引本身就緒，尚未以任何真實 parent 文件驗證維度、filter 型別或 scope 隔離
+- **不能說 Hierarchical Retrieval 已啟用或已完成本輪 live 驗證**。Local Parent／Leaf publication、Backend adapter 與 readiness code 已具備，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false；2026-08-02 的 Parent 0 筆與 index READY 都只是舊 snapshot，必須重新唯讀驗證實際 active generation、filter definition、IXSCAN 與 Parent → Child → Citation
+- 不能把 `.env` 的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 或「index 名稱存在」講成資料已可用；runtime 還要求 live read-only evidence 與 query contract hash 一致。任何 shared Atlas publication／index update 都是寫入，需另行授權
 - 不能把 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 整份當成已定案契約；全文有 109 處 `[Proposed for v1]`、16 處 `[Database review required]`，目前 DB 組只拍板了 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
 
 ## 已知限制
@@ -245,7 +255,7 @@
 - YouTube Data API auto-upload 與刪除轉 private 已於 2026-08-02 完成 live 驗證；同日 OAuth 同意畫面已發布為正式版並重換 refresh token（scope `youtube.force-ssl`，已驗證可換發 access token），**不再 7 天過期**。未送 Google 驗證，授權畫面仍顯示未驗證警告、未驗證 app 有 100 使用者上限（本專案只需 1 個授權帳號）。憑證若失效，上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 只寫 log，但 `/health.runtime.youtubeUpload` 可觀察（見下方）。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
 - 轉 private 沒有 backend 還原入口（DB 紀錄已刪），需人工到 YouTube Studio 把瀏覽權限改回；轉 private 失敗只記 log 不中斷刪除，該影片會留在頻道上且仍可用連結播放
 - 上傳預設 unlisted 無法改成 private：YouTube private 影片不支援 iframe 嵌入播放，設 private 會讓學生端全部播不出來。因此「未修課者拿到連結仍可觀看」是採 YouTube 託管的固有限制
-- ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端尚未帶 JWT 呼叫新 feed，需先依 handoff 方案完成另案實作
+- ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端已用 authenticated `apiFetch` 呼叫新 feed，並於 2026-08-13 完成正式 feed 與 YouTube 播放唯讀驗收
 - ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
 - CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容，正式環境需填入實際前端 origin
 - 2026-07-24 共享 Atlas 唯讀實查為 15 collections、尚無 `notifications`；`init_collections.js` 列 16 個並已含 `notifications`，shared Atlas rollout 仍需人工核准
@@ -257,4 +267,4 @@
 
 ## 一句話結論
 
-截至 2026-08-02，backend 已整合 `QA_MATCH_LIMIT=15`、role-aware auth、站內通知、private avatar 與既有 Shorts/YouTube 主線，並完成 Phase 2-2 的 Hierarchical Retrieval Round 1、Parent Storage 與正式 Parent Search adapter 接線（`video_segments_parent` + `parent_embedding_index` 已於共享 Atlas 建立並驗證 READY）。但 parent collection 目前 0 筆、Parent uploader 尚未實作、Gate 維持關閉，仍不能誤稱 Hierarchical Retrieval 已可用；也不等於 shared Atlas 真實 Parent 查詢或 Gemini／LINE／YouTube／STT live provider 已完成驗證。
+截至 2026-08-13，backend 已補齊 Hierarchical Retrieval 的 active generation filter、命中後完整契約驗證、唯讀 startup readiness、DB-only preflight，以及隔離 E2E 的專用唯讀 URI／角色硬閘；Pipeline／Database uploader 也會保存 stable Leaf／Parent metadata。本機 Backend 445/445 通過。Gate 仍關閉，現有 credential 為 `atlasAdmin`，shared Atlas data/index 與 live Parent E2E 未在本輪重驗，因此仍不能稱 Hierarchical Retrieval 已可用或 production-ready。

@@ -253,7 +253,7 @@ LINE reply API 回傳答案 + 影片時間戳；YouTube 影片可附 https://you
 - bind token → bind（LINE 傳入代碼完成帳號綁定）
 - `BIND:<token>:COURSE:<courseId>` → 綁定後直接切換課程
 - 「切換課程」→ `select_course` postback
-- `COURSE:<courseId>` → 切換目前課程；若 published 課程尚未 enrollment，後端會建立 enrollment
+- `COURSE:<courseId>` → 只有 published 課程且使用者已有 active Enrollment 時才能切換；LINE 不會自行建立修課權限
 - 自然語言提問 → QA 語意搜尋 → 答案 + 時間戳回傳至 LINE
 
 ### live LINE 與 backend-only 的差異
@@ -324,6 +324,13 @@ npm run seed
 - 不負責 pipeline metadata
 - 不負責建立 Atlas vector index
 - 不會保證多影片 searchable coverage
+
+嚴格修課權限上線後，若既有學生曾在 published 課程提問、帳號仍啟用，卻沒有任何 Enrollment 關聯，可用受控修復工具補回既有存取權。工具預設只做 dry-run；apply 必須帶入剛取得的候選數量，且不會重新啟用 revoked Enrollment：
+
+```powershell
+npm run db:repair-legacy-enrollments -- --course-id <courseObjectId>
+npm run db:repair-legacy-enrollments -- --course-id <courseObjectId> --apply --expected-count <dryRunCandidateCount>
+```
 
 啟動：
 

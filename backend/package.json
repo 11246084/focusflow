@@ -12,6 +12,7 @@
     "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
     "db:ensure-video-vector-index": "node src/scripts/ensureVideoVectorIndex.js",
     "db:ensure-parent-storage": "node src/scripts/ensureParentStorage.js",
+    "db:repair-legacy-enrollments": "node src/scripts/repairLegacyEnrollments.js",
     "db:sync-atlas": "node src/scripts/syncLocalMongoToAtlas.js",
     "smoke:shorts:readonly": "node src/scripts/verifyShortsDeployment.js",
     "preflight:phase2-2:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --preflight-only",

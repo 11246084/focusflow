@@ -1,246 +1,457 @@
-# ARCHITECTURE.md
+# Architecture Description（FocusFlow 系統架構說明書）
 
-FocusFlow 系統技術架構、資料流與資料庫契約。
+本文件用來建立開發者與 AI 對 FocusFlow 的共同架構認知，說明穩定的系統邊界、分層、資料流與開發原則。
 
-> 正式資料契約請以 [docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準。
+> 真相來源優先序：目前程式碼、routes／models／tests 與 runtime 查證 > 最近 git history／diff > [docs/current-status.md](docs/current-status.md) > [backend/docs/current-state.md](backend/docs/current-state.md) > 其他歷史文件。
 >
-> `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 目前僅供歷史參考。Legacy 欄位（`video_segments`、`clips`）為過渡狀態。
+> 本文件只記錄低頻變動的架構。功能完成度、部署可用性與待辦放在 [docs/current-status.md](docs/current-status.md)；重要決策與原因放在 [docs/decision-log.md](docs/decision-log.md)。
+>
+> `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 只供歷史參考，不是目前資料契約。
+
+### 閱讀捷徑（How to Read This Document）
+
+| 目的 | 建議閱讀順序 |
+|------|--------------|
+| 30 秒理解系統 | 1. 系統概述 → 3.2 Entry Points → 5.1 Architecture Invariants |
+| 接手一項功能 | 3.2 Change Map → 對應的 3.x 元件 → 4.x 資料流 → 5.2 工程規則 |
+| 判斷目前能否上線 | 不從本文件推論；改查 `docs/current-status.md`、`backend/docs/current-state.md` 與 `/health` |
+| 修改資料或外部整合 | 先讀 3.7／3.9、5.1，再確認授權與 live evidence |
 
 ---
 
-## 一、系統概觀
+## 1. 系統概述（System Overview）
 
-三服務獨立，透過 HTTP API 與 MongoDB 協作：
+### 專案目標
 
+FocusFlow 是 AI 教學影片問答系統：將教師上傳的影片轉成可檢索知識，讓學生從網頁或 LINE 提問，取得有來源片段與影片時間戳的回答。
+
+### 核心功能
+
+1. **身分與課程權限**：提供 student／teacher／admin 登入、角色控制、修課資格與課程管理。
+2. **影片處理**：接收本機影片或 YouTube 來源，追蹤 `queued → processing → completed / failed` 狀態。
+3. **AI 資料生產**：執行音訊抽取、STT、逐字稿正規化、Chunking、Embedding 與 MongoDB publication。
+4. **來源式問答**：依課程權限搜尋相關片段，產生答案、citations 與影片時間戳；網頁與 LINE 共用同一個 QA service。
+5. **教學營運功能**：提供 Dashboard、通知、觀看進度、FAQ cache、ShortAsset feed 與管理介面。
+
+### 目標用戶
+
+| 角色 | 主要需求 |
+|------|----------|
+| `student` | 查看已修課程、觀看影片、提問、查看來源與時間戳、綁定 LINE |
+| `teacher` | 建立課程、指派學生、上傳與管理影片、追蹤處理狀態與課程統計 |
+| `admin` | 管理使用者、課程、影片、通知、事件與全站統計 |
+
+### 系統邊界
+
+```mermaid
+flowchart LR
+    Web[React SPA] -->|HTTPS / JSON| API[Express REST API]
+    Line[LINE Platform] -->|Signed Webhook| API
+    API -->|Mongoose| Mongo[(MongoDB / Atlas)]
+    API -->|Spawn / Resume| Pipeline[Python AI Pipeline]
+    Pipeline -->|Artifacts / Upsert| Mongo
+    Pipeline -->|Processing Webhook| API
+    API --> Gemini[Gemini / OpenAI providers]
+    Pipeline --> Media[Whisper / FFmpeg / yt-dlp / Gemini]
+    API --> YouTube[YouTube API]
 ```
-┌─────────────────┐     HTTP      ┌─────────────────┐
-│   前端 SPA      │ ←──────────→ │   後端 API      │
-│  React 19/Vite  │              │ Node.js/Express  │
-│   port 5173     │              │   port 4000      │
-└─────────────────┘              └────────┬─────────┘
-                                          │
-                                     MongoDB Atlas
-                                          │
-                                 ┌────────┴─────────┐
-                                 │   AI Pipeline    │
-                                 │  Python CLI      │
-                                 │ backend 可觸發   │
-                                 └──────────────────┘
-```
 
-**關鍵決策**：AI Pipeline 仍是獨立 Python CLI，不內嵌 Express process；但 Phase-1 目前已由 backend 在影片建立後背景 spawn CLI。Pipeline 透過 MongoDB 寫入結果，並用 internal webhook 回報 `queued → processing → completed / failed`。見 [docs/decision-log.md](docs/decision-log.md)。
+AI Pipeline 是獨立 Python CLI，不內嵌在 Express process；Backend 可在影片建立或批次處理時啟動／恢復 Pipeline，Pipeline 再以 MongoDB 與 internal webhook 交付結果。
 
 ---
 
-## 二、後端架構
+## 2. 技術棧（Tech Stack）
 
-### 分層
+| 區域 | 主要技術 | Runtime／入口 |
+|------|----------|---------------|
+| Frontend | React 19、JavaScript、Vite 8、Three.js、GSAP | `frontend/focus-flow/src/main.jsx`；開發預設 port `5173` |
+| Backend | Node.js、Express 4、Mongoose 8、JWT、bcryptjs、Multer | `backend/src/server.js`；預設 port `4000` |
+| AI Pipeline | Python 3.10+、Faster-Whisper、Gemini Embedding、FFmpeg、yt-dlp、rapidfuzz | `STT_Whisper/src/main.py`、`batch_main.py` |
+| Database | MongoDB／MongoDB Atlas、Atlas Vector Search | Backend Mongoose models + Pipeline／Database uploaders |
+| API 文件 | OpenAPI YAML、Swagger UI | `/docs`、`/docs/openapi.yaml` |
+| Infrastructure | Rocky Linux 9、Nginx、PM2、GitHub Actions self-hosted runner | `.github/workflows/deploy.yml`；部署路徑 `/opt/focusflow` |
+| Testing | Node `node:test`、Frontend `node:test` + ESLint + Vite build、Python `unittest` | 各子系統 tests／指令 |
 
+部署 workflow 在 push `main` 後由 self-hosted runner pull code、安裝 Backend dependencies、build Frontend、重啟 PM2 Backend 並 reload Nginx。這是目前部署拓撲，不代表每次 workflow 成功後所有 live provider 與公開端點都已驗收；實際狀態以 [docs/current-status.md](docs/current-status.md) 與 `/health` 為準。
+
+---
+
+## 3. 系統元件與分層（System Components & Layering）
+
+### 3.1 Repository 高層結構
+
+```text
+focusflow/
+├── backend/                    # Express REST API 與主要業務邏輯
+│   ├── src/
+│   │   ├── routes/             # URL、middleware 與 controller 綁定
+│   │   ├── controllers/        # Request/response orchestration
+│   │   ├── services/           # 業務邏輯、資料存取、外部整合
+│   │   ├── models/             # Mongoose schema 與 index 宣告
+│   │   ├── middleware/         # JWT、RBAC、upload、signature、error
+│   │   ├── config/             # Env、CORS 與 provider 設定
+│   │   └── utils/              # 共用 response、error、validation helpers
+│   ├── tests/
+│   └── docs/
+├── frontend/focus-flow/        # Student／Teacher／Admin React SPA
+│   └── src/
+│       ├── components/         # 共用 layout 與 UI 元件
+│       ├── pages/              # 依角色切分的頁面
+│       ├── services/           # 前端 domain/API orchestration
+│       ├── utils/
+│       ├── api.js              # API base、JWT 注入、統一錯誤解析
+│       ├── App.jsx
+│       └── main.jsx
+├── STT_Whisper/                # 單支／批次 STT、Chunk、Embedding、Resume
+│   ├── src/
+│   ├── tests/
+│   └── data/                   # Runtime input/output，不是 source of truth
+├── database/                   # Collection/index setup、uploader、修復工具
+├── docs/                       # 動態進度、決策、契約與會議紀錄
+├── .agents/skills/             # Codex repo-local skills
+├── .claude/rules/              # API、Database、Security、Testing 規範
+└── .github/workflows/          # CI/CD workflows
 ```
+
+`node_modules/`、`dist/`、`.venv/`、uploads、private data、pipeline outputs 與暫存 logs 都是 runtime／generated artifacts，不是架構來源。
+
+### 3.2 Entry Points 與 Code Map
+
+#### 主要入口（Entry Points）
+
+| 想理解的範圍 | 第一個入口 | 接著閱讀 |
+|--------------|------------|----------|
+| Backend process | `backend/src/server.js` | `app.js` → `routes/index.js` |
+| Express middleware／mount | `backend/src/app.js` | `middleware/`、各 `*.routes.js` |
+| 對外 API | `backend/src/routes/index.js` | module route → controller → service → model |
+| Frontend boot | `frontend/focus-flow/src/main.jsx` | `App.jsx`／`AdminApp.jsx` → `components/DashboardApp.jsx` |
+| Frontend API | `frontend/focus-flow/src/api.js` | `pages/`、`services/videoUpload.js` |
+| 單支 AI Pipeline | `STT_Whisper/src/main.py` | stage modules → `job_manager.py` → uploader |
+| 批次 AI Pipeline | `STT_Whisper/src/batch_main.py` | `batch_manager.py` → manifest／checkpoint／resume |
+| Database tooling | `database/tools/mongodb_uploader.py` | `database/tools/setup/`、`database/README.md` |
+| Deployment | `.github/workflows/deploy.yml` | Backend `server.js`、Frontend build、PM2／Nginx runtime |
+| API contract | `backend/docs/openapi.yaml` | 實際 route files；internal endpoints 以程式碼為準 |
+
+#### 修改導覽（Change Map）
+
+| 要修改什麼 | 從這裡開始 | 依賴方向／同步檢查 |
+|------------|------------|---------------------|
+| API endpoint／response | `backend/src/routes/<module>.routes.js` | controller → service → model；同步 route tests、consumer、OpenAPI |
+| 登入／角色／修課權限 | `auth.routes.js`、`middleware/auth.middleware.js`、`role.middleware.js` | `auth.service.js`、`courseAccess.service.js`、`enrollment.service.js`、security rules／tests |
+| QA／citation／FAQ | `qa.routes.js` → `qa.controller.js` → `qa.service.js` | `bridgeScope`、`faqCache`、`queryEmbedding`、`answerGeneration`、`questionRecording` 與 QA／citation tests |
+| Video／batch／processing | `video.routes.js`、`videoBatch.controller.js` | `video.service`、`videoBatch*`、`videoProcessing`、`sttProcessLifecycle` 與 batch／route tests |
+| Frontend page／API | `main.jsx`、`App.jsx`、`components/DashboardApp.jsx` | role page → `api.js`／service；同步 frontend tests、lint、build |
+| STT／Chunk／Embedding | `STT_Whisper/src/main.py` 或 `batch_main.py` | manager／checkpoint → stage → artifact → uploader；同步 `STT_Whisper/tests/` 與 README |
+| Schema／index／publication | `backend/src/models/`、`database/tools/`、Pipeline uploader | 先做 contract review；同步 seed／harness／tests；shared Atlas 寫入另需授權 |
+| Deploy／runtime | `.github/workflows/deploy.yml`、`backend/src/app.js`、`config/` | 同步 `/health`、runtime docs、Nginx／PM2／public smoke；workflow 綠燈不等於驗收完成 |
+
+### 3.3 Backend 分層
+
+Backend 固定依賴方向：
+
+```text
 routes → controllers → services → models
 ```
 
-| 層次 | 職責 |
-|------|------|
-| `routes/` | URL 對應與 middleware 掛載 |
-| `controllers/` | 解析 request、呼叫 service、組裝 response |
-| `services/` | 全部業務邏輯（不依賴 req/res） |
-| `models/` | MongoDB Schema 定義與索引 |
+| Layer | 責任 | 禁止事項 |
+|-------|------|----------|
+| Routes / Presentation | 宣告 URL、HTTP method、authentication、authorization、upload 等 middleware | 不寫業務邏輯或直接操作資料庫 |
+| Controllers / Presentation | 解構與基本驗證 request、呼叫 service、透過共用 helper 組裝 response | 不堆疊主要業務規則，不直接查 Model |
+| Services / Business Logic | 權限與資源規則、狀態轉換、資料存取、provider orchestration | 不依賴 Express `req`／`res` |
+| Models / Data Access Contract | Mongoose schema、欄位契約、index | 不處理 HTTP 或 UI 語意 |
 
-### Middleware
-
-`auth` → JWT 驗證 / `role` → RBAC / `upload` → multer 影片上傳 / `lineSignature` → LINE HMAC 驗簽 / `internalProcessingAuth` → Processing webhook secret / `notFound` + `error` → 404 與全域錯誤處理
-
-### 路由模組
-
-`backend/src/routes/index.js` 將下列模組掛在 `/api/v1`：
-
-| 模組 | 主要路徑 | 對應 controller / service |
-|------|----------|---------------------------|
-| `auth.routes` | `/auth/login`、`/auth/me` | `auth.controller` / `auth.service` |
-| `course.routes` | `/courses`（CRUD）、`/courses/:courseId/enrollments` | `course.controller` / `course.service` + `enrollment.controller` / `enrollment.service` |
-| `video.routes` | `/courses/:courseId/videos`、`/courses/:courseId/video-batches`、`/video-batches/:batchId`、`/videos/:videoId/...` | `video.controller` / `video.service` + `videoBatch.controller` / batch services + `videoProcessing.service` |
-| `qa.routes` | `/qa/ask` | `qa.controller` / `qa.service` + `questionRecording.service` |
-| `line.routes` | `/line/webhook`、`/line/bind-token` | `line.controller` / `line.service` |
-| `internal-video.routes` | `/internal/videos/:videoId/processing/{start,complete,fail}` | `video.controller` 內部 handlers |
-| `stats.routes` | `/stats/teacher`、`/stats/student` | `teacherStats.service` |
-| `admin.routes` | `/admin/{stats,users,videos,events,event-stats}` | `admin.controller` / `admin.service` |
-| `health.routes` | `/health` | `runtimeDiagnostics.service` |
-
-### QA 系統
-
-雙策略混合搜尋（`qa.service.js`）：
-
-1. **向量搜尋**（主）：以 `video_segments_text.embedding` 進行語意搜尋
-2. **詞彙搜尋**（fallback）：embedding 不可用時，改用文字重疊率評分
-
-搜尋模式由環境變數控制：
-
-| 變數 | 值 | 說明 |
-|------|----|------|
-| `QA_QUERY_EMBEDDING_PROVIDER` | `mock` / `openai` / `gemini` | query 向量化方式 |
-| `QA_ANSWER_PROVIDER` | `template` / `openai` / `gemini` | 答案生成方式 |
-| `QA_VECTOR_SEARCH_MODE` | `memory` / `atlas` | 本機記憶體 vs Atlas Vector Search |
-
-> Phase-1 當前正式 runtime 以 `gemini + atlas + gemini` 為主；若只做本機 smoke，可暫時切回 `mock + memory`，但實際狀態仍以 `.env` 與 `/health` 為準。
-
-補充：為了讓 bridge-first MVP 更穩定、可理解，課程回應與 QA runtime course summary 現已提供 `isBridgeCourse`。`appOwnedVideoCount` / `metadataOnlyVideoCount` 只是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases，不是另一套統計來源；QA 回應中的 `resultCategory` 則是 Phase-1 convenience field，方便前端或 demo 先分流，細節仍以 `status`、`matchStatus`、`degradedReasons` 為準。
-
-### BridgeScope 搜尋範圍調度
-
-`bridgeScope.service.js` 是 QA 搜尋範圍的核心調度器。`buildCourseSegmentScope()` 依據課程內影片組成判定 bridge mode：
-
-| bridge mode | 條件 |
-|-------------|------|
-| `standard` | 只有 App owned 影片（或無影片） |
-| `qa_scope_only` | 只有 Pipeline metadata 影片（無 App owned） |
-| `mixed_scope` | 同時有 App owned 與 Pipeline metadata 影片 |
-
-回傳 `allowedCourseIds` 與 `allowedVideoIds`，供 `qa.service.js` 在 `video_segments_text` 中過濾可搜尋範圍。
-
-### Video Model 雙身份設計
-
-`videos` collection 同時存放兩種文件，由 Model 靜態方法區分：
-
-- `Video.isAppOwnedRecord(video)` — `courseId` + `uploadedBy` + `title` + `processing.status` 均存在 → App 建立的正式影片（本機上傳或 YouTube URL）
-- `Video.isPipelineMetadataRecord(video)` — 有 `videoId` 或 legacy `video_id`，且不是 App owned → AI Pipeline metadata / bridge 相容資料
-
-目前 `videos` 以 camelCase 欄位為主：`videoId`、`fileName`、`filePath`、`audioPath`、`durationSec`、`videoSource`、`videoUrl`、`youtubeVideoId`。`videos.video_id` 不應再新增；相容邏輯只為讀取舊資料與 bridge 範圍。
-
-混存設計目的：讓 QA Pipeline 的外部影片資料可透過 `course.videoIds` 參照進入 QA 範圍，而不需要獨立 collection。Ownership 邊界尚未定版，是 Phase-1 已知 known issue。
-
-### 影片處理狀態機
-
-```
-queued → processing → completed
-                   ↘ failed → (retry) → processing
-```
-
-兩條觸發路徑：
-
-- 前端 retry：`POST /api/v1/videos/:videoId/processing/retry`（JWT + teacher/admin 角色）
-- Pipeline webhook：`POST /api/v1/internal/videos/:videoId/processing/{start,complete,fail}`（需 `PROCESSING_WEBHOOK_SECRET`）
-
-合法狀態轉換由 `videoProcessing.service.js` 硬性強制，非法轉換直接回傳 409 `VIDEO_PROCESSING_TRANSITION_INVALID`，沒有軟性 fallback。
-
-多影片批次的手動 retry 不會另建新批次：`single_adapter` 以原本受控本機來源重啟單片 worker；`pipeline_batch` 則在既有 manifest 對指定 `videoId` 授予一次額外嘗試並沿用同一 checkpoint。execution lease 仍禁止兩個 worker 同時修改同一批次。
-
-### LINE Bot 對話狀態機
-
-LINE Bot 在 `User` 文件上維護**使用者層級**的對話狀態：
-
-| 欄位 | 說明 |
-|------|------|
-| `lineConversationState` | `idle`（可提問）/ `awaiting_course_selection`（等待選課） |
-| `lineConversationHistory` | 最近 6 則對話（3 輪 Q&A），傳給 Gemini 做多輪上下文 |
-| `activeCourseId` | 目前選定的課程 |
-
-切換課程時顯示的選項 = `active Enrollment ∩ published Course`（最多 4 筆）。直接選擇、綁定後選擇與每次提問都重新驗證同一規則；資格撤銷時立即清除相符的 `activeCourseId` 與對話上下文。
-
-### Enrollment 存取政策
-
-- student 對課程內容一律採 default deny；只有 `active Enrollment ∩ published Course` 可存取 Course、Video、QA／FAQ、Shorts、課程通知與 LINE 問答。
-- 只有課程 owner teacher 與 admin 可用完整學生 Email 指派或撤銷資格；目前沒有自助選課、邀請碼、審核流程或一般註冊自動加入。
-- 撤銷採 soft revoke 並保留 Question／UsageLog 歷史；舊資料若尚未有 `status`，視為既有 active grant，避免升級時意外中斷已授權學生。
-
----
-
-## 三、前端架構
-
-登入頁採 Three.js 3D 場景（液態漸層背景、氣泡動畫、GSAP 補間）；學生 / 教師 / 管理員三套介面目前有 13 個頁面檔，第一階段 API 整合已完成。
-
-```
-frontend/focus-flow/src/
-├── components/     # 共用元件（LoginPage、DashboardApp、Sidebar、Topbar、BubbleScene、Button3D 等）
-├── pages/          # 13 個角色／共用頁面：
-│                   #   Student: Dashboard, Courses, LineBot, ShortsWall
-│                   #   Teacher: Dashboard, Courses, Upload
-│                   #   Admin:   Overview, Stats, Users, Videos, Courses
-│                   #   Shared:  Profile
-├── api.js          # 共用 fetch wrapper（JWT 注入 / token 與 user 持久化）
-├── App.jsx
-└── main.jsx
-```
-
-API base URL 由 `VITE_API_BASE_URL` 控制，預設 `http://localhost:4000/api/v1`。Token 存於 `localStorage.ff_token`。
-
----
-
-## 四、AI Pipeline 流程（`STT_Whisper/`）
-
-```
-本機影片或 YouTube URL
-  ↓ scan_videos.py / yt-dlp  掃描本機檔或下載 YouTube 音訊
-  ↓ extract_audio.py        FFmpeg 抽音（本機影片）
-  ↓ transcribe.py           Faster-Whisper → 含時間戳逐字稿
-  ↓ normalize_transcript.py rapidfuzz 修正專有名詞
-  ↓ chunking.py             三重限制分段（字數/片段數/時長）
-  ↓ embedding.py            Gemini text + audio embedding
-  ↓ video_multimodal_pipeline.py  Gemini video embedding
-  ↓ export_outputs.py       輸出 JSON/JSONL → data/outputs/
-  ↓ mongodb_uploader.py     （可選）直接寫入 MongoDB
-```
-
-Backend 觸發時會傳：
+共用 middleware 鏈包含：
 
 ```text
-本機影片：python src/main.py --video-path <backend/uploads/file> --video-id <Mongo Video _id> --overwrite
-YouTube：python src/main.py --youtube-url <url> --video-id <Mongo Video _id> --overwrite
+authenticate (JWT)
+→ authorizeRoles (RBAC)
+→ upload / lineSignature / internalProcessingAuth
+→ controller
+→ notFoundHandler / errorHandler
 ```
 
-Backend 觸發的單支影片輸出會寫到 `STT_Whisper/data/outputs/runs/<videoId>/`，避免併發覆蓋共用 `outputs/*.jsonl`。快取：音訊 → `data/processed_audio/`；Whisper 逐字稿 → `data/cache/transcripts/`。`--overwrite` 強制重新處理。
+### 3.4 API 與路由模組
 
-### Stable embedding generation 與 Hierarchical Retrieval 安全門
+一般業務 API 統一掛在 `/api/v1`；`/health` 與 `/docs` 是頂層 operational endpoints。
 
-- Leaf 與 Parent artifact 都必須攜帶 provider、model、dimension、instruction、generation、normalization、contract/schema 與 task type；uploader 會在寫入前阻擋缺欄或不相容資料。
-- Parent publication 預設把 artifact 的 `embedding_generation_version` 寫入 `generationVersion`，並以 `isActive=true` 標示可檢索資料；Backend Parent Search 同時用這兩個欄位過濾，且命中後再驗完整契約。
-- Backend 啟用 hierarchy 時，會先對 rollout video allowlist 做唯讀 live readiness：確認 active Parent／其 Child Leaf 都屬同一 embedding generation、`chunkId_1` 可用，以及 Parent vector index 為 READY 且能 filter `courseId`、`videoId`、`generationVersion`、`isActive`。
-- `.env` 的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 只屬部署宣告，不能取代實際 MongoDB 證據。任一 live check 缺失或不相容時，shadow／serve 均 fail closed；預設 Gate 仍為 false，Leaf fallback 保留。
+| 模組 | 主要路徑 | 主要責任 |
+|------|----------|----------|
+| `auth` | `/api/v1/auth/*` | 註冊、role-aware login、`/me`、private avatar |
+| `courses` | `/api/v1/courses/*` | 課程 CRUD、Enrollment、課程影片關係 |
+| `videos` / `video-batches` | `/api/v1/videos/*`、`/api/v1/video-batches/*`、nested course paths | 上傳、批次、狀態、retry、attach/detach、watched |
+| `qa` | `/api/v1/qa/ask`、course FAQ paths | FAQ cache、檢索、回答、citations、紀錄 |
+| `line` | `/api/v1/line/*` | Signed webhook、bind token、選課與共用 QA |
+| `notifications` | `/api/v1/notifications/*` | 列表、cursor、read state、admin fanout |
+| `youtube` | `/api/v1/youtube/*` | Shorts feed、YouTube metadata／availability |
+| `stats` / `admin` | `/api/v1/stats/*`、`/api/v1/admin/*` | 角色 Dashboard 與管理功能 |
+| `internal-video` | `/api/v1/internal/videos/*` | Pipeline processing webhook；shared secret，不使用一般 JWT |
+| Operational | `/health`、`/docs` | Runtime readiness 與 API 文件 |
+
+URL 使用小寫 kebab-case、資源以複數名詞為主，巢狀資源原則上不超過兩層。JavaScript 變數、JSON 與目前正式 MongoDB 欄位使用 camelCase。
+
+### 3.5 Frontend 分層
+
+```text
+main.jsx
+├── /admin → AdminApp.jsx → AdminLoginPage → DashboardApp
+└── other  → App.jsx      → Login/Register → DashboardApp
+                                      ↓
+                            role + sub page mapping
+                                      ↓
+                         pages → services → api.js → Backend
+```
+
+- `components/` 放共用 UI、layout 與導航；`pages/` 負責角色頁面組合。
+- `services/` 處理較完整的前端 domain/API 流程；共用 API request 由 `api.js` 統一處理。
+- API base URL 由 `VITE_API_BASE_URL` 控制，預設指向 `http://localhost:4000/api/v1`。
+- JWT 存於 `localStorage.ff_token`；`apiFetch()` 自動加入 `Authorization: Bearer <token>`。
+- 目前 Dashboard 主要以 React component state 的 `role + sub` 切換；只有 `/admin` 是獨立 URL 入口，不能假設已使用完整 URL router。
+
+### 3.6 AI Pipeline 分層
+
+```text
+Input discovery
+→ audio extraction / download
+→ Faster-Whisper STT
+→ transcript normalization
+→ Leaf chunking（可選 Parent hierarchy）
+→ Gemini embeddings
+→ artifact validation / checkpoint
+→ JSON / JSONL export
+→ MongoDB publication（顯式啟用）
+→ Backend processing webhook
+```
+
+單支入口為 `STT_Whisper/src/main.py`；批次入口為 `batch_main.py`。Batch manifest、execution lease、checkpoint 與 resume 用來隔離單支失敗並避免同一批次被多個 worker 同時修改。
+
+Backend 觸發的單支輸出放在 `STT_Whisper/data/outputs/runs/<videoId>/`，避免共用輸出被併發覆蓋。Pipeline 可產生資料並透過 uploader publication，但 shared MongoDB／Atlas 寫入、外部模型 smoke 與正式 Gate 啟用仍是獨立授權和驗收事項。
+
+### 3.7 資料存取與核心契約
+
+| Model／Collection | 架構定位 |
+|------------------|----------|
+| `users` | 身分、角色、密碼雜湊、LINE 綁定與對話狀態 |
+| `courses` | 課程容器、owner、狀態與掛載影片引用 |
+| `enrollments` | `studentId × courseId` 修課授權、progress 與 soft revoke |
+| `videos` | App-owned 影片與 legacy pipeline metadata 的相容混合邊界 |
+| `videobatches` | 多影片批次、items、execution／retry 狀態 |
+| `video_segments_text` | Leaf 文字片段、時間戳與 text embedding；QA 主要檢索來源 |
+| Parent segment collection | Hierarchical Retrieval 的 Parent metadata／embedding；名稱由 env contract 控制 |
+| `video_segments_video` | 視覺 citation／video embedding；仍存在 snake_case legacy 邊界 |
+| `faqs` | 課程 FAQ cache、命中統計與相似問題快取 |
+| `questions` / `usage_logs` | 問答結果、matches／runtime 與使用行為稽核 |
+| `notifications` | 使用者通知、read state 與 fanout 去重 |
+| `shortassets` | 課程 Short metadata、發布／封存與 YouTube availability |
+| `line_bind_tokens` | 一次性 LINE 綁定 token 與 TTL |
+
+`videos` 目前同時相容 App-owned record 與 Pipeline metadata record。新欄位以 camelCase 為準；`video_id` 等 snake_case 只在明確 legacy／跨系統契約邊界讀取，不得擴散成新的 Backend API 欄位。
+
+- `Video.isAppOwnedRecord(video)`：具備 `courseId`、`uploadedBy`、`title` 與 `processing.status` 的 App 正式影片。
+- `Video.isPipelineMetadataRecord(video)`：具備 `videoId` 或 legacy `video_id`，但不符合 App-owned contract 的 Pipeline metadata。
+
+兩者暫時混存在 `videos`，讓 Pipeline metadata 可經 `course.videoIds` 進入 QA scope；是否拆分 physical collection 仍屬跨組資料庫決策。
+
+### 3.8 核心授權模型
+
+FocusFlow 不是單純的功能權限表，而是：
+
+```text
+Role（RBAC）
++ Resource relationship（Enrollment / owner）
++ Resource status（published / active）
+```
+
+- Student 採 default deny：只有 `active Enrollment ∩ published Course` 可以存取 Course、Video、QA／FAQ、Shorts、課程通知與 LINE 問答。
+- Teacher 只能管理自己擁有的課程與相關影片；Admin 可執行全站管理操作。
+- 課程 owner teacher 與 admin 可指派或 soft revoke Enrollment；撤銷後保留 Question／UsageLog 歷史。
+- LINE 每次選課與提問都重新驗證相同 access policy，不把舊 `activeCourseId` 當成永久授權。
+
+### 3.9 外部整合（External Integrations）
+
+| 整合 | 用途 | 邊界與失敗處理 |
+|------|------|----------------|
+| MongoDB／Atlas Vector Search | App 資料、segment retrieval、runtime records | Backend 以 Mongoose 存取；Pipeline／Database uploader 負責 publication；shared write／index 需獨立授權 |
+| Gemini／OpenAI | Query embedding、回答生成；Pipeline embedding | Provider 由 env 選擇；契約不相容必須 fail fast／closed，不能把 mock 當 live readiness |
+| Faster-Whisper／FFmpeg／yt-dlp | 音訊抽取、STT、YouTube media 取得 | 只在 Python Pipeline／受控 worker 執行；失敗回報 processing state，不在 Express request 內做長工 |
+| LINE Messaging API | 帳號綁定、課程切換與問答 | Inbound webhook 必須驗 `X-Line-Signature`；問答重用 `qa.service` 與 Enrollment policy |
+| YouTube | 本機影片上傳、播放 metadata、Short availability | OAuth／availability 是部署狀態；API 成功不等於學生一定可播放，需另做 read-only/live 驗收 |
+
+### 3.10 部署 Runtime（Deployment View）
+
+```mermaid
+flowchart LR
+    Browser[Browser] --> Nginx[Nginx]
+    Nginx -->|Static files| SPA[Frontend dist]
+    Nginx -->|/api proxy| PM2[PM2: focusflow-backend]
+    PM2 --> Express[Express :4000]
+    Express --> Mongo[(MongoDB / Atlas)]
+    Express --> Providers[LINE / Gemini / YouTube]
+    Actions[GitHub Actions self-hosted] -->|pull + build + restart| VM[Rocky Linux /opt/focusflow]
+    VM --- Nginx
+    VM --- PM2
+```
+
+部署 workflow 只負責更新程式、build 與 restart。公開 DNS／TLS、Nginx proxy、`/health`、provider credentials、MongoDB／index 與瀏覽器行為都必須分開驗證。
 
 ---
 
-## 五、資料庫模型與 Legacy 差異
+## 4. 關鍵資料流向（Key Data Flows）
 
-| 模型 / Collection | 狀態 | 說明 |
-|-------------------|------|------|
-| `users` | 正式 | 帳號、角色、密碼雜湊；含 LINE 對話狀態與歷史 |
-| `courses` | 正式 | 課程容器，`videoIds` 引用 `videos._id` |
-| `videos` | 混合 | App-owned video 與 pipeline metadata 混存，ownership 尚未定版 |
-| `video_segments_text` | **v1 正式** | 問答搜尋核心，text embedding；欄位 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`） |
-| `video_segments_video` | v1 正式（QA 尚未接） | 影片片段 + video embedding；DB 文件目前仍為 snake_case（`video_id`、`clip_id`、`start_sec`） |
-| `video_segments_audio` | 預留 | Pipeline 預留位，目前 0 筆 |
-| `questions` | 正式 | 每則提問的問題、答案、matches、runtime 訊號與 `sourceUsageLogId` |
-| `transcripts_normalized` | Pipeline | 正規化逐字稿 |
-| `term_dictionary` | Pipeline | 專有名詞字典（rapidfuzz 修正用） |
-| `clips` | Legacy | 快取層，`video_segments_video` 尚未接手 |
-| `enrollments` | 正式 | 學生修課授權（`studentId` × `courseId` 唯一索引、`active/revoked`、指派／撤銷稽核欄位、`progress`、`lineNotify`） |
-| `usage_logs` | 正式 | 使用行為記錄（login / watch / ask / clip_view） |
-| `line_bind_tokens` | 正式 | LINE 綁定一次性 token，`expiresAt` TTL 自動清除 |
+### 4.1 登入與已驗證 API
+
+```mermaid
+sequenceDiagram
+    participant C as Web Client
+    participant A as Auth Route/Service
+    participant U as Users Collection
+
+    C->>A: POST /api/v1/auth/login (email, password, role)
+    A->>U: Find normalized email
+    U-->>A: User + passwordHash
+    A->>A: bcrypt.compare + role/isActive validation
+    A-->>C: JWT (payload only contains sub)
+    C->>C: Store localStorage.ff_token
+    C->>A: API request + Bearer JWT
+    A->>U: Verify token subject and active user
+    A-->>C: Authorized response
+```
+
+### 4.2 影片上傳與 AI 處理（Write Flow）
+
+```mermaid
+flowchart TD
+    Teacher[Teacher Client] --> Upload[Authenticated Upload Route]
+    Upload --> Validate[Role / ownership / MIME / size validation]
+    Validate --> Video[(Video / VideoBatch write)]
+    Video --> Queue[Schedule single or batch worker]
+    Queue --> Pipeline[STT Pipeline]
+    Pipeline --> Artifacts[Transcript / Chunks / Embeddings]
+    Artifacts --> Contract{Artifact contract valid?}
+    Contract -- No --> Failed[Fail without publication]
+    Contract -- Yes --> Segments[(MongoDB segment upsert)]
+    Segments --> Webhook[Internal processing webhook]
+    Webhook --> State[Enforce legal processing transition]
+    State --> Notify[Notification / frontend status]
+```
+
+狀態轉換只允許：
+
+```text
+queued → processing → completed
+                   ↘ failed → retry → processing
+```
+
+非法轉換必須回傳明確衝突錯誤，不能靜默修正；batch retry 沿用既有 batch／manifest／checkpoint，不建立平行真相來源。
+
+### 4.3 網頁 QA（Read + Derived Write Flow）
+
+```mermaid
+flowchart TD
+    Ask[POST /api/v1/qa/ask] --> Auth[JWT + course access check]
+    Auth --> Scope[Build allowed course/video scope]
+    Scope --> Exact{Exact FAQ hit?}
+    Exact -- Yes --> Cached[Return cached answer]
+    Exact -- No --> Embed[Create query embedding]
+    Embed --> Similar{Semantic FAQ hit?}
+    Similar -- Yes --> Cached
+    Similar -- No --> Search[Atlas or memory segment search]
+    Search --> Matches[Validate scope + assemble citations]
+    Matches --> Generate[Answer provider]
+    Generate --> Record[(Question / UsageLog / eligible FAQ write)]
+    Cached --> RecordHit[(UsageLog / Question hit record)]
+    Record --> Response[Answer + answerStatus + citations]
+    RecordHit --> Response
+```
+
+QA 的檢索範圍由 course access、course/video relationship 與 BridgeScope 共同決定。網頁與 LINE 最終都呼叫 `qa.service.askQuestion()`，不可各自實作另一套檢索或權限邏輯。
+
+| BridgeScope mode | 課程影片組成 | 搜尋邊界 |
+|------------------|--------------|----------|
+| `standard` | 只有 App-owned 影片或沒有影片 | 以正常課程／影片關係建立 scope |
+| `qa_scope_only` | 只有 Pipeline metadata 影片 | 只使用 bridge 允許的 course/video IDs |
+| `mixed_scope` | App-owned 與 Pipeline metadata 並存 | 合併兩種允許範圍後再過濾 segments |
+
+QA providers 可由環境變數切換：
+
+| 設定 | 可選值 | 責任 |
+|------|--------|------|
+| `QA_QUERY_EMBEDDING_PROVIDER` | `mock` / `openai` / `gemini` | Query embedding |
+| `QA_ANSWER_PROVIDER` | `template` / `openai` / `gemini` | Answer generation |
+| `QA_VECTOR_SEARCH_MODE` | `memory` / `atlas` | Segment retrieval |
+
+本機 mock／memory 測試只證明程式路徑，不代表 Atlas、Gemini 或 production readiness。
+
+### 4.4 LINE 問答
+
+```mermaid
+sequenceDiagram
+    participant L as LINE Platform
+    participant W as LINE Webhook
+    participant Q as Shared QA Service
+    participant D as MongoDB
+
+    L->>W: POST webhook + X-Line-Signature
+    W->>W: Verify HMAC against raw body
+    W->>D: Resolve bound user + active course
+    W->>D: Revalidate active Enrollment + published Course
+    W->>Q: askQuestion(user, course, message)
+    Q-->>W: answer + citations
+    W-->>L: Reply message + timestamp link/instruction
+```
+
+LINE 對話狀態存在 User 文件：`lineConversationState`、最近三輪的 `lineConversationHistory` 與 `activeCourseId`。撤銷資格時必須同步清除失效 scope 與對話上下文。
+
+### 4.5 Stable Embedding 與 Hierarchical Retrieval 安全門
+
+- Leaf 與 Parent artifact 必須攜帶 provider、model、dimension、instruction、generation、normalization、contract/schema 與 task type。
+- Uploader 在 publication 前阻擋缺欄或不相容 artifact；Parent 以 `generationVersion` 與 `isActive=true` 表示可檢索 generation。
+- Backend 啟用 hierarchy 前必須唯讀驗證 active Parent／Child Leaf generation、`chunkId_1` 與 Parent vector index filter contract。
+- `.env` 中的 active-contract JSON 只屬部署宣告，不能取代 live MongoDB／index evidence。
+- 任一 live evidence 缺失或不相容時，shadow／serve 必須 fail closed；Leaf fallback 與 Gate 狀態以 runtime 設定為準。
 
 ---
 
-## 六、模組交互流程
+## 5. 架構設計原則（Architecture Principles）
 
-```
-前端                後端                     MongoDB
- │                   │                          │
- │  POST /auth/login │                          │
- │──────────────────→│  auth.service            │
- │  ← JWT Token ─────│  bcrypt 比對密碼         │
- │                   │                          │
- │  POST /qa/ask     │                          │
- │  (Bearer JWT)─────→│  qa.service             │
- │                   │  embedQuery()            │
- │                   │  searchSegments()────────→│ video_segments_text
- │                   │  ←──────── matches ──────│
- │                   │  generateAnswer()        │
- │                   │  recordUsage()───────────→│ usage_logs
- │  ← answer + clip─│                          │
+以下規則同時約束開發者與 AI；詳細寫法見 `.claude/rules/`，驗收門檻見 `AGENTS.md`。
 
-LINE Bot             後端
- │  POST /line/webhook│
- │──────────────────→│  line.service
- │                   │  HMAC 驗簽 → 解析 userId
- │                   │  qa.service.askQuestion()
- │  ← reply message─│
-```
+### 5.1 Architecture Invariants（不可破壞的不變量）
+
+1. **單一業務邏輯入口**：網頁與 LINE 的問答必須共用 `qa.service.askQuestion()`；不得複製另一套 scope、retrieval 或 answer 邏輯。
+2. **權限永遠由 Server 決定**：Student 內容存取固定為 `active Enrollment ∩ published Course`；前端隱藏、舊 token、`activeCourseId` 或知道資源 ID 都不構成授權。
+3. **Backend 依賴方向固定**：`routes → controllers → services → models`；controller 不直接操作 Model，service 不依賴 Express `req`／`res`。
+4. **Pipeline 是獨立執行邊界**：長時間 STT／Embedding 不在 HTTP request process 內執行；Backend 與 Pipeline 只透過受控 process、artifact、MongoDB publication 與 authenticated webhook 交接。
+5. **處理狀態與批次必須冪等**：processing transition 只能走合法狀態機；webhook replay、retry、restart 不得重複計數、覆寫第一個 failure 或建立第二份 batch truth。
+6. **Embedding contract 不可混用**：Leaf／Parent／Query 的 provider、model、dimension、instruction、generation 與 normalization 必須相容；env 宣告不能取代 live data／index evidence。
+7. **Legacy 只能被包在邊界內**：新 API、JS 與 Mongoose 欄位一律 camelCase；snake_case 只在明確 uploader／legacy adapter 讀寫，不得向新模組擴散。
+8. **測試證據不可跨級誤稱**：mock／memory／unit tests、隔離 Mongo、shared Atlas、live provider、browser E2E 與 production deploy 是不同驗收層級。
+
+### 5.2 工程規則（Engineering Rules）
+
+| 原則 | 必須遵守 | 禁止／邊界 |
+|------|----------|-------------|
+| 單向分層 | 維持 `routes → controllers → services → models`；資料庫操作與主要業務邏輯放 service | Controller 直接操作 Model、在 route 堆業務邏輯 |
+| 統一 API | 使用 `/api/v1`、小寫 kebab-case、camelCase JSON；成功／錯誤透過 `sendSuccess`、`buildErrorResponse` | 任意 `res.json()` 建立另一種 response shape |
+| 統一錯誤 | Service 拋 `AppError`；async controller 使用 `asyncHandler`；最後交給 global error middleware | 吞掉 Error、回傳 200 假裝成功、在 production 洩漏 stack／query |
+| Authentication | 一般受保護 API 先 `authenticate` 再 `authorizeRoles`；JWT payload 只保存 `sub`，每次查 active user | 信任前端 role、在 token 放敏感資料、繞過 middleware |
+| Authorization | Student default deny；以 Enrollment、ownership 與 resource status 做 server-side 驗證 | 只因知道 ID／URL 就允許存取、把 UI 隱藏當成權限控制 |
+| Webhook Security | LINE 驗證 raw body HMAC；internal processing endpoint 驗證專用 shared secret | 把 internal webhook 當一般公開 API、測試或正式環境跳過簽章 |
+| Input / Secrets | 所有輸入先驗證與 trim；ObjectId 使用共用 validator；secrets 只放 `.env` | Hardcode credential、回傳 `passwordHash`／LINE ID 等敏感欄位 |
+| Frontend API | 已驗證 request 統一經 `apiFetch()` 或既有 service；錯誤保持可見與可處理 | 各頁自行複製 token／response parsing，造成 auth contract 分岔 |
+| Data Contract | 新 JS／API／Mongoose 欄位使用 camelCase；schema 變更保留向下相容；唯一性優先交給 DB index | 用新 snake_case 欄位擴大 legacy、只靠 service 先查再避免競態 |
+| Processing | 狀態轉換、webhook、retry 與 publication 必須冪等；batch 使用 manifest／lease／checkpoint | 兩個 worker 同時修改同一批次、retry 建立第二份狀態真相 |
+| External Providers | Provider 狀態由 env + `/health` + live evidence 判斷；不相容契約 fail fast／closed | 把 mock、in-memory、舊 snapshot 或綠色 unit tests 說成 live readiness |
+| Observability | 以 `/health`、runtime diagnostics、processing state 與結構化紀錄判斷系統狀態 | 只看 `.env.example`、workflow 結果或單次成功 log 推定目前可用 |
+| Shared Data Safety | Shared Atlas 的 collection／index／publication／cleanup 必須先確認目標與取得授權 | Agent 自行寫入、建 index、migration、清除或啟服觸發 autoIndex |
+| Verification | 依修改區域執行 tests／lint／build；真實 MongoDB、瀏覽器、外部 provider 與部署分開驗收 | 只因 local tests 通過就宣稱 released 或 production-ready |
+| 文件邊界 | 穩定架構放本文件；動態進度放 `docs/current-status.md`；決策原因放 `docs/decision-log.md` | 在多份文件複製同一段高頻狀態，造成彼此過期 |
+
+### 5.3 開發判斷順序
+
+當文件彼此衝突時：
+
+1. 查目前 routes、models、services、tests 與 runtime。
+2. 查最近 git history／diff，確認新舊行為。
+3. 查 `docs/current-status.md` 與 `backend/docs/current-state.md` 的動態邊界。
+4. 查 OpenAPI、Database／Pipeline 契約與 subsystem README。
+5. 舊 schema、會議紀錄與歷史摘要只作背景，不直接視為現行契約。

@@ -39,3 +39,26 @@ export function formatConversationDate(value, now = new Date()) {
   if (dayDiff === 1) return '昨天';
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
+
+export function scrollConversationMessageIntoView(container, message, behavior = 'smooth') {
+  if (!container || !message || typeof container.scrollTo !== 'function') return false;
+
+  const containerRect = container.getBoundingClientRect();
+  const messageRect = message.getBoundingClientRect();
+  const edgePadding = 8;
+  const availableHeight = containerRect.bottom - containerRect.top - edgePadding * 2;
+  const messageHeight = messageRect.bottom - messageRect.top;
+  let top = null;
+
+  if (messageHeight > availableHeight) {
+    top = container.scrollTop + messageRect.top - containerRect.top - edgePadding;
+  } else if (messageRect.top < containerRect.top + edgePadding) {
+    top = container.scrollTop + messageRect.top - containerRect.top - edgePadding;
+  } else if (messageRect.bottom > containerRect.bottom - edgePadding) {
+    top = container.scrollTop + messageRect.bottom - containerRect.bottom + edgePadding;
+  }
+
+  if (top === null) return false;
+  container.scrollTo({ top: Math.max(0, top), behavior });
+  return true;
+}

@@ -8,6 +8,7 @@ import {
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
+  scrollConversationMessageIntoView,
   toStudentCitation,
 } from './qaConversationUtils';
 
@@ -337,7 +338,8 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [conversations, setConversations] = useState([]);
   const [conversationLoading, setConversationLoading] = useState(true);
   const [expandedMessageIds, setExpandedMessageIds] = useState(new Set());
-  const latestAnswerRef = useRef(null);
+  const messageListRef = useRef(null);
+  const latestMessageRef = useRef(null);
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
   useEffect(() => {
@@ -353,9 +355,8 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   }, [courseId]);
 
   useEffect(() => {
-    if (messages.at(-1)?.role === 'assistant') {
-      latestAnswerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    if (messages.length === 0) return;
+    scrollConversationMessageIntoView(messageListRef.current, latestMessageRef.current);
   }, [messages]);
 
   async function createNewConversation() {
@@ -451,15 +452,15 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   }
 
   return (
-    <div style={{ marginTop: 14, padding: '16px 18px', background: 'rgba(241,79,33,0.06)', border: '1px solid rgba(241,79,33,0.18)', borderRadius: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+    <div className="qa-conversation-panel">
+      <div className="qa-conversation-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em' }}>AI 問答</div>
         <button type="button" onClick={() => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'))} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(241,79,33,0.35)', background: 'transparent', color: '#F14F21', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
           ＋ 新對話
         </button>
       </div>
       {(conversationLoading || conversations.length > 0) && (
-        <div style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
+        <div className="qa-recent-conversations" style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginBottom: 6, letterSpacing: '.06em' }}>最近對話</div>
           {conversationLoading ? (
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>載入中…</div>
@@ -471,28 +472,15 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          className="ff-input"
-          style={{ flex: 1, margin: 0 }}
-          placeholder="輸入問題…"
-          value={question}
-          onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && ask()}
-          disabled={loading}
-        />
-        <button className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} onClick={ask} disabled={loading || !question.trim()}>
-          {loading ? '處理中…' : '問'}
-        </button>
-      </div>
-      {loading && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.48)' }}>正在搜尋並整理課程內容...</div>}
-      {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
-      {messages.map((message, messageIndex) => message.role === 'user' ? (
-        <div key={message.id || `user-${messageIndex}`} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
+      <div ref={messageListRef} className="qa-message-list" aria-live="polite">
+        {loading && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.48)' }}>正在搜尋並整理課程內容...</div>}
+        {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
+        {messages.map((message, messageIndex) => message.role === 'user' ? (
+        <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
           {message.content}
         </div>
       ) : (() => { const result = message; return (
-        <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestAnswerRef : undefined} style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12 }}>
+        <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12 }}>
           <AnswerContent answer={result.answer} />
           {result.status === 'failed' && (
             <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
@@ -576,7 +564,25 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             </button>
           )}
         </div>
-      ); })())}
+        ); })())}
+      </div>
+      <div className="qa-input-area">
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="ff-input"
+            style={{ flex: 1, margin: 0, minWidth: 0 }}
+            placeholder="輸入問題…"
+            aria-label="輸入課程問題"
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && ask()}
+            disabled={loading}
+          />
+          <button className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} onClick={ask} disabled={loading || !question.trim()}>
+            {loading ? '處理中…' : '問'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

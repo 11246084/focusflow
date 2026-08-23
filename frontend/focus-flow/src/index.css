@@ -1185,6 +1185,44 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* Course detail grid */
 .course-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 
+.qa-conversation-panel {
+  display: flex;
+  flex-direction: column;
+  height: clamp(430px, 62dvh, 680px);
+  min-height: 0;
+  margin-top: 14px;
+  padding: 16px 18px 0;
+  overflow: hidden;
+  background: rgba(241,79,33,0.06);
+  border: 1px solid rgba(241,79,33,0.18);
+  border-radius: 14px;
+}
+
+.qa-conversation-header,
+.qa-recent-conversations,
+.qa-input-area {
+  flex-shrink: 0;
+}
+
+.qa-message-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.qa-message-list::-webkit-scrollbar { width: 4px; }
+.qa-message-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
+
+.qa-input-area {
+  margin: 10px -18px 0;
+  padding: 12px 18px 16px;
+  background: rgba(24, 8, 20, 0.94);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
 .citation-card[role="button"] {
   transition: background-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -1314,6 +1352,10 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Any 2-col / text+QR grids → 1-col on mobile */
   .ff-grid-2, .ff-grid-auto, .course-detail-grid { grid-template-columns: 1fr !important; }
 
+  .qa-conversation-panel {
+    height: clamp(400px, 70dvh, 620px);
+  }
+
   /* Table scrollable on mobile */
   .ff-tbl { font-size: 12px; }
   .ff-tbl th, .ff-tbl td { padding: 8px 10px; }
@@ -1325,4 +1367,16 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* Small phones: 4-col stat grids drop to single column too */
 @media (max-width: 480px) {
   .ff-grid-4 { grid-template-columns: 1fr !important; }
+
+  .qa-conversation-panel {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .qa-input-area {
+    margin-right: -14px;
+    margin-left: -14px;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
 }

@@ -2,6 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import { apiFetch, BACKEND_ORIGIN } from '../api';
+import {
+  SOURCE_PREVIEW_COUNT,
+  formatConversationDate,
+  getRemainingSourceCount,
+  getVisibleSources,
+  mapConversationMessage,
+  toStudentCitation,
+} from './qaConversationUtils';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 let youtubeApiPromise = null;
@@ -285,7 +293,7 @@ const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'
 // 全列會洗掉整個問答面板，因此預設只列前幾筆、可展開。
 // 展開能力是必要的：答案結尾的「依據」可能引用超過這個數量的片段，
 // 學生要能點到每一個被引用的時間戳。
-const SEGMENT_PREVIEW_COUNT = 3;
+const SEGMENT_PREVIEW_COUNT = SOURCE_PREVIEW_COUNT;
 
 function normalizeAnswerLines(value) {
   return String(value || '')
@@ -326,40 +334,106 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError]       = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [conversationLoading, setConversationLoading] = useState(true);
+  const [expandedMessageIds, setExpandedMessageIds] = useState(new Set());
+  const latestAnswerRef = useRef(null);
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
-  const [showAllSegments, setShowAllSegments] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setConversationLoading(true);
+    apiFetch(`/conversations?courseId=${encodeURIComponent(courseId)}`)
+      .then((response) => {
+        if (active) setConversations(response.data?.conversations || []);
+      })
+      .catch(() => { if (active) setError('無法載入最近對話'); })
+      .finally(() => { if (active) setConversationLoading(false); });
+    return () => { active = false; };
+  }, [courseId]);
+
+  useEffect(() => {
+    if (messages.at(-1)?.role === 'assistant') {
+      latestAnswerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [messages]);
+
+  async function createNewConversation() {
+    setError('');
+    const response = await apiFetch('/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId }),
+    });
+    setConversationId(response.data.id);
+    setMessages([]);
+    setExpandedMessageIds(new Set());
+    setConversations((items) => [response.data, ...items]);
+    return response.data.id;
+  }
+
+  async function resumeConversation(id) {
+    setLoading(true); setError('');
+    try {
+      const response = await apiFetch(`/conversations/${id}/messages`);
+      setConversationId(id);
+      setMessages((response.data?.messages || []).map(mapConversationMessage));
+      setExpandedMessageIds(new Set());
+    } catch (e) {
+      setError(e.message || '無法恢復對話');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function ask() {
     if (!question.trim()) return;
     const currentQuestion = question.trim();
-    setLoading(true); setError(''); setShowAllSegments(false);
-    setMessages((items) => [...items, { role: 'user', content: currentQuestion }]);
+    setLoading(true); setError('');
+    const temporaryId = `pending-${Date.now()}`;
+    setMessages((items) => [...items, {
+      id: temporaryId, role: 'user', content: currentQuestion, status: 'completed',
+    }]);
     setQuestion('');
     try {
       let activeConversationId = conversationId;
       if (!activeConversationId) {
-        const created = await apiFetch('/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ courseId }),
-        });
-        activeConversationId = created.data.id;
-        setConversationId(activeConversationId);
+        activeConversationId = await createNewConversation();
       }
       const res = await apiFetch(`/conversations/${activeConversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: currentQuestion }),
       });
-      setMessages((items) => [...items, {
-        role: 'assistant',
-        content: res.data.answer,
-        answer: res.data.answer,
-        matches: res.data.sources || [],
-      }]);
+      setMessages((items) => [
+        ...items.filter((message) => message.id !== temporaryId),
+        mapConversationMessage(res.data.userMessage),
+        mapConversationMessage(res.data.assistantMessage),
+      ]);
+      setConversations((items) => items.map((item) => (
+        item.id === activeConversationId
+          ? { ...item, title: item.title === 'New conversation' ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() }
+          : item
+      )).sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
     } catch (e) {
       setError(e.message || '問答失敗');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function retryAnswer(message) {
+    setLoading(true); setError('');
+    try {
+      const response = await apiFetch(
+        `/conversations/${conversationId}/messages/${message.replyToMessageId}/retry`,
+        { method: 'POST' },
+      );
+      setMessages((items) => items.map((item) => (
+        item.id === message.id ? mapConversationMessage(response.data.assistantMessage) : item
+      )));
+    } catch (e) {
+      setError(e.message || '重新產生失敗');
     } finally {
       setLoading(false);
     }
@@ -378,7 +452,25 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
 
   return (
     <div style={{ marginTop: 14, padding: '16px 18px', background: 'rgba(241,79,33,0.06)', border: '1px solid rgba(241,79,33,0.18)', borderRadius: 14 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em', marginBottom: 10 }}>AI 問答</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em' }}>AI 問答</div>
+        <button type="button" onClick={() => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'))} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(241,79,33,0.35)', background: 'transparent', color: '#F14F21', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+          ＋ 新對話
+        </button>
+      </div>
+      {(conversationLoading || conversations.length > 0) && (
+        <div style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginBottom: 6, letterSpacing: '.06em' }}>最近對話</div>
+          {conversationLoading ? (
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>載入中…</div>
+          ) : conversations.slice(0, 5).map((conversation) => (
+            <button key={conversation.id} type="button" onClick={() => resumeConversation(conversation.id)} disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 4px', border: 0, background: conversationId === conversation.id ? 'rgba(241,79,33,0.09)' : 'transparent', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{conversation.title}</span>
+              <span style={{ flexShrink: 0, color: 'rgba(255,255,255,0.32)', fontSize: 10 }}>{formatConversationDate(conversation.updatedAt || conversation.createdAt)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           className="ff-input"
@@ -390,20 +482,26 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           disabled={loading}
         />
         <button className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} onClick={ask} disabled={loading || !question.trim()}>
-          {loading ? '…' : '問'}
+          {loading ? '處理中…' : '問'}
         </button>
       </div>
+      {loading && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.48)' }}>正在搜尋並整理課程內容...</div>}
       {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
       {messages.map((message, messageIndex) => message.role === 'user' ? (
-        <div key={`user-${messageIndex}`} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
+        <div key={message.id || `user-${messageIndex}`} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
           {message.content}
         </div>
       ) : (() => { const result = message; return (
-        <div style={{ marginTop: 12 }}>
+        <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestAnswerRef : undefined} style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12 }}>
           <AnswerContent answer={result.answer} />
+          {result.status === 'failed' && (
+            <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+              重新產生
+            </button>
+          )}
           {(result.matches || result.segments || []).length > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
-              命中片段
+              參考課程片段
               {(result.segments || result.matches || []).length > SEGMENT_PREVIEW_COUNT && (
                 <span style={{ fontWeight: 400, letterSpacing: 0 }}>
                   {' '}（共 {(result.segments || result.matches || []).length} 筆）
@@ -411,14 +509,14 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
               )}
             </div>
           )}
-          {(showAllSegments
-            ? (result.segments || result.matches || [])
-            : (result.segments || result.matches || []).slice(0, SEGMENT_PREVIEW_COUNT)
-          ).map((seg, i) => {
-            const start = seg.startSec ?? seg.start_sec ?? 0;
-            const end = seg.endSec ?? seg.end_sec ?? start;
-            const text  = seg.transcript || seg.text || seg.content || '';
-            const score = typeof seg.score === 'number' ? seg.score : null;
+          {getVisibleSources(
+            result.segments || result.matches || [],
+            expandedMessageIds.has(result.id || messageIndex),
+          ).map((source, i) => {
+            const seg = toStudentCitation(source);
+            const start = seg.startSec;
+            const end = seg.endSec;
+            const text = seg.transcript;
             const matchedIndex = videos.findIndex((video) => (
               String(video._id || video.id || '') === String(seg.videoId || '')
               || String(video.videoId || video.externalVideoId || '') === String(seg.videoId || '')
@@ -447,7 +545,6 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
                   <span style={{ color: 'rgba(255,255,255,0.78)', fontWeight: 700 }}>{videoTitle}</span>
                   {' · '}
                   {text.slice(0, 160)}{text.length > 160 ? '…' : ''}
-                  {score !== null && <span style={{ color: 'rgba(255,255,255,0.32)' }}> · score {score.toFixed(4)}</span>}
                 </span>
               </div>
             );
@@ -455,7 +552,12 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           {(result.segments || result.matches || []).length > SEGMENT_PREVIEW_COUNT && (
             <button
               type="button"
-              onClick={() => setShowAllSegments((prev) => !prev)}
+              onClick={() => setExpandedMessageIds((current) => {
+                const next = new Set(current);
+                const key = result.id || messageIndex;
+                if (next.has(key)) next.delete(key); else next.add(key);
+                return next;
+              })}
               style={{
                 marginTop: 2,
                 padding: '6px 12px',
@@ -468,9 +570,9 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
                 cursor: 'pointer',
               }}
             >
-              {showAllSegments
+              {expandedMessageIds.has(result.id || messageIndex)
                 ? '收合'
-                : `顯示全部 ${(result.segments || result.matches || []).length} 筆`}
+                : `查看其他 ${getRemainingSourceCount(result.segments || result.matches || [])} 個相關片段`}
             </button>
           )}
         </div>

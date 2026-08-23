@@ -31,6 +31,8 @@ const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
+const Conversation = require('../../src/models/conversation.model');
+const Message = require('../../src/models/message.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -51,6 +53,8 @@ const store = {
   faqs: [],
   shortAssets: [],
   notifications: [],
+  conversations: [],
+  messages: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   beforeUserAvatarCompareAndSwap: null,
@@ -963,6 +967,30 @@ function installModelStubs() {
   Question.countDocuments = async (query = {}) => store.questions.filter((item) => matchesQuery(item, query)).length;
   Question.deleteMany = async (query = {}) => deleteManyInStore(store.questions, query);
 
+  Conversation.create = async (payload) => {
+    const now = new Date().toISOString();
+    const document = { _id: newObjectId(), createdAt: now, updatedAt: now, ...payload };
+    store.conversations.push(document);
+    return document;
+  };
+  Conversation.findById = (id) => createQuery(
+    store.conversations.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
+  );
+  Conversation.findByIdAndUpdate = async (id, update) => {
+    const document = store.conversations.find((item) => normalizeValue(item._id) === normalizeValue(id));
+    if (!document) return null;
+    applyUpdate(document, update);
+    document.updatedAt = new Date().toISOString();
+    return document;
+  };
+  Message.create = async (payload) => {
+    const now = new Date().toISOString();
+    const document = { _id: newObjectId(), createdAt: now, updatedAt: now, sources: [], ...payload };
+    store.messages.push(document);
+    return document;
+  };
+  Message.find = (query = {}) => createQuery(store.messages.filter((item) => matchesQuery(item, query)));
+
   Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
   Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;
   Faq.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
@@ -1044,6 +1072,8 @@ function resetStore() {
   store.faqs.length = 0;
   store.shortAssets.length = 0;
   store.notifications.length = 0;
+  store.conversations.length = 0;
+  store.messages.length = 0;
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.beforeUserAvatarCompareAndSwap = null;

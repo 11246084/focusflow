@@ -25,6 +25,19 @@ const messageSchema = new mongoose.Schema(
     },
     role: { type: String, enum: ['user', 'assistant'], required: true },
     content: { type: String, required: true, trim: true },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed'],
+      default: 'completed',
+      index: true,
+    },
+    replyToMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+      index: true,
+    },
+    errorCode: { type: String, default: null, trim: true },
     sources: { type: [sourceSchema], default: [] },
     standaloneQuestion: { type: String, default: null, trim: true },
     runtime: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -33,5 +46,6 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ conversationId: 1, createdAt: 1 });
+messageSchema.index({ conversationId: 1, replyToMessageId: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

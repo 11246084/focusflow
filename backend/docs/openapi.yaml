@@ -1562,6 +1562,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /api/v1/conversations:
+    get:
+      tags: [QA]
+      summary: 依課程列出目前使用者的最近 conversations
+      operationId: listConversations
+      parameters:
+        - name: courseId
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      responses:
+        '200': { description: Conversations retrieved in updatedAt descending order }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
     post:
       tags: [QA]
       summary: 建立課程範圍的 QA conversation
@@ -1614,6 +1628,26 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Conversation not found }
+  /api/v1/conversations/{conversationId}/messages/{messageId}/retry:
+    post:
+      tags: [QA]
+      summary: 使用同一則 user message 重新產生失敗回答
+      operationId: retryConversationMessage
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+        - name: messageId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      responses:
+        '200': { description: Message retry completed }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Conversation or user message not found }
+        '409': { description: Message is not retryable }
   /api/v1/qa/ask:
     post:
       tags:

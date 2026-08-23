@@ -9,6 +9,12 @@ const createConversation = asyncHandler(async (req, res) => {
   const data = await service.createConversation({ user: req.user, courseId, title: req.body.title });
   return sendSuccess(res, { statusCode: 201, message: 'Conversation created.', data });
 });
+const listConversations = asyncHandler(async (req, res) => {
+  const courseId = String(req.query.courseId || '').trim();
+  if (!courseId) throw new AppError('courseId is required.', 400, 'VALIDATION_ERROR');
+  const conversations = await service.listConversations({ user: req.user, courseId });
+  return sendSuccess(res, { message: 'Conversations retrieved.', data: { conversations } });
+});
 const listMessages = asyncHandler(async (req, res) => {
   const messages = await service.listMessages({ user: req.user, conversationId: req.params.conversationId });
   return sendSuccess(res, { message: 'Conversation messages retrieved.', data: { messages } });
@@ -19,4 +25,12 @@ const sendMessage = asyncHandler(async (req, res) => {
   const data = await service.sendMessage({ user: req.user, conversationId: req.params.conversationId, content });
   return sendSuccess(res, { statusCode: 201, message: 'Message answered.', data });
 });
-module.exports = { createConversation, listMessages, sendMessage };
+const retryMessage = asyncHandler(async (req, res) => {
+  const data = await service.retryMessage({
+    user: req.user,
+    conversationId: req.params.conversationId,
+    userMessageId: req.params.messageId,
+  });
+  return sendSuccess(res, { message: 'Message retry completed.', data });
+});
+module.exports = { createConversation, listConversations, listMessages, sendMessage, retryMessage };

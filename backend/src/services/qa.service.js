@@ -866,6 +866,8 @@ async function askQuestion({
   conversationHistory = null, conversationId = null, contextualization = null,
 }) {
   const t0 = process.hrtime.bigint();
+  const totalStartedAt = Date.now();
+  const stageLatency = {};
   let tMark = t0;
 
   const runtimeSnapshot = assertQaRuntimeConfiguration();
@@ -928,7 +930,9 @@ async function askQuestion({
   // miss 路徑仍 await 原 promise，載入失敗照樣往外拋。
   scopedSegmentsPromise.catch(() => {});
 
+  const embeddingStartedAt = Date.now();
   const queryVector = await embedQuery(standaloneQuestion);
+  stageLatency.embeddingLatencyMs = Date.now() - embeddingStartedAt;
   tMark = qaTimingMark('embed', tMark);
 
   // FAQ 快取第二層：embedding 已算好，先跟課程 FAQ 比 cosine 相似度，
@@ -1095,6 +1099,7 @@ async function askQuestion({
     parentTimeoutMs: env.hierarchicalParentTimeoutMs,
     expectedContract: runtimeSnapshot.queryEmbeddingContract,
   });
+  const retrievalStartedAt = Date.now();
   const searchResult = await executeHierarchicalRollout({
     decision: rolloutDecision,
     leafSearch,
@@ -1199,8 +1204,14 @@ async function askQuestion({
   }
 
   // 平行：LLM 生成答案與快取 clip 查詢完全獨立
+  const generationStartedAt = Date.now();
+  const answerPromise = generateAnswer(trimmedQuestion, matches, conversationHistory)
+    .then((answer) => {
+      stageLatency.generationLatencyMs = Date.now() - generationStartedAt;
+      return answer;
+    });
   const [answerResult, clip] = await Promise.all([
-    generateAnswer(trimmedQuestion, matches, conversationHistory),
+    answerPromise,
     findCachedClip(matches[0].segmentId),
   ]);
   tMark = qaTimingMark(`llm+clip (matches=${matches.length}, transcript chars≈${matches.reduce((s, m) => s + (m.transcript?.length || 0), 0)})`, tMark);
@@ -1219,6 +1230,7 @@ async function askQuestion({
     searchDiagnostics: searchResult.diagnostics,
     answerResult,
   });
+  stageLatency.retrievalLatencyMs = Date.now() - retrievalStartedAt;
   if (conversationId) {
     runtime.conversation = {
       conversationId: String(conversationId),
@@ -1227,6 +1239,7 @@ async function askQuestion({
       requiresContext: Boolean(contextualization?.requiresContext),
     };
   }
+  runtime.latency = { ...stageLatency, totalLatencyMs: Date.now() - totalStartedAt };
   runtime.faqCache = { hit: false, enabled: faqCacheEnabled };
 
   // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行

@@ -976,6 +976,9 @@ function installModelStubs() {
   Conversation.findById = (id) => createQuery(
     store.conversations.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
   );
+  Conversation.find = (query = {}) => createQuery(
+    store.conversations.filter((item) => matchesQuery(item, query)),
+  );
   Conversation.findByIdAndUpdate = async (id, update) => {
     const document = store.conversations.find((item) => normalizeValue(item._id) === normalizeValue(id));
     if (!document) return null;
@@ -985,11 +988,23 @@ function installModelStubs() {
   };
   Message.create = async (payload) => {
     const now = new Date().toISOString();
-    const document = { _id: newObjectId(), createdAt: now, updatedAt: now, sources: [], ...payload };
+    const document = {
+      _id: newObjectId(), createdAt: now, updatedAt: now, sources: [], status: 'completed', ...payload,
+    };
     store.messages.push(document);
     return document;
   };
   Message.find = (query = {}) => createQuery(store.messages.filter((item) => matchesQuery(item, query)));
+  Message.findById = (id) => createQuery(
+    store.messages.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
+  );
+  Message.findByIdAndUpdate = async (id, update) => {
+    const document = store.messages.find((item) => normalizeValue(item._id) === normalizeValue(id));
+    if (!document) return null;
+    applyUpdate(document, update);
+    document.updatedAt = new Date().toISOString();
+    return document;
+  };
 
   Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
   Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;

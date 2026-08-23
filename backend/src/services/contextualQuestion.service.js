@@ -1,6 +1,6 @@
 const env = require('../config/env');
 
-const FOLLOW_UP_MARKERS = /^(那|那麼|所以|而|它|他|她|這|這個|這些|上述|前面|剛才|其中|跟|與|以及|還有|then|what about|how about|and\b)/i;
+const FOLLOW_UP_MARKERS = /^(那|那麼|所以|而|它|它們|兩者|他|她|這|這個|這些|上述|前面|剛才|其中|跟|與|以及|還有|為什麼會這樣|為何如此|then|what about|how about|why is that|and\b)/i;
 const PRONOUN_MARKERS = /(它|他|她|這個|這些|上述|前面|剛才|其中)/;
 
 function normalizeHistory(history) {
@@ -24,7 +24,21 @@ function extractTopic(question) {
     const match = text.match(pattern);
     if (match?.[1]) return match[1].trim().replace(/^(老師怎麼|老師如何|課程中)/, '');
   }
-  return text.length <= 40 ? text.replace(/^(老師怎麼|老師如何|課程中)/, '') : '';
+  return text.length <= 60
+    ? text
+      .replace(/^(老師怎麼|老師如何|課程中|那麼|那|而|所以)/, '')
+      .replace(/(?:呢|又如何|怎麼樣)$/g, '')
+      .trim()
+    : '';
+}
+
+function recentUserTopics(history) {
+  const topics = [];
+  for (const item of history.filter((entry) => entry.role === 'user')) {
+    const topic = extractTopic(item.content);
+    if (topic && !topics.includes(topic)) topics.push(topic);
+  }
+  return topics;
 }
 
 function isContextDependent(question) {
@@ -42,9 +56,18 @@ function contextualizeQuestion({ recentConversationHistory, currentQuestion }) {
     return { requiresContext: false, standaloneQuestion: question };
   }
 
-  const topic = extractTopic(previousQuestion);
+  const topics = recentUserTopics(history);
+  const topic = topics.at(-1) || extractTopic(previousQuestion);
   if (!topic) {
     return { requiresContext: true, standaloneQuestion: `${previousQuestion}；追問：${question}` };
+  }
+
+  if (/(這兩個|兩者|它們)/.test(question) && topics.length >= 2) {
+    const comparisonTopics = topics.slice(-2);
+    return {
+      requiresContext: true,
+      standaloneQuestion: `課程中${comparisonTopics.join('與')}：${question.replace(/這兩個|兩者|它們/g, comparisonTopics.join('與'))}`,
+    };
   }
 
   let rewritten = question.replace(PRONOUN_MARKERS, topic).replace(/^(那麼|那|所以|而)\s*/, '');
@@ -60,4 +83,6 @@ function contextualizeQuestion({ recentConversationHistory, currentQuestion }) {
   };
 }
 
-module.exports = { contextualizeQuestion, normalizeHistory, extractTopic, isContextDependent };
+module.exports = {
+  contextualizeQuestion, normalizeHistory, extractTopic, isContextDependent, recentUserTopics,
+};

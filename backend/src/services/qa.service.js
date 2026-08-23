@@ -861,7 +861,10 @@ function qaTimingMark(label, startNs) {
   return now;
 }
 
-async function askQuestion({ user, courseId, question, source = 'api', conversationHistory = null }) {
+async function askQuestion({
+  user, courseId, question, retrievalQuestion = null, source = 'api',
+  conversationHistory = null, conversationId = null, contextualization = null,
+}) {
   const t0 = process.hrtime.bigint();
   let tMark = t0;
 
@@ -872,6 +875,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   if (!trimmedQuestion) {
     throw new AppError('Question is required.', 400, 'VALIDATION_ERROR');
   }
+  const standaloneQuestion = String(retrievalQuestion || trimmedQuestion).trim();
 
   const course = await Course.findById(courseId);
   if (!course) {
@@ -879,7 +883,8 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   }
   tMark = qaTimingMark('course-lookup', tMark);
 
-  const faqCacheEnabled = isFaqCacheEnabled();
+  const faqCacheEnabled = isFaqCacheEnabled()
+    && !(Array.isArray(conversationHistory) && conversationHistory.length);
 
   // 平行：權限檢查、scoped videos、FAQ exact 查詢三者互不依賴；
   // access 失敗會 reject 並中斷後續（FAQ 命中結果也不會外洩）
@@ -923,7 +928,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   // miss 路徑仍 await 原 promise，載入失敗照樣往外拋。
   scopedSegmentsPromise.catch(() => {});
 
-  const queryVector = await embedQuery(trimmedQuestion);
+  const queryVector = await embedQuery(standaloneQuestion);
   tMark = qaTimingMark('embed', tMark);
 
   // FAQ 快取第二層：embedding 已算好，先跟課程 FAQ 比 cosine 相似度，
@@ -1046,7 +1051,7 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
   const leafSearch = async () => (scopedSegments.length
     ? env.qaVectorSearchMode === 'atlas'
       ? searchSegmentsWithAtlas(segmentScope, queryVector)
-      : searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments)
+      : searchSegmentsInMemory(segmentScope, standaloneQuestion, queryVector, scopedSegments)
     : {
         matches: [],
         diagnostics: {
@@ -1214,6 +1219,14 @@ async function askQuestion({ user, courseId, question, source = 'api', conversat
     searchDiagnostics: searchResult.diagnostics,
     answerResult,
   });
+  if (conversationId) {
+    runtime.conversation = {
+      conversationId: String(conversationId),
+      originalQuestion: trimmedQuestion,
+      standaloneQuestion,
+      requiresContext: Boolean(contextualization?.requiresContext),
+    };
+  }
   runtime.faqCache = { hit: false, enabled: faqCacheEnabled };
 
   // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行

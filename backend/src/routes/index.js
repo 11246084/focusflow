@@ -9,6 +9,7 @@ const statsRoutes = require('./stats.routes');
 const adminRoutes = require('./admin.routes');
 const youtubeRoutes = require('./youtube.routes');
 const notificationRoutes = require('./notification.routes');
+const conversationRoutes = require('./conversation.routes');
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.use('/stats', statsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/youtube', youtubeRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/conversations', conversationRoutes);
 router.use('/', videoRoutes);
 
 module.exports = router;

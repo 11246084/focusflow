@@ -93,6 +93,7 @@ async function retrieveWithHierarchy({
         hierarchical: {
           retrievalMode: 'hierarchical',
           parentHitCount: parentHits.length,
+          retrievedParentIds: parentHits.map((hit) => hit.parentId),
           parentTopScore: parentScores[0] ?? null,
           parentSecondScore: parentScores[1] ?? null,
           parentTopTwoGap: parentScores.length > 1

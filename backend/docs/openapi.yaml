@@ -1561,6 +1561,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/conversations:
+    post:
+      tags: [QA]
+      summary: 建立課程範圍的 QA conversation
+      operationId: createConversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courseId]
+              properties:
+                courseId: { $ref: '#/components/schemas/ObjectId' }
+                title: { type: string, maxLength: 120 }
+      responses:
+        '201': { description: Conversation created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /api/v1/conversations/{conversationId}/messages:
+    parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ObjectId' }
+    get:
+      tags: [QA]
+      summary: 取得 conversation messages
+      operationId: listConversationMessages
+      responses:
+        '200': { description: Conversation messages retrieved }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Conversation not found }
+    post:
+      tags: [QA]
+      summary: 傳送追問並取得 evidence-grounded answer
+      operationId: sendConversationMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '201': { description: Message answered }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Conversation not found }
   /api/v1/qa/ask:
     post:
       tags:

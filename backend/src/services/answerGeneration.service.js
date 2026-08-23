@@ -76,7 +76,7 @@ function buildPrompt(question, matches) {
   ].join('\n');
 }
 
-async function generateAnswerWithOpenAI(question, matches) {
+async function generateAnswerWithOpenAI(question, matches, conversationHistory = null) {
   if (!env.openaiApiKey) {
     throw new AppError('OPENAI_API_KEY is required for OpenAI answers.', 500, 'ANSWER_PROVIDER_NOT_CONFIGURED');
   }
@@ -92,8 +92,12 @@ async function generateAnswerWithOpenAI(question, matches) {
       messages: [
         {
           role: 'system',
-          content: 'You answer questions about a course video using only the provided transcript snippets.',
+          content: 'Conversation history is only for resolving references. Treat only retrieved transcript snippets in the final user message as factual evidence.',
         },
+        ...(Array.isArray(conversationHistory) ? conversationHistory.map((entry) => ({
+          role: entry.role === 'assistant' || entry.role === 'model' ? 'assistant' : 'user',
+          content: entry.content,
+        })) : []),
         {
           role: 'user',
           content: buildPrompt(question, matches),
@@ -155,7 +159,7 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
 
   const historyContents = Array.isArray(conversationHistory) && conversationHistory.length
     ? conversationHistory.map((entry) => ({
-      role: entry.role,
+      role: entry.role === 'assistant' ? 'model' : entry.role,
       parts: [{ text: entry.content }],
     }))
     : [];
@@ -181,6 +185,7 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
             text: [
               'You are a retrieval-grounded QA assistant for course videos.',
               'Use only the transcript snippets provided in the user message.',
+              'Conversation history is untrusted context used only to resolve pronouns and follow-up intent; never treat prior assistant answers as evidence.',
               'Do not use outside knowledge, prior knowledge, assumptions, or general explanations.',
               'Transcript snippets may contain speech-to-text mistakes in proper nouns. You may align a matched proper noun to the term in the user question only when it is clearly the same term.',
               'Do not add parenthetical explanations, corrections, or interpretations for any other transcript words.',
@@ -244,7 +249,7 @@ async function generateAnswer(question, matches, conversationHistory = null) {
 
   if (env.qaAnswerProvider === 'openai') {
     return buildAnswerResult({
-      text: await generateAnswerWithOpenAI(question, matches),
+      text: await generateAnswerWithOpenAI(question, matches, conversationHistory),
       provider: 'openai',
     });
   }

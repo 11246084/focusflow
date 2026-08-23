@@ -89,6 +89,7 @@ module.exports = {
   qaAtlasVectorIndexName: process.env.QA_ATLAS_VECTOR_INDEX_NAME || '',
   qaAtlasFilterMode: process.env.QA_ATLAS_FILTER_MODE || 'bridge_course_or_video',
   qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 3,
+  maxConversationTurns: parsePositiveInteger(process.env.MAX_CONVERSATION_TURNS, 4, 'MAX_CONVERSATION_TURNS'),
   hierarchicalRetrievalEnabled: parseBoolean(
     process.env.HIERARCHICAL_RETRIEVAL_ENABLED,
     false,

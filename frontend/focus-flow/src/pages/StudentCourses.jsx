@@ -323,7 +323,8 @@ function AnswerContent({ answer }) {
 function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
   const [error, setError]       = useState('');
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
@@ -331,14 +332,32 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
 
   async function ask() {
     if (!question.trim()) return;
-    setLoading(true); setError(''); setResult(null); setShowAllSegments(false);
+    const currentQuestion = question.trim();
+    setLoading(true); setError(''); setShowAllSegments(false);
+    setMessages((items) => [...items, { role: 'user', content: currentQuestion }]);
+    setQuestion('');
     try {
-      const res = await apiFetch('/qa/ask', {
+      let activeConversationId = conversationId;
+      if (!activeConversationId) {
+        const created = await apiFetch('/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId }),
+        });
+        activeConversationId = created.data.id;
+        setConversationId(activeConversationId);
+      }
+      const res = await apiFetch(`/conversations/${activeConversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, question: question.trim() }),
+        body: JSON.stringify({ content: currentQuestion }),
       });
-      setResult(res.data);
+      setMessages((items) => [...items, {
+        role: 'assistant',
+        content: res.data.answer,
+        answer: res.data.answer,
+        matches: res.data.sources || [],
+      }]);
     } catch (e) {
       setError(e.message || '問答失敗');
     } finally {
@@ -375,7 +394,11 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
         </button>
       </div>
       {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
-      {result && (
+      {messages.map((message, messageIndex) => message.role === 'user' ? (
+        <div key={`user-${messageIndex}`} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
+          {message.content}
+        </div>
+      ) : (() => { const result = message; return (
         <div style={{ marginTop: 12 }}>
           <AnswerContent answer={result.answer} />
           {(result.matches || result.segments || []).length > 0 && (
@@ -451,7 +474,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             </button>
           )}
         </div>
-      )}
+      ); })())}
     </div>
   );
 }

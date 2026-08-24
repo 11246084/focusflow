@@ -11,6 +11,8 @@
 
 最後更新：2026-08-14（多影片批次前端改為單一 multipart batch contract 並拒絕缺項／重複 itemId 回傳；批次單項 retry 已從僅改 `queued` 補成真正排程 worker。Pipeline batch 對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint，single adapter 僅在本機來源仍位於 `UPLOAD_DIR` 且存在時重啟。`VIDEO_BATCH_PIPELINE_ENABLED` 仍預設 false，尚未執行 live STT/Gemini 或正式部署 E2E）
 
+本輪：2026-08-24（首次 QA 回答品質評測基準線：AI入門基礎課 50 題、六面向 1-5 分。加權總分 4.35/5，零幻覺（7 題課程外負向題全部正確拒答、零編造），但完整性 3.62 偏低、出現 5 題假拒答。片段都已撈滿 15 筆，屬 prompt 整合問題而非檢索問題。詳見 [docs/qa-eval/2026-08-24-評測結果.md](qa-eval/2026-08-24-評測結果.md)）
+
 後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
 
 同日另一項：2026-08-02（影片／課程刪除時自動把 FocusFlow 上傳的 YouTube 影片轉為 private，教授決議「轉 private 而非直接刪除」；並完成真實 OAuth 憑證 live 驗證：上傳後影片以 unlisted 出現在頻道，系統刪除後轉為「私人」）

@@ -1,0 +1,2438 @@
+[
+  {
+    "id": "F01",
+    "type": "單片段事實",
+    "difficulty": "易",
+    "question": "4090 顯示卡的記憶體大小是多少？",
+    "goldPoints": "24GB。老師以 4090 作為後續比較的基準點。",
+    "expectedVideos": "V1",
+    "expectedTimeRange": "1057-1096",
+    "shouldRefuse": false,
+    "answer": "4090 顯示卡的記憶體大小是 24GB。\n\n（依據：aiA10_1140119_1 1057.23-1075.06s、1410.99-1422.35s、1422.79-1440.89s）",
+    "citedVideos": "aiA10_1140119_1 | aiA10_1140119_3",
+    "citedTimes": "1057-1075s | 202-217s | 1411-1422s | 1042-1057s | 1423-1441s",
+    "systemRefused": "N",
+    "matchStatus": "matched",
+    "matchCount": 15,
+    "topScore": 0.7044,
+    "faqCacheHit": "N",
+    "answerProviderUsed": "gemini",
+    "elapsedSec": 14.21,
+    "raw": {
+      "answer": "4090 顯示卡的記憶體大小是 24GB。\n\n（依據：aiA10_1140119_1 1057.23-1075.06s、1410.99-1422.35s、1422.79-1440.89s）",
+      "matches": [
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0072",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0072",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1057.23,
+          "endSec": 1075.06,
+          "transcript": "他說他會延伸到我們下一代要講的東西 啊我以現在我用的4090 當作數據當作比較的基準點 來跟大家做介紹 4090裡面 他的記憶體大小是24GB",
+          "score": 0.7044,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69156dd124511ec51ca_chunk_0013",
+          "segmentId": "6a6da69156dd124511ec51ca_chunk_0013",
+          "videoId": "6a6da69156dd124511ec51ca",
+          "videoTitle": "aiA10_1140119_3",
+          "startSec": 201.58,
+          "endSec": 216.98,
+          "transcript": "8個Billion的版本 那這個版本呢 他需要的記憶體大腳大概是16G 16G 所以單機 我們前面講的4090這張顯卡",
+          "score": 0.666,
+          "sourceUrl": "/uploads/1785570960294-aiA10_1140119_3.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570960294-aiA10_1140119_3.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0095",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0095",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1410.99,
+          "endSec": 1422.35,
+          "transcript": "他的容量是 假裝 但但顯卡不一樣 你買一張4090 24g 哦",
+          "score": 0.6629,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1041.69,
+          "endSec": 1057.03,
+          "transcript": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要",
+          "score": 0.6583,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0096",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0096",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1422.79,
+          "endSec": 1440.89,
+          "transcript": "那你買兩張4090插上去 他是兩個24g 哎他不會變48g哦 他是兩個分開的24g哦 所以如果你今天拿了一個模型 哦你今天有一個模型需要30g的記憶體",
+          "score": 0.6573,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1025.33,
+          "endSec": 1041.63,
+          "transcript": "可能2月就要出了5090啊 那 定價大概在7萬塊台幣 好4090大概是6萬 哦不過5090比4090划算哦 哦划算哦為什麼",
+          "score": 0.6473,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1296,
+          "endSec": 1311.52,
+          "transcript": "呃24g對不對 這個80g好像沒差很多啊 a 大家知道a100哦跟4090啊 這兩個東西啊 他在晶片的運算",
+          "score": 0.6389,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0097",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0097",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1441.69,
+          "endSec": 1455.13,
+          "transcript": "你有兩張4090你塞不塞下去呢 塞不下去 哦塞不下去 那個 nvidia的老早都設計好了 老早都設計好你塞不下去的",
+          "score": 0.6165,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0088",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0088",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1311.52,
+          "endSec": 1326.02,
+          "transcript": "單顆晶片的話單顆的話 哦a100裡面他不只一顆啦 如果你算單顆晶片的運算能力的話 a100跟4090是差不多的 那你可能就說哦看 nv2黑墊就是",
+          "score": 0.6144,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1095.83,
+          "endSec": 1110.29,
+          "transcript": "呃我們接下來來繼續看哦 這個東西代表什麼 我們現在現在4090是6萬 那a100呢 a100一張多大啊一張多少錢 a100",
+          "score": 0.614,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1079.36,
+          "endSec": 1095.83,
+          "transcript": "哦他的記憶體大小是24GB 好大家大家大概知道那個 呃 大家大概知道這個數字就呃 這個數字唯一基準點就可以了 好那我們接下來",
+          "score": 0.6086,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1011.37,
+          "endSec": 1025.33,
+          "transcript": "其實我旁邊有一台工作站 就是用4090的顯卡 那是一般消費者 一般的消費者能夠買到最好的 當然也在座的些同學可能都有聽過 下一代的馬上要出了",
+          "score": 0.6002,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0089",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0089",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1326.36,
+          "endSec": 1336.88,
+          "transcript": "單顆差不多的 然後你給我賣四十萬 哦那我4090 我4090全部市面上賣 買六萬就好啦 當然不是這樣啊",
+          "score": 0.599,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0092",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0092",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1367.95,
+          "endSec": 1384.75,
+          "transcript": "啊有有些人可能會這樣想 但事實上不能這樣算啊 為什麼 因為哦顯卡的記憶體 跟我們電腦的記憶體是某種款的不一樣的 啊我們電腦插在主機板上面的記憶體",
+          "score": 0.5968,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 992.67,
+          "endSec": 1011.17,
+          "transcript": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090",
+          "score": 0.5908,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        }
+      ],
+      "citations": [
+        {
+          "citationId": "C1",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0072",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0072",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1057.23,
+            "endSec": 1075.06,
+            "label": "17:37",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.7044,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "他說他會延伸到我們下一代要講的東西 啊我以現在我用的4090 當作數據當作比較的基準點 來跟大家做介紹 4090裡面 他的記憶體大小是24GB"
+        },
+        {
+          "citationId": "C2",
+          "modality": "text",
+          "chunkId": "6a6da69156dd124511ec51ca_chunk_0013",
+          "segmentId": "6a6da69156dd124511ec51ca_chunk_0013",
+          "videoId": "6a6da69156dd124511ec51ca",
+          "videoTitle": "aiA10_1140119_3",
+          "sourceVideo": {
+            "videoId": "6a6da69156dd124511ec51ca",
+            "title": "aiA10_1140119_3",
+            "sourceUrl": "/uploads/1785570960294-aiA10_1140119_3.mp4",
+            "videoUrl": "/uploads/1785570960294-aiA10_1140119_3.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 201.58,
+            "endSec": 216.98,
+            "label": "3:21",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.666,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "8個Billion的版本 那這個版本呢 他需要的記憶體大腳大概是16G 16G 所以單機 我們前面講的4090這張顯卡"
+        },
+        {
+          "citationId": "C3",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0095",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0095",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1410.99,
+            "endSec": 1422.35,
+            "label": "23:30",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6629,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "他的容量是 假裝 但但顯卡不一樣 你買一張4090 24g 哦"
+        },
+        {
+          "citationId": "C4",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1041.69,
+            "endSec": 1057.03,
+            "label": "17:21",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6583,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要"
+        },
+        {
+          "citationId": "C5",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0096",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0096",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1422.79,
+            "endSec": 1440.89,
+            "label": "23:42",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6573,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "那你買兩張4090插上去 他是兩個24g 哎他不會變48g哦 他是兩個分開的24g哦 所以如果你今天拿了一個模型 哦你今天有一個模型需要30g的記憶體"
+        },
+        {
+          "citationId": "C6",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1025.33,
+            "endSec": 1041.63,
+            "label": "17:05",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6473,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "可能2月就要出了5090啊 那 定價大概在7萬塊台幣 好4090大概是6萬 哦不過5090比4090划算哦 哦划算哦為什麼"
+        },
+        {
+          "citationId": "C7",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1296,
+            "endSec": 1311.52,
+            "label": "21:36",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6389,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃24g對不對 這個80g好像沒差很多啊 a 大家知道a100哦跟4090啊 這兩個東西啊 他在晶片的運算"
+        },
+        {
+          "citationId": "C8",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0097",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0097",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1441.69,
+            "endSec": 1455.13,
+            "label": "24:01",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6165,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "你有兩張4090你塞不塞下去呢 塞不下去 哦塞不下去 那個 nvidia的老早都設計好了 老早都設計好你塞不下去的"
+        },
+        {
+          "citationId": "C9",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0088",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0088",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1311.52,
+            "endSec": 1326.02,
+            "label": "21:51",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6144,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "單顆晶片的話單顆的話 哦a100裡面他不只一顆啦 如果你算單顆晶片的運算能力的話 a100跟4090是差不多的 那你可能就說哦看 nv2黑墊就是"
+        },
+        {
+          "citationId": "C10",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1095.83,
+            "endSec": 1110.29,
+            "label": "18:15",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.614,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃我們接下來來繼續看哦 這個東西代表什麼 我們現在現在4090是6萬 那a100呢 a100一張多大啊一張多少錢 a100"
+        },
+        {
+          "citationId": "C11",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1079.36,
+            "endSec": 1095.83,
+            "label": "17:59",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6086,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "哦他的記憶體大小是24GB 好大家大家大概知道那個 呃 大家大概知道這個數字就呃 這個數字唯一基準點就可以了 好那我們接下來"
+        },
+        {
+          "citationId": "C12",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1011.37,
+            "endSec": 1025.33,
+            "label": "16:51",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6002,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "其實我旁邊有一台工作站 就是用4090的顯卡 那是一般消費者 一般的消費者能夠買到最好的 當然也在座的些同學可能都有聽過 下一代的馬上要出了"
+        },
+        {
+          "citationId": "C13",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0089",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0089",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1326.36,
+            "endSec": 1336.88,
+            "label": "22:06",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.599,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "單顆差不多的 然後你給我賣四十萬 哦那我4090 我4090全部市面上賣 買六萬就好啦 當然不是這樣啊"
+        },
+        {
+          "citationId": "C14",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0092",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0092",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1367.95,
+            "endSec": 1384.75,
+            "label": "22:47",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5968,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "啊有有些人可能會這樣想 但事實上不能這樣算啊 為什麼 因為哦顯卡的記憶體 跟我們電腦的記憶體是某種款的不一樣的 啊我們電腦插在主機板上面的記憶體"
+        },
+        {
+          "citationId": "C15",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 992.67,
+            "endSec": 1011.17,
+            "label": "16:32",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5908,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090"
+        }
+      ],
+      "answerStatus": {
+        "status": "answered",
+        "isAnswerable": true,
+        "matchStatus": "matched",
+        "confidence": "high",
+        "noAnswerReason": null
+      },
+      "clip": null,
+      "runtime": {
+        "queryEmbeddingProvider": "gemini",
+        "vectorSearchMode": "memory",
+        "answerProvider": "gemini",
+        "atlasVectorIndexConfigured": true,
+        "atlasFilterMode": "bridge_course_or_video",
+        "geminiConfigured": true,
+        "openaiConfigured": false,
+        "hierarchicalRetrievalEnabled": false,
+        "hierarchicalRetrievalFallbackToLeaf": true,
+        "hierarchicalRetrievalRolloutMode": "off",
+        "hierarchicalRetrievalRolloutModeValid": true,
+        "hierarchicalRetrievalAllowlistsValid": true,
+        "hierarchicalParentStorageMode": "atlas_parent_vector",
+        "hierarchicalActiveDataReadiness": {
+          "status": "not_verified",
+          "ready": false,
+          "checkedAt": null,
+          "source": "live_read_only",
+          "reason": "HIERARCHICAL_ACTIVE_DATA_NOT_VERIFIED",
+          "evidence": null
+        },
+        "hierarchicalActiveDataCompatible": false,
+        "queryEmbeddingDimensions": 3072,
+        "queryEmbeddingContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "queryContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "dataContractCompatibility": {
+          "leaf": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          },
+          "parent": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          }
+        },
+        "hierarchicalRolloutContractStatus": "not_declared",
+        "parentQueryEmbeddingCompatible": false,
+        "leafQueryEmbeddingCompatible": false,
+        "readiness": "ready",
+        "readyForAsk": true,
+        "costControl": {
+          "enabled": false,
+          "resetCadence": "calendar_month_utc",
+          "estimatedTokensPerAsk": 1000,
+          "monthlyTokenBudget": 0,
+          "userMonthlyTokenQuota": 0
+        },
+        "warnings": [
+          {
+            "code": "PHASE1_MEMORY_SEARCH",
+            "message": "Phase-1 QA retrieval is running in memory mode instead of Atlas vector search."
+          }
+        ],
+        "hardFailures": [],
+        "status": "ready",
+        "degraded": false,
+        "degradedReasons": [],
+        "searchBackendUsed": "memory",
+        "scoringMode": "vector",
+        "searchableSegmentCount": 694,
+        "matchStatus": "matched",
+        "matchModality": "text",
+        "resultCategory": "matched",
+        "course": {
+          "isBridgeCourse": false,
+          "qaScopeOnly": false,
+          "bridgeMode": "standard",
+          "videoCount": 7,
+          "appVideoCount": 7,
+          "bridgeVideoCount": 0,
+          "appOwnedVideoCount": 7,
+          "metadataOnlyVideoCount": 0,
+          "bridgeContract": "course_video_refs_v1",
+          "bridgeContractPath": "course.videoIds -> videos.videoId -> video_segments_text.videoId"
+        },
+        "answerProviderUsed": "gemini",
+        "visualSearch": null,
+        "fallbacks": [],
+        "hierarchicalRollout": {
+          "retrievalRolloutMode": "off",
+          "hierarchicalEligible": false,
+          "hierarchicalEligibilityReason": "GLOBAL_GATE_DISABLED",
+          "hierarchicalAuthorizedVideoCount": 7,
+          "hierarchicalSupportedVideoCount": 0,
+          "hierarchicalAuthorizedSupportedVideoCount": 0,
+          "shadowExecuted": false
+        },
+        "latency": {
+          "embeddingLatencyMs": 774,
+          "generationLatencyMs": 3951,
+          "retrievalLatencyMs": 3966,
+          "totalLatencyMs": 13949
+        },
+        "faqCache": {
+          "hit": false,
+          "enabled": false
+        }
+      }
+    }
+  },
+  {
+    "id": "M01",
+    "type": "跨片段歸納",
+    "difficulty": "中",
+    "question": "為什麼做顯示卡的公司會跟 AI 扯上關係？",
+    "goldPoints": "(1) 輝達一開始做的是 3D 加速卡，因為 3D 遊戲需要大量但不複雜的浮點運算；(2) CPU 核心少、像博士生什麼都會但成本高，不適合大量重複性低難度運算；(3) 3D 加速卡後來衍生成顯示卡；(4) AI 模型計算的數學跟玩 3D 遊戲算的數學一模一樣，都是矩陣相乘與點積，所以做顯卡的直接跨過來。",
+    "expectedVideos": "V1",
+    "expectedTimeRange": "710-957",
+    "shouldRefuse": false,
+    "answer": "做顯示卡的公司會與 AI 扯上關係，是因為做 AI 模型所需要計算的數學，與原本在遊戲領域（顯示卡）中所需要計算的數學是一模一樣的，因此便跨足到了 AI 領域。\n\n（依據：aiA10_1140119_1 898.85-913.31s、929.77-945.07s、945.11-957.41s）",
+    "citedVideos": "aiA10_1140119_1 | aiA10_1140119_2 | aiA10_1140119_6",
+    "citedTimes": "899-913s | 722-734s | 734-746s | 930-945s | 1471-1483s",
+    "systemRefused": "N",
+    "matchStatus": "matched",
+    "matchCount": 15,
+    "topScore": 0.684,
+    "faqCacheHit": "N",
+    "answerProviderUsed": "gemini",
+    "elapsedSec": 12.64,
+    "raw": {
+      "answer": "做顯示卡的公司會與 AI 扯上關係，是因為做 AI 模型所需要計算的數學，與原本在遊戲領域（顯示卡）中所需要計算的數學是一模一樣的，因此便跨足到了 AI 領域。\n\n（依據：aiA10_1140119_1 898.85-913.31s、929.77-945.07s、945.11-957.41s）",
+      "matches": [
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0062",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0062",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 898.85,
+          "endSec": 913.31,
+          "transcript": "衍生到後來 就是現在的揮打 那為什麼一個做遊戲的會跟做ai的 射上關係呢 因為我這樣子跟大家講哦 做ai的模型在計算的數學",
+          "score": 0.684,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0048",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0048",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 722.37,
+          "endSec": 734.27,
+          "transcript": "哦揮達這間公司最少是 做遊戲顯卡的啦 哦嚴格講講不叫遊戲顯卡 一開始還不叫顯卡 那個那個要是 呃那個他一開始在營業的項目",
+          "score": 0.6688,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0049",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0049",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 734.27,
+          "endSec": 745.73,
+          "transcript": "要是像我像我這種 那個 呃宅男才比較 比較有聽過啊 他一開始在做的東西叫3d加速卡 跟顯卡不一樣哦",
+          "score": 0.6688,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0064",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0064",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 929.77,
+          "endSec": 945.07,
+          "transcript": "跟那個點擊 都是都是一樣的 哦所以 那個那個一個做顯卡的 他他發現哎 ai裡面要算的數學跟我跟我原本做的",
+          "score": 0.6659,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0099",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0099",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1470.57,
+          "endSec": 1483.27,
+          "transcript": "那你買兩百張他也不會加起來啊 哎哎哎 這個就是 這個就是機房專門的a i卡 跟我們一般放在市面上 大家打電動的顯卡差別的地方啦",
+          "score": 0.6651,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 710.21,
+          "endSec": 722.17,
+          "transcript": "為什麼 黃能勳那麼那個 呃那麼受到矚目呢 因為他現在是揮達的那個 那個c e o 那揮達這間公司在做什麼",
+          "score": 0.6608,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1041.69,
+          "endSec": 1057.03,
+          "transcript": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要",
+          "score": 0.6586,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0040",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0040",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "startSec": 517.21,
+          "endSec": 534.61,
+          "transcript": "六十人家六七十年前都在想要做aio 一直努力到現在 才做出來現在這個東西 深度學習所使用的神經網路 1980年被提出來的 距離現在也已經40年了",
+          "score": 0.6401,
+          "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0060",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0060",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 874.61,
+          "endSec": 888.71,
+          "transcript": "專門協助 哦你的cpu去算 3d 然後後來衍生成現在大家聽過的顯示卡 哦那個那個現在更狠了 他直接連那個顯示的",
+          "score": 0.6392,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69556dd124511ec51eb_chunk_0002",
+          "segmentId": "6a6da69556dd124511ec51eb_chunk_0002",
+          "videoId": "6a6da69556dd124511ec51eb",
+          "videoTitle": "aiA10_1140119_6",
+          "startSec": 27.88,
+          "endSec": 51.58,
+          "transcript": "他的過去很多技術都是從他們這邊出來的 像是最近業界非常重視的 一個技術叫知識圖譜 去年5月的時候 OpenAI還宣布跟 目前市面上最大的知識圖譜廠商",
+          "score": 0.6308,
+          "sourceUrl": "/uploads/1785570963783-aiA10_1140119_6.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570963783-aiA10_1140119_6.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 992.67,
+          "endSec": 1011.17,
+          "transcript": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090",
+          "score": 0.6267,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0065",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0065",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 945.11,
+          "endSec": 957.41,
+          "transcript": "遊戲領域是一模一樣的 然後他就跨過來 那現在現在就這麼說 受歡迎了哦 好講 講完顯卡這個東西為什麼重要之後",
+          "score": 0.6246,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1011.37,
+          "endSec": 1025.33,
+          "transcript": "其實我旁邊有一台工作站 就是用4090的顯卡 那是一般消費者 一般的消費者能夠買到最好的 當然也在座的些同學可能都有聽過 下一代的馬上要出了",
+          "score": 0.6246,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0086",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0086",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1280.82,
+          "endSec": 1295.6,
+          "transcript": "還不算工程師 還不算電力全部都不算 光顯卡 啊這叫入門的門票 那大家可能會覺得奇怪 這這看起來是",
+          "score": 0.6196,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0085",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0085",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1264.52,
+          "endSec": 1280.32,
+          "transcript": "然後這單位是1 啊這個單位是1哦 這還叫做入門門檻而且是 光顯卡 還不算機房 還不算伺服器",
+          "score": 0.616,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        }
+      ],
+      "citations": [
+        {
+          "citationId": "C1",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0062",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0062",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 898.85,
+            "endSec": 913.31,
+            "label": "14:58",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.684,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "衍生到後來 就是現在的揮打 那為什麼一個做遊戲的會跟做ai的 射上關係呢 因為我這樣子跟大家講哦 做ai的模型在計算的數學"
+        },
+        {
+          "citationId": "C2",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0048",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0048",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 722.37,
+            "endSec": 734.27,
+            "label": "12:02",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6688,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "哦揮達這間公司最少是 做遊戲顯卡的啦 哦嚴格講講不叫遊戲顯卡 一開始還不叫顯卡 那個那個要是 呃那個他一開始在營業的項目"
+        },
+        {
+          "citationId": "C3",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0049",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0049",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 734.27,
+            "endSec": 745.73,
+            "label": "12:14",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6688,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "要是像我像我這種 那個 呃宅男才比較 比較有聽過啊 他一開始在做的東西叫3d加速卡 跟顯卡不一樣哦"
+        },
+        {
+          "citationId": "C4",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0064",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0064",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 929.77,
+            "endSec": 945.07,
+            "label": "15:29",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6659,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "跟那個點擊 都是都是一樣的 哦所以 那個那個一個做顯卡的 他他發現哎 ai裡面要算的數學跟我跟我原本做的"
+        },
+        {
+          "citationId": "C5",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0099",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0099",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1470.57,
+            "endSec": 1483.27,
+            "label": "24:30",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6651,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "那你買兩百張他也不會加起來啊 哎哎哎 這個就是 這個就是機房專門的a i卡 跟我們一般放在市面上 大家打電動的顯卡差別的地方啦"
+        },
+        {
+          "citationId": "C6",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 710.21,
+            "endSec": 722.17,
+            "label": "11:50",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6608,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "為什麼 黃能勳那麼那個 呃那麼受到矚目呢 因為他現在是揮達的那個 那個c e o 那揮達這間公司在做什麼"
+        },
+        {
+          "citationId": "C7",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1041.69,
+            "endSec": 1057.03,
+            "label": "17:21",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6586,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要"
+        },
+        {
+          "citationId": "C8",
+          "modality": "text",
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0040",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0040",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "sourceVideo": {
+            "videoId": "6a6da69056dd124511ec51bf",
+            "title": "aiA10_1140119_2",
+            "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 517.21,
+            "endSec": 534.61,
+            "label": "8:37",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6401,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "六十人家六七十年前都在想要做aio 一直努力到現在 才做出來現在這個東西 深度學習所使用的神經網路 1980年被提出來的 距離現在也已經40年了"
+        },
+        {
+          "citationId": "C9",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0060",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0060",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 874.61,
+            "endSec": 888.71,
+            "label": "14:34",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6392,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "專門協助 哦你的cpu去算 3d 然後後來衍生成現在大家聽過的顯示卡 哦那個那個現在更狠了 他直接連那個顯示的"
+        },
+        {
+          "citationId": "C10",
+          "modality": "text",
+          "chunkId": "6a6da69556dd124511ec51eb_chunk_0002",
+          "segmentId": "6a6da69556dd124511ec51eb_chunk_0002",
+          "videoId": "6a6da69556dd124511ec51eb",
+          "videoTitle": "aiA10_1140119_6",
+          "sourceVideo": {
+            "videoId": "6a6da69556dd124511ec51eb",
+            "title": "aiA10_1140119_6",
+            "sourceUrl": "/uploads/1785570963783-aiA10_1140119_6.mp4",
+            "videoUrl": "/uploads/1785570963783-aiA10_1140119_6.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 27.88,
+            "endSec": 51.58,
+            "label": "0:27",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6308,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "他的過去很多技術都是從他們這邊出來的 像是最近業界非常重視的 一個技術叫知識圖譜 去年5月的時候 OpenAI還宣布跟 目前市面上最大的知識圖譜廠商"
+        },
+        {
+          "citationId": "C11",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 992.67,
+            "endSec": 1011.17,
+            "label": "16:32",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6267,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090"
+        },
+        {
+          "citationId": "C12",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0065",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0065",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 945.11,
+            "endSec": 957.41,
+            "label": "15:45",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6246,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "遊戲領域是一模一樣的 然後他就跨過來 那現在現在就這麼說 受歡迎了哦 好講 講完顯卡這個東西為什麼重要之後"
+        },
+        {
+          "citationId": "C13",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0069",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1011.37,
+            "endSec": 1025.33,
+            "label": "16:51",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6246,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "其實我旁邊有一台工作站 就是用4090的顯卡 那是一般消費者 一般的消費者能夠買到最好的 當然也在座的些同學可能都有聽過 下一代的馬上要出了"
+        },
+        {
+          "citationId": "C14",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0086",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0086",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1280.82,
+            "endSec": 1295.6,
+            "label": "21:20",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.6196,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "還不算工程師 還不算電力全部都不算 光顯卡 啊這叫入門的門票 那大家可能會覺得奇怪 這這看起來是"
+        },
+        {
+          "citationId": "C15",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0085",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0085",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1264.52,
+            "endSec": 1280.32,
+            "label": "21:04",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.616,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "然後這單位是1 啊這個單位是1哦 這還叫做入門門檻而且是 光顯卡 還不算機房 還不算伺服器"
+        }
+      ],
+      "answerStatus": {
+        "status": "answered",
+        "isAnswerable": true,
+        "matchStatus": "matched",
+        "confidence": "high",
+        "noAnswerReason": null
+      },
+      "clip": null,
+      "runtime": {
+        "queryEmbeddingProvider": "gemini",
+        "vectorSearchMode": "memory",
+        "answerProvider": "gemini",
+        "atlasVectorIndexConfigured": true,
+        "atlasFilterMode": "bridge_course_or_video",
+        "geminiConfigured": true,
+        "openaiConfigured": false,
+        "hierarchicalRetrievalEnabled": false,
+        "hierarchicalRetrievalFallbackToLeaf": true,
+        "hierarchicalRetrievalRolloutMode": "off",
+        "hierarchicalRetrievalRolloutModeValid": true,
+        "hierarchicalRetrievalAllowlistsValid": true,
+        "hierarchicalParentStorageMode": "atlas_parent_vector",
+        "hierarchicalActiveDataReadiness": {
+          "status": "not_verified",
+          "ready": false,
+          "checkedAt": null,
+          "source": "live_read_only",
+          "reason": "HIERARCHICAL_ACTIVE_DATA_NOT_VERIFIED",
+          "evidence": null
+        },
+        "hierarchicalActiveDataCompatible": false,
+        "queryEmbeddingDimensions": 3072,
+        "queryEmbeddingContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "queryContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "dataContractCompatibility": {
+          "leaf": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          },
+          "parent": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          }
+        },
+        "hierarchicalRolloutContractStatus": "not_declared",
+        "parentQueryEmbeddingCompatible": false,
+        "leafQueryEmbeddingCompatible": false,
+        "readiness": "ready",
+        "readyForAsk": true,
+        "costControl": {
+          "enabled": false,
+          "resetCadence": "calendar_month_utc",
+          "estimatedTokensPerAsk": 1000,
+          "monthlyTokenBudget": 0,
+          "userMonthlyTokenQuota": 0
+        },
+        "warnings": [
+          {
+            "code": "PHASE1_MEMORY_SEARCH",
+            "message": "Phase-1 QA retrieval is running in memory mode instead of Atlas vector search."
+          }
+        ],
+        "hardFailures": [],
+        "status": "ready",
+        "degraded": false,
+        "degradedReasons": [],
+        "searchBackendUsed": "memory",
+        "scoringMode": "vector",
+        "searchableSegmentCount": 694,
+        "matchStatus": "matched",
+        "matchModality": "text",
+        "resultCategory": "matched",
+        "course": {
+          "isBridgeCourse": false,
+          "qaScopeOnly": false,
+          "bridgeMode": "standard",
+          "videoCount": 7,
+          "appVideoCount": 7,
+          "bridgeVideoCount": 0,
+          "appOwnedVideoCount": 7,
+          "metadataOnlyVideoCount": 0,
+          "bridgeContract": "course_video_refs_v1",
+          "bridgeContractPath": "course.videoIds -> videos.videoId -> video_segments_text.videoId"
+        },
+        "answerProviderUsed": "gemini",
+        "visualSearch": null,
+        "fallbacks": [],
+        "hierarchicalRollout": {
+          "retrievalRolloutMode": "off",
+          "hierarchicalEligible": false,
+          "hierarchicalEligibilityReason": "GLOBAL_GATE_DISABLED",
+          "hierarchicalAuthorizedVideoCount": 7,
+          "hierarchicalSupportedVideoCount": 0,
+          "hierarchicalAuthorizedSupportedVideoCount": 0,
+          "shadowExecuted": false
+        },
+        "latency": {
+          "embeddingLatencyMs": 410,
+          "generationLatencyMs": 2812,
+          "retrievalLatencyMs": 2817,
+          "totalLatencyMs": 12376
+        },
+        "faqCache": {
+          "hit": false,
+          "enabled": false
+        }
+      }
+    }
+  },
+  {
+    "id": "N05",
+    "type": "課程外負向",
+    "difficulty": "易",
+    "question": "台灣 2024 年的 GDP 成長率是多少？",
+    "goldPoints": "與課程完全無關。系統應拒答。",
+    "expectedVideos": "（無）",
+    "expectedTimeRange": "（無）",
+    "shouldRefuse": true,
+    "answer": "目前資料庫片段不足以回答這個問題。",
+    "citedVideos": "aiA10_1140119_1 | aiA10_1140119_2",
+    "citedTimes": "1025-1042s | 602-617s | 1042-1057s | 1693-1713s | 993-1011s",
+    "systemRefused": "Y",
+    "matchStatus": "matched",
+    "matchCount": 15,
+    "topScore": 0.5356,
+    "faqCacheHit": "N",
+    "answerProviderUsed": "gemini",
+    "elapsedSec": 13.52,
+    "raw": {
+      "answer": "目前資料庫片段不足以回答這個問題。",
+      "matches": [
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1025.33,
+          "endSec": 1041.63,
+          "transcript": "可能2月就要出了5090啊 那 定價大概在7萬塊台幣 好4090大概是6萬 哦不過5090比4090划算哦 哦划算哦為什麼",
+          "score": 0.5356,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0046",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0046",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "startSec": 601.97,
+          "endSec": 617.47,
+          "transcript": "已經維持不下去了 因為翻倍的太快了 那到現在已經翻 沒有辦法在像之前那樣直接都翻倍了 不過大家也可以想像過了這十幾 這十幾年以來每一年都翻翻倍一次",
+          "score": 0.5276,
+          "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1041.69,
+          "endSec": 1057.03,
+          "transcript": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要",
+          "score": 0.5236,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0114",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0114",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1693.01,
+          "endSec": 1712.57,
+          "transcript": "報告裡面的另外一個數據了 什麼數據 他說 OpenAI 的這個模型 做一次的訓練 一次的訓練成本大概多少錢呢 哦成本大概多少錢呢",
+          "score": 0.5219,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 992.67,
+          "endSec": 1011.17,
+          "transcript": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090",
+          "score": 0.5217,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 710.21,
+          "endSec": 722.17,
+          "transcript": "為什麼 黃能勳那麼那個 呃那麼受到矚目呢 因為他現在是揮達的那個 那個c e o 那揮達這間公司在做什麼",
+          "score": 0.5209,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0115",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0115",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1713.17,
+          "endSec": 1735.35,
+          "transcript": "他換算過來的金額大概差不多吧 因為反正都三十三十一三十二塊左右的匯率 大概要1700萬台幣訓練一次 哎訓練一次不代表會成功啊 每一個版本的確的gbt 都是訓練了好幾次之後",
+          "score": 0.5199,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0043",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0043",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 653.97,
+          "endSec": 665.51,
+          "transcript": "兩年前我看過那個 那個 那個那個叫什麼 哎是高盛還是哪哪一個地方 哎哪一個報導 那個",
+          "score": 0.5195,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0046",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0046",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 697.53,
+          "endSec": 709.47,
+          "transcript": "兩百張的a100啊這什麼東西啊 哦a100是什麼 大家應該知道前幾天 黃能勳不是跑來台灣嗎 哦保證 房甲夜市搭載車嗎",
+          "score": 0.519,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1296,
+          "endSec": 1311.52,
+          "transcript": "呃24g對不對 這個80g好像沒差很多啊 a 大家知道a100哦跟4090啊 這兩個東西啊 他在晶片的運算",
+          "score": 0.5171,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0013",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0013",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "startSec": 157.08,
+          "endSec": 168.98,
+          "transcript": "在等等個幾年之後哦 這個技術再突破下去哦 那說不定 以後的人回過頭來看哦 現在的雀的gbt 也叫一般語言模型他比較大",
+          "score": 0.517,
+          "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0047",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0047",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "startSec": 617.65,
+          "endSec": 628.17,
+          "transcript": "那他的 他的那個運算能力翻了多少倍 那 有一種說法哦 就是大家現在用的手機啊 不要講什麼iphone16 pro這種",
+          "score": 0.516,
+          "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1079.36,
+          "endSec": 1095.83,
+          "transcript": "哦他的記憶體大小是24GB 好大家大家大概知道那個 呃 大家大概知道這個數字就呃 這個數字唯一基準點就可以了 好那我們接下來",
+          "score": 0.5158,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0042",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0042",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 638.31,
+          "endSec": 653.31,
+          "transcript": "之前哦 我們哦我在那個 不過這個數據是兩年前的我不太 那個後來我就沒有看到有 在有類似的報導了哦 所以那個大家就知道這是兩年前的數據了",
+          "score": 0.5136,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        },
+        {
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "startSec": 1095.83,
+          "endSec": 1110.29,
+          "transcript": "呃我們接下來來繼續看哦 這個東西代表什麼 我們現在現在4090是6萬 那a100呢 a100一張多大啊一張多少錢 a100",
+          "score": 0.5132,
+          "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "youtubeVideoId": null,
+          "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+          "jumpUrl": null
+        }
+      ],
+      "citations": [
+        {
+          "citationId": "C1",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0070",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1025.33,
+            "endSec": 1041.63,
+            "label": "17:05",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5356,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "可能2月就要出了5090啊 那 定價大概在7萬塊台幣 好4090大概是6萬 哦不過5090比4090划算哦 哦划算哦為什麼"
+        },
+        {
+          "citationId": "C2",
+          "modality": "text",
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0046",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0046",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "sourceVideo": {
+            "videoId": "6a6da69056dd124511ec51bf",
+            "title": "aiA10_1140119_2",
+            "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 601.97,
+            "endSec": 617.47,
+            "label": "10:01",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5276,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "已經維持不下去了 因為翻倍的太快了 那到現在已經翻 沒有辦法在像之前那樣直接都翻倍了 不過大家也可以想像過了這十幾 這十幾年以來每一年都翻翻倍一次"
+        },
+        {
+          "citationId": "C3",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0071",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1041.69,
+            "endSec": 1057.03,
+            "label": "17:21",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5236,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "因為5090 7萬台幣 他的運算力是 ai相關的運算力是4090的兩倍 而且他的記憶體也比較大 好記憶體這個東西非常重要"
+        },
+        {
+          "citationId": "C4",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0114",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0114",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1693.01,
+            "endSec": 1712.57,
+            "label": "28:13",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5219,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "報告裡面的另外一個數據了 什麼數據 他說 OpenAI 的這個模型 做一次的訓練 一次的訓練成本大概多少錢呢 哦成本大概多少錢呢"
+        },
+        {
+          "citationId": "C5",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0068",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 992.67,
+            "endSec": 1011.17,
+            "label": "16:32",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5217,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃呃你可以你可以把它當成 ai的運算的晶片哦 他單價是多少呢 好因為這個價錢很混亂 那個揮達他並不會賣給我們一般人 哦像我們大家可能會聽過4090"
+        },
+        {
+          "citationId": "C6",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0047",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 710.21,
+            "endSec": 722.17,
+            "label": "11:50",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5209,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "為什麼 黃能勳那麼那個 呃那麼受到矚目呢 因為他現在是揮達的那個 那個c e o 那揮達這間公司在做什麼"
+        },
+        {
+          "citationId": "C7",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0115",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0115",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1713.17,
+            "endSec": 1735.35,
+            "label": "28:33",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5199,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "他換算過來的金額大概差不多吧 因為反正都三十三十一三十二塊左右的匯率 大概要1700萬台幣訓練一次 哎訓練一次不代表會成功啊 每一個版本的確的gbt 都是訓練了好幾次之後"
+        },
+        {
+          "citationId": "C8",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0043",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0043",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 653.97,
+            "endSec": 665.51,
+            "label": "10:53",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5195,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "兩年前我看過那個 那個 那個那個叫什麼 哎是高盛還是哪哪一個地方 哎哪一個報導 那個"
+        },
+        {
+          "citationId": "C9",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0046",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0046",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 697.53,
+            "endSec": 709.47,
+            "label": "11:37",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.519,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "兩百張的a100啊這什麼東西啊 哦a100是什麼 大家應該知道前幾天 黃能勳不是跑來台灣嗎 哦保證 房甲夜市搭載車嗎"
+        },
+        {
+          "citationId": "C10",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0087",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1296,
+            "endSec": 1311.52,
+            "label": "21:36",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5171,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃24g對不對 這個80g好像沒差很多啊 a 大家知道a100哦跟4090啊 這兩個東西啊 他在晶片的運算"
+        },
+        {
+          "citationId": "C11",
+          "modality": "text",
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0013",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0013",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "sourceVideo": {
+            "videoId": "6a6da69056dd124511ec51bf",
+            "title": "aiA10_1140119_2",
+            "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 157.08,
+            "endSec": 168.98,
+            "label": "2:37",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.517,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "在等等個幾年之後哦 這個技術再突破下去哦 那說不定 以後的人回過頭來看哦 現在的雀的gbt 也叫一般語言模型他比較大"
+        },
+        {
+          "citationId": "C12",
+          "modality": "text",
+          "chunkId": "6a6da69056dd124511ec51bf_chunk_0047",
+          "segmentId": "6a6da69056dd124511ec51bf_chunk_0047",
+          "videoId": "6a6da69056dd124511ec51bf",
+          "videoTitle": "aiA10_1140119_2",
+          "sourceVideo": {
+            "videoId": "6a6da69056dd124511ec51bf",
+            "title": "aiA10_1140119_2",
+            "sourceUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "videoUrl": "/uploads/1785570958892-aiA10_1140119_2.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 617.65,
+            "endSec": 628.17,
+            "label": "10:17",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.516,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "那他的 他的那個運算能力翻了多少倍 那 有一種說法哦 就是大家現在用的手機啊 不要講什麼iphone16 pro這種"
+        },
+        {
+          "citationId": "C13",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0073",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1079.36,
+            "endSec": 1095.83,
+            "label": "17:59",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5158,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "哦他的記憶體大小是24GB 好大家大家大概知道那個 呃 大家大概知道這個數字就呃 這個數字唯一基準點就可以了 好那我們接下來"
+        },
+        {
+          "citationId": "C14",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0042",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0042",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 638.31,
+            "endSec": 653.31,
+            "label": "10:38",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5136,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "之前哦 我們哦我在那個 不過這個數據是兩年前的我不太 那個後來我就沒有看到有 在有類似的報導了哦 所以那個大家就知道這是兩年前的數據了"
+        },
+        {
+          "citationId": "C15",
+          "modality": "text",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "segmentId": "6a6da68e56dd124511ec51b4_chunk_0074",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "videoTitle": "aiA10_1140119_1",
+          "sourceVideo": {
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "title": "aiA10_1140119_1",
+            "sourceUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "videoUrl": "/uploads/1785570957608-aiA10_1140119_1.mp4",
+            "youtubeVideoId": null
+          },
+          "timestamp": {
+            "startSec": 1095.83,
+            "endSec": 1110.29,
+            "label": "18:15",
+            "jumpUrl": null
+          },
+          "match": {
+            "status": "matched",
+            "score": 0.5132,
+            "confidence": "high"
+          },
+          "clipPath": null,
+          "transcriptSnippet": "呃我們接下來來繼續看哦 這個東西代表什麼 我們現在現在4090是6萬 那a100呢 a100一張多大啊一張多少錢 a100"
+        }
+      ],
+      "answerStatus": {
+        "status": "answered",
+        "isAnswerable": true,
+        "matchStatus": "matched",
+        "confidence": "high",
+        "noAnswerReason": null
+      },
+      "clip": null,
+      "runtime": {
+        "queryEmbeddingProvider": "gemini",
+        "vectorSearchMode": "memory",
+        "answerProvider": "gemini",
+        "atlasVectorIndexConfigured": true,
+        "atlasFilterMode": "bridge_course_or_video",
+        "geminiConfigured": true,
+        "openaiConfigured": false,
+        "hierarchicalRetrievalEnabled": false,
+        "hierarchicalRetrievalFallbackToLeaf": true,
+        "hierarchicalRetrievalRolloutMode": "off",
+        "hierarchicalRetrievalRolloutModeValid": true,
+        "hierarchicalRetrievalAllowlistsValid": true,
+        "hierarchicalParentStorageMode": "atlas_parent_vector",
+        "hierarchicalActiveDataReadiness": {
+          "status": "not_verified",
+          "ready": false,
+          "checkedAt": null,
+          "source": "live_read_only",
+          "reason": "HIERARCHICAL_ACTIVE_DATA_NOT_VERIFIED",
+          "evidence": null
+        },
+        "hierarchicalActiveDataCompatible": false,
+        "queryEmbeddingDimensions": 3072,
+        "queryEmbeddingContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "queryContract": {
+          "provider": "gemini",
+          "model": "gemini-embedding-2",
+          "dimension": 3072,
+          "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+          "generationVersion": "text_search_generation_v2",
+          "normalizationVersion": "unit_l2_v1",
+          "contractVersion": "gemini_embedding_2_text_v2",
+          "schemaVersion": "gemini_embedding_2_text_v2",
+          "taskType": null
+        },
+        "dataContractCompatibility": {
+          "leaf": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          },
+          "parent": {
+            "expected": {
+              "provider": "gemini",
+              "model": "gemini-embedding-2",
+              "dimension": 3072,
+              "instructionVersion": "gemini_embedding_2_asymmetric_retrieval_v2",
+              "generationVersion": "text_search_generation_v2",
+              "normalizationVersion": "unit_l2_v1",
+              "contractVersion": "gemini_embedding_2_text_v2",
+              "schemaVersion": "gemini_embedding_2_text_v2",
+              "taskType": null
+            },
+            "active": null,
+            "source": "QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON",
+            "status": "not_declared",
+            "mismatches": [],
+            "error": null
+          }
+        },
+        "hierarchicalRolloutContractStatus": "not_declared",
+        "parentQueryEmbeddingCompatible": false,
+        "leafQueryEmbeddingCompatible": false,
+        "readiness": "ready",
+        "readyForAsk": true,
+        "costControl": {
+          "enabled": false,
+          "resetCadence": "calendar_month_utc",
+          "estimatedTokensPerAsk": 1000,
+          "monthlyTokenBudget": 0,
+          "userMonthlyTokenQuota": 0
+        },
+        "warnings": [
+          {
+            "code": "PHASE1_MEMORY_SEARCH",
+            "message": "Phase-1 QA retrieval is running in memory mode instead of Atlas vector search."
+          }
+        ],
+        "hardFailures": [],
+        "status": "ready",
+        "degraded": false,
+        "degradedReasons": [],
+        "searchBackendUsed": "memory",
+        "scoringMode": "vector",
+        "searchableSegmentCount": 694,
+        "matchStatus": "matched",
+        "matchModality": "text",
+        "resultCategory": "matched",
+        "course": {
+          "isBridgeCourse": false,
+          "qaScopeOnly": false,
+          "bridgeMode": "standard",
+          "videoCount": 7,
+          "appVideoCount": 7,
+          "bridgeVideoCount": 0,
+          "appOwnedVideoCount": 7,
+          "metadataOnlyVideoCount": 0,
+          "bridgeContract": "course_video_refs_v1",
+          "bridgeContractPath": "course.videoIds -> videos.videoId -> video_segments_text.videoId"
+        },
+        "answerProviderUsed": "gemini",
+        "visualSearch": null,
+        "fallbacks": [],
+        "hierarchicalRollout": {
+          "retrievalRolloutMode": "off",
+          "hierarchicalEligible": false,
+          "hierarchicalEligibilityReason": "GLOBAL_GATE_DISABLED",
+          "hierarchicalAuthorizedVideoCount": 7,
+          "hierarchicalSupportedVideoCount": 0,
+          "hierarchicalAuthorizedSupportedVideoCount": 0,
+          "shadowExecuted": false
+        },
+        "latency": {
+          "embeddingLatencyMs": 1517,
+          "generationLatencyMs": 3511,
+          "retrievalLatencyMs": 3517,
+          "totalLatencyMs": 13285
+        },
+        "faqCache": {
+          "hit": false,
+          "enabled": false
+        }
+      }
+    }
+  }
+]

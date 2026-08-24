@@ -1,0 +1,532 @@
+{
+  "courseId": "6a6da68456dd124511ec5196",
+  "courseTitle": "AI入門基礎課",
+  "videos": {
+    "V1": {
+      "title": "aiA10_1140119_1",
+      "videoId": "6a6da68e56dd124511ec51b4"
+    },
+    "V2": {
+      "title": "aiA10_1140119_2",
+      "videoId": "6a6da69056dd124511ec51bf"
+    },
+    "V3": {
+      "title": "aiA10_1140119_3",
+      "videoId": "6a6da69156dd124511ec51ca"
+    },
+    "V4": {
+      "title": "aiA10_1140119_4",
+      "videoId": "6a6da69256dd124511ec51d5"
+    },
+    "V5": {
+      "title": "aiA10_1140119_5",
+      "videoId": "6a6da69356dd124511ec51e0"
+    },
+    "V6": {
+      "title": "aiA10_1140119_6",
+      "videoId": "6a6da69556dd124511ec51eb"
+    }
+  },
+  "questions": [
+    {
+      "id": "F01",
+      "type": "單片段事實",
+      "difficulty": "易",
+      "question": "4090 顯示卡的記憶體大小是多少？",
+      "goldPoints": "24GB。老師以 4090 作為後續比較的基準點。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "1057-1096",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F03",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "OpenAI 的模型訓練一次大約要花多少錢？",
+      "goldPoints": "約 1700 萬台幣訓練一次，而且訓練一次不代表會成功。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "1693-1735",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F04",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "A100 一張大約多少錢？",
+      "goldPoints": "輝達賣給簽約夥伴的定價當時約 40 多萬一張；實際流通到市面上大約「六開頭」（約 60 萬）一張。一般人買不到，要跟簽約廠商大量出貨。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "1112-1245",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F05",
+      "type": "單片段事實",
+      "difficulty": "易",
+      "question": "ChatGPT 是跑在哪裡的？",
+      "goldPoints": "跑在微軟的機房，微軟雲端服務 Azure 上面。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "1549-1583",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F06",
+      "type": "單片段事實",
+      "difficulty": "易",
+      "question": "圖靈測試是什麼時候提出來的？",
+      "goldPoints": "1950 年提出，距今約 65 年。老師認為這個標準太落後，看到「通過圖靈測試」的新聞不用理它。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "462-504",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F07",
+      "type": "單片段事實",
+      "difficulty": "易",
+      "question": "深度學習使用的神經網路是什麼時候被提出來的？",
+      "goldPoints": "1980 年被提出，距離現在快 40 年，不是新東西。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "517-545",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F08",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "Llama 3 最小的模型是哪個版本？需要多少記憶體？",
+      "goldPoints": "Llama 3 的 8 Billion（8B）版本，需要的記憶體大約 16GB，單機用 4090 就負擔得起，中文理解能力也還可以。",
+      "expectedVideos": "V3",
+      "expectedTimeRange": "180-234",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F09",
+      "type": "單片段事實",
+      "difficulty": "易",
+      "question": "Llama 是哪家公司開源的？這個字什麼意思？",
+      "goldPoints": "Meta（做 Facebook、IG 的公司）訓練並開源；llama 的意思是羊駝。",
+      "expectedVideos": "V3",
+      "expectedTimeRange": "155-201",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F10",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "Sony 的 PSN 資料外洩事件有多少帳號被洩露？罰了多少錢？",
+      "goldPoints": "約 2460 萬名使用者的帳號被洩露，被罰一千多萬台幣，而且是一罪一罰、洩露一筆罰一次。事件大約發生在 10 年前的歐洲。",
+      "expectedVideos": "V3",
+      "expectedTimeRange": "440-498",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F11",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "BERT 的詞向量有幾個維度？",
+      "goldPoints": "768 個數字（768 維）。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "1531-1574",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F12",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "Transformer 的經典論文叫什麼？被引用多少次？",
+      "goldPoints": "論文名稱是 Attention is all you need，2017 年由 Google 發表，引用次數約 15 萬次，論文本身已改到第七版。作者是一位工程師帶兩位實習生。",
+      "expectedVideos": "V5",
+      "expectedTimeRange": "1635-1770",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F15",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "ChatGPT 免費版和付費版用的模型有什麼不同？",
+      "goldPoints": "免費用戶使用 GPT-4o mini（簡化版），付費用戶才能使用完整版 GPT-4o；完整版的回答與理解能力比較強。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "838-879",
+      "shouldRefuse": false
+    },
+    {
+      "id": "F16",
+      "type": "單片段事實",
+      "difficulty": "中",
+      "question": "CKIP 是用什麼技術做的？可以做什麼？",
+      "goldPoints": "CKIP 是用 LSTM 做的，可以做中文的斷詞斷句，效果非常好，還可以做詞性標註。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "893-966",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M01",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "為什麼做顯示卡的公司會跟 AI 扯上關係？",
+      "goldPoints": "(1) 輝達一開始做的是 3D 加速卡，因為 3D 遊戲需要大量但不複雜的浮點運算；(2) CPU 核心少、像博士生什麼都會但成本高，不適合大量重複性低難度運算；(3) 3D 加速卡後來衍生成顯示卡；(4) AI 模型計算的數學跟玩 3D 遊戲算的數學一模一樣，都是矩陣相乘與點積，所以做顯卡的直接跨過來。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "710-957",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M02",
+      "type": "跨片段歸納",
+      "difficulty": "難",
+      "question": "為什麼不能買很多張 4090 來取代 A100？",
+      "goldPoints": "(1) 電腦主機板記憶體可以多插幾條累加，顯卡記憶體不行；(2) 兩張 4090 是兩個獨立的 24GB，不會變成 48GB，需要 30GB 的模型就塞不下；(3) A100 的記憶體可以 share、可以串聯，機房卡與消費卡的差別就在這；(4) 單顆晶片運算能力其實差不多，差在記憶體架構。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "1296-1510",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M04",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "為什麼「多輪問答」對 ChatGPT 這麼重要？",
+      "goldPoints": "以珍珠奶茶點餐為例：只講「我要一杯珍奶」店員無法點餐，還要問冰熱、糖度；每一句話單獨拿出來都沒有意義，必須承接上一句才有意義，這才符合人類對話的常態。之前很多 QA 對答系統就是差在沒有多輪問答能力，這是 ChatGPT 爆火的關鍵。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "805-1037",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M05",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "三星把技術文件丟給 ChatGPT 這件事發生了什麼？",
+      "goldPoints": "三星是 OpenAI 測試階段的合作夥伴之一，工程師想測試它懂不懂半導體，就把公司技術文件丟給 ChatGPT 看再出題考它，結果它答得很好。後來其他工程師發現 ChatGPT 竟然能回答公司內部半導體製程的機密知識——因為 ChatGPT 會把對話內容當作訓練資料訓練進去，而測試階段訓練資料控管沒那麼精確。",
+      "expectedVideos": "V2+V3",
+      "expectedTimeRange": "V2 1616-1796 / V3 1-57",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M07",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "加州警察局的人臉辨識系統為什麼上線前被喊卡？",
+      "goldPoints": "因為有人發現它辨識黑人通緝犯的準確率比辨識白人高。原因是訓練資料庫裡黑人的犯罪記錄與照片比白人多，模型抓臉部特徵抓得比較準。但有人認為黑人資料較多是因為過往處境不好被迫犯罪，模型等於對黑人歧視，所以系統被叫停。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "92-227",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M08",
+      "type": "跨片段歸納",
+      "difficulty": "難",
+      "question": "華盛頓郵報做了什麼實驗？為什麼引發爭議？",
+      "goldPoints": "記者要求 ChatGPT 以紐約郵報的報導風格寫一篇關於亨特拜登的報導，ChatGPT 拒絕，說自己不生成具有政治偏見的內容；把問題一字不改只把媒體換成 CNN，ChatGPT 就答應寫了。等於暗示它認為紐約郵報有政治立場，被指控做言論審查。OpenAI 工程師表示沒有做任何相關設定，推測是訓練資料中夾帶的新聞留言與 Reddit 討論造成，因為深度學習是黑盒子，無法解釋。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "227-580",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M10",
+      "type": "跨片段歸納",
+      "difficulty": "難",
+      "question": "有人怎麼「拐」ChatGPT 說出它不該說的話？",
+      "goldPoints": "(1) 換身分：改說自己是該車型的車主，想知道小偷會怎麼偷我的車來預防——ChatGPT 覺得是好事就答了，但無法判斷提問者是不是真車主；(2) 換情境：說自己在玩 GTA 遊戲，想在遊戲裡偷一台車——ChatGPT 也會回答，但遊戲裡偷也是偷。當時甚至有專門探討如何拐 ChatGPT 的書。",
+      "expectedVideos": "V3+V4",
+      "expectedTimeRange": "V3 1592-1785 / V4 0-50",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M11",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "中文做自然語言處理難在哪裡？老師早期怎麼處理？",
+      "goldPoints": "中文最大的問題是字跟字之間沒有空格，斷詞沒有線索可循，英文則天生有空格很好斷，所以早期中文 NLP 做不了。老師早期只能用很笨的兩段式方法：先用 Google 翻譯把中文翻成英文，用英文的套件做 NLP，算完再翻回中文。後來有了 CKIP 才不用這樣做。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "768-912",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M13",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "為什麼處理中文時常常刻意保留問號？",
+      "goldPoints": "停用詞與標點通常會被去除，但中文很多情況下問句跟一般句子的文字完全一樣，例如「這東西很好吃」可以是陳述也可以是反問，差別只在語調；文字上唯一能反映這個差別的就是最後的問號，所以中文處理時要特別把問號留下來。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "1128-1307",
+      "shouldRefuse": false
+    },
+    {
+      "id": "M14",
+      "type": "跨片段歸納",
+      "difficulty": "中",
+      "question": "詞向量要達到什麼效果？老師用什麼例子說明？",
+      "goldPoints": "特徵提取就是把文字用向量（一組數字）表達，因為電腦只能算數字、文字不能做數學運算。這組數字不能隨便給，必須能反映語意。老師的例子是：V晶片 減 V半導體 的距離，要小於 V晶片 減 V白飯 的距離，因為晶片和半導體語意比較接近。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "1478-1766",
+      "shouldRefuse": false
+    },
+    {
+      "id": "X01",
+      "type": "跨影片",
+      "difficulty": "中",
+      "question": "這門課提到了哪些大語言模型？分別是哪家公司的？",
+      "goldPoints": "ChatGPT / GPT-4o / GPT-4o mini（OpenAI）、Gemini（Google）、Claude（原 OpenAI 工程師跳槽出來成立的公司）、BERT（Google）、Llama / Llama 3（Meta）。",
+      "expectedVideos": "V2+V3+V5",
+      "expectedTimeRange": "V2 71-182,1527-1580 / V3 155-201",
+      "shouldRefuse": false
+    },
+    {
+      "id": "X02",
+      "type": "跨影片",
+      "difficulty": "難",
+      "question": "課程中提到 Google 對 AI 有哪些貢獻？",
+      "goldPoints": "(1) Transformer 論文 Attention is all you need（2017，引用約 15 萬次）；(2) BERT 模型；(3) 搜尋引擎是資訊檢索的老祖宗；(4) 大數據分析的 Hadoop 也源自 Google；(5) 知識圖譜相關技術；(6) 三大廠中 Google 在自然語言處理最強。老師還提到 Google 很尷尬，技術是它發明的卻一直被黑。",
+      "expectedVideos": "V2+V5+V6",
+      "expectedTimeRange": "V2 107-144 / V5 1611-1826 / V6 3-80",
+      "shouldRefuse": false
+    },
+    {
+      "id": "X03",
+      "type": "跨影片",
+      "difficulty": "難",
+      "question": "使用雲端大語言模型有哪些風險？課程舉了哪些真實案例？",
+      "goldPoints": "(1) 隱私與資安：三星工程師把半導體技術文件丟給 ChatGPT 導致機密外洩、銀行 AI 部門完全禁用、Sony PSN 2460 萬帳號外洩被罰一千多萬；(2) 被惡意使用：ChatGPT 教人偷車、詐騙集團用它寫詐騙稿；(3) 偏見與言論審查：加州警局人臉辨識對黑人準確率較高被喊卡、華盛頓郵報紐約郵報 vs CNN 實驗。",
+      "expectedVideos": "V2+V3+V4",
+      "expectedTimeRange": "V2 1581-1796 / V3 1-498 / V4 50-580",
+      "shouldRefuse": false
+    },
+    {
+      "id": "X04",
+      "type": "跨影片",
+      "difficulty": "難",
+      "question": "為什麼老師說 AI 不是突然冒出來的？",
+      "goldPoints": "(1) 圖靈在二戰時就想讓機器具有數學家的智慧來破解電報密碼，圖靈測試 1950 年提出；(2) 深度學習的神經網路 1980 年就被提出，快 40 年了；(3) 當時做不好是因為算力不夠（寫程式還要畫答案卡的電腦）、資料量也不夠；(4) 後來摩爾定律讓運算效能不斷翻倍，2015 年大數據論文指出一天產生的資料量超過西元元年到 2000 年的總和；(5) 資料夠、算力夠，40 年前想到的方法才做得起來。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "398-754",
+      "shouldRefuse": false
+    },
+    {
+      "id": "X05",
+      "type": "跨影片",
+      "difficulty": "難",
+      "question": "OpenAI 開放了哪些東西？哪些沒開放？為什麼？",
+      "goldPoints": "開放：CLIP（2020 年開放下載，文字圖片對齊模型）、強化學習框架 OpenAI Gym。沒開放：ChatGPT 的模型本體、Sora 的 API。原因：ChatGPT 就算送人一般人也跑不起來（要 Azure 等級機房），開放只會爽到競爭對手，讓對手拿它的東西去賺錢，違背 Open 的初衷，所以放在雲上讓人付費使用；Sora 不開放 API 是因為太消耗算力，目前系統撐不住。",
+      "expectedVideos": "V5",
+      "expectedTimeRange": "1271-1577",
+      "shouldRefuse": false
+    },
+    {
+      "id": "D01",
+      "type": "名詞定義",
+      "difficulty": "中",
+      "question": "什麼是 RAG？",
+      "goldPoints": "RAG 是 Retrieval Augmented Generation，檢索增強生成。做法是先把自己的規則或文件整理好，使用者提問時先去比對出相關的那一條，把那段文字複製出來貼給 ChatGPT，要它根據這份規定來回答，這樣就不會答錯。課程用香港公司幫電商做客服 QA 當例子。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "1351-1512",
+      "shouldRefuse": false
+    },
+    {
+      "id": "D02",
+      "type": "名詞定義",
+      "difficulty": "中",
+      "question": "什麼是大語言模型？跟一般語言模型差在哪？",
+      "goldPoints": "大語言模型的「大」指模型參數量非常多、丟進去訓練的資料也非常多，因此需要的運算資源很大、成本極高，一般公司甚至國家都不見得做得起來。BERT 就屬於「不大」的語言模型。而且這個定義隨時間改變：2019 年 BERT 剛出來時就算大模型，現在看是小兒科。大語言模型現在已是獨立出來的研究領域。",
+      "expectedVideos": "V1+V2",
+      "expectedTimeRange": "V1 573-624 / V2 59-182",
+      "shouldRefuse": false
+    },
+    {
+      "id": "D04",
+      "type": "名詞定義",
+      "difficulty": "易",
+      "question": "什麼是斷詞斷句？為什麼要做？",
+      "goldPoints": "把一整段文章拆成一個一個的單字，這樣才能去計算單字與單字之間的關係。例如「附近的餐廳」要拆成「附近」「的」「餐廳」，才能算出誰是主、誰是副、誰跟誰有什麼關係；拆不開就沒辦法算。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "708-768",
+      "shouldRefuse": false
+    },
+    {
+      "id": "D05",
+      "type": "名詞定義",
+      "difficulty": "中",
+      "question": "什麼是詞幹處理？",
+      "goldPoints": "把英文單字尾巴的變化去掉（例如 -s、-ing、過去式），因為同一個字在英文有很多種長相，但句子裡的意思是一樣的，程式做字串比對時比不出來。有些情況只要去掉字尾，有些還要還原成原本的樣子。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "1024-1097",
+      "shouldRefuse": false
+    },
+    {
+      "id": "D07",
+      "type": "名詞定義",
+      "difficulty": "中",
+      "question": "什麼是黑盒子問題？",
+      "goldPoints": "深度學習模型中間經過大量神經網路運算與權重調整（WX+B），你無法解釋它為什麼算出這個結果，這就是黑盒子。課程的例子是 ChatGPT 出現疑似言論審查的行為時，連 OpenAI 自己開發的工程師都不知道為什麼會這樣，只能推測。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "492-549",
+      "shouldRefuse": false
+    },
+    {
+      "id": "T01",
+      "type": "時間定位",
+      "difficulty": "中",
+      "question": "老師是在哪裡講全聯先生廣告的？",
+      "goldPoints": "在 aiA10_1140119_1 約 328-441 秒（約 5:28-7:21）講全聯先生泡麵廣告，用來說明「一本正經講幹話」。",
+      "expectedVideos": "V1",
+      "expectedTimeRange": "328-441",
+      "shouldRefuse": false
+    },
+    {
+      "id": "T02",
+      "type": "時間定位",
+      "difficulty": "中",
+      "question": "老師講珍珠奶茶點餐的例子是在哪一段？",
+      "goldPoints": "在 aiA10_1140119_2 約 865-948 秒（約 14:25-15:48），用來說明多輪問答。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "865-948",
+      "shouldRefuse": false
+    },
+    {
+      "id": "T04",
+      "type": "時間定位",
+      "difficulty": "中",
+      "question": "老師講亨特拜登跟華盛頓郵報那段在哪裡？",
+      "goldPoints": "在 aiA10_1140119_4 約 227-460 秒（約 3:47-7:40）。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "227-460",
+      "shouldRefuse": false
+    },
+    {
+      "id": "T05",
+      "type": "時間定位",
+      "difficulty": "中",
+      "question": "Attention is all you need 這篇論文是在哪一段講的？",
+      "goldPoints": "在 aiA10_1140119_5 約 1635-1770 秒（約 27:15-29:30）。",
+      "expectedVideos": "V5",
+      "expectedTimeRange": "1635-1770",
+      "shouldRefuse": false
+    },
+    {
+      "id": "T06",
+      "type": "時間定位",
+      "difficulty": "中",
+      "question": "老師講耶魯大學 Spider 專案在哪裡？",
+      "goldPoints": "在 aiA10_1140119_6 約 188-435 秒（約 3:08-7:15），包含問題轉 SQL 的四個難度等級與準確率被 ChatGPT 輾壓的部分。",
+      "expectedVideos": "V6",
+      "expectedTimeRange": "188-435",
+      "shouldRefuse": false
+    },
+    {
+      "id": "N01",
+      "type": "課程外負向",
+      "difficulty": "易",
+      "question": "這門課的期末考範圍是什麼？",
+      "goldPoints": "課程逐字稿中完全沒有提到期末考或考試範圍。系統應明確拒答，不可推測。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N03",
+      "type": "課程外負向",
+      "difficulty": "易",
+      "question": "老師的電子郵件信箱是什麼？",
+      "goldPoints": "逐字稿中沒有出現任何聯絡方式。系統應拒答，尤其不可編造 email。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N04",
+      "type": "課程外負向",
+      "difficulty": "中",
+      "question": "請問怎麼用 PyTorch 實作一個 Transformer 的 attention 層？",
+      "goldPoints": "老師明確說過這部分不會講數學怎麼算，只帶觀念，課程也沒有 attention 層的實作。系統應拒答，不可用外部知識回答。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N05",
+      "type": "課程外負向",
+      "difficulty": "易",
+      "question": "台灣 2024 年的 GDP 成長率是多少？",
+      "goldPoints": "與課程完全無關。系統應拒答。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N06",
+      "type": "課程外負向",
+      "difficulty": "中",
+      "question": "Llama 4 有哪些新功能？",
+      "goldPoints": "課程只講到 Llama 3 的 8B 版本，沒有提過 Llama 4。系統應拒答，不可以用模型自身知識補充。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N07",
+      "type": "課程外負向",
+      "difficulty": "易",
+      "question": "老師推薦哪一本自然語言處理的教科書？",
+      "goldPoints": "逐字稿中老師只提過「有專門討論如何拐 ChatGPT 的書」，沒有推薦任何 NLP 教科書。系統應拒答，不可把那本書誤答成教科書。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "N10",
+      "type": "課程外負向",
+      "difficulty": "中",
+      "question": "GPT-5 跟 GPT-4o 的差別在哪？",
+      "goldPoints": "課程只提到 GPT-4o 與 GPT-4o mini，沒有 GPT-5。系統應拒答，不可用外部知識回答。",
+      "expectedVideos": "（無）",
+      "expectedTimeRange": "（無）",
+      "shouldRefuse": true
+    },
+    {
+      "id": "C01",
+      "type": "口語錯字",
+      "difficulty": "中",
+      "question": "老師說的那個羊駝是什麼啊？",
+      "goldPoints": "羊駝是 llama，指 Meta 開源的地端大語言模型 Llama；Llama 3 8B 需約 16GB 記憶體，單機 4090 可跑。系統應能把口語的「羊駝」對齊到 Llama。",
+      "expectedVideos": "V3",
+      "expectedTimeRange": "155-234",
+      "shouldRefuse": false
+    },
+    {
+      "id": "C02",
+      "type": "口語錯字",
+      "difficulty": "難",
+      "question": "「確的GPT」是什麼？",
+      "goldPoints": "逐字稿中 ChatGPT 被 STT 誤寫成「確的gbt」「雀的gpt」「確DGP」等多種形式。系統應辨識這是 ChatGPT，回答它是 OpenAI 的大語言模型、可對話、寫程式、整理資料等。這題測 prompt 規則第 4 條（專有名詞對齊）。",
+      "expectedVideos": "V1+V2",
+      "expectedTimeRange": "V1 516-624 / V2 182-291",
+      "shouldRefuse": false
+    },
+    {
+      "id": "C03",
+      "type": "口語錯字",
+      "difficulty": "中",
+      "question": "那個什麼「摸爾定律」是啥？",
+      "goldPoints": "逐字稿寫成「默爾定律」，正確是摩爾定律：每隔一段時間電腦運算效能就會翻一倍；老師補充現在摩爾定律已經維持不下去了，沒辦法像以前那樣直接翻倍。",
+      "expectedVideos": "V2",
+      "expectedTimeRange": "586-617",
+      "shouldRefuse": false
+    },
+    {
+      "id": "C05",
+      "type": "口語錯字",
+      "difficulty": "難",
+      "question": "那個「伯特」模型是什麼？",
+      "goldPoints": "BERT，逐字稿被誤寫成 bird、vert、birt、Burg 等。Google 用大量資料訓練的語言模型，2019 年剛出來時算大模型、現在一般電腦就能跑；詞向量 768 維，可做文本摘要、情緒分析，靠上下文關係改變詞向量、解決一詞多義。",
+      "expectedVideos": "V2+V5+V6",
+      "expectedTimeRange": "V2 71-144 / V5 1180-1210 / V6 2106-2134",
+      "shouldRefuse": false
+    },
+    {
+      "id": "C06",
+      "type": "口語錯字",
+      "difficulty": "中",
+      "question": "AI 為什麼會歧視？",
+      "goldPoints": "因為訓練資料分佈不均。課程例子是加州警察局的通緝犯人臉辨識系統，資料庫裡黑人的照片與犯罪記錄比白人多，導致辨識黑人的準確率比白人高，被認為構成歧視而被喊停。",
+      "expectedVideos": "V4",
+      "expectedTimeRange": "79-227",
+      "shouldRefuse": false
+    }
+  ]
+}

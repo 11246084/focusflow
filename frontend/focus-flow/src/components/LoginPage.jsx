@@ -99,7 +99,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
 
             {/* Role selector */}
             <div className="login-role-tabs">
-              {[['student', '學生'], ['teacher', '教師'], ['admin', '管理員']].map(([r, lb]) => (
+              {[['student', '學生'], ['teacher', '教師']].map(([r, lb]) => (
                 <button
                   key={r}
                   onClick={() => setRole(r)}

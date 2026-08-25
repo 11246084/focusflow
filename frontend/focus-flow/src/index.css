@@ -546,6 +546,29 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 .btn-primary:hover { background: #d94318; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(241, 79, 33, 0.35); }
 
+/* Secondary/outline pairing for .btn-primary: same shape, border/text only. */
+.btn-outline {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50px;
+  padding: 14px 34px;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-outline:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+
+.btn-outline-danger { color: #ff8b72; border-color: rgba(255, 107, 107, 0.45); }
+.btn-outline-danger:hover { background: rgba(255, 107, 107, 0.08); border-color: rgba(255, 107, 107, 0.7); color: #ff8b72; }
+
 /* Login page wrapper */
 .login-page {
   position: relative;
@@ -1378,5 +1401,246 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
     margin-left: -14px;
     padding-right: 14px;
     padding-left: 14px;
+  }
+}
+
+/* ── Step indicator ── */
+.step-indicator { margin-bottom: 22px; max-width: 98%; }
+
+.step-indicator-full {
+  display: flex;
+  align-items: flex-start;
+}
+
+.step-indicator-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+.step-indicator-item:last-child { flex: 0 1 auto; }
+
+.step-indicator-node-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.step-indicator-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.2s;
+}
+.step-indicator-node.upcoming {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.4);
+}
+.step-indicator-node.active {
+  background: #F14F21;
+  border: 1.5px solid #F14F21;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(241, 79, 33, 0.18);
+}
+.step-indicator-node.done {
+  background: #F14F21;
+  border: 1.5px solid #F14F21;
+  color: #fff;
+}
+
+.step-indicator-line {
+  flex: 1;
+  height: 2px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.2s;
+}
+.step-indicator-line.done { background: #F14F21; }
+
+.step-indicator-label {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Noto Sans TC', sans-serif;
+  white-space: nowrap;
+}
+.step-indicator-label.active { color: #fff; font-weight: 700; }
+.step-indicator-label.done { color: rgba(255, 255, 255, 0.65); }
+
+.step-indicator-compact { display: none; }
+
+@media (max-width: 768px) {
+  .step-indicator-full { display: none; }
+  .step-indicator-compact { display: block; }
+  .step-indicator-compact-text {
+    font-size: 12px;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .step-indicator-progress {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+  }
+  .step-indicator-progress-fill {
+    height: 100%;
+    background: #F14F21;
+    border-radius: 2px;
+    transition: width 0.2s;
+  }
+}
+
+/* ── Teacher video review: page-scoped card width cap ──
+   Scoped instead of added to the shared .card-sm, since .card-sm is also
+   used by TeacherUpload and this 98% cap is a review-page-only decision. */
+.video-review-card {
+  max-width: 98%;
+  min-width: 0;
+}
+
+/* ── Teacher video review: action button rows stack on mobile ── */
+.review-btn-row {
+  display: flex;
+  gap: 10px;
+}
+@media (max-width: 768px) {
+  .review-btn-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .review-btn-row .btn-primary,
+  .review-btn-row .btn-outline {
+    width: 100%;
+    white-space: nowrap;
+  }
+}
+
+/* ── Teacher video review: video + right-column scroll ── */
+.video-review-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background: #000;
+  display: block;
+}
+
+.video-review-right {
+  max-height: 560px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.video-review-right::-webkit-scrollbar { width: 3px; }
+.video-review-right::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 2px; }
+
+@media (max-width: 768px) {
+  .video-review-right {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+/* ── Teacher video review: rejection reason list ── */
+.reject-reason-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reject-reason-item {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s, background 0.2s;
+}
+.reject-reason-item.is-expanded {
+  border-color: rgba(241, 79, 33, 0.35);
+  background: rgba(241, 79, 33, 0.05);
+}
+
+.reject-reason-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.reject-reason-checkbox input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #F14F21;
+  cursor: pointer;
+}
+
+.required-mark {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+
+.optional-mark {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+}
+
+/* Grid-rows collapse trick: animates from 0fr to 1fr instead of a hard toggle. */
+.reject-reason-note-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.reject-reason-note-wrap.is-open {
+  grid-template-rows: 1fr;
+}
+
+.reject-reason-note-inner {
+  overflow: hidden;
+}
+
+.reject-reason-note {
+  margin-top: 8px;
+}
+.reject-reason-note textarea {
+  width: 100%;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  padding: 14px 18px;
+  color: #fff;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.reject-reason-note textarea:focus { border-color: rgba(241, 79, 33, 0.55); background: rgba(255, 255, 255, 0.08); }
+.reject-reason-note textarea::placeholder { color: rgba(255, 255, 255, 0.28); }
+
+.reject-reason-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #ff6b6b;
+}
+
+@media (max-width: 768px) {
+  .reject-reason-note textarea {
+    width: 100%;
+    font-size: 16px; /* avoid iOS auto-zoom on focus */
   }
 }

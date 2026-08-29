@@ -82,13 +82,14 @@ function readInitialTracking() {
 function persistTracking(items, batchId = '') {
   // Persist only presentation-safe identifiers/status, never File objects or
   // authentication data. The URL stores either a batch id or legacy video ids.
-  const safeItems = items.map(({ itemId, videoId, name, processingStatus, uploadStatus, error }) => ({
+  const safeItems = items.map(({ itemId, videoId, name, processingStatus, uploadStatus, errorCode, error }) => ({
     batchId,
     itemId: itemId || '',
     videoId: videoId || '',
     name,
     processingStatus,
     uploadStatus,
+    errorCode: errorCode || '',
     error: error || '',
   }));
   localStorage.setItem(ACTIVE_UPLOAD_KEY, JSON.stringify(safeItems));
@@ -118,8 +119,9 @@ function mergeBatchItems(batchItems, current = []) {
       itemId: item.itemId,
       name: item.originalName || existing.name || `影片 ${index + 1}`,
       videoId: item.videoId || '',
-      uploadStatus: item.uploadStatus === 'failed' ? 'failed' : 'processing',
-      processingStatus: item.processingStatus || item.status || 'queued',
+      uploadStatus: item.errorCode === 'DUPLICATE_VIDEO' ? 'duplicate' : item.uploadStatus === 'failed' ? 'failed' : 'processing',
+      processingStatus: item.processingStatus || (item.errorCode === 'DUPLICATE_VIDEO' ? 'duplicate' : item.status || 'queued'),
+      errorCode: item.errorCode || '',
       error: item.errorMessage || '',
     };
   });
@@ -305,6 +307,7 @@ export default function TeacherUpload() {
   const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
   const completedCount = trackedItems.filter((item) => item.processingStatus === 'completed').length;
   const failedCount = trackedItems.filter((item) => item.processingStatus === 'failed').length;
+  const duplicateCount = trackedItems.filter((item) => item.uploadStatus === 'duplicate').length;
   const queuedCount = trackedItems.filter((item) => item.processingStatus === 'queued').length;
   const activeItem = trackedItems.find((item) => ['processing', 'running', 'retrying'].includes(item.processingStatus));
   const allTerminal = trackedItems.length > 0 && trackedItems.every((item) => isTerminalStatus(item.processingStatus));
@@ -313,7 +316,7 @@ export default function TeacherUpload() {
     `${trackedItems.filter((item) => item.videoId).length} / ${trackedItems.length} 已上傳`,
     `${activeItem ? 1 : 0} 支處理中，${queuedCount} 支排隊中`,
     activeItem ? `目前處理：${activeItem.name}` : '等待或已完成處理',
-    `${completedCount} / ${trackedItems.length} 已完成`,
+    `${completedCount} / ${trackedItems.length - duplicateCount} 已完成${duplicateCount ? `，${duplicateCount} 支已存在` : ''}`,
   ] : ['存入後端並啟動 AI 管線', '背景工作已建立', '轉字幕、切段並寫入向量資料庫', '學生可透過課程頁或 Line Bot 提問'];
   const steps = [['01', '上傳影片'], ['02', '排隊等待'], ['03', 'STT + Embedding'], ['04', 'Ready']];
   const stepStates = steps.map((_, index) => pipelineStep(index, trackedItems, uploading));
@@ -369,10 +372,14 @@ export default function TeacherUpload() {
                 </div>
               </div>
             ))}
-            {allTerminal && <div style={{ marginTop: 10, fontSize: 12, color: failedCount ? '#ffb080' : '#86efac' }}>{failedCount ? `${completedCount} 支完成，${failedCount} 支失敗` : `${completedCount} 支影片皆已完成 AI 索引`}</div>}
+            {allTerminal && <div style={{ marginTop: 10, fontSize: 12, color: failedCount ? '#ffb080' : '#86efac' }}>{failedCount ? `${completedCount} 支完成，${failedCount} 支失敗` : `${completedCount} 支影片已完成 AI 索引${duplicateCount ? `，${duplicateCount} 支已存在且未重複排程` : ''}`}</div>}
             {trackedItems.map((item) => item.error ? (
               <div key={item.key || item.videoId} style={{ marginTop: 6, fontSize: 11, color: '#ff8b72' }}>
-                {item.name}：{item.error}
+                {item.name}：{item.errorCode === 'DUPLICATE_VIDEO'
+                  ? '此影片已存在於課程中，未重複排入處理佇列。'
+                  : item.errorCode === 'INVALID_MEDIA_CONTAINER'
+                    ? '影片檔案不完整或格式無法解析，請更換原始檔或重新匯出後再上傳。'
+                    : item.error}
                 {batchId && item.videoId && item.processingStatus === 'failed' && (
                   <button type="button" onClick={() => retryItem(item)} style={{ marginLeft: 8, border: 0, background: 'transparent', color: '#F14F21', cursor: 'pointer', textDecoration: 'underline' }}>重新處理</button>
                 )}

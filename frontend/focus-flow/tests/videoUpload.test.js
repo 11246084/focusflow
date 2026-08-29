@@ -123,4 +123,34 @@ describe('多影片批次上傳契約', () => {
       (error) => error.code === 'VIDEO_BATCH_LIMIT_EXCEEDED' && /10 支/.test(error.message),
     );
   });
+
+  it('將同課程重複影片標示為 duplicate，而不是 Pipeline failure', async () => {
+    globalThis.fetch = async () => response({
+      data: {
+        batch: {
+          batchId: 'batch_20260814010101_abcdef12',
+          items: [{
+            itemId: 'item_0001',
+            originalName: 'existing.mp4',
+            videoId: 'existing-video-id',
+            uploadStatus: 'duplicate',
+            processingStatus: 'failed',
+            errorCode: 'DUPLICATE_VIDEO',
+            errorMessage: 'This video file has already been uploaded to this course.',
+          }],
+        },
+      },
+    });
+
+    const result = await uploadCourseVideos({
+      courseId: 'course-1',
+      items: [{ key: 'existing-key', file: makeFile('existing.mp4', 'same'), title: '既有影片' }],
+      onItemChange: () => {},
+    });
+
+    assert.equal(result.items[0].processingStatus, 'failed');
+    assert.equal(result.items[0].uploadStatus, 'duplicate');
+    assert.equal(result.items[0].errorCode, 'DUPLICATE_VIDEO');
+    assert.equal(result.items[0].videoId, 'existing-video-id');
+  });
 });

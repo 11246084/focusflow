@@ -40,5 +40,5 @@ export function mergeSelectedFiles(current, incoming, maxBytes = MAX_VIDEO_BYTES
 }
 
 export function isTerminalStatus(status) {
-  return status === 'completed' || status === 'failed' || status === 'skipped';
+  return status === 'completed' || status === 'failed' || status === 'skipped' || status === 'duplicate';
 }

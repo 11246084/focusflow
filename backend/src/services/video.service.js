@@ -15,6 +15,7 @@ const {
   buildProcessingMetadata,
   createQueuedProcessingState,
   failVideoProcessing,
+  queueVideoForProcessing,
 } = require('./videoProcessing.service');
 const {
   attachSttProcessLifecycle,
@@ -35,6 +36,8 @@ const {
   buildVideoBridgePresentation,
 } = require('./bridgeScope.service');
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
+const { enqueueVideoProcessing } = require('./videoProcessingQueue.service');
+const { assertMediaIntegrity } = require('./mediaIntegrity.service');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -68,7 +71,7 @@ function isSameOrDescendant(parentPath, candidatePath) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function spawnLocalVideoPipeline({ videoId, filePath }) {
+function spawnLocalVideoPipeline({ videoId, filePath }, { onClose = null } = {}) {
   const normalizedVideoId = String(videoId || '').trim();
   const normalizedPath = path.resolve(String(filePath || ''));
   if (!normalizedVideoId || !filePath || !isSameOrDescendant(env.uploadDir, normalizedPath) || !existsSync(normalizedPath)) {
@@ -112,6 +115,7 @@ function spawnLocalVideoPipeline({ videoId, filePath }) {
     logFd,
     videoId: normalizedVideoId,
     onUnexpectedExit: (failure) => markUnexpectedSttExitFailed(normalizedVideoId, failure),
+    onClose,
   });
   sttProcess.unref();
   return { pid: sttProcess.pid || null };
@@ -120,7 +124,55 @@ function spawnLocalVideoPipeline({ videoId, filePath }) {
 async function scheduleExistingVideoProcessing(videoId) {
   const video = await Video.findById(videoId);
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
-  return spawnLocalVideoPipeline({ videoId: video._id, filePath: video.filePath });
+  assertMediaIntegrity(video.filePath, video.fileName);
+  const normalizedVideoId = String(video._id);
+  return enqueueVideoProcessing({
+    videoId: normalizedVideoId,
+    start: (done) => spawnLocalVideoPipeline(
+      { videoId: normalizedVideoId, filePath: video.filePath },
+      { onClose: done },
+    ),
+    onStartError: (error) => markUnexpectedSttExitFailed(normalizedVideoId, {
+      errorCode: 'PIPELINE_SCHEDULE_FAILED',
+      errorMessage: `STT Pipeline could not be started (${error.message}).`,
+    }),
+  });
+}
+
+async function retryExistingVideoProcessing(videoId, user) {
+  const video = await Video.findById(videoId);
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+  const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
+  await assertCanManageCourse(user, course);
+  if (process.env.NODE_ENV !== 'test' && env.processingWebhookSecret !== 'processing-secret-for-tests') {
+    assertMediaIntegrity(video.filePath, video.fileName);
+  }
+  const queuedVideo = await queueVideoForProcessing(videoId);
+  if (process.env.NODE_ENV === 'test' || env.processingWebhookSecret === 'processing-secret-for-tests') {
+    return queuedVideo;
+  }
+  await scheduleExistingVideoProcessing(videoId);
+  return queuedVideo;
+}
+
+async function recoverQueuedVideoProcessing() {
+  const queuedVideos = await Video.find({
+    sourceType: VIDEO_SOURCE_TYPES.UPLOAD,
+    'processing.status': VIDEO_PROCESSING_STATUSES.QUEUED,
+  }).sort({ 'processing.queuedAt': 1, createdAt: 1 });
+  const results = [];
+  for (const video of queuedVideos) {
+    if (!video.filePath || !existsSync(path.resolve(video.filePath))) continue;
+    try {
+      results.push(await scheduleExistingVideoProcessing(video._id));
+    } catch (error) {
+      await markUnexpectedSttExitFailed(video._id, {
+        errorCode: error.code || 'PIPELINE_RECOVERY_SOURCE_INVALID',
+        errorMessage: error.message || 'Queued video source is invalid.',
+      });
+    }
+  }
+  return results;
 }
 
 async function ensureCourseExists(courseId) {
@@ -350,6 +402,15 @@ async function createCourseVideo({
   await assertCanManageCourse(user, course);
   const originalName = decodeUploadFilename(file.originalname);
 
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      assertMediaIntegrity(file.path, originalName);
+    } catch (error) {
+      try { unlinkSync(file.path); } catch { /* best effort */ }
+      throw error;
+    }
+  }
+
   const fileHash = await computeFileHash(file.path);
   const existing = await Video.findOne({ courseId, fileHash });
   if (existing) {
@@ -358,6 +419,7 @@ async function createCourseVideo({
       'This video file has already been uploaded to this course.',
       409,
       'DUPLICATE_VIDEO',
+      { existingVideoId: String(existing._id) },
     );
   }
 
@@ -411,7 +473,7 @@ async function createCourseVideo({
 
   // 在背景啟動 STT pipeline，不等待完成（不阻擋 HTTP 回應）
   // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
-  spawnLocalVideoPipeline({ videoId: video._id, filePath: file.path });
+  await scheduleExistingVideoProcessing(video._id);
 
   // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。
   youtubeUploadService.scheduleYouTubeAutoUpload(video);
@@ -555,5 +617,7 @@ module.exports = {
   attachVideoToCourse,
   detachVideoFromCourse,
   scheduleExistingVideoProcessing,
+  recoverQueuedVideoProcessing,
+  retryExistingVideoProcessing,
   spawnLocalVideoPipeline,
 };

@@ -185,12 +185,17 @@ async function createVideoBatch({ courseId, files, titles = [], user }) {
       });
     } catch (error) {
       cleanFailedUpload(file);
+      const duplicateVideoId = error?.code === 'DUPLICATE_VIDEO'
+        ? error?.details?.existingVideoId || null
+        : null;
       items.push({
         itemId: `item_${String(index + 1).padStart(4, '0')}`,
         originalName,
         title,
-        videoId: null,
-        uploadStatus: VIDEO_BATCH_UPLOAD_STATUSES.FAILED,
+        videoId: duplicateVideoId,
+        uploadStatus: duplicateVideoId
+          ? VIDEO_BATCH_UPLOAD_STATUSES.DUPLICATE
+          : VIDEO_BATCH_UPLOAD_STATUSES.FAILED,
         ...publicError(error),
       });
     }

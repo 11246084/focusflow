@@ -49,6 +49,7 @@ describe('TeacherUpload 多檔選擇工具', () => {
 
   it('辨識 terminal processing status', () => {
     assert.equal(isTerminalStatus('completed'), true);
+    assert.equal(isTerminalStatus('duplicate'), true);
     assert.equal(isTerminalStatus('processing'), false);
   });
 });

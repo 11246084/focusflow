@@ -41,6 +41,7 @@ const VIDEO_BATCH_STATUSES = {
 
 const VIDEO_BATCH_UPLOAD_STATUSES = {
   UPLOADED: 'uploaded',
+  DUPLICATE: 'duplicate',
   FAILED: 'failed',
 };
 

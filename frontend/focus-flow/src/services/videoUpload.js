@@ -52,15 +52,19 @@ export async function uploadCourseVideos({ courseId, items, onItemChange }) {
   ) {
     throw new Error('批次已建立，但後端回傳格式不完整。');
   }
-  const results = batch.items.map((result, index) => ({
+  const results = batch.items.map((result, index) => {
+    const duplicate = result.errorCode === 'DUPLICATE_VIDEO';
+    return ({
     key: items[index]?.key || result.itemId,
     itemId: result.itemId,
     name: result.originalName || items[index]?.file?.name || `影片 ${index + 1}`,
     videoId: result.videoId || '',
-    uploadStatus: result.uploadStatus === 'failed' ? 'failed' : 'processing',
-    processingStatus: result.processingStatus || result.status || 'queued',
+    uploadStatus: duplicate ? 'duplicate' : result.uploadStatus === 'failed' ? 'failed' : 'processing',
+    processingStatus: result.processingStatus || (duplicate ? 'duplicate' : result.status || 'queued'),
+    errorCode: result.errorCode || '',
     error: result.errorMessage || '',
-  }));
+    });
+  });
   results.forEach((result) => onItemChange(result.key, result));
   return { batchId: batch.batchId, items: results };
 }

@@ -95,7 +95,7 @@ const getVideoProcessing = asyncHandler(async (req, res) => {
 });
 
 const retryVideoProcessing = asyncHandler(async (req, res) => {
-  const video = await videoProcessingService.retryVideoProcessing(req.params.videoId, req.user);
+  const video = await videoService.retryExistingVideoProcessing(req.params.videoId, req.user);
 
   return sendSuccess(res, {
     message: 'Video processing retried successfully.',

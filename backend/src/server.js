@@ -23,6 +23,7 @@ const {
   stopVideoBatchReconciliationScheduler,
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
+const { recoverQueuedVideoProcessing } = require('./services/video.service');
 
 async function startServer() {
   fs.mkdirSync(env.uploadDir, { recursive: true });
@@ -40,6 +41,9 @@ async function startServer() {
 
   const server = app.listen(env.port, () => {
     console.log(`Focus Flow backend listening on port ${env.port}`);
+  });
+  recoverQueuedVideoProcessing().catch((error) => {
+    console.error('Failed to recover queued video processing.', error);
   });
   startShortsSyncScheduler();
   startVideoBatchReconciliationScheduler();

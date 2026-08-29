@@ -90,11 +90,12 @@ describe('video batch routes', () => {
     );
 
     assert.equal(result.status, 201);
-    assert.equal(result.body.data.batch.counts.processing, 1);
-    assert.equal(result.body.data.batch.counts.failed, 1);
+    assert.equal(result.body.data.batch.counts.processing, 2);
+    assert.equal(result.body.data.batch.counts.failed, 0);
     assert.equal(result.body.data.batch.items[1].errorCode, 'DUPLICATE_VIDEO');
+    assert.ok(result.body.data.batch.items[1].videoId);
     assert.equal(store.videoBatches[0].items[0].uploadStatus, 'uploaded');
-    assert.equal(store.videoBatches[0].items[1].uploadStatus, 'failed');
+    assert.equal(store.videoBatches[0].items[1].uploadStatus, 'duplicate');
   });
 
   it('blocks students and non-owner teachers from batch management', async () => {

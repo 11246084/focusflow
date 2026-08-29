@@ -143,6 +143,11 @@ module.exports = {
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
+  videoProcessingConcurrency: parsePositiveInteger(
+    process.env.VIDEO_PROCESSING_CONCURRENCY,
+    1,
+    'VIDEO_PROCESSING_CONCURRENCY',
+  ),
   // Batch orchestration is opt-in so the existing single-video adapter remains
   // the safe fallback until the Pipeline handoff is enabled deliberately.
   videoBatchPipelineEnabled: parseBoolean(

@@ -42,6 +42,16 @@ def probe_video_duration(video_path: Path, ffmpeg_binary: str) -> float:
     completed = subprocess.run(command, capture_output=True, text=True, check=False)
     # 合併 stderr 和 stdout 輸出
     ffmpeg_output = (completed.stderr or "") + "\n" + (completed.stdout or "")
+    if completed.returncode and "moov atom not found" in ffmpeg_output.lower():
+        raise ValueError(
+            "Invalid MP4 container: moov atom not found. "
+            "Replace or re-export the source video before retrying."
+        )
+    if completed.returncode and "invalid data found when processing input" in ffmpeg_output.lower():
+        raise ValueError(
+            "Invalid or unsupported media container. "
+            "Replace or re-export the source video before retrying."
+        )
     # 從輸出中提取持續時間秒數
     duration_sec = extract_duration_seconds(ffmpeg_output)
     # 將持續時間四捨五入並返回

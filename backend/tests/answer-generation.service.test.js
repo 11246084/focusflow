@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { afterEach, describe, it } = require('node:test');
 const { env } = require('./helpers/backendTestHarness');
 const {
+  buildPrompt,
   buildTemplateAnswer,
   generateAnswer,
   isNoAnswerReply,
@@ -80,6 +81,57 @@ describe('isNoAnswerReply', () => {
     assert.equal(isNoAnswerReply(''), false);
     assert.equal(isNoAnswerReply(null), false);
     assert.equal(isNoAnswerReply(undefined), false);
+  });
+});
+
+describe('buildPrompt', () => {
+  it('列出所有命中片段，不只第一筆', () => {
+    const prompt = buildPrompt('教師可以做什麼？', createMatches());
+
+    assert.match(prompt, /片段 1/);
+    assert.match(prompt, /片段 2/);
+    assert.match(prompt, /片段 3/);
+  });
+
+  it('要求整合所有相關片段而非只取分數最高的一筆', () => {
+    const prompt = buildPrompt('教師可以做什麼？', createMatches());
+
+    assert.match(prompt, /必須逐一整合成一個完整答案/);
+    assert.match(prompt, /不可只取分數最高的一筆/);
+  });
+
+  it('要求時間定位題把時間區間當成答案主體', () => {
+    const prompt = buildPrompt('這段在哪裡講的？', createMatches());
+
+    assert.match(prompt, /時間區間就是答案主體/);
+  });
+
+  it('允許部分回答，只有完全沒提到主題時才拒答', () => {
+    const prompt = buildPrompt('教師可以做什麼？', createMatches());
+
+    assert.match(prompt, /只要片段能支持部分答案，就先回答能確定的部分/);
+    assert.match(prompt, /只有在所有片段都沒有提到問題的主題時/);
+    assert.ok(prompt.includes(NO_ANSWER_INSUFFICIENT));
+  });
+
+  it('不再要求模型在片段不夠明確時回覆 NO_ANSWER_UNDETERMINED', () => {
+    const prompt = buildPrompt('教師可以做什麼？', createMatches());
+
+    assert.equal(prompt.includes(NO_ANSWER_UNDETERMINED), false);
+  });
+
+  it('要求把 STT 誤寫的專有名詞寫成正確名稱，且不列出錯字變體', () => {
+    const prompt = buildPrompt('這門課提到哪些大語言模型？', createMatches());
+
+    assert.match(prompt, /答案要直接寫成正確名稱/);
+    assert.match(prompt, /不要在答案中列出逐字稿的錯字變體/);
+  });
+
+  it('要求排除口頭數數並禁止自相矛盾', () => {
+    const prompt = buildPrompt('那篇論文被引用幾次？', createMatches());
+
+    assert.match(prompt, /口頭數數/);
+    assert.match(prompt, /答案本身不可自相矛盾/);
   });
 });
 

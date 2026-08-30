@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mongodb": {
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "<向組員索取，或見 docs/MCP_SETUP.md>",
+        "MDB_MCP_READ_ONLY": "true"
+      }
+    }
+  }
+}

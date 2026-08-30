@@ -189,7 +189,9 @@ QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、
 
 自動失效時機（`faqs` 無 TTL，只有事件驅動失效）：影片刪除、影片重新處理完成、課程刪除、影片掛載到課程（`attachVideoToCourse`）、影片自課程移除（`detachVideoFromCourse`）。另有容量淘汰：單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時砍 `hitCount` 最低的。
 
-「答不出來」的回覆不會被快取（2026-07-25 起）：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`，同一份常數直接插進 prompt 避免走鐘），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
+「答不出來」的回覆不會被快取（2026-07-25 起）：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
+
+2026-08-30 起 prompt 只插入 `NO_ANSWER_INSUFFICIENT` 一句，且觸發條件收斂成「所有片段都沒有提到問題的主題」；`NO_ANSWER_UNDETERMINED` 留在 `isNoAnswerReply()` 只為了辨識改版前留下的舊答案，不要再把它寫回 prompt。
 
 **尚存缺口：設定 / 模型 / prompt 變更不會讓快取失效**。改 `QA_MATCH_LIMIT`、`GEMINI_CHAT_MODEL` 或 prompt 規則後，舊快取仍回舊答案，必須手動 `DELETE /api/v1/courses/:courseId/faqs`。
 

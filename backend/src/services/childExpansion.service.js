@@ -17,9 +17,7 @@ function createLeafRepository() {
       };
       const scopeQuery = buildSegmentLookupQuery(scope);
       // Apply access scope in MongoDB as well as after normalization; post-filtering remains defense in depth.
-      return VideoSegment.find(Object.keys(scopeQuery).length
-        ? { $and: [idQuery, scopeQuery] }
-        : idQuery).lean();
+      return VideoSegment.find({ $and: [idQuery, scopeQuery] }).lean();
     },
   };
 }

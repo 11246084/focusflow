@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const VideoSegment = require('../models/videoSegment.model');
@@ -5,6 +6,7 @@ const VideoSegmentVideo = require('../models/videoSegmentVideo.model');
 const Clip = require('../models/clip.model');
 const AppError = require('../utils/appError');
 const env = require('../config/env');
+const logger = require('../utils/logger');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
@@ -27,6 +29,7 @@ const {
   buildCourseSegmentScope,
   buildCourseVisualSegmentScope,
   buildSegmentLookupQuery,
+  normalizeIdentifier,
   segmentMatchesScope,
   extractPipelineVisualVideoId,
 } = require('./bridgeScope.service');
@@ -215,6 +218,7 @@ function buildVideoMetadataByIdentifier(scopedVideos) {
       sourceUrl: video.sourceUrl || null,
       youtubeVideoId: video.youtubeVideoId || null,
       videoUrl: video.videoUrl || video.sourceUrl || null,
+      filePath: video.filePath || video.file_path || null,
     };
 
     for (const identifier of [id, externalVideoId]) {
@@ -271,6 +275,56 @@ function enrichMatchesWithVideoMetadata(matches, scopedVideos) {
       jumpUrl: buildYouTubeWatchUrl(video.youtubeVideoId, match.startSec),
     };
   });
+}
+
+function faqMatchKey(segmentId, videoId) {
+  return `${String(segmentId)}\u0000${String(videoId)}`;
+}
+
+async function revalidateFaqMatches(faq, scope) {
+  const matches = Array.isArray(faq?.matches) ? faq.matches : [];
+  const normalizedMatches = matches.map((match) => ({
+    segmentId: normalizeIdentifier(match?.segmentId),
+    videoId: normalizeIdentifier(match?.videoId),
+  }));
+  const segmentIds = [...new Set(normalizedMatches.map((match) => match.segmentId).filter(Boolean))];
+  let scopedSegments = [];
+
+  if (segmentIds.length) {
+    scopedSegments = await VideoSegment.find({
+      $and: [
+        buildSegmentLookupQuery(scope),
+        {
+          $or: [
+            { segmentId: { $in: segmentIds } },
+            { chunkId: { $in: segmentIds } },
+          ],
+        },
+      ],
+    }).lean();
+  }
+
+  const validPairs = new Set(
+    scopedSegments
+      .map((segment) => normalizeSegment(segment))
+      .filter((segment) => segmentMatchesScope(segment, scope))
+      .flatMap((segment) => {
+        const ids = [segment.segmentId, segment.chunkId].filter(Boolean);
+        return ids.map((segmentId) => faqMatchKey(segmentId, segment.videoId));
+      }),
+  );
+  const droppedMatches = normalizedMatches.filter((match) => (
+    !match.segmentId
+    || !match.videoId
+    || !scope.allowedVideoIds.has(match.videoId)
+    || !validPairs.has(faqMatchKey(match.segmentId, match.videoId))
+  ));
+
+  return {
+    valid: matches.length > 0 && droppedMatches.length === 0,
+    droppedCount: droppedMatches.length,
+    droppedVideoIds: [...new Set(droppedMatches.map((match) => match.videoId).filter(Boolean))],
+  };
 }
 
 function buildRuntimeFallback({ stage, code, message, from = null, to = null }) {
@@ -659,8 +713,39 @@ function buildCitation(match, index) {
   };
 }
 
-function buildCitations(matches) {
-  return matches.map(buildCitation);
+function buildCitations(matches, {
+  scopedVideos = null,
+  requirePlayableSource = false,
+  courseId = null,
+  onDrop = null,
+} = {}) {
+  if (!requirePlayableSource) {
+    return matches.map(buildCitation);
+  }
+
+  const videoLookup = buildVideoMetadataByIdentifier(scopedVideos);
+  const playableMatches = [];
+
+  for (const match of matches) {
+    const video = videoLookup.get(String(match.videoId || ''));
+    const hasYoutubeSource = Boolean(String(video?.youtubeVideoId || '').trim());
+    const filePath = String(video?.filePath || '').trim();
+    const hasLocalSource = Boolean(filePath && fs.existsSync(filePath));
+
+    if (hasYoutubeSource || hasLocalSource) {
+      playableMatches.push(match);
+      continue;
+    }
+
+    logger.warn('qa.citation_dropped_no_playable_source', {
+      courseId: courseId == null ? null : String(courseId),
+      videoId: match.videoId == null ? null : String(match.videoId),
+      chunkId: match.chunkId == null ? null : String(match.chunkId),
+    });
+    if (typeof onDrop === 'function') onDrop(match);
+  }
+
+  return playableMatches.map(buildCitation);
 }
 
 function buildAnswerStatus(runtime, citations) {
@@ -687,8 +772,21 @@ function buildAnswerStatus(runtime, citations) {
   };
 }
 
-function buildQaResponse({ answer, matches, clip, runtime }) {
-  const citations = buildCitations(matches);
+function buildQaResponse({ answer, matches, clip, runtime, scopedVideos, courseId }) {
+  const droppedCitations = [];
+  const citations = buildCitations(matches, {
+    scopedVideos,
+    requirePlayableSource: true,
+    courseId,
+    onDrop: (match) => droppedCitations.push(match),
+  });
+
+  if (droppedCitations.length) {
+    runtime.citationFilter = {
+      errorCode: 'QA_CITATION_DROPPED',
+      droppedCount: droppedCitations.length,
+    };
+  }
 
   return {
     answer,
@@ -787,6 +885,7 @@ async function respondFromFaqCache({
   user,
   course,
   courseSummary,
+  scopedVideos,
   runtimeSnapshot,
   faq,
   matchType,
@@ -795,7 +894,10 @@ async function respondFromFaqCache({
   trimmedQuestion,
 }) {
   const hitFaq = await recordFaqHit(faq._id) || faq;
-  const matches = Array.isArray(faq.matches) ? faq.matches : [];
+  const matches = enrichMatchesWithVideoMetadata(
+    Array.isArray(faq.matches) ? faq.matches : [],
+    scopedVideos,
+  );
 
   const runtime = buildQaRuntime({
     runtimeSnapshot,
@@ -848,6 +950,8 @@ async function respondFromFaqCache({
     matches,
     clip: faq.clip || null,
     runtime,
+    scopedVideos,
+    courseId: course._id,
   });
 }
 
@@ -900,13 +1004,50 @@ async function askQuestion({
   tMark = qaTimingMark(`access+videos (${scopedVideos.videos?.length || 0} videos)`, tMark);
 
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
+  const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+  const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
+  const invalidFaqIds = new Set();
+  let faqRevalidationFailure = null;
+
+  async function faqMatchesCurrentScope(faq) {
+    const faqId = String(faq?._id || '');
+    if (invalidFaqIds.has(faqId)) return false;
+
+    const validation = await revalidateFaqMatches(faq, segmentScope);
+    if (validation.valid) return true;
+
+    invalidFaqIds.add(faqId);
+    faqRevalidationFailure = {
+      errorCode: 'QA_FAQ_SCOPE_REVALIDATION_FAILED',
+      faqId,
+      droppedCount: validation.droppedCount,
+      droppedVideoIds: validation.droppedVideoIds,
+    };
+    logger.warn('qa.faq_scope_revalidation_failed', {
+      courseId: String(course._id),
+      faqId,
+      droppedVideoIds: validation.droppedVideoIds,
+      droppedCount: validation.droppedCount,
+    });
+    return false;
+  }
+
+  function applyFaqCacheMissRuntime(runtime) {
+    runtime.faqCache = {
+      hit: false,
+      enabled: faqCacheEnabled,
+      ...(faqRevalidationFailure ? { revalidationFailure: faqRevalidationFailure } : {}),
+    };
+    return runtime;
+  }
 
   // FAQ 快取第一層：正規化文字完全相同 → 零 token，直接回快取答案
-  if (exactFaq) {
+  if (exactFaq && await faqMatchesCurrentScope(exactFaq)) {
     const cachedResult = await respondFromFaqCache({
       user,
       course,
       courseSummary,
+      scopedVideos,
       runtimeSnapshot,
       faq: exactFaq,
       matchType: 'exact',
@@ -918,8 +1059,6 @@ async function askQuestion({
   }
 
   const costControl = await assertQaQuotaAvailable({ userId: user.id });
-  const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
-  const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
   tMark = qaTimingMark('build-segment-scope', tMark);
 
   // 投機性啟動：片段載入與 query embedding 互不依賴，先讓 DB 查詢跑起來，
@@ -941,11 +1080,12 @@ async function askQuestion({
     const semanticHit = await findFaqBySimilarEmbedding({ courseId: course._id, queryVector });
     tMark = qaTimingMark('faq-semantic-lookup', tMark);
 
-    if (semanticHit) {
+    if (semanticHit && await faqMatchesCurrentScope(semanticHit.faq)) {
       const cachedResult = await respondFromFaqCache({
         user,
         course,
         courseSummary,
+        scopedVideos,
         runtimeSnapshot,
         faq: semanticHit.faq,
         matchType: 'semantic',
@@ -964,7 +1104,7 @@ async function askQuestion({
   // 即使 segments 還在（孤兒片段），若 course 沒有任何 Video record 對應，
   // 視為「資料不一致 / 沒有可回答的影片」，避免 prompt 出現「未知影片」。
   if (!scopedVideos.videos.length) {
-    const runtime = buildQaRuntime({
+    const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
       searchableSegmentCount: scopedSegments.length,
@@ -975,7 +1115,7 @@ async function askQuestion({
         fallbacks: [],
       },
       answerResult: null,
-    });
+    }));
 
     const usageLog = await recordUsage({
       userId: user.id,
@@ -998,11 +1138,18 @@ async function askQuestion({
       sourceUsageLogId: usageLog?._id,
     });
 
-    return buildQaResponse({ answer, matches: [], clip: null, runtime });
+    return buildQaResponse({
+      answer,
+      matches: [],
+      clip: null,
+      runtime,
+      scopedVideos,
+      courseId: course._id,
+    });
   }
 
   if (!scopedSegments.length && !visualSegmentScope.allowedVideoIds.size) {
-    const runtime = buildQaRuntime({
+    const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
       searchableSegmentCount: 0,
@@ -1013,7 +1160,7 @@ async function askQuestion({
         fallbacks: [],
       },
       answerResult: null,
-    });
+    }));
 
     const usageLog = await recordUsage({
       userId: user.id,
@@ -1049,6 +1196,8 @@ async function askQuestion({
       matches: [],
       clip: null,
       runtime,
+      scopedVideos,
+      courseId: course._id,
     });
   }
 
@@ -1114,7 +1263,7 @@ async function askQuestion({
     const visualMatches = enrichMatchesWithVideoMetadata(visualSearchResult.matches, scopedVideos);
 
     if (visualMatches.length) {
-      const runtime = buildQaRuntime({
+      const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
         runtimeSnapshot,
         courseSummary,
         searchableSegmentCount: scopedSegments.length,
@@ -1123,7 +1272,7 @@ async function askQuestion({
         searchDiagnostics: visualSearchResult.diagnostics,
         visualSearchDiagnostics: visualSearchResult.diagnostics,
         answerResult: { provider: 'template' },
-      });
+      }));
 
       const answer = buildVisualOnlyAnswer(visualMatches);
       const usageLog = await recordUsage({
@@ -1157,10 +1306,12 @@ async function askQuestion({
         matches: visualMatches,
         clip: null,
         runtime,
+        scopedVideos,
+        courseId: course._id,
       });
     }
 
-    const runtime = buildQaRuntime({
+    const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
       searchableSegmentCount: scopedSegments.length,
@@ -1168,7 +1319,7 @@ async function askQuestion({
       searchDiagnostics: searchResult.diagnostics,
       visualSearchDiagnostics: visualSearchResult.diagnostics,
       answerResult: null,
-    });
+    }));
 
     const usageLog = await recordUsage({
       userId: user.id,
@@ -1200,6 +1351,8 @@ async function askQuestion({
       matches: [],
       clip: null,
       runtime,
+      scopedVideos,
+      courseId: course._id,
     });
   }
 
@@ -1222,14 +1375,14 @@ async function askQuestion({
     keyPoints: [],
     hitCount: 0,
   } : null);
-  const runtime = buildQaRuntime({
+  const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
     runtimeSnapshot,
     courseSummary,
     searchableSegmentCount: scopedSegments.length,
     matchStatus: 'matched',
     searchDiagnostics: searchResult.diagnostics,
     answerResult,
-  });
+  }));
   stageLatency.retrievalLatencyMs = Date.now() - retrievalStartedAt;
   if (conversationId) {
     runtime.conversation = {
@@ -1240,8 +1393,6 @@ async function askQuestion({
     };
   }
   runtime.latency = { ...stageLatency, totalLatencyMs: Date.now() - totalStartedAt };
-  runtime.faqCache = { hit: false, enabled: faqCacheEnabled };
-
   // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行
   const clipLogPromise = resultClip
     ? recordUsage({
@@ -1313,6 +1464,8 @@ async function askQuestion({
     matches,
     clip: resultClip,
     runtime,
+    scopedVideos,
+    courseId: course._id,
   });
 }
 

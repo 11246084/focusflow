@@ -5,11 +5,15 @@ const { afterEach, describe, it } = require('node:test');
 const env = require('../src/config/env');
 const {
   IsolatedE2EError,
+  STUDENT_PILOT_OPENCV_COURSE_ID,
+  STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
+  STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
   assertStrictReadOnlyRoles,
   createCommandMonitor,
   hasRequiredCollections,
   parseCliArgs,
   runIsolatedE2E,
+  runStudentPilotOpenCvValidation,
   safeFailure,
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
 
@@ -141,6 +145,82 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
         '--preflight-only', '--with-answer', '--course-id', courseId, '--video-id', videoId,
       ]),
       (error) => error.code === 'E2E_CLI_INVALID',
+    );
+  });
+
+  it('parses the fixed student-pilot-opencv scope without changing standard mode inputs', () => {
+    const parsed = parseCliArgs(['--mode', 'student-pilot-opencv', '--json']);
+
+    assert.equal(parsed.mode, 'student-pilot-opencv');
+    assert.equal(parsed.courseId, STUDENT_PILOT_OPENCV_COURSE_ID);
+    assert.equal(parsed.excludedVideoId, STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID);
+    assert.equal(parsed.expectedSegmentCount, STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT);
+    assert.deepEqual(parsed.allowedVideoIds, []);
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--course-id', courseId,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+  });
+
+  it('validates the fixed OpenCV scope at 15 videos and 129 segments without writes', async () => {
+    const parsed = parseCliArgs(['--mode', 'student-pilot-opencv']);
+    const monitor = createCommandMonitor();
+    const allowedVideoIds = Array.from(
+      { length: 15 },
+      (_, index) => `6a00000000000000000000${index.toString(16).padStart(2, '0')}`,
+    );
+    const result = await runStudentPilotOpenCvValidation(parsed, {
+      commandMonitor: monitor,
+      async inspectStudentPilotOpenCvScope() {
+        return {
+          allowedVideoIds,
+          excludedVideoPresent: true,
+          segmentCount: 129,
+          databaseAccess: { verified: true, role: 'read', database: 'focusflow' },
+        };
+      },
+    });
+
+    assert.equal(result.runMode, 'student-pilot-opencv');
+    assert.equal(result.scope.videoCount, 15);
+    assert.equal(result.scope.excludedVideoId, STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID);
+    assert.equal(result.scope.segmentCount, 129);
+    assert.equal(result.safety.mongoWrites, 0);
+    assert.equal(result.safety.externalCalls, 0);
+  });
+
+  it('fails the fixed OpenCV mode when TEST_0720 remains or the count is not 129', async () => {
+    const parsed = parseCliArgs(['--mode', 'student-pilot-opencv']);
+    const allowedVideoIds = Array.from(
+      { length: 14 },
+      (_, index) => `6a00000000000000000000${index.toString(16).padStart(2, '0')}`,
+    );
+
+    await assert.rejects(
+      runStudentPilotOpenCvValidation(parsed, {
+        async inspectStudentPilotOpenCvScope() {
+          return {
+            allowedVideoIds: [...allowedVideoIds, STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID],
+            excludedVideoPresent: true,
+            segmentCount: 129,
+          };
+        },
+      }),
+      (error) => error.code === 'E2E_STUDENT_PILOT_SCOPE_INVALID',
+    );
+    await assert.rejects(
+      runStudentPilotOpenCvValidation(parsed, {
+        async inspectStudentPilotOpenCvScope() {
+          return {
+            allowedVideoIds: [...allowedVideoIds, '6a00000000000000000000ff'],
+            excludedVideoPresent: true,
+            segmentCount: 132,
+          };
+        },
+      }),
+      (error) => error.code === 'E2E_STUDENT_PILOT_SEGMENT_COUNT_MISMATCH',
     );
   });
 

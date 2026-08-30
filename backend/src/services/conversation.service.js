@@ -6,6 +6,7 @@ const { assertObjectId } = require('../utils/objectId');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { contextualizeQuestion, normalizeHistory } = require('./contextualQuestion.service');
 const { askQuestion } = require('./qa.service');
+const { summarizeTextForLog } = require('../utils/logPreview');
 
 function publicMessage(message) {
   return {
@@ -131,11 +132,15 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       },
     });
 
+    const originalQuestionLog = summarizeTextForLog(userMessage.content);
+    const standaloneQuestionLog = summarizeTextForLog(contextual.standaloneQuestion);
     console.info('[conversational-qa]', {
       conversationId: String(conversation._id),
-      originalQuestion: userMessage.content,
+      originalQuestionLength: originalQuestionLog.length,
+      originalQuestionPreview: originalQuestionLog.preview,
       requiresContext: contextual.requiresContext,
-      standaloneQuestion: contextual.standaloneQuestion,
+      standaloneQuestionLength: standaloneQuestionLog.length,
+      standaloneQuestionPreview: standaloneQuestionLog.preview,
       retrievalMode: result.runtime?.hierarchicalRetrieval?.retrievalMode || result.runtime?.searchBackendUsed,
       retrievedParentIds: result.runtime?.hierarchicalRetrieval?.retrievedParentIds || [],
       retrievedChunkIds: (result.matches || []).map((match) => match.chunkId).filter(Boolean),

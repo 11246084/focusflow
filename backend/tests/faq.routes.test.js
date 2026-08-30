@@ -12,6 +12,7 @@ const {
   newObjectId,
 } = require('./helpers/backendTestHarness');
 const { buildMockEmbedding } = require('../src/services/queryEmbedding.service');
+const logger = require('../src/utils/logger');
 
 const QUESTION_TEXT = 'What does the course say about JWT authentication?';
 
@@ -31,14 +32,21 @@ async function askQuestionAs(baseUrl, token, question) {
   });
 }
 
-function seedFaq({ courseId = ids.publishedCourse, question, answer, hitCount = 0 } = {}) {
+function seedFaq({
+  courseId = ids.publishedCourse,
+  question,
+  answer,
+  hitCount = 0,
+  matches = null,
+  questionEmbedding = [],
+} = {}) {
   const faq = {
     _id: newObjectId(),
     courseId,
     question,
     normalizedQuestion: question.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''),
     answer,
-    matches: [
+    matches: matches || [
       {
         segmentId: ids.segmentOne,
         videoId: ids.publishedVideo,
@@ -49,7 +57,7 @@ function seedFaq({ courseId = ids.publishedCourse, question, answer, hitCount = 
       },
     ],
     clip: null,
-    questionEmbedding: [],
+    questionEmbedding,
     hitCount,
     lastHitAt: null,
     updatedAt: new Date().toISOString(),
@@ -105,6 +113,68 @@ describe('FAQ 快取與常見問題路由', () => {
     assert.equal(variant.body.data.runtime.faqCache.hit, true);
     assert.equal(variant.body.data.runtime.faqCache.matchType, 'exact');
     assert.equal(store.faqs.length, 1);
+  });
+
+  it('FAQ 任一引用超出課程範圍時整筆作廢並繼續正式檢索', async () => {
+    makeSegmentsVectorReady();
+    const staleAnswer = '這是不得回傳的舊快取答案。';
+    const faq = seedFaq({
+      question: QUESTION_TEXT,
+      answer: staleAnswer,
+      matches: [
+        { segmentId: ids.segmentOne, videoId: ids.publishedVideo },
+        { segmentId: 'foreign-segment', videoId: ids.teacherVideo },
+      ],
+    });
+    const events = [];
+    const originalWarn = logger.warn;
+    logger.warn = (event, metadata) => events.push({ event, metadata });
+
+    try {
+      const token = await loginAs(baseUrl, 'student@focusflow.local', 'Student123!');
+      const result = await askQuestionAs(baseUrl, token, QUESTION_TEXT);
+
+      assert.equal(result.status, 200);
+      assert.notEqual(result.body.data.answer, staleAnswer);
+      assert.equal(result.body.data.runtime.faqCache.hit, false);
+      assert.equal(
+        result.body.data.runtime.faqCache.revalidationFailure.errorCode,
+        'QA_FAQ_SCOPE_REVALIDATION_FAILED',
+      );
+      assert.equal(faq.hitCount, 0);
+      assert.deepEqual(events, [{
+        event: 'qa.faq_scope_revalidation_failed',
+        metadata: {
+          courseId: ids.publishedCourse,
+          faqId: faq._id,
+          droppedVideoIds: [ids.teacherVideo],
+          droppedCount: 1,
+        },
+      }]);
+    } finally {
+      logger.warn = originalWarn;
+    }
+  });
+
+  it('語意 FAQ 引用失效時也整筆作廢', async () => {
+    makeSegmentsVectorReady();
+    const staleAnswer = '這是不得回傳的語意快取答案。';
+    seedFaq({
+      question: '另一個不會 exact 命中的問題',
+      answer: staleAnswer,
+      matches: [{ segmentId: 'missing-segment', videoId: ids.publishedVideo }],
+      questionEmbedding: buildMockEmbedding(QUESTION_TEXT),
+    });
+    const token = await loginAs(baseUrl, 'student@focusflow.local', 'Student123!');
+    const result = await askQuestionAs(baseUrl, token, QUESTION_TEXT);
+
+    assert.equal(result.status, 200);
+    assert.notEqual(result.body.data.answer, staleAnswer);
+    assert.equal(result.body.data.runtime.faqCache.hit, false);
+    assert.equal(
+      result.body.data.runtime.faqCache.revalidationFailure.errorCode,
+      'QA_FAQ_SCOPE_REVALIDATION_FAILED',
+    );
   });
 
   it('degraded 回答不寫入 FAQ 快取', async () => {

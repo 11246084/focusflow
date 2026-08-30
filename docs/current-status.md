@@ -1,5 +1,7 @@
 # docs/current-status.md — FocusFlow 目前進度
 
+> 2026-08-30 學生試用版後端 Phase 1 更新：WO-01～WO-09 已完成本機實作與回歸測試，Backend 64 suites／500 tests 全數通過。跨課程隔離已收斂為 canonical `video._id` allowlist、Leaf `videoId` 必須命中、空範圍 fail-closed；FAQ、Child expansion 與 citation 亦同步套用安全檢查。正式 12＋2 題證據與 shared Atlas 唯讀 runner 尚未完成，因此仍不得宣稱學生試用已通過驗收。詳見 [Phase 1 實作結果](2026-09_Student_Pilot_Backend/evidence/2026-08-30_phase1-implementation-results.md)。
+
 > 2026-08-09 Phase 2-2 更新：STT Parent Embedding production contract 已遷移至
 > stable `gemini-embedding-2`、3072 維、`taskType=null`，Parent document instruction
 > 為 `title: none | text: <parent_text>`。新版 `parent_embedding_v2`
@@ -31,7 +33,7 @@
 
 | 服務 | 狀態 | 說明 |
 |------|------|------|
-| **Backend** | ✅ 主線可用，全測試 447/447（2026-08-14 本機實測） | `QA_MATCH_LIMIT=15`、auth（role-aware login + 自助 register + private avatar）/ notifications / courses / videos / qa / LINE / stats / admin 已可用；Phase 2-2 Parent adapter 與 fail-closed readiness 已接線但 Gate 維持關閉，live Parent E2E 尚未完成 |
+| **Backend** | ✅ 主線可用，全測試 500/500（2026-08-30 本機實測） | 學生試用版 Phase 1 WO-01～WO-09 已完成本機實作；`QA_MATCH_LIMIT=15`、auth、notifications、courses、videos、qa、LINE、stats、admin 已可用。Phase 2-2 Parent Gate 維持關閉，正式 12＋2 題與 shared Atlas 唯讀證據仍待完成 |
 | **Frontend** | ✅ 第一階段頁面與本輪串接完成，lint/build 通過 | Login 會送出 role；Topbar 已串通知列表、分頁、已讀與 admin 公告；Profile 已串 authenticated avatar 上傳／讀取；多影片上傳使用單一 batch request 並驗證完整 item contract |
 | **AI Pipeline** | ✅ 可執行 | STT → chunking → embedding → MongoDB 主流程完整；本機上傳與 YouTube URL 都可由 backend 自動 spawn；mongodb_uploader 寫入前 race-condition guard |
 
@@ -211,6 +213,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 不能誤稱的邊界
 
+- 學生試用版 Phase 1 的 500/500 是本機回歸測試，不是附錄 I 的 12＋2 題正式證據，也不是 shared Atlas、Gemini、YouTube、LINE 或部署驗收；這些證據完成前不得宣稱學生試用已通過驗收
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
 - **不能說系統「已對外上線」**：VM、nginx、backend、DNS 都就緒且校內／VPN 連線穩定，但 2026-08-04 實測校外幾乎連不進來（57 個國外節點僅 1 個 connect），同學與一般家用網路皆 timeout。問題在學校邊界設備、待電算中心處理；在此之前對外可用的通道只有 ngrok
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼

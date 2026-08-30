@@ -27,6 +27,13 @@ const READ_COMMANDS = new Set([
   'listcollections', 'listindexes', 'listsearchindexes', 'connectionstatus',
 ]);
 
+const STANDARD_RUNNER_MODE = 'standard';
+const STUDENT_PILOT_OPENCV_MODE = 'student-pilot-opencv';
+const STUDENT_PILOT_OPENCV_COURSE_ID = '69fb4d4c069e21f4e65b74dc';
+const STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID = '6a5deabebece4943079410bd';
+const STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT = 15;
+const STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT = 129;
+
 class IsolatedE2EError extends Error {
   constructor(message, code) {
     super(message);
@@ -94,6 +101,7 @@ function parsePositiveInteger(value, flag) {
 
 function parseCliArgs(argv = []) {
   const options = {
+    mode: STANDARD_RUNNER_MODE,
     question: '',
     courseId: '',
     videoId: '',
@@ -110,6 +118,7 @@ function parseCliArgs(argv = []) {
     if (flag === '--with-answer') options.withAnswer = true;
     else if (flag === '--preflight-only') options.preflightOnly = true;
     else if (flag === '--json') options.json = true;
+    else if (flag === '--mode') options.mode = argv[++index] || '';
     else if (flag === '--question') options.question = argv[++index] || '';
     else if (flag === '--course-id') options.courseId = argv[++index] || '';
     else if (flag === '--video-id') options.videoId = argv[++index] || '';
@@ -120,9 +129,31 @@ function parseCliArgs(argv = []) {
   }
 
   options.question = String(options.question).trim();
+  options.mode = String(options.mode).trim();
   options.courseId = String(options.courseId).trim();
   options.videoId = String(options.videoId).trim();
   options.allowedVideoIds = [...new Set(options.allowedVideoIds.map((id) => String(id).trim()).filter(Boolean))];
+
+  if (options.mode === STUDENT_PILOT_OPENCV_MODE) {
+    if (options.question || options.courseId || options.videoId || options.allowedVideoIds.length
+        || options.withAnswer || options.preflightOnly) {
+      throw new IsolatedE2EError(
+        'student-pilot-opencv uses a fixed scope and cannot be combined with question or scope options.',
+        'E2E_CLI_INVALID',
+      );
+    }
+    return {
+      ...options,
+      courseId: STUDENT_PILOT_OPENCV_COURSE_ID,
+      excludedVideoId: STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
+      expectedVideoCount: STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT,
+      expectedSegmentCount: STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
+    };
+  }
+
+  if (options.mode !== STANDARD_RUNNER_MODE) {
+    throw new IsolatedE2EError('Unsupported runner mode.', 'E2E_CLI_INVALID');
+  }
   if (!options.allowedVideoIds.includes(options.videoId)) options.allowedVideoIds.push(options.videoId);
 
   if ((!options.preflightOnly && !options.question) || !/^[0-9a-f]{24}$/i.test(options.courseId)
@@ -139,6 +170,54 @@ function parseCliArgs(argv = []) {
     );
   }
   return options;
+}
+
+async function runStudentPilotOpenCvValidation(options, dependencies) {
+  const {
+    inspectStudentPilotOpenCvScope,
+    commandMonitor = createCommandMonitor(),
+  } = dependencies;
+
+  commandMonitor.assertNoWrites();
+  const inspection = await inspectStudentPilotOpenCvScope(options);
+  commandMonitor.assertNoWrites();
+
+  const allowedVideoIds = [...new Set(
+    (inspection.allowedVideoIds || []).map((id) => String(id)).filter(Boolean),
+  )];
+  if (allowedVideoIds.includes(options.excludedVideoId)
+      || inspection.excludedVideoPresent !== true
+      || allowedVideoIds.length !== options.expectedVideoCount) {
+    throw new IsolatedE2EError(
+      'The fixed OpenCV student-pilot video scope is invalid.',
+      'E2E_STUDENT_PILOT_SCOPE_INVALID',
+    );
+  }
+  if (inspection.segmentCount !== options.expectedSegmentCount) {
+    throw new IsolatedE2EError(
+      'The fixed OpenCV student-pilot segment count does not match the expected value.',
+      'E2E_STUDENT_PILOT_SEGMENT_COUNT_MISMATCH',
+    );
+  }
+
+  return {
+    runMode: STUDENT_PILOT_OPENCV_MODE,
+    writesAllowed: false,
+    courseId: options.courseId,
+    scope: {
+      videoCount: allowedVideoIds.length,
+      excludedVideoId: options.excludedVideoId,
+      excludedVideoPresent: true,
+      expectedSegmentCount: options.expectedSegmentCount,
+      segmentCount: inspection.segmentCount,
+    },
+    safety: {
+      ...commandMonitor.snapshot(),
+      databaseAccess: inspection.databaseAccess || null,
+      externalCalls: 0,
+      sensitiveOutput: false,
+    },
+  };
 }
 
 function safeScore(value) {
@@ -400,6 +479,47 @@ async function createLiveDependencies(commandMonitor) {
 
   return {
     commandMonitor,
+    async inspectStudentPilotOpenCvScope(options) {
+      const courseObjectId = new mongoose.Types.ObjectId(options.courseId);
+      const excludedVideoObjectId = new mongoose.Types.ObjectId(options.excludedVideoId);
+      const course = await courseCollection.findOne(
+        { _id: courseObjectId },
+        { projection: { _id: 1, videoIds: 1, status: 1, deletedAt: 1 } },
+      );
+      if (!course || course.deletedAt != null || course.status !== 'published') {
+        throw new IsolatedE2EError(
+          'The fixed OpenCV student-pilot course is not publishable.',
+          'E2E_STUDENT_PILOT_SCOPE_INVALID',
+        );
+      }
+
+      const listedVideoIds = (Array.isArray(course.videoIds) ? course.videoIds : [])
+        .map((id) => String(id))
+        .filter((id) => /^[0-9a-f]{24}$/i.test(id));
+      const listedVideoObjectIds = listedVideoIds.map((id) => new mongoose.Types.ObjectId(id));
+      const videos = await videoCollection.find(
+        {
+          $or: [
+            { _id: { $in: listedVideoObjectIds } },
+            { courseId: courseObjectId },
+          ],
+          deletedAt: null,
+        },
+        { projection: { _id: 1 } },
+      ).toArray();
+      const allVideoIds = [...new Set(videos.map((video) => String(video._id)))];
+      const excludedVideoPresent = allVideoIds.includes(String(excludedVideoObjectId));
+      const allowedVideoIds = allVideoIds.filter((id) => id !== options.excludedVideoId);
+      const segmentCount = await leafCollection.countDocuments({ videoId: { $in: allowedVideoIds } });
+      commandMonitor.assertNoWrites();
+
+      return {
+        allowedVideoIds,
+        excludedVideoPresent,
+        segmentCount,
+        databaseAccess,
+      };
+    },
     async preflight(options) {
       const requiredCollections = [
         env.videoSegmentCollection, env.videoSegmentParentCollection, 'videos', 'courses',
@@ -526,7 +646,9 @@ async function main(argv = process.argv.slice(2)) {
   try {
     const options = parseCliArgs(argv);
     dependencies = await createLiveDependencies(commandMonitor);
-    const result = await runIsolatedE2E(options, dependencies);
+    const result = options.mode === STUDENT_PILOT_OPENCV_MODE
+      ? await runStudentPilotOpenCvValidation(options, dependencies)
+      : await runIsolatedE2E(options, dependencies);
     console.log(JSON.stringify(result, null, options.json ? 2 : 0));
   } catch (error) {
     console.error(JSON.stringify(safeFailure(error)));
@@ -540,6 +662,11 @@ if (require.main === module) main();
 
 module.exports = {
   IsolatedE2EError,
+  STANDARD_RUNNER_MODE,
+  STUDENT_PILOT_OPENCV_MODE,
+  STUDENT_PILOT_OPENCV_COURSE_ID,
+  STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
+  STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
   WRITE_COMMANDS,
   assertStrictReadOnlyRoles,
   buildLeafLookupQuery,
@@ -551,5 +678,6 @@ module.exports = {
   main,
   parseCliArgs,
   runIsolatedE2E,
+  runStudentPilotOpenCvValidation,
   safeFailure,
 };

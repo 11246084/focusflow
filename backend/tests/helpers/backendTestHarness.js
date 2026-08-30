@@ -1225,6 +1225,7 @@ function resetStore() {
       duration_sec: null,
       video_source: 'upload',
       video_url: '/uploads/published.mp4',
+      filePath: __filename,
       uploadedBy: ids.teacher,
       processing: createProcessingState({
         status: 'completed',

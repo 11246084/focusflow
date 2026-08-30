@@ -34,6 +34,38 @@ describe('conversation routes', () => {
     assert.equal(store.questions.length, 1);
   });
 
+  it('logs only question lengths and the first 80 characters', async () => {
+    const question = `${'Q'.repeat(80)}${'PRIVATE_AFTER_PREVIEW'.repeat(3)}`;
+    const logs = [];
+    const originalInfo = console.info;
+    console.info = (...args) => logs.push(args);
+
+    try {
+      const token = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
+      const created = await jsonRequest(context.baseUrl, '/api/v1/conversations', {
+        method: 'POST', token, body: { courseId: ids.publishedCourse },
+      });
+      const answered = await jsonRequest(
+        context.baseUrl,
+        `/api/v1/conversations/${created.body.data.id}/messages`,
+        { method: 'POST', token, body: { content: question } },
+      );
+
+      assert.equal(answered.status, 201);
+      const qaLog = logs.find(([event]) => event === '[conversational-qa]');
+      assert.ok(qaLog);
+      assert.equal(qaLog[1].originalQuestionLength, question.length);
+      assert.equal(qaLog[1].originalQuestionPreview, 'Q'.repeat(80));
+      assert.equal(qaLog[1].standaloneQuestionLength, question.length);
+      assert.equal(qaLog[1].standaloneQuestionPreview, 'Q'.repeat(80));
+      assert.equal(Object.hasOwn(qaLog[1], 'originalQuestion'), false);
+      assert.equal(Object.hasOwn(qaLog[1], 'standaloneQuestion'), false);
+      assert.equal(JSON.stringify(qaLog).includes('PRIVATE_AFTER_PREVIEW'), false);
+    } finally {
+      console.info = originalInfo;
+    }
+  });
+
   it('isolates conversation history by owner', async () => {
     const studentToken = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
     const teacherToken = await loginAs(context.baseUrl, 'teacher@focusflow.local', 'Teacher123!');

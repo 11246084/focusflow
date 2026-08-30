@@ -12,7 +12,8 @@
 │   ├── work-order_README.md
 │   └── 2026-08-27_spec-v1.0-work-order.md
 └── evidence/
-    └── evidence_README.md
+    ├── evidence_README.md
+    └── 2026-08-30_phase1-implementation-results.md
 ```
 
 | 位置 | 主要責任 |
@@ -40,6 +41,12 @@
 
 若規格書、施工單與現有程式碼互相衝突，應記錄具體位置並停止該項工作，不得自行選擇版本。
 
+## 目前進度
+
+截至 2026-08-30，Phase 1 的 WO-01～WO-09 已完成本機實作與回歸測試：Backend 共 64 個 test suites、500 個 tests 全數通過。詳細項目、測試數字與未完成邊界見 [Phase 1 實作結果](evidence/2026-08-30_phase1-implementation-results.md)。
+
+這不等於學生試用已通過正式驗收。附錄 I 的 12＋2 題 `baseline`／`final` 證據，以及 shared Atlas 的唯讀 runner 驗證仍待執行。
+
 ## 維護原則
 
 - 需求與驗收條件只在規格書定義。
@@ -47,4 +54,3 @@
 - 驗收證據只記錄實際執行結果，不用來補寫需求。
 - 已保存的原始證據不得覆寫；需要重跑時新增一份。
 - 文件與證據不得包含密碼、token、API 金鑰、資料庫連線字串或可識別學生的資料。
-

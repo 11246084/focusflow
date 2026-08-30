@@ -1,6 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-08-13（補齊多影片 batch execution lease、Backend restart resume／manifest reconciliation、冪等 processing webhook 與隔離 Mongo 重啟 E2E；另修正 startup legacy migration 因 Mongoose strictQuery 可能變成全表更新，以及 demo seed natural key 遺失時無法重啟。真實 STT/Gemini 與正式批次部署尚未驗證，`VIDEO_BATCH_PIPELINE_ENABLED` 維持 false）
+最後更新：2026-08-30（學生試用版後端 Phase 1 WO-01～WO-09 已完成本機實作與回歸測試。跨課程隔離、FAQ、Child expansion、logging、citation playable-source filter、runner 與 startup fail-fast 已按 v1.2 收斂；Backend 500/500 tests 通過。正式 12＋2 題與 shared Atlas 唯讀證據仍待執行）
+
+前一輪：2026-08-13（補齊多影片 batch execution lease、Backend restart resume／manifest reconciliation、冪等 processing webhook 與隔離 Mongo 重啟 E2E；另修正 startup legacy migration 因 Mongoose strictQuery 可能變成全表更新，以及 demo seed natural key 遺失時無法重啟。真實 STT/Gemini 與正式批次部署尚未驗證，`VIDEO_BATCH_PIPELINE_ENABLED` 維持 false）
 
 同日另一項：補齊 stable Leaf artifact／uploader metadata、Parent active generation filter 與啟動後唯讀 active-data readiness；隔離 E2E 強制使用單一 `read` 角色的專用 URI，拒絕一般 `MONGODB_URI` 與 `atlasAdmin`／`readWrite`。部署 JSON 宣告不能單獨放行 hierarchy。Shared Atlas data/index、live Gemini 與 Parent live E2E 尚未驗證，Gate 維持 false。
 
@@ -38,6 +40,13 @@
 - `SHORTS_SYNC_INTERVAL_MS=600000`（設 0 停用 startup/interval sync）
 - LINE live：`readiness=ready`、`deliveryMode=live`
 
+學生試用模式的安全預設與必要條件：
+
+- `STUDENT_PILOT_MODE` 預設 `false`，不修改既有環境的啟動行為。
+- 只有明確設為 `true` 時，啟動程序才強制要求 `QA_VECTOR_SEARCH_MODE=atlas` 與 `YOUTUBE_UPLOAD_ENABLED=true`；任一不符即拒絕啟動。
+- 驗證通過後以既有 logger 記錄 `runtime.flag_snapshot` 的十二項非敏感生效值，不記錄 secret。
+- Leaf scope 只接受 `video._id.toString()` 建立的 canonical allowlist。片段必須有命中的 `videoId`；空 allowlist 回傳永不匹配條件，courseId 不可單獨放行。
+
 這代表：
 
 - query embedding 使用 `GEMINI_EMBEDDING_MODEL_NAME`（預設 stable `gemini-embedding-2`，3072 維），request 以 `task: search result | query: ...` instruction 取代 legacy task type，並以 `unit_l2_v1` 驗證／正規化；既有 Pipeline／Database 向量是否已同 contract 必須由 `/health.runtime.qa.dataContractCompatibility` 與跨組證據確認
@@ -61,7 +70,7 @@
 - Startup migration／demo seed 修復（2026-08-13）：legacy `video_id` rename 改用 raw collection，避免 Mongoose strictQuery 把未知 snake_case filter 移除成全表更新；`videoId:null` cleanup 改限 BSON null，不再匹配缺欄位。Demo video upsert 同時認 fixed `_id` 與 natural `videoId`，可修復遺失鍵並連續重啟。
 - 刪除 cascade（2026-05-07）：教師可刪自己課程（route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher）；`deleteVideo` / `deleteCourse` cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`；**撤銷** UsageLog / Question cascade 改保留歷史紀錄
 - Display 層分流（2026-05-07；2026-07-12 修正老師 #13）：老師 Top Segments 指向已刪除影片時優先 fallback 到該課程現存影片；課程已無現存影片時**不再整列丟棄**（先前會讓整個課程從統計消失），改帶 `contentMissing` flag 且同課程合併為一列；學生 Recent Queries 與管理員 Recent Events 同樣帶 `contentMissing` flag，前端顯示「內容已下架」badge
-- 影片多課程掛載（2026-07-12，P1-3）：保留 `video.courseId` 為主課程，其他課程透過 `course.videoIds` 掛載引用（沿用 bridge contract，`collectScopedVideos` 原生支援）。新增 `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`（TEACHER/ADMIN；attach 需同時可管理目標課程與影片主課程，主課程不可 detach 回 `400 VALIDATION_ERROR`，重複掛載回 `409 DUPLICATE_VIDEO`）；`resolveAccessibleVideoContext` 主課程無權限時 fallback 到任一有權限的掛載課程；`deleteVideo` / `deleteCourse` 會從**所有**課程 `videoIds` 清引用；`markVideoWatched` 接受主課程或掛載課程的影片；`segmentMatchesScope` 修正為 courseId 對不上時 fallback 用 videoId 判斷（掛載影片的 segments 帶主課程 courseId）。前端 TeacherCourses 課程展開面板有「掛載既有影片」與掛載列「解除」按鈕。注意：stats 的 videosCount 仍按主課程歸屬計算
+- 影片多課程掛載（2026-07-12，P1-3；2026-08-30 收緊 QA scope）：保留 `video.courseId` 為主課程，其他課程透過 `course.videoIds` 掛載引用（`collectScopedVideos` 仍可解析既有 reference）。新增 `POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`（TEACHER/ADMIN；attach 需同時可管理目標課程與影片主課程，主課程不可 detach 回 `400 VALIDATION_ERROR`，重複掛載回 `409 DUPLICATE_VIDEO`）；`resolveAccessibleVideoContext` 主課程無權限時 fallback 到任一有權限的掛載課程；`deleteVideo` / `deleteCourse` 會從**所有**課程 `videoIds` 清引用；`markVideoWatched` 接受主課程或掛載課程的影片。QA 的 `segmentMatchesScope` 不再接受 courseId 單獨命中，必須以 scoped video 的 canonical `_id` 對上 Leaf `videoId`。前端 TeacherCourses 課程展開面板有「掛載既有影片」與掛載列「解除」按鈕。注意：stats 的 videosCount 仍按主課程歸屬計算
 - 本地影片自動上傳 YouTube（2026-07-12 實作，feature flag 預設關閉；**2026-08-02 完成 live 憑證端對端驗證**）：`youtubeUpload.service.js` 以 OAuth2 refresh token 換 access token 後走 YouTube Data API v3 resumable upload；`createCourseVideo`（本地檔案路徑）在 spawn STT 後 fire-and-forget 觸發，成功回寫 `youtubeVideoId` + `videoUrl`（前端播放器自動改用 YouTube iframe），狀態記錄在 `videos.youtubeUpload {status: uploading|uploaded|failed, error, uploadedAt}`。需 `YOUTUBE_UPLOAD_ENABLED=true` + `YOUTUBE_CLIENT_ID/SECRET/REFRESH_TOKEN`（scope 需 `youtube.force-ssl`，才能同時支援上傳與刪除轉 private）四項齊備，缺任一項靜默略過，失敗不影響本地播放與 STT pipeline
 - QA 拒答（2026-05-07）：`scopedVideos.videos` 為空時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
 - 後端查詢平行化（2026-05-07）：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`（學生端 1.6–2.4s → ~0.8–1s）；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 加 `.lean()`（51 segments hydration 8.8s → ~1s）。API 回應格式 / 答案品質 100% 不變
@@ -78,7 +87,7 @@
 - CORS allowed origin 已可設定：未設定 `ALLOWED_ORIGINS` 時維持開發相容；設定逗號分隔白名單後只對指定 origins 回 CORS allow header，並支援 credentials
 - Backend spawn STT 時注入 `CLEANUP_AFTER_UPLOAD=true` + `CLEANUP_KEEP_CHECKPOINTS=false`：pipeline 上傳成功後自動清理 `data/outputs/runs/<videoId>/` 中的中間產物（含 checkpoints），避免長期累積
 - Pipeline run-aware outputs：backend 觸發單支影片時，pipeline 輸出改寫到 `data/outputs/runs/<videoId>/`（取代共用 `data/outputs/`），避免多教師同時處理時互相覆蓋
-- `bridgeScope.collectScopedVideos()` 已支援 `Course.videoIds` 對應到 `videos._id` / `videoId` / `video_id` 三種 key，避免歷史資料只寫其中一種時 bridge 找不到 video
+- `bridgeScope.collectScopedVideos()` 仍可用 `Course.videoIds` 從 `videos._id`／`videoId`／`video_id` 找到既有影片；但建立 Leaf allowlist 時只加入查得影片的 canonical `_id`，不把 legacy 欄位當成片段放行條件
 - `videos` ownership 回應 contract 已固定：app-owned 影片回 `ownership=app_owned` / `isAppOwned=true` / `metadataOnly=false`；pipeline metadata 影片回 `ownership=pipeline_metadata` / `isAppOwned=false` / `metadataOnly=true`
 - QA 提問落庫流程（2026-05-01）：`recordUsage()` 改回傳建立的 `UsageLog` 文件；QA controller / `lineConversation.service.js` 先建 usage log，再把 `_id` 寫入對應 `questions.sourceUsageLogId`；LINE QA hard-fail 路徑也會寫 `questions`（`status: failed`），不再因為失敗就漏掉提問紀錄
 - 重複上傳防呆（2026-05-07，P2-7）：`video.model.js` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index；`video.service.createCourseVideoFromYouTube` 建立前 `Video.findOne({ courseId, youtubeVideoId })` 命中回 `409 DUPLICATE_VIDEO`；`video.service.createCourseVideo` 上傳完成後對暫存檔做 SHA-256 stream-hash，命中既存 → `unlinkSync` → 回 `409 DUPLICATE_VIDEO`。仍未涵蓋跨課程共用同一支影片（屬 P1-3）
@@ -94,7 +103,7 @@
 
 `course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId`
 
-`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` 三種 key 全部放進 allowed set，命中任一即納入 scope。實務上 **app-owned 影片沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`；只有 pipeline metadata 影片才有 `videoId` / `video_id`。因此手動查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到（2026-07-25 排查實測）。
+`bridgeScope.service.js` 只把查得影片的 `_id` 字串放進 Leaf allowed set。實務上 **app-owned 影片沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`。因此手動查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到；片段若缺 `videoId` 或不符合 canonical `_id`，一律 fail-closed（2026-08-30 收斂）。
 
 ## 資料庫實況（共享 Atlas, MCP 驗證）
 
@@ -180,7 +189,7 @@
   - `npm run db:ensure-questions` 可建立 `questions` collection 並同步 schema indexes
   - `npm run db:backfill-questions` 預設 dry-run；需要寫入時使用 `npm run db:backfill-questions -- --write`，從 legacy ASK usage logs 補回缺失 questions
 - OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，已同步 login role、notifications、avatar 與主要既有端點；internal processing webhook 等少數內部端點以 route files 為準
-- FAQ 快取／常見問題資料庫（2026-07-13）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）——第一層正規化文字完全相同直接命中（零 token，連 embedding 都不算）；第二層以 query embedding 對課程 FAQ 做 cosine 相似度（預設門檻 0.95），命中則跳過向量搜尋與 LLM 生成。只快取 runtime ready 且不帶對話歷史的回答；命中仍照常寫 `usage_logs` 與 `questions`（runtime 帶 `faqCache.hit/matchType`，`answerProviderUsed=faq_cache`）。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`（依 hitCount 排序）、`DELETE /api/v1/courses/:courseId/faqs`（teacher/admin）。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
+- FAQ 快取／常見問題資料庫（2026-07-13；2026-08-30 scope revalidation）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）。第一層為正規化文字完全相同，第二層用 query embedding 做 cosine 相似度。任一層命中後都會逐筆重新驗證 `faq.matches` 的 `videoId + segmentId` 與目前 allowlist；只要一筆引用失效，整筆 FAQ 視為 miss 並繼續正式 retrieval，不保留部分引用。命中仍照常寫 `usage_logs` 與 `questions`。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`、`DELETE /api/v1/courses/:courseId/faqs`。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充
 
@@ -192,6 +201,7 @@
 
 ## 目前測試狀態
 
+- 2026-08-30 `npm.cmd test`：**500 passed / 0 failed / 0 skipped**（64 suites；學生試用版 Phase 1 第二批針對性測試為 79/79）。相較第一批完成後的 491 tests 增加 9 個回歸測試，沒有新增失敗。`student-pilot-opencv` live runner 因未提供 `PHASE2_2_READONLY_MONGODB_URI`，在建立 DB 連線前以 `E2E_READONLY_DATABASE_URI_REQUIRED` 安全停止；因此這仍不是 shared Atlas 或附錄 I 的正式證據。
 - 2026-08-13 `npm.cmd test`：**445 passed / 0 failed**（54 suites；含多影片 batch restart／reconciliation、Parent DB-only preflight、嚴格 Enrollment、YouTube recovery／cleanup 與既有 Backend 主線）。Parent runner 專項 **17/17**；`git diff --check` 通過。這仍是本機／mock／隔離測試，不是 shared Atlas 或 live Gemini 證據。
 - 2026-08-12 `npm.cmd test`：**421 passed / 0 failed**（50 suites；含嚴格 Enrollment、FAQ strict invalidation、Shorts deployment smoke，以及 YouTube bounded recovery／safe cleanup／retry route 回歸測試）。OpenAPI YAML 以 `js-yaml` 解析通過；YouTube recovery/cleanup 本輪只用 mock/in-memory 與暫存測試檔驗證，沒有 live API 或正式檔案刪除。
 - 2026-08-02 `npm.cmd test`：**341 passed / 0 failed**（42 suites；新增新註冊學生 Dashboard zero-state與 Admin Enrollment `studentId` 聚合回歸測試）。
@@ -234,6 +244,7 @@
 
 ## 不能誤稱的邊界
 
+- 不能把學生試用版 Phase 1 的本機 500/500 測試誤稱為學生試用正式驗收；附錄 I 的 12＋2 題與 shared Atlas 唯讀 runner 尚未完成
 - 不能把共享環境單次成功驗證，講成所有課程與資料都已 fully production-ready
 - 不能忽略 Atlas index 狀態，直接假設 `QA_VECTOR_SEARCH_MODE=atlas` 在任何環境都可用
 - 不能把 Gemini query embedding 已接上，誤講成所有 pipeline coverage 都已完全對齊

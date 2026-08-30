@@ -1,5 +1,6 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
+const { summarizeTextForLog } = require('../utils/logPreview');
 
 // prompt 要求模型「答不出來」時原句回覆的字串。
 // 這裡集中定義並直接插進 prompt，避免 prompt 文案與 isNoAnswerReply() 的比對字串走鐘。
@@ -146,11 +147,13 @@ function buildGeminiErrorDetails({ response = null, responseBody = null, payload
 
 function logGeminiFailure(error) {
   const details = error?.details && typeof error.details === 'object' ? error.details : {};
+  const responseBodyLog = summarizeTextForLog(details.responseBody);
 
   console.error('[answer-generation] Gemini request failed', {
     responseStatus: details.responseStatus ?? null,
     responseStatusText: details.responseStatusText ?? null,
-    responseBody: details.responseBody ?? null,
+    responseBodyLength: responseBodyLog.length,
+    responseBodyPreview: responseBodyLog.preview,
     errorName: error?.name ?? null,
     errorMessage: error?.message ?? null,
     errorCode: error?.code ?? error?.cause?.code ?? null,

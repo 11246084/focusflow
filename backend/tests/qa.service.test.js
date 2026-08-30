@@ -3,6 +3,7 @@ const { beforeEach, describe, it } = require('node:test');
 const { askQuestion } = require('../src/services/qa.service');
 const env = require('../src/config/env');
 const VideoSegment = require('../src/models/videoSegment.model');
+const logger = require('../src/utils/logger');
 const {
   ids,
   newObjectId,
@@ -432,6 +433,7 @@ describe('qa service', () => {
       courseId: visualCourseId,
       title: 'Visual Source Video',
       sourceUrl: '/uploads/video_001_part_0001.mp4',
+      filePath: __filename,
       fileName: 'video_001_part_0001.mp4',
       processing: { status: 'completed' },
       createdAt: '2026-07-10T08:01:00.000Z',
@@ -554,6 +556,65 @@ describe('qa service', () => {
       }),
       (error) => error.code === 'QA_RUNTIME_MISCONFIGURED',
     );
+  });
+
+  it('drops all TEST_0720 citations when the video has no playable source', async () => {
+    const testVideoId = '6a5deabebece4943079410bd';
+    store.videoSegments.length = 0;
+    store.videos.push({
+      _id: testVideoId,
+      courseId: ids.publishedCourse,
+      title: 'TEST_0720',
+      sourceType: 'upload',
+      filePath: 'Z:\\focusflow-missing\\TEST_0720.mp4',
+      youtubeVideoId: null,
+      uploadedBy: ids.teacher,
+      processing: { status: 'completed' },
+    });
+    for (let index = 1; index <= 3; index += 1) {
+      store.videoSegments.push({
+        _id: `test-0720-segment-${index}`,
+        chunkId: `test-0720-chunk-${index}`,
+        segmentId: `test-0720-segment-${index}`,
+        videoId: testVideoId,
+        startSec: index * 10,
+        endSec: index * 10 + 5,
+        text: `test0720token segment ${index}`,
+        embedding: [],
+      });
+    }
+    const events = [];
+    const originalWarn = logger.warn;
+    logger.warn = (event, metadata) => events.push({ event, metadata });
+
+    try {
+      const result = await askQuestion({
+        user: { id: ids.student, role: 'student' },
+        courseId: ids.publishedCourse,
+        question: 'test0720token',
+        source: 'service-test',
+      });
+
+      assert.equal(result.matches.length, 3);
+      assert.deepEqual(result.citations, []);
+      assert.deepEqual(result.runtime.citationFilter, {
+        errorCode: 'QA_CITATION_DROPPED',
+        droppedCount: 3,
+      });
+      assert.deepEqual(
+        events.map(({ event, metadata }) => ({ event, metadata })),
+        [1, 2, 3].map((index) => ({
+          event: 'qa.citation_dropped_no_playable_source',
+          metadata: {
+            courseId: ids.publishedCourse,
+            videoId: testVideoId,
+            chunkId: `test-0720-chunk-${index}`,
+          },
+        })),
+      );
+    } finally {
+      logger.warn = originalWarn;
+    }
   });
 
   it('surfaces atlas-not-ready errors instead of silently falling back to memory', async () => {

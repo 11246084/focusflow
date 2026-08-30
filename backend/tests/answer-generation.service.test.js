@@ -200,6 +200,30 @@ describe('answer generation service', () => {
     assert.equal(result.fallback.code, 'ANSWER_PROVIDER_ERROR');
   });
 
+  it('logs only provider response length and the first 80 characters', async () => {
+    const responseBody = `${'P'.repeat(80)}${'SECRET_AFTER_PREVIEW'.repeat(4)}`;
+    const logged = [];
+
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    console.error = (...args) => logged.push(args);
+    global.fetch = async () => ({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      async text() { return responseBody; },
+    });
+
+    await generateAnswer('學生與老師的權限差在哪裡？', createMatches());
+
+    const failureLog = logged.find(([event]) => event === '[answer-generation] Gemini request failed');
+    assert.ok(failureLog);
+    assert.equal(failureLog[1].responseBodyLength, responseBody.length);
+    assert.equal(failureLog[1].responseBodyPreview, 'P'.repeat(80));
+    assert.equal(Object.hasOwn(failureLog[1], 'responseBody'), false);
+    assert.equal(JSON.stringify(failureLog).includes('SECRET_AFTER_PREVIEW'), false);
+  });
+
   it('treats empty Gemini content as a provider failure', async () => {
     const matches = createMatches();
     env.qaAnswerProvider = 'gemini';

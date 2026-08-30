@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
-const { expandParentHits } = require('../src/services/childExpansion.service');
+const VideoSegment = require('../src/models/videoSegment.model');
+const { createLeafRepository, expandParentHits } = require('../src/services/childExpansion.service');
 
 const scope = {
   allowedCourseIds: new Set(['course-1']),
@@ -38,6 +39,34 @@ function expand(parentHits, overrides = {}) {
 }
 
 describe('child expansion service', () => {
+  it('keeps the fail-closed scope query when the video allowlist is empty', async () => {
+    const originalFind = VideoSegment.find;
+    let capturedQuery = null;
+    VideoSegment.find = (query) => {
+      capturedQuery = query;
+      return { lean: async () => [] };
+    };
+
+    try {
+      await createLeafRepository().findLeavesByChunkIds(['c1'], {
+        scope: { allowedCourseIds: new Set(), allowedVideoIds: new Set() },
+      });
+      assert.deepEqual(capturedQuery, {
+        $and: [
+          {
+            $or: [
+              { chunkId: { $in: ['c1'] } },
+              { segmentId: { $in: ['c1'] } },
+            ],
+          },
+          { _id: { $in: [] } },
+        ],
+      });
+    } finally {
+      VideoSegment.find = originalFind;
+    }
+  });
+
   it('preserves parent and child id order independent of repository order', async () => {
     const result = await expand([parent('p1', ['c2', 'c1'])]);
     assert.deepEqual(result.leaves.map((leaf) => leaf.chunkId), ['c2', 'c1']);

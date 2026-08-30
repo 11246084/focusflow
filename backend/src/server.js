@@ -24,8 +24,10 @@ const {
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
+const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
 
 async function startServer() {
+  validateStudentPilotRuntime();
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
   await migrateVideoFields();

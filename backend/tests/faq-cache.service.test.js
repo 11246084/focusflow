@@ -29,7 +29,7 @@ describe('faqCache service', () => {
       courseId: ids.publishedCourse,
       question: '什麼是 JWT？',
       answer: 'JWT 是一種 token 格式。',
-      matches: [{ segmentId: ids.segmentOne, videoId: ids.publishedVideoExternal, startSec: 12, endSec: 32 }],
+      matches: [{ segmentId: ids.segmentOne, videoId: ids.publishedVideo, startSec: 12, endSec: 32 }],
       clip: null,
       questionEmbedding: [1, 0, 0],
     });

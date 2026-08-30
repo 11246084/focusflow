@@ -90,9 +90,6 @@ function addVideoIdentifiers(targetSet, video) {
   }
 
   addIdentifier(targetSet, video._id);
-  addIdentifier(targetSet, video.id);
-  addIdentifier(targetSet, video.videoId);
-  addIdentifier(targetSet, video.video_id);
 }
 
 function extractPipelineVisualVideoId(value) {
@@ -299,10 +296,6 @@ async function buildCourseSegmentScope(course, scopedVideos) {
     addVideoIdentifiers(allowedVideoIds, video);
   }
 
-  for (const videoId of resolvedScopedVideos.courseVideoRefs || []) {
-    addIdentifier(allowedVideoIds, videoId);
-  }
-
   return {
     allowedCourseIds,
     allowedVideoIds,
@@ -322,40 +315,21 @@ function buildCourseVisualSegmentScope(scopedVideos) {
 }
 
 function buildSegmentLookupQuery(scope) {
-  const conditions = [];
-
-  for (const courseId of scope.allowedCourseIds) {
-    conditions.push({ courseId });
+  const allowedVideoIds = [...scope.allowedVideoIds];
+  if (!allowedVideoIds.length) {
+    return { _id: { $in: [] } };
   }
 
-  if (scope.allowedVideoIds.size) {
-    const allowedVideoIds = [...scope.allowedVideoIds];
-    conditions.push({ videoId: { $in: allowedVideoIds } });
-  }
-
-  if (!conditions.length) {
-    return {};
-  }
-
-  if (conditions.length === 1) {
-    return conditions[0];
-  }
-
-  return { $or: conditions };
+  return { videoId: { $in: allowedVideoIds } };
 }
 
 function segmentMatchesScope(segment, scope) {
-  // segment.courseId 記錄的是影片的主課程；影片掛載到其他課程時
-  // courseId 對不上，仍需 fallback 用 videoId 判斷是否在 scope 內。
-  if (segment.courseId && scope.allowedCourseIds.has(segment.courseId)) {
-    return true;
-  }
-
-  if (!segment.videoId) {
+  const videoId = normalizeIdentifier(segment?.videoId);
+  if (!videoId) {
     return false;
   }
 
-  return scope.allowedVideoIds.has(segment.videoId);
+  return scope.allowedVideoIds.has(videoId);
 }
 
 module.exports = {

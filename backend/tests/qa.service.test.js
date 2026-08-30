@@ -50,7 +50,7 @@ describe('qa service', () => {
       _id: 'segment-three-id',
       segmentId: 'segment-three',
       courseId: ids.publishedCourse,
-      videoId: ids.publishedVideoExternal,
+      videoId: ids.publishedVideo,
       startSec: 60,
       endSec: 85,
       text: 'This segment mentions JWT once.',
@@ -90,7 +90,7 @@ describe('qa service', () => {
       {
         _id: 'segment-snake-allowed-id',
         segmentId: ids.snakeCaseSegment,
-        videoId: ids.publishedVideoExternal,
+        videoId: ids.publishedVideo,
         startSec: 84,
         endSec: 118,
         text: 'Atlas bridge whitelisttoken aligns text segments by filtering with the course video whitelist.',
@@ -118,14 +118,14 @@ describe('qa service', () => {
     });
 
     assert.equal(result.matches[0].segmentId, ids.snakeCaseSegment);
-    assert.equal(result.matches[0].videoId, ids.publishedVideoExternal);
+    assert.equal(result.matches[0].videoId, ids.publishedVideo);
     assert.equal(result.matches[0].startSec, 84);
     assert.equal(result.matches[0].endSec, 118);
     assert.match(result.matches[0].transcript, /course video whitelist/i);
     assert.equal(result.matches.some((match) => match.segmentId === 'segment-snake-foreign'), false);
   });
 
-  it('uses course.videoIds object ids to resolve videos.video_id when videos.courseId is missing', async () => {
+  it('uses canonical video._id scope when videos.courseId is missing', async () => {
     const publishedVideo = store.videos.find((video) => video._id === ids.publishedVideo);
     publishedVideo.courseId = null;
 
@@ -134,10 +134,10 @@ describe('qa service', () => {
       {
         _id: 'segment-course-videoids-only',
         segmentId: 'segment-course-videoids-only',
-        videoId: ids.publishedVideoExternal,
+        videoId: ids.publishedVideo,
         startSec: 21,
         endSec: 44,
-        text: 'Course refs fallbacktoken bridges course video object ids to videos.video_id aliases.',
+        text: 'Course refs fallbacktoken keeps canonical video object ids in scope.',
         embedding: [],
       },
       {
@@ -146,7 +146,7 @@ describe('qa service', () => {
         videoId: 'video-foreign-999',
         startSec: 21,
         endSec: 44,
-        text: 'Course refs fallbacktoken bridges course video object ids to videos.video_id aliases.',
+        text: 'Course refs fallbacktoken keeps canonical video object ids in scope.',
         embedding: [],
       },
     );
@@ -157,16 +157,16 @@ describe('qa service', () => {
         role: 'student',
       },
       courseId: ids.publishedCourse,
-      question: 'How does fallbacktoken bridge course refs to video aliases?',
+      question: 'How does fallbacktoken keep canonical course video refs in scope?',
       source: 'service-test',
     });
 
     assert.equal(result.matches.length, 1);
     assert.equal(result.matches[0].segmentId, 'segment-course-videoids-only');
-    assert.equal(result.matches[0].videoId, ids.publishedVideoExternal);
+    assert.equal(result.matches[0].videoId, ids.publishedVideo);
   });
 
-  it('maps videos.video_id to segments.videoId when the course only references the video object id', async () => {
+  it('rejects videos.video_id aliases when the Leaf videoId is not canonical', async () => {
     const publishedVideo = store.videos.find((video) => video._id === ids.publishedVideo);
     publishedVideo.courseId = null;
 
@@ -202,12 +202,10 @@ describe('qa service', () => {
       source: 'service-test',
     });
 
-    assert.equal(result.matches.length, 1);
-    assert.equal(result.matches[0].segmentId, 'segment-videoid-camel');
-    assert.equal(result.matches[0].videoId, ids.publishedVideoExternal);
+    assert.equal(result.matches.length, 0);
   });
 
-  it('keeps mixed identifier segments inside the course scope and excludes foreign videos', async () => {
+  it('keeps only canonical identifier segments inside the course scope', async () => {
     const publishedVideo = store.videos.find((video) => video._id === ids.publishedVideo);
     publishedVideo.courseId = null;
 
@@ -225,7 +223,7 @@ describe('qa service', () => {
       {
         _id: 'segment-mixed-camel',
         segmentId: 'segment-mixed-camel',
-        videoId: ids.publishedVideoExternal,
+        videoId: ids.publishedVideo,
         startSec: 32,
         endSec: 49,
         text: 'Mixscope token also keeps camelCase aliases inside the course scope.',
@@ -248,13 +246,13 @@ describe('qa service', () => {
         role: 'student',
       },
       courseId: ids.publishedCourse,
-      question: 'How does mixscope keep aliases inside the course scope?',
+      question: 'How does mixscope keep canonical identifiers inside the course scope?',
       source: 'service-test',
     });
 
     assert.deepEqual(
       result.matches.map((match) => match.segmentId).sort(),
-      ['segment-mixed-camel', 'segment-mixed-snake'],
+      ['segment-mixed-camel'],
     );
   });
 
@@ -283,7 +281,7 @@ describe('qa service', () => {
       {
         _id: 'segment-pipeline-bridge',
         segmentId: 'segment-pipeline-bridge',
-        videoId: ids.pipelineBridgeVideoExternal,
+        videoId: ids.pipelineBridgeVideo,
         startSec: 144,
         endSec: 178,
         text: 'Bridgecourse token lets QA scope a course onto pipeline metadata videos without rewriting the videos collection.',
@@ -311,7 +309,7 @@ describe('qa service', () => {
     });
 
     assert.equal(result.matches.length, 1);
-    assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideoExternal);
+    assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideo);
     assert.equal(result.matches[0].segmentId, 'segment-pipeline-bridge');
     assert.equal(result.runtime.status, 'degraded');
     assert.equal(result.runtime.degraded, true);
@@ -343,7 +341,7 @@ describe('qa service', () => {
     store.videoSegments.push({
       _id: 'segment-pipeline-bridge-zh',
       segmentId: 'segment-pipeline-bridge-zh',
-      videoId: ids.pipelineBridgeVideoExternal,
+      videoId: ids.pipelineBridgeVideo,
       startSec: 4.53,
       endSec: 32.62,
       text: '我們今天要開始進入影像處理的部分，會先介紹數據預測、自然語言與影像處理。',
@@ -362,7 +360,7 @@ describe('qa service', () => {
 
     assert.equal(result.matches.length, 1);
     assert.equal(result.matches[0].segmentId, 'segment-pipeline-bridge-zh');
-    assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideoExternal);
+    assert.equal(result.matches[0].videoId, ids.pipelineBridgeVideo);
     assert.equal(
       result.runtime.fallbacks.some((item) => item.code === 'EMBEDDING_DIMENSION_MISMATCH'),
       true,

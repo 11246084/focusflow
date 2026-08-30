@@ -267,7 +267,7 @@ describe('qa routes', () => {
       {
         _id: newObjectId(),
         segmentId: ids.snakeCaseSegment,
-        videoId: ids.publishedVideoExternal,
+        videoId: ids.publishedVideo,
         startSec: 90,
         endSec: 126,
         text: 'Atlas compatibility fallbacktoken keeps memory mode working even when the segment only has videoId and text fields.',
@@ -295,7 +295,7 @@ describe('qa routes', () => {
 
     assert.equal(result.status, 200);
     assert.equal(result.body.data.matches[0].segmentId, ids.snakeCaseSegment);
-    assert.equal(result.body.data.matches[0].videoId, ids.publishedVideoExternal);
+    assert.equal(result.body.data.matches[0].videoId, ids.publishedVideo);
     assert.equal(result.body.data.matches[0].startSec, 90);
     assert.equal(result.body.data.matches[0].endSec, 126);
     assert.match(result.body.data.matches[0].transcript, /videoId and text fields/i);

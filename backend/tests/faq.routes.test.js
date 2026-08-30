@@ -41,7 +41,7 @@ function seedFaq({ courseId = ids.publishedCourse, question, answer, hitCount = 
     matches: [
       {
         segmentId: ids.segmentOne,
-        videoId: ids.publishedVideoExternal,
+        videoId: ids.publishedVideo,
         videoTitle: 'Published Video',
         startSec: 12,
         endSec: 32,

@@ -69,6 +69,11 @@ assertPrivateAvatarUploadDir(uploadDir, avatarUploadDir);
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
+  studentPilotMode: parseBoolean(
+    process.env.STUDENT_PILOT_MODE,
+    false,
+    'STUDENT_PILOT_MODE',
+  ),
   mongodbUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/focusflow',
   videoSegmentCollection: process.env.VIDEO_SEGMENT_COLLECTION || 'video_segments_text',
   videoSegmentVideoCollection: process.env.VIDEO_SEGMENT_VIDEO_COLLECTION || 'video_segments_video',

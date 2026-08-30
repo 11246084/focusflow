@@ -2,14 +2,14 @@
 
 | 欄位 | 內容 |
 |------|------|
-| 文件狀態 | 定稿；2026-08-27 八項決議與 v1.1 四項補充決議已納入 |
-| 版本 | v1.1（YouTube 上傳鏈路與 LINE 多輪修正版） |
-| 更新日期 | 2026-08-28 |
+| 文件狀態 | 定稿；2026-08-30 Phase 1 開工前六項決議已納入 |
+| 版本 | v1.2（Phase 1 實作契約修正版） |
+| 更新日期 | 2026-08-30 |
 | 學生試用期限 | 2026-09-30 前開放小規模學生試用 |
 | 可能複評時間 | 2026-10-15 前後；確切日期待教授通知 |
 | 固定示範課程 | 影片處理工具 - OpenCV（`69fb4d4c069e21f4e65b74dc`） |
 | 文件用途 | 以最少頁數說清楚完整流程、資料流、缺口與不崩潰底線 |
-| 現況依據 | 2026-08-25 會後決策、2026-08-27 八項決議，以及同日的程式碼與資料庫唯讀調查；證據等級見附錄 E |
+| 現況依據 | 2026-08-25 會後決策、2026-08-27 八項決議與唯讀調查，以及 2026-08-30 Phase 1 開工前六項決議；證據等級見附錄 E |
 
 本文件分成白話主文與技術附錄。第 1 至 8 章供所有人閱讀。
 
@@ -702,6 +702,7 @@ Parent／階層檢索本輪維持關閉，不要求 OpenCV 每支影片具備 ac
 
 | 日期 | 版本 | 內容 |
 |------|------|------|
+| 2026-08-30 | v1.2 | 納入 Phase 1 開工前六項決議：課程先建立 canonical 影片清單，Leaf 以影片編號命中清單為必要條件；FAQ 任一引用失效時整筆快取作廢；問題與 provider 回應預覽統一為前 80 字；新增預設關閉的學生試用模式；Backend 與 Pipeline 分別確認自身設定；E2E runner 新增固定的 OpenCV 學生試用驗收模式。 |
 | 2026-08-28 | v1.1 | 修正 YouTube 上傳鏈路缺口，將教師上傳後自動上傳 YouTube、`youtubeVideoId` 回寫與測試學生實際播放列為本輪硬性要求及驗收條件，並補上上傳失敗保留原檔與僅重試上傳的規定；將 LINE 多輪的歷史上限、追問改寫、切換課程清除歷史三項修正納入本輪必做，新增附錄 G.6，並更正附錄 B 的 LINE 段落結構；附錄 J.2 的優先順序插入 LINE 多輪三項修正，並新增工時壓縮時的可延後清單；新增附錄 J.4 記錄 v1.1 四項補充決議；附錄 K.1 由七項設定增為十二項，新增四項 YouTube 設定與 `MAX_CONVERSATION_TURNS`，啟動檢查由兩項增為三項；附錄 I 新增對話輪數記錄項；收斂 Happy Path 步驟 2 的擋試用範圍為僅限 YouTube 回寫與播放；更正錯字八組共 20 處，包含「攤銀」應為「撤銷」與「腰本」應為「腳本」。修正來源為 2026-08-27 專題成員意見與後續程式碼唯讀盤點結果。 |
 | 2026-08-27 | v1.0 | 納入 2026-08-27 八項決議。隔離漏洞由 3 個增為 5 個並新增全表查詢 VUL-04；要改的項目由 7 項增為 9 項；路徑負向測試由 5 條增為 6 條並定名 P1 至 P6；新增評分門檻與證據的四步順序；新增附錄 K 環境與錯誤契約；「影像處理導論」由規劃刪除改為不刪除並撤銷示範學生修課關係；審核對象明定為短影片並補上資料欄位與衝突判定；`/admin` 定案為維持現狀並標明風險；修正附錄 C 步驟編號偏移與 R04 缺漏；估時由 5 至 8 人日調為 7 至 11 人日。 |
 | 2026-08-25 | v0.9 | 提升主文可讀性；技術內容移至附錄，數字、結論與判定不變。 |
@@ -803,6 +804,14 @@ v0.9 只列出三個。2026-08-27 的程式碼唯讀盤點另外找到兩個，
    對應 VUL-05。
 
 第 8 項與第 9 項要同時修改 `childExpansion.service.js` 內的呼叫點。
+
+本輪的固定判定方式是：Backend 先從目前課程關係建立 canonical `video._id`
+
+影片清單，再要求 Leaf 的 `videoId` 命中這份清單。Leaf 本身可以沒有
+
+`courseId`；缺少 `courseId` 不得因此放寬影片清單，也不得只憑 `courseId`
+
+放行。這項判定同時適用 Atlas、本機模式、回傳後逐筆確認與 Child expansion。
 
 
 ### G.4 監控要記的事件
@@ -1059,9 +1068,11 @@ Pipeline 會把 `_id` 的字串值寫入 `video_segments_text.videoId`。
 7. 每題輸出搜尋 backend、fallback 清單、引用 `videoId` 與時間戳。
    也要輸出寫入命令計數與人工複核欄位。
    不得輸出資料庫連線字串或金鑰。
-8. 從課程影片清單中排除 `TEST_0720`（`6a5deabebece4943079410bd`）。
-   確保正式證據只涵蓋 129 筆段落。
-   排除動作只作用於測試腳本，不修改資料庫。
+8. 新增具名模式 `student-pilot-opencv`，固定使用 OpenCV 學生試用範圍。
+   此模式從課程影片清單中排除 `TEST_0720`
+   （`6a5deabebece4943079410bd`），並固定預期 129 筆段落。
+   一般 runner 的既有行為維持不變。排除動作只作用於測試腳本，
+   不修改資料庫。
 9. 記錄每次對話實際用到第幾輪，以及該輪是否使用追問改寫。
    純唯讀統計，不修改資料庫，也不記錄對話內容本身。
    網頁與 LINE 兩條通道分別統計。
@@ -1246,6 +1257,22 @@ LINE 切換課程清除歷史屬跨課程內容外洩。
    不修改 contextualizer 本身。
    來源：2026-08-27 專題成員意見與後續唯讀盤點結果。
 
+### J.5 v1.2 Phase 1 開工前決議
+
+1. 課程先建立 canonical `video._id` 影片清單。Leaf 的 `videoId` 必須命中
+   清單；Leaf 可以沒有 `courseId`，但只憑 `courseId` 永遠不能放行。
+2. FAQ 命中後重新確認全部引用。任一引用失效時整筆快取作廢，
+   視為 cache miss 並繼續正式檢索，不保留部分引用。
+3. 一般紀錄中的問題與 provider 回應都只保留長度與前 80 字。
+4. 新增 `STUDENT_PILOT_MODE`，預設為 `false`。只有明確設為 `true` 時，
+   才啟用學生試用的 Atlas 與 YouTube 啟動期硬性檢查。
+5. Backend 與 Pipeline 分別確認自己真正生效的設定。Backend 不宣稱能
+   證明 Pipeline 的 `ENABLE_GEMINI_EMBEDDING` 已生效。
+6. E2E runner 新增 `student-pilot-opencv` 模式，固定排除 `TEST_0720`
+   並驗證正式範圍為 129 筆；一般 runner 行為不變。
+
+來源：2026-08-30 專題負責人逐項確認。
+
 ---
 
 ## 附錄 K：環境設定與錯誤訊息
@@ -1264,10 +1291,17 @@ LINE 切換課程清除歷史屬跨課程內容外洩。
 
 而本機模式跑出來的結果不能當成正式證據。
 
-本輪要求的十二項設定：
+學生試用的嚴格檢查只在 `STUDENT_PILOT_MODE=true` 時啟用。此開關預設
 
-| 設定 | 本輪要求值 | 說明 |
+為 `false`，不得改變既有本機開發、測試或其他環境的啟動行為。
+
+本輪確認項目分成 Backend 十二項與 Pipeline 一項。Backend 啟動事件只記錄
+
+Backend 真正讀取的十二項，不把 Pipeline 設定混入：
+
+| Backend 設定 | 本輪要求值 | 說明 |
 |------|------------|------|
+| `STUDENT_PILOT_MODE` | 試用環境 `true` | 預設 `false`；只有 `true` 才執行本節硬性檢查 |
 | `QA_VECTOR_SEARCH_MODE` | `atlas` | 硬性要求，不得使用 `memory` |
 | `FAQ_CACHE_ENABLED` | 取證據時 `false` | 實際試用可以開，但須完成 G.3 第 5 項 |
 | `HIERARCHICAL_RETRIEVAL_ENABLED` | `false` | 本輪不用 Parent 檢索 |
@@ -1278,22 +1312,36 @@ LINE 切換課程清除歷史屬跨課程內容外洩。
 | `YOUTUBE_UPLOAD_CLEANUP_ENABLED` | `false` | 本輪一律保留本地原始檔。YouTube 上傳失敗時原檔是唯一救援來源 |
 | `YOUTUBE_PRIVATIZE_ON_DELETE` | `true` | 維持現值 |
 | `DEMO_SEED_ENABLED` | `false` | 避免示範資料污染正式證據 |
-| `ENABLE_GEMINI_EMBEDDING` | 程式與 `.env.example` 須一致 | 目前兩處不一致，須先確認實際要用哪一個 |
 | `MAX_CONVERSATION_TURNS` | `4` | 網頁與 LINE 共用的多輪上限。LINE 原為硬編碼 3 輪，本輪改為讀取此設定 |
 
-硬性要求共兩項：`QA_VECTOR_SEARCH_MODE=atlas` 與 `YOUTUBE_UPLOAD_ENABLED=true`。
+Pipeline 另行確認：
+
+| Pipeline 設定 | 本輪要求值 | 說明 |
+|------|------------|------|
+| `ENABLE_GEMINI_EMBEDDING` | 由 Pipeline 的實際環境確認 | 不放入 Backend 的 `runtime.flag_snapshot`；由 Pipeline 自己輸出或保存實際生效值 |
+
+當 `STUDENT_PILOT_MODE=true` 時，硬性要求共兩項：
+
+`QA_VECTOR_SEARCH_MODE=atlas` 與 `YOUTUBE_UPLOAD_ENABLED=true`。
 
 任一不符時，服務啟動即停止並輸出明確原因，不得以警告帶過。
 
-啟動檢查共三項：
+Backend 啟動檢查共四項：
 
-1. 確認 `QA_VECTOR_SEARCH_MODE` 為 `atlas`，否則停止啟動並印出明確原因。
-2. 記錄十二項設定的實際生效值，事件名稱為 `runtime.flag_snapshot`，
-   與證據一併存入 `docs/2026-09_Student_Pilot_Backend/evidence/`。
-3. 確認 `YOUTUBE_UPLOAD_ENABLED` 為 `true`，否則停止啟動，
+1. 讀取 `STUDENT_PILOT_MODE`。值不是 `true` 時不套用學生試用硬性檢查，
+   並維持既有環境行為。
+2. 試用模式下確認 `QA_VECTOR_SEARCH_MODE` 為 `atlas`，否則停止啟動並印出明確原因。
+3. 試用模式下確認 `YOUTUBE_UPLOAD_ENABLED` 為 `true`，否則停止啟動，
    錯誤訊息須指出「新上傳影片將無播放來源」。
+4. 試用模式驗證通過後，記錄 Backend 十二項設定的實際生效值，
+   事件名稱為 `runtime.flag_snapshot`，
+   與證據一併存入 `docs/2026-09_Student_Pilot_Backend/evidence/`。
 
 這份記錄就是「環境變數快照」：把跑驗收那一刻的設定拍下來存起來。
+
+Pipeline 的 `ENABLE_GEMINI_EMBEDDING` 由 Pipeline 另行確認並保存，不得因
+
+Backend 收到同名文字值就宣稱 Pipeline 已實際生效。
 
 沒有它，日後沒人能證明證據是在哪種設定下產生的。
 

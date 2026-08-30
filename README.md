@@ -19,6 +19,7 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 | 文件 | 用途 |
 |------|------|
 | [docs/current-status.md](docs/current-status.md) | 跨服務最新進度與缺口 |
+| [學生試用版後端整合文件](docs/2026-09_Student_Pilot_Backend/README.md) | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口 |
 | [backend/docs/current-state.md](backend/docs/current-state.md) | Backend runtime、DB 實況、已知限制 |
 | [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | Phase 2 QA / Video / Clip / YouTube 回傳語意 |
 | [docs/ai-code-understanding-guide.md](docs/ai-code-understanding-guide.md) | AI Pipeline、embedding、cosine、QA 與 citation 的教授說明版 |

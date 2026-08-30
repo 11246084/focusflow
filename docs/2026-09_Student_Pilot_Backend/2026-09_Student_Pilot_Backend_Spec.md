@@ -323,7 +323,7 @@ N01 指定使用「影像處理導論」（`69f82564736febac6db8e97b`）的段�
 - N02 必須回覆無答案，而且引用為空。
 - 兩題負向題都要通過，結果為 2/2。
 - 題庫、設定、原始 JSON 與人工複核表要一起保存。
-- 證據存於儲存庫的 `docs/evidence/`，並同步歸檔至 Notion。
+- 證據存於儲存庫的 `docs/2026-09_Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
 - 證據保留至 2026 年十月中旬複評結束。
 - 證據必須去識別化，機密資料不得入庫。
 
@@ -1035,7 +1035,7 @@ Pipeline 會把 `_id` 的字串值寫入 `video_segments_text.videoId`。
 
 ## 附錄 I：12＋2 題測試腳本細節
 
-優先改造既有的 [phase2_2_hierarchical_e2e_runner.js](../backend/src/scripts/phase2_2_hierarchical_e2e_runner.js)。
+優先改造既有的 [phase2_2_hierarchical_e2e_runner.js](../../backend/src/scripts/phase2_2_hierarchical_e2e_runner.js)。
 
 保留專用唯讀角色檢查與 MongoDB command monitoring，不從零另寫。
 
@@ -1092,7 +1092,7 @@ Pipeline 會把 `_id` 的字串值寫入 `video_segments_text.videoId`。
 
 題庫、腳本設定、原始 JSON 結果與人工複核表要一起保存。
 
-保存位置是儲存庫的 `docs/evidence/`，並同步歸檔至 Notion。
+保存位置是儲存庫的 `docs/2026-09_Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
 
 該目錄目前不存在，第一次執行前要先建立。
 
@@ -1289,7 +1289,7 @@ LINE 切換課程清除歷史屬跨課程內容外洩。
 
 1. 確認 `QA_VECTOR_SEARCH_MODE` 為 `atlas`，否則停止啟動並印出明確原因。
 2. 記錄十二項設定的實際生效值，事件名稱為 `runtime.flag_snapshot`，
-   與證據一併存入 `docs/evidence/`。
+   與證據一併存入 `docs/2026-09_Student_Pilot_Backend/evidence/`。
 3. 確認 `YOUTUBE_UPLOAD_ENABLED` 為 `true`，否則停止啟動，
    錯誤訊息須指出「新上傳影片將無播放來源」。
 

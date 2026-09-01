@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const mongoose = require('mongoose');
 const env = require('../config/env');
 const VideoSegment = require('../models/videoSegment.model');
@@ -10,7 +12,11 @@ const { expandParentHits } = require('../services/childExpansion.service');
 const { assembleLeafContext } = require('../services/leafContextAssembly.service');
 const { generateAnswer } = require('../services/answerGeneration.service');
 const { buildCitations } = require('../services/qa.service');
-const { buildSegmentLookupQuery } = require('../services/bridgeScope.service');
+const {
+  buildSegmentLookupQuery,
+  normalizeSegment,
+} = require('../services/bridgeScope.service');
+const { filterCandidatesByScope } = require('../services/qaScopeMonitoring.service');
 const {
   evaluateActiveDataEvidence,
 } = require('../services/hierarchicalDataReadiness.service');
@@ -33,12 +39,19 @@ const STUDENT_PILOT_OPENCV_COURSE_ID = '69fb4d4c069e21f4e65b74dc';
 const STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID = '6a5deabebece4943079410bd';
 const STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT = 15;
 const STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT = 129;
+const STUDENT_PILOT_QUESTION_BANK_SCHEMA = 'student-pilot-baseline-v1';
+const STUDENT_PILOT_QUESTION_IDS = Object.freeze([
+  'Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06',
+  'Q07', 'Q08', 'Q09', 'Q10', 'Q11', 'Q12',
+  'N01', 'N02',
+]);
 
 class IsolatedE2EError extends Error {
-  constructor(message, code) {
+  constructor(message, code, details = {}) {
     super(message);
     this.name = 'IsolatedE2EError';
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -110,6 +123,7 @@ function parseCliArgs(argv = []) {
     preflightOnly: false,
     maxParents: env.hierarchicalParentLimit,
     maxChildren: env.hierarchicalChildExpansionLimit,
+    questionsFile: '',
     json: false,
   };
 
@@ -123,6 +137,7 @@ function parseCliArgs(argv = []) {
     else if (flag === '--course-id') options.courseId = argv[++index] || '';
     else if (flag === '--video-id') options.videoId = argv[++index] || '';
     else if (flag === '--allowed-video-id') options.allowedVideoIds.push(argv[++index] || '');
+    else if (flag === '--questions-file') options.questionsFile = argv[++index] || '';
     else if (flag === '--max-parents') options.maxParents = parsePositiveInteger(argv[++index], flag);
     else if (flag === '--max-children') options.maxChildren = parsePositiveInteger(argv[++index], flag);
     else throw new IsolatedE2EError('Unsupported CLI option.', 'E2E_CLI_INVALID');
@@ -132,13 +147,14 @@ function parseCliArgs(argv = []) {
   options.mode = String(options.mode).trim();
   options.courseId = String(options.courseId).trim();
   options.videoId = String(options.videoId).trim();
+  options.questionsFile = String(options.questionsFile).trim();
   options.allowedVideoIds = [...new Set(options.allowedVideoIds.map((id) => String(id).trim()).filter(Boolean))];
 
   if (options.mode === STUDENT_PILOT_OPENCV_MODE) {
     if (options.question || options.courseId || options.videoId || options.allowedVideoIds.length
-        || options.withAnswer || options.preflightOnly) {
+        || options.withAnswer || options.preflightOnly || !options.questionsFile) {
       throw new IsolatedE2EError(
-        'student-pilot-opencv uses a fixed scope and cannot be combined with question or scope options.',
+        'student-pilot-opencv requires --questions-file and cannot be combined with question, scope, answer, or preflight options.',
         'E2E_CLI_INVALID',
       );
     }
@@ -153,6 +169,12 @@ function parseCliArgs(argv = []) {
 
   if (options.mode !== STANDARD_RUNNER_MODE) {
     throw new IsolatedE2EError('Unsupported runner mode.', 'E2E_CLI_INVALID');
+  }
+  if (options.questionsFile) {
+    throw new IsolatedE2EError(
+      '--questions-file is available only in student-pilot-opencv mode.',
+      'E2E_CLI_INVALID',
+    );
   }
   if (!options.allowedVideoIds.includes(options.videoId)) options.allowedVideoIds.push(options.videoId);
 
@@ -172,7 +194,57 @@ function parseCliArgs(argv = []) {
   return options;
 }
 
-async function runStudentPilotOpenCvValidation(options, dependencies) {
+function validateStudentPilotQuestionBank(payload) {
+  if (!payload || payload.schemaVersion !== STUDENT_PILOT_QUESTION_BANK_SCHEMA
+      || !Array.isArray(payload.questions)) {
+    throw new IsolatedE2EError(
+      'The student-pilot question bank does not match the required JSON schema.',
+      'E2E_QUESTION_BANK_INVALID',
+    );
+  }
+
+  const questionsById = new Map();
+  for (const item of payload.questions) {
+    const id = String(item?.id || '').trim();
+    const question = String(item?.question || '').trim();
+    if (!id || !question || questionsById.has(id) || !STUDENT_PILOT_QUESTION_IDS.includes(id)) {
+      throw new IsolatedE2EError(
+        'The student-pilot question bank contains an invalid, duplicate, or unexpected question.',
+        'E2E_QUESTION_BANK_INVALID',
+      );
+    }
+    questionsById.set(id, { id, question });
+  }
+
+  if (questionsById.size !== STUDENT_PILOT_QUESTION_IDS.length
+      || STUDENT_PILOT_QUESTION_IDS.some((id) => !questionsById.has(id))) {
+    throw new IsolatedE2EError(
+      'The student-pilot question bank must contain exactly Q01-Q12, N01, and N02.',
+      'E2E_QUESTION_BANK_INCOMPLETE',
+    );
+  }
+
+  return {
+    schemaVersion: STUDENT_PILOT_QUESTION_BANK_SCHEMA,
+    questions: STUDENT_PILOT_QUESTION_IDS.map((id) => questionsById.get(id)),
+  };
+}
+
+function loadStudentPilotQuestionBank(filePath) {
+  let payload;
+  try {
+    const resolvedPath = path.resolve(String(filePath || ''));
+    payload = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+  } catch {
+    throw new IsolatedE2EError(
+      'The student-pilot question bank could not be read as JSON.',
+      'E2E_QUESTION_BANK_READ_FAILED',
+    );
+  }
+  return validateStudentPilotQuestionBank(payload);
+}
+
+async function inspectAndValidateStudentPilotOpenCvScope(options, dependencies) {
   const {
     inspectStudentPilotOpenCvScope,
     commandMonitor = createCommandMonitor(),
@@ -200,6 +272,15 @@ async function runStudentPilotOpenCvValidation(options, dependencies) {
     );
   }
 
+  return { allowedVideoIds, inspection, commandMonitor };
+}
+
+async function runStudentPilotOpenCvValidation(options, dependencies) {
+  const { allowedVideoIds, inspection, commandMonitor } = await inspectAndValidateStudentPilotOpenCvScope(
+    options,
+    dependencies,
+  );
+
   return {
     runMode: STUDENT_PILOT_OPENCV_MODE,
     writesAllowed: false,
@@ -216,6 +297,238 @@ async function runStudentPilotOpenCvValidation(options, dependencies) {
       databaseAccess: inspection.databaseAccess || null,
       externalCalls: 0,
       sensitiveOutput: false,
+    },
+  };
+}
+
+function normalizeFallbackValue(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  if (/authorization|bearer|token|secret|api[_-]?key|mongodb(?:\+srv)?:\/\//i.test(normalized)) {
+    return '[redacted]';
+  }
+  return normalized.slice(0, 120);
+}
+
+function normalizeFallbackEvidence(value, defaultStage) {
+  const entries = value == null ? [] : (Array.isArray(value) ? value : [value]);
+  return entries.map((entry) => {
+    if (entry && typeof entry === 'object') {
+      const stage = normalizeFallbackValue(entry.stage) || defaultStage;
+      const from = normalizeFallbackValue(entry.from);
+      const to = normalizeFallbackValue(entry.to);
+      return {
+        stage,
+        type: normalizeFallbackValue(entry.type || entry.code) || 'unspecified',
+        path: normalizeFallbackValue(entry.path) || (from || to ? `${from || 'unknown'}->${to || 'unknown'}` : null),
+        code: normalizeFallbackValue(entry.code),
+      };
+    }
+
+    const type = normalizeFallbackValue(entry) || 'unspecified';
+    return {
+      stage: defaultStage,
+      type,
+      path: defaultStage === 'retrieval' ? `atlas->${type}` : null,
+      code: null,
+    };
+  });
+}
+
+function buildSearchFallbackEvidence(searchResult) {
+  const fallbacks = normalizeFallbackEvidence(searchResult?.fallbacks, 'retrieval');
+  const backend = normalizeFallbackValue(searchResult?.backend);
+
+  if (backend && backend !== 'atlas'
+      && !fallbacks.some((fallback) => fallback.path === `atlas->${backend}`)) {
+    fallbacks.push({
+      stage: 'retrieval',
+      type: 'search_backend',
+      path: `atlas->${backend}`,
+      code: null,
+    });
+  }
+  if (searchResult?.fallbackUsed === true && fallbacks.length === 0) {
+    fallbacks.push({
+      stage: 'retrieval',
+      type: 'unspecified',
+      path: 'atlas->unknown',
+      code: null,
+    });
+  }
+
+  return fallbacks;
+}
+
+function buildQuestionFailure(question, error, writeCommandCount) {
+  const fallbacks = Array.isArray(error?.details?.fallbacks) ? error.details.fallbacks : [];
+  return {
+    id: question.id,
+    question: question.question,
+    success: false,
+    search: {
+      backend: error?.details?.searchBackend
+        || (error?.code === 'E2E_ATLAS_LEAF_SEARCH_FAILED' ? 'atlas' : null),
+      fallbackUsed: fallbacks.length > 0,
+      matchCount: 0,
+    },
+    fallbacks,
+    answer: null,
+    citations: [],
+    writeCommandCount,
+    manualReview: { status: 'pending', correctness: null, citationQuality: null, notes: null },
+    error: {
+      code: error?.code || 'E2E_QUESTION_FAILED',
+      message: error instanceof IsolatedE2EError
+        ? error.message
+        : 'The baseline question failed safely.',
+    },
+  };
+}
+
+async function runStudentPilotBaseline(options, dependencies) {
+  const {
+    questionBank,
+    embed = embedQuery,
+    searchStudentPilotLeaves,
+    answer = generateAnswer,
+    citationBuilder = buildCitations,
+    commandMonitor = createCommandMonitor(),
+  } = dependencies;
+  const validatedQuestionBank = validateStudentPilotQuestionBank(questionBank);
+  const { allowedVideoIds, inspection } = await inspectAndValidateStudentPilotOpenCvScope(
+    options,
+    { ...dependencies, commandMonitor },
+  );
+  const scope = {
+    allowedCourseIds: new Set([options.courseId]),
+    allowedVideoIds: new Set(allowedVideoIds),
+  };
+  const questionResults = [];
+  let externalCalls = 0;
+
+  for (const question of validatedQuestionBank.questions) {
+    const before = commandMonitor.snapshot();
+    try {
+      commandMonitor.assertNoWrites();
+      externalCalls += 1;
+      const queryVector = await embed(question.question);
+      if (!Array.isArray(queryVector) || queryVector.length !== 3072
+          || queryVector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+        throw new IsolatedE2EError(
+          'Query embedding does not match the active Leaf index contract.',
+          'E2E_QUERY_EMBEDDING_INVALID',
+        );
+      }
+
+      const searchResult = await searchStudentPilotLeaves({
+        queryVector,
+        scope,
+        courseId: options.courseId,
+      });
+      commandMonitor.assertNoWrites();
+      const searchFallbacks = buildSearchFallbackEvidence(searchResult);
+      if (searchResult?.backend !== 'atlas' || searchResult?.fallbackUsed === true
+          || searchFallbacks.length) {
+        throw new IsolatedE2EError(
+          'The student-pilot baseline requires Atlas Leaf search without fallback.',
+          'E2E_FALLBACK_NOT_ALLOWED',
+          {
+            searchBackend: searchResult?.backend || null,
+            fallbacks: searchFallbacks,
+          },
+        );
+      }
+
+      const matches = Array.isArray(searchResult.matches) ? searchResult.matches : [];
+      externalCalls += 1;
+      const generated = await answer(question.question, matches);
+      if (generated?.fallback) {
+        const answerFallbacks = normalizeFallbackEvidence(generated.fallback, 'answer');
+        throw new IsolatedE2EError(
+          'The student-pilot baseline does not allow answer fallback.',
+          'E2E_FALLBACK_NOT_ALLOWED',
+          { searchBackend: 'atlas', fallbacks: answerFallbacks },
+        );
+      }
+      const citations = citationBuilder(matches, {
+        scopedVideos: inspection.scopedVideos,
+        requirePlayableSource: true,
+        courseId: options.courseId,
+      }).map((citation) => ({
+        citationId: citation.citationId,
+        chunkId: citation.chunkId,
+        segmentId: citation.segmentId,
+        videoId: citation.videoId,
+        timestamp: citation.timestamp,
+      }));
+      commandMonitor.assertNoWrites();
+      const after = commandMonitor.snapshot();
+
+      questionResults.push({
+        id: question.id,
+        question: question.question,
+        success: true,
+        search: {
+          backend: 'atlas',
+          fallbackUsed: false,
+          matchCount: matches.length,
+        },
+        fallbacks: [],
+        answer: {
+          text: String(generated?.text || ''),
+          provider: generated?.provider || null,
+        },
+        citations,
+        writeCommandCount: after.mongoWrites - before.mongoWrites,
+        manualReview: { status: 'pending', correctness: null, citationQuality: null, notes: null },
+        error: null,
+      });
+    } catch (error) {
+      const after = commandMonitor.snapshot();
+      if (error?.code === 'WRITE_OPERATION_DETECTED') throw error;
+      questionResults.push(buildQuestionFailure(
+        question,
+        error,
+        after.mongoWrites - before.mongoWrites,
+      ));
+    }
+  }
+
+  commandMonitor.assertNoWrites();
+  const safety = commandMonitor.snapshot();
+  return {
+    schemaVersion: 'student-pilot-baseline-evidence-v1',
+    runMode: STUDENT_PILOT_OPENCV_MODE,
+    success: questionResults.every((result) => result.success),
+    generatedAt: new Date().toISOString(),
+    writesAllowed: false,
+    courseId: options.courseId,
+    questionBank: {
+      schemaVersion: validatedQuestionBank.schemaVersion,
+      expectedCount: STUDENT_PILOT_QUESTION_IDS.length,
+      ids: [...STUDENT_PILOT_QUESTION_IDS],
+    },
+    scope: {
+      videoCount: allowedVideoIds.length,
+      excludedVideoId: options.excludedVideoId,
+      excludedVideoPresent: true,
+      expectedSegmentCount: options.expectedSegmentCount,
+      segmentCount: inspection.segmentCount,
+    },
+    retrieval: {
+      backend: 'atlas',
+      leafOnly: true,
+      faqEnabled: false,
+      parentEnabled: false,
+      fallbackAllowed: false,
+    },
+    questions: questionResults,
+    safety: {
+      ...safety,
+      databaseAccess: inspection.databaseAccess || null,
+      externalCalls,
+      credentialsIncluded: false,
     },
   };
 }
@@ -418,19 +731,35 @@ async function runIsolatedE2E(options, dependencies) {
   };
 }
 
-async function createLiveDependencies(commandMonitor) {
-  if (env.hierarchicalRetrievalEnabled) {
+function assertRunnerRuntimeConfiguration(mode, config = env) {
+  if (config.hierarchicalRetrievalEnabled) {
     throw new IsolatedE2EError(
       'The shared Hierarchical Retrieval Gate must remain disabled.',
       'E2E_SHARED_GATE_NOT_DISABLED',
     );
   }
-  if (!env.hierarchicalRetrievalFallbackToLeaf) {
+  if (mode === STANDARD_RUNNER_MODE && !config.hierarchicalRetrievalFallbackToLeaf) {
     throw new IsolatedE2EError('Leaf fallback must remain enabled.', 'E2E_FALLBACK_NOT_ENABLED');
   }
-  if (env.faqCacheEnabled) {
+  if (config.faqCacheEnabled) {
     throw new IsolatedE2EError('FAQ cache must be disabled for the isolated runner.', 'E2E_FAQ_CACHE_NOT_DISABLED');
   }
+  if (mode === STUDENT_PILOT_OPENCV_MODE && config.qaVectorSearchMode !== 'atlas') {
+    throw new IsolatedE2EError(
+      'student-pilot-opencv requires QA_VECTOR_SEARCH_MODE=atlas.',
+      'E2E_ATLAS_MODE_REQUIRED',
+    );
+  }
+  if (mode === STUDENT_PILOT_OPENCV_MODE && !String(config.qaAtlasVectorIndexName || '').trim()) {
+    throw new IsolatedE2EError(
+      'student-pilot-opencv requires QA_ATLAS_VECTOR_INDEX_NAME.',
+      'E2E_ATLAS_INDEX_REQUIRED',
+    );
+  }
+}
+
+async function createLiveDependencies(commandMonitor, options = {}) {
+  assertRunnerRuntimeConfiguration(options.mode || STANDARD_RUNNER_MODE, env);
 
   const readOnlyMongoUri = String(process.env.PHASE2_2_READONLY_MONGODB_URI || '').trim();
   if (!readOnlyMongoUri) {
@@ -505,11 +834,12 @@ async function createLiveDependencies(commandMonitor) {
           ],
           deletedAt: null,
         },
-        { projection: { _id: 1 } },
+        { projection: { _id: 1, youtubeVideoId: 1, filePath: 1, file_path: 1 } },
       ).toArray();
       const allVideoIds = [...new Set(videos.map((video) => String(video._id)))];
       const excludedVideoPresent = allVideoIds.includes(String(excludedVideoObjectId));
       const allowedVideoIds = allVideoIds.filter((id) => id !== options.excludedVideoId);
+      const allowedVideoIdSet = new Set(allowedVideoIds);
       const segmentCount = await leafCollection.countDocuments({ videoId: { $in: allowedVideoIds } });
       commandMonitor.assertNoWrites();
 
@@ -517,7 +847,71 @@ async function createLiveDependencies(commandMonitor) {
         allowedVideoIds,
         excludedVideoPresent,
         segmentCount,
+        scopedVideos: {
+          videos: videos.filter((video) => allowedVideoIdSet.has(String(video._id))),
+        },
         databaseAccess,
+      };
+    },
+    async searchStudentPilotLeaves({ queryVector, scope, courseId }) {
+      let results;
+      try {
+        results = await leafCollection.aggregate([
+          {
+            $vectorSearch: {
+              index: env.qaAtlasVectorIndexName,
+              path: 'embedding',
+              queryVector,
+              numCandidates: Math.max(env.qaMatchLimit * 5, 10),
+              limit: env.qaMatchLimit,
+              filter: buildSegmentLookupQuery(scope),
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              courseId: 1,
+              chunkId: 1,
+              segmentId: 1,
+              videoId: 1,
+              startSec: 1,
+              endSec: 1,
+              text: 1,
+              score: { $meta: 'vectorSearchScore' },
+            },
+          },
+        ]).toArray();
+        commandMonitor.assertNoWrites();
+      } catch (error) {
+        if (error?.code === 'WRITE_OPERATION_DETECTED') throw error;
+        throw new IsolatedE2EError(
+          'Atlas Leaf search failed; the runner did not use a fallback.',
+          'E2E_ATLAS_LEAF_SEARCH_FAILED',
+        );
+      }
+
+      const scoredResults = results
+        .map((item) => ({ score: Number(item.score), segment: normalizeSegment(item) }))
+        .filter((item) => Number.isFinite(item.score) && item.score > 0);
+      const scopedResults = filterCandidatesByScope(scoredResults, {
+        scope,
+        courseId,
+        getSegment: (item) => item.segment,
+      });
+      return {
+        backend: 'atlas',
+        fallbackUsed: false,
+        fallbacks: [],
+        matches: scopedResults.map(({ segment, score }) => ({
+          chunkId: segment.chunkId,
+          segmentId: segment.segmentId,
+          videoId: segment.videoId,
+          videoTitle: null,
+          startSec: segment.startSec,
+          endSec: segment.endSec,
+          transcript: segment.transcript,
+          score: Number(score.toFixed(4)),
+        })),
       };
     },
     async preflight(options) {
@@ -645,11 +1039,15 @@ async function main(argv = process.argv.slice(2)) {
   let dependencies;
   try {
     const options = parseCliArgs(argv);
-    dependencies = await createLiveDependencies(commandMonitor);
+    const questionBank = options.mode === STUDENT_PILOT_OPENCV_MODE
+      ? loadStudentPilotQuestionBank(options.questionsFile)
+      : null;
+    dependencies = await createLiveDependencies(commandMonitor, options);
     const result = options.mode === STUDENT_PILOT_OPENCV_MODE
-      ? await runStudentPilotOpenCvValidation(options, dependencies)
+      ? await runStudentPilotBaseline(options, { ...dependencies, questionBank })
       : await runIsolatedE2E(options, dependencies);
     console.log(JSON.stringify(result, null, options.json ? 2 : 0));
+    if (result.success === false) process.exitCode = 1;
   } catch (error) {
     console.error(JSON.stringify(safeFailure(error)));
     process.exitCode = 1;
@@ -667,7 +1065,10 @@ module.exports = {
   STUDENT_PILOT_OPENCV_COURSE_ID,
   STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
   STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
+  STUDENT_PILOT_QUESTION_BANK_SCHEMA,
+  STUDENT_PILOT_QUESTION_IDS,
   WRITE_COMMANDS,
+  assertRunnerRuntimeConfiguration,
   assertStrictReadOnlyRoles,
   buildLeafLookupQuery,
   createCommandMonitor,
@@ -676,8 +1077,11 @@ module.exports = {
   hasIxscan,
   hasRequiredCollections,
   main,
+  loadStudentPilotQuestionBank,
   parseCliArgs,
   runIsolatedE2E,
+  runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,
   safeFailure,
+  validateStudentPilotQuestionBank,
 };

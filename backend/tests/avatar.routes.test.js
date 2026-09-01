@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const fsPromises = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { after, before, beforeEach, describe, it } = require('node:test');
 const User = require('../src/models/user.model');
@@ -73,6 +74,15 @@ describe('auth avatar routes', () => {
 
   beforeEach(() => {
     resetStore();
+  });
+
+  it('測試 avatar 儲存路徑固定在作業系統暫存目錄', () => {
+    const relativeToTemp = path.relative(path.resolve(os.tmpdir()), path.resolve(env.avatarUploadDir));
+    const backendRoot = path.resolve(__dirname, '..');
+    const relativeToBackend = path.relative(backendRoot, path.resolve(env.avatarUploadDir));
+
+    assert.equal(relativeToTemp.startsWith('..') || path.isAbsolute(relativeToTemp), false);
+    assert.equal(relativeToBackend.startsWith('..'), true);
   });
 
   it('User schema 僅儲存 nullable server avatar metadata', () => {

@@ -34,6 +34,10 @@ const {
   extractPipelineVisualVideoId,
 } = require('./bridgeScope.service');
 const {
+  filterCandidatesByScope,
+  logScopeEmpty,
+} = require('./qaScopeMonitoring.service');
+const {
   buildQaRuntimeSnapshot,
   assertQaRuntimeConfiguration,
 } = require('./runtimeDiagnostics.service');
@@ -444,9 +448,13 @@ async function loadScopedSearchableSegments(scope) {
   // 實測 51 segments hydration 8.8s，lean 後降到 ~1s（省 80%+）
   const segments = await VideoSegment.find(buildSegmentLookupQuery(scope)).lean();
 
-  return segments
-    .map((segment) => normalizeSegment(segment))
-    .filter((segment) => segmentMatchesScope(segment, scope))
+  const normalizedSegments = segments.map((segment) => normalizeSegment(segment));
+  const scopedSegments = filterCandidatesByScope(normalizedSegments, {
+    scope,
+    courseId: [...(scope.allowedCourseIds || [])][0] || null,
+  });
+
+  return scopedSegments
     .filter((segment) => segment.transcript);
 }
 
@@ -543,15 +551,20 @@ async function searchSegmentsWithAtlas(scope, queryVector) {
       },
     ]);
 
-    return {
-      matches: results
-        .map((item) => ({
+    const scoredResults = results
+      .map((item) => ({
           score: item.score,
           segment: normalizeSegment(item),
         }))
-        .filter((item) => item.score > 0)
-        .filter((item) => segmentMatchesScope(item.segment, scope))
-        .map((item) => mapSegmentMatch(item.segment, item.score)),
+      .filter((item) => item.score > 0);
+    const scopedResults = filterCandidatesByScope(scoredResults, {
+      scope,
+      courseId: [...(scope.allowedCourseIds || [])][0] || null,
+      getSegment: (item) => item.segment,
+    });
+
+    return {
+      matches: scopedResults.map((item) => mapSegmentMatch(item.segment, item.score)),
       diagnostics: {
         searchBackendUsed: 'atlas',
         scoringMode: 'vector',
@@ -1005,6 +1018,14 @@ async function askQuestion({
 
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+  if (!segmentScope.allowedVideoIds.size) {
+    logScopeEmpty({
+      courseId: course._id,
+      userId: user?.id || user?._id || null,
+      searchMode: runtimeSnapshot.vectorSearchMode,
+      reason: 'canonical_video_scope_empty',
+    });
+  }
   const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
   const invalidFaqIds = new Set();
   let faqRevalidationFailure = null;

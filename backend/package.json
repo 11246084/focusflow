@@ -17,6 +17,8 @@
     "smoke:shorts:readonly": "node src/scripts/verifyShortsDeployment.js",
     "preflight:phase2-2:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --preflight-only",
     "e2e:phase2-2:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js",
+    "baseline:student-pilot:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --mode student-pilot-opencv",
+    "snapshot:student-pilot": "node src/scripts/printStudentPilotFlagSnapshot.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [

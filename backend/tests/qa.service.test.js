@@ -167,6 +167,40 @@ describe('qa service', () => {
     assert.equal(result.matches[0].videoId, ids.publishedVideo);
   });
 
+  it('emits qa.scope_empty when the canonical video allowlist is empty', async () => {
+    const course = store.courses.find((item) => item._id === ids.publishedCourse);
+    course.videoIds = [];
+    store.videos = store.videos.filter((video) => video._id !== ids.publishedVideo);
+    const events = [];
+    const originalWarn = logger.warn;
+    logger.warn = (event, metadata) => events.push({ event, metadata });
+
+    try {
+      const result = await askQuestion({
+        user: { id: ids.student, role: 'student' },
+        courseId: ids.publishedCourse,
+        question: 'Does an empty scope stay closed?',
+        source: 'service-test',
+      });
+
+      assert.deepEqual(result.matches, []);
+      assert.deepEqual(
+        events.filter(({ event }) => event === 'qa.scope_empty'),
+        [{
+          event: 'qa.scope_empty',
+          metadata: {
+            courseId: ids.publishedCourse,
+            userId: ids.student,
+            searchMode: 'memory',
+            reason: 'canonical_video_scope_empty',
+          },
+        }],
+      );
+    } finally {
+      logger.warn = originalWarn;
+    }
+  });
+
   it('rejects videos.video_id aliases when the Leaf videoId is not canonical', async () => {
     const publishedVideo = store.videos.find((video) => video._id === ids.publishedVideo);
     publishedVideo.courseId = null;

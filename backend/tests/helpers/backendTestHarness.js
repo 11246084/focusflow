@@ -13,10 +13,14 @@ process.env.LINE_CHANNEL_SECRET = 'line-secret-for-tests';
 process.env.LINE_CHANNEL_ACCESS_TOKEN = '';
 process.env.PROCESSING_WEBHOOK_SECRET = 'processing-secret-for-tests';
 const avatarTestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-avatar-tests-'));
-process.env.AVATAR_UPLOAD_DIR = path.join(avatarTestRoot, 'avatars');
+const avatarTestDirectory = path.join(avatarTestRoot, 'avatars');
+process.env.AVATAR_UPLOAD_DIR = avatarTestDirectory;
 
 const app = require('../../src/app');
 const env = require('../../src/config/env');
+// Some service tests load env before this harness. Re-assign the already cached
+// config object so avatar I/O always stays inside this harness-owned temp root.
+env.avatarUploadDir = avatarTestDirectory;
 const User = require('../../src/models/user.model');
 const Course = require('../../src/models/course.model');
 const Video = require('../../src/models/video.model');
@@ -1419,11 +1423,11 @@ function cleanupTestUploads() {
 }
 
 function cleanupTestAvatars() {
-  fs.rmSync(env.avatarUploadDir, {
+  fs.rmSync(avatarTestDirectory, {
     recursive: true,
     force: true,
   });
-  fs.mkdirSync(env.avatarUploadDir, { recursive: true });
+  fs.mkdirSync(avatarTestDirectory, { recursive: true });
 }
 
 process.once('exit', () => {

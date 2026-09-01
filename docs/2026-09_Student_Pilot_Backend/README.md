@@ -13,7 +13,9 @@
 │   └── 2026-08-27_spec-v1.0-work-order.md
 └── evidence/
     ├── evidence_README.md
-    └── 2026-08-30_phase1-implementation-results.md
+    ├── 2026-08-30_phase1-implementation-results.md
+    ├── 2026-09-01_baseline_questions.md
+    └── 2026-09-01_baseline_questions.json
 ```
 
 | 位置 | 主要責任 |
@@ -45,7 +47,7 @@
 
 截至 2026-08-30，Phase 1 的 WO-01～WO-09 已完成本機實作與回歸測試：Backend 共 64 個 test suites、500 個 tests 全數通過。詳細項目、測試數字與未完成邊界見 [Phase 1 實作結果](evidence/2026-08-30_phase1-implementation-results.md)。
 
-這不等於學生試用已通過正式驗收。附錄 I 的 12＋2 題 `baseline`／`final` 證據，以及 shared Atlas 的唯讀 runner 驗證仍待執行。
+這不等於學生試用已通過正式驗收。Phase 2 的 [12＋2 baseline 題庫](evidence/2026-09-01_baseline_questions.md) 已於 2026-09-01 定版，並提供 [runner JSON 輸入](evidence/2026-09-01_baseline_questions.json)；Markdown 是人工定版與審查來源，JSON 只供 runner 執行。`runtime.flag_snapshot`、raw JSON、人工複核表與正式 baseline 執行仍未完成；`final` 證據也尚未建立。
 
 ## 維護原則
 

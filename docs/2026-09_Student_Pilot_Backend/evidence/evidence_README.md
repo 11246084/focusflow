@@ -73,11 +73,12 @@ YYYY-MM-DD_<用途>_<檔案類型>.<副檔名>
 
 ## 5. 目前狀態
 
-截至 2026-08-30：
+截至 2026-09-01：
 
 - 已保存 [Phase 1 WO-01～WO-09 實作結果](2026-08-30_phase1-implementation-results.md)，內容包含本機測試與安全邊界。
-- 附錄 I 的正式 12＋2 題 `baseline` 與 `final` 證據仍未建立。
-- `student-pilot-opencv` runner 尚未連線 shared Atlas；本次因缺少專用唯讀 URI，在建立資料庫連線前安全停止。
+- Phase 2 的 [12＋2 baseline 題庫](2026-09-01_baseline_questions.md) 已於 2026-09-01 定版；[JSON 題庫](2026-09-01_baseline_questions.json) 僅作為 runner 執行輸入，題目原文仍以 Markdown 為準。
+- baseline 尚未執行；`runtime.flag_snapshot`、raw JSON 與人工複核表仍未建立，因此 baseline 證據尚不完整。
+- `final` 題庫、設定快照、raw JSON 與人工複核表均尚未建立。
 
 規格書附錄 G 的九項 Phase 1 修正已完成本機實作與回歸測試，但在取得正式 12＋2 題證據及 shared Atlas 唯讀驗證前，不得宣稱學生試用已通過驗收。
 

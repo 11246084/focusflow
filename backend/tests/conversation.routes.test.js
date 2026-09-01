@@ -3,6 +3,9 @@ const { after, before, beforeEach, describe, it } = require('node:test');
 const {
   env, ids, newObjectId, resetStore, startServer, stopServer, jsonRequest, loginAs, store,
 } = require('./helpers/backendTestHarness');
+const { NO_ANSWER_INSUFFICIENT } = require('../src/services/answerGeneration.service');
+
+const originalFetch = global.fetch;
 
 describe('conversation routes', () => {
   let context;
@@ -13,6 +16,8 @@ describe('conversation routes', () => {
     env.qaQueryEmbeddingProvider = 'mock';
     env.qaVectorSearchMode = 'memory';
     env.qaAnswerProvider = 'template';
+    env.geminiApiKey = '';
+    global.fetch = originalFetch;
   });
 
   it('creates a course-scoped conversation and persists a question and answer', async () => {
@@ -148,6 +153,42 @@ describe('conversation routes', () => {
     );
     assert.deepEqual(resumed.body.data.messages.map((item) => item.role), ['user', 'assistant']);
     assert.ok(resumed.body.data.messages[1].sources.length > 0);
+  });
+
+  it('does not expose raw retrieval matches as conversation sources after a no-answer reply', async () => {
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    global.fetch = async (url, options) => {
+      if (!String(url).includes('generativelanguage.googleapis.com')) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        async text() {
+          return JSON.stringify({
+            candidates: [{ content: { parts: [{ text: NO_ANSWER_INSUFFICIENT }] } }],
+          });
+        },
+      };
+    };
+    const token = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
+    const created = await jsonRequest(context.baseUrl, '/api/v1/conversations', {
+      method: 'POST', token, body: { courseId: ids.publishedCourse },
+    });
+
+    const answered = await jsonRequest(
+      context.baseUrl,
+      `/api/v1/conversations/${created.body.data.id}/messages`,
+      { method: 'POST', token, body: { content: 'What does the course say about JWT authentication?' } },
+    );
+
+    assert.equal(answered.status, 201);
+    assert.equal(answered.body.data.answer, NO_ANSWER_INSUFFICIENT);
+    assert.deepEqual(answered.body.data.sources, []);
+    assert.deepEqual(answered.body.data.assistantMessage.sources, []);
+    assert.deepEqual(store.messages.at(-1).sources, []);
   });
 
   it('starts a new conversation without carrying history from the previous conversation', async () => {

@@ -761,7 +761,39 @@ function buildCitations(matches, {
   return playableMatches.map(buildCitation);
 }
 
-function buildAnswerStatus(runtime, citations) {
+// Retrieval matches are candidate/debug data. Only this final-answer boundary
+// may promote them to user-facing citations.
+function buildUserFacingCitations({
+  answer,
+  matches,
+  scopedVideos = null,
+  requirePlayableSource = false,
+  courseId = null,
+  onDrop = null,
+}) {
+  if (isNoAnswerReply(answer)) {
+    return [];
+  }
+
+  return buildCitations(matches, {
+    scopedVideos,
+    requirePlayableSource,
+    courseId,
+    onDrop,
+  });
+}
+
+function buildAnswerStatus(runtime, citations, { noAnswerReply = false } = {}) {
+  if (noAnswerReply) {
+    return {
+      status: 'no_answer',
+      isAnswerable: false,
+      matchStatus: 'no_relevant_match',
+      confidence: 'none',
+      noAnswerReason: 'NO_RELEVANT_MATCH',
+    };
+  }
+
   if (runtime.matchStatus === 'matched') {
     return {
       status: 'answered',
@@ -786,8 +818,11 @@ function buildAnswerStatus(runtime, citations) {
 }
 
 function buildQaResponse({ answer, matches, clip, runtime, scopedVideos, courseId }) {
+  const noAnswerReply = isNoAnswerReply(answer);
   const droppedCitations = [];
-  const citations = buildCitations(matches, {
+  const citations = buildUserFacingCitations({
+    answer,
+    matches,
     scopedVideos,
     requirePlayableSource: true,
     courseId,
@@ -805,8 +840,8 @@ function buildQaResponse({ answer, matches, clip, runtime, scopedVideos, courseI
     answer,
     matches,
     citations,
-    answerStatus: buildAnswerStatus(runtime, citations),
-    clip,
+    answerStatus: buildAnswerStatus(runtime, citations, { noAnswerReply }),
+    clip: noAnswerReply ? null : clip,
     runtime,
   };
 }
@@ -907,6 +942,7 @@ async function respondFromFaqCache({
   trimmedQuestion,
 }) {
   const hitFaq = await recordFaqHit(faq._id) || faq;
+  const noAnswerReply = isNoAnswerReply(faq.answer);
   const matches = enrichMatchesWithVideoMetadata(
     Array.isArray(faq.matches) ? faq.matches : [],
     scopedVideos,
@@ -951,7 +987,7 @@ async function respondFromFaqCache({
     courseId: course._id,
     question: trimmedQuestion,
     answer: faq.answer,
-    status: QUESTION_STATUSES.ANSWERED,
+    status: noAnswerReply ? QUESTION_STATUSES.NO_MATCH : QUESTION_STATUSES.ANSWERED,
     source,
     matches,
     runtime,
@@ -1388,6 +1424,7 @@ async function askQuestion({
     answerPromise,
     findCachedClip(matches[0].segmentId),
   ]);
+  const noAnswerReply = isNoAnswerReply(answerResult.text);
   tMark = qaTimingMark(`llm+clip (matches=${matches.length}, transcript chars≈${matches.reduce((s, m) => s + (m.transcript?.length || 0), 0)})`, tMark);
   const resultClip = clip || (matches[0]?.jumpUrl ? {
     segmentId: matches[0].segmentId,
@@ -1415,7 +1452,7 @@ async function askQuestion({
   }
   runtime.latency = { ...stageLatency, totalLatencyMs: Date.now() - totalStartedAt };
   // CLIP_VIEW log 不依賴 ASK 的 _id，立刻 kick off 與 ASK 平行
-  const clipLogPromise = resultClip
+  const clipLogPromise = resultClip && !noAnswerReply
     ? recordUsage({
         userId: user.id,
         courseId: course._id,
@@ -1455,7 +1492,7 @@ async function askQuestion({
       courseId: course._id,
       question: trimmedQuestion,
       answer: answerResult.text,
-      status: QUESTION_STATUSES.ANSWERED,
+      status: noAnswerReply ? QUESTION_STATUSES.NO_MATCH : QUESTION_STATUSES.ANSWERED,
       source,
       matches,
       runtime,
@@ -1492,5 +1529,7 @@ async function askQuestion({
 
 module.exports = {
   askQuestion,
+  buildAnswerStatus,
   buildCitations,
+  buildUserFacingCitations,
 };

@@ -401,6 +401,29 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.deepEqual(result.questions[0].citations, []);
   });
 
+  it('keeps baseline retrieval counts but emits no citations for a final no-answer reply', async () => {
+    const result = await runStudentPilotBaseline(studentPilotOptions(), studentPilotDependencies({
+      async answer() {
+        return {
+          text: '目前資料庫片段不足以回答這個問題。',
+          provider: 'mock',
+          fallback: null,
+        };
+      },
+    }));
+
+    assert.equal(result.success, true);
+    assert.equal(result.questions[0].search.matchCount > 0, true);
+    assert.deepEqual(result.questions[0].citations, []);
+    assert.deepEqual(result.questions[0].answerStatus, {
+      status: 'no_answer',
+      isAnswerable: false,
+      matchStatus: 'no_relevant_match',
+      confidence: 'none',
+      noAnswerReason: 'NO_RELEVANT_MATCH',
+    });
+  });
+
   it('fails the whole batch immediately when a MongoDB write command is observed', async () => {
     const deps = studentPilotDependencies();
     deps.searchStudentPilotLeaves = async () => {

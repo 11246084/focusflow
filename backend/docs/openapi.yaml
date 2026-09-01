@@ -1666,8 +1666,9 @@ paths:
         - `citations[]`
 
         若 `runtime.matchStatus=no_searchable_segments`，代表這門課目前沒有可搜尋的片段資料，而不是單純找不到相關答案。
-        `answerStatus` 是 Phase-2 client 的主要分流欄位；`matches` 保留為 legacy / debug 相容欄位。
-        `citations[]` 會整理 source video、timestamp、jump URL、match score 與 transcript snippet，供前端與 LINE 顯示來源。
+        `answerStatus` 是 Phase-2 client 的主要分流欄位；`matches` 保留為 legacy / debug retrieval candidates，不等於正式引用。
+        `citations[]` 是唯一 user-facing source，會整理 source video、timestamp、jump URL、match score 與 transcript snippet，供前端與 LINE 顯示來源。
+        若答案生成器最終回覆無答案，即使 runtime 仍記錄 retrieval 曾 matched，`answerStatus` 仍為 `no_answer`，且 `citations[]` 與 `clip` 必須為空。
 
         這個端點不代表 Atlas retrieval 已 production-ready。Phase-1 目前可能仍使用 memory-mode retrieval、mock embeddings、bridge-only scope，或 answer-generation fallback。
       operationId: askQuestion

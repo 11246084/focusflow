@@ -23,6 +23,20 @@ function publicMessage(message) {
   };
 }
 
+function conversationSourcesFromCitations(citations) {
+  return (Array.isArray(citations) ? citations : []).map((citation) => ({
+    videoId: citation.videoId || null,
+    chunkId: citation.chunkId || null,
+    segmentId: citation.segmentId || null,
+    parentIds: Array.isArray(citation.parentIds) ? citation.parentIds : [],
+    startSec: citation.timestamp?.startSec ?? null,
+    endSec: citation.timestamp?.endSec ?? null,
+    videoTitle: citation.videoTitle || citation.sourceVideo?.title || null,
+    transcript: citation.transcriptSnippet || '',
+    score: typeof citation.match?.score === 'number' ? citation.match.score : null,
+  }));
+}
+
 async function createConversation({ user, courseId, title = '' }) {
   assertObjectId(courseId, 'course');
   const course = await Course.findById(courseId);
@@ -109,6 +123,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
         totalLatencyMs: Date.now() - contextualStartedAt,
       },
     };
+    const sources = conversationSourcesFromCitations(result.citations);
     const payload = {
       conversationId: conversation._id,
       role: 'assistant',
@@ -116,7 +131,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       status: 'completed',
       replyToMessageId: userMessage._id,
       errorCode: null,
-      sources: result.matches || [],
+      sources,
       standaloneQuestion: contextual.standaloneQuestion,
       runtime,
     };
@@ -198,7 +213,7 @@ async function sendMessage({ user, conversationId, content }) {
     userMessage: publicMessage(userMessage),
     assistantMessage: publicMessage(assistantMessage),
     answer: assistantMessage.content,
-    sources: result?.matches || [],
+    sources: conversationSourcesFromCitations(result?.citations),
     standaloneQuestion: contextual.standaloneQuestion,
     requiresContext: contextual.requiresContext,
     runtime: result?.runtime || assistantMessage.runtime || {},
@@ -232,7 +247,7 @@ async function retryMessage({ user, conversationId, userMessageId }) {
     userMessage: publicMessage(userMessage),
     assistantMessage: publicMessage(execution.assistantMessage),
     answer: execution.assistantMessage.content,
-    sources: execution.result?.matches || [],
+    sources: conversationSourcesFromCitations(execution.result?.citations),
     standaloneQuestion: execution.contextual.standaloneQuestion,
     requiresContext: execution.contextual.requiresContext,
     runtime: execution.result?.runtime || execution.assistantMessage.runtime || {},
@@ -242,5 +257,5 @@ async function retryMessage({ user, conversationId, userMessageId }) {
 
 module.exports = {
   createConversation, listConversations, listMessages, sendMessage, retryMessage,
-  loadOwnedConversation, historyFromMessages,
+  loadOwnedConversation, historyFromMessages, conversationSourcesFromCitations,
 };

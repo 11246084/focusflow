@@ -500,7 +500,6 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
 // 把 QA 結果組裝成使用者看到的訊息文字行
 // 包含：fallback 提示（開發用）、AI 答案、片段時間戳、影片跳轉連結
 function buildQuestionSummaryLines(qaResult) {
-  const [topMatch] = qaResult.matches;
   const [topCitation] = qaResult.citations || [];
   const summaryLines = [];
   const answerFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'answer');
@@ -524,19 +523,20 @@ function buildQuestionSummaryLines(qaResult) {
   // 附上最相關片段的時間區間，讓使用者知道答案來自影片哪個位置
   if (topCitation) {
     summaryLines.push(`片段：${topCitation.timestamp.startSec}s - ${topCitation.timestamp.endSec}s`);
-  } else if (topMatch) {
-    summaryLines.push(`片段：${topMatch.startSec}s - ${topMatch.endSec}s`);
   }
 
-  const jumpUrl = qaResult.clip?.jumpUrl || topCitation?.timestamp?.jumpUrl || topMatch?.jumpUrl;
+  const jumpUrl = topCitation
+    ? qaResult.clip?.jumpUrl || topCitation.timestamp?.jumpUrl
+    : null;
 
   // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
   if (jumpUrl) {
     summaryLines.push(`跳轉：${jumpUrl}`);
-  } else if (topMatch) {
+  } else if (topCitation) {
     // 命中影片沒有 YouTube 連結（例如本地上傳尚未同步 YouTube）時，
     // 不能讓跳轉資訊整行消失，改提示改用網站觀看。
-    const videoLabel = topMatch.videoTitle ? `「${topMatch.videoTitle}」` : '';
+    const videoTitle = topCitation.videoTitle || topCitation.sourceVideo?.title;
+    const videoLabel = videoTitle ? `「${videoTitle}」` : '';
     summaryLines.push(`此片段${videoLabel}尚未提供跳轉連結，請到 FocusFlow 網站的課程頁播放對應時間點。`);
   }
 

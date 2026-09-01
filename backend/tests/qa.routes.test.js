@@ -11,6 +11,9 @@ const {
   store,
 } = require('./helpers/backendTestHarness');
 const env = require('../src/config/env');
+const { NO_ANSWER_INSUFFICIENT } = require('../src/services/answerGeneration.service');
+
+const originalFetch = global.fetch;
 
 function resetQaEnv() {
   env.qaQueryEmbeddingProvider = 'mock';
@@ -39,6 +42,7 @@ describe('qa routes', () => {
   beforeEach(() => {
     resetStore();
     resetQaEnv();
+    global.fetch = originalFetch;
   });
 
   it('requires authentication', async () => {
@@ -226,6 +230,52 @@ describe('qa routes', () => {
     assert.equal(String(questionRecord.sourceUsageLogId), String(askLog._id));
     assert.ok(clipLog);
     assert.equal(clipLog.metadata.segmentId, ids.segmentOne);
+  });
+
+  it('keeps retrieval matches as debug data but removes citations when Gemini returns no answer', async () => {
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    global.fetch = async (url, options) => {
+      if (!String(url).includes('generativelanguage.googleapis.com')) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        async text() {
+          return JSON.stringify({
+            candidates: [{ content: { parts: [{ text: NO_ANSWER_INSUFFICIENT }] } }],
+          });
+        },
+      };
+    };
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        courseId: ids.publishedCourse,
+        question: 'What does the course say about JWT authentication?',
+      },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.answer, NO_ANSWER_INSUFFICIENT);
+    assert.equal(result.body.data.matches.length > 0, true);
+    assert.deepEqual(result.body.data.citations, []);
+    assert.deepEqual(result.body.data.answerStatus, {
+      status: 'no_answer',
+      isAnswerable: false,
+      matchStatus: 'no_relevant_match',
+      confidence: 'none',
+      noAnswerReason: 'NO_RELEVANT_MATCH',
+    });
+    assert.equal(result.body.data.runtime.matchStatus, 'matched');
+    assert.equal(result.body.data.clip, null);
+    assert.equal(store.questions.at(-1).status, 'no_match');
+    assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
   });
 
   it('returns quota errors when the monthly user QA token quota is exhausted', async () => {

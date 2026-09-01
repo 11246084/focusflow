@@ -1,6 +1,6 @@
 # Phase 2 API Contract
 
-最後更新：2026-07-18
+最後更新：2026-09-01
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
@@ -24,8 +24,8 @@
 | 欄位 | 用途 |
 |------|------|
 | `answer` | 使用者可直接看的答案或無答案提示 |
-| `matches[]` | legacy/debug 命中片段，保留給既有前端與測試 |
-| `citations[]` | Phase 2 顯示來源的主要欄位，包含 source video、timestamp、jump URL、confidence、snippet |
+| `matches[]` | legacy/debug retrieval candidates；不等於回答實際使用的引用 |
+| `citations[]` | 使用者可見來源的唯一正式欄位，包含 source video、timestamp、jump URL、confidence、snippet |
 | `answerStatus` | 前端與 LINE 的狀態分流欄位 |
 | `runtime` | 後端診斷與 fallback 訊號 |
 
@@ -48,6 +48,11 @@
 | `matched` | `answered` | `null` | 顯示答案與 citations |
 | `no_relevant_match` | `no_answer` | `NO_RELEVANT_MATCH` | 顯示「找不到足夠相關片段」，可引導換問法 |
 | `no_searchable_segments` | `no_answer` | `NO_SEARCHABLE_SEGMENTS` | 顯示「影片尚未完成索引或目前只有 metadata」 |
+
+若答案生成器回覆正式無答案字串，即使 `runtime.matchStatus` 仍為 `matched`
+（代表 retrieval 曾取得候選片段），`answerStatus` 仍必須回傳
+`no_answer / no_relevant_match`，`citations[]` 與 `clip` 必須為空。
+多輪 conversation 的 `sources[]` 只能由最終 `citations[]` 轉換，不得直接回傳 raw `matches[]`。
 
 `citations[]` 單筆格式：
 

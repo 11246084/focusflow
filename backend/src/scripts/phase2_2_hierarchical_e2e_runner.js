@@ -10,8 +10,12 @@ const { createParentSearchRepository } = require('../services/parentSearchAdapte
 const { searchParents } = require('../services/parentSearch.service');
 const { expandParentHits } = require('../services/childExpansion.service');
 const { assembleLeafContext } = require('../services/leafContextAssembly.service');
-const { generateAnswer } = require('../services/answerGeneration.service');
-const { buildCitations } = require('../services/qa.service');
+const { generateAnswer, isNoAnswerReply } = require('../services/answerGeneration.service');
+const {
+  buildAnswerStatus,
+  buildCitations,
+  buildUserFacingCitations,
+} = require('../services/qa.service');
 const {
   buildSegmentLookupQuery,
   normalizeSegment,
@@ -392,7 +396,7 @@ async function runStudentPilotBaseline(options, dependencies) {
     embed = embedQuery,
     searchStudentPilotLeaves,
     answer = generateAnswer,
-    citationBuilder = buildCitations,
+    citationBuilder = buildUserFacingCitations,
     commandMonitor = createCommandMonitor(),
   } = dependencies;
   const validatedQuestionBank = validateStudentPilotQuestionBank(questionBank);
@@ -451,7 +455,10 @@ async function runStudentPilotBaseline(options, dependencies) {
           { searchBackend: 'atlas', fallbacks: answerFallbacks },
         );
       }
-      const citations = citationBuilder(matches, {
+      const noAnswerReply = isNoAnswerReply(generated?.text);
+      const citations = citationBuilder({
+        answer: generated?.text,
+        matches,
         scopedVideos: inspection.scopedVideos,
         requirePlayableSource: true,
         courseId: options.courseId,
@@ -479,6 +486,11 @@ async function runStudentPilotBaseline(options, dependencies) {
           text: String(generated?.text || ''),
           provider: generated?.provider || null,
         },
+        answerStatus: buildAnswerStatus(
+          { matchStatus: matches.length ? 'matched' : 'no_relevant_match' },
+          citations,
+          { noAnswerReply },
+        ),
         citations,
         writeCommandCount: after.mongoWrites - before.mongoWrites,
         manualReview: { status: 'pending', correctness: null, citationQuality: null, notes: null },
@@ -1065,6 +1077,7 @@ module.exports = {
   STUDENT_PILOT_OPENCV_COURSE_ID,
   STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
   STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
+  STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT,
   STUDENT_PILOT_QUESTION_BANK_SCHEMA,
   STUDENT_PILOT_QUESTION_IDS,
   WRITE_COMMANDS,
@@ -1076,6 +1089,7 @@ module.exports = {
   collectIndexNames,
   hasIxscan,
   hasRequiredCollections,
+  inspectAndValidateStudentPilotOpenCvScope,
   main,
   loadStudentPilotQuestionBank,
   parseCliArgs,

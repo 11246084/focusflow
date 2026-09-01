@@ -118,12 +118,40 @@ function aggregateRetrievalEvaluations(evaluations) {
     return { annotatedQuestionCount: 0, hitAtK: null, mrr: null };
   }
 
+  const expectedLeafCount = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.expectedLeafCount || 0), 0,
+  );
+  const retrievedExpectedLeafCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.retrievedExpectedLeafCountAtK || 0), 0,
+  );
+  const expectedGroupCount = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.expectedGroupCount || 0), 0,
+  );
+  const partialGroupCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (Array.isArray(evaluation.groupCoverage)
+      ? evaluation.groupCoverage.filter((group) => group.hitAtK).length
+      : 0),
+    0,
+  );
+  const completeGroupCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.completeGroupCountAtK || 0), 0,
+  );
+
   return {
     annotatedQuestionCount: annotated.length,
     hitAtK: annotated.reduce((sum, evaluation) => sum + evaluation.metrics.hitAtK, 0)
       / annotated.length,
     mrr: annotated.reduce((sum, evaluation) => sum + evaluation.metrics.reciprocalRank, 0)
       / annotated.length,
+    expectedLeafCount,
+    retrievedExpectedLeafCountAtK,
+    expectedLeafRecallAtK: expectedLeafCount
+      ? retrievedExpectedLeafCountAtK / expectedLeafCount : null,
+    expectedGroupCount,
+    partialGroupCountAtK,
+    partialGroupCoverageAtK: expectedGroupCount ? partialGroupCountAtK / expectedGroupCount : null,
+    completeGroupCountAtK,
+    completeGroupCoverageAtK: expectedGroupCount ? completeGroupCountAtK / expectedGroupCount : null,
   };
 }
 

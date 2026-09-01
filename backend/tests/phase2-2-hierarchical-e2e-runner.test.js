@@ -234,10 +234,43 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(parsed.excludedVideoId, STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID);
     assert.equal(parsed.expectedSegmentCount, STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT);
     assert.equal(parsed.questionsFile, 'questions.json');
+    assert.equal(parsed.candidateDepth, null);
+    assert.equal(parsed.retrievalOnly, false);
     assert.deepEqual(parsed.allowedVideoIds, []);
     assert.throws(
       () => parseCliArgs([
         '--mode', 'student-pilot-opencv', '--course-id', courseId,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+  });
+
+  it('allows candidate depth only as an isolated student-pilot diagnostic override', () => {
+    const parsed = parseCliArgs([
+      '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+      '--candidate-depth', '50', '--retrieval-only', '--json',
+    ]);
+
+    assert.equal(parsed.candidateDepth, 50);
+    assert.equal(parsed.retrievalOnly, true);
+    assert.throws(
+      () => parseCliArgs([
+        '--question', 'question', '--course-id', courseId, '--video-id', videoId,
+        '--candidate-depth', '50',
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--question', 'question', '--course-id', courseId, '--video-id', videoId,
+        '--retrieval-only',
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--candidate-depth', '0',
       ]),
       (error) => error.code === 'E2E_CLI_INVALID',
     );
@@ -341,6 +374,8 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(answerCalls, 14);
     assert.deepEqual(result.retrieval, {
       backend: 'atlas', leafOnly: true, faqEnabled: false, parentEnabled: false, fallbackAllowed: false,
+      candidateDepth: 15, answerContextLimit: 15, diagnosticOverrideActive: false,
+      answerGenerationExecuted: true,
     });
     assert.equal(result.questions[0].search.backend, 'atlas');
     assert.equal(result.questions[0].search.fallbackUsed, false);
@@ -350,6 +385,8 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     });
     assert.deepEqual(result.questions[0].answerContext, {
       source: 'retrieval_candidates',
+      limit: 15,
+      generationExecuted: true,
       leafCount: 1,
       sameOrderAsCandidates: true,
       leaves: [{
@@ -375,9 +412,11 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
         candidateValidation: 'finite_score_greater_than_zero',
       },
     });
-    assert.deepEqual(result.retrievalEvaluation.metrics, {
-      annotatedQuestionCount: 12, hitAtK: 0, mrr: 0,
-    });
+    assert.equal(result.retrievalEvaluation.metrics.annotatedQuestionCount, 12);
+    assert.equal(result.retrievalEvaluation.metrics.hitAtK, 0);
+    assert.equal(result.retrievalEvaluation.metrics.mrr, 0);
+    assert.equal(result.retrievalEvaluation.metrics.expectedLeafRecallAtK, 0);
+    assert.equal(result.retrievalEvaluation.metrics.completeGroupCoverageAtK, 0);
     assert.deepEqual(result.questions[0].fallbacks, []);
     assert.equal(result.questions[0].answer.text, 'safe answer');
     assert.equal(result.questions[0].citations[0].videoId != null, true);
@@ -386,6 +425,47 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     });
     assert.equal(result.questions[0].writeCommandCount, 0);
     assert.equal(result.safety.mongoWrites, 0);
+  });
+
+  it('keeps answer context at QA_MATCH_LIMIT while evaluating a deeper diagnostic candidate list', async () => {
+    const candidates = Array.from({ length: 30 }, (_, index) => ({
+      chunkId: `candidate-${index + 1}`,
+      segmentId: `segment-${index + 1}`,
+      videoId: '6a0000000000000000000000',
+      startSec: index,
+      endSec: index + 1,
+      transcript: `transcript ${index + 1}`,
+      score: 0.9 - (index / 100),
+    }));
+    let observedCandidateDepth = null;
+    const result = await runStudentPilotBaseline(
+      studentPilotOptions({ candidateDepth: 30, retrievalOnly: true }),
+      studentPilotDependencies({
+        async searchStudentPilotLeaves({ candidateDepth }) {
+          observedCandidateDepth = candidateDepth;
+          return { backend: 'atlas', fallbackUsed: false, fallbacks: [], matches: candidates };
+        },
+        async answer() { throw new Error('answer generation must stay disabled'); },
+        citationBuilder() { throw new Error('citations must stay disabled'); },
+      }),
+    );
+
+    assert.equal(observedCandidateDepth, 30);
+    assert.equal(result.retrieval.candidateDepth, 30);
+    assert.equal(result.retrieval.answerContextLimit, 15);
+    assert.equal(result.retrieval.diagnosticOverrideActive, true);
+    assert.equal(result.retrieval.answerGenerationExecuted, false);
+    assert.equal(result.retrievalEvaluation.k, 30);
+    assert.equal(result.questions[0].search.candidates.length, 30);
+    assert.equal(result.questions[0].answerContext.leafCount, 15);
+    assert.equal(result.questions[0].answerContext.generationExecuted, false);
+    assert.deepEqual(
+      result.questions[0].answerContext.leaves.map((leaf) => leaf.chunkId),
+      candidates.slice(0, 15).map((candidate) => candidate.chunkId),
+    );
+    assert.equal(result.questions[0].answer, null);
+    assert.equal(result.questions[0].answerStatus, null);
+    assert.deepEqual(result.questions[0].citations, []);
   });
 
   it('shows Q03 expected Leaf ranks, scores, misses, and the exact answer context', async () => {

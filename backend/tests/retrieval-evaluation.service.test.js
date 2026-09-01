@@ -55,14 +55,42 @@ describe('multi-turn retrieval evaluation foundation', () => {
     assert.deepEqual(evaluation.groupCoverage[1].missingChunkIds, ['v2_chunk_0002']);
   });
 
-  it('aggregates per-question Hit@K and MRR without counting unannotated questions', () => {
+  it('aggregates Hit@K, MRR, expected Leaf recall, and partial/complete group coverage', () => {
     const metrics = aggregateRetrievalEvaluations([
-      { groundTruthStatus: 'annotated', metrics: { hitAtK: 1, reciprocalRank: 0.5 } },
-      { groundTruthStatus: 'annotated', metrics: { hitAtK: 0, reciprocalRank: 0 } },
+      {
+        groundTruthStatus: 'annotated',
+        groupCoverage: [{ hitAtK: true }, { hitAtK: false }],
+        metrics: {
+          hitAtK: 1, reciprocalRank: 0.5,
+          expectedLeafCount: 3, retrievedExpectedLeafCountAtK: 2,
+          expectedGroupCount: 2, completeGroupCountAtK: 1,
+        },
+      },
+      {
+        groundTruthStatus: 'annotated',
+        groupCoverage: [{ hitAtK: true }],
+        metrics: {
+          hitAtK: 0, reciprocalRank: 0,
+          expectedLeafCount: 1, retrievedExpectedLeafCountAtK: 0,
+          expectedGroupCount: 1, completeGroupCountAtK: 0,
+        },
+      },
       { groundTruthStatus: 'not_annotated', metrics: null },
     ]);
 
-    assert.deepEqual(metrics, { annotatedQuestionCount: 2, hitAtK: 0.5, mrr: 0.25 });
+    assert.deepEqual(metrics, {
+      annotatedQuestionCount: 2,
+      hitAtK: 0.5,
+      mrr: 0.25,
+      expectedLeafCount: 4,
+      retrievedExpectedLeafCountAtK: 2,
+      expectedLeafRecallAtK: 0.5,
+      expectedGroupCount: 3,
+      partialGroupCountAtK: 2,
+      partialGroupCoverageAtK: 2 / 3,
+      completeGroupCountAtK: 1,
+      completeGroupCoverageAtK: 1 / 3,
+    });
   });
 
   it('maps the Markdown annotations to Q01-Q12 and preserves multi-range ground truth', () => {

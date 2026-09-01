@@ -137,6 +137,8 @@ function parseCliArgs(argv = []) {
     maxParents: env.hierarchicalParentLimit,
     maxChildren: env.hierarchicalChildExpansionLimit,
     questionsFile: '',
+    candidateDepth: null,
+    retrievalOnly: false,
     json: false,
   };
 
@@ -144,6 +146,7 @@ function parseCliArgs(argv = []) {
     const flag = argv[index];
     if (flag === '--with-answer') options.withAnswer = true;
     else if (flag === '--preflight-only') options.preflightOnly = true;
+    else if (flag === '--retrieval-only') options.retrievalOnly = true;
     else if (flag === '--json') options.json = true;
     else if (flag === '--mode') options.mode = argv[++index] || '';
     else if (flag === '--question') options.question = argv[++index] || '';
@@ -151,6 +154,9 @@ function parseCliArgs(argv = []) {
     else if (flag === '--video-id') options.videoId = argv[++index] || '';
     else if (flag === '--allowed-video-id') options.allowedVideoIds.push(argv[++index] || '');
     else if (flag === '--questions-file') options.questionsFile = argv[++index] || '';
+    else if (flag === '--candidate-depth') {
+      options.candidateDepth = parsePositiveInteger(argv[++index], flag);
+    }
     else if (flag === '--max-parents') options.maxParents = parsePositiveInteger(argv[++index], flag);
     else if (flag === '--max-children') options.maxChildren = parsePositiveInteger(argv[++index], flag);
     else throw new IsolatedE2EError('Unsupported CLI option.', 'E2E_CLI_INVALID');
@@ -182,6 +188,18 @@ function parseCliArgs(argv = []) {
 
   if (options.mode !== STANDARD_RUNNER_MODE) {
     throw new IsolatedE2EError('Unsupported runner mode.', 'E2E_CLI_INVALID');
+  }
+  if (options.candidateDepth != null) {
+    throw new IsolatedE2EError(
+      '--candidate-depth is available only in student-pilot-opencv mode.',
+      'E2E_CLI_INVALID',
+    );
+  }
+  if (options.retrievalOnly) {
+    throw new IsolatedE2EError(
+      '--retrieval-only is available only in student-pilot-opencv mode.',
+      'E2E_CLI_INVALID',
+    );
   }
   if (options.questionsFile) {
     throw new IsolatedE2EError(
@@ -501,6 +519,8 @@ async function runStudentPilotBaseline(options, dependencies) {
   const validatedQuestionBank = validateStudentPilotQuestionBank(questionBank);
   const validatedGroundTruth = validateStudentPilotRetrievalGroundTruth(retrievalGroundTruth);
   const runtimeSettings = buildPhase3BRuntimeSettings(runtimeConfig);
+  const candidateDepth = options.candidateDepth || runtimeSettings.QA_MATCH_LIMIT;
+  const answerContextLimit = Math.min(runtimeSettings.QA_MATCH_LIMIT, candidateDepth);
   const { allowedVideoIds, inspection } = await inspectAndValidateStudentPilotOpenCvScope(
     options,
     { ...dependencies, commandMonitor },
@@ -535,6 +555,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         queryVector,
         scope,
         courseId: options.courseId,
+        candidateDepth,
       });
       commandMonitor.assertNoWrites();
       const searchFallbacks = buildSearchFallbackEvidence(searchResult);
@@ -552,10 +573,12 @@ async function runStudentPilotBaseline(options, dependencies) {
 
       const matches = Array.isArray(searchResult.matches) ? searchResult.matches : [];
       diagnostics.candidates = buildLeafDiagnostics(matches);
-      const answerContextMatches = matches;
+      const answerContextMatches = matches.slice(0, answerContextLimit);
       const contextLeaves = buildLeafDiagnostics(answerContextMatches, { includeTranscript: true });
       diagnostics.answerContext = {
         source: 'retrieval_candidates',
+        limit: answerContextLimit,
+        generationExecuted: !options.retrievalOnly,
         leafCount: contextLeaves.length,
         sameOrderAsCandidates: sameLeafOrder(diagnostics.candidates, contextLeaves),
         leaves: contextLeaves,
@@ -564,35 +587,45 @@ async function runStudentPilotBaseline(options, dependencies) {
       diagnostics.retrievalEvaluation = evaluateRetrievalCandidates({
         expectedLeafGroups,
         candidates: diagnostics.candidates,
-        k: runtimeSettings.QA_MATCH_LIMIT,
+        k: candidateDepth,
       });
       if (question.id.startsWith('N')) {
         diagnostics.retrievalEvaluation.groundTruthStatus = 'not_applicable_negative_question';
       }
-      externalCalls += 1;
-      const generated = await answer(question.question, answerContextMatches);
-      if (generated?.fallback) {
-        const answerFallbacks = normalizeFallbackEvidence(generated.fallback, 'answer');
-        throw new IsolatedE2EError(
-          'The student-pilot baseline does not allow answer fallback.',
-          'E2E_FALLBACK_NOT_ALLOWED',
-          { searchBackend: 'atlas', fallbacks: answerFallbacks },
+      let generated = null;
+      let citations = [];
+      let answerStatus = null;
+      if (!options.retrievalOnly) {
+        externalCalls += 1;
+        generated = await answer(question.question, answerContextMatches);
+        if (generated?.fallback) {
+          const answerFallbacks = normalizeFallbackEvidence(generated.fallback, 'answer');
+          throw new IsolatedE2EError(
+            'The student-pilot baseline does not allow answer fallback.',
+            'E2E_FALLBACK_NOT_ALLOWED',
+            { searchBackend: 'atlas', fallbacks: answerFallbacks },
+          );
+        }
+        const noAnswerReply = isNoAnswerReply(generated?.text);
+        citations = citationBuilder({
+          answer: generated?.text,
+          matches: answerContextMatches,
+          scopedVideos: inspection.scopedVideos,
+          requirePlayableSource: true,
+          courseId: options.courseId,
+        }).map((citation) => ({
+          citationId: citation.citationId,
+          chunkId: citation.chunkId,
+          segmentId: citation.segmentId,
+          videoId: citation.videoId,
+          timestamp: citation.timestamp,
+        }));
+        answerStatus = buildAnswerStatus(
+          { matchStatus: answerContextMatches.length ? 'matched' : 'no_relevant_match' },
+          citations,
+          { noAnswerReply },
         );
       }
-      const noAnswerReply = isNoAnswerReply(generated?.text);
-      const citations = citationBuilder({
-        answer: generated?.text,
-        matches,
-        scopedVideos: inspection.scopedVideos,
-        requirePlayableSource: true,
-        courseId: options.courseId,
-      }).map((citation) => ({
-        citationId: citation.citationId,
-        chunkId: citation.chunkId,
-        segmentId: citation.segmentId,
-        videoId: citation.videoId,
-        timestamp: citation.timestamp,
-      }));
       commandMonitor.assertNoWrites();
       const after = commandMonitor.snapshot();
 
@@ -609,15 +642,11 @@ async function runStudentPilotBaseline(options, dependencies) {
         answerContext: diagnostics.answerContext,
         retrievalEvaluation: diagnostics.retrievalEvaluation,
         fallbacks: [],
-        answer: {
+        answer: generated ? {
           text: String(generated?.text || ''),
           provider: generated?.provider || null,
-        },
-        answerStatus: buildAnswerStatus(
-          { matchStatus: matches.length ? 'matched' : 'no_relevant_match' },
-          citations,
-          { noAnswerReply },
-        ),
+        } : null,
+        answerStatus,
         citations,
         writeCommandCount: after.mongoWrites - before.mongoWrites,
         manualReview: { status: 'pending', correctness: null, citationQuality: null, notes: null },
@@ -662,12 +691,16 @@ async function runStudentPilotBaseline(options, dependencies) {
       faqEnabled: false,
       parentEnabled: false,
       fallbackAllowed: false,
+      candidateDepth,
+      answerContextLimit,
+      diagnosticOverrideActive: candidateDepth !== runtimeSettings.QA_MATCH_LIMIT,
+      answerGenerationExecuted: !options.retrievalOnly,
     },
     runtimeSettings,
     retrievalEvaluation: {
       schemaVersion: STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA,
       groundTruthSource: STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE,
-      k: runtimeSettings.QA_MATCH_LIMIT,
+      k: candidateDepth,
       metrics: aggregateRetrievalEvaluations(
         questionResults.map((result) => result.retrievalEvaluation),
       ),
@@ -1002,7 +1035,10 @@ async function createLiveDependencies(commandMonitor, options = {}) {
         databaseAccess,
       };
     },
-    async searchStudentPilotLeaves({ queryVector, scope, courseId }) {
+    async searchStudentPilotLeaves({ queryVector, scope, courseId, candidateDepth }) {
+      const safeCandidateDepth = Number.isInteger(candidateDepth) && candidateDepth > 0
+        ? candidateDepth
+        : env.qaMatchLimit;
       let results;
       try {
         results = await leafCollection.aggregate([
@@ -1011,8 +1047,8 @@ async function createLiveDependencies(commandMonitor, options = {}) {
               index: env.qaAtlasVectorIndexName,
               path: 'embedding',
               queryVector,
-              numCandidates: Math.max(env.qaMatchLimit * 5, 10),
-              limit: env.qaMatchLimit,
+              numCandidates: Math.max(safeCandidateDepth * 5, 10),
+              limit: safeCandidateDepth,
               filter: buildSegmentLookupQuery(scope),
             },
           },

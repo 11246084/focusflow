@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "wo13-enrollment-revoke-v1",
+  "operation": "WO-13",
+  "evidencePhase": "before",
+  "observedAt": "2026-09-01T07:03:24.966Z",
+  "repository": {
+    "branch": "main",
+    "head": "f4c352063a4cdbe6ee95127c747e869e4ed72662",
+    "workingTreeBeforeEvidence": "clean"
+  },
+  "database": "focusflow",
+  "connectionMode": "dedicated-read-only-atlas",
+  "preflight": {
+    "passed": true,
+    "checks": {
+      "courseIdMatches": true,
+      "courseTitleMatches": true,
+      "coursePublished": true,
+      "courseNotDeleted": true,
+      "activeEnrollmentCountIsOne": true,
+      "demoStudentIdentityMatches": true,
+      "courseOwnerCanManage": true,
+      "formalVideosLinked": true,
+      "formalVideoDocumentCountIsTwo": true,
+      "formalLeafCountIs279": true,
+      "formalLeafDistributionMatches": true,
+      "readonlyRoleValid": true
+    },
+    "failedChecks": []
+  },
+  "targetCourse": {
+    "courseId": "69f82564736febac6db8e97b",
+    "title": "影像處理導論",
+    "status": "published",
+    "deleted": false,
+    "videoIdReferenceCount": 4,
+    "linkedVideoDocumentCount": 4,
+    "formalVideoDocumentCount": 2,
+    "formalLeafCount": 279,
+    "formalLeafCountsByVideo": {
+      "6a67ffcb95668cc2b904f3b9": 166,
+      "6a67ffd295668cc2b904f3c4": 113
+    },
+    "courseDigest": "996ee4da701f37f480399a3ec73e21698033e942c6bb29f7bf61a5b5b813b596",
+    "linkedVideosDigest": "f6e47a7263a742c5d5c3941e56305998b9f146359dfb7afb9d87272596859c86",
+    "formalLeafDigest": "92784eca09eb0c9b1425da6caf00bffff82dd317554bac446297b21d2d2dfc2d"
+  },
+  "targetEnrollment": {
+    "enrollmentRef": "sha256:14780a126a2379722214fa3e2e12a3cd86fd6718ecceee308ce85437d48ca7ad",
+    "studentRef": "sha256:390f27253f1c237f9c98f732f80c647df6e29d37745d4f49ba0bc6f5f27a5df3",
+    "studentAlias": "repo-demo-student",
+    "status": "active",
+    "revokedAtSet": false,
+    "revokedBySet": false,
+    "activeEnrollmentCountForCourse": 1,
+    "allEnrollmentCountForCourse": 1,
+    "enrollmentStatusesForCourse": {
+      "active": 1
+    },
+    "activeCourseMatchesTarget": false,
+    "lineConversationState": "idle",
+    "lineConversationHistoryCount": 6,
+    "lineStateMutationExpected": false
+  },
+  "actor": {
+    "actorRef": "sha256:03ba2c0a704a7921b61178bdc751d0f15ca9abaa5ed9dade882b5cc6f98f6115",
+    "role": "teacher",
+    "relation": "course-owner",
+    "canManageCourse": true
+  },
+  "invariants": {
+    "otherEnrollments": {
+      "count": 4,
+      "digest": "eb57fe6d7c06af34f0273b072c196869b945609643d1d37785767343809154db"
+    },
+    "studentOtherEnrollments": {
+      "count": 4,
+      "digest": "eb57fe6d7c06af34f0273b072c196869b945609643d1d37785767343809154db"
+    },
+    "histories": {
+      "questions": {
+        "count": 14,
+        "digest": "0bfced9e724cc2a9cdd6eb9526c0bab7eefbfd1738091c6d705966f907857a00"
+      },
+      "usageLogs": {
+        "count": 7,
+        "digest": "b8c3a352885896a97fc70491b4669b0387da58dc2ac145597b6ae04543047f56"
+      },
+      "conversations": {
+        "count": 1,
+        "digest": "1949f57a42af8792957b162348240481e6971c0be29cfe59424e09c530389e9c"
+      },
+      "messages": {
+        "count": 10,
+        "digest": "0c7f54d436ebe73aba5f40093483b15e98736b43eac9c993d0f994ab7f28109c"
+      }
+    }
+  },
+  "writeScope": {
+    "executed": false,
+    "note": "This file records the read-only state before WO-13."
+  }
+}

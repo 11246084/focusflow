@@ -77,6 +77,7 @@ YYYY-MM-DD_<用途>_<檔案類型>.<副檔名>
 
 - 已保存 [Phase 1 WO-01～WO-09 實作結果](2026-08-30_phase1-implementation-results.md)，內容包含本機測試與安全邊界。
 - Phase 2 的 [12＋2 baseline 題庫](2026-09-01_baseline_questions.md) 已於 2026-09-01 定版；[JSON 題庫](2026-09-01_baseline_questions.json) 僅作為 runner 執行輸入，題目原文仍以 Markdown 為準。
+- WO-13 已完成示範學生對「影像處理導論」的 Enrollment revoke；已保存[執行前](2026-09-01_wo13-enrollment-revoke-before.json)與[執行後](2026-09-01_wo13-enrollment-revoke-after.json)的去識別化 Atlas 查詢證據。
 - baseline 尚未執行；`runtime.flag_snapshot`、raw JSON 與人工複核表仍未建立，因此 baseline 證據尚不完整。
 - `final` 題庫、設定快照、raw JSON 與人工複核表均尚未建立。
 

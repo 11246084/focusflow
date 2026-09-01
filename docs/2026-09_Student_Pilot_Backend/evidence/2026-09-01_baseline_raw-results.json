@@ -1,0 +1,2926 @@
+{
+  "schemaVersion": "student-pilot-baseline-evidence-v1",
+  "runMode": "student-pilot-opencv",
+  "success": true,
+  "generatedAt": "2026-09-01T07:34:50.511Z",
+  "writesAllowed": false,
+  "courseId": "69fb4d4c069e21f4e65b74dc",
+  "questionBank": {
+    "schemaVersion": "student-pilot-baseline-v1",
+    "expectedCount": 14,
+    "ids": [
+      "Q01",
+      "Q02",
+      "Q03",
+      "Q04",
+      "Q05",
+      "Q06",
+      "Q07",
+      "Q08",
+      "Q09",
+      "Q10",
+      "Q11",
+      "Q12",
+      "N01",
+      "N02"
+    ]
+  },
+  "scope": {
+    "videoCount": 15,
+    "excludedVideoId": "6a5deabebece4943079410bd",
+    "excludedVideoPresent": true,
+    "expectedSegmentCount": 129,
+    "segmentCount": 129
+  },
+  "retrieval": {
+    "backend": "atlas",
+    "leafOnly": true,
+    "faqEnabled": false,
+    "parentEnabled": false,
+    "fallbackAllowed": false
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "question": "OpenCV 是什麼類型的工具？它由哪家公司牽頭，授權性質是什麼？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "OpenCV 的相關資訊如下：\n\n* **工具類型**：OpenCV 是一套被廣泛使用的電腦視覺函式庫，也是與影像處理和 AI 相關的套件工具。它內建了影像處理常用的功能、基本的分類與偵測功能，且可以使用 CPU 進行運算，並支援在多種流行的程式語言上運行。\n* **牽頭公司**：由 Intel 公司牽頭。\n* **授權性質**：屬於開源（Open Source），因此大家都可以自由去使用。\n\n（依據：未知影片 12.62-32.12s、35.06-44.54s、61.82-82.82s、82.82-93.82s、105.82-118.82s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0006",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0006",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 61.82,
+            "endSec": 72.82,
+            "label": "1:01",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0004",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0004",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 38.82,
+            "endSec": 49.82,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0005",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0005",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 44.54,
+            "endSec": 51.2,
+            "label": "0:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0008",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0008",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 82.82,
+            "endSec": 93.82,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0006",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0006",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 51.2,
+            "endSec": 63.74,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0007",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0007",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 63.74,
+            "endSec": 72.96,
+            "label": "1:03",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0007",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0007",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 72.82,
+            "endSec": 82.82,
+            "label": "1:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0009",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0009",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 82.68,
+            "endSec": 93.18,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0001",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0001",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 12.62,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0004",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0004",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 35.06,
+            "endSec": 44.54,
+            "label": "0:35",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0003",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0003",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 32.12,
+            "endSec": 44.7,
+            "label": "0:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 17.66,
+            "endSec": 30.64,
+            "label": "0:17",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q02",
+      "question": "課程介紹了哪兩種影像輸入來源？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "課程介紹的兩種影像輸入來源為：\n\n1. **檔案（File）**：屬於固定的檔案。\n2. **攝影機**：屬於較動態的影像來源。\n\n(依據：未知影片 0.3-71.37s)",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0003",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0003",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 38,
+            "endSec": 58.15,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 0.3,
+            "endSec": 30.23,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0003",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0003",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 51.15,
+            "endSec": 71.37,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0002",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0002",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 21,
+            "endSec": 38,
+            "label": "0:21",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb55edb52433fda32db4e8_chunk_0001",
+          "segmentId": "69fb55edb52433fda32db4e8_chunk_0001",
+          "videoId": "69fb55edb52433fda32db4e8",
+          "timestamp": {
+            "startSec": 4.53,
+            "endSec": 32.22,
+            "label": "0:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb55edb52433fda32db4e8_chunk_0005",
+          "segmentId": "69fb55edb52433fda32db4e8_chunk_0005",
+          "videoId": "69fb55edb52433fda32db4e8",
+          "timestamp": {
+            "startSec": 91.62,
+            "endSec": 109.92,
+            "label": "1:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0001",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0001",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 21,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 16,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0004",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0004",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 35.06,
+            "endSec": 44.54,
+            "label": "0:35",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0002",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0002",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 30.49,
+            "endSec": 50.89,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 71.63,
+            "endSec": 96.45,
+            "label": "1:11",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0002",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0002",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 16,
+            "endSec": 29,
+            "label": "0:16",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0002",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0002",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 13.52,
+            "endSec": 26.82,
+            "label": "0:13",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0008",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0008",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 72.96,
+            "endSec": 82.68,
+            "label": "1:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q03",
+      "question": "什麼情況下會把彩色影像轉成灰階？這樣做有什麼好處？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "在進行影像處理的「前處理」時，有時候會將彩色影像轉換成灰階。\n\n這樣做的原因與好處在於，在某些狀況下，我們只需要判斷影像的「形狀」或者是一些「比較簡單的特徵」就可以了。\n\n至於其他更具體的好處或更多適用的情況，可用資料庫片段中並未進一步提及。\n\n(依據：未知影片 16-29s、29.3-46.1s)",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0002",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0002",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 16,
+            "endSec": 29,
+            "label": "0:16",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0002",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0002",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 21,
+            "endSec": 38,
+            "label": "0:21",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0003",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0003",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 29.3,
+            "endSec": 46.1,
+            "label": "0:29",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0005",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0005",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 49.82,
+            "endSec": 61.82,
+            "label": "0:49",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0008",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0008",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 72.96,
+            "endSec": 82.68,
+            "label": "1:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0001",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0001",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 21,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0002",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0002",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 13.52,
+            "endSec": 26.82,
+            "label": "0:13",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0004",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0004",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 35.06,
+            "endSec": 44.54,
+            "label": "0:35",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 0.3,
+            "endSec": 30.23,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 104.7,
+            "endSec": 119.98,
+            "label": "1:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0003",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0003",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 38,
+            "endSec": 58.15,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q04",
+      "question": "課程將半導體瑕疵檢測與肺部 CT 疾病判斷歸類為物件偵測還是物件分類？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "根據課程內容，兩者的歸類如下：\n\n* **半導體瑕疵檢測**：歸類為**物件偵測**。\n* **肺部 CT 疾病判斷**（透過電腦掃描來判斷屬於哪種疾病）：歸類為**物件分類**。\n\n（依據：未知影片 65.14-96.06s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 65.14,
+            "endSec": 80.06,
+            "label": "1:05",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0007",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0007",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 80.06,
+            "endSec": 96.06,
+            "label": "1:20",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 30.64,
+            "endSec": 45.76,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 92.2,
+            "endSec": 103.6,
+            "label": "1:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 104.7,
+            "endSec": 119.98,
+            "label": "1:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 77.4,
+            "endSec": 91.9,
+            "label": "1:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 31.02,
+            "endSec": 40.86,
+            "label": "0:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 45.76,
+            "endSec": 56.06,
+            "label": "0:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0003",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0003",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 22.86,
+            "endSec": 34.74,
+            "label": "0:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0008",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0008",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 115.78,
+            "endSec": 119.78,
+            "label": "1:55",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "69fb55edb52433fda32db4e8_chunk_0001",
+          "segmentId": "69fb55edb52433fda32db4e8_chunk_0001",
+          "videoId": "69fb55edb52433fda32db4e8",
+          "timestamp": {
+            "startSec": 4.53,
+            "endSec": 32.22,
+            "label": "0:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 56.06,
+            "endSec": 65.14,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q05",
+      "question": "停車場車牌辨識從攝影機拍攝到執行放行邏輯，依序需要哪些步驟？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "根據可用資料，停車場車牌辨識從攝影機拍攝到執行放行邏輯，依序需要以下步驟：\n\n**步驟一：取得與讀取影像**\n當車子開到停車場入口時，會由攝影機拍攝車牌畫面，並將拍到的畫面數據讀取到電腦的記憶體中，接著進行影像的前處理。\n（依據：未知影片 57.52-75.52s、71.63-96.45s、21-38s、0-16s、0-21s）\n\n**步驟二：定位車牌位置**\n在讀取的畫面中，抓取並定位出車牌在畫面的具體位置（即先確認畫面中這裡有東西）。\n（依據：未知影片 75.76-91.38s、91.52-109.9s、41.32-57.52s）\n\n**步驟三：進行文字辨識（OCR）**\n針對定位出的車牌位置進行文字辨識（OCR），以辨識出車牌號碼（即決定這個東西到底是什麼）。\n（依據：未知影片 91.52-109.9s、110.1-120.26s、41.32-57.52s）\n\n**步驟四：執行放行邏輯**\n根據文字辨識（OCR）出來的結果，執行對應的邏輯：\n* **入場時：** 直接開啟閘門放行車輛進入。\n* **出場時：** 比對 OCR 的辨識結果，確認車輛是否已繳費。若確認沒有欠費，則開啟閘門放行；若有欠費，則不予放行。\n（依據：未知影片 110.1-120.26s、0-14.92s、73.3-84.98s、38.58-56.78s、56.78-73.3s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0007",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0007",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 91.52,
+            "endSec": 109.9,
+            "label": "1:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0005",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0005",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 57.52,
+            "endSec": 75.52,
+            "label": "0:57",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0006",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0006",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 75.76,
+            "endSec": 91.38,
+            "label": "1:15",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fc291cadf6d9dc08eb4cb7_chunk_0005",
+          "segmentId": "69fc291cadf6d9dc08eb4cb7_chunk_0005",
+          "videoId": "69fc291cadf6d9dc08eb4cb7",
+          "timestamp": {
+            "startSec": 73.3,
+            "endSec": 84.98,
+            "label": "1:13",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0001",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0001",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 21,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fc291cadf6d9dc08eb4cb7_chunk_0003",
+          "segmentId": "69fc291cadf6d9dc08eb4cb7_chunk_0003",
+          "videoId": "69fc291cadf6d9dc08eb4cb7",
+          "timestamp": {
+            "startSec": 38.58,
+            "endSec": 56.78,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0002",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0002",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 21,
+            "endSec": 38,
+            "label": "0:21",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fc291cadf6d9dc08eb4cb7_chunk_0004",
+          "segmentId": "69fc291cadf6d9dc08eb4cb7_chunk_0004",
+          "videoId": "69fc291cadf6d9dc08eb4cb7",
+          "timestamp": {
+            "startSec": 56.78,
+            "endSec": 73.3,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0001",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0001",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 13.06,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0008",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0008",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 110.1,
+            "endSec": 120.26,
+            "label": "1:50",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "69fc291cadf6d9dc08eb4cb7_chunk_0001",
+          "segmentId": "69fc291cadf6d9dc08eb4cb7_chunk_0001",
+          "videoId": "69fc291cadf6d9dc08eb4cb7",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 14.92,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 16,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 30.64,
+            "endSec": 45.76,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 71.63,
+            "endSec": 96.45,
+            "label": "1:11",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0004",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0004",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 41.32,
+            "endSec": 57.52,
+            "label": "0:41",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q06",
+      "question": "設備沒有 GPU 時，為什麼課程建議使用 OpenCV 或較小型模型，而不是直接使用 YOLO？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "當設備沒有 GPU 時，課程建議使用 OpenCV 或較小型模型，而不是直接使用 YOLO 的原因如下：\n\n1. **運算硬體支援的差異**：OpenCV 可以直接使用 CPU 進行運算；而 YOLO 則是必須（或設計上需要）使用 GPU 才能發揮快速運算的效果。\n2. **CPU 版本 YOLO 效能不佳**：雖然在網路上可以找到適用於 CPU 的 YOLO 版本，但其實際運作的效果非常差，且速度非常慢。\n3. **模型體積較大**：YOLO 本身的模型體積也比較大。\n\n因此，在沒有 GPU 的設備上，通常會選擇使用 OpenCV 或其他較小型的模型，而不會直接使用需要較強硬體支援的 YOLO。\n\n（依據：未知影片 12.62-56.98s、68.6-86.8s、100.2-115.78s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0003",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0003",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 32.12,
+            "endSec": 44.7,
+            "label": "0:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0004",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0004",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 44.7,
+            "endSec": 56.98,
+            "label": "0:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0008",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0008",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 98.64,
+            "endSec": 117.58,
+            "label": "1:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0001",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0001",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 12.62,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0008",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0008",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 82.82,
+            "endSec": 93.82,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 17.66,
+            "endSec": 30.64,
+            "label": "0:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0006",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0006",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 51.2,
+            "endSec": 63.74,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0001",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0001",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 11.26,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0006",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0006",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 53.62,
+            "endSec": 64.9,
+            "label": "0:53",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q07",
+      "question": "物件偵測模型為什麼通常比物件分類模型更難自行訓練、成本也更高？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "物件偵測模型比物件分類模型更難自行訓練且成本更高，主要原因如下：\n\n1. **定位與標記的複雜度不同**：\n   * **物件偵測**：需要辨識出畫面中存在哪些各式各樣的物品，並且指出它們的具體位置，將畫面中的東西標示出來並用框框框出來。\n   * **物件分類**：通常是指畫面中只有一個東西，且該東西是放在中央（C位）。\n   因此，物件偵測需要同時處理多個物件的定位與框選，訓練成本與難度相對較高。\n\n2. **模型體積較大**：物件偵測的模型本身通常也比較大，這也是導致其訓練成本較高的原因之一。\n\n（依據：未知影片 45.76-65.14s, 未知影片 77.4-91.9s, 未知影片 92.2-119.98s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 45.76,
+            "endSec": 56.06,
+            "label": "0:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 56.06,
+            "endSec": 65.14,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 30.64,
+            "endSec": 45.76,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 65.14,
+            "endSec": 80.06,
+            "label": "1:05",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 92.2,
+            "endSec": 103.6,
+            "label": "1:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0006",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0006",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 93.36,
+            "endSec": 101.04,
+            "label": "1:33",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0006",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0006",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 53.62,
+            "endSec": 64.9,
+            "label": "0:53",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 77.4,
+            "endSec": 91.9,
+            "label": "1:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 31.02,
+            "endSec": 40.86,
+            "label": "0:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0001",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0001",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 11.26,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 104.7,
+            "endSec": 119.98,
+            "label": "1:44",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q08",
+      "question": "如果分別訓練找狗、找貓與找車的偵測器，為什麼目標種類增加會提高運算成本？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "根據提供的影片片段，目標種類增加會提高成本與模型負擔的原因如下：\n\n1. **尋找的目標越多，成本越高**：在偵測時，要尋找的物件種類越多，整體的成本就會隨之提高（未知影片 64.21-81.76s）。\n2. **模型體積會變大**：如果要用同一個模型去辨識什麼是狗、什麼是貓、什麼是車，模型本身的體積也會變得比較大（未知影片 100.2-119.78s）。\n3. **多樣物品定位的訓練成本高**：要讓模型知道畫面中存在各式各樣的物品，並且精確掌握它們的位置，這在訓練上的成本是比較高的（未知影片 56.06-65.14s）。\n\n相較之下，如果將它們拆分成不同的模型，找狗的模型就不需要會找其他東西，找貓的模型也不需要會找車，藉此可以簡化單一模型需要處理的目標（未知影片 0-11.26s）。\n\n（依據：未知影片 0-11.26s、56.06-65.14s、64.21-81.76s、100.2-119.78s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0001",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0001",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 11.26,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0006",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0006",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 93.36,
+            "endSec": 101.04,
+            "label": "1:33",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 56.06,
+            "endSec": 65.14,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0008",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0008",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 115.78,
+            "endSec": 119.78,
+            "label": "1:55",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 92.2,
+            "endSec": 103.6,
+            "label": "1:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 45.76,
+            "endSec": 56.06,
+            "label": "0:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 77.4,
+            "endSec": 91.9,
+            "label": "1:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 65.14,
+            "endSec": 80.06,
+            "label": "1:05",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f46317c615e872035c93_chunk_0006",
+          "segmentId": "6a02f46317c615e872035c93_chunk_0006",
+          "videoId": "6a02f46317c615e872035c93",
+          "timestamp": {
+            "startSec": 64.21,
+            "endSec": 81.76,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q09",
+      "question": "物件偵測與物件分類的輸出有何差異？兩者在車牌辨識流程中如何配合？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "**物件偵測與物件分類的輸出差異：**\n*   **物件偵測**：其輸出是告訴你畫面中「哪裡有東西」，會把畫面中的物體標示出來並用框框框起（例如標出畫面中的一隻狗或一隻貓），但偵測本身並不知道該框框裡面的東西具體是什麼。\n*   **物件分類**：通常用於畫面中只有一個主要物體且該物體位於中心位置（C位）的情況，其輸出是判斷該物體屬於哪種類別（例如分辨是貓還是車子，或是判斷醫療掃描影像屬於哪種疾病）。\n\n**兩者在車牌辨識流程中的配合：**\n*   車牌辨識流程包含物件偵測與物件分類兩個步驟。\n*   在流程中，首先需要進行定位，利用物件偵測找出車牌在畫面中的具體位置。\n*   定位出車牌後，再針對車牌裡面的內容進行文字辨識（OCR）。\n*   *註：片段中並未詳細說明「物件分類」具體如何與「物件偵測」在車牌辨識中進行後續的配合細節，僅提及定位出車牌後要再做文字辨識。*\n\n(依據：未知影片 30.64-45.76s、77.4-119.98s)",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 30.64,
+            "endSec": 45.76,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0007",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0007",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 91.52,
+            "endSec": 109.9,
+            "label": "1:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "segmentId": "69fb5d78b52433fda32dbc81_chunk_0003",
+          "videoId": "69fb5d78b52433fda32dbc81",
+          "timestamp": {
+            "startSec": 31.02,
+            "endSec": 40.86,
+            "label": "0:31",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 92.2,
+            "endSec": 103.6,
+            "label": "1:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0008",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 104.7,
+            "endSec": 119.98,
+            "label": "1:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0006",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 65.14,
+            "endSec": 80.06,
+            "label": "1:05",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0006",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 77.4,
+            "endSec": 91.9,
+            "label": "1:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0008",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0008",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 115.78,
+            "endSec": 119.78,
+            "label": "1:55",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0007",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0007",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 80.06,
+            "endSec": 96.06,
+            "label": "1:20",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f3b217c615e872035beb_chunk_0004",
+          "segmentId": "6a02f3b217c615e872035beb_chunk_0004",
+          "videoId": "6a02f3b217c615e872035beb",
+          "timestamp": {
+            "startSec": 34.7,
+            "endSec": 47.2,
+            "label": "0:34",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0003",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0003",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 22.86,
+            "endSec": 34.74,
+            "label": "0:22",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q10",
+      "question": "固定檔案與攝影機作為影像來源時有何差異？為什麼課程在攝影機實作時改用 Spyder，而不是 Colab？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "關於固定檔案與攝影機作為影像來源的差異，以及課程在攝影機實作時改用 Spyder 而非 Colab 的原因如下：\n\n* **影像來源的差異**：讀取影像的輸入來源主要分為兩種，檔案（file）屬於「固定的檔案」，而攝影機則屬於「比較動態」的來源。\n* **改用 Spyder 而非 Colab 的原因**：因為攝影機等硬體設備是連接在使用者自己的電腦上，而不是連接在 Colab 的機房。如果使用 Colab，基本上要取得使用者電腦本機的攝影機是非常困難的，因此在處理這類影像實作時，課程會更換實作工具，改為使用 Spyder。\n\n（依據：未知影片 0.3-96.45s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0002",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0002",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 30.49,
+            "endSec": 50.89,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0004",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 71.63,
+            "endSec": 96.45,
+            "label": "1:11",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0003",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0003",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 51.15,
+            "endSec": 71.37,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0002",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0002",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 13.52,
+            "endSec": 26.82,
+            "label": "0:13",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "segmentId": "69fb5b5eb52433fda32db907_chunk_0001",
+          "videoId": "69fb5b5eb52433fda32db907",
+          "timestamp": {
+            "startSec": 0.3,
+            "endSec": 30.23,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0001",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 16,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0002",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0002",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 21,
+            "endSec": 38,
+            "label": "0:21",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0008",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0008",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 98.64,
+            "endSec": 117.58,
+            "label": "1:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0003",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0003",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 26.82,
+            "endSec": 38.82,
+            "label": "0:26",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "69fb59cfb52433fda32db827_chunk_0003",
+          "segmentId": "69fb59cfb52433fda32db827_chunk_0003",
+          "videoId": "69fb59cfb52433fda32db827",
+          "timestamp": {
+            "startSec": 38,
+            "endSec": 58.15,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0004",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0004",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 38.82,
+            "endSec": 49.82,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q11",
+      "question": "OpenCV 與 YOLO 在硬體需求及多物件偵測方式上有何差異？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "在硬體需求及多物件偵測方式上，OpenCV 與 YOLO 的差異如下：\n\n*   **硬體需求差異**：\n    *   **OpenCV**：可以使用 CPU 進行運算。在設備沒有 GPU 的情況下，通常會利用 OpenCV 或其他較小型的模型來進行處理。\n    *   **YOLO**：必須使用 GPU 進行運算，在有 GPU 的環境下其運作速度非常快。\n\n*   **多物件偵測方式差異**：\n    *   **YOLO**：其全名為 You Only Look Once，意思為「只要看一次就好了」。其特點在於，當一張照片中有多個物件時，它只需要看一次即可進行偵測。\n    *   **OpenCV**：雖然內建有一些基本的分類與偵測功能，但片段中並未詳細提及 OpenCV 具體是如何進行多物件偵測的運作方式。\n\n（依據：未知影片 12.62-44.7s、25.51-39.87s、63.74-72.96s、68.6-86.8s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0001",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0001",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 12.62,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0008",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0008",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 82.82,
+            "endSec": 93.82,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0003",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0003",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 32.12,
+            "endSec": 44.7,
+            "label": "0:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0002",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 17.66,
+            "endSec": 30.64,
+            "label": "0:17",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0005",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0005",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 44.54,
+            "endSec": 51.2,
+            "label": "0:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0006",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0006",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 51.2,
+            "endSec": 63.74,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0008",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0008",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 98.64,
+            "endSec": 117.58,
+            "label": "1:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0006",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0006",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 61.82,
+            "endSec": 72.82,
+            "label": "1:01",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0007",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0007",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 63.74,
+            "endSec": 72.96,
+            "label": "1:03",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "Q12",
+      "question": "如果系統只需找出流浪狗，與需要同時辨識多種常見物件相比，模型選擇應如何不同？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "根據可用資料，針對「只需找出流浪狗」與「需要辨識多種常見物件」兩種不同需求，模型選擇的差異如下：\n\n1. **只需找出狗（如流浪狗）的情況：**\n   * **模型較為簡單：** 如果系統只需要認得狗，而不需要辨識貓或車子等其他物件，模型只需要專注於單一任務，因此模型結構會比較簡單。\n   * **不需使用大型模型（如 YOLO）：** 此時不需要用到像 YOLO 這種能力較強、模型較大的工具（即「殺雞不用牛刀」）。\n   * **可選擇 OpenCV 或小型模型：** 在設備沒有 GPU 的情況下，通常會利用 OpenCV 或其他較小型的模型來進行，因為 OpenCV 可以使用 CPU 來進行運算。\n\n2. **需要同時辨識多種常見物件的情況：**\n   * **使用能力較強的大型模型（如 YOLO）：** 若要辨識多種物件，會使用像 YOLO 這樣能力較強、模型本身也較大的模型。YOLO 是根據 COCO 數據集設計的，雖然較為複雜，但在有 GPU 的情況下運算速度很快。\n   * **直接使用現成模型：** 如果是要辨識幾種經典的常見物件，由於物件偵測模型的訓練成本較高，通常不需要自己訓練模型，直接拿現成的模型使用即可。\n\n本問題所涉及的兩側對比在可用資料中均有完整覆蓋。\n\n（依據：未知影片 0-117.42s）",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0009",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0009",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 85.34,
+            "endSec": 98.38,
+            "label": "1:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0001",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0001",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 11.26,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0006",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0006",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 93.36,
+            "endSec": 101.04,
+            "label": "1:33",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 45.76,
+            "endSec": 56.06,
+            "label": "0:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0006",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0006",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 53.62,
+            "endSec": 64.9,
+            "label": "0:53",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0007",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 92.2,
+            "endSec": 103.6,
+            "label": "1:32",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0002",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0002",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 11.26,
+            "endSec": 22.86,
+            "label": "0:11",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0011",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0011",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 108.94,
+            "endSec": 117.42,
+            "label": "1:48",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0003",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 30.64,
+            "endSec": 45.76,
+            "label": "0:30",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0005",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 64.5,
+            "endSec": 77.4,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "N01",
+      "question": "當訓練資料隨時間變得不合時宜時，為什麼定期替換資料並重新訓練，能讓模型跟上新的語言習慣？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "目前資料庫片段不足以回答這個問題。",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0004",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 45.76,
+            "endSec": 56.06,
+            "label": "0:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0007",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0007",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 100.2,
+            "endSec": 115.78,
+            "label": "1:40",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0005",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0005",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 76.7,
+            "endSec": 93.36,
+            "label": "1:16",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0004",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0004",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 46.9,
+            "endSec": 64.5,
+            "label": "0:46",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0006",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0006",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 53.62,
+            "endSec": 64.9,
+            "label": "0:53",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0001",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0001",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 11.26,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0003",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0003",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 26.12,
+            "endSec": 35.06,
+            "label": "0:26",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0002",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0002",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 13.06,
+            "endSec": 26.12,
+            "label": "0:13",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0009",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0009",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 85.34,
+            "endSec": 98.38,
+            "label": "1:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0002",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0002",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 11.26,
+            "endSec": 22.86,
+            "label": "0:11",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "6a02f46317c615e872035c93_chunk_0007",
+          "segmentId": "6a02f46317c615e872035c93_chunk_0007",
+          "videoId": "6a02f46317c615e872035c93",
+          "timestamp": {
+            "startSec": 81.76,
+            "endSec": 96.28,
+            "label": "1:21",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0009",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0009",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 117.58,
+            "endSec": 120.22,
+            "label": "1:57",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 56.06,
+            "endSec": 65.14,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f48c17c615e872035cea_chunk_0001",
+          "segmentId": "6a02f48c17c615e872035cea_chunk_0001",
+          "videoId": "6a02f48c17c615e872035cea",
+          "timestamp": {
+            "startSec": 0,
+            "endSec": 17.78,
+            "label": "0:00",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    },
+    {
+      "id": "N02",
+      "question": "在 OpenCV 中使用 Canny 邊緣偵測時，高、低兩個閾值分別如何影響邊緣保留結果？",
+      "success": true,
+      "search": {
+        "backend": "atlas",
+        "fallbackUsed": false,
+        "matchCount": 15
+      },
+      "fallbacks": [],
+      "answer": {
+        "text": "目前資料庫片段不足以回答這個問題。",
+        "provider": "gemini"
+      },
+      "citations": [
+        {
+          "citationId": "C1",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0007",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0007",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 63.74,
+            "endSec": 72.96,
+            "label": "1:03",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C2",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0002",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0002",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 12.62,
+            "endSec": 32.12,
+            "label": "0:12",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C3",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0009",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0009",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 82.68,
+            "endSec": 93.18,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C4",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0010",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0010",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 105.82,
+            "endSec": 118.82,
+            "label": "1:45",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C5",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0008",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0008",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 82.82,
+            "endSec": 93.82,
+            "label": "1:22",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C6",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0006",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0006",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 68.6,
+            "endSec": 86.8,
+            "label": "1:08",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C7",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0005",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0005",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 44.54,
+            "endSec": 51.2,
+            "label": "0:44",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C8",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0006",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0006",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 61.82,
+            "endSec": 72.82,
+            "label": "1:01",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C9",
+          "chunkId": "6a02f2d417c615e872035a68_chunk_0006",
+          "segmentId": "6a02f2d417c615e872035a68_chunk_0006",
+          "videoId": "6a02f2d417c615e872035a68",
+          "timestamp": {
+            "startSec": 51.2,
+            "endSec": 63.74,
+            "label": "0:51",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C10",
+          "chunkId": "6a02f4b017c615e872035d41_chunk_0007",
+          "segmentId": "6a02f4b017c615e872035d41_chunk_0007",
+          "videoId": "6a02f4b017c615e872035d41",
+          "timestamp": {
+            "startSec": 64.9,
+            "endSec": 73.38,
+            "label": "1:04",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C11",
+          "chunkId": "69fb57edb52433fda32db706_chunk_0004",
+          "segmentId": "69fb57edb52433fda32db706_chunk_0004",
+          "videoId": "69fb57edb52433fda32db706",
+          "timestamp": {
+            "startSec": 38.82,
+            "endSec": 49.82,
+            "label": "0:38",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C12",
+          "chunkId": "69fb5c8db52433fda32dbab5_chunk_0003",
+          "segmentId": "69fb5c8db52433fda32dbab5_chunk_0003",
+          "videoId": "69fb5c8db52433fda32dbab5",
+          "timestamp": {
+            "startSec": 29.3,
+            "endSec": 46.1,
+            "label": "0:29",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C13",
+          "chunkId": "6a02f42a17c615e872035c42_chunk_0002",
+          "segmentId": "6a02f42a17c615e872035c42_chunk_0002",
+          "videoId": "6a02f42a17c615e872035c42",
+          "timestamp": {
+            "startSec": 25.51,
+            "endSec": 39.87,
+            "label": "0:25",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C14",
+          "chunkId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "segmentId": "6a02f34d17c615e872035b3d_chunk_0005",
+          "videoId": "6a02f34d17c615e872035b3d",
+          "timestamp": {
+            "startSec": 56.06,
+            "endSec": 65.14,
+            "label": "0:56",
+            "jumpUrl": null
+          }
+        },
+        {
+          "citationId": "C15",
+          "chunkId": "6a02f38c17c615e872035b94_chunk_0003",
+          "segmentId": "6a02f38c17c615e872035b94_chunk_0003",
+          "videoId": "6a02f38c17c615e872035b94",
+          "timestamp": {
+            "startSec": 32.12,
+            "endSec": 44.7,
+            "label": "0:32",
+            "jumpUrl": null
+          }
+        }
+      ],
+      "writeCommandCount": 0,
+      "manualReview": {
+        "status": "pending",
+        "correctness": null,
+        "citationQuality": null,
+        "notes": null
+      },
+      "error": null
+    }
+  ],
+  "safety": {
+    "mongoReads": 18,
+    "mongoWrites": 0,
+    "writeDetected": false,
+    "databaseAccess": {
+      "verified": true,
+      "role": "read",
+      "database": "focusflow"
+    },
+    "externalCalls": 28,
+    "credentialsIncluded": false
+  }
+}

@@ -14,8 +14,11 @@
 └── evidence/
     ├── evidence_README.md
     ├── 2026-08-30_phase1-implementation-results.md
+    ├── 2026-09-01_baseline_flag-snapshot.json
     ├── 2026-09-01_baseline_questions.md
     ├── 2026-09-01_baseline_questions.json
+    ├── 2026-09-01_baseline_raw-results.json
+    ├── 2026-09-01_baseline_manual-review.md
     ├── 2026-09-01_wo13-enrollment-revoke-before.json
     └── 2026-09-01_wo13-enrollment-revoke-after.json
 ```
@@ -49,7 +52,7 @@
 
 截至 2026-08-30，Phase 1 的 WO-01～WO-09 已完成本機實作與回歸測試：Backend 共 64 個 test suites、500 個 tests 全數通過。詳細項目、測試數字與未完成邊界見 [Phase 1 實作結果](evidence/2026-08-30_phase1-implementation-results.md)。
 
-這不等於學生試用已通過正式驗收。Phase 2 的 [12＋2 baseline 題庫](evidence/2026-09-01_baseline_questions.md) 已於 2026-09-01 定版，並提供 [runner JSON 輸入](evidence/2026-09-01_baseline_questions.json)；Markdown 是人工定版與審查來源，JSON 只供 runner 執行。WO-13 已完成示範學生對「影像處理導論」的 Enrollment revoke，並保存[執行前](evidence/2026-09-01_wo13-enrollment-revoke-before.json)與[執行後](evidence/2026-09-01_wo13-enrollment-revoke-after.json)證據。`runtime.flag_snapshot`、raw JSON、人工複核表與正式 baseline 執行仍未完成；`final` 證據也尚未建立。
+這不等於學生試用已通過正式驗收。Phase 2 的 [12＋2 baseline 題庫](evidence/2026-09-01_baseline_questions.md) 已於 2026-09-01 定版，並提供 [runner JSON 輸入](evidence/2026-09-01_baseline_questions.json)；Markdown 是人工定版與審查來源，JSON 只供 runner 執行。WO-13 已完成示範學生對「影像處理導論」的 Enrollment revoke，並保存[執行前](evidence/2026-09-01_wo13-enrollment-revoke-before.json)與[執行後](evidence/2026-09-01_wo13-enrollment-revoke-after.json)證據。baseline 執行前的 [`runtime.flag_snapshot`](evidence/2026-09-01_baseline_flag-snapshot.json)、[raw results](evidence/2026-09-01_baseline_raw-results.json) 與[人工複核表](evidence/2026-09-01_baseline_manual-review.md)已保存，Phase 2 baseline 四類證據已齊；複核結果仍包含弱項與失敗，不得視為 final 驗收通過，`final` 證據也尚未建立。
 
 ## 維護原則
 

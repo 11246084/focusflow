@@ -1,0 +1,17 @@
+{
+  "event": "runtime.flag_snapshot",
+  "flags": {
+    "STUDENT_PILOT_MODE": true,
+    "QA_VECTOR_SEARCH_MODE": "atlas",
+    "FAQ_CACHE_ENABLED": false,
+    "HIERARCHICAL_RETRIEVAL_ENABLED": false,
+    "HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE": "off",
+    "VIDEO_BATCH_PIPELINE_ENABLED": false,
+    "YOUTUBE_UPLOAD_ENABLED": true,
+    "YOUTUBE_UPLOAD_RECOVERY_ENABLED": false,
+    "YOUTUBE_UPLOAD_CLEANUP_ENABLED": false,
+    "YOUTUBE_PRIVATIZE_ON_DELETE": true,
+    "DEMO_SEED_ENABLED": false,
+    "MAX_CONVERSATION_TURNS": 4
+  }
+}

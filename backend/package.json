@@ -18,6 +18,7 @@
     "preflight:phase2-2:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --preflight-only",
     "e2e:phase2-2:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js",
     "baseline:student-pilot:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --mode student-pilot-opencv",
+    "diagnose:phase3b:readonly": "node src/scripts/phase2_2_hierarchical_e2e_runner.js --mode student-pilot-opencv --questions-file ../docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.json --json",
     "diagnose:q04:readonly": "node src/scripts/phase3a_q04_diagnostic.js",
     "snapshot:student-pilot": "node src/scripts/printStudentPilotFlagSnapshot.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"

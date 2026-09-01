@@ -12,6 +12,7 @@ const {
   STUDENT_PILOT_QUESTION_IDS,
   assertRunnerRuntimeConfiguration,
   assertStrictReadOnlyRoles,
+  buildPhase3BRuntimeSettings,
   createCommandMonitor,
   hasRequiredCollections,
   parseCliArgs,
@@ -19,6 +20,7 @@ const {
   runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,
   safeFailure,
+  validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
 
@@ -86,6 +88,17 @@ function studentPilotDependencies(overrides = {}) {
       };
     },
     async answer() { return { text: 'safe answer', provider: 'mock', fallback: null }; },
+    runtimeConfig: {
+      qaMatchLimit: 15,
+      qaVectorSearchMode: 'atlas',
+      qaQueryEmbeddingProvider: 'gemini',
+      geminiEmbeddingModelName: 'gemini-embedding-2',
+      qaAnswerProvider: 'gemini',
+      geminiChatModel: 'gemini-3.5-flash',
+      faqCacheEnabled: false,
+      hierarchicalRetrievalEnabled: false,
+      hierarchicalRetrievalRolloutMode: 'off',
+    },
     ...overrides,
   };
 }
@@ -331,6 +344,40 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     });
     assert.equal(result.questions[0].search.backend, 'atlas');
     assert.equal(result.questions[0].search.fallbackUsed, false);
+    assert.deepEqual(result.questions[0].search.candidates[0], {
+      rank: 1, score: 0.9, chunkId: 'chunk-1', segmentId: 'segment-1',
+      videoId: '6a0000000000000000000000', startSec: 10, endSec: 20,
+    });
+    assert.deepEqual(result.questions[0].answerContext, {
+      source: 'retrieval_candidates',
+      leafCount: 1,
+      sameOrderAsCandidates: true,
+      leaves: [{
+        rank: 1, score: 0.9, chunkId: 'chunk-1', segmentId: 'segment-1',
+        videoId: '6a0000000000000000000000', startSec: 10, endSec: 20,
+        videoTitle: null, transcript: 'safe leaf transcript',
+      }],
+    });
+    assert.equal(result.questions[0].retrievalEvaluation.groundTruthStatus, 'annotated');
+    assert.equal(result.questions[0].retrievalEvaluation.metrics.hitAtK, 0);
+    assert.deepEqual(result.runtimeSettings, {
+      QA_MATCH_LIMIT: 15,
+      QA_VECTOR_SEARCH_MODE: 'atlas',
+      QA_QUERY_EMBEDDING_PROVIDER: 'gemini',
+      QA_QUERY_EMBEDDING_MODEL: 'gemini-embedding-2',
+      QA_ANSWER_PROVIDER: 'gemini',
+      QA_ANSWER_MODEL: 'gemini-3.5-flash',
+      FAQ_CACHE_ENABLED: false,
+      HIERARCHICAL_RETRIEVAL_ENABLED: false,
+      HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE: 'off',
+      QA_MINIMUM_SCORE_THRESHOLD: {
+        status: 'not_configured', value: null, environmentVariable: null,
+        candidateValidation: 'finite_score_greater_than_zero',
+      },
+    });
+    assert.deepEqual(result.retrievalEvaluation.metrics, {
+      annotatedQuestionCount: 12, hitAtK: 0, mrr: 0,
+    });
     assert.deepEqual(result.questions[0].fallbacks, []);
     assert.equal(result.questions[0].answer.text, 'safe answer');
     assert.equal(result.questions[0].citations[0].videoId != null, true);
@@ -339,6 +386,62 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     });
     assert.equal(result.questions[0].writeCommandCount, 0);
     assert.equal(result.safety.mongoWrites, 0);
+  });
+
+  it('shows Q03 expected Leaf ranks, scores, misses, and the exact answer context', async () => {
+    const q03VideoId = '69fb5c8db52433fda32dbab5';
+    let q03AnswerInput = null;
+    const candidates = [
+      {
+        chunkId: 'unrelated_chunk_0001', segmentId: 'unrelated-segment',
+        videoId: '6a0000000000000000000000', startSec: 0, endSec: 5,
+        transcript: 'unrelated', score: 0.91,
+      },
+      {
+        chunkId: `${q03VideoId}_chunk_0002`, segmentId: 'q03-2', videoId: q03VideoId,
+        startSec: 5, endSec: 10, transcript: 'expected two', score: 0.82,
+      },
+      {
+        chunkId: `${q03VideoId}_chunk_0003`, segmentId: 'q03-3', videoId: q03VideoId,
+        startSec: 10, endSec: 15, transcript: 'expected three', score: 0.74,
+      },
+    ];
+    const result = await runStudentPilotBaseline(studentPilotOptions(), studentPilotDependencies({
+      async searchStudentPilotLeaves() {
+        return { backend: 'atlas', fallbackUsed: false, fallbacks: [], matches: candidates };
+      },
+      async answer(question, matches) {
+        if (question === 'Question Q03') q03AnswerInput = matches;
+        return { text: 'safe answer', provider: 'mock', fallback: null };
+      },
+    }));
+    const q03 = result.questions.find((question) => question.id === 'Q03');
+
+    assert.deepEqual(q03.retrievalEvaluation.expectedLeaves.map((leaf) => ({
+      chunkId: leaf.chunkId, rank: leaf.rank, score: leaf.score, hitAtK: leaf.hitAtK,
+    })), [
+      { chunkId: `${q03VideoId}_chunk_0002`, rank: 2, score: 0.82, hitAtK: true },
+      { chunkId: `${q03VideoId}_chunk_0003`, rank: 3, score: 0.74, hitAtK: true },
+      { chunkId: `${q03VideoId}_chunk_0004`, rank: null, score: null, hitAtK: false },
+    ]);
+    assert.equal(q03.retrievalEvaluation.groupCoverage[0].completeAtK, false);
+    assert.deepEqual(q03.retrievalEvaluation.groupCoverage[0].missingChunkIds,
+      [`${q03VideoId}_chunk_0004`]);
+    assert.equal(q03.answerContext.sameOrderAsCandidates, true);
+    assert.deepEqual(q03.answerContext.leaves.map((leaf) => leaf.chunkId),
+      candidates.map((candidate) => candidate.chunkId));
+    assert.deepEqual(q03AnswerInput, candidates);
+  });
+
+  it('validates the Q01-Q12 ground-truth boundary and reports missing configuration explicitly', () => {
+    assert.doesNotThrow(() => validateStudentPilotRetrievalGroundTruth(
+      require('../src/data/studentPilotRetrievalGroundTruth').STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH,
+    ));
+    assert.throws(
+      () => validateStudentPilotRetrievalGroundTruth({ Q01: { expectedLeafGroups: [] } }),
+      (error) => error.code === 'E2E_RETRIEVAL_GROUND_TRUTH_INCOMPLETE',
+    );
+    assert.equal(buildPhase3BRuntimeSettings({}).QA_MINIMUM_SCORE_THRESHOLD.status, 'not_configured');
   });
 
   it('marks the batch failed instead of accepting Atlas or answer fallback', async () => {

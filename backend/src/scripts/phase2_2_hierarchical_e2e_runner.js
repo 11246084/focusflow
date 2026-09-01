@@ -24,6 +24,15 @@ const { filterCandidatesByScope } = require('../services/qaScopeMonitoring.servi
 const {
   evaluateActiveDataEvidence,
 } = require('../services/hierarchicalDataReadiness.service');
+const {
+  aggregateRetrievalEvaluations,
+  evaluateRetrievalCandidates,
+} = require('../services/retrievalEvaluation.service');
+const {
+  STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH,
+  STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA,
+  STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE,
+} = require('../data/studentPilotRetrievalGroundTruth');
 
 // This runner is an isolated, read-only acceptance harness. Command monitoring
 // rejects MongoDB writes, and answer generation stays disabled unless requested.
@@ -364,7 +373,92 @@ function buildSearchFallbackEvidence(searchResult) {
   return fallbacks;
 }
 
-function buildQuestionFailure(question, error, writeCommandCount) {
+function resolveQueryEmbeddingModel(config) {
+  if (config.qaQueryEmbeddingProvider === 'gemini') return config.geminiEmbeddingModelName;
+  if (config.qaQueryEmbeddingProvider === 'openai') return config.openaiEmbeddingModel;
+  return config.qaQueryEmbeddingProvider || null;
+}
+
+function resolveAnswerModel(config) {
+  if (config.qaAnswerProvider === 'gemini') return config.geminiChatModel;
+  if (config.qaAnswerProvider === 'openai') return config.openaiChatModel;
+  return config.qaAnswerProvider || null;
+}
+
+function buildPhase3BRuntimeSettings(config = env) {
+  return {
+    QA_MATCH_LIMIT: config.qaMatchLimit,
+    QA_VECTOR_SEARCH_MODE: config.qaVectorSearchMode,
+    QA_QUERY_EMBEDDING_PROVIDER: config.qaQueryEmbeddingProvider,
+    QA_QUERY_EMBEDDING_MODEL: resolveQueryEmbeddingModel(config),
+    QA_ANSWER_PROVIDER: config.qaAnswerProvider,
+    QA_ANSWER_MODEL: resolveAnswerModel(config),
+    FAQ_CACHE_ENABLED: Boolean(config.faqCacheEnabled),
+    HIERARCHICAL_RETRIEVAL_ENABLED: Boolean(config.hierarchicalRetrievalEnabled),
+    HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE: config.hierarchicalRetrievalRolloutMode || 'off',
+    QA_MINIMUM_SCORE_THRESHOLD: {
+      status: 'not_configured',
+      value: null,
+      environmentVariable: null,
+      candidateValidation: 'finite_score_greater_than_zero',
+    },
+  };
+}
+
+function buildLeafDiagnostics(matches, { includeTranscript = false } = {}) {
+  return (Array.isArray(matches) ? matches : []).map((match, index) => ({
+    rank: index + 1,
+    score: safeScore(match.score),
+    chunkId: match.chunkId == null ? null : String(match.chunkId),
+    segmentId: match.segmentId == null ? null : String(match.segmentId),
+    videoId: match.videoId == null ? null : String(match.videoId),
+    startSec: match.startSec != null && Number.isFinite(Number(match.startSec))
+      ? Number(match.startSec) : null,
+    endSec: match.endSec != null && Number.isFinite(Number(match.endSec))
+      ? Number(match.endSec) : null,
+    ...(includeTranscript ? {
+      videoTitle: match.videoTitle || null,
+      transcript: String(match.transcript || ''),
+    } : {}),
+  }));
+}
+
+function sameLeafOrder(candidates, contextLeaves) {
+  if (candidates.length !== contextLeaves.length) return false;
+  return candidates.every((candidate, index) => (
+    candidate.rank === contextLeaves[index].rank
+    && candidate.chunkId === contextLeaves[index].chunkId
+    && candidate.segmentId === contextLeaves[index].segmentId
+    && candidate.videoId === contextLeaves[index].videoId
+  ));
+}
+
+function validateStudentPilotRetrievalGroundTruth(groundTruth) {
+  const positiveIds = STUDENT_PILOT_QUESTION_IDS.filter((id) => id.startsWith('Q'));
+  const keys = Object.keys(groundTruth || {}).sort();
+  if (keys.length !== positiveIds.length || positiveIds.some((id) => !groundTruth?.[id])) {
+    throw new IsolatedE2EError(
+      'The student-pilot retrieval ground truth must cover exactly Q01-Q12.',
+      'E2E_RETRIEVAL_GROUND_TRUTH_INCOMPLETE',
+    );
+  }
+
+  for (const id of positiveIds) {
+    const groups = groundTruth[id]?.expectedLeafGroups;
+    if (!Array.isArray(groups) || !groups.length || groups.some((group) => (
+      !group?.groupId || !group?.videoId || !Array.isArray(group.chunkIds) || !group.chunkIds.length
+      || group.chunkIds.some((chunkId) => !String(chunkId).startsWith(`${group.videoId}_chunk_`))
+    ))) {
+      throw new IsolatedE2EError(
+        'The student-pilot retrieval ground truth contains an invalid Leaf group.',
+        'E2E_RETRIEVAL_GROUND_TRUTH_INVALID',
+      );
+    }
+  }
+  return groundTruth;
+}
+
+function buildQuestionFailure(question, error, writeCommandCount, diagnostics = {}) {
   const fallbacks = Array.isArray(error?.details?.fallbacks) ? error.details.fallbacks : [];
   return {
     id: question.id,
@@ -374,8 +468,11 @@ function buildQuestionFailure(question, error, writeCommandCount) {
       backend: error?.details?.searchBackend
         || (error?.code === 'E2E_ATLAS_LEAF_SEARCH_FAILED' ? 'atlas' : null),
       fallbackUsed: fallbacks.length > 0,
-      matchCount: 0,
+      matchCount: diagnostics.candidates?.length || 0,
+      candidates: diagnostics.candidates || [],
     },
+    answerContext: diagnostics.answerContext || null,
+    retrievalEvaluation: diagnostics.retrievalEvaluation || null,
     fallbacks,
     answer: null,
     citations: [],
@@ -398,8 +495,12 @@ async function runStudentPilotBaseline(options, dependencies) {
     answer = generateAnswer,
     citationBuilder = buildUserFacingCitations,
     commandMonitor = createCommandMonitor(),
+    retrievalGroundTruth = STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH,
+    runtimeConfig = env,
   } = dependencies;
   const validatedQuestionBank = validateStudentPilotQuestionBank(questionBank);
+  const validatedGroundTruth = validateStudentPilotRetrievalGroundTruth(retrievalGroundTruth);
+  const runtimeSettings = buildPhase3BRuntimeSettings(runtimeConfig);
   const { allowedVideoIds, inspection } = await inspectAndValidateStudentPilotOpenCvScope(
     options,
     { ...dependencies, commandMonitor },
@@ -413,6 +514,11 @@ async function runStudentPilotBaseline(options, dependencies) {
 
   for (const question of validatedQuestionBank.questions) {
     const before = commandMonitor.snapshot();
+    const diagnostics = {
+      candidates: [],
+      answerContext: null,
+      retrievalEvaluation: null,
+    };
     try {
       commandMonitor.assertNoWrites();
       externalCalls += 1;
@@ -445,8 +551,26 @@ async function runStudentPilotBaseline(options, dependencies) {
       }
 
       const matches = Array.isArray(searchResult.matches) ? searchResult.matches : [];
+      diagnostics.candidates = buildLeafDiagnostics(matches);
+      const answerContextMatches = matches;
+      const contextLeaves = buildLeafDiagnostics(answerContextMatches, { includeTranscript: true });
+      diagnostics.answerContext = {
+        source: 'retrieval_candidates',
+        leafCount: contextLeaves.length,
+        sameOrderAsCandidates: sameLeafOrder(diagnostics.candidates, contextLeaves),
+        leaves: contextLeaves,
+      };
+      const expectedLeafGroups = validatedGroundTruth[question.id]?.expectedLeafGroups || [];
+      diagnostics.retrievalEvaluation = evaluateRetrievalCandidates({
+        expectedLeafGroups,
+        candidates: diagnostics.candidates,
+        k: runtimeSettings.QA_MATCH_LIMIT,
+      });
+      if (question.id.startsWith('N')) {
+        diagnostics.retrievalEvaluation.groundTruthStatus = 'not_applicable_negative_question';
+      }
       externalCalls += 1;
-      const generated = await answer(question.question, matches);
+      const generated = await answer(question.question, answerContextMatches);
       if (generated?.fallback) {
         const answerFallbacks = normalizeFallbackEvidence(generated.fallback, 'answer');
         throw new IsolatedE2EError(
@@ -480,7 +604,10 @@ async function runStudentPilotBaseline(options, dependencies) {
           backend: 'atlas',
           fallbackUsed: false,
           matchCount: matches.length,
+          candidates: diagnostics.candidates,
         },
+        answerContext: diagnostics.answerContext,
+        retrievalEvaluation: diagnostics.retrievalEvaluation,
         fallbacks: [],
         answer: {
           text: String(generated?.text || ''),
@@ -503,6 +630,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         question,
         error,
         after.mongoWrites - before.mongoWrites,
+        diagnostics,
       ));
     }
   }
@@ -534,6 +662,15 @@ async function runStudentPilotBaseline(options, dependencies) {
       faqEnabled: false,
       parentEnabled: false,
       fallbackAllowed: false,
+    },
+    runtimeSettings,
+    retrievalEvaluation: {
+      schemaVersion: STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA,
+      groundTruthSource: STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE,
+      k: runtimeSettings.QA_MATCH_LIMIT,
+      metrics: aggregateRetrievalEvaluations(
+        questionResults.map((result) => result.retrievalEvaluation),
+      ),
     },
     questions: questionResults,
     safety: {
@@ -1083,7 +1220,9 @@ module.exports = {
   WRITE_COMMANDS,
   assertRunnerRuntimeConfiguration,
   assertStrictReadOnlyRoles,
+  buildLeafDiagnostics,
   buildLeafLookupQuery,
+  buildPhase3BRuntimeSettings,
   createCommandMonitor,
   createLiveDependencies,
   collectIndexNames,
@@ -1097,5 +1236,6 @@ module.exports = {
   runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,
   safeFailure,
+  validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 };

@@ -20,6 +20,7 @@ const {
   runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,
   safeFailure,
+  selectDiagnosticAnswerContext,
   validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
@@ -235,6 +236,7 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(parsed.expectedSegmentCount, STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT);
     assert.equal(parsed.questionsFile, 'questions.json');
     assert.equal(parsed.candidateDepth, null);
+    assert.equal(parsed.adjacentExpansion, false);
     assert.equal(parsed.retrievalOnly, false);
     assert.deepEqual(parsed.allowedVideoIds, []);
     assert.throws(
@@ -248,15 +250,23 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
   it('allows candidate depth only as an isolated student-pilot diagnostic override', () => {
     const parsed = parseCliArgs([
       '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
-      '--candidate-depth', '50', '--retrieval-only', '--json',
+      '--candidate-depth', '50', '--adjacent-expansion', '--retrieval-only', '--json',
     ]);
 
     assert.equal(parsed.candidateDepth, 50);
+    assert.equal(parsed.adjacentExpansion, true);
     assert.equal(parsed.retrievalOnly, true);
     assert.throws(
       () => parseCliArgs([
         '--question', 'question', '--course-id', courseId, '--video-id', videoId,
         '--candidate-depth', '50',
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--question', 'question', '--course-id', courseId, '--video-id', videoId,
+        '--adjacent-expansion',
       ]),
       (error) => error.code === 'E2E_CLI_INVALID',
     );
@@ -374,7 +384,8 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(answerCalls, 14);
     assert.deepEqual(result.retrieval, {
       backend: 'atlas', leafOnly: true, faqEnabled: false, parentEnabled: false, fallbackAllowed: false,
-      candidateDepth: 15, answerContextLimit: 15, diagnosticOverrideActive: false,
+      candidateDepth: 15, answerContextLimit: 15, adjacentExpansionEnabled: false,
+      contextSelectionStrategy: 'candidate_rank_prefix', diagnosticOverrideActive: false,
       answerGenerationExecuted: true,
     });
     assert.equal(result.questions[0].search.backend, 'atlas');
@@ -389,6 +400,16 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
       generationExecuted: true,
       leafCount: 1,
       sameOrderAsCandidates: true,
+      selection: {
+        strategy: 'candidate_rank_prefix', enabled: false, applied: false,
+        candidatePoolOnly: true, sameVideoOnly: true, scopeValidated: true,
+        playableSourceValidated: true,
+        maxBoundaryGapSec: 2, retainedCandidateRanks: [1], added: [], removed: [],
+        finalOrder: [{
+          contextPosition: 1, candidateRank: 1, chunkId: 'chunk-1',
+          videoId: '6a0000000000000000000000',
+        }],
+      },
       leaves: [{
         rank: 1, score: 0.9, chunkId: 'chunk-1', segmentId: 'segment-1',
         videoId: '6a0000000000000000000000', startSec: 10, endSec: 20,
@@ -417,6 +438,7 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(result.retrievalEvaluation.metrics.mrr, 0);
     assert.equal(result.retrievalEvaluation.metrics.expectedLeafRecallAtK, 0);
     assert.equal(result.retrievalEvaluation.metrics.completeGroupCoverageAtK, 0);
+    assert.equal(result.contextEvaluation.metrics.expectedLeafProportionInContext, 0);
     assert.deepEqual(result.questions[0].fallbacks, []);
     assert.equal(result.questions[0].answer.text, 'safe answer');
     assert.equal(result.questions[0].citations[0].videoId != null, true);
@@ -466,6 +488,72 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(result.questions[0].answer, null);
     assert.equal(result.questions[0].answerStatus, null);
     assert.deepEqual(result.questions[0].citations, []);
+  });
+
+  it('promotes one-hop same-video adjacent Leaves from Candidate30 into a fixed Context15', async () => {
+    const allowedVideoId = '6a0000000000000000000000';
+    const candidates = [
+      {
+        chunkId: `${allowedVideoId}_chunk_0002`, videoId: allowedVideoId,
+        startSec: 0, endSec: 10, score: 0.95,
+      },
+      {
+        chunkId: `${allowedVideoId}_chunk_0003`, videoId: allowedVideoId,
+        startSec: 10, endSec: 20, score: 0.94,
+      },
+      ...Array.from({ length: 13 }, (_, index) => ({
+        chunkId: `noise-${index + 1}`, videoId: allowedVideoId,
+        startSec: 100 + (index * 10), endSec: 109 + (index * 10), score: 0.9 - (index / 100),
+      })),
+      {
+        chunkId: `${allowedVideoId}_chunk_0004`, videoId: allowedVideoId,
+        startSec: 20.5, endSec: 30, score: 0.7,
+      },
+      {
+        chunkId: `${allowedVideoId}_chunk_0006`, videoId: allowedVideoId,
+        startSec: 40, endSec: 50, score: 0.69,
+      },
+    ];
+    const scope = { allowedVideoIds: new Set([allowedVideoId]) };
+
+    const selected = selectDiagnosticAnswerContext({
+      matches: candidates,
+      limit: 15,
+      adjacentExpansion: true,
+      scope,
+      playableVideoIds: new Set([allowedVideoId]),
+    });
+
+    assert.equal(selected.matches.length, 15);
+    assert.deepEqual(selected.diagnostics.added, [{
+      candidateRank: 16,
+      chunkId: `${allowedVideoId}_chunk_0004`,
+      videoId: allowedVideoId,
+      anchorCandidateRank: 2,
+      anchorChunkId: `${allowedVideoId}_chunk_0003`,
+      boundaryGapSec: 0.5,
+    }]);
+    assert.deepEqual(selected.diagnostics.removed, [{
+      candidateRank: 15, chunkId: 'noise-13', videoId: allowedVideoId,
+    }]);
+    assert.deepEqual(
+      selected.diagnostics.finalOrder.map((leaf) => leaf.candidateRank),
+      [...Array.from({ length: 14 }, (_, index) => index + 1), 16],
+    );
+    assert.equal(selected.matches.some((leaf) => leaf.chunkId.endsWith('chunk_0006')), false);
+
+    const blockedWithoutPlayableSource = selectDiagnosticAnswerContext({
+      matches: candidates,
+      limit: 15,
+      adjacentExpansion: true,
+      scope,
+      playableVideoIds: new Set(),
+    });
+    assert.deepEqual(blockedWithoutPlayableSource.diagnostics.added, []);
+    assert.deepEqual(
+      blockedWithoutPlayableSource.matches.map((leaf) => leaf.chunkId),
+      candidates.slice(0, 15).map((leaf) => leaf.chunkId),
+    );
   });
 
   it('shows Q03 expected Leaf ranks, scores, misses, and the exact answer context', async () => {

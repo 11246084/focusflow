@@ -25,6 +25,7 @@ const {
   evaluateActiveDataEvidence,
 } = require('../services/hierarchicalDataReadiness.service');
 const {
+  aggregateContextEvaluations,
   aggregateRetrievalEvaluations,
   evaluateRetrievalCandidates,
 } = require('../services/retrievalEvaluation.service');
@@ -52,6 +53,7 @@ const STUDENT_PILOT_OPENCV_COURSE_ID = '69fb4d4c069e21f4e65b74dc';
 const STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID = '6a5deabebece4943079410bd';
 const STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT = 15;
 const STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT = 129;
+const DIAGNOSTIC_ADJACENT_MAX_BOUNDARY_GAP_SEC = 2;
 const STUDENT_PILOT_QUESTION_BANK_SCHEMA = 'student-pilot-baseline-v1';
 const STUDENT_PILOT_QUESTION_IDS = Object.freeze([
   'Q01', 'Q02', 'Q03', 'Q04', 'Q05', 'Q06',
@@ -138,6 +140,7 @@ function parseCliArgs(argv = []) {
     maxChildren: env.hierarchicalChildExpansionLimit,
     questionsFile: '',
     candidateDepth: null,
+    adjacentExpansion: false,
     retrievalOnly: false,
     json: false,
   };
@@ -146,6 +149,7 @@ function parseCliArgs(argv = []) {
     const flag = argv[index];
     if (flag === '--with-answer') options.withAnswer = true;
     else if (flag === '--preflight-only') options.preflightOnly = true;
+    else if (flag === '--adjacent-expansion') options.adjacentExpansion = true;
     else if (flag === '--retrieval-only') options.retrievalOnly = true;
     else if (flag === '--json') options.json = true;
     else if (flag === '--mode') options.mode = argv[++index] || '';
@@ -192,6 +196,12 @@ function parseCliArgs(argv = []) {
   if (options.candidateDepth != null) {
     throw new IsolatedE2EError(
       '--candidate-depth is available only in student-pilot-opencv mode.',
+      'E2E_CLI_INVALID',
+    );
+  }
+  if (options.adjacentExpansion) {
+    throw new IsolatedE2EError(
+      '--adjacent-expansion is available only in student-pilot-opencv mode.',
       'E2E_CLI_INVALID',
     );
   }
@@ -451,6 +461,147 @@ function sameLeafOrder(candidates, contextLeaves) {
   ));
 }
 
+function parseChunkOrdinal(leaf) {
+  const videoId = String(leaf?.videoId || '');
+  const chunkId = String(leaf?.chunkId || '');
+  const prefix = `${videoId}_chunk_`;
+  if (!videoId || !chunkId.startsWith(prefix)) return null;
+  const suffix = chunkId.slice(prefix.length);
+  if (!/^\d+$/.test(suffix)) return null;
+  return Number(suffix);
+}
+
+function adjacentLeafDetails(anchor, candidate) {
+  if (String(anchor?.videoId || '') !== String(candidate?.videoId || '')) return null;
+  const anchorOrdinal = parseChunkOrdinal(anchor);
+  const candidateOrdinal = parseChunkOrdinal(candidate);
+  if (!Number.isInteger(anchorOrdinal) || !Number.isInteger(candidateOrdinal)
+      || Math.abs(anchorOrdinal - candidateOrdinal) !== 1) return null;
+
+  const earlier = anchorOrdinal < candidateOrdinal ? anchor : candidate;
+  const later = anchorOrdinal < candidateOrdinal ? candidate : anchor;
+  const earlierEnd = Number(earlier?.endSec);
+  const laterStart = Number(later?.startSec);
+  if (!Number.isFinite(earlierEnd) || !Number.isFinite(laterStart)) return null;
+  const boundaryGapSec = Number((laterStart - earlierEnd).toFixed(4));
+  if (Math.abs(boundaryGapSec) > DIAGNOSTIC_ADJACENT_MAX_BOUNDARY_GAP_SEC) return null;
+
+  return { boundaryGapSec };
+}
+
+function buildDiagnosticPlayableVideoIds(scopedVideos) {
+  return new Set((Array.isArray(scopedVideos?.videos) ? scopedVideos.videos : [])
+    .filter((video) => {
+      const hasYoutubeSource = Boolean(String(video?.youtubeVideoId || '').trim());
+      const filePath = String(video?.filePath || video?.file_path || '').trim();
+      return hasYoutubeSource || Boolean(filePath && fs.existsSync(filePath));
+    })
+    .map((video) => String(video?._id || ''))
+    .filter(Boolean));
+}
+
+function selectDiagnosticAnswerContext({
+  matches,
+  limit,
+  adjacentExpansion = false,
+  scope,
+  playableVideoIds,
+}) {
+  const candidates = Array.isArray(matches) ? matches : [];
+  const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 0;
+  const baseEntries = candidates.slice(0, safeLimit).map((match, index) => ({
+    match,
+    candidateRank: index + 1,
+  }));
+  const diagnostics = {
+    strategy: adjacentExpansion
+      ? 'diagnostic_candidate_pool_adjacent_one_hop'
+      : 'candidate_rank_prefix',
+    enabled: Boolean(adjacentExpansion),
+    applied: false,
+    candidatePoolOnly: true,
+    sameVideoOnly: true,
+    scopeValidated: true,
+    playableSourceValidated: true,
+    maxBoundaryGapSec: DIAGNOSTIC_ADJACENT_MAX_BOUNDARY_GAP_SEC,
+    retainedCandidateRanks: baseEntries.map((entry) => entry.candidateRank),
+    added: [],
+    removed: [],
+    finalOrder: baseEntries.map((entry, index) => ({
+      contextPosition: index + 1,
+      candidateRank: entry.candidateRank,
+      chunkId: entry.match.chunkId == null ? null : String(entry.match.chunkId),
+      videoId: entry.match.videoId == null ? null : String(entry.match.videoId),
+    })),
+  };
+  if (!adjacentExpansion || !baseEntries.length || candidates.length <= safeLimit) {
+    return { matches: baseEntries.map((entry) => entry.match), diagnostics };
+  }
+
+  const allowedVideoIds = scope?.allowedVideoIds instanceof Set
+    ? scope.allowedVideoIds : new Set();
+  const playableIds = playableVideoIds instanceof Set ? playableVideoIds : new Set();
+  const selectedBase = [...baseEntries];
+  const selectedPromotions = [];
+  const protectedBaseRanks = new Set();
+
+  for (let index = safeLimit; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    if (!allowedVideoIds.has(String(candidate?.videoId || ''))) continue;
+    if (!playableIds.has(String(candidate?.videoId || ''))) continue;
+    const anchors = selectedBase
+      .map((entry) => ({ entry, details: adjacentLeafDetails(entry.match, candidate) }))
+      .filter(({ details }) => details)
+      .sort((left, right) => left.entry.candidateRank - right.entry.candidateRank);
+    if (!anchors.length) continue;
+
+    const anchor = anchors[0];
+    const removable = selectedBase
+      .filter((entry) => entry.candidateRank !== anchor.entry.candidateRank
+        && !protectedBaseRanks.has(entry.candidateRank))
+      .sort((left, right) => right.candidateRank - left.candidateRank)[0];
+    if (!removable) continue;
+
+    selectedBase.splice(selectedBase.indexOf(removable), 1);
+    protectedBaseRanks.add(anchor.entry.candidateRank);
+    selectedPromotions.push({
+      match: candidate,
+      candidateRank: index + 1,
+      anchorCandidateRank: anchor.entry.candidateRank,
+      anchorChunkId: anchor.entry.match.chunkId == null
+        ? null : String(anchor.entry.match.chunkId),
+      boundaryGapSec: anchor.details.boundaryGapSec,
+    });
+    diagnostics.removed.push({
+      candidateRank: removable.candidateRank,
+      chunkId: removable.match.chunkId == null ? null : String(removable.match.chunkId),
+      videoId: removable.match.videoId == null ? null : String(removable.match.videoId),
+    });
+  }
+
+  const selected = [...selectedBase, ...selectedPromotions]
+    .sort((left, right) => left.candidateRank - right.candidateRank);
+  diagnostics.applied = selectedPromotions.length > 0;
+  diagnostics.retainedCandidateRanks = selectedBase.map((entry) => entry.candidateRank)
+    .sort((left, right) => left - right);
+  diagnostics.added = selectedPromotions.map((entry) => ({
+    candidateRank: entry.candidateRank,
+    chunkId: entry.match.chunkId == null ? null : String(entry.match.chunkId),
+    videoId: entry.match.videoId == null ? null : String(entry.match.videoId),
+    anchorCandidateRank: entry.anchorCandidateRank,
+    anchorChunkId: entry.anchorChunkId,
+    boundaryGapSec: entry.boundaryGapSec,
+  }));
+  diagnostics.finalOrder = selected.map((entry, index) => ({
+    contextPosition: index + 1,
+    candidateRank: entry.candidateRank,
+    chunkId: entry.match.chunkId == null ? null : String(entry.match.chunkId),
+    videoId: entry.match.videoId == null ? null : String(entry.match.videoId),
+  }));
+
+  return { matches: selected.map((entry) => entry.match), diagnostics };
+}
+
 function validateStudentPilotRetrievalGroundTruth(groundTruth) {
   const positiveIds = STUDENT_PILOT_QUESTION_IDS.filter((id) => id.startsWith('Q'));
   const keys = Object.keys(groundTruth || {}).sort();
@@ -491,6 +642,7 @@ function buildQuestionFailure(question, error, writeCommandCount, diagnostics = 
     },
     answerContext: diagnostics.answerContext || null,
     retrievalEvaluation: diagnostics.retrievalEvaluation || null,
+    contextEvaluation: diagnostics.contextEvaluation || null,
     fallbacks,
     answer: null,
     citations: [],
@@ -538,6 +690,7 @@ async function runStudentPilotBaseline(options, dependencies) {
       candidates: [],
       answerContext: null,
       retrievalEvaluation: null,
+      contextEvaluation: null,
     };
     try {
       commandMonitor.assertNoWrites();
@@ -573,14 +726,24 @@ async function runStudentPilotBaseline(options, dependencies) {
 
       const matches = Array.isArray(searchResult.matches) ? searchResult.matches : [];
       diagnostics.candidates = buildLeafDiagnostics(matches);
-      const answerContextMatches = matches.slice(0, answerContextLimit);
+      const contextSelection = selectDiagnosticAnswerContext({
+        matches,
+        limit: answerContextLimit,
+        adjacentExpansion: options.adjacentExpansion,
+        scope,
+        playableVideoIds: buildDiagnosticPlayableVideoIds(inspection.scopedVideos),
+      });
+      const answerContextMatches = contextSelection.matches;
       const contextLeaves = buildLeafDiagnostics(answerContextMatches, { includeTranscript: true });
       diagnostics.answerContext = {
-        source: 'retrieval_candidates',
+        source: options.adjacentExpansion
+          ? 'diagnostic_adjacent_candidate_selection'
+          : 'retrieval_candidates',
         limit: answerContextLimit,
         generationExecuted: !options.retrievalOnly,
         leafCount: contextLeaves.length,
         sameOrderAsCandidates: sameLeafOrder(diagnostics.candidates, contextLeaves),
+        selection: contextSelection.diagnostics,
         leaves: contextLeaves,
       };
       const expectedLeafGroups = validatedGroundTruth[question.id]?.expectedLeafGroups || [];
@@ -589,8 +752,14 @@ async function runStudentPilotBaseline(options, dependencies) {
         candidates: diagnostics.candidates,
         k: candidateDepth,
       });
+      diagnostics.contextEvaluation = evaluateRetrievalCandidates({
+        expectedLeafGroups,
+        candidates: answerContextMatches,
+        k: answerContextLimit,
+      });
       if (question.id.startsWith('N')) {
         diagnostics.retrievalEvaluation.groundTruthStatus = 'not_applicable_negative_question';
+        diagnostics.contextEvaluation.groundTruthStatus = 'not_applicable_negative_question';
       }
       let generated = null;
       let citations = [];
@@ -641,6 +810,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         },
         answerContext: diagnostics.answerContext,
         retrievalEvaluation: diagnostics.retrievalEvaluation,
+        contextEvaluation: diagnostics.contextEvaluation,
         fallbacks: [],
         answer: generated ? {
           text: String(generated?.text || ''),
@@ -693,7 +863,12 @@ async function runStudentPilotBaseline(options, dependencies) {
       fallbackAllowed: false,
       candidateDepth,
       answerContextLimit,
-      diagnosticOverrideActive: candidateDepth !== runtimeSettings.QA_MATCH_LIMIT,
+      adjacentExpansionEnabled: Boolean(options.adjacentExpansion),
+      contextSelectionStrategy: options.adjacentExpansion
+        ? 'diagnostic_candidate_pool_adjacent_one_hop'
+        : 'candidate_rank_prefix',
+      diagnosticOverrideActive: candidateDepth !== runtimeSettings.QA_MATCH_LIMIT
+        || Boolean(options.adjacentExpansion),
       answerGenerationExecuted: !options.retrievalOnly,
     },
     runtimeSettings,
@@ -703,6 +878,15 @@ async function runStudentPilotBaseline(options, dependencies) {
       k: candidateDepth,
       metrics: aggregateRetrievalEvaluations(
         questionResults.map((result) => result.retrievalEvaluation),
+      ),
+    },
+    contextEvaluation: {
+      k: answerContextLimit,
+      metrics: aggregateContextEvaluations(
+        questionResults.map((result) => ({
+          evaluation: result.contextEvaluation,
+          leafCount: result.answerContext?.leafCount || 0,
+        })),
       ),
     },
     questions: questionResults,
@@ -1258,6 +1442,7 @@ module.exports = {
   assertStrictReadOnlyRoles,
   buildLeafDiagnostics,
   buildLeafLookupQuery,
+  buildDiagnosticPlayableVideoIds,
   buildPhase3BRuntimeSettings,
   createCommandMonitor,
   createLiveDependencies,
@@ -1272,6 +1457,7 @@ module.exports = {
   runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,
   safeFailure,
+  selectDiagnosticAnswerContext,
   validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 };

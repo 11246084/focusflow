@@ -155,6 +155,40 @@ function aggregateRetrievalEvaluations(evaluations) {
   };
 }
 
+function aggregateContextEvaluations(contexts) {
+  const annotated = (Array.isArray(contexts) ? contexts : [])
+    .filter((context) => context?.evaluation?.groundTruthStatus === 'annotated'
+      && context.evaluation.metrics);
+  const metrics = aggregateRetrievalEvaluations(annotated.map((context) => context.evaluation));
+  if (!annotated.length) {
+    return {
+      ...metrics,
+      contextLeafCount: 0,
+      expectedLeafCountInContext: 0,
+      nonExpectedLeafCountInContext: 0,
+      expectedLeafProportionInContext: null,
+    };
+  }
+
+  const contextLeafCount = annotated.reduce(
+    (sum, context) => sum + (Number.isInteger(context.leafCount) ? context.leafCount : 0),
+    0,
+  );
+  const expectedLeafCountInContext = annotated.reduce(
+    (sum, context) => sum + (context.evaluation.metrics.retrievedExpectedLeafCountAtK || 0),
+    0,
+  );
+
+  return {
+    ...metrics,
+    contextLeafCount,
+    expectedLeafCountInContext,
+    nonExpectedLeafCountInContext: Math.max(0, contextLeafCount - expectedLeafCountInContext),
+    expectedLeafProportionInContext: contextLeafCount
+      ? expectedLeafCountInContext / contextLeafCount : null,
+  };
+}
+
 function buildRetrievalEvaluationRecord({
   originalQuestion,
   standaloneQuestion,
@@ -180,6 +214,7 @@ function buildRetrievalEvaluationRecord({
 }
 
 module.exports = {
+  aggregateContextEvaluations,
   aggregateRetrievalEvaluations,
   buildRetrievalEvaluationRecord,
   evaluateRetrievalCandidates,

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const {
+  aggregateContextEvaluations,
   aggregateRetrievalEvaluations,
   buildRetrievalEvaluationRecord,
   evaluateRetrievalCandidates,
@@ -90,6 +91,37 @@ describe('multi-turn retrieval evaluation foundation', () => {
       partialGroupCoverageAtK: 2 / 3,
       completeGroupCountAtK: 1,
       completeGroupCoverageAtK: 1 / 3,
+    });
+  });
+
+  it('reports expected versus non-expected Leaf proportions for fixed answer contexts', () => {
+    const evaluation = evaluateRetrievalCandidates({
+      expectedLeafGroups: [
+        { groupId: 'G1', videoId: 'v1', chunkIds: ['v1_chunk_0001', 'v1_chunk_0002'] },
+      ],
+      candidates: [
+        { chunkId: 'v1_chunk_0001', videoId: 'v1', score: 0.9 },
+        { chunkId: 'noise', videoId: 'v2', score: 0.8 },
+      ],
+      k: 2,
+    });
+
+    assert.deepEqual(aggregateContextEvaluations([{ evaluation, leafCount: 2 }]), {
+      annotatedQuestionCount: 1,
+      hitAtK: 1,
+      mrr: 1,
+      expectedLeafCount: 2,
+      retrievedExpectedLeafCountAtK: 1,
+      expectedLeafRecallAtK: 0.5,
+      expectedGroupCount: 1,
+      partialGroupCountAtK: 1,
+      partialGroupCoverageAtK: 1,
+      completeGroupCountAtK: 0,
+      completeGroupCoverageAtK: 0,
+      contextLeafCount: 2,
+      expectedLeafCountInContext: 1,
+      nonExpectedLeafCountInContext: 1,
+      expectedLeafProportionInContext: 0.5,
     });
   });
 

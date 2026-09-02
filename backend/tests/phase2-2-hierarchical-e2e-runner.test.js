@@ -8,6 +8,7 @@ const {
   STUDENT_PILOT_OPENCV_COURSE_ID,
   STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
   STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
+  STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
   STUDENT_PILOT_QUESTION_BANK_SCHEMA,
   STUDENT_PILOT_QUESTION_IDS,
   assertRunnerRuntimeConfiguration,
@@ -24,6 +25,9 @@ const {
   validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
+const {
+  STUDENT_PILOT_QUERY_DECOMPOSITIONS,
+} = require('../src/data/studentPilotQueryDecomposition');
 
 const originalGate = env.hierarchicalRetrievalEnabled;
 const originalProvider = env.qaQueryEmbeddingProvider;
@@ -286,6 +290,38 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     );
   });
 
+  it('accepts only the fixed retrieval-only query decomposition profile', () => {
+    const parsed = parseCliArgs([
+      '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+      '--candidate-depth', '30', '--retrieval-only',
+      '--query-decomposition', STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+    ]);
+
+    assert.equal(parsed.queryDecomposition, STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE);
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--query-decomposition', STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--retrieval-only', '--adjacent-expansion',
+        '--query-decomposition', STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--retrieval-only', '--query-decomposition', 'dynamic-llm-generated',
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+  });
+
   it('validates the fixed OpenCV scope at 15 videos and 129 segments without writes', async () => {
     const parsed = studentPilotOptions();
     const monitor = createCommandMonitor();
@@ -488,6 +524,95 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(result.questions[0].answer, null);
     assert.equal(result.questions[0].answerStatus, null);
     assert.deepEqual(result.questions[0].citations, []);
+  });
+
+  it('compares fixed Q11 and Q08 subqueries with a deduplicated round-robin Context15', async () => {
+    const q11HardwareVideoId = '6a02f38c17c615e872035b94';
+    const q11MultiObjectVideoId = '6a02f48c17c615e872035cea';
+    const q08VideoId = '6a02f46317c615e872035c93';
+    const q11Hardware = [2, 3].map((chunk, index) => ({
+      chunkId: `${q11HardwareVideoId}_chunk_${String(chunk).padStart(4, '0')}`,
+      segmentId: `q11-hardware-${chunk}`,
+      videoId: q11HardwareVideoId,
+      startSec: index * 10,
+      endSec: (index + 1) * 10,
+      transcript: 'hardware',
+      score: 0.9 - (index / 100),
+    }));
+    const q11MultiObject = Array.from({ length: 7 }, (_, index) => ({
+      chunkId: `${q11MultiObjectVideoId}_chunk_${String(index + 1).padStart(4, '0')}`,
+      segmentId: `q11-multi-${index + 1}`,
+      videoId: q11MultiObjectVideoId,
+      startSec: index * 10,
+      endSec: (index + 1) * 10,
+      transcript: 'multi object',
+      score: 0.88 - (index / 100),
+    }));
+    const q08Expected = Array.from({ length: 5 }, (_, index) => ({
+      chunkId: `${q08VideoId}_chunk_${String(index + 2).padStart(4, '0')}`,
+      segmentId: `q08-${index + 2}`,
+      videoId: q08VideoId,
+      startSec: index * 10,
+      endSec: (index + 1) * 10,
+      transcript: 'repeated detector cost',
+      score: 0.86 - (index / 100),
+    }));
+    const queryMarkers = new Map([
+      [STUDENT_PILOT_QUERY_DECOMPOSITIONS.Q11[0].question, 111],
+      [STUDENT_PILOT_QUERY_DECOMPOSITIONS.Q11[1].question, 112],
+      [STUDENT_PILOT_QUERY_DECOMPOSITIONS.Q08[0].question, 81],
+      [STUDENT_PILOT_QUERY_DECOMPOSITIONS.Q08[1].question, 82],
+    ]);
+    let answerCalls = 0;
+    const result = await runStudentPilotBaseline(
+      studentPilotOptions({
+        candidateDepth: 30,
+        retrievalOnly: true,
+        queryDecomposition: STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+      }),
+      studentPilotDependencies({
+        async embed(question) {
+          const embedded = vector();
+          embedded[1] = queryMarkers.get(question) || 0;
+          return embedded;
+        },
+        async searchStudentPilotLeaves({ queryVector }) {
+          let matches = [{
+            chunkId: 'generic', segmentId: 'generic', videoId: '6a0000000000000000000000',
+            startSec: 0, endSec: 1, transcript: 'generic', score: 0.5,
+          }];
+          if (queryVector[1] === 111) matches = q11Hardware;
+          if (queryVector[1] === 112) matches = [q11Hardware[0], ...q11MultiObject];
+          if (queryVector[1] === 81) matches = q08Expected.slice(0, 3);
+          if (queryVector[1] === 82) matches = q08Expected;
+          return { backend: 'atlas', fallbackUsed: false, fallbacks: [], matches };
+        },
+        async answer() { answerCalls += 1; throw new Error('must remain retrieval-only'); },
+      }),
+    );
+
+    const q11 = result.questions.find((question) => question.id === 'Q11');
+    const q08 = result.questions.find((question) => question.id === 'Q08');
+    assert.equal(answerCalls, 0);
+    assert.equal(q11.queryDecomposition.fixedSubqueryCount, 2);
+    assert.equal(q11.queryDecomposition.subqueries[1]
+      .retrievalEvaluation.groupCoverage[1].hitCountAtK, 7);
+    assert.equal(q11.queryDecomposition.retrievalEvaluation.metrics.retrievedExpectedLeafCountAtK, 9);
+    assert.equal(q11.queryDecomposition.context.evaluation.metrics.retrievedExpectedLeafCountAtK, 9);
+    assert.equal(q11.queryDecomposition.merged.strategy,
+      'subquery_rank_round_robin_chunk_dedupe');
+    assert.equal(q11.queryDecomposition.merged.duplicateCandidateCount, 1);
+    assert.deepEqual(q11.queryDecomposition.merged.duplicateChunkIds,
+      [q11Hardware[0].chunkId]);
+    assert.equal(q08.queryDecomposition.retrievalEvaluation.metrics.retrievedExpectedLeafCountAtK, 5);
+    assert.deepEqual(q11.queryDecomposition.cost, {
+      queryEmbeddingCalls: 2, atlasRetrievalCalls: 2, answerGenerationCalls: 0,
+    });
+    assert.deepEqual(result.safety.callCounts, {
+      queryEmbeddingCalls: 18, atlasRetrievalCalls: 18, answerGenerationCalls: 0,
+    });
+    assert.equal(result.retrieval.queryDecompositionProfile,
+      STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE);
   });
 
   it('promotes one-hop same-video adjacent Leaves from Candidate30 into a fixed Context15', async () => {

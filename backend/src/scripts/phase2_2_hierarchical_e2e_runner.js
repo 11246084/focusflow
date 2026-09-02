@@ -34,6 +34,10 @@ const {
   STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA,
   STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE,
 } = require('../data/studentPilotRetrievalGroundTruth');
+const {
+  STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+  STUDENT_PILOT_QUERY_DECOMPOSITIONS,
+} = require('../data/studentPilotQueryDecomposition');
 
 // This runner is an isolated, read-only acceptance harness. Command monitoring
 // rejects MongoDB writes, and answer generation stays disabled unless requested.
@@ -141,6 +145,7 @@ function parseCliArgs(argv = []) {
     questionsFile: '',
     candidateDepth: null,
     adjacentExpansion: false,
+    queryDecomposition: '',
     retrievalOnly: false,
     json: false,
   };
@@ -158,6 +163,7 @@ function parseCliArgs(argv = []) {
     else if (flag === '--video-id') options.videoId = argv[++index] || '';
     else if (flag === '--allowed-video-id') options.allowedVideoIds.push(argv[++index] || '');
     else if (flag === '--questions-file') options.questionsFile = argv[++index] || '';
+    else if (flag === '--query-decomposition') options.queryDecomposition = argv[++index] || '';
     else if (flag === '--candidate-depth') {
       options.candidateDepth = parsePositiveInteger(argv[++index], flag);
     }
@@ -171,6 +177,7 @@ function parseCliArgs(argv = []) {
   options.courseId = String(options.courseId).trim();
   options.videoId = String(options.videoId).trim();
   options.questionsFile = String(options.questionsFile).trim();
+  options.queryDecomposition = String(options.queryDecomposition).trim();
   options.allowedVideoIds = [...new Set(options.allowedVideoIds.map((id) => String(id).trim()).filter(Boolean))];
 
   if (options.mode === STUDENT_PILOT_OPENCV_MODE) {
@@ -178,6 +185,19 @@ function parseCliArgs(argv = []) {
         || options.withAnswer || options.preflightOnly || !options.questionsFile) {
       throw new IsolatedE2EError(
         'student-pilot-opencv requires --questions-file and cannot be combined with question, scope, answer, or preflight options.',
+        'E2E_CLI_INVALID',
+      );
+    }
+    if (options.queryDecomposition
+        && options.queryDecomposition !== STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE) {
+      throw new IsolatedE2EError(
+        'Unsupported student-pilot query decomposition profile.',
+        'E2E_CLI_INVALID',
+      );
+    }
+    if (options.queryDecomposition && (!options.retrievalOnly || options.adjacentExpansion)) {
+      throw new IsolatedE2EError(
+        '--query-decomposition requires --retrieval-only and cannot be combined with --adjacent-expansion.',
         'E2E_CLI_INVALID',
       );
     }
@@ -208,6 +228,12 @@ function parseCliArgs(argv = []) {
   if (options.retrievalOnly) {
     throw new IsolatedE2EError(
       '--retrieval-only is available only in student-pilot-opencv mode.',
+      'E2E_CLI_INVALID',
+    );
+  }
+  if (options.queryDecomposition) {
+    throw new IsolatedE2EError(
+      '--query-decomposition is available only in student-pilot-opencv mode.',
       'E2E_CLI_INVALID',
     );
   }
@@ -643,6 +669,7 @@ function buildQuestionFailure(question, error, writeCommandCount, diagnostics = 
     answerContext: diagnostics.answerContext || null,
     retrievalEvaluation: diagnostics.retrievalEvaluation || null,
     contextEvaluation: diagnostics.contextEvaluation || null,
+    queryDecomposition: diagnostics.queryDecomposition || null,
     fallbacks,
     answer: null,
     citations: [],
@@ -653,6 +680,161 @@ function buildQuestionFailure(question, error, writeCommandCount, diagnostics = 
       message: error instanceof IsolatedE2EError
         ? error.message
         : 'The baseline question failed safely.',
+    },
+  };
+}
+
+function assertStudentPilotQueryVector(queryVector) {
+  if (!Array.isArray(queryVector) || queryVector.length !== 3072
+      || queryVector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
+    throw new IsolatedE2EError(
+      'Query embedding does not match the active Leaf index contract.',
+      'E2E_QUERY_EMBEDDING_INVALID',
+    );
+  }
+}
+
+function assertStudentPilotAtlasSearch(searchResult) {
+  const searchFallbacks = buildSearchFallbackEvidence(searchResult);
+  if (searchResult?.backend !== 'atlas' || searchResult?.fallbackUsed === true
+      || searchFallbacks.length) {
+    throw new IsolatedE2EError(
+      'The student-pilot baseline requires Atlas Leaf search without fallback.',
+      'E2E_FALLBACK_NOT_ALLOWED',
+      {
+        searchBackend: searchResult?.backend || null,
+        fallbacks: searchFallbacks,
+      },
+    );
+  }
+  return Array.isArray(searchResult.matches) ? searchResult.matches : [];
+}
+
+function mergeDiagnosticSubqueryCandidates(subqueryResults) {
+  const mergedMatches = [];
+  const provenanceByChunkId = new Map();
+  const duplicateChunkIds = new Set();
+  const maxDepth = Math.max(0, ...subqueryResults.map((result) => result.matches.length));
+  let inputCandidateCount = 0;
+
+  for (const result of subqueryResults) inputCandidateCount += result.matches.length;
+  for (let rankIndex = 0; rankIndex < maxDepth; rankIndex += 1) {
+    for (const result of subqueryResults) {
+      const match = result.matches[rankIndex];
+      const chunkId = String(match?.chunkId || '');
+      if (!match || !chunkId) continue;
+      const source = {
+        subqueryId: result.id,
+        rank: rankIndex + 1,
+        score: Number.isFinite(Number(match.score)) ? Number(match.score) : null,
+      };
+      if (provenanceByChunkId.has(chunkId)) {
+        provenanceByChunkId.get(chunkId).push(source);
+        duplicateChunkIds.add(chunkId);
+        continue;
+      }
+      provenanceByChunkId.set(chunkId, [source]);
+      mergedMatches.push(match);
+    }
+  }
+
+  return {
+    matches: mergedMatches,
+    diagnostics: {
+      strategy: 'subquery_rank_round_robin_chunk_dedupe',
+      scoreModified: false,
+      atlasRankModified: false,
+      inputCandidateCount,
+      uniqueCandidateCount: mergedMatches.length,
+      duplicateCandidateCount: inputCandidateCount - mergedMatches.length,
+      duplicateChunkIds: [...duplicateChunkIds],
+      candidates: buildLeafDiagnostics(mergedMatches).map((candidate) => ({
+        ...candidate,
+        sources: provenanceByChunkId.get(candidate.chunkId) || [],
+      })),
+    },
+  };
+}
+
+async function runDiagnosticQueryDecomposition({
+  questionId,
+  subqueries,
+  embed,
+  searchStudentPilotLeaves,
+  commandMonitor,
+  callCounts,
+  scope,
+  courseId,
+  candidateDepth,
+  contextLimit,
+  expectedLeafGroups,
+}) {
+  const subqueryResults = [];
+  for (const subquery of subqueries) {
+    callCounts.queryEmbeddingCalls += 1;
+    const queryVector = await embed(subquery.question);
+    assertStudentPilotQueryVector(queryVector);
+    callCounts.atlasRetrievalCalls += 1;
+    const searchResult = await searchStudentPilotLeaves({
+      queryVector,
+      scope,
+      courseId,
+      candidateDepth,
+    });
+    commandMonitor.assertNoWrites();
+    const matches = assertStudentPilotAtlasSearch(searchResult);
+    subqueryResults.push({
+      id: subquery.id,
+      question: subquery.question,
+      matches,
+      search: {
+        backend: 'atlas',
+        candidateDepth,
+        matchCount: matches.length,
+        candidates: buildLeafDiagnostics(matches),
+      },
+      retrievalEvaluation: evaluateRetrievalCandidates({
+        expectedLeafGroups,
+        candidates: matches,
+        k: candidateDepth,
+      }),
+    });
+  }
+
+  const merged = mergeDiagnosticSubqueryCandidates(subqueryResults);
+  const contextMatches = merged.matches.slice(0, contextLimit);
+  return {
+    profile: STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
+    questionId,
+    fixedSubqueryCount: subqueryResults.length,
+    candidateDepthPerSubquery: candidateDepth,
+    contextLimit,
+    subqueries: subqueryResults.map(({ matches, ...result }) => result),
+    merged: merged.diagnostics,
+    retrievalEvaluation: evaluateRetrievalCandidates({
+      expectedLeafGroups,
+      candidates: merged.matches,
+      k: merged.matches.length,
+    }),
+    context: {
+      strategy: 'merged_rank_prefix',
+      leafCount: contextMatches.length,
+      leaves: buildLeafDiagnostics(contextMatches).map((candidate) => ({
+        ...candidate,
+        sources: merged.diagnostics.candidates.find(
+          (mergedCandidate) => mergedCandidate.chunkId === candidate.chunkId,
+        )?.sources || [],
+      })),
+      evaluation: evaluateRetrievalCandidates({
+        expectedLeafGroups,
+        candidates: contextMatches,
+        k: contextLimit,
+      }),
+    },
+    cost: {
+      queryEmbeddingCalls: subqueryResults.length,
+      atlasRetrievalCalls: subqueryResults.length,
+      answerGenerationCalls: 0,
     },
   };
 }
@@ -682,7 +864,11 @@ async function runStudentPilotBaseline(options, dependencies) {
     allowedVideoIds: new Set(allowedVideoIds),
   };
   const questionResults = [];
-  let externalCalls = 0;
+  const callCounts = {
+    queryEmbeddingCalls: 0,
+    atlasRetrievalCalls: 0,
+    answerGenerationCalls: 0,
+  };
 
   for (const question of validatedQuestionBank.questions) {
     const before = commandMonitor.snapshot();
@@ -691,19 +877,15 @@ async function runStudentPilotBaseline(options, dependencies) {
       answerContext: null,
       retrievalEvaluation: null,
       contextEvaluation: null,
+      queryDecomposition: null,
     };
     try {
       commandMonitor.assertNoWrites();
-      externalCalls += 1;
+      callCounts.queryEmbeddingCalls += 1;
       const queryVector = await embed(question.question);
-      if (!Array.isArray(queryVector) || queryVector.length !== 3072
-          || queryVector.some((value) => typeof value !== 'number' || !Number.isFinite(value))) {
-        throw new IsolatedE2EError(
-          'Query embedding does not match the active Leaf index contract.',
-          'E2E_QUERY_EMBEDDING_INVALID',
-        );
-      }
+      assertStudentPilotQueryVector(queryVector);
 
+      callCounts.atlasRetrievalCalls += 1;
       const searchResult = await searchStudentPilotLeaves({
         queryVector,
         scope,
@@ -711,20 +893,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         candidateDepth,
       });
       commandMonitor.assertNoWrites();
-      const searchFallbacks = buildSearchFallbackEvidence(searchResult);
-      if (searchResult?.backend !== 'atlas' || searchResult?.fallbackUsed === true
-          || searchFallbacks.length) {
-        throw new IsolatedE2EError(
-          'The student-pilot baseline requires Atlas Leaf search without fallback.',
-          'E2E_FALLBACK_NOT_ALLOWED',
-          {
-            searchBackend: searchResult?.backend || null,
-            fallbacks: searchFallbacks,
-          },
-        );
-      }
-
-      const matches = Array.isArray(searchResult.matches) ? searchResult.matches : [];
+      const matches = assertStudentPilotAtlasSearch(searchResult);
       diagnostics.candidates = buildLeafDiagnostics(matches);
       const contextSelection = selectDiagnosticAnswerContext({
         matches,
@@ -761,11 +930,29 @@ async function runStudentPilotBaseline(options, dependencies) {
         diagnostics.retrievalEvaluation.groundTruthStatus = 'not_applicable_negative_question';
         diagnostics.contextEvaluation.groundTruthStatus = 'not_applicable_negative_question';
       }
+      const decompositionSubqueries = options.queryDecomposition
+        ? STUDENT_PILOT_QUERY_DECOMPOSITIONS[question.id]
+        : null;
+      if (decompositionSubqueries) {
+        diagnostics.queryDecomposition = await runDiagnosticQueryDecomposition({
+          questionId: question.id,
+          subqueries: decompositionSubqueries,
+          embed,
+          searchStudentPilotLeaves,
+          commandMonitor,
+          callCounts,
+          scope,
+          courseId: options.courseId,
+          candidateDepth,
+          contextLimit: answerContextLimit,
+          expectedLeafGroups,
+        });
+      }
       let generated = null;
       let citations = [];
       let answerStatus = null;
       if (!options.retrievalOnly) {
-        externalCalls += 1;
+        callCounts.answerGenerationCalls += 1;
         generated = await answer(question.question, answerContextMatches);
         if (generated?.fallback) {
           const answerFallbacks = normalizeFallbackEvidence(generated.fallback, 'answer');
@@ -811,6 +998,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         answerContext: diagnostics.answerContext,
         retrievalEvaluation: diagnostics.retrievalEvaluation,
         contextEvaluation: diagnostics.contextEvaluation,
+        queryDecomposition: diagnostics.queryDecomposition,
         fallbacks: [],
         answer: generated ? {
           text: String(generated?.text || ''),
@@ -868,8 +1056,12 @@ async function runStudentPilotBaseline(options, dependencies) {
         ? 'diagnostic_candidate_pool_adjacent_one_hop'
         : 'candidate_rank_prefix',
       diagnosticOverrideActive: candidateDepth !== runtimeSettings.QA_MATCH_LIMIT
-        || Boolean(options.adjacentExpansion),
+        || Boolean(options.adjacentExpansion)
+        || Boolean(options.queryDecomposition),
       answerGenerationExecuted: !options.retrievalOnly,
+      ...(options.queryDecomposition ? {
+        queryDecompositionProfile: options.queryDecomposition,
+      } : {}),
     },
     runtimeSettings,
     retrievalEvaluation: {
@@ -893,7 +1085,8 @@ async function runStudentPilotBaseline(options, dependencies) {
     safety: {
       ...safety,
       databaseAccess: inspection.databaseAccess || null,
-      externalCalls,
+      externalCalls: callCounts.queryEmbeddingCalls + callCounts.answerGenerationCalls,
+      callCounts,
       credentialsIncluded: false,
     },
   };
@@ -1435,6 +1628,7 @@ module.exports = {
   STUDENT_PILOT_OPENCV_EXCLUDED_VIDEO_ID,
   STUDENT_PILOT_OPENCV_EXPECTED_SEGMENT_COUNT,
   STUDENT_PILOT_OPENCV_EXPECTED_VIDEO_COUNT,
+  STUDENT_PILOT_QUERY_DECOMPOSITION_PROFILE,
   STUDENT_PILOT_QUESTION_BANK_SCHEMA,
   STUDENT_PILOT_QUESTION_IDS,
   WRITE_COMMANDS,
@@ -1452,7 +1646,9 @@ module.exports = {
   inspectAndValidateStudentPilotOpenCvScope,
   main,
   loadStudentPilotQuestionBank,
+  mergeDiagnosticSubqueryCandidates,
   parseCliArgs,
+  runDiagnosticQueryDecomposition,
   runIsolatedE2E,
   runStudentPilotBaseline,
   runStudentPilotOpenCvValidation,

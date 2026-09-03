@@ -13,6 +13,7 @@ const {
   STUDENT_PILOT_QUESTION_IDS,
   assertRunnerRuntimeConfiguration,
   assertStrictReadOnlyRoles,
+  buildSameVideoAdjacentLookupChunkIds,
   buildPhase3BRuntimeSettings,
   createCommandMonitor,
   hasRequiredCollections,
@@ -22,6 +23,7 @@ const {
   runStudentPilotOpenCvValidation,
   safeFailure,
   selectDiagnosticAnswerContext,
+  selectDiagnosticSameVideoAdjacentContext,
   validateStudentPilotRetrievalGroundTruth,
   validateStudentPilotQuestionBank,
 } = require('../src/scripts/phase2_2_hierarchical_e2e_runner');
@@ -241,11 +243,36 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(parsed.questionsFile, 'questions.json');
     assert.equal(parsed.candidateDepth, null);
     assert.equal(parsed.adjacentExpansion, false);
+    assert.equal(parsed.sameVideoAdjacentExpansion, false);
     assert.equal(parsed.retrievalOnly, false);
     assert.deepEqual(parsed.allowedVideoIds, []);
     assert.throws(
       () => parseCliArgs([
         '--mode', 'student-pilot-opencv', '--course-id', courseId,
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+  });
+
+  it('allows same-video adjacent reads only for retrieval-only student-pilot diagnostics', () => {
+    const parsed = parseCliArgs([
+      '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+      '--candidate-depth', '30', '--retrieval-only', '--same-video-adjacent-expansion',
+    ]);
+
+    assert.equal(parsed.sameVideoAdjacentExpansion, true);
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--candidate-depth', '30', '--same-video-adjacent-expansion',
+      ]),
+      (error) => error.code === 'E2E_CLI_INVALID',
+    );
+    assert.throws(
+      () => parseCliArgs([
+        '--mode', 'student-pilot-opencv', '--questions-file', 'questions.json',
+        '--candidate-depth', '30', '--retrieval-only', '--adjacent-expansion',
+        '--same-video-adjacent-expansion',
       ]),
       (error) => error.code === 'E2E_CLI_INVALID',
     );
@@ -421,6 +448,7 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.deepEqual(result.retrieval, {
       backend: 'atlas', leafOnly: true, faqEnabled: false, parentEnabled: false, fallbackAllowed: false,
       candidateDepth: 15, answerContextLimit: 15, adjacentExpansionEnabled: false,
+      sameVideoAdjacentExpansionEnabled: false,
       contextSelectionStrategy: 'candidate_rank_prefix', diagnosticOverrideActive: false,
       answerGenerationExecuted: true,
     });
@@ -596,9 +624,9 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(answerCalls, 0);
     assert.equal(q11.queryDecomposition.fixedSubqueryCount, 2);
     assert.equal(q11.queryDecomposition.subqueries[1]
-      .retrievalEvaluation.groupCoverage[1].hitCountAtK, 7);
-    assert.equal(q11.queryDecomposition.retrievalEvaluation.metrics.retrievedExpectedLeafCountAtK, 9);
-    assert.equal(q11.queryDecomposition.context.evaluation.metrics.retrievedExpectedLeafCountAtK, 9);
+      .retrievalEvaluation.groupCoverage[1].hitCountAtK, 6);
+    assert.equal(q11.queryDecomposition.retrievalEvaluation.metrics.retrievedExpectedLeafCountAtK, 8);
+    assert.equal(q11.queryDecomposition.context.evaluation.metrics.retrievedExpectedLeafCountAtK, 8);
     assert.equal(q11.queryDecomposition.merged.strategy,
       'subquery_rank_round_robin_chunk_dedupe');
     assert.equal(q11.queryDecomposition.merged.duplicateCandidateCount, 1);
@@ -679,6 +707,142 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
       blockedWithoutPlayableSource.matches.map((leaf) => leaf.chunkId),
       candidates.slice(0, 15).map((leaf) => leaf.chunkId),
     );
+  });
+
+  it('loads one-hop same-video neighbors outside Candidate30 into a fixed Context15', async () => {
+    const allowedVideoId = '6a0000000000000000000000';
+    const candidates = [
+      {
+        chunkId: `${allowedVideoId}_chunk_0001`, videoId: allowedVideoId,
+        startSec: 0, endSec: 10, score: 0.95,
+      },
+      ...Array.from({ length: 14 }, (_, index) => ({
+        chunkId: `noise-${index + 1}`, videoId: allowedVideoId,
+        startSec: 100 + (index * 10), endSec: 109 + (index * 10),
+        score: 0.94 - (index / 100),
+      })),
+      {
+        chunkId: `${allowedVideoId}_chunk_0002`, videoId: allowedVideoId,
+        startSec: 10, endSec: 20, score: 0.7,
+      },
+      ...Array.from({ length: 14 }, (_, index) => ({
+        chunkId: `tail-noise-${index + 1}`, videoId: allowedVideoId,
+        startSec: 300 + (index * 10), endSec: 309 + (index * 10),
+        score: 0.69 - (index / 100),
+      })),
+    ];
+    const externalPrevious = {
+      chunkId: `${allowedVideoId}_chunk_0000`, videoId: allowedVideoId,
+      startSec: -10, endSec: 0, transcript: 'previous', score: null,
+    };
+    const outsideCandidatePool = {
+      chunkId: `${allowedVideoId}_chunk_0031`, videoId: allowedVideoId,
+      startSec: 300, endSec: 310, transcript: 'outside candidate pool', score: null,
+    };
+    const scope = { allowedVideoIds: new Set([allowedVideoId]) };
+
+    assert.deepEqual(buildSameVideoAdjacentLookupChunkIds([candidates[0]]), [
+      `${allowedVideoId}_chunk_0000`, `${allowedVideoId}_chunk_0002`,
+    ]);
+    const selected = selectDiagnosticSameVideoAdjacentContext({
+      matches: candidates,
+      adjacentLeaves: [externalPrevious, outsideCandidatePool],
+      limit: 15,
+      scope,
+      playableVideoIds: new Set([allowedVideoId]),
+    });
+
+    assert.equal(selected.matches.length, 15);
+    assert.equal(selected.diagnostics.candidatePoolOnly, false);
+    assert.equal(selected.diagnostics.directReadOnlyLeafLookup, true);
+    assert.deepEqual(selected.diagnostics.added, [{
+      candidateRank: null,
+      chunkId: `${allowedVideoId}_chunk_0000`,
+      videoId: allowedVideoId,
+      anchorCandidateRank: 1,
+      anchorChunkId: `${allowedVideoId}_chunk_0001`,
+      direction: 'previous',
+      boundaryGapSec: 0,
+      source: 'same_video_adjacent_lookup',
+    }]);
+    assert.deepEqual(selected.diagnostics.removed, [{
+      candidateRank: 15,
+      chunkId: 'noise-14',
+      videoId: allowedVideoId,
+    }]);
+    assert.equal(selected.matches.some((leaf) => leaf.chunkId.endsWith('chunk_0000')), true);
+    assert.equal(selected.matches.some((leaf) => leaf.chunkId.endsWith('chunk_0031')), false);
+
+    const blocked = selectDiagnosticSameVideoAdjacentContext({
+      matches: candidates,
+      adjacentLeaves: [externalPrevious],
+      limit: 15,
+      scope,
+      playableVideoIds: new Set(),
+    });
+    assert.deepEqual(blocked.diagnostics.added, []);
+  });
+
+  it('compares Candidate30 Context15 with and without same-video adjacent reads', async () => {
+    const allowedVideoId = '6a0000000000000000000000';
+    const candidates = [
+      {
+        chunkId: `${allowedVideoId}_chunk_0001`, segmentId: 'anchor',
+        videoId: allowedVideoId, startSec: 0, endSec: 10,
+        transcript: 'anchor', score: 0.95,
+      },
+      ...Array.from({ length: 14 }, (_, index) => ({
+        chunkId: `noise-${index + 1}`, segmentId: `noise-${index + 1}`,
+        videoId: allowedVideoId, startSec: 100 + (index * 10), endSec: 109 + (index * 10),
+        transcript: `noise ${index + 1}`, score: 0.94 - (index / 100),
+      })),
+      {
+        chunkId: `${allowedVideoId}_chunk_0002`, segmentId: 'anchor-peer',
+        videoId: allowedVideoId, startSec: 10, endSec: 20,
+        transcript: 'anchor peer', score: 0.7,
+      },
+      ...Array.from({ length: 14 }, (_, index) => ({
+        chunkId: `tail-noise-${index + 1}`, segmentId: `tail-noise-${index + 1}`,
+        videoId: allowedVideoId, startSec: 300 + (index * 10), endSec: 309 + (index * 10),
+        transcript: `tail noise ${index + 1}`, score: 0.69 - (index / 100),
+      })),
+    ];
+    let lookupCalls = 0;
+    const result = await runStudentPilotBaseline(
+      studentPilotOptions({
+        candidateDepth: 30,
+        retrievalOnly: true,
+        sameVideoAdjacentExpansion: true,
+      }),
+      studentPilotDependencies({
+        async searchStudentPilotLeaves() {
+          return { backend: 'atlas', fallbackUsed: false, fallbacks: [], matches: candidates };
+        },
+        async loadStudentPilotAdjacentLeaves({ anchors }) {
+          lookupCalls += 1;
+          assert.equal(anchors.length, 1);
+          return [{
+            chunkId: `${allowedVideoId}_chunk_0000`, segmentId: 'adjacent-0',
+            videoId: allowedVideoId, startSec: -10, endSec: 0,
+            transcript: 'adjacent outside Candidate30', score: null,
+          }];
+        },
+        async answer() { throw new Error('answer generation must stay disabled'); },
+      }),
+    );
+
+    assert.equal(lookupCalls, 14);
+    assert.equal(result.retrieval.sameVideoAdjacentExpansionEnabled, true);
+    assert.equal(result.retrieval.contextSelectionStrategy,
+      'diagnostic_same_video_adjacent_read_one_hop');
+    assert.equal(result.contextComparison.baseline.metrics.contextLeafCount, 180);
+    assert.equal(result.contextComparison.sameVideoAdjacent.metrics.contextLeafCount, 180);
+    assert.equal(result.questions[0].contextComparison.baseline.leafCount, 15);
+    assert.equal(result.questions[0].contextComparison.sameVideoAdjacent.leafCount, 15);
+    assert.equal(result.questions[0].answerContext.selection.added[0].source,
+      'same_video_adjacent_lookup');
+    assert.equal(result.questions[0].answer, null);
+    assert.equal(result.safety.mongoWrites, 0);
   });
 
   it('shows Q03 expected Leaf ranks, scores, misses, and the exact answer context', async () => {

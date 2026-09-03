@@ -16,11 +16,22 @@ function reciprocalRank({ expectedRelevantChunkIds, retrievedChunkIds }) {
 }
 
 function normalizeExpectedLeafGroups(groups) {
-  return (Array.isArray(groups) ? groups : []).map((group, index) => ({
-    groupId: String(group?.groupId || `G${index + 1}`),
-    videoId: group?.videoId == null ? null : String(group.videoId),
-    chunkIds: normalizeIds(group?.chunkIds),
-  })).filter((group) => group.chunkIds.length > 0);
+  return (Array.isArray(groups) ? groups : []).map((group, index) => {
+    const legacyChunkIds = normalizeIds(group?.chunkIds);
+    const requiredChunkIds = normalizeIds(
+      Array.isArray(group?.requiredChunkIds) ? group.requiredChunkIds : legacyChunkIds,
+    );
+    const requiredSet = new Set(requiredChunkIds);
+    const auxiliaryChunkIds = normalizeIds(group?.auxiliaryChunkIds)
+      .filter((chunkId) => !requiredSet.has(chunkId));
+    return {
+      groupId: String(group?.groupId || `G${index + 1}`),
+      videoId: group?.videoId == null ? null : String(group.videoId),
+      requiredChunkIds,
+      auxiliaryChunkIds,
+      chunkIds: normalizeIds([...requiredChunkIds, ...auxiliaryChunkIds]),
+    };
+  }).filter((group) => group.chunkIds.length > 0);
 }
 
 function normalizeCandidates(candidates) {
@@ -61,10 +72,12 @@ function evaluateRetrievalCandidates({ expectedLeafGroups = [], candidates = [],
     }
   }
   const topKIds = new Set(topK.map((candidate) => candidate.chunkId).filter(Boolean));
+  const requiredChunkIdSet = new Set(groups.flatMap((group) => group.requiredChunkIds));
   const expectedLeaves = expectedChunkIds.map((chunkId) => {
     const candidate = firstCandidateByChunkId.get(chunkId) || null;
     return {
       chunkId,
+      relevance: requiredChunkIdSet.has(chunkId) ? 'required' : 'auxiliary',
       hitAtK: topKIds.has(chunkId),
       rank: candidate?.rank ?? null,
       score: candidate?.score ?? null,
@@ -78,6 +91,10 @@ function evaluateRetrievalCandidates({ expectedLeafGroups = [], candidates = [],
   const groupCoverage = groups.map((group) => {
     const leaves = group.chunkIds.map((chunkId) => expectedLeafById.get(chunkId));
     const hits = leaves.filter((leaf) => leaf.hitAtK);
+    const requiredLeaves = group.requiredChunkIds.map((chunkId) => expectedLeafById.get(chunkId));
+    const requiredHits = requiredLeaves.filter((leaf) => leaf.hitAtK);
+    const auxiliaryLeaves = group.auxiliaryChunkIds.map((chunkId) => expectedLeafById.get(chunkId));
+    const auxiliaryHits = auxiliaryLeaves.filter((leaf) => leaf.hitAtK);
     return {
       groupId: group.groupId,
       videoId: group.videoId,
@@ -88,9 +105,27 @@ function evaluateRetrievalCandidates({ expectedLeafGroups = [], candidates = [],
       expectedCount: leaves.length,
       hitChunkIds: hits.map((leaf) => leaf.chunkId),
       missingChunkIds: leaves.filter((leaf) => !leaf.hitAtK).map((leaf) => leaf.chunkId),
+      requiredChunkIds: [...group.requiredChunkIds],
+      requiredHitAtK: requiredHits.length > 0,
+      requiredCompleteAtK: requiredHits.length === requiredLeaves.length,
+      requiredHitCountAtK: requiredHits.length,
+      requiredCount: requiredLeaves.length,
+      requiredHitChunkIds: requiredHits.map((leaf) => leaf.chunkId),
+      requiredMissingChunkIds: requiredLeaves.filter((leaf) => !leaf.hitAtK)
+        .map((leaf) => leaf.chunkId),
+      auxiliaryChunkIds: [...group.auxiliaryChunkIds],
+      auxiliaryHitCountAtK: auxiliaryHits.length,
+      auxiliaryCount: auxiliaryLeaves.length,
+      auxiliaryHitChunkIds: auxiliaryHits.map((leaf) => leaf.chunkId),
+      auxiliaryMissingChunkIds: auxiliaryLeaves.filter((leaf) => !leaf.hitAtK)
+        .map((leaf) => leaf.chunkId),
     };
   });
   const retrievedExpectedLeafCountAtK = expectedLeaves.filter((leaf) => leaf.hitAtK).length;
+  const requiredLeaves = expectedLeaves.filter((leaf) => leaf.relevance === 'required');
+  const auxiliaryLeaves = expectedLeaves.filter((leaf) => leaf.relevance === 'auxiliary');
+  const retrievedRequiredLeafCountAtK = requiredLeaves.filter((leaf) => leaf.hitAtK).length;
+  const retrievedAuxiliaryLeafCountAtK = auxiliaryLeaves.filter((leaf) => leaf.hitAtK).length;
   const retrievedChunkIds = rankedCandidates.map((candidate) => candidate.chunkId).filter(Boolean);
 
   return {
@@ -107,6 +142,27 @@ function evaluateRetrievalCandidates({ expectedLeafGroups = [], candidates = [],
       expectedLeafRecallAtK: retrievedExpectedLeafCountAtK / expectedChunkIds.length,
       completeGroupCountAtK: groupCoverage.filter((group) => group.completeAtK).length,
       expectedGroupCount: groupCoverage.length,
+      requiredHitAtK: hitAtK({
+        expectedRelevantChunkIds: requiredLeaves.map((leaf) => leaf.chunkId),
+        retrievedChunkIds,
+        k: effectiveK,
+      }),
+      requiredReciprocalRank: reciprocalRank({
+        expectedRelevantChunkIds: requiredLeaves.map((leaf) => leaf.chunkId),
+        retrievedChunkIds,
+      }),
+      requiredLeafCount: requiredLeaves.length,
+      retrievedRequiredLeafCountAtK,
+      requiredLeafRecallAtK: requiredLeaves.length
+        ? retrievedRequiredLeafCountAtK / requiredLeaves.length : null,
+      requiredGroupCount: groupCoverage.length,
+      requiredPartialGroupCountAtK: groupCoverage.filter((group) => group.requiredHitAtK).length,
+      requiredCompleteGroupCountAtK: groupCoverage
+        .filter((group) => group.requiredCompleteAtK).length,
+      auxiliaryLeafCount: auxiliaryLeaves.length,
+      retrievedAuxiliaryLeafCountAtK,
+      auxiliaryLeafRecallAtK: auxiliaryLeaves.length
+        ? retrievedAuxiliaryLeafCountAtK / auxiliaryLeaves.length : null,
     },
   };
 }
@@ -136,6 +192,34 @@ function aggregateRetrievalEvaluations(evaluations) {
   const completeGroupCountAtK = annotated.reduce(
     (sum, evaluation) => sum + (evaluation.metrics.completeGroupCountAtK || 0), 0,
   );
+  const requiredLeafCount = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.requiredLeafCount
+      ?? evaluation.metrics.expectedLeafCount ?? 0), 0,
+  );
+  const retrievedRequiredLeafCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.retrievedRequiredLeafCountAtK
+      ?? evaluation.metrics.retrievedExpectedLeafCountAtK ?? 0), 0,
+  );
+  const requiredGroupCount = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.requiredGroupCount
+      ?? evaluation.metrics.expectedGroupCount ?? 0), 0,
+  );
+  const requiredPartialGroupCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.requiredPartialGroupCountAtK
+      ?? (Array.isArray(evaluation.groupCoverage)
+        ? evaluation.groupCoverage.filter((group) => group.requiredHitAtK ?? group.hitAtK).length
+        : 0)), 0,
+  );
+  const requiredCompleteGroupCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.requiredCompleteGroupCountAtK
+      ?? evaluation.metrics.completeGroupCountAtK ?? 0), 0,
+  );
+  const auxiliaryLeafCount = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.auxiliaryLeafCount || 0), 0,
+  );
+  const retrievedAuxiliaryLeafCountAtK = annotated.reduce(
+    (sum, evaluation) => sum + (evaluation.metrics.retrievedAuxiliaryLeafCountAtK || 0), 0,
+  );
 
   return {
     annotatedQuestionCount: annotated.length,
@@ -152,6 +236,29 @@ function aggregateRetrievalEvaluations(evaluations) {
     partialGroupCoverageAtK: expectedGroupCount ? partialGroupCountAtK / expectedGroupCount : null,
     completeGroupCountAtK,
     completeGroupCoverageAtK: expectedGroupCount ? completeGroupCountAtK / expectedGroupCount : null,
+    requiredHitAtK: annotated.reduce(
+      (sum, evaluation) => sum + (evaluation.metrics.requiredHitAtK
+        ?? evaluation.metrics.hitAtK), 0,
+    ) / annotated.length,
+    requiredMrr: annotated.reduce(
+      (sum, evaluation) => sum + (evaluation.metrics.requiredReciprocalRank
+        ?? evaluation.metrics.reciprocalRank), 0,
+    ) / annotated.length,
+    requiredLeafCount,
+    retrievedRequiredLeafCountAtK,
+    requiredLeafRecallAtK: requiredLeafCount
+      ? retrievedRequiredLeafCountAtK / requiredLeafCount : null,
+    requiredGroupCount,
+    requiredPartialGroupCountAtK,
+    requiredPartialGroupCoverageAtK: requiredGroupCount
+      ? requiredPartialGroupCountAtK / requiredGroupCount : null,
+    requiredCompleteGroupCountAtK,
+    requiredCompleteGroupCoverageAtK: requiredGroupCount
+      ? requiredCompleteGroupCountAtK / requiredGroupCount : null,
+    auxiliaryLeafCount,
+    retrievedAuxiliaryLeafCountAtK,
+    auxiliaryLeafRecallAtK: auxiliaryLeafCount
+      ? retrievedAuxiliaryLeafCountAtK / auxiliaryLeafCount : null,
   };
 }
 
@@ -167,6 +274,9 @@ function aggregateContextEvaluations(contexts) {
       expectedLeafCountInContext: 0,
       nonExpectedLeafCountInContext: 0,
       expectedLeafProportionInContext: null,
+      requiredLeafCountInContext: 0,
+      auxiliaryLeafCountInContext: 0,
+      requiredLeafProportionInContext: null,
     };
   }
 
@@ -178,6 +288,13 @@ function aggregateContextEvaluations(contexts) {
     (sum, context) => sum + (context.evaluation.metrics.retrievedExpectedLeafCountAtK || 0),
     0,
   );
+  const requiredLeafCountInContext = annotated.reduce(
+    (sum, context) => sum + (context.evaluation.metrics.retrievedRequiredLeafCountAtK
+      ?? context.evaluation.metrics.retrievedExpectedLeafCountAtK ?? 0), 0,
+  );
+  const auxiliaryLeafCountInContext = annotated.reduce(
+    (sum, context) => sum + (context.evaluation.metrics.retrievedAuxiliaryLeafCountAtK || 0), 0,
+  );
 
   return {
     ...metrics,
@@ -186,6 +303,10 @@ function aggregateContextEvaluations(contexts) {
     nonExpectedLeafCountInContext: Math.max(0, contextLeafCount - expectedLeafCountInContext),
     expectedLeafProportionInContext: contextLeafCount
       ? expectedLeafCountInContext / contextLeafCount : null,
+    requiredLeafCountInContext,
+    auxiliaryLeafCountInContext,
+    requiredLeafProportionInContext: contextLeafCount
+      ? requiredLeafCountInContext / contextLeafCount : null,
   };
 }
 

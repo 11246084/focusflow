@@ -1,4 +1,4 @@
-const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA = 'student-pilot-retrieval-ground-truth-v1';
+const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA = 'student-pilot-retrieval-ground-truth-v2';
 const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE = 'docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.md';
 
 function chunkIds(videoId, start, end) {
@@ -8,12 +8,20 @@ function chunkIds(videoId, start, end) {
   );
 }
 
-function group(groupId, videoId, start, end) {
+function classifiedGroup(groupId, videoId, requiredChunkIds, auxiliaryChunkIds = []) {
+  const required = Object.freeze([...requiredChunkIds]);
+  const auxiliary = Object.freeze([...auxiliaryChunkIds]);
   return Object.freeze({
     groupId,
     videoId,
-    chunkIds: Object.freeze(chunkIds(videoId, start, end)),
+    requiredChunkIds: required,
+    auxiliaryChunkIds: auxiliary,
+    chunkIds: Object.freeze([...required, ...auxiliary].sort()),
   });
+}
+
+function group(groupId, videoId, start, end) {
+  return classifiedGroup(groupId, videoId, chunkIds(videoId, start, end));
 }
 
 function entry(...expectedLeafGroups) {
@@ -21,6 +29,8 @@ function entry(...expectedLeafGroups) {
 }
 
 // Derived from the human-reviewed support ranges in the source Markdown above.
+// Round 4 further classified Q08 and Q11 G2 into required/auxiliary support without
+// changing the formal question bank or baseline evidence. Other groups default to all-required.
 // Keep groups separate when the question requires evidence from more than one range.
 const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH = Object.freeze({
   Q01: entry(group('G1', '69fb57edb52433fda32db706', 6, 7)),
@@ -30,7 +40,14 @@ const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH = Object.freeze({
   Q05: entry(group('G1', '69fb5d78b52433fda32dbc81', 5, 8)),
   Q06: entry(group('G1', '6a02f38c17c615e872035b94', 2, 6)),
   Q07: entry(group('G1', '6a02f34d17c615e872035b3d', 3, 5)),
-  Q08: entry(group('G1', '6a02f46317c615e872035c93', 2, 6)),
+  Q08: entry(classifiedGroup(
+    'G1',
+    '6a02f46317c615e872035c93',
+    chunkIds('6a02f46317c615e872035c93', 3, 3)
+      .concat(chunkIds('6a02f46317c615e872035c93', 5, 6)),
+    chunkIds('6a02f46317c615e872035c93', 2, 2)
+      .concat(chunkIds('6a02f46317c615e872035c93', 4, 4)),
+  )),
   Q09: entry(
     group('G1', '69fb5c8db52433fda32dbab5', 5, 8),
     group('G2', '69fb5d78b52433fda32dbc81', 1, 4),
@@ -38,7 +55,12 @@ const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH = Object.freeze({
   Q10: entry(group('G1', '69fb5b5eb52433fda32db907', 1, 5)),
   Q11: entry(
     group('G1', '6a02f38c17c615e872035b94', 2, 6),
-    group('G2', '6a02f48c17c615e872035cea', 1, 7),
+    classifiedGroup(
+      'G2',
+      '6a02f48c17c615e872035cea',
+      chunkIds('6a02f48c17c615e872035cea', 3, 6),
+      chunkIds('6a02f48c17c615e872035cea', 1, 2),
+    ),
   ),
   Q12: entry(
     group('G1', '6a02f48c17c615e872035cea', 1, 7),

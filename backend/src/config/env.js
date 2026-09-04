@@ -133,6 +133,13 @@ module.exports = {
   // <= 0 或 > 1 視為停用語意相似層，只保留正規化文字完全相同的快取命中
   faqCacheSimilarityThreshold: Number(process.env.FAQ_CACHE_SIMILARITY_THRESHOLD ?? 0.95),
   faqCacheMaxEntriesPerCourse: Number(process.env.FAQ_CACHE_MAX_ENTRIES_PER_COURSE) || 200,
+  // 短影片腳本自動選題（規格書 DR-03 / DR-12）。
+  // 分群門檻必須低於 faqCacheSimilarityThreshold：那個門檻判定「同一題可直接回快取答案」，
+  // 比「同一題可合成同一支影片」嚴格得多。<= 0 或 > 1 視為停用語意分群，只依正規化文字合併。
+  // 預設值 0.85 尚未以實際資料校準（規格書 P-01），校準前不得用於正式產出。
+  shortScriptTopicSimilarityThreshold: Number(process.env.SHORT_SCRIPT_TOPIC_SIMILARITY_THRESHOLD ?? 0.85),
+  shortScriptTopicMinHitCount: Number(process.env.SHORT_SCRIPT_TOPIC_MIN_HIT_COUNT) || 2,
+  shortScriptTopicCandidateLimit: Number(process.env.SHORT_SCRIPT_TOPIC_CANDIDATE_LIMIT) || 10,
   qaMockEmbeddingDimensions: Number(process.env.QA_MOCK_EMBEDDING_DIMENSIONS) || 32,
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,

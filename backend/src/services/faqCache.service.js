@@ -2,6 +2,7 @@ const Faq = require('../models/faq.model');
 const Course = require('../models/course.model');
 const env = require('../config/env');
 const { assertObjectId } = require('../utils/objectId');
+const { computeCosineSimilarity } = require('../utils/vectorSimilarity');
 const {
   getCourseByIdOrThrow,
   assertCanAccessCourse,
@@ -26,28 +27,6 @@ function normalizeFaqQuestion(text) {
   return String(text || '')
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, '');
-}
-
-function computeCosineSimilarity(left, right) {
-  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length || left.length === 0) {
-    return null;
-  }
-
-  let dot = 0;
-  let leftNorm = 0;
-  let rightNorm = 0;
-
-  for (let index = 0; index < left.length; index += 1) {
-    dot += left[index] * right[index];
-    leftNorm += left[index] * left[index];
-    rightNorm += right[index] * right[index];
-  }
-
-  if (!leftNorm || !rightNorm) {
-    return null;
-  }
-
-  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
 
 function isSemanticMatchEnabled() {

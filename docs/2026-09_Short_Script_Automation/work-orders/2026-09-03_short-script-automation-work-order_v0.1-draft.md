@@ -4,7 +4,7 @@
 >
 > 依 [施工單目錄說明](../../2026-09_Student_Pilot_Backend/work-orders/work-order_README.md)：「若規格仍有未決事項，施工單只能標記為草案，不得作為開工依據。」
 >
-> **2026-09-03 更新**：[規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md) 已產出，原第 8.2 節的 D-01～D-07 全數轉為規格書的定案項目 DR-01～DR-09 或待決項目 P-01～P-04。本施工單的範圍與驗收條件一律以規格書為準；規格書升 v1.0 Frozen 後，本施工單方可核准開工。
+> **2026-09-03 更新**：[規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md) 已產出，原第 8.2 節的 D-01～D-07 全數轉為規格書的定案項目 DR-01～DR-13 或待決項目 P-01～P-05。本施工單的範圍與驗收條件一律以規格書為準；規格書升 v1.0 Frozen 後，本施工單方可核准開工。
 
 | 項目 | 內容 |
 | --- | --- |
@@ -12,7 +12,7 @@
 | 基準文件 | [短影片腳本自動化規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md)（2026-09-03） |
 | 證據來源 | Claude Code 唯讀程式盤點（2026-09-03，backend 工作樹 `main` @ `f404fe5`） |
 | 對應討論 | 2026-09-03 對話：自動化流程六步驟可行性評估 |
-| 目標 | 把「學生常問問題 → 短影片腳本」的前三步自動化，產出**結構化資料**供腳本模板套用 |
+| 目標 | 自動選題 → 找證據 → 生成腳本 → 教師審核 → 教師上傳影片後自動上架 YouTube |
 | 狀態 | 草案，未核准 |
 
 ---
@@ -39,7 +39,7 @@
 - [ ] 本施工單第 1 節的納入／排除，與規格書第 3 章一致
 - [ ] 各工作項的驗收條件與規格書第 7 章一致，且**沒有新增規格書沒有的需求**
 - [ ] 第 3.2 節的資料寫入邊界，與規格書 R-03 一致
-- [ ] 第 4 節的禁止事項，涵蓋規格書第 5 章全部七條安全紅線
+- [ ] 第 4 節的禁止事項，涵蓋規格書第 5 章全部八條安全紅線（R-01～R-08）
 - [ ] 第 7 節的修改位置總表，沒有涵蓋規格書排除範圍內的檔案
 - [ ] 確認 `SHORT_SCRIPT_AUTOMATION_ENABLED` 預設為 `false`，且本輪不打算開啟
 
@@ -56,14 +56,15 @@
 
 ### 停止點需要再核准
 
-本施工單有兩個停止點。**通過停止點需要再次核准，不由實作者自行判定**：
+**通過停止點需要再次核准，不由實作者自行判定**：
 
 | 停止點 | 核准依據 | 核准人 |
 | --- | --- | --- |
 | SP-1 | 規格書 7.1 檢查表全部通過，且未觸發「明確失敗條件」；比對證據已存入 `evidence/`；P-01 分群門檻已依證據定版並回填規格書附錄 B | 專題負責人 |
 | SP-2 | 規格書 7.2 檢查表全部通過 | 專題負責人 |
+| SP-3 | 規格書 7.3 檢查表全部通過，含**實際上傳一支到 YouTube 並確認可播放**（不可只用 mock） | 專題負責人 |
 
-SP-1 若觸發明確失敗條件，回到 WO-02／WO-04 調整參數後重跑，**不得進入批次 B**。
+本施工單有三個停止點（原為兩個，2026-09-04 納入上架後新增 SP-3）。SP-1 若觸發明確失敗條件，回到 WO-02／WO-04 調整參數後重跑，**不得進入批次 B**。
 
 ---
 
@@ -83,12 +84,12 @@ SP-1 若觸發明確失敗條件，回到 WO-02／WO-04 調整參數後重跑，
 
 | 步驟 | 本輪範圍 |
 | --- | --- |
-| 1. 從 QA 選學生最常問的問題當主題 | 納入（WO-02） |
+| 1. 從 QA 選學生最常問的問題當主題 | 納入，**且自動選題**（WO-02，規格書 DR-02／DR-12） |
 | 2. 從資料庫搜尋正確知識 | 納入（WO-03、WO-04） |
 | 3. 生成腳本 | 納入（WO-05） |
 | 4. 老師生成影片 | 不自動化（人工） |
 | 5. 老師審核 | 不自動化（人工），但需提供審核與回饋的資料介面（WO-06） |
-| 6. 通過→上架；未通過→帶回饋重生 | 部分納入：重生迴圈納入（WO-06）；YouTube 上架**不納入本輪** |
+| 6. 通過→上架；未通過→帶回饋重生 | **全部納入**：重生迴圈（WO-06）；教師上傳影片後自動上架 YouTube（WO-08，規格書 DR-13） |
 
 ---
 
@@ -96,20 +97,20 @@ SP-1 若觸發明確失敗條件，回到 WO-02／WO-04 調整參數後重跑，
 
 ### 1.1 納入
 
-- 課程層級的「熱門提問候選清單」聚合，含同義題合併與拒答題過濾。
-- 依選定問句取得檢索證據，並**凍結快照**存檔（含 `chunkId`、`videoId`、`startSec`、`endSec`、STT 原文）。
+- 課程層級的熱門提問聚合，含同義題合併與拒答題過濾，並依規格書 DR-12 的確定性規則**自動選出主題**。
+- 依選定問句取得檢索證據，**含鄰接擴展**，並**凍結快照**存檔（含 `chunkId`、`videoId`、`startSec`、`endSec`、STT 原文）。
 - 依證據生成 8 拍口白與敘事設定，每一拍強制標注依據來源。
 - 生成後的**引用驗證**：所有 `basedOn` 的 chunkId 必須存在於本次證據包，否則整份退回。
 - 腳本版本化，以及老師回饋的分流重生（`retrieval` / `narrative`）。
+- 教師上傳短影片後自動上傳 YouTube 並建立 `ShortAsset`。
 - 教師端 API 與對應測試。
 
 ### 1.2 排除（本輪明確不做）
 
 - **不修改** `docs/short-video-examples/teacher-avatar-track/` 底下的 V4、V5 與空白模板。使用者 2026-09-03 決定：先做自動化，腳本模板之後才套用。
-- 不做 YouTube 上架（`ShortAsset` 發布流程另案；本輪只到「腳本核准」為止）。
 - 不做前端頁面（本輪只做 backend API 與 service）。
 - 不改動 QA 既有行為：`askQuestion` 的回應格式、FAQ 快取命中路徑、`QA_MATCH_LIMIT` 語意一律不動。
-- 不做 B-roll 影片生成、語音合成、ffmpeg 合成等產製環節。
+- 不做 B-roll 影片生成、語音合成、ffmpeg 合成等產製環節；影片檔由教師以外部工具產出後上傳。
 - 不改 `questions`、`faqs`、`video_segments_text` 任何既有欄位或索引。
 
 ---
@@ -129,6 +130,11 @@ SP-1 若觸發明確失敗條件，回到 WO-02／WO-04 調整參數後重跑，
   WO-05 → WO-06 → WO-07
               ↓
          【停止點 SP-2】
+              ↓
+批次 C（對外發布）
+  WO-08
+              ↓
+         【停止點 SP-3】
 ```
 
 ### WO-01 抽出重複的 cosine similarity
@@ -156,7 +162,7 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 
 ---
 
-### WO-02 熱門提問候選清單
+### WO-02 自動選題
 
 **資料來源**：`faqs` collection。既有欄位已足夠，不需新增：
 
@@ -171,7 +177,9 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 
 1. **同義題分群**：字串比對不足以合併。實測資料顯示同一題有多種寫法（「open cv 跟 yolo 的關係是甚麼?」8 次、「YOLO跟opencv的具體差異是什麼？」4 次、「opencv跟yolo有什麼差異?」3 次）。以 `questionEmbedding` 做 cosine 分群，門檻須低於 FAQ 命中用的 `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）。建議起始值 0.85，**列為待決事項 D-02**。
 2. **拒答題過濾**：被 `answerGeneration.service.js` 的 `isNoAnswerReply()` 判定的回答不會存進 FAQ，但 `questions` collection 內仍有。若日後改用 `questions` 為來源，必須套用同一判定。本輪以 `faqs` 為唯一來源，因此天然已過濾，但須在程式註解標明此依賴。
-3. **候選清單，非自動選題**：目前資料量下最高熱度僅個位數（範例中 8 次已是全庫最高），排名統計意義薄弱。輸出為**候選清單供老師勾選**，不得自動決定主題。
+3. **自動選題（規格書 DR-12）**：依確定性規則自動選出主題，不使用 LLM 判斷。分層淘汰以避免對全部候選跑檢索：第 1 層零成本過濾（`hitCount >= 2`、無 `approved`／`dismissed` 紀錄）→ 第 2 層依 `totalHitCount` 取前 M 名（預設 10）→ 第 3 層依序算涵蓋度、淘汰不足 6 個片段者 → 第 4 層依序做弧線適用性判定，第一個通過者即選中並停止評估。排序 tie-break：涵蓋度 → 最近提問時間 → `courseId + normalizedQuestion` 字典序。
+4. **`selectionReason` 必須保存**：當時的熱度、涵蓋度、排名與被淘汰的前幾名及原因。教師必須能回答「為什麼系統選了這一題」（規格書 R-04）。
+5. **候選全被過濾時**回報 `SHORT_SCRIPT_NO_CANDIDATE`，不得降低門檻硬選。
 
 **修改位置**
 
@@ -180,6 +188,7 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 **驗收條件**
 
 - 給定同一課程的多筆同義 FAQ，回傳合併後的單一候選，且 `totalHitCount` 為各筆加總、`variants[]` 保留原始問句。
+- **同一資料庫狀態下重跑兩次選出同一題**，且 `selectionReason` 記錄了被淘汰者。
 - 跨課程不得混入：只回傳呼叫者有權限的課程（沿用 `courseAccess.service` 既有判定，不自行實作權限邏輯）。
 - 新增 `backend/tests/short-script-topic.service.test.js`，至少涵蓋：同義合併、跨課程隔離、空資料 zero-state。
 
@@ -221,13 +230,19 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 
 ```text
 courseId          ObjectId, ref Course, required
-topic             String（老師確認的主題文字）
+topic             String（系統自動選出的主題文字）
+selectionReason   Object（熱度、涵蓋度、排名、被淘汰者與原因）
 sourceQuestions   [{ faqId, question, hitCount }]
 evidence          [{ code, chunkId, videoId, videoTitle, startSec, endSec, rawText }]
 evidenceFrozenAt  Date
 versions          [{ versionNo, payload, generatedAt, feedback, feedbackType, reviewedBy, reviewedAt }]
-status            enum: draft | evidence_ready | generated | changes_requested | approved
+status            enum: draft | evidence_ready | generated | changes_requested | approved | dismissed
+dismissReason     String（status 為 dismissed 時填）
 ```
+
+**鄰接擴展（規格書 DR-11 / 附錄 C.1）**：檢索取得 TopK 後必須往前後擴展再凍結，不得只取 TopK 原樣。四項規則：只在同一 `videoId` 內擴展；鄰接判定以同一 `videoId` 內的 `startSec` 排序為準（不解析 `chunkId` 數字後綴）；窗口可配置不寫死 N+1；擴展後去重併段。`childExpansion.service.js` 是 Parent→Leaf 展開，不可沿用。
+
+**`dismissed` 允許 `evidence` 為空**：教師否決該主題時，只需 `courseId`、`sourceQuestions`、`status`、`dismissReason`。
 
 - `evidence[].code` 對應腳本模板 §2 的代號 A、B、C…
 - `evidence[].rawText` 存**未修飾的 STT 原文**。STT 錯字（例：`雀的gp`、`OvenCV`、`優龍`、`Opens TV`）一律原樣保留，不得在此階段自動糾錯——糾錯本身會引入幻覺，且會使引用無法比對回原始片段。
@@ -324,17 +339,19 @@ status            enum: draft | evidence_ready | generated | changes_requested |
 
 **現況缺口**：`ShortAsset` 的 `createShortAsset`（`backend/src/services/shortAsset.service.js:110`）與 `updateShortAsset`（同檔 `:119`）**沒有掛任何 HTTP route**，目前只有 `backend/tests/short-asset.service.test.js` 在呼叫。學生端只有 `GET /api/v1/youtube/shorts`（`backend/src/routes/youtube.routes.js:9`）。
 
-本輪只補腳本相關路由，`ShortAsset` 的教師端路由留待上架功能另案處理。
+規格書 DR-13 納入上架後，`ShortAsset` 的教師端路由改由 WO-08 補齊，不再另案。
 
 **新增路由**（沿用 `.claude/rules/api-design.md` 的 kebab-case、巢狀不超過兩層、`sendSuccess`）
 
 ```text
-GET    /api/v1/courses/:courseId/short-scripts/topics    取得候選主題清單
-POST   /api/v1/courses/:courseId/short-scripts           建立腳本（含證據凍結）
+POST   /api/v1/courses/:courseId/short-scripts/auto      自動選題並建立腳本（含證據凍結）
 POST   /api/v1/short-scripts/:scriptId/generate          生成／重生
-POST   /api/v1/short-scripts/:scriptId/review            提交審核回饋
-GET    /api/v1/short-scripts/:scriptId                   取得腳本與版本
+POST   /api/v1/short-scripts/:scriptId/review            提交審核回饋（通過／退回／否決）
+GET    /api/v1/short-scripts/:scriptId                   取得腳本、版本與 selectionReason
+GET    /api/v1/courses/:courseId/short-scripts           列出該課程的腳本
 ```
+
+原本的 `GET .../short-scripts/topics`（候選清單）已隨自動選題移除。
 
 全部掛 `authenticate` + `authorizeRoles(teacher, admin)`，並沿用 `courseAccess.service` 的 owner teacher 判定。
 
@@ -347,6 +364,7 @@ GET    /api/v1/short-scripts/:scriptId                   取得腳本與版本
 | `SHORT_SCRIPT_CITATION_INVALID` | 502 | 生成結果引用了證據包外的 chunkId，已退回 |
 | `SHORT_SCRIPT_ARC_NOT_APPLICABLE` | 422 | 證據包無轉折句，不適用 8 拍弧線 |
 | `SHORT_SCRIPT_STATE_INVALID` | 409 | 狀態轉換不合法 |
+| `SHORT_SCRIPT_NO_CANDIDATE` | 422 | 自動選題後無候選通過過濾，不得降低門檻硬選 |
 
 **驗收條件**
 
@@ -355,9 +373,66 @@ GET    /api/v1/short-scripts/:scriptId                   取得腳本與版本
 
 ---
 
+### WO-08 短影片上架（規格書 DR-13 / 附錄 K）
+
+**觸發點固定為教師上傳影片檔**，系統不自行發布任何內容。只有 `status = approved` 的腳本可進入此流程（R-08）。
+
+**新增路由**
+
+```text
+POST   /api/v1/short-scripts/:scriptId/asset             上傳影片檔並自動上架（multipart）
+POST   /api/v1/short-assets/:assetId/upload/retry        上傳失敗後重試
+GET    /api/v1/courses/:courseId/short-assets            教師端列出短影片資產
+```
+
+**可複用資產**（不要重寫）
+
+| 資產 | 位置 |
+| --- | --- |
+| 自動上傳 | `youtubeUpload.service.js` 的 `autoUploadVideoToYouTube` |
+| 上傳狀態快照 | 同檔 `buildYouTubeUploadSnapshot` |
+| 刪除轉 private | 同檔 `privatizeVideoOnDelete` |
+| 資產 CRUD | `shortAsset.service.js:110 / :119`（已存在，只缺路由） |
+| 檔案上傳 | 既有 `upload.middleware.js` |
+
+`ShortAsset` 既有狀態列舉 `draft | ready | published | archived` 不需新增。
+
+**新增錯誤碼**
+
+| 錯誤碼 | HTTP | 情境 |
+| --- | --- | --- |
+| `SHORT_SCRIPT_NOT_APPROVED` | 409 | 腳本尚未 `approved` |
+| `SHORT_ASSET_DISCLOSURE_REQUIRED` | 400 | 未確認 AI 揭露標示與書面同意 |
+
+**驗收條件**
+
+- 腳本非 `approved` 時上傳被拒。
+- `YOUTUBE_UPLOAD_ENABLED=false` 時 fail-fast 回 `YOUTUBE_UPLOAD_NOT_CONFIGURED`，不得靜默略過。
+- 上傳失敗時 `ShortAsset` 維持 `draft` 並記錄原因、可重試，不留半完成狀態。
+- 上傳成功後只有該課程的學生撈得到 `GET /api/v1/youtube/shorts`。
+- 新增 `backend/tests/short-asset.routes.test.js`。
+
+**禁止**
+
+- 不得在教師未上傳的情況下自動產生或發布任何 YouTube 內容。
+- 不得為了讓學生看到而把預設可見度改成 `public`。unlisted 是架構限制（private 無法 iframe 嵌入），但**不能對外說成「只有修課學生看得到」**。
+- 不得宣稱刪除必定讓 YouTube 影片下架——轉 private 失敗只記 log 不中斷刪除。
+
+**live 驗收**：階段 C 必須實際上傳一支到 YouTube 並確認可播放，不可只用 mock 通過。
+
+---
+
 ## 【停止點 SP-2】
 
-批次 B 完成後停止。核准前不得啟用 feature flag，也不得接上任何上架流程。
+批次 B 完成後停止。核准前不得啟用 feature flag，也不得進入批次 C。
+
+---
+
+## 【停止點 SP-3】
+
+批次 C 完成後停止。**必須實際上傳一支短影片到 YouTube 並確認可播放**，不可只用 mock 通過（規格書 7.3）。
+
+live 驗收前確認 `YOUTUBE_UPLOAD_ENABLED=true` 且 `/health.runtime.youtubeUpload` 為 ready；不看 `.env` 推測。
 
 ---
 
@@ -381,7 +456,7 @@ GET    /api/v1/short-scripts/:scriptId                   取得腳本與版本
 | `video_segments_text` | **唯讀** |
 | `videos`、`courses` | **唯讀** |
 | `usagelogs` | 不寫（若之後要記 token 成本，另案決議） |
-| `shortassets` | 本輪不碰 |
+| `shortassets` | 讀寫（WO-08 上架流程需要） |
 
 任何工作項若發現需要寫入唯讀 collection，**停止該項並回報**，不得自行放寬。
 
@@ -396,6 +471,8 @@ GET    /api/v1/short-scripts/:scriptId                   取得腳本與版本
 5. 不得把「最常問」直接當成「已選定主題」，必須經老師確認。
 6. 不得在引用驗證失敗時部分接受生成結果。
 7. 不得刪除任何既有檔案或資料。
+8. 不得在教師未上傳影片的情況下自動產生或發布任何 YouTube 內容（規格書 R-08）。
+9. 不得把短影片預設可見度改成 `public`；unlisted 是架構限制，且不得對外說成「只有修課學生看得到」。
 
 ---
 
@@ -449,6 +526,10 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 | `backend/tests/short-script-topic.service.test.js` | 新增 | WO-02 |
 | `backend/tests/short-script.service.test.js` | 新增 | WO-04、WO-06 |
 | `backend/tests/short-script.routes.test.js` | 新增 | WO-07 |
+| `backend/src/routes/short-asset.routes.js` | 新增 | WO-08 |
+| `backend/src/controllers/shortAsset.controller.js` | 新增 | WO-08 |
+| `backend/src/services/shortAsset.service.js` | 修改（接上 YouTube 上傳） | WO-08 |
+| `backend/tests/short-asset.routes.test.js` | 新增 | WO-08 |
 | `backend/tests/helpers/backendTestHarness.js` | 修改（新增 store） | WO-04 |
 
 ---
@@ -478,7 +559,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 
 ### 8.3 仍阻塞正式使用的事項
 
-見規格書第 8.2 節 P-01～P-04（分群門檻定版、腳本品質標準、書面同意書格式、腳本模板修訂時程）。其中僅 **P-01** 與本施工單的批次 A 直接相關；其餘不擋實作，擋正式使用。
+見規格書第 8.2 節 P-01～P-05（分群門檻定版、腳本品質標準、書面同意書格式、腳本模板修訂時程、候選來源是否擴到 `questions`）。其中 **P-01 與 P-05** 與本施工單的批次 A 直接相關——兩者都須由階段 A 的實測資料決定（P-05 需統計該課程 LINE 提問佔比）；其餘不擋實作，擋正式使用。
 
 **需要決策的人員**：專題負責人（範圍、P-03、P-04）、指導教授（P-02 的品質標準）。
 
@@ -490,3 +571,6 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 | --- | --- | --- |
 | 2026-09-03 | v0.1 草案 | 初稿。依 2026-09-03 對話的可行性評估與唯讀程式盤點產出 |
 | 2026-09-03 | v0.1 草案（修訂） | 規格書 v0.9 產出後同步：基準文件改指向規格書；第 8.2 節的 D-01～D-07 轉出至規格書的 DR/P 編號，避免兩份文件重複定義同一議題 |
+| 2026-09-03 | v0.1 草案（修訂） | 補「核准」節：核准流程、七項對齊檢查表、簽核欄、停止點再核准規則 |
+| 2026-09-04 | v0.1 草案（修訂） | 同步規格書修訂：WO-04 補鄰接擴展規則（DR-11）與 `dismissed` 狀態；待決事項改為 P-01～P-05，並標明 P-05 亦須由階段 A 實測決定 |
+| 2026-09-04 | v0.1 草案（**範圍變更**） | 同步規格書的兩項範圍變更：WO-02 由「候選清單」改為「自動選題」並納入 DR-12 分層淘汰與 `selectionReason`；新增 WO-08 短影片上架與批次 C／停止點 SP-3；WO-07 路由改版（移除 topics、新增 auto）；`shortassets` 由「不碰」改為讀寫 |

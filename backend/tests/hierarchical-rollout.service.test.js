@@ -274,7 +274,16 @@ describe('hierarchical rollout execution', () => {
       path.join(__dirname, '../src/services/qa.service.js'),
       'utf8',
     );
-    assert.equal((source.match(/await embedQuery\(/g) || []).length, 1);
+    // 只檢查 askQuestion 的函式範圍。原本是數整個檔案，那在 qa.service 只有 askQuestion
+    // 一個入口時剛好等價；retrieveSegmentsOnly（只檢索、不生成答案）加入後檔案有兩個入口，
+    // 各自算一次 embedding 是正常的，全檔計數會誤報。這裡要防的仍是「同一次問答內算兩次」。
+    const start = source.indexOf('async function askQuestion(');
+    assert.notEqual(start, -1, 'askQuestion not found in qa.service.js');
+    const afterStart = source.slice(start + 1);
+    const end = afterStart.indexOf('\nasync function ');
+    const askQuestionBody = end === -1 ? afterStart : afterStart.slice(0, end);
+
+    assert.equal((askQuestionBody.match(/await embedQuery\(/g) || []).length, 1);
     assert.equal(source.includes('queryEmbedding: queryVector'), true);
   });
 });

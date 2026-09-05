@@ -1506,9 +1506,105 @@ async function askQuestion({
   });
 }
 
+/**
+ * 只檢索、不生成答案（規格書 WO-03）。
+ *
+ * 短影片腳本自動化只需要片段本身，不需要 LLM 答案，因此這條路徑刻意**不做**下列任何一件事：
+ *   - 不查也不寫 FAQ 快取（腳本檢索不該產生新的 FAQ，也不該因快取命中而拿到舊片段）
+ *   - 不寫 questions（那是學生提問的紀錄，腳本檢索不是提問）
+ *   - 不寫 usagelogs（成本記錄另有 event 型別，由呼叫端負責）
+ *   - 不做 QA quota 檢查（quota 是針對學生提問的防濫用）
+ *   - 不生成答案、不套 answer prompt
+ *
+ * 範圍建構完全沿用 bridgeScope，維持與 askQuestion 相同的 fail-closed 跨課程隔離：
+ * allowedVideoIds 為空時直接回空結果，不得回傳任何跨課程片段。
+ *
+ * 依規格書 DR-04，本輪只走 leaf 檢索，不啟用 Parent 多層級檢索。
+ *
+ * @param {object} params
+ * @param {object} params.user      呼叫者，須通過 assertCanAccessCourse
+ * @param {string} params.courseId
+ * @param {string} params.question  用來算 query embedding 與詞彙比分的問句
+ * @returns {Promise<object>} { matches, scopedVideos, courseSummary, searchableSegmentCount, diagnostics, scopeEmpty }
+ */
+async function retrieveSegmentsOnly({ user, courseId, question } = {}) {
+  const trimmedQuestion = String(question || '').trim();
+  if (!trimmedQuestion) {
+    throw new AppError('Question is required.', 400, 'VALIDATION_ERROR');
+  }
+
+  assertObjectId(courseId, 'course');
+
+  const course = await Course.findById(courseId);
+  if (!course) {
+    throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+  }
+
+  const [, scopedVideos] = await Promise.all([
+    assertCanAccessCourse(user, course),
+    collectScopedVideos(course),
+  ]);
+
+  const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
+  const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
+
+  const emptyDiagnostics = {
+    searchBackendUsed: env.qaVectorSearchMode,
+    scoringMode: 'unavailable',
+    fallbacks: [],
+  };
+
+  // fail-closed：canonical video allowlist 為空代表這門課沒有可信的影片歸屬，
+  // 此時回空結果，絕不放行未經 scope 檢查的片段。
+  if (!segmentScope.allowedVideoIds.size) {
+    logScopeEmpty({
+      courseId: course._id,
+      userId: user?.id || user?._id || null,
+      searchMode: env.qaVectorSearchMode,
+      reason: 'canonical_video_scope_empty',
+    });
+
+    return {
+      matches: [],
+      scopedVideos,
+      courseSummary,
+      searchableSegmentCount: 0,
+      diagnostics: emptyDiagnostics,
+      scopeEmpty: true,
+    };
+  }
+
+  const scopedSegments = await loadScopedSearchableSegments(segmentScope);
+  if (!scopedSegments.length || !scopedVideos.videos.length) {
+    return {
+      matches: [],
+      scopedVideos,
+      courseSummary,
+      searchableSegmentCount: scopedSegments.length,
+      diagnostics: emptyDiagnostics,
+      scopeEmpty: false,
+    };
+  }
+
+  const queryVector = await embedQuery(trimmedQuestion);
+  const searchResult = env.qaVectorSearchMode === 'atlas'
+    ? await searchSegmentsWithAtlas(segmentScope, queryVector)
+    : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
+
+  return {
+    matches: enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos),
+    scopedVideos,
+    courseSummary,
+    searchableSegmentCount: scopedSegments.length,
+    diagnostics: searchResult.diagnostics,
+    scopeEmpty: false,
+  };
+}
+
 module.exports = {
   askQuestion,
   buildAnswerStatus,
   buildCitations,
   buildUserFacingCitations,
+  retrieveSegmentsOnly,
 };

@@ -12,6 +12,97 @@ const {
   jsonRequest,
   loginAs,
 } = require('./helpers/backendTestHarness');
+const { mapLineHistoryForContextualizer } = require('../src/services/line.service');
+
+const PHASE35_IDS = {
+  courseB: '507f191e810c19729de860f2',
+  videoB: '507f191e810c19729de860f3',
+  enrollmentB: '507f191e810c19729de860f4',
+  segmentB: 'phase35-course-b-segment',
+  rewriteSegment: 'phase35-rewrite-segment',
+};
+
+let lineEventSequence = 0;
+
+async function postLineText(baseUrl, text, lineUserId = 'line-student-001') {
+  lineEventSequence += 1;
+  const payload = JSON.stringify({
+    events: [{
+      type: 'message',
+      replyToken: `reply-phase35-${lineEventSequence}`,
+      source: { userId: lineUserId },
+      message: { type: 'text', text },
+    }],
+  });
+
+  return postLineWebhook(baseUrl, payload, {
+    'x-line-signature': createLineSignature(payload),
+  });
+}
+
+async function postCourseMenuSelection(baseUrl, courseId, lineUserId = 'line-student-001') {
+  const switchResult = await postLineText(baseUrl, '切換課程', lineUserId);
+  assert.equal(switchResult.body.data.results[0].handled, true);
+
+  lineEventSequence += 1;
+  const payload = JSON.stringify({
+    events: [{
+      type: 'postback',
+      replyToken: `reply-phase35-${lineEventSequence}`,
+      source: { userId: lineUserId },
+      postback: { data: `action=select_course&courseId=${courseId}` },
+    }],
+  });
+
+  return postLineWebhook(baseUrl, payload, {
+    'x-line-signature': createLineSignature(payload),
+  });
+}
+
+function addCourseBFixture({ enrolled = true, segmentText = 'Course B explains BETAORBIT scheduling.' } = {}) {
+  const baselineVideo = store.videos.find((video) => video._id === ids.publishedVideo);
+
+  store.courses.push({
+    _id: PHASE35_IDS.courseB,
+    title: 'Published Course B',
+    description: 'Phase 3.5 isolation fixture',
+    teacherId: ids.otherTeacher,
+    videoIds: [PHASE35_IDS.videoB],
+    status: 'published',
+    createdAt: '2026-09-07T00:00:00.000Z',
+  });
+  store.videos.push({
+    ...baselineVideo,
+    _id: PHASE35_IDS.videoB,
+    courseId: PHASE35_IDS.courseB,
+    title: 'Published Course B Video',
+    video_id: 'video-phase35-course-b',
+    sourceUrl: '/uploads/phase35-course-b.mp4',
+    video_url: '/uploads/phase35-course-b.mp4',
+  });
+  store.videoSegments.push({
+    _id: '507f191e810c19729de860f5',
+    segmentId: PHASE35_IDS.segmentB,
+    chunkId: PHASE35_IDS.segmentB,
+    courseId: PHASE35_IDS.courseB,
+    videoId: PHASE35_IDS.videoB,
+    startSec: 5,
+    endSec: 20,
+    text: segmentText,
+    embedding: [],
+  });
+
+  if (enrolled) {
+    store.enrollments.push({
+      _id: PHASE35_IDS.enrollmentB,
+      studentId: ids.student,
+      courseId: PHASE35_IDS.courseB,
+      status: 'active',
+      progress: 0,
+      lineNotify: false,
+    });
+  }
+}
 
 function resetRuntimeEnv() {
   env.qaQueryEmbeddingProvider = 'mock';
@@ -23,6 +114,7 @@ function resetRuntimeEnv() {
   env.openaiApiKey = '';
   env.lineChannelSecret = 'line-secret-for-tests';
   env.lineChannelAccessToken = '';
+  env.maxConversationTurns = 4;
 }
 
 describe('line webhook routes', () => {
@@ -547,6 +639,195 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[0].replySkipped, true);
     assert.equal(result.body.data.results[0].qaRuntime.status, 'degraded');
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
+  });
+
+  it('uses MAX_CONVERSATION_TURNS to change the persisted LINE history limit', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    env.maxConversationTurns = 2;
+
+    await postLineText(serverContext.baseUrl, 'JWT authentication turn one');
+    await postLineText(serverContext.baseUrl, 'JWT authentication turn two');
+    await postLineText(serverContext.baseUrl, 'JWT authentication turn three');
+
+    assert.equal(student.lineConversationHistory.length, 4);
+    assert.equal(student.lineConversationHistory[0].content, 'JWT authentication turn two');
+    assert.deepEqual(student.lineConversationHistory.map((item) => item.role), [
+      'user', 'model', 'user', 'model',
+    ]);
+
+    env.maxConversationTurns = 1;
+    await postLineText(serverContext.baseUrl, 'JWT authentication turn four');
+
+    assert.equal(student.lineConversationHistory.length, 2);
+    assert.equal(student.lineConversationHistory[0].content, 'JWT authentication turn four');
+    assert.equal(student.lineConversationHistory[1].role, 'model');
+  });
+
+  it('maps LINE model history to assistant before contextualization', () => {
+    assert.deepEqual(mapLineHistoryForContextualizer([
+      { role: 'user', content: '什麼是 JWT？' },
+      { role: 'model', content: 'JWT 是權杖。' },
+    ]), [
+      { role: 'user', content: '什麼是 JWT？' },
+      { role: 'assistant', content: 'JWT 是權杖。' },
+    ]);
+  });
+
+  it('uses the rewritten standalone question for LINE retrieval', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    student.lineConversationHistory = [
+      { role: 'user', content: '什麼是 ALPHAZEBRA？' },
+      { role: 'model', content: '這是課程中的追問改寫測試主題。' },
+    ];
+    store.videoSegments.push({
+      _id: '507f191e810c19729de860f6',
+      segmentId: PHASE35_IDS.rewriteSegment,
+      chunkId: PHASE35_IDS.rewriteSegment,
+      courseId: ids.publishedCourse,
+      videoId: ids.publishedVideo,
+      startSec: 70,
+      endSec: 80,
+      text: 'ALPHAZEBRA is the only retrieval sentinel in this course segment.',
+      embedding: [],
+    });
+
+    const result = await postLineText(serverContext.baseUrl, '那它呢？');
+    const recordedQuestion = store.questions.at(-1);
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.results[0].matchCount > 0, true);
+    assert.equal(recordedQuestion.question, '那它呢？');
+    assert.equal(recordedQuestion.topSegmentId, PHASE35_IDS.rewriteSegment);
+    assert.equal(student.lineConversationHistory.at(-2).content, '那它呢？');
+  });
+
+  it('passes P5 after three A-course turns without returning unauthorized B matches or citations', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    addCourseBFixture({ enrolled: false, segmentText: '紫鯨螺旋術只在 B 課程中教授。' });
+    const originalFetch = global.fetch;
+    const lineReplyPayloads = [];
+    env.lineChannelAccessToken = 'phase35-line-access-token';
+    global.fetch = async (url, options) => {
+      if (String(url).startsWith('https://api.line.me/')) {
+        lineReplyPayloads.push(JSON.parse(options.body));
+        return { ok: true };
+      }
+      return originalFetch(url, options);
+    };
+
+    let forbiddenResult;
+    try {
+      const firstTurn = await postLineText(
+        serverContext.baseUrl,
+        'What does Course A say about JWT authentication?',
+      );
+      const secondTurn = await postLineText(
+        serverContext.baseUrl,
+        '那 JWT authentication 如何運作？',
+      );
+      const thirdTurn = await postLineText(serverContext.baseUrl, '那它有哪些用途？');
+
+      assert.equal(firstTurn.body.data.results[0].matchCount > 0, true);
+      assert.equal(secondTurn.body.data.results[0].matchCount > 0, true);
+      assert.equal(thirdTurn.body.data.results[0].matchCount > 0, true);
+
+      forbiddenResult = await postLineText(serverContext.baseUrl, '紫鯨螺旋術');
+    } finally {
+      global.fetch = originalFetch;
+      env.lineChannelAccessToken = '';
+    }
+    const forbiddenQuestion = store.questions.at(-1);
+    const forbiddenReply = lineReplyPayloads.at(-1)?.messages?.[0]?.text || '';
+
+    assert.equal(forbiddenResult.status, 200);
+    assert.equal(forbiddenResult.body.data.results[0].handled, true);
+    assert.equal(forbiddenResult.body.data.results[0].matchCount, 0);
+    assert.equal(forbiddenQuestion.matchCount, 0);
+    assert.equal(forbiddenQuestion.matches.some((match) => (
+      match.videoId === PHASE35_IDS.videoB || match.segmentId === PHASE35_IDS.segmentB
+    )), false);
+    assert.doesNotMatch(forbiddenReply, /Published Course B Video|來源：/);
+    assert.equal(student.lineConversationHistory.length, 8);
+
+    const historyBeforeDeniedSwitch = structuredClone(student.lineConversationHistory);
+    const deniedSwitch = await postLineText(serverContext.baseUrl, `COURSE:${PHASE35_IDS.courseB}`);
+
+    assert.equal(deniedSwitch.body.data.results[0].handled, false);
+    assert.equal(deniedSwitch.body.data.results[0].reason, 'course_access_denied');
+    assert.equal(String(student.activeCourseId), ids.publishedCourse);
+    assert.deepEqual(student.lineConversationHistory, historyBeforeDeniedSwitch);
+  });
+
+  it('clears A history on direct A-to-B selection, preserves B history on B-to-B, and isolates the first B question', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    student.lineConversationHistory = [
+      { role: 'user', content: '什麼是 CROSSCOURSELEAKTOKEN？' },
+      { role: 'model', content: '這是 A 課內容。' },
+    ];
+    addCourseBFixture({
+      enrolled: true,
+      segmentText: 'CROSSCOURSELEAKTOKEN is a sentinel that must not be reached by leaked A history.',
+    });
+
+    const switchResult = await postLineText(serverContext.baseUrl, `COURSE:${PHASE35_IDS.courseB}`);
+
+    assert.equal(switchResult.body.data.results[0].handled, true);
+    assert.equal(String(student.activeCourseId), PHASE35_IDS.courseB);
+    assert.deepEqual(student.lineConversationHistory, []);
+
+    const firstQuestion = await postLineText(serverContext.baseUrl, '那它呢？');
+    assert.equal(firstQuestion.body.data.results[0].matchCount, 0);
+
+    const currentCourseHistory = structuredClone(student.lineConversationHistory);
+    const sameCourseResult = await postLineText(serverContext.baseUrl, `COURSE:${PHASE35_IDS.courseB}`);
+    assert.equal(sameCourseResult.body.data.results[0].handled, true);
+    assert.deepEqual(student.lineConversationHistory, currentCourseHistory);
+  });
+
+  it('clears A history on bind-and-select A-to-B', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    student.lineConversationHistory = [
+      { role: 'user', content: 'A course history' },
+      { role: 'model', content: 'A course answer' },
+    ];
+    addCourseBFixture();
+    store.lineBindTokens.push({
+      _id: 'phase35-bind-course-token',
+      token: ids.lineBindTokenText,
+      userId: ids.student,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const result = await postLineText(
+      serverContext.baseUrl,
+      `BIND:${ids.lineBindTokenText}:COURSE:${PHASE35_IDS.courseB}`,
+    );
+
+    assert.equal(result.body.data.results[0].handled, true);
+    assert.equal(String(student.activeCourseId), PHASE35_IDS.courseB);
+    assert.deepEqual(student.lineConversationHistory, []);
+  });
+
+  it('clears A history on course-switch menu A-to-B', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    student.lineConversationHistory = [
+      { role: 'user', content: 'A course history' },
+      { role: 'model', content: 'A course answer' },
+    ];
+    addCourseBFixture();
+
+    const result = await postCourseMenuSelection(serverContext.baseUrl, PHASE35_IDS.courseB);
+
+    assert.equal(result.body.data.results[0].handled, true);
+    assert.equal(String(student.activeCourseId), PHASE35_IDS.courseB);
+    assert.equal(student.lineConversationState, 'idle');
+    assert.deepEqual(student.lineConversationHistory, []);
   });
 
   it('clears an invalid active course without failing the batch', async () => {

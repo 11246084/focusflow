@@ -7,6 +7,7 @@ const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const LineBindToken = require('../models/lineBindToken.model');
 const { askQuestion } = require('./qa.service');
+const { contextualizeQuestion } = require('./contextualQuestion.service');
 const { recordUsage } = require('./usageLog.service');
 const { recordQuestion } = require('./questionRecording.service');
 const {
@@ -44,6 +45,31 @@ const LINE_REPLY_REASONS = {
 // 從 User 文件讀取對話狀態，若欄位不存在則預設為 IDLE
 function getLineConversationState(user) {
   return user?.lineConversationState || LINE_CONVERSATION_STATES.IDLE;
+}
+
+function getBoundedLineConversationHistory(history) {
+  return (Array.isArray(history) ? history : [])
+    .slice(-(env.maxConversationTurns * 2));
+}
+
+function mapLineHistoryForContextualizer(history) {
+  return getBoundedLineConversationHistory(history).map((item) => ({
+    role: item?.role === 'model' ? 'assistant' : item?.role,
+    content: item?.content,
+  }));
+}
+
+function courseSelectionUpdate(user, courseId) {
+  const courseChanged = Boolean(
+    user?.activeCourseId
+    && String(user.activeCourseId) !== String(courseId),
+  );
+
+  return {
+    activeCourseId: new mongoose.Types.ObjectId(courseId),
+    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+    ...(courseChanged ? { lineConversationHistory: [] } : {}),
+  };
 }
 
 // 組裝 LINE 文字訊息物件（LINE API 要求特定格式）
@@ -367,10 +393,7 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
     return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'course_has_no_videos' }, replyResult);
   }
 
-  await User.findByIdAndUpdate(user._id, {
-    activeCourseId: new mongoose.Types.ObjectId(courseId),
-    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-  });
+  await User.findByIdAndUpdate(user._id, courseSelectionUpdate(user, courseId));
 
   const replyResult = await replyMessage(replyToken, [
     buildTextMessage(`已進入「${course.title}」，現在可以直接提問課程內容。`),
@@ -417,10 +440,7 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
     return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'course_has_no_videos' }, replyResult);
   }
 
-  await User.findByIdAndUpdate(user._id, {
-    activeCourseId: new mongoose.Types.ObjectId(courseId),
-    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-  });
+  await User.findByIdAndUpdate(user._id, courseSelectionUpdate(user, courseId));
 
   const replyResult = await replyMessage(replyToken, [
     buildTextMessage(`LINE 帳號已綁定，並已切換到「${course.title}」。現在可以直接提問。`),
@@ -484,10 +504,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
   }
 
   // 寫入選定的課程 ID，並把狀態恢復為 IDLE，開放提問
-  await User.findByIdAndUpdate(user._id, {
-    activeCourseId: new mongoose.Types.ObjectId(courseId),
-    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-  });
+  await User.findByIdAndUpdate(user._id, courseSelectionUpdate(user, courseId));
 
   const replyResult = await replyMessage(replyToken, [buildTextMessage('課程切換成功，現在可以直接提問。')]);
 
@@ -648,7 +665,11 @@ async function handleQuestion(lineUserId, text, replyToken) {
   }
 
   // 讀取之前的對話歷史，傳給 QA service 讓 AI 有上下文可以理解追問
-  const conversationHistory = user.lineConversationHistory || [];
+  const conversationHistory = getBoundedLineConversationHistory(user.lineConversationHistory);
+  const contextualization = contextualizeQuestion({
+    recentConversationHistory: mapLineHistoryForContextualizer(conversationHistory),
+    currentQuestion: text,
+  });
 
   let qaResult;
 
@@ -660,8 +681,10 @@ async function handleQuestion(lineUserId, text, replyToken) {
       },
       courseId: String(user.activeCourseId),
       question: text,
+      retrievalQuestion: contextualization.standaloneQuestion,
       source: 'line',   // 標記來源，QA service 可用來區分前端和 LINE Bot 的請求
       conversationHistory: conversationHistory.length ? conversationHistory : null,
+      contextualization,
     });
   } catch (error) {
     const failureMessage = buildQaFailureMessage(error);
@@ -702,13 +725,12 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
-  // 把這次對話追加進歷史，並只保留最近 6 則（3 輪問答）
-  // 限制 6 則是為了避免對話歷史過長，增加 AI token 消耗
-  const updatedHistory = [
+  // 把這次對話追加進歷史，並依設定保留最近的問答輪數
+  const updatedHistory = getBoundedLineConversationHistory([
     ...conversationHistory,
     { role: 'user', content: text },
     { role: 'model', content: qaResult.answer },
-  ].slice(-6);
+  ]);
 
   await User.findByIdAndUpdate(user._id, { lineConversationHistory: updatedHistory });
 
@@ -833,4 +855,5 @@ module.exports = {
   generateBindToken,
   processWebhookEvents,
   buildQuestionSummaryLines,
+  mapLineHistoryForContextualizer,
 };

@@ -1,6 +1,6 @@
 # Phase 2 API Contract
 
-最後更新：2026-09-01
+最後更新：2026-09-05
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
@@ -25,7 +25,7 @@
 |------|------|
 | `answer` | 使用者可直接看的答案或無答案提示 |
 | `matches[]` | legacy/debug retrieval candidates；不等於回答實際使用的引用 |
-| `citations[]` | 使用者可見來源的唯一正式欄位，包含 source video、timestamp、jump URL、confidence、snippet |
+| `citations[]` | 使用者可見來源的唯一正式欄位；只包含答案生成器明確選用、且仍可播放的教材 evidence，不等同全部 retrieval matches |
 | `answerStatus` | 前端與 LINE 的狀態分流欄位 |
 | `runtime` | 後端診斷與 fallback 訊號 |
 
@@ -53,6 +53,7 @@
 （代表 retrieval 曾取得候選片段），`answerStatus` 仍必須回傳
 `no_answer / no_relevant_match`，`citations[]` 與 `clip` 必須為空。
 多輪 conversation 的 `sources[]` 只能由最終 `citations[]` 轉換，不得直接回傳 raw `matches[]`。
+成功回答的 `citations[]` 也必須由答案生成器回傳的 opaque evidence ID 映射；未知、缺漏或不在目前 context 的 ID 必須 fail closed，不能把全部 `matches[]` 自動升格為引用。
 
 `citations[]` 單筆格式：
 

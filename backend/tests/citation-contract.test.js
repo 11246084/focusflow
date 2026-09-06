@@ -2,7 +2,11 @@ const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 const { expandParentHits } = require('../src/services/childExpansion.service');
 const { assembleLeafContext } = require('../src/services/leafContextAssembly.service');
-const { buildCitations } = require('../src/services/qa.service');
+const {
+  buildCitations,
+  buildUserFacingCitations,
+  resolveSupportingMatches,
+} = require('../src/services/qa.service');
 
 const scope = {
   allowedCourseIds: new Set(['course-1']),
@@ -20,6 +24,27 @@ function parent(parentId, childChunkIds, score = 0.8) {
 }
 
 describe('QA citation contract', () => {
+  it('promotes only answer-selected evidence while preserving retrieval order', () => {
+    const matches = [
+      { chunkId: 'c1', segmentId: 's1', videoId: 'v1', startSec: 1, endSec: 2, transcript: 'one', score: 0.9 },
+      { chunkId: 'c2', segmentId: 's2', videoId: 'v1', startSec: 3, endSec: 4, transcript: 'two', score: 0.8 },
+      { chunkId: 'c3', segmentId: 's3', videoId: 'v1', startSec: 5, endSec: 6, transcript: 'three', score: 0.7 },
+    ];
+
+    assert.deepEqual(
+      resolveSupportingMatches(matches, ['S3', 'S1', 'S99']).map((match) => match.chunkId),
+      ['c1', 'c3'],
+    );
+    assert.deepEqual(
+      buildUserFacingCitations({
+        answer: 'supported answer',
+        matches,
+        supportingEvidenceIds: ['S2'],
+      }).map((citation) => citation.chunkId),
+      ['c2'],
+    );
+  });
+
   it('adds the canonical Leaf chunkId while preserving existing fields and Leaf timestamps', () => {
     const [citation] = buildCitations([{
       chunkId: 'video_chunk_0001',

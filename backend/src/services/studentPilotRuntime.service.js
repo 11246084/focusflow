@@ -5,6 +5,7 @@ function buildStudentPilotFlagSnapshot(config = env) {
   return {
     STUDENT_PILOT_MODE: config.studentPilotMode,
     QA_VECTOR_SEARCH_MODE: config.qaVectorSearchMode,
+    QA_LEAF_ADJACENT_CONTEXT_ENABLED: config.qaLeafAdjacentContextEnabled,
     FAQ_CACHE_ENABLED: config.faqCacheEnabled,
     HIERARCHICAL_RETRIEVAL_ENABLED: config.hierarchicalRetrievalEnabled,
     HIERARCHICAL_RETRIEVAL_ROLLOUT_MODE: config.hierarchicalRetrievalRolloutMode,

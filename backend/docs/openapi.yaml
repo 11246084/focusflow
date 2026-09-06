@@ -86,6 +86,7 @@ paths:
                           answerProvider: gemini
                           atlasVectorIndexConfigured: true
                           atlasFilterMode: bridge_course_or_video
+                          leafAdjacentContextEnabled: false
                           geminiConfigured: true
                           openaiConfigured: false
                           hierarchicalRetrievalEnabled: false
@@ -3350,6 +3351,7 @@ components:
         - answerProvider
         - atlasVectorIndexConfigured
         - atlasFilterMode
+        - leafAdjacentContextEnabled
         - geminiConfigured
         - openaiConfigured
         - hierarchicalRetrievalEnabled
@@ -3393,6 +3395,9 @@ components:
           type: string
           enum:
             - bridge_course_or_video
+        leafAdjacentContextEnabled:
+          description: 是否明確啟用 Candidate30 與 bounded same-video adjacent Leaf 的 Context15 選擇；預設關閉。
+          type: boolean
         geminiConfigured:
           type: boolean
         openaiConfigured:

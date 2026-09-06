@@ -11,6 +11,7 @@ function buildConfig(overrides = {}) {
   return {
     studentPilotMode: true,
     qaVectorSearchMode: 'atlas',
+    qaLeafAdjacentContextEnabled: false,
     faqCacheEnabled: false,
     hierarchicalRetrievalEnabled: false,
     hierarchicalRetrievalRolloutMode: 'off',
@@ -34,7 +35,7 @@ describe('student pilot flag snapshot CLI', () => {
     });
 
     assert.equal(record.event, 'runtime.flag_snapshot');
-    assert.equal(Object.keys(record.flags).length, 12);
+    assert.equal(Object.keys(record.flags).length, 13);
     assert.deepEqual(JSON.parse(output[0]), record);
     assert.equal('GEMINI_API_KEY' in record.flags, false);
     assert.equal('MONGODB_URI' in record.flags, false);

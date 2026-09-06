@@ -8,6 +8,7 @@ function buildConfig(overrides = {}) {
   return {
     studentPilotMode: true,
     qaVectorSearchMode: 'atlas',
+    qaLeafAdjacentContextEnabled: false,
     faqCacheEnabled: true,
     hierarchicalRetrievalEnabled: false,
     hierarchicalRetrievalRolloutMode: 'off',
@@ -64,14 +65,14 @@ describe('student pilot startup validation', () => {
     );
   });
 
-  it('accepts Atlas plus YouTube and logs the twelve effective Backend flags', () => {
+  it('accepts Atlas plus YouTube and logs the thirteen effective Backend flags', () => {
     const captured = captureLogger();
     const result = validateStudentPilotRuntime(buildConfig(), captured.logger);
 
     assert.equal(result.enabled, true);
     assert.equal(captured.entries.length, 1);
     assert.equal(captured.entries[0].event, 'runtime.flag_snapshot');
-    assert.equal(Object.keys(captured.entries[0].metadata).length, 12);
+    assert.equal(Object.keys(captured.entries[0].metadata).length, 13);
     assert.deepEqual(captured.entries[0].metadata, result.snapshot);
     assert.equal('ENABLE_GEMINI_EMBEDDING' in result.snapshot, false);
   });

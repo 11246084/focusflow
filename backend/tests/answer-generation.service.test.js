@@ -6,6 +6,7 @@ const {
   buildTemplateAnswer,
   generateAnswer,
   isNoAnswerReply,
+  parseStructuredAnswer,
   NO_ANSWER_INSUFFICIENT,
   NO_ANSWER_UNDETERMINED,
 } = require('../src/services/answerGeneration.service');
@@ -46,6 +47,8 @@ afterEach(() => {
   global.fetch = originalFetch;
   console.error = originalConsoleError;
   env.qaAnswerProvider = 'template';
+  env.openaiApiKey = '';
+  env.openaiChatModel = 'gpt-4o-mini';
   env.geminiApiKey = '';
   env.geminiChatModel = 'gemini-3.5-flash';
 });
@@ -85,12 +88,14 @@ describe('isNoAnswerReply', () => {
 });
 
 describe('buildPrompt', () => {
-  it('列出所有命中片段，不只第一筆', () => {
+  it('用 opaque S1...Sn 列出所有命中片段，不暴露內部 segment/video ID', () => {
     const prompt = buildPrompt('教師可以做什麼？', createMatches());
 
-    assert.match(prompt, /片段 1/);
-    assert.match(prompt, /片段 2/);
-    assert.match(prompt, /片段 3/);
+    assert.match(prompt, /證據 ID：S1/);
+    assert.match(prompt, /證據 ID：S2/);
+    assert.match(prompt, /證據 ID：S3/);
+    assert.equal(prompt.includes('segment-1'), false);
+    assert.equal(prompt.includes('video-1'), false);
   });
 
   it('要求整合所有相關片段而非只取分數最高的一筆', () => {
@@ -133,6 +138,81 @@ describe('buildPrompt', () => {
     assert.match(prompt, /口頭數數/);
     assert.match(prompt, /答案本身不可自相矛盾/);
   });
+
+  it('要求每個結論有直接證據且只回實際使用的證據 ID', () => {
+    const prompt = buildPrompt('比較兩種方法。', createMatches());
+
+    assert.match(prompt, /每個事實結論都必須由至少一個證據 ID 的內容直接支持/);
+    assert.match(prompt, /不可把所有片段一律列為依據/);
+    assert.match(prompt, /supportingEvidenceIds/);
+  });
+
+  it('要求遵守教材明示分類並維持同句多例的同類關係', () => {
+    const prompt = buildPrompt('請整理教材中的分類。', createMatches());
+
+    assert.match(prompt, /教材若明示某個項目的分類、定義或歸屬/);
+    assert.match(prompt, /不可用常識或外部知識改成另一種分類/);
+    assert.match(prompt, /多個例子列為同一類/);
+    assert.match(prompt, /不可自行拆成不同類/);
+    assert.match(prompt, /逐項核對問題中的每個項目與教材的明示結論/);
+    assert.match(prompt, /緊接的同影片片段/);
+    assert.match(prompt, /不可依項目的外觀或用途自行補判/);
+  });
+
+  it('同影片片段依時間連續呈現且保留原 retrieval 證據 ID', () => {
+    const prompt = buildPrompt('請依教材判斷分類。', [
+      {
+        videoId: 'video-a', startSec: 80, endSec: 96, transcript: 'A 後段結論',
+      },
+      {
+        videoId: 'video-b', startSec: 10, endSec: 20, transcript: 'B 片段',
+      },
+      {
+        videoId: 'video-a', startSec: 65, endSec: 80, transcript: 'A 前段項目',
+      },
+    ]);
+
+    assert.ok(prompt.indexOf('證據 ID：S3') < prompt.indexOf('證據 ID：S1'));
+    assert.ok(prompt.indexOf('證據 ID：S1') < prompt.indexOf('證據 ID：S2'));
+    assert.match(prompt, /證據 ID：S3[\s\S]*A 前段項目[\s\S]*證據 ID：S1[\s\S]*A 後段結論/);
+  });
+});
+
+describe('parseStructuredAnswer', () => {
+  it('接受合法證據 ID 並移除重複值', () => {
+    const result = parseStructuredAnswer(JSON.stringify({
+      answer: '教材指出教師可以發布課程。',
+      supportingEvidenceIds: ['S2', 'S2'],
+    }), createMatches());
+
+    assert.deepEqual(result, {
+      text: '教材指出教師可以發布課程。',
+      supportingEvidenceIds: ['S2'],
+    });
+  });
+
+  it('拒答一律不攜帶證據 ID', () => {
+    const result = parseStructuredAnswer(JSON.stringify({
+      answer: NO_ANSWER_INSUFFICIENT,
+      supportingEvidenceIds: ['S1'],
+    }), createMatches());
+
+    assert.deepEqual(result, {
+      text: NO_ANSWER_INSUFFICIENT,
+      supportingEvidenceIds: [],
+    });
+  });
+
+  it('拒絕 answered response 的未知證據 ID', () => {
+    assert.throws(
+      () => parseStructuredAnswer(JSON.stringify({
+        answer: '有根據的答案。',
+        supportingEvidenceIds: ['S99'],
+      }), createMatches()),
+      (error) => error.code === 'ANSWER_PROVIDER_INVALID_RESPONSE'
+        && error.details.reason === 'unknown_supporting_evidence',
+    );
+  });
 });
 
 describe('answer generation service', () => {
@@ -155,7 +235,10 @@ describe('answer generation service', () => {
                 content: {
                   parts: [
                     {
-                      text: 'Gemini grounded answer.',
+                      text: JSON.stringify({
+                        answer: 'Gemini grounded answer.',
+                        supportingEvidenceIds: ['S1', 'S3'],
+                      }),
                     },
                   ],
                 },
@@ -171,6 +254,7 @@ describe('answer generation service', () => {
     assert.equal(result.text, 'Gemini grounded answer.');
     assert.equal(result.provider, 'gemini');
     assert.equal(result.fallback, null);
+    assert.deepEqual(result.supportingEvidenceIds, ['S1', 'S3']);
     assert.equal(capturedRequests.length, 1);
     assert.match(capturedRequests[0].url, /models\/gemini-3\.5-flash:generateContent$/);
     assert.equal(capturedRequests[0].options.headers['x-goog-api-key'], 'gemini-test-key');
@@ -178,6 +262,108 @@ describe('answer generation service', () => {
     assert.match(capturedRequests[0].options.body, /teacher 與 admin 可以管理課程與影片/);
     assert.match(capturedRequests[0].options.body, /第二段說明教師可以發布課程/);
     assert.match(capturedRequests[0].options.body, /第三段補充管理員可以管理所有使用者/);
+    const requestBody = JSON.parse(capturedRequests[0].options.body);
+    assert.equal(requestBody.generationConfig.responseMimeType, 'application/json');
+    assert.deepEqual(
+      requestBody.generationConfig.responseSchema.required,
+      ['answer', 'supportingEvidenceIds'],
+    );
+  });
+
+  it('uses the same structured answer parser for OpenAI', async () => {
+    env.qaAnswerProvider = 'openai';
+    env.openaiApiKey = 'openai-test-key';
+    global.fetch = async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                answer: 'OpenAI grounded answer.',
+                supportingEvidenceIds: ['S2'],
+              }),
+            },
+          }],
+        };
+      },
+    });
+
+    const result = await generateAnswer('教師可以做什麼？', createMatches());
+
+    assert.equal(result.text, 'OpenAI grounded answer.');
+    assert.equal(result.provider, 'openai');
+    assert.equal(result.fallback, null);
+    assert.deepEqual(result.supportingEvidenceIds, ['S2']);
+  });
+
+  it('falls back to the S1 template when an answered Gemini response has no evidence IDs', async () => {
+    const matches = createMatches();
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    console.error = () => {};
+    global.fetch = async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      async text() {
+        return JSON.stringify({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  answer: '沒有證據 ID 的回答。',
+                  supportingEvidenceIds: [],
+                }),
+              }],
+            },
+          }],
+        });
+      },
+    });
+
+    const result = await generateAnswer('教師可以做什麼？', matches);
+
+    assert.equal(result.text, buildTemplateAnswer('教師可以做什麼？', matches));
+    assert.equal(result.provider, 'template');
+    assert.equal(result.fallback.code, 'ANSWER_PROVIDER_INVALID_RESPONSE');
+    assert.deepEqual(result.supportingEvidenceIds, ['S1']);
+  });
+
+  it('falls back to the S1 template when OpenAI returns an unknown evidence ID', async () => {
+    const matches = createMatches();
+    env.qaAnswerProvider = 'openai';
+    env.openaiApiKey = 'openai-test-key';
+    global.fetch = async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                answer: '引用未知 ID 的回答。',
+                supportingEvidenceIds: ['S4'],
+              }),
+            },
+          }],
+        };
+      },
+    });
+
+    const result = await generateAnswer('教師可以做什麼？', matches);
+
+    assert.equal(result.provider, 'template');
+    assert.equal(result.fallback.from, 'openai');
+    assert.equal(result.fallback.code, 'ANSWER_PROVIDER_INVALID_RESPONSE');
+    assert.deepEqual(result.supportingEvidenceIds, ['S1']);
+  });
+
+  it('template answers cite S1 and empty retrieval cites nothing', async () => {
+    const withMatches = await generateAnswer('教師可以做什麼？', createMatches());
+    const withoutMatches = await generateAnswer('教師可以做什麼？', []);
+
+    assert.deepEqual(withMatches.supportingEvidenceIds, ['S1']);
+    assert.deepEqual(withoutMatches.supportingEvidenceIds, []);
   });
 
   it('marks template fallback explicitly when Gemini fails', async () => {
@@ -198,6 +384,7 @@ describe('answer generation service', () => {
     assert.equal(result.fallback.from, 'gemini');
     assert.equal(result.fallback.to, 'template');
     assert.equal(result.fallback.code, 'ANSWER_PROVIDER_ERROR');
+    assert.deepEqual(result.supportingEvidenceIds, ['S1']);
   });
 
   it('logs only provider response length and the first 80 characters', async () => {
@@ -242,6 +429,7 @@ describe('answer generation service', () => {
 
     assert.equal(result.provider, 'template');
     assert.equal(result.fallback.code, 'ANSWER_PROVIDER_EMPTY_RESPONSE');
+    assert.deepEqual(result.supportingEvidenceIds, ['S1']);
   });
 
   it('fails fast when gemini is selected without an API key', async () => {

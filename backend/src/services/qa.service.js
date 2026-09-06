@@ -48,6 +48,15 @@ const {
   evaluateHierarchicalRollout,
   executeHierarchicalRollout,
 } = require('./hierarchicalRollout.service');
+const {
+  LEAF_CONTEXT_CANDIDATE_LIMIT,
+  LEAF_CONTEXT_REQUIRED_LIMIT,
+  LEAF_CONTEXT_REASONS,
+  buildPlayableVideoIds,
+  buildSkippedLeafContextDiagnostics,
+  evaluateLeafContextEligibility,
+  selectProductionLeafContext,
+} = require('./leafContextSelection.service');
 
 function normalizeWords(text) {
   return String(text || '')
@@ -503,7 +512,7 @@ function buildAtlasSegmentFilter(scope) {
   return castCourseIdToObjectId(raw);
 }
 
-async function searchSegmentsWithAtlas(scope, queryVector) {
+async function searchSegmentsWithAtlas(scope, queryVector, { limit = env.qaMatchLimit } = {}) {
   if (!Array.isArray(queryVector) || !queryVector.length) {
     throw new AppError(
       'Atlas vector search requires a non-empty query embedding.',
@@ -531,8 +540,8 @@ async function searchSegmentsWithAtlas(scope, queryVector) {
           index: env.qaAtlasVectorIndexName,
           path: 'embedding',
           queryVector,
-          numCandidates: Math.max(env.qaMatchLimit * 5, 10),
-          limit: env.qaMatchLimit,
+          numCandidates: Math.max(limit * 5, 10),
+          limit,
           filter: atlasFilter,
         },
       },
@@ -761,11 +770,176 @@ function buildCitations(matches, {
   return playableMatches.map(buildCitation);
 }
 
-// Retrieval matches are candidate/debug data. Only this final-answer boundary
-// may promote them to user-facing citations.
+function buildLeafContextFallback(reason) {
+  return buildRuntimeFallback({
+    stage: 'retrieval',
+    code: 'QA_LEAF_CONTEXT_SELECTION_FALLBACK',
+    from: 'candidate30_same_video_adjacent_one_hop',
+    to: 'baseline_top15',
+    message: `Leaf context selection failed closed to the existing Top15 retrieval (${reason}).`,
+  });
+}
+
+async function applyProductionLeafContextSelection({
+  baselineResult,
+  scope,
+  queryVector,
+  scopedVideos,
+}) {
+  // 先取得並保留既有 Top15，再以 default-off gate 嘗試新 selector。
+  // 任何新查詢、direct read 或輸出 invariant 失敗，都只能回傳原 Top15。
+  const baseline = baselineResult || { matches: [], diagnostics: {} };
+  const eligibility = evaluateLeafContextEligibility({
+    enabled: env.qaLeafAdjacentContextEnabled,
+    vectorSearchMode: env.qaVectorSearchMode,
+    contextLimit: env.qaMatchLimit,
+    hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,
+  });
+  const baselineDiagnostics = baseline.diagnostics || {};
+
+  if (!eligibility.eligible) {
+    const diagnostics = buildSkippedLeafContextDiagnostics(eligibility);
+    return {
+      ...baseline,
+      diagnostics: {
+        ...baselineDiagnostics,
+        leafContextSelection: diagnostics,
+        fallbacks: [
+          ...(baselineDiagnostics.fallbacks || []),
+          ...(eligibility.requested ? [buildLeafContextFallback(eligibility.reason)] : []),
+        ],
+      },
+    };
+  }
+
+  if (!Array.isArray(baseline.matches)
+      || baseline.matches.length !== LEAF_CONTEXT_REQUIRED_LIMIT) {
+    return {
+      ...baseline,
+      diagnostics: {
+        ...baselineDiagnostics,
+        leafContextSelection: buildSkippedLeafContextDiagnostics({
+          requested: true,
+          eligible: true,
+          reason: LEAF_CONTEXT_REASONS.INSUFFICIENT_CANDIDATE_POOL,
+        }),
+      },
+    };
+  }
+
+  let candidateResult;
+  try {
+    candidateResult = await searchSegmentsWithAtlas(scope, queryVector, {
+      limit: LEAF_CONTEXT_CANDIDATE_LIMIT,
+    });
+  } catch (error) {
+    const diagnostics = buildSkippedLeafContextDiagnostics({
+      requested: true,
+      eligible: true,
+      reason: LEAF_CONTEXT_REASONS.CANDIDATE_SEARCH_FAILED,
+    });
+    diagnostics.errorCode = String(error?.code || 'CANDIDATE_SEARCH_FAILED');
+    return {
+      ...baseline,
+      diagnostics: {
+        ...baselineDiagnostics,
+        leafContextSelection: diagnostics,
+        fallbacks: [
+          ...(baselineDiagnostics.fallbacks || []),
+          buildLeafContextFallback(diagnostics.reason),
+        ],
+      },
+    };
+  }
+
+  let selection;
+  try {
+    selection = await selectProductionLeafContext({
+      baselineMatches: baseline.matches,
+      candidateMatches: candidateResult.matches,
+      leafRepository: createLeafRepository(),
+      scope,
+      playableVideoIds: buildPlayableVideoIds(scopedVideos),
+    });
+  } catch (error) {
+    const diagnostics = buildSkippedLeafContextDiagnostics({
+      requested: true,
+      eligible: true,
+      reason: LEAF_CONTEXT_REASONS.SELECTOR_FAILED,
+    });
+    diagnostics.errorCode = String(error?.code || 'SELECTOR_FAILED');
+    return {
+      ...baseline,
+      diagnostics: {
+        ...baselineDiagnostics,
+        leafContextSelection: diagnostics,
+        fallbacks: [
+          ...(baselineDiagnostics.fallbacks || []),
+          buildLeafContextFallback(diagnostics.reason),
+        ],
+      },
+    };
+  }
+  const failedClosed = selection.failedClosed === true;
+
+  return {
+    ...baseline,
+    matches: failedClosed ? baseline.matches : selection.matches,
+    diagnostics: {
+      ...baselineDiagnostics,
+      leafContextSelection: selection.diagnostics,
+      fallbacks: [
+        ...(baselineDiagnostics.fallbacks || []),
+        ...(failedClosed ? [buildLeafContextFallback(selection.diagnostics.reason)] : []),
+      ],
+    },
+  };
+}
+
+const FAQ_ANSWER_EVIDENCE_VERSION = 'supporting-evidence-v1';
+
+function resolveSupportingMatches(matches, supportingEvidenceIds) {
+  const sourceMatches = Array.isArray(matches) ? matches : [];
+  if (!Array.isArray(supportingEvidenceIds)) return sourceMatches;
+
+  const selectedIndexes = new Set();
+  for (const evidenceId of supportingEvidenceIds) {
+    const matched = /^S([1-9]\d*)$/.exec(String(evidenceId || ''));
+    if (!matched) continue;
+    const index = Number(matched[1]) - 1;
+    if (index >= 0 && index < sourceMatches.length) selectedIndexes.add(index);
+  }
+
+  // 模型只負責指出使用哪些 opaque evidence ID；實際引用順序仍以後端
+  // retrieval context 為準，避免模型任意重排或注入不存在的內部 ID。
+  return sourceMatches.filter((_, index) => selectedIndexes.has(index));
+}
+
+function markFaqAnswerEvidence(matches) {
+  return (Array.isArray(matches) ? matches : []).map((match) => ({
+    ...match,
+    _answerEvidenceVersion: FAQ_ANSWER_EVIDENCE_VERSION,
+  }));
+}
+
+function hasCurrentFaqAnswerEvidence(faq) {
+  const matches = Array.isArray(faq?.matches) ? faq.matches : [];
+  return matches.length > 0
+    && matches.every((match) => match?._answerEvidenceVersion === FAQ_ANSWER_EVIDENCE_VERSION);
+}
+
+function stripFaqAnswerEvidenceMarker(match) {
+  if (!match || typeof match !== 'object') return match;
+  const { _answerEvidenceVersion, ...publicMatch } = match;
+  return publicMatch;
+}
+
+// Retrieval matches 只是候選與除錯資料。只有答案明確選用、且通過可播放
+// 檢查的 evidence，才能在這個最終邊界升格為使用者可見 citation。
 function buildUserFacingCitations({
   answer,
   matches,
+  supportingEvidenceIds,
   scopedVideos = null,
   requirePlayableSource = false,
   courseId = null,
@@ -775,7 +949,7 @@ function buildUserFacingCitations({
     return [];
   }
 
-  return buildCitations(matches, {
+  return buildCitations(resolveSupportingMatches(matches, supportingEvidenceIds), {
     scopedVideos,
     requirePlayableSource,
     courseId,
@@ -817,12 +991,21 @@ function buildAnswerStatus(runtime, citations, { noAnswerReply = false } = {}) {
   };
 }
 
-function buildQaResponse({ answer, matches, clip, runtime, scopedVideos, courseId }) {
+function buildQaResponse({
+  answer,
+  matches,
+  supportingEvidenceIds,
+  clip,
+  runtime,
+  scopedVideos,
+  courseId,
+}) {
   const noAnswerReply = isNoAnswerReply(answer);
   const droppedCitations = [];
   const citations = buildUserFacingCitations({
     answer,
     matches,
+    supportingEvidenceIds,
     scopedVideos,
     requirePlayableSource: true,
     courseId,
@@ -912,6 +1095,9 @@ function buildQaRuntime({
     ...(searchDiagnostics?.rollout
       ? { hierarchicalRollout: searchDiagnostics.rollout }
       : {}),
+    ...(searchDiagnostics?.leafContextSelection
+      ? { leafContextSelection: searchDiagnostics.leafContextSelection }
+      : {}),
   };
 }
 
@@ -944,9 +1130,10 @@ async function respondFromFaqCache({
   const hitFaq = await recordFaqHit(faq._id) || faq;
   const noAnswerReply = isNoAnswerReply(faq.answer);
   const matches = enrichMatchesWithVideoMetadata(
-    Array.isArray(faq.matches) ? faq.matches : [],
+    (Array.isArray(faq.matches) ? faq.matches : []).map(stripFaqAnswerEvidenceMarker),
     scopedVideos,
   );
+  const supportingEvidenceIds = matches.map((_, index) => `S${index + 1}`);
 
   const runtime = buildQaRuntime({
     runtimeSnapshot,
@@ -997,6 +1184,7 @@ async function respondFromFaqCache({
   return buildQaResponse({
     answer: faq.answer,
     matches,
+    supportingEvidenceIds,
     clip: faq.clip || null,
     runtime,
     scopedVideos,
@@ -1065,6 +1253,7 @@ async function askQuestion({
   const visualSegmentScope = buildCourseVisualSegmentScope(scopedVideos);
   const invalidFaqIds = new Set();
   let faqRevalidationFailure = null;
+  let faqEvidenceBypass = null;
 
   async function faqMatchesCurrentScope(faq) {
     const faqId = String(faq?._id || '');
@@ -1094,12 +1283,27 @@ async function askQuestion({
       hit: false,
       enabled: faqCacheEnabled,
       ...(faqRevalidationFailure ? { revalidationFailure: faqRevalidationFailure } : {}),
+      ...(faqEvidenceBypass ? { evidenceBypass: faqEvidenceBypass } : {}),
     };
     return runtime;
   }
 
+  function faqHasCurrentAnswerEvidence(faq) {
+    if (hasCurrentFaqAnswerEvidence(faq)) return true;
+
+    // 舊 FAQ 沒有「答案實際使用哪些 evidence」的 provenance，不能把歷史
+    // retrieval matches 全部當成 citation；略過一次並由新版流程重新產生。
+    faqEvidenceBypass = {
+      errorCode: 'QA_FAQ_ANSWER_EVIDENCE_UNAVAILABLE',
+      faqId: String(faq?._id || ''),
+    };
+    return false;
+  }
+
   // FAQ 快取第一層：正規化文字完全相同 → 零 token，直接回快取答案
-  if (exactFaq && await faqMatchesCurrentScope(exactFaq)) {
+  if (exactFaq
+      && await faqMatchesCurrentScope(exactFaq)
+      && faqHasCurrentAnswerEvidence(exactFaq)) {
     const cachedResult = await respondFromFaqCache({
       user,
       course,
@@ -1137,7 +1341,9 @@ async function askQuestion({
     const semanticHit = await findFaqBySimilarEmbedding({ courseId: course._id, queryVector });
     tMark = qaTimingMark('faq-semantic-lookup', tMark);
 
-    if (semanticHit && await faqMatchesCurrentScope(semanticHit.faq)) {
+    if (semanticHit
+        && await faqMatchesCurrentScope(semanticHit.faq)
+        && faqHasCurrentAnswerEvidence(semanticHit.faq)) {
       const cachedResult = await respondFromFaqCache({
         user,
         course,
@@ -1258,7 +1464,7 @@ async function askQuestion({
     });
   }
 
-  const leafSearch = async () => (scopedSegments.length
+  const baselineLeafSearch = async () => (scopedSegments.length
     ? env.qaVectorSearchMode === 'atlas'
       ? searchSegmentsWithAtlas(segmentScope, queryVector)
       : searchSegmentsInMemory(segmentScope, standaloneQuestion, queryVector, scopedSegments)
@@ -1270,6 +1476,15 @@ async function askQuestion({
           fallbacks: [],
         },
       });
+  const leafSearch = async () => {
+    const baselineResult = await baselineLeafSearch();
+    return applyProductionLeafContextSelection({
+      baselineResult,
+      scope: segmentScope,
+      queryVector,
+      scopedVideos,
+    });
+  };
   const rolloutDecision = evaluateHierarchicalRollout({
     globalEnabled: env.hierarchicalRetrievalEnabled,
     rolloutMode: env.hierarchicalRetrievalRolloutMode,
@@ -1361,6 +1576,8 @@ async function askQuestion({
       return buildQaResponse({
         answer,
         matches: visualMatches,
+        // visual-only 回答只描述第一筆影像片段，因此只讓 S1 升格為 citation。
+        supportingEvidenceIds: ['S1'],
         clip: null,
         runtime,
         scopedVideos,
@@ -1413,23 +1630,23 @@ async function askQuestion({
     });
   }
 
-  // 平行：LLM 生成答案與快取 clip 查詢完全獨立
+  // Citation/clip 必須以答案實際採用的 evidence 為準，不能再固定取 retrieval Top1。
   const generationStartedAt = Date.now();
-  const answerPromise = generateAnswer(trimmedQuestion, matches, conversationHistory)
-    .then((answer) => {
-      stageLatency.generationLatencyMs = Date.now() - generationStartedAt;
-      return answer;
-    });
-  const [answerResult, clip] = await Promise.all([
-    answerPromise,
-    findCachedClip(matches[0].segmentId),
-  ]);
+  const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
+  stageLatency.generationLatencyMs = Date.now() - generationStartedAt;
   const noAnswerReply = isNoAnswerReply(answerResult.text);
+  const supportingMatches = noAnswerReply
+    ? []
+    : resolveSupportingMatches(matches, answerResult.supportingEvidenceIds);
+  const primaryEvidenceMatch = supportingMatches[0] || null;
+  const clip = primaryEvidenceMatch
+    ? await findCachedClip(primaryEvidenceMatch.segmentId)
+    : null;
   tMark = qaTimingMark(`llm+clip (matches=${matches.length}, transcript chars≈${matches.reduce((s, m) => s + (m.transcript?.length || 0), 0)})`, tMark);
-  const resultClip = clip || (matches[0]?.jumpUrl ? {
-    segmentId: matches[0].segmentId,
-    clipUrl: matches[0].jumpUrl,
-    jumpUrl: matches[0].jumpUrl,
+  const resultClip = clip || (primaryEvidenceMatch?.jumpUrl ? {
+    segmentId: primaryEvidenceMatch.segmentId,
+    clipUrl: primaryEvidenceMatch.jumpUrl,
+    jumpUrl: primaryEvidenceMatch.jumpUrl,
     keyPoints: [],
     hitCount: 0,
   } : null);
@@ -1504,7 +1721,7 @@ async function askQuestion({
           courseId: course._id,
           question: trimmedQuestion,
           answer: answerResult.text,
-          matches,
+          matches: markFaqAnswerEvidence(supportingMatches),
           clip: resultClip,
           questionEmbedding: queryVector,
         })
@@ -1520,6 +1737,7 @@ async function askQuestion({
   return buildQaResponse({
     answer: answerResult.text,
     matches,
+    supportingEvidenceIds: answerResult.supportingEvidenceIds,
     clip: resultClip,
     runtime,
     scopedVideos,
@@ -1532,4 +1750,5 @@ module.exports = {
   buildAnswerStatus,
   buildCitations,
   buildUserFacingCitations,
+  resolveSupportingMatches,
 };

@@ -278,6 +278,7 @@ function buildQaRuntimeSnapshot() {
     answerProvider: env.qaAnswerProvider,
     atlasVectorIndexConfigured: Boolean(env.qaAtlasVectorIndexName),
     atlasFilterMode: env.qaAtlasFilterMode,
+    leafAdjacentContextEnabled: env.qaLeafAdjacentContextEnabled,
     geminiConfigured: Boolean(env.geminiApiKey),
     openaiConfigured: Boolean(env.openaiApiKey),
     hierarchicalRetrievalEnabled: env.hierarchicalRetrievalEnabled,

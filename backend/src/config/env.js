@@ -94,6 +94,13 @@ module.exports = {
   qaAtlasVectorIndexName: process.env.QA_ATLAS_VECTOR_INDEX_NAME || '',
   qaAtlasFilterMode: process.env.QA_ATLAS_FILTER_MODE || 'bridge_course_or_video',
   qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 3,
+  // Candidate30 + bounded same-video adjacent Leaf selection is opt-in and
+  // remains disabled unless an operator explicitly enables the rollout.
+  qaLeafAdjacentContextEnabled: parseBoolean(
+    process.env.QA_LEAF_ADJACENT_CONTEXT_ENABLED,
+    false,
+    'QA_LEAF_ADJACENT_CONTEXT_ENABLED',
+  ),
   maxConversationTurns: parsePositiveInteger(process.env.MAX_CONVERSATION_TURNS, 4, 'MAX_CONVERSATION_TURNS'),
   hierarchicalRetrievalEnabled: parseBoolean(
     process.env.HIERARCHICAL_RETRIEVAL_ENABLED,

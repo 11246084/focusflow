@@ -10,6 +10,7 @@ const {
   store,
   ids,
   newObjectId,
+  env,
 } = require('./helpers/backendTestHarness');
 const { buildMockEmbedding } = require('../src/services/queryEmbedding.service');
 const logger = require('../src/utils/logger');
@@ -72,7 +73,20 @@ describe('FAQ 快取與常見問題路由', () => {
 
   before(async () => { ({ server, baseUrl } = await startServer()); });
   after(async () => stopServer(server));
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+    env.qaQueryEmbeddingProvider = 'mock';
+    env.qaVectorSearchMode = 'memory';
+    env.qaAnswerProvider = 'template';
+    env.qaAtlasVectorIndexName = '';
+    env.qaAtlasFilterMode = 'bridge_course_or_video';
+    env.faqCacheEnabled = true;
+    env.qaLeafAdjacentContextEnabled = false;
+    env.hierarchicalRetrievalEnabled = false;
+    env.qaEstimatedTokensPerAsk = 1000;
+    env.qaMonthlyTokenBudget = 0;
+    env.qaUserMonthlyTokenQuota = 0;
+  });
 
   it('第一次提問建立 FAQ，重複提問直接命中快取', async () => {
     makeSegmentsVectorReady();
@@ -113,6 +127,25 @@ describe('FAQ 快取與常見問題路由', () => {
     assert.equal(variant.body.data.runtime.faqCache.hit, true);
     assert.equal(variant.body.data.runtime.faqCache.matchType, 'exact');
     assert.equal(store.faqs.length, 1);
+  });
+
+  it('舊 FAQ 沒有 answer-evidence provenance 時略過快取並重新生成', async () => {
+    makeSegmentsVectorReady();
+    const staleAnswer = '這是沒有答案證據來源的舊快取。';
+    const faq = seedFaq({ question: QUESTION_TEXT, answer: staleAnswer });
+    const token = await loginAs(baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await askQuestionAs(baseUrl, token, QUESTION_TEXT);
+
+    assert.equal(result.status, 200);
+    assert.notEqual(result.body.data.answer, staleAnswer);
+    assert.equal(result.body.data.runtime.faqCache.hit, false);
+    assert.equal(
+      result.body.data.runtime.faqCache.evidenceBypass.errorCode,
+      'QA_FAQ_ANSWER_EVIDENCE_UNAVAILABLE',
+    );
+    assert.equal(faq.hitCount, 0);
+    assert.equal(store.faqs[0].matches[0]._answerEvidenceVersion, 'supporting-evidence-v1');
   });
 
   it('FAQ 任一引用超出課程範圍時整筆作廢並繼續正式檢索', async () => {

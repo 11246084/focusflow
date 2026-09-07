@@ -14,6 +14,7 @@ function resetRuntimeEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.qaLeafAdjacentContextEnabled = false;
   env.hierarchicalRetrievalEnabled = false;
   env.hierarchicalRetrievalFallbackToLeaf = true;
   env.qaMockEmbeddingDimensions = 32;
@@ -69,6 +70,7 @@ describe('health routes', () => {
     assert.ok(result.body.data.timestamp);
     assert.equal(result.body.data.runtime.qa.queryEmbeddingProvider, 'mock');
     assert.equal(result.body.data.runtime.qa.vectorSearchMode, 'memory');
+    assert.equal(result.body.data.runtime.qa.leafAdjacentContextEnabled, false);
     assert.equal(result.body.data.runtime.qa.readiness, 'ready');
     assert.equal(result.body.data.runtime.qa.readyForAsk, true);
     assert.equal(result.body.data.runtime.qa.queryEmbeddingContract.dimension, 32);

@@ -1219,6 +1219,7 @@ async function runStudentPilotBaseline(options, dependencies) {
         citations = citationBuilder({
           answer: generated?.text,
           matches: answerContextMatches,
+          supportingEvidenceIds: generated?.supportingEvidenceIds,
           scopedVideos: inspection.scopedVideos,
           requirePlayableSource: true,
           courseId: options.courseId,
@@ -1257,6 +1258,8 @@ async function runStudentPilotBaseline(options, dependencies) {
         answer: generated ? {
           text: String(generated?.text || ''),
           provider: generated?.provider || null,
+          supportingEvidenceIds: Array.isArray(generated?.supportingEvidenceIds)
+            ? generated.supportingEvidenceIds : [],
         } : null,
         answerStatus,
         citations,

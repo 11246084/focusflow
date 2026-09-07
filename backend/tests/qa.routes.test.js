@@ -21,6 +21,7 @@ function resetQaEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.qaLeafAdjacentContextEnabled = false;
   env.qaEstimatedTokensPerAsk = 1000;
   env.qaMonthlyTokenBudget = 0;
   env.qaUserMonthlyTokenQuota = 0;
@@ -179,7 +180,8 @@ describe('qa routes', () => {
       Object.keys(result.body.data.matches[0]).sort(),
       ['chunkId', 'endSec', 'jumpUrl', 'score', 'segmentId', 'sourceUrl', 'startSec', 'transcript', 'videoId', 'videoTitle', 'videoUrl', 'youtubeVideoId'],
     );
-    assert.equal(result.body.data.citations.length, result.body.data.matches.length);
+    assert.equal(result.body.data.matches.length > result.body.data.citations.length, true);
+    assert.equal(result.body.data.citations.length, 1);
     assert.deepEqual(
       Object.keys(result.body.data.citations[0]).sort(),
       ['chunkId', 'citationId', 'clipPath', 'match', 'modality', 'segmentId', 'sourceVideo', 'timestamp', 'transcriptSnippet', 'videoId', 'videoTitle'],
@@ -245,7 +247,10 @@ describe('qa routes', () => {
         statusText: 'OK',
         async text() {
           return JSON.stringify({
-            candidates: [{ content: { parts: [{ text: NO_ANSWER_INSUFFICIENT }] } }],
+            candidates: [{ content: { parts: [{ text: JSON.stringify({
+              answer: NO_ANSWER_INSUFFICIENT,
+              supportingEvidenceIds: [],
+            }) }] } }],
           });
         },
       };
@@ -275,6 +280,46 @@ describe('qa routes', () => {
     assert.equal(result.body.data.runtime.matchStatus, 'matched');
     assert.equal(result.body.data.clip, null);
     assert.equal(store.questions.at(-1).status, 'no_match');
+    assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
+  });
+
+  it('uses only Gemini-selected evidence for successful citations and clip selection', async () => {
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    global.fetch = async (url, options) => {
+      if (!String(url).includes('generativelanguage.googleapis.com')) {
+        return originalFetch(url, options);
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        async text() {
+          return JSON.stringify({
+            candidates: [{ content: { parts: [{ text: JSON.stringify({
+              answer: '教師可以發布課程。',
+              supportingEvidenceIds: ['S2'],
+            }) }] } }],
+          });
+        },
+      };
+    };
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST',
+      token: studentToken,
+      body: {
+        courseId: ids.publishedCourse,
+        question: 'What does the course say about JWT authentication?',
+      },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.matches.length, 2);
+    assert.deepEqual(result.body.data.citations.map((citation) => citation.segmentId), [ids.segmentTwo]);
+    assert.equal(result.body.data.clip, null);
+    assert.equal(store.clips[0].hitCount, 0);
     assert.equal(store.usageLogs.some((entry) => entry.event === 'clip_view'), false);
   });
 

@@ -44,18 +44,112 @@ function buildTemplateAnswer(question, matches) {
   return `根據目前最相關的課程片段，這個問題和影片內容最接近的說明是：${excerpt}`;
 }
 
-function buildAnswerResult({ text, provider, fallback = null }) {
+function buildAnswerResult({ text, provider, fallback = null, supportingEvidenceIds = [] }) {
   return {
     text,
     provider,
     fallback,
+    supportingEvidenceIds,
+  };
+}
+
+function buildTemplateAnswerResult(question, matches, fallback = null) {
+  return buildAnswerResult({
+    text: buildTemplateAnswer(question, matches),
+    provider: 'template',
+    fallback,
+    supportingEvidenceIds: matches.length ? ['S1'] : [],
+  });
+}
+
+function parseStructuredAnswer(rawText, matches) {
+  // Provider 只能回傳本次 prompt 建立的 S1...Sn；後端不接受 segmentId、
+  // videoId 或超出 context 的值，避免模型自行建立 citation 關聯。
+  let parsed;
+
+  try {
+    parsed = JSON.parse(String(rawText || '').trim());
+  } catch (error) {
+    throw new AppError('Answer provider returned invalid structured JSON.', 502, 'ANSWER_PROVIDER_INVALID_RESPONSE', {
+      reason: 'invalid_json',
+      parseError: error.message,
+    });
+  }
+
+  const text = typeof parsed?.answer === 'string' ? parsed.answer.trim() : '';
+
+  if (!text) {
+    throw new AppError('Answer provider returned no answer text.', 502, 'ANSWER_PROVIDER_EMPTY_RESPONSE', {
+      reason: 'empty_answer',
+    });
+  }
+
+  if (isNoAnswerReply(text)) {
+    return {
+      text,
+      supportingEvidenceIds: [],
+    };
+  }
+
+  if (!Array.isArray(parsed.supportingEvidenceIds) || !parsed.supportingEvidenceIds.length) {
+    throw new AppError('Answer provider returned an answered response without evidence.', 502, 'ANSWER_PROVIDER_INVALID_RESPONSE', {
+      reason: 'missing_supporting_evidence',
+    });
+  }
+
+  const knownEvidenceIds = new Set(matches.map((_, index) => `S${index + 1}`));
+  const supportingEvidenceIds = [];
+
+  for (const evidenceId of parsed.supportingEvidenceIds) {
+    if (typeof evidenceId !== 'string' || !/^S[1-9]\d*$/.test(evidenceId) || !knownEvidenceIds.has(evidenceId)) {
+      throw new AppError('Answer provider returned an unknown evidence identifier.', 502, 'ANSWER_PROVIDER_INVALID_RESPONSE', {
+        reason: 'unknown_supporting_evidence',
+      });
+    }
+
+    if (!supportingEvidenceIds.includes(evidenceId)) {
+      supportingEvidenceIds.push(evidenceId);
+    }
+  }
+
+  return {
+    text,
+    supportingEvidenceIds,
   };
 }
 
 function buildPrompt(question, matches) {
-  const context = matches
-    .map((match, index) => [
-      `片段 ${index + 1}`,
+  // S1...Sn 是單次請求內的 opaque ID，不會把資料庫內部識別碼暴露給模型。
+  const sourceOrder = new Map();
+  const evidence = matches.map((match, index) => {
+    // 同一影片依時間還原教材敘述，避免相似度排序把跨 chunk 的主詞與結論拆開；
+    // S 編號仍維持原 retrieval 位置，確保 supportingEvidenceIds 與 citation 對應不變。
+    const sourceKey = match.videoId
+      ? `video:${match.videoId}`
+      : `unknown:${index}`;
+    if (!sourceOrder.has(sourceKey)) sourceOrder.set(sourceKey, sourceOrder.size);
+
+    return {
+      match,
+      evidenceId: `S${index + 1}`,
+      originalIndex: index,
+      sourceKey,
+    };
+  }).sort((left, right) => {
+    const sourceDifference = sourceOrder.get(left.sourceKey) - sourceOrder.get(right.sourceKey);
+    if (sourceDifference !== 0) return sourceDifference;
+
+    const leftStart = Number(left.match.startSec);
+    const rightStart = Number(right.match.startSec);
+    if (Number.isFinite(leftStart) && Number.isFinite(rightStart) && leftStart !== rightStart) {
+      return leftStart - rightStart;
+    }
+
+    return left.originalIndex - right.originalIndex;
+  });
+  const context = evidence
+    .map(({ match, evidenceId }) => [
+      `證據 ID：${evidenceId}`,
       `影片：${match.videoTitle || '未知影片'}`,
       `時間：${match.startSec}-${match.endSec}s`,
       `內容：${match.transcript}`,
@@ -79,7 +173,11 @@ function buildPrompt(question, matches) {
     '8. 不要替其他 transcript 詞語加括號解釋、補註，也不要在答案中列出逐字稿的錯字變體或說明 STT 誤寫。',
     '9. 自然整理重點，不要直接貼上逐字稿，也不要把口語贅詞、口頭數數或重複語句寫進答案；數字要給結論值而不是唸數的過程。',
     '10. 片段之間若有互相矛盾的說法，只採用最明確、最直接回答問題的那一種，答案本身不可自相矛盾。',
-    '11. 回答最後用括號標出依據影片與時間，例如「依據：video_001.mp4 12-20s」。',
+    '11. 每個事實結論都必須由至少一個證據 ID 的內容直接支持；只列出實際支持最終答案的證據 ID，不可把所有片段一律列為依據。',
+    '12. 教材若明示某個項目的分類、定義或歸屬，必須以教材的明示說法為準，不可用常識或外部知識改成另一種分類。',
+    '13. 教材若在同一句或連續敘述中把多個例子列為同一類，必須維持它們的同類關係，不可自行拆成不同類。',
+    '14. 回答分類、定義或歸屬問題前，逐項核對問題中的每個項目與教材的明示結論。若前一片段列出項目，緊接的同影片片段以「這些」「那些」「兩者」「都是」等指代給出結論，必須把它們視為同一段連續敘述；不可依項目的外觀或用途自行補判。',
+    `15. 只輸出一個 JSON 物件，格式固定為 {"answer":"繁體中文答案","supportingEvidenceIds":["S1"]}。正常回答至少要有一個有效證據 ID；若回答「${NO_ANSWER_INSUFFICIENT}」，supportingEvidenceIds 必須是空陣列。不要輸出 Markdown 或其他文字。`,
   ].join('\n');
 }
 
@@ -119,7 +217,7 @@ async function generateAnswerWithOpenAI(question, matches, conversationHistory =
   }
 
   const payload = await response.json();
-  return payload.choices?.[0]?.message?.content?.trim() || buildTemplateAnswer(question, matches);
+  return parseStructuredAnswer(payload.choices?.[0]?.message?.content, matches);
 }
 
 function extractGeminiText(payload) {
@@ -203,15 +301,30 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
               'Do not add parenthetical explanations, corrections, or interpretations for any other transcript words, and never list transcript misspelling variants.',
               'Do not copy filler speech, counting-out-loud, or repeated phrases from the transcript; report the resulting number, not the counting process.',
               'If snippets contradict each other, use only the clearest statement; the answer must not contradict itself.',
+              'Every factual claim in the answer must be directly supported by at least one evidence ID. Return only the evidence IDs that support the final answer, never all retrieved snippets by default.',
+              'When the course material explicitly states a classification, definition, or membership, preserve that stated classification instead of replacing it with outside knowledge.',
+              'When one sentence or continuous passage lists several examples under the same category, keep those examples in the same category and do not split them into different categories.',
+              'For classification, definition, or membership questions, verify each named item against the material\'s explicit conclusion. If one snippet lists items and the immediately following snippet from the same video gives their conclusion through a plural reference such as these, those, both, or all, treat them as one continuous statement and never infer a different result from an item\'s appearance or purpose.',
               `Only when no snippet mentions the topic of the question at all, reply exactly in Traditional Chinese: ${NO_ANSWER_INSUFFICIENT}`,
-              'When answering, include the supporting video title and snippet time range.',
+              'Return only the requested JSON object. A normal answer must cite at least one valid evidence ID. The insufficient-evidence answer must cite no evidence IDs.',
             ].join(' '),
           },
         ],
       },
       contents,
       generationConfig: {
-        responseMimeType: 'text/plain',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            answer: { type: 'STRING' },
+            supportingEvidenceIds: {
+              type: 'ARRAY',
+              items: { type: 'STRING' },
+            },
+          },
+          required: ['answer', 'supportingEvidenceIds'],
+        },
         temperature: 0,
         topP: 0.1,
         candidateCount: 1,
@@ -243,35 +356,52 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
       buildGeminiErrorDetails({ response, responseBody, payload }));
   }
 
-  return text;
+  return parseStructuredAnswer(text, matches);
+}
+
+function isStructuredAnswerError(error) {
+  return error instanceof AppError
+    && ['ANSWER_PROVIDER_INVALID_RESPONSE', 'ANSWER_PROVIDER_EMPTY_RESPONSE'].includes(error.code);
 }
 
 async function generateAnswer(question, matches, conversationHistory = null) {
   if (!matches.length) {
-    return buildAnswerResult({
-      text: buildTemplateAnswer(question, matches),
-      provider: 'template',
-    });
+    return buildTemplateAnswerResult(question, matches);
   }
 
   if (env.qaAnswerProvider === 'template') {
-    return buildAnswerResult({
-      text: buildTemplateAnswer(question, matches),
-      provider: 'template',
-    });
+    return buildTemplateAnswerResult(question, matches);
   }
 
   if (env.qaAnswerProvider === 'openai') {
-    return buildAnswerResult({
-      text: await generateAnswerWithOpenAI(question, matches, conversationHistory),
-      provider: 'openai',
-    });
+    try {
+      const answer = await generateAnswerWithOpenAI(question, matches, conversationHistory);
+      return buildAnswerResult({
+        ...answer,
+        provider: 'openai',
+      });
+    } catch (error) {
+      if (!isStructuredAnswerError(error)) {
+        throw error;
+      }
+
+      // 結構不合法時只引用既有第一筆 evidence 的 template 回答；
+      // 不把全部 retrieval matches 自動升格成成功回答的 citation。
+      return buildTemplateAnswerResult(question, matches, {
+        stage: 'answer',
+        from: 'openai',
+        to: 'template',
+        code: error.code,
+        message: 'OpenAI returned invalid structured evidence, so the backend used the template answer fallback.',
+      });
+    }
   }
 
   if (env.qaAnswerProvider === 'gemini') {
     try {
+      const answer = await generateAnswerWithGemini(question, matches, conversationHistory);
       return buildAnswerResult({
-        text: await generateAnswerWithGemini(question, matches, conversationHistory),
+        ...answer,
         provider: 'gemini',
       });
     } catch (error) {
@@ -281,16 +411,12 @@ async function generateAnswer(question, matches, conversationHistory = null) {
 
       logGeminiFailure(error);
 
-      return buildAnswerResult({
-        text: buildTemplateAnswer(question, matches),
-        provider: 'template',
-        fallback: {
+      return buildTemplateAnswerResult(question, matches, {
           stage: 'answer',
           from: 'gemini',
           to: 'template',
           code: error.code || 'ANSWER_PROVIDER_ERROR',
           message: 'Gemini answer generation failed, so the backend used the template answer fallback.',
-        },
       });
     }
   }
@@ -309,7 +435,9 @@ module.exports = {
   generateAnswer,
   buildPrompt,
   buildTemplateAnswer,
+  buildTemplateAnswerResult,
   buildAnswerResult,
+  parseStructuredAnswer,
   isNoAnswerReply,
   NO_ANSWER_INSUFFICIENT,
   NO_ANSWER_UNDETERMINED,

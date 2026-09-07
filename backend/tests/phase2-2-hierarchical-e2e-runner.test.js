@@ -437,7 +437,15 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
         searchCalls += 1;
         return studentPilotDependencies().searchStudentPilotLeaves(...args);
       },
-      async answer() { answerCalls += 1; return { text: 'safe answer', provider: 'mock', fallback: null }; },
+      async answer() {
+        answerCalls += 1;
+        return {
+          text: 'safe answer',
+          provider: 'mock',
+          fallback: null,
+          supportingEvidenceIds: ['S1'],
+        };
+      },
     }));
 
     assert.equal(result.success, true);
@@ -505,6 +513,7 @@ describe('Phase 2-2 isolated hierarchical E2E runner', () => {
     assert.equal(result.contextEvaluation.metrics.expectedLeafProportionInContext, 0);
     assert.deepEqual(result.questions[0].fallbacks, []);
     assert.equal(result.questions[0].answer.text, 'safe answer');
+    assert.deepEqual(result.questions[0].answer.supportingEvidenceIds, ['S1']);
     assert.equal(result.questions[0].citations[0].videoId != null, true);
     assert.deepEqual(result.questions[0].citations[0].timestamp, {
       startSec: 10, endSec: 20, label: '0:10', jumpUrl: null,

@@ -168,7 +168,10 @@ describe('conversation routes', () => {
         statusText: 'OK',
         async text() {
           return JSON.stringify({
-            candidates: [{ content: { parts: [{ text: NO_ANSWER_INSUFFICIENT }] } }],
+            candidates: [{ content: { parts: [{ text: JSON.stringify({
+              answer: NO_ANSWER_INSUFFICIENT,
+              supportingEvidenceIds: [],
+            }) }] } }],
           });
         },
       };

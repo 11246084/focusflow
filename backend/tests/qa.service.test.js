@@ -19,6 +19,7 @@ function resetQaEnv() {
   env.qaAnswerProvider = 'template';
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
+  env.qaLeafAdjacentContextEnabled = false;
   env.videoSegmentVideoVectorIndexName = 'video_embedding_index';
   env.qaEstimatedTokensPerAsk = 1000;
   env.qaMonthlyTokenBudget = 0;
@@ -70,7 +71,7 @@ describe('qa service', () => {
 
     assert.equal(result.matches[0].segmentId, ids.segmentOne);
     assert.equal(result.matches.length, 3);
-    assert.equal(result.citations.length, 3);
+    assert.equal(result.citations.length, 1);
     assert.equal(result.citations[0].citationId, 'C1');
     assert.equal(result.citations[0].timestamp.label, '0:12');
     assert.equal(result.answerStatus.status, 'answered');
@@ -484,6 +485,15 @@ describe('qa service', () => {
         score: 0.91,
       },
       {
+        _id: 'visual-segment-2',
+        video_id: 'video_001',
+        clip_id: 'video_001_part_0002',
+        clip_path: 'data/video_multimodal_chunks/video_001_part_0002.mp4',
+        start_sec: 120,
+        end_sec: 240,
+        score: 0.81,
+      },
+      {
         _id: 'visual-segment-foreign',
         video_id: 'video_999',
         clip_id: 'video_999_part_0001',
@@ -504,11 +514,12 @@ describe('qa service', () => {
       source: 'service-test',
     });
 
-    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches.length, 2);
     assert.equal(result.matches[0].modality, 'video');
     assert.equal(result.matches[0].segmentId, 'video_001_part_0001');
     assert.equal(result.matches[0].videoId, 'video_001');
     assert.equal(result.matches[0].videoTitle, 'Visual Source Video');
+    assert.equal(result.citations.length, 1);
     assert.equal(result.citations[0].modality, 'video');
     assert.equal(result.citations[0].clipPath, 'data/video_multimodal_chunks/video_001_part_0001.mp4');
     assert.equal(result.answerStatus.status, 'answered');
@@ -633,11 +644,11 @@ describe('qa service', () => {
       assert.deepEqual(result.citations, []);
       assert.deepEqual(result.runtime.citationFilter, {
         errorCode: 'QA_CITATION_DROPPED',
-        droppedCount: 3,
+        droppedCount: 1,
       });
       assert.deepEqual(
         events.map(({ event, metadata }) => ({ event, metadata })),
-        [1, 2, 3].map((index) => ({
+        [1].map((index) => ({
           event: 'qa.citation_dropped_no_playable_source',
           metadata: {
             courseId: ids.publishedCourse,

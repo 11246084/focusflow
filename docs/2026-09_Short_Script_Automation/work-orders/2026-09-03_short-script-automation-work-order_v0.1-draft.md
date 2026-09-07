@@ -4,7 +4,7 @@
 >
 > 依 [施工單目錄說明](../../2026-09_Student_Pilot_Backend/work-orders/work-order_README.md)：「若規格仍有未決事項，施工單只能標記為草案，不得作為開工依據。」
 >
-> **2026-09-03 更新**：[規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md) 已產出，原第 8.2 節的 D-01～D-07 全數轉為規格書的定案項目 DR-01～DR-13 或待決項目 P-01～P-05。本施工單的範圍與驗收條件一律以規格書為準；規格書升 v1.0 Frozen 後，本施工單方可核准開工。
+> **2026-09-03 更新**：[規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md) 已產出，原第 8.2 節的 D-01～D-07 全數轉為規格書的定案項目 DR-01～DR-15 或待決項目 P-02～P-04。本施工單的範圍與驗收條件一律以規格書為準；規格書升 v1.0 Frozen 後，本施工單方可核准開工。
 
 | 項目 | 內容 |
 | --- | --- |
@@ -60,7 +60,7 @@
 
 | 停止點 | 核准依據 | 核准人 |
 | --- | --- | --- |
-| SP-1 | 規格書 7.1 檢查表全部通過，且未觸發「明確失敗條件」；比對證據已存入 `evidence/`；P-01 分群門檻已依證據定版並回填規格書附錄 B | 專題負責人 |
+| SP-1 | 規格書 7.1 檢查表全部通過，且未觸發「明確失敗條件」；比對證據已存入 `evidence/`；分群門檻已依證據定版（**2026-09-04 完成：DR-15 = 0.90**） | 專題負責人 |
 | SP-2 | 規格書 7.2 檢查表全部通過 | 專題負責人 |
 | SP-3 | 規格書 7.3 檢查表全部通過，含**實際上傳一支到 YouTube 並確認可播放**（不可只用 mock） | 專題負責人 |
 
@@ -111,7 +111,8 @@
 - 不做前端頁面（本輪只做 backend API 與 service）。
 - 不改動 QA 既有行為：`askQuestion` 的回應格式、FAQ 快取命中路徑、`QA_MATCH_LIMIT` 語意一律不動。
 - 不做 B-roll 影片生成、語音合成、ffmpeg 合成等產製環節；影片檔由教師以外部工具產出後上傳。
-- 不改 `questions`、`faqs`、`video_segments_text` 任何既有欄位或索引。
+- 不改 `faqs`、`video_segments_text` 任何既有欄位或索引。
+- `questions` 僅新增 `questionEmbedding` 欄位（規格書 DR-14），既有欄位與索引不動；該欄位由 QA 既有的 `recordQuestion` 寫入，不由短影片功能寫入。
 
 ---
 
@@ -164,30 +165,36 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 
 ### WO-02 自動選題
 
-**資料來源**：`faqs` collection。既有欄位已足夠，不需新增：
+**資料來源**：`questions` collection（規格書 DR-14。2026-09-04 由 `faqs` 改來，理由見規格書附錄 B.1）。
 
 | 欄位 | 用途 |
 | --- | --- |
-| `question` / `normalizedQuestion` | 顯示與精確去重 |
-| `questionEmbedding` | 同義題分群（不需重跑 embedding） |
-| `hitCount` | 熱度排序，已有索引 `{ courseId: 1, hitCount: -1 }`（`backend/src/models/faq.model.js:63`） |
-| `matches` | 預覽該題目前撈到哪些片段 |
+| `question` | 原始問句，顯示用 |
+| **（新增）`questionEmbedding`** | 同義題分群。QA 流程本來就會算 query embedding，順手存下即可，不額外呼叫 API |
+| `courseId` + 筆數 | 熱度＝該問句在該課程出現的次數 |
+| `status` / `answer` / `runtime` | 過濾用 |
+| `matches` | 預覽該題當時撈到哪些片段 |
 
 **必要處理**
 
-1. **同義題分群**：字串比對不足以合併。實測資料顯示同一題有多種寫法（「open cv 跟 yolo 的關係是甚麼?」8 次、「YOLO跟opencv的具體差異是什麼？」4 次、「opencv跟yolo有什麼差異?」3 次）。以 `questionEmbedding` 做 cosine 分群，門檻須低於 FAQ 命中用的 `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）。建議起始值 0.85，**列為待決事項 D-02**。
-2. **拒答題過濾**：被 `answerGeneration.service.js` 的 `isNoAnswerReply()` 判定的回答不會存進 FAQ，但 `questions` collection 內仍有。若日後改用 `questions` 為來源，必須套用同一判定。本輪以 `faqs` 為唯一來源，因此天然已過濾，但須在程式註解標明此依賴。
-3. **自動選題（規格書 DR-12）**：依確定性規則自動選出主題，不使用 LLM 判斷。分層淘汰以避免對全部候選跑檢索：第 1 層零成本過濾（`hitCount >= 2`、無 `approved`／`dismissed` 紀錄）→ 第 2 層依 `totalHitCount` 取前 M 名（預設 10）→ 第 3 層依序算涵蓋度、淘汰不足 6 個片段者 → 第 4 層依序做弧線適用性判定，第一個通過者即選中並停止評估。排序 tie-break：涵蓋度 → 最近提問時間 → `courseId + normalizedQuestion` 字典序。
+1. **自行套用三項過濾**（原本 `faqs` 幫忙擋掉的，改用 `questions` 後要自己擋）：`isNoAnswerReply(answer)` 判定的拒答題、`runtime.degraded === true` 的降級回答、`status` 為 `no_match` 的無片段題。漏掉任一項就會把「答不出來的題」選成影片主題。
+2. **同義題分群**：先以正規化問句精確合併並計數（零成本），再對前 M 名以 `questionEmbedding` 做 cosine 分群。門檻 **0.90**（規格書 DR-15，2026-09-04 以實際資料校準定版；須低於 FAQ 命中用的 `FAQ_CACHE_SIMILARITY_THRESHOLD` 0.95）。實測資料顯示同一題有多種寫法（「open cv 跟 yolo 的關係是甚麼?」「YOLO跟opencv的具體差異是什麼？」「opencv跟yolo有什麼差異?」）。
+3. **自動選題（規格書 DR-12）**：依確定性規則自動選出主題，不使用 LLM 判斷。分層淘汰以避免對全部候選跑檢索：第 1 層零成本過濾（被提問次數 >= 2、無 `approved`／`dismissed` 紀錄）→ 第 2 層依提問次數取前 M 名（預設 10）→ 第 3 層依序算涵蓋度、淘汰不足 6 個片段者 → 第 4 層依序做弧線適用性判定，第一個通過者即選中並停止評估。排序 tie-break：涵蓋度 → 最近提問時間 → 正規化問句字典序。
 4. **`selectionReason` 必須保存**：當時的熱度、涵蓋度、排名與被淘汰的前幾名及原因。教師必須能回答「為什麼系統選了這一題」（規格書 R-04）。
 5. **候選全被過濾時**回報 `SHORT_SCRIPT_NO_CANDIDATE`，不得降低門檻硬選。
 
 **修改位置**
 
 - 新增 `backend/src/services/shortScriptTopic.service.js`
+- 修改 `backend/src/models/question.model.js`：新增 `questionEmbedding` 欄位
+- 修改 `backend/src/services/questionRecording.service.js`：`recordQuestion` 接收並存入向量
+- 修改 `backend/src/services/qa.service.js`：呼叫 `recordQuestion` 時把已算好的 `queryVector` 傳進去
+- 新增 backfill 腳本補齊舊資料的向量（比照既有 `scripts/backfillQuestionsFromUsageLogs.js`）
 
 **驗收條件**
 
-- 給定同一課程的多筆同義 FAQ，回傳合併後的單一候選，且 `totalHitCount` 為各筆加總、`variants[]` 保留原始問句。
+- 給定同一課程的多筆同義提問，回傳合併後的單一候選，且 `totalAskCount` 為各筆加總、`variants[]` 保留原始問句。
+- 拒答題、降級回答與 `no_match` 的提問不得列入候選。
 - **同一資料庫狀態下重跑兩次選出同一題**，且 `selectionReason` 記錄了被淘汰者。
 - 跨課程不得混入：只回傳呼叫者有權限的課程（沿用 `courseAccess.service` 既有判定，不自行實作權限邏輯）。
 - 新增 `backend/tests/short-script-topic.service.test.js`，至少涵蓋：同義合併、跨課程隔離、空資料 zero-state。
@@ -232,7 +239,7 @@ WO-02 需要用到向量相似度做同義題分群，若再複製第三份會�
 courseId          ObjectId, ref Course, required
 topic             String（系統自動選出的主題文字）
 selectionReason   Object（熱度、涵蓋度、排名、被淘汰者與原因）
-sourceQuestions   [{ faqId, question, hitCount }]
+sourceQuestions   [{ question, askCount }]
 evidence          [{ code, chunkId, videoId, videoTitle, startSec, endSec, rawText }]
 evidenceFrozenAt  Date
 versions          [{ versionNo, payload, generatedAt, feedback, feedbackType, reviewedBy, reviewedAt }]
@@ -515,6 +522,9 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 | `backend/src/services/faqCache.service.js` | 修改（改引用） | WO-01 |
 | `backend/src/services/qa.service.js` | 修改（改引用、新增 export） | WO-01、WO-03 |
 | `backend/src/services/shortScriptTopic.service.js` | 新增 | WO-02 |
+| `backend/src/models/question.model.js` | 修改（新增 `questionEmbedding`） | WO-02 |
+| `backend/src/services/questionRecording.service.js` | 修改（存入向量） | WO-02 |
+| `backend/src/scripts/backfillQuestionEmbeddings.js` | 新增 | WO-02 |
 | `backend/src/models/shortScript.model.js` | 新增 | WO-04 |
 | `backend/src/services/shortScript.service.js` | 新增 | WO-04、WO-06 |
 | `backend/src/services/shortScriptGeneration.service.js` | 新增 | WO-05 |
@@ -550,7 +560,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 | 原編號 | 議題 | 現況 |
 | --- | --- | --- |
 | D-01 | 是否先立規格書 | 已產出 [規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md) |
-| D-02 | 同義題分群門檻 | 轉為規格書 **P-01**：預設 0.85，須以階段 A 實際資料校準後定版 |
+| D-02 | 同義題分群門檻 | 已定版：規格書 **DR-15 = 0.90**（2026-09-04 階段 A 實測校準） |
 | D-03 | 候選清單資料量門檻 | 已定案為規格書 **DR-03**：`hitCount >= 2` |
 | D-04 | Parent 多層級檢索 | 已定案為規格書 **DR-04**：本輪不納入，沿用 leaf 檢索 |
 | D-05 | B-roll 視覺隱喻 | 已定案為規格書 **DR-05**：產出 2–3 組選項，且須避開該課程用過的隱喻 |
@@ -559,7 +569,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 
 ### 8.3 仍阻塞正式使用的事項
 
-見規格書第 8.2 節 P-01～P-05（分群門檻定版、腳本品質標準、書面同意書格式、腳本模板修訂時程、候選來源是否擴到 `questions`）。其中 **P-01 與 P-05** 與本施工單的批次 A 直接相關——兩者都須由階段 A 的實測資料決定（P-05 需統計該課程 LINE 提問佔比）；其餘不擋實作，擋正式使用。
+見規格書第 8.2 節 P-02～P-04（腳本品質標準、書面同意書格式、腳本模板修訂時程），皆不擋實作。原 P-01（分群門檻）已於 2026-09-04 由階段 A 實測結案為 **DR-15：0.90**，原 P-05（候選來源）已結案為 DR-14。
 
 **需要決策的人員**：專題負責人（範圍、P-03、P-04）、指導教授（P-02 的品質標準）。
 
@@ -572,5 +582,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 | 2026-09-03 | v0.1 草案 | 初稿。依 2026-09-03 對話的可行性評估與唯讀程式盤點產出 |
 | 2026-09-03 | v0.1 草案（修訂） | 規格書 v0.9 產出後同步：基準文件改指向規格書；第 8.2 節的 D-01～D-07 轉出至規格書的 DR/P 編號，避免兩份文件重複定義同一議題 |
 | 2026-09-03 | v0.1 草案（修訂） | 補「核准」節：核准流程、七項對齊檢查表、簽核欄、停止點再核准規則 |
-| 2026-09-04 | v0.1 草案（修訂） | 同步規格書修訂：WO-04 補鄰接擴展規則（DR-11）與 `dismissed` 狀態；待決事項改為 P-01～P-05，並標明 P-05 亦須由階段 A 實測決定 |
+| 2026-09-04 | v0.1 草案（修訂） | 同步規格書修訂：WO-04 補鄰接擴展規則（DR-11）與 `dismissed` 狀態 |
+| 2026-09-04 | v0.1 草案（**門檻定版**） | 分群門檻經階段 A 實測定版 0.90（規格書 DR-15），SP-1 的該項核准條件已完成 |
+| 2026-09-04 | v0.1 草案（**來源變更**） | 同步規格書 DR-14：WO-02 的候選來源由 `faqs` 改為 `questions`，熱度改以筆數計算，並新增 `questions.questionEmbedding` 欄位與舊資料 backfill |
 | 2026-09-04 | v0.1 草案（**範圍變更**） | 同步規格書的兩項範圍變更：WO-02 由「候選清單」改為「自動選題」並納入 DR-12 分層淘汰與 `selectionReason`；新增 WO-08 短影片上架與批次 C／停止點 SP-3；WO-07 路由改版（移除 topics、新增 auto）；`shortassets` 由「不碰」改為讀寫 |

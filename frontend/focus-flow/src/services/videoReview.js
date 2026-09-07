@@ -62,14 +62,30 @@ export function shouldReloadAfterReviewError(error) {
     || error?.code === 'SHORT_ASSET_REVIEW_CONFLICT';
 }
 
+export function canSubmitReview({
+  isReviewable,
+  submitting,
+  reviewPersistedAwaitingReadback,
+}) {
+  return Boolean(isReviewable)
+    && !submitting
+    && !reviewPersistedAwaitingReadback;
+}
+
 export async function submitReviewAndReadback(
   review,
   { submit = submitVideoReview, readback = getShortAsset } = {},
 ) {
+  let reviewPersisted = false;
   try {
     await submit(review);
+    reviewPersisted = true;
     return await readback(review.shortAssetId);
   } catch (error) {
+    if (reviewPersisted) {
+      error.reviewPersisted = true;
+      throw error;
+    }
     if (shouldReloadAfterReviewError(error)) {
       try {
         error.latestAsset = await readback(review.shortAssetId);
@@ -82,6 +98,9 @@ export async function submitReviewAndReadback(
 }
 
 export function getReviewErrorMessage(error) {
+  if (error?.reviewPersisted) {
+    return '審核結果已送出，但重新讀取失敗。請只重新讀取最新狀態，不要再次送出。';
+  }
   switch (error?.code) {
     case 'SHORT_ASSET_REVIEW_STALE':
       return error.reloadFailed

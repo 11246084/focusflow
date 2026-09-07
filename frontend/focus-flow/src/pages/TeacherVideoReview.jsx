@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
 import StepIndicator from '../components/StepIndicator';
 import {
+  canSubmitReview,
   getReviewErrorMessage,
   getShortAsset,
   listShortAssets,
@@ -36,6 +37,7 @@ export default function TeacherVideoReview() {
   const [validationMessage, setValidationMessage] = useState('');
   const [operationError, setOperationError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [reviewPersistedAwaitingReadback, setReviewPersistedAwaitingReadback] = useState(false);
 
   const resetReviewForm = useCallback(() => {
     setStep(1);
@@ -45,6 +47,7 @@ export default function TeacherVideoReview() {
     setReasonState(initialReasonState);
     setValidationMessage('');
     setOperationError('');
+    setReviewPersistedAwaitingReadback(false);
   }, []);
 
   const loadAsset = useCallback(async (shortAssetId, { preserveDraft = false } = {}) => {
@@ -57,6 +60,7 @@ export default function TeacherVideoReview() {
     try {
       const asset = await getShortAsset(shortAssetId);
       setSelectedAsset(asset);
+      setReviewPersistedAwaitingReadback(false);
       return asset;
     } catch (error) {
       setOperationError(getReviewErrorMessage(error));
@@ -143,7 +147,7 @@ export default function TeacherVideoReview() {
   }
 
   async function handleConfirmSubmit() {
-    if (!selectedAsset || submitting) return;
+    if (!selectedAsset || submitting || reviewPersistedAwaitingReadback) return;
     const review = {
       shortAssetId: selectedAsset.id,
       status: pendingAction,
@@ -156,12 +160,16 @@ export default function TeacherVideoReview() {
     try {
       const latestAsset = await submitReviewAndReadback(review);
       setSelectedAsset(latestAsset);
+      setReviewPersistedAwaitingReadback(false);
       setFinalStatus(latestAsset.reviewStatus);
       setStep(3);
     } catch (error) {
       if (error.latestAsset) setSelectedAsset(error.latestAsset);
       setOperationError(getReviewErrorMessage(error));
-      if (shouldReloadAfterReviewError(error) || error.code === 'VALIDATION_ERROR') {
+      if (error.reviewPersisted) {
+        setReviewPersistedAwaitingReadback(true);
+        setStep(1);
+      } else if (shouldReloadAfterReviewError(error) || error.code === 'VALIDATION_ERROR') {
         setStep(1);
       }
     } finally {
@@ -171,6 +179,11 @@ export default function TeacherVideoReview() {
 
   const checkedReasons = REJECTION_REASONS.filter(({ code }) => reasonState[code].checked);
   const isReviewable = selectedAsset?.reviewStatus === 'pending';
+  const reviewActionsEnabled = canSubmitReview({
+    isReviewable,
+    submitting,
+    reviewPersistedAwaitingReadback,
+  });
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%', overflowX: 'hidden' }}>
@@ -188,7 +201,7 @@ export default function TeacherVideoReview() {
           {operationError}
           {selectedAsset && (
             <button className="btn-outline" style={{ marginLeft: 12 }} onClick={() => loadAsset(selectedAsset.id, { preserveDraft: true })} disabled={loadingDetail || submitting}>
-              重新讀取
+              {reviewPersistedAwaitingReadback ? '只重新讀取最新狀態' : '重新讀取'}
             </button>
           )}
         </div>
@@ -266,13 +279,16 @@ export default function TeacherVideoReview() {
                 {!isReviewable && (
                   <div style={{ marginTop: 14, fontSize: 12, color: '#ffd18a' }}>此版本已完成審核，不可再次送出。</div>
                 )}
+                {reviewPersistedAwaitingReadback && (
+                  <div style={{ marginTop: 14, fontSize: 12, color: '#ffd18a' }}>審核已送出，重新讀取成功前不可再次送審。</div>
+                )}
                 <div className="review-btn-row" style={{ marginTop: 16 }}>
-                  <button className="btn-primary" onClick={handleApproveClick} disabled={submitting || !isReviewable}>通過</button>
-                  <button className="btn-outline btn-outline-danger" onClick={handleRejectClick} disabled={submitting || !isReviewable}>不通過</button>
+                  <button className="btn-primary" onClick={handleApproveClick} disabled={!reviewActionsEnabled}>通過</button>
+                  <button className="btn-outline btn-outline-danger" onClick={handleRejectClick} disabled={!reviewActionsEnabled}>不通過</button>
                 </div>
               </div>
 
-              {showReasonPanel && isReviewable && (
+              {showReasonPanel && reviewActionsEnabled && (
                 <div className="video-review-right card-sm video-review-card" style={{ padding: '16px 18px', width: '100%' }}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 12 }}>REJECTION REASONS</div>
                   <div className="reject-reason-list">

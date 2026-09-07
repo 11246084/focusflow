@@ -5,6 +5,7 @@ import { REJECTION_REASONS } from '../src/constants/videoReviewReasons.js';
 import {
   REVIEW_REASON_CODES,
   buildReviewRequest,
+  canSubmitReview,
   getReviewErrorMessage,
   getShortAsset,
   listShortAssets,
@@ -102,15 +103,20 @@ describe('ShortAsset review API contract', () => {
     assert.equal(result.reviewStatus, 'rejected');
   });
 
-  it('does not send rejection reasons for an approval', () => {
-    assert.deepEqual(buildReviewRequest({
+  it('approval only records a review decision and never requests lifecycle publication', () => {
+    const request = buildReviewRequest({
       status: 'approved',
       expectedGenerationVersion: 2,
       reasons: [{ code: 'other', note: 'must not leak' }],
-    }), {
+    });
+
+    assert.deepEqual(request, {
       status: 'approved',
       expectedGenerationVersion: 2,
     });
+    assert.equal(request.status === 'published', false);
+    assert.equal('publish' in request, false);
+    assert.equal('lifecycleStatus' in request, false);
   });
 });
 
@@ -173,6 +179,58 @@ describe('ShortAsset review readback and recovery', () => {
     ]);
   });
 
+  it('locks further review submission when POST succeeds but detail readback fails', async () => {
+    let submitCount = 0;
+    let readbackCount = 0;
+    const readbackError = new TypeError('Failed to fetch');
+
+    await assert.rejects(
+      submitReviewAndReadback({ shortAssetId: 'asset-1', status: 'approved' }, {
+        submit: async () => {
+          submitCount += 1;
+          return { reviewStatus: 'approved' };
+        },
+        readback: async () => {
+          readbackCount += 1;
+          throw readbackError;
+        },
+      }),
+      (error) => error === readbackError && error.reviewPersisted === true,
+    );
+
+    assert.equal(submitCount, 1);
+    assert.equal(readbackCount, 1);
+    assert.equal(canSubmitReview({
+      isReviewable: true,
+      submitting: false,
+      reviewPersistedAwaitingReadback: true,
+    }), false);
+    assert.match(getReviewErrorMessage(readbackError), /已送出，但重新讀取失敗/);
+  });
+
+  it('enables the review buttons only for pending assets outside submission or recovery', () => {
+    assert.equal(canSubmitReview({
+      isReviewable: true,
+      submitting: false,
+      reviewPersistedAwaitingReadback: false,
+    }), true);
+    assert.equal(canSubmitReview({
+      isReviewable: false,
+      submitting: false,
+      reviewPersistedAwaitingReadback: false,
+    }), false);
+    assert.equal(canSubmitReview({
+      isReviewable: true,
+      submitting: true,
+      reviewPersistedAwaitingReadback: false,
+    }), false);
+    assert.equal(canSubmitReview({
+      isReviewable: true,
+      submitting: false,
+      reviewPersistedAwaitingReadback: true,
+    }), false);
+  });
+
   for (const code of ['SHORT_ASSET_REVIEW_STALE', 'SHORT_ASSET_REVIEW_CONFLICT']) {
     it(`${code} reloads server state once without automatically resubmitting`, async () => {
       let submitCount = 0;
@@ -202,6 +260,7 @@ describe('ShortAsset review readback and recovery', () => {
 
       assert.equal(submitCount, 1);
       assert.equal(readbackCount, 1);
+      assert.notEqual(originalError.reviewPersisted, true);
       assert.deepEqual(review.reasons, [{ code: 'other', note: '保留使用者輸入' }]);
     });
   }

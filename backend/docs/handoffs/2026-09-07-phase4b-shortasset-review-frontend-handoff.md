@@ -36,7 +36,7 @@ Phase 4B 自動化驗證另在既有 `frontend/focus-flow/tests/` 測試目錄�
 - 提供六類理由、other note、500 字驗證。
 - 將 access denied、not found、validation、network、5xx 映射為教師可理解的訊息。
 - 409 stale/conflict 僅重新讀取 detail 一次，不會重送 POST；若自動讀取失敗，保留原錯誤並要求使用者手動重新讀取。
-- POST 成功後一定執行 detail readback；讀取失敗會拋錯，不會回報 UI success。
+- POST 成功後一定執行 detail readback；讀取失敗會標記 review 已持久化並進入 recovery lock，不會回報 UI success，也不會允許再次 POST。
 
 ### `frontend/focus-flow/src/pages/TeacherVideoReview.jsx`
 
@@ -47,7 +47,7 @@ Phase 4B 自動化驗證另在既有 `frontend/focus-flow/tests/` 測試目錄�
 - 支援 approve/reject、六類退件原因、other 必填、每項 note 500 字上限與字數提示。
 - 送出時使用目前 detail 的 `id` 和 `generationVersion`。
 - stale/conflict reload 後保留教師已勾選的 reasons 與 note，回到審核步驟重新確認；不自動重送。
-- access、missing、validation、network、5xx 均停留在非成功狀態，retry 需由使用者按鈕觸發。
+- access、missing、validation、network、5xx 均停留在非成功狀態；若 POST 已成功但 readback 失敗，所有審核送出動作會停用，只允許使用者重新 GET 最新狀態。
 - 已完成審核的 server state 會停用送出按鈕，避免覆蓋。
 
 ## 驗證建議
@@ -66,12 +66,13 @@ Phase 4B 自動化驗證另在既有 `frontend/focus-flow/tests/` 測試目錄�
 2. 開頁後觸發 regeneration 再送出，確認 stale 顯示版本更新、只 GET 最新 detail、不自動 POST，既有草稿仍在。
 3. 另一個操作先完成同版本審核，再由舊頁送出，確認 conflict reload server state、停用再送出且不覆蓋。
 4. 使用非 owner teacher、已刪除 asset、backend validation error、離線及 5xx，均不可進完成畫面。
-5. POST 成功但 detail readback 暫時失敗時，不顯示完成；重新讀取後應以 server state 為準，避免直接重送造成 conflict。
+5. POST 成功但 detail readback 暫時失敗時，不顯示完成，並進入「已送出，但重新讀取失敗」狀態；approve、reject 與 confirm 都維持停用，只能重新 GET，成功後以 server state 為準。
 
 ## 未完成、未驗證與需決定事項
 
 - 本輪沒有執行 live backend、Atlas、YouTube、LINE 或 Gemini 驗收。
 - pending ShortAsset 的 detail contract 目前只提供 `youtubeVideoId`、`youtubeUrl` 與 `thumbnail` 作為預覽來源。若實際待審素材在上傳 YouTube 前三者皆為空，前端只能顯示 metadata 與「沒有可用預覽」；團隊需決定是否由 backend 另提供具權限與時效性的 preview URL。前端不應自行拼接本機檔案路徑。
+- 審核 queue 的 list contract 目前最多回傳 50 筆，沒有 cursor、page、offset、`hasMore` 或 `total`；若 pending 數可能超過 50，需由 backend contract 決定分頁方式。
 - 需人工確認手機／窄螢幕下雙欄理由面板、直式 iframe 與長標題的視覺效果。
 - OpenAPI 由本輪平行契約工作處理，不在本 frontend production integration 的檔案所有權內。
 - 未執行 commit 或 push；請組員檢查整體 Phase 4A/4B diff 後手動處理版本控制。

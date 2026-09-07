@@ -58,6 +58,22 @@ const SHORT_ASSET_STATUSES = {
   ARCHIVED: 'archived',
 };
 
+// 短影片腳本的生命週期（規格書附錄 F）。
+// dismissed 有兩個入口：教師在候選階段直接否決，或系統判定證據包無轉折句不適用 8 拍弧線。
+// 兩者都必須留痕，否則同一個主題會一再被自動選中。
+const SHORT_SCRIPT_STATUSES = {
+  EVIDENCE_READY: 'evidence_ready',
+  GENERATED: 'generated',
+  CHANGES_REQUESTED: 'changes_requested',
+  APPROVED: 'approved',
+  DISMISSED: 'dismissed',
+};
+
+const SHORT_SCRIPT_FEEDBACK_TYPES = {
+  RETRIEVAL: 'retrieval',
+  NARRATIVE: 'narrative',
+};
+
 const YOUTUBE_AVAILABILITIES = {
   PENDING: 'pending',
   PLAYABLE: 'playable',
@@ -115,6 +131,10 @@ module.exports = {
   YOUTUBE_UPLOAD_STATUS_VALUES: Object.values(YOUTUBE_UPLOAD_STATUSES),
   SHORT_ASSET_STATUSES,
   SHORT_ASSET_STATUS_VALUES: Object.values(SHORT_ASSET_STATUSES),
+  SHORT_SCRIPT_STATUSES,
+  SHORT_SCRIPT_STATUS_VALUES: Object.values(SHORT_SCRIPT_STATUSES),
+  SHORT_SCRIPT_FEEDBACK_TYPES,
+  SHORT_SCRIPT_FEEDBACK_TYPE_VALUES: Object.values(SHORT_SCRIPT_FEEDBACK_TYPES),
   YOUTUBE_AVAILABILITIES,
   YOUTUBE_AVAILABILITY_VALUES: Object.values(YOUTUBE_AVAILABILITIES),
   YOUTUBE_PRIVACY_STATUSES,

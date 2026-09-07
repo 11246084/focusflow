@@ -134,12 +134,22 @@ module.exports = {
   faqCacheSimilarityThreshold: Number(process.env.FAQ_CACHE_SIMILARITY_THRESHOLD ?? 0.95),
   faqCacheMaxEntriesPerCourse: Number(process.env.FAQ_CACHE_MAX_ENTRIES_PER_COURSE) || 200,
   // 短影片腳本自動選題（規格書 DR-03 / DR-12）。
-  // 分群門檻必須低於 faqCacheSimilarityThreshold：那個門檻判定「同一題可直接回快取答案」，
-  // 比「同一題可合成同一支影片」嚴格得多。<= 0 或 > 1 視為停用語意分群，只依正規化文字合併。
-  // 預設值 0.85 尚未以實際資料校準（規格書 P-01），校準前不得用於正式產出。
-  shortScriptTopicSimilarityThreshold: Number(process.env.SHORT_SCRIPT_TOPIC_SIMILARITY_THRESHOLD ?? 0.85),
+  // 0.90 已於 2026-09-04 以「影片處理工具 - OpenCV」實際資料校準定版（規格書 DR-15）：
+  // 0.80／0.85 會把定義題與比較題併成同一候選，0.95 會把同一個比較題拆成兩群。
+  // <= 0 或 > 1 視為停用語意分群，只依正規化文字合併。
+  shortScriptTopicSimilarityThreshold: Number(process.env.SHORT_SCRIPT_TOPIC_SIMILARITY_THRESHOLD ?? 0.90),
   shortScriptTopicMinHitCount: Number(process.env.SHORT_SCRIPT_TOPIC_MIN_HIT_COUNT) || 2,
   shortScriptTopicCandidateLimit: Number(process.env.SHORT_SCRIPT_TOPIC_CANDIDATE_LIMIT) || 10,
+  // 腳本檢索專用的命中上限（規格書 DR-16）。刻意低於 QA_MATCH_LIMIT：
+  // 命中片段依優先序佔滿證據名額後，鄰接擴展會被完全架空（實測 15 命中 + 上限 12
+  // ＝ 12 筆全是命中、零擴展）。兩份手寫腳本各只用 6 個片段，撈 15 個反而稀釋重點。
+  shortScriptMatchLimit: Number(process.env.SHORT_SCRIPT_MATCH_LIMIT) || 6,
+  // 鄰接擴展窗口（規格書 DR-11）：命中片段前後各補幾格。
+  // 不寫死 N+1——V4 的證據表 A~D 是 chunk_0038~0041 連續四格，只擴一格會漏。
+  shortScriptEvidenceExpandWindow: Number(process.env.SHORT_SCRIPT_EVIDENCE_EXPAND_WINDOW) || 1,
+  // 證據涵蓋度門檻（規格書 DR-12 第 3 層）：兩份手寫腳本各用 6 個片段。
+  shortScriptEvidenceMinItems: Number(process.env.SHORT_SCRIPT_EVIDENCE_MIN_ITEMS) || 6,
+  shortScriptEvidenceMaxItems: Number(process.env.SHORT_SCRIPT_EVIDENCE_MAX_ITEMS) || 12,
   qaMockEmbeddingDimensions: Number(process.env.QA_MOCK_EMBEDDING_DIMENSIONS) || 32,
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,

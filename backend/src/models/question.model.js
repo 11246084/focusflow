@@ -98,6 +98,13 @@ const questionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    // 短影片自動選題用來做同義題分群（規格書 DR-14）。
+    // QA 流程本來就會為每次提問算 query embedding，這裡只是順手存下，不額外呼叫 API。
+    // 舊資料沒有這個欄位，需以 backfill 補齊；未補齊者只做正規化文字精確合併。
+    questionEmbedding: {
+      type: [Number],
+      default: [],
+    },
     sourceUsageLogId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'UsageLog',

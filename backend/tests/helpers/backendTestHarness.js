@@ -33,6 +33,7 @@ const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
+const ShortScript = require('../../src/models/shortScript.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
 const Conversation = require('../../src/models/conversation.model');
@@ -56,6 +57,7 @@ const store = {
   lineBindTokens: [],
   faqs: [],
   shortAssets: [],
+  shortScripts: [],
   notifications: [],
   conversations: [],
   messages: [],
@@ -1053,6 +1055,29 @@ function installModelStubs() {
   };
   ShortAsset.bulkWrite = async (operations = []) => bulkWriteInStore(store.shortAssets, operations);
 
+  ShortScript.create = async (payload) => {
+    const script = {
+      _id: payload._id || newObjectId(),
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...payload,
+    };
+    store.shortScripts.push(script);
+    return script;
+  };
+  ShortScript.find = (query = {}) => createQuery(store.shortScripts.filter((item) => matchesQuery(item, query)));
+  ShortScript.findById = (id) => createQuery(
+    store.shortScripts.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
+  );
+  ShortScript.findByIdAndUpdate = async (id, update) => {
+    const script = store.shortScripts.find((item) => normalizeValue(item._id) === normalizeValue(id));
+    if (!script) return null;
+    applyUpdate(script, update);
+    script.updatedAt = new Date().toISOString();
+    return script;
+  };
+  ShortScript.deleteMany = async (query = {}) => deleteManyInStore(store.shortScripts, query);
+
   LineBindToken.create = async (payload) => {
     const token = {
       _id: newObjectId(),
@@ -1090,6 +1115,7 @@ function resetStore() {
   store.lineBindTokens.length = 0;
   store.faqs.length = 0;
   store.shortAssets.length = 0;
+  store.shortScripts.length = 0;
   store.notifications.length = 0;
   store.conversations.length = 0;
   store.messages.length = 0;

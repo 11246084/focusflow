@@ -35,6 +35,7 @@ async function recordQuestion({
   matches = [],
   runtime = {},
   sourceUsageLogId = undefined,
+  questionEmbedding = null,
 }) {
   try {
     const payload = {
@@ -50,6 +51,12 @@ async function recordQuestion({
       runtime,
       askedAt: new Date(),
     };
+
+    // 向量在 QA 流程已算好，順手存下供短影片自動選題分群使用（規格書 DR-14）。
+    // 沒有向量的路徑（例如 FAQ 快取命中）就不寫，維持既有行為。
+    if (Array.isArray(questionEmbedding) && questionEmbedding.length) {
+      payload.questionEmbedding = questionEmbedding;
+    }
 
     if (sourceUsageLogId) {
       payload.sourceUsageLogId = sourceUsageLogId;

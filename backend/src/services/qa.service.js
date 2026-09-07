@@ -1335,6 +1335,7 @@ async function askQuestion({
         matches: visualMatches,
         runtime,
         sourceUsageLogId: usageLog?._id,
+        questionEmbedding: queryVector,
       });
 
       return buildQaResponse({
@@ -1476,6 +1477,9 @@ async function askQuestion({
       matches,
       runtime,
       sourceUsageLogId: usageLog?._id,
+      // 供短影片自動選題分群（規格書 DR-14）。答不出來的題不會成為候選，
+      // 存向量只是浪費空間，因此這裡不存。
+      questionEmbedding: noAnswerReply ? null : queryVector,
     }),
     clipLogPromise,
     shouldSaveFaq
@@ -1525,9 +1529,11 @@ async function askQuestion({
  * @param {object} params.user      呼叫者，須通過 assertCanAccessCourse
  * @param {string} params.courseId
  * @param {string} params.question  用來算 query embedding 與詞彙比分的問句
+ * @param {number} [params.limit]   命中上限。不傳則沿用 env.qaMatchLimit。
+ *   腳本自動化會傳較低的值，讓證據名額留給鄰接擴展（規格書 DR-16）。
  * @returns {Promise<object>} { matches, scopedVideos, courseSummary, searchableSegmentCount, diagnostics, scopeEmpty }
  */
-async function retrieveSegmentsOnly({ user, courseId, question } = {}) {
+async function retrieveSegmentsOnly({ user, courseId, question, limit } = {}) {
   const trimmedQuestion = String(question || '').trim();
   if (!trimmedQuestion) {
     throw new AppError('Question is required.', 400, 'VALIDATION_ERROR');
@@ -1591,8 +1597,13 @@ async function retrieveSegmentsOnly({ user, courseId, question } = {}) {
     ? await searchSegmentsWithAtlas(segmentScope, queryVector)
     : await searchSegmentsInMemory(segmentScope, trimmedQuestion, queryVector, scopedSegments);
 
+  // 底層搜尋一律取 env.qaMatchLimit 筆（不動 QA 主線的語意），這裡再依呼叫端需求收斂。
+  const cappedMatches = Number(limit) > 0
+    ? searchResult.matches.slice(0, Number(limit))
+    : searchResult.matches;
+
   return {
-    matches: enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos),
+    matches: enrichMatchesWithVideoMetadata(cappedMatches, scopedVideos),
     scopedVideos,
     courseSummary,
     searchableSegmentCount: scopedSegments.length,

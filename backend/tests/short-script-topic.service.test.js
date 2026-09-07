@@ -14,38 +14,42 @@ const VECTORS = {
   llm: [0, 1, 0],
 };
 
-function addFaq({
+// 熱度＝該問句在 questions 出現的筆數（規格書 DR-14），因此 askCount 筆就 push 幾筆。
+function addQuestion({
   courseId = ids.teacherCourse,
   question,
-  normalizedQuestion,
-  hitCount = 0,
+  askCount = 1,
   questionEmbedding = [],
-  lastHitAt = null,
+  answer = 'answer',
+  status = 'answered',
+  runtime = {},
+  askedAt = '2026-08-01T00:00:00.000Z',
 } = {}) {
-  const faq = {
-    _id: newObjectId(),
-    courseId,
-    question,
-    normalizedQuestion: normalizedQuestion || question.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''),
-    answer: 'answer',
-    matches: [],
-    clip: null,
-    questionEmbedding,
-    hitCount,
-    lastHitAt,
-    lastAnsweredAt: '2026-08-01T00:00:00.000Z',
-    updatedAt: '2026-08-01T00:00:00.000Z',
-  };
-  store.faqs.push(faq);
-  return faq;
+  for (let index = 0; index < askCount; index += 1) {
+    store.questions.push({
+      _id: newObjectId(),
+      userId: ids.student,
+      courseId,
+      question,
+      answer,
+      status,
+      source: 'api',
+      matchCount: 1,
+      matches: [],
+      runtime,
+      questionEmbedding,
+      askedAt,
+      createdAt: askedAt,
+    });
+  }
 }
 
 describe('shortScriptTopic.service 自動選題', () => {
   beforeEach(() => resetStore());
 
   it('同義題合併成單一候選，熱度加總且保留原始問句', async () => {
-    addFaq({ question: 'open cv 跟 yolo 的關係是甚麼?', hitCount: 8, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: 'YOLO跟opencv的具體差異是什麼？', hitCount: 4, questionEmbedding: VECTORS.yoloNear });
+    addQuestion({ question: 'open cv 跟 yolo 的關係是甚麼?', askCount: 8, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'YOLO跟opencv的具體差異是什麼？', askCount: 4, questionEmbedding: VECTORS.yoloNear });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -53,7 +57,7 @@ describe('shortScriptTopic.service 自動選題', () => {
     });
 
     assert.equal(candidates.length, 1);
-    assert.equal(candidates[0].totalHitCount, 12);
+    assert.equal(candidates[0].totalAskCount, 12);
     assert.deepEqual(
       candidates[0].variants.map((variant) => variant.question).sort(),
       ['YOLO跟opencv的具體差異是什麼？', 'open cv 跟 yolo 的關係是甚麼?'],
@@ -61,8 +65,8 @@ describe('shortScriptTopic.service 自動選題', () => {
   });
 
   it('語意不同的題目不會被合併', async () => {
-    addFaq({ question: 'opencv 跟 yolo 差在哪?', hitCount: 8, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: '什麼是大語言模型?', hitCount: 3, questionEmbedding: VECTORS.llm });
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 8, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: '什麼是大語言模型?', askCount: 3, questionEmbedding: VECTORS.llm });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -70,12 +74,12 @@ describe('shortScriptTopic.service 自動選題', () => {
     });
 
     assert.equal(candidates.length, 2);
-    assert.equal(candidates[0].totalHitCount, 8);
-    assert.equal(candidates[1].totalHitCount, 3);
+    assert.equal(candidates[0].totalAskCount, 8);
+    assert.equal(candidates[1].totalAskCount, 3);
   });
 
   it('熱度低於門檻的題目不列入候選', async () => {
-    addFaq({ question: '只被問過一次的題目', hitCount: 1, questionEmbedding: VECTORS.llm });
+    addQuestion({ question: '只被問過一次的題目', askCount: 1, questionEmbedding: VECTORS.llm });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -86,8 +90,8 @@ describe('shortScriptTopic.service 自動選題', () => {
   });
 
   it('excludedTopicKeys 內的主題會被排除', async () => {
-    addFaq({ question: 'opencv 跟 yolo 差在哪?', hitCount: 8, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: '什麼是大語言模型?', hitCount: 3, questionEmbedding: VECTORS.llm });
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 8, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: '什麼是大語言模型?', askCount: 3, questionEmbedding: VECTORS.llm });
 
     const before = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -105,14 +109,14 @@ describe('shortScriptTopic.service 自動選題', () => {
     assert.notEqual(after.candidates[0].topicKey, excludedKey);
   });
 
-  it('不會撈到其他課程的 FAQ', async () => {
-    addFaq({
+  it('不會撈到其他課程的提問', async () => {
+    addQuestion({
       courseId: ids.publishedCourse,
       question: '別的課程的熱門題',
-      hitCount: 99,
+      askCount: 99,
       questionEmbedding: VECTORS.llm,
     });
-    addFaq({ question: 'opencv 跟 yolo 差在哪?', hitCount: 3, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 3, questionEmbedding: VECTORS.yolo });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -124,7 +128,7 @@ describe('shortScriptTopic.service 自動選題', () => {
   });
 
   it('非課程 owner 的教師不得取得候選', async () => {
-    addFaq({ question: 'opencv 跟 yolo 差在哪?', hitCount: 8, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 8, questionEmbedding: VECTORS.yolo });
 
     await assert.rejects(
       () => topicService.listTopicCandidates({ user: OTHER_TEACHER, courseId: ids.teacherCourse }),
@@ -132,7 +136,7 @@ describe('shortScriptTopic.service 自動選題', () => {
     );
   });
 
-  it('課程沒有 FAQ 時回傳空候選，不丟錯', async () => {
+  it('課程沒有提問時回傳空候選，不丟錯', async () => {
     const result = await topicService.listTopicCandidates({
       user: TEACHER,
       courseId: ids.teacherCourse,
@@ -143,9 +147,9 @@ describe('shortScriptTopic.service 自動選題', () => {
   });
 
   it('同樣資料重跑兩次結果完全相同（規格書 R-04 確定性要求）', async () => {
-    addFaq({ question: 'A 題', hitCount: 5, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: 'B 題', hitCount: 5, questionEmbedding: VECTORS.llm });
-    addFaq({ question: 'C 題', hitCount: 5, questionEmbedding: [0, 0, 1] });
+    addQuestion({ question: 'A 題', askCount: 5, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'B 題', askCount: 5, questionEmbedding: VECTORS.llm });
+    addQuestion({ question: 'C 題', askCount: 5, questionEmbedding: [0, 0, 1] });
 
     const first = await topicService.listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse });
     const second = await topicService.listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse });
@@ -156,9 +160,9 @@ describe('shortScriptTopic.service 自動選題', () => {
     );
   });
 
-  it('沒有 embedding 的 FAQ 自成一群，不與其他題合併', async () => {
-    addFaq({ question: 'opencv 跟 yolo 差在哪?', hitCount: 8, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: '沒有向量的題目', hitCount: 3, questionEmbedding: [] });
+  it('沒有 embedding 的提問自成一群，不與其他題合併', async () => {
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 8, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: '沒有向量的題目', askCount: 3, questionEmbedding: [] });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,
@@ -168,10 +172,58 @@ describe('shortScriptTopic.service 自動選題', () => {
     assert.equal(candidates.length, 2);
   });
 
+  it('「答不出來」的題不列入候選（改用 questions 後要自己擋）', async () => {
+    addQuestion({
+      question: '課程沒教的題目',
+      askCount: 9,
+      questionEmbedding: VECTORS.llm,
+      answer: '目前資料庫片段不足以回答這個問題。',
+    });
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('runtime 降級時的回答不列入候選', async () => {
+    addQuestion({
+      question: '降級時問的題目',
+      askCount: 9,
+      questionEmbedding: VECTORS.llm,
+      runtime: { degraded: true },
+    });
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('沒撈到片段（no_match）的題不列入候選', async () => {
+    addQuestion({
+      question: '沒有片段的題目',
+      askCount: 9,
+      questionEmbedding: VECTORS.llm,
+      status: 'no_match',
+    });
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.deepEqual(candidates, []);
+  });
+
   it('limit 限制回傳筆數', async () => {
-    addFaq({ question: 'A 題', hitCount: 9, questionEmbedding: VECTORS.yolo });
-    addFaq({ question: 'B 題', hitCount: 8, questionEmbedding: VECTORS.llm });
-    addFaq({ question: 'C 題', hitCount: 7, questionEmbedding: [0, 0, 1] });
+    addQuestion({ question: 'A 題', askCount: 9, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'B 題', askCount: 8, questionEmbedding: VECTORS.llm });
+    addQuestion({ question: 'C 題', askCount: 7, questionEmbedding: [0, 0, 1] });
 
     const { candidates } = await topicService.listTopicCandidates({
       user: TEACHER,

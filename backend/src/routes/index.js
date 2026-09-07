@@ -10,6 +10,7 @@ const adminRoutes = require('./admin.routes');
 const youtubeRoutes = require('./youtube.routes');
 const notificationRoutes = require('./notification.routes');
 const conversationRoutes = require('./conversation.routes');
+const shortsRoutes = require('./shorts.routes');
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.use('/admin', adminRoutes);
 router.use('/youtube', youtubeRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/conversations', conversationRoutes);
+router.use('/shorts', shortsRoutes);
 router.use('/', videoRoutes);
 
 module.exports = router;

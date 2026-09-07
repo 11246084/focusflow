@@ -184,6 +184,47 @@ describe('youtubeUpload.service', () => {
     assert.equal(youtubeUploadService.scheduleYouTubeAutoUpload({ _id: ids.teacherVideo }), null);
   });
 
+  it('legacy flag 單獨啟用時保留相容入口', () => {
+    env.youtubeUploadEnabled = false;
+    env.youtubeAutoUploadEnabled = true;
+
+    assert.equal(youtubeUploadService.isAutoUploadEnabled(), true);
+    assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), false);
+  });
+
+  it('canonical flag 單獨啟用時停用 legacy 同步入口', () => {
+    env.youtubeUploadEnabled = true;
+    env.youtubeAutoUploadEnabled = false;
+
+    assert.equal(youtubeUploadService.isAutoUploadEnabled(), false);
+    assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), true);
+  });
+
+  it('canonical 與 legacy flag 同時啟用時由 canonical audit path 接手', async () => {
+    env.youtubeUploadEnabled = true;
+    env.youtubeAutoUploadEnabled = true;
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    const originalFetch = global.fetch;
+    global.fetch = buildSuccessfulFetchMock([]);
+
+    try {
+      assert.equal(youtubeUploadService.isAutoUploadEnabled(), false);
+      assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), true);
+
+      const result = await youtubeUploadService.scheduleYouTubeAutoUpload(video);
+
+      assert.equal(result, 'ytVideo123');
+      assert.equal(video.youtubeVideoId, 'ytVideo123');
+      assert.equal(video.youtubeUpload.status, 'uploaded');
+      assert.equal(video.youtubeUpload.attemptCount, 1);
+      assert.ok(video.youtubeUpload.lastAttemptAt);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it('uploadVideoFileToYouTube 相容入口回傳影片 id', async () => {
     const calls = [];
     const youtubeVideoId = await youtubeUploadService.uploadVideoFileToYouTube(
@@ -199,6 +240,17 @@ describe('youtubeUpload.service', () => {
     const video = store.videos.find((item) => item._id === ids.teacherVideo);
     video.filePath = tempFilePath;
     video.youtubeVideoId = null;
+    video.youtubeUpload = {
+      status: 'failed',
+      error: 'previous failure',
+      uploadedAt: null,
+      attemptCount: 0,
+      lastAttemptAt: null,
+      failedAt: new Date('2026-09-01T00:00:00.000Z'),
+      retrySafe: true,
+      nextRetryAt: new Date('2026-09-01T00:01:00.000Z'),
+    };
+    const originalFilePath = video.filePath;
 
     const result = await youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo, {
       fetchImpl: buildSuccessfulFetchMock([]),
@@ -210,14 +262,28 @@ describe('youtubeUpload.service', () => {
     assert.equal(video.youtubeUpload.status, 'uploaded');
     assert.ok(video.youtubeUpload.uploadedAt);
     assert.equal(video.youtubeUpload.attemptCount, 1);
+    assert.ok(video.youtubeUpload.lastAttemptAt);
+    assert.equal(video.youtubeUpload.error, null);
+    assert.equal(video.youtubeUpload.failedAt, null);
+    assert.equal(video.youtubeUpload.nextRetryAt, null);
+    assert.equal(video.youtubeUpload.retrySafe, false);
     assert.equal(video.sourceUrl, 'https://www.youtube.com/watch?v=ytVideo123');
     assert.equal(video.videoSource, 'youtube');
+    assert.equal(video.sourceType, 'upload');
+    assert.equal(video.filePath, originalFilePath);
+    assert.equal(fs.existsSync(originalFilePath), true);
   });
 
-  it('上傳失敗時標記 failed 並保留錯誤訊息', async () => {
+  it('上傳失敗時保留本機原始檔與既有 processing 狀態', async () => {
     const video = store.videos.find((item) => item._id === ids.teacherVideo);
     video.filePath = tempFilePath;
     video.youtubeVideoId = null;
+    video.processing = {
+      status: 'completed',
+      completedAt: new Date('2026-09-01T00:00:00.000Z'),
+      attemptCount: 2,
+    };
+    const originalProcessing = structuredClone(video.processing);
 
     const result = await youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo, {
       fetchImpl: async (url) => {
@@ -233,6 +299,9 @@ describe('youtubeUpload.service', () => {
     assert.match(video.youtubeUpload.error, /token refresh failed/i);
     assert.equal(video.youtubeUpload.retrySafe, true);
     assert.ok(video.youtubeUpload.nextRetryAt);
+    assert.equal(video.filePath, tempFilePath);
+    assert.equal(fs.existsSync(tempFilePath), true);
+    assert.deepEqual(video.processing, originalProcessing);
   });
 
   it('上傳串流階段發生不確定錯誤時禁止自動重試以避免重複影片', async () => {
@@ -299,6 +368,12 @@ describe('youtubeUpload.service', () => {
     video.filePath = tempFilePath;
     video.youtubeVideoId = null;
     video.youtubeUpload = { status: 'failed', attemptCount: 1, retrySafe: true };
+    video.processing = {
+      status: 'completed',
+      completedAt: new Date('2026-09-01T00:00:00.000Z'),
+      attemptCount: 3,
+    };
+    const originalProcessing = structuredClone(video.processing);
 
     const result = await youtubeUploadService.scheduleYouTubeUploadRetry(
       ids.teacherVideo,
@@ -310,6 +385,25 @@ describe('youtubeUpload.service', () => {
     assert.deepEqual(result, { videoId: ids.teacherVideo, status: 'retry_scheduled' });
     assert.equal(video.youtubeUpload.attemptCount, 2);
     assert.equal(video.youtubeVideoId, 'ytVideo123');
+    assert.equal(video.filePath, tempFilePath);
+    assert.equal(fs.existsSync(tempFilePath), true);
+    assert.deepEqual(video.processing, originalProcessing);
+  });
+
+  it('cleanup disabled 時不改寫欄位也不刪除本機來源', async () => {
+    env.youtubeUploadCleanupEnabled = false;
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = 'ytKeepLocal123';
+    video.youtubeUpload = { status: 'uploaded', uploadedAt: new Date() };
+    video.processing = { status: 'completed' };
+
+    const result = await youtubeUploadService.cleanupUploadedLocalVideo(ids.teacherVideo);
+
+    assert.deepEqual(result, { cleaned: false, reason: 'disabled' });
+    assert.equal(video.filePath, tempFilePath);
+    assert.equal(fs.existsSync(tempFilePath), true);
+    assert.equal(video.youtubeUpload.localCleanupAt, undefined);
   });
 
   it('不確定是否已完成的 upload 禁止由 retry API 重傳', async () => {

@@ -64,6 +64,7 @@ const store = {
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   beforeUserAvatarCompareAndSwap: null,
+  beforeShortAssetCompareAndSwap: null,
   nextNotificationBulkWriteError: null,
   nextFaqDeleteManyError: null,
 };
@@ -1037,6 +1038,13 @@ function installModelStubs() {
       updatedAt: new Date().toISOString(),
       youtubeAvailability: 'pending',
       youtubePrivacyStatus: 'unknown',
+      reviewStatus: 'pending',
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReasons: [],
+      generationVersion: 1,
+      reviewedGenerationVersion: null,
+      reviewHistory: [],
       ...payload,
     };
     store.shortAssets.push(asset);
@@ -1052,6 +1060,12 @@ function installModelStubs() {
     applyUpdate(asset, update);
     asset.updatedAt = new Date().toISOString();
     return asset;
+  };
+  ShortAsset.findOneAndUpdate = async (query, update, options = {}) => {
+    if (store.beforeShortAssetCompareAndSwap) {
+      await store.beforeShortAssetCompareAndSwap(query, update);
+    }
+    return findOneAndUpdateInStore(store.shortAssets, query, update, options);
   };
   ShortAsset.bulkWrite = async (operations = []) => bulkWriteInStore(store.shortAssets, operations);
 
@@ -1122,6 +1136,7 @@ function resetStore() {
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.beforeUserAvatarCompareAndSwap = null;
+  store.beforeShortAssetCompareAndSwap = null;
   store.nextNotificationBulkWriteError = null;
   store.nextFaqDeleteManyError = null;
 

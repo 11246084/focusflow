@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const {
   COURSE_STATUS_VALUES,
+  SHORT_ASSET_REVIEW_REASON_CODE_VALUES,
+  SHORT_ASSET_REVIEW_STATUSES,
+  SHORT_ASSET_REVIEW_STATUS_VALUES,
   SHORT_ASSET_STATUSES,
   SHORT_ASSET_STATUS_VALUES,
   YOUTUBE_AVAILABILITIES,
@@ -15,6 +18,39 @@ const courseSnapshotSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     teacherId: { type: mongoose.Schema.Types.ObjectId, required: true },
     status: { type: String, enum: COURSE_STATUS_VALUES, required: true },
+  },
+  { _id: false },
+);
+
+const reviewReasonSchema = new mongoose.Schema(
+  {
+    code: {
+      type: String,
+      enum: SHORT_ASSET_REVIEW_REASON_CODE_VALUES,
+      required: true,
+    },
+    note: { type: String, default: '', trim: true, maxlength: 500 },
+  },
+  { _id: false },
+);
+
+const reviewHistorySchema = new mongoose.Schema(
+  {
+    generationVersion: { type: Number, required: true, min: 1 },
+    status: {
+      type: String,
+      enum: SHORT_ASSET_REVIEW_STATUS_VALUES.filter(
+        (status) => status !== SHORT_ASSET_REVIEW_STATUSES.PENDING,
+      ),
+      required: true,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    reviewedAt: { type: Date, required: true },
+    reasons: { type: [reviewReasonSchema], default: [] },
   },
   { _id: false },
 );
@@ -39,6 +75,22 @@ const shortAssetSchema = new mongoose.Schema(
       enum: SHORT_ASSET_STATUS_VALUES,
       default: SHORT_ASSET_STATUSES.DRAFT,
     },
+    reviewStatus: {
+      type: String,
+      enum: SHORT_ASSET_REVIEW_STATUS_VALUES,
+      default: SHORT_ASSET_REVIEW_STATUSES.PENDING,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reviewedAt: { type: Date, default: null },
+    reviewReasons: { type: [reviewReasonSchema], default: [] },
+    generationVersion: { type: Number, default: 1, min: 1 },
+    reviewedGenerationVersion: { type: Number, default: null, min: 1 },
+    // Keep prior decisions when regeneration resets the current review snapshot.
+    reviewHistory: { type: [reviewHistorySchema], default: [] },
     // Keep absent IDs truly missing so the sparse unique index does not index null.
     youtubeVideoId: { type: String, trim: true },
     youtubeUrl: { type: String, default: null, trim: true },

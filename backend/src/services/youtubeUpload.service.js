@@ -94,7 +94,11 @@ function guessMimeType(filePath) {
 }
 
 function isAutoUploadEnabled() {
-  return Boolean(env.youtubeAutoUploadEnabled);
+  // The legacy flag runs a synchronous pre-create adapter that cannot persist
+  // the canonical youtubeUpload audit lifecycle. When both flags are enabled,
+  // the canonical background flow must win so an early youtubeVideoId does not
+  // cause autoUploadVideoToYouTube() to skip the audited write-back path.
+  return Boolean(env.youtubeAutoUploadEnabled && !env.youtubeUploadEnabled);
 }
 
 function getOAuthCredentials() {

@@ -1835,9 +1835,6 @@ module.exports = {
   buildAnswerStatus,
   buildCitations,
   buildUserFacingCitations,
-<<<<<<< HEAD
   retrieveSegmentsOnly,
-=======
   resolveSupportingMatches,
->>>>>>> 915dcf122b2592d325c47f411ae91b92a6791298
 };

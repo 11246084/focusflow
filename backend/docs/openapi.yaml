@@ -34,7 +34,9 @@ tags:
   - name: Videos
     description: 涵蓋影片列表、詳細資料、processing 狀態、上傳與 `guarded action` 類型的操作端點。
   - name: Shorts
-    description: 學生修課限定的已發布 ShortAsset feed；需要 Bearer JWT 與 student 角色。
+    description: |
+      學生修課限定的已發布 ShortAsset feed，以及 owner teacher／admin 使用的 ShortAsset 審核 API。
+      審核狀態與素材 lifecycle 狀態分離；核准不等於直接發布。
   - name: QA
     description: 問答 API，會明確回傳 runtime diagnostics 與 phase-1 fallback 訊號。
   - name: Stats
@@ -2155,6 +2157,146 @@ paths:
                             message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/shorts:
+    get:
+      tags:
+        - Shorts
+      summary: 取得 ShortAsset 審核清單
+      description: |
+        只允許 teacher 或 admin。Teacher 只會取得自己課程的 ShortAsset；admin 可取得所有課程。
+        `reviewStatus` 未提供時預設只列出 `pending`。本端點目前只提供上限截斷，不回傳分頁 cursor。
+      operationId: listReviewShortAssets
+      parameters:
+        - name: reviewStatus
+          in: query
+          required: false
+          description: 要篩選的審核狀態；省略時預設為 pending。
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ShortAssetReviewStatus'
+            default: pending
+        - name: limit
+          in: query
+          required: false
+          description: 回傳筆數，預設 20，最多 50。
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: 成功取得可存取的 ShortAsset 審核清單。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortAssetReviewListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/shorts/{shortAssetId}:
+    get:
+      tags:
+        - Shorts
+      summary: 取得單一 ShortAsset 審核資料
+      description: |
+        Owner teacher 或 admin 可讀取。回應包含目前 generation、review snapshot 與既有 review history，
+        可供送審成功、stale 或 conflict 後重新讀取 server state。
+      operationId: getReviewShortAsset
+      parameters:
+        - $ref: '#/components/parameters/ShortAssetId'
+      responses:
+        '200':
+          description: 成功取得 ShortAsset 審核資料。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortAssetReviewItemResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortAssetReviewForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+  /api/v1/shorts/{shortAssetId}/review:
+    post:
+      tags:
+        - Shorts
+      summary: 審核目前 generation 的 ShortAsset
+      description: |
+        Owner teacher 或 admin 可核准或退回 ShortAsset。Wire contract 使用 `status` 表示審核決定；
+        `expectedGenerationVersion` 是使用者畫面實際讀到的 generation，backend 以它執行 compare-and-swap。
+
+        `approved` 不接受退件 reasons，也不會直接把 lifecycle `status` 改為 `published`。
+        `rejected` 至少需要一個結構化 reason；`other` 必須附非空白 note。
+
+        若回傳 `SHORT_ASSET_REVIEW_STALE`，代表素材已產生新版本；若回傳
+        `SHORT_ASSET_REVIEW_CONFLICT`，代表同一 generation 已由其他操作完成審核。
+        兩種情況都應重新 GET 最新 server state，不應自動重送舊 request。
+      operationId: reviewShortAsset
+      parameters:
+        - $ref: '#/components/parameters/ShortAssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShortAssetReviewRequest'
+            examples:
+              approve:
+                summary: 核准目前 generation
+                value:
+                  status: approved
+                  expectedGenerationVersion: 3
+              reject:
+                summary: 使用結構化理由退回
+                value:
+                  status: rejected
+                  expectedGenerationVersion: 3
+                  reasons:
+                    - code: subtitleIssue
+                      note: 00:18 的專有名詞字幕有誤
+                    - code: other
+                      note: 請補上片尾重點整理
+      responses:
+        '200':
+          description: 審核已持久化；回應為更新後的 server snapshot，核准不代表已發布。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortAssetReviewItemResponse'
+        '400':
+          description: shortAssetId 格式錯誤，或 review payload 驗證失敗。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid short asset id.
+                    error:
+                      code: INVALID_ID
+                validation:
+                  value:
+                    success: false
+                    message: The other review reason requires a note.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortAssetReviewForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          $ref: '#/components/responses/ShortAssetReviewConflictError'
   /api/v1/youtube/shorts:
     get:
       tags:
@@ -2254,6 +2396,13 @@ components:
       in: path
       required: true
       description: 目標影片的 MongoDB ObjectId。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+    ShortAssetId:
+      name: shortAssetId
+      in: path
+      required: true
+      description: 目標 ShortAsset 的 MongoDB ObjectId。
       schema:
         $ref: '#/components/schemas/ObjectId'
     BatchId:
@@ -2432,6 +2581,64 @@ components:
                 message: Video not found.
                 error:
                   code: VIDEO_NOT_FOUND
+    ShortAssetNotFoundError:
+      description: 找不到指定 ShortAsset。對格式正確但不存在的 id，會在 ownership 檢查前回傳此錯誤。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                success: false
+                message: Short asset not found.
+                error:
+                  code: SHORT_ASSET_NOT_FOUND
+    ShortAssetReviewForbiddenError:
+      description: 呼叫者角色不允許使用審核 API，或 teacher 不是該 ShortAsset 所屬課程的 owner。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            roleForbidden:
+              summary: 角色不是 teacher 或 admin
+              value:
+                success: false
+                message: You do not have permission to perform this action.
+                error:
+                  code: FORBIDDEN
+            assetAccessDenied:
+              summary: Teacher 不是所屬課程 owner
+              value:
+                success: false
+                message: You do not have permission to review this short asset.
+                error:
+                  code: SHORT_ASSET_ACCESS_DENIED
+    ShortAssetReviewConflictError:
+      description: |
+        審核 CAS 未通過。`SHORT_ASSET_REVIEW_STALE` 表示 request 的 generation 已不是目前版本；
+        `SHORT_ASSET_REVIEW_CONFLICT` 表示目前 generation 已有審核結果或並發審核已先完成。
+        Client 應重新讀取 ShortAsset，且不得自動重送原 review request。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            stale:
+              summary: 素材 generation 已更新
+              value:
+                success: false
+                message: The short asset generation changed. Reload before reviewing.
+                error:
+                  code: SHORT_ASSET_REVIEW_STALE
+            conflict:
+              summary: 同一 generation 已有審核結果
+              value:
+                success: false
+                message: This short asset generation already has a review.
+                error:
+                  code: SHORT_ASSET_REVIEW_CONFLICT
     FaqInvalidationFailedError:
       description: mutation 前的 FAQ 快取清除失敗；影片與課程關聯尚未修改，可安全重試。
       content:
@@ -3867,6 +4074,237 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+    ShortAssetLifecycleStatus:
+      type: string
+      description: ShortAsset 的素材生命週期，與 reviewStatus 分離。
+      enum:
+        - draft
+        - ready
+        - published
+        - archived
+    ShortAssetReviewStatus:
+      type: string
+      description: ShortAsset 目前 generation 的審核狀態。
+      enum:
+        - pending
+        - approved
+        - rejected
+    ShortAssetReviewDecision:
+      type: string
+      description: Review request 可提交的審核決定；pending 不是可提交的決定。
+      enum:
+        - approved
+        - rejected
+    ShortAssetReviewReasonCode:
+      type: string
+      enum:
+        - contentIncorrect
+        - audioIssue
+        - visualQuality
+        - subtitleIssue
+        - incomplete
+        - other
+    ShortAssetReviewReason:
+      description: |
+        結構化退件理由。Backend 會 trim note；所有 note 最多 500 字元，`other` 必須提供非空白 note。
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          $ref: '#/components/schemas/ShortAssetReviewReasonCode'
+        note:
+          type: string
+          maxLength: 500
+      allOf:
+        - if:
+            required:
+              - code
+            properties:
+              code:
+                const: other
+          then:
+            required:
+              - note
+            properties:
+              note:
+                minLength: 1
+                pattern: '.*\S.*'
+    ShortAssetReviewCourseSummary:
+      type: object
+      required:
+        - courseId
+        - title
+      properties:
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          anyOf:
+            - type: string
+            - type: 'null'
+    ShortAssetReviewHistoryEntry:
+      type: object
+      required:
+        - generationVersion
+        - status
+        - reviewedBy
+        - reviewedAt
+        - reasons
+      properties:
+        generationVersion:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/ShortAssetReviewDecision'
+        reviewedBy:
+          $ref: '#/components/schemas/ObjectId'
+        reviewedAt:
+          type: string
+          format: date-time
+        reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortAssetReviewReason'
+    ShortAssetReviewItem:
+      type: object
+      description: |
+        Teacher/admin 審核 read model。`reviewStatus=approved` 只代表該 generation 已核准，
+        不表示 lifecycle `status` 已經是 published。
+      required:
+        - id
+        - course
+        - sourceVideoId
+        - jobId
+        - title
+        - description
+        - status
+        - reviewStatus
+        - reviewedBy
+        - reviewedAt
+        - reviewReasons
+        - generationVersion
+        - reviewedGenerationVersion
+        - reviewHistory
+        - youtubeVideoId
+        - youtubeUrl
+        - thumbnail
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        course:
+          $ref: '#/components/schemas/ShortAssetReviewCourseSummary'
+        sourceVideoId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        jobId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ShortAssetLifecycleStatus'
+        reviewStatus:
+          $ref: '#/components/schemas/ShortAssetReviewStatus'
+        reviewedBy:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        reviewedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        reviewReasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortAssetReviewReason'
+        generationVersion:
+          type: integer
+          minimum: 1
+        reviewedGenerationVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+        reviewHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortAssetReviewHistoryEntry'
+        youtubeVideoId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        youtubeUrl:
+          anyOf:
+            - type: string
+            - type: 'null'
+        thumbnail:
+          anyOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    ShortAssetReviewListData:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortAssetReviewItem'
+    ShortAssetReviewRequest:
+      description: |
+        `expectedGenerationVersion` 必須是從最新 GET response 取得的正整數。Rejected request 至少需要一個 reason；
+        approved request 必須省略 reasons 或傳空陣列。
+      oneOf:
+        - type: object
+          required:
+            - status
+            - expectedGenerationVersion
+          properties:
+            status:
+              type: string
+              const: approved
+            expectedGenerationVersion:
+              type: integer
+              minimum: 1
+            reasons:
+              type: array
+              maxItems: 0
+              items:
+                $ref: '#/components/schemas/ShortAssetReviewReason'
+        - type: object
+          required:
+            - status
+            - expectedGenerationVersion
+            - reasons
+          properties:
+            status:
+              type: string
+              const: rejected
+            expectedGenerationVersion:
+              type: integer
+              minimum: 1
+            reasons:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/ShortAssetReviewReason'
     ShortsCourseSummary:
       type: object
       required:
@@ -4820,6 +5258,26 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/HealthData'
+    ShortAssetReviewListResponse:
+      description: ShortAsset 審核清單成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ShortAssetReviewListData'
+    ShortAssetReviewItemResponse:
+      description: ShortAsset 審核 detail 或 review mutation 成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ShortAssetReviewItem'
     ShortsFeedResponse:
       description: 學生 Shorts feed 成功回應 envelope。
       allOf:

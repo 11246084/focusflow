@@ -127,6 +127,14 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，須先人工確認 YouTube Studio 以避免重複影片 |
 | `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 已達單支影片的有限重試上限 |
 | `FAQ_INVALIDATION_FAILED` | 503 | 影片刪除／解除掛載前的 FAQ 清除失敗；mutation 未執行，可安全重試 |
+| `SHORT_SCRIPT_NOT_FOUND` | 404 | 短影片腳本不存在 |
+| `SHORT_SCRIPT_NO_CANDIDATE` | 422 | 自動選題後沒有候選通過過濾，不得降低門檻硬選 |
+| `SHORT_SCRIPT_EVIDENCE_EMPTY` | 422 | 檢索不到足夠片段，無法凍結證據 |
+| `SHORT_SCRIPT_ARC_NOT_APPLICABLE` | 422 | 證據包無轉折句，不適用 8 拍敘事弧線 |
+| `SHORT_SCRIPT_STATE_INVALID` | 409 | 腳本狀態轉換不合法 |
+| `SHORT_SCRIPT_CITATION_INVALID` | 502 | 生成結果引用了證據包外的 chunkId，重試上限內未通過 |
+| `SHORT_SCRIPT_OUTPUT_INVALID` | 502 | 生成結果不是可解析的 JSON |
+| `SHORT_SCRIPT_PROVIDER_NOT_CONFIGURED` | 500 | 腳本生成的 LLM provider 未設定 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
 
 新增自訂錯誤碼時，使用 **SCREAMING_SNAKE_CASE**，並在此表格補充說明。

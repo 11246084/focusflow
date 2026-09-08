@@ -11,6 +11,7 @@ const youtubeRoutes = require('./youtube.routes');
 const notificationRoutes = require('./notification.routes');
 const conversationRoutes = require('./conversation.routes');
 const shortsRoutes = require('./shorts.routes');
+const shortScriptRoutes = require('./short-script.routes');
 
 const router = express.Router();
 
@@ -25,6 +26,9 @@ router.use('/youtube', youtubeRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/conversations', conversationRoutes);
 router.use('/shorts', shortsRoutes);
+// 掛在 '/' 之下，路徑同時涵蓋 /courses/:courseId/short-scripts 與 /short-scripts/:scriptId。
+// 必須排在 videoRoutes 之前——videoRoutes 也掛 '/'，會先吃掉未匹配的路徑。
+router.use('/', shortScriptRoutes);
 router.use('/', videoRoutes);
 
 module.exports = router;

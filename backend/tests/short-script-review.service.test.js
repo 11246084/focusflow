@@ -146,6 +146,29 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.versions[0].payload.shots.length, 8);
   });
 
+  it('生成會寫入成本紀錄，且用獨立的 event 型別（DR-06）', async () => {
+    const script = await createScript();
+    stubGeneration();
+
+    const before = store.usageLogs.length;
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+
+    const added = store.usageLogs.slice(before);
+    assert.equal(added.length, 1);
+    assert.equal(added[0].event, 'short_script_generate');
+    assert.equal(added[0].metadata.versionNo, 1);
+    assert.equal(added[0].metadata.generationAttempts, 1);
+  });
+
+  it('成本紀錄不得計入教師儀表板的問答次數', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+
+    const askCount = store.usageLogs.filter((log) => log.event === 'ask').length;
+    assert.equal(askCount, 0, '腳本生成不得寫入 ask 事件');
+  });
+
   it('教師通過後狀態轉 approved', async () => {
     const script = await createScript();
     stubGeneration();

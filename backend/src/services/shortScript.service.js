@@ -7,9 +7,11 @@ const { getCourseByIdOrThrow, assertCanManageCourse } = require('./courseAccess.
 const { listTopicCandidates } = require('./shortScriptTopic.service');
 const { retrieveSegmentsOnly } = require('./qa.service');
 const { generateScript } = require('./shortScriptGeneration.service');
+const { recordUsage } = require('./usageLog.service');
 const {
   SHORT_SCRIPT_STATUSES,
   SHORT_SCRIPT_FEEDBACK_TYPES,
+  USAGE_LOG_EVENTS,
 } = require('../constants/enums');
 
 // 證據代號 A、B、C…，對應腳本模板 §2 的對照表。
@@ -395,6 +397,22 @@ async function generateScriptVersion({ user, scriptId } = {}) {
     evidenceRefreshed,
     generationAttempts: generated.attempts,
   };
+
+  // 成本紀錄（規格書 DR-06）。用獨立的 event 型別，不得計入 teacherStats 的 queriesCount。
+  // recordUsage 內部吞錯，寫入失敗不會中斷生成——成本紀錄是觀測用途，不是正確性依賴。
+  await recordUsage({
+    userId: user?.id || null,
+    courseId: course._id,
+    event: USAGE_LOG_EVENTS.SHORT_SCRIPT_GENERATE,
+    metadata: {
+      scriptId: String(script._id),
+      versionNo: version.versionNo,
+      generationAttempts: generated.attempts,
+      evidenceCount: evidence.length,
+      evidenceRefreshed,
+      feedbackType,
+    },
+  });
 
   return ShortScript.findByIdAndUpdate(
     script._id,

@@ -108,6 +108,10 @@ const USAGE_LOG_EVENTS = {
   WATCH: 'watch',
   ASK: 'ask',
   CLIP_VIEW: 'clip_view',
+  // 短影片腳本生成的成本紀錄（規格書 DR-06）。刻意與 ASK 分開：
+  // teacherStats 的 queriesCount 只數 ASK，混用會讓教師儀表板的「問答次數」
+  // 被腳本生成次數污染。
+  SHORT_SCRIPT_GENERATE: 'short_script_generate',
 };
 
 const NOTIFICATION_SOURCES = {

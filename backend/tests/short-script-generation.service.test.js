@@ -166,6 +166,59 @@ describe('shortScriptGeneration.service', () => {
     );
   });
 
+  it('口白出現簡體字時視為驗證失敗並重試（DR-18）', async () => {
+    const badShots = buildShots();
+    badShots[6].narration = '经典功能直接拿來用，不用自己訓練';
+
+    const calls = stubGemini([
+      buildPayload({ shots: badShots }),
+      buildPayload(),
+    ]);
+
+    const result = await generation.generateScript({ topic: '主題', evidence: EVIDENCE });
+
+    const retryPrompt = calls[1].body.contents[0].parts[0].text;
+    assert.equal(result.attempts, 2);
+    assert.ok(retryPrompt.includes('簡體字'), '重試的 prompt 應指出簡體字問題');
+    assert.ok(retryPrompt.includes('经'), '應指出是哪個字');
+  });
+
+  it('字幕出現簡體字也會被攔下', async () => {
+    const badShots = buildShots();
+    badShots[2].subtitle = '选择合適的工具';
+
+    stubGemini([buildPayload({ shots: badShots })]);
+
+    await assert.rejects(
+      () => generation.generateScript({ topic: '主題', evidence: EVIDENCE }),
+      (error) => error.code === 'SHORT_SCRIPT_CITATION_INVALID',
+    );
+  });
+
+  it('字幕直接複製口白時視為驗證失敗（DR-19）', async () => {
+    const badShots = buildShots();
+    badShots[0].subtitle = badShots[0].narration;
+
+    stubGemini([buildPayload({ shots: badShots })]);
+
+    await assert.rejects(
+      () => generation.generateScript({ topic: '主題', evidence: EVIDENCE }),
+      (error) => error.details.errors.some((message) => message.includes('字幕與口白完全相同')),
+    );
+  });
+
+  it('字幕過長時視為驗證失敗', async () => {
+    const badShots = buildShots();
+    badShots[1].subtitle = '這是一段非常長的字幕內容，長到完全不可能在三秒內讀完，違反短字卡的設計';
+
+    stubGemini([buildPayload({ shots: badShots })]);
+
+    await assert.rejects(
+      () => generation.generateScript({ topic: '主題', evidence: EVIDENCE }),
+      (error) => error.details.errors.some((message) => message.includes('超過上限')),
+    );
+  });
+
   it('provider 未設定時 fail-fast，不得靜默 fallback', async () => {
     env.geminiApiKey = '';
     stubGemini([buildPayload()]);
@@ -256,5 +309,23 @@ describe('shortScriptGeneration.validateCitations', () => {
     const result = generation.validateCitations({ shots: buildShots() }, EVIDENCE);
     assert.equal(result.valid, true);
     assert.deepEqual(result.errors, []);
+  });
+
+  it('短字卡型字幕不會被誤判', () => {
+    const shots = buildShots();
+    shots[0].narration = '差別在於，OpenCV 能直接用 CPU 運算；YOLO 通常要靠 GPU。';
+    shots[0].subtitle = 'CPU vs GPU';
+
+    const result = generation.validateSubtitles({ shots });
+    assert.equal(result.valid, true, `誤判：${result.errors.join('；')}`);
+  });
+
+  it('純繁體內容不會被誤判為簡體', () => {
+    const shots = buildShots();
+    shots[0].narration = '這些工具各有各自的用途，選擇適合的設備與資源，不要殺雞用牛刀。';
+    shots[0].subtitle = '經典功能直接拿來用，不需要自己訓練模型。';
+
+    const result = generation.validateTraditionalChinese({ shots });
+    assert.equal(result.valid, true, `誤判：${result.errors.join('；')}`);
   });
 });

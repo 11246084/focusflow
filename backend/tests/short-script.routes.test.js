@@ -156,6 +156,115 @@ describe('short script routes', () => {
     assert.equal(response.status, 403);
   });
 
+  // 每條路由都要獨立驗證 401／403，不能只測其中一條再推論「它們共用同一組 guard」——
+  // 共用是實作細節，哪天有人把某條路由的 guard 拿掉，靠推論的測試抓不到。
+  const ROUTES = [
+    ['GET', () => `/api/v1/courses/${ids.teacherCourse}/short-scripts/candidates`],
+    ['GET', () => `/api/v1/courses/${ids.teacherCourse}/short-scripts`],
+    ['POST', () => `/api/v1/courses/${ids.teacherCourse}/short-scripts/auto`],
+    ['GET', (id) => `/api/v1/short-scripts/${id}`],
+    ['POST', (id) => `/api/v1/short-scripts/${id}/generate`],
+    ['POST', (id) => `/api/v1/short-scripts/${id}/review`],
+  ];
+
+  for (const [method, buildPath] of ROUTES) {
+    const label = buildPath('SCRIPT_ID');
+
+    it(`${method} ${label} 未登入時回 401`, async () => {
+      const response = await jsonRequest(baseUrl, buildPath(newObjectId()), { method });
+      assert.equal(response.status, 401);
+    });
+
+    it(`${method} ${label} 學生角色回 403`, async () => {
+      const token = await loginAs(baseUrl, 'student@focusflow.local', 'Student123!');
+      const response = await jsonRequest(baseUrl, buildPath(newObjectId()), { method, token });
+      assert.equal(response.status, 403);
+    });
+
+    it(`${method} ${label} feature flag 關閉時回 404`, async () => {
+      env.shortScriptAutomationEnabled = false;
+      const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+      const response = await jsonRequest(baseUrl, buildPath(newObjectId()), { method, token });
+      assert.equal(response.status, 404);
+    });
+  }
+
+  it('列出腳本成功時回傳陣列與總數', async () => {
+    seedTopicAndSegments();
+    const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    await jsonRequest(baseUrl, `/api/v1/courses/${ids.teacherCourse}/short-scripts/auto`, {
+      method: 'POST',
+      token,
+    });
+
+    const response = await jsonRequest(baseUrl, `/api/v1/courses/${ids.teacherCourse}/short-scripts`, {
+      token,
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.length, 1);
+    assert.equal(response.body.meta.total, 1);
+  });
+
+  it('generate 對不存在的腳本回 SHORT_SCRIPT_NOT_FOUND', async () => {
+    const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const response = await jsonRequest(baseUrl, `/api/v1/short-scripts/${newObjectId()}/generate`, {
+      method: 'POST',
+      token,
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(response.body.error.code, 'SHORT_SCRIPT_NOT_FOUND');
+  });
+
+  it('generate 對非 owner 的課程腳本回 COURSE_MANAGE_DENIED', async () => {
+    seedTopicAndSegments();
+    const ownerToken = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const created = await jsonRequest(baseUrl, `/api/v1/courses/${ids.teacherCourse}/short-scripts/auto`, {
+      method: 'POST',
+      token: ownerToken,
+    });
+
+    const otherToken = await loginAs(baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+    const response = await jsonRequest(
+      baseUrl,
+      `/api/v1/short-scripts/${created.body.data._id}/generate`,
+      { method: 'POST', token: otherToken },
+    );
+
+    assert.equal(response.status, 403);
+    assert.equal(response.body.error.code, 'COURSE_MANAGE_DENIED');
+  });
+
+  it('review 對不存在的腳本回 SHORT_SCRIPT_NOT_FOUND', async () => {
+    const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const response = await jsonRequest(baseUrl, `/api/v1/short-scripts/${newObjectId()}/review`, {
+      method: 'POST',
+      token,
+      body: { decision: 'approve' },
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(response.body.error.code, 'SHORT_SCRIPT_NOT_FOUND');
+  });
+
+  it('候選預覽對非 owner 的教師回 COURSE_MANAGE_DENIED', async () => {
+    seedTopicAndSegments();
+    const token = await loginAs(baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+
+    const response = await jsonRequest(
+      baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/short-scripts/candidates`,
+      { token },
+    );
+
+    assert.equal(response.status, 403);
+    assert.equal(response.body.error.code, 'COURSE_MANAGE_DENIED');
+  });
+
   it('教師可取得候選主題（唯讀，不建立腳本）', async () => {
     seedTopicAndSegments();
     const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');

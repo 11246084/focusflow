@@ -28,7 +28,7 @@ function resetQaEnv() {
 }
 
 // 熱度＝該問句在 questions 出現的筆數（規格書 DR-14）。
-function addQuestion({ question, askCount = 5 } = {}) {
+function addQuestion({ question, askCount = 5, questionEmbedding = [1, 0, 0] } = {}) {
   for (let index = 0; index < askCount; index += 1) {
     store.questions.push({
       _id: newObjectId(),
@@ -41,7 +41,7 @@ function addQuestion({ question, askCount = 5 } = {}) {
       matchCount: 1,
       matches: [],
       runtime: {},
-      questionEmbedding: [1, 0, 0],
+      questionEmbedding,
       askedAt: '2026-08-01T00:00:00.000Z',
       createdAt: '2026-08-01T00:00:00.000Z',
     });
@@ -157,6 +157,54 @@ describe('shortScript.service 證據包凍結', () => {
 
     const reloaded = await shortScriptService.getScriptById({ user: TEACHER, scriptId: script._id });
     assert.equal(JSON.stringify(reloaded.evidence), before);
+  });
+
+  it('第一名證據不足時換下一名，不是直接失敗（DR-12 第 3 層）', async () => {
+    // 第一名：證據不足（只有 2 格提到 Zebra）。第二名：證據充足。
+    addQuestion({ question: 'Zebra 是什麼?', askCount: 9, questionEmbedding: [1, 0, 0] });
+    addQuestion({ question: 'OpenCV 是什麼?', askCount: 3, questionEmbedding: [0, 1, 0] });
+
+    for (let index = 0; index < 20; index += 1) {
+      const chunkId = `chunk_${String(index).padStart(4, '0')}`;
+      store.videoSegments.push({
+        _id: newObjectId(),
+        segmentId: chunkId,
+        chunkId,
+        courseId: ids.teacherCourse,
+        videoId: ids.teacherVideo,
+        startSec: index * 20,
+        endSec: (index * 20) + 19,
+        text: index >= 3 && index <= 9
+          ? 'OpenCV 可以使用 CPU 來運算，這一段有提到 OpenCV。'
+          : `這一段講其他內容，第 ${index} 格。`,
+        embedding: [],
+      });
+    }
+
+    const script = await shortScriptService.createScriptWithFrozenEvidence({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.equal(script.topic, 'OpenCV 是什麼?', '第一名證據不足，應改選第二名');
+    assert.equal(script.selectionReason.rank, 2);
+    assert.equal(script.selectionReason.rejectedForEvidence.length, 1);
+    assert.equal(script.selectionReason.rejectedForEvidence[0].reason, 'insufficient_evidence');
+    assert.equal(script.selectionReason.rejectedForEvidence[0].rank, 1);
+  });
+
+  it('全部候選證據都不足時才回 SHORT_SCRIPT_EVIDENCE_EMPTY', async () => {
+    addQuestion({ question: 'Zebra 是什麼?', askCount: 9, questionEmbedding: [1, 0, 0] });
+    addQuestion({ question: 'Giraffe 是什麼?', askCount: 3, questionEmbedding: [0, 1, 0] });
+    addChunkSeries({ count: 2 });
+
+    await assert.rejects(
+      () => shortScriptService.createScriptWithFrozenEvidence({
+        user: TEACHER,
+        courseId: ids.teacherCourse,
+      }),
+      (error) => error.code === 'SHORT_SCRIPT_EVIDENCE_EMPTY',
+    );
   });
 
   it('沒有候選主題時回 SHORT_SCRIPT_NO_CANDIDATE', async () => {

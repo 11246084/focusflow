@@ -172,19 +172,46 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
     );
   }
 
-  const selected = candidates[0];
-  const retrieval = await retrieveSegmentsOnly({
-    user,
-    courseId,
-    question: selected.question,
-    // 低於 QA 的命中上限，讓證據名額留得下鄰接擴展（規格書 DR-16）。
-    limit: env.shortScriptMatchLimit,
-  });
+  // DR-12 第 3 層：依序評估候選，證據不足者淘汰後換下一名，不是撞到第一名就失敗。
+  // 分層淘汰的用意是避免對全部候選跑檢索——只評估到第一個通過的為止。
+  // 第 4 層（弧線適用性）需要 LLM，留到腳本生成的工作項。
+  let selected = null;
+  let retrieval = null;
+  let evidence = [];
+  const rejected = [];
 
-  const expanded = await expandMatchesWithNeighbours(retrieval.matches);
-  const evidence = buildEvidence(expanded);
+  for (const [index, candidate] of candidates.entries()) {
+    const candidateRetrieval = await retrieveSegmentsOnly({
+      user,
+      courseId,
+      question: candidate.question,
+      // 低於 QA 的命中上限，讓證據名額留得下鄰接擴展（規格書 DR-16）。
+      limit: env.shortScriptMatchLimit,
+    });
 
-  if (evidence.length < env.shortScriptEvidenceMinItems) {
+    const candidateEvidence = buildEvidence(
+      await expandMatchesWithNeighbours(candidateRetrieval.matches),
+    );
+
+    if (candidateEvidence.length >= env.shortScriptEvidenceMinItems) {
+      selected = candidate;
+      retrieval = candidateRetrieval;
+      evidence = candidateEvidence;
+      selected.rank = index + 1;
+      break;
+    }
+
+    // 被淘汰的候選要留痕，否則教師看到的是第 N 名卻不知道前面幾名為何出局。
+    rejected.push({
+      rank: index + 1,
+      topicKey: candidate.topicKey,
+      question: candidate.question,
+      evidenceCount: candidateEvidence.length,
+      reason: 'insufficient_evidence',
+    });
+  }
+
+  if (!selected) {
     throw new AppError(
       'Not enough transcript evidence to build a script.',
       422,
@@ -212,14 +239,19 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
       lastAskedAt: selected.lastAskedAt,
       evidenceCount: evidence.length,
       directMatchCount: retrieval.matches.length,
-      rank: 1,
-      runnersUp: candidates.slice(1, 4).map((candidate, index) => ({
-        rank: index + 2,
-        topicKey: candidate.topicKey,
-        question: candidate.question,
-        totalAskCount: candidate.totalAskCount,
-        uniqueAskerCount: candidate.uniqueAskerCount,
-      })),
+      rank: selected.rank,
+      // 因證據不足而在第 3 層被淘汰的候選（DR-12）。
+      rejectedForEvidence: rejected,
+      runnersUp: candidates
+        .filter((candidate) => candidate.topicKey !== selected.topicKey)
+        .slice(0, 3)
+        .map((candidate, index) => ({
+          rank: index + 1,
+          topicKey: candidate.topicKey,
+          question: candidate.question,
+          totalAskCount: candidate.totalAskCount,
+          uniqueAskerCount: candidate.uniqueAskerCount,
+        })),
       excludedTopicKeyCount: excludedTopicKeys.length,
       selectedAt: frozenAt,
     },

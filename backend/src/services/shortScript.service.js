@@ -6,8 +6,10 @@ const { assertObjectId } = require('../utils/objectId');
 const { getCourseByIdOrThrow, assertCanManageCourse } = require('./courseAccess.service');
 const { listTopicCandidates } = require('./shortScriptTopic.service');
 const { retrieveSegmentsOnly } = require('./qa.service');
+const { generateScript } = require('./shortScriptGeneration.service');
 const {
   SHORT_SCRIPT_STATUSES,
+  SHORT_SCRIPT_FEEDBACK_TYPES,
 } = require('../constants/enums');
 
 // 證據代號 A、B、C…，對應腳本模板 §2 的對照表。
@@ -263,6 +265,210 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
   });
 }
 
+// 狀態機（規格書附錄 F）。非法轉換一律回 SHORT_SCRIPT_STATE_INVALID，
+// 不靜默忽略——狀態跳掉會讓「哪些腳本等著審核」這件事失去意義。
+//
+// dismissed 的來源比附錄 F 的表格多一個：第 2 章的流程圖顯示教師在審核 generated
+// 腳本時也可以直接否決整個主題。三個進行中的狀態都允許轉 dismissed。
+const ALLOWED_TRANSITIONS = {
+  [SHORT_SCRIPT_STATUSES.EVIDENCE_READY]: [
+    SHORT_SCRIPT_STATUSES.GENERATED,
+    SHORT_SCRIPT_STATUSES.DISMISSED,
+  ],
+  [SHORT_SCRIPT_STATUSES.GENERATED]: [
+    SHORT_SCRIPT_STATUSES.APPROVED,
+    SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED,
+    SHORT_SCRIPT_STATUSES.DISMISSED,
+  ],
+  [SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED]: [
+    SHORT_SCRIPT_STATUSES.GENERATED,
+    SHORT_SCRIPT_STATUSES.DISMISSED,
+  ],
+  [SHORT_SCRIPT_STATUSES.APPROVED]: [],
+  [SHORT_SCRIPT_STATUSES.DISMISSED]: [],
+};
+
+function assertTransition(from, to) {
+  if (!(ALLOWED_TRANSITIONS[from] || []).includes(to)) {
+    throw new AppError(
+      `Cannot move a short script from ${from} to ${to}.`,
+      409,
+      'SHORT_SCRIPT_STATE_INVALID',
+    );
+  }
+}
+
+async function loadScriptForManage({ user, scriptId }) {
+  assertObjectId(scriptId, 'short script');
+
+  const script = await ShortScript.findById(scriptId).lean();
+  if (!script) {
+    throw new AppError('Short script not found.', 404, 'SHORT_SCRIPT_NOT_FOUND');
+  }
+
+  const course = await getCourseByIdOrThrow(script.courseId);
+  await assertCanManageCourse(user, course);
+
+  return { script, course };
+}
+
+// 同課程其他腳本用過的視覺隱喻。模板明訂「新主題要換新隱喻，不要重複用過的」，
+// 否則不同影片看起來像換皮。
+async function collectUsedMetaphors(courseId, excludeScriptId) {
+  const others = await ShortScript.find({ courseId }).lean();
+
+  return others
+    .filter((item) => String(item._id) !== String(excludeScriptId))
+    .flatMap((item) => {
+      const latest = (item.versions || [])[(item.versions || []).length - 1];
+      return (latest?.payload?.visualMetaphorOptions || []).map((option) => option.label);
+    })
+    .filter(Boolean);
+}
+
+function latestVersion(script) {
+  const versions = script.versions || [];
+  return versions[versions.length - 1] || null;
+}
+
+/**
+ * 生成腳本並附加為新版本（規格書 WO-05 / WO-06）。
+ *
+ * 回饋分流（DR-09）在呼叫端之前就決定好了：
+ *   - retrieval 類回饋 → 先重新凍結證據，再生成（證據換了，敘事才有意義）
+ *   - narrative 類回饋 → 沿用同一份證據，只重寫敘事
+ * 若不分流、一律重生敘事，模型會在錯誤的證據上反覆重寫，越改越像編的。
+ */
+async function generateScriptVersion({ user, scriptId } = {}) {
+  const { script, course } = await loadScriptForManage({ user, scriptId });
+  assertTransition(script.status, SHORT_SCRIPT_STATUSES.GENERATED);
+
+  const previous = latestVersion(script);
+  const feedbackType = previous?.feedbackType || null;
+  const feedback = previous?.feedback || null;
+
+  let evidence = script.evidence;
+  let evidenceFrozenAt = script.evidenceFrozenAt;
+  let evidenceRefreshed = false;
+
+  if (feedbackType === SHORT_SCRIPT_FEEDBACK_TYPES.RETRIEVAL) {
+    const retrieval = await retrieveSegmentsOnly({
+      user,
+      courseId: course._id,
+      question: script.topic,
+      limit: env.shortScriptMatchLimit,
+    });
+    const refreshed = buildEvidence(await expandMatchesWithNeighbours(retrieval.matches));
+
+    if (refreshed.length < env.shortScriptEvidenceMinItems) {
+      throw new AppError(
+        'Not enough transcript evidence to rebuild the script.',
+        422,
+        'SHORT_SCRIPT_EVIDENCE_EMPTY',
+      );
+    }
+
+    evidence = refreshed;
+    evidenceFrozenAt = new Date();
+    evidenceRefreshed = true;
+  }
+
+  const usedMetaphors = await collectUsedMetaphors(course._id, script._id);
+  const generated = await generateScript({
+    topic: script.topic,
+    evidence,
+    usedMetaphors,
+    // narrative 類回饋要帶進 prompt；retrieval 類已經換過證據，不重複施加敘事指示。
+    feedback: feedbackType === SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE ? feedback : null,
+  });
+
+  const version = {
+    versionNo: (script.versions || []).length + 1,
+    payload: generated.payload,
+    generatedAt: new Date(),
+    feedback: null,
+    feedbackType: null,
+    reviewedBy: null,
+    reviewedAt: null,
+    evidenceFrozenAt,
+    // retrieval 類回饋會換掉證據，這裡標記讓教師知道這一版依據的是新證據。
+    evidenceRefreshed,
+    generationAttempts: generated.attempts,
+  };
+
+  return ShortScript.findByIdAndUpdate(
+    script._id,
+    {
+      $set: {
+        status: SHORT_SCRIPT_STATUSES.GENERATED,
+        evidence,
+        evidenceFrozenAt,
+      },
+      $push: { versions: version },
+    },
+    { new: true },
+  );
+}
+
+/**
+ * 教師審核（規格書 WO-06 / DR-09）。
+ *
+ * @param {'approve'|'request_changes'|'dismiss'} decision
+ * @param {'retrieval'|'narrative'} feedbackType  request_changes 時必填，系統不猜
+ */
+async function submitReview({
+  user, scriptId, decision, feedback = null, feedbackType = null,
+} = {}) {
+  const { script } = await loadScriptForManage({ user, scriptId });
+
+  const targetStatus = {
+    approve: SHORT_SCRIPT_STATUSES.APPROVED,
+    request_changes: SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED,
+    dismiss: SHORT_SCRIPT_STATUSES.DISMISSED,
+  }[decision];
+
+  if (!targetStatus) {
+    throw new AppError('Unknown review decision.', 400, 'VALIDATION_ERROR');
+  }
+
+  assertTransition(script.status, targetStatus);
+
+  if (targetStatus === SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED) {
+    // 回饋類型由教師指定，系統不猜（DR-09）。猜錯會讓模型在錯證據上反覆重寫。
+    if (!Object.values(SHORT_SCRIPT_FEEDBACK_TYPES).includes(feedbackType)) {
+      throw new AppError(
+        'feedbackType must be retrieval or narrative when requesting changes.',
+        400,
+        'VALIDATION_ERROR',
+      );
+    }
+    if (!String(feedback || '').trim()) {
+      throw new AppError('Feedback is required when requesting changes.', 400, 'VALIDATION_ERROR');
+    }
+  }
+
+  const versions = script.versions || [];
+  const update = {
+    $set: {
+      status: targetStatus,
+      ...(targetStatus === SHORT_SCRIPT_STATUSES.DISMISSED
+        ? { dismissReason: String(feedback || '').trim() || null }
+        : {}),
+    },
+  };
+
+  // 把回饋記在「被審的那一版」上，而不是腳本層級——教師需要看得出
+  // 哪一版被退回、退回的理由是什麼，才能確認下一版有沒有吃掉意見。
+  if (versions.length) {
+    update.$set[`versions.${versions.length - 1}.feedback`] = String(feedback || '').trim() || null;
+    update.$set[`versions.${versions.length - 1}.feedbackType`] = feedbackType;
+    update.$set[`versions.${versions.length - 1}.reviewedBy`] = user?.id || null;
+    update.$set[`versions.${versions.length - 1}.reviewedAt`] = new Date();
+  }
+
+  return ShortScript.findByIdAndUpdate(script._id, update, { new: true });
+}
+
 async function getScriptById({ user, scriptId } = {}) {
   assertObjectId(scriptId, 'short script');
 
@@ -288,8 +494,11 @@ async function listCourseScripts({ user, courseId } = {}) {
 
 module.exports = {
   createScriptWithFrozenEvidence,
+  generateScriptVersion,
+  submitReview,
   getScriptById,
   listCourseScripts,
   expandMatchesWithNeighbours,
   buildEvidence,
+  ALLOWED_TRANSITIONS,
 };

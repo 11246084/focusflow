@@ -157,6 +157,9 @@ module.exports = {
   // 證據涵蓋度門檻（規格書 DR-12 第 3 層）：兩份手寫腳本各用 6 個片段。
   shortScriptEvidenceMinItems: Number(process.env.SHORT_SCRIPT_EVIDENCE_MIN_ITEMS) || 6,
   shortScriptEvidenceMaxItems: Number(process.env.SHORT_SCRIPT_EVIDENCE_MAX_ITEMS) || 12,
+  // 引用驗證失敗的重試次數（規格書 DR-07）：重試 2 次＝最多生成 3 次。
+  // 仍失敗時保留最後一次原始輸出，否則無法診斷是 prompt 問題還是證據問題。
+  shortScriptGenerationRetryLimit: Number(process.env.SHORT_SCRIPT_GENERATION_RETRY_LIMIT ?? 2),
   qaMockEmbeddingDimensions: Number(process.env.QA_MOCK_EMBEDDING_DIMENSIONS) || 32,
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,

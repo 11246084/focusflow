@@ -40,6 +40,7 @@ function parseArgs(argv) {
   const windowFlag = flags.find((item) => item.startsWith('--window='));
   const dnsFlag = flags.find((item) => item.startsWith('--dns='));
   const thresholdsFlag = flags.find((item) => item.startsWith('--thresholds='));
+  const rankFlag = flags.find((item) => item.startsWith('--rank='));
 
   return {
     courseId: positional[0] || '',
@@ -49,6 +50,10 @@ function parseArgs(argv) {
     thresholds: thresholdsFlag
       ? thresholdsFlag.split('=')[1].split(',').map(Number).filter(Number.isFinite)
       : [],
+    // 對第 N 名候選跑證據，而不是第 1 名。用於「該主題還沒輪到，但想先驗證它的證據」——
+    // 例如與手寫腳本比對時，手寫版挑的主題未必是系統排名第 1 的那個。
+    // 唯讀，不會建立任何 shortscripts 紀錄。
+    rank: rankFlag ? Math.max(1, Number(rankFlag.split('=')[1]) || 1) : 1,
   };
 }
 
@@ -127,7 +132,7 @@ async function printThresholdComparison({ user, courseId, thresholds }) {
 }
 
 async function run() {
-  const { courseId, window, asJson, dnsServers, thresholds } = parseArgs(process.argv.slice(2));
+  const { courseId, window, asJson, dnsServers, thresholds, rank } = parseArgs(process.argv.slice(2));
 
   if (dnsServers.length) {
     dns.setServers(dnsServers);
@@ -135,7 +140,7 @@ async function run() {
   }
 
   if (!courseId) {
-    console.error('用法：node src/scripts/verifyShortScriptSelection.js <courseId> [--window=1] [--json] [--dns=8.8.8.8] [--thresholds=0.80,0.85,0.90,0.95]');
+    console.error('用法：node src/scripts/verifyShortScriptSelection.js <courseId> [--window=1] [--json] [--dns=8.8.8.8] [--thresholds=0.80,0.85,0.90,0.95] [--rank=2]');
     process.exitCode = 1;
     return;
   }
@@ -184,7 +189,7 @@ async function run() {
   };
 
   if (candidates.length) {
-    const selected = candidates[0];
+    const selected = candidates[Math.min(rank, candidates.length) - 1];
     // 必須跟 createScriptWithFrozenEvidence 用同一個命中上限，否則驗證結果與實際流程不符。
     const retrieval = await retrieveSegmentsOnly({
       user,
@@ -234,7 +239,8 @@ async function run() {
 
   if (output.selected) {
     console.log('');
-    console.log(`【選中主題】${output.selected.question}`);
+    console.log(`【選中主題】${output.selected.question}`
+      + (rank > 1 ? `（排名第 ${rank}，以 --rank 指定）` : ''));
     console.log(`  直接命中 ${output.directMatchCount} 筆，鄰接擴展後 ${output.evidence.length} 筆`);
     console.log('');
     console.log('【證據片段】');

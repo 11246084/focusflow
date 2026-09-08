@@ -201,11 +201,13 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
     sourceQuestions: selected.variants.map((variant) => ({
       question: variant.question,
       askCount: variant.askCount,
+      uniqueAskerCount: variant.uniqueAskerCount,
     })),
     // 教師必須能回答「為什麼系統選了這一題」（規格書 R-04）。
     selectionReason: {
       selectedTopicKey: selected.topicKey,
       totalAskCount: selected.totalAskCount,
+      uniqueAskerCount: selected.uniqueAskerCount,
       variantCount: selected.variants.length,
       lastAskedAt: selected.lastAskedAt,
       evidenceCount: evidence.length,
@@ -216,6 +218,7 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
         topicKey: candidate.topicKey,
         question: candidate.question,
         totalAskCount: candidate.totalAskCount,
+        uniqueAskerCount: candidate.uniqueAskerCount,
       })),
       excludedTopicKeyCount: excludedTopicKeys.length,
       selectedAt: frozenAt,

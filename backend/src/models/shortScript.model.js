@@ -30,6 +30,8 @@ const sourceQuestionSchema = new mongoose.Schema(
   {
     question: { type: String, required: true, trim: true },
     askCount: { type: Number, default: 0, min: 0 },
+    // 提問人數是比次數更可靠的需求訊號（DR-17）。
+    uniqueAskerCount: { type: Number, default: 0, min: 0 },
   },
   { _id: false },
 );

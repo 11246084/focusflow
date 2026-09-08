@@ -24,11 +24,13 @@ function addQuestion({
   status = 'answered',
   runtime = {},
   askedAt = '2026-08-01T00:00:00.000Z',
+  askerIds = null,
 } = {}) {
   for (let index = 0; index < askCount; index += 1) {
     store.questions.push({
       _id: newObjectId(),
-      userId: ids.student,
+      // 預設同一人問完；傳 askerIds 可模擬多人分別提問。
+      userId: askerIds ? askerIds[index % askerIds.length] : ids.student,
       courseId,
       question,
       answer,
@@ -218,6 +220,42 @@ describe('shortScriptTopic.service 自動選題', () => {
     });
 
     assert.deepEqual(candidates, []);
+  });
+
+  it('提問人數優先於提問次數（DR-17）', async () => {
+    // A 題：1 個人問 9 次。B 題：3 個人各問 1 次。
+    addQuestion({ question: '一個人狂問的題目', askCount: 9, questionEmbedding: VECTORS.yolo });
+    addQuestion({
+      question: '三個人各問一次的題目',
+      askCount: 3,
+      questionEmbedding: VECTORS.llm,
+      askerIds: [ids.student, ids.teacher, ids.admin],
+    });
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.equal(candidates[0].question, '三個人各問一次的題目');
+    assert.equal(candidates[0].uniqueAskerCount, 3);
+    assert.equal(candidates[0].totalAskCount, 3);
+    assert.equal(candidates[1].uniqueAskerCount, 1);
+    assert.equal(candidates[1].totalAskCount, 9);
+  });
+
+  it('同一人用不同寫法問，只算一個人', async () => {
+    addQuestion({ question: 'opencv 跟 yolo 差在哪?', askCount: 3, questionEmbedding: VECTORS.yolo });
+    addQuestion({ question: 'YOLO跟opencv的差異?', askCount: 3, questionEmbedding: VECTORS.yoloNear });
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].totalAskCount, 6);
+    assert.equal(candidates[0].uniqueAskerCount, 1, '兩種寫法都是同一人問的，不能算兩個人');
   });
 
   it('limit 限制回傳筆數', async () => {

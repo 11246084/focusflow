@@ -68,6 +68,11 @@ function isUsableQuestion(question) {
 // 排序必須是確定性的（規格書 R-04）：同樣的資料一定產生同樣的分群與排名，
 // 否則「為什麼選這一題」無法對教師解釋。因此每一層 tie-break 都要有終局比較值。
 function compareGroupsForClustering(left, right) {
+  const askerDiff = right.askerIds.size - left.askerIds.size;
+  if (askerDiff !== 0) {
+    return askerDiff;
+  }
+
   const countDiff = right.askCount - left.askCount;
   if (countDiff !== 0) {
     return countDiff;
@@ -77,6 +82,14 @@ function compareGroupsForClustering(left, right) {
 }
 
 function compareCandidates(left, right) {
+  // 人數優先於次數（DR-17）：5 個不同學生各問 1 次，比 1 個學生問 5 次更能代表需求。
+  // 依次數排序時，單一使用者反覆提問就能決定排名——實測資料顯示兩門課的提問
+  // 分別只來自 2 人與 3 人，前幾名幾乎都是「1 個人問出來的」。
+  const askerDiff = right.uniqueAskerCount - left.uniqueAskerCount;
+  if (askerDiff !== 0) {
+    return askerDiff;
+  }
+
   const countDiff = right.totalAskCount - left.totalAskCount;
   if (countDiff !== 0) {
     return countDiff;
@@ -111,6 +124,9 @@ function groupByNormalizedQuestion(questions) {
     if (existing) {
       existing.askCount += 1;
       existing.rawQuestions.add(String(question.question).trim());
+      if (question.userId) {
+        existing.askerIds.add(String(question.userId));
+      }
       if (toTimestamp(askedAt) > toTimestamp(existing.lastAskedAt)) {
         existing.lastAskedAt = askedAt;
       }
@@ -124,6 +140,8 @@ function groupByNormalizedQuestion(questions) {
       // 查向量時必須用全部寫法比對，只用代表字串會漏掉其他寫法的紀錄，
       // 導致該群被當成「沒有向量」而無法語意合併。
       rawQuestions: new Set([String(question.question).trim()]),
+      // 提問人數是比次數更可靠的需求訊號（DR-17）。
+      askerIds: new Set(question.userId ? [String(question.userId)] : []),
       askCount: 1,
       lastAskedAt: askedAt,
     });
@@ -207,8 +225,17 @@ function buildCandidate(cluster) {
     question: group.question,
     normalizedQuestion: group.normalizedQuestion,
     askCount: group.askCount,
+    uniqueAskerCount: group.askerIds.size,
     lastAskedAt: group.lastAskedAt,
   }));
+
+  // 跨變體取聯集：同一個人用不同寫法問，只能算一個人。
+  const askerIds = new Set();
+  for (const group of members) {
+    for (const askerId of group.askerIds) {
+      askerIds.add(askerId);
+    }
+  }
 
   const lastAskedAt = variants.reduce((latest, variant) => (
     toTimestamp(variant.lastAskedAt) > toTimestamp(latest) ? variant.lastAskedAt : latest
@@ -219,6 +246,7 @@ function buildCandidate(cluster) {
     question: representative.question,
     normalizedQuestion: representative.normalizedQuestion,
     totalAskCount: variants.reduce((sum, variant) => sum + variant.askCount, 0),
+    uniqueAskerCount: askerIds.size,
     variants,
     lastAskedAt,
   };
@@ -249,7 +277,7 @@ async function listTopicCandidates({
   // 不載入向量：一筆 3072 維向量約 24KB，整門課全載會很重。
   // 向量只在第 2 層對前 M 名另外讀。
   const questions = await Question.find(buildQuestionFilter(course._id))
-    .select('question answer status runtime askedAt createdAt')
+    .select('question answer status runtime askedAt createdAt userId')
     .lean();
 
   const groups = groupByNormalizedQuestion(questions);

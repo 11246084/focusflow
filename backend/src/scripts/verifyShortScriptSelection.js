@@ -121,7 +121,7 @@ async function printThresholdComparison({ user, courseId, thresholds }) {
     console.log('');
     console.log(`  ── 門檻 ${threshold}：分成 ${totalClusters} 群，${candidates.length} 個候選 ──`);
     candidates.forEach((candidate, index) => {
-      console.log(`    ${index + 1}. [${candidate.totalAskCount} 次] ${truncate(candidate.question, 40)}`);
+      console.log(`    ${index + 1}. [${candidate.uniqueAskerCount} 人 / ${candidate.totalAskCount} 次] ${truncate(candidate.question, 40)}`);
       if (candidate.variants.length > 1) {
         candidate.variants.slice(1).forEach((variant) => {
           console.log(`         ＋併入 [${variant.askCount} 次] ${truncate(variant.question, 40)}`);
@@ -231,9 +231,9 @@ async function run() {
   }
   candidates.forEach((candidate, index) => {
     console.log(`  ${index + 1}. ${candidate.question}`);
-    console.log(`     熱度 ${candidate.totalAskCount}｜合併 ${candidate.variants.length} 種問法`);
+    console.log(`     ${candidate.uniqueAskerCount} 人問過｜共 ${candidate.totalAskCount} 次｜合併 ${candidate.variants.length} 種問法`);
     candidate.variants.forEach((variant) => {
-      console.log(`       - ${variant.question}（${variant.askCount} 次）`);
+      console.log(`       - ${variant.question}（${variant.uniqueAskerCount} 人 / ${variant.askCount} 次）`);
     });
   });
 

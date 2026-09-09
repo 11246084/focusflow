@@ -35,3 +35,27 @@ jobs:
           pm2 restart focusflow-backend --update-env
           pm2 save
           sudo systemctl reload nginx
+
+      - name: Verify backend and proxy readiness
+        run: |
+          for attempt in {1..30}; do
+            if health_json=$(curl --fail --silent --show-error http://127.0.0.1:4000/health); then
+              if node -e 'const health=JSON.parse(process.argv[1]); process.exit(health?.data?.runtime?.qa?.readyForAsk === true ? 0 : 1)' "$health_json"; then
+                break
+              fi
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Backend did not reach readyForAsk=true."
+              exit 1
+            fi
+            sleep 2
+          done
+
+          proxy_status=$(curl --insecure --silent --output /dev/null --write-out '%{http_code}' \
+            --resolve focusflow.ntub.edu.tw:443:127.0.0.1 \
+            https://focusflow.ntub.edu.tw/api/v1/courses)
+          if [ "$proxy_status" != "401" ]; then
+            echo "Nginx API proxy readiness failed with HTTP $proxy_status."
+            exit 1
+          fi
+          echo "Backend QA readiness and Nginx API proxy checks passed."

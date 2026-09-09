@@ -29,6 +29,11 @@ jobs:
 
       - name: Restart services
         env:
+          QA_VECTOR_SEARCH_MODE: atlas
+          QA_QUERY_EMBEDDING_PROVIDER: gemini
+          GEMINI_EMBEDDING_MODEL_NAME: gemini-embedding-2
+          QA_ATLAS_VECTOR_INDEX_NAME: text_embedding_index
+          QA_ATLAS_FILTER_MODE: bridge_course_or_video
           QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON: >-
             {"provider":"gemini","model":"gemini-embedding-2","dimension":3072,"instructionVersion":"gemini_embedding_2_asymmetric_retrieval_v2","generationVersion":"text_search_generation_v2","normalizationVersion":"unit_l2_v1","contractVersion":"gemini_embedding_2_text_v2","schemaVersion":"gemini_embedding_2_text_v2","taskType":null}
         run: |
@@ -40,7 +45,7 @@ jobs:
         run: |
           for attempt in {1..30}; do
             if health_json=$(curl --fail --silent --show-error http://127.0.0.1:4000/health); then
-              if node -e 'const health=JSON.parse(process.argv[1]); process.exit(health?.data?.runtime?.qa?.readyForAsk === true ? 0 : 1)' "$health_json"; then
+              if node -e 'const qa=JSON.parse(process.argv[1])?.data?.runtime?.qa; const ready=qa?.readyForAsk === true && qa?.vectorSearchMode === "atlas" && qa?.queryEmbeddingProvider === "gemini" && qa?.atlasVectorIndexConfigured === true && qa?.dataContractCompatibility?.leaf?.status === "compatible"; process.exit(ready ? 0 : 1)' "$health_json"; then
                 break
               fi
             fi

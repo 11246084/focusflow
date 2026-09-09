@@ -1045,6 +1045,9 @@ function installModelStubs() {
       generationVersion: 1,
       reviewedGenerationVersion: null,
       reviewHistory: [],
+      // 這支影片是照哪一份腳本、哪一版拍的（規格書 DR-20）
+      sourceScriptId: null,
+      sourceVersionNo: null,
       ...payload,
     };
     store.shortAssets.push(asset);

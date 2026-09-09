@@ -33,6 +33,9 @@ const CREATE_FIELDS = [
   'youtubeAvailability',
   'youtubePrivacyStatus',
   'lastCheckedAt',
+  // 這支影片照哪一份腳本、哪一版拍的（規格書 DR-20）。成品退回時要靠它找回腳本。
+  'sourceScriptId',
+  'sourceVersionNo',
 ];
 
 const UPDATE_FIELDS = CREATE_FIELDS.filter((field) => field !== 'courseId');
@@ -284,6 +287,7 @@ async function createShortAsset(payload) {
   assertObjectId(payload.courseId, 'course');
   if (payload.sourceVideoId != null) assertObjectId(payload.sourceVideoId, 'source video');
   const fields = pickFields(payload, CREATE_FIELDS);
+  if (fields.sourceScriptId != null) assertObjectId(fields.sourceScriptId, 'source script');
   if (fields.youtubeVideoId == null) delete fields.youtubeVideoId;
   if (fields.status === SHORT_ASSET_STATUSES.PUBLISHED) {
     assertPublicationApproved(fields);
@@ -393,6 +397,38 @@ async function getReviewShortAsset({ assetId, user }) {
   return toReviewAsset(asset, course);
 }
 
+// 成品被退回時，把回饋帶回產生這支影片的腳本（規格書 DR-20）。
+//
+// 整支短影片是從腳本生成的，沒有實拍環節，所以退回一定要回到腳本才有得改。
+//
+// 這裡刻意 fail soft：審核結果在呼叫此函式前就已經寫進資料庫，這時再拋錯只會讓
+// API 回錯誤、但審核其實已經成立，教師會重送而撞上 SHORT_ASSET_REVIEW_CONFLICT。
+// 連結失敗的後果只是腳本狀態沒跟著改，教師仍可在腳本頁自行重新生成，代價遠小於
+// 讓一次成功的審核看起來失敗。
+//
+// 用延遲 require 是為了避開載入順序上的循環：course.service 會 require 本檔，
+// 而腳本鏈另有自己的 service 相依，頂層 require 容易在某個入口變成半初始化模組。
+async function notifyScriptOfRejection(asset, user, reasons) {
+  if (!asset?.sourceScriptId) return;
+
+  try {
+    // eslint-disable-next-line global-require
+    const { applyAssetRejection } = require('./shortScript.service');
+    await applyAssetRejection({
+      scriptId: asset.sourceScriptId,
+      versionNo: asset.sourceVersionNo || null,
+      reasons,
+      reviewedBy: user?.id || null,
+    });
+  } catch (error) {
+    console.error('[shortAsset] failed to route rejection back to script', {
+      assetId: String(asset._id),
+      scriptId: String(asset.sourceScriptId),
+      message: error.message,
+    });
+  }
+}
+
 async function reviewShortAsset({
   assetId,
   user,
@@ -478,6 +514,10 @@ async function reviewShortAsset({
       409,
       'SHORT_ASSET_REVIEW_CONFLICT',
     );
+  }
+
+  if (status === SHORT_ASSET_REVIEW_STATUSES.REJECTED) {
+    await notifyScriptOfRejection(updated, user, normalizedReasons);
   }
 
   return toReviewAsset(updated, course);

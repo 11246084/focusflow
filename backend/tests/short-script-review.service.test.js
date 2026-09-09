@@ -303,22 +303,23 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.versions[1].payload.visualMetaphorOptions[0].label, '第二版隱喻');
   });
 
-  it('已核准的腳本不能再被退回（狀態機）', async () => {
+  // 規格書 DR-20 起 approved 不再是終態：整支影片都是從腳本生成的，
+  // 影片做出來才發現的問題只能改腳本，所以核准後仍要能退回。
+  it('已核准的腳本仍可被退回，回到 changes_requested', async () => {
     const script = await createScript();
     stubGeneration();
     await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
     await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'approve' });
 
-    await assert.rejects(
-      () => shortScriptService.submitReview({
-        user: TEACHER,
-        scriptId: script._id,
-        decision: 'request_changes',
-        feedback: '再改',
-        feedbackType: 'narrative',
-      }),
-      (error) => error.code === 'SHORT_SCRIPT_STATE_INVALID',
-    );
+    const updated = await shortScriptService.submitReview({
+      user: TEACHER,
+      scriptId: script._id,
+      decision: 'request_changes',
+      feedback: '再改',
+      feedbackType: 'narrative',
+    });
+
+    assert.equal(updated.status, 'changes_requested');
   });
 
   it('尚未生成就通過會被狀態機擋下', async () => {

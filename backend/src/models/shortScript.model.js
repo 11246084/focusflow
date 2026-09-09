@@ -47,6 +47,10 @@ const versionSchema = new mongoose.Schema(
     reviewedAt: { type: Date, default: null },
     // retrieval 類回饋會重新凍結證據，這裡標記該版本用的是哪一次的證據
     evidenceFrozenAt: { type: Date, default: null },
+    // 這一版的回饋是來自「成品影片被退回」而非腳本本身的審核（規格書 DR-20）。
+    // 兩者都寫進 feedback，但來源不同：診斷生成品質時必須分得出來，
+    // 否則會把「影片做出來才發現的問題」誤算成腳本階段就該攔下的問題。
+    rejectedAsAsset: { type: Boolean, default: false },
   },
   { _id: false },
 );

@@ -12,7 +12,7 @@
 | 基準文件 | [短影片腳本自動化規格書 v0.9 草案](../2026-09_Short_Script_Automation_Spec.md)（2026-09-03） |
 | 證據來源 | Claude Code 唯讀程式盤點（2026-09-03，backend 工作樹 `main` @ `f404fe5`） |
 | 對應討論 | 2026-09-03 對話：自動化流程六步驟可行性評估 |
-| 目標 | 自動選題 → 找證據 → 生成腳本 → 教師審核 → 教師上傳影片後自動上架 YouTube |
+| 目標 | 自動選題 → 找證據 → 生成腳本 → 教師產片並上傳 → **教師審核成品** → 通過才自動上架 YouTube；退回則把理由寫回腳本重生 |
 | 狀態 | 草案，未核准 |
 
 ---
@@ -89,7 +89,7 @@
 | 3. 生成腳本 | 納入（WO-05） |
 | 4. 老師生成影片 | 不自動化（人工） |
 | 5. 老師審核 | 不自動化（人工），但需提供審核與回饋的資料介面（WO-06） |
-| 6. 通過→上架；未通過→帶回饋重生 | **全部納入**：重生迴圈（WO-06）；教師上傳影片後自動上架 YouTube（WO-08，規格書 DR-13） |
+| 6. 通過→上架；未通過→帶回饋重生 | **全部納入**：成品審核通過才自動上架 YouTube（WO-08，規格書 DR-13）；退回則把理由寫回腳本並重生（WO-06 + DR-20） |
 
 ---
 
@@ -102,7 +102,7 @@
 - 依證據生成 8 拍口白與敘事設定，每一拍強制標注依據來源。
 - 生成後的**引用驗證**：所有 `basedOn` 的 chunkId 必須存在於本次證據包，否則整份退回。
 - 腳本版本化，以及老師回饋的分流重生（`retrieval` / `narrative`）。
-- 教師上傳短影片後自動上傳 YouTube 並建立 `ShortAsset`。
+- 教師上傳短影片後建立 `ShortAsset`，**成品審核通過**才自動上傳 YouTube。
 - 教師端 API 與對應測試。
 
 ### 1.2 排除（本輪明確不做）
@@ -322,6 +322,11 @@ dismissReason     String（status 為 dismissed 時填）
 
 ### WO-06 審核迴圈與回饋分流
 
+> **2026-09-09 修正（規格書 DR-20）**：本工作項原本被實作成「教師審核**腳本**」，並因此讓 WO-08 變成上傳即上架，
+> 跳過了使用者原始流程中的「教師審核**影片**」。實際的審核關卡是成品審核（組員完成的 `POST /api/v1/shorts/:assetId/review`）；
+> 本工作項的審核機制保留，但改由成品退回驅動：`ShortAsset` 以 `sourceScriptId` / `sourceVersionNo` 指回腳本，
+> 退回時把理由寫回**教師實際拍攝的那一版**並轉為 `changes_requested`。腳本預審不再是教師的必經步驟（規格書 2.0）。
+
 老師的回饋分兩類，處理路徑不同，不得一律回到生成：
 
 | 回饋類型 | 意義 | 回到 |
@@ -331,14 +336,21 @@ dismissReason     String（status 為 dismissed 時填）
 
 一律回 WO-05 會讓模型在錯的證據上反覆重寫，越改越像編的。
 
+成品退回理由對應到回饋類型（規格書 DR-20）：`contentIncorrect` → `retrieval`，其餘五種（`incomplete`、`subtitleIssue`、`audioIssue`、`visualQuality`、`other`）→ `narrative`。整支影片都由腳本生成，沒有實拍環節，所以六種理由全部追得回腳本。同時勾選多項且含 `contentIncorrect` 時以 `retrieval` 為準。
+
 **修改位置**
 
-- 擴充 `backend/src/services/shortScript.service.js`：`submitReview`、`regenerate`
+- 擴充 `backend/src/services/shortScript.service.js`：`submitReview`、`regenerate`、`applyAssetRejection`
+- `backend/src/models/shortAsset.model.js`：新增 `sourceScriptId`、`sourceVersionNo`
+- `backend/src/models/shortScript.model.js`：版本子文件新增 `rejectedAsAsset`
+- `backend/src/services/shortAsset.service.js`（**組員負責的檔案，改動須最小並事先告知**）：`reviewShortAsset` 退回後呼叫連結，且**必須 fail soft**
 
 **驗收條件**
 
 - `versions[]` 逐版保留，且可取出任兩版做差異比對（老師需要確認上一輪意見有沒有被吃掉）。
 - `retrieval` 類回饋會重新凍結證據，並在新版本記錄證據已更換。
+- 成品退回時腳本轉為 `changes_requested`，回饋寫在 `sourceVersionNo` 指定的那一版，不是最新版。
+- 腳本連結失敗時成品審核仍然成立，不回傳錯誤——審核在連結之前就已寫入資料庫，此時拋錯會讓教師重送並撞上 `SHORT_ASSET_REVIEW_CONFLICT`。
 
 ---
 
@@ -382,15 +394,21 @@ GET    /api/v1/courses/:courseId/short-scripts           列出該課程的腳�
 
 ### WO-08 短影片上架（規格書 DR-13 / 附錄 K）
 
-**觸發點固定為教師上傳影片檔**，系統不自行發布任何內容。只有 `status = approved` 的腳本可進入此流程（R-08）。
+**觸發點是教師審核成品通過**（2026-09-09 修正，規格書 R-08 / DR-13）。教師上傳影片檔只建立 `ShortAsset`（`draft`），不觸發任何對外動作；只有 `reviewStatus = approved` 且 `reviewedGenerationVersion` 等於當前 `generationVersion` 的資產可進入上架流程。
+
+> **原本寫錯的地方**：舊版把觸發點寫成「教師上傳影片檔」，理由是「上傳的動作即為確認」。教師是先上傳才看得到成品，上傳當下還沒看過影片，這條理由不成立，等於跳過成品審核直接發布。成品審核頁（`POST /api/v1/shorts/:assetId/review`）已由組員完成，WO-08 要接的是它的 `approved` 結果，不是上傳事件。
 
 **新增路由**
 
 ```text
-POST   /api/v1/short-scripts/:scriptId/asset             上傳影片檔並自動上架（multipart）
-POST   /api/v1/short-assets/:assetId/upload/retry        上傳失敗後重試
+POST   /api/v1/short-scripts/:scriptId/asset             上傳影片檔，建立 ShortAsset（draft），不上架
+POST   /api/v1/short-assets/:assetId/upload/retry        上架失敗後重試
 GET    /api/v1/courses/:courseId/short-assets            教師端列出短影片資產
 ```
+
+上架本身**不新增路由**，改為掛在既有的 `POST /api/v1/shorts/:assetId/review`（組員所有）之後：審核通過才呼叫 `autoUploadVideoToYouTube`。修改該檔時範圍必須最小，並事先與負責人確認。
+
+上傳影片檔時必須帶 `sourceScriptId` 與 `sourceVersionNo`（規格書 DR-20），否則成品被退回時找不回腳本。
 
 **可複用資產**（不要重寫）
 
@@ -408,12 +426,13 @@ GET    /api/v1/courses/:courseId/short-assets            教師端列出短影�
 
 | 錯誤碼 | HTTP | 情境 |
 | --- | --- | --- |
-| `SHORT_SCRIPT_NOT_APPROVED` | 409 | 腳本尚未 `approved` |
+| `SHORT_ASSET_NOT_APPROVED` | 409 | 成品尚未通過審核，或審核的不是當前 `generationVersion`（`shortAsset.service.js` 已實作） |
 | `SHORT_ASSET_DISCLOSURE_REQUIRED` | 400 | 未確認 AI 揭露標示與書面同意 |
 
 **驗收條件**
 
-- 腳本非 `approved` 時上傳被拒。
+- 成品未經審核通過時不觸發 YouTube 上傳，回 `SHORT_ASSET_NOT_APPROVED`。
+- 成品被退回時不上架，且退回理由已寫回腳本（DR-20，WO-06 已實作，此處只驗證不上架）。
 - `YOUTUBE_UPLOAD_ENABLED=false` 時 fail-fast 回 `YOUTUBE_UPLOAD_NOT_CONFIGURED`，不得靜默略過。
 - 上傳失敗時 `ShortAsset` 維持 `draft` 並記錄原因、可重試，不留半完成狀態。
 - 上傳成功後只有該課程的學生撈得到 `GET /api/v1/youtube/shorts`。
@@ -421,7 +440,7 @@ GET    /api/v1/courses/:courseId/short-assets            教師端列出短影�
 
 **禁止**
 
-- 不得在教師未上傳的情況下自動產生或發布任何 YouTube 內容。
+- 不得在教師未上傳、或成品未經審核通過的情況下發布任何 YouTube 內容。
 - 不得為了讓學生看到而把預設可見度改成 `public`。unlisted 是架構限制（private 無法 iframe 嵌入），但**不能對外說成「只有修課學生看得到」**。
 - 不得宣稱刪除必定讓 YouTube 影片下架——轉 private 失敗只記 log 不中斷刪除。
 

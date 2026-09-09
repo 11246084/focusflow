@@ -68,6 +68,18 @@ const shortAssetSchema = new mongoose.Schema(
       default: null,
     },
     jobId: { type: String, default: null, trim: true },
+    // 這支影片是照哪一份腳本、哪一版拍的（規格書 DR-20）。
+    // 沒有這兩個欄位，成品被退回時系統不知道要讓哪份腳本重生，
+    // 「影片 → 腳本 → 證據 → 逐字稿」的可追溯鏈也在第一步就斷掉。
+    // 版本號不能省：腳本會有多版，教師照第 2 版拍完之後腳本可能已生成第 3 版，
+    // 只記 scriptId 會把回饋套到教師沒看過的版本上。
+    sourceScriptId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ShortScript',
+      default: null,
+      index: true,
+    },
+    sourceVersionNo: { type: Number, default: null, min: 1 },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
     status: {

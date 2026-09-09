@@ -11,6 +11,7 @@ const { recordUsage } = require('./usageLog.service');
 const {
   SHORT_SCRIPT_STATUSES,
   SHORT_SCRIPT_FEEDBACK_TYPES,
+  SHORT_ASSET_REVIEW_REASON_CODES,
   USAGE_LOG_EVENTS,
 } = require('../constants/enums');
 
@@ -286,7 +287,12 @@ const ALLOWED_TRANSITIONS = {
     SHORT_SCRIPT_STATUSES.GENERATED,
     SHORT_SCRIPT_STATUSES.DISMISSED,
   ],
-  [SHORT_SCRIPT_STATUSES.APPROVED]: [],
+  // approved 不是終態（規格書 DR-20）：整支影片都是從腳本生成的，成品被退回時
+  // 問題一定追得回腳本，必須讓它回到 changes_requested 重生。
+  [SHORT_SCRIPT_STATUSES.APPROVED]: [
+    SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED,
+    SHORT_SCRIPT_STATUSES.DISMISSED,
+  ],
   [SHORT_SCRIPT_STATUSES.DISMISSED]: [],
 };
 
@@ -487,6 +493,103 @@ async function submitReview({
   return ShortScript.findByIdAndUpdate(script._id, update, { new: true });
 }
 
+// 成品退回理由 → 腳本回饋類型（規格書 DR-20）。
+//
+// 整支影片（畫面、音訊、字幕）都是從腳本生成的，沒有實拍環節，因此六種理由
+// 全都追得回腳本；差別只在追到腳本的哪一部分：
+//   - contentIncorrect 是「講錯了」→ 證據撈錯，必須重撈（retrieval）
+//   - 其餘都是同一份證據下的表達問題 → 只重寫敘事（narrative）
+//
+// 把 audioIssue 之類的當成 retrieval 會重撈一份本來就正確的證據，等於在對的
+// 證據上瞎改；反過來把 contentIncorrect 當成 narrative，則會讓模型在錯誤的
+// 證據上反覆重寫，越改越像編的。
+const REJECTION_REASON_TO_FEEDBACK_TYPE = {
+  [SHORT_ASSET_REVIEW_REASON_CODES.CONTENT_INCORRECT]: SHORT_SCRIPT_FEEDBACK_TYPES.RETRIEVAL,
+  [SHORT_ASSET_REVIEW_REASON_CODES.INCOMPLETE]: SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE,
+  [SHORT_ASSET_REVIEW_REASON_CODES.SUBTITLE_ISSUE]: SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE,
+  [SHORT_ASSET_REVIEW_REASON_CODES.AUDIO_ISSUE]: SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE,
+  [SHORT_ASSET_REVIEW_REASON_CODES.VISUAL_QUALITY]: SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE,
+  [SHORT_ASSET_REVIEW_REASON_CODES.OTHER]: SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE,
+};
+
+function resolveFeedbackTypeFromReasons(reasons = []) {
+  // 只要其中一項是「內容有誤」就走 retrieval——證據錯是更根本的問題，
+  // 在錯的證據上重寫敘事不會讓內容變正確。
+  const hasContentIssue = reasons.some(
+    (reason) => reason?.code === SHORT_ASSET_REVIEW_REASON_CODES.CONTENT_INCORRECT,
+  );
+
+  if (hasContentIssue) {
+    return SHORT_SCRIPT_FEEDBACK_TYPES.RETRIEVAL;
+  }
+
+  return reasons
+    .map((reason) => REJECTION_REASON_TO_FEEDBACK_TYPE[reason?.code])
+    .find(Boolean) || SHORT_SCRIPT_FEEDBACK_TYPES.NARRATIVE;
+}
+
+function buildFeedbackFromReasons(reasons = []) {
+  return reasons
+    .map((reason) => (reason?.note ? `${reason.code}：${reason.note}` : reason?.code))
+    .filter(Boolean)
+    .join('；');
+}
+
+/**
+ * 成品影片被退回時，讓對應的腳本回到 changes_requested 並帶上回饋（規格書 DR-20）。
+ *
+ * 由 shortAsset.service 在成品審核退回後呼叫。**不得因為這裡失敗而讓成品審核失敗**——
+ * 審核當下已經寫入資料庫，這裡再拋錯會留下「審核已記錄但 API 回錯誤」的不一致狀態。
+ * 因此呼叫端吞錯並記 log，腳本狀態本身在腳本頁看得到。
+ *
+ * @returns {Promise<object|null>} 更新後的腳本；沒有連結或狀態不允許時回 null
+ */
+async function applyAssetRejection({
+  scriptId, versionNo = null, reasons = [], reviewedBy = null,
+} = {}) {
+  if (!scriptId) {
+    return null;
+  }
+
+  const script = await ShortScript.findById(scriptId).lean();
+  if (!script) {
+    return null;
+  }
+
+  const allowed = ALLOWED_TRANSITIONS[script.status] || [];
+  if (!allowed.includes(SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED)) {
+    return null;
+  }
+
+  const versions = script.versions || [];
+  // 回饋要記在教師實際看過的那一版。沒有版本號時退回最後一版，並在回饋文字裡標明。
+  const targetIndex = versionNo
+    ? versions.findIndex((version) => version.versionNo === versionNo)
+    : versions.length - 1;
+
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const feedbackType = resolveFeedbackTypeFromReasons(reasons);
+  const feedback = `成品審核退回：${buildFeedbackFromReasons(reasons) || '未提供理由'}`;
+
+  return ShortScript.findByIdAndUpdate(
+    script._id,
+    {
+      $set: {
+        status: SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED,
+        [`versions.${targetIndex}.feedback`]: feedback,
+        [`versions.${targetIndex}.feedbackType`]: feedbackType,
+        [`versions.${targetIndex}.reviewedBy`]: reviewedBy,
+        [`versions.${targetIndex}.reviewedAt`]: new Date(),
+        [`versions.${targetIndex}.rejectedAsAsset`]: true,
+      },
+    },
+    { new: true },
+  );
+}
+
 async function getScriptById({ user, scriptId } = {}) {
   assertObjectId(scriptId, 'short script');
 
@@ -518,5 +621,7 @@ module.exports = {
   listCourseScripts,
   expandMatchesWithNeighbours,
   buildEvidence,
+  applyAssetRejection,
+  resolveFeedbackTypeFromReasons,
   ALLOWED_TRANSITIONS,
 };

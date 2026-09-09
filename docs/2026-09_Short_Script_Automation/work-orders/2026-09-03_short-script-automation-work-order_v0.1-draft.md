@@ -456,6 +456,8 @@ GET    /api/v1/courses/:courseId/short-assets            教師端列出短影�
 | feature flag | `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時三條路由回 404，且**不排程任何上架** |
 | 測試 | `backend/tests/short-asset.routes.test.js`，32 個測試；全套 724 → **756**，0 fail |
 
+**2026-09-09 整體檢視後的修正**：(1) 審核通過但 YouTube 未設定或 flag 關閉時，改為寫入 `youtubeUpload.failed` + `retrySafe=true`，不再靜默略過；(2) 同一份腳本尚未上架的資產再上傳時走 `recordShortAssetRegeneration` 換代，不另建（組員的模型，`filePath`／`disclosure` 納入可換代欄位）；(3) 前端補「這版不要，重新生成」（退回 + 生成兩步合一），對應 WO-06 的 `submitReview`。
+
 **尚未完成**：SP-3 需要實際上傳一支到 YouTube 並確認可播放（本機無 OAuth 憑證，且 `YOUTUBE_UPLOAD_ENABLED` 在 VM 上的狀態要看 `/health.runtime.youtubeUpload`），以及 P-03 書面同意書格式定案。兩者都不是程式問題。
 
 ---

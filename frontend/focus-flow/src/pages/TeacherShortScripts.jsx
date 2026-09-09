@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  FEEDBACK_TYPES,
   STATUS_LABELS,
   createScript,
   formatTimestamp,
@@ -10,6 +11,7 @@ import {
   listCandidates,
   listCourses,
   listScripts,
+  reviewScript,
 } from '../services/shortScript';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate';
 
@@ -37,6 +39,11 @@ export default function TeacherShortScripts() {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [featureDisabled, setFeatureDisabled] = useState(false);
+  // 「這版不要」面板：不是審核關卡（規格書 2.0），只是重新生成前讓教師講一句哪裡不對。
+  // 沒有這句話，模型會在沒有任何指引下重寫，結果多半跟上一版差不多。
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenType, setRegenType] = useState(FEEDBACK_TYPES[0].value);
+  const [regenNote, setRegenNote] = useState('');
 
   useEffect(() => {
     listCourses()
@@ -102,11 +109,39 @@ export default function TeacherShortScripts() {
     setError('');
     setCopied(false);
     setMetaphorIndex(0);
+    setRegenOpen(false);
+    setRegenNote('');
     try {
       setSelected(await getScript(scriptId));
     } catch (requestError) {
       setError(requestError.message);
     }
+  }
+
+  // generated 狀態的腳本不能直接重生（狀態機沒有 generated → generated），
+  // 要先帶著回饋退回再生成；changes_requested 的回饋已經在上一版裡（成品退回時寫入），直接生成即可。
+  async function handleRegenerate() {
+    if (selected.status === 'changes_requested') {
+      return runAction('generate', () => generateVersion(selected._id));
+    }
+
+    const note = regenNote.trim();
+    if (!note) {
+      setError('請先寫一句哪裡不對，重新生成才有依據。');
+      return null;
+    }
+
+    return runAction('generate', async () => {
+      await reviewScript(selected._id, {
+        decision: 'request_changes',
+        feedback: note,
+        feedbackType: regenType,
+      });
+      const result = await generateVersion(selected._id);
+      setRegenOpen(false);
+      setRegenNote('');
+      return result;
+    });
   }
 
   async function handleCopy() {
@@ -273,15 +308,68 @@ export default function TeacherShortScripts() {
                     <button type="button" className="btn-primary" onClick={handleCopy}>
                       {copied ? '已複製到剪貼簿' : '複製完整腳本'}
                     </button>
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      disabled={Boolean(busy)}
-                      onClick={() => runAction('generate', () => generateVersion(selected._id))}
-                    >
-                      {busy === 'generate' ? '重新生成中…' : '重新生成'}
-                    </button>
+                    {selected.status === 'changes_requested' ? (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        disabled={Boolean(busy)}
+                        onClick={handleRegenerate}
+                      >
+                        {busy === 'generate' ? '重新生成中…' : '依回饋重新生成'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        disabled={Boolean(busy) || selected.status === 'dismissed'}
+                        onClick={() => setRegenOpen((open) => !open)}
+                      >
+                        這版不要，重新生成
+                      </button>
+                    )}
                   </div>
+
+                  {selected.status === 'changes_requested' && version.feedback && (
+                    <p className="optional-mark">
+                      將依此回饋重新生成（{FEEDBACK_TYPES.find((type) => type.value === version.feedbackType)?.label || version.feedbackType}）：{version.feedback}
+                    </p>
+                  )}
+
+                  {regenOpen && selected.status !== 'changes_requested' && (
+                    <div className="card-sm">
+                      {FEEDBACK_TYPES.map((type) => (
+                        <label key={type.value} className="reject-reason-checkbox">
+                          <input
+                            type="radio"
+                            name="short-script-regen-type"
+                            checked={regenType === type.value}
+                            onChange={() => setRegenType(type.value)}
+                          />
+                          {type.label}
+                          <span className="optional-mark">（{type.hint}）</span>
+                        </label>
+                      ))}
+                      <textarea
+                        rows={2}
+                        placeholder="一句話：哪裡不對？"
+                        value={regenNote}
+                        onChange={(event) => setRegenNote(event.target.value)}
+                      />
+                      <div className="review-btn-row">
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={Boolean(busy)}
+                          onClick={handleRegenerate}
+                        >
+                          {busy === 'generate' ? '重新生成中（約 30–45 秒）…' : '退回並重新生成'}
+                        </button>
+                        <button type="button" className="btn-outline" onClick={() => setRegenOpen(false)}>
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <h4>完整腳本（可直接複製貼進製作流程）</h4>
                   <textarea

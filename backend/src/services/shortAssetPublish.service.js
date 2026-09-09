@@ -12,6 +12,8 @@ const {
   normalizePrivacyStatus,
   uploadLocalVideo,
 } = require('./youtubeUpload.service');
+const { recordShortAssetRegeneration } = require('./shortAsset.service');
+const { markScriptPublished } = require('./shortScript.service');
 const {
   SHORT_ASSET_REVIEW_STATUSES,
   SHORT_ASSET_STATUSES,
@@ -160,7 +162,7 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
   }
 
   const uploadedAt = new Date();
-  return ShortAsset.findByIdAndUpdate(
+  const published = await ShortAsset.findByIdAndUpdate(
     assetId,
     {
       $set: {
@@ -180,6 +182,34 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
     },
     { new: true },
   );
+
+  // 影片已在 YouTube 上，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
+  if (asset.sourceScriptId) {
+    try {
+      await markScriptPublished({ scriptId: asset.sourceScriptId });
+    } catch (error) {
+      console.error('[shortAsset] failed to mark script as published', {
+        assetId: String(assetId),
+        scriptId: String(asset.sourceScriptId),
+        message: error.message,
+      });
+    }
+  }
+
+  return published;
+}
+
+async function recordSkippedPublish(assetId, message) {
+  // 略過不能不留痕跡（規格書 K.3「不得靜默略過」）。沒有這筆紀錄，資產會停在
+  // 「審核已通過、上傳狀態空白」，重試路徑因為找不到失敗紀錄而拒絕，教師沒有任何出路。
+  const error = new AppError(message, 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+  error.youtubeRetrySafe = true;
+  await recordUploadFailure(assetId, {
+    error,
+    attemptCount: 0,
+    startedAt: new Date(),
+  });
+  return null;
 }
 
 /**
@@ -189,10 +219,20 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
  * 失敗也已寫進 youtubeUpload，教師看得到原因並可重試。
  */
 function schedulePublishOnApproval(asset) {
-  // feature flag 關閉時完全不動——本功能未啟用時不得對外發布任何東西。
-  if (!env.shortScriptAutomationEnabled) return null;
-  if (!asset?._id || asset.youtubeVideoId) return null;
-  if (!isYouTubeUploadConfigured()) return null;
+  // 只處理由本功能上傳的資產（有 filePath）。組員的 clip pipeline 建立的資產
+  // 沒有本機檔案，本路徑上架不了，也不該在它們身上寫失敗紀錄。
+  if (!asset?._id || !asset.filePath || asset.youtubeVideoId) return null;
+
+  // feature flag 關閉時不得對外發布任何東西，但要讓教師知道為什麼沒上架。
+  if (!env.shortScriptAutomationEnabled) {
+    return recordSkippedPublish(
+      asset._id,
+      'Short script automation is disabled; enable SHORT_SCRIPT_AUTOMATION_ENABLED and retry.',
+    );
+  }
+  if (!isYouTubeUploadConfigured()) {
+    return recordSkippedPublish(asset._id, 'YouTube upload is not configured.');
+  }
 
   return publishShortAsset({ assetId: asset._id }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
@@ -349,6 +389,44 @@ async function createAssetFromScript({
       throw new AppError('Title is required.', 400, 'VALIDATION_ERROR');
     }
 
+    const disclosure = {
+      aiDisclosureConfirmed: true,
+      consentConfirmed: true,
+      confirmedBy: user.id,
+      confirmedAt: new Date(),
+    };
+
+    // 同一份腳本已有「還沒上架」的資產（通常是被退回的那支）→ 換代，不另建。
+    // 2026-09-09 決議走組員的 generationVersion 模型：同一支影片的多次重拍是同一個資產的
+    // 不同代，審核歷史留在同一筆上。另建新資產會讓退回的那支永遠停在 draft 佔著列表。
+    // 已上架的不換代——那支影片已經在 YouTube 上，重拍是另一支影片。
+    const existingAssets = await ShortAsset.find({ sourceScriptId: script._id }).lean();
+    const pending = existingAssets.find(
+      (asset) => !asset.youtubeVideoId && asset.status !== SHORT_ASSET_STATUSES.ARCHIVED,
+    );
+    if (pending) {
+      const regenerated = await recordShortAssetRegeneration(pending._id, {
+        filePath: file.path,
+        sourceVersionNo: targetVersion.versionNo,
+        title: resolvedTitle,
+        description: String(description || '').trim(),
+        disclosure,
+        youtubeVideoId: null,
+      });
+      // 上一代的上傳紀錄屬於上一支影片，換代後要歸零，否則重試判斷會看到舊的失敗。
+      await ShortAsset.findByIdAndUpdate(pending._id, {
+        $set: {
+          youtubeUpload: {
+            status: null, error: null, attemptCount: 0, lastAttemptAt: null, uploadedAt: null, failedAt: null, retrySafe: false,
+          },
+        },
+      });
+      if (pending.filePath && pending.filePath !== file.path) {
+        cleanupUploadedFile({ path: resolveLocalUploadPath(pending.filePath) });
+      }
+      return { ...regenerated, youtubeUpload: { status: null, error: null, attemptCount: 0, retrySafe: false } };
+    }
+
     return await ShortAsset.create({
       courseId: script.courseId,
       sourceScriptId: script._id,
@@ -359,12 +437,7 @@ async function createAssetFromScript({
       status: SHORT_ASSET_STATUSES.DRAFT,
       reviewStatus: SHORT_ASSET_REVIEW_STATUSES.PENDING,
       generationVersion: 1,
-      disclosure: {
-        aiDisclosureConfirmed: true,
-        consentConfirmed: true,
-        confirmedBy: user.id,
-        confirmedAt: new Date(),
-      },
+      disclosure,
     });
   } catch (error) {
     // 驗證失敗時 multer 已把檔案寫到磁碟，不清掉會累積孤兒檔案。

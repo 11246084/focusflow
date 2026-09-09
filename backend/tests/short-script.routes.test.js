@@ -244,7 +244,7 @@ describe('short script routes', () => {
     const response = await jsonRequest(baseUrl, `/api/v1/short-scripts/${newObjectId()}/review`, {
       method: 'POST',
       token,
-      body: { decision: 'approve' },
+      body: { decision: 'dismiss' },
     });
 
     assert.equal(response.status, 404);
@@ -320,13 +320,14 @@ describe('short script routes', () => {
     assert.equal(generated.status, 200);
     assert.equal(generated.body.data.status, 'generated');
 
+    // approved 只能由影片上架成功產生（2026-09-09），這裡以退回驗證審核路由。
     const reviewed = await jsonRequest(baseUrl, `/api/v1/short-scripts/${scriptId}/review`, {
       method: 'POST',
       token,
-      body: { decision: 'approve' },
+      body: { decision: 'request_changes', feedback: '開頭不吸引人', feedbackType: 'narrative' },
     });
     assert.equal(reviewed.status, 200);
-    assert.equal(reviewed.body.data.status, 'approved');
+    assert.equal(reviewed.body.data.status, 'changes_requested');
 
     const fetched = await jsonRequest(baseUrl, `/api/v1/short-scripts/${scriptId}`, { token });
     assert.equal(fetched.status, 200);

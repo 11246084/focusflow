@@ -285,6 +285,8 @@ const ALLOWED_TRANSITIONS = {
   ],
   [SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED]: [
     SHORT_SCRIPT_STATUSES.GENERATED,
+    // 教師沒重生、直接重拍同一版並通過成品審核時，腳本仍要能標成已上架。
+    SHORT_SCRIPT_STATUSES.APPROVED,
     SHORT_SCRIPT_STATUSES.DISMISSED,
   ],
   // approved 不是終態（規格書 DR-20）：整支影片都是從腳本生成的，成品被退回時
@@ -445,8 +447,9 @@ async function submitReview({
 } = {}) {
   const { script } = await loadScriptForManage({ user, scriptId });
 
+  // approved 不開放人工按出來（2026-09-09 決議）：它只有一種來源——這份腳本的影片
+  // 已成功上架 YouTube（markScriptPublished）。兩種來源會讓「已上架」這個標籤不可信。
   const targetStatus = {
-    approve: SHORT_SCRIPT_STATUSES.APPROVED,
     request_changes: SHORT_SCRIPT_STATUSES.CHANGES_REQUESTED,
     dismiss: SHORT_SCRIPT_STATUSES.DISMISSED,
   }[decision];
@@ -590,6 +593,29 @@ async function applyAssetRejection({
   );
 }
 
+/**
+ * 影片成功上架後，把腳本標成 approved（＝已上架）。由 shortAssetPublish.service 呼叫。
+ *
+ * fail soft：上架已經完成（影片在 YouTube 上），這裡失敗只是標籤沒更新，不能讓上架回錯誤。
+ * 已否決的腳本不因此復活；已是 approved 的直接回傳。
+ */
+async function markScriptPublished({ scriptId } = {}) {
+  if (!scriptId) return null;
+
+  const script = await ShortScript.findById(scriptId).lean();
+  if (!script) return null;
+  if (script.status === SHORT_SCRIPT_STATUSES.APPROVED) return script;
+
+  const allowed = ALLOWED_TRANSITIONS[script.status] || [];
+  if (!allowed.includes(SHORT_SCRIPT_STATUSES.APPROVED)) return null;
+
+  return ShortScript.findByIdAndUpdate(
+    script._id,
+    { $set: { status: SHORT_SCRIPT_STATUSES.APPROVED } },
+    { new: true },
+  );
+}
+
 async function getScriptById({ user, scriptId } = {}) {
   assertObjectId(scriptId, 'short script');
 
@@ -622,6 +648,7 @@ module.exports = {
   expandMatchesWithNeighbours,
   buildEvidence,
   applyAssetRejection,
+  markScriptPublished,
   resolveFeedbackTypeFromReasons,
   ALLOWED_TRANSITIONS,
 };

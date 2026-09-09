@@ -169,18 +169,50 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(askCount, 0, '腳本生成不得寫入 ask 事件');
   });
 
-  it('教師通過後狀態轉 approved', async () => {
+  // approved 只有一種來源：影片成功上架（2026-09-09 決議）。人工按不出來。
+  it('approve 不再是可用的審核決定', async () => {
     const script = await createScript();
     stubGeneration();
     await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
 
-    const updated = await shortScriptService.submitReview({
-      user: TEACHER,
-      scriptId: script._id,
-      decision: 'approve',
-    });
+    await assert.rejects(
+      () => shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'approve' }),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
+  });
+
+  it('影片上架成功時腳本標成 approved（已上架）', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+
+    const updated = await shortScriptService.markScriptPublished({ scriptId: script._id });
 
     assert.equal(updated.status, 'approved');
+  });
+
+  it('被退回但教師直接重拍同一版並上架時，腳本同樣標成 approved', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+    await shortScriptService.submitReview({
+      user: TEACHER, scriptId: script._id, decision: 'request_changes', feedback: '再改', feedbackType: 'narrative',
+    });
+
+    const updated = await shortScriptService.markScriptPublished({ scriptId: script._id });
+
+    assert.equal(updated.status, 'approved');
+  });
+
+  it('已否決的腳本不因影片上架而復活', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+    await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'dismiss', feedback: '不做' });
+
+    const result = await shortScriptService.markScriptPublished({ scriptId: script._id });
+
+    assert.equal(result, null);
   });
 
   it('退回時回饋記在被審的那一版上', async () => {
@@ -305,11 +337,11 @@ describe('shortScript.service 審核迴圈', () => {
 
   // 規格書 DR-20 起 approved 不再是終態：整支影片都是從腳本生成的，
   // 影片做出來才發現的問題只能改腳本，所以核准後仍要能退回。
-  it('已核准的腳本仍可被退回，回到 changes_requested', async () => {
+  it('已上架的腳本仍可被退回，回到 changes_requested', async () => {
     const script = await createScript();
     stubGeneration();
     await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
-    await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'approve' });
+    await shortScriptService.markScriptPublished({ scriptId: script._id });
 
     const updated = await shortScriptService.submitReview({
       user: TEACHER,
@@ -322,14 +354,16 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.status, 'changes_requested');
   });
 
-  it('尚未生成就通過會被狀態機擋下', async () => {
+  it('尚未生成就退回會被狀態機擋下', async () => {
     const script = await createScript();
 
     await assert.rejects(
       () => shortScriptService.submitReview({
         user: TEACHER,
         scriptId: script._id,
-        decision: 'approve',
+        decision: 'request_changes',
+        feedback: '再改',
+        feedbackType: 'narrative',
       }),
       (error) => error.code === 'SHORT_SCRIPT_STATE_INVALID',
     );
@@ -360,7 +394,7 @@ describe('shortScript.service 審核迴圈', () => {
       () => shortScriptService.submitReview({
         user: { id: ids.otherTeacher, role: 'teacher' },
         scriptId: script._id,
-        decision: 'approve',
+        decision: 'dismiss',
       }),
       (error) => error.code === 'COURSE_MANAGE_DENIED',
     );

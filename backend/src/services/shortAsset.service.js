@@ -36,6 +36,9 @@ const CREATE_FIELDS = [
   // 這支影片照哪一份腳本、哪一版拍的（規格書 DR-20）。成品退回時要靠它找回腳本。
   'sourceScriptId',
   'sourceVersionNo',
+  // 教師上傳的本機檔與 AI 揭露確認（施工單 WO-08）。換代時新影片要帶新檔與新的確認。
+  'filePath',
+  'disclosure',
 ];
 
 const UPDATE_FIELDS = CREATE_FIELDS.filter((field) => field !== 'courseId');

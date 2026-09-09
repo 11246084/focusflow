@@ -65,9 +65,10 @@ export async function reviewScript(scriptId, { decision, feedback, feedbackType 
 
 export const STATUS_LABELS = {
   evidence_ready: '證據已凍結，待生成',
-  generated: '已生成，待審核',
+  generated: '已生成',
   changes_requested: '已退回，待重新生成',
-  approved: '已核准',
+  // approved 只有一種來源：這份腳本的影片已成功上架 YouTube，人工按不出來。
+  approved: '已上架',
   dismissed: '已否決',
 };
 

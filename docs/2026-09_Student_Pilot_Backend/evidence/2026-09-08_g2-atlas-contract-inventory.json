@@ -1,0 +1,62 @@
+{
+  "success": true,
+  "generatedAt": "2026-09-08T11:48:03.483Z",
+  "environment": "acceptance_host_to_shared_atlas",
+  "questionContentSent": false,
+  "geminiCalls": 0,
+  "course": {
+    "status": "published",
+    "deleted": false
+  },
+  "scope": {
+    "videoCount": 15,
+    "excludedVideoPresent": true
+  },
+  "leafContracts": [
+    {
+      "count": 129,
+      "vectorLengths": [
+        3072
+      ],
+      "contract": {}
+    }
+  ],
+  "searchIndex": [
+    {
+      "name": "text_embedding_index",
+      "status": "READY",
+      "queryable": true,
+      "latestDefinition": {
+        "fields": [
+          {
+            "type": "vector",
+            "path": "embedding",
+            "numDimensions": 3072,
+            "similarity": "cosine"
+          },
+          {
+            "type": "filter",
+            "path": "courseId"
+          },
+          {
+            "type": "filter",
+            "path": "videoId"
+          }
+        ]
+      }
+    }
+  ],
+  "databaseAccess": {
+    "roles": [
+      {
+        "role": "atlasAdmin",
+        "db": "admin"
+      }
+    ]
+  },
+  "databaseSafety": {
+    "mongoReads": 5,
+    "mongoWrites": 0,
+    "writeDetected": false
+  }
+}

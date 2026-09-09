@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "schemaVersion": "wo15_local_regression_v1",
+  "generatedAt": "2026-09-08T16:03:00Z",
+  "commit": "fde3f6ff76b7775f62bbee7b7517b9348245358e",
+  "scope": "local_in_memory_regression_only",
+  "command": "node --test --experimental-test-isolation=none --test-concurrency=1 tests/qa.service.test.js tests/qa.routes.test.js tests/conversation.routes.test.js tests/line.routes.test.js tests/phase2-2-hierarchical-e2e-runner.test.js",
+  "result": {
+    "tests": 99,
+    "passed": 99,
+    "failed": 0,
+    "suites": 6
+  },
+  "coveredPaths": [
+    "canonical course video scope and empty allowlist",
+    "cross-course API denial",
+    "FAQ scope revalidation",
+    "web multi-turn isolation and no-answer citations",
+    "LINE P5 three-turn isolation and course-switch history clearing",
+    "student-pilot runner fail-closed and write monitoring"
+  ],
+  "formalAcceptance": false,
+  "note": "This evidence increases regression confidence but does not replace live N01, N02, or P1-P6 acceptance."
+}

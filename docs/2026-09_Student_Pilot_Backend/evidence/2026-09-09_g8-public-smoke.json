@@ -1,0 +1,31 @@
+{
+  "success": false,
+  "schemaVersion": "g8_public_smoke_v1",
+  "generatedAt": "2026-09-08T15:59:27Z",
+  "target": "focusflow.ntub.edu.tw",
+  "checks": {
+    "trustedHttps": {
+      "passed": false,
+      "result": "The SSL connection could not be established by the default trust store."
+    },
+    "healthRoute": {
+      "passed": false,
+      "probe": "GET https://focusflow.ntub.edu.tw/health with certificate verification disabled for route diagnosis only",
+      "status": 200,
+      "contentType": "text/html",
+      "server": "nginx/1.20.1",
+      "bodyClassification": "vite_spa_index_html",
+      "expectedClassification": "focusflow_backend_health_json"
+    },
+    "externalHttp": {
+      "passed": false,
+      "result": "GET http://focusflow.ntub.edu.tw/health timed out after 15 seconds."
+    },
+    "vmSsh": {
+      "passed": false,
+      "result": "Non-interactive SSH to port 22 timed out after 10 seconds; no VM configuration was changed."
+    }
+  },
+  "credentialsSent": false,
+  "secretsIncluded": false
+}

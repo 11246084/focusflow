@@ -1,0 +1,310 @@
+{
+  "success": true,
+  "schemaVersion": "conversation_turn_distribution_v1",
+  "generatedAt": "2026-09-07T22:49:14.820Z",
+  "channels": {
+    "web": {
+      "unit": "conversation",
+      "exactness": "exact_turn_count_from_persisted_web_messages",
+      "conversationCount": 9,
+      "observedTurnCount": 55,
+      "conversationLengthDistribution": [
+        {
+          "turns": 0,
+          "conversationCount": 1
+        },
+        {
+          "turns": 2,
+          "conversationCount": 1
+        },
+        {
+          "turns": 3,
+          "conversationCount": 2
+        },
+        {
+          "turns": 4,
+          "conversationCount": 1
+        },
+        {
+          "turns": 5,
+          "conversationCount": 1
+        },
+        {
+          "turns": 6,
+          "conversationCount": 1
+        },
+        {
+          "turns": 15,
+          "conversationCount": 1
+        },
+        {
+          "turns": 17,
+          "conversationCount": 1
+        }
+      ],
+      "turnUsageDistribution": [
+        {
+          "turnNumber": 1,
+          "observedTurnCount": 8,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 6,
+          "rewriteUnknownCount": 2,
+          "completedCount": 7,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 1
+        },
+        {
+          "turnNumber": 2,
+          "observedTurnCount": 8,
+          "rewriteUsedCount": 1,
+          "rewriteNotUsedCount": 6,
+          "rewriteUnknownCount": 1,
+          "completedCount": 7,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 1
+        },
+        {
+          "turnNumber": 3,
+          "observedTurnCount": 7,
+          "rewriteUsedCount": 3,
+          "rewriteNotUsedCount": 4,
+          "rewriteUnknownCount": 0,
+          "completedCount": 7,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 4,
+          "observedTurnCount": 5,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 5,
+          "rewriteUnknownCount": 0,
+          "completedCount": 5,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 5,
+          "observedTurnCount": 4,
+          "rewriteUsedCount": 1,
+          "rewriteNotUsedCount": 3,
+          "rewriteUnknownCount": 0,
+          "completedCount": 4,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 6,
+          "observedTurnCount": 3,
+          "rewriteUsedCount": 1,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 3,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 7,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 8,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 9,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 10,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 11,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 12,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 13,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 14,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 15,
+          "observedTurnCount": 2,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 2,
+          "rewriteUnknownCount": 0,
+          "completedCount": 2,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 16,
+          "observedTurnCount": 1,
+          "rewriteUsedCount": 1,
+          "rewriteNotUsedCount": 0,
+          "rewriteUnknownCount": 0,
+          "completedCount": 1,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 17,
+          "observedTurnCount": 1,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 1,
+          "rewriteUnknownCount": 0,
+          "completedCount": 1,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        }
+      ],
+      "rewriteTelemetry": {
+        "knownTurnCount": 52,
+        "unknownTurnCount": 3,
+        "coverage": 0.9455,
+        "source": "assistant_message.runtime.conversation.requiresContext"
+      },
+      "limitations": [
+        "Rewrite usage is unknown for turns whose assistant message lacks persisted conversation runtime telemetry."
+      ]
+    },
+    "line": {
+      "unit": "bound_user_current_retained_history_snapshot",
+      "exactness": "bounded_current_snapshot_not_historical_sessions",
+      "historyLimitTurns": 4,
+      "boundUserSnapshotCount": 2,
+      "retainedCompleteTurnCount": 3,
+      "recordedQuestionCount": 47,
+      "recordedQuestionCountIncludedInTurnDistribution": false,
+      "atRetentionLimitSnapshotCount": 0,
+      "malformedSnapshotCount": 0,
+      "retainedLengthDistribution": [
+        {
+          "turns": 0,
+          "userSnapshotCount": 1
+        },
+        {
+          "turns": 3,
+          "userSnapshotCount": 1
+        }
+      ],
+      "turnUsageDistribution": [
+        {
+          "turnNumber": 1,
+          "observedTurnCount": 1,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 0,
+          "rewriteUnknownCount": 1,
+          "completedCount": 1,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 2,
+          "observedTurnCount": 1,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 0,
+          "rewriteUnknownCount": 1,
+          "completedCount": 1,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        },
+        {
+          "turnNumber": 3,
+          "observedTurnCount": 1,
+          "rewriteUsedCount": 0,
+          "rewriteNotUsedCount": 0,
+          "rewriteUnknownCount": 1,
+          "completedCount": 1,
+          "failedCount": 0,
+          "pendingOrUnansweredCount": 0
+        }
+      ],
+      "rewriteTelemetry": {
+        "knownTurnCount": 0,
+        "unknownTurnCount": 3,
+        "coverage": 0,
+        "source": null
+      },
+      "limitations": [
+        "LINE history has no session identifier, per-message timestamp, turn index, or persisted rewrite-used flag.",
+        "LINE history is capped and resets on course changes, so legacy sessions and turns beyond the cap cannot be reconstructed.",
+        "This distribution describes only currently retained complete user/model pairs.",
+        "Recorded LINE questions cannot be assigned to conversation sessions or turn numbers without inventing missing data."
+      ]
+    }
+  },
+  "privacy": {
+    "conversationTextRead": false,
+    "conversationTextOutput": false,
+    "userIdentifiersOutput": false,
+    "identifiersReadForGrouping": true
+  },
+  "databaseSafety": {
+    "mode": "strict_read_only_role_and_command_monitoring",
+    "databaseAccess": {
+      "verified": true,
+      "role": "read",
+      "database": "focusflow"
+    },
+    "mongoReads": 6,
+    "mongoWrites": 0,
+    "writeDetected": false
+  }
+}

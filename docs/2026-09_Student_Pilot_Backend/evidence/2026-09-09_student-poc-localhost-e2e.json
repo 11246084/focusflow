@@ -1,0 +1,69 @@
+{
+  "success": false,
+  "status": "partial",
+  "schemaVersion": "student_poc_localhost_e2e_v1",
+  "generatedAt": "2026-09-08T16:15:03.7153414Z",
+  "commit": "fde3f6ff76b7775f62bbee7b7517b9348245358e",
+  "environment": "localhost_frontend_and_backend_to_shared_atlas",
+  "runtimeProfile": {
+    "STUDENT_PILOT_MODE": true,
+    "QA_VECTOR_SEARCH_MODE": "atlas",
+    "FAQ_CACHE_ENABLED": true,
+    "HIERARCHICAL_RETRIEVAL_ENABLED": false,
+    "YOUTUBE_UPLOAD_ENABLED": true,
+    "MAX_CONVERSATION_TURNS": 4
+  },
+  "checks": {
+    "studentLogin": {
+      "passed": true,
+      "evidence": "POST /api/v1/auth/login returned 200 through the browser UI."
+    },
+    "activeEnrollment": {
+      "passed": true,
+      "accessiblePublishedCourseCount": 4,
+      "evidence": "The authenticated student course list returned the published OpenCV course."
+    },
+    "openCvCourse": {
+      "passed": true,
+      "courseId": "69fb4d4c069e21f4e65b74dc",
+      "listedVideoCount": 16,
+      "playableSourceCount": 16,
+      "processingOrFailedCount": 0,
+      "note": "The formal retrieval scope excludes TEST_0720 and therefore remains 15 videos."
+    },
+    "videoPlayback": {
+      "passed": true,
+      "videoLabel": "第十五講",
+      "evidence": "The YouTube iframe loaded in Playwright, the play control was clicked, and the iframe entered the active player state with zero browser console errors."
+    },
+    "qaAnswerWithCitation": {
+      "passed": false,
+      "failureMode": "fail_closed",
+      "healthReadiness": "hard_fail",
+      "readyForAsk": false,
+      "leafContractStatus": "not_declared",
+      "hardFailureCode": "QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_INCOMPATIBLE",
+      "browserResult": "回答產生失敗，請稍後重新產生。",
+      "retryControlPresent": true
+    },
+    "timestampJump": {
+      "passed": false,
+      "reason": "No successful answer-selected citation was available because QA failed closed before retrieval."
+    },
+    "multiTurn": {
+      "passed": false,
+      "reason": "The first QA turn failed closed, so a usable follow-up turn could not be accepted."
+    }
+  },
+  "observedApplicationWrites": [
+    "A test conversation and failed assistant message were created by the normal application path.",
+    "Playing the selected video triggered the normal watched-progress endpoint."
+  ],
+  "prohibitedOperations": {
+    "vectorWrite": false,
+    "schemaMigration": false,
+    "destructiveDatabaseOperation": false
+  },
+  "secretsIncluded": false,
+  "piiIncluded": false
+}

@@ -12,6 +12,7 @@ import TeacherDashboard    from '../pages/TeacherDashboard';
 import TeacherCourses      from '../pages/TeacherCourses';
 import TeacherUpload       from '../pages/TeacherUpload';
 import TeacherVideoReview  from '../pages/TeacherVideoReview';
+import TeacherShortScripts from '../pages/TeacherShortScripts';
 import AdminOverview    from '../pages/AdminOverview';
 import AdminUsers       from '../pages/AdminUsers';
 import AdminCourses     from '../pages/AdminCourses';
@@ -22,7 +23,7 @@ import Profile           from '../pages/Profile';
 function DashboardRouter({ role, sub, onNav }) {
   const map = {
     student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile: <Profile role={role} /> },
-    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, reviewShorts: <TeacherVideoReview />, profile: <Profile role={role} /> },
+    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortScripts: <TeacherShortScripts />, reviewShorts: <TeacherVideoReview />, profile: <Profile role={role} /> },
     admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats />, profile: <Profile role={role} /> },
   };
   return map[role]?.[sub] || null;

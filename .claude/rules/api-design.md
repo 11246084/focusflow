@@ -135,6 +135,9 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `SHORT_SCRIPT_CITATION_INVALID` | 502 | 生成結果引用了證據包外的 chunkId，重試上限內未通過 |
 | `SHORT_SCRIPT_OUTPUT_INVALID` | 502 | 生成結果不是可解析的 JSON |
 | `SHORT_SCRIPT_PROVIDER_NOT_CONFIGURED` | 500 | 腳本生成的 LLM provider 未設定 |
+| `SHORT_ASSET_NOT_APPROVED` | 409 | 成品尚未通過審核，或審核的不是當前 `generationVersion`，不得上架 |
+| `SHORT_ASSET_DISCLOSURE_REQUIRED` | 400 | 未確認 AI 揭露標示與教師數位分身書面同意（規格書 R-07 / 附錄 K.5） |
+| `SHORT_ASSET_SOURCE_FILE_MISSING` | 409 | 上架時找不到教師上傳的本機影片檔，需重新上傳 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
 
 新增自訂錯誤碼時，使用 **SCREAMING_SNAKE_CASE**，並在此表格補充說明。

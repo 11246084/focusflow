@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const shortScriptService = require('../services/shortScript.service');
+const shortAssetPublishService = require('../services/shortAssetPublish.service');
 const { listTopicCandidates } = require('../services/shortScriptTopic.service');
 
 const createScript = asyncHandler(async (req, res) => {
@@ -79,7 +80,52 @@ const listCandidates = asyncHandler(async (req, res) => {
   });
 });
 
+// 教師依腳本產出影片後上傳（施工單 WO-08）。
+// 只建立 draft，**不上架**——上架的閘門是成品審核（規格書 R-08）。
+const uploadAsset = asyncHandler(async (req, res) => {
+  const asset = await shortAssetPublishService.createAssetFromScript({
+    user: req.user,
+    scriptId: req.params.scriptId,
+    file: req.file,
+    title: req.body?.title,
+    description: req.body?.description,
+    versionNo: req.body?.versionNo,
+    aiDisclosureConfirmed: req.body?.aiDisclosureConfirmed,
+    consentConfirmed: req.body?.consentConfirmed,
+  });
+
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'Short asset created. It will be published after review approval.',
+    data: shortAssetPublishService.toTeacherAsset(asset),
+  });
+});
+
+const retryAssetUpload = asyncHandler(async (req, res) => {
+  const asset = await shortAssetPublishService.retryShortAssetUpload({
+    user: req.user,
+    assetId: req.params.assetId,
+  });
+
+  return sendSuccess(res, {
+    message: 'Short asset published.',
+    data: shortAssetPublishService.toTeacherAsset(asset),
+  });
+});
+
+const listAssets = asyncHandler(async (req, res) => {
+  const assets = await shortAssetPublishService.listCourseShortAssets({
+    user: req.user,
+    courseId: req.params.courseId,
+  });
+
+  return sendSuccess(res, { data: assets, meta: { total: assets.length } });
+});
+
 module.exports = {
+  listAssets,
+  retryAssetUpload,
+  uploadAsset,
   createScript,
   generateVersion,
   reviewScript,

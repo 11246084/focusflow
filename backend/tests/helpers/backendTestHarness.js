@@ -1048,6 +1048,23 @@ function installModelStubs() {
       // 這支影片是照哪一份腳本、哪一版拍的（規格書 DR-20）
       sourceScriptId: null,
       sourceVersionNo: null,
+      // 上架相關（施工單 WO-08）
+      filePath: null,
+      disclosure: {
+        aiDisclosureConfirmed: false,
+        consentConfirmed: false,
+        confirmedBy: null,
+        confirmedAt: null,
+      },
+      youtubeUpload: {
+        status: null,
+        error: null,
+        attemptCount: 0,
+        lastAttemptAt: null,
+        uploadedAt: null,
+        failedAt: null,
+        retrySafe: false,
+      },
       ...payload,
     };
     store.shortAssets.push(asset);

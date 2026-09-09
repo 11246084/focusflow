@@ -10,6 +10,7 @@ const {
   YOUTUBE_AVAILABILITY_VALUES,
   YOUTUBE_PRIVACY_STATUSES,
   YOUTUBE_PRIVACY_STATUS_VALUES,
+  YOUTUBE_UPLOAD_STATUS_VALUES,
 } = require('../constants/enums');
 
 const courseSnapshotSchema = new mongoose.Schema(
@@ -55,6 +56,36 @@ const reviewHistorySchema = new mongoose.Schema(
   { _id: false },
 );
 
+// AI 揭露標示與教師數位分身書面同意（規格書 R-07 / 附錄 K.5）。
+// 系統不檢查也不代為取得這兩項，但上架前必須要求教師明示確認並記錄時間——
+// 上傳 YouTube 是不可逆的對外動作，事後無法補證明當時教師確認過。
+const disclosureSchema = new mongoose.Schema(
+  {
+    aiDisclosureConfirmed: { type: Boolean, default: false },
+    consentConfirmed: { type: Boolean, default: false },
+    confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    confirmedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+// 上架到 YouTube 的稽核紀錄（規格書附錄 K.1）。
+// 比照 Video 的 youtubeUpload 區塊：上架失敗時 ShortAsset 必須維持 draft 並留下原因，
+// 否則教師只看得到「沒上架」而不知道為什麼，也判斷不出能不能重試。
+const shortAssetUploadSchema = new mongoose.Schema(
+  {
+    status: { type: String, enum: [...YOUTUBE_UPLOAD_STATUS_VALUES, null], default: null },
+    error: { type: String, default: null, trim: true },
+    attemptCount: { type: Number, default: 0, min: 0 },
+    lastAttemptAt: { type: Date, default: null },
+    uploadedAt: { type: Date, default: null },
+    failedAt: { type: Date, default: null },
+    // 是否確定沒有送出任何影片 bytes。送出過就不能自動重試，否則會在 YouTube 上留下重複影片。
+    retrySafe: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
 const shortAssetSchema = new mongoose.Schema(
   {
     courseId: {
@@ -80,6 +111,11 @@ const shortAssetSchema = new mongoose.Schema(
       index: true,
     },
     sourceVersionNo: { type: Number, default: null, min: 1 },
+    // 教師上傳的本機影片檔。上架是在成品審核通過之後才發生的，
+    // 那時 multipart 請求早已結束，所以必須把路徑存下來。
+    filePath: { type: String, default: null, trim: true },
+    disclosure: { type: disclosureSchema, default: () => ({}) },
+    youtubeUpload: { type: shortAssetUploadSchema, default: () => ({}) },
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
     status: {

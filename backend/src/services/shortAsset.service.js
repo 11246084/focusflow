@@ -429,6 +429,25 @@ async function notifyScriptOfRejection(asset, user, reasons) {
   }
 }
 
+// 審核通過才上架（規格書 R-08 / DR-13）。上傳 YouTube 是不可逆的對外動作，
+// 教師是先上傳才看得到成品，所以上傳的動作本身不能當成確認。
+//
+// 不 await：上架要把整支影片傳給 YouTube，同步做會讓審核請求逾時。失敗會記在
+// ShortAsset.youtubeUpload，資產維持 draft，教師看得到原因並可重試。
+// 延遲 require 的理由同 notifyScriptOfRejection。
+function schedulePublishOnApproval(asset) {
+  try {
+    // eslint-disable-next-line global-require
+    const publishService = require('./shortAssetPublish.service');
+    publishService.schedulePublishOnApproval(asset);
+  } catch (error) {
+    console.error('[shortAsset] failed to schedule publication', {
+      assetId: String(asset?._id),
+      message: error.message,
+    });
+  }
+}
+
 async function reviewShortAsset({
   assetId,
   user,
@@ -518,6 +537,8 @@ async function reviewShortAsset({
 
   if (status === SHORT_ASSET_REVIEW_STATUSES.REJECTED) {
     await notifyScriptOfRejection(updated, user, normalizedReasons);
+  } else {
+    schedulePublishOnApproval(updated);
   }
 
   return toReviewAsset(updated, course);

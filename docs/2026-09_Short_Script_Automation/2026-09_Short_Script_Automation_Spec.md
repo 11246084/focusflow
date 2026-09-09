@@ -784,10 +784,10 @@ V5 的 C 是最清楚的例子：`chunk_0003` 只講到「它是必須用GPU的�
 
 | 資產 | 位置 | 狀態 |
 |------|------|------|
-| YouTube 自動上傳 | `youtubeUpload.service.js` 的 `autoUploadVideoToYouTube` | 2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證 |
+| YouTube 上傳原語 | `youtubeUpload.service.js` 的 `uploadLocalVideo` | 2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證。**`autoUploadVideoToYouTube` 不可複用**——它綁死 `Video` model（讀 `video.filePath`、寫 `video.youtubeUpload`），對 `ShortAsset` 無效；可複用的是它底下的 `uploadLocalVideo`（2026-09-09 實作時發現，原表格寫錯） |
 | 刪除時轉 private | 同檔 `privatizeVideoOnDelete` | 同日 live 驗證通過 |
 | 上傳狀態快照 | 同檔 `buildYouTubeUploadSnapshot` | 可直接用於 `ShortAsset` |
-| 短影片資產 model | `shortAsset.model.js` | 已有 `youtubeVideoId`、`youtubeUrl`、`youtubeAvailability`、`youtubePrivacyStatus` 欄位 |
+| 短影片資產 model | `shortAsset.model.js` | 已有 `youtubeVideoId`、`youtubeUrl`、`youtubeAvailability`、`youtubePrivacyStatus`；2026-09-09 補上 `filePath`、`disclosure`、`youtubeUpload` 稽核區塊 |
 | 學生端 Shorts feed | `youtube.routes.js:9` | 已存在 |
 | 資產 CRUD service | `shortAsset.service.js:110 / :119` | **存在但沒有掛任何 HTTP route**，本輪須補 |
 
@@ -809,7 +809,9 @@ V5 的 C 是最清楚的例子：`chunk_0003` 只講到「它是必須用GPU的�
 
 ### K.5 AI 揭露與授權（R-07 的落地點）
 
-短影片使用教師數位分身時，成品須帶全片常駐的 AI 揭露標示，且教師須已簽署書面同意（P-03）。系統**不檢查也不代為取得**，但上架 API 須要求教師明示確認已完成這兩項，並記錄確認時間。
+短影片使用教師數位分身時，成品須帶全片常駐的 AI 揭露標示，且教師須已簽署書面同意（P-03）。系統**不檢查也不代為取得**，但須要求教師明示確認已完成這兩項，並記錄確認時間。
+
+**確認收在「上傳影片檔」那一步，上架前再檢查一次**（`ShortAsset.disclosure`：`aiDisclosureConfirmed`、`consentConfirmed`、`confirmedBy`、`confirmedAt`）。收在成品審核那一步會改動組員負責的審核 request 契約，連帶要改他的前端；而上傳是教師對這支影片的第一個動作，收在那裡不會晚於任何對外動作。未確認就上傳即回 `SHORT_ASSET_DISCLOSURE_REQUIRED`，publish 路徑也會再擋一次（含重試路徑）。
 
 ---
 

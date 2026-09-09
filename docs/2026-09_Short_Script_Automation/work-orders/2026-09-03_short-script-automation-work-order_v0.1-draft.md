@@ -414,7 +414,7 @@ GET    /api/v1/courses/:courseId/short-assets            教師端列出短影�
 
 | 資產 | 位置 |
 | --- | --- |
-| 自動上傳 | `youtubeUpload.service.js` 的 `autoUploadVideoToYouTube` |
+| 上傳原語 | `youtubeUpload.service.js` 的 `uploadLocalVideo`（**不是 `autoUploadVideoToYouTube`**：它綁死 `Video` model，對 `ShortAsset` 無效） |
 | 上傳狀態快照 | 同檔 `buildYouTubeUploadSnapshot` |
 | 刪除轉 private | 同檔 `privatizeVideoOnDelete` |
 | 資產 CRUD | `shortAsset.service.js:110 / :119`（已存在，只缺路由） |
@@ -445,6 +445,18 @@ GET    /api/v1/courses/:courseId/short-assets            教師端列出短影�
 - 不得宣稱刪除必定讓 YouTube 影片下架——轉 private 失敗只記 log 不中斷刪除。
 
 **live 驗收**：階段 C 必須實際上傳一支到 YouTube 並確認可播放，不可只用 mock 通過。
+
+#### 2026-09-09 實作結果
+
+| 項目 | 內容 |
+| --- | --- |
+| 新增 service | `backend/src/services/shortAssetPublish.service.js`（與組員負責的 `shortAsset.service.js` 分開，避免兩邊改動互相牽動） |
+| 新增 model 欄位 | `ShortAsset.filePath`、`disclosure`、`youtubeUpload` 稽核區塊 |
+| 上架觸發 | `reviewShortAsset` 通過後排程；**不 await**（上傳整支影片同步做會讓審核請求逾時），失敗記在 `youtubeUpload` |
+| feature flag | `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時三條路由回 404，且**不排程任何上架** |
+| 測試 | `backend/tests/short-asset.routes.test.js`，32 個測試；全套 724 → **756**，0 fail |
+
+**尚未完成**：SP-3 需要實際上傳一支到 YouTube 並確認可播放（本機無 OAuth 憑證，且 `YOUTUBE_UPLOAD_ENABLED` 在 VM 上的狀態要看 `/health.runtime.youtubeUpload`），以及 P-03 書面同意書格式定案。兩者都不是程式問題。
 
 ---
 

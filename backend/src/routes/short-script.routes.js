@@ -4,6 +4,7 @@ const AppError = require('../utils/appError');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeRoles } = require('../middleware/role.middleware');
 const { USER_ROLES } = require('../constants/enums');
+const { uploadSingleVideo } = require('../middleware/upload.middleware');
 const controller = require('../controllers/shortScript.controller');
 
 const router = express.Router();
@@ -30,5 +31,11 @@ router.post('/courses/:courseId/short-scripts/auto', guard, controller.createScr
 router.get('/short-scripts/:scriptId', guard, controller.getScript);
 router.post('/short-scripts/:scriptId/generate', guard, controller.generateVersion);
 router.post('/short-scripts/:scriptId/review', guard, controller.reviewScript);
+
+// 上架（施工單 WO-08）。教師上傳只建立 draft；實際上架由成品審核通過觸發（規格書 R-08）。
+// multer 必須排在 guard 之後，否則 feature flag 關閉或未授權時仍會先把檔案寫到磁碟。
+router.post('/short-scripts/:scriptId/asset', guard, uploadSingleVideo, controller.uploadAsset);
+router.post('/short-assets/:assetId/upload/retry', guard, controller.retryAssetUpload);
+router.get('/courses/:courseId/short-assets', guard, controller.listAssets);
 
 module.exports = router;

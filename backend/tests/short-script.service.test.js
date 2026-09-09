@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { beforeEach, describe, it } = require('node:test');
 const shortScriptService = require('../src/services/shortScript.service');
+const { listTopicCandidates } = require('../src/services/shortScriptTopic.service');
 const env = require('../src/config/env');
 const {
   ids,
@@ -95,6 +96,79 @@ describe('shortScript.service 證據包凍結', () => {
     assert.ok(script.evidenceFrozenAt);
     assert.equal(script.selectionReason.rank, 1);
     assert.equal(script.selectionReason.totalAskCount, 8);
+  });
+
+  // 排序規則是「沒有意見時」的預設，不是替教師決定——教師知道課程脈絡，
+  // 系統不該逼他接受第一名（2026-09-09）。
+  //
+  // topicKey 是正規化後的問句（去標點、轉小寫），不是原始問句，所以測試一律
+  // 從候選清單取實際的 key，跟前端的做法一致。
+  it('教師指定 topicKey 時做那一題，不是排名第一的那題', async () => {
+    addQuestion({ question: 'OpenCV 是什麼?', askCount: 20 });
+    addQuestion({ question: 'OpenCV 怎麼裝?', askCount: 3, questionEmbedding: [0, 1, 0] });
+    addChunkSeries({ count: 20 });
+
+    const { candidates } = await listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse });
+    const second = candidates[1];
+
+    const script = await shortScriptService.createScriptWithFrozenEvidence({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+      topicKey: second.topicKey,
+    });
+
+    assert.equal(script.topic, second.question);
+    assert.equal(script.selectionReason.selectedBy, 'teacher');
+    // 排名以完整候選清單為準，不是過濾後那一筆的位置。
+    assert.equal(script.selectionReason.rank, 2);
+  });
+
+  it('不指定 topicKey 時仍照排序自動選，並標記 selectedBy=auto', async () => {
+    addQuestion({ question: 'OpenCV 是什麼?', askCount: 20 });
+    addQuestion({ question: 'OpenCV 怎麼裝?', askCount: 3, questionEmbedding: [0, 1, 0] });
+    addChunkSeries({ count: 20 });
+
+    const script = await shortScriptService.createScriptWithFrozenEvidence({
+      user: TEACHER,
+      courseId: ids.teacherCourse,
+    });
+
+    assert.equal(script.topic, 'OpenCV 是什麼?');
+    assert.equal(script.selectionReason.selectedBy, 'auto');
+    assert.equal(script.selectionReason.rank, 1);
+  });
+
+  it('指定的主題不在候選清單時回 SHORT_SCRIPT_NO_CANDIDATE，不偷偷換題', async () => {
+    addQuestion({ question: 'OpenCV 跟 YOLO 差在哪?', askCount: 8 });
+    addChunkSeries({ count: 20 });
+
+    await assert.rejects(
+      () => shortScriptService.createScriptWithFrozenEvidence({
+        user: TEACHER,
+        courseId: ids.teacherCourse,
+        topicKey: '這個主題不存在',
+      }),
+      (error) => error.statusCode === 422 && error.code === 'SHORT_SCRIPT_NO_CANDIDATE',
+    );
+  });
+
+  it('指定的主題證據不足時直接失敗，不換成別題', async () => {
+    addQuestion({ question: 'OpenCV 是什麼?', askCount: 20 });
+    addQuestion({ question: '完全無關的題目?', askCount: 3, questionEmbedding: [0, 1, 0] });
+    addChunkSeries({ count: 20 });
+
+    const { candidates } = await listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse });
+    const noEvidence = candidates.find((candidate) => candidate.question === '完全無關的題目?');
+
+    // 換題等於系統擅自改掉教師的決定——教師以為在做 A，拿到的卻是 B。
+    await assert.rejects(
+      () => shortScriptService.createScriptWithFrozenEvidence({
+        user: TEACHER,
+        courseId: ids.teacherCourse,
+        topicKey: noEvidence.topicKey,
+      }),
+      (error) => error.statusCode === 422 && error.code === 'SHORT_SCRIPT_EVIDENCE_EMPTY',
+    );
   });
 
   it('證據同時包含命中與鄰接擴展片段（腳本檢索上限低於證據上限）', async () => {

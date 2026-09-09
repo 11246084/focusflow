@@ -238,6 +238,42 @@ describe('short script routes', () => {
     assert.equal(response.body.error.code, 'COURSE_MANAGE_DENIED');
   });
 
+  it('建立腳本時可指定 topicKey，做教師選的那一題', async () => {
+    seedTopicAndSegments();
+    const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const candidates = await jsonRequest(
+      baseUrl,
+      `/api/v1/courses/${ids.teacherCourse}/short-scripts/candidates`,
+      { token },
+    );
+    const picked = candidates.body.data[0];
+
+    const created = await jsonRequest(baseUrl, `/api/v1/courses/${ids.teacherCourse}/short-scripts/auto`, {
+      method: 'POST',
+      token,
+      body: { topicKey: picked.topicKey },
+    });
+
+    assert.equal(created.status, 201);
+    assert.equal(created.body.data.topicKey, picked.topicKey);
+    assert.equal(created.body.data.selectionReason.selectedBy, 'teacher');
+  });
+
+  it('指定不存在的 topicKey 回 SHORT_SCRIPT_NO_CANDIDATE', async () => {
+    seedTopicAndSegments();
+    const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const created = await jsonRequest(baseUrl, `/api/v1/courses/${ids.teacherCourse}/short-scripts/auto`, {
+      method: 'POST',
+      token,
+      body: { topicKey: '不存在的主題' },
+    });
+
+    assert.equal(created.status, 422);
+    assert.equal(created.body.error.code, 'SHORT_SCRIPT_NO_CANDIDATE');
+  });
+
   it('review 對不存在的腳本回 SHORT_SCRIPT_NOT_FOUND', async () => {
     const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
 

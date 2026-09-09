@@ -160,18 +160,34 @@ function buildEvidence(expandedMatches, { limit } = {}) {
  * 第 3 層（涵蓋度過濾）在此以 minEvidenceItems 落地；
  * 第 4 層（弧線適用性判定）需要 LLM，留到腳本生成的工作項。
  */
-async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
+async function createScriptWithFrozenEvidence({ user, courseId, topicKey = null } = {}) {
   assertObjectId(courseId, 'course');
 
   const course = await getCourseByIdOrThrow(courseId);
   await assertCanManageCourse(user, course);
 
   const excludedTopicKeys = await loadExcludedTopicKeys(course._id);
-  const { candidates } = await listTopicCandidates({ user, courseId, excludedTopicKeys });
+  const { candidates: allCandidates } = await listTopicCandidates({ user, courseId, excludedTopicKeys });
+
+  if (!allCandidates.length) {
+    throw new AppError(
+      'No topic candidate passed the automatic selection filters.',
+      422,
+      'SHORT_SCRIPT_NO_CANDIDATE',
+    );
+  }
+
+  // 教師指定主題時只評估那一個候選（DR-02 補充，2026-09-09）。
+  // 排序規則是給「沒有意見時」用的預設，不是替教師決定；教師知道課程脈絡，
+  // 系統不該逼他接受第一名。指定的候選證據不足就直接失敗，不偷偷換成別題——
+  // 換題等於系統擅自改掉教師的決定。
+  const candidates = topicKey
+    ? allCandidates.filter((candidate) => candidate.topicKey === topicKey)
+    : allCandidates;
 
   if (!candidates.length) {
     throw new AppError(
-      'No topic candidate passed the automatic selection filters.',
+      'The requested topic is not an eligible candidate.',
       422,
       'SHORT_SCRIPT_NO_CANDIDATE',
     );
@@ -202,7 +218,10 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
       selected = candidate;
       retrieval = candidateRetrieval;
       evidence = candidateEvidence;
-      selected.rank = index + 1;
+      // 教師指定時，排名以完整候選清單為準，不是過濾後那一筆的位置。
+      selected.rank = topicKey
+        ? allCandidates.findIndex((item) => item.topicKey === topicKey) + 1
+        : index + 1;
       break;
     }
 
@@ -245,9 +264,11 @@ async function createScriptWithFrozenEvidence({ user, courseId } = {}) {
       evidenceCount: evidence.length,
       directMatchCount: retrieval.matches.length,
       rank: selected.rank,
+      // 這一題是教師指定的，還是系統依 DR-12 排序自動選的。
+      selectedBy: topicKey ? 'teacher' : 'auto',
       // 因證據不足而在第 3 層被淘汰的候選（DR-12）。
       rejectedForEvidence: rejected,
-      runnersUp: candidates
+      runnersUp: allCandidates
         .filter((candidate) => candidate.topicKey !== selected.topicKey)
         .slice(0, 3)
         .map((candidate, index) => ({

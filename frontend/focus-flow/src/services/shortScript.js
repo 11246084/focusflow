@@ -31,9 +31,12 @@ export async function listScripts(courseId) {
   return response.data || [];
 }
 
-export async function createScript(courseId) {
+// topicKey 省略時後端照 DR-12 的排序自動選；帶了就只評估那一題。
+export async function createScript(courseId, topicKey = null) {
   const response = await apiFetch(`/courses/${encodeURIComponent(courseId)}/short-scripts/auto`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(topicKey ? { topicKey } : {}),
   });
   return response.data;
 }

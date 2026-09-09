@@ -9,6 +9,8 @@ const createScript = asyncHandler(async (req, res) => {
   const script = await shortScriptService.createScriptWithFrozenEvidence({
     user: req.user,
     courseId: req.params.courseId,
+    // 教師可指定主題；不給就照 DR-12 的排序自動選。
+    topicKey: String(req.body?.topicKey || '').trim() || null,
   });
 
   return sendSuccess(res, {

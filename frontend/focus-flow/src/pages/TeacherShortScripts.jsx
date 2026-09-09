@@ -15,6 +15,44 @@ import {
 } from '../services/shortScript';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate';
 
+// 專案的 .card-sm 只給背景／邊框／圓角，padding 由各頁 inline 指定；
+// .ff-grid-2 也只是斷點覆寫用的工具類，display:grid 與欄寬同樣要 inline 給。
+// 兩者都照 TeacherVideoReview.jsx 的既有寫法，不另立樣式。
+const PAGE_STYLE = { padding: 26, height: '100%', overflowX: 'hidden' };
+const CARD_STYLE = { padding: '16px 18px', width: '100%', marginBottom: 16 };
+const GRID_STYLE = {
+  display: 'grid',
+  gridTemplateColumns: '0.95fr 1.05fr',
+  gap: 24,
+  width: '100%',
+  alignItems: 'start',
+};
+const INPUT_STYLE = {
+  width: 'min(420px, 100%)',
+  padding: '10px 12px',
+  borderRadius: 8,
+  background: '#250f20',
+  color: '#fff',
+  border: '1px solid rgba(255,255,255,0.15)',
+};
+const ERROR_STYLE = {
+  fontSize: 12,
+  color: '#ffb0a0',
+  padding: '10px 12px',
+  background: 'rgba(255,107,107,0.1)',
+  borderRadius: 8,
+  border: '1px solid rgba(255,107,107,0.25)',
+  marginTop: 12,
+};
+const MUTED = { color: 'rgba(255,255,255,0.55)', fontSize: 12 };
+
+// apiFetch 在回應不是 JSON 時只給 'Request failed'（例如 nginx 回 502 的 HTML），
+// 光看這句話無法分辨是權限、路由不存在還是後端掛了。把狀態碼與錯誤碼一起顯示。
+function describeError(error) {
+  const parts = [error.status, error.code].filter(Boolean).join(' ');
+  return parts ? `${error.message}（${parts}）` : error.message;
+}
+
 const ARC_LABELS = {
   hook: '鉤子',
   context: '交代',
@@ -51,7 +89,7 @@ export default function TeacherShortScripts() {
         setCourses(list);
         if (list.length) setCourseId(list[0]._id);
       })
-      .catch((requestError) => setError(requestError.message));
+      .catch((requestError) => setError(`課程清單載入失敗：${describeError(requestError)}`));
   }, []);
 
   const refresh = useCallback(async () => {
@@ -72,7 +110,7 @@ export default function TeacherShortScripts() {
       if (isFeatureDisabledError(requestError)) {
         setFeatureDisabled(true);
       } else {
-        setError(requestError.message);
+        setError(describeError(requestError));
       }
     } finally {
       setLoading(false);
@@ -99,7 +137,7 @@ export default function TeacherShortScripts() {
       if (result) setSelected(result);
       await refresh();
     } catch (requestError) {
-      setError(`${requestError.message}${requestError.code ? `（${requestError.code}）` : ''}`);
+      setError(describeError(requestError));
     } finally {
       setBusy('');
     }
@@ -114,7 +152,7 @@ export default function TeacherShortScripts() {
     try {
       setSelected(await getScript(scriptId));
     } catch (requestError) {
-      setError(requestError.message);
+      setError(describeError(requestError));
     }
   }
 
@@ -156,20 +194,31 @@ export default function TeacherShortScripts() {
 
   if (featureDisabled) {
     return (
-      <div className="card-sm">
-        <h3>短影片腳本</h3>
-        <p>此功能尚未啟用。請在後端設定 <code>SHORT_SCRIPT_AUTOMATION_ENABLED=true</code> 後重新整理。</p>
+      <div className="fu scrl" style={PAGE_STYLE}>
+        <div className="card-sm" style={{ ...CARD_STYLE, maxWidth: 560, padding: '28px 24px' }}>
+          <h3 style={{ margin: '0 0 8px' }}>此功能尚未啟用</h3>
+          <p style={{ ...MUTED, margin: 0, lineHeight: 1.7 }}>
+            後端的 <code>SHORT_SCRIPT_AUTOMATION_ENABLED</code> 為 <code>false</code>，整組短影片腳本路由回 404。
+            在後端 <code>.env</code> 設成 <code>true</code> 並重啟後重新整理。
+          </p>
+          <p style={{ ...MUTED, margin: '10px 0 0', lineHeight: 1.7 }}>
+            部署環境的 <code>.env</code> 不進版控，本機可跑不代表伺服器可跑。
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="fu scrl">
-      <div className="card-sm">
-        <label className="ff-label" htmlFor="short-script-course">課程</label>
+    <div className="fu scrl" style={PAGE_STYLE}>
+      <div className="card-sm" style={CARD_STYLE}>
+        <label className="ff-label" htmlFor="short-script-course" style={{ display: 'block', marginBottom: 6 }}>
+          課程
+        </label>
         <select
           id="short-script-course"
           value={courseId}
+          style={INPUT_STYLE}
           onChange={(event) => setCourseId(event.target.value)}
         >
           {!courses.length && <option value="">目前沒有可用課程</option>}
@@ -178,7 +227,7 @@ export default function TeacherShortScripts() {
           ))}
         </select>
 
-        <div className="review-btn-row">
+        <div className="review-btn-row" style={{ marginTop: 14 }}>
           <button
             type="button"
             className="btn-primary"
@@ -192,50 +241,60 @@ export default function TeacherShortScripts() {
           </button>
         </div>
 
-        {error && <p className="required-mark">{error}</p>}
+        {/* 課程清單載入失敗時 courseId 會是空的，後面的請求全部不會送出——
+            沒有這一句，教師只會看到一個空殼頁面，不知道是沒有課還是後端掛了。 */}
+        {!courses.length && !error && !loading && (
+          <p style={{ ...MUTED, margin: '12px 0 0' }}>
+            這個帳號目前沒有可管理的課程。
+          </p>
+        )}
+
+        {error && <div role="alert" style={ERROR_STYLE}>{error}</div>}
       </div>
 
-      <div className="ff-grid-2">
-        <div className="card-sm">
-          <h3>腳本（{scripts.length}）</h3>
-          {!scripts.length && !loading && <p className="optional-mark">尚未建立任何腳本。</p>}
+      <div className="ff-grid-2" style={GRID_STYLE}>
+        <div className="card-sm" style={{ ...CARD_STYLE, marginBottom: 0 }}>
+          <h3 style={{ margin: '0 0 10px' }}>腳本（{scripts.length}）</h3>
+          {!scripts.length && !loading && <p style={{ ...MUTED, margin: 0 }}>尚未建立任何腳本。</p>}
           <ul className="reject-reason-list">
             {scripts.map((script) => (
               <li key={script._id} className="reject-reason-item">
                 <button type="button" className="btn-outline" onClick={() => handleOpen(script._id)}>
                   {script.topic}
                 </button>
-                <span className="optional-mark">{STATUS_LABELS[script.status] || script.status}</span>
+                <span style={{ ...MUTED, marginLeft: 8 }}>{STATUS_LABELS[script.status] || script.status}</span>
               </li>
             ))}
           </ul>
 
-          <h3>候選主題（唯讀預覽）</h3>
-          <p className="optional-mark">下一次自動選題會從這裡挑第一個通過證據檢查的主題。</p>
+          <h3 style={{ margin: '20px 0 6px' }}>候選主題（唯讀預覽）</h3>
+          <p style={{ ...MUTED, margin: '0 0 8px' }}>下一次自動選題會從這裡挑第一個通過證據檢查的主題。</p>
           <ol className="reject-reason-list">
             {candidates.map((candidate) => (
               <li key={candidate.topicKey} className="reject-reason-item">
-                {candidate.question}
-                <span className="optional-mark">
+                <div>{candidate.question}</div>
+                <div style={MUTED}>
                   {candidate.uniqueAskerCount} 人問過 · 共 {candidate.totalAskCount} 次
                   · 合併 {candidate.variants?.length || 1} 種問法
-                </span>
+                </div>
               </li>
             ))}
-            {!candidates.length && !loading && <li className="optional-mark">沒有符合條件的候選主題。</li>}
+            {!candidates.length && !loading && (
+              <li style={{ ...MUTED, listStyle: 'none' }}>沒有符合條件的候選主題。</li>
+            )}
           </ol>
         </div>
 
-        <div className="card-sm">
-          {!selected && <p className="optional-mark">從左側選一份腳本查看內容。</p>}
+        <div className="card-sm" style={{ ...CARD_STYLE, marginBottom: 0 }}>
+          {!selected && <p style={{ ...MUTED, margin: 0 }}>從左側選一份腳本查看內容。</p>}
 
           {selected && (
             <>
-              <h3>{selected.topic}</h3>
-              <p className="optional-mark">{STATUS_LABELS[selected.status] || selected.status}</p>
+              <h3 style={{ margin: '0 0 4px' }}>{selected.topic}</h3>
+              <p style={{ ...MUTED, margin: '0 0 4px' }}>{STATUS_LABELS[selected.status] || selected.status}</p>
 
               {selected.selectionReason && (
-                <p className="optional-mark">
+                <p style={{ ...MUTED, margin: '0 0 12px' }}>
                   排名第 {selected.selectionReason.rank}
                   · {selected.selectionReason.uniqueAskerCount} 人問過
                   · 共 {selected.selectionReason.totalAskCount} 次
@@ -244,7 +303,7 @@ export default function TeacherShortScripts() {
               )}
 
               {!version && (
-                <div className="review-btn-row">
+                <div className="review-btn-row" style={{ marginTop: 4 }}>
                   <button
                     type="button"
                     className="btn-primary"
@@ -258,7 +317,7 @@ export default function TeacherShortScripts() {
 
               {version && (
                 <>
-                  <h4>視覺隱喻（選一組，會寫進複製出的腳本）</h4>
+                  <h4 style={{ margin: '18px 0 8px' }}>視覺隱喻（選一組，會寫進複製出的腳本）</h4>
                   {(version.payload.visualMetaphorOptions || []).map((option, index) => (
                     <label key={option.label} className="reject-reason-checkbox">
                       <input
@@ -273,38 +332,38 @@ export default function TeacherShortScripts() {
 
                   {/* 規格書 2.1：教師必須看得到證據與 STT 原文才判斷得出引用是否正確，
                       只看口白不夠——口白讀起來通順不代表引用對。 */}
-                  <h4>證據對照表（未修飾的逐字稿原文）</h4>
+                  <h4 style={{ margin: '20px 0 8px' }}>證據對照表（未修飾的逐字稿原文）</h4>
                   <ul className="reject-reason-list">
                     {(selected.evidence || []).map((item) => (
                       <li key={item.chunkId} className="reject-reason-item">
                         <strong>[{item.code}]</strong>{' '}
-                        <span className="optional-mark">
+                        <span style={MUTED}>
                           {formatTimestamp(item.startSec)}–{formatTimestamp(item.endSec)}
                           {item.expandedFrom ? ' · 鄰接擴展' : ' · 檢索命中'}
                         </span>
-                        <div>{item.rawText}</div>
+                        <div style={{ marginTop: 4, lineHeight: 1.6 }}>{item.rawText}</div>
                       </li>
                     ))}
                   </ul>
 
-                  <h4>分鏡（第 {version.versionNo} 版）</h4>
+                  <h4 style={{ margin: '20px 0 8px' }}>分鏡（第 {version.versionNo} 版）</h4>
                   <ol className="reject-reason-list">
                     {version.payload.shots.map((shot) => (
                       <li key={shot.shotNo} className="reject-reason-item">
                         <strong>鏡 {String(shot.shotNo).padStart(2, '0')}</strong>{' '}
-                        <span className="optional-mark">
+                        <span style={MUTED}>
                           {ARC_LABELS[shot.arcRole] || shot.arcRole} · {shot.timeRange}
                         </span>
-                        <div>{shot.narration}</div>
-                        <div className="optional-mark">字幕：{shot.subtitle}</div>
-                        <div className="optional-mark">
+                        <div style={{ marginTop: 4, lineHeight: 1.6 }}>{shot.narration}</div>
+                        <div style={MUTED}>字幕：{shot.subtitle}</div>
+                        <div style={MUTED}>
                           依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}
                         </div>
                       </li>
                     ))}
                   </ol>
 
-                  <div className="review-btn-row">
+                  <div className="review-btn-row" style={{ marginTop: 16 }}>
                     <button type="button" className="btn-primary" onClick={handleCopy}>
                       {copied ? '已複製到剪貼簿' : '複製完整腳本'}
                     </button>
@@ -330,13 +389,13 @@ export default function TeacherShortScripts() {
                   </div>
 
                   {selected.status === 'changes_requested' && version.feedback && (
-                    <p className="optional-mark">
+                    <p style={{ ...MUTED, margin: '10px 0 0', lineHeight: 1.6 }}>
                       將依此回饋重新生成（{FEEDBACK_TYPES.find((type) => type.value === version.feedbackType)?.label || version.feedbackType}）：{version.feedback}
                     </p>
                   )}
 
                   {regenOpen && selected.status !== 'changes_requested' && (
-                    <div className="card-sm">
+                    <div className="card-sm" style={{ padding: '14px 16px', marginTop: 12 }}>
                       {FEEDBACK_TYPES.map((type) => (
                         <label key={type.value} className="reject-reason-checkbox">
                           <input
@@ -346,16 +405,17 @@ export default function TeacherShortScripts() {
                             onChange={() => setRegenType(type.value)}
                           />
                           {type.label}
-                          <span className="optional-mark">（{type.hint}）</span>
+                          <span style={MUTED}>（{type.hint}）</span>
                         </label>
                       ))}
                       <textarea
                         rows={2}
                         placeholder="一句話：哪裡不對？"
                         value={regenNote}
+                        style={{ ...INPUT_STYLE, width: '100%', marginTop: 8, fontFamily: 'inherit' }}
                         onChange={(event) => setRegenNote(event.target.value)}
                       />
-                      <div className="review-btn-row">
+                      <div className="review-btn-row" style={{ marginTop: 10 }}>
                         <button
                           type="button"
                           className="btn-primary"
@@ -371,11 +431,19 @@ export default function TeacherShortScripts() {
                     </div>
                   )}
 
-                  <h4>完整腳本（可直接複製貼進製作流程）</h4>
+                  <h4 style={{ margin: '20px 0 8px' }}>完整腳本（可直接複製貼進製作流程）</h4>
                   <textarea
                     readOnly
                     value={markdown}
                     rows={20}
+                    style={{
+                      ...INPUT_STYLE,
+                      width: '100%',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      resize: 'vertical',
+                    }}
                     onFocus={(event) => event.target.select()}
                   />
                 </>

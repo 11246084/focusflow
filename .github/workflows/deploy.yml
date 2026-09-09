@@ -28,6 +28,10 @@ jobs:
         run: sudo restorecon -Rv /opt/focusflow/frontend/focus-flow/dist
 
       - name: Restart services
+        env:
+          QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON: >-
+            {"provider":"gemini","model":"gemini-embedding-2","dimension":3072,"instructionVersion":"gemini_embedding_2_asymmetric_retrieval_v2","generationVersion":"text_search_generation_v2","normalizationVersion":"unit_l2_v1","contractVersion":"gemini_embedding_2_text_v2","schemaVersion":"gemini_embedding_2_text_v2","taskType":null}
         run: |
-          pm2 restart focusflow-backend
+          pm2 restart focusflow-backend --update-env
+          pm2 save
           sudo systemctl reload nginx

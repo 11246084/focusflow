@@ -64,3 +64,84 @@ jobs:
             exit 1
           fi
           echo "Backend QA readiness and Nginx API proxy checks passed."
+
+      - name: Verify production Atlas QA once
+        if: github.event.head_commit.message == 'Validate production Atlas QA'
+        run: |
+          cd /opt/focusflow/backend
+          node <<'NODE'
+          const mongoose = require('mongoose');
+          const jwt = require('jsonwebtoken');
+          const env = require('./src/config/env');
+          const User = require('./src/models/user.model');
+          const baseUrl = 'http://127.0.0.1:4000/api/v1';
+          const courseId = '69fb4d4c069e21f4e65b74dc';
+          const allowedVideoIds = new Set([
+            '69fb55edb52433fda32db4e8', '69fb57edb52433fda32db706',
+            '69fb59cfb52433fda32db827', '69fb5b5eb52433fda32db907',
+            '69fb5c8db52433fda32dbab5', '69fb5d78b52433fda32dbc81',
+            '69fc291cadf6d9dc08eb4cb7', '6a02f2d417c615e872035a68',
+            '6a02f34d17c615e872035b3d', '6a02f38c17c615e872035b94',
+            '6a02f3b217c615e872035beb', '6a02f42a17c615e872035c42',
+            '6a02f46317c615e872035c93', '6a02f48c17c615e872035cea',
+            '6a02f4b017c615e872035d41',
+          ]);
+
+          async function request(path, { token, body } = {}) {
+            const response = await fetch(`${baseUrl}${path}`, {
+              method: body ? 'POST' : 'GET',
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...(body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}),
+              },
+              ...(body ? { body: JSON.stringify(body) } : {}),
+            });
+            const text = await response.text();
+            if (!response.ok) throw new Error(`Internal production request failed with HTTP ${response.status}.`);
+            return JSON.parse(text);
+          }
+
+          (async () => {
+            mongoose.set('autoCreate', false);
+            mongoose.set('autoIndex', false);
+            await mongoose.connect(env.mongodbUri, { autoCreate: false, autoIndex: false });
+            const student = await User.findOne({ email: 'student@focusflow.local', role: 'student' })
+              .select('_id role isActive')
+              .lean();
+            await mongoose.disconnect();
+            if (!student?.isActive) throw new Error('Active demo student was not found.');
+            const token = jwt.sign({ sub: String(student._id) }, env.jwtSecret, { expiresIn: '5m' });
+            const qa = await request('/qa/ask', {
+              token,
+              body: {
+                courseId,
+                question: '請依教材比較沒有 GPU 時選擇 OpenCV 或 YOLO 的考量，並說明訓練需求。',
+              },
+            });
+            const citations = Array.isArray(qa?.data?.citations) ? qa.data.citations : [];
+            const valid = qa?.success === true
+              && qa?.data?.answerStatus?.status === 'answered'
+              && qa?.data?.runtime?.searchBackendUsed === 'atlas'
+              && qa?.data?.runtime?.answerProviderUsed === 'gemini'
+              && citations.length > 0
+              && citations.every((citation) => allowedVideoIds.has(String(citation.videoId || '')))
+              && citations.every((citation) => Number.isFinite(citation?.timestamp?.startSec)
+                && Number.isFinite(citation?.timestamp?.endSec)
+                && citation.timestamp.endSec > citation.timestamp.startSec);
+            if (!valid) throw new Error('Internal production Atlas QA acceptance failed.');
+            console.log(JSON.stringify({
+              status: 'passed',
+              searchBackend: qa.data.runtime.searchBackendUsed,
+              answerProvider: qa.data.runtime.answerProviderUsed,
+              citationCount: citations.length,
+            }));
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Report sanitized backend process diagnostics
+        if: failure() && github.event.head_commit.message == 'Validate production Atlas QA'
+        run: |
+          pm2 jlist | node -e 'let raw=""; process.stdin.on("data", chunk => raw += chunk); process.stdin.on("end", () => { const rows=JSON.parse(raw).filter(item => item.name === "focusflow-backend").map(item => ({ name:item.name, status:item.pm2_env?.status, restartCount:item.pm2_env?.restart_time, unstableRestarts:item.pm2_env?.unstable_restarts, uptime:item.pm2_env?.pm_uptime, memoryBytes:item.monit?.memory })); console.log(JSON.stringify(rows)); });'

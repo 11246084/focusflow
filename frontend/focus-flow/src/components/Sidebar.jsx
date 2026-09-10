@@ -30,7 +30,15 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
 
       {/* Footer: role + sign out */}
       <div className="sidebar-footer">
-        <div className="sidebar-role-card">
+        <div
+          className="sidebar-role-card"
+          role="button"
+          tabIndex={0}
+          title="個人資料"
+          onClick={() => onNav('profile')}
+          onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onNav('profile'); }}
+          style={{ cursor: 'pointer', outline: active === 'profile' ? '1px solid rgba(241,79,33,0.6)' : undefined }}
+        >
           <div className="sidebar-role-label">
             <div className="sidebar-role-dot" style={{ background: roleDot[role] }} />
             <span className="sidebar-role-text">{roleLabels[role]}</span>

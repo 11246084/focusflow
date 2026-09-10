@@ -412,6 +412,37 @@ paths:
                       code: INVALID_TOKEN
         '404':
           $ref: '#/components/responses/UserNotFoundError'
+  /api/v1/auth/me/password:
+    patch:
+      tags:
+        - Auth
+      summary: 修改自己的密碼
+      description: 需登入並提供目前密碼；新密碼至少 8 碼且不可與目前密碼相同，只以 bcrypt 雜湊儲存。
+      operationId: changeMyPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: 密碼已更新
+        '400':
+          description: 驗證錯誤（VALIDATION_ERROR）或目前密碼錯誤（CURRENT_PASSWORD_INCORRECT）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/auth/me/avatar:
     get:
       tags:

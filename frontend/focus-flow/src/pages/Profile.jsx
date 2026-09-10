@@ -124,6 +124,75 @@ function TeacherExtra({ stats, loading }) {
   );
 }
 
+function ChangePasswordCard() {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  async function submit(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+    if (!form.currentPassword) return setError('請輸入目前密碼。');
+    if (form.newPassword.length < 8) return setError('新密碼至少需要 8 個字元。');
+    if (form.newPassword !== form.confirmPassword) return setError('兩次輸入的新密碼不一致。');
+    if (form.newPassword === form.currentPassword) return setError('新密碼不可與目前密碼相同。');
+
+    setSaving(true);
+    try {
+      await apiFetch('/auth/me/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }),
+      });
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setMessage('密碼已更新，下次登入請使用新密碼。');
+    } catch (err) {
+      setError(err.code === 'CURRENT_PASSWORD_INCORRECT' ? '目前密碼不正確。' : (err.message || '修改密碼失敗。'));
+    } finally {
+      setSaving(false);
+    }
+    return undefined;
+  }
+
+  return (
+    <form onSubmit={submit} className="card" style={{ padding: 26, maxWidth: '100%', marginBottom: 20 }}>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 16 }}>修改密碼</div>
+      <div className="ff-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+        {[
+          ['currentPassword', '目前密碼', 'current-password'],
+          ['newPassword', '新密碼（至少 8 碼）', 'new-password'],
+          ['confirmPassword', '確認新密碼', 'new-password'],
+        ].map(([field, label, autoComplete]) => (
+          <div key={field}>
+            <label className="ff-label" htmlFor={`pw-${field}`}>{label}</label>
+            <input
+              id={`pw-${field}`}
+              className="ff-input"
+              type="password"
+              autoComplete={autoComplete}
+              value={form[field]}
+              onChange={update(field)}
+              disabled={saving}
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+        <div role={error ? 'alert' : 'status'} style={{ fontSize: 12, minHeight: 18, color: error ? '#ff8a8a' : '#86efac' }}>
+          {error || message}
+        </div>
+        <button className="btn-primary" type="submit" disabled={saving} style={{ padding: '9px 18px', fontSize: 12.5 }}>
+          {saving ? '更新中…' : '更新密碼'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function Profile({ role }) {
   const [user, setCurrentUser] = useState(() => getUser() || {});
   const displayName = user.name || '訪客';
@@ -331,6 +400,8 @@ export default function Profile({ role }) {
           </div>
         </div>
       </div>
+
+      <ChangePasswordCard />
 
       {(role === 'student' || role === 'teacher') && (
         <div style={{ maxWidth: '100%' }}>

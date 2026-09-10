@@ -25,6 +25,8 @@ router.post('/register', authController.register);
 // 功能：取得當前登入使用者的資訊
 // middleware：authenticate - 驗證 JWT Token，確認用戶已登入
 router.get('/me', authenticate, authController.me);
+// PATCH /api/v1/auth/me/password — 使用者自行修改密碼（需提供目前密碼）
+router.patch('/me/password', authenticate, authController.changePassword);
 // Avatar files stay private: authentication gates both upload replacement and binary reads.
 router.put('/me/avatar', authenticate, uploadSingleAvatar, authController.updateAvatar);
 router.get('/me/avatar', authenticate, authController.getAvatar);

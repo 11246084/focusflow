@@ -27,6 +27,73 @@ describe('auth routes', () => {
     resetStore();
   });
 
+  async function studentToken() {
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'Student123!', role: 'student' },
+    });
+    return result.body.data.token;
+  }
+
+  it('修改密碼後舊密碼失效、新密碼可登入且只存雜湊', async () => {
+    const token = await studentToken();
+    const changed = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
+      method: 'PATCH',
+      token,
+      body: { currentPassword: 'Student123!', newPassword: 'NewPass456!' },
+    });
+    const oldLogin = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'Student123!', role: 'student' },
+    });
+    const newLogin = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'NewPass456!', role: 'student' },
+    });
+    const stored = store.users.find((item) => item.email === 'student@focusflow.local');
+
+    assert.equal(changed.status, 200);
+    assert.equal(oldLogin.status, 401);
+    assert.equal(newLogin.status, 200);
+    assert.notEqual(stored.passwordHash, 'NewPass456!');
+    assert.equal(await bcrypt.compare('NewPass456!', stored.passwordHash), true);
+  });
+
+  it('目前密碼錯誤時拒絕修改密碼', async () => {
+    const token = await studentToken();
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
+      method: 'PATCH',
+      token,
+      body: { currentPassword: 'wrong-password', newPassword: 'NewPass456!' },
+    });
+
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error.code, 'CURRENT_PASSWORD_INCORRECT');
+  });
+
+  it('新密碼少於 8 碼或與目前密碼相同時回傳驗證錯誤', async () => {
+    const token = await studentToken();
+    const short = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
+      method: 'PATCH', token, body: { currentPassword: 'Student123!', newPassword: 'short' },
+    });
+    const same = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
+      method: 'PATCH', token, body: { currentPassword: 'Student123!', newPassword: 'Student123!' },
+    });
+
+    assert.equal(short.status, 400);
+    assert.equal(short.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(same.status, 400);
+    assert.equal(same.body.error.code, 'VALIDATION_ERROR');
+  });
+
+  it('未登入時不能修改密碼', async () => {
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
+      method: 'PATCH', body: { currentPassword: 'Student123!', newPassword: 'NewPass456!' },
+    });
+
+    assert.equal(result.status, 401);
+  });
+
   const loginCases = [
     {
       role: 'student',

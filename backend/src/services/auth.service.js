@@ -187,8 +187,36 @@ async function getCurrentUser(userId) {
   return toPublicUser(user);
 }
 
+// Passwords are only ever persisted as bcrypt hashes; the current password is
+// required so a stolen/left-open session cannot silently take over the account.
+async function changePassword({ userId, currentPassword, newPassword }) {
+  if (typeof currentPassword !== 'string' || !currentPassword) {
+    throw new AppError('Current password is required.', 400, 'VALIDATION_ERROR');
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    throw new AppError('New password must be at least 8 characters.', 400, 'VALIDATION_ERROR');
+  }
+  if (newPassword === currentPassword) {
+    throw new AppError('New password must differ from the current password.', 400, 'VALIDATION_ERROR');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  }
+
+  const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!isCurrentValid) {
+    throw new AppError('Current password is incorrect.', 400, 'CURRENT_PASSWORD_INCORRECT');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await User.findByIdAndUpdate(user._id, { $set: { passwordHash } });
+}
+
 module.exports = {
   login,
   register,
   getCurrentUser,
+  changePassword,
 };

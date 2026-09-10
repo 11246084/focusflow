@@ -699,24 +699,13 @@ export default function TeacherShortScripts() {
           </SectionCard>
         </div>
 
-        {/* overflow: clip (not hidden) so the sticky tab bar follows the page scroll. */}
-        <div className="card" style={{ overflow: 'clip', minWidth: 0 }}>
+        <div className="card" style={{ overflow: 'hidden', minWidth: 0 }}>
           {!selected ? (
             <EmptyRow>從左側選一份腳本查看內容</EmptyRow>
           ) : (
             <>
-              {/* Tabs sit above the topic and stay pinned while the long script scrolls. */}
-              <div
-                style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 5,
-                  display: 'flex',
-                  borderBottom: DIVIDER,
-                  background: 'rgba(30,14,32,0.96)',
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
+              {/* Tabs sit above the topic, split evenly. */}
+              <div style={{ display: 'flex', borderBottom: DIVIDER }}>
                 <DetailTab active={detailTab === 'script'} onClick={() => setDetailTab('script')}>
                   腳本內容
                 </DetailTab>

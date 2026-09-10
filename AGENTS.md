@@ -142,6 +142,7 @@ AI agent 接手前，至少讀：
 | `docs/current-status.md` | 跨服務動態進度與缺口 |
 | `docs/2026-09_Student_Pilot_Backend/README.md` | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口；此任務依資料夾內的專用權威順序執行 |
 | `backend/docs/current-state.md` | Backend runtime、readiness、測試與已知限制 |
+| `docs/deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
 | `backend/docs/phase2-api-contract.md` | QA / Video / Clip / YouTube 回傳語意 |
 | `backend/docs/openapi.yaml` | 對外 API 規格；仍須與 routes 交叉確認 |
 | `backend/docs/handoff-stt-pipeline-integration.md` | Backend / STT processing 交接 |

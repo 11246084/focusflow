@@ -4,7 +4,7 @@
 
 ## 執行前提
 
-- 執行端可以連到正式網址；目前校外網路可能被學校邊界設備擋住，應從校網或學校 VPN 執行。
+- 執行端可以連到正式網址。2026-09-10 起 `https://focusflow.ntub.edu.tw` 可從校外存取且為 Let's Encrypt 受信任憑證，不必再經校網或學校 VPN；但 port 80 對外不通，Base URL 必須寫 `https://`。
 - 正式資料已準備一個學生、Enrollment、published Course，以及 published/playable ShortAsset。
 - 優先使用既有 bearer token。若改用帳號密碼，成功登入會依目前 Backend 行為新增一筆 login UsageLog，因此不算資料庫零寫入。
 

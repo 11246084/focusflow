@@ -92,7 +92,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | 校內 / 學校 VPN 連線 | ✅ 22 / 80 / 443 全通且穩定 |
 | **校外連線 443** | ✅ 2026-08-12 起全球可達（check-host.net 各洲節點皆 Connected） |
 | **校外連線 80** | ❌ 封包未抵達 VM（tcpdump 0 packets）；技士表示不會開放 |
-| HTTPS 憑證 | ✅ 2026-09-10 起為 Let's Encrypt 正式憑證（`CN=YE2`，效期至 2026-12-09），以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約；詳見 [憑證申請紀錄](../context/2026_09_10_Lets_Encrypt正式憑證申請紀錄.md) |
+| HTTPS 憑證 | ✅ 2026-09-10 起為 Let's Encrypt 正式憑證（`CN=YE2`，效期至 2026-12-09），以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約；詳見 [憑證申請紀錄](deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md) |
 | port 80 設定 | ✅ 2026-08-12 起 `focusflow.conf` 的 80 block 標 `default_server` 並 301 轉 HTTPS；但因 80 對外不通，只在 VM 內部生效 |
 
 重點：

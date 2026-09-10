@@ -432,22 +432,52 @@ async function notifyScriptOfRejection(asset, user, reasons) {
   }
 }
 
-// 審核通過才上架（規格書 R-08 / DR-13）。上傳 YouTube 是不可逆的對外動作，
-// 教師是先上傳才看得到成品，所以上傳的動作本身不能當成確認。
+// 審核通過才進學生牆（規格書 R-08 / DR-13 / DR-21）。影片本身在教師上傳當下就已經
+// 以 unlisted 傳上 YouTube 供教師預覽，這裡不碰 YouTube，只改 FocusFlow 這端的可見性。
 //
-// 不 await：上架要把整支影片傳給 YouTube，同步做會讓審核請求逾時。失敗會記在
-// ShortAsset.youtubeUpload，資產維持 draft，教師看得到原因並可重試。
-// 延遲 require 的理由同 notifyScriptOfRejection。
+// 不 await：這一步很快，但影片還沒傳完時它什麼都不做，等上傳完成再補；審核回應不該
+// 因為這條路徑的任何狀況而失敗。延遲 require 的理由同 notifyScriptOfRejection。
 function schedulePublishOnApproval(asset) {
   try {
     // eslint-disable-next-line global-require
     const publishService = require('./shortAssetPublish.service');
-    publishService.schedulePublishOnApproval(asset);
+    return Promise.resolve(publishService.publishApprovedShortAsset(asset)).catch((error) => {
+      console.error('[shortAsset] failed to publish approved short asset', {
+        assetId: String(asset?._id),
+        message: error.message,
+      });
+      return null;
+    });
   } catch (error) {
     console.error('[shortAsset] failed to schedule publication', {
       assetId: String(asset?._id),
       message: error.message,
     });
+    return null;
+  }
+}
+
+// 成品被退回時，把 YouTube 上那支影片收回 private（DR-21）。
+//
+// 退回的影片還在頻道上，unlisted 代表拿到連結就看得到。與 notifyScriptOfRejection
+// 同樣 fail soft：審核結果已寫進資料庫，這裡拋錯只會讓一次成立的審核看起來失敗。
+function schedulePrivatizeOnRejection(asset) {
+  try {
+    // eslint-disable-next-line global-require
+    const publishService = require('./shortAssetPublish.service');
+    return Promise.resolve(publishService.privatizeRejectedShortAsset(asset)).catch((error) => {
+      console.error('[shortAsset] failed to privatize rejected short asset', {
+        assetId: String(asset?._id),
+        message: error.message,
+      });
+      return null;
+    });
+  } catch (error) {
+    console.error('[shortAsset] failed to schedule privatization', {
+      assetId: String(asset?._id),
+      message: error.message,
+    });
+    return null;
   }
 }
 
@@ -540,8 +570,9 @@ async function reviewShortAsset({
 
   if (status === SHORT_ASSET_REVIEW_STATUSES.REJECTED) {
     await notifyScriptOfRejection(updated, user, normalizedReasons);
+    await schedulePrivatizeOnRejection(updated);
   } else {
-    schedulePublishOnApproval(updated);
+    await schedulePublishOnApproval(updated);
   }
 
   return toReviewAsset(updated, course);

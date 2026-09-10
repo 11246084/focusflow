@@ -10,6 +10,7 @@ const {
   buildYouTubeWatchUrl,
   isYouTubeUploadConfigured,
   normalizePrivacyStatus,
+  setVideoPrivacy,
   uploadLocalVideo,
 } = require('./youtubeUpload.service');
 const { recordShortAssetRegeneration } = require('./shortAsset.service');
@@ -26,8 +27,15 @@ const {
 // 這一層與 shortAsset.service 分開的理由：上架牽涉 YouTube、檔案系統與腳本連結，
 // 而 shortAsset.service 是組員負責的審核 / feed 主線。放同一個檔會讓兩邊的改動互相牽動。
 //
-// **觸發點是成品審核通過，不是教師上傳。** 教師上傳只建立 draft；上傳 YouTube 是
-// 不可逆的對外動作，而教師是先上傳才看得到成品，上傳當下還沒看過影片。
+// **兩個時間點要分開看（DR-21，2026-09-10）：**
+//
+// - 教師上傳成品 → 立刻以 unlisted 傳到 YouTube。教師要先看得到影片才審得動，而 private
+//   影片連教師都看不到（他不是頻道擁有者，也嵌不進審核頁），unlisted 是唯一可預覽的狀態。
+// - 成品審核通過 → 才把資產標成 published 進學生牆。
+//
+// 也就是「對學生公開」的閘門在 FocusFlow 這端（listStudentShorts 只撈 published），
+// 不在 YouTube 的隱私設定。審核未過的影片雖然已經在 YouTube 上，但只有拿到連結才看得到，
+// 而連結只有系統與教師手上有。被退回時會盡力把影片轉 private。
 
 // 短影片一律以 unlisted 上架，不吃 YOUTUBE_UPLOAD_PRIVACY。
 // public 會讓非修課者從搜尋與頻道頁看到；private 則無法用 iframe 嵌入，學生端播不了。
@@ -68,6 +76,7 @@ function assertDisclosureConfirmed(asset) {
   }
 }
 
+// 進學生牆的條件。上傳 YouTube 不再檢查這個（DR-21），只有「標成 published」要檢查。
 function assertReviewApproved(asset) {
   const generationVersion = Number(asset.generationVersion || 1);
   if (
@@ -99,11 +108,13 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
 }
 
 /**
- * 把已通過成品審核的短影片上架到 YouTube（規格書附錄 K.1）。
+ * 把教師上傳的成品傳到 YouTube（unlisted），供教師預覽與後續上架（DR-21）。
  *
- * 呼叫前必須已通過審核；本函式仍會再檢查一次，因為它也被重試路徑呼叫。
+ * 這一步不看審核狀態——審核發生在它之後。真正對學生公開的是
+ * publishApprovedShortAsset()。若上傳完成時審核已經通過（審核比上傳早結束），
+ * 這裡會補上那一步，否則資產會停在「已審核通過但沒進學生牆」。
  */
-async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
+async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch } = {}) {
   assertObjectId(assetId, 'short asset');
   const asset = await ShortAsset.findById(assetId).lean();
   if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
@@ -115,7 +126,6 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
       'YOUTUBE_UPLOAD_ALREADY_COMPLETED',
     );
   }
-  assertReviewApproved(asset);
   assertDisclosureConfirmed(asset);
   assertUploadConfigured();
 
@@ -168,14 +178,14 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
   }
 
   const uploadedAt = new Date();
-  const published = await ShortAsset.findByIdAndUpdate(
+  // 只寫 YouTube 相關欄位：status 仍是 draft，publishedAt 仍是空的，
+  // 學生牆的查詢條件（status=published + publishedAt）因此不會撈到未審核的影片。
+  const uploaded = await ShortAsset.findByIdAndUpdate(
     assetId,
     {
       $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
-        status: SHORT_ASSET_STATUSES.PUBLISHED,
-        publishedAt: uploadedAt,
         youtubeAvailability: YOUTUBE_AVAILABILITIES.PLAYABLE,
         youtubePrivacyStatus: normalizePrivacyStatus(uploadResult.privacyStatus),
         lastCheckedAt: uploadedAt,
@@ -189,13 +199,43 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
     { new: true },
   );
 
-  // 影片已在 YouTube 上，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
+  // 審核比上傳早結束時，上架動作在這裡補做，否則資產會卡在「已通過但沒進學生牆」。
+  if (
+    uploaded.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
+    && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)
+  ) {
+    return markShortAssetPublished(uploaded);
+  }
+
+  return uploaded;
+}
+
+/**
+ * 把已上傳且審核通過的成品標成 published，這一步才是對學生公開（DR-21）。
+ *
+ * 影片本身在教師上傳當下就已經在 YouTube 上（unlisted），所以這裡不碰 YouTube，
+ * 只改 FocusFlow 這端的可見性。
+ */
+async function markShortAssetPublished(asset) {
+  const publishedAt = new Date();
+  const published = await ShortAsset.findByIdAndUpdate(
+    asset._id,
+    {
+      $set: {
+        status: SHORT_ASSET_STATUSES.PUBLISHED,
+        publishedAt,
+      },
+    },
+    { new: true },
+  );
+
+  // 影片已經對學生可見，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
   if (asset.sourceScriptId) {
     try {
       await markScriptPublished({ scriptId: asset.sourceScriptId });
     } catch (error) {
       console.error('[shortAsset] failed to mark script as published', {
-        assetId: String(assetId),
+        assetId: String(asset._id),
         scriptId: String(asset.sourceScriptId),
         message: error.message,
       });
@@ -205,9 +245,25 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
   return published;
 }
 
-async function recordSkippedPublish(assetId, message) {
+/**
+ * 成品審核通過後把它放進學生牆。由 shortAsset.service 的 reviewShortAsset 呼叫。
+ *
+ * 影片還沒上傳完（或上傳失敗）時什麼都不做：資產維持 draft，等上傳成功時
+ * uploadShortAssetToYouTube() 會看到審核已通過而補上這一步。
+ */
+async function publishApprovedShortAsset(asset) {
+  if (!asset?._id || !asset.filePath) return null;
+  assertReviewApproved(asset);
+  assertDisclosureConfirmed(asset);
+  if (!asset.youtubeVideoId) return null;
+  if (asset.status === SHORT_ASSET_STATUSES.PUBLISHED) return null;
+
+  return markShortAssetPublished(asset);
+}
+
+async function recordSkippedUpload(assetId, message) {
   // 略過不能不留痕跡（規格書 K.3「不得靜默略過」）。沒有這筆紀錄，資產會停在
-  // 「審核已通過、上傳狀態空白」，重試路徑因為找不到失敗紀錄而拒絕，教師沒有任何出路。
+  // 「已上傳、YouTube 狀態空白」，重試路徑因為找不到失敗紀錄而拒絕，教師沒有任何出路。
   const error = new AppError(message, 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   error.youtubeRetrySafe = true;
   await recordUploadFailure(assetId, {
@@ -219,33 +275,70 @@ async function recordSkippedPublish(assetId, message) {
 }
 
 /**
- * 成品審核通過後排程上架。由 shortAsset.service 的 reviewShortAsset 呼叫。
+ * 教師上傳成品後排程 YouTube 上傳（DR-21）。由 createAssetFromScript 呼叫。
  *
- * 不擋審核回應：上架要傳整支影片到 YouTube，同步做會讓審核請求逾時；
- * 失敗也已寫進 youtubeUpload，教師看得到原因並可重試。
+ * 不擋上傳回應：傳整支影片到 YouTube 要時間，同步做會讓上傳請求逾時；
+ * 失敗已寫進 youtubeUpload，教師看得到原因並可重試。
  */
-function schedulePublishOnApproval(asset) {
+function scheduleUploadOnCreate(asset) {
   // 只處理由本功能上傳的資產（有 filePath）。組員的 clip pipeline 建立的資產
-  // 沒有本機檔案，本路徑上架不了，也不該在它們身上寫失敗紀錄。
+  // 沒有本機檔案，本路徑傳不了，也不該在它們身上寫失敗紀錄。
   if (!asset?._id || !asset.filePath || asset.youtubeVideoId) return null;
 
-  // feature flag 關閉時不得對外發布任何東西，但要讓教師知道為什麼沒上架。
+  // feature flag 關閉時不得把任何東西送上 YouTube，但要讓教師知道為什麼沒有預覽。
   if (!env.shortScriptAutomationEnabled) {
-    return recordSkippedPublish(
+    return recordSkippedUpload(
       asset._id,
       'Short script automation is disabled; enable SHORT_SCRIPT_AUTOMATION_ENABLED and retry.',
     );
   }
   if (!isYouTubeUploadConfigured()) {
-    return recordSkippedPublish(asset._id, 'YouTube upload is not configured.');
+    return recordSkippedUpload(asset._id, 'YouTube upload is not configured.');
   }
 
-  return publishShortAsset({ assetId: asset._id }).catch((error) => {
+  return uploadShortAssetToYouTube({ assetId: asset._id }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
-      console.error(`[shortAsset] publish failed for ${asset._id}.`, error);
+      console.error(`[shortAsset] YouTube upload failed for ${asset._id}.`, error);
     }
     return null;
   });
+}
+
+/**
+ * 成品被退回時盡力把 YouTube 上那支影片轉 private（DR-21）。
+ *
+ * 退回的影片還在頻道上，unlisted 代表拿到連結就看得到，所以要收掉。
+ * 轉 private 需要 youtube.force-ssl scope，失敗只記 log——審核結果已經寫進資料庫，
+ * 這裡拋錯只會讓一次成立的審核看起來失敗（與 notifyScriptOfRejection 同樣的理由）。
+ */
+async function privatizeRejectedShortAsset(asset, { fetchImpl = global.fetch } = {}) {
+  if (!asset?.youtubeVideoId || !asset.filePath) return null;
+
+  try {
+    await setVideoPrivacy({
+      youtubeVideoId: asset.youtubeVideoId,
+      privacyStatus: 'private',
+      fetchImpl,
+    });
+    return ShortAsset.findByIdAndUpdate(
+      asset._id,
+      {
+        $set: {
+          youtubePrivacyStatus: 'private',
+          youtubeAvailability: YOUTUBE_AVAILABILITIES.UNAVAILABLE,
+          lastCheckedAt: new Date(),
+        },
+      },
+      { new: true },
+    );
+  } catch (error) {
+    console.error('[shortAsset] failed to privatize rejected short asset', {
+      assetId: String(asset._id),
+      youtubeVideoId: asset.youtubeVideoId,
+      message: error.message,
+    });
+    return null;
+  }
 }
 
 /**
@@ -282,7 +375,7 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch }
     );
   }
 
-  return publishShortAsset({ assetId, fetchImpl });
+  return uploadShortAssetToYouTube({ assetId, fetchImpl });
 }
 
 function toTeacherAsset(asset) {
@@ -403,13 +496,17 @@ async function createAssetFromScript({
       confirmedAt: new Date(),
     };
 
-    // 同一份腳本已有「還沒上架」的資產（通常是被退回的那支）→ 換代，不另建。
+    // 同一份腳本已有「還沒進學生牆」的資產（通常是被退回的那支）→ 換代，不另建。
     // 2026-09-09 決議走組員的 generationVersion 模型：同一支影片的多次重拍是同一個資產的
     // 不同代，審核歷史留在同一筆上。另建新資產會讓退回的那支永遠停在 draft 佔著列表。
-    // 已上架的不換代——那支影片已經在 YouTube 上，重拍是另一支影片。
+    // 已進學生牆的不換代——那支影片學生已經看得到，重拍是另一支影片。
+    //
+    // 判準是 status 而不是 youtubeVideoId：DR-21 之後影片在教師上傳當下就傳上 YouTube，
+    // 被退回的資產同樣有 youtubeVideoId，用它判斷會讓每次重拍都另建資產。
     const existingAssets = await ShortAsset.find({ sourceScriptId: script._id }).lean();
     const pending = existingAssets.find(
-      (asset) => !asset.youtubeVideoId && asset.status !== SHORT_ASSET_STATUSES.ARCHIVED,
+      (asset) => asset.status !== SHORT_ASSET_STATUSES.PUBLISHED
+        && asset.status !== SHORT_ASSET_STATUSES.ARCHIVED,
     );
     if (pending) {
       const regenerated = await recordShortAssetRegeneration(pending._id, {
@@ -431,10 +528,18 @@ async function createAssetFromScript({
       if (pending.filePath && pending.filePath !== file.path) {
         cleanupUploadedFile({ path: resolveLocalUploadPath(pending.filePath) });
       }
-      return { ...regenerated, youtubeUpload: { status: null, error: null, attemptCount: 0, retrySafe: false } };
+      const nextGeneration = {
+        ...regenerated,
+        youtubeUpload: {
+          status: null, error: null, attemptCount: 0, retrySafe: false,
+        },
+      };
+      // 上一代的 YouTube 影片留在頻道上（退回時已轉 private），新一代要傳一支新的。
+      scheduleUploadOnCreate({ ...nextGeneration, youtubeVideoId: null, filePath: file.path });
+      return nextGeneration;
     }
 
-    return await ShortAsset.create({
+    const created = await ShortAsset.create({
       courseId: script.courseId,
       sourceScriptId: script._id,
       sourceVersionNo: targetVersion.versionNo,
@@ -446,6 +551,11 @@ async function createAssetFromScript({
       generationVersion: 1,
       disclosure,
     });
+
+    // 教師要先看得到影片才審得動，所以上傳當下就把它送上 YouTube（unlisted）。
+    // 不 await：整支影片傳完要時間，同步做會讓上傳請求逾時。
+    scheduleUploadOnCreate(created);
+    return created;
   } catch (error) {
     // 驗證失敗時 multer 已把檔案寫到磁碟，不清掉會累積孤兒檔案。
     cleanupUploadedFile(file);
@@ -456,8 +566,10 @@ async function createAssetFromScript({
 module.exports = {
   createAssetFromScript,
   listCourseShortAssets,
-  publishShortAsset,
+  privatizeRejectedShortAsset,
+  publishApprovedShortAsset,
   retryShortAssetUpload,
-  schedulePublishOnApproval,
+  scheduleUploadOnCreate,
+  uploadShortAssetToYouTube,
   toTeacherAsset,
 };

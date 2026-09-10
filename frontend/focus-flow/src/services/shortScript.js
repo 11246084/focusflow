@@ -71,13 +71,23 @@ export async function reviewScript(scriptId, { decision, feedback, feedbackType 
 // ── 成品（ShortAsset）─────────────────────────────────────────────
 // 教師上傳只建立 draft，實際上架由成品審核通過觸發（規格書 R-08）。
 
+// YouTube 上傳狀態。DR-21 之後上傳發生在教師上傳成品的當下，不是審核通過之後，
+// 所以這裡講的是「傳上 YouTube」而不是「上架」。
 export const ASSET_UPLOAD_LABELS = {
-  uploading: '上架中',
-  uploaded: '已上架 YouTube',
-  failed: '上架失敗',
+  uploading: '傳送中',
+  uploaded: '已傳上 YouTube',
+  failed: '傳送失敗',
 };
 
-// 短影片一律以 unlisted 上架（後端寫死，不吃 YOUTUBE_UPLOAD_PRIVACY）。
+// 資產本身的生命週期。學生看不看得到只由這個決定（published 才進學生牆）。
+export const ASSET_STATUS_LABELS = {
+  draft: '尚未對學生公開',
+  ready: '尚未對學生公開',
+  published: '學生可見',
+  archived: '已封存',
+};
+
+// 短影片一律以 unlisted 傳上 YouTube（後端寫死，不吃 YOUTUBE_UPLOAD_PRIVACY）。
 // 其餘值只會出現在人工去 YouTube Studio 改過的舊資料上。
 export const ASSET_PRIVACY_LABELS = {
   unlisted: '非公開',

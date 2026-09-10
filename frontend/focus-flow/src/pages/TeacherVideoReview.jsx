@@ -328,13 +328,13 @@ export default function TeacherVideoReview() {
               <label className="ff-label">CONFIRM · v{selectedAsset.generationVersion}</label>
               {pendingAction === 'approved' ? (
                 <>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginTop: 8, marginBottom: 6 }}>即將審核通過並上架 YouTube</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginTop: 8, marginBottom: 6 }}>即將審核通過並對學生公開</div>
                   {/* 審核通過就是上架閘門（規格書 R-08 / DR-13）：後端會在通過後自動把影片傳到
                       YouTube。這是對外且不可逆的動作，確認前必須講清楚。 */}
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
-                    通過後系統會自動把「{selectedAsset.title}」上傳到 YouTube，這是對外且不可逆的動作。
-                    上傳一律是「非公開」：有連結才看得到，不會出現在搜尋結果或頻道頁。
-                    上傳在背景進行，結果與失敗原因會顯示在腳本頁的「成品上傳」分頁。
+                    通過後「{selectedAsset.title}」會出現在修課學生的短影片牆。影片本身在教師上傳時
+                    就已經以「非公開」傳上 YouTube，通過不會再上傳一次，也不會改變它的隱私設定。
+                    退回則不會對學生公開，系統會把那支影片轉回「私人」。
                   </div>
                 </>
               ) : (
@@ -364,7 +364,7 @@ export default function TeacherVideoReview() {
               </div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 6 }}>伺服器已保存審核結果</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 20 }}>
-                {finalStatus === 'approved' ? '本短影片已審核通過，系統正在背景上傳到 YouTube。上架結果請到腳本頁的「成品上傳」分頁確認。' : '本短影片已標示為不通過，結構化理由已讀回。'}
+                {finalStatus === 'approved' ? '本短影片已審核通過，修課學生現在看得到了。' : '本短影片已標示為不通過，結構化理由已讀回，系統會把 YouTube 上那支轉回私人。'}
               </div>
               <button className="btn-primary" onClick={loadQueue}>審核下一支短影片</button>
             </div>

@@ -79,6 +79,14 @@ function stubYouTubeUpload({ failAt = null } = {}) {
       if (failAt === 'bytes') return jsonResponse({ error: 'boom' }, { status: 500 });
       return jsonResponse({ id: 'yt-short-1' });
     }
+    // 退回時轉 private 會先讀 status 再 PUT 回去。
+    if (target.includes('/youtube/v3/videos')) {
+      if (failAt === 'privatize') return jsonResponse({ error: 'boom' }, { status: 403 });
+      if (String(options.method || 'GET').toUpperCase() === 'PUT') {
+        return jsonResponse({ id: 'yt-short-1', status: { privacyStatus: 'private' } });
+      }
+      return jsonResponse({ items: [{ id: 'yt-short-1', status: { privacyStatus: 'unlisted' } }] });
+    }
 
     return originalFetch(url, options);
   };
@@ -170,6 +178,8 @@ describe('短影片上架（WO-08）', () => {
     resetStore();
     enableFeature();
     enableYouTube();
+    // DR-21 之後每次上傳都會排程 YouTube 上傳，預設攔住，需要特定失敗的測試再自行覆蓋。
+    stubYouTubeUpload();
   });
 
   afterEach(() => {
@@ -224,11 +234,12 @@ describe('短影片上架（WO-08）', () => {
       assert.equal(previous.sourceVersionNo, 2);
       assert.equal(previous.reviewHistory.length, 1);
       // 上一代的失敗紀錄不能留到新的一代，否則重試判斷會看到舊的失敗。
-      assert.equal(previous.youtubeUpload.status, null);
-      assert.equal(previous.youtubeUpload.attemptCount, 0);
+      await waitFor(() => previous.youtubeUpload.status === 'uploaded');
+      assert.equal(previous.youtubeUpload.attemptCount, 1);
+      assert.equal(previous.youtubeUpload.error, null);
     });
 
-    it('同一份腳本已上架的資產不換代，另建新資產', async () => {
+    it('同一份腳本已進學生牆的資產不換代，另建新資產', async () => {
       const script = addScript();
       addAsset({
         sourceScriptId: script._id,
@@ -248,10 +259,9 @@ describe('短影片上架（WO-08）', () => {
       assert.equal(store.shortAssets.length, 2);
     });
 
-    it('上傳本身不觸發上架，也不產生 youtubeVideoId', async () => {
+    it('上傳當下就把影片以 unlisted 傳上 YouTube 供教師預覽（DR-21）', async () => {
       const script = addScript();
       const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
-      stubYouTubeUpload();
 
       const response = await jsonRequest(baseUrl, `/api/v1/short-scripts/${script._id}/asset`, {
         method: 'POST',
@@ -259,8 +269,26 @@ describe('短影片上架（WO-08）', () => {
         body: buildAssetForm(),
       });
 
-      assert.equal(response.body.data.youtubeVideoId, null);
+      assert.equal(response.status, 201);
+      // 上傳是背景進行的，回應當下還沒有 youtubeVideoId。
+      await waitFor(() => store.shortAssets[0].youtubeVideoId === 'yt-short-1');
+      assert.equal(store.shortAssets[0].youtubePrivacyStatus, 'unlisted');
+    });
+
+    it('上傳完成也不進學生牆，要等審核通過（DR-21）', async () => {
+      const script = addScript();
+      const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+      await jsonRequest(baseUrl, `/api/v1/short-scripts/${script._id}/asset`, {
+        method: 'POST',
+        token,
+        body: buildAssetForm(),
+      });
+      await waitFor(() => store.shortAssets[0].youtubeVideoId === 'yt-short-1');
+
+      // 學生牆撈的是 status=published + publishedAt，兩者都必須維持空的。
       assert.equal(store.shortAssets[0].status, 'draft');
+      assert.ok(!store.shortAssets[0].publishedAt);
     });
 
     it('未確認 AI 揭露與書面同意時回 SHORT_ASSET_DISCLOSURE_REQUIRED', async () => {
@@ -517,31 +545,56 @@ describe('短影片上架（WO-08）', () => {
     });
   });
 
-  describe('上架閘門（規格書 R-08）', () => {
-    it('未通過成品審核不得上架', async () => {
+  describe('上架閘門（規格書 R-08 / DR-21）', () => {
+    it('未通過成品審核時影片可以上傳，但不得進學生牆', async () => {
       const asset = addAsset({ filePath: writeTempVideo() });
 
+      const uploaded = await publishService.uploadShortAssetToYouTube({ assetId: asset._id });
+
+      assert.equal(uploaded.youtubeVideoId, 'yt-short-1');
+      assert.equal(uploaded.status, 'draft');
+      assert.ok(!uploaded.publishedAt);
       await assert.rejects(
-        () => publishService.publishShortAsset({ assetId: asset._id }),
+        () => publishService.publishApprovedShortAsset(asset),
         (error) => error.statusCode === 409 && error.code === 'SHORT_ASSET_NOT_APPROVED',
       );
     });
 
-    it('審核的不是當前 generationVersion 時不得上架', async () => {
+    it('審核的不是當前 generationVersion 時不得進學生牆', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
+        youtubeVideoId: 'yt-short-1',
         reviewStatus: 'approved',
         generationVersion: 2,
         reviewedGenerationVersion: 1,
       });
 
       await assert.rejects(
-        () => publishService.publishShortAsset({ assetId: asset._id }),
+        () => publishService.publishApprovedShortAsset(asset),
         (error) => error.code === 'SHORT_ASSET_NOT_APPROVED',
       );
     });
 
-    it('未確認 AI 揭露與同意時不得上架', async () => {
+    it('影片還沒傳完時審核通過不進學生牆，等上傳成功再補上', async () => {
+      const script = addScript();
+      const asset = addAsset({
+        filePath: writeTempVideo(),
+        sourceScriptId: script._id,
+        reviewStatus: 'approved',
+        reviewedGenerationVersion: 1,
+      });
+
+      // 上傳還沒完成（沒有 youtubeVideoId）→ 這一步什麼都不做，資產維持 draft。
+      assert.equal(await publishService.publishApprovedShortAsset(asset), null);
+      assert.equal(asset.status, 'draft');
+
+      const uploaded = await publishService.uploadShortAssetToYouTube({ assetId: asset._id });
+
+      assert.equal(uploaded.status, 'published');
+      assert.ok(uploaded.publishedAt);
+    });
+
+    it('未確認 AI 揭露與同意時不得上傳', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
         reviewStatus: 'approved',
@@ -550,12 +603,12 @@ describe('短影片上架（WO-08）', () => {
       });
 
       await assert.rejects(
-        () => publishService.publishShortAsset({ assetId: asset._id }),
+        () => publishService.uploadShortAssetToYouTube({ assetId: asset._id }),
         (error) => error.statusCode === 400 && error.code === 'SHORT_ASSET_DISCLOSURE_REQUIRED',
       );
     });
 
-    it('YOUTUBE_UPLOAD_ENABLED=false 時 fail-fast，不得靜默略過', async () => {
+    it('YOUTUBE_UPLOAD_ENABLED=false 時上傳 fail-fast，不得靜默略過', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
         reviewStatus: 'approved',
@@ -564,7 +617,7 @@ describe('短影片上架（WO-08）', () => {
       disableYouTube();
 
       await assert.rejects(
-        () => publishService.publishShortAsset({ assetId: asset._id }),
+        () => publishService.uploadShortAssetToYouTube({ assetId: asset._id }),
         (error) => error.statusCode === 503 && error.code === 'YOUTUBE_UPLOAD_NOT_CONFIGURED',
       );
       assert.equal(asset.status, 'draft');
@@ -578,7 +631,7 @@ describe('短影片上架（WO-08）', () => {
       });
 
       await assert.rejects(
-        () => publishService.publishShortAsset({ assetId: asset._id }),
+        () => publishService.uploadShortAssetToYouTube({ assetId: asset._id }),
         (error) => error.code === 'SHORT_ASSET_SOURCE_FILE_MISSING',
       );
       assert.equal(asset.status, 'draft');
@@ -594,7 +647,7 @@ describe('短影片上架（WO-08）', () => {
       });
       stubYouTubeUpload({ failAt: 'bytes' });
 
-      await assert.rejects(() => publishService.publishShortAsset({ assetId: asset._id }));
+      await assert.rejects(() => publishService.uploadShortAssetToYouTube({ assetId: asset._id }));
 
       assert.equal(asset.status, 'draft');
       assert.equal(asset.youtubeVideoId, undefined);
@@ -603,7 +656,7 @@ describe('短影片上架（WO-08）', () => {
       assert.ok(asset.youtubeUpload.error);
     });
 
-    it('通過審核後上架成功會寫回 YouTube 資訊', async () => {
+    it('上傳成功會寫回 YouTube 資訊，審核已通過時一併進學生牆', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
         reviewStatus: 'approved',
@@ -611,7 +664,7 @@ describe('短影片上架（WO-08）', () => {
       });
       stubYouTubeUpload();
 
-      const published = await publishService.publishShortAsset({ assetId: asset._id });
+      const published = await publishService.uploadShortAssetToYouTube({ assetId: asset._id });
 
       assert.equal(published.status, 'published');
       assert.equal(published.youtubeVideoId, 'yt-short-1');
@@ -619,7 +672,7 @@ describe('短影片上架（WO-08）', () => {
       assert.equal(published.youtubeUpload.status, 'uploaded');
     });
 
-    it('一律以 unlisted 上架，不吃 YOUTUBE_UPLOAD_PRIVACY 的設定', async () => {
+    it('一律以 unlisted 上傳，不吃 YOUTUBE_UPLOAD_PRIVACY 的設定', async () => {
       // public 會讓非修課者搜尋得到，private 又無法 iframe 嵌入。這個值不是部署可調的設定，
       // 所以就算某台機器的 .env 設成 public，短影片仍必須是 unlisted。
       const asset = addAsset({
@@ -640,7 +693,7 @@ describe('短影片上架（WO-08）', () => {
       };
 
       try {
-        const published = await publishService.publishShortAsset({ assetId: asset._id });
+        const published = await publishService.uploadShortAssetToYouTube({ assetId: asset._id });
         assert.equal(sentMetadata.status.privacyStatus, 'unlisted');
         assert.equal(published.youtubePrivacyStatus, 'unlisted');
       } finally {
@@ -648,7 +701,7 @@ describe('短影片上架（WO-08）', () => {
       }
     });
 
-    it('上架成功後來源腳本標成 approved（已上架）', async () => {
+    it('進學生牆後來源腳本標成 approved（已上架）', async () => {
       const script = addScript();
       script.status = 'generated';
       const asset = addAsset({
@@ -660,52 +713,48 @@ describe('短影片上架（WO-08）', () => {
       });
       stubYouTubeUpload();
 
-      await publishService.publishShortAsset({ assetId: asset._id });
+      await publishService.uploadShortAssetToYouTube({ assetId: asset._id });
 
       assert.equal(script.status, 'approved');
     });
   });
 
-  describe('成品審核通過會觸發上架', () => {
-    it('feature flag 關閉時不上架，但要留下可重試的失敗紀錄', async () => {
+  describe('上傳後排程 YouTube 上傳（DR-21）', () => {
+    it('feature flag 關閉時不上傳，但要留下可重試的失敗紀錄', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
-        reviewStatus: 'approved',
-        reviewedGenerationVersion: 1,
       });
       env.shortScriptAutomationEnabled = false;
 
-      await publishService.schedulePublishOnApproval(asset);
+      await publishService.scheduleUploadOnCreate(asset);
 
-      // 沒有這筆紀錄，資產會停在「審核通過、上傳狀態空白」，重試路徑找不到失敗紀錄而拒絕。
+      // 沒有這筆紀錄，資產會停在「已上傳、YouTube 狀態空白」，重試路徑找不到失敗紀錄而拒絕。
       assert.equal(asset.status, 'draft');
       assert.equal(asset.youtubeUpload.status, 'failed');
       assert.equal(asset.youtubeUpload.retrySafe, true);
       assert.match(asset.youtubeUpload.error, /SHORT_SCRIPT_AUTOMATION_ENABLED/);
     });
 
-    it('YouTube 未設定時不上架，但要留下可重試的失敗紀錄', async () => {
+    it('YouTube 未設定時不上傳，但要留下可重試的失敗紀錄', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
-        reviewStatus: 'approved',
-        reviewedGenerationVersion: 1,
       });
       disableYouTube();
 
-      await publishService.schedulePublishOnApproval(asset);
+      await publishService.scheduleUploadOnCreate(asset);
 
       assert.equal(asset.youtubeUpload.status, 'failed');
       assert.equal(asset.youtubeUpload.retrySafe, true);
     });
 
-    it('設定好 YouTube 之後，被略過的資產可以重試上架', async () => {
+    it('設定好 YouTube 之後，被略過的資產可以重試上傳', async () => {
       const asset = addAsset({
         filePath: writeTempVideo(),
         reviewStatus: 'approved',
         reviewedGenerationVersion: 1,
       });
       disableYouTube();
-      await publishService.schedulePublishOnApproval(asset);
+      await publishService.scheduleUploadOnCreate(asset);
       enableYouTube();
       stubYouTubeUpload();
 
@@ -715,15 +764,22 @@ describe('短影片上架（WO-08）', () => {
     });
 
     it('不是本功能上傳的資產（沒有 filePath）不寫任何上傳紀錄', async () => {
-      const asset = addAsset({ filePath: null, reviewStatus: 'approved', reviewedGenerationVersion: 1 });
+      const asset = addAsset({ filePath: null });
 
-      assert.equal(publishService.schedulePublishOnApproval(asset), null);
+      assert.equal(publishService.scheduleUploadOnCreate(asset), null);
       assert.equal(asset.youtubeUpload.status, null);
     });
+  });
 
-    it('審核通過後排程上架，成品變成 published', async () => {
-      const asset = addAsset({ filePath: writeTempVideo() });
-      stubYouTubeUpload();
+  describe('成品審核決定學生看不看得到（DR-21）', () => {
+    it('審核通過後成品進學生牆', async () => {
+      const asset = addAsset({
+        filePath: writeTempVideo(),
+        youtubeVideoId: 'yt-short-1',
+        youtubeUpload: {
+          status: 'uploaded', error: null, attemptCount: 1, retrySafe: false,
+        },
+      });
 
       await shortAssetService.reviewShortAsset({
         assetId: asset._id,
@@ -731,16 +787,21 @@ describe('短影片上架（WO-08）', () => {
         status: 'approved',
         expectedGenerationVersion: 1,
       });
-      // 上架刻意不擋審核回應（同步做會讓審核請求逾時），所以這裡輪詢等它跑完。
       await waitFor(() => asset.status === 'published');
 
       assert.equal(asset.status, 'published');
-      assert.equal(asset.youtubeVideoId, 'yt-short-1');
+      assert.ok(asset.publishedAt);
     });
 
-    it('審核退回時不上架', async () => {
-      const asset = addAsset({ filePath: writeTempVideo() });
-      stubYouTubeUpload();
+    it('審核退回時不進學生牆，並把 YouTube 上那支轉 private', async () => {
+      const asset = addAsset({
+        filePath: writeTempVideo(),
+        youtubeVideoId: 'yt-short-1',
+        youtubePrivacyStatus: 'unlisted',
+        youtubeUpload: {
+          status: 'uploaded', error: null, attemptCount: 1, retrySafe: false,
+        },
+      });
 
       await shortAssetService.reviewShortAsset({
         assetId: asset._id,
@@ -751,7 +812,32 @@ describe('短影片上架（WO-08）', () => {
       });
 
       assert.equal(asset.status, 'draft');
-      assert.equal(asset.youtubeVideoId, undefined);
+      assert.ok(!asset.publishedAt);
+      assert.equal(asset.youtubePrivacyStatus, 'private');
+    });
+
+    it('轉 private 失敗不影響審核結果（fail soft）', async () => {
+      const asset = addAsset({
+        filePath: writeTempVideo(),
+        youtubeVideoId: 'yt-short-1',
+        youtubePrivacyStatus: 'unlisted',
+        youtubeUpload: {
+          status: 'uploaded', error: null, attemptCount: 1, retrySafe: false,
+        },
+      });
+      stubYouTubeUpload({ failAt: 'privatize' });
+
+      const reviewed = await shortAssetService.reviewShortAsset({
+        assetId: asset._id,
+        user: TEACHER,
+        status: 'rejected',
+        expectedGenerationVersion: 1,
+        reasons: [{ code: 'audioIssue', note: '聲音破音' }],
+      });
+
+      assert.equal(reviewed.reviewStatus, 'rejected');
+      // 影片仍留在 unlisted，需要人工到 Studio 收尾，但審核本身成立。
+      assert.equal(asset.youtubePrivacyStatus, 'unlisted');
     });
   });
 });

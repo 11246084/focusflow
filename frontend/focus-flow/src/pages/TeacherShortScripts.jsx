@@ -3,6 +3,7 @@ import { Ic } from '../components/Icons';
 import {
   ASSET_PRIVACY_LABELS,
   ASSET_REVIEW_LABELS,
+  ASSET_STATUS_LABELS,
   ASSET_UPLOAD_LABELS,
   FEEDBACK_TYPES,
   STATUS_LABELS,
@@ -900,11 +901,12 @@ export default function TeacherShortScripts() {
                         上傳成品 · 依第 {version.versionNo} 版腳本拍出來的影片
                       </div>
                       <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
-                        上傳只會建立待審成品，不會直接對外發布。要到「短影片審核」頁審核通過，
-                        系統才會自動上架到 YouTube；退回時理由會寫回第 {version.versionNo} 版腳本。
+                        上傳後系統會立刻把影片以 YouTube 的「非公開」傳上去，讓你在「短影片審核」頁
+                        看得到影片再審。非公開＝有連結才看得到，不會出現在搜尋結果或頻道頁。
                       </div>
                       <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
-                        上架一律是 YouTube 的「非公開」：有連結才看得到，不會出現在搜尋結果或頻道頁。
+                        <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>學生要等審核通過才看得到</span>：通過後影片才進學生的短影片牆；退回時系統會把那支
+                        影片轉回「私人」，理由寫回第 {version.versionNo} 版腳本。
                       </div>
 
                       <div
@@ -1042,6 +1044,9 @@ export default function TeacherShortScripts() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{asset.title}</span>
                             <AssetPill reviewStatus={asset.reviewStatus} />
+                            <span style={{ ...MUTED, fontSize: 11.5 }}>
+                              {ASSET_STATUS_LABELS[asset.status] || asset.status}
+                            </span>
                           </div>
                           <div style={{ ...MUTED, marginTop: 3 }}>
                             第 {asset.generationVersion} 代成品 · 依第 {asset.sourceVersionNo ?? '?'} 版腳本

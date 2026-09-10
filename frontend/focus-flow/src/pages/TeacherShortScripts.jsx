@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import {
+  ASSET_REVIEW_LABELS,
+  ASSET_UPLOAD_LABELS,
   FEEDBACK_TYPES,
   STATUS_LABELS,
   createScript,
@@ -9,12 +11,16 @@ import {
   getScript,
   isFeatureDisabledError,
   latestVersion,
+  listAssets,
   listCandidates,
   listCourses,
   listScripts,
+  retryAssetUpload,
   reviewScript,
+  uploadAsset,
 } from '../services/shortScript';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate';
+import { formatFileSize } from './teacherUploadUtils';
 
 // 版面照專案既有頁面的寫法（TeacherCourses.jsx / TeacherVideoReview.jsx）：
 // 頁面容器 padding 26、標題列用 Space Grotesk、主體是 .card 大卡片、
@@ -33,6 +39,8 @@ const MUTED = { color: 'rgba(255,255,255,0.42)', fontSize: 12 };
 const BODY = { color: 'rgba(255,255,255,0.78)', fontSize: 13, lineHeight: 1.7 };
 const DIVIDER = '1px solid rgba(255,255,255,0.05)';
 const ACCENT = '#F14F21';
+
+const RETRY_BUSY_PREFIX = 'retry:';
 
 const SMALL_BTN = { padding: '9px 16px', fontSize: 12 };
 const GHOST_BTN = {
@@ -89,6 +97,61 @@ function StatusPill({ status }) {
   );
 }
 
+// 成品的審核狀態。上架與否看 upload.status，這裡只表示教師審過沒有。
+const ASSET_REVIEW_TONE = {
+  pending: { color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.22)' },
+  approved: { color: '#4ade80', background: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.22)' },
+  rejected: { color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.24)' },
+};
+
+function AssetPill({ reviewStatus }) {
+  const tone = ASSET_REVIEW_TONE[reviewStatus] || ASSET_REVIEW_TONE.pending;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '3px 10px',
+        borderRadius: 50,
+        fontSize: 11,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        color: tone.color,
+        background: tone.background,
+        border: `1px solid ${tone.border}`,
+      }}
+    >
+      {ASSET_REVIEW_LABELS[reviewStatus] || reviewStatus}
+    </span>
+  );
+}
+
+// 兩個確認框都是必勾：規格書 R-07／附錄 K.5 要求教師明示確認 AI 揭露與書面同意，
+// 系統不代為取得也不驗真偽，只記錄確認時間。少勾任何一個後端回 SHORT_ASSET_DISCLOSURE_REQUIRED。
+function ConfirmRow({ checked, disabled, onChange, children }) {
+  return (
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 9,
+        marginTop: 9,
+        cursor: disabled ? 'default' : 'pointer',
+        ...BODY,
+        fontSize: 12.5,
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        style={{ accentColor: ACCENT, width: 14, height: 14, marginTop: 2, flexShrink: 0 }}
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+
 function SectionCard({ title, action, children, style }) {
   return (
     <div className="card" style={{ overflow: 'hidden', ...style }}>
@@ -139,6 +202,17 @@ export default function TeacherShortScripts() {
   const [regenType, setRegenType] = useState(FEEDBACK_TYPES[0].value);
   const [regenNote, setRegenNote] = useState('');
 
+  // 成品上傳。教師拍完影片回到這一頁上傳，只建立 draft 送審，不直接上架（規格書 R-08）。
+  const [assets, setAssets] = useState([]);
+  const [assetFile, setAssetFile] = useState(null);
+  const [assetTitle, setAssetTitle] = useState('');
+  const [assetDescription, setAssetDescription] = useState('');
+  const [assetDrag, setAssetDrag] = useState(false);
+  const [confirmedAi, setConfirmedAi] = useState(false);
+  const [confirmedConsent, setConfirmedConsent] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState('');
+  const assetInputRef = useRef(null);
+
   useEffect(() => {
     listCourses()
       .then((list) => {
@@ -154,12 +228,14 @@ export default function TeacherShortScripts() {
     setLoading(true);
     setError('');
     try {
-      const [scriptList, candidateResult] = await Promise.all([
+      const [scriptList, candidateResult, assetList] = await Promise.all([
         listScripts(courseId),
         listCandidates(courseId),
+        listAssets(courseId),
       ]);
       setScripts(scriptList);
       setCandidates(candidateResult.candidates);
+      setAssets(assetList);
       setFeatureDisabled(false);
     } catch (requestError) {
       // 功能未啟用與一般錯誤要分開告知，否則教師只會看到「找不到」而不知原因。
@@ -184,6 +260,13 @@ export default function TeacherShortScripts() {
   const markdown = useMemo(
     () => (selected && version ? renderScriptMarkdown(selected, version, metaphorIndex) : ''),
     [selected, version, metaphorIndex],
+  );
+
+  // 只列這份腳本產出的成品。同一份腳本重拍是同一筆資產的不同代（generationVersion），
+  // 不會各自成列，所以這裡通常只有一筆。
+  const scriptAssets = useMemo(
+    () => (selected ? assets.filter((asset) => asset.sourceScriptId === selected._id) : []),
+    [assets, selected],
   );
 
   async function runAction(label, action) {
@@ -213,10 +296,78 @@ export default function TeacherShortScripts() {
     setMetaphorIndex(0);
     setRegenOpen(false);
     setRegenNote('');
+    resetUploadForm();
     try {
-      setSelected(await getScript(scriptId));
+      const script = await getScript(scriptId);
+      setSelected(script);
+      // 標題預填主題，教師想改再改；留空時後端也會退回用主題。
+      setAssetTitle(script.topic || '');
     } catch (requestError) {
       setError(describeError(requestError));
+    }
+  }
+
+  function resetUploadForm() {
+    setAssetFile(null);
+    setAssetDescription('');
+    setConfirmedAi(false);
+    setConfirmedConsent(false);
+    setUploadNotice('');
+    if (assetInputRef.current) assetInputRef.current.value = '';
+  }
+
+  function pickAssetFile(files) {
+    const file = files?.[0];
+    if (!file) return;
+    setAssetFile(file);
+    setUploadNotice('');
+    setError('');
+    // 同一個檔案連續選兩次時 change 事件不會再觸發，選完就清掉 input 的值。
+    if (assetInputRef.current) assetInputRef.current.value = '';
+  }
+
+  async function handleUploadAsset() {
+    if (!assetFile) {
+      setError('請先選擇成品影片檔。');
+      return;
+    }
+    if (!confirmedAi || !confirmedConsent) {
+      setError('請先確認 AI 揭露標示與教師書面同意，兩項都確認才能上傳。');
+      return;
+    }
+
+    setBusy('upload');
+    setError('');
+    setUploadNotice('');
+    try {
+      await uploadAsset(selected._id, {
+        file: assetFile,
+        title: assetTitle.trim() || selected.topic,
+        description: assetDescription.trim(),
+        versionNo: version.versionNo,
+      });
+      resetUploadForm();
+      setUploadNotice('已送審。要到「短影片審核」頁審核通過，系統才會自動上架 YouTube。');
+      // 上傳可能把同一份腳本既有的待上架成品換代，腳本本身的狀態也可能改變，兩邊都重讀。
+      setSelected(await getScript(selected._id));
+      await refresh();
+    } catch (requestError) {
+      setError(describeError(requestError));
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function handleRetryUpload(assetId) {
+    setBusy(RETRY_BUSY_PREFIX + assetId);
+    setError('');
+    try {
+      await retryAssetUpload(assetId);
+      await refresh();
+    } catch (requestError) {
+      setError(describeError(requestError));
+    } finally {
+      setBusy('');
     }
   }
 
@@ -682,7 +833,7 @@ export default function TeacherShortScripts() {
                     )}
                   </div>
 
-                  <div style={{ padding: '16px 20px' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
                     <div style={{ ...SECTION_LABEL, marginBottom: 8 }}>完整腳本 · 可直接複製貼進製作流程</div>
                     <textarea
                       className="ff-input"
@@ -699,6 +850,197 @@ export default function TeacherShortScripts() {
                       onFocus={(event) => event.target.select()}
                     />
                   </div>
+
+                  {selected.status !== 'dismissed' && (
+                    <div style={{ padding: '16px 20px', borderBottom: scriptAssets.length ? DIVIDER : 'none' }}>
+                      <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>
+                        上傳成品 · 依第 {version.versionNo} 版腳本拍出來的影片
+                      </div>
+                      <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
+                        上傳只會建立待審成品，不會直接對外發布。要到「短影片審核」頁審核通過，
+                        系統才會自動上架到 YouTube；退回時理由會寫回第 {version.versionNo} 版腳本。
+                      </div>
+
+                      <div
+                        className="upload-z"
+                        style={{ height: 132, padding: 14, opacity: busy === 'upload' ? 0.6 : 1 }}
+                        onDragOver={(event) => { event.preventDefault(); setAssetDrag(true); }}
+                        onDragLeave={() => setAssetDrag(false)}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          setAssetDrag(false);
+                          if (busy !== 'upload') pickAssetFile(event.dataTransfer.files);
+                        }}
+                        onClick={() => { if (busy !== 'upload') assetInputRef.current?.click(); }}
+                      >
+                        <input
+                          ref={assetInputRef}
+                          type="file"
+                          accept=".mp4,.mov,.mkv,video/mp4,video/quicktime,video/x-matroska"
+                          style={{ display: 'none' }}
+                          onChange={(event) => pickAssetFile(event.target.files)}
+                        />
+                        {assetFile ? (
+                          <>
+                            <div style={{ color: ACCENT }}><Ic n="film" s={24} /></div>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: '#fff',
+                                maxWidth: '90%',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {assetFile.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>
+                              {formatFileSize(assetFile.size)} · 點擊可換一支
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ color: ACCENT }}><Ic n="up" s={26} /></div>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: assetDrag ? '#fff' : 'rgba(255,255,255,0.7)' }}>
+                              拖曳成品影片至此
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                              或點擊選擇檔案 · MP4、MOV、MKV，單支最大 500 MB
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: 12 }}>
+                        <label className="ff-label">YOUTUBE 標題</label>
+                        <input
+                          className="ff-input"
+                          value={assetTitle}
+                          placeholder={selected.topic}
+                          disabled={busy === 'upload'}
+                          style={{ fontSize: 13, padding: '10px 14px' }}
+                          onChange={(event) => setAssetTitle(event.target.value)}
+                        />
+                      </div>
+                      <div style={{ marginTop: 10 }}>
+                        <label className="ff-label">YOUTUBE 說明（選填）</label>
+                        <textarea
+                          className="ff-input"
+                          rows={2}
+                          value={assetDescription}
+                          placeholder="影片說明，會一併帶到 YouTube"
+                          disabled={busy === 'upload'}
+                          style={{ fontSize: 13, padding: '10px 14px', resize: 'vertical' }}
+                          onChange={(event) => setAssetDescription(event.target.value)}
+                        />
+                      </div>
+
+                      <div
+                        className="card-sm"
+                        style={{ padding: '12px 16px', marginTop: 12, background: 'rgba(255,255,255,0.03)' }}
+                      >
+                        <div style={SECTION_LABEL}>上傳前必須確認</div>
+                        <ConfirmRow checked={confirmedAi} disabled={busy === 'upload'} onChange={setConfirmedAi}>
+                          影片全片都有常駐的 AI 生成揭露標示。
+                        </ConfirmRow>
+                        <ConfirmRow checked={confirmedConsent} disabled={busy === 'upload'} onChange={setConfirmedConsent}>
+                          使用教師數位分身已取得該教師的書面同意。
+                        </ConfirmRow>
+                        <div style={{ ...MUTED, marginTop: 8, lineHeight: 1.7 }}>
+                          系統只記錄你的確認與時間，不會代為檢查或取得同意書。
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={SMALL_BTN}
+                          disabled={Boolean(busy) || !assetFile || !confirmedAi || !confirmedConsent}
+                          onClick={handleUploadAsset}
+                        >
+                          <Ic n="up" s={13} />
+                          {busy === 'upload' ? '上傳中…' : '上傳成品並送審'}
+                        </button>
+                        {assetFile && busy !== 'upload' && (
+                          <button type="button" className="btn-primary" style={GHOST_BTN} onClick={resetUploadForm}>
+                            清除
+                          </button>
+                        )}
+                      </div>
+
+                      {uploadNotice && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            fontSize: 12.5,
+                            color: '#86efac',
+                            padding: '10px 14px',
+                            background: 'rgba(74,222,128,0.08)',
+                            border: '1px solid rgba(74,222,128,0.2)',
+                            borderRadius: 12,
+                          }}
+                        >
+                          {uploadNotice}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {scriptAssets.length > 0 && (
+                    <div style={{ padding: '16px 20px' }}>
+                      <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>這份腳本的成品</div>
+                      {scriptAssets.map((asset) => (
+                        <div key={asset.id} style={{ marginTop: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{asset.title}</span>
+                            <AssetPill reviewStatus={asset.reviewStatus} />
+                          </div>
+                          <div style={{ ...MUTED, marginTop: 3 }}>
+                            第 {asset.generationVersion} 代成品 · 依第 {asset.sourceVersionNo ?? '?'} 版腳本
+                            {asset.upload.status
+                              ? ` · ${ASSET_UPLOAD_LABELS[asset.upload.status] || asset.upload.status}`
+                              : ' · 尚未上架'}
+                          </div>
+                          {asset.youtubeUrl && (
+                            <a
+                              href={asset.youtubeUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: 12, color: ACCENT, textDecoration: 'none' }}
+                            >
+                              在 YouTube 開啟 ↗
+                            </a>
+                          )}
+                          {asset.upload.status === 'failed' && (
+                            <div style={{ marginTop: 6 }}>
+                              <div style={{ fontSize: 12, color: '#ff8b72', lineHeight: 1.7 }}>
+                                {asset.upload.error || '上架失敗。'}
+                              </div>
+                              {asset.upload.retrySafe ? (
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  style={{ ...GHOST_BTN, marginTop: 6 }}
+                                  disabled={Boolean(busy)}
+                                  onClick={() => handleRetryUpload(asset.id)}
+                                >
+                                  <Ic n="sync" s={13} />
+                                  {busy === RETRY_BUSY_PREFIX + asset.id ? '重試中…' : '重試上架'}
+                                </button>
+                              ) : (
+                                <div style={{ ...MUTED, marginTop: 4, lineHeight: 1.7 }}>
+                                  這次失敗可能已經送出影片內容，直接重試會在頻道留下重複影片。
+                                  請先到 YouTube Studio 確認後再決定。
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </>

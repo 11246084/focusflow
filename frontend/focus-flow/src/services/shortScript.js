@@ -1,4 +1,6 @@
-import { apiFetch } from '../api.js';
+import { apiFetch, getToken } from '../api.js';
+
+const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
 // 短影片腳本自動化的 API client（backend docs/2026-09_Short_Script_Automation）。
 //
@@ -62,6 +64,75 @@ export async function reviewScript(scriptId, { decision, feedback, feedbackType 
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+  return response.data;
+}
+
+// ── 成品（ShortAsset）─────────────────────────────────────────────
+// 教師上傳只建立 draft，實際上架由成品審核通過觸發（規格書 R-08）。
+
+export const ASSET_UPLOAD_LABELS = {
+  uploading: '上架中',
+  uploaded: '已上架 YouTube',
+  failed: '上架失敗',
+};
+
+export const ASSET_REVIEW_LABELS = {
+  pending: '待審核',
+  approved: '審核通過',
+  rejected: '已退回',
+};
+
+// 上傳走 multipart，不能用 apiFetch（它不處理 FormData，且會被 Content-Type 蓋掉 boundary）。
+// 錯誤物件的形狀要與 apiFetch 一致（message / code / status），呼叫端的 describeError 才吃得到。
+async function requestUpload(path, formData) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: formData,
+  });
+
+  // nginx 擋下超大檔案時回的是 HTML 不是 JSON，解析失敗只會得到空物件；
+  // 這種情況要給教師看得懂的原因，而不是 'Request failed'。
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const fallback = response.status === 413
+      ? '影片檔案超過伺服器允許的上傳大小。'
+      : 'Request failed';
+    const error = new Error(data.message || fallback);
+    error.code = data.error?.code;
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+export async function listAssets(courseId) {
+  const response = await apiFetch(`/courses/${encodeURIComponent(courseId)}/short-assets`);
+  return response.data || [];
+}
+
+// versionNo 必填：退回理由會寫回這一版腳本（DR-20），記錯版本等於把意見套到教師沒看過的腳本上。
+export async function uploadAsset(scriptId, { file, title, description, versionNo }) {
+  const formData = new FormData();
+  formData.append('video', file);
+  formData.append('title', title);
+  if (description) formData.append('description', description);
+  if (versionNo) formData.append('versionNo', String(versionNo));
+  // 兩個確認旗標由教師在 UI 明示勾選；系統不代為取得也不檢查真偽（規格書 R-07 / 附錄 K.5）。
+  formData.append('aiDisclosureConfirmed', 'true');
+  formData.append('consentConfirmed', 'true');
+
+  const response = await requestUpload(
+    `/short-scripts/${encodeURIComponent(scriptId)}/asset`,
+    formData,
+  );
+  return response.data;
+}
+
+export async function retryAssetUpload(assetId) {
+  const response = await apiFetch(`/short-assets/${encodeURIComponent(assetId)}/upload/retry`, {
+    method: 'POST',
   });
   return response.data;
 }

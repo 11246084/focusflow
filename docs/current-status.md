@@ -13,6 +13,8 @@
 
 最後更新：2026-08-14（多影片批次前端改為單一 multipart batch contract 並拒絕缺項／重複 itemId 回傳；批次單項 retry 已從僅改 `queued` 補成真正排程 worker。Pipeline batch 對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint，single adapter 僅在本機來源仍位於 `UPLOAD_DIR` 且存在時重啟。`VIDEO_BATCH_PIPELINE_ENABLED` 仍預設 false，尚未執行 live STT/Gemini 或正式部署 E2E）
 
+部署：2026-09-10（`focusflow.ntub.edu.tw` 改用 Let's Encrypt 正式憑證，瀏覽器不再顯示「不安全」。port 80 學校不開放，改以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約，詳見「部署與對外連線」）
+
 本輪：2026-08-24（首次 QA 回答品質評測基準線：AI入門基礎課 50 題、六面向 1-5 分。加權總分 4.35/5，零幻覺（7 題課程外負向題全部正確拒答、零編造），但完整性 3.62 偏低、出現 5 題假拒答。片段都已撈滿 15 筆，屬 prompt 整合問題而非檢索問題。詳見 [docs/qa-eval/2026-08-24-評測結果.md](qa-eval/2026-08-24-評測結果.md)）
 
 後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
@@ -78,7 +80,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ---
 
-## 部署與對外連線（2026-08-04 實測）
+## 部署與對外連線（2026-08-04 實測，2026-09-10 更新）
 
 正式環境：Rocky Linux 9 VM（`rocky101702`，`140.131.115.105`），程式在 `/opt/focusflow`（owner `focusflow`），backend 由該帳號的 PM2（`focusflow-backend`）執行，nginx 服務前端靜態檔並把 `/api/` 反代到 `localhost:4000`。push `main` 由 GitHub Actions self-hosted runner 觸發部署，**等同 production deploy**。
 
@@ -88,16 +90,17 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | backend / Atlas / QA / LINE | ✅ `/health` 全綠 |
 | DNS `focusflow.ntub.edu.tw` → `140.131.115.105` | ✅ 學校 NS 已建 A record，公開可解析 |
 | 校內 / 學校 VPN 連線 | ✅ 22 / 80 / 443 全通且穩定 |
-| **校外連線** | ❌ 幾乎不通：check-host.net 57 個國外節點僅 1 個 connect；一般家用網路連 22 都 timeout |
-| HTTPS 憑證 | ⚠️ 自簽（CN=`focusflow.ntub.edu.tw`、SAN 含 IP、2027-08-04 到期），瀏覽器仍警告 |
-| port 80 首頁 | ⚠️ Rocky 預設歡迎頁蓋過 `focusflow.conf`（其 `server_name _` 永不匹配且未標 `default_server`）；443 不受影響 |
+| **校外連線 443** | ✅ 2026-08-12 起全球可達（check-host.net 各洲節點皆 Connected） |
+| **校外連線 80** | ❌ 封包未抵達 VM（tcpdump 0 packets）；技士表示不會開放 |
+| HTTPS 憑證 | ✅ 2026-09-10 起為 Let's Encrypt 正式憑證（`CN=YE2`，效期至 2026-12-09），以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約；詳見 [憑證申請紀錄](../context/2026_09_10_Lets_Encrypt正式憑證申請紀錄.md) |
+| port 80 設定 | ✅ 2026-08-12 起 `focusflow.conf` 的 80 block 標 `default_server` 並 301 轉 HTTPS；但因 80 對外不通，只在 VM 內部生效 |
 
 重點：
 
 - **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 需在 VM 上手動維護。YouTube 憑證即因此只存在本機、VM 上整組缺失，直到 `/health` 的 `shortsSync.lastError` 才發現。新增環境變數後務必另外補 VM 一次，並以 `/health` 而非 `.env.example` 判斷實際狀態。
 - 外部連線問題已排除 VM 端，判定在學校邊界設備，待電算中心確認開放規則是否有來源限制。診斷用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'` 可分辨「封包沒到」與「到了被拒」；學校對進站流量做 NAT，來源會顯示為 `10.x`。
-- Let's Encrypt 正式憑證需要外部連得進 port 80 完成 HTTP-01 驗證，**在對外連線修好前無法申請**。
-- 手動維護、不在 repo 的設定：nginx server block 與自簽憑證、`/etc/nginx/conf.d/upload_size.conf`（`client_max_body_size 500M`，缺少會讓影片上傳被 413 擋下）、兩份 `.env`、`ngrok.service`。
+- 憑證由 acme.sh（`/opt/acme.sh`，root 執行）以 TLS-ALPN-01 簽發：certbot 沒有實作此驗證方式，而 HTTP-01 需要的 port 80 不開放。續約時 acme.sh 會停 nginx 約 30 秒；若學校日後收回 443 的對外開放，續約會失敗且不會主動通知，需在 2026-11-15 前確認一次是否已續約。
+- 手動維護、不在 repo 的設定：nginx server block 與憑證（`/etc/nginx/ssl/focusflow.crt/.key`，自簽的 `selfsigned.*` 保留作回滾）、acme.sh 與其 root cron、`/etc/nginx/conf.d/upload_size.conf`（`client_max_body_size 500M`，缺少會讓影片上傳被 413 擋下）、兩份 `.env`、`ngrok.service`。
 
 ---
 
@@ -203,7 +206,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 2. 經資料 owner 核准後，以 stable artifact 更新隔離 Parent／Leaf 資料與 index definition；既有 preview vectors 不可混用，本步含寫入所以需另行授權
 3. 在 shared Gate=false、FAQ=false、read-only DB credential 下執行一次隔離 Parent Atlas Search → Child expansion → Leaf Citation，保存 contract hash、index／IXSCAN、counts、timestamp 與 `writesDetected: 0`
 4. 上述證據通過後才評估 allowlisted shadow；正式 serve、付費 live query 與資料 publication 仍各需獨立核准
-5. 與電算中心確認 `140.131.115.105` 的 80/443 開放規則是否有來源限制（證據：check-host.net 57 節點僅 1 連通、校內／VPN 全通、VM 端已排除）；通了之後才能申請 Let's Encrypt 憑證並讓 LINE webhook 脫離 ngrok
+5. ~~申請 Let's Encrypt 憑證~~（✅ 2026-09-10 完成，走 443）。後續：LINE webhook 改用 `https://focusflow.ntub.edu.tw` 並停用 ngrok（需先 live 測試）；2026-11-15 前確認第一次自動續約成功
 6. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook；`ALLOWED_ORIGINS` 在 VM 上尚未設定，CORS 目前為開發期全開
 6. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
 7. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
@@ -215,7 +218,8 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 - 學生試用版 Phase 1 的 500/500 是本機回歸測試，不是附錄 I 的 12＋2 題正式證據，也不是 shared Atlas、Gemini、YouTube、LINE 或部署驗收；這些證據完成前不得宣稱學生試用已通過驗收
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
-- **不能說系統「已對外上線」**：VM、nginx、backend、DNS 都就緒且校內／VPN 連線穩定，但 2026-08-04 實測校外幾乎連不進來（57 個國外節點僅 1 個 connect），同學與一般家用網路皆 timeout。問題在學校邊界設備、待電算中心處理；在此之前對外可用的通道只有 ngrok
+- **不能說系統「已正式上線」**：2026-09-10 起校外可透過 `https://focusflow.ntub.edu.tw` 存取且憑證受信任，但 port 80 對外仍不通（明確寫 `http://` 的連結會連不上）、LINE webhook 仍走 ngrok、CORS 未收斂、學生試用驗收證據未完成
+- 不能說「自動續約已驗證成功」：cron 與續約設定已確認存在，但第一次實際續約預計在 2026-11-10 前後，尚未發生
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
 - Atlas vector retrieval：`text_embedding_index` 的 READY/queryable 結果是 2026-05-23 歷史 snapshot；本輪未連線重查，且 active Leaf contract 未確認前不可宣稱 atlas mode 可用
 - Query embedding **Backend 已切到 stable Gemini contract，但 Pipeline／Database preview vectors 尚未重建，仍需完成 cross-group compatibility evidence**

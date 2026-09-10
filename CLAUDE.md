@@ -168,8 +168,8 @@ QA_VECTOR_SEARCH_MODE=memory
 
 - **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 只能在 VM 上手動維護（`sudo -u focusflow`）。新增任何環境變數後，本機可跑不代表 VM 可跑——YouTube 憑證就曾只存在本機、VM 上整組缺失，直到 `/health` 才發現。判斷 VM 實際狀態一律看 `/health`，不要看 repo 的 `.env.example`。
 - nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。
-- HTTPS 目前是**自簽憑證**（2026-08-04 重產，CN=`focusflow.ntub.edu.tw`、SAN 含 IP、效期至 2027-08-04），瀏覽器仍會警告。Let's Encrypt 需要外部連得進 port 80，在對外連線修好前無法申請。
-- port 80 上 Rocky 預設歡迎頁仍會蓋過 `focusflow.conf`（其 `server_name _` 永不匹配且未標 `default_server`），443 不受影響。
+- HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 `context/2026_09_10_Lets_Encrypt正式憑證申請紀錄.md`。
+- port 80 對外不通（2026-08-12 tcpdump 證實封包未抵達 VM，技士表示不會開放）。`focusflow.conf` 的 80 block 已標 `default_server` 並 301 轉 HTTPS，但只在 VM 內部生效；判斷 80 是否通要用 `curl -v http://...`，瀏覽器會自動改走 HTTPS 造成假陽性。
 - `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。
 
 ## QA / Video / LINE 邊界
@@ -310,4 +310,4 @@ npm run build
 - 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
 - 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。
-- **不能說系統「已對外上線」**：`focusflow.ntub.edu.tw` 的 DNS 已在學校 NS 建好並指向 `140.131.115.105`，但 2026-08-04 實測外部幾乎連不進來（check-host.net 57 個國外節點僅 1 個連上；一般家用網路連 22 都不通）。校內／學校 VPN 則 22/80/443 全部穩定。VM 端已排除（nginx 運行、firewalld runtime 與 permanent 皆放行 http/https、`ss` 顯示 `0.0.0.0:80/443`、backend health 全綠），問題在學校邊界設備，待電算中心確認開放規則。判斷這類問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；學校對進站流量做 NAT，來源會顯示成 `10.x`。
+- **不能說系統「已正式上線」**：2026-09-10 起校外可經 `https://focusflow.ntub.edu.tw` 存取（443 全球可達、Let's Encrypt 憑證受信任），但 port 80 對外不通、LINE webhook 仍走 ngrok、CORS 未收斂、學生試用驗收證據未完成。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。

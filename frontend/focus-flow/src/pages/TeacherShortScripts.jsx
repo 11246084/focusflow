@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { consumePendingScriptOpen, OPEN_SCRIPT_EVENT } from '../utils/scriptDeepLink';
 import { Ic } from '../components/Icons';
 import {
   ASSET_PRIVACY_LABELS,
@@ -162,16 +163,17 @@ function DetailTab({ active, onClick, children }) {
       type="button"
       onClick={onClick}
       style={{
-        padding: '12px 2px',
-        marginRight: 20,
-        background: 'none',
+        flex: 1,
+        padding: '14px 8px',
+        background: active ? 'rgba(255,255,255,0.05)' : 'none',
         border: 'none',
         borderBottom: `2px solid ${active ? ACCENT : 'transparent'}`,
         marginBottom: -1,
-        fontSize: 12.5,
-        fontWeight: 600,
+        fontSize: 13.5,
+        fontWeight: 700,
+        textAlign: 'center',
         cursor: 'pointer',
-        color: active ? '#fff' : 'rgba(255,255,255,0.45)',
+        color: active ? '#fff' : 'rgba(255,255,255,0.5)',
       }}
     >
       {children}
@@ -240,14 +242,42 @@ export default function TeacherShortScripts() {
   const [uploadNotice, setUploadNotice] = useState('');
   const [detailTab, setDetailTab] = useState('script');
   const assetInputRef = useRef(null);
+  // A notification may ask this page to open one script (see utils/scriptDeepLink).
+  const [initialOpen] = useState(consumePendingScriptOpen);
+  const pendingOpenRef = useRef(initialOpen);
+  const handleOpenRef = useRef(null);
+  const courseIdRef = useRef('');
 
   useEffect(() => {
     listCourses()
       .then((list) => {
         setCourses(list);
-        if (list.length) setCourseId(list[0]._id);
+        const target = pendingOpenRef.current?.courseId;
+        if (target && list.some((course) => course._id === target)) setCourseId(target);
+        else if (list.length) setCourseId(list[0]._id);
       })
       .catch((requestError) => setError(`課程清單載入失敗：${describeError(requestError)}`));
+  }, []);
+
+  useEffect(() => {
+    courseIdRef.current = courseId;
+  }, [courseId]);
+
+  useEffect(() => {
+    function onOpenScript(event) {
+      consumePendingScriptOpen();
+      const target = event.detail || {};
+      if (!target.scriptId) return;
+      if (!target.courseId || target.courseId === courseIdRef.current) {
+        void handleOpenRef.current?.(target.scriptId);
+        return;
+      }
+      // Switch course first; the refresh effect opens the script once the list loads.
+      pendingOpenRef.current = target;
+      setCourseId(target.courseId);
+    }
+    window.addEventListener(OPEN_SCRIPT_EVENT, onOpenScript);
+    return () => window.removeEventListener(OPEN_SCRIPT_EVENT, onOpenScript);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -275,12 +305,19 @@ export default function TeacherShortScripts() {
     } finally {
       setLoading(false);
     }
+    return courseId;
   }, [courseId]);
 
   useEffect(() => {
     setSelected(null);
     setPickedTopicKey('');
-    refresh();
+    refresh().then((loadedCourseId) => {
+      const pending = pendingOpenRef.current;
+      if (pending && (!pending.courseId || pending.courseId === loadedCourseId)) {
+        pendingOpenRef.current = null;
+        void handleOpenRef.current?.(pending.scriptId);
+      }
+    });
   }, [refresh]);
 
   const version = latestVersion(selected);
@@ -335,6 +372,10 @@ export default function TeacherShortScripts() {
       setError(describeError(requestError));
     }
   }
+
+  useEffect(() => {
+    handleOpenRef.current = handleOpen;
+  });
 
   function resetUploadForm() {
     setAssetFile(null);
@@ -658,11 +699,32 @@ export default function TeacherShortScripts() {
           </SectionCard>
         </div>
 
-        <div className="card" style={{ overflow: 'hidden', minWidth: 0 }}>
+        {/* overflow: clip (not hidden) so the sticky tab bar follows the page scroll. */}
+        <div className="card" style={{ overflow: 'clip', minWidth: 0 }}>
           {!selected ? (
             <EmptyRow>從左側選一份腳本查看內容</EmptyRow>
           ) : (
             <>
+              {/* Tabs sit above the topic and stay pinned while the long script scrolls. */}
+              <div
+                style={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 5,
+                  display: 'flex',
+                  borderBottom: DIVIDER,
+                  background: 'rgba(30,14,32,0.96)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <DetailTab active={detailTab === 'script'} onClick={() => setDetailTab('script')}>
+                  腳本內容
+                </DetailTab>
+                <DetailTab active={detailTab === 'asset'} onClick={() => setDetailTab('asset')}>
+                  成品上傳{scriptAssets.length ? ` · ${scriptAssets.length}` : ''}
+                </DetailTab>
+              </div>
+
               <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ ...HEADING, fontSize: 14, lineHeight: 1.5, minWidth: 0 }}>{selected.topic}</div>
@@ -679,18 +741,11 @@ export default function TeacherShortScripts() {
                 )}
               </div>
 
-              {version && (
-                <div style={{ padding: '0 20px', borderBottom: DIVIDER }}>
-                  <DetailTab active={detailTab === 'script'} onClick={() => setDetailTab('script')}>
-                    腳本內容
-                  </DetailTab>
-                  <DetailTab active={detailTab === 'asset'} onClick={() => setDetailTab('asset')}>
-                    成品上傳{scriptAssets.length ? ` · ${scriptAssets.length}` : ''}
-                  </DetailTab>
-                </div>
+              {!version && detailTab === 'asset' && (
+                <EmptyRow>請先在「腳本內容」生成腳本，才能上傳成品。</EmptyRow>
               )}
 
-              {!version && (
+              {!version && detailTab === 'script' && (
                 <div style={{ padding: '18px 20px' }}>
                   <button
                     type="button"

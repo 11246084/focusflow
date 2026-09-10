@@ -168,6 +168,48 @@ describe('成品退回 → 腳本重生（規格書 DR-20）', () => {
     }
   });
 
+  it('退回成品會通知腳本建立者，並附上可跳轉的 scriptId', async () => {
+    const script = addScript();
+    const asset = await addAsset({ scriptId: script._id, versionNo: 2 });
+
+    await reject(asset._id, [{ code: 'visualQuality', note: '畫面太暗' }]);
+
+    const notices = store.notifications.filter((item) => item.source === 'short_asset_rejected');
+    assert.equal(notices.length, 1);
+    assert.equal(String(notices[0].recipientId), String(ids.teacher));
+    assert.equal(String(notices[0].scriptId), String(script._id));
+    assert.match(notices[0].content, /畫面品質問題（畫面太暗）/);
+
+    const { toPublicNotification } = require('../src/services/notification.service');
+    assert.equal(toPublicNotification(notices[0]).scriptId, String(script._id));
+  });
+
+  it('影片沒有連結腳本時不發退回通知', async () => {
+    const asset = await addAsset();
+
+    await reject(asset._id, [{ code: 'other', note: '重做' }]);
+
+    assert.equal(store.notifications.some((item) => item.source === 'short_asset_rejected'), false);
+  });
+
+  it('通知建立失敗不會讓已寫入的成品審核回傳錯誤', async () => {
+    const script = addScript();
+    const asset = await addAsset({ scriptId: script._id, versionNo: 2 });
+    const Notification = require('../src/models/notification.model');
+    const originalCreate = Notification.create;
+    Notification.create = async () => {
+      throw new Error('simulated notification failure');
+    };
+
+    try {
+      const reviewed = await reject(asset._id, [{ code: 'incomplete' }]);
+
+      assert.equal(reviewed.reviewStatus, 'rejected');
+    } finally {
+      Notification.create = originalCreate;
+    }
+  });
+
   it('腳本已被否決時不因成品退回而復活', async () => {
     const script = addScript({ status: 'dismissed' });
     const asset = await addAsset({ scriptId: script._id, versionNo: 2 });

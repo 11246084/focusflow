@@ -4600,6 +4600,7 @@ components:
           enum:
             - video_completed
             - system_maintenance
+            - short_asset_rejected
         title:
           type: string
           maxLength: 120
@@ -4620,6 +4621,11 @@ components:
           items:
             $ref: '#/components/schemas/ObjectId'
         videoId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        scriptId:
+          description: short_asset_rejected 通知要跳轉的短影片腳本；其他來源為 null。
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - type: 'null'

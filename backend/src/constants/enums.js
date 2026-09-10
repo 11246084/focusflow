@@ -117,6 +117,8 @@ const USAGE_LOG_EVENTS = {
 const NOTIFICATION_SOURCES = {
   VIDEO_COMPLETED: 'video_completed',
   SYSTEM_MAINTENANCE: 'system_maintenance',
+  // Sent to the script owner when a generated short is rejected; links back to the script.
+  SHORT_ASSET_REJECTED: 'short_asset_rejected',
 };
 
 const QUESTION_STATUSES = {

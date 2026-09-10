@@ -52,6 +52,12 @@ const notificationSchema = new mongoose.Schema(
       ref: 'Video',
       default: null,
     },
+    // Deep-link target for short_asset_rejected: the script to regenerate.
+    scriptId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ShortScript',
+      default: null,
+    },
     // System broadcasts intentionally omit dedupeKey. Normalize null to absence
     // so only actual string keys participate in the partial unique index.
     dedupeKey: {

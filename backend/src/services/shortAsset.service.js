@@ -430,6 +430,21 @@ async function notifyScriptOfRejection(asset, user, reasons) {
       message: error.message,
     });
   }
+
+  // Same fail-soft contract: a missing notification must not undo a persisted review.
+  try {
+    // eslint-disable-next-line global-require
+    const ShortScript = require('../models/shortScript.model');
+    // eslint-disable-next-line global-require
+    const { notifyShortAssetRejected } = require('./notification.service');
+    const script = await ShortScript.findById(asset.sourceScriptId).select('_id createdBy topic').lean();
+    await notifyShortAssetRejected({ asset, script, reasons });
+  } catch (error) {
+    console.error('[shortAsset] failed to notify script owner of rejection', {
+      assetId: String(asset._id),
+      message: error.message,
+    });
+  }
 }
 
 // 審核通過才進學生牆（規格書 R-08 / DR-13 / DR-21）。影片本身在教師上傳當下就已經

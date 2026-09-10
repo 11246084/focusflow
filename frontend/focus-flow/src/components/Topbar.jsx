@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Ic } from './Icons';
 import { apiFetch, getUser } from '../api';
 import { getDisplayName } from '../utils/userDisplay';
+import { requestOpenScript } from '../utils/scriptDeepLink';
 
 function formatNotificationTime(value) {
   const date = new Date(value);
@@ -238,6 +239,16 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
     }
   }
 
+  function handleNotificationClick(notification) {
+    if (!notification.read) void markOneRead(notification.id);
+    if (notification.scriptId) {
+      // Rejection notices jump straight to the script so the teacher can regenerate it.
+      requestOpenScript({ scriptId: notification.scriptId, courseId: notification.courseIds?.[0] });
+      setNotifOpen(false);
+      onNav?.('shortScripts');
+    }
+  }
+
   async function markAllRead() {
     if (
       unreadCount === 0
@@ -397,14 +408,14 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    onClick={() => void markOneRead(n.id)}
+                    onClick={() => handleNotificationClick(n)}
                     className="dd-row"
                     style={{
                       padding: '12px 18px',
                       borderBottom: '1px solid rgba(0,0,0,0.06)',
                       borderLeft: n.urgent ? '3px solid #dc2626' : '3px solid transparent',
                       background: n.urgent ? 'rgba(220,38,38,0.06)' : (n.read ? 'transparent' : 'rgba(241,79,33,0.05)'),
-                      cursor: n.read || pendingReadIds.has(n.id) ? 'default' : 'pointer',
+                      cursor: n.scriptId || (!n.read && !pendingReadIds.has(n.id)) ? 'pointer' : 'default',
                       // Read items fade so unread ones stand out at a glance.
                       opacity: pendingReadIds.has(n.id) ? 0.65 : (n.read ? 0.5 : 1),
                     }}
@@ -419,6 +430,7 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
                     <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 4, lineHeight: 1.5 }}>{n.content}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                       <span style={{ fontSize: 10.5, color: 'rgba(0,0,0,0.4)' }}>{formatNotificationTime(n.createdAt)}</span>
+                      {n.scriptId && <span style={{ fontSize: 11, fontWeight: 700, color: '#F14F21' }}>前往腳本 →</span>}
                       {n.urgent && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 50, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>緊急</span>}
                     </div>
                   </div>

@@ -26,6 +26,7 @@ function toPublicNotification(notification) {
     readAt: source.readAt || null,
     courseIds: (source.courseIds || []).map(String),
     videoId: source.videoId ? String(source.videoId) : null,
+    scriptId: source.scriptId ? String(source.scriptId) : null,
     createdAt: source.createdAt,
   };
 }
@@ -360,9 +361,59 @@ async function fanoutVideoCompletedNotifications(video) {
   };
 }
 
+const REVIEW_REASON_LABELS = {
+  contentIncorrect: '內容不正確',
+  audioIssue: '聲音問題',
+  visualQuality: '畫面品質問題',
+  subtitleIssue: '字幕問題',
+  incomplete: '內容不完整',
+  other: '其他',
+};
+
+// Tell the script owner (falling back to the course owner) that a generated
+// short was rejected, with a scriptId so the client can jump straight to it.
+// Deduped per asset generation so a retried review cannot notify twice.
+async function notifyShortAssetRejected({ asset, script, reasons = [] }) {
+  const course = await Course.findById(asset.courseId).select('_id teacherId').lean();
+  const recipientId = script?.createdBy || course?.teacherId;
+  if (!recipientId) return null;
+
+  const reasonText = reasons
+    .map((reason) => (reason.note
+      ? `${REVIEW_REASON_LABELS[reason.code] || reason.code}（${reason.note}）`
+      : REVIEW_REASON_LABELS[reason.code] || reason.code))
+    .join('、');
+  const assetTitle = String(asset.title || script?.topic || '短影片').trim() || '短影片';
+  const generationVersion = asset.generationVersion || 1;
+  const dedupeKey = `short_asset_rejected:${asset._id}:${generationVersion}`;
+
+  try {
+    return await Notification.create({
+      recipientId,
+      source: NOTIFICATION_SOURCES.SHORT_ASSET_REJECTED,
+      title: truncate(`短影片未通過審核：${assetTitle}`, 120),
+      content: truncate(
+        `不通過理由：${reasonText || '未提供'}。點擊前往腳本頁重新生成。`,
+        2000,
+      ),
+      urgent: false,
+      readAt: null,
+      createdBy: null,
+      courseIds: [asset.courseId],
+      videoId: null,
+      scriptId: script?._id || asset.sourceScriptId || null,
+      dedupeKey,
+    });
+  } catch (error) {
+    if (error?.code === 11000) return null;
+    throw error;
+  }
+}
+
 module.exports = {
   DEFAULT_LIMIT,
   MAX_LIMIT,
+  notifyShortAssetRejected,
   toPublicNotification,
   listNotifications,
   markNotificationRead,

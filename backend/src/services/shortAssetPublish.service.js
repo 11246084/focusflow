@@ -29,6 +29,11 @@ const {
 // **觸發點是成品審核通過，不是教師上傳。** 教師上傳只建立 draft；上傳 YouTube 是
 // 不可逆的對外動作，而教師是先上傳才看得到成品，上傳當下還沒看過影片。
 
+// 短影片一律以 unlisted 上架，不吃 YOUTUBE_UPLOAD_PRIVACY。
+// public 會讓非修課者從搜尋與頻道頁看到；private 則無法用 iframe 嵌入，學生端播不了。
+// 兩端都不可行，這個值就不是部署可調的設定，寫死才不會因為某台機器的 .env 而外流。
+const SHORT_ASSET_PRIVACY_STATUS = 'unlisted';
+
 // autoUploadVideoToYouTube 綁死 Video model（讀 video.filePath、寫 video.youtubeUpload），
 // 對 ShortAsset 不能直接用。真正可複用的原語是 uploadLocalVideo。
 function resolveLocalUploadPath(filePath) {
@@ -154,6 +159,7 @@ async function publishShortAsset({ assetId, fetchImpl = global.fetch } = {}) {
       filePath,
       title: asset.title,
       description: asset.description || '',
+      privacyStatus: SHORT_ASSET_PRIVACY_STATUS,
       fetchImpl,
     });
   } catch (error) {
@@ -293,6 +299,7 @@ function toTeacherAsset(asset) {
     sourceVersionNo: asset.sourceVersionNo ?? null,
     youtubeVideoId: asset.youtubeVideoId || null,
     youtubeUrl: asset.youtubeUrl || null,
+    privacyStatus: asset.youtubePrivacyStatus || null,
     publishedAt: asset.publishedAt || null,
     disclosure: {
       aiDisclosureConfirmed: Boolean(asset.disclosure?.aiDisclosureConfirmed),

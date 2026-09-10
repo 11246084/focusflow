@@ -77,6 +77,14 @@ export const ASSET_UPLOAD_LABELS = {
   failed: '上架失敗',
 };
 
+// 短影片一律以 unlisted 上架（後端寫死，不吃 YOUTUBE_UPLOAD_PRIVACY）。
+// 其餘值只會出現在人工去 YouTube Studio 改過的舊資料上。
+export const ASSET_PRIVACY_LABELS = {
+  unlisted: '非公開',
+  private: '私人',
+  public: '公開',
+};
+
 export const ASSET_REVIEW_LABELS = {
   pending: '待審核',
   approved: '審核通過',

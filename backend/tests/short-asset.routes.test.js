@@ -619,6 +619,35 @@ describe('短影片上架（WO-08）', () => {
       assert.equal(published.youtubeUpload.status, 'uploaded');
     });
 
+    it('一律以 unlisted 上架，不吃 YOUTUBE_UPLOAD_PRIVACY 的設定', async () => {
+      // public 會讓非修課者搜尋得到，private 又無法 iframe 嵌入。這個值不是部署可調的設定，
+      // 所以就算某台機器的 .env 設成 public，短影片仍必須是 unlisted。
+      const asset = addAsset({
+        filePath: writeTempVideo(),
+        reviewStatus: 'approved',
+        reviewedGenerationVersion: 1,
+      });
+      const originalPrivacy = env.youtubeUploadPrivacy;
+      env.youtubeUploadPrivacy = 'public';
+      let sentMetadata = null;
+      stubYouTubeUpload();
+      const stubbedFetch = global.fetch;
+      global.fetch = async (url, options = {}) => {
+        if (String(url).includes('uploadType=resumable')) {
+          sentMetadata = JSON.parse(options.body);
+        }
+        return stubbedFetch(url, options);
+      };
+
+      try {
+        const published = await publishService.publishShortAsset({ assetId: asset._id });
+        assert.equal(sentMetadata.status.privacyStatus, 'unlisted');
+        assert.equal(published.youtubePrivacyStatus, 'unlisted');
+      } finally {
+        env.youtubeUploadPrivacy = originalPrivacy;
+      }
+    });
+
     it('上架成功後來源腳本標成 approved（已上架）', async () => {
       const script = addScript();
       script.status = 'generated';

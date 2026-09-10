@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import {
+  ASSET_PRIVACY_LABELS,
   ASSET_REVIEW_LABELS,
   ASSET_UPLOAD_LABELS,
   FEEDBACK_TYPES,
@@ -152,6 +153,31 @@ function ConfirmRow({ checked, disabled, onChange, children }) {
   );
 }
 
+// 詳情面板的分頁。腳本內容本身就很長（證據對照表 + 分鏡 + 全文），
+// 成品上傳接在它下面會被埋在捲軸底部，所以分成兩個分頁而不是一路往下疊。
+function DetailTab({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: '12px 2px',
+        marginRight: 20,
+        background: 'none',
+        border: 'none',
+        borderBottom: `2px solid ${active ? ACCENT : 'transparent'}`,
+        marginBottom: -1,
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: 'pointer',
+        color: active ? '#fff' : 'rgba(255,255,255,0.45)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function SectionCard({ title, action, children, style }) {
   return (
     <div className="card" style={{ overflow: 'hidden', ...style }}>
@@ -211,6 +237,7 @@ export default function TeacherShortScripts() {
   const [confirmedAi, setConfirmedAi] = useState(false);
   const [confirmedConsent, setConfirmedConsent] = useState(false);
   const [uploadNotice, setUploadNotice] = useState('');
+  const [detailTab, setDetailTab] = useState('script');
   const assetInputRef = useRef(null);
 
   useEffect(() => {
@@ -296,6 +323,7 @@ export default function TeacherShortScripts() {
     setMetaphorIndex(0);
     setRegenOpen(false);
     setRegenNote('');
+    setDetailTab('script');
     resetUploadForm();
     try {
       const script = await getScript(scriptId);
@@ -647,6 +675,17 @@ export default function TeacherShortScripts() {
                 )}
               </div>
 
+              {version && (
+                <div style={{ padding: '0 20px', borderBottom: DIVIDER }}>
+                  <DetailTab active={detailTab === 'script'} onClick={() => setDetailTab('script')}>
+                    腳本內容
+                  </DetailTab>
+                  <DetailTab active={detailTab === 'asset'} onClick={() => setDetailTab('asset')}>
+                    成品上傳{scriptAssets.length ? ` · ${scriptAssets.length}` : ''}
+                  </DetailTab>
+                </div>
+              )}
+
               {!version && (
                 <div style={{ padding: '18px 20px' }}>
                   <button
@@ -662,7 +701,7 @@ export default function TeacherShortScripts() {
                 </div>
               )}
 
-              {version && (
+              {version && detailTab === 'script' && (
                 <>
                   <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
                     <div style={{ ...SECTION_LABEL, marginBottom: 10 }}>視覺隱喻</div>
@@ -833,7 +872,7 @@ export default function TeacherShortScripts() {
                     )}
                   </div>
 
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
+                  <div style={{ padding: '16px 20px' }}>
                     <div style={{ ...SECTION_LABEL, marginBottom: 8 }}>完整腳本 · 可直接複製貼進製作流程</div>
                     <textarea
                       className="ff-input"
@@ -850,7 +889,11 @@ export default function TeacherShortScripts() {
                       onFocus={(event) => event.target.select()}
                     />
                   </div>
+                </>
+              )}
 
+              {version && detailTab === 'asset' && (
+                <>
                   {selected.status !== 'dismissed' && (
                     <div style={{ padding: '16px 20px', borderBottom: scriptAssets.length ? DIVIDER : 'none' }}>
                       <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>
@@ -859,6 +902,9 @@ export default function TeacherShortScripts() {
                       <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
                         上傳只會建立待審成品，不會直接對外發布。要到「短影片審核」頁審核通過，
                         系統才會自動上架到 YouTube；退回時理由會寫回第 {version.versionNo} 版腳本。
+                      </div>
+                      <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
+                        上架一律是 YouTube 的「非公開」：有連結才看得到，不會出現在搜尋結果或頻道頁。
                       </div>
 
                       <div
@@ -1002,6 +1048,9 @@ export default function TeacherShortScripts() {
                             {asset.upload.status
                               ? ` · ${ASSET_UPLOAD_LABELS[asset.upload.status] || asset.upload.status}`
                               : ' · 尚未上架'}
+                            {asset.privacyStatus
+                              ? ` · ${ASSET_PRIVACY_LABELS[asset.privacyStatus] || asset.privacyStatus}`
+                              : ''}
                           </div>
                           {asset.youtubeUrl && (
                             <a
@@ -1040,6 +1089,10 @@ export default function TeacherShortScripts() {
                         </div>
                       ))}
                     </div>
+                  )}
+
+                  {selected.status === 'dismissed' && !scriptAssets.length && (
+                    <EmptyRow>這份腳本已否決，不會再產出成品。</EmptyRow>
                   )}
                 </>
               )}

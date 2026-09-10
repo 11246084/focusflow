@@ -28,6 +28,11 @@ router.post(
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
   enrollmentController.assignStudent,
 );
+router.post(
+  '/:courseId/enrollments/import',
+  authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  enrollmentController.importStudents,
+);
 router.delete(
   '/:courseId/enrollments/:studentId',
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),

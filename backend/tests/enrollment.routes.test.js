@@ -153,6 +153,67 @@ describe('strict Enrollment routes and access', () => {
     assert.equal(forbiddenManage.body.error.code, 'COURSE_MANAGE_DENIED');
   });
 
+  it('教師匯入名單會建立新帳號、以學號登入並取得課程權限', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const imported = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/enrollments/import`,
+      {
+        method: 'POST',
+        token: teacherToken,
+        body: { students: [{ name: '王小明', email: '11246001@ntub.edu.tw', studentId: '11246001' }] },
+      },
+    );
+    const studentToken = await loginAs(serverContext.baseUrl, '11246001@ntub.edu.tw', '11246001', 'student');
+    const courses = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: studentToken });
+
+    assert.equal(imported.status, 200);
+    assert.deepEqual(imported.body.data, { created: 1, enrolled: 1, skipped: [] });
+    assert.deepEqual(courses.body.data.courses.map((item) => item._id), [ids.publishedCourse]);
+  });
+
+  it('匯入時既有學生只加課不改密碼，非學生帳號與不合法資料列會被略過', async () => {
+    const { user } = await registerStudent();
+    const originalHash = user.passwordHash;
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const imported = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/enrollments/import`,
+      {
+        method: 'POST',
+        token: teacherToken,
+        body: {
+          students: [
+            { name: 'Strict Student', email: user.email, studentId: '11246002' },
+            { name: 'Teacher', email: 'teacher2@focusflow.local', studentId: '11246003' },
+            { name: 'Short', email: 'short@example.com', studentId: '123' },
+          ],
+        },
+      },
+    );
+
+    assert.equal(imported.status, 200);
+    assert.equal(imported.body.data.created, 0);
+    assert.equal(imported.body.data.enrolled, 1);
+    assert.deepEqual(imported.body.data.skipped.map((item) => item.reason), ['NOT_STUDENT', 'STUDENT_ID_TOO_SHORT']);
+    assert.equal(user.passwordHash, originalHash);
+  });
+
+  it('非課程擁有者的教師與學生不能匯入名單', async () => {
+    const { token: studentToken } = await registerStudent();
+    const otherTeacherToken = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+    const path = `/api/v1/courses/${ids.publishedCourse}/enrollments/import`;
+    const body = { students: [{ name: 'X', email: 'x@example.com', studentId: '11246009' }] };
+
+    const otherTeacher = await jsonRequest(serverContext.baseUrl, path, { method: 'POST', token: otherTeacherToken, body });
+    const student = await jsonRequest(serverContext.baseUrl, path, { method: 'POST', token: studentToken, body });
+
+    assert.equal(otherTeacher.status, 403);
+    assert.equal(otherTeacher.body.error.code, 'COURSE_MANAGE_DENIED');
+    assert.equal(student.status, 403);
+    assert.equal(store.users.some((item) => item.email === 'x@example.com'), false);
+  });
+
   it('admin may manage every course while students cannot call management APIs', async () => {
     const { token: studentToken, user } = await registerStudent();
     const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');

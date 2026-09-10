@@ -31,8 +31,18 @@ const revokeStudent = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Student enrollment revoked.', data: { enrollment } });
 });
 
+const importStudents = asyncHandler(async (req, res) => {
+  const result = await enrollmentService.importStudents({
+    user: req.user,
+    courseId: req.params.courseId,
+    students: req.body.students,
+  });
+  return sendSuccess(res, { message: 'Student roster imported.', data: result });
+});
+
 module.exports = {
   listCourseEnrollments,
   assignStudent,
   revokeStudent,
+  importStudents,
 };

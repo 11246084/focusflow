@@ -793,6 +793,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/courses/{courseId}/enrollments/import:
+    post:
+      tags:
+        - Courses
+      summary: 匯入修課名單（建立缺少的學生帳號並加入課程）
+      description: >-
+        僅限該課程 owner teacher 或 admin，單次最多 200 筆。Email 不存在時建立 student 帳號，
+        初始密碼為學號（至少 8 碼）；Email 已存在的 active student 只會加入課程，不修改密碼、姓名或角色。
+        非 student 帳號、停用帳號與不合法資料列會列在 skipped，不中斷其他列。
+      operationId: importCourseEnrollments
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - students
+              properties:
+                students:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: object
+                    required: [name, email, studentId]
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      studentId:
+                        type: string
+                        description: 學號，新帳號的初始密碼
+      responses:
+        '200':
+          description: 匯入完成（可能部分列被略過）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      created:
+                        type: integer
+                      enrolled:
+                        type: integer
+                      skipped:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                            email:
+                              type: string
+                            reason:
+                              type: string
+                              enum: [INVALID_NAME, INVALID_EMAIL, STUDENT_ID_TOO_SHORT, DUPLICATE_IN_FILE, NOT_STUDENT, INACTIVE_ACCOUNT, DUPLICATE_ACCOUNT]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseManageDeniedError'
+        '404':
+          $ref: '#/components/responses/CourseNotFoundError'
   /api/v1/courses/{courseId}/enrollments/{studentId}:
     delete:
       tags:

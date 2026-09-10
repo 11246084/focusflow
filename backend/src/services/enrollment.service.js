@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const Enrollment = require('../models/enrollment.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
@@ -128,8 +129,104 @@ async function revokeStudent({ user, courseId, studentId }) {
   return toPublicEnrollment(enrollment, student);
 }
 
+const IMPORT_MAX_ROWS = 200;
+const IMPORT_MIN_PASSWORD_LENGTH = 8;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function activateEnrollment({ user, course, studentId, now }) {
+  await Enrollment.findOneAndUpdate(
+    { studentId, courseId: course._id },
+    {
+      $set: {
+        status: ENROLLMENT_STATUSES.ACTIVE,
+        assignedBy: user.id,
+        enrolledAt: now,
+      },
+      $unset: { revokedAt: 1, revokedBy: 1 },
+      $setOnInsert: { studentId, courseId: course._id },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
+}
+
+// Roster import: missing accounts are created as students with the student
+// number as initial password; existing accounts are only enrolled, never
+// modified, so an import cannot reset a password or promote/demote a role.
+async function importStudents({ user, courseId, students }) {
+  const course = await resolveManageableCourse(user, courseId);
+  if (!Array.isArray(students) || students.length === 0) {
+    throw new AppError('Students must be a non-empty array.', 400, 'VALIDATION_ERROR');
+  }
+  if (students.length > IMPORT_MAX_ROWS) {
+    throw new AppError(`At most ${IMPORT_MAX_ROWS} students per import.`, 400, 'VALIDATION_ERROR');
+  }
+
+  const skipped = [];
+  const seenEmails = new Set();
+  const rows = [];
+  students.forEach((item, index) => {
+    const row = index + 1;
+    const name = String(item?.name || '').trim();
+    const email = String(item?.email || '').trim().toLowerCase();
+    const studentNumber = String(item?.studentId || '').trim();
+    if (!name) return skipped.push({ row, email, reason: 'INVALID_NAME' });
+    if (!EMAIL_REGEX.test(email)) return skipped.push({ row, email, reason: 'INVALID_EMAIL' });
+    if (studentNumber.length < IMPORT_MIN_PASSWORD_LENGTH) {
+      return skipped.push({ row, email, reason: 'STUDENT_ID_TOO_SHORT' });
+    }
+    if (seenEmails.has(email)) return skipped.push({ row, email, reason: 'DUPLICATE_IN_FILE' });
+    seenEmails.add(email);
+    rows.push({ row, name, email, studentNumber });
+    return undefined;
+  });
+
+  const existingUsers = rows.length
+    ? await User.find({ email: { $in: rows.map((item) => item.email) } }).lean()
+    : [];
+  const existingByEmail = new Map(existingUsers.map((item) => [item.email, item]));
+  const now = new Date();
+  let created = 0;
+  let enrolled = 0;
+
+  for (const item of rows) {
+    let student = existingByEmail.get(item.email);
+    if (student && student.role !== USER_ROLES.STUDENT) {
+      skipped.push({ row: item.row, email: item.email, reason: 'NOT_STUDENT' });
+      continue;
+    }
+    if (student && student.isActive === false) {
+      skipped.push({ row: item.row, email: item.email, reason: 'INACTIVE_ACCOUNT' });
+      continue;
+    }
+    if (!student) {
+      try {
+        student = await User.create({
+          name: item.name,
+          email: item.email,
+          passwordHash: await bcrypt.hash(item.studentNumber, 10),
+          role: USER_ROLES.STUDENT,
+        });
+        created += 1;
+      } catch (error) {
+        // Another request created the same email in between; leave that account untouched.
+        if (error?.code === 11000) {
+          skipped.push({ row: item.row, email: item.email, reason: 'DUPLICATE_ACCOUNT' });
+          continue;
+        }
+        throw error;
+      }
+    }
+    await activateEnrollment({ user, course, studentId: student._id, now });
+    enrolled += 1;
+  }
+
+  skipped.sort((left, right) => left.row - right.row);
+  return { created, enrolled, skipped };
+}
+
 module.exports = {
   listCourseEnrollments,
   assignStudent,
   revokeStudent,
+  importStudents,
 };

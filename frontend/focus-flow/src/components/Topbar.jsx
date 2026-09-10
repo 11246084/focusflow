@@ -327,13 +327,20 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
         <DropdownPanel anchorRect={notifRect} width={340} panelRef={notifPanelRef} centerOnMobile>
           <div style={{ padding: '16px 18px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
               <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#18181b' }}>通知</span>
-              <button
-                onClick={() => void markAllRead()}
-                disabled={unreadCount === 0 || markAllPending || pendingReadIds.size > 0}
-                style={{ background: 'none', border: 'none', color: unreadCount === 0 || pendingReadIds.size > 0 ? 'rgba(0,0,0,0.3)' : '#F14F21', fontSize: 11.5, cursor: unreadCount === 0 || markAllPending || pendingReadIds.size > 0 ? 'default' : 'pointer', fontFamily: "'Noto Sans TC',sans-serif" }}
-              >
-                {markAllPending ? '更新中…' : '全部標為已讀'}
-              </button>
+              {/* With nothing unread, show a status label instead of a dead-looking button. */}
+              {unreadCount === 0 && !markAllPending ? (
+                <span style={{ fontSize: 11.5, color: 'rgba(0,0,0,0.4)', fontFamily: "'Noto Sans TC',sans-serif" }}>
+                  {notifications.length ? '已全部讀取' : ''}
+                </span>
+              ) : (
+                <button
+                  onClick={() => void markAllRead()}
+                  disabled={markAllPending || pendingReadIds.size > 0}
+                  style={{ background: 'none', border: 'none', color: pendingReadIds.size > 0 ? 'rgba(0,0,0,0.3)' : '#F14F21', fontSize: 11.5, fontWeight: 600, cursor: markAllPending || pendingReadIds.size > 0 ? 'default' : 'pointer', fontFamily: "'Noto Sans TC',sans-serif" }}
+                >
+                  {markAllPending ? '更新中…' : `全部標為已讀（${unreadCount}）`}
+                </button>
+              )}
             </div>
 
             {user.role === 'admin' && (
@@ -398,11 +405,15 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
                       borderLeft: n.urgent ? '3px solid #dc2626' : '3px solid transparent',
                       background: n.urgent ? 'rgba(220,38,38,0.06)' : (n.read ? 'transparent' : 'rgba(241,79,33,0.05)'),
                       cursor: n.read || pendingReadIds.has(n.id) ? 'default' : 'pointer',
-                      opacity: pendingReadIds.has(n.id) ? 0.65 : 1,
+                      // Read items fade so unread ones stand out at a glance.
+                      opacity: pendingReadIds.has(n.id) ? 0.65 : (n.read ? 0.5 : 1),
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: n.urgent ? '#dc2626' : '#18181b' }}>{n.title}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: n.read ? 500 : 700, color: n.urgent ? '#dc2626' : '#18181b' }}>
+                        {!n.read && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#F14F21', marginRight: 6 }}>未讀</span>}
+                        {n.title}
+                      </span>
                       {!n.read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F14F21', flexShrink: 0, marginTop: 4 }} />}
                     </div>
                     <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.6)', marginTop: 4, lineHeight: 1.5 }}>{n.content}</div>

@@ -283,7 +283,7 @@ export default function TeacherVideoReview() {
                   <div style={{ marginTop: 14, fontSize: 12, color: '#ffd18a' }}>審核已送出，重新讀取成功前不可再次送審。</div>
                 )}
                 <div className="review-btn-row" style={{ marginTop: 16 }}>
-                  <button className="btn-primary" onClick={handleApproveClick} disabled={!reviewActionsEnabled}>通過並上架</button>
+                  <button className="btn-primary" onClick={handleApproveClick} disabled={!reviewActionsEnabled}>通過並公開給學生</button>
                   <button className="btn-outline btn-outline-danger" onClick={handleRejectClick} disabled={!reviewActionsEnabled}>不通過</button>
                 </div>
               </div>
@@ -351,7 +351,7 @@ export default function TeacherVideoReview() {
                 </>
               )}
               <div className="review-btn-row" style={{ marginTop: 20 }}>
-                <button className="btn-primary" onClick={handleConfirmSubmit} disabled={submitting}>{submitting ? '送出並讀回中…' : (pendingAction === 'approved' ? '確認通過並上架' : '確認送出')}</button>
+                <button className="btn-primary" onClick={handleConfirmSubmit} disabled={submitting}>{submitting ? '送出並讀回中…' : (pendingAction === 'approved' ? '確認通過並公開' : '確認送出')}</button>
                 <button className="btn-outline" onClick={() => setStep(1)} disabled={submitting}>返回修改</button>
               </div>
             </div>

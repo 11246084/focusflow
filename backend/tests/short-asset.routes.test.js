@@ -464,8 +464,11 @@ describe('短影片上架（WO-08）', () => {
       assert.equal(response.body.error.code, 'YOUTUBE_UPLOAD_RETRY_UNSAFE');
     });
 
-    it('沒有失敗紀錄時不得重試', async () => {
-      addAsset({ reviewStatus: 'approved', reviewedGenerationVersion: 1 });
+    it('傳送中的資產不得重試', async () => {
+      addAsset({
+        filePath: writeTempVideo(),
+        youtubeUpload: { status: 'uploading', attemptCount: 1, retrySafe: false },
+      });
       const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
 
       const response = await jsonRequest(
@@ -476,6 +479,22 @@ describe('短影片上架（WO-08）', () => {
 
       assert.equal(response.status, 409);
       assert.equal(response.body.error.code, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+    });
+
+    it('從來沒傳過的資產可以用重試把它送上去', async () => {
+      // 排程上傳因故沒跑到時，資產會停在 status=null。沒送出過 bytes，重試不會產生重複影片，
+      // 不允許重試等於讓教師卡死：沒有影片可審，也按不動任何按鈕。
+      addAsset({ filePath: writeTempVideo() });
+      const token = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+      const response = await jsonRequest(
+        baseUrl,
+        `/api/v1/short-assets/${store.shortAssets[0]._id}/upload/retry`,
+        { method: 'POST', token },
+      );
+
+      assert.equal(response.status, 200);
+      assert.equal(response.body.data.youtubeVideoId, 'yt-short-1');
     });
 
     it('已上架的資產不得再重試', async () => {

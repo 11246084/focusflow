@@ -359,14 +359,18 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch }
       'YOUTUBE_UPLOAD_ALREADY_COMPLETED',
     );
   }
-  if (asset.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.FAILED) {
+  const uploadStatus = asset.youtubeUpload?.status || null;
+  // 沒有任何上傳紀錄（status 為 null）也可以傳：那代表這支從來沒送出過 bytes，
+  // 重試不可能產生重複影片。沒有這條，排程上傳因故沒跑到的資產會永遠卡著——
+  // 教師既沒有影片可審，也按不動重試。
+  if (uploadStatus !== null && uploadStatus !== YOUTUBE_UPLOAD_STATUSES.FAILED) {
     throw new AppError(
       'Only failed uploads can be retried.',
       409,
       'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED',
     );
   }
-  if (asset.youtubeUpload?.retrySafe !== true) {
+  if (uploadStatus === YOUTUBE_UPLOAD_STATUSES.FAILED && asset.youtubeUpload?.retrySafe !== true) {
     // 可能已送出影片 bytes。自動重試會在 YouTube 留下重複影片，必須先人工確認 Studio。
     throw new AppError(
       'The previous attempt may have sent video bytes; check YouTube Studio before retrying.',
@@ -509,7 +513,7 @@ async function createAssetFromScript({
         && asset.status !== SHORT_ASSET_STATUSES.ARCHIVED,
     );
     if (pending) {
-      const regenerated = await recordShortAssetRegeneration(pending._id, {
+      await recordShortAssetRegeneration(pending._id, {
         filePath: file.path,
         sourceVersionNo: targetVersion.versionNo,
         title: resolvedTitle,
@@ -528,14 +532,13 @@ async function createAssetFromScript({
       if (pending.filePath && pending.filePath !== file.path) {
         cleanupUploadedFile({ path: resolveLocalUploadPath(pending.filePath) });
       }
-      const nextGeneration = {
-        ...regenerated,
-        youtubeUpload: {
-          status: null, error: null, attemptCount: 0, retrySafe: false,
-        },
-      };
+
+      // 一定要重讀，不能把 recordShortAssetRegeneration 的回傳值展開來用：那是 Mongoose
+      // document，`{ ...doc }` 拿到的是 $__ / _doc 之類的內部欄位，`_id` 與 `filePath` 全是
+      // undefined，排程上傳會在第一道 guard 就靜默 return，資產永遠停在「沒有影片可預覽」。
+      const nextGeneration = await ShortAsset.findById(pending._id).lean();
       // 上一代的 YouTube 影片留在頻道上（退回時已轉 private），新一代要傳一支新的。
-      scheduleUploadOnCreate({ ...nextGeneration, youtubeVideoId: null, filePath: file.path });
+      scheduleUploadOnCreate(nextGeneration);
       return nextGeneration;
     }
 

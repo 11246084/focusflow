@@ -376,7 +376,10 @@ export default function TeacherShortScripts() {
         versionNo: version.versionNo,
       });
       resetUploadForm();
-      setUploadNotice('已送審。要到「短影片審核」頁審核通過，系統才會自動上架 YouTube。');
+      setUploadNotice(
+        '已送出。系統正在把影片以「非公開」傳上 YouTube，傳完就能在「短影片審核」頁看片審核；'
+        + '審核通過後學生才看得到。',
+      );
       // 上傳可能把同一份腳本既有的待上架成品換代，腳本本身的狀態也可能改變，兩邊都重讀。
       setSelected(await getScript(selected._id));
       await refresh();

@@ -86,6 +86,62 @@ describe('auth routes', () => {
     assert.equal(same.body.error.code, 'VALIDATION_ERROR');
   });
 
+  it('只改姓名不需要密碼', async () => {
+    const token = await studentToken();
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { name: '  王小明  ' },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.user.name, '王小明');
+    assert.equal(result.body.data.user.passwordHash, undefined);
+  });
+
+  it('改 Email 需要正確的目前密碼，改完可用新 Email 登入', async () => {
+    const token = await studentToken();
+    const noPassword = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { email: 'new.student@example.com' },
+    });
+    const wrongPassword = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { email: 'new.student@example.com', currentPassword: 'wrong-password' },
+    });
+    const changed = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { email: ' New.Student@Example.com ', currentPassword: 'Student123!' },
+    });
+    const login = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST', body: { email: 'new.student@example.com', password: 'Student123!', role: 'student' },
+    });
+
+    assert.equal(noPassword.status, 400);
+    assert.equal(wrongPassword.body.error.code, 'CURRENT_PASSWORD_INCORRECT');
+    assert.equal(changed.status, 200);
+    assert.equal(changed.body.data.user.email, 'new.student@example.com');
+    assert.equal(login.status, 200);
+  });
+
+  it('改成別人已使用的 Email 時回傳 409', async () => {
+    const token = await studentToken();
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { email: 'teacher@focusflow.local', currentPassword: 'Student123!' },
+    });
+
+    assert.equal(result.status, 409);
+    assert.equal(result.body.error.code, 'DUPLICATE_RESOURCE');
+  });
+
+  it('姓名空白或 Email 格式錯誤時回傳驗證錯誤', async () => {
+    const token = await studentToken();
+    const emptyName = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { name: '   ' },
+    });
+    const badEmail = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', {
+      method: 'PATCH', token, body: { email: 'not-an-email', currentPassword: 'Student123!' },
+    });
+
+    assert.equal(emptyName.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(badEmail.body.error.code, 'VALIDATION_ERROR');
+  });
+
   it('未登入時不能修改密碼', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/password', {
       method: 'PATCH', body: { currentPassword: 'Student123!', newPassword: 'NewPass456!' },

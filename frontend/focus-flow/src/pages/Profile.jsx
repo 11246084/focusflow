@@ -124,6 +124,88 @@ function TeacherExtra({ stats, loading }) {
   );
 }
 
+function AccountInfoCard({ user, onSaved }) {
+  const [form, setForm] = useState({ name: user.name || '', email: user.email || '', currentPassword: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  // Follow the server-refreshed profile unless the user is mid-edit.
+  const [lastUser, setLastUser] = useState(user);
+  if (lastUser !== user) {
+    setLastUser(user);
+    setForm({ name: user.name || '', email: user.email || '', currentPassword: '' });
+  }
+
+  const emailChanged = form.email.trim().toLowerCase() !== String(user.email || '').toLowerCase();
+  const nameChanged = form.name.trim() !== (user.name || '');
+  const update = (field) => (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+
+  async function submit(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+    if (!form.name.trim()) return setError('姓名不可空白。');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return setError('請輸入有效的 Email。');
+    if (emailChanged && !form.currentPassword) return setError('修改 Email 需要輸入目前密碼。');
+    if (!nameChanged && !emailChanged) return setError('沒有需要儲存的變更。');
+
+    const body = {};
+    if (nameChanged) body.name = form.name.trim();
+    if (emailChanged) Object.assign(body, { email: form.email.trim(), currentPassword: form.currentPassword });
+
+    setSaving(true);
+    try {
+      const response = await apiFetch('/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      onSaved(response.data.user);
+      setMessage(emailChanged ? '已更新，下次請用新的 Email 登入。' : '已更新。');
+    } catch (err) {
+      const messages = {
+        CURRENT_PASSWORD_INCORRECT: '目前密碼不正確。',
+        DUPLICATE_RESOURCE: '這個 Email 已被其他帳號使用。',
+      };
+      setError(messages[err.code] || err.message || '更新失敗。');
+    } finally {
+      setSaving(false);
+    }
+    return undefined;
+  }
+
+  return (
+    <form onSubmit={submit} className="card" style={{ padding: 26, maxWidth: '100%', marginBottom: 20 }}>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 16 }}>帳號資訊</div>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div>
+          <label className="ff-label" htmlFor="profile-name">姓名</label>
+          <input id="profile-name" className="ff-input" value={form.name} onChange={update('name')} disabled={saving} style={{ width: '100%', boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <label className="ff-label" htmlFor="profile-email">Email</label>
+          <input id="profile-email" className="ff-input" type="email" autoComplete="email" value={form.email} onChange={update('email')} disabled={saving} style={{ width: '100%', boxSizing: 'border-box' }} />
+        </div>
+      </div>
+      {emailChanged && (
+        <div style={{ marginTop: 16, maxWidth: 360 }}>
+          <label className="ff-label" htmlFor="profile-current-password">目前密碼（修改 Email 需驗證）</label>
+          <input id="profile-current-password" className="ff-input" type="password" autoComplete="current-password" value={form.currentPassword} onChange={update('currentPassword')} disabled={saving} style={{ width: '100%', boxSizing: 'border-box' }} />
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+        <div role={error ? 'alert' : 'status'} style={{ fontSize: 12, minHeight: 18, color: error ? '#ff8a8a' : '#86efac' }}>
+          {error || message}
+        </div>
+        <button className="btn-primary" type="submit" disabled={saving || (!nameChanged && !emailChanged)} style={{ padding: '9px 18px', fontSize: 12.5 }}>
+          {saving ? '儲存中…' : '儲存變更'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ChangePasswordCard() {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [saving, setSaving] = useState(false);
@@ -193,7 +275,7 @@ function ChangePasswordCard() {
   );
 }
 
-export default function Profile({ role }) {
+export default function Profile({ role, onProfileUpdated }) {
   const [user, setCurrentUser] = useState(() => getUser() || {});
   const displayName = user.name || '訪客';
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -387,19 +469,14 @@ export default function Profile({ role }) {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 26, maxWidth: '100%', marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 16 }}>帳號資訊</div>
-        <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <label className="ff-label">姓名</label>
-            <div className="ff-input" style={{ background: 'rgba(255,255,255,0.03)', cursor: 'default' }}>{displayName}</div>
-          </div>
-          <div>
-            <label className="ff-label">Email</label>
-            <div className="ff-input" style={{ background: 'rgba(255,255,255,0.03)', cursor: 'default' }}>{user.email || '—'}</div>
-          </div>
-        </div>
-      </div>
+      <AccountInfoCard
+        user={user}
+        onSaved={(freshUser) => {
+          setCurrentUser(freshUser);
+          setUser(freshUser);
+          onProfileUpdated?.();
+        }}
+      />
 
       <ChangePasswordCard />
 

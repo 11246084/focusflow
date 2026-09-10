@@ -412,6 +412,44 @@ paths:
                       code: INVALID_TOKEN
         '404':
           $ref: '#/components/responses/UserNotFoundError'
+    patch:
+      tags:
+        - Auth
+      summary: 修改自己的姓名或 Email
+      description: 需登入。只改姓名不需密碼；Email 為登入帳號，變更時必須提供正確的 currentPassword。Email 已被使用時回 409 DUPLICATE_RESOURCE。
+      operationId: updateMyProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                currentPassword:
+                  type: string
+                  description: 變更 Email 時必填
+      responses:
+        '200':
+          description: 已更新，回傳 data.user（公開欄位）
+        '400':
+          description: 驗證錯誤（VALIDATION_ERROR）或目前密碼錯誤（CURRENT_PASSWORD_INCORRECT）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: Email 已被其他帳號使用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/auth/me/password:
     patch:
       tags:

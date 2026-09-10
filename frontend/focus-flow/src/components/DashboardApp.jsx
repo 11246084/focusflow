@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
 import { topbarMap } from './navigationConfig';
@@ -20,16 +21,21 @@ import AdminVideos      from '../pages/AdminVideos';
 import AdminStats       from '../pages/AdminStats';
 import Profile           from '../pages/Profile';
 
-function DashboardRouter({ role, sub, onNav }) {
+function DashboardRouter({ role, sub, onNav, onProfileUpdated }) {
+  const profile = <Profile role={role} onProfileUpdated={onProfileUpdated} />;
   const map = {
-    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile: <Profile role={role} /> },
-    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortScripts: <TeacherShortScripts />, reviewShorts: <TeacherVideoReview />, profile: <Profile role={role} /> },
-    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats />, profile: <Profile role={role} /> },
+    student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile },
+    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortScripts: <TeacherShortScripts />, reviewShorts: <TeacherVideoReview />, profile },
+    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, stats: <AdminStats />, profile },
   };
   return map[role]?.[sub] || null;
 }
 
 export default function DashboardApp({ role, sub, onNav, onLogout }) {
+  // Sidebar/Topbar read the cached user at render time; bumping this after a
+  // profile save re-renders them with the new name/email.
+  const [, setProfileVersion] = useState(0);
+  const handleProfileUpdated = useCallback(() => setProfileVersion((value) => value + 1), []);
   const tb = topbarMap[role]?.[sub] || ['Dashboard', ''];
   // Personalize only the student home subtitle; all other pages keep the
   // role/navigation copy declared in navigationConfig.
@@ -44,7 +50,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
         <div className="dashboard-main">
           <Topbar title={tb[0]} sub={subtitle} onNav={onNav} onLogout={onLogout} />
           <div className="dashboard-content">
-            <DashboardRouter role={role} sub={sub} onNav={onNav} />
+            <DashboardRouter role={role} sub={sub} onNav={onNav} onProfileUpdated={handleProfileUpdated} />
           </div>
         </div>
       </div>

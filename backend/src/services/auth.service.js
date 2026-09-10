@@ -214,9 +214,67 @@ async function changePassword({ userId, currentPassword, newPassword }) {
   await User.findByIdAndUpdate(user._id, { $set: { passwordHash } });
 }
 
+// Email is the login identifier, so changing it requires the current password;
+// a name-only change does not.
+async function updateProfile({ userId, name, email, currentPassword }) {
+  if (name === undefined && email === undefined) {
+    throw new AppError('No fields to update.', 400, 'VALIDATION_ERROR');
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  }
+
+  const update = {};
+  if (name !== undefined) {
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
+    if (!trimmedName) {
+      throw new AppError('Name is required.', 400, 'VALIDATION_ERROR');
+    }
+    update.name = trimmedName;
+  }
+
+  if (email !== undefined) {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      throw new AppError('A valid email is required.', 400, 'VALIDATION_ERROR');
+    }
+    if (normalizedEmail !== user.email) {
+      if (typeof currentPassword !== 'string' || !currentPassword) {
+        throw new AppError('Current password is required to change email.', 400, 'VALIDATION_ERROR');
+      }
+      if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+        throw new AppError('Current password is incorrect.', 400, 'CURRENT_PASSWORD_INCORRECT');
+      }
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing && String(existing._id) !== String(user._id)) {
+        throw new AppError('Email is already registered.', 409, 'DUPLICATE_RESOURCE');
+      }
+      update.email = normalizedEmail;
+    }
+  }
+
+  let updated = user;
+  if (Object.keys(update).length) {
+    try {
+      updated = await User.findByIdAndUpdate(user._id, { $set: update }, { new: true });
+    } catch (error) {
+      // The unique index stays authoritative when two users claim the same email concurrently.
+      if (error?.code === 11000) {
+        throw buildDuplicateUserError(error);
+      }
+      throw error;
+    }
+  }
+
+  return toPublicUser(updated);
+}
+
 module.exports = {
   login,
   register,
   getCurrentUser,
   changePassword,
+  updateProfile,
 };

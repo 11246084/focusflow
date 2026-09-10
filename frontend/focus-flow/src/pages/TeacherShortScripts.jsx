@@ -790,45 +790,6 @@ export default function TeacherShortScripts() {
                     <div style={{ ...MUTED, marginTop: 8 }}>選一組，會寫進複製出的腳本。</div>
                   </div>
 
-                  {/* 規格書 2.1：教師必須看得到證據與 STT 原文才判斷得出引用是否正確，
-                      只看口白不夠——口白讀起來通順不代表引用對。 */}
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                    <div style={SECTION_LABEL}>證據對照表 · 未修飾的逐字稿原文</div>
-                    {(selected.evidence || []).map((item) => (
-                      <div key={item.chunkId} style={{ marginTop: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ color: ACCENT, fontSize: 12, fontWeight: 700 }}>[{item.code}]</span>
-                          <span style={MUTED}>
-                            {formatTimestamp(item.startSec)}–{formatTimestamp(item.endSec)}
-                            {item.expandedFrom ? ' · 鄰接擴展' : ' · 檢索命中'}
-                          </span>
-                        </div>
-                        <div style={{ ...BODY, marginTop: 3 }}>{item.rawText}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                    <div style={SECTION_LABEL}>分鏡 · 第 {version.versionNo} 版</div>
-                    {version.payload.shots.map((shot) => (
-                      <div key={shot.shotNo} style={{ marginTop: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                            鏡 {String(shot.shotNo).padStart(2, '0')}
-                          </span>
-                          <span style={MUTED}>
-                            {ARC_LABELS[shot.arcRole] || shot.arcRole} · {shot.timeRange}
-                          </span>
-                        </div>
-                        <div style={{ ...BODY, marginTop: 3 }}>{shot.narration}</div>
-                        <div style={{ ...MUTED, marginTop: 2 }}>字幕：{shot.subtitle}</div>
-                        <div style={MUTED}>
-                          依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
                   <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                       <button type="button" className="btn-primary" style={SMALL_BTN} onClick={handleCopy}>
@@ -931,7 +892,7 @@ export default function TeacherShortScripts() {
                     )}
                   </div>
 
-                  <div style={{ padding: '16px 20px' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
                     <div style={{ ...SECTION_LABEL, marginBottom: 8 }}>完整腳本 · 可直接複製貼進製作流程</div>
                     <textarea
                       className="ff-input"
@@ -948,6 +909,53 @@ export default function TeacherShortScripts() {
                       onFocus={(event) => event.target.select()}
                     />
                   </div>
+
+                  {/* 規格書 2.1：教師必須看得到證據與 STT 原文才判斷得出引用是否正確。
+                      多數時候用不到，所以收進可展開的區塊放在最下面，需要核對時再打開。 */}
+                  <details style={{ borderBottom: DIVIDER }}>
+                    <summary style={{ ...SECTION_LABEL, padding: '14px 20px', cursor: 'pointer' }}>
+                      證據對照表 · 未修飾的逐字稿原文（{(selected.evidence || []).length} 筆）
+                    </summary>
+                    <div style={{ padding: '0 20px 16px' }}>
+                      {(selected.evidence || []).map((item) => (
+                        <div key={item.chunkId} style={{ marginTop: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: ACCENT, fontSize: 12, fontWeight: 700 }}>[{item.code}]</span>
+                            <span style={MUTED}>
+                              {formatTimestamp(item.startSec)}–{formatTimestamp(item.endSec)}
+                              {item.expandedFrom ? ' · 鄰接擴展' : ' · 檢索命中'}
+                            </span>
+                          </div>
+                          <div style={{ ...BODY, marginTop: 3 }}>{item.rawText}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+
+                  <details>
+                    <summary style={{ ...SECTION_LABEL, padding: '14px 20px', cursor: 'pointer' }}>
+                      分鏡 · 第 {version.versionNo} 版（{version.payload.shots.length} 鏡）
+                    </summary>
+                    <div style={{ padding: '0 20px 16px' }}>
+                      {version.payload.shots.map((shot) => (
+                        <div key={shot.shotNo} style={{ marginTop: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                              鏡 {String(shot.shotNo).padStart(2, '0')}
+                            </span>
+                            <span style={MUTED}>
+                              {ARC_LABELS[shot.arcRole] || shot.arcRole} · {shot.timeRange}
+                            </span>
+                          </div>
+                          <div style={{ ...BODY, marginTop: 3 }}>{shot.narration}</div>
+                          <div style={{ ...MUTED, marginTop: 2 }}>字幕：{shot.subtitle}</div>
+                          <div style={MUTED}>
+                            依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 </>
               )}
 

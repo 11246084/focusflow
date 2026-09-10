@@ -2,6 +2,8 @@
 
 **這份是給人快速看懂全貌的摘要，不是執行規格。** 要動手做請看 [docs/short-video-examples/](short-video-examples/)。
 
+> **2026-09-10 改版**：`docs/short-video-examples/` 已由「十支講同一個 Token 觀念的 A/B 範例」改為十個不綁題目的空白模板，`_shared-conventions.md` 已拆進各模板。本摘要中關於 Token 素材、十支現況、兩階段測試設計與成本的段落是改版前的內容，**執行請以 [README](README.md) 與各模板為準**。
+
 - 版本：**v2（2026-08-14）**
 - 狀態：**規格完成，零支實作**。以下所有數字與判斷都未經實拍驗證。
 
@@ -20,9 +22,8 @@ Shorts 是**獨立的學習單元**——學生在這裡看完就學到了，不
 | 檔案 | 作用 |
 |------|------|
 | [Phase2 製作規格 v2](short-video-examples/Phase2_Short_Video_Production_Spec_v1.md) | 上位規格：四層架構、三道驗證關、工具能力需求、`ShortAsset` 欄位 |
-| [_shared-conventions.md](short-video-examples/_shared-conventions.md) | 十支共用：素材、分鏡表格式、吸引力規格、聲音規格、字型調色、prompt 常數、FFmpeg |
-| [README.md](short-video-examples/README.md) | 十支索引、定案表、測試設計 |
-| `short-video-examples/01`–`10` | 十種呈現手法各一份，**prompt 已展開可直接複製** |
+| [README.md](short-video-examples/README.md) | 十個模板索引、怎麼挑、共用規則 |
+| `short-video-examples/01`–`10` | 十種呈現手法的空白模板，填完 `【 】` 即可獨立執行 |
 | [真人口播腳本範例](short-video-examples/Short_Video_Script_Example_v1.md) | 一般社群短影音，與教學短影音是兩套規格 |
 
 ---

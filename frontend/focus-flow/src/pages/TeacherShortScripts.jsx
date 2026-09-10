@@ -993,10 +993,10 @@ export default function TeacherShortScripts() {
                       >
                         <div style={SECTION_LABEL}>上傳前必須確認</div>
                         <ConfirmRow checked={confirmedAi} disabled={busy === 'upload'} onChange={setConfirmedAi}>
-                          影片全片都有常駐的 AI 生成揭露標示。
+                          AI 揭露已處理：有 AI 生成畫面或數位分身的，已加上全片常駐標示；純實拍影片不需要。
                         </ConfirmRow>
                         <ConfirmRow checked={confirmedConsent} disabled={busy === 'upload'} onChange={setConfirmedConsent}>
-                          使用教師數位分身已取得該教師的書面同意。
+                          授權已處理：使用教師數位分身的，已取得該教師書面同意；沒用分身不需要。
                         </ConfirmRow>
                         <div style={{ ...MUTED, marginTop: 8, lineHeight: 1.7 }}>
                           系統只記錄你的確認與時間，不會代為檢查或取得同意書。

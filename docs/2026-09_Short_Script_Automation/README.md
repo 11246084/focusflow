@@ -59,7 +59,7 @@
 |------|--------|
 | P-02 腳本品質標準 | 擋開放給教師使用 |
 | P-03 書面同意書格式 | **擋上架（本輪已納入）**——上架 API 須要求教師確認 |
-| P-04 腳本模板修訂 | 擋套用階段，不擋本功能 |
+| P-04 腳本模板修訂 | **已結案（2026-09-10）**，見規格書附錄 H.3 |
 
 已由階段 A 實測結案的兩項：
 
@@ -136,6 +136,6 @@
 
 ## 相關文件
 
-- [教師數位分身腳本範例與模板](../short-video-examples/teacher-avatar-track/)——本功能的產出要套用的模板。**目前為舊版**，三處與 MiniMax H3 官方規格不符，見規格書附錄 H.3
-- [課程觀念解說・十種呈現手法](../short-video-examples/README.md)——另一套並存的腳本體系，含 G1／G2／G3 驗證閘
+- [教師數位分身填好的範例 V4／V5](../short-video-examples/teacher-avatar-track/)——本功能的產出對應[手法 10](../short-video-examples/10-teacher-avatar-metaphor.md) 的格式（2026-09-10 已依 MiniMax H3 官方規格修訂，見規格書附錄 H.3）
+- [短影音腳本模板・十種呈現手法](../short-video-examples/README.md)——十個不綁題目的空白模板，含 G1／G2／G3 驗證閘（2026-09-10 由 Token A/B 範例改版）
 - [學生試用版後端整合文件](../2026-09_Student_Pilot_Backend/README.md)——本資料夾的文件結構與判斷順序沿用該任務的慣例

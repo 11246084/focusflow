@@ -110,7 +110,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `POST /api/v1/auth/login` 現在必填 `role=student|teacher|admin`；密碼與停用狀態驗證後才比較帳號角色，跨入口登入回 `403 ROLE_MISMATCH`，不發 token
 - `POST /api/v1/auth/register` 已補 duplicate unique-index race、嚴格欄位型別與完整 route tests；student / teacher 可註冊，admin 禁止自助註冊
 - 站內通知：`GET /api/v1/notifications`、單筆／全部已讀、`POST /api/v1/admin/notifications`；影片 processing complete 會對相關課程的 active enrolled students 做 idempotent fanout
-- 頭貼：`PUT/GET /api/v1/auth/me/avatar`；JPEG/PNG/WebP、5 MiB、magic signature、private storage、CAS 並發保護；public user 只回 `hasAvatar/avatarUpdatedAt`
+- 頭貼：`PUT/GET /api/v1/auth/me/avatar`；JPEG/PNG/WebP、1 MiB（前端先縮成 256×256）、magic signature；2026-09-11 起圖片存 MongoDB `avatars` collection，跨環境共用；public user 只回 `hasAvatar/avatarUpdatedAt`；舊版本機檔案需在 VM 跑 `npm run db:migrate-avatars -- --apply` 搬移
 - courses CRUD（含 PATCH/DELETE）、videos CRUD、processing 狀態流程
 - 影片上傳後自動 spawn STT pipeline（`video.service.js`），pipeline 透過 `/api/v1/internal/videos/:id/processing/{start,complete,fail}` 回報狀態
 - YouTube URL MVP：`POST /courses/:courseId/videos/youtube` 可貼 YouTube URL 建立影片；STT 用 `yt-dlp` 下載音訊；學生端用 YouTube IFrame API 播放並支援 QA timestamp 跳轉；LINE Bot 可回傳 YouTube timestamp link。2026-07-12 起教師上傳頁收斂為單一軌道（本地檔案），URL 入口從 UI 移除、API 保留

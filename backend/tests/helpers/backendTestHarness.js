@@ -22,6 +22,7 @@ const env = require('../../src/config/env');
 // config object so avatar I/O always stays inside this harness-owned temp root.
 env.avatarUploadDir = avatarTestDirectory;
 const User = require('../../src/models/user.model');
+const Avatar = require('../../src/models/avatar.model');
 const Course = require('../../src/models/course.model');
 const Video = require('../../src/models/video.model');
 const VideoBatch = require('../../src/models/videoBatch.model');
@@ -45,6 +46,7 @@ const TEST_UPLOAD_PREFIX = 'test-upload-';
 // All model stubs read from and write to this shared in-memory store.
 const store = {
   users: [],
+  avatars: [],
   courses: [],
   videos: [],
   videoBatches: [],
@@ -63,7 +65,7 @@ const store = {
   messages: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
-  beforeUserAvatarCompareAndSwap: null,
+  nextAvatarWriteError: null,
   beforeShortAssetCompareAndSwap: null,
   nextNotificationBulkWriteError: null,
   nextFaqDeleteManyError: null,
@@ -479,24 +481,6 @@ function installModelStubs() {
     return user;
   };
   User.findOneAndUpdate = async (query, update, options = {}) => {
-    const isAvatarCompareAndSwap = Boolean(
-      query?._id
-      && (
-        Object.prototype.hasOwnProperty.call(query, 'avatar')
-        || Object.prototype.hasOwnProperty.call(query, 'avatar.filename')
-      )
-    );
-
-    if (isAvatarCompareAndSwap && store.beforeUserAvatarCompareAndSwap) {
-      await store.beforeUserAvatarCompareAndSwap(query, update);
-    }
-
-    if (isAvatarCompareAndSwap && store.nextUserFindByIdAndUpdateError) {
-      const error = store.nextUserFindByIdAndUpdateError;
-      store.nextUserFindByIdAndUpdateError = null;
-      throw error;
-    }
-
     let user = store.users.find((item) => matchesQuery(item, query));
 
     if (!user && options.upsert) {
@@ -1130,6 +1114,17 @@ function installModelStubs() {
     }
   };
 
+  Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
+  Avatar.findOneAndUpdate = async (query, update, options = {}) => {
+    if (store.nextAvatarWriteError) {
+      const error = store.nextAvatarWriteError;
+      store.nextAvatarWriteError = null;
+      throw error;
+    }
+
+    return findOneAndUpdateInStore(store.avatars, query, update, options);
+  };
+
   installModelStubs.installed = true;
 }
 
@@ -1137,6 +1132,7 @@ function resetStore() {
   // Rehydrate the baseline fixtures before each test to keep suites isolated.
   cleanupTestAvatars();
   store.users.length = 0;
+  store.avatars.length = 0;
   store.courses.length = 0;
   store.videos.length = 0;
   store.videoBatches.length = 0;
@@ -1155,7 +1151,7 @@ function resetStore() {
   store.messages.length = 0;
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
-  store.beforeUserAvatarCompareAndSwap = null;
+  store.nextAvatarWriteError = null;
   store.beforeShortAssetCompareAndSwap = null;
   store.nextNotificationBulkWriteError = null;
   store.nextFaqDeleteManyError = null;

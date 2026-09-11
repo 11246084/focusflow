@@ -17,6 +17,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | Model 名稱 | 集合名稱 |
 |------------|----------|
 | `User` | `users` |
+| `Avatar` | `avatars`（頭貼圖片本體，`userId` unique；User 只存 presence metadata） |
 | `Course` | `courses` |
 | `Video` | `videos` |
 | `VideoSegment` | 由 `VIDEO_SEGMENT_COLLECTION` 環境變數決定（預設 `video_segments_text`） |

@@ -27,7 +27,7 @@ function buildSyncOperation(collectionName, document) {
     const { _id } = document;
     const backendOwnedFields = { ...document };
     delete backendOwnedFields._id;
-    // Avatar files are target-local, so syncing user data must preserve the target's avatar metadata.
+    // The avatars collection is not synced, so user avatar metadata must stay consistent with the target's avatars.
     delete backendOwnedFields.avatar;
 
     return {

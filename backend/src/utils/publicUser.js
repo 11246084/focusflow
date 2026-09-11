@@ -4,7 +4,7 @@
   }
 
   const source = typeof user.toObject === 'function' ? user.toObject() : user;
-  const hasAvatar = Boolean(source.avatar?.filename);
+  const hasAvatar = Boolean(source.avatar?.updatedAt);
 
   // This explicit whitelist exposes capabilities, never password hashes, LINE IDs, or avatar storage names.
   return {

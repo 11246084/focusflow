@@ -63,7 +63,8 @@ const avatarUploadDir = path.resolve(
   process.env.AVATAR_UPLOAD_DIR || path.join('private-data', 'avatars'),
 );
 
-// Avatar bytes must never sit under the public video upload tree.
+// Legacy filesystem avatar directory: avatars now live in MongoDB, and this path is only read
+// by db:migrate-avatars. It must still never sit under the public video upload tree.
 assertPrivateAvatarUploadDir(uploadDir, avatarUploadDir);
 
 module.exports = {

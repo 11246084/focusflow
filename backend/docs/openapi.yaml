@@ -609,7 +609,7 @@ paths:
                 avatar:
                   type: string
                   format: binary
-                  description: JPEG、PNG 或 WebP，最大 5 MiB；伺服器會驗證 MIME 與檔案 signature。
+                  description: JPEG、PNG 或 WebP，最大 1 MiB（前端上傳前會縮成 256×256）；伺服器會驗證 MIME 與檔案 signature，圖片本體存於 MongoDB `avatars` collection。
       responses:
         '200':
           description: 頭貼更新成功
@@ -625,14 +625,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
-        '409':
-          description: 同一帳號的頭貼在上傳期間已被其他請求更新（AVATAR_UPDATE_CONFLICT）
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '413':
-          description: 檔案超過 5 MiB（AVATAR_TOO_LARGE）
+          description: 檔案超過 1 MiB（AVATAR_TOO_LARGE）
           content:
             application/json:
               schema:

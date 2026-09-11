@@ -164,7 +164,7 @@
 - **Phase 2-2 正式 Parent Search／readiness（2026-08-02～08-14）**：Atlas query 以授權 scope 加上 `generationVersion=text_search_generation_v2`、`isActive=true` 過濾，命中後再驗 provider／model／dimension／instruction／generation／normalization／contract、Parent level/type 與 Child IDs。`hierarchicalDataReadiness.service.js` 於 Gate 開啟的 backend startup 執行唯讀檢查，確認 rollout videos 的 active Parent、Child Leaf、`chunkId_1` 與 Parent search index filter contract；結果與 query contract hash 不一致時 shadow／serve fail closed。Leaf fallback、safe error classification 與 `maxTimeMS` 保留
 - auth / JWT / RBAC 主線已可用；login 必填預期 `role`，跨身分入口回 `403 ROLE_MISMATCH`；register 限 `student` / `teacher`，已涵蓋 duplicate index race、bcrypt 與 public-user 敏感欄位測試
 - 站內通知已完成：使用者列表／cursor／未讀／單筆與全部已讀；admin 可發維護公告；影片完成對主課程與掛載課程的 active enrolled students 以 partial-unique dedupe 做可重送 fanout
-- private avatar 已完成：User nullable metadata、authenticated JPEG/PNG/WebP 上傳與 binary 讀取、5 MiB/magic 驗證、private storage、CAS 並發保護；跨環境 user sync 保留 target-local avatar
+- private avatar 已完成：authenticated JPEG/PNG/WebP 上傳與 binary 讀取、magic 驗證。2026-09-11 起圖片本體改存 MongoDB `avatars` collection（`userId` unique，一人一筆，last-writer-wins），User 只留 `avatar.{mimeType,updatedAt}` presence metadata；上限 1 MiB，前端上傳前縮成 256×256。原因：舊版存本機 `private-data/avatars`，共用 Atlas 時其他機器讀不到檔而回 `AVATAR_NOT_FOUND`。舊檔以 `npm run db:migrate-avatars`（預設 dry-run，需在持有檔案的 VM 上 `--apply`）搬入；`--clear-missing` 才會清掉找不到檔的 metadata
 - courses CRUD（含 PATCH/DELETE）、videos CRUD（含 DELETE）、processing 狀態流程已可用
 - `/api/v1/qa/ask` 已能回 answer、matches、時間資訊與 runtime 訊號
 - `/api/v1/qa/ask` 已新增 Phase 2 contract 欄位：`citations[]`（source video、timestamp、jump URL、match confidence、transcript snippet）與 `answerStatus`（answered/no_answer、confidence、noAnswerReason）。`matches[]` 保留為 legacy / debug 相容欄位。

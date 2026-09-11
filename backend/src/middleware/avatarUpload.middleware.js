@@ -1,7 +1,8 @@
 const multer = require('multer');
 const AppError = require('../utils/appError');
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+// Avatars are stored in MongoDB; the frontend resizes to 256px before upload, so 1 MiB is ample.
+const MAX_AVATAR_BYTES = 1 * 1024 * 1024;
 const MAX_AVATAR_PARTS = 1;
 const ALLOWED_DECLARED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -44,7 +45,7 @@ function uploadSingleAvatar(req, res, next) {
 
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
       return next(new AppError(
-        'Avatar must be at most 5 MiB.',
+        'Avatar must be at most 1 MiB.',
         413,
         'AVATAR_TOO_LARGE',
       ));

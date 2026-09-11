@@ -1,14 +1,9 @@
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const fsPromises = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
 const { after, before, beforeEach, describe, it } = require('node:test');
 const User = require('../src/models/user.model');
-const logger = require('../src/utils/logger');
+const Avatar = require('../src/models/avatar.model');
 const { MAX_AVATAR_BYTES } = require('../src/middleware/avatarUpload.middleware');
 const {
-  env,
   ids,
   store,
   resetStore,
@@ -16,7 +11,6 @@ const {
   stopServer,
   jsonRequest,
   loginAs,
-  cleanupTestAvatars,
 } = require('./helpers/backendTestHarness');
 
 const PNG_BYTES = Buffer.concat([
@@ -53,11 +47,16 @@ async function uploadAvatar(baseUrl, token, options = {}) {
   });
 }
 
-function avatarFiles() {
-  if (!fs.existsSync(env.avatarUploadDir)) {
-    return [];
-  }
-  return fs.readdirSync(env.avatarUploadDir);
+function loginStudent(baseUrl) {
+  return loginAs(baseUrl, 'student@focusflow.local', 'Student123!');
+}
+
+function studentUser() {
+  return store.users.find((user) => user._id === ids.student);
+}
+
+function studentAvatars() {
+  return store.avatars.filter((avatar) => String(avatar.userId) === ids.student);
 }
 
 describe('auth avatar routes', () => {
@@ -69,28 +68,18 @@ describe('auth avatar routes', () => {
 
   after(async () => {
     await stopServer(serverContext.server);
-    cleanupTestAvatars();
   });
 
   beforeEach(() => {
     resetStore();
   });
 
-  it('測試 avatar 儲存路徑固定在作業系統暫存目錄', () => {
-    const relativeToTemp = path.relative(path.resolve(os.tmpdir()), path.resolve(env.avatarUploadDir));
-    const backendRoot = path.resolve(__dirname, '..');
-    const relativeToBackend = path.relative(backendRoot, path.resolve(env.avatarUploadDir));
-
-    assert.equal(relativeToTemp.startsWith('..') || path.isAbsolute(relativeToTemp), false);
-    assert.equal(relativeToBackend.startsWith('..'), true);
-  });
-
-  it('User schema 僅儲存 nullable server avatar metadata', () => {
+  it('User schema 只存 nullable avatar presence metadata，圖片本體在 avatars collection', () => {
     const avatarPath = User.schema.path('avatar');
     assert.ok(avatarPath);
     assert.deepEqual(
       Object.keys(avatarPath.schema.paths).sort(),
-      ['filename', 'mimeType', 'updatedAt'],
+      ['mimeType', 'updatedAt'],
     );
 
     const withoutAvatar = new User({
@@ -102,18 +91,9 @@ describe('auth avatar routes', () => {
     assert.equal(withoutAvatar.avatar, null);
     assert.equal(withoutAvatar.validateSync(), undefined);
 
-    const invalidAvatar = new User({
-      name: 'Unsafe Avatar',
-      email: 'unsafe-avatar@example.com',
-      passwordHash: 'hash',
-      role: 'student',
-      avatar: {
-        filename: '../client/avatar.png',
-        mimeType: 'image/png',
-        updatedAt: new Date(),
-      },
-    });
-    assert.ok(invalidAvatar.validateSync()?.errors['avatar.filename']);
+    assert.equal(Avatar.collection.collectionName, 'avatars');
+    assert.equal(Avatar.schema.path('userId').options.unique, true);
+    assert.equal(Avatar.schema.path('data').instance, 'Buffer');
   });
 
   it('未登入不可上傳或讀取頭貼', async () => {
@@ -124,15 +104,11 @@ describe('auth avatar routes', () => {
     assert.equal(upload.body.error.code, 'UNAUTHORIZED');
     assert.equal(read.status, 401);
     assert.equal(read.body.error.code, 'UNAUTHORIZED');
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
   it('缺少 avatar multipart field 時回傳 AVATAR_REQUIRED', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+    const token = await loginStudent(serverContext.baseUrl);
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me/avatar', {
       method: 'PUT',
       token,
@@ -141,15 +117,11 @@ describe('auth avatar routes', () => {
 
     assert.equal(result.status, 400);
     assert.equal(result.body.error.code, 'AVATAR_REQUIRED');
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
   it('wrong field、repeated file 與 malformed multipart 統一回傳安全 UPLOAD_ERROR', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+    const token = await loginStudent(serverContext.baseUrl);
     const wrongField = await uploadAvatar(serverContext.baseUrl, token, {
       fieldName: 'photo',
     });
@@ -185,15 +157,11 @@ describe('auth avatar routes', () => {
     assert.equal(malformedResponse.status, 400);
     assert.equal(malformed.error.code, 'UPLOAD_ERROR');
     assert.equal(JSON.stringify(malformed).includes('Unexpected end of form'), false);
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
-  it('超過 5 MiB 時拒絕且不留下檔案', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+  it('超過 1 MiB 時回傳 AVATAR_TOO_LARGE 且不寫入', async () => {
+    const token = await loginStudent(serverContext.baseUrl);
     const bytes = Buffer.alloc(MAX_AVATAR_BYTES + 1);
     PNG_BYTES.copy(bytes);
     const result = await uploadAvatar(serverContext.baseUrl, token, {
@@ -201,17 +169,14 @@ describe('auth avatar routes', () => {
       mimeType: 'image/png',
     });
 
+    assert.equal(MAX_AVATAR_BYTES, 1024 * 1024);
     assert.equal(result.status, 413);
     assert.equal(result.body.error.code, 'AVATAR_TOO_LARGE');
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
-  it('拒絕非允許 MIME 與 SVG 且不留下檔案', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+  it('拒絕非允許 MIME 與 SVG 且不寫入', async () => {
+    const token = await loginStudent(serverContext.baseUrl);
     const textResult = await uploadAvatar(serverContext.baseUrl, token, {
       bytes: PNG_BYTES,
       mimeType: 'text/plain',
@@ -227,15 +192,11 @@ describe('auth avatar routes', () => {
     assert.equal(textResult.body.error.code, 'INVALID_AVATAR_TYPE');
     assert.equal(svgResult.status, 400);
     assert.equal(svgResult.body.error.code, 'INVALID_AVATAR_TYPE');
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
   it('拒絕偽造 magic signature 或宣告 MIME 不符的內容', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+    const token = await loginStudent(serverContext.baseUrl);
     const spoofResult = await uploadAvatar(serverContext.baseUrl, token, {
       bytes: Buffer.from('not really a png'),
       mimeType: 'image/png',
@@ -249,53 +210,56 @@ describe('auth avatar routes', () => {
     assert.equal(spoofResult.body.error.code, 'INVALID_AVATAR_FILE');
     assert.equal(mismatchResult.status, 400);
     assert.equal(mismatchResult.body.error.code, 'INVALID_AVATAR_FILE');
-    assert.deepEqual(avatarFiles(), []);
+    assert.deepEqual(store.avatars, []);
   });
 
   for (const imageCase of [
-    { label: 'PNG', mimeType: 'image/png', extension: 'png', bytes: PNG_BYTES },
-    { label: 'JPEG', mimeType: 'image/jpeg', extension: 'jpg', bytes: JPEG_BYTES },
-    { label: 'WebP', mimeType: 'image/webp', extension: 'webp', bytes: WEBP_BYTES },
+    { label: 'PNG', mimeType: 'image/png', bytes: PNG_BYTES },
+    { label: 'JPEG', mimeType: 'image/jpeg', bytes: JPEG_BYTES },
+    { label: 'WebP', mimeType: 'image/webp', bytes: WEBP_BYTES },
   ]) {
-    it(`${imageCase.label} 依真實格式安全命名並關聯目前使用者`, async () => {
-      const token = await loginAs(
-        serverContext.baseUrl,
-        'student@focusflow.local',
-        'Student123!',
-      );
+    it(`${imageCase.label} 圖片本體存進 avatars，User 只記 metadata`, async () => {
+      const token = await loginStudent(serverContext.baseUrl);
       const result = await uploadAvatar(serverContext.baseUrl, token, {
         bytes: imageCase.bytes,
         mimeType: imageCase.mimeType,
         filename: '../../client-controlled-name.png',
       });
-      const storedUser = store.users.find((user) => user._id === ids.student);
+      const [storedAvatar] = studentAvatars();
 
       assert.equal(result.status, 200);
       assert.equal(result.body.data.user.hasAvatar, true);
       assert.ok(result.body.data.user.avatarUpdatedAt);
       assert.equal(result.body.data.avatar.mimeType, imageCase.mimeType);
-      assert.ok(result.body.data.avatar.updatedAt);
-      assert.equal(JSON.stringify(result.body).includes('filename'), false);
       assert.equal(JSON.stringify(result.body).includes('client-controlled-name'), false);
-      assert.match(
-        storedUser.avatar.filename,
-        new RegExp(`^[0-9a-f-]+\\.${imageCase.extension}$`, 'i'),
-      );
-      assert.equal(storedUser.avatar.mimeType, imageCase.mimeType);
-      assert.ok(storedUser.avatar.updatedAt);
-      assert.deepEqual(
-        fs.readFileSync(path.join(env.avatarUploadDir, storedUser.avatar.filename)),
-        imageCase.bytes,
-      );
+      assert.equal(studentAvatars().length, 1);
+      assert.deepEqual(Buffer.from(storedAvatar.data), imageCase.bytes);
+      assert.equal(storedAvatar.mimeType, imageCase.mimeType);
+      assert.equal(storedAvatar.size, imageCase.bytes.length);
+      assert.deepEqual(Object.keys(studentUser().avatar).sort(), ['mimeType', 'updatedAt']);
     });
   }
 
   it('沒有頭貼時回傳 AVATAR_NOT_FOUND', async () => {
-    const token = await loginAs(
+    const token = await loginStudent(serverContext.baseUrl);
+    const result = await jsonRequest(
       serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
+      '/api/v1/auth/me/avatar',
+      { token },
     );
+
+    assert.equal(result.status, 404);
+    assert.equal(result.body.error.code, 'AVATAR_NOT_FOUND');
+  });
+
+  it('User 有舊版 metadata 但 avatars 沒有資料時回傳 AVATAR_NOT_FOUND', async () => {
+    const token = await loginStudent(serverContext.baseUrl);
+    studentUser().avatar = {
+      filename: '123e4567-e89b-42d3-a456-426614174000.png',
+      mimeType: 'image/png',
+      updatedAt: '2026-09-03T07:44:00.502Z',
+    };
+
     const result = await jsonRequest(
       serverContext.baseUrl,
       '/api/v1/auth/me/avatar',
@@ -307,11 +271,7 @@ describe('auth avatar routes', () => {
   });
 
   it('讀取頭貼回傳 binary、真實 Content-Type 與 private security headers', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+    const token = await loginStudent(serverContext.baseUrl);
     await uploadAvatar(serverContext.baseUrl, token, {
       bytes: WEBP_BYTES,
       mimeType: 'image/webp',
@@ -331,28 +291,8 @@ describe('auth avatar routes', () => {
     assert.deepEqual(body, WEBP_BYTES);
   });
 
-  it('匿名請求無法透過 /uploads 猜測 server avatar filename', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    await uploadAvatar(serverContext.baseUrl, token);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-
-    const guessed = await fetch(
-      `${serverContext.baseUrl}/uploads/${storedUser.avatar.filename}`,
-    );
-
-    assert.equal(guessed.status, 404);
-  });
-
   it('me route 不允許其他帳號讀取目前使用者以外的頭貼', async () => {
-    const studentToken = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+    const studentToken = await loginStudent(serverContext.baseUrl);
     const teacherToken = await loginAs(
       serverContext.baseUrl,
       'teacher@focusflow.local',
@@ -370,250 +310,40 @@ describe('auth avatar routes', () => {
     assert.equal(teacherResult.body.error.code, 'AVATAR_NOT_FOUND');
   });
 
-  it('替換頭貼先更新新檔與 User，再刪除舊檔', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
+  it('替換頭貼覆寫同一筆 avatars 文件並更新 Content-Type', async () => {
+    const token = await loginStudent(serverContext.baseUrl);
     await uploadAvatar(serverContext.baseUrl, token);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-    const oldFilename = storedUser.avatar.filename;
-    const oldPath = path.join(env.avatarUploadDir, oldFilename);
-    assert.equal(fs.existsSync(oldPath), true);
-
     const replacement = await uploadAvatar(serverContext.baseUrl, token, {
       bytes: JPEG_BYTES,
       mimeType: 'image/jpeg',
       filename: 'replacement.jpeg',
     });
-    const newFilename = storedUser.avatar.filename;
+    const response = await fetch(`${serverContext.baseUrl}/api/v1/auth/me/avatar`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     assert.equal(replacement.status, 200);
-    assert.notEqual(newFilename, oldFilename);
-    assert.equal(fs.existsSync(oldPath), false);
-    assert.equal(fs.existsSync(path.join(env.avatarUploadDir, newFilename)), true);
-    assert.deepEqual(avatarFiles(), [newFilename]);
+    assert.equal(studentAvatars().length, 1);
+    assert.equal(studentUser().avatar.mimeType, 'image/jpeg');
+    assert.equal(response.headers.get('content-type'), 'image/jpeg');
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), JPEG_BYTES);
   });
 
-  it('DB 寫入失敗時清除新檔並保留既有頭貼', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    await uploadAvatar(serverContext.baseUrl, token);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-    const oldAvatar = { ...storedUser.avatar };
-    store.nextUserFindByIdAndUpdateError = new Error('simulated user write failure');
+  it('avatars 寫入失敗時回傳 AVATAR_STORAGE_ERROR 且不更新 User', async () => {
+    const token = await loginStudent(serverContext.baseUrl);
+    store.nextAvatarWriteError = new Error('simulated avatar write failure');
 
-    const result = await uploadAvatar(serverContext.baseUrl, token, {
-      bytes: JPEG_BYTES,
-      mimeType: 'image/jpeg',
-    });
+    const result = await uploadAvatar(serverContext.baseUrl, token);
 
     assert.equal(result.status, 500);
-    assert.deepEqual(storedUser.avatar, oldAvatar);
-    assert.deepEqual(avatarFiles(), [oldAvatar.filename]);
-  });
-
-  it('同一使用者併發上傳以 atomic CAS 決勝，loser 清除自己的新檔', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    let arrivals = 0;
-    let releaseBarrier;
-    const barrier = new Promise((resolve) => {
-      releaseBarrier = resolve;
-    });
-    store.beforeUserAvatarCompareAndSwap = async () => {
-      arrivals += 1;
-      if (arrivals === 2) {
-        releaseBarrier();
-      }
-      await barrier;
-    };
-
-    const results = await Promise.all([
-      uploadAvatar(serverContext.baseUrl, token, {
-        bytes: PNG_BYTES,
-        mimeType: 'image/png',
-      }),
-      uploadAvatar(serverContext.baseUrl, token, {
-        bytes: JPEG_BYTES,
-        mimeType: 'image/jpeg',
-      }),
-    ]);
-    const winner = results.find((result) => result.status === 200);
-    const loser = results.find((result) => result.status === 409);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-
-    assert.ok(winner);
-    assert.equal(loser?.body.error.code, 'AVATAR_UPDATE_CONFLICT');
-    assert.deepEqual(avatarFiles(), [storedUser.avatar.filename]);
-    assert.equal(
-      fs.existsSync(path.join(env.avatarUploadDir, storedUser.avatar.filename)),
-      true,
-    );
-  });
-
-  it('舊檔 unlink 真 I/O 錯誤只記錄結構化 warning，不回滾成功替換', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    await uploadAvatar(serverContext.baseUrl, token);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-    const oldFilename = storedUser.avatar.filename;
-    const originalUnlink = fsPromises.unlink;
-    const originalWarn = logger.warn;
-    const warnings = [];
-
-    fsPromises.unlink = async (target) => {
-      if (String(target).endsWith(oldFilename)) {
-        const error = new Error('simulated access denied');
-        error.code = 'EACCES';
-        throw error;
-      }
-      return originalUnlink(target);
-    };
-    logger.warn = (event, metadata) => warnings.push({ event, metadata });
-
-    try {
-      const result = await uploadAvatar(serverContext.baseUrl, token, {
-        bytes: JPEG_BYTES,
-        mimeType: 'image/jpeg',
-      });
-
-      assert.equal(result.status, 200);
-      assert.notEqual(storedUser.avatar.filename, oldFilename);
-      assert.equal(fs.existsSync(path.join(env.avatarUploadDir, oldFilename)), true);
-      assert.deepEqual(warnings, [{
-        event: 'avatar.cleanup_failed',
-        metadata: {
-          reason: 'replaced',
-          filename: oldFilename,
-          errorCode: 'EACCES',
-        },
-      }]);
-    } finally {
-      fsPromises.unlink = originalUnlink;
-      logger.warn = originalWarn;
-      fs.rmSync(path.join(env.avatarUploadDir, oldFilename), { force: true });
-    }
-  });
-
-  it('檔案系統失敗時不更新 User 且不留下 avatar temp file', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    const originalDirectory = env.avatarUploadDir;
-    const blockedPath = path.join(path.dirname(originalDirectory), 'blocked-avatar-target');
-    fs.writeFileSync(blockedPath, 'not a directory');
-    env.avatarUploadDir = blockedPath;
-
-    try {
-      const result = await uploadAvatar(serverContext.baseUrl, token);
-      const storedUser = store.users.find((user) => user._id === ids.student);
-
-      assert.equal(result.status, 500);
-      assert.equal(result.body.error.code, 'AVATAR_STORAGE_ERROR');
-      assert.equal(storedUser.avatar, null);
-      assert.equal(fs.statSync(blockedPath).isFile(), true);
-    } finally {
-      env.avatarUploadDir = originalDirectory;
-      fs.rmSync(blockedPath, { force: true });
-    }
-
-    assert.deepEqual(avatarFiles(), []);
-  });
-
-  it('重疊設定會 fail fast，realpath guard 也拒絕 symlink 導回 public uploads', async () => {
-    assert.throws(
-      () => env.assertPrivateAvatarUploadDir(env.uploadDir, env.uploadDir),
-      /outside UPLOAD_DIR/,
-    );
-    assert.throws(
-      () => env.assertPrivateAvatarUploadDir(
-        env.uploadDir,
-        path.join(env.uploadDir, 'avatars'),
-      ),
-      /outside UPLOAD_DIR/,
-    );
-
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    const originalDirectory = env.avatarUploadDir;
-    const suffix = `${process.pid}-${Date.now()}`;
-    const publicTarget = path.join(env.uploadDir, `avatar-public-target-${suffix}`);
-    const linkedAvatarDirectory = path.join(
-      path.dirname(originalDirectory),
-      `avatar-public-link-${suffix}`,
-    );
-    fs.mkdirSync(publicTarget, { recursive: true });
-    fs.symlinkSync(publicTarget, linkedAvatarDirectory, 'junction');
-    env.avatarUploadDir = linkedAvatarDirectory;
-
-    try {
-      const result = await uploadAvatar(serverContext.baseUrl, token);
-      const storedUser = store.users.find((user) => user._id === ids.student);
-
-      assert.equal(result.status, 500);
-      assert.equal(result.body.error.code, 'AVATAR_STORAGE_CONFIG_ERROR');
-      assert.equal(storedUser.avatar, null);
-      assert.deepEqual(fs.readdirSync(publicTarget), []);
-    } finally {
-      env.avatarUploadDir = originalDirectory;
-      fs.rmSync(linkedAvatarDirectory, { recursive: true, force: true });
-      fs.rmSync(publicTarget, { recursive: true, force: true });
-    }
-  });
-
-  it('不讀取或刪除 avatar directory 外的惡意 metadata 路徑', async () => {
-    const token = await loginAs(
-      serverContext.baseUrl,
-      'student@focusflow.local',
-      'Student123!',
-    );
-    const outsidePath = path.join(path.dirname(env.avatarUploadDir), 'outside-avatar.png');
-    fs.writeFileSync(outsidePath, PNG_BYTES);
-    const storedUser = store.users.find((user) => user._id === ids.student);
-    storedUser.avatar = {
-      filename: '../outside-avatar.png',
-      mimeType: 'image/png',
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      const readResult = await jsonRequest(
-        serverContext.baseUrl,
-        '/api/v1/auth/me/avatar',
-        { token },
-      );
-      assert.equal(readResult.status, 404);
-      assert.equal(readResult.body.error.code, 'AVATAR_NOT_FOUND');
-
-      const uploadResult = await uploadAvatar(serverContext.baseUrl, token);
-      assert.equal(uploadResult.status, 200);
-      assert.equal(fs.existsSync(outsidePath), true);
-      assert.notEqual(storedUser.avatar.filename, '../outside-avatar.png');
-    } finally {
-      fs.rmSync(outsidePath, { force: true });
-    }
+    assert.equal(result.body.error.code, 'AVATAR_STORAGE_ERROR');
+    assert.equal(studentUser().avatar, null);
+    assert.deepEqual(store.avatars, []);
   });
 
   it('login、register 與 auth/me 公開 user 只增加 avatar presence fields', async () => {
     const teacher = store.users.find((user) => user._id === ids.teacher);
     teacher.avatar = {
-      filename: '123e4567-e89b-42d3-a456-426614174000.png',
       mimeType: 'image/png',
       updatedAt: '2026-07-24T12:00:00.000Z',
     };
@@ -646,7 +376,6 @@ describe('auth avatar routes', () => {
         '2026-07-24T12:00:00.000Z',
       );
       assert.equal(Object.hasOwn(result.body.data.user, 'avatar'), false);
-      assert.equal(JSON.stringify(result.body).includes(teacher.avatar.filename), false);
     }
     assert.equal(register.body.data.user.hasAvatar, false);
     assert.equal(register.body.data.user.avatarUpdatedAt, null);

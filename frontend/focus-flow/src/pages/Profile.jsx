@@ -11,9 +11,45 @@ import {
 const ROLE_LABELS = { student: '學生 · Student', teacher: '教師 · Teacher', admin: '管理員 · Admin' };
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+// Avatars are stored in MongoDB, so shrink to a small square before upload (backend cap is 1 MiB).
+const AVATAR_OUTPUT_SIZE = 256;
+const AVATAR_OUTPUT_QUALITY = 0.85;
 
 function isAbortError(error) {
   return error?.name === 'AbortError';
+}
+
+function canvasToBlob(canvas, type) {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, AVATAR_OUTPUT_QUALITY));
+}
+
+// Center-crop to a square and scale down; browsers that cannot encode WebP fall back to JPEG.
+async function resizeAvatar(file) {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const size = Math.min(AVATAR_OUTPUT_SIZE, side);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext('2d').drawImage(
+    bitmap,
+    (bitmap.width - side) / 2,
+    (bitmap.height - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    size,
+    size,
+  );
+  bitmap.close();
+
+  let blob = await canvasToBlob(canvas, 'image/webp');
+  if (blob?.type !== 'image/webp') {
+    blob = await canvasToBlob(canvas, 'image/jpeg');
+  }
+  if (!blob) throw new Error('頭像處理失敗，請換一張圖片再試。');
+  return blob;
 }
 
 async function fetchAvatarObjectUrl({ token, signal }) {
@@ -22,6 +58,9 @@ async function fetchAvatarObjectUrl({ token, signal }) {
     cache: 'no-store',
     signal,
   });
+
+  // A missing avatar is not an error for the viewer; fall back to the initial.
+  if (response.status === 404) return null;
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -406,8 +445,17 @@ export default function Profile({ role, onProfileUpdated }) {
       return;
     }
 
+    let resized;
+    try {
+      resized = await resizeAvatar(file);
+    } catch {
+      setAvatarError('無法讀取這張圖片，請換一張再試。');
+      return;
+    }
+    if (!mountedRef.current || getToken() !== sessionToken) return;
+
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', resized, resized.type === 'image/webp' ? 'avatar.webp' : 'avatar.jpg');
     // Upload generations prevent a stale completion from refreshing a newer session's avatar.
     const requestId = uploadGenerationRef.current + 1;
     uploadGenerationRef.current = requestId;

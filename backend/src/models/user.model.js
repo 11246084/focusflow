@@ -1,15 +1,9 @@
 ﻿const mongoose = require('mongoose');
 const { USER_ROLE_VALUES, USER_ROLES } = require('../constants/enums');
 
-// Persist only server-controlled avatar metadata; the image bytes remain in private filesystem storage.
+// Presence metadata only; the image bytes live in the avatars collection (avatar.model.js).
 const avatarSchema = new mongoose.Schema(
   {
-    filename: {
-      type: String,
-      required: true,
-      trim: true,
-      match: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp)$/i,
-    },
     mimeType: {
       type: String,
       required: true,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiFetch, setToken, setUser } from '../api';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 function Sparkle({ x, y, s = 1, op = 0.3 }) {
   return (
@@ -18,6 +19,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const go = async () => {
     if (!email || !pw) { setError('請輸入 Email 與密碼'); return; }
@@ -125,7 +127,14 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
               <div>
                 <div className="login-pw-header">
                   <label className="ff-label" style={{ marginBottom: 0 }}>PASSWORD</label>
-                  <span className="login-forgot">忘記密碼？</span>
+                  <button
+                    type="button"
+                    className="login-forgot"
+                    onClick={() => setForgotOpen(true)}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                  >
+                    忘記密碼？
+                  </button>
                 </div>
                 <input
                   className="ff-input"
@@ -179,6 +188,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
           </div>
         </div>
       </div>
+      {forgotOpen && <ForgotPasswordModal initialEmail={email} onClose={() => setForgotOpen(false)} />}
     </div>
   );
 }

@@ -74,7 +74,17 @@ const markVideoWatched = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Video marked as watched.', data: result });
 });
 
+const markVideoOpened = asyncHandler(async (req, res) => {
+  const result = await courseService.markVideoOpened({
+    user: req.user,
+    courseId: req.params.courseId,
+    videoId: req.params.videoId,
+  });
+  return sendSuccess(res, { message: 'Video open recorded.', data: result });
+});
+
 module.exports = {
+  markVideoOpened,
   createCourse,
   listCourses,
   getCourseById,

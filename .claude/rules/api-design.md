@@ -100,6 +100,9 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `INVALID_TOKEN` | 401 | Token 格式錯誤或已過期 |
 | `FORBIDDEN` | 403 | 無此資源的操作權限 |
 | `CURRENT_PASSWORD_INCORRECT` | 400 | 修改密碼時提供的目前密碼錯誤 |
+| `PASSWORD_RESET_CODE_INVALID` | 400 | 忘記密碼驗證碼錯誤、過期、已使用或錯誤次數已達上限 |
+| `PASSWORD_RESET_EMAIL_FAILED` | 502 | 忘記密碼驗證信寄送失敗（驗證碼已作廢） |
+| `PASSWORD_RESET_UNAVAILABLE` | 503 | 未設定 SMTP 寄信帳號，忘記密碼功能未啟用 |
 | `VALIDATION_ERROR` | 400 | 輸入參數不合規（含 Mongoose 驗證失敗） |
 | `INVALID_ID` | 400 | MongoDB ObjectId 格式錯誤（CastError） |
 | `NOT_FOUND` | 404 | 資源不存在 |

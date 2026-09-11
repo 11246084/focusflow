@@ -3,6 +3,7 @@ const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const authService = require('../services/auth.service');
 const avatarService = require('../services/avatar.service');
+const passwordResetService = require('../services/passwordReset.service');
 const { USER_ROLE_VALUES } = require('../constants/enums');
 
 const login = asyncHandler(async (req, res) => {
@@ -116,7 +117,23 @@ const updateMe = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Profile updated successfully.', data: { user } });
 });
 
+// Same response whether or not the email exists, to avoid account enumeration.
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  await passwordResetService.requestPasswordReset({ email: req.body?.email });
+  return sendSuccess(res, {
+    message: 'If the email is registered, a verification code has been sent.',
+  });
+});
+
+const confirmPasswordReset = asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body || {};
+  await passwordResetService.confirmPasswordReset({ email, code, newPassword });
+  return sendSuccess(res, { message: 'Password has been reset.' });
+});
+
 module.exports = {
+  requestPasswordReset,
+  confirmPasswordReset,
   login,
   register,
   me,

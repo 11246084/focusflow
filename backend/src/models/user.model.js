@@ -76,6 +76,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'idle',
     },
+    // Pending forgot-password code; only a hash is stored (see passwordReset.service).
+    passwordReset: {
+      type: new mongoose.Schema(
+        {
+          codeHash: { type: String, required: true },
+          expiresAt: { type: Date, required: true },
+          attempts: { type: Number, default: 0 },
+          requestedAt: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     lineConversationHistory: {
       type: [
         {

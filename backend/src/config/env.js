@@ -85,6 +85,12 @@ module.exports = {
     || 'parent_embedding_index',
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-local-env',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  // Forgot-password mail (Gmail app password). Empty user/pass keeps the feature off.
+  smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+  smtpPort: parsePositiveInteger(process.env.SMTP_PORT, 465, 'SMTP_PORT'),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
+  mailFrom: process.env.MAIL_FROM || '',
   demoSeedEnabled: String(process.env.DEMO_SEED_ENABLED || 'false').toLowerCase() === 'true',
   uploadDir,
   avatarUploadDir,

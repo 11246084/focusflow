@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 
-const EVENT_BADGE = { ask: 'br', clip_view: 'by', watch: 'bg', login: 'bb' };
+const EVENT_BADGE = { ask: 'br', clip_view: 'by', watch: 'bg', video_open: 'bg', login: 'bb' };
 
 function fmtDuration(sec) {
   if (!sec) return '—';
@@ -35,7 +35,8 @@ export default function AdminStats() {
 
   const statCards = [
     { ev: 'LOGIN',     lz: '登入次數',  key: 'login',     col: '#a5b4fc', ic: 'home' },
-    { ev: 'WATCH',     lz: '影片觀看',  key: 'watch',     col: '#4ade80', ic: 'play' },
+    // 管理員看「點開次數」；學生進度仍以看到 80% 的 watch 事件計算。
+    { ev: 'WATCH',     lz: '影片點開次數',  key: 'video_open', col: '#4ade80', ic: 'play' },
     { ev: 'ASK',       lz: '問答次數',  key: 'ask',       col: '#F14F21', ic: 'chat' },
     { ev: 'CLIP VIEW', lz: '短影音查看', key: 'clip_view', col: '#fb923c', ic: 'film' },
   ];

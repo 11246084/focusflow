@@ -633,6 +633,18 @@ export default function StudentCourses() {
     }
   }
 
+  // Admin usage stats count every open; progress still waits for the 80% watched mark.
+  function markOpened(courseId, video) {
+    const videoId = video?._id || video?.id;
+    if (!courseId || !videoId) return;
+    apiFetch(`/courses/${courseId}/videos/${videoId}/opened`, { method: 'POST' }).catch(() => {});
+  }
+
+  function openVideo(index) {
+    if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
+    setPlayingVid(index);
+  }
+
   useEffect(() => {
     apiFetch('/courses')
       .then(r => { setCourses(r.data?.courses || []); })
@@ -654,7 +666,7 @@ export default function StudentCourses() {
   }
 
   function jumpToVideo(index, startSec) {
-    setPlayingVid(index);
+    openVideo(index);
     setSeekRequest({ videoIndex: index, startSec: startSec || 0, nonce: Date.now() });
     setTimeout(() => {
       if (videoRef.current) {
@@ -738,7 +750,7 @@ export default function StudentCourses() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {videos.map((v, i) => (
-                  <div key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} onClick={() => setPlayingVid(i)}>
+                  <div key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} onClick={() => openVideo(i)}>
                     <div style={{ width: 34, height: 34, borderRadius: 10, background: playingVid === i ? 'rgba(241,79,33,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playingVid === i ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: playingVid === i ? '#F14F21' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </div>

@@ -202,7 +202,8 @@ async function deleteCourse(courseId, user) {
   }
 }
 
-async function markVideoWatched({ user, courseId, videoId }) {
+// Shared guard for student viewing records: enrolled student + video belongs to the course.
+async function resolveStudentCourseVideo({ user, courseId, videoId }) {
   assertObjectId(courseId, 'course');
   assertObjectId(videoId, 'video');
 
@@ -228,6 +229,24 @@ async function markVideoWatched({ user, courseId, videoId }) {
     // second explicit guard prevents watched tracking from ever granting access.
     throw new AppError('You do not have access to this course.', 403, 'COURSE_ACCESS_DENIED');
   }
+
+  return { course, video, enrollment };
+}
+
+// 管理員統計用：每次點開都記一筆，不影響進度（進度仍以看到 80% 的 watch 為準）。
+async function markVideoOpened({ user, courseId, videoId }) {
+  await resolveStudentCourseVideo({ user, courseId, videoId });
+  await recordUsage({
+    userId: user.id,
+    courseId,
+    event: USAGE_LOG_EVENTS.VIDEO_OPEN,
+    metadata: { videoId: String(videoId) },
+  });
+  return { courseId: String(courseId), videoId: String(videoId) };
+}
+
+async function markVideoWatched({ user, courseId, videoId }) {
+  const { course, enrollment } = await resolveStudentCourseVideo({ user, courseId, videoId });
   const previousWatched = new Set((enrollment.watchedVideoIds || []).map(String));
   const isFirstWatch = !previousWatched.has(String(videoId));
   const watched = new Set(previousWatched);
@@ -268,6 +287,7 @@ async function markVideoWatched({ user, courseId, videoId }) {
 }
 
 module.exports = {
+  markVideoOpened,
   createCourse,
   listCourses,
   getCourseById,

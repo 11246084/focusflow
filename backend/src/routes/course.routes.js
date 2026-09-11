@@ -39,6 +39,7 @@ router.delete(
   enrollmentController.revokeStudent,
 );
 router.post('/:courseId/videos/:videoId/watched', courseController.markVideoWatched);
+router.post('/:courseId/videos/:videoId/opened', courseController.markVideoOpened);
 router.get('/:courseId/faqs', faqController.listCourseFaqs);
 router.delete('/:courseId/faqs', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), faqController.clearCourseFaqs);
 

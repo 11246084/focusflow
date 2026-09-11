@@ -21,6 +21,10 @@ router.post('/login', authController.login);
 // middleware：無
 router.post('/register', authController.register);
 
+// 忘記密碼：先寄 6 位數驗證碼到信箱，再用驗證碼設定新密碼（皆不需登入）
+router.post('/password-reset/request', authController.requestPasswordReset);
+router.post('/password-reset/confirm', authController.confirmPasswordReset);
+
 // GET /api/v1/auth/me
 // 功能：取得當前登入使用者的資訊
 // middleware：authenticate - 驗證 JWT Token，確認用戶已登入

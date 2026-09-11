@@ -457,6 +457,34 @@ describe('course and video routes', () => {
     assert.equal(courseEntry.progress, 100);
   });
 
+  it('學生每次點開影片都記一筆 video_open，且不影響觀看進度', async () => {
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const path = `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/opened`;
+
+    const first = await jsonRequest(serverContext.baseUrl, path, { method: 'POST', token: studentToken });
+    const second = await jsonRequest(serverContext.baseUrl, path, { method: 'POST', token: studentToken });
+
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    const openLogs = store.usageLogs.filter((log) => log.event === 'video_open' && String(log.userId) === String(ids.student));
+    assert.equal(openLogs.length, 2);
+    assert.equal(openLogs[0].metadata?.videoId, ids.publishedVideo);
+    assert.equal(store.usageLogs.some((log) => log.event === 'watch'), false);
+  });
+
+  it('教師點開影片不記錄 video_open', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/courses/${ids.publishedCourse}/videos/${ids.publishedVideo}/opened`,
+      { method: 'POST', token: teacherToken },
+    );
+
+    assert.equal(result.status, 403);
+    assert.equal(store.usageLogs.some((log) => log.event === 'video_open'), false);
+  });
+
   it('主課程影片未列在 course.videoIds 時，觀看進度仍正確計算而非 0%', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
     const course = store.courses.find((item) => item._id === ids.publishedCourse);

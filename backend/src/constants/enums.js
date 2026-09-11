@@ -105,7 +105,9 @@ const YOUTUBE_PRIVACY_STATUSES = {
 
 const USAGE_LOG_EVENTS = {
   LOGIN: 'login',
+  // WATCH = 看到 80% 的首次完成（進度用）；VIDEO_OPEN = 每次點開播放（管理員統計用）。
   WATCH: 'watch',
+  VIDEO_OPEN: 'video_open',
   ASK: 'ask',
   CLIP_VIEW: 'clip_view',
   // 短影片腳本生成的成本紀錄（規格書 DR-06）。刻意與 ASK 分開：

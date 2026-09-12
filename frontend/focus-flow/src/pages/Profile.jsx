@@ -7,6 +7,7 @@ import {
   getUser,
   setUser,
 } from '../api';
+import { applyProfileUserUpdate } from '../utils/profileUser';
 
 const ROLE_LABELS = { student: '學生 · Student', teacher: '教師 · Teacher', admin: '管理員 · Admin' };
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -314,8 +315,8 @@ function ChangePasswordCard() {
   );
 }
 
-export default function Profile({ role, onProfileUpdated }) {
-  const [user, setCurrentUser] = useState(() => getUser() || {});
+export default function Profile({ role, user: authenticatedUser, onProfileUpdated }) {
+  const [user, setCurrentUser] = useState(() => authenticatedUser || getUser() || {});
   const displayName = user.name || '訪客';
   const [previewUrl, setPreviewUrl] = useState(null);
   const [avatarLoading, setAvatarLoading] = useState(true);
@@ -473,12 +474,24 @@ export default function Profile({ role, onProfileUpdated }) {
     );
 
     try {
-      await apiFetch('/auth/me/avatar', {
+      const response = await apiFetch('/auth/me/avatar', {
         method: 'PUT',
         body: formData,
         signal: controller.signal,
       });
       if (!requestIsCurrent()) return;
+
+      // The upload response already contains the newly versioned public user.
+      // Publish it before the follow-up read so Topbar refreshes without a reload.
+      const updatedUser = response.data?.user;
+      if (updatedUser) {
+        setUser(updatedUser);
+        applyProfileUserUpdate({
+          user: updatedUser,
+          setCurrentUser,
+          onProfileUpdated,
+        });
+      }
 
       const refreshed = await refreshProfile({ showLoading: false });
       if (refreshed && requestIsCurrent()) {
@@ -522,7 +535,7 @@ export default function Profile({ role, onProfileUpdated }) {
         onSaved={(freshUser) => {
           setCurrentUser(freshUser);
           setUser(freshUser);
-          onProfileUpdated?.();
+          onProfileUpdated?.(freshUser);
         }}
       />
 

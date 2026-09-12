@@ -4,6 +4,11 @@ import { Ic } from './Icons';
 import { apiFetch, getUser } from '../api';
 import { getDisplayName } from '../utils/userDisplay';
 import { requestOpenScript } from '../utils/scriptDeepLink';
+import {
+  createAvatarUrlController,
+  fetchCurrentUserAvatarObjectUrl,
+  getAvatarVersion,
+} from '../utils/avatarImage';
 
 function formatNotificationTime(value) {
   const date = new Date(value);
@@ -63,10 +68,13 @@ function DropdownPanel({ anchorRect, width, panelRef, children, centerOnMobile =
   );
 }
 
-export default function Topbar({ title, sub, onNav, onLogout }) {
-  const user = getUser() || {};
+export default function Topbar({ user: userProp, title, sub, onNav, onLogout }) {
+  // The fallback retains compatibility for any isolated use of Topbar, while
+  // DashboardApp supplies the reactive authenticated user during normal use.
+  const user = userProp || getUser() || {};
   const displayName = getDisplayName(user);
   const roleLabel = { student: '學生', teacher: '教師', admin: '管理員' }[user.role] || '';
+  const avatarVersion = getAvatarVersion(user);
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -85,11 +93,18 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
   const [broadcastUrgent, setBroadcastUrgent] = useState(false);
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastFeedback, setBroadcastFeedback] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const bellRef = useRef(null);
   const notifPanelRef = useRef(null);
   const avatarRef = useRef(null);
   const menuPanelRef = useRef(null);
+  const avatarControllerRef = useRef(null);
+  if (!avatarControllerRef.current) {
+    avatarControllerRef.current = createAvatarUrlController({
+      fetchAvatar: fetchCurrentUserAvatarObjectUrl,
+    });
+  }
   // Refs close same-tick concurrency gaps before the matching React state is rendered.
   const listRequestIdRef = useRef(0);
   const listAbortRef = useRef(null);
@@ -157,6 +172,32 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
       loadMorePendingRef.current = false;
     };
   }, [loadNotifications]);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setAvatarUrl(null);
+
+    void avatarControllerRef.current.load({
+      hasAvatar: Boolean(avatarVersion),
+      signal: controller.signal,
+    })
+      .then((nextUrl) => {
+        if (active) setAvatarUrl(nextUrl);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+      avatarControllerRef.current.cancel();
+    };
+  }, [avatarVersion]);
+
+  function handleAvatarImageError() {
+    if (avatarControllerRef.current.release(avatarUrl)) {
+      setAvatarUrl(null);
+    }
+  }
 
   useEffect(() => {
     function handleOutsideClick(e) {
@@ -328,9 +369,18 @@ export default function Topbar({ title, sub, onNav, onLogout }) {
         <div
           ref={avatarRef}
           onClick={toggleMenu}
-          style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#F14F21,#a01a50)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif" }}
+          style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg,#F14F21,#a01a50)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif" }}
         >
-          {displayName.charAt(0)}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={`${displayName} 的頭像`}
+              onError={handleAvatarImageError}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            displayName.charAt(0)
+          )}
         </div>
       </div>
 

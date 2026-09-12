@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.css';
 import LiquidGradientBg from './components/LiquidGradientBg';
 import Button3D          from './components/Button3D';
@@ -6,6 +6,7 @@ import LoginPage         from './components/LoginPage';
 import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
 import { clearToken, clearUser } from './api';
+import { AUTH_SESSION_STATUS, restoreAuthSession } from './authSession';
 
 function Cursor() {
   const ref = useRef(null);
@@ -26,9 +27,50 @@ export default function App() {
   const [page, setPage] = useState('landing');
   const [role, setRole] = useState('student');
   const [sub,  setSub]  = useState('home');
+  const [authInitializing, setAuthInitializing] = useState(true);
+  const [authRestoreError, setAuthRestoreError] = useState(null);
+
+  const restoreSession = useCallback(async (isActive = () => true) => {
+    const session = await restoreAuthSession();
+    if (!isActive()) return;
+    setAuthRestoreError(null);
+
+    if (session.status === AUTH_SESSION_STATUS.AUTHENTICATED) {
+      setRole(session.user.role);
+      setSub('home');
+      setPage('app');
+    } else if (session.status === AUTH_SESSION_STATUS.INVALID) {
+      setPage('login');
+    } else if (session.status === AUTH_SESSION_STATUS.ANONYMOUS) {
+      setPage('landing');
+    } else {
+      setAuthRestoreError(session.error || new Error('無法驗證登入狀態。'));
+    }
+
+    setAuthInitializing(false);
+  }, []);
+
+  const retrySessionRestore = () => {
+    setAuthInitializing(true);
+    restoreSession();
+  };
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => restoreSession(() => active));
+    return () => { active = false; };
+  }, [restoreSession]);
 
   const handleLogin = (r) => { setRole(r); setSub('home'); setPage('app'); };
   const handleLogout = () => { clearToken(); clearUser(); setPage('login'); };
+
+  if (authInitializing) {
+    return <AuthInitializing />;
+  }
+
+  if (authRestoreError) {
+    return <AuthRestoreUnavailable error={authRestoreError} onRetry={retrySessionRestore} />;
+  }
 
   if (page === 'login') {
     return (
@@ -167,6 +209,31 @@ export default function App() {
             </div>
           </div>
 
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthInitializing() {
+  return (
+    <div className="login-page">
+      <div className="ff-bg" />
+      <div className="login-right">
+        <div className="login-form-card">驗證登入狀態中…</div>
+      </div>
+    </div>
+  );
+}
+
+function AuthRestoreUnavailable({ error, onRetry }) {
+  return (
+    <div className="login-page">
+      <div className="ff-bg" />
+      <div className="login-right">
+        <div className="login-form-card">
+          <p>{error.message || '暫時無法驗證登入狀態。'}</p>
+          <button className="btn-primary login-submit" onClick={onRetry}>重新驗證</button>
         </div>
       </div>
     </div>

@@ -19,6 +19,14 @@ const {
   resolveBatchManifestPath,
 } = require('../src/services/videoBatchReconciliation.service');
 
+async function waitFor(predicate, attempts = 100) {
+  for (let index = 0; index < attempts; index += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for asynchronous batch upload state.');
+}
+
 describe('video batch processing adapter', () => {
   beforeEach(() => resetStore());
 
@@ -113,6 +121,48 @@ describe('video batch processing adapter', () => {
     assert.equal(failedVideo.processing.errorCode, 'STT_FAILED');
     assert.equal(result.status, 'partial');
     assert.equal(replay.status, 'partial');
+  });
+
+  it('pipeline batch completion 會進入與單支影片相同的 YouTube 上傳 gate', async () => {
+    const originalUploadEnabled = env.youtubeUploadEnabled;
+    const originalAccessToken = env.youtubeUploadAccessToken;
+    env.youtubeUploadEnabled = true;
+    env.youtubeUploadAccessToken = 'batch-upload-token-for-tests';
+
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = createProcessingState({ status: 'queued', attemptCount: 0 });
+    video.filePath = path.join(env.uploadDir, `test-upload-missing-batch-${Date.now()}.mp4`);
+    video.youtubeVideoId = null;
+    video.youtubeUpload = null;
+    const batch = {
+      batchId: 'batch_20260812010101_abcdef12',
+      courseId: ids.teacherCourse,
+      createdBy: ids.teacher,
+      status: 'processing',
+      processingMode: 'pipeline_batch',
+      items: [{ itemId: 'item_0001', videoId: ids.teacherVideo, uploadStatus: 'uploaded' }],
+    };
+    store.videoBatches.push(batch);
+
+    try {
+      await reconcileVideoBatchFromManifest(batch, {
+        batch_id: batch.batchId,
+        status: 'completed',
+        items: [{
+          item_id: 'item_0001',
+          requested_video_id: ids.teacherVideo,
+          status: 'completed',
+        }],
+      });
+      await waitFor(() => video.youtubeUpload?.status === 'failed');
+
+      assert.equal(video.processing.status, 'completed');
+      assert.equal(video.youtubeVideoId, null);
+      assert.match(video.youtubeUpload.error, /Local video file is missing/i);
+    } finally {
+      env.youtubeUploadEnabled = originalUploadEnabled;
+      env.youtubeUploadAccessToken = originalAccessToken;
+    }
   });
 
   it('rejects a mismatched manifest before changing any video status', async () => {

@@ -14,7 +14,6 @@ const {
   env,
   createProcessingState,
 } = require('./helpers/backendTestHarness');
-const youtubeUploadService = require('../src/services/youtubeUpload.service');
 
 describe('course and video routes', () => {
   let serverContext;
@@ -240,22 +239,15 @@ describe('course and video routes', () => {
     );
   });
 
-  it('stores YouTube metadata when local-file auto upload is enabled', async () => {
-    const originalIsAutoUploadEnabled = youtubeUploadService.isAutoUploadEnabled;
-    const originalUploadLocalVideo = youtubeUploadService.uploadLocalVideo;
-    youtubeUploadService.isAutoUploadEnabled = () => true;
-    youtubeUploadService.uploadLocalVideo = async ({ filePath, title, mimeType }) => ({
-      youtubeVideoId: 'yt-auto-001',
-      videoUrl: 'https://www.youtube.com/watch?v=yt-auto-001',
-      privacyStatus: 'unlisted',
-      received: { filePath, title, mimeType },
-    });
+  it('keeps local playback metadata until processing completes', async () => {
+    const originalUploadEnabled = env.youtubeUploadEnabled;
+    env.youtubeUploadEnabled = true;
 
     try {
       const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
       const formData = createVideoUploadForm({
-        title: 'Auto-uploaded lecture',
-        filename: `${Date.now()}-test-upload-youtube-auto.mp4`,
+        title: 'Completion-gated lecture',
+        filename: `${Date.now()}-test-upload-youtube-gated.mp4`,
       });
 
       const uploadResult = await jsonRequest(
@@ -271,17 +263,18 @@ describe('course and video routes', () => {
       const storedVideo = store.videos.find((video) => video._id === uploadResult.body.data.video._id);
       assert.equal(uploadResult.status, 201);
       assert.equal(uploadResult.body.data.video.sourceType, 'upload');
-      assert.equal(uploadResult.body.data.video.youtubeVideoId, 'yt-auto-001');
-      assert.equal(uploadResult.body.data.video.youtube_video_id, 'yt-auto-001');
-      assert.equal(uploadResult.body.data.video.video_source, 'youtube');
-      assert.equal(uploadResult.body.data.video.sourceUrl, 'https://www.youtube.com/watch?v=yt-auto-001');
-      assert.equal(uploadResult.body.data.video.video_url, 'https://www.youtube.com/watch?v=yt-auto-001');
-      assert.equal(storedVideo.youtubeVideoId, 'yt-auto-001');
+      assert.equal(uploadResult.body.data.video.processing.status, 'queued');
+      assert.equal(uploadResult.body.data.video.youtubeVideoId, null);
+      assert.equal(uploadResult.body.data.video.youtube_video_id, null);
+      assert.equal(uploadResult.body.data.video.video_source, 'upload');
+      assert.match(uploadResult.body.data.video.sourceUrl, /^\/uploads\//);
+      assert.equal(uploadResult.body.data.video.video_url, uploadResult.body.data.video.sourceUrl);
+      assert.equal(storedVideo.youtubeVideoId, null);
+      assert.equal(storedVideo.youtubeUpload ?? null, null);
       assert.ok(storedVideo.filePath);
       assert.ok(storedVideo.fileHash);
     } finally {
-      youtubeUploadService.isAutoUploadEnabled = originalIsAutoUploadEnabled;
-      youtubeUploadService.uploadLocalVideo = originalUploadLocalVideo;
+      env.youtubeUploadEnabled = originalUploadEnabled;
     }
   });
 

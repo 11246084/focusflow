@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { ids, resetStore, store } = require('./helpers/backendTestHarness');
 const env = require('../src/config/env');
+const videoProcessingService = require('../src/services/videoProcessing.service');
 const youtubeUploadService = require('../src/services/youtubeUpload.service');
 
 function jsonResponse(payload, { status = 200, headers = {} } = {}) {
@@ -75,7 +76,6 @@ describe('youtubeUpload.service', () => {
     youtubeUploadService.resetYouTubeUploadState();
     originalEnv = {
       youtubeUploadEnabled: env.youtubeUploadEnabled,
-      youtubeAutoUploadEnabled: env.youtubeAutoUploadEnabled,
       youtubeClientId: env.youtubeClientId,
       youtubeClientSecret: env.youtubeClientSecret,
       youtubeRefreshToken: env.youtubeRefreshToken,
@@ -96,7 +96,6 @@ describe('youtubeUpload.service', () => {
     };
 
     env.youtubeUploadEnabled = true;
-    env.youtubeAutoUploadEnabled = false;
     env.youtubeClientId = 'client-id-for-tests';
     env.youtubeClientSecret = 'client-secret-for-tests';
     env.youtubeRefreshToken = 'refresh-token-for-tests';
@@ -114,6 +113,13 @@ describe('youtubeUpload.service', () => {
     env.youtubeUploadRecoveryBatchSize = 5;
     env.youtubeUploadStuckAfterMs = 900000;
     env.youtubeUploadCleanupEnabled = false;
+
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = {
+      status: 'completed',
+      completedAt: new Date('2026-09-01T00:00:00.000Z'),
+      attemptCount: 1,
+    };
 
     tempFilePath = path.join(os.tmpdir(), `focusflow-yt-test-${Date.now()}.mp4`);
     fs.writeFileSync(tempFilePath, 'fake video bytes');
@@ -178,31 +184,24 @@ describe('youtubeUpload.service', () => {
 
   it('未啟用時 scheduleYouTubeAutoUpload 直接略過', () => {
     env.youtubeUploadEnabled = false;
-    env.youtubeAutoUploadEnabled = false;
 
     assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), false);
-    assert.equal(youtubeUploadService.scheduleYouTubeAutoUpload({ _id: ids.teacherVideo }), null);
+    assert.equal(youtubeUploadService.scheduleYouTubeAutoUpload(
+      store.videos.find((item) => item._id === ids.teacherVideo),
+    ), null);
   });
 
-  it('legacy flag 單獨啟用時保留相容入口', () => {
-    env.youtubeUploadEnabled = false;
-    env.youtubeAutoUploadEnabled = true;
+  it('processing 尚未完成時不排程 YouTube 上傳', () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = { status: 'processing', attemptCount: 1 };
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
 
-    assert.equal(youtubeUploadService.isAutoUploadEnabled(), true);
-    assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), false);
+    assert.equal(youtubeUploadService.scheduleYouTubeAutoUpload(video), null);
+    assert.equal(video.youtubeUpload, undefined);
   });
 
-  it('canonical flag 單獨啟用時停用 legacy 同步入口', () => {
-    env.youtubeUploadEnabled = true;
-    env.youtubeAutoUploadEnabled = false;
-
-    assert.equal(youtubeUploadService.isAutoUploadEnabled(), false);
-    assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), true);
-  });
-
-  it('canonical 與 legacy flag 同時啟用時由 canonical audit path 接手', async () => {
-    env.youtubeUploadEnabled = true;
-    env.youtubeAutoUploadEnabled = true;
+  it('正式 flag 啟用且 processing 已完成時走背景 audit path', async () => {
     const video = store.videos.find((item) => item._id === ids.teacherVideo);
     video.filePath = tempFilePath;
     video.youtubeVideoId = null;
@@ -210,7 +209,6 @@ describe('youtubeUpload.service', () => {
     global.fetch = buildSuccessfulFetchMock([]);
 
     try {
-      assert.equal(youtubeUploadService.isAutoUploadEnabled(), false);
       assert.equal(youtubeUploadService.isYouTubeUploadConfigured(), true);
 
       const result = await youtubeUploadService.scheduleYouTubeAutoUpload(video);
@@ -220,6 +218,116 @@ describe('youtubeUpload.service', () => {
       assert.equal(video.youtubeUpload.status, 'uploaded');
       assert.equal(video.youtubeUpload.attemptCount, 1);
       assert.ok(video.youtubeUpload.lastAttemptAt);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('同一影片的並行 completion trigger 只會取得一次上傳 claim', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = null;
+    const calls = [];
+    const fetchImpl = buildSuccessfulFetchMock(calls);
+
+    const results = await Promise.all([
+      youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo, { fetchImpl }),
+      youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo, { fetchImpl }),
+    ]);
+
+    assert.deepEqual(results.sort((left, right) => String(left).localeCompare(String(right))), [null, 'ytVideo123']);
+    assert.equal(video.youtubeVideoId, 'ytVideo123');
+    assert.equal(calls.filter((call) => String(call.url).includes('uploadType=resumable')).length, 1);
+    assert.equal(calls.filter((call) => call.options.method === 'PUT').length, 1);
+  });
+
+  it('processing completion 才觸發上傳，重複 callback 不會建立第二支 YouTube 影片', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = { status: 'queued', attemptCount: 0 };
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = null;
+    const calls = [];
+    const originalFetch = global.fetch;
+    global.fetch = buildSuccessfulFetchMock(calls);
+
+    try {
+      await videoProcessingService.startVideoProcessing(ids.teacherVideo);
+      assert.equal(calls.length, 0);
+      assert.equal(video.youtubeVideoId, null);
+
+      const completed = await videoProcessingService.completeVideoProcessing(ids.teacherVideo, {
+        durationSec: 123,
+      });
+      await waitFor(() => video.youtubeUpload?.status === 'uploaded');
+
+      const replay = await videoProcessingService.completeVideoProcessing(ids.teacherVideo);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(completed.processing.status, 'completed');
+      assert.equal(replay.processing.status, 'completed');
+      assert.equal(video.youtubeVideoId, 'ytVideo123');
+      assert.equal(calls.filter((call) => String(call.url).includes('uploadType=resumable')).length, 1);
+      assert.equal(calls.filter((call) => call.options.method === 'PUT').length, 1);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('completion 後 YouTube 上傳失敗不會把 processing 改回 failed', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = { status: 'queued', attemptCount: 0 };
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = null;
+    const originalFetch = global.fetch;
+    global.fetch = async (url) => {
+      if (String(url).includes('oauth2.googleapis.com/token')) {
+        return jsonResponse({ error: 'invalid_grant' }, { status: 400 });
+      }
+      return jsonResponse({});
+    };
+
+    try {
+      await videoProcessingService.startVideoProcessing(ids.teacherVideo);
+      const completed = await videoProcessingService.completeVideoProcessing(ids.teacherVideo);
+      await waitFor(() => video.youtubeUpload?.status === 'failed');
+
+      assert.equal(completed.processing.status, 'completed');
+      assert.equal(video.processing.status, 'completed');
+      assert.match(video.youtubeUpload.error, /token refresh failed/i);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('重複 completion 的舊快照不會把 failed 上傳當成自動重試', async () => {
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = null;
+    const staleCompletionSnapshot = structuredClone(video);
+    let fetchCalls = 0;
+    const originalFetch = global.fetch;
+    global.fetch = async (url) => {
+      fetchCalls += 1;
+      if (String(url).includes('oauth2.googleapis.com/token')) {
+        return jsonResponse({ error: 'invalid_grant' }, { status: 400 });
+      }
+      return jsonResponse({});
+    };
+
+    try {
+      await youtubeUploadService.scheduleYouTubeAutoUpload(staleCompletionSnapshot);
+      assert.equal(video.youtubeUpload.status, 'failed');
+      assert.equal(fetchCalls, 1);
+
+      await youtubeUploadService.scheduleYouTubeAutoUpload(staleCompletionSnapshot);
+
+      assert.equal(fetchCalls, 1);
+      assert.equal(video.youtubeUpload.status, 'failed');
+      assert.equal(video.youtubeUpload.attemptCount, 1);
     } finally {
       global.fetch = originalFetch;
     }
@@ -347,6 +455,7 @@ describe('youtubeUpload.service', () => {
 
     resetStore();
     const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+    stale.processing = { status: 'completed' };
     stale.youtubeVideoId = null;
     stale.youtubeUpload = {
       status: 'uploading',
@@ -361,6 +470,160 @@ describe('youtubeUpload.service', () => {
     assert.equal(stale.youtubeUpload.status, 'failed');
     assert.equal(stale.youtubeUpload.retrySafe, false);
     assert.match(stale.youtubeUpload.error, /review YouTube Studio/i);
+  });
+
+  it('recovery 對 missing、null 與空字串 YouTube ID 都隔離 stale uploading，且保留有效 ID', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const now = new Date('2026-08-12T00:00:00.000Z');
+
+    for (const youtubeVideoId of [undefined, null, '']) {
+      resetStore();
+      const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+      stale.processing = { status: 'completed' };
+      if (youtubeVideoId === undefined) {
+        delete stale.youtubeVideoId;
+      } else {
+        stale.youtubeVideoId = youtubeVideoId;
+      }
+      stale.youtubeUpload = {
+        status: 'uploading',
+        attemptCount: 1,
+        lastAttemptAt: '2026-08-11T00:00:00.000Z',
+      };
+
+      const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+        fetchImpl: async () => { throw new Error('must not call YouTube'); },
+        now,
+      });
+
+      assert.deepEqual(result, { recovered: 0, quarantined: 1, skipped: false });
+      assert.equal(stale.youtubeUpload.status, 'failed');
+      assert.equal(stale.youtubeUpload.retrySafe, false);
+    }
+
+    resetStore();
+    const uploaded = store.videos.find((item) => item._id === ids.teacherVideo);
+    uploaded.processing = { status: 'completed' };
+    uploaded.youtubeVideoId = 'already-uploaded';
+    uploaded.youtubeUpload = {
+      status: 'uploading',
+      attemptCount: 1,
+      lastAttemptAt: '2026-08-11T00:00:00.000Z',
+    };
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: async () => { throw new Error('must not call YouTube'); },
+      now,
+    });
+
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.equal(uploaded.youtubeUpload.status, 'uploading');
+    assert.equal(uploaded.youtubeVideoId, 'already-uploaded');
+  });
+
+  it('recovery 的 stale quarantine 不會覆寫並發完成的 YouTube upload', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+    stale.processing = { status: 'completed' };
+    stale.youtubeVideoId = null;
+    stale.youtubeUpload = {
+      status: 'uploading',
+      attemptCount: 1,
+      lastAttemptAt: '2026-08-11T00:00:00.000Z',
+    };
+    store.beforeVideoCompareAndSwap = async () => {
+      stale.youtubeVideoId = 'uploaded-during-recovery';
+      stale.youtubeUpload = {
+        ...stale.youtubeUpload,
+        status: 'uploaded',
+        uploadedAt: new Date('2026-08-12T00:00:00.000Z'),
+      };
+    };
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: async () => { throw new Error('must not call YouTube'); },
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.equal(stale.youtubeVideoId, 'uploaded-during-recovery');
+    assert.equal(stale.youtubeUpload.status, 'uploaded');
+  });
+
+  it('recovery 的 stale quarantine 不會覆寫掃描後取得的新 uploading attempt', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+    stale.processing = { status: 'completed' };
+    stale.youtubeVideoId = null;
+    stale.youtubeUpload = {
+      status: 'uploading',
+      attemptCount: 1,
+      lastAttemptAt: '2026-08-11T00:00:00.000Z',
+    };
+    store.beforeVideoCompareAndSwap = async () => {
+      stale.youtubeUpload = {
+        ...stale.youtubeUpload,
+        attemptCount: 2,
+        lastAttemptAt: new Date('2026-08-12T00:00:00.000Z'),
+      };
+    };
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: async () => { throw new Error('must not call YouTube'); },
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.equal(stale.youtubeUpload.status, 'uploading');
+    assert.equal(stale.youtubeUpload.attemptCount, 2);
+  });
+
+  it('recovery 的 CAS 不會把掃描時 null 的 attempt 與後來缺失的欄位視為相同', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const stale = store.videos.find((item) => item._id === ids.teacherVideo);
+    stale.processing = { status: 'completed' };
+    stale.youtubeVideoId = null;
+    stale.youtubeUpload = {
+      status: 'uploading',
+      attemptCount: 1,
+      lastAttemptAt: null,
+    };
+    store.beforeVideoCompareAndSwap = async () => {
+      delete stale.youtubeUpload.lastAttemptAt;
+    };
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: async () => { throw new Error('must not call YouTube'); },
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.equal(stale.youtubeUpload.status, 'uploading');
+    assert.equal(stale.youtubeUpload.lastAttemptAt, undefined);
+  });
+
+  it('啟動 recovery 不處理尚未完成 processing 的影片', async () => {
+    env.youtubeUploadRecoveryEnabled = true;
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = { status: 'processing', attemptCount: 1 };
+    video.filePath = tempFilePath;
+    video.youtubeVideoId = null;
+    video.youtubeUpload = {
+      status: 'failed',
+      attemptCount: 1,
+      retrySafe: true,
+      nextRetryAt: new Date(0),
+    };
+    const calls = [];
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: buildSuccessfulFetchMock(calls),
+      now: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.equal(video.youtubeUpload.status, 'failed');
+    assert.equal(calls.length, 0);
   });
 
   it('課程 owner 可排程安全失敗的重試，完成後受 bounded attempt 保護', async () => {

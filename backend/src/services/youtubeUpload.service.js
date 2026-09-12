@@ -85,20 +85,43 @@ function buildYouTubeWatchUrl(youtubeVideoId) {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeVideoId)}`;
 }
 
+// Keep every transition that can create a YouTube video aligned on what
+// "not uploaded yet" means, including legacy rows that stored an empty ID.
+function buildMissingYouTubeVideoIdCondition() {
+  return {
+    $or: [
+      { youtubeVideoId: null },
+      { youtubeVideoId: '' },
+      { youtubeVideoId: { $exists: false } },
+    ],
+  };
+}
+
+function buildObservedLastAttemptCondition(lastAttemptAt) {
+  if (lastAttemptAt === undefined) {
+    return { 'youtubeUpload.lastAttemptAt': { $exists: false } };
+  }
+
+  // MongoDB treats `{ field: null }` as both null and missing. Keep the
+  // compare-and-set exact when the stale snapshot explicitly held null.
+  if (lastAttemptAt === null) {
+    return {
+      $and: [
+        { 'youtubeUpload.lastAttemptAt': null },
+        { 'youtubeUpload.lastAttemptAt': { $exists: true } },
+      ],
+    };
+  }
+
+  return { 'youtubeUpload.lastAttemptAt': lastAttemptAt };
+}
+
 function guessMimeType(filePath) {
   const extension = path.extname(filePath || '').toLowerCase();
   if (extension === '.mov') return 'video/quicktime';
   if (extension === '.webm') return 'video/webm';
   if (extension === '.mkv') return 'video/x-matroska';
   return 'video/mp4';
-}
-
-function isAutoUploadEnabled() {
-  // The legacy flag runs a synchronous pre-create adapter that cannot persist
-  // the canonical youtubeUpload audit lifecycle. When both flags are enabled,
-  // the canonical background flow must win so an early youtubeVideoId does not
-  // cause autoUploadVideoToYouTube() to skip the audited write-back path.
-  return Boolean(env.youtubeAutoUploadEnabled && !env.youtubeUploadEnabled);
 }
 
 function getOAuthCredentials() {
@@ -373,24 +396,72 @@ async function cleanupUploadedLocalVideo(videoId) {
   }
 }
 
-async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = {}) {
+async function autoUploadVideoToYouTube(
+  videoId,
+  { fetchImpl = global.fetch, allowRetry = true } = {},
+) {
   const id = String(videoId);
   if (runningUploadIds.has(id)) return null;
-
-  const video = await Video.findById(id);
-  if (!video || video.youtubeVideoId) return null;
-  if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) return null;
-
-  const previousAttempts = Number(video.youtubeUpload?.attemptCount || 0);
-  if (previousAttempts >= env.youtubeUploadMaxAttempts) return null;
-
-  const attemptCount = previousAttempts + 1;
-  const attemptStartedAt = new Date();
-  const filePath = resolveLocalUploadPath(video.filePath);
   runningUploadIds.add(id);
+  let attemptCount = 0;
+  let attemptStartedAt = new Date();
 
   try {
-    if (!video.filePath || !existsSync(filePath)) {
+    const video = await Video.findById(id);
+    if (
+      !video
+      || video.processing?.status !== VIDEO_PROCESSING_STATUSES.COMPLETED
+      || video.youtubeVideoId
+      || video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING
+      || video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED
+    ) {
+      return null;
+    }
+
+    const previousAttempts = Number(video.youtubeUpload?.attemptCount || 0);
+    if (previousAttempts >= env.youtubeUploadMaxAttempts) return null;
+
+    attemptCount = previousAttempts + 1;
+    attemptStartedAt = new Date();
+    const claimConditions = [
+      buildMissingYouTubeVideoIdCondition(),
+      allowRetry
+        ? {
+          'youtubeUpload.status': {
+            $nin: [YOUTUBE_UPLOAD_STATUSES.UPLOADING, YOUTUBE_UPLOAD_STATUSES.UPLOADED],
+          },
+        }
+        : {
+          $or: [
+            { 'youtubeUpload.status': null },
+            { 'youtubeUpload.status': { $exists: false } },
+          ],
+        },
+    ];
+    const claimedVideo = await Video.findOneAndUpdate(
+      {
+        _id: id,
+        'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
+        $and: claimConditions,
+      },
+      {
+        $set: {
+          'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
+          'youtubeUpload.error': null,
+          'youtubeUpload.uploadedAt': null,
+          'youtubeUpload.attemptCount': attemptCount,
+          'youtubeUpload.lastAttemptAt': attemptStartedAt,
+          'youtubeUpload.failedAt': null,
+          'youtubeUpload.retrySafe': false,
+          'youtubeUpload.nextRetryAt': null,
+        },
+      },
+      { new: true },
+    );
+    if (!claimedVideo) return null;
+
+    const filePath = resolveLocalUploadPath(claimedVideo.filePath);
+    if (!claimedVideo.filePath || !existsSync(filePath)) {
       await Video.findByIdAndUpdate(id, {
         $set: {
           'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
@@ -406,22 +477,9 @@ async function autoUploadVideoToYouTube(videoId, { fetchImpl = global.fetch } = 
       return null;
     }
 
-    await Video.findByIdAndUpdate(id, {
-      $set: {
-        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
-        'youtubeUpload.error': null,
-        'youtubeUpload.uploadedAt': null,
-        'youtubeUpload.attemptCount': attemptCount,
-        'youtubeUpload.lastAttemptAt': attemptStartedAt,
-        'youtubeUpload.failedAt': null,
-        'youtubeUpload.retrySafe': false,
-        'youtubeUpload.nextRetryAt': null,
-      },
-    });
-
     const uploadResult = await uploadLocalVideo({
       filePath,
-      title: video.title,
+      title: claimedVideo.title,
       description: `Uploaded by FocusFlow (video ${id}).`,
       fetchImpl,
     });
@@ -498,6 +556,13 @@ async function assertRetryableUpload(videoId, user) {
   if (Number(video.youtubeUpload?.attemptCount || 0) >= env.youtubeUploadMaxAttempts) {
     throw new AppError('YouTube upload retry limit reached.', 409, 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED');
   }
+  if (video.processing?.status !== VIDEO_PROCESSING_STATUSES.COMPLETED) {
+    throw new AppError(
+      'YouTube upload can be retried only after video processing is completed.',
+      409,
+      'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED',
+    );
+  }
   if (!isYouTubeUploadConfigured()) {
     throw new AppError('YouTube upload is not configured.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   }
@@ -507,7 +572,7 @@ async function assertRetryableUpload(videoId, user) {
 async function scheduleYouTubeUploadRetry(videoId, user, { fetchImpl = global.fetch } = {}) {
   const video = await assertRetryableUpload(videoId, user);
   Promise.resolve()
-    .then(() => autoUploadVideoToYouTube(String(video._id), { fetchImpl }))
+    .then(() => autoUploadVideoToYouTube(String(video._id), { fetchImpl, allowRetry: true }))
     .catch(() => null);
   return { videoId: String(video._id), status: 'retry_scheduled' };
 }
@@ -522,8 +587,9 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
   credentialState.lastRecoveryAttemptAt = now.toISOString();
   try {
     const candidates = await Video.find({
-      youtubeVideoId: null,
+      'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
       'youtubeUpload.status': { $in: [YOUTUBE_UPLOAD_STATUSES.FAILED, YOUTUBE_UPLOAD_STATUSES.UPLOADING] },
+      $and: [buildMissingYouTubeVideoIdCondition()],
     }).limit(env.youtubeUploadRecoveryBatchSize).lean();
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
     let recovered = 0;
@@ -531,18 +597,31 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
 
     for (const video of candidates) {
       if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
-        const lastAttemptMs = new Date(video.youtubeUpload?.lastAttemptAt || 0).getTime();
+        const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
+        const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
-          await Video.findByIdAndUpdate(video._id, {
-            $set: {
-              'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
-              'youtubeUpload.error': 'Stale upload quarantined: review YouTube Studio before retrying.',
-              'youtubeUpload.failedAt': now,
-              'youtubeUpload.retrySafe': false,
-              'youtubeUpload.nextRetryAt': null,
+          const quarantinedVideo = await Video.findOneAndUpdate(
+            {
+              _id: video._id,
+              'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
+              'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
+              $and: [
+                buildMissingYouTubeVideoIdCondition(),
+                buildObservedLastAttemptCondition(observedLastAttemptAt),
+              ],
             },
-          });
-          quarantined += 1;
+            {
+              $set: {
+                'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+                'youtubeUpload.error': 'Stale upload quarantined: review YouTube Studio before retrying.',
+                'youtubeUpload.failedAt': now,
+                'youtubeUpload.retrySafe': false,
+                'youtubeUpload.nextRetryAt': null,
+              },
+            },
+            { new: true },
+          );
+          if (quarantinedVideo) quarantined += 1;
         }
         continue;
       }
@@ -550,7 +629,7 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
       const nextRetryMs = new Date(video.youtubeUpload?.nextRetryAt || 0).getTime();
       const attempts = Number(video.youtubeUpload?.attemptCount || 0);
       if (video.youtubeUpload?.retrySafe === true && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
-        await autoUploadVideoToYouTube(String(video._id), { fetchImpl });
+        await autoUploadVideoToYouTube(String(video._id), { fetchImpl, allowRetry: true });
         recovered += 1;
       }
     }
@@ -656,13 +735,20 @@ async function privatizeVideosOnDelete(videos = [], { fetchImpl = global.fetch }
   return results;
 }
 
-// 上傳流程的 fire-and-forget 入口：未設定憑證時靜默略過，不影響本地上傳與 STT pipeline。
+// completion side effect 的 fire-and-forget 入口：未設定憑證時靜默略過，
+// YouTube 結果不會回寫或覆蓋已完成的 processing lifecycle。
 function scheduleYouTubeAutoUpload(video) {
-  if (!isYouTubeUploadConfigured()) {
+  if (
+    !isYouTubeUploadConfigured()
+    || !video?._id
+    || video.processing?.status !== VIDEO_PROCESSING_STATUSES.COMPLETED
+    || video.youtubeVideoId
+    || video.youtubeUpload?.status
+  ) {
     return null;
   }
 
-  return autoUploadVideoToYouTube(String(video._id)).catch((error) => {
+  return autoUploadVideoToYouTube(String(video._id), { allowRetry: false }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`YouTube auto upload scheduling failed for video ${video._id}.`, error);
     }
@@ -859,7 +945,6 @@ module.exports = {
   cleanupUploadedLocalVideo,
   fetchAccessToken,
   guessMimeType,
-  isAutoUploadEnabled,
   isFocusFlowUploadedVideo,
   isPrivatizeOnDeleteConfigured,
   isYouTubeUploadConfigured,

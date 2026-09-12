@@ -1,6 +1,6 @@
 # FocusFlow
 
-FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影片後，系統會自動執行 STT、文字分段與向量嵌入（並可在設定憑證後自動上傳 YouTube）；學生可在網頁或 LINE Bot 提問，取得 AI 生成答案與對應影片時間戳。
+FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影片後，系統會自動執行 STT、文字分段與向量嵌入，處理成功後可依設定自動上傳 YouTube；學生可在網頁或 LINE Bot 提問，取得 AI 生成答案與對應影片時間戳。
 
 > 目前範圍是 **Phase 1 MVP**：文字版影片問答、課程/影片管理、LINE Bot 問答與前端角色頁面整合。
 
@@ -122,7 +122,7 @@ python src/main.py --limit 1
 python src/main.py --overwrite
 ```
 
-教師上傳採**單一軌道**（2026-07-12 起）：本地上傳影片後，系統自動執行 STT → 切段 → embedding，並在設定 YouTube 憑證時自動上傳 YouTube 供學生 iframe 播放（支援 timestamp 跳轉）。YouTube URL API（`POST /courses/:courseId/videos/youtube`）保留，但已不在教師上傳頁露出。
+教師上傳採**單一軌道**（2026-07-12 起）：本地上傳影片後，系統先執行 STT → 切段 → embedding；只有 `processing=completed` 且 YouTube 功能與憑證已設定時，才自動上傳 YouTube 供學生 iframe 播放（支援 timestamp 跳轉）。YouTube URL API（`POST /courses/:courseId/videos/youtube`）保留，但已不在教師上傳頁露出。
 
 ---
 
@@ -251,7 +251,7 @@ LINE Bot 指令：
 - QA cost guardrails 已接入：可用 `QA_MONTHLY_TOKEN_BUDGET` / `QA_USER_MONTHLY_TOKEN_QUOTA` / `QA_ESTIMATED_TOKENS_PER_ASK` 設定全站與單一使用者月 quota，超額時回 `429 QA_QUOTA_EXCEEDED`，`/health.runtime.qa.costControl` 可觀察設定。
 - 共享 Atlas 的 `text_embedding_index` 已於 2026-05-23 驗證 READY；若共享 DB 或 index 被重置，仍需以 `/health` 現況為準。
 - `video_segments_video` 已接入初版 course-scoped visual citation retrieval；目前只回影像片段 citation / timestamp / `clipPath`，尚未成為 caption QA 或正式 clip publishing source。
-- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時可用 FocusFlow OAuth refresh token 將本機檔案背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；2026-08-12 補上預設關閉的有限 recovery 與安全本地清理，playlist 管理仍未做。
+- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時，本機影片在 STT / embedding 完成後可用 FocusFlow OAuth refresh token 背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；2026-08-12 補上預設關閉的有限 recovery 與安全本地清理，playlist 管理仍未做。
 - CORS 已支援 `ALLOWED_ORIGINS` 逗號分隔白名單；未設定時維持開發期相容，正式部署需填入實際前端 origin。
 
 更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。

@@ -266,23 +266,25 @@ YouTube metadata 同步只使用 `YOUTUBE_API_KEY` 呼叫 `videos.list`（每批
 目前有兩條路徑：
 
 - YouTube URL MVP：教師先手動上傳 YouTube，再貼 URL，後端保存 `youtubeVideoId` / `videoUrl` 並觸發 STT。
-- 本機檔案 auto-upload：教師上傳本地影片後，若 `YOUTUBE_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會用 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，再把 `youtubeVideoId` / `videoUrl` 寫回同一筆 `Video`。
+- 本機檔案 auto-upload：教師上傳本地影片並完成 STT / embedding 後，若 `YOUTUBE_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會用 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，再把 `youtubeVideoId` / `videoUrl` 寫回同一筆 `Video`。
 
 Phase 2 自動上傳流程定義如下：
 
 1. 教師上傳本地影片到 backend。
 2. 後端先完成同課程 mp4 SHA-256 去重。
-3. 若 `YOUTUBE_UPLOAD_ENABLED=true`，用 FocusFlow 系統 YouTube 帳號上傳。
-4. YouTube 回傳 `youtubeVideoId` 後，後端建立 `Video`，狀態為 `queued`，並保存：
+3. 後端建立 `Video`，processing 狀態為 `queued`，並以 `/uploads/<file>` 作為本機播放來源。
+4. 單支或 batch pipeline 執行 STT、切段與 embedding；completion callback 先把 processing 持久化為 `completed`。
+5. 若 `YOUTUBE_UPLOAD_ENABLED=true`，completion side effect 才排程 FocusFlow 系統 YouTube 帳號上傳；重複 callback 由 process-local single-flight 與 DB atomic claim 避免重複建立影片。
+6. YouTube 回傳 id 後，後端在同一筆 `Video` 保存：
    - `youtubeVideoId`
    - `videoUrl=https://www.youtube.com/watch?v=<id>`
    - `sourceUrl=https://www.youtube.com/watch?v=<id>`
    - `sourceType=upload`
    - `videoSource=youtube`
    - `YOUTUBE_UPLOAD_PRIVACY_STATUS=unlisted`
-5. STT / embedding processing 繼續以本地暫存檔接續，避免重新下載剛上傳的影片。
-6. 只有在 YouTube 上傳成功且 STT/embedding 已完成後，才允許清理 `backend/uploads` 原始檔；清理前先把播放欄位切到 YouTube，並拒絕 `UPLOAD_DIR` 外路徑或仍被其他 Video 共用的檔案。
-7. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。啟動後發現 stale `uploading` 也只隔離並要求人工確認 YouTube Studio，不自動重送。
+7. YouTube 上傳失敗只更新 `youtubeUpload` lifecycle，processing 維持 `completed`，本機播放來源也保留。
+8. 只有在 YouTube upload 與 processing 都完成後，才允許清理 `backend/uploads` 原始檔；清理前先把播放欄位切到 YouTube，並拒絕 `UPLOAD_DIR` 外路徑或仍被其他 Video 共用的檔案。
+9. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。啟動後發現 stale `uploading` 也只隔離並要求人工確認 YouTube Studio，不自動重送。
 
 建議環境變數：
 

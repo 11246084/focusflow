@@ -423,21 +423,8 @@ async function createCourseVideo({
     );
   }
 
-  let youtubeUpload = null;
   const normalizedTitle = String(title || '').trim() || originalName;
-
-  // Legacy synchronous adapter: kept for existing local environments and API compatibility.
-  // The canonical YOUTUBE_UPLOAD_ENABLED flow runs in the background after the video is created.
-  if (youtubeUploadService.isAutoUploadEnabled()) {
-    youtubeUpload = await youtubeUploadService.uploadLocalVideo({
-      filePath: file.path,
-      title: normalizedTitle,
-      description: `FocusFlow course video: ${course.title}`,
-      mimeType: file.mimetype,
-    });
-  }
-
-  const playbackUrl = youtubeUpload?.videoUrl || `/uploads/${file.filename}`;
+  const playbackUrl = `/uploads/${file.filename}`;
 
   const video = await Video.create({
     courseId,
@@ -448,9 +435,9 @@ async function createCourseVideo({
     filePath: file.path,
     fileHash,
     durationSec: null,
-    videoSource: youtubeUpload ? VIDEO_SOURCE_TYPES.YOUTUBE : VIDEO_SOURCE_TYPES.UPLOAD,
+    videoSource: VIDEO_SOURCE_TYPES.UPLOAD,
     videoUrl: playbackUrl,
-    youtubeVideoId: youtubeUpload?.youtubeVideoId || null,
+    youtubeVideoId: null,
     uploadedBy,
     processing: createQueuedProcessingState(),
   });
@@ -474,9 +461,6 @@ async function createCourseVideo({
   // 在背景啟動 STT pipeline，不等待完成（不阻擋 HTTP 回應）
   // pipeline 會自行呼叫 /api/v1/internal/videos/:videoId/processing/start|complete|fail 回報狀態
   await scheduleExistingVideoProcessing(video._id);
-
-  // 已設定 YouTube 憑證時，背景自動把本地影片上傳到 YouTube（不阻擋回應、不影響 STT）。
-  youtubeUploadService.scheduleYouTubeAutoUpload(video);
 
   return buildVideoBridgePresentation(video, buildStandardCourseSummary(), {
     courseId,

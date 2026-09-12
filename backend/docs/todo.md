@@ -298,7 +298,7 @@
   - `youtubeUpload.service.js`：支援 OAuth refresh token、短期 access token override、YouTube Data API v3 resumable upload、預設 `unlisted`
   - 刪除轉 private（2026-08-02，教授決議）：`setVideoPrivacy` / `privatizeVideoOnDelete` / `privatizeVideosOnDelete`，接在 `deleteVideo` 與 `deleteCourse`；只處理自家頻道影片，失敗不中斷刪除；`YOUTUBE_PRIVATIZE_ON_DELETE` 可停用
   - Live 端對端驗證（2026-08-02）：上傳後影片以 unlisted 出現在 FocusFlow 頻道，系統刪除後 YouTube Studio 顯示「私人」；backend 316/316 tests
-  - `video.service.createCourseVideo()`：`YOUTUBE_AUTO_UPLOAD_ENABLED=true` 時，本機檔案上傳後先寫入 YouTube，再把 `youtubeVideoId` / `videoUrl` / `sourceUrl` 寫回 app-owned `Video`
+  - `videoProcessing.service.runCompletionSideEffects()`：`YOUTUBE_UPLOAD_ENABLED=true` 時，本機檔案在 STT / embedding 完成後才寫入 YouTube，再把 `youtubeVideoId` / `videoUrl` / `sourceUrl` 寫回 app-owned `Video`
   - `.env.example`：補 `YOUTUBE_OAUTH_CLIENT_ID` / `YOUTUBE_OAUTH_CLIENT_SECRET` / `YOUTUBE_OAUTH_REFRESH_TOKEN` / `YOUTUBE_UPLOAD_PRIVACY_STATUS` 等設定
   - 測試：`youtube-upload.service.test.js`、`course-video.routes.test.js` auto-upload branch；2026-07-10 `npm.cmd test` 103/103
 - **仍需**：

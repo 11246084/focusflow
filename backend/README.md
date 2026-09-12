@@ -67,7 +67,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
-- 2026-07-12 本地影片自動上傳 YouTube：`youtubeUpload.service.js`（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 `youtube.force-ssl` scope 的 OAuth 憑證；2026-08-02 已完成 live 驗證，並於刪除影片／課程時自動把影片轉為 private）；2026-08-12 補上 pre-byte-only 有限重試、stale upload 隔離、owner/admin retry API 與生命週期完成後的安全本地清理，recovery/cleanup 仍預設關閉
+- 本地影片自動上傳 YouTube：`processing=completed` 後由 `youtubeUpload.service.js` 背景上傳（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 `youtube.force-ssl` scope 的 OAuth 憑證；2026-08-02 已完成 live 驗證，並於刪除影片／課程時自動把影片轉為 private）；2026-08-12 補上 pre-byte-only 有限重試、stale upload 隔離、owner/admin retry API 與生命週期完成後的安全本地清理，recovery/cleanup 仍預設關閉
 - 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
 - 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s

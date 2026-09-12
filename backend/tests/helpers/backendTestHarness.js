@@ -66,6 +66,7 @@ const store = {
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
+  beforeVideoCompareAndSwap: null,
   beforeShortAssetCompareAndSwap: null,
   nextNotificationBulkWriteError: null,
   nextFaqDeleteManyError: null,
@@ -611,12 +612,12 @@ function installModelStubs() {
     store.videos.push(video);
     return video;
   };
-  Video.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
-    store.videos,
-    query,
-    update,
-    options,
-  );
+  Video.findOneAndUpdate = async (query, update, options = {}) => {
+    if (store.beforeVideoCompareAndSwap) {
+      await store.beforeVideoCompareAndSwap(query, update);
+    }
+    return findOneAndUpdateInStore(store.videos, query, update, options);
+  };
   Video.deleteMany = async (query = {}) => deleteManyInStore(store.videos, query);
   Video.deleteOne = async (query = {}) => {
     const index = store.videos.findIndex((item) => matchesQuery(item, query));
@@ -1152,6 +1153,7 @@ function resetStore() {
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.nextAvatarWriteError = null;
+  store.beforeVideoCompareAndSwap = null;
   store.beforeShortAssetCompareAndSwap = null;
   store.nextNotificationBulkWriteError = null;
   store.nextFaqDeleteManyError = null;

@@ -33,7 +33,6 @@ function resetRuntimeEnv() {
   env.lineChannelAccessToken = '';
   env.shortsSyncIntervalMs = 600000;
   env.youtubeUploadEnabled = false;
-  env.youtubeAutoUploadEnabled = false;
   env.youtubePrivatizeOnDelete = false;
   env.youtubeClientId = '';
   env.youtubeClientSecret = '';

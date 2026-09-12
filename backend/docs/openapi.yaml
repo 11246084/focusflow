@@ -1074,8 +1074,9 @@ paths:
       summary: 上傳課程影片
       description: |
         僅限 teacher / admin 使用，並且用於建立 app-owned course video 的上傳端點。
-        若 `YOUTUBE_AUTO_UPLOAD_ENABLED=true` 且 OAuth 設定完整，backend 會先以 FocusFlow 系統 YouTube 帳號走 Data API resumable upload，
-        成功後把 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl` 寫回同一筆 `Video`，再沿用既有本機檔案 STT processing flow。
+        此端點先建立使用本機播放來源、`processing=queued` 的 `Video`，再啟動 STT / embedding。
+        若 `YOUTUBE_UPLOAD_ENABLED=true` 且 OAuth 設定完整，只有 processing 成功完成後，backend 才會背景使用 FocusFlow 系統 YouTube 帳號走 Data API resumable upload。
+        成功後把 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl` 寫回同一筆 `Video`；YouTube 失敗不會改變已完成的 processing 狀態。
       operationId: createVideo
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -1160,32 +1161,6 @@ paths:
                       code: COURSE_MANAGE_DENIED
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
-        '502':
-          description: YouTube OAuth 或影片上傳 API 失敗（僅 auto-upload 啟用時可能發生）
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                youtubeUploadFailed:
-                  value:
-                    success: false
-                    message: Failed to upload video to YouTube.
-                    error:
-                      code: YOUTUBE_UPLOAD_FAILED
-        '503':
-          description: YouTube auto-upload 已啟用，但 OAuth 憑證不完整
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                youtubeNotConfigured:
-                  value:
-                    success: false
-                    message: YouTube OAuth credentials are not configured.
-                    error:
-                      code: YOUTUBE_UPLOAD_NOT_CONFIGURED
   /api/v1/courses/{courseId}/video-batches:
     post:
       tags:

@@ -5,7 +5,10 @@ const { VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { fanoutVideoCompletedNotifications } = require('./notification.service');
-const { cleanupUploadedLocalVideo } = require('./youtubeUpload.service');
+const {
+  cleanupUploadedLocalVideo,
+  scheduleYouTubeAutoUpload,
+} = require('./youtubeUpload.service');
 
 function createQueuedProcessingState(now = new Date()) {
   return {
@@ -79,6 +82,11 @@ async function updateVideoProcessing(videoId, update) {
 }
 
 async function runCompletionSideEffects(video) {
+  // YouTube upload starts only after processing is durably completed. The
+  // scheduler is fail-soft and does not make the processing webhook wait for
+  // or inherit the upload result.
+  scheduleYouTubeAutoUpload(video);
+
   // Attempt both repairs even if one fails, then surface every failure so the webhook can be retried safely.
   const results = await Promise.allSettled([
     clearFaqsForVideoCourses(video, { throwOnError: true }),

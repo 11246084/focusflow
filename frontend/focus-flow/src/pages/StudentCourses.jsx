@@ -300,7 +300,7 @@ function normalizeAnswerLines(value) {
   return String(value || '')
     .replace(/\r\n?/g, '\n')
     // AI responses sometimes place numbered or bulleted items in one paragraph.
-    .replace(/([^\n])\s+(?=(?:\d+[.)](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
+    .replace(/([^\n])\s+(?=(?:\d+[.)、](?:\s|\*\*)|[一二三四五六七八九十]+[、.．](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
     .split('\n');
 }
 
@@ -317,14 +317,78 @@ function renderAnswerInline(text, lineIndex) {
   });
 }
 
+function getAnswerBlocks(answer) {
+  const blocks = [];
+  let paragraph = [];
+  let list = null;
+
+  function flushParagraph() {
+    if (paragraph.length > 0) {
+      blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
+      paragraph = [];
+    }
+  }
+
+  function flushList() {
+    if (list) {
+      blocks.push(list);
+      list = null;
+    }
+  }
+
+  normalizeAnswerLines(answer).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'heading', text: heading[1] });
+      return;
+    }
+
+    const ordered = line.match(/^(?:\d+[.)、]|[一二三四五六七八九十]+[、.．])\s*(.+)$/);
+    const unordered = line.match(/^(?:[-•*])\s+(.+)$/);
+    if (ordered || unordered) {
+      flushParagraph();
+      const type = ordered ? 'ordered-list' : 'unordered-list';
+      if (!list || list.type !== type) {
+        flushList();
+        list = { type, items: [] };
+      }
+      list.items.push((ordered || unordered)[1]);
+      return;
+    }
+
+    flushList();
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
 function AnswerContent({ answer }) {
   return (
-    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, marginBottom: 10 }}>
-      {normalizeAnswerLines(answer).map((line, index) => (
-        <div key={index} style={{ minHeight: line ? undefined : '0.85em' }}>
-          {renderAnswerInline(line, index)}
-        </div>
-      ))}
+    <div className="qa-answer">
+      {getAnswerBlocks(answer).map((block, index) => {
+        if (block.type === 'heading') {
+          return <h3 key={index}>{renderAnswerInline(block.text, index)}</h3>;
+        }
+        if (block.type === 'ordered-list') {
+          return <ol key={index}>{block.items.map((item, itemIndex) => <li key={itemIndex}>{renderAnswerInline(item, `${index}-${itemIndex}`)}</li>)}</ol>;
+        }
+        if (block.type === 'unordered-list') {
+          return <ul key={index}>{block.items.map((item, itemIndex) => <li key={itemIndex}>{renderAnswerInline(item, `${index}-${itemIndex}`)}</li>)}</ul>;
+        }
+        return <p key={index}>{renderAnswerInline(block.text, index)}</p>;
+      })}
     </div>
   );
 }

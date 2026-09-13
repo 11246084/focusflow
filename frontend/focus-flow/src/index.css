@@ -1211,7 +1211,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .qa-conversation-panel {
   display: flex;
   flex-direction: column;
-  height: clamp(430px, 62dvh, 680px);
+  height: clamp(560px, 75dvh, 820px);
   min-height: 0;
   margin-top: 14px;
   padding: 16px 18px 0;
@@ -1238,6 +1238,33 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 .qa-message-list::-webkit-scrollbar { width: 4px; }
 .qa-message-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 3px; }
+
+.qa-answer {
+  max-width: 76ch;
+  margin-bottom: 14px;
+  color: rgba(255,255,255,0.88);
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.qa-answer > :first-child { margin-top: 0; }
+.qa-answer > :last-child { margin-bottom: 0; }
+.qa-answer p { margin: 0 0 12px; }
+.qa-answer h3 {
+  margin: 18px 0 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+.qa-answer ol,
+.qa-answer ul {
+  margin: 8px 0 14px;
+  padding-left: 1.55em;
+}
+.qa-answer li { padding-left: 4px; margin: 5px 0; }
+.qa-answer li::marker { color: #F14F21; font-weight: 800; }
+.qa-answer strong { color: #fff; font-weight: 800; }
 
 .qa-input-area {
   margin: 10px -18px 0;
@@ -1376,7 +1403,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   .ff-grid-2, .ff-grid-auto, .course-detail-grid { grid-template-columns: 1fr !important; }
 
   .qa-conversation-panel {
-    height: clamp(400px, 70dvh, 620px);
+    height: clamp(520px, 78dvh, 720px);
   }
 
   /* Table scrollable on mobile */

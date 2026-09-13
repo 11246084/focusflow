@@ -1,5 +1,7 @@
 # FocusFlow
 
+[文件總索引](docs/README.md) · [功能狀態總表](docs/30_Features/README.md) · [四技部交付文件](docs/00_Deliverables/README.md)
+
 FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影片後，系統會自動執行 STT、文字分段與向量嵌入，處理成功後可依設定自動上傳 YouTube；學生可在網頁或 LINE Bot 提問，取得 AI 生成答案與對應影片時間戳。
 
 > 目前範圍是 **Phase 1 MVP**：文字版影片問答、課程/影片管理、LINE Bot 問答與前端角色頁面整合。
@@ -19,10 +21,10 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 | 文件 | 用途 |
 |------|------|
 | [docs/current-status.md](docs/current-status.md) | 跨服務最新進度與缺口 |
-| [學生試用版後端整合文件](docs/2026-09_Student_Pilot_Backend/README.md) | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口 |
+| [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口 |
 | [backend/docs/current-state.md](backend/docs/current-state.md) | Backend runtime、DB 實況、已知限制 |
 | [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | Phase 2 QA / Video / Clip / YouTube 回傳語意 |
-| [docs/ai-code-understanding-guide.md](docs/ai-code-understanding-guide.md) | AI Pipeline、embedding、cosine、QA 與 citation 的教授說明版 |
+| [docs/40_Operations/ai-code-understanding-guide.md](docs/40_Operations/ai-code-understanding-guide.md) | AI Pipeline、embedding、cosine、QA 與 citation 的教授說明版 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 架構、資料流與 schema 邊界 |
 | [backend/docs/openapi.yaml](backend/docs/openapi.yaml) | OpenAPI 規格檔，執行時掛在 `/docs` |
 

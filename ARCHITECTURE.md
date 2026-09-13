@@ -6,7 +6,7 @@
 >
 > 本文件只記錄低頻變動的架構。功能完成度、部署可用性與待辦放在 [docs/current-status.md](docs/current-status.md)；重要決策與原因放在 [docs/decision-log.md](docs/decision-log.md)。
 >
-> `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 只供歷史參考，不是目前資料契約。
+> `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 只供歷史參考，不是目前資料契約。
 
 ### 閱讀捷徑（How to Read This Document）
 
@@ -413,7 +413,7 @@ LINE 對話狀態存在 User 文件：`lineConversationState`、最近三輪的 
 
 ## 5. 架構設計原則（Architecture Principles）
 
-以下規則同時約束開發者與 AI；詳細寫法見 `.claude/rules/`，驗收門檻見 `AGENTS.md`。
+以下規則同時約束開發者與 AI；詳細寫法見 `.claude/rules`，驗收門檻見 `AGENTS.md`。
 
 ### 5.1 Architecture Invariants（不可破壞的不變量）
 

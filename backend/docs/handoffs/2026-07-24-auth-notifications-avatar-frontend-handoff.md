@@ -59,7 +59,7 @@ Reviewer 返工更新：2026-07-25
 |---|---|---|
 | 前端改動檔案不超過 3 個 | 符合 | 共 3 個既有前端檔 |
 | 不新增前端檔案 | 符合 | 未新增 component、hook、util 或 type 檔 |
-| 不新增或更新 npm 依賴 | 符合 | `package.json`、lockfile 未修改 |
+| 不新增或更新 npm 依賴 | 符合 | `../../../package.json`、lockfile 未修改 |
 | 不修改 common/shared、共用 hook、Provider、store/slice | 符合 | 未觸及 |
 | 不修改 router config | 符合 | 未觸及 |
 | 不修改 build/env 設定 | 符合 | 未觸及 Vite、tsconfig 或 `.env*` |

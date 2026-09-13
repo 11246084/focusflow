@@ -1,5 +1,5 @@
 const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SCHEMA = 'student-pilot-retrieval-ground-truth-v2';
-const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE = 'docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.md';
+const STUDENT_PILOT_RETRIEVAL_GROUND_TRUTH_SOURCE = 'docs/30_Features/Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.md';
 
 function chunkIds(videoId, start, end) {
   return Array.from(

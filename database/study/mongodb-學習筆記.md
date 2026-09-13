@@ -57,7 +57,7 @@ const passwordHash = await bcrypt.hash(rawPassword, 10);
 ```
 
 - `rawPassword`：使用者輸入的明文密碼（註冊前已先驗證長度 ≥ 8，見 `auth.service.js:33`）
-- `10`：**salt rounds（cost factor）**，符合 `.claude/rules/security.md`「預設 salt rounds = 10」
+- `10`：**salt rounds（cost factor）**，符合 `../../.claude/rules/security.md`「預設 salt rounds = 10」
 - 結果存進 `passwordHash` 欄位（**不叫 `password`**），明文不進資料庫
 
 bcrypt 內部自動：產生隨機 **salt** → 用 Blowfish-based 演算法跑 2¹⁰ 次迭代 → 輸出一段**同時包含「演算法版本 + cost + salt + 雜湊值」**的字串：
@@ -105,7 +105,7 @@ return { token, user: toPublicUser(user) }; // 回傳 token + 過濾後的使用
 ```
 
 - **`signToken`**：發一張 JWT token 當「通行證」，之後每個請求帶 `Authorization: Bearer <token>`，伺服器 `jwt.verify` 一驗就知道是你，**不用每次重打密碼**（有效期 `JWT_EXPIRES_IN`，預設 7 天）。
-- **`toPublicUser`**：回傳前**白名單過濾**——只手動挑出安全欄位，`passwordHash` / `__v` / `lineUserId` 因為沒被挑進來，前端永遠拿不到（見 `utils/publicUser.js`，`.claude/rules/security.md` 規定）。
+- **`toPublicUser`**：回傳前**白名單過濾**——只手動挑出安全欄位，`passwordHash` / `__v` / `lineUserId` 因為沒被挑進來，前端永遠拿不到（見 `utils/publicUser.js`，`../../.claude/rules/security.md` 規定）。
 - **`recordUsage`**：寫登入紀錄到 `usage_logs`，純營運/稽核需求。
 
 #### ⚠️ 這條路只服務「網頁登入」

@@ -34,7 +34,7 @@ const CONTEXT_LIMIT = 15;
 const QUESTION_IDS = Object.freeze(['Q11', 'Q08']);
 const DEFAULT_QUESTION_BANK_PATH = path.resolve(
   __dirname,
-  '../../../docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.json',
+  '../../../docs/30_Features/Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.json',
 );
 
 const q11G2FixedQuery = STUDENT_PILOT_Q11_G2_QUERY_WORDINGS.find(

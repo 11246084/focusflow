@@ -10,13 +10,13 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 1. 先讀 [AGENTS.md](AGENTS.md)，確認跨 agent 入口、專案服務與文件索引。
 2. 依 `AGENTS.md` 的「AI Agent 實作前讀取清單」選擇任務相關文件。
-3. 依任務類型讀 `.claude/rules/` 對應規則。
+3. 依任務類型讀 `.claude/rules` 對應規則。
 4. 再讀實際程式碼與測試，避免只根據單一文件或舊會議紀錄推論現況。
 
 注意：
 - `docs/current-status.md` 與 `backend/docs/current-state.md` 是目前狀態入口。
-- [學生試用版後端整合文件](docs/2026-09_Student_Pilot_Backend/README.md) 是 2026 年 9 月學生試用版後端的規格、施工單與驗收證據入口；執行該任務時依資料夾內的專用權威順序工作。
-- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
+- [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) 是 2026 年 9 月學生試用版後端的規格、施工單與驗收證據入口；執行該任務時依資料夾內的專用權威順序工作。
+- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
 - `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
 
 ## 專屬規則
@@ -168,7 +168,7 @@ QA_VECTOR_SEARCH_MODE=memory
 
 - **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 只能在 VM 上手動維護（`sudo -u focusflow`）。新增任何環境變數後，本機可跑不代表 VM 可跑——YouTube 憑證就曾只存在本機、VM 上整組缺失，直到 `/health` 才發現。判斷 VM 實際狀態一律看 `/health`，不要看 repo 的 `.env.example`。
 - nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。
-- HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 [docs/deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md](docs/deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md)（含續約檢查與回滾步驟）。
+- HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)（含續約檢查與回滾步驟）。
 - port 80 對外不通（2026-08-12 tcpdump 證實封包未抵達 VM，技士表示不會開放）。`focusflow.conf` 的 80 block 已標 `default_server` 並 301 轉 HTTPS，但只在 VM 內部生效；判斷 80 是否通要用 `curl -v http://...`，瀏覽器會自動改走 HTTPS 造成假陽性。
 - `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。
 

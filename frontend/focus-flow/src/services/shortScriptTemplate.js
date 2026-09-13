@@ -4,7 +4,7 @@
 // 視覺隱喻、8 拍分鏡）；模板固定章節（分身規格、配樂、字卡、ffmpeg、驗收清單）
 // 是常數，不進資料庫，寫在這裡。
 //
-// 固定章節對應 docs/short-video-examples/10-teacher-avatar-metaphor.md（2026-09-10 依
+// 固定章節對應 docs/30_Features/Short_Video/examples/10-teacher-avatar-metaphor.md（2026-09-10 依
 // MiniMax H3 官方規格修訂，規格書 P-04 已結案）。重點：
 //   - 生成模式是「全能參考」，H3 沒有「Reference-to-Video」這個模式名稱
 //   - 官方單次長度 5–15 秒，無法一次生成 30 秒，分身要分 3–4 段拼接

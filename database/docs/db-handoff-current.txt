@@ -90,7 +90,7 @@ backend 目前可以安全假設的事情
 目前對 video_segments_text 來說已過期的文件
 1. backend/docs/current-state.md
 2. backend/docs/handoff-known-issues.md
-3. docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md
+3. docs/20_Architecture/database/archive/MongoDB_契約定版_v1.md
 
 為什麼說它們過期
 因為這些文件仍描述 video_segments_text 目前使用 snake_case，但現在的 uploader、backend model、bridge lookup、database README 都已對齊到 camelCase text segment 結構。
@@ -102,7 +102,7 @@ backend 目前可以安全假設的事情
 4. 如果要更新文件，優先修正以下幾份裡的 snake_case 舊說法：
    - backend/docs/current-state.md
    - backend/docs/handoff-known-issues.md
-   - docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md
+   - docs/20_Architecture/database/archive/MongoDB_契約定版_v1.md
 5. 如果後續要進 Phase 2，建議先把這三件事講清楚：
    - bridge course mapping contract
    - videos ownership contract

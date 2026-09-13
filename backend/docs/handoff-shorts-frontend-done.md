@@ -22,7 +22,7 @@
 |---|---|---|
 | 改動檔案數不超過 3 個 | 符合 | 只修改 1 個既有前端檔案；強制 handoff Markdown 不計入前端檔案數。 |
 | 不新增任何前端檔案 | 符合 | 沒有新增元件、hook、util 或 type 定義檔。 |
-| 不新增或更新 npm 依賴 | 符合 | 沒有修改 `package.json` 或 `package-lock.json`。 |
+| 不新增或更新 npm 依賴 | 符合 | 沒有修改 `../../package.json` 或 `../../package-lock.json`。 |
 | 不修改共用資源 | 符合 | 只沿用 `src/api.js` 已有的 `apiFetch`，沒有修改它，也沒有修改 common/shared、共用 hook、Context Provider 或 store/slice。 |
 | 不修改路由設定 | 符合 | 沿用既有「教學短片」頁面，沒有新增畫面或路由。 |
 | 不修改建置或環境設定 | 符合 | 沒有修改 Vite、Webpack、TypeScript 或 `.env` 設定。 |

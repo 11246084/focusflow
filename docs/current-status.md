@@ -1,6 +1,8 @@
 # docs/current-status.md — FocusFlow 目前進度
 
-> 2026-08-30 學生試用版後端 Phase 1 更新：WO-01～WO-09 已完成本機實作與回歸測試，Backend 64 suites／500 tests 全數通過。跨課程隔離已收斂為 canonical `video._id` allowlist、Leaf `videoId` 必須命中、空範圍 fail-closed；FAQ、Child expansion 與 citation 亦同步套用安全檢查。正式 12＋2 題證據與 shared Atlas 唯讀 runner 尚未完成，因此仍不得宣稱學生試用已通過驗收。詳見 [Phase 1 實作結果](2026-09_Student_Pilot_Backend/evidence/2026-08-30_phase1-implementation-results.md)。
+2026-09-13 文件導覽：[功能狀態總表](30_Features/README.md) · [文件總索引](README.md)。下列功能紀錄日期維持原樣，本次未重跑正式驗收。
+
+> 2026-08-30 學生試用版後端 Phase 1 更新：WO-01～WO-09 已完成本機實作與回歸測試，Backend 64 suites／500 tests 全數通過。跨課程隔離已收斂為 canonical `video._id` allowlist、Leaf `videoId` 必須命中、空範圍 fail-closed；FAQ、Child expansion 與 citation 亦同步套用安全檢查。正式 12＋2 題證據與 shared Atlas 唯讀 runner 尚未完成，因此仍不得宣稱學生試用已通過驗收。詳見 [Phase 1 實作結果](30_Features/Student_Pilot_Backend/evidence/2026-08-30_phase1-implementation-results.md)。
 
 > 2026-08-09 Phase 2-2 更新：STT Parent Embedding production contract 已遷移至
 > stable `gemini-embedding-2`、3072 維、`taskType=null`，Parent document instruction
@@ -15,7 +17,7 @@
 
 部署：2026-09-10（`focusflow.ntub.edu.tw` 改用 Let's Encrypt 正式憑證，瀏覽器不再顯示「不安全」。port 80 學校不開放，改以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約，詳見「部署與對外連線」）
 
-本輪：2026-08-24（首次 QA 回答品質評測基準線：AI入門基礎課 50 題、六面向 1-5 分。加權總分 4.35/5，零幻覺（7 題課程外負向題全部正確拒答、零編造），但完整性 3.62 偏低、出現 5 題假拒答。片段都已撈滿 15 筆，屬 prompt 整合問題而非檢索問題。詳見 [docs/qa-eval/2026-08-24-評測結果.md](qa-eval/2026-08-24-評測結果.md)）
+本輪：2026-08-24（首次 QA 回答品質評測基準線：AI入門基礎課 50 題、六面向 1-5 分。加權總分 4.35/5，零幻覺（7 題課程外負向題全部正確拒答、零編造），但完整性 3.62 偏低、出現 5 題假拒答。片段都已撈滿 15 筆，屬 prompt 整合問題而非檢索問題。詳見 [docs/30_Features/QA_Evaluation/reports/2026-08-24-評測結果.md](30_Features/QA_Evaluation/reports/2026-08-24-評測結果.md)）
 
 後續一輪：2026-08-04（部署現況盤點：VM 的 `backend/.env` 補上原本完全缺失的 6 個 YouTube 變數，`/health.runtime.youtubeUpload` 與 `shortsSync` 已轉為 ready／無錯誤；自簽憑證重產為 CN=`focusflow.ntub.edu.tw`、效期至 2027-08-04。學校網域 DNS 已建好，但外部連線受阻於學校邊界設備，詳見「部署與對外連線」）
 
@@ -48,7 +50,7 @@
 | 1 | Dashboard E2E | ✅ 已完成 | 獨立 MongoDB 7 + Chromium：新學生註冊、stats、notifications、My Courses、Shorts zero-state；console 0 error |
 | 2 | Short 正式環境驗收 | ✅ 已完成 | 正式 authenticated feed 1 筆、YouTube oEmbed 1/1、Chromium 實際播放 5 秒；只讀驗收 |
 | 3 | QA 方案與修正 | ✅ 已完成 | 採 strict FAQ invalidation；清除失敗時 mutation 前回 503，可安全重試 |
-| 4 | AI 程式碼理解文件 | ✅ 已完成 | 權威文件為 [ai-code-understanding-guide.md](ai-code-understanding-guide.md)，README 已建立入口 |
+| 4 | AI 程式碼理解文件 | ✅ 已完成 | 權威文件為 [ai-code-understanding-guide.md](40_Operations/ai-code-understanding-guide.md)，README 已建立入口 |
 | 5 | Enrollment 流程 | ✅ 已完成 | `active Enrollment ∩ published Course` default-deny；owner teacher/admin 指派與 soft revoke；全入口一致 |
 | 6 | YouTube recovery 與安全清理 | 🧪 測試中 | 程式與隔離測試完成；依使用者決定延後 live cleanup/recovery，兩個 feature flags 維持 false |
 | 7 | 多影片批次整合 | 🧪 測試中 | 單一 multipart request、execution lease、restart/manual resume、manifest reconciliation、冪等 webhook 與隔離 MongoDB 7 E2E 已完成；真實 STT/Gemini、壓力與正式部署 E2E 尚未做，flag 維持 false |
@@ -92,7 +94,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | 校內 / 學校 VPN 連線 | ✅ 22 / 80 / 443 全通且穩定 |
 | **校外連線 443** | ✅ 2026-08-12 起全球可達（check-host.net 各洲節點皆 Connected） |
 | **校外連線 80** | ❌ 封包未抵達 VM（tcpdump 0 packets）；技士表示不會開放 |
-| HTTPS 憑證 | ✅ 2026-09-10 起為 Let's Encrypt 正式憑證（`CN=YE2`，效期至 2026-12-09），以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約；詳見 [憑證申請紀錄](deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md) |
+| HTTPS 憑證 | ✅ 2026-09-10 起為 Let's Encrypt 正式憑證（`CN=YE2`，效期至 2026-12-09），以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約；詳見 [憑證申請紀錄](40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md) |
 | port 80 設定 | ✅ 2026-08-12 起 `focusflow.conf` 的 80 block 標 `default_server` 並 301 轉 HTTPS；但因 80 對外不通，只在 VM 內部生效 |
 
 重點：
@@ -150,7 +152,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - backend tests：2026-08-02 全測 341/341 passed（42 suites；含 Dashboard zero-state 與 Admin Enrollment `studentId` 聚合）；隔離 MongoDB 7 已實證三個無 LINE 綁定帳號可穿過 `lineUserId` unique+sparse index，註冊 A/B/C 為 201/409/201；CAS 與併發邊界仍以既有測試與本輪頭貼 E2E 證據為準
 - Frontend 11 頁面（Student/Teacher/Admin 各角色 dashboard），登入、教師建立課程、QA grounding、LINE QR 綁定流程已開始串接
 - **Phase 2-2 Hierarchical Retrieval Backend 接線（2026-08-02～08-14）**：既有 `parentSearch` / `hierarchicalRetrieval` / `childExpansion` / `leafContextAssembly` 與 Leaf-only fallback 保留；正式 Atlas adapter 依授權 scope、`generationVersion=text_search_generation_v2`、`isActive=true` 執行 Parent Search，命中後再驗完整 embedding 契約。啟動 hierarchy 時新增唯讀 active-data readiness，會核對 rollout allowlist 內 Parent／Child Leaf generation、`chunkId_1` 與 Parent vector index filter contract；`.env` active-contract JSON 只屬部署宣告，live evidence 未通過時 shadow／serve fail closed。`HIERARCHICAL_RETRIEVAL_ENABLED` 預設仍為 false
-- **Phase 2-2 Parent Storage（2026-08-02，DB 組；歷史 snapshot）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`；當時直連驗證 `video_segments_parent`、regular indexes 與 `parent_embedding_index` READY/queryable。跨組決策仍是 MVP 單一 generation、rollback 關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`；本輪未對 shared Atlas 重查或寫入，契約一致性須另由 read-only evidence 確認。契約見 [docs/Phase2-2_Hierarchy_Data_Contract_v1.md](Phase2-2_Hierarchy_Data_Contract_v1.md)
+- **Phase 2-2 Parent Storage（2026-08-02，DB 組；歷史 snapshot）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`；當時直連驗證 `video_segments_parent`、regular indexes 與 `parent_embedding_index` READY/queryable。跨組決策仍是 MVP 單一 generation、rollback 關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`；本輪未對 shared Atlas 重查或寫入，契約一致性須另由 read-only evidence 確認。契約見 [docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md](20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md)
 
 ---
 
@@ -230,7 +232,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - Shorts **已完成修課 feed、ShortAsset 保存/封存、YouTube metadata 可用性同步，以及前端 authenticated feed／播放驗收**；自動選片、剪輯、字幕、發布 worker 與教師管理仍未實作
 - Phase 2-2 的 local storage／uploader／Backend adapter／active-data readiness 已具備，但**尚未啟用或取得本輪 live E2E 證據**；2026-08-02 的 `video_segments_parent=0` 只是歷史 snapshot，不可當成本輪現況。`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false，shared Atlas 資料、index definition 與 Parent → Leaf → Citation 必須重新唯讀驗證
 - Embedding 模型遷移仍是跨組未完成項：Backend query code 已切 stable `gemini-embedding-2`，但 Pipeline／Database 既有 preview artifacts 與 vectors 尚未重建；新版 task instruction、generation、normalization 與 active data metadata 需跨組同步，既有向量不可直接混用
-- Phase 2-2 契約文件 `docs/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
+- Phase 2-2 契約文件 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
 
 ## 2026-08-13 多影片批次整合與隔離重啟驗收
 
@@ -256,4 +258,4 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 新增零寫入隔離 runner `backend/src/scripts/phase2_2_hierarchical_e2e_runner.js`，不呼叫 `askQuestion()` 或其寫入路徑；2026-08-13 再改為只接受專用 `PHASE2_2_READONLY_MONGODB_URI`，連線後先驗證唯一角色為 target DB 的 built-in `read`，否則在查業務資料前阻擋。
 - Runner 預設不執行 Answer Generation；`chunkId_1` 不存在或 explain 未實際使用它時，以 `E2E_CHUNK_ID_INDEX_NOT_READY` 阻擋。
 - Shared `HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 `false`；live Child Expansion、Gemini live call 與 live E2E 均尚未執行。
-- 詳細規格見 [Phase2-2 Step 10 E2E Test Plan](Phase2-2_Step10_E2E_Test_Plan.md)。
+- 詳細規格見 [Phase2-2 Step 10 E2E Test Plan](20_Architecture/hierarchical-retrieval/Phase2-2_Step10_E2E_Test_Plan.md)。

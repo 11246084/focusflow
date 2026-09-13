@@ -27,8 +27,8 @@
 | `STT_Whisper/` | 單支與批次 AI Pipeline CLI | Python、Faster-Whisper、Gemini embedding、FFmpeg、yt-dlp |
 | `database/` | DB 初始化、index、正式 uploader 與歷史修復工具 | `tools/setup/`、`tools/mongodb_uploader.py`；不是獨立 runtime service |
 | `docs/` | 跨服務進度、決策、會議紀錄與交付文件 | `current-status.md` 是動態入口 |
-| `.agents/skills/` | Codex repo-local skills | `docs-maintainer`、`github-copy` |
-| `.claude/rules/`、`.claude/skills/` | Claude Code 規則與對應 skills | API / DB / testing / security 規則 |
+| `.agents/skills` | Codex repo-local skills | `docs-maintainer`、`github-copy` |
+| `.claude/rules`、`.claude/skills` | Claude Code 規則與對應 skills | API / DB / testing / security 規則 |
 | `.github/workflows/deploy.yml` | 部署 workflow | 改部署前須連同 backend/frontend runtime 一起核對 |
 
 本機產物如 `node_modules/`、`dist/`、`.venv/`、`.playwright-*`、`uploads/`、`private-data/`、pipeline outputs 與暫存 log，不是程式架構來源。
@@ -140,9 +140,9 @@ AI agent 接手前，至少讀：
 | `README.md`、`PROJECT.md` | 快速上手與產品範圍 |
 | `ARCHITECTURE.md` | 架構、資料流、DB / legacy 邊界 |
 | `docs/current-status.md` | 跨服務動態進度與缺口 |
-| `docs/2026-09_Student_Pilot_Backend/README.md` | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口；此任務依資料夾內的專用權威順序執行 |
+| `docs/30_Features/Student_Pilot_Backend/README.md` | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口；此任務依資料夾內的專用權威順序執行 |
 | `backend/docs/current-state.md` | Backend runtime、readiness、測試與已知限制 |
-| `docs/deploy/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
+| `docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
 | `backend/docs/phase2-api-contract.md` | QA / Video / Clip / YouTube 回傳語意 |
 | `backend/docs/openapi.yaml` | 對外 API 規格；仍須與 routes 交叉確認 |
 | `backend/docs/handoff-stt-pipeline-integration.md` | Backend / STT processing 交接 |
@@ -152,7 +152,7 @@ AI agent 接手前，至少讀：
 
 注意：
 
-- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md` 只供歷史參考。
+- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 只供歷史參考。
 - `CLAUDE.local.md`、`.env` 與本機產物不是團隊共用規範，也不可把其中 secret 寫入回報。
 - 只看 roadmap、README 或舊會議紀錄，不足以判斷目前程式現況。
 
@@ -219,4 +219,4 @@ AI agent 接手前，至少讀：
 | Codex | `github-copy` | `.agents/skills/github-copy/SKILL.md`；GitHub Desktop / VS Code commit Summary + Description |
 | Claude Code | 同名 skills | `.claude/skills/<skill>/SKILL.md` |
 
-`.agents/skills/` 與 `.claude/skills/` 是不同 agent 的入口，不要假設內容逐字相同；使用前讀取該 agent 對應的完整 `SKILL.md`。
+`.agents/skills` 與 `.claude/skills` 是不同 agent 的入口，不要假設內容逐字相同；使用前讀取該 agent 對應的完整 `SKILL.md`。

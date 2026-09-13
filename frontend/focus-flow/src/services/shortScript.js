@@ -2,7 +2,7 @@ import { apiFetch, getToken } from '../api.js';
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
-// 短影片腳本自動化的 API client（backend docs/2026-09_Short_Script_Automation）。
+// 短影片腳本自動化的 API client（backend docs/30_Features/Short_Script_Automation）。
 //
 // 後端的 feature flag SHORT_SCRIPT_AUTOMATION_ENABLED 預設關閉，關閉時整組路由回 404。
 // 呼叫端要能分辨「功能未啟用」與「資源不存在」，因此提供 isFeatureDisabledError。

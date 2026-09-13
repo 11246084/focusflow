@@ -18,7 +18,7 @@
 | --- | --- |
 | production frontend 修改檔案不超過 3 個 | 符合；修改 2 個既有檔案 |
 | 不新增元件、hook、util 或 type 檔 | 符合 |
-| 不新增或更新 npm 依賴 | 符合；`package.json`、lockfile 未修改 |
+| 不新增或更新 npm 依賴 | 符合；`../../../package.json`、lockfile 未修改 |
 | 不修改 common/shared、共用 hook、Provider、store/slice | 符合 |
 | 不修改 router、build、TypeScript 或環境設定 | 符合 |
 | 不改既有元件 props 或既有函式參數簽章 | 符合；頁面沒有對外 props；原 mock service 改成已規格化的真實 ShortAsset payload |

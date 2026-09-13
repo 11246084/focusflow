@@ -67,4 +67,4 @@ DB 中另存在 `video_segments_video`（影片片段 + video embedding，v1 正
 
 2026-05-01 共享 Atlas 實況為 13 個 collections；`database/tools/setup/init_collections.js` 目前列 15 個，兩者尚未同步。init 腳本有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 腳本沒有：`questions`。因此舊版 `video_segments` 目前仍是 legacy/init 腳本殘留項，不是 backend runtime 依賴。
 
-正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md](docs/05_Database_Schema_Contract/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。
+正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md](docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。

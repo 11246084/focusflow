@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const env = require('../config/env');
 
-// Phase 2-2 Parent Chunk storage（契約：docs/Phase2-2_Hierarchy_Data_Contract_v1.md §10）。
+// Phase 2-2 Parent Chunk storage（契約：docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md §10）。
 // Parent 與 Leaf（VideoSegment）使用不同 ID namespace，不共用 collection。
 const videoSegmentParentSchema = new mongoose.Schema(
   {

@@ -160,7 +160,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - YouTube upload／刪除轉 private 的憑證、scope 與最近執行狀態
 - Shorts metadata sync 與 multimodal index readiness
 
-完整欄位與狀態語意以 [`docs/current-state.md`](./docs/current-state.md) 與 [`docs/openapi.yaml`](./docs/openapi.yaml) 為準。
+完整欄位與狀態語意以 [`docs/current-state.md`](docs/current-state.md) 與 [`docs/openapi.yaml`](docs/openapi.yaml) 為準。
 
 ## QA API
 
@@ -364,7 +364,7 @@ npm start
 
 ## 先看哪些文件
 
-- [backend/docs/current-state.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/current-state.md)
-- [backend/docs/handoff-known-issues.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/handoff-known-issues.md)
-- [backend/docs/todo.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/todo.md)
-- [backend/docs/implementation-log.md](/c:/Users/User/Documents/GitHub/focusflow/backend/docs/implementation-log.md)
+- [backend/docs/current-state.md](docs/current-state.md)
+- [backend/docs/handoff-known-issues.md](docs/handoff-known-issues.md)
+- [backend/docs/todo.md](docs/todo.md)
+- [backend/docs/implementation-log.md](docs/implementation-log.md)

@@ -52,7 +52,7 @@ print("\n🎉 所有 Collection 建立完成！");
 //                        teacherId, videoIds[], createdAt
 //
 // videos         — 影片 metadata 主表
-//                  正式欄位請參考 docs/05_Database_Schema_Contract/
+//                  正式欄位請參考 docs/20_Architecture/database/archive/
 //                  MongoDB_契約定版_v1.md
 //
 // enrollments    — 學生選課紀錄

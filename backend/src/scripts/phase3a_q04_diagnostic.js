@@ -22,11 +22,11 @@ const Q04_CORRECT_CHUNK_IDS = Object.freeze([
 ]);
 const DEFAULT_QUESTION_BANK = path.resolve(
   __dirname,
-  '../../../docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.json',
+  '../../../docs/30_Features/Student_Pilot_Backend/evidence/2026-09-01_baseline_questions.json',
 );
 const DEFAULT_BASELINE_RESULTS = path.resolve(
   __dirname,
-  '../../../docs/2026-09_Student_Pilot_Backend/evidence/2026-09-01_baseline_raw-results.json',
+  '../../../docs/30_Features/Student_Pilot_Backend/evidence/2026-09-01_baseline_raw-results.json',
 );
 
 function readJson(filePath, code) {

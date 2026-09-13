@@ -7,8 +7,8 @@
 //
 // 選用環境變數：
 //   QA_EVAL_BASE_URL   預設 http://localhost:4000
-//   QA_EVAL_BANK       題庫 JSON 路徑，預設 ../../docs/qa-eval/question-bank.json
-//   QA_EVAL_OUT        輸出資料夾，預設 ../../docs/qa-eval/runs/<timestamp>
+//   QA_EVAL_BANK       題庫 JSON 路徑，預設 ../../docs/30_Features/QA_Evaluation/datasets/question-bank.json
+//   QA_EVAL_OUT        輸出資料夾，預設 ../../docs/30_Features/QA_Evaluation/runs/<timestamp>
 //   QA_EVAL_ROLE       登入角色，預設 student（login 契約要求 email+password+role）
 //   QA_EVAL_DELAY_MS   每題間隔毫秒，預設 1200（避免打爆 provider rate limit）
 //   QA_EVAL_ONLY       只跑指定題號，逗號分隔，例如 F01,M03,N05
@@ -21,7 +21,7 @@ const path = require('path');
 
 const BASE_URL = (process.env.QA_EVAL_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const BANK_PATH = process.env.QA_EVAL_BANK
-  || path.join(__dirname, '..', '..', '..', 'docs', 'qa-eval', 'question-bank.json');
+  || path.join(__dirname, '..', '..', '..', 'docs', '30_Features', 'QA_Evaluation', 'datasets', 'question-bank.json');
 const DELAY_MS = Number(process.env.QA_EVAL_DELAY_MS || 1200);
 const ONLY = (process.env.QA_EVAL_ONLY || '')
   .split(',')
@@ -145,7 +145,7 @@ async function main() {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outDir = process.env.QA_EVAL_OUT
-    || path.join(__dirname, '..', '..', '..', 'docs', 'qa-eval', 'runs', stamp);
+    || path.join(__dirname, '..', '..', '..', 'docs', '30_Features', 'QA_Evaluation', 'runs', stamp);
   fs.mkdirSync(outDir, { recursive: true });
 
   console.log(`Base URL     : ${BASE_URL}`);

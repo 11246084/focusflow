@@ -15,7 +15,7 @@ cd focusflow\backend
 npm install
 ```
 
-用到的 `mongoose` 與 `dotenv` 都已經在 `package.json` 裡，不用另外裝。
+用到的 `mongoose` 與 `dotenv` 都已經在 `../../../package.json` 裡，不用另外裝。
 
 ### 2. 準備 `backend/.env`
 
@@ -240,5 +240,5 @@ node scripts/db/mongo.js count faqs '{\"courseId\":{\"$oid\":\"...\"}}'
 
 ## 相關文件
 
-- [`.claude/skills/mongodb-inspect/SKILL.md`](../../../.claude/skills/mongodb-inspect/SKILL.md) — 資料庫查證的專案規範
-- [`.claude/rules/database.md`](../../../.claude/rules/database.md) — Schema、索引、資料存取規範
+- [`../../../.claude/skills/mongodb-inspect/SKILL.md`](../../../.claude/skills/mongodb-inspect/SKILL.md) — 資料庫查證的專案規範
+- [`../../../.claude/rules/database.md`](../../../.claude/rules/database.md) — Schema、索引、資料存取規範

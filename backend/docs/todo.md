@@ -3,7 +3,7 @@
 最後更新：2026-08-08
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
-> runtime 現況看 [current-state.md](./current-state.md)，協作缺口看 [handoff-known-issues.md](./handoff-known-issues.md)。
+> runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
 
 ## 狀態語彙
 
@@ -84,7 +84,7 @@
 - **我要主動做**：
   - 彙整上述議題為一頁議題單
   - 約 Database、RAG 兩組同步時間
-  - 會後把結論寫進 [handoff-known-issues.md](./handoff-known-issues.md) 並同步 [current-state.md](./current-state.md)
+  - 會後把結論寫進 [handoff-known-issues.md](handoff-known-issues.md) 並同步 [current-state.md](current-state.md)
 - **等誰**：Database、RAG 兩組到齊
 - **等待期間可先做**：起草議題單；列出 backend normalize 目前相容的欄位範圍
 
@@ -150,7 +150,7 @@
 - **後端已提供的訊號**：`qaScopeOnly`、`bridgeMode`、`bridgeContract`、`metadataOnly=true`、`matchStatus=no_searchable_segments`、`VIDEO_METADATA_ONLY=409`
 - **我要主動做**：
   - 整理 bridge course 相關欄位語義表給 Frontend
-  - 決策完成後更新 [handoff-known-issues.md](./handoff-known-issues.md)
+  - 決策完成後更新 [handoff-known-issues.md](handoff-known-issues.md)
 - **等誰**：Frontend 提出 UI 偏好
 
 ---
@@ -194,7 +194,7 @@
 
 - **狀態**：Need Confirmation（低優先）
 - **背景**：2026-05-01 MCP 實測共享 Atlas 為 13 collections；`database/tools/setup/init_collections.js` 目前列 15 個 collection。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`。
-- **我要主動做**：在 Phase-1 會議順帶確認；結論寫進 [handoff-known-issues.md](./handoff-known-issues.md)
+- **我要主動做**：在 Phase-1 會議順帶確認；結論寫進 [handoff-known-issues.md](handoff-known-issues.md)
 
 ---
 
@@ -338,6 +338,6 @@
 
 - 共享 demo env 主線：`gemini + atlas + gemini + explicit seed`；isolated local smoke：`mock + memory`
 - 切換任何 provider 或 vector mode 前，先跑 `qa.service.test.js` 與 route 測試
-- 跨組未 freeze 的議題先用 [handoff-known-issues.md](./handoff-known-issues.md) 管住，不在 backend 單方面擴功能
+- 跨組未 freeze 的議題先用 [handoff-known-issues.md](handoff-known-issues.md) 管住，不在 backend 單方面擴功能
 - demo 口徑以 `/health` 與 API runtime 訊號為準
-- 完成任一任務後同步更新 [todo.md](./todo.md)、[implementation-log.md](./implementation-log.md)、[README.md](./README.md) 的 Latest Update
+- 完成任一任務後同步更新 [todo.md](todo.md)、[implementation-log.md](implementation-log.md)、[README.md](README.md) 的 Latest Update

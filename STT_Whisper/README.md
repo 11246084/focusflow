@@ -76,7 +76,7 @@ python src/embed_parent_chunk_artifact.py `
 
 目前主流程分成兩種輸入模式：
 
-1. 本機影片模式：讀取 `backend/uploads/` 或 `Test_video_file/` 的影片檔。
+1. 本機影片模式：讀取 `backend/uploads/` 或 `Test_video_file` 的影片檔。
 2. YouTube URL 模式：由 backend 傳入 `--youtube-url`，pipeline 用 `yt-dlp` 下載音訊後處理。
 
 後段流程一致：
@@ -735,7 +735,7 @@ data/outputs/runs/<run_id>/
 - `manifest.json`：記錄 run、影片及各 stage 的即時狀態與錯誤。
 - `run_summary.json`：記錄 run 最終狀態、輸出檔名與各類資料筆數；失敗或缺檔時以 0 計數，不會因 partial output 中斷。
 - `upload_summary.json`：記錄本次 MongoDB upload 的完成、失敗或未執行狀態。
-- `data/outputs/` 頂層標準檔案：維持舊流程使用的 latest compatibility copy。
+- `data/outputs` 頂層標準檔案：維持舊流程使用的 latest compatibility copy。
 - `data/outputs/runs/<run_id>/`：Phase 2 後正式、可追蹤與可回溯的批次資料來源。
 
 舊有 `bak/`、deprecated 資料及歷史輸出不會自動搬移或刪除。這套版本管理是未來 Resume／Retry 的資料基礎；目前仍**尚未實作 Resume 或 Retry**。
@@ -784,7 +784,7 @@ Checkpoint 遺失、空白、損壞或格式錯誤時，不會跳過該 stage，
 - `mongodb_upload` -> `upload_summary.json` 且狀態為 `completed`
 - `backend_webhook` -> 只在 manifest 已完成時視為可跳過
 
-Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 Resume 時不會覆蓋 `data/outputs/` 頂層 latest compatibility copy；只有 Resume 全部成功後，才會刷新頂層 latest copy。
+Resume 時 checkpoint 來源一律使用 `data/outputs/runs/<run_id>/`。開始 Resume 時不會覆蓋 `data/outputs` 頂層 latest compatibility copy；只有 Resume 全部成功後，才會刷新頂層 latest copy。
 
 本 Sprint 只實作 Resume / Checkpoint 的線性接續能力，**不包含 Retry**，也不會改變既有 JSON / JSONL schema 或 MongoDB collection contract。
 

@@ -22,7 +22,7 @@ import {
   reviewScript,
   uploadAsset,
 } from '../services/shortScript';
-import { renderScriptMarkdown } from '../services/shortScriptTemplate';
+import { ARC_LABELS, renderScriptMarkdown } from '../services/shortScriptTemplate';
 import { formatFileSize } from './teacherUploadUtils';
 
 // 版面照專案既有頁面的寫法（TeacherCourses.jsx / TeacherVideoReview.jsx）：
@@ -59,17 +59,6 @@ function describeError(error) {
   const parts = [error.status, error.code].filter(Boolean).join(' ');
   return parts ? `${error.message}（${parts}）` : error.message;
 }
-
-const ARC_LABELS = {
-  hook: '鉤子',
-  context: '交代',
-  reveal: '給正解',
-  deepen: '加深',
-  evidence: '證據',
-  climax: '高潮',
-  conclusion: '結論',
-  ending: '收尾',
-};
 
 const STATUS_TONE = {
   evidence_ready: { color: '#a5b4fc', background: 'rgba(165,180,252,0.12)', border: 'rgba(165,180,252,0.22)' },
@@ -777,6 +766,27 @@ export default function TeacherShortScripts() {
                       })}
                     </div>
                     <div style={{ ...MUTED, marginTop: 8 }}>選一組，會寫進複製出的腳本。</div>
+                    {(() => {
+                      const option = (version.payload.visualMetaphorOptions || [])[metaphorIndex];
+                      const meanings = version.payload.stageMeanings;
+                      if (!option || !meanings) return null;
+                      return (
+                        <div style={{ marginTop: 12 }}>
+                          {['s1', 's2', 's3'].map((key) => (
+                            <div key={key} style={{ ...BODY, fontSize: 12.5 }}>
+                              <span style={{ color: ACCENT, fontWeight: 700 }}>{key.toUpperCase()}</span>
+                              {' '}{option[key]}
+                              <span style={MUTED}>{' '}＝ {meanings[key]}</span>
+                            </div>
+                          ))}
+                          {option.rationale && (
+                            <div style={{ ...MUTED, marginTop: 6, lineHeight: 1.7 }}>
+                              為什麼用這個隱喻：{option.rationale}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
@@ -938,6 +948,16 @@ export default function TeacherShortScripts() {
                           </div>
                           <div style={{ ...BODY, marginTop: 3 }}>{shot.narration}</div>
                           <div style={{ ...MUTED, marginTop: 2 }}>字幕：{shot.subtitle}</div>
+                          {shot.brollStage && (
+                            <div style={MUTED}>
+                              素材：{shot.brollStage}{shot.brollNote ? `（${shot.brollNote}）` : ''}
+                            </div>
+                          )}
+                          {shot.cut && (
+                            <div style={MUTED}>
+                              剪輯：{shot.cut}{shot.hookQuestion ? `｜埋問題：${shot.hookQuestion}` : ''}
+                            </div>
+                          )}
                           <div style={MUTED}>
                             依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}
                           </div>

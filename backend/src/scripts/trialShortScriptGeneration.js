@@ -143,6 +143,7 @@ async function run() {
   payload.shots.forEach((shot) => {
     const basis = shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join(',');
     console.log(`  鏡 ${String(shot.shotNo).padStart(2, '0')} [${shot.arcRole}] ${shot.timeRange || ''}`);
+    if (shot.hookQuestion) console.log(`      剪輯：${shot.cut}｜埋問題：${shot.hookQuestion}`);
     console.log(`     口白：${shot.narration}`);
     console.log(`     字幕：${shot.subtitle}`);
     console.log(`     依據：${basis}`);

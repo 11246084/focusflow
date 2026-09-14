@@ -80,11 +80,9 @@ function stubGeneration({ metaphorLabel = '光點網路' } = {}) {
     const chunkIds = [...prompt.matchAll(/chunkId=(\S+)/g)].map((match) => match[1]);
     const shots = Array.from({ length: 8 }, (unused, index) => ({
       shotNo: index + 1,
-      arcRole: 'hook',
-      timeRange: '0:00',
       narration: `第 ${index + 1} 拍`,
       subtitle: '字幕',
-      editing: '快切',
+      hookQuestion: `埋問題 ${index + 1}`,
       sfx: '',
       basedOn: index === 7 ? 'template' : [chunkIds[index % chunkIds.length]],
     }));
@@ -97,9 +95,12 @@ function stubGeneration({ metaphorLabel = '光點網路' } = {}) {
             parts: [{
               text: JSON.stringify({
                 arcApplicable: true,
+                // 鏡 4（index 3）的依據就是轉折片段，驗證才會通過。
+                reversalBasedOn: shots[3].basedOn,
                 globalSettings: { coreEvent: 'x', coreView: 'y' },
-                writingFourQuestions: ['a', 'b', 'c', 'd'],
-                visualMetaphorOptions: [{ label: metaphorLabel, s1: 'a', s2: 'b', s3: 'c' }],
+                writingPlan: { curiosity: 'a', delayedAnswer: 'b', reversal: 'c', takeaway: 'd' },
+                stageMeanings: { s1: 'a', s2: 'b', s3: 'c' },
+                visualMetaphorOptions: [{ label: metaphorLabel, s1: 'a', s2: 'b', s3: 'c', rationale: 'r' }],
                 shots,
               }),
             }],

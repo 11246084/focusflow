@@ -11,6 +11,28 @@
 //   - H3 沒有餵外部音檔驅動嘴型的功能，分身全程不說話，旁白純後製疊上
 // 模板再改版時，這裡要同步。
 
+// 拍名照模板原文（10-teacher-avatar-metaphor.md §5）。deepen 是 2026-09-12 前的舊名，
+// 那時第 4 拍被寫成「補充資訊」而不是反轉，舊腳本照實標成「加深」，不冒充反轉。
+export const ARC_LABELS = {
+  hook: 'HOOK・鉤子',
+  context: '交代',
+  reveal: '滿足好奇・給正解',
+  reversal: '反轉',
+  deepen: '加深',
+  evidence: '證據補刀',
+  climax: '高潮・揭露',
+  conclusion: '結論・收束重述',
+  ending: '收尾',
+};
+
+// 模板 §3 的四題是固定的創作問題，模型只填答案。
+const WRITING_PLAN_QUESTIONS = [
+  ['curiosity', '我要讓觀眾「想知道什麼」？'],
+  ['delayedAnswer', '我要故意延後哪個答案？'],
+  ['reversal', '中途最大的反轉是什麼？'],
+  ['takeaway', '最後觀眾應該記住哪一句話？'],
+];
+
 function formatTimestamp(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -47,18 +69,26 @@ function renderShots(shots = []) {
       ? '`template`（反問，不給資料庫沒確認過的答案）'
       : `片段 ${(shot.basedOn || []).map((id) => `\`${id}\``).join('、')}・改寫`;
 
+    // 舊腳本（2026-09-12 前）沒有 brollStage／cut／hookQuestion，照原本的欄位輸出。
+    const broll = shot.brollStage
+      ? `${shot.brollStage}${shot.brollNote ? `（${shot.brollNote}）` : ''}`
+      : 'S1 / S2 / S3（依上方視覺概念挑選）';
+    const editing = shot.cut
+      ? [shot.cut, shot.hookQuestion ? `埋問題：${shot.hookQuestion}` : ''].filter(Boolean).join('｜')
+      : (shot.editing || '正常');
+
     return [
-      `### 鏡 ${String(shot.shotNo).padStart(2, '0')}｜${shot.arcRole}（${shot.timeRange || ''}）`,
+      `### 鏡 ${String(shot.shotNo).padStart(2, '0')}｜${ARC_LABELS[shot.arcRole] || shot.arcRole}（${shot.timeRange || ''}）`,
       '',
       '〔上 2/3｜B-roll〕',
-      '- 素材：S1 / S2 / S3（依上方視覺概念挑選）',
+      `- 素材：${broll}`,
       '',
       '〔下 1/3｜教師數位分身講述〕',
       `「${shot.narration}」`,
       `- 依據：${basis}`,
       '',
       `〔字幕〕：${shot.subtitle}`,
-      `〔剪輯〕：${shot.editing || '正常'}`,
+      `〔剪輯〕：${editing}`,
       `〔音效〕：${shot.sfx || '—'}`,
     ].join('\n');
   }).join('\n\n---\n\n');
@@ -74,20 +104,37 @@ function renderSsml(shots = []) {
   return ['<speak>', '  <voice name="[複製聲線]">', '', body, '', '  </voice>', '</speak>'].join('\n');
 }
 
-function renderMetaphor(option) {
+function renderWritingPlan(payload) {
+  // 舊腳本存的是模型自己出的題目（writingFourQuestions），沒有固定題可對應。
+  if (!payload.writingPlan) {
+    return (payload.writingFourQuestions || []).map((item, index) => `${index + 1}. ${item}`);
+  }
+  return WRITING_PLAN_QUESTIONS.map(
+    ([key, question], index) => `${index + 1}. ${question}→ ${payload.writingPlan[key] || '—'}`,
+  );
+}
+
+function renderMetaphor(option, stageMeanings) {
   if (!option) return '（尚未選擇視覺隱喻）';
+
+  // 每段畫面後面標出它代表的概念（模板 §4 的「=」欄）。舊腳本沒有 stageMeanings，只列畫面。
+  const stageLine = (key) => {
+    const meaning = stageMeanings?.[key];
+    return `${key.toUpperCase()}  ${option[key]}${meaning ? `  =  ${meaning}` : ''}`;
+  };
 
   return [
     `**選用隱喻：${option.label}**`,
     '',
     '```',
-    `S1  ${option.s1}`,
+    stageLine('s1'),
     '     ↓',
-    `S2  ${option.s2}`,
+    stageLine('s2'),
     '     ↓',
-    `S3  ${option.s3}`,
+    stageLine('s3'),
     '```',
     '',
+    ...(option.rationale ? [`**為什麼用這個隱喻**：${option.rationale}`, ''] : []),
     '三段共用的 MiniMax H3 限制（四段式 prompt 的【限制】欄）：',
     '',
     '```',
@@ -251,13 +298,13 @@ export function renderScriptMarkdown(script, version, metaphorIndex = 0) {
     '',
     '## 3. 寫作順序：動筆前的 4 題',
     '',
-    ...(payload.writingFourQuestions || []).map((item, index) => `${index + 1}. ${item}`),
+    ...renderWritingPlan(payload),
     '',
     '---',
     '',
-    '## 4. 視覺概念',
+    `## 4. 視覺概念${metaphor ? `：${metaphor.label}` : ''}`,
     '',
-    renderMetaphor(metaphor),
+    renderMetaphor(metaphor, payload.stageMeanings),
     '',
     '---',
     '',

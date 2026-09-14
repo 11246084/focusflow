@@ -22,6 +22,28 @@ const VIDEO_STATUS_MAP = {
   failed: { text: '失敗', cls: 'br' },
 };
 
+// 重試失敗時依錯誤碼給出可行動的說明；未列出的錯誤碼沿用後端訊息。
+const RETRY_ERROR_MESSAGES = {
+  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原始影片檔已不存在，請刪除這支影片後重新上傳。',
+  VIDEO_PROCESSING_TRANSITION_INVALID: '影片狀態已變更，請重新整理後再試。',
+  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，請先到 YouTube Studio 確認沒有重複影片，再聯絡管理員處理。',
+  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: 'YouTube 上傳重試次數已達上限，請聯絡管理員處理。',
+  YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已成功上傳到 YouTube，不需要重試。',
+  YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前不是上傳失敗狀態，請重新整理後再確認。',
+  YOUTUBE_UPLOAD_NOT_CONFIGURED: 'YouTube 上傳尚未設定完成，請聯絡管理員。',
+};
+
+const RETRY_BUTTON_STYLE = {
+  background: 'none',
+  border: '1px solid rgba(251,191,36,0.5)',
+  borderRadius: 8,
+  color: '#fcd34d',
+  padding: '5px 10px',
+  fontSize: 11,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
 const MODAL_STYLE = {
   overlay: {
     position: 'fixed',
@@ -264,6 +286,8 @@ export default function TeacherCourses() {
   const [attaching, setAttaching] = useState(null);
   const [managingEnrollments, setManagingEnrollments] = useState(null);
   const [detachingId, setDetachingId] = useState(null);
+  const [retrying, setRetrying] = useState(null);
+  const [retryMessages, setRetryMessages] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
 
@@ -370,6 +394,35 @@ export default function TeacherCourses() {
       // 失敗時保留在列表中，讓使用者可重試。
     } finally {
       setDetachingId(null);
+    }
+  }
+
+  // kind: 'processing' 重跑 STT pipeline；'youtube' 重新排入 YouTube 上傳。
+  async function handleRetry(video, kind) {
+    const videoId = video.id || video._id;
+    const path = kind === 'processing'
+      ? `/videos/${videoId}/processing/retry`
+      : `/videos/${videoId}/youtube-upload/retry`;
+    setRetrying(`${kind}:${videoId}`);
+    setRetryMessages(prev => ({ ...prev, [videoId]: null }));
+
+    try {
+      await apiFetch(path, { method: 'POST' });
+      setRetryMessages(prev => ({
+        ...prev,
+        [videoId]: {
+          tone: 'ok',
+          text: kind === 'processing' ? '已重新排入處理佇列。' : '已排入 YouTube 重新上傳，完成後會自動更新。',
+        },
+      }));
+      setRefreshKey(key => key + 1);
+    } catch (e) {
+      setRetryMessages(prev => ({
+        ...prev,
+        [videoId]: { tone: 'error', text: RETRY_ERROR_MESSAGES[e.code] || e.message || '重試失敗，請稍後再試。' },
+      }));
+    } finally {
+      setRetrying(null);
     }
   }
 
@@ -608,10 +661,10 @@ export default function TeacherCourses() {
                         </div>
                       ) : (
                         <div style={{ overflowX: 'auto' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6, minWidth: 480 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6, minWidth: 620 }}>
                           <div style={{
                             display: 'grid',
-                            gridTemplateColumns: '1fr 110px 110px 90px',
+                            gridTemplateColumns: '1fr 130px 100px 200px',
                             padding: '4px 14px',
                             color: 'rgba(255,255,255,0.32)',
                             fontSize: 10,
@@ -631,12 +684,17 @@ export default function TeacherCourses() {
                             const videoId = video.id || video._id;
                             // 主課程 courseId 不是本課程 → 這支影片是從其他課程掛載進來的
                             const isAttached = !video.metadataOnly && video.courseId && String(video.courseId) !== String(course._id);
+                            // 重試只在主課程列出，避免同一支影片在掛載課程重複出現按鈕。
+                            const youtubeFailed = video.youtubeUpload?.status === 'failed';
+                            const canRetryProcessing = !isAttached && !video.metadataOnly && status === 'failed';
+                            const canRetryYoutube = !isAttached && !video.metadataOnly && youtubeFailed;
+                            const retryMessage = retryMessages[videoId];
                             return (
                               <div
                                 key={videoId}
                                 style={{
                                   display: 'grid',
-                                  gridTemplateColumns: '1fr 110px 110px 90px',
+                                  gridTemplateColumns: '1fr 130px 100px 200px',
                                   alignItems: 'center',
                                   padding: '10px 14px',
                                   borderRadius: 10,
@@ -656,13 +714,36 @@ export default function TeacherCourses() {
                                   </span>
                                   {isAttached && <span className="badge bb" title="這支影片的主課程在其他課程，此處為掛載引用">掛載</span>}
                                 </div>
-                                <div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                   {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>未知</span>}
+                                  {youtubeFailed && (
+                                    <span className="badge br" title={video.youtubeUpload?.error || 'YouTube 上傳失敗'}>YouTube 失敗</span>
+                                  )}
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
                                   {date ? new Date(date).toLocaleDateString('zh-TW') : '未記錄'}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
+                                  {canRetryProcessing && (
+                                    <button
+                                      onClick={() => handleRetry(video, 'processing')}
+                                      disabled={!!retrying}
+                                      title="重新執行語音轉文字與 AI 索引"
+                                      style={RETRY_BUTTON_STYLE}
+                                    >
+                                      {retrying === `processing:${videoId}` ? '重試中...' : '重試處理'}
+                                    </button>
+                                  )}
+                                  {canRetryYoutube && (
+                                    <button
+                                      onClick={() => handleRetry(video, 'youtube')}
+                                      disabled={!!retrying}
+                                      title="重新上傳到 YouTube"
+                                      style={RETRY_BUTTON_STYLE}
+                                    >
+                                      {retrying === `youtube:${videoId}` ? '排入中...' : '重傳 YouTube'}
+                                    </button>
+                                  )}
                                   {isAttached ? (
                                     <button
                                       onClick={() => handleDetach(course, video)}
@@ -682,6 +763,14 @@ export default function TeacherCourses() {
                                     </button>
                                   )}
                                 </div>
+                                {retryMessage && (
+                                  <div
+                                    role={retryMessage.tone === 'error' ? 'alert' : 'status'}
+                                    style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, lineHeight: 1.6, color: retryMessage.tone === 'error' ? '#fb923c' : '#86efac' }}
+                                  >
+                                    {retryMessage.text}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

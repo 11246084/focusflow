@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OOAD／UML 製圖 Skill</title>
+<style>
+:root{
+  --bg:#fbfbfa; --surface:#ffffff; --surface-2:#f4f5f3; --line:#e2e4df;
+  --ink:#1c2023; --ink-2:#4a5257; --ink-3:#7b858b;
+  --accent:#2f6d5a; --accent-soft:#e6f0ec;
+  --must:#b4442e; --must-soft:#fbeae6;
+  --should:#9a6b1f; --should-soft:#fbf2e2;
+  --may:#4a5257; --may-soft:#eef0ef;
+  --heur:#2f6d5a; --heur-soft:#e6f0ec;
+  --ntub:#5b4b9a; --ntub-soft:#efecf9;
+  --ff:#1f6a86; --ff-soft:#e4f1f6;
+  --radius:10px; --maxw:1120px;
+  --shadow:0 1px 2px rgba(20,25,28,.05),0 4px 14px rgba(20,25,28,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171a; --surface:#1b1f23; --surface-2:#22272c; --line:#2f363c;
+    --ink:#e8eaec; --ink-2:#b3bbc1; --ink-3:#848d94;
+    --accent:#6fb59c; --accent-soft:#1d2f2a;
+    --must:#e08a75; --must-soft:#32211d;
+    --should:#d9ae62; --should-soft:#2e2718;
+    --may:#aab2b8; --may-soft:#262b2f;
+    --heur:#6fb59c; --heur-soft:#1d2f2a;
+    --ntub:#a89ada; --ntub-soft:#25214a;
+    --ff:#74b6cf; --ff-soft:#17303a;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171a; --surface:#1b1f23; --surface-2:#22272c; --line:#2f363c;
+  --ink:#e8eaec; --ink-2:#b3bbc1; --ink-3:#848d94;
+  --accent:#6fb59c; --accent-soft:#1d2f2a;
+  --must:#e08a75; --must-soft:#32211d;
+  --should:#d9ae62; --should-soft:#2e2718;
+  --may:#aab2b8; --may-soft:#262b2f;
+  --heur:#6fb59c; --heur-soft:#1d2f2a;
+  --ntub:#a89ada; --ntub-soft:#25214a;
+  --ff:#74b6cf; --ff-soft:#17303a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC","Hiragino Sans TC",system-ui,sans-serif;
+  font-size:16px;line-height:1.75;-webkit-text-size-adjust:100%;
+}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 16px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:6px;height:56px;overflow-x:auto;scrollbar-width:none}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{color:var(--ink-2);text-decoration:none;font-size:13.5px;padding:6px 10px;border-radius:7px;white-space:nowrap}
+nav a:hover{background:var(--surface-2);color:var(--ink)}
+nav .brand{font-weight:700;color:var(--ink);margin-right:8px;white-space:nowrap}
+#themeBtn{margin-left:auto;flex:none;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);border-radius:7px;padding:5px 10px;font-size:13px;cursor:pointer;font-family:inherit}
+
+/* hero */
+header{padding:56px 0 40px;border-bottom:1px solid var(--line)}
+.eyebrow{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.09em;margin:0 0 12px}
+h1{font-size:clamp(28px,5.2vw,44px);line-height:1.25;margin:0 0 16px;letter-spacing:-.01em}
+.lead{font-size:clamp(16px,2.2vw,19px);color:var(--ink-2);max-width:62ch;margin:0 0 24px}
+.path{display:inline-block;font-family:ui-monospace,"Cascadia Mono","Consolas",monospace;font-size:13px;
+  background:var(--surface-2);border:1px solid var(--line);padding:6px 12px;border-radius:7px;color:var(--ink-2);
+  word-break:break-all}
+.statrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;flex:1 1 130px}
+.stat b{display:block;font-size:22px;line-height:1.3}
+.stat span{font-size:12.5px;color:var(--ink-3)}
+
+section{padding:52px 0;border-bottom:1px solid var(--line)}
+h2{font-size:clamp(21px,3.4vw,28px);margin:0 0 6px;letter-spacing:-.01em}
+h2 .num{color:var(--accent);font-size:14px;font-weight:700;display:block;margin-bottom:6px;letter-spacing:.08em}
+.sub{color:var(--ink-2);margin:0 0 26px;max-width:70ch;font-size:15.5px}
+h3{font-size:17px;margin:32px 0 12px}
+p{margin:0 0 12px}
+
+/* grid + cards */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.card h4{margin:0 0 8px;font-size:15.5px}
+.card p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.7}
+.card .prob{color:var(--must);font-size:12.5px;font-weight:700;display:block;margin-bottom:6px}
+.card .sol{color:var(--accent);font-size:12.5px;font-weight:700;display:block;margin:10px 0 4px}
+
+/* badges */
+.b{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:20px;
+  line-height:1.6;white-space:nowrap;vertical-align:middle}
+.b-must{background:var(--must-soft);color:var(--must)}
+.b-should{background:var(--should-soft);color:var(--should)}
+.b-may{background:var(--may-soft);color:var(--may)}
+.b-heur{background:var(--heur-soft);color:var(--heur)}
+.b-ntub{background:var(--ntub-soft);color:var(--ntub)}
+.b-ff{background:var(--ff-soft);color:var(--ff)}
+.b-uml{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+
+/* steps */
+.steps{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:18px 0}
+.step{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:8px;padding:13px 15px}
+.step b{display:block;font-size:12px;color:var(--accent);letter-spacing:.05em}
+.step span{font-size:14px;font-weight:600;display:block;margin:3px 0 4px}
+.step small{color:var(--ink-3);font-size:12.5px;line-height:1.6;display:block}
+
+/* flow box */
+.flow{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px;
+  font-family:ui-monospace,"Cascadia Mono","Consolas",monospace;font-size:12.5px;line-height:1.85;
+  color:var(--ink-2);overflow-x:auto;white-space:pre;margin:14px 0}
+
+/* table */
+.tw{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface-2);font-size:12.5px;color:var(--ink-2);font-weight:700;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code,li code,p code{font-family:ui-monospace,"Cascadia Mono","Consolas",monospace;font-size:12.5px;
+  background:var(--surface-2);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+
+/* tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 0}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);padding:8px 16px;
+  border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:600}
+.tab[aria-selected="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.panel{display:none;margin-top:14px}
+.panel.on{display:block}
+
+/* toggle compare */
+.cmp{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));margin:16px 0}
+.cmp .card{border-top:3px solid var(--line)}
+.cmp .an{border-top-color:var(--ff)}
+.cmp .de{border-top-color:var(--ntub)}
+ul.tight{margin:8px 0 0;padding-left:18px}
+ul.tight li{margin:5px 0;font-size:14px;color:var(--ink-2);line-height:1.65}
+
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:13px 16px;
+  border-radius:0 8px 8px 0;margin:16px 0;font-size:14.5px;color:var(--ink-2)}
+.warn{border-left:3px solid var(--must);background:var(--must-soft);padding:13px 16px;
+  border-radius:0 8px 8px 0;margin:16px 0;font-size:14.5px;color:var(--ink-2)}
+
+/* impact selector */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);padding:7px 14px;
+  border-radius:20px;cursor:pointer;font-size:13.5px;font-family:inherit}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.impact{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;min-height:150px}
+.impact h4{margin:0 0 4px;font-size:16px}
+.impact .why{color:var(--ink-3);font-size:13px;margin:0 0 14px}
+.ilist{display:grid;gap:8px}
+.irow{display:flex;gap:11px;align-items:flex-start;padding:9px 12px;background:var(--surface-2);
+  border-radius:7px;font-size:14px}
+.irow .k{font-weight:700;color:var(--accent);flex:none;min-width:88px;font-size:13px}
+.irow .v{color:var(--ink-2);line-height:1.6}
+
+/* code / prompt */
+.promptbox{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 16px 16px;margin:12px 0}
+.promptbox pre{margin:0;font-family:ui-monospace,"Cascadia Mono","Consolas",monospace;font-size:13px;
+  line-height:1.75;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.copy{position:absolute;top:10px;right:10px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);border-radius:6px;padding:4px 11px;font-size:12px;cursor:pointer;font-family:inherit}
+.copy:hover{color:var(--ink)}
+
+.demo{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.demo .card{border-top:3px solid var(--accent)}
+.demo .t{font-size:11.5px;color:var(--accent);font-weight:700;letter-spacing:.06em}
+
+footer{padding:34px 0 60px;color:var(--ink-3);font-size:13px}
+@media print{
+  nav,#themeBtn,.copy{display:none}
+  section{break-inside:avoid;padding:24px 0}
+  .panel{display:block!important}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="brand">OOAD／UML Skill</span>
+  <a href="#why">為什麼</a>
+  <a href="#how">怎麼運作</a>
+  <a href="#rules">規則分層</a>
+  <a href="#flip">防顛倒</a>
+  <a href="#chapters">章節契約</a>
+  <a href="#usage">使用情境</a>
+  <a href="#agents">雙 Agent</a>
+  <a href="#open">Open issues</a>
+  <a href="#demo">Demo</a>
+  <button id="themeBtn" type="button">切換主題</button>
+</div></nav>
+
+<header><div class="wrap">
+  <p class="eyebrow">FocusFlow · 115 資訊系統專案設計</p>
+  <h1>OOAD／UML 系統手冊製圖 Skill</h1>
+  <p class="lead">一套讓 Claude Code 與 Codex 共用的製圖工作規範。它管的不只是「怎麼畫圖」，而是<strong>什麼時候該畫、該畫哪一種、畫完怎麼驗、改了程式之後哪些圖會失效</strong>。</p>
+  <span class="path">.claude/skills/ooad-uml-diagramming/</span>
+  <div class="statrow">
+    <div class="stat"><b>26</b><span>檔案</span></div>
+    <div class="stat"><b>6</b><span>步工作流程</span></div>
+    <div class="stat"><b>25</b><span>條硬性規則</span></div>
+    <div class="stat"><b>5</b><span>層審查</span></div>
+    <div class="stat"><b>10</b><span>PlantUML 範本</span></div>
+  </div>
+</div></header>
+
+<!-- 1 -->
+<section id="why"><div class="wrap">
+  <h2><span class="num">01</span>為什麼要做這個</h2>
+  <p class="sub">不是為了「自動畫圖」。是因為系統手冊的圖表出過幾類反覆發生的問題，靠人記規則記不住，而且兩個 AI 工具會各畫各的。</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>分析類別圖與設計類別圖畫顛倒</h4>
+      <p>第 5-4 章畫進了 <code>&lt;&lt;Service&gt;&gt;</code>、<code>ObjectId</code>；第 6-2 章卻停在純領域概念。兩章看起來只差幾個方法。</p>
+      <span class="sol">對策</span>
+      <p>判別器 A／B —— 依<strong>章節位置</strong>自動決定套哪組檢查，不需判斷作者意圖。</p>
+    </div>
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>官方規範的連接詞被誤讀</h4>
+      <p>「循序圖<strong>或</strong>通訊圖」是二選一、「狀態機<strong>甚至</strong>時序圖」是延伸、「<strong>最好</strong>以圖示說明」是建議 —— 讀錯就會多畫或漏畫。</p>
+      <span class="sol">對策</span>
+      <p>章節契約表逐條標明指定／建議延伸／禁止，並附官方原文語意對照。</p>
+    </div>
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>圖與正文、圖目錄不同步</h4>
+      <p>改了 <code>.puml</code> 沒重新匯出；新增圖忘了更新圖目錄；圖插在那裡但正文從沒提過。</p>
+      <span class="sol">對策</span>
+      <p>Artifact chain：六個落點、七項一致性檢查，附可直接跑的指令。</p>
+    </div>
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>內部流程被寫成 Use Case</h4>
+      <p>「消費處理佇列」「清除快取」變成使用個案；系統自己被畫成 Actor，系統邊界失去意義。</p>
+      <span class="sol">對策</span>
+      <p>Actor 硬規則 + 內部流程改由功能性需求（<code>FR-xx</code>）登錄、循序／活動／狀態機承接。</p>
+    </div>
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>舊資料被當成現況證據</h4>
+      <p>拿歷屆手冊、初評舊圖來推論現在的系統長什麼樣。</p>
+      <span class="sol">對策</span>
+      <p>事實來源分五級（程式碼 &gt; schema &gt; 現況文件 &gt; 既有手冊 &gt; 歷史文件），每張圖檔頭強制標 <code>source</code> 與 <code>verified</code> 日期。</p>
+    </div>
+    <div class="card">
+      <span class="prob">問題</span>
+      <h4>兩個 AI 工具規則不一致</h4>
+      <p>Claude Code 畫一套、Codex 畫另一套，風格與判準都不同。</p>
+      <span class="sol">對策</span>
+      <p>規則寫成 repo 內的純文字檔，兩邊讀同一份、路徑一致（整合方式不同，見第 07 節）。</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 2 -->
+<section id="how"><div class="wrap">
+  <h2><span class="num">02</span>怎麼運作</h2>
+  <p class="sub">六個步驟。重點在 Step 2 ——「選哪一種圖」不是自由發揮，而是<strong>先查官方章節契約</strong>。</p>
+
+  <div class="steps">
+    <div class="step"><b>STEP 1</b><span>確認脈絡</span><small>屬哪個 OOAD 階段？放哪一章？</small></div>
+    <div class="step"><b>STEP 2</b><span>選圖</span><small>兩段式：先查章節契約，再走決策樹</small></div>
+    <div class="step"><b>STEP 3</b><span>該不該畫</span><small>跑 pre-draw 清單（9 區）</small></div>
+    <div class="step"><b>STEP 4</b><span>製圖</span><small>用 templates 骨架 + PlantUML 慣例</small></div>
+    <div class="step"><b>STEP 5</b><span>配套文字</span><small>「用途＋判讀」；互動圖另加編號步驟</small></div>
+    <div class="step"><b>STEP 6</b><span>審查</span><small>五層 review，前層不過不進下層</small></div>
+  </div>
+
+  <h3>Step 2 的兩段式選圖</h3>
+  <div class="flow">這張圖是否在系統手冊脈絡中？
+├─ 是 → 查 NTUB 章節契約表
+│        ├─ 該章節有「指定」圖 → 直接採用，<span style="color:var(--must)">不得以 heuristic 否決</span>
+│        ├─ 該章節有「延伸」圖 → 依價值判斷是否採用
+│        └─ 該章節未指定       → 走自由決策樹
+└─ 否 → 走自由決策樹</div>
+
+  <div class="note"><strong>為什麼這樣設計：</strong>自由決策樹裡有「線性流程不值得畫活動圖」這類判斷。但第 5-3 章官方<strong>明文指定</strong>要用活動圖描述使用個案 —— 這時那條判斷一律不適用。指定的圖就是要畫。</div>
+
+  <h3>五層審查</h3>
+  <div class="tw"><table>
+    <tr><th>層</th><th>檢查什麼</th><th>例子</th></tr>
+    <tr><td><b>1 語法</b></td><td>PlantUML 能不能渲染</td><td><code>plantuml -checkonly</code></td></tr>
+    <tr><td><b>2 語意</b></td><td>UML 記法正確性</td><td>循序圖有沒有 <code>autonumber</code>；元件圖有沒有介面</td></tr>
+    <tr><td><b>3 結構</b></td><td>模型層級與內容</td><td>分析／設計防顛倒；Actor 邊界；章節契約</td></tr>
+    <tr><td><b>4 追溯</b></td><td>編號鏈與 artifact chain</td><td>孤兒圖、斷鏈、圖目錄比對</td></tr>
+    <tr><td><b>5 可讀性</b></td><td>配套文字與版面</td><td>有沒有「用途＋判讀」段落；術語是否正確</td></tr>
+  </table></div>
+
+  <div class="warn"><strong>輸出分三級：</strong>
+    <span class="b b-must">MUST</span> 命中 → FAIL，必須修正　·
+    <span class="b b-should">SHOULD</span> 命中 → WARNING，要說明理由　·
+    <span class="b b-heur">HEURISTIC</span> 命中 → <strong>只給提示，不能當退回理由</strong>
+  </div>
+</div></section>
+
+<!-- 3 -->
+<section id="rules"><div class="wrap">
+  <h2><span class="num">03</span>規則分三層，強度分四級</h2>
+  <p class="sub">這是整個 Skill 最重要的設計。<strong>UML 標準、學校規範、我們的專案慣例，是三件不同的事</strong>，不能混成同一套硬規則。</p>
+
+  <h3>適用範圍 —— 這條規則是誰的規定</h3>
+  <div class="grid g3">
+    <div class="card"><h4><span class="b b-uml">UML</span> UML 2.x 規格</h4><p>違反代表圖本身是錯的。例：元件圖必須有提供／需求介面。<br><strong style="color:var(--ink-3)">不可移除</strong></p></div>
+    <div class="card"><h4><span class="b b-uml">OOAD</span> 方法論共識</h4><p>不同學派有差異，但主流一致。例：內部技術流程不寫成 use case。<br><strong style="color:var(--ink-3)">不可移除</strong></p></div>
+    <div class="card"><h4><span class="b b-uml">DOC</span> 文件寫作通則</h4><p>與 UML 無關。例：每張圖要有配套的「用途＋判讀」文字。<br><strong style="color:var(--ink-3)">不可移除</strong></p></div>
+    <div class="card"><h4><span class="b b-ntub">NTUB</span> 北商 115 年規範</h4><p>四技部（物件導向）大綱的限制。例：圖說在圖下方、格式 <code>圖6-1-3 名稱</code>。<br><strong style="color:var(--ntub)">整層可移除</strong>（換學校）</p></div>
+    <div class="card"><h4><span class="b b-ff">FF</span> FocusFlow 專案慣例</h4><p>路徑、檔名、文件型資料庫的處理方式。<br><strong style="color:var(--ff)">整層可移除</strong>（換專案）</p></div>
+    <div class="card" style="background:var(--surface-2)"><h4>為什麼要分層</h4><p>移掉 <code>local/</code> 兩層，這個 Skill 就變成通用 OOAD 製圖規範，其他專案能直接用。也避免有人把「北商的規定」當成「UML 的標準」去教別人。</p></div>
+  </div>
+
+  <h3>強制程度 —— 違反了會怎樣</h3>
+  <div class="tw"><table>
+    <tr><th>標記</th><th>意義</th><th>Review 處置</th><th>例子</th></tr>
+    <tr><td><span class="b b-must">MUST</span></td><td>硬性規則</td><td><b>不通過</b>，必須修正</td><td>系統本身不得當自己的 Actor</td></tr>
+    <tr><td><span class="b b-should">SHOULD</span></td><td>建議</td><td>可偏離，但要說明理由</td><td>設計類別標註來源分析類別</td></tr>
+    <tr><td><span class="b b-may">MAY</span></td><td>允許但不建議<br>缺少不構成缺陷</td><td>不檢查</td><td>邊界／控制／實體標註、強健性圖、CRC 卡</td></tr>
+    <tr><td><span class="b b-heur">HEURISTIC</span></td><td>判斷輔助</td><td><b>不得單獨作為退回理由</b></td><td>「循序圖協作物件少於三個」</td></tr>
+  </table></div>
+
+  <div class="warn"><strong>最容易犯的錯，Skill 自己先擋掉了：</strong>把 heuristic 當硬規則。例如「狀態機的狀態要存在資料庫」<em>不是</em> UML 的要求 —— 通訊協定狀態機、工作階段狀態都是合法的建模對象。持久化只是用來<strong>排序哪些狀態機最值得畫</strong>的提示。同理，套件圖不必一對一對應資料夾，元件也不等於「可熱替換」。</div>
+</div></section>
+
+<!-- 4 -->
+<section id="flip"><div class="wrap">
+  <h2><span class="num">04</span>分析／設計畫顛倒，現在怎麼被擋下來</h2>
+  <p class="sub">核心機制叫<strong>判別器</strong>。關鍵是判別器 F：<strong>不判斷作者想畫什麼，只看圖放在哪一章節。</strong></p>
+
+  <div class="flow">讀 .puml 檔頭的 chapter: 欄位
+   ├─ chapter: 5-4 → 套<span style="color:var(--ff)">分析層</span>檢查（判別器 A、D）
+   └─ chapter: 6-2 → 套<span style="color:var(--ntub)">設計層</span>檢查（判別器 B、D、E）</div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-p="pA">分析層（5-4）判別器 A</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="pB">設計層（6-2）判別器 B</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="pC">其他判別器 C–H</button>
+  </div>
+
+  <div id="pA" class="panel on">
+    <p class="sub" style="margin:14px 0 0">目的是<strong>避免實作洩漏</strong>，不是禁止一切形式化表達。所以訊號分兩級。</p>
+    <div class="cmp">
+      <div class="card an">
+        <h4><span class="b b-must">A-1 強證據 · MUST</span></h4>
+        <p style="margin-top:8px">出現任一 → <b style="color:var(--must)">FAIL</b>。這些只可能來自特定技術棧，問題領域裡沒有對應物。</p>
+        <ul class="tight">
+          <li>技術性 stereotype：<code>&lt;&lt;Service&gt;&gt;</code> <code>&lt;&lt;Repository&gt;&gt;</code> <code>&lt;&lt;DTO&gt;&gt;</code></li>
+          <li>技術後綴類別名：<code>*Service</code> <code>*Controller</code> <code>*Mapper</code></li>
+          <li>框架／語言／資料庫型別：<code>ObjectId</code> <code>Promise</code> <code>VARCHAR</code></li>
+          <li>儲存細節：<code>index</code> <code>unique</code> <code>PK</code> <code>FK</code></li>
+          <li>具體技術產物命名：端點路徑、資料表名、環境變數名</li>
+        </ul>
+      </div>
+      <div class="card an">
+        <h4><span class="b b-heur">A-2 弱訊號 · HEURISTIC</span></h4>
+        <p style="margin-top:8px"><b>單獨出現不會 FAIL</b>，只給提示。不同 OOAD 學派對分析層的形式化程度本來就有差異。</p>
+        <ul class="tight">
+          <li>屬性帶型別 <code>name : String</code> —— 概念型別（金額、日期）是合法的領域敘述</li>
+          <li>可見性符號 <code>+</code> <code>-</code> —— 部分工具會預設輸出</li>
+          <li>操作帶括號 <code>驗證權限()</code> —— 責任仍可能是概念層級</li>
+        </ul>
+        <p style="margin-top:10px;color:var(--ink-3);font-size:13px">三項<strong>全數出現</strong>且型別是具體語言型別 → <span class="b b-should">A-3 · SHOULD</span> WARNING，要求確認。仍非自動 FAIL。</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="pB" class="panel">
+    <div class="cmp">
+      <div class="card de">
+        <h4><span class="b b-must">B-1 設計層責任 · MUST</span></h4>
+        <p style="margin-top:8px">設計類別圖必須呈現<strong>超越純領域概念的具體軟體設計責任</strong>，並能說明分析責任如何落實到設計。</p>
+        <p style="margin-top:10px">這是<strong>語意</strong>要求，不是記法要求。判定依據：讀完圖與配套文字，能不能回答「分析層識別出的責任，在設計層由誰承擔、以什麼方式承擔」。</p>
+        <p style="margin-top:10px;color:var(--must)"><strong>不通過只有一種情形：</strong>與分析類別圖在責任層級上沒有差異，且配套文字也說不出責任如何落實。那就是一張放錯章節的分析類別圖。</p>
+      </div>
+      <div class="card de">
+        <h4><span class="b b-heur">B-2 設計層證據 · HEURISTIC</span></h4>
+        <p style="margin-top:8px">下列是設計責任的<strong>可能</strong>表現形式，只用於提示，<b>任何一項都不是必要條件</b>：</p>
+        <ul class="tight">
+          <li>屬性型別、方法簽章、可見性</li>
+          <li>導航方向與多重性</li>
+          <li>介面或抽象型別</li>
+          <li>分析層不存在的技術／協調類別</li>
+          <li>類別被拆分或合併</li>
+          <li>可命名的設計模式</li>
+        </ul>
+        <div class="warn" style="margin:12px 0 0;font-size:13.5px"><strong>明文禁止：</strong>不得為了通過規則而強迫製造類別、拆分結構、加註型別或套用設計模式。小型系統的設計圖與分析圖結構相近，是<strong>合理結果，不是缺陷</strong>。</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pC" class="panel">
+    <div class="tw"><table>
+      <tr><th>判別器</th><th>檢查</th><th>強度</th></tr>
+      <tr><td><b>C</b> 假分離</td><td>兩圖類別集合完全相同、只差方法列 → 必須文字說明原因</td><td><span class="b b-must">MUST</span></td></tr>
+      <tr><td><b>D</b> 資料庫綱要冒充</td><td>六項訊號命中三項以上（一類別對一集合、只有欄位、<code>_id</code>／<code>createdAt</code>⋯）→ 移到第 8 章</td><td><span class="b b-must">MUST</span></td></tr>
+      <tr><td><b>E</b> 來源註記</td><td>每個設計類別標來源分析類別，或標「技術新增」</td><td><span class="b b-should">SHOULD</span></td></tr>
+      <tr><td><b>F</b> 章節即層級</td><td>依 <code>chapter:</code> 欄位決定套哪組檢查</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">MUST</span></td></tr>
+      <tr><td><b>G</b> 物件圖層級</td><td>分析物件圖 vs 設計物件圖不得畫顛倒</td><td><span class="b b-must">MUST</span></td></tr>
+      <tr><td><b>H</b> 成對交叉檢查</td><td>物件圖實例化的類別必須出現在同章節的類別圖中</td><td><span class="b b-must">MUST</span></td></tr>
+    </table></div>
+    <div class="note">只有 <b>A-1、B-1、C、D、F、G、H</b> 會造成 FAIL。<b>A-2、A-3、B-2、E</b> 不會。</div>
+  </div>
+</div></section>
+
+<!-- 5 -->
+<section id="chapters"><div class="wrap">
+  <h2><span class="num">05</span>第 5、6、7 章會怎麼套用</h2>
+  <p class="sub">依《115 年系統手冊規範》<strong>大學部－系統手冊大綱（物件導向）</strong>。專科部的結構化分析大綱完全不採用。</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-p="c5">第 5 章 需求模型</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="c6">第 6 章 設計模型</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="c7">第 7 章 實作模型</button>
+  </div>
+
+  <div id="c5" class="panel on">
+    <div class="tw"><table>
+      <tr><th>節</th><th>要求</th><th>強度</th></tr>
+      <tr><td>5-1</td><td>需求清單，<b>須分功能需求與非功能需求兩部分</b></td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>5-2</td><td>使用個案圖（Use Case Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>5-3</td><td><b>活動圖</b>（Activity Diagram）—— 官方原文：「使用個案描述：使用活動圖描述之」</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>5-4</td><td>分析類別圖（Analysis Class Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>5-4</td><td>分析物件圖 —— 官方用「<b>甚至</b>」，屬延伸</td><td><span class="b b-ntub">NTUB</span> <span class="b b-should">延伸</span></td></tr>
+      <tr><td>—</td><td>使用個案描述表、領域模型、B/C/E 標註、詞彙表</td><td><span class="b b-may">本地補充</span></td></tr>
+      <tr><td>—</td><td><b>禁止出現：</b>設計層內容（型別、可見性、方法簽章、技術 stereotype）、資料庫欄位</td><td><span class="b b-must">禁止</span></td></tr>
+    </table></div>
+    <div class="warn"><strong>5-3 特別規則：</strong>活動圖是<strong>官方指定</strong>，使用個案描述<strong>表格是補充、不是替代</strong>。只有表格而沒有活動圖，不符規範。「線性無分支流程不值得畫活動圖」這條 heuristic <strong>在 5-3 不適用</strong>。合規基線為一個 UC 一張圖（粒度仍是 open issue）。</div>
+  </div>
+
+  <div id="c6" class="panel">
+    <div class="tw"><table>
+      <tr><th>節</th><th>要求</th><th>強度</th></tr>
+      <tr><td>6-1</td><td>循序圖 <b>或</b> 通訊圖 —— 官方用「或」，<b>擇一即可</b></td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>6-2</td><td>設計類別圖（Design Class Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>6-2</td><td>設計物件圖 —— 官方用「<b>甚至</b>」，屬延伸</td><td><span class="b b-ntub">NTUB</span> <span class="b b-should">延伸</span></td></tr>
+      <tr><td>—</td><td>使用個案實現宣告、每張互動圖的編號步驟說明</td><td><span class="b b-may">本地補充</span></td></tr>
+      <tr><td>—</td><td><b>禁止出現：</b>同一流程同時畫循序圖與通訊圖；停留在分析層的類別圖</td><td><span class="b b-must">禁止</span></td></tr>
+    </table></div>
+    <div class="note">FocusFlow 目前的第 6 章章名寫「循序圖<b>與</b>通訊圖」，官方是「<b>或</b>」。已列入待修正清單 —— 兩者擇一即可，同流程畫兩張是反模式。</div>
+  </div>
+
+  <div id="c7" class="panel">
+    <div class="tw"><table>
+      <tr><th>節</th><th>要求</th><th>強度</th></tr>
+      <tr><td>7-1</td><td>佈署圖（Deployment Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>7-2</td><td>套件圖（Package Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>7-3</td><td>元件圖（Component Diagram）</td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>7-4</td><td>狀態機 —— <b>必要</b></td><td><span class="b b-ntub">NTUB</span> <span class="b b-must">指定</span></td></tr>
+      <tr><td>7-4</td><td>時序圖（Timing Diagram）—— 官方用「<b>甚至</b>」，屬延伸</td><td><span class="b b-ntub">NTUB</span> <span class="b b-should">延伸</span></td></tr>
+      <tr><td>—</td><td><b>禁止出現：</b>畫面流程冒充狀態機（移至第 12 章）；無介面的元件圖</td><td><span class="b b-must">禁止</span></td></tr>
+    </table></div>
+    <div class="warn"><strong>目前已知落差：</strong>現有的「登入狀態機」「註冊狀態機」疑似是<strong>畫面流程</strong>而非物件生命週期。官方第 12 章要求「介紹各畫面、操作之移轉，以類似 State Transition Diagram 表示」—— 這正好是它們該去的地方。</div>
+    <p style="font-size:14px;color:var(--ink-3)">術語提醒：本手冊 preferred term 是 <b>佈署圖</b>（alias：部署圖）。另外「<b>時序圖</b>」一詞<strong>只指 Timing Diagram</strong>；Sequence Diagram 一律稱「循序圖」。</p>
+  </div>
+</div></section>
+
+<!-- 6 -->
+<section id="usage"><div class="wrap">
+  <h2><span class="num">06</span>實際開發時怎麼用</h2>
+  <p class="sub">這個 Skill 最有價值的地方不是畫圖，是<strong>回答「我改了這個，哪些文件跟 UML 會失效」</strong>。</p>
+
+  <h3>情境一　我改了程式，接下來要更新什麼？</h3>
+  <p style="font-size:15px;color:var(--ink-2)">點下面的變更類型，看它會牽動哪些章節與圖。</p>
+  <div class="chips" id="chips">
+    <button class="chip" aria-pressed="true" data-i="api">新增／修改 API 路由</button>
+    <button class="chip" aria-pressed="false" data-i="schema">schema／資料模型變更</button>
+    <button class="chip" aria-pressed="false" data-i="state">狀態轉換規則變更</button>
+    <button class="chip" aria-pressed="false" data-i="deploy">佈署或執行環境變更</button>
+    <button class="chip" aria-pressed="false" data-i="req">需求增刪</button>
+    <button class="chip" aria-pressed="false" data-i="internal">新增純內部流程（排程／佇列）</button>
+    <button class="chip" aria-pressed="false" data-i="ui">UI 畫面流程變更</button>
+  </div>
+  <div class="impact" id="impact"></div>
+
+  <div class="note" style="margin-top:18px"><strong>共通動作：</strong>任何一張圖被改動，都要重跑 <b>artifact chain 七項一致性</b> —— <code>.puml</code> → 匯出圖檔 → 圖號 → 正文引用 → 圖目錄，一個都不能漏。</div>
+
+  <h3>情境二　Review 別人畫的 UML</h3>
+  <div class="grid g2">
+    <div class="card"><h4>做法</h4><p>直接叫 Claude Code 跑 <code>checklists/review.md</code> 的五層，對單張或整個章節批次審。輸出會明確標示 FAIL／WARNING／提示三級，並附規則標記與處置。</p></div>
+    <div class="card"><h4>好處</h4><p>不用爭論「這樣畫對不對」—— 每個結論都指向一條有編號、有適用範圍標記的規則。是 UML 標準、學校規範，還是我們自己的慣例，一看就知道。</p></div>
+  </div>
+
+  <h3>情境三　交付前檢查</h3>
+  <div class="grid g3">
+    <div class="card"><h4>孤兒檢查</h4><p>有圖沒人引用？有需求沒圖涵蓋？<code>realizes</code> 指向不存在的編號？</p></div>
+    <div class="card"><h4>格式合規</h4><p>圖說在圖下方、格式 <code>圖6-1-3 名稱</code>（空格、無冒號）。Markdown 轉 Word 後位置要再確認一次。</p></div>
+    <div class="card"><h4>狀態盤點</h4><p>所有圖的 <code>status</code> 是否已從 <code>draft</code> 推進；<code>implemented: planned</code> 的內容圖上有沒有標示。</p></div>
+  </div>
+
+  <h3>情境四　新增一張圖的完整動作</h3>
+  <div class="flow">1. 決定圖號 圖{章}-{節}-{序}（同節內從 1 起編）
+2. 建立 .puml，填妥檔頭宣告區塊
+3. title 設為圖名（必須與檔名中的名稱一致）
+4. 匯出圖檔，同名
+5. 章節 Markdown 插入圖 + 圖說（圖<span style="color:var(--must)">下方</span>）
+6. 正文加入至少一處「如圖…所示」
+7. 圖目錄新增一列
+8. AI 協助產出 → 檔頭填 ai-assisted，使其可追溯</div>
+
+  <h3>每張圖的檔頭長這樣</h3>
+  <div class="promptbox"><pre>' ooad-phase:   物件設計
+' chapter:      6-1          ← 決定套哪組防顛倒檢查
+' realizes:     UC-03, UC-04 ← 追溯鏈的錨點；填不出來代表這是孤兒圖
+' source:       backend/src/services/qa.service.js（程式碼）
+' verified:     2026-09-16
+' status:       draft        ← 產出一律是草稿，定稿要人工確認
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依循序圖規格產出骨架</pre></div>
+  <p style="font-size:14px;color:var(--ink-3)">事實來源分五級，衝突時取高者：<b>程式碼與設定 &gt; schema 定義 &gt; 現況文件 &gt; 既有手冊 &gt; 歷史文件</b>。歷屆手冊、初評舊圖、舊會議紀錄<strong>不得</strong>作為現況證據。另外分析層（5-4）<strong>禁止</strong>用反向工程從程式碼產圖 —— 那正是類別圖畫顛倒的主因。</p>
+</div></section>
+
+<!-- 7 -->
+<section id="agents"><div class="wrap">
+  <h2><span class="num">07</span>Claude Code 與 Codex 怎麼用</h2>
+  <p class="sub">規則是 repo 內的純文字檔，兩邊讀<strong>同一份</strong>。但載入方式不一樣 —— 這點要照實說。</p>
+
+  <div class="grid g2">
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <h4>Claude Code</h4>
+      <p><b>自動觸發。</b><code>SKILL.md</code> 的 frontmatter 有 <code>name</code> 與 <code>description</code>，Claude Code 會把它列為可用 skill。當你說「幫我畫第 6 章的循序圖」「這張分析類別圖對不對」，它會自行載入並依 References 路由表取用需要的檔案。</p>
+      <p style="margin-top:10px">也可以直接點名：<code>/ooad-uml-diagramming</code></p>
+    </div>
+    <div class="card" style="border-top:3px solid var(--ff)">
+      <h4>Codex</h4>
+      <p><b>需要明確指路。</b>Codex 沒有同樣的 skill 自動探索機制，所以要在 prompt 裡把路徑講清楚，例如：</p>
+      <p style="margin-top:8px"><code>請先讀 .claude/skills/ooad-uml-diagramming/SKILL.md，再依其 References 路由表取用需要的 reference，然後⋯⋯</code></p>
+      <p style="margin-top:10px">規則內容、檔案路徑、判準完全相同，差別只在<strong>誰負責把檔案叫出來</strong>。</p>
+    </div>
+  </div>
+
+  <div class="note">兩邊產出的圖都會帶同樣的檔頭宣告，走同樣的五層審查。所以 Claude Code 畫的圖，Codex 可以審；反之亦然。</div>
+</div></section>
+
+<!-- 8 -->
+<section id="open"><div class="wrap">
+  <h2><span class="num">08</span>還沒解決的問題</h2>
+  <p class="sub">這些<strong>不阻塞</strong>現在開始畫圖，但會影響最終交付。前兩項建議明天就決定。</p>
+
+  <div class="tw"><table>
+    <tr><th>#</th><th>議題</th><th>現況</th><th>建議行動</th></tr>
+    <tr><td>1</td><td><b>PlantUML vs VPP／VPD</b></td><td>官方最終交付要求 Visual Paradigm 專案檔；我們以 PlantUML 為<b>工作母稿</b></td><td>向指導老師確認可否以 PlantUML／圖檔替代。官方附註寫「最終依最新公告為準」，且已接受 MarkDown 手冊</td></tr>
+    <tr><td>2</td><td><b>FR／NFR 編號體系</b></td><td>未定案。目前只有 UC-01～UC-09</td><td>定義編號規則與對 UC 的基數，之後回填所有圖的 <code>realizes</code></td></tr>
+    <tr><td>3</td><td>非 UML 圖的製圖工具</td><td>未定（系統架構圖、資料庫關聯圖、畫面移轉圖、甘特圖）</td><td>擇一工具並寫入專案慣例</td></tr>
+    <tr><td>4</td><td>反向工程界線</td><td>暫定：分析層禁止、設計與實作層允許但須標 <code>source</code></td><td>確認後正式寫入</td></tr>
+    <tr><td>5</td><td>交付格式落差</td><td>官方要求 MDF／LDF（SQL Server）與「安裝至 PC 或 NB 的安裝程式」，與我們的技術選型不符</td><td>依「最終依最新公告為準」確認替代方案</td></tr>
+    <tr><td>6</td><td>5-3 活動圖粒度</td><td>官方未規定每個 UC 是否各需一張</td><td>建議以一 UC 一圖為基線，決定後寫入契約表</td></tr>
+  </table></div>
+
+  <h3>手冊現況的已知落差（待處理，不是現況證據）</h3>
+  <div class="grid g2">
+    <div class="card"><h4>圖 6-3-1 編號不符</h4><p>第 6 章沒有 6-3 節，且狀態機依規範屬 7-4 → 建議重編為 <code>圖7-4-x</code></p></div>
+    <div class="card"><h4>登入／註冊狀態機</h4><p>疑為畫面流程而非物件生命週期 → 若確認是，移至第 12 章</p></div>
+    <div class="card"><h4>第 6 章循序圖數量</h4><p>圖目錄列 5 張，實際存在 4 張 → artifact chain 檢查第 7 項</p></div>
+    <div class="card"><h4>第 5 章缺活動圖</h4><p>目前沒有任何活動圖，但 5-3 依規範必須有 → 需補畫</p></div>
+  </div>
+</div></section>
+
+<!-- 9 -->
+<section id="demo"><div class="wrap">
+  <h2><span class="num">09</span>3 分鐘 Demo</h2>
+  <p class="sub">最能說服人的不是「它會畫圖」，而是<strong>它會抓出我們自己現有的問題</strong>。</p>
+
+  <div class="demo">
+    <div class="card"><span class="t">0:00 – 0:30</span><h4>開場一句話</h4><p>「我們有 6 張既有的 .puml，是在這套規則建立<strong>之前</strong>畫的。現在讓它自己審一次。」</p></div>
+    <div class="card"><span class="t">0:30 – 2:00</span><h4>貼 Prompt，讓它跑</h4><p>五層審查會逐張輸出。重點看它抓到：缺檔頭宣告、圖 6-3-1 章節編號不符、登入／註冊狀態機疑為畫面流程。</p></div>
+    <div class="card"><span class="t">2:00 – 2:40</span><h4>指出三級差異</h4><p>翻到輸出裡的 FAIL／WARNING／提示，說明<strong>提示不會擋你</strong> —— 規則不是拿來卡人的。</p></div>
+    <div class="card"><span class="t">2:40 – 3:00</span><h4>收尾</h4><p>「所以之後改程式，不是回頭想『哪張圖要改』，是問它。」帶到 open issue 1、2 要決定。</p></div>
+  </div>
+
+  <h3>Demo Prompt ①　審查既有的圖（主要 Demo）</h3>
+  <div class="promptbox">
+    <button class="copy" type="button">複製</button>
+    <pre>請使用 ooad-uml-diagramming skill，審查 docs/00_Deliverables/System_Manual/diagrams/chapter06/ 底下所有 .puml 檔。
+
+依 checklists/review.md 的五層依序執行，並用該檔規定的輸出格式逐張回報，明確區分 FAIL（MUST）、WARNING（SHOULD）與提示（HEURISTIC）。
+
+注意：
+- 這些圖產出於本 skill 建立之前，預期會有檔頭宣告缺失
+- 請一併指出圖號與章節結構不符的問題
+- 本輪只審查，不要修改任何檔案，不要重畫任何圖
+
+最後給我一個彙總：FAIL 幾張、WARNING 幾張、提示幾則，以及建議的處理順序。</pre>
+  </div>
+
+  <h3>Demo Prompt ②　變更影響分析（備用，展示「不只是畫圖工具」）</h3>
+  <div class="promptbox">
+    <button class="copy" type="button">複製</button>
+    <pre>請使用 ooad-uml-diagramming skill。
+
+假設我們新增了一個對外 API 端點，並且在資料模型上多了一個狀態欄位。
+
+請依 references/traceability.md 的「圖的失效觸發」與 references/local/ntub-chapter-contract.md 的章節契約，告訴我：
+1. 哪些章節的哪些圖需要重新查證或重畫
+2. 哪些是官方指定必須有的圖，哪些只是建議
+3. 追溯鏈上需要補哪些標註（realizes、元件編號、測試案例）
+4. artifact chain 七項一致性有哪幾項會受影響
+
+不要修改任何檔案，只要分析結果。</pre>
+  </div>
+
+  <h3>Demo Prompt ③　防顛倒示範（若時間有餘）</h3>
+  <div class="promptbox">
+    <button class="copy" type="button">複製</button>
+    <pre>請使用 ooad-uml-diagramming skill，說明 references/analysis-vs-design.md 的判別器如何判斷一張放在 5-4 的類別圖是否發生實作洩漏。
+
+請具體說明：
+- A-1 強證據與 A-2 弱訊號的差別，以及為什麼型別標註不是硬性 FAIL
+- B-1 為什麼是語意要求而不是記法要求
+- 哪些判別器會造成 FAIL、哪些只會產生提示
+
+不要修改任何檔案。</pre>
+  </div>
+
+  <div class="note"><strong>Demo 前 30 秒先做：</strong>把 Claude Code 開在 FocusFlow 專案根目錄，確認側邊欄能看到 <code>ooad-uml-diagramming</code> 這個 skill。萬一沒自動觸發，直接輸入 <code>/ooad-uml-diagramming</code>。</div>
+</div></section>
+
+<footer><div class="wrap">
+  <p>本頁內容依 <code>.claude/skills/ooad-uml-diagramming/</code> 的實際檔案撰寫（2026-09-16）。規則以 <code>references/</code> 為權威來源，本頁為摘要。</p>
+  <p>NTUB 規範依《115 年系統手冊規範》—「大學部－系統手冊大綱（物件導向）」。專科部結構化技術大綱不適用。</p>
+</div></footer>
+
+<script>
+(function(){
+  // theme
+  var btn=document.getElementById('themeBtn');
+  btn.addEventListener('click',function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var isDark = cur ? cur==='dark'
+      : window.matchMedia('(prefers-color-scheme:dark)').matches;
+    document.documentElement.setAttribute('data-theme', isDark?'light':'dark');
+  });
+
+  // tabs
+  document.querySelectorAll('[role="tablist"]').forEach(function(list){
+    var tabs=list.querySelectorAll('.tab');
+    tabs.forEach(function(t){
+      t.addEventListener('click',function(){
+        tabs.forEach(function(x){
+          x.setAttribute('aria-selected','false');
+          var p=document.getElementById(x.dataset.p); if(p) p.classList.remove('on');
+        });
+        t.setAttribute('aria-selected','true');
+        var p=document.getElementById(t.dataset.p); if(p) p.classList.add('on');
+      });
+    });
+  });
+
+  // copy
+  document.querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click',function(){
+      var txt=b.parentElement.querySelector('pre').innerText;
+      var done=function(){ b.textContent='已複製'; setTimeout(function(){b.textContent='複製';},1600); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(done, fallback);
+      } else { fallback(); }
+      function fallback(){
+        try{
+          var ta=document.createElement('textarea'); ta.value=txt;
+          ta.style.position='fixed'; ta.style.opacity='0';
+          document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta); done();
+        }catch(e){ b.textContent='請手動複製'; setTimeout(function(){b.textContent='複製';},2000); }
+      }
+    });
+  });
+
+  // impact
+  var DATA={
+    api:{t:'新增／修改 API 路由或對外介面',
+      why:'介面是設計層與實作層的交界，牽動最廣。',
+      rows:[
+        ['6-1','循序圖 —— 訊息與端點變了，必須重新查證','must'],
+        ['7-3','元件圖 —— 提供／需求介面是否變動','must'],
+        ['9-1','元件清單 —— 檔案職責與 API 規格摘要','must'],
+        ['5-1 / 5-2 / 5-3','若這是使用者可見的新價值 → 需求清單、使用個案圖、活動圖都要補','must'],
+        ['5-1 FR 只','若只是內部技術介面 → 僅登錄功能性需求，不進使用個案圖','ok'],
+        ['10','測試案例 —— 追溯矩陣要補上對應列','must']
+      ]},
+    schema:{t:'schema／資料模型變更',
+      why:'資料結構同時影響設計層的物件責任與第 8 章的儲存契約。',
+      rows:[
+        ['6-2','設計類別圖 —— 持久化類別的責任與關聯','must'],
+        ['8-1','集合關聯圖（非 UML）—— 參照關係與限制','must'],
+        ['8-2','逐集合 Meta data —— 欄位、型別、限制、索引','must'],
+        ['7-4','狀態機圖 —— 若變更涉及狀態欄位','must'],
+        ['—','注意：資料庫綱要不得以類別圖形式呈現（判別器 D）','ok']
+      ]},
+    state:{t:'狀態轉換規則變更',
+      why:'狀態機是唯一正確描述物件生命週期的圖種。',
+      rows:[
+        ['7-4','狀態機圖 —— 狀態、事件、守衛條件、動作','must'],
+        ['9-1','元件清單 —— 負責狀態轉換的元件說明','must'],
+        ['10','測試案例 —— 合法與非法轉換的驗證','must'],
+        ['—','每個轉換必須標「事件 [守衛] / 動作」，否則 review 第 2 層 FAIL','ok']
+      ]},
+    deploy:{t:'佈署拓撲或執行環境變更',
+      why:'佈署圖給設計者看，拓撲圖給維運看，兩者分工不同。',
+      rows:[
+        ['7-1','佈署圖 —— 節點、artifact、連線協定','must'],
+        ['11','操作手冊 —— 引用第 7 章佈署圖，不重畫','must'],
+        ['—','執行環境拓撲圖（非 UML）—— 若有畫','ok'],
+        ['—','易變資訊（暫時通道位址、憑證效期）不要寫進 UML 圖本體','ok']
+      ]},
+    req:{t:'需求增刪',
+      why:'需求是整條追溯鏈的起點，動了它上下游全要跟。',
+      rows:[
+        ['5-1','需求清單 —— 功能性／非功能性兩部分','must'],
+        ['5-2','使用個案圖 —— 若是使用者觸發的價值','must'],
+        ['5-3','活動圖 —— 官方指定，描述該使用個案','must'],
+        ['6-1','循序圖 —— realizes 標註要更新','must'],
+        ['10','追溯矩陣與測試案例','must'],
+        ['—','孤兒需求檢查：沒有任何圖涵蓋的 UC/FR 會被抓出來','ok']
+      ]},
+    internal:{t:'新增純內部流程（排程、佇列、webhook、快取失效）',
+      why:'這類流程最常被錯誤地畫成 use case。',
+      rows:[
+        ['5-1','登錄為功能性需求 FR-xx —— 與使用個案同級但不同類','must'],
+        ['5-2','不進使用個案圖。系統本身不得當 Actor','ok'],
+        ['6-1','循序圖，標 realizes: FR-xx','must'],
+        ['5-3 外','活動圖 —— 若有分支／並行／多參與者','ok'],
+        ['7-4','狀態機圖 —— 若該流程有生命週期','ok'],
+        ['9-1 / 10','元件清單與測試案例，追溯不得中斷','must']
+      ]},
+    ui:{t:'UI 畫面流程變更',
+      why:'這是最常被誤放到第 7 章的內容。',
+      rows:[
+        ['12','畫面／操作移轉圖 —— 官方要求「以類似 State Transition Diagram 表示」','must'],
+        ['7-4','不要放這裡。畫面流程不是物件生命週期（反模式 D1）','ok'],
+        ['12','各操作小節回標 UC-ID，形成閉環驗證','ok'],
+        ['—','若截圖也變了，第 12 章的圖片需重新擷取','ok']
+      ]}
+  };
+  var box=document.getElementById('impact');
+  function render(k){
+    var d=DATA[k];
+    var h='<h4>'+d.t+'</h4><p class="why">'+d.why+'</p><div class="ilist">';
+    d.rows.forEach(function(r){
+      h+='<div class="irow"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>';
+    });
+    box.innerHTML=h+'</div>';
+  }
+  document.querySelectorAll('#chips .chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('#chips .chip').forEach(function(x){x.setAttribute('aria-pressed','false');});
+      c.setAttribute('aria-pressed','true');
+      render(c.dataset.i);
+    });
+  });
+  render('api');
+})();
+</script>
+</body>
+</html>

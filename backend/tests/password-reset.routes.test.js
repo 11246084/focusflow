@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, afterEach, before, beforeEach, describe, it } = require('node:test');
+const env = require('../src/config/env');
 const mailer = require('../src/services/mailer.service');
 const {
   store,
@@ -126,7 +127,12 @@ describe('忘記密碼（Email 驗證碼）', () => {
     assert.equal(result.body.error.code, 'VALIDATION_ERROR');
   });
 
-  it('未設定寄信帳號時回 503 PASSWORD_RESET_UNAVAILABLE', async () => {
+  it('未設定寄信帳號時回 503 PASSWORD_RESET_UNAVAILABLE', async (t) => {
+    // 本機 .env 設了 SMTP 時，只清 transport 仍會被判定為已設定，還會真的寄信。
+    const { smtpUser, smtpPass } = env;
+    env.smtpUser = '';
+    env.smtpPass = '';
+    t.after(() => { env.smtpUser = smtpUser; env.smtpPass = smtpPass; });
     mailer.setTransportForTests(null);
 
     const result = await request();

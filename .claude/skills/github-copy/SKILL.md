@@ -1,6 +1,6 @@
 ---
 name: github-copy
-description: Generate short Traditional Chinese GitHub commit, upload, push, or PR summary and description text. Use when Codex needs concise GitHub Desktop or VS Code submission copy with a one-line Summary and a short Description.
+description: Generate short Traditional Chinese GitHub commit, upload, push, or PR Summary and Description text. Use when Claude needs concise GitHub Desktop or VS Code submission copy grounded in the current repository changes.
 ---
 
 # Github Copy
@@ -27,7 +27,7 @@ Use this skill to produce short GitHub submission copy for this repository. Keep
 
 ```
 Summary
-Add LINE bind-token API and fix webhook GET handler
+新增 LINE 綁定 API 並修正 webhook GET handler
 
 Description
 新增 POST /api/v1/line/bind-token，讓前端可為學生發放 10 分鐘有效的綁定 token。
@@ -36,7 +36,9 @@ Description
 
 ## Output Rules
 
-- Write `Summary` in English, exactly one line.
+- Write `Summary` in Traditional Chinese, exactly one line.
+- Start `Summary` with a concrete action such as「新增」「修正」「同步」「更新」「完成」「支援」「整合」or「對齊」.
+- Preserve necessary product names, paths, API names, and technical identifiers in English.
 - Write `Description` in Traditional Chinese, 2 to 4 short lines.
 - Default to short-form output.
 - Focus on what changed first; add why only when it improves clarity.
@@ -54,10 +56,10 @@ Use this exact structure unless the user requests another format:
 
 ```text
 Summary
-<one line>
+<繁體中文單行摘要>
 
 Description
-<2 to 4 short lines>
+<2 至 4 行繁體中文變更重點>
 ```
 
 ## Defaults

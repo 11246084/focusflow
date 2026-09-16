@@ -1,0 +1,69 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-2
+' realizes:     FR-xx, FR-xx
+' source:       <需求清單>（文件）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' ⚠ [UML:MUST] 被設計的系統不得作為自己的 actor。
+'    ✗ actor 後端服務 / actor 排程器 / actor 資料庫 / actor 佇列
+'    ✓ actor 外部 API / actor 第三方平台（在系統邊界之外）
+'
+' ⚠ [OOAD:MUST] 純內部技術流程不寫成 use case。
+'    ✗ (呼叫向量檢索) (消費處理佇列) (清除快取) (同步資料)
+'    → 改列 FR-xx，由循序圖／活動圖／狀態機圖承接
+'
+' ⚠ [UML:MUST] 必須有系統邊界框；include/extend 不是流程順序箭頭
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+left to right direction
+
+' --- 主要行為者（人）---
+actor "學生" as Student
+actor "教師" as Teacher
+
+' --- 次要行為者（外部系統，在系統邊界之外）---
+actor "外部訊息平台" as ExternalMessaging
+actor "外部 AI 服務" as ExternalAI
+
+' --- 系統邊界框：[UML:MUST] ---
+rectangle "<系統名稱>" {
+  usecase "瀏覽課程" as UC01
+  usecase "提出課程問題" as UC02
+  usecase "上傳教學影片" as UC03
+  usecase "登入系統" as UC04
+  usecase "檢視影片片段" as UC05
+  usecase "匯出問答紀錄" as UC06
+}
+
+Student --> UC01
+Student --> UC02
+Teacher --> UC03
+Student --> UC04
+Teacher --> UC04
+
+UC02 --> ExternalAI
+UC02 --> ExternalMessaging
+
+' --- include：被包含的是「每次都會執行的必要子流程」，不是下一步 ---
+UC01 ..> UC05 : <<include>>
+UC02 ..> UC05 : <<include>>
+
+' --- extend：擴充方指向被擴充方，表示「特定條件下才發生的選用行為」 ---
+UC06 ..> UC02 : <<extend>>
+
+note bottom
+  內部技術流程（影片處理、快取失效、排程重試）
+  不在本圖，已登錄為 FR-xx，
+  由 6-1 循序圖與 7-4 狀態機圖承接。
+end note
+
+@enduml

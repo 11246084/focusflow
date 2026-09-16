@@ -1,0 +1,56 @@
+@startuml
+' ============================================
+' ooad-phase:   系統設計
+' chapter:      7-3
+' realizes:     NFR-xx
+' source:       <路徑>（程式碼／設定）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' [UML:MUST] 元件圖必須標示提供／需求介面。
+'   畫不出介面 → 退回改用套件圖（反模式 C2）
+'
+' ⚠ 元件 ≠ 套件：
+'   套件 = 原始碼分群（編譯期）
+'   元件 = 有介面契約的模組單元（執行期）
+'   兩張圖節點集合相同 → 反模式 C3，擇一保留
+'
+' 註：UML 的 "replaceable" 指設計期可替換符合介面的實作，
+'     不是執行期熱替換。判別特徵是「有沒有宣告介面契約」。
+'
+' ⚠ 不要把實體主機畫進來 —— 那是佈署圖
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+component "前端應用" as Frontend
+component "後端 API" as Backend
+component "處理管線" as Pipeline
+
+' --- 介面宣告 ---
+interface "REST API" as IRest
+interface "處理回呼" as ICallback
+interface "資料存取" as IData
+
+' --- 提供介面（元件 -- 介面）---
+Backend -up- IRest
+Backend -down- ICallback
+
+' --- 需求介面（元件 ..> 介面）---
+Frontend ..> IRest : 需求
+Pipeline ..> ICallback : 需求
+Backend ..> IData : 需求
+
+database "資料儲存" as DataStore
+DataStore -up- IData
+
+note bottom of Pipeline
+  以 <<planned>> 標示尚未實作的元件，
+  並在章節文字說明驗收邊界。
+end note
+
+@enduml

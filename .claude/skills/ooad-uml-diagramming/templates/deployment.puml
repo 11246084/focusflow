@@ -1,0 +1,60 @@
+@startuml
+' ============================================
+' ooad-phase:   系統設計
+' chapter:      7-1
+' realizes:     NFR-xx
+' source:       <路徑>（部署設定）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' 術語：preferred term 為「佈署圖（Deployment Diagram）」，alias「部署圖」不產出
+'
+' [UML:MUST] 節點內必須有 artifact；節點間連線必須標協定（反模式 C4）
+'   ✗ 只畫主機方塊不標部署了什麼
+'
+' [DOC:SHOULD] 不要寫死易變的環境資訊（暫時通道位址、憑證效期、IP）
+'   → 移到章節文字或附錄（反模式 C5）
+'
+' ⚠ 佈署圖 ≠ 執行環境拓撲圖：
+'   佈署圖（UML）= 哪個 artifact 跑在哪個節點，給設計者看
+'   拓撲圖（非 UML）= 網段、連接埠、代理、路由，給維運看
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+node "使用者裝置" as Client {
+  artifact "瀏覽器" as Browser
+}
+
+node "應用伺服器" as AppServer {
+  artifact "反向代理" as Proxy
+  artifact "前端靜態檔" as StaticFiles
+  artifact "後端服務" as BackendApp
+  artifact "處理管線" as PipelineApp
+}
+
+database "資料庫服務" as DB {
+  artifact "應用資料集合" as Collections
+}
+
+cloud "外部服務" as External {
+  artifact "外部 AI 服務" as AIService
+}
+
+Client -- AppServer : HTTPS
+Proxy -- StaticFiles
+Proxy -- BackendApp : HTTP（本機）
+BackendApp -- PipelineApp : 行程呼叫
+AppServer -- DB : 資料庫協定（TLS）
+AppServer -- External : HTTPS
+
+note bottom of AppServer
+  節點的作業系統版本、連接埠與憑證效期
+  屬易變資訊，寫在章節文字，不寫進圖。
+end note
+
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+' ============================================
+' ooad-phase:   物件分析 | 物件設計（依 chapter 決定）
+' chapter:      5-4 | 6-2
+' realizes:     UC-xx
+' source:       <來源>（類型）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' [NTUB:SHOULD] 物件圖在官方規範中是「甚至」延伸，不是必要。
+'   5-4 分析物件圖 / 6-2 設計物件圖，缺少不構成缺陷。
+'
+' [OOAD:MUST] 判別器 G — 層級須與所屬章節一致：
+'   5-4 分析物件圖：概念層級的例子值，只實例化分析類別，套判別器 A
+'                   （A-1 強證據為 MUST；A-2 型別／可見性等弱訊號僅提示）
+'   6-2 設計物件圖：須能說明它展示的是哪個設計層情境，可含技術／協調類別（套判別器 B-1）
+'
+' [OOAD:MUST] 判別器 H — 交叉檢查：
+'   本圖實例化的類別必須全部出現在同章節的類別圖中
+'
+' [DOC:MUST] 圖說必須說明「這張圖在展示哪個情境」，否則它只是類別圖的劣化版
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+' --- 設計物件圖範例（6-2）：某一執行時點的物件配置 ---
+object "course01 : Course" as course {
+  id = "c-001"
+  title = "資料庫系統"
+  status = "published"
+}
+
+object "lecture01 : Video" as v1 {
+  id = "v-101"
+  title = "正規化"
+  durationSec = 2760
+}
+
+object "lecture02 : Video" as v2 {
+  id = "v-102"
+  title = "索引設計"
+  durationSec = 3120
+}
+
+course --> v1
+course --> v2
+
+note bottom
+  展示情境：一門已發布課程掛載兩支已完成處理的影片時，
+  物件之間的實際參考關係。
+end note
+
+@enduml

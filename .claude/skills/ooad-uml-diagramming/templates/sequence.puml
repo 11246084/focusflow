@@ -1,0 +1,77 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-xx
+' source:       <路徑>（程式碼）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' [NTUB:MUST] 6-1 為「循序圖 或 通訊圖」，擇一即可。
+'   同一流程同時畫兩張屬反模式 D6。
+'
+' [UML:MUST] 必須有 autonumber；participant 顯式宣告並給別名
+'
+' ⚠ [OOAD:MUST] 生命線必須是可對映到元件清單的具體物件。
+'    ✗ participant 前端 / participant 後端 / participant 資料庫
+'    ✓ participant "問答服務" as QaService
+'    生命線停在「前端／後端／資料庫」層級 → 反模式 D4
+'
+' ⚠ [OOAD:SHOULD] 訊息用真實方法名或端點，不寫籠統的中文動詞
+'
+' [DOC:MUST] 本圖必須配一段編號步驟說明，寫在章節正文中
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+autonumber
+
+actor "學生" as Student
+
+box "前端" #FAFBFB
+  participant "課程問答頁" as QaPage
+end box
+
+box "後端" #FAFBFB
+  participant "QaController" as Controller
+  participant "QaService" as Service
+  participant "SegmentRepository" as Repo
+end box
+
+participant "外部 AI 服務" as ExternalAI
+
+Student -> QaPage : 輸入問題並送出
+QaPage -> Controller : POST /api/v1/courses/{id}/questions
+activate Controller
+
+Controller -> Service : ask(courseId, question)
+activate Service
+
+Service -> Repo : findByCourse(courseId)
+activate Repo
+Repo --> Service : Segment[]
+deactivate Repo
+
+Service -> ExternalAI : generate(context, question)
+activate ExternalAI
+ExternalAI --> Service : Answer
+deactivate ExternalAI
+
+Service --> Controller : Answer + 來源時間戳
+deactivate Service
+
+Controller --> QaPage : 200 { answer, sources }
+deactivate Controller
+
+QaPage --> Student : 顯示回答與可點擊時間戳
+
+note over Service
+  未實作或未驗證的步驟
+  以 note 標示 (planned)。
+end note
+
+@enduml

@@ -1,0 +1,91 @@
+' ============================================
+' 共用樣式 — 所有圖以 !include 載入
+' 此檔刻意不含 @startuml / @enduml，供 !include 逐行插入
+'
+' [FF:MUST] 單一圖不得自訂 skinparam；樣式一律改這裡
+' 字型：預設 Microsoft JhengHei（繁中顯示穩定）
+'       若需與內文標楷體一致，改為 DFKai-SB，一處即全域生效
+' ============================================
+
+skinparam defaultFontName "Microsoft JhengHei"
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 6
+
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #2F3E46
+skinparam ArrowFontSize 12
+
+skinparam TitleFontSize 16
+skinparam TitleFontStyle bold
+
+skinparam Actor {
+  BackgroundColor #FFFFFF
+  BorderColor #2F3E46
+}
+
+skinparam UseCase {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Class {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+  AttributeFontSize 12
+}
+
+skinparam Sequence {
+  ParticipantBackgroundColor #F5F7F8
+  ParticipantBorderColor #2F3E46
+  LifeLineBorderColor #84A98C
+  ArrowThickness 1
+  BoxBackgroundColor #FAFBFB
+  BoxBorderColor #CAD2C5
+}
+
+skinparam State {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Activity {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #2F3E46
+}
+
+skinparam Component {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Package {
+  BackgroundColor #FAFBFB
+  BorderColor #52796F
+}
+
+skinparam Node {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Database {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Note {
+  BackgroundColor #FFF8E1
+  BorderColor #C9A227
+}
+
+' 未實作／規劃中的元素統一用這個 stereotype 標示
+' 用法：class 課程推薦 <<planned>>
+skinparam class<<planned>> {
+  BackgroundColor #EEEEEE
+  BorderColor #999999
+  FontColor #666666
+}

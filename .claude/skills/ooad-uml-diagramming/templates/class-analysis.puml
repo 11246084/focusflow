@@ -1,0 +1,72 @@
+@startuml
+' ============================================
+' ooad-phase:   物件分析
+' chapter:      5-4
+' realizes:     UC-xx, UC-xx
+' source:       <需求清單／使用個案描述>（文件）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  planned
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' 判別目的：避免實作洩漏（implementation leakage），不是禁止一切形式化表達。
+' 詳見 references/analysis-vs-design.md 判別器 A。
+'
+' ⚠ 強證據 [OOAD:MUST] — 出現任一即不通過：
+'     ✗ 技術 stereotype      <<Service>> <<Repository>> <<DTO>> <<Controller>>
+'     ✗ 技術後綴類別名        *Service *Repository *Controller *DTO *Model
+'     ✗ 框架／語言／DB 型別   Promise Buffer ObjectId List<> VARCHAR JSONB
+'     ✗ 儲存與持久化細節      index unique sparse default PK FK
+'     ✗ 具體技術產物命名      端點路徑、資料表名、環境變數名、套件名
+'
+' ⚠ 弱訊號 [OOAD:HEURISTIC] — 單獨出現不構成 FAIL，僅提示：
+'     · 屬性帶型別標註        概念型別（金額、日期）在分析層是合法的領域敘述
+'     · 可見性符號
+'     · 操作帶括號            責任仍可能是概念層級，只是寫成操作形式
+'   三項全數出現且型別為具體語言型別 → WARNING，要求確認是否已跨入設計層
+'
+' ✓ 允許：概念屬性名、概念型別、責任敘述（動詞片語）、
+'         關聯與多重性、繼承、分析層 stereotype（若專案採用 B/C/E）
+'
+' ⚠ [OOAD:MUST] 分析層禁止反向工程產圖。來源應為需求與使用個案，不是程式碼。
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+' --- 邊界類別（與外界互動）— B/C/E 為 [OOAD:MAY]，未採用時移除 stereotype ---
+class 課程頁面 <<boundary>> {
+  顯示課程資訊
+  接收使用者操作
+}
+
+' --- 控制類別（流程協調）---
+class 提問處理 <<control>> {
+  驗證提問權限
+  協調檢索與回答
+}
+
+' --- 實體類別（狀態保存）---
+class 課程 <<entity>> {
+  名稱
+  說明
+  開課狀態
+}
+
+class 影片 <<entity>> {
+  標題
+  長度
+}
+
+' --- 關聯：[UML:MUST] 必須標多重性 ---
+課程頁面 --> 提問處理
+提問處理 --> 課程
+課程 "1" *-- "0..*" 影片
+
+note bottom of 提問處理
+  責任敘述用中文動詞片語，
+  不寫方法簽章。
+end note
+
+@enduml

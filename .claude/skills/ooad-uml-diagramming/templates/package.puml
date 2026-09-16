@@ -1,0 +1,62 @@
+@startuml
+' ============================================
+' ooad-phase:   系統設計
+' chapter:      7-2
+' realizes:     NFR-xx
+' source:       <路徑>（程式碼結構）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' [UML:MUST] 依賴箭頭必須有方向（..>）
+'
+' ⚠ 套件圖不是流程圖。
+'    ✗ package "取得詳情" / package "驗證信箱" / package "圖片上傳"
+'    ✓ package "controllers" / package "services" / package "models"
+'    套件名是動詞片語 → 反模式 C1
+'
+' 註：UML 不要求套件一對一對應實體資料夾。邏輯分層刻意與目錄不同是合法設計。
+'     資料夾對應只是「這張圖是否適合兼作程式碼地圖」的判斷提示。
+'     但同一張圖內的分群準則必須一致（全依邏輯層，或全依目錄），並在圖說載明。
+'
+' [DOC:SHOULD] 分群準則：□ 邏輯分層　□ 實體目錄　□ 命名空間　（擇一並說明）
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+package "routes" {
+}
+
+package "controllers" {
+}
+
+package "services" {
+}
+
+package "models" {
+}
+
+package "middleware" {
+}
+
+package "utils" {
+}
+
+' --- 依賴方向：由上層指向下層，不得有未說明的循環 ---
+routes ..> controllers
+routes ..> middleware
+controllers ..> services
+controllers ..> utils
+services ..> models
+services ..> utils
+middleware ..> utils
+
+note bottom
+  分群準則：依後端程式碼目錄結構。
+  依賴方向由外層指向內層，無循環依賴。
+end note
+
+@enduml

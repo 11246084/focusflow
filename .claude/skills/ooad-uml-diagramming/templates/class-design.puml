@@ -1,0 +1,83 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-2
+' realizes:     UC-xx, UC-xx
+' source:       <路徑>（程式碼）
+' verified:     YYYY-MM-DD
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / <工具> / <使用範圍>
+' ============================================
+'
+' ⚠ 設計層責任（判別器 B-1，[OOAD:MUST]）：
+'   設計類別圖必須呈現超越純領域概念的具體軟體設計責任，
+'   並能說明分析責任（analysis responsibility）如何落實到設計。
+'   這是語意要求，不是記法要求 —— 不要求任何特定記法存在。
+'
+' ⚠ 設計層證據（判別器 B-2，[OOAD:HEURISTIC]）— 僅提示，任一項皆非必要：
+'   · 屬性型別　· 方法簽章　· 可見性　· 導航方向與多重性
+'   · 介面或抽象型別　· 分析層不存在的技術／協調類別
+'   · 分析類別被拆分或合併　· 可命名的設計模式
+'   [OOAD:MUST] 不得為了通過規則而強迫製造類別、型別標註、拆分結構或設計模式。
+'   小型系統的設計類別圖與分析類別圖結構相近，是合理結果，不是缺陷。
+'
+' 下方範例採用了多種設計層證據，是「一種」寫法，不是必須遵循的形狀。
+'
+' ⚠ [OOAD:MUST] 判別器 C：若與 5-4 分析類別圖的類別集合完全相同且僅多出方法列，
+'    必須在圖說說明「為何設計層未產生結構變化」，否則不通過。
+'
+' ⚠ [OOAD:MUST] 判別器 D：這不是資料庫綱要。
+'    若每個類別剛好對應一個集合、只有欄位沒有行為、出現 _id/createdAt
+'    → 那是資料庫綱要，請移到第 8 章。
+'
+' ⚠ [OOAD:SHOULD] 判別器 E：每個類別標註來源分析類別，或標「技術新增」。
+' ============================================
+!include ../_style.puml
+
+title <圖名，須與檔名中的名稱一致>
+
+package "表現層" {
+  class CourseController {
+    - courseService : CourseService
+    + list(req, res) : Response
+    + detail(req, res) : Response
+  }
+}
+
+package "服務層" {
+  ' 來源：分析類別「提問處理」拆分而來 （設計層證據之一，非必要條件）
+  class QaService {
+    - retriever : SegmentRepository
+    - answerer : AnswerProvider
+    + ask(courseId, question) : Answer
+  }
+
+  ' 技術新增（分析層不存在）（設計層證據之一，非必要條件）
+  interface AnswerProvider <<Strategy>> {
+    + generate(context, question) : Answer
+  }
+}
+
+package "資料存取層" {
+  class SegmentRepository {
+    + findByCourse(courseId) : Segment[]
+  }
+}
+
+' --- 關聯：[UML:MUST] 標多重性 + 導航方向（導航方向是設計層證據之一，非必要） ---
+CourseController --> "1" QaService
+QaService --> "1" SegmentRepository
+QaService --> "1" AnswerProvider
+
+note bottom of AnswerProvider
+  套用策略模式（Strategy Pattern），
+  可切換不同回答來源。
+  設計層證據之一，非必要條件
+end note
+
+note bottom of CourseController
+  來源分析類別：課程頁面
+end note
+
+@enduml

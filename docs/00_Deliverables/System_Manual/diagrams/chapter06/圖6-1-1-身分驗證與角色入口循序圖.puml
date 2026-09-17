@@ -1,0 +1,96 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-01, FR-04
+' source:       frontend/focus-flow/src/main.jsx, frontend/focus-flow/src/authSession.js, backend/src/routes/auth.routes.js, backend/src/services/auth.service.js（程式碼）
+' verified:     2026-09-17
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依目前身分驗證與 session restore 路徑產出循序圖
+' ============================================
+!include ../_style.puml
+
+title 身分驗證與角色入口循序圖
+
+hide footbox
+autonumber
+
+actor "使用者" as User
+
+box "React SPA" #FAFBFB
+  participant "main.jsx" as Main
+  participant "App / AdminApp" as Entry
+  participant "restoreAuthSession()" as Session
+  participant "apiFetch()" as ApiClient
+end box
+
+box "Express Backend" #FAFBFB
+  participant "authenticate()" as AuthMiddleware
+  participant "AuthController" as AuthController
+  participant "AuthService" as AuthService
+end box
+
+database "User model" as UserModel
+
+User -> Main : 開啟一般入口或 /admin
+Main -> Entry : 依 pathname 選擇 App 或 AdminApp
+
+alt localStorage 有 ff_token
+  Entry -> Session : restoreAuthSession()
+  Session -> ApiClient : GET /api/v1/auth/me
+  ApiClient -> AuthMiddleware : Authorization: Bearer <token>
+  AuthMiddleware -> UserModel : findById(sub)
+  UserModel --> AuthMiddleware : active User / null
+  AuthMiddleware -> AuthController : me(req.user)
+  AuthController -> AuthService : getCurrentUser(userId)
+  AuthService -> UserModel : findById(userId)
+  UserModel --> AuthService : User
+  AuthService --> AuthController : public user
+  AuthController --> ApiClient : 200 { user }
+  alt 驗證成功且角色可進入
+    ApiClient --> Session : authenticated
+    Session --> Entry : 還原 DashboardApp
+  else /admin 的 user 不是 admin
+    ApiClient --> Session : authenticated user
+    Session --> Entry : forbidden（保留有效 session）
+  else 401 或 403
+    ApiClient --> Session : invalid
+    Session -> Session : 清除 ff_token / ff_user
+    Session --> Entry : 回到登入入口
+  else 網路或 5xx
+    ApiClient --> Session : unavailable
+    Session --> Entry : 保留 session，顯示重試
+  end
+else 尚未登入
+  User -> Entry : 輸入 email、password、role
+  alt 登入
+    Entry -> ApiClient : POST /api/v1/auth/login
+    ApiClient -> AuthController : login(req.body)
+    AuthController -> AuthService : login({ email, password, role })
+    AuthService -> UserModel : findOne({ email })
+    UserModel --> AuthService : User / null
+    AuthService -> AuthService : bcrypt.compare()\n檢查 isActive 與 role\njwt.sign({ sub })
+    AuthService --> AuthController : { token, public user }
+    AuthController --> ApiClient : 200 Login successful
+  else student / teacher 自助註冊
+    Entry -> ApiClient : POST /api/v1/auth/register
+    ApiClient -> AuthController : register(req.body)
+    AuthController -> AuthService : register({ name, email, password, role })
+    AuthService -> UserModel : findOne({ email })\ncreate({ passwordHash, role })
+    UserModel --> AuthService : User
+    AuthService --> AuthController : { token, public user }
+    AuthController --> ApiClient : 201 Registration successful
+    note over AuthService
+      admin 不開放自助註冊。
+    end note
+  end
+  ApiClient --> Entry : 儲存 ff_token / ff_user\n開啟對應角色頁面
+end
+
+note over AuthMiddleware,AuthService
+  前端角色分流只是使用者體驗；
+  實際授權仍由後端 JWT 與 RBAC 重新驗證。
+end note
+
+@enduml

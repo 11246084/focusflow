@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
+import IssueReportLauncher from './IssueReportLauncher';
 import { topbarMap } from './navigationConfig';
 import { getUser, setUser } from '../api';
 import { getStudentWelcomeSubtitle } from '../utils/userDisplay';
@@ -58,6 +59,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
           </div>
         </div>
       </div>
+      {role === 'student' && <IssueReportLauncher />}
     </div>
   );
 }

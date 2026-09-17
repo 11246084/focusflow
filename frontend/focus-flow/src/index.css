@@ -324,7 +324,7 @@ body {
 .middle-label {
       font-size: 1.7rem;
     font-weight: 600;
-    color: rgba(0, 0, 0, 0.441);
+    color: #000000cc;
     letter-spacing: 0.08em;
     margin-bottom: 10px;
 }
@@ -933,8 +933,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* ── Login page tablet (≤1024px) ── */
 @media (max-width: 1024px) {
   .login-left {
-    flex: 0 0 42%;
-    padding: 36px 40px;
+    display: none;
   }
   .login-brand-title { font-size: 38px; }
   .login-right { padding: 36px 40px; }
@@ -950,13 +949,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
     min-height: 100vh;
   }
 
-  /* Compact top brand strip on mobile */
   .login-left {
-    flex: none;
-    width: 100%;
-    padding: 28px 24px 24px;
-    justify-content: flex-start;
-    gap: 20px;
+    display: none;
   }
 
   .login-brand-title { font-size: 28px; }

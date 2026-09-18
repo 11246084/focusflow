@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import useModalDialog from '../hooks/useModalDialog';
 
 const ISSUE_REPORT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSef66soFCDdGOUKAHJjeuGitefI4aSKdHfBu-PLSYxTMaFp0Q/viewform';
 
@@ -21,35 +22,63 @@ function ExternalLinkIcon() {
   );
 }
 
+function IssueReportDialog({ onClose }) {
+  const primaryActionRef = useRef(null);
+  const dialogRef = useModalDialog(onClose, { initialFocusRef: primaryActionRef });
+
+  return (
+    <div className="issue-report-overlay" role="presentation" onMouseDown={onClose}>
+      <section
+        ref={dialogRef}
+        className="issue-report-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="issue-report-title"
+        aria-describedby="issue-report-description issue-report-note"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button type="button" className="issue-report-close" aria-label="關閉問題回報視窗" onClick={onClose}>
+          ×
+        </button>
+
+        <div className="issue-report-icon" aria-hidden="true">
+          <ChatIcon size={24} />
+        </div>
+        <h2 id="issue-report-title">遇到問題嗎？</h2>
+        <p id="issue-report-description">
+          告訴我們哪裡卡住了，你的回報會協助團隊改善 FocusFlow。
+        </p>
+        <p id="issue-report-note" className="issue-report-note">
+          表單會在新分頁開啟；若要上傳截圖，需要先登入 Google 帳戶。
+        </p>
+
+        <div className="issue-report-actions">
+          <button type="button" className="btn-outline" onClick={onClose}>
+            稍後再說
+          </button>
+          <a
+            ref={primaryActionRef}
+            className="btn-primary issue-report-primary"
+            href={ISSUE_REPORT_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+          >
+            前往問題回報
+            <ExternalLinkIcon />
+          </a>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function IssueReportLauncher() {
   const [open, setOpen] = useState(false);
-  const launcherRef = useRef(null);
-  const primaryActionRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const previousOverflow = document.body.style.overflow;
-    const launcher = launcherRef.current;
-    document.body.style.overflow = 'hidden';
-    primaryActionRef.current?.focus();
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      launcher?.focus();
-    };
-  }, [open]);
 
   return (
     <>
       <button
-        ref={launcherRef}
         type="button"
         className="issue-report-launcher"
         aria-haspopup="dialog"
@@ -61,48 +90,7 @@ export default function IssueReportLauncher() {
       </button>
 
       {open && createPortal(
-        <div className="issue-report-overlay" role="presentation" onMouseDown={() => setOpen(false)}>
-          <section
-            className="issue-report-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="issue-report-title"
-            aria-describedby="issue-report-description issue-report-note"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button type="button" className="issue-report-close" aria-label="關閉問題回報視窗" onClick={() => setOpen(false)}>
-              ×
-            </button>
-
-            <div className="issue-report-icon" aria-hidden="true">
-              <ChatIcon size={24} />
-            </div>
-            <h2 id="issue-report-title">遇到問題嗎？</h2>
-            <p id="issue-report-description">
-              告訴我們哪裡卡住了，你的回報會協助團隊改善 FocusFlow。
-            </p>
-            <p id="issue-report-note" className="issue-report-note">
-              表單會在新分頁開啟；若要上傳截圖，需要先登入 Google 帳戶。
-            </p>
-
-            <div className="issue-report-actions">
-              <button type="button" className="btn-outline" onClick={() => setOpen(false)}>
-                稍後再說
-              </button>
-              <a
-                ref={primaryActionRef}
-                className="btn-primary issue-report-primary"
-                href={ISSUE_REPORT_FORM_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setOpen(false)}
-              >
-                前往問題回報
-                <ExternalLinkIcon />
-              </a>
-            </div>
-          </section>
-        </div>,
+        <IssueReportDialog onClose={() => setOpen(false)} />,
         document.body,
       )}
     </>

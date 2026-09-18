@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch } from '../api';
+import useModalDialog from '../hooks/useModalDialog';
 
 const styles = {
   overlay: {
@@ -93,6 +94,8 @@ export default function EnrollmentManagerModal({ course, onClose }) {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const dialogRef = useModalDialog(onClose, { initialFocusRef: emailInputRef });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -188,7 +191,7 @@ export default function EnrollmentManagerModal({ course, onClose }) {
   // containing block for position:fixed and clip the overlay to that card.
   return createPortal(
     <div style={styles.overlay} onClick={onClose} role="presentation">
-      <section style={styles.box} onClick={(event) => event.stopPropagation()} aria-modal="true" role="dialog" aria-labelledby="enrollment-title">
+      <section ref={dialogRef} style={styles.box} onClick={(event) => event.stopPropagation()} aria-modal="true" role="dialog" aria-labelledby="enrollment-title">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
           <div>
             <h2 id="enrollment-title" style={{ margin: 0, color: '#fff', fontSize: 17 }}>修課學生管理</h2>
@@ -203,7 +206,7 @@ export default function EnrollmentManagerModal({ course, onClose }) {
 
         <form onSubmit={assign} style={{ display: 'flex', gap: 9 }}>
           <input
-            autoFocus
+            ref={emailInputRef}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}

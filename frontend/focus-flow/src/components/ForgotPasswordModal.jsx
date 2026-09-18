@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch } from '../api';
+import useModalDialog from '../hooks/useModalDialog';
 
 // Two-step forgot-password dialog: request a 6-digit code by email, then set a
 // new password with it. The backend answers identically for unknown emails.
@@ -39,6 +40,8 @@ export default function ForgotPasswordModal({ initialEmail = '', onClose }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const emailInputRef = useRef(null);
+  const dialogRef = useModalDialog(onClose, { initialFocusRef: emailInputRef });
 
   async function sendCode() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -85,7 +88,7 @@ export default function ForgotPasswordModal({ initialEmail = '', onClose }) {
 
   return createPortal(
     <div style={styles.overlay} onClick={onClose} role="presentation">
-      <section style={styles.box} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="forgot-title">
+      <section ref={dialogRef} style={styles.box} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="forgot-title">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 id="forgot-title" style={{ margin: 0, color: '#fff', fontSize: 17 }}>忘記密碼</h2>
           <button type="button" onClick={onClose} aria-label="關閉" style={{ border: 0, background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 20 }}>×</button>
@@ -95,11 +98,11 @@ export default function ForgotPasswordModal({ initialEmail = '', onClose }) {
           <>
             <p style={styles.hint}>輸入登入用的 Email，我們會寄一組 6 位數驗證碼給你，10 分鐘內有效。</p>
             <input
+              ref={emailInputRef}
               className="ff-input"
               type="email"
               placeholder="your@school.edu"
               value={email}
-              autoFocus
               disabled={busy}
               onChange={(event) => setEmail(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && sendCode()}

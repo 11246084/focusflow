@@ -14,6 +14,7 @@ const { embedQuery } = require('./queryEmbedding.service');
 const { generateAnswer, isNoAnswerReply } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
 const { assertQaQuotaAvailable } = require('./costControl.service');
+const { assertCanAsk } = require('./askLimits.service');
 const { recordQuestion } = require('./questionRecording.service');
 const {
   isFaqCacheEnabled,
@@ -1830,8 +1831,76 @@ async function retrieveSegmentsOnly({ user, courseId, question, limit } = {}) {
   };
 }
 
+// 系統端的失敗（設定錯誤、AI 服務故障等 5xx）也要留紀錄，後台統計才看得到故障；
+// 4xx（輸入錯誤、權限不足、次數用完）屬於正常拒絕，不記成失敗提問。
+// LINE 入口在 line.service 內自行記錄，這裡給網頁 QA 與多輪對話使用。
+function isSystemAskFailure(error) {
+  return !error?.statusCode || error.statusCode >= 500;
+}
+
+async function recordFailedAsk({ user, courseId, question, source = 'api', error, answer = '' }) {
+  if (!isSystemAskFailure(error)) return null;
+
+  const runtime = {
+    status: 'failed',
+    errorCode: error?.code || 'INTERNAL_SERVER_ERROR',
+    ...(Array.isArray(error?.details?.hardFailures)
+      ? { hardFailureCodes: error.details.hardFailures.map((item) => item.code) }
+      : {}),
+  };
+
+  try {
+    const usageLog = await recordUsage({
+      userId: user?.id,
+      courseId,
+      event: USAGE_LOG_EVENTS.ASK,
+      metadata: {
+        source,
+        question,
+        matchCount: 0,
+        runtime,
+        errorCode: runtime.errorCode,
+      },
+    });
+    await recordQuestion({
+      userId: user?.id,
+      courseId,
+      question,
+      answer,
+      status: QUESTION_STATUSES.FAILED,
+      source,
+      matches: [],
+      runtime,
+      sourceUsageLogId: usageLog?._id,
+    });
+  } catch (recordError) {
+    // 紀錄失敗不可蓋掉原本的錯誤。
+    logger.warn('qa.failed_ask_record_failed', { errorCode: runtime.errorCode, message: recordError?.message });
+  }
+  return runtime;
+}
+
+// 網頁 QA 入口：先檢查字數與每日次數，系統端失敗時留下失敗紀錄再拋出。
+async function askQuestionFromApi(params) {
+  await assertCanAsk({ user: params.user, question: params.question });
+  try {
+    return await askQuestion(params);
+  } catch (error) {
+    await recordFailedAsk({
+      user: params.user,
+      courseId: params.courseId,
+      question: String(params.question || '').trim(),
+      source: params.source || 'api',
+      error,
+    });
+    throw error;
+  }
+}
+
 module.exports = {
   askQuestion,
+  askQuestionFromApi,
+  recordFailedAsk,
   buildAnswerStatus,
   buildCitations,
   buildUserFacingCitations,

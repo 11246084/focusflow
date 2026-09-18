@@ -308,6 +308,11 @@ const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'
 // 學生要能點到每一個被引用的時間戳。
 const SEGMENT_PREVIEW_COUNT = SOURCE_PREVIEW_COUNT;
 
+// 需與後端 QA_MAX_QUESTION_LENGTH / QA_DAILY_ASK_LIMIT_PER_STUDENT 一致（預設 50 字、每天 5 次）。
+// 後端才是真正的限制，這裡只是事先提示。
+const MAX_QUESTION_LENGTH = 50;
+const DAILY_ASK_LIMIT = 5;
+
 function normalizeAnswerLines(value) {
   return String(value || '')
     .replace(/\r\n?/g, '\n')
@@ -431,6 +436,8 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
   const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  const questionLength = [...question.trim()].length;
+  const questionTooLong = questionLength > MAX_QUESTION_LENGTH;
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError]       = useState('');
@@ -495,6 +502,10 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   async function ask(event) {
     event?.preventDefault();
     if (loading || !question.trim()) return;
+    if (questionTooLong) {
+      setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`);
+      return;
+    }
     const currentQuestion = question.trim();
     setLoading(true); setError('');
     setAwaitingAnswer(true);
@@ -524,6 +535,9 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           : item
       )).sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
     } catch (e) {
+      // 被拒絕（字數、次數用完等）時問題沒有送出：移除暫時顯示的提問，並把文字放回輸入框。
+      setMessages((items) => items.filter((message) => message.id !== temporaryId));
+      setQuestion(currentQuestion);
       setError(e.message || '問答失敗');
     } finally {
       setLoading(false);
@@ -698,10 +712,14 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             enterKeyHint="send"
             readOnly={loading}
           />
-          <button type="submit" className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} disabled={loading || !question.trim()}>
+          <button type="submit" className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} disabled={loading || !question.trim() || questionTooLong}>
             {loading ? '回答中…' : '送出'}
           </button>
         </form>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6, fontSize: 11, color: questionTooLong ? '#ff6b6b' : 'rgba(255,255,255,0.4)' }}>
+          <span>{questionTooLong ? `超過 ${MAX_QUESTION_LENGTH} 字，請精簡問題` : `每天可提問 ${DAILY_ASK_LIMIT} 次（網頁與 LINE 合併計算）`}</span>
+          <span aria-live="polite">{questionLength} / {MAX_QUESTION_LENGTH}</span>
+        </div>
       </div>
     </div>
   );

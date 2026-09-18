@@ -20,7 +20,7 @@ const askQuestion = asyncHandler(async (req, res) => {
     );
   }
 
-  const result = await qaService.askQuestion({
+  const result = await qaService.askQuestionFromApi({
     user: req.user,
     courseId: String(courseId).trim(),
     question: trimmedQuestion,

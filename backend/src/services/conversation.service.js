@@ -5,7 +5,8 @@ const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { contextualizeQuestion, normalizeHistory } = require('./contextualQuestion.service');
-const { askQuestion } = require('./qa.service');
+const { askQuestion, recordFailedAsk } = require('./qa.service');
+const { assertCanAsk, assertDailyAskAvailable } = require('./askLimits.service');
 const { summarizeTextForLog } = require('../utils/logPreview');
 
 function publicMessage(message) {
@@ -168,6 +169,15 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
     });
     return { result, contextual, assistantMessage: savedAssistant };
   } catch (error) {
+    // 系統端失敗寫進 questions，後台統計才看得到。
+    await recordFailedAsk({
+      user,
+      courseId: conversation.courseId,
+      question: userMessage.content,
+      source: 'api',
+      error,
+      answer: '回答產生失敗，請稍後重新產生。',
+    });
     const failedPayload = {
       conversationId: conversation._id,
       role: 'assistant',
@@ -196,6 +206,8 @@ async function sendMessage({ user, conversationId, content }) {
   const conversation = await loadOwnedConversation({ user, conversationId });
   const question = String(content || '').trim();
   if (!question) throw new AppError('Message content is required.', 400, 'VALIDATION_ERROR');
+  // 超過字數或今天次數已用完時直接拒絕，不建立訊息。
+  await assertCanAsk({ user, question });
 
   const existing = await Message.find({ conversationId }).sort({ createdAt: -1 })
     .limit(require('../config/env').maxConversationTurns * 2).lean();
@@ -238,6 +250,8 @@ async function retryMessage({ user, conversationId, userMessageId }) {
   if (!failedAssistant) {
     throw new AppError('Message is not retryable.', 409, 'MESSAGE_RETRY_NOT_ALLOWED');
   }
+  // 失敗的回答不扣次數，但重新產生成功會計入今天的次數。
+  await assertDailyAskAvailable(user);
   const history = historyFromMessages(messages.slice(0, index));
   const execution = await runQuestion({
     user, conversation, userMessage, history, assistantMessage: failedAssistant,

@@ -16,6 +16,11 @@ function parseNonNegativeNumber(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseNonNegativeInteger(value, fallback) {
+  const parsed = parseNonNegativeNumber(value, fallback);
+  return Number.isInteger(parsed) ? parsed : fallback;
+}
+
 function parseBoolean(value, fallback, name) {
   if (value === undefined || value === '') return fallback;
   const normalized = String(value).trim().toLowerCase();
@@ -177,6 +182,10 @@ module.exports = {
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,
   qaUserMonthlyTokenQuota: Number(process.env.QA_USER_MONTHLY_TOKEN_QUOTA) || 0,
+  // 每位學生每天（台灣時間）可提問次數；0 表示不限制。網頁與 LINE 合併計算。
+  qaDailyAskLimitPerStudent: parseNonNegativeInteger(process.env.QA_DAILY_ASK_LIMIT_PER_STUDENT, 5),
+  // 單一問題的字數上限；0 表示不限制。
+  qaMaxQuestionLength: parseNonNegativeInteger(process.env.QA_MAX_QUESTION_LENGTH, 50),
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiEmbeddingModelName: process.env.GEMINI_EMBEDDING_MODEL_NAME || 'gemini-embedding-2',
   qaActiveLeafEmbeddingContractJson: process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON || '',

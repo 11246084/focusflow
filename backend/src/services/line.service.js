@@ -7,6 +7,7 @@ const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const LineBindToken = require('../models/lineBindToken.model');
 const AppError = require('../utils/appError');
+const { assertCanAsk } = require('./askLimits.service');
 const { askQuestion } = require('./qa.service');
 const { contextualizeQuestion } = require('./contextualQuestion.service');
 const { recordUsage } = require('./usageLog.service');
@@ -41,6 +42,7 @@ const LINE_CONVERSATION_STATES = {
 const LINE_REPLY_REASONS = {
   REPLY_TOKEN_MISSING: 'reply_token_missing',
   ACCESS_TOKEN_MISSING: 'line_channel_access_token_missing',
+  PUSH_FALLBACK: 'reply_failed_push_fallback',
 };
 
 // 從 User 文件讀取對話狀態，若欄位不存在則預設為 IDLE
@@ -146,6 +148,60 @@ async function replyMessage(replyToken, messages) {
     skipped: false,
     reason: null,
   };
+}
+
+// 主動推播（Push API）。replyToken 只能用一次且有時效，AI 回答太慢時會過期，
+// 這時改用 push 把訊息直接送到使用者，避免學生什麼都收不到。
+// 注意：push 會計入 LINE 官方帳號的每月訊息則數。
+async function pushMessage(lineUserId, messages) {
+  const response = await fetch(`${LINE_API_BASE}/message/push`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.lineChannelAccessToken}`,
+    },
+    body: JSON.stringify({ to: lineUserId, messages }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(`LINE push failed: ${payload}`);
+  }
+}
+
+// 先用 reply 回覆；失敗（通常是 replyToken 過期）時改用 push 送給同一位使用者。
+async function deliverMessage({ replyToken, lineUserId, messages }) {
+  try {
+    return await replyMessage(replyToken, messages);
+  } catch (replyError) {
+    if (!lineUserId || !env.lineChannelAccessToken) throw replyError;
+    if (env.nodeEnv !== 'test') {
+      console.warn('[LINE] reply failed, falling back to push.', replyError.message);
+    }
+    await pushMessage(lineUserId, messages);
+    return {
+      skipped: false,
+      reason: LINE_REPLY_REASONS.PUSH_FALLBACK,
+    };
+  }
+}
+
+// 顯示「對方輸入中」的讀取動畫，讓學生知道 AI 正在處理（最長 60 秒）。
+// 純體驗用途，失敗不影響提問流程。
+async function startLoadingAnimation(lineUserId) {
+  if (!lineUserId || !env.lineChannelAccessToken) return;
+  try {
+    await fetch(`${LINE_API_BASE}/chat/loading/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.lineChannelAccessToken}`,
+      },
+      body: JSON.stringify({ chatId: lineUserId, loadingSeconds: 60 }),
+    });
+  } catch {
+    // ignore
+  }
 }
 
 // 產生綁定 Token 並存入資料庫
@@ -266,6 +322,20 @@ async function handleBind(lineUserId, token, replyToken) {
       reason: 'token_expired',
     }, replyResult);
   }
+
+  // 同一個 LINE 帳號改綁另一個系統帳號：先解除舊帳號的綁定。
+  // lineUserId 有 unique index，沒先解除會撞 E11000，使用者完全收不到回覆。
+  await User.updateMany(
+    { lineUserId, _id: { $ne: record.userId } },
+    {
+      $unset: { lineUserId: '', activeCourseId: '' },
+      $set: {
+        lineBindAt: null,
+        lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+        lineConversationHistory: [],
+      },
+    },
+  );
 
   // 把 LINE userId 寫入系統使用者文件，並重設對話狀態
   await User.findByIdAndUpdate(record.userId, {
@@ -596,6 +666,25 @@ function mapQaFailureReason(error) {
   }
 }
 
+// 字數或每日次數限制的回覆；其他錯誤回傳 null 讓呼叫端照原本流程處理。
+function buildAskLimitMessage(error) {
+  if (error?.code === 'QUESTION_TOO_LONG') {
+    const limit = error.details?.limit;
+    return {
+      reason: 'question_too_long',
+      text: `問題太長了，請精簡到 ${limit} 個字以內再問一次。`,
+    };
+  }
+  if (error?.code === 'QA_DAILY_LIMIT_EXCEEDED') {
+    const limit = error.details?.limit;
+    return {
+      reason: 'daily_limit_reached',
+      text: `今天的提問次數已用完（每天 ${limit} 次，網頁與 LINE 合併計算），明天再來問吧！`,
+    };
+  }
+  return null;
+}
+
 // 把 QA 錯誤轉成使用者看得懂的中文提示訊息
 function buildQaFailureMessage(error) {
   switch (error?.code) {
@@ -686,6 +775,25 @@ async function handleQuestion(lineUserId, text, replyToken) {
     }, replyResult);
   }
 
+  // 字數上限與每日提問次數（與網頁合併計算）；超過時回覆原因，不呼叫 AI、不記為失敗。
+  const askingUser = { id: String(user._id), role: user.role };
+  try {
+    await assertCanAsk({ user: askingUser, question: text });
+  } catch (limitError) {
+    const limitReply = buildAskLimitMessage(limitError);
+    if (!limitReply) throw limitError;
+    const replyResult = await replyMessage(replyToken, [buildTextMessage(limitReply.text)]);
+    return attachReplyMetadata({
+      type: 'question',
+      handled: false,
+      reason: limitReply.reason,
+      errorCode: limitError.code,
+    }, replyResult);
+  }
+
+  // AI 回答通常要 10～20 秒，先顯示讀取動畫
+  await startLoadingAnimation(lineUserId);
+
   // 讀取之前的對話歷史，傳給 QA service 讓 AI 有上下文可以理解追問
   const conversationHistory = getBoundedLineConversationHistory(user.lineConversationHistory);
   const contextualization = contextualizeQuestion({
@@ -697,10 +805,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
 
   try {
     qaResult = await askQuestion({
-      user: {
-        id: String(user._id),
-        role: user.role,
-      },
+      user: askingUser,
       courseId: String(user.activeCourseId),
       question: text,
       retrievalQuestion: contextualization.standaloneQuestion,
@@ -736,7 +841,11 @@ async function handleQuestion(lineUserId, text, replyToken) {
       sourceUsageLogId: usageLog?._id,
     });
 
-    const replyResult = await replyMessage(replyToken, [buildTextMessage(failureMessage)]);
+    const replyResult = await deliverMessage({
+      replyToken,
+      lineUserId,
+      messages: [buildTextMessage(failureMessage)],
+    });
 
     return attachReplyMetadata({
       type: 'question',
@@ -757,7 +866,12 @@ async function handleQuestion(lineUserId, text, replyToken) {
   await User.findByIdAndUpdate(user._id, { lineConversationHistory: updatedHistory });
 
   // 把所有回答行用換行合併成一則訊息傳給使用者
-  const replyResult = await replyMessage(replyToken, [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))]);
+  // AI 回答可能花了十幾秒，replyToken 過期時 deliverMessage 會改用 push 送出。
+  const replyResult = await deliverMessage({
+    replyToken,
+    lineUserId,
+    messages: [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))],
+  });
 
   return attachReplyMetadata({
     type: 'question',

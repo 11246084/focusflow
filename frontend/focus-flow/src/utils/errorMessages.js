@@ -36,6 +36,8 @@ const CODE_MESSAGES = {
   QA_ATLAS_NOT_READY: 'AI 問答的搜尋服務尚未就緒，請稍後再試。',
   ANSWER_PROVIDER_NOT_CONFIGURED: 'AI 回答服務尚未設定，請聯絡管理員。',
   QA_QUOTA_EXCEEDED: '本月的 AI 提問額度已用完。',
+  QA_DAILY_LIMIT_EXCEEDED: '今天的提問次數已用完（網頁與 LINE 合併計算），明天再來問吧！',
+  QUESTION_TOO_LONG: '問題太長了，請精簡後再問一次。',
   CONVERSATION_NOT_FOUND: '找不到這段對話。',
   CONVERSATION_ACCESS_DENIED: '你沒有權限查看這段對話。',
   MESSAGE_NOT_FOUND: '找不到這則訊息。',

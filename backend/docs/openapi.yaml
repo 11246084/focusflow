@@ -1903,12 +1903,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/QaAskResponse'
         '400':
-          description: 請求驗證失敗，或 ObjectId 格式不合法
+          description: 請求驗證失敗、ObjectId 格式不合法，或問題超過字數上限（`QUESTION_TOO_LONG`，預設 50 字）
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
+                questionTooLong:
+                  summary: 問題超過字數上限
+                  value:
+                    success: false
+                    message: Question must be at most 50 characters.
+                    error:
+                      code: QUESTION_TOO_LONG
                 validation:
                   summary: 缺少必要欄位
                   description: "`courseId` 或 `question` 未提供，或 `question` 經過 trim 後為空字串。"
@@ -1932,12 +1939,21 @@ paths:
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
         '429':
-          description: QA 月 token budget 或 user quota 已超額
+          description: |
+            QA 月 token budget 或 user quota 已超額，或學生當天提問次數已用完
+            （`QA_DAILY_LIMIT_EXCEEDED`，預設每天 5 次，網頁與 LINE 合併計算，台灣時間 00:00 重置）。
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
+                dailyLimitExceeded:
+                  summary: 學生當天提問次數已用完
+                  value:
+                    success: false
+                    message: Daily question limit reached (5 per day).
+                    error:
+                      code: QA_DAILY_LIMIT_EXCEEDED
                 quotaExceeded:
                   summary: 單一使用者月 quota 超額
                   value:

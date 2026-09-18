@@ -12,6 +12,10 @@ process.env.QA_ANSWER_PROVIDER = 'template';
 process.env.LINE_CHANNEL_SECRET = 'line-secret-for-tests';
 process.env.LINE_CHANNEL_ACCESS_TOKEN = '';
 process.env.PROCESSING_WEBHOOK_SECRET = 'processing-secret-for-tests';
+// 既有測試的問題常超過字數上限、同一學生一天會問很多次；預設關閉兩項限制，
+// 由 ask-limits 測試個別開啟驗證。
+process.env.QA_MAX_QUESTION_LENGTH = '0';
+process.env.QA_DAILY_ASK_LIMIT_PER_STUDENT = '0';
 const avatarTestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-avatar-tests-'));
 const avatarTestDirectory = path.join(avatarTestRoot, 'avatars');
 process.env.AVATAR_UPLOAD_DIR = avatarTestDirectory;

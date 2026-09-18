@@ -30,25 +30,53 @@ function pruneExpired(now) {
   }
 }
 
+// 回傳給前端的資訊（剩餘次數、鎖定時間）對存在與不存在的帳號都一樣，
+// 不會洩漏帳號是否存在，因此放在 publicDetails 讓 production 也能顯示提醒。
+function buildLockedError(lockedUntil, now) {
+  const error = new AppError(
+    'Too many failed login attempts. Please try again later.',
+    429,
+    'TOO_MANY_LOGIN_ATTEMPTS',
+  );
+  error.publicDetails = {
+    retryAfterSec: Math.ceil((lockedUntil - now) / 1000),
+    lockMinutes: env.loginLockMinutes,
+  };
+  return error;
+}
+
 function assertLoginAllowed(email, now = Date.now()) {
   const { maxFailures } = getSettings();
   if (maxFailures <= 0) return;
 
   const entry = attempts.get(keyFor(email));
   if (entry && entry.lockedUntil > now) {
-    const retryAfterSec = Math.ceil((entry.lockedUntil - now) / 1000);
-    throw new AppError(
-      'Too many failed login attempts. Please try again later.',
-      429,
-      'TOO_MANY_LOGIN_ATTEMPTS',
-      { retryAfterSec },
-    );
+    throw buildLockedError(entry.lockedUntil, now);
   }
+}
+
+// 記錄一次失敗並回傳要拋出的錯誤：還沒到上限時是帶剩餘次數的 INVALID_CREDENTIALS，
+// 這次剛好達到上限時直接回鎖定錯誤，讓使用者立刻知道已被鎖定。
+function buildLoginFailureError(email, now = Date.now()) {
+  const invalid = new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+  const { maxFailures } = getSettings();
+  if (maxFailures <= 0) return invalid;
+
+  const entry = recordLoginFailure(email, now);
+  if (entry.lockedUntil > now) {
+    return buildLockedError(entry.lockedUntil, now);
+  }
+  invalid.publicDetails = {
+    remainingAttempts: Math.max(0, maxFailures - entry.failures.length),
+    maxAttempts: maxFailures,
+    lockMinutes: env.loginLockMinutes,
+  };
+  return invalid;
 }
 
 function recordLoginFailure(email, now = Date.now()) {
   const { maxFailures, windowMs, lockMs } = getSettings();
-  if (maxFailures <= 0) return;
+  if (maxFailures <= 0) return null;
 
   pruneExpired(now);
   const key = keyFor(email);
@@ -61,6 +89,7 @@ function recordLoginFailure(email, now = Date.now()) {
     entry.failures = [];
   }
   attempts.set(key, entry);
+  return entry;
 }
 
 function recordLoginSuccess(email) {
@@ -73,6 +102,7 @@ function resetLoginThrottleForTests() {
 
 module.exports = {
   assertLoginAllowed,
+  buildLoginFailureError,
   recordLoginFailure,
   recordLoginSuccess,
   resetLoginThrottleForTests,

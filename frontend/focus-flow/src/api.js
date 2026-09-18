@@ -31,12 +31,14 @@ export async function apiFetch(path, options = {}) {
 // 後端訊息保留在 originalMessage 供除錯，畫面上顯示的 message 一律是中文。
 export function buildApiError({ status, data = {}, fallbackMessage } = {}) {
   const code = data.error?.code;
+  const details = data.error?.details;
   const originalMessage = data.message || fallbackMessage || '';
   const err = new Error(fallbackMessage && !data.message
     ? fallbackMessage
-    : toChineseErrorMessage({ code, status, message: originalMessage }));
+    : toChineseErrorMessage({ code, status, message: originalMessage, details }));
   err.code = code;
   err.status = status;
+  err.details = details;
   err.originalMessage = originalMessage;
   return err;
 }

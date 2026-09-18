@@ -657,14 +657,24 @@ describe('auth routes', () => {
     });
   }
 
-  it('同一 Email 連續輸錯 5 次後鎖定，正確密碼也暫時無法登入', async () => {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+  it('登入失敗時回傳剩餘次數，第 5 次輸錯直接鎖定，正確密碼也暫時無法登入', async () => {
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
       const failed = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
         method: 'POST',
         body: { email: 'student@focusflow.local', password: 'WrongPass123!', role: 'student' },
       });
       assert.equal(failed.status, 401);
+      assert.equal(failed.body.error.code, 'INVALID_CREDENTIALS');
+      assert.deepEqual(failed.body.error.details, { remainingAttempts: 5 - attempt, maxAttempts: 5, lockMinutes: 15 });
     }
+
+    const fifth = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'WrongPass123!', role: 'student' },
+    });
+    assert.equal(fifth.status, 429);
+    assert.equal(fifth.body.error.code, 'TOO_MANY_LOGIN_ATTEMPTS');
+    assert.equal(fifth.body.error.details.lockMinutes, 15);
 
     const locked = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
       method: 'POST',

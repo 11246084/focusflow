@@ -48,7 +48,11 @@ function errorHandler(err, req, res, next) {
 
   const statusCode = error.statusCode || 500;
   const code = error.code || 'INTERNAL_SERVER_ERROR';
-  const details = env.nodeEnv === 'production' ? undefined : error.details;
+  // publicDetails 是刻意給前端顯示的資訊（例如登入還剩幾次），production 也回傳；
+  // 一般 details 可能含內部診斷，只在非 production 回傳。
+  const details = error.publicDetails !== undefined
+    ? error.publicDetails
+    : (env.nodeEnv === 'production' ? undefined : error.details);
 
   return res.status(statusCode).json(
     buildErrorResponse({

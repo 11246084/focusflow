@@ -129,7 +129,23 @@ const STATUS_MESSAGES = {
 
 const HAS_CJK = /[㐀-鿿]/;
 
-export function toChineseErrorMessage({ code, status, message } = {}) {
+// 登入失敗與鎖定：後端會附上剩餘次數與鎖定時間，提醒學生有次數限制。
+function buildLoginAttemptMessage(code, details) {
+  if (code === 'INVALID_CREDENTIALS' && Number.isInteger(details?.remainingAttempts)) {
+    const { remainingAttempts, maxAttempts, lockMinutes } = details;
+    return `Email 或密碼錯誤。為保護帳號，連續輸錯 ${maxAttempts} 次會暫時鎖定 ${lockMinutes} 分鐘，`
+      + `你還可以再試 ${remainingAttempts} 次。忘記密碼可以點「忘記密碼？」重設。`;
+  }
+  if (code === 'TOO_MANY_LOGIN_ATTEMPTS' && details?.retryAfterSec) {
+    const minutes = Math.max(1, Math.ceil(details.retryAfterSec / 60));
+    return `密碼輸錯太多次，帳號已暫時鎖定，請約 ${minutes} 分鐘後再試，或點「忘記密碼？」重設密碼。`;
+  }
+  return null;
+}
+
+export function toChineseErrorMessage({ code, status, message, details } = {}) {
+  const loginAttemptMessage = buildLoginAttemptMessage(code, details);
+  if (loginAttemptMessage) return loginAttemptMessage;
   if (message && VALIDATION_MESSAGES[message]) return VALIDATION_MESSAGES[message];
   if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code];
   // 後端有些訊息本身就是中文（例如 LINE、FAQ 相關），直接沿用。

@@ -7,7 +7,7 @@ const { toPublicUser } = require('../utils/publicUser');
 const { recordUsage } = require('./usageLog.service');
 const {
   assertLoginAllowed,
-  recordLoginFailure,
+  buildLoginFailureError,
   recordLoginSuccess,
 } = require('./loginThrottle.service');
 const {
@@ -148,16 +148,15 @@ async function login({ email, password, role }) {
 
   const user = await User.findOne({ email: normalizedEmail });
 
+  // 失敗時回傳剩餘次數，讓前端提醒「再錯幾次會被鎖定」；達上限時直接回鎖定錯誤。
   if (!user) {
-    recordLoginFailure(normalizedEmail);
-    throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+    throw buildLoginFailureError(normalizedEmail);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    recordLoginFailure(normalizedEmail);
-    throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
+    throw buildLoginFailureError(normalizedEmail);
   }
 
   recordLoginSuccess(normalizedEmail);

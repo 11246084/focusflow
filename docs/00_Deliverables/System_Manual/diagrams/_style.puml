@@ -8,7 +8,6 @@ skinparam defaultFontSize 13
 skinparam dpi 150
 skinparam shadowing false
 skinparam roundCorner 6
-skinparam linetype ortho
 
 skinparam backgroundColor #FFFFFF
 skinparam ArrowColor #2F3E46

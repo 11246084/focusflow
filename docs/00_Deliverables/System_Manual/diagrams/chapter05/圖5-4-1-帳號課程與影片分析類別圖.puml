@@ -1,0 +1,92 @@
+@startuml
+' ============================================
+' ooad-phase:   物件分析
+' chapter:      5-4
+' realizes:     UC-01, UC-02, UC-03, UC-09
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1與「主要關係」條列，已驗證文字）
+' verified:     2026-09-18
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code (Anthropic Claude Sonnet 5) / 依表5-4-1類別分類與主要關係條列產出分析類別圖（帳號、課程與影片子領域）
+' ============================================
+'
+' [OOAD:MUST] 本圖為分析層（判別器 F：5-4 一律套分析層檢查）：
+'   邊界與控制類別使用責任導向的概念名稱，不使用 *Service、*Controller、webhook
+'   等技術後綴或具體技術產物名稱（判別器 A-1 強證據）；實體類別沿用領域名詞，
+'   以便與第 6 章設計類別、第 8 章集合對照。屬性只列概念名稱、不標型別。
+'
+' [DOC] 依子領域拆圖：問答、通知與短影音子領域見圖5-4-2，兩張合計涵蓋表5-4-1
+'   列出的全部分析類別。
+'
+' [FF] 控制類別對實體只畫「主要責任對象」一條線，不畫全部存取關係；完整跨類別
+'   協作以第 6-1 節循序圖呈現（與圖6-2-1 採相同做法，避免大量依賴線穿越 package）。
+' ============================================
+!include ../_style.puml
+
+title 帳號課程與影片分析類別圖
+
+' 三層由上而下排列（邊界→控制→實體），維持 A4 直式版面
+top to bottom direction
+hide empty members
+
+package "邊界類別" as BoundaryLayer {
+  class "網頁介面" as WebUI <<boundary>>
+  class "管理員入口" as AdminUI <<boundary>>
+  class "影片處理回報介面" as ProcessingCallback <<boundary>>
+}
+
+package "控制類別" as ControlLayer {
+  class "身分驗證" as Authentication <<control>>
+  class "課程授權" as CourseAuthorization <<control>>
+  class "修課管理" as EnrollmentManagement <<control>>
+  class "影片管理" as VideoManagement <<control>>
+  class "影片批次管理" as VideoBatchManagement <<control>>
+}
+
+package "實體類別" as EntityLayer {
+  class User <<entity>> {
+    角色
+    啟用狀態
+  }
+  class Course <<entity>> {
+    發布狀態
+  }
+  class Enrollment <<entity>> {
+    授權狀態
+    學習進度
+  }
+  class Video <<entity>> {
+    來源類型
+    處理狀態
+  }
+  class VideoBatch <<entity>> {
+    批次狀態
+  }
+}
+
+' --- 邊界 → 控制（依賴，不是具有基數的領域關聯）---
+WebUI ..> Authentication
+WebUI ..> CourseAuthorization
+WebUI ..> EnrollmentManagement
+WebUI ..> VideoManagement
+WebUI ..> VideoBatchManagement
+AdminUI ..> Authentication
+AdminUI ..> CourseAuthorization
+ProcessingCallback ..> VideoManagement
+
+' --- 控制 → 主要責任對象（依賴）---
+Authentication ..> User
+CourseAuthorization ..> Course
+EnrollmentManagement ..> Enrollment
+VideoManagement ..> Video
+VideoBatchManagement ..> VideoBatch
+
+' --- 實體關聯：[UML:MUST] 兩端均標多重性 ---
+User "1" -- "0..*" Course : 課程 owner（教師）
+User "1" -- "0..*" Enrollment : 學生
+Course "1" -- "0..*" Enrollment
+Course "0..*" -- "0..*" Video : 掛載
+Course "1" -- "0..*" VideoBatch
+VideoBatch "1" -- "0..*" Video : 批次項目
+
+@enduml

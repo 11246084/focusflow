@@ -1,0 +1,89 @@
+@startuml
+' ============================================
+' ooad-phase:   物件分析
+' chapter:      5-4
+' realizes:     UC-06, UC-07, UC-08, UC-09
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1與「主要關係」條列，已驗證文字）
+' verified:     2026-09-18
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code (Anthropic Claude Sonnet 5) / 依表5-4-1類別分類與主要關係條列產出分析類別圖（通知與短影音子領域）
+' ============================================
+'
+' [OOAD:MUST] 本圖為分析層（判別器 F）：邊界與控制類別使用責任導向概念名稱，
+'   不使用 *Service、webhook 等技術後綴或具體技術產物名稱；屬性只列概念名稱、
+'   不標型別。
+'
+' [DOC:MUST] implemented: partial —— 短影音腳本與成品流程屬條件式功能
+'   （FR-21、FR-22，預設關閉），圖上以 note 標示，不得以圖示暗示已全面啟用。
+'
+' [DOC] 依子領域拆圖：帳號、課程與影片見圖5-4-1，問答與對話見圖5-4-2。
+'   標註「見圖5-4-1／5-4-2」的類別為跨子領域參照，完整關聯在該圖。
+' ============================================
+!include ../_style.puml
+
+title 通知與短影音分析類別圖
+
+top to bottom direction
+hide empty members
+
+package "邊界類別" as BoundaryLayer {
+  class "網頁介面" as WebUI <<boundary>>
+  class "外部服務介面" as ExternalUI <<boundary>>
+}
+
+package "控制類別" as ControlLayer {
+  class "通知發送" as NotificationDispatch <<control>>
+  class "短影音腳本產生" as ShortScriptGeneration <<control>>
+  class "短影音成品審核" as ShortAssetReview <<control>>
+}
+
+package "實體類別" as EntityLayer {
+  ' 標註「見圖5-4-1／5-4-2」者為跨子領域參照，完整關聯在該圖
+  class "User\n（見圖5-4-1）" as User <<entity>>
+  class "Course\n（見圖5-4-1）" as Course <<entity>>
+  class "Video\n（見圖5-4-1）" as Video <<entity>>
+  class "Question\n（見圖5-4-2）" as Question <<entity>>
+  class "VideoSegment\n（見圖5-4-2）" as VideoSegment <<entity>>
+  class Notification <<entity>> {
+    已讀狀態
+    導向資訊
+  }
+  class ShortScript <<entity>> {
+    腳本狀態
+    生成版本
+  }
+  class ShortAsset <<entity>> {
+    審核狀態
+    發布狀態
+  }
+}
+
+' --- 邊界 → 控制（依賴）---
+WebUI ..> NotificationDispatch
+WebUI ..> ShortScriptGeneration
+WebUI ..> ShortAssetReview
+ShortScriptGeneration ..> ExternalUI
+ShortAssetReview ..> ExternalUI
+
+' --- 控制 → 主要責任對象（依賴）---
+NotificationDispatch ..> Notification
+ShortScriptGeneration ..> ShortScript
+ShortAssetReview ..> ShortAsset
+
+' --- 實體關聯：[UML:MUST] 兩端均標多重性 ---
+Notification "0..*" -- "1" User : 接收者
+Notification "0..*" -- "0..1" Course : 導向
+Notification "0..*" -- "0..1" Video : 導向
+Notification "0..*" -- "0..1" ShortScript : 導向
+ShortScript "0..*" -- "1" Course : 課程範圍
+ShortScript "1" -- "0..*" Question : 凍結來源
+ShortScript "1" -- "0..*" VideoSegment : 凍結證據
+ShortAsset "0..*" -- "1" ShortScript : 對應腳本版本
+
+note right of ShortScript
+  條件式功能（FR-21、FR-22），預設關閉。
+  ShortScript 是腳本，不是影片成品。
+end note
+
+@enduml

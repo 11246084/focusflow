@@ -1,0 +1,87 @@
+@startuml
+' ============================================
+' ooad-phase:   物件分析
+' chapter:      5-4
+' realizes:     UC-04, UC-05
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1與「主要關係」條列，已驗證文字）
+' verified:     2026-09-18
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code (Anthropic Claude Sonnet 5) / 依表5-4-1類別分類與主要關係條列產出分析類別圖（問答與對話子領域）
+' ============================================
+'
+' [OOAD:MUST] 本圖為分析層（判別器 F）：邊界與控制類別使用責任導向概念名稱，
+'   不使用 *Service、webhook 等技術後綴或具體技術產物名稱；屬性只列概念名稱、
+'   不標型別。
+'
+' [DOC] 依子領域拆圖：帳號、課程與影片見圖5-4-1，通知與短影音見圖5-4-3。
+'   User、Course、Video 在本圖僅作跨圖參照，完整關聯見圖5-4-1。
+' ============================================
+!include ../_style.puml
+
+title 問答與對話分析類別圖
+
+top to bottom direction
+hide empty members
+
+package "邊界類別" as BoundaryLayer {
+  class "網頁介面" as WebUI <<boundary>>
+  class "LINE 訊息介面" as LineUI <<boundary>>
+  class "外部服務介面" as ExternalUI <<boundary>>
+}
+
+package "控制類別" as ControlLayer {
+  class "對話管理" as ConversationManagement <<control>>
+  class "提問處理" as QuestionHandling <<control>>
+  class "LINE 對話處理" as LineConversationHandling <<control>>
+}
+
+package "實體類別" as EntityLayer {
+  ' 標註「見圖5-4-1」者為跨子領域參照，完整關聯在該圖
+  class "User\n（見圖5-4-1）" as User <<entity>>
+  class "Course\n（見圖5-4-1）" as Course <<entity>>
+  class "Video\n（見圖5-4-1）" as Video <<entity>>
+  class Conversation <<entity>>
+  class Message <<entity>> {
+    角色（提問／回答）
+    引用來源
+  }
+  class Question <<entity>> {
+    回答狀態
+  }
+  class FAQ <<entity>> {
+    命中次數
+  }
+  class VideoSegment <<entity>> {
+    時間區間
+    片段文字
+  }
+  class UsageLog <<entity>> {
+    事件類型
+  }
+}
+
+' --- 邊界 → 控制（依賴）---
+WebUI ..> ConversationManagement
+LineUI ..> LineConversationHandling
+ConversationManagement ..> QuestionHandling
+LineConversationHandling ..> QuestionHandling
+QuestionHandling ..> ExternalUI
+
+' --- 控制 → 主要責任對象（依賴）---
+ConversationManagement ..> Conversation
+QuestionHandling ..> Question
+LineConversationHandling ..> User
+
+' --- 實體關聯：[UML:MUST] 兩端均標多重性 ---
+Conversation "0..*" -- "1" User : 擁有者
+Conversation "0..*" -- "1" Course : 課程範圍
+Conversation "1" -- "0..*" Message : 依序排列
+Video "1" -- "0..*" VideoSegment : 可檢索片段
+Question "0..*" -- "0..*" VideoSegment : 實際命中來源
+Message "0..*" -- "0..*" VideoSegment : 引用快照
+Question "0..*" -- "1" Course : 課程範圍
+Question "0..1" -- "0..1" UsageLog : 來源事件
+FAQ "0..*" -- "1" Course : 課程快取
+
+@enduml

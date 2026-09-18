@@ -1,0 +1,57 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-2
+' realizes:     UC-01, UC-04, UC-05, UC-06, UC-07
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-2-1、表5-3-1～5-3-9，已驗證文字）
+' verified:     2026-09-18
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code (Anthropic Claude Sonnet 5) / 依表5-2-1行為者與表5-3-1～5-3-9使用個案標題產出學生視角使用個案圖
+' ============================================
+'
+' [DOC] 依行為者拆圖（反模式 B5 處置）：三個角色共用 UC-01／UC-06、教師與管理員
+'   另共用 UC-02／UC-03，全部畫在一張圖時連線交錯嚴重、A4 上難以判讀。
+'   本圖為學生視角，教師與管理員視角見圖5-2-2，兩圖合計涵蓋 UC-01～UC-09。
+'
+' [OOAD:MUST] LINE Platform 不畫成行為者：它是 Student 提問訊息的傳遞管道
+'   （角色類似網頁使用個案的瀏覽器），不是為自己目的與系統互動的次要行為者。
+'   LINE 的簽章驗證／Reply API 屬技術契約，留給 6-1 節循序圖表達。
+'
+' [UML] 關聯採無箭頭實線（UML 使用個案關聯的標準記法）；主要行為者置於系統邊界
+'   左側、次要（外部）行為者置於右側，以位置表達主動／被動方向。
+' ============================================
+!include ../_style.puml
+
+title 學生使用個案圖
+
+left to right direction
+
+' --- 主要行為者（左）---
+actor "學生" as Student
+
+' --- 次要行為者（右，系統主動呼叫以達成自身使用個案）---
+actor "AI／媒體／資料服務" as ExternalServices
+
+' --- 系統邊界框：[UML:MUST] ---
+rectangle "FocusFlow" {
+  usecase "註冊與登入" as UC01
+  usecase "學生查看短影音" as UC07
+  usecase "學生在網頁觀看與提問" as UC04
+  usecase "學生綁定LINE並提問" as UC05
+  usecase "使用者維護個人資料與通知" as UC06
+}
+
+' --- 主要行為者關聯（依表5-3-1、5-3-4～5-3-7 的「行為者」欄）---
+Student -- UC01
+Student -- UC07
+Student -- UC04
+Student -- UC05
+Student -- UC06
+
+' --- 次要行為者關聯（外部服務依賴）---
+UC04 -- ExternalServices
+UC05 -- ExternalServices
+UC06 -- ExternalServices
+
+@enduml

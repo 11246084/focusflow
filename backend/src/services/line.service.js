@@ -750,7 +750,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
   }
 
   if (!user.activeCourseId) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先切換課程，再開始提問。')]);
+    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先輸入「切換課程」，再開始提問。')]);
 
     return attachReplyMetadata({
       type: 'question',

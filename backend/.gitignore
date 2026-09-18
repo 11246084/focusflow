@@ -32,3 +32,5 @@ docs/implementation-log.archive.md
 
 UnderstandingCode/*
 !UnderstandingCode/data-model-diagram.md
+# 手動 DB 清理前匯出的備份檔（含 embedding，體積大）
+*-backup-*.json

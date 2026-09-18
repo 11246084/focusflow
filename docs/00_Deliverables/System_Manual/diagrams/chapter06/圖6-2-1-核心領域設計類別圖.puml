@@ -1,0 +1,179 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-2
+' realizes:     UC-01, UC-03, UC-04, UC-05
+' source:       backend/src/services, backend/src/models（程式碼與 schema）
+' verified:     2026-09-17
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 service 責任與 domain model 關聯產出設計類別圖
+' ============================================
+!include ../_style.puml
+
+title 核心領域設計類別圖
+
+top to bottom direction
+hide empty members
+
+package "應用服務" as ServiceLayer {
+  ' source-analysis: 身分驗證與角色入口
+  class AuthService <<service>> {
+    + login(credentials) : AuthResult
+    + register(profile) : AuthResult
+    + getCurrentUser(userId) : PublicUser
+  }
+
+  ' source-analysis: 課程授權
+  class CourseAccessService <<service>> {
+    + assertCanAccessCourse(user, course) : void
+    + assertCanManageCourse(user, course) : void
+    + findActiveEnrollment(studentId, courseId) : Enrollment
+  }
+
+  ' source-analysis: 影片批次建立
+  class VideoBatchService <<service>> {
+    + createVideoBatch(input) : VideoBatchView
+    + retryVideoBatchItem(batchId, videoId, user) : VideoBatchView
+    + syncBatchStatus(batch) : VideoBatchView
+  }
+
+  ' source-analysis: 影片知識化處理狀態
+  class VideoProcessingService <<service>> {
+    + startVideoProcessing(videoId) : Video
+    + completeVideoProcessing(videoId, metadata) : Video
+    + failVideoProcessing(videoId, error) : Video
+    + retryVideoProcessing(videoId, user) : Video
+  }
+
+  ' source-analysis: Web 多輪問答
+  class ConversationService <<service>> {
+    + createConversation(input) : ConversationView
+    + sendMessage(input) : AnswerView
+    + retryMessage(input) : AnswerView
+  }
+
+  ' source-analysis: 來源式問答
+  class QaService <<service>> {
+    + askQuestion(input) : QaResponse
+    + retrieveSegmentsOnly(input) : SegmentResult
+  }
+
+  ' technical-new: 從提問處理責任拆出的快取協作者
+  class FaqCacheService <<service>> {
+    + findFaqByExactQuestion(input) : Faq?
+    + findFaqBySimilarEmbedding(input) : FaqHit?
+    + saveFaqEntry(input) : Faq
+  }
+
+  ' technical-new: 從提問處理責任拆出的生成協作者
+  class AnswerGenerationService <<service>> {
+    + generateAnswer(question, matches, history) : AnswerResult
+  }
+
+  ' source-analysis: LINE 綁定、切課與多輪問答
+  class LineService <<service>> {
+    + generateBindToken(userId) : String
+    + processWebhookEvents(events) : EventResult[]
+    + handleQuestion(lineUserId, text, replyToken) : EventResult
+  }
+}
+
+package "核心領域物件" as DomainLayer {
+  ' source: backend/src/models/user.model.js
+  class User <<domain>> {
+    + role : UserRole
+    + isActive : Boolean
+    + activeCourseId : Id?
+    + lineConversationState : LineState
+  }
+
+  ' source: backend/src/models/course.model.js
+  class Course <<domain>> {
+    + status : CourseStatus
+    + teacherId : Id
+  }
+
+  ' source: backend/src/models/enrollment.model.js
+  class Enrollment <<domain>> {
+    + status : EnrollmentStatus
+    + progress : Number
+  }
+
+  ' source: backend/src/models/video.model.js
+  class Video <<domain>> {
+    + sourceType : VideoSource
+    + processing : ProcessingState
+  }
+
+  ' source: backend/src/models/videoBatch.model.js
+  class VideoBatch <<domain>> {
+    + status : BatchStatus
+    + processingMode : ProcessingMode
+  }
+
+  ' source: backend/src/models/conversation.model.js
+  class Conversation <<domain>> {
+    + title : String
+  }
+
+  ' source: backend/src/models/message.model.js
+  class Message <<domain>> {
+    + role : MessageRole
+    + status : MessageStatus
+    + sources : CitationSnapshot[]
+  }
+
+  ' source: backend/src/models/question.model.js
+  class Question <<domain>> {
+    + status : QuestionStatus
+    + matches : EvidenceSnapshot[]
+    + runtime : RuntimeSnapshot
+  }
+
+  ' source: backend/src/models/usageLog.model.js
+  class UsageLog <<domain>> {
+    + event : UsageEvent
+    + metadata : Object
+  }
+}
+
+' Service 協作使用 dependency；它不是具有基數的領域關聯。
+VideoBatchService ..> CourseAccessService
+VideoBatchService ..> VideoProcessingService
+ConversationService ..> CourseAccessService
+ConversationService ..> QaService
+LineService ..> CourseAccessService
+LineService ..> QaService
+QaService ..> CourseAccessService
+QaService ..> FaqCacheService
+QaService ..> AnswerGenerationService
+
+' 只控制版面：將每個 package 排成較窄的欄，避免超寬橫式輸出。
+AuthService -[hidden]down-> CourseAccessService
+CourseAccessService -[hidden]down-> VideoBatchService
+VideoBatchService -[hidden]down-> VideoProcessingService
+ConversationService -[hidden]down-> QaService
+QaService -[hidden]down-> FaqCacheService
+FaqCacheService -[hidden]down-> AnswerGenerationService
+AnswerGenerationService -[hidden]down-> LineService
+User -[hidden]down-> Enrollment
+Enrollment -[hidden]down-> Course
+Course -[hidden]down-> Video
+Conversation -[hidden]down-> Message
+Question -[hidden]down-> UsageLog
+
+' Domain 關聯：每條 association 均標多重性與設計導航方向。
+Enrollment "0..*" --> "1" User : student
+Enrollment "0..*" --> "1" Course : course
+Course "0..*" --> "0..*" Video : attached videos
+VideoBatch "0..*" --> "1" Course : course
+VideoBatch "0..1" --> "0..10" Video : successful items
+Conversation "0..*" --> "1" User : owner
+Conversation "0..*" --> "1" Course : scope
+Conversation "1" --> "0..*" Message : messages
+Question "0..*" --> "1" User : asker
+Question "0..*" --> "1" Course : scope
+Question "0..1" --> "0..1" UsageLog : sourceUsage
+
+@enduml

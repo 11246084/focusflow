@@ -192,3 +192,11 @@ database/pyvenv.cfg
 *.pyd
 *.pyc
 *.pyo
+
+# ================================
+# 其他組別系統手冊（僅供格式比對，非本專題著作，repo 為 public 故不進版控）
+# ================================
+docs/00_Deliverables/System_Manual/source-documents/四技第113402組-*.pdf
+docs/00_Deliverables/System_Manual/source-documents/四技第114406組-*.pdf
+docs/00_Deliverables/System_Manual/source-documents/四技第114414組-*.pdf
+docs/00_Deliverables/System_Manual/source-documents/四技第115414組-*.pdf

@@ -1,0 +1,53 @@
+' ============================================
+' FocusFlow 系統手冊 UML 共用樣式
+' 所有圖以 !include 載入；單圖不得另寫 skinparam
+' ============================================
+
+skinparam defaultFontName "Microsoft JhengHei"
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam linetype ortho
+
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #2F3E46
+skinparam ArrowFontSize 12
+
+skinparam TitleFontSize 16
+skinparam TitleFontStyle bold
+
+skinparam Actor {
+  BackgroundColor #FFFFFF
+  BorderColor #2F3E46
+}
+
+skinparam Class {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+  AttributeFontSize 12
+}
+
+skinparam Sequence {
+  ParticipantBackgroundColor #F5F7F8
+  ParticipantBorderColor #2F3E46
+  LifeLineBorderColor #84A98C
+  ArrowThickness 1
+  BoxBackgroundColor #FAFBFB
+  BoxBorderColor #CAD2C5
+}
+
+skinparam Package {
+  BackgroundColor #FAFBFB
+  BorderColor #52796F
+}
+
+skinparam Database {
+  BackgroundColor #F5F7F8
+  BorderColor #2F3E46
+}
+
+skinparam Note {
+  BackgroundColor #FFF8E1
+  BorderColor #C9A227
+}

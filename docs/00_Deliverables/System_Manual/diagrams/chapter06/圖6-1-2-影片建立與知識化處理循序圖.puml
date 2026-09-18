@@ -1,0 +1,104 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-03, FR-09, FR-10
+' source:       backend/src/routes/video.routes.js, backend/src/services/videoBatch.service.js, backend/src/services/videoProcessing.service.js, STT_Whisper/src/batch_main.py（程式碼）
+' verified:     2026-09-17
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 batch API、Pipeline 交接與 processing state machine 產出循序圖
+' ============================================
+!include ../_style.puml
+
+title 影片建立與知識化處理循序圖
+
+hide footbox
+autonumber
+
+actor "教師／管理員" as Manager
+
+box "React SPA" #FAFBFB
+  participant "TeacherUpload" as UploadPage
+  participant "uploadCourseVideos()" as UploadClient
+end box
+
+box "Express Backend" #FAFBFB
+  participant "VideoBatchController" as BatchController
+  participant "VideoBatchService" as BatchService
+  participant "CourseAccessService" as AccessService
+  participant "VideoService" as VideoService
+  participant "VideoProcessingQueue /\nVideoBatchProcessingService" as Scheduler
+  participant "VideoController\n(internal webhook)" as VideoController
+  participant "VideoProcessingService" as ProcessingService
+end box
+
+database "VideoBatch model" as BatchModel
+database "Video model" as VideoModel
+participant "STT_Whisper Pipeline" as Pipeline
+database "video_segments_text" as SegmentStore
+
+Manager -> UploadPage : 選擇 1～10 個影片並送出
+UploadPage -> UploadClient : uploadCourseVideos(courseId, items)
+UploadClient -> BatchController : POST /courses/{courseId}/video-batches\nmultipart videos + titles
+BatchController -> BatchService : createVideoBatch({ courseId, files, titles, user })
+BatchService -> AccessService : getCourseByIdOrThrow()\nassertCanManageCourse()
+AccessService --> BatchService : 可管理的 Course
+BatchService -> BatchModel : create(status=creating, processingMode)
+
+loop 每個上傳項目
+  BatchService -> VideoService : createCourseVideo(..., deferProcessingStart)
+  VideoService -> VideoModel : 檢查 fileHash 後 create\nprocessing.status = queued
+  VideoModel --> VideoService : Video / duplicate error
+  alt single_adapter（預設）且可啟動本機處理
+    VideoService -> Scheduler : enqueueVideoProcessing(videoId)
+    Scheduler -> Pipeline : main.py --video-id ...
+  else pipeline_batch
+    note over VideoService
+      deferProcessingStart=true，交由整批 scheduler 啟動。
+    end note
+  end
+  VideoService --> BatchService : item result
+  BatchService -> BatchModel : findOneAndUpdate(items, status=processing)
+end
+
+alt VIDEO_BATCH_PIPELINE_ENABLED = true
+  BatchService -> Scheduler : scheduleVideoBatchProcessing(batchId, items)
+  Scheduler -> Pipeline : batch_main.py --batch-request ...
+else false（預設 single_adapter）
+  note over BatchService,Scheduler
+    各影片已在 createCourseVideo() 內個別排入 queue。
+  end note
+end
+
+BatchService --> BatchController : durable batch presentation
+BatchController --> UploadClient : 201 { batchId, items[] }
+UploadClient --> UploadPage : 保留逐檔狀態，可重新載入追蹤
+
+Pipeline -> VideoController : POST /api/v1/internal/videos/{id}/processing/start\nX-Processing-Secret
+VideoController -> ProcessingService : startVideoProcessing(videoId)
+ProcessingService -> VideoModel : queued -> processing\nattemptCount + 1
+Pipeline -> Pipeline : STT、Leaf chunk、embedding\nartifact validation
+Pipeline -> SegmentStore : upsert searchable segments
+
+alt 處理成功
+  Pipeline -> VideoController : POST .../processing/complete\n{ durationSec, externalVideoId }
+  VideoController -> ProcessingService : completeVideoProcessing(videoId, metadata)
+  ProcessingService -> VideoModel : processing -> completed
+  ProcessingService -> ProcessingService : clear FAQ\nfanout notification\nschedule optional YouTube upload
+  ProcessingService --> VideoController : completed Video（可冪等重送）
+  VideoController --> Pipeline : 200
+else 處理失敗
+  Pipeline -> VideoController : POST .../processing/fail\n{ errorCode, errorMessage }
+  VideoController -> ProcessingService : failVideoProcessing(videoId, error)
+  ProcessingService -> VideoModel : queued/processing -> failed
+  ProcessingService --> VideoController : failed Video（保留首次終止失敗）
+  VideoController --> Pipeline : 200
+end
+
+note over Scheduler,ProcessingService
+  UI batch、Backend VideoBatch 與 Python batch CLI 是不同層次。
+  processing 非任意寫值，非法狀態轉換回 409。
+end note
+
+@enduml

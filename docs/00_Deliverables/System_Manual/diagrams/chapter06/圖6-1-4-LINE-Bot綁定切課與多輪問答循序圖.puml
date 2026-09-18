@@ -1,0 +1,96 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-05, FR-17
+' source:       backend/src/routes/line.routes.js, backend/src/middleware/lineSignature.middleware.js, backend/src/services/line.service.js（程式碼）
+' verified:     2026-09-17
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 LINE 驗簽、綁定、切課與共用 QA 路徑產出循序圖
+' ============================================
+!include ../_style.puml
+
+title LINE Bot綁定切課與多輪問答循序圖
+
+hide footbox
+autonumber
+
+actor "學生" as Student
+participant "StudentLineBot" as LinePage
+participant "LINE Platform" as LinePlatform
+
+box "Express Backend" #FAFBFB
+  participant "LineSignatureMiddleware" as Signature
+  participant "LineController" as LineController
+  participant "LineService" as LineService
+  participant "ContextualQuestionService" as Contextualizer
+  participant "QaService" as QaService
+end box
+
+database "LineBindToken model" as BindTokenModel
+database "User / Enrollment / Course models" as LineModels
+participant "LINE Reply API" as ReplyApi
+
+group 一次性帳號綁定
+  Student -> LinePage : 在已登入網頁要求綁定碼
+  LinePage -> LineController : POST /api/v1/line/bind-token\nBearer JWT
+  LineController -> LineService : generateBindToken(userId)
+  LineService -> BindTokenModel : create(token, userId, expiresAt)
+  BindTokenModel --> LineService : LineBindToken
+  LineService --> LineController : token
+  LineController --> LinePage : 201 token（10 分鐘）
+  Student -> LinePlatform : 傳送 64 字元 token
+  LinePlatform -> Signature : POST /api/v1/line/webhook\nx-line-signature + raw body
+  Signature -> Signature : 以 raw body 計算並比對 HMAC-SHA256
+  Signature -> LineController : handleWebhook(events)
+  LineController -> LineService : processWebhookEvents()
+  LineService -> BindTokenModel : findOne(token)\n檢查過期並 deleteOne()
+  LineService -> LineModels : 綁定 lineUserId；state=idle
+  LineService -> ReplyApi : replyMessage(綁定結果)
+  ReplyApi --> LinePlatform : 回覆學生
+end
+
+group 切換授權課程
+  Student -> LinePlatform : 傳送「切換課程」
+  LinePlatform -> Signature : signed webhook event
+  Signature -> LineController : verified event
+  LineController -> LineService : processWebhookEvents(event)
+  LineService -> LineService : handleSwitchCourse(lineUserId)
+  LineService -> LineModels : 查 active Enrollment\n只保留 published 且有影片課程
+  LineService -> ReplyApi : 最多 4 個課程按鈕\nstate=awaiting_course_selection
+  Student -> LinePlatform : postback select_course
+  LinePlatform -> Signature : signed webhook event
+  Signature -> LineController : verified event
+  LineController -> LineService : processWebhookEvents(event)
+  LineService -> LineService : handleSelectCourse(lineUserId, courseId)
+  LineService -> LineModels : 重驗 Enrollment + Course\n寫 activeCourseId；state=idle
+  LineService -> ReplyApi : 回覆切課結果
+end
+
+group 多輪課程問答
+  Student -> LinePlatform : 傳送課程問題
+  LinePlatform -> Signature : signed webhook event
+  alt 簽章無效或缺少
+    Signature --> LinePlatform : 401，不處理事件
+  else 驗簽通過
+    Signature -> LineController : handleWebhook(events)
+    LineController -> LineService : processWebhookEvents(event)
+    LineService -> LineService : handleQuestion(lineUserId, text)
+    LineService -> LineModels : 重驗已綁定、activeCourseId、\nactive Enrollment 與 published Course
+    LineService -> Contextualizer : contextualizeQuestion(history, text)
+    Contextualizer --> LineService : standaloneQuestion
+    LineService -> QaService : askQuestion(source=line, history)
+    QaService --> LineService : answer + citations + runtime
+    LineService -> LineModels : 依 maxConversationTurns 更新 history
+    LineService -> ReplyApi : answer + 時間點 + jumpUrl
+    ReplyApi --> LinePlatform : 回覆學生
+  end
+end
+
+note over LineService,QaService
+  LINE 只重用共用 QaService，不繞過課程 allowlist。
+  Channel 設定與 live delivery 屬獨立環境驗收邊界。
+end note
+
+@enduml

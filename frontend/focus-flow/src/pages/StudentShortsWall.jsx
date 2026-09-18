@@ -171,6 +171,32 @@ function VideoCard({ video, onClick }) {
   );
 }
 
+// 頻道連結放在上方標題列（由 DashboardApp 透過 Topbar actions 帶入），頁面內不再重複標題區
+export function ShortsChannelLink() {
+  return (
+    <a
+      href={CHANNEL_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="前往 YouTube 頻道"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        height: 36, padding: '0 14px', borderRadius: 50, boxSizing: 'border-box',
+        background: 'rgba(241,79,33,0.12)',
+        border: '1px solid rgba(255,255,255,0.7)',
+        color: '#fff', fontSize: 12.5, fontWeight: 600,
+        textDecoration: 'none',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.75 15.5v-7l6.25 3.5-6.25 3.5z"/>
+      </svg>
+      <span className="topbar-action-label">前往 YouTube 頻道 ↗</span>
+    </a>
+  );
+}
+
 export default function StudentShortsWall() {
   const [items, setItems] = useState([]);
   const [nextPageToken, setNextPageToken] = useState(null);

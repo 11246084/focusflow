@@ -1499,6 +1499,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 /* Mobile: hide sidebar, show bottom nav or collapse */
 @media (max-width: 768px) {
   .dashboard-shell { overflow-y: auto; height: auto; min-height: 100vh; }
+  .topbar-action-label { display: none; }
 
   .dashboard-inner {
     flex-direction: column;

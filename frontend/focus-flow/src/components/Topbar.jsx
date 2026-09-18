@@ -68,7 +68,7 @@ function DropdownPanel({ anchorRect, width, panelRef, children, centerOnMobile =
   );
 }
 
-export default function Topbar({ user: userProp, title, sub, onNav, onLogout }) {
+export default function Topbar({ user: userProp, title, sub, actions, onNav, onLogout }) {
   // The fallback retains compatibility for any isolated use of Topbar, while
   // DashboardApp supplies the reactive authenticated user during normal use.
   const user = userProp || getUser() || {};
@@ -379,6 +379,7 @@ export default function Topbar({ user: userProp, title, sub, onNav, onLogout }) 
         {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{sub}</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {actions}
         <div ref={bellRef} className="btn-icon" style={{ position: 'relative' }} onClick={toggleNotif}>
           <Ic n="bell" s={15} />
           {unreadCount > 0 && (

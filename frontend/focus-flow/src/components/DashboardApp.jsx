@@ -9,7 +9,7 @@ import { getStudentWelcomeSubtitle } from '../utils/userDisplay';
 import StudentDashboard  from '../pages/StudentDashboard';
 import StudentCourses    from '../pages/StudentCourses';
 import StudentLineBot    from '../pages/StudentLineBot';
-import StudentShortsWall from '../pages/StudentShortsWall';
+import StudentShortsWall, { ShortsChannelLink } from '../pages/StudentShortsWall';
 import TeacherDashboard    from '../pages/TeacherDashboard';
 import TeacherCourses      from '../pages/TeacherCourses';
 import TeacherUpload       from '../pages/TeacherUpload';
@@ -53,7 +53,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
       <div className="dashboard-inner">
         <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} />
         <div className="dashboard-main">
-          <Topbar user={currentUser} title={tb[0]} sub={subtitle} onNav={onNav} onLogout={onLogout} />
+          <Topbar user={currentUser} title={tb[0]} sub={subtitle} actions={role === 'student' && sub === 'shorts' ? <ShortsChannelLink /> : null} onNav={onNav} onLogout={onLogout} />
           <div className="dashboard-content">
             <DashboardRouter role={role} sub={sub} onNav={onNav} user={currentUser} onProfileUpdated={handleProfileUpdated} />
           </div>

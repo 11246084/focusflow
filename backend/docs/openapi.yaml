@@ -2060,6 +2060,48 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/system-status:
+    get:
+      tags:
+        - Admin
+      summary: 系統服務狀態
+      description: 僅限 admin。回傳管理員總覽「系統服務」區塊的資料：MongoDB 連線、AI 問答、LINE Bot、語音轉文字 Pipeline、YouTube 自動上傳。狀態依本程序的連線狀態、runtime 設定與最近一次呼叫結果判斷，不主動呼叫外部 API。
+      operationId: getAdminSystemStatus
+      responses:
+        '200':
+          description: 成功取得系統服務狀態
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          checkedAt:
+                            type: string
+                            format: date-time
+                          services:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                  enum: [database, qa, line, stt, youtube]
+                                name:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum: [ok, degraded, down, not_enabled, unknown]
+                                detail:
+                                  type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
   /api/v1/admin/users:
     get:
       tags:

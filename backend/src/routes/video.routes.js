@@ -12,7 +12,9 @@ const { USER_ROLES } = require('../constants/enums');
 
 const router = express.Router();
 
-router.use(authenticate);
+// 這個 router 掛在 /api/v1 根路徑，authenticate 只套在自己負責的前綴；
+// 若寫成 router.use(authenticate)，任何不存在的 API 路徑都會先被擋成 401 而不是 404。
+router.use(['/courses', '/videos', '/video-batches'], authenticate);
 
 router.post(
   '/courses/:courseId/videos/youtube',

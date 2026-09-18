@@ -16,6 +16,7 @@ router.get('/videos', adminController.listVideos);
 router.delete('/videos/:videoId', adminController.deleteVideo);
 router.get('/events', adminController.getRecentEvents);
 router.get('/event-stats', adminController.getEventStats);
+router.get('/system-status', adminController.getSystemStatus);
 router.post('/notifications', notificationController.broadcastSystemNotification);
 
 module.exports = router;

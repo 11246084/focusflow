@@ -10,8 +10,19 @@ import { apiFetch } from '../api';
 //   return `${Math.floor(diff / 86400)}d`;
 // }
 
+// 後端 /admin/system-status 的 status 值對應畫面顯示
+const SERVICE_STATUS = {
+  ok: { label: '正常', badge: 'bg', color: '#4ade80' },
+  degraded: { label: '降級', badge: 'by', color: '#facc15' },
+  down: { label: '異常', badge: 'br', color: '#f87171' },
+  not_enabled: { label: '未啟用', badge: 'bb', color: 'rgba(255,255,255,0.3)' },
+  unknown: { label: '未知', badge: 'bb', color: 'rgba(255,255,255,0.3)' },
+};
+
 export default function AdminOverview({ onNav }) {
   const [stats, setStats] = useState(null);
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [systemStatusError, setSystemStatusError] = useState(false);
   // const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +31,9 @@ export default function AdminOverview({ onNav }) {
       .then(s => setStats(s.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+    apiFetch('/admin/system-status')
+      .then(res => setSystemStatus(res.data))
+      .catch(() => setSystemStatusError(true));
     // Promise.all([
     //   apiFetch('/admin/stats'),
     //   apiFetch('/admin/events?limit=8'),
@@ -82,27 +96,41 @@ export default function AdminOverview({ onNav }) {
           </div>
         </div>
 
-        {/* System Health — static indicators (external services have no programmatic health check) */}
+        {/* System Health — 來自後端 /admin/system-status，依設定與執行狀態判斷，不主動呼叫外部 API */}
         <div className="card" style={{ padding: 22 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>系統服務</div>
-          {[
-            ['MongoDB Atlas', 'online'],
-            ['Whisper STT API', 'online'],
-            ['OpenAI Embedding', 'online'],
-            ['Line Messaging API', 'online'],
-            ['FFmpeg Worker', 'busy'],
-            ['S3 Storage', 'online'],
-          ].map(([svc, st]) => (
-            <div key={svc} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ color: st === 'online' ? '#4ade80' : '#facc15' }} className={st === 'busy' ? 'pls' : ''}>
-                  <Ic n="dot" s={8} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>系統服務</div>
+            {systemStatus?.checkedAt && (
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                檢查於 {new Date(systemStatus.checkedAt).toLocaleTimeString('zh-TW')}
+              </span>
+            )}
+          </div>
+          {systemStatusError && (
+            <div style={{ fontSize: 12, color: '#f87171' }}>無法取得服務狀態，請稍後重新整理。</div>
+          )}
+          {!systemStatusError && !systemStatus && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>讀取中...</div>
+          )}
+          {systemStatus?.services.map(({ key, name, status, detail }) => {
+            const st = SERVICE_STATUS[status] || SERVICE_STATUS.unknown;
+            return (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <div style={{ color: st.color, flexShrink: 0 }}>
+                    <Ic n="dot" s={8} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{name}</div>
+                    {detail && (
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2, overflowWrap: 'anywhere' }}>{detail}</div>
+                    )}
+                  </div>
                 </div>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{svc}</span>
+                <span className={`badge ${st.badge}`} style={{ flexShrink: 0 }}>{st.label}</span>
               </div>
-              <span className={`badge ${st === 'online' ? 'bg' : 'by'}`}>{st === 'online' ? '正常' : '忙碌'}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

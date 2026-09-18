@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const adminService = require('../services/admin.service');
+const systemStatusService = require('../services/systemStatus.service');
 
 const getStats = asyncHandler(async (req, res) => {
   const stats = await adminService.getStats();
@@ -41,4 +42,9 @@ const deleteVideo = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Video deleted.', data: result });
 });
 
-module.exports = { getStats, listUsers, updateUser, listVideos, getRecentEvents, getEventStats, deleteVideo };
+const getSystemStatus = asyncHandler(async (req, res) => {
+  const status = systemStatusService.getSystemStatus();
+  return sendSuccess(res, { data: status });
+});
+
+module.exports = { getStats, listUsers, updateUser, listVideos, getRecentEvents, getEventStats, deleteVideo, getSystemStatus };

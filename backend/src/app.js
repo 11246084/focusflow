@@ -7,6 +7,7 @@ const env = require('./config/env');            // 環境變數
 const { buildCorsOptions } = require('./config/cors'); // CORS 設定
 const healthRoutes = require('./routes/health.routes'); // 健康檢查路由
 const apiRoutes = require('./routes');          // API 路由聚合（來自 routes/index.js）
+const { securityHeaders } = require('./middleware/securityHeaders.middleware'); // 安全標頭
 const { notFoundHandler } = require('./middleware/notFound.middleware'); // 404 處理
 const { errorHandler } = require('./middleware/error.middleware');       // 錯誤處理
 const { sendSuccess } = require('./utils/apiResponse'); // 統一回應格式
@@ -18,6 +19,12 @@ const openApiYaml = readOpenApiYaml();         // 讀取 OpenAPI YAML 檔案
 const swaggerCustomCss = readSwaggerCustomCss(); // 讀取自訂 CSS
 
 // ========== 全域 Middleware =========-
+
+// 不對外透露 Express 版本資訊
+app.disable('x-powered-by');
+
+// 安全標頭：nosniff、禁止被嵌入 iframe、Referrer／Permissions Policy，/api 另加 CSP
+app.use(securityHeaders);
 
 // CORS：未設定 ALLOWED_ORIGINS 時維持開發期相容；正式部署可改為逗號分隔白名單
 app.use(cors(buildCorsOptions()));

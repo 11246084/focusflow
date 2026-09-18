@@ -158,14 +158,14 @@ export default function App() {
 
           {/* Step 2 stats — no card background, text directly on dark block */}
           <div className="block-2">
-            <div className="stat-label">回答附上</div>
-            <div className="stat-value">片段</div>
+            <div className="stat-label">問答準確率</div>
+            <div className="stat-value">98%</div>
           </div>
 
           {/* Step 3 stats — no card background */}
           <div className="block-3">
-            <div className="stat-label">點一下</div>
-            <div className="stat-value">跳轉</div>
+            <div className="stat-label">平均回應時間</div>
+            <div className="stat-value">&lt;&nbsp;3s</div>
           </div>
 
         </div>
@@ -221,8 +221,8 @@ export default function App() {
               <div className="feature-desc">自動建立知識索引</div>
             </div>
             <div className="feature-item">
-              <div className="feature-title">LINE 提問</div>
-              <div className="feature-desc">手機上也能找到重點片段</div>
+              <div className="feature-title">LINE 即時提問</div>
+              <div className="feature-desc">秒回重點片段</div>
             </div>
           </div>
 

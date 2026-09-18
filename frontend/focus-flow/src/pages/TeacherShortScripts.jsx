@@ -53,7 +53,7 @@ const GHOST_BTN = {
   border: '1px solid rgba(255,255,255,0.16)',
 };
 
-// apiFetch 在回應不是 JSON 時只給 'Request failed'（例如 nginx 回 502 的 HTML），
+// apiFetch 的訊息已轉成中文通用說明（例如 nginx 回 502 的 HTML 時），
 // 光看這句話無法分辨是權限、路由不存在還是後端掛了。把狀態碼與錯誤碼一起顯示。
 function describeError(error) {
   const parts = [error.status, error.code].filter(Boolean).join(' ');
@@ -472,7 +472,7 @@ export default function TeacherShortScripts() {
   if (featureDisabled) {
     return (
       <div className="fu scrl" style={PAGE_STYLE}>
-        <div style={{ ...HEADING, marginBottom: 18 }}>Short Video Scripts</div>
+        <div style={{ ...HEADING, marginBottom: 18 }}>短影片腳本</div>
         <div className="card" style={{ padding: 32, maxWidth: 620 }}>
           <div style={{ ...HEADING, fontSize: 14, marginBottom: 10 }}>此功能尚未啟用</div>
           <div style={BODY}>
@@ -499,7 +499,7 @@ export default function TeacherShortScripts() {
           flexWrap: 'wrap',
         }}
       >
-        <div style={HEADING}>Short Video Scripts</div>
+        <div style={HEADING}>短影片腳本</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             className="ff-input"
@@ -557,7 +557,7 @@ export default function TeacherShortScripts() {
         style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 20, alignItems: 'start' }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
-          <SectionCard title={`Scripts · ${scripts.length}`}>
+          <SectionCard title={`腳本 · ${scripts.length}`}>
             {!scripts.length ? (
               <EmptyRow>{loading ? '載入中…' : '尚未建立任何腳本'}</EmptyRow>
             ) : (
@@ -601,7 +601,7 @@ export default function TeacherShortScripts() {
           </SectionCard>
 
           <SectionCard
-            title="Topic Candidates"
+            title="候選主題"
             action={pickedTopicKey ? (
               <button
                 type="button"
@@ -1036,7 +1036,7 @@ export default function TeacherShortScripts() {
                       </div>
 
                       <div style={{ marginTop: 12 }}>
-                        <label className="ff-label">YOUTUBE 標題</label>
+                        <label className="ff-label">YouTube 標題</label>
                         <input
                           className="ff-input"
                           value={assetTitle}
@@ -1047,7 +1047,7 @@ export default function TeacherShortScripts() {
                         />
                       </div>
                       <div style={{ marginTop: 10 }}>
-                        <label className="ff-label">YOUTUBE 說明（選填）</label>
+                        <label className="ff-label">YouTube 說明（選填）</label>
                         <textarea
                           className="ff-input"
                           rows={2}

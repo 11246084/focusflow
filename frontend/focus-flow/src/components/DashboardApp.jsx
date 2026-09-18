@@ -41,7 +41,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
     setCurrentUser(updatedUser);
     setUser(updatedUser);
   }, []);
-  const tb = topbarMap[role]?.[sub] || ['Dashboard', ''];
+  const tb = topbarMap[role]?.[sub] || ['總覽', ''];
   // Personalize only the student home subtitle; all other pages keep the
   // role/navigation copy declared in navigationConfig.
   const subtitle = role === 'student' && sub === 'home'

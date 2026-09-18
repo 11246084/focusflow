@@ -34,4 +34,8 @@ router.post('/webhook', lineSignature, parseLineJsonBody, lineController.handleW
 // authenticate 確保只有登入用戶才能拿到 token
 router.post('/bind-token', authenticate, lineController.issueBindToken);
 
+// DELETE /api/v1/line/binding
+// 已登入使用者解除自己的 LINE 綁定
+router.delete('/binding', authenticate, lineController.unbindLine);
+
 module.exports = router;

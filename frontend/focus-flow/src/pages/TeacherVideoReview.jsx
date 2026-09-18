@@ -290,7 +290,7 @@ export default function TeacherVideoReview() {
 
               {showReasonPanel && reviewActionsEnabled && (
                 <div className="video-review-right card-sm video-review-card" style={{ padding: '16px 18px', width: '100%' }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 12 }}>REJECTION REASONS</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 12 }}>退回原因</div>
                   <div className="reject-reason-list">
                     {REJECTION_REASONS.map(({ code, label, placeholder, required }) => {
                       const { checked, note } = reasonState[code];

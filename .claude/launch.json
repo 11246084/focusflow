@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "frontend/focus-flow"],
       "port": 5173
+    },
+    {
+      "name": "backend-test-no-youtube",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "process.env.YOUTUBE_UPLOAD_ENABLED='false';process.env.YOUTUBE_PRIVATIZE_ON_DELETE='false';process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON=JSON.stringify({provider:'gemini',model:'gemini-embedding-2',dimension:3072,instructionVersion:'gemini_embedding_2_asymmetric_retrieval_v2',generationVersion:'text_search_generation_v2',normalizationVersion:'unit_l2_v1',contractVersion:'gemini_embedding_2_text_v2',schemaVersion:'gemini_embedding_2_text_v2',taskType:null});require('C:/Users/940/Documents/GitHub/focusflow/backend/src/server.js')"],
+      "port": 4000
     }
   ]
 }

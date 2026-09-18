@@ -38,7 +38,7 @@ export async function restoreAuthSession({
     if (!user || typeof user.role !== 'string') {
       return {
         status: AUTH_SESSION_STATUS.UNAVAILABLE,
-        error: new Error('Current user response is incomplete.'),
+        error: new Error('登入資料不完整，請重新整理或稍後再試。'),
       };
     }
 

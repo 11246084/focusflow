@@ -3,19 +3,20 @@ import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 
 const EVENT_BADGE = { ask: 'br', clip_view: 'by', watch: 'bg', video_open: 'bg', login: 'bb' };
+const EVENT_LABELS = { ask: '提問', clip_view: '短影音查看', watch: '看完影片', video_open: '點開影片', login: '登入' };
 
 function fmtDuration(sec) {
   if (!sec) return '—';
-  if (sec < 60) return `${sec}s`;
-  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+  if (sec < 60) return `${sec} 秒`;
+  return `${Math.floor(sec / 60)} 分 ${sec % 60} 秒`;
 }
 
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)} mins ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
-  return `${Math.floor(diff / 86400)} days ago`;
+  if (diff < 60) return `${diff} 秒前`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分鐘前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小時前`;
+  return `${Math.floor(diff / 86400)} 天前`;
 }
 
 export default function AdminStats() {
@@ -34,16 +35,16 @@ export default function AdminStats() {
   }, []);
 
   const statCards = [
-    { ev: 'LOGIN',     lz: '登入次數',  key: 'login',     col: '#a5b4fc', ic: 'home' },
+    { ev: '登入',     lz: '登入次數',  key: 'login',     col: '#a5b4fc', ic: 'home' },
     // 管理員看「點開次數」；學生進度仍以看到 80% 的 watch 事件計算。
-    { ev: 'WATCH',     lz: '影片點開次數',  key: 'video_open', col: '#4ade80', ic: 'play' },
-    { ev: 'ASK',       lz: '問答次數',  key: 'ask',       col: '#F14F21', ic: 'chat' },
-    { ev: 'CLIP VIEW', lz: '短影音查看', key: 'clip_view', col: '#fb923c', ic: 'film' },
+    { ev: '影片',     lz: '影片點開次數',  key: 'video_open', col: '#4ade80', ic: 'play' },
+    { ev: '提問',       lz: '問答次數',  key: 'ask',       col: '#F14F21', ic: 'chat' },
+    { ev: '短影音', lz: '短影音查看', key: 'clip_view', col: '#fb923c', ic: 'film' },
   ];
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Usage Statistics</div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 18 }}>使用統計</div>
 
       <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {statCards.map(s => (
@@ -63,7 +64,7 @@ export default function AdminStats() {
       </div>
 
       <div className="card" style={{ marginTop: 12, padding: 22 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14 }}>Event Log</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14 }}>事件紀錄</div>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13, padding: 20 }}>載入中...</div>
         ) : events.length === 0 ? (
@@ -72,12 +73,12 @@ export default function AdminStats() {
           <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
-              <tr><th>EVENT</th><th>USER</th><th>COURSE</th><th>DURATION</th><th>TIME</th></tr>
+              <tr><th>事件</th><th>使用者</th><th>課程</th><th>時長</th><th>時間</th></tr>
             </thead>
             <tbody>
               {events.map((r) => (
                 <tr key={r.id}>
-                  <td><span className={`badge ${EVENT_BADGE[r.event] || 'bb'}`}>{r.event}</span></td>
+                  <td><span className={`badge ${EVENT_BADGE[r.event] || 'bb'}`}>{EVENT_LABELS[r.event] || r.event}</span></td>
                   <td>{r.user}</td>
                   <td style={{ color: 'rgba(255,255,255,0.42)', fontSize: 12 }}>
                     <span style={{ color: r.courseDeleted ? 'rgba(255,255,255,0.3)' : 'inherit' }}>{r.course}</span>

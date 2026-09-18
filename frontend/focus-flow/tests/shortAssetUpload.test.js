@@ -66,7 +66,7 @@ describe('短影片成品上傳契約', () => {
     assert.ok(options.body.get('video'));
   });
 
-  it('保留後端的錯誤訊息與錯誤碼，供頁面分辨失敗原因', async () => {
+  it('錯誤訊息轉成中文，並保留後端原文與錯誤碼供頁面分辨失敗原因', async () => {
     globalThis.fetch = async () => response(
       {
         message: 'AI disclosure and written consent must be confirmed before uploading.',
@@ -80,7 +80,8 @@ describe('短影片成品上傳契約', () => {
 
     assert.equal(error.status, 400);
     assert.equal(error.code, 'SHORT_ASSET_DISCLOSURE_REQUIRED');
-    assert.match(error.message, /consent/);
+    assert.equal(error.message, '請先確認 AI 揭露標示與教師同意事項。');
+    assert.match(error.originalMessage, /consent/);
   });
 
   it('nginx 擋下超大檔案時給出可理解的原因，而不是 Request failed', async () => {

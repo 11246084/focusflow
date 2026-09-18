@@ -1,4 +1,4 @@
-import { getToken } from '../api.js';
+import { buildApiError, getToken } from '../api.js';
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
@@ -13,7 +13,7 @@ export async function uploadSingleCourseVideo({ courseId, file, title }) {
     body: formData,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || '上傳失敗');
+  if (!response.ok) throw buildApiError({ status: response.status, data });
   return data.data?.video || data.data || {};
 }
 
@@ -35,9 +35,7 @@ export async function uploadCourseVideos({ courseId, items, onItemChange }) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.error?.message || data.message || '批次上傳失敗');
-    error.code = data.error?.code;
-    throw error;
+    throw buildApiError({ status: response.status, data });
   }
 
   const batch = data.data?.batch;

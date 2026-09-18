@@ -29,33 +29,33 @@ export default function StudentDashboard({ onNav }) {
   useEffect(() => {
     apiFetch('/stats/student')
       .then((res) => setStats(res.data))
-      .catch((err) => setError(err.message || '載入 dashboard 失敗'))
+      .catch((err) => setError(err.message || '總覽資料載入失敗'))
       .finally(() => setLoading(false));
   }, []);
 
   const courses = stats?.courseList || [];
   const recentQueries = stats?.recentQueries || [];
   const cards = [
-    [stats?.weeklyQueries ?? '-', '本週提問次數', 'WEEKLY QUERIES', '最近 7 天 · 網頁 + LINE',
+    [stats?.weeklyQueries ?? '-', '本週提問次數', 'weekly', '最近 7 天 · 網頁 + LINE',
       '以「最近 7 天」滾動計算（不是從週一起算），來源包含網頁 AI 問答與 LINE Bot。'],
     // The backend now scopes course counts/progress to active enrollments; keep
     // the explanatory tooltip aligned with that authorization rule.
-    [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'AVG PROGRESS', `${stats?.coursesCount ?? 0} 門課程平均`,
+    [`${stats?.avgProgress ?? 0}%`, '平均完成進度', 'progress', `${stats?.coursesCount ?? 0} 門課程平均`,
       '目前已修課且已發布課程的觀看進度平均，尚未開始的課程以 0% 列入計算。'],
-    [stats?.totalQueries ?? '-', '累計提問次數', 'TOTAL QUERIES', '開始使用至今 · 網頁 + LINE',
+    [stats?.totalQueries ?? '-', '累計提問次數', 'total', '開始使用至今 · 網頁 + LINE',
       '從開始使用至今的所有提問（網頁 + LINE），所以會大於等於「本週提問次數」。'],
-    [`${stats?.answerRate ?? 0}%`, '回答命中率', 'ANSWER RATE', '成功回答 ÷ 累計提問',
+    [`${stats?.answerRate ?? 0}%`, '回答命中率', 'answerRate', '成功回答 ÷ 累計提問',
       '成功產生答案的提問數除以累計提問數。'],
   ];
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div className="ff-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 8 }}>
-        {cards.map(([value, label, title, sub, tooltip]) => (
-          <div key={title} className="stat-card" title={tooltip}>
-            <div className="stat-lbl">{title}</div>
+        {cards.map(([value, label, key, sub, tooltip]) => (
+          <div key={key} className="stat-card" title={tooltip}>
+            <div className="stat-lbl">{label}</div>
             <div className="stat-val">{loading ? '-' : value}</div>
-            <div className="stat-sub">{label} · {sub}</div>
+            <div className="stat-sub">{sub}</div>
           </div>
         ))}
       </div>
@@ -72,8 +72,8 @@ export default function StudentDashboard({ onNav }) {
       <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Course Progress</div>
-            <span onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', letterSpacing: '.04em' }}>VIEW ALL</span>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>課程進度</div>
+            <button type="button" onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', letterSpacing: '.04em', background: 'none', border: 0, padding: 0 }}>查看全部</button>
           </div>
 
           {loading ? (
@@ -100,7 +100,7 @@ export default function StudentDashboard({ onNav }) {
         </div>
 
         <div className="card" style={{ padding: 22 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Recent Queries</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>最近提問</div>
 
           {loading ? (
             <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>載入中...</div>
@@ -132,10 +132,10 @@ export default function StudentDashboard({ onNav }) {
           <Ic n="chat" s={22} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Line Bot 即時提問</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>LINE 提問</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', marginTop: 3 }}>輸入問題、搜尋課程內容，快速回到重點片段</div>
         </div>
-        <button onClick={() => onNav('linebot')} className="btn-primary" style={{ background: '#06C755', padding: '10px 22px', fontSize: 13, flexShrink: 0 }}>開啟 Line Bot</button>
+        <button onClick={() => onNav('linebot')} className="btn-primary" style={{ background: '#06C755', padding: '10px 22px', fontSize: 13, flexShrink: 0 }}>前往 LINE 提問</button>
       </div>
     </div>
   );

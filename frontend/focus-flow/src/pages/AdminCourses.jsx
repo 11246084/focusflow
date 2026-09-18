@@ -24,7 +24,7 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
 
   const save = async () => {
     if (!title.trim()) { setErr('課程名稱為必填'); return; }
-    if (!teacherId) { setErr('Please assign a teacher.'); return; }
+    if (!teacherId) { setErr('請指定授課教師。'); return; }
     setSaving(true); setErr('');
     try {
       let res;
@@ -75,9 +75,9 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
         <div style={{ marginBottom: 14 }}>
           <label style={label}>狀態</label>
           <select style={{ ...inp, cursor: 'pointer' }} value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="draft">草稿 draft</option>
-            <option value="published">已發布 published</option>
-            {isEdit && <option value="archived">封存 archived</option>}
+            <option value="draft">草稿</option>
+            <option value="published">已發布</option>
+            {isEdit && <option value="archived">封存</option>}
           </select>
         </div>
 
@@ -95,9 +95,9 @@ function CourseModal({ course, teachers, onClose, onSaved }) {
 
         {isEdit && (
           <div style={{ marginBottom: 22 }}>
-            <label style={label}>TEACHER *</label>
+            <label style={label}>授課教師 *</label>
             <select style={{ ...inp, cursor: 'pointer' }} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
-              <option value="">Select teacher</option>
+              <option value="">選擇教師</option>
               {teachers.map(t => (
                 <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
               ))}
@@ -196,7 +196,7 @@ export default function AdminCourses() {
       {managingEnrollments && <EnrollmentManagerModal course={managingEnrollments} onClose={() => setManagingEnrollments(null)} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>Course Management</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>課程列表</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn-primary" onClick={() => setTick(t => t + 1)} style={{ padding: '9px 16px', fontSize: 12, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}>
             <Ic n="sync" s={13} />重新整理
@@ -216,7 +216,7 @@ export default function AdminCourses() {
           <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
-              <tr><th>TITLE</th><th>TEACHER</th><th>STATUS</th><th>VIDEOS</th><th>CREATED</th><th></th></tr>
+              <tr><th>課程名稱</th><th>授課教師</th><th>狀態</th><th>影片數</th><th>建立日期</th><th></th></tr>
             </thead>
             <tbody>
               {courses.map((c) => {

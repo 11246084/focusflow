@@ -126,7 +126,7 @@ function CreateCourseModal({ onClose, onCreated }) {
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label="關閉"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1 }}
           >
             x
@@ -151,8 +151,8 @@ function CreateCourseModal({ onClose, onCreated }) {
         <div style={{ marginBottom: 18 }}>
           <label style={label}>狀態</label>
           <select style={{ ...input, cursor: 'pointer' }} value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="draft">草稿 draft</option>
-            <option value="published">已發布 published</option>
+            <option value="draft">草稿</option>
+            <option value="published">已發布</option>
           </select>
         </div>
 
@@ -207,7 +207,7 @@ function AttachVideoModal({ course, candidates, onClose, onAttached }) {
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label="關閉"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1 }}
           >
             x
@@ -519,7 +519,7 @@ export default function TeacherCourses() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>Course Management</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>課程列表</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             className="btn-primary"
@@ -559,10 +559,10 @@ export default function TeacherCourses() {
                 textTransform: 'uppercase',
               }}
             >
-              <div>Title</div>
-              <div>Status</div>
-              <div>Videos</div>
-              <div>Created</div>
+              <div>課程名稱</div>
+              <div>狀態</div>
+              <div>影片數</div>
+              <div>建立日期</div>
               <div />
             </div>
 
@@ -672,9 +672,9 @@ export default function TeacherCourses() {
                             letterSpacing: '.08em',
                             textTransform: 'uppercase',
                           }}>
-                            <div>Filename</div>
-                            <div>Status</div>
-                            <div>Date</div>
+                            <div>影片名稱</div>
+                            <div>狀態</div>
+                            <div>日期</div>
                             <div />
                           </div>
                           {videos.map((video) => {

@@ -221,6 +221,41 @@ describe('notification routes', () => {
     assert.equal(result.body.data.unreadCount, 2);
   });
 
+  it('通知列表標示影片是否仍存在，已刪除影片回 videoAvailable=false', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const liveVideoId = store.videos[0]._id;
+    const deletedVideoId = newObjectId();
+    addNotification({ title: '現存影片', videoId: liveVideoId, createdAt: '2026-07-24T10:02:00.000Z' });
+    addNotification({ title: '已刪除影片', videoId: deletedVideoId, createdAt: '2026-07-24T10:01:00.000Z' });
+    addNotification({ title: '系統公告', createdAt: '2026-07-24T10:00:00.000Z' });
+
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/notifications', { token });
+
+    assert.equal(result.status, 200);
+    const byTitle = Object.fromEntries(
+      result.body.data.notifications.map((notification) => [notification.title, notification]),
+    );
+    assert.equal(byTitle['現存影片'].videoAvailable, true);
+    assert.equal(byTitle['已刪除影片'].videoAvailable, false);
+    assert.equal(byTitle['系統公告'].videoAvailable, null);
+  });
+
+  it('刪除影片時一併移除該影片的通知', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    addNotification({ title: '影片處理完成', videoId: ids.publishedVideo });
+    addNotification({ title: '其他通知' });
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token: teacherToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(store.notifications.some((item) => String(item.videoId) === ids.publishedVideo), false);
+    assert.equal(store.notifications.some((item) => item.title === '其他通知'), true);
+  });
+
   it('非法 cursor 回傳 400', async () => {
     const token = await loginAs(
       serverContext.baseUrl,

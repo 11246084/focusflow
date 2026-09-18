@@ -8,10 +8,13 @@ import {
   requireAdminSession,
   restoreAuthSession,
 } from './authSession';
+import { readRoute, resolveSubForRole, useUrlRoute } from './utils/pageRouting';
 
 export default function AdminApp() {
   const [page, setPage] = useState('admin-login');
-  const [sub, setSub]   = useState('home');
+  const [route, navigate] = useUrlRoute('/admin');
+  const sub = resolveSubForRole('admin', route.sub);
+  const setSub = useCallback((nextSub) => navigate('app', nextSub), [navigate]);
   const [error, setError] = useState('');
   const [authInitializing, setAuthInitializing] = useState(true);
   const [authRestoreError, setAuthRestoreError] = useState(null);
@@ -22,7 +25,7 @@ export default function AdminApp() {
     setAuthRestoreError(null);
 
     if (session.status === AUTH_SESSION_STATUS.AUTHENTICATED) {
-      setSub('home');
+      navigate('app', resolveSubForRole('admin', readRoute('/admin').sub), { replace: true });
       setPage('admin-app');
     } else if (session.status === AUTH_SESSION_STATUS.FORBIDDEN) {
       setError('此入口僅供管理員使用');
@@ -37,7 +40,7 @@ export default function AdminApp() {
     }
 
     setAuthInitializing(false);
-  }, []);
+  }, [navigate]);
 
   const retrySessionRestore = () => {
     setAuthInitializing(true);
@@ -58,7 +61,7 @@ export default function AdminApp() {
       return;
     }
     setError('');
-    setSub('home');
+    navigate('app', 'home');
     setPage('admin-app');
   };
 
@@ -66,6 +69,7 @@ export default function AdminApp() {
     clearToken();
     clearUser();
     setError('');
+    navigate('login');
     setPage('admin-login');
   };
 

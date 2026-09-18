@@ -59,7 +59,7 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
 
           {/* Brand copy */}
           <div className="login-brand-body">
-            <div className="login-brand-eyebrow">Admin Console</div>
+            <div className="login-brand-eyebrow">系統管理後台</div>
             <h2 className="login-brand-title">
               管理員<br />
               <span style={{ color: '#F14F21' }}>後台入口</span>
@@ -89,7 +89,7 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
             {/* Form fields */}
             <div className="login-fields">
               <div>
-                <label className="ff-label">EMAIL ADDRESS</label>
+                <label className="ff-label">Email</label>
                 <input
                   className="ff-input"
                   type="email"
@@ -100,7 +100,7 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
               </div>
               <div>
                 <div className="login-pw-header">
-                  <label className="ff-label" style={{ marginBottom: 0 }}>PASSWORD</label>
+                  <label className="ff-label" style={{ marginBottom: 0 }}>密碼</label>
                 </div>
                 <input
                   className="ff-input"

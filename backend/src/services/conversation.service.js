@@ -45,7 +45,7 @@ async function createConversation({ user, courseId, title = '' }) {
   const conversation = await Conversation.create({
     userId: user.id,
     courseId: course._id,
-    title: String(title || '').trim() || 'New conversation',
+    title: String(title || '').trim() || Conversation.DEFAULT_CONVERSATION_TITLE,
   });
   return {
     id: String(conversation._id),
@@ -141,7 +141,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
     await Conversation.findByIdAndUpdate(conversation._id, {
       $set: {
         updatedAt: new Date(),
-        ...(conversation.title === 'New conversation'
+        ...(Conversation.isDefaultConversationTitle(conversation.title)
           ? { title: String(userMessage.content).slice(0, 120) }
           : {}),
       },

@@ -279,9 +279,21 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
             <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
-            {loadingUrl ? 'Building QR code' : 'Scan and send LINE message'}<br />
+            {loadingUrl ? '產生 QR code 中…' : '用手機 LINE 掃描後送出訊息'}<br />
             <span style={{ color: '#F14F21' }}>{courseName}</span>
           </div>
+          {/* 手機上無法用同一支手機掃 QR code，直接開啟 LINE 並帶入訊息 */}
+          {url && !loadingUrl && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+              style={{ background: '#06C755', padding: '8px 16px', fontSize: 12, textDecoration: 'none', color: '#fff' }}
+            >
+              在手機上開啟 LINE
+            </a>
+          )}
         </div>
       )}
     </>
@@ -393,9 +405,32 @@ function AnswerContent({ answer }) {
   );
 }
 
+// 2026-09-18 前建立的對話預設標題是英文。
+function displayConversationTitle(title) {
+  return !title || title === 'New conversation' ? '新對話' : title;
+}
+
+function isDefaultConversationTitle(title) {
+  return !title || title === '新對話' || title === 'New conversation';
+}
+
+// AI 回答通常要 10～20 秒，等待期間在對話尾端顯示明確的進度，避免看起來像當掉。
+function PendingAnswer() {
+  return (
+    <div className="qa-pending-answer" role="status" style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span className="qa-pending-dots" aria-hidden="true"><span /><span /><span /></span>
+      <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+        AI 正在搜尋課程片段並整理答案，通常需要 10～20 秒，請稍候…
+      </span>
+    </div>
+  );
+}
+
 function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [retryingMessageId, setRetryingMessageId] = useState(null);
+  const [awaitingAnswer, setAwaitingAnswer] = useState(false);
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError]       = useState('');
@@ -422,6 +457,12 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
     if (messages.length === 0) return;
     scrollConversationMessageIntoView(messageListRef.current, latestMessageRef.current);
   }, [messages]);
+
+  // 送出新問題後把等待提示捲進畫面。
+  useEffect(() => {
+    if (!awaitingAnswer || !messageListRef.current) return;
+    messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+  }, [awaitingAnswer]);
 
   async function createNewConversation() {
     setError('');
@@ -451,10 +492,12 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
     }
   }
 
-  async function ask() {
-    if (!question.trim()) return;
+  async function ask(event) {
+    event?.preventDefault();
+    if (loading || !question.trim()) return;
     const currentQuestion = question.trim();
     setLoading(true); setError('');
+    setAwaitingAnswer(true);
     const temporaryId = `pending-${Date.now()}`;
     setMessages((items) => [...items, {
       id: temporaryId, role: 'user', content: currentQuestion, status: 'completed',
@@ -477,18 +520,20 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
       ]);
       setConversations((items) => items.map((item) => (
         item.id === activeConversationId
-          ? { ...item, title: item.title === 'New conversation' ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() }
+          ? { ...item, title: isDefaultConversationTitle(item.title) ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() }
           : item
       )).sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
     } catch (e) {
       setError(e.message || '問答失敗');
     } finally {
       setLoading(false);
+      setAwaitingAnswer(false);
     }
   }
 
   async function retryAnswer(message) {
     setLoading(true); setError('');
+    setRetryingMessageId(message.id);
     try {
       const response = await apiFetch(
         `/conversations/${conversationId}/messages/${message.replyToMessageId}/retry`,
@@ -501,6 +546,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
       setError(e.message || '重新產生失敗');
     } finally {
       setLoading(false);
+      setRetryingMessageId(null);
     }
   }
 
@@ -530,16 +576,19 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>載入中…</div>
           ) : conversations.slice(0, 5).map((conversation) => (
             <button key={conversation.id} type="button" onClick={() => resumeConversation(conversation.id)} disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 4px', border: 0, background: conversationId === conversation.id ? 'rgba(241,79,33,0.09)' : 'transparent', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{conversation.title}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{displayConversationTitle(conversation.title)}</span>
               <span style={{ flexShrink: 0, color: 'rgba(255,255,255,0.32)', fontSize: 10 }}>{formatConversationDate(conversation.updatedAt || conversation.createdAt)}</span>
             </button>
           ))}
         </div>
       )}
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
-        {loading && <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.48)' }}>正在搜尋並整理課程內容...</div>}
         {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
-        {messages.map((message, messageIndex) => message.role === 'user' ? (
+        {messages.map((message, messageIndex) => message.id && message.id === retryingMessageId ? (
+          <div key={message.id} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined}>
+            <PendingAnswer />
+          </div>
+        ) : message.role === 'user' ? (
         <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
           {message.content}
         </div>
@@ -629,23 +678,30 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
           )}
         </div>
         ); })())}
+        {awaitingAnswer && <PendingAnswer />}
       </div>
       <div className="qa-input-area">
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* 用 form 送出：按 Enter 即送出，而且中文輸入法選字時按的 Enter 不會誤送 */}
+        <form onSubmit={ask} style={{ display: 'flex', gap: 8 }}>
           <input
             className="ff-input"
             style={{ flex: 1, margin: 0, minWidth: 0 }}
-            placeholder="輸入問題…"
+            placeholder="輸入問題，按 Enter 送出…"
             aria-label="輸入課程問題"
             value={question}
             onChange={e => setQuestion(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && ask()}
-            disabled={loading}
+            onKeyDown={(e) => {
+              // 中文輸入法選字時的 Enter（isComposing / keyCode 229）只是確認文字，不送出。
+              if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.keyCode === 229) return;
+              ask(e);
+            }}
+            enterKeyHint="send"
+            readOnly={loading}
           />
-          <button className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} onClick={ask} disabled={loading || !question.trim()}>
-            {loading ? '處理中…' : '問'}
+          <button type="submit" className="btn-primary" style={{ padding: '10px 18px', flexShrink: 0 }} disabled={loading || !question.trim()}>
+            {loading ? '回答中…' : '送出'}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -682,8 +738,22 @@ export default function StudentCourses() {
   const [vLoading, setVLoading]         = useState(false);
   const [playingVid, setPlayingVid]     = useState(null);
   const [seekRequest, setSeekRequest]   = useState(null);
+  const [progressByCourse, setProgressByCourse] = useState({});
   const videoRef = useRef(null);
+  const playerContainerRef = useRef(null);
   const watchedMarkedRef = useRef(new Set());
+
+  // 手機或窄螢幕上影片清單與問答在播放器下方，點選後把播放器捲回畫面，
+  // 否則看不到影片已經切換。播放器已完整在畫面內時不捲動。
+  function revealPlayer() {
+    requestAnimationFrame(() => {
+      const element = playerContainerRef.current;
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!fullyVisible) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 
   async function markWatched(courseId, videoId) {
     if (!courseId || !videoId) return;
@@ -707,6 +777,7 @@ export default function StudentCourses() {
   function openVideo(index) {
     if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
     setPlayingVid(index);
+    revealPlayer();
   }
 
   useEffect(() => {
@@ -714,6 +785,13 @@ export default function StudentCourses() {
       .then(r => { setCourses(r.data?.courses || []); })
       .catch(() => {})
       .finally(() => setLoading(false));
+    // 課程列表顯示觀看進度；取不到時只是不顯示進度，不影響進入課程。
+    apiFetch('/stats/student')
+      .then((r) => {
+        const entries = (r.data?.courseList || []).map((course) => [String(course.id), course]);
+        setProgressByCourse(Object.fromEntries(entries));
+      })
+      .catch(() => {});
   }, []);
 
   async function openCourse(course) {
@@ -763,7 +841,7 @@ export default function StudentCourses() {
         <div className="course-detail-grid">
           {/* Left: video player + QA */}
           <div>
-            <div style={{ borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '16/9', position: 'relative' }}>
+            <div ref={playerContainerRef} style={{ borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '16/9', position: 'relative', scrollMarginTop: 12 }}>
               {youtubeId ? (
                 <YouTubePlayer
                   key={youtubeId}
@@ -789,7 +867,7 @@ export default function StudentCourses() {
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'rgba(255,255,255,0.3)' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <div style={{ fontSize: 13 }}>選擇右側影片開始播放</div>
+                  <div style={{ fontSize: 13 }}>從影片清單選擇影片開始播放</div>
                 </div>
               )}
             </div>
@@ -806,7 +884,7 @@ export default function StudentCourses() {
 
           {/* Right: video list */}
           <div>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '.08em', marginBottom: 12 }}>LECTURES</div>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '.08em', marginBottom: 12 }}>影片清單</div>
             {vLoading ? (
               <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>載入中…</div>
             ) : videos.length === 0 ? (
@@ -839,7 +917,7 @@ export default function StudentCourses() {
   // Course list view
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>My Courses</div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>已修課程</div>
       {loading ? (
         <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>載入中…</div>
       ) : courses.length === 0 ? (
@@ -859,7 +937,19 @@ export default function StudentCourses() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }} onClick={() => openCourse(c)}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{c.title}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>{c.description || '點擊進入課程'}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>
+                    {c.description || `${progressByCourse[String(c._id)]?.videoCount ?? c.videoCount ?? 0} 部影片`}
+                  </div>
+                  {progressByCourse[String(c._id)] && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, maxWidth: 320 }}>
+                      <div className="prog-track" style={{ flex: 1 }}>
+                        <div className="prog-fill" style={{ width: `${progressByCourse[String(c._id)].progress}%`, background: col }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: col, fontWeight: 700, flexShrink: 0 }}>
+                        已看 {progressByCourse[String(c._id)].progress}%
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="course-row-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   <AskTAButton courseId={c._id} courseName={c.title} variant="list" />

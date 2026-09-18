@@ -6,6 +6,7 @@ const Enrollment = require('../models/enrollment.model');
 const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const LineBindToken = require('../models/lineBindToken.model');
+const AppError = require('../utils/appError');
 const { askQuestion } = require('./qa.service');
 const { contextualizeQuestion } = require('./contextualQuestion.service');
 const { recordUsage } = require('./usageLog.service');
@@ -155,6 +156,27 @@ async function generateBindToken(userId) {
 
   await LineBindToken.create({ token, userId, expiresAt });
   return token;
+}
+
+// 使用者從網站解除 LINE 綁定：清掉 lineUserId 與 LINE 專用的對話狀態，
+// 之後可以重新取得綁定碼綁到另一個 LINE 帳號。
+async function unbindLineUser(userId) {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+  }
+
+  const wasBound = Boolean(user.lineUserId);
+  await User.findByIdAndUpdate(userId, {
+    $unset: { lineUserId: '', activeCourseId: '' },
+    $set: {
+      lineBindAt: null,
+      lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+      lineConversationHistory: [],
+    },
+  });
+
+  return { unbound: wasBound };
 }
 
 async function bindLineUserWithToken(lineUserId, token) {
@@ -853,6 +875,7 @@ async function processWebhookEvents(events) {
 
 module.exports = {
   generateBindToken,
+  unbindLineUser,
   processWebhookEvents,
   buildQuestionSummaryLines,
   mapLineHistoryForContextualizer,

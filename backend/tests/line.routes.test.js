@@ -857,6 +857,38 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[0].replySkipped, true);
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
   });
+
+  it('已綁定學生可從網站解除 LINE 綁定並清除 LINE 對話狀態', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineUserId = 'line-student-to-unbind';
+    student.lineBindAt = new Date();
+    student.activeCourseId = ids.course;
+    student.lineConversationState = 'awaiting_course_selection';
+    student.lineConversationHistory = [{ role: 'user', content: '舊問題' }];
+
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/line/binding', {
+      method: 'DELETE',
+      token: studentToken,
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.unbound, true);
+    assert.equal(student.lineUserId, undefined);
+    assert.equal(student.activeCourseId, undefined);
+    assert.equal(student.lineBindAt, null);
+    assert.equal(student.lineConversationState, 'idle');
+    assert.deepEqual(student.lineConversationHistory, []);
+  });
+
+  it('未登入時不可解除 LINE 綁定', async () => {
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/line/binding', {
+      method: 'DELETE',
+    });
+
+    assert.equal(result.status, 401);
+    assert.equal(result.body.error.code, 'UNAUTHORIZED');
+  });
 });
 
 describe('line question summary lines', () => {

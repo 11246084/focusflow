@@ -59,7 +59,7 @@ export default function AdminVideos() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>Video Library</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>影片列表</div>
         <button className="btn-primary" onClick={load} style={{ padding: '9px 20px', fontSize: 12 }}><Ic n="sync" s={13} />重新整理</button>
       </div>
 
@@ -72,7 +72,7 @@ export default function AdminVideos() {
           <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
-              <tr><th>FILENAME</th><th>COURSE</th><th>TEACHER</th><th>STATUS</th><th>SEGMENTS</th><th>CREATED</th><th></th></tr>
+              <tr><th>影片名稱</th><th>課程</th><th>教師</th><th>狀態</th><th>片段數</th><th>建立日期</th><th></th></tr>
             </thead>
             <tbody>
               {videos.map((v) => (

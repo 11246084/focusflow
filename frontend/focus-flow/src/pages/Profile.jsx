@@ -9,7 +9,7 @@ import {
 } from '../api';
 import { applyProfileUserUpdate } from '../utils/profileUser';
 
-const ROLE_LABELS = { student: '學生 · Student', teacher: '教師 · Teacher', admin: '管理員 · Admin' };
+const ROLE_LABELS = { student: '學生', teacher: '教師', admin: '管理員' };
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // Avatars are stored in MongoDB, so shrink to a small square before upload (backend cap is 1 MiB).

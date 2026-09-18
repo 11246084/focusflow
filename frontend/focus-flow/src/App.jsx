@@ -7,6 +7,7 @@ import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
 import { clearToken, clearUser } from './api';
 import { AUTH_SESSION_STATUS, restoreAuthSession } from './authSession';
+import { readRoute, resolveSubForRole, useUrlRoute } from './utils/pageRouting';
 
 function Cursor() {
   const ref = useRef(null);
@@ -24,31 +25,47 @@ function Cursor() {
 }
 
 export default function App() {
-  const [page, setPage] = useState('landing');
+  const [route, navigate] = useUrlRoute('');
   const [role, setRole] = useState('student');
-  const [sub,  setSub]  = useState('home');
+  const [authenticated, setAuthenticated] = useState(false);
   const [authInitializing, setAuthInitializing] = useState(true);
   const [authRestoreError, setAuthRestoreError] = useState(null);
+  const { page } = route;
+  const sub = resolveSubForRole(role, route.sub);
 
   const restoreSession = useCallback(async (isActive = () => true) => {
     const session = await restoreAuthSession();
     if (!isActive()) return;
     setAuthRestoreError(null);
+    // 以開啟網頁當下的網址決定要回到哪一頁（重新整理時停在原頁）。
+    const initial = readRoute('');
 
     if (session.status === AUTH_SESSION_STATUS.AUTHENTICATED) {
       setRole(session.user.role);
-      setSub('home');
-      setPage('app');
+      setAuthenticated(true);
+      navigate('app', resolveSubForRole(session.user.role, initial.sub), { replace: true });
     } else if (session.status === AUTH_SESSION_STATUS.INVALID) {
-      setPage('login');
+      navigate('login', null, { replace: true });
     } else if (session.status === AUTH_SESSION_STATUS.ANONYMOUS) {
-      setPage('landing');
+      // 未登入時進 /app/... 一律導到登入頁；首頁、登入、註冊維持原樣。
+      navigate(initial.page === 'app' ? 'login' : initial.page, null, { replace: true });
     } else {
       setAuthRestoreError(session.error || new Error('無法驗證登入狀態。'));
     }
 
     setAuthInitializing(false);
-  }, []);
+  }, [navigate]);
+
+  // 已登入時按「上一頁」回到登入頁或首頁，直接導回系統內；
+  // 未登入時停在 /app/... 則導回登入頁。
+  useEffect(() => {
+    if (authInitializing) return;
+    if (authenticated && page !== 'app') navigate('app', 'home', { replace: true });
+    if (!authenticated && page === 'app') navigate('login', null, { replace: true });
+  }, [authenticated, authInitializing, navigate, page]);
+
+  const setPage = useCallback((nextPage) => navigate(nextPage), [navigate]);
+  const setSub = useCallback((nextSub) => navigate('app', nextSub), [navigate]);
 
   const retrySessionRestore = () => {
     setAuthInitializing(true);
@@ -61,8 +78,8 @@ export default function App() {
     return () => { active = false; };
   }, [restoreSession]);
 
-  const handleLogin = (r) => { setRole(r); setSub('home'); setPage('app'); };
-  const handleLogout = () => { clearToken(); clearUser(); setPage('login'); };
+  const handleLogin = (r) => { setRole(r); setAuthenticated(true); navigate('app', 'home'); };
+  const handleLogout = () => { clearToken(); clearUser(); setAuthenticated(false); navigate('login'); };
 
   if (authInitializing) {
     return <AuthInitializing />;
@@ -141,14 +158,14 @@ export default function App() {
 
           {/* Step 2 stats — no card background, text directly on dark block */}
           <div className="block-2">
-            <div className="stat-label">問答準確率</div>
-            <div className="stat-value">98%</div>
+            <div className="stat-label">回答附上</div>
+            <div className="stat-value">片段</div>
           </div>
 
           {/* Step 3 stats — no card background */}
           <div className="block-3">
-            <div className="stat-label">平均回應時間</div>
-            <div className="stat-value">&lt;&nbsp;3s</div>
+            <div className="stat-label">點一下</div>
+            <div className="stat-value">跳轉</div>
           </div>
 
         </div>
@@ -204,8 +221,8 @@ export default function App() {
               <div className="feature-desc">自動建立知識索引</div>
             </div>
             <div className="feature-item">
-              <div className="feature-title">Line BOT 即時提問</div>
-              <div className="feature-desc">秒回重點片段</div>
+              <div className="feature-title">LINE 提問</div>
+              <div className="feature-desc">手機上也能找到重點片段</div>
             </div>
           </div>
 

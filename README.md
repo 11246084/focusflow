@@ -183,7 +183,7 @@ python src/main.py --overwrite
 | Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`、`GET/POST /api/v1/courses/:courseId/enrollments`、`DELETE /api/v1/courses/:courseId/enrollments/:studentId` |
 | Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`POST /api/v1/videos/:videoId/youtube-upload/retry`、`POST/GET /api/v1/courses/:courseId/video-batches`、`GET /api/v1/video-batches/:batchId`、`POST /api/v1/video-batches/:batchId/retry` |
 | QA | `POST /api/v1/qa/ask`、`GET/DELETE /api/v1/courses/:courseId/faqs`（常見問題／FAQ 快取） |
-| LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token` |
+| LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token`、`DELETE /api/v1/line/binding` |
 | Stats | `GET /api/v1/stats/teacher`、`GET /api/v1/stats/student` |
 | Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats`、`POST /api/v1/admin/notifications` |
 | Internal Pipeline | `POST /api/v1/internal/videos/:videoId/processing/start`、`complete`、`fail` |

@@ -43,28 +43,28 @@ function EditModal({ user, onClose, onSaved }) {
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={label}>EMAIL（唯讀）</label>
+          <label style={label}>Email（不可修改）</label>
           <div style={{ ...inp, color: 'rgba(255,255,255,0.35)' }}>{user.email}</div>
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={label}>NAME</label>
+          <label style={label}>姓名</label>
           <input style={inp} value={name} onChange={e => setName(e.target.value)} />
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={label}>ROLE</label>
+          <label style={label}>身分</label>
           <select style={sel} value={role} onChange={e => setRole(e.target.value)}>
-            <option value="student">學生 student</option>
-            <option value="teacher">教師 teacher</option>
-            <option value="admin">管理員 admin</option>
+            <option value="student">學生</option>
+            <option value="teacher">教師</option>
+            <option value="admin">管理員</option>
           </select>
         </div>
 
         <div style={{ marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
           <label style={{ ...label, marginBottom: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} style={{ accentColor: '#4ade80', width: 15, height: 15 }} />
-            <span>帳號啟用（isActive）</span>
+            <span>帳號啟用</span>
           </label>
         </div>
 
@@ -108,7 +108,7 @@ export default function AdminUsers() {
       {editing && <EditModal user={editing} onClose={() => setEditing(null)} onSaved={onSaved} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>User Management</div>
+        <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' }}>使用者列表</div>
         <button className="btn-primary" onClick={load} style={{ padding: '9px 20px', fontSize: 12 }}><Ic n="sync" s={13} />重新整理</button>
       </div>
 
@@ -119,7 +119,7 @@ export default function AdminUsers() {
           <div className="ff-tbl-wrap">
           <table className="ff-tbl">
             <thead>
-              <tr><th>USER</th><th>EMAIL</th><th>ROLE</th><th>COURSES</th><th>QUERIES</th><th>STATUS</th><th>JOINED</th><th></th></tr>
+              <tr><th>使用者</th><th>Email</th><th>身分</th><th>課程數</th><th>提問數</th><th>狀態</th><th>加入日期</th><th></th></tr>
             </thead>
             <tbody>
               {users.map((u) => {

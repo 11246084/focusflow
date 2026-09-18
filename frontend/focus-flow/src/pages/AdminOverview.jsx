@@ -44,15 +44,15 @@ export default function AdminOverview({ onNav }) {
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div className="ff-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
         {[
-          [String(s.totalUsers ?? '—'), '用戶總數', 'TOTAL USERS', `${s.studentCount ?? 0} students, ${s.teacherCount ?? 0} teachers, ${s.adminCount ?? 0} admins`],
-          [String(s.totalVideos ?? '—'), '影片總量', 'TOTAL VIDEOS', 'all courses'],
-          [String(s.totalSegments ?? '—'), '索引片段', 'SEGMENTS', 'vector search ready'],
-          [String(s.totalQueries ?? '—'), '系統提問', 'TOTAL QUERIES', 'all time'],
-        ].map(([v, lz, le, sub]) => (
-          <div key={le} className="stat-card">
-            <div className="stat-lbl">{le}</div>
+          [String(s.totalUsers ?? '—'), '使用者總數', 'users', `學生 ${s.studentCount ?? 0}・教師 ${s.teacherCount ?? 0}・管理員 ${s.adminCount ?? 0}`],
+          [String(s.totalVideos ?? '—'), '影片總數', 'videos', '所有課程'],
+          [String(s.totalSegments ?? '—'), '索引片段', 'segments', '可供 AI 搜尋'],
+          [String(s.totalQueries ?? '—'), '提問總數', 'queries', '累計'],
+        ].map(([v, lz, key, sub]) => (
+          <div key={key} className="stat-card">
+            <div className="stat-lbl">{lz}</div>
             <div className="stat-val">{v}</div>
-            <div className="stat-sub">{lz} · {sub}</div>
+            <div className="stat-sub">{sub}</div>
           </div>
         ))}
       </div>
@@ -61,10 +61,10 @@ export default function AdminOverview({ onNav }) {
         {/* User Distribution */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>User Distribution</div>
-            <span onClick={() => onNav('users')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer' }}>MANAGE →</span>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>使用者分布</div>
+            <button type="button" onClick={() => onNav('users')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', background: 'none', border: 0, padding: 0 }}>管理 →</button>
           </div>
-          {[['學生 Student', s.studentCount ?? 0, '#a5b4fc'], ['教師 Teacher', s.teacherCount ?? 0, '#4ade80'], ['管理員 Admin', s.adminCount ?? 0, '#F14F21']].map(([label, count, col]) => (
+          {[['學生', s.studentCount ?? 0, '#a5b4fc'], ['教師', s.teacherCount ?? 0, '#4ade80'], ['管理員', s.adminCount ?? 0, '#F14F21']].map(([label, count, col]) => (
             <div key={label} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{label}</span>
@@ -74,7 +74,7 @@ export default function AdminOverview({ onNav }) {
             </div>
           ))}
           <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>LINE BOT BINDING RATE</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>LINE 綁定率</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="prog-track" style={{ flex: 1, marginRight: 10 }}><div className="prog-fill" style={{ width: `${s.lineBindRate ?? 0}%`, background: '#4ade80' }} /></div>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', fontFamily: "'Space Grotesk',sans-serif" }}>{s.lineBindRate ?? 0}%</span>
@@ -84,7 +84,7 @@ export default function AdminOverview({ onNav }) {
 
         {/* System Health — static indicators (external services have no programmatic health check) */}
         <div className="card" style={{ padding: 22 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>System Health</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>系統服務</div>
           {[
             ['MongoDB Atlas', 'online'],
             ['Whisper STT API', 'online'],

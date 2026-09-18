@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { apiFetch, setToken, setUser } from '../api';
 
 export default function RegisterPage({ onRegistered, onBack }) {
-  const [role, setRole] = useState('student');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -22,7 +21,8 @@ export default function RegisterPage({ onRegistered, onBack }) {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), password: pw, role }),
+        // 只開放學生自行註冊；教師帳號由管理員建立。
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password: pw, role: 'student' }),
       });
       setToken(res.data.token);
       setUser(res.data.user);
@@ -45,14 +45,14 @@ export default function RegisterPage({ onRegistered, onBack }) {
           </div>
 
           <div className="login-brand-body">
-            <div className="login-brand-eyebrow">Create your account</div>
+            <div className="login-brand-eyebrow">建立學生帳號</div>
             <h2 className="login-brand-title">
               加入<br />
               <span style={{ color: '#F14F21' }}>Focus Flow</span><br />
               開啟智慧學習
             </h2>
             <p className="login-brand-desc">
-              註冊即可使用影片問答、向量檢索與 LINE Bot 提問等所有 Phase 1 功能。
+              註冊後即可觀看課程影片、向 AI 提問，也能在 LINE 上提問。教師帳號請洽系統管理員建立。
             </p>
           </div>
 
@@ -64,25 +64,13 @@ export default function RegisterPage({ onRegistered, onBack }) {
         <div className="login-right">
           <div className="login-form-card">
             <div className="login-form-header">
-              <div className="login-form-title">Create Account</div>
-              <div className="login-form-sub">選擇身份並填寫資料</div>
-            </div>
-
-            <div className="login-role-tabs">
-              {[['student', '學生'], ['teacher', '教師']].map(([r, lb]) => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className={`login-role-btn${role === r ? ' active' : ''}`}
-                >
-                  {lb}
-                </button>
-              ))}
+              <div className="login-form-title">建立學生帳號</div>
+              <div className="login-form-sub">填寫資料完成註冊</div>
             </div>
 
             <div className="login-fields">
               <div>
-                <label className="ff-label">NAME</label>
+                <label className="ff-label">姓名</label>
                 <input
                   className="ff-input"
                   type="text"
@@ -92,7 +80,7 @@ export default function RegisterPage({ onRegistered, onBack }) {
                 />
               </div>
               <div>
-                <label className="ff-label">EMAIL ADDRESS</label>
+                <label className="ff-label">Email</label>
                 <input
                   className="ff-input"
                   type="email"
@@ -102,7 +90,7 @@ export default function RegisterPage({ onRegistered, onBack }) {
                 />
               </div>
               <div>
-                <label className="ff-label">PASSWORD</label>
+                <label className="ff-label">密碼</label>
                 <input
                   className="ff-input"
                   type="password"
@@ -112,7 +100,7 @@ export default function RegisterPage({ onRegistered, onBack }) {
                 />
               </div>
               <div>
-                <label className="ff-label">CONFIRM PASSWORD</label>
+                <label className="ff-label">確認密碼</label>
                 <input
                   className="ff-input"
                   type="password"

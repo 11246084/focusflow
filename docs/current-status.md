@@ -110,7 +110,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 - auth / JWT / RBAC 主線
 - `POST /api/v1/auth/login` 現在必填 `role=student|teacher|admin`；密碼與停用狀態驗證後才比較帳號角色，跨入口登入回 `403 ROLE_MISMATCH`，不發 token
-- `POST /api/v1/auth/register` 已補 duplicate unique-index race、嚴格欄位型別與完整 route tests；student / teacher 可註冊，admin 禁止自助註冊
+- `POST /api/v1/auth/register` 已補 duplicate unique-index race、嚴格欄位型別與完整 route tests；只有 student 可自助註冊（2026-09-18 起 teacher / admin 皆禁止，教師帳號由管理員建立）
 - 站內通知：`GET /api/v1/notifications`、單筆／全部已讀、`POST /api/v1/admin/notifications`；影片 processing complete 會對相關課程的 active enrolled students 做 idempotent fanout
 - 頭貼：`PUT/GET /api/v1/auth/me/avatar`；JPEG/PNG/WebP、1 MiB（前端先縮成 256×256）、magic signature；2026-09-11 起圖片存 MongoDB `avatars` collection，跨環境共用；public user 只回 `hasAvatar/avatarUpdatedAt`；舊版本機檔案需在 VM 跑 `npm run db:migrate-avatars -- --apply` 搬移
 - courses CRUD（含 PATCH/DELETE）、videos CRUD、processing 狀態流程
@@ -130,7 +130,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - QA cost guardrails：`QA_MONTHLY_TOKEN_BUDGET`、`QA_USER_MONTHLY_TOKEN_QUOTA` 與 `QA_ESTIMATED_TOKENS_PER_ASK` 已接入；超額時 `/api/v1/qa/ask` 回 `429 QA_QUOTA_EXCEEDED`，成功 ASK 會在 `UsageLog.metadata.costControl` 保存當月 snapshot
 - demo baseline / reset 路徑已收斂：`npm run seed` 預設只做 converge baseline；`npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建；bridge 課程基線目前定位為 pipeline-style demo baseline
 - DB 同步腳本：`db:sync-atlas` 可用；`syncQuestionsToAtlas.js` 可直接用 node 執行但未掛 npm script；`db:ensure-questions` 可建立 `questions` 並同步 indexes；`db:backfill-questions` 預設 dry-run，需加 `-- --write` 才會從 legacy ASK usage logs 補寫缺失 questions
-- LINE：bind-token、webhook verify、bind、switch course、ask routing；前端 LINE QR 綁定流程已串接（2026-04-30）
+- LINE：bind-token、webhook verify、bind、switch course、ask routing、網站端解除綁定（`DELETE /api/v1/line/binding`，2026-09-18）；前端 LINE QR 綁定流程已串接（2026-04-30）
 - LINE Bot 多輪對話歷史（2026-04-21）：每輪 Q&A 後將最新 6 筆紀錄（3 輪）存入 `User.lineConversationHistory`；下次提問時帶入 Gemini 作為 conversation context
 - Dashboard 統計 API：`/api/v1/stats/teacher`、`/api/v1/stats/student`；2026-05-07 改為兩輪 `Promise.all` 平行 + 全 `.lean()`，學生端從 1.6–2.4s 降到 ~0.8–1s
 - Admin 管理 API：`/api/v1/admin/{stats,users,videos,events,event-stats}`，包含使用者停用/角色更新、影片刪除、最近事件查詢；Admin Total Users 描述補 `adminCount`

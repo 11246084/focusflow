@@ -219,40 +219,6 @@ export default function StudentShortsWall() {
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 4px' }}>
       <style>{`@keyframes ff-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`}</style>
 
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 28, flexWrap: 'wrap', gap: 12,
-      }}>
-        <div>
-          <h2 style={{ margin: 0, fontFamily: "'Space Grotesk',sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>
-            教學短片
-          </h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
-            FocusFlow 官方頻道 · 精選教學影片
-          </p>
-        </div>
-        <a
-          href={CHANNEL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 18px', borderRadius: 50,
-            background: 'rgba(241,79,33,0.12)',
-            border: '1px solid #fff',
-            color: '#fff', fontSize: 13, fontWeight: 600,
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.75 15.5v-7l6.25 3.5-6.25 3.5z"/>
-          </svg>
-          前往 YouTube 頻道 ↗
-        </a>
-      </div>
-
       {/* Error */}
       {error && !loading && (
         <div style={{

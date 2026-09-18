@@ -37,7 +37,9 @@ Copy-Item .env.example .env
 說明：
 
 - 登入、註冊（學生 / 教師自助）、課程列表、教師建立 / 刪除課程、教師上傳影片（本機檔案 / YouTube URL）、學生課程播放與 QA、LINE QR 綁定流程已串接後端 API
-- 註冊頁 [`src/components/RegisterPage.jsx`](src/components/RegisterPage.jsx)：欄位 = 姓名 / Email / 密碼（≥8）/ 確認密碼 + 身份 tab（學生 / 教師）；登入頁的「立即註冊」按鈕由 [`App.jsx`](src/App.jsx) 切換到 `page === 'register'`，後端打 `POST /api/v1/auth/register`，成功後直接 `setToken` + `setUser` 進 dashboard；admin 不開放自助註冊
+- 註冊頁 [`src/components/RegisterPage.jsx`](src/components/RegisterPage.jsx)：欄位 = 姓名 / Email / 密碼（≥8）/ 確認密碼，只能註冊學生帳號（2026-09-18 起移除教師 tab，教師帳號由管理員建立）；登入頁的「立即註冊」按鈕由 [`App.jsx`](src/App.jsx) 切換到 `page === 'register'`，後端打 `POST /api/v1/auth/register`，成功後直接 `setToken` + `setUser` 進 dashboard；admin 不開放自助註冊
+- 網址同步 [`src/utils/pageRouting.js`](src/utils/pageRouting.js)（2026-09-18）：未引入 react-router，頁面狀態仍是 `page` / `sub`，但會同步到網址（`/`、`/login`、`/register`、`/app/<頁面>`；管理員為 `/admin/<頁面>`），重新整理停在原頁、瀏覽器上一頁可返回。頁面代號與路徑對照在 [`navigationConfig.js`](src/components/navigationConfig.js) 的 `pagePaths`。正式環境需要 nginx `try_files ... /index.html`（已設定）。
+- 錯誤訊息中文化 [`src/utils/errorMessages.js`](src/utils/errorMessages.js)（2026-09-18）：`apiFetch` 會把後端英文錯誤訊息依錯誤碼／常見驗證訊息／HTTP 狀態轉成中文顯示，原文保留在 `error.originalMessage` 供除錯。新增後端錯誤碼時請一併補中文。
 - `VITE_API_BASE_URL` 預設指向本機 backend（`http://127.0.0.1:4000/api/v1`）
 
 ## 主要頁面行為（2026-05-07 更新）

@@ -450,7 +450,7 @@ describe('auth routes', () => {
     assert.equal(result.body.error.code, 'UNAUTHORIZED');
   });
 
-  for (const role of ['student', 'teacher']) {
+  for (const role of ['student']) {
     it(`${role} 可註冊，email 會正規化且密碼只儲存雜湊`, async () => {
       const email = `  NEW.${role.toUpperCase()}@Example.COM `;
       const password = `${role}Pass123!`;
@@ -657,6 +657,23 @@ describe('auth routes', () => {
     });
   }
 
+  it('teacher 不可透過自助註冊建立', async () => {
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      method: 'POST',
+      body: {
+        name: 'New Teacher',
+        email: 'new-teacher@example.com',
+        password: 'Password123!',
+        role: 'teacher',
+      },
+    });
+
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error.code, 'VALIDATION_ERROR');
+    assert.equal(result.body.message, 'Role is not open for self-registration.');
+    assert.equal(store.users.some((user) => user.email === 'new-teacher@example.com'), false);
+  });
+
   it('admin 不可透過自助註冊建立', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
       method: 'POST',
@@ -681,7 +698,7 @@ describe('auth routes', () => {
         name: 'Duplicate Teacher',
         email: '  TEACHER@FOCUSFLOW.LOCAL ',
         password: 'Password123!',
-        role: 'teacher',
+        role: 'student',
       },
     });
 

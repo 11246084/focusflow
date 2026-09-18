@@ -15,18 +15,20 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
       </div>
 
       {/* Nav items */}
-      <div className="sidebar-nav" style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+      <nav className="sidebar-nav" aria-label="主選單" style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
         {items.map(it => (
-          <div
+          <button
             key={it.id}
+            type="button"
             className={`nav-item${active === it.id ? ' active' : ''}`}
+            aria-current={active === it.id ? 'page' : undefined}
             onClick={() => onNav(it.id)}
           >
             <span className="ni"><Ic n={it.ic} s={16} /></span>
             {it.label}
-          </div>
+          </button>
         ))}
-      </div>
+      </nav>
 
       {/* Footer: role + sign out */}
       <div className="sidebar-footer">
@@ -46,10 +48,10 @@ export default function Sidebar({ role, active, onNav, onLogout }) {
           <div className="sidebar-username">{displayName}</div>
         </div>
 
-        <div className="nav-item" onClick={onLogout}>
+        <button type="button" className="nav-item" onClick={onLogout}>
           <span className="ni"><Ic n="out" s={15} /></span>
-          Sign Out
-        </div>
+          登出
+        </button>
       </div>
 
     </div>

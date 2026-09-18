@@ -38,6 +38,7 @@ const {
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { enqueueVideoProcessing } = require('./videoProcessingQueue.service');
 const { assertMediaIntegrity } = require('./mediaIntegrity.service');
+const { removeVideoNotifications } = require('./notification.service');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -517,6 +518,7 @@ async function deleteVideo(videoId, user) {
   await VideoSegment.deleteMany({ videoId: segmentKey });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
+  await removeVideoNotifications([video._id]);
   // 影片可能掛載到多個課程，從所有課程的 videoIds 清掉引用（含主課程）。
   await Course.updateMany({}, { $pull: { videoIds: video._id } });
   // 系統刪除不會刪 YouTube 上的影片，否則舊連結仍可播放；改轉 private（可還原）。

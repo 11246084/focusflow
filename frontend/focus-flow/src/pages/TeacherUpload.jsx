@@ -318,12 +318,12 @@ export default function TeacherUpload() {
     activeItem ? `目前處理：${activeItem.name}` : '等待或已完成處理',
     `${completedCount} / ${trackedItems.length - duplicateCount} 已完成${duplicateCount ? `，${duplicateCount} 支已存在` : ''}`,
   ] : ['存入後端並啟動 AI 管線', '背景工作已建立', '轉字幕、切段並寫入向量資料庫', '學生可透過課程頁或 Line Bot 提問'];
-  const steps = [['01', '上傳影片'], ['02', '排隊等待'], ['03', 'STT + Embedding'], ['04', 'Ready']];
+  const steps = [['01', '上傳影片'], ['02', '排隊等待'], ['03', '轉文字與建立索引'], ['04', '完成']];
   const stepStates = steps.map((_, index) => pipelineStep(index, trackedItems, uploading));
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>Upload Video</div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 20 }}>上傳影片</div>
       <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: '90%' }}>
         <div>
           <div className="upload-z" style={{ height: 220, minHeight: 220, cursor: 'pointer', opacity: uploading ? 0.6 : 1, padding: 14 }} onDragOver={(event) => { event.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={handleDrop} onClick={() => !uploading && fileInputRef.current?.click()}>
@@ -391,7 +391,7 @@ export default function TeacherUpload() {
         <div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label className="ff-label">COURSE</label>
+              <label className="ff-label">課程</label>
               <select className="ff-input" value={courseId} onChange={(event) => setCourseId(event.target.value)} disabled={uploading}>
                 {!courses.length && <option value="">目前沒有可用課程</option>}
                 {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
@@ -399,11 +399,11 @@ export default function TeacherUpload() {
             </div>
             {!isMultiple && (
               <div>
-                <label className="ff-label">VIDEO TITLE（選填）</label>
+                <label className="ff-label">影片標題（選填）</label>
                 <input className="ff-input" placeholder="e.g. 第三講：邏輯迴歸" value={title} onChange={(event) => setTitle(event.target.value)} disabled={uploading} />
               </div>
             )}
-            {isMultiple && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)' }}>多支模式將以各影片檔名作為標題，Course 套用至全部影片。</div>}
+            {isMultiple && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)' }}>多支上傳時以各影片檔名作為標題，所選課程套用到全部影片。</div>}
           </div>
 
           {uploadError && <div style={{ marginTop: 12, fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>{uploadError}</div>}

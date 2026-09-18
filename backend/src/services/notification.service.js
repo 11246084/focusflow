@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Notification = require('../models/notification.model');
 const Course = require('../models/course.model');
+const Video = require('../models/video.model');
 const Enrollment = require('../models/enrollment.model');
 const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const User = require('../models/user.model');
@@ -99,8 +100,27 @@ async function listNotifications({
   const hasMore = items.length > limit;
   const page = hasMore ? items.slice(0, limit) : items;
 
+  // 影片刪除後才會一併刪通知；在那之前留下的舊通知仍可能指向已刪除的影片，
+  // 讓前端能顯示「影片已移除」而不是「現在可以觀看」。
+  const referencedVideoIds = [...new Set(page
+    .map((notification) => (notification.videoId ? String(notification.videoId) : null))
+    .filter(Boolean))];
+  const existingVideoIds = new Set();
+  if (referencedVideoIds.length) {
+    const videos = await Video.find({ _id: { $in: referencedVideoIds } }).lean();
+    videos.forEach((video) => existingVideoIds.add(String(video._id)));
+  }
+
   return {
-    notifications: page.map(toPublicNotification),
+    notifications: page.map((notification) => {
+      const publicNotification = toPublicNotification(notification);
+      return {
+        ...publicNotification,
+        videoAvailable: publicNotification.videoId
+          ? existingVideoIds.has(publicNotification.videoId)
+          : null,
+      };
+    }),
     unreadCount,
     nextCursor: hasMore ? encodeCursor(page[page.length - 1]) : null,
   };
@@ -410,9 +430,24 @@ async function notifyShortAssetRejected({ asset, script, reasons = [] }) {
   }
 }
 
+// 影片刪除後，「影片處理完成，現在可以觀看」的通知已經不成立，一併移除。
+// 屬於清理步驟：失敗只記 log，不中斷影片／課程刪除。
+async function removeVideoNotifications(videoIds = []) {
+  const ids = videoIds.map((id) => String(id)).filter(Boolean);
+  if (!ids.length) return { deletedCount: 0 };
+
+  try {
+    return await Notification.deleteMany({ videoId: { $in: ids } });
+  } catch (error) {
+    console.error('[notification] failed to remove notifications for deleted videos.', error);
+    return { deletedCount: 0 };
+  }
+}
+
 module.exports = {
   DEFAULT_LIMIT,
   MAX_LIMIT,
+  removeVideoNotifications,
   notifyShortAssetRejected,
   toPublicNotification,
   listNotifications,

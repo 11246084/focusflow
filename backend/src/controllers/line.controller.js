@@ -37,7 +37,19 @@ const issueBindToken = asyncHandler(async (req, res) => {
   });
 });
 
+// DELETE /api/v1/line/binding（需要 JWT 登入）
+// 解除目前使用者的 LINE 綁定，讓學生可以改綁另一個 LINE 帳號
+const unbindLine = asyncHandler(async (req, res) => {
+  const result = await lineService.unbindLineUser(req.user.id);
+
+  return sendSuccess(res, {
+    message: 'LINE account unbound.',
+    data: result,
+  });
+});
+
 module.exports = {
   handleWebhook,
   issueBindToken,
+  unbindLine,
 };

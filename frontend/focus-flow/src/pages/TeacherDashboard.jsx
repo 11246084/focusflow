@@ -26,20 +26,20 @@ export default function TeacherDashboard({ onNav }) {
   }, []);
 
   const cards = [
-    [stats?.coursesCount ?? '-', '課程數量', 'COURSES', 'active'],
-    [stats?.videosCount ?? '-', '上傳影片', 'VIDEOS', 'uploaded'],
-    [stats?.segmentsCount ?? '-', 'AI 片段', 'SEGMENTS', 'vector indexed'],
-    [stats?.queriesCount ?? '-', '學生提問', 'STUDENT QUERIES', 'this semester'],
+    [stats?.coursesCount ?? '-', '課程數量', 'courses', '目前授課中的課程'],
+    [stats?.videosCount ?? '-', '影片數量', 'videos', '課程中的影片'],
+    [stats?.segmentsCount ?? '-', 'AI 片段', 'segments', '可供 AI 搜尋的片段'],
+    [stats?.queriesCount ?? '-', '學生提問', 'queries', '累計提問次數'],
   ];
 
   return (
     <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
       <div className="ff-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
-        {cards.map(([value, label, title, sub]) => (
-          <div key={title} className="stat-card">
-            <div className="stat-lbl">{title}</div>
+        {cards.map(([value, label, key, sub]) => (
+          <div key={key} className="stat-card">
+            <div className="stat-lbl">{label}</div>
             <div className="stat-val">{loading ? '-' : value}</div>
-            <div className="stat-sub">{label} · {sub}</div>
+            <div className="stat-sub">{sub}</div>
           </div>
         ))}
       </div>
@@ -47,8 +47,8 @@ export default function TeacherDashboard({ onNav }) {
       <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,width: '100%' }}>
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Recent Videos</div>
-            <span onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer' }}>VIEW ALL</span>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>最近上傳的影片</div>
+            <button type="button" onClick={() => onNav('courses')} style={{ fontSize: 11, color: '#F14F21', cursor: 'pointer', background: 'none', border: 0, padding: 0 }}>查看全部</button>
           </div>
 
           {loading ? (
@@ -74,7 +74,7 @@ export default function TeacherDashboard({ onNav }) {
         </div>
 
         <div className="card" style={{ padding: 22 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>Top Queried Segments</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 18 }}>最常被引用的影片</div>
 
           {loading ? (
             <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '12px 0' }}>載入中...</div>
@@ -105,8 +105,8 @@ export default function TeacherDashboard({ onNav }) {
           <Ic n="up" s={20} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>Upload New Video</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', marginTop: 2 }}>上傳後自動執行 Whisper STT + embedding 建立索引</div>
+          <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>上傳新影片</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', marginTop: 2 }}>上傳後系統會自動轉成文字並建立 AI 搜尋索引</div>
         </div>
         <div style={{ color: 'rgba(255,255,255,0.52)' }}><Ic n="link" s={16} /></div>
       </div>

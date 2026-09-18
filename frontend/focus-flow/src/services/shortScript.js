@@ -1,4 +1,4 @@
-import { apiFetch, getToken } from '../api.js';
+import { apiFetch, buildApiError, getToken } from '../api.js';
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
 
@@ -111,16 +111,14 @@ async function requestUpload(path, formData) {
   });
 
   // nginx 擋下超大檔案時回的是 HTML 不是 JSON，解析失敗只會得到空物件；
-  // 這種情況要給教師看得懂的原因，而不是 'Request failed'。
+  // 這種情況要給教師看得懂的原因。
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const fallback = response.status === 413
-      ? '影片檔案超過伺服器允許的上傳大小。'
-      : 'Request failed';
-    const error = new Error(data.message || fallback);
-    error.code = data.error?.code;
-    error.status = response.status;
-    throw error;
+    throw buildApiError({
+      status: response.status,
+      data,
+      fallbackMessage: response.status === 413 ? '影片檔案超過伺服器允許的上傳大小。' : undefined,
+    });
   }
   return data;
 }

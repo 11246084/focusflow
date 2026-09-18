@@ -2366,6 +2366,42 @@ paths:
                             message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/line/binding:
+    delete:
+      tags:
+        - LINE Webhook
+      summary: 解除目前使用者的 LINE 綁定
+      description: |
+        清除目前登入使用者的 `lineUserId`、LINE 對話狀態、對話歷史與 LINE 目前課程，
+        之後可重新取得綁定碼綁到另一個 LINE 帳號。尚未綁定時也回 200，`unbound` 為 false。
+      operationId: unbindLineAccount
+      responses:
+        '200':
+          description: 已解除綁定（或原本就未綁定）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      unbound:
+                        type: boolean
+                        description: 呼叫前是否有綁定 LINE 帳號
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: LINE account unbound.
+                    data:
+                      unbound: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/shorts:
     get:
       tags:
@@ -4621,7 +4657,7 @@ components:
         role:
           $ref: '#/components/schemas/UserRole'
     AuthRegisterRequest:
-      description: "`/api/v1/auth/register` 的 request body。Phase 1 僅開放 student / teacher 自助註冊。"
+      description: "`/api/v1/auth/register` 的 request body。只開放 student 自助註冊（2026-09-18 起關閉 teacher 自助註冊，教師帳號由管理員建立）；其他 role 回 400 VALIDATION_ERROR。"
       type: object
       required:
         - name
@@ -4640,7 +4676,6 @@ components:
           type: string
           enum:
             - student
-            - teacher
           default: student
     Notification:
       description: 目前登入使用者可見的單筆站內通知。
@@ -4688,6 +4723,13 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - type: 'null'
+        videoAvailable:
+          description: |
+            列表 API 才回傳。`videoId` 指向的影片目前是否仍存在；沒有 `videoId` 時為 null。
+            影片刪除時會一併刪除其通知，此欄位用來標示更早留下、指向已刪除影片的舊通知。
+          type:
+            - boolean
+            - 'null'
         scriptId:
           description: short_asset_rejected 通知要跳轉的短影片腳本；其他來源為 null。
           anyOf:

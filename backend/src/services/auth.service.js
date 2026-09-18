@@ -11,7 +11,9 @@ const {
   USER_ROLE_VALUES,
 } = require('../constants/enums');
 
-const SELF_REGISTER_ROLES = new Set([USER_ROLES.STUDENT, USER_ROLES.TEACHER]);
+// Teacher accounts are provisioned by an admin; open teacher sign-up let anyone
+// create courses, upload videos and spend the AI budget.
+const SELF_REGISTER_ROLES = new Set([USER_ROLES.STUDENT]);
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function getDuplicateKeyFields(error) {

@@ -158,26 +158,29 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
               {loading ? '驗證中…' : '登入系統'}
             </button>
 
-            <div className="login-no-account">
-              沒有帳號？
-              <button
-                type="button"
-                className="login-contact"
-                onClick={onGoRegister}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  marginLeft: 4,
-                  color: 'inherit',
-                  font: 'inherit',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
-                立即註冊
-              </button>
-            </div>
+            {/* Teacher self-registration is closed, so only students see the register link. */}
+            {role === 'student' && (
+              <div className="login-no-account">
+                沒有帳號？
+                <button
+                  type="button"
+                  className="login-contact"
+                  onClick={onGoRegister}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    marginLeft: 4,
+                    color: 'inherit',
+                    font: 'inherit',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  立即註冊
+                </button>
+              </div>
+            )}
 
             {/* Back link */}
             {onBack && (

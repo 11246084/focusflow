@@ -72,6 +72,23 @@ const avatarUploadDir = path.resolve(
 // by db:migrate-avatars. It must still never sit under the public video upload tree.
 assertPrivateAvatarUploadDir(uploadDir, avatarUploadDir);
 
+// JWT 簽章金鑰：用寫死的預設值時，任何看過原始碼的人都能自己簽出合法 token 冒用任何帳號。
+// production 缺少或沿用預設值時直接拒絕啟動；其他環境仍可用預設值方便本機開發，但會提示。
+const DEFAULT_JWT_SECRET = 'change-me-in-local-env';
+function resolveJwtSecret() {
+  const configured = String(process.env.JWT_SECRET || '').trim();
+  const usable = configured && configured !== DEFAULT_JWT_SECRET;
+  if (usable) return configured;
+
+  if ((process.env.NODE_ENV || 'development') === 'production') {
+    throw new Error('JWT_SECRET must be set to a unique secret in production (not empty and not the default value).');
+  }
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn('[env] JWT_SECRET 未設定或沿用預設值，僅適用於本機開發；正式環境請設定隨機長字串。');
+  }
+  return DEFAULT_JWT_SECRET;
+}
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
@@ -89,7 +106,7 @@ module.exports = {
   videoSegmentParentCollection: process.env.VIDEO_SEGMENT_PARENT_COLLECTION || 'video_segments_parent',
   videoSegmentParentVectorIndexName: process.env.VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME
     || 'parent_embedding_index',
-  jwtSecret: process.env.JWT_SECRET || 'change-me-in-local-env',
+  jwtSecret: resolveJwtSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   // Forgot-password mail (Gmail app password). Empty user/pass keeps the feature off.
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -184,6 +201,10 @@ module.exports = {
   qaUserMonthlyTokenQuota: Number(process.env.QA_USER_MONTHLY_TOKEN_QUOTA) || 0,
   // 每位學生每天（台灣時間）可提問次數；0 表示不限制。網頁與 LINE 合併計算。
   qaDailyAskLimitPerStudent: parseNonNegativeInteger(process.env.QA_DAILY_ASK_LIMIT_PER_STUDENT, 5),
+  // 登入失敗鎖定：同一 Email 在時間窗內輸錯達次數上限就鎖定；次數設 0 表示不限制。
+  loginMaxFailedAttempts: parseNonNegativeInteger(process.env.LOGIN_MAX_FAILED_ATTEMPTS, 5),
+  loginFailureWindowMinutes: parseNonNegativeInteger(process.env.LOGIN_FAILURE_WINDOW_MINUTES, 15) || 15,
+  loginLockMinutes: parseNonNegativeInteger(process.env.LOGIN_LOCK_MINUTES, 15) || 15,
   // 單一問題的字數上限；0 表示不限制。
   qaMaxQuestionLength: parseNonNegativeInteger(process.env.QA_MAX_QUESTION_LENGTH, 50),
   geminiApiKey: process.env.GEMINI_API_KEY || '',

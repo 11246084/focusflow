@@ -4,6 +4,7 @@ const CODE_MESSAGES = {
   UNAUTHORIZED: '請先登入。',
   INVALID_TOKEN: '登入已過期，請重新登入。',
   INVALID_CREDENTIALS: 'Email 或密碼錯誤。',
+  TOO_MANY_LOGIN_ATTEMPTS: '密碼輸錯太多次，帳號已暫時鎖定，請 15 分鐘後再試，或使用「忘記密碼」重設。',
   ROLE_MISMATCH: '帳號身分與選擇的身分不符，請切換身分後再登入。',
   USER_INACTIVE: '此帳號已停用，請聯絡管理員。',
   FORBIDDEN: '你沒有權限執行這個操作。',

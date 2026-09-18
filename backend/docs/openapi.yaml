@@ -286,6 +286,21 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/InvalidCredentialsError'
+        '429':
+          description: |
+            同一 Email 在 15 分鐘內連續輸錯 5 次，帳號暫時鎖定 15 分鐘（`TOO_MANY_LOGIN_ATTEMPTS`）。
+            次數與時間可由 `LOGIN_MAX_FAILED_ATTEMPTS`、`LOGIN_FAILURE_WINDOW_MINUTES`、`LOGIN_LOCK_MINUTES` 調整。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                locked:
+                  value:
+                    success: false
+                    message: Too many failed login attempts. Please try again later.
+                    error:
+                      code: TOO_MANY_LOGIN_ATTEMPTS
         '403':
           description: 帳號停用，或帳號角色與登入入口不符
           content:

@@ -278,16 +278,21 @@ async function bindLineUserWithToken(lineUserId, token) {
   };
 }
 
-// 處理「加好友」事件：使用者第一次把 Bot 加為好友時觸發
-// 送出歡迎訊息，引導使用者完成帳號綁定
+// 處理「加好友」事件：第一次加好友、封鎖後解除封鎖、刪除好友後重加都會觸發。
+// 已綁定的使用者不要再叫他綁定，改成歡迎回來；未綁定才引導完成帳號綁定。
 async function handleFollow(event) {
-  const replyResult = await replyMessage(event.replyToken, [
-    buildTextMessage('歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。'),
-  ]);
+  const lineUserId = event.source?.userId;
+  const boundUser = lineUserId ? await User.findOne({ lineUserId }) : null;
+
+  const text = boundUser
+    ? '歡迎回來！你的 LINE 帳號已綁定 FocusFlow，可以直接提問；輸入「切換課程」可更換課程。'
+    : '歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。';
+  const replyResult = await replyMessage(event.replyToken, [buildTextMessage(text)]);
 
   return attachReplyMetadata({
     type: 'follow',
     handled: true,
+    alreadyBound: Boolean(boundUser),
   }, replyResult);
 }
 
@@ -898,6 +903,23 @@ async function processWebhookEvent(event) {
   // 使用者加好友
   if (event.type === 'follow') {
     return handleFollow(event);
+  }
+
+  // 只處理一對一聊天且帶有 userId 的事件。
+  // 缺 userId 時 User.findOne({ lineUserId: undefined }) 會被當成空條件，
+  // 抓到資料庫第一個使用者，等於讓任何人冒用他的身分；群組或多人聊天室的
+  // 回答也會被其他成員看到，所以一律拒絕並請使用者改用一對一聊天。
+  const sourceType = event.source?.type;
+  if ((event.type === 'message' || event.type === 'postback')
+      && (!lineUserId || (sourceType && sourceType !== 'user'))) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage('請在與 FocusFlow 的一對一聊天室中使用提問功能，群組或多人聊天室不支援。'),
+    ]);
+    return attachReplyMetadata({
+      type: event.type,
+      handled: false,
+      reason: 'line_user_unidentified',
+    }, replyResult);
   }
 
   // 使用者傳送文字訊息

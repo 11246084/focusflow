@@ -133,6 +133,24 @@ describe('line webhook routes', () => {
     resetRuntimeEnv();
   });
 
+  it('已綁定的使用者重新加好友時不會再被要求綁定', async () => {
+    const postFollow = async (lineUserId) => {
+      const payload = JSON.stringify({
+        events: [{ type: 'follow', replyToken: `reply-follow-${lineUserId}`, source: { type: 'user', userId: lineUserId } }],
+      });
+      return postLineWebhook(serverContext.baseUrl, payload, {
+        'x-line-signature': createLineSignature(payload),
+      });
+    };
+
+    const boundResult = await postFollow('line-student-001');
+    const unboundResult = await postFollow('never-bound-line-user');
+
+    assert.equal(boundResult.status, 200);
+    assert.equal(boundResult.body.data.results[0].alreadyBound, true);
+    assert.equal(unboundResult.body.data.results[0].alreadyBound, false);
+  });
+
   it('rejects missing and invalid signatures', async () => {
     const payload = {
       events: [
@@ -856,6 +874,31 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[0].reason, 'course_access_denied');
     assert.equal(result.body.data.results[0].replySkipped, true);
     assert.equal(result.body.data.results[1].reason, 'unsupported_event');
+  });
+
+  it('缺少 userId 或來自群組的訊息不會被當成任何使用者處理', async () => {
+    const teacher = store.users.find((user) => user._id === ids.teacher);
+    teacher.activeCourseId = ids.publishedCourse;
+    const payload = JSON.stringify({
+      events: [
+        { type: 'message', replyToken: 'r1', source: { type: 'group', groupId: 'Cgroup' }, message: { type: 'text', text: 'What does the course say about JWT authentication?' } },
+        { type: 'message', replyToken: 'r2', message: { type: 'text', text: `COURSE:${ids.publishedCourse}` } },
+        { type: 'message', replyToken: 'r3', source: { type: 'group', groupId: 'Cgroup', userId: 'line-student-001' }, message: { type: 'text', text: '切換課程' } },
+        { type: 'postback', replyToken: 'r4', source: { type: 'room', roomId: 'Rroom' }, postback: { data: `action=select_course&courseId=${ids.publishedCourse}` } },
+      ],
+    });
+
+    const result = await postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(
+      result.body.data.results.map((item) => item.reason),
+      ['line_user_unidentified', 'line_user_unidentified', 'line_user_unidentified', 'line_user_unidentified'],
+    );
+    assert.equal(store.questions.length, 0);
+    assert.equal(String(teacher.activeCourseId), String(ids.publishedCourse));
   });
 
   it('已綁定學生可從網站解除 LINE 綁定並清除 LINE 對話狀態', async () => {

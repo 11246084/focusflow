@@ -41,6 +41,7 @@ const Faq = require('../../src/models/faq.model');
 const ShortScript = require('../../src/models/shortScript.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
+const { resetLoginThrottleForTests } = require('../../src/services/loginThrottle.service');
 const Conversation = require('../../src/models/conversation.model');
 const Message = require('../../src/models/message.model');
 
@@ -1135,6 +1136,7 @@ function installModelStubs() {
 
 function resetStore() {
   // Rehydrate the baseline fixtures before each test to keep suites isolated.
+  resetLoginThrottleForTests();
   cleanupTestAvatars();
   store.users.length = 0;
   store.avatars.length = 0;

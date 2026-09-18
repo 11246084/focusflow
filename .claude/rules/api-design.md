@@ -99,6 +99,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `UNAUTHORIZED` | 401 | 未提供 Token 或 Token 無效 |
 | `INVALID_TOKEN` | 401 | Token 格式錯誤或已過期 |
 | `FORBIDDEN` | 403 | 無此資源的操作權限 |
+| `TOO_MANY_LOGIN_ATTEMPTS` | 429 | 同一 Email 連續登入失敗達上限（預設 15 分鐘內 5 次），暫時鎖定 15 分鐘 |
 | `CURRENT_PASSWORD_INCORRECT` | 400 | 修改密碼時提供的目前密碼錯誤 |
 | `PASSWORD_RESET_CODE_INVALID` | 400 | 忘記密碼驗證碼錯誤、過期、已使用或錯誤次數已達上限 |
 | `PASSWORD_RESET_EMAIL_FAILED` | 502 | 忘記密碼驗證信寄送失敗（驗證碼已作廢） |

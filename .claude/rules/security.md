@@ -15,6 +15,8 @@ POST /api/v1/auth/login
 ```
 
 - payload 僅包含 `sub`（userId），不存放角色或敏感資料
+- `NODE_ENV=production` 時 `JWT_SECRET` 必須設定且不可是範例值 `change-me-in-local-env`，否則 `config/env.js` 拒絕啟動
+- 同一 Email 連續登入失敗達上限會暫時鎖定（`loginThrottle.service.js`，預設 15 分鐘內 5 次、鎖 15 分鐘），回 `429 TOO_MANY_LOGIN_ATTEMPTS`
 - 有效期由 `JWT_EXPIRES_IN` 環境變數控制（預設 `7d`）
 
 ### Token 驗證（每次 API 請求）

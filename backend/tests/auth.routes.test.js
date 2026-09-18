@@ -657,6 +657,58 @@ describe('auth routes', () => {
     });
   }
 
+  it('同一 Email 連續輸錯 5 次後鎖定，正確密碼也暫時無法登入', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const failed = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+        method: 'POST',
+        body: { email: 'student@focusflow.local', password: 'WrongPass123!', role: 'student' },
+      });
+      assert.equal(failed.status, 401);
+    }
+
+    const locked = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'Student@FocusFlow.local', password: 'Student123!', role: 'student' },
+    });
+
+    assert.equal(locked.status, 429);
+    assert.equal(locked.body.error.code, 'TOO_MANY_LOGIN_ATTEMPTS');
+  });
+
+  it('登入成功會清除先前的失敗次數', async () => {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+        method: 'POST',
+        body: { email: 'student@focusflow.local', password: 'WrongPass123!', role: 'student' },
+      });
+    }
+    const success = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'Student123!', role: 'student' },
+    });
+    assert.equal(success.status, 200);
+
+    const afterSuccess = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'student@focusflow.local', password: 'WrongPass123!', role: 'student' },
+    });
+    assert.equal(afterSuccess.status, 401);
+  });
+
+  it('不存在的 Email 也會被計數鎖定，不洩漏帳號是否存在', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+        method: 'POST',
+        body: { email: 'nobody@focusflow.local', password: 'WrongPass123!', role: 'student' },
+      });
+    }
+    const locked = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { email: 'nobody@focusflow.local', password: 'WrongPass123!', role: 'student' },
+    });
+    assert.equal(locked.status, 429);
+  });
+
   it('teacher 不可透過自助註冊建立', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
       method: 'POST',

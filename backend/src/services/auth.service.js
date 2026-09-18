@@ -6,6 +6,11 @@ const AppError = require('../utils/appError');
 const { toPublicUser } = require('../utils/publicUser');
 const { recordUsage } = require('./usageLog.service');
 const {
+  assertLoginAllowed,
+  recordLoginFailure,
+  recordLoginSuccess,
+} = require('./loginThrottle.service');
+const {
   USAGE_LOG_EVENTS,
   USER_ROLES,
   USER_ROLE_VALUES,
@@ -138,17 +143,24 @@ async function login({ email, password, role }) {
     );
   }
 
+  // 連續輸錯被鎖定時，連帳號都不查，直接拒絕。
+  assertLoginAllowed(normalizedEmail);
+
   const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
+    recordLoginFailure(normalizedEmail);
     throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
+    recordLoginFailure(normalizedEmail);
     throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
   }
+
+  recordLoginSuccess(normalizedEmail);
 
   if (!user.isActive) {
     throw new AppError('User is inactive.', 403, 'USER_INACTIVE');

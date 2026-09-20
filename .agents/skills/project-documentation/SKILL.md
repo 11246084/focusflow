@@ -52,14 +52,33 @@ State what the live contract requires, what can be reused, what must be correcte
 
 In Discuss or Plan mode, stop after useful discovery and planning unless the user expands the request. In Create or Modify mode, continue with authorized in-scope work.
 
+### Step 4.5 — Check diagram tooling before diagram creation
+
+When Create or Modify mode includes diagrams, run the repository bootstrap in read-only check mode before drawing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .agents/skills/project-documentation/scripts/bootstrap-diagram-design.ps1 -Mode Check
+```
+
+If the current Codex host is missing `diagram-design` or its Playwright/Chromium export dependencies:
+
+- when the current request explicitly authorizes installing diagram tools, run the same script with `-Mode InstallCodex` without asking again;
+- otherwise explain that installation changes the user's global Codex/Python environment, request one-time approval, and then run `-Mode InstallCodex`;
+- never install silently during Discuss, Plan, or Review mode;
+- if installation is declined or unavailable, continue with PlantUML/Mermaid when that still satisfies the deliverable and report the presentation-layer limitation.
+
+The bootstrap is idempotent and owns installation commands. Do not copy its commands into this skill. A newly installed plugin may require a fresh Codex task before it appears in the active skill list.
+
 ### Step 5 — Delegate specialist work (Codex/Agents)
 
 When UML selection, creation, modification, or review is needed and automatic skill delegation is unavailable:
 
 1. Read `.claude/skills/ooad-uml-diagramming/SKILL.md` completely before UML decisions or edits.
-2. Follow its References loading table and open only the needed reference, checklist, and template.
+2. Complete its diagram brief, then follow its References loading table and open only the needed diagram-family guide, checklist, and template.
 3. Apply its workflow with the chapter, intent, evidence, existing paths, traceability IDs, and desired artifact.
 4. Bring its draft, review result, and unresolved gaps back for integration.
+
+Use `diagram-design` only when the canonical UML skill routes to it as an optional editorial rendering/import/export layer. It must not replace the UML working source, implementation evidence, traceability, status labels, or artifact-chain review.
 
 Do not create `.agents/skills/ooad-uml-diagramming`, copy or restate its rules, or invent a substitute standard. If the canonical skill or a routed resource is unavailable, report the blocker.
 
@@ -69,8 +88,8 @@ Before claiming completion:
 
 - recheck the target chapter against the live contract;
 - verify implementation claims against current evidence;
-- require UML output to pass the specialist's routed pre-draw, review, and artifact-chain checks;
-- when in scope, align chapter text, `.puml`, image, caption/number, body reference, and diagram index;
+- require UML output to pass the specialist's routed pre-draw, real-render/visual review, and artifact-chain checks;
+- when in scope, align chapter text, diagram source (`.puml`／`.mmd`), image, caption/number, body reference, and diagram index;
 - separate verified facts, inferences, optional extensions, open issues, and unperformed manual/external validation.
 
 Report changed files, validation performed, unresolved gaps, and draft versus human-accepted status. Generated diagrams and local checks do not prove formal school acceptance.

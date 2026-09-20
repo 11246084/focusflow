@@ -1,0 +1,31 @@
+---
+title: <圖名，須與檔名中的名稱一致>
+config:
+  theme: base
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-xx
+%% source:       <路徑>（程式碼）
+%% verified:     YYYY-MM-DD
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / <工具> / <使用範圍>
+%% ============================================
+sequenceDiagram
+  autonumber
+  actor Student as 學生
+  participant Page as 課程問答頁
+  participant Controller as QaController
+  participant Service as QaService
+  participant Repository as SegmentRepository
+
+  Student->>Page: 輸入問題並送出
+  Page->>Controller: POST /api/v1/courses/{id}/questions
+  Controller->>Service: ask(courseId, question)
+  Service->>Repository: findByCourse(courseId)
+  Repository-->>Service: Segment[]
+  Service-->>Controller: Answer + citations
+  Controller-->>Page: 200 response
+  Page-->>Student: 顯示回答與來源

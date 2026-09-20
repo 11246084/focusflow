@@ -1,0 +1,33 @@
+---
+title: <圖名，須與檔名中的名稱一致>
+config:
+  theme: base
+---
+%% ============================================
+%% ooad-phase:   物件分析
+%% chapter:      5-4
+%% realizes:     UC-xx
+%% source:       <需求清單／使用個案描述>（文件）
+%% verified:     YYYY-MM-DD
+%% status:       draft
+%% implemented:  planned
+%% ai-assisted:  yes / <工具> / <使用範圍>
+%% ============================================
+%% 分析層禁止反向工程。不得加入 Controller、Service、Repository、框架或 DB 型別。
+classDiagram
+  class 課程 {
+    名稱
+    說明
+    開課狀態
+  }
+  class 影片 {
+    標題
+    長度
+  }
+  class 提問處理 {
+    驗證提問權限
+    協調檢索與回答
+  }
+
+  課程 "1" *-- "0..*" 影片
+  提問處理 --> "1" 課程

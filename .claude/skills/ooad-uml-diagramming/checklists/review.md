@@ -26,7 +26,9 @@
 
 ## 第 1 層　語法
 
-- [ ] `plantuml -checkonly` 通過（或等效的渲染測試）
+- [ ] PlantUML 使用 `plantuml -checkonly`／實際渲染；Mermaid 使用 `mmdc`、受信任 MCP 或 Kroki 的實際渲染
+- [ ] 實際匯出圖檔成功；若只做靜態文字檢查，結果只能寫「source contract checked」
+- [ ] 已開啟匯出圖檔目視檢查：無裁切、重疊、不可辨識文字、錯誤換行或失真的箭頭方向
 
 任一失敗 → FAIL，不進第 2 層。
 
@@ -38,9 +40,11 @@
 
 - [ ] `[DOC:MUST]` 檔頭宣告區塊完整（`ooad-phase` / `chapter` / `realizes` / `source` / `verified` / `status` / `implemented` / `ai-assisted`）
 - [ ] `[DOC:MUST]` `title` 存在
-- [ ] `[FF:MUST]` `!include` 共用樣式，且未自訂 `skinparam`
+- [ ] `[FF:MUST]` PlantUML 使用共用 `!include` 且未在單圖自訂 `skinparam`；Mermaid 使用核准的 frontmatter／renderer config，未混入已棄用 directive
+- [ ] `[DOC:SHOULD]` 圖只回答 diagram brief 中的一個主要問題；若未拆分，理由已記錄
+- [ ] 已載入本圖所屬的 `references/diagram-guides/` 指南並完成其中的 review questions
 
-### 依圖種（見 `references/plantuml-conventions.md` 必要元素表）
+### 依圖種（見圖族指南，以及所選格式的 conventions）
 
 - [ ] `[UML:MUST]` 使用個案圖：有系統邊界框；actor 在框外
 - [ ] `[UML:MUST]` 使用個案圖：無 actor 是本系統的模組／服務／資料庫／佇列（反模式 B1）
@@ -110,15 +114,16 @@
 - [ ] `[OOAD:MUST]` 孤兒需求檢查：本章涉及的需求皆有圖或元件涵蓋
 - [ ] `[DOC:MUST]` `source` 非歷屆手冊、初評舊圖或舊會議紀錄
 
-### Artifact chain 七項
+### Artifact chain 八項
 
-- [ ] `.puml` 檔名 ↔ 匯出圖檔名稱一致
-- [ ] `.puml` 的 `title` ↔ 圖說名稱一致
+- [ ] 圖源（`.puml`／`.mmd`）檔名 ↔ 匯出圖檔名稱一致
+- [ ] 圖源顯示名稱（PlantUML `title`／Mermaid frontmatter `title`）↔ 圖說名稱一致
 - [ ] 圖說編號 ↔ 檔名編號一致
 - [ ] 正文存在至少一處引用
 - [ ] 圖目錄存在對應列且名稱一致
 - [ ] 無孤兒圖檔（圖存在但正文未引用）
 - [ ] 無孤兒目錄列（目錄有列但圖不存在）
+- [ ] 新增／重繪圖的版本已先判定，圖源、匯出圖檔與正文路徑的版本後綴一致
 
 ### NTUB 格式
 
@@ -136,6 +141,7 @@
 - [ ] `[DOC:MUST]` 非 UML 圖已明確標示
 - [ ] `[DOC:MUST]` 無模板指示句殘留（「需註明⋯⋯」「說明⋯⋯」而無實際內容，反模式 E2）
 - [ ] `[DOC:SHOULD]` A4 尺寸下可辨識
+- [ ] `[DOC:SHOULD]` 圖中只保留理解設計問題所需的元素；框架雜訊、重複回傳與無意義裝飾已移除
 - [ ] `[DOC:SHOULD]` 若已拆圖，總覽圖與細部圖互相引用圖號
 - [ ] `[FF:SHOULD]` 循序圖／通訊圖未涵蓋多個獨立觸發情境（見 `references/local/focusflow-conventions.md` 的「循序圖拆圖粒度」）；若涵蓋多個，已於圖說說明拆分理由
 - [ ] `[UML:MUST]` 術語使用 preferred term；「時序圖」未被用於 Sequence Diagram
@@ -165,6 +171,6 @@
 一次審多張圖時：
 
 1. 先對每張圖跑第 1～3 層
-2. 第 4 層的 artifact chain 七項與孤兒檢查**以整個章節為單位**執行一次
+2. 第 4 層的 artifact chain 八項與孤兒檢查**以整個章節為單位**執行一次
 3. 最後統一輸出提示層
 4. 產出彙總：FAIL 幾張、WARNING 幾張、提示幾則

@@ -16,13 +16,20 @@
 |---|---|
 | 手冊根目錄 | `docs/00_Deliverables/System_Manual/` |
 | 章節 Markdown | `docs/00_Deliverables/System_Manual/chapters/` |
-| PlantUML 母稿 | `docs/00_Deliverables/System_Manual/diagrams/chapter{NN}/` |
+| 圖源母稿（PlantUML／Mermaid） | `docs/00_Deliverables/System_Manual/diagrams/chapter{NN}/` |
 | 匯出圖檔與截圖 | `docs/00_Deliverables/System_Manual/images/` |
 | 圖表目錄 | `docs/00_Deliverables/System_Manual/圖表目錄.md` |
 | 官方規範原件 | `docs/00_Deliverables/System_Manual/source-documents/` |
 
 `[FF:MUST]` 圖檔命名 `圖{章}-{節}-{序}-{名稱}.{副檔名}`；改版後綴 `-vX-x`，例如
 `圖3-1-1-系統架構圖-v1-1.png`。僅改名而內容未變時不加版本號。
+
+`[FF:MUST]` 新增或重繪圖表時，必須在建立／匯出前先完成版本判定：首次正式產出為
+`v1-0`，既有正式草稿的重大重繪遞增主版本（例如 `v2-0`），小幅修正遞增次版本
+（例如 `v1-1`）；移入 archive 不會重置版本。active 圖源（`.puml`／`.mmd`）與匯出圖檔的檔名必須使用相同
+版本後綴，正文圖片路徑同步更新。版本後綴屬檔案識別，不加入圖內 `title`、正文圖說或
+圖目錄顯示名稱；圖目錄狀態欄應記錄目前版本。執行 artifact-chain review 前，先檢查所有
+新／改圖是否仍為無版本檔名。
 
 ## 與官方規範的已知偏離
 
@@ -44,10 +51,9 @@
 |---|---|---|
 | 1 | `圖6-3-1-影片處理生命週期狀態圖.puml` 編號與章節結構不符（第 6 章無 6-3 節；狀態機依規範屬 7-4） | 重編為 `圖7-4-x` |
 | 2 | `圖7-4-1 登入狀態機`、`圖7-4-2 註冊狀態機` 疑為畫面流程而非物件生命週期 | 若確為畫面流程，移至第 12 章作為畫面移轉圖（反模式 D1） |
-| 3 | 圖表目錄列出 5 張第 6 章循序圖，`diagrams/chapter06/` 實存 4 張 | 補齊或修正目錄（artifact chain 檢查 7） |
 | 4 | 第 5 章目前無任何活動圖，但 5-3 依規範須以活動圖描述使用個案 | 補畫（`ntub-chapter-contract.md` 的 5-3 特別規則）。2026-09-18 團隊已確認：即便同系所前一屆手冊（114 學年度 114414 組《動起來「揪」對了》）5-3 章節標題寫「使用活動圖描述」但實際只有文字表格、無任何活動圖，**FocusFlow 仍依 115 年規範原文補齊**，不因舊案例而省略 |
-| 5 | 既有 6 個 `.puml` 產出於本 skill 之前，未必符合檔頭宣告與 artifact chain 規範 | 納入時逐一補宣告區塊並重跑 review |
-| 6 | 6-1 現有 4 張循序圖範圍過大：單張常涵蓋多個獨立觸發情境（例如「身分驗證與角色入口」同時塞入入口分流／session restore／admin 拒絕／一般登入），資訊密度過高，不利閱讀也不利 Word 版面 | 依「循序圖拆圖粒度」一節的原則拆分為約 8-9 張範圍收斂的圖；現有 4 個 `.puml` 需依拆分計畫重新規劃並個別重繪 |
+
+2026-09-19 已完成上述第 6 章 artifact-chain 與拆圖工作：現行 `diagrams/chapter06/` 為 9 張循序圖、3 張設計類別圖與 1 張設計物件圖，均含檔頭宣告；正文、圖表目錄與 PNG 檔名同步。5 張既有正式草稿的重大重繪使用 `v2-0`，8 張首次正式產出的圖使用 `v1-0`。被取代圖檔已移至 `images/archive/chapter06-before-20260919/`。
 
 ## 循序圖拆圖粒度（2026-09-18 決議）
 
@@ -65,8 +71,7 @@
 一張圖，導致資訊密度過高、圖幅過長過寬，不利閱讀也難以排進 Word 頁面。團隊於本次討論
 決議依觸發情境拆分，而非追求與參考手冊相同的圖數。
 
-**現況拆分計畫**（依此原則規劃，尚未產出 draft，供後續製圖時依循；實際落地時仍可依製圖
-發現調整，調整後回填本節）：
+**已落地拆分結果**（2026-09-19；後續若程式契約變更，仍須重新查證並更新）：
 
 | 現況（4 張） | 拆分後 |
 |---|---|
@@ -75,9 +80,9 @@
 | 6-1-3 Web 多輪 RAG 問答與引用回傳 | ⑤ 對話建立與續用（Conversation／Message API）<br>⑥ QA 檢索與回答生成（FAQ→embedding→retrieval→answer，含 fail-closed 權限重驗） |
 | 6-1-4 LINE Bot 綁定、切課與多輪問答 | ⑦ LINE 帳號綁定（token 產生→webhook 驗簽→綁定）<br>⑧ LINE 切換課程（列課程→postback 選課→驗證）<br>⑨ LINE 問答（僅畫 LINE 特有的歷史截斷／回覆差異，共用⑥的 QA 流程，於圖說註明不重複繪製） |
 
-`[FF]` 拆分後預期從 4 張變成 8～9 張；⑨ 刻意不重畫⑥已表達的 QA 核心流程，避免觸犯
-反模式 D6（同流程重複畫）。若後續拆圖時發現某個子流程本身仍然過大（超過 `pre-draw.md`
-的 ~20 元素門檻），可再依觸發情境細分，不受限於本表列出的張數。
+`[FF]` 拆分後實際由 4 張變成 9 張；⑨ 刻意不重畫⑥已表達的 QA 核心流程，避免觸犯
+反模式 D6（同流程重複畫）。若後續因功能契約增加而使單圖過大（超過 `pre-draw.md`
+的 ~20 元素門檻），可再依觸發情境細分，不受限於目前張數。
 
 ## 編號體系
 
@@ -97,10 +102,12 @@ review 時列為 warning，不阻擋製圖。
   - **應用層維護的參照約定**（文件型資料庫不強制參照完整性，此點必須在文中寫明）
 - `[OOAD:MUST]` 不得以類別圖形式呈現（反模式 A4）
 
-## PlantUML 樣式
+## 圖源格式與樣式
 
 `[FF]` 共用樣式檔預期置於 `diagrams/_style.puml`，由本 skill 的 `templates/_style.puml`
-複製後依專案調整。單一圖不得自訂 `skinparam`。
+複製後依專案調整。單一 PlantUML 圖不得自訂 `skinparam`。Mermaid 使用
+`references/mermaid-conventions.md` 定義的 frontmatter 與 renderer config；既有 PlantUML
+不因 Mermaid 可用而批次轉換。
 
 ## Open issues
 
@@ -108,7 +115,7 @@ review 時列為 warning，不阻擋製圖。
 
 | # | 議題 | 現況 | 建議行動 |
 |---|---|---|---|
-| 1 | **PlantUML vs VPP／VPD** | 官方要求交付 Visual Paradigm 專案檔；本 skill 以 PlantUML 為工作母稿 | 向指導老師確認可否以 PlantUML／圖檔替代（官方附註「最終依最新公告為準」，且已接受 MarkDown 手冊）。若須 VPP，規劃交付前一次性重繪並產出對照清單 |
+| 1 | **文字圖源 vs VPP／VPD** | 官方要求交付 Visual Paradigm 專案檔；本 skill 以 PlantUML／Mermaid 為工作母稿 | 向指導老師確認可否以文字圖源／圖檔替代（官方附註「最終依最新公告為準」，且已接受 MarkDown 手冊）。若須 VPP，規劃交付前一次性重繪並產出對照清單 |
 | 2 | **FR／NFR 編號體系** | 未定案 | 定義編號規則與對 UC 的基數後，回填所有圖的 `realizes` |
 | 3 | **非 UML 圖的製圖工具** | 未定（系統架構圖、集合關聯圖、畫面移轉圖、甘特圖） | 擇一工具並補入本檔 |
 | 4 | **反向工程界線** | 暫定：分析層禁止、設計與實作層允許但須標 `source` | 確認後寫入 `traceability.md` |

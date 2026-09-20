@@ -1,0 +1,62 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-05, FR-17
+' source:       backend/src/routes/line.routes.js, backend/src/middleware/lineSignature.middleware.js, backend/src/services/line.service.js, backend/src/models/lineBindToken.model.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依一次性 token、raw-body 驗簽與安全改綁路徑重繪
+' ============================================
+!include ../_style.puml
+
+title LINE帳號綁定循序圖
+
+hide footbox
+autonumber
+
+actor "已登入使用者" as User
+participant "StudentLineBot" as LinePage
+participant "LineController" as LineController
+participant "LineService" as LineService
+database "LineBindToken model" as BindTokenModel
+participant "LINE Platform" as LinePlatform
+participant "LineSignatureMiddleware" as Signature
+database "User model" as UserModel
+participant "LINE Reply API" as ReplyApi
+
+User -> LinePage : 要求 LINE 綁定資訊
+LinePage -> LineController : POST /api/v1/line/bind-token\nBearer JWT
+LineController -> LineService : generateBindToken(userId)
+LineService -> BindTokenModel : create(64 hex token, expiresAt)
+BindTokenModel --> LineService : LineBindToken
+LineService --> LinePage : 201 token（10 分鐘）
+User -> LinePlatform : 在一對一聊天室傳送 token
+LinePlatform -> Signature : POST /api/v1/line/webhook\nx-line-signature + raw body
+Signature -> Signature : timingSafeEqual(HMAC-SHA256(rawBody))
+
+alt 簽章無效
+  Signature --> LinePlatform : 401，不解析事件
+else 簽章有效
+  Signature -> LineController : handleWebhook(events)
+  LineController -> LineService : processWebhookEvents(event)
+  LineService -> BindTokenModel : findOne(token) 並即時檢查 expiresAt
+  alt token 無效或過期
+    LineService -> BindTokenModel : 過期時 deleteOne(token)
+    LineService -> ReplyApi : replyMessage(重新取得綁定碼)
+  else token 有效
+    LineService -> UserModel : updateMany(lineUserId 舊綁定)\n清除舊 activeCourseId／history
+    LineService -> UserModel : findByIdAndUpdate(record.userId)\n寫 lineUserId、state=idle
+    LineService -> BindTokenModel : deleteOne(token)
+    LineService -> ReplyApi : replyMessage(綁定成功)
+  end
+  ReplyApi --> LinePlatform : 回覆使用者
+end
+
+note over Signature,LineService
+  群組／多人聊天室事件若沒有可識別的一對一 userId，會在事件分派時拒絕，
+  避免以空條件查到其他使用者。綁定成功後 token 立即失效。
+end note
+
+@enduml

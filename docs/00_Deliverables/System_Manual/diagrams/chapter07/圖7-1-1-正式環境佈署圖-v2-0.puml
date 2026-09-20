@@ -1,0 +1,63 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-1
+' realizes:     NFR-01, NFR-02, NFR-06, NFR-12
+' source:       .github/workflows/deploy.yml, backend/src/server.js, docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md（程式碼與現況文件）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依目前部署 workflow 與 runtime 邊界重繪
+' ============================================
+!include ../_style.puml
+
+title 正式環境佈署圖
+left to right direction
+
+node "使用者裝置" as Client {
+  artifact "Web Browser\nReact SPA" as Browser
+  artifact "LINE App" as LineApp
+}
+
+node "應用主機\nRocky Linux 9" as Vm {
+  node "Nginx" as Nginx {
+    artifact "frontend/focus-flow/dist" as Static
+    artifact "HTTPS reverse proxy config" as ProxyConfig
+  }
+  node "PM2 / Node.js" as NodeRuntime {
+    artifact "backend/src/server.js" as Backend
+  }
+  node "Python 執行環境" as PyRuntime {
+    artifact "STT_Whisper/src/main.py\n與 batch_main.py" as Pipeline
+    artifact "runs/<runId>/ manifests" as RunArtifacts
+  }
+}
+
+cloud "外部受管服務" as External {
+  database "MongoDB Atlas\n含 Vector Search" as Atlas
+  artifact "Gemini／OpenAI API" as AiProvider
+  artifact "LINE Messaging API" as LineApi
+  artifact "YouTube Data API" as Youtube
+  artifact "SMTP service" as Smtp
+}
+
+Browser --> Nginx : HTTPS 443
+LineApp --> Nginx : HTTPS webhook
+Nginx --> Static : serve static files
+Nginx --> Backend : HTTP localhost:4000\n/api/*
+Backend --> Pipeline : local process / CLI request
+Pipeline --> Backend : HTTPS/HTTP internal webhook\nX-Processing-Secret
+Backend --> Atlas : TLS / MongoDB driver
+Pipeline --> Atlas : TLS / pymongo upsert
+Backend --> AiProvider : HTTPS JSON
+Backend --> LineApi : HTTPS JSON
+Backend --> Youtube : HTTPS OAuth 2.0
+Backend --> Smtp : SMTP/TLS
+Pipeline --> RunArtifacts : local file I/O
+
+note bottom of Vm
+  程式與 workflow 已存在；外部憑證、Atlas index、feature flags、
+  LINE／YouTube／SMTP 與正式瀏覽器流程仍需依部署版本分別驗收。
+end note
+
+@enduml

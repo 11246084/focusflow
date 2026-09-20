@@ -1,0 +1,33 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-03, FR-09, FR-10, NFR-04
+' source:       backend/src/constants/enums.js, backend/src/services/videoBatch.service.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 VideoBatch aggregate 規則重繪
+' ============================================
+!include ../_style.puml
+
+title 影片批次狀態機圖
+
+[*] --> creating : createVideoBatch / persist batch shell
+creating --> processing : firstItemPersisted / store ordered items
+processing --> processing : poll [nonterminal items remain] / recompute counts
+processing --> completed : aggregate [all items completed] / save completed
+processing --> partial : aggregate [completed > 0 and failed > 0] / save partial
+processing --> failed : aggregate [all items failed] / save failed
+partial --> processing : retryItem [retryable failed item] / queue video
+failed --> processing : retryItem [retryable item] / queue video
+completed --> [*] : archiveView / keep durable history
+partial --> [*] : noFurtherRetry / keep per-item results
+failed --> [*] : noFurtherRetry / keep error details
+
+note right of processing
+  對應設計類別：VideoBatch。
+  batch 狀態由逐項 Video processing 彙整，部分成功不回滾成功項。
+end note
+
+@enduml

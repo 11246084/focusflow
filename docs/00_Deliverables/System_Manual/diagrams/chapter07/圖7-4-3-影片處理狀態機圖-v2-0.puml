@@ -1,0 +1,32 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-03, FR-10, NFR-04, NFR-06
+' source:       backend/src/services/videoProcessing.service.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依合法狀態轉換與冪等回放重繪
+' ============================================
+!include ../_style.puml
+
+title 影片處理狀態機圖
+
+[*] --> queued : createVideo / initialize processing metadata
+queued --> processing : startWebhook [queued] / increment attemptCount
+processing --> processing : startWebhook [already processing] / acknowledge replay
+queued --> failed : failWebhook [queued] / preserve failure detail
+processing --> failed : failWebhook [processing] / preserve failure detail
+failed --> failed : failWebhook [already failed] / acknowledge replay
+failed --> queued : retry [authorized and failed] / clear error timestamps
+processing --> completed : completeWebhook [processing] / save metadata and side effects
+completed --> completed : completeWebhook [already completed] / repair idempotent side effects
+completed --> [*] : retain / expose ready status
+
+note right of failed
+  對應設計類別：Video.processing。
+  其他轉換以 409 VIDEO_PROCESSING_TRANSITION_INVALID 拒絕。
+end note
+
+@enduml

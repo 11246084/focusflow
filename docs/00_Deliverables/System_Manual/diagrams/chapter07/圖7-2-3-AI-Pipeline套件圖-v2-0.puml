@@ -1,0 +1,61 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     FR-09, FR-10, NFR-04, NFR-05, NFR-06
+' source:       STT_Whisper/src/（程式碼目錄與 CLI 入口）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依目前 Pipeline stage、checkpoint 與 uploader 邊界重繪
+' ============================================
+!include ../_style.puml
+
+title AI-Pipeline套件圖
+left to right direction
+
+package "CLI entrypoints" as Cli {
+  [main.py]
+  [batch_main.py]
+}
+package "orchestration" as Orch {
+  [job_manager.py]
+  [batch_manager.py]
+  [resume_checkpoint.py]
+  [run_summary.py]
+}
+package "media and STT stages" as Media {
+  [download / audio]
+  [Faster-Whisper]
+  [normalization]
+}
+package "chunk and embedding" as Embed {
+  [leaf chunking]
+  [optional parent hierarchy]
+  [Gemini embedding]
+}
+package "publication" as Publish {
+  [mongodb_uploader.py]
+  [parent_mongodb_uploader.py]
+  [processing webhook]
+}
+package "run artifacts" as Artifacts {
+  [manifest / checkpoint]
+  [JSON / JSONL]
+}
+
+Cli ..> Orch : create / resume run
+Orch ..> Media : execute stages
+Media ..> Embed : normalized transcript
+Embed ..> Publish : validated artifacts
+Orch ..> Artifacts : save state
+Media ..> Artifacts : stage outputs
+Embed ..> Artifacts : chunks / embeddings
+Publish ..> Artifacts : upload summary
+
+note bottom of Embed
+  Parent hierarchy 產物可建立，但 production retrieval gate 仍需
+  active data、index/filter 與唯讀 E2E 證據。
+end note
+
+@enduml

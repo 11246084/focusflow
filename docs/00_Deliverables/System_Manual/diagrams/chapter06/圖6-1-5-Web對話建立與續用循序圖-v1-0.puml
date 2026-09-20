@@ -1,0 +1,78 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-04, FR-13
+' source:       frontend/focus-flow/src/pages/StudentCourses.jsx, backend/src/routes/conversation.routes.js, backend/src/services/conversation.service.js, backend/src/services/askLimits.service.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 Conversation／Message API、共用限額與 retry 路徑重繪
+' ============================================
+!include ../_style.puml
+
+title Web對話建立與續用循序圖
+
+hide footbox
+autonumber
+
+actor "學生" as Student
+participant "StudentCourses" as CoursePage
+participant "apiFetch()" as ApiClient
+participant "ConversationController" as ConversationController
+participant "ConversationService" as ConversationService
+participant "CourseAccessService" as AccessService
+participant "AskLimitsService" as AskLimits
+database "Conversation model" as ConversationModel
+database "Message model" as MessageModel
+participant "QaService" as QaService
+
+Student -> CoursePage : 在授權課程輸入問題
+opt 尚無可續用的 conversationId
+  CoursePage -> ApiClient : POST /api/v1/conversations { courseId }
+  ApiClient -> ConversationController : createConversation()
+  ConversationController -> ConversationService : createConversation({ user, courseId })
+  ConversationService -> AccessService : assertCanAccessCourse(user, course)
+  AccessService --> ConversationService : active Enrollment + published Course
+  ConversationService -> ConversationModel : create(userId, courseId, default title)
+  ConversationModel --> ConversationService : Conversation
+  ConversationService --> CoursePage : 201 { conversationId }
+end
+
+CoursePage -> ApiClient : POST /api/v1/conversations/{id}/messages { content }
+ApiClient -> ConversationController : sendMessage()
+ConversationController -> ConversationService : sendMessage({ user, conversationId, content })
+ConversationService -> ConversationModel : findById() 並驗證 owner
+ConversationService -> AccessService : assertCanAccessCourse()
+ConversationService -> AskLimits : assertCanAsk(user, question)
+
+alt 超過字數或學生每日次數
+  AskLimits --> ConversationService : 400 QUESTION_TOO_LONG／429 QA_DAILY_LIMIT_EXCEEDED
+  ConversationService --> CoursePage : 拒絕且不建立 Message
+else 允許提問
+  ConversationService -> MessageModel : 讀取最近有效訊息
+  ConversationService -> MessageModel : create(role=user, status=completed)
+  ConversationService -> ConversationService : contextualizeQuestion(history, content)
+  ConversationService -> QaService : askQuestion(original, standalone, history)
+  ref over QaService
+    QA 內部協作見圖6-1-6
+  end ref
+  alt QA 成功或明確 no-match
+    QaService --> ConversationService : answer + citations + runtime
+    ConversationService -> MessageModel : create(role=assistant, sources, completed)
+  else 系統端失敗
+    QaService --> ConversationService : throw 5xx／runtime error
+    ConversationService -> QaService : recordFailedAsk()
+    ConversationService -> MessageModel : create(role=assistant, status=failed)
+  end
+  ConversationService -> ConversationModel : 更新 title／updatedAt
+  ConversationService --> CoursePage : userMessage + assistantMessage + sources
+  CoursePage --> Student : 顯示回答、失敗重試或引用跳轉
+end
+
+note over ConversationService,AskLimits
+  失敗回答不扣每日次數；retryMessage() 只允許重試具有 failed assistant 的 user message，
+  並在重試前重新檢查當日額度與課程權限。
+end note
+
+@enduml

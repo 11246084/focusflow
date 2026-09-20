@@ -1,0 +1,98 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-2
+' realizes:     UC-04, FR-07, FR-13, FR-14, FR-15
+' source:       backend/src/services/conversation.service.js, backend/src/services/qa.service.js, backend/src/models/conversation.model.js, backend/src/models/message.model.js, backend/src/models/question.model.js, backend/src/models/usageLog.model.js（程式碼與 schema）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 以一筆已授權 Web 問答完成時點實例化設計類別
+' ============================================
+!include ../_style.puml
+
+title Web問答授權與引用設計物件圖
+
+left to right direction
+
+object "accessService : CourseAccessService" as AccessService
+
+object "conversationService : ConversationService" as ConversationService
+
+object "qaService : QaService" as QaService
+
+object "request01 : QaRequest" as Request {
+  userId = student01
+  courseId = course01
+  question = 索引如何加速查詢？
+  source = api
+}
+
+object "response01 : QaResponse" as Response {
+  answerStatus = answered
+  citations = [S1]
+  runtime.status = ready
+}
+
+object "student01 : User" as Student {
+  role = student
+  isActive = true
+}
+
+object "enrollment01 : Enrollment" as Enrollment {
+  status = active
+}
+
+object "course01 : Course" as Course {
+  status = published
+}
+
+object "conversation01 : Conversation" as Conversation {
+  title = 索引如何加速查詢？
+}
+
+object "userMessage01 : Message" as UserMessage {
+  role = user
+  status = completed
+}
+
+object "assistantMessage01 : Message" as AssistantMessage {
+  role = assistant
+  status = completed
+  sources = [S1]
+}
+
+object "question01 : Question" as Question {
+  status = answered
+  source = api
+  matches = [S1, S2, S3]
+}
+
+object "usage01 : UsageLog" as UsageLog {
+  event = ask
+  metadata.source = api
+}
+
+Student --> Enrollment : student
+Enrollment --> Course : active course
+Conversation --> Student : owner
+Conversation --> Course : scope
+Conversation --> UserMessage : messages
+Conversation --> AssistantMessage : messages
+UserMessage --> AssistantMessage : replyTo
+ConversationService --> AccessService : assertCanAccessCourse()
+ConversationService --> QaService : askQuestion(request01)
+QaService --> Request : consumes
+QaService --> Response : returns
+Question --> Student : asker
+Question --> Course : scope
+Question --> UsageLog : sourceUsage
+AssistantMessage --> Response : citation snapshot
+
+note bottom
+  展示情境：student01 具 active Enrollment，course01 已發布；
+  sendMessage() 完成後，Question 與 UsageLog 保存稽核資料，assistant Message 只保存
+  response01 中由 supportingEvidenceIds 升格的引用快照。這是設計物件快照，不是 live 資料匯出。
+end note
+
+@enduml

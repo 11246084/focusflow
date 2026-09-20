@@ -1,0 +1,45 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-01, FR-01, FR-02, FR-04
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 UC-01 前提、主流程與拒絕條件產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 註冊與登入活動圖
+
+|使用者|
+start
+:選擇學生註冊或角色登入;
+if (選擇學生註冊？) then (是)
+  :填寫姓名、Email 與密碼;
+  |FocusFlow|
+  :驗證 Email 唯一性與密碼規則;
+  if (註冊資料有效？) then (是)
+    :建立 student 帳號並簽發 token;
+  else (否)
+    :回傳重複或格式錯誤;
+    stop
+  endif
+else (否)
+  |使用者|
+  :由一般入口或 /admin 提交\nEmail、密碼與角色;
+  |FocusFlow|
+  :驗證憑證、帳號狀態與角色;
+  if (驗證通過？) then (是)
+    :簽發 token 並取得公開使用者資料;
+  else (否)
+    :拒絕登入且不回傳受保護資料;
+    stop
+  endif
+endif
+|使用者|
+:進入相符角色的 Dashboard;
+stop
+
+@enduml

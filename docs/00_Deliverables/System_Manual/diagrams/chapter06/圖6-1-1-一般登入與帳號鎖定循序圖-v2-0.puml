@@ -1,0 +1,76 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-1
+' realizes:     UC-01, FR-02
+' source:       frontend/focus-flow/src/components/LoginPage.jsx, backend/src/services/auth.service.js, backend/src/services/loginThrottle.service.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依目前登入、角色驗證與暫時鎖定路徑重繪
+' ============================================
+!include ../_style.puml
+
+title 一般登入與帳號鎖定循序圖
+
+hide footbox
+autonumber
+
+actor "使用者" as User
+participant "LoginPage" as LoginPage
+participant "apiFetch()" as ApiClient
+participant "AuthController" as AuthController
+participant "AuthService" as AuthService
+participant "LoginThrottleService" as LoginThrottle
+database "User model" as UserModel
+participant "bcryptjs" as Bcrypt
+participant "jsonwebtoken" as Jwt
+
+User -> LoginPage : 選擇角色並提交 Email／密碼
+LoginPage -> ApiClient : POST /api/v1/auth/login
+ApiClient -> AuthController : login(req.body)
+AuthController -> AuthService : login({ email, password, role })
+AuthService -> AuthService : 驗證 role 屬於 student／teacher／admin
+AuthService -> LoginThrottle : assertLoginAllowed(email)
+
+alt 尚在鎖定期間
+  LoginThrottle --> AuthService : throw TOO_MANY_LOGIN_ATTEMPTS
+  AuthService --> AuthController : 429 + retryAfterSec
+  AuthController --> ApiClient : 錯誤回應
+  ApiClient --> LoginPage : 顯示稍後再試
+else 允許嘗試
+  AuthService -> UserModel : findOne({ email })
+  UserModel --> AuthService : User／null
+  alt 帳號不存在或密碼錯誤
+    AuthService -> Bcrypt : compare(password, passwordHash)
+    Bcrypt --> AuthService : false
+    AuthService -> LoginThrottle : buildLoginFailureError(email)
+    LoginThrottle --> AuthService : 剩餘次數或鎖定錯誤
+    AuthService --> AuthController : 401／429
+    AuthController --> LoginPage : 顯示剩餘次數或鎖定訊息
+  else 密碼正確
+    AuthService -> Bcrypt : compare(password, passwordHash)
+    Bcrypt --> AuthService : true
+    AuthService -> LoginThrottle : recordLoginSuccess(email)
+    AuthService -> AuthService : 檢查 isActive 與所選 role
+    alt 帳號停用或角色不符
+      AuthService --> AuthController : 403 USER_INACTIVE／ROLE_MISMATCH
+      AuthController --> LoginPage : 拒絕登入
+    else 驗證通過
+      AuthService -> Jwt : sign({ sub }, JWT_SECRET)
+      Jwt --> AuthService : JWT
+      AuthService -> AuthService : recordUsage(LOGIN)
+      AuthService --> AuthController : { token, public user }
+      AuthController --> ApiClient : 200 Login successful
+      ApiClient --> LoginPage : 儲存 ff_token／ff_user
+      LoginPage --> User : 進入角色對應 Dashboard
+    end
+  end
+end
+
+note over AuthService,LoginThrottle
+  登入失敗計數以正規化 Email 為鍵，狀態保存在單一 backend process 記憶體；
+  backend 重啟後會歸零。學生可自助註冊，教師與管理員帳號須由管理流程建立。
+end note
+
+@enduml

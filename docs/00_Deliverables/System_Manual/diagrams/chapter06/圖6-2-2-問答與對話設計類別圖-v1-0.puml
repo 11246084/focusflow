@@ -1,0 +1,162 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-2
+' realizes:     UC-04, UC-05
+' source:       backend/src/services/conversation.service.js, backend/src/services/qa.service.js, backend/src/services/askLimits.service.js, backend/src/services/faqCache.service.js, backend/src/services/answerGeneration.service.js, backend/src/models（程式碼與 schema）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依多輪對話、課程 scope、限額、FAQ、回答與稽核責任產出設計類別圖
+' ============================================
+!include ../_style.puml
+
+title 問答與對話設計類別圖
+
+left to right direction
+hide empty members
+
+package "問答應用服務" as Services {
+  ' source-analysis: 課程授權
+  class CourseAccessService <<service>> {
+    + assertCanAccessCourse(user, course) : void
+    + assertCanManageCourse(user, course) : void
+    + findActiveEnrollment(studentId, courseId) : Enrollment?
+  }
+
+  ' source-analysis: 網頁對話
+  class ConversationService <<service>> {
+    + createConversation(input) : ConversationView
+    + listMessages(input) : MessageView[]
+    + sendMessage(input) : AnswerView
+    + retryMessage(input) : AnswerView
+  }
+
+  ' technical-new: 由成本與防濫用需求拆出的共用 guard
+  class AskLimitsService <<service>> {
+    + assertCanAsk(input) : DailyAskUsage?
+    + getDailyAskUsage(user) : DailyAskUsage?
+  }
+
+  ' source-analysis: 來源式問答
+  class QaService <<service>> {
+    + askQuestion(input : QaRequest) : QaResponse
+    + askQuestionFromApi(input : QaRequest) : QaResponse
+    + retrieveSegmentsOnly(input) : SegmentResult
+    + recordFailedAsk(input) : RuntimeSnapshot?
+  }
+
+  ' technical-new: 從提問處理責任拆出的快取協作者
+  class FaqCacheService <<service>> {
+    + findFaqByExactQuestion(input) : Faq?
+    + findFaqBySimilarEmbedding(input) : FaqHit?
+    + saveFaqEntry(input) : Faq
+  }
+
+  ' technical-new: 從提問處理責任拆出的回答 provider 協作者
+  class AnswerGenerationService <<service>> {
+    + generateAnswer(question, matches, history) : AnswerResult
+  }
+
+  ' technical-new: JavaScript plain object 的設計契約
+  class QaRequest <<value object>> {
+    + userId : Id
+    + courseId : Id
+    + question : String
+    + retrievalQuestion : String?
+    + source : QuestionSource
+  }
+
+  ' technical-new: JavaScript plain object 的設計契約
+  class QaResponse <<value object>> {
+    + answer : String
+    + citations : Citation[]
+    + answerStatus : AnswerStatus
+    + runtime : RuntimeSnapshot
+  }
+}
+
+package "問答領域物件" as Domain {
+  ' source-analysis: 使用者
+  class User <<domain>> {
+    + role : UserRole
+    + isActive : Boolean
+  }
+
+  ' source-analysis: 課程
+  class Course <<domain>> {
+    + status : CourseStatus
+  }
+
+  ' source-analysis: 修課
+  class Enrollment <<domain>> {
+    + status : EnrollmentStatus
+  }
+
+  ' source-analysis: 對話
+  class Conversation <<domain>> {
+    + title : String
+  }
+
+  ' source-analysis: 訊息
+  class Message <<domain>> {
+    + role : MessageRole
+    + status : MessageStatus
+    + sources : CitationSnapshot[]
+  }
+
+  ' source-analysis: 問題紀錄
+  class Question <<domain>> {
+    + status : QuestionStatus
+    + source : QuestionSource
+    + matches : EvidenceSnapshot[]
+    + runtime : RuntimeSnapshot
+  }
+
+  ' source-analysis: 使用事件
+  class UsageLog <<domain>> {
+    + event : UsageEvent
+    + metadata : Object
+  }
+
+  ' source-analysis: 常見問答
+  class Faq <<domain>> {
+    + normalizedQuestion : String
+    + answer : String
+    + matches : EvidenceSnapshot[]
+  }
+}
+
+ConversationService ..> CourseAccessService
+ConversationService ..> AskLimitsService
+ConversationService ..> QaService
+ConversationService ..> Conversation
+ConversationService ..> Message
+QaService ..> CourseAccessService
+QaService ..> FaqCacheService
+QaService ..> AnswerGenerationService
+QaService ..> QaRequest
+QaService ..> QaResponse
+QaService ..> Question
+QaService ..> UsageLog
+FaqCacheService ..> Faq
+
+Enrollment "0..*" --> "1" User : student
+Enrollment "0..*" --> "1" Course : course
+Conversation "0..*" --> "1" User : owner
+Conversation "0..*" --> "1" Course : scope
+Conversation "1" --> "0..*" Message : messages
+Question "0..*" --> "1" User : asker
+Question "0..*" --> "1" Course : scope
+Question "0..1" --> "0..1" UsageLog : sourceUsage
+Faq "0..*" --> "1" Course : scope
+
+note bottom of QaResponse
+  citations 是回答實際採用的 evidence；matches 僅為檢索／除錯相容資料。
+end note
+
+note bottom of AskLimitsService
+  學生每日次數以 Asia/Taipei 日界計算；Web 與 LINE 合併，系統失敗不扣次數。
+end note
+
+@enduml

@@ -1,0 +1,130 @@
+@startuml
+' ============================================
+' ooad-phase:   物件設計
+' chapter:      6-2
+' realizes:     UC-06, UC-07, UC-08, UC-09
+' source:       backend/src/services/notification.service.js, backend/src/services/shortScript.service.js, backend/src/services/shortAsset.service.js, backend/src/services/shortAssetPublish.service.js, backend/src/models（程式碼與 schema）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依通知、ShortAsset feed／review 與條件式 ShortScript 人工成品流程產出設計類別圖
+' ============================================
+!include ../_style.puml
+
+title 通知與短影音設計類別圖
+
+left to right direction
+hide empty members
+
+package "通知與短影音服務" as Services {
+  ' source-analysis: 通知
+  class NotificationService <<service>> {
+    + listNotifications(input) : NotificationPage
+    + markNotificationRead(input) : NotificationView
+    + markAllNotificationsRead(recipientId) : ReadSummary
+    + broadcastSystemNotification(input) : BroadcastSummary
+    + fanoutVideoCompletedNotifications(video) : void
+    + notifyShortAssetRejected(input) : void
+  }
+
+  ' source-analysis: 短影音腳本
+  class ShortScriptService <<service>> {
+    + createScriptWithFrozenEvidence(input) : ShortScript
+    + generateScriptVersion(input) : ShortScript
+    + submitReview(input) : ShortScript
+    + applyAssetRejection(input) : ShortScript
+  }
+
+  ' source-analysis: 短影音成品與學生牆
+  class ShortAssetService <<service>> {
+    + createShortAsset(input) : ShortAsset
+    + listStudentShorts(input) : ShortPage
+    + listReviewShortAssets(input) : ShortAssetView[]
+    + reviewShortAsset(input) : ShortAsset
+    + archiveForCourseDeletion(course) : ShortAsset[]
+  }
+
+  ' technical-new: 人工成品的 YouTube 上傳與發布協作者
+  class ShortAssetPublishService <<service>> {
+    + createAssetFromScript(input) : ShortAssetView
+    + uploadShortAssetToYouTube(input) : ShortAsset
+    + publishApprovedShortAsset(asset) : ShortAsset
+    + privatizeRejectedShortAsset(asset) : ShortAsset
+    + retryShortAssetUpload(input) : ShortAssetView
+  }
+}
+
+package "通知與短影音領域物件" as Domain {
+  ' source-analysis: 使用者
+  class User <<domain>> {
+    + role : UserRole
+    + isActive : Boolean
+  }
+
+  ' source-analysis: 課程
+  class Course <<domain>> {
+    + status : CourseStatus
+    + teacherId : Id
+  }
+
+  ' source-analysis: 修課
+  class Enrollment <<domain>> {
+    + status : EnrollmentStatus
+  }
+
+  ' source-analysis: 通知
+  class Notification <<domain>> {
+    + source : NotificationSource
+    + urgent : Boolean
+    + readAt : Date?
+  }
+
+  ' source-analysis: 短影音腳本
+  class ShortScript <<domain>> {
+    + status : ShortScriptStatus
+    + evidence : FrozenEvidence[]
+    + versions : ScriptVersion[]
+  }
+
+  ' source-analysis: 短影音成品
+  class ShortAsset <<domain>> {
+    + status : ShortAssetStatus
+    + reviewStatus : ReviewStatus
+    + generationVersion : Number
+    + disclosure : DisclosureState
+    + youtubeUpload : UploadState
+  }
+}
+
+NotificationService ..> Notification
+NotificationService ..> User
+ShortScriptService ..> ShortScript
+ShortScriptService ..> Course
+ShortAssetService ..> ShortAsset
+ShortAssetService ..> Course
+ShortAssetService ..> Enrollment
+ShortAssetPublishService ..> ShortAsset
+ShortAssetPublishService ..> ShortScript
+ShortAssetService ..> ShortAssetPublishService
+ShortAssetService ..> NotificationService
+
+Enrollment "0..*" --> "1" User : student
+Enrollment "0..*" --> "1" Course : course
+Notification "0..*" --> "1" User : recipient
+Notification "0..*" --> "0..1" Course : context
+ShortScript "0..*" --> "1" Course : scope
+ShortScript "1" --> "0..*" ShortAsset : submitted assets
+ShortAsset "0..*" --> "1" Course : scope
+ShortAsset "0..*" --> "0..1" User : reviewer
+
+note bottom of ShortScriptService
+  (partial) SHORT_SCRIPT_AUTOMATION_ENABLED 預設關閉；
+  只有啟用環境才可建立候選、凍結證據並生成版本。
+end note
+
+note bottom of ShortAssetPublishService
+  (partial) 成品由教師人工備妥與上傳；系統不會自動剪輯、渲染或產生字幕。
+  YouTube 上傳另需有效 OAuth／feature 設定，不能由類別存在推定 live ready。
+end note
+
+@enduml

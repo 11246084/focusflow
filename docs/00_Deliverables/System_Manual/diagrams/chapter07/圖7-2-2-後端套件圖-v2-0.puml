@@ -1,0 +1,40 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     FR-01, FR-05, FR-09, FR-13, FR-17, FR-18, FR-19
+' source:       backend/src/（程式碼目錄與 require 關係）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 routes/controllers/services/models 分層重繪
+' ============================================
+!include ../_style.puml
+
+title 後端套件圖
+left to right direction
+
+package "server and app" as Entry {
+  [server.js]
+  [app.js]
+}
+package "routes" as Routes
+package "controllers" as Controllers
+package "services" as Services
+package "models" as Models
+package "middleware" as Middleware
+package "config and constants" as Config
+package "utils" as Utils
+
+Entry ..> Routes : mount /api/v1
+Entry ..> Middleware : CORS / JSON / errors
+Routes ..> Middleware : authenticate / roles / upload
+Routes ..> Controllers : dispatch request
+Controllers ..> Services : orchestrate use case
+Services ..> Models : query and persist
+Services ..> Config : feature flags / providers
+Controllers ..> Utils : response / AppError
+Services ..> Utils : validation / errors
+Models ..> Config : collection settings
+
+@enduml

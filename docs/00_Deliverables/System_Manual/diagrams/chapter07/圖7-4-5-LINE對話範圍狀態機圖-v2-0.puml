@@ -1,0 +1,34 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-05, FR-17, NFR-01, NFR-02
+' source:       backend/src/services/line.service.js, backend/src/models/user.model.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 bind token、lineConversationState 與 activeCourseId 重繪
+' ============================================
+!include ../_style.puml
+
+title LINE對話範圍狀態機圖
+
+[*] --> unbound : initialize [no lineUserId] / await bind
+unbound --> token_issued : createBindToken / save one-time token with expiry
+token_issued --> unbound : bindMessage [invalid or expired] / delete expired token
+token_issued --> idle : bindMessage [signature and token valid] / bind lineUserId and delete token
+idle --> awaiting_course_selection : requestCourseList [multiple valid courses] / show options
+idle --> course_selected : selectDirect [one valid course] / set activeCourseId
+awaiting_course_selection --> course_selected : postback [active enrollment and published] / set activeCourseId
+awaiting_course_selection --> idle : postback [scope invalid] / clear pending selection
+course_selected --> course_selected : ask [scope still valid] / reuse shared QA service
+course_selected --> idle : enrollmentRevoked / clear activeCourseId and history
+idle --> unbound : unbind / clear lineUserId and course scope
+course_selected --> unbound : unbind / clear lineUserId and course scope
+
+note right of course_selected
+  對應設計類別：User LINE conversation scope。
+  webhook 事件須先通過 HMAC-SHA256 簽章驗證。
+end note
+
+@enduml

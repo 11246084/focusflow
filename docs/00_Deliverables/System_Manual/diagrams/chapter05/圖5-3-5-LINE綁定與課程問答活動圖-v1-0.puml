@@ -1,0 +1,41 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-05, FR-07, FR-14, FR-15, FR-17
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 UC-05 產出活動圖
+' ============================================
+!include ../_style.puml
+
+title LINE綁定與課程問答活動圖
+
+|學生|
+start
+:由網頁取得一次性綁定資訊;
+:將綁定訊息送至 LINE Bot;
+|FocusFlow|
+:驗證 webhook 簽章與 token;
+if (簽章、token 與綁定狀態有效？) then (是)
+  :連結 LINE userId 並刪除 token;
+  :列出 active Enrollment\n且 published 的課程;
+  |學生|
+  :選擇課程並提出問題;
+  |FocusFlow|
+  :再次驗證課程 scope;
+  if (scope 有效且證據足夠？) then (是)
+    :重用 QA 服務產生回答與時間資訊;
+    |學生|
+    :於 LINE 查看回答；必要時回網站播放;
+  else (否)
+    :提示重新選課、重新綁定或證據不足;
+  endif
+else (否)
+  :拒絕事件且不變更帳號綁定;
+endif
+stop
+
+@enduml

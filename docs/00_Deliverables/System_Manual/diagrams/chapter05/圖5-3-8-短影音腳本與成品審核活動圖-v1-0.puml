@@ -1,0 +1,53 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-08, FR-21, FR-22
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依 UC-08 與 feature gate 邊界產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 短影音腳本與成品審核活動圖
+
+|教師|
+start
+:開啟短影音腳本功能;
+|FocusFlow|
+if (功能旗標已啟用？) then (是)
+  :依課程提問建立候選並凍結 Leaf 證據;
+  if (證據足以生成？) then (是)
+    :生成只能引用凍結證據的腳本版本;
+    |教師|
+    if (核准腳本？) then (核准)
+      :於系統外製作完成影片;
+      :上傳成品並確認 AI 揭露／同意;
+      |FocusFlow|
+      :排程 unlisted YouTube 預覽;
+      |教師或管理員|
+      if (成品審核通過？) then (是)
+        |FocusFlow|
+        :標記 published 並進入學生牆;
+      else (否)
+        :記錄退回並通知 owner;
+      endif
+    else (修改或放棄)
+      :保存回饋或 dismissed 狀態;
+    endif
+  else (否)
+    :拒絕生成並保留可診斷原因;
+  endif
+else (否)
+  :路由不可用，不呈現未啟用功能;
+endif
+stop
+
+note right
+  系統不自動剪輯、渲染 9:16 成品或合成字幕；
+  真實 YouTube 與 feature-on browser E2E 仍須另驗收。
+end note
+
+@enduml

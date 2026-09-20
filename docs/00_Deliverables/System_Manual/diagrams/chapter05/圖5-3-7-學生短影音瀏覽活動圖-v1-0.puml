@@ -1,0 +1,35 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-07, FR-07, FR-20
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 UC-07 產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 學生短影音瀏覽活動圖
+
+|學生|
+start
+:開啟 Shorts 頁面;
+|FocusFlow|
+:取得學生 active Enrollment 課程;
+if (有可存取的 published 課程？) then (是)
+  :篩選 published、publishedAt 非空\n且 YouTube playable 的 ShortAsset;
+  if (有可播放資產？) then (是)
+    :以游標分頁回傳 9:16 影片卡;
+    |學生|
+    :瀏覽短影音與課程資訊;
+  else (否)
+    :回傳空狀態;
+  endif
+else (否)
+  :回傳空狀態且不洩漏其他課程資產;
+endif
+stop
+
+@enduml

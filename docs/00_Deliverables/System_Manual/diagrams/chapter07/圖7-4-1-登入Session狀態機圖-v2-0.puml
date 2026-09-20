@@ -1,0 +1,32 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-01, FR-02, FR-04, NFR-07
+' source:       frontend/focus-flow/src/authSession.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 AUTH_SESSION_STATUS 與 restoreAuthSession 轉換重繪
+' ============================================
+!include ../_style.puml
+
+title 登入Session狀態機圖
+
+[*] --> anonymous : initialize [no token] / show login
+[*] --> unavailable : initialize [token exists] / call GET /auth/me
+unavailable --> authenticated : restoreSuccess [public user valid] / cache verified user
+unavailable --> invalid : restoreError [401 or 403] / clear token and user
+unavailable --> unavailable : restoreError [network or 5xx] / keep persisted session
+authenticated --> forbidden : enterAdmin [role != admin] / keep valid normal session
+forbidden --> authenticated : enterNormalApp / route to role dashboard
+authenticated --> invalid : protectedRequest [401 or 403] / clear invalid session
+authenticated --> anonymous : logout / clear token and user
+invalid --> anonymous : acknowledge / show login
+
+note right of unavailable
+  對應設計類別：AuthSession。
+  暫時性錯誤不得直接清除仍可能有效的憑證。
+end note
+
+@enduml

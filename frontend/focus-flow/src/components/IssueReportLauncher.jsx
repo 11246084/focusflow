@@ -3,12 +3,23 @@ import { createPortal } from 'react-dom';
 import useModalDialog from '../hooks/useModalDialog';
 
 const ISSUE_REPORT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSef66soFCDdGOUKAHJjeuGitefI4aSKdHfBu-PLSYxTMaFp0Q/viewform';
+const FEEDBACK_FORM_URL = 'https://forms.gle/QyQN4ZaHyCc8KnVu9';
 
 function ChatIcon({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M20 15a3 3 0 0 1-3 3H9l-5 3v-6.5A7 7 0 0 1 3 11V8a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3v7Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M8 10h8M8 13h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FeedbackIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="9" y="3" width="6" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -78,16 +89,27 @@ export default function IssueReportLauncher() {
 
   return (
     <>
-      <button
-        type="button"
-        className="issue-report-launcher"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
-      >
-        <ChatIcon />
-        <span>回報問題</span>
-      </button>
+      <div className="fab-group">
+        <a
+          className="fab-feedback"
+          href={FEEDBACK_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <FeedbackIcon />
+          <span>意見回饋</span>
+        </a>
+        <button
+          type="button"
+          className="issue-report-launcher"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+        >
+          <ChatIcon />
+          <span>回報問題</span>
+        </button>
+      </div>
 
       {open && createPortal(
         <IssueReportDialog onClose={() => setOpen(false)} />,

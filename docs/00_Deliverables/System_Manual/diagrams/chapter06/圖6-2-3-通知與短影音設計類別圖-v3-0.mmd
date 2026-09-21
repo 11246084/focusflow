@@ -1,0 +1,46 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-06, UC-07, UC-08
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1 分析責任）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  partial
+%% ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 決議改用 Mermaid 重繪；classDiagram 以 foreignObject 呈現屬性／方法，需以 kroki /mermaid/png 直接轉檔，不可用 svg+sharp（sharp 內建 resvg 不支援 foreignObject，會產生空白方框）
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+classDiagram
+    direction LR
+    class NotificationService {
+        +listNotifications()
+        +markAsRead()
+    }
+    class ShortScriptService {
+        +generateScript()
+        +approveScript()
+    }
+    class ShortAssetService {
+        +uploadAsset()
+        +reviewAsset()
+    }
+    class Notification {
+        +readAt
+        +targetUrl
+    }
+    class ShortScript {
+        +scriptStatus
+        +generationVersion
+    }
+    class ShortAsset {
+        +reviewStatus
+        +publishedAt
+    }
+    class Course {
+        +status
+    }
+
+    NotificationService --> Notification
+    ShortScriptService --> ShortScript
+    ShortAssetService --> ShortAsset
+    ShortScript "1" --> "0..*" ShortAsset : 對應腳本版本
+    Course "1" --> "0..*" ShortAsset : 所屬課程

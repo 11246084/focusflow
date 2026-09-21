@@ -1,0 +1,27 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-02, FR-06
+' source:       backend/src/models/enrollment.model.js、backend/src/services/enrollment.service.js（程式碼）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Sonnet 5 / 依 enrollment.service.js 實際 transition 規則繪製狀態機骨架
+' ============================================
+!include ../_style.puml
+
+title 修課（Enrollment）狀態機圖
+
+[*] --> active : assignStudent／importStudents\n（老師以 Email 指派或匯入名單；\nupsert 建立，預設 active）
+active --> revoked : revokeStudent\n[需存在 active 紀錄，否則 404 ENROLLMENT_NOT_FOUND]\n／清除該課程 LINE active scope 與對話歷史
+revoked --> active : assignStudent\n（重新指派同一 studentId+courseId；\n清除 revokedAt／revokedBy，保留 progress 與 watchedVideoIds）
+
+note right of revoked
+  對應設計類別：Enrollment。
+  (studentId, courseId) 唯一索引確保重新指派
+  沿用同一筆紀錄，不會產生重複列。
+  沒有 active 紀錄的課程存取一律 default-deny。
+end note
+
+@enduml

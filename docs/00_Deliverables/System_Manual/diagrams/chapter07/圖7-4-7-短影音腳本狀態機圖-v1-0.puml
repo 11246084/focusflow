@@ -1,0 +1,36 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-08, FR-21
+' source:       backend/src/services/shortScript.service.js（程式碼，ALLOWED_TRANSITIONS／assertTransition）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Sonnet 5 / 依 shortScript.service.js 的合法轉換表繪製狀態機骨架
+' ============================================
+!include ../_style.puml
+
+title 短影音腳本（ShortScript）狀態機圖
+
+[*] --> evidence_ready : freezeEvidence\n（自候選主題凍結 Leaf 與鄰接證據）
+evidence_ready --> generated : generateScriptVersion\n（首次生成，引用凍結證據）
+evidence_ready --> dismissed : reviewAction(dismiss)\n（教師否決，或證據包無轉折句不適用弧線）
+generated --> approved : reviewAction(approve)
+generated --> changes_requested : reviewAction(request_changes)
+generated --> dismissed : reviewAction(dismiss)
+changes_requested --> generated : generateScriptVersion\n[retrieval 回饋先重新凍結證據／narrative 回饋沿用同證據重寫]
+changes_requested --> approved : reviewAction(approve)\n（教師未重生、直接通過既有版本）
+changes_requested --> dismissed : reviewAction(dismiss)
+approved --> changes_requested : reviewAction(request_changes)\n（成品審核被退回，追溯回腳本要求重生）
+approved --> dismissed : reviewAction(dismiss)
+dismissed --> [*]
+
+note right of dismissed
+  對應設計類別：ShortScript。
+  未列出的轉換一律由 assertTransition 拒絕，
+  回傳 409 SHORT_SCRIPT_STATE_INVALID，不靜默忽略。
+  dismissed 為終態，無出向轉換。
+end note
+
+@enduml

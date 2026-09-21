@@ -1,0 +1,38 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-08, FR-22
+' source:       backend/src/services/shortAsset.service.js、backend/src/services/shortAssetPublish.service.js（程式碼）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Sonnet 5 / 依 status／reviewStatus 兩欄位實際轉換規則合併為單一物件生命週期
+' ============================================
+!include ../_style.puml
+
+title 短影音成品（ShortAsset）狀態機圖
+
+[*] --> pending_review : createShortAsset／recordShortAssetRegeneration\n（教師上傳成品或重新產生新版本）
+pending_review --> approved_unpublished : reviewShortAsset(approve)\n[僅限 reviewStatus 為 pending]
+pending_review --> rejected : reviewShortAsset(reject)\n[僅限 reviewStatus 為 pending]\n／status 強制回 draft，通知腳本 owner 並排程 YouTube 轉 private
+approved_unpublished --> published : updateShortAsset(status=published)\n[CAS：reviewStatus 仍為 approved 且 generationVersion 未變，\n否則 409 SHORT_ASSET_NOT_APPROVED]
+rejected --> pending_review : recordShortAssetRegeneration\n（新版本，reviewStatus 重置為 pending）
+approved_unpublished --> pending_review : recordShortAssetRegeneration\n（重新產生新版本，即使已核准也重置）
+published --> pending_review : recordShortAssetRegeneration\n（重新產生新版本，status 回 draft、reviewStatus 回 pending）
+pending_review --> archived : archiveForCourseDeletion 等\n（課程或來源影片刪除連動封存）
+approved_unpublished --> archived : archiveForCourseDeletion 等
+rejected --> archived : archiveForCourseDeletion 等
+published --> archived : archiveForCourseDeletion 等
+archived --> [*]
+
+note bottom of pending_review
+  對應設計類別：ShortAsset（status × reviewStatus 複合生命週期）。
+  同一 generationVersion 只允許審核一次：reviewStatus 已非 pending
+  或版本已變更時，reviewShortAsset 回 409
+  SHORT_ASSET_REVIEW_CONFLICT／SHORT_ASSET_REVIEW_STALE，不覆蓋既有結果。
+  status 的 ready 值僅存在於常數定義，目前程式沒有任何寫入路徑
+  會產生它，故不畫入本圖。
+end note
+
+@enduml

@@ -1,0 +1,31 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     FR-08, NFR-04
+' source:       backend/src/services/youtubeUpload.service.js（程式碼）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Sonnet 5 / 依 autoUploadVideoToYouTube／retry／recovery 實際邏輯繪製狀態機骨架
+' ============================================
+!include ../_style.puml
+
+title YouTube 上傳（Video.youtubeUpload）狀態機圖
+
+[*] --> uploading : autoUploadVideoToYouTube\n[processing 已 completed 且尚無 youtubeVideoId]\n／以 CAS 條件搶佔 claim，記錄 attemptCount
+uploading --> uploaded : 上傳 API 成功\n／寫入 youtubeVideoId、videoUrl，清除 error
+uploading --> failed : 本地檔案遺失，或上傳 API 失敗\n／記錄 error、retrySafe 與 nextRetryAt
+failed --> uploading : scheduleYouTubeUploadRetry（人工）\n或背景重試排程\n[retrySafe == true 且 attemptCount < youtubeUploadMaxAttempts]
+uploading --> failed : recoverPendingYouTubeUploads 逾時偵測\n[lastAttemptAt 早於 youtubeUploadStuckAfterMs]\n／標記 retrySafe=false（隔離，避免重複上傳）
+failed --> [*] : 不可再重試\n[retrySafe == false 或 attemptCount >= youtubeUploadMaxAttempts]\n（需人工於 YouTube Studio 確認後才可能繼續）
+uploaded --> [*]
+
+note right of failed
+  對應設計類別：Video（youtubeUpload 子文件）。
+  assertRetryableUpload 另以 YOUTUBE_UPLOAD_ALREADY_COMPLETED／
+  YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED／YOUTUBE_UPLOAD_RETRY_UNSAFE／
+  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED 明確拒絕不合法的手動重試請求。
+end note
+
+@enduml

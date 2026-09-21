@@ -1,0 +1,55 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-3
+' realizes:     FR-02, FR-09, FR-13, FR-14, FR-17, NFR-01, NFR-06
+' source:       backend/src/routes/, STT_Whisper/src/main.py, frontend/focus-flow/src/services/（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依可替換 service boundary 與 adapter contract 重繪
+' ============================================
+!include ../_style.puml
+
+title 系統元件圖
+left to right direction
+
+component "React SPA" as SPA
+component "Express API" as API
+component "Python AI Pipeline" as Pipeline
+component "MongoDB / Atlas" as Mongo
+component "AI Provider Adapter" as AI
+component "LINE Adapter" as LINE
+component "YouTube Adapter" as YT
+
+() "Public REST JSON API" as IRest
+() "Processing Webhook" as IWebhook
+() "Pipeline CLI Contract" as ICli
+() "Persistence Contract" as IData
+() "Answer / Embedding API" as IAi
+() "Messaging API" as ILine
+() "Video Upload API" as IYoutube
+
+API - IRest : provides
+SPA ..> IRest : requires
+API - IWebhook : provides
+Pipeline ..> IWebhook : requires
+Pipeline - ICli : provides
+API ..> ICli : requires
+Mongo - IData : provides
+API ..> IData : requires
+Pipeline ..> IData : requires
+AI - IAi : provides
+API ..> IAi : requires
+Pipeline ..> IAi : requires
+LINE - ILine : provides
+API ..> ILine : requires
+YT - IYoutube : provides
+API ..> IYoutube : requires
+
+note bottom of API
+  介面與 adapter 程式已存在；外部 provider、feature flags 與資料契約
+  是否 ready 仍須由 /health 與各邊界的驗收證據確認。
+end note
+
+@enduml

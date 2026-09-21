@@ -1,0 +1,45 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-04, FR-07, FR-12, FR-13, FR-14, FR-15, FR-16
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 版面決議重繪：各拒絕分支改為獨立結束節點，消除匯流菱形與交叉線
+' ============================================
+!include ../_style.puml
+
+title 學生網頁觀看與提問活動圖
+
+|學生|
+start
+:開啟課程與影片;
+|FocusFlow|
+:驗證 active Enrollment 與 published Course;
+if (具有課程存取權？) then (否)
+  :回傳禁止存取;
+  stop
+endif
+:回傳課程與影片並記錄開啟事件;
+|學生|
+:觀看影片並輸入問題;
+|FocusFlow|
+:建立或續用 Conversation;
+:送出問題前重新驗證課程範圍;
+if (權限仍有效且資料就緒？) then (否)
+  :拒絕或回傳可判讀的失敗狀態;
+  stop
+endif
+:檢索允許的影片片段;
+if (證據足以回答？) then (否)
+  :回覆無充分答案，不虛構內容;
+  stop
+endif
+:生成回答、answerStatus 與 citations;
+|學生|
+:查看來源卡並跳至影片時間點;
+stop
+
+@enduml

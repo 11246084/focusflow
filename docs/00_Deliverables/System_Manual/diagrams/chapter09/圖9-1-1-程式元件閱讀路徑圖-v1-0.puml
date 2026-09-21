@@ -1,0 +1,42 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      9-1
+' realizes:     FR-02, FR-09, FR-13, FR-14, FR-17
+' source:       frontend/focus-flow/src/, backend/src/, STT_Whisper/src/（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 建立非 UML 程式元件閱讀路徑圖
+' ============================================
+!include ../_style.puml
+
+title 程式元件閱讀路徑圖
+top to bottom direction
+
+rectangle "非 UML：由入口追到規則與資料" as Label
+rectangle "前端入口\nmain.jsx / App.jsx / AdminApp.jsx" as FrontEntry
+rectangle "角色頁面與服務\nDashboardApp / pages / api.js" as FrontService
+rectangle "HTTP 入口\nroutes / middleware" as Routes
+rectangle "請求協調\ncontrollers" as Controllers
+rectangle "業務規則\nservices" as Services
+rectangle "資料契約\nmodels / MongoDB" as Models
+rectangle "AI 處理入口\nmain.py / batch_main.py" as PipelineEntry
+rectangle "Pipeline stages\ncheckpoint / chunk / embedding / uploader" as PipelineStages
+
+Label -[hidden]-> FrontEntry
+FrontEntry --> FrontService : page and session
+FrontService --> Routes : HTTPS JSON / multipart
+Routes --> Controllers : validated request
+Controllers --> Services : use-case input
+Services --> Models : query / persist
+Services --> PipelineEntry : guarded process request
+PipelineEntry --> PipelineStages : run / resume / batch
+PipelineStages --> Models : publication + webhook
+
+note bottom of Services
+  第9章只擇優呈現能說明授權、狀態轉換與來源式回答的程式片段；
+  完整程式以 repository 為準，不以大量貼碼充頁。
+end note
+
+@enduml

@@ -15,13 +15,13 @@
 {diagrams}/
 ├── _style.puml              # 共用樣式，所有圖 !include
 ├── chapter05/
-│   ├── 圖5-2-1-<名稱>.puml
-│   └── 圖5-3-1-<名稱>.puml
+│   ├── 圖5-2-1-<名稱>-v1-0.puml
+│   └── 圖5-3-1-<名稱>-v1-0.puml
 ├── chapter06/
 └── chapter07/
 ```
 
-`[FF:MUST]` 檔名 `圖{章}-{節}-{序}-{名稱}.puml`；改版後綴 `-vX-x`。
+`[FF:MUST]` 新增或重繪檔名使用 `圖{章}-{節}-{序}-{名稱}-vX-x.puml`；版本必須在建立新檔前依 `local/focusflow-conventions.md` 判定。
 
 ## 每個檔案的固定骨架
 
@@ -115,14 +115,24 @@ title <圖名，須與檔名中的名稱一致>
 
 - 格式與解析度依最終排版需求決定（見 open issue 3）
 - `.puml` 為版控母稿；匯出圖檔與 `.puml` 同名
-- 匯出後必須重跑 `artifact-chain.md` 的七項檢查
+- 匯出後必須重跑 `artifact-chain.md` 的八項檢查
+- 真實渲染與 source contract 檢查是兩個不同 gate；兩者都要通過
+- 匯出後須開啟圖片目視檢查，不能只以 process exit code 判斷可讀性
 
 ```bash
 # 匯出單一檔案（需本機有 plantuml）
-plantuml -tpng -o ../../images "diagrams/chapter06/圖6-1-3-網頁問答循序圖.puml"
+plantuml -tpng -o ../../images "diagrams/chapter06/圖6-1-3-網頁問答循序圖-v1-0.puml"
 
 # 僅檢查語法，不產圖
-plantuml -checkonly "diagrams/chapter06/圖6-1-3-網頁問答循序圖.puml"
+plantuml -checkonly "diagrams/chapter06/圖6-1-3-網頁問答循序圖-v1-0.puml"
+
+# 檢查檔頭、檔名／title、版本、PNG、正文與圖目錄鏈結
+python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py \
+  --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 \
+  --image-dir docs/00_Deliverables/System_Manual/images \
+  --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md \
+  --toc docs/00_Deliverables/System_Manual/圖表目錄.md \
+  --require-version
 ```
 
-`[DOC:MUST]` review 第 1 層即為 `-checkonly` 通過。
+`[DOC:MUST]` review 第 1 層包含 PlantUML 語法／渲染通過與匯出圖檔目視檢查；Python 驗證器不能取代 PlantUML renderer。

@@ -1,0 +1,47 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-02, FR-05, FR-06, FR-07
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 UC-02 產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 課程與修課名單管理活動圖
+
+|教師或管理員|
+start
+:建立或開啟課程;
+|FocusFlow|
+:確認管理員或課程 owner 權限;
+if (可管理課程？) then (是)
+  |教師或管理員|
+  :編輯課程資料與狀態;
+  :以完整 Email 指派或匯入名單;
+  |FocusFlow|
+  :逐筆驗證學生與名單限制;
+  if (有無效項目？) then (有)
+    :保留成功項並列出 skipped 原因;
+  else (無)
+    :建立或重新啟用 Enrollment;
+  endif
+  |教師或管理員|
+  if (需要撤銷學生？) then (是)
+    :選擇撤銷修課;
+    |FocusFlow|
+    :soft revoke 並清除該課程 LINE scope;
+  endif
+  |教師或管理員|
+  :完成準備後發布課程;
+  |FocusFlow|
+  :只讓 active Enrollment\n且 published Course 的學生存取;
+else (否)
+  :回傳 403 並保持資料不變;
+endif
+stop
+
+@enduml

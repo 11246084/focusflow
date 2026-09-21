@@ -1,0 +1,66 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-05, FR-06, FR-07, FR-09, FR-13, FR-14, FR-18, FR-20, NFR-04, NFR-05
+' source:       backend/src/models/, STT_Whisper/src/mongodb_uploader.py（schema 與 uploader）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依目前集合、參照與限制重繪非 UML 關聯圖
+' ============================================
+!include ../_style.puml
+
+title MongoDB核心集合關聯圖
+left to right direction
+
+rectangle "非 UML：文件型資料庫集合關聯與限制" as Label
+
+package "帳號與課程" {
+  rectangle "users\nemail unique\nlineUserId unique+sparse" as Users
+  rectangle "avatars\nuserId unique" as Avatars
+  rectangle "courses\nteacherId ref\nvideoIds[] refs" as Courses
+  rectangle "enrollments\n(studentId, courseId) unique\nactive / revoked" as Enrollments
+}
+
+package "影片與知識" {
+  rectangle "videos\ncourseId / uploadedBy refs\nprocessing state" as Videos
+  rectangle "videobatches\nbatchId unique\nitems[].videoId" as Batches
+  rectangle "video_segments_text\nvideoId bridge\nchunkId index" as Leaf
+  rectangle "parent segments\nparentId unique\nchildChunkIds[]" as Parent
+}
+
+package "問答與營運" {
+  rectangle "conversations\nuserId / courseId refs" as Conversations
+  rectangle "messages\nconversationId ref" as Messages
+  rectangle "questions\nuserId / courseId\ncitation snapshot" as Questions
+  rectangle "faqs\n(courseId, normalizedQuestion) unique" as Faqs
+  rectangle "notifications\nrecipientId ref\ndedupe partial unique" as Notifications
+  rectangle "shortscripts / shortassets\ncourse / script / YouTube refs" as Shorts
+}
+
+Users --> Avatars : 1 : 0..1
+Users --> Courses : teacher 1 : 0..*
+Users --> Enrollments : student 1 : 0..*
+Courses --> Enrollments : 1 : 0..*
+Courses --> Videos : 1 : 0..*
+Courses --> Batches : 1 : 0..*
+Batches --> Videos : 1 : 0..10
+Videos --> Leaf : 1 : 0..*\nvideoId bridge
+Parent --> Leaf : 1 : 1..*\nchildChunkIds
+Users --> Conversations : 1 : 0..*
+Courses --> Conversations : 1 : 0..*
+Conversations --> Messages : 1 : 0..*
+Users --> Questions : 1 : 0..*
+Courses --> Questions : 1 : 0..*
+Questions --> Leaf : citation 0..* : 1
+Courses --> Faqs : 1 : 0..*
+Users --> Notifications : recipient 1 : 0..*
+Courses --> Shorts : 1 : 0..*
+
+note bottom of Label
+  MongoDB 不強制外鍵；參照完整性、課程授權與 detach／delete 邊界由 service 層維護。
+  Parent retrieval 為 guarded path；shared Atlas 實際集合與 index 狀態須另做唯讀查證。
+end note
+
+@enduml

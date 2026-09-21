@@ -1,0 +1,50 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     UC-04, UC-05, FR-13, FR-14, FR-15, FR-16, FR-17
+' source:       backend/src/routes/line.routes.js, backend/src/services/line.service.js, backend/src/services/qa.service.js（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 LINE channel 與共用 QA service 邊界重繪
+' ============================================
+!include ../_style.puml
+
+title LINE與QA套件圖
+left to right direction
+
+package "web QA channel" as WebQa {
+  [qa.routes.js]
+  [conversation.routes.js]
+}
+package "LINE channel" as Line {
+  [line.routes.js]
+  [lineSignature.middleware.js]
+  [line.service.js]
+}
+package "shared QA application" as SharedQa {
+  [qa.service.js]
+  [courseAccess.service.js]
+  [faqCache.service.js]
+  [queryEmbedding.service.js]
+  [answerGeneration.service.js]
+  [questionRecording.service.js]
+}
+package "retrieval adapters" as Retrieval {
+  [memory retrieval]
+  [Atlas Vector Search]
+  [guarded hierarchy]
+}
+
+WebQa ..> SharedQa : ask / conversation
+Line ..> SharedQa : signed event / ask
+SharedQa ..> Retrieval : scoped search
+SharedQa ..> SharedQa : citation validation / no-answer
+
+note bottom of Retrieval
+  hierarchy 為 guarded path；未具備 active contract 與 live E2E 時
+  不得宣稱 production ready。
+end note
+
+@enduml

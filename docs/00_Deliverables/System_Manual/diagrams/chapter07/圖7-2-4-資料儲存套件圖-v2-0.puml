@@ -1,0 +1,50 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     NFR-03, NFR-04, NFR-05, NFR-11
+' source:       backend/src/models/, STT_Whisper/src/mongodb_uploader.py, database/tools/mongodb_uploader.py（程式碼）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依 app-owned、Pipeline 與工具契約分群重繪
+' ============================================
+!include ../_style.puml
+
+title 資料儲存套件圖
+left to right direction
+
+package "backend models" as BackendModels {
+  [identity and course]
+  [video and batch]
+  [QA and conversation]
+  [notification and shorts]
+}
+package "MongoDB app collections" as AppCollections
+package "Pipeline publication" as PipelinePub {
+  [Leaf text segments]
+  [Parent segments]
+  [visual / audio artifacts]
+}
+package "database tools" as DbTools {
+  [setup scripts]
+  [mongodb_uploader.py]
+  [legacy importers]
+}
+package "Atlas indexes" as AtlasIndexes {
+  [source-declared indexes]
+  [Vector Search indexes]
+}
+
+BackendModels ..> AppCollections : Mongoose read / write
+PipelinePub ..> AppCollections : metadata bridge
+DbTools ..> AppCollections : authorized upsert only
+AppCollections ..> AtlasIndexes : indexed fields
+PipelinePub ..> AtlasIndexes : embedding contract
+
+note bottom of DbTools
+  setup 與 legacy scripts 存在不代表可直接對 shared Atlas 執行；
+  實際 collection、index 與資料品質須另做唯讀查證。
+end note
+
+@enduml

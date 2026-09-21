@@ -1,0 +1,34 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-09, FR-04, FR-05, FR-06, FR-18, FR-19
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 決議改用 Mermaid 重繪，抽象層級改為業務層（使用者/前端/後端 API/資料庫），對齊第5章 UC 分組；初評第6章母稿為畫風參考
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    actor A as 管理員
+    participant UI as 管理後台
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    A->>UI: 登入並選擇維運功能
+    UI->>API: 請求全站統計
+    API->>DB: 重新驗證 JWT<br/>與 admin 角色
+    DB-->>API: 回傳帳號狀態
+    API-->>UI: 顯示統計與近期事件
+    A->>UI: 選擇使用者、課程、<br/>影片或公告操作
+    UI->>API: 送出維運異動
+    API->>DB: 驗證識別碼與<br/>資料關聯規則
+    alt 操作合規
+        DB-->>API: 保存變更並<br/>觸發必要通知
+        API-->>UI: 回傳最新狀態
+        UI-->>A: 讀回確認完成
+    else 操作衝突
+        DB-->>API: 回傳驗證錯誤
+        API-->>UI: 拒絕且不假成功
+        UI-->>A: 顯示衝突原因
+    end

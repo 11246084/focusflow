@@ -1,0 +1,39 @@
+---
+title: <圖名，須與檔名中的名稱一致>
+config:
+  theme: base
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-xx
+%% source:       <路徑>（程式碼）
+%% verified:     YYYY-MM-DD
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / <工具> / <使用範圍>
+%% ============================================
+classDiagram
+  namespace 表現層 {
+    class QaController {
+      +ask(req, res) Response
+    }
+  }
+  namespace 服務層 {
+    class QaService {
+      +ask(courseId, question) Answer
+    }
+    class AnswerProvider {
+      <<interface>>
+      +generate(context, question) Answer
+    }
+  }
+  namespace 資料存取層 {
+    class SegmentRepository {
+      +findByCourse(courseId) Segment[]
+    }
+  }
+
+  QaController --> "1" QaService
+  QaService --> "1" SegmentRepository
+  QaService --> "1" AnswerProvider

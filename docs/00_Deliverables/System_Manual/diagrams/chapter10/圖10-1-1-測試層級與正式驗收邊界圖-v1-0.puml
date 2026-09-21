@@ -1,0 +1,40 @@
+@startuml
+' ============================================
+' ooad-phase:   測試
+' chapter:      10-1
+' realizes:     NFR-01, NFR-04, NFR-05, NFR-06, NFR-07, NFR-12
+' source:       docs/00_Deliverables/System_Manual/chapters/10_測試模型.md, backend/package.json, frontend/focus-flow/package.json（測試計畫與程式入口）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 建立非 UML 測試層級與驗收邊界圖
+' ============================================
+!include ../_style.puml
+
+title 測試層級與正式驗收邊界圖
+top to bottom direction
+
+rectangle "非 UML：證據逐層增加，低層綠燈不能替代高層驗收" as Label
+rectangle "正式環境驗收\n公開 HTTPS、runtime readiness、關鍵流程、回滾與備份" as Production
+rectangle "shared Atlas／live provider\n真實向量、Gemini、LINE、YouTube、SMTP" as Live
+rectangle "瀏覽器與隔離整合\nPlaywright、真實 MongoDB、程序重啟與競態" as Integration
+rectangle "本機 HTTP／contract\nExpress routes、JWT、RBAC、response contract" as Http
+rectangle "單元／mock／靜態檢查\nservice branches、lint、build、Pipeline unittest" as Unit
+
+Label -[hidden]-> Production
+Unit --> Http : 程式分支穩定後
+Http --> Integration : 需要真實持久化與 DOM
+Integration --> Live : 需要外部資料與憑證
+Live --> Production : 需要部署版本與操作證據
+
+note right of Unit
+  可證明：受控依賴下的程式規則。
+  不能證明：Atlas index、瀏覽器、外部 API 或正式部署。
+end note
+
+note right of Production
+  只有保存日期、commit、環境、旗標、輸入、預期、實際結果與執行者，
+  才能把一次測試判定為可追溯的正式驗收證據。
+end note
+
+@enduml

@@ -1,6 +1,6 @@
 ---
 name: ooad-uml-diagramming
-description: 以物件導向系統分析與設計（OOAD）方法，為系統手冊選擇、繪製與審查 UML 圖表。涵蓋需求／分析／設計／實作／測試五個模型、UML 2.x 圖種選擇、PlantUML 製圖慣例、圖號與正文引用一致性，以及分析類別圖與設計類別圖的防顛倒檢查。當任務涉及「畫 UML」「畫循序圖／類別圖／狀態機」「系統手冊第 5～9 章圖表」「use case 怎麼寫」「這張圖該不該畫」「圖畫得對不對」時使用。
+description: 以物件導向系統分析與設計（OOAD）方法，為系統手冊選擇、繪製與審查 UML 圖表。涵蓋需求／分析／設計／實作／測試五個模型，以及循序圖、類別圖、物件圖、套件圖、元件圖、狀態機圖等 UML 2.x 圖種的 PlantUML／Mermaid 製圖、追溯、版本與 artifact-chain 驗證。當任務涉及「畫 UML」「畫循序圖／類別圖／物件圖／套件圖」「系統手冊第 5～9 章圖表」「use case 怎麼寫」「這張圖該不該畫」「圖畫得對不對」時使用。
 ---
 
 # OOAD / UML 系統手冊製圖
@@ -50,13 +50,15 @@ description: 以物件導向系統分析與設計（OOAD）方法，為系統手
 ## 工作流程
 
 ```
-Step 1  確認脈絡      → 這張圖屬哪個 OOAD 階段？要放哪一章？
+Step 1  建立繪圖 brief → 問題、讀者、階段、範圍、證據、狀態與輸出版本
 Step 2  選圖          → 兩段式：先查章節契約，再走自由決策樹
 Step 3  該不該畫      → 跑 checklists/pre-draw.md
-Step 4  製圖          → 用 templates/ 骨架 + references/plantuml-conventions.md
+Step 4  製圖          → 選 PlantUML／Mermaid 工作母稿；需要時再以 diagram-design 製作衍生呈現物
 Step 5  配套文字      → 產出「用途 + 判讀」骨架；互動圖另產編號步驟
-Step 6  審查          → 跑 checklists/review.md 五層
+Step 6  審查          → 語法、渲染、目視、語意、追溯與 artifact chain
 ```
+
+Step 1 必須先完成 `references/diagram-brief.md`。一張圖原則上只回答一個設計問題；若同時包含多個問題，先拆圖或在 brief 中記錄無法拆分的理由。
 
 ### Step 2：兩段式選圖（結構性規則）
 
@@ -139,6 +141,7 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
     （型別、方法簽章、可見性、導航方向、介面、技術類別、拆分／合併、設計模式皆為 `[OOAD:HEURISTIC]` 設計層證據，**不得為通過規則而強迫製造**）
 12. `[OOAD:MUST]` 分析／設計兩圖類別集合完全相同且僅差方法列時，必須文字說明原因，否則不通過。
 13. `[OOAD:MUST]` 資料庫綱要不得以類別圖呈現並標示為類別圖。
+14. `[DOC:MUST]` `diagram-design` 只能作為選用的視覺呈現／匯入／匯出層，不得取代 PlantUML／Mermaid 工作母稿、實作證據、追溯鏈或 UML 語意審查；任何合併、折疊、拆圖或省略都必須記入 fidelity ledger。
 14. `[NTUB:MUST]` **章節位置即層級宣告**：放在 5-4 的圖一律套分析層檢查，放在 6-2 的圖一律套設計層檢查。
 
 > 完整判別器（訊號表 A–H）見 `references/analysis-vs-design.md`。
@@ -164,7 +167,7 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
 
 ### Artifact chain
 
-25. `[DOC:MUST]` `.puml` → 圖檔 → 圖號 → 正文引用 → 圖目錄 五個落點必須一致；七項檢查見 `references/artifact-chain.md`。
+25. `[DOC:MUST]` 圖源（`.puml`／`.mmd`）→ 圖檔 → 圖號 → 正文引用 → 圖目錄五個落點必須一致；八項檢查見 `references/artifact-chain.md`。
 
 ---
 
@@ -189,6 +192,7 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
 
 | 情境 | 載入 |
 |---|---|
+| 開始任何製圖或重繪 | `references/diagram-brief.md` |
 | 判斷階段／模型歸屬 | `references/ooad-lifecycle.md` |
 | 查圖種用途、建議程度、誤用 | `references/diagram-catalog.md` |
 | **系統手冊任何章節的製圖** | `references/local/ntub-chapter-contract.md`（**最高優先**） |
@@ -198,9 +202,20 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
 | 術語、preferred / alias | `references/terminology.md` |
 | 編號體系、事實來源、追溯鏈 | `references/traceability.md` |
 | 檔名、圖號、正文引用、圖目錄一致性 | `references/artifact-chain.md` |
-| 寫 PlantUML | `references/plantuml-conventions.md` + `templates/` |
+| 選擇 PlantUML／Mermaid／renderer | `references/source-format-selection.md` |
+| 用 diagram-design 重繪、匯入或匯出 | `references/editorial-rendering.md` + 已安裝的 `diagram-design` skill |
+| 循序圖／通訊圖 | `references/diagram-guides/interaction-diagrams.md` |
+| 類別圖／物件圖 | `references/diagram-guides/class-object-diagrams.md` |
+| 活動圖／狀態機圖 | `references/diagram-guides/behavior-diagrams.md` |
+| 套件圖／元件圖／佈署圖 | `references/diagram-guides/implementation-structure-diagrams.md` |
+| 寫 PlantUML | `references/plantuml-conventions.md` + `templates/*.puml` |
+| 寫 Mermaid | `references/mermaid-conventions.md` + `templates/mermaid/` |
 | 審查階段 | `checklists/review.md` + `references/antipatterns.md` |
 | FocusFlow 專案路徑與現況 | `references/local/focusflow-conventions.md` |
+
+### 交付物
+
+Create／Modify 模式至少交付：完成的 diagram brief、版本化圖源（`.puml` 或 `.mmd`）、實際匯出的圖檔、正文整合（若在範圍內），以及依 `checklists/review.md` 得出的驗證結果。只做了文字檢查時不得宣稱「已渲染」或「視覺驗證通過」。
 
 ### 規則的單一來源
 
@@ -217,9 +232,9 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
 
 ## Open issues（不阻塞使用，但影響交付）
 
-1. **PlantUML 的地位**：官方最終交付要求 Visual Paradigm 的 VPP／VPD 檔。本 skill 目前把 PlantUML 視為**工作母稿**而非交付格式。待指導老師確認是否可替代。
+1. **文字圖源的地位**：官方最終交付要求 Visual Paradigm 的 VPP／VPD 檔。本 skill 把 PlantUML／Mermaid 視為**工作母稿**而非 VPP／VPD 等價物。待指導老師確認可接受的最終格式。
 2. **需求編號體系**：`FR-ID` / `NFR-ID` 的編號規則與對 UC 的基數尚未定案；`realizes` 欄位先以專案現行編號填寫。
-3. **非 UML 圖的製圖工具**未定（系統架構圖、資料庫關聯圖、畫面移轉圖）。
+3. **非 UML 圖的製圖工具**：可優先評估 `diagram-design`，但仍須依章節契約與圖種語意決定，不能把視覺模板當成分析方法。
 4. **是否允許反向工程產圖**：暫定分析層（5-4）禁止，設計層與實作層允許但須在 `source` 標註。
 
 見 `references/local/focusflow-conventions.md` 的 open issues 一節。

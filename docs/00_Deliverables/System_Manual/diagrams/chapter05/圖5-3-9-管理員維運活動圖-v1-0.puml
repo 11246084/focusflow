@@ -1,0 +1,39 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-09, FR-04, FR-05, FR-06, FR-18, FR-19
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / OpenAI Codex / 依 UC-09 產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 管理員維運活動圖
+
+|管理員|
+start
+:由 /admin 登入並選擇維運功能;
+|FocusFlow|
+:重新驗證 JWT、帳號狀態與 admin 角色;
+if (管理員身分有效？) then (是)
+  :回傳全站統計與近期事件;
+  |管理員|
+  :選擇使用者、課程、影片、Enrollment\n或全站公告操作;
+  |FocusFlow|
+  :驗證識別碼、狀態與資料關聯;
+  if (操作符合規則？) then (是)
+    :保存變更與必要事件／通知;
+    |管理員|
+    :讀回最新狀態確認完成;
+  else (否)
+    :回傳衝突或驗證錯誤且不假成功;
+  endif
+else (否)
+  :拒絕存取管理介面;
+endif
+stop
+
+@enduml

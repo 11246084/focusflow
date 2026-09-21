@@ -4,7 +4,7 @@
 
 ## 圖檔頭宣告
 
-`[DOC:MUST]` 每個 `.puml` 開頭必須有宣告區塊，缺任一欄位不得產出。
+`[DOC:MUST]` 每個圖源開頭必須有宣告區塊，缺任一欄位不得產出。PlantUML 使用 `' key: value`，Mermaid 使用 `%% key: value`；欄位語意相同。
 
 ```plantuml
 @startuml
@@ -108,7 +108,7 @@ FR-xx / NFR-xx ──┬─→ UC-xx ──→ 設計圖（realizes: UC-xx）─
 # 列出所有圖的 realizes 標註
 grep -rh "^' realizes:" diagrams/ | sort -u
 
-# 找出缺少宣告欄位的 .puml
+# 找出缺少宣告欄位的 PlantUML source；Mermaid 與跨平台檢查使用 validate_diagram_artifacts.py
 for f in $(find diagrams -name "*.puml"); do
   for k in ooad-phase chapter realizes source verified status implemented ai-assisted; do
     grep -q "^' $k:" "$f" || echo "$f 缺少 $k"

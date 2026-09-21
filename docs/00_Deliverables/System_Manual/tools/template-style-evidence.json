@@ -1,0 +1,172 @@
+{
+  "input": "C:\\Users\\User\\Documents\\GitHub\\focusflow\\docs\\00_Deliverables\\System_Manual\\source-documents\\\u5c08\u984c\u624b\u518a_\u521d\u8a55\u6700\u7d42\u7248.docx",
+  "fonts_by_char_count": {
+    "Times New Roman": 40534,
+    "Segoe UI Symbol": 46,
+    "Cambria Math": 8
+  },
+  "direct_run_formatting_runs": 6315,
+  "direct_paragraph_formatting_paragraphs": 106,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 4,
+      "text": "\u7cfb\u7d71\u624b\u518a",
+      "style": "Normal"
+    },
+    {
+      "para_index": 6,
+      "text": "\u7d44\u5225\uff1a\u7b2c115413\u7d44",
+      "style": "Normal"
+    },
+    {
+      "para_index": 7,
+      "text": "\u984c\u76ee\uff1aFocusFlow AI",
+      "style": "Normal"
+    },
+    {
+      "para_index": 8,
+      "text": "\u6307\u5c0e\u8001\u5e2b\uff1a\u84af\u601d\u9f4a\u8001\u5e2b",
+      "style": "Normal"
+    },
+    {
+      "para_index": 9,
+      "text": "\u7d44\u9577\uff1a11246084\u937e\u767e\u9676",
+      "style": "Normal"
+    },
+    {
+      "para_index": 10,
+      "text": "\u7d44\u54e1\uff1a11246062\u90b1\u5049\u8c6a\u300111246064\u5f35\u5ead\u8a9e\u3001",
+      "style": "Normal"
+    },
+    {
+      "para_index": 11,
+      "text": "11246085\u5f35\u5bb6\u745c",
+      "style": "Normal"
+    },
+    {
+      "para_index": 12,
+      "text": "\u4e2d\u83ef\u6c11\u570b115\u5e746\u67082\u65e5",
+      "style": "Normal"
+    },
+    {
+      "para_index": 494,
+      "text": "\u88688-2-14\u8cc7\u6599\u8868\u63cf\u8ff0-13\u5f71\u7247\u7247\u6bb5\u5411\u91cf\u8cc7\u6599",
+      "style": "Caption"
+    },
+    {
+      "para_index": 721,
+      "text": "\u6838\u5fc3\u529f\u80fd",
+      "style": "List Paragraph"
+    },
+    {
+      "para_index": 722,
+      "text": "\u5c0d\u61c9\u6280\u8853\uff0f\u5de5\u5177",
+      "style": "List Paragraph"
+    },
+    {
+      "para_index": 723,
+      "text": "\u53ef\u884c\u6027\u8aaa\u660e",
+      "style": "List Paragraph"
+    },
+    {
+      "para_index": 751,
+      "text": "\u985e\u578b",
+      "style": "Normal"
+    },
+    {
+      "para_index": 752,
+      "text": "\u5206\u6790\u5167\u5bb9",
+      "style": "Normal"
+    },
+    {
+      "para_index": 770,
+      "text": "\u512a\u52e2Strengths",
+      "style": "Normal"
+    },
+    {
+      "para_index": 771,
+      "text": "\u52a3\u52e2Weaknesses",
+      "style": "Normal"
+    },
+    {
+      "para_index": 772,
+      "text": "\u6a5f\u6703Opportunities",
+      "style": "Normal"
+    },
+    {
+      "para_index": 773,
+      "text": "SO\u7b56\u7565\uff1a\u767c\u63ee\u512a\u52e2\u638c\u63e1\u6a5f\u6703",
+      "style": "Normal"
+    },
+    {
+      "para_index": 776,
+      "text": "WO\u7b56\u7565\uff1a\u6539\u5584\u52a3\u52e2\u638c\u63e1\u6a5f\u6703",
+      "style": "Normal"
+    },
+    {
+      "para_index": 779,
+      "text": "\u5a01\u8105Threats",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "\u570b\u7acb\u81fa\u5317\u5546\u696d\u5927\u5b78",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "\u8cc7\u8a0a\u7ba1\u7406\u7cfb",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "11",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "5",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "\u8cc7\u8a0a\u7cfb\u7d71\u5c08\u6848\u8a2d\u8a08",
+        "style": "Normal"
+      }
+    ],
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 3,
+        "text": "115\u8cc7\u8a0a\u7cfb\u7d71\u5c08\u6848\u8a2d\u8a08",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "\u7cfb\u7d71\u624b\u518a",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "text": "\u7d44\u5225\uff1a\u7b2c115413\u7d44",
+        "style": "Normal"
+      },
+      {
+        "para_index": 7,
+        "text": "\u984c\u76ee\uff1aFocusFlow AI",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

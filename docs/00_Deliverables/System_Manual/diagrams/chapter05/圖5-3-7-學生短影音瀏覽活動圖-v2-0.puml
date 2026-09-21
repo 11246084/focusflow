@@ -1,0 +1,35 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-07, FR-07, FR-20
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 版面決議重繪：各空狀態分支改為獨立結束節點
+' ============================================
+!include ../_style.puml
+
+title 學生短影音瀏覽活動圖
+
+|學生|
+start
+:開啟 Shorts 頁面;
+|FocusFlow|
+:取得學生 active Enrollment 課程;
+if (有可存取的 published 課程？) then (否)
+  :回傳空狀態且不洩漏其他課程資產;
+  stop
+endif
+:篩選 published、publishedAt 非空\n且 YouTube playable 的 ShortAsset;
+if (有可播放資產？) then (否)
+  :回傳空狀態;
+  stop
+endif
+:以游標分頁回傳 9:16 影片卡;
+|學生|
+:瀏覽短影音與課程資訊;
+stop
+
+@enduml

@@ -1,6 +1,16 @@
 # 製圖前檢查清單
 
-> 在寫任何 PlantUML 之前逐項確認。任一項答不出來就停下來問，不要先畫。
+> 在寫任何圖源之前，先完成 `references/diagram-brief.md`，再逐項確認。任一硬性資訊答不出來就先查證；只有會 materially 改變成果且無法由現有來源判定時才詢問使用者。
+
+## 0. Diagram brief
+
+- [ ] 讀者與閱讀目的已確認
+- [ ] 只用一句話描述本圖要回答的設計問題
+- [ ] 系統／子系統邊界與明確不納入範圍已寫出
+- [ ] 主情境、必要替代／錯誤情境已列出；無關分支已排除
+- [ ] 每個候選元素都能指出證據來源或明確標示 `planned`
+- [ ] 新增／重繪版本已在建立檔案前判定
+- [ ] 已依 `references/source-format-selection.md` 選擇 PlantUML 或 Mermaid，並記錄 renderer；沒有只因 agent 偏好而轉換既有圖源
 
 ## 1. 脈絡
 
@@ -74,6 +84,14 @@
 - [ ] 循序圖／通訊圖：這張圖是否涵蓋兩個以上彼此獨立的觸發情境（反模式 D9）？例如「頁面載入時的自動查詢」與「使用者稍後主動送出的操作」是不同觸發，不應畫進同一張圖
 - [ ] 若是 → 依觸發情境拆成多張；FocusFlow 專案已將此列為 `[FF:SHOULD]`，見 `references/local/focusflow-conventions.md` 的「循序圖拆圖粒度」一節
 
+## 10. 圖族規則
+
+- [ ] 已依圖種載入 `references/diagram-guides/` 中對應指南
+- [ ] 循序圖／通訊圖：參與者、訊息、同步性與組合片段皆有來源
+- [ ] 類別圖／物件圖：層級、責任、關係語意、多重性與快照情境已確認
+- [ ] 活動圖／狀態機圖：流程控制與 classifier 生命週期未混淆
+- [ ] 套件圖／元件圖／佈署圖：分群、介面與執行節點三種視角未混在同一張圖
+
 ---
 
-全部通過 → 進入製圖。使用 `templates/` 骨架，遵循 `references/plantuml-conventions.md`。
+全部通過 → 進入製圖。依選定格式使用 `templates/` 或 `templates/mermaid/`，遵循相應 conventions。

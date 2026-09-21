@@ -1,0 +1,30 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-05, FR-07, FR-14, FR-15, FR-17
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 決議改用 Mermaid 重繪，抽象層級改為業務層（使用者/前端/後端 API/資料庫），對齊第5章 UC 分組；初評第6章母稿為畫風參考
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    actor S as 學生
+    participant L as LINE Bot
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    S->>API: 網頁取得一次性綁定資訊
+    S->>L: 傳送綁定訊息
+    L->>API: Webhook 送出事件
+    API->>DB: 驗證簽章、token<br/>並綁定 LINE userId
+    DB-->>API: 回傳綁定結果
+    API-->>L: 回覆綁定成功並列出課程
+    L-->>S: 顯示可選課程
+    S->>L: 選擇課程並提問
+    L->>API: Webhook 送出問題
+    API->>DB: 驗證課程 scope<br/>並檢索片段
+    DB-->>API: 回傳候選片段與回答
+    API-->>L: 回覆答案與時間資訊
+    L-->>S: 顯示答案，可回網站觀看

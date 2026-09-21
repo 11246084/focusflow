@@ -1,0 +1,47 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-01, FR-01, FR-02, FR-04
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Opus 5 / 補上登入鎖定分支，修正與圖6-1-1循序圖的分析／設計層不一致（原版未涵蓋 FR-02 的登入鎖定行為，經使用者提問後查證並補齊）
+' ============================================
+!include ../_style.puml
+
+title 註冊與登入活動圖
+
+|使用者|
+start
+:選擇學生註冊或角色登入;
+if (選擇學生註冊？) then (是)
+  :填寫姓名、Email 與密碼;
+  |FocusFlow|
+  :驗證 Email 唯一性與密碼規則;
+  if (註冊資料有效？) then (否)
+    :回傳重複或格式錯誤;
+    stop
+  endif
+  :建立 student 帳號並簽發 token;
+else (否)
+  |使用者|
+  :由一般入口或 /admin 提交\nEmail、密碼與角色;
+  |FocusFlow|
+  if (該 Email 仍在登入鎖定期間？) then (是)
+    :拒絕登入並提示稍後再試;
+    stop
+  endif
+  :驗證憑證、帳號狀態與角色;
+  if (驗證通過？) then (否)
+    :記錄失敗次數，拒絕登入且不回傳受保護資料;
+    stop
+  endif
+  :清除失敗次數、簽發 token 並取得公開使用者資料;
+endif
+|使用者|
+:進入相符角色的 Dashboard;
+stop
+
+@enduml

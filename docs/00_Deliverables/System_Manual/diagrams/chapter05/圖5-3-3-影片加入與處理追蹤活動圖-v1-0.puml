@@ -1,0 +1,50 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-03, FR-08, FR-09, FR-10, FR-11
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-19
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / OpenAI Codex / 依 UC-03 與功能旗標邊界產出活動圖
+' ============================================
+!include ../_style.puml
+
+title 影片加入與處理追蹤活動圖
+
+|教師或管理員|
+start
+:選擇本機單檔／多檔或 YouTube URL;
+|FocusFlow|
+:驗證課程管理權、來源、格式與重複項;
+if (請求可接受？) then (是)
+  :建立 Video；多檔另建 VideoBatch;
+  if (Pipeline batch 已啟用？) then (是)
+    :交付受保護的 batch request;
+  else (否)
+    :逐支排程既有單檔處理 adapter;
+  endif
+  |AI Pipeline|
+  :回報 queued／processing;
+  if (處理成功？) then (是)
+    :回報 completed 與必要 metadata;
+  else (否)
+    :回報 failed 與安全錯誤資訊;
+  endif
+  |FocusFlow|
+  :保存單項與批次彙總狀態;
+  |教師或管理員|
+  :查看進度、attach／detach 或重試允許項目;
+else (否)
+  :拒絕請求或將該單項標為 failed／duplicate;
+endif
+stop
+
+note right
+  Pipeline batch 為條件式模式；
+  completed 不等於正式向量索引、
+  YouTube 或回答品質已驗收。
+end note
+
+@enduml

@@ -1,0 +1,49 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-04
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1 分析責任）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  partial
+%% ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 決議改用 Mermaid 重繪；classDiagram 以 foreignObject 呈現屬性／方法，需以 kroki /mermaid/png 直接轉檔，不可用 svg+sharp（sharp 內建 resvg 不支援 foreignObject，會產生空白方框）
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+classDiagram
+    direction LR
+    class student01 {
+        <<User>>
+        role = student
+        activeCourseId = course01
+    }
+    class course01 {
+        <<Course>>
+        status = published
+    }
+    class conversation01 {
+        <<Conversation>>
+        courseId = course01
+    }
+    class message01 {
+        <<Message>>
+        role = user
+    }
+    class message02 {
+        <<Message>>
+        role = assistant
+    }
+    class question01 {
+        <<Question>>
+        answerStatus = answered
+    }
+    class usageLog01 {
+        <<UsageLog>>
+        eventType = ASK_QUESTION
+    }
+
+    student01 --> course01 : activeCourseId
+    student01 --> conversation01 : owner
+    conversation01 --> message01 : 對話紀錄
+    conversation01 --> message02 : 對話紀錄
+    message02 --> question01 : 對應提問
+    question01 --> usageLog01 : 產生

@@ -1,0 +1,87 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-05, FR-06, FR-07, FR-09, FR-13, FR-14, FR-18, FR-20, NFR-04, NFR-05
+' source:       backend/src/models/*.model.js（19 個 Mongoose schema）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Opus 5 / 依 19 個 schema 重繪，補上 usage_logs、clips、
+'               line_bind_tokens、video_segments_video 與 shortassets 參照
+' ============================================
+!include ../_style.puml
+
+title MongoDB核心集合關聯圖
+
+package "帳號與課程" {
+  rectangle "users" as Users
+  rectangle "avatars" as Avatars
+  rectangle "line_bind_tokens" as BindTokens
+  rectangle "courses" as Courses
+  rectangle "enrollments" as Enrollments
+}
+
+package "影片與知識片段" {
+  rectangle "videobatches" as Batches
+  rectangle "videos" as Videos
+  rectangle "video_segments_text" as Leaf
+  rectangle "video_segments_parent" as Parent
+  rectangle "video_segments_video" as Visual
+  rectangle "clips" as Clips
+}
+
+package "問答與對話" {
+  rectangle "conversations" as Conversations
+  rectangle "messages" as Messages
+  rectangle "questions" as Questions
+  rectangle "faqs" as Faqs
+}
+
+package "營運與內容產出" {
+  rectangle "usage_logs" as UsageLogs
+  rectangle "notifications" as Notifications
+  rectangle "shortscripts" as Scripts
+  rectangle "shortassets" as Assets
+}
+
+Users --> Avatars : userId\n1 : 0..1
+Users --> BindTokens : userId\n1 : 0..*
+Users --> Courses : teacherId\n1 : 0..*
+Users --> Enrollments : studentId\n1 : 0..*
+Courses --> Enrollments : courseId\n1 : 0..*
+Courses --> Videos : courseId / videoIds[]\n1 : 0..*
+Courses --> Batches : courseId\n1 : 0..*
+Batches --> Videos : items[].videoId\n1 : 0..*
+Videos --> Leaf : String(_id) = videoId\n1 : 0..*
+Courses --> Parent : courseId\n1 : 0..*
+Parent --> Leaf : childChunkIds[] = chunkId\n1 : 1..*
+Videos --> Visual : pipeline video_id\n1 : 0..*
+Leaf --> Clips : segmentId\n1 : 0..1
+
+Users --> Conversations : userId\n1 : 0..*
+Courses --> Conversations : courseId\n1 : 0..*
+Conversations --> Messages : conversationId\n1 : 0..*
+Users --> Questions : userId\n1 : 0..*
+Courses --> Questions : courseId\n1 : 0..*
+Courses --> Faqs : courseId\n1 : 0..*
+
+Users --> UsageLogs : userId\n1 : 0..*
+Courses --> UsageLogs : courseId\n1 : 0..*
+Questions --> UsageLogs : sourceUsageLogId\n0..1 : 1
+Users --> Notifications : recipientId\n1 : 0..*
+Notifications ..> Videos : videoId
+Notifications ..> Scripts : scriptId
+Courses --> Scripts : courseId\n1 : 0..*
+Courses --> Assets : courseId\n1 : 0..*
+Scripts --> Assets : sourceScriptId\n1 : 0..*
+Videos ..> Assets : sourceVideoId
+
+note as Constraint
+  非 UML 圖：文件型資料庫集合關聯圖。
+  箭頭代表文件中以 ObjectId 或字串識別欄位保存的參照方向，不是資料庫外鍵。
+  MongoDB 不強制參照完整性，參照的建立、解除與刪除連動由 service 層維護。
+  虛線為選填的深層連結參照。
+end note
+
+@enduml

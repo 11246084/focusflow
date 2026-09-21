@@ -1,0 +1,38 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-03, FR-08, FR-09, FR-10, FR-11, FR-16, FR-18
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Sonnet 5 / 依 backend/src/services/videoProcessing.service.js、video.service.js 核對狀態轉換順序後修正 v3-0 兩處落差：(1) 影片建立當下即為 queued（video.service.js:337,443 呼叫 createQueuedProcessingState），queued 不是 AI 處理完才回報；processing 是由 pipeline 呼叫 start webhook（video.controller.js:119 -> videoProcessingService.startVideoProcessing）在實際 STT 前設定，v3-0 把回報 queued/processing 畫在 AI 已完成語音辨識之後，順序相反。(2) 完成 webhook 會觸發 runCompletionSideEffects（videoProcessing.service.js:84-109），同步清除相關課程 FAQ 快取（faqCache.service.js clearFaqsForVideoCourses）並 fanout 影片完成通知，v3-0 未呈現此協作，僅小幅修正故沿用 v3 主版本
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    actor T as 教師或管理員
+    participant UI as 課程影片頁
+    participant API as 後端 API
+    participant AI as AI Pipeline
+    participant DB as 資料庫
+
+    T->>UI: 選擇本機檔案或<br/>YouTube URL
+    UI->>API: 送出影片或批次請求
+    API->>DB: 驗證權限、格式並建立<br/>Video 或 VideoBatch（初始為 queued）
+    DB-->>API: 回傳建立結果
+    API-->>UI: 顯示已加入處理佇列
+    API->>AI: 排程處理（單檔或批次）
+    AI->>API: 回報開始處理（start webhook）
+    API->>DB: 狀態由 queued 轉為 processing
+    AI->>AI: 語音辨識、分段與<br/>產生 embedding
+    alt 處理成功
+        AI->>API: 回報 completed
+        API->>DB: 保存片段並將狀態<br/>轉為 completed
+        API->>DB: 清除相關課程 FAQ 快取<br/>並建立影片完成通知
+        API-->>UI: 顯示處理完成
+    else 處理失敗
+        AI->>API: 回報 failed
+        API->>DB: 保存失敗狀態與錯誤訊息
+        API-->>UI: 顯示失敗並可重試
+    end
+    T->>UI: 查看進度或重試失敗項目

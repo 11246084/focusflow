@@ -1184,27 +1184,47 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 @keyframes modalIn { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal-box { animation: modalIn .25s ease forwards; }
 
-/* Student issue report: one consistent entry point across authenticated pages. */
-.issue-report-launcher {
+/* Student floating action buttons: issue report + feedback. */
+.fab-group {
   position: fixed;
   right: 28px;
   bottom: 28px;
   z-index: 420;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.fab-group > a,
+.fab-group > button {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-height: 46px;
+  min-height: 44px;
   padding: 0 18px;
   color: #fff;
-  background: #F14F21;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 16px;
-  box-shadow: 0 14px 34px rgba(12, 3, 10, 0.48), 0 5px 16px rgba(241, 79, 33, 0.28);
   font-family: 'Noto Sans TC', sans-serif;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
   transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+.fab-feedback {
+  background: #7C3AED;
+  box-shadow: 0 14px 34px rgba(12, 3, 10, 0.48), 0 5px 16px rgba(124, 58, 237, 0.28);
+}
+.fab-feedback:hover {
+  background: #6D28D9;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(12, 3, 10, 0.55), 0 7px 20px rgba(124, 58, 237, 0.34);
+}
+.issue-report-launcher {
+  background: #F14F21;
+  box-shadow: 0 14px 34px rgba(12, 3, 10, 0.48), 0 5px 16px rgba(241, 79, 33, 0.28);
 }
 .issue-report-launcher:hover {
   background: #d94318;
@@ -1212,6 +1232,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   box-shadow: 0 18px 40px rgba(12, 3, 10, 0.55), 0 7px 20px rgba(241, 79, 33, 0.34);
 }
 .issue-report-launcher:focus-visible,
+.fab-feedback:focus-visible,
 .issue-report-close:focus-visible,
 .issue-report-actions a:focus-visible,
 .issue-report-actions button:focus-visible {
@@ -1309,6 +1330,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 @media (prefers-reduced-motion: reduce) {
   .issue-report-launcher,
+  .fab-feedback,
   .issue-report-dialog {
     animation: none;
     transition: none;
@@ -1570,10 +1592,13 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Page padding a bit tighter on phones */
   .dashboard-content > div { padding-left: 16px !important; padding-right: 16px !important; }
 
-  .issue-report-launcher {
+  .fab-group {
     right: 16px;
     bottom: max(16px, env(safe-area-inset-bottom));
-    min-height: 44px;
+  }
+  .fab-group > a,
+  .fab-group > button {
+    min-height: 42px;
     padding: 0 15px;
     border-radius: 14px;
   }

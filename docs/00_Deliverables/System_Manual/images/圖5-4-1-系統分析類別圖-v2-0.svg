@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1460" height="980" viewBox="0 0 1460 980">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/></marker></defs>
+<rect width="1460" height="980" fill="#FFFFFF"/>
+<text x="730" y="34" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="19" font-weight="bold" fill="#000">系統分析類別圖</text>
+<polyline points="260,260.996 450,261" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="266" y="254.99599999999998" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="444" y="255" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="355" y="247" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">owner（教師）</text>
+<polyline points="127,314 127,420" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="133" y="327" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="133" y="414" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="151" y="366" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">學生</text>
+<polyline points="127,230 127,164" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="133" y="224" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="133" y="177" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="157" y="196" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">接收者</text>
+<polyline points="70,288.8 38,288.8 38,641 70,641" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="64" y="282.8" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="64" y="635" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="46" y="464" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">擁有者</text>
+<polyline points="488,292 488,449.4 260,449.4" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="494" y="305" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="266" y="443.4" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<polyline points="507,230 507,142" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="513" y="224" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="513" y="155" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="537" y="189" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">課程快取</text>
+<polyline points="640,261 800,260.996" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="646" y="255" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="794" y="254.99599999999998" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="720" y="247" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">掛載</text>
+<polyline points="554.5,292 554.5,461 800,461" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="560.5" y="305" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="794" y="455" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="690" y="449" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">所屬課程</text>
+<polyline points="611.5,292 611.5,610 545,610" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="617.5" y="305" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="551" y="604" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="620" y="424" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">所屬課程</text>
+<polyline points="203,610 360,610 360,282.7 450,282.7" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="209" y="604" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="444" y="276.7" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="368" y="494" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">對話範圍</text>
+<polyline points="127,672 127,780" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="133" y="685" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="133" y="774" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="157" y="729" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">依序排列</text>
+<polyline points="260,809.4 260,920 1230,920 1230,504" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="266" y="803.4" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="1236" y="517" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="700" y="908" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">引用快照</text>
+<polyline points="857,142 857,230" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="863" y="155" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="863" y="224" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="887" y="189" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">批次項目</text>
+<polyline points="942.5,314 942.5,370 1190,370 1190,420" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="948.5" y="327" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="1196" y="414" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="1060" y="356" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">可檢索片段</text>
+<polyline points="990,461 1130,460.992" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="996" y="455" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="1124" y="454.992" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="1060" y="435" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">命中來源</text>
+<polyline points="857,492 857,610" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="863" y="505" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..1</text>
+<text x="863" y="604" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..1</text>
+<text x="887" y="559" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">來源事件</text>
+<polyline points="507,694 507,790" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="513" y="707" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="513" y="784" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="537" y="749" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">對應腳本版本</text>
+<polyline points="621,610 621,482.7 800,482.7" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="627" y="604" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="794" y="476.7" text-anchor="end" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="700" y="492" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">凍結來源</text>
+<polyline points="640,673 640,740 1300,740 1300,504" fill="none" stroke="#000000" stroke-width="1.1"/>
+<text x="646" y="667" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">0..*</text>
+<text x="1306" y="517" text-anchor="start" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12" fill="#000">1</text>
+<text x="980" y="728" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="12.5" fill="#000">凍結證據</text>
+<rect x="70" y="80" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="70" y1="112" x2="260" y2="112" stroke="#000000" stroke-width="1.2"/>
+<text x="165" y="101" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Notification</text>
+<text x="80" y="128" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 已讀狀態</text>
+<text x="80" y="150" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 導向資訊</text>
+<rect x="70" y="230" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="70" y1="262" x2="260" y2="262" stroke="#000000" stroke-width="1.2"/>
+<text x="165" y="251" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">User</text>
+<text x="80" y="278" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 角色</text>
+<text x="80" y="300" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 啟用狀態</text>
+<rect x="70" y="420" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="70" y1="452" x2="260" y2="452" stroke="#000000" stroke-width="1.2"/>
+<text x="165" y="441" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Enrollment</text>
+<text x="80" y="468" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 授權狀態</text>
+<text x="80" y="490" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 學習進度</text>
+<rect x="70" y="610" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="70" y1="642" x2="260" y2="642" stroke="#000000" stroke-width="1.2"/>
+<text x="165" y="631" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Conversation</text>
+<text x="80" y="658" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 課程範圍</text>
+<rect x="70" y="780" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="70" y1="812" x2="260" y2="812" stroke="#000000" stroke-width="1.2"/>
+<text x="165" y="801" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Message</text>
+<text x="80" y="828" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 角色（提問／回答）</text>
+<text x="80" y="850" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 引用來源</text>
+<rect x="450" y="80" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="450" y1="112" x2="640" y2="112" stroke="#000000" stroke-width="1.2"/>
+<text x="545" y="101" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">FAQ</text>
+<text x="460" y="128" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 命中次數</text>
+<rect x="450" y="230" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="450" y1="262" x2="640" y2="262" stroke="#000000" stroke-width="1.2"/>
+<text x="545" y="251" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Course</text>
+<text x="460" y="278" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 發布狀態</text>
+<rect x="450" y="610" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="450" y1="642" x2="640" y2="642" stroke="#000000" stroke-width="1.2"/>
+<text x="545" y="631" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">ShortScript</text>
+<text x="460" y="658" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 腳本狀態</text>
+<text x="460" y="680" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 生成版本</text>
+<rect x="450" y="790" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="450" y1="822" x2="640" y2="822" stroke="#000000" stroke-width="1.2"/>
+<text x="545" y="811" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">ShortAsset</text>
+<text x="460" y="838" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 審核狀態</text>
+<text x="460" y="860" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 發布狀態</text>
+<rect x="800" y="80" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="800" y1="112" x2="990" y2="112" stroke="#000000" stroke-width="1.2"/>
+<text x="895" y="101" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">VideoBatch</text>
+<text x="810" y="128" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 批次狀態</text>
+<rect x="800" y="230" width="190" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="800" y1="262" x2="990" y2="262" stroke="#000000" stroke-width="1.2"/>
+<text x="895" y="251" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Video</text>
+<text x="810" y="278" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 來源類型</text>
+<text x="810" y="300" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 處理狀態</text>
+<rect x="800" y="430" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="800" y1="462" x2="990" y2="462" stroke="#000000" stroke-width="1.2"/>
+<text x="895" y="451" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">Question</text>
+<text x="810" y="478" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 回答狀態</text>
+<rect x="800" y="610" width="190" height="62" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="800" y1="642" x2="990" y2="642" stroke="#000000" stroke-width="1.2"/>
+<text x="895" y="631" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">UsageLog</text>
+<text x="810" y="658" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 事件類型</text>
+<rect x="1130" y="420" width="200" height="84" fill="#FFFFFF" stroke="#000000" stroke-width="1.2"/>
+<line x1="1130" y1="452" x2="1330" y2="452" stroke="#000000" stroke-width="1.2"/>
+<text x="1230" y="441" text-anchor="middle" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="15" font-weight="bold" fill="#000">VideoSegment</text>
+<text x="1140" y="468" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 時間區間</text>
+<text x="1140" y="490" font-family="'Times New Roman',serif,'DFKai-SB','標楷體',serif" font-size="13" fill="#000">- 片段文字</text>
+</svg>

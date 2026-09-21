@@ -1,0 +1,56 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-08, FR-21, FR-22
+' source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 版面決議重繪：四層巢狀判斷改為逐段守衛，各終止結果獨立結束
+' ============================================
+!include ../_style.puml
+
+title 短影音腳本與成品審核活動圖
+
+|教師|
+start
+:開啟短影音腳本功能;
+|FocusFlow|
+if (功能旗標已啟用？) then (否)
+  :路由不可用，不呈現未啟用功能;
+  stop
+endif
+:依課程提問建立候選並凍結 Leaf 證據;
+if (證據足以生成？) then (否)
+  :拒絕生成並保留可診斷原因;
+  stop
+endif
+:生成只能引用凍結證據的腳本版本;
+|教師|
+if (核准腳本？) then (修改或放棄)
+  |FocusFlow|
+  :保存回饋或 dismissed 狀態;
+  stop
+endif
+|教師|
+:於系統外製作完成影片;
+:上傳成品並確認 AI 揭露／同意;
+|FocusFlow|
+:排程 unlisted YouTube 預覽;
+|教師或管理員|
+if (成品審核通過？) then (否)
+  |FocusFlow|
+  :記錄退回並通知腳本 owner;
+  stop
+endif
+|FocusFlow|
+:標記 published 並進入學生牆;
+stop
+
+note right
+  成品由教師於系統外製作後上傳；
+  系統不提供自動剪輯、渲染或字幕合成。
+end note
+
+@enduml

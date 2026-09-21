@@ -93,7 +93,7 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
                 <input
                   className="ff-input"
                   type="email"
-                  placeholder="admin@focusflow.local"
+                  placeholder="不要玩我們管理員帳號啦 😤"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />

@@ -1,0 +1,39 @@
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-08, FR-21, FR-22
+%% source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（使用個案描述）
+%% verified:     2026-09-21
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Opus 5 / 依 2026-09-21 決議改用 Mermaid 重繪，抽象層級改為業務層（使用者/前端/後端 API/資料庫），對齊第5章 UC 分組；初評第6章母稿為畫風參考
+%% ============================================
+%%{init: {'theme':'neutral'}}%%
+sequenceDiagram
+    actor T as 教師
+    participant API as 後端 API
+    participant LLM as AI 生成服務
+    participant R as 教師或管理員
+    participant DB as 資料庫
+
+    T->>API: 依課程提問建立候選
+    API->>DB: 凍結 Leaf 證據
+    DB-->>API: 回傳凍結結果
+    API->>LLM: 依證據生成腳本
+    LLM-->>API: 回傳腳本版本
+    API-->>T: 顯示腳本供審閱
+    alt 核准腳本
+        T->>API: 於系統外製作完成影片<br/>並上傳成品
+        API->>DB: 排程 unlisted<br/>YouTube 預覽
+        DB-->>API: 回傳排程結果
+        R->>API: 審核成品
+        alt 審核通過
+            API->>DB: 標記 published<br/>並上牆
+        else 審核退回
+            API->>DB: 記錄退回原因
+            API-->>T: 通知退回
+        end
+    else 修改或放棄
+        T->>API: 提出修改或放棄
+        API->>DB: 保存回饋或<br/>dismissed 狀態
+    end

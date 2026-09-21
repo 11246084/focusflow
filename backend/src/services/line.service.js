@@ -26,6 +26,7 @@ const {
   buildLineRuntimeSnapshot,
   buildQaRuntimeSnapshot,
 } = require('./runtimeDiagnostics.service');
+const { classifyIntent } = require('./lineIntentClassifier.service');
 
 // LINE Bot API 的基底 URL，所有發送訊息的請求都打這裡
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
@@ -949,6 +950,41 @@ async function processWebhookEvent(event) {
     // COURSE:{24位 ObjectId} → 從網頁「詢問助教」按鈕直接帶入課程，自動切換不需選單
     if (/^COURSE:[a-f0-9]{24}$/i.test(text)) {
       return handleDirectCourseSelect(lineUserId, text.slice(7), replyToken);
+    }
+
+    // ---- Jev 意圖分類（feature-gated，預設關閉）----
+    // 結構化格式（綁定碼、COURSE: 連結、BIND: 連結、「切換課程」精確文字）
+    // 已經在上方用 regex 處理完畢，這裡只對「自由文字」做語意分類。
+    const intentResult = await classifyIntent(text);
+
+    if (intentResult.usedJev) {
+      if (intentResult.intent === 'switch_course') {
+        return handleSwitchCourse(lineUserId, replyToken);
+      }
+
+      if (intentResult.intent === 'greeting') {
+        const replyResult = await replyMessage(replyToken, [
+          buildTextMessage('嗨！有任何課程問題都可以直接問我。輸入「切換課程」可以更換目前提問的課程。'),
+        ]);
+        return attachReplyMetadata({
+          type: 'greeting',
+          handled: true,
+          jevIntent: intentResult.diagnostics,
+        }, replyResult);
+      }
+
+      if (intentResult.intent === 'off_topic') {
+        const replyResult = await replyMessage(replyToken, [
+          buildTextMessage('這個問題似乎跟課程內容無關。你可以試著問課程相關的問題，例如：「老師提到的 XX 是什麼？」'),
+        ]);
+        return attachReplyMetadata({
+          type: 'off_topic',
+          handled: true,
+          jevIntent: intentResult.diagnostics,
+        }, replyResult);
+      }
+
+      // intent === 'question' → 進入 QA pipeline（fallthrough 到下方）
     }
 
     // 其他文字 → 視為對課程內容的提問

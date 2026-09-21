@@ -1,4 +1,4 @@
-﻿const USER_ROLES = {
+const USER_ROLES = {
   ADMIN: 'admin',
   TEACHER: 'teacher',
   STUDENT: 'student',
@@ -127,6 +127,7 @@ const QUESTION_STATUSES = {
   ANSWERED: 'answered',
   NO_MATCH: 'no_match',
   FAILED: 'failed',
+  FILTERED: 'filtered',
 };
 
 const QUESTION_SOURCES = {

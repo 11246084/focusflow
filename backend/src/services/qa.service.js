@@ -50,6 +50,7 @@ const {
   evaluateHierarchicalRollout,
   executeHierarchicalRollout,
 } = require('./hierarchicalRollout.service');
+const { evaluateQuestion: evaluateQuestionGuard } = require('./questionGuard.service');
 const {
   LEAF_CONTEXT_CANDIDATE_LIMIT,
   LEAF_CONTEXT_REQUIRED_LIMIT,
@@ -1301,6 +1302,66 @@ async function askQuestion({
 
   const costControl = await assertQaQuotaAvailable({ userId: user.id });
   tMark = qaTimingMark('build-segment-scope', tMark);
+
+  // ---- Jev 問題品質守門（feature-gated，預設關閉）----
+  // 在 embedding / 向量搜尋 / LLM 之前攔截無意義或不安全的問題，
+  // 避免浪費 token 和算力。Guard 失敗或被停用時一律放行（fail-open）。
+  const guardResult = await evaluateQuestionGuard(trimmedQuestion);
+  if (!guardResult.allowed) {
+    const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
+      runtimeSnapshot,
+      courseSummary,
+      searchableSegmentCount: 0,
+      matchStatus: 'filtered',
+      searchDiagnostics: {
+        searchBackendUsed: 'jev_guard',
+        scoringMode: 'unavailable',
+        fallbacks: [],
+      },
+      answerResult: null,
+    }));
+    runtime.jevGuard = guardResult.diagnostics;
+
+    const answer = guardResult.userMessage
+      || '請試著針對課程內容提問，例如：「老師提到的 XX 是什麼意思？」';
+
+    await Promise.all([
+      recordUsage({
+        userId: user.id,
+        courseId: course._id,
+        event: USAGE_LOG_EVENTS.ASK,
+        metadata: {
+          source,
+          question: trimmedQuestion,
+          matchCount: 0,
+          runtime,
+          costControl,
+          jevGuardReason: guardResult.reason,
+        },
+      }),
+      recordQuestion({
+        userId: user.id,
+        courseId: course._id,
+        question: trimmedQuestion,
+        answer,
+        status: QUESTION_STATUSES.FILTERED,
+        source,
+        matches: [],
+        runtime,
+      }),
+    ]);
+    tMark = qaTimingMark('jev-guard-rejected', tMark);
+
+    return buildQaResponse({
+      answer,
+      matches: [],
+      clip: null,
+      runtime,
+      scopedVideos,
+      courseId: course._id,
+    });
+  }
+  tMark = qaTimingMark('jev-guard', tMark);
 
   // 投機性啟動：片段載入與 query embedding 互不依賴，先讓 DB 查詢跑起來，
   // 之後第二層 FAQ 快取命中時直接 return，不 await 這個 promise，

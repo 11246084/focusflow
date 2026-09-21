@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const dotenv = require('dotenv');
 const {
   parseIdentifierAllowlist,
@@ -278,6 +278,25 @@ module.exports = {
   // 需要 `youtube.force-ssl` scope 的 refresh token；只有憑證齊備時才會實際執行。
   youtubePrivatizeOnDelete:
     String(process.env.YOUTUBE_PRIVATIZE_ON_DELETE || 'true').toLowerCase() === 'true',
+  // ---- Jev (TypeSafe AI System One) integration ----
+  // All Jev features are gated behind JEV_ENABLED and individual sub-switches.
+  // Without a TYPESAFE_API_KEY or with JEV_ENABLED=false, the system behaves
+  // exactly as before (transparent passthrough).
+  typesafeApiKey: process.env.TYPESAFE_API_KEY || '',
+  jevEnabled: parseBoolean(process.env.JEV_ENABLED, false, 'JEV_ENABLED'),
+  jevQuestionGuardEnabled: parseBoolean(
+    process.env.JEV_QUESTION_GUARD_ENABLED,
+    false,
+    'JEV_QUESTION_GUARD_ENABLED',
+  ),
+  jevLineIntentEnabled: parseBoolean(
+    process.env.JEV_LINE_INTENT_ENABLED,
+    false,
+    'JEV_LINE_INTENT_ENABLED',
+  ),
+  // Confidence thresholds: below these values the system falls back to existing behavior.
+  jevGuardThreshold: parseNonNegativeNumber(process.env.JEV_GUARD_THRESHOLD, 0.7),
+  jevIntentThreshold: parseNonNegativeNumber(process.env.JEV_INTENT_THRESHOLD, 0.85),
   allowedOrigins: String(process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim())

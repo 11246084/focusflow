@@ -1,6 +1,12 @@
 ' ============================================
 ' FocusFlow 系統手冊 UML 共用樣式
 ' 所有圖以 !include 載入；單圖不得另寫 skinparam
+'
+' 2026-09-21 調整（教科書 UML 版面決議）：
+'   - hide circle：移除類別名稱前的彩色 stereotype 圖示，改為傳統分格方框
+'   - nodesep／ranksep：加大元素間距，避免 A4 上擠成一團
+'   - 類別／循序／套件框改為白底黑框，貼近印刷版面
+'   注意：skinparam Padding 在目前 PlantUML 版本已停用，會在圖上印出警告，不可使用
 ' ============================================
 
 skinparam defaultFontName "Microsoft JhengHei"
@@ -16,34 +22,39 @@ skinparam ArrowFontSize 12
 skinparam TitleFontSize 16
 skinparam TitleFontStyle bold
 
+skinparam nodesep 45
+skinparam ranksep 55
+
+hide circle
+
 skinparam Actor {
   BackgroundColor #FFFFFF
   BorderColor #2F3E46
 }
 
 skinparam Class {
-  BackgroundColor #F5F7F8
-  BorderColor #2F3E46
+  BackgroundColor #FFFFFF
+  BorderColor #000000
   AttributeFontSize 12
 }
 
 skinparam Sequence {
-  ParticipantBackgroundColor #F5F7F8
-  ParticipantBorderColor #2F3E46
-  LifeLineBorderColor #84A98C
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #000000
+  LifeLineBorderColor #666666
   ArrowThickness 1
-  BoxBackgroundColor #FAFBFB
-  BoxBorderColor #CAD2C5
+  BoxBackgroundColor #FFFFFF
+  BoxBorderColor #CCCCCC
 }
 
 skinparam Package {
-  BackgroundColor #FAFBFB
-  BorderColor #52796F
+  BackgroundColor #FFFFFF
+  BorderColor #000000
 }
 
 skinparam Database {
-  BackgroundColor #F5F7F8
-  BorderColor #2F3E46
+  BackgroundColor #FFFFFF
+  BorderColor #000000
 }
 
 skinparam Note {

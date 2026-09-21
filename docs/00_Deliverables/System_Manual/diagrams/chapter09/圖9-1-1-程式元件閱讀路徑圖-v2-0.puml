@@ -1,0 +1,46 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      9-1
+' realizes:     FR-02, FR-09, FR-13, FR-14, FR-17
+' source:       frontend/focus-flow/src/, backend/src/, STT_Whisper/src/（程式碼）
+' verified:     2026-09-21
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 9-1 七張元件清單表重繪閱讀路徑
+' change:       v2-0 每一層改標對應表號，與表9-1-1～表9-1-7 一致
+' ============================================
+!include ../_style.puml
+
+title 程式元件閱讀路徑圖
+top to bottom direction
+
+rectangle "非 UML：由入口追到規則與資料" as Label
+
+rectangle "前端入口與共用\nmain.jsx / App.jsx / AdminApp.jsx / api.js\n（表9-1-6　編號 2-1-x）" as FrontEntry
+rectangle "角色頁面與前端服務\npages / components / services / utils\n（表9-1-6　編號 2-2-x ～ 2-4-x）" as FrontService
+
+rectangle "HTTP 入口與共用元件\nroutes / middleware\n（表9-1-1、表9-1-5）" as Routes
+rectangle "請求協調\ncontrollers\n（表9-1-2）" as Controllers
+rectangle "業務規則\nservices\n（表9-1-3）" as Services
+rectangle "資料契約\nmodels / MongoDB\n（表9-1-4）" as Models
+
+rectangle "AI 處理入口\nmain.py / batch_main.py\n（表9-1-7　編號 3-1-x）" as PipelineEntry
+rectangle "Pipeline 處理階段\n媒體與語音辨識 / 切塊與向量 / 輸出與發布\n（表9-1-7　編號 3-2-x ～ 3-5-x）" as PipelineStages
+
+Label -[hidden]-> FrontEntry
+FrontEntry --> FrontService : 頁面與登入狀態
+FrontService --> Routes : HTTPS JSON / multipart
+Routes --> Controllers : 已驗證的請求
+Controllers --> Services : 使用案例輸入
+Services --> Models : 查詢／寫入
+Services --> PipelineEntry : 受控的處理請求
+PipelineEntry --> PipelineStages : 執行／續跑／批次
+PipelineStages --> Models : 產物寫入與狀態回報
+
+note bottom of Services
+  元件之間的依賴方向見圖7-2-1～圖7-2-5，
+  訊息順序見圖6-1-1～圖6-1-9；本章只描述檔案職責。
+end note
+
+@enduml

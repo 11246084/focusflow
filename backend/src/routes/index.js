@@ -12,6 +12,7 @@ const notificationRoutes = require('./notification.routes');
 const conversationRoutes = require('./conversation.routes');
 const shortsRoutes = require('./shorts.routes');
 const shortScriptRoutes = require('./short-script.routes');
+const feedbackRoutes = require('./feedback.routes');
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/shorts', shortsRoutes);
 // 必須排在 videoRoutes 之前——videoRoutes 也掛 '/'，會先吃掉未匹配的路徑。
 router.use('/', shortScriptRoutes);
 router.use('/', videoRoutes);
+router.use('/', feedbackRoutes);
 
 module.exports = router;

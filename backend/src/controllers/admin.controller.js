@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const adminService = require('../services/admin.service');
 const systemStatusService = require('../services/systemStatus.service');
+const feedbackService = require('../services/feedback.service');
 
 const getStats = asyncHandler(async (req, res) => {
   const stats = await adminService.getStats();
@@ -47,4 +48,28 @@ const getSystemStatus = asyncHandler(async (req, res) => {
   return sendSuccess(res, { data: status });
 });
 
-module.exports = { getStats, listUsers, updateUser, listVideos, getRecentEvents, getEventStats, deleteVideo, getSystemStatus };
+const listFeedback = asyncHandler(async (req, res) => {
+  const { status, category, severity, page, limit } = req.query;
+  const result = await feedbackService.listFeedback({ status, category, severity, page, limit });
+  return sendSuccess(res, { data: { feedback: result.items }, meta: result.meta });
+});
+
+const updateFeedback = asyncHandler(async (req, res) => {
+  const { feedbackId } = req.params;
+  const { status, adminNote } = req.body || {};
+  const feedback = await feedbackService.updateFeedbackStatus({ feedbackId, status, adminNote });
+  return sendSuccess(res, { message: 'Feedback updated.', data: feedback });
+});
+
+module.exports = {
+  getStats,
+  listUsers,
+  updateUser,
+  listVideos,
+  getRecentEvents,
+  getEventStats,
+  deleteVideo,
+  getSystemStatus,
+  listFeedback,
+  updateFeedback,
+};

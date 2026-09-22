@@ -18,5 +18,7 @@ router.get('/events', adminController.getRecentEvents);
 router.get('/event-stats', adminController.getEventStats);
 router.get('/system-status', adminController.getSystemStatus);
 router.post('/notifications', notificationController.broadcastSystemNotification);
+router.get('/feedback', adminController.listFeedback);
+router.patch('/feedback/:feedbackId', adminController.updateFeedback);
 
 module.exports = router;

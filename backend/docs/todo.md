@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-08-08
+最後更新：2026-09-22
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,24 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### 自建「回報問題」功能（取代 Google 表單，Phase 1：網頁版）
+
+- **狀態**：Done（2026-09-22）
+- **背景**：Google 表單一啟用檔案上傳就強制填表者登入 Google 帳號，「Google 表單＋檔案上傳＋免登入 Google」三個條件無法同時成立，改為在 FocusFlow 內自建。
+- **完成內容**：
+  - ✅ 新增 `Feedback` / `FeedbackAttachment` model；附件仿照頭貼走 `multer.memoryStorage()` + MongoDB Buffer 儲存（非公開 `/uploads` 靜態目錄），簽章驗證共用新抽出的 `utils/imageSignature.js`（`avatar.service.js` 同步改用，行為不變）
+  - ✅ `POST /api/v1/feedback`（登入即可用，不限角色）＋ `GET /api/v1/feedback/:feedbackId/attachments/:attachmentId`（本人或 admin 才能下載）
+  - ✅ `GET/PATCH /api/v1/admin/feedback`（沿用既有 `authorizeRoles(ADMIN)` 整包保護）：列表可依 `status`/`category` 篩選、更新狀態與備註
+  - ✅ 新增錯誤碼 `FEEDBACK_NOT_FOUND`、`FEEDBACK_ATTACHMENT_NOT_FOUND`、`INVALID_FEEDBACK_ATTACHMENT_TYPE`、`FEEDBACK_ATTACHMENT_TOO_LARGE`、`FEEDBACK_ATTACHMENT_LIMIT_EXCEEDED`（`.claude/rules/api-design.md` 已同步）
+  - ✅ 前端 `IssueReportLauncher.jsx` 的「回報問題」從外連 Google 表單改為內嵌表單（回報類型 7 選項／影響程度 3 選項（必填）／描述／課程或影片相關類型才顯示的「課程名稱／影片名稱」合併欄位／最多 3 張截圖每張 10 MB 內，含手機拍照 `capture`），送出後就地顯示成功訊息；「意見回饋」按鈕維持原 Google 表單連結不變。Dialog 加了 `max-height` + `overflow-y: auto`，避免欄位變多後在較矮視窗把送出按鈕擠出可視範圍
+  - ✅ 教師也能看到「回報問題」按鈕（`DashboardApp.jsx` 從 `role === 'student'` 放寬為 student/teacher）
+  - ✅ 新增 admin 後台頁 `AdminFeedback.jsx`（列表、附件燈箱、狀態下拉）與對應 nav 項目
+  - ✅ `backend/tests/feedback.routes.test.js`（11 案例：建立（含課程／影片名稱回填）、附件、分類/影響程度驗證、權限、admin 列表/更新、404/403）＋ `backendTestHarness.js` 補 Feedback/FeedbackAttachment in-memory stub
+- **刻意不做（Phase 2，另開任務）**：LINE Bot 回報入口。目前 LINE 服務完全沒有圖片訊息處理邏輯，需要新增對話狀態機分支與 LINE Content API 圖片下載，範圍明顯更大，先讓網頁版上線驗證後再做。
+- **驗收**：`node --test --experimental-test-isolation=none --test-concurrency=1`（backend 全量）886/886 passed；frontend `npm run lint`、`npm run build` 皆過；本機以 teacher 帳號實際送出回報、以 admin 帳號在 `/admin` → 問題回報 看到並切換狀態，重新整理後狀態有持久化。
 
 ---
 

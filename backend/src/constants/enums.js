@@ -135,6 +135,30 @@ const QUESTION_SOURCES = {
   DEBUG: 'debug',
 };
 
+const FEEDBACK_CATEGORIES = {
+  LOGIN_ACCOUNT: 'login_account',
+  COURSE_VIDEO: 'course_video',
+  AI_QA: 'ai_qa',
+  LINE_BOT: 'line_bot',
+  SHORTS: 'shorts',
+  UI_OPERATION: 'ui_operation',
+  OTHER: 'other',
+};
+
+const FEEDBACK_STATUSES = {
+  OPEN: 'open',
+  IN_PROGRESS: 'in_progress',
+  RESOLVED: 'resolved',
+  CLOSED: 'closed',
+};
+
+// 使用者自評的影響程度：完全卡住 / 部分功能受影響仍可用 / 不影響使用的小問題或建議。
+const FEEDBACK_SEVERITIES = {
+  BLOCKING: 'blocking',
+  PARTIAL: 'partial',
+  MINOR: 'minor',
+};
+
 module.exports = {
   USER_ROLES,
   USER_ROLE_VALUES: Object.values(USER_ROLES),
@@ -174,4 +198,10 @@ module.exports = {
   QUESTION_STATUS_VALUES: Object.values(QUESTION_STATUSES),
   QUESTION_SOURCES,
   QUESTION_SOURCE_VALUES: Object.values(QUESTION_SOURCES),
+  FEEDBACK_CATEGORIES,
+  FEEDBACK_CATEGORY_VALUES: Object.values(FEEDBACK_CATEGORIES),
+  FEEDBACK_STATUSES,
+  FEEDBACK_STATUS_VALUES: Object.values(FEEDBACK_STATUSES),
+  FEEDBACK_SEVERITIES,
+  FEEDBACK_SEVERITY_VALUES: Object.values(FEEDBACK_SEVERITIES),
 };

@@ -145,6 +145,11 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `SHORT_ASSET_NOT_APPROVED` | 409 | 成品尚未通過審核，或審核的不是當前 `generationVersion`，不得上架 |
 | `SHORT_ASSET_DISCLOSURE_REQUIRED` | 400 | 未確認 AI 揭露標示與教師數位分身書面同意（規格書 R-07 / 附錄 K.5） |
 | `SHORT_ASSET_SOURCE_FILE_MISSING` | 409 | 上架時找不到教師上傳的本機影片檔，需重新上傳 |
+| `FEEDBACK_NOT_FOUND` | 404 | 回報問題不存在 |
+| `FEEDBACK_ATTACHMENT_NOT_FOUND` | 404 | 回報問題的附件不存在，或附件不屬於該筆回報 |
+| `INVALID_FEEDBACK_ATTACHMENT_TYPE` | 400 | 附件不是 JPEG／PNG／WebP，或宣告的 MIME type 與實際檔案內容不符 |
+| `FEEDBACK_ATTACHMENT_TOO_LARGE` | 413 | 單一附件超過 10 MiB |
+| `FEEDBACK_ATTACHMENT_LIMIT_EXCEEDED` | 400 | 單筆回報超過 3 張附件 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
 
 新增自訂錯誤碼時，使用 **SCREAMING_SNAKE_CASE**，並在此表格補充說明。

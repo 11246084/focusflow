@@ -44,6 +44,8 @@ const Notification = require('../../src/models/notification.model');
 const { resetLoginThrottleForTests } = require('../../src/services/loginThrottle.service');
 const Conversation = require('../../src/models/conversation.model');
 const Message = require('../../src/models/message.model');
+const Feedback = require('../../src/models/feedback.model');
+const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -68,6 +70,8 @@ const store = {
   notifications: [],
   conversations: [],
   messages: [],
+  feedbacks: [],
+  feedbackAttachments: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
@@ -1120,6 +1124,60 @@ function installModelStubs() {
     }
   };
 
+  Feedback.create = async (payload) => {
+    const now = new Date().toISOString();
+    const feedback = {
+      _id: payload._id || newObjectId(),
+      attachments: [],
+      status: 'open',
+      adminNote: null,
+      pageContext: null,
+      createdAt: now,
+      updatedAt: now,
+      ...payload,
+    };
+    store.feedbacks.push(feedback);
+    return feedback;
+  };
+  Feedback.find = (query = {}) => createQuery(
+    store.feedbacks.filter((item) => matchesQuery(item, query)),
+    {
+      populateMap: {
+        userId(value) {
+          return mapValue(value, (feedback) => ({
+            ...feedback,
+            userId: findUserById(feedback.userId) || feedback.userId,
+          }));
+        },
+      },
+    },
+  );
+  Feedback.findById = (id) => createQuery(
+    store.feedbacks.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
+  );
+  Feedback.findByIdAndUpdate = async (id, update) => {
+    const feedback = store.feedbacks.find((item) => normalizeValue(item._id) === normalizeValue(id));
+    if (!feedback) return null;
+    applyUpdate(feedback, update);
+    feedback.updatedAt = new Date().toISOString();
+    return feedback;
+  };
+
+  FeedbackAttachment.create = async (payload) => {
+    const now = new Date().toISOString();
+    const attachment = {
+      _id: payload._id || newObjectId(),
+      createdAt: now,
+      updatedAt: now,
+      ...payload,
+    };
+    store.feedbackAttachments.push(attachment);
+    return attachment;
+  };
+  FeedbackAttachment.findOne = async (query = {}) => (
+    store.feedbackAttachments.find((item) => matchesQuery(item, query)) || null
+  );
+
   Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
   Avatar.findOneAndUpdate = async (query, update, options = {}) => {
     if (store.nextAvatarWriteError) {
@@ -1156,6 +1214,8 @@ function resetStore() {
   store.notifications.length = 0;
   store.conversations.length = 0;
   store.messages.length = 0;
+  store.feedbacks.length = 0;
+  store.feedbackAttachments.length = 0;
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.nextAvatarWriteError = null;
@@ -1474,6 +1534,34 @@ function createVideoBatchUploadForm({ files, titles } = {}) {
   return formData;
 }
 
+// Minimal valid PNG bytes (1x1) so INVALID_FEEDBACK_ATTACHMENT_TYPE's signature check passes.
+const PNG_1X1_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+function createFeedbackForm({
+  category = 'course_video',
+  severity = 'partial',
+  description = 'Video player crashes on Safari.',
+  pageContext = '/courses/123',
+  courseVideoName,
+  attachments,
+} = {}) {
+  const formData = new FormData();
+  formData.append('category', category);
+  formData.append('severity', severity);
+  formData.append('description', description);
+  if (pageContext !== null) formData.append('pageContext', pageContext);
+  if (courseVideoName) formData.append('courseVideoName', courseVideoName);
+  const files = attachments || [];
+  for (const file of files) {
+    formData.append(
+      'attachments',
+      new Blob([Buffer.from(file.base64 || PNG_1X1_BASE64, 'base64')], { type: file.type || 'image/png' }),
+      file.filename || 'screenshot.png',
+    );
+  }
+  return formData;
+}
+
 function cleanupTestUploads() {
   if (!fs.existsSync(uploadsDir)) {
     return;
@@ -1520,6 +1608,7 @@ module.exports = {
   postLineWebhook,
   createVideoUploadForm,
   createVideoBatchUploadForm,
+  createFeedbackForm,
   cleanupTestUploads,
   cleanupTestAvatars,
   createProcessingState,

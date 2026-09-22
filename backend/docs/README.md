@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-07-20（新增 YouTube 自動上傳設定指南）
+最後更新：2026-09-22（新增自建「回報問題」功能，取代原本需要登入 Google 才能上傳檔案的 Google 表單）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 

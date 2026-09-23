@@ -193,8 +193,20 @@ review 時列為 warning，不阻擋製圖。
 | 5-4 系統分析類別圖（整個系統單一圖，14+ 類別） | `diagrams/tools/svgdiag.js`（手工座標 SVG 產生器） | 元素數多，自動排版無法控制方框位置與走線；此產生器可指定每個方框 x/y 與每條線的走線點 |
 | 6-1 循序圖、6-2 設計類別圖／物件圖 | **Mermaid.js**（`sequenceDiagram`／`classDiagram`） | 初評第 6 章已證明：participant／類別數控制在 5～7 個時，Mermaid 自動排版即乾淨可讀，不需手工座標；沿用初評的弧形關聯線畫風 |
 | 5-3 活動圖 | PlantUML | 套用「各分支獨立 stop」後即為線性流程，PlantUML 排版穩定 |
+| 5-2 使用個案圖 | **draw.io**（手寫 mxfile XML ＋ desktop CLI 匯出） | 使用個案圖版面慣例固定（行為者置於兩側、使用個案置中、`«include»` 另成一欄），PlantUML 的 usecase 自動排版無法控制橢圓與行為者位置；draw.io 可精確指定座標與連線錨點。圖源是純文字 XML，agent 與使用者可編輯同一份母稿 |
+
+`[FF:MUST]` **draw.io 母稿不得使用 XML 註解**（`<!-- -->`）：官方 drawio skill 明訂禁止，且註解易造成匯出失敗。ooad SKILL.md 規則 2 要求的檔頭宣告改寫成 `<mxfile>` 標籤的自訂屬性（`ooad-phase`、`chapter`、`realizes`、`source`、`verified`、`status`、`implemented`、`ai-assisted`），draw.io 會忽略未知屬性，追溯性不受影響。
 
 `[FF]` 渲染管道：
+- draw.io 圖以 **draw.io Desktop CLI** 匯出（2026-09-22 起）；Windows 為使用者層級安裝，執行檔在
+  `%LOCALAPPDATA%\Programs\draw.io\draw.io.exe`。PNG 與 SVG 各跑一次：
+
+  ```
+  draw.io.exe -x -f png -e -b 12 -s 2 --disable-gpu -o "images/圖X-vN-n.png" "diagrams/chapterNN/圖X-vN-n.drawio"
+  draw.io.exe -x -f svg -e -b 12 --disable-gpu -o "images/圖X-vN-n.svg" "diagrams/chapterNN/圖X-vN-n.drawio"
+  ```
+
+  `-e` 把圖源 XML 嵌進匯出檔，匯出的 PNG／SVG 仍可拖回 draw.io 編輯；`-s 2` 讓 PNG 在 14 字內文環境下清晰；`--disable-gpu` 避免 Electron 在無 GPU 環境回報 `GPU process isn't usable`。此管道不經 kroki.io，也不需要 `sharp`。
 - PlantUML 圖以 **kroki.io** 的 `POST /plantuml/png` 轉檔（本機無需安裝 Java／plantuml.jar）；
   送出前需將 `!include ../_style.puml` 就地展開，因為 kroki 讀不到本機檔案。
 - Mermaid 圖以 **kroki.io** 的 `POST /mermaid/svg`（**不是 `/png`**，見下方已知問題）轉檔，母稿存

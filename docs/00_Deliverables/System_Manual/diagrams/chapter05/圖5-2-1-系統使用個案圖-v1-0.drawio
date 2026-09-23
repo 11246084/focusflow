@@ -1,0 +1,194 @@
+<mxfile host="app.diagrams.net" agent="FocusFlow" version="24.0.0" ooad-phase="需求分析" chapter="5-2" realizes="UC-01~UC-09" source="docs/00_Deliverables/System_Manual/chapters/05_需求模型.md 表5-2-1、表5-3-1至表5-3-9" verified="2026-09-22" status="draft" implemented="yes" ai-assisted="yes / Claude Opus 5 / 2026-09-22 依 UC-01~UC-09 重繪，沿用初評版的功能分組結構">
+  <diagram id="system-use-case" name="系統使用個案圖">
+    <mxGraphModel dx="1200" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="830" pageHeight="1210" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="sys" value="FocusFlow 系統" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontSize=14;fontFamily=DFKai-SB;fontStyle=1;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="620" height="1160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="grp-student" value="學生功能" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontSize=13;fontFamily=DFKai-SB;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="210" y="60" width="330" height="244" as="geometry" />
+        </mxCell>
+        <mxCell id="grp-auth" value="權限控管" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontSize=13;fontFamily=DFKai-SB;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="210" y="329" width="330" height="176" as="geometry" />
+        </mxCell>
+        <mxCell id="grp-teacher" value="教師功能" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontSize=13;fontFamily=DFKai-SB;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="210" y="530" width="330" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="grp-admin" value="管理員功能" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontSize=13;fontFamily=DFKai-SB;fontStyle=1;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="210" y="995" width="330" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc04" value="在網頁觀看與提問" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-student">
+          <mxGeometry x="20" y="45" width="215" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="uc05" value="綁定 LINE 並提問" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-student">
+          <mxGeometry x="20" y="113" width="215" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="uc07" value="查看短影音" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-student">
+          <mxGeometry x="20" y="181" width="215" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc01" value="註冊與登入" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-auth">
+          <mxGeometry x="20" y="45" width="215" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="uc06" value="維護個人資料與通知" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-auth">
+          <mxGeometry x="20" y="113" width="215" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc02" value="管理課程與修課名單" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-teacher">
+          <mxGeometry x="20" y="60" width="215" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="uc03" value="加入影片並追蹤處理" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-teacher">
+          <mxGeometry x="20" y="210" width="215" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="uc08" value="產生腳本並提交短影音成品" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-teacher">
+          <mxGeometry x="20" y="350" width="215" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc09" value="維運系統" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="grp-admin">
+          <mxGeometry x="20" y="45" width="215" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sub-ans" value="取得回答與&lt;br&gt;影片時間段" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="139" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-lock" value="帳號鎖定" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="374" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-pwd" value="忘記密碼重設" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="442" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-csv" value="匯入修課名單" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="605" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-revoke" value="撤銷修課資格" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="665" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-retry" value="重試失敗影片" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="775" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-review" value="成品審核" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="915" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-user" value="管理使用者帳號" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="995" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-course" value="管理課程與影片" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1050" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-notice" value="發送系統公告" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1105" width="152" height="44" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sub-create" value="建立與發布課程" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="545" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-attach" value="掛載影片至其他課程" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="715" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="sub-reject" value="退回腳本修改" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="580" y="855" width="152" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="student" value="Student&lt;br&gt;學生" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="50" y="215" width="45" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="teacher" value="Teacher&lt;br&gt;教師" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="50" y="565" width="45" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" value="Admin&lt;br&gt;管理員" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=none;strokeColor=#000000;fontSize=12;fontFamily=DFKai-SB;" vertex="1" parent="1">
+          <mxGeometry x="50" y="860" width="45" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-s-04" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="student" target="uc04">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s-05" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="student" target="uc05">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s-07" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="student" target="uc07">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s-01" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.68;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="student" target="uc01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s-06" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.82;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="student" target="uc06">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-t-01" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.22;exitDx=0;exitDy=0;entryX=0;entryY=0.62;entryDx=0;entryDy=0;" edge="1" parent="1" source="teacher" target="uc01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-t-06" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.36;exitDx=0;exitDy=0;entryX=0;entryY=0.55;entryDx=0;entryDy=0;" edge="1" parent="1" source="teacher" target="uc06">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-t-02" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.52;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="1" source="teacher" target="uc02">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-t-03" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.66;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="teacher" target="uc03">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-t-08" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="1" source="teacher" target="uc08">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-a-01" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.82;entryDx=0;entryDy=0;" edge="1" parent="1" source="admin" target="uc01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a-06" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.36;exitDx=0;exitDy=0;entryX=0;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="admin" target="uc06">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-a-09" style="endArrow=open;endSize=8;curved=1;html=1;strokeColor=#000000;rounded=0;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="admin" target="uc09">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-inc-04" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc04" target="sub-ans">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-inc-05" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc05" target="sub-ans">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-lock" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-lock" target="uc01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-pwd" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-pwd" target="uc06">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-csv" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-csv" target="uc02">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-revoke" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-revoke" target="uc02">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-retry" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.6;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-retry" target="uc03">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-inc-review" value="&amp;laquo;include&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="uc08" target="sub-review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-user" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-user" target="uc09">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-course" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.55;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-course" target="uc09">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-notice" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.8;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-notice" target="uc09">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-ext-create" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.2;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-create" target="uc02">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-attach" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-attach" target="uc03">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ext-reject" value="&amp;laquo;extend&amp;raquo;" style="endArrow=open;endSize=10;dashed=1;html=1;strokeColor=#000000;edgeStyle=none;rounded=0;fontSize=11;fontFamily=DFKai-SB;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="sub-reject" target="uc08">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

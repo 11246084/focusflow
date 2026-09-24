@@ -1,0 +1,54 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-05, FR-07, FR-14, FR-15, FR-17
+' source:       chapters/05_需求模型.md 表5-3-5；backend/src/services/line.service.js、middleware/lineSignature.middleware.js（查證）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依程式修正：同一 LINE 帳號改綁時轉移綁定而非拒絕；補上綁定碼時效、切換課程最多 4 門與提問上限分支
+' ============================================
+!include ../_style.puml
+
+title LINE綁定與課程問答活動圖
+
+|學生|
+start
+:於網頁取得一次性綁定碼\n（10 分鐘內有效）;
+:加入官方帳號並傳送綁定訊息;
+|FocusFlow|
+if (LINE 訊息簽章有效？) then (否)
+  :拒絕請求，不處理訊息;
+  stop
+endif
+if (綁定碼存在且未過期？) then (否)
+  :回覆綁定碼無效，請重新取得;
+  stop
+endif
+:連結 LINE 帳號並作廢綁定碼\n（原綁定其他帳號者改綁至此帳號）;
+|學生|
+:傳送「切換課程」;
+|FocusFlow|
+:列出有效修課、已發布\n且已有影片的課程（最多 4 門）;
+if (有可選課程？) then (否)
+  :回覆目前沒有可提問的課程;
+  stop
+endif
+|學生|
+:選擇課程並輸入問題;
+|FocusFlow|
+if (課程仍在有效修課範圍？) then (否)
+  :提示重新選擇課程;
+  stop
+endif
+if (未超過字數與每日提問上限？) then (否)
+  :回覆上限提示;
+  stop
+endif
+:沿用網頁問答的檢索與回答規則，\n並帶入近期對話脈絡;
+|學生|
+:於 LINE 查看回答與影片時間點;
+stop
+
+@enduml

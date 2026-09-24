@@ -1,0 +1,77 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-06, FR-03, FR-18, FR-23
+' source:       chapters/05_需求模型.md 表5-3-6；backend/src/services/auth.service.js、avatar.service.js、passwordReset.service.js、notification.service.js、feedback.service.js（查證）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 補上使用個案圖已列出的「忘記密碼重設」延伸流程，以及頭像規格與問題回報分支
+' ============================================
+!include ../_style.puml
+
+title 個人資料與通知活動圖
+
+|使用者|
+start
+if (已登入？) then (否，忘記密碼)
+  :於登入頁輸入註冊 Email;
+  |FocusFlow|
+  :寄送 6 位數驗證碼\n（10 分鐘內有效）;
+  |使用者|
+  :輸入驗證碼與新密碼;
+  |FocusFlow|
+  if (驗證碼正確、未過期\n且錯誤未達 5 次？) then (否)
+    :拒絕重設;
+    stop
+  endif
+  :更新密碼並作廢驗證碼;
+  |使用者|
+  :以新密碼登入;
+  stop
+else (是)
+endif
+|使用者|
+switch (選擇項目)
+case (修改個人資料)
+  :修改姓名、Email 或密碼;
+case (上傳頭像)
+  :選擇 JPEG／PNG／WebP 圖片;
+case (查看通知)
+  :開啟通知並標記\n單筆或全部已讀;
+case (回報問題)
+  :選擇類別與影響程度、\n填寫描述並可附截圖;
+endswitch
+|FocusFlow|
+switch (依項目處理)
+case (修改個人資料)
+  if (變更 Email 或密碼時\n目前密碼正確？) then (否)
+    :回覆目前密碼錯誤;
+    stop
+  endif
+  if (Email 未被使用且\n新密碼至少 8 字元？) then (否)
+    :回覆欄位錯誤;
+    stop
+  endif
+  :更新個人資料;
+case (上傳頭像)
+  if (實際格式相符\n且不超過 1 MiB？) then (否)
+    :拒絕上傳;
+    stop
+  endif
+  :以僅限本人讀取的\n方式保存頭像;
+case (查看通知)
+  :保存已讀狀態\n並更新未讀數;
+case (回報問題)
+  if (描述非空且截圖\n不超過 3 張、格式與\n大小符合？) then (否)
+    :拒絕送出並提示原因;
+    stop
+  endif
+  :建立問題回報，\n狀態為待處理;
+endswitch
+|使用者|
+:查看處理結果;
+stop
+
+@enduml

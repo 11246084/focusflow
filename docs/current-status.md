@@ -15,7 +15,9 @@
 > Step 9 live `chunkId_1`／Explain／Child Expansion 已由 Database owner 驗收，但本 repo
 > 的 `database/tools/setup/init_indexes.js` 仍是 snake_case，bootstrap Commit／Push 待同步。
 
-最後更新：2026-09-23（文件盤點：補記 9 月試用期功能、開放試用口徑與 CORS 已收斂；未重跑測試）
+本輪更新：2026-09-24（校內試用現況實查：2 門已發布課程、27 位學生完成修課指派、試用期間 29 則提問／5 位學生實際提問，詳見下方「校內試用現況」。另修正 CORS 狀態：`ALLOWED_ORIGINS` 已在 VM 設定並以兩個 Origin 實測收斂；ngrok 通道仍使 `/uploads` 可匿名讀取）
+
+上一輪：2026-09-23（文件盤點：補記 9 月試用期功能、開放試用口徑與 CORS 已收斂；未重跑測試）
 
 更早一輪：2026-08-14（多影片批次前端改為單一 multipart batch contract 並拒絕缺項／重複 itemId 回傳；批次單項 retry 已從僅改 `queued` 補成真正排程 worker。Pipeline batch 對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint，single adapter 僅在本機來源仍位於 `UPLOAD_DIR` 且存在時重啟。`VIDEO_BATCH_PIPELINE_ENABLED` 仍預設 false，尚未執行 live STT/Gemini 或正式部署 E2E）
 
@@ -34,6 +36,20 @@
 更早一輪：2026-07-20（YouTube 自動上傳 OAuth 憑證取得；live smoke 待執行）
 
 > 這份文件是跨服務的動態進度頁。後端詳細狀態見 [backend/docs/current-state.md](../backend/docs/current-state.md)。
+
+---
+
+## 校內試用現況（2026-09-24 實查正式 Atlas）
+
+| 項目 | 數字 |
+|------|------|
+| 已發布課程 | 2 門：AI入門基礎課（6 支影片）、影片處理工具 - OpenCV（15 支影片） |
+| 有效修課指派 | 27 位學生；名單建立期間 2026-09-10 ～ 09-21 |
+| student 帳號 | 啟用中 34 個，其中 30 個於 2026-09 建立 |
+| 試用期間提問（09-11 起） | 29 則：網頁 24 則、LINE 5 則；22 則產生回答、7 則回覆查無依據 |
+| 實際提問人數 | 5 位 |
+
+判讀邊界：修課指派人數不等於使用人數，目前實際提問集中在 5 位學生，樣本不足以推論學習成效；找片段耗時、引用點擊率、回答滿意度與教師答疑負擔變化都尚未收集。問卷與課堂回饋若已進行，應另行歸檔並補上樣本數與期間。
 
 ---
 
@@ -237,7 +253,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 3. 在 shared Gate=false、FAQ=false、read-only DB credential 下執行一次隔離 Parent Atlas Search → Child expansion → Leaf Citation，保存 contract hash、index／IXSCAN、counts、timestamp 與 `writesDetected: 0`
 4. 上述證據通過後才評估 allowlisted shadow；正式 serve、付費 live query 與資料 publication 仍各需獨立核准
 5. ~~申請 Let's Encrypt 憑證~~（✅ 2026-09-10 完成，走 443）。後續：2026-11-15 前確認第一次自動續約成功；LINE webhook 是否改用 `https://focusflow.ntub.edu.tw` 並停用 ngrok，待與指導教授討論（改之前需 live 測試）
-6. 試用期 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook（~~`ALLOWED_ORIGINS`~~ 已於 VM 設定，2026-09-23 實測 CORS 已收斂）
+6. 試用期 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook（~~`ALLOWED_ORIGINS`~~ 已於 VM 設定，2026-09-23 實測 CORS 已收斂）。ngrok 通道仍直通 port 4000，`/uploads` 可繞過 nginx 被匿名讀取，待收斂
 7. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
 8. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
 9. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
@@ -246,9 +262,9 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ## 不能誤稱的邊界
 
-- 學生試用版 Phase 1 的 500/500 是本機回歸測試，不是附錄 I 的 12＋2 題正式證據，也不是 shared Atlas、Gemini、YouTube、LINE 或部署驗收；這些證據完成前不得宣稱學生試用已通過驗收
+- 學生試用版 Phase 1 的 500/500 是本機回歸測試，不是附錄 I 的 12＋2 題正式證據，也不是 shared Atlas、Gemini、YouTube、LINE 或部署驗收；這些證據完成前不得宣稱學生試用已通過驗收。**校內試用本身已於 2026-09 開始**（見下方「校內試用現況」），「試用進行中」與「試用已驗收」是兩回事，不可混用
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
-- **對外口徑是「2026-09-21 起開放學生試用」，不能說「已正式上線」**：校外可透過 `https://focusflow.ntub.edu.tw` 使用，憑證受信任、CORS 已收斂；仍屬試用是因為學生試用驗收證據持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）。另外 port 80 對外不通（學校不開放），明確寫 `http://` 的連結會連不上，對外一律提供 `https://` 網址
+- **對外口徑是「2026-09-21 起開放學生試用」，不能說「已正式上線」**：校外可透過 `https://focusflow.ntub.edu.tw` 使用，憑證受信任、CORS 已收斂；仍屬試用是因為學生試用驗收證據持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論，且該通道同時使 `/uploads` 可匿名讀取）。另外 port 80 對外不通（學校不開放），明確寫 `http://` 的連結會連不上，對外一律提供 `https://` 網址
 - 不能說「自動續約已驗證成功」：cron 與續約設定已確認存在，但第一次實際續約預計在 2026-11-10 前後，尚未發生
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
 - Atlas vector retrieval：`text_embedding_index` 的 READY/queryable 結果是 2026-05-23 歷史 snapshot；本輪未連線重查，且 active Leaf contract 未確認前不可宣稱 atlas mode 可用

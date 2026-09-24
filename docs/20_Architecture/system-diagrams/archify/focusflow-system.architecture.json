@@ -1,0 +1,724 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FocusFlow 系統架構",
+    "locale": "zh-TW",
+    "text_scale": "large",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/11246084/focusflow",
+      "revision": "137246891fc79a3fa301f66e38979bf748661af5"
+    },
+    "legend": {
+      "mode": "hidden"
+    },
+    "views": [
+      {
+        "id": "video",
+        "label": "① 影片處理",
+        "focus": [
+          "teacher",
+          "ingest",
+          "stt",
+          "chunk",
+          "embed",
+          "done",
+          "gemini",
+          "youtube",
+          "segments",
+          "courses"
+        ],
+        "note": "教師上傳後檢查格式、大小與重複，排入佇列（一次一支）；Pipeline 擷取音訊、Whisper 轉文字、切成 ≤220 字片段並向量化寫入資料庫；完成後通知修課學生、清除 FAQ 快取，並以不公開上傳 YouTube。失敗可重試。"
+      },
+      {
+        "id": "qa",
+        "label": "② 精準問答",
+        "focus": [
+          "student",
+          "linebot",
+          "scope",
+          "retrieve",
+          "answer",
+          "faqs",
+          "segments",
+          "gemini",
+          "questions"
+        ],
+        "note": "先確認修課權限與每日額度；FAQ 快取命中直接回覆，否則向量搜尋課程片段，由 Gemini 依片段生成附時間點的回答，並寫入問答紀錄。"
+      },
+      {
+        "id": "shorts",
+        "label": "③ 學習飛輪",
+        "focus": [
+          "questions",
+          "topic",
+          "script",
+          "comfy",
+          "review",
+          "youtube",
+          "student",
+          "shorts"
+        ],
+        "note": "從學生常問題自動選題並凍結證據、生成腳本；教師以 ComfyUI + MiniMax H3（教授主機地端）產製，審核通過才上架短影音牆。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "teacher",
+      "type": "external",
+      "label": "教師",
+      "sublabel": "Web・上傳與審核",
+      "pos": [
+        20,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ]
+    },
+    {
+      "id": "linebot",
+      "type": "frontend",
+      "label": "學生・LINE Bot",
+      "sublabel": "Messaging API・多輪",
+      "pos": [
+        20,
+        250
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/routes/line.routes.js",
+          "line": 30,
+          "label": "Webhook 路由"
+        },
+        {
+          "path": "backend/src/services/line.service.js",
+          "line": 115,
+          "label": "回覆訊息"
+        }
+      ]
+    },
+    {
+      "id": "student",
+      "type": "frontend",
+      "label": "學生・Web",
+      "sublabel": "提問・短影音牆",
+      "pos": [
+        20,
+        420
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "frontend/focus-flow/src/pages/StudentShortsWall.jsx",
+          "line": 92,
+          "label": "短影音嵌入播放"
+        }
+      ]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "上傳與排隊",
+      "sublabel": "格式・大小・重複檢查",
+      "pos": [
+        260,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/video.service.js",
+          "line": 390,
+          "label": "上傳檢查"
+        },
+        {
+          "path": "backend/src/services/videoProcessingQueue.service.js",
+          "line": 42,
+          "label": "處理佇列"
+        }
+      ]
+    },
+    {
+      "id": "stt",
+      "type": "backend",
+      "label": "語音轉文字",
+      "sublabel": "FFmpeg + Faster-Whisper",
+      "pos": [
+        500,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "tag": "VM 本機",
+      "sources": [
+        {
+          "path": "STT_Whisper/src/transcribe.py",
+          "line": 16,
+          "label": "Whisper"
+        }
+      ]
+    },
+    {
+      "id": "chunk",
+      "type": "backend",
+      "label": "逐字稿切段",
+      "sublabel": "每段 ≤ 220 字・時間點",
+      "pos": [
+        740,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "STT_Whisper/src/chunk_strategy.py",
+          "line": 10,
+          "label": "切段策略"
+        }
+      ]
+    },
+    {
+      "id": "embed",
+      "type": "backend",
+      "label": "向量化入庫",
+      "sublabel": "Gemini embedding",
+      "pos": [
+        980,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "STT_Whisper/src/mongodb_uploader.py",
+          "line": 277,
+          "label": "寫入片段"
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "type": "backend",
+      "label": "完成後處理",
+      "sublabel": "通知・清快取・YouTube",
+      "pos": [
+        1220,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/videoProcessing.service.js",
+          "line": 84,
+          "label": "完成後處理"
+        }
+      ]
+    },
+    {
+      "id": "scope",
+      "type": "security",
+      "label": "權限與額度",
+      "sublabel": "修課範圍・每日 5 題",
+      "pos": [
+        260,
+        250
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/config/env.js",
+          "line": 203,
+          "label": "每日提問上限"
+        }
+      ]
+    },
+    {
+      "id": "retrieve",
+      "type": "backend",
+      "label": "問答檢索",
+      "sublabel": "FAQ 快取・向量搜尋",
+      "pos": [
+        500,
+        250
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/qa.service.js",
+          "line": 519,
+          "label": "向量搜尋"
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "type": "backend",
+      "label": "答案生成",
+      "sublabel": "回答 + 影片時間點",
+      "pos": [
+        740,
+        250
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/answerGeneration.service.js",
+          "line": 282,
+          "label": "生成回答"
+        }
+      ]
+    },
+    {
+      "id": "topic",
+      "type": "backend",
+      "label": "自動選題",
+      "sublabel": "學生常問題・證據",
+      "pos": [
+        260,
+        420
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/shortScriptTopic.service.js",
+          "line": 46,
+          "label": "問題篩選"
+        }
+      ]
+    },
+    {
+      "id": "script",
+      "type": "backend",
+      "label": "腳本生成",
+      "sublabel": "Gemini・引用片段",
+      "pos": [
+        500,
+        420
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/shortScriptGeneration.service.js",
+          "line": 323,
+          "label": "Gemini 生成"
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "security",
+      "label": "教師審核上架",
+      "sublabel": "AI 揭露・退回重生",
+      "pos": [
+        740,
+        420
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/shortAssetPublish.service.js",
+          "line": 43,
+          "label": "上架隱私設定"
+        }
+      ]
+    },
+    {
+      "id": "courses",
+      "type": "database",
+      "label": "課程與影片",
+      "sublabel": "courses・videos",
+      "pos": [
+        260,
+        620
+      ],
+      "size": [
+        166,
+        70
+      ]
+    },
+    {
+      "id": "segments",
+      "type": "database",
+      "label": "語意片段",
+      "sublabel": "video_segments_text",
+      "pos": [
+        500,
+        620
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "tag": "向量索引"
+    },
+    {
+      "id": "faqs",
+      "type": "database",
+      "label": "FAQ 快取",
+      "sublabel": "faqs",
+      "pos": [
+        740,
+        620
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/faqCache.service.js",
+          "label": "快取比對"
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "type": "database",
+      "label": "問答紀錄",
+      "sublabel": "questions・usage_logs",
+      "pos": [
+        980,
+        620
+      ],
+      "size": [
+        166,
+        70
+      ]
+    },
+    {
+      "id": "shorts",
+      "type": "database",
+      "label": "短影音",
+      "sublabel": "shortscripts・assets",
+      "pos": [
+        1220,
+        620
+      ],
+      "size": [
+        166,
+        70
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "cloud",
+      "label": "Google Gemini",
+      "sublabel": "Embedding・回答・腳本",
+      "pos": [
+        1470,
+        250
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/queryEmbedding.service.js",
+          "line": 113,
+          "label": "問題 embedding"
+        }
+      ]
+    },
+    {
+      "id": "youtube",
+      "type": "external",
+      "label": "YouTube",
+      "sublabel": "不公開上傳・嵌入播放",
+      "pos": [
+        1470,
+        80
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "sources": [
+        {
+          "path": "backend/src/services/youtubeUpload.service.js",
+          "line": 15,
+          "label": "上傳 API"
+        }
+      ]
+    },
+    {
+      "id": "comfy",
+      "type": "cloud",
+      "label": "ComfyUI + MiniMax H3",
+      "sublabel": "教授主機地端模型",
+      "pos": [
+        1470,
+        420
+      ],
+      "size": [
+        166,
+        70
+      ],
+      "tag": "串接規劃中"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "前端",
+      "wraps": [
+        "teacher",
+        "linebot",
+        "student"
+      ],
+      "pad": 20,
+      "tone": "purple"
+    },
+    {
+      "kind": "region",
+      "label": "後端",
+      "wraps": [
+        "ingest",
+        "stt",
+        "chunk",
+        "embed",
+        "done",
+        "scope",
+        "retrieve",
+        "answer",
+        "topic",
+        "script",
+        "review"
+      ],
+      "pad": 22,
+      "tone": "blue"
+    },
+    {
+      "kind": "region",
+      "label": "資料與知識資源（MongoDB Atlas）",
+      "wraps": [
+        "courses",
+        "segments",
+        "faqs",
+        "questions",
+        "shorts"
+      ],
+      "pad": 20,
+      "tone": "green"
+    },
+    {
+      "kind": "region",
+      "label": "外部服務 / AI 模型",
+      "wraps": [
+        "youtube",
+        "gemini",
+        "comfy"
+      ],
+      "pad": 20,
+      "tone": "amber"
+    }
+  ],
+  "connections": [
+    {
+      "from": "teacher",
+      "to": "ingest",
+      "label": "上傳影片",
+      "variant": "emphasis"
+    },
+    {
+      "from": "ingest",
+      "to": "stt",
+      "label": "排隊・啟動",
+      "variant": "emphasis"
+    },
+    {
+      "from": "stt",
+      "to": "chunk",
+      "label": "逐字稿",
+      "variant": "emphasis"
+    },
+    {
+      "from": "chunk",
+      "to": "embed",
+      "label": "片段",
+      "variant": "emphasis"
+    },
+    {
+      "from": "embed",
+      "to": "done",
+      "label": "完成回報",
+      "variant": "emphasis"
+    },
+    {
+      "from": "embed",
+      "to": "gemini",
+      "label": "embedding",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          1063,
+          205
+        ],
+        [
+          1553,
+          205
+        ]
+      ]
+    },
+    {
+      "from": "done",
+      "to": "youtube",
+      "label": "不公開上傳",
+      "variant": "dashed"
+    },
+    {
+      "from": "linebot",
+      "to": "scope",
+      "label": "提問",
+      "variant": "emphasis"
+    },
+    {
+      "from": "student",
+      "to": "scope",
+      "label": "網頁提問",
+      "variant": "emphasis"
+    },
+    {
+      "from": "scope",
+      "to": "retrieve",
+      "label": "通過",
+      "variant": "emphasis"
+    },
+    {
+      "from": "retrieve",
+      "to": "answer",
+      "label": "相關片段",
+      "variant": "emphasis"
+    },
+    {
+      "from": "answer",
+      "to": "gemini",
+      "label": "生成回答",
+      "variant": "dashed"
+    },
+    {
+      "from": "topic",
+      "to": "script",
+      "label": "證據包",
+      "variant": "emphasis"
+    },
+    {
+      "from": "review",
+      "to": "youtube",
+      "label": "上架",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          823,
+          540
+        ],
+        [
+          1665,
+          540
+        ],
+        [
+          1665,
+          115
+        ]
+      ]
+    },
+    {
+      "from": "script",
+      "to": "comfy",
+      "label": "腳本 / prompt",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          583,
+          385
+        ],
+        [
+          1553,
+          385
+        ]
+      ]
+    },
+    {
+      "from": "comfy",
+      "to": "review",
+      "label": "上傳成品",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "價值主張",
+      "items": [
+        "教師：上傳一次，影片變成可提問的知識庫",
+        "學生：秒級取得附影片時間點的回答",
+        "學校：學生提問轉成短影音，形成學習飛輪"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "品質與成本控管",
+      "items": [
+        "只從修課範圍內的片段作答",
+        "FAQ 快取命中直接回覆，節省 LLM 成本",
+        "找不到依據時回覆資料不足，不臆測"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "7～9 月進度",
+      "items": [
+        "新增：FAQ 快取、每日額度、短影音腳本與審核",
+        "新增：HTTPS 正式網域、GitHub Actions 部署",
+        "進行中：ComfyUI 系統串接、短影音上架驗收"
+      ]
+    }
+  ]
+}

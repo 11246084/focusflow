@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FocusFlow 系統架構圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1f2430;
+    --ink-2: #4a5263;
+    --line: #d9dee8;
+    --front: #f1ecfb;  --front-line: #ddd2f3;
+    --back: #eaf2fc;   --back-line: #cfe0f5;
+    --data: #eaf6ee;   --data-line: #cbe8d4;
+    --ext: #fdf4e3;    --ext-line: #f3e0b8;
+    --c1: #2f6fdb; --c1-soft: #e6effd;
+    --c2: #d9534f; --c2-soft: #fdecec;
+    --c3: #1f9d6b; --c3-soft: #e3f5ec;
+    --c4: #7b55d6; --c4-soft: #efe9fb;
+    --c5: #e08a1e; --c5-soft: #fdf0dc;
+    --arrow: #3b4252;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #ffffff; }
+  body { font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; color: var(--ink); overflow: hidden; }
+  #stage { position: relative; width: 1680px; height: 945px; transform-origin: 0 0; background: #fff; }
+  .abs { position: absolute; }
+  .zone { position: absolute; border-radius: 18px; border: 1.5px solid; }
+  .zone-title { position: absolute; left: 0; right: 0; top: 12px; text-align: center; font-size: 23px; font-weight: 700; letter-spacing: 1px; }
+  .front { background: var(--front); border-color: var(--front-line); }
+  .users { background: #f3f4f7; border-color: #dfe2e8; }
+  .ucard { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .ucard .icon { width: 38px; height: 38px; color: #4a5263; margin-bottom: 4px; }
+  .ucard h3 { font-size: 18.5px; font-weight: 700; white-space: nowrap; }
+  .ucard .sub { font-size: 14.5px; color: var(--ink-2); }
+  .back  { background: var(--back);  border-color: var(--back-line); }
+  .data  { background: var(--data);  border-color: var(--data-line); }
+  .ext   { background: var(--ext);   border-color: var(--ext-line); }
+  .card { position: absolute; background: #fff; border: 1.5px solid var(--line); border-radius: 14px; }
+  .icon svg { width: 100%; height: 100%; stroke-width: 1.7; }
+  /* front */
+  .fcard { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .fcard .icon { width: 56px; height: 56px; color: var(--c4); margin-bottom: 6px; }
+  .fcard h3 { font-size: 20px; font-weight: 700; }
+  .fcard .sub { font-size: 15px; color: var(--ink-2); margin-top: 2px; }
+  .fcard ul { list-style: none; margin-top: 8px; text-align: left; }
+  .fcard li { font-size: 16.5px; line-height: 1.66; padding-left: 14px; position: relative; }
+  .fcard li::before { content: ""; position: absolute; left: 0; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--c4); }
+  /* stage cards */
+  .stage { padding: 14px 16px 0; }
+  .stage h3 { font-size: 21px; font-weight: 700; text-align: center; }
+  .stage .icon { width: 56px; height: 56px; margin: 8px auto 8px; }
+  .stage ul { list-style: none; }
+  .stage li { font-size: 17.5px; line-height: 1.68; padding-left: 14px; position: relative; margin-bottom: 1px; }
+  .stage li::before { content: ""; position: absolute; left: 0; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .75; }
+  .stage li span { color: var(--ink); }
+  .s1 { border-color: #b9cff3; } .s1 h3, .s1 .icon, .s1 li { color: var(--c1); }
+  .s2 { border-color: #f1c1bf; background: #fffafa; } .s2 h3, .s2 .icon, .s2 li { color: var(--c2); }
+  .s3 { border-color: #b7e2cd; } .s3 h3, .s3 .icon, .s3 li { color: var(--c3); }
+  .s4 { border-color: #d4c6f1; } .s4 h3, .s4 .icon, .s4 li { color: var(--c4); }
+  /* chips */
+  .grp-label { position: absolute; font-size: 15px; font-weight: 700; color: var(--ink-2); }
+  .chip { position: absolute; background: #fff; border: 1.5px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .chip .icon { width: 30px; height: 30px; margin-bottom: 4px; }
+  .chip b { font-size: 15.5px; font-weight: 700; }
+  .chip small { font-size: 13.5px; color: var(--ink-2); line-height: 1.3; }
+  .chip.v .icon { color: var(--c1); } .chip.q .icon { color: var(--c3); }
+  .chip.warn .icon { color: var(--c2); }
+  /* flywheel strip */
+  .strip { border-color: #f0d2a6; }
+  .strip-title { position: absolute; left: 18px; top: 10px; font-size: 20px; font-weight: 700; color: var(--c5); display: flex; align-items: center; gap: 8px; }
+  .strip-title .icon { width: 26px; height: 26px; }
+  .strip-note { position: absolute; right: 18px; top: 14px; font-size: 14px; color: var(--ink-2); }
+  .step { position: absolute; background: var(--c5-soft); border: 1.5px solid #f3d4a8; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4px 6px; }
+  .step .icon { width: 28px; height: 28px; color: var(--c5); margin-bottom: 3px; }
+  .step b { font-size: 15.5px; font-weight: 700; }
+  .step small { font-size: 13.5px; color: var(--ink-2); line-height: 1.3; }
+  .step.human { background: #fff; border-style: dashed; border-color: #e0a95a; }
+  /* external */
+  .svc { display: flex; align-items: center; gap: 12px; padding: 0 14px; }
+  .svc .icon { width: 40px; height: 40px; flex: none; color: #b36b00; }
+  .svc h4 { font-size: 17px; font-weight: 700; line-height: 1.25; }
+  .svc small { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 2px; line-height: 1.3; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; color: #8a5a00; background: #fbe6bf; border-radius: 6px; padding: 0 6px; margin-left: 4px; vertical-align: 2px; }
+  .ai { padding: 12px 16px; }
+  .ai h3 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .ai h5 { font-size: 16.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .ai h5 .icon { width: 22px; height: 22px; }
+  .ai .yes { color: var(--c3); } .ai .no { color: var(--c2); }
+  .ai ul { list-style: none; margin: 2px 0 6px 28px; }
+  .ai li { font-size: 15px; line-height: 1.6; position: relative; padding-left: 12px; }
+  .ai li::before { content: ""; position: absolute; left: 0; top: 9.5px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-2); }
+  .ai hr { border: none; border-top: 1.5px dashed var(--line); margin: 6px 0; }
+  /* data */
+  .db { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6px; }
+  .db .icon { width: 40px; height: 40px; color: #23865a; margin-bottom: 6px; }
+  .db code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .db small { font-size: 13.5px; color: var(--ink-2); margin-top: 3px; line-height: 1.35; }
+  .pill { position: absolute; background: #fff; border: 1.5px solid var(--line); border-radius: 999px; font-size: 14px; font-weight: 700; padding: 2px 12px; color: var(--ink-2); white-space: nowrap; }
+  .foot { position: absolute; font-size: 12.5px; color: #8a91a0; }
+  svg.wires { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+  /* video pipeline steps */
+  .vstep { position: absolute; background: var(--c1-soft); border: 1.5px solid #b9cff3; border-radius: 12px; display: flex; align-items: center; padding: 6px 10px; }
+  .vstep .num { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--c1); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .vstep b { display: block; white-space: nowrap; font-size: 15.5px; font-weight: 700; line-height: 1.25; }
+  .vstep small { display: block; white-space: nowrap; font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+  .vstep code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 11.5px; font-weight: 700; color: var(--c1); background: #fff; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+  .vstep small + code { display: inline-block; margin: 3px 0 0; }
+  .vstep.done { background: #e3f5ec; border-color: #b7e2cd; } .vstep.done .num { background: var(--c3); } .vstep.done code { color: var(--c3); }
+  .fail-note { position: absolute; font-size: 13.5px; font-weight: 700; color: var(--c2); display: flex; align-items: center; gap: 4px; }
+  .fail-note .icon { width: 16px; height: 16px; }
+  .qchip { position: absolute; background: #fff; border: 1.5px solid #b7e2cd; border-radius: 12px; padding: 12px 12px 10px; text-align: center; }
+  .qchip .icon { width: 34px; height: 34px; margin: 0 auto 6px; color: var(--c3); }
+  .qchip b { display: block; font-size: 16.5px; font-weight: 700; margin-bottom: 4px; }
+  .qchip p { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .qchip.warn { border-color: #f1c1bf; } .qchip.warn .icon { color: var(--c2); }
+  .flabel { position: absolute; font-size: 12.5px; font-weight: 700; color: var(--ink-2); background: var(--front); padding: 0 3px; line-height: 16px; }
+  .flabel.vert { writing-mode: vertical-rl; padding: 3px 0; letter-spacing: 1px; }
+  /* ---- motion & story focus ---- */
+  .wires path[data-g] { stroke-dasharray: 7 6; animation: flow 1.1s linear infinite; transition: opacity .35s, stroke .35s, stroke-width .35s; }
+  .wires g.dash path[data-g] { stroke-dasharray: 6 5; }
+  @keyframes flow { to { stroke-dashoffset: -13; } }
+  body.static .wires g.solid path[data-g] { stroke-dasharray: none; }
+  body.static .wires path[data-g] { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .wires path[data-g] { animation: none; } }
+  [data-g] { transition: opacity .35s, box-shadow .35s; }
+  body.focus [data-g]:not(.on) { opacity: .16; }
+  body.focus .card.on, body.focus .chip.on, body.focus .step.on, body.focus .vstep.on, body.focus .qchip.on { box-shadow: 0 0 0 3px var(--hl), 0 6px 18px rgba(0,0,0,.08); }
+  body.focus .wires path.on { stroke: var(--hl); stroke-width: 3; animation-duration: .7s; }
+  body[data-story="video"] { --hl: #2f6fdb; } body[data-story="qa"] { --hl: #1f9d6b; } body[data-story="shorts"] { --hl: #e08a1e; }
+  .ctl { position: fixed; right: 14px; bottom: 14px; display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,.94); border: 1.5px solid var(--line); border-radius: 12px; padding: 6px 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 10; max-width: calc(100vw - 28px); flex-wrap: wrap; }
+  .ctl button { font: 700 14px "Noto Sans TC", sans-serif; border: 1.5px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+  .ctl button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .ctl .note { font-size: 14px; color: var(--ink-2); max-width: 520px; padding: 0 6px; }
+  body.static .ctl { display: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ============ zones ============ -->
+  <div class="zone users" style="left:16px;top:16px;width:276px;height:176px"><div class="zone-title">使用者</div></div>
+  <div class="zone front" style="left:16px;top:206px;width:276px;height:486px"><div class="zone-title">前端</div></div>
+  <div class="zone back"  style="left:304px;top:16px;width:1032px;height:676px"><div class="zone-title">後端</div></div>
+  <div class="zone ext"   style="left:1348px;top:16px;width:316px;height:907px"><div class="zone-title">外部服務 / AI 模型</div></div>
+  <div class="zone data"  style="left:16px;top:708px;width:1320px;height:215px"><div class="zone-title" style="top:9px">資料與知識資源（MongoDB Atlas）</div></div>
+
+  <!-- ============ front ============ -->
+  <div data-g="video qa shorts" class="card ucard" style="left:34px;top:58px;width:240px;height:116px">
+    <div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+  <circle cx="9" cy="7" r="4" />
+  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+</svg></div>
+    <div><h3>教師・學生・管理員</h3><div class="sub">依角色使用不同功能</div></div>
+  </div>
+  <div data-g="video qa shorts" class="card fcard" style="left:34px;top:252px;width:240px;height:216px">
+    <div class="icon" style="width:50px;height:50px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" />
+</svg></div>
+    <h3>Web 前端</h3>
+    <ul>
+      <li>課程與修課管理</li>
+      <li>影片觀看・多輪問答</li>
+      <li>短影音牆</li>
+      <li>管理後台與統計</li>
+    </ul>
+  </div>
+  <div data-g="qa" class="card fcard" style="left:34px;top:500px;width:240px;height:176px">
+    <div class="icon" style="width:48px;height:48px"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 8V4H8" />
+  <rect width="16" height="12" x="4" y="8" rx="2" />
+  <path d="M2 14h2" />
+  <path d="M20 14h2" />
+  <path d="M15 13v2" />
+  <path d="M9 13v2" />
+</svg></div>
+    <h3>LINE Bot</h3>
+    <ul>
+      <li>行動提問・切換課程</li>
+      <li>回覆附影片時間點</li>
+    </ul>
+  </div>
+
+  <!-- ============ backend stage cards ============ -->
+  <div data-g="video" class="card stage s1" style="left:322px;top:60px;width:230px;height:240px">
+    <h3>1. 課程影片管理</h3>
+    <div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />
+  <path d="m6.2 5.3 3.1 3.9" />
+  <path d="m12.4 3.4 3.1 4" />
+  <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+</svg></div>
+    <ul>
+      <li><span>建立課程・匯入修課</span></li>
+      <li><span>上傳影片（可多檔）</span></li>
+      <li><span>狀態追蹤・失敗重試</span></li>
+      <li><span>自動上傳 YouTube</span></li>
+    </ul>
+  </div>
+  <div data-g="video" class="card stage s2" style="left:576px;top:60px;width:230px;height:240px">
+    <h3>2. AI 影片知識化</h3>
+    <div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
+  <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
+  <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4" />
+  <path d="M17.599 6.5a3 3 0 0 0 .399-1.375" />
+  <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5" />
+  <path d="M3.477 10.896a4 4 0 0 1 .585-.396" />
+  <path d="M19.938 10.5a4 4 0 0 1 .585.396" />
+  <path d="M6 18a4 4 0 0 1-1.967-.516" />
+  <path d="M19.967 17.484A4 4 0 0 1 18 18" />
+</svg></div>
+    <ul>
+      <li><span>FFmpeg 音訊擷取</span></li>
+      <li><span>Whisper 語音轉文字</span></li>
+      <li><span>逐字稿切成語意片段</span></li>
+      <li><span>Gemini 向量化入庫</span></li>
+    </ul>
+  </div>
+  <div data-g="qa" class="card stage s3" style="left:830px;top:60px;width:230px;height:240px">
+    <h3>3. 問答檢索</h3>
+    <div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="11" cy="11" r="8" />
+  <path d="m21 21-4.3-4.3" />
+</svg></div>
+    <ul>
+      <li><span>修課權限・每日額度</span></li>
+      <li><span>FAQ 快取比對</span></li>
+      <li><span>問題向量化</span></li>
+      <li><span>檢索相關影片片段</span></li>
+    </ul>
+  </div>
+  <div data-g="qa" class="card stage s4" style="left:1084px;top:60px;width:234px;height:240px">
+    <h3>4. 答案生成</h3>
+    <div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  <path d="M13 8H7" />
+  <path d="M17 12H7" />
+</svg></div>
+    <ul>
+      <li><span>依片段生成回答</span></li>
+      <li><span>附上影片時間點</span></li>
+      <li><span>帶入多輪對話脈絡</span></li>
+      <li><span>回覆 Web / LINE</span></li>
+    </ul>
+  </div>
+
+  <!-- ============ video pipeline (left) ============ -->
+  <div data-g="video" class="grp-label" style="left:326px;top:303px">影片處理流程</div>
+  <div data-g="video" class="fail-note" style="left:566px;top:304px"><span class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" />
+</svg></span>任一步失敗 → failed，可重試</div>
+  <div data-g="video" class="vstep" style="left:322px;top:326px;width:150px;height:84px"><div><b>① 上傳檢查</b><small>格式・大小・重複</small></div></div>
+  <div data-g="video" class="vstep" style="left:489px;top:326px;width:150px;height:84px"><div><b>② 排入佇列<code>queued</code></b><small>一次處理一支</small></div></div>
+  <div data-g="video" class="vstep" style="left:656px;top:326px;width:150px;height:84px"><div><b>③ 語音轉文字</b><small>FFmpeg + Whisper</small><code>processing</code></div></div>
+  <div data-g="video" class="vstep" style="left:656px;top:426px;width:150px;height:84px"><div><b>④ 逐字稿切段</b><small>≤ 220 字・時間點</small></div></div>
+  <div data-g="video" class="vstep" style="left:489px;top:426px;width:150px;height:84px"><div><b>⑤ 向量化入庫</b><small>Gemini embedding</small></div></div>
+  <div data-g="video" class="vstep done" style="left:322px;top:426px;width:150px;height:84px"><div><b>⑥ 完成後處理</b><small>通知學生・清快取<br>上傳 YouTube</small><code>completed</code></div></div>
+
+  <!-- ============ QA results (right) ============ -->
+  <div data-g="qa" class="grp-label" style="left:834px;top:303px">問答結果</div>
+  <div data-g="qa" class="qchip" style="left:830px;top:326px;width:156px;height:184px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />
+</svg></div><b>FAQ 命中</b><p>相似度 ≥ 0.95<br>直接回覆<br>不再呼叫 LLM</p></div>
+  <div data-g="qa" class="qchip" style="left:996px;top:326px;width:156px;height:184px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" />
+</svg></div><b>找到片段</b><p>Gemini 依片段<br>生成回答<br>附影片時間點</p></div>
+  <div data-g="qa" class="qchip warn" style="left:1162px;top:326px;width:156px;height:184px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+  <path d="M12 17h.01" />
+</svg></div><b>找不到依據</b><p>回覆資料不足<br>不臆測<br>也不寫入快取</p></div>
+
+  <!-- ============ flywheel strip ============ -->
+  <div data-g="shorts" class="card strip" style="left:322px;top:530px;width:996px;height:146px">
+    <div class="strip-title"><span class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m17 2 4 4-4 4" />
+  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+  <path d="m7 22-4-4 4-4" />
+  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+</svg></span>5. 學習飛輪：學生提問 → 教學短影音</div>
+    <div class="strip-note">虛線框：教師操作／人工把關</div>
+  </div>
+  <div data-g="shorts" class="step" style="left:338px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+  <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+</svg></div><b>學生常問題</b><small>來自問答紀錄</small></div>
+  <div data-g="shorts" class="step" style="left:502px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m3 17 2 2 4-4" />
+  <path d="m3 7 2 2 4-4" />
+  <path d="M13 6h8" />
+  <path d="M13 12h8" />
+  <path d="M13 18h8" />
+</svg></div><b>自動選題</b><small>凍結證據片段</small></div>
+  <div data-g="shorts" class="step" style="left:666px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+  <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg></div><b>腳本生成</b><small>Gemini・附引用</small></div>
+  <div data-g="shorts" class="step human" style="left:830px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72" />
+  <path d="m14 7 3 3" />
+  <path d="M5 6v4" />
+  <path d="M19 14v4" />
+  <path d="M10 2v2" />
+  <path d="M7 8H3" />
+  <path d="M21 16h-4" />
+  <path d="M11 3H9" />
+</svg></div><b>教師產製影片</b><small>ComfyUI + MiniMax</small></div>
+  <div data-g="shorts" class="step human" style="left:994px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+  <path d="m9 12 2 2 4-4" />
+</svg></div><b>教師審核</b><small>AI 揭露・退回重生</small></div>
+  <div data-g="shorts" class="step" style="left:1158px;top:574px;width:146px;height:88px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M7 3v18" />
+  <path d="M3 7.5h4" />
+  <path d="M3 12h18" />
+  <path d="M3 16.5h4" />
+  <path d="M17 3v18" />
+  <path d="M17 7.5h4" />
+  <path d="M17 16.5h4" />
+</svg></div><b>上架短影音牆</b><small>僅修課學生可見</small></div>
+
+  <!-- ============ external ============ -->
+  <div data-g="video qa shorts" class="card svc" style="left:1364px;top:60px;width:284px;height:84px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  <path d="M20 3v4" />
+  <path d="M22 5h-4" />
+  <path d="M4 17v2" />
+  <path d="M5 18H3" />
+</svg></div><div><h4>Google Gemini API</h4><small>Embedding・回答・腳本生成</small></div></div>
+  <div data-g="video shorts" class="card svc" style="left:1364px;top:154px;width:284px;height:84px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+  <path d="m10 15 5-3-5-3z" />
+</svg></div><div><h4>YouTube API</h4><small>不公開上傳・嵌入播放</small></div></div>
+  <div data-g="qa" class="card svc" style="left:1364px;top:248px;width:284px;height:84px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  <path d="M8 12h.01" />
+  <path d="M12 12h.01" />
+  <path d="M16 12h.01" />
+</svg></div><div><h4>LINE Messaging API</h4><small>Webhook・訊息回覆</small></div></div>
+  <div data-g="video" class="card svc" style="left:1364px;top:342px;width:284px;height:84px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2 10v3" />
+  <path d="M6 6v11" />
+  <path d="M10 3v18" />
+  <path d="M14 8v7" />
+  <path d="M18 5v13" />
+  <path d="M22 10v3" />
+</svg></div><div><h4>Faster-Whisper<span class="tag">VM 本機</span></h4><small>語音轉文字模型</small></div></div>
+  <div data-g="shorts" class="card svc" style="left:1364px;top:436px;width:284px;height:84px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72" />
+  <path d="m14 7 3 3" />
+  <path d="M5 6v4" />
+  <path d="M19 14v4" />
+  <path d="M10 2v2" />
+  <path d="M7 8H3" />
+  <path d="M21 16h-4" />
+  <path d="M11 3H9" />
+</svg></div><div><h4>ComfyUI + MiniMax H3</h4><small>短影音產製<span class="tag">教授主機地端</span></small></div></div>
+
+  <div class="card ai" style="left:1364px;top:536px;width:284px;height:371px">
+    <h3>AI 介入邏輯</h3>
+    <h5 class="yes"><span class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" />
+</svg></span>AI 負責</h5>
+    <ul>
+      <li>逐字稿切段與向量化</li>
+      <li>問題檢索與回答生成</li>
+      <li>短影音選題與腳本生成</li>
+    </ul>
+    <hr>
+    <h5 class="no"><span class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="m15 9-6 6" />
+  <path d="m9 9 6 6" />
+</svg></span>人工與規則把關</h5>
+    <ul>
+      <li>登入驗證與修課權限</li>
+      <li>每日提問額度與字數上限</li>
+      <li>只引用修課範圍內片段</li>
+      <li>無依據時回覆資料不足</li>
+      <li>短影音由教師審核才上架</li>
+      <li>AI 生成影片標示揭露</li>
+    </ul>
+  </div>
+
+  <!-- ============ data ============ -->
+  <div data-g="qa" class="card db" style="left:32px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="8" r="5" />
+  <path d="M20 21a8 8 0 0 0-16 0" />
+</svg></div><code>users</code><small>使用者・角色<br>LINE 綁定</small></div>
+  <div data-g="video qa" class="card db" style="left:195px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 7v14" />
+  <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+</svg></div><code>courses</code><small>課程・修課名單<br>enrollments</small></div>
+  <div data-g="video" class="card db" style="left:358px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
+  <rect x="2" y="6" width="14" height="12" rx="2" />
+</svg></div><code>videos</code><small>影片資料<br>處理狀態</small></div>
+  <div data-g="video qa" class="card db" style="left:521px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <ellipse cx="12" cy="5" rx="9" ry="3" />
+  <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+  <path d="M3 12A9 3 0 0 0 21 12" />
+</svg></div><code style="font-size:12.5px">video_segments_text</code><small>逐字稿片段<br>向量 embedding</small></div>
+  <div data-g="qa" class="card db" style="left:684px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />
+</svg></div><code>faqs</code><small>FAQ 快取<br>相似度 ≥ 0.95</small></div>
+  <div data-g="qa shorts" class="card db" style="left:847px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+  <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+</svg></div><code>questions</code><small>提問與回答紀錄<br>短影音選題來源</small></div>
+  <div data-g="qa" class="card db" style="left:1010px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" />
+  <path d="M12 7v5l4 2" />
+</svg></div><code>usage_logs</code><small>使用紀錄<br>統計與成本</small></div>
+  <div data-g="shorts" class="card db" style="left:1173px;top:748px;width:151px;height:160px"><div class="icon"><svg
+ 
+  xmlns="http://www.w3.org/2000/svg"
+ 
+ 
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M7 3v18" />
+  <path d="M3 7.5h4" />
+  <path d="M3 12h18" />
+  <path d="M3 16.5h4" />
+  <path d="M17 3v18" />
+  <path d="M17 7.5h4" />
+  <path d="M17 16.5h4" />
+</svg></div><code style="font-size:13px">shortscripts</code><small>短影音腳本・成品<br>（shortassets）</small></div>
+
+  <!-- ============ wires ============ -->
+  <svg class="wires" width="1680" height="945" viewBox="0 0 1680 945">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b4252"/></marker>
+      <marker id="ahd" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+    </defs>
+    <g class="solid" stroke="#3b4252" stroke-width="2" fill="none">
+      <!-- front vertical -->
+      <path data-g="video qa shorts" d="M70 175 V250" marker-end="url(#ah)"/>
+      <path data-g="qa" d="M154 468 V498" marker-end="url(#ah)"/>
+      <path data-g="qa" d="M34 116 H25 V588 H32" marker-end="url(#ah)"/>
+      <!-- front to back -->
+      <path data-g="video qa" d="M276 300 H320" marker-end="url(#ah)"/>
+      <path data-g="qa" d="M276 590 H320" marker-end="url(#ah)"/>
+      <!-- stage chain -->
+      <path data-g="video" d="M554 180 H574" marker-end="url(#ah)"/>
+      <path data-g="qa" d="M808 180 H828" marker-end="url(#ah)"/>
+      <path data-g="qa" d="M1062 180 H1082" marker-end="url(#ah)"/>
+      <!-- stage -> chips trees -->
+      <!-- data link -->
+      <!-- video pipeline snake -->
+      <path data-g="video" d="M473 368 H487" marker-end="url(#ah)"/>
+      <path data-g="video" d="M640 368 H654" marker-end="url(#ah)"/>
+      <path data-g="video" d="M731 411 V424" marker-end="url(#ah)"/>
+      <path data-g="video" d="M655 468 H641" marker-end="url(#ah)"/>
+      <path data-g="video" d="M488 468 H474" marker-end="url(#ah)"/>
+      <!-- flywheel step arrows -->
+      <path data-g="shorts" d="M485 618 H500" marker-end="url(#ah)"/>
+      <path data-g="shorts" d="M649 618 H664" marker-end="url(#ah)"/>
+      <path data-g="shorts" d="M813 618 H828" marker-end="url(#ah)"/>
+      <path data-g="shorts" d="M977 618 H992" marker-end="url(#ah)"/>
+      <path data-g="shorts" d="M1141 618 H1156" marker-end="url(#ah)"/>
+    </g>
+    <!-- backend -> external (dashed) -->
+    <g class="dash" stroke="#6b7280" stroke-width="1.8" fill="none">
+      <path data-g="video qa shorts" d="M1320 102 H1362" marker-end="url(#ahd)"/>
+      <path data-g="video" d="M1320 196 H1362" marker-end="url(#ahd)"/>
+      <path data-g="qa" d="M1320 290 H1362" marker-end="url(#ahd)"/>
+      <path data-g="video" d="M1320 384 H1362" marker-end="url(#ahd)"/>
+      <path data-g="shorts" d="M1320 604 H1338 V478 H1362" marker-end="url(#ahd)"/>
+    </g>
+  </svg>
+  <div data-g="video qa shorts" class="flabel" style="left:78px;top:176px;background:transparent">瀏覽器</div>
+  <div data-g="qa" class="flabel" style="left:162px;top:475px">綁定碼</div>
+  <div data-g="qa" class="flabel vert" style="left:17px;top:360px">LINE App</div>
+  <div class="pill" style="left:752px;top:686px">⇅ 讀取 / 寫入</div>
+
+  <div class="foot" style="left:20px;top:928px;line-height:14px">2026-09 起開放學生試用・依 2026-09-23 程式碼繪製</div>
+</div>
+<div class="ctl" role="toolbar" aria-label="故事模式">
+  <button data-s="video" aria-pressed="false">① 影片處理</button>
+  <button data-s="qa" aria-pressed="false">② 問答</button>
+  <button data-s="shorts" aria-pressed="false">③ 短影音</button>
+  <button data-s="all" aria-pressed="true">全部</button>
+  <button id="play" aria-pressed="false">▶ 自動播放</button>
+  <span class="note" id="note" aria-live="polite"></span>
+</div>
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    function fit() {
+      var reserve = document.body.classList.contains('static') ? 0 : 64;
+      var s = Math.min(window.innerWidth / 1680, (window.innerHeight - reserve) / 945);
+      if (!(s > 0)) return;
+      var left = Math.max(0, (window.innerWidth - 1680 * s) / 2);
+      stage.style.transform = 'translateX(' + left + 'px) scale(' + s + ')';
+      document.body.style.height = (945 * s + reserve) + 'px';
+    }
+    window.addEventListener('resize', fit);
+    fit();
+  })();
+</script>
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    if (params.has('png') && !params.has('story')) { document.body.classList.add('static'); window.dispatchEvent(new Event('resize')); return; }
+    var notes = {
+      video: '教師上傳影片 → 排隊處理 → FFmpeg + Whisper 轉逐字稿 → 切成語意片段 → Gemini 向量化入庫；完成後通知學生、以不公開上傳 YouTube。',
+      qa: '學生在網頁或 LINE 提問 → 檢查修課權限與每日額度 → FAQ 快取或向量搜尋片段 → Gemini 生成附時間點的回答。',
+      shorts: '從學生常問題自動選題 → 凍結證據、生成腳本 → 教師以 ComfyUI + MiniMax H3 產製 → 審核後上架短影音牆。',
+      all: ''
+    };
+    var order = ['video', 'qa', 'shorts'];
+    var buttons = document.querySelectorAll('.ctl button[data-s]');
+    var playBtn = document.getElementById('play');
+    var timer = null;
+    function show(story) {
+      document.body.dataset.story = story;
+      document.body.classList.toggle('focus', story !== 'all');
+      document.querySelectorAll('[data-g]').forEach(function (el) {
+        el.classList.toggle('on', story === 'all' || el.getAttribute('data-g').split(' ').indexOf(story) >= 0);
+      });
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.s === story)); });
+      document.getElementById('note').textContent = notes[story];
+    }
+    function stop() { clearInterval(timer); timer = null; playBtn.setAttribute('aria-pressed', 'false'); playBtn.textContent = '▶ 自動播放'; }
+    buttons.forEach(function (b) { b.addEventListener('click', function () { stop(); show(b.dataset.s); }); });
+    playBtn.addEventListener('click', function () {
+      if (timer) { stop(); show('all'); return; }
+      var i = 0; show(order[0]);
+      playBtn.setAttribute('aria-pressed', 'true'); playBtn.textContent = '■ 停止';
+      timer = setInterval(function () { i = (i + 1) % order.length; show(order[i]); }, 6000);
+    });
+    document.addEventListener('keydown', function (e) {
+      var map = { '1': 'video', '2': 'qa', '3': 'shorts', '0': 'all' };
+      if (map[e.key]) { stop(); show(map[e.key]); }
+    });
+    var initial = params.get('story');
+    show(notes.hasOwnProperty(initial) ? initial : 'all');
+    if (params.has('still')) { document.body.classList.add('static'); }
+    window.dispatchEvent(new Event('resize'));
+  })();
+</script>
+</body>
+</html>

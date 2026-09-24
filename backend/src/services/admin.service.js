@@ -61,7 +61,7 @@ async function listUsers() {
     email: u.email,
     role: u.role,
     isActive: u.isActive !== false,
-    lineUserId: u.lineUserId || null,
+    isLineBound: Boolean(u.lineUserId),
     courses: enrollMap[String(u._id)] || 0,
     queries: queryMap[String(u._id)] || 0,
     createdAt: u.createdAt,
@@ -96,7 +96,7 @@ async function updateUser(userId, { name, role, isActive }) {
     email: user.email,
     role: user.role,
     isActive: user.isActive !== false,
-    lineUserId: user.lineUserId || null,
+    isLineBound: Boolean(user.lineUserId),
     createdAt: user.createdAt,
   };
 }

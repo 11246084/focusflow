@@ -1,0 +1,78 @@
+---
+title: Web問答授權與引用設計物件圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-04
+%% source:       圖6-2-1、圖6-2-2 設計類別；backend/src/services/conversation.service.js（sendMessage、runQuestion）、services/qa.service.js（askQuestion 未命中快取路徑）；models/message.model.js、question.model.js、faq.model.js（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：移除程式中不存在的 Message→Question 連結，改以 Enrollment 表達授權、VideoSegment 表達引用來源，補 Question→UsageLog 與 FAQ 寫入；物件值為示例，非實際資料
+%% ============================================
+classDiagram
+    direction LR
+
+    class student01["student01 : User"] {
+        role = student
+        isActive = true
+    }
+    class enrollment01["enrollment01 : Enrollment"] {
+        status = active
+        progress = 50
+    }
+    class course01["course01 : Course"] {
+        status = published
+    }
+    class video01["video01 : Video"] {
+        processing.status = completed
+    }
+    class segment07["segment07 : VideoSegment"] {
+        startSec = 125
+        endSec = 158
+    }
+    class conversation01["conversation01 : Conversation"] {
+        title = 取自首則提問
+    }
+    class message01["message01 : Message"] {
+        role = user
+        status = completed
+    }
+    class message02["message02 : Message"] {
+        role = assistant
+        status = completed
+        sources = [segment07]
+    }
+    class question01["question01 : Question"] {
+        status = answered
+        source = api
+        matches = [segment07, …]
+    }
+    class usageLog01["usageLog01 : UsageLog"] {
+        event = ask
+    }
+    class faq01["faq01 : Faq"] {
+        hitCount = 0
+    }
+
+    enrollment01 --> student01 : studentId
+    enrollment01 --> course01 : courseId
+    course01 --> video01 : videoIds
+    segment07 --> video01 : videoId
+    conversation01 --> student01 : userId
+    conversation01 --> course01 : courseId
+    message01 --> conversation01 : conversationId
+    message02 --> conversation01 : conversationId
+    message02 --> message01 : replyToMessageId
+    message02 --> segment07 : sources
+    question01 --> student01 : userId
+    question01 --> course01 : courseId
+    question01 --> usageLog01 : sourceUsageLogId
+    question01 --> segment07 : matches
+    faq01 --> course01 : courseId
+    faq01 --> segment07 : matches

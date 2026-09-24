@@ -1,0 +1,74 @@
+---
+title: 個人資料與通知循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-06, FR-03, FR-18
+%% source:       backend/src/routes/auth.routes.js、routes/notification.routes.js、services/auth.service.js（updateProfile、changePassword）、services/avatar.service.js、middleware/avatarUpload.middleware.js、services/passwordReset.service.js、services/notification.service.js（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：拆出姓名／Email、密碼、頭像與忘記密碼四條路徑，補 SMTP 外部服務、實際錯誤碼與通知 404 分支
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant FE as 前端（個人資料頁／通知中心）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant MAIL as SMTP 郵件服務
+
+    U->>FE: 開啟個人資料頁或忘記密碼頁
+    alt 修改姓名、Email 或密碼
+        U->>FE: 修改資料（改 Email<br/>或密碼需輸入目前密碼）
+        FE->>API: PATCH /auth/me 或<br/>PATCH /auth/me/password
+        API->>+DB: 讀取帳號，比對目前密碼<br/>並檢查 Email 唯一性
+        DB-->>-API: 比對結果
+        alt 目前密碼錯誤或 Email 已被使用
+            API-->>FE: 400<br/>CURRENT_PASSWORD_INCORRECT／<br/>409 DUPLICATE_RESOURCE
+        else 通過
+            API->>DB: 更新姓名、Email 或密碼雜湊
+            API-->>FE: 更新後的公開使用者資料
+        end
+    else 上傳頭像
+        U->>FE: 選擇頭像（前端先裁切壓縮）
+        FE->>API: PUT /auth/me/avatar<br/>（上限 1 MiB）
+        Note right of API: 依檔案內容判定<br/>JPEG／PNG／WebP，<br/>與宣告型別不符即拒絕（400）
+        API->>DB: 寫入 avatars（每位使用者一筆）
+        API-->>FE: 頭像已更新<br/>（讀取需登入且只能讀自己的）
+    else 忘記密碼（未登入）
+        U->>FE: 輸入 Email 要求驗證碼
+        FE->>API: POST<br/>/auth/password-reset/request
+        API->>DB: 帳號存在、啟用且距上次請求<br/>60 秒以上時，<br/>保存驗證碼雜湊（10 分鐘有效）
+        API->>MAIL: 寄送 6 位數驗證碼
+        API-->>FE: 一律回覆「若 Email<br/>已註冊將收到驗證碼」<br/>（寄信失敗 502、<br/>未設定 SMTP 503）
+        U->>FE: 輸入驗證碼與新密碼
+        FE->>API: POST<br/>/auth/password-reset/confirm
+        API->>DB: 比對驗證碼（最多 5 次）後更新密碼
+        API-->>FE: 重設完成，或 400<br/>PASSWORD_RESET_CODE_INVALID
+    end
+    FE-->>U: 顯示處理結果
+    U->>FE: 開啟 Topbar 通知
+    FE->>API: GET /notifications（游標分頁）
+    API->>+DB: 查詢 recipientId<br/>為本人的通知與未讀數
+    DB-->>-API: 通知列表
+    API-->>FE: 通知與未讀數
+    U->>FE: 標記單筆或全部已讀，或點擊導向
+    FE->>API: PATCH<br/>/notifications/:id/read<br/>或 POST<br/>/notifications/read-all
+    API->>DB: 為本人未讀通知寫入 readAt
+    alt 通知不存在或不屬於本人
+        API-->>FE: 404 NOTIFICATION_NOT_FOUND
+    else 成功
+        API-->>FE: 更新後的讀取狀態
+        FE-->>U: 更新未讀數，必要時導向對應頁面
+    end

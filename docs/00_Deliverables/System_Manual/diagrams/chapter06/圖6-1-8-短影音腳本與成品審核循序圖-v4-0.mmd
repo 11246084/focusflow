@@ -1,0 +1,78 @@
+---
+title: 短影音腳本與成品審核循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-08, FR-21, FR-22
+%% source:       backend/src/routes/short-script.routes.js、routes/shorts.routes.js、services/shortScript.service.js、services/shortScriptGeneration.service.js、services/shortAssetPublish.service.js（createAssetFromScript、uploadShortAssetToYouTube、publishApprovedShortAsset）、services/shortAsset.service.js（reviewShortAsset）（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：補功能旗標 404、證據凍結失敗、生成引用驗證、腳本審核狀態機、揭露確認、YouTube unlisted 預覽、成品審核版本衝突與退回轉 private
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（短影片腳本／審核頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant AI as AI 服務（Gemini）
+    participant YT as YouTube
+
+    Note over FE,API: 短影音腳本功能旗標關閉時，<br/>腳本相關路由一律回 404
+    T->>FE: 查看課程提問候選並選擇主題
+    FE->>API: POST<br/>/courses/:courseId/short-scripts/auto
+    API->>+DB: 檢索片段並擴展鄰接片段，<br/>凍結證據，建立 ShortScript<br/>（evidence_ready）
+    DB-->>-API: 凍結結果
+    alt 無候選或無足夠證據
+        API-->>FE: 422<br/>SHORT_SCRIPT_NO_CANDIDATE／<br/>EVIDENCE_EMPTY
+    else 證據已凍結
+        API-->>FE: 腳本主題與證據
+    end
+    T->>FE: 生成腳本
+    FE->>API: POST<br/>/short-scripts/:scriptId/generate
+    API->>AI: 依凍結證據生成腳本
+    AI-->>API: 腳本內容（JSON）
+    Note right of API: 驗證引用只來自凍結證據，<br/>不符則重新生成，最多共 3 次
+    alt 引用越界或格式錯誤
+        API-->>FE: 502<br/>SHORT_SCRIPT_CITATION_INVALID／<br/>OUTPUT_INVALID
+    else 驗證通過
+        API->>DB: 新增腳本版本，狀態 generated
+        API-->>FE: 腳本版本
+    end
+    T->>FE: 核准、要求修改或放棄主題
+    FE->>API: POST<br/>/short-scripts/:scriptId/review
+    API->>DB: 依狀態機保存 approved／<br/>changes_requested／dismissed<br/>（非法轉換 409<br/>SHORT_SCRIPT_STATE_INVALID）
+    Note over T,FE: 教師於系統外製作完成影片
+    T->>FE: 上傳成品並勾選 AI 揭露與書面同意
+    FE->>API: POST<br/>/short-scripts/:scriptId/asset<br/>（multipart）
+    alt 未勾選確認或腳本尚無版本
+        API-->>FE: 400<br/>SHORT_ASSET_DISCLOSURE_REQUIRED／<br/>409 SHORT_SCRIPT_STATE_INVALID
+    else 已確認
+        API->>DB: 建立 ShortAsset（draft、<br/>reviewStatus=pending），<br/>或為先前退回的成品換代
+        API-->>FE: 201 等待審核
+        API-)YT: 背景以 unlisted 上傳供預覽
+        YT-->>API: youtubeVideoId<br/>（失敗時記錄原因，可手動重試）
+    end
+    T->>FE: 於審核頁預覽並審核
+    FE->>API: POST<br/>/shorts/:shortAssetId/review<br/>（含 expectedGenerationVersion）
+    alt 版本已變更或該版本已審核
+        API-->>FE: 409<br/>SHORT_ASSET_REVIEW_STALE／<br/>CONFLICT
+    else 核准
+        API->>DB: reviewStatus=approved；<br/>已有 youtubeVideoId 時<br/>status=published、<br/>寫入 publishedAt，<br/>腳本標為 approved
+        API-->>FE: 審核結果（成品進入學生牆）
+    else 退回
+        API->>DB: reviewStatus=rejected、<br/>status=draft，<br/>腳本轉 changes_requested，<br/>通知腳本建立者
+        API-)YT: 盡力將影片轉為 private
+        API-->>FE: 審核結果
+    end

@@ -122,7 +122,8 @@ module.exports = {
   qaVectorSearchMode: process.env.QA_VECTOR_SEARCH_MODE || 'memory',
   qaAtlasVectorIndexName: process.env.QA_ATLAS_VECTOR_INDEX_NAME || '',
   qaAtlasFilterMode: process.env.QA_ATLAS_FILTER_MODE || 'bridge_course_or_video',
-  qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 3,
+  // 預設與 .env.example 一致（2026-07-25 由 3 調成 15）；沒有 .env 的環境也要拿到相同行為。
+  qaMatchLimit: Number(process.env.QA_MATCH_LIMIT) || 15,
   // Candidate30 + bounded same-video adjacent Leaf selection is opt-in and
   // remains disabled unless an operator explicitly enables the rollout.
   qaLeafAdjacentContextEnabled: parseBoolean(

@@ -1,6 +1,8 @@
 # FocusFlow Backend
 
-`focusflow` phase-1 MVP 的 backend 目前已整理到可穩定 demo、可重現、可交接的狀態，但仍明確保留 phase-1 的 bridge 與協作邊界。
+FocusFlow 的 REST API（Node.js / Express）。系統自 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用**（試用，不是正式上線）。
+
+最新 runtime、功能清單、測試結果與不能誤稱的邊界以 [docs/current-state.md](docs/current-state.md) 為準；本檔下方各段保留各輪的實作說明，日期即當時狀態。
 
 ## Phase 2-2 Hierarchical Retrieval Round 1
 
@@ -37,15 +39,15 @@ VIDEO_SEGMENT_PARENT_COLLECTION=video_segments_parent
 VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME=parent_embedding_index
 ```
 
-DB 組拍板的決策：MVP 採單一 generation，unique key 用單鍵 `parentId`（重跑同影片以 idempotent upsert 覆蓋）；`generationVersion` / `isActive` 保留欄位但不進 index 與 filter；cleanup 現階段只 upsert 不刪，正式開檢索前才啟用 guarded stale 清理；rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。
+DB 組拍板的決策：MVP 採單一 generation，unique key 用單鍵 `parentId`（重跑同影片以 idempotent upsert 覆蓋）；`generationVersion` / `isActive` 當時不進 index 與 filter（2026-08-13 起新版 source contract 已要求 `{videoId,generationVersion,isActive}` index 與對應 vector filter，見 current-state）；cleanup 現階段只 upsert 不刪，正式開檢索前才啟用 guarded stale 清理；rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。
 
-**目前 collection 是 0 筆。** 正式 `searchParents()` Atlas adapter 已實作並接入 QA，但 Parent uploader（AI Pipeline 組）尚未實作，Gate 維持關閉；尚未以真實 Parent 文件驗證 Parent → Child → Leaf Citation 端對端流程，不能誤稱 Hierarchical Retrieval 已可用。
+**2026-08-02 當時 collection 是 0 筆。** 正式 `searchParents()` Atlas adapter 已實作並接入 QA；Parent uploader 已於 2026-08 由 AI Pipeline 組完成（stable-only preflight、idempotent upsert），但尚未寫入 shared Atlas，Gate 維持關閉；尚未以真實 Parent 文件驗證 Parent → Child → Leaf Citation 端對端流程，不能誤稱 Hierarchical Retrieval 已可用。
 
-另須在開 Gate 前完成 embedding 模型遷移：Backend 與 Pipeline 目前同用 `gemini-embedding-2-preview`，Google 公告對應 preview 模型最早於 2026-08-10 停用，建議替代為 `gemini-embedding-2`。新舊向量空間與 retrieval instruction 契約不可混用，必須同步修改 Query／Document embedding 並重建既有向量；不能只切 Backend model。
+另須在開 Gate 前完成 embedding 模型遷移：Backend query 已切到 stable `gemini-embedding-2`（2026-08），Pipeline 的 Parent／Leaf artifact 也已改用 stable contract，但 shared Atlas 既有 preview 向量尚未重建。新舊向量空間與 retrieval instruction 契約不可混用，不能只切 Backend model。
 
 ## 目前真實 runtime
 
-phase-1 當前狀態（2026-05-05）：
+phase-1 共享 demo 設定（2026-05-05 紀錄；正式 VM 的實際值以 VM 上的 `.env` 與 `/health` 為準）：
 
 ```env
 DEMO_SEED_ENABLED=false
@@ -62,8 +64,8 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 
 代表：
 
-- query embedding 使用 Gemini（`gemini-embedding-2-preview`，3072 維），與 STT pipeline 一致
-- `.env` 目前指向 Atlas vector search（`text_embedding_index`），但共享 Atlas 在 2026-05-01 驗證時已沒有該 index；除非重建 index，否則需切回 `QA_VECTOR_SEARCH_MODE=memory` 才能穩定 QA
+- query embedding 使用 Gemini（2026-08 起為 stable `gemini-embedding-2`，3072 維；當時為 `gemini-embedding-2-preview`）
+- `.env` 指向 Atlas vector search（`text_embedding_index`）；該 index 2026-05-01 曾不存在、2026-05-23 重新驗證為 READY，目前狀態以 `/health.runtime.qa` 與唯讀實查為準
 - answer provider 是 Gemini
 - LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
 - 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
@@ -71,7 +73,7 @@ VIDEO_SEGMENT_COLLECTION=video_segments_text
 - 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
 - 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
 - 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
-- 2026-05-07 自助註冊：新增 `POST /api/v1/auth/register`（無 auth），限 `student` / `teacher`；validation：姓名必填、email 格式、密碼 ≥ 8；email 重複 → `409 DUPLICATE_RESOURCE`；bcrypt salt=10；成功回 `201 + { token, user }` 並寫 `UsageLog event=login metadata.via=register`
+- 2026-05-07 自助註冊：新增 `POST /api/v1/auth/register`（無 auth），當時限 `student` / `teacher`（**2026-09-18 起只開放 `student`**，教師帳號由管理員建立）；validation：姓名必填、email 格式、密碼 ≥ 8；email 重複 → `409 DUPLICATE_RESOURCE`；bcrypt salt=10；成功回 `201 + { token, user }` 並寫 `UsageLog event=login metadata.via=register`
 - 2026-05-07 重複上傳防呆：YouTube 於 `createCourseVideoFromYouTube` 在建立前以 `(courseId, youtubeVideoId)` 查重，命中回 `409 DUPLICATE_VIDEO`；mp4 於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中 `(courseId, fileHash)` 既存 video → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index
 - 2026-07-12 影片多課程掛載（P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；刪影片/刪課程清所有課程引用；QA / 播放 / watched 進度支援掛載課程
 - 2026-07-12 老師 Top Segments 修復（老師 #13）：課程所有影片被刪除後不再整列丟棄，改標 `contentMissing` 併同課程合併一列，前端顯示「內容已下架」badge

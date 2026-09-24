@@ -147,8 +147,8 @@ STT_Whisper/
 
 目前最終 embedding 已改為 Gemini Embedding 2。
 
-- 文字 chunk embedding：`gemini-embedding-2-preview`
-- 音軌 audio embedding：`gemini-embedding-2-preview`
+- 文字 chunk embedding：stable `gemini-embedding-2`（`GEMINI_EMBEDDING_MODEL_NAME`，定義於 `src/embedding_contract.py`；2026-08 前為 `gemini-embedding-2-preview`，新舊向量不可混用，見本檔開頭的 Stable Parent Embedding Contract）
+- 音軌 audio embedding：同一個 `GEMINI_EMBEDDING_MODEL_NAME` 設定
 - 不再保留 `BAAI/bge-m3` 作為最終輸出向量
 - 不再輸出 legacy embedding 或 dual embedding 作為正式成果
 

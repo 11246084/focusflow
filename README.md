@@ -1,36 +1,57 @@
 # FocusFlow
 
-[文件總索引](docs/README.md) · [功能狀態總表](docs/30_Features/README.md) · [四技部交付文件](docs/00_Deliverables/README.md)
+[文件總索引](docs/README.md) · [目前狀態](docs/current-status.md) · [功能狀態總表](docs/30_Features/README.md) · [四技部交付文件](docs/00_Deliverables/README.md)
 
-FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影片後，系統會自動執行 STT、文字分段與向量嵌入，處理成功後可依設定自動上傳 YouTube；學生可在網頁或 LINE Bot 提問，取得 AI 生成答案與對應影片時間戳。
+FocusFlow 是一個 AI 驅動的教學影片問答系統。教師上傳教學影片後，系統自動執行語音轉文字、分段與向量嵌入，處理完成後可依設定自動上傳 YouTube；學生在網頁或 LINE Bot 對課程提問，取得 AI 回答與對應的影片時間點。
 
-> 目前範圍是 **Phase 1 MVP**：文字版影片問答、課程/影片管理、LINE Bot 問答與前端角色頁面整合。
+> **2026-09-21 起開放學生試用。** 網址：<https://focusflow.ntub.edu.tw>
+>
+> 目前是試用階段，不是正式上線：學生試用驗收仍在進行，LINE Bot webhook 仍透過 ngrok 轉接（是否改走正式網域待與指導教授討論）。各項邊界見 [docs/current-status.md](docs/current-status.md)。
+
+---
+
+## 使用方式（試用環境）
+
+| 角色 | 入口 | 帳號來源 |
+|------|------|----------|
+| 學生 | <https://focusflow.ntub.edu.tw/login> | 教師在「修課學生管理」以 CSV 匯入（初始密碼為學號），或學生自行註冊後由教師以 Email 加入課程 |
+| 教師 | <https://focusflow.ntub.edu.tw/login> | 由管理員建立；2026-09-18 起不開放教師自行註冊 |
+| 管理員 | <https://focusflow.ntub.edu.tw/admin> | 不開放註冊 |
+
+- 請一律使用 `https://` 網址：學校不開放 port 80，明確寫 `http://` 的連結會連不上。
+- 學生只能看到自己**已加入且已發布**的課程；沒有自助選課或邀請碼。
+- 學生每天最多提問 5 次（網頁與 LINE 合併計算，失敗不計），每題最多 50 字。
+- 忘記密碼可在登入頁以 Email 驗證碼重設；登入連續失敗 5 次會鎖定 15 分鐘。
+- 使用中遇到問題，可點畫面右下角「回報問題」（可附截圖）。
+
+---
+
+## 主要功能
+
+| 角色 | 功能 |
+|------|------|
+| 學生 | 課程影片播放、網頁多輪 AI 問答（附引用片段與時間點跳轉）、常見問題、LINE Bot 綁定與提問、教學短片牆、學習統計、站內通知 |
+| 教師 | 建立／管理課程、上傳本機影片（可多檔）、處理失敗重試、影片掛載多課程、修課學生指派與 CSV 匯入、教學統計、短影片腳本與審核（功能開關預設關閉） |
+| 管理員 | 系統總覽與服務狀態、使用者／課程／影片管理、使用統計與事件、全站公告、問題回報處理 |
+
+AI 處理流程：本機影片 → FFmpeg 音訊 → Faster-Whisper 語音轉文字 → 分段 → Gemini embedding → MongoDB Atlas Vector Search → Gemini 生成回答。重複問題會命中 FAQ 快取，不再呼叫 LLM。
 
 ---
 
 ## 專案結構
 
-| 路徑 | 服務 | 技術 | 預設埠號 |
+| 路徑 | 服務 | 技術 | 本機埠號 |
 |------|------|------|----------|
-| `backend/` | REST API | Node.js、Express 4、MongoDB、JWT | `4000` |
+| `backend/` | REST API | Node.js、Express 4、MongoDB／Mongoose、JWT | `4000` |
 | `frontend/focus-flow/` | SPA 前端 | React 19、Vite、Three.js、GSAP | `5173` |
-| `STT_Whisper/` | AI Pipeline | Python、Faster-Whisper、Gemini Embedding、FFmpeg、yt-dlp | CLI |
+| `STT_Whisper/` | AI Pipeline（由 backend 自動呼叫的 CLI） | Python、Faster-Whisper、Gemini Embedding、FFmpeg、yt-dlp | CLI |
+| `database/` | DB 初始化、index 與匯入工具 | Node.js、Python | — |
 
-重要文件：
-
-| 文件 | 用途 |
-|------|------|
-| [docs/current-status.md](docs/current-status.md) | 跨服務最新進度與缺口 |
-| [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口 |
-| [backend/docs/current-state.md](backend/docs/current-state.md) | Backend runtime、DB 實況、已知限制 |
-| [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | Phase 2 QA / Video / Clip / YouTube 回傳語意 |
-| [docs/40_Operations/ai-code-understanding-guide.md](docs/40_Operations/ai-code-understanding-guide.md) | AI Pipeline、embedding、cosine、QA 與 citation 的教授說明版 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 架構、資料流與 schema 邊界 |
-| [backend/docs/openapi.yaml](backend/docs/openapi.yaml) | OpenAPI 規格檔，執行時掛在 `/docs` |
+正式環境跑在學校 VM（Rocky Linux 9）：nginx 提供前端靜態檔並把 `/api/` 反向代理到 backend（PM2 執行）。**push 到 `main` 會由 GitHub Actions 自動部署到正式環境**；`.env` 不進版控，VM 上需另外維護。部署細節見 [CLAUDE.md](CLAUDE.md) 的「部署與對外連線」與 [docs/40_Operations/deployment/](docs/40_Operations/deployment/)。
 
 ---
 
-## 快速啟動
+## 本機開發
 
 ### 前置需求
 
@@ -39,7 +60,7 @@ FocusFlow 是一個 AI 驅動的教育影片問答系統。教師上傳教學影
 - MongoDB（本機或 Atlas）
 - FFmpeg（AI Pipeline 使用；也可走 `imageio-ffmpeg` 內建 binary）
 
-### 1. 啟動後端
+### 1. 後端
 
 ```powershell
 cd backend
@@ -48,16 +69,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Unix-like shell 可用：
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-npm run dev
-```
-
-最小化本機 smoke 測試不需要外部 API key，可在 `backend/.env` 改成：
+不需要外部 API key 的本機 smoke 設定（`backend/.env`）：
 
 ```env
 QA_QUERY_EMBEDDING_PROVIDER=mock
@@ -65,22 +77,17 @@ QA_ANSWER_PROVIDER=template
 QA_VECTOR_SEARCH_MODE=memory
 ```
 
-共享 demo env 目前偏向 `gemini + atlas + gemini`；共享 Atlas 的 `text_embedding_index` 已在 2026-05-23 重新驗證為 READY。若環境被重置，`QA_VECTOR_SEARCH_MODE=atlas` 仍會 fail-fast，請先用 `/health` 確認 runtime。
+`.env.example` 預設的是共享 demo 設定（`gemini + atlas + gemini`），需要 `GEMINI_API_KEY`。實際 runtime 是否 ready 以 `GET /health` 為準。
 
-### 2. 植入示範資料
+### 2. 示範資料（僅本機）
 
 ```powershell
 cd backend
-npm run seed
+npm run seed         # 建立／收斂 demo baseline，不清除既有資料
+npm run seed:reset   # 保守清除 demo 痕跡後重建
 ```
 
-需要清掉 demo-owned / demo-derived 痕跡再重建時：
-
-```powershell
-npm run seed:reset
-```
-
-示範帳號：
+本機示範帳號（**只存在於執行過 seed 的本機／測試資料庫**，正式環境不使用）：
 
 | 角色 | Email | 密碼 |
 |------|-------|------|
@@ -88,7 +95,7 @@ npm run seed:reset
 | 教師 | `teacher@focusflow.local` | `Teacher123!` |
 | 學生 | `student@focusflow.local` | `Student123!` |
 
-### 3. 啟動前端
+### 3. 前端
 
 ```powershell
 cd frontend\focus-flow
@@ -97,13 +104,9 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-前端預設連到：
+預設連到 `VITE_API_BASE_URL=http://127.0.0.1:4000/api/v1`；LINE 加入好友網址另填 `VITE_LINE_BOT_URL`。
 
-```env
-VITE_API_BASE_URL=http://127.0.0.1:4000/api/v1
-```
-
-### 4. 設定 AI Pipeline
+### 4. AI Pipeline
 
 ```powershell
 cd STT_Whisper
@@ -114,17 +117,7 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-`STT_Whisper/.venv/` 是建議位置。Backend 自動觸發 STT 時會優先使用 `STT_Whisper/.venv/Scripts/python.exe`。
-
-手動處理影片：
-
-```powershell
-python src/main.py
-python src/main.py --limit 1
-python src/main.py --overwrite
-```
-
-教師上傳採**單一軌道**（2026-07-12 起）：本地上傳影片後，系統先執行 STT → 切段 → embedding；只有 `processing=completed` 且 YouTube 功能與憑證已設定時，才自動上傳 YouTube 供學生 iframe 播放（支援 timestamp 跳轉）。YouTube URL API（`POST /courses/:courseId/videos/youtube`）保留，但已不在教師上傳頁露出。
+Backend 在教師上傳影片後會自動呼叫 pipeline，並優先使用 `STT_Whisper/.venv/Scripts/python.exe`。手動處理、批次與 resume 用法見 [STT_Whisper/README.md](STT_Whisper/README.md)。
 
 ---
 
@@ -134,137 +127,64 @@ python src/main.py --overwrite
 
 | 指令 | 用途 |
 |------|------|
-| `npm run dev` | 啟動 nodemon 開發模式 |
-| `npm start` | 正式啟動 |
-| `npm run seed` | 建立 / 更新 demo baseline |
-| `npm run seed:reset` | 清除 demo 痕跡後重建 baseline |
-| `npm run db:sync-atlas` | 將本機 MongoDB 同步至 Atlas |
+| `npm run dev` / `npm start` | 開發模式／正式啟動 |
 | `npm test` | 執行 backend 全部測試 |
+| `npm run seed` / `npm run seed:reset` | demo baseline |
+| `npm run db:import-students` | 從 CSV 匯入修課學生（預設 dry-run） |
+| `npm run report:pilot-usage` | 試用期使用統計（唯讀，只輸出彙總數字） |
+| `npm run db:sync-atlas` | 將本機 MongoDB 同步至 Atlas |
 
-注意：`db:ensure-questions` 會建立 `questions` collection 並同步 indexes；`db:backfill-questions` 預設為 dry-run，只列出可從 legacy ASK usage logs 補回的 questions，需手動加 `-- --write` 才會寫入。
+完整 script 清單見 `backend/package.json`；各 script 的用途與注意事項見 [backend/docs/current-state.md](backend/docs/current-state.md)。
 
 ### Frontend
 
 | 指令 | 用途 |
 |------|------|
-| `npm run dev` | 啟動 Vite 開發伺服器 |
+| `npm run dev` | Vite 開發伺服器 |
 | `npm run lint` | ESLint 檢查 |
-| `npm run build` | 建立 production build |
-| `npm run preview` | 預覽 production build |
-
-### AI Pipeline
-
-| 指令 | 用途 |
-|------|------|
-| `python src/main.py` | 處理輸入資料夾內所有影片 |
-| `python src/main.py --limit 1` | 快速處理第一支影片 |
-| `python src/main.py --overwrite` | 強制重跑，不使用既有輸出 |
-| `python src/video_multimodal_pipeline.py` | 執行視訊多模態 pipeline |
-| `python src/mongodb_uploader.py` | 將 pipeline 輸出寫入 MongoDB |
+| `npm run build` | production build |
+| `npm test` | 前端工具函式測試（`node --test`） |
 
 ---
 
 ## API 入口
 
-執行 backend 後可使用：
-
 | 路徑 | 說明 |
 |------|------|
-| `GET /health` | 健康檢查，含 `runtime.qa` 與 `runtime.line` |
+| `GET /health` | 健康檢查：`runtime.qa`、`line`、`multimodal`、`shortsSync`、`youtubeUpload`（正式環境只在 VM 內部可達） |
 | `GET /docs` | Swagger UI |
-| `GET /docs/openapi.yaml` | Raw OpenAPI spec |
+| `GET /docs/openapi.yaml` | Raw OpenAPI spec（repo 檔案：[backend/docs/openapi.yaml](backend/docs/openapi.yaml)） |
 
-主要 REST 端點：
-
-| 模組 | 端點 |
-|------|------|
-| Auth | `POST /api/v1/auth/login`、`POST /api/v1/auth/register`、`GET /api/v1/auth/me`、`PUT/GET /api/v1/auth/me/avatar` |
-| Notifications | `GET /api/v1/notifications`、`PATCH /api/v1/notifications/:notificationId/read`、`POST /api/v1/notifications/read-all` |
-| Courses | `POST/GET /api/v1/courses`、`GET/PATCH/DELETE /api/v1/courses/:courseId`、`GET/POST /api/v1/courses/:courseId/enrollments`、`DELETE /api/v1/courses/:courseId/enrollments/:studentId` |
-| Videos | `POST /api/v1/courses/:courseId/videos`、`POST /api/v1/courses/:courseId/videos/youtube`、`GET /api/v1/courses/:courseId/videos`、`GET/DELETE /api/v1/videos/:videoId`、`GET /api/v1/videos/:videoId/processing`、`POST /api/v1/videos/:videoId/processing/retry`、`POST /api/v1/videos/:videoId/youtube-upload/retry`、`POST/GET /api/v1/courses/:courseId/video-batches`、`GET /api/v1/video-batches/:batchId`、`POST /api/v1/video-batches/:batchId/retry` |
-| QA | `POST /api/v1/qa/ask`、`GET/DELETE /api/v1/courses/:courseId/faqs`（常見問題／FAQ 快取） |
-| LINE | `GET/POST /api/v1/line/webhook`、`POST /api/v1/line/bind-token`、`DELETE /api/v1/line/binding` |
-| Stats | `GET /api/v1/stats/teacher`、`GET /api/v1/stats/student` |
-| Admin | `GET /api/v1/admin/stats`、`GET /api/v1/admin/users`、`PATCH /api/v1/admin/users/:userId`、`GET /api/v1/admin/videos`、`DELETE /api/v1/admin/videos/:videoId`、`GET /api/v1/admin/events`、`GET /api/v1/admin/event-stats`、`POST /api/v1/admin/notifications` |
-| Internal Pipeline | `POST /api/v1/internal/videos/:videoId/processing/start`、`complete`、`fail` |
-
-OpenAPI 已涵蓋主要 auth / courses / videos / watched / QA / stats / admin / LINE 端點；internal processing webhook 等少數內部端點仍以 route files 為準。
+REST API 前綴為 `/api/v1`，模組：`auth`、`courses`（含 enrollments、FAQ）、`videos` / `video-batches`、`qa`、`conversations`、`line`、`notifications`、`stats`、`admin`、`youtube`、`shorts`、`short-scripts`、`feedback`、`internal`（pipeline webhook）。完整端點以 [backend/src/routes/](backend/src/routes/) 為準；OpenAPI 尚未涵蓋 short-scripts、short-assets、feedback 與 internal webhook。
 
 ---
 
 ## LINE Bot
 
-環境變數：
+1. 學生登入網站，在 LINE Bot 頁面取得 10 分鐘有效的一次性綁定碼（或掃 QR Code）。
+2. 將綁定碼傳給 LINE Bot，完成綁定後選擇課程。
+3. 之後直接傳文字即可對目前課程提問；傳「切換課程」可更換課程。網站個人頁可解除綁定。
 
-```env
-LINE_CHANNEL_SECRET=
-LINE_CHANNEL_ACCESS_TOKEN=
-VITE_LINE_BOT_URL=
-```
-
-本機開發可用 ngrok 將 backend 暴露到網路：
-
-```powershell
-ngrok http 4000
-```
-
-LINE Developers Console Webhook URL：
-
-```text
-https://<your-domain>/api/v1/line/webhook
-```
-
-學生綁定流程：
-
-1. 學生登入 FocusFlow 前端。
-2. 前端呼叫 `POST /api/v1/line/bind-token` 取得 10 分鐘有效的一次性 token。
-3. 學生將 token 傳給 LINE Bot。
-4. Bot 寫入 `lineUserId` 並引導學生選擇課程。
-5. 後續自然語言訊息會對目前課程執行 QA。
-
-LINE Bot 指令：
-
-| 訊息 | 功能 |
-|------|------|
-| `<綁定 token>` | 完成帳號綁定 |
-| `切換課程` | 顯示可選課程 |
-| 其他文字 | 對目前選定課程提問 |
+正式環境的 webhook 目前由 VM 上的 `ngrok.service` 轉接到 backend。本機開發可用 `ngrok http 4000`，webhook URL 為 `https://<your-domain>/api/v1/line/webhook`，需設定 `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`。
 
 ---
 
-## 目前狀態與限制
+## 目前狀態
 
-截至 2026-07-14：
-
-- Backend 主線已包含 role-aware auth、private avatar、站內 notifications、courses、videos、QA、LINE、stats、admin、YouTube Shorts proxy、YouTube auto-upload adapter、CORS allowlist 與 internal processing webhook；2026-07-26 全測試 262/262 passed，隔離 MongoDB + Playwright 的本輪指定功能全數通過。
-- 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 Promise.all + 全 `.lean()`；`qa.service.js` 三處平行（access+videos / generateAnswer+findCachedClip / writes 收尾）；`loadScopedSearchableSegments` 補 `.lean()`，51 segments hydration 從 8.8s 降到 ~1s。API 回應格式 / 答案品質 100% 不變。
-- 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`），可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音。
-- Frontend 已有登入與 Student / Teacher / Admin 角色頁面，登入、課程、QA grounding、LINE QR 綁定流程已串接；教師上傳表單支援多支影片連續上傳（移除 `uploadDone` 鎖）。
-- AI Pipeline 可執行 STT → chunking → embedding → MongoDB 寫入，並可由 backend 在影片上傳或 YouTube URL 建立後自動觸發；`mongodb_uploader._target_video_exists()` 在寫入前檢查 Video record，避免 STT 寫入時 race condition 產生孤兒 segments。
-- `questions` collection 已接入，QA 與 LINE Bot 提問會自動落庫；2026-05-07 起刪除 Video / Course 不再連動刪 UsageLog / Question（保留歷史），改由 display 層分流：老師 Top Segments 指向已刪影片時 fallback 到課程現存影片、課程無現存影片時標「內容已下架」（2026-07-12 修正，先前會整列消失）；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge。
-- 影片可掛載多課程（2026-07-12，P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；QA / 播放 / watched 進度都支援掛載課程。
-- Enrollment 採嚴格授權（2026-08-12）：student 只有在 `active Enrollment ∩ published Course` 時才能使用課程內容、QA、Shorts、通知與 LINE；owner teacher／admin 可透過 `/api/v1/courses/:courseId/enrollments` 以完整 Email 指派、列出或 soft revoke。沒有自助選課、邀請碼或一般註冊自動加入。
-- FAQ 快取／常見問題資料庫（2026-07-13）：重複提問直接命中 `faqs` collection 快取，跳過 embedding／向量搜尋／LLM 生成（文字完全相同零 token；語意相似度 ≥ 0.95 亦命中）。只快取 runtime ready 且無對話歷史的回答，影片刪除／重新處理完成自動清該課程快取；`GET /api/v1/courses/:courseId/faqs` 可取常見問題排行、`DELETE` 同路徑（teacher/admin）手動清空；env `FAQ_CACHE_ENABLED`（預設開）。
-- 教師可刪自己的課程：`DELETE /api/v1/courses/:id` 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`。
-- QA 拒答：scope 內無 live video 時直接回「這門課目前沒有可回答的影片資料」，不叫 AI；LINE 課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程。
-- 新增錯誤碼 `INVALID_ENCODING` (400)：`qa.controller.js` 偵測到客戶端送出壞 utf-8 body 時拒收。
-- LINE live 曾端對端驗證成功，但 ngrok URL / Channel 設定屬部署時變動項。
-- 2026-07-10 Phase 2 QA contract 已新增 `citations` 與 `answerStatus`，前端與 LINE 可用同一份來源、時間戳、match/no-answer 狀態顯示；`matches` 保留為 legacy / debug 相容欄位。
-- QA cost guardrails 已接入：可用 `QA_MONTHLY_TOKEN_BUDGET` / `QA_USER_MONTHLY_TOKEN_QUOTA` / `QA_ESTIMATED_TOKENS_PER_ASK` 設定全站與單一使用者月 quota，超額時回 `429 QA_QUOTA_EXCEEDED`，`/health.runtime.qa.costControl` 可觀察設定。
-- 共享 Atlas 的 `text_embedding_index` 已於 2026-05-23 驗證 READY；若共享 DB 或 index 被重置，仍需以 `/health` 現況為準。
-- `video_segments_video` 已接入初版 course-scoped visual citation retrieval；目前只回影像片段 citation / timestamp / `clipPath`，尚未成為 caption QA 或正式 clip publishing source。
-- YouTube 整合包含三條路徑：教師貼 URL 時 backend 解析 `youtubeVideoId` 並讓 pipeline 用 `yt-dlp` 下載音訊；`YOUTUBE_UPLOAD_ENABLED=true` 時，本機影片在 STT / embedding 完成後可用 FocusFlow OAuth refresh token 背景上傳並保存 `youtubeVideoId/videoUrl`；學生 Shorts 頁面透過 `GET /api/v1/youtube/shorts` 代理讀取 FocusFlow 頻道 uploads playlist。真實 upload smoke 已於 2026-08-02 完成（含刪除影片時自動把 YouTube 影片轉為 private）；2026-08-12 補上預設關閉的有限 recovery 與安全本地清理，playlist 管理仍未做。
-- CORS 已支援 `ALLOWED_ORIGINS` 逗號分隔白名單；未設定時維持開發期相容，正式部署需填入實際前端 origin。
-
-更細的進度與缺口請看 [docs/current-status.md](docs/current-status.md)。
-
----
-
-## 專案藍圖
+進度、已知限制與「不能誤稱」的邊界集中在 [docs/current-status.md](docs/current-status.md)；backend 細節見 [backend/docs/current-state.md](backend/docs/current-state.md)。
 
 | 階段 | 內容 | 狀態 |
 |------|------|------|
-| Phase 1 | 文字問答系統、LINE Bot、課程/影片管理、前端角色頁面 | 整合中 |
-| Phase 2 | 自動短影音生成 | 規劃中 |
-| Phase 3 | 完整前端網頁體驗 | 規劃中 |
+| Phase 1 | 影片問答、課程／影片管理、LINE Bot、三角色網頁 | 2026-09-21 起開放學生試用 |
+| Phase 2 | 教學短影片（ShortAsset feed、腳本自動生成、審核上架）、階層式檢索 | 部分實作，分階段驗收中 |
+| Phase 3 | 完整前端體驗 | 規劃中 |
 | Phase 4 | 個人化學習推薦 | 規劃中 |
+
+其他重要文件：
+
+| 文件 | 用途 |
+|------|------|
+| [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) | 試用版規格、施工單與驗收證據 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 架構、資料流與 schema 邊界 |
+| [backend/docs/phase2-api-contract.md](backend/docs/phase2-api-contract.md) | QA / Video / Clip / YouTube 回傳語意 |
+| [docs/40_Operations/ai-code-understanding-guide.md](docs/40_Operations/ai-code-understanding-guide.md) | AI Pipeline、embedding、QA 與 citation 說明 |

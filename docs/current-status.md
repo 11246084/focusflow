@@ -2,6 +2,8 @@
 
 2026-09-13 文件導覽：[功能狀態總表](30_Features/README.md) · [文件總索引](README.md)。下列功能紀錄日期維持原樣，本次未重跑正式驗收。
 
+> **2026-09-21 起開放學生試用**：`https://focusflow.ntub.edu.tw` 已供學生試用（對外口徑是「開放試用」，不是「正式上線」）。試用期間持續進行附錄 I 的驗收證據；LINE webhook 維持 ngrok，是否改走正式網域待與指導教授討論，不是試用阻擋項。9 月為試用補上的功能見下方「2026-09 試用期功能」。紀錄見 [2026-09 開放學生試用紀錄](40_Operations/deployment/2026-09_開放學生試用紀錄.md)。
+
 > 2026-08-30 學生試用版後端 Phase 1 更新：WO-01～WO-09 已完成本機實作與回歸測試，Backend 64 suites／500 tests 全數通過。跨課程隔離已收斂為 canonical `video._id` allowlist、Leaf `videoId` 必須命中、空範圍 fail-closed；FAQ、Child expansion 與 citation 亦同步套用安全檢查。正式 12＋2 題證據與 shared Atlas 唯讀 runner 尚未完成，因此仍不得宣稱學生試用已通過驗收。詳見 [Phase 1 實作結果](30_Features/Student_Pilot_Backend/evidence/2026-08-30_phase1-implementation-results.md)。
 
 > 2026-08-09 Phase 2-2 更新：STT Parent Embedding production contract 已遷移至
@@ -13,7 +15,9 @@
 > Step 9 live `chunkId_1`／Explain／Child Expansion 已由 Database owner 驗收，但本 repo
 > 的 `database/tools/setup/init_indexes.js` 仍是 snake_case，bootstrap Commit／Push 待同步。
 
-最後更新：2026-08-14（多影片批次前端改為單一 multipart batch contract 並拒絕缺項／重複 itemId 回傳；批次單項 retry 已從僅改 `queued` 補成真正排程 worker。Pipeline batch 對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint，single adapter 僅在本機來源仍位於 `UPLOAD_DIR` 且存在時重啟。`VIDEO_BATCH_PIPELINE_ENABLED` 仍預設 false，尚未執行 live STT/Gemini 或正式部署 E2E）
+最後更新：2026-09-23（文件盤點：補記 9 月試用期功能、開放試用口徑與 CORS 已收斂；未重跑測試）
+
+更早一輪：2026-08-14（多影片批次前端改為單一 multipart batch contract 並拒絕缺項／重複 itemId 回傳；批次單項 retry 已從僅改 `queued` 補成真正排程 worker。Pipeline batch 對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint，single adapter 僅在本機來源仍位於 `UPLOAD_DIR` 且存在時重啟。`VIDEO_BATCH_PIPELINE_ENABLED` 仍預設 false，尚未執行 live STT/Gemini 或正式部署 E2E）
 
 部署：2026-09-10（`focusflow.ntub.edu.tw` 改用 Let's Encrypt 正式憑證，瀏覽器不再顯示「不安全」。port 80 學校不開放，改以 acme.sh + TLS-ALPN-01 走 443 簽發，每日 cron 自動續約，詳見「部署與對外連線」）
 
@@ -89,7 +93,9 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 | 項目 | 狀態 |
 |------|------|
 | nginx / firewalld / 監聽 `0.0.0.0:80,443` | ✅ 正常，firewalld runtime 與 permanent 一致（重開機安全） |
-| backend / Atlas / QA / LINE | ✅ `/health` 全綠 |
+| backend / Atlas / QA / LINE | ✅ `/health` 全綠（2026-08-04 紀錄；`/health` 未經 nginx 轉發，需在 VM 內查或看管理員「系統服務」頁） |
+| CORS | ✅ 已收斂：2026-09-23 外部實測，非白名單 Origin 的預檢請求不回 `Access-Control-Allow-Origin` |
+| 安全標頭 | ✅ 2026-09-18 nginx 443 加 HSTS、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`；整站 CSP 尚未加 |
 | DNS `focusflow.ntub.edu.tw` → `140.131.115.105` | ✅ 學校 NS 已建 A record，公開可解析 |
 | 校內 / 學校 VPN 連線 | ✅ 22 / 80 / 443 全通且穩定 |
 | **校外連線 443** | ✅ 2026-08-12 起全球可達（check-host.net 各洲節點皆 Connected） |
@@ -103,6 +109,28 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 外部連線問題已排除 VM 端，判定在學校邊界設備，待電算中心確認開放規則是否有來源限制。診斷用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'` 可分辨「封包沒到」與「到了被拒」；學校對進站流量做 NAT，來源會顯示為 `10.x`。
 - 憑證由 acme.sh（`/opt/acme.sh`，root 執行）以 TLS-ALPN-01 簽發：certbot 沒有實作此驗證方式，而 HTTP-01 需要的 port 80 不開放。續約時 acme.sh 會停 nginx 約 30 秒；若學校日後收回 443 的對外開放，續約會失敗且不會主動通知，需在 2026-11-15 前確認一次是否已續約。
 - 手動維護、不在 repo 的設定：nginx server block 與憑證（`/etc/nginx/ssl/focusflow.crt/.key`，自簽的 `selfsigned.*` 保留作回滾）、acme.sh 與其 root cron、`/etc/nginx/conf.d/upload_size.conf`（`client_max_body_size 500M`，缺少會讓影片上傳被 413 擋下）、兩份 `.env`、`ngrok.service`。
+
+---
+
+## 2026-09 試用期功能
+
+為開放學生試用補上的功能（細節見 [backend/docs/current-state.md](../backend/docs/current-state.md)）：
+
+- 修課名單匯入（09-10）：`POST /api/v1/courses/:courseId/enrollments/import`，前端「修課學生管理」上傳 CSV（姓名、Email、學號）；新帳號初始密碼為學號，學生可在個人頁改密碼、姓名與 Email
+- 忘記密碼（09-11）：Email 6 位數驗證碼，需 VM 設定 SMTP；寄到 `@ntub.edu.tw` 的到信率尚未驗證
+- 影片點開統計、頭貼改存 MongoDB、短影片退回通知（09-11）
+- 關閉教師自行註冊、全系統中文化、網址同步頁面狀態（09-18）
+- 學生每日提問上限（預設 5 次，網頁與 LINE 合併，失敗不計）與題目字數上限（預設 50 字）（09-18）
+- 登入失敗鎖定（同一 Email 15 分鐘內 5 次，鎖 15 分鐘，記憶體計數、重啟歸零）與 production `JWT_SECRET` 啟動檢查（09-18）
+- LINE 只處理一對一聊天、網站可解除 LINE 綁定（09-18）
+- 管理員系統服務狀態 `GET /api/v1/admin/system-status`、未知 API 路徑改回 404、後端安全標頭（09-18）
+- 試用期使用統計 `npm run report:pilot-usage`（09-18，唯讀、只輸出彙總數字）
+- 問題回報（09-22）：`POST /api/v1/feedback`（最多 3 張截圖），管理員在「問題回報」頁處理（`/api/v1/admin/feedback`）；另保留連到 Google 表單的意見回饋按鈕
+
+此前未列入本頁的其他功能：
+
+- 網頁多輪問答 `/api/v1/conversations`（08-23，與 `/qa/ask` 共用每日上限）
+- 短影片腳本自動化（2026-09 起）：從 `questions` 自動選題、Gemini 生成腳本、教師上傳成品（以 unlisted 上傳 YouTube）、教師審核後上架。`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉；上架尚未 live 驗證（SP-3 未通過）；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中。見 [短腳本功能入口](30_Features/Short_Script_Automation/README.md)
 
 ---
 
@@ -122,7 +150,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - Shorts 修課過濾與同步：`GET /api/v1/youtube/shorts` 需 JWT 且只允許 student，僅回 Enrollment ∩ published Course ∩ published/playable ShortAsset，採 `publishedAt + _id` opaque cursor；Course hard delete 會保存並封存 ShortAsset，YouTube `videos.list` metadata sync 具 retry/backoff 與 health 診斷。現有學生 9:16 卡片牆已改用 authenticated `apiFetch`，並於 2026-08-13 完成正式 feed 與 YouTube 播放唯讀驗收
 - `/api/v1/qa/ask`：answer、matches、時間資訊、runtime 訊號
 - `/api/v1/qa/ask` Phase 2 contract：新增 `citations[]`（source video、timestamp、jump URL、match confidence、transcript snippet）與 `answerStatus`（answered/no_answer、confidence、noAnswerReason），`matches[]` 保留為 legacy/debug 相容欄位
-- Clip / Shorts Phase 2 contract：ShortAsset 儲存、student feed、course deletion archive 與 YouTube metadata sync 已實作；candidate/job、自動選片、FFmpeg、字幕、發布 worker、教師管理 routes/UI 仍未實作
+- Clip / Shorts Phase 2 contract：ShortAsset 儲存、student feed、course deletion archive 與 YouTube metadata sync 已實作；2026-09 起另有短影片腳本自動選題／生成與教師審核上架 routes/UI（見「2026-09 試用期功能」）；FFmpeg 剪輯、字幕與影片產製仍未串接
 - 提問自動寫入 `questions` collection（`questionRecording.service.js`，含 matches、runtime、`sourceUsageLogId` 連結）
 - bridge-first API 契約已收斂：課程與 QA runtime 會提供 `isBridgeCourse`；`appOwnedVideoCount` / `metadataOnlyVideoCount` 是 `appVideoCount` / `bridgeVideoCount` 的 readability aliases；`resultCategory` 是 Phase-1 convenience field，細節仍以 `status` / `matchStatus` / `degradedReasons` 為準
 - `videos` ownership presentation 已收斂：影片回應明確提供 `ownership=app_owned|pipeline_metadata`、`isAppOwned`、`metadataOnly`，避免前端/LINE 從 mixed collection 欄位自行推論
@@ -150,7 +178,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - `GET /health`：qa + line runtime 可觀察性
 - backend Swagger / OpenAPI 已掛在 `/docs`；raw spec 在 `backend/docs/openapi.yaml`，已同步 login role、notifications 與 avatar 契約；internal processing webhook 等少數端點仍以 route files 為準
 - backend tests：2026-08-02 全測 341/341 passed（42 suites；含 Dashboard zero-state 與 Admin Enrollment `studentId` 聚合）；隔離 MongoDB 7 已實證三個無 LINE 綁定帳號可穿過 `lineUserId` unique+sparse index，註冊 A/B/C 為 201/409/201；CAS 與併發邊界仍以既有測試與本輪頭貼 E2E 證據為準
-- Frontend 11 頁面（Student/Teacher/Admin 各角色 dashboard），登入、教師建立課程、QA grounding、LINE QR 綁定流程已開始串接
+- Frontend 16 個頁面檔（Student 4、Teacher 5、Admin 6、共用 Profile），登入、課程、QA、LINE QR 綁定、短影片腳本與問題回報流程已串接
 - **Phase 2-2 Hierarchical Retrieval Backend 接線（2026-08-02～08-14）**：既有 `parentSearch` / `hierarchicalRetrieval` / `childExpansion` / `leafContextAssembly` 與 Leaf-only fallback 保留；正式 Atlas adapter 依授權 scope、`generationVersion=text_search_generation_v2`、`isActive=true` 執行 Parent Search，命中後再驗完整 embedding 契約。啟動 hierarchy 時新增唯讀 active-data readiness，會核對 rollout allowlist 內 Parent／Child Leaf generation、`chunkId_1` 與 Parent vector index filter contract；`.env` active-contract JSON 只屬部署宣告，live evidence 未通過時 shadow／serve fail closed。`HIERARCHICAL_RETRIEVAL_ENABLED` 預設仍為 false
 - **Phase 2-2 Parent Storage（2026-08-02，DB 組；歷史 snapshot）**：新增 `videoSegmentParent.model.js`、`parentVectorIndex.service.js` 與 `npm run db:ensure-parent-storage`；當時直連驗證 `video_segments_parent`、regular indexes 與 `parent_embedding_index` READY/queryable。跨組決策仍是 MVP 單一 generation、rollback 關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`；本輪未對 shared Atlas 重查或寫入，契約一致性須另由 read-only evidence 確認。契約見 [docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md](20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md)
 
@@ -177,7 +205,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 ### Frontend 現況（API 整合已完成）
 
-- 11 個頁面全數串接 backend API：登入、課程列表、QA、LINE 綁定、Topbar 站內通知與 Profile 頭貼皆已接通
+- 16 個頁面檔全數串接 backend API：登入、課程列表、QA、LINE 綁定、Topbar 站內通知與 Profile 頭貼皆已接通
 - YouTube URL 上傳模式與學生端 YouTube iframe / timestamp 跳轉已接入；demo 已實際執行過
 
 ### Pipeline 待確認
@@ -208,11 +236,11 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 2. 經資料 owner 核准後，以 stable artifact 更新隔離 Parent／Leaf 資料與 index definition；既有 preview vectors 不可混用，本步含寫入所以需另行授權
 3. 在 shared Gate=false、FAQ=false、read-only DB credential 下執行一次隔離 Parent Atlas Search → Child expansion → Leaf Citation，保存 contract hash、index／IXSCAN、counts、timestamp 與 `writesDetected: 0`
 4. 上述證據通過後才評估 allowlisted shadow；正式 serve、付費 live query 與資料 publication 仍各需獨立核准
-5. ~~申請 Let's Encrypt 憑證~~（✅ 2026-09-10 完成，走 443）。後續：LINE webhook 改用 `https://focusflow.ntub.edu.tw` 並停用 ngrok（需先 live 測試）；2026-11-15 前確認第一次自動續約成功
-6. 上線前 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook；`ALLOWED_ORIGINS` 在 VM 上尚未設定，CORS 目前為開發期全開
-6. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
-7. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
-8. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
+5. ~~申請 Let's Encrypt 憑證~~（✅ 2026-09-10 完成，走 443）。後續：2026-11-15 前確認第一次自動續約成功；LINE webhook 是否改用 `https://focusflow.ntub.edu.tw` 並停用 ngrok，待與指導教授討論（改之前需 live 測試）
+6. 試用期 hardening：`backend/uploads/` 自動清理策略與真實部署 runbook（~~`ALLOWED_ORIGINS`~~ 已於 VM 設定，2026-09-23 實測 CORS 已收斂）
+7. ~~YouTube auto-upload 真實 OAuth smoke、OAuth 同意畫面發布正式版~~（✅ 2026-08-02 全部完成，含刪除轉 private 與重換不過期的 refresh token）
+8. 決定 demo 環境策略（共享 DB or 獨立 demo DB）
+9. 跨組 freeze phase-1 契約（`videos` physical storage 是否拆分、demo seed 流程）
 
 ---
 
@@ -220,16 +248,16 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 
 - 學生試用版 Phase 1 的 500/500 是本機回歸測試，不是附錄 I 的 12＋2 題正式證據，也不是 shared Atlas、Gemini、YouTube、LINE 或部署驗收；這些證據完成前不得宣稱學生試用已通過驗收
 - YouTube auto-upload 與刪除轉 private **已於 2026-08-02 完成 live 憑證驗證**，OAuth 同意畫面同日發布為正式版、refresh token 不再 7 天過期；但未送 Google 驗證（授權時仍有未驗證警告、100 使用者上限），也尚未長期運行觀察，不能說成「已長期穩定運作」
-- **不能說系統「已正式上線」**：2026-09-10 起校外可透過 `https://focusflow.ntub.edu.tw` 存取且憑證受信任，但 port 80 對外仍不通（明確寫 `http://` 的連結會連不上）、LINE webhook 仍走 ngrok、CORS 未收斂、學生試用驗收證據未完成
+- **對外口徑是「2026-09-21 起開放學生試用」，不能說「已正式上線」**：校外可透過 `https://focusflow.ntub.edu.tw` 使用，憑證受信任、CORS 已收斂；仍屬試用是因為學生試用驗收證據持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）。另外 port 80 對外不通（學校不開放），明確寫 `http://` 的連結會連不上，對外一律提供 `https://` 網址
 - 不能說「自動續約已驗證成功」：cron 與續約設定已確認存在，但第一次實際續約預計在 2026-11-10 前後，尚未發生
 - 上傳預設 unlisted 是**架構限制**：YouTube private 影片無法用 iframe 嵌入，學生端會播不出來。unlisted = 拿到連結就能看，不能說成「只有修課學生看得到」；影片連結只發給有課程存取權的人，剩餘風險是學生自行轉貼
 - Atlas vector retrieval：`text_embedding_index` 的 READY/queryable 結果是 2026-05-23 歷史 snapshot；本輪未連線重查，且 active Leaf contract 未確認前不可宣稱 atlas mode 可用
 - Query embedding **Backend 已切到 stable Gemini contract，但 Pipeline／Database preview vectors 尚未重建，仍需完成 cross-group compatibility evidence**
 - `video_segments_video` **已接入初版 visual citation retrieval**；目前 Atlas `video_embedding_index` 已 READY，backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID 後用 `video_id` filter 檢索。仍不能誤稱為 caption QA 或正式 clip publishing source，因為視覺片段沒有 transcript / caption
 - Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**
-- LINE webhook **已納入 OpenAPI 文件**，但 stats/admin 與部分 PATCH/DELETE 尚未納入；OpenAPI 目前不是完整 API 契約
+- OpenAPI 已涵蓋 LINE webhook、stats、admin、conversations 等主要端點，但尚未納入 short-scripts、short-assets、feedback 與 internal webhook；OpenAPI 目前不是完整 API 契約
 - LIFF **不是目前 repo 已上線流程**；目前實際存在的是 LINE webhook + bind-token/message QR，LIFF endpoints / pages 尚未實作
-- Shorts **已完成修課 feed、ShortAsset 保存/封存、YouTube metadata 可用性同步，以及前端 authenticated feed／播放驗收**；自動選片、剪輯、字幕、發布 worker 與教師管理仍未實作
+- Shorts **已完成修課 feed、ShortAsset 保存/封存、YouTube metadata 可用性同步，以及前端 authenticated feed／播放驗收**；短影片腳本自動選題／生成與教師審核上架已實作但上架未 live 驗證；影片產製（ComfyUI／MiniMax H3）已可在教授主機以地端模型運作但未與系統串接（規劃中），FFmpeg 剪輯與字幕仍未串接
 - Phase 2-2 的 local storage／uploader／Backend adapter／active-data readiness 已具備，但**尚未啟用或取得本輪 live E2E 證據**；2026-08-02 的 `video_segments_parent=0` 只是歷史 snapshot，不可當成本輪現況。`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false，shared Atlas 資料、index definition 與 Parent → Leaf → Citation 必須重新唯讀驗證
 - Embedding 模型遷移仍是跨組未完成項：Backend query code 已切 stable `gemini-embedding-2`，但 Pipeline／Database 既有 preview artifacts 與 vectors 尚未重建；新版 task instruction、generation、normalization 與 active data metadata 需跨組同步，既有向量不可直接混用
 - Phase 2-2 契約文件 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md` 內大量條目標記為 `[Proposed for v1]` / `[Database review required]`，**不是全部已定案**；目前已由 DB 組拍板的只有 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項

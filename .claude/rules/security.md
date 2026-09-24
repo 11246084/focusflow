@@ -131,9 +131,13 @@ assertObjectId(req.params.courseId, 'course');
 
 ## CORS
 
-目前 `app.js` 使用寬鬆的 `cors()`（允許所有來源），適用於 MVP 開發階段。進入生產環境前需限制為特定 origin：
+`app.js` 透過 `config/cors.js` 的 `buildCorsOptions()` 設定 CORS：
 
-```js
-// 生產環境修改為
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN }));
-```
+- `ALLOWED_ORIGINS`（逗號分隔；舊名 `ALLOWED_ORIGIN` 仍相容）有值時，只對白名單 origin 回 `Access-Control-Allow-Origin`，並啟用 `credentials`
+- 未設定時維持開發期相容（允許所有來源），只適合本機
+- 正式 VM 已設定（2026-09-23 外部實測：非白名單 Origin 的預檢請求不會拿到 `Access-Control-Allow-Origin`）。新增前端網域時要同步更新 VM 的 `backend/.env`，否則前端會被擋
+
+## 安全標頭
+
+- 後端 `middleware/securityHeaders.middleware.js` 回 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，`/api/` 另加 CSP，並關閉 `X-Powered-By`
+- 前端 HTML 由 nginx 提供；443 server block 另加 HSTS 等標頭（見 CLAUDE.md「部署與對外連線」）。整站 CSP 尚未加

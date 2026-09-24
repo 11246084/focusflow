@@ -224,6 +224,8 @@ rm -rf /home/case/acme.sh-src   # root shell 裡的 ~ 指向 /root，不能用 ~
 
 ---
 
+> **2026-09-23 後續更新**：第 7、8 節是 2026-09-10 當時的狀態，以下兩項已變更：`ALLOWED_ORIGINS` 已在 VM 設定（外部實測 CORS 已收斂）；HSTS 已於 2026-09-18 加上。系統自 2026-09 起開放學生試用，LINE webhook 是否改走正式網域待與指導教授討論。見 [開放學生試用紀錄](2026-09_開放學生試用紀錄.md)。
+
 ## 7. 相關殘留與後續
 
 - **certbot 仍安裝在 VM 上但未使用**：2026-08-12 曾以 certbot 註冊 Let's Encrypt 帳號（信箱為當時的個人信箱，存於 `/etc/letsencrypt/`）。`certbot-renew.timer` 未啟用，不會自動執行。若確定不再使用，可 `sudo dnf remove certbot` 並刪除 `/etc/letsencrypt/`。

@@ -1,6 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-08-30（學生試用版後端 Phase 1 WO-01～WO-09 已完成本機實作與回歸測試。跨課程隔離、FAQ、Child expansion、logging、citation playable-source filter、runner 與 startup fail-fast 已按 v1.2 收斂；Backend 500/500 tests 通過。正式 12＋2 題與 shared Atlas 唯讀證據仍待執行）
+最後更新：2026-09-23（文件盤點：系統自 2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用，不是正式上線；修正過時敘述、補 CORS 已收斂。9 月功能細節記在下方各條目，本輪未重跑測試）
+
+前一輪：2026-08-30（學生試用版後端 Phase 1 WO-01～WO-09 已完成本機實作與回歸測試。跨課程隔離、FAQ、Child expansion、logging、citation playable-source filter、runner 與 startup fail-fast 已按 v1.2 收斂；Backend 500/500 tests 通過。正式 12＋2 題與 shared Atlas 唯讀證據仍待執行）
 
 前一輪：2026-08-13（補齊多影片 batch execution lease、Backend restart resume／manifest reconciliation、冪等 processing webhook 與隔離 Mongo 重啟 E2E；另修正 startup legacy migration 因 Mongoose strictQuery 可能變成全表更新，以及 demo seed natural key 遺失時無法重啟。真實 STT/Gemini 與正式批次部署尚未驗證，`VIDEO_BATCH_PIPELINE_ENABLED` 維持 false）
 
@@ -59,7 +61,7 @@
 - YouTube auto-upload 已接入：`YOUTUBE_UPLOAD_ENABLED=true` 且 OAuth 設定完整時，本機檔案先完成 STT / embedding；`processing=completed` 後才由 backend 走 YouTube Data API resumable upload，成功後保存 `youtubeVideoId` 與 YouTube `videoUrl/sourceUrl`。上傳失敗只更新 `youtubeUpload`，不回退 processing；2026-08-02 已用真實 OAuth 憑證（`youtube.force-ssl`）完成 live upload 驗證
 - 刪除轉 private（2026-08-02，教授決議「轉 private 而非直接刪除」）：`deleteVideo` 與 `deleteCourse` 完成 DB 刪除後，呼叫 `youtubeUpload.privatizeVideoOnDelete` / `privatizeVideosOnDelete` 把影片改為 private。原因是 unlisted 影片只要有連結就能播，只清 DB 會讓學生舊連結與 LINE timestamp link 仍然有效。邊界：只處理 `youtubeUpload.status === 'uploaded'`（FocusFlow 自家頻道）的影片，教師貼 URL 的他人影片不碰；`videos.update` 前先 `videos.list` 讀回 status 只覆寫 `privacyStatus`（不帶 `publishAt`，避免排程公開把影片救回公開）；失敗只記 log 不中斷刪除。需 `youtube.force-ssl` scope 的 refresh token，舊 upload-only token 會被 403 拒絕；`YOUTUBE_PRIVATIZE_ON_DELETE=false` 可停用
 - YouTube recovery／安全清理（2026-08-12）：`videos.youtubeUpload` 保存 attempt、失敗時間、`retrySafe`、下一次重試與本地清理結果；只有確認尚未傳送影片 bytes 的失敗才會有限重試，可能已送出 bytes 或 stale `uploading` 會隔離並要求人工確認 YouTube Studio。Owner teacher/admin 可呼叫 `POST /api/v1/videos/:videoId/youtube-upload/retry`。清理只在 YouTube upload + processing 都完成、檔案位於 `UPLOAD_DIR` 且無其他 Video 共用時執行，並先切換播放來源。`YOUTUBE_UPLOAD_RECOVERY_ENABLED` 與 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 都預設 false；本輪只做 mock/in-memory 測試，沒有新的 live API 呼叫或正式檔案刪除
-- 學生 Shorts feed 已改為本地 `ShortAsset` 查詢：`GET /api/v1/youtube/shorts` 需要 JWT 且只允許 student，回傳 `Enrollment ∩ published Course ∩ published ShortAsset ∩ youtubeAvailability=playable`；使用 `publishedAt + _id` opaque cursor（預設 20、最多 50）。目前前端 `StudentShortsWall.jsx` 仍需另案改用 authenticated `apiFetch`，本輪只提供 [前端串接方案](handoff-shorts-frontend-plan.md)，未修改 `frontend/`
+- 學生 Shorts feed 已改為本地 `ShortAsset` 查詢：`GET /api/v1/youtube/shorts` 需要 JWT 且只允許 student，回傳 `Enrollment ∩ published Course ∩ published ShortAsset ∩ youtubeAvailability=playable`；使用 `publishedAt + _id` opaque cursor（預設 20、最多 50）。前端 `StudentShortsWall.jsx` 已改用 authenticated `apiFetch`，並於 2026-08-13 完成正式 feed 與播放唯讀驗收（串接方案見 [handoff-shorts-frontend-plan.md](handoff-shorts-frontend-plan.md)）
 - Short YouTube metadata sync 只用 `YOUTUBE_API_KEY` 的 `videos.list`（每批 50），啟動後非阻塞執行並依 `SHORTS_SYNC_INTERVAL_MS` 排程；startup/interval/direct 共用 single-flight promise。public/unlisted 可播放，private/成功回應缺 ID 不可播放，暫時性整批失敗保留上次成功狀態。`/health.runtime.shortsSync` 提供 enabled/lastAttemptAt/lastSuccessAt/lastError/degraded
 - `/health.runtime.youtubeUpload`（2026-08-12）：`readiness` = `ready` / `degraded` / `hard_fail` / `not_enabled`；除 `credentialCheck`、`lastPrivatize` 外，也回報 recovery/cleanup flags、最大嘗試次數、`lastRecovery` 與 `lastCleanup`。失敗會進 warnings 並使 readiness degraded；server 只在 OAuth token 驗證成功後才非阻塞啟動 recovery。process snapshot 不持久化，單支影片狀態以 `videos.youtubeUpload` 為準
 - 學生端影片播放來源已加強：YouTube 影片會從 `youtubeVideoId` / `youtube_video_id` / `videoUrl` 解析 iframe 播放，metadata-only / QA-only 影片不再 fallback 到 `/uploads`；YouTube iframe 也改掛在 React-owned wrapper 的子節點內，避免切換影片或點其他頁面時因 iframe teardown 造成整頁黑屏
@@ -98,6 +100,8 @@
 - 忘記密碼（2026-09-11）：`POST /api/v1/auth/password-reset/request` 寄 6 位數驗證碼（10 分鐘有效、每帳號 60 秒內只寄一次、不論 Email 是否存在都回相同訊息），`POST /api/v1/auth/password-reset/confirm` 以驗證碼設定新密碼（錯 5 次作廢、用過即失效）；User 只存驗證碼 SHA-256 雜湊於 `passwordReset`。寄信走 nodemailer + SMTP（`SMTP_USER`／`SMTP_PASS`，Gmail 應用程式密碼），未設定時 request 回 503 `PASSWORD_RESET_UNAVAILABLE`。VM 是否已設定 SMTP 以實際寄送測試為準；寄到 `@ntub.edu.tw` 的到信率尚未驗證。
 - 管理員系統服務狀態與 API 安全修正（2026-09-18）：新增 `GET /api/v1/admin/system-status`（僅 admin），管理員總覽「系統服務」改讀這支 API，不再是寫死一律「正常」的假資料；涵蓋 MongoDB 連線、AI 問答、LINE Bot、STT Pipeline（venv 是否存在＋處理佇列）、YouTube 自動上傳，狀態依連線狀態與 runtime snapshot 判斷、不主動呼叫外部 API，所以「正常」代表設定完整且最近沒有錯誤，不保證外部服務當下可連線。`video.routes.js` 掛在 `/api/v1` 根路徑，原本 `router.use(authenticate)` 讓所有不存在的 API 路徑回 401，改為只對 `/courses`、`/videos`、`/video-batches` 前綴驗證，未知路徑改回 404 `NOT_FOUND`（`/qa`、`/admin` 等整組需登入的前綴下的未知路徑仍回 401）。後端回應新增 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，`/api/` 另加 CSP，並關閉 `X-Powered-By`；前端 HTML 由 nginx 提供，同日已在 VM `/etc/nginx/conf.d/focusflow.conf` 的 443 server block 加上 HSTS（`max-age=31536000`，未含 includeSubDomains）、`X-Content-Type-Options`、`X-Frame-Options: SAMEORIGIN`、`Referrer-Policy`，以 curl 驗證生效（備份 `focusflow.conf.bak-20260918`）；整站 CSP 尚未加，因 YouTube iframe 與外部字型需另行測試。
 - 影片點開統計（2026-09-11）：新增 `POST /api/v1/courses/:courseId/videos/:videoId/opened`（僅 active enrolled student），每次點開寫一筆 `usage_logs.event=video_open`；管理員統計頁的 WATCH 卡改讀 `video_open`。學生進度與 `watch` 事件不變，仍需看到 80%（或播完）且每人每支只記第一次。
+- 問題回報（2026-09-22）：`POST /api/v1/feedback`（登入使用者，類別、嚴重度、描述 ≤2000 字，最多 3 張 JPEG／PNG／WebP 截圖、單張 ≤10 MiB，以 magic signature 驗證），附件存 `feedbackattachments` collection、以 `GET /api/v1/feedback/:feedbackId/attachments/:attachmentId` 讀取；管理員以 `GET/PATCH /api/v1/admin/feedback` 列表與更新處理狀態。前端右下角「回報問題」開啟自建表單；另一顆意見回饋按鈕仍連到 Google 表單。OpenAPI 尚未收錄這組端點。
+- 網頁多輪問答（2026-08-23）：`/api/v1/conversations`（建立／列出對話、送出訊息、失敗訊息重試），追問若依賴上文（例如「那它呢」），會以規則從最近對話補上主題後再呼叫同一個 `askQuestion`；共用每日提問與字數上限。`MAX_CONVERSATION_TURNS`（預設 4）決定帶入的最近輪數。
 - 短影片退回通知（2026-09-11）：成品審核 rejected 且有 `sourceScriptId` 時，寫一筆 `source=short_asset_rejected` 的 Notification 給腳本建立者（缺時退回課程 owner teacher），帶 `scriptId`（每個 asset generation 以 `dedupeKey` 去重）；前端點擊通知會跳到短影片腳本頁並開啟該腳本。建立失敗只記 log，不影響已寫入的審核。
 - 學生進度 0% 修復 + LINE 跳轉 fallback（2026-07-13）：
   - `markVideoWatched` 進度分母改為「主課程影片（`video.courseId`）∪ 掛載影片（`course.videoIds`）」聯集。先前只算 `course.videoIds`，未掛載的主課程影片看完不被計入，進度永遠 0%
@@ -173,7 +177,7 @@
 - 提問自動寫入 `questions` collection（2026-04-30）：`questionRecording.service.js` 在 QA 與 LINE Bot 路徑都會落庫；含 matches、runtime、`sourceUsageLogId` 連結至對應 `usage_logs`
 - Teacher / Student dashboard 統計 API（2026-04-30）：`/api/v1/stats/teacher`、`/api/v1/stats/student`，由 `teacherStats.service.js` 聚合；Recent Videos 使用穩定 recency 排序；Top Queried Segments 若命中已刪影片的歷史 segment，顯示會 fallback 到同課程現存影片並優先 YouTube，且同一顯示影片的多個 segment count 會合併成一列
 - Admin 管理 API（2026-04-30）：`/api/v1/admin/{stats,users,videos,events,event-stats}`，可停用使用者、變更角色、刪除影片、查看最近事件
-- Gemini query embedding 已接上；Atlas vector search 由 `.env` 指向 `text_embedding_index`，該 index 已 READY，atlas mode 可正常檢索
+- Gemini query embedding 已接上；Atlas vector search 由 `.env` 指向 `text_embedding_index`（READY 是 2026-05-23 歷史 snapshot，目前是否可用以 `/health.runtime.qa` 與唯讀實查為準）
 - QA misconfig、Atlas not ready、fallback 與 `no_searchable_segments` 已可明確觀測
 - `POST /api/v1/line/bind-token`、webhook verify、bind、switch course、ask question routing 已完成；2026-09-18 新增 `DELETE /api/v1/line/binding` 讓使用者從網站解除 LINE 綁定
 - LINE live smoke 已完成（2026-04-19）：真實 LINE 端對端 bind → switch course → ask 全程走通
@@ -194,7 +198,7 @@
   - `src/scripts/syncQuestionsToAtlas.js` 可單獨同步 questions 到 Atlas（含 course 補齊與 local user → Atlas user 對應），但目前未掛 npm script
   - `npm run db:ensure-questions` 可建立 `questions` collection 並同步 schema indexes
   - `npm run db:backfill-questions` 預設 dry-run；需要寫入時使用 `npm run db:backfill-questions -- --write`，從 legacy ASK usage logs 補回缺失 questions
-- OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，已同步 login role、notifications、avatar 與主要既有端點；internal processing webhook 等少數內部端點以 route files 為準
+- OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，涵蓋 auth（含忘記密碼、改密碼）、notifications、avatar、courses／enrollments、videos／video-batches、conversations、qa、stats、admin（含 system-status）、line、shorts 審核與 youtube shorts；尚未涵蓋 `short-scripts`、`short-assets`、`feedback`、`admin/feedback` 與 internal processing webhook
 - FAQ 快取／常見問題資料庫（2026-07-13；2026-08-30 scope revalidation）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）。第一層為正規化文字完全相同，第二層用 query embedding 做 cosine 相似度。任一層命中後都會逐筆重新驗證 `faq.matches` 的 `videoId + segmentId` 與目前 allowlist；只要一筆引用失效，整筆 FAQ 視為 miss 並繼續正式 retrieval，不保留部分引用。命中仍照常寫 `usage_logs` 與 `questions`。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`、`DELETE /api/v1/courses/:courseId/faqs`。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充
@@ -263,7 +267,8 @@
 - 不能說 bridge course 的所有影片都已有 searchable segments
 - 不能把 ngrok 暫時端點誤稱為固定正式部署網址
 - 不能說 `video_segments_video` 已是正式 clip source 或 caption QA source；目前只作 course-scoped visual citation retrieval
-- 不能把 ShortAsset feed 與 metadata sync 誤稱為完整 Short 產線；自動選片、FFmpeg 剪輯、字幕、YouTube 發布 worker與教師管理仍未實作
+- 不能把短影片功能誤稱為完整 Short 產線：ShortAsset feed、metadata sync、腳本自動選題／生成、教師上傳成品與審核上架已實作（`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉），但上架尚未 live 驗證（SP-3 未通過）；FFmpeg 剪輯與字幕未串接；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中
+- 不能說系統「已正式上線」：對外口徑是「2026-09-21 起開放學生試用」，學生試用驗收證據持續進行中，LINE webhook 仍走 ngrok（改正式網域待與教授討論）
 - **不能說 Hierarchical Retrieval 已啟用或已完成本輪 live 驗證**。Local Parent／Leaf publication、Backend adapter 與 readiness code 已具備，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false；2026-08-02 的 Parent 0 筆與 index READY 都只是舊 snapshot，必須重新唯讀驗證實際 active generation、filter definition、IXSCAN 與 Parent → Child → Citation
 - 不能把 `.env` 的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 或「index 名稱存在」講成資料已可用；runtime 還要求 live read-only evidence 與 query contract hash 一致。任何 shared Atlas publication／index update 都是寫入，需另行授權
 - 不能把 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md` 整份當成已定案契約；全文有 109 處 `[Proposed for v1]`、16 處 `[Database review required]`，目前 DB 組只拍板了 collection 名稱、unique 策略、generation 欄位處理、index 名稱與 cleanup 路線五項
@@ -274,14 +279,14 @@
 - `video_segments_text` 欄位：已全面統一為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；`segmentId` 值通常為 null，實際識別碼為 `chunkId`（如 `<videoObjectId>_chunk_0001`）
 - `video_segments_video` 文件仍為 snake_case（`video_id`、`clip_id`、`start_sec`、`end_sec`），與 `video_segments_text` 不一致；backend 目前以獨立 model 讀取，不把欄位命名混入 text segment schema
 - `video_segments_video`：有 embedding，Atlas vector search index `video_embedding_index` 已建立且 READY/queryable（2026-07-10 驗證，3072 維 cosine，filter=`video_id`）；backend 已從 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID 以安全套用 course access scope。限制：資料沒有 transcript / caption，因此 multimodal QA 目前只提供 visual citation，不提供畫面內容生成
-- `text_embedding_index` 已 READY（2026-05-23 驗證）；atlas mode 可用。仍需注意若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
+- `text_embedding_index` 的 READY 是 2026-05-23 驗證的歷史 snapshot；atlas mode 目前是否可用以 `/health.runtime.qa` 與唯讀實查為準。若 cluster 被重置或 index 被刪，atlas mode 會 fail-fast
 - `FocusFlow Pipeline Bridge Course` 是 pipeline-style demo baseline，不代表 live pipeline 已完整同步
 - YouTube Data API auto-upload 與刪除轉 private 已於 2026-08-02 完成 live 驗證；同日 OAuth 同意畫面已發布為正式版並重換 refresh token（scope `youtube.force-ssl`，已驗證可換發 access token），**不再 7 天過期**。未送 Google 驗證，授權畫面仍顯示未驗證警告、未驗證 app 有 100 使用者上限（本專案只需 1 個授權帳號）。憑證若失效，上傳回 `YOUTUBE_UPLOAD_FAILED`、轉 private 只寫 log，但 `/health.runtime.youtubeUpload` 可觀察（見下方）。YouTube URL MVP（教師手動上傳到 YouTube 後貼 URL）也仍可用
 - 轉 private 沒有 backend 還原入口（DB 紀錄已刪），需人工到 YouTube Studio 把瀏覽權限改回；轉 private 失敗只記 log 不中斷刪除，該影片會留在頻道上且仍可用連結播放
 - 上傳預設 unlisted 無法改成 private：YouTube private 影片不支援 iframe 嵌入播放，設 private 會讓學生端全部播不出來。因此「未修課者拿到連結仍可觀看」是採 YouTube 託管的固有限制
 - ShortAsset metadata sync 有 fake fetch/timer 測試，但未使用真實 `YOUTUBE_API_KEY` 或長時間排程 smoke；學生前端已用 authenticated `apiFetch` 呼叫新 feed，並於 2026-08-13 完成正式 feed 與 YouTube 播放唯讀驗收
-- ngrok 每次重啟 URL 會變，LINE Developers Console Webhook URL 須手動更新
-- CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容，正式環境需填入實際前端 origin
+- LINE webhook 目前走 VM 上 `ngrok.service` 的保留網域（重啟不會變）；若更換網域或 Channel，LINE Developers Console 的 Webhook URL 須手動更新。是否改走 `https://focusflow.ntub.edu.tw` 待與教授討論
+- CORS 已支援 `ALLOWED_ORIGINS` 白名單；未設定時維持開發期相容。正式 VM 已設定（2026-09-23 外部實測：非白名單 Origin 的預檢請求不回 `Access-Control-Allow-Origin`）
 - 2026-07-24 共享 Atlas 唯讀實查為 15 collections、尚無 `notifications`；`init_collections.js` 列 16 個並已含 `notifications`，shared Atlas rollout 仍需人工核准
 - **`video_segments_text` 全部 1,651 筆的 `courseId` 皆為 missing**（2026-08-02 型別分佈實查）。`text_embedding_index` 雖宣告 `courseId` 為 filter field，但實際從未生效；course scope 完全依賴 `QA_ATLAS_FILTER_MODE=bridge_course_or_video` 展開的 `videoId $in [...]`。Parent uploader 需把 courseId 解析成功列為 blocking 條件並於 upload summary 回報，否則 parent collection 會複製同一缺陷
 - `videos` 31 筆中 **0 筆有 `videoId` / `video_id` 欄位**（2026-08-02 實查）。bridge 實際靠 `String(videos._id)` 對上 `video_segments_text.videoId`，因此 Parent 的 `videoId` 必須沿用同一 canonical string，不需要另存 `sourceVideoId` / `backendVideoId`
@@ -290,5 +295,9 @@
 - Backend query code 已切換至可設定的 stable `gemini-embedding-2`；Pipeline／Database 的既有 preview artifacts 與 vectors 尚未由本輪重建。stable 模型不使用舊 `task_type`，而採 query/document prompt contract；embedding space 遷移仍需由 Backend + AI Pipeline + DB 組共同完成 re-embedding、active metadata、Atlas smoke 與 rollback，因此不能把 Backend code change 說成正式資料已切換
 
 ## 一句話結論
+
+2026-09-21 起系統在 `https://focusflow.ntub.edu.tw` 開放學生試用（不是正式上線）；試用期功能（名單匯入、每日提問上限、登入鎖定、忘記密碼、問題回報、系統服務狀態）已部署到試用環境，學生試用驗收證據持續進行。
+
+以下為 2026-08-13 的 Hierarchical Retrieval 結論：
 
 截至 2026-08-13，backend 已補齊 Hierarchical Retrieval 的 active generation filter、命中後完整契約驗證、唯讀 startup readiness、DB-only preflight，以及隔離 E2E 的專用唯讀 URI／角色硬閘；Pipeline／Database uploader 也會保存 stable Leaf／Parent metadata。本機 Backend 445/445 通過。Gate 仍關閉，現有 credential 為 `atlasAdmin`，shared Atlas data/index 與 live Parent E2E 未在本輪重驗，因此仍不能稱 Hierarchical Retrieval 已可用或 production-ready。

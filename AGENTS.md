@@ -2,7 +2,7 @@
 
 本檔是 Codex 與其他 coding agent 進入 FocusFlow repo 的短版入口。它提供目前程式地圖、來源優先序、驗證要求與不可誤稱的邊界；完整動態進度仍放在 [docs/current-status.md](docs/current-status.md)，後端細節放在 [backend/docs/current-state.md](backend/docs/current-state.md)。
 
-> 現況掃描基準：**2026-07-31**。本輪已重新核對目錄、主要入口、最近提交與測試，不只沿用舊文件。
+> 現況掃描基準：**2026-09-23**（程式地圖的檔案數、路由與「不能誤稱」重新核對；第四節測試數字仍是 2026-07-31 的紀錄，未重跑）。
 
 ---
 
@@ -12,8 +12,8 @@
 
 目前判讀：
 
-- **Phase 1 MVP 主線可用**：角色登入／註冊、課程與影片、QA、LINE、Dashboard、通知與 private avatar 已有實作與測試。
-- **Phase 2 基礎能力部分完成**：QA citations、visual citation、ShortAsset feed/sync、批次 pipeline 與 parent-chunk 產物已存在；完整短影音選片、剪輯、字幕、發布與推薦系統尚未完成。
+- **2026-09-21 起開放學生試用**（`https://focusflow.ntub.edu.tw`）：角色登入、課程與修課授權、影片處理、網頁多輪 QA、LINE、Dashboard、通知、頭貼、忘記密碼、問題回報已在正式 VM 上供試用。對外口徑是「開放試用」，不是「正式上線」。
+- **Phase 2 部分實作**：QA citations、visual citation、ShortAsset feed/sync、多影片批次、Parent 階層式檢索（Gate 關閉）、短影片腳本自動生成與教師審核上架（`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉）已存在；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中；推薦系統未開始。
 - 不可因單元測試通過就稱為 fully production-ready；共享 Atlas、Gemini、LINE、YouTube、STT live provider 與正式部署仍各有獨立驗收門檻。
 
 ---
@@ -45,10 +45,13 @@
 routes -> controllers -> services -> models
 ```
 
-2026-07-31 掃描為 12 個 route files、9 個 controllers、26 個 services、13 個 models 與 27 個 backend test files。主要能力：
+2026-09-23 掃描為 15 個 route files、15 個 controllers、60 個 services、21 個 models 與 85 個 backend test files。主要能力：
 
-- `auth`：role-aware login、student/teacher register、JWT、RBAC、`/auth/me`
-- `avatar`：authenticated JPEG/PNG/WebP 上傳與讀取、5 MiB、private storage、CAS replacement
+- `auth`：role-aware login、只開放 student 自助註冊（teacher 由管理員建立）、登入失敗鎖定、忘記密碼（SMTP 驗證碼）、修改個人資料與密碼、JWT、RBAC
+- `avatar`：authenticated JPEG/PNG/WebP 上傳與讀取、1 MiB、圖片存 MongoDB `avatars` collection
+- `conversations`：網頁多輪 QA（對話、訊息、失敗重試），與 `/qa/ask` 共用每日提問上限與字數上限
+- `feedback`：使用者問題回報（最多 3 張截圖）與管理員處理（`/admin/feedback`）
+- `short-scripts` / `shorts`：短影片腳本自動選題與生成、教師上傳成品與審核上架（feature flag 預設關閉）
 - `notifications`：列表、cursor、未讀、單筆／全部已讀、admin 公告、影片完成 fanout
 - `courses` / `videos`：CRUD、processing state machine、多課程 attach/detach、watched progress
 - `qa`：FAQ cache、Gemini/OpenAI/mock providers、Atlas/memory retrieval、citations、answerStatus、quota guardrails
@@ -62,10 +65,10 @@ routes -> controllers -> services -> models
 ### Frontend
 
 - `src/main.jsx` 依 URL 分流：`/admin` 使用 `AdminApp.jsx` 的獨立管理員登入入口，其餘使用 `App.jsx`。
-- `App.jsx` 處理 landing、一般登入、student/teacher 註冊與 dashboard；admin 不開放自助註冊。
+- `App.jsx` 處理 landing、一般登入、student 註冊與 dashboard；teacher、admin 不開放自助註冊。頁面狀態會同步到網址（`src/utils/pageRouting.js`）。
 - `DashboardApp.jsx` 組合 Student / Teacher / Admin 頁面與共用 `Profile`、`Topbar`、`Sidebar`。
-- `src/pages/` 目前有 13 個 JSX 頁面檔；Student 已含 Courses、Dashboard、LINE Bot、Shorts，Teacher 已含 Dashboard、Courses、Upload，Admin 已含 Overview、Users、Courses、Videos、Stats。
-- `TeacherUpload.jsx` 支援 MP4/MOV/MKV 多檔選取、逐檔驗證、進度與重新整理恢復；目前透過 `services/videoUpload.js` **依序呼叫既有單支上傳 API**，不是 backend batch upload endpoint。
+- `src/pages/` 目前有 16 個 JSX 頁面檔：Student 含 Courses、Dashboard、LINE Bot、Shorts；Teacher 含 Dashboard、Courses、Upload、ShortScripts、VideoReview；Admin 含 Overview、Users、Courses、Videos、Stats、Feedback；另有共用 Profile。
+- `TeacherUpload.jsx` 支援 MP4/MOV/MKV 多檔選取、逐檔驗證、進度與重新整理恢復；`services/videoUpload.js` 以單一 multipart request 呼叫 `POST /courses/:courseId/video-batches`。
 - `StudentCourses.jsx` 已支援 QA 命中片段完整展開、整張 citation card 點擊，以及 Enter / Space 鍵盤跳轉影片時間點。
 
 ### AI Pipeline
@@ -129,7 +132,7 @@ Frontend build 仍有單一 bundle 大於 500 kB 的 Vite warning；這不是 bu
 4. API / DB / service 專屬文件
 5. 舊會議紀錄、簡報、歷史 schema 文件
 
-`docs/current-status.md` 與 `backend/docs/current-state.md` 最後更新到 2026-07-26，尚未完整記入 7/28～7/29 的 batch、hierarchy 與 citation-card 變動，因此處理這些功能時必須再讀實際程式碼與最近提交。
+`docs/current-status.md` 與 `backend/docs/current-state.md` 是動態文件，可能落後程式碼；處理近期功能時仍須再讀實際程式碼與最近提交。
 
 AI agent 接手前，至少讀：
 
@@ -144,7 +147,7 @@ AI agent 接手前，至少讀：
 | `backend/docs/current-state.md` | Backend runtime、readiness、測試與已知限制 |
 | `docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
 | `backend/docs/phase2-api-contract.md` | QA / Video / Clip / YouTube 回傳語意 |
-| `backend/docs/openapi.yaml` | 對外 API 規格；仍須與 routes 交叉確認 |
+| `backend/docs/openapi.yaml` | 對外 API 規格；缺 short-scripts、short-assets、feedback 與 internal webhook，仍須與 routes 交叉確認 |
 | `backend/docs/handoff-stt-pipeline-integration.md` | Backend / STT processing 交接 |
 | `STT_Whisper/README.md` | 單支、batch、resume、hierarchy 與輸出契約 |
 | `database/README.md`、`database/docs/db-handoff-current.txt` | DB 寫入、index、Atlas 邊界 |
@@ -200,12 +203,12 @@ AI agent 接手前，至少讀：
 
 ## 八、不能誤稱的目前邊界
 
-- 多檔 Teacher Upload 目前是前端 sequential adapter；repo 尚無通用 backend batch upload API。
-- Pipeline batch CLI 與 frontend 多檔 UI 是兩個不同層級，不可說成同一個 end-to-end batch API。
-- `parent_chunks.jsonl` 尚未 embedding、上傳 MongoDB 或接入 QA retrieval。
+- 對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」；試用驗收證據仍在進行，LINE webhook 仍走 ngrok（改正式網域待與教授討論）。
+- 多影片批次 API（`/video-batches`）已存在，但 `VIDEO_BATCH_PIPELINE_ENABLED` 預設 false；真實多影片 STT/Gemini 與壓力測試尚未驗證，不能稱 production-ready。
+- Parent 階層式檢索已有 stable embedding、uploader 與 backend adapter，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 為 false，沒有 live E2E 證據前不可宣稱可用。
 - `video_segments_video` 目前只作 course-scoped visual citation，不能稱為 caption QA 或正式 clip publishing source。
-- ShortAsset 已有 feed、archive 與 metadata sync，但自動選片、FFmpeg 剪輯、字幕、發布 worker、教師管理仍未完成。
-- YouTube auto-upload adapter 已實作，但真實 OAuth upload smoke 與檔案清理策略仍是獨立驗收項目。
+- 短影片：自動選題、腳本生成、教師上傳成品與審核上架已實作，但上架（YouTube 發布）尚未 live 驗證；影片本身由教師在系統外產製，ComfyUI／MiniMax H3 已可在教授主機以地端模型運作，但未與 FocusFlow 串接（系統串接規劃中）。
+- YouTube auto-upload 與刪除轉 private 已於 2026-08-02 live 驗證；recovery／本地檔案清理 feature flags 仍預設關閉、未做 live 驗證。
 - LINE 曾 live smoke 成功，不代表目前 webhook URL、channel credentials 或正式部署永久有效。
 - Shared Atlas 的 collection/index 狀態必須 live 查證；不得靠舊快照推定，也不得未核准啟服觸發 autoIndex。
 

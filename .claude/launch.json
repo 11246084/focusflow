@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "focusflow-slides",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "../focusflow-slides", "--", "--port", "5180"],
+      "port": 5180
+    },
+    {
       "name": "backend-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "backend"],

@@ -23,9 +23,19 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `VideoSegment` | 由 `VIDEO_SEGMENT_COLLECTION` 環境變數決定（預設 `video_segments_text`） |
 | `Enrollment` | `enrollments` |
 | `Clip` | `clips` |
-| `UsageLog` | `usagelogs` |
-| `LineBindToken` | `linebindtokens` |
+| `UsageLog` | `usage_logs`（schema 明確指定） |
+| `LineBindToken` | `line_bind_tokens`（`mongoose.model` 第三個參數指定） |
 | `Faq` | `faqs` |
+| `Question` | `questions` |
+| `Notification` | `notifications` |
+| `Conversation` / `Message` | `conversations` / `messages`（網頁多輪問答） |
+| `Feedback` / `FeedbackAttachment` | `feedbacks` / `feedbackattachments`（問題回報與截圖本體） |
+| `ShortScript` / `ShortAsset` | `shortscripts` / `shortassets` |
+| `VideoBatch` | `videobatches` |
+| `VideoSegmentParent` | 由 `VIDEO_SEGMENT_PARENT_COLLECTION` 決定（預設 `video_segments_parent`） |
+| `VideoSegmentVideo` | 由 `VIDEO_SEGMENT_VIDEO_COLLECTION` 決定（預設 `video_segments_video`，欄位仍為 snake_case） |
+
+實際名稱以各 model 檔為準；共享 Atlas 上是否已建立某個 collection，要唯讀實查，不能從本表推定。
 
 目前 repo 內已有明確理由的例外：
 
@@ -97,11 +107,9 @@ videoSegmentSchema.index({ courseId: 1, startSec: 1 });
 ```
 
 ### 向量索引（Atlas Vector Search）
-目前正式契約請參考：
+舊版 v1 契約文件已過期，只保留作歷史參考：`docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md`。目前資料契約以 `ARCHITECTURE.md`、`backend/docs/current-state.md` 與實際 model 為準；Parent 階層式檢索另見 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md`。
 
-- `docs/05_Database_Schema_Contract/MongoDB_契約定版_v1.md`
-
-正式 v1 契約採分 collection 設計：
+v1 契約定下、目前仍沿用的分 collection 設計：
 
 - `video_segments_text.embedding` → `text_embedding_index`
 - `video_segments_video.embedding` → `video_embedding_index`

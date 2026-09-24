@@ -25,14 +25,7 @@ cd backend && node --test --experimental-test-isolation=none --test-concurrency=
 | 後端測試 | `backend/tests/` | `<module>.test.js` |
 | 測試輔助工具 | `backend/tests/helpers/` | `<name>.js` |
 
-**現有測試檔一覽：**
-- `auth.routes.test.js` — 登入、取得自身資訊
-- `course-video.routes.test.js` — 課程與影片 CRUD 路由
-- `qa.routes.test.js` — QA 問答 API 路由
-- `qa.service.test.js` — QA service 邏輯（向量搜尋、詞彙搜尋）
-- `line.routes.test.js` — LINE Webhook 處理
-- `api-response.test.js` — apiResponse 工具函式
-- `demo-seed.service.test.js` — 示範資料植入邏輯
+**現有測試檔：** `backend/tests/` 目前約 85 個 `*.test.js`（2026-09-23 計數），以 `ls backend/tests` 為準，不在此逐一列出。命名慣例：route 整合測試為 `<module>.routes.test.js`（如 `auth.routes.test.js`、`course-video.routes.test.js`、`qa.routes.test.js`、`line.routes.test.js`），service 單元測試為 `<module>.service.test.js`。修改某模組前先找同名測試檔。
 
 ---
 

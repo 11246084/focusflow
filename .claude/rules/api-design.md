@@ -150,7 +150,38 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `INVALID_FEEDBACK_ATTACHMENT_TYPE` | 400 | 附件不是 JPEG／PNG／WebP，或宣告的 MIME type 與實際檔案內容不符 |
 | `FEEDBACK_ATTACHMENT_TOO_LARGE` | 413 | 單一附件超過 10 MiB |
 | `FEEDBACK_ATTACHMENT_LIMIT_EXCEEDED` | 400 | 單筆回報超過 3 張附件 |
+| `INVALID_CREDENTIALS` | 401 | 登入 Email 或密碼錯誤 |
+| `ROLE_MISMATCH` | 403 | 登入時選的角色與帳號角色不符（密碼驗證通過後才比較），不發 token |
+| `USER_INACTIVE` | 403 | 帳號已停用 |
+| `USER_NOT_FOUND` | 404 | 使用者不存在 |
+| `AVATAR_REQUIRED` | 400 | 上傳頭貼未附檔案 |
+| `AVATAR_NOT_FOUND` | 404 | 使用者沒有頭貼 |
+| `AVATAR_STORAGE_ERROR` | 500 | 頭貼寫入失敗 |
+| `NOTIFICATION_NOT_FOUND` | 404 | 通知不存在或不屬於呼叫者 |
+| `CONVERSATION_NOT_FOUND` | 404 | 網頁多輪問答的對話不存在 |
+| `CONVERSATION_ACCESS_DENIED` | 403 | 對話不屬於呼叫者 |
+| `MESSAGE_NOT_FOUND` | 404 | 要重試的使用者訊息不存在 |
+| `MESSAGE_RETRY_NOT_ALLOWED` | 409 | 訊息目前不是可重試狀態 |
+| `VIDEO_FILE_REQUIRED` | 400 | 上傳影片請求未附檔案 |
+| `INVALID_FILE_TYPE` | 400 | 上傳的不是影片檔 |
+| `INVALID_MEDIA_CONTAINER` | 400 | 影片容器結構損壞或不完整（例如 MP4 box header 截斷、box size 無效） |
+| `VIDEO_PROCESSING_TRANSITION_INVALID` | 409 | 影片 processing 狀態轉換不合法（見 CLAUDE.md 狀態機） |
+| `COURSE_DELETE_FAILED` | 500 | 課程刪除失敗（已 best-effort 還原本輪 ShortAsset 封存） |
+| `INVALID_PAGE_TOKEN` | 400 | 分頁 cursor／pageToken 格式錯誤 |
+| `INVALID_ENCODING` | 400 | QA 問題疑似非 UTF-8 編碼（壞字元），拒收 |
+| `QA_QUOTA_EXCEEDED` | 429 | 超過全站月 token 預算或單一使用者月配額（`QA_MONTHLY_TOKEN_BUDGET`／`QA_USER_MONTHLY_TOKEN_QUOTA`） |
+| `EMBEDDING_PROVIDER_ERROR` | 502 | Embedding provider 失敗或回傳無效向量 |
+| `ANSWER_PROVIDER_ERROR` | 502 | 回答生成 provider 失敗（另有 `ANSWER_PROVIDER_EMPTY_RESPONSE`／`ANSWER_PROVIDER_INVALID_RESPONSE`） |
+| `ANSWER_PROVIDER_NOT_CONFIGURED` | 500 | 回答生成 provider 缺 API key |
+| `LINE_SIGNATURE_MISSING` | 401 | LINE webhook 缺 `X-Line-Signature` |
+| `LINE_SIGNATURE_INVALID` | 401 | LINE webhook 簽章不符 |
+| `LINE_RAW_BODY_MISSING` | 400 | 無法取得 LINE webhook 原始 body 以驗簽 |
+| `LINE_NOT_CONFIGURED` | 500 | 未設定 `LINE_CHANNEL_SECRET` |
+| `SHORT_ASSET_NOT_FOUND` | 404 | 短影片成品不存在 |
+| `SHORT_SCRIPT_GENERATION_FAILED` | 502 | 腳本生成的 LLM provider 呼叫失敗 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |
+
+Phase 2-2 階層式檢索內部使用的 `PARENT_*` 錯誤碼（如 `PARENT_SEARCH_TIMEOUT`、`PARENT_INDEX_MISSING`）只寫入 `runtime.hierarchicalRetrieval` 診斷並觸發 Leaf fallback，不直接回給 client，定義見 `parentSearch.service.js`。
 
 新增自訂錯誤碼時，使用 **SCREAMING_SNAKE_CASE**，並在此表格補充說明。
 

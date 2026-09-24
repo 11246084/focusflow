@@ -2,7 +2,7 @@
 
 FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教學影片，學生可對影片內容提問，系統以 AI 生成答案並附上對應影片時間段。
 
-目前處於 **MVP 第一階段**。進度詳見 [docs/current-status.md](docs/current-status.md)。
+Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用**（試用，不是正式上線）；Phase 2 短影片與階層式檢索部分實作中。進度詳見 [docs/current-status.md](docs/current-status.md)。
 
 ---
 
@@ -26,13 +26,18 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 6. Teacher / Student / Admin dashboard 統計與管理介面
 7. 基本測試與錯誤處理
 
+試用期補上的營運功能（2026-09）：修課學生 CSV 匯入、學生每日提問與字數上限、登入失敗鎖定、忘記密碼、網頁多輪問答、問題回報、管理員系統服務狀態。
+
 ---
 
 ## 主要模組
 
 ### Backend（`backend/`）
-- **auth** — JWT 登入、RBAC 三角色
-- **courses / videos** — 課程與影片 CRUD（含 PATCH/DELETE）、processing 狀態機
+- **auth** — JWT 登入、RBAC 三角色、學生自助註冊（教師由管理員建立）、忘記密碼、登入失敗鎖定
+- **courses / videos** — 課程與影片 CRUD（含 PATCH/DELETE）、processing 狀態機、修課授權（Enrollment）、多影片批次上傳
+- **conversations** — 網頁多輪問答，與 QA 共用每日提問上限
+- **notifications / feedback** — 站內通知、使用者問題回報
+- **short-scripts / shorts** — 短影片腳本自動生成、教師審核上架（功能開關預設關閉）
 - **qa** — 雙策略搜尋（向量 + 詞彙）+ 可插拔 provider（gemini/openai/mock）+ 自動將提問寫入 `questions`
 - **line** — Webhook 簽章驗證、帳號綁定（一次性 token / QR）、問答 routing、多輪對話歷史
 - **stats** — Teacher / Student dashboard 統計
@@ -42,7 +47,7 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 - **demoSeed** — 透過 `npm run seed` / `seed:reset` 植入示範資料
 
 ### Frontend（`frontend/focus-flow/`）
-登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面目前有 13 個頁面檔：StudentDashboard / StudentCourses / StudentLineBot / StudentShortsWall、TeacherDashboard / TeacherCourses / TeacherUpload、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses，以及共用 Profile。第一階段 API 整合已完成；正式供應商與部署驗收仍依功能各自判定。
+登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面目前有 16 個頁面檔：StudentDashboard / StudentCourses / StudentLineBot / StudentShortsWall、TeacherDashboard / TeacherCourses / TeacherUpload / TeacherShortScripts / TeacherVideoReview、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses / AdminFeedback，以及共用 Profile。第一階段 API 整合已完成；正式供應商與部署驗收仍依功能各自判定。
 
 ### AI Pipeline（`STT_Whisper/`）
 獨立 CLI 流程：本機影片或 YouTube URL → FFmpeg / yt-dlp 音訊處理 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL → `mongodb_uploader.py` 寫入 MongoDB。Backend 建立影片後可背景 spawn 這個 CLI，並透過 internal webhook 接收處理狀態。
@@ -63,8 +68,8 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教�
 | `UsageLog`（`usage_logs`）| 使用行為記錄（login / watch / ask / clip_view） |
 | `LineBindToken`（`line_bind_tokens`）| LINE 帳號綁定一次性 token，TTL 索引自動清除 |
 
-DB 中另存在 `video_segments_video`（影片片段 + video embedding，v1 正式契約，由 AI Pipeline 寫入，backend 尚未直接接入 QA）。
+其他 model：`Notification`、`Avatar`、`Faq`（FAQ 快取）、`Conversation` / `Message`（網頁多輪問答）、`Feedback` / `FeedbackAttachment`（問題回報）、`ShortScript` / `ShortAsset`（短影片）、`VideoBatch`（多影片批次）、`VideoSegmentParent`（`video_segments_parent`，階層式檢索，Gate 關閉）、`VideoSegmentVideo`（`video_segments_video`，影片片段 + video embedding，只作 course-scoped visual citation，不是 caption QA 來源）。
 
-2026-05-01 共享 Atlas 實況為 13 個 collections；`database/tools/setup/init_collections.js` 目前列 15 個，兩者尚未同步。init 腳本有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 腳本沒有：`questions`。因此舊版 `video_segments` 目前仍是 legacy/init 腳本殘留項，不是 backend runtime 依賴。
+共享 Atlas 的 collection 清單與筆數會變動，以唯讀實查為準；最近一次記錄見 [backend/docs/current-state.md](backend/docs/current-state.md) 的「資料庫實況」。舊版 `video_segments` 是 legacy／init 腳本殘留項，不是 backend runtime 依賴。
 
 正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md](docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。

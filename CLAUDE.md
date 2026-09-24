@@ -32,7 +32,7 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 ## 專案概述
 
-**FocusFlow** 是 Phase 1 MVP 的 AI 教學影片問答系統：
+**FocusFlow** 是 AI 教學影片問答系統，2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用（試用，不是正式上線，見「不能誤稱的邊界」）：
 
 教師本地上傳影片（單一軌道，2026-07-12 起）→ backend 觸發 STT pipeline → 產生文字片段與 embedding（設定憑證時另自動上傳 YouTube）→ 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。貼 YouTube URL 的 API 保留但不在教師上傳頁露出。
 
@@ -72,9 +72,9 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>
 
 - `npm run seed` 是 converge baseline，不清除既有資料。
 - `npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建。
-- `db:ensure-questions`、`db:backfill-questions` 目前是 dangling scripts，對應檔案不存在，除非先補檔或修 package script，否則不要執行。
+- `db:ensure-questions`（建立 `questions` 並同步 indexes）、`db:backfill-questions`（預設 dry-run，加 `-- --write` 才寫入）的 script 檔都存在；兩者都會寫共享 DB，對 Atlas 執行前需確認目標。
 - Swagger UI 掛在 `/docs`，raw spec 掛在 `/docs/openapi.yaml`，repo 規格檔在 `backend/docs/openapi.yaml`。
-- OpenAPI 目前尚未完整涵蓋 stats/admin 與部分 PATCH/DELETE 端點，完整 API 清單暫以 route files、README、backend current-state 為準。
+- OpenAPI 已涵蓋 auth、courses、videos、conversations、qa、stats、admin、line、shorts 審核等主要端點；尚未涵蓋 `short-scripts`、`short-assets`、`feedback`、`admin/feedback` 與 internal processing webhook，完整 API 清單以 `backend/src/routes/` 為準。
 
 ### Frontend
 
@@ -170,7 +170,9 @@ QA_VECTOR_SEARCH_MODE=memory
 - nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。443 server block 自 2026-09-18 起加了 HSTS、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`（server 層 `add_header`；日後若在 location 內新增任何 `add_header`，該 location 會不再繼承這些標頭，需一併複製）。
 - HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)（含續約檢查與回滾步驟）。
 - port 80 對外不通（2026-08-12 tcpdump 證實封包未抵達 VM，技士表示不會開放）。`focusflow.conf` 的 80 block 已標 `default_server` 並 301 轉 HTTPS，但只在 VM 內部生效；判斷 80 是否通要用 `curl -v http://...`，瀏覽器會自動改走 HTTPS 造成假陽性。
-- `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。
+- `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。是否改走 `https://focusflow.ntub.edu.tw/api/v1/line/webhook` 需先與指導教授討論，不是試用期的阻擋項。
+- CORS 已收斂：2026-09-23 從外部實測，非白名單 Origin 的預檢請求不會拿到 `Access-Control-Allow-Origin`，`https://focusflow.ntub.edu.tw` 會拿到，代表 VM 的 `ALLOWED_ORIGINS` 已設定。
+- 正式環境的 `/health` 沒有經過 nginx 轉發（從外部打會拿到前端 HTML），要在 VM 內 `curl localhost:4000/health` 或看管理員「系統服務」頁（`GET /api/v1/admin/system-status`）。
 
 ## QA / Video / LINE 邊界
 
@@ -304,10 +306,10 @@ npm run build
 
 - 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
 - 不能把單次 LINE live smoke 說成正式部署完成。
-- 不能說所有前端頁面都已完整 API 串接；目前是整合中。
+- 不能說所有前端功能都已 live 驗證：16 個頁面都已接 backend API，但部分功能受 feature flag 控制（例如 `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時，短影片腳本 API 回 404）。
 - YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
 - 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
 - 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
-- 不能把 OpenAPI 當成完整 API 契約；它仍缺 stats/admin 與部分 PATCH/DELETE。
-- **不能說系統「已正式上線」**：2026-09-10 起校外可經 `https://focusflow.ntub.edu.tw` 存取（443 全球可達、Let's Encrypt 憑證受信任），但 port 80 對外不通、LINE webhook 仍走 ngrok、CORS 未收斂、學生試用驗收證據未完成。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。
+- 不能把 OpenAPI 當成完整 API 契約；它仍缺 short-scripts、short-assets、feedback 與 internal webhook。
+- **對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」**：校外可經 `https://focusflow.ntub.edu.tw` 使用（443 全球可達、Let's Encrypt 憑證受信任、CORS 已收斂、HSTS 已加）。仍屬試用的原因：學生試用驗收證據（附錄 I 的 12＋2 題）持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）、port 80 對外不通（學校不開放，對外一律給 `https://` 網址）。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。

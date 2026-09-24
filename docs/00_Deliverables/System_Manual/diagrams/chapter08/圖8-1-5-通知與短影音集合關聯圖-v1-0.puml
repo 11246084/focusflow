@@ -1,0 +1,87 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-18, FR-20, FR-21, FR-22, NFR-04, NFR-05
+' source:       backend/src/models/{notification,shortScript,shortAsset}.model.js
+' verified:     2026-09-24（靜態比對 schema；未連 Atlas）
+' status:       draft
+' implemented:  partial（短影音腳本 feature flag 預設關閉；YouTube 上架未 live 驗證）
+' ai-assisted:  yes / Claude Code / 自 v3-0 總圖拆出通知、短影音腳本與成品集合
+' ============================================
+!include ../_style.puml
+
+title 通知與短影音集合關聯圖
+top to bottom direction
+
+entity "users（見圖8-1-2）" as users #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "courses（見圖8-1-2）" as courses #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "videos（見圖8-1-3）" as videos #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "questions（見圖8-1-4）" as q #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "video_segments_text（見圖8-1-3）" as leaf #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+
+entity "notifications" as n {
+  _id : ObjectId <<PK>>
+  --
+  recipientId : ObjectId <<ref>>
+  source : String
+  readAt : Date
+  createdBy : ObjectId <<ref>>
+  courseIds[] : ObjectId <<ref>>
+  videoId : ObjectId <<ref>>
+  scriptId : ObjectId <<ref>>
+  (recipientId, dedupeKey) <<UK, partial>>
+}
+
+entity "shortscripts" as s {
+  _id : ObjectId <<PK>>
+  --
+  courseId : ObjectId <<ref, IDX>>
+  (courseId, topicKey) <<UK>>
+  sourceQuestions[] : 提問快照
+  evidence[].chunkId : 證據快照
+  versions[].versionNo : Number
+  status : String <<IDX>>
+  createdBy : ObjectId <<ref>>
+}
+
+entity "shortassets" as a {
+  _id : ObjectId <<PK>>
+  --
+  courseId : ObjectId <<ref>>
+  sourceScriptId : ObjectId <<ref, IDX>>
+  sourceVersionNo : Number
+  sourceVideoId : ObjectId <<ref>>
+  reviewStatus／status : String
+  youtubeVideoId : String <<UK, sparse>>
+  courseSnapshot : 課程快照
+}
+
+users ||--o{ n : recipientId
+users |o--o{ n : createdBy
+courses }o--o{ n : courseIds[]
+videos |o--o{ n : videoId
+s |o--o{ n : scriptId
+courses ||--o{ s : courseId
+users |o--o{ s : createdBy
+q ..> s : sourceQuestions[] 快照
+leaf ..> s : evidence[] 快照
+courses ||--o{ a : courseId
+s |o--o{ a : sourceScriptId\n＋ sourceVersionNo
+videos |o--o{ a : sourceVideoId
+
+note as N1
+  非 UML 圖。partial＝僅索引 dedupeKey 為字串者（系統公告不帶 dedupeKey）。
+  虛線：凍結進腳本的快照，來源其後變動不影響已凍結內容。
+end note
+@enduml

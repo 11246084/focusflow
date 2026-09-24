@@ -1,0 +1,32 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-03, FR-09, FR-10, NFR-04
+' source:       backend/src/constants/enums.js, backend/src/services/videoBatch.service.js（createVideoBatch、deriveBatchStatus、syncBatchStatus、retryVideoBatchItem）（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 VIDEO_BATCH_STATUSES 與 deriveBatchStatus 彙整規則重繪
+' ============================================
+!include ../_style.puml
+
+title 影片批次狀態機圖
+hide empty description
+
+[*] --> creating : createVideoBatch\n[課程可管理且 1～10 個檔案]\n/ 建立空批次
+creating --> processing : 第一個項目處理完畢\n/ 寫入 items（成功、重複或失敗）
+processing --> completed : syncBatchStatus\n[所有項目 completed]
+processing --> partial : syncBatchStatus\n[有 completed 也有 failed]
+processing --> failed : syncBatchStatus\n[所有項目 failed]
+partial --> processing : retryVideoBatchItem\n[該影片 processing 為 failed]\n/ 影片重新排入 queued
+failed --> processing : retryVideoBatchItem\n[該影片 processing 為 failed]\n/ 影片重新排入 queued
+
+note right of creating
+  對應設計類別：VideoBatch。
+  批次狀態由各項目的上傳結果與影片 processing 狀態推導，
+  於建立、查詢批次時重新計算並寫回；已完成項目不會回滾。
+  批次程序仍在執行時重試回 409 VIDEO_BATCH_RETRY_IN_PROGRESS。
+end note
+
+@enduml

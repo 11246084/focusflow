@@ -1,0 +1,35 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-03, FR-10, NFR-04, NFR-06
+' source:       backend/src/services/videoProcessing.service.js（queue／start／complete／fail／retry）, backend/src/services/video.service.js（createQueuedProcessingState、markUnexpectedSttExitFailed）（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 videoProcessing.service.js 的前置狀態檢查與冪等回放逐一重繪
+' ============================================
+!include ../_style.puml
+
+title 影片處理狀態機圖
+hide empty description
+
+[*] -down-> queued : 建立影片\n/ createQueuedProcessingState
+queued -down-> processing : start webhook [queued]\n/ 記錄 startedAt、attemptCount + 1
+processing --> processing : start webhook [已是 processing]\n/ 直接回應，不重複計次
+processing -down-> completed : complete webhook [processing]\n/ 寫入 durationSec、清除錯誤、\n清除課程 FAQ 快取、發送完成通知
+completed --> completed : complete webhook [已是 completed]\n/ 重新執行完成後續處理
+queued -right-> failed : fail webhook 或 STT 程序異常結束\n/ 記錄 errorCode、errorMessage
+processing -down-> failed : fail webhook 或 STT 程序異常結束\n/ 記錄 errorCode、errorMessage
+failed --> failed : fail webhook [已是 failed]\n/ 保留第一次失敗原因
+failed -up-> queued : retry [課程 owner 或 admin]\n/ 清除錯誤與時間戳、重新排程 Pipeline
+
+completed -[hidden]right-> failed
+
+note right of queued
+  對應設計類別：Video（processing 子文件）。
+  圖中未列出的轉換一律回傳
+  409 VIDEO_PROCESSING_TRANSITION_INVALID。
+end note
+
+@enduml

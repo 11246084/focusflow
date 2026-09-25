@@ -1,0 +1,71 @@
+---
+title: 影片加入與處理追蹤循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-03, FR-08, FR-09, FR-10, FR-11, FR-16, FR-18
+%% source:       backend/src/routes/video.routes.js、routes/internal-video.routes.js、services/videoBatch.service.js、services/video.service.js（createCourseVideo）、services/videoProcessing.service.js、STT_Whisper/src/main.py（notify_backend、mongodb_uploader）（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：片段由 AI Pipeline 直接寫入資料庫、完成通知對象為修課學生、補 YouTube 自動上傳、webhook 密鑰與非法轉換分支、批次輪詢與重試
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（影片上傳頁）
+    participant API as 後端 API
+    participant AI as AI Pipeline
+    participant DB as 資料庫
+    participant YT as YouTube
+
+    T->>FE: 選擇 1～10 支本機影片
+    FE->>API: POST<br/>/courses/:courseId/video-batches<br/>（multipart）
+    API->>DB: 確認可管理課程，建立<br/>VideoBatch（creating）
+    loop 每個檔案
+        Note right of API: 驗證格式與容器完整性，計算檔案雜湊
+        alt 同課程已有相同檔案或檔案不合規
+            API->>DB: 該項記為 duplicate／<br/>failed 與錯誤碼
+        else 通過
+            API->>DB: 建立 Video<br/>（processing.status=queued）並掛入課程
+        end
+    end
+    API-)AI: 背景排程處理<br/>（單支模式逐支排入佇列，<br/>批次模式整批交給 Pipeline）
+    API-->>FE: 201 批次彙總與逐項結果<br/>（部分失敗不回滾）
+    AI->>API: POST<br/>/internal/videos/:videoId/processing/start
+    API->>DB: queued → processing，<br/>attemptCount 加一
+    Note over AI: 語音辨識、分段、產生 embedding
+    alt 處理成功
+        AI->>DB: 寫入 video_segments_text 片段
+        AI->>API: POST .../processing/complete
+        API->>DB: processing → completed
+        API->>DB: 清除相關課程 FAQ 快取，<br/>建立修課學生的影片完成通知
+        opt 已設定 YouTube 自動上傳
+            API-)YT: 背景以 unlisted 上傳影片
+        end
+    else 處理失敗
+        AI->>API: POST .../processing/fail<br/>（錯誤訊息）
+        API->>DB: → failed，保存錯誤碼與訊息
+    end
+    Note over AI,API: webhook 需帶<br/>X-Processing-Secret，<br/>不符回 401；<br/>非法狀態轉換回 409<br/>VIDEO_PROCESSING_TRANSITION_INVALID，<br/>重複回報 start／<br/>complete 不改變既有結果
+    T->>FE: 查看批次進度
+    FE->>API: GET /video-batches/:batchId<br/>（輪詢）
+    API->>DB: 讀取批次與各影片處理狀態
+    API-->>FE: completed／partial／<br/>failed 與逐項狀態
+    opt 重試失敗項目
+        T->>FE: 按下重試
+        FE->>API: POST<br/>/video-batches/:batchId/retry
+        API->>DB: 該影片 failed → queued<br/>（非 failed 回 409；<br/>來源檔遺失回 409）
+        API-)AI: 重新排程處理
+        API-->>FE: 更新後的批次狀態
+    end

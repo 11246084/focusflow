@@ -1,0 +1,67 @@
+---
+title: 問答與對話服務設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-04, UC-05
+%% source:       backend/src/services/conversation.service.js、line.service.js、askLimits.service.js、qa.service.js、faqCache.service.js、costControl.service.js、answerGeneration.service.js；backend/src/models/conversation.model.js、message.model.js、question.model.js、faq.model.js、usageLog.model.js、videoSegment.model.js、lineBindToken.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-2-2 v4-0 拆出服務視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（服務與其操作；服務對資料類別的使用關係改列於正文表格，資料類別見同節 b 圖）
+%% ============================================
+classDiagram
+    direction TB
+
+    class ConversationService {
+        <<service>>
+        +createConversation() Conversation
+        +sendMessage() SendResult
+        +retryMessage() SendResult
+    }
+    class LineService {
+        <<service>>
+        +generateBindToken() String
+        +unbindLineUser() void
+        +processWebhookEvents() EventResult[]
+    }
+    class AskLimitsService {
+        <<service>>
+        +assertCanAsk() DailyUsage
+        +assertDailyAskAvailable() DailyUsage
+    }
+    class QaService {
+        <<service>>
+        +askQuestion() QaResult
+        +askQuestionFromApi() QaResult
+        +recordFailedAsk() void
+    }
+    class FaqCacheService {
+        <<service>>
+        +findFaqByExactQuestion() Faq
+        +findFaqBySimilarEmbedding() SemanticHit
+        +saveFaqEntry() void
+        +clearFaqsForVideoCourses() void
+    }
+    class CostControlService {
+        <<service>>
+        +assertQaQuotaAvailable() CostSnapshot
+    }
+    class AnswerGenerationService {
+        <<service>>
+        +generateAnswer() AnswerResult
+        +isNoAnswerReply() Boolean
+    }
+
+    ConversationService ..> AskLimitsService : 字數與每日次數
+    ConversationService ..> QaService : 委派提問
+    LineService ..> AskLimitsService : 字數與每日次數
+    LineService ..> QaService : source=line
+    QaService ..> FaqCacheService : 兩層快取
+    QaService ..> CostControlService : 月 token 配額
+    QaService ..> AnswerGenerationService : 生成回答

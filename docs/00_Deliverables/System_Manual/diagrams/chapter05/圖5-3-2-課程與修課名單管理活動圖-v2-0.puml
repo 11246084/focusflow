@@ -1,0 +1,65 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-02, FR-05, FR-06, FR-07
+' source:       chapters/05_需求模型.md 表5-3-2；backend/src/services/course.service.js、enrollment.service.js（查證名單匯入與撤銷規則）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 2026-09-21 版面決議重繪（拒絕分支各自結束），並補上名單匯入上限、建立學生帳號與撤銷清除 LINE 課程範圍
+' ============================================
+!include ../_style.puml
+
+title 課程與修課名單管理活動圖
+
+|教師或管理員|
+start
+:建立課程或開啟既有課程;
+|FocusFlow|
+if (為課程擁有者或管理員？) then (否)
+  :拒絕操作，課程資料不變;
+  stop
+endif
+:顯示課程資料與修課名單;
+|教師或管理員|
+switch (選擇維護項目)
+case (編輯課程)
+  :修改名稱、說明或狀態\n（草稿／已發布／封存）;
+case (指派學生)
+  :輸入學生完整 Email;
+case (匯入名單)
+  :上傳姓名、Email、學號名單;
+case (撤銷修課)
+  :選擇要撤銷的學生;
+endswitch
+|FocusFlow|
+switch (依維護項目處理)
+case (編輯課程)
+  :保存課程異動;
+case (指派學生)
+  if (找到啟用中的學生帳號？) then (否)
+    :回覆找不到學生;
+    stop
+  endif
+  :建立或重新啟用修課資格;
+case (匯入名單)
+  if (名單不超過 200 筆？) then (否)
+    :拒絕整份名單;
+    stop
+  endif
+  :逐筆驗證，不合格者\n列入略過清單與原因;
+  :為尚無帳號者建立學生帳號，\n並建立或重新啟用修課資格;
+case (撤銷修課)
+  if (學生有有效修課資格？) then (否)
+    :回覆找不到可撤銷的\n修課資格;
+    stop
+  endif
+  :標記撤銷並保留紀錄，\n清除該學生在 LINE 的\n此課程範圍;
+endswitch
+:學生僅能存取「有效修課且已發布」的課程;
+|教師或管理員|
+:查看更新後的課程與修課名單;
+stop
+
+@enduml

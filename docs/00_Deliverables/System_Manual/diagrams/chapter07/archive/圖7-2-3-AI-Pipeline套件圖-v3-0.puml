@@ -1,0 +1,67 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     FR-08, FR-09, FR-10, NFR-04, NFR-05, NFR-06
+' source:       STT_Whisper/src/（模組與 import 關係）, STT_Whisper/requirements.txt（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 STT_Whisper/src 模組 import 關係與 requirements.txt 重繪責任分群與第三方套件
+' ============================================
+!include ../_style.puml
+
+title AI-Pipeline套件圖
+
+package "STT_Whisper/src" as Src {
+  package "CLI 入口" as Cli {
+    rectangle "main.py（單支影片）\nbatch_main.py（多影片批次）" as CliFiles
+  }
+  package "執行協調" as Orch {
+    rectangle "job_manager.py／batch_manager.py\nresume_checkpoint.py／run_summary.py" as OrchFiles
+  }
+  package "媒體與語音辨識" as Media {
+    rectangle "scan_videos.py／extract_audio.py\ntranscribe.py／normalize_transcript.py\nstt_accuracy.py" as MediaFiles
+  }
+  package "切段與向量化" as Embed {
+    rectangle "chunking.py／chunk_strategy.py\nhierarchy_chunking.py（選用 Parent）\nembedding.py／embedding_contract.py\nvideo_multimodal_pipeline.py（視覺片段）" as EmbedFiles
+  }
+  package "輸出與發布" as Publish {
+    rectangle "export_outputs.py\nmongodb_uploader.py\nparent_mongodb_uploader.py" as PublishFiles
+  }
+  package "共用設定" as Shared {
+    rectangle "config.py／utils.py" as SharedFiles
+  }
+}
+
+package "第三方函式庫（pip）" as Libs {
+  package "語音與媒體" as MediaLib <<library>> {
+    rectangle "faster-whisper >=1.1.0\nimageio-ffmpeg >=0.5.1\nyt-dlp >=2026.3.17\nrapidfuzz >=3.13.0" as MediaVer
+  }
+  package "向量化" as AiLib <<library>> {
+    rectangle "google-genai >=1.0.0" as AiVer
+  }
+  package "資料庫" as DbLib <<library>> {
+    rectangle "pymongo >=4.11.0" as DbVer
+  }
+}
+
+Cli ..> Orch : 建立或續跑 run
+Orch ..> Cli : batch_manager 以子程序\n逐支執行 main.py
+Cli ..> Media : 抽音訊、STT、正規化
+Cli ..> Embed : 切段、embedding
+Cli ..> Publish : 匯出、寫入 MongoDB
+Publish ..> Embed : 驗證 embedding 契約
+Media ..> Shared
+Embed ..> Shared
+Publish ..> Shared
+Media ..> MediaLib
+Embed ..> AiLib
+Publish ..> DbLib
+
+note bottom of Cli
+  main.py 另以 HTTP 呼叫後端 internal
+  processing webhook（start／complete／fail）。
+end note
+
+@enduml

@@ -1,0 +1,92 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-12, FR-13, FR-14, FR-15, FR-16, FR-19, NFR-05, NFR-11
+' source:       backend/src/models/{question,faq,usageLog,conversation,message}.model.js
+' verified:     2026-09-24（靜態比對 schema；未連 Atlas）
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 自 v3-0 總圖拆出問答、快取、對話與使用紀錄集合
+' ============================================
+!include ../_style.puml
+
+title 問答、對話與使用紀錄集合關聯圖
+top to bottom direction
+
+entity "users（見圖8-1-2）" as users #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "courses（見圖8-1-2）" as courses #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "video_segments_text（見圖8-1-3）" as leaf #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+
+entity "conversations" as conv {
+  _id : ObjectId <<PK>>
+  --
+  userId : ObjectId <<ref, IDX>>
+  courseId : ObjectId <<ref, IDX>>
+  title : String
+}
+
+entity "messages" as msg {
+  _id : ObjectId <<PK>>
+  --
+  conversationId : ObjectId <<ref, IDX>>
+  role : String
+  status : String <<IDX>>
+  replyToMessageId : ObjectId <<ref, IDX>>
+  sources[] : 片段快照
+}
+
+entity "questions" as q {
+  _id : ObjectId <<PK>>
+  --
+  userId : ObjectId <<ref, IDX>>
+  courseId : ObjectId <<ref, IDX>>
+  status／source : String <<IDX>>
+  matches[] : 片段快照
+  sourceUsageLogId : ObjectId <<UK, partial>>
+  question＋answer <<TEXT>>
+}
+
+entity "usage_logs" as logs {
+  _id : ObjectId <<PK>>
+  --
+  userId : ObjectId <<ref, IDX>>
+  courseId : ObjectId <<ref, IDX>>
+  event : String
+  timestamp : Date <<IDX>>
+}
+
+entity "faqs" as faqs {
+  _id : ObjectId <<PK>>
+  --
+  courseId : ObjectId <<ref, IDX>>
+  (courseId, normalizedQuestion) <<UK>>
+  matches[] : 片段快照
+  hitCount : Number
+}
+
+users ||--o{ conv : userId
+courses ||--o{ conv : courseId
+conv ||--o{ msg : conversationId
+msg |o--o{ msg : replyToMessageId
+users ||--o{ q : userId
+courses ||--o{ q : courseId
+logs |o--o| q : sourceUsageLogId
+users ||--o{ logs : userId
+courses |o--o{ logs : courseId（登入事件為 null）
+courses ||--o{ faqs : courseId
+leaf ..> q : matches[] 快照
+leaf ..> msg : sources[] 快照
+leaf ..> faqs : matches[] 快照
+
+note as N1
+  非 UML 圖。TEXT＝全文索引；partial＝僅索引型別為 ObjectId 的值。
+  虛線：回答當下複製的片段快照，片段其後被刪除或重建不影響既有紀錄。
+end note
+@enduml

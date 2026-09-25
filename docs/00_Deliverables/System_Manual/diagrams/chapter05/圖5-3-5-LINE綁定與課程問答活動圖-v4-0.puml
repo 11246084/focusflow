@@ -1,0 +1,87 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-05, FR-07, FR-14, FR-15, FR-17
+' source:       chapters/05_需求模型.md 表5-3-5；backend/src/services/line.service.js（handleBind、handleSwitchCourse、handleSelectCourse、handleQuestion）、middleware/lineSignature.middleware.js、services/askLimits.service.js
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：原 v3-0 高寬比約 3.1，改為綁定與選課（左欄）、課程問答（右欄）兩欄；依 handleSwitchCourse／handleSelectCourse 修正為清單只篩有效修課與已發布（最多 4 門），點選課程後才檢查是否有影片；拒絕分支加註 E1～E9
+'
+' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續。
+' 產生方式：plantuml 產出 <本檔名>.png 與 <本檔名>_001.png，
+'           再以 node compose-columns.js 並排為一張圖（見 docs/reports/ch05-change-note.md）。
+' ============================================
+!include ../_style.puml
+
+|學生|
+start
+:於網頁取得一次性綁定碼\n（10 分鐘內有效）;
+:加入官方帳號並傳送綁定訊息;
+|FocusFlow|
+if (LINE 訊息簽章有效？) then (否)
+  :E1 拒絕請求，不處理訊息;
+  stop
+endif
+if (綁定碼存在且未過期？) then (否)
+  :E2 回覆綁定碼無效，請重新取得;
+  stop
+endif
+:連結 LINE 帳號並作廢綁定碼\n（原綁定其他帳號者改綁至此帳號）;
+|學生|
+:傳送「切換課程」;
+|FocusFlow|
+:列出有效修課且已發布的課程\n（最多 4 門）;
+if (有可選課程？) then (否)
+  :E3 回覆目前沒有可切換的課程;
+  stop
+endif
+|學生|
+:點選課程;
+|FocusFlow|
+if (仍為有效修課且已發布？) then (否)
+  :E4 回覆沒有此課程的存取權限;
+  stop
+endif
+if (該課程已有影片？) then (否)
+  :E5 回覆目前沒有影片，\n暫時無法提問;
+  stop
+endif
+:設定為目前提問課程;
+|學生|
+(A)
+detach
+
+@enduml
+
+@startuml
+!include ../_style.puml
+
+|學生|
+(A)
+:於 LINE 輸入問題;
+|FocusFlow|
+if (已完成選課且不在選課途中？) then (否)
+  :E6 提示先輸入「切換課程」\n或完成課程選擇;
+  stop
+endif
+if (目前課程仍為有效修課\n且已發布？) then (否)
+  :E7 清除課程範圍與對話脈絡，\n提示確認修課資格;
+  stop
+endif
+if (未超過字數與每日提問上限？) then (否)
+  :E8 回覆上限提示;
+  stop
+endif
+:沿用網頁問答的檢索與回答規則，\n並帶入近期對話脈絡;
+if (取得可用的回答？) then (否)
+  :E9 回覆資料不足或暫時無法回答;
+  stop
+endif
+:回覆答案與影片時間點;
+|學生|
+:於 LINE 查看回答，\n必要時回網站播放影片;
+stop
+
+@enduml

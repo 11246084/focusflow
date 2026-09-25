@@ -1,0 +1,96 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-01, FR-02, FR-03, FR-05, FR-06, FR-07, FR-17, FR-19, NFR-01, NFR-02, NFR-03
+' source:       backend/src/models/{user,avatar,lineBindToken,course,enrollment,feedback,feedbackAttachment}.model.js
+' verified:     2026-09-24（靜態比對 schema；未連 Atlas）
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 自 v3-0 總圖拆出帳號、課程、修課與問題回報集合
+' ============================================
+!include ../_style.puml
+
+title 帳號、課程與問題回報集合關聯圖
+top to bottom direction
+
+entity "users" as users {
+  _id : ObjectId <<PK>>
+  --
+  email : String <<UK>>
+  role : String
+  lineUserId : String <<UK, sparse>>
+  activeCourseId : ObjectId <<ref>>
+  avatar : {mimeType, updatedAt}
+}
+
+entity "avatars" as avatars {
+  _id : ObjectId <<PK>>
+  --
+  userId : ObjectId <<UK, ref>>
+  data : Buffer
+}
+
+entity "line_bind_tokens" as tokens {
+  _id : ObjectId <<PK>>
+  --
+  token : String <<UK>>
+  userId : ObjectId <<ref>>
+  expiresAt : Date <<TTL>>
+}
+
+entity "courses" as courses {
+  _id : ObjectId <<PK>>
+  --
+  teacherId : ObjectId <<ref, IDX>>
+  videoIds[] : ObjectId <<ref>>
+  status : String
+}
+
+entity "enrollments" as enrollments {
+  _id : ObjectId <<PK>>
+  --
+  studentId : ObjectId <<ref>>
+  courseId : ObjectId <<ref>>
+  (studentId, courseId) <<UK>>
+  status : String
+  assignedBy／revokedBy : ObjectId <<ref>>
+  watchedVideoIds[] : ObjectId
+}
+
+entity "feedbacks" as feedbacks {
+  _id : ObjectId <<PK>>
+  --
+  userId : ObjectId <<ref, IDX>>
+  status : String
+  attachments[].attachmentId : ObjectId <<ref>>
+}
+
+entity "feedbackattachments" as fatt {
+  _id : ObjectId <<PK>>
+  --
+  feedbackId : ObjectId <<ref, IDX>>
+  data : Buffer
+}
+
+entity "videos（見圖8-1-3）" as videos #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+
+users ||--o| avatars : userId
+users ||--o{ tokens : userId
+users ||--o{ courses : teacherId
+users ||--o{ enrollments : studentId
+courses ||--o{ enrollments : courseId
+courses |o--o{ users : activeCourseId
+users ||--o{ feedbacks : userId
+feedbacks ||--o{ fatt : feedbackId\n（反向 attachments[] 最多 3 筆）
+videos }o--o{ courses : videoIds[]
+videos }o--o{ enrollments : watchedVideoIds[]\n（未宣告 ref）
+
+note as N1
+  非 UML 圖。PK＝主鍵；UK＝唯一索引；IDX＝一般索引；
+  TTL＝到期自動刪除；ref＝應用層參照（非外鍵）。
+  灰底集合的完整欄位見他圖。
+end note
+@enduml

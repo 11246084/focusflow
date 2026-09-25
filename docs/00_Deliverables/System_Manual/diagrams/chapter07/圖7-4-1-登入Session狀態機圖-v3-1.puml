@@ -1,0 +1,44 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-01, FR-02, FR-04, NFR-07
+' source:       frontend/focus-flow/src/authSession.js, App.jsx, AdminApp.jsx（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 AUTH_SESSION_STATUS、restoreAuthSession、requireAdminSession 與兩個入口的處理分支重繪；v3-1 改為直式版面
+' ============================================
+!include ../_style.puml
+
+title 登入Session狀態機圖
+hide empty description
+
+state "initializing\n（驗證中）" as initializing
+state "anonymous\n（未登入）" as anonymous
+state "authenticated\n（已驗證）" as authenticated
+state "invalid\n（憑證失效）" as invalid
+state "unavailable\n（暫時無法驗證）" as unavailable
+state "forbidden\n（管理員入口拒絕）" as forbidden
+
+[*] -down-> initializing : 載入頁面 [有 token]\n/ GET /auth/me
+[*] -down-> anonymous : 載入頁面\n[無 token]
+initializing -down-> unavailable : 網路錯誤、5xx\n或回應不完整\n/ 保留 token
+initializing -down-> invalid : 401 或 403\n/ 清除 token\n與使用者
+initializing -down-> forbidden : 200 [管理員入口\n且 role ≠ admin]\n/ 保留 token、顯示錯誤
+initializing -down-> authenticated : 200 [回應含 user.role]\n/ 快取使用者資料
+unavailable -up-> initializing : 按下重試\n/ GET /auth/me
+invalid -up-> anonymous : 導向登入頁
+anonymous -down-> authenticated : 登入成功\n/ 儲存 JWT 與使用者
+forbidden -down-> authenticated : 以管理員帳號\n登入成功
+authenticated -up-> anonymous : 登出\n/ 清除 token 與使用者
+unavailable -[hidden]right-> invalid
+invalid -[hidden]down-> forbidden
+
+note bottom of forbidden
+  對應設計類別：AuthSession。
+  只有 401／403 會清除憑證；
+  forbidden 保留一般入口仍有效的登入資訊。
+end note
+
+@enduml

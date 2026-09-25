@@ -1,0 +1,52 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-07, UC-08, FR-20, FR-22, NFR-04, NFR-05
+' source:       backend/src/services/shortAssetPublish.service.js（createAssetFromScript、uploadShortAssetToYouTube、publishApprovedShortAsset、markShortAssetPublished、privatizeRejectedShortAsset）, backend/src/services/shortAsset.service.js（reviewShortAsset、recordShortAssetRegeneration、archiveForCourseDeletion、rollbackCourseDeletionArchive、updateShortAsset）, backend/src/constants/enums.js（SHORT_ASSET_STATUSES、SHORT_ASSET_REVIEW_STATUSES）（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 依 status 與 reviewStatus 的實際寫入點重繪；ready 列舉值目前無寫入路徑，標為保留
+' ============================================
+!include ../_style.puml
+
+title 短影音成品狀態機圖
+hide empty description
+
+state "draft（未公開）" as draft {
+  state "pending\n（待審核）" as pending
+  state "approved\n（審核通過）" as approved
+  state "rejected\n（審核退回）" as rejected
+
+  [*] --> pending : 教師上傳成品\n[腳本已有版本、\n已確認 AI 揭露與同意]\n/ generationVersion = 1、\n排程上傳 YouTube（unlisted）
+  pending --> approved : 審核通過\n[審核版本 = 目前版本\n且尚未審核]
+  pending --> rejected : 審核退回 [至少一項理由]\n/ 腳本退回修改、\nYouTube 轉 private
+  rejected --> pending : 重新上傳成品\n/ generationVersion + 1、\n清除審核結果
+  approved --> pending : 重新上傳成品\n/ generationVersion + 1、\n清除審核結果
+}
+state "published\n（已上架，reviewStatus = approved）" as published
+state "archived\n（已封存）" as archived
+state "ready\n（列舉保留值）" as ready
+
+[*] --> draft
+approved --> published : 上架\n[YouTube 已上傳且已確認揭露]\n/ 設定 publishedAt、腳本標為 approved
+published --> archived : 課程刪除\n/ 記錄 statusBeforeArchive
+draft --> archived : 課程刪除\n/ 記錄 statusBeforeArchive
+published -[hidden]right-> ready
+
+note right of ready
+  ready 定義於 SHORT_ASSET_STATUSES，
+  目前沒有任何 route 或排程寫入此值
+  （僅未被呼叫的通用 updateShortAsset 可接受）。
+end note
+
+note bottom of archived
+  對應設計類別：ShortAsset（status × reviewStatus）。
+  課程刪除失敗時，本輪封存的成品以 best-effort 還原為封存前狀態。
+  同一版本只能審核一次：重審回 409 SHORT_ASSET_REVIEW_CONFLICT，
+  版本已變更回 409 SHORT_ASSET_REVIEW_STALE；
+  未通過當代審核即上架回 409 SHORT_ASSET_NOT_APPROVED。
+end note
+
+@enduml

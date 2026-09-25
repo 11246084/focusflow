@@ -1,0 +1,103 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-08, FR-21, FR-22
+' source:       chapters/05_需求模型.md 表5-3-8；backend/src/services/shortScriptTopic.service.js、shortScript.service.js、shortScriptGeneration.service.js、shortAsset.service.js、youtubeUpload.service.js
+' verified:     2026-09-25
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 第二輪：加註例外編號 E1～E9 並補上無候選主題、引用檢查、上傳前置條件、上傳失敗與退回原因分支；為控制高寬比改為腳本產生（左欄）與成品審核（右欄）兩欄
+'
+' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續。
+' 產生方式：plantuml 產出 <本檔名>.png 與 <本檔名>_001.png，
+'           再以 node compose-columns.js 並排為一張圖（見 docs/reports/ch05-change-note.md）。
+' ============================================
+!include ../_style.puml
+
+|教師|
+start
+:開啟短影音腳本功能;
+|FocusFlow|
+if (功能已啟用？) then (否)
+  :E1 不提供此功能;
+  stop
+endif
+:依課程提問彙整候選主題;
+if (有通過篩選的候選主題？) then (否)
+  :E2 回覆沒有可用的候選主題;
+  stop
+endif
+|教師|
+:選擇主題;
+|FocusFlow|
+:凍結主題相關的課程片段作為證據;
+if (證據足以生成？) then (否)
+  :E3 拒絕生成並保留原因;
+  stop
+endif
+:生成只引用凍結證據的腳本版本;
+if (引用與格式檢查通過？) then (否)
+  :E4 在重試上限內重新生成，\n仍失敗則回覆錯誤;
+  stop
+endif
+|教師|
+if (核准腳本？) then (是)
+else (否)
+  :填寫修改回饋或選擇放棄主題;
+  |FocusFlow|
+  if (腳本狀態允許且已填寫\n必要的修改回饋？) then (否)
+    :E5 拒絕操作;
+    stop
+  endif
+  :保存修改回饋（可再生成新版本），\n或標記放棄主題;
+  stop
+endif
+|教師|
+(A)
+detach
+
+@enduml
+
+@startuml
+!include ../_style.puml
+
+|教師|
+(A)
+:於系統外製作完成影片;
+:上傳成品並確認 AI 揭露與同意;
+|FocusFlow|
+if (已確認揭露與同意，\n且成品檔與 YouTube 設定可用？) then (否)
+  :E6 拒絕上傳並提示原因;
+  stop
+endif
+:以不公開方式上傳 YouTube 供預覽;
+if (上傳成功？) then (否)
+  :E7 標記上傳失敗；可能已傳送\n影片資料時不自動重試;
+  stop
+endif
+|教師或管理員|
+:審核成品;
+|FocusFlow|
+if (成品版本未變更且尚未審核？) then (否)
+  :E8 拒絕審核，請重新載入;
+  stop
+endif
+if (審核結果？) then (退回)
+  if (已填寫退回原因？) then (否)
+    :E9 拒絕審核，要求填寫原因;
+    stop
+  endif
+  :記錄退回原因並通知腳本負責人，\n將 YouTube 影片轉為私人;
+  stop
+endif
+:記錄核准;
+:YouTube 預覽上傳完成後\n標記為已發布並進入學生短影音牆;
+stop
+
+note right
+  成品由教師於系統外製作後上傳；
+  系統不提供自動剪輯、渲染或字幕合成。
+end note
+
+@enduml

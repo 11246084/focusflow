@@ -119,3 +119,61 @@ java -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 \
 | Claude Code（Anthropic Claude） | 閱讀規範 `.doc`（經 word-extractor 解出文字）、初評最終版 PDF 第 1～8 章、114414 組手冊第 9 章（p.58～62）與 115414 組 PDF；逐檔核對 `backend/src`、`frontend/focus-flow/src`、`STT_Whisper/src`、`database/tools` 與測試檔；改寫 `chapters/09_程式.md`；撰寫圖9-1-1 v3-0 PlantUML 並渲染、檢視 PNG；執行三個服務的測試；撰寫本說明 |
 
 參考手冊只參考章節結構、深度與呈現方式（編號／檔名／功能清單、套件版本表、「部分程式碼」框格式），沒有複製其內容。AI 產出的內容仍需組員逐段確認，尤其是第 7 節所列項目；若要列入手冊第 14 章 AI 使用表，序號與頁碼由團隊排版後填寫。
+
+---
+
+## 9. 第二輪修訂（2026-09-25）
+
+依據：`origin/doc/reference-gap` 的 `docs/reports/reference-gap-ch05-09.md`（第 7 節不符項、第 9 節補強清單），只處理與第 9 章有關的項目；對照來源為 `origin/doc/ch05`（`164af11`）、`origin/doc/ch06`（`9c2675f`）、`origin/doc/ch07`（`9d5746d`）、`origin/doc/ch08`（`ab6c4a3`）與 `dev` 程式碼。只改 `chapters/09_程式.md` 與本說明，沒有改其他章、共用檔、圖或程式碼。
+
+### 9.1 改了什麼與原因
+
+| 報告項目 | 位置 | 修改 | 依據 |
+| --- | --- | --- | --- |
+| C2 | B-RT-14、B-CT-10、B-SV-28、表9-1-24（輸入、輸出、責任三列） | 「全站公告」改為「系統公告」，並寫明只發給所有啟用中的學生，教師與管理員不會收到 | `notification.service.js` 的 `broadcastSystemNotification()` 以 `role: student`、`isActive: true` 查詢收件人；doc/ch05 FR-18 也寫「對所有啟用中的學生發送系統公告」 |
+| C4 | 9-2-4 問題回報段落；B-RT-15、B-CT-15、B-SV-18、B-MD-20、B-MD-21、B-MW-07、F-CP-10 的使用個案欄 | 段落改寫為對應 FR-23，送出回報屬 UC-06、管理員處理屬 UC-09，資料存於第 8 章 DB-20 `feedbacks`、DB-21 `feedbackattachments`；原「—（見 9-2-4）」改為 UC-06、UC-09（附件上傳 middleware 與前端回報視窗只屬 UC-06） | doc/ch05 表5-1-1 FR-23（UC-06、UC-09）；doc/ch08 DB-20、DB-21；另確認 `feedback.service.js` 不發通知、不自動分派 |
+| C6 | 9-1-1 使用個案說明段 | 「表5-1-1」改為「表5-2-2 使用個案清單」 | doc/ch05 表5-2-2 為使用個案清單，表5-1-1 為功能性需求表 |
+| C7 | 同上 | 九個使用個案名稱改為與 doc/ch05 表5-2-2 完全相同：UC-02 教師管理課程與修課名單、UC-03 教師加入影片並追蹤處理、UC-04 學生在網頁觀看與提問、UC-05 學生綁定 LINE 並提問、UC-06 使用者維護個人資料與通知、UC-07 學生查看短影音、UC-08 教師產生腳本並提交短影音成品、UC-09 管理員維運系統（UC-01 註冊與登入原本即一致） | doc/ch05 表5-2-2 |
+| 第 18 項 | 表9-1-13「相關圖」欄 | 唯一的「—」（表9-1-14 認證與角色授權 middleware）改為「圖6-1-9（步驟 3～4）、圖7-2-2」；現在 14 列都有圖號 | doc/ch06 圖6-1-9 的判讀寫明步驟 3～4 為 JWT 驗證與管理員角色檢查；doc/ch07 圖7-2-2 為後端套件圖（含 middleware 分群） |
+
+另確認 doc/ch06 的圖6-1-1～圖6-1-9、圖6-2-1～圖6-2-4，以及 doc/ch07 的圖7-2-1～圖7-2-5、圖7-3-1 編號與名稱沒有變動，第 9 章既有引用不需調整。
+
+修改後重新檢查：章節內所有檔名與路徑都存在於 repo；表號仍為表9-1-1～表9-1-33、表9-2-1～表9-2-7 連續；沒有以表號開頭而會被 `build_manual.py` 誤判為表題的正文段落。
+
+### 9.2 第 9 章引用的第 7 章圖號（C3 對照用，未修改）
+
+依指示保留所有引用，沒有刪除或改號。下表是第 9 章目前引用的第 7 章圖號，以及每張圖在第 9 章中指的物件，供與第 7 章補回的圖對照：
+
+| 圖號 | 第 9 章所指的物件 | 程式依據 | 第 9 章引用位置 | doc/ch07 現況 |
+| --- | --- | --- | --- | --- |
+| 圖7-2-1～圖7-2-5 | 前端、後端、AI Pipeline、資料儲存、LINE 與 QA 五張套件圖（依賴方向） | — | 章首第 2 段 | 存在 |
+| 圖7-2-2 | 後端套件圖（middleware 分群） | `backend/src/middleware/` | 表9-1-13（表9-1-14 列） | 存在 |
+| 圖7-4-1～圖7-4-9 | 狀態機圖整組（範圍引用） | — | 章首第 2 段 | 圖7-4-1～7-4-5 存在；7-4-6～7-4-9 在 archive |
+| 圖7-4-1 | 前端登入 Session（`AuthSession`：anonymous／authenticated／invalid／unavailable／forbidden） | `frontend/focus-flow/src/authSession.js` | 表9-1-13、表9-1-16 | 存在 |
+| 圖7-4-2 | 影片批次 `VideoBatch`（processing／completed／partial／failed） | `videoBatch.service.js` 的 `deriveBatchStatus()` | 表9-1-13、表9-1-18 | 存在 |
+| 圖7-4-3 | 單支影片 `Video.processing`（queued／processing／completed／failed） | `videoProcessing.service.js` | 表9-1-13、表9-1-19 | 存在 |
+| 圖7-4-4 | 一次提問 `Question`（answered／no_match／failed） | `qa.service.js`、`answerGeneration.service.js` | 表9-1-13、表9-1-22 | 存在 |
+| 圖7-4-5 | LINE 對話範圍（`User.lineConversationState`、`activeCourseId`） | `line.service.js` | 表9-1-13、表9-1-23 | 存在 |
+| 圖7-4-6 | 修課 `Enrollment`（active ↔ revoked，重新指派沿用同一筆） | `enrollment.service.js` | 表9-1-13、表9-1-17 | **archive，待第 7 章補回** |
+| 圖7-4-7 | 短影音腳本 `ShortScript`（evidence_ready／generated／changes_requested／approved／dismissed） | `shortScript.service.js` 的 `ALLOWED_TRANSITIONS` | 表9-1-13、表9-1-26 | **archive，待第 7 章補回** |
+| 圖7-4-8 | 短影音成品 `ShortAsset`（`status` 與 `reviewStatus`） | `shortAsset.service.js`、`constants/enums.js` | 表9-1-13（表9-1-25 列） | **archive，待第 7 章補回** |
+| 圖7-4-9 | YouTube 上傳 `Video.youtubeUpload`（uploading／uploaded／failed） | `youtubeUpload.service.js` | 只在章首範圍「圖7-4-1～圖7-4-9」中 | **archive，待第 7 章補回** |
+
+若第 7 章補回時圖號或物件與上表不同（例如 7-4-6 不是 Enrollment），第 9 章的表9-1-13、表9-1-17、表9-1-25、表9-1-26 與章首範圍需跟著調整。
+
+### 9.3 未完成項目及原因
+
+| 項目 | 原因 |
+| --- | --- |
+| C3（圖7-4-6～7-4-9 在 doc/ch07 被移入 archive） | 依指示不修；由第 7 章的另一個 session 依相同圖號補回。對照清單見 9.2 |
+| 第 17 項（9-2-1 請求防護層級圖）、8.5 的可選調整（圖9-1-1 移到 9-1-1 第一段之後） | 優先度低的可選項，依指示不做 |
+| 第 14 項（表7-2-1 與表9-2-4～9-2-7 版本去重） | 建議的做法是刪減第 7 章的版本表、第 9 章保留，屬第 7 章的修改；第 9 章不需改 |
+| C1、C5、C8 及其他第 5～8 章項目 | 不屬於第 9 章 |
+
+### 9.4 待人工確認事項
+
+1. 第 7 章補回圖7-4-6～7-4-9 後，確認圖號與物件是否與 9.2 表一致。
+2. C2 採用 doc/ch05 FR-18 的用詞「系統公告」；若團隊最後決定改用其他稱呼，第 9 章的 B-RT-14、B-CT-10、B-SV-28 與表9-1-24 需同步。
+3. 問題回報的使用個案欄依 FR-23 標為 UC-06、UC-09；前提是 doc/ch05、doc/ch08 的 FR-23、DB-20、DB-21 會與本分支一起合併。若合併順序不同，9-2-4 會暫時引用尚不存在的需求或集合編號。
+4. 表9-1-14 的相關圖指向 doc/ch06 圖6-1-9 的「步驟 3～4」，若第 6 章之後重新編步驟，需要同步。
+5. 第一輪第 7 節的第 2 項（問題回報的使用個案歸屬）已由本輪依 FR-23 處理；其餘待確認項目不變。

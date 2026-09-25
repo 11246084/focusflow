@@ -198,7 +198,7 @@
   - `src/scripts/syncQuestionsToAtlas.js` 可單獨同步 questions 到 Atlas（含 course 補齊與 local user → Atlas user 對應），但目前未掛 npm script
   - `npm run db:ensure-questions` 可建立 `questions` collection 並同步 schema indexes
   - `npm run db:backfill-questions` 預設 dry-run；需要寫入時使用 `npm run db:backfill-questions -- --write`，從 legacy ASK usage logs 補回缺失 questions
-- OpenAPI 現況：`backend/docs/openapi.yaml` 已掛在 `/docs`，涵蓋 auth（含忘記密碼、改密碼）、notifications、avatar、courses／enrollments、videos／video-batches、conversations、qa、stats、admin（含 system-status）、line、shorts 審核與 youtube shorts；尚未涵蓋 `short-scripts`、`short-assets`、`feedback`、`admin/feedback` 與 internal processing webhook
+- OpenAPI 現況（2026-09-25）：`backend/docs/openapi.yaml` 已掛在 `/docs`，涵蓋 `/api/v1/*` 與 `/health` 的全部 81 條 route 扣除刻意排除的 4 條（internal processing webhook ×3、`GET /api/v1/line/webhook`），共 77 個 operation，含 feedback、admin/feedback、short-scripts、short-assets。`tests/docs.routes.test.js` 從 Express runtime router 盤點並比對 missing／stale／method／path 參數／重複註冊；`npm run docs:lint`（Redocly 2.54.2，`backend/redocly.yaml`）目前 0 error／0 warning，唯一例外是 `/health` 無 4xx（見 `backend/.redocly.lint-ignore.yaml`）。Schema 與實作的一致性沒有自動化 response 契約測試
 - FAQ 快取／常見問題資料庫（2026-07-13；2026-08-30 scope revalidation）：`faqs` collection + `faqCache.service.js`，兩層快取接在 `qa.service.askQuestion`（API 與 LINE 共用）。第一層為正規化文字完全相同，第二層用 query embedding 做 cosine 相似度。任一層命中後都會逐筆重新驗證 `faq.matches` 的 `videoId + segmentId` 與目前 allowlist；只要一筆引用失效，整筆 FAQ 視為 miss 並繼續正式 retrieval，不保留部分引用。命中仍照常寫 `usage_logs` 與 `questions`。影片刪除、重新處理完成、課程刪除會自動清該課程快取。新端點：`GET /api/v1/courses/:courseId/faqs`、`DELETE /api/v1/courses/:courseId/faqs`。設定：`FAQ_CACHE_ENABLED` / `FAQ_CACHE_SIMILARITY_THRESHOLD` / `FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
 
 ## 2026-05-05 程式碼對照補充

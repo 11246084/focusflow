@@ -30,7 +30,9 @@
   - ✅ 新增／調整測試，無 `.env` 環境下 backend 全量 899/899 passed
 - **仍待處理（以下取自稽核報告，尚未逐項複核，動工前需先對照程式碼確認）**：
   - **Need Confirmation**：`.github/workflows/deploy.yml` 部署前加入 `npm test`（push `main` 目前直接部署、無測試關卡；需先確認 self-hosted runner 的 Node 與相依套件狀態）
-  - **Pending**：`openapi.yaml` 缺 short-scripts、short-assets、feedback、admin/feedback、internal processing webhook、`GET /line/webhook` 等約 17 個端點（稽核只比對路徑與方法，未比對 schema）
+  - **Done（2026-09-25）**：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation；internal processing webhook ×3 與 `GET /line/webhook` 列為 `UNDOCUMENTED_BY_DESIGN`。新增 `docs.routes.test.js` route coverage 測試與 `npm run docs:lint`（Redocly）
+  - **Pending**：既有 64 個 operation 的 request／response schema 尚未逐一對實作複核（本輪只修了 Redocly 抓到的 drift 與順手發現的 admin users）；`admin/videos`、`admin/events`、`admin/stats` 等 `data` 仍未定型
+  - **Need Confirmation**：`shortScript.service` 寫入版本時帶的 `evidenceRefreshed`、`generationAttempts` 不在 `versionSchema`，會被 Mongoose strict 模式丟掉，教師看不到「這一版用的是新證據」；要補進 schema 還是移除程式中的欄位，需先決定
   - **Pending**：`.claude/rules/api-design.md` 錯誤碼表缺約 16 個實際使用的錯誤碼，`YOUTUBE_UPLOAD_FAILED` 狀態碼在程式與表格不一致
   - **Pending**：`admin.service.js` 測試覆蓋偏低（稽核估約 26%；變更角色、停用帳號缺測試）
   - **Pending**：`youtube.service.js` 疑似未被任何檔案引用（已抽查確認無 `require`），確認後可移除

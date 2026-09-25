@@ -60,7 +60,7 @@ routes -> controllers -> services -> models
 - `youtube` / `shorts`：YouTube URL、auto-upload adapter、修課限定 ShortAsset feed 與 metadata sync
 - `internal-video`：pipeline processing start / complete / fail webhook
 
-主要 API mount 以 [backend/src/routes/index.js](backend/src/routes/index.js) 與各 `*.routes.js` 為準；OpenAPI 是重要規格，但 internal processing 等少數端點仍可能以 route files 較新。
+主要 API mount 以 [backend/src/routes/index.js](backend/src/routes/index.js) 與各 `*.routes.js` 為準。`backend/docs/openapi.yaml` 涵蓋 `/api/v1/*` 與 `/health` 的每一個 route（`tests/docs.routes.test.js` 從 runtime router 比對，不一致即失敗）；internal processing webhook 與 `GET /api/v1/line/webhook` 刻意不收錄。
 
 ### Frontend
 
@@ -147,7 +147,7 @@ AI agent 接手前，至少讀：
 | `backend/docs/current-state.md` | Backend runtime、readiness、測試與已知限制 |
 | `docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
 | `backend/docs/phase2-api-contract.md` | QA / Video / Clip / YouTube 回傳語意 |
-| `backend/docs/openapi.yaml` | 對外 API 規格；缺 short-scripts、short-assets、feedback 與 internal webhook，仍須與 routes 交叉確認 |
+| `backend/docs/openapi.yaml` | 公開 API 規格；route 覆蓋由 `docs.routes.test.js` 強制，結構用 `npm run docs:lint`（Redocly）檢查；request／response schema 仍須與實作交叉確認 |
 | `backend/docs/handoff-stt-pipeline-integration.md` | Backend / STT processing 交接 |
 | `STT_Whisper/README.md` | 單支、batch、resume、hierarchy 與輸出契約 |
 | `database/README.md`、`database/docs/db-handoff-current.txt` | DB 寫入、index、Atlas 邊界 |
@@ -188,7 +188,7 @@ AI agent 接手前，至少讀：
 
 | 修改區域 | 最低要求 |
 |----------|----------|
-| `backend/` | `npm test`；高風險 DB / auth / upload 另補對應隔離 Mongo 或 E2E |
+| `backend/` | `npm test`；改動 `docs/openapi.yaml` 時另跑 `npm run docs:lint`；高風險 DB / auth / upload 另補對應隔離 Mongo 或 E2E |
 | `frontend/focus-flow/` | `npm test`、`npm run lint`、`npm run build` |
 | `STT_Whisper/` | `.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'`；外部模型 smoke 必須另行標示 |
 | `database/` | 先做 read-only contract review；任何實際 DB 寫入需確認 URI、DB、collection、index 與授權 |

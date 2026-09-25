@@ -155,7 +155,7 @@ Backend 在教師上傳影片後會自動呼叫 pipeline，並優先使用 `STT_
 | `GET /docs` | Swagger UI |
 | `GET /docs/openapi.yaml` | Raw OpenAPI spec（repo 檔案：[backend/docs/openapi.yaml](backend/docs/openapi.yaml)） |
 
-REST API 前綴為 `/api/v1`，模組：`auth`、`courses`（含 enrollments、FAQ）、`videos` / `video-batches`、`qa`、`conversations`、`line`、`notifications`、`stats`、`admin`、`youtube`、`shorts`、`short-scripts`、`feedback`、`internal`（pipeline webhook）。完整端點以 [backend/src/routes/](backend/src/routes/) 為準；OpenAPI 尚未涵蓋 short-scripts、short-assets、feedback 與 internal webhook。
+REST API 前綴為 `/api/v1`，模組：`auth`、`courses`（含 enrollments、FAQ）、`videos` / `video-batches`、`qa`、`conversations`、`line`、`notifications`、`stats`、`admin`、`youtube`、`shorts`、`short-scripts`、`feedback`、`internal`（pipeline webhook）。完整端點以 [backend/src/routes/](backend/src/routes/) 為準；[OpenAPI](backend/docs/openapi.yaml) 涵蓋所有公開端點（`backend/tests/docs.routes.test.js` 會比對 routes），只刻意排除 internal pipeline webhook 與 LINE 的 `GET /line/webhook` 驗證探測。
 
 ---
 

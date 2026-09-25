@@ -208,7 +208,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 |------|--------|------|
 | Atlas vector index / future naming | DB / MongoDB 組 | `text_embedding_index` 已 READY（2026-05-23 驗證），atlas mode 可用。`video_segments_video` 的 `video_embedding_index` 已建立且 READY（2026-07-10 驗證）；backend 已用 course-scoped videos 的檔名 / URL 解析 `video_001` 類 pipeline visual ID，並以 `video_id` filter 接入初版 multimodal visual citation retrieval。限制：視覺片段目前無 transcript / caption，因此回覆只給保守答案與可檢視 citation，不編造畫面內容 |
 | init collections 與 Atlas 實況差異 | Database + Backend | 2026-07-24 唯讀實查 Atlas 15 collections、尚無 `notifications`；`init_collections.js` 現列 16 個並已含 `notifications`。不得未核准直接用 shared Atlas 啟服觸發 autoIndex |
-| OpenAPI 維護 | Backend | `backend/docs/openapi.yaml` 已涵蓋主要 auth / courses / videos / QA / LINE / stats / admin 端點與 Phase 2 QA contract；internal processing webhook 等少數內部端點仍以 route files 為準 |
+| OpenAPI 維護 | Backend | 2026-09-25 起 `backend/docs/openapi.yaml` 涵蓋 `/api/v1/*` 與 `/health` 的全部 route（`docs.routes.test.js` 從 runtime router 比對強制），`npm run docs:lint`（Redocly）0 error／0 warning；internal processing webhook 與 `GET /line/webhook` 刻意不收錄。request／response schema 與實作的一致性仍無自動化測試 |
 | Query embedding 與 pipeline contract 對齊 | Backend + AI Pipeline + DB 組 | Backend query contract 已切 stable；既有 Pipeline／Database preview vectors 尚未重建，需以 active metadata、read-only Atlas evidence 與 rollback 條件完成跨組確認 |
 | `videos` physical storage 邊界 | Backend + DB 組 | 後端回應 contract 已用 `ownership` / `isAppOwned` / `metadataOnly` 固定語意；是否拆 collection 或調整 DB 實體模型仍屬跨組資料庫決策 |
 | Live LINE smoke / ops 記錄 | Backend + 外部 | 已有成功提問驗證；仍需保留 callback、channel 與 smoke 紀錄 |
@@ -271,7 +271,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - Query embedding **Backend 已切到 stable Gemini contract，但 Pipeline／Database preview vectors 尚未重建，仍需完成 cross-group compatibility evidence**
 - `video_segments_video` **已接入初版 visual citation retrieval**；目前 Atlas `video_embedding_index` 已 READY，backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID 後用 `video_id` filter 檢索。仍不能誤稱為 caption QA 或正式 clip publishing source，因為視覺片段沒有 transcript / caption
 - Live LINE **已有成功提問驗證，但尚未完成完整運維化紀錄**
-- OpenAPI 已涵蓋 LINE webhook、stats、admin、conversations 等主要端點，但尚未納入 short-scripts、short-assets、feedback 與 internal webhook；OpenAPI 目前不是完整 API 契約
+- OpenAPI 的 route 覆蓋（method + path）已由測試強制完整；但 schema 層面只經 Redocly 結構檢查與人工比對，**沒有**自動化的 response 契約測試，不能說 schema 已被測試保證
 - LIFF **不是目前 repo 已上線流程**；目前實際存在的是 LINE webhook + bind-token/message QR，LIFF endpoints / pages 尚未實作
 - Shorts **已完成修課 feed、ShortAsset 保存/封存、YouTube metadata 可用性同步，以及前端 authenticated feed／播放驗收**；短影片腳本自動選題／生成與教師審核上架已實作但上架未 live 驗證；影片產製（ComfyUI／MiniMax H3）已可在教授主機以地端模型運作但未與系統串接（規劃中），FFmpeg 剪輯與字幕仍未串接
 - Phase 2-2 的 local storage／uploader／Backend adapter／active-data readiness 已具備，但**尚未啟用或取得本輪 live E2E 證據**；2026-08-02 的 `video_segments_parent=0` 只是歷史 snapshot，不可當成本輪現況。`HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false，shared Atlas 資料、index definition 與 Parent → Leaf → Citation 必須重新唯讀驗證

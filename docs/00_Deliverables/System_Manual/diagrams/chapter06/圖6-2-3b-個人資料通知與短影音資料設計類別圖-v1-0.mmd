@@ -1,0 +1,57 @@
+---
+title: 個人資料通知與短影音資料設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-06, UC-07, UC-08
+%% source:       backend/src/services/avatar.service.js、passwordReset.service.js、notification.service.js、shortScript.service.js、shortAssetPublish.service.js、shortAsset.service.js；backend/src/models/avatar.model.js、notification.model.js、shortScript.model.js、shortAsset.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-2-3 v4-0 拆出資料視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（資料類別屬性、參照關聯與多重性；服務見同節 a 圖）
+%% ============================================
+classDiagram
+    direction TB
+
+    class Avatar {
+        -userId : ObjectId
+        -data : Buffer
+        -mimeType : image/jpeg｜image/png｜image/webp
+        -size : Number
+    }
+    class Notification {
+        -recipientId : ObjectId
+        -source : video_completed｜system_maintenance｜short_asset_rejected
+        -title : String
+        -readAt : Date
+        -videoId : ObjectId
+        -scriptId : ObjectId
+        -dedupeKey : String
+    }
+    class ShortScript {
+        -courseId : ObjectId
+        -topicKey : String
+        -evidence : Evidence[]
+        -versions : ScriptVersion[]
+        -status : evidence_ready｜generated｜changes_requested｜approved｜dismissed
+        -createdBy : ObjectId
+    }
+    class ShortAsset {
+        -courseId : ObjectId
+        -sourceScriptId : ObjectId
+        -generationVersion : Number
+        -reviewStatus : pending｜approved｜rejected
+        -status : draft｜ready｜published｜archived
+        -disclosure : Disclosure
+        -youtubeVideoId : String
+        -youtubeAvailability : pending｜playable｜unavailable｜unknown
+        -publishedAt : Date
+    }
+
+    ShortAsset "0..*" --> "0..1" ShortScript : sourceScriptId
+    ShortScript "0..1" <-- "0..*" Notification : scriptId

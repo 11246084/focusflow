@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-09-22
+最後更新：2026-09-25
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,27 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### 稽核高優先修正（2026-09-24 稽核 → 2026-09-25）
+
+- **狀態**：Done（三項高優先）／Pending（其餘缺口）
+- **背景**：2026-09-24 以雲端 session 對專案做缺口稽核，報告在 `Hao-weii/focusflow` 的分支 `audit/2026-09-24-project-gap-audit`（`docs/reports/2026-09-24_project-gap-audit.md`）。我逐項抽查了其中的高優先項目，屬實後於 `fix/2026-09-24-audit-high-priority` 修正並合併進 `dev`。
+- **完成內容**：
+  - ✅ `QA_MATCH_LIMIT` 程式預設值 3 → 15（`env.js`），與 `.env.example`、正式 VM（已實查為 15）一致
+  - ✅ admin 使用者 API 不再回傳 `lineUserId`，改回 `isLineBound`（符合 `security.md`）
+  - ✅ production 對非 `AppError` 的 5xx 未預期錯誤只回通用訊息，原始錯誤仍寫入 server log；`security.md` 已補規則
+  - ✅ 新增／調整測試，無 `.env` 環境下 backend 全量 899/899 passed
+- **仍待處理（以下取自稽核報告，尚未逐項複核，動工前需先對照程式碼確認）**：
+  - **Need Confirmation**：`.github/workflows/deploy.yml` 部署前加入 `npm test`（push `main` 目前直接部署、無測試關卡；需先確認 self-hosted runner 的 Node 與相依套件狀態）
+  - **Done（2026-09-25）**：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation；internal processing webhook ×3 與 `GET /line/webhook` 列為 `UNDOCUMENTED_BY_DESIGN`。新增 `docs.routes.test.js` route coverage 測試與 `npm run docs:lint`（Redocly）
+  - **Pending**：既有 64 個 operation 的 request／response schema 尚未逐一對實作複核（本輪只修了 Redocly 抓到的 drift 與順手發現的 admin users）；`admin/videos`、`admin/events`、`admin/stats` 等 `data` 仍未定型
+  - **Need Confirmation**：`shortScript.service` 寫入版本時帶的 `evidenceRefreshed`、`generationAttempts` 不在 `versionSchema`，會被 Mongoose strict 模式丟掉，教師看不到「這一版用的是新證據」；要補進 schema 還是移除程式中的欄位，需先決定
+  - **Pending**：`.claude/rules/api-design.md` 錯誤碼表缺約 16 個實際使用的錯誤碼，`YOUTUBE_UPLOAD_FAILED` 狀態碼在程式與表格不一致
+  - **Pending**：`admin.service.js` 測試覆蓋偏低（稽核估約 26%；變更角色、停用帳號缺測試）
+  - **Pending**：`youtube.service.js` 疑似未被任何檔案引用（已抽查確認無 `require`），確認後可移除
+  - **Pending**：刪除影片／課程時不清理 `uploads/` 檔案；Pipeline 寫入的 Leaf 片段缺 `courseId`；FAQ 快取不含設定／模型／prompt 版本標記（改設定後仍需手動 `DELETE /courses/:courseId/faqs`）
 
 ---
 

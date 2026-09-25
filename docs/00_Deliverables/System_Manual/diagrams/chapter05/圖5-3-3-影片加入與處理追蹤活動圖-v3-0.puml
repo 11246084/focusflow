@@ -1,0 +1,67 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-03, FR-08, FR-09, FR-10, FR-11
+' source:       chapters/05_需求模型.md 表5-3-3；backend/src/services/video.service.js、videoBatch.service.js、videoProcessing.service.js（查證）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 以分析層用語重繪：移除 Pipeline batch 旗標等部署細節，補上來源分支、批次上限、處理失敗重試與完成通知
+' ============================================
+!include ../_style.puml
+
+title 影片加入與處理追蹤活動圖
+
+|教師或管理員|
+start
+:選擇目標課程;
+|FocusFlow|
+if (可管理該課程？) then (否)
+  :拒絕操作;
+  stop
+endif
+|教師或管理員|
+if (影片來源？) then (本機檔案)
+  :選取一支或多支影片檔\n（每批最多 10 支）;
+  |FocusFlow|
+  if (至少一支檔案且未超過數量上限？) then (否)
+    :拒絕整批請求;
+    stop
+  endif
+  :建立影片批次，逐檔檢查\n格式、大小、完整性與重複;
+  :合格者建立影片紀錄，\n不合格者於單項標示原因;
+else (YouTube 連結)
+  |教師或管理員|
+  :輸入 YouTube 網址;
+  |FocusFlow|
+  if (網址有效且本課程未加入過？) then (否)
+    :拒絕並說明原因;
+    stop
+  endif
+  :建立影片紀錄;
+endif
+|FocusFlow|
+:影片進入待處理;
+:轉錄語音、切分片段並建立檢索資料;
+if (處理成功？) then (否)
+  :標記處理失敗並保留錯誤資訊;
+  |教師或管理員|
+  :查看失敗原因，\n對允許的項目重新排入處理;
+  stop
+endif
+|FocusFlow|
+:標記處理完成，片段可供問答;
+:通知修課學生影片已可觀看;
+|教師或管理員|
+:查看批次與單支影片狀態;
+:必要時掛載至其他課程或解除掛載;
+stop
+
+note right
+  本機影片在啟用 YouTube 自動上傳時，
+  另以不公開（unlisted）上傳供播放；
+  上傳失敗可在安全條件下有限次重試。
+end note
+
+@enduml

@@ -142,32 +142,32 @@ Step 2-0  這張圖是否在系統手冊脈絡中？
 12. `[OOAD:MUST]` 分析／設計兩圖類別集合完全相同且僅差方法列時，必須文字說明原因，否則不通過。
 13. `[OOAD:MUST]` 資料庫綱要不得以類別圖呈現並標示為類別圖。
 14. `[DOC:MUST]` `diagram-design` 只能作為選用的視覺呈現／匯入／匯出層，不得取代 PlantUML／Mermaid 工作母稿、實作證據、追溯鏈或 UML 語意審查；任何合併、折疊、拆圖或省略都必須記入 fidelity ledger。
-14. `[NTUB:MUST]` **章節位置即層級宣告**：放在 5-4 的圖一律套分析層檢查，放在 6-2 的圖一律套設計層檢查。
+15. `[NTUB:MUST]` **章節位置即層級宣告**：放在 5-4 的圖一律套分析層檢查，放在 6-2 的圖一律套設計層檢查。
 
 > 完整判別器（訊號表 A–H）見 `references/analysis-vs-design.md`。
 
 ### 圖種記法
 
-15. `[UML:MUST]` 元件圖必須標示提供／需求介面；畫不出介面即退回改用套件圖。
-16. `[UML:MUST]` 狀態機圖必須針對單一 classifier；每個轉換必須有可辨識的觸發（事件／訊號／時間／completion）。
-17. `[UML:MUST]` 類別圖關聯必須標多重性；設計層另標導航方向。
+16. `[UML:MUST]` 元件圖必須標示提供／需求介面；畫不出介面即退回改用套件圖。
+17. `[UML:MUST]` 狀態機圖必須針對單一 classifier；每個轉換必須有可辨識的觸發（事件／訊號／時間／completion）。
+18. `[UML:MUST]` 類別圖關聯必須標多重性；設計層另標導航方向。
 
 ### 術語
 
-18. `[DOC:MUST]` 「時序圖」一詞**僅指** Timing Diagram。Sequence Diagram 一律稱「循序圖」。
-19. `[NTUB:MUST]` 術語首次出現用 `繁體中文（English Name）`，其後使用 preferred term。preferred：**佈署圖**（alias：部署圖）。
-20. `[NTUB:MUST]` 章節標題沿用官方用字；圖說與內文使用 UML 正式名稱。對照見 `references/terminology.md`。
+19. `[DOC:MUST]` 「時序圖」一詞**僅指** Timing Diagram。Sequence Diagram 一律稱「循序圖」。
+20. `[NTUB:MUST]` 術語首次出現用 `繁體中文（English Name）`，其後使用 preferred term。preferred：**佈署圖**（alias：部署圖）。
+21. `[NTUB:MUST]` 章節標題沿用官方用字；圖說與內文使用 UML 正式名稱。對照見 `references/terminology.md`。
 
 ### NTUB 規範
 
-21. `[NTUB:MUST]` 官方**指定**的圖不得被 heuristic 判定為「不用畫」。heuristic 僅能影響拆圖粒度與合併策略。
-22. `[NTUB:MUST]` 官方以「甚至」標示者為**延伸**（`SHOULD`），不得升為 `MUST`。
-23. `[NTUB:MUST]` 圖說置於圖**下方**、表題置於表**上方**；格式 `圖{章}-{節}-{序} {名稱}`（空格分隔、無冒號）。
-24. `[NTUB:MUST]` AI 參與製圖時必須**可追溯地揭露**，並能彙整至第 14 章 AI 使用表。**紀錄粒度（一圖一筆或按工作範圍合併）由專案決定**，本 skill 不規定。
+22. `[NTUB:MUST]` 官方**指定**的圖不得被 heuristic 判定為「不用畫」。heuristic 僅能影響拆圖粒度與合併策略。
+23. `[NTUB:MUST]` 官方以「甚至」標示者為**延伸**（`SHOULD`），不得升為 `MUST`。
+24. `[NTUB:MUST]` 圖說置於圖**下方**、表題置於表**上方**；格式 `圖{章}-{節}-{序} {名稱}`（空格分隔、無冒號）。
+25. `[NTUB:MUST]` AI 參與製圖時必須**可追溯地揭露**，並能彙整至第 14 章 AI 使用表。**紀錄粒度（一圖一筆或按工作範圍合併）由專案決定**，本 skill 不規定。
 
 ### Artifact chain
 
-25. `[DOC:MUST]` 圖源（`.puml`／`.mmd`）→ 圖檔 → 圖號 → 正文引用 → 圖目錄五個落點必須一致；八項檢查見 `references/artifact-chain.md`。
+26. `[DOC:MUST]` 圖源（`.puml`／`.mmd`）→ 圖檔 → 圖號 → 正文引用 → 圖目錄五個落點必須一致；八項檢查見 `references/artifact-chain.md`。
 
 ---
 

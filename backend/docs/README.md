@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-09-22（新增自建「回報問題」功能，取代原本需要登入 Google 才能上傳檔案的 Google 表單）
+最後更新：2026-09-25（OpenAPI route coverage 測試與 Redocly lint：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation，`npm run docs:lint` 0 error／0 warning；同日稍早為稽核高優先修正）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 
@@ -10,7 +10,7 @@
 - 要交接、找跨組缺口、整理 demo 風險與暫時口徑：看 [handoff-known-issues.md](handoff-known-issues.md)
 - 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](todo.md)
 - 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](implementation-log.archive.md)）
-- 要查 API spec：看 [openapi.yaml](openapi.yaml)（執行時掛在 `/docs`）；已涵蓋 stats/admin/watched、courses/videos PATCH/DELETE、QA `citations` / `answerStatus` 與 student Shorts feed，但 internal processing webhook 等少數內部端點以 route files 為準
+- 要查 API spec：看 [openapi.yaml](openapi.yaml)（執行時掛在 `/docs`）；涵蓋 `/api/v1/*` 與 `/health` 的全部公開 route，由 `tests/docs.routes.test.js` 比對 runtime router 強制；刻意不收錄的端點列在該測試的 `UNDOCUMENTED_BY_DESIGN`。改 spec 後跑 `npm run docs:lint`
 - 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、已實作的 ShortAsset feed/sync 與仍待實作的 Clip/發布產線）
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](handoff-stt-pipeline-integration.md)
 - 要啟用 YouTube 自動上傳與刪除轉 private：設定項與行為邊界見 [current-state.md](current-state.md) 與 `backend/.env.example`；憑證是否有效看 `/health.runtime.youtubeUpload`（schema 在 [openapi.yaml](openapi.yaml) 的 `YouTubeUploadRuntimeSnapshot`）；OAuth 憑證取得的逐步操作紀錄留在個人筆記（`context/`，未進版控）
@@ -31,7 +31,7 @@
 - `todo.md`
   - 下一步規劃與優先順序
 - `openapi.yaml`
-  - REST API 規格來源（Swagger UI 由此生成）；包含 QA `citations` / `answerStatus` 與 student Shorts feed，並保留 internal processing webhook 等少數內部端點以 route files 為準
+  - REST API 規格來源（Swagger UI 由此生成）；公開 route 全覆蓋，internal processing webhook 與 `GET /api/v1/line/webhook` 刻意不收錄
 - `phase2-api-contract.md`
   - Phase 2 API contract 補充文件：QA、video display states、已實作的 ShortAsset feed/sync，以及尚未實作的 Clip/發布 worker
 - `handoff-shorts-frontend-plan.md`

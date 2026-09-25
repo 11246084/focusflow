@@ -24,6 +24,7 @@
     "diagnose:q04:readonly": "node src/scripts/phase3a_q04_diagnostic.js",
     "snapshot:student-pilot": "node src/scripts/printStudentPilotFlagSnapshot.js",
     "report:pilot-usage": "node src/scripts/pilotUsageReport.js",
+    "docs:lint": "redocly lint docs/openapi.yaml",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [
@@ -47,6 +48,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@redocly/cli": "2.54.2",
     "nodemon": "^3.1.0"
   }
 }

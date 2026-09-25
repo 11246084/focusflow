@@ -1,0 +1,8 @@
+# Redocly CLI 設定，供 `npm run docs:lint` 使用（不併入 npm test）。
+# 版本固定在 package.json 的 devDependency，避免 @latest 每次跑出不同結果。
+extends:
+  - recommended
+
+rules:
+  # 專題內部 API 文件，沒有對外授權條款要宣告。
+  info-license: off

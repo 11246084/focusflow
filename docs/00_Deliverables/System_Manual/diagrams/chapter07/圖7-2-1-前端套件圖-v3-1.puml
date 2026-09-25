@@ -1,0 +1,62 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     UC-01, UC-02, UC-03, UC-04, UC-06, UC-07, UC-09, FR-04, NFR-07, NFR-10
+' source:       frontend/focus-flow/src/（目錄與 import 關係）, frontend/focus-flow/package.json（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 src 目錄 import 關係與 package.json 重繪邏輯分層與第三方套件依賴；v3-1 移除版本（版本見第 9 章）
+' ============================================
+!include ../_style.puml
+
+title 前端套件圖
+
+package "frontend/focus-flow/src" as Src {
+  package "入口層" as Entry {
+    rectangle "main.jsx" as MainJsx
+  }
+  package "應用殼層" as Shell {
+    rectangle "App.jsx\nAdminApp.jsx\ncomponents/DashboardApp.jsx" as ShellFiles
+  }
+  package "頁面層（pages）" as Pages {
+    rectangle "Student*.jsx／Teacher*.jsx\nAdmin*.jsx／Profile.jsx" as PageFiles
+  }
+  package "共用元件層（components、hooks）" as Components {
+    rectangle "LoginPage／Topbar／Sidebar\nIssueReportLauncher／Icons\n3D 視覺元件" as CompFiles
+  }
+  package "API 存取層" as ApiLayer {
+    rectangle "api.js／authSession.js\nservices/*.js" as ApiFiles
+  }
+  package "工具與設定（utils、constants）" as Utils {
+    rectangle "pageRouting.js／errorMessages.js\ncomponents/navigationConfig.js" as UtilFiles
+  }
+}
+
+package "第三方函式庫（npm）" as Libs {
+  package "React" as React <<library>> {
+    rectangle "react\nreact-dom" as ReactVer
+  }
+  package "Three.js／GSAP" as ThreeGsap <<library>> {
+    rectangle "three\ngsap" as ThreeVer
+  }
+  package "qrcode.react" as Qr <<library>> {
+    rectangle "qrcode.react" as QrVer
+  }
+}
+
+Entry ..> Shell : 依網址選擇\nApp／AdminApp
+Shell ..> Pages : 依角色組合頁面
+Shell ..> Components : 登入頁、Topbar、Sidebar
+Shell ..> ApiLayer : 還原登入狀態
+Shell ..> Utils : 網址與頁面同步
+Pages ..> Components : 圖示、對話框
+Pages ..> ApiLayer : 呼叫 REST API
+Components ..> ApiLayer : 通知、個人資料、問題回報
+ApiLayer ..> Utils : 錯誤訊息轉譯
+Src ..> React : JSX 元件與 hooks
+Components ..> ThreeGsap : 登入頁視覺效果
+Pages ..> Qr : LINE 綁定 QR Code
+
+@enduml

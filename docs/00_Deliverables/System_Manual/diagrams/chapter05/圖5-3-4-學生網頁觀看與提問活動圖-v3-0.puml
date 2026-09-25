@@ -1,0 +1,58 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-04, FR-07, FR-12, FR-13, FR-14, FR-15, FR-16
+' source:       chapters/05_需求模型.md 表5-3-4；backend/src/services/courseAccess.service.js、conversation.service.js、askLimits.service.js、qa.service.js；frontend StudentCourses.jsx（80% 觀看門檻）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 補上觀看進度、提問字數／每日次數／用量配額、回答失敗可重試等分支，並改以分析層用語描述
+' ============================================
+!include ../_style.puml
+
+title 學生網頁觀看與提問活動圖
+
+|學生|
+start
+:開啟「我的課程」;
+|FocusFlow|
+:列出有效修課且已發布的課程;
+|學生|
+:選擇課程與影片;
+|FocusFlow|
+if (具有該課程存取權？) then (否)
+  :拒絕存取;
+  stop
+endif
+:播放影片並記錄開啟事件;
+|學生|
+:觀看影片;
+|FocusFlow|
+:觀看達 80% 時記錄完成並更新進度\n（同一影片只計一次）;
+|學生|
+:建立或續用課程對話並輸入問題;
+|FocusFlow|
+if (問題非空且未超過字數上限？) then (否)
+  :提示修改問題;
+  stop
+endif
+if (今日提問次數與用量配額尚有餘額？) then (否)
+  :提示已達上限;
+  stop
+endif
+:重新確認課程存取權，\n只檢索該課程影片片段;
+if (找到與問題相關的片段？) then (否)
+  :回覆資料不足以回答，不虛構內容;
+  stop
+endif
+if (回答產生成功？) then (否)
+  :標記訊息失敗，學生可重試;
+  stop
+endif
+:回覆答案並附上引用片段與影片時間點;
+|學生|
+:點選引用卡片跳至影片對應時間;
+stop
+
+@enduml

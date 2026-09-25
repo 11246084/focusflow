@@ -1,0 +1,57 @@
+---
+title: 修課名單指派匯入與撤銷循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-02, FR-06, FR-07
+%% source:       backend/src/routes/course.routes.js、services/enrollment.service.js（assignStudent、importStudents、revokeStudent）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-2 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（修課名單頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    T->>FE: 開啟課程的修課名單頁
+    alt 單筆指派
+        T->>FE: 輸入學生完整 Email
+        FE->>API: POST /courses<br/>/:courseId/enrollments
+        API->>+DB: 以 Email 查詢帳號
+        DB-->>-API: 帳號、角色與啟用狀態
+        alt 非啟用中的<br/>學生帳號
+            API-->>FE: 404 STUDENT_NOT_FOUND
+        else 有效學生
+            API->>DB: upsert Enrollment 為<br/>active（保留原進度）
+            API-->>FE: 修課資料
+        end
+    else 名單匯入<br/>（每次最多<br/>200 筆）
+        T->>FE: 上傳名單
+        FE->>API: POST /courses/:courseId<br/>/enrollments/import
+        API->>DB: 尚無帳號者以學號建立學生帳號；<br/>非學生或停用者略過；<br/>其餘 upsert 為 active
+        API-->>FE: created、enrolled<br/>與 skipped 清單
+    else 撤銷學生
+        T->>FE: 選擇撤銷修課
+        FE->>API: DELETE /courses/:courseId<br/>/enrollments/:studentId
+        API->>DB: 改為 revoked 並記錄 revokedAt、<br/>revokedBy；清除該生的<br/>LINE 目前課程
+        API-->>FE: 撤銷結果（無 active 紀錄回<br/>404 ENROLLMENT_NOT_FOUND）
+    end

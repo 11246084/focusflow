@@ -1,0 +1,126 @@
+---
+title: 帳號課程與影片設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-01, UC-02, UC-03
+%% source:       backend/src/services/auth.service.js、loginThrottle.service.js、courseAccess.service.js、course.service.js、enrollment.service.js、videoBatch.service.js、videoProcessing.service.js；backend/src/models/user.model.js、course.model.js、enrollment.model.js、video.model.js、videoBatch.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：方法名稱改為實際匯出函式與參數，屬性補型別，關聯補多重性與導覽方向，新增 LoginThrottle 與 CourseAccessService 兩個設計類別
+%% ============================================
+classDiagram
+    direction TB
+
+    class AuthService {
+        <<service>>
+        +register() AuthResult
+        +login() AuthResult
+        +updateProfile() PublicUser
+        +changePassword() void
+    }
+    class LoginThrottle {
+        <<service>>
+        -attempts : Map~email, FailureEntry~
+        +assertLoginAllowed() void
+        +buildLoginFailureError() AppError
+        +recordLoginSuccess() void
+    }
+    class CourseAccessService {
+        <<service>>
+        +canAccessCourse() Boolean
+        +assertCanAccessCourse() void
+        +assertCanManageCourse() void
+        +findActiveEnrollment() Enrollment
+    }
+    class CourseService {
+        <<service>>
+        +createCourse() Course
+        +updateCourse() Course
+        +markVideoOpened() void
+        +markVideoWatched() Progress
+    }
+    class EnrollmentService {
+        <<service>>
+        +assignStudent() Enrollment
+        +importStudents() ImportResult
+        +revokeStudent() Enrollment
+    }
+    class VideoBatchService {
+        <<service>>
+        +createVideoBatch() VideoBatch
+        +getVideoBatch() VideoBatch
+        +retryVideoBatchItem() VideoBatch
+    }
+    class VideoProcessingService {
+        <<service>>
+        +startVideoProcessing() Video
+        +completeVideoProcessing() Video
+        +failVideoProcessing() Video
+        +retryVideoProcessing() Video
+    }
+
+    class User {
+        -name : String
+        -email : String
+        -passwordHash : String
+        -role : student｜teacher｜admin
+        -isActive : Boolean
+        -lineUserId : String
+        -activeCourseId : ObjectId
+    }
+    class Course {
+        -title : String
+        -teacherId : ObjectId
+        -videoIds : ObjectId[]
+        -status : draft｜published｜archived
+    }
+    class Enrollment {
+        -studentId : ObjectId
+        -courseId : ObjectId
+        -status : active｜revoked
+        -progress : Number
+        -watchedVideoIds : String[]
+        -revokedAt : Date
+    }
+    class Video {
+        -courseId : ObjectId
+        -title : String
+        -sourceType : upload｜youtube｜external_url
+        -fileHash : String
+        -processing : ProcessingState
+        -youtubeUpload : YouTubeUploadState
+    }
+    class VideoBatch {
+        -batchId : String
+        -courseId : ObjectId
+        -status : creating｜processing｜completed｜partial｜failed
+        -processingMode : single_adapter｜pipeline_batch
+        -items : VideoBatchItem[]
+    }
+
+    AuthService ..> LoginThrottle : 登入前檢查鎖定
+    AuthService ..> User : 建立／驗證
+    CourseService ..> CourseAccessService : 授權
+    EnrollmentService ..> CourseAccessService : 授權
+    VideoBatchService ..> CourseAccessService : 授權
+    VideoProcessingService ..> CourseAccessService : 重試授權
+    CourseService ..> Course : 維護
+    EnrollmentService ..> Enrollment : 維護
+    VideoBatchService ..> VideoBatch : 維護
+    VideoBatchService ..> Video : 逐檔建立
+    VideoProcessingService ..> Video : 狀態轉換
+
+    Course "0..*" --> "1" User : teacherId
+    Enrollment "0..*" --> "1" User : studentId
+    Enrollment "0..*" --> "1" Course : courseId
+    Video "0..*" --> "1" Course : courseId 主課程
+    Course "0..*" --> "0..*" Video : videoIds 掛載
+    VideoBatch "0..1" --> "0..10" Video : items.videoId
+    User "0..*" --> "0..1" Course : activeCourseId（LINE）

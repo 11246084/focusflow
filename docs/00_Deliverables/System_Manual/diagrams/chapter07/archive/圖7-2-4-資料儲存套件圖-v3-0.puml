@@ -1,0 +1,53 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     FR-10, FR-14, NFR-04, NFR-05, NFR-11
+' source:       backend/src/models/, backend/scripts/, STT_Whisper/src/mongodb_uploader.py, STT_Whisper/src/parent_mongodb_uploader.py, database/tools/（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 Mongoose model、Pipeline uploader 與 database 工具的讀寫對象重繪資料存取分群
+' ============================================
+!include ../_style.puml
+
+title 資料儲存套件圖
+
+package "backend/src/models（Mongoose）" as Models {
+  package "應用模型" as AppModels {
+    rectangle "身分與課程：User／Avatar／Course／Enrollment／LineBindToken\n影片：Video／VideoBatch／Clip\n問答與紀錄：Question／Conversation／Message／Faq／UsageLog\n營運與短影音：Notification／Feedback／ShortScript／ShortAsset" as AppModelFiles
+  }
+  package "片段模型" as SegModels {
+    rectangle "VideoSegment\nVideoSegmentParent\nVideoSegmentVideo" as SegFiles
+  }
+}
+
+package "STT_Whisper/src 發布模組" as Uploaders {
+  rectangle "mongodb_uploader.py\nparent_mongodb_uploader.py" as UploaderFiles
+}
+
+package "維運工具" as Tools {
+  rectangle "backend/scripts（同步、建立 index）\ndatabase/tools（setup、legacy）" as ToolFiles
+}
+
+package "MongoDB 資料庫 focusflow" as Db <<schema>> {
+  package "應用集合" as AppCol {
+    rectangle "users／courses／enrollments／videos\nquestions／conversations／messages\nfaqs／usage_logs／notifications …" as AppColFiles
+  }
+  package "片段集合" as SegCol {
+    rectangle "video_segments_text\nvideo_segments_parent\nvideo_segments_video" as SegColFiles
+  }
+  package "Atlas Search 索引" as SearchIdx {
+    rectangle "text_embedding_index 等\n向量索引（live 狀態：待確認）" as IdxFiles
+  }
+}
+
+AppModels ..> AppCol : 讀寫
+SegModels ..> SegCol : 讀取、QA 檢索
+Uploaders ..> SegCol : upsert 片段與 embedding
+Uploaders ..> AppCol : 更新 videos metadata
+Tools ..> AppCol : 經授權的同步與修復
+Tools ..> SearchIdx : 建立索引定義
+SegCol ..> SearchIdx : embedding 欄位建立索引
+
+@enduml

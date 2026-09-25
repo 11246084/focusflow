@@ -1,0 +1,5 @@
+# Redocly lint 的逐筆例外。每一筆都要附理由；新增前先確認不是 spec 本身寫錯。
+docs/openapi.yaml:
+  operation-4xx-response:
+    # GET /health 不驗證身分、不讀參數，實作（routes/health.routes.js）沒有任何 4xx 回應。
+    - '#/paths/~1health/get/responses'

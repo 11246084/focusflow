@@ -1,0 +1,70 @@
+---
+title: LINE綁定與課程問答循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-05, FR-07, FR-14, FR-15, FR-17
+%% source:       backend/src/routes/line.routes.js、middleware/lineSignature.middleware.js、controllers/line.controller.js、services/line.service.js（generateBindToken、handleBind、handleSwitchCourse、handleSelectCourse、handleQuestion）（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：補簽章失敗 401、綁定碼無效／過期、課程選單改由「切換課程」與 postback 觸發、提問前的狀態與次數檢查、reply 逾時改 push；QA 核心不重畫，引用圖6-1-4
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor S as 學生
+    participant FE as 前端（LINE Bot 頁）
+    participant LINE as LINE 平台
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    S->>FE: 取得綁定碼
+    FE->>API: POST /line/bind-token<br/>（需登入）
+    API->>DB: 建立一次性綁定碼（10 分鐘到期）
+    API-->>FE: 綁定碼與到期時間
+    S->>LINE: 將綁定碼傳給 LINE Bot
+    LINE->>API: POST /line/webhook<br/>（X-Line-Signature）
+    Note right of API: 以 Channel Secret<br/>驗證 HMAC 簽章，<br/>缺漏或不符回 401，不處理事件<br/>（以下每次 webhook 皆同）
+    API->>+DB: 查詢綁定碼
+    DB-->>-API: 綁定碼與到期時間
+    alt 綁定碼不存在或已過期
+        API-)LINE: 回覆「綁定碼無效或已過期」
+    else 有效
+        API->>DB: 解除此 LINE 帳號原有綁定，<br/>寫入 lineUserId，刪除已用綁定碼
+        API-)LINE: 回覆「綁定成功，請先選擇課程」
+    end
+    S->>LINE: 傳送「切換課程」
+    LINE->>API: webhook 文字事件
+    API->>+DB: 查詢 active Enrollment<br/>且課程 published
+    DB-->>-API: 可選課程
+    alt 未綁定或無可選課程
+        API-)LINE: 回覆「請先完成帳號綁定」<br/>或「目前沒有可切換的課程」
+    else 有課程
+        API->>DB: 狀態設為<br/>awaiting_course_selection
+        API-)LINE: 回覆課程按鈕（最多 4 門）
+        S->>LINE: 點選課程按鈕
+        LINE->>API: webhook postback<br/>（select_course）
+        API->>DB: 再次驗證修課資格，<br/>設定 activeCourseId，<br/>清空 LINE 對話紀錄
+        API-)LINE: 回覆「課程切換成功」
+    end
+    S->>LINE: 輸入課程問題
+    LINE->>API: webhook 文字事件
+    API->>DB: 確認已綁定、已選課、<br/>修課資格與課程仍有效，<br/>並檢查字數與今日提問次數<br/>（與網頁合計）
+    alt 任一檢查未通過
+        API-)LINE: 回覆對應操作提示<br/>（資格失效時清除 activeCourseId）
+    else 通過
+        Note over API,DB: 以 source=line<br/>呼叫共用 QA 流程<br/>（FAQ 快取、<br/>檢索與生成，同圖6-1-4）
+        API->>DB: 保存 Question 與最近問答到<br/>lineConversationHistory
+        API-)LINE: 回答、片段秒數與跳轉連結<br/>（reply token 逾時改用 push）
+    end
+    LINE-->>S: 顯示回覆

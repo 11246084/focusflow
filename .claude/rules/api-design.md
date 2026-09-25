@@ -187,6 +187,14 @@ Phase 2-2 階層式檢索內部使用的 `PARENT_*` 錯誤碼（如 `PARENT_SEAR
 
 ---
 
+## OpenAPI 同步
+
+- 新增、刪除或改 method／path 參數名稱時，同步 `backend/docs/openapi.yaml`；`tests/docs.routes.test.js` 會從 runtime router 比對，沒同步 `npm test` 會失敗
+- 不公開的端點（例如只供 pipeline 呼叫的 internal webhook）不寫進 spec，改在該測試的 `UNDOCUMENTED_BY_DESIGN` 加一筆並附理由
+- request／response schema 以 controller 與 service 的實際輸出為準，不套通用範本；改完跑 `npm run docs:lint`
+
+---
+
 ## 輸入驗證
 
 - controller 層進行基本格式檢查（必填欄位、型別）

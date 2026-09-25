@@ -1,0 +1,81 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-04, FR-07, FR-12～FR-16
+' source:       chapters/05_需求模型.md 表5-3-4；backend/src/services/courseAccess.service.js、conversation.service.js、askLimits.service.js、costControl.service.js、qa.service.js、faqCache.service.js；frontend StudentCourses.jsx（80% 觀看門檻）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：原 v3-0 高寬比約 3.1，改為觀看（左欄）與提問（右欄）兩欄；拒絕分支加註 E1～E6，補上存取權重驗與 FAQ 快取命中分支
+'
+' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續。
+' 產生方式：plantuml 產出 <本檔名>.png 與 <本檔名>_001.png，
+'           再以 node compose-columns.js 並排為一張圖（見 docs/reports/ch05-change-note.md）。
+' ============================================
+!include ../_style.puml
+
+|學生|
+start
+:開啟「我的課程」;
+|FocusFlow|
+:列出有效修課且已發布的課程;
+|學生|
+:選擇課程與影片;
+|FocusFlow|
+if (具有該課程存取權？) then (否)
+  :E1 拒絕存取;
+  stop
+endif
+:播放影片並記錄開啟事件;
+|學生|
+:觀看影片;
+|FocusFlow|
+if (觀看達影片長度 80%？) then (是)
+  :記錄完成並更新學習進度\n（同一影片只計一次）;
+else (否)
+endif
+|學生|
+(A)
+detach
+
+@enduml
+
+@startuml
+!include ../_style.puml
+
+|學生|
+(A)
+:建立或續用課程對話並輸入問題;
+|FocusFlow|
+if (問題非空、未超過字數上限\n且編碼正確？) then (否)
+  :E2 提示修改問題;
+  stop
+endif
+if (今日提問次數與\n用量配額尚有餘額？) then (否)
+  :E3 提示已達上限;
+  stop
+endif
+if (仍具有該課程存取權？) then (否)
+  :E4 拒絕提問;
+  stop
+endif
+if (無對話歷史且命中\n課程常見問題？) then (是)
+  :以快取答案回覆;
+else (否)
+  :只在該課程影片片段中檢索;
+  if (找到與問題相關的片段？) then (否)
+    :E5 回覆資料不足以回答，\n不虛構內容;
+    stop
+  endif
+  if (回答產生成功？) then (否)
+    :E6 標記訊息失敗，學生可重試;
+    stop
+  endif
+  :產生答案並附上引用片段與時間點;
+endif
+|學生|
+:點選引用卡片跳至影片對應時間;
+stop
+
+@enduml

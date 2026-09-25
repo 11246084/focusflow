@@ -508,21 +508,36 @@ function installModelStubs() {
     applyUpdate(user, update);
     return user;
   };
-  User.findByIdAndUpdate = async (id, update) => {
-    if (store.nextUserFindByIdAndUpdateError) {
-      const error = store.nextUserFindByIdAndUpdateError;
-      store.nextUserFindByIdAndUpdateError = null;
-      throw error;
-    }
+  User.findByIdAndUpdate = (id, update) => {
+    const pending = (async () => {
+      if (store.nextUserFindByIdAndUpdateError) {
+        const error = store.nextUserFindByIdAndUpdateError;
+        store.nextUserFindByIdAndUpdateError = null;
+        throw error;
+      }
 
-    const user = findUserById(id);
+      const user = findUserById(id);
 
-    if (!user) {
-      return null;
-    }
+      if (!user) {
+        return null;
+      }
 
-    applyUpdate(user, update);
-    return user;
+      applyUpdate(user, update);
+      return user;
+    })();
+
+    // admin.service 會接 .lean()；其他呼叫端直接 await，兩種寫法都要支援。
+    return {
+      lean() {
+        return pending;
+      },
+      then(resolve, reject) {
+        return pending.then(resolve, reject);
+      },
+      catch(reject) {
+        return pending.catch(reject);
+      },
+    };
   };
   User.updateMany = async (query, update) => {
     const users = store.users.filter((item) => matchesQuery(item, query));

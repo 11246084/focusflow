@@ -1,0 +1,103 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-08, FR-09, FR-10, FR-11, FR-14, NFR-04, NFR-05
+' source:       backend/src/models/{video,videoBatch,videoSegment,videoSegmentParent,videoSegmentVideo,clip}.model.js、
+'               backend/src/services/bridgeScope.service.js
+' verified:     2026-09-25（靜態比對 schema；未連 Atlas）
+' status:       draft
+' implemented:  partial（Parent 檢索 Gate 預設關閉；video_segments_video 僅供視覺引用）
+' ai-assisted:  yes / Claude Code / v1-1：版面同 v1-0，連線加編號①～⑬、圖例移至下方；v1-0 自 v3-0 總圖拆出
+' ============================================
+!include ../_style.puml
+
+title 影片與知識片段集合關聯圖
+top to bottom direction
+
+entity "courses（見圖8-1-2）" as courses #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+entity "users（見圖8-1-2）" as users #EEEEEE {
+  _id : ObjectId <<PK>>
+}
+
+entity "videos" as videos {
+  _id : ObjectId <<PK>>
+  --
+  courseId : ObjectId <<ref, IDX>>
+  uploadedBy : ObjectId <<ref>>
+  videoId : String <<UK, sparse>>（僅 Pipeline metadata）
+  fileHash : String
+  processing.status : String
+  youtubeUpload.status : String
+}
+
+entity "videobatches" as batches {
+  _id : ObjectId <<PK>>
+  --
+  batchId : String <<UK>>
+  courseId : ObjectId <<ref>>
+  createdBy : ObjectId <<ref>>
+  items[].videoId : ObjectId <<ref>>
+}
+
+entity "video_segments_text（Leaf）" as leaf {
+  _id : ObjectId <<PK>>
+  --
+  videoId : String <<IDX>> ＝ String(videos._id)
+  courseId : ObjectId <<ref, IDX>>
+  chunkId : String <<IDX>>
+  segmentId : String <<IDX>>
+  embedding[] : Number <<vector>>
+}
+
+entity "video_segments_parent（Parent）" as parent {
+  _id : ObjectId <<PK>>
+  --
+  parentId : String <<UK>>
+  videoId : String ＝ String(videos._id)
+  courseId : ObjectId <<ref>>
+  childChunkIds[] : String（有序，≥ 1）
+  generationVersion : String
+  isActive : Boolean
+  embedding[] : Number(3072) <<vector>>
+}
+
+entity "video_segments_video（視覺）" as visual {
+  _id : ObjectId <<PK>>
+  --
+  video_id : String <<IDX>>（video_N）
+  clip_id : String <<IDX>>
+  embedding[] : Number <<vector>>
+}
+
+entity "clips" as clips {
+  _id : ObjectId <<PK>>
+  --
+  segmentId : String <<UK>>
+  courseId : ObjectId <<ref>>
+}
+
+courses ||--o{ videos : ① courseId
+users ||--o{ videos : ② uploadedBy
+courses ||--o{ batches : ③ courseId
+users ||--o{ batches : ④ createdBy
+videos |o--o{ batches : ⑤ items[].videoId
+videos ||--o{ leaf : ⑥ videoId\n＝String(_id)
+courses |o--o{ leaf : ⑦ courseId（選填）
+videos ||--o{ parent : ⑧ videoId\n＝String(_id)
+courses ||--o{ parent : ⑨ courseId
+parent }o--|{ leaf : ⑩ childChunkIds[]\n→ chunkId
+videos ..o{ visual : ⑪ 由檔名／路徑擷取\nvideo_N ＝ video_id
+leaf |o--o| clips : ⑫ segmentId
+courses |o--o{ clips : ⑬ courseId
+
+legend bottom left
+  非 UML 圖。vector＝Atlas Vector Search 向量欄位。
+  app-owned 影片不寫 videos.videoId；片段以 String(videos._id) 對應，
+  不可用 videos.videoId 連接 video_segments_text。
+  虛線：無參照欄位，由 service 依命名規則推導的對應。
+  ①～⑬ 對應正文表8-1-3。
+endlegend
+@enduml

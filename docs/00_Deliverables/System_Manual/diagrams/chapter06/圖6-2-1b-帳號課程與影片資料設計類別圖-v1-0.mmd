@@ -1,0 +1,65 @@
+---
+title: 帳號課程與影片資料設計類別圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-01, UC-02, UC-03
+%% source:       backend/src/services/auth.service.js、loginThrottle.service.js、courseAccess.service.js、course.service.js、enrollment.service.js、videoBatch.service.js、videoProcessing.service.js；backend/src/models/user.model.js、course.model.js、enrollment.model.js、video.model.js、videoBatch.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-2-1 v4-0 拆出資料視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（資料類別屬性、參照關聯與多重性；服務見同節 a 圖。改用 Mermaid 預設版面，videoIds 多對多關聯以標籤註明，避免多重性標籤被方框遮住）
+%% ============================================
+classDiagram
+    direction TB
+
+    class User {
+        -name : String
+        -email : String
+        -passwordHash : String
+        -role : student｜teacher｜admin
+        -isActive : Boolean
+        -lineUserId : String
+        -activeCourseId : ObjectId
+    }
+    class Course {
+        -title : String
+        -teacherId : ObjectId
+        -videoIds : ObjectId[]
+        -status : draft｜published｜archived
+    }
+    class Enrollment {
+        -studentId : ObjectId
+        -courseId : ObjectId
+        -status : active｜revoked
+        -progress : Number
+        -watchedVideoIds : String[]
+        -revokedAt : Date
+    }
+    class Video {
+        -courseId : ObjectId
+        -title : String
+        -sourceType : upload｜youtube｜external_url
+        -fileHash : String
+        -processing : ProcessingState
+        -youtubeUpload : YouTubeUploadState
+    }
+    class VideoBatch {
+        -batchId : String
+        -courseId : ObjectId
+        -status : creating｜processing｜completed｜partial｜failed
+        -processingMode : single_adapter｜pipeline_batch
+        -items : VideoBatchItem[]
+    }
+
+    VideoBatch "0..1" --> "0..10" Video : items.videoId
+    Course --> "0..*" Video : videoIds 掛載（多對多）
+    Video "0..*" --> "1" Course : courseId 主課程
+    Enrollment "0..*" --> "1" Course : courseId
+    Enrollment "0..*" --> "1" User : studentId
+    Course "0..*" --> "1" User : teacherId
+    User "0..*" --> "0..1" Course : activeCourseId（LINE）

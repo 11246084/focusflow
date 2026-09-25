@@ -10,15 +10,14 @@ info:
     - 如實描述 phase-1 的 `bridge-aware` 與 runtime 可觀測回應
     - 不把 Atlas retrieval、query embedding 對齊、或 live LINE delivery 說成 production-ready
 
-    覆蓋範圍（2026-07-24 更新）：
-    - 已涵蓋 auth（含 role 驗證與 avatar）/ notifications / courses（含 PATCH/DELETE）/ videos（含 DELETE）/ watched / qa / stats / admin / LINE / student Shorts feed 的主要端點
-    - 本 spec 已涵蓋主要端點，但仍非 100% 完整契約；internal processing webhook 等少數端點以 route files 為準
+    覆蓋範圍（2026-09-25 更新）：
+    - 本 spec 是 `/api/v1/*` 與 `/health` 的公開／應用層 API contract，涵蓋 Express 實際註冊的每一個 method + path
+    - `backend/tests/docs.routes.test.js` 會從 runtime router 盤點 routes 並與本檔比對；新增或刪除 route 未同步本檔時測試會失敗
+    - 刻意不收錄：internal processing webhook（`/api/v1/internal/*`，只供 STT pipeline 以共享 secret 呼叫）與 `GET /api/v1/line/webhook`（LINE Console 驗證 URL 用的探測）
     - Shorts 僅代表修課 feed 與 metadata sync 已實作，不代表自動選片、剪輯、字幕或發布 worker 已完成
+    - Short Scripts 整組受 `SHORT_SCRIPT_AUTOMATION_ENABLED` feature flag 控制，預設關閉
 
-    本輪不處理的項目：
-    - 不做 route-level JSDoc generation
-    - 不做 production-hardening refactor
-    - 暫不納入 internal processing webhook 的 Swagger 文件
+    本檔以手寫 YAML 維護，不做 route-level JSDoc generation；結構檢查用 `npm run docs:lint`（Redocly）。
 servers:
   - url: /
     description: Same-origin backend root。Swagger UI 的 Try it out 會直接使用目前開啟的 host 與 port。
@@ -43,6 +42,19 @@ tags:
     description: Teacher / Student dashboard 的彙總統計端點，回應為彙整後的 dashboard 數據。
   - name: Admin
     description: 僅限 admin 角色使用的後台管理端點（使用者、影片、事件統計）；全部需 Bearer token + admin 權限。
+  - name: Feedback
+    description: |
+      已登入使用者（student、teacher、admin）回報系統問題，可附最多 3 張截圖。
+      回報列表與處理狀態由 Admin 端點管理。
+  - name: Short Scripts
+    description: |
+      課程 owner teacher 或 admin 使用的短影片腳本流程：自動選題與證據凍結、LLM 生成、腳本審核、依腳本上傳成品影片，以及成品的 YouTube 上傳重試。
+
+      整組路由受 `SHORT_SCRIPT_AUTOMATION_ENABLED` 控制，預設關閉。關閉時回 `404 NOT_FOUND`，不透露功能存在；
+      feature flag 檢查排在這組路由自己的身分驗證之前，所以 `/api/v1/short-scripts/*`、`/api/v1/short-assets/*` 未帶 token 也回 404。
+      例外：`/api/v1/courses/{courseId}/short-*` 會先經過課程路由的身分驗證，未帶 token 時回 `401`。
+
+      Short Script 回應是 MongoDB 文件原樣輸出，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；與其他資源使用的 `id` 不同。
   - name: LINE Webhook
     description: |
       LINE Platform 的 `integration-facing` webhook callback 入口。
@@ -93,6 +105,10 @@ paths:
                           openaiConfigured: false
                           hierarchicalRetrievalEnabled: false
                           hierarchicalRetrievalFallbackToLeaf: true
+                          hierarchicalRetrievalRolloutMode: 'off'
+                          hierarchicalRetrievalRolloutModeValid: true
+                          hierarchicalRetrievalAllowlistsValid: true
+                          hierarchicalRolloutContractStatus: compatible
                           hierarchicalParentStorageMode: atlas_parent_vector
                           queryEmbeddingDimensions: 3072
                           queryEmbeddingContract:
@@ -198,6 +214,9 @@ paths:
                           degraded: false
                         youtubeUpload:
                           uploadEnabled: true
+                          recoveryEnabled: false
+                          cleanupEnabled: false
+                          maxAttempts: 3
                           privatizeOnDeleteEnabled: true
                           credentialsConfigured: true
                           usingAccessTokenOverride: false
@@ -214,6 +233,17 @@ paths:
                               - https://www.googleapis.com/auth/youtube.force-ssl
                           lastPrivatize:
                             youtubeVideoId: null
+                            lastAttemptAt: null
+                            lastSuccessAt: null
+                            lastError: null
+                          lastRecovery:
+                            lastAttemptAt: null
+                            lastSuccessAt: null
+                            lastError: null
+                            recoveredCount: 0
+                            quarantinedCount: 0
+                          lastCleanup:
+                            videoId: null
                             lastAttemptAt: null
                             lastSuccessAt: null
                             lastError: null
@@ -1366,13 +1396,11 @@ paths:
                   type: string
                   description: 課程影片標題；未填時 backend 會使用 YouTube ID 產生預設標題。
                 week:
-                  type: integer
+                  type: [integer, 'null']
                   minimum: 0
-                  nullable: true
                 lesson:
-                  type: integer
+                  type: [integer, 'null']
                   minimum: 0
-                  nullable: true
       responses:
         '201':
           description: YouTube 影片已建立並排入 STT pipeline
@@ -1569,13 +1597,11 @@ paths:
                             hitCount:
                               type: integer
                             lastHitAt:
-                              type: string
+                              type: [string, 'null']
                               format: date-time
-                              nullable: true
                             updatedAt:
-                              type: string
+                              type: [string, 'null']
                               format: date-time
-                              nullable: true
         '400':
           $ref: '#/components/responses/InvalidIdError'
         '401':
@@ -2107,7 +2133,9 @@ paths:
       tags:
         - Admin
       summary: 列出使用者
-      description: 僅限 admin。回傳使用者列表（已過濾敏感欄位）。
+      description: |
+        僅限 admin。依建立時間由新到舊回傳所有使用者，附每人的有效修課數與網頁提問次數。
+        只回 `isLineBound`，不暴露實際 LINE user id。
       operationId: adminListUsers
       responses:
         '200':
@@ -2118,11 +2146,18 @@ paths:
                 allOf:
                   - $ref: '#/components/schemas/SuccessBase'
                   - type: object
+                    required:
+                      - data
                     properties:
                       data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/PublicUser'
+                        type: object
+                        required:
+                          - users
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUser'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -2131,8 +2166,8 @@ paths:
     patch:
       tags:
         - Admin
-      summary: 更新使用者（角色 / 啟用狀態）
-      description: 僅限 admin。可變更使用者角色或停用 / 啟用帳號。
+      summary: 更新使用者（名稱 / 角色 / 啟用狀態）
+      description: 僅限 admin。`name`、`role`、`isActive` 至少提供一個；`name` trim 後不可為空。
       operationId: adminUpdateUser
       parameters:
         - name: userId
@@ -2147,32 +2182,59 @@ paths:
           application/json:
             schema:
               type: object
-              description: 可更新欄位，例如 role 或 isActive。
+              minProperties: 1
               properties:
+                name:
+                  type: string
+                  minLength: 1
                 role:
                   $ref: '#/components/schemas/UserRole'
                 isActive:
                   type: boolean
       responses:
         '200':
-          description: 使用者更新成功
+          description: 使用者更新成功；回應不含 `courses`、`queries` 統計。
           content:
             application/json:
               schema:
                 allOf:
                   - $ref: '#/components/schemas/SuccessBase'
                   - type: object
+                    required:
+                      - data
                     properties:
                       data:
-                        $ref: '#/components/schemas/PublicUser'
+                        $ref: '#/components/schemas/AdminUser'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: "`userId` 格式錯誤（`INVALID_ID`），或沒有可更新欄位、`name` 為空、`role` 不合法（`VALIDATION_ERROR`）。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noFields:
+                  value:
+                    success: false
+                    message: No fields to update.
+                    error:
+                      code: VALIDATION_ERROR
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
         '404':
-          $ref: '#/components/responses/UserNotFoundError'
+          description: 找不到使用者（此端點回 `NOT_FOUND`，不是 `USER_NOT_FOUND`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    success: false
+                    message: User not found.
+                    error:
+                      code: NOT_FOUND
   /api/v1/admin/videos:
     get:
       tags:
@@ -2273,6 +2335,128 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/feedback:
+    get:
+      tags:
+        - Admin
+      summary: 列出使用者回報的問題
+      description: |
+        僅限 admin。依建立時間由新到舊排序，可用 `status`、`category`、`severity` 篩選。
+        `page`、`limit` 無法解析或超出範圍時會被夾回預設值或 1–100 範圍，不回錯誤。
+      operationId: adminListFeedback
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FeedbackStatus'
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FeedbackCategory'
+        - name: severity
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FeedbackSeverity'
+        - name: page
+          in: query
+          required: false
+          description: 頁碼，從 1 開始。
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: 每頁筆數。
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功取得回報列表；`meta.total` 是符合篩選條件的總筆數。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeedbackListResponse'
+        '400':
+          description: "`status`、`category` 或 `severity` 不是允許的列舉值（`VALIDATION_ERROR`）。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidStatus:
+                  value:
+                    success: false
+                    message: Invalid feedback status.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/feedback/{feedbackId}:
+    patch:
+      tags:
+        - Admin
+      summary: 更新回報的處理狀態或管理員備註
+      description: |
+        僅限 admin。`status` 與 `adminNote` 至少要提供一個；`adminNote` 傳空字串或 `null` 會清除備註。
+
+        回應中的 `submitter` 不會 populate 使用者資料：`name`、`email` 固定為 `—`，`id` 與 `role` 取自回報本身。
+        需要完整回報者資訊時請重新呼叫列表端點。
+      operationId: adminUpdateFeedback
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminFeedbackUpdateRequest'
+            examples:
+              resolve:
+                value:
+                  status: resolved
+                  adminNote: 已修正並部署。
+      responses:
+        '200':
+          description: 回報已更新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFeedbackItemResponse'
+        '400':
+          description: "`feedbackId` 格式錯誤（`INVALID_ID`），或沒有可更新欄位、`status` 不合法（`VALIDATION_ERROR`）。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid feedback id.
+                    error:
+                      code: INVALID_ID
+                noFields:
+                  value:
+                    success: false
+                    message: No fields to update.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/FeedbackNotFoundError'
   /api/v1/line/webhook:
     post:
       tags:
@@ -2346,7 +2530,6 @@ paths:
                           qaRuntime:
                             status: degraded
                             degraded: true
-                            resultCategory: matched_degraded
                             matchStatus: matched
                             answerProviderUsed: template
                             searchableSegmentCount: 2
@@ -2689,6 +2872,672 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/feedback:
+    post:
+      tags:
+        - Feedback
+      summary: 回報系統問題
+      description: |
+        任何已登入角色都可以回報問題。附截圖時使用 `multipart/form-data`；不附檔時也可以直接送 `application/json`。
+
+        - 附件欄位名稱為 `attachments`，最多 3 張，只接受 JPEG、PNG、WebP，單檔最多 10 MiB。
+        - Backend 會比對宣告的 MIME type 與檔案 signature，不符即拒收。所有附件驗證通過後才建立回報，不會留下孤兒附件。
+        - `description` 會 trim，最多 2000 字元；`pageContext`、`courseVideoName` 會 trim 並截到前 200 字元。
+      operationId: createFeedback
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeedbackCreateMultipartRequest'
+            encoding:
+              attachments:
+                contentType: image/jpeg, image/png, image/webp
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackCreateRequest'
+            examples:
+              qaIssue:
+                value:
+                  category: ai_qa
+                  severity: partial
+                  description: 問同一題兩次得到不同答案。
+                  pageContext: /student/courses/507f1f77bcf86cd799439012/qa
+      responses:
+        '201':
+          description: 回報已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackItemResponse'
+              examples:
+                created:
+                  value:
+                    success: true
+                    message: Feedback submitted.
+                    data:
+                      id: 66f1a2b3c4d5e6f7a8b9c0d1
+                      category: ai_qa
+                      severity: partial
+                      description: 問同一題兩次得到不同答案。
+                      pageContext: /student/courses/507f1f77bcf86cd799439012/qa
+                      courseVideoName: null
+                      status: open
+                      attachments:
+                        - attachmentId: 66f1a2b3c4d5e6f7a8b9c0d2
+                          mimeType: image/png
+                          size: 183422
+                          originalName: screenshot.png
+                      createdAt: '2026-09-24T08:30:00.000Z'
+        '400':
+          description: |
+            欄位驗證失敗，或附件不合規：
+            - `VALIDATION_ERROR`：`category`／`severity` 不合法、`description` 空白或超過 2000 字元
+            - `INVALID_FEEDBACK_ATTACHMENT_TYPE`：不是 JPEG／PNG／WebP，或宣告的 MIME type 與檔案內容不符
+            - `FEEDBACK_ATTACHMENT_LIMIT_EXCEEDED`：超過 3 張附件
+            - `UPLOAD_ERROR`：其他 multipart 解析錯誤（例如使用了非 `attachments` 的檔案欄位）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCategory:
+                  value:
+                    success: false
+                    message: Invalid feedback category.
+                    error:
+                      code: VALIDATION_ERROR
+                invalidAttachmentType:
+                  value:
+                    success: false
+                    message: Attachment content does not match an allowed image type.
+                    error:
+                      code: INVALID_FEEDBACK_ATTACHMENT_TYPE
+                tooManyAttachments:
+                  value:
+                    success: false
+                    message: At most 3 attachments are allowed per report.
+                    error:
+                      code: FEEDBACK_ATTACHMENT_LIMIT_EXCEEDED
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          description: 單一附件超過 10 MiB（`FEEDBACK_ATTACHMENT_TOO_LARGE`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooLarge:
+                  value:
+                    success: false
+                    message: Each attachment must be at most 10 MiB.
+                    error:
+                      code: FEEDBACK_ATTACHMENT_TOO_LARGE
+  /api/v1/feedback/{feedbackId}/attachments/{attachmentId}:
+    get:
+      tags:
+        - Feedback
+      summary: 讀取回報附件圖片
+      description: |
+        只有回報者本人或 admin 可以讀取。附件可能含學生畫面截圖，因此回應帶 `Cache-Control: private` 且不可快取成公開資源。
+        Backend 先確認回報存在（`FEEDBACK_NOT_FOUND`），再檢查權限，最後才找附件（`FEEDBACK_ATTACHMENT_NOT_FOUND`）。
+      operationId: getFeedbackAttachment
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+        - $ref: '#/components/parameters/FeedbackAttachmentId'
+      responses:
+        '200':
+          description: 附件 binary；實際 Content-Type 為建立時驗證過的 image/jpeg、image/png 或 image/webp
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: private, max-age=0, must-revalidate
+            X-Content-Type-Options:
+              schema:
+                type: string
+              example: nosniff
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 呼叫者不是回報者本人，也不是 admin（`FORBIDDEN`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notOwner:
+                  value:
+                    success: false
+                    message: You do not have permission to view this attachment.
+                    error:
+                      code: FORBIDDEN
+        '404':
+          description: 回報不存在（`FEEDBACK_NOT_FOUND`），或附件不存在、不屬於該回報（`FEEDBACK_ATTACHMENT_NOT_FOUND`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                feedbackNotFound:
+                  value:
+                    success: false
+                    message: Feedback not found.
+                    error:
+                      code: FEEDBACK_NOT_FOUND
+                attachmentNotFound:
+                  value:
+                    success: false
+                    message: Feedback attachment not found.
+                    error:
+                      code: FEEDBACK_ATTACHMENT_NOT_FOUND
+  /api/v1/courses/{courseId}/short-scripts/candidates:
+    get:
+      tags:
+        - Short Scripts
+      summary: 預覽自動選題候選
+      description: |
+        唯讀預覽：不建立腳本、不呼叫 LLM。候選來自課程 `questions`，經同義題合併後依熱度排序，取前 N 名
+        （`SHORT_SCRIPT_TOPIC_CANDIDATE_LIMIT`）；提問次數未達 `SHORT_SCRIPT_TOPIC_MIN_HIT_COUNT` 的候選會被濾掉。
+
+        此預覽**不排除**已建立過腳本的主題；實際建立腳本時才會排除。
+      operationId: listShortScriptCandidates
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 成功取得候選；沒有符合條件的候選時 `data` 為空陣列。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptCandidateListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptCourseNotFoundError'
+  /api/v1/courses/{courseId}/short-scripts:
+    get:
+      tags:
+        - Short Scripts
+      summary: 列出課程的短影片腳本
+      description: 回傳課程下所有腳本（含各狀態），不保證排序。
+      operationId: listCourseShortScripts
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 成功取得腳本列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptCourseNotFoundError'
+  /api/v1/courses/{courseId}/short-scripts/auto:
+    post:
+      tags:
+        - Short Scripts
+      summary: 自動選題並凍結證據，建立腳本
+      description: |
+        排除課程內已有腳本的主題後，依熱度排序逐一評估候選：對候選問句做片段檢索與鄰接擴展，
+        證據數達 `SHORT_SCRIPT_EVIDENCE_MIN_ITEMS` 的第一名即被選中，並把證據凍結成快照。
+        被淘汰的候選會記在 `selectionReason.rejectedForEvidence`。
+
+        傳 `topicKey` 時只評估教師指定的那一題；該題證據不足即失敗，不會改選其他題。
+        新腳本狀態為 `evidence_ready`，尚未呼叫 LLM。
+      operationId: createShortScript
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShortScriptCreateRequest'
+      responses:
+        '201':
+          description: 腳本已建立，證據已凍結
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptCourseNotFoundError'
+        '409':
+          description: 同時建立同一主題的腳本時撞到 `courseId + topicKey` 唯一索引（`DUPLICATE_RESOURCE`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicate:
+                  value:
+                    success: false
+                    message: Resource already exists.
+                    error:
+                      code: DUPLICATE_RESOURCE
+        '422':
+          description: |
+            - `SHORT_SCRIPT_NO_CANDIDATE`：沒有候選通過過濾，或指定的 `topicKey` 不是合格候選
+            - `SHORT_SCRIPT_EVIDENCE_EMPTY`：所有評估過的候選證據都不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noCandidate:
+                  value:
+                    success: false
+                    message: No topic candidate passed the automatic selection filters.
+                    error:
+                      code: SHORT_SCRIPT_NO_CANDIDATE
+                evidenceEmpty:
+                  value:
+                    success: false
+                    message: Not enough transcript evidence to build a script.
+                    error:
+                      code: SHORT_SCRIPT_EVIDENCE_EMPTY
+        '502':
+          $ref: '#/components/responses/EmbeddingProviderError'
+  /api/v1/short-scripts/{scriptId}:
+    get:
+      tags:
+        - Short Scripts
+      summary: 取得單一短影片腳本
+      operationId: getShortScript
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      responses:
+        '200':
+          description: 成功取得腳本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+  /api/v1/short-scripts/{scriptId}/generate:
+    post:
+      tags:
+        - Short Scripts
+      summary: 以 LLM 生成新一版腳本
+      description: |
+        允許的前置狀態為 `evidence_ready` 或 `changes_requested`，成功後轉為 `generated` 並在 `versions` 附加一版。
+
+        上一版的回饋類型決定是否重撈證據：`retrieval` 會先重新檢索並凍結證據，`narrative` 沿用原證據、只把回饋帶進 prompt。
+        生成結果引用了證據包以外的片段時，最多重試 `SHORT_SCRIPT_GENERATION_RETRY_LIMIT` 次。
+        失敗回應的 `error.details`（嘗試次數、驗證錯誤、最後一次原始輸出）只在非 production 環境回傳。
+      operationId: generateShortScriptVersion
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      responses:
+        '200':
+          description: 已生成新版本，回傳更新後的腳本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/ShortScriptStateInvalidError'
+        '422':
+          description: |
+            - `SHORT_SCRIPT_EVIDENCE_EMPTY`：`retrieval` 回饋重撈後證據不足
+            - `SHORT_SCRIPT_ARC_NOT_APPLICABLE`：證據沒有轉折句，不適用 8 拍敘事弧線
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                arcNotApplicable:
+                  value:
+                    success: false
+                    message: The frozen evidence contains no reversal, so the 8-shot arc does not apply.
+                    error:
+                      code: SHORT_SCRIPT_ARC_NOT_APPLICABLE
+        '500':
+          description: 未設定 `GEMINI_API_KEY`，不會 fallback 成模板輸出（`SHORT_SCRIPT_PROVIDER_NOT_CONFIGURED`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                providerNotConfigured:
+                  value:
+                    success: false
+                    message: GEMINI_API_KEY is required for short script generation.
+                    error:
+                      code: SHORT_SCRIPT_PROVIDER_NOT_CONFIGURED
+        '502':
+          description: |
+            - `SHORT_SCRIPT_GENERATION_FAILED`：LLM provider 呼叫失敗
+            - `SHORT_SCRIPT_OUTPUT_INVALID`：重試上限內都無法解析成 JSON
+            - `SHORT_SCRIPT_CITATION_INVALID`：重試上限內都未通過引用與格式驗證
+            - `EMBEDDING_PROVIDER_ERROR`：`retrieval` 回饋重撈證據時 embedding provider 失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                citationInvalid:
+                  value:
+                    success: false
+                    message: Generated script cited chunk ids outside the frozen evidence.
+                    error:
+                      code: SHORT_SCRIPT_CITATION_INVALID
+                generationFailed:
+                  value:
+                    success: false
+                    message: Short script generation provider failed.
+                    error:
+                      code: SHORT_SCRIPT_GENERATION_FAILED
+  /api/v1/short-scripts/{scriptId}/review:
+    post:
+      tags:
+        - Short Scripts
+      summary: 審核腳本（要求修改或否決）
+      description: |
+        `decision` 只接受 `request_changes` 與 `dismiss`。`approved` 不開放人工設定：
+        腳本只會在對應成品通過審核並上架後，由系統標成 `approved`；傳 `approve` 會回 `400`。
+
+        `request_changes` 必須附 `feedback` 與 `feedbackType`（`retrieval` 或 `narrative`，由教師指定，系統不猜）。
+        `dismiss` 的 `feedback` 會存成 `dismissReason`。回饋記在最新一版上。
+      operationId: reviewShortScript
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShortScriptReviewRequest'
+            examples:
+              requestChanges:
+                value:
+                  decision: request_changes
+                  feedbackType: narrative
+                  feedback: 反轉太晚出現，請提前到第三鏡。
+              dismiss:
+                value:
+                  decision: dismiss
+                  feedback: 主題與下週課程重複。
+      responses:
+        '200':
+          description: 審核已記錄，回傳更新後的腳本
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortScriptResponse'
+        '400':
+          description: "`scriptId` 格式錯誤（`INVALID_ID`），或 `decision`、`feedbackType`、`feedback` 驗證失敗（`VALIDATION_ERROR`）。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unknownDecision:
+                  value:
+                    success: false
+                    message: Unknown review decision.
+                    error:
+                      code: VALIDATION_ERROR
+                feedbackTypeRequired:
+                  value:
+                    success: false
+                    message: feedbackType must be retrieval or narrative when requesting changes.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/ShortScriptStateInvalidError'
+  /api/v1/short-scripts/{scriptId}/asset:
+    post:
+      tags:
+        - Short Scripts
+      summary: 依腳本上傳成品影片
+      description: |
+        教師依腳本產出影片後上傳，建立 draft ShortAsset，**不會直接進學生牆**；對學生公開的閘門是成品審核（`POST /api/v1/shorts/{shortAssetId}/review`）。
+
+        - 必須確認 AI 揭露標示與教師數位分身書面同意（`aiDisclosureConfirmed`、`consentConfirmed` 皆為 `true`）。
+        - 腳本至少要有一個生成版本；`versionNo` 省略時使用最新一版，指定的版本不存在即回 `400`。
+        - 同一腳本已有尚未上架的成品（通常是被退回的那支）時，會把它換成新一代（`generationVersion` +1），不另建資產。
+        - 回應後 backend 會在背景把影片以 unlisted 上傳 YouTube 供教師預覽；上傳結果請看之後讀到的 `upload` 欄位。
+        - 驗證失敗時已寫入磁碟的上傳檔會被刪除。
+      operationId: uploadShortScriptAsset
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShortScriptAssetUploadRequest'
+      responses:
+        '201':
+          description: 成品已建立（或已換代），等待審核
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherShortAssetResponse'
+        '400':
+          description: |
+            - `INVALID_ID`：`scriptId` 格式錯誤
+            - `VALIDATION_ERROR`：缺少 `video` 檔案、指定的 `versionNo` 不存在，或標題為空
+            - `SHORT_ASSET_DISCLOSURE_REQUIRED`：未確認 AI 揭露標示與書面同意
+            - `INVALID_FILE_TYPE`：上傳的不是影片
+            - `UPLOAD_ERROR`：multipart 解析失敗或檔案超過 500 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                disclosureRequired:
+                  value:
+                    success: false
+                    message: AI disclosure and written consent must be confirmed before uploading.
+                    error:
+                      code: SHORT_ASSET_DISCLOSURE_REQUIRED
+                fileRequired:
+                  value:
+                    success: false
+                    message: A short video file is required.
+                    error:
+                      code: VALIDATION_ERROR
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          description: 腳本還沒有任何生成版本可以拍攝（`SHORT_SCRIPT_STATE_INVALID`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noVersion:
+                  value:
+                    success: false
+                    message: The script has no generated version to film from.
+                    error:
+                      code: SHORT_SCRIPT_STATE_INVALID
+  /api/v1/short-assets/{assetId}/upload/retry:
+    post:
+      tags:
+        - Short Scripts
+      summary: 重試成品影片的 YouTube 上傳
+      description: |
+        只允許從未送出過（`upload.status` 為 null）或 `failed` 且 `retrySafe=true` 的成品重試；
+        可能已送出影片 bytes 的失敗必須先人工確認 YouTube Studio，避免重複影片。
+
+        成功代表影片已以 unlisted 傳上 YouTube。成品若在上傳前已通過審核，會同時標成 `published` 進學生牆；
+        否則維持 `draft`。回應 message 固定為 `Short asset published.`，請以 `status` 判斷是否已上架。
+      operationId: retryShortAssetYouTubeUpload
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: YouTube 上傳成功，回傳更新後的成品
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherShortAssetResponse'
+        '400':
+          description: "`assetId` 格式錯誤（`INVALID_ID`），或成品缺少 AI 揭露／書面同意確認（`SHORT_ASSET_DISCLOSURE_REQUIRED`）。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid short asset id.
+                    error:
+                      code: INVALID_ID
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          description: 功能未啟用（`NOT_FOUND`）、成品不存在（`SHORT_ASSET_NOT_FOUND`），或成品所屬課程不存在（`COURSE_NOT_FOUND`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                featureDisabled:
+                  value:
+                    success: false
+                    message: Not found.
+                    error:
+                      code: NOT_FOUND
+                assetNotFound:
+                  value:
+                    success: false
+                    message: Short asset not found.
+                    error:
+                      code: SHORT_ASSET_NOT_FOUND
+        '409':
+          description: |
+            - `YOUTUBE_UPLOAD_ALREADY_COMPLETED`：已上傳過
+            - `YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED`：目前不是可重試的狀態
+            - `YOUTUBE_UPLOAD_RETRY_UNSAFE`：上次失敗可能已送出 bytes，須先人工確認
+            - `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED`：已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`
+            - `SHORT_ASSET_SOURCE_FILE_MISSING`：本機影片檔已不存在，需重新上傳
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                retryUnsafe:
+                  value:
+                    success: false
+                    message: The previous attempt may have sent video bytes; check YouTube Studio before retrying.
+                    error:
+                      code: YOUTUBE_UPLOAD_RETRY_UNSAFE
+                sourceFileMissing:
+                  value:
+                    success: false
+                    message: Local short video file is missing; cannot upload to YouTube.
+                    error:
+                      code: SHORT_ASSET_SOURCE_FILE_MISSING
+        '502':
+          description: YouTube OAuth 或上傳 API 失敗（`YOUTUBE_UPLOAD_FAILED`）；失敗已記錄在成品的 `upload` 欄位。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: YouTube 上傳憑證未設定完整（`YOUTUBE_UPLOAD_NOT_CONFIGURED`）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notConfigured:
+                  value:
+                    success: false
+                    message: YouTube upload is not configured.
+                    error:
+                      code: YOUTUBE_UPLOAD_NOT_CONFIGURED
+  /api/v1/courses/{courseId}/short-assets:
+    get:
+      tags:
+        - Short Scripts
+      summary: 列出課程的成品影片（教師視角）
+      description: |
+        回傳課程下所有 ShortAsset（含 draft、published、archived），依建立時間由新到舊排序，並附 YouTube 上傳狀態。
+        學生可見的 feed 請改用 `GET /api/v1/youtube/shorts`。
+      operationId: listCourseShortAssets
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      responses:
+        '200':
+          description: 成功取得成品列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherShortAssetListResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptCourseNotFoundError'
 components:
   securitySchemes:
     BearerAuth:
@@ -2733,6 +3582,34 @@ components:
       schema:
         type: string
         pattern: '^batch_[0-9]{14}_[a-f0-9]{8}$'
+    FeedbackId:
+      name: feedbackId
+      in: path
+      required: true
+      description: 目標回報的 MongoDB ObjectId。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+    FeedbackAttachmentId:
+      name: attachmentId
+      in: path
+      required: true
+      description: 回報附件的 MongoDB ObjectId，取自回報的 `attachments[].attachmentId`。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+    ScriptId:
+      name: scriptId
+      in: path
+      required: true
+      description: 目標短影片腳本的 MongoDB ObjectId（腳本回應中的 `_id`）。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
+    AssetId:
+      name: assetId
+      in: path
+      required: true
+      description: 目標 ShortAsset 的 MongoDB ObjectId。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
   responses:
     ValidationError:
       description: request payload 驗證失敗。
@@ -2766,21 +3643,6 @@ components:
                 message: Invalid email or password.
                 error:
                   code: INVALID_CREDENTIALS
-    UserInactiveError:
-      description: 使用者存在，但目前為 inactive。
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            userInactive:
-              summary: 帳號存在但已停用
-              description: 使用者資料存在，但目前 `isActive=false`，因此不允許登入。
-              value:
-                success: false
-                message: User is inactive.
-                error:
-                  code: USER_INACTIVE
     UnauthorizedError:
       description: 缺少 bearer token，或 token 對應的使用者目前不可用。
       content:
@@ -3050,6 +3912,102 @@ components:
                 message: LINE_CHANNEL_SECRET is not configured.
                 error:
                   code: LINE_NOT_CONFIGURED
+    FeedbackNotFoundError:
+      description: 找不到指定回報。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            feedbackNotFound:
+              value:
+                success: false
+                message: Feedback not found.
+                error:
+                  code: FEEDBACK_NOT_FOUND
+    EmbeddingProviderError:
+      description: 片段檢索時 query embedding provider 失敗或回傳無效向量（`EMBEDDING_PROVIDER_ERROR`）。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            embeddingProviderError:
+              value:
+                success: false
+                message: Failed to generate query embedding.
+                error:
+                  code: EMBEDDING_PROVIDER_ERROR
+    ShortScriptManageForbiddenError:
+      description: 角色不是 teacher 或 admin（`FORBIDDEN`），或 teacher 不是課程 owner（`COURSE_MANAGE_DENIED`）。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            roleForbidden:
+              value:
+                success: false
+                message: You do not have permission to perform this action.
+                error:
+                  code: FORBIDDEN
+            courseManageDenied:
+              value:
+                success: false
+                message: You do not have permission to manage this course.
+                error:
+                  code: COURSE_MANAGE_DENIED
+    ShortScriptCourseNotFoundError:
+      description: "`SHORT_SCRIPT_AUTOMATION_ENABLED` 未啟用（`NOT_FOUND`），或課程不存在（`COURSE_NOT_FOUND`）。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            featureDisabled:
+              value:
+                success: false
+                message: Not found.
+                error:
+                  code: NOT_FOUND
+            courseNotFound:
+              value:
+                success: false
+                message: Course not found.
+                error:
+                  code: COURSE_NOT_FOUND
+    ShortScriptNotFoundError:
+      description: "`SHORT_SCRIPT_AUTOMATION_ENABLED` 未啟用（`NOT_FOUND`）、腳本不存在（`SHORT_SCRIPT_NOT_FOUND`），或腳本所屬課程已不存在（`COURSE_NOT_FOUND`）。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            featureDisabled:
+              value:
+                success: false
+                message: Not found.
+                error:
+                  code: NOT_FOUND
+            scriptNotFound:
+              value:
+                success: false
+                message: Short script not found.
+                error:
+                  code: SHORT_SCRIPT_NOT_FOUND
+    ShortScriptStateInvalidError:
+      description: 腳本目前狀態不允許這個轉換（`SHORT_SCRIPT_STATE_INVALID`），例如對 `dismissed` 腳本再生成。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            stateInvalid:
+              value:
+                success: false
+                message: Cannot move a short script from dismissed to generated.
+                error:
+                  code: SHORT_SCRIPT_STATE_INVALID
   schemas:
     ObjectId:
       description: MongoDB ObjectId 的字串格式。
@@ -3938,7 +4896,7 @@ components:
         hierarchicalRetrievalRolloutMode:
           description: Fail-closed rollout mode. The global Gate remains the highest-priority kill switch.
           type: string
-          enum: [off, shadow, serve]
+          enum: ['off', shadow, serve]
         hierarchicalRetrievalRolloutModeValid:
           description: Whether the configured rollout mode was recognized.
           type: boolean
@@ -4415,41 +5373,39 @@ components:
       enum:
         - approved
         - rejected
-    ShortAssetReviewReasonCode:
-      type: string
-      enum:
-        - contentIncorrect
-        - audioIssue
-        - visualQuality
-        - subtitleIssue
-        - incomplete
-        - other
     ShortAssetReviewReason:
       description: |
         結構化退件理由。Backend 會 trim note；所有 note 最多 500 字元，`other` 必須提供非空白 note。
-      type: object
-      required:
-        - code
-      properties:
-        code:
-          $ref: '#/components/schemas/ShortAssetReviewReasonCode'
-        note:
-          type: string
-          maxLength: 500
-      allOf:
-        - if:
-            required:
-              - code
-            properties:
-              code:
-                const: other
-          then:
-            required:
-              - note
-            properties:
-              note:
-                minLength: 1
-                pattern: '.*\S.*'
+      oneOf:
+        - type: object
+          required:
+            - code
+          properties:
+            code:
+              description: 除 `other` 以外的退件理由代碼。
+              type: string
+              enum:
+                - contentIncorrect
+                - audioIssue
+                - visualQuality
+                - subtitleIssue
+                - incomplete
+            note:
+              type: string
+              maxLength: 500
+        - type: object
+          required:
+            - code
+            - note
+          properties:
+            code:
+              type: string
+              const: other
+            note:
+              type: string
+              minLength: 1
+              maxLength: 500
+              pattern: '.*\S.*'
     ShortAssetReviewCourseSummary:
       type: object
       required:
@@ -5858,3 +6814,988 @@ components:
               properties:
                 lineRuntime:
                   $ref: '#/components/schemas/LineRuntimeSnapshot'
+    FeedbackCategory:
+      description: 回報問題的分類。
+      type: string
+      enum:
+        - login_account
+        - course_video
+        - ai_qa
+        - line_bot
+        - shorts
+        - ui_operation
+        - other
+    FeedbackSeverity:
+      description: 回報者自評的影響程度。
+      type: string
+      enum:
+        - blocking
+        - partial
+        - minor
+    FeedbackStatus:
+      description: 回報的處理狀態；新回報為 `open`。
+      type: string
+      enum:
+        - open
+        - in_progress
+        - resolved
+        - closed
+    FeedbackAttachmentMeta:
+      description: 回報附件的 metadata；圖片本體需透過附件端點讀取。
+      type: object
+      required:
+        - attachmentId
+        - mimeType
+        - size
+        - originalName
+      properties:
+        attachmentId:
+          $ref: '#/components/schemas/ObjectId'
+        mimeType:
+          type: string
+          enum:
+            - image/jpeg
+            - image/png
+            - image/webp
+        size:
+          description: 位元組數。
+          type: integer
+          minimum: 0
+        originalName:
+          description: 上傳時的原始檔名；可能為空字串。
+          type: string
+    Feedback:
+      description: 回報者建立回報後看到的回報內容。
+      type: object
+      required:
+        - id
+        - category
+        - severity
+        - description
+        - pageContext
+        - courseVideoName
+        - status
+        - attachments
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        category:
+          $ref: '#/components/schemas/FeedbackCategory'
+        severity:
+          $ref: '#/components/schemas/FeedbackSeverity'
+        description:
+          type: string
+        pageContext:
+          description: 回報時所在的頁面，最多 200 字元。
+          type: [string, 'null']
+        courseVideoName:
+          description: 回報者填寫的課程或影片名稱，最多 200 字元。
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/FeedbackStatus'
+        attachments:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/FeedbackAttachmentMeta'
+        createdAt:
+          type: string
+          format: date-time
+    AdminFeedbackItem:
+      description: Admin 後台看到的回報，額外包含處理備註與回報者資訊。
+      type: object
+      required:
+        - id
+        - category
+        - severity
+        - description
+        - pageContext
+        - courseVideoName
+        - status
+        - adminNote
+        - submitter
+        - attachments
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        category:
+          $ref: '#/components/schemas/FeedbackCategory'
+        severity:
+          $ref: '#/components/schemas/FeedbackSeverity'
+        description:
+          type: string
+        pageContext:
+          type: [string, 'null']
+        courseVideoName:
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/FeedbackStatus'
+        adminNote:
+          type: [string, 'null']
+        submitter:
+          description: |
+            回報者。列表端點會 populate 使用者資料；PATCH 回應不會 populate，此時 `name`、`email` 為 `—`，
+            `role` 為回報當下的角色。
+          type: object
+          required:
+            - id
+            - name
+            - email
+            - role
+          properties:
+            id:
+              $ref: '#/components/schemas/ObjectId'
+            name:
+              type: string
+            email:
+              type: string
+            role:
+              $ref: '#/components/schemas/UserRole'
+        attachments:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/FeedbackAttachmentMeta'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    FeedbackCreateRequest:
+      description: 建立回報的欄位。
+      type: object
+      required:
+        - category
+        - severity
+        - description
+      properties:
+        category:
+          $ref: '#/components/schemas/FeedbackCategory'
+        severity:
+          $ref: '#/components/schemas/FeedbackSeverity'
+        description:
+          description: 問題描述；trim 後不可為空，最多 2000 字元。
+          type: string
+          minLength: 1
+          maxLength: 2000
+        pageContext:
+          description: 回報時所在的頁面；超過 200 字元會被截斷。
+          type: string
+        courseVideoName:
+          description: 相關的課程或影片名稱；超過 200 字元會被截斷。
+          type: string
+    FeedbackCreateMultipartRequest:
+      description: 附截圖時使用的 multipart 欄位。
+      allOf:
+        - $ref: '#/components/schemas/FeedbackCreateRequest'
+        - type: object
+          properties:
+            attachments:
+              description: 最多 3 張 JPEG、PNG 或 WebP 截圖，單檔最多 10 MiB。
+              type: array
+              maxItems: 3
+              items:
+                type: string
+                format: binary
+    AdminFeedbackUpdateRequest:
+      description: "`status` 與 `adminNote` 至少提供一個。"
+      type: object
+      minProperties: 1
+      properties:
+        status:
+          $ref: '#/components/schemas/FeedbackStatus'
+        adminNote:
+          description: 管理員備註；空字串或 `null` 會清除備註。
+          type: [string, 'null']
+    FeedbackItemResponse:
+      description: 建立回報的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Feedback'
+    AdminFeedbackListResponse:
+      description: Admin 回報列表的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: object
+              required:
+                - feedback
+              properties:
+                feedback:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AdminFeedbackItem'
+            meta:
+              type: object
+              required:
+                - total
+                - page
+                - limit
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+                page:
+                  type: integer
+                  minimum: 1
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+    AdminFeedbackItemResponse:
+      description: Admin 更新回報的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/AdminFeedbackItem'
+    ShortScriptStatus:
+      description: |
+        短影片腳本生命週期。`approved` 只會在對應成品上架後由系統設定，不能透過審核端點設定；`dismissed` 為終態。
+      type: string
+      enum:
+        - evidence_ready
+        - generated
+        - changes_requested
+        - approved
+        - dismissed
+    ShortScriptFeedbackType:
+      description: "`retrieval` 代表證據撈錯、下次生成前重新檢索；`narrative` 代表只重寫敘事。"
+      type: string
+      enum:
+        - retrieval
+        - narrative
+    ShortScriptEvidence:
+      description: 凍結的證據片段快照；來源影片之後被刪除或重新處理都不影響已凍結內容。
+      type: object
+      required:
+        - code
+        - chunkId
+        - videoId
+        - videoTitle
+        - startSec
+        - endSec
+        - rawText
+        - expandedFrom
+      properties:
+        code:
+          description: 證據代號（A、B、C…），腳本以此引用。
+          type: string
+        chunkId:
+          type: string
+        videoId:
+          type: [string, 'null']
+        videoTitle:
+          type: [string, 'null']
+        startSec:
+          type: [number, 'null']
+        endSec:
+          type: [number, 'null']
+        rawText:
+          description: 未經修飾的 STT 原文。
+          type: string
+        expandedFrom:
+          description: 由鄰接擴展補進時，記錄是從哪個命中片段擴展；直接命中為 `null`。
+          type: [string, 'null']
+    ShortScriptSourceQuestion:
+      description: 被合併進此主題的原始提問。
+      type: object
+      required:
+        - question
+        - askCount
+        - uniqueAskerCount
+      properties:
+        question:
+          type: string
+        askCount:
+          type: integer
+          minimum: 0
+        uniqueAskerCount:
+          type: integer
+          minimum: 0
+    ShortScriptSelectionReason:
+      description: 系統選中這個主題的依據，供教師追溯排名。舊資料可能缺少較晚加入的欄位。
+      type: object
+      properties:
+        selectedTopicKey:
+          type: string
+        totalAskCount:
+          type: integer
+          minimum: 0
+        uniqueAskerCount:
+          type: integer
+          minimum: 0
+        variantCount:
+          type: integer
+          minimum: 0
+        lastAskedAt:
+          type: [string, 'null']
+          format: date-time
+        evidenceCount:
+          type: integer
+          minimum: 0
+        directMatchCount:
+          type: integer
+          minimum: 0
+        rank:
+          description: 在完整候選清單中的名次（從 1 開始）。
+          type: integer
+          minimum: 1
+        selectedBy:
+          description: "`teacher` 表示教師指定 `topicKey`；`auto` 表示系統依排序自動選。"
+          type: string
+          enum:
+            - teacher
+            - auto
+        rejectedForEvidence:
+          description: 因證據不足被淘汰的前序候選。
+          type: array
+          items:
+            type: object
+            required:
+              - rank
+              - topicKey
+              - question
+              - evidenceCount
+              - reason
+            properties:
+              rank:
+                type: integer
+                minimum: 1
+              topicKey:
+                type: string
+              question:
+                type: string
+              evidenceCount:
+                type: integer
+                minimum: 0
+              reason:
+                type: string
+                enum:
+                  - insufficient_evidence
+        runnersUp:
+          description: 未被選中的前三名候選。
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required:
+              - rank
+              - topicKey
+              - question
+              - totalAskCount
+              - uniqueAskerCount
+            properties:
+              rank:
+                type: integer
+                minimum: 1
+              topicKey:
+                type: string
+              question:
+                type: string
+              totalAskCount:
+                type: integer
+                minimum: 0
+              uniqueAskerCount:
+                type: integer
+                minimum: 0
+        excludedTopicKeyCount:
+          description: 因課程已有腳本而被排除的主題數。
+          type: integer
+          minimum: 0
+        selectedAt:
+          type: string
+          format: date-time
+    ShortScriptShot:
+      description: 8 拍腳本中的一鏡。`arcRole`、`timeRange`、`cut` 依位置由 backend 寫入，不採用模型輸出。
+      type: object
+      required:
+        - shotNo
+        - arcRole
+        - timeRange
+        - cut
+        - brollStage
+        - brollNote
+        - narration
+        - subtitle
+        - hookQuestion
+        - sfx
+        - basedOn
+      properties:
+        shotNo:
+          type: integer
+          minimum: 1
+        arcRole:
+          type: [string, 'null']
+          enum:
+            - hook
+            - context
+            - reveal
+            - reversal
+            - evidence
+            - climax
+            - conclusion
+            - ending
+            - null
+        timeRange:
+          type: [string, 'null']
+          examples:
+            - '0:00–0:03'
+        cut:
+          type: string
+        brollStage:
+          type: string
+          enum:
+            - S1
+            - S2
+            - S3
+        brollNote:
+          type: string
+        narration:
+          type: string
+        subtitle:
+          type: string
+        hookQuestion:
+          type: string
+        sfx:
+          type: string
+        basedOn:
+          description: 引用的證據代號；純模板鏡頭為字串 `template`。
+          oneOf:
+            - type: string
+              const: template
+            - type: array
+              items:
+                type: string
+    ShortScriptPayload:
+      description: 正規化後的腳本內容。
+      type: object
+      required:
+        - globalSettings
+        - writingPlan
+        - stageMeanings
+        - visualMetaphorOptions
+        - shots
+        - reversalBasedOn
+      properties:
+        globalSettings:
+          description: 模型輸出的全域設定，原樣保存。
+          type: [object, 'null']
+        writingPlan:
+          description: 模板 §3 的四個固定寫作問題的回答。
+          type: object
+          required:
+            - curiosity
+            - delayedAnswer
+            - reversal
+            - takeaway
+          properties:
+            curiosity:
+              type: string
+            delayedAnswer:
+              type: string
+            reversal:
+              type: string
+            takeaway:
+              type: string
+        stageMeanings:
+          type: object
+          required:
+            - s1
+            - s2
+            - s3
+          properties:
+            s1:
+              type: string
+            s2:
+              type: string
+            s3:
+              type: string
+        visualMetaphorOptions:
+          type: array
+          items:
+            type: object
+            required:
+              - label
+              - s1
+              - s2
+              - s3
+              - rationale
+            properties:
+              label:
+                type: string
+              s1:
+                type: string
+              s2:
+                type: string
+              s3:
+                type: string
+              rationale:
+                type: string
+        shots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortScriptShot'
+        reversalBasedOn:
+          description: 反轉鏡頭引用的證據代號。
+          type: array
+          items:
+            type: string
+    ShortScriptVersion:
+      description: |
+        腳本的一個生成版本，以及教師（或成品審核）對這一版的回饋。
+        回應直接讀 MongoDB 文件，schema 較晚加入的欄位在舊資料上可能不存在，因此只有 `versionNo`、`payload` 保證出現。
+      type: object
+      required:
+        - versionNo
+        - payload
+      properties:
+        versionNo:
+          type: integer
+          minimum: 1
+        payload:
+          anyOf:
+            - $ref: '#/components/schemas/ShortScriptPayload'
+            - type: 'null'
+        generatedAt:
+          type: [string, 'null']
+          format: date-time
+        feedback:
+          type: [string, 'null']
+        feedbackType:
+          anyOf:
+            - $ref: '#/components/schemas/ShortScriptFeedbackType'
+            - type: 'null'
+        reviewedBy:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        reviewedAt:
+          type: [string, 'null']
+          format: date-time
+        evidenceFrozenAt:
+          description: 這一版使用的證據凍結時間。
+          type: [string, 'null']
+          format: date-time
+        rejectedAsAsset:
+          description: 這一版的回饋來自成品影片被退回，而不是腳本審核。
+          type: boolean
+    ShortScript:
+      description: |
+        短影片腳本（MongoDB 文件原樣輸出，未經 mapper）。讀取時不會補上 schema default，
+        因此 `required` 只列建立時一定寫入的欄位；其餘欄位在舊資料上可能不存在。
+      type: object
+      required:
+        - _id
+        - courseId
+        - topic
+        - topicKey
+        - evidence
+        - versions
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        _id:
+          $ref: '#/components/schemas/ObjectId'
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        topic:
+          description: 主題的代表問句。
+          type: string
+        topicKey:
+          description: 代表問句的正規化文字；同一課程內唯一。
+          type: string
+        sourceQuestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortScriptSourceQuestion'
+        selectionReason:
+          anyOf:
+            - $ref: '#/components/schemas/ShortScriptSelectionReason'
+            - type: 'null'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortScriptEvidence'
+        evidenceFrozenAt:
+          type: [string, 'null']
+          format: date-time
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortScriptVersion'
+        status:
+          $ref: '#/components/schemas/ShortScriptStatus'
+        dismissReason:
+          type: [string, 'null']
+        createdBy:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        __v:
+          description: Mongoose 版本鍵。
+          type: integer
+          minimum: 0
+    ShortScriptTopicVariant:
+      description: 合併進候選主題的一種問法。
+      type: object
+      required:
+        - question
+        - normalizedQuestion
+        - askCount
+        - uniqueAskerCount
+        - lastAskedAt
+      properties:
+        question:
+          type: string
+        normalizedQuestion:
+          type: string
+        askCount:
+          type: integer
+          minimum: 0
+        uniqueAskerCount:
+          type: integer
+          minimum: 0
+        lastAskedAt:
+          type: [string, 'null']
+          format: date-time
+    ShortScriptTopicCandidate:
+      description: 自動選題候選（已完成同義題合併）。
+      type: object
+      required:
+        - topicKey
+        - question
+        - normalizedQuestion
+        - totalAskCount
+        - uniqueAskerCount
+        - variants
+        - lastAskedAt
+      properties:
+        topicKey:
+          type: string
+        question:
+          type: string
+        normalizedQuestion:
+          type: string
+        totalAskCount:
+          type: integer
+          minimum: 0
+        uniqueAskerCount:
+          description: 跨所有問法去重後的提問人數。
+          type: integer
+          minimum: 0
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortScriptTopicVariant'
+        lastAskedAt:
+          type: [string, 'null']
+          format: date-time
+    ShortScriptCreateRequest:
+      type: object
+      properties:
+        topicKey:
+          description: 教師指定的候選 `topicKey`；省略或空白時由系統依排序自動選題。
+          type: string
+    ShortScriptReviewRequest:
+      description: "`request_changes` 必須同時提供 `feedback` 與 `feedbackType`。"
+      type: object
+      required:
+        - decision
+      properties:
+        decision:
+          type: string
+          enum:
+            - request_changes
+            - dismiss
+        feedback:
+          description: 修改意見；`dismiss` 時存成否決理由。
+          type: string
+        feedbackType:
+          $ref: '#/components/schemas/ShortScriptFeedbackType'
+    ShortScriptAssetUploadRequest:
+      description: 依腳本上傳成品影片的 multipart 欄位；multipart 欄位皆以字串傳送。
+      type: object
+      required:
+        - video
+        - aiDisclosureConfirmed
+        - consentConfirmed
+      properties:
+        video:
+          description: 影片檔（MIME type 必須為 `video/*`），最大 500 MB。
+          type: string
+          format: binary
+        title:
+          description: 成品標題；省略時使用腳本主題。
+          type: string
+        description:
+          type: string
+        versionNo:
+          description: 依據的腳本版本；省略時使用最新一版。
+          type: integer
+          minimum: 1
+        aiDisclosureConfirmed:
+          description: 確認已加上 AI 生成揭露標示。必須為 `true`（不分大小寫），其他值都視為未確認。
+          type: string
+          examples:
+            - 'true'
+        consentConfirmed:
+          description: 確認已取得教師數位分身書面同意。必須為 `true`（不分大小寫），其他值都視為未確認。
+          type: string
+          examples:
+            - 'true'
+    TeacherShortAsset:
+      description: 教師視角的 ShortAsset，包含審核、揭露確認與 YouTube 上傳狀態。
+      type: object
+      required:
+        - id
+        - courseId
+        - title
+        - description
+        - status
+        - reviewStatus
+        - generationVersion
+        - reviewedGenerationVersion
+        - sourceScriptId
+        - sourceVersionNo
+        - youtubeVideoId
+        - youtubeUrl
+        - privacyStatus
+        - publishedAt
+        - disclosure
+        - upload
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ShortAssetLifecycleStatus'
+        reviewStatus:
+          $ref: '#/components/schemas/ShortAssetReviewStatus'
+        generationVersion:
+          type: integer
+          minimum: 1
+        reviewedGenerationVersion:
+          type: [integer, 'null']
+        sourceScriptId:
+          anyOf:
+            - $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        sourceVersionNo:
+          type: [integer, 'null']
+        youtubeVideoId:
+          type: [string, 'null']
+        youtubeUrl:
+          type: [string, 'null']
+          format: uri
+        privacyStatus:
+          type: [string, 'null']
+          enum:
+            - public
+            - unlisted
+            - private
+            - unknown
+            - null
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        disclosure:
+          type: object
+          required:
+            - aiDisclosureConfirmed
+            - consentConfirmed
+            - confirmedAt
+          properties:
+            aiDisclosureConfirmed:
+              type: boolean
+            consentConfirmed:
+              type: boolean
+            confirmedAt:
+              type: [string, 'null']
+              format: date-time
+        upload:
+          description: YouTube 上傳狀態；`status` 為 `null` 代表尚未嘗試。
+          type: object
+          required:
+            - status
+            - error
+            - attemptCount
+            - retrySafe
+          properties:
+            status:
+              type: [string, 'null']
+              enum:
+                - uploading
+                - uploaded
+                - failed
+                - null
+            error:
+              type: [string, 'null']
+            attemptCount:
+              type: integer
+              minimum: 0
+            retrySafe:
+              description: 上次失敗確定沒有送出影片 bytes，可以安全重試。
+              type: boolean
+        createdAt:
+          type: [string, 'null']
+          format: date-time
+    ShortScriptResponse:
+      description: 單一短影片腳本的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/ShortScript'
+    ShortScriptListResponse:
+      description: 課程腳本列表的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ShortScript'
+            meta:
+              type: object
+              required:
+                - total
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+    ShortScriptCandidateListResponse:
+      description: 自動選題候選預覽的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ShortScriptTopicCandidate'
+            meta:
+              type: object
+              required:
+                - totalClusters
+                - similarityThreshold
+                - usableQuestionCount
+              properties:
+                totalClusters:
+                  description: 合併後的主題群數（過濾與截斷前）。
+                  type: integer
+                  minimum: 0
+                similarityThreshold:
+                  description: 同義題合併使用的 cosine 相似度門檻；未啟用語意合併時為 `null`。
+                  type: [number, 'null']
+                usableQuestionCount:
+                  description: 納入選題計算的提問總次數。
+                  type: integer
+                  minimum: 0
+    TeacherShortAssetResponse:
+      description: 單一成品的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/TeacherShortAsset'
+    TeacherShortAssetListResponse:
+      description: 課程成品列表的成功回應 envelope。
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/TeacherShortAsset'
+            meta:
+              type: object
+              required:
+                - total
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+    AdminUser:
+      description: Admin 後台的使用者列表項目。`courses`、`queries` 只有列表端點會回傳。
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+        - isActive
+        - isLineBound
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+        isLineBound:
+          description: 是否已綁定 LINE 帳號；不暴露實際 LINE user id。
+          type: boolean
+        courses:
+          description: 有效修課數（依 Enrollment.studentId 統計）。
+          type: integer
+          minimum: 0
+        queries:
+          description: 網頁提問次數（`usage_logs` 的 `ask` 事件）。
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time

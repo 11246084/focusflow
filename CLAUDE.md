@@ -66,6 +66,7 @@ npm run seed:reset
 npm run db:sync-atlas
 npm test
 node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
+npm run docs:lint
 ```
 
 注意：
@@ -74,7 +75,8 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>
 - `npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建。
 - `db:ensure-questions`（建立 `questions` 並同步 indexes）、`db:backfill-questions`（預設 dry-run，加 `-- --write` 才寫入）的 script 檔都存在；兩者都會寫共享 DB，對 Atlas 執行前需確認目標。
 - Swagger UI 掛在 `/docs`，raw spec 掛在 `/docs/openapi.yaml`，repo 規格檔在 `backend/docs/openapi.yaml`。
-- OpenAPI 已涵蓋 auth、courses、videos、conversations、qa、stats、admin、line、shorts 審核等主要端點；尚未涵蓋 `short-scripts`、`short-assets`、`feedback`、`admin/feedback` 與 internal processing webhook，完整 API 清單以 `backend/src/routes/` 為準。
+- OpenAPI 是 `/api/v1/*` 與 `/health` 的公開 API contract，涵蓋每一個實際註冊的 route；`tests/docs.routes.test.js` 從 runtime router 盤點並比對 missing／stale／method／path 參數／重複註冊，新增或刪除 route 沒同步 `openapi.yaml` 會讓 `npm test` 失敗。刻意不收錄的端點列在該測試的 `UNDOCUMENTED_BY_DESIGN`（internal processing webhook ×3、`GET /api/v1/line/webhook`），每筆要附理由。
+- `npm run docs:lint` 以 Redocly（devDependency 固定 2.54.2，設定在 `backend/redocly.yaml`）檢查 spec 結構與 example 是否符合 schema；不併入 `npm test`。逐筆例外寫在 `backend/.redocly.lint-ignore.yaml` 並附理由。
 
 ### Frontend
 
@@ -88,6 +90,7 @@ npm run dev
 修改前端後至少執行：
 
 ```powershell
+npm test
 npm run lint
 npm run build
 ```
@@ -146,7 +149,7 @@ DEMO_SEED_ENABLED=false
 
 重要邊界：
 
-- 共享 Atlas 的 `text_embedding_index` 狀態以實查為準：2026-05-01 曾驗證為不存在，但 2026-06-05 重新查證已存在且 `status=READY`（`video_segments_text`，3072 維，130 筆）。狀態請以連 Atlas 實查為準（不要憑文件斷言）。若哪天又查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
+- 共享 Atlas 的 `text_embedding_index`（`video_segments_text`，3072 維）狀態以連 Atlas 實查為準，不要憑文件斷言；歷史上它被記載過「不存在」也被記載過「READY」。若查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
 - 本機無 API key smoke 可改成：
 
 ```env
@@ -266,17 +269,25 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>
 
 ### Frontend
 
-目前沒有正式自動化測試框架。修改 frontend 後至少執行：
+測試位於 `frontend/focus-flow/tests/`，使用 `node:test`。修改 frontend 後至少執行：
 
 ```powershell
 cd frontend\focus-flow
+npm test
 npm run lint
 npm run build
 ```
 
 ### AI Pipeline
 
-目前沒有正式自動化測試套件。修改 pipeline 後至少確認相關 CLI 可執行；若依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
+測試位於 `STT_Whisper/tests/`（unittest）。修改 pipeline 後至少執行：
+
+```powershell
+cd STT_Whisper
+.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
+```
+
+若變更依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
 
 ## 開發原則
 
@@ -287,6 +298,7 @@ npm run build
 - 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
 - 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
 - 不刪除檔案或清資料，除非使用者明確要求且已確認影響。
+- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
 
 ## 文件更新
 
@@ -304,12 +316,12 @@ npm run build
 
 ## 不能誤稱的邊界
 
-- 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
+- atlas mode 是否 ready 要連 Atlas 實查 `listSearchIndexes` 確認 `text_embedding_index` 為 READY，並需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`；不要憑文件斷言它存在或不存在。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端功能都已 live 驗證：16 個頁面都已接 backend API，但部分功能受 feature flag 控制（例如 `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時，短影片腳本 API 回 404）。
 - YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
 - 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
 - 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
 - 不能說 `video_segments_video` 已接成正式 multimodal QA source。
-- 不能把 OpenAPI 當成完整 API 契約；它仍缺 short-scripts、short-assets、feedback 與 internal webhook。
+- OpenAPI 的 route 覆蓋（method + path）由 `docs.routes.test.js` 強制，但 request／response schema 與實作是否一致**沒有**自動化測試保證（Redocly 只驗 spec 本身與 example）；不能說「schema 已由測試驗證」。internal processing webhook 刻意不在公開 spec 內。
 - **對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」**：校外可經 `https://focusflow.ntub.edu.tw` 使用（443 全球可達、Let's Encrypt 憑證受信任、CORS 已收斂、HSTS 已加）。仍屬試用的原因：學生試用驗收證據（附錄 I 的 12＋2 題）持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）、port 80 對外不通（學校不開放，對外一律給 `https://` 網址）。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。

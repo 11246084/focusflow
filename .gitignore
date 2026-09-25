@@ -200,3 +200,8 @@ docs/00_Deliverables/System_Manual/source-documents/四技第113402組-*.pdf
 docs/00_Deliverables/System_Manual/source-documents/四技第114406組-*.pdf
 docs/00_Deliverables/System_Manual/source-documents/四技第114414組-*.pdf
 docs/00_Deliverables/System_Manual/source-documents/四技第115414組-*.pdf
+
+# ================================
+# Archify visual-check 驗證輸出（可重跑產生，JSON 含本機路徑）
+# ================================
+*.visual-check.*

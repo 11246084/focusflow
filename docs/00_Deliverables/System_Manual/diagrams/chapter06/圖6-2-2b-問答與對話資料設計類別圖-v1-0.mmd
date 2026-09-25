@@ -1,0 +1,76 @@
+---
+title: 問答與對話資料設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-04, UC-05
+%% source:       backend/src/services/conversation.service.js、line.service.js、askLimits.service.js、qa.service.js、faqCache.service.js、costControl.service.js、answerGeneration.service.js；backend/src/models/conversation.model.js、message.model.js、question.model.js、faq.model.js、usageLog.model.js、videoSegment.model.js、lineBindToken.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-2-2 v4-0 拆出資料視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（資料類別屬性、參照關聯與多重性；服務見同節 a 圖）
+%% ============================================
+classDiagram
+    direction LR
+
+    class Conversation {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -title : String
+    }
+    class Message {
+        -conversationId : ObjectId
+        -role : user｜assistant
+        -content : String
+        -status : pending｜completed｜failed
+        -replyToMessageId : ObjectId
+        -sources : Source[]
+    }
+    class Question {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -question : String
+        -answer : String
+        -status : answered｜no_match｜failed
+        -source : api｜line
+        -matches : MatchSnapshot[]
+        -sourceUsageLogId : ObjectId
+    }
+    class Faq {
+        -courseId : ObjectId
+        -normalizedQuestion : String
+        -answer : String
+        -matches : MatchSnapshot[]
+        -questionEmbedding : Number[]
+        -hitCount : Number
+    }
+    class UsageLog {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -event : login｜watch｜video_open｜ask｜clip_view
+        -metadata : Object
+    }
+    class VideoSegment {
+        -videoId : String
+        -chunkId : String
+        -startSec : Number
+        -endSec : Number
+        -text : String
+        -embedding : Number[]
+    }
+    class LineBindToken {
+        -token : String
+        -userId : ObjectId
+        -expiresAt : Date
+    }
+
+    Message "0..*" --> "1" Conversation : conversationId
+    Question "0..*" --> "0..1" UsageLog : sourceUsageLogId
+    Message ..> VideoSegment : sources 快照自
+    Question ..> VideoSegment : matches 快照自
+    Faq ..> VideoSegment : matches 快照自

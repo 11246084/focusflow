@@ -1,0 +1,65 @@
+---
+title: 管理員維運循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-09, FR-04, FR-05, FR-06, FR-18, FR-19
+%% source:       backend/src/routes/admin.routes.js、middleware/auth.middleware.js、middleware/role.middleware.js、services/admin.service.js、services/video.service.js（deleteVideo）、services/notification.service.js（broadcastSystemNotification）（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：補 401／403 分支，拆出使用者、影片、課程名單與公告四種維運操作，影片刪除先清 FAQ 快取並將 YouTube 影片轉 private，公告對象為啟用中的學生
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor A as 管理員
+    participant FE as 前端（管理後台 /admin）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant YT as YouTube
+
+    A->>FE: 由 /admin 入口登入後開啟後台<br/>（登入見圖6-1-1）
+    FE->>API: GET /admin/stats、<br/>/admin/events、<br/>/admin/system-status
+    API->>+DB: 驗證 JWT，確認帳號仍存在、<br/>啟用且角色為 admin
+    DB-->>-API: 帳號狀態
+    alt token 無效或非管理員
+        API-->>FE: 401 INVALID_TOKEN／<br/>UNAUTHORIZED 或<br/>403 FORBIDDEN
+        FE-->>A: 顯示無權限並回到登入
+    else 管理員
+        API->>DB: 彙整使用者、影片、<br/>片段、提問與近期事件
+        API-->>FE: 統計、近期事件與服務狀態
+    end
+    alt 管理使用者
+        A->>FE: 修改姓名、角色或停用帳號
+        FE->>API: PATCH /admin/users/:userId
+        API->>DB: 驗證角色值後更新帳號
+        API-->>FE: 更新結果（查無帳號<br/>404、欄位不合規 400）
+    else 刪除異常影片
+        A->>FE: 刪除影片
+        FE->>API: DELETE<br/>/admin/videos/:videoId
+        API->>DB: 先清除相關課程 FAQ 快取<br/>（失敗回 503<br/>FAQ_INVALIDATION_FAILED<br/>並中止）
+        API->>DB: 刪除片段、影片與相關通知，<br/>自所有課程移除引用
+        API-)YT: 盡力將自家頻道影片轉為 private
+        API-->>FE: 刪除結果
+    else 管理課程與修課名單
+        A->>FE: 編輯任一課程或名單
+        FE->>API: /courses 與<br/>/courses/:courseId/enrollments
+        API->>DB: 管理員可跨課程操作，流程同圖6-1-2
+        API-->>FE: 最新課程與名單狀態
+    else 發送系統公告
+        A->>FE: 輸入公告標題與內容
+        FE->>API: POST /admin/notifications
+        API->>DB: 為每位啟用中的學生建立一則通知
+        API-->>FE: 收件人數
+    end
+    FE-->>A: 讀回最新資料確認結果

@@ -1,0 +1,85 @@
+---
+title: 學生網頁觀看與提問循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-04, FR-07, FR-12, FR-13, FR-14, FR-15, FR-16
+%% source:       frontend/focus-flow/src/pages/StudentCourses.jsx、backend/src/routes/conversation.routes.js、services/conversation.service.js（sendMessage、runQuestion、retryMessage）、services/askLimits.service.js、services/qa.service.js（askQuestion）、services/costControl.service.js（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：網頁提問走 conversations API；每日次數在進入 QA 前檢查，快取之間的是每月 token 配額；FAQ 快取只用於無對話歷史的提問；補 AI 服務參與者、失敗訊息與重試分支
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor S as 學生
+    participant FE as 前端（課程影片頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant AI as AI 服務（Gemini）
+
+    S->>FE: 開啟課程與影片
+    FE->>API: GET /courses/:courseId、<br/>GET /courses/:courseId/videos
+    API->>+DB: 驗證 active Enrollment<br/>且課程 published
+    DB-->>-API: 驗證結果與影片清單
+    alt 無修課資格或課程未發布
+        API-->>FE: 403 COURSE_ACCESS_DENIED
+        FE-->>S: 顯示無權存取
+    else 授權通過
+        API-->>FE: 課程與影片清單
+        FE->>API: POST<br/>.../videos/:videoId/opened
+        API->>DB: 記錄 video_open 事件
+        Note over FE,API: 播放達 80% 時另送<br/>POST .../watched，<br/>首次看完才更新 Enrollment 進度
+    end
+    S->>FE: 在課程對話輸入問題
+    FE->>API: POST<br/>/conversations/:conversationId/messages
+    API->>DB: 確認對話屬於本人且仍可存取課程，<br/>檢查字數上限與今日提問次數<br/>（網頁與 LINE 合計）
+    alt 超過字數或今日次數用完
+        API-->>FE: 400 QUESTION_TOO_LONG／<br/>429 QA_DAILY_LIMIT_EXCEEDED
+        FE-->>S: 顯示限制原因（不建立訊息）
+    else 允許提問
+        API->>DB: 建立 user 訊息；對話無歷史時<br/>查詢完全相同問題的 FAQ
+        alt FAQ 完全相同命中
+            API->>DB: 保存 Question 與 ask 事件，<br/>FAQ 命中數加一
+        else 未命中
+            API->>DB: 檢查本月 token 配額
+            API->>AI: 計算問題 embedding
+            AI-->>API: 查詢向量
+            API->>+DB: 以查詢向量比對課程 FAQ 語意相似度
+            DB-->>-API: 最相似 FAQ 與相似度
+            alt 相似度達快取門檻
+                API->>DB: 保存 Question 與 ask 事件，<br/>FAQ 命中數加一
+            else 未命中快取
+                API->>+DB: 在授權影片範圍檢索片段
+                DB-->>-API: 候選片段
+                alt 有相關片段
+                    API->>AI: 以片段與對話歷史生成回答
+                    AI-->>API: 回答與實際採用的證據編號
+                    API->>DB: 保存 Question（answered，<br/>罐頭拒答為 no_match）<br/>與 ask 事件；符合條件者寫入 FAQ
+                else 查無相關片段
+                    API->>DB: 保存 Question（no_match）
+                end
+            end
+        end
+        alt 回答產生成功
+            API->>DB: 建立 assistant<br/>訊息（含來源片段）
+            API-->>FE: 回答、來源片段與時間戳
+            FE-->>S: 顯示回答與引用卡；<br/>查無片段時提示換個問法
+        else 月配額超限或 AI 服務失敗
+            API->>DB: 保存 failed Question<br/>與 failed 訊息
+            API-->>FE: 失敗訊息（failed=true）
+            FE-->>S: 顯示失敗，可按「重新產生」
+        end
+    end
+    S->>FE: 點擊引用卡
+    FE-->>S: 影片跳到片段時間點

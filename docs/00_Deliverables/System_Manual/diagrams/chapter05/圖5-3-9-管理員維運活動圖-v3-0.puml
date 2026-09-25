@@ -1,0 +1,46 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-09, FR-04, FR-05, FR-06, FR-18, FR-19, FR-23
+' source:       chapters/05_需求模型.md 表5-3-9；backend/src/routes/admin.routes.js、services/admin.service.js、notification.service.js、feedback.service.js、systemStatus.service.js（查證）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依管理 API 重繪維運項目：使用者、課程與影片、系統公告（對象為啟用中的學生）、問題回報處理與系統服務狀態
+' ============================================
+!include ../_style.puml
+
+title 管理員維運活動圖
+
+|管理員|
+start
+:由管理員入口登入;
+|FocusFlow|
+if (為啟用中的管理員帳號？) then (否)
+  :拒絕進入管理介面;
+  stop
+endif
+:顯示系統總覽\n（使用統計、近期事件、服務狀態）;
+|管理員|
+switch (選擇維運項目)
+case (使用者管理)
+  :調整姓名、角色或啟用狀態;
+case (課程與影片管理)
+  :跨課程維護課程、修課名單與影片;
+case (系統公告)
+  :輸入公告標題與內容;
+case (問題回報處理)
+  :查看回報並更新處理狀態;
+endswitch
+|FocusFlow|
+if (識別碼、欄位與資料關聯有效？) then (否)
+  :回覆錯誤，資料不變;
+  stop
+endif
+:保存變更並記錄必要事件；\n公告以站內通知發送給所有啟用中的學生;
+|管理員|
+:確認最新狀態;
+stop
+
+@enduml

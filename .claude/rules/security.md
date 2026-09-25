@@ -73,6 +73,7 @@ const toPublicUser = (user) => ({
 ### 錯誤回應中的 `details`
 - **非 production 環境**才回傳 `details`（`error.middleware.js` 自動處理）
 - 不要在 details 中洩漏 stack trace 或 SQL/MongoDB 查詢語句
+- production 環境中，非 `AppError` 且狀態碼為 5xx 的未預期錯誤一律回 `500 INTERNAL_SERVER_ERROR` 與通用訊息 `Internal server error.`，原始 message／code 只寫入 server log；`AppError`、`MulterError`、Mongoose 驗證／CastError、重複鍵與帶 4xx 狀態的錯誤維持原本的對外訊息
 
 ### 環境變數
 - 所有金鑰、Secret 透過 `.env` 管理，**不能 hardcode 在程式碼中**
@@ -89,7 +90,7 @@ X-Line-Signature: <base64 HMAC-SHA256>
   → crypto.createHmac('sha256', LINE_CHANNEL_SECRET)
       .update(rawBody)
       .digest('base64')
-  → 比對 header 值，不符合 → 回傳 400
+  → 比對 header 值；缺 header → 401 LINE_SIGNATURE_MISSING，不符合 → 401 LINE_SIGNATURE_INVALID
 ```
 
 - `app.js` 使用 `verify` 選項保留 `req.rawBody`，供簽章計算使用

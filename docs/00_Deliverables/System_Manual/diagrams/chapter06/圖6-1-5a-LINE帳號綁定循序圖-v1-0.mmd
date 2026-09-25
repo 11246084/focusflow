@@ -1,0 +1,51 @@
+---
+title: LINE帳號綁定循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-05, FR-17
+%% source:       backend/src/routes/line.routes.js、middleware/lineSignature.middleware.js、services/line.service.js（generateBindToken、handleBind）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-5 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor S as 學生
+    participant FE as 前端（LINE Bot 頁）
+    participant LINE as LINE 平台
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    S->>FE: 取得綁定碼
+    FE->>API: POST /line<br/>/bind-token<br/>（需登入）
+    API->>DB: 建立一次性綁定碼<br/>（10 分鐘到期）
+    API-->>FE: 綁定碼與到期時間
+    S->>LINE: 將綁定碼傳給<br/>LINE Bot
+    LINE->>API: POST /line/webhook<br/>（X-Line-Signature）
+    Note right of API: 以 Channel Secret<br/>驗證簽章，<br/>缺漏或不符回 401
+    API->>+DB: 查詢綁定碼
+    DB-->>-API: 綁定碼與到期時間
+    alt 綁定碼不存在<br/>或已過期
+        API-)LINE: 回覆「綁定碼無效或已過期」
+    else 有效
+        API->>DB: 解除此 LINE<br/>帳號原綁定，<br/>寫入 lineUserId，<br/>刪除綁定碼
+        API-)LINE: 回覆「綁定成功，<br/>請先選擇課程」
+    end
+    LINE-->>S: 顯示回覆

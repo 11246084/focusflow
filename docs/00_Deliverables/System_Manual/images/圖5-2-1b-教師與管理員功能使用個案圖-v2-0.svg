@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1130" viewBox="0 0 1240 1130">
+<defs><marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M 0 0 L 11 6 L 0 12" fill="none" stroke="#000" stroke-width="1.3"/></marker><marker id="hollow" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M 0 0 L 13 7 L 0 14 z" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/></marker></defs>
+<rect width="1240" height="1130" fill="#FFFFFF"/>
+<rect x="250" y="40" width="970" height="1060" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<text x="735" y="70" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="18" font-weight="bold" fill="#000">FocusFlow 系統</text>
+<rect x="285" y="95" width="900" height="215" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/>
+<text x="735" y="121" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="16" font-weight="bold" fill="#000">短影音（教師）</text>
+<rect x="285" y="340" width="900" height="440" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/>
+<text x="735" y="366" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="16" font-weight="bold" fill="#000">課程與影片管理（教師、管理員）</text>
+<rect x="285" y="810" width="900" height="260" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/>
+<text x="735" y="836" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="16" font-weight="bold" fill="#000">系統維運（管理員）</text>
+<line x1="136" y1="318" x2="414.67754880125284" y2="241.25190500928062" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="318" x2="440.4529095065474" y2="449.8753244386649" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="318" x2="476.67165060839716" y2="656.8498770757319" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="788" x2="470.19451568212503" y2="512.7809870853089" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="788" x2="411.8662327324698" y2="715.7141957011175" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="788" x2="440.4529095065474" y2="919.875324438665" stroke="#000" stroke-width="1.2"/>
+<ellipse cx="510" cy="215" rx="150" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="510" y="210" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-08</text>
+<text x="510" y="230" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">產生腳本並提交短影音成品</text>
+<ellipse cx="990" cy="170" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="175" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">退回腳本修改</text>
+<ellipse cx="990" cy="260" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="265" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">成品審核</text>
+<ellipse cx="510" cy="480" rx="150" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="510" y="475" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-02</text>
+<text x="510" y="495" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">管理課程與修課名單</text>
+<ellipse cx="990" cy="400" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="405" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">變更課程發布狀態</text>
+<ellipse cx="990" cy="480" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="485" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">匯入修課名單</text>
+<ellipse cx="990" cy="560" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="565" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">撤銷修課資格</text>
+<ellipse cx="510" cy="690" rx="150" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="510" y="685" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-03</text>
+<text x="510" y="705" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">加入影片並追蹤處理</text>
+<ellipse cx="990" cy="650" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="655" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">掛載影片至其他課程</text>
+<ellipse cx="990" cy="730" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="735" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">重試失敗影片</text>
+<ellipse cx="510" cy="950" rx="150" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="510" y="945" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-09</text>
+<text x="510" y="965" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">維運系統</text>
+<ellipse cx="990" cy="870" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="875" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">管理使用者帳號</text>
+<ellipse cx="990" cy="950" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="955" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">發送系統公告</text>
+<ellipse cx="990" cy="1030" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="990" y="1035" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">處理問題回報</text>
+<circle cx="110" cy="286" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="300" x2="110" y2="340" stroke="#000" stroke-width="1.4"/>
+<line x1="86" y1="314" x2="134" y2="314" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="340" x2="92" y2="372" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="340" x2="128" y2="372" stroke="#000" stroke-width="1.4"/>
+<text x="110" y="394" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">Teacher</text>
+<text x="110" y="413" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">教師</text>
+<circle cx="110" cy="756" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="770" x2="110" y2="810" stroke="#000" stroke-width="1.4"/>
+<line x1="86" y1="784" x2="134" y2="784" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="810" x2="92" y2="842" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="810" x2="128" y2="842" stroke="#000" stroke-width="1.4"/>
+<text x="110" y="864" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">Admin</text>
+<text x="110" y="883" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">管理員</text>
+<line x1="876.0745128730014" y1="180.68051441815612" x2="648.6118355661705" y2="202.00514041567152" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="726.943174219586" y="178.34282741691382" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="762.343174219586" y="192.34282741691382" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="648.6118355661705" y1="227.99485958432848" x2="876.0745128730014" y2="249.31948558184388" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="723.143174219586" y="229.65717258308618" width="78.39999999999999" height="20" fill="#FFFFFF"/>
+<text x="762.343174219586" y="243.65717258308618" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«include»</text>
+<line x1="886.5678941810677" y1="417.23868430315537" x2="630.8476518974137" y2="459.85872468376436" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="723.3077730392407" y="423.54870449345987" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="758.7077730392407" y="437.54870449345987" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="870" y1="480" x2="660" y2="480" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="729.6" y="469" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="765" y="483" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="886.5678941810677" y1="542.7613156968446" x2="630.8476518974137" y2="500.14127531623564" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="723.3077730392407" y="514.4512955065401" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="758.7077730392407" y="528.4512955065401" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="874.8761398114475" y1="659.5936550157127" x2="650.7867830094384" y2="678.2677680825468" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="727.4314614104429" y="655.9307115491297" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="762.8314614104429" y="669.9307115491297" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="874.8761398114475" y1="720.4063449842873" x2="650.7867830094384" y2="701.7322319174532" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="727.4314614104429" y="702.0692884508703" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="762.8314614104429" y="716.0692884508703" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="886.5678941810677" y1="887.2386843031554" x2="630.8476518974137" y2="929.8587246837644" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="723.3077730392407" y="893.5487044934599" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="758.7077730392407" y="907.5487044934599" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="870" y1="950" x2="660" y2="950" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="729.6" y="939" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="765" y="953" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<line x1="886.5678941810677" y1="1012.7613156968446" x2="630.8476518974137" y2="970.1412753162356" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="723.3077730392407" y="984.4512955065401" width="70.8" height="20" fill="#FFFFFF"/>
+<text x="758.7077730392407" y="998.4512955065401" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+</svg>

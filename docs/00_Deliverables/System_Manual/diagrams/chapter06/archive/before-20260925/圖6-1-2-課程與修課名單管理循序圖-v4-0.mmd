@@ -1,0 +1,71 @@
+---
+title: 課程與修課名單管理循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-02, FR-05, FR-06, FR-07
+%% source:       backend/src/routes/course.routes.js、services/course.service.js（createCourse、updateCourse）、services/enrollment.service.js（assignStudent、importStudents、revokeStudent）、services/courseAccess.service.js（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：補權限拒絕分支、單筆指派與名單匯入的不同結果、匯入時為無帳號者建立學生帳號、撤銷時清除 LINE activeCourseId
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（課程管理頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    T->>FE: 建立或編輯課程（名稱、說明、狀態）
+    FE->>API: POST /courses 或 PATCH<br/>/courses/:courseId
+    API->>+DB: 讀取課程，確認為<br/>owner 教師或管理員
+    DB-->>-API: 課程與 teacherId
+    alt 學生角色或非 owner 教師
+        API-->>FE: 403 FORBIDDEN
+        FE-->>T: 顯示無權限
+    else 有管理權
+        API->>DB: 保存課程（新課程預設 draft）
+        API-->>FE: 課程資料
+    end
+    T->>FE: 輸入學生 Email 指派，或匯入名單
+    alt 單筆指派
+        FE->>API: POST<br/>/courses/:courseId/enrollments
+        API->>+DB: 以 Email 查詢帳號
+        DB-->>-API: 帳號、角色與啟用狀態
+        alt 非啟用中的學生帳號
+            API-->>FE: 404 STUDENT_NOT_FOUND
+        else 有效學生
+            API->>DB: upsert Enrollment 為 active<br/>（重新指派保留原進度）
+            API-->>FE: 修課資料
+        end
+    else 名單匯入（每次最多 200 筆）
+        FE->>API: POST<br/>/courses/:courseId/enrollments/import
+        Note right of API: 逐筆檢查姓名、Email、<br/>學號與檔內重複，<br/>不合規者列入 skipped 並記錄原因
+        API->>+DB: 查詢名單中的既有帳號
+        DB-->>-API: 既有帳號
+        API->>DB: 尚無帳號者以學號建立學生帳號；<br/>非學生或已停用者略過；<br/>其餘逐筆 upsert Enrollment 為 active
+        API-->>FE: created、enrolled<br/>與 skipped 清單
+    end
+    FE-->>T: 顯示名單與略過原因
+    opt 撤銷學生
+        T->>FE: 選擇撤銷修課
+        FE->>API: DELETE<br/>/courses/:courseId/enrollments/:studentId
+        API->>DB: Enrollment 改為 revoked，<br/>記錄 revokedAt、revokedBy；<br/>清除該生指向本課程的<br/>LINE activeCourseId 與對話紀錄
+        API-->>FE: 撤銷結果（無 active 紀錄時<br/>404 ENROLLMENT_NOT_FOUND）
+    end
+    T->>FE: 準備完成後發布課程
+    FE->>API: PATCH /courses/:courseId<br/>（status=published）
+    API->>DB: 更新課程狀態
+    API-->>FE: 最新課程狀態
+    FE-->>T: 學生可見範圍為<br/>active Enrollment 且課程 published

@@ -47,6 +47,46 @@ describe('admin routes', () => {
     assert.equal(teacher.courses, 0);
   });
 
+  it('使用者列表只回傳是否綁定 LINE，不回傳原始 lineUserId', async () => {
+    const token = await loginAs(
+      serverContext.baseUrl,
+      'admin@focusflow.local',
+      'Admin123!',
+      'admin',
+    );
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/users', { token });
+
+    assert.equal(result.status, 200);
+    const student = result.body.data.users.find((user) => user.id === ids.student);
+    const teacher = result.body.data.users.find((user) => user.id === ids.teacher);
+    assert.equal(student.isLineBound, true);
+    assert.equal(teacher.isLineBound, false);
+    for (const user of result.body.data.users) {
+      assert.equal(Object.hasOwn(user, 'lineUserId'), false);
+    }
+    assert.equal(JSON.stringify(result.body).includes('line-student-001'), false);
+  });
+
+  it('更新使用者後的回應只回傳是否綁定 LINE，不回傳原始 lineUserId', async () => {
+    const token = await loginAs(
+      serverContext.baseUrl,
+      'admin@focusflow.local',
+      'Admin123!',
+      'admin',
+    );
+    const result = await jsonRequest(serverContext.baseUrl, `/api/v1/admin/users/${ids.student}`, {
+      method: 'PATCH',
+      token,
+      body: { name: 'Renamed Student' },
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.name, 'Renamed Student');
+    assert.equal(result.body.data.isLineBound, true);
+    assert.equal(Object.hasOwn(result.body.data, 'lineUserId'), false);
+    assert.equal(JSON.stringify(result.body).includes('line-student-001'), false);
+  });
+
   it('學生角色不能讀取管理員使用者統計', async () => {
     const token = await loginAs(
       serverContext.baseUrl,

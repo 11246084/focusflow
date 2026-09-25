@@ -1,0 +1,34 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-02, FR-06, FR-07, NFR-01, NFR-04
+' source:       backend/src/services/enrollment.service.js（assignStudent、importStudents、activateEnrollment、revokeStudent）, backend/src/services/course.service.js（deleteCourse、markVideoWatched）, backend/src/models/enrollment.model.js（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 enrollment.service.js 的 upsert、撤銷條件與 course.service.js 的連動刪除重繪
+' ============================================
+!include ../_style.puml
+
+title 修課狀態機圖
+hide empty description
+
+state "active\n（有效修課）" as active
+state "revoked\n（已撤銷）" as revoked
+
+[*] -down-> active : 以 Email 指派或名單匯入\n[課程可管理、帳號為啟用中的學生]\n/ upsert 建立紀錄
+active --> active : 學生觀看影片達門檻\n/ 更新 watchedVideoIds、progress
+active -down-> revoked : 撤銷修課 [存在 active 紀錄]\n/ 記錄 revokedAt、revokedBy，\n清除該課程的 LINE 選課與對話歷史
+revoked -up-> active : 重新指派或匯入\n/ 清除 revokedAt、revokedBy，\n保留 progress 與 watchedVideoIds
+active -right-> [*] : 課程刪除\n/ 刪除該課程全部修課紀錄
+revoked -down-> [*] : 課程刪除\n/ 刪除該課程全部修課紀錄
+
+note right of revoked
+  對應設計類別：Enrollment。
+  (studentId, courseId) 唯一，重新指派沿用同一筆紀錄。
+  撤銷時找不到 active 紀錄回 404 ENROLLMENT_NOT_FOUND；
+  沒有 active 紀錄即不可存取課程內容。
+end note
+
+@enduml

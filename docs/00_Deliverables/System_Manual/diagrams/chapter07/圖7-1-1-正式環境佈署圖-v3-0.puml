@@ -1,0 +1,84 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-1
+' realizes:     NFR-01, NFR-02, NFR-06, NFR-12
+' source:       .github/workflows/deploy.yml, backend/src/server.js, backend/src/app.js, backend/src/services/video.service.js, STT_Whisper/src/main.py, CLAUDE.md「部署與對外連線（VM）」, docs/40_Operations/deployment/（程式碼、部署檔與現況文件）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 依 deploy.yml、server.js 與部署文件重繪節點、artifact 與通訊協定；live 狀態未驗證
+' ============================================
+!include ../_style.puml
+
+title 正式環境佈署圖
+
+node "使用者裝置" <<device>> as Client {
+  node "網頁瀏覽器" <<executionEnvironment>> as Browser {
+    artifact "React SPA\n（dist 靜態檔載入後執行）" as Spa
+  }
+  artifact "LINE App" as LineApp
+}
+
+cloud "外部平台" as Platforms {
+  node "YouTube" <<external>> as YouTube
+  node "LINE Platform" <<external>> as LinePlatform
+  node "GitHub" <<external>> as GitHub
+}
+
+node "校內虛擬機（Rocky Linux 9）" <<device>> as Vm {
+  node "Nginx" <<executionEnvironment>> as Nginx {
+    artifact "frontend/focus-flow/dist" as Static
+    artifact "focusflow.conf\n（443 TLS、/api/ 反向代理）" as NginxConf
+  }
+  node "ngrok.service（systemd）" <<executionEnvironment>> as Ngrok
+  node "GitHub Actions\nself-hosted runner" <<executionEnvironment>> as Runner {
+    artifact ".github/workflows/deploy.yml" as DeployYml
+  }
+  node "PM2（Node.js）" <<executionEnvironment>> as Pm2 {
+    artifact "focusflow-backend\nbackend/src/server.js" as Backend
+  }
+  node "Python 3 虛擬環境" <<executionEnvironment>> as Py {
+    artifact "STT_Whisper/src/main.py\nbatch_main.py" as Pipeline
+  }
+  artifact "backend/uploads\n（上傳影片暫存）" as Uploads
+}
+
+cloud "資料與 AI 服務" as DataSvc {
+  database "MongoDB Atlas\n（含 Atlas Vector Search）" as Atlas
+  node "Gemini API" <<external>> as Gemini
+  node "SMTP 郵件服務" <<external>> as Smtp
+}
+
+Spa -down-> Nginx : HTTPS 443
+Spa -down-> YouTube : HTTPS\nIFrame 嵌入播放
+LineApp -down-> LinePlatform : LINE 訊息
+LinePlatform -down-> Ngrok : HTTPS webhook\nX-Line-Signature
+Ngrok -down-> Backend : HTTP localhost:4000\n/api/v1/line/webhook
+Nginx -down-> Backend : HTTP localhost:4000\n/api/*
+Backend -up-> LinePlatform : HTTPS\nMessaging API
+Backend -up-> YouTube : HTTPS OAuth 2.0\nData API
+Runner -up-> GitHub : HTTPS\n取得工作、git pull
+Runner .down.> Pm2 : pm2 restart
+Ngrok -[hidden]right- Runner
+Nginx -[hidden]right- Ngrok
+YouTube -[hidden]right- LinePlatform
+LinePlatform -[hidden]right- GitHub
+Backend -down-> Pipeline : child_process spawn\nCLI 參數
+Pipeline -up-> Backend : HTTP localhost:4000\n/api/v1/internal/*\nX-Processing-Secret
+Backend -right-> Uploads : 檔案寫入
+Pipeline -right-> Uploads : 讀取來源影片
+Backend -down-> Atlas : MongoDB 協定 / TLS
+Pipeline -down-> Atlas : pymongo / TLS
+Backend -down-> Gemini : HTTPS REST\nembedding／回答生成
+Pipeline -down-> Gemini : HTTPS REST\nembedding
+Backend -down-> Smtp : SMTP / TLS
+
+note as LiveNote
+  外部平台與資料／AI 服務的憑證、
+  Atlas index 與連線可用性：待確認
+  （以 VM 內 localhost:4000/health 查證）
+end note
+Smtp -[hidden]right- LiveNote
+
+@enduml

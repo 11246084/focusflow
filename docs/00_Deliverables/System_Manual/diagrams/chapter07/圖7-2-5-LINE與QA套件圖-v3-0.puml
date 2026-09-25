@@ -1,0 +1,44 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     UC-04, UC-05, FR-13, FR-14, FR-15, FR-16, FR-17, NFR-05, NFR-06
+' source:       backend/src/routes/qa.routes.js, conversation.routes.js, line.routes.js, backend/src/services/qa.service.js, conversation.service.js, line.service.js 及其 require 關係（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 依 Web／LINE 通道與共用 QA service 的 require 關係重繪
+' ============================================
+!include ../_style.puml
+
+title LINE與QA套件圖
+
+package "backend/src" as Src {
+  package "網頁問答通道" as WebQa {
+    rectangle "qa.routes.js／conversation.routes.js\nqa.controller.js／conversation.controller.js\nconversation.service.js" as WebFiles
+  }
+  package "LINE 通道" as Line {
+    rectangle "line.routes.js／lineSignature.middleware.js\nline.controller.js\nline.service.js" as LineFiles
+  }
+  package "共用問答核心" as Core {
+    rectangle "qa.service.js\naskLimits.service.js／courseAccess.service.js\ncontextualQuestion.service.js\nquestionRecording.service.js／usageLog.service.js" as CoreFiles
+  }
+  package "檢索" as Retrieval {
+    rectangle "bridgeScope.service.js（課程片段範圍）\nfaqCache.service.js／queryEmbedding.service.js\nleafContextSelection.service.js\nhierarchicalRetrieval.service.js（Gate 預設關閉）" as RetrievalFiles
+  }
+  package "回答生成" as Answer {
+    rectangle "answerGeneration.service.js" as AnswerFiles
+  }
+  package "models" as Models {
+    rectangle "Question／Message／Faq\nUsageLog／VideoSegment" as ModelFiles
+  }
+}
+
+WebQa ..> Core : 提問、多輪對話
+Line ..> Core : 驗簽後提問、切換課程
+Core ..> Retrieval : 限定課程範圍檢索
+Core ..> Answer : 依命中片段生成回答
+Core ..> Models : 記錄提問與使用事件
+Retrieval ..> Models : 讀取片段與 FAQ
+
+@enduml

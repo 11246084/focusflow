@@ -1,0 +1,47 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-08, FR-21, NFR-04, NFR-05
+' source:       backend/src/services/shortScript.service.js（ALLOWED_TRANSITIONS、assertTransition、createScriptWithFrozenEvidence、generateScriptVersion、submitReview、applyAssetRejection、markScriptPublished）, backend/src/services/shortAssetPublish.service.js, backend/src/constants/enums.js（SHORT_SCRIPT_STATUSES）（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 ALLOWED_TRANSITIONS 與各寫入點重繪；approved 只由成品上架觸發
+' ============================================
+!include ../_style.puml
+
+title 短影音腳本狀態機圖
+hide empty description
+
+state "進行中" as active {
+  state "evidence_ready\n（證據已凍結）" as evidence
+  state "generated\n（已生成版本）" as generated
+  state "changes_requested\n（要求修改）" as changes
+  state "approved\n（成品已上架）" as approved
+
+  [*] -down-> evidence : 建立腳本\n[有通過篩選的候選且證據足夠]\n/ 凍結 Leaf 與鄰接片段
+  evidence -down-> generated : 生成腳本\n[LLM 輸出與引用驗證通過]\n/ 新增版本 1
+  generated -down-> changes : 教師要求修改\n[指定回饋類型並填寫回饋]
+  changes -up-> generated : 重新生成\n[retrieval 回饋先重新凍結證據]\n/ 新增下一版
+  generated -right-> approved : 成品上架成功\n/ markScriptPublished
+  changes -right-> approved : 成品上架成功\n/ markScriptPublished
+  approved --> changes : 成品審核退回\n或教師要求修改
+}
+
+state "dismissed\n（已放棄）" as dismissed
+
+[*] -down-> active
+active -down-> dismissed : 教師放棄主題\n/ 記錄放棄理由
+dismissed -down-> [*]
+
+note right of dismissed
+  對應設計類別：ShortScript。
+  未列於 ALLOWED_TRANSITIONS 的轉換
+  回 409 SHORT_SCRIPT_STATE_INVALID；
+  生成失敗（含 422 SHORT_SCRIPT_ARC_NOT_APPLICABLE）
+  不改變狀態。教師審核只提供「要求修改」
+  與「放棄」，不能直接核准。
+end note
+
+@enduml

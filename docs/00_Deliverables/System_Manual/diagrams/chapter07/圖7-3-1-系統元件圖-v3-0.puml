@@ -1,0 +1,71 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-3
+' realizes:     FR-02, FR-08, FR-10, FR-13, FR-14, FR-17, FR-18, NFR-01, NFR-02, NFR-06
+' source:       backend/src/routes/index.js, backend/src/routes/internal-video.routes.js, backend/src/services/video.service.js, queryEmbedding.service.js, answerGeneration.service.js, line.service.js, youtubeUpload.service.js, mailer.service.js, STT_Whisper/src/main.py, frontend/focus-flow/src/api.js（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 依 API 掛載點、外部 adapter 與 Pipeline CLI／webhook 契約重繪提供與需求介面
+' ============================================
+!include ../_style.puml
+
+title 系統元件圖
+
+component "React SPA" as Spa
+component "LINE Platform" <<external>> as LinePlatform
+
+component "Express API（backend）" as Api {
+  component "路由與授權\nroutes／middleware" as ApiRoutes
+  component "業務服務\nservices" as ApiServices
+  component "外部整合 adapter\nqueryEmbedding／answerGeneration\nline／youtubeUpload／mailer" as ApiAdapters
+}
+
+component "STT Pipeline CLI\n（STT_Whisper）" as Pipeline
+database "MongoDB Atlas" as Mongo
+component "Gemini API\n（OpenAI 可切換）" <<external>> as Ai
+component "YouTube" <<external>> as Yt
+component "SMTP 郵件服務" <<external>> as Smtp
+
+() "REST API\n/api/v1（JSON）" as IRest
+() "LINE Webhook\nX-Line-Signature" as ILineHook
+() "Processing Webhook\nX-Processing-Secret" as IProc
+() "Pipeline CLI\nmain.py／batch_main.py 參數" as ICli
+() "MongoDB 集合\n與 Vector Search" as IData
+() "Embedding／\n回答生成 API" as IAi
+() "Messaging API\nreply／push" as ILineMsg
+() "Data API（上傳）\nIFrame Player（播放）" as IYt
+() "SMTP" as ISmtp
+
+ApiRoutes -up- IRest
+ApiRoutes -left- ILineHook
+ApiRoutes -left- IProc
+Spa -down-( IRest
+LinePlatform -down-( ILineHook
+ApiRoutes ..> ApiServices
+ApiServices ..> ApiAdapters
+
+Pipeline -up-( IProc
+Pipeline -up- ICli
+ApiServices -down-( ICli
+
+Mongo -up- IData
+ApiServices -down-( IData
+Pipeline -down-( IData
+
+Ai -up- IAi
+ApiAdapters -down-( IAi
+Pipeline -down-( IAi
+
+LinePlatform -right- ILineMsg
+ApiAdapters -up-( ILineMsg
+
+Yt -up- IYt
+ApiAdapters -down-( IYt
+Spa -down-( IYt
+
+Smtp -up- ISmtp
+ApiAdapters -down-( ISmtp
+
+@enduml

@@ -1,0 +1,77 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-2
+' realizes:     FR-01, FR-05, FR-08, FR-13, FR-17, FR-19, NFR-01, NFR-10
+' source:       backend/src/（目錄與 require 關係）, backend/package.json（程式碼）
+' verified:     2026-09-24
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 backend/src 各目錄 require 關係與 package.json 重繪分層、例外依賴與第三方套件
+' ============================================
+!include ../_style.puml
+
+title 後端套件圖
+
+package "backend/src" as Src {
+  package "啟動（server.js、app.js）" as Entry {
+    rectangle "連線資料庫、開機復原排程\n掛載 middleware 與 /api/v1" as EntryFiles
+  }
+  package "routes" as Routes {
+    rectangle "index.js 與 15 個 *.routes.js" as RouteFiles
+  }
+  package "middleware" as Middleware {
+    rectangle "auth／role／upload\nlineSignature／internalProcessingAuth\nerror／securityHeaders" as MwFiles
+  }
+  package "controllers" as Controllers {
+    rectangle "15 個 *.controller.js" as CtlFiles
+  }
+  package "services" as Services {
+    rectangle "60 個 *.service.js\n（業務規則與外部 adapter）" as SvcFiles
+  }
+  package "models" as Models {
+    rectangle "21 個 Mongoose model" as ModelFiles
+  }
+  package "config、constants" as Config {
+    rectangle "env.js／database.js／cors.js\nenums.js" as CfgFiles
+  }
+  package "utils" as Utils {
+    rectangle "apiResponse／AppError\nObjectId 驗證" as UtilFiles
+  }
+}
+
+package "第三方函式庫（npm）" as Libs {
+  package "Web 框架" as WebLib <<library>> {
+    rectangle "express ^4.19.2\ncors ^2.8.5／morgan ^1.10.0\nswagger-ui-express ^5.0.1" as WebVer
+  }
+  package "安全與上傳" as SecLib <<library>> {
+    rectangle "jsonwebtoken ^9.0.2\nbcryptjs ^2.4.3\nmulter ^2.0.0" as SecVer
+  }
+  package "資料存取" as DataLib <<library>> {
+    rectangle "mongoose ^8.13.2" as DataVer
+  }
+  package "寄信" as MailLib <<library>> {
+    rectangle "nodemailer ^6.10.1" as MailVer
+  }
+}
+
+Entry ..> Routes : 掛載 /api/v1
+Entry ..> Middleware : 安全標頭、錯誤處理
+Entry ..> Services : 開機復原與排程
+Routes ..> Middleware : 驗證、角色、上傳、驗簽
+Routes ..> Controllers : 分派請求
+Routes ..> Services : health、stats 直接查詢
+Controllers ..> Services : 呼叫業務規則
+Controllers ..> Utils : 統一回應格式
+Services ..> Models : 查詢與寫入
+Services ..> Config : feature flag、provider
+Services ..> Utils : 錯誤與驗證
+Middleware ..> Models : 驗證 User 狀態
+Models ..> Config : collection 名稱、enum
+Entry ..> WebLib
+Middleware ..> SecLib
+Services ..> SecLib : 簽發 JWT、雜湊密碼
+Models ..> DataLib
+Services ..> MailLib : 忘記密碼驗證信
+
+@enduml

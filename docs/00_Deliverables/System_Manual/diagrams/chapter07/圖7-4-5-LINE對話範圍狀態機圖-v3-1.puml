@@ -1,0 +1,41 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-05, FR-07, FR-17, NFR-01, NFR-02
+' source:       backend/src/services/line.service.js（handleBind、handleSwitchCourse、handleSelectCourse、handleDirectCourseSelect、handleBindAndSelectCourse、handleQuestion、unbindLineUser）, backend/src/services/enrollment.service.js（revokeStudent）, backend/src/models/user.model.js（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 User 的 lineUserId、lineConversationState、activeCourseId 寫入點重繪；v3-1 改為直式版面
+' ============================================
+!include ../_style.puml
+
+title LINE對話範圍狀態機圖
+hide empty description
+
+state "未綁定\n（無 lineUserId）" as unbound
+state "已綁定、未選課\n（idle，無 activeCourseId）" as idle
+state "等待選課\n（awaiting_course_selection）" as awaiting
+state "已選課\n（idle，有 activeCourseId）" as selected
+
+[*] -down-> unbound
+unbound -down-> idle : 傳送綁定碼\n[token 存在且未過期]\n/ 寫入 lineUserId、刪除 token
+idle -down-> awaiting : 輸入「切換課程」\n[有可選課程]\n/ 顯示最多 4 門課程按鈕
+awaiting -down-> selected : 點選課程\n[有效修課、已發布、有影片]\n/ 設定 activeCourseId
+awaiting -up-> idle : 點選課程\n[課程無影片]\n/ 恢復 idle
+selected -up-> awaiting : 輸入「切換課程」\n[有可選課程]\n/ 顯示課程按鈕
+idle -down-> selected : 網頁帶入課程\n[可提問]\n/ 設定 activeCourseId
+unbound -down-> selected : 綁定連結含課程\n[token 有效且可提問]\n/ 綁定並設定 activeCourseId
+selected --> selected : 一般文字提問\n[修課仍有效]\n/ 呼叫共用 QA、\n保留最近 8 則訊息
+selected -up-> idle : 修課或課程失效、\n老師撤銷修課\n/ 清除 activeCourseId\n與對話歷史
+idle -up-> unbound : 網站解除綁定\n或同一 LINE 改綁他人
+selected -up-> unbound : 網站解除綁定\n或同一 LINE 改綁他人
+
+note bottom of selected
+  對應設計類別：User（LINE 對話範圍）。
+  所有事件須先通過 X-Line-Signature 驗簽；
+  等待選課時的文字提問只回覆提示，不改變狀態。
+end note
+
+@enduml

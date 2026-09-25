@@ -1,0 +1,45 @@
+---
+title: LINE課程提問循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-05, FR-14, FR-15, FR-17
+%% source:       backend/src/services/line.service.js（handleQuestion、deliverMessage、buildQuestionSummaryLines）、services/askLimits.service.js（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-5 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor S as 學生
+    participant LINE as LINE 平台
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    S->>LINE: 輸入課程問題
+    LINE->>API: webhook 文字事件<br/>（驗簽同圖6-1-5a）
+    API->>DB: 確認已綁定、已選課、<br/>資格與課程仍有效，<br/>檢查字數與今日次數
+    alt 任一檢查未通過
+        API-)LINE: 回覆對應提示<br/>（資格失效時清除<br/>activeCourseId）
+    else 通過
+        Note over API,DB: ref：以<br/>source=line<br/>執行 FAQ<br/>快取、檢索與生成<br/>（見圖6-1-4c）
+        API->>DB: 保存最近問答到<br/>lineConversationHistory
+        API-)LINE: 回答、<br/>片段秒數與跳轉連結<br/>（reply<br/>逾時改用 push）
+    end
+    LINE-->>S: 顯示回覆

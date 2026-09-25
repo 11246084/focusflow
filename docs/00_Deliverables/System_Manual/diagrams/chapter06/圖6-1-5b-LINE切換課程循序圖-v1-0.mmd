@@ -1,0 +1,55 @@
+---
+title: LINE切換課程循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-05, FR-07, FR-17
+%% source:       backend/src/services/line.service.js（handleSwitchCourse、handleSelectCourse、filterCoursesWithLiveVideos）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-5 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor S as 學生
+    participant LINE as LINE 平台
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    S->>LINE: 傳送「切換課程」
+    LINE->>API: webhook 文字事件<br/>（驗簽同圖6-1-5a）
+    API->>+DB: 查詢 active Enrollment<br/>且課程 published
+    DB-->>-API: 可選課程
+    alt 未綁定<br/>或無可選課程
+        API-)LINE: 回覆請先綁定或沒有可切換的課程
+    else 有課程
+        API->>DB: 對話狀態設為等待選課
+        API-)LINE: 回覆課程按鈕（最多 4 門）
+        S->>LINE: 點選課程按鈕
+        LINE->>API: 點選產生的 postback 事件
+        API->>+DB: 確認等待選課狀態、<br/>修課資格與課程有影片
+        DB-->>-API: 檢查結果
+        alt 未通過
+            API-)LINE: 回覆無權限或「目前沒有影片」
+        else 通過
+            API->>DB: 設定 activeCourseId，<br/>清空 LINE 對話紀錄
+            API-)LINE: 回覆「課程切換成功」
+        end
+    end
+    LINE-->>S: 顯示回覆

@@ -1,0 +1,54 @@
+---
+title: 修改個人資料與頭像循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-06, FR-03
+%% source:       backend/src/routes/auth.routes.js、services/auth.service.js（updateProfile、changePassword）、services/avatar.service.js、middleware/avatarUpload.middleware.js（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-6 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant FE as 前端（個人資料頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    U->>FE: 開啟個人資料頁
+    alt 修改姓名、<br/>Email 或密碼
+        U->>FE: 修改資料（改 Email<br/>或密碼需輸入目前密碼）
+        FE->>API: PATCH /auth/me<br/>或 PATCH<br/>/auth/me/password
+        API->>+DB: 比對目前密碼並檢查<br/>Email 唯一性
+        DB-->>-API: 比對結果
+        alt 目前密碼錯誤或<br/>Email<br/>已被使用
+            API-->>FE: 400<br/>CURRENT_PASSWORD_INCORRECT／<br/>409<br/>DUPLICATE_RESOURCE
+        else 通過
+            API->>DB: 更新姓名、Email<br/>或密碼雜湊
+            API-->>FE: 更新後的公開使用者資料
+        end
+    else 上傳頭像
+        U->>FE: 選擇頭像<br/>（前端先裁切壓縮）
+        FE->>API: PUT /auth/me/avatar<br/>（上限 1 MiB）
+        Note right of API: 依檔案內容判定 JPEG／<br/>PNG／WebP，不符回 400
+        API->>DB: 寫入 avatars<br/>（每人一筆）
+        API-->>FE: 頭像已更新
+    end
+    FE-->>U: 顯示處理結果

@@ -1,0 +1,51 @@
+---
+title: Pipeline處理與狀態回報循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-03, FR-10, FR-16, FR-18
+%% source:       backend/src/routes/internal-video.routes.js、middleware/internalProcessingAuth.middleware.js、services/videoProcessing.service.js、STT_Whisper/src/main.py（notify_backend、mongodb_uploader）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-3 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    participant AI as AI Pipeline
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant YT as YouTube
+
+    AI->>API: POST /internal/videos<br/>/:videoId<br/>/processing/start
+    Note right of API: 驗證 X-Processing-Secret，<br/>不符回 401（三個<br/>webhook 皆同）
+    API->>DB: queued → processing，<br/>attemptCount 加一
+    Note over AI: 語音辨識、分段、<br/>產生 embedding
+    alt 處理成功
+        AI->>DB: 寫入 video_segments_text<br/>片段
+        AI->>API: POST .../processing<br/>/complete
+        API->>DB: processing → completed
+        API->>DB: 清除相關課程 FAQ 快取，<br/>建立修課學生的完成通知
+        opt 已設定<br/>YouTube<br/>自動上傳
+            API-)YT: 背景以 unlisted 上傳影片
+        end
+    else 處理失敗
+        AI->>API: POST .../processing/fail
+        API->>DB: → failed，保存錯誤碼與訊息
+    end
+    Note over AI,DB: 非法轉換回 409 VIDEO_PROCESSING_TRANSITION_INVALID；<br/>重送 start／complete 不改變既有結果

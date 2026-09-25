@@ -9,16 +9,21 @@ config:
     noteBorderColor: "#999999"
   sequence:
     mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
 ---
 %% ============================================
 %% ooad-phase:   物件設計
 %% chapter:      6-1
 %% realizes:     UC-07, FR-07, FR-20
 %% source:       backend/src/routes/youtube.routes.js、controllers/youtube.controller.js、services/shortAsset.service.js（listStudentShorts）、services/shortsSync.service.js、frontend/focus-flow/src/pages/StudentShortsWall.jsx（實作證據）
-%% verified:     2026-09-24
+%% verified:     2026-09-25
 %% status:       draft
 %% implemented:  yes
-%% ai-assisted:  yes / Claude Code / 依程式碼重繪：補非學生 403、無課程空列表、游標分頁與錯誤游標 400、YouTube 嵌入播放與背景可播放狀態同步
+%% ai-assisted:  yes / Claude Code / v4-1：改用緊湊間距、背景可播放狀態同步說明移至正文表格，使 A4 版心下字級約 7 pt；v4-0：依程式碼重繪：補非學生 403、無課程空列表、游標分頁與錯誤游標 400、YouTube 嵌入播放與背景可播放狀態同步
 %% ============================================
 sequenceDiagram
     autonumber
@@ -29,26 +34,25 @@ sequenceDiagram
     participant YT as YouTube
 
     S->>FE: 開啟短影音牆
-    FE->>API: GET /youtube/shorts?limit=…
+    FE->>API: GET /youtube<br/>/shorts?limit=…
     alt 非學生角色
         API-->>FE: 403 FORBIDDEN
     else 學生
-        API->>+DB: 查詢本人 active<br/>Enrollment 的課程，<br/>保留狀態為 published 者
+        API->>+DB: 查詢本人 active<br/>Enrollment<br/>的課程，保留狀態為<br/>published 者
         DB-->>-API: 可存取課程
         alt 沒有可存取課程
             API-->>FE: 空列表
         else 有可存取課程
-            API->>+DB: 查詢 ShortAsset：<br/>status=published、<br/>publishedAt 非空、<br/>youtubeAvailability=playable，<br/>依 publishedAt 由新到舊
-            DB-->>-API: 本頁資料<br/>（多取 1 筆判斷是否有下一頁）
-            API-->>FE: 影片卡資料與 nextPageToken
+            API->>+DB: 查詢<br/>ShortAsset：status=published、<br/>publishedAt 非空、<br/>youtubeAvailability=playable，<br/>依 publishedAt<br/>由新到舊
+            DB-->>-API: 本頁資料（多取<br/>1 筆判斷是否有下一頁）
+            API-->>FE: 影片卡資料與<br/>nextPageToken
         end
     end
     FE-->>S: 以 9:16 影片卡呈現，<br/>無資料時顯示空狀態
     S->>FE: 點選影片卡
-    FE->>YT: 以 YouTube 嵌入播放器載入影片
+    FE->>YT: 以嵌入播放器載入影片
     YT-->>FE: 影片串流
     opt 捲動到底
         FE->>API: 帶 pageToken 取下一頁
-        API-->>FE: 下一頁資料（游標格式錯誤回<br/>400 INVALID_PAGE_TOKEN）
+        API-->>FE: 下一頁資料<br/>（游標格式錯誤回<br/>400<br/>INVALID_PAGE_TOKEN）
     end
-    Note over DB,YT: 背景排程定期向 YouTube<br/>查詢影片狀態，<br/>寫回 youtubeAvailability；<br/>不可播放者自動從牆上消失

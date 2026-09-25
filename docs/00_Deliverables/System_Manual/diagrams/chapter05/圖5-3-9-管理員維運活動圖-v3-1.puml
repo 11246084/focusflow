@@ -1,0 +1,54 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-09, FR-04, FR-05, FR-06, FR-18, FR-19, FR-23
+' source:       chapters/05_需求模型.md 表5-3-9；backend/src/routes/admin.routes.js、services/admin.service.js、video.service.js、notification.service.js、feedback.service.js、systemStatus.service.js
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：拒絕分支加註 E1～E4，補上刪除影片前 FAQ 快取清除失敗（E3）與服務狀態異常（E4）
+' ============================================
+!include ../_style.puml
+
+title 管理員維運活動圖
+
+|管理員|
+start
+:由管理員入口登入;
+|FocusFlow|
+if (為啟用中的管理員帳號？) then (否)
+  :E1 拒絕進入管理介面;
+  stop
+endif
+:顯示系統總覽\n（使用統計、近期事件、服務狀態）;
+note right
+  E4 外部服務狀態異常時，
+  於服務狀態中標示異常。
+end note
+|管理員|
+switch (選擇維運項目)
+case (使用者管理)
+  :調整姓名、角色或啟用狀態;
+case (課程與影片管理)
+  :跨課程維護課程、修課名單與影片\n（即執行 UC-02、UC-03）;
+case (系統公告)
+  :輸入公告標題與內容;
+case (問題回報處理)
+  :查看回報並更新處理狀態;
+endswitch
+|FocusFlow|
+if (識別碼、欄位與資料關聯有效？) then (否)
+  :E2 回覆錯誤，資料不變;
+  stop
+endif
+if (刪除影片時，FAQ 快取\n已清除成功？) then (否)
+  :E3 不執行刪除，可安全重試;
+  stop
+endif
+:保存變更並記錄必要事件；\n公告以站內通知發送給所有啟用中的學生;
+|管理員|
+:確認最新狀態;
+stop
+
+@enduml

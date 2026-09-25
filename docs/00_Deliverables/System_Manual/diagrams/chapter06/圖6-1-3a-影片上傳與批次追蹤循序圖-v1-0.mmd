@@ -1,0 +1,58 @@
+---
+title: 影片上傳與批次追蹤循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-03, FR-08, FR-09, FR-11
+%% source:       backend/src/routes/video.routes.js、services/videoBatch.service.js、services/video.service.js（createCourseVideo）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-3 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（影片上傳頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant AI as AI Pipeline
+
+    T->>FE: 選擇 1～10 支本機影片
+    FE->>API: POST /courses/:courseId<br/>/video-batches
+    API->>DB: 確認可管理課程，建立<br/>VideoBatch（creating）
+    loop 每個檔案
+        Note right of API: 驗證格式與容器完整性，<br/>計算檔案雜湊
+        alt 同課程重複<br/>或檔案不合規
+            API->>DB: 該項記為<br/>duplicate／failed
+        else 通過
+            API->>DB: 建立 Video<br/>（queued）並掛入課程
+        end
+    end
+    API-)AI: 背景排程處理（見圖6-1-3b）
+    API-->>FE: 201 批次彙總與逐項結果
+    T->>FE: 查看進度
+    FE->>API: GET /video-batches<br/>/:batchId（輪詢）
+    API-->>FE: completed／partial／<br/>failed 與逐項狀態
+    opt 重試失敗項目
+        T->>FE: 按下重試
+        FE->>API: POST /video-batches<br/>/:batchId/retry
+        API->>DB: failed → queued<br/>（非 failed<br/>或來源檔遺失回 409）
+        API-)AI: 重新排程處理
+        API-->>FE: 更新後的批次狀態
+    end

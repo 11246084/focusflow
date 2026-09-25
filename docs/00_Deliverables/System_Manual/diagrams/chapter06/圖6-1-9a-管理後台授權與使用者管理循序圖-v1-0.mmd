@@ -1,0 +1,50 @@
+---
+title: 管理後台授權與使用者管理循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-09, FR-04, FR-19
+%% source:       backend/src/routes/admin.routes.js、middleware/auth.middleware.js、middleware/role.middleware.js、services/admin.service.js（getStats、updateUser）（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-9 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor A as 管理員
+    participant FE as 前端（管理後台）
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    A->>FE: 由 /admin<br/>登入後開啟後台<br/>（登入見圖6-1-1b）
+    FE->>API: GET /admin<br/>/stats、/admin<br/>/events、/admin<br/>/system-status
+    API->>+DB: 驗證 JWT，<br/>確認帳號存在、<br/>啟用且角色為 admin
+    DB-->>-API: 帳號狀態
+    alt token 無效、<br/>帳號停用或非管理員
+        API-->>FE: 401 INVALID_TOKEN／<br/>UNAUTHORIZED 或<br/>403 FORBIDDEN
+        FE-->>A: 顯示無權限並回到登入
+    else 管理員
+        API->>DB: 彙整使用者、影片、<br/>提問與近期事件
+        API-->>FE: 統計、近期事件與服務狀態
+        A->>FE: 修改姓名、角色或停用帳號
+        FE->>API: PATCH /admin<br/>/users/:userId
+        API->>DB: 驗證角色值後更新帳號
+        API-->>FE: 更新結果（查無帳號<br/>404、不合規 400）
+        FE-->>A: 讀回最新資料確認
+    end

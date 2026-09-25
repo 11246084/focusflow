@@ -1,0 +1,67 @@
+---
+title: 註冊與登入循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-01, FR-01, FR-02, FR-04
+%% source:       backend/src/routes/auth.routes.js、services/auth.service.js（register、login）、services/loginThrottle.service.js（實作證據）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：登入鎖定改為後端記憶體計數（查帳號前檢查），補註冊驗證失敗、帳號停用與角色不符分支及實際錯誤碼
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor U as 使用者
+    participant FE as 前端（登入／註冊頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+
+    U->>FE: 填寫註冊或登入資料
+    alt 學生自助註冊
+        FE->>API: POST /auth/register<br/>（姓名、Email、密碼）
+        Note right of API: 驗證欄位格式、密碼至少 8 字，<br/>角色只允許 student
+        API->>+DB: 以 Email 查詢是否已註冊
+        DB-->>-API: 查詢結果
+        alt 欄位不合規或 Email 已註冊
+            API-->>FE: 400 VALIDATION_ERROR／<br/>409 DUPLICATE_RESOURCE
+            FE-->>U: 顯示註冊失敗原因
+        else 驗證通過
+            API->>+DB: bcrypt 雜湊密碼後建立學生帳號，<br/>寫入 login 使用紀錄
+            DB-->>-API: 新帳號
+            API-->>FE: 201 JWT 與公開使用者資料
+            FE-->>U: 保存登入狀態，導向學生首頁
+        end
+    else 登入（一般入口或 /admin 入口）
+        FE->>API: POST /auth/login<br/>（Email、密碼、角色）
+        Note right of API: 檢查角色參數，並查詢該 Email<br/>是否在鎖定期間（後端記憶體計數）
+        alt 鎖定中
+            API-->>FE: 429 TOO_MANY_LOGIN_ATTEMPTS<br/>（不查帳號、不比對密碼）
+            FE-->>U: 顯示稍後再試與剩餘等待時間
+        else 未鎖定
+            API->>+DB: 以 Email 查詢帳號
+            DB-->>-API: 帳號與密碼雜湊
+            alt 帳號不存在或密碼錯誤
+                Note right of API: 失敗次數加一，達門檻即鎖定
+                API-->>FE: 401 INVALID_CREDENTIALS<br/>與剩餘次數<br/>（本次達門檻則回 429）
+                FE-->>U: 提示剩餘可嘗試次數
+            else 帳號停用或角色不符
+                API-->>FE: 403 USER_INACTIVE／<br/>ROLE_MISMATCH
+                FE-->>U: 顯示禁止訊息，不發 token
+            else 驗證通過
+                API->>DB: 寫入 login 使用紀錄
+                API-->>FE: 200 JWT 與公開使用者資料
+                FE-->>U: 導向對應角色首頁
+            end
+        end
+    end

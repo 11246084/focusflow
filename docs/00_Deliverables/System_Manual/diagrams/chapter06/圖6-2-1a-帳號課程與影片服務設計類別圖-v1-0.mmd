@@ -1,0 +1,73 @@
+---
+title: 帳號課程與影片服務設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-01, UC-02, UC-03
+%% source:       backend/src/services/auth.service.js、loginThrottle.service.js、courseAccess.service.js、course.service.js、enrollment.service.js、videoBatch.service.js、videoProcessing.service.js；backend/src/models/user.model.js、course.model.js、enrollment.model.js、video.model.js、videoBatch.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-2-1 v4-0 拆出服務視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（服務與其操作；服務對資料類別的使用關係改列於正文表格，資料類別見同節 b 圖）
+%% ============================================
+classDiagram
+    direction LR
+
+    class AuthService {
+        <<service>>
+        +register() AuthResult
+        +login() AuthResult
+        +updateProfile() PublicUser
+        +changePassword() void
+    }
+    class LoginThrottle {
+        <<service>>
+        -attempts : Map~email, FailureEntry~
+        +assertLoginAllowed() void
+        +buildLoginFailureError() AppError
+        +recordLoginSuccess() void
+    }
+    class CourseAccessService {
+        <<service>>
+        +canAccessCourse() Boolean
+        +assertCanAccessCourse() void
+        +assertCanManageCourse() void
+        +findActiveEnrollment() Enrollment
+    }
+    class CourseService {
+        <<service>>
+        +createCourse() Course
+        +updateCourse() Course
+        +markVideoOpened() void
+        +markVideoWatched() Progress
+    }
+    class EnrollmentService {
+        <<service>>
+        +assignStudent() Enrollment
+        +importStudents() ImportResult
+        +revokeStudent() Enrollment
+    }
+    class VideoBatchService {
+        <<service>>
+        +createVideoBatch() VideoBatch
+        +getVideoBatch() VideoBatch
+        +retryVideoBatchItem() VideoBatch
+    }
+    class VideoProcessingService {
+        <<service>>
+        +startVideoProcessing() Video
+        +completeVideoProcessing() Video
+        +failVideoProcessing() Video
+        +retryVideoProcessing() Video
+    }
+
+    AuthService ..> LoginThrottle : 登入前檢查鎖定
+    CourseService ..> CourseAccessService : 授權
+    EnrollmentService ..> CourseAccessService : 授權
+    VideoBatchService ..> CourseAccessService : 授權
+    VideoProcessingService ..> CourseAccessService : 重試授權

@@ -1,0 +1,131 @@
+---
+title: 問答與對話設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-04, UC-05
+%% source:       backend/src/services/conversation.service.js、line.service.js、askLimits.service.js、qa.service.js、faqCache.service.js、costControl.service.js、answerGeneration.service.js；backend/src/models/conversation.model.js、message.model.js、question.model.js、faq.model.js、usageLog.model.js、videoSegment.model.js、lineBindToken.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪：FAQ 方法改為實際名稱、補 LineService、CostControlService、AnswerGenerationService、VideoSegment、LineBindToken；移除程式中不存在的 Question–FAQ 關聯，Message 的欄位由 citations 更正為 sources
+%% ============================================
+classDiagram
+    direction TB
+
+    class ConversationService {
+        <<service>>
+        +createConversation() Conversation
+        +sendMessage() SendResult
+        +retryMessage() SendResult
+    }
+    class LineService {
+        <<service>>
+        +generateBindToken() String
+        +unbindLineUser() void
+        +processWebhookEvents() EventResult[]
+    }
+    class AskLimitsService {
+        <<service>>
+        +assertCanAsk() DailyUsage
+        +assertDailyAskAvailable() DailyUsage
+    }
+    class QaService {
+        <<service>>
+        +askQuestion() QaResult
+        +askQuestionFromApi() QaResult
+        +recordFailedAsk() void
+    }
+    class FaqCacheService {
+        <<service>>
+        +findFaqByExactQuestion() Faq
+        +findFaqBySimilarEmbedding() SemanticHit
+        +saveFaqEntry() void
+        +clearFaqsForVideoCourses() void
+    }
+    class CostControlService {
+        <<service>>
+        +assertQaQuotaAvailable() CostSnapshot
+    }
+    class AnswerGenerationService {
+        <<service>>
+        +generateAnswer() AnswerResult
+        +isNoAnswerReply() Boolean
+    }
+
+    class Conversation {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -title : String
+    }
+    class Message {
+        -conversationId : ObjectId
+        -role : user｜assistant
+        -content : String
+        -status : pending｜completed｜failed
+        -replyToMessageId : ObjectId
+        -sources : Source[]
+    }
+    class Question {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -question : String
+        -answer : String
+        -status : answered｜no_match｜failed
+        -source : api｜line
+        -matches : MatchSnapshot[]
+        -sourceUsageLogId : ObjectId
+    }
+    class Faq {
+        -courseId : ObjectId
+        -normalizedQuestion : String
+        -answer : String
+        -matches : MatchSnapshot[]
+        -questionEmbedding : Number[]
+        -hitCount : Number
+    }
+    class UsageLog {
+        -userId : ObjectId
+        -courseId : ObjectId
+        -event : login｜watch｜video_open｜ask｜clip_view
+        -metadata : Object
+    }
+    class VideoSegment {
+        -videoId : String
+        -chunkId : String
+        -startSec : Number
+        -endSec : Number
+        -text : String
+        -embedding : Number[]
+    }
+    class LineBindToken {
+        -token : String
+        -userId : ObjectId
+        -expiresAt : Date
+    }
+
+    ConversationService ..> AskLimitsService : 字數與每日次數
+    ConversationService ..> QaService : 委派提問
+    LineService ..> AskLimitsService : 字數與每日次數
+    LineService ..> QaService : source=line
+    LineService ..> LineBindToken : 產生／核銷
+    QaService ..> FaqCacheService : 兩層快取
+    QaService ..> CostControlService : 月 token 配額
+    QaService ..> AnswerGenerationService : 生成回答
+    QaService ..> Question : 記錄
+    QaService ..> UsageLog : 記錄 ask
+    QaService ..> VideoSegment : 授權範圍檢索
+    FaqCacheService ..> Faq : 查詢／保存
+    ConversationService ..> Conversation : 維護
+    ConversationService ..> Message : 建立
+
+    Message "0..*" --> "1" Conversation : conversationId
+    Question "0..*" --> "0..1" UsageLog : sourceUsageLogId
+    Message ..> VideoSegment : sources 快照自
+    Question ..> VideoSegment : matches 快照自
+    Faq ..> VideoSegment : matches 快照自

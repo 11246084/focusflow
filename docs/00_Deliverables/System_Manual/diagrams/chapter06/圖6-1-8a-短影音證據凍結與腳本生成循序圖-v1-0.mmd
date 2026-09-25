@@ -1,0 +1,53 @@
+---
+title: 短影音證據凍結與腳本生成循序圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  themeVariables:
+    noteBkgColor: "#f7f7f7"
+    noteTextColor: "#222222"
+    noteBorderColor: "#999999"
+  sequence:
+    mirrorActors: true
+    width: 110
+    actorMargin: 12
+    messageMargin: 28
+    boxMargin: 8
+    noteMargin: 8
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-1
+%% realizes:     UC-08, FR-21
+%% source:       backend/src/routes/short-script.routes.js、services/shortScript.service.js、services/shortScriptGeneration.service.js（實作證據）
+%% verified:     2026-09-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 自 圖6-1-8 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ============================================
+sequenceDiagram
+    autonumber
+    actor T as 教師或管理員
+    participant FE as 前端（腳本頁）
+    participant API as 後端 API
+    participant DB as 資料庫
+    participant AI as AI 服務<br/>（Gemini）
+
+    T->>FE: 選擇課程提問候選主題
+    FE->>API: POST /courses<br/>/:courseId<br/>/short-scripts<br/>/auto
+    API->>DB: 檢索並擴展鄰接片段，<br/>凍結證據，建立<br/>ShortScript<br/>（evidence_ready）
+    alt 無候選<br/>或證據不足
+        API-->>FE: 422<br/>SHORT_SCRIPT_NO_CANDIDATE／<br/>SHORT_SCRIPT_EVIDENCE_EMPTY
+    else 證據已凍結
+        API-->>FE: 腳本主題與證據
+    end
+    T->>FE: 生成腳本
+    FE->>API: POST /short-scripts<br/>/:scriptId<br/>/generate
+    API->>AI: 依凍結證據生成腳本<br/>（引用越界重新生成，<br/>最多共 3 次）
+    AI-->>API: 腳本內容（JSON）
+    alt 引用越界<br/>或格式錯誤
+        API-->>FE: 502<br/>SHORT_SCRIPT_CITATION_INVALID／<br/>SHORT_SCRIPT_OUTPUT_INVALID
+    else 通過
+        API->>DB: 新增腳本版本<br/>（generated）
+        API-->>FE: 腳本版本
+    end

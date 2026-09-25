@@ -1,0 +1,105 @@
+---
+title: 個人資料通知與短影音設計類別圖
+config:
+  theme: neutral
+  layout: elk
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+---
+%% ============================================
+%% ooad-phase:   物件設計
+%% chapter:      6-2
+%% realizes:     UC-06, UC-07, UC-08
+%% source:       backend/src/services/avatar.service.js、passwordReset.service.js、notification.service.js、shortScript.service.js、shortAssetPublish.service.js、shortAsset.service.js；backend/src/models/avatar.model.js、notification.model.js、shortScript.model.js、shortAsset.model.js（實作證據，設計層允許反向對照）
+%% verified:     2026-09-24
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 依程式碼重繪並更名（原「通知與短影音設計類別圖」）：補 UC-06 的 AvatarService、PasswordResetService，短影音拆為腳本、成品上傳與成品審核三個服務，方法改為實際函式，屬性補型別與列舉，關聯補多重性
+%% ============================================
+classDiagram
+    direction TB
+
+    class AvatarService {
+        <<service>>
+        +replaceCurrentUserAvatar() AvatarMeta
+        +getCurrentUserAvatar() AvatarData
+    }
+    class PasswordResetService {
+        <<service>>
+        +requestPasswordReset() void
+        +confirmPasswordReset() void
+    }
+    class NotificationService {
+        <<service>>
+        +listNotifications() Page
+        +markNotificationRead() Notification
+        +markAllNotificationsRead() Number
+        +broadcastSystemNotification() Number
+        +fanoutVideoCompletedNotifications() Number
+        +notifyShortAssetRejected() void
+    }
+    class ShortScriptService {
+        <<service>>
+        +createScriptWithFrozenEvidence() ShortScript
+        +generateScriptVersion() ShortScript
+        +submitReview() ShortScript
+        +applyAssetRejection() ShortScript
+    }
+    class ShortAssetPublishService {
+        <<service>>
+        +createAssetFromScript() ShortAsset
+        +uploadShortAssetToYouTube() ShortAsset
+        +publishApprovedShortAsset() ShortAsset
+    }
+    class ShortAssetService {
+        <<service>>
+        +listStudentShorts() ShortsPage
+        +reviewShortAsset() ShortAsset
+    }
+
+    class Avatar {
+        -userId : ObjectId
+        -data : Buffer
+        -mimeType : image/jpeg｜image/png｜image/webp
+        -size : Number
+    }
+    class Notification {
+        -recipientId : ObjectId
+        -source : video_completed｜system_maintenance｜short_asset_rejected
+        -title : String
+        -readAt : Date
+        -videoId : ObjectId
+        -scriptId : ObjectId
+        -dedupeKey : String
+    }
+    class ShortScript {
+        -courseId : ObjectId
+        -topicKey : String
+        -evidence : Evidence[]
+        -versions : ScriptVersion[]
+        -status : evidence_ready｜generated｜changes_requested｜approved｜dismissed
+        -createdBy : ObjectId
+    }
+    class ShortAsset {
+        -courseId : ObjectId
+        -sourceScriptId : ObjectId
+        -generationVersion : Number
+        -reviewStatus : pending｜approved｜rejected
+        -status : draft｜ready｜published｜archived
+        -disclosure : Disclosure
+        -youtubeVideoId : String
+        -youtubeAvailability : pending｜playable｜unavailable｜unknown
+        -publishedAt : Date
+    }
+
+    AvatarService ..> Avatar : 一人一筆
+    NotificationService ..> Notification : 建立／已讀
+    ShortScriptService ..> ShortScript : 狀態機
+    ShortAssetPublishService ..> ShortAsset : 建立／上傳
+    ShortAssetPublishService ..> ShortScriptService : 上架後標記腳本
+    ShortAssetService ..> ShortAsset : 查詢／審核
+    ShortAssetService ..> ShortScriptService : 退回回寫腳本
+    ShortAssetService ..> NotificationService : 退回通知
+    ShortAssetService ..> ShortAssetPublishService : 核准後上架
+
+    ShortAsset "0..*" --> "0..1" ShortScript : sourceScriptId
+    ShortScript "0..1" <-- "0..*" Notification : scriptId

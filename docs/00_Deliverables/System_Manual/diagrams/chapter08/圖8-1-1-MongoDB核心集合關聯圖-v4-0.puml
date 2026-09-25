@@ -1,0 +1,41 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-03, FR-05, FR-06, FR-08, FR-09, FR-10, FR-13, FR-14, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-22, NFR-04, NFR-05
+' source:       backend/src/models/*.model.js（21 個 Mongoose schema）
+' verified:     2026-09-24（靜態比對 schema；未連 Atlas）
+' status:       draft
+' implemented:  partial
+' ai-assisted:  yes / Claude Code / 取代 v3-0：改為分組總覽，細部參照拆至圖8-1-2～圖8-1-6；
+'               補上 feedbacks、feedbackattachments，並統一箭頭方向（由被參照方指向持有參照欄位的一方）
+' ============================================
+!include ../_style.puml
+
+title MongoDB核心集合關聯圖（分組總覽）
+left to right direction
+
+rectangle "**帳號與課程**（圖8-1-2）\nusers · avatars · line_bind_tokens\ncourses · enrollments" as A
+rectangle "**問題回報**（圖8-1-2）\nfeedbacks · feedbackattachments" as E
+rectangle "**影片與知識片段**（圖8-1-3）\nvideos · videobatches · clips\nvideo_segments_text（Leaf）\nvideo_segments_parent（Parent）\nvideo_segments_video（視覺）" as B
+rectangle "**問答、對話與使用紀錄**（圖8-1-4）\nquestions · faqs · usage_logs\nconversations · messages" as C
+rectangle "**通知與短影音**（圖8-1-5）\nnotifications · shortscripts · shortassets" as D
+
+A --> E : feedbacks.userId
+A --> B : videos.courseId／uploadedBy\nvideobatches.courseId／createdBy\n片段與 clips 的 courseId
+B --> A : courses.videoIds[]\nenrollments.watchedVideoIds[]
+A --> C : userId、courseId
+A --> D : recipientId、createdBy\ncourseId、courseIds[]
+B --> D : notifications.videoId\nshortassets.sourceVideoId
+B ..> C : matches[]／sources[]\n片段快照（非參照）
+B ..> D : evidence[]\n片段快照（非參照）
+C ..> D : sourceQuestions[]\n提問彙整快照（非參照）
+
+note as N1
+  非 UML 圖：MongoDB 集合分組總覽。
+  實線：文件以 ObjectId／字串欄位保存的應用層參照，
+  箭頭由被參照方指向持有參照欄位的一方，標籤為持有方欄位。
+  虛線：複製進文件的快照，不回查來源文件。
+  MongoDB 不提供外鍵，參照完整性由 service 層維護。
+end note
+@enduml

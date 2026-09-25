@@ -1,0 +1,39 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      8-1
+' realizes:     FR-07, FR-13, FR-14, FR-15, NFR-01, NFR-05
+' source:       backend/src/services/bridgeScope.service.js（collectScopedVideos、buildCourseSegmentScope、
+'               buildSegmentLookupQuery、buildCourseVisualSegmentScope）、backend/src/models/video.model.js
+' verified:     2026-09-24（靜態閱讀程式；未連 Atlas）
+' status:       draft
+' implemented:  yes（Parent 路徑受 HIERARCHICAL_RETRIEVAL_ENABLED 控制，預設關閉）
+' ai-assisted:  yes / Claude Code / 新增：以資料鍵呈現課程範圍如何解析為片段查詢條件
+' ============================================
+!include ../_style.puml
+
+title QA課程範圍橋接契約圖
+top to bottom direction
+
+rectangle "**① courses**\n_id、videoIds[]\n（schema 為 ObjectId；程式另容許非 ObjectId 的舊字串值）" as C
+rectangle "**② 收集範圍內影片（videos）**\n條件一：videos.courseId ＝ courses._id\n條件二：videos._id ∈ videoIds[]\n條件三：videos.videoId／video_id ∈ videoIds[]（Pipeline metadata 相容）" as V
+rectangle "**③ 允許影片鍵集合 allowedVideoIds**\n只放入 String(videos._id)\n（app-owned 影片沒有 videoId 欄位）" as K
+rectangle "**⑤ Leaf 查詢：video_segments_text**\nvideoId ∈ allowedVideoIds\natlas 模式：Vector Search filter，結果再依範圍過濾\nmemory 模式：find 條件後於程式內計算相似度" as L
+rectangle "**④ Parent 查詢（Gate 開啟時）：video_segments_parent**\n（courseId ＝ 課程 或 videoId ∈ 允許集合）\n且 generationVersion ＝ 目前世代、isActive ＝ true" as P
+rectangle "**⑥ 視覺引用：video_segments_video**\n由 videoId、fileName、filePath、sourceUrl、videoUrl 等欄位擷取 video_N\nvideo_id ∈ 擷取結果" as VS
+rectangle "**⑦ 回答紀錄**\nquestions.matches[]、messages.sources[]\n保存 videoId、chunkId、秒數等快照" as R
+
+C --> V
+V --> K
+K --> L
+K --> P
+V --> VS : 文字片段無命中時
+L --> R
+P ..> L : childChunkIds[] → chunkId\n回查 Leaf
+VS ..> R : 僅在文字片段無命中時\n以視覺片段作為引用
+
+note right of K
+  錯誤連接：videos.videoId → video_segments_text.videoId
+  app-owned 影片的 videoId 欄位不存在，會使所有片段對不到。
+end note
+@enduml

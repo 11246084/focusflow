@@ -180,6 +180,7 @@ AI agent 接手前，至少讀：
 - 修改 Mongoose schema/index 時，除 source review 外，還要區分 in-memory harness 與真實 MongoDB/Atlas 行為。
 - 不把測試 harness 通過誤稱為 shared Atlas 或正式 release 驗證。
 - 不自行執行 shared Atlas 寫入、資料清除、live webhook、YouTube upload 或部署；除非使用者已明確授權並確認目標。
+- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
 
 ---
 

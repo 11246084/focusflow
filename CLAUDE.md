@@ -296,6 +296,7 @@ cd STT_Whisper
 - 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
 - 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
 - 不刪除檔案或清資料，除非使用者明確要求且已確認影響。
+- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
 
 ## 文件更新
 

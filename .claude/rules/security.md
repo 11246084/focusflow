@@ -89,7 +89,7 @@ X-Line-Signature: <base64 HMAC-SHA256>
   → crypto.createHmac('sha256', LINE_CHANNEL_SECRET)
       .update(rawBody)
       .digest('base64')
-  → 比對 header 值，不符合 → 回傳 400
+  → 比對 header 值；缺 header → 401 LINE_SIGNATURE_MISSING，不符合 → 401 LINE_SIGNATURE_INVALID
 ```
 
 - `app.js` 使用 `verify` 選項保留 `req.rawBody`，供簽章計算使用

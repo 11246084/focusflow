@@ -1,6 +1,6 @@
 ---
 name: docs-maintainer
-description: docs-maintainer
+description: 維護 FocusFlow 的專案文件分工（README、CLAUDE.md、AGENTS.md、PROJECT.md、ARCHITECTURE.md、docs/current-status.md、decision-log）。用於盤點文件結構、判斷內容該放哪份文件、跨文件去重與搬移、把近期進度寫進 current-status，以及把穩定知識和動態知識分開。系統手冊章節與 UML 製圖不在此範圍，改用 project-documentation。
 ---
 
 # docs-maintainer
@@ -125,21 +125,6 @@ description: docs-maintainer
 不適合放：
 - 每日進度
 - 重複的架構全文
-
----
-
-## 本 skill 的工作時機
-
-當使用者提出以下需求時，應考慮啟用本 skill：
-
-- 更新專案文檔
-- 整理 README / CLAUDE / AGENTS / PROJECT / ARCHITECTURE
-- 幫我去重文檔
-- 幫我盤點文檔結構
-- 幫我建立 current-status
-- 幫我整理長期記憶文檔
-- 幫我把這次進度寫進文檔
-- 幫我判斷內容應該放在哪份文件
 
 ---
 
@@ -269,23 +254,3 @@ description: docs-maintainer
 4. agent 可以更快理解 repo
 5. 未來維護成本下降
 6. 文檔不再因重複內容而同步困難
-
----
-
-## 觸發範例
-
-### 一般文檔維護
-- 使用 docs-maintainer 幫我整理目前 repo 的文檔結構
-- 用 docs-maintainer 幫我檢查 CLAUDE.md 和 AGENTS.md 有沒有重複
-- 請依照 docs-maintainer 更新專案文檔
-- 用 docs-maintainer 幫我判斷這段內容應該放在哪份文件
-
-### 建 current-status
-- 用 docs-maintainer 幫我建立 docs/current-status.md
-- 請依照 docs-maintainer 把目前 repo 進度整理到 current-status
-- 用 docs-maintainer 幫我把這次後端進度更新進文檔
-
-### 做文檔收斂
-- 使用 docs-maintainer，以最小變動方式精簡 AGENTS.md
-- 使用 docs-maintainer，幫我把 PROJECT.md 和 ARCHITECTURE.md 的邊界切清楚
-- 依照 docs-maintainer，把穩定知識和動態知識分離

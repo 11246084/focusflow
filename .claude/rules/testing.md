@@ -74,7 +74,7 @@ describe('POST /api/v1/courses', () => {
 
 - 每個新 API 路由至少需要：成功情境 + 未授權情境 + 主要失敗情境
 - 新增 service 函式時，若含有複雜邏輯（如 QA 搜尋的評分策略），需撰寫 service 單元測試
-- 前端與 AI Pipeline 目前無自動化測試，修改後至少手動執行 `lint` 和 `build`
+- 前端（`npm test`，`node:test`）與 AI Pipeline（`unittest`）各有測試；前端另需跑 `lint` 與 `build`，指令見 CLAUDE.md「測試規範」
 
 ---
 

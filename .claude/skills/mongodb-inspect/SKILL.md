@@ -21,7 +21,7 @@ FocusFlow 的 DB 狀態**不能靠文件推論**，必須實查。本 skill 提�
 MCP 工具若未載入，先用 ToolSearch 一次抓齊常用的：
 
 ```
-select:mcp__mongodb__collection-indexes,mcp__mongodb__aggregate,mcp__mongodb__count,mcp__mongodb__explain,mcp__mongodb__find,mcp__mongodb__list-collections,mcp__mongodb__create-index
+select:mcp__mongodb__collection-indexes,mcp__mongodb__aggregate,mcp__mongodb__count,mcp__mongodb__explain,mcp__mongodb__find,mcp__mongodb__list-collections
 ```
 
 ### 直連的已知限制
@@ -35,17 +35,19 @@ select:mcp__mongodb__collection-indexes,mcp__mongodb__aggregate,mcp__mongodb__co
 
 ## Collection 地圖
 
-`focusflow` database，17 個 collection。
+`focusflow` database，2026-09-25 實查為 24 個 collection（數量會變，以 `list-collections` 為準）。
 
 | Collection | 用途 |
 |------------|------|
-| `users` / `courses` / `enrollments` / `videos` | App 主資料 |
+| `users` / `avatars` / `courses` / `enrollments` / `videos` / `videobatches` | App 主資料 |
 | `video_segments_text` | **Leaf**：逐字稿片段 + text embedding（3072 維） |
 | `video_segments_parent` | **Parent**：Phase 2-2 階層檢索的上層片段 |
 | `video_segments_audio` / `video_segments_video` | 預留 / legacy，**不是**正式 multimodal QA source |
 | `transcripts_normalized` | Pipeline 正規化逐字稿 |
 | `questions` / `usage_logs` / `faqs` | QA 紀錄、用量、FAQ 快取 |
-| `clips` / `shortassets` / `term_dictionary` / `notifications` / `line_bind_tokens` | 其餘功能 |
+| `conversations` / `messages` | 網頁多輪問答 |
+| `feedbacks` / `feedbackattachments` | 問題回報與截圖 |
+| `clips` / `shortscripts` / `shortassets` / `term_dictionary` / `notifications` / `line_bind_tokens` | 其餘功能 |
 
 Leaf collection 名稱由 `VIDEO_SEGMENT_COLLECTION` 環境變數決定，預設 `video_segments_text`。查之前先確認實際值。
 
@@ -80,7 +82,7 @@ course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segmen
 
 不要憑文件斷言 Atlas vector index 存不存在——歷史上同一個 index 被記載過「不存在」也被記載過「READY」。一律用 `collection-indexes` 看 `searchIndexes` 的 `status` 與 `queryable`。
 
-截至最近一次實查：
+快照（`text_embedding_index` 最後實查 2026-09-23；使用前一律重查）：
 
 | Collection | Vector index | 狀態 |
 |------------|-------------|------|
@@ -151,15 +153,9 @@ mcp__mongodb__find (limit 1)     → 看一筆真實文件，確認欄位真的�
 
 ### D. 建索引
 
-```
-mcp__mongodb__create-index
-  definition: [{ "type": "classic", "keys": { "<field>": 1 } }]
-  name: "<field>_1"
-```
+目前的 MongoDB MCP server 不提供寫入工具（沒有 `create-index`）。需要建索引時，把 `createIndex` 腳本寫好（含 preflight 結果與 index name），交給使用者在自己的環境執行；`createIndex` 是 idempotent，重複建同樣定義是 no-op。
 
-`createIndex` 本身是 idempotent，重複建同樣定義是 no-op。
-
-建完務必再跑一次 `collection-indexes` 留存「建立後」狀態，並重跑 explain 確認 planner 真的改用了。
+使用者執行後，再用 `collection-indexes` 留存「建立後」狀態，並重跑 explain 確認 planner 真的改用了。
 
 ## 安全規則
 

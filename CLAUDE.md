@@ -88,6 +88,7 @@ npm run dev
 修改前端後至少執行：
 
 ```powershell
+npm test
 npm run lint
 npm run build
 ```
@@ -146,7 +147,7 @@ DEMO_SEED_ENABLED=false
 
 重要邊界：
 
-- 共享 Atlas 的 `text_embedding_index` 狀態以實查為準：2026-05-01 曾驗證為不存在，但 2026-06-05 重新查證已存在且 `status=READY`（`video_segments_text`，3072 維，130 筆）。狀態請以連 Atlas 實查為準（不要憑文件斷言）。若哪天又查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
+- 共享 Atlas 的 `text_embedding_index`（`video_segments_text`，3072 維）狀態以連 Atlas 實查為準，不要憑文件斷言；歷史上它被記載過「不存在」也被記載過「READY」。若查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
 - 本機無 API key smoke 可改成：
 
 ```env
@@ -266,17 +267,25 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>
 
 ### Frontend
 
-目前沒有正式自動化測試框架。修改 frontend 後至少執行：
+測試位於 `frontend/focus-flow/tests/`，使用 `node:test`。修改 frontend 後至少執行：
 
 ```powershell
 cd frontend\focus-flow
+npm test
 npm run lint
 npm run build
 ```
 
 ### AI Pipeline
 
-目前沒有正式自動化測試套件。修改 pipeline 後至少確認相關 CLI 可執行；若依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
+測試位於 `STT_Whisper/tests/`（unittest）。修改 pipeline 後至少執行：
+
+```powershell
+cd STT_Whisper
+.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
+```
+
+若變更依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
 
 ## 開發原則
 
@@ -304,7 +313,7 @@ npm run build
 
 ## 不能誤稱的邊界
 
-- 共享 Atlas 的 atlas mode 是否 ready 以實查為準：2026-06-05 查證 `text_embedding_index` 已存在且 READY，atlas 模式具備可跑條件（仍需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`）。不要憑舊文件斷言它不存在，請連 Atlas 實查 `listSearchIndexes` 確認。
+- atlas mode 是否 ready 要連 Atlas 實查 `listSearchIndexes` 確認 `text_embedding_index` 為 READY，並需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`；不要憑文件斷言它存在或不存在。
 - 不能把單次 LINE live smoke 說成正式部署完成。
 - 不能說所有前端功能都已 live 驗證：16 個頁面都已接 backend API，但部分功能受 feature flag 控制（例如 `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時，短影片腳本 API 回 404）。
 - YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。

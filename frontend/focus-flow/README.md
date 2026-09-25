@@ -63,6 +63,7 @@ Copy-Item .env.example .env
 
 ```powershell
 cd frontend\focus-flow
+npm test
 npm run lint
 npm run build
 npm run preview
@@ -71,6 +72,7 @@ npm run preview
 用途：
 
 - `npm run dev`: 啟動 Vite 開發伺服器
+- `npm test`: 執行 `tests/` 下的 node:test 單元測試
 - `npm run lint`: 執行 ESLint 檢查
 - `npm run build`: 建立 production build
 - `npm run preview`: 本機預覽 build 後的結果

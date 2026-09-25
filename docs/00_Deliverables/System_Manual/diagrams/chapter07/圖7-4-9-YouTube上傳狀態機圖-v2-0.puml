@@ -1,0 +1,45 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-03, FR-08, NFR-04, NFR-06
+' source:       backend/src/services/youtubeUpload.service.js（scheduleYouTubeAutoUpload、autoUploadVideoToYouTube、assertRetryableUpload、scheduleYouTubeUploadRetry、recoverPendingYouTubeUploads）, backend/src/server.js, backend/src/config/env.js, backend/src/constants/enums.js（YOUTUBE_UPLOAD_STATUSES）（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 youtubeUpload.service.js 的 CAS 搶佔、失敗分類、手動重試條件與開機復原重繪
+' ============================================
+!include ../_style.puml
+
+title YouTube上傳狀態機圖
+hide empty description
+
+state "未上傳\n（youtubeUpload.status 為 null）" as none
+state "uploading\n（上傳中）" as uploading
+state "uploaded\n（已上傳）" as uploaded
+state "failed（上傳失敗）" as failed {
+  state "可重試\n（retrySafe = true 且未達上限）" as retryable
+  state "需人工確認\n（retrySafe = false 或已達上限）" as blocked
+}
+
+[*] -down-> none : 建立影片
+none -down-> uploading : 影片處理完成\n[上傳已啟用且憑證完整、尚無 youtubeVideoId]\n/ CAS 搶佔、attemptCount + 1
+uploading -right-> uploaded : YouTube API 成功\n/ 寫入 youtubeVideoId、videoUrl
+uploading -down-> retryable : API 失敗 [可安全重試且未達上限]\n/ 記錄錯誤與 nextRetryAt（指數退避）
+uploading -down-> blocked : 本機檔案遺失，或失敗\n[不可安全重試或已達上限]
+uploading -down-> blocked : 開機復原\n[lastAttemptAt 超過逾時門檻]\n/ 隔離，避免重複上傳
+retryable -up-> uploading : 教師或管理員按重試 [課程可管理]\n或開機復原 [nextRetryAt 已到]
+uploaded -right-> [*]
+
+note bottom of blocked
+  對應設計類別：Video（youtubeUpload 子文件）。
+  手動重試不符條件時依序回 409
+  YOUTUBE_UPLOAD_ALREADY_COMPLETED、
+  YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED、
+  YOUTUBE_UPLOAD_RETRY_UNSAFE、
+  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED。
+  開機復原受 YOUTUBE_UPLOAD_RECOVERY_ENABLED
+  控制（預設關閉）。
+end note
+
+@enduml

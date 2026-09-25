@@ -1,0 +1,50 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      7-4
+' realizes:     UC-04, UC-05, FR-13, FR-14, FR-15, FR-16, NFR-05, NFR-06
+' source:       backend/src/services/qa.service.js（askQuestion、askQuestionFromApi、recordFailedAsk、respondFromFaqCache）, askLimits.service.js, answerGeneration.service.js, backend/src/constants/enums.js（QUESTION_STATUSES）（程式碼）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依 askQuestion 處理分支與 Question.status 寫入點重繪；區分 4xx 拒絕與 5xx 失敗；v3-1 改為直式版面
+' ============================================
+!include ../_style.puml
+
+title QA提問狀態機圖
+hide empty description
+
+state "前置檢查" as checking : do / 字數、每日次數、課程存取
+state "FAQ 快取比對" as faq : do / 完全相同或語意相似比對
+state "檢索中" as retrieving : do / query embedding、課程範圍檢索
+state "生成中" as generating : do / 依命中片段呼叫回答 provider
+state "rejected\n（不寫入 questions）" as rejected
+state "answered" as answered
+state "no_match" as no_match
+state "failed" as failed
+
+[*] -down-> checking : 送出問題
+checking -down-> rejected : [字數超限、今日次數用完或無課程權限]\n/ 回傳 4xx
+checking -down-> faq : [通過且無對話歷史且快取啟用]
+checking -down-> retrieving : [通過且有對話歷史或快取停用]
+faq -down-> answered : 命中 [引用片段重新驗證通過]\n/ 回傳快取答案
+faq -right-> retrieving : 未命中
+retrieving -down-> no_match : [無可搜尋片段或無足夠相關片段]\n/ 回覆資料不足
+retrieving -down-> generating : [有命中片段]
+generating -down-> answered : 生成完成 [非「片段不足」回覆]\n/ 符合條件時寫入 FAQ 快取
+generating -down-> no_match : 生成完成 [回覆為「片段不足」]
+retrieving -down-> failed : provider 或系統錯誤（5xx）
+generating -down-> failed : provider 或系統錯誤（5xx）
+answered --> [*] : / 寫入 questions 與 usage_logs
+no_match --> [*] : / 寫入 questions 與 usage_logs
+failed --> [*] : / recordFailedAsk 寫入 questions 與 usage_logs
+rejected --> [*]
+
+note bottom of failed
+  對應設計類別：Question（status 為最終結果）。
+  answered／no_match／failed 對應
+  QUESTION_STATUSES；4xx 拒絕屬正常拒絕，
+  不記為失敗提問。
+end note
+
+@enduml

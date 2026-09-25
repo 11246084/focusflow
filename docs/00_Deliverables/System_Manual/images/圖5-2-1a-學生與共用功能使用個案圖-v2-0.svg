@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="1070" viewBox="0 0 1180 1070">
+<defs><marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto"><path d="M 0 0 L 11 6 L 0 12" fill="none" stroke="#000" stroke-width="1.3"/></marker><marker id="hollow" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="13" markerHeight="13" orient="auto"><path d="M 0 0 L 13 7 L 0 14 z" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/></marker></defs>
+<rect width="1180" height="1070" fill="#FFFFFF"/>
+<rect x="250" y="40" width="900" height="1000" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<text x="700" y="70" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="18" font-weight="bold" fill="#000">FocusFlow 系統</text>
+<rect x="285" y="95" width="830" height="410" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/>
+<text x="700" y="121" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="16" font-weight="bold" fill="#000">學生功能</text>
+<rect x="285" y="545" width="830" height="460" fill="#FFFFFF" stroke="#000" stroke-width="1.2"/>
+<text x="700" y="571" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="16" font-weight="bold" fill="#000">權限控管（三種角色共用）</text>
+<line x1="136" y1="318" x2="412.8409429709787" y2="217.8993200556913" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="318" x2="355.07636262553274" y2="316.14342065571583" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="318" x2="410.3467648829285" y2="412.5488850726477" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="708" x2="376.8384746815377" y2="668.5405888939854" stroke="#000" stroke-width="1.2"/>
+<line x1="136" y1="708" x2="421.69815994529796" y2="830.6726562476986" stroke="#000" stroke-width="1.2"/>
+<line x1="110" y1="426" x2="110" y2="658" stroke="#000" stroke-width="1.2" marker-end="url(#hollow)"/>
+<line x1="60" y1="898" x2="110" y2="820" stroke="#000" stroke-width="1.2" marker-end="url(#hollow)"/>
+<line x1="170" y1="898" x2="110" y2="820" stroke="#000" stroke-width="1.2" marker-end="url(#hollow)"/>
+<ellipse cx="490" cy="190" rx="135" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="490" y="185" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-04</text>
+<text x="490" y="205" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">在網頁觀看與提問</text>
+<ellipse cx="490" cy="315" rx="135" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="490" y="310" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-05</text>
+<text x="490" y="330" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">綁定 LINE 並提問</text>
+<ellipse cx="490" cy="440" rx="135" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="490" y="435" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-07</text>
+<text x="490" y="455" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">查看短影音</text>
+<ellipse cx="930" cy="252" rx="140" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="930" y="247" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">取得回答與</text>
+<text x="930" y="267" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">影片時間段</text>
+<ellipse cx="490" cy="650" rx="135" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="490" y="645" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-01</text>
+<text x="490" y="665" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">註冊與登入</text>
+<ellipse cx="490" cy="860" rx="135" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="490" y="855" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">UC-06</text>
+<text x="490" y="875" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">維護個人資料與通知</text>
+<ellipse cx="930" cy="650" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="930" y="655" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">帳號鎖定</text>
+<ellipse cx="930" cy="800" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="930" y="805" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">忘記密碼重設</text>
+<ellipse cx="930" cy="940" rx="120" ry="34" fill="#FFFFFF" stroke="#000" stroke-width="1.3"/>
+<text x="930" y="945" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15.5" fill="#000">回報問題</text>
+<circle cx="110" cy="286" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="300" x2="110" y2="340" stroke="#000" stroke-width="1.4"/>
+<line x1="86" y1="314" x2="134" y2="314" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="340" x2="92" y2="372" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="340" x2="128" y2="372" stroke="#000" stroke-width="1.4"/>
+<text x="110" y="394" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">Student</text>
+<text x="110" y="413" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">學生</text>
+<circle cx="110" cy="676" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="690" x2="110" y2="730" stroke="#000" stroke-width="1.4"/>
+<line x1="86" y1="704" x2="134" y2="704" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="730" x2="92" y2="762" stroke="#000" stroke-width="1.4"/>
+<line x1="110" y1="730" x2="128" y2="762" stroke="#000" stroke-width="1.4"/>
+<text x="110" y="784" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">使用者</text>
+<text x="110" y="803" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">（抽象）</text>
+<circle cx="60" cy="916" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="60" y1="930" x2="60" y2="970" stroke="#000" stroke-width="1.4"/>
+<line x1="36" y1="944" x2="84" y2="944" stroke="#000" stroke-width="1.4"/>
+<line x1="60" y1="970" x2="42" y2="1002" stroke="#000" stroke-width="1.4"/>
+<line x1="60" y1="970" x2="78" y2="1002" stroke="#000" stroke-width="1.4"/>
+<text x="60" y="1024" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">Teacher</text>
+<text x="60" y="1043" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">教師</text>
+<circle cx="170" cy="916" r="14" fill="#FFFFFF" stroke="#000" stroke-width="1.4"/>
+<line x1="170" y1="930" x2="170" y2="970" stroke="#000" stroke-width="1.4"/>
+<line x1="146" y1="944" x2="194" y2="944" stroke="#000" stroke-width="1.4"/>
+<line x1="170" y1="970" x2="152" y2="1002" stroke="#000" stroke-width="1.4"/>
+<line x1="170" y1="970" x2="188" y2="1002" stroke="#000" stroke-width="1.4"/>
+<text x="170" y="1024" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">Admin</text>
+<text x="170" y="1043" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="15" fill="#000">管理員</text>
+<line x1="607.813818784107" y1="206.6010381013969" x2="808.906876687076" y2="234.9368780786334" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="669.1603477355914" y="209.76895809001516" width="78.39999999999999" height="20" fill="#FFFFFF"/>
+<text x="708.3603477355914" y="223.76895809001516" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«include»</text>
+<line x1="607.359783794981" y1="298.1962127748095" x2="809.3997298744875" y2="269.2677659497893" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="669.1797568347342" y="272.7319893622994" width="78.39999999999999" height="20" fill="#FFFFFF"/>
+<text x="708.3797568347343" y="286.7319893622994" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«include»</text>
+<line x1="810" y1="650" x2="625" y2="650" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="670.7" y="631" width="93.6" height="36" fill="#FFFFFF"/>
+<text x="717.5" y="645" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<text x="717.5" y="661" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">[連續登入失敗達門檻]</text>
+<line x1="821.8714302478422" y1="814.7448049662033" x2="608.7154915040784" y2="843.8115238858074" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="679.8934608759604" y="806.2781644260053" width="70.8" height="36" fill="#FFFFFF"/>
+<text x="715.2934608759604" y="820.2781644260053" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<text x="715.2934608759604" y="836.2781644260053" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">[忘記密碼]</text>
+<line x1="829.005973480533" y1="921.6374497237333" x2="599.4571284716882" y2="879.9012960857615" stroke="#000" stroke-width="1.1" stroke-dasharray="6,4" marker-end="url(#open)"/>
+<rect x="675.0315509761106" y="885.7693729047473" width="78.39999999999999" height="36" fill="#FFFFFF"/>
+<text x="714.2315509761106" y="899.7693729047473" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">«extend»</text>
+<text x="714.2315509761106" y="915.7693729047473" text-anchor="middle" font-family="'Times New Roman','DFKai-SB','標楷體',serif" font-size="13" fill="#000">[學生或教師回報]</text>
+</svg>

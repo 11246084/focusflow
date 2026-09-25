@@ -1,0 +1,54 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-07, FR-07, FR-20
+' source:       chapters/05_需求模型.md 表5-3-7；backend/src/services/shortAsset.service.js（listStudentShorts）
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：以分析層用語重寫篩選條件，拒絕分支加註 E1～E3，補上分頁游標錯誤分支；改為首頁（左欄）與分頁（右欄）兩欄
+'
+' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續；以 compose-columns.js 並排。
+' ============================================
+!include ../_style.puml
+
+|學生|
+start
+:開啟短影音頁面;
+|FocusFlow|
+:取得學生的有效修課課程;
+if (其中有已發布的課程？) then (否)
+  :E1 回傳空狀態，\n不洩漏其他課程內容;
+  stop
+endif
+:篩選已發布、已設定發布時間\n且 YouTube 可播放的短影音;
+if (有符合條件的短影音？) then (否)
+  :E2 回傳空狀態;
+  stop
+endif
+:依發布時間由新到舊\n回傳第一頁影片卡;
+|學生|
+:瀏覽直式影片卡;
+(A)
+detach
+
+@enduml
+
+@startuml
+!include ../_style.puml
+
+|學生|
+(A)
+:捲動載入下一頁;
+|FocusFlow|
+if (分頁游標有效？) then (否)
+  :E3 回覆錯誤;
+  stop
+endif
+:回傳下一頁內容;
+|學生|
+:繼續瀏覽短影音與課程資訊;
+stop
+
+@enduml

@@ -1,0 +1,77 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-03, FR-08, FR-09, FR-10, FR-11
+' source:       chapters/05_需求模型.md 表5-3-3；backend/src/services/video.service.js、videoBatch.service.js、videoProcessing.service.js
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：拒絕分支加註 E1～E7，補上重試來源檔檢查（E6）與不合法狀態回報（E7）
+' ============================================
+!include ../_style.puml
+
+title 影片加入與處理追蹤活動圖
+
+|教師或管理員|
+start
+:選擇目標課程;
+|FocusFlow|
+if (可管理該課程？) then (否)
+  :E1 拒絕操作;
+  stop
+endif
+|教師或管理員|
+if (影片來源？) then (本機檔案)
+  :選取一支或多支影片檔\n（每批最多 10 支）;
+  |FocusFlow|
+  if (至少一支檔案且未超過數量上限？) then (否)
+    :E2 拒絕整批請求;
+    stop
+  endif
+  :建立影片批次，逐檔檢查\n格式、大小、完整性與重複;
+  :合格者建立影片紀錄；\nE3 不合格者於單項標示原因;
+else (YouTube 連結)
+  |教師或管理員|
+  :輸入 YouTube 網址;
+  |FocusFlow|
+  if (網址有效且本課程未加入過？) then (否)
+    :E4 拒絕並說明原因;
+    stop
+  endif
+  :建立影片紀錄;
+endif
+|FocusFlow|
+:影片進入待處理;
+:轉錄語音、切分片段並建立檢索資料;
+note right
+  E7 處理回報不符合狀態轉換規則
+  或為重複回報時予以拒絕，
+  已完成的結果不被覆蓋。
+end note
+if (處理成功？) then (否)
+  :E5 標記處理失敗並保留錯誤資訊;
+  |教師或管理員|
+  :查看失敗原因並選擇重試;
+  |FocusFlow|
+  if (重試所需的來源檔仍存在？) then (否)
+    :E6 拒絕重試，提示重新上傳;
+    stop
+  endif
+  :重新排入待處理;
+  stop
+endif
+:標記處理完成，片段可供問答;
+:通知修課學生影片已可觀看;
+|教師或管理員|
+:查看批次與單支影片狀態;
+:必要時掛載至其他課程或解除掛載;
+stop
+
+note right
+  本機影片在啟用 YouTube 自動上傳時，
+  另以不公開（unlisted）上傳供播放；
+  上傳失敗可在安全條件下有限次重試。
+end note
+
+@enduml

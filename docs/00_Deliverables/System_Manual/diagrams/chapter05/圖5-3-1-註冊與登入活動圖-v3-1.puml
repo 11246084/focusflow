@@ -1,0 +1,54 @@
+@startuml
+' ============================================
+' ooad-phase:   需求分析
+' chapter:      5-3
+' realizes:     UC-01, FR-01, FR-02, FR-04
+' source:       chapters/05_需求模型.md 表5-3-1；backend/src/services/auth.service.js、loginThrottle.service.js
+' verified:     2026-09-25
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 第二輪：拒絕分支加註 E1～E5，與表5-3-1 例外流程一一對應；註冊條件併入「角色為學生」
+' ============================================
+!include ../_style.puml
+
+title 註冊與登入活動圖
+
+|使用者|
+start
+:選擇學生註冊或登入;
+if (學生註冊？) then (是)
+  :填寫姓名、Email 與密碼;
+  |FocusFlow|
+  if (角色為學生、Email 格式正確、\n未被註冊且密碼至少 8 字元？) then (否)
+    :E1 回覆錯誤原因，不建立帳號;
+    stop
+  endif
+  :建立學生帳號並簽發登入憑證;
+else (否)
+  |使用者|
+  :於一般入口或管理員入口\n輸入 Email、密碼並選擇角色;
+  |FocusFlow|
+  if (該 Email 在鎖定期間？) then (是)
+    :E2 拒絕登入並提示稍後再試;
+    stop
+  endif
+  if (Email 與密碼正確？) then (否)
+    :E3 累計失敗次數；未達上限時\n提示剩餘次數，達上限則鎖定;
+    stop
+  endif
+  :清除失敗次數;
+  if (帳號已停用？) then (是)
+    :E4 拒絕登入並提示帳號停用;
+    stop
+  endif
+  if (帳號角色與所選角色相符？) then (否)
+    :E5 拒絕登入，不簽發憑證;
+    stop
+  endif
+  :簽發登入憑證並記錄登入事件;
+endif
+|使用者|
+:進入對應角色的儀表板;
+stop
+
+@enduml

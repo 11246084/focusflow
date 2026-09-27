@@ -1,0 +1,75 @@
+{
+  "date": "2026-09-27T11:11:39.742Z",
+  "tool": "Playwright MCP (Chromium 154.0.8037.58) running source/v3-0/render-v3-0.js on file:// HTML; no preview server",
+  "note": "In-figure explanatory text lives in records/v3-0/figure-guide-v3-0.md; remaining grey text is data labels only. PNG exported at deviceScaleFactor 3; PDF one page, 160 mm wide, fonts embedded as subsets.",
+  "audit": [
+    {
+      "name": "01-question-to-evidence-v3-0",
+      "width": 1100,
+      "height": 1166,
+      "xmlValid": true,
+      "textCount": 82,
+      "rasterImages": 2,
+      "overflow": 0,
+      "outside": 0,
+      "collisions": 0,
+      "exported": true,
+      "png": "3300x3498",
+      "pdf": {
+        "pages": 1,
+        "widthMm": 160.2,
+        "heightMm": 169.7
+      }
+    },
+    {
+      "name": "02-evidence-to-answer-v3-0",
+      "width": 1100,
+      "height": 1310,
+      "xmlValid": true,
+      "textCount": 68,
+      "rasterImages": 5,
+      "overflow": 0,
+      "outside": 0,
+      "collisions": 0,
+      "exported": true,
+      "png": "3300x3930",
+      "pdf": {
+        "pages": 1,
+        "widthMm": 160.2,
+        "heightMm": 190.5
+      }
+    },
+    {
+      "name": "03-learning-feedback-v3-0",
+      "width": 1100,
+      "height": 1172,
+      "xmlValid": true,
+      "textCount": 79,
+      "rasterImages": 1,
+      "overflow": 0,
+      "outside": 0,
+      "collisions": 0,
+      "exported": true,
+      "png": "3300x3516",
+      "pdf": {
+        "pages": 1,
+        "widthMm": 160.2,
+        "heightMm": 170.3
+      }
+    }
+  ],
+  "outputHashes": {
+    "results/v3-0/01-question-to-evidence-v3-0.svg": "8f031418ae75427a5953a232f04b4ffce134c50047ea9afe56c5277d14e46714",
+    "results/v3-0/01-question-to-evidence-v3-0.html": "49a7f92f3e0c157de297750dace58180e1088d55ea6d5c552747aa9ce1daa179",
+    "results/v3-0/01-question-to-evidence-v3-0.png": "2dd30e57ca99ee830cd084914ad022c9e69eee9bd0e93c27ba77729adc57465e",
+    "results/v3-0/01-question-to-evidence-v3-0.pdf": "9afedbf9fec08c2fe619b38d193948b08a81efa14a5595e2ba11d248e4792c2c",
+    "results/v3-0/02-evidence-to-answer-v3-0.svg": "f4f56448627038fba76fb156953db670fa0b5cbdff74cf9dd7e64a92a77cfd7c",
+    "results/v3-0/02-evidence-to-answer-v3-0.html": "181804a18aad729fbf3dcc1370216db7effb30cced4590832f13a75fd126b4df",
+    "results/v3-0/02-evidence-to-answer-v3-0.png": "7a02f0c979d1204899da672f0a8922e1003333c790918fdbbeef76d84f9feb13",
+    "results/v3-0/02-evidence-to-answer-v3-0.pdf": "46c8dcc06548b2f7010bc4faeaf9b0673e897536c01c6a9ede0348008efb5d96",
+    "results/v3-0/03-learning-feedback-v3-0.svg": "21c7c0070068be20b049515af8aeea29c1f11a172cd5454ed84bcf78a9191d90",
+    "results/v3-0/03-learning-feedback-v3-0.html": "2914d400f1eb862a1ea4b205c753b7a7529093b1d0097aed3db21b29d0eff9a1",
+    "results/v3-0/03-learning-feedback-v3-0.png": "457410da08dc7b8d0602c2842638b29de17f26e3d90df61ae084fde7f03effa2",
+    "results/v3-0/03-learning-feedback-v3-0.pdf": "f367c3ae097dc6c284f03557ecb824aa38aff0e6850966a7fa6513f199424a4d"
+  }
+}

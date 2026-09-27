@@ -1660,8 +1660,12 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Any 2-col / text+QR grids → 1-col on mobile */
   .ff-grid-2, .ff-grid-auto, .course-detail-grid { grid-template-columns: 1fr !important; }
 
+  /* 手機版影片與 QA 面板改為單欄堆疊，不再需要撐到桌面版對齊播放器的高度；
+     內容少時讓面板貼合內容高度，避免「最近對話」與輸入框之間出現大片空白。
+     內容多時仍靠 max-height 讓 .qa-message-list 內部捲動、輸入框維持貼底。 */
   .qa-conversation-panel {
-    height: clamp(520px, 78dvh, 720px);
+    height: auto;
+    max-height: clamp(420px, 78dvh, 720px);
   }
 
   /* Table scrollable on mobile */
@@ -1671,14 +1675,23 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Page padding a bit tighter on phones */
   .dashboard-content > div { padding-left: 16px !important; padding-right: 16px !important; }
 
+  /* 手機版讓浮動按鈕回到頁面正常流動內、變成頁尾一列，不再用 position:fixed
+     固定在右下角——固定角落在手機窄螢幕上很容易蓋住頁面自己在同一角落的重要
+     控制項（例如課程 QA 頁的「送出」鍵、短影片牆最後一張卡片的標題）。
+     意見回饋／回報問題本來就是次要動作，改成頁尾也仍然找得到，不需要固定可見。 */
   .fab-group {
-    right: 16px;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    position: static;
+    right: auto;
+    bottom: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 24px 16px max(16px, env(safe-area-inset-bottom));
   }
   .fab-group > a,
   .fab-group > button {
-    min-height: 42px;
-    padding: 0 15px;
+    min-height: 44px;
+    padding: 0 16px;
     border-radius: 14px;
   }
 

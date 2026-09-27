@@ -19,6 +19,7 @@ function addShort({
   youtubeAvailability = 'playable',
   youtubeVideoId = `yt-${_id}`,
   publishedAt = '2026-07-18T08:00:00.000Z',
+  thumbnail = `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
 } = {}) {
   store.shortAssets.push({
     _id,
@@ -30,7 +31,7 @@ function addShort({
     status,
     youtubeVideoId,
     youtubeUrl: `https://www.youtube.com/watch?v=${youtubeVideoId}`,
-    thumbnail: `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`,
+    thumbnail,
     publishedAt,
     youtubeAvailability,
     youtubePrivacyStatus: 'public',
@@ -98,6 +99,20 @@ describe('GET /api/v1/youtube/shorts', () => {
       youtubeUrl: 'https://www.youtube.com/watch?v=visible-short',
     });
     assert.equal(result.body.data.nextPageToken, null);
+  });
+
+  it('thumbnail 為空時以 youtubeVideoId 推導 YouTube 縮圖網址', async () => {
+    addShort({ title: 'No Thumbnail Short', youtubeVideoId: 'no-thumbnail-short', thumbnail: null });
+
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/youtube/shorts', { token: studentToken });
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.items.length, 1);
+    assert.equal(
+      result.body.data.items[0].thumbnail,
+      'https://i.ytimg.com/vi/no-thumbnail-short/hqdefault.jpg',
+    );
   });
 
   it('無修課時回傳 200 空陣列', async () => {

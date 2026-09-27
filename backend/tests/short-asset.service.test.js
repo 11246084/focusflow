@@ -96,6 +96,16 @@ describe('ShortAsset model/service', () => {
     assert.equal(updated.archiveReason, undefined);
   });
 
+  it('review detail 的 thumbnail 為空時以 youtubeVideoId 推導 YouTube 縮圖網址', async () => {
+    const asset = addAsset();
+    const readback = await shortAssetService.getReviewShortAsset({
+      assetId: asset._id,
+      user: { id: ids.teacher, role: 'teacher' },
+    });
+
+    assert.equal(readback.thumbnail, `https://i.ytimg.com/vi/${asset.youtubeVideoId}/hqdefault.jpg`);
+  });
+
   it('重新生成遞增版本並失效 current review，但保留跨 generation 歷史', async () => {
     const asset = await shortAssetService.createShortAsset({
       courseId: ids.teacherCourse,

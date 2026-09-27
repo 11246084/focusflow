@@ -13,7 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "images" / "圖2-2-1-FocusFlow商業模式-v1-0.png"
+OUT = Path(__file__).resolve().parents[2] / "images" / "圖2-2-1-FocusFlow商業模式-v1-1.png"
 
 plt.rcParams.update({"font.family": ["Times New Roman", "DFKai-SB"]})
 
@@ -25,9 +25,9 @@ BLUE, WHITE, ORANGE, GREEN = "#e3eefb", "#ffffff", "#fdeee3", "#e6f4ea"
 # (x, y, w, h, 標題, 項目, 底色)；畫布為 10 x 7 單位
 CELLS = [
     (0, 2, 2, 5, "關鍵合作夥伴", ["授課教師", "校內教學與資訊單位", "Google Gemini", "YouTube", "LINE", "MongoDB Atlas"], BLUE),
-    (2, 4.5, 2, 2.5, "關鍵活動", ["影片處理與知識化", "問答品質監測與改善", "權限與資料治理", "系統維運"], BLUE),
+    (2, 4.5, 2, 2.5, "關鍵活動", ["影片處理與知識化", "問答品質監測與改善", "短影音選題與腳本生成", "權限與資料治理", "系統維運"], BLUE),
     (2, 2, 2, 2.5, "關鍵資源", ["系統程式與 AI Pipeline", "教師授權的課程影片", "雲端與 AI 服務帳號", "維運環境"], BLUE),
-    (4, 2, 2, 5, "價值主張", ["學生：用問題找到\n教師講解的片段", "回答附時間點，\n可回影片核對", "教師與助教：\n減少重複答疑", "學校：提高課程錄影\n再利用價值"], WHITE),
+    (4, 2, 2, 5, "價值主張", ["學生：用問題找到\n教師講解的片段", "回答附時間點，\n可回影片核對", "常見問題另有\n短影音可複習", "教師與助教：\n減少重複答疑，\n並取得短影音選題", "學校：提高課程錄影\n再利用價值"], WHITE),
     (6, 4.5, 2, 2.5, "顧客關係", ["教師自行建課與管理名單", "試用回饋與問題回報", "持續改善問答品質"], ORANGE),
     (6, 2, 2, 2.5, "通路", ["FocusFlow 網頁", "LINE Bot", "校內課程試用", "教師推薦"], ORANGE),
     (8, 2, 2, 5, "目標客群", ["有課程錄影的\n大專院校教師", "修課學生", "後續：他校與\n線上課程提供者"], ORANGE),

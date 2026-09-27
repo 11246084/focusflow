@@ -1,0 +1,60 @@
+{
+  "browser": "154.0.8037.58",
+  "deviceScaleFactor": 3,
+  "audit": {
+    "textCount": 52,
+    "xmlValid": true,
+    "fontFamily": "\"Microsoft JhengHei\", \"Noto Sans TC\", sans-serif",
+    "minimumFontPx": 22,
+    "rasterImageCount": 0,
+    "overflow": [],
+    "textCollisions": [],
+    "outside": [],
+    "remoteResources": [],
+    "rect": {
+      "width": 1100,
+      "height": 1116
+    },
+    "devicePixelRatio": 3.0000001192092896
+  },
+  "placement": {
+    "widthMm": 160,
+    "pageWidthPx": 793.7000122070312,
+    "pageHeightPx": 1122.5125732421875,
+    "figureWidthPx": 604.7125244140625,
+    "figureHeightPx": 613.5
+  },
+  "visualReview": {
+    "figure": "Reviewed generated PNG: four stages, arrows, labels and illustrative artifacts checked.",
+    "chapter": "Reviewed A4 sample at 160 mm figure width; caption and source outside image.",
+    "acceptance": "Draft; not human-approved or integrated into the actual manual."
+  },
+  "filesystemChecks": {
+    "v1FilesUnchanged": 4,
+    "sourceHashesVerified": 19,
+    "relativeLinksVerified": 12,
+    "svgRebuildIdentical": true,
+    "identicalSvgInFigureAndChapter": true,
+    "pngSize": [
+      3300,
+      3348
+    ],
+    "pdfPages": {
+      "focusflow-research-framework-v2-0.pdf": 1,
+      "chapter03-placement-v2-0.pdf": 1
+    }
+  },
+  "outputHashes": {
+    "chapter03-placement-v2-0.html": "e70e1668eb42f613c74f6c6dd15c8a0b2255297229b99014599876abfb44fd77",
+    "chapter03-placement-v2-0.pdf": "771e329dc29f19c3c94d9d72da3d806be825103dd77a732342833077784de578",
+    "chapter03-placement-v2-0.png": "71891cd0afb4b4b57f0c9317704e85269973d89b0bd7108cd059ea337145ab09",
+    "focusflow-research-framework-v2-0.html": "932515466e064491604339916ca058db60dd22162e474e52b805e32612a2ab95",
+    "focusflow-research-framework-v2-0.pdf": "0bb53117d8ff8de7daae6fa4cae62ba7b9a321447b9752ad6938075c0507e283",
+    "focusflow-research-framework-v2-0.png": "56dcb876a724e22ee0e7213a8df24c34350db275ec6a578a78d372877154c630",
+    "focusflow-research-framework-v2-0.svg": "2945d06193298b3ba92849418f3b3055a95a3da4c8761487cb721a95e4803eb0",
+    "source/v2-0/build-research-framework-v2-0.mjs": "2953adafe10794d6bfa1cb6bbc0118616ce6595169a20291d4896595dc22904d",
+    "source/v2-0/preview-server-v2-0.mjs": "d6ff134b14d2887d4bc1d7ce18ea3c931d4b8f20cf0ae629fcaf2d9ba9c59383",
+    "source/v2-0/render-research-framework-v2-0.js": "860e89e23c8c1cdb7c83db9a0840640b24be51c5e4bbb5924d8e3bd02b6a5820",
+    "source/v2-0/verify-research-framework-v2-0.mjs": "2ebedc902b087010b3e8f2e85435fb28ae1d95353d559726d58590578c2f0832"
+  }
+}

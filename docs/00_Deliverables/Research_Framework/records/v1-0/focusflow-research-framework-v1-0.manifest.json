@@ -1,0 +1,73 @@
+{
+  "version": "v1.0",
+  "authoredOn": "2026-09-27",
+  "repositoryCommit": "a9198a3035732b06057c862c6c65cebeddf67665",
+  "generator": "Node.js standard library / explicit SVG primitives",
+  "nodeVersion": "v22.15.0",
+  "usesGeneratedRaster": false,
+  "externalAssets": [],
+  "font": "Microsoft JhengHei (local, not embedded); Noto Sans TC / sans-serif fallback",
+  "sources": {
+    "R01": [
+      "STT_Whisper/src/main.py",
+      "STT_Whisper/src/transcribe.py",
+      "STT_Whisper/src/normalize_transcript.py"
+    ],
+    "R02": [
+      "STT_Whisper/src/chunking.py",
+      "STT_Whisper/src/chunk_strategy.py"
+    ],
+    "R03": [
+      "STT_Whisper/src/embedding.py",
+      "STT_Whisper/src/embedding_contract.py",
+      "STT_Whisper/src/mongodb_uploader.py",
+      "backend/src/services/queryEmbedding.service.js"
+    ],
+    "R04": [
+      "backend/src/services/contextualQuestion.service.js",
+      "backend/src/services/qa.service.js",
+      "backend/src/services/answerGeneration.service.js",
+      "backend/src/services/leafContextSelection.service.js",
+      "backend/src/config/env.js"
+    ],
+    "R05": [
+      "backend/src/services/answerGeneration.service.js"
+    ],
+    "R06": [
+      "backend/src/services/qa.service.js",
+      "frontend/focus-flow/src/pages/StudentCourses.jsx"
+    ],
+    "R07": [
+      "backend/src/services/shortScriptTopic.service.js",
+      "backend/src/services/shortScript.service.js",
+      "backend/src/services/shortAssetPublish.service.js",
+      "docs/00_Deliverables/System_Manual/chapters/03_系統規格.md"
+    ]
+  },
+  "sourceFiles": {
+    "STT_Whisper/src/main.py": "1f7cd91f411e1f0f18e5e6d3fe3ee5e68f4751deef3b74cbc32d0f528733e651",
+    "STT_Whisper/src/transcribe.py": "f917ff1aa02f035cdf341ee4d3e2c0f614f31f0cd6d1dffa00254533add94d1d",
+    "STT_Whisper/src/normalize_transcript.py": "6b22af873438fbf25b7bac6e4f6f25da1249021ac3dd2b5b0a853ca3040fe1f2",
+    "STT_Whisper/src/chunking.py": "db2978ab096792fda467e2d258bbbd32d8a93d7f92bf90cc1a8324522a234c1c",
+    "STT_Whisper/src/chunk_strategy.py": "7827a7a05e0870b39c201333c0372c5d1e9fb62d80012b3506d99c26e677eb30",
+    "STT_Whisper/src/embedding.py": "80b041b03633ac40a8e10a4e9e391ab750d459af933fe90e717f9dfef3714e2d",
+    "STT_Whisper/src/embedding_contract.py": "937ec03895a529f6b0f096be4e719fb997f74e36001347fa3a055daa1ecd4c9f",
+    "STT_Whisper/src/mongodb_uploader.py": "9531792401b9c41fde89d7164a8cf856046f26c954d0175ef2c016ef49ad27d0",
+    "backend/src/services/queryEmbedding.service.js": "3566878e333831b77e70339588647e82e5a32ba6da8fe78b8adef53206dcdc82",
+    "backend/src/services/contextualQuestion.service.js": "9416e475230b83d9d35dc4a7cef969e4fb70057d1d1bc8eee099584e21f975f7",
+    "backend/src/services/qa.service.js": "9eedf40aee111f7d8eea87f782d028b1fbb26f8d72f2b6e42b0ea07b98da203a",
+    "backend/src/services/answerGeneration.service.js": "3fa9e4ffa757c24af840f4c1cc88111163cd45a13c3f29ce6698288007bcbb42",
+    "backend/src/services/leafContextSelection.service.js": "abc11401a1174ffc51174f1236d7dca1c96872ad865a5c3f6624ca339bd3caa2",
+    "backend/src/config/env.js": "ec036f13b90d1a0fd5f3e101814da275ff2e03e29b2bea3f71a90bb960c4c4e0",
+    "frontend/focus-flow/src/pages/StudentCourses.jsx": "d097c3f3c7c2aa6fe4a8c20a3f4c8c3acd39c0a5e735d3cd1ddebe2a07cefebd",
+    "backend/src/services/shortScriptTopic.service.js": "aff7cc608e3cc4833ad9e3eeb42bdbb25a2da2e8ed2bba1bbc7589dc4d6d6244",
+    "backend/src/services/shortScript.service.js": "609b99c28ed482a1dced599f6ceeed0088b66626c7a919dfeba8ec1627391bb2",
+    "backend/src/services/shortAssetPublish.service.js": "086681be79f67fe7c798aa3f06236699fbd0503721ef0fd182e823946053d550",
+    "docs/00_Deliverables/System_Manual/chapters/03_系統規格.md": "a0efa23b58c3843d4257d09ff5dade0af1e5246204c51303ab52ce14eb3af450"
+  },
+  "artifacts": {
+    "results/v1-0/focusflow-research-framework-v1-0.svg": "c72d9c48c261410ec5605bea9fde83490df24e15bc38ff7cbbdeb6233760269a",
+    "results/v1-0/focusflow-research-framework-v1-0.html": "4dba4b1b1309737128d7a3e211defecf0df1d074c20337f0a17d599a27bb578f",
+    "source/v1-0/build-research-framework-v1-0.mjs": "b3f0776960a459d9df652027d57ea6f9bb2ad016b2b4dccf35adfabfcfc595e9"
+  }
+}

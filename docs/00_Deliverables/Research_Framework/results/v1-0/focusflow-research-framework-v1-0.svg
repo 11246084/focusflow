@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1776" viewBox="0 0 1280 1776" role="img" aria-labelledby="focusflow-research-framework-v1-0-title focusflow-research-framework-v1-0-desc">
+<title id="focusflow-research-framework-v1-0-title">FocusFlow 整體研究架構</title><desc id="focusflow-research-framework-v1-0-desc">教學影片經轉錄、分段與向量索引，支援課程內問答及來源跳轉；提問紀錄另供腳本選題，影片由教師在系統外製作與審核。</desc>
+<defs><style>text{font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif}</style>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#526575"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#9b621b"/></marker>
+<marker id="arrow-soft" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#8c9ba6"/></marker>
+</defs>
+<rect x="0" y="0" width="1280" height="1776" rx="0" fill="#ffffff" stroke="none" stroke-width="1.4"/>
+<text x="72" y="47" font-size="35" fill="#192b3a" font-weight="700" text-anchor="start">FocusFlow 整體研究架構</text>
+<text x="72" y="80" font-size="20" fill="#526575" font-weight="400" text-anchor="start">教學影片知識化、證據問答與短影音回饋</text>
+<text x="1208" y="47" font-size="16" fill="#526575" font-weight="400" text-anchor="end">可追溯圖稿 · v1.0</text>
+<text x="1208" y="78" font-size="14" fill="#526575" font-weight="400" text-anchor="end">2026-09-27｜待人工審閱</text>
+<path d="M624 248 L656 248" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M928 368 L928 408" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M640 648 L640 688" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M332 976 L332 1016" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M608 1160 L656 1160" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M104 808 H40 Q32 808 32 816 V1444 Q32 1452 40 1452 H72" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<g id="step-1" data-panel="72,112,552,256">
+<rect x="72" y="112" width="552" height="256" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="74" y="114" width="548" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="90" y="145" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 1</text>
+<text x="188" y="145" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="342">影片轉錄與正規化</text>
+<text x="608" y="144" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R01]</text>
+<text x="90" y="184" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Video transcription and normalization</text>
+<rect x="92" y="210" width="112" height="78" rx="4" fill="#eef4f8" stroke="#192b3a" stroke-width="1.4"/>
+<rect x="102" y="220" width="92" height="39" rx="4" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4"/>
+<path d="M139 232 L161 246 L139 260 Z" fill="#23618a" stroke="#23618a" stroke-width="1" />
+<line x1="104" y1="272" x2="192" y2="272" stroke="#8c9ba6" stroke-width="3"/>
+<circle cx="128" cy="272" r="4" fill="#23618a" stroke="#23618a" stroke-width="1.5"/>
+<text x="148" y="311" font-size="16" fill="#192b3a" font-weight="400" text-anchor="middle">教學影片</text>
+<path d="M215 249 L238 249" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<line x1="248" y1="244" x2="248" y2="254" stroke="#23618a" stroke-width="2.5"/>
+<line x1="252" y1="238" x2="252" y2="260" stroke="#23618a" stroke-width="2.5"/>
+<line x1="256" y1="233" x2="256" y2="265" stroke="#23618a" stroke-width="2.5"/>
+<line x1="260" y1="240" x2="260" y2="258" stroke="#23618a" stroke-width="2.5"/>
+<line x1="264" y1="228" x2="264" y2="270" stroke="#23618a" stroke-width="2.5"/>
+<line x1="268" y1="235" x2="268" y2="263" stroke="#23618a" stroke-width="2.5"/>
+<line x1="272" y1="224" x2="272" y2="274" stroke="#23618a" stroke-width="2.5"/>
+<line x1="276" y1="233" x2="276" y2="265" stroke="#23618a" stroke-width="2.5"/>
+<line x1="280" y1="237" x2="280" y2="261" stroke="#23618a" stroke-width="2.5"/>
+<line x1="284" y1="230" x2="284" y2="268" stroke="#23618a" stroke-width="2.5"/>
+<line x1="288" y1="239" x2="288" y2="259" stroke="#23618a" stroke-width="2.5"/>
+<line x1="292" y1="243" x2="292" y2="255" stroke="#23618a" stroke-width="2.5"/>
+<line x1="296" y1="245" x2="296" y2="253" stroke="#23618a" stroke-width="2.5"/>
+<text x="272" y="310" font-size="16" fill="#192b3a" font-weight="400" text-anchor="middle">音訊</text>
+<path d="M307 249 L331 249" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="344" y="206" width="138" height="87" rx="4" fill="#ffffff" stroke="#23618a" stroke-width="1.4"/>
+<rect x="345" y="207" width="136" height="29" rx="4" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="354" y="227" font-size="16" fill="#23618a" font-weight="600" text-anchor="start" data-max-width="118">時間逐字稿</text>
+<text x="354" y="257" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="118">00:20–00:28</text>
+<line x1="356" y1="271" x2="464" y2="271" stroke="#8c9ba6" stroke-width="2"/>
+<line x1="356" y1="280" x2="448" y2="280" stroke="#8c9ba6" stroke-width="2"/>
+<path d="M490 249 L512 249" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="524" y="212" width="80" height="75" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="564" y="241" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="64">術語</text>
+<text x="564" y="265" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="64">字典</text>
+<text x="348" y="337" font-size="15" fill="#526575" font-weight="400" text-anchor="middle">FFmpeg → Faster-Whisper → 術語正規化</text>
+</g>
+<g id="step-2" data-panel="656,112,552,256">
+<rect x="656" y="112" width="552" height="256" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="658" y="114" width="548" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="674" y="145" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 2</text>
+<text x="772" y="145" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="342">時間片段建構</text>
+<text x="1192" y="144" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R02]</text>
+<text x="674" y="184" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Timestamped transcript chunking</text>
+<line x1="682" y1="214" x2="1180" y2="214" stroke="#526575" stroke-width="2"/>
+<path d="M755 216 L755 239" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="684" y="249" width="150" height="70" rx="4" fill="#ffffff" stroke="#23618a" stroke-width="1.4"/>
+<rect x="685" y="250" width="148" height="29" rx="4" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="694" y="270" font-size="16" fill="#23618a" font-weight="600" text-anchor="start" data-max-width="130">Chunk 1</text>
+<text x="694" y="300" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="130">00:20–00:28</text>
+<path d="M924 216 L924 239" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="853" y="249" width="150" height="70" rx="4" fill="#ffffff" stroke="#247b76" stroke-width="1.4"/>
+<rect x="854" y="250" width="148" height="29" rx="4" fill="#eef8f6" stroke="none" stroke-width="1.4"/>
+<text x="863" y="270" font-size="16" fill="#247b76" font-weight="600" text-anchor="start" data-max-width="130">Chunk 2</text>
+<text x="863" y="300" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="130">00:28–00:36</text>
+<path d="M1093 216 L1093 239" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1022" y="249" width="150" height="70" rx="4" fill="#ffffff" stroke="#23618a" stroke-width="1.4"/>
+<rect x="1023" y="250" width="148" height="29" rx="4" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="1032" y="270" font-size="16" fill="#23618a" font-weight="600" text-anchor="start" data-max-width="130">Chunk 3</text>
+<text x="1032" y="300" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="130">00:36–00:44</text>
+<text x="932" y="344" font-size="16" fill="#526575" font-weight="400" text-anchor="middle">依文字長度、段數與時間跨度整併</text>
+</g>
+<g id="step-3" data-panel="72,408,1136,240">
+<rect x="72" y="408" width="1136" height="240" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="74" y="410" width="1132" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="90" y="441" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 3</text>
+<text x="188" y="441" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="926">影片語意知識庫</text>
+<text x="1192" y="440" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R03]</text>
+<text x="90" y="480" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Semantic video knowledge base construction</text>
+<rect x="94" y="499" width="170" height="28" rx="4" fill="#eef4f8" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="104" y="519" font-size="15" fill="#192b3a" font-weight="400" text-anchor="start">C1  00:20–00:28</text>
+<rect x="94" y="531" width="170" height="28" rx="4" fill="#eef8f6" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="104" y="551" font-size="15" fill="#192b3a" font-weight="400" text-anchor="start">C2  00:28–00:36</text>
+<rect x="94" y="563" width="170" height="28" rx="4" fill="#eef4f8" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="104" y="583" font-size="15" fill="#192b3a" font-weight="400" text-anchor="start">C3  00:36–00:44</text>
+<path d="M278 546 L310 546" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="324" y="506" width="172" height="80" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="410" y="535" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="156">Gemini Embedding</text>
+<text x="410" y="559" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="156">片段語意向量</text>
+<path d="M508 546 L540 546" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<text x="636" y="508" font-size="16" fill="#526575" font-weight="400" text-anchor="middle">向量表示（示意）</text>
+<rect x="559" y="525" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="578" y="525" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="597" y="525" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="616" y="525" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="635" y="525" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="654" y="525" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="673" y="525" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="692" y="525" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="559" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="578" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="597" y="543" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="616" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="635" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="654" y="543" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="673" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="692" y="543" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="559" y="561" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="578" y="561" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="597" y="561" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="616" y="561" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="635" y="561" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<rect x="654" y="561" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="673" y="561" width="13" height="12" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<rect x="692" y="561" width="13" height="12" rx="0" fill="#23618a" stroke="none" stroke-width="1.4"/>
+<path d="M728 546 L760 546" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M778 515 V578 C778 600 944 600 944 578 V515" fill="#eef4f8" stroke="#23618a" stroke-width="1.5" />
+<ellipse cx="861" cy="515" rx="83" ry="17" fill="#eef4f8" stroke="#23618a" stroke-width="1.5"/>
+<text x="861" y="554" font-size="20" fill="#192b3a" font-weight="600" text-anchor="middle">影片知識庫</text>
+<text x="861" y="577" font-size="14" fill="#526575" font-weight="400" text-anchor="middle">MongoDB Atlas</text>
+<rect x="975" y="498" width="209" height="100" rx="4" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="989" y="521" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">影片來源 · 片段識別</text>
+<text x="989" y="550" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">文字內容 · 起訖時間</text>
+<text x="989" y="579" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">語意向量</text>
+<text x="640" y="628" font-size="16" fill="#526575" font-weight="400" text-anchor="middle">片段與問題使用相容的向量契約；時間資訊一路保留至引用</text>
+</g>
+<g id="step-4" data-panel="72,688,1136,288">
+<rect x="72" y="688" width="1136" height="288" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="74" y="690" width="1132" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="90" y="721" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 4</text>
+<text x="188" y="721" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="926">對話脈絡與課程證據檢索</text>
+<text x="1192" y="720" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R04]</text>
+<text x="90" y="760" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Context-aware, course-scoped evidence retrieval</text>
+<rect x="104" y="784" width="230" height="108" rx="4" fill="#ffffff" stroke="#23618a" stroke-width="1.4"/>
+<text x="118" y="809" font-size="18" fill="#23618a" font-weight="600" text-anchor="start">學生問題＋近期對話</text>
+<text x="118" y="839" font-size="17" fill="#192b3a" font-weight="400" text-anchor="start">什麼是向量搜尋？</text>
+<text x="118" y="868" font-size="17" fill="#192b3a" font-weight="400" text-anchor="start">那它有什麼限制？</text>
+<path d="M346 833 L374 833" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="388" y="795" width="142" height="77" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="459" y="824" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="126">補足追問主題</text>
+<text x="459" y="848" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="126">問題向量</text>
+<path d="M542 833 L570 833" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="584" y="795" width="178" height="77" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="673" y="824" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="162">課程範圍內</text>
+<text x="673" y="848" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="162">語意檢索</text>
+<text x="673" y="782" font-size="16" fill="#247b76" font-weight="600" text-anchor="middle">授權範圍過濾</text>
+<path d="M774 833 L802 833" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="816" y="784" width="368" height="31" rx="4" fill="#eef8f6" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="830" y="806" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">S1   影片 A   00:20–00:28</text>
+<rect x="816" y="821" width="368" height="31" rx="4" fill="#eef8f6" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="830" y="843" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">S3   影片 A   00:28–00:36</text>
+<rect x="816" y="858" width="368" height="31" rx="4" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="830" y="880" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">S2   影片 B   01:10–01:28</text>
+<text x="1000" y="919" font-size="16" fill="#526575" font-weight="400" text-anchor="middle">依影片與時間組織證據</text>
+<rect x="104" y="918" width="655" height="35" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="4 4"/>
+<text x="116" y="942" font-size="15" fill="#526575" font-weight="400" text-anchor="start">條件式擴充：相鄰片段補全／Parent–Child 檢索（開關控制）</text>
+</g>
+<g id="step-5" data-panel="72,1016,536,292">
+<rect x="72" y="1016" width="536" height="292" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="74" y="1018" width="532" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="90" y="1049" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 5</text>
+<text x="188" y="1049" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="326">依據教材生成回答</text>
+<text x="592" y="1048" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R05]</text>
+<text x="90" y="1088" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Evidence-grounded answer generation</text>
+<rect x="94" y="1108" width="122" height="88" rx="4" fill="#ffffff" stroke="#23618a" stroke-width="1.4"/>
+<rect x="95" y="1109" width="120" height="29" rx="4" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="104" y="1129" font-size="16" fill="#23618a" font-weight="600" text-anchor="start" data-max-width="102">問題＋證據</text>
+<text x="104" y="1159" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="102">S1 · S2 · S3</text>
+<line x1="106" y1="1174" x2="198" y2="1174" stroke="#8c9ba6" stroke-width="2"/>
+<line x1="106" y1="1183" x2="182" y2="1183" stroke="#8c9ba6" stroke-width="2"/>
+<path d="M226 1151 L248 1151" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="260" y="1117" width="104" height="70" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="312" y="1146" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="88">既有 LLM</text>
+<text x="312" y="1170" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="88">回答生成</text>
+<path d="M374 1151 L396 1151" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="408" y="1108" width="176" height="88" rx="4" fill="#ffffff" stroke="#247b76" stroke-width="1.4"/>
+<rect x="409" y="1109" width="174" height="29" rx="4" fill="#eef8f6" stroke="none" stroke-width="1.4"/>
+<text x="418" y="1129" font-size="16" fill="#247b76" font-weight="600" text-anchor="start" data-max-width="156">回答＋證據 ID</text>
+<text x="418" y="1159" font-size="15" fill="#526575" font-weight="400" text-anchor="start" data-max-width="156">採用 S1、S3</text>
+<line x1="420" y1="1174" x2="566" y2="1174" stroke="#8c9ba6" stroke-width="2"/>
+<line x1="420" y1="1183" x2="550" y2="1183" stroke="#8c9ba6" stroke-width="2"/>
+<text x="408" y="1222" font-size="16" fill="#526575" font-weight="400" text-anchor="start">檢查格式與編號</text>
+<text x="96" y="1253" font-size="17" fill="#526575" font-weight="400" text-anchor="start">無相關依據時回覆資料不足</text>
+<text x="96" y="1281" font-size="14" fill="#526575" font-weight="400" text-anchor="start">編號有效不等於語意正確性已獲證明</text>
+</g>
+<g id="step-6" data-panel="656,1016,552,292">
+<rect x="656" y="1016" width="552" height="292" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="658" y="1018" width="548" height="48" rx="0" fill="#eef4f8" stroke="none" stroke-width="1.4"/>
+<text x="674" y="1049" font-size="25" fill="#23618a" font-weight="700" text-anchor="start">Step 6</text>
+<text x="772" y="1049" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="342">來源引用與影片跳轉</text>
+<text x="1192" y="1048" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R06]</text>
+<text x="674" y="1088" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Source citation and timestamp navigation</text>
+<rect x="680" y="1108" width="229" height="139" rx="4" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4"/>
+<text x="694" y="1134" font-size="17" fill="#192b3a" font-weight="600" text-anchor="start">回答內容（介面示意）</text>
+<line x1="695" y1="1152" x2="887" y2="1152" stroke="#8c9ba6" stroke-width="2"/>
+<line x1="695" y1="1163" x2="858" y2="1163" stroke="#8c9ba6" stroke-width="2"/>
+<rect x="694" y="1177" width="201" height="26" rx="4" fill="#eef8f6" stroke="#247b76" stroke-width="1.4"/>
+<text x="704" y="1196" font-size="15" fill="#192b3a" font-weight="400" text-anchor="start">影片 A  00:20  [S1]</text>
+<rect x="694" y="1211" width="201" height="26" rx="4" fill="#eef8f6" stroke="#247b76" stroke-width="1.4"/>
+<text x="704" y="1230" font-size="15" fill="#192b3a" font-weight="400" text-anchor="start">影片 A  00:28  [S3]</text>
+<path d="M920 1190 L947 1190" fill="none" stroke="#526575" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="960" y="1144" width="224" height="102" rx="4" fill="#eef4f8" stroke="#192b3a" stroke-width="1.4"/>
+<rect x="970" y="1154" width="204" height="63" rx="4" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4"/>
+<path d="M1063 1166 L1085 1180 L1063 1194 Z" fill="#23618a" stroke="#23618a" stroke-width="1" />
+<line x1="972" y1="1230" x2="1172" y2="1230" stroke="#8c9ba6" stroke-width="3"/>
+<circle cx="996" cy="1230" r="4" fill="#23618a" stroke="#23618a" stroke-width="1.5"/>
+<text x="1072" y="1269" font-size="16" fill="#192b3a" font-weight="400" text-anchor="middle">點擊時間戳，回到原影片</text>
+</g>
+<g id="step-7" data-panel="72,1360,1136,288">
+<rect x="72" y="1360" width="1136" height="288" rx="0" fill="#ffffff" stroke="#8c9ba6" stroke-width="1.4" stroke-dasharray="6 4"/>
+<rect x="74" y="1362" width="1132" height="48" rx="0" fill="#fff7e9" stroke="none" stroke-width="1.4"/>
+<text x="90" y="1393" font-size="25" fill="#9b621b" font-weight="700" text-anchor="start">Step 7</text>
+<text x="188" y="1393" font-size="24" fill="#192b3a" font-weight="700" text-anchor="start" data-max-width="926">提問回饋與複習短影音</text>
+<text x="1192" y="1392" font-size="14" fill="#526575" font-weight="400" text-anchor="end">[R07]</text>
+<text x="90" y="1432" font-size="14" fill="#526575" font-weight="400" text-anchor="start">Question-driven review video development</text>
+<text x="1190" y="1437" font-size="16" fill="#9b621b" font-weight="600" text-anchor="end">回饋支線</text>
+<rect x="96" y="1472" width="146" height="86" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="169" y="1501" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">提問紀錄</text>
+<text x="169" y="1525" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">分群與選題</text>
+<rect x="278" y="1472" width="146" height="86" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="351" y="1501" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">課程證據</text>
+<text x="351" y="1525" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">檢索與保存</text>
+<rect x="460" y="1472" width="162" height="86" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="541" y="1501" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="146">短影音腳本</text>
+<text x="541" y="1525" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="146">結構化生成</text>
+<rect x="658" y="1460" width="176" height="112" rx="0" fill="#fff7e9" stroke="#9b621b" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="746" y="1487" font-size="15" fill="#9b621b" font-weight="600" text-anchor="middle">系統外／人工</text>
+<text x="746" y="1516" font-size="18" fill="#192b3a" font-weight="600" text-anchor="middle">教師製作影片</text>
+<text x="746" y="1544" font-size="15" fill="#526575" font-weight="400" text-anchor="middle">外部影片工具</text>
+<rect x="870" y="1472" width="146" height="86" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="943" y="1501" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">上傳成品</text>
+<text x="943" y="1525" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle" data-max-width="130">教師審核</text>
+<rect x="1052" y="1472" width="130" height="86" rx="4" fill="#eef4f8" stroke="#23618a" stroke-width="1.4"/>
+<text x="1117" y="1501" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle">審核通過</text>
+<text x="1117" y="1528" font-size="17" fill="#192b3a" font-weight="500" text-anchor="middle">學生複習</text>
+<path d="M246 1515 L270 1515" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<path d="M428 1515 L452 1515" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<path d="M626 1515 L650 1515" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<path d="M838 1515 L862 1515" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<path d="M1020 1515 L1044 1515" fill="none" stroke="#9b621b" stroke-width="2.2" marker-end="url(#arrow-accent)"/>
+<text x="640" y="1617" font-size="17" fill="#526575" font-weight="400" text-anchor="middle">從累積提問形成複習教材；影片產製由教師於系統外完成</text>
+</g>
+<line x1="72" y1="1680" x2="1208" y2="1680" stroke="#8c9ba6" stroke-width="1"/>
+<text x="72" y="1710" font-size="16" fill="#192b3a" font-weight="400" text-anchor="start">資料來源：本研究系統程式碼與規格整理繪製；[R01]–[R07] 對照來源紀錄。</text>
+<text x="72" y="1740" font-size="15" fill="#526575" font-weight="400" text-anchor="start">片段、時間、向量及介面均為示意；未宣稱正式環境啟用狀態或實驗成效。</text>
+</svg>

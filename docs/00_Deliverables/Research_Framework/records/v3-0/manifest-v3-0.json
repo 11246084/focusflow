@@ -1,0 +1,67 @@
+{
+  "version": "v3.0",
+  "example": {
+    "figuresAB": "Real production web follow-up: questions 6ab8d5ddd2df5d6e221eb8b7, conversation 6ab8d58ed2df5d6e221eb8a0, course 69fb4d4c069e21f4e65b74dc, video 6a02f38c17c615e872035b94 (read-only MCP query, 2026-09-27). Embedding colour strip is illustrative.",
+    "figureC": "Real production records: shortscripts 6aad16e2286cd9364737111a, shortassets 6aad1735286cd93647371149 (read-only MCP query, 2026-09-27)."
+  },
+  "figures": [
+    {
+      "name": "01-question-to-evidence-v3-0",
+      "title": "學生的追問如何找到相關教材",
+      "width": 1100,
+      "height": 1166
+    },
+    {
+      "name": "02-evidence-to-answer-v3-0",
+      "title": "候選片段如何變成有來源的回答",
+      "width": 1100,
+      "height": 1310
+    },
+    {
+      "name": "03-learning-feedback-v3-0",
+      "title": "反覆出現的提問如何變成複習短影音",
+      "width": 1100,
+      "height": 1172
+    }
+  ],
+  "sourceFiles": {
+    "backend/src/services/qa.service.js": "9eedf40aee111f7d8eea87f782d028b1fbb26f8d72f2b6e42b0ea07b98da203a",
+    "backend/src/services/answerGeneration.service.js": "3fa9e4ffa757c24af840f4c1cc88111163cd45a13c3f29ce6698288007bcbb42",
+    "backend/src/services/contextualQuestion.service.js": "9416e475230b83d9d35dc4a7cef969e4fb70057d1d1bc8eee099584e21f975f7",
+    "backend/src/services/conversation.service.js": "8b9093d493cf04687e7c01840f64410b1a218d86ec82355612c9d840aded01a8",
+    "backend/src/services/queryEmbedding.service.js": "3566878e333831b77e70339588647e82e5a32ba6da8fe78b8adef53206dcdc82",
+    "backend/src/services/shortScriptTopic.service.js": "aff7cc608e3cc4833ad9e3eeb42bdbb25a2da2e8ed2bba1bbc7589dc4d6d6244",
+    "backend/src/services/shortScript.service.js": "609b99c28ed482a1dced599f6ceeed0088b66626c7a919dfeba8ec1627391bb2",
+    "backend/src/services/shortAssetPublish.service.js": "086681be79f67fe7c798aa3f06236699fbd0503721ef0fd182e823946053d550",
+    "backend/src/config/env.js": "ec036f13b90d1a0fd5f3e101814da275ff2e03e29b2bea3f71a90bb960c4c4e0",
+    "frontend/focus-flow/src/pages/StudentCourses.jsx": "d097c3f3c7c2aa6fe4a8c20a3f4c8c3acd39c0a5e735d3cd1ddebe2a07cefebd",
+    "STT_Whisper/src/main.py": "1f7cd91f411e1f0f18e5e6d3fe3ee5e68f4751deef3b74cbc32d0f528733e651",
+    "STT_Whisper/src/chunk_strategy.py": "7827a7a05e0870b39c201333c0372c5d1e9fb62d80012b3506d99c26e677eb30",
+    "STT_Whisper/src/embedding.py": "80b041b03633ac40a8e10a4e9e391ab750d459af933fe90e717f9dfef3714e2d"
+  },
+  "previousResults": {
+    "results/v1-0/focusflow-research-framework-v1-0.html": "4dba4b1b1309737128d7a3e211defecf0df1d074c20337f0a17d599a27bb578f",
+    "results/v1-0/focusflow-research-framework-v1-0.pdf": "6f21ad652d8e2ae4e55781bb0cf19149879c35149e18778a26a749fca4154415",
+    "results/v1-0/focusflow-research-framework-v1-0.png": "aef7dbf60a48b8006ef7fb74438e155049582800963b6598661331f72c5f8f40",
+    "results/v1-0/focusflow-research-framework-v1-0.svg": "c72d9c48c261410ec5605bea9fde83490df24e15bc38ff7cbbdeb6233760269a",
+    "results/v2-0/chapter03-placement-v2-0.html": "e70e1668eb42f613c74f6c6dd15c8a0b2255297229b99014599876abfb44fd77",
+    "results/v2-0/chapter03-placement-v2-0.pdf": "771e329dc29f19c3c94d9d72da3d806be825103dd77a732342833077784de578",
+    "results/v2-0/chapter03-placement-v2-0.png": "71891cd0afb4b4b57f0c9317704e85269973d89b0bd7108cd059ea337145ab09",
+    "results/v2-0/focusflow-research-framework-v2-0.html": "932515466e064491604339916ca058db60dd22162e474e52b805e32612a2ab95",
+    "results/v2-0/focusflow-research-framework-v2-0.pdf": "0bb53117d8ff8de7daae6fa4cae62ba7b9a321447b9752ad6938075c0507e283",
+    "results/v2-0/focusflow-research-framework-v2-0.png": "56dcb876a724e22ee0e7213a8df24c34350db275ec6a578a78d372877154c630",
+    "results/v2-0/focusflow-research-framework-v2-0.svg": "2945d06193298b3ba92849418f3b3055a95a3da4c8761487cb721a95e4803eb0"
+  },
+  "assets": {
+    "screen-answer.png": "7bf772f40f3f603faeb11e0f2de3751bde90878ea6140df08d8a26794541f009",
+    "screen-player.png": "3edcc788481ed5028de0d472ab897b46f68bd24c199b0d9b11df181df969273c",
+    "screen-shorts.png": "80a52e9ca1af2f077c0be64e6d520ccc532eb481af8d7deb9da4b25d663dee48",
+    "top-answer.png": "a2e22c86e635b85e5e0822eeb357030c485bf7dd4f938f3d52d77d2b0f6400a9",
+    "top-citation.png": "466b9ae44983906636597dfd14a4b18abacb9781c22b7c2ec5cae16305ef345d",
+    "top-logo.png": "4037b916b9db802903e73d730d5b5a3f4f9831e563372f74377f544da49fa9f6",
+    "top-question.png": "ebf13c350a9583f39fb96846b06cf2506d0a9ef1fcdd8c128cf5d61903152cb5"
+  },
+  "screenshots": "Captured 2026-09-27 from https://focusflow.ntub.edu.tw (Demo Student) via Windows screen capture; screen-answer.png stitches 4 consecutive scroll captures of the chat list (offset-verified, scrollbar cropped); screen-shorts.png is a screenshot supplied by the user in chat (2026-09-27) of the same short playing on the student shorts wall; top-question/top-answer/top-citation are crops of screen-answer.png; top-logo is a crop of the same-session full-screen capture.",
+  "source": "5b7188839e114b268fd991c0555d4bda2ec8b538a864100958a779640da10f34",
+  "usesImageGeneration": false
+}

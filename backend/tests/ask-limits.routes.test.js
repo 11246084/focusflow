@@ -114,6 +114,48 @@ describe('提問限制與失敗紀錄', () => {
     assert.equal(store.questions.length, 5);
   });
 
+  it('管理員設定個別上限為 0 時，該學生不受每日次數限制', async () => {
+    env.qaDailyAskLimitPerStudent = 5;
+    store.users.find((user) => user._id === ids.student).dailyAskLimitOverride = 0;
+    seedQuestions(5);
+    const token = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await jsonRequest(context.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST', token, body: { courseId: ids.publishedCourse, question: QUESTION },
+    });
+
+    assert.equal(result.status, 200);
+  });
+
+  it('個別上限高於全站預設時，以個別上限計算', async () => {
+    env.qaDailyAskLimitPerStudent = 5;
+    store.users.find((user) => user._id === ids.student).dailyAskLimitOverride = 10;
+    seedQuestions(9);
+    const token = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const allowed = await jsonRequest(context.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST', token, body: { courseId: ids.publishedCourse, question: QUESTION },
+    });
+    assert.equal(allowed.status, 200);
+
+    const limited = await jsonRequest(context.baseUrl, '/api/v1/qa/ask', {
+      method: 'POST', token, body: { courseId: ids.publishedCourse, question: `${QUESTION}?` },
+    });
+    assert.equal(limited.status, 429);
+    assert.equal(limited.body.error.details.limit, 10);
+  });
+
+  it('LINE 提問也套用個別上限', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    student.dailyAskLimitOverride = 0;
+    env.qaDailyAskLimitPerStudent = 5;
+    seedQuestions(5);
+
+    const result = await postLineText(context.baseUrl, QUESTION);
+    assert.notEqual(result.body.data.results[0].reason, 'daily_limit_reached');
+  });
+
   it('系統失敗（failed）與前一天的提問不計入今天的次數', async () => {
     env.qaDailyAskLimitPerStudent = 5;
     seedQuestions(5, { status: 'failed' });

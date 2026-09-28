@@ -2158,6 +2158,10 @@ paths:
                             type: array
                             items:
                               $ref: '#/components/schemas/AdminUser'
+                          dailyAskLimitDefault:
+                            description: 全站預設的學生每日提問上限（`QA_DAILY_ASK_LIMIT_PER_STUDENT`，0 代表不限）。
+                            type: integer
+                            minimum: 0
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -2166,8 +2170,10 @@ paths:
     patch:
       tags:
         - Admin
-      summary: 更新使用者（名稱 / 角色 / 啟用狀態）
-      description: 僅限 admin。`name`、`role`、`isActive` 至少提供一個；`name` trim 後不可為空。
+      summary: 更新使用者（名稱 / 角色 / 啟用狀態 / 每日提問上限）
+      description: |
+        僅限 admin。`name`、`role`、`isActive`、`dailyAskLimitOverride` 至少提供一個；`name` trim 後不可為空。
+        `dailyAskLimitOverride` 只影響學生角色：`null` 跟隨全站預設，`0` 不限次數，正整數為自訂每日次數。
       operationId: adminUpdateUser
       parameters:
         - name: userId
@@ -2191,6 +2197,8 @@ paths:
                   $ref: '#/components/schemas/UserRole'
                 isActive:
                   type: boolean
+                dailyAskLimitOverride:
+                  $ref: '#/components/schemas/DailyAskLimitOverride'
       responses:
         '200':
           description: 使用者更新成功；回應不含 `courses`、`queries` 統計。
@@ -2206,7 +2214,7 @@ paths:
                       data:
                         $ref: '#/components/schemas/AdminUser'
         '400':
-          description: "`userId` 格式錯誤（`INVALID_ID`），或沒有可更新欄位、`name` 為空、`role` 不合法（`VALIDATION_ERROR`）。"
+          description: "`userId` 格式錯誤（`INVALID_ID`），或沒有可更新欄位、`name` 為空、`role` 不合法、`dailyAskLimitOverride` 不是 null 或 0–1000 的整數（`VALIDATION_ERROR`）。"
           content:
             application/json:
               schema:
@@ -7763,6 +7771,11 @@ components:
                 total:
                   type: integer
                   minimum: 0
+    DailyAskLimitOverride:
+      description: 管理員為個別學生設定的每日提問上限。`null` 跟隨全站預設，`0` 不限次數，正整數為自訂次數；教師與管理員不受每日上限限制。
+      type: [integer, 'null']
+      minimum: 0
+      maximum: 1000
     AdminUser:
       description: Admin 後台的使用者列表項目。`courses`、`queries` 只有列表端點會回傳。
       type: object
@@ -7788,6 +7801,8 @@ components:
         isLineBound:
           description: 是否已綁定 LINE 帳號；不暴露實際 LINE user id。
           type: boolean
+        dailyAskLimitOverride:
+          $ref: '#/components/schemas/DailyAskLimitOverride'
         courses:
           description: 有效修課數（依 Enrollment.studentId 統計）。
           type: integer

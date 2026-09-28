@@ -781,7 +781,11 @@ async function handleQuestion(lineUserId, text, replyToken) {
   }
 
   // 字數上限與每日提問次數（與網頁合併計算）；超過時回覆原因，不呼叫 AI、不記為失敗。
-  const askingUser = { id: String(user._id), role: user.role };
+  const askingUser = {
+    id: String(user._id),
+    role: user.role,
+    dailyAskLimitOverride: user.dailyAskLimitOverride,
+  };
   try {
     await assertCanAsk({ user: askingUser, question: text });
   } catch (limitError) {

@@ -1,0 +1,44 @@
+{
+  "renderer": "Playwright MCP / Chromium",
+  "browserVersion": "154.0.8037.58",
+  "viewport": {
+    "width": 1280,
+    "height": 1776
+  },
+  "deviceScaleFactor": 2,
+  "pngSize": {
+    "width": 2560,
+    "height": 3552
+  },
+  "audit": {
+    "textCount": 101,
+    "panelCount": 7,
+    "fontFamily": "\"Microsoft JhengHei\", \"Noto Sans TC\", sans-serif",
+    "localFontAvailable": true,
+    "xmlValid": true,
+    "accessibleTitle": true,
+    "accessibleReferences": true,
+    "rasterImages": 0,
+    "overflow": [],
+    "outsideCanvas": [],
+    "outsidePanel": [],
+    "textCollisions": [],
+    "remoteResources": []
+  },
+  "filesystemChecks": {
+    "sourceHashesVerified": 19,
+    "relativeLinksVerified": 28,
+    "deterministicSvg": true,
+    "pngSizeVerified": true,
+    "pdfPageObjects": 1
+  },
+  "outputHashes": {
+    "focusflow-research-framework-v1-0.svg": "c72d9c48c261410ec5605bea9fde83490df24e15bc38ff7cbbdeb6233760269a",
+    "focusflow-research-framework-v1-0.html": "4dba4b1b1309737128d7a3e211defecf0df1d074c20337f0a17d599a27bb578f",
+    "focusflow-research-framework-v1-0.png": "aef7dbf60a48b8006ef7fb74438e155049582800963b6598661331f72c5f8f40",
+    "focusflow-research-framework-v1-0.pdf": "6f21ad652d8e2ae4e55781bb0cf19149879c35149e18778a26a749fca4154415",
+    "records/v1-0/README-v1-0.md": "da6d03c9027f0ed2c1ea0ffd60cfffd4af16762025e0ee7691c6b17cc85ad64b",
+    "source/v1-0/build-research-framework-v1-0.mjs": "b3f0776960a459d9df652027d57ea6f9bb2ad016b2b4dccf35adfabfcfc595e9",
+    "source/v1-0/render-research-framework-v1-0.js": "c90342fa6d70a3ac6cd5c806cec49692d512082c9c88dcb845c78065dd4aa9e7"
+  }
+}

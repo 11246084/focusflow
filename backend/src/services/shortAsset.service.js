@@ -169,6 +169,16 @@ function toIsoOrNull(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+// 上傳／同步流程目前不會回填 thumbnail 欄位（YouTube upload 與 shortsSync 都只寫
+// video id／可見度），所以已上架的成品長期是 thumbnail=null。縮圖網址是由
+// youtubeVideoId 決定的固定格式，不需要呼叫 YouTube API 也不需要補寫資料庫，
+// 缺值時直接推導即可；i.ytimg.com 對 unlisted 影片一樣可直接存取縮圖。
+function resolveThumbnail(asset) {
+  if (asset.thumbnail) return asset.thumbnail;
+  if (asset.youtubeVideoId) return `https://i.ytimg.com/vi/${asset.youtubeVideoId}/hqdefault.jpg`;
+  return null;
+}
+
 function toReviewReasons(reasons) {
   return Array.isArray(reasons)
     ? reasons.map((reason) => ({ code: reason.code, note: reason.note || '' }))
@@ -205,7 +215,7 @@ function toReviewAsset(asset, course = null) {
       : [],
     youtubeVideoId: asset.youtubeVideoId || null,
     youtubeUrl: asset.youtubeUrl || null,
-    thumbnail: asset.thumbnail || null,
+    thumbnail: resolveThumbnail(asset),
     createdAt: toIsoOrNull(asset.createdAt),
     updatedAt: toIsoOrNull(asset.updatedAt),
   };
@@ -680,7 +690,7 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
       return {
         videoId: asset.youtubeVideoId,
         title: asset.title,
-        thumbnail: asset.thumbnail || null,
+        thumbnail: resolveThumbnail(asset),
         publishedAt: new Date(asset.publishedAt).toISOString(),
         assetId: String(asset._id),
         course: {

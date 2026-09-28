@@ -248,7 +248,7 @@
 
 提問限制（2026-09-18 起，`askLimits.service.js`，網頁 QA、多輪對話、LINE 三個入口共用）：
 - 問題超過 `QA_MAX_QUESTION_LENGTH`（預設 50 字）→ `400 QUESTION_TOO_LONG`；LINE 回覆「問題太長了」。
-- 學生當天（台灣時間 00:00 重置）成功提問達 `QA_DAILY_ASK_LIMIT_PER_STUDENT`（預設 5 次，網頁與 LINE 合併）→ `429 QA_DAILY_LIMIT_EXCEEDED`；教師、管理員不限。只計 `answered` / `no_match`，系統故障造成的 `failed` 不扣次數。
+- 學生當天（台灣時間 00:00 重置）成功提問達 `QA_DAILY_ASK_LIMIT_PER_STUDENT`（預設 5 次，網頁與 LINE 合併）→ `429 QA_DAILY_LIMIT_EXCEEDED`；教師、管理員不限。只計 `answered` / `no_match`，系統故障造成的 `failed` 不扣次數。管理員可在使用者管理頁為個別學生設定 `User.dailyAskLimitOverride`（`null` 跟隨全站預設、`0` 不限、正整數為自訂次數；經 `PATCH /api/v1/admin/users/:userId`），優先於全站值，新帳號預設為 `null`。
 - 系統端失敗（5xx，例如 `QA_RUNTIME_MISCONFIGURED`）在網頁 QA 與多輪對話也會寫入 `questions`（`status=failed`）與 `usage_logs`，後台統計看得到故障；LINE 原本就有記錄。
 - LINE 提問會先顯示讀取動畫；AI 回答太慢導致 replyToken 過期時，改用 Push API 送出答案（會計入官方帳號每月訊息則數）。
 

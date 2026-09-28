@@ -50,6 +50,12 @@ const userSchema = new mongoose.Schema(
       type: avatarSchema,
       default: null,
     },
+    // Admin-set per-student daily ask limit. null = follow QA_DAILY_ASK_LIMIT_PER_STUDENT; 0 = unlimited.
+    dailyAskLimitOverride: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     // Optional values must be omitted, not stored as null: unique+sparse still indexes explicit null values.
     lineUserId: {
       type: String,

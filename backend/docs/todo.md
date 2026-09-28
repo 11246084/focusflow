@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-09-25
+最後更新：2026-09-28
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -18,6 +18,16 @@
 ## 個人任務清單（僅後端）
 
 ---
+
+### 管理員設定個別學生每日提問上限（2026-09-28）
+
+- **狀態**：Done
+- **背景**：組員做系統手冊第十章系統測試時，學生帳號每日 5 次提問用完；原本只能改 VM `.env` 全站放寬。
+- **完成內容**：
+  - ✅ `User.dailyAskLimitOverride`（`null` 跟隨 `QA_DAILY_ASK_LIMIT_PER_STUDENT`、`0` 不限、1–1000 自訂），網頁 QA、多輪對話、LINE 共用
+  - ✅ `PATCH /api/v1/admin/users/:userId` 接受此欄位；`GET /api/v1/admin/users` 回傳 `dailyAskLimitDefault`
+  - ✅ 前端「使用者管理」編輯視窗可選全站預設／不限／自訂次數，列表顯示非預設上限
+  - ✅ OpenAPI、route tests 同步
 
 ### 稽核高優先修正（2026-09-24 稽核 → 2026-09-25）
 

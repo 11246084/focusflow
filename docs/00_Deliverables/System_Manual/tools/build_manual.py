@@ -16,7 +16,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[4]
 SOURCE = ROOT / "docs/00_Deliverables/System_Manual/source-documents/專題手冊_初評最終版.docx"
 CHAPTER_DIR = ROOT / "docs/00_Deliverables/System_Manual/chapters"
-OUTPUT = ROOT / "docs/00_Deliverables/System_Manual/output/四技第115413組-FocusFlow AI-系統手冊_複評更新版.docx"
+OUTPUT = ROOT / "docs/00_Deliverables/System_Manual/output/四技第115413組-FocusFlow AI-系統手冊_複評更新版_第5至9章.docx"
 
 CHAPTERS = [
     CHAPTER_DIR / "05_需求模型.md",
@@ -24,7 +24,6 @@ CHAPTERS = [
     CHAPTER_DIR / "07_實作模型.md",
     CHAPTER_DIR / "08_資料庫設計.md",
     CHAPTER_DIR / "09_程式.md",
-    CHAPTER_DIR / "10_測試模型.md",
 ]
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -68,11 +67,11 @@ def set_cell_margins(cell, top=55, start=70, bottom=55, end=70) -> None:
 
 
 def set_run_font(run, *, size=None, bold=None, italic=None, monospace=False) -> None:
-    font_name = "Consolas" if monospace else "DFKai-SB"
+    font_name = "DFKai-SB"
     run.font.name = font_name
     run._element.rPr.rFonts.set(qn("w:eastAsia"), font_name)
-    run._element.rPr.rFonts.set(qn("w:ascii"), "Consolas" if monospace else "Times New Roman")
-    run._element.rPr.rFonts.set(qn("w:hAnsi"), "Consolas" if monospace else "Times New Roman")
+    run._element.rPr.rFonts.set(qn("w:ascii"), "Times New Roman")
+    run._element.rPr.rFonts.set(qn("w:hAnsi"), "Times New Roman")
     if size is not None:
         run.font.size = Pt(size)
     if bold is not None:
@@ -89,6 +88,13 @@ def clean_inline(text: str) -> str:
 
 
 def add_inline(paragraph, text: str, *, size=None, base_bold=False, monospace=False) -> None:
+    if re.search(r"<br\s*/?>", text):
+        parts = re.split(r"<br\s*/?>", text)
+        for index, part in enumerate(parts):
+            if index:
+                paragraph.add_run().add_break()
+            add_inline(paragraph, part.strip(), size=size, base_bold=base_bold, monospace=monospace)
+        return
     # Preserve the two Markdown inline styles most useful in a formal manual.
     token_re = re.compile(r"(\*\*.*?\*\*|`.*?`|\[[^\]]+\]\([^\)]+\))")
     cursor = 0
@@ -98,7 +104,7 @@ def add_inline(paragraph, text: str, *, size=None, base_bold=False, monospace=Fa
             set_run_font(run, size=size, bold=base_bold, monospace=monospace)
         token = match.group(0)
         if token.startswith("**"):
-            run = paragraph.add_run(token[2:-2])
+            run = paragraph.add_run(token[2:-2].replace("`", ""))
             set_run_font(run, size=size, bold=True, monospace=monospace)
         elif token.startswith("`"):
             run = paragraph.add_run(token[1:-1])
@@ -149,19 +155,18 @@ def add_field(paragraph, instruction: str, result: str) -> None:
 
 
 def add_caption(doc: Document, marker, caption_text: str) -> None:
-    match = re.match(r"^(圖|表)\s*(\d+)-(\d+)-(\d+)\s*[　 ]*(.*)$", caption_text.strip())
+    match = re.match(r"^(圖|表)\s*(\d+)-(\d+)-(\d+)([a-z]?)[\s　]*(.*)$", caption_text.strip())
     paragraph = doc.add_paragraph(style="Caption")
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph.paragraph_format.keep_with_next = True
     if match:
-        kind, chapter, section, sequence, title = match.groups()
-        run = paragraph.add_run(kind + " ")
+        kind, chapter, section, sequence, suffix, title = match.groups()
+        run = paragraph.add_run(f"{kind} {chapter}-{section}-")
         set_run_font(run, size=14)
-        add_field(paragraph, " STYLEREF 2 \\s ", f"{chapter}-{section}")
-        run = paragraph.add_run("-")
-        set_run_font(run, size=14)
-        add_field(paragraph, f" SEQ {kind} \\* ARABIC \\s 2 ", sequence)
-        run = paragraph.add_run("　" + title)
+        # The SEQ \r switch pins the number so a/b sub-figure labels match the body references,
+        # while the field still feeds the list of figures/tables.
+        add_field(paragraph, " SEQ " + kind + " \\r " + sequence + " \\* ARABIC ", sequence)
+        run = paragraph.add_run(f"{suffix}　{title}")
         set_run_font(run, size=14)
     else:
         add_inline(paragraph, caption_text, size=14)
@@ -217,6 +222,12 @@ def sanitize_text(text: str) -> str:
         "5. 對短腳本／成品審核完成 feature-on 的 browser E2E、真實 YouTube lifecycle 與學生修課可見性驗收。":
             "5. 完成短影音腳本、成品審核、YouTube 上傳及學生端可見性測試。",
     }
+    text = re.sub(r"以 2026-09-24 `dev` 分支（commit `[0-9a-f]+`）的程式碼、`package.json`、`requirements.txt` 與測試檔為依據", "依程式碼、`package.json`、`requirements.txt` 與測試檔整理", text)
+    text = text.replace("上述狀態本章未重新實測，列為待確認。", "實際狀態以主機設定為準。")
+    text = text.replace("，本章撰寫時未重新查證。表8-2-29 列出需以唯讀方式重新確認的項目。", "。表8-2-29 列出部署時需確認的項目。")
+    text = text.replace("本次未執行", "須於具備模型與金鑰的環境另行執行")
+    if text.startswith("**資料來源與驗證邊界。**"):
+        return "本章依 backend/src/models/ 下 21 份 Mongoose schema、enums.js、資料庫初始化腳本與示範資料服務說明各集合、索引與向量索引。文中描述為程式宣告的資料契約；MongoDB Atlas 的實查結果彙整於表8-2-29。"
     plain_text = clean_inline(text)
     if plain_text in paragraph_rewrites:
         return paragraph_rewrites[plain_text]
@@ -258,7 +269,6 @@ def sanitize_text(text: str) -> str:
         "production": "正式環境",
         "provider": "外部服務",
         "artifact": "產出檔案",
-        "ready": "可用",
         "測試層級與證據邊界": "測試層級與適用範圍",
         "目前入口或證據": "測試方式",
         "能證明": "檢查內容",
@@ -288,8 +298,16 @@ def sanitize_text(text: str) -> str:
         "已知邊界": "說明",
         "可證明與邊界": "結果說明",
     }
+    code_spans: list[str] = []
+
+    def mask(match):
+        code_spans.append(match.group(0))
+        return f"\u0000{len(code_spans) - 1}\u0000"
+
+    text = re.sub(r"`[^`]*`", mask, text)
     for old, new in replacements.items():
         text = text.replace(old, new)
+    text = re.sub(r"\u0000(\d+)\u0000", lambda m: code_spans[int(m.group(1))], text)
     text = text.replace("本次已", "已")
     text = text.replace("本次重新", "重新")
     text = text.replace("圖中同時呈現的通知", "圖中同時呈現通知")
@@ -310,12 +328,30 @@ def sanitize_text(text: str) -> str:
 
 
 def split_table_row(line: str) -> list[str]:
-    return [sanitize_text(clean_inline(cell.strip())) for cell in line.strip().strip("|").split("|")]
+    return [clean_inline(sanitize_text(cell.strip())) for cell in line.strip().strip("|").split("|")]
 
 
 def is_separator_row(line: str) -> bool:
     cells = line.strip().strip("|").split("|")
     return bool(cells) and all(re.fullmatch(r"\s*:?-{3,}:?\s*", cell) for cell in cells)
+
+
+def visual_len(text: str) -> float:
+    return sum(2.0 if ord(ch) > 0x2E80 else 1.0 for ch in text)
+
+
+def column_widths(rows: list[list[str]], cols: int, total: float) -> list[float]:
+    weights = []
+    for c in range(cols):
+        cells = [row[c] for row in rows if c < len(row)]
+        lengths = [visual_len(cell) for cell in cells] or [1.0]
+        header = visual_len(rows[0][c]) if c < len(rows[0]) else 1.0
+        body = lengths[1:] or lengths
+        avg = sum(body) / len(body)
+        weight = max(header * 1.05, min(0.5 * avg + 0.5 * max(body), 42.0), 8.0)
+        weights.append(weight)
+    scale = total / sum(weights)
+    return [max(w * scale, 0.6) for w in weights]
 
 
 def add_table(doc: Document, marker, rows: list[list[str]], caption: str | None) -> None:
@@ -333,15 +369,27 @@ def add_table(doc: Document, marker, rows: list[list[str]], caption: str | None)
     table = doc.add_table(rows=len(rows), cols=cols)
     table.style = "Table Grid"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.autofit = True
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    layout = OxmlElement("w:tblLayout")
+    layout.set(qn("w:type"), "fixed")
+    tbl_pr.append(layout)
+    header_rows = 0
+    for r_idx, row in enumerate(rows[:4]):
+        if row and row[0] == "欄位名稱":
+            header_rows = r_idx
+    widths = column_widths(rows, cols, 7.0)
+    for c_idx, width in enumerate(widths):
+        table.columns[c_idx].width = Inches(width)
 
     for r_idx, row in enumerate(rows):
         table_row = table.rows[r_idx]
         prevent_row_split(table_row)
-        if r_idx == 0:
+        if r_idx <= header_rows:
             set_repeat_table_header(table_row)
         for c_idx in range(cols):
             cell = table.cell(r_idx, c_idx)
+            cell.width = Inches(widths[c_idx])
             cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             set_cell_margins(cell)
             if r_idx == 0:
@@ -351,7 +399,9 @@ def add_table(doc: Document, marker, rows: list[list[str]], caption: str | None)
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER if r_idx == 0 else WD_ALIGN_PARAGRAPH.LEFT
             paragraph.paragraph_format.space_after = Pt(0)
             paragraph.paragraph_format.line_spacing = 1.0
-            add_inline(paragraph, value, size=9.5, base_bold=(r_idx == 0))
+            if r_idx <= header_rows + 1:
+                paragraph.paragraph_format.keep_with_next = True
+            add_inline(paragraph, value, size=12, base_bold=(r_idx == 0))
     marker.addprevious(table._tbl)
 
 
@@ -373,15 +423,17 @@ def add_picture(doc: Document, marker, image_path: Path) -> None:
 
 def add_paragraph(doc: Document, marker, text: str, *, style="文字內文", level=None, list_item=False, ordered=False) -> None:
     paragraph = doc.add_paragraph(style=style)
+    if level is None:
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
     if level is not None:
         paragraph.paragraph_format.keep_with_next = True
     if list_item:
         paragraph.paragraph_format.left_indent = Inches(0.30)
         paragraph.paragraph_format.first_line_indent = Inches(-0.22)
         prefix = "" if ordered else "• "
-        add_inline(paragraph, prefix + sanitize_text(text), size=12)
+        add_inline(paragraph, prefix + sanitize_text(text), size=14)
     else:
-        add_inline(paragraph, sanitize_text(text), size=12 if level is None else None)
+        add_inline(paragraph, sanitize_text(text), size=14 if level is None else None)
     marker.addprevious(paragraph._p)
 
 
@@ -396,7 +448,7 @@ def add_code_block(doc: Document, marker, lines: list[str]) -> None:
         if index:
             paragraph.add_run("\n")
         run = paragraph.add_run(line)
-        set_run_font(run, size=8.5, monospace=True)
+        set_run_font(run, size=12, monospace=True)
     marker.addprevious(paragraph._p)
 
 
@@ -456,6 +508,7 @@ def should_skip_paragraph(text: str) -> bool:
         "本圖是測試證據層級",
         "如圖10-1-1所示",
         "原始結果應保留在各功能",
+        "圖6-2-4 為橫向版面",
     )
     if text.startswith(forbidden_starts):
         return True
@@ -534,12 +587,22 @@ def add_chapter(doc: Document, marker, chapter_path: Path) -> None:
             pending_caption = None
             continue
 
-        caption_match = re.match(r"^(圖|表)\s*\d+-\d+-\d+\s+", line)
+        caption_match = re.match(r"^(圖|表)\s*\d+-\d+-\d+[a-z]?[\s　]+", line)
         if caption_match:
+            prev_line = next((lines[k].strip() for k in range(index - 1, -1, -1) if lines[k].strip()), "")
+            next_line = next((lines[k].strip() for k in range(index + 1, len(lines)) if lines[k].strip()), "")
+            positional = (
+                (caption_match.group(1) == "表" and next_line.startswith("|"))
+                or (caption_match.group(1) == "圖" and prev_line.startswith("!["))
+            )
+            if not positional and (len(line) > 60 or re.search(r"[。，；：]", line)):
+                caption_match = None
+        if caption_match:
+            caption_text = re.sub(r"[（(]建議橫式頁[）)]", "", sanitize_text(line)).replace("`", "").strip()
             if caption_match.group(1) == "表":
-                pending_caption = sanitize_text(line)
+                pending_caption = caption_text
             else:
-                add_caption(doc, marker, sanitize_text(line))
+                add_caption(doc, marker, caption_text)
             index += 1
             continue
 
@@ -628,6 +691,21 @@ def main() -> None:
         update = OxmlElement("w:updateFields")
         settings.append(update)
     update.set(qn("w:val"), "true")
+
+    for paragraph in doc.paragraphs[:20]:
+        runs = paragraph.runs
+        if runs and "".join(r.text for r in runs).startswith("中華民國"):
+            for run in runs:
+                if run.text == "6":
+                    run.text = "10"
+                elif run.text == "2":
+                    run.text = "13"
+            break
+    for style_name in ("toc 1", "toc 2", "toc 3", "table of figures"):
+        try:
+            doc.styles[style_name].font.size = Pt(14)
+        except KeyError:
+            pass
 
     core = doc.core_properties
     core.title = "FocusFlow AI 系統手冊（複評更新版）"

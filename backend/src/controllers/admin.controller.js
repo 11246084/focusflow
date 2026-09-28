@@ -11,13 +11,15 @@ const getStats = asyncHandler(async (req, res) => {
 
 const listUsers = asyncHandler(async (req, res) => {
   const users = await adminService.listUsers();
-  return sendSuccess(res, { data: { users } });
+  return sendSuccess(res, {
+    data: { users, dailyAskLimitDefault: adminService.getDefaultDailyAskLimit() },
+  });
 });
 
 const updateUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
-  const { name, role, isActive } = req.body;
-  const user = await adminService.updateUser(userId, { name, role, isActive });
+  const { name, role, isActive, dailyAskLimitOverride } = req.body;
+  const user = await adminService.updateUser(userId, { name, role, isActive, dailyAskLimitOverride });
   return sendSuccess(res, { message: 'User updated.', data: user });
 });
 

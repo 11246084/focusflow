@@ -36,8 +36,15 @@ function getTaipeiDayWindow(now = new Date()) {
   return { start, end: new Date(start.getTime() + DAY_MS) };
 }
 
+// 管理員可在使用者管理頁為個別學生設定上限（dailyAskLimitOverride）：
+// null 跟隨全站 QA_DAILY_ASK_LIMIT_PER_STUDENT，0 代表不限次數，正整數為自訂次數。
+function resolveDailyAskLimit(user) {
+  const override = user?.dailyAskLimitOverride;
+  return Number.isInteger(override) && override >= 0 ? override : env.qaDailyAskLimitPerStudent;
+}
+
 function isDailyLimitedUser(user) {
-  return user?.role === USER_ROLES.STUDENT && env.qaDailyAskLimitPerStudent > 0;
+  return user?.role === USER_ROLES.STUDENT && resolveDailyAskLimit(user) > 0;
 }
 
 async function countTodayAsks(userId, now = new Date()) {
@@ -51,7 +58,7 @@ async function countTodayAsks(userId, now = new Date()) {
 
 async function getDailyAskUsage(user, now = new Date()) {
   if (!isDailyLimitedUser(user)) return null;
-  const limit = env.qaDailyAskLimitPerStudent;
+  const limit = resolveDailyAskLimit(user);
   const used = await countTodayAsks(user.id || user._id, now);
   const { end } = getTaipeiDayWindow(now);
   return { limit, used, remaining: Math.max(0, limit - used), resetsAt: end };
@@ -83,4 +90,5 @@ module.exports = {
   getDailyAskUsage,
   getQuestionLength,
   getTaipeiDayWindow,
+  resolveDailyAskLimit,
 };

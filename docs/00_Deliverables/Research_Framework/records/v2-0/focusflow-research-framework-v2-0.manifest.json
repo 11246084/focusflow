@@ -1,0 +1,74 @@
+{
+  "version": "v2.0",
+  "date": "2026-09-27",
+  "purpose": "System Manual Chapter 3 inline explanatory figure",
+  "status": "draft for human review",
+  "repositoryCommit": "a9198a3035732b06057c862c6c65cebeddf67665",
+  "sourceFiles": {
+    "STT_Whisper/src/main.py": "1f7cd91f411e1f0f18e5e6d3fe3ee5e68f4751deef3b74cbc32d0f528733e651",
+    "STT_Whisper/src/transcribe.py": "f917ff1aa02f035cdf341ee4d3e2c0f614f31f0cd6d1dffa00254533add94d1d",
+    "STT_Whisper/src/normalize_transcript.py": "6b22af873438fbf25b7bac6e4f6f25da1249021ac3dd2b5b0a853ca3040fe1f2",
+    "STT_Whisper/src/chunking.py": "db2978ab096792fda467e2d258bbbd32d8a93d7f92bf90cc1a8324522a234c1c",
+    "STT_Whisper/src/chunk_strategy.py": "7827a7a05e0870b39c201333c0372c5d1e9fb62d80012b3506d99c26e677eb30",
+    "STT_Whisper/src/embedding.py": "80b041b03633ac40a8e10a4e9e391ab750d459af933fe90e717f9dfef3714e2d",
+    "STT_Whisper/src/embedding_contract.py": "937ec03895a529f6b0f096be4e719fb997f74e36001347fa3a055daa1ecd4c9f",
+    "STT_Whisper/src/mongodb_uploader.py": "9531792401b9c41fde89d7164a8cf856046f26c954d0175ef2c016ef49ad27d0",
+    "backend/src/services/queryEmbedding.service.js": "3566878e333831b77e70339588647e82e5a32ba6da8fe78b8adef53206dcdc82",
+    "backend/src/services/contextualQuestion.service.js": "9416e475230b83d9d35dc4a7cef969e4fb70057d1d1bc8eee099584e21f975f7",
+    "backend/src/services/qa.service.js": "9eedf40aee111f7d8eea87f782d028b1fbb26f8d72f2b6e42b0ea07b98da203a",
+    "backend/src/services/answerGeneration.service.js": "3fa9e4ffa757c24af840f4c1cc88111163cd45a13c3f29ce6698288007bcbb42",
+    "backend/src/services/leafContextSelection.service.js": "abc11401a1174ffc51174f1236d7dca1c96872ad865a5c3f6624ca339bd3caa2",
+    "backend/src/config/env.js": "ec036f13b90d1a0fd5f3e101814da275ff2e03e29b2bea3f71a90bb960c4c4e0",
+    "frontend/focus-flow/src/pages/StudentCourses.jsx": "d097c3f3c7c2aa6fe4a8c20a3f4c8c3acd39c0a5e735d3cd1ddebe2a07cefebd",
+    "backend/src/services/shortScriptTopic.service.js": "aff7cc608e3cc4833ad9e3eeb42bdbb25a2da2e8ed2bba1bbc7589dc4d6d6244",
+    "backend/src/services/shortScript.service.js": "609b99c28ed482a1dced599f6ceeed0088b66626c7a919dfeba8ec1627391bb2",
+    "backend/src/services/shortAssetPublish.service.js": "086681be79f67fe7c798aa3f06236699fbd0503721ef0fd182e823946053d550",
+    "docs/00_Deliverables/System_Manual/chapters/03_系統規格.md": "a0efa23b58c3843d4257d09ff5dade0af1e5246204c51303ab52ce14eb3af450"
+  },
+  "referenceFiles": [
+    {
+      "name": "1668497.jpg",
+      "role": "User supplied layout reference only; author/publication unknown",
+      "sha256": "75776f1447a4c63bc31bb8b6e5d0149fd86bfe08ac70da91716db76553f7f787"
+    },
+    {
+      "name": "1668506.jpg",
+      "role": "User supplied layout reference only; author/publication unknown",
+      "sha256": "44371f5d754d8234618458c8325ac33e2596d70eb11b6f80b1ee817bc919fe00"
+    }
+  ],
+  "stepMapping": {
+    "step1": [
+      "R01",
+      "R02"
+    ],
+    "step2": [
+      "R03"
+    ],
+    "step3": [
+      "R04",
+      "R05",
+      "R06"
+    ],
+    "step4": [
+      "R07"
+    ]
+  },
+  "generator": "Node.js standard library; explicitly authored SVG primitives",
+  "usesGeneratedRaster": false,
+  "font": "Microsoft JhengHei; Noto Sans TC fallback",
+  "viewBox": {
+    "width": 1100,
+    "height": 1116
+  },
+  "intendedWidthMm": 160,
+  "minimumLabelFontPx": 22,
+  "minimumLabelFontPtAt160mm": 9.07,
+  "artifacts": {
+    "results/v2-0/focusflow-research-framework-v2-0.svg": "2945d06193298b3ba92849418f3b3055a95a3da4c8761487cb721a95e4803eb0",
+    "results/v2-0/focusflow-research-framework-v2-0.html": "932515466e064491604339916ca058db60dd22162e474e52b805e32612a2ab95",
+    "results/v2-0/chapter03-placement-v2-0.html": "e70e1668eb42f613c74f6c6dd15c8a0b2255297229b99014599876abfb44fd77",
+    "records/v2-0/chapter03-insertion-v2-0.md": "13fbb42339dd282fddb4e39399e2d81ae060ee3a7f7cb3ea13ac60ee9fa13a04",
+    "source/v2-0/build-research-framework-v2-0.mjs": "2953adafe10794d6bfa1cb6bbc0118616ce6595169a20291d4896595dc22904d"
+  }
+}

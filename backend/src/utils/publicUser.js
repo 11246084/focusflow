@@ -19,6 +19,7 @@
     lineBindAt: source.lineBindAt || null,
     activeCourseId: source.activeCourseId ? String(source.activeCourseId) : null,
     lineConversationState: source.lineConversationState ?? 'idle',
+    dailyAskLimitOverride: Number.isInteger(source.dailyAskLimitOverride) ? source.dailyAskLimitOverride : null,
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
   };

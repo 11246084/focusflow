@@ -87,6 +87,45 @@ describe('admin routes', () => {
     assert.equal(JSON.stringify(result.body).includes('line-student-001'), false);
   });
 
+  it('管理員可設定與清除學生的每日提問上限', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+    const url = `/api/v1/admin/users/${ids.student}`;
+
+    const set = await jsonRequest(serverContext.baseUrl, url, {
+      method: 'PATCH', token, body: { dailyAskLimitOverride: 0 },
+    });
+    assert.equal(set.status, 200);
+    assert.equal(set.body.data.dailyAskLimitOverride, 0);
+
+    const cleared = await jsonRequest(serverContext.baseUrl, url, {
+      method: 'PATCH', token, body: { dailyAskLimitOverride: null },
+    });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.body.data.dailyAskLimitOverride, null);
+  });
+
+  it('每日提問上限不是 0 到 1000 的整數時回 400', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+
+    for (const value of [-1, 1.5, '10', 1001]) {
+      const result = await jsonRequest(serverContext.baseUrl, `/api/v1/admin/users/${ids.student}`, {
+        method: 'PATCH', token, body: { dailyAskLimitOverride: value },
+      });
+      assert.equal(result.status, 400, `value=${JSON.stringify(value)}`);
+      assert.equal(result.body.error.code, 'VALIDATION_ERROR');
+    }
+  });
+
+  it('使用者列表附上全站預設每日提問上限', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/users', { token });
+
+    assert.equal(result.status, 200);
+    assert.equal(Number.isInteger(result.body.data.dailyAskLimitDefault), true);
+    const student = result.body.data.users.find((user) => user.id === ids.student);
+    assert.equal(student.dailyAskLimitOverride, null);
+  });
+
   it('學生角色不能讀取管理員使用者統計', async () => {
     const token = await loginAs(
       serverContext.baseUrl,

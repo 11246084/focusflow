@@ -4,6 +4,7 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Enrollment = require('../models/enrollment.model');
+const env = require('../config/env');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { USER_ROLES, USER_ROLE_VALUES } = require('../constants/enums');
@@ -62,13 +63,37 @@ async function listUsers() {
     role: u.role,
     isActive: u.isActive !== false,
     isLineBound: Boolean(u.lineUserId),
+    dailyAskLimitOverride: toDailyAskLimitOverride(u.dailyAskLimitOverride),
     courses: enrollMap[String(u._id)] || 0,
     queries: queryMap[String(u._id)] || 0,
     createdAt: u.createdAt,
   }));
 }
 
-async function updateUser(userId, { name, role, isActive }) {
+const MAX_DAILY_ASK_LIMIT_OVERRIDE = 1000;
+
+function toDailyAskLimitOverride(value) {
+  return Number.isInteger(value) ? value : null;
+}
+
+function getDefaultDailyAskLimit() {
+  return env.qaDailyAskLimitPerStudent;
+}
+
+// null = 跟隨全站預設；0 = 不限；1..MAX = 自訂每日次數。
+function parseDailyAskLimitOverride(value) {
+  if (value === null) return null;
+  if (!Number.isInteger(value) || value < 0 || value > MAX_DAILY_ASK_LIMIT_OVERRIDE) {
+    throw new AppError(
+      `dailyAskLimitOverride must be null or an integer between 0 and ${MAX_DAILY_ASK_LIMIT_OVERRIDE}.`,
+      400,
+      'VALIDATION_ERROR',
+    );
+  }
+  return value;
+}
+
+async function updateUser(userId, { name, role, isActive, dailyAskLimitOverride }) {
   assertObjectId(userId, 'user');
 
   const update = {};
@@ -82,6 +107,9 @@ async function updateUser(userId, { name, role, isActive }) {
     update.role = role;
   }
   if (isActive !== undefined) update.isActive = Boolean(isActive);
+  if (dailyAskLimitOverride !== undefined) {
+    update.dailyAskLimitOverride = parseDailyAskLimitOverride(dailyAskLimitOverride);
+  }
 
   if (Object.keys(update).length === 0) {
     throw new AppError('No fields to update.', 400, 'VALIDATION_ERROR');
@@ -97,6 +125,7 @@ async function updateUser(userId, { name, role, isActive }) {
     role: user.role,
     isActive: user.isActive !== false,
     isLineBound: Boolean(user.lineUserId),
+    dailyAskLimitOverride: toDailyAskLimitOverride(user.dailyAskLimitOverride),
     createdAt: user.createdAt,
   };
 }
@@ -210,4 +239,4 @@ async function deleteVideo(videoId) {
   });
 }
 
-module.exports = { getStats, listUsers, updateUser, listVideos, getRecentEvents, getEventStats, deleteVideo };
+module.exports = { getStats, listUsers, updateUser, getDefaultDailyAskLimit, listVideos, getRecentEvents, getEventStats, deleteVideo };

@@ -19,11 +19,11 @@ config:
 %% ooad-phase:   物件設計
 %% chapter:      6-1
 %% realizes:     UC-03, FR-08, FR-09, FR-11
-%% source:       backend/src/routes/video.routes.js、services/videoBatch.service.js、services/video.service.js（createCourseVideo）（實作證據）
-%% verified:     2026-09-25
+%% source:       backend/src/routes/video.routes.js、services/videoBatch.service.js、services/video.service.js（createCourseVideo）、services/videoProcessing.service.js（runCompletionSideEffects → scheduleYouTubeAutoUpload）（實作證據）
+%% verified:     2026-09-29
 %% status:       draft
 %% implemented:  yes
-%% ai-assisted:  yes / Claude Code / 自 圖6-1-3 v4-0 拆出：為使 A4 版心寬 16 cm 下最小字級不低於約 7 pt，依觸發情境拆圖，內容沿用上一版並依程式碼複核
+%% ai-assisted:  yes / Claude Code / v1-1：回應初評委員 3-4，在背景排程步驟旁加註 YouTube 自動上傳的實際觸發點（處理完成後，見圖6-1-3b 步驟 7）；訊息與步驟編號不變
 %% ============================================
 sequenceDiagram
     autonumber
@@ -45,6 +45,7 @@ sequenceDiagram
         end
     end
     API-)AI: 背景排程處理（見圖6-1-3b）
+    Note over API,AI: YouTube 自動上傳待處理完成後才觸發<br/>（見圖6-1-3b 步驟 7），非此時
     API-->>FE: 201 批次彙總與逐項結果
     T->>FE: 查看進度
     FE->>API: GET /video-batches<br/>/:batchId（輪詢）
@@ -52,7 +53,7 @@ sequenceDiagram
     opt 重試失敗項目
         T->>FE: 按下重試
         FE->>API: POST /video-batches<br/>/:batchId/retry
-        API->>DB: failed → queued<br/>（非 failed<br/>或來源檔遺失回 409）
+        API->>DB: failed → queued（非 failed<br/>或來源檔遺失回 409）
         API-)AI: 重新排程處理
         API-->>FE: 更新後的批次狀態
     end

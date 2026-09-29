@@ -1403,6 +1403,35 @@ describe('course and video routes', () => {
     assert.equal(store.faqs.length, 0);
   });
 
+  it('刪除影片時一併清除以影片 _id 綁定的影像片段，不動其他影片的影像片段', async () => {
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    store.videoSegmentVideos.push(
+      {
+        _id: 'bound-clip',
+        video_id: String(ids.publishedVideo),
+        clip_id: `${ids.publishedVideo}_part_0001`,
+        start_sec: 0,
+        end_sec: 120,
+      },
+      {
+        _id: 'other-clip',
+        video_id: 'video_001',
+        clip_id: 'video_001_part_0001',
+        start_sec: 0,
+        end_sec: 120,
+      },
+    );
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.publishedVideo}`,
+      { method: 'DELETE', token: teacherToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(store.videoSegmentVideos.map((clip) => clip._id), ['other-clip']);
+  });
+
   it('學生可對掛載到已發布課程的影片記錄觀看進度', async () => {
     const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');

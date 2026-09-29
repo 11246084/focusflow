@@ -1,6 +1,7 @@
 const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
+const VideoSegmentVideo = require('../models/videoSegmentVideo.model');
 const Enrollment = require('../models/enrollment.model');
 const User = require('../models/user.model');
 const Faq = require('../models/faq.model');
@@ -169,6 +170,7 @@ async function deleteCourse(courseId, user) {
   for (const v of videos) {
     const segKey = v.videoId || String(v._id);
     await VideoSegment.deleteMany({ videoId: segKey });
+    await VideoSegmentVideo.deleteMany({ video_id: { $in: [...new Set([segKey, String(v._id)])] } });
   }
   await Video.deleteMany({ courseId });
   // 主課程刪除連同影片刪除後，清掉其他課程對這些影片的掛載引用。

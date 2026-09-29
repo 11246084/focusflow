@@ -111,11 +111,17 @@ function addVisualVideoIdentifier(targetSet, value) {
   }
 }
 
+// video_segments_video.video_id 有兩種來源：
+// 1. 課程影片綁定：pipeline 以 --video-id 指定時寫入 String(videos._id)（與 video_segments_text.videoId 相同規則）
+// 2. 舊版掃資料夾產生的 video_001 類識別碼，只能從檔名／路徑配對（legacy）
 function addVisualVideoIdentifiers(targetSet, video) {
   if (!video) {
     return;
   }
 
+  addIdentifier(targetSet, video._id);
+  addIdentifier(targetSet, video.videoId);
+  addIdentifier(targetSet, video.video_id);
   addVisualVideoIdentifier(targetSet, video.videoId);
   addVisualVideoIdentifier(targetSet, video.video_id);
   addVisualVideoIdentifier(targetSet, video.fileName);

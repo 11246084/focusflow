@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const sourceSchema = new mongoose.Schema(
   {
+    // text = 逐字稿片段；video = video_segments_video 影像片段（沒有 transcript）
+    modality: { type: String, enum: ['text', 'video'], default: 'text' },
     videoId: { type: String, default: null, trim: true },
     chunkId: { type: String, default: null, trim: true },
     segmentId: { type: String, default: null, trim: true },

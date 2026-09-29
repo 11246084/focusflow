@@ -373,16 +373,28 @@ function buildMultimodalRuntimeSnapshot() {
       'Set VIDEO_SEGMENTS_VIDEO_VECTOR_INDEX_NAME before multimodal QA can be enabled.',
     )]
     : [];
-  const blockers = [
-    buildDiagnostic(
-      'MULTIMODAL_QA_NOT_INTEGRATED',
-      'video_segments_video is not wired into QA retrieval yet.',
-    ),
-    buildDiagnostic(
-      'VIDEO_SEGMENTS_VIDEO_SCOPE_MAPPING_UNVERIFIED',
-      'video_segments_video.video_id must map to videos before course-scoped QA can use it.',
-    ),
-  ];
+  // 設定面的阻塞條件；video_embedding_index 是否 READY、課程影片是否已產生影像片段，
+  // 仍需連 Atlas 實查，這裡不宣稱。
+  const blockers = [];
+  if (!env.qaVisualRetrievalEnabled) {
+    blockers.push(buildDiagnostic(
+      'QA_VISUAL_RETRIEVAL_DISABLED',
+      'QA_VISUAL_RETRIEVAL_ENABLED=false: video_segments_video is only queried when text retrieval returns no matches.',
+    ));
+  }
+  if (env.qaQueryEmbeddingProvider !== 'gemini') {
+    blockers.push(buildDiagnostic(
+      'VISUAL_QUERY_EMBEDDING_PROVIDER_MISMATCH',
+      'Visual retrieval needs QA_QUERY_EMBEDDING_PROVIDER=gemini so queries share the video embedding space.',
+    ));
+  }
+  if (env.qaVectorSearchMode !== 'atlas') {
+    blockers.push(buildDiagnostic(
+      'VISUAL_RETRIEVAL_REQUIRES_ATLAS',
+      'video_segments_video retrieval uses Atlas $vectorSearch and needs QA_VECTOR_SEARCH_MODE=atlas.',
+    ));
+  }
+  const readyForQa = !hardFailures.length && !blockers.length;
 
   return {
     segmentCollection: env.videoSegmentVideoCollection,
@@ -391,8 +403,12 @@ function buildMultimodalRuntimeSnapshot() {
     vectorIndexConfigured: Boolean(env.videoSegmentVideoVectorIndexName),
     expectedVectorIndexDefinition: buildVideoVectorSearchIndexDefinition(),
     setupCommand: 'npm run db:ensure-video-vector-index',
-    readiness: 'not_enabled',
-    readyForQa: false,
+    readiness: env.qaVisualRetrievalEnabled ? 'configured' : 'not_enabled',
+    readyForQa,
+    videoBinding: 'video_segments_video.video_id = String(videos._id); legacy video_001 ids match by file name',
+    retrievalMode: env.qaVisualRetrievalEnabled ? 'parallel_supplemental' : 'text_empty_fallback',
+    visualMatchLimit: env.qaVisualMatchLimit,
+    visualMinScore: env.qaVisualMinScore,
     blockers,
     hardFailures,
   };

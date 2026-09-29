@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { beforeEach, describe, it } = require('node:test');
-const { askQuestion } = require('../src/services/qa.service');
+const { askQuestion, selectSupplementalVisualMatches } = require('../src/services/qa.service');
 const env = require('../src/config/env');
 const VideoSegment = require('../src/models/videoSegment.model');
 const logger = require('../src/utils/logger');
@@ -20,6 +20,9 @@ function resetQaEnv() {
   env.qaAtlasVectorIndexName = '';
   env.qaAtlasFilterMode = 'bridge_course_or_video';
   env.qaLeafAdjacentContextEnabled = false;
+  env.qaVisualRetrievalEnabled = false;
+  env.qaVisualMatchLimit = 3;
+  env.qaVisualMinScore = 0;
   env.videoSegmentVideoVectorIndexName = 'video_embedding_index';
   env.qaEstimatedTokensPerAsk = 1000;
   env.qaMonthlyTokenBudget = 0;
@@ -528,6 +531,167 @@ describe('qa service', () => {
     assert.equal(result.runtime.scoringMode, 'visual_vector');
     assert.equal(result.runtime.visualSearch.searchBackendUsed, 'atlas_video');
     assert.match(result.answer, /影像片段/);
+  });
+
+  it('課程影片以 _id 綁定的影像片段在文字片段為 0 時可被檢索，且不含其他課程影片', async () => {
+    const boundCourseId = newObjectId();
+    const boundVideoId = newObjectId();
+    const foreignVideoId = newObjectId();
+
+    store.courses.push({
+      _id: boundCourseId,
+      title: 'Bound Visual Course',
+      description: 'App-owned video with visual clips',
+      teacherId: ids.teacher,
+      videoIds: [boundVideoId],
+      status: 'published',
+      createdAt: '2026-09-29T08:00:00.000Z',
+    });
+    grantStudentCourseAccess(boundCourseId);
+
+    store.videos.push({
+      _id: boundVideoId,
+      courseId: boundCourseId,
+      title: '課程影片（本機上傳）',
+      filePath: __filename,
+      fileName: 'lecture-week1.mp4',
+      processing: { status: 'completed' },
+      createdAt: '2026-09-29T08:01:00.000Z',
+    });
+
+    store.videoSegmentVideos.push(
+      {
+        _id: 'bound-visual-1',
+        video_id: String(boundVideoId),
+        clip_id: `${boundVideoId}_part_0001`,
+        clip_path: `data/video_multimodal_chunks/${boundVideoId}_part_0001.mp4`,
+        start_sec: 0,
+        end_sec: 120,
+        score: 0.72,
+      },
+      {
+        _id: 'foreign-visual-1',
+        video_id: String(foreignVideoId),
+        clip_id: `${foreignVideoId}_part_0001`,
+        clip_path: `data/video_multimodal_chunks/${foreignVideoId}_part_0001.mp4`,
+        start_sec: 0,
+        end_sec: 120,
+        score: 0.99,
+      },
+    );
+
+    const result = await askQuestion({
+      user: { id: ids.student, role: 'student' },
+      courseId: boundCourseId,
+      question: 'Which scene shows the diagram?',
+      source: 'service-test',
+    });
+
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0].videoId, String(boundVideoId));
+    assert.equal(result.matches[0].videoTitle, '課程影片（本機上傳）');
+    assert.equal(result.citations[0].modality, 'video');
+    assert.equal(result.runtime.matchModality, 'video');
+    assert.equal(result.runtime.visualSearch.mode, 'text_empty_fallback');
+  });
+
+  it('啟用並行影像檢索時，影像片段附加在文字 citation 之後並剔除時間重疊與低分片段', async () => {
+    env.qaVisualRetrievalEnabled = true;
+    env.qaVisualMatchLimit = 3;
+    env.qaVisualMinScore = 0.3;
+
+    store.videoSegmentVideos.push(
+      {
+        _id: 'published-visual-1',
+        video_id: String(ids.publishedVideo),
+        clip_id: `${ids.publishedVideo}_part_0001`,
+        clip_path: 'data/video_multimodal_chunks/published_part_0001.mp4',
+        start_sec: 0,
+        end_sec: 120,
+        score: 0.9,
+      },
+      {
+        _id: 'published-visual-2',
+        video_id: String(ids.publishedVideo),
+        clip_id: `${ids.publishedVideo}_part_0002`,
+        clip_path: 'data/video_multimodal_chunks/published_part_0002.mp4',
+        start_sec: 120,
+        end_sec: 240,
+        score: 0.8,
+      },
+      {
+        _id: 'published-visual-3',
+        video_id: String(ids.publishedVideo),
+        clip_id: `${ids.publishedVideo}_part_0003`,
+        clip_path: 'data/video_multimodal_chunks/published_part_0003.mp4',
+        start_sec: 240,
+        end_sec: 360,
+        score: 0.1,
+      },
+    );
+
+    try {
+      const result = await askQuestion({
+        user: { id: ids.student, role: 'student' },
+        courseId: ids.publishedCourse,
+        question: 'Tell me about JWT authentication and role based access control.',
+        source: 'service-test',
+      });
+
+      assert.equal(result.citations.length, 2);
+      assert.equal(result.citations[0].modality, 'text');
+      assert.equal(result.citations[0].segmentId, ids.segmentOne);
+      assert.equal(result.citations[1].modality, 'video');
+      assert.equal(result.citations[1].segmentId, `${ids.publishedVideo}_part_0002`);
+      assert.equal(result.citations[1].citationId, 'C2');
+      assert.equal(result.matches.at(-1).modality, 'video');
+      assert.equal(result.runtime.matchModality, 'text');
+      assert.equal(result.runtime.answerProviderUsed, 'template');
+      assert.equal(result.runtime.visualSearch.mode, 'parallel');
+      assert.equal(result.runtime.visualSearch.appendedCount, 1);
+    } finally {
+      env.qaVisualRetrievalEnabled = false;
+      env.qaVisualMinScore = 0;
+    }
+  });
+
+  it('未啟用並行影像檢索時，文字有命中就不查影像片段', async () => {
+    env.qaVisualRetrievalEnabled = false;
+    store.videoSegmentVideos.push({
+      _id: 'published-visual-unused',
+      video_id: String(ids.publishedVideo),
+      clip_id: `${ids.publishedVideo}_part_0002`,
+      clip_path: 'data/video_multimodal_chunks/published_part_0002.mp4',
+      start_sec: 120,
+      end_sec: 240,
+      score: 0.8,
+    });
+
+    const result = await askQuestion({
+      user: { id: ids.student, role: 'student' },
+      courseId: ids.publishedCourse,
+      question: 'Tell me about JWT authentication and role based access control.',
+      source: 'service-test',
+    });
+
+    assert.equal(result.citations.every((citation) => citation.modality === 'text'), true);
+    assert.equal(result.matches.some((match) => match.modality === 'video'), false);
+    assert.equal(result.runtime.visualSearch, null);
+  });
+
+  it('selectSupplementalVisualMatches 依上限截斷影像片段', () => {
+    const visualMatches = [0, 1, 2, 3].map((index) => ({
+      modality: 'video',
+      videoId: 'video-a',
+      segmentId: `clip-${index}`,
+      startSec: index * 120,
+      endSec: (index + 1) * 120,
+      score: 0.9 - (index * 0.1),
+    }));
+
+    const selected = selectSupplementalVisualMatches(visualMatches, [], { limit: 2, minScore: 0 });
+
+    assert.deepEqual(selected.map((match) => match.segmentId), ['clip-0', 'clip-1']);
   });
 
   it('returns null clip data when no cached clip exists and skips clip_view logging', async () => {

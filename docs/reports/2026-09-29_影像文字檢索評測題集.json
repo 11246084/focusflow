@@ -1,0 +1,1489 @@
+{
+  "meta": {
+    "name": "FocusFlow 影像／文字檢索評測題集",
+    "version": "v0.1-draft",
+    "createdAt": "2026-09-29",
+    "course": {
+      "id": "69fb4d4c069e21f4e65b74dc",
+      "title": "影片處理工具 - OpenCV"
+    },
+    "lectures": [
+      {
+        "lecture": 1,
+        "videoId": "69fb55edb52433fda32db4e8",
+        "youtubeVideoId": "yWhzdAefaQU",
+        "durationSec": 120.05,
+        "globalOffsetSec": 0.0
+      },
+      {
+        "lecture": 2,
+        "videoId": "69fb57edb52433fda32db706",
+        "youtubeVideoId": "9DabT5D_j5I",
+        "durationSec": 120.05,
+        "globalOffsetSec": 120.05
+      },
+      {
+        "lecture": 3,
+        "videoId": "69fb59cfb52433fda32db827",
+        "youtubeVideoId": "jTLzkxYQwGE",
+        "durationSec": 120.05,
+        "globalOffsetSec": 240.1
+      },
+      {
+        "lecture": 4,
+        "videoId": "69fb5b5eb52433fda32db907",
+        "youtubeVideoId": "1EumI0A9zIw",
+        "durationSec": 120.05,
+        "globalOffsetSec": 360.15
+      },
+      {
+        "lecture": 5,
+        "videoId": "69fb5c8db52433fda32dbab5",
+        "youtubeVideoId": "G72iAOHLwdM",
+        "durationSec": 120.05,
+        "globalOffsetSec": 480.2
+      },
+      {
+        "lecture": 6,
+        "videoId": "69fb5d78b52433fda32dbc81",
+        "youtubeVideoId": "525ItlVdo6E",
+        "durationSec": 120.05,
+        "globalOffsetSec": 600.25
+      },
+      {
+        "lecture": 7,
+        "videoId": "69fc291cadf6d9dc08eb4cb7",
+        "youtubeVideoId": "ideoMCtYzDM",
+        "durationSec": 120.05,
+        "globalOffsetSec": 720.3
+      },
+      {
+        "lecture": 8,
+        "videoId": "6a02f2d417c615e872035a68",
+        "youtubeVideoId": "EtrffNWmQuQ",
+        "durationSec": 120.05,
+        "globalOffsetSec": 840.35
+      },
+      {
+        "lecture": 9,
+        "videoId": "6a02f34d17c615e872035b3d",
+        "youtubeVideoId": "DA38Ivwrm4E",
+        "durationSec": 120.05,
+        "globalOffsetSec": 960.4
+      },
+      {
+        "lecture": 10,
+        "videoId": "6a02f38c17c615e872035b94",
+        "youtubeVideoId": "-YiAefCatxA",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1080.45
+      },
+      {
+        "lecture": 11,
+        "videoId": "6a02f3b217c615e872035beb",
+        "youtubeVideoId": "_ZDapJpaMlc",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1200.5
+      },
+      {
+        "lecture": 12,
+        "videoId": "6a02f42a17c615e872035c42",
+        "youtubeVideoId": "_31wZJQ8HKo",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1320.55
+      },
+      {
+        "lecture": 13,
+        "videoId": "6a02f46317c615e872035c93",
+        "youtubeVideoId": "4Nkw98RZ3Xo",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1440.6
+      },
+      {
+        "lecture": 14,
+        "videoId": "6a02f48c17c615e872035cea",
+        "youtubeVideoId": "IlGyegM8AUY",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1560.65
+      },
+      {
+        "lecture": 15,
+        "videoId": "6a02f4b017c615e872035d41",
+        "youtubeVideoId": "2KurqFtNTgI",
+        "durationSec": 120.05,
+        "globalOffsetSec": 1680.7
+      }
+    ],
+    "types": {
+      "transcript": "① 逐字稿可回答",
+      "visual_only": "② 只有畫面才有",
+      "stt_error": "③ 逐字稿辨識錯誤",
+      "generic": "④ 籠統題（樞紐測試）",
+      "irrelevant": "⑤ 無關題（應查無資料）"
+    },
+    "matching": {
+      "hit": "retrieved.videoId 屬於任一 target 的 lecture videoId，且時間區間與該 target 重疊（影像片段為整講 0～120.05 秒，等同只比對講次）",
+      "primaryOnly": "另計只以 primary=true 的 target 判定的嚴格版本",
+      "irrelevant": "answerable=false 的題目不計 Recall/MRR，改記錄 top1 分數與系統是否回覆查無資料",
+      "globalTime": "串接 30 分鐘錄影的秒數 = globalOffsetSec + 講內秒數"
+    },
+    "knownSlideEvents": [
+      {
+        "lecture": 10,
+        "atSec": 4.5,
+        "note": "流程圖 → OpenCV 與 Yolo 差異；位於第 9/10 接點後約 4.5 秒，是真實換頁"
+      },
+      {
+        "note": "其餘 13 個接點前後畫面相同（已抽查 1/2、5/6、10/11），不是換頁"
+      }
+    ]
+  },
+  "questions": [
+    {
+      "id": "A01",
+      "type": "transcript",
+      "complex": false,
+      "question": "OpenCV 是由哪家公司主導開發的？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 83,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L2 [62-83]「它的牽頭公司其實就是Intel」",
+        "投影片：「OpenCV」投影片：OpenCV(Open Source Computer Vision Library)，是一個跨平台的電腦視覺程式庫；由英特爾公司發起並參與開發；已應用於人機互動、臉部識別、動作識別、運動跟蹤等領域；支援 *.bmp、*.jpeg、*.jpg、*.dib、*.png、*.webp、*.pbm、*.pgm、*.ppm、*.sr、*.ras、*.tif、*.tiff 等"
+      ],
+      "reviewNote": "逐字稿與投影片都有，兩路都應命中 L2",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A02",
+      "type": "transcript",
+      "complex": false,
+      "question": "為什麼影像處理的實作不用 Colab，而改用 Spyder？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 4,
+            "startSec": 51,
+            "endSec": 118,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 2,
+            "startSec": 14,
+            "endSec": 39,
+            "modality": "transcript",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L4 [72-118] 攝影機接在自己電腦而非 Colab 機房，用 Colab 取攝影機畫面很困難、效果差",
+        "L2 [27-39]「另外一種工具叫Spider」"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A03",
+      "type": "transcript",
+      "complex": false,
+      "question": "為什麼有時候要把彩色圖片轉成灰階？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 5,
+            "startSec": 16,
+            "endSec": 65,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L5 [16-65] 只需判斷形狀或簡單特徵時轉灰階，處理速度更快、成本降低"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A04",
+      "type": "transcript",
+      "complex": true,
+      "question": "物件偵測和物件分類有什麼不同？兩者會一起使用嗎？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 5,
+            "startSec": 65,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 58,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L5 [77-120] 偵測是標出哪裡有東西並畫框；分類是畫面只有一個置中物體，判斷它是什麼",
+        "L6 [31-58] 兩者有時會一起運作：先知道有東西，再決定是什麼"
+      ],
+      "reviewNote": "跨兩講的歸納題",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A05",
+      "type": "transcript",
+      "complex": true,
+      "question": "停車場的車牌辨識系統是怎麼運作的？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 6,
+            "startSec": 58,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 85,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L6 [58-120] 攝影機拍車頭 → 定位車牌 → 做 OCR 文字辨識",
+        "L7 [0-73] 依辨識結果與繳費狀態決定是否開閘"
+      ],
+      "reviewNote": "跨兩講；L7 逐字稿把 OCR 辨識成「歐世亞」",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A06",
+      "type": "transcript",
+      "complex": false,
+      "question": "什麼是「執行邏輯」？可以舉個例子嗎？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 6,
+            "startSec": 41,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 13,
+            "modality": "transcript",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L6 [41-58]「再去做所謂的執行邏輯」",
+        "L7 [57-120] 停車場開閘、工廠公安（未穿護具、廠內奔跑）送警告"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A07",
+      "type": "transcript",
+      "complex": false,
+      "question": "為什麼物件偵測的模型比較難自己訓練？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 9,
+            "startSec": 31,
+            "endSec": 65,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L9 [46-65] 要知道畫面中各種物品及其位置，訓練成本較高"
+      ],
+      "reviewNote": "逐字稿把「偵測」辨識成「針撤」，但仍有「訓練成本比較高」等字",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A08",
+      "type": "transcript",
+      "complex": false,
+      "question": "半導體瑕疵檢測屬於物件偵測還是物件分類？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 9,
+            "startSec": 65,
+            "endSec": 96,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L9 [65-96] 半導體瑕疵檢測、肺部 CT 判斷疾病都屬於物件分類問題"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A09",
+      "type": "transcript",
+      "complex": false,
+      "question": "如果電腦沒有 GPU，應該用 OpenCV 還是 Yolo？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 10,
+            "startSec": 13,
+            "endSec": 99,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 4.5,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L10 [13-99] OpenCV 可用 CPU 運算，Yolo 需要 GPU；CPU 版 Yolo 速度慢到無法接受",
+        "投影片第 1 點「若在沒GPU的狀態下 OpenCV 是唯一解」"
+      ],
+      "reviewNote": "逐字稿把 OpenCV 辨識成「OvenCV」",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "A10",
+      "type": "transcript",
+      "complex": true,
+      "question": "請用停車場的例子，說明影像處理流程的每一個步驟分別在做什麼？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 3,
+            "startSec": 0,
+            "endSec": 21,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 16,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 6,
+            "startSec": 58,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 85,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L3 [0-21] 流程第一步讀取影像",
+        "L5 [0-16] 前處理",
+        "L6-L7 車牌定位、OCR、開閘"
+      ],
+      "reviewNote": "複雜提問（對應委員 1-2）：需組合多講的片段",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B01",
+      "type": "visual_only",
+      "complex": false,
+      "question": "OpenCV 的英文全名是什麼？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 3,
+            "startSec": 0,
+            "endSec": 8,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "投影片：「OpenCV」投影片：OpenCV(Open Source Computer Vision Library)，是一個跨平台的電腦視覺程式庫；由英特爾公司發起並參與開發；已應用於人機互動、臉部識別、動作識別、運動跟蹤等領域；支援 *.bmp、*.jpeg、*.jpg、*.dib、*.png、*.webp、*.pbm、*.pgm、*.ppm、*.sr、*.ras、*.tif、*.tiff 等",
+        "逐字稿沒有「Open Source Computer Vision」"
+      ],
+      "reviewNote": "文字檢索預期找不到",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B02",
+      "type": "visual_only",
+      "complex": false,
+      "question": "OpenCV 支援哪些影像檔案格式？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 3,
+            "startSec": 0,
+            "endSec": 8,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 2,
+            "startSec": 94,
+            "endSec": 119,
+            "modality": "transcript",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "投影片列出 bmp、jpeg、jpg、png、webp、tif 等",
+        "L2 [94-106] 逐字稿只說「支援的檔案格式也很多」，沒有列出格式"
+      ],
+      "reviewNote": "文字最多找到 L2 但無法回答細節",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B03",
+      "type": "visual_only",
+      "complex": false,
+      "question": "物件偵測可以使用哪些模型？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 3,
+            "startSec": 8,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 4,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 4.5,
+            "modality": "slide",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "投影片：流程圖投影片：讀取影像 → 影像前處理 → 物件偵測（R-CNN、Fast R-CNN）→ 物件分類（AlexNet、ResNet…）→ 執行邏輯；藍框標題「OpenCV內建套件 Yolo、Dlib」",
+        "逐字稿沒有 R-CNN"
+      ],
+      "reviewNote": "流程圖出現在 L3～L10 開頭，任一講皆算對",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B04",
+      "type": "visual_only",
+      "complex": false,
+      "question": "物件分類常見的模型有哪些？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 3,
+            "startSec": 8,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 4,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 4.5,
+            "modality": "slide",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "投影片：流程圖投影片：讀取影像 → 影像前處理 → 物件偵測（R-CNN、Fast R-CNN）→ 物件分類（AlexNet、ResNet…）→ 執行邏輯；藍框標題「OpenCV內建套件 Yolo、Dlib」",
+        "逐字稿沒有 AlexNet、ResNet"
+      ],
+      "reviewNote": "同 B03",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B05",
+      "type": "visual_only",
+      "complex": false,
+      "question": "OpenCV 可以應用在哪些領域？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 3,
+            "startSec": 0,
+            "endSec": 8,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "投影片：人機互動、臉部識別、動作識別、運動跟蹤",
+        "逐字稿只提到「很多影像處理的人都會接觸」"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "B06",
+      "type": "visual_only",
+      "complex": false,
+      "question": "Yolo 和 Dlib 在影像處理流程中負責哪個部分？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 3,
+            "startSec": 8,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 4,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 4.5,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 13,
+            "modality": "transcript",
+            "primary": false
+          },
+          {
+            "lecture": 8,
+            "startSec": 83,
+            "endSec": 107,
+            "modality": "transcript",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "投影片藍框「OpenCV內建套件 Yolo、Dlib」涵蓋物件偵測與物件分類",
+        "L8 逐字稿只說「藍色的部分」，Yolo、Dlib 皆被誤辨識"
+      ],
+      "reviewNote": "畫面為主、逐字稿為輔",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C01",
+      "type": "stt_error",
+      "complex": true,
+      "question": "OpenCV 和 Yolo 有什麼差異？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 11,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 12,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 13,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 15,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 4.5,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "投影片：「OpenCV 與 Yolo 差異」投影片：一個用CPU一個用GPU，若在沒GPU的狀態下 OpenCV 是唯一解；Yolo 用的是 C 語言，雖有提供Python接口但自訂義能力沒 OpenCV強；OpenCV自帶繪圖與攝影機訊號介接能力；Yolo 有更快的掃描速度，有一次掃描多個物件的能力",
+        "L10 逐字稿有「Yolo」4 次；L11～L15 被辨識成「優労」「優樓」「幽柔」「有老鼓勵」「優勞」"
+      ],
+      "reviewNote": "Demo 主題：文字只找到 L10，影像可補 L11～L15",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C02",
+      "type": "stt_error",
+      "complex": false,
+      "question": "YOLO 為什麼比傳統的物件偵測方法快？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 13,
+            "startSec": 16,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 100,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 12,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 13,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 15,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L13 傳統做法要分別訓練找狗、找貓、找車的偵測器，跑三次運算",
+        "L14 [0-100]「有老鼓勵這套」只要算一次就好"
+      ],
+      "reviewNote": "逐字稿把 YOLO 辨識成「幽柔」「有老鼓勵」「幼稚」",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C03",
+      "type": "stt_error",
+      "complex": false,
+      "question": "YOLO 的全名是什麼？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 12,
+            "startSec": 26,
+            "endSec": 40,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 14,
+            "startSec": 56,
+            "endSec": 83,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L12 [26-40]「優樓的全民叫做優Oly look once」",
+        "L14 [56-83]「U-O-Lido Q1，你只要看一次就好」"
+      ],
+      "reviewNote": "逐字稿有「look once」，文字檢索可能部分命中",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C04",
+      "type": "stt_error",
+      "complex": false,
+      "question": "YOLO 預設可以辨識多少種物體？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 15,
+            "startSec": 11,
+            "endSec": 65,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L15 [11-53]「優勞…根據那個Coco Data Sade…預設就可以認出八十六種不同的物體」"
+      ],
+      "reviewNote": "注意：老師說 86 種，COCO 實際為 80 類；答案以課堂內容為準",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C05",
+      "type": "stt_error",
+      "complex": false,
+      "question": "Dlib 在影像處理中可以用來做什麼？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 8,
+            "startSec": 51,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 18,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 3,
+            "startSec": 8,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 4,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 4.5,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L8 [93-120] 表情判斷、專注度檢測專案（Dlib 被辨識成「低賴」「低賴不」）",
+        "L9 [0-18]「第一代的可以搭配使用的一個套件」＝ Dlib",
+        "投影片藍框有 Dlib"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C06",
+      "type": "stt_error",
+      "complex": false,
+      "question": "Yolo 有 Python 版本嗎？使用上有什麼缺點？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 10,
+            "startSec": 99,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 11,
+            "startSec": 0,
+            "endSec": 35,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 4.5,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 11,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 12,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 13,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 15,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L10 [99-118] Yolo 底層用 C 語言，Python 使用較不便",
+        "L11 [0-22]「優労…有拍省的版本…硬體消耗資源又比…要大」",
+        "投影片第 2 點"
+      ],
+      "reviewNote": "Python 被辨識成「拍省」",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C07",
+      "type": "stt_error",
+      "complex": false,
+      "question": "OpenCV 有哪些 Yolo 沒有的能力？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 11,
+            "startSec": 35,
+            "endSec": 78,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 4.5,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 11,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 12,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 13,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 15,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L11 [47-71]「它自在會圖的能力…可以去接設影機信號」",
+        "投影片第 3 點「OpenCV自帶繪圖與攝影機訊號介接能力」"
+      ],
+      "reviewNote": "逐字稿把「自帶繪圖」辨識成「自在會圖」、OpenCV 辨識成「O-TensTV」",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "C08",
+      "type": "stt_error",
+      "complex": true,
+      "question": "OpenCV 和 Yolo 分別適合用在什麼情境？請舉例說明。",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 10,
+            "startSec": 57,
+            "endSec": 99,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 15,
+            "startSec": 53,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 10,
+            "startSec": 4.5,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 11,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 12,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 13,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 14,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 15,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L10 [57-99] 無 GPU 用 OpenCV 或小模型",
+        "L15 [65-117] 只要辨識流浪狗時不必用 Yolo；要認 COCO 常見物體時 Yolo 不用自己訓練"
+      ],
+      "reviewNote": "複雜提問（對應委員 1-2）",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "D01",
+      "type": "generic",
+      "complex": false,
+      "question": "這門課在講什麼？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 1,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 2,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L1 開場介紹 AI 應用與本單元影像處理",
+        "L2 介紹工具 OpenCV"
+      ],
+      "reviewNote": "封面頁 L1～L2 為樞紐候選，此題命中 L1 是正確的",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "D02",
+      "type": "generic",
+      "complex": false,
+      "question": "影像處理的步驟有哪些？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 3,
+            "startSec": 0,
+            "endSec": 21,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 3,
+            "startSec": 8,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 4,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 5,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 6,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 7,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 8,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 9,
+            "startSec": 0,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          },
+          {
+            "lecture": 10,
+            "startSec": 0,
+            "endSec": 4.5,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L3 [0-21]「如果你要做影像處理類的問題…大致上都是像這張圖上面的這幾個步驟」",
+        "投影片：流程圖投影片：讀取影像 → 影像前處理 → 物件偵測（R-CNN、Fast R-CNN）→ 物件分類（AlexNet、ResNet…）→ 執行邏輯；藍框標題「OpenCV內建套件 Yolo、Dlib」"
+      ],
+      "reviewNote": "主要答案在 L3；若影像檢索排 L1 第一即為樞紐現象",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "D03",
+      "type": "generic",
+      "complex": false,
+      "question": "什麼是電腦視覺？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 73,
+            "modality": "transcript",
+            "primary": true
+          },
+          {
+            "lecture": 2,
+            "startSec": 62,
+            "endSec": 120.05,
+            "modality": "slide",
+            "primary": false
+          }
+        ]
+      },
+      "evidence": [
+        "L2 [62-73]「一套所謂的電腦視覺的一個函式庫」",
+        "投影片「跨平台的電腦視覺程式庫」"
+      ],
+      "reviewNote": "課程沒有正式定義電腦視覺，回答應保守",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "D04",
+      "type": "generic",
+      "complex": false,
+      "question": "AI 有哪些主要的應用領域？",
+      "expected": {
+        "answerable": true,
+        "targets": [
+          {
+            "lecture": 1,
+            "startSec": 5,
+            "endSec": 71,
+            "modality": "transcript",
+            "primary": true
+          }
+        ]
+      },
+      "evidence": [
+        "L1 [5-50] 數據預測、自然語言、影像處理、生成式 AI"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "E01",
+      "type": "irrelevant",
+      "complex": false,
+      "question": "如何用 pandas 合併兩個 DataFrame？",
+      "expected": {
+        "answerable": false,
+        "targets": []
+      },
+      "evidence": [
+        "L1 [110-120] 只提到「上過 pandas」，沒有教合併"
+      ],
+      "reviewNote": "陷阱題：關鍵字相同但課程沒有內容，應回答查無資料",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "E02",
+      "type": "irrelevant",
+      "complex": false,
+      "question": "Transformer 的注意力機制是怎麼運作的？",
+      "expected": {
+        "answerable": false,
+        "targets": []
+      },
+      "evidence": [
+        "課程未提及"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "E03",
+      "type": "irrelevant",
+      "complex": false,
+      "question": "這門課的期末考範圍是什麼？",
+      "expected": {
+        "answerable": false,
+        "targets": []
+      },
+      "evidence": [
+        "課程未提及"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    },
+    {
+      "id": "E04",
+      "type": "irrelevant",
+      "complex": false,
+      "question": "怎麼煮一杯手沖咖啡？",
+      "expected": {
+        "answerable": false,
+        "targets": []
+      },
+      "evidence": [
+        "與課程無關"
+      ],
+      "reviewNote": "",
+      "reviewStatus": "draft"
+    }
+  ]
+}

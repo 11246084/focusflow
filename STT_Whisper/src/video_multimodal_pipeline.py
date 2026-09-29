@@ -31,6 +31,8 @@ STATUS_REUSED_CHECKPOINT = "reused_checkpoint"
 STATUS_FAILED_AFTER_RETRIES = "failed_after_retries"
 STATUS_FAILED = "failed"
 OBJECT_ID_PATTERN = re.compile(r"^[0-9a-fA-F]{24}$")
+# Gemini inline request 上限約 20 MB（含 base64 膨脹前的原始大小留餘裕）
+INLINE_VIDEO_MAX_BYTES = 18 * 1024 * 1024
 
 
 @dataclass(slots=True)
@@ -162,6 +164,19 @@ def _guess_video_mime_type(video_path: Path) -> str:
     mime_type, _ = mimetypes.guess_type(video_path.name)
     # 如果無法猜測，返回默認的 video/mp4
     return mime_type or "video/mp4"
+
+
+def _build_video_part(client, types, clip_path: Path):
+    """Inline small clips; fall back to the Files API only for large files.
+
+    Gemini API (non-Vertex) 以 Files API 網址送影片時，embedding 端需要 service agent
+    讀取檔案，2026-09-29 實測持續回 FAILED_PRECONDITION；inline bytes 不經過這一步。
+    """
+    mime_type = _guess_video_mime_type(clip_path)
+    if clip_path.stat().st_size <= INLINE_VIDEO_MAX_BYTES:
+        return types.Part.from_bytes(data=clip_path.read_bytes(), mime_type=mime_type)
+    uploaded_file = client.files.upload(file=str(clip_path))
+    return types.Part.from_uri(file_uri=uploaded_file.uri, mime_type=uploaded_file.mime_type or mime_type)
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
@@ -412,21 +427,10 @@ def embed_video_clips(
                     clip_record.start_sec,
                     clip_record.end_sec,
                 )
-                # 上傳視頻文件到 Gemini
-                uploaded_file = client.files.upload(file=str(clip_path))
                 # 請求嵌入
                 response = client.models.embed_content(
                     model=config.gemini_embedding_model_name,
-                    contents=[
-                        types.Content(
-                            parts=[
-                                types.Part.from_uri(
-                                    file_uri=uploaded_file.uri,
-                                    mime_type=uploaded_file.mime_type or _guess_video_mime_type(clip_path),
-                                )
-                            ]
-                        )
-                    ],
+                    contents=[types.Content(parts=[_build_video_part(client, types, clip_path)])],
                     config=types.EmbedContentConfig(
                         output_dimensionality=config.gemini_embedding_output_dim,
                     ),

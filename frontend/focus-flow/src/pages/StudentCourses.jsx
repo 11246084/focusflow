@@ -631,7 +631,8 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             const seg = toStudentCitation(source);
             const start = seg.startSec;
             const end = seg.endSec;
-            const text = seg.transcript;
+            // 影像片段沒有逐字稿，改顯示來源說明，避免卡片只剩標題
+            const text = seg.transcript || (seg.modality === 'video' ? '影像片段（依畫面比對，無逐字稿）' : '');
             const matchedIndex = videos.findIndex((video) => (
               String(video._id || video.id || '') === String(seg.videoId || '')
               || String(video.videoId || video.externalVideoId || '') === String(seg.videoId || '')

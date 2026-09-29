@@ -78,6 +78,31 @@ class FakeCollection:
         return FakeBulkResult(upserted=upserted, matched=matched, modified=modified)
 
 
+class FakeDeleteResult:
+    def __init__(self, deleted_count: int) -> None:
+        self.deleted_count = deleted_count
+
+
+def _delete_many_matches(document: dict, filter_document: dict) -> bool:
+    for key, value in filter_document.items():
+        if isinstance(value, dict) and "$nin" in value:
+            if document.get(key) in value["$nin"]:
+                return False
+        elif document.get(key) != value:
+            return False
+    return True
+
+
+def _fake_delete_many(self, filter_document: dict) -> FakeDeleteResult:
+    kept = [document for document in self.documents if not _delete_many_matches(document, filter_document)]
+    deleted = len(self.documents) - len(kept)
+    self.documents = kept
+    return FakeDeleteResult(deleted)
+
+
+FakeCollection.delete_many = _fake_delete_many
+
+
 class FakeDatabase:
     def __init__(self, collections: dict[str, FakeCollection] | None = None) -> None:
         self.collections = collections or {}
@@ -477,6 +502,99 @@ class MongoUploaderOfflineTests(unittest.TestCase):
         for error, expected in cases:
             with self.subTest(expected=expected):
                 self.assertEqual(mongodb_uploader.classify_error(error), expected)
+
+
+
+
+class BoundVideoEmbeddingUploadTests(unittest.TestCase):
+    VIDEO_ID = "66f8a1b2c3d4e5f6a7b8c9d0"
+
+    def _patch_client(self, client: FakeClient):
+        real_types = mongodb_uploader._pymongo_types()
+        return patch.object(
+            mongodb_uploader,
+            "_pymongo_types",
+            return_value=(lambda uri: client, real_types[1], real_types[2]),
+        )
+
+    def _write_clips(self, root: Path, clip_numbers: list[int], video_id: str | None = None) -> None:
+        write_jsonl(
+            root / "embeddings_video_gemini.jsonl",
+            [
+                {
+                    "clip_id": f"{self.VIDEO_ID}_part_{number:04d}",
+                    "video_id": video_id or self.VIDEO_ID,
+                    "start_sec": float((number - 1) * 120),
+                    "end_sec": float(number * 120),
+                    "clip_path": f"data/video_multimodal_chunks/{self.VIDEO_ID}_part_{number:04d}.mp4",
+                    "embedding": [0.6, 0.8],
+                }
+                for number in clip_numbers
+            ],
+        )
+
+    def _database_with_video(self) -> FakeDatabase:
+        from bson import ObjectId
+
+        database = FakeDatabase()
+        database["videos"].documents.append({"_id": ObjectId(self.VIDEO_ID), "title": "課程影片"})
+        return database
+
+    def test_clips_are_bound_to_video_object_id_and_stale_clips_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(root)
+            config.target_video_id = self.VIDEO_ID
+            database = self._database_with_video()
+            database["video_segments_video"].documents.extend(
+                [
+                    {"clip_id": f"{self.VIDEO_ID}_part_0003", "video_id": self.VIDEO_ID},
+                    {"clip_id": "video_001_part_0001", "video_id": "video_001"},
+                ]
+            )
+            self._write_clips(root, [1, 2])
+
+            with self._patch_client(FakeClient(database)):
+                report = mongodb_uploader.upload_bound_video_embeddings(config)
+
+            self.assertEqual(report.status, "completed")
+            clip_ids = sorted(doc["clip_id"] for doc in database["video_segments_video"].documents)
+            self.assertEqual(
+                clip_ids,
+                [f"{self.VIDEO_ID}_part_0001", f"{self.VIDEO_ID}_part_0002", "video_001_part_0001"],
+            )
+            bound = [doc for doc in database["video_segments_video"].documents if doc["video_id"] == self.VIDEO_ID]
+            self.assertEqual(len(bound), 2)
+
+    def test_rejects_missing_course_video(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(root)
+            config.target_video_id = self.VIDEO_ID
+            database = FakeDatabase()
+            self._write_clips(root, [1])
+
+            with self._patch_client(FakeClient(database)):
+                with self.assertRaises(mongodb_uploader.MongoUploadError) as caught:
+                    mongodb_uploader.upload_bound_video_embeddings(config)
+
+            self.assertEqual(caught.exception.category, "validation_error")
+            self.assertEqual(database["video_segments_video"].documents, [])
+
+    def test_rejects_non_object_id_or_mismatched_records_before_connecting(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config = make_config(root)
+            config.target_video_id = "video_001"
+            self._write_clips(root, [1])
+            with self.assertRaises(mongodb_uploader.MongoUploadError):
+                mongodb_uploader.upload_bound_video_embeddings(config)
+
+            config.target_video_id = self.VIDEO_ID
+            self._write_clips(root, [1], video_id="video_001")
+            with self.assertRaises(mongodb_uploader.MongoUploadError) as caught:
+                mongodb_uploader.upload_bound_video_embeddings(config)
+            self.assertEqual(caught.exception.category, "validation_error")
 
 
 if __name__ == "__main__":

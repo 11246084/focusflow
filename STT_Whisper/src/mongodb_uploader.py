@@ -584,6 +584,37 @@ def _determine_status(report: UploadReport, required_collections: Iterable[str])
     return "partial" if total_success > 0 else "failed"
 
 
+def _fail(report: UploadReport, category: str, collection_name: str | None = None) -> MongoUploadError:
+    _append_error(report.errors, category, collection_name)
+    report.finish("failed")
+    return MongoUploadError(report, category)
+
+
+def _open_client(config: PipelineConfig, report: UploadReport) -> Any:
+    """Validate upload settings, connect and ping; the caller must close the client."""
+    if not config.mongodb_uri or config.mongodb_bulk_batch_size <= 0:
+        raise _fail(report, "configuration_error")
+
+    try:
+        MongoClient, _, _ = _pymongo_types()
+    except RuntimeError:
+        raise _fail(report, "configuration_error") from None
+
+    LOGGER.info("Connecting to MongoDB database=%s", config.mongodb_database_name)
+    try:
+        client = MongoClient(config.mongodb_uri)
+    except Exception as exc:
+        raise _fail(report, classify_error(exc)) from None
+    try:
+        client.admin.command("ping")
+    except Exception as exc:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
+        raise _fail(report, classify_error(exc)) from None
+    return client
+
+
 def upload_all(config: PipelineConfig) -> UploadReport:
     """Upload one output set; raise with a structured report on partial/failure."""
     names = _collection_names(config)
@@ -591,39 +622,8 @@ def upload_all(config: PipelineConfig) -> UploadReport:
     for collection_name in names.values():
         report.collections.setdefault(collection_name, UploadStats())
 
-    if not config.mongodb_uri:
-        _append_error(report.errors, "configuration_error")
-        report.finish("failed")
-        raise MongoUploadError(report, "configuration_error")
-    if config.mongodb_bulk_batch_size <= 0:
-        _append_error(report.errors, "configuration_error")
-        report.finish("failed")
-        raise MongoUploadError(report, "configuration_error")
-
+    client = _open_client(config, report)
     try:
-        MongoClient, _, _ = _pymongo_types()
-    except RuntimeError:
-        _append_error(report.errors, "configuration_error")
-        report.finish("failed")
-        raise MongoUploadError(report, "configuration_error")
-
-    LOGGER.info("Connecting to MongoDB database=%s", config.mongodb_database_name)
-    try:
-        client = MongoClient(config.mongodb_uri)
-    except Exception as exc:
-        category = classify_error(exc)
-        _append_error(report.errors, category)
-        report.finish("failed")
-        raise MongoUploadError(report, category) from None
-    try:
-        try:
-            client.admin.command("ping")
-        except Exception as exc:
-            category = classify_error(exc)
-            _append_error(report.errors, category)
-            report.finish("failed")
-            raise MongoUploadError(report, category) from None
-
         database = client[config.mongodb_database_name]
         try:
             target_exists = _target_video_exists(database, config)
@@ -672,6 +672,71 @@ def upload_all(config: PipelineConfig) -> UploadReport:
             raise MongoUploadError(report, category)
 
         LOGGER.info("MongoDB upload completed with status=completed")
+        return report
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
+
+
+def upload_bound_video_embeddings(config: PipelineConfig) -> UploadReport:
+    """Upload one course video's clip embeddings keyed by its videos._id.
+
+    Binding contract: video_segments_video.video_id = String(videos._id), the same
+    rule the text pipeline uses for video_segments_text.videoId. Clips of this
+    video that are no longer produced (e.g. a different clip duration) are removed
+    so the course scope never serves stale time ranges.
+    """
+    names = _collection_names(config)
+    collection_name = names["video_embeddings"]
+    report = UploadReport(run_id=config.run_id)
+    report.collections[collection_name] = UploadStats()
+
+    target_video_id = str(config.target_video_id or "")
+    if _as_object_id(target_video_id) is None:
+        raise _fail(report, "validation_error", names["videos"])
+
+    records = read_jsonl(config.video_embeddings_output_path)
+    if not records or any(str(record.get("video_id")) != target_video_id for record in records):
+        raise _fail(report, "validation_error", collection_name)
+    current_clip_ids = sorted({str(record["clip_id"]) for record in records if record.get("clip_id")})
+
+    client = _open_client(config, report)
+    try:
+        database = client[config.mongodb_database_name]
+        try:
+            target_exists = _target_video_exists(database, config)
+        except Exception as exc:
+            raise _fail(report, classify_error(exc), names["videos"]) from None
+        if not target_exists:
+            raise _fail(report, "validation_error", names["videos"])
+
+        stats = upload_video_embeddings(database, config, report.errors)
+        report.collections[collection_name] = stats
+
+        removed = 0
+        if stats.failed == 0:
+            try:
+                result = database[collection_name].delete_many(
+                    {"video_id": target_video_id, "clip_id": {"$nin": current_clip_ids}}
+                )
+                removed = int(getattr(result, "deleted_count", 0) or 0)
+            except Exception as exc:
+                _append_error(report.errors, classify_error(exc), collection_name)
+        LOGGER.info(
+            "[MongoDB Video Binding] video_id=%s clips=%s removed_stale=%s",
+            target_video_id,
+            len(current_clip_ids),
+            removed,
+        )
+
+        if stats.skipped > 0:
+            _append_error(report.errors, "validation_error", collection_name)
+        status = _determine_status(report, (collection_name,))
+        report.finish(status)
+        if status != "completed":
+            category = report.errors[0]["category"] if report.errors else "unknown_error"
+            raise MongoUploadError(report, category)
         return report
     finally:
         close = getattr(client, "close", None)

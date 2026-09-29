@@ -6,6 +6,7 @@ import argparse
 import logging
 import math
 import mimetypes
+import re
 import subprocess
 import time
 from dataclasses import asdict, dataclass
@@ -29,6 +30,7 @@ STATUS_SUCCESS = "success"
 STATUS_REUSED_CHECKPOINT = "reused_checkpoint"
 STATUS_FAILED_AFTER_RETRIES = "failed_after_retries"
 STATUS_FAILED = "failed"
+OBJECT_ID_PATTERN = re.compile(r"^[0-9a-fA-F]{24}$")
 
 
 @dataclass(slots=True)
@@ -106,8 +108,41 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Rebuild clip files even if they already exist.",
     )
+    # 課程影片綁定：指定單一影片檔與其 MongoDB videos._id，片段 video_id 會寫成該 _id
+    parser.add_argument(
+        "--video-path",
+        type=Path,
+        default=None,
+        help="Process only this video file (required with --video-id).",
+    )
+    parser.add_argument(
+        "--video-id",
+        default=None,
+        help="MongoDB videos._id of a course video; clips are bound to it as video_id.",
+    )
+    parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="Upload the bound clip embeddings into video_segments_video (requires --video-id).",
+    )
     # 解析並返回命令行參數
     return parser.parse_args()
+
+
+def validate_binding_args(args: argparse.Namespace) -> None:
+    """Reject argument combinations that would write unbound or mislabelled clips."""
+    if args.video_id is not None:
+        if not OBJECT_ID_PATTERN.fullmatch(str(args.video_id)):
+            raise ValueError("--video-id must be a 24-character MongoDB ObjectId (videos._id).")
+        if args.video_path is None:
+            raise ValueError("--video-id requires --video-path so only that video is processed.")
+    if args.upload and args.video_id is None:
+        raise ValueError("--upload requires --video-id; legacy video_001 clips are not uploaded here.")
+
+
+def bound_video_embeddings_output_path(config: PipelineConfig, video_id: str) -> Path:
+    """Keep each bound video's checkpoint separate from the legacy side-branch output."""
+    return config.video_embeddings_output_path.parent / "video_embeddings" / f"{video_id}.jsonl"
 
 
 def _normalize_vector(values: list[float]) -> list[float]:
@@ -488,8 +523,34 @@ def build_runtime_config(args: argparse.Namespace) -> PipelineConfig:
     # 如果設置了覆蓋標誌，添加到覆蓋
     if args.overwrite:
         overrides["overwrite_existing"] = True
+    # 與 main.py 相同：指定單一影片時 scan_videos 只處理該檔，並以 target_video_id 為 video_id
+    if args.video_path is not None:
+        video_path = args.video_path
+        if not video_path.is_absolute():
+            video_path = args.project_root / video_path
+        video_path = video_path.resolve()
+        overrides["target_video_path"] = video_path
+        overrides["video_input_dir"] = video_path.parent
+    if args.video_id is not None:
+        overrides["target_video_id"] = str(args.video_id)
+        overrides["video_embeddings_output_path"] = bound_video_embeddings_output_path(
+            config, str(args.video_id)
+        )
     # 如果有覆蓋，應用它們；否則返回原始配置
     return config.with_overrides(**overrides) if overrides else config
+
+
+def generate_video_embeddings(
+    config: PipelineConfig,
+) -> tuple[dict, list[VideoClipRecord], list[VideoEmbeddingRecord]]:
+    """Split and embed the configured video(s).
+
+    Entry point kept independent of the CLI so the backend-triggered pipeline can
+    call it as an optional stage later (auto-generation after upload).
+    """
+    first_video, clip_records = split_first_video(config)
+    embedding_records = embed_video_clips(clip_records, config)
+    return first_video, clip_records, embedding_records
 
 
 def main() -> int:
@@ -497,16 +558,19 @@ def main() -> int:
     # 運行最小的視頻多模態嵌入分支
     # 解析命令行參數
     args = parse_args()
+    try:
+        validate_binding_args(args)
+    except ValueError as exc:
+        print(f"Invalid arguments: {exc}")
+        return 2
     # 構建運行時配置
     config = build_runtime_config(args)
     # 配置日誌記錄
     configure_logging(config.log_level)
 
     try:
-        # 分割第一個視頻並獲取片段記錄
-        first_video, clip_records = split_first_video(config)
-        # 對片段進行嵌入處理
-        embedding_records = embed_video_clips(clip_records, config)
+        # 分割影片並對片段進行嵌入處理
+        first_video, clip_records, embedding_records = generate_video_embeddings(config)
     except Exception as exc:
         # 記錄異常並返回錯誤代碼
         logger.exception("Video multimodal branch failed: %s", exc)
@@ -522,6 +586,20 @@ def main() -> int:
     print(f"successful_embeddings: {success_count}")
     print(f"failed_embeddings: {failed_count}")
     print(f"output: {config.video_embeddings_output_path}")
+
+    if args.upload:
+        import mongodb_uploader
+
+        try:
+            report = mongodb_uploader.upload_bound_video_embeddings(config)
+        except mongodb_uploader.MongoUploadError as exc:
+            logger.error(
+                "Bound video embedding upload ended with status=%s category=%s",
+                exc.report.status,
+                exc.category,
+            )
+            return 1
+        print(f"upload_status: {report.status}")
     # 返回成功代碼
     return 0
 

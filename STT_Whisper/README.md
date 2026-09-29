@@ -374,6 +374,20 @@ python src/video_multimodal_pipeline.py
 python src/video_multimodal_pipeline.py --overwrite
 ```
 
+#### 綁定課程影片（2026-09-29）
+
+不帶參數時片段的 `video_id` 是 `video_001` 這類序號，backend 只能靠檔名配對，教師上傳的課程影片對不到。要讓影像片段進入課程 QA 範圍，指定影片檔與其 MongoDB `videos._id`：
+
+```powershell
+python src/video_multimodal_pipeline.py --video-path <影片檔路徑> --video-id <videos._id> --upload
+```
+
+- `--video-id` 必須是 24 字元 ObjectId，且必須搭配 `--video-path`；片段 `video_id` 寫成該 `_id`、`clip_id` 為 `<_id>_part_0001`，規則與 `video_segments_text.videoId` 相同。
+- 輸出寫到 `data/outputs/video_embeddings/<_id>.jsonl`（每支影片各自一份，可當 checkpoint 續跑），不覆蓋舊的 `embeddings_video_gemini.jsonl`。
+- `--upload` 呼叫 `mongodb_uploader.upload_bound_video_embeddings()`：先確認 `videos` 內有該 `_id`（影片已刪除就拒寫），以 `clip_id` upsert 到 `video_segments_video`，再刪除同一 `video_id` 下這次沒產生的舊片段（例如改了片段長度）。沒有 `--upload` 時只產生本機檔案。
+- 需要 `ENABLE_GEMINI_VIDEO_EMBEDDING=true` 與 `GEMINI_API_KEY`；每個片段各上傳一次 Gemini，會產生 API 費用。
+- 目前由人工對指定影片執行；教師上傳後自動產生尚未接入 `main.py`。`generate_video_embeddings(config)` 已獨立於 CLI，日後可作為主 pipeline 的選用 stage。
+
 ## transcript normalization
 
 Whisper 對技術術語常有誤辨，例如：

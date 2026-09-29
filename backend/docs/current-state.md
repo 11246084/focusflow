@@ -1,6 +1,8 @@
 # Backend 目前狀態
 
-最後更新：2026-09-23（文件盤點：系統自 2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用，不是正式上線；修正過時敘述、補 CORS 已收斂。9 月功能細節記在下方各條目，本輪未重跑測試）
+最後更新：2026-09-29（影像片段綁定課程影片 `String(videos._id)`、pipeline CLI `--video-id --upload`、`QA_VISUAL_RETRIEVAL_ENABLED` 並行影像檢索；backend 937 tests 通過，共享 Atlas 尚無綁定片段）
+
+前一輪：2026-09-23（文件盤點：系統自 2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用，不是正式上線；修正過時敘述、補 CORS 已收斂。9 月功能細節記在下方各條目，本輪未重跑測試）
 
 前一輪：2026-08-30（學生試用版後端 Phase 1 WO-01～WO-09 已完成本機實作與回歸測試。跨課程隔離、FAQ、Child expansion、logging、citation playable-source filter、runner 與 startup fail-fast 已按 v1.2 收斂；Backend 500/500 tests 通過。正式 12＋2 題與 shared Atlas 唯讀證據仍待執行）
 
@@ -128,7 +130,7 @@
 | `videos` | 16 | 2026-05-23 實查；混存 app-owned 與 pipeline metadata |
 | `users` | 3 | Demo Teacher / Student / Admin |
 | `video_segments_text` | 130 | 2026-05-23 實查；全部 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`），`embedding` 為 3072 維 |
-| `video_segments_video` | 16 | DB 文件仍為 snake_case（`video_id`、`clip_id`、`start_sec`），`video_embedding_index` 已 READY；已接入初版 course-scoped visual citation retrieval |
+| `video_segments_video` | 16 | DB 文件仍為 snake_case（`video_id`、`clip_id`、`start_sec`），`video_embedding_index` 已 READY；已接入初版 course-scoped visual citation retrieval。2026-09-29 唯讀實查：16 筆全為 `video_001`，0 筆綁定到課程影片 `_id` |
 | `video_segments_audio` | 0 | Pipeline 預留 |
 | `questions` | 1 | **新增**，每次 QA 提問自動寫入；含 matches/runtime/`sourceUsageLogId` 連結 |
 | `clips` | 1 | Legacy |
@@ -191,6 +193,8 @@
 - `ShortAsset` model 與內部 create/update service 已完成；保存 course/source/job/title/description/status/YouTube metadata、封存欄位與只含 `courseId/title/teacherId/status` 的 `courseSnapshot`。published+playable 必須具備非空 `youtubeVideoId` 與有效 `publishedAt`，legacy 空值不進 feed。feed 索引為 course/status/youtubeAvailability/publishedAt/_id，另有 `youtubeVideoId` unique+sparse（缺值不存 `null`）
 - Course hard delete 會在其他 cascade 成功後、`Course.deleteOne()` 前 idempotent 封存該課程尚未封存的 ShortAsset；已封存資料不覆寫 `statusBeforeArchive`，Course 刪除失敗時只 best-effort 還原本輪封存，不宣稱 transaction/atomicity
 - `video_segments_video` 初版 visual citation retrieval 已接入 QA：backend 會從 course-scoped videos 的 `fileName` / `sourceUrl` / `videoUrl` 等欄位解析 `video_001` 類 pipeline visual ID，再以 Atlas `video_embedding_index` + `video_id` filter 檢索視覺片段；命中時回 `modality=video`、`clipPath`、timestamp citation 與保守答案。限制：目前視覺片段無 transcript / caption，不讓 LLM 編造畫面內容
+- 影像片段綁定課程影片（2026-09-29）：綁定鍵為 `video_segments_video.video_id = String(videos._id)`，由 `STT_Whisper/src/video_multimodal_pipeline.py --video-path … --video-id <_id> --upload` 人工對指定影片產生並寫入；影像範圍同時接受 `_id` 與舊的 `video_001` 檔名配對。刪除影片／課程會一併刪除綁定片段。截至 2026-09-29 共享 Atlas 尚無任何綁定片段
+- 影像檢索觸發（2026-09-29）：`QA_VISUAL_RETRIEVAL_ENABLED=false`（預設）時只在文字檢索 0 筆才查影像；`true` 時每次提問與文字檢索並行，答案仍只由文字片段生成，影像片段（上限 `QA_VISUAL_MATCH_LIMIT`、分數門檻 `QA_VISUAL_MIN_SCORE`、剔除與已引用文字片段同影片時間重疊者）附加在文字 citation 之後。影像檢索失敗只記在 `runtime.visualSearch`，不讓回答變 degraded；FAQ 快取只存文字 evidence，命中快取時不附影像 citation
 - backend-only acceptance smoke 已存在，可在不碰共享 MongoDB 的前提下重驗主線
 - demo baseline 可用 `npm run seed` 收斂，`npm run seed:reset` 可保守清除後重建
 - DB 同步 / 維運 scripts 現況：

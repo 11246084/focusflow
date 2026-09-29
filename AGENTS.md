@@ -207,7 +207,7 @@ AI agent 接手前，至少讀：
 - 對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」；試用驗收證據仍在進行，LINE webhook 仍走 ngrok（改正式網域待與教授討論）。
 - 多影片批次 API（`/video-batches`）已存在，但 `VIDEO_BATCH_PIPELINE_ENABLED` 預設 false；真實多影片 STT/Gemini 與壓力測試尚未驗證，不能稱 production-ready。
 - Parent 階層式檢索已有 stable embedding、uploader 與 backend adapter，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 為 false，沒有 live E2E 證據前不可宣稱可用。
-- `video_segments_video` 目前只作 course-scoped visual citation，不能稱為 caption QA 或正式 clip publishing source。
+- `video_segments_video` 目前只作 course-scoped visual citation，不能稱為 caption QA 或正式 clip publishing source。綁定鍵為 `String(videos._id)`（2026-09-29），需以 pipeline CLI 人工產生；並行影像檢索 `QA_VISUAL_RETRIEVAL_ENABLED` 預設 false。
 - 短影片：自動選題、腳本生成、教師上傳成品與審核上架已實作，但上架（YouTube 發布）尚未 live 驗證；影片本身由教師在系統外產製，ComfyUI／MiniMax H3 已可在教授主機以地端模型運作，但未與 FocusFlow 串接（系統串接規劃中）。
 - YouTube auto-upload 與刪除轉 private 已於 2026-08-02 live 驗證；recovery／本地檔案清理 feature flags 仍預設關閉、未做 live 驗證。
 - LINE 曾 live smoke 成功，不代表目前 webhook URL、channel credentials 或正式部署永久有效。

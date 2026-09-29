@@ -223,6 +223,8 @@ course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segmen
 
 不要誤稱 `video_segments_video` 已成為正式 clip source；它目前仍是預留 / legacy 邊界，且欄位仍偏 snake_case。
 
+影像片段綁定（2026-09-29）：`video_segments_video.video_id = String(videos._id)`，由 `video_multimodal_pipeline.py --video-path … --video-id <_id> --upload` 人工產生；舊的 `video_001` 片段仍靠檔名配對。`QA_VISUAL_RETRIEVAL_ENABLED`（預設 false）開啟時影像與文字並行檢索，影像片段只作補充 citation、不進回答 prompt。共享 Atlas 是否已有綁定片段要實查，不要憑文件斷言。
+
 ### Processing State Machine
 
 影片處理由 `videoProcessing.service.js` 強制狀態轉換：

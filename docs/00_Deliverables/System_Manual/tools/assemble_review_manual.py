@@ -42,7 +42,26 @@ def node_text(n):
     return ''.join(x.text or '' for x in n.iter(qn('w:t')))
 
 def no_number(p):
+    # Only for headings: their text already carries 第X章／X-Y. Word turns numId=0
+    # into an explicit zero indent, so body paragraphs must never get this.
     p._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = 0
+
+def zero_indent(p):
+    """Remove the first-line indent; firstLineChars overrides firstLine in Word."""
+    ind = p._p.get_or_add_pPr().get_or_add_ind()
+    ind.set(qn('w:firstLineChars'), '0'); ind.set(qn('w:firstLine'), '0')
+
+def add_cover_logo(doc):
+    """系辦封面範例有專題 Logo；取自初評原稿封面的同一張圖。"""
+    source = Document(MANUAL / 'source-documents/專題手冊_初評最終版.docx')
+    blob = next(source.part.related_parts[b.get(qn('r:embed'))].blob
+                for p in source.paragraphs[:8] for b in p._p.iter(qn('a:blip')))
+    title = next(p for p in doc.paragraphs[:8] if p.text.strip() == '系統手冊')
+    logo = OxmlElement('w:p'); title._p.addnext(logo)
+    from docx.text.paragraph import Paragraph
+    from io import BytesIO
+    p = Paragraph(logo, title._parent); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.add_run().add_picture(BytesIO(blob), height=Inches(2.9))
 
 def add_screen(doc, marker, path):
     """Chapter 12 screenshots: never enlarge beyond ~150 dpi so small captures stay sharp."""
@@ -79,6 +98,7 @@ def main():
     for p in doc.paragraphs:
         for run in p.runs:
             run.text = run.text.replace('115年6月2日','115年10月13日')
+    add_cover_logo(doc)
     for name,size in [('Normal',14),('文字內文',14),('Heading 1',18),('Heading 2',16),('Heading 3',14),('Heading 4',14),('Caption',14)]:
         st=doc.styles[name]; st.font.name='Times New Roman';st.font.size=Pt(size);st.font.color.rgb=RGBColor(0,0,0)
         st.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'),'DFKai-SB')
@@ -90,11 +110,23 @@ def main():
         st.paragraph_format.first_line_indent=Pt(0)
     doc.styles['Heading 1'].paragraph_format.page_break_before=True
     doc.styles['Heading 1'].paragraph_format.alignment=WD_ALIGN_PARAGRAPH.CENTER
-    doc.styles['文字內文'].paragraph_format.first_line_indent=Pt(28)
+    # 系辦段落設定：左右對齊、第一行位移 2 字元、單行間距、前後段 0 pt。
+    body_pf=doc.styles['文字內文'].paragraph_format
+    body_pf.alignment=WD_ALIGN_PARAGRAPH.JUSTIFY
+    ind=doc.styles['文字內文'].element.get_or_add_pPr().get_or_add_ind()
+    ind.set(qn('w:firstLineChars'),'200');ind.set(qn('w:firstLine'),'560')
+    # 章節標題沿用初評版面：粗體，節標題前留白，避免段落擠在一起。
+    for name,before,after in [('Heading 1',0,12),('Heading 2',12,6),('Heading 3',6,0),('Heading 4',6,0)]:
+        st=doc.styles[name];st.font.bold=True
+        st.paragraph_format.space_before=Pt(before);st.paragraph_format.space_after=Pt(after)
+        ind=st.element.get_or_add_pPr().get_or_add_ind()
+        ind.set(qn('w:firstLineChars'),'0');ind.set(qn('w:firstLine'),'0')
     for st in doc.styles:
         if st.type==WD_STYLE_TYPE.PARAGRAPH and st.name.lower().startswith(('toc','table of figures')):
             st.font.size=Pt(14)
             st.paragraph_format.space_before=Pt(0);st.paragraph_format.space_after=Pt(0);st.paragraph_format.line_spacing=1.0
+            # 系辦目錄範本的章標題列為粗體。
+            if st.name.lower()=='toc 1':st.font.bold=True
     for st in doc.styles:
         if st.type==WD_STYLE_TYPE.PARAGRAPH:
             snap=OxmlElement('w:snapToGrid');snap.set(qn('w:val'),'false');st.element.get_or_add_pPr().append(snap)
@@ -129,17 +161,26 @@ def main():
     readme=(MANUAL/'README.md').read_text(encoding='utf-8')
     ai_rows={line.split('|')[1].strip():line for line in readme.splitlines() if line.startswith('| AI-')}
     def para(text,style='文字內文',size=14):
-        p=doc.add_paragraph(style=style);no_number(p)
-        layout.add_inline(p,text,size=size)
+        p=doc.add_paragraph(style=style)
+        heading=style.startswith('Heading')
+        if heading:no_number(p)
+        layout.add_inline(p,text,size=size,base_bold=heading)
         p.paragraph_format.line_spacing=1.0
         return p
     def caption(text):
+        # 系辦範例「圖3-1-1 系統架構」：編號與名稱以半形空格分隔。
+        text=re.sub(r'^((?:圖|表)\s*\d+-\d+-\d+[a-z]?)[\s　]+',r'\1 ',text)
         p=para(text,'Figure Caption' if text.startswith('圖') else 'Table Caption')
+        zero_indent(p)
         p.alignment=WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.keep_with_next=text.startswith('表')
         return p
+    import os
+    # 除錯用：MANUAL_CHAPTERS=15 或 1,2,3 只組指定章節，方便快速測試 Word 能否處理。
+    only={int(x) for x in os.environ.get('MANUAL_CHAPTERS','').split(',') if x.strip()}
     for path in sorted((MANUAL/'chapters').glob('[0-9][0-9]_*.md')):
         num=int(path.name[:2]);raw=path.read_text(encoding='utf-8')
+        if only and num not in only:continue
         sources.append({'chapter':num,'source':str(path.relative_to(MANUAL)),'sha256':digest(path)})
         if num==14:
             existing=set(re.findall(r'^\| (AI-[^| ]+)',raw,re.M))
@@ -152,7 +193,7 @@ def main():
             math_blocks.append(match.group(1).strip())
             return '\n\n@@MATHBLOCK_'+str(len(math_blocks)-1)+'@@\n\n'
         raw=re.sub(r'\$\$(.*?)\$\$',save_math,raw,flags=re.S)
-        lines=layout.collect_logical_lines(raw.splitlines());i=0;pending=None;tables=0
+        lines=layout.collect_logical_lines(raw.splitlines());i=0;pending=None;tables=0;meetings=0
         while i<len(lines):
             line=lines[i].strip();i+=1
             if not line or line=='---' or line.startswith('[返回手冊索引]'):continue
@@ -169,11 +210,17 @@ def main():
                 p=para(text,'Heading '+str(min(level,4)),18 if level==1 else 16 if level==2 else 14)
                 if level==1:p.paragraph_format.page_break_before=(num!=1)
                 continue
+            if num==15 and line.replace('　',' ')=='國立臺北商業大學 資訊管理系':
+                # 每次會議紀錄各自起頁，校系名稱置中（初評版面）。
+                p=doc.add_paragraph(style='Front Index');p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+                font(p.add_run(line),16);p.paragraph_format.page_break_before=meetings>0
+                p.paragraph_format.keep_with_next=True;meetings+=1
+                continue
             if line.startswith('```'):
                 if pending:caption(pending);pending=None
                 code=[]
                 while i<len(lines) and not lines[i].strip().startswith('```'):code.append(lines[i]);i+=1
-                i+=1;p=para('\n'.join(code));p.paragraph_format.first_line_indent=Pt(0);p.paragraph_format.keep_together=False
+                i+=1;p=para('\n'.join(code));zero_indent(p);p.paragraph_format.keep_together=False
                 continue
             if line.startswith('|'):
                 rows=[line]
@@ -183,24 +230,37 @@ def main():
                     rows=[['評審建議事項','修正情形']]+[[r[0]+'<br>'+r[1],r[2]+'<br>對應章節或證據：'+r[3]+'<br>確認人：'+r[4]] for r in rows[1:]]
                     changes.append('附錄評審意見表按官方兩欄格式合併既有欄位，保留全部原文與確認狀態')
                 if pending:caption(pending)
+                # 會議紀錄表沿用初評版面：無底色、欄位標籤粗體、單值的列橫跨整列，
+                # 內容列可跨頁（不強制整列同頁）。
+                meeting=num==15 and rows[0][0].startswith('會議日期')
+                if meeting:
+                    label=re.compile(r'^(會議議題|開會人員|缺席人員|會議內容：|一、|二、|下次開會時間|下次會議內容：)')
+                    for r in rows:
+                        if len(r)>1 and not r[1].strip():
+                            r[0]='<br>'.join('**'+s+'**' if label.match(s) else s for s in r[0].split('<br>'))
                 # Reuse formatting helpers only; never apply their prose rewrites.
                 cols=max(len(r) for r in rows)
                 table=doc.add_table(rows=len(rows),cols=cols)
                 table.style='Table Grid';table.autofit=False
                 widths=layout.column_widths(rows,cols,18/2.54)
                 widths=[w*18/2.54/sum(widths) for w in widths]
+                if meeting:widths=[18/2.54*0.6,18/2.54*0.4]  # 左欄較寬，會議日期才不會折行
                 for col,w in zip(table.columns,widths):col.width=Inches(w)
                 cells=table._cells
                 headers=max([0]+[j for j,r in enumerate(rows[:4]) if r and r[0]=='欄位名稱'])
                 for j,values in enumerate(rows):
-                    row=table.rows[j];layout.prevent_row_split(row)
-                    if j<=headers:layout.set_repeat_table_header(row)
+                    row=table.rows[j]
+                    full=meeting and len(values)>1 and not values[1].strip()
+                    if not meeting:
+                        layout.prevent_row_split(row)
+                        if j<=headers:layout.set_repeat_table_header(row)
                     for k in range(cols):
                         cell=cells[j*cols+k];cell.width=Inches(widths[k]);layout.set_cell_margins(cell)
                         p=cell.paragraphs[0];p.paragraph_format.first_line_indent=Pt(0);p.paragraph_format.line_spacing=1.0
-                        if j==0:layout.set_cell_shading(cell,'D9EAD3')
-                        if j<=headers:p.paragraph_format.keep_with_next=True
-                        layout.add_inline(p,values[k] if k<len(values) else '',size=14,base_bold=(j==0))
+                        if j==0 and not meeting:layout.set_cell_shading(cell,'D9EAD3')
+                        if j<=headers and not meeting:p.paragraph_format.keep_with_next=True
+                        layout.add_inline(p,values[k] if k<len(values) else '',size=14,base_bold=(j==0 and not meeting) or (meeting and not full))
+                    if full:table.cell(j,0).merge(table.cell(j,cols-1))
                 for row in table.rows:
                     for cell in row.cells:
                         for p in cell.paragraphs:
@@ -235,8 +295,7 @@ def main():
                 continue
             if pending:caption(pending);pending=None
             if line.startswith('>'):line=line.lstrip('> ').strip()
-            p=para(line)
-            if re.match(r'^[-*]\s',line) or re.match(r'^\d+\.\s',line):p.paragraph_format.first_line_indent=Pt(0)
+            para(line)
         if pending:caption(pending)
         ids=[key for key,scope in AI_SCOPE.items() if num in scope]
         para('AI 輔助紀錄索引：'+'、'.join(ids)+'。')
@@ -257,7 +316,10 @@ def main():
     upd=settings.find(qn('w:updateFields'))
     if upd is None:upd=OxmlElement('w:updateFields');settings.append(upd)
     upd.set(qn('w:val'),'true')
-    doc.save(OUTPUT)
+    # 可指定暫存路徑：交付檔只在 refresh_manual_word.ps1 完成後才被取代，
+    # 避免有人在重建途中打開未完成的檔案（2026-09-30 曾因此讓 Word 當掉）。
+    import sys
+    doc.save(Path(sys.argv[1]) if len(sys.argv)>1 else OUTPUT)
     REPORT.write_text(json.dumps({'base':str(BASE.relative_to(MANUAL)),'base_sha256':digest(BASE),'sources':sources,'images':images,'table_counts':table_counts,'changes':changes,'output':str(OUTPUT.relative_to(MANUAL)),'missing_personal_reflections':True,'source_prose_rewritten':False},ensure_ascii=False,indent=2),encoding='utf-8')
     REPORT.with_name('1013複評AI章節對照.json').write_text(json.dumps(AI_SCOPE,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({'output':str(OUTPUT),'chapters':len(sources),'images':len(images),'tables':len(doc.tables),'changes':changes},ensure_ascii=False))

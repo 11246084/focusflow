@@ -4,7 +4,8 @@ Sources are team screenshots (the Notion chapter-12 page and 2026-09-30 producti
 captures). Coordinates are in each source image's own pixel frame. Output files follow
 the manual naming rule 圖{章}-{節}-{序}-{名稱}-v1-0.png under images/.
 
-Usage: python annotate_ch12_screens.py <notion_dir> <capture_dir>
+Usage: python annotate_ch12_screens.py <notion_dir> <capture_dir> <extra_dir>
+extra_dir holds the forgot-password captures (12.png, 13.png, 14.png).
 """
 import sys
 from pathlib import Path
@@ -15,7 +16,7 @@ OUT = MANUAL / 'images'
 RED = (230, 30, 30)
 FONT = 'C:/Windows/Fonts/arialbd.ttf'
 
-notion_dir, capture_dir = Path(sys.argv[1]), Path(sys.argv[2])
+notion_dir, capture_dir, extra_dir = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 
 
 def src(name):
@@ -87,8 +88,9 @@ FIGURES = [
      [(1100, 272, 1460, 318), (1100, 364, 1460, 410)]),
     ('圖12-2-2-學生與教師登入畫面', 't12-1-1_1', [(1083, 274, 1465, 329), (1083, 352, 1465, 534), (1083, 564, 1465, 625),
                                          (1372, 443, 1465, 474), (1208, 636, 1340, 662)], []),
-    ('圖12-2-3-管理員登入畫面', 't12-1-4_1', [], []),
-    ('圖12-2-4-共用功能位置', 't12-1-3_2', [(1668, 6, 1714, 50), (1716, 4, 1768, 54), (4, 824, 226, 900),
+    ('圖12-2-3-忘記密碼流程', ('forgot',), [], []),
+    ('圖12-2-4-管理員登入畫面', 't12-1-4_1', [], []),
+    ('圖12-2-5-共用功能位置', 't12-1-3_2', [(1668, 6, 1714, 50), (1716, 4, 1768, 54), (4, 824, 226, 900),
                                     (1630, 850, 1766, 904), (1630, 906, 1766, 960), (8, 904, 92, 950)], []),
     # ---- 12-3 學生操作
     ('圖12-3-1-學生總覽', 't12-1-6_1', [(278, 86, 1766, 216), (280, 260, 1017, 638), (1028, 260, 1764, 638), (1586, 670, 1742, 719)], []),
@@ -133,10 +135,43 @@ FIGURES = [
 ]
 
 
+def numbered(im, marks):
+    """Draw boxes with explicit step numbers (for figures composed of several panels)."""
+    draw = ImageDraw.Draw(im)
+    font = ImageFont.truetype(FONT, 22)
+    for number, (x0, y0, x1, y1) in marks:
+        draw.rounded_rectangle((x0, y0, x1, y1), radius=8, outline=RED, width=4)
+        cx, cy = max(x0, 17), max(y0, 17)
+        draw.ellipse((cx - 16, cy - 16, cx + 16, cy + 16), fill=RED, outline='white', width=2)
+        draw.text((cx, cy), str(number), fill='white', font=font, anchor='mm')
+    return im
+
+
+def forgot_password():
+    """忘記密碼：輸入 Email → 收信 → 輸入驗證碼與新密碼（2026-09-30 正式站截圖）。
+
+    Step numbers follow the order of use, so they run across the three panels.
+    The (already expired) verification code in the e-mail is masked.
+    """
+    email = Image.open(extra_dir / '12.png').convert('RGB')
+    reset = Image.open(extra_dir / '13.png').convert('RGB')
+    mail = Image.open(extra_dir / '14.png').convert('RGB')
+    mosaic(mail, (335, 352, 408, 374), blocks=6)
+    numbered(email, [(1, (33, 160, 490, 222)), (2, (33, 240, 490, 300))])
+    numbered(mail, [(3, (78, 350, 520, 400))])
+    numbered(reset, [(4, (36, 152, 494, 214)), (5, (36, 232, 494, 372)),
+                     (6, (36, 390, 494, 450)), (7, (136, 464, 386, 496))])
+    top = stack([email, reset], vertical=False, gap=24)
+    mail = mail.resize((top.width, round(mail.height * top.width / mail.width)), Image.LANCZOS)
+    return stack([top, mail], gap=24)
+
+
 def build(spec, blur):
     if isinstance(spec, str):
         return load(spec, blur)
     kind = spec[0]
+    if kind == 'forgot':
+        return forgot_password()
     if kind == 'stack':
         return stack([load(n) for n in spec[1]])
     if kind == 'row':

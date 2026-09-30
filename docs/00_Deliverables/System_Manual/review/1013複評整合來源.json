@@ -60,7 +60,7 @@
     {
       "chapter": 12,
       "source": "chapters\\12_使用手冊.md",
-      "sha256": "1668d469621a56fd9f2bf64c0dd6e0401f780e052b2075b356ea962cdd5d88ec"
+      "sha256": "97a0251d321639d1d3c4a40d342199be004689c295ca2e0740345dc0f2e1c0a8"
     },
     {
       "chapter": 13,
@@ -75,7 +75,7 @@
     {
       "chapter": 15,
       "source": "chapters\\15_附錄.md",
-      "sha256": "1497f8e0190847e6002a6a42a2a09373a1dfb27845af9ff37bab59eb706032d3"
+      "sha256": "b4214a36916c03f6e387d50aaa0026ebf6fddd68d85fa70c698143436039952e"
     }
   ],
   "images": [
@@ -500,12 +500,17 @@
       "chapter": 12
     },
     {
-      "source": "images\\圖12-2-3-管理員登入畫面-v1-0.png",
+      "source": "images\\圖12-2-3-忘記密碼流程-v1-0.png",
+      "sha256": "6ec91e182e76cc95ad5117aa9c2d0a52786d68aae226f87ef36cc82de69e9e6d",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-2-4-管理員登入畫面-v1-0.png",
       "sha256": "bc88b06bc516d4e4974e27a4b1f326a0ea9818d9e5257101810ef2bbdd03b210",
       "chapter": 12
     },
     {
-      "source": "images\\圖12-2-4-共用功能位置-v1-0.png",
+      "source": "images\\圖12-2-5-共用功能位置-v1-0.png",
       "sha256": "c7c1e0f6d330f4115f5d5aa09cf03bf62854604f7abe09e51db5ceffcf0db482",
       "chapter": 12
     },
@@ -784,12 +789,12 @@
     },
     {
       "chapter": 15,
-      "tables": 15
+      "tables": 24
     }
   ],
   "changes": [
     "表4-2-1依母稿產生，類別欄依官方分工表範本垂直合併",
-    "第14章補入README已存在但章內未同步的AI紀錄，共8筆",
+    "第14章補入README已存在但章內未同步的AI紀錄，共9筆",
     "附錄評審意見表按官方兩欄格式合併既有欄位，保留全部原文與確認狀態"
   ],
   "output": "output\\四技第115413組-FocusFlow AI-系統手冊_1013複評全冊整合稿.docx",

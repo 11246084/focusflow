@@ -1,0 +1,43 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-08, FR-21, FR-22
+' source:       frontend/focus-flow/src/components/navigationConfig.js, pages/TeacherShortScripts.jsx, TeacherVideoReview.jsx（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依短影片腳本分頁與短影片審核步驟程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 教師端短影片畫面移轉圖
+hide empty description
+
+state "總覽" as home
+
+state "短影片腳本" as scripts {
+  state "腳本分頁" as scriptTab
+  state "成品上架分頁" as assetTab
+  [*] -down-> scriptTab
+  scriptTab -down-> assetTab : 切換分頁
+  assetTab -up-> scriptTab : 切換分頁
+  scriptTab --> scriptTab : 建立、生成\n或退回重新生成腳本
+  assetTab --> assetTab : 上傳成品並送審\n或重試上架
+}
+
+state "短影片審核" as review {
+  state "待審清單與預覽" as reviewList
+  state "審核確認" as reviewConfirm
+  state "審核完成" as reviewDone
+  [*] -down-> reviewList
+  reviewList -down-> reviewConfirm : 選擇通過或\n填寫不通過理由
+  reviewConfirm -up-> reviewList : 按「返回修改」
+  reviewConfirm -down-> reviewDone : 確認送出
+}
+
+[*] -down-> home : 教師登入成功
+home -down-> scripts : 側邊欄「短影片腳本」
+home -down-> review : 側邊欄「短影片審核」
+
+@enduml

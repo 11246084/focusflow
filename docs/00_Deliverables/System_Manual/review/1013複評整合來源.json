@@ -1,0 +1,798 @@
+{
+  "base": "output\\四技第115413組-FocusFlow AI-系統手冊_複評更新版_第5至11章.docx",
+  "base_sha256": "bcff76978d29a3cfa90a26e48c15c9c6eaf061a980eec2c3303a4b8ba56aecad",
+  "sources": [
+    {
+      "chapter": 1,
+      "source": "chapters\\01_前言.md",
+      "sha256": "22f1edd798eb67c9be465adaf54cc40f8d2c37cc21ccafe9949b6883ac7225a2"
+    },
+    {
+      "chapter": 2,
+      "source": "chapters\\02_營運計畫.md",
+      "sha256": "28c2cd38a84904d8ca88cc3c01935735b49f80ec7e2f3c2f601eb5276661370d"
+    },
+    {
+      "chapter": 3,
+      "source": "chapters\\03_系統規格.md",
+      "sha256": "bad185a72929cd42ef8561b6a0cc1faeebb32fdf6ccbf58fd05415187eb1af28"
+    },
+    {
+      "chapter": 4,
+      "source": "chapters\\04_專案時程與組織分工.md",
+      "sha256": "02b46e1aa5c34a4f44c6eb6b8126977892f053e41f1bfc2e28a3074dbb2eb115"
+    },
+    {
+      "chapter": 5,
+      "source": "chapters\\05_需求模型.md",
+      "sha256": "dc0d59c53fb853baf34b53a9cc697ee06a904588206758e9cde4e88debb4d523"
+    },
+    {
+      "chapter": 6,
+      "source": "chapters\\06_設計模型.md",
+      "sha256": "9e0ec60cf3ea090ad16d2b0c45f73b6900899b3a8e83fce9ae1e0017b55ab1c7"
+    },
+    {
+      "chapter": 7,
+      "source": "chapters\\07_實作模型.md",
+      "sha256": "24bb9cabedf88ca534a2231c83abd2f7ec5539127b5137b777be69eed1c51ccf"
+    },
+    {
+      "chapter": 8,
+      "source": "chapters\\08_資料庫設計.md",
+      "sha256": "7636a48214c8f7eb0ae130d55be3f5771c10b87a2da908a47b8d2b4ff1fddfa8"
+    },
+    {
+      "chapter": 9,
+      "source": "chapters\\09_程式.md",
+      "sha256": "cdb7c2ef61007f457ef7a7caab0cb9a318d5eda8368cf28d1b7a40d3d3c62f83"
+    },
+    {
+      "chapter": 10,
+      "source": "chapters\\10_測試模型.md",
+      "sha256": "d6dd23a93fda5fd17a4cdc176e153bcd9faea0648f105a6044fa185b6211c423"
+    },
+    {
+      "chapter": 11,
+      "source": "chapters\\11_操作手冊.md",
+      "sha256": "a86b8ff1441045a3f46b1f743ca23c2adc8e9ed01e50bb4d4a9d48ed787670a6"
+    },
+    {
+      "chapter": 12,
+      "source": "chapters\\12_使用手冊.md",
+      "sha256": "1668d469621a56fd9f2bf64c0dd6e0401f780e052b2075b356ea962cdd5d88ec"
+    },
+    {
+      "chapter": 13,
+      "source": "chapters\\13_感想.md",
+      "sha256": "4c619b3a082f4a64c047577208e4a2235d15a770c5820b7112aa80e1191ce8db"
+    },
+    {
+      "chapter": 14,
+      "source": "chapters\\14_參考資料.md",
+      "sha256": "954fe2bde41b9569e8726d59dd7e48787c8af1c83e7409754183c3fe663184ce"
+    },
+    {
+      "chapter": 15,
+      "source": "chapters\\15_附錄.md",
+      "sha256": "1497f8e0190847e6002a6a42a2a09373a1dfb27845af9ff37bab59eb706032d3"
+    }
+  ],
+  "images": [
+    {
+      "source": "images\\圖1-2-1-台灣線上教育市場規模-v1-0.png",
+      "sha256": "5dfb4a4688e492edf237430017da66bfdb03844ca90cd5eececcb29d48661e92",
+      "chapter": 1
+    },
+    {
+      "source": "images\\圖1-2-2-全球MOOCs市場規模-v1-0.png",
+      "sha256": "2e60d3e1625a38b6a12b692c6ad4f5360cadafef41d6824d0a239e0164b90b0a",
+      "chapter": 1
+    },
+    {
+      "source": "images\\圖2-2-1-FocusFlow商業模式-v1-1.png",
+      "sha256": "9eea76b3fe075a3d60c745b04a95f0e2cf413e71b7f12042b637233ef263fbdc",
+      "chapter": 2
+    },
+    {
+      "source": "images\\圖3-1-1-系統架構圖-v2-0.jpg",
+      "sha256": "71099d5e822692aef0886ae837d945847fe8fcc9d8fe4871119bc3688fe58b85",
+      "chapter": 3
+    },
+    {
+      "source": "images\\圖4-1-1-專案時程甘特圖-v2-0.png",
+      "sha256": "f617724193bcf3fe926cf5326dac283e7c10a25b9eabe6968b7aecfb2f05a249",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-1-GitHub貢獻者統計-v2-0.png",
+      "sha256": "e4aad90e77c88ded139cf3c46d362517ca58367372b4abeb92e7cd0c442ab259",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-2-邱偉豪GitHub紀錄-v2-0.png",
+      "sha256": "db0a14dea9d6c3199ab15c9abd0fa15e4d1827386d0a53163de1e7e4e8411227",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-3-鍾百陶GitHub紀錄-v2-0.png",
+      "sha256": "2fee8e01a398289ced136b0f0852b409ca5f7ae0db9fc0f28193a65daed1f729",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-4-張家瑜GitHub紀錄-v2-0.png",
+      "sha256": "957fba5c1748878ebc51493620763c345c3bfa625f803c5388cd05744ce428c2",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-5-張庭語GitHub紀錄-v2-0.png",
+      "sha256": "c2fb96b2249b1ec662c47d1b2a81fec9f7575e84a7662a147f68e54ed7ded686",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖4-3-6-兩學期每週提交次數-v1-0.png",
+      "sha256": "f9f5be010e95d61444bc9c9ac9f2f27eb139f392f80cd2f3ba5740064474d04a",
+      "chapter": 4
+    },
+    {
+      "source": "images\\圖5-2-1a-學生與共用功能使用個案圖-v2-0.png",
+      "sha256": "bfe74c7dde6e59337776f82aa4d906e0e0fec74d9d2d5a0226d9b9391db83f0d",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-2-1b-教師與管理員功能使用個案圖-v2-0.png",
+      "sha256": "a93a905273b59afeb6f2133e2f6459eebc594d3b4b797de51dd8a7f7338d8b4a",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-1-註冊與登入活動圖-v3-1.png",
+      "sha256": "84a7775a33efea5802959ff70a0cd18ba7e8f4c9965f4622f2d7cd887547ae10",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-2-課程與修課名單管理活動圖-v2-1.png",
+      "sha256": "b30dfcbf3f889fac9ec527b91c31d6a43fbeeb8250ff04bfccc01a76419eaba3",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-3-影片加入與處理追蹤活動圖-v3-1.png",
+      "sha256": "b50ca87a3484206d1f976e1fb3c7d3345258bfa620becbecbf6894c4cbfbc09a",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-4-學生網頁觀看與提問活動圖-v4-0.png",
+      "sha256": "1342341c0d123e23bb4e655a731c6d7164b245df366d586ddad2565e349ecba1",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-5-LINE綁定與課程問答活動圖-v4-0.png",
+      "sha256": "b5cd3ba4e4d91be1dff650e22aaa6337938a9585fc7537f9dc990f3e0f09fdce",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-6-個人資料與通知活動圖-v3-1.png",
+      "sha256": "863ae4688184823995a1db48056b52a3fd6966b337803c8c5409ac9ce31f02b6",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-7-學生短影音瀏覽活動圖-v3-0.png",
+      "sha256": "52b4ab16900429e24dd51eac646d5c651f537fd2ad8919c75bfb521f7c1ab488",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-8-短影音腳本與成品審核活動圖-v3-0.png",
+      "sha256": "815362b119fbca53b8efa4eeecb32187ccd6197c748b337b747a29626dcf8af9",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-3-9-管理員維運活動圖-v3-1.png",
+      "sha256": "401a6e159646979a0ae8a33bf03fbdddac94bbb2fdbf826271d265cc5ec79806",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖5-4-1-系統分析類別圖-v3-0.png",
+      "sha256": "d687d6b7204980ae03b88d33ae1be65fb434006a4231b1b190c623319509eb2f",
+      "chapter": 5
+    },
+    {
+      "source": "images\\圖6-1-1a-學生自助註冊循序圖-v1-0.png",
+      "sha256": "d1775b6dcda0b5fec349c5cbd95bffea90dc098dae005a875da926eaf4c709d5",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-1b-登入與帳號鎖定循序圖-v1-0.png",
+      "sha256": "5b13f0deadfe1a365b0c4b340ecf1e49c6f78e3e8de3395c0d762d271fdb90a0",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-2a-課程建立與發布循序圖-v1-0.png",
+      "sha256": "29fc9bd5d6587ab68975acffb45645cd8fcf42b9b26f6cfec12937229d256ab5",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-2b-修課名單指派匯入與撤銷循序圖-v1-0.png",
+      "sha256": "9b2ac51fc1334b019ac912f423a91c0240235564626d38aaa2fbd4aec80532e5",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-3a-影片上傳與批次追蹤循序圖-v1-1.png",
+      "sha256": "8d4fbba68163e56b58360d4a1385f7009887671e7f124f30e3311a66d87e82e9",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-3b-Pipeline處理與狀態回報循序圖-v1-0.png",
+      "sha256": "9ee31e90042ffbf249fb149c4469afc000fd9cb2f5c1ab1e78b656601f6a2682",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-4a-學生觀看與授權循序圖-v1-0.png",
+      "sha256": "85b46d9d9554aa0793bd350ea5068f7b00452800859d91d2da9a3e300847e4e6",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-4b-學生提問與回覆循序圖-v1-0.png",
+      "sha256": "a1fb671a232c5a5ab1c6127bd7d635b128a8a821ab9fecfbf01c953b1a8a88d5",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-4c-FAQ快取與片段檢索循序圖-v1-0.png",
+      "sha256": "6b93c79ff04409f26f42c335290a3d98c0adca0e89bf71d8f630cde93b55c427",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-5a-LINE帳號綁定循序圖-v1-0.png",
+      "sha256": "92da51cf37b3e067884ef7309ffd1e04b28bea6e8e8871e52bf0df112ad21684",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-5b-LINE切換課程循序圖-v1-0.png",
+      "sha256": "9581684284956446a7410972d5c4b3ab548df60364bd205b336092d4505deeb0",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-5c-LINE課程提問循序圖-v1-0.png",
+      "sha256": "e21ab7b91ac7db1d3963aff44c73ba6998544e54866a9e618be9d72561829291",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-6a-修改個人資料與頭像循序圖-v1-0.png",
+      "sha256": "9f0466ccd6f9f6ad17d47f6b86dc283eea0a4f9716a10d6e2e0a058c679ef622",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-6b-忘記密碼重設循序圖-v1-0.png",
+      "sha256": "25901af7fd76f7b2e60206932bd0d90aae40734a7b36df4978bb9dbda7746e9b",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-6c-站內通知讀取循序圖-v1-0.png",
+      "sha256": "cf1e1994aacc0171c145b2ad49f6f89c4ba429fa6d7a27ba915e14d36df8104c",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-7-學生短影音瀏覽循序圖-v4-1.png",
+      "sha256": "7d703504fc96da71f3f4a0663d95502fc8b6100849b8143fbb4609abd817eb62",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-8a-短影音證據凍結與腳本生成循序圖-v1-0.png",
+      "sha256": "1ea9ea20aaf22c583634c33577dcdf2df0fa4624faa7a08da509febae571d38e",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-8b-短影音腳本審核與成品上傳循序圖-v1-0.png",
+      "sha256": "b8909185eea6d36a5344c760c6323fe6807bb2a6ce27581095f8c984832097c9",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-8c-短影音成品審核循序圖-v1-0.png",
+      "sha256": "0d6259c1923d3f5e48feb90a9cf3abbd835b4b948bb72b25eb4b8aa9bf34fa85",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-9a-管理後台授權與使用者管理循序圖-v1-0.png",
+      "sha256": "1463678ee7fd6b6c32f397efe179a6089fdf3c19e458676cfba7ac2f72289233",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-1-9b-影片刪除名單與公告維運循序圖-v1-0.png",
+      "sha256": "4c2d0802d971fd0d8ac888637c5af45dd73def39fd60026aead9daaaddfaa3dc",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-1a-帳號課程與影片服務設計類別圖-v1-0.png",
+      "sha256": "b723963f1d0fb39bb6fb369fa2e7934c6bfe4e635cced7e6177f953e72c2e202",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-1b-帳號課程與影片資料設計類別圖-v1-1.png",
+      "sha256": "a9ae882eaefd18f45412153d422f39b6d2b75370f3f914ea16899d40d4a1f70b",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-2a-問答與對話服務設計類別圖-v1-0.png",
+      "sha256": "f62f8f0c129af016f1877a4089841e82ad83767f4141d259a6d0ac7402e21cdc",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-2b-問答與對話資料設計類別圖-v1-0.png",
+      "sha256": "8a5213ea24543435729df45415dbe7280753c4e8bd733511eb041522eec06256",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-3a-個人資料通知與短影音服務設計類別圖-v1-0.png",
+      "sha256": "d2893db4cd2dcb3f0f153862263d9dfa96ac0cc6232b6e1e308a8b868dd82161",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-3b-個人資料通知與短影音資料設計類別圖-v1-0.png",
+      "sha256": "72f00c24a14e89d7b9365a8491e0e3f2fe5f34ec199b5c7d59d9b295108d9d25",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖6-2-4-Web問答授權與引用設計物件圖-v4-0.png",
+      "sha256": "f211c151b0e7bffa4fae65b753691bb7c01aaeb3738355b5fda9615c4569b30c",
+      "chapter": 6
+    },
+    {
+      "source": "images\\圖7-1-1-正式環境佈署圖-v3-0.png",
+      "sha256": "24ac939f1a964a9a753d48067a139b78f6d6489f459968bc4c8a8b1713e9d139",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-1-前端套件圖-v3-1.png",
+      "sha256": "23130d10dd1852582b934ea50139cdfd9cb6b33e0b7e206892965f662c04ccf9",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-2-後端套件圖-v3-1.png",
+      "sha256": "463ecbfd9f4eada87563c226889eabb7460276fb79a4b50e8eb92301e0a318c6",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-3-AI-Pipeline套件圖-v3-1.png",
+      "sha256": "b53b8312e45cd2b2b56b9b8f15449782b9dc60c2993f43a6764c87c6d3395e5b",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-4-資料儲存套件圖-v3-1.png",
+      "sha256": "d40bec43adfe23788840c3a4bb364a8a591df51342aabb2f5e7c8371effb645e",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-5-LINE與QA套件圖-v3-0.png",
+      "sha256": "e65fd13915bd0fd583045a4803ac48a8f725960042644f149c62304cba3762a6",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-2-6-向量化與檢索流程圖-v1-0.png",
+      "sha256": "d4d79c49e67642cafa53be3b48c914149b6f4115a8d2f3595deed0d91f5885aa",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-3-1-系統元件圖-v3-0.png",
+      "sha256": "fbeaa4602703a9aa2b1831125d1f12e2357d080fb78c08e2ddcfd455f50055ef",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-1-登入Session狀態機圖-v3-1.png",
+      "sha256": "2391b2d9767da22b22576f558182300f3f5060f1ae88baf17ff4f07b1efb364d",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-2-影片批次狀態機圖-v3-0.png",
+      "sha256": "baf2cb17834d370a900fe23a0b6d7a5e2c984dd5635a3504c397020166782057",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-3-影片處理狀態機圖-v3-0.png",
+      "sha256": "a6a3aca738d24c38cc99fd09eed2c571e2a1b0d04cf83386da5b886c02775a8b",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-4-QA提問狀態機圖-v3-1.png",
+      "sha256": "17ee5e09344bb516f755bf5b0f61af277e089e1e7fd8171d1757d9a790f7f9c4",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-5-LINE對話範圍狀態機圖-v3-1.png",
+      "sha256": "3dba50ed87ae2852676b5b6c769ecdbe3bcb1a14804334f661c9894dcc37f64a",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-6-修課狀態機圖-v2-0.png",
+      "sha256": "6c26917f3d4f7c2a41899d26f4ed1cb2e3bda0da8d7a3134f27341cfe7979c6b",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-7-短影音腳本狀態機圖-v2-0.png",
+      "sha256": "188a48980df00cc8db2672682953771ff426a13427b4010c7f71c2681533ffcd",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-8-短影音成品狀態機圖-v2-0.png",
+      "sha256": "876a18dbb6e9bf4e90b9de6fa09bea703b8d0b2e6c10b44178c32c7d1902e3df",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖7-4-9-YouTube上傳狀態機圖-v2-0.png",
+      "sha256": "5c55e1ca3ae6f5f93e31dd54f4878867b5e83d07999e29cfa8e78d1123369019",
+      "chapter": 7
+    },
+    {
+      "source": "images\\圖8-1-1-MongoDB核心集合關聯圖-v4-1.png",
+      "sha256": "7eec0afbdc077942f2adcedb99628f09a6c6dc225964987866570e69fb1f5eab",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖8-1-2-帳號課程與問題回報集合關聯圖-v1-1.png",
+      "sha256": "7c67aaeea6e2497e25cb7480d650e55cdbac9c4999365519d96cfeb23017acf6",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖8-1-3-影片與知識片段集合關聯圖-v1-1.png",
+      "sha256": "114649c4dfd46cf95479bdb0cf0b0315b3d7284ecea2090799fc4ab396d5373f",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖8-1-4-問答對話與使用紀錄集合關聯圖-v1-1.png",
+      "sha256": "7cbe7d3266f9f7aa37da68e4e654c1a5d4759deee709ae0f81d76ef60cb4573c",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖8-1-5-通知與短影音集合關聯圖-v1-1.png",
+      "sha256": "3807cf1c47d71739ee3689c1dfcb725eea0de351f51c29a4e339ed3e67c94084",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖8-1-6-QA課程範圍橋接契約圖-v1-0.png",
+      "sha256": "97247f38b8d7f6d812162f0a7537b051829c856c146a39e9e5201dfefe2e85af",
+      "chapter": 8
+    },
+    {
+      "source": "images\\圖9-1-1-程式元件閱讀路徑圖-v3-0.png",
+      "sha256": "e10b3cd1cabe6eec76dcf5ccf39f93c13bf64a50c8bee98eba08201845ea6958",
+      "chapter": 9
+    },
+    {
+      "source": "images\\圖10-1-1-測試層級與正式驗收邊界圖-v1-0.png",
+      "sha256": "4ed7946e7eb18a3b1546ed33f0e35a7adbd0cfb7e15a0cec12317ee24d9d0df3",
+      "chapter": 10
+    },
+    {
+      "source": "images\\圖12-1-1-系統入口與共用功能畫面移轉圖-v1-0.png",
+      "sha256": "9e3dd4f9d3f1b02be4bf0c53a3f98e16b6b9eb2e5327d33d788afb832d52c92c",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-1-2-學生端畫面移轉圖-v1-0.png",
+      "sha256": "f78627728a368b26350a2a1666d72a92cc28e0bbb588ad0e243369804548bc43",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-1-3-教師端課程與影片畫面移轉圖-v1-0.png",
+      "sha256": "4602bcb03ffb0a1b8f8b7275229b3d9780a1956e24c151e200acc5314498d2a8",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-1-4-教師端短影片畫面移轉圖-v1-0.png",
+      "sha256": "c28d72f8accc25e2c5ad2cb04ff59a5073d24ad1e5c6d9053aac52545c792ff5",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-1-5-管理員端帳號與課程畫面移轉圖-v1-0.png",
+      "sha256": "8ee9f396106dade705bb8b03f5f4be36cd4bbaf8a899292ae6509e5d6941c004",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-1-6-管理員端影片回報與統計畫面移轉圖-v1-0.png",
+      "sha256": "57837d62cc9050b93338fee87fcec6e748e80f06509cf64e30fa6afe85abf30e",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-2-1-學生註冊畫面-v1-0.png",
+      "sha256": "0a9a9386505fa9c7e9028db818211b5407d3583b9b025eba8893ce4f6e63c70c",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-2-2-學生與教師登入畫面-v1-0.png",
+      "sha256": "e85e3434b004a4dea37b7a392bd3f99f54b7a2dad4991d3dc4ad14f00f3df1c4",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-2-3-管理員登入畫面-v1-0.png",
+      "sha256": "bc88b06bc516d4e4974e27a4b1f326a0ea9818d9e5257101810ef2bbdd03b210",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-2-4-共用功能位置-v1-0.png",
+      "sha256": "c7c1e0f6d330f4115f5d5aa09cf03bf62854604f7abe09e51db5ceffcf0db482",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-1-學生總覽-v1-0.png",
+      "sha256": "1e47f21e2d3f9f5e611472110111c028a0a1d7e218210f8c1b2307f620c94dc9",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-2-我的課程清單-v1-0.png",
+      "sha256": "076858cfbbf7e94a986defea6d2a21ec6b686c91551ec167163fd2ad34ab38f3",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-3-課程影片與AI問答區-v1-0.png",
+      "sha256": "3a96e2bd418aa75b980a6bada1734ee8eec0bb7256b379ef3d9294987c6e69f6",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-4-輸入問題與等待回答-v1-0.png",
+      "sha256": "662a7f90d4ec083af0f39f5f3a0142c554ad7bda95b60ab3ddefe9f9fc42f055",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-5-AI回答與參考片段-v1-0.png",
+      "sha256": "83a766ef3288bf3064aed0d2f176478d70cb2a37b7e8b6f4575f95b9e8ac77df",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-6-點選片段跳轉影片-v1-0.png",
+      "sha256": "5bcc1b08796ee3ff0e00c9d435f18af4afe3e6459dd4b242e6d83ba4638d8bad",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-7-多輪問答與最近對話-v1-0.png",
+      "sha256": "e4ac4dd545ae5df821d5d1cde2bc7ed8b3dd4bb9442db9f7e504cb23beb27533",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-8-LINE綁定指引-v1-0.png",
+      "sha256": "f4b148a93f7b64883c5b72a606066ac650baf8d61122b6310dbaf610f7bc771a",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-9-LINE綁定成功-v1-0.png",
+      "sha256": "41ef9855fb8b8fce69f65787470e76fdc861609f02460af3134fac491fa9278b",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-10-詢問助教與LINE提問-v1-0.png",
+      "sha256": "bf2ca59cbc24cd4bc9251293b309d4a290604c41ab83e20f9ece21be2dcc1770",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-11-教學短片牆-v1-0.png",
+      "sha256": "e21b039d701170c2f09e3ac0a7ade05bd4534e84897b7c2d7163e696c06546fa",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-3-12-教學短片播放-v1-0.png",
+      "sha256": "d884ee86fa711d118569b754a00f7150d621feb11b376660430e8b4cb4670041",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-1-教師總覽-v1-0.png",
+      "sha256": "893be414f7d614c59ec49b339ac535a49bbc825978f42d4ea60f9887db08e5ad",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-2-課程列表-v1-0.png",
+      "sha256": "024af8ee0b24dede2dc05eee2040e5a6f6e1e9e925058f4bca64661edecdd79a",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-3-展開課程影片-v1-0.png",
+      "sha256": "8013fc0295a70ea5e57f7fe8218608ea56379024d4a5f35c8f58f63780fe6eb8",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-4-修課學生管理-v1-0.png",
+      "sha256": "4fc5cabadee4b67d5d1be6d9e53553fb0eb09b3600dd6819e72a5c2301e6500b",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-5-刪除課程確認-v1-0.png",
+      "sha256": "5c7849bf4eaacc46e6783cc5947ceecaaa671b3f640151935f650324a34b556d",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-6-上傳影片-v1-0.png",
+      "sha256": "e2cb87c391bf8595d8ac3aba180ed52a761385d88706dd95d26355944b0df2bb",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-7-短影片腳本內容-v1-0.png",
+      "sha256": "201547515d3765d72b3eb2951e7a54e28726f4536bbfe0db338734276d3450dd",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-8-建立新腳本-v1-0.png",
+      "sha256": "68ac00b9848b87ec211662a77dd54672199e0130bbae7a6983f363b116e43c32",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-9-成品上傳-v1-0.png",
+      "sha256": "88bcbec99b7aaa73eb776d607f2de0f74d40548d780c007e0b32bc93930a488b",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-10-成品送審結果-v1-0.png",
+      "sha256": "d23e5b4a438829d999b702d173a08a5d49ddf35819f480f8abe8799910d00f3b",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-11-選擇待審短影片-v1-0.png",
+      "sha256": "55610f184d4c6e99d789b735e916e610b8b9a36fe1ab629ce73473a7391e50e6",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-12-審核決定-v1-0.png",
+      "sha256": "05db621a66226d52d1dbb17f643ad5cacb357873a6a4cd77159c16f7b9b61cd9",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-13-不通過理由-v1-0.png",
+      "sha256": "0e85d56477086cce5d2e3e5393fd95ad7ed4c2fe0d6b81085da02ae4d43d7321",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-4-14-確認送出審核-v1-0.png",
+      "sha256": "52b55f68585e72f7da736192b3c6f7ecf670b941cc82166ebb1a73f2e971c96c",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-1-系統總覽-v1-0.png",
+      "sha256": "46847497d73496ebab076c9e7abd4bcd99b4f7895efbd17e804cde8b15e066f1",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-2-使用者管理-v1-0.png",
+      "sha256": "da67cf3442b6bcfd2249215ad27222cdb56336a47b69de5e6aa01572b0acae82",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-3-課程管理-v1-0.png",
+      "sha256": "799368fce5feae55fc2af16508c1ff2837c8ba96c854aee71e8cb434d788d64c",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-4-編輯課程-v1-0.png",
+      "sha256": "4aaf3b5b620ee1c68170fdff6d44d185767409d7572a5354c8cae7edc2370347",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-5-影片管理-v1-0.png",
+      "sha256": "a83743e39ccab8be7c90385885b0a4dc85fad19d6faad5a37cf2b6457a622bd8",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-6-問題回報-v1-0.png",
+      "sha256": "297ba5e2a784700cd7155e3642a8c6017e49024f23ddfe233f68f88578e88292",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖12-5-7-使用統計-v1-0.png",
+      "sha256": "473debaf2058e7598dd019eaf4e7a64f26fd422339b6fc9e6c29f6193393ee52",
+      "chapter": 12
+    },
+    {
+      "source": "images\\圖15-2-1-問卷受訪者身分.png",
+      "sha256": "7da696133c5369f7bdc5da0642143dbf833d2bc3f06b4a00b659beef75051898",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-2-觀看課程影片目的.png",
+      "sha256": "fd2b78c666c31b4295f749528c6239d857363cb46c8e55ad79fbfd6eb33a7f22",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-3-找不到課程片段經驗.png",
+      "sha256": "d6eb217d28ce25c3b0c2050d823017a155563f2a9550f70387067a5c1005ae96",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-4-搜尋課程片段耗時.png",
+      "sha256": "968c9dcddfed0402907a80ce678f5087b17431947136e233c0beec029a136139",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-5-無法即時提問造成學習中斷.png",
+      "sha256": "5bfbfb5ec57c31f5fc09994eadba2a571f843bfcb2557d22bbbd4a8b78f665b1",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-6-課程問答系統使用意願.png",
+      "sha256": "fd30ab4a1e2f37a139cea1577a4f26ab07365070475ff718469d2f212ce64075",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-7-課程問答系統期望功能.png",
+      "sha256": "58fdfcf7c180aa4194518bfc4067e617a27d4f2ff6b58c118d70d9f67de42799",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-8-課程問答系統重要功能.png",
+      "sha256": "3067b165fd589d46a88299dd387ff4efc021d7e73ec655712460d595a2c737ab",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-2-9-課程問答系統預期成效.png",
+      "sha256": "1a8213a8fcb8c81ffc5457e5058c839481749b1131869f980fcc5531744b4317",
+      "chapter": 15
+    },
+    {
+      "source": "images\\圖15-3-1-專題發表證明.jpg",
+      "sha256": "5c85f79993faf708fcfca0cf711145b079831518f83baa302c4fa56f21c1f87a",
+      "chapter": 15
+    }
+  ],
+  "table_counts": [
+    {
+      "chapter": 1,
+      "tables": 2
+    },
+    {
+      "chapter": 2,
+      "tables": 11
+    },
+    {
+      "chapter": 3,
+      "tables": 4
+    },
+    {
+      "chapter": 4,
+      "tables": 3
+    },
+    {
+      "chapter": 5,
+      "tables": 36
+    },
+    {
+      "chapter": 6,
+      "tables": 36
+    },
+    {
+      "chapter": 7,
+      "tables": 10
+    },
+    {
+      "chapter": 8,
+      "tables": 36
+    },
+    {
+      "chapter": 9,
+      "tables": 41
+    },
+    {
+      "chapter": 10,
+      "tables": 5
+    },
+    {
+      "chapter": 11,
+      "tables": 4
+    },
+    {
+      "chapter": 12,
+      "tables": 0
+    },
+    {
+      "chapter": 13,
+      "tables": 1
+    },
+    {
+      "chapter": 14,
+      "tables": 1
+    },
+    {
+      "chapter": 15,
+      "tables": 15
+    }
+  ],
+  "changes": [
+    "表4-2-1依母稿產生，類別欄依官方分工表範本垂直合併",
+    "第14章補入README已存在但章內未同步的AI紀錄，共8筆",
+    "附錄評審意見表按官方兩欄格式合併既有欄位，保留全部原文與確認狀態"
+  ],
+  "output": "output\\四技第115413組-FocusFlow AI-系統手冊_1013複評全冊整合稿.docx",
+  "missing_personal_reflections": true,
+  "source_prose_rewritten": false
+}

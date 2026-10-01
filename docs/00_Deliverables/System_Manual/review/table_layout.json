@@ -1,0 +1,1339 @@
+[
+ {
+  "chapter": 1,
+  "caption": "表1-3-1　現有學習工具與 FocusFlow 功能比較表",
+  "rows": 13,
+  "est_pt": 480,
+  "keep_together": false
+ },
+ {
+  "chapter": 1,
+  "caption": "表1-3-2　FocusFlow 與現有線上學習平台的課程 AI 問答比較",
+  "rows": 9,
+  "est_pt": 721,
+  "keep_together": false
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-1　FocusFlow 核心功能與技術對應表",
+  "rows": 13,
+  "est_pt": 582,
+  "keep_together": false
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-2　主要營運成本與控制機制",
+  "rows": 6,
+  "est_pt": 321,
+  "keep_together": false
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-3　一學期成本估算（三種使用情境）",
+  "rows": 4,
+  "est_pt": 220,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-4　MongoDB Atlas 方案與一學期費用估算",
+  "rows": 4,
+  "est_pt": 237,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-5　一學期維運人力估算",
+  "rows": 6,
+  "est_pt": 253,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-1-6　每位學生每學期的損益平衡試算（含維運人力與 Atlas Flex）",
+  "rows": 4,
+  "est_pt": 220,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-2-1　商業模式－Business model",
+  "rows": 10,
+  "est_pt": 422,
+  "keep_together": false
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-2-2　推廣階段規劃",
+  "rows": 4,
+  "est_pt": 186,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-2-3　補習班與函授業者合作方案（規劃）",
+  "rows": 4,
+  "est_pt": 254,
+  "keep_together": true
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-4-1　SWOT 分析表",
+  "rows": 5,
+  "est_pt": 843,
+  "keep_together": false
+ },
+ {
+  "chapter": 2,
+  "caption": "表2-4-2　TOWS 交叉策略分析表",
+  "rows": 3,
+  "est_pt": 588,
+  "keep_together": false
+ },
+ {
+  "chapter": 3,
+  "caption": "表3-2-1　系統技術平台選型",
+  "rows": 17,
+  "est_pt": 819,
+  "keep_together": false
+ },
+ {
+  "chapter": 3,
+  "caption": "表3-2-2　使用者端硬體需求",
+  "rows": 9,
+  "est_pt": 328,
+  "keep_together": false
+ },
+ {
+  "chapter": 3,
+  "caption": "表3-2-3　伺服器端環境配置",
+  "rows": 12,
+  "est_pt": 421,
+  "keep_together": false
+ },
+ {
+  "chapter": 3,
+  "caption": "表3-3-1　開發工具與環境",
+  "rows": 21,
+  "est_pt": 766,
+  "keep_together": false
+ },
+ {
+  "chapter": 4,
+  "caption": "表4-1-1　6 月起各月份工作重點",
+  "rows": 6,
+  "est_pt": 390,
+  "keep_together": false
+ },
+ {
+  "chapter": 4,
+  "caption": "表4-2-1　專案組織與分工表",
+  "rows": 133,
+  "est_pt": 4651,
+  "keep_together": false
+ },
+ {
+  "chapter": 4,
+  "caption": "表4-2-2　組員工作內容與貢獻度",
+  "rows": 6,
+  "est_pt": 424,
+  "keep_together": false
+ },
+ {
+  "chapter": 4,
+  "caption": "表4-3-1　GitHub 提交紀錄統計",
+  "rows": 6,
+  "est_pt": 150,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-1-1　功能性需求表",
+  "rows": 24,
+  "est_pt": 2037,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-1-2　非功能性需求表",
+  "rows": 13,
+  "est_pt": 821,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-1-3　使用個案與需求追溯表",
+  "rows": 10,
+  "est_pt": 422,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-2-1　行為者與系統邊界",
+  "rows": 5,
+  "est_pt": 245,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-2-2　使用個案清單",
+  "rows": 10,
+  "est_pt": 456,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-1　UC-01 註冊與登入",
+  "rows": 6,
+  "est_pt": 185,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 7,
+  "est_pt": 227,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 6,
+  "est_pt": 253,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-2　UC-02 教師管理課程與修課名單",
+  "rows": 6,
+  "est_pt": 185,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 8,
+  "est_pt": 303,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 6,
+  "est_pt": 236,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-3　UC-03 教師加入影片並追蹤處理",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 8,
+  "est_pt": 303,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 8,
+  "est_pt": 320,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-4　UC-04 學生在網頁觀看與提問",
+  "rows": 6,
+  "est_pt": 202,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 8,
+  "est_pt": 286,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-5　UC-05 學生綁定 LINE 並提問",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 9,
+  "est_pt": 345,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 10,
+  "est_pt": 405,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-6　UC-06 使用者維護個人資料與通知",
+  "rows": 6,
+  "est_pt": 185,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 7,
+  "est_pt": 244,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 4,
+  "est_pt": 134,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-7　UC-07 學生查看短影音",
+  "rows": 6,
+  "est_pt": 168,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 5,
+  "est_pt": 177,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 4,
+  "est_pt": 169,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-8　UC-08 教師產生腳本並提交短影音成品",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 8,
+  "est_pt": 320,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 10,
+  "est_pt": 405,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-3-9　UC-09 管理員維運系統",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 7,
+  "est_pt": 244,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "",
+  "rows": 5,
+  "est_pt": 177,
+  "keep_together": true
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-4-1　主要分析類別",
+  "rows": 7,
+  "est_pt": 381,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-4-2　主要關聯與多重性說明",
+  "rows": 11,
+  "est_pt": 532,
+  "keep_together": false
+ },
+ {
+  "chapter": 5,
+  "caption": "表5-4-3　分析類別與設計類別的差異",
+  "rows": 5,
+  "est_pt": 211,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-1　循序圖參與者與責任",
+  "rows": 6,
+  "est_pt": 321,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-2　循序圖與使用個案對照",
+  "rows": 10,
+  "est_pt": 644,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-3　圖6-1-1a 步驟對照",
+  "rows": 7,
+  "est_pt": 261,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-4　圖6-1-1b 步驟對照",
+  "rows": 8,
+  "est_pt": 303,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-5　圖6-1-2a 步驟對照",
+  "rows": 7,
+  "est_pt": 210,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-6　圖6-1-2b 步驟對照",
+  "rows": 9,
+  "est_pt": 362,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-7　圖6-1-3a 步驟對照",
+  "rows": 8,
+  "est_pt": 371,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-8　圖6-1-3b 步驟對照",
+  "rows": 7,
+  "est_pt": 312,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-9　圖6-1-4a 步驟對照",
+  "rows": 5,
+  "est_pt": 177,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-10　圖6-1-4b 步驟對照",
+  "rows": 6,
+  "est_pt": 270,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-11　圖6-1-4c 步驟對照",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-12　圖6-1-5a 步驟對照",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-13　圖6-1-5b 步驟對照",
+  "rows": 7,
+  "est_pt": 244,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-14　圖6-1-5c 步驟對照",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-15　圖6-1-6a 步驟對照",
+  "rows": 8,
+  "est_pt": 320,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-16　圖6-1-6b 步驟對照",
+  "rows": 8,
+  "est_pt": 303,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-17　圖6-1-6c 步驟對照",
+  "rows": 5,
+  "est_pt": 194,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-18　圖6-1-7 步驟對照",
+  "rows": 7,
+  "est_pt": 278,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-19　圖6-1-8a 步驟對照",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-20　圖6-1-8b 步驟對照",
+  "rows": 8,
+  "est_pt": 320,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-21　圖6-1-8c 步驟對照",
+  "rows": 5,
+  "est_pt": 211,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-22　圖6-1-9a 步驟對照",
+  "rows": 6,
+  "est_pt": 219,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-1-23　圖6-1-9b 步驟對照",
+  "rows": 7,
+  "est_pt": 261,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-1　分析責任到設計類別的落實",
+  "rows": 13,
+  "est_pt": 531,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-2　圖6-2-1a 圖上位置對照",
+  "rows": 4,
+  "est_pt": 186,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-3　圖6-2-1a 服務與使用的資料類別",
+  "rows": 6,
+  "est_pt": 150,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-4　圖6-2-1b 圖上關聯對照",
+  "rows": 7,
+  "est_pt": 329,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-5　圖6-2-1b 實體與負責操作它的服務方法",
+  "rows": 6,
+  "est_pt": 612,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-6　圖6-2-2a 圖上位置對照",
+  "rows": 6,
+  "est_pt": 253,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-7　圖6-2-2a 服務與使用的資料類別",
+  "rows": 5,
+  "est_pt": 142,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-8　圖6-2-2b 圖上關聯對照",
+  "rows": 5,
+  "est_pt": 211,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-9　圖6-2-2b 實體與負責操作它的服務方法",
+  "rows": 8,
+  "est_pt": 491,
+  "keep_together": false
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-10　圖6-2-3a 圖上位置對照",
+  "rows": 6,
+  "est_pt": 253,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-11　圖6-2-3a 服務與使用的資料類別",
+  "rows": 6,
+  "est_pt": 150,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-12　圖6-2-3b 圖上關聯對照",
+  "rows": 4,
+  "est_pt": 134,
+  "keep_together": true
+ },
+ {
+  "chapter": 6,
+  "caption": "表6-2-13　圖6-2-3b 實體與負責操作它的服務方法",
+  "rows": 5,
+  "est_pt": 416,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-1-1　部署層級、用途與驗收邊界",
+  "rows": 5,
+  "est_pt": 433,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-1　主要套件與其在 FocusFlow 中的用途",
+  "rows": 12,
+  "est_pt": 608,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-2　向量化與檢索各步驟",
+  "rows": 11,
+  "est_pt": 669,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-3　AI Pipeline 主要參數",
+  "rows": 11,
+  "est_pt": 361,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-4　資料庫中的影片片段統計（2026 年 9 月）",
+  "rows": 5,
+  "est_pt": 177,
+  "keep_together": true
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-5　檢索與回答參數調整紀錄",
+  "rows": 9,
+  "est_pt": 653,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-6　相似度排序實例（AI入門基礎課）",
+  "rows": 8,
+  "est_pt": 337,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-2-7　各類向量的實作現況",
+  "rows": 4,
+  "est_pt": 237,
+  "keep_together": true
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-3-1　主要元件責任與邊界",
+  "rows": 8,
+  "est_pt": 611,
+  "keep_together": false
+ },
+ {
+  "chapter": 7,
+  "caption": "表7-4-1　主要狀態、事件與實作約束",
+  "rows": 11,
+  "est_pt": 703,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-1　圖8-1-1 分組連線說明",
+  "rows": 10,
+  "est_pt": 627,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-2　圖8-1-2 連線說明：參照、基數與限制",
+  "rows": 12,
+  "est_pt": 916,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-3　圖8-1-3 連線說明：參照、基數與限制",
+  "rows": 14,
+  "est_pt": 932,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-4　圖8-1-4 連線說明：參照、基數與限制",
+  "rows": 14,
+  "est_pt": 846,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-5　圖8-1-5 連線說明：參照、基數與限制",
+  "rows": 13,
+  "est_pt": 873,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-6　schema 層宣告的限制種類與使用位置",
+  "rows": 13,
+  "est_pt": 616,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-1-7　影片與片段識別鍵對照",
+  "rows": 9,
+  "est_pt": 516,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-1　綱要與命名規則",
+  "rows": 7,
+  "est_pt": 466,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-2　集合總覽",
+  "rows": 22,
+  "est_pt": 1218,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-3　`users` 欄位 Meta data",
+  "rows": 24,
+  "est_pt": 1217,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-4　`avatars` 欄位 Meta data",
+  "rows": 10,
+  "est_pt": 405,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-5　`courses` 欄位 Meta data",
+  "rows": 12,
+  "est_pt": 574,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-6　`enrollments` 欄位 Meta data",
+  "rows": 16,
+  "est_pt": 828,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-7　`videos` 欄位 Meta data",
+  "rows": 43,
+  "est_pt": 2291,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-8　`videobatches` 欄位 Meta data",
+  "rows": 19,
+  "est_pt": 1108,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-9　`video_segments_text` 欄位 Meta data",
+  "rows": 24,
+  "est_pt": 1439,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-10　`video_segments_parent` 欄位 Meta data",
+  "rows": 33,
+  "est_pt": 2023,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-11　`video_segments_video` 欄位 Meta data",
+  "rows": 11,
+  "est_pt": 600,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-12　`questions` 欄位 Meta data",
+  "rows": 25,
+  "est_pt": 1396,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-13　`usage_logs` 欄位 Meta data",
+  "rows": 12,
+  "est_pt": 557,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-14　`faqs` 欄位 Meta data",
+  "rows": 16,
+  "est_pt": 794,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-15　`line_bind_tokens` 欄位 Meta data",
+  "rows": 9,
+  "est_pt": 465,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-16　`notifications` 欄位 Meta data",
+  "rows": 17,
+  "est_pt": 922,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-17　`clips` 欄位 Meta data",
+  "rows": 12,
+  "est_pt": 574,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-18　`conversations` 欄位 Meta data",
+  "rows": 9,
+  "est_pt": 516,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-19　`messages` 欄位 Meta data",
+  "rows": 24,
+  "est_pt": 1388,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-20　`shortscripts` 欄位 Meta data",
+  "rows": 37,
+  "est_pt": 2004,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-21　`shortassets` 欄位 Meta data",
+  "rows": 47,
+  "est_pt": 2665,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-22　`feedbacks` 欄位 Meta data",
+  "rows": 20,
+  "est_pt": 1134,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-23　`feedbackattachments` 欄位 Meta data",
+  "rows": 11,
+  "est_pt": 515,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-24　schema 宣告的一般索引總表",
+  "rows": 46,
+  "est_pt": 2008,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-25　向量檢索索引契約",
+  "rows": 4,
+  "est_pt": 527,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-26　集合與索引的建立途徑",
+  "rows": 7,
+  "est_pt": 585,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-27　`database/tools/setup/init_indexes.js` 與 Mongoose schema 的索引差異",
+  "rows": 6,
+  "est_pt": 390,
+  "keep_together": false
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-28　AI Pipeline 與匯入工具的集合／產物邊界",
+  "rows": 6,
+  "est_pt": 287,
+  "keep_together": true
+ },
+ {
+  "chapter": 8,
+  "caption": "表8-2-29　Atlas 唯讀實查結果",
+  "rows": 9,
+  "est_pt": 619,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-1　程式元件統計與清單索引",
+  "rows": 13,
+  "est_pt": 446,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-2　元件編號代碼",
+  "rows": 7,
+  "est_pt": 261,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-3　Backend 路由（backend/src/routes/）",
+  "rows": 17,
+  "est_pt": 922,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-4　Backend 控制器（backend/src/controllers/）",
+  "rows": 16,
+  "est_pt": 726,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-5　Backend 服務（backend/src/services/）",
+  "rows": 61,
+  "est_pt": 3050,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-6　Backend 資料模型（backend/src/models/）",
+  "rows": 22,
+  "est_pt": 996,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-7　Backend 中介層（backend/src/middleware/）",
+  "rows": 11,
+  "est_pt": 498,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-8　Backend 入口、設定與共用工具",
+  "rows": 18,
+  "est_pt": 810,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-9　Frontend 入口與共用元件",
+  "rows": 21,
+  "est_pt": 971,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-10　Frontend 角色頁面與頁面工具（src/pages/）",
+  "rows": 19,
+  "est_pt": 852,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-11　Frontend 服務、工具與共用 hooks",
+  "rows": 13,
+  "est_pt": 582,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-12　AI Pipeline 元件（STT_Whisper/src/）",
+  "rows": 32,
+  "est_pt": 1400,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-13　代表性元件與使用個案對照",
+  "rows": 15,
+  "est_pt": 649,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-14　元件規格－認證與角色授權 middleware",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-15　元件規格－登入服務",
+  "rows": 7,
+  "est_pt": 329,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-16　元件規格－前端工作階段還原",
+  "rows": 7,
+  "est_pt": 312,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-17　元件規格－課程存取與修課名單服務",
+  "rows": 7,
+  "est_pt": 346,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-18　元件規格－多影片批次服務",
+  "rows": 7,
+  "est_pt": 415,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-19　元件規格－影片處理狀態機",
+  "rows": 7,
+  "est_pt": 381,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-20　元件規格－Pipeline 單支入口",
+  "rows": 7,
+  "est_pt": 398,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-21　元件規格－網頁對話服務",
+  "rows": 7,
+  "est_pt": 381,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-22　元件規格－問答主流程",
+  "rows": 7,
+  "est_pt": 415,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-23　元件規格－LINE Webhook 與對話服務",
+  "rows": 7,
+  "est_pt": 363,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-24　元件規格－通知服務",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-25　元件規格－學生短影音牆",
+  "rows": 7,
+  "est_pt": 295,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-26　元件規格－短影音腳本服務",
+  "rows": 7,
+  "est_pt": 398,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-27　元件規格－管理員維運與系統狀態",
+  "rows": 7,
+  "est_pt": 346,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-28　部分程式碼－backend/src/services/courseAccess.service.js",
+  "rows": 2,
+  "est_pt": 67,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-29　部分程式碼－frontend/focus-flow/src/authSession.js",
+  "rows": 2,
+  "est_pt": 67,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-30　部分程式碼－backend/src/services/videoProcessing.service.js",
+  "rows": 2,
+  "est_pt": 84,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-31　部分程式碼－backend/src/services/videoBatch.service.js",
+  "rows": 2,
+  "est_pt": 67,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-32　部分程式碼－backend/src/services/qa.service.js",
+  "rows": 2,
+  "est_pt": 84,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-33　部分程式碼－STT_Whisper/src/main.py",
+  "rows": 2,
+  "est_pt": 67,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-1-34　部分程式碼－backend/src/utils/vectorSimilarity.js",
+  "rows": 2,
+  "est_pt": 153,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-1　技術性保護元件",
+  "rows": 9,
+  "est_pt": 653,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-2　Backend 維運與資料工具程式",
+  "rows": 15,
+  "est_pt": 735,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-3　資料庫區域工具（database/tools/）",
+  "rows": 4,
+  "est_pt": 254,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-4　Backend 相依套件（dependencies）",
+  "rows": 13,
+  "est_pt": 360,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-5　Frontend 相依套件（dependencies）",
+  "rows": 6,
+  "est_pt": 150,
+  "keep_together": true
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-6　AI Pipeline 相依套件（requirements.txt）",
+  "rows": 11,
+  "est_pt": 327,
+  "keep_together": false
+ },
+ {
+  "chapter": 9,
+  "caption": "表9-2-7　開發與建置工具（devDependencies）",
+  "rows": 8,
+  "est_pt": 252,
+  "keep_together": true
+ },
+ {
+  "chapter": 10,
+  "caption": "表10-1-1　測試層級與證據邊界",
+  "rows": 7,
+  "est_pt": 483,
+  "keep_together": false
+ },
+ {
+  "chapter": 10,
+  "caption": "表10-1-2　需求群組與測試追溯",
+  "rows": 8,
+  "est_pt": 645,
+  "keep_together": false
+ },
+ {
+  "chapter": 10,
+  "caption": "表10-2-1　代表性測試案例、實際結果與判定",
+  "rows": 5,
+  "est_pt": 621,
+  "keep_together": false
+ },
+ {
+  "chapter": 10,
+  "caption": "表10-2-2　已保存的測試與部署證據",
+  "rows": 8,
+  "est_pt": 457,
+  "keep_together": false
+ },
+ {
+  "chapter": 10,
+  "caption": "表10-2-3　本機自動化測試結果（2026-09-19）",
+  "rows": 6,
+  "est_pt": 424,
+  "keep_together": false
+ },
+ {
+  "chapter": 11,
+  "caption": "表11-1-1　系統元件與基本執行條件",
+  "rows": 6,
+  "est_pt": 321,
+  "keep_together": false
+ },
+ {
+  "chapter": 11,
+  "caption": "表11-1-2　設定分類與維運判讀",
+  "rows": 8,
+  "est_pt": 406,
+  "keep_together": false
+ },
+ {
+  "chapter": 11,
+  "caption": "表11-2-1　常見症狀、安全檢查與處理",
+  "rows": 7,
+  "est_pt": 363,
+  "keep_together": false
+ },
+ {
+  "chapter": 11,
+  "caption": "表11-2-2　例行維運清單",
+  "rows": 6,
+  "est_pt": 253,
+  "keep_together": true
+ },
+ {
+  "chapter": 14,
+  "caption": "表14-5-1　AI 工具使用紀錄",
+  "rows": 20,
+  "est_pt": 3081,
+  "keep_together": false
+ },
+ {
+  "chapter": 15,
+  "caption": "附表4-1　評審意見修正追蹤",
+  "rows": 11,
+  "est_pt": 1454,
+  "keep_together": false
+ }
+]

@@ -1,4 +1,4 @@
-# Refresh TOC / figure / table indexes and page numbers with Microsoft Word, then export PDF.
+﻿# Refresh TOC / figure / table indexes and page numbers with Microsoft Word, then export PDF.
 # Used after assemble_review_manual.py.
 #
 # Word only ever saves the working copy in place (Documents.Open + Save). On 2026-09-30
@@ -10,7 +10,8 @@ param(
     [Parameter(Mandatory)] [string] $Source,
     [Parameter(Mandatory)] [string] $OutDocx,
     [Parameter(Mandatory)] [string] $OutPdf,
-    [int] $PdfTimeoutSec = 600
+    [int] $PdfTimeoutSec = 600,
+    [string] $PagesJson = ''
 )
 $ErrorActionPreference = 'Stop'
 $Source = (Resolve-Path $Source).Path
@@ -38,6 +39,24 @@ try {
     $writer.Close()
 } finally {
     $zip.Dispose()
+}
+
+function Get-ChapterPages($doc) {
+    # Chapter start pages come from the level-1 TOC entries; a chapter ends on the page before the next one starts.
+    $starts = @{}
+    foreach ($line in ($doc.TablesOfContents.Item(1).Range.Text -split "`r")) {
+        if ($line -match '^第(\d+)章[^\t]*\t(\d+)\s*$') { $starts[[int]$Matches[1]] = [int]$Matches[2] }
+        elseif ($line -match '^附錄\t(\d+)\s*$') { $starts[15] = [int]$Matches[1] }
+    }
+    $last = $doc.Content.Information(1)
+    $result = [ordered]@{}
+    $keys = $starts.Keys | Sort-Object
+    for ($i = 0; $i -lt $keys.Count; $i++) {
+        $n = $keys[$i]
+        $end = if ($i + 1 -lt $keys.Count) { $starts[$keys[$i + 1]] - 1 } else { $last }
+        $result["$n"] = @($starts[$n], $end)
+    }
+    return $result
 }
 
 function Update-Indexes($doc) {
@@ -73,6 +92,11 @@ try {
     try {
         Write-Output 'round 2: reopened'
         $pages = Update-Indexes $doc
+        if ($PagesJson) {
+            $chapterPages = Get-ChapterPages $doc
+            [IO.File]::WriteAllText([IO.Path]::GetFullPath($PagesJson), ($chapterPages | ConvertTo-Json -Compress), (New-Object Text.UTF8Encoding $false))
+            Write-Output ('chapter pages: ' + ($chapterPages | ConvertTo-Json -Compress))
+        }
         $doc.Save()
         Write-Output ("round 2 pages: $pages (saved)")
     } finally {

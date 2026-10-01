@@ -10,72 +10,72 @@
     {
       "chapter": 2,
       "source": "chapters\\02_營運計畫.md",
-      "sha256": "28c2cd38a84904d8ca88cc3c01935735b49f80ec7e2f3c2f601eb5276661370d"
+      "sha256": "7e4fd17252f8755a364e711ced5082f0475b53d09ffda26192609f3cb5fec735"
     },
     {
       "chapter": 3,
       "source": "chapters\\03_系統規格.md",
-      "sha256": "bad185a72929cd42ef8561b6a0cc1faeebb32fdf6ccbf58fd05415187eb1af28"
+      "sha256": "eb8d9e0faff8aedbe3ecd82c880078d8d9e9055a95b647ab0d4e2dd7f716fe59"
     },
     {
       "chapter": 4,
       "source": "chapters\\04_專案時程與組織分工.md",
-      "sha256": "02b46e1aa5c34a4f44c6eb6b8126977892f053e41f1bfc2e28a3074dbb2eb115"
+      "sha256": "bc8c84b500a2702658e49a609031b59b85b4f2c285dea4e9a4bc4b6def471564"
     },
     {
       "chapter": 5,
       "source": "chapters\\05_需求模型.md",
-      "sha256": "dc0d59c53fb853baf34b53a9cc697ee06a904588206758e9cde4e88debb4d523"
+      "sha256": "652c446b82e81b2876af2306f7aeda2c84659c712e657dc47ee908f20b41cde2"
     },
     {
       "chapter": 6,
       "source": "chapters\\06_設計模型.md",
-      "sha256": "9e0ec60cf3ea090ad16d2b0c45f73b6900899b3a8e83fce9ae1e0017b55ab1c7"
+      "sha256": "cafb652bd3af59c00ec22cd58351f5c69b08c8578ee07b31ab70a39f197796c0"
     },
     {
       "chapter": 7,
       "source": "chapters\\07_實作模型.md",
-      "sha256": "24bb9cabedf88ca534a2231c83abd2f7ec5539127b5137b777be69eed1c51ccf"
+      "sha256": "ea49fd32222db2bd6d4c1660419ec840eb06f3d9f66799808909d9087ea0363d"
     },
     {
       "chapter": 8,
       "source": "chapters\\08_資料庫設計.md",
-      "sha256": "7636a48214c8f7eb0ae130d55be3f5771c10b87a2da908a47b8d2b4ff1fddfa8"
+      "sha256": "6696dee310fbeaf5ccdd8f66eda895595400c6abd635d9d37bf2305cb450bd0a"
     },
     {
       "chapter": 9,
       "source": "chapters\\09_程式.md",
-      "sha256": "cdb7c2ef61007f457ef7a7caab0cb9a318d5eda8368cf28d1b7a40d3d3c62f83"
+      "sha256": "915019e3e0f6e32619f9e9b2e1fa0bc6e5e18ce08d6c9cc3fd29b2a1f6991c45"
     },
     {
       "chapter": 10,
       "source": "chapters\\10_測試模型.md",
-      "sha256": "d6dd23a93fda5fd17a4cdc176e153bcd9faea0648f105a6044fa185b6211c423"
+      "sha256": "4b39270a9a05da64494a25265e08c0b6b7774d5476f9d668be6f5e24c58efe72"
     },
     {
       "chapter": 11,
       "source": "chapters\\11_操作手冊.md",
-      "sha256": "a86b8ff1441045a3f46b1f743ca23c2adc8e9ed01e50bb4d4a9d48ed787670a6"
+      "sha256": "9419013f9cbda419848bc5244b431e91d38e61f2b08ce4d92145000f6b2d0de7"
     },
     {
       "chapter": 12,
       "source": "chapters\\12_使用手冊.md",
-      "sha256": "97a0251d321639d1d3c4a40d342199be004689c295ca2e0740345dc0f2e1c0a8"
+      "sha256": "cd575dfa419ccf028208cbe32132cb0de383c615a0dccbb7d5787b4ddc77b670"
     },
     {
       "chapter": 13,
       "source": "chapters\\13_感想.md",
-      "sha256": "4c619b3a082f4a64c047577208e4a2235d15a770c5820b7112aa80e1191ce8db"
+      "sha256": "90994416dd703f60bef9d0b544c653f600eee18d82ba5407c2c443b007bb03de"
     },
     {
       "chapter": 14,
       "source": "chapters\\14_參考資料.md",
-      "sha256": "954fe2bde41b9569e8726d59dd7e48787c8af1c83e7409754183c3fe663184ce"
+      "sha256": "d67f87c4eb6e96614d13223fde77bbca9e505f6beaa45abc0ee7dd3acb23a0ee"
     },
     {
       "chapter": 15,
       "source": "chapters\\15_附錄.md",
-      "sha256": "b4214a36916c03f6e387d50aaa0026ebf6fddd68d85fa70c698143436039952e"
+      "sha256": "f97b03f249c36c33b537585a6de934990c02717c2be32ca324e91250a35ea0b0"
     }
   ],
   "images": [
@@ -100,8 +100,8 @@
       "chapter": 3
     },
     {
-      "source": "images\\圖4-1-1-專案時程甘特圖-v2-0.png",
-      "sha256": "f617724193bcf3fe926cf5326dac283e7c10a25b9eabe6968b7aecfb2f05a249",
+      "source": "images\\圖4-1-1-專案時程甘特圖-v3-0.png",
+      "sha256": "3f5873af6a81c44fc71fbdc776266b3af78b6ddac6492e6a1cab6e8354945105",
       "chapter": 4
     },
     {
@@ -745,7 +745,7 @@
     },
     {
       "chapter": 4,
-      "tables": 3
+      "tables": 4
     },
     {
       "chapter": 5,
@@ -781,7 +781,7 @@
     },
     {
       "chapter": 13,
-      "tables": 1
+      "tables": 0
     },
     {
       "chapter": 14,
@@ -794,10 +794,9 @@
   ],
   "changes": [
     "表4-2-1依母稿產生，類別欄依官方分工表範本垂直合併",
-    "第14章補入README已存在但章內未同步的AI紀錄，共9筆",
-    "附錄評審意見表按官方兩欄格式合併既有欄位，保留全部原文與確認狀態"
+    "第14章AI紀錄表由README產生，共19筆"
   ],
-  "output": "output\\四技第115413組-FocusFlow AI-系統手冊_1013複評全冊整合稿.docx",
+  "output": "output\\四技第115413組-FocusFlow AI-系統手冊_1013全冊修訂版.docx",
   "missing_personal_reflections": true,
   "source_prose_rewritten": false
 }

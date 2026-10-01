@@ -3,7 +3,7 @@
 # Takes roughly 10-15 minutes. Close the manual in Word before running.
 #   powershell -ExecutionPolicy Bypass -File rebuild_review_manual.ps1 [-Python <python.exe>] [-Log <file>]
 param(
-    [string] $Python = 'python',
+    [string] $Python = 'C:/Users/940/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe',
     [string] $Log = '',
     [int] $PdfTimeoutSec = 600
 )
@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 $env:PYTHONIOENCODING = 'utf-8'
 $tools = $PSScriptRoot
 $output = Join-Path (Split-Path $tools) 'output'
-$name = '四技第115413組-FocusFlow AI-系統手冊_1013複評全冊整合稿'
+$name = '四技第115413組-FocusFlow AI-系統手冊_1013全冊修訂版'
 $stage = Join-Path ([IO.Path]::GetTempPath()) ('focusflow_stage_' + [guid]::NewGuid() + '.docx')
 
 function Say($text) {
@@ -28,7 +28,7 @@ try {
     Say 'refreshing in Word'
     & (Join-Path $tools 'refresh_manual_word.ps1') -Source $stage `
         -OutDocx (Join-Path $output "$name.docx") -OutPdf (Join-Path $output "${name}_預覽.pdf") `
-        -PdfTimeoutSec $PdfTimeoutSec |
+        -PdfTimeoutSec $PdfTimeoutSec -PagesJson (Join-Path (Split-Path $tools) 'review/chapter_pages.json') |
         ForEach-Object { Say $_ }
     Say 'DONE'
 } catch {

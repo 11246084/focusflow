@@ -405,13 +405,13 @@ def add_table(doc: Document, marker, rows: list[list[str]], caption: str | None)
     marker.addprevious(table._tbl)
 
 
-def add_picture(doc: Document, marker, image_path: Path) -> None:
+def add_picture(doc: Document, marker, image_path: Path, max_h: float = 7.8) -> None:
     paragraph = doc.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph.paragraph_format.keep_with_next = True
     with Image.open(image_path) as image:
         width_px, height_px = image.size
-    max_w, max_h = 6.75, 8.25
+    max_w = 6.75
     aspect = width_px / height_px if height_px else 1
     width = min(max_w, max_h * aspect)
     height = width / aspect if aspect else max_h

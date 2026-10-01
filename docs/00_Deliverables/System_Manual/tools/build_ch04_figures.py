@@ -1,9 +1,7 @@
 """Build chapter 4 figures: two-semester Gantt chart and GitHub commit record.
 
-Gantt planned bars and first-semester actual bars are copied from the 2026-06-02
-initial-review Gantt chart. Second-semester actual bars (Jul–Sep 2026) follow the
-monthly commit activity of the matching repository paths; Oct–Dec only carries the
-school-announced milestones (115-1 專題時程規劃). The GitHub figure counts every commit
+Gantt bars are copied from the team's 甘特圖_複評版.xlsx (planned = purple cells,
+actual = green cells, months 2–12 of 2026). The GitHub figure counts every commit
 on origin/main per author e-mail, which matches GitHub's contributor statistics.
 
 Usage: python build_ch04_figures.py   (run inside the repository; needs git)
@@ -27,21 +25,25 @@ GANTT = [
     ('相關資料蒐集', [(3, 4)], [(3, 4)]),
     ('開發工具學習', [(2, 3)], [(2, 2)]),
     ('系統功能分析', [(3, 4)], [(3, 4)]),
-    ('系統模型', [(4, 4)], [(3, 4)]),
-    ('UI/UX 設計', [(4, 5)], [(4, 5)]),
-    ('Logo 設計', [(4, 4)], [(4, 4)]),
-    ('Web 開發（前端）', [(5, 11)], [(4, 6), (7, 9)]),
-    ('資料庫設計', [(3, 4)], [(3, 4)]),
+    ('系統模型', [(4, 4)], [(3, 4), (9, 9)]),
+    ('UI/UX 設計', [(4, 5)], [(4, 5), (7, 9)]),
+    ('Logo 設計', [(4, 4)], [(4, 4), (7, 7)]),
+    ('Web 開發（前端）', [(5, 11)], [(4, 9)]),
+    ('資料庫設計', [(3, 4)], [(3, 4), (7, 8)]),
     ('資料庫建立', [(4, 6)], [(4, 5), (7, 9)]),
-    ('後端開發', [(4, 11)], [(4, 6), (7, 9)]),
-    ('系統測試', [(6, 11)], [(6, 6), (7, 9)]),
-    ('系統整合', [(5, 11)], [(5, 6), (7, 9)]),
+    ('後端開發', [(4, 11)], [(4, 9)]),
+    ('系統測試', [(6, 11)], [(6, 9)]),
+    ('系統整合', [(5, 11)], [(5, 9)]),
+    ('AI 問答品質優化', [(7, 9)], [(7, 9)]),
+    ('YouTube 上傳與短影音功能', [(7, 10)], [(7, 9)]),
+    ('學生試用版規格與權限強化', [(8, 9)], [(8, 9)]),
+    ('正式環境部署與 HTTPS', [(7, 9)], [(8, 9)]),
+    ('學生試用與回饋收集', [(9, 11)], [(9, 9)]),
     ('初審操作手冊', [(3, 5)], [(3, 6)]),
     ('複審操作手冊', [(9, 10)], [(9, 9)]),
-    ('系統簡報', [(5, 6), (10, 11)], [(5, 5)]),
-    ('複評發表', [(10, 10)], []),
+    ('系統簡報', [(5, 6), (10, 11)], [(5, 6)]),
+    ('競賽與論文投稿', [(7, 12)], [(7, 9)]),
     ('校內觀摩展', [(11, 11)], []),
-    ('最終文件繳交', [(12, 12)], []),
 ]
 
 MEMBERS = [  # e-mail, 學號, 姓名, GitHub 帳號
@@ -58,10 +60,10 @@ def font(size):
 
 
 def gantt():
-    label_w, month_w, row_h, head_h = 330, 118, 30, 110
+    label_w, month_w, row_h, head_h = 410, 112, 30, 110
     months = list(range(2, 13))
     w = label_w + month_w * len(months) + 20
-    h = head_h + row_h * 2 * len(GANTT) + 90
+    h = head_h + row_h * 2 * len(GANTT) + 80
     im = Image.new('RGB', (w, h), 'white')
     d = ImageDraw.Draw(im)
     x0 = label_w
@@ -89,20 +91,13 @@ def gantt():
             for i in range(len(months)):
                 d.rectangle((x0 + i * month_w, top, x0 + (i + 1) * month_w, top + row_h), outline=GRID, width=1)
         y += 2 * row_h
-    # Progress line after September.
-    xn = x0 + 8 * month_w
-    for yy in range(head_h, y, 16):
-        d.line((xn, yy, xn, min(yy + 9, y)), fill=NOW, width=4)
-    d.text((xn + 8, head_h + 6), '截至 9 月底', font=font(24), fill=NOW, anchor='la')
     # Legend.
     ly = y + 30
     for i, (color, text) in enumerate([(PLAN, '預期進度'), (ACTUAL, '實際進度')]):
         lx = 20 + i * 260
         d.rectangle((lx, ly, lx + 70, ly + 30), fill=color, outline=GRID)
         d.text((lx + 84, ly + 15), text, font=font(28), fill=GRID, anchor='lm')
-    d.line((560, ly + 15, 620, ly + 15), fill=NOW, width=4)
-    d.text((634, ly + 15), '目前進度（2026 年 9 月 30 日）', font=font(28), fill=GRID, anchor='lm')
-    out = OUT / '圖4-1-1-專案時程甘特圖-v2-0.png'
+    out = OUT / '圖4-1-1-專案時程甘特圖-v3-0.png'
     im.save(out, optimize=True)
     return out.name
 

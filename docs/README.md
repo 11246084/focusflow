@@ -7,7 +7,8 @@
 | [目前狀態](current-status.md) | 跨服務可用範圍、風險與下一步 |
 | [功能狀態總表](30_Features/README.md) | 功能階段、驗收證據與缺口 |
 | [重要決策](decision-log.md) | 決策原因與影響，保留歷史時間點 |
-| [正式交付](00_Deliverables/README.md) | 系統簡介、分章手冊、競賽及 ESG 投稿 |
+| [繳交清單](00_Deliverables/Submission/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
+| [正式交付](00_Deliverables/README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
 | [專案歷史](10_Project_History/README.md) | 有日期的專案快照 |
 | [架構資料](20_Architecture/README.md) | 架構圖、資料庫及階層檢索設計 |
 | [開發與維運](40_Operations/README.md) | 開發工具、部署與憑證文件 |

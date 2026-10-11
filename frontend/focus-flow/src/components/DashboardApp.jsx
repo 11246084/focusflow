@@ -52,7 +52,7 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
     <div className="dashboard-shell">
       <div className="ff-bg" />
       <div className="dashboard-inner">
-        <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} />
+        <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} user={currentUser} />
         <div className="dashboard-main">
           <Topbar user={currentUser} title={tb[0]} sub={subtitle} actions={role === 'student' && sub === 'shorts' ? <ShortsChannelLink /> : null} onNav={onNav} onLogout={onLogout} />
           <div className="dashboard-content">

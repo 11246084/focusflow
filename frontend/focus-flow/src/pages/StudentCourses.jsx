@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import { apiFetch, BACKEND_ORIGIN } from '../api';
@@ -214,13 +215,38 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
 }
 
 // 點擊後在頁面內展開 QR code 小卡，不開新分頁
-// 使用 fixed 定位避免被父容器 overflow 裁切
+// Portal keeps viewport coordinates independent of transformed/filtered ancestors.
 function AskTAButton({ courseId, courseName, variant = 'list' }) {
   const [pos, setPos] = useState(null); // null = closed, {top,right} = open
   const [url, setUrl] = useState(LINE_BOT_URL || '');
   const [loadingUrl, setLoadingUrl] = useState(false);
   const btnRef = useRef(null);
   const cardRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!pos) return;
+    const updatePosition = () => {
+      const button = btnRef.current;
+      const card = cardRef.current;
+      if (!button || !card) return;
+      const rect = button.getBoundingClientRect();
+      const width = card.offsetWidth;
+      const height = card.offsetHeight;
+      const below = rect.bottom + 8;
+      const top = below + height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - height - 8);
+      card.style.top = `${Math.min(top, Math.max(8, window.innerHeight - height - 8))}px`;
+      card.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
+    };
+    updatePosition();
+    const observer = new ResizeObserver(updatePosition);
+    observer.observe(cardRef.current);
+    observer.observe(btnRef.current);
+    const main = btnRef.current.closest('.dashboard-main');
+    if (main) observer.observe(main);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => { observer.disconnect(); window.removeEventListener('resize', updatePosition); window.removeEventListener('scroll', updatePosition, true); };
+  }, [pos]);
 
   useEffect(() => {
     if (!pos) return;
@@ -231,12 +257,15 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
       ) setPos(null);
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const escape = (event) => { if (event.key === 'Escape') { setPos(null); btnRef.current?.focus(); } };
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', escape); };
   }, [pos]);
 
   const isDetail = variant === 'detail';
 
   async function buildCourseBindUrl() {
+    if (!LINE_BOT_URL) return '';
     if (!courseId) return LINE_BOT_URL || '';
 
     try {
@@ -254,15 +283,16 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
   async function handleClick(e) {
     e.stopPropagation();
     if (pos) { setPos(null); return; }
-    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: 0, left: 0 });
     setUrl(await buildCourseBindUrl());
-    setPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
   }
 
   return (
     <>
       <button
         ref={btnRef}
+        type="button"
+        aria-expanded={Boolean(pos)}
         onClick={handleClick}
         className={isDetail ? 'btn-primary' : 'btn-ask-ta'}
         style={isDetail ? { background: '#06C755', padding: '10px 20px', fontSize: 13, flexShrink: 0 } : { flexShrink: 0 }}
@@ -270,16 +300,19 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
         <Ic n="chat" s={isDetail ? 14 : 13} /> 詢問助教
       </button>
 
-      {pos && (
+      {pos && createPortal(
         <div
           ref={cardRef}
-          style={{ position: 'fixed', zIndex: 1000, top: pos.top, right: pos.right, background: 'rgba(22,8,18,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+          className="line-qr-popover"
+          role="region"
+          aria-label="LINE 助教 QR Code"
+          style={{ position: 'fixed', zIndex: 1000, top: pos.top, left: pos.left, width: 224, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto', background: 'rgba(22,8,18,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
         >
-          <div style={{ padding: 10, background: '#fff', borderRadius: 12 }}>
+          {url && !loadingUrl && <div style={{ padding: 10, background: '#fff', borderRadius: 12 }}>
             <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
-          </div>
+          </div>}
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
-            {loadingUrl ? '產生 QR code 中…' : '用手機 LINE 掃描後送出訊息'}<br />
+            {loadingUrl ? '產生 QR code 中…' : url ? '用手機 LINE 掃描後送出訊息' : '尚未設定 LINE 助教連結，暫時無法掃碼。'}<br />
             <span style={{ color: '#F14F21' }}>{courseName}</span>
           </div>
           {/* 手機上無法用同一支手機掃 QR code，直接開啟 LINE 並帶入訊息 */}
@@ -294,7 +327,7 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
               在手機上開啟 LINE
             </a>
           )}
-        </div>
+        </div>, document.body
       )}
     </>
   );
@@ -431,7 +464,7 @@ function PendingAnswer() {
   );
 }
 
-function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
+function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
@@ -443,6 +476,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
   const [error, setError]       = useState('');
   const [conversations, setConversations] = useState([]);
   const [conversationLoading, setConversationLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedMessageIds, setExpandedMessageIds] = useState(new Set());
   const messageListRef = useRef(null);
   const latestMessageRef = useRef(null);
@@ -492,6 +526,7 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
       setConversationId(id);
       setMessages((response.data?.messages || []).map(mapConversationMessage));
       setExpandedMessageIds(new Set());
+      setHistoryOpen(false);
     } catch (e) {
       setError(e.message || '無法恢復對話');
     } finally {
@@ -564,14 +599,9 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
     }
   }
 
-  function handleCitationClick(matchedIndex, startSec) {
+  function handleCitationClick(matchedIndex, startSec, sourceKey) {
     if (matchedIndex >= 0 && onJumpToVideo) {
-      onJumpToVideo(matchedIndex, startSec);
-      return;
-    }
-    if (videoRef.current) {
-      videoRef.current.currentTime = startSec;
-      videoRef.current.play();
+      onJumpToVideo(matchedIndex, startSec, sourceKey);
     }
   }
 
@@ -579,15 +609,20 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
     <div className="qa-conversation-panel">
       <div className="qa-conversation-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em' }}>AI 問答</div>
+        <button type="button" className="study-control qa-history-toggle" aria-expanded={historyOpen} aria-controls="qa-history" onClick={() => setHistoryOpen(!historyOpen)}>
+          最近對話 {historyOpen ? '▴' : '▾'}
+        </button>
         <button type="button" onClick={() => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'))} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(241,79,33,0.35)', background: 'transparent', color: '#F14F21', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
           ＋ 新對話
         </button>
       </div>
-      {(conversationLoading || conversations.length > 0) && (
-        <div className="qa-recent-conversations" style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
+      {historyOpen && (
+        <div id="qa-history" className="qa-recent-conversations" style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginBottom: 6, letterSpacing: '.06em' }}>最近對話</div>
           {conversationLoading ? (
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>載入中…</div>
+          ) : conversations.length === 0 ? (
+            <div style={{ fontSize: 12 }}>尚無對話，輸入問題開始。</div>
           ) : conversations.slice(0, 5).map((conversation) => (
             <button key={conversation.id} type="button" onClick={() => resumeConversation(conversation.id)} disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 4px', border: 0, background: conversationId === conversation.id ? 'rgba(241,79,33,0.09)' : 'transparent', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{displayConversationTitle(conversation.title)}</span>
@@ -597,6 +632,9 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
         </div>
       )}
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
+        {messages.length === 0 && !awaitingAnswer && (
+          <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span></div>
+        )}
         {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
         {messages.map((message, messageIndex) => message.id && message.id === retryingMessageId ? (
           <div key={message.id} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined}>
@@ -639,26 +677,32 @@ function QAPanel({ courseId, videoRef, videos = [], onJumpToVideo }) {
             ));
             const matchedVideo = matchedIndex >= 0 ? videos[matchedIndex] : null;
             const videoTitle = formatVideoLabel(seg, matchedVideo);
-            const canJump = (matchedIndex >= 0 && Boolean(onJumpToVideo)) || Boolean(videoRef.current);
+            const canJump = matchedIndex >= 0 && Boolean(onJumpToVideo)
+              && ['youtube', 'upload'].includes(resolveVideoPlayback(matchedVideo).type);
+            const sourceKey = `${result.id || messageIndex}:${i}`;
+            const isActive = activeSourceKey === sourceKey;
             return (
               <div
                 key={i}
-                className="citation-card"
+                className={`citation-card${isActive ? ' citation-active' : ''}`}
                 role={canJump ? 'button' : undefined}
                 tabIndex={canJump ? 0 : undefined}
                 aria-label={canJump ? `跳至 ${videoTitle} ${formatTime(start)}` : undefined}
+                aria-current={isActive ? 'true' : undefined}
                 style={{ display: 'flex', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, cursor: canJump ? 'pointer' : 'default' }}
-                onClick={() => handleCitationClick(matchedIndex, start)}
+                onClick={() => { if (canJump) handleCitationClick(matchedIndex, start, sourceKey); }}
                 onKeyDown={(event) => {
                   if (canJump && (event.key === 'Enter' || event.key === ' ')) {
                     event.preventDefault();
-                    handleCitationClick(matchedIndex, start);
+                    handleCitationClick(matchedIndex, start, sourceKey);
                   }
                 }}
               >
                 <span style={{ fontSize: 11, color: '#F14F21', fontWeight: 700, flexShrink: 0, fontFamily: 'monospace' }}>{formatTime(start)}-{formatTime(end)}</span>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
                   <span style={{ color: 'rgba(255,255,255,0.78)', fontWeight: 700 }}>{videoTitle}</span>
+                  {isActive && <span className="citation-active-label">目前選取</span>}
+                  {!canJump && <span className="citation-unavailable">（未提供可播放影片）</span>}
                   {' · '}
                   {text.slice(0, 160)}{text.length > 160 ? '…' : ''}
                 </span>
@@ -757,21 +801,19 @@ export default function StudentCourses() {
   const [vLoading, setVLoading]         = useState(false);
   const [playingVid, setPlayingVid]     = useState(null);
   const [seekRequest, setSeekRequest]   = useState(null);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
+  const [playerExpanded, setPlayerExpanded] = useState(false);
+  const [videoWidth, setVideoWidth] = useState(38);
+  const studyGridRef = useRef(null);
   const [progressByCourse, setProgressByCourse] = useState({});
   const videoRef = useRef(null);
-  const playerContainerRef = useRef(null);
   const watchedMarkedRef = useRef(new Set());
 
-  // 手機或窄螢幕上影片清單與問答在播放器下方，點選後把播放器捲回畫面，
-  // 否則看不到影片已經切換。播放器已完整在畫面內時不捲動。
-  function revealPlayer() {
-    requestAnimationFrame(() => {
-      const element = playerContainerRef.current;
-      if (!element) return;
-      const rect = element.getBoundingClientRect();
-      const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-      if (!fullyVisible) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  function resizeStudy(event) {
+    const grid = studyGridRef.current;
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    setVideoWidth(Math.max(25, Math.min(60, ((event.clientX - rect.left) / rect.width) * 100)));
   }
 
   async function markWatched(courseId, videoId) {
@@ -796,7 +838,8 @@ export default function StudentCourses() {
   function openVideo(index) {
     if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
     setPlayingVid(index);
-    revealPlayer();
+    setSeekRequest(null);
+    setPlaylistOpen(false);
   }
 
   useEffect(() => {
@@ -817,6 +860,8 @@ export default function StudentCourses() {
     setSelected(course);
     setPlayingVid(null);
     setSeekRequest(null);
+    setPlaylistOpen(true);
+    setPlayerExpanded(false);
     setVideos([]);
     setVLoading(true);
     try {
@@ -826,16 +871,20 @@ export default function StudentCourses() {
     finally { setVLoading(false); }
   }
 
-  function jumpToVideo(index, startSec) {
+  function jumpToVideo(index, startSec, sourceKey) {
     openVideo(index);
-    setSeekRequest({ videoIndex: index, startSec: startSec || 0, nonce: Date.now() });
-    setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = startSec || 0;
-        videoRef.current.play();
-      }
-    }, 0);
+    setSeekRequest({ videoIndex: index, startSec: Math.max(0, Number(startSec) || 0), sourceKey, nonce: Date.now() });
   }
+
+  // Apply seeks to the new video only after its metadata is ready. Same-video
+  // seeks run here immediately; cross-video seeks also run in onLoadedMetadata.
+  useEffect(() => {
+    const element = videoRef.current;
+    if (element?.readyState >= 1 && seekRequest?.videoIndex === playingVid) {
+      element.currentTime = seekRequest.startSec;
+      element.play().catch(() => {});
+    }
+  }, [playingVid, seekRequest]);
 
   // Course detail view
   if (selectedCourse) {
@@ -845,22 +894,21 @@ export default function StudentCourses() {
     const videoUrl = playback.videoUrl;
 
     return (
-      <div className="fu scrl" style={{ padding: 26, height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-          <div onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+      <div className="course-study">
+        <div className="course-study-header">
+          <button type="button" aria-label="返回課程列表" onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
-          </div>
-          <div style={{ flex: 1 }}>
+          </button>
+          <div className="course-study-title">
             <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff' }}>{selectedCourse.title}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{videos.length} 部影片</div>
           </div>
-          <AskTAButton courseId={selectedCourse._id} courseName={selectedCourse.title} variant="detail" />
+          <div className="course-study-line"><AskTAButton courseId={selectedCourse._id} courseName={selectedCourse.title} variant="detail" /></div>
         </div>
 
-        <div className="course-detail-grid">
-          {/* Left: video player + QA */}
-          <div>
-            <div ref={playerContainerRef} style={{ borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '16/9', position: 'relative', scrollMarginTop: 12 }}>
+        <div ref={studyGridRef} className="course-detail-grid" style={{ '--study-video-width': `${videoWidth}fr`, '--study-chat-width': `${100 - videoWidth}fr` }}>
+          <section className={`course-media${playerExpanded ? ' player-expanded' : ''}`} aria-label="課程播放器">
+            <div className="course-player">
               {youtubeId ? (
                 <YouTubePlayer
                   key={youtubeId}
@@ -874,6 +922,13 @@ export default function StudentCourses() {
                   key={videoUrl}
                   src={videoUrl}
                   controls
+                  playsInline
+                  onLoadedMetadata={(e) => {
+                    if (seekRequest?.videoIndex === playingVid) {
+                      e.currentTarget.currentTime = seekRequest.startSec;
+                      e.currentTarget.play().catch(() => {});
+                    }
+                  }}
                   onTimeUpdate={(e) => {
                     const el = e.currentTarget;
                     if (el.duration > 0 && el.currentTime / el.duration >= 0.8) {
@@ -886,24 +941,19 @@ export default function StudentCourses() {
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'rgba(255,255,255,0.3)' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <div style={{ fontSize: 13 }}>從影片清單選擇影片開始播放</div>
+                  <div style={{ fontSize: 13 }}>{playing ? '此影片目前無法播放，仍可閱讀問答與來源。' : '從影片清單選擇影片開始播放'}</div>
                 </div>
               )}
             </div>
-            {playing && (
-              <div style={{ marginTop: 14, padding: '14px 18px', background: 'rgba(38,12,30,0.72)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{playing.title}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>
-                  {playing.processing?.status === 'completed' ? '✓ 可提問' : `處理狀態：${playing.processing?.status || '—'}`}
-                </div>
+            <div className="course-player-toolbar">
+              <div className="course-playing-title" role="status">
+                <strong>{playing ? formatVideoLabel({}, playing) : '尚未選擇影片'}</strong>
+                {seekRequest?.sourceKey && <span>來源起點 {formatTime(seekRequest.startSec)}</span>}
               </div>
-            )}
-            <QAPanel courseId={selectedCourse._id} videoRef={videoRef} videos={videos} onJumpToVideo={jumpToVideo} />
-          </div>
-
-          {/* Right: video list */}
-          <div>
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '.08em', marginBottom: 12 }}>影片清單</div>
+              <button type="button" className="study-control course-player-expand" aria-expanded={playerExpanded} onClick={() => setPlayerExpanded(!playerExpanded)}>{playerExpanded ? '縮小影片' : '放大影片'}</button>
+              <button type="button" className="study-control" aria-expanded={playlistOpen} aria-controls="course-playlist" onClick={() => setPlaylistOpen(!playlistOpen)}>影片清單 {playlistOpen ? '▴' : '▾'}</button>
+            </div>
+            <div id="course-playlist" className="course-playlist scrl" hidden={!playlistOpen}>
             {vLoading ? (
               <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>載入中…</div>
             ) : videos.length === 0 ? (
@@ -911,11 +961,11 @@ export default function StudentCourses() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {videos.map((v, i) => (
-                  <div key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} onClick={() => openVideo(i)}>
+                  <button type="button" key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} aria-pressed={playingVid === i} onClick={() => openVideo(i)}>
                     <div style={{ width: 34, height: 34, borderRadius: 10, background: playingVid === i ? 'rgba(241,79,33,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playingVid === i ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: playingVid === i ? '#F14F21' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: playingVid === i ? '#fff' : 'rgba(255,255,255,0.78)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.title || v.file_name || '未命名'}</div>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.33)', marginTop: 2 }}>
                         <span className={`badge ${v.processing?.status === 'completed' ? 'bg' : v.processing?.status === 'processing' ? 'by' : 'bb'}`} style={{ fontSize: 10 }}>
@@ -923,11 +973,40 @@ export default function StudentCourses() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          </section>
+          <div
+            className="study-resizer"
+            role="separator"
+            tabIndex={0}
+            aria-label="調整影片與對話寬度"
+            aria-orientation="vertical"
+            aria-valuemin={25}
+            aria-valuemax={60}
+            aria-valuenow={Math.round(videoWidth)}
+            aria-valuetext={`影片 ${Math.round(videoWidth)}%，對話 ${Math.round(100 - videoWidth)}%`}
+            title="拖曳調整寬度；方向鍵微調；按兩下還原"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.currentTarget.focus();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              resizeStudy(event);
+            }}
+            onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeStudy(event); }}
+            onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+            onDoubleClick={() => setVideoWidth(38)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              setVideoWidth((value) => event.key === 'Home' ? 25 : event.key === 'End' ? 60 : Math.max(25, Math.min(60, value + (event.key === 'ArrowLeft' ? -2 : 2))));
+            }}
+          />
+          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} />
         </div>
       </div>
     );

@@ -1442,14 +1442,45 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .dd-row:hover { background: rgba(0,0,0,0.03); }
 
 /* Course detail grid */
-.course-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.course-study { height: 100%; min-height: 0; padding: 18px 24px 72px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.course-study-header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.course-study-title { flex: 1; min-width: 0; }
+.course-study-title > div:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-detail-grid { display: grid; grid-template-columns: minmax(0, var(--study-video-width, 38fr)) 18px minmax(0, var(--study-chat-width, 62fr)); flex: 1; min-height: 0; }
+.study-resizer { cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.study-resizer::after { content: ''; height: 48px; width: 3px; border-radius: 3px; background: rgba(255,255,255,.25); }
+.study-resizer:hover::after, .study-resizer:focus-visible::after { background: #fb9476; }
+.study-resizer:focus-visible { outline: 2px solid #fb9476; outline-offset: -2px; }
+.course-media { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+.course-player { width: 100%; aspect-ratio: 16/9; max-height: 55dvh; flex-shrink: 0; background: #000; border-radius: 14px; overflow: hidden; }
+.course-player-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 0; flex-shrink: 0; }
+.course-playing-title { flex: 1; min-width: 0; font-size: 13px; }
+.course-playing-title strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.course-playing-title > span { display: block; font-size: 11px; color: #fb9476; margin-top: 3px; }
+.study-control { border: 1px solid rgba(255,255,255,.16); border-radius: 8px; padding: 7px 9px; color: rgba(255,255,255,.8); background: rgba(255,255,255,.04); font: inherit; font-size: 12px; flex-shrink: 0; cursor: pointer; }
+.study-control:hover { background: rgba(255,255,255,.09); }
+.course-study button:focus-visible, .citation-card:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+.course-player-expand { display: none; }
+.course-playlist { min-height: 0; padding: 2px; }
+.course-playlist .vid-row { width: 100%; font: inherit; }
+.qa-history-toggle { margin-left: auto; }
+.qa-conversation-header { flex-wrap: wrap; }
+.qa-empty-state { padding: 30px 8px; color: rgba(255,255,255,.8); font-size: 14px; line-height: 1.9; }
+.qa-empty-state span { font-size: 12px; color: rgba(255,255,255,.5); }
+.citation-card.citation-active { box-shadow: inset 0 0 0 1px #F14F21; }
+.citation-active-label { color: #fb9476; font-size: 11px; margin-left: 6px; }
+.citation-unavailable { color: rgba(255,255,255,.45); font-size: 11px; }
+
+/* Keep feedback reachable without covering the study composer. */
+.dashboard-shell:has(.course-study) .fab-group { flex-direction: row; bottom: 12px; right: 24px; }
+.dashboard-shell:has(.course-study) .fab-group > * { min-height: 36px; font-size: 12px; }
 
 .qa-conversation-panel {
   display: flex;
   flex-direction: column;
-  height: clamp(560px, 75dvh, 820px);
+  height: 100%;
   min-height: 0;
-  margin-top: 14px;
+  margin-top: 0;
   padding: 16px 18px 0;
   overflow: hidden;
   background: rgba(241,79,33,0.06);
@@ -1471,6 +1502,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
+
+.qa-recent-conversations { max-height: 32%; overflow-y: auto; }
 
 /* AI 回答等待中的三點動畫 */
 .qa-pending-dots { display: inline-flex; gap: 4px; flex-shrink: 0; }
@@ -1597,51 +1630,35 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   .stat-val { font-size: 26px; }
 }
 
-/* Mobile: hide sidebar, show bottom nav or collapse */
+/* Narrow viewports retain the vertical sidebar. */
 @media (max-width: 768px) {
-  .dashboard-shell { overflow-y: auto; height: auto; min-height: 100vh; }
+  .dashboard-shell { height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
   .topbar-action-label { display: none; }
 
   .dashboard-inner {
-    flex-direction: column;
-    height: auto;
-    min-height: 100vh;
-  }
-
-  /* Sidebar becomes a horizontal top bar on mobile */
-  .sidebar {
-    width: 93%;
-    height: auto;
     flex-direction: row;
-    flex-wrap: wrap;
-    padding: 12px 16px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    gap: 4px;
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    padding-left: 72px;
+    overflow: hidden;
   }
 
-  .sidebar > div:first-child { display: none; } /* hide logo on mobile */
-  .sidebar > div:nth-child(3) { display: none; } /* hide sign-out on mobile */
-
-  /* Nav item list: force horizontal row layout on mobile (overrides the
-     inline flexDirection:'column' set for the desktop vertical sidebar) */
-  .sidebar-nav {
-    flex-direction: row !important;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 6px !important;
-    width: 100%;
+  /* Expansion overlays the content, preserving its width and reading position. */
+  .sidebar {
+    position: absolute;
+    z-index: 500;
+    top: 0;
+    left: 0;
+    width: min(232px, calc(100vw - 24px));
+    height: calc(100% - 12px);
+    margin: 6px;
+    flex-direction: column;
+    padding: 14px 10px;
+    border-radius: 18px;
   }
-  .sidebar-nav .nav-item {
-    width: auto;
-    padding: 7px 10px;
-    font-size: 11.5px;
-    gap: 6px;
-  }
-  .sidebar-nav .nav-item.active::after { display: none; }
-
-  .dashboard-main { flex: 1; overflow: visible; }
-  .dashboard-content { overflow: visible; }
+  .dashboard-main { flex: 1; min-height: 0; overflow: hidden; }
+  .dashboard-content { min-height: 0; overflow: auto; }
 
   /* My Courses list rows: icon + text stay one row, action buttons wrap
      onto their own full-width row instead of squeezing horizontally */
@@ -1660,13 +1677,28 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Any 2-col / text+QR grids → 1-col on mobile */
   .ff-grid-2, .ff-grid-auto, .course-detail-grid { grid-template-columns: 1fr !important; }
 
-  /* 手機版影片與 QA 面板改為單欄堆疊，不再需要撐到桌面版對齊播放器的高度；
-     內容少時讓面板貼合內容高度，避免「最近對話」與輸入框之間出現大片空白。
-     內容多時仍靠 max-height 讓 .qa-message-list 內部捲動、輸入框維持貼底。 */
-  .qa-conversation-panel {
-    height: auto;
-    max-height: clamp(420px, 78dvh, 720px);
-  }
+  /* The study workspace keeps its player and composer visible; only messages
+     and the expanded playlist scroll. Other dashboard pages keep their layout. */
+  .dashboard-shell:has(.course-study) { height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .dashboard-shell:has(.course-study) .dashboard-inner { flex: 1; height: auto; min-height: 0; overflow: hidden; }
+  .dashboard-shell:has(.course-study) .dashboard-main { min-height: 0; overflow: hidden; }
+  .dashboard-shell:has(.course-study) .dashboard-content { min-height: 0; overflow: hidden; }
+  .dashboard-shell:has(.course-study) .topbar { height: 46px; }
+  .course-study { padding: 6px 12px 0; gap: 8px; }
+  .course-study-header { gap: 8px; }
+  .course-study-line .btn-primary { padding: 6px 8px !important; font-size: 11px !important; }
+  .course-detail-grid { grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+  .course-player { height: clamp(90px, 19dvh, 160px); aspect-ratio: auto; border-radius: 10px; }
+  .course-player iframe { display: block; }
+  .player-expanded .course-player { height: clamp(120px, 32dvh, 300px); }
+  .course-player-expand { display: block; }
+  .course-player-toolbar { padding: 6px 0 0; gap: 5px; }
+  .course-playing-title { font-size: 11px; min-height: 31px; }
+  .course-player-toolbar .study-control { font-size: 11px; padding: 6px; }
+  .course-playlist:not([hidden]) { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; max-height: 32dvh; padding: 8px; background: #260c1e; border: 1px solid rgba(255,255,255,.15); border-radius: 12px; box-shadow: 0 12px 30px #0008; }
+  .qa-conversation-panel { height: 100%; padding: 10px 12px 0; }
+  .qa-conversation-panel .qa-input-area { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+  .qa-input-area .ff-input { font-size: 16px; }
 
   /* Table scrollable on mobile */
   .ff-tbl { font-size: 12px; }
@@ -1969,4 +2001,52 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 option{
   background: #4a4a4a !important;
+}
+
+.sidebar-logo { position: relative; flex-direction: row; align-items: center; gap: 8px; padding-left: 0; margin-bottom: 28px; flex-shrink: 0; }
+.sidebar-brand { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; padding: 2px 4px 2px 0; border: 0; border-radius: 9px; background: none; cursor: pointer; transition: opacity .15s; }
+.sidebar-brand:hover { opacity: .82; }
+.sidebar-brand:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+.sidebar-brand-mark { width: 32px; height: 32px; flex-shrink: 0; }
+.sidebar-wordmark { white-space: nowrap; font-family: Arial, Helvetica, sans-serif; font-size: 18px; letter-spacing: -.5px; color: #fff; }
+.sidebar-wordmark strong { font-weight: 600; }
+.sidebar-wordmark em { color: #F2C46A; font-weight: 500; }
+.sidebar-toggle { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; margin-left: auto; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); cursor: pointer; }
+.sidebar-toggle-logo { display: none; width: 34px; height: 34px; }
+.sidebar-toggle-icon { flex-shrink: 0; }
+.sidebar-avatar { display: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; align-items: center; justify-content: center; background: linear-gradient(135deg, #f14f21, #97265d); color: #fff; font-size: 15px; font-weight: 700; }
+.sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sidebar-toggle:hover { color: #fff; background: rgba(255,255,255,.08); }
+.sidebar-toggle:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+.sidebar.sidebar-collapsed { width: 64px; padding: 18px 8px; flex-shrink: 0; }
+.sidebar-collapsed .sidebar-logo { padding: 0; margin: 0 0 24px; }
+.sidebar-collapsed .sidebar-brand, .sidebar-collapsed .sidebar-item-label, .sidebar-collapsed .sidebar-username, .sidebar-collapsed .sidebar-role-label { display: none; }
+.sidebar-collapsed .sidebar-toggle { margin: 0 auto; border-color: transparent; background: transparent; }
+.sidebar-collapsed .sidebar-toggle-logo { display: block; }
+.sidebar-collapsed .sidebar-toggle-icon { position: absolute; opacity: 0; }
+.sidebar-collapsed .sidebar-toggle:focus-visible .sidebar-toggle-logo { opacity: 0; }
+.sidebar-collapsed .sidebar-toggle:focus-visible .sidebar-toggle-icon { opacity: 1; }
+.sidebar-collapsed .nav-item { justify-content: center; padding: 12px 0; gap: 0; }
+.sidebar-collapsed .sidebar-role-card { padding: 12px 0; }
+.sidebar-collapsed .sidebar-avatar { display: flex; margin: auto; }
+.sidebar-collapsed .sidebar-role-label { justify-content: center; margin: 0; }
+
+@media (hover: hover) {
+  .sidebar-collapsed .sidebar-toggle:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18); }
+  .sidebar-collapsed .sidebar-toggle:hover .sidebar-toggle-logo { opacity: 0; }
+  .sidebar-collapsed .sidebar-toggle:hover .sidebar-toggle-icon { opacity: 1; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar-brand { gap: 3px; }
+  .sidebar-brand-mark { width: 26px; height: 26px; }
+  .sidebar-wordmark { font-size: 14px; }
+}
+
+@media (max-width: 768px) {
+  .sidebar.sidebar-collapsed { width: 56px; padding: 14px 4px; }
+  .fab-group { margin-left: 72px; }
+  .study-resizer { display: none; }
+  .dashboard-shell:has(.course-study) .fab-group { position: static; flex-shrink: 0; flex-wrap: nowrap; margin: 6px 12px max(6px, env(safe-area-inset-bottom)); gap: 8px; }
+  .dashboard-shell:has(.course-study) .fab-group > * { min-height: 30px; padding: 0 12px; font-size: 11px; }
 }

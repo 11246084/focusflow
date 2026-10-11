@@ -1,6 +1,6 @@
 ---
 name: project-documentation
-description: Orchestrate FocusFlow documentation by detecting discussion, planning, creation, modification, or review goals; resolving NTUB System Manual context and current repository evidence; and delegating UML work to ooad-uml-diagramming. Use for chapter planning or completion, document review, diagram concerns, and deciding what documentation work should happen next.
+description: 規劃、製作或審查 FocusFlow 系統手冊章節；需要 UML 時轉交共用 ooad-uml-diagramming 規範。一般 README 與進度整理改用 docs-maintainer。
 ---
 
 # Project Documentation Orchestrator
@@ -54,7 +54,7 @@ In Discuss or Plan mode, stop after useful discovery and planning unless the use
 
 ### Step 4.5 — Check diagram tooling before diagram creation
 
-When Create or Modify mode includes diagrams, run the repository bootstrap in read-only check mode before drawing:
+Only when the selected output uses `diagram-design`, run its bootstrap in read-only check mode. For plain PlantUML or Mermaid, check only the chosen renderer; do not check or install optional diagram-design dependencies:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .agents/skills/project-documentation/scripts/bootstrap-diagram-design.ps1 -Mode Check

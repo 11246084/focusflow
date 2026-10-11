@@ -1,226 +1,60 @@
-# AGENTS.md — FocusFlow Agent 入口索引
+# FocusFlow Agent 入口
 
-本檔是 Codex 與其他 coding agent 進入 FocusFlow repo 的短版入口。它提供目前程式地圖、來源優先序、驗證要求與不可誤稱的邊界；完整動態進度仍放在 [docs/current-status.md](docs/current-status.md)，後端細節放在 [backend/docs/current-state.md](backend/docs/current-state.md)。
+FocusFlow 是 AI 教學影片問答系統。教師上傳影片，pipeline 產生逐字稿與 embedding，學生透過網頁或 LINE 取得有來源與時間戳的回答。
 
-> 現況掃描基準：**2026-09-23**（程式地圖的檔案數、路由與「不能誤稱」重新核對；第四節測試數字仍是 2026-07-31 的紀錄，未重跑）。
+## 工作邊界
 
----
+- 修改前查看 `git status --short`，保留既有異動；不回退無關檔案。不因實作完成就自行 stage、commit 或 push。
+- 依使用者要求完成範圍內的修改與必要驗證。已授權的本地、隔離檢查可繼續修正與重跑受影響項目，不逐步要求確認；檢查是否真的隔離，不能把所有測試一概視為無外部存取。
+- Shared Atlas 寫入／index 變更、資料清除、live webhook、YouTube 發布與部署，需使用者已授權且目標明確。不要為了驗證而啟服觸發 Atlas autoIndex。
+- `.env`、`CLAUDE.local.md` 與 credentials 不作團隊共用規範；不得把 secret 寫入回報。
+- Backend 維持 `routes -> controllers -> services -> models`。response contract 變更需檢查前端、LINE、FAQ cache hit path、OpenAPI 與相關 route tests。
+- `database/tools/legacy/` 是歷史工具，不可拿舊 snake_case importer 更新目前 camelCase collection；pipeline 與 database uploader 使用前確認來源及目標契約。
+- 建立已授權的 commit 時用本人的 Git 身分，不加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer；AI 使用揭露依 [系統手冊 README](docs/00_Deliverables/System_Manual/README.md) 記錄。
 
-## 一、專案定位與目前階段
+## 按任務選讀
 
-**FocusFlow** 是 AI 教學影片問答系統。教師上傳影片後，系統執行 STT、分段與 embedding；學生可從網頁或 LINE Bot 提問，取得 AI 回答、來源片段與影片時間戳。
+只讀本次決策需要的文件與程式，不要求每次通讀以下清單。現況來源依序為目前程式／schema／測試／runtime、相關 Git diff/history、維護中的狀態文件，最後才是歷史紀錄。各種證據只能支持其實際查證的層級。
 
-目前判讀：
+| 任務 | 入口 |
+|---|---|
+| 初次上手／產品範圍 | `README.md`、`PROJECT.md` |
+| 架構與跨服務資料流 | `ARCHITECTURE.md` |
+| 動態進度／完成範圍 | `docs/current-status.md`、`backend/docs/current-state.md` |
+| Backend API | `backend/src/routes/index.js`、相關 routes/services/models；`.claude/rules/api-design.md`；`backend/docs/openapi.yaml`、`backend/docs/phase2-api-contract.md` |
+| Schema／Atlas／匯入 | `.claude/rules/database.md`、`database/README.md`、`database/docs/db-handoff-current.txt` |
+| Auth／密碼／CORS／webhook | `.claude/rules/security.md` |
+| 測試／harness | `.claude/rules/testing.md` 與受影響模組的測試 |
+| Frontend | `frontend/focus-flow/README.md`、相關 `src/` 檔案 |
+| STT／batch／resume／hierarchy | `STT_Whisper/README.md`；需要交接時讀 `backend/docs/handoff-stt-pipeline-integration.md` |
+| 學生試用版後端工作 | `docs/30_Features/Student_Pilot_Backend/README.md`，依其任務權威順序 |
+| 部署／憑證 | `.github/workflows/deploy.yml`、`CLAUDE.md` 對應段落、`docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` |
 
-- **2026-09-21 起開放學生試用**（`https://focusflow.ntub.edu.tw`）：角色登入、課程與修課授權、影片處理、網頁多輪 QA、LINE、Dashboard、通知、頭貼、忘記密碼、問題回報已在正式 VM 上供試用。對外口徑是「開放試用」，不是「正式上線」。
-- **Phase 2 部分實作**：QA citations、visual citation、ShortAsset feed/sync、多影片批次、Parent 階層式檢索（Gate 關閉）、短影片腳本自動生成與教師審核上架（`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉）已存在；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中；推薦系統未開始。
-- 不可因單元測試通過就稱為 fully production-ready；共享 Atlas、Gemini、LINE、YouTube、STT live provider 與正式部署仍各有獨立驗收門檻。
+主要入口：Backend `backend/src/server.js`；Frontend `frontend/focus-flow/src/main.jsx`；Pipeline `STT_Whisper/src/main.py`／`src/batch_main.py`。本機 outputs、uploads、dist、venv、log 不是架構來源。
 
----
+## 驗證依變更影響選擇
 
-## 二、目前專案結構
+| 變更 | 本地驗證 |
+|---|---|
+| 純文件／文字（不論在哪個資料夾） | 檢查改動的連結、指令、日期與路徑，`git diff --check`；不因此跑整套程式測試 |
+| 單一 Backend 行為 | 對應 `node:test` 測試；單檔命令見 `.claude/rules/testing.md`。改 `backend/docs/openapi.yaml` 另跑 `npm.cmd run docs:lint` |
+| Frontend 行為／元件 | 對應測試、適用 lint；涉及打包、依賴、入口或跨頁整合時跑 build，畫面變更做相關頁面檢查 |
+| Pipeline 行為 | 對應 unittest／artifact contract；外部模型與 FFmpeg smoke 另標示是否執行 |
+| 跨模組／共用 harness／發布準備 | 受影響子系統全套；Backend `npm.cmd test`，Frontend `npm.cmd test`、`npm.cmd run lint`、`npm.cmd run build`，STT 用既有 venv 執行 unittest discover |
+| DB／auth／upload 高風險 | 除單元測試外補對應隔離 Mongo 或 E2E；實際外部寫入仍遵守授權 |
 
-| 路徑 | 定位 | 技術 / 入口 |
-|------|------|-------------|
-| `backend/` | REST API 與主要業務邏輯 | Node.js、Express 4、Mongoose；`src/server.js`；預設 port `4000` |
-| `frontend/focus-flow/` | Student / Teacher / Admin SPA | React 19、Vite；`src/main.jsx`；預設 port `5173` |
-| `STT_Whisper/` | 單支與批次 AI Pipeline CLI | Python、Faster-Whisper、Gemini embedding、FFmpeg、yt-dlp |
-| `database/` | DB 初始化、index、正式 uploader 與歷史修復工具 | `tools/setup/`、`tools/mongodb_uploader.py`；不是獨立 runtime service |
-| `docs/` | 跨服務進度、決策、會議紀錄與交付文件 | `current-status.md` 是動態入口 |
-| `.agents/skills` | Codex repo-local skills | `docs-maintainer`、`github-copy` |
-| `.claude/rules`、`.claude/skills` | Claude Code 規則與對應 skills | API / DB / testing / security 規則 |
-| `.github/workflows/deploy.yml` | 部署 workflow | 改部署前須連同 backend/frontend runtime 一起核對 |
+保留既有 CI 與任務專屬驗收門檻。若檢查已通過，只有新修改、失敗或未解風險才擴大或重跑。
 
-本機產物如 `node_modules/`、`dist/`、`.venv/`、`.playwright-*`、`uploads/`、`private-data/`、pipeline outputs 與暫存 log，不是程式架構來源。
+## 完成回報與 runtime 邊界
 
----
+- 分開列本輪已執行、歷史結果、未執行的驗證及原因。單元測試通過不代表 Atlas、外部 provider、正式部署或人工驗收完成。
+- Feature flag、active generation、collection/index、webhook URL、provider 及 VM 設定需當次查證；舊 live smoke 不代表永久有效。
+- 對外稱試用、正式上線或 production-ready，必須有對應驗收證據；code 已存在或單次產片不能證明已整合／發布。
+- 舊程式地圖、測試數字與功能快照已移到 [歷史資料](docs/90_Archive/agent-context-2026-10-10.md)，僅在追查歷史時讀。
 
-## 三、目前程式地圖
+## Repo-local skills
 
-### Backend
-
-遵循：
-
-```text
-routes -> controllers -> services -> models
-```
-
-2026-09-23 掃描為 15 個 route files、15 個 controllers、60 個 services、21 個 models 與 85 個 backend test files。主要能力：
-
-- `auth`：role-aware login、只開放 student 自助註冊（teacher 由管理員建立）、登入失敗鎖定、忘記密碼（SMTP 驗證碼）、修改個人資料與密碼、JWT、RBAC
-- `avatar`：authenticated JPEG/PNG/WebP 上傳與讀取、1 MiB、圖片存 MongoDB `avatars` collection
-- `conversations`：網頁多輪 QA（對話、訊息、失敗重試），與 `/qa/ask` 共用每日提問上限與字數上限
-- `feedback`：使用者問題回報（最多 3 張截圖）與管理員處理（`/admin/feedback`）
-- `short-scripts` / `shorts`：短影片腳本自動選題與生成、教師上傳成品與審核上架（feature flag 預設關閉）
-- `notifications`：列表、cursor、未讀、單筆／全部已讀、admin 公告、影片完成 fanout
-- `courses` / `videos`：CRUD、processing state machine、多課程 attach/detach、watched progress
-- `qa`：FAQ cache、Gemini/OpenAI/mock providers、Atlas/memory retrieval、citations、answerStatus、quota guardrails
-- `line`：webhook 驗簽、bind token、切換課程、多輪問答
-- `stats` / `admin`：Student、Teacher、Admin dashboard 與管理 API
-- `youtube` / `shorts`：YouTube URL、auto-upload adapter、修課限定 ShortAsset feed 與 metadata sync
-- `internal-video`：pipeline processing start / complete / fail webhook
-
-主要 API mount 以 [backend/src/routes/index.js](backend/src/routes/index.js) 與各 `*.routes.js` 為準。`backend/docs/openapi.yaml` 涵蓋 `/api/v1/*` 與 `/health` 的每一個 route（`tests/docs.routes.test.js` 從 runtime router 比對，不一致即失敗）；internal processing webhook 與 `GET /api/v1/line/webhook` 刻意不收錄。
-
-### Frontend
-
-- `src/main.jsx` 依 URL 分流：`/admin` 使用 `AdminApp.jsx` 的獨立管理員登入入口，其餘使用 `App.jsx`。
-- `App.jsx` 處理 landing、一般登入、student 註冊與 dashboard；teacher、admin 不開放自助註冊。頁面狀態會同步到網址（`src/utils/pageRouting.js`）。
-- `DashboardApp.jsx` 組合 Student / Teacher / Admin 頁面與共用 `Profile`、`Topbar`、`Sidebar`。
-- `src/pages/` 目前有 16 個 JSX 頁面檔：Student 含 Courses、Dashboard、LINE Bot、Shorts；Teacher 含 Dashboard、Courses、Upload、ShortScripts、VideoReview；Admin 含 Overview、Users、Courses、Videos、Stats、Feedback；另有共用 Profile。
-- `TeacherUpload.jsx` 支援 MP4/MOV/MKV 多檔選取、逐檔驗證、進度與重新整理恢復；`services/videoUpload.js` 以單一 multipart request 呼叫 `POST /courses/:courseId/video-batches`。
-- `StudentCourses.jsx` 已支援 QA 命中片段完整展開、整張 citation card 點擊，以及 Enter / Space 鍵盤跳轉影片時間點。
-
-### AI Pipeline
-
-- 單支主入口：`STT_Whisper/src/main.py`
-- 批次入口：`STT_Whisper/src/batch_main.py`
-- 批次狀態：`batch_manager.py` 保存 batch manifest / summary，限制 concurrency、隔離單支失敗並可 resume。
-- Run checkpoint：`job_manager.py`、`resume_checkpoint.py`、`run_summary.py`
-- Chunking：既有 leaf chunks 加上選用的 deterministic parent hierarchy；輸出 `parent_chunks.jsonl`。
-- MongoDB 交接：pipeline 自有 `src/mongodb_uploader.py`；`database/tools/mongodb_uploader.py` 是 database 區域的統一匯入工具，使用前要先確認來源與目標契約。
-
-常用新入口：
-
-```powershell
-cd STT_Whisper
-python src/main.py --resume-run-id <run_id>
-python src/batch_main.py --batch-input Test_video_file
-python src/batch_main.py --batch-resume <batch_id>
-```
-
-Parent hierarchy 預設由 `HIERARCHY_ENABLED=false` 關閉。Pipeline 已能產生 stable Parent embedding artifact，`parent_mongodb_uploader.py` 具 blocking preflight 與 idempotent upsert；Backend 也已接 Parent → Child retrieval，但 production Gate 仍為 false。沒有 active Leaf／Parent generation、`chunkId_1`、Parent vector filter/index 與唯讀 live E2E 證據時，不可啟用或宣稱 production-ready。
-
-### Database
-
-- 日常匯入使用 `database/tools/mongodb_uploader.py`。
-- `database/tools/legacy/` 只供歷史參考；其中舊版 text segment importer 會寫 snake_case，禁止拿來更新目前 camelCase `video_segments_text`。
-- `database/tools/setup/` 涉及 collection/index 寫入；不可未經核准對 shared Atlas 執行。
-- `videos` 仍是 app-owned 與 pipeline metadata 混合 collection；`video_segments_text` 以 camelCase 為主，`video_segments_video` 仍有 snake_case 邊界。
-
----
-
-## 四、最近進度快照
-
-### 2026-07-28 ～ 2026-07-29
-
-- Frontend Teacher Upload 已加入多檔選取、驗證、進度追蹤與 refresh recovery；現階段為 sequential single-upload adapter。
-- Pipeline 已加入 durable batch orchestration：concurrency `1`～`2`、單支失敗隔離、每支 retry 與 `--batch-resume`。
-- Pipeline 已加入可 Resume 的 deterministic parent-chunk hierarchy：固定 leaf grouping、overlap、SHA-256 config fingerprint 與 artifact validation。
-- Student QA citation card 已擴大為整張可跳轉，並補鍵盤與 focus/hover 可及性。
-- 前一輪完成的 role-aware auth、獨立 admin 入口、站內通知與 private avatar 已保留在目前主線。
-
-### 2026-07-31 本輪重新驗證
-
-| 區域 | 實際結果 |
-|------|----------|
-| Backend | `npm test`：**262 passed / 0 failed**，31 suites |
-| Frontend | `npm test`：**9 passed / 0 failed**；`npm run lint` 通過；`npm run build` 通過 |
-| AI Pipeline | `.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'`：**99 passed** |
-
-Frontend build 仍有單一 bundle 大於 500 kB 的 Vite warning；這不是 build failure，但屬後續效能優化項目。
-
----
-
-## 五、真相來源與閱讀順序
-
-若文件互相衝突，採以下優先序：
-
-1. **目前程式碼、route/model/schema、測試與 runtime 查證**
-2. **最近 git history / diff**
-3. [docs/current-status.md](docs/current-status.md) 與 [backend/docs/current-state.md](backend/docs/current-state.md)
-4. API / DB / service 專屬文件
-5. 舊會議紀錄、簡報、歷史 schema 文件
-
-`docs/current-status.md` 與 `backend/docs/current-state.md` 是動態文件，可能落後程式碼；處理近期功能時仍須再讀實際程式碼與最近提交。
-
-AI agent 接手前，至少讀：
-
-| 文件 / 入口 | 適用任務 |
-|-------------|----------|
-| `AGENTS.md` | 全部 |
-| `CLAUDE.md` | 現有工作規則與 runtime 邊界 |
-| `README.md`、`PROJECT.md` | 快速上手與產品範圍 |
-| `ARCHITECTURE.md` | 架構、資料流、DB / legacy 邊界 |
-| `docs/current-status.md` | 跨服務動態進度與缺口 |
-| `docs/30_Features/Student_Pilot_Backend/README.md` | 2026 年 9 月學生試用版後端規格、施工單與驗收證據入口；此任務依資料夾內的專用權威順序執行 |
-| `backend/docs/current-state.md` | Backend runtime、readiness、測試與已知限制 |
-| `docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` | 正式 VM 的 HTTPS 憑證（acme.sh + TLS-ALPN-01）、自動續約檢查與回滾步驟 |
-| `backend/docs/phase2-api-contract.md` | QA / Video / Clip / YouTube 回傳語意 |
-| `backend/docs/openapi.yaml` | 公開 API 規格；route 覆蓋由 `docs.routes.test.js` 強制，結構用 `npm run docs:lint`（Redocly）檢查；request／response schema 仍須與實作交叉確認 |
-| `backend/docs/handoff-stt-pipeline-integration.md` | Backend / STT processing 交接 |
-| `STT_Whisper/README.md` | 單支、batch、resume、hierarchy 與輸出契約 |
-| `database/README.md`、`database/docs/db-handoff-current.txt` | DB 寫入、index、Atlas 邊界 |
-| `frontend/focus-flow/README.md` | 前端啟動與頁面行為 |
-
-注意：
-
-- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 只供歷史參考。
-- `CLAUDE.local.md`、`.env` 與本機產物不是團隊共用規範，也不可把其中 secret 寫入回報。
-- 只看 roadmap、README 或舊會議紀錄，不足以判斷目前程式現況。
-
----
-
-## 六、任務規則入口
-
-執行對應任務前先讀：
-
-| 任務類型 | 規則檔 |
-|----------|--------|
-| API route、controller、response、error code | [`.claude/rules/api-design.md`](.claude/rules/api-design.md) |
-| Mongoose schema、index、data access、Atlas | [`.claude/rules/database.md`](.claude/rules/database.md) |
-| 測試、test harness、驗收 | [`.claude/rules/testing.md`](.claude/rules/testing.md) |
-| JWT、password、validation、CORS、LINE、webhook | [`.claude/rules/security.md`](.claude/rules/security.md) |
-
-實作時：
-
-- 先跑 `git status --short`，保留使用者既有變更，不回退無關檔案。
-- Backend 維持 `routes -> controllers -> services -> models`；controller 不堆主要業務邏輯。
-- 修改 response contract 時，同步檢查前端、LINE、FAQ cache hit path、OpenAPI 與 route tests。
-- 修改 Mongoose schema/index 時，除 source review 外，還要區分 in-memory harness 與真實 MongoDB/Atlas 行為。
-- 不把測試 harness 通過誤稱為 shared Atlas 或正式 release 驗證。
-- 不自行執行 shared Atlas 寫入、資料清除、live webhook、YouTube upload 或部署；除非使用者已明確授權並確認目標。
-- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
-
----
-
-## 七、最低驗證要求
-
-| 修改區域 | 最低要求 |
-|----------|----------|
-| `backend/` | `npm test`；改動 `docs/openapi.yaml` 時另跑 `npm run docs:lint`；高風險 DB / auth / upload 另補對應隔離 Mongo 或 E2E |
-| `frontend/focus-flow/` | `npm test`、`npm run lint`、`npm run build` |
-| `STT_Whisper/` | `.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'`；外部模型 smoke 必須另行標示 |
-| `database/` | 先做 read-only contract review；任何實際 DB 寫入需確認 URI、DB、collection、index 與授權 |
-| 文件 | 檢查相對連結、指令、日期、路徑及 `git diff --check` |
-
-完成回報要區分：
-
-- 本輪實際執行並通過的驗證
-- 只從舊文件或歷史提交取得的結果
-- 因缺少 credentials、MongoDB、外部服務或授權而未執行的驗證
-
----
-
-## 八、不能誤稱的目前邊界
-
-- 對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」；試用驗收證據仍在進行，LINE webhook 仍走 ngrok（改正式網域待與教授討論）。
-- 多影片批次 API（`/video-batches`）已存在，但 `VIDEO_BATCH_PIPELINE_ENABLED` 預設 false；真實多影片 STT/Gemini 與壓力測試尚未驗證，不能稱 production-ready。
-- Parent 階層式檢索已有 stable embedding、uploader 與 backend adapter，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 為 false，沒有 live E2E 證據前不可宣稱可用。
-- `video_segments_video` 目前只作 course-scoped visual citation，不能稱為 caption QA 或正式 clip publishing source。綁定鍵為 `String(videos._id)`（2026-09-29），需以 pipeline CLI 人工產生；並行影像檢索 `QA_VISUAL_RETRIEVAL_ENABLED` 預設 false。
-- 短影片：自動選題、腳本生成、教師上傳成品與審核上架已實作，但上架（YouTube 發布）尚未 live 驗證；影片本身由教師在系統外產製，ComfyUI／MiniMax H3 已可在教授主機以地端模型運作，但未與 FocusFlow 串接（系統串接規劃中）。
-- YouTube auto-upload 與刪除轉 private 已於 2026-08-02 live 驗證；recovery／本地檔案清理 feature flags 仍預設關閉、未做 live 驗證。
-- LINE 曾 live smoke 成功，不代表目前 webhook URL、channel credentials 或正式部署永久有效。
-- Shared Atlas 的 collection/index 狀態必須 live 查證；不得靠舊快照推定，也不得未核准啟服觸發 autoIndex。
-
----
-
-## 九、Repo-local skills
-
-| Agent | Skill | 路徑與用途 |
-|-------|-------|------------|
-| Codex | `docs-maintainer` | `.agents/skills/docs-maintainer/SKILL.md`；文件盤點、對齊、去重 |
-| Codex | `github-copy` | `.agents/skills/github-copy/SKILL.md`；GitHub Desktop / VS Code commit Summary + Description |
-| Claude Code | 同名 skills | `.claude/skills/<skill>/SKILL.md` |
-
-`.agents/skills` 與 `.claude/skills` 是不同 agent 的入口，不要假設內容逐字相同；使用前讀取該 agent 對應的完整 `SKILL.md`。
+- 文件分工／進度整理：各 agent 的 `docs-maintainer`。
+- 系統手冊章節／製圖整合：各 agent 的 `project-documentation`；UML 規範共用 `.claude/skills/ooad-uml-diagramming/`。
+- GitHub 提交文案：各 agent 的 `github-copy`；要求文案不代表授權提交。
+- Codex 入口在 `.agents/skills`，Claude 入口在 `.claude/skills`；只載入實際需要的 skill。

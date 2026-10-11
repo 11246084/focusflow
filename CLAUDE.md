@@ -9,7 +9,7 @@
 Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修改：
 
 1. 先讀 [AGENTS.md](AGENTS.md)，確認跨 agent 入口、專案服務與文件索引。
-2. 依 `AGENTS.md` 的「AI Agent 實作前讀取清單」選擇任務相關文件。
+2. 依 `AGENTS.md` 的「按任務選讀」選擇任務相關文件。
 3. 依任務類型讀 `.claude/rules` 對應規則。
 4. 再讀實際程式碼與測試，避免只根據單一文件或舊會議紀錄推論現況。
 
@@ -252,18 +252,20 @@ LINE live 曾端對端驗證成功，但 ngrok URL、Channel Secret、Channel Ac
 
 ## 測試規範
 
+驗證範圍依 [AGENTS.md](AGENTS.md) 的「驗證依變更影響選擇」；以下為工具指令，不表示每次修改都跑全套。純文件只檢查文件，單一行為先跑受影響測試；跨模組、共用 harness 或發布準備跑全套，保留 CI 與任務驗收門檻。
+
 ### Backend
 
 測試位於 `backend/tests/`，使用 Node 內建 `node:test`。route tests 透過 `tests/helpers/backendTestHarness.js` 的 in-memory store，不依賴真實 MongoDB。
 
-修改 backend 後至少執行：
+跨模組或發布準備時執行 Backend 全套：
 
 ```powershell
 cd backend
 npm test
 ```
 
-若只改單一模組，可先跑單檔：
+單一模組修改使用對應測試；若無其他受影響範圍，不必再重跑全套：
 
 ```powershell
 node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
@@ -271,7 +273,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>
 
 ### Frontend
 
-測試位於 `frontend/focus-flow/tests/`，使用 `node:test`。修改 frontend 後至少執行：
+測試位於 `frontend/focus-flow/tests/`，使用 `node:test`。Frontend 完整驗證指令（依影響選擇）：
 
 ```powershell
 cd frontend\focus-flow
@@ -282,7 +284,7 @@ npm run build
 
 ### AI Pipeline
 
-測試位於 `STT_Whisper/tests/`（unittest）。修改 pipeline 後至少執行：
+測試位於 `STT_Whisper/tests/`（unittest）。Pipeline 完整驗證指令（依影響選擇）：
 
 ```powershell
 cd STT_Whisper

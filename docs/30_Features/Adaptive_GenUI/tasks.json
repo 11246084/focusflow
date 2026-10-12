@@ -1,0 +1,971 @@
+{
+  "schemaVersion": 1,
+  "planVersion": "0.2",
+  "updatedAt": "2026-10-12",
+  "statusAuthority": "HARNESS.md",
+  "currentAuthorization": "planning_only",
+  "taskOrder": "array_order_after_dependencies",
+  "tasks": [
+    {
+      "id": "M0-E01",
+      "milestone": "M0",
+      "kind": "engineering",
+      "title": "鎖定介面與授權證據接點",
+      "dependsOn": [],
+      "scope": "PLAN §3–7；QA/conversation/message",
+      "acceptanceCriteria": [
+        "文字、clarify、UI、fallback、版本與撤銷有契約正反例",
+        "記錄內容 hash、費用設定與事件保留設計"
+      ],
+      "verification": {
+        "profile": "review",
+        "method": "契約 review 與固定 fixtures；不需人工教學標註",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M0-E02",
+      "milestone": "M0",
+      "kind": "engineering",
+      "title": "建立共用 Schema 與匯入探針",
+      "dependsOn": [
+        "M0-E01"
+      ],
+      "scope": "shared/adaptive-genui；backend/frontend",
+      "acceptanceCriteria": [
+        "CJS 與 ESM 讀同一契約",
+        "Draft/Artifact/事件拒絕未知欄位",
+        "provider payload mock 相容"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "正反例及雙端匯入測試；選定 Zod 或記錄 Ajv 決策",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M0-E03",
+      "milestone": "M0",
+      "kind": "engineering",
+      "title": "建立離線案例格式與隔離 baseline",
+      "dependsOn": [
+        "M0-E01"
+      ],
+      "scope": "evaluation；tests fixtures",
+      "acceptanceCriteria": [
+        "案例可表示三種 mode、證據、偏好與操作",
+        "至少各類一例合成 smoke",
+        "不得冒充正式 120 例"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "驗證 case schema、固定 seed/hash、mock 無外部網路；保存舊 QA baseline",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M0-Q01",
+      "milestone": "M0",
+      "kind": "quality",
+      "title": "完成 120 例雙人標註與 split",
+      "dependsOn": [
+        "M0-E03"
+      ],
+      "scope": "evaluation；PLAN §8.1",
+      "acceptanceCriteria": [
+        "120 例依既定 60/40/20 分配、calibration/holdout 各半",
+        "兩人標註及仲裁、無概念洩漏"
+      ],
+      "verification": {
+        "profile": "human",
+        "method": "人工簽核＋split hash／比例檢查",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M1-E01",
+      "milestone": "M1",
+      "kind": "engineering",
+      "title": "實作硬性閘門與原因碼",
+      "dependsOn": [
+        "M0-E02",
+        "M0-E03"
+      ],
+      "scope": "responsePlanner.service",
+      "acceptanceCriteria": [
+        "旗標/偏好/無來源/不支援時無模型呼叫",
+        "原始決策與 veto 分開"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "決策表、call count、惡意輸入單元測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M1-E02",
+      "milestone": "M1",
+      "kind": "engineering",
+      "title": "實作 Planner adapter 與 deadline",
+      "dependsOn": [
+        "M1-E01"
+      ],
+      "scope": "responsePlanner.service；provider adapter",
+      "acceptanceCriteria": [
+        "text/clarify/ui 解析、版本與原因碼完整",
+        "超時/未知類型退化、遲到結果丟棄"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "stub provider、fake clock、abort、JSON 錯誤測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M1-E03",
+      "milestone": "M1",
+      "kind": "engineering",
+      "title": "建立 shadow 與評測 runner",
+      "dependsOn": [
+        "M1-E02"
+      ],
+      "scope": "evaluation；telemetry",
+      "acceptanceCriteria": [
+        "可重播 cases 並分列 planned/delivered/veto",
+        "always-text 與規則 baseline",
+        "不改 QA 對外結果"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "固定輸出與分母算例測試；shadow 契約測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M0-Q02",
+      "milestone": "M0",
+      "kind": "quality",
+      "title": "取得真實 provider baseline",
+      "dependsOn": [
+        "M1-E03",
+        "M0-Q01"
+      ],
+      "scope": "evaluation；PLAN §8",
+      "acceptanceCriteria": [
+        "指定模型/資料/費用授權、保存舊 QA baseline 與原始模型行為",
+        "不得只留摘要分數"
+      ],
+      "verification": {
+        "profile": "provider",
+        "method": "真實模型 replay；記錄設定、版本、成本與失敗",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M1-Q01",
+      "milestone": "M1",
+      "kind": "quality",
+      "title": "驗收 Design Judgment",
+      "dependsOn": [
+        "M0-Q02"
+      ],
+      "scope": "evaluation；PLAN §8.2",
+      "acceptanceCriteria": [
+        "holdout 3 輪各達既定門檻，報最差輪次/confusion matrix",
+        "不生成 UI 不可用 fallback 掩飾"
+      ],
+      "verification": {
+        "profile": "provider",
+        "method": "provider holdout＋人工標註對照",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M2-E01",
+      "milestone": "M2",
+      "kind": "engineering",
+      "title": "建立 Evidence Bundle 與穩定引用",
+      "dependsOn": [
+        "M0-E02",
+        "M0-E03"
+      ],
+      "scope": "qa.service；citation mapping",
+      "acceptanceCriteria": [
+        "只含准許證據",
+        "S 編號映射穩定 ref",
+        "scope/time/hash 可驗證"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "亂序、跨課程、未知 ID、時間範圍單元測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M2-E02",
+      "milestone": "M2",
+      "kind": "engineering",
+      "title": "補齊 FAQ 與無答案證據分支",
+      "dependsOn": [
+        "M2-E01"
+      ],
+      "scope": "qa.service FAQ/fallback",
+      "acceptanceCriteria": [
+        "exact/semantic hit 重驗",
+        "無答案/template 不產生 UI",
+        "不把全部 matches 升格"
+      ],
+      "verification": {
+        "profile": "route",
+        "method": "既有 QA/FAQ route tests＋回歸 fixtures",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M2-E03",
+      "milestone": "M2",
+      "kind": "engineering",
+      "title": "實作受限 generator adapter",
+      "dependsOn": [
+        "M2-E01",
+        "M1-E02"
+      ],
+      "scope": "learningUiGeneration.service",
+      "acceptanceCriteria": [
+        "沿用 provider 設定",
+        "最多一次生成",
+        "無 tools/任意來源",
+        "超時可取消"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "provider payload 與 error/abort mock",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M2-E04",
+      "milestone": "M2",
+      "kind": "engineering",
+      "title": "實作三元件與 claim validators",
+      "dependsOn": [
+        "M2-E03"
+      ],
+      "scope": "learningUiValidation.service",
+      "acceptanceCriteria": [
+        "comparison/steps/quiz 限制、引用、唯一正解結構、不存在節點、32KiB 限制均強制"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "有效/惡意/截斷/超限/錯引正反例",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M2-Q01",
+      "milestone": "M2",
+      "kind": "quality",
+      "title": "驗收生成與教材支持性",
+      "dependsOn": [
+        "M2-E04",
+        "M0-Q02"
+      ],
+      "scope": "evaluation；PLAN §8.2",
+      "acceptanceCriteria": [
+        "首次 Spec 成功率≥95%",
+        "逐 claim 支持率≥95%且零重大錯誤",
+        "解析/例題標示可查證"
+      ],
+      "verification": {
+        "profile": "provider_human",
+        "method": "真實 provider 生成＋人工逐 claim 審查",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset",
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E01",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "保存 Artifact 與公開訊息映射",
+      "dependsOn": [
+        "M2-E04",
+        "M2-E02"
+      ],
+      "scope": "message.model；conversation.service",
+      "acceptanceCriteria": [
+        "first/history/retry 版本一致",
+        "舊訊息相容",
+        "不洩漏內部 Evidence Bundle"
+      ],
+      "verification": {
+        "profile": "isolated_db",
+        "method": "隔離 Mongo round-trip＋route contract tests",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E02",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "建立 Renderer registry 與錯誤邊界",
+      "dependsOn": [
+        "M0-E02"
+      ],
+      "scope": "frontend LearningUiRenderer",
+      "acceptanceCriteria": [
+        "未知 type/version 安全退化",
+        "文字/播放器保留",
+        "引用 callback 白名單"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "純函式 node:test＋隔離瀏覽器故障注入",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E03",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "實作 comparison 元件",
+      "dependsOn": [
+        "M3-E02"
+      ],
+      "scope": "frontend comparison",
+      "acceptanceCriteria": [
+        "受控面向切換、逐 claim 引用、窄螢幕和鍵盤可用"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "固定 fixture 桌機/390px/鍵盤/引用測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E04",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "實作 steps 元件",
+      "dependsOn": [
+        "M3-E02"
+      ],
+      "scope": "frontend steps",
+      "acceptanceCriteria": [
+        "受控步驟展開、正確來源、焦點保留"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "固定 fixture 展開/來源/鍵盤測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E05",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "實作 quiz 元件",
+      "dependsOn": [
+        "M3-E02"
+      ],
+      "scope": "frontend quiz",
+      "acceptanceCriteria": [
+        "選答與解析本地回應",
+        "例題標示",
+        "不重建題目或自報可信分數"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "正錯選項/重設/解析引用/鍵盤測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M3-E06",
+      "milestone": "M3",
+      "kind": "engineering",
+      "title": "接入 QAPanel 並重播歷史",
+      "dependsOn": [
+        "M3-E01",
+        "M3-E03",
+        "M3-E04",
+        "M3-E05"
+      ],
+      "scope": "StudentCourses；qaConversationUtils",
+      "acceptanceCriteria": [
+        "回應自動呈現",
+        "reload 同一 artifact",
+        "跳影片保留捲動",
+        "無新增生成按鈕前置"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "隔離 E2E＋前端 test/lint/build",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M4-E01",
+      "milestone": "M4",
+      "kind": "engineering",
+      "title": "建立事件儲存與原子去重",
+      "dependsOn": [
+        "M3-E01"
+      ],
+      "scope": "learningInteractions model/service",
+      "acceptanceCriteria": [
+        "user+eventId 去重、同 ID 不同 payload conflict、CAS/舊版本拒絕、保留與刪除連動"
+      ],
+      "verification": {
+        "profile": "isolated_db",
+        "method": "隔離 Mongo 併發/round-trip/cleanup tests",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M4-E02",
+      "milestone": "M4",
+      "kind": "engineering",
+      "title": "建立 interactions API 授權邊界",
+      "dependsOn": [
+        "M4-E01"
+      ],
+      "scope": "routes/controllers/services；OpenAPI",
+      "acceptanceCriteria": [
+        "擁有權/課程/來源重驗",
+        "401/403或404/409/400/429",
+        "禁止 client 自報事實"
+      ],
+      "verification": {
+        "profile": "route",
+        "method": "route 成功/拒絕/撤銷/篡改測試＋docs lint",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M4-E03",
+      "milestone": "M4",
+      "kind": "engineering",
+      "title": "重建操作追問上下文",
+      "dependsOn": [
+        "M4-E02"
+      ],
+      "scope": "conversation/contextualQuestion services",
+      "acceptanceCriteria": [
+        "依 server artifact/event 定位",
+        "歧義澄清",
+        "學生選項不當證據",
+        "無重複計費"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "20 例固定操作序列＋prompt injection/計量 tests",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M4-E04",
+      "milestone": "M4",
+      "kind": "engineering",
+      "title": "接入操作保存與狀態恢復",
+      "dependsOn": [
+        "M4-E03",
+        "M3-E06"
+      ],
+      "scope": "frontend interaction client",
+      "acceptanceCriteria": [
+        "reload 確認狀態",
+        "亂序/重複/過期事件不覆蓋新版",
+        "選 B→追問可端到端運作"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "隔離瀏覽器＋route 故障注入",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M4-Q01",
+      "milestone": "M4",
+      "kind": "quality",
+      "title": "驗收操作後追問品質",
+      "dependsOn": [
+        "M4-E04",
+        "M0-Q02"
+      ],
+      "scope": "evaluation；PLAN §9 M4",
+      "acceptanceCriteria": [
+        "≥20 獨立情境、指涉正確率≥95%",
+        "教材解釋仍有來源且無重大錯誤"
+      ],
+      "verification": {
+        "profile": "provider_human",
+        "method": "真實 provider 對話 replay＋人工審查",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset",
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M5-E01",
+      "milestone": "M5",
+      "kind": "engineering",
+      "title": "接入 auto orchestration 與交付時序",
+      "dependsOn": [
+        "M1-E03",
+        "M2-E02",
+        "M3-E06"
+      ],
+      "scope": "conversation orchestration/config",
+      "acceptanceCriteria": [
+        "單次 JSON、answerReady 後5秒 deadline",
+        "UI 失敗不影響文字或重扣次數",
+        "flag off 零 GenUI calls"
+      ],
+      "verification": {
+        "profile": "route",
+        "method": "fake clock/取消/遲到結果/旗標 route tests",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M5-E02",
+      "milestone": "M5",
+      "kind": "engineering",
+      "title": "實作獨立 metrics 與故障驗收",
+      "dependsOn": [
+        "M5-E01",
+        "M4-E04"
+      ],
+      "scope": "telemetry；evaluation",
+      "acceptanceCriteria": [
+        "判斷/成功率/fallback/延遲分母獨立",
+        "不記敏感原文",
+        "本地互動 p95≤100ms"
+      ],
+      "verification": {
+        "profile": "browser",
+        "method": "固定計數算例、故障注入、瀏覽器測時",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M5-E03",
+      "milestone": "M5",
+      "kind": "engineering",
+      "title": "完成 MVP 相容與回歸驗證",
+      "dependsOn": [
+        "M5-E02"
+      ],
+      "scope": "backend/frontend/OpenAPI/docs",
+      "acceptanceCriteria": [
+        "QA/LINE/FAQ/history/retry/kill switch 全通過",
+        "啟用狀態與未知版本安全退化"
+      ],
+      "verification": {
+        "profile": "integration",
+        "method": "受影響子系統全套＋隔離 E2E；更新契約與功能索引",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M5-Q01",
+      "milestone": "M5",
+      "kind": "quality",
+      "title": "驗收完整品質與真實延遲",
+      "dependsOn": [
+        "M5-E03",
+        "M1-Q01",
+        "M2-Q01",
+        "M4-Q01"
+      ],
+      "scope": "evaluation；PLAN §8–9",
+      "acceptanceCriteria": [
+        "全部原門檻保留",
+        "≥100請求 flag on/off",
+        "額外 p95≤5秒、成本在批准上限",
+        "人工 QA 比較無新增重大錯誤"
+      ],
+      "verification": {
+        "profile": "provider_human",
+        "method": "真實端到端 holdout、延遲分布/成本、人工報告",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset",
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M6-E01",
+      "milestone": "M6",
+      "kind": "engineering",
+      "title": "建立有限混合內容 adapter",
+      "dependsOn": [
+        "M5-Q01"
+      ],
+      "scope": "shared contract；Renderer",
+      "acceptanceCriteria": [
+        "contentBlocks 相容舊文字",
+        "最多3區塊/深度2",
+        "保留固定引用與版本",
+        "記錄 json-render 採用或不採用理由"
+      ],
+      "verification": {
+        "profile": "integration",
+        "method": "新舊 client parity/超限/循環/穩定 ID tests",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M6-E02",
+      "milestone": "M6",
+      "kind": "engineering",
+      "title": "實作單一領域固定模擬引擎",
+      "dependsOn": [
+        "M6-E01"
+      ],
+      "scope": "simulation engine；catalog",
+      "acceptanceCriteria": [
+        "參數範圍/假設明確",
+        "無模型執行碼",
+        "最多20節點/30邊",
+        "本地操作不叫 LLM"
+      ],
+      "verification": {
+        "profile": "unit",
+        "method": "固定輸入輸出、性質與邊界測試",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M6-Q01",
+      "milestone": "M6",
+      "kind": "quality",
+      "title": "驗收擴充 catalog",
+      "dependsOn": [
+        "M6-E02"
+      ],
+      "scope": "evaluation；PLAN §8–9 M6",
+      "acceptanceCriteria": [
+        "新 holdout 維持既有門檻",
+        "人工確認模擬規則/假設證據",
+        "未通過不啟用新 catalog"
+      ],
+      "verification": {
+        "profile": "provider_human",
+        "method": "真實模型回歸＋領域人工審查",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "provider_budget",
+        "approved_dataset",
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M7-E01",
+      "milestone": "M7",
+      "kind": "engineering",
+      "title": "準備試用與回退作業單",
+      "dependsOn": [
+        "M5-E03"
+      ],
+      "scope": "docs/evidence；部署唯讀設定契約",
+      "acceptanceCriteria": [
+        "列目標環境/課程/帳號/觀測/kill switch/回退步驟",
+        "不執行部署"
+      ],
+      "verification": {
+        "profile": "review",
+        "method": "作業單 dry review＋隔離 kill switch 演練",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "local_development"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M7-R01",
+      "milestone": "M7",
+      "kind": "release",
+      "title": "執行已授權試用部署與 live 驗證",
+      "dependsOn": [
+        "M7-E01",
+        "M5-Q01"
+      ],
+      "scope": "指定 VM/Atlas/runtime",
+      "acceptanceCriteria": [
+        "明確授權與目標",
+        "health/config/來源/權限/回退實測",
+        "若含M6必須M6-Q01通過"
+      ],
+      "verification": {
+        "profile": "live",
+        "method": "受控部署及 live smoke，逐項記錄外部影響",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "deployment_target",
+        "live_access"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M7-Q01",
+      "milestone": "M7",
+      "kind": "quality",
+      "title": "完成教師與學生試用驗收",
+      "dependsOn": [
+        "M7-R01"
+      ],
+      "scope": "PLAN §9 M7",
+      "acceptanceCriteria": [
+        "至少5位學生各4組平衡順序任務",
+        "教師簽核",
+        "只聲稱可用性證據"
+      ],
+      "verification": {
+        "profile": "human",
+        "method": "人工試用紀錄/理解率/找來源時間/困惑與問題處置",
+        "command": null,
+        "commandStatus": "resolve_before_execution"
+      },
+      "requires": [
+        "human_review"
+      ],
+      "status": "todo",
+      "evidence": [],
+      "blocker": null
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-01, UC-06, FR-01～FR-04, FR-18, FR-23
+' source:       frontend/focus-flow/src/App.jsx, AdminApp.jsx, components/LoginPage.jsx, RegisterPage.jsx, Topbar.jsx, Sidebar.jsx, IssueReportLauncher.jsx, utils/pageRouting.js（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依一般入口、管理員入口、頂部列與側邊欄的導覽程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 系統入口與共用功能畫面移轉圖
+hide empty description
+
+state "首頁" as landing
+state "管理員登入頁" as adminLogin
+state "登入頁\n（學生／教師）" as login
+state "忘記密碼彈窗" as forgot
+state "註冊頁\n（學生）" as register
+
+state "登入後畫面" as app {
+  state "角色總覽\n（學生／教師／管理員）" as home
+  state "通知面板" as notif
+  state "個人資料" as profile
+  state "問題回報彈窗" as report
+  home -down-> notif : 按通知鈴鐺
+  notif -up-> home : 點選通知\n或關閉
+  home -down-> profile : 選「個人資料」
+  profile -up-> home : 側邊欄選頁
+  home -down-> report : 按「回報問題」\n[學生／教師]
+  report -up-> home : 送出或關閉
+}
+
+[*] -down-> landing : 開啟網站
+[*] -down-> adminLogin : 開啟 /admin
+
+landing -down-> login : 按「立即開始」
+login -up-> landing : 按「返回首頁」
+login -down-> forgot : 按「忘記密碼」
+forgot -up-> login : 重設完成\n或關閉
+login -down-> register : 按「立即註冊」
+register -up-> login : 按「返回登入」
+login --> login : 帳密錯誤或\n角色不符
+adminLogin --> adminLogin : 非管理員帳號
+
+login -down-> home : 登入成功\n[學生／教師]
+register -down-> home : 建立帳號成功
+adminLogin -down-> home : 登入成功\n[管理員]
+
+app -up-> login : 登出\n[學生／教師]
+app -up-> adminLogin : 登出\n[管理員]
+
+@enduml

@@ -1,6 +1,6 @@
 # Backend 文件入口
 
-最後更新：2026-09-28（管理員可在使用者管理頁為個別學生設定每日提問上限：`User.dailyAskLimitOverride`；前次 2026-09-25：OpenAPI route coverage 測試與 Redocly lint：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation，`npm run docs:lint` 0 error／0 warning；同日稍早為稽核高優先修正）
+最後更新：2026-09-29（影像片段綁定課程影片：`video_segments_video.video_id = String(videos._id)`、pipeline CLI `--video-id`／`--upload`；`QA_VISUAL_RETRIEVAL_ENABLED` 開啟時影像與文字並行檢索並附加補充 citation，預設關閉；前次 2026-09-28：管理員可在使用者管理頁為個別學生設定每日提問上限：`User.dailyAskLimitOverride`；再前次 2026-09-25：OpenAPI route coverage 測試與 Redocly lint：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation，`npm run docs:lint` 0 error／0 warning；同日稍早為稽核高優先修正）
 
 > 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
 

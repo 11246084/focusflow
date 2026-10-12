@@ -131,6 +131,15 @@ module.exports = {
     false,
     'QA_LEAF_ADJACENT_CONTEXT_ENABLED',
   ),
+  // 影像片段（video_segments_video）與文字檢索並行查詢並附加為補充 citation。
+  // 預設關閉；關閉時只在文字檢索 0 筆時才查影像（既有行為）。
+  qaVisualRetrievalEnabled: parseBoolean(
+    process.env.QA_VISUAL_RETRIEVAL_ENABLED,
+    false,
+    'QA_VISUAL_RETRIEVAL_ENABLED',
+  ),
+  qaVisualMatchLimit: parsePositiveInteger(process.env.QA_VISUAL_MATCH_LIMIT, 3, 'QA_VISUAL_MATCH_LIMIT'),
+  qaVisualMinScore: Number(process.env.QA_VISUAL_MIN_SCORE) || 0,
   maxConversationTurns: parsePositiveInteger(process.env.MAX_CONVERSATION_TURNS, 4, 'MAX_CONVERSATION_TURNS'),
   hierarchicalRetrievalEnabled: parseBoolean(
     process.env.HIERARCHICAL_RETRIEVAL_ENABLED,

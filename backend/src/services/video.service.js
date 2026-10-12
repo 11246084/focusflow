@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const { closeSync, createReadStream, existsSync, mkdirSync, openSync, unlinkSync } = require('fs');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
+const VideoSegmentVideo = require('../models/videoSegmentVideo.model');
 const Course = require('../models/course.model');
 const mongoose = require('mongoose');
 const AppError = require('../utils/appError');
@@ -516,6 +517,8 @@ async function deleteVideo(videoId, user) {
 
   const segmentKey = normalizeIdentifier(video.videoId, video.video_id, video._id);
   await VideoSegment.deleteMany({ videoId: segmentKey });
+  // 影像片段綁定鍵是 String(videos._id)；pipeline metadata 影片則沿用 segmentKey。
+  await VideoSegmentVideo.deleteMany({ video_id: { $in: [...new Set([segmentKey, String(video._id)])] } });
   await mongoose.connection.db.collection('transcripts_normalized').deleteMany({ video_id: segmentKey });
   await Video.deleteOne({ _id: videoId });
   await removeVideoNotifications([video._id]);

@@ -1,6 +1,6 @@
 # FocusFlow
 
-[文件總索引](docs/README.md) · [目前狀態](docs/current-status.md) · [功能狀態總表](docs/30_Features/README.md) · [四技部交付文件](docs/00_Deliverables/README.md)
+[文件總索引](docs/README.md) · [目前狀態](docs/current-status.md) · [功能狀態總表](docs/30_Features/README.md) · [四技部交付文件](docs/00_Deliverables/README.md) · [繳交清單](docs/00_Deliverables/Submission/README.md)
 
 FocusFlow 是一個 AI 驅動的教學影片問答系統。教師上傳教學影片後，系統自動執行語音轉文字、分段與向量嵌入，處理完成後可依設定自動上傳 YouTube；學生在網頁或 LINE Bot 對課程提問，取得 AI 回答與對應的影片時間點。
 

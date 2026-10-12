@@ -372,6 +372,23 @@
 
 ---
 
+### 21. 影像片段綁定課程影片＋並行影像檢索
+
+- **狀態**：Done（2026-09-29，本機實作與測試；尚未對任何課程影片實際產生影像片段）
+- **完成內容**：
+  - 綁定規則：`video_segments_video.video_id = String(videos._id)`（與 `video_segments_text.videoId` 相同）；`bridgeScope.service.js` 的影像範圍改為同時納入影片 `_id`、`videoId`／`video_id` 與舊的 `video_001` 檔名配對。
+  - Pipeline：`video_multimodal_pipeline.py` 新增 `--video-path`／`--video-id`／`--upload`；`mongodb_uploader.upload_bound_video_embeddings()` 驗證影片存在、upsert 並清除同影片的過期片段。
+  - QA：`QA_VISUAL_RETRIEVAL_ENABLED=true` 時影像檢索與文字檢索並行，影像片段（`QA_VISUAL_MATCH_LIMIT`、`QA_VISUAL_MIN_SCORE`，並剔除與已引用文字片段同影片時間重疊者）附加在文字 citation 之後；預設 false 維持「文字 0 筆才查影像」。
+  - 刪除影片／課程時一併刪除綁定的影像片段。
+  - `/health.runtime.multimodal` 改為依設定回報 `readiness`、`readyForQa`、`retrievalMode` 與 blockers。
+- **驗收**：backend `npm test` 937/937；pipeline unittest 198 通過；frontend test／lint／build 通過。
+- **待辦**：
+  - 對課程影片實際執行 CLI 並寫入共享 Atlas（需確認目標影片與費用）
+  - 以真實資料調整 `QA_VISUAL_MIN_SCORE`，再決定是否在 VM 開啟 `QA_VISUAL_RETRIEVAL_ENABLED`
+  - 教師上傳後自動產生影像片段（`main.py` 選用 stage）
+
+---
+
 ## 本輪刻意不碰
 
 - Frontend 程式碼

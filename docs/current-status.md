@@ -142,6 +142,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 - 管理員系統服務狀態 `GET /api/v1/admin/system-status`、未知 API 路徑改回 404、後端安全標頭（09-18）
 - 試用期使用統計 `npm run report:pilot-usage`（09-18，唯讀、只輸出彙總數字）
 - 問題回報（09-22）：`POST /api/v1/feedback`（最多 3 張截圖），管理員在「問題回報」頁處理（`/api/v1/admin/feedback`）；另保留連到 Google 表單的意見回饋按鈕
+- 影像片段綁定課程影片（09-29，程式與測試完成，尚未產生實際資料）：`video_segments_video.video_id = String(videos._id)`，由 pipeline CLI `--video-id --upload` 人工對指定影片產生；`QA_VISUAL_RETRIEVAL_ENABLED`（預設 false）開啟後影像與文字並行檢索，影像片段只作補充 citation。2026-09-29 唯讀實查共享 Atlas：16 筆影像片段全為 `video_001`、0 筆綁定課程影片，`video_embedding_index` READY
 
 此前未列入本頁的其他功能：
 

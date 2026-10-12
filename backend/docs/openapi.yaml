@@ -200,11 +200,13 @@ paths:
                           setupCommand: npm run db:ensure-video-vector-index
                           readiness: not_enabled
                           readyForQa: false
+                          videoBinding: video_segments_video.video_id = String(videos._id); legacy video_001 ids match by file name
+                          retrievalMode: text_empty_fallback
+                          visualMatchLimit: 3
+                          visualMinScore: 0
                           blockers:
-                            - code: MULTIMODAL_QA_NOT_INTEGRATED
-                              message: video_segments_video is not wired into QA retrieval yet.
-                            - code: VIDEO_SEGMENTS_VIDEO_SCOPE_MAPPING_UNVERIFIED
-                              message: video_segments_video.video_id must map to videos before course-scoped QA can use it.
+                            - code: QA_VISUAL_RETRIEVAL_DISABLED
+                              message: 'QA_VISUAL_RETRIEVAL_ENABLED=false: video_segments_video is only queried when text retrieval returns no matches.'
                           hardFailures: []
                         shortsSync:
                           enabled: true
@@ -5105,7 +5107,7 @@ components:
           type: integer
           minimum: 0
     MultimodalRuntimeSnapshot:
-      description: "`video_segments_video` / multimodal QA 的 runtime readiness 快照。目前僅用來顯示尚未接入 QA 的阻塞條件。"
+      description: "`video_segments_video` 影像檢索的設定面 readiness 快照。`readyForQa` 只代表設定條件齊備；`video_embedding_index` 是否 READY、課程影片是否已產生影像片段需另行實查。"
       type: object
       required:
         - segmentCollection
@@ -5135,11 +5137,27 @@ components:
         setupCommand:
           type: string
         readiness:
+          description: "`not_enabled`：QA_VISUAL_RETRIEVAL_ENABLED=false；`configured`：已開啟並行影像檢索（仍需實查索引與資料）。"
           type: string
           enum:
             - not_enabled
+            - configured
         readyForQa:
           type: boolean
+        videoBinding:
+          description: 影像片段與課程影片的綁定規則。
+          type: string
+        retrievalMode:
+          description: "`parallel_supplemental`：每次提問與文字並行查詢並附加補充 citation；`text_empty_fallback`：只在文字檢索 0 筆時查詢。"
+          type: string
+          enum:
+            - parallel_supplemental
+            - text_empty_fallback
+        visualMatchLimit:
+          type: integer
+          minimum: 1
+        visualMinScore:
+          type: number
         blockers:
           type: array
           items:
@@ -6310,7 +6328,7 @@ components:
                 - no_relevant_match
                 - no_searchable_segments
             matchModality:
-              description: 命中來源；文字 transcript 命中為 `text`，`video_segments_video` 命中為 `video`。
+              description: 答案依據的命中來源；文字 transcript 命中為 `text`（即使附加了影像補充 citation），只有影像片段命中時為 `video`。
               type: string
               enum:
                 - text
@@ -6331,7 +6349,7 @@ components:
                 - type: string
                 - type: 'null'
             visualSearch:
-              description: 若文字片段未命中，嘗試 `video_segments_video` 檢索時的診斷；未嘗試時為 null。
+              description: "`video_segments_video` 檢索診斷；未查詢時為 null。`mode` 為 `parallel`（與文字並行，另含 `candidateCount`、`appendedCount`）或 `text_empty_fallback`（文字 0 筆時才查）。影像檢索失敗只記在這裡，不計入 `degradedReasons`。"
               anyOf:
                 - type: object
                   additionalProperties: true

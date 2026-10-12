@@ -21,6 +21,7 @@ export function getRemainingSourceCount(sources, previewCount = SOURCE_PREVIEW_C
 
 export function toStudentCitation(source) {
   return {
+    modality: source.modality === 'video' ? 'video' : 'text',
     videoId: source.videoId || '',
     videoTitle: source.videoTitle || source.title || source.fileName || '',
     startSec: source.startSec ?? source.start_sec ?? 0,

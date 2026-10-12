@@ -1,0 +1,49 @@
+---
+title: 向量化與檢索流程圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  flowchart:
+    nodeSpacing: 20
+    rankSpacing: 22
+    wrappingWidth: 230
+    subGraphTitleMargin:
+      top: 6
+      bottom: 10
+---
+%% ============================================
+%% ooad-phase:   實作
+%% chapter:      7-2
+%% realizes:     UC-03, UC-04, UC-05, FR-08, FR-10, FR-13, FR-14
+%% source:       STT_Whisper/src/main.py（run_pipeline 步驟順序）、extract_audio.py、transcribe.py、normalize_transcript.py、chunking.py、embedding.py、embedding_contract.py、mongodb_uploader.py（upload_text_embeddings）；backend/src/services/queryEmbedding.service.js、embeddingContract.service.js、qa.service.js（searchSegmentsWithAtlas）、answerGeneration.service.js（實作證據）
+%% verified:     2026-09-29
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / Claude Code / 回應初評委員 1-1、3-3 新增：非 UML 資料流程圖，說明影片如何成為可檢索的向量，以及提問時如何以餘弦相似度取回片段；各步驟的程式位置見正文表7-2-2；Parent 階層（HIERARCHY_ENABLED 預設關閉）與影像／音訊向量不在主線，未畫入。為使 A4 直式最小字級不低於 7 pt，節點只保留步驟與關鍵參數，兩段流程左右並排
+%% ============================================
+flowchart TB
+    subgraph P["建立索引：AI Pipeline（每支影片一次）"]
+        direction TB
+        V["教師上傳的影片檔"]
+        A1["① 音訊抽取<br/>FFmpeg → 16 kHz WAV"]
+        A2["② 語音辨識<br/>Faster-Whisper<br/>→ 逐句文字＋起訖秒數"]
+        A3["③ 逐字稿正規化<br/>專有名詞詞典比對"]
+        A4["④ 切段<br/>合併相鄰句子，<br/>字數、句數或秒數達上限即切"]
+        A5["⑤ 片段向量<br/>gemini-embedding-2<br/>→ 3072 維單位向量"]
+        A6["⑥ 寫入 video_segments_text<br/>文字、起訖秒數、向量"]
+        V --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+    end
+
+    subgraph Q["查詢：後端 API（每次提問）"]
+        direction TB
+        Q0["學生提問（網頁或 LINE）<br/>FAQ 快取未命中才往下"]
+        Q1["⑦ 問題向量<br/>同一模型 → 3072 維單位向量"]
+        Q2["⑧ 課程範圍向量搜尋<br/>依餘弦相似度取前 15 筆"]
+        Q3["⑨ 回答生成<br/>片段編為 S1～S15 送入 prompt"]
+        Q4["⑩ 回答附引用<br/>影片、起訖秒數、跳轉連結"]
+        Q0 --> Q1 --> Q2 --> Q3 --> Q4
+    end
+
+    IDX[("Atlas text_embedding_index<br/>3072 維、cosine")]
+    A6 --> IDX
+    Q2 -. "$vectorSearch" .-> IDX

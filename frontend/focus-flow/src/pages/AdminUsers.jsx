@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 
@@ -58,12 +59,14 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
   };
 
   const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 'min(380px, 92vw)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
+  const box = { background: '#1a0d1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, padding: 28, width: 'min(380px, 92vw)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' };
   const label = { fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '.08em', marginBottom: 6, display: 'block' };
   const inp = { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
   const sel = { ...inp, cursor: 'pointer' };
 
-  return (
+  // Portal to <body>: the page's .fu animation leaves a transform on the scroll container,
+  // which would otherwise become the containing block for position:fixed and misplace the modal.
+  return createPortal(
     <div style={overlay} onClick={onClose}>
       <div style={box} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
@@ -134,7 +137,8 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

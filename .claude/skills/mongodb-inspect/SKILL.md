@@ -24,14 +24,11 @@ MCP 工具若未載入，先用 ToolSearch 一次抓齊常用的：
 select:mcp__mongodb__collection-indexes,mcp__mongodb__aggregate,mcp__mongodb__count,mcp__mongodb__explain,mcp__mongodb__find,mcp__mongodb__list-collections
 ```
 
-### 直連的已知限制
+### 連線限制依本次環境判定
 
-從 Claude Code 的 shell 直接跑 Node 腳本連 Atlas 會失敗：SRV DNS 查詢被阻擋（`querySrv ECONNREFUSED _mongodb._tcp.*`）。`dangerouslyDisableSandbox` 也救不了。
+歷史 Claude shell 曾遇 SRV DNS `querySrv ECONNREFUSED`；這不是所有宿主永遠不能直連的保證。先確認本次可用的 MCP 與已授權連線路徑；失敗時記錄本次錯誤，不反覆重試相同失敗，也不讀取或輸出未必要的憑證。
 
-代表：**任何需要真正跑 backend service 連 live DB 的驗證，都不能在這裡完成**。可行作法二選一：
-
-1. 用 MCP 對 live 執行查詢，把回傳文件餵給真實的 service function 重放（邏輯是 production code，只有傳輸層不同）——回報時必須據實說明這個差異。
-2. 把腳本寫好，交給使用者在自己的環境執行。
+若本次環境無法執行 live service，可用 MCP 唯讀資料重放真實 service function，並明確說明傳輸層差異；或交付可由使用者執行的腳本。這些替代驗證不能誤稱 live E2E，任何 DB 寫入仍需獨立授權。
 
 ## Collection 地圖
 

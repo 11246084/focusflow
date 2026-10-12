@@ -25,6 +25,11 @@ describe('multi-turn citation presentation', () => {
     assert.equal(citation.startSec, 0);
   });
 
+  it('keeps video modality so image-only sources can be labelled', () => {
+    assert.equal(toStudentCitation({ ...sources[0], modality: 'video' }).modality, 'video');
+    assert.equal(toStudentCitation(sources[0]).modality, 'text');
+  });
+
   it('restores assistant sources from persisted messages', () => {
     const message = mapConversationMessage({ role: 'assistant', content: '回答', sources });
     assert.equal(message.answer, '回答');

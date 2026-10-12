@@ -1,0 +1,44 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-04, UC-05, UC-07, FR-07, FR-12～FR-17, FR-20
+' source:       frontend/focus-flow/src/components/navigationConfig.js, pages/StudentDashboard.jsx, StudentCourses.jsx, StudentLineBot.jsx, StudentShortsWall.jsx（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依學生端側邊欄頁面、課程內容切換與彈窗程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 學生端畫面移轉圖
+hide empty description
+
+state "總覽" as home
+state "我的課程\n（課程清單）" as courses
+state "課程內容\n（影片播放與 AI 問答）" as detail
+state "詢問助教\nQR code 小卡" as tutor
+state "LINE 提問" as line
+state "解除綁定確認" as unbind
+state "教學短片" as shorts
+state "短片播放彈窗" as player
+
+[*] -down-> home : 學生登入成功
+
+home -down-> courses : 側邊欄「我的課程」\n或課程進度「查看全部」
+home -down-> line : 側邊欄「LINE 提問」\n或按「前往 LINE 提問」
+home -down-> shorts : 側邊欄「教學短片」
+
+courses -down-> detail : 按「進入課程」
+detail -up-> courses : 按返回
+detail --> detail : 選擇影片、送出問題\n或點選來源片段\n/ 播放器跳至對應時間
+detail -down-> tutor : 按「詢問助教」
+tutor -up-> detail : 關閉小卡
+
+line -down-> unbind : 按「解除 LINE 綁定」\n[已綁定]
+unbind -up-> line : 確定解除或取消
+
+shorts -down-> player : 點選短片卡片
+player -up-> shorts : 按 Esc、關閉\n或點選背景
+
+@enduml

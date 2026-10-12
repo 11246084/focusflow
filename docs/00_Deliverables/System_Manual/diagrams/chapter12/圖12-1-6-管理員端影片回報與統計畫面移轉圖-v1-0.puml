@@ -1,0 +1,40 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-09, FR-18, FR-19, FR-23
+' source:       frontend/focus-flow/src/components/navigationConfig.js, Topbar.jsx, pages/AdminVideos.jsx, AdminFeedback.jsx, AdminStats.jsx（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依管理員端影片、問題回報、使用統計頁面與公告面板程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 管理員端影片、回報與統計畫面移轉圖
+hide empty description
+
+state "系統總覽" as home
+state "影片" as videos
+state "刪除影片確認視窗" as confirmDel
+state "問題回報" as feedback
+state "附件預覽" as attachment
+state "使用統計" as stats
+state "通知面板\n（系統公告表單）" as notice
+
+[*] -down-> home : 管理員登入成功
+
+home -down-> videos : 側邊欄「影片」
+home -down-> feedback : 側邊欄「問題回報」
+home -down-> stats : 側邊欄「使用統計」
+home -down-> notice : 按通知鈴鐺
+notice -up-> home : 發送公告或關閉
+
+videos -down-> confirmDel : 按「刪除」
+confirmDel -up-> videos : 確認刪除或取消
+
+feedback -down-> attachment : 點選附件
+attachment -up-> feedback : 關閉預覽
+feedback --> feedback : 篩選類型、影響程度\n或變更處理狀態
+
+@enduml

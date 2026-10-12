@@ -9,10 +9,12 @@ config:
 %% chapter:      6-2
 %% realizes:     UC-01, UC-02, UC-03
 %% source:       backend/src/services/auth.service.js、loginThrottle.service.js、courseAccess.service.js、course.service.js、enrollment.service.js、videoBatch.service.js、videoProcessing.service.js；backend/src/models/user.model.js、course.model.js、enrollment.model.js、video.model.js、videoBatch.model.js（實作證據，設計層允許反向對照）
-%% verified:     2026-09-25
+%% verified:     2026-09-29
 %% status:       draft
 %% implemented:  yes
-%% ai-assisted:  yes / Claude Code / 自 圖6-2-1 v4-0 拆出資料視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（資料類別屬性、參照關聯與多重性；服務見同節 a 圖。改用 Mermaid 預設版面，videoIds 多對多關聯以標籤註明，避免多重性標籤被方框遮住）
+%% ai-assisted:  yes / Claude Code / v1-1：回應初評委員 3-5，於 Video 補上 video.model.js 第 234～235 行實際宣告的兩個 static（UML 以底線表示類別範圍操作）；其餘 model 在程式中沒有 methods／statics／virtual，維持只列屬性
+%% ============================================
+%% 前一版說明（v1-0）：自 圖6-2-1 v4-0 拆出資料視圖：類別內容沿用上一版，拆圖以改善 A4 可讀性（資料類別屬性、參照關聯與多重性；服務見同節 a 圖。改用 Mermaid 預設版面，videoIds 多對多關聯以標籤註明，避免多重性標籤被方框遮住）
 %% ============================================
 classDiagram
     direction TB
@@ -47,6 +49,8 @@ classDiagram
         -fileHash : String
         -processing : ProcessingState
         -youtubeUpload : YouTubeUploadState
+        +isAppOwnedRecord() Boolean$
+        +isPipelineMetadataRecord() Boolean$
     }
     class VideoBatch {
         -batchId : String

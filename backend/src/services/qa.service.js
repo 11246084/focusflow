@@ -597,7 +597,26 @@ function buildQaResultCategory({ status, matchStatus }) {
   return matchStatus;
 }
 
-async function searchVisualSegmentsWithAtlas(scope, queryVector) {
+// 綁定後課程影片的 _id 一律在影像範圍內，範圍非空不代表真的有影像片段；
+// 只有文字片段為 0 時才需要實查，決定要不要回「沒有可搜尋片段」。
+async function hasScopedVisualSegments(scope) {
+  if (!scope.allowedVideoIds?.size) {
+    return false;
+  }
+
+  try {
+    const segment = await VideoSegmentVideo.findOne(
+      { video_id: { $in: [...scope.allowedVideoIds] } },
+      { _id: 1 },
+    );
+    return Boolean(segment);
+  } catch (error) {
+    logger.warn('qa.visual_segment_lookup_failed', { message: error.message });
+    return false;
+  }
+}
+
+async function searchVisualSegmentsWithAtlas(scope, queryVector, { limit = env.qaMatchLimit } = {}) {
   if (!scope.allowedVideoIds?.size) {
     return {
       matches: [],
@@ -635,8 +654,8 @@ async function searchVisualSegmentsWithAtlas(scope, queryVector) {
           index: env.videoSegmentVideoVectorIndexName,
           path: 'embedding',
           queryVector,
-          numCandidates: Math.max(env.qaMatchLimit * 5, 10),
-          limit: env.qaMatchLimit,
+          numCandidates: Math.max(limit * 5, 10),
+          limit,
           filter: { video_id: { $in: [...scope.allowedVideoIds] } },
         },
       },
@@ -677,6 +696,31 @@ async function searchVisualSegmentsWithAtlas(scope, queryVector) {
       },
     };
   }
+}
+
+function rangesOverlap(left, right) {
+  const leftStart = Number(left.startSec ?? 0);
+  const leftEnd = Number(left.endSec ?? leftStart);
+  const rightStart = Number(right.startSec ?? 0);
+  const rightEnd = Number(right.endSec ?? rightStart);
+  return leftStart < rightEnd && rightStart < leftEnd;
+}
+
+// 影像片段沒有逐字稿，不送進回答 prompt；只挑出分數達門檻、且沒有和
+// 已引用文字片段在同一影片時間重疊的片段，附加在文字 citation 之後。
+function selectSupplementalVisualMatches(visualMatches, textEvidenceMatches, {
+  limit = env.qaVisualMatchLimit,
+  minScore = env.qaVisualMinScore,
+} = {}) {
+  const evidence = Array.isArray(textEvidenceMatches) ? textEvidenceMatches : [];
+
+  return (Array.isArray(visualMatches) ? visualMatches : [])
+    .filter((match) => Number(match.score) >= minScore)
+    .filter((match) => !evidence.some((textMatch) => (
+      String(textMatch.videoId || '') === String(match.videoId || '')
+      && rangesOverlap(textMatch, match)
+    )))
+    .slice(0, Math.max(0, limit));
 }
 
 function buildCitation(match, index) {
@@ -1391,7 +1435,7 @@ async function askQuestion({
     });
   }
 
-  if (!scopedSegments.length && !visualSegmentScope.allowedVideoIds.size) {
+  if (!scopedSegments.length && !(await hasScopedVisualSegments(visualSegmentScope))) {
     const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
       runtimeSnapshot,
       courseSummary,
@@ -1501,6 +1545,14 @@ async function askQuestion({
     expectedContract: runtimeSnapshot.queryEmbeddingContract,
   });
   const retrievalStartedAt = Date.now();
+  // QA_VISUAL_RETRIEVAL_ENABLED 時影像檢索與文字檢索並行；關閉時維持「文字 0 筆
+  // 才查影像」的既有行為。影像檢索失敗只寫入 runtime.visualSearch，不影響文字答案。
+  // 多取一倍候選，因為和已引用文字片段時間重疊的影像片段會被剔除。
+  const parallelVisualSearchPromise = env.qaVisualRetrievalEnabled
+    ? searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector, {
+      limit: env.qaVisualMatchLimit * 2,
+    })
+    : null;
   const searchResult = await executeHierarchicalRollout({
     decision: rolloutDecision,
     leafSearch,
@@ -1511,8 +1563,14 @@ async function askQuestion({
   const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
 
   if (!matches.length) {
-    const visualSearchResult = await searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector);
+    const visualSearchResult = parallelVisualSearchPromise
+      ? await parallelVisualSearchPromise
+      : await searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector);
     const visualMatches = enrichMatchesWithVideoMetadata(visualSearchResult.matches, scopedVideos);
+    const visualSearchDiagnostics = {
+      ...visualSearchResult.diagnostics,
+      mode: parallelVisualSearchPromise ? 'parallel' : 'text_empty_fallback',
+    };
 
     if (visualMatches.length) {
       const runtime = applyFaqCacheMissRuntime(buildQaRuntime({
@@ -1522,7 +1580,7 @@ async function askQuestion({
         matchStatus: 'matched',
         matchModality: 'video',
         searchDiagnostics: visualSearchResult.diagnostics,
-        visualSearchDiagnostics: visualSearchResult.diagnostics,
+        visualSearchDiagnostics,
         answerResult: { provider: 'template' },
       }));
 
@@ -1572,7 +1630,7 @@ async function askQuestion({
       searchableSegmentCount: scopedSegments.length,
       matchStatus: 'no_relevant_match',
       searchDiagnostics: searchResult.diagnostics,
-      visualSearchDiagnostics: visualSearchResult.diagnostics,
+      visualSearchDiagnostics,
       answerResult: null,
     }));
 
@@ -1624,6 +1682,31 @@ async function askQuestion({
     ? await findCachedClip(primaryEvidenceMatch.segmentId)
     : null;
   tMark = qaTimingMark(`llm+clip (matches=${matches.length}, transcript chars≈${matches.reduce((s, m) => s + (m.transcript?.length || 0), 0)})`, tMark);
+
+  // 影像片段只作為補充 citation 附加在文字 matches 之後，evidence ID 接續編號；
+  // 答不出來時不附加，避免在「資料不足」的回覆旁邊出現引用。
+  let supplementalVisualMatches = [];
+  let visualSearchDiagnostics = null;
+  if (parallelVisualSearchPromise) {
+    const visualSearchResult = await parallelVisualSearchPromise;
+    const visualCandidates = enrichMatchesWithVideoMetadata(visualSearchResult.matches, scopedVideos);
+    supplementalVisualMatches = noAnswerReply
+      ? []
+      : selectSupplementalVisualMatches(visualCandidates, supportingMatches);
+    visualSearchDiagnostics = {
+      ...visualSearchResult.diagnostics,
+      mode: 'parallel',
+      candidateCount: visualCandidates.length,
+      appendedCount: supplementalVisualMatches.length,
+    };
+  }
+  const responseMatches = [...matches, ...supplementalVisualMatches];
+  const responseEvidenceIds = Array.isArray(answerResult.supportingEvidenceIds)
+    ? [
+      ...answerResult.supportingEvidenceIds,
+      ...supplementalVisualMatches.map((_, index) => `S${matches.length + index + 1}`),
+    ]
+    : answerResult.supportingEvidenceIds;
   const resultClip = clip || (primaryEvidenceMatch?.jumpUrl ? {
     segmentId: primaryEvidenceMatch.segmentId,
     clipUrl: primaryEvidenceMatch.jumpUrl,
@@ -1637,6 +1720,7 @@ async function askQuestion({
     searchableSegmentCount: scopedSegments.length,
     matchStatus: 'matched',
     searchDiagnostics: searchResult.diagnostics,
+    visualSearchDiagnostics,
     answerResult,
   }));
   stageLatency.retrievalLatencyMs = Date.now() - retrievalStartedAt;
@@ -1692,7 +1776,7 @@ async function askQuestion({
       answer: answerResult.text,
       status: noAnswerReply ? QUESTION_STATUSES.NO_MATCH : QUESTION_STATUSES.ANSWERED,
       source,
-      matches,
+      matches: responseMatches,
       runtime,
       sourceUsageLogId: usageLog?._id,
       // 供短影片自動選題分群（規格書 DR-14）。答不出來的題不會成為候選，
@@ -1705,6 +1789,8 @@ async function askQuestion({
           courseId: course._id,
           question: trimmedQuestion,
           answer: answerResult.text,
+          // FAQ 只存文字 evidence：revalidateFaqMatches 以 video_segments_text 驗證，
+          // 影像片段存進去會讓快取永遠驗證失敗。命中快取時因此不附影像 citation。
           matches: markFaqAnswerEvidence(supportingMatches),
           clip: resultClip,
           questionEmbedding: queryVector,
@@ -1720,8 +1806,8 @@ async function askQuestion({
 
   return buildQaResponse({
     answer: answerResult.text,
-    matches,
-    supportingEvidenceIds: answerResult.supportingEvidenceIds,
+    matches: responseMatches,
+    supportingEvidenceIds: responseEvidenceIds,
     clip: resultClip,
     runtime,
     scopedVideos,
@@ -1906,4 +1992,5 @@ module.exports = {
   buildUserFacingCitations,
   retrieveSegmentsOnly,
   resolveSupportingMatches,
+  selectSupplementalVisualMatches,
 };

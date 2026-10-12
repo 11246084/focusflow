@@ -1,0 +1,52 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-02, UC-03, FR-05～FR-11
+' source:       frontend/focus-flow/src/components/navigationConfig.js, EnrollmentManagerModal.jsx, pages/TeacherDashboard.jsx, TeacherCourses.jsx, TeacherUpload.jsx（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依教師端課程管理彈窗與影片上傳追蹤程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 教師端課程與影片畫面移轉圖
+hide empty description
+
+state "總覽" as home
+state "課程管理" as courses
+state "新增課程彈窗" as newCourse
+state "修課學生管理彈窗" as enroll
+state "掛載既有影片彈窗" as attach
+state "刪除確認視窗" as confirmDel
+
+state "上傳影片" as upload {
+  state "選擇課程與影片" as pick
+  state "上傳中" as sending
+  state "處理追蹤" as tracking
+  [*] -down-> pick
+  pick -down-> sending : 按「上傳影片\n並建立 AI 索引」
+  sending -down-> tracking : 上傳完成
+  tracking --> tracking : 每 3 秒更新狀態\n或按「重新處理」
+}
+
+[*] -down-> home : 教師登入成功
+
+home -down-> courses : 側邊欄「課程管理」\n或最近上傳「查看全部」
+home -down-> upload : 側邊欄「上傳影片」\n或點選上傳影片卡片
+
+courses -down-> newCourse : 按「新增課程」
+newCourse -up-> courses : 建立或取消
+courses -down-> enroll : 按「學生」
+enroll -up-> courses : 關閉
+enroll --> enroll : Email 加入、匯入 CSV\n或撤銷修課資格
+courses -down-> attach : 按「掛載既有影片」
+attach -up-> courses : 掛載或取消
+courses -down-> confirmDel : 刪除課程或影片
+confirmDel -up-> courses : 確認刪除或取消
+
+newCourse -[hidden]down-> attach
+enroll -[hidden]down-> confirmDel
+
+@enduml

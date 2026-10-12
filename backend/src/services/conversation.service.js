@@ -26,6 +26,7 @@ function publicMessage(message) {
 
 function conversationSourcesFromCitations(citations) {
   return (Array.isArray(citations) ? citations : []).map((citation) => ({
+    modality: citation.modality || 'text',
     videoId: citation.videoId || null,
     chunkId: citation.chunkId || null,
     segmentId: citation.segmentId || null,

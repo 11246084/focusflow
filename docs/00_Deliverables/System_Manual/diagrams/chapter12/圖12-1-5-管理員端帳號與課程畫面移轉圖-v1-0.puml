@@ -1,0 +1,41 @@
+@startuml
+' ============================================
+' ooad-phase:   實作
+' chapter:      12-1
+' realizes:     UC-09, FR-04～FR-06
+' source:       frontend/focus-flow/src/AdminApp.jsx, components/navigationConfig.js, EnrollmentManagerModal.jsx, pages/AdminOverview.jsx, AdminUsers.jsx, AdminCourses.jsx（程式碼）
+' verified:     2026-09-30
+' status:       draft
+' implemented:  yes
+' ai-assisted:  yes / Claude Code / 依管理員端使用者與課程頁面的彈窗程式繪製畫面移轉圖
+' ============================================
+!include ../_style.puml
+
+title 管理員端帳號與課程畫面移轉圖
+hide empty description
+
+state "系統總覽" as home
+state "使用者" as users
+state "編輯使用者彈窗" as editUser
+state "課程" as courses
+state "新增／編輯課程彈窗" as editCourse
+state "修課學生管理彈窗" as enroll
+state "刪除課程確認視窗" as confirmDel
+
+[*] -down-> home : 管理員登入成功
+
+home -down-> users : 側邊欄「使用者」\n或使用者分布「管理」
+home -down-> courses : 側邊欄「課程」
+
+users -down-> editUser : 按「編輯」
+editUser -up-> users : 儲存或取消
+
+courses -down-> editCourse : 按「新增課程」\n或「編輯」
+editCourse -up-> courses : 儲存或取消
+courses -down-> enroll : 按「學生」
+enroll -up-> courses : 關閉
+enroll --> enroll : Email 加入、匯入 CSV\n或撤銷修課資格
+courses -down-> confirmDel : 按「刪除」
+confirmDel -up-> courses : 確認刪除或取消
+
+@enduml

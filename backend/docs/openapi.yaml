@@ -2019,6 +2019,50 @@ paths:
           $ref: '#/components/responses/QaRuntimeMisconfiguredError'
         '503':
           $ref: '#/components/responses/QaAtlasNotReadyError'
+  /api/v1/qa/extended-resources:
+    post:
+      tags:
+        - QA
+      summary: 取得問題的延伸學習推薦（教育開放資料）
+      description: |
+        依問題主題比對國家教育研究院愛學網（政府資料開放平臺資料集 6318，政府資料開放授權條款－第1版）
+        的教學影片清單，回傳最多 3 筆延伸學習影片。
+
+        這是答案之外的補充資料，不進入 `/api/v1/qa/ask` 的回答 prompt，也不影響 FAQ 快取與 LINE 問答。
+        沒有足夠相符的影片時回 `videos: []`，不是錯誤。
+
+        受 feature flag `OPEN_DATA_EXTENSION_ENABLED` 控制，預設關閉；關閉時回 `404 NOT_FOUND`。
+        呼叫者需有該課程的存取權限（同 `/api/v1/qa/ask`）。
+      operationId: getQaExtendedResources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaExtendedResourcesRequest'
+      responses:
+        '200':
+          description: 推薦結果（可能為空陣列）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QaExtendedResourcesResponse'
+        '400':
+          description: 缺少 `courseId` 或 `question`，或 ObjectId 格式不合法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          description: 課程不存在（`COURSE_NOT_FOUND`），或此功能未啟用（`NOT_FOUND`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/stats/teacher:
     get:
       tags:
@@ -5961,6 +6005,67 @@ components:
           $ref: '#/components/schemas/CourseStatus'
         teacherId:
           $ref: '#/components/schemas/ObjectId'
+    QaExtendedResourcesRequest:
+      description: "`/api/v1/qa/extended-resources` 的 request body。"
+      type: object
+      required:
+        - courseId
+        - question
+      properties:
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        question:
+          type: string
+    QaExtendedResourcesResponse:
+      description: "`/api/v1/qa/extended-resources` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - videos
+                - attribution
+              properties:
+                videos:
+                  type: array
+                  maxItems: 3
+                  items:
+                    type: object
+                    required:
+                      - title
+                      - videoUrl
+                      - learningField
+                      - learningStage
+                    properties:
+                      title:
+                        type: string
+                      videoUrl:
+                        type: string
+                        format: uri
+                      learningField:
+                        type: string
+                      learningStage:
+                        type: string
+                attribution:
+                  type: object
+                  required:
+                    - source
+                    - license
+                    - url
+                  properties:
+                    source:
+                      type: string
+                      example: 國家教育研究院愛學網
+                    license:
+                      type: string
+                      example: 政府資料開放授權條款－第1版
+                    url:
+                      type: string
+                      format: uri
     QaAskRequest:
       description: "`/api/v1/qa/ask` 的 request body。"
       type: object

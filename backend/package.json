@@ -14,6 +14,7 @@
     "db:ensure-parent-storage": "node src/scripts/ensureParentStorage.js",
     "db:repair-legacy-enrollments": "node src/scripts/repairLegacyEnrollments.js",
     "db:import-students": "node src/scripts/importStudents.js",
+    "db:import-open-edu-videos": "node src/scripts/importOpenEduVideos.js",
     "db:sync-atlas": "node src/scripts/syncLocalMongoToAtlas.js",
     "db:migrate-avatars": "node src/scripts/migrateAvatarsToMongo.js",
     "db:export-deliverable": "node src/scripts/exportDatabaseDeliverable.js",

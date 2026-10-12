@@ -205,6 +205,13 @@ module.exports = {
     false,
     'SHORT_SCRIPT_AUTOMATION_ENABLED',
   ),
+  // 教育開放資料延伸推薦的總開關（國家教育研究院愛學網）。預設關閉，關閉時
+  // POST /api/v1/qa/extended-resources 回 404，不影響 /qa/ask 與 LINE 問答。
+  openDataExtensionEnabled: parseBoolean(
+    process.env.OPEN_DATA_EXTENSION_ENABLED,
+    false,
+    'OPEN_DATA_EXTENSION_ENABLED',
+  ),
   qaMockEmbeddingDimensions: Number(process.env.QA_MOCK_EMBEDDING_DIMENSIONS) || 32,
   qaEstimatedTokensPerAsk: Number(process.env.QA_ESTIMATED_TOKENS_PER_ASK) || 1000,
   qaMonthlyTokenBudget: Number(process.env.QA_MONTHLY_TOKEN_BUDGET) || 0,

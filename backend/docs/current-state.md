@@ -273,6 +273,7 @@
 - 不能把 ngrok 暫時端點誤稱為固定正式部署網址
 - 不能說 `video_segments_video` 已是正式 clip source 或 caption QA source；目前只作 course-scoped visual citation retrieval
 - 不能把短影片功能誤稱為完整 Short 產線：ShortAsset feed、metadata sync、腳本自動選題／生成、教師上傳成品與審核上架已實作（`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉），但上架尚未 live 驗證（SP-3 未通過）；FFmpeg 剪輯與字幕未串接；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中
+- 不能把教育開放資料延伸推薦誤稱為已上線：`OPEN_DATA_EXTENSION_ENABLED` 預設關閉（VM 的 `.env` 不隨部署同步，要手動設定），`open_edu_videos` 需先由 `npm run db:import-open-edu-videos` 匯入愛學網 CSV；比對是關鍵字重疊，不是語意向量，也不進回答 prompt；只覆蓋網頁，LINE 沒有
 - 不能說系統「已正式上線」：對外口徑是「2026-09-21 起開放學生試用」，學生試用驗收證據持續進行中，LINE webhook 仍走 ngrok（改正式網域待與教授討論）
 - **不能說 Hierarchical Retrieval 已啟用或已完成本輪 live 驗證**。Local Parent／Leaf publication、Backend adapter 與 readiness code 已具備，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 仍為 false；2026-08-02 的 Parent 0 筆與 index READY 都只是舊 snapshot，必須重新唯讀驗證實際 active generation、filter definition、IXSCAN 與 Parent → Child → Citation
 - 不能把 `.env` 的 `QA_ACTIVE_*_EMBEDDING_CONTRACT_JSON` 或「index 名稱存在」講成資料已可用；runtime 還要求 live read-only evidence 與 query contract hash 一致。任何 shared Atlas publication／index update 都是寫入，需另行授權

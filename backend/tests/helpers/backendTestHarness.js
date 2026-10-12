@@ -38,6 +38,7 @@ const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
+const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
@@ -65,6 +66,7 @@ const store = {
   questions: [],
   lineBindTokens: [],
   faqs: [],
+  openEduVideos: [],
   shortAssets: [],
   shortScripts: [],
   notifications: [],
@@ -1022,6 +1024,10 @@ function installModelStubs() {
     return document;
   };
 
+  OpenEduVideo.find = (query = {}) => createQuery(
+    store.openEduVideos.filter((item) => matchesQuery(item, query)),
+  );
+
   Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
   Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;
   Faq.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
@@ -1224,6 +1230,7 @@ function resetStore() {
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
   store.faqs.length = 0;
+  store.openEduVideos.length = 0;
   store.shortAssets.length = 0;
   store.shortScripts.length = 0;
   store.notifications.length = 0;

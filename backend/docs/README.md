@@ -14,7 +14,7 @@
 - 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、已實作的 ShortAsset feed/sync 與仍待實作的 Clip/發布產線）
 - 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](handoff-stt-pipeline-integration.md)
 - 要啟用 YouTube 自動上傳與刪除轉 private：設定項與行為邊界見 [current-state.md](current-state.md) 與 `backend/.env.example`；憑證是否有效看 `/health.runtime.youtubeUpload`（schema 在 [openapi.yaml](openapi.yaml) 的 `YouTubeUploadRuntimeSnapshot`）；OAuth 憑證取得的逐步操作紀錄留在個人筆記（`context/`，未進版控）
-- 要審核學生 Short 修課過濾的前端串接方案（JWT、課程顯示、空狀態、分頁與 modal 保留方式）：看 [handoff-shorts-frontend-plan.md](handoff-shorts-frontend-plan.md)；本輪只有方案，尚未修改前端
+- Short 是教學短影片；要了解學生端的登入憑證、課程顯示、空清單提示、分頁與播放視窗，請看[前端完成交接](handoff-shorts-frontend-done.md)。
 - 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
 - 要確認最新待補：看 [todo.md](todo.md)（YouTube 真實 OAuth smoke、caption / OCR / frame description、Clip / Shorts 正式 routes 等上線前 / Phase 2 項目）
 
@@ -34,8 +34,8 @@
   - REST API 規格來源（Swagger UI 由此生成）；公開 route 全覆蓋，internal processing webhook 與 `GET /api/v1/line/webhook` 刻意不收錄
 - `phase2-api-contract.md`
   - Phase 2 API contract 補充文件：QA、video display states、已實作的 ShortAsset feed/sync，以及尚未實作的 Clip/發布 worker
-- `handoff-shorts-frontend-plan.md`
-  - 學生 Short 修課過濾的前端串接方案；記錄既有 authenticated helper、預計 UI 改動、小改動判準與待確認契約，本輪不含前端程式碼修改
+- `handoff-shorts-frontend-done.md`
+  - 學生教學短片牆的前端串接說明，包含登入憑證、畫面操作、檢查方式與驗證邊界。
 
 ## 文件之間的關係
 

@@ -1,0 +1,6 @@
+# 保留原 backend/UnderstandingCode/ 的 Git 追蹤範圍。
+# 個人學習筆記與 draw.io 原本只保留於本地；搬移不改為團隊共用檔案。
+*
+!.gitignore
+!README.md
+!data-model-diagram.md

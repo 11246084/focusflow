@@ -149,9 +149,9 @@ erDiagram
 | **App-owned** | `courseId` + `uploadedBy` + `title` + `processing.status` 全有值 | 教師從前端上傳的影片或貼上的 YouTube URL |
 | **Pipeline metadata / legacy bridge** | 有 `videoId` 或 legacy `video_id` 且 **不** 是 App-owned | Python pipeline 寫入或舊資料保留的外部影片 metadata |
 
-判別邏輯位於 [video.model.js:12-26](../src/models/video.model.js#L12-L26)：`Video.isAppOwnedRecord()` / `Video.isPipelineMetadataRecord()`。
+判別邏輯位於 [video.model.js:12-26](../../../../backend/src/models/video.model.js#L12-L26)：`Video.isAppOwnedRecord()` / `Video.isPipelineMetadataRecord()`。
 
-設計目的：讓 QA pipeline 的外部影片可透過 `course.videoIds` 進入 QA 範圍，不需要獨立 collection。詳見 [bridgeScope.service.js](../src/services/bridgeScope.service.js)。
+設計目的：讓 QA pipeline 的外部影片可透過 `course.videoIds` 進入 QA 範圍，不需要獨立 collection。詳見 [bridgeScope.service.js](../../../../backend/src/services/bridgeScope.service.js)。
 
 ---
 

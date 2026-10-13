@@ -1,0 +1,108 @@
+@font-face { font-family: "Noto Sans TC"; src: url("fonts/NotoSansTC-VF.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+/* 色票取自 FocusFlow 前端：品牌橘 #F14F21、梅紫 #3E1B33／#381230、洋紅 #BD5695／#97265D。
+   底色刻意比品牌梅紫更深：圖卡是配角，老師畫面與字幕才是主角。橘色只做結構（標籤、分隔線、外框），
+   黃色只做「這裡要看」的強調。 */
+:root { --bg:#25101F; --panel:#2E1226; --card:#4A2340; --card-edge:#8A4A74; --orange:#F14F21; --yellow:#FFC93C; --white:#ffffff; --muted:#D2B3C6; --ok:#4ade80; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #000; }
+body { font-family: "Noto Sans TC", sans-serif; }
+#root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--white); }
+.panel { position: absolute; left: 0; top: 0; width: 720px; height: 736px; background: linear-gradient(180deg, #2E1226 0%, #25101F 100%); }
+.hdr { position: absolute; left: 0; top: 0; width: 720px; height: 140px; padding: 26px 30px 0 30px; }
+.hdr .tag { display: inline-block; background: var(--orange); color: #fff; font-weight: 800; font-size: 20px; padding: 3px 12px; border-radius: 6px; letter-spacing: 1px; }
+.hdr .ttl { margin-top: 10px; font-weight: 900; font-size: 42px; line-height: 1.15; white-space: nowrap; }
+.hdr .logo { position: absolute; right: 30px; top: 28px; font-weight: 800; font-size: 20px; color: var(--muted); letter-spacing: 1px; }
+.stage { position: absolute; left: 0; top: 140px; width: 720px; height: 450px; }
+.scene { position: absolute; left: 24px; top: 0; width: 672px; height: 450px; border-radius: 18px; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.10); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; overflow: hidden; }
+
+/* stat */
+.lbl { font-weight: 800; font-size: 40px; color: var(--muted); }
+.kick { font-weight: 900; font-size: 56px; color: var(--yellow); }
+.bignum { font-weight: 900; font-size: 150px; line-height: 1; color: var(--white); display: flex; align-items: baseline; gap: 10px; }
+.unit { font-size: 56px; font-weight: 800; color: var(--yellow); }
+.chipstack { position: relative; width: 190px; height: 90px; }
+.chip { position: absolute; width: 150px; height: 74px; border-radius: 12px; background: var(--card); border: 3px solid #B06A94; }
+.chip.c1 { left: 40px; top: 8px; z-index: 3; background: linear-gradient(135deg,#97265D,#5A1E48); color: var(--yellow); font-weight: 900; font-size: 36px; display: flex; align-items: center; justify-content: center; }
+.chip.c2 { left: 20px; top: 4px; z-index: 2; }
+.chip.c3 { left: 0; top: 0; z-index: 1; }
+
+/* slots */
+.server { width: 560px; padding: 18px; border-radius: 16px; background: var(--card); border: 3px solid var(--card-edge); display: flex; flex-direction: column; gap: 12px; }
+.slot { height: 56px; border-radius: 10px; background: #35142B; border: 2px solid var(--card-edge); color: #C79BB6; font-weight: 800; font-size: 30px; display: flex; align-items: center; justify-content: center; letter-spacing: 2px; }
+
+/* rows */
+.rowx { display: flex; align-items: baseline; justify-content: center; gap: 16px; white-space: nowrap; }
+.tok { font-weight: 900; line-height: 1.1; }
+.tok-huge { color: var(--yellow); }
+.tok-display { color: var(--white); }
+.tok-mid { color: var(--white); }
+.tok-text { color: var(--muted); font-weight: 800; }
+.tok-num { color: var(--white); }
+.tok-op { color: var(--yellow); }
+.tok-unit { color: var(--yellow); font-weight: 800; }
+.tok-blank { color: #B58AA6; }
+.note { font-weight: 800; font-size: 44px; color: var(--yellow); }
+
+/* quote-reveal */
+.bubble { max-width: 600px; padding: 26px 34px; border-radius: 30px; background: #5A2A4C; border: 3px solid #B06A94; }
+.bubble span { display: inline-block; white-space: nowrap; font-weight: 900; font-size: 50px; line-height: 1.2; color: #fff; }
+
+/* chips */
+.chips { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; max-width: 620px; }
+.chipw { font-weight: 900; font-size: 54px; padding: 8px 22px; white-space: nowrap; border-radius: 16px; background: var(--card); border: 3px solid var(--card-edge); color: #fff; }
+.chipw.hl { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+.note2 { font-weight: 800; font-size: 44px; color: var(--muted); }
+.cap2 { font-weight: 800; font-size: 42px; color: var(--yellow); }
+.qmark { font-weight: 900; font-size: 110px; color: var(--yellow); line-height: 1; }
+
+/* compare */
+.locs { display: flex; align-items: center; gap: 18px; }
+.loc { min-width: 200px; text-align: center; padding: 14px 18px; border-radius: 18px; background: var(--card); border: 3px solid var(--card-edge); }
+.loc.bad { border-color: var(--orange); }
+.loc.hl { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
+.loc .ll { font-weight: 800; font-size: 34px; color: var(--muted); }
+.loc.hl .ll { color: #5A2A4C; }
+.loc .lv { font-weight: 900; font-size: 46px; white-space: nowrap; }
+.arrow { font-weight: 900; font-size: 64px; color: var(--yellow); }
+.lk { position: relative; width: 150px; height: 70px; }
+.lkl { position: absolute; left: 0; top: -6px; width: 150px; text-align: center; font-weight: 900; font-size: 40px; color: var(--yellow); }
+.lkline { position: absolute; left: 0; top: 52px; height: 8px; width: 150px; background: var(--yellow); border-radius: 4px; }
+.mark { font-weight: 900; font-size: 120px; line-height: 1; }
+.mark.no { color: var(--orange); }
+.mark.ok { color: var(--ok); }
+
+/* checklist */
+.mid2 { font-weight: 900; font-size: 60px; }
+.items { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; width: 600px; }
+.items.single { grid-template-columns: 1fr; width: 420px; }
+.item { display: flex; align-items: center; gap: 14px; background: var(--card); border: 3px solid var(--card-edge); border-radius: 14px; padding: 12px 18px; font-weight: 800; font-size: 46px; }
+.item.plain { justify-content: center; font-size: 56px; font-weight: 900; padding: 8px 24px; }
+.item .x { color: var(--orange); font-weight: 900; font-size: 44px; }
+.item .x.ok { color: var(--ok); }
+.banner { font-weight: 900; font-size: 84px; color: var(--yellow); }
+
+/* place-values */
+.digits { display: flex; gap: 14px; }
+.cell { width: 112px; text-align: center; background: var(--card); border: 3px solid var(--card-edge); border-radius: 14px; padding: 14px 0 10px; }
+.dg { font-weight: 900; font-size: 96px; line-height: 1.1; color: var(--yellow); }
+.pl { font-weight: 800; font-size: 36px; color: var(--muted); }
+
+/* relation */
+.relrow { display: flex; align-items: center; gap: 0; }
+.relrow .chipw { font-size: 52px; padding: 10px 20px; }
+.lnk { height: 8px; width: 0; background: var(--yellow); border-radius: 4px; margin: 0 4px; }
+
+/* overlay: stamp（任一場景都可附加，固定在右下角；有印章的場景把內容往上讓出空間） */
+.scene.has-stamp { padding-bottom: 130px; }
+.stamp { position: absolute; right: 30px; bottom: 22px; padding: 2px 18px; border: 5px solid var(--orange); color: var(--orange); font-weight: 900; font-size: 56px; border-radius: 14px; background: rgba(37,16,31,.95); }
+
+/* 字幕帶 */
+.band { position: absolute; left: 0; top: 600px; width: 720px; height: 130px; }
+.sub { position: absolute; left: 0; top: 0; width: 720px; height: 130px; display: flex; align-items: center; justify-content: center; padding: 0 24px; text-align: center; }
+.sub span { font-weight: 900; font-size: 54px; line-height: 1.2; color: #fff; text-shadow: 0 0 6px #000, 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000; }
+.sub b { color: var(--yellow); font-weight: 900; }
+.rule { position: absolute; left: 0; top: 736px; width: 720px; height: 4px; background: var(--orange); }
+#teacher { position: absolute; left: 0; top: 740px; width: 720px; height: 540px; object-fit: cover; background: #000; }
+.endcard { position: absolute; left: 0; top: 0; width: 720px; height: 1280px; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; opacity: 0; }
+.endcard .e1 { font-weight: 900; font-size: 96px; color: var(--yellow); }
+.endcard .e2 { font-weight: 800; font-size: 44px; color: var(--muted); }

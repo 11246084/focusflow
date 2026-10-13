@@ -1,0 +1,8 @@
+node_modules/
+# 渲染輸出、對齊快取與字型都不進版控（字型是 OFL 但約 12 MB；由環境提供，見 README）
+out/
+recut_out/
+*.mp4
+*.wav
+fonts/
+.hyperframes/

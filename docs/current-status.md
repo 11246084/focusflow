@@ -147,7 +147,7 @@ DEMO_SEED_ENABLED           = false  （需手動 npm run seed）
 此前未列入本頁的其他功能：
 
 - 網頁多輪問答 `/api/v1/conversations`（08-23，與 `/qa/ask` 共用每日上限）
-- 短影片腳本自動化（2026-09 起）：從 `questions` 自動選題、Gemini 生成腳本、教師上傳成品（以 unlisted 上傳 YouTube）、教師審核後上架。`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉；上架尚未 live 驗證（SP-3 未通過）；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中。見 [短腳本功能入口](30_Features/Short_Script_Automation/README.md)
+- 短影片腳本自動化（2026-09 起）：從 `questions` 自動選題、Gemini 生成腳本、教師上傳成品（以 unlisted 上傳 YouTube）、教師審核後上架。`SHORT_SCRIPT_AUTOMATION_ENABLED` 預設關閉；上架尚未 live 驗證（SP-3 未通過）；影片產製已可運作：ComfyUI 控制地端模型 MiniMax H3，跑在指導教授的主機上（團隊電腦硬體不足）；FocusFlow 程式碼沒有呼叫 ComfyUI，教師把系統產出的腳本貼到 ComfyUI 產片後再上傳成品，系統串接規劃中。另有本機工具 [`short_render/`](../short_render/README.md)（2026-10-14，`recut-v1`：程式化動畫＋老師原片原音的 plan 驗證與渲染 CLI），尚未串接後端／前端／資料表，也未在 VM 執行（VM 記憶體 3.5 GiB、Node 20 不符需求）。見 [短腳本功能入口](30_Features/Short_Script_Automation/README.md)
 - 教育開放資料延伸推薦（2026-10-03，本機實作）：答案下方的「延伸學習」區塊，只用愛學網「關鍵字」欄做整詞比對（不做 bigram，泛用詞與疑問詞排除）國家教育研究院愛學網（data.gov.tw 6318，CSV）影片清單，回傳最多 3 筆。獨立端點 `POST /api/v1/qa/extended-resources`，不改 `/qa/ask`、FAQ 快取與 LINE（LINE 沒有此功能）。`OPEN_DATA_EXTENSION_ENABLED` 預設關閉，關閉時回 404。資料由 `npm run db:import-open-edu-videos` 匯入 `open_edu_videos`；**尚未匯入真實 CSV、尚未在 VM 部署與驗證**，愛學網內容是國中小與高中，2026-10-03 以 258 題真實學生問題（OpenCV／AI／行銷課）實測只有 8 題（約 3%）有推薦：資料集是國中小與高中內容，大專課程多數題目沒有對應影片，這是刻意的高精準度取捨（先前的 bigram 版本 74% 有推薦但幾乎全是不相干影片，已棄用）。
 
 ---

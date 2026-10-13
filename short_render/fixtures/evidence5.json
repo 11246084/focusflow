@@ -1,0 +1,65 @@
+[
+ {
+  "chunkId": "fx5_c01",
+  "videoId": "fixture-video-5",
+  "startSec": 948.85,
+  "endSec": 963.95,
+  "rawText": "或者是文章啊那講白一點就是讓電腦能夠懂人想要幹嘛對不對那最經典的案例就是如果你去問siri說哎請問附近有哪些餐廳"
+ },
+ {
+  "chunkId": "fx5_c02",
+  "videoId": "fixture-video-5",
+  "startSec": 964.05,
+  "endSec": 979.05,
+  "rawText": "不要說中文要吃飯啊跟siri講說哎中文嗎哎這附近有哪些餐廳啊啊那這個時候呢他要完成你的交辦事項啊他要他要做好這個問題的話呢哎他叫"
+ },
+ {
+  "chunkId": "fx5_c03",
+  "videoId": "fixture-video-5",
+  "startSec": 979.05,
+  "endSec": 994.79,
+  "rawText": "他就幾個點要解決第一個他這個句子最重要的他有很多字嘛像附近啊這是一個字有啊這是一個字哪些這是一個字餐廳這是一個字他有這麼多的字嘛"
+ },
+ {
+  "chunkId": "fx5_c04",
+  "videoId": "fixture-video-5",
+  "startSec": 995.05,
+  "endSec": 1011.49,
+  "rawText": "啊那其中最重要的字是餐廳嘛對不對因為你要找的是餐廳啊但是如果他不能理解字跟字之間的關係他只看到餐廳的話那有可能會發生什麼事呢啊有可能發生什麼事舉例來講你在台北啊"
+ },
+ {
+  "chunkId": "fx5_c05",
+  "videoId": "fixture-video-5",
+  "startSec": 1011.49,
+  "endSec": 1028.49,
+  "rawText": "你中午要吃飯你問他啊那個呃有什麼餐廳推薦啊結果他推薦了你一間高雄夢時代裡面的餐廳那你應該也會三條線點點點啊那以高雄舉例你問他"
+ },
+ {
+  "chunkId": "fx5_c06",
+  "videoId": "fixture-video-5",
+  "startSec": 1028.49,
+  "endSec": 1043.79,
+  "rawText": "哎附近有什麼可以吃的他跟你講101哦這個就很尷尬了我我怎麼可能為為了吃個午飯先殺到從台北殺到高雄或從高雄殺到台北呢對不對所以附近這兩個字很重要啊"
+ },
+ {
+  "chunkId": "fx5_c07",
+  "videoId": "fixture-video-5",
+  "startSec": 1045.09,
+  "endSec": 1060.25,
+  "rawText": "哦附近如果我只看附近有沒有用也沒用啊因為附附附近附近什麼附近的什麼呃不知道啊所以他要能夠從這個字裡面找出來哦第一個重要的是餐廳然後接下來會有個附近"
+ },
+ {
+  "chunkId": "fx5_c08",
+  "videoId": "fixture-video-5",
+  "startSec": 1060.33,
+  "endSec": 1075.69,
+  "rawText": "這個附近是用來補充這個餐廳的哦他要能理解哦這個句子之間這些字的關聯然後才能夠哦把對的結果找出來"
+ },
+ {
+  "chunkId": "fx5_c09",
+  "videoId": "fixture-video-5",
+  "startSec": 1076.09,
+  "endSec": 1081.69,
+  "rawText": "哦那這排列節這排列組合就複雜了對不對哦這排列組合就會非常複雜"
+ }
+]

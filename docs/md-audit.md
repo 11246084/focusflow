@@ -22,3 +22,23 @@
 | 規則檢查／4 | [文件維護 skill](../.agents/skills/docs-maintainer/SKILL.md) | skill 是代理執行工作時參考的操作規範。比對狀態正本、README 用途與新增 md 檔規則，只列衝突原文及修改建議，不修改 skill。 |
 
 整理例子：舊 Short 方案與現行引用 → 封存原方案、改連完成交接 → 功能狀態只在 `current-status.md` 維護。階段 0 保存盤點、階段 1 整理 Short 方案；其他項目待後續階段，[AGENTS](../AGENTS.md)的文件規則於階段 4 處理。
+
+## CLAUDE.md 待遷移清單
+
+這份清單是 2026-10-16 補充的文件搬移規劃，用來保留 [CLAUDE.md](../CLAUDE.md) 的技術參考，避免縮短入口時漏掉操作細節。以下 13 項留待第二批處理：先比對目標文件，再合併缺少的內容；功能狀態、驗收與日期一律連到[目前狀態](current-status.md)，不搬成另一份現況紀錄。
+
+- [ ] **服務版本、埠號與安裝指令**：合併[後端 README](../backend/README.md)、[前端 README](../frontend/focus-flow/README.md)與 [STT README](../STT_Whisper/README.md)，以套件與入口程式核對需求，保留既有環境設定。
+- [ ] **示範資料、重設、同步與補資料工具**：操作入口放[後端 README](../backend/README.md)，資料寫入範圍與參數合併[資料庫說明](../database/README.md)；先對照各指令程式。
+- [ ] **OpenAPI 與規格檢查**：OpenAPI 是可供工具讀取的介面規格；操作入口合併[後端文件索引](../backend/docs/README.md)，路由排除項目與檢查限制合併[測試規則](../.claude/rules/testing.md)。
+- [ ] **STT Python 選擇與 YouTube 輸入**：獨立指令合併 [STT README](../STT_Whisper/README.md)，後端呼叫條件合併[STT 整合流程](../backend/docs/stt-integration.md)。
+- [ ] **後端目錄與各層責任**：合併[架構文件](../ARCHITECTURE.md)，工作原則只引用 [AGENTS.md](../AGENTS.md)。
+- [ ] **問答模型服務、設定組合與診斷**：設定方法合併[後端 README](../backend/README.md)，相容條件與診斷限制合併[後端注意事項](../backend/docs/handoff-known-issues.md)；範例值不當成部署設定。
+- [ ] **部署與連線排錯**：部署步驟合併[部署紀錄中的操作說明](40_Operations/deployment/2026-09_開放學生試用紀錄.md)，憑證操作合併[憑證文件](40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)；原歷史證據保留日期，現況仍只連正本。
+- [ ] **問答紀錄與 FAQ 快取**：FAQ 是常見問題，快取是保留可重用答案；命中條件、失效事件、無答案辨識與清除操作合併[問答契約](../backend/docs/phase2-api-contract.md)。
+- [ ] **影片資料來源與影像綁定**：呈現與存取規則合併[影片契約](../backend/docs/phase2-api-contract.md)，欄位對應合併[資料庫說明](../database/README.md)，以範圍服務核對文字與影像的不同識別碼規則。
+- [ ] **影片處理狀態機與錯誤**：狀態機是限制處理步驟如何轉換的規則；轉換表與錯誤碼合併[STT 整合流程](../backend/docs/stt-integration.md)，不混入開發進度。
+- [ ] **LINE 對話與選課行為**：合併[架構文件](../ARCHITECTURE.md)，保留有效修課、發布條件與依設定限制對話歷史的規則，不搬入舊固定數字。
+- [ ] **測試框架、輔助工具與指令**：測試方法合併[測試規則](../.claude/rules/testing.md)，各服務執行方式由其 README 提供；驗證範圍仍引用 [AGENTS.md](../AGENTS.md)。
+- [ ] **YouTube 授權與影片隱私限制**：合併[YouTube 契約](../backend/docs/phase2-api-contract.md)，保留上傳、轉私人影片的授權條件與連結外流限制；帳戶、憑證與驗收狀態只連正本。
+
+例：CLAUDE.md 的影片狀態轉換表 → 比對 STT 整合流程與處理服務 → 將缺少的技術說明合併到目標文件，再將入口改為連結。第二批還需更新 [AGENTS.md](../AGENTS.md)、[API 規則](../.claude/rules/api-design.md)、[測試規則](../.claude/rules/testing.md)、[安全規則](../.claude/rules/security.md)及上述部署文件中指向 CLAUDE.md 特定段落的引用。

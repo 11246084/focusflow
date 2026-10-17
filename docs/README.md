@@ -5,8 +5,11 @@
 | 入口 | 用途 |
 |---|---|
 | [目前狀態](current-status.md) | 跨服務可用範圍、風險與下一步 |
+| [後端功能開關](../backend/docs/feature-flags.md) | 開關來源、重啟條件與影像備援行為 |
+| [STT 整合流程](../backend/docs/stt-integration.md) | 語音轉文字的上傳、排程、回報與恢復入口 |
 | [功能狀態總表](30_Features/README.md) | 功能階段、驗收證據與缺口 |
 | [重要決策](decision-log.md) | 決策原因與影響，保留歷史時間點 |
+| [recut 短影片設計決策](30_Features/Short_Video/recut-design-decisions.md) | 老師原音＋程式動畫短片的已定案設計與待討論問題 |
 | [繳交清單](00_Deliverables/Submission/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
 | [正式交付](00_Deliverables/README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
 | [專案歷史](10_Project_History/README.md) | 有日期的專案快照 |

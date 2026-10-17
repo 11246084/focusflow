@@ -1,3 +1,8 @@
+> **歷史審查快照：2026-08-09。** Gate 是控制是否使用分層檢索的開關；本文保留當時的審查與數字，其中 PASS、READY、缺口及環境描述均限當時範圍，不代表目前驗收或啟用許可。
+> 請依[現行啟用前檢查](../../../backend/docs/handoff-known-issues.md#分層檢索啟用前檢查)重新查證，進度與驗證日期只看[目前狀態](../../current-status.md)。
+
+---
+
 # Phase 2-2 Hierarchical Retrieval Gate Review
 
 Review date: 2026-08-09  

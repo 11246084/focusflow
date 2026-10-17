@@ -15,4 +15,17 @@
 
 例：影片處理完成但 YouTube 上傳失敗 → 檢查上傳錯誤與憑證 → 依重試條件處理；不能直接刪除仍供播放的本機原片。
 
+## 分層檢索啟用前檢查
+
+Gate 是控制是否使用分層檢索的開關；下列條件供下一次審查使用，不代表已通過驗收或授權啟用。實際環境結果為 **⚠️ 未驗證**，查證日期與結論統一寫回[目前狀態](../../docs/current-status.md)，[舊審查](../../docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchical_Retrieval_Gate_Review.md)只保留歷史證據。
+
+- [ ] **資料與契約：**核對實際使用的向量格式、版本及允許影片的涵蓋範圍；每個大段落（Parent）引用的小片段（Leaf）須存在且無重複，影片與課程歸屬正確。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[分層查詢](../src/services/hierarchicalRetrieval.service.js)。
+- [ ] **索引：**確認實際 `chunkId_1` 索引可用、大段落向量索引可查詢，並支援 `courseId/videoId/generationVersion/isActive` 篩選；另檢查查詢執行計畫是否使用索引。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[索引腳本](../../database/tools/setup/init_indexes.js)；腳本內容不等於部署結果。
+- [ ] **範圍與模式：**檢查環境設定及允許的課程、影片、使用者；影片範圍須與使用者權限取交集。`shadow` 保留原答案、另做分層查詢供比較，`serve` 則採用分層查詢結果；兩者都必須通過資料檢查，不能只改開關。依據：[控制服務](../src/services/hierarchicalRollout.service.js)。
+- [ ] **引用與備援：**驗證來源識別碼、時間戳及課程隔離；查無資料、索引不可用或逾時時，檢查改回片段查詢的行為與原因紀錄。依據：[整合測試](../tests/hierarchical-retrieval.qa.integration.test.js)、[隔離驗證工具](../src/scripts/phase2_2_hierarchical_e2e_runner.js)；驗證時需確認沒有資料庫寫入，不變更共用開關。
+- [ ] **擴大使用前：**以有答案及無答案的題目評估回答率、引用正確性、分數分布、延遲與備援比例，檢查外部模型逾時處理，並由團隊訂定可接受門檻；不可沿用舊審查的小樣本數字。量測入口：[分層診斷](../src/services/hierarchicalRollout.service.js)、[隔離驗證工具](../src/scripts/phase2_2_hierarchical_e2e_runner.js)。
+- [ ] **回復與核准：**在獲授權的隔離環境驗證關閉開關、重啟後回到原片段查詢的流程；共用環境啟用前仍須人工審查及明確授權。依據：[環境設定](../src/config/env.js)、[控制服務](../src/services/hierarchicalRollout.service.js)、[工作邊界](../../AGENTS.md)。
+
+例：允許的影片缺少大段落資料 → 資料檢查不通過 → 控制服務維持原片段查詢；不能把另一支影片的歷史驗收當成通過依據。
+
 舊資料庫數字與歷史處置不是操作指令。需追查原文時，在 repo 根目錄執行 `git show 9140f9e:backend/docs/handoff-known-issues.md` → 顯示整理前版本；目前狀態仍回到[唯一正本](../../docs/current-status.md)。

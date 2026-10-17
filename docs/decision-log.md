@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10 | 短影片新增 recut 產片方式：老師原音＋程式動畫，與數位分身並存
+
+**決策**：教師選題後可選「生成模式（數位分身，ComfyUI）」或「recut」。recut 只使用老師授課錄音（不改聲音），畫面全由程式組合的動畫圖卡構成；AI 只寫施工單（選段、字幕、選元件與素材），不畫圖、不寫秒數。渲染由組員電腦上的 worker 執行，VM 渲染預設關閉。
+
+**原因**：ComfyUI 地端模型一支約 6 小時且只有一台 GPU；生成模型無法保證中文字與數字正確。recut 的文字與數字可驗證回逐字稿，CPU 數分鐘即可完成。
+
+**影響**：需要連續視窗證據、視窗語音辨識、背景工作、上傳時的同意勾選、素材庫與 worker。完整定案與待討論見 [recut 設計決策](30_Features/Short_Video/recut-design-decisions.md)；VM 的 Node 20 → 24 升級須在 `dev` 合併 `main` 前完成。
+
+---
+
 ## 2026-03 | AI Pipeline 作為離線 CLI，不內嵌於 Backend
 
 **決策**：Whisper STT 與 embedding pipeline 作為獨立 Python CLI（`STT_Whisper/`），與 backend process 分離；主線先輸出標準化 JSON / JSONL，必要時再由 uploader 導入 MongoDB，backend 只查詢結果。

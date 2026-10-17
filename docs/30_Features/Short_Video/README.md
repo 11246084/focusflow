@@ -12,6 +12,7 @@
 | [測試腳本](specs/Short_Video_Test_Script_v1.md) | 試作流程材料 |
 | [自動生成與驗收](../Short_Script_Automation/README.md) | 自動腳本、成品審核及 SP-3 狀態的主要來源 |
 | [recut 設計決策](recut-design-decisions.md) | 串進系統前已定案的設計與待討論問題；實作前必讀 |
+| [recut 素材開放與排除清單](recut-asset-exclusions.md) | AI 能挑選的 Fluent Emoji 範圍與排除理由 |
 | [recut 渲染工具](../../../short_render/README.md) | 「程式化動畫＋老師原片原音」plan 驗證與渲染 CLI（`recut-v1`）；本機工具，尚未串接後端與前端 |
 
 `evidence/` 待有本功能實際證據才加入；`archive/` 僅收已被取代版本。根目錄兩份相同腳本已保留至 [重複檔區](../../90_Archive/duplicates/)，本區為主要版本。

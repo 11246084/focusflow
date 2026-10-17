@@ -10,7 +10,8 @@
 | [learning-reports](learning-reports/) | Keras／深度學習學習資料，原子目錄關係保留 |
 | [後端程式碼理解筆記](learning-reports/backend-understanding-code-2026-05/README.md) | 2026-10-13 經確認封存原 `backend/UnderstandingCode/`；保留學習計畫、筆記及圖檔，不作目前架構依據 |
 | [後端歷史方案](backend/) | 2026-10-13 封存已被完成交接取代的 Short（教學短影片）前端方案，保留原文供追溯 |
-| [external-examples](external-examples/) | 其他組別／學制的參考，不作 FocusFlow 實作證據或四技部規範 |
+| [external-examples](external-examples/) | 外部作品範例及官方空白表格；其他組別／學制的作品不作 FocusFlow 實作證據或四技部規範 |
+| [2026 產學創新實作競賽官方空白表格](external-examples/2026_全國大專院校產學創新實作競賽_官方空白表格/) | 使用者提供的五份官方原始表格；已填寫的本組附件另存於競賽交付區 |
 | [retired-features](retired-features/) | 供未來正式下線功能使用；本次未將現有功能判為下線 |
 | [duplicates](duplicates/) | 搬移前 SHA-256 完全相同的 21 個額外副本，保留原始內容 |
 

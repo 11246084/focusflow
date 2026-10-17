@@ -1,8 +1,8 @@
-# CLAUDE.md
+@AGENTS.md
 
-本檔案提供 Claude Code 在 FocusFlow 專案中的工作指引。
+規則以 AGENTS.md 為準。本檔以下為待遷移的技術參考；與其他文件衝突時，以程式與對應文件為準。
 
-> 本文件是給 Claude Code 的操作規則；跨代理入口索引請看 [AGENTS.md](AGENTS.md)。修改規範時，兩份文件需保持一致。
+請依需要查閱下列技術內容；功能進度、部署現況、驗收結果與相關日期只看[目前狀態](docs/current-status.md)，技術內容的遷移目標見[待遷移清單](docs/md-audit.md#claudemd-待遷移清單)。
 
 ## 接手讀取順序
 
@@ -14,8 +14,8 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 4. 再讀實際程式碼與測試，避免只根據單一文件或舊會議紀錄推論現況。
 
 注意：
-- `docs/current-status.md` 與 `backend/docs/current-state.md` 是目前狀態入口。
-- [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) 是 2026 年 9 月學生試用版後端的規格、施工單與驗收證據入口；執行該任務時依資料夾內的專用權威順序工作。
+- 功能狀態只看[目前狀態](docs/current-status.md)；資料流與程式入口見[後端技術索引](backend/docs/current-state.md)。
+- 執行學生試用相關任務時，依[專用文件入口](docs/30_Features/Student_Pilot_Backend/README.md)查閱規格與任務規則；驗收結果由[目前狀態](docs/current-status.md)追查。
 - `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
 - `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
 
@@ -32,17 +32,17 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 ## 專案概述
 
-**FocusFlow** 是 AI 教學影片問答系統，2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用（試用，不是正式上線，見「不能誤稱的邊界」）：
+**FocusFlow** 是 AI 教學影片問答系統；試用、部署及驗收資訊統一見[目前狀態](docs/current-status.md)。
 
-教師本地上傳影片（單一軌道，2026-07-12 起）→ backend 觸發 STT pipeline → 產生文字片段與 embedding（設定憑證時另自動上傳 YouTube）→ 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。貼 YouTube URL 的 API 保留但不在教師上傳頁露出。
+教師上傳本機影片 → 後端觸發 STT（語音轉文字）處理流程 → 產生文字片段與 embedding（比較內容相似度的數字向量）→ 學生在網頁或 LINE 提問 → 回傳答案與影片時間戳。YouTube 輸入及自動上傳的呼叫與設定條件見[整合流程](backend/docs/stt-integration.md)及[功能開關](backend/docs/feature-flags.md)。
 
 三個服務：
 
 - `backend/` — Node.js / Express REST API，預設 port `4000`
 - `frontend/focus-flow/` — React 19 + Vite SPA，預設 port `5173`
-- `STT_Whisper/` — Python 離線 AI Pipeline CLI
+- `STT_Whisper/` — Python 影片處理指令工具；執行時可能呼叫模型、資料庫及後端
 
-最新跨服務狀態以 [docs/current-status.md](docs/current-status.md) 為準；backend 細節以 [backend/docs/current-state.md](backend/docs/current-state.md) 為準。
+技術細節見[後端技術索引](backend/docs/current-state.md)。
 
 ## 常用指令
 
@@ -87,7 +87,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-修改前端後至少執行：
+以下是前端檢查指令；是否執行由 [AGENTS.md 的驗證規則](AGENTS.md#驗證依變更影響選擇)依變更影響決定：
 
 ```powershell
 npm test
@@ -132,9 +132,7 @@ Controllers 不放主要業務邏輯；新增或修改行為時，優先把規�
 
 ## Runtime 與環境變數
 
-`backend/src/config/env.js` 的程式碼預設偏本機可跑；`backend/.env.example` 目前代表共享 demo 主線，偏 `gemini + atlas + gemini`。
-
-共享 demo 主線：
+設定名稱與預設值見[環境設定程式](backend/src/config/env.js)及[範例檔](backend/.env.example)。以下是設定組合範例，不代表部署環境的實際值：
 
 ```env
 QA_QUERY_EMBEDDING_PROVIDER=gemini
@@ -149,7 +147,7 @@ DEMO_SEED_ENABLED=false
 
 重要邊界：
 
-- 共享 Atlas 的 `text_embedding_index`（`video_segments_text`，3072 維）狀態以連 Atlas 實查為準，不要憑文件斷言；歷史上它被記載過「不存在」也被記載過「READY」。若查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
+- Atlas 是雲端 MongoDB 服務；查詢前需核對 `video_segments_text` 的向量維度、`text_embedding_index` 定義與可用性。缺少索引時，先回報並依 AGENTS.md 的資料庫授權邊界處理；查證結果只寫在[目前狀態](docs/current-status.md)。
 - 本機無 API key smoke 可改成：
 
 ```env
@@ -160,22 +158,23 @@ QA_VECTOR_SEARCH_MODE=memory
 
 - `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
 - `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
-- `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
+- `QA_MATCH_LIMIT` 控制檢索片段數量；比較設定或回答提示詞的效果前，要區分重新生成與快取命中。清除課程快取的介面為 `DELETE /api/v1/courses/:courseId/faqs`，執行前確認授權與目標課程；相關限制與查證結論見[目前狀態](docs/current-status.md)。
 - `/health` 是判斷 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload` 是否 ready 的入口，不要只看 `.env` 推測狀態。YouTube 憑證是否有效、scope 夠不夠轉 private，都要看 `/health.runtime.youtubeUpload`，不要憑 `.env` 有填就當作可用。
 
 ## 部署與對外連線（VM）
 
-正式環境跑在 Rocky Linux 9 VM（`rocky101702`，`140.131.115.105`），程式在 `/opt/focusflow`（owner `focusflow`）。push 到 `main` 會由 GitHub Actions self-hosted runner 觸發 `.github/workflows/deploy.yml`：`git pull` → backend `npm install` → frontend build → `restorecon` → `pm2 restart focusflow-backend` + `systemctl reload nginx`。**push `main` 等於 production deploy。**
+VM 是執行服務的虛擬主機；本節保留部署與排錯參考，實際主機、網址、憑證、連線結果與驗收日期只看[目前狀態](docs/current-status.md)。
 
-必須知道的邊界（2026-08-04 實測）：
+[部署流程設定](.github/workflows/deploy.yml)在 push 到 `main` 時觸發：進入 `/opt/focusflow` 拉取程式 → 安裝後端套件 → 打包前端 → 執行 `restorecon` 還原檔案的安全標記 → 以 PM2 重啟後端並讓 nginx 重讀設定；PM2 管理 Node.js 程序，nginx 提供網頁與 API 轉送。流程也傳入部分環境設定並進行服務檢查；不能由設定檔存在推定實際部署成功。
 
-- **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 只能在 VM 上手動維護（`sudo -u focusflow`）。新增任何環境變數後，本機可跑不代表 VM 可跑——YouTube 憑證就曾只存在本機、VM 上整組缺失，直到 `/health` 才發現。判斷 VM 實際狀態一律看 `/health`，不要看 repo 的 `.env.example`。
-- nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。443 server block 自 2026-09-18 起加了 HSTS、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`（server 層 `add_header`；日後若在 location 內新增任何 `add_header`，該 location 會不再繼承這些標頭，需一併複製）。
-- HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)（含續約檢查與回滾步驟）。
-- port 80 對外不通（2026-08-12 tcpdump 證實封包未抵達 VM，技士表示不會開放）。`focusflow.conf` 的 80 block 已標 `default_server` 並 301 轉 HTTPS，但只在 VM 內部生效；判斷 80 是否通要用 `curl -v http://...`，瀏覽器會自動改走 HTTPS 造成假陽性。
-- `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。是否改走 `https://focusflow.ntub.edu.tw/api/v1/line/webhook` 需先與指導教授討論，不是試用期的阻擋項。
-- CORS 已收斂：2026-09-23 從外部實測，非白名單 Origin 的預檢請求不會拿到 `Access-Control-Allow-Origin`，`https://focusflow.ntub.edu.tw` 會拿到，代表 VM 的 `ALLOWED_ORIGINS` 已設定。
-- 正式環境的 `/health` 沒有經過 nginx 轉發（從外部打會拿到前端 HTML），要在 VM 內 `curl localhost:4000/health` 或看管理員「系統服務」頁（`GET /api/v1/admin/system-status`）。
+- `.env` 不隨 Git 同步；主機上的設定檔與部署流程傳入的環境變數都需核對，診斷時以程序實際設定與 `/health` 回應為依據。
+- nginx 參考位置為 `/etc/nginx/conf.d/focusflow.conf`；需檢查前端檔案位置、`/api/` 轉送、`upload_size.conf` 與 `client_max_body_size`，上傳收到 413 時先核對大小限制。這些主機檔案的實際內容須另行查證。
+- 檢查 HTTPS 回應標頭時，注意 nginx 的 `add_header` 繼承範圍；若在 `location` 區塊自行設定，不能假設仍沿用外層全部標頭。
+- 憑證操作參考包含 `/etc/nginx/ssl/focusflow.crt`、`focusflow.key`、`/opt/acme.sh` 與 TLS-ALPN-01（透過加密連線驗證網域控制權的方式）；操作前查閱[憑證申請與回復步驟](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。核對執行帳號、續約排程及是否會暫停 nginx，不能把舊設定當成目前排程。
+- 查 HTTP 連線可用 `curl -v http://<主機>`，避免只用會自動改成 HTTPS 的瀏覽器；若需判斷封包是否到達主機，可在授權環境用 `tcpdump -ni <網卡> 'tcp[tcpflags] & tcp-syn != 0 and dst host <主機IP> and (dst port 80 or dst port 443)'` 觀察。tcpdump 是封包檢查工具，須先確認網卡、篩選條件及權限。
+- LINE 回報網址若使用 ngrok（將外部連線轉送至本機服務的工具），需核對 `ngrok.service`、轉送目標與 LINE 平台設定；不要把暫時網址當成固定部署網址。
+- CORS 是限制瀏覽器跨網站請求的規則；檢查允許與不允許的來源所收到的 `Access-Control-Allow-Origin` 回應，不由設定名稱推定結果。
+- 在主機內可用 `curl localhost:4000/health`，或由管理員「系統服務」頁呼叫 `GET /api/v1/admin/system-status`；外部 `/health` 是否轉送須核對 nginx 設定。
 
 ## QA / Video / LINE 邊界
 
@@ -189,17 +188,17 @@ QA_VECTOR_SEARCH_MODE=memory
 
 QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、runtime 與 `sourceUsageLogId`。
 
-### FAQ 快取（2026-07-13）
+### FAQ 快取
 
 `askQuestion` 內建兩層 FAQ 快取（`faqs` collection + `faqCache.service.js`，API 與 LINE 共用）：正規化文字完全相同直接命中（零 token）；否則以 query embedding 對課程 FAQ 比 cosine 相似度 ≥ `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）命中，跳過向量搜尋與 LLM。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除會自動清該課程快取。修改 QA 回應格式時，快取命中路徑（`respondFromFaqCache`）需同步；測試要走非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
 
 自動失效時機（`faqs` 無 TTL，只有事件驅動失效）：影片刪除、影片重新處理完成、課程刪除、影片掛載到課程（`attachVideoToCourse`）、影片自課程移除（`detachVideoFromCourse`）。另有容量淘汰：單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時砍 `hitCount` 最低的。
 
-「答不出來」的回覆不會被快取（2026-07-25 起）：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
+「答不出來」的回覆不會被快取：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
 
-2026-08-30 起 prompt 只插入 `NO_ANSWER_INSUFFICIENT` 一句，且觸發條件收斂成「所有片段都沒有提到問題的主題」；`NO_ANSWER_UNDETERMINED` 留在 `isNoAnswerReply()` 只為了辨識改版前留下的舊答案，不要再把它寫回 prompt。
+[回答提示詞](backend/src/services/answerGeneration.service.js)只插入 `NO_ANSWER_INSUFFICIENT` 一句，且觸發條件收斂成「所有片段都沒有提到問題的主題」；`NO_ANSWER_UNDETERMINED` 留在 `isNoAnswerReply()` 只為了辨識改版前留下的舊答案，不要再把它寫回 prompt。
 
-**尚存缺口：設定 / 模型 / prompt 變更不會讓快取失效**。改 `QA_MATCH_LIMIT`、`GEMINI_CHAT_MODEL` 或 prompt 規則後，舊快取仍回舊答案，必須手動 `DELETE /api/v1/courses/:courseId/faqs`。
+調整設定、模型或 prompt（提供模型的回答指示）後，測試時需排除舊快取影響；清除操作見前述介面，相關缺口與改善進度只看[目前狀態](docs/current-status.md)。
 
 ### Video Model
 
@@ -208,22 +207,15 @@ QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、
 - App-owned video：有 `courseId`、`uploadedBy`、`title`、`processing.status`
 - Pipeline metadata：有 `video_id` 或 `videoId`，但不是 app-owned
 
-QA bridge contract：
+文字片段查詢的權限範圍由[範圍服務](backend/src/services/bridgeScope.service.js)建立：
 
 ```text
-course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId
+課程可存取影片 -> String(videos._id) -> video_segments_text.videoId
 ```
 
-`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` **三種 key 全部**放進 allowed set，命中任一即納入 scope。實務分佈：
+`videoId`／`video_id` 可參與影片資料的查找，但文字片段的允許集合由 `addVideoIdentifiers` 只加入影片 `_id`；不能把影像片段的識別碼規則套到文字查詢。實際欄位分布與資料涵蓋範圍只由[目前狀態](docs/current-status.md)追查。
 
-- App-owned 影片**沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`
-- 只有 pipeline metadata 影片才有 `videoId` / `video_id`
-
-所以查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到（2026-07-25 排查時踩過）。要用 `String(videos._id)`。
-
-不要誤稱 `video_segments_video` 已成為正式 clip source；它目前仍是預留 / legacy 邊界，且欄位仍偏 snake_case。
-
-影像片段綁定（2026-09-29）：`video_segments_video.video_id = String(videos._id)`，由 `video_multimodal_pipeline.py --video-path … --video-id <_id> --upload` 人工產生；舊的 `video_001` 片段仍靠檔名配對。`QA_VISUAL_RETRIEVAL_ENABLED`（預設 false）開啟時影像與文字並行檢索，影像片段只作補充 citation、不進回答 prompt。共享 Atlas 是否已有綁定片段要實查，不要憑文件斷言。
+影像片段以 `video_segments_video.video_id = String(videos._id)` 綁定課程影片；[影像工具](STT_Whisper/src/video_multimodal_pipeline.py)使用 `--video-path`、`--video-id` 與 `--upload`，舊 `video_001` 類識別碼另有檔名／路徑配對邏輯。並行檢索、文字查無結果的影像備援及來源引用限制見[功能開關](backend/docs/feature-flags.md)，不另記功能完成度。
 
 ### Processing State Machine
 
@@ -243,12 +235,12 @@ course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segmen
 LINE Bot 在 `User` 上維護：
 
 - `lineConversationState`
-- `lineConversationHistory`，最近 6 筆訊息
+- `lineConversationHistory`：依 `MAX_CONVERSATION_TURNS × 2` 保留近期訊息，見[截取邏輯](backend/src/services/line.service.js)及[設定定義](backend/src/config/env.js)
 - `activeCourseId`
 
-切換課程時，選項 = 自己 enrollment ∪ 所有 `published` 課程，去重後最多顯示 4 筆。
+切換課程時，[LINE 服務](backend/src/services/line.service.js)只列有效修課且課程為 `published` 的選項，選單最多顯示 4 筆；課程已發布不等於使用者有修課權限。
 
-LINE live 曾端對端驗證成功，但 ngrok URL、Channel Secret、Channel Access Token 是部署時變動項。不要把暫時 ngrok URL 寫成固定正式網址。
+LINE 的回報網址與憑證依部署環境設定；連線與驗收結果只看[目前狀態](docs/current-status.md)。
 
 ## 測試規範
 
@@ -295,13 +287,10 @@ cd STT_Whisper
 
 ## 開發原則
 
-- 僅專注 Phase 1 MVP，不提前實作後續階段功能。
-- 優先沿用既有資料夾、命名、service pattern、response helper 與 error middleware。
-- 非必要不重新命名、不搬動大型結構、不重寫無關模組。
+- 變更範圍、程式結構與刪除授權依 [AGENTS.md 的工作邊界](AGENTS.md#工作邊界)。
 - 新增 API 時維持 request/response 格式一致，補基本輸入驗證與清楚錯誤碼。
 - 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
 - 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
-- 不刪除檔案或清資料，除非使用者明確要求且已確認影響。
 - 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
 
 ## 文件更新
@@ -316,16 +305,18 @@ cd STT_Whisper
 - `frontend/focus-flow/README.md`
 - `STT_Whisper/README.md`
 
-若只修內部實作且對使用方式、runtime、API contract 沒影響，可以不改文件，但完成回覆中需明確說明未改文件的理由。
+是否更新文件與回報理由，依 [AGENTS.md 的文件規則](AGENTS.md#文件規則)；上列文件依各自用途維護，不重複記錄功能進度。
 
 ## 不能誤稱的邊界
 
-- atlas mode 是否 ready 要連 Atlas 實查 `listSearchIndexes` 確認 `text_embedding_index` 為 READY，並需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`；不要憑文件斷言它存在或不存在。
-- 不能把單次 LINE live smoke 說成正式部署完成。
-- 不能說所有前端功能都已 live 驗證：16 個頁面都已接 backend API，但部分功能受 feature flag 控制（例如 `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時，短影片腳本 API 回 404）。
-- YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
-- 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
-- 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
-- 不能說 `video_segments_video` 已接成正式 multimodal QA source。
-- OpenAPI 的 route 覆蓋（method + path）由 `docs.routes.test.js` 強制，但 request／response schema 與實作是否一致**沒有**自動化測試保證（Redocly 只驗 spec 本身與 example）；不能說「schema 已由測試驗證」。internal processing webhook 刻意不在公開 spec 內。
-- **對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」**：校外可經 `https://focusflow.ntub.edu.tw` 使用（443 全球可達、Let's Encrypt 憑證受信任、CORS 已收斂、HSTS 已加）。仍屬試用的原因：學生試用驗收證據（附錄 I 的 12＋2 題）持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）、port 80 對外不通（學校不開放，對外一律給 `https://` 網址）。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。
+功能完成度、部署狀況、資料查證與歷史驗收只看[目前狀態](docs/current-status.md)；本節只保留技術限制。
+
+- Atlas 查詢需要核對索引、模型與資料契約；檢查 `listSearchIndexes` 的結果及 `/health` 診斷，不把環境變數有值視為服務可用。
+- 腳本與上傳受不同開關控制；關閉腳本介面不會關閉學生短片牆，詳見[功能開關](backend/docs/feature-flags.md)。
+- OAuth 是授權系統使用 YouTube 帳戶的機制；上傳需核對 `YOUTUBE_UPLOAD_ENABLED` 與憑證，刪除後轉為私人影片還需符合[上傳服務](backend/src/services/youtubeUpload.service.js)的權限檢查。`youtube.force-ssl` 是程式接受的權限之一，只有 `youtube.upload` 不足以轉私人影片；完整權限清單以服務內的 `PRIVACY_CAPABLE_SCOPES` 為準。帳戶授權、權杖及外部驗證結果由狀態正本追查，不由本檔推定。
+- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片；轉私人影片失敗會記錄錯誤，但不中斷系統刪除，所以不能保證刪除資料後 YouTube 影片必定下架。
+- `unlisted` 是知道連結即可觀看的 YouTube 隱私設定；課程頁的存取權限不能阻止取得連結的人轉貼。上傳隱私設定與播放限制見[YouTube 契約](backend/docs/phase2-api-contract.md#4-youtube-系統帳號上傳流程)。
+- 影像查詢與文字生成的分工見[功能開關](backend/docs/feature-flags.md)，實際資料涵蓋與驗收由狀態正本追查。
+- [路由規格測試](backend/tests/docs.routes.test.js)比對方法與路徑；Redocly 檢查規格格式與範例，不能代替請求／回應與實作的一致性驗證。內部處理通知不列入公開 OpenAPI。
+
+例：調整問答設定 → 核對程序設定與診斷回應 → 在授權環境測試並排除快取影響 → 將驗證日期與結果寫入狀態正本。

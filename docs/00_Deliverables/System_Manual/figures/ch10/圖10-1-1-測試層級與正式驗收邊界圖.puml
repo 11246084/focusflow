@@ -9,7 +9,7 @@
 ' implemented:  partial
 ' ai-assisted:  yes / OpenAI Codex / 建立非 UML 測試層級與驗收邊界圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 測試層級與正式驗收邊界圖
 top to bottom direction

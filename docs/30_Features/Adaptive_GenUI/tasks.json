@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "planVersion": "0.2",
-  "updatedAt": "2026-10-12",
+  "updatedAt": "2026-10-13",
   "statusAuthority": "HARNESS.md",
-  "currentAuthorization": "planning_only",
+  "currentAuthorization": "local_development_m0_m5",
   "taskOrder": "array_order_after_dependencies",
   "tasks": [
     {
@@ -20,14 +20,17 @@
       "verification": {
         "profile": "review",
         "method": "契約 review 與固定 fixtures；不需人工教學標註",
-        "command": null,
-        "commandStatus": "resolve_before_execution"
+        "command": "cwd: D:\\AI-workspace\\focusflow-adaptive-genui-scheduled; Codex technical review evidence/m0-contract-review.md sections 1-8 against PLAN sections 3-7 and cited source (16 synthetic cases); git diff --check; PowerShell local link and line-whitespace validation as recorded in PROGRESS.md#run-20261013-m0-e01",
+        "commandStatus": "ready"
       },
       "requires": [
         "local_development"
       ],
-      "status": "todo",
-      "evidence": [],
+      "status": "done",
+      "evidence": [
+        "evidence/m0-contract-review.md",
+        "PROGRESS.md#run-20261013-m0-e01"
+      ],
       "blocker": null
     },
     {
@@ -47,14 +50,19 @@
       "verification": {
         "profile": "unit",
         "method": "正反例及雙端匯入測試；選定 Zod 或記錄 Ajv 決策",
-        "command": null,
-        "commandStatus": "resolve_before_execution"
+        "command": "cwd backend: node --test --experimental-test-isolation=none --test-concurrency=1 tests/adaptiveGenui.contract.test.js; cwd frontend/focus-flow: node --test tests/adaptiveGenui.contract.test.js",
+        "commandStatus": "ready"
       },
       "requires": [
         "local_development"
       ],
-      "status": "todo",
-      "evidence": [],
+      "status": "done",
+      "evidence": [
+        "evidence/run-20261013-100507-m0-e02/verification.json",
+        "PROGRESS.md#run-20261013-100507-m0-e02",
+        "evidence/run-20261013-101325-m0-e02/verification.json",
+        "PROGRESS.md#run-20261013-101325-m0-e02"
+      ],
       "blocker": null
     },
     {

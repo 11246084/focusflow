@@ -1,0 +1,12 @@
+{
+  "taskId": "M0-E02",
+  "package": "zod",
+  "version": "3.25.76",
+  "command": "cwd D:\\AI-workspace\\focusflow-adaptive-genui-scheduled; npm.cmd install --prefix shared/adaptive-genui zod@3.25.76 --no-save --package-lock=false --ignore-scripts --no-audit --no-fund --cache D:\\AI-workspace\\focusflow-adaptive-genui-schedule\\npm-cache --fetch-retries=0 --fetch-timeout=15000",
+  "exitCode": 0,
+  "probe": "node require(shared/adaptive-genui/node_modules/zod), z.string().parse(local) = local",
+  "probeExitCode": 0,
+  "packageJsonSHA256": "70EEDBE34FD52385A4AE2F3E5759B19682189F0118EA73A6E7C32C677F61668E",
+  "isolation": "free npm dependency download with scripts disabled; no paid provider/database/application",
+  "priorRun": "run-20261013-100507-m0-e02"
+}

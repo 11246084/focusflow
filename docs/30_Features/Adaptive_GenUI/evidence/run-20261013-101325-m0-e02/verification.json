@@ -1,0 +1,156 @@
+{
+  "runId": "run-20261013-101325-m0-e02",
+  "taskId": "M0-E02",
+  "owner": "Codex / wrapper controlledTrial",
+  "session": "run-20261013-101325-m0-e02",
+  "authorization": "User turn: M0-M5 local engineering and isolated tests under HARNESS; ONLY selected M0-E02 in this run. No agents, provider, Atlas, production data, webhook, YouTube, deployment, Git publication/branch changes or wrapper/schedule edits.",
+  "head": "966f34b7cbaf446a7b6975b7e7dffc56d3af3e84",
+  "branch": "feat/adaptive-genui",
+  "checkpointBy": "2026-10-13T10:33:04.2538908+08:00",
+  "hardStop": "2026-10-13T10:35:04.2538908+08:00",
+  "recovery": {
+    "snapshot": "All seven wrapper paths and SHA-256 values matched before changes; existing changes retained.",
+    "tasks": "Parsed once; unique IDs, existing/acyclic dependencies, done evidence, blocked unblockCondition and active count checked. M0-E01 done; active=0 at start.",
+    "prior": "Dependency-unblock installation was historical evidence; current local import probe confirmed zod 3.25.76 zod/v4 and toJSONSchema available.",
+    "processes": "No background process started by this run. Get-Process node succeeded; parent tree CIM lookup denied. Existing processes left untouched."
+  },
+  "environment": {
+    "node": "v22.23.2",
+    "zodPackage": "3.25.76",
+    "zodApi": "zod/v4",
+    "network": "No network call; npm attempts used --offline",
+    "isolation": "Tests import only node:test/assert/module, shared schemas, installed Zod and synthetic fixtures. No server/app, DB, env, provider SDK or credentials."
+  },
+  "decision": "Use fixed Zod package with its v4 entry and built-in JSON Schema export; no second handwritten contract and no Ajv fallback. Canonical CJS runtime object re-exported by ESM.",
+  "tests": [
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/backend",
+      "command": "node --test --experimental-test-isolation=none --test-concurrency=1 tests/adaptiveGenui.contract.test.js",
+      "exitCode": 0,
+      "passed": 28,
+      "failed": 0,
+      "log": "backend-test.txt"
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/frontend/focus-flow",
+      "command": "node --test tests/adaptiveGenui.contract.test.js",
+      "exitCode": 0,
+      "passed": 5,
+      "failed": 0,
+      "log": "frontend-test.txt"
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/shared/adaptive-genui",
+      "command": "node -e \"const fs=require('node:fs'); const assert=require('node:assert/strict'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); const l=JSON.parse(fs.readFileSync('package-lock.json','utf8')); const installed=JSON.parse(fs.readFileSync('node_modules/.package-lock.json','utf8')).packages['node_modules/zod'];assert.equal(l.lockfileVersion,3);assert.equal(p.dependencies.zod,l.packages[''].dependencies.zod);assert.deepEqual(l.packages['node_modules/zod'],installed); const c=require('@focusflow/adaptive-genui'); import('@focusflow/adaptive-genui').then(e=>{assert.equal(e.default,c); console.log('lock metadata and package export conditions: PASS')});\"",
+      "exitCode": 0,
+      "result": "Lock metadata and package require/import exports match."
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled",
+      "command": "git diff --check",
+      "exitCode": 0,
+      "result": "No whitespace errors; LF/CRLF advisory warnings only."
+    }
+  ],
+  "acceptance": [
+    {
+      "criterion": "CJS 與 ESM 讀同一契約",
+      "result": "pass",
+      "evidence": "Frontend schema object identity assertions plus package exports probe."
+    },
+    {
+      "criterion": "Draft/Artifact/事件拒絕未知欄位",
+      "result": "pass",
+      "evidence": "Every object path in all three block types, Draft, Artifact, event and context rejects unknown/url/style/script/fetch/userId/__proto__ keys; positive and negative structure/reference/version/size fixtures."
+    },
+    {
+      "criterion": "provider payload mock 相容",
+      "result": "pass (offline only)",
+      "evidence": "Six OpenAI/Gemini x comparison/steps/quiz derived payload and response probes, missing fields/wrong component/injected response rejection. Gemini projection is deliberately reduced; strict local validation still required."
+    }
+  ],
+  "failures": [
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled",
+      "command": "Get-Content HARNESS.md",
+      "exitCode": null,
+      "result": "Root file absent; located and read docs/30_Features/Adaptive_GenUI/HARNESS.md once."
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/backend",
+      "command": "node --test --experimental-test-isolation=none --test-concurrency=1 tests/adaptiveGenui.contract.test.js *> ../docs/30_Features/Adaptive_GenUI/evidence/run-20261013-101325-m0-e02/backend-test.log",
+      "shellExitCode": 0,
+      "exitCode": null,
+      "result": "Out-File access denied; test was NOT executed. Direct execution subsequently passed and output saved through apply_patch as .txt."
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/frontend/focus-flow",
+      "command": "node --test tests/adaptiveGenui.contract.test.js *> ../../docs/30_Features/Adaptive_GenUI/evidence/run-20261013-101325-m0-e02/frontend-test.log",
+      "shellExitCode": 0,
+      "exitCode": null,
+      "result": "Out-File access denied; test was NOT executed. Direct execution subsequently passed and output saved through apply_patch as .txt."
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/shared/adaptive-genui",
+      "command": "npm.cmd install --package-lock-only --offline --ignore-scripts --no-audit --no-fund --cache ../../.npm",
+      "attempt": 1,
+      "exitCode": 1,
+      "result": "EPERM open shared/adaptive-genui/package-lock.json. No install scripts/network."
+    },
+    {
+      "cwd": "D:/AI-workspace/focusflow-adaptive-genui-scheduled/shared/adaptive-genui",
+      "command": "npm.cmd install --package-lock-only --offline --ignore-scripts --no-audit --no-fund --cache ../../.npm",
+      "attempt": 2,
+      "exitCode": 1,
+      "result": "npm warn ancient lockfile\nnpm warn ancient lockfile The package-lock.json file was created with an old version of npm,\nnpm warn ancient lockfile so supplemental metadata must be fetched from the registry.\nnpm warn ancient lockfile\nnpm warn ancient lockfile This is a one-time fix-up, please be patient...\nnpm warn ancient lockfile\nnpm error code ENOTCACHED\nnpm error request to https://registry.npmjs.org/zod failed: cache mode is 'only-if-cached' but no cached response is available.\nnpm error A complete log of this run can be found in: D:\\AI-workspace\\focusflow-adaptive-genui-scheduled\\.npm\\_logs\\2026-10-13T02_21_21_908Z-debug-0.log\n",
+      "resolution": "No network retry. Lock v3 assembled from already-installed node_modules/.package-lock.json metadata, then exact dependency/version/resolved/integrity metadata comparison passed. npm ci not executed."
+    }
+  ],
+  "notExecuted": [
+    "Vite/browser bundle, frontend lint/build: Vite not installed; only isolated Node import probes added, no production frontend integration. M3 must verify bundler and renderer.",
+    "Full backend/frontend suites: no existing runtime APIs, app entry, harness or renderer changed; selected task verification profile is unit/import mock probes.",
+    "Provider/live/Atlas/human/formal quality acceptance: not authorized here; gates unchanged.",
+    "Clean npm ci: no registry/cache availability; package is fixed and lock metadata checked against historical approved local installation."
+  ],
+  "sourceHashes": [
+    {
+      "path": "shared/adaptive-genui/index.cjs",
+      "sha256": "CA3BFD79B241419674577164E1BF819897808070E796D271BBB9DE6D512F9B98"
+    },
+    {
+      "path": "shared/adaptive-genui/index.mjs",
+      "sha256": "8D32C8A47C5E2F4824925ED3D253115727C17EDC553B81F8E39FB49FE359D7F5"
+    },
+    {
+      "path": "shared/adaptive-genui/package.json",
+      "sha256": "9222D421A2714703AA3E529B787D636DB282BACBECB1BB9DB18F21F48C77D4B4"
+    },
+    {
+      "path": "shared/adaptive-genui/package-lock.json",
+      "sha256": "4986A437DCAFD4D0554816F4DA4F197BB8884C502A05351BF4E37267F5FAAC9C"
+    },
+    {
+      "path": "shared/adaptive-genui/README.md",
+      "sha256": "5F1D921233E0529B50E2B3215F3D198A545460D65CAC7BE8261A1744EF0C189C"
+    },
+    {
+      "path": "shared/adaptive-genui/tests/fixtures.cjs",
+      "sha256": "A4D2E98C36C0F51BDAE9B459D43D5E0B5F94A20F9AE2D3A5F8B079A3FFEA4F90"
+    },
+    {
+      "path": "shared/adaptive-genui/tests/providerMocks.cjs",
+      "sha256": "D310A04B0BD84A6D2ADA4A9E175D9EE39FE5C111A930D34BFB14430FDADEECCC"
+    },
+    {
+      "path": "backend/tests/adaptiveGenui.contract.test.js",
+      "sha256": "C235770E102F55A48E846B372836F4779F13B24F42D4982E44464A21A3E1729F"
+    },
+    {
+      "path": "frontend/focus-flow/tests/adaptiveGenui.contract.test.js",
+      "sha256": "FBBD2F38F4DCF89A75550A04F774498CE4A6C8A46AD67CCD24AA2B8E210D9B8C"
+    }
+  ],
+  "changes": "New shared package/schema/ESM entry/README/fixtures/provider mocks, backend and frontend contract tests; task status/evidence and PROGRESS only. Existing unrelated changes preserved.",
+  "nextExactStep": "End this run after M0-E02 checkpoint. A later wrapper run may select M0-E03; do not start it in this run.",
+  "processCleanup": "All owned commands finished; no server or background helper started."
+}

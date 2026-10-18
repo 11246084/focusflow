@@ -1,0 +1,47 @@
+TAP version 13
+# Subtest: 前端 ESM 與後端 CJS 共用相同契約物件
+    # Subtest: 兩入口 schema identity 完全相同，沒有重複契約
+    ok 1 - 兩入口 schema identity 完全相同，沒有重複契約
+      ---
+      duration_ms: 4.7744
+      type: 'test'
+      ...
+    # Subtest: comparison JSON 往返與未知欄位拒絕一致
+    ok 2 - comparison JSON 往返與未知欄位拒絕一致
+      ---
+      duration_ms: 6.7905
+      type: 'test'
+      ...
+    # Subtest: steps JSON 往返與未知欄位拒絕一致
+    ok 3 - steps JSON 往返與未知欄位拒絕一致
+      ---
+      duration_ms: 1.0243
+      type: 'test'
+      ...
+    # Subtest: quiz JSON 往返與未知欄位拒絕一致
+    ok 4 - quiz JSON 往返與未知欄位拒絕一致
+      ---
+      duration_ms: 1.2503
+      type: 'test'
+      ...
+    # Subtest: 事件拒絕 client 自報分數，且不需要 Node Buffer
+    ok 5 - 事件拒絕 client 自報分數，且不需要 Node Buffer
+      ---
+      duration_ms: 0.7547
+      type: 'test'
+      ...
+    1..5
+ok 1 - 前端 ESM 與後端 CJS 共用相同契約物件
+  ---
+  duration_ms: 15.9915
+  type: 'suite'
+  ...
+1..1
+# tests 5
+# suites 1
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 206.5626

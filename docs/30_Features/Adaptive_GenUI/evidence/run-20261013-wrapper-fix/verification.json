@@ -1,0 +1,6 @@
+{
+  "passed": 29,
+  "failed": 0,
+  "isolation": "local synthetic state/results and two owned PowerShell helpers; no provider/database/app",
+  "artifacts": "D:\\AI-workspace\\focusflow-adaptive-genui-schedule\\tests\\artifacts-4615388cfa08450faa4d4794092b948d"
+}

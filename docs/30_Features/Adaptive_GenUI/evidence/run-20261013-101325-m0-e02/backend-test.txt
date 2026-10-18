@@ -1,0 +1,192 @@
+TAP version 13
+# Subtest: Adaptive GenUI 共用契約（純本地資料）
+    # Subtest: comparison Draft 與 Artifact 正例可 round-trip
+    ok 1 - comparison Draft 與 Artifact 正例可 round-trip
+      ---
+      duration_ms: 7.7305
+      type: 'test'
+      ...
+    # Subtest: steps Draft 與 Artifact 正例可 round-trip
+    ok 2 - steps Draft 與 Artifact 正例可 round-trip
+      ---
+      duration_ms: 1.0236
+      type: 'test'
+      ...
+    # Subtest: quiz Draft 與 Artifact 正例可 round-trip
+    ok 3 - quiz Draft 與 Artifact 正例可 round-trip
+      ---
+      duration_ms: 0.9702
+      type: 'test'
+      ...
+    # Subtest: comparison Draft 每層物件拒絕未知欄位與能力注入
+    ok 4 - comparison Draft 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 6.8437
+      type: 'test'
+      ...
+    # Subtest: comparison Artifact 每層物件拒絕未知欄位與能力注入
+    ok 5 - comparison Artifact 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 7.2663
+      type: 'test'
+      ...
+    # Subtest: steps Draft 每層物件拒絕未知欄位與能力注入
+    ok 6 - steps Draft 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 1.641
+      type: 'test'
+      ...
+    # Subtest: steps Artifact 每層物件拒絕未知欄位與能力注入
+    ok 7 - steps Artifact 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 2.1153
+      type: 'test'
+      ...
+    # Subtest: quiz Draft 每層物件拒絕未知欄位與能力注入
+    ok 8 - quiz Draft 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 2.6557
+      type: 'test'
+      ...
+    # Subtest: quiz Artifact 每層物件拒絕未知欄位與能力注入
+    ok 9 - quiz Artifact 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 3.8968
+      type: 'test'
+      ...
+    # Subtest: 事件 每層物件拒絕未知欄位與能力注入
+    ok 10 - 事件 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 1.3431
+      type: 'test'
+      ...
+    # Subtest: 追問 context 每層物件拒絕未知欄位與能力注入
+    ok 11 - 追問 context 每層物件拒絕未知欄位與能力注入
+      ---
+      duration_ms: 0.5026
+      type: 'test'
+      ...
+    # Subtest: 必要欄位、版本、元件與 origin 不可缺少或猜測
+    ok 12 - 必要欄位、版本、元件與 origin 不可缺少或猜測
+      ---
+      duration_ms: 2.3791
+      type: 'test'
+      ...
+    # Subtest: 識別碼拒絕保留名稱、URL、空值與超長字串
+    ok 13 - 識別碼拒絕保留名稱、URL、空值與超長字串
+      ---
+      duration_ms: 1.405
+      type: 'test'
+      ...
+    # Subtest: claim 與來源參照必須非空、唯一且可解析
+    ok 14 - claim 與來源參照必須非空、唯一且可解析
+      ---
+      duration_ms: 2.3584
+      type: 'test'
+      ...
+    # Subtest: comparison 每個概念恰一格且面向、概念 ID 唯一
+    ok 15 - comparison 每個概念恰一格且面向、概念 ID 唯一
+      ---
+      duration_ms: 0.8416
+      type: 'test'
+      ...
+    # Subtest: steps 不能重複 ID 或引用不存在 claim
+    ok 16 - steps 不能重複 ID 或引用不存在 claim
+      ---
+      duration_ms: 0.2888
+      type: 'test'
+      ...
+    # Subtest: quiz 選項唯一且正解存在
+    ok 17 - quiz 選項唯一且正解存在
+      ---
+      duration_ms: 0.2882
+      type: 'test'
+      ...
+    # Subtest: 來源要求 segment 或 chunk、有效時間及一致 hash 身分
+    ok 18 - 來源要求 segment 或 chunk、有效時間及一致 hash 身分
+      ---
+      duration_ms: 0.9016
+      type: 'test'
+      ...
+    # Subtest: 事件僅接受 submitAnswer，版本與 CAS revision 為安全整數
+    ok 19 - 事件僅接受 submitAnswer，版本與 CAS revision 為安全整數
+      ---
+      duration_ms: 0.5602
+      type: 'test'
+      ...
+    # Subtest: 元件數量與每種元件大小上限不可越界
+    ok 20 - 元件數量與每種元件大小上限不可越界
+      ---
+      duration_ms: 1.2906
+      type: 'test'
+      ...
+    # Subtest: 文字以 Unicode code point 計，JSON 以 UTF-8 bytes 計
+    ok 21 - 文字以 Unicode code point 計，JSON 以 UTF-8 bytes 計
+      ---
+      duration_ms: 2.2023
+      type: 'test'
+      ...
+    1..21
+ok 1 - Adaptive GenUI 共用契約（純本地資料）
+  ---
+  duration_ms: 50.59
+  type: 'suite'
+  ...
+# Subtest: provider payload 本地 mock（不代表 live 接受）
+    # Subtest: openai/comparison 由單一契約產生 payload，mock response 可解析
+    ok 1 - openai/comparison 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 3.8628
+      type: 'test'
+      ...
+    # Subtest: openai/steps 由單一契約產生 payload，mock response 可解析
+    ok 2 - openai/steps 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 1.3279
+      type: 'test'
+      ...
+    # Subtest: openai/quiz 由單一契約產生 payload，mock response 可解析
+    ok 3 - openai/quiz 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 0.611
+      type: 'test'
+      ...
+    # Subtest: gemini/comparison 由單一契約產生 payload，mock response 可解析
+    ok 4 - gemini/comparison 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 1.0964
+      type: 'test'
+      ...
+    # Subtest: gemini/steps 由單一契約產生 payload，mock response 可解析
+    ok 5 - gemini/steps 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 0.559
+      type: 'test'
+      ...
+    # Subtest: gemini/quiz 由單一契約產生 payload，mock response 可解析
+    ok 6 - gemini/quiz 由單一契約產生 payload，mock response 可解析
+      ---
+      duration_ms: 0.4974
+      type: 'test'
+      ...
+    # Subtest: 未知 provider／元件拒絕，匯出結果修改不污染後續輸出
+    ok 7 - 未知 provider／元件拒絕，匯出結果修改不污染後續輸出
+      ---
+      duration_ms: 0.8801
+      type: 'test'
+      ...
+    1..7
+ok 2 - provider payload 本地 mock（不代表 live 接受）
+  ---
+  duration_ms: 9.1106
+  type: 'suite'
+  ...
+1..2
+# tests 28
+# suites 2
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 162.2879

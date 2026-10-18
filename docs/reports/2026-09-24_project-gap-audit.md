@@ -123,7 +123,7 @@
 1. **缺口與出處**：`docs/current-status.md:198`、`CLAUDE.md`「部署與對外連線」。
 2. **驗證結果**：程式面沒有問題。webhook verify 在 `backend/src/routes/line.routes.js:25`，簽章驗證在 `backend/src/middleware/lineSignature.middleware.js`，route tests 通過。實際通道是 ngrok，屬運維狀態。
 3. **雲端可驗證**：否（需本機／VM 驗證）。
-4. **補缺口方案**：在 `docs/40_Operations/` 建立 LINE smoke checklist（channel、webhook URL、一次提問的 log 時間戳），每次換 Channel 或網域後補一筆。純文件；0.5 天；優先度**低**。
+4. **補缺口方案**：在 `docs/10_Operations/` 建立 LINE smoke checklist（channel、webhook URL、一次提問的 log 時間戳），每次換 Channel 或網域後補一筆。純文件；0.5 天；優先度**低**。
 
 ### D-07 Phase 2-2 Parent／Leaf publication 與 Gate
 

@@ -82,4 +82,4 @@
 
 **原因**：學校邊界不開放 port 80（2026-08-12 tcpdump 證實封包未抵達 VM，技士已表示不會開放），HTTP-01 無法使用；certbot 沒有實作 TLS-ALPN-01。DNS-01 需學校 DNS 管理者每 60 天手動加 TXT，無法自動續約。自簽憑證則無法消除瀏覽器警告。
 
-**影響**：每次續約 acme.sh 會停 nginx 約 30 秒。續約能否成功取決於 443 持續對外開放；失敗不會主動通知，需定期檢查憑證 `notAfter`。acme.sh 是非官方套件庫的第三方腳本並以 root 執行，若日後學校開放 port 80 或提供 `ntub.edu.tw` 萬用憑證，可改用 EPEL 的 certbot 或學校憑證，只需改 nginx 的兩行憑證路徑。操作與回滾步驟見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。
+**影響**：每次續約 acme.sh 會停 nginx 約 30 秒。續約能否成功取決於 443 持續對外開放；失敗不會主動通知，需定期檢查憑證 `notAfter`。acme.sh 是非官方套件庫的第三方腳本並以 root 執行，若日後學校開放 port 80 或提供 `ntub.edu.tw` 萬用憑證，可改用 EPEL 的 certbot 或學校憑證，只需改 nginx 的兩行憑證路徑。操作與回滾步驟見 [docs/10_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](10_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。

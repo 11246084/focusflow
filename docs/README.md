@@ -32,8 +32,8 @@
 | [2026 產學創新實作競賽文件](03_競賽/2026_全國大專院校產學創新實作競賽/README.md) | D 組報名附件、補件清單與送件操作 |
 | [專案歷史](10_Project_History/README.md) | 有日期的專案快照 |
 | [架構資料](20_Architecture/README.md) | 架構圖、資料庫及階層檢索設計 |
-| [開發與維運](40_Operations/README.md) | 開發工具、部署與憑證文件 |
-| [會議紀錄](50_Meetings/README.md) | 教授會議與組內會議 |
+| [開發與維運](10_Operations/README.md) | 開發工具、部署與憑證文件 |
+| [會議紀錄](06_會議紀錄/README.md) | 教授會議與組內會議 |
 | [視覺識別](05_圖庫/README.md) | Logo 與各格式素材 |
 | [歷史歸檔](90_Archive/README.md) | 學習筆記、AI 對話紀錄、常用外部範例及 [recut 原型製作紀錄](90_Archive/recut-prototype-log-2026-10-14.md)；大檔與舊版改存雲端「學校專題」 |
 | [本次搬移與新增紀錄](10_Project_History/docs-reorganization-2026-09-13.md) | 原路徑、新路徑、雜湊及檢查結果 |
@@ -62,3 +62,5 @@
 - [永續研討會 ESG 投稿雲端路徑](03_競賽/2026_永續研討會ESG投稿/README.md)
 
 - [分層檢索規格與證據](04_Features/Hierarchical_Retrieval/README.md)
+
+- [資料庫交付方式](10_Operations/database-delivery.md)

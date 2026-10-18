@@ -111,6 +111,6 @@
 | 項目 | 目前狀態 |
 |---|---|
 | 物件導向系統分析與設計 VPP／VPD 檔 | repo 內沒有 .vpp／.vpd，UML 以 PlantUML／Mermaid 繪製（[System_Manual/figures](../05_圖庫/系統手冊/)）；格式落差，需向指導老師確認 |
-| 資料庫 MDF 與 LDF 檔 | MongoDB 沒有 MDF／LDF，改交資料庫交付包，見 [Database](../00_Deliverables/Database/README.md)；腳本與說明已完成，尚未實際匯出；需向指導老師確認 |
+| 資料庫 MDF 與 LDF 檔 | MongoDB 沒有 MDF／LDF，改交資料庫交付包，見 [Database](../10_Operations/database-delivery.md)；腳本與說明已完成，尚未實際匯出；需向指導老師確認 |
 | 所有軟體元件（元件、函式庫等） | 同「系統程式」 |
 | 安裝程式（能將系統完整安裝至 PC 或 NB 執行） | 未開始 |

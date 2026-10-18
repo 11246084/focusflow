@@ -26,5 +26,5 @@
 
 - [架構與資料流](../../../../ARCHITECTURE.md)
 - [後端目前狀態](../../../../backend/docs/current-state.md)
-- [AI 程式碼理解指南](../../../40_Operations/ai-code-understanding-guide.md)
+- [AI 程式碼理解指南](../../../10_Operations/ai-code-understanding-guide.md)
 - [歷史歸檔索引](../../README.md)

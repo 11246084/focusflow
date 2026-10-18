@@ -3,7 +3,7 @@
 ' ooad-phase:   實作
 ' chapter:      7-1
 ' realizes:     NFR-01, NFR-02, NFR-06, NFR-12
-' source:       .github/workflows/deploy.yml, backend/src/server.js, backend/src/app.js, backend/src/services/video.service.js, STT_Whisper/src/main.py, CLAUDE.md「部署與對外連線（VM）」, docs/40_Operations/deployment/（程式碼、部署檔與現況文件）
+' source:       .github/workflows/deploy.yml, backend/src/server.js, backend/src/app.js, backend/src/services/video.service.js, STT_Whisper/src/main.py, CLAUDE.md「部署與對外連線（VM）」, docs/10_Operations/deployment/（程式碼、部署檔與現況文件）
 ' verified:     2026-09-24
 ' status:       draft
 ' implemented:  partial

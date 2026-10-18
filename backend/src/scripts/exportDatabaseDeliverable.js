@@ -1,7 +1,7 @@
 // 匯出資料庫交付包（取代 SQL Server MDF／LDF），只讀不寫。
 // 用法：npm run db:export-deliverable -- [--out <dir>] [--exclude a,b] [--allowed-email-domains a,b] [--allow-real-users]
 // 來源連線：EXPORT_MONGODB_URI，未設定時用 backend/.env 的 MONGODB_URI。
-// 預設拒絕匯出含非 demo 帳號或已綁 LINE 帳號的資料庫；還原方式見 docs/00_Deliverables/Database/README.md。
+// 預設拒絕匯出含非 demo 帳號或已綁 LINE 帳號的資料庫；還原方式見 docs/10_Operations/database-delivery.md。
 const dns = require('dns');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -19,7 +19,7 @@ const {
 // Use public resolvers for Atlas SRV lookups in local environments with incomplete DNS forwarding.
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-const RESTORE_GUIDE_PATH = path.resolve(__dirname, '../../../docs/00_Deliverables/Database/README.md');
+const RESTORE_GUIDE_PATH = path.resolve(__dirname, '../../../docs/10_Operations/database-delivery.md');
 const DEFAULT_OUTPUT_ROOT = path.resolve(__dirname, '../../tmp/database-deliverable');
 
 function splitList(value) {
@@ -105,7 +105,7 @@ async function main(argv = process.argv.slice(2)) {
     try {
       await fsp.copyFile(RESTORE_GUIDE_PATH, path.join(options.outDir, '還原說明.md'));
     } catch (error) {
-      console.warn(`Restore guide not copied (${error.message}); copy docs/00_Deliverables/Database/README.md manually.`);
+      console.warn(`Restore guide not copied (${error.message}); copy docs/10_Operations/database-delivery.md manually.`);
     }
 
     console.log(JSON.stringify({

@@ -10,7 +10,7 @@
 | 優先序 | 來源 | 用途 |
 | --- | --- | --- |
 | 規範 | `source-documents/115年_系統手冊規範.doc` | 以 UTF-16 字串擷取核對原文：「7-1 佈署圖、7-2 套件圖、7-3 元件圖、7-4 狀態機，甚至時序圖」。狀態機為必要，時序圖為延伸，本輪未繪製時序圖 |
-| 1 | 目前程式碼、設定與部署檔 | `.github/workflows/deploy.yml`、`backend/src/`（server.js、app.js、routes、services、models、config）、`frontend/focus-flow/src/`、`STT_Whisper/src/`、各 `package.json`／`requirements.txt`、`docs/40_Operations/deployment/` |
+| 1 | 目前程式碼、設定與部署檔 | `.github/workflows/deploy.yml`、`backend/src/`（server.js、app.js、routes、services、models、config）、`frontend/focus-flow/src/`、`STT_Whisper/src/`、各 `package.json`／`requirements.txt`、`docs/10_Operations/deployment/` |
 | 2 | 初評最終版 PDF 第 7 章（PDF 第 43～50 頁） | 沿用章節架構（佈署圖四層、5 組套件圖、5 組狀態機）與「套件版本＋用途」的說明方式；初評的套件圖只列第三方函式庫，本輪保留其版本與用途敘述並移入表7-2-1，套件圖改以程式分群為主、函式庫為依賴對象 |
 | 3 | 114414 組系統手冊第 7 章（PDF 第 42～47 頁） | 只參考結構與版面：一圖一模組、圖幅精簡、圖說置於圖下。未複製內容；其狀態圖屬畫面流程，本手冊不仿照 |
 | 3 | 115414 組系統手冊 | repo 內的 PDF 只有 5 頁，是該手冊第 9 章參考資料（原書第 63～67 頁），不含第 7 章，因此無從參考 |

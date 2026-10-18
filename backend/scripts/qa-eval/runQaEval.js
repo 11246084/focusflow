@@ -7,8 +7,8 @@
 //
 // 選用環境變數：
 //   QA_EVAL_BASE_URL   預設 http://localhost:4000
-//   QA_EVAL_BANK       題庫 JSON 路徑，預設 ../../docs/30_Features/QA_Evaluation/datasets/question-bank.json
-//   QA_EVAL_OUT        輸出資料夾，預設 ../../docs/30_Features/QA_Evaluation/runs/<timestamp>
+//   QA_EVAL_BANK       題庫 JSON 路徑，預設 ../../docs/04_Features/QA_Evaluation/datasets/question-bank.json
+//   QA_EVAL_OUT        輸出資料夾，預設 ../../docs/04_Features/QA_Evaluation/runs/<timestamp>
 //   QA_EVAL_ROLE       登入角色，預設 student（login 契約要求 email+password+role）
 //   QA_EVAL_DELAY_MS   每題間隔毫秒，預設 1200（避免打爆 provider rate limit）
 //   QA_EVAL_ONLY       只跑指定題號，逗號分隔，例如 F01,M03,N05

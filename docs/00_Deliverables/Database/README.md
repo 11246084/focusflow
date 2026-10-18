@@ -180,7 +180,7 @@ curl http://localhost:4000/health
 
 ## 5. 向量索引定義
 
-交付包會記錄來源資料庫實際存在的 Atlas Search／Vector 索引。來源是本機 MongoDB 時沒有這些索引，需要在 Atlas 手動建立。`text_embedding_index` 的定義以 2026-09-08 對共享 Atlas 的實查為準（`docs/30_Features/Student_Pilot_Backend/evidence/2026-09-08_g2-atlas-contract-inventory.json`）：
+交付包會記錄來源資料庫實際存在的 Atlas Search／Vector 索引。來源是本機 MongoDB 時沒有這些索引，需要在 Atlas 手動建立。`text_embedding_index` 的定義以 2026-09-08 對共享 Atlas 的實查為準（`docs/04_Features/Student_Pilot_Backend/evidence/2026-09-08_g2-atlas-contract-inventory.json`）：
 
 - Collection：`video_segments_text`
 - 索引名稱：`text_embedding_index`

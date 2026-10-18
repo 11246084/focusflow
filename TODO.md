@@ -104,7 +104,7 @@ flowchart LR
 
 ### 不能算成完成的項目
 
-- Adaptive GenUI：目前只有計畫／harness，`docs/30_Features/Adaptive_GenUI/tasks.json` 的 35 項任務全部 `todo`，未找到正式 Renderer／Planner／interaction service 的功能接線。
+- Adaptive GenUI：目前只有計畫／harness，`docs/04_Features/Adaptive_GenUI/tasks.json` 的 35 項任務全部 `todo`，未找到正式 Renderer／Planner／interaction service 的功能接線。
 - `HIERARCHICAL_RETRIEVAL_ENABLED`、`VIDEO_BATCH_PIPELINE_ENABLED`、`SHORT_SCRIPT_AUTOMATION_ENABLED`、`OPEN_DATA_EXTENSION_ENABLED` 的程式預設均為 false；真實 runtime 值待確認。不是所有短影音讀取／審核端點都受腳本開關控制。
 - 影片 visual embedding 不等於可回答畫面語意的完整多模態 QA；目前生成答案主要依 transcript，visual 路徑提供引用／片段建議。
 - 未找到 FocusFlow 呼叫 ComfyUI／MiniMax 產片的程式接線。外部人工產片流程待確認，不能計為系統整合完成。
@@ -302,7 +302,7 @@ flowchart LR
 
 - [ ] **AI-10｜【新增功能】P2｜Adaptive GenUI／真正視覺 QA／自動產片。**
   - 證據／價值：GenUI 是 35 項待辦；visual 支線沒有完整 caption QA；FocusFlow 未串接產片 engine。差異化潛力高，但相依最多，不能當三週內的低成本 UI 工作。
-  - 檔案：`docs/30_Features/Adaptive_GenUI/Adaptive_GenUI_PLAN.md`、`tasks.json`、`HARNESS.md`；`STT_Whisper/src/video_multimodal_pipeline.py`；`backend/src/services/shortAssetPublish.service.js`。
+  - 檔案：`docs/04_Features/Adaptive_GenUI/Adaptive_GenUI_PLAN.md`、`tasks.json`、`HARNESS.md`；`STT_Whisper/src/video_multimodal_pipeline.py`；`backend/src/services/shortAssetPublish.service.js`。
   - 工作量：L／多個里程碑，GenUI 粗估 80–140+ 小時，視覺 QA／產片各 40–80+ 小時，需另拆任務；皆未包含外部產片算力等待。相依：既有品質門檻、資料、provider 費用、權限及人工審查。
   - 方式：【需人工主導】架構／教學／UX，AI 按既有單一 active task harness 執行。驗收：不降低原 M0–M7／holdout／人工門檻；本次建議 Later，不修改 tasks.json 狀態。
 
@@ -332,12 +332,12 @@ flowchart LR
 
 - [ ] **CO-05｜【優化】P1｜狀態與文件入口一致性。**
   - 證據／價值：frontend README 還有較舊的單支追蹤敘述，而目前 client 已使用 batch API；多份 current-state 含歷史數字，易被 AI agent 當成當前 runtime。相關工作應只更新主要權威文件。
-  - 檔案：`frontend/focus-flow/README.md`、`README.md`、`ARCHITECTURE.md`、`docs/current-status.md`、`backend/docs/current-state.md`、`docs/30_Features/Adaptive_GenUI/tasks.json`。
+  - 檔案：`frontend/focus-flow/README.md`、`README.md`、`ARCHITECTURE.md`、`docs/current-status.md`、`backend/docs/current-state.md`、`docs/04_Features/Adaptive_GenUI/tasks.json`。
   - 工作量：S，3–5 小時。相依：D-01、CO-02。方式：【適合交給 AI agent】。驗收：功能／flag／驗收標記一致；不複製舊測試數字；不把本 TODO 變成 GenUI tasks.json 的第二份狀態權威。
 
 - [ ] **CO-06｜【優化】P1｜半成品與明確 TODO 的邊界登記。**
   - 證據／價值：程式區掃描沒有發現大量正式 `TODO/FIXME/HACK/XXX`；明確未完成注釋主要是短影音 coverage 排序。真正大缺口在未接線功能、default-off 開關、CLI／runtime 差異，不能只按 TODO 數量判斷成熟度。
-  - 檔案：`backend/src/services/shortScriptTopic.service.js`、`src/config/env.js`、`STT_Whisper/src/main.py`、`docs/30_Features/Adaptive_GenUI/tasks.json`、`frontend/focus-flow/src/components/navigationConfig.js`。
+  - 檔案：`backend/src/services/shortScriptTopic.service.js`、`src/config/env.js`、`STT_Whisper/src/main.py`、`docs/04_Features/Adaptive_GenUI/tasks.json`、`frontend/focus-flow/src/components/navigationConfig.js`。
   - 工作量：S，2–4 小時。相依：D-01／02。方式：【適合交給 AI agent】。驗收：每個交付入口都有可用／關閉／待驗收狀態；關掉功能時不顯示永久報錯的 CTA；不把注釋中的 placeholder 輸入提示當成半成品。
 
 - [ ] **CO-07｜【優化】P1｜保留與清除政策、可回復資料操作。**

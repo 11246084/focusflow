@@ -23,10 +23,10 @@
 | [目前狀態](current-status.md) | 跨服務可用範圍、風險與下一步 |
 | [後端功能開關](../backend/docs/feature-flags.md) | 開關來源、重啟條件與影像備援行為 |
 | [STT 整合流程](../backend/docs/stt-integration.md) | 語音轉文字的上傳、排程、回報與恢復入口 |
-| [功能狀態總表](30_Features/README.md) | 功能階段、驗收證據與缺口 |
+| [功能狀態總表](04_Features/README.md) | 功能階段、驗收證據與缺口 |
 | [重要決策](decision-log.md) | 決策原因與影響，保留歷史時間點 |
-| [recut 短影片設計決策](30_Features/Short_Video/recut-design-decisions.md) | 老師原音＋程式動畫短片的已定案設計與待討論問題 |
-| [recut 素材開放與排除清單](30_Features/Short_Video/recut-asset-exclusions.md) | AI 能從 Fluent Emoji 挑哪些圖與排除理由 |
+| [recut 短影片設計決策](04_Features/Short_Video/recut-design-decisions.md) | 老師原音＋程式動畫短片的已定案設計與待討論問題 |
+| [recut 素材開放與排除清單](04_Features/Short_Video/recut-asset-exclusions.md) | AI 能從 Fluent Emoji 挑哪些圖與排除理由 |
 | [繳交清單](00_學校公告/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
 | [正式交付](README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
 | [2026 產學創新實作競賽文件](03_競賽/2026_全國大專院校產學創新實作競賽/README.md) | D 組報名附件、補件清單與送件操作 |
@@ -60,3 +60,5 @@
 - [競賽總表（含雲端 ESG 投稿）](03_競賽/README.md)
 
 - [永續研討會 ESG 投稿雲端路徑](03_競賽/2026_永續研討會ESG投稿/README.md)
+
+- [分層檢索規格與證據](04_Features/Hierarchical_Retrieval/README.md)

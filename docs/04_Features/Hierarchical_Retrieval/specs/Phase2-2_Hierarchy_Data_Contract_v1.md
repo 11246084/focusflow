@@ -15,7 +15,7 @@ role、schema 與 preprocessing version。Preview artifact 保留供 audit，但
 validator 與 uploader 均拒絕混用。本次只完成 offline/mock implementation；live stable
 vectors 與 Atlas Parent 更新尚未執行。
 
-> 狀態：2026-08-09 Backend Query 與 STT Parent production contract 已切換 stable；live Parent artifact／Atlas vectors 尚未遷移。Backend 詳細契約見 [backend/docs/embedding-search-contract.md](../../../backend/docs/embedding-search-contract.md)。
+> 狀態：2026-08-09 Backend Query 與 STT Parent production contract 已切換 stable；live Parent artifact／Atlas vectors 尚未遷移。Backend 詳細契約見 [backend/docs/embedding-search-contract.md](../../../../backend/docs/embedding-search-contract.md)。
 > 範圍：Sprint 2A Parent Embedding、Sprint 2B Parent Storage、Sprint 3 Hierarchical Retrieval、Sprint 4 Retrieval Evaluation  
 > 原則：不改寫既有 Leaf Chunk、不污染 Leaf-only QA、Citation 最終仍指向 Leaf。
 

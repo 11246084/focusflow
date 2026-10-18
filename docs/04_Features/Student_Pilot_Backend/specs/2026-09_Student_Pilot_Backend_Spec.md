@@ -323,7 +323,7 @@ N01 指定使用「影像處理導論」（`69f82564736febac6db8e97b`）的段�
 - N02 必須回覆無答案，而且引用為空。
 - 兩題負向題都要通過，結果為 2/2。
 - 題庫、設定、原始 JSON 與人工複核表要一起保存。
-- 證據存於儲存庫的 `docs/30_Features/Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
+- 證據存於儲存庫的 `docs/04_Features/Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
 - 證據保留至 2026 年十月中旬複評結束。
 - 證據必須去識別化，機密資料不得入庫。
 
@@ -1103,7 +1103,7 @@ Pipeline 會把 `_id` 的字串值寫入 `video_segments_text.videoId`。
 
 題庫、腳本設定、原始 JSON 結果與人工複核表要一起保存。
 
-保存位置是儲存庫的 `docs/30_Features/Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
+保存位置是儲存庫的 `docs/04_Features/Student_Pilot_Backend/evidence/`，並同步歸檔至 Notion。
 
 該目錄目前不存在，第一次執行前要先建立。
 
@@ -1335,7 +1335,7 @@ Backend 啟動檢查共四項：
    錯誤訊息須指出「新上傳影片將無播放來源」。
 4. 試用模式驗證通過後，記錄 Backend 十二項設定的實際生效值，
    事件名稱為 `runtime.flag_snapshot`，
-   與證據一併存入 `docs/30_Features/Student_Pilot_Backend/evidence/`。
+   與證據一併存入 `docs/04_Features/Student_Pilot_Backend/evidence/`。
 
 這份記錄就是「環境變數快照」：把跑驗收那一刻的設定拍下來存起來。
 

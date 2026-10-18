@@ -29,7 +29,7 @@ FocusFlow 是 AI 教學影片問答系統，教師上傳影片後，學生可透
 | 測試／harness | `.claude/rules/testing.md` 與受影響模組的測試 |
 | Frontend | `frontend/focus-flow/README.md`、相關 `src/` 檔案 |
 | STT／batch／resume／hierarchy | `STT_Whisper/README.md`、[現行整合入口](backend/docs/current-state.md#stt-現行整合入口)；[舊交接](backend/docs/handoff-stt-pipeline-integration.md)只供追溯歷史 |
-| 學生試用版後端工作 | `docs/30_Features/Student_Pilot_Backend/README.md`，依其任務權威順序 |
+| 學生試用版後端工作 | `docs/04_Features/Student_Pilot_Backend/README.md`，依其任務權威順序 |
 | 部署／憑證 | `.github/workflows/deploy.yml`、`CLAUDE.md` 對應段落、`docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md` |
 
 主要入口：Backend `backend/src/server.js`；Frontend `frontend/focus-flow/src/main.jsx`；Pipeline `STT_Whisper/src/main.py`／`src/batch_main.py`。本機 outputs、uploads、dist、venv、log 不是架構來源。

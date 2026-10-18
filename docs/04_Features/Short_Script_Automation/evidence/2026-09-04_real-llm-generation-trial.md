@@ -91,7 +91,7 @@ shortScript.citation_validation_failed {
 鏡 08：在你的專案中，你更常使用 OpenCV 還是 YOLO 呢？留言跟我聊聊吧！
 ```
 
-V5 模板明訂結尾「留白收尾，**不放 CTA**」；`docs/30_Features/Short_Video/` 的十支體系 v8 亦定案「導流不做」。
+V5 模板明訂結尾「留白收尾，**不放 CTA**」；`docs/04_Features/Short_Video/` 的十支體系 v8 亦定案「導流不做」。
 
 ### 缺陷二：字幕直接複製口白
 

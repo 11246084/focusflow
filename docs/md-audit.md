@@ -12,12 +12,12 @@
 | 更新／2 | [Backend 已知問題](../backend/docs/handoff-known-issues.md) | 「YouTube 自動上傳未實作」已不符[上傳服務](../backend/src/services/youtubeUpload.service.js)與[處理接線](../backend/src/services/videoProcessing.service.js)。將進度改連正本，保留適用的技術限制。 |
 | 更新／2 | [Backend 文件索引](../backend/docs/README.md)、[技術現況](../backend/docs/current-state.md) | 舊方案的引用與「尚未修改前端」說明需改指完成交接；依據同 Short 前端項目。技術現況只留技術細節，進度連正本。 |
 | 合併／2 | [目前狀態](current-status.md) | 新舊說法需合併，例如 Leaf（可引用的小片段）索引仍被描述為 snake_case（底線命名），但[索引程式](../database/tools/setup/init_indexes.js)已用 `videoId`／`chunkId`。各模組補驗證日期、依據與負責人；不沿用舊數字。 |
-| 更新／2 | [功能總表](30_Features/README.md) | 進度改連正本。Adaptive GenUI（依問題調整回答介面的方案）文件在本 checkout 未找到，維持 **⚠️ 未驗證**，不加入功能總表。 |
+| 更新／2 | [功能總表](04_Features/README.md) | 進度改連正本。Adaptive GenUI（依問題調整回答介面的方案）文件在本 checkout 未找到，維持 **⚠️ 未驗證**，不加入功能總表。 |
 | 準備／3 | [STT 整合交接](../backend/docs/handoff-stt-pipeline-integration.md) | STT 是語音轉文字。舊文仍把自動上傳列為未完成；依上述上傳服務與目前操作文件補整合入口，原檔標為「2026/05 交接快照」，先不搬移。 |
-| 準備／3 | [Gate Review](20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchical_Retrieval_Gate_Review.md) | Gate 是控制是否使用階層檢索的開關。「沒有指定範圍或背景比較模式」已不符[控制服務](../backend/src/services/hierarchicalRollout.service.js)。保留 2026/08/09 審查日期，整理仍適用的阻擋條件；不得寫 Gate 已可開啟。 |
+| 準備／3 | [Gate Review](04_Features/Hierarchical_Retrieval/evidence/Phase2-2_Hierarchical_Retrieval_Gate_Review.md) | Gate 是控制是否使用階層檢索的開關。「沒有指定範圍或背景比較模式」已不符[控制服務](../backend/src/services/hierarchicalRollout.service.js)。保留 2026/08/09 審查日期，整理仍適用的阻擋條件；不得寫 Gate 已可開啟。 |
 | 準備／3 | [資料庫（DB）交接](../database/docs/db-handoff-current.txt) | 舊文的頭像檔名與課程或影片搜尋說明，不符[User](../backend/src/models/user.model.js)、[Avatar](../backend/src/models/avatar.model.js)及[搜尋範圍服務](../backend/src/services/bridgeScope.service.js)。不改數字、不搬移，改列 DB 負責人的實查清單。 |
-| 排除：待確認 | [Short_Video](30_Features/Short_Video/README.md)、[系統手冊](01_系統手冊/README.md)、[繳交清單](00_學校公告/README.md) | 模板是否使用、手冊哪份是現行母稿、是否已繳交皆 **⚠️ 未驗證**；本次不處理。 |
-| 排除：保留 | [短腳本自動化](30_Features/Short_Script_Automation/README.md)、[學生試用](30_Features/Student_Pilot_Backend/README.md)、[QA 評測](30_Features/QA_Evaluation/README.md) | QA 是學生提問與系統回答。這些文件保留需求、驗收條件與證據；不由程式存在推定驗收完成，不整包封存。 |
+| 排除：待確認 | [Short_Video](04_Features/Short_Video/README.md)、[系統手冊](01_系統手冊/README.md)、[繳交清單](00_學校公告/README.md) | 模板是否使用、手冊哪份是現行母稿、是否已繳交皆 **⚠️ 未驗證**；本次不處理。 |
+| 排除：保留 | [短腳本自動化](04_Features/Short_Script_Automation/README.md)、[學生試用](04_Features/Student_Pilot_Backend/README.md)、[QA 評測](04_Features/QA_Evaluation/README.md) | QA 是學生提問與系統回答。這些文件保留需求、驗收條件與證據；不由程式存在推定驗收完成，不整包封存。 |
 | 排除：保留 | [Backend 待辦](../backend/docs/todo.md)、[實作紀錄](../backend/docs/implementation-log.md)、[會議](50_Meetings/README.md)、[歷史稽核](reports/2026-09-24_project-gap-audit.md) | 仍有待辦或具日期的歷史證據；本次不處理，不把歷史測試數字寫成目前結果。 |
 | 規則檢查／4 | [文件維護 skill](../.agents/skills/docs-maintainer/SKILL.md) | skill 是代理執行工作時參考的操作規範。比對狀態正本、README 用途與新增 md 檔規則，只列衝突原文及修改建議，不修改 skill。 |
 

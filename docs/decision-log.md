@@ -10,7 +10,7 @@
 
 **原因**：ComfyUI 地端模型一支約 6 小時且只有一台 GPU；生成模型無法保證中文字與數字正確。recut 的文字與數字可驗證回逐字稿，CPU 數分鐘即可完成。
 
-**影響**：需要連續視窗證據、視窗語音辨識、背景工作、上傳時的同意勾選、素材庫與 worker。完整定案與待討論見 [recut 設計決策](30_Features/Short_Video/recut-design-decisions.md)；VM 的 Node 20 → 24 升級須在 `dev` 合併 `main` 前完成。
+**影響**：需要連續視窗證據、視窗語音辨識、背景工作、上傳時的同意勾選、素材庫與 worker。完整定案與待討論見 [recut 設計決策](04_Features/Short_Video/recut-design-decisions.md)；VM 的 Node 20 → 24 升級須在 `dev` 合併 `main` 前完成。
 
 ---
 

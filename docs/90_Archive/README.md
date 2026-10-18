@@ -12,7 +12,7 @@
 | [後端歷史方案](backend/) | 2026-10-13 封存已被完成交接取代的 Short（教學短影片）前端方案，保留原文供追溯 |
 | [external-examples](external-examples/) | 外部作品範例及官方空白表格；其他組別／學制的作品不作 FocusFlow 實作證據或四技部規範。2026-10-18 起只留常參考的 AI底家（114402）、救「舊」我的書（115414）、動起來「揪」對了（114414）三份手冊，其餘別組手冊與簡報在雲端「學校專題/99_參考專題/」 |
 | [2026 產學創新實作競賽官方空白表格](../03_競賽/2026_全國大專院校產學創新實作競賽/官方空白表格/) | 使用者提供的五份官方原始表格；已填寫的本組附件另存於競賽交付區 |
-| [recut 原型製作紀錄](recut-prototype-log-2026-10-14.md) | 2026-10-18 自 repo 外原型資料夾封存（原檔名 `PROCESS.md`，內容未改）；記錄兩支 recut 原型的工具、管線與耗時。文中的相對路徑指 repo 外資料夾，「老師肖像未取得同意」與上下版面等內容已被 [recut 設計決策](../30_Features/Short_Video/recut-design-decisions.md) 取代 |
+| [recut 原型製作紀錄](recut-prototype-log-2026-10-14.md) | 2026-10-18 自 repo 外原型資料夾封存（原檔名 `PROCESS.md`，內容未改）；記錄兩支 recut 原型的工具、管線與耗時。文中的相對路徑指 repo 外資料夾，「老師肖像未取得同意」與上下版面等內容已被 [recut 設計決策](../04_Features/Short_Video/recut-design-decisions.md) 取代 |
 | [retired-features](retired-features/) | 供未來正式下線功能使用；本次未將現有功能判為下線 |
 
 同名但內容不同的檔案仍分別保留。全部來源、去向、相同副本主要版本與雜湊見 [搬移清單](../10_Project_History/docs-reorganization-2026-09-13.md)。

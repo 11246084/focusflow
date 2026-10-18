@@ -70,7 +70,7 @@
 
 ## 0. 背景與定位
 
-現況是人工流程：組員手動查資料庫、挑片段、寫腳本，已產出兩份範例與一份空白模板（`docs/30_Features/Short_Video/teacher-avatar-track/`）。本輪要把其中可重複的部分自動化。
+現況是人工流程：組員手動查資料庫、挑片段、寫腳本，已產出兩份範例與一份空白模板（`docs/04_Features/Short_Video/teacher-avatar-track/`）。本輪要把其中可重複的部分自動化。
 
 ### 0.1 關鍵設計決定：自動化不產出 markdown
 
@@ -107,7 +107,7 @@
 
 ### 1.2 排除（本輪明確不做）
 
-- **不修改** `docs/30_Features/Short_Video/teacher-avatar-track/` 底下的 V4、V5 與空白模板。使用者 2026-09-03 決定：先做自動化，腳本模板之後才套用。（**2026-09-10 使用者撤回**：模板已整併，見規格書附錄 H.3、H.4）
+- **不修改** `docs/04_Features/Short_Video/teacher-avatar-track/` 底下的 V4、V5 與空白模板。使用者 2026-09-03 決定：先做自動化，腳本模板之後才套用。（**2026-09-10 使用者撤回**：模板已整併，見規格書附錄 H.3、H.4）
 - 不做前端頁面（本輪只做 backend API 與 service）。
 - 不改動 QA 既有行為：`askQuestion` 的回應格式、FAQ 快取命中路徑、`QA_MATCH_LIMIT` 語意一律不動。
 - 不做 B-roll 影片生成、語音合成、ffmpeg 合成等產製環節；影片檔由教師以外部工具產出後上傳。
@@ -276,7 +276,7 @@ dismissReason     String（status 為 dismissed 時填）
 
 這一步是整條路最便宜的可行性驗證：如果系統選出的題目和片段與人工判斷差太遠，批次 B 的生成品質不可能好，應先回頭調整分群門檻與檢索參數，而不是往下做。
 
-比對結果存入 `docs/30_Features/Short_Script_Automation/evidence/`。
+比對結果存入 `docs/04_Features/Short_Script_Automation/evidence/`。
 
 ---
 
@@ -504,7 +504,7 @@ live 驗收前確認 `YOUTUBE_UPLOAD_ENABLED=true` 且 `/health.runtime.youtubeU
 
 ## 4. 禁止事項
 
-1. ~~不得修改 `docs/30_Features/Short_Video/teacher-avatar-track/` 的任何檔案（使用者 2026-09-03 決定）。~~ 2026-09-10 使用者撤回，見規格書附錄 H.3。
+1. ~~不得修改 `docs/04_Features/Short_Video/teacher-avatar-track/` 的任何檔案（使用者 2026-09-03 決定）。~~ 2026-09-10 使用者撤回，見規格書附錄 H.3。
 2. 不得改變 `askQuestion` 的回應格式或 FAQ 快取行為。
 3. 不得放寬 `bridgeScope` 的跨課程 allowlist 語意。
 4. 不得對 STT 原文做自動糾錯後覆蓋原文。
@@ -584,7 +584,7 @@ node --test --experimental-test-isolation=none --test-concurrency=1 tests\short-
 ### 8.1 已知狀態（不阻塞，但須知悉）
 
 - **腳本模板為舊版**：`4ish_腳本架構模板_教師數位分身x標準敘事弧線.md` 仍寫著 `Reference-to-Video`（第 107、281 行）、「一次產出 30 秒」（第 397 行）與「驅動音軌用於對嘴」（第 284 行），三項均與 MiniMax H3 官方規格不符。使用者已決定本輪不修。因為自動化輸出 JSON 而非 markdown，此事**不阻塞本施工單**，但套用階段前必須修正，否則組員填出來的每一支都會複製同樣的錯誤假設。（2026-09-10 已修訂，舊模板由手法 10 取代，見規格書附錄 H.3）
-- **teacher-avatar-track 未收進 README**：與 `docs/30_Features/Short_Video/` 的十支體系（v8，含 G1／G2／G3 驗證閘、共用配樂、統一調色）分岔。本輪不處理。（2026-09-10 已整併，教師數位分身收為手法 10）
+- **teacher-avatar-track 未收進 README**：與 `docs/04_Features/Short_Video/` 的十支體系（v8，含 G1／G2／G3 驗證閘、共用配樂、統一調色）分岔。本輪不處理。（2026-09-10 已整併，教師數位分身收為手法 10）
 
 ### 8.2 原待決事項 D-01～D-07：已由規格書處理
 

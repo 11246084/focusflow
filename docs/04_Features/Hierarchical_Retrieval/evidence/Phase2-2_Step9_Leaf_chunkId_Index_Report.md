@@ -5,7 +5,7 @@
 > 對應交接文件：《FocusFlow Phase 2-2｜Leaf chunkId 索引修正與 Child Expansion 驗證交接文件》（Database Owner）
 > 前置狀態：`BLOCKED_MISSING_CAMELCASE_INDEX` → 已解除
 
-本報告記錄 Step 9 的實際執行內容與 live 驗證結果，作為進入 [Step 10 E2E 計畫](Phase2-2_Step10_E2E_Test_Plan.md) 的前置條件證據。
+本報告記錄 Step 9 的實際執行內容與 live 驗證結果，作為進入 [Step 10 E2E 計畫](../specs/Phase2-2_Step10_E2E_Test_Plan.md) 的前置條件證據。
 
 ---
 
@@ -340,7 +340,7 @@ diff 統計：1 file changed, 23 insertions(+), 10 deletions(-)。
 
 **結論：`READY_FOR_PARENT_CHILD_CITATION_E2E`**
 
-Step 10 的前置條件對照（見 [Step 10 E2E 計畫](Phase2-2_Step10_E2E_Test_Plan.md) §2）：
+Step 10 的前置條件對照（見 [Step 10 E2E 計畫](../specs/Phase2-2_Step10_E2E_Test_Plan.md) §2）：
 
 | 前置條件 | 狀態 |
 |----------|------|
@@ -355,4 +355,4 @@ Step 10 的前置條件對照（見 [Step 10 E2E 計畫](Phase2-2_Step10_E2E_Tes
 
 1. Review 並 commit `database/tools/setup/init_indexes.js`。
 2. 若日後確定要以 DB 層強制 chunkId 唯一性，再單獨評估 `chunkId_1` 轉 unique。
-4. Step 10 通過後，同步更新 [docs/current-status.md](../../current-status.md) 與 [backend/docs/current-state.md](../../../backend/docs/current-state.md)。目前尚未更新，因為 Gate 仍關閉、對外 API contract 未變動，提早寫入會造成狀態文件失真。
+4. Step 10 通過後，同步更新 [docs/current-status.md](../../../current-status.md) 與 [backend/docs/current-state.md](../../../../backend/docs/current-state.md)。目前尚未更新，因為 Gate 仍關閉、對外 API contract 未變動，提早寫入會造成狀態文件失真。

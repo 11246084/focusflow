@@ -1,8 +1,8 @@
 # FocusFlow 短影音・重點文件
 
-**這份是給人快速看懂全貌的摘要，不是執行規格。** 要動手做請看 [docs/30_Features/Short_Video/](../examples/)。
+**這份是給人快速看懂全貌的摘要，不是執行規格。** 要動手做請看 [docs/04_Features/Short_Video/](../examples/)。
 
-> **2026-09-10 改版**：`docs/30_Features/Short_Video/` 已由「十支講同一個 Token 觀念的 A/B 範例」改為十個不綁題目的空白模板，`_shared-conventions.md` 已拆進各模板。本摘要中關於 Token 素材、十支現況、兩階段測試設計與成本的段落是改版前的內容，**執行請以 [README](../examples/README.md) 與各模板為準**。
+> **2026-09-10 改版**：`docs/04_Features/Short_Video/` 已由「十支講同一個 Token 觀念的 A/B 範例」改為十個不綁題目的空白模板，`_shared-conventions.md` 已拆進各模板。本摘要中關於 Token 素材、十支現況、兩階段測試設計與成本的段落是改版前的內容，**執行請以 [README](../examples/README.md) 與各模板為準**。
 
 - 版本：**v2（2026-08-14）**
 - 狀態：**規格完成，零支實作**。以下所有數字與判斷都未經實拍驗證。

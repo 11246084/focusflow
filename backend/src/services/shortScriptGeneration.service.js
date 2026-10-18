@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 // 每一拍宣告的依據（basedOn）必須真的存在於本次證據包，否則整份退回重生。
 // 這是唯一能讓「AI 生成」與「追得回逐字稿」同時成立的機制（R-01）。
 
-// 8 拍的固定規則，逐項對應 docs/30_Features/Short_Video/examples/10-teacher-avatar-metaphor.md §5。
+// 8 拍的固定規則，逐項對應 docs/04_Features/Short_Video/examples/10-teacher-avatar-metaphor.md §5。
 //
 // 名稱、時間、剪輯節奏、B-roll 用哪一段都是模板的手法卡，不是創作選擇——依 DR-01
 // 它們是常數，由程式依位置寫入，不交給模型。實測（2026-09-10）交給模型時，它把

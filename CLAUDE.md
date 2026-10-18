@@ -15,8 +15,8 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 注意：
 - 功能狀態只看[目前狀態](docs/current-status.md)；資料流與程式入口見[後端技術索引](backend/docs/current-state.md)。
-- 執行學生試用相關任務時，依[專用文件入口](docs/30_Features/Student_Pilot_Backend/README.md)查閱規格與任務規則；驗收結果由[目前狀態](docs/current-status.md)追查。
-- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
+- 執行學生試用相關任務時，依[專用文件入口](docs/04_Features/Student_Pilot_Backend/README.md)查閱規格與任務規則；驗收結果由[目前狀態](docs/current-status.md)追查。
+- `docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
 - `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
 
 ## 專屬規則
@@ -170,7 +170,7 @@ VM 是執行服務的虛擬主機；本節保留部署與排錯參考，實際�
 - `.env` 不隨 Git 同步；主機上的設定檔與部署流程傳入的環境變數都需核對，診斷時以程序實際設定與 `/health` 回應為依據。
 - nginx 參考位置為 `/etc/nginx/conf.d/focusflow.conf`；需檢查前端檔案位置、`/api/` 轉送、`upload_size.conf` 與 `client_max_body_size`，上傳收到 413 時先核對大小限制。這些主機檔案的實際內容須另行查證。
 - 檢查 HTTPS 回應標頭時，注意 nginx 的 `add_header` 繼承範圍；若在 `location` 區塊自行設定，不能假設仍沿用外層全部標頭。
-- 憑證操作參考包含 `/etc/nginx/ssl/focusflow.crt`、`focusflow.key`、`/opt/acme.sh` 與 TLS-ALPN-01（透過加密連線驗證網域控制權的方式）；操作前查閱[憑證申請與回復步驟](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。核對執行帳號、續約排程及是否會暫停 nginx，不能把舊設定當成目前排程。
+- 憑證操作參考包含 `/etc/nginx/ssl/focusflow.crt`、`focusflow.key`、`/opt/acme.sh` 與 TLS-ALPN-01（透過加密連線驗證網域控制權的方式）；操作前查閱[憑證申請與回復步驟](docs/10_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。核對執行帳號、續約排程及是否會暫停 nginx，不能把舊設定當成目前排程。
 - 查 HTTP 連線可用 `curl -v http://<主機>`，避免只用會自動改成 HTTPS 的瀏覽器；若需判斷封包是否到達主機，可在授權環境用 `tcpdump -ni <網卡> 'tcp[tcpflags] & tcp-syn != 0 and dst host <主機IP> and (dst port 80 or dst port 443)'` 觀察。tcpdump 是封包檢查工具，須先確認網卡、篩選條件及權限。
 - LINE 回報網址若使用 ngrok（將外部連線轉送至本機服務的工具），需核對 `ngrok.service`、轉送目標與 LINE 平台設定；不要把暫時網址當成固定部署網址。
 - CORS 是限制瀏覽器跨網站請求的規則；檢查允許與不允許的來源所收到的 `Access-Control-Allow-Origin` 回應，不由設定名稱推定結果。
@@ -291,7 +291,7 @@ cd STT_Whisper
 - 新增 API 時維持 request/response 格式一致，補基本輸入驗證與清楚錯誤碼。
 - 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
 - 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
-- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
+- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/01_系統手冊/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
 
 ## 文件更新
 

@@ -107,7 +107,7 @@ videoSegmentSchema.index({ courseId: 1, startSec: 1 });
 ```
 
 ### 向量索引（Atlas Vector Search）
-舊版 v1 契約文件已過期，只保留作歷史參考：`docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md`。目前資料契約以 `ARCHITECTURE.md`、`backend/docs/current-state.md` 與實際 model 為準；Parent 階層式檢索另見 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md`。
+舊版 v1 契約文件已過期，只保留作歷史參考：`docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md`。目前資料契約以 `ARCHITECTURE.md`、`backend/docs/current-state.md` 與實際 model 為準；Parent 階層式檢索另見 `docs/04_Features/Hierarchical_Retrieval/specs/Phase2-2_Hierarchy_Data_Contract_v1.md`。
 
 v1 契約定下、目前仍沿用的分 collection 設計：
 

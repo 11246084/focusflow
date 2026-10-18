@@ -32,7 +32,7 @@
 ### 稽核高優先修正（2026-09-24 稽核 → 2026-09-25）
 
 - **狀態**：Done（三項高優先）／Pending（其餘缺口）
-- **背景**：2026-09-24 以雲端 session 對專案做缺口稽核，報告在 `Hao-weii/focusflow` 的分支 `audit/2026-09-24-project-gap-audit`（`docs/reports/2026-09-24_project-gap-audit.md`）。我逐項抽查了其中的高優先項目，屬實後於 `fix/2026-09-24-audit-high-priority` 修正並合併進 `dev`。
+- **背景**：2026-09-24 以雲端 session 對專案做缺口稽核，報告在 `Hao-weii/focusflow` 的分支 `audit/2026-09-24-project-gap-audit`（`docs/90_Archive/snapshots/2026-09-24_project-gap-audit.md`）。我逐項抽查了其中的高優先項目，屬實後於 `fix/2026-09-24-audit-high-priority` 修正並合併進 `dev`。
 - **完成內容**：
   - ✅ `QA_MATCH_LIMIT` 程式預設值 3 → 15（`env.js`），與 `.env.example`、正式 VM（已實查為 15）一致
   - ✅ admin 使用者 API 不再回傳 `lineUserId`，改回 `isLineBound`（符合 `security.md`）

@@ -56,10 +56,10 @@ mmdc -i "figures/ch06/圖6-1-1-學生自助註冊循序圖.mmd" `
   -o "figures/ch06/圖6-1-1-學生自助註冊循序圖.png"
 
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
-  --diagram-dir docs/00_Deliverables/System_Manual/figures/ch06 `
-  --image-dir docs/00_Deliverables/System_Manual/figures/ch06 `
-  --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md `
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md
+  --diagram-dir docs/05_圖庫/系統手冊/ch06 `
+  --image-dir docs/05_圖庫/系統手冊/ch06 `
+  --chapter docs/01_系統手冊/chapters/06_設計模型.md `
+  --toc docs/05_圖庫/README.md
 ```
 
 CLI／MCP 成功後仍要開啟 PNG／SVG 目視檢查。不同 Mermaid renderer 版本可能改變 layout；回報中記錄 renderer 與版本。

@@ -70,4 +70,4 @@ FocusFlow 是一個 **AI 驅動的教育影片問答系統**，讓學生對教�
 
 資料庫的集合清單、筆數與索引需實查，結果由[目前狀態](docs/current-status.md)追查；實查項目見[DB 交接清單](database/docs/db-handoff-current.txt)。
 
-資料欄位與契約請對照[架構說明](ARCHITECTURE.md)、[後端技術索引](backend/docs/current-state.md)與實際程式碼；[資料庫舊契約](docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md)僅供歷史參考。
+資料欄位與契約請對照[架構說明](ARCHITECTURE.md)、[後端技術索引](backend/docs/current-state.md)與實際程式碼；[資料庫舊契約](docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md)僅供歷史參考。

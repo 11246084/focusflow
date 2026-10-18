@@ -17,7 +17,7 @@
 
 ## 分層檢索啟用前檢查
 
-Gate 是控制是否使用分層檢索的開關；下列條件供下一次審查使用，不代表已通過驗收或授權啟用。實際環境結果為 **⚠️ 未驗證**，查證日期與結論統一寫回[目前狀態](../../docs/current-status.md)，[舊審查](../../docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchical_Retrieval_Gate_Review.md)只保留歷史證據。
+Gate 是控制是否使用分層檢索的開關；下列條件供下一次審查使用，不代表已通過驗收或授權啟用。實際環境結果為 **⚠️ 未驗證**，查證日期與結論統一寫回[目前狀態](../../docs/current-status.md)，[舊審查](../../docs/04_Features/Hierarchical_Retrieval/evidence/Phase2-2_Hierarchical_Retrieval_Gate_Review.md)只保留歷史證據。
 
 - [ ] **資料與契約：**核對實際使用的向量格式、版本及允許影片的涵蓋範圍；每個大段落（Parent）引用的小片段（Leaf）須存在且無重複，影片與課程歸屬正確。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[分層查詢](../src/services/hierarchicalRetrieval.service.js)。
 - [ ] **索引：**確認實際 `chunkId_1` 索引可用、大段落向量索引可查詢，並支援 `courseId/videoId/generationVersion/isActive` 篩選；另檢查查詢執行計畫是否使用索引。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[索引腳本](../../database/tools/setup/init_indexes.js)；腳本內容不等於部署結果。

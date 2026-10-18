@@ -34,7 +34,7 @@ Resolve the deliverable or chapter, mode, UML/non-UML scope, acceptance boundary
 For the NTUB manual, read as applicable:
 
 - `AGENTS.md`, `CLAUDE.md`, and relevant repo rules;
-- official sources in `docs/00_Deliverables/System_Manual/source-documents/`;
+- official sources in `docs/00_學校公告/`;
 - `.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md`;
 - `.claude/skills/ooad-uml-diagramming/references/local/focusflow-conventions.md`.
 
@@ -44,7 +44,7 @@ Use current code, schemas, routes, tests, runtime evidence, and maintained curre
 
 Inspect the target chapter, relevant diagram sources, exported images, `圖表目錄.md`, related requirements/current-state documents, code, schemas, routes, tests, and current git diff as needed. Preserve user changes.
 
-For System Manual assets, inspect `docs/00_Deliverables/System_Manual/figures/chNN/`: each chapter keeps source and output files together with the same basename. Shared styles and helpers live in `figures/_shared/`. Follow the current chapter captions for names; generated diagrams and screenshots have no version suffix, while unclassified source-free artwork keeps its original names and versions until the user decides. Use `git mv` for relocation and update script paths and chapter image links together.
+For System Manual assets, inspect `docs/05_圖庫/系統手冊/chNN/`: each chapter keeps source and output files together with the same basename. Shared styles and helpers live in `figures/_shared/`. Follow the current chapter captions for names; generated diagrams and screenshots have no version suffix, while unclassified source-free artwork keeps its original names and versions until the user decides. Use `git mv` for relocation and update script paths and chapter image links together.
 
 Classify artifacts as reusable after verification, needs correction, missing, or optional. Existing diagrams, old manuals, drafts, and meeting notes are inputs, not proof of current implementation.
 

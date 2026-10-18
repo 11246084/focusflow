@@ -2,7 +2,7 @@
 
 四技第115413組「FocusFlow AI」的學校繳交項目、期限與目前狀態。規定以系辦公告為準，本頁只做追蹤；公告更新時先改這裡。
 
-規定來源（原檔在 [System_Manual/source-documents](../System_Manual/source-documents/)）：
+規定來源（原檔在 [System_Manual/source-documents](../00_Deliverables/System_Manual/source-documents/)）：
 
 | 簡稱 | 檔案 | 內容 |
 |---|---|---|
@@ -38,9 +38,9 @@
 
 | 項目 | 規定 | 檔名 | 目前狀態 |
 |---|---|---|---|
-| 系統手冊（PDF） | 需完整包含封面、內文、附錄（114-2 學期評審建議事項之修正對照表）；全部章節務必完成。第 4 章詳述一年（兩學期）規劃與控管，並填寫專題分工貢獻表；第 9 章依章節規定撰寫，不放全部程式碼 | `四技第115413組-FocusFlow AI-系統手冊.pdf` | 10/13 複評交件版存於 [System_Manual/output](../System_Manual/output/)（355 頁，Word 於 2026-10-12 匯出）；12/29 最終版需依最新章節重新產生 |
+| 系統手冊（PDF） | 需完整包含封面、內文、附錄（114-2 學期評審建議事項之修正對照表）；全部章節務必完成。第 4 章詳述一年（兩學期）規劃與控管，並填寫專題分工貢獻表；第 9 章依章節規定撰寫，不放全部程式碼 | `四技第115413組-FocusFlow AI-系統手冊.pdf` | 10/13 複評交件版存於 [System_Manual/output](../00_Deliverables/System_Manual/output/)（355 頁，Word 於 2026-10-12 匯出）；12/29 最終版需依最新章節重新產生 |
 | 系統手冊（紙本 3 本） | 封面日期壓繳件日（115 年 10 月 13 日）；建議黑白、雙面列印，左側釘三針，不需膠裝 | — | 未印 |
-| 系統簡介 | PDF，最多 2 頁，不交紙本 | `四技第115413組-FocusFlow AI-系統簡介.pdf` | 已產出：[System_Overview/output](<../System_Overview/output/四技第115413組-FocusFlow AI-系統簡介.pdf>)，2 頁；待組員確認後上傳 |
+| 系統簡介 | PDF，最多 2 頁，不交紙本 | `四技第115413組-FocusFlow AI-系統簡介.pdf` | 已產出：[System_Overview/output](<../00_Deliverables/System_Overview/output/四技第115413組-FocusFlow AI-系統簡介.pdf>)，2 頁；待組員確認後上傳 |
 | 簡報 | PDF。除初評發表內容外，需加「前次評審意見修正情形」「系統完成度」「功能完整性」 | `四技第115413組-FocusFlow AI-簡報.pdf` | 未開始；可用雲端 `初評資料/` 的初評簡報與評審提問整理為底 |
 
 ## 二、校內觀摩展資料（10/13（二）15:00 前）
@@ -52,7 +52,7 @@
 | 觀摩展專題簡介 | 200 字以內文字介紹專題，含組別、題目名 | `115413－觀摩展專題簡介` | 未開始 |
 | 海報 1 | 組別序號（第 115413 組）、題目名、專題 logo、組員、指導老師 | `115413－海報 1`（PNG ＋ PDF） | 未開始 |
 | 海報 2、海報 3 | 專題簡介與成果，需呈現 Project purpose、Problem statement、Approaches、End result；可用文字、圖片、表格 | `115413－海報 2`、`115413－海報 3`（PNG ＋ PDF） | 未開始 |
-| Logo 與海報圖檔 | 另附 PNG 或 illustrator 檔 | `115413－Logo`、`115413－<名稱>` | logo 素材在 repo [60_Brand](../../60_Brand/README.md)，需匯出 |
+| Logo 與海報圖檔 | 另附 PNG 或 illustrator 檔 | `115413－Logo`、`115413－<名稱>` | logo 素材在 repo [60_Brand](../60_Brand/README.md)，需匯出 |
 | 觀摩展成果影片 | MP4，3 分鐘以內；介紹系統功能與作品特色；字幕放畫面下方，字型標楷體／新細明體／微軟正黑體，白字黑框，字高不超過畫面 1/4；聲音清楚 | `四技第115413組-FocusFlow AI-成果影片.mp4` | 學校帳號雲端 `專題/FocusFlow_系統簡介_3分鐘版_v2_燒字幕.mp4` 長 2:50，符合時間；字幕規定待目視確認，下載後改名上傳 |
 | 觀摩展心得影片 | MP4，1 分鐘以內；全部組員入鏡談製作心得；字幕規定同上 | `四技第115413組-FocusFlow AI-心得影片.mp4` | 未拍攝 |
 
@@ -65,7 +65,7 @@
 
 ## 三、校外競賽證明（12/7（一）15:00 前）
 
-2026-02-17 起參加的校外競賽，上傳得獎或參賽證明，並至「學術競賽成效平台」登記。雲端位置：`學校專題/繳交/1207校外競賽證明/`。競賽文件見 [Contest](../Contest/README.md)；認列申請表空白檔在 [Contest/00_共用行政文件](../Contest/00_共用行政文件/)。
+2026-02-17 起參加的校外競賽，上傳得獎或參賽證明，並至「學術競賽成效平台」登記。雲端位置：`學校專題/繳交/1207校外競賽證明/`。競賽文件見 [Contest](../00_Deliverables/Contest/README.md)；認列申請表空白檔在 [Contest/00_共用行政文件](../Contest/00_共用行政文件/)。
 
 | 競賽 | 證明文件 | 目前狀態 |
 |---|---|---|
@@ -110,7 +110,7 @@
 
 | 項目 | 目前狀態 |
 |---|---|
-| 物件導向系統分析與設計 VPP／VPD 檔 | repo 內沒有 .vpp／.vpd，UML 以 PlantUML／Mermaid 繪製（[System_Manual/figures](../System_Manual/figures/)）；格式落差，需向指導老師確認 |
-| 資料庫 MDF 與 LDF 檔 | MongoDB 沒有 MDF／LDF，改交資料庫交付包，見 [Database](../Database/README.md)；腳本與說明已完成，尚未實際匯出；需向指導老師確認 |
+| 物件導向系統分析與設計 VPP／VPD 檔 | repo 內沒有 .vpp／.vpd，UML 以 PlantUML／Mermaid 繪製（[System_Manual/figures](../00_Deliverables/System_Manual/figures/)）；格式落差，需向指導老師確認 |
+| 資料庫 MDF 與 LDF 檔 | MongoDB 沒有 MDF／LDF，改交資料庫交付包，見 [Database](../00_Deliverables/Database/README.md)；腳本與說明已完成，尚未實際匯出；需向指導老師確認 |
 | 所有軟體元件（元件、函式庫等） | 同「系統程式」 |
 | 安裝程式（能將系統完整安裝至 PC 或 NB 執行） | 未開始 |

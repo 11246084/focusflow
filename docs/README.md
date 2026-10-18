@@ -27,7 +27,7 @@
 | [重要決策](decision-log.md) | 決策原因與影響，保留歷史時間點 |
 | [recut 短影片設計決策](30_Features/Short_Video/recut-design-decisions.md) | 老師原音＋程式動畫短片的已定案設計與待討論問題 |
 | [recut 素材開放與排除清單](30_Features/Short_Video/recut-asset-exclusions.md) | AI 能從 Fluent Emoji 挑哪些圖與排除理由 |
-| [繳交清單](00_Deliverables/Submission/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
+| [繳交清單](00_學校公告/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
 | [正式交付](00_Deliverables/README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
 | [2026 產學創新實作競賽文件](00_Deliverables/Contest/2026_全國大專院校產學創新實作競賽/README.md) | D 組報名附件、補件清單與送件操作 |
 | [專案歷史](10_Project_History/README.md) | 有日期的專案快照 |
@@ -48,3 +48,5 @@
 - 更新狀態須附日期與證據。2026-09-13 是本次整理日期，不是全部功能重新測試的日期。
 
 先讀目前狀態，再看功能總表，最後進入所需的交付、架構、規格或維運文件。
+
+- [學校公告與繳交清單](00_學校公告/README.md)

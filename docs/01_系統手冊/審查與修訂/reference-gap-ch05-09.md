@@ -3,7 +3,7 @@
 - 日期：2026-09-24
 - 分支：`doc/reference-gap`（自 `dev` 分出；PR 目標 `dev`）
 - 性質：唯讀比對。本分支只新增本報告，未修改任何 `chapters/`、`diagrams/`、`images/` 或共用檔，也不包含任何 PDF 變更。
-- 比對對象（我們）：`origin/doc/ch05`～`origin/doc/ch09` 各分支的 `docs/01_系統手冊/chapters/0N_*.md`、同分支的 `images/` 與 `docs/reports/ch0N-change-note.md`（2026-09-24 fetch）。
+- 比對對象（我們）：`origin/doc/ch05`～`origin/doc/ch09` 各分支的 `docs/01_系統手冊/chapters/0N_*.md`、同分支的 `images/` 與 `docs/01_系統手冊/審查與修訂/ch0N-change-note.md`（2026-09-24 fetch）。
 - 參考手冊：
   - **A**：四技第115414組《救「舊」我的書》系統手冊（110 頁）。只比對第 5～8 章：A 沒有程式章，其第 9 章是參考資料。
   - **B**：四技第114414組《動起來「揪」對了》系統手冊（110 頁）。比對第 5～9 章。

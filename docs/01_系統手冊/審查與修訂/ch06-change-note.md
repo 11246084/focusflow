@@ -105,8 +105,8 @@ npx mmdc -p puppeteer.json -i "<圖源>.mmd" -o "<圖檔>.png" -w 2400 -s 2 -b w
 
 # artifact chain 檢查
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py \
-  --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 \
-  --image-dir docs/00_Deliverables/System_Manual/images \
+  --diagram-dir docs/05_圖庫/系統手冊/ch06 \
+  --image-dir docs/05_圖庫/系統手冊/ch06 \
   --chapter docs/01_系統手冊/chapters/06_設計模型.md \
   --toc docs/05_圖庫/README.md --require-version
 ```

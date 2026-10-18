@@ -5,7 +5,7 @@
 | 分類／階段 | 文件 | 處理方向與依據 |
 |---|---|---|
 | 先前已封存 | [程式碼理解筆記](90_Archive/learning-reports/backend-understanding-code-2026-05/README.md) | 保留筆記與圖檔；原 Git 更新為 2026/05/06，詳見封存說明。本次不再搬移。 |
-| 封存／1 | [Short 前端交接](../backend/docs/handoff-shorts-frontend-done.md) | Short 是教學短影片；依據為[學生頁面](../frontend/focus-flow/src/pages/StudentShortsWall.jsx)的 `apiFetch`。原方案已移至 `docs/90_Archive/backend/handoff-shorts-frontend-plan.md`，現行引用改連完成交接。 |
+| 封存／1 | [Short 前端交接](../backend/docs/handoff-shorts-frontend-done.md) | Short 是教學短影片；依據為[學生頁面](../frontend/focus-flow/src/pages/StudentShortsWall.jsx)的 `apiFetch`。原方案已移至 `docs/90_Archive/superseded/handoff-shorts-frontend-plan.md`，現行引用改連完成交接。 |
 | 更新／2 | [根 README](../README.md) | Node.js 18+ 不符合[套件鎖定檔](../frontend/focus-flow/package-lock.json)中的 Vite 8.0.5 要求：`^20.19.0` 或 `>=22.12.0`。 |
 | 更新／2 | [Pipeline README](../STT_Whisper/README.md) | Pipeline 是把影片依序轉成逐字稿與向量的處理流程。「尚未實作 Resume／Retry」與[入口程式](../STT_Whisper/src/main.py)的接續執行參數矛盾；修正後保留操作說明。 |
 | 更新／2 | [Frontend README](../frontend/focus-flow/README.md) | 舊單支影片追蹤說明需對齊[上傳頁面](../frontend/focus-flow/src/pages/TeacherUpload.jsx)的多檔批次、`batchId` 與重試操作。 |
@@ -18,7 +18,7 @@
 | 準備／3 | [資料庫（DB）交接](../database/docs/db-handoff-current.txt) | 舊文的頭像檔名與課程或影片搜尋說明，不符[User](../backend/src/models/user.model.js)、[Avatar](../backend/src/models/avatar.model.js)及[搜尋範圍服務](../backend/src/services/bridgeScope.service.js)。不改數字、不搬移，改列 DB 負責人的實查清單。 |
 | 排除：待確認 | [Short_Video](04_Features/Short_Video/README.md)、[系統手冊](01_系統手冊/README.md)、[繳交清單](00_學校公告/README.md) | 模板是否使用、手冊哪份是現行母稿、是否已繳交皆 **⚠️ 未驗證**；本次不處理。 |
 | 排除：保留 | [短腳本自動化](04_Features/Short_Script_Automation/README.md)、[學生試用](04_Features/Student_Pilot_Backend/README.md)、[QA 評測](04_Features/QA_Evaluation/README.md) | QA 是學生提問與系統回答。這些文件保留需求、驗收條件與證據；不由程式存在推定驗收完成，不整包封存。 |
-| 排除：保留 | [Backend 待辦](../backend/docs/todo.md)、[實作紀錄](../backend/docs/implementation-log.md)、[會議](06_會議紀錄/README.md)、[歷史稽核](reports/2026-09-24_project-gap-audit.md) | 仍有待辦或具日期的歷史證據；本次不處理，不把歷史測試數字寫成目前結果。 |
+| 排除：保留 | [Backend 待辦](../backend/docs/todo.md)、[實作紀錄](../backend/docs/implementation-log.md)、[會議](06_會議紀錄/README.md)、[歷史稽核](90_Archive/snapshots/2026-09-24_project-gap-audit.md) | 仍有待辦或具日期的歷史證據；本次不處理，不把歷史測試數字寫成目前結果。 |
 | 規則檢查／4 | [文件維護 skill](../.agents/skills/docs-maintainer/SKILL.md) | skill 是代理執行工作時參考的操作規範。比對狀態正本、README 用途與新增 md 檔規則，只列衝突原文及修改建議，不修改 skill。 |
 
 整理例子：舊 Short 方案與現行引用 → 封存原方案、改連完成交接 → 功能狀態只在 `current-status.md` 維護。階段 0 保存盤點、階段 1 整理 Short 方案；其他項目待後續階段，[AGENTS](../AGENTS.md)的文件規則於階段 4 處理。

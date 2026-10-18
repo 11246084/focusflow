@@ -16,7 +16,7 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 注意：
 - 功能狀態只看[目前狀態](docs/current-status.md)；資料流與程式入口見[後端技術索引](backend/docs/current-state.md)。
 - 執行學生試用相關任務時，依[專用文件入口](docs/04_Features/Student_Pilot_Backend/README.md)查閱規格與任務規則；驗收結果由[目前狀態](docs/current-status.md)追查。
-- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
+- `docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
 - `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
 
 ## 專屬規則

@@ -52,7 +52,7 @@
 
 **原因**：文字與影片 embedding 維度、查詢模式與 Atlas index 設定不同，合併在一個 collection 會造成 index 複雜度與查詢效率問題。
 
-**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。正式欄位口徑請以 `docs/current-status.md`、`backend/docs/current-state.md` 與實際程式碼為準；`docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考。
+**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。正式欄位口徑請以 `docs/current-status.md`、`backend/docs/current-state.md` 與實際程式碼為準；`docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考。
 
 ---
 

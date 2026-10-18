@@ -79,6 +79,6 @@ recut 是把老師上課錄影的**原音**剪成 30～65 秒短片、配上程�
 ## 證據與原型位置
 
 - 程式：[short_render](../../../short_render/README.md)（第一階段，已 commit 於 `dev`）。
-- 設計比較圖：[evidence](evidence/README.md)；原型製作過程：[recut 原型製作紀錄](../../90_Archive/recut-prototype-log-2026-10-14.md)（封存）。
+- 設計比較圖：[evidence](evidence/README.md)；原型製作過程：[recut 原型製作紀錄](../../90_Archive/superseded/recut-prototype-log-2026-10-14.md)（封存）。
 - 唯讀實測、兩支原型成品放在使用者本機 `D:\AI-workspace\01_Projects\短影音測試製作\`（不在 repo；原型含老師肖像，僅供內部討論）。
 - 參考影片：使用者提供的國二理化短片（上動畫下實拍）與「科技講透透」記憶體／儲存空間 Reel（全版插畫），只作版型參考，不得使用其素材或品牌。

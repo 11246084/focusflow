@@ -52,7 +52,7 @@ FocusFlow 是 AI 教學影片問答系統，教師上傳影片後，學生可透
 - 分開列本輪已執行、歷史結果、未執行的驗證及原因。單元測試通過不代表 Atlas、外部 provider、正式部署或人工驗收完成。
 - Feature flag、active generation、collection/index、webhook URL、provider 及 VM 設定需當次查證；舊 live smoke 不代表永久有效。
 - 對外稱試用、正式上線或 production-ready，必須有對應驗收證據；code 已存在或單次產片不能證明已整合／發布。
-- 舊程式地圖、測試數字與功能快照已移到 [歷史資料](docs/90_Archive/agent-context-2026-10-10.md)，僅在追查歷史時讀。
+- 舊程式地圖、測試數字與功能快照已移到 [歷史資料](docs/90_Archive/snapshots/agent-context-2026-10-10.md)，僅在追查歷史時讀。
 
 ## 文件維護
 

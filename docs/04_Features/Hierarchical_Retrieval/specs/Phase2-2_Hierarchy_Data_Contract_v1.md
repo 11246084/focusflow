@@ -39,8 +39,8 @@ vectors 與 Atlas Parent 更新尚未執行。
 - **[Confirmed by current code]** 檢查日期為 2026-07-31；目前 branch 為 `main`，HEAD `bbb955e`，與 `origin/main` ahead/behind 為 `0/0`。
 - **[Confirmed by current code]** Sprint 1 Parent Chunk 已由 `e65c87a` 提交；QA Citation 卡片跳轉已由 `bbb955e` 提交。
 - **[Confirmed by current code]** Pipeline stage 順序為 `scan → extract_audio → transcribe → normalize → chunk → hierarchy → text_embedding → audio_embedding → export → mongodb_upload → backend_webhook`。
-- **[Confirmed by current code]** 本次檢查無 staged、unstaged、merge conflict；另有前一任務留下的 untracked `docs/10_Project_History/snapshots/project-progress-summary-2026-07-31.md`，不屬於本 Sprint，也不在本文件變更範圍。
-- **[Confirmed by current code]** `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不是現況真相。
+- **[Confirmed by current code]** 本次檢查無 staged、unstaged、merge conflict；另有前一任務留下的 untracked `docs/90_Archive/snapshots/project-progress-summary-2026-07-31.md`，不屬於本 Sprint，也不在本文件變更範圍。
+- **[Confirmed by current code]** `docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不是現況真相。
 
 ## 3. 現況資料流
 

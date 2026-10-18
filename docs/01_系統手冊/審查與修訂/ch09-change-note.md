@@ -76,7 +76,7 @@
 
 ```bash
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
-cd docs/00_Deliverables/System_Manual/diagrams/chapter09
+cd docs/05_圖庫/系統手冊/ch09
 java -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 \
   -jar plantuml.jar -charset UTF-8 -tpng -o <輸出目錄> "圖9-1-1-程式元件閱讀路徑圖-v3-0.puml"
 ```

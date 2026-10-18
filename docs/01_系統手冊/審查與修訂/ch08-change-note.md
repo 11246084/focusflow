@@ -74,7 +74,7 @@
 產圖指令（需 UTF-8 locale，否則 PlantUML 讀不到中文檔名，回報 `No diagram found`）：
 
 ```bash
-cd docs/00_Deliverables/System_Manual/diagrams/chapter08
+cd docs/05_圖庫/系統手冊/ch08
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 java -Dsun.jnu.encoding=UTF-8 -jar /opt/plantuml/plantuml.jar -tpng -charset UTF-8 -o ../../images \
   圖8-1-1-*v4-0.puml 圖8-1-[2-6]-*.puml

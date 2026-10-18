@@ -96,7 +96,7 @@
 渲染指令（中文檔名需指定 UTF-8，否則 PlantUML 找不到檔案）：
 
 ```bash
-cd docs/00_Deliverables/System_Manual/diagrams/chapter07
+cd docs/05_圖庫/系統手冊/ch07
 LANG=C.UTF-8 java -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8 -Djava.awt.headless=true \
   -jar /opt/plantuml/plantuml.jar -charset UTF-8 -tpng -o ../../images 圖7-*.puml
 ```

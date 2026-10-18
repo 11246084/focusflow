@@ -151,4 +151,4 @@ assertObjectId(req.params.courseId, 'course');
 ## 安全標頭
 
 - 後端 `middleware/securityHeaders.middleware.js` 回 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`，`/api/` 另加 CSP，並關閉 `X-Powered-By`
-- 前端 HTML 由 nginx 提供；443 server block 另加 HSTS 等標頭（見 CLAUDE.md「部署與對外連線」）。整站 CSP 尚未加
+- 前端 HTML 由 nginx 提供；443 server block 另加 HSTS 等標頭（見[部署與連線排錯](../../docs/10_Operations/deployment/部署與連線排錯.md)）。整站 CSP 尚未加

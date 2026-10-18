@@ -10,7 +10,7 @@
 ' implemented:  partial（Parent 檢索 Gate 預設關閉；video_segments_video 僅供視覺引用）
 ' ai-assisted:  yes / Claude Code / v1-1：版面同 v1-0，連線加編號①～⑬、圖例移至下方；v1-0 自 v3-0 總圖拆出
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 影片與知識片段集合關聯圖
 top to bottom direction

@@ -10,7 +10,7 @@
 ' ai-assisted:  yes / Claude Code / v1-1：版面改為多列（v1-0 高寬比 0.43）、連線加編號①～⑪，
 '               補畫 enrollments.assignedBy／revokedBy 連線；v1-0 自 v3-0 總圖拆出
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 帳號、課程與問題回報集合關聯圖
 top to bottom direction

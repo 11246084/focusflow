@@ -10,7 +10,7 @@
 ' implemented:  yes（Parent 路徑受 HIERARCHICAL_RETRIEVAL_ENABLED 控制，預設關閉）
 ' ai-assisted:  yes / Claude Code / 新增：以資料鍵呈現課程範圍如何解析為片段查詢條件
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title QA課程範圍橋接契約圖
 top to bottom direction

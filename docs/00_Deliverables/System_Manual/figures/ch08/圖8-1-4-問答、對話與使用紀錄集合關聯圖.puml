@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / v1-1：版面改為多列（v1-0 高寬比 0.42）、連線加編號①～⑬；v1-0 自 v3-0 總圖拆出
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 問答、對話與使用紀錄集合關聯圖
 top to bottom direction

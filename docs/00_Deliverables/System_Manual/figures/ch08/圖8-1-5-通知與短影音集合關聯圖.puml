@@ -4,12 +4,12 @@
 ' chapter:      8-1
 ' realizes:     FR-18, FR-20, FR-21, FR-22, NFR-04, NFR-05
 ' source:       backend/src/models/{notification,shortScript,shortAsset}.model.js
-' verified:     2026-09-24（靜態比對 schema；未連 Atlas）
+' verified:     2026-09-25（靜態比對 schema；未連 Atlas）
 ' status:       draft
 ' implemented:  partial（短影音腳本 feature flag 預設關閉；YouTube 上架未 live 驗證）
-' ai-assisted:  yes / Claude Code / 自 v3-0 總圖拆出通知、短影音腳本與成品集合
+' ai-assisted:  yes / Claude Code / v1-1：版面改為多列（v1-0 高寬比 0.41）、連線加編號①～⑫；v1-0 自 v3-0 總圖拆出
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 通知與短影音集合關聯圖
 top to bottom direction
@@ -67,21 +67,25 @@ entity "shortassets" as a {
   courseSnapshot : 課程快照
 }
 
-users ||--o{ n : recipientId
-users |o--o{ n : createdBy
-courses }o--o{ n : courseIds[]
-videos |o--o{ n : videoId
-s |o--o{ n : scriptId
-courses ||--o{ s : courseId
-users |o--o{ s : createdBy
-q ..> s : sourceQuestions[] 快照
-leaf ..> s : evidence[] 快照
-courses ||--o{ a : courseId
-s |o--o{ a : sourceScriptId\n＋ sourceVersionNo
-videos |o--o{ a : sourceVideoId
+users ||--o{ n : ① recipientId
+users |o--o{ n : ② createdBy
+courses }o--o{ n : ③ courseIds[]
+videos |o--o{ n : ④ videoId
+s |o--o{ n : ⑤ scriptId
+courses ||--o{ s : ⑥ courseId
+users |o--o{ s : ⑦ createdBy
+q ..> s : ⑧ sourceQuestions[] 快照
+leaf ..> s : ⑨ evidence[] 快照
+courses ||--o{ a : ⑩ courseId
+s |o--o{ a : ⑪ sourceScriptId\n＋ sourceVersionNo
+videos |o--o{ a : ⑫ sourceVideoId
 
-note as N1
+courses -[hidden]down-> videos
+a -[hidden]down-> n
+
+legend bottom left
   非 UML 圖。partial＝僅索引 dedupeKey 為字串者（系統公告不帶 dedupeKey）。
   虛線：凍結進腳本的快照，來源其後變動不影響已凍結內容。
-end note
+  ①～⑫ 對應正文表8-1-5。
+endlegend
 @enduml

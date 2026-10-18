@@ -44,7 +44,7 @@
 - 各服務文件仍由服務目錄維護，例如 [backend/docs](../backend/docs/)、[Pipeline README](../STT_Whisper/README.md)、[Database README](../database/README.md)。這裡引用它們，不建立第二份 API／資料庫真相。
 - 功能完成後留在原功能資料夾；只有被取代版本歸入功能內 `archive/`，已下線功能才移至 `90_Archive/retired-features/`。
 - 共用架構圖放在 `20_Architecture/system-diagrams/`，各章以相對連結引用。手冊 `images/` 只放從原稿擷取的圖與手冊專用畫面。
-- `source-documents/` 保留本次引用的原件／初評交付；草稿放 `90_Archive/manual-drafts/`。原始驗收 JSON、CSV、題庫及二進位原件保留內容。
+- `source-documents/` 保留本次引用的原件／初評交付；初評前草稿已於 2026-10-18 自 repo 移除，改由雲端「學校專題/02_初評資料/」保存或從 git 歷史取回。原始驗收 JSON、CSV、題庫及二進位原件保留內容。
 - 更新狀態須附日期與證據。2026-09-13 是本次整理日期，不是全部功能重新測試的日期。
 
 先讀目前狀態，再看功能總表，最後進入所需的交付、架構、規格或維運文件。

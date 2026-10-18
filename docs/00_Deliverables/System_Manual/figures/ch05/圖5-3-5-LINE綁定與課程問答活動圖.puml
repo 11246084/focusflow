@@ -13,7 +13,7 @@
 ' 產生方式：plantuml 產出 <本檔名>.png 與 <本檔名>_001.png，
 '           再以 node compose-columns.js 並排為一張圖（見 docs/reports/ch05-change-note.md）。
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 |學生|
 start
@@ -56,7 +56,7 @@ detach
 @enduml
 
 @startuml
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 |學生|
 (A)

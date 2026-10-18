@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 第二輪：拒絕與略過分支加註 E1～E5，與表5-3-2 例外流程一一對應
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 課程與修課名單管理活動圖
 

@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 第二輪：拒絕分支加註 E1～E4，補上刪除影片前 FAQ 快取清除失敗（E3）與服務狀態異常（E4）
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 管理員維運活動圖
 

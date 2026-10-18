@@ -11,7 +11,7 @@
 '
 ' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續；以 compose-columns.js 並排。
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 |學生|
 start
@@ -36,7 +36,7 @@ detach
 @enduml
 
 @startuml
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 |學生|
 (A)

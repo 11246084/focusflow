@@ -8,13 +8,13 @@
 // implemented:  partial
 // ai-assisted:  yes / Claude Code / 依 models 查證修正：Course—Video 改為多對多掛載，補上 User—Question、User—Feedback、ShortScript—Question，重新排版以消除標籤重疊
 //
-// 產生方式：node 圖5-4-1-系統分析類別圖-v3-0.js
+// 產生方式：node 圖5-4-1-系統分析類別圖.js
 //   依賴 sharp（SVG → PNG）。僅需 SVG 時可移除 sharp 區段。
 // ============================================
 
 const fs = require('fs');
 const path = require('path');
-const { renderDiagram } = require('../tools/svgdiag.js');
+const { renderDiagram } = require('../_shared/svgdiag.js');
 
 const W = 200;
 const A = 60;
@@ -106,8 +106,8 @@ const svg = renderDiagram({
   edges,
 });
 
-const imagesDir = path.resolve(__dirname, '..', '..', 'images');
-const baseName = '圖5-4-1-系統分析類別圖-v3-0';
+const imagesDir = __dirname;
+const baseName = '圖5-4-1-系統分析類別圖';
 fs.writeFileSync(path.join(imagesDir, baseName + '.svg'), svg, 'utf8');
 console.log('svg ->', path.join(imagesDir, baseName + '.svg'));
 

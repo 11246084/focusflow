@@ -8,7 +8,7 @@
 // implemented:  yes
 // ai-assisted:  yes / Claude Code / 由原圖5-2-1 v1-0（draw.io）依角色拆出學生與共用功能，改以抽象行為者「使用者」一般化三種角色，並補上 UC-06 的「回報問題」延伸
 //
-// 產生方式：node 圖5-2-1a-學生與共用功能使用個案圖-v2-0.js（依賴 sharp 輸出 PNG）
+// 產生方式：node 圖5-2-1-學生與共用功能使用個案圖.js（依賴 sharp 輸出 PNG）
 // ============================================
 
 const { renderDiagram, writeOutputs } = require('./usecase-svg.js');
@@ -57,4 +57,4 @@ const svg = renderDiagram({
   ],
 });
 
-writeOutputs(svg, '圖5-2-1a-學生與共用功能使用個案圖-v2-0', __dirname);
+writeOutputs(svg, '圖5-2-1-學生與共用功能使用個案圖', __dirname);

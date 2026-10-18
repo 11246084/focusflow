@@ -8,7 +8,7 @@
 // implemented:  yes
 // ai-assisted:  yes / Claude Code / 由原圖5-2-1 v1-0（draw.io）依角色拆出教師與管理員功能：補上 Admin 與 UC-02、UC-03 的關聯與 UC-09「處理問題回報」延伸，「建立與發布課程」改為「變更課程發布狀態」
 //
-// 產生方式：node 圖5-2-1b-教師與管理員功能使用個案圖-v2-0.js（依賴 sharp 輸出 PNG）
+// 產生方式：node 圖5-2-2-教師與管理員功能使用個案圖.js（依賴 sharp 輸出 PNG）
 // ============================================
 
 const { renderDiagram, writeOutputs } = require('./usecase-svg.js');
@@ -66,4 +66,4 @@ const svg = renderDiagram({
   ],
 });
 
-writeOutputs(svg, '圖5-2-1b-教師與管理員功能使用個案圖-v2-0', __dirname);
+writeOutputs(svg, '圖5-2-2-教師與管理員功能使用個案圖', __dirname);

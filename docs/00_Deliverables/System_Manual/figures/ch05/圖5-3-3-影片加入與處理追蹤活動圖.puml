@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 第二輪：拒絕分支加註 E1～E7，補上重試來源檔檢查（E6）與不合法狀態回報（E7）
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 影片加入與處理追蹤活動圖
 

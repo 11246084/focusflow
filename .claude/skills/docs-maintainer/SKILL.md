@@ -18,6 +18,7 @@ description: 維護 FocusFlow 的 README、agent 入口、架構與進度文件�
 | 重要決策與理由 | docs/decision-log.md（若存在） |
 
 - 使用者只要求盤點／建議時只回報；要求修改時完成授權範圍內修改及驗證。分階段回報與停止時點，依 [AGENTS.md 的文件規則](../../../AGENTS.md#文件規則)。
+- 判斷內容屬於哪一類文件、該放哪裡與怎麼寫時，讀 [references/doc-types.md](references/doc-types.md)。
 - 新增文件與方案封存，依 [AGENTS.md 的文件規則](../../../AGENTS.md#文件規則)。
 - 文件用語、段落、範例與長度，依 [AGENTS.md 的文件規則](../../../AGENTS.md#文件規則)及[文件寫作規則](../../../AGENTS.md#文件寫作規則)。
 - 保留既有 Git 異動。優先局部改寫、搬移到主要位置並連結，避免同步多份全文。

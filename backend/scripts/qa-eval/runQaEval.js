@@ -21,7 +21,7 @@ const path = require('path');
 
 const BASE_URL = (process.env.QA_EVAL_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const BANK_PATH = process.env.QA_EVAL_BANK
-  || path.join(__dirname, '..', '..', '..', 'docs', '30_Features', 'QA_Evaluation', 'datasets', 'question-bank.json');
+  || path.join(__dirname, '..', '..', '..', 'docs', '04_Features', 'QA_Evaluation', 'datasets', 'question-bank.json');
 const DELAY_MS = Number(process.env.QA_EVAL_DELAY_MS || 1200);
 const ONLY = (process.env.QA_EVAL_ONLY || '')
   .split(',')
@@ -145,7 +145,7 @@ async function main() {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outDir = process.env.QA_EVAL_OUT
-    || path.join(__dirname, '..', '..', '..', 'docs', '30_Features', 'QA_Evaluation', 'runs', stamp);
+    || path.join(__dirname, '..', '..', '..', 'docs', '04_Features', 'QA_Evaluation', 'runs', stamp);
   fs.mkdirSync(outDir, { recursive: true });
 
   console.log(`Base URL     : ${BASE_URL}`);

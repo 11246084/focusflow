@@ -132,4 +132,4 @@ AI 協助不代替組員的個人感想、實際研究結果、正式環境驗�
 - `四技第114414組-動起來「揪」對了-系統手冊.pdf`
 - `四技第115414組-救「舊」我的書-系統手冊.pdf`
 
-這些是其他組別的系統手冊，僅放在本機這個資料夾供比對章節結構、圖表數量與規格是否符合系上慣例。**這些 PDF 本身已列入 `.gitignore`，不會被加入版控、不會出現在 GitHub 上**——本 repository 為 public，這些檔案是其他組別的著作，不應公開重新散布。需要比對時請自行向該組取得並放在本機這個資料夾，不要移除 `.gitignore` 規則強行加入版控。**不可**將其內容誤植為本專題事實或抄用其架構描述；比對時仍以 `.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md` 的官方契約為準，範例手冊僅供參考，若與契約衝突以契約為準。
+這些是其他組別的系統手冊，僅放在本機 `tools/templates/` 供比對章節結構、圖表數量與規格是否符合系上慣例。**這些 PDF 本身已列入 `.gitignore`，不會被加入版控、不會出現在 GitHub 上**——本 repository 為 public，這些檔案是其他組別的著作，不應公開重新散布。需要比對時請自行向該組取得並放在本機 `tools/templates/`，不要移除 `.gitignore` 規則強行加入版控。**不可**將其內容誤植為本專題事實或抄用其架構描述；比對時仍以 `.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md` 的官方契約為準，範例手冊僅供參考，若與契約衝突以契約為準。

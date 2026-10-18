@@ -28,8 +28,8 @@
 | [recut 短影片設計決策](30_Features/Short_Video/recut-design-decisions.md) | 老師原音＋程式動畫短片的已定案設計與待討論問題 |
 | [recut 素材開放與排除清單](30_Features/Short_Video/recut-asset-exclusions.md) | AI 能從 Fluent Emoji 挑哪些圖與排除理由 |
 | [繳交清單](00_學校公告/README.md) | 學校各階段繳交項目、期限、規定檔名與目前狀態 |
-| [正式交付](00_Deliverables/README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
-| [2026 產學創新實作競賽文件](00_Deliverables/Contest/2026_全國大專院校產學創新實作競賽/README.md) | D 組報名附件、補件清單與送件操作 |
+| [正式交付](README.md) | 系統簡介、分章手冊、資料庫交付、競賽及 ESG 投稿 |
+| [2026 產學創新實作競賽文件](03_競賽/2026_全國大專院校產學創新實作競賽/README.md) | D 組報名附件、補件清單與送件操作 |
 | [專案歷史](10_Project_History/README.md) | 有日期的專案快照 |
 | [架構資料](20_Architecture/README.md) | 架構圖、資料庫及階層檢索設計 |
 | [開發與維運](40_Operations/README.md) | 開發工具、部署與憑證文件 |
@@ -56,3 +56,7 @@
 - [圖庫：圖號、成品、原始碼與待辦](05_圖庫/README.md)
 
 - [系統簡介](02_系統簡介/README.md)
+
+- [競賽總表（含雲端 ESG 投稿）](03_競賽/README.md)
+
+- [永續研討會 ESG 投稿雲端路徑](03_競賽/2026_永續研討會ESG投稿/README.md)

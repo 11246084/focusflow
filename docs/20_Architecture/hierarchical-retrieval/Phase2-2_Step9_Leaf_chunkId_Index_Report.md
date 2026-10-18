@@ -329,10 +329,10 @@ diff 統計：1 file changed, 23 insertions(+), 10 deletions(-)。
 
 ```text
  M database/tools/setup/init_indexes.js
-?? docs/00_Deliverables/Contest/            （本次工作前即存在的 untracked 目錄）
+?? docs/03_競賽/            （本次工作前即存在的 untracked 目錄）
 ```
 
-執行前 working tree 除 `docs/00_Deliverables/Contest/` 外乾淨，HEAD 為 `07c8898`。未執行任何 reset / clean / restore / rebase / merge。
+執行前 working tree 除 `docs/03_競賽/` 外乾淨，HEAD 為 `07c8898`。未執行任何 reset / clean / restore / rebase / merge。
 
 ---
 

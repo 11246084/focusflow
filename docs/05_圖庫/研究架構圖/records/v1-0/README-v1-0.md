@@ -45,14 +45,14 @@
 在 repository 根目錄執行：
 
 ```powershell
-node docs/00_Deliverables/Research_Framework/source/v1-0/build-research-framework-v1-0.mjs
+node docs/05_圖庫/研究架構圖/source/v1-0/build-research-framework-v1-0.mjs
 ```
 
 會重建本版 SVG、HTML 與 manifest。保存正式版本前，請保留整個資料夾；若要改版，先另存版本化繪圖程式及輸出名稱，避免覆蓋已引用版本。manifest 雜湊能確認檔案是否變更，不能單獨證明主張正確。
 
 PNG／PDF 僅為瀏覽器從這份 SVG 的衍生輸出，不是新的繪圖來源。若有導出，渲染方法、環境與檢查結果另存 `validation-v1-0.json`；需在相同字型與瀏覽器環境下才能期待相同像素。SVG 原始碼是可重建的主檔。
 
-本輪使用現有 Playwright MCP 瀏覽器匯出，未安裝套件。先以 `node docs/00_Deliverables/Research_Framework/source/v1-0/preview-server-v1-0.mjs` 啟動只供應本圖的本機伺服器，再把 [render-research-framework-v1-0.js](../../source/v1-0/render-research-framework-v1-0.js) 作為 `browser_run_code_unsafe` 的 `filename` 輸入。執行前檢查其中輸出路徑；檢查通過後會重建本版 PNG／PDF。完成後以 Ctrl+C 停止伺服器。
+本輪使用現有 Playwright MCP 瀏覽器匯出，未安裝套件。先以 `node docs/05_圖庫/研究架構圖/source/v1-0/preview-server-v1-0.mjs` 啟動只供應本圖的本機伺服器，再把 [render-research-framework-v1-0.js](../../source/v1-0/render-research-framework-v1-0.js) 作為 `browser_run_code_unsafe` 的 `filename` 輸入。執行前檢查其中輸出路徑；檢查通過後會重建本版 PNG／PDF。完成後以 Ctrl+C 停止伺服器。
 
 倉庫 diagram bootstrap 的唯讀 Check 因本機 `claude.exe` 執行權限而未完成；Python 執行亦受限，因此未宣稱執行 skill 的 Python self-check。本輪改以 Node.js 及既有瀏覽器執行 XML、可存取名稱、來源連結、文字邊界與交疊檢查。
 

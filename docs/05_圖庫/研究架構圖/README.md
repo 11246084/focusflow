@@ -59,13 +59,13 @@ Research_Framework/
 在 repository 根目錄執行：
 
 ```powershell
-node docs/00_Deliverables/Research_Framework/source/v1-0/build-research-framework-v1-0.mjs
-node docs/00_Deliverables/Research_Framework/source/v1-0/verify-research-framework-v1-0.mjs
+node docs/05_圖庫/研究架構圖/source/v1-0/build-research-framework-v1-0.mjs
+node docs/05_圖庫/研究架構圖/source/v1-0/verify-research-framework-v1-0.mjs
 
-node docs/00_Deliverables/Research_Framework/source/v2-0/build-research-framework-v2-0.mjs
-node docs/00_Deliverables/Research_Framework/source/v2-0/verify-research-framework-v2-0.mjs
+node docs/05_圖庫/研究架構圖/source/v2-0/build-research-framework-v2-0.mjs
+node docs/05_圖庫/研究架構圖/source/v2-0/verify-research-framework-v2-0.mjs
 
-node docs/00_Deliverables/Research_Framework/source/v3-0/build-v3-0.mjs
+node docs/05_圖庫/研究架構圖/source/v3-0/build-v3-0.mjs
 ```
 
 產生程式重建 `results/` 內的 SVG、HTML，以及 `records/` 內的 manifest。PNG／PDF 是以本機瀏覽器從相同 SVG 匯出的衍生結果：v1.0、v2.0 的方法見各版本 README。

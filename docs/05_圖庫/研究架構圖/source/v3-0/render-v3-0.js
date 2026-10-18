@@ -2,7 +2,7 @@
 // Audits each figure (XML, text overflow / overlap / outside), then exports PNG (3x) and a 160 mm-wide PDF.
 // Returns the audit report; copy it into records/v3-0/validation-v3-0.json.
 async (page) => {
-  const base = 'C:/Users/User/Documents/GitHub/focusflow/docs/00_Deliverables/Research_Framework/results/v3-0';
+  const base = 'C:/Users/User/Documents/GitHub/focusflow/docs/05_圖庫/研究架構圖/results/v3-0';
   const figures = [
     ['01-question-to-evidence-v3-0', 1166],
     ['02-evidence-to-answer-v3-0', 1310],

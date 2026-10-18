@@ -1,7 +1,7 @@
 // Playwright MCP browser_run_code_unsafe filename input: async function(page).
 // Requires preview-server-v1-0.mjs at localhost:8794; update outputDir if relocated.
 async (page) => {
-  const outputDir='C:/Users/User/Documents/GitHub/focusflow/docs/00_Deliverables/Research_Framework/results/v1-0';
+  const outputDir='C:/Users/User/Documents/GitHub/focusflow/docs/05_圖庫/研究架構圖/results/v1-0';
   const stem='focusflow-research-framework-v1-0';
   const browser=page.context().browser();
   const context=await browser.newContext({viewport:{width:1280,height:1776},deviceScaleFactor:2});

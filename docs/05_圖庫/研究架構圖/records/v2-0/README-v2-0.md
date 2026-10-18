@@ -65,8 +65,8 @@
 [繪圖原始碼](../../source/v2-0/build-research-framework-v2-0.mjs) 使用 Node.js 標準函式庫。文字、座標、配色與連線固定，SVG 為主要可編輯來源。字型使用本機 Microsoft JhengHei，未嵌入或散布字型檔。
 
 ```powershell
-node docs/00_Deliverables/Research_Framework/source/v2-0/build-research-framework-v2-0.mjs
-node docs/00_Deliverables/Research_Framework/source/v2-0/preview-server-v2-0.mjs
+node docs/05_圖庫/研究架構圖/source/v2-0/build-research-framework-v2-0.mjs
+node docs/05_圖庫/研究架構圖/source/v2-0/preview-server-v2-0.mjs
 ```
 
 瀏覽 `http://localhost:8795/` 查看圖、`http://localhost:8795/chapter` 查看 A4 樣張。PNG／PDF 由 [render-research-framework-v2-0.js](../../source/v2-0/render-research-framework-v2-0.js) 配合既有 Playwright MCP 的 `browser_run_code_unsafe(filename=...)` 匯出；搬移資料夾後需更新其 `outputDir`。匯出要求 localhost 的瀏覽器縮放為 100%，否則明確停止，以免截圖產生偏移或留白。完成後 Ctrl+C 停止本機預覽。

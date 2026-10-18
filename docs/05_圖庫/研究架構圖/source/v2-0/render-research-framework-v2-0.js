@@ -1,6 +1,6 @@
 // Input for Playwright MCP browser_run_code_unsafe(filename=...).
 async (page)=>{
-  const outputDir='C:/Users/User/Documents/GitHub/focusflow/docs/00_Deliverables/Research_Framework/results/v2-0';
+  const outputDir='C:/Users/User/Documents/GitHub/focusflow/docs/05_圖庫/研究架構圖/results/v2-0';
   const stem='focusflow-research-framework-v2-0';
   const browser=page.context().browser();
   const context=await browser.newContext({viewport:{width:1100,height:1116},deviceScaleFactor:3});

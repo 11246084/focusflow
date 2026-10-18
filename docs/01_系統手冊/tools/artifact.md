@@ -4,7 +4,7 @@
 
 ## 建置流程
 
-1. `build_manual.py` 讀取 `chapters/01～15_*.md` 與 `figures/chNN/` 的圖檔，套上 `tools/templates/系統手冊版型.docx` 的封面與 Word 樣式，輸出 DOCX。
+1. `build_manual.py` 讀取 `chapters/01～15_*.md` 與 `../05_圖庫/系統手冊/chNN/` 的圖檔，套上 `tools/templates/系統手冊版型.docx` 的封面與 Word 樣式，輸出 DOCX。
 2. `refresh_manual_word.ps1` 讓 Microsoft Word 更新目錄、圖目錄、表目錄與頁碼，再匯出 PDF。
 3. `rebuild_manual.ps1` 一次完成上面兩步，產出 `output/四技第115413組-FocusFlow AI-系統手冊.docx` 與 `.pdf`。
 
@@ -58,7 +58,7 @@
 - 置中、不變形；寬度最多 6.75 吋、高度最多 7.8 吋（圖4-3-1 低解析截圖最多 5 吋）。
 - 第 12 章操作畫面以約 150 dpi 為上限，不放大小截圖。
 - 緊接在圖前、且提到該圖編號的說明段落，會與圖排在同一頁；圖高超過 400 pt 時不綁定，避免前一頁留下大片空白。
-- 圖檔一律放在 `figures/chNN/`；EMF／WMF 不支援，請先轉成 PNG 或 SVG。
+- 圖檔一律放在 `../05_圖庫/系統手冊/chNN/`；EMF／WMF 不支援，請先轉成 PNG 或 SVG。
 
 ## 頁尾附註與 AI 紀錄
 

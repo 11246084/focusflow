@@ -1,6 +1,6 @@
 """FocusFlow 系統手冊建置程式：把 chapters/*.md 組成完整的 Word 手冊。
 
-這是手冊唯一的建置入口。內容只來自 chapters/*.md（母版）與 figures/chNN/ 的圖檔；
+這是手冊唯一的建置入口。內容只來自 chapters/*.md（母版）與 ../05_圖庫/系統手冊/chNN/ 的圖檔；
 封面與 Word 樣式來自 tools/templates/系統手冊版型.docx。程式只套版面、不改寫內文。
 
 格式設定（字型、字級、行距、首行縮排、A4 邊界 1.5 cm、頁碼、目錄／圖目錄／表目錄、
@@ -636,7 +636,7 @@ def main(argv=None):
             image=re.match(r'^!\[([^\]]*)\]\(([^)]+)\)$',line)
             if image:
                 file=(path.parent/image.group(2)).resolve();assert file.exists(),file
-                images.append({'source':str(file.relative_to(MANUAL)),'sha256':digest(file),'chapter':num})
+                images.append({'source':os.path.relpath(file, MANUAL),'sha256':digest(file),'chapter':num})
                 if file.suffix.lower() in ['.emf','.wmf']:
                     if digest(file) not in vector_images:
                         raise SystemExit(f'{file.name}: EMF／WMF 圖須先嵌在版型檔，或改用 PNG／SVG')

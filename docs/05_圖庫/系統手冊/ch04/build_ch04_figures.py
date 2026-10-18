@@ -13,9 +13,8 @@ from collections import Counter
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-MANUAL = Path(__file__).resolve().parents[2]
-REPO = MANUAL.parents[2]
-OUT = MANUAL / 'figures' / 'ch04'
+OUT = Path(__file__).resolve().parent
+REPO = OUT.parents[3]
 FONT = 'C:/Windows/Fonts/kaiu.ttf'
 PLAN, ACTUAL, GRID, NOW = (165, 102, 216), (171, 230, 187), (0, 0, 0), (215, 40, 40)
 

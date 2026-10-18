@@ -46,10 +46,10 @@
 
 ```powershell
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
-  --diagram-dir docs/00_Deliverables/System_Manual/figures/ch06 `
-  --image-dir docs/00_Deliverables/System_Manual/figures/ch06 `
+  --diagram-dir docs/05_圖庫/系統手冊/ch06 `
+  --image-dir docs/05_圖庫/系統手冊/ch06 `
   --chapter docs/01_系統手冊/chapters/06_設計模型.md `
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md
+  --toc docs/05_圖庫/README.md
 ```
 
 下列 POSIX shell 指令只作無 Python 時的局部 fallback；版本後綴必須先移除再比對顯示名稱：

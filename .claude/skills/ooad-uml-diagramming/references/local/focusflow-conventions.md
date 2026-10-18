@@ -16,10 +16,10 @@
 |---|---|
 | 手冊根目錄 | `docs/00_Deliverables/System_Manual/` |
 | 章節 Markdown | `docs/01_系統手冊/chapters/` |
-| 圖源母稿（PlantUML／Mermaid） | `docs/00_Deliverables/System_Manual/figures/ch{NN}/` |
-| 匯出圖檔與截圖 | `docs/00_Deliverables/System_Manual/figures/ch{NN}/`，與圖源同目錄 |
-| 共用樣式與製圖工具 | `docs/00_Deliverables/System_Manual/figures/_shared/` |
-| 圖表目錄 | `docs/00_Deliverables/System_Manual/圖表目錄.md` |
+| 圖源母稿（PlantUML／Mermaid） | `docs/05_圖庫/系統手冊/ch{NN}/` |
+| 匯出圖檔與截圖 | `docs/05_圖庫/系統手冊/ch{NN}/`，與圖源同目錄 |
+| 共用樣式與製圖工具 | `docs/05_圖庫/系統手冊/_shared/` |
+| 圖表目錄 | `docs/05_圖庫/README.md` |
 | 官方規範原件 | `docs/00_Deliverables/System_Manual/source-documents/` |
 
 `[FF:MUST]` 自 2026-10-18 起，系統手冊有原始碼的圖與截圖採

@@ -108,7 +108,7 @@ python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py
   --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 \
   --image-dir docs/00_Deliverables/System_Manual/images \
   --chapter docs/01_系統手冊/chapters/06_設計模型.md \
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md --require-version
+  --toc docs/05_圖庫/README.md --require-version
 ```
 
 artifact chain 檢查結果：圖源、PNG 與章節引用一致；14 項錯誤全部來自 `圖表目錄.md` 仍記錄舊版本與舊圖名（本任務不修改該檔，見第 6 節）。Windows 使用者若要重現，`executablePath` 改為本機 Chrome 或刪除 `-p` 讓 puppeteer 自行下載。

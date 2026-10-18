@@ -1,83 +1,77 @@
-# FocusFlow 系統手冊複評版版型契約
+# 系統手冊版型契約
 
-## Reference
+這份文件記錄系統手冊 Word 檔的版面規格，也就是 `build_manual.py` 實際套用的格式。修改手冊時只改 `chapters/*.md`，版面交給程式產生；要調整版面時，先改程式，再同步更新這份文件。
 
-- Retained reference: `C:\Users\User\Documents\GitHub\focusflow\docs\00_Deliverables\System_Manual\source-documents\專題手冊_初評最終版.docx`
-- SHA-256: `EE9BE1CDD7ACB8DF5957B66E8C2213579F33FF4ED044A8A6B8379DD868118F35`
-- Size: 10,583,821 bytes
-- Reference render: temporary QA output removed after verification
-- Reference render page count: 103 pages in LibreOffice; the retained Microsoft Word PDF has 89 pages. This pagination difference is renderer-specific and is not a design change.
-- Section count: 4
+## 建置流程
 
-## Page system
+1. `build_manual.py` 讀取 `chapters/01～15_*.md` 與 `figures/chNN/` 的圖檔，套上 `templates/系統手冊版型.docx` 的封面與 Word 樣式，輸出 DOCX。
+2. `refresh_manual_word.ps1` 讓 Microsoft Word 更新目錄、圖目錄、表目錄與頁碼，再匯出 PDF。
+3. `rebuild_manual.ps1` 一次完成上面兩步，產出 `output/四技第115413組-FocusFlow AI-系統手冊.docx` 與 `.pdf`。
 
-- A4 portrait, 8.27 × 11.69 inches.
-- All four sections use 0.59-inch top, bottom, left, and right margins.
-- Sections begin on a new page.
-- Front matter uses Roman page numbers; the main body uses Arabic page numbers centered in the footer.
-- Existing cover, contents pages, chapters 1 to 4, chapter 12, chapter 14, appendices, headers, footers, bookmarks, footnotes, and relationships are preserve-only.
+例：改了 `chapters/05_需求模型.md` 的一段文字 → 執行 `rebuild_manual.ps1` → `output/` 的 DOCX、PDF 更新，第 5 章套用相同版面。
 
-## Typography
+程式只套版面，不改寫內文。產出的 DOCX 未經 Word 更新前，目錄與頁碼欄位是空的。
 
-- Chinese text uses DFKai-SB, displayed as 標楷體 in Word. Latin text uses Times New Roman.
-- Chapter headings use Heading 1, 18 pt, bold, centered, black, and begin on a new page.
-- Section headings use Heading 2, 16 pt, bold, left aligned, black.
-- Subsection headings use Heading 3, 14 pt, black.
-- Body text follows the existing Normal paragraph rhythm, 14 pt appearance, justified, with the source document's first-line indentation and line spacing.
-- Captions use Caption, 14 pt, centered, black. Figure and table numbers are visible text in the body; Word field refresh is requested on open.
-- No blue headings, shaded callouts, review-cover elements, or internal working-note typography may be added.
+## 頁面與分節
 
-## Tables and lists
+- A4 直式（21 × 29.7 cm），上下左右邊界 1.5 cm，頁首、頁尾距離 1 cm，不使用文件格線。
+- 分三節，各節由新頁開始：
+  - 封面：不顯示頁碼。
+  - 目錄、圖目錄、表目錄：大寫羅馬數字（I、II…）頁碼，自 1 起算，置中於頁尾。
+  - 內文至附錄：阿拉伯數字頁碼，自 1 起算，置中於頁尾。
+- 封面取自版型檔；專題 Logo 取自 `source-documents/專題手冊_初評最終版.docx` 封面，插在「系統手冊」標題下方。封面日期可用 `--cover-date` 指定。
 
-- Reuse the source's Table Grid pattern.
-- Header rows use the source light green fill and black bold text.
-- Borders remain black and visible; rows expand naturally and repeat the header when a table crosses pages.
-- Narrative content stays in prose. Tables are used for requirements, use-case descriptions, mappings, metadata, component specifications, and test results.
-- Bullets and numbered steps use the source document's existing list indentation and black text.
+## 字型與段落
 
-## Figures and captions
+- 中文標楷體（DFKai-SB），英數 Times New Roman，全部黑色。
+- 內文（樣式「文字內文」）：14 pt、靠左對齊、首行縮排 2 字元、單行間距、段前段後 0 pt、開啟遺孤控制。
+- 標題不自動編號（章節號碼寫在 md 文字裡），一律粗體、與下段同頁、無首行縮排：
 
-- Figures are centered inline images, scaled to the available text width without distortion.
-- Keep each image with its following caption where possible.
-- Use the current versioned image files in `docs\00_Deliverables\System_Manual\images` when a diagram was redrawn after the initial evaluation.
-- The caption shown to readers omits the `-vX-x` filename suffix.
-- Existing figures outside chapters 5 to 10 remain unchanged.
+| 層級 | 樣式 | 字級 | 對齊 | 段前／段後 | 其他 |
+|---|---|---|---|---|---|
+| 章 `#` | Heading 1 | 18 pt | 置中 | 0／12 pt | 每章由新頁開始 |
+| 節 `##` | Heading 2 | 16 pt | 靠左 | 12／6 pt | |
+| 小節 `###` | Heading 3 | 14 pt | 靠左 | 6／0 pt | |
+| `####` | Heading 4 | 14 pt | 靠左 | 6／0 pt | |
 
-## Content flow and edit slots
+- 程式碼區塊以內文樣式呈現、取消首行縮排，允許跨頁。
+- `$…$` 行內公式與 `$$…$$` 獨立公式由 `manual_math.py` 轉成可編輯的 Word 方程式（需安裝 Microsoft Office 的 `MML2OMML.XSL`）。
 
-- Preserve the cover and front matter.
-- Preserve chapters 1 to 4 unchanged.
-- Replace only the body range beginning at the Heading 1 paragraph `需求模型` and ending immediately before the Heading 1 paragraph `使用手冊`.
-- Insert updated chapters 5 to 10 in that range.
-- Preserve chapter 12, chapter 14, and appendices unchanged.
-- The table of contents, list of figures, and list of tables remain Word fields. Set `w:updateFields=true` so Microsoft Word refreshes page numbers and new entries when opened.
+## 目錄與圖表標題
 
-## Chapter content contract
+- 目錄收錄第 1～2 層標題；圖目錄收錄「Figure Caption」樣式；表目錄收錄「Table Caption」樣式。目錄類樣式 14 pt、單行間距，「toc 1」粗體。
+- 圖說、表說 14 pt 置中、無首行縮排；編號與名稱以一個半形空格分隔，例如「圖3-1-1 系統流程圖」。
+- 表說放在表格上方並與表格同頁；圖說放在圖片下方。
+- 檔案設定 `w:updateFields=true`，Word 開檔時會更新欄位。
 
-- Chapter 5 retains the initial requirements, use-case, use-case-description, and analysis-class structure while adding the implemented July-to-September capabilities: role-aware authentication, enrollment control, multi-video batches, conversations, citations, notifications, private avatars, Shorts, and conditional short-script and manual finished-video review flows.
-- Chapter 6 uses the current nine sequence diagrams, three design class diagrams, and one design object diagram. Internal production notes, artifact versions, repository wording, and live-acceptance disclaimers do not appear in the body.
-- Chapter 7 retains deployment, package, component, and state-machine sections and uses the current versioned diagrams.
-- Chapter 8 retains database relationships and metadata tables, updated for the current MongoDB collections and indexes.
-- Chapter 9 adds component specifications and selected short code excerpts only; it must not include full source files.
-- Chapter 10 adds testing methods, cases, and results. Dates and limits may appear only when they are part of a specific test result, not as generic authoring notes.
+## 表格
 
-## Writing rules
+- 套用 Table Grid 框線，總寬 18 cm，欄寬依各欄內容長度分配。
+- 第一列淺綠底（`D9EAD3`）粗體；資料表的「欄位名稱」標題列在跨頁時重複。
+- 儲存格上下邊距 35（twips），文字 14 pt、單行間距、無首行縮排。
+- 分頁規則：估計高度 300 pt 以下的表整張留在同一頁；較長的表讓標題列與前兩列、最後兩列各自同頁；高度 260 pt 以下的列不拆到兩頁。
+- 第 4 章分工表的「類別」欄依系辦範本垂直合併，數值欄置中。
+- 第 15 章會議紀錄表：無底色、13 pt、欄位標籤粗體，單值列橫跨整列，每次會議由新頁開始，頁首置中「國立臺北商業大學 資訊管理系」（16 pt）。
 
-- Remove `現況基準`, `整理基準`, `本輪`, `checkout`, `repository`, `工作母稿`, `AI 協助產出`, and similar process narration from the manual body.
-- Explain functions as system behavior in natural project-report prose.
-- State unfinished or conditional functions locally and concretely, for example `短影音腳本功能目前預設關閉`, instead of repeating broad formal-acceptance disclaimers.
-- Keep technical names only when readers need them to understand the design, database, component, or test.
+## 圖片
 
-## Package preservation
+- 置中、不變形；寬度最多 6.75 吋、高度最多 7.8 吋（圖4-3-1 低解析截圖最多 5 吋）。
+- 第 12 章操作畫面以約 150 dpi 為上限，不放大小截圖。
+- 緊接在圖前、且提到該圖編號的說明段落，會與圖排在同一頁；圖高超過 400 pt 時不綁定，避免前一頁留下大片空白。
+- 圖檔一律放在 `figures/chNN/`；EMF／WMF 不支援，請先轉成 PNG 或 SVG。
 
-- Preserve source package parts not required for the chapter replacement, including styles, numbering, theme, headers, footers, footnotes, existing media, custom XML, bookmarks outside the edited range, and all relationships used by retained content.
-- New chapter images may add media and relationship parts.
-- Existing fields remain intact; settings may change only to request field updates.
+## 頁尾附註與 AI 紀錄
 
-## Fidelity gates
+- 每章第一個夠長的內文段落附一則頁尾附註，列出該章適用的 AI 輔助紀錄編號（對照 `build_manual.py` 的 `AI_SCOPE`）。附註 10 pt、靠左、單行間距。
+- 第 14 章表14-5-1 的資料列由 `System_Manual/README.md` 的「AI 輔助產出說明」表產生，頁碼範圍取自 `review/chapter_pages.json`（由 `refresh_manual_word.ps1` 在 Word 排版後寫入）。
 
-- The retained reference must keep the recorded SHA-256.
-- The final file must be a new DOCX in `docs\00_Deliverables\System_Manual\output`.
-- The complete final DOCX must render successfully with the packaged renderer.
-- Every final page must be inspected for missing glyphs, clipping, table overflow, broken captions, detached figures, and header/footer drift.
-- The final document must contain no internal work notes, Markdown syntax, unresolved image paths, or placeholder text.
+## 內文寫作規則
+
+- 正文不出現 `現況基準`、`整理基準`、`本輪`、`checkout`、`repository`、`工作母稿`、`AI 協助產出` 等製作過程用語。
+- 以系統行為描述功能；尚未完成或有條件的功能，在該處具體說明，例如「短影音腳本功能目前預設關閉」。
+- 只在讀者理解設計、資料庫、元件或測試需要時保留技術名稱。
+
+## 交件前檢查
+
+- 產出的 PDF 逐頁檢查缺字、截斷、表格溢出、圖說分離與頁首頁尾錯位；可用 `analyze_layout.py` 找頁尾大片空白，`render_pages.py` 輸出頁面縮圖。
+- 正文不得留下 Markdown 語法、未解析的圖片路徑或待補文字。

@@ -14,7 +14,7 @@
 | 02 候選片段如何變成有來源的回答 | [PNG](results/v3-0/02-evidence-to-answer-v3-0.png) | [PDF](results/v3-0/02-evidence-to-answer-v3-0.pdf) | [SVG](results/v3-0/02-evidence-to-answer-v3-0.svg) |
 | 03 反覆出現的提問如何變成複習短影音 | [PNG](results/v3-0/03-learning-feedback-v3-0.png) | [PDF](results/v3-0/03-learning-feedback-v3-0.pdf) | [SVG](results/v3-0/03-learning-feedback-v3-0.svg) |
 
-- [系統手冊第三章用文稿](manual-chapter03-v3-0.md)：三張圖與精簡說明文字，可直接放入手冊。圖號暫定為圖3-1-2～3-1-4（接在現有圖3-1-1 之後），插入時依實際位置調整；圖片要複製到 `System_Manual/images/`，並把路徑改為 `../images/…`
+- [系統手冊第三章用文稿](manual-chapter03-v3-0.md)：三張圖與精簡說明文字，可直接放入手冊。圖號暫定為圖3-1-2～3-1-4（接在現有圖3-1-1 之後），插入時依實際位置調整；圖片要複製到 `System_Manual/figures/ch03/`，並把路徑改為 `../figures/ch03/…`
 - [搭配說明文件](records/v3-0/figure-guide-v3-0.md)：每張圖的完整逐步解讀、符號、程式依據、資料來源與示意／真實的區分
 - [截圖原始紀錄](records/v3-0/screenshots/README.md)：原始擷取檔、擷取條件與裁切座標
 - [三張圖一覽](results/v3-0/index-v3-0.html)

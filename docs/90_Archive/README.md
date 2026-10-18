@@ -4,17 +4,18 @@
 
 | 目錄 | 歸檔理由 |
 |---|---|
-| [manual-drafts](manual-drafts/) | 既有手冊／簡介草稿，保留原版本路徑線索 |
-| [frontend-progress](frontend-progress/) | 早期前端 PDF 進度快照 |
+| 手冊／簡介草稿（已自 repo 移除） | 初評前的手冊草稿 v1～v5、簡介草稿與期末簡報 PDF，2026-10-18 移除。草稿 v1、v5、簡介草稿與 0611 期末簡報在雲端「學校專題/02_初評資料/系統手冊/草稿/」，草稿 PDF 在「02_初評資料/系統手冊/」「02_初評資料/系統簡介/」；v3、v4 只保留在 git 歷史 |
+| 前端進度 PDF（已移至雲端） | 0407～0423 共 4 份早期前端進度快照；2026-10-18 移至雲端「學校專題/99_開發資料/前端進度/」，repo 舊檔可從 git 歷史取回 |
 | [chat-history](chat-history/) | 歷史 AI 對話、除錯與研究材料 |
-| [learning-reports](learning-reports/) | Keras／深度學習學習資料，原子目錄關係保留 |
+| [learning-reports](learning-reports/) | Keras／深度學習學習資料。Week1～3 週報、文件檔、程式檔（32 個檔，約 457 MB）已於 2026-10-18 移至雲端「學校專題/98_專題歷程/」，子資料夾結構不變；repo 只留後端程式碼理解筆記 |
 | [後端程式碼理解筆記](learning-reports/backend-understanding-code-2026-05/README.md) | 2026-10-13 經確認封存原 `backend/UnderstandingCode/`；保留學習計畫、筆記及圖檔，不作目前架構依據 |
 | [後端歷史方案](backend/) | 2026-10-13 封存已被完成交接取代的 Short（教學短影片）前端方案，保留原文供追溯 |
-| [external-examples](external-examples/) | 外部作品範例及官方空白表格；其他組別／學制的作品不作 FocusFlow 實作證據或四技部規範 |
+| [external-examples](external-examples/) | 外部作品範例及官方空白表格；其他組別／學制的作品不作 FocusFlow 實作證據或四技部規範。2026-10-18 起只留常參考的 AI底家（114402）、救「舊」我的書（115414）、動起來「揪」對了（114414）三份手冊，其餘別組手冊與簡報在雲端「學校專題/99_參考專題/」 |
 | [2026 產學創新實作競賽官方空白表格](external-examples/2026_全國大專院校產學創新實作競賽_官方空白表格/) | 使用者提供的五份官方原始表格；已填寫的本組附件另存於競賽交付區 |
 | [retired-features](retired-features/) | 供未來正式下線功能使用；本次未將現有功能判為下線 |
-| [duplicates](duplicates/) | 搬移前 SHA-256 完全相同的 21 個額外副本，保留原始內容 |
 
 同名但內容不同的檔案仍分別保留。全部來源、去向、相同副本主要版本與雜湊見 [搬移清單](../10_Project_History/docs-reorganization-2026-09-13.md)。
+
+2026-10-18 刪除原 `duplicates/` 的 21 個相同副本；主要版本仍在搬移清單所列位置，副本需要時可從 git 歷史取回。
 
 需要刪除或取代歸檔內容時，先檢查引用與用途，再由團隊確認。本次只整理與保留。

@@ -38,7 +38,7 @@
 
 | 項目 | 規定 | 檔名 | 目前狀態 |
 |---|---|---|---|
-| 系統手冊（PDF） | 需完整包含封面、內文、附錄（114-2 學期評審建議事項之修正對照表）；全部章節務必完成。第 4 章詳述一年（兩學期）規劃與控管，並填寫專題分工貢獻表；第 9 章依章節規定撰寫，不放全部程式碼 | `四技第115413組-FocusFlow AI-系統手冊.pdf` | 最新為 [System_Manual/output](../System_Manual/output/) 的 `…_1013全冊修訂版`（380 頁）；第 13 章個人感想待各組員撰寫；規定檔名的 PDF 尚未產出 |
+| 系統手冊（PDF） | 需完整包含封面、內文、附錄（114-2 學期評審建議事項之修正對照表）；全部章節務必完成。第 4 章詳述一年（兩學期）規劃與控管，並填寫專題分工貢獻表；第 9 章依章節規定撰寫，不放全部程式碼 | `四技第115413組-FocusFlow AI-系統手冊.pdf` | 10/13 複評交件版存於 [System_Manual/output](../System_Manual/output/)（355 頁，Word 於 2026-10-12 匯出）；12/29 最終版需依最新章節重新產生 |
 | 系統手冊（紙本 3 本） | 封面日期壓繳件日（115 年 10 月 13 日）；建議黑白、雙面列印，左側釘三針，不需膠裝 | — | 未印 |
 | 系統簡介 | PDF，最多 2 頁，不交紙本 | `四技第115413組-FocusFlow AI-系統簡介.pdf` | 已產出：[System_Overview/output](<../System_Overview/output/四技第115413組-FocusFlow AI-系統簡介.pdf>)，2 頁；待組員確認後上傳 |
 | 簡報 | PDF。除初評發表內容外，需加「前次評審意見修正情形」「系統完成度」「功能完整性」 | `四技第115413組-FocusFlow AI-簡報.pdf` | 未開始；可用雲端 `初評資料/` 的初評簡報與評審提問整理為底 |
@@ -110,7 +110,7 @@
 
 | 項目 | 目前狀態 |
 |---|---|
-| 物件導向系統分析與設計 VPP／VPD 檔 | repo 內沒有 .vpp／.vpd，UML 以 PlantUML／Mermaid 繪製（[System_Manual/diagrams](../System_Manual/diagrams/)）；格式落差，需向指導老師確認 |
+| 物件導向系統分析與設計 VPP／VPD 檔 | repo 內沒有 .vpp／.vpd，UML 以 PlantUML／Mermaid 繪製（[System_Manual/figures](../System_Manual/figures/)）；格式落差，需向指導老師確認 |
 | 資料庫 MDF 與 LDF 檔 | MongoDB 沒有 MDF／LDF，改交資料庫交付包，見 [Database](../Database/README.md)；腳本與說明已完成，尚未實際匯出；需向指導老師確認 |
 | 所有軟體元件（元件、函式庫等） | 同「系統程式」 |
 | 安裝程式（能將系統完整安裝至 PC 或 NB 執行） | 未開始 |

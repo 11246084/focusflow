@@ -1,33 +1,62 @@
+"""FocusFlow 系統手冊建置程式：把 chapters/*.md 組成完整的 Word 手冊。
+
+這是手冊唯一的建置入口。內容只來自 chapters/*.md（母版）與 figures/chNN/ 的圖檔；
+封面與 Word 樣式來自 templates/系統手冊版型.docx。程式只套版面、不改寫內文。
+
+格式設定（字型、字級、行距、首行縮排、A4 邊界 1.5 cm、頁碼、目錄／圖目錄／表目錄、
+AI 輔助紀錄頁尾附註、表格與圖片分頁規則）都集中在 main()；版型契約見 tools/artifact.md。
+
+用法（產出的 docx 還需由 Word 更新目錄與頁碼，見 rebuild_manual.ps1）：
+    python build_manual.py [輸出.docx] [--cover-date 115年12月29日] [--report-dir 目錄]
+環境變數 MANUAL_CHAPTERS=1,2,3 可只組指定章節，方便除錯。
+"""
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import re
+import sys
+from copy import deepcopy
 from pathlib import Path
 
 from docx import Document
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
+from docx.enum.section import WD_SECTION_START
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.text.paragraph import Paragraph
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Cm, Inches, Pt, RGBColor
 from PIL import Image
 
+import manual_math
 
-ROOT = Path(__file__).resolve().parents[4]
-SOURCE = ROOT / "docs/00_Deliverables/System_Manual/source-documents/專題手冊_初評最終版.docx"
-CHAPTER_DIR = ROOT / "docs/00_Deliverables/System_Manual/chapters"
-OUTPUT = ROOT / "docs/00_Deliverables/System_Manual/output/四技第115413組-FocusFlow AI-系統手冊_複評更新版_第5至9章.docx"
+# 手冊排版沿用「layout.函式」的呼叫方式；manual_math.install_inline 會替換本模組的 add_inline，
+# 讓 $...$ 行內公式轉成 Word 方程式。
+layout = sys.modules[__name__]
 
-CHAPTERS = [
-    CHAPTER_DIR / "05_需求模型.md",
-    CHAPTER_DIR / "06_設計模型.md",
-    CHAPTER_DIR / "07_實作模型.md",
-    CHAPTER_DIR / "08_資料庫設計.md",
-    CHAPTER_DIR / "09_程式.md",
-]
+MANUAL = Path(__file__).resolve().parents[1]
+TEMPLATE = MANUAL / 'templates/系統手冊版型.docx'   # 封面與 Word 樣式；內文全部由 chapters/*.md 產生
+OUTPUT = MANUAL / 'output/四技第115413組-FocusFlow AI-系統手冊.docx'
+AI_SCOPE = {
+    'AI-ORIG-01':[1,3,6,7], 'AI-ORIG-02':[4], 'AI-ORIG-03':[8,9], 'AI-ORIG-04':[15],
+    'AI-DOC-20260913':list(range(1,16)), 'AI-DOC-20260914':list(range(1,16)),
+    'AI-DOC-20260919':[1,2,3,14], 'AI-UML-20260917':[6],
+    'AI-UML-20260919':[1,2,5,6,12,14], 'AI-DOC-UML-20260919':list(range(5,11)),
+    'AI-UML-20260921':[5,6], 'AI-DOC-UML-20260924':list(range(5,10)),
+    'AI-DOC-UML-20260925':list(range(5,10)),
+    'AI-DOC-UML-20260929':[1,2,3,5,6,7,9,15], 'AI-DOC-20260930':[11],
+    'AI-DOC-UML-20260930':[4,12],
+    'AI-INTEGRATE-20260930':list(range(1,16)),
+    'AI-DOC-20261001':list(range(1,16)),
+}
 
-W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-
+NUMPAT = r'(?:附?圖|附?表)\s*\d+-\d+(?:-\d+)?[a-z]?'
+PAGE_W_PT = 18 / 2.54 * 72          # 版心寬度（點）
+FIG_CHAIN_PT = 400                   # 圖高度不超過此值才與前面的說明段落綁在同一頁
+FIG_MAX_H = {'圖4-3-1-':5.0}           # 低解析度截圖放太大沒有意義，縮小後可與前文排在同一頁
+KEEP_TABLE_PT = 300                  # 估計高度不超過此值的表格整張留在同一頁（約版心高度的 62%）
+MAX_PAGE_PT = 740                    # 版心高度約 757 pt，留些餘裕
 
 def set_repeat_table_header(row) -> None:
     tr_pr = row._tr.get_or_add_trPr()
@@ -154,181 +183,8 @@ def add_field(paragraph, instruction: str, result: str) -> None:
     paragraph._p.extend([begin_run, instr_run, separate_run, result_run, end_run])
 
 
-def add_caption(doc: Document, marker, caption_text: str) -> None:
-    match = re.match(r"^(圖|表)\s*(\d+)-(\d+)-(\d+)([a-z]?)[\s　]*(.*)$", caption_text.strip())
-    paragraph = doc.add_paragraph(style="Caption")
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    paragraph.paragraph_format.keep_with_next = True
-    if match:
-        kind, chapter, section, sequence, suffix, title = match.groups()
-        run = paragraph.add_run(f"{kind} {chapter}-{section}-")
-        set_run_font(run, size=14)
-        # The SEQ \r switch pins the number so a/b sub-figure labels match the body references,
-        # while the field still feeds the list of figures/tables.
-        add_field(paragraph, " SEQ " + kind + " \\r " + sequence + " \\* ARABIC ", sequence)
-        run = paragraph.add_run(f"{suffix}　{title}")
-        set_run_font(run, size=14)
-    else:
-        add_inline(paragraph, caption_text, size=14)
-    marker.addprevious(paragraph._p)
-
-
-def sanitize_text(text: str) -> str:
-    paragraph_rewrites = {
-        "本節先以表格定義可驗證的使用個案，再以活動圖呈現角色操作、系統判斷、例外分支與完成條件。圖中的流程由目前 route、service、model 與前端入口反推；尚需外部設定或正式環境驗收的部分會保留限制註記，不把程式存在誤寫成已完成部署驗收。":
-            "本節先以表格說明各使用個案的行為者、前提、主要流程、例外情形與執行結果，再以活動圖呈現角色操作及系統判斷流程。",
-        "官方把設計物件圖列為延伸項目；本輪依使用者要求補上，以一筆 Web 問答完成後的實例快照說明設計類別如何共同存在。情境如圖6-2-4所示。":
-            "設計物件圖以一筆 Web 問答完成後的實例快照，說明各設計類別在執行期間的關聯，情境如圖6-2-4所示。",
-        "database/tools/setup/init_indexes.js 是可執行的初始化建議／寫入腳本，不是 shared Atlas 現況證明；未經 DB owner 授權不得對 shared Atlas 執行。Mongoose 的 index 宣告也只描述 source，部署可能關閉 autoIndex。因此本次只可確認「程式希望有哪些 index」，不能確認 Atlas 實際有沒有建立、是否 READY、是否使用 IXSCAN，或資料是否符合 filter／embedding contract。":
-            "系統以 database/tools/setup/init_indexes.js 建立必要索引，並由 Mongoose schema 宣告應用程式使用的查詢索引。部署時須由資料庫管理者依目標環境執行索引建立程序，並確認 Vector Search 索引狀態、查詢計畫與向量資料格式。",
-        "文字向量的目標契約是 video_segments_text.embedding 搭配 text_embedding_index，視覺向量為 video_segments_video.embedding 搭配 video_embedding_index；兩者都需要獨立的 Atlas live 查證。Parent 的 collection、filter、active generation、Leaf chunkId 分佈與 Parent→Child→citation read-only E2E 未重新驗證前，HIERARCHICAL_RETRIEVAL_ENABLED 必須保持 false。":
-            "文字向量使用 video_segments_text.embedding 與 text_embedding_index，視覺向量使用 video_segments_video.embedding 與 video_embedding_index。階層式檢索功能目前預設關閉，待 Parent collection、索引條件、Leaf chunkId 與 Parent→Child→citation 流程完成整合測試後再啟用。",
-        "本圖回答「LINE 特有的身分、課程狀態、限額與訊息 delivery 如何包住共用 QA 核心」；流程如圖6-1-9所示。":
-            "本圖說明 LINE 訊息如何結合身分驗證、課程狀態、使用限額與共用 QA 核心，流程如圖6-1-9所示。",
-        "下表把既有原始證據轉為評審可追溯的案例格式；「通過」只適用表列日期、環境與預期範圍。本輪重新執行的本機驗證另列於表10-2-3，不回溯改寫下列歷史案例。":
-            "下表列出具代表性的測試案例、預期結果與實際結果，便於對照需求與功能表現。",
-        "第 5 章已以 FR／NFR 建立第一階段需求編號。本節先按需求群組連結現有測試與證據；最終版應補到個別需求與測試案例的一對一或一對多對照，避免另造衝突編碼。":
-            "測試案例依第 5 章的 FR／NFR 需求編號分類，使身分驗證、課程授權、影片處理、問答、通知與短影音等功能均能追溯至對應需求。",
-        "QA 評測依 QA 評測說明 分成正確性、忠實性、完整性、引用與時間戳、清晰度及拒答恰當性。正式接受測試至少應同時滿足：":
-            "QA 評測分成正確性、忠實性、完整性、引用與時間戳、清晰度及拒答恰當性。整體通過條件如下：",
-        ".github/workflows/deploy.yml 定義 push 至 main 後由 self-hosted runner 在 /opt/focusflow 拉取程式、安裝 backend dependencies、建置 frontend、調整 SELinux context、重啟 PM2 backend 並 reload Nginx。這描述部署自動化路徑，不代表 workflow、公開網址、LINE 或 AI provider 在每次部署後均已驗收。文件不記錄 IP、token、連線字串或其他環境秘密。":
-            ".github/workflows/deploy.yml 定義自動部署流程：更新程式後安裝 Backend 相依套件、建置 Frontend、調整 SELinux context，接著由 PM2 重啟 Backend 並重新載入 Nginx。文件僅說明部署步驟，不記錄 IP、token、連線字串或其他機密設定。",
-        "如圖7-1-1所示，Nginx 負責 HTTPS 靜態檔案與 API reverse proxy，PM2 管理 Node.js backend，Python Pipeline 以本機程序與受保護 webhook 協作。MongoDB Atlas、AI provider、LINE、YouTube 與 SMTP 均位於外部受管服務邊界；圖中的連線只表示介面責任，不代表憑證或 live provider 已驗收。":
-            "如圖7-1-1所示，Nginx 負責 HTTPS 靜態檔案與 API 反向代理，PM2 管理 Node.js Backend，Python Pipeline 以本機程序及受保護的 Webhook 協作；MongoDB Atlas、AI 服務、LINE、YouTube 與 SMTP 則由各外部服務提供。",
-        "套件版本以本機 package.json 為準；使用 caret 的相依版本代表可安裝範圍，不是正式環境實際 lockfile 證據。套件的價值在於其在本系統中的責任，而非名稱羅列。":
-            "主要套件與用途如表7-2-1所示；實際安裝版本由 package.json 與 lockfile 共同管理。",
-        "圖7-2-4區分 app-owned Mongoose models、database tools、Pipeline publication、應用 collections 與 Atlas indexes。setup 與 legacy scripts 存在不代表可直接對 shared Atlas 執行；實際集合與 index 狀態須唯讀查證。":
-            "圖7-2-4區分應用程式使用的 Mongoose Models、資料庫工具、Pipeline 寫入流程、Collections 與 Atlas Indexes。setup 工具用於建立必要索引，legacy scripts 則只保留舊資料相容用途。",
-        "圖7-3-1以 required／provided interfaces 表示 React SPA、Express API、Python AI Pipeline、外部 adapters 與 MongoDB／Atlas 的依賴方向。介面與 adapter 程式存在，仍不等於外部 provider、feature flag 或資料契約已在正式環境 ready。":
-            "圖7-3-1以 required／provided interfaces 表示 React SPA、Express API、Python AI Pipeline、外部介接元件與 MongoDB Atlas 的依賴方向，並呈現各元件提供及使用的服務介面。",
-        "ShortAsset feed／metadata sync／封存、證據化候選與腳本、教師人工成品上傳／審核，以及通過後的發布與 YouTube 排程已有程式碼，但受 SHORT_SCRIPT_AUTOMATION_ENABLED 控制且預設關閉。系統尚不會從來源影片自動剪輯、渲染 9:16 成品或合成字幕；真實 YouTube lifecycle 與 feature-on browser E2E 也未在本階段驗收，不能用單一 published 欄位誤稱完整自動短影音產線。":
-            "系統已提供 ShortAsset 動態牆、Metadata 同步、封存、腳本候選、教師成品上傳與審核，以及核准後的 YouTube 發布排程。SHORT_SCRIPT_AUTOMATION_ENABLED 預設關閉；來源影片的自動選片、9:16 剪輯、字幕合成與渲染尚未納入目前流程，成品仍由教師製作後上傳。",
-        "判讀重點是整張圖標為 implemented: partial：NotificationService、學生修課限定 feed、ShortAsset review／archive 與 metadata sync 已有實作；ShortScript automation 預設關閉，YouTube 上傳另需有效設定。教師需自行備妥短片成品再上傳，系統沒有自動選片後完成 FFmpeg 剪輯、字幕與渲染的 worker，因此圖中不出現這些未完成能力。":
-            "圖中同時呈現 NotificationService、修課限定的學生短影音牆、ShortAsset 審核與封存，以及 Metadata 同步流程。ShortScript 自動化預設關閉，YouTube 上傳亦需完成服務設定；教師須自行製作短片成品後再上傳，系統目前不執行自動選片、FFmpeg 剪輯、字幕合成與渲染。",
-        "3. QA 的回答品質與程式正確性分開評估。程式測試通過不等於答案品質、引用品質或正式課程驗收通過。":
-            "3. QA 回答品質另以題庫評分，評估答案正確性、引用品質、時間戳與課程適用性。",
-        "4. 本機 mock、隔離 MongoDB、瀏覽器、shared Atlas／live provider 與正式環境證據分層保存，不以低層綠燈代替高層驗收。":
-            "4. 測試分為本機單元測試、隔離資料庫、瀏覽器、MongoDB Atlas、外部服務與正式環境等層級，依功能需求分別執行。",
-        "5. 每次驗收應記錄 commit、日期、環境、旗標快照、題庫或輸入資料、預期與實際結果、原始輸出及執行者。":
-            "5. 每次測試應記錄日期、環境、輸入資料、預期與實際結果及執行者。",
-        "1. 以定版需求編號建立逐案例結果表，補執行者、commit、瀏覽器／裝置、實際輸出與缺陷單。":
-            "1. 依定版需求編號補齊各項功能測試，並記錄預期與實際結果。",
-        "2. 完成學生試用 final 題庫、shared Atlas 唯讀證據、真實 citation 播放與 LINE 正式 webhook 回歸。":
-            "2. 完成學生試用題庫、MongoDB Atlas、引用播放及 LINE Webhook 測試。",
-        "3. 對多影片批次執行真實 STT／Gemini、容量／壓力、程序異常與 production E2E；在此之前 VIDEO_BATCH_PIPELINE_ENABLED 應維持既定安全設定。":
-            "3. 完成多影片批次的 STT、Gemini、容量與異常復原測試。",
-        "4. 補 MongoDB 備份還原演練、部署回滾、CORS 白名單與憑證首次自動續約驗證。":
-            "4. 完成資料庫備份還原、部署回復、CORS 與憑證續約測試。",
-        "5. 對短腳本／成品審核完成 feature-on 的 browser E2E、真實 YouTube lifecycle 與學生修課可見性驗收。":
-            "5. 完成短影音腳本、成品審核、YouTube 上傳及學生端可見性測試。",
-    }
-    text = re.sub(r"以 2026-09-24 `dev` 分支（commit `[0-9a-f]+`）的程式碼、`package.json`、`requirements.txt` 與測試檔為依據", "依程式碼、`package.json`、`requirements.txt` 與測試檔整理", text)
-    text = text.replace("上述狀態本章未重新實測，列為待確認。", "實際狀態以主機設定為準。")
-    text = text.replace("，本章撰寫時未重新查證。表8-2-29 列出需以唯讀方式重新確認的項目。", "。表8-2-29 列出部署時需確認的項目。")
-    text = text.replace("本次未執行", "須於具備模型與金鑰的環境另行執行")
-    if text.startswith("**資料來源與驗證邊界。**"):
-        return "本章依 backend/src/models/ 下 21 份 Mongoose schema、enums.js、資料庫初始化腳本與示範資料服務說明各集合、索引與向量索引。文中描述為程式宣告的資料契約；MongoDB Atlas 的實查結果彙整於表8-2-29。"
-    plain_text = clean_inline(text)
-    if plain_text in paragraph_rewrites:
-        return paragraph_rewrites[plain_text]
-
-    replacements = {
-        "repository": "系統程式",
-        "checkout": "系統版本",
-        "shared Atlas": "MongoDB Atlas",
-        "shared DB": "共用資料庫",
-        "live provider": "外部服務",
-        "live delivery": "實際訊息傳遞",
-        "read-only live E2E": "實際資料與端到端測試",
-        "production rollout": "正式啟用",
-        "production batch": "正式批次處理",
-        "production acceptance": "正式測試",
-        "production E2E": "正式環境端到端測試",
-        "production build": "正式版建置",
-        "source-declared": "主要",
-        "本輪": "",
-        "目前 route、service、model 與前端入口反推": "系統功能與操作流程整理",
-        "route、service、model": "系統功能",
-        "routes／controllers／services／models": "路由、控制器、服務與資料模型",
-        "不能誤稱為": "尚未達到",
-        "不可誤稱為": "尚未達到",
-        "不能宣稱": "尚不能視為",
-        "不得宣稱": "不包含",
-        "不代表": "不等同於",
-        "正式驗收邊界": "測試範圍",
-        "驗收邊界": "適用範圍",
-        "正式環境驗收": "正式環境測試",
-        "正式驗收": "正式測試",
-        "驗收": "測試",
-        "dated evidence": "測試紀錄",
-        "feature gate": "功能設定",
-        "feature flag": "功能設定",
-        "browser E2E": "瀏覽器端到端測試",
-        "已實作": "現有",
-        "正式接受測試": "整體通過條件",
-        "production": "正式環境",
-        "provider": "外部服務",
-        "artifact": "產出檔案",
-        "測試層級與證據邊界": "測試層級與適用範圍",
-        "目前入口或證據": "測試方式",
-        "能證明": "檢查內容",
-        "不能證明": "後續測試",
-        "目前證據狀態": "測試紀錄",
-        "已保存的測試與部署證據": "歷次測試與部署結果",
-        "日期與證據": "日期與項目",
-        "判讀": "結果說明",
-        "本輪本機驗證": "本機測試",
-        "本次本機驗證": "本機測試",
-        "對應測試證據": "對應測試",
-        "部署層級、用途與適用範圍": "部署層級與用途",
-        "2026-09-19 本機驗證結果": "2026-09-19 本機測試結果",
-        "誤稱": "視為",
-        "不等同於": "並非",
-        "不等於": "不表示",
-        "程式存在": "具備相關元件",
-        "live 查證": "於目標環境確認",
-        "唯讀查證": "確認",
-        "唯讀 E2E": "端到端測試",
-        "本階段": "目前",
-        "已有程式碼": "已提供",
-        "程式碼 review": "程式檢查",
-        "contract review": "契約檢查",
-        "feature-on": "功能開啟後",
-        "YouTube lifecycle": "YouTube 上傳與狀態流程",
-        "已知邊界": "說明",
-        "可證明與邊界": "結果說明",
-    }
-    code_spans: list[str] = []
-
-    def mask(match):
-        code_spans.append(match.group(0))
-        return f"\u0000{len(code_spans) - 1}\u0000"
-
-    text = re.sub(r"`[^`]*`", mask, text)
-    for old, new in replacements.items():
-        text = text.replace(old, new)
-    text = re.sub(r"\u0000(\d+)\u0000", lambda m: code_spans[int(m.group(1))], text)
-    text = text.replace("本次已", "已")
-    text = text.replace("本次重新", "重新")
-    text = text.replace("圖中同時呈現的通知", "圖中同時呈現通知")
-    text = text.replace("AI 外部服務", "AI 服務")
-    text = text.replace("外部 外部服務", "外部服務")
-    text = text.replace("run 產出檔案s", "執行產出檔案")
-    text = text.replace("目前 系統版本", "目前版本")
-    text = text.replace("不能用", "不可將")
-    text = text.replace("不檢查內容", "後續測試")
-    text = text.replace("各服務是否已配置、index 是否存在、憑證是否有效，均是環境事實，不可由本機程式推定。", "部署時需完成服務連線、索引及憑證設定。")
-    text = text.replace("各服務是否已配置、index 是否存在、憑證是否有效，均是環境事實，不能由本機程式推定。", "部署時需完成服務連線、索引及憑證設定。")
-    text = text.replace("可處理單支或 CLI batch；具 checkpoint、manifest、resume；外部模型與實際媒體處理需另行 smoke。", "可處理單支影片或 CLI batch，並具備 checkpoint、manifest 與 resume 機制。")
-    text = text.replace("外部模型與實際媒體處理需另行 smoke", "外部模型與實際媒體處理需於部署時完成連線測試")
-    text = text.replace("各功能 測試紀錄；須逐項標記 read-only 或 write", "依各功能的整合測試執行")
-    text = text.replace("永久可用、目前部署仍使用同一設定", "長期穩定性與設定變更")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
-
-
 def split_table_row(line: str) -> list[str]:
-    return [clean_inline(sanitize_text(cell.strip())) for cell in line.strip().strip("|").split("|")]
+    return [clean_inline(cell.strip()) for cell in line.strip().strip("|").split("|")]
 
 
 def is_separator_row(line: str) -> bool:
@@ -354,57 +210,6 @@ def column_widths(rows: list[list[str]], cols: int, total: float) -> list[float]
     return [max(w * scale, 0.6) for w in weights]
 
 
-def add_table(doc: Document, marker, rows: list[list[str]], caption: str | None) -> None:
-    if not rows:
-        return
-    # The functional-requirement table keeps the initial-manual structure but removes
-    # the internal implementation-status column that does not belong in a submission.
-    if rows[0] == ["編號", "功能性需求", "目前狀態", "對應使用個案"]:
-        rows = [[row[0], row[1], row[3]] for row in rows]
-
-    if caption:
-        add_caption(doc, marker, caption)
-
-    cols = max(len(row) for row in rows)
-    table = doc.add_table(rows=len(rows), cols=cols)
-    table.style = "Table Grid"
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.autofit = False
-    tbl_pr = table._tbl.tblPr
-    layout = OxmlElement("w:tblLayout")
-    layout.set(qn("w:type"), "fixed")
-    tbl_pr.append(layout)
-    header_rows = 0
-    for r_idx, row in enumerate(rows[:4]):
-        if row and row[0] == "欄位名稱":
-            header_rows = r_idx
-    widths = column_widths(rows, cols, 7.0)
-    for c_idx, width in enumerate(widths):
-        table.columns[c_idx].width = Inches(width)
-
-    for r_idx, row in enumerate(rows):
-        table_row = table.rows[r_idx]
-        prevent_row_split(table_row)
-        if r_idx <= header_rows:
-            set_repeat_table_header(table_row)
-        for c_idx in range(cols):
-            cell = table.cell(r_idx, c_idx)
-            cell.width = Inches(widths[c_idx])
-            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-            set_cell_margins(cell)
-            if r_idx == 0:
-                set_cell_shading(cell, "D9EAD3")
-            value = row[c_idx] if c_idx < len(row) else ""
-            paragraph = cell.paragraphs[0]
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER if r_idx == 0 else WD_ALIGN_PARAGRAPH.LEFT
-            paragraph.paragraph_format.space_after = Pt(0)
-            paragraph.paragraph_format.line_spacing = 1.0
-            if r_idx <= header_rows + 1:
-                paragraph.paragraph_format.keep_with_next = True
-            add_inline(paragraph, value, size=12, base_bold=(r_idx == 0))
-    marker.addprevious(table._tbl)
-
-
 def add_picture(doc: Document, marker, image_path: Path, max_h: float = 7.8) -> None:
     paragraph = doc.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -418,37 +223,6 @@ def add_picture(doc: Document, marker, image_path: Path, max_h: float = 7.8) -> 
     shape = paragraph.add_run().add_picture(str(image_path), width=Inches(width), height=Inches(height))
     shape._inline.docPr.set("descr", image_path.stem)
     shape._inline.docPr.set("title", image_path.stem)
-    marker.addprevious(paragraph._p)
-
-
-def add_paragraph(doc: Document, marker, text: str, *, style="文字內文", level=None, list_item=False, ordered=False) -> None:
-    paragraph = doc.add_paragraph(style=style)
-    if level is None:
-        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    if level is not None:
-        paragraph.paragraph_format.keep_with_next = True
-    if list_item:
-        paragraph.paragraph_format.left_indent = Inches(0.30)
-        paragraph.paragraph_format.first_line_indent = Inches(-0.22)
-        prefix = "" if ordered else "• "
-        add_inline(paragraph, prefix + sanitize_text(text), size=14)
-    else:
-        add_inline(paragraph, sanitize_text(text), size=14 if level is None else None)
-    marker.addprevious(paragraph._p)
-
-
-def add_code_block(doc: Document, marker, lines: list[str]) -> None:
-    paragraph = doc.add_paragraph()
-    paragraph.paragraph_format.left_indent = Inches(0.25)
-    paragraph.paragraph_format.right_indent = Inches(0.15)
-    paragraph.paragraph_format.space_before = Pt(3)
-    paragraph.paragraph_format.space_after = Pt(6)
-    paragraph.paragraph_format.line_spacing = 1.0
-    for index, line in enumerate(lines):
-        if index:
-            paragraph.add_run("\n")
-        run = paragraph.add_run(line)
-        set_run_font(run, size=12, monospace=True)
     marker.addprevious(paragraph._p)
 
 
@@ -495,225 +269,439 @@ def collect_logical_lines(raw_lines: list[str]) -> list[str]:
     return result
 
 
-def should_skip_paragraph(text: str) -> bool:
-    forbidden_starts = (
-        "現況基準",
-        "整理基準",
-        "本章依 2026-",
-        "本輪將原本",
-        "本次將原本",
-        "本章未執行",
-        "本表是",
-        "本圖是測試證據層級示意",
-        "本圖是測試證據層級",
-        "如圖10-1-1所示",
-        "原始結果應保留在各功能",
-        "圖6-2-4 為橫向版面",
-    )
-    if text.startswith(forbidden_starts):
-        return True
-    forbidden_contains = (
-        "OpenAI Codex 協助",
-        "AI-UML-",
-        "工作母稿",
-        "複評委員正式接受",
-    )
-    return any(item in text for item in forbidden_contains)
+def table_height(rows, widths_in, font_pt=14):
+    """粗估表格高度（pt）：依欄寬與字數推算每格行數，取同列最大值。"""
+    total = 0.0
+    for r in rows:
+        lines_max = 1
+        for k, cell in enumerate(r):
+            width = max(widths_in[k] * 72 - 9, 20) if k < len(widths_in) else 60
+            n = 0
+            for seg in re.split(r'<br>', cell):
+                vl = layout.visual_len(re.sub(r'[*`]', '', seg)) * font_pt / 2 * 0.98
+                n += max(1, -(-int(vl) // int(width)))
+            lines_max = max(lines_max, n)
+        total += lines_max * font_pt * 1.22 + 8
+    return total
+
+def load_chapter_pages():
+    f = MANUAL / 'review/chapter_pages.json'
+    try:
+        return {int(k): v for k, v in json.loads(f.read_text(encoding='utf-8')).items()}
+    except Exception:
+        return {}
+
+def chapters_of(text):
+    """從 README AI 紀錄的「章節／頁碼」欄位取出章號（附錄 = 15）。"""
+    if '全冊' in text:
+        return list(range(1, 16))
+    nums = set()
+    for m in re.finditer(r'第\s*([\d～、\s]+?)\s*章', text):
+        for part in m.group(1).split('、'):
+            part = part.strip()
+            if '～' in part:
+                a, b = part.split('～'); nums.update(range(int(a), int(b) + 1))
+            elif part.isdigit():
+                nums.add(int(part))
+    if '附錄' in text:
+        nums.add(15)
+    return sorted(nums)
+
+def chapter_page_text(text, pages):
+    nums = chapters_of(text)
+    if not nums:
+        return text
+    runs, cur = [], [nums[0], nums[0]]
+    for n in nums[1:]:
+        if n == cur[1] + 1: cur[1] = n
+        else: runs.append(cur); cur = [n, n]
+    runs.append(cur)
+    def name(a, b):
+        if a == 15: return '附錄'
+        hi = b if b < 15 else 14
+        base = f'第 {a} 章' if a == hi else f'第 {a}～{hi} 章'
+        return base + ('與附錄' if b == 15 else '')
+    out = []
+    for a, b in runs:
+        label = '全冊' if (a, b) == (1, 15) else name(a, b)
+        if a in pages and b in pages:
+            lo, hi = pages[a][0], pages[b][1]
+            label += f'（第 {lo} 頁）' if lo == hi else f'（第 {lo}～{hi} 頁）'
+        out.append(label)
+    return '；'.join(out)
+
+FOOTNOTE_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+
+def footnotes_xml(notes, ref_style_id):
+    """footnotes.xml：分隔線兩則加上各章的 AI 輔助紀錄索引。"""
+    from xml.sax.saxutils import escape
+    body = ['<w:footnote w:id="0" w:type="separator"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>',
+            '<w:footnote w:id="1" w:type="continuationSeparator"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>']
+    for fid, text in notes:
+        body.append(f'<w:footnote w:id="{fid}"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="{ref_style_id}"/></w:rPr><w:footnoteRef/></w:r>'
+                    f'<w:r><w:t xml:space="preserve"> {escape(text)}</w:t></w:r></w:p></w:footnote>')
+    return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<w:footnotes {FOOTNOTE_NS}>' + ''.join(body) + '</w:footnotes>').encode('utf-8')
+
+def add_footnote_ref(p, fid, ref_style_id):
+    r = OxmlElement('w:r'); rpr = OxmlElement('w:rPr')
+    st = OxmlElement('w:rStyle'); st.set(qn('w:val'), ref_style_id); rpr.append(st)
+    va = OxmlElement('w:vertAlign'); va.set(qn('w:val'), 'superscript'); rpr.append(va)
+    r.append(rpr)
+    ref = OxmlElement('w:footnoteReference'); ref.set(qn('w:id'), str(fid)); r.append(ref)
+    p._p.append(r)
+
+def digest(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+def node_text(n):
+    return ''.join(x.text or '' for x in n.iter(qn('w:t')))
+
+def no_number(p):
+    # Only for headings: their text already carries 第X章／X-Y. Word turns numId=0
+    # into an explicit zero indent, so body paragraphs must never get this.
+    p._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = 0
+
+def zero_indent(p):
+    """Remove the first-line indent; firstLineChars overrides firstLine in Word."""
+    ind = p._p.get_or_add_pPr().get_or_add_ind()
+    ind.set(qn('w:firstLineChars'), '0'); ind.set(qn('w:firstLine'), '0')
+
+def add_cover_logo(doc):
+    """系辦封面範例有專題 Logo；取自初評原稿封面的同一張圖。"""
+    source = Document(MANUAL / 'source-documents/專題手冊_初評最終版.docx')
+    blob = next(source.part.related_parts[b.get(qn('r:embed'))].blob
+                for p in source.paragraphs[:8] for b in p._p.iter(qn('a:blip')))
+    title = next(p for p in doc.paragraphs[:8] if p.text.strip() == '系統手冊')
+    logo = OxmlElement('w:p'); title._p.addnext(logo)
+    from docx.text.paragraph import Paragraph
+    from io import BytesIO
+    p = Paragraph(logo, title._parent); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.add_run().add_picture(BytesIO(blob), height=Inches(2.9))
+
+def add_screen(doc, marker, path):
+    """Chapter 12 screenshots: never enlarge beyond ~150 dpi so small captures stay sharp."""
+    from PIL import Image
+    with Image.open(path) as image:
+        w, h = image.size
+    width = min(6.75, w / 150, 6.0 * w / h)
+    p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.keep_with_next = True; p.paragraph_format.first_line_indent = Pt(0)
+    shape = p.add_run().add_picture(str(path), width=Inches(width))
+    shape._inline.docPr.set('descr', path.stem)
+    marker.addprevious(p._p)
+
+def font(run, size=14, bold=None):
+    layout.set_run_font(run, size=size, bold=bold)
+    run.font.color.rgb = RGBColor(0, 0, 0)
 
 
-def add_chapter(doc: Document, marker, chapter_path: Path) -> None:
-    lines = collect_logical_lines(chapter_path.read_text(encoding="utf-8").splitlines())
-    index = 0
-    skip_section = False
-    pending_caption: str | None = None
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(description='把 chapters/*.md 組成系統手冊 docx')
+    ap.add_argument('out', nargs='?', default=str(OUTPUT), help='輸出 docx 路徑（預設 output/ 下的交件檔名）')
+    ap.add_argument('--cover-date', help='封面日期，例如 115年12月29日；省略則沿用版型檔')
+    ap.add_argument('--report-dir', help='另外輸出建置紀錄（來源雜湊、表格分頁估計）的資料夾')
+    return ap.parse_args(argv)
 
-    while index < len(lines):
-        line = lines[index].strip()
-
-        if line.startswith("## 6-3"):
-            skip_section = True
-            index += 1
-            continue
-        if skip_section:
-            index += 1
-            continue
-
-        if not line or line == "---" or line.startswith(">") or line.startswith("[返回手冊索引]"):
-            index += 1
-            continue
-
-        # Omit the internal evidence-layer illustration from the submission version.
-        if "圖10-1-1-測試層級與正式驗收邊界圖" in line:
-            index += 1
-            continue
-        if line.startswith("圖10-1-1"):
-            index += 1
-            continue
-
-        if line.startswith("# "):
-            title = re.sub(r"^第\d+章\s*", "", line[2:].strip())
-            add_paragraph(doc, marker, title, style="Heading 1", level=1)
-            index += 1
-            continue
-        if line.startswith("## "):
-            title = re.sub(r"^\d+-\d+\s*", "", line[3:].strip())
-            # Natural section wording for the submission version.
-            title = title.replace("仍待補齊的正式驗收", "後續測試項目")
-            title = title.replace("尚不可誤稱為完成的元件", "功能限制與後續方向")
-            add_paragraph(doc, marker, title, style="Heading 2", level=2)
-            index += 1
-            continue
-        if line.startswith("### "):
-            title = line[4:].strip().replace("尚不可誤稱為完成的元件", "功能限制與後續方向")
-            title = title.replace("2026-09-19 本輪本機驗證", "2026-09-19 本機測試結果")
-            title = title.replace("10-2-2 已保存的 dated evidence", "10-2-2 歷次測試與部署結果")
-            title = title.replace("10-2-4 仍待補齊的正式驗收", "10-2-4 後續測試項目")
-            title = title.replace("Index、Vector Search 與驗收邊界", "Index 與 Vector Search 設定")
-            add_paragraph(doc, marker, title, style="Heading 3", level=3)
-            index += 1
-            continue
-        if line.startswith("#### "):
-            add_paragraph(doc, marker, line[5:].strip(), style="Heading 4", level=4)
-            index += 1
-            continue
-
-        if line.startswith("|"):
-            table_lines = []
-            while index < len(lines) and lines[index].strip().startswith("|"):
-                table_lines.append(lines[index].strip())
-                index += 1
-            rows = [split_table_row(row) for row in table_lines if not is_separator_row(row)]
-            add_table(doc, marker, rows, pending_caption)
-            pending_caption = None
-            continue
-
-        caption_match = re.match(r"^(圖|表)\s*\d+-\d+-\d+[a-z]?[\s　]+", line)
-        if caption_match:
-            prev_line = next((lines[k].strip() for k in range(index - 1, -1, -1) if lines[k].strip()), "")
-            next_line = next((lines[k].strip() for k in range(index + 1, len(lines)) if lines[k].strip()), "")
-            positional = (
-                (caption_match.group(1) == "表" and next_line.startswith("|"))
-                or (caption_match.group(1) == "圖" and prev_line.startswith("!["))
-            )
-            if not positional and (len(line) > 60 or re.search(r"[。，；：]", line)):
-                caption_match = None
-        if caption_match:
-            caption_text = re.sub(r"[（(]建議橫式頁[）)]", "", sanitize_text(line)).replace("`", "").strip()
-            if caption_match.group(1) == "表":
-                pending_caption = caption_text
-            else:
-                add_caption(doc, marker, caption_text)
-            index += 1
-            continue
-
-        image_match = re.match(r"^!\[[^\]]*\]\(([^\)]+)\)$", line)
-        if image_match:
-            relative = image_match.group(1)
-            image_path = (chapter_path.parent / relative).resolve()
-            if image_path.exists():
-                add_picture(doc, marker, image_path)
-            index += 1
-            continue
-
-        if line.startswith("```"):
-            code_lines: list[str] = []
-            index += 1
-            while index < len(lines) and not lines[index].strip().startswith("```"):
-                code_lines.append(lines[index].rstrip())
-                index += 1
-            index += 1
-            add_code_block(doc, marker, code_lines)
-            continue
-
-        ordered = re.match(r"^(\d+)\.\s+(.*)$", line)
-        if ordered:
-            number, body = ordered.groups()
-            add_paragraph(doc, marker, f"{number}. {body}", list_item=True, ordered=True)
-            index += 1
-            continue
-        bullet = re.match(r"^[-*]\s+(.*)$", line)
-        if bullet:
-            if should_skip_paragraph(bullet.group(1)):
-                index += 1
+def main(argv=None):
+    args = parse_args(argv)
+    doc = Document(TEMPLATE)
+    body = doc._element.body
+    vector_images = {}
+    for n in body:
+        if n.tag == qn('w:p'):
+            for blip in n.iter(qn('a:blip')):
+                rid = blip.get(qn('r:embed'))
+                if rid and rid in doc.part.related_parts:
+                    vector_images[hashlib.sha256(doc.part.related_parts[rid].blob).hexdigest()] = deepcopy(n)
+    cover = [deepcopy(p._p) for p in doc.paragraphs[:12]]
+    for n in cover:
+        for old in list(n.iter(qn('w:sectPr'))):old.getparent().remove(old)
+    for n in list(body):
+        if n.tag != qn('w:sectPr'): body.remove(n)
+    for n in cover: body.insert(len(body)-1,n)
+    if args.cover_date:
+        # 封面日期段落在 Word 裡被拆成多個 run（中華民國／1／15／年…），以整段替換；
+        # 只改 w:t 文字節點，改 run.text 會一併清掉同一個 run 裡的圖片。
+        date_p = next(p for p in doc.paragraphs[:20] if p.text.strip().startswith('中華民國'))
+        texts = list(date_p._p.iter(qn('w:t')))
+        texts[0].text = '中華民國' + args.cover_date
+        for t in texts[1:]: t.text = ''
+    add_cover_logo(doc)
+    for name,size in [('Normal',14),('文字內文',14),('Heading 1',18),('Heading 2',16),('Heading 3',14),('Heading 4',14),('Caption',14)]:
+        st=doc.styles[name]; st.font.name='Times New Roman';st.font.size=Pt(size);st.font.color.rgb=RGBColor(0,0,0)
+        st.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'),'DFKai-SB')
+        pf=st.paragraph_format;pf.line_spacing=1.0;pf.space_after=Pt(0);pf.space_before=Pt(0)
+        if name.startswith('Heading'):pf.keep_with_next=True;pf.first_line_indent=Pt(0)
+    for name in ['Figure Caption','Table Caption','Front Index']:
+        if name not in doc.styles: doc.styles.add_style(name,WD_STYLE_TYPE.PARAGRAPH)
+        st=doc.styles[name];st.base_style=doc.styles['Caption' if 'Caption' in name else 'Normal'];st.font.size=Pt(14)
+        st.paragraph_format.first_line_indent=Pt(0)
+    doc.styles['Heading 1'].paragraph_format.page_break_before=True
+    for hname in ('Heading 2','Heading 3','Heading 4'):
+        doc.styles[hname].paragraph_format.page_break_before=False   # 標題 4 原本繼承段前分頁，造成提早換頁
+    doc.styles['Heading 1'].paragraph_format.alignment=WD_ALIGN_PARAGRAPH.CENTER
+    # 內文靠左對齊（不左右對齊，避免拉開字距）、第一行位移 2 字元、單行間距、前後段 0 pt。
+    body_pf=doc.styles['文字內文'].paragraph_format
+    body_pf.alignment=WD_ALIGN_PARAGRAPH.LEFT
+    body_pf.widow_control=True
+    ind=doc.styles['文字內文'].element.get_or_add_pPr().get_or_add_ind()
+    ind.set(qn('w:firstLineChars'),'200');ind.set(qn('w:firstLine'),'560')
+    # 章節標題沿用初評版面：粗體，節標題前留白，避免段落擠在一起。
+    for name,before,after in [('Heading 1',0,12),('Heading 2',12,6),('Heading 3',6,0),('Heading 4',6,0)]:
+        st=doc.styles[name];st.font.bold=True
+        st.paragraph_format.space_before=Pt(before);st.paragraph_format.space_after=Pt(after)
+        ind=st.element.get_or_add_pPr().get_or_add_ind()
+        ind.set(qn('w:firstLineChars'),'0');ind.set(qn('w:firstLine'),'0')
+    for st in doc.styles:
+        if st.type==WD_STYLE_TYPE.PARAGRAPH and st.name.lower().startswith(('toc','table of figures')):
+            st.font.size=Pt(14)
+            st.paragraph_format.space_before=Pt(0);st.paragraph_format.space_after=Pt(0);st.paragraph_format.line_spacing=1.0
+            # 系辦目錄範本的章標題列為粗體。
+            if st.name.lower()=='toc 1':st.font.bold=True
+    for st in doc.styles:
+        if st.type==WD_STYLE_TYPE.PARAGRAPH:
+            snap=OxmlElement('w:snapToGrid');snap.set(qn('w:val'),'false');st.element.get_or_add_pPr().append(snap)
+    def section(fmt=None):
+        s=doc.sections[-1]
+        s.page_width=Cm(21);s.page_height=Cm(29.7)
+        s.top_margin=s.bottom_margin=s.left_margin=s.right_margin=Cm(1.5)
+        s.header_distance=s.footer_distance=Cm(1)
+        grid=s._sectPr.find(qn('w:docGrid'))
+        if grid is not None:s._sectPr.remove(grid)
+        s.header.is_linked_to_previous=False;s.footer.is_linked_to_previous=False
+        for part in [s.header,s.footer]:
+            for n in list(part._element):part._element.remove(n)
+        if fmt:
+            node=s._sectPr.find(qn('w:pgNumType'))
+            if node is None:node=OxmlElement('w:pgNumType');s._sectPr.append(node)
+            node.set(qn('w:fmt'),fmt);node.set(qn('w:start'),'1')
+            p=s.footer.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+            layout.add_field(p,' PAGE ','1')
+        return s
+    section()
+    doc.add_section(WD_SECTION_START.NEW_PAGE);section('upperRoman')
+    for i,(title,code) in enumerate([('目錄',' TOC \\o "1-2" \\h \\z '),('圖目錄',' TOC \\t "Figure Caption,1" \\h \\z '),('表目錄',' TOC \\t "Table Caption,1" \\h \\z ')]):
+        p=doc.add_paragraph(style='Front Index');p.alignment=WD_ALIGN_PARAGRAPH.CENTER;font(p.add_run(title),14,True)
+        p.paragraph_format.page_break_before=bool(i)
+        p=doc.add_paragraph(style='Front Index');layout.add_field(p,code,'更新目錄')
+    doc.add_section(WD_SECTION_START.NEW_PAGE);section('decimal')
+    marker=doc._element.body.sectPr
+    manual_math.install_inline(layout)
+    changes=[];images=[];sources=[];table_counts=[];table_log=[]
+    readme=(MANUAL/'README.md').read_text(encoding='utf-8')
+    ai_rows={line.split('|')[1].strip():line for line in readme.splitlines() if line.startswith('| AI-')}
+    ref_id=doc.styles['footnote reference'].style_id
+    fn={'pending':None,'notes':[],'last':None}
+    ft=doc.styles['footnote text']
+    ft.font.size=Pt(10);ft.font.name='Times New Roman'
+    ft.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'),'DFKai-SB')
+    ft.paragraph_format.alignment=WD_ALIGN_PARAGRAPH.LEFT;ft.paragraph_format.first_line_indent=Pt(0)
+    ft.paragraph_format.space_before=Pt(0);ft.paragraph_format.space_after=Pt(0);ft.paragraph_format.line_spacing=1.0
+    def attach_note(p):
+        ids=fn['pending'];fn['pending']=None
+        fid=len(fn['notes'])+2
+        fn['notes'].append((fid,'AI 輔助紀錄索引：'+'、'.join(ids)+'（說明見第 14 章表14-5-1）。'))
+        add_footnote_ref(p,fid,ref_id)
+    def para(text,style='文字內文',size=14):
+        p=doc.add_paragraph(style=style)
+        heading=style.startswith('Heading')
+        if heading:no_number(p)
+        layout.add_inline(p,text,size=size,base_bold=heading)
+        p.paragraph_format.line_spacing=1.0
+        if style=='文字內文':
+            fn['last']=p
+            if fn['pending'] and len(text)>=6:attach_note(p)
+        return p
+    def caption(text):
+        # 系辦範例「圖3-1-1 系統架構」：編號與名稱以半形空格分隔。
+        text=re.sub(r'^('+NUMPAT+r')[\s　]+',r'\1 ',text)
+        is_table=text.startswith(('表','附表'))
+        p=para(text,'Table Caption' if is_table else 'Figure Caption')
+        zero_indent(p)
+        p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.keep_with_next=is_table
+        return p
+    import os
+    # 除錯用：MANUAL_CHAPTERS=15 或 1,2,3 只組指定章節，方便快速測試 Word 能否處理。
+    only={int(x) for x in os.environ.get('MANUAL_CHAPTERS','').split(',') if x.strip()}
+    for path in sorted((MANUAL/'chapters').glob('[0-9][0-9]_*.md')):
+        num=int(path.name[:2]);raw=path.read_text(encoding='utf-8')
+        if only and num not in only:continue
+        sources.append({'chapter':num,'source':str(path.relative_to(MANUAL)),'sha256':digest(path)})
+        fn['pending']=[key for key,scope in AI_SCOPE.items() if num in scope]
+        if num==14:
+            # 表14-5-1 的資料列全部取自 README「AI 輔助產出說明」（單一來源），並依最近一次排版補上頁碼。
+            pages=load_chapter_pages();rows14=[]
+            for key,line in ai_rows.items():
+                cells=[c.strip() for c in line.strip().strip('|').split('|')]
+                cells[3]=chapter_page_text(cells[3],pages)
+                rows14.append('| '+' | '.join(cells)+' |')
+            raw=raw.rstrip()+'\n'+'\n'.join(rows14)+'\n'
+            changes.append('第14章AI紀錄表由README產生，共'+str(len(rows14))+'筆')
+        math_blocks=[]
+        def save_math(match):
+            math_blocks.append(match.group(1).strip())
+            return '\n\n@@MATHBLOCK_'+str(len(math_blocks)-1)+'@@\n\n'
+        raw=re.sub(r'\$\$(.*?)\$\$',save_math,raw,flags=re.S)
+        lines=layout.collect_logical_lines(raw.splitlines());i=0;pending=None;tables=0;meetings=0
+        while i<len(lines):
+            line=lines[i].strip();i+=1
+            if not line or line=='---' or line.startswith('[返回手冊索引]'):continue
+            equation=re.fullmatch(r'@@MATHBLOCK_(\d+)@@',line)
+            if equation:
+                p=doc.add_paragraph();p.paragraph_format.first_line_indent=Pt(0)
+                p._p.append(manual_math.omml(math_blocks[int(equation.group(1))]))
+                p.paragraph_format.keep_with_next=True
                 continue
-            add_paragraph(doc, marker, bullet.group(1), list_item=True)
-            index += 1
-            continue
+            if line.startswith('#'):
+                level=len(line)-len(line.lstrip('#'));text=line[level:].strip()
+                p=para(text,'Heading '+str(min(level,4)),18 if level==1 else 16 if level==2 else 14)
+                if level==1:p.paragraph_format.page_break_before=(num!=1)
+                continue
+            if num==15 and line.replace('　',' ')=='國立臺北商業大學 資訊管理系':
+                # 每次會議紀錄各自起頁，校系名稱置中。
+                p=doc.add_paragraph(style='Front Index');p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+                font(p.add_run(line),16);p.paragraph_format.page_break_before=meetings>0
+                p.paragraph_format.keep_with_next=True;meetings+=1
+                continue
+            if line.startswith('```'):
+                if pending:caption(pending);pending=None
+                code=[]
+                while i<len(lines) and not lines[i].strip().startswith('```'):code.append(lines[i]);i+=1
+                i+=1;p=para('\n'.join(code));zero_indent(p);p.paragraph_format.keep_together=False
+                continue
+            if line.startswith('|'):
+                rows=[line]
+                while i<len(lines) and lines[i].strip().startswith('|'):rows.append(lines[i].strip());i+=1
+                rows=[layout.split_table_row(x) for x in rows if not layout.is_separator_row(x)]
+                if pending:caption(pending)
+                # 會議紀錄表：無底色、欄位標籤粗體、單值的列橫跨整列，
+                # 內容列可跨頁（不強制整列同頁）。
+                meeting=num==15 and rows[0][0].startswith('會議日期')
+                if meeting:
+                    label=re.compile(r'^(會議議題|開會人員|缺席人員|會議內容：|一、|二、|下次開會時間|下次會議內容：)')
+                    for r in rows:
+                        if len(r)>1 and not r[1].strip():
+                            r[0]='<br>'.join('**'+s+'**' if label.match(s) else s for s in r[0].split('<br>'))
+                # Reuse formatting helpers only; never apply their prose rewrites.
+                cols=max(len(r) for r in rows)
+                table=doc.add_table(rows=len(rows),cols=cols)
+                table.style='Table Grid';table.autofit=False
+                widths=layout.column_widths(rows,cols,18/2.54)
+                widths=[w*18/2.54/sum(widths) for w in widths]
+                if meeting:widths=[18/2.54*0.6,18/2.54*0.4]  # 左欄較寬，會議日期才不會折行
+                for col,w in zip(table.columns,widths):col.width=Inches(w)
+                cells=table._cells
+                headers=max([0]+[j for j,r in enumerate(rows[:4]) if r and r[0]=='欄位名稱'])
+                for j,values in enumerate(rows):
+                    row=table.rows[j]
+                    full=meeting and len(values)>1 and not values[1].strip()
+                    if not meeting:
+                        if table_height([values],widths)<=260:layout.prevent_row_split(row)   # 特別高的列允許跨頁，避免整列被推到下一頁留下空白
+                        if j<=headers:layout.set_repeat_table_header(row)
+                    for k in range(cols):
+                        cell=cells[j*cols+k];cell.width=Inches(widths[k]);layout.set_cell_margins(cell,**({'top':20,'bottom':20} if meeting else {'top':35,'bottom':35}))
+                        p=cell.paragraphs[0];p.paragraph_format.first_line_indent=Pt(0);p.paragraph_format.line_spacing=1.0
+                        if j==0 and not meeting:layout.set_cell_shading(cell,'D9EAD3')
+                        if j<=headers and not meeting:p.paragraph_format.keep_with_next=True
+                        layout.add_inline(p,values[k] if k<len(values) else '',size=13 if meeting else 14,base_bold=(j==0 and not meeting) or (meeting and not full))
+                    if full:table.cell(j,0).merge(table.cell(j,cols-1))
+                for row in table.rows:
+                    for cell in row.cells:
+                        for p in cell.paragraphs:
+                            p.paragraph_format.first_line_indent=Pt(0)
+                            for r in p.runs:font(r,13 if meeting else 14)
+                if not meeting:
+                    # 表格盡量不跨頁：估計高度不大的表整張同頁；較長的表重複標題列，
+                    # 並讓標題列與前兩列、最後兩列各自同頁，避免只剩一兩列落單。
+                    est=table_height(rows,widths);last_row=len(rows)-1;keep_all=est<=KEEP_TABLE_PT
+                    for j,row in enumerate(table.rows):
+                        if j<last_row if keep_all else (j<=headers or j==last_row-1):
+                            for cell in row.cells:
+                                for p in cell.paragraphs:p.paragraph_format.keep_with_next=True
+                    table_log.append({'chapter':num,'caption':pending or '','rows':len(rows),'est_pt':round(est),'keep_together':keep_all})
+                if num==4 and rows[0][0]=='類別':
+                    # 分工表的類別欄依官方範本垂直合併：空白格併入上一個類別。
+                    start=1
+                    for j in range(2,len(rows)+1):
+                        if j==len(rows) or rows[j][0]:
+                            if j-1>start:table.cell(start,0).merge(table.cell(j-1,0))
+                            start=j
+                    for j in range(1,len(rows)):
+                        for k in range(2,cols):table.cell(j,k).paragraphs[0].alignment=WD_ALIGN_PARAGRAPH.CENTER
+                    changes.append('表4-2-1依母稿產生，類別欄依官方分工表範本垂直合併')
+                pending=None;tables+=1;continue
+            image=re.match(r'^!\[([^\]]*)\]\(([^)]+)\)$',line)
+            if image:
+                file=(path.parent/image.group(2)).resolve();assert file.exists(),file
+                images.append({'source':str(file.relative_to(MANUAL)),'sha256':digest(file),'chapter':num})
+                if file.suffix.lower() in ['.emf','.wmf']:
+                    if digest(file) not in vector_images:
+                        raise SystemExit(f'{file.name}: EMF／WMF 圖須先嵌在版型檔，或改用 PNG／SVG')
+                    node=deepcopy(vector_images[digest(file)]);marker.addprevious(node)
+                elif num==12:add_screen(doc,marker,file)
+                else:layout.add_picture(doc,marker,file,max_h=FIG_MAX_H.get(file.name[:7],7.8))
+                continue
+            cap=re.match(r'^(附?圖|附?表)\s*\d+-\d+(?:-\d+)?[a-z]?[\s　]+',line)
+            nxt=next((x.strip() for x in lines[i:] if x.strip()),'')
+            prev=next((x.strip() for x in reversed(lines[:i-1]) if x.strip()),'')
+            if cap and ((cap.group(1).endswith('表') and (nxt.startswith(('|','```')) or num==4 and len(line)<70)) or (cap.group(1).endswith('圖') and prev.startswith('!['))):
+                if cap.group(1).endswith('表'):pending=line
+                else:caption(line)
+                continue
+            if pending:caption(pending);pending=None
+            if line.startswith('>'):line=line.lstrip('> ').strip()
+            p=para(line)
+            # 緊接在圖表之前、且提到該圖表編號的說明段落，與圖表排在同一頁。
+            ahead=[x.strip() for x in lines[i:i+4] if x.strip()]
+            if ahead and (ahead[0].startswith('![') or re.match(r'^'+NUMPAT+r'[\s　]',ahead[0])):
+                m=next((re.search(NUMPAT,x) for x in ahead[:3] if re.match(r'^'+NUMPAT+r'[\s　]',x)),None)
+                if m and m.group(0).replace(' ','') in line.replace(' ',''):
+                    # 高度超過版心約 55% 的圖不與說明段落綁在一起，否則前一頁會留下大片空白；
+                    # 說明段落留在前一頁底部，圖在下一頁頁首，仍屬相鄰位置。
+                    tall=False
+                    im=re.match(r'^!\[[^\]]*\]\(([^)]+)\)$',ahead[0])
+                    if im:
+                        from PIL import Image as _Im
+                        with _Im.open((path.parent/im.group(1)).resolve()) as _i:
+                            iw,ih=_i.size
+                        hpt=(min(6.75,FIG_MAX_H.get(im.group(1).split('/')[-1][:7],7.8)*iw/ih) if num!=12 else min(6.75,iw/150,6.0*iw/ih))*72*ih/iw
+                        tall=hpt>FIG_CHAIN_PT
+                    if not tall:p.paragraph_format.keep_with_next=True
+        if pending:caption(pending)
+        if fn['pending'] and fn['last'] is not None:attach_note(fn['last'])
+        table_counts.append({'chapter':num,'tables':tables})
+    # Normalize table grids to the usable A4 width, including inherited tables.
+    for table in doc.tables:
+        widths=[c.width for c in table.columns];total=sum(w or 1 for w in widths)
+        factor=int(Cm(18))/total
+        for col,w in zip(table.columns,widths):col.width=int((w or 1)*factor)
+        seen=set()
+        for row in table.rows:
+            for cell in row.cells:
+                if cell._tc not in seen and cell.width:cell.width=int(cell.width*factor)
+                seen.add(cell._tc)
+        prop=table._tbl.tblPr.find(qn('w:tblW'))
+        prop.set(qn('w:type'),'dxa');prop.set(qn('w:w'),str(round(18/2.54*1440)))
+    for rel in doc.part.rels.values():
+        if rel.reltype.endswith('/footnotes'):rel.target_part._blob=footnotes_xml(fn['notes'],ref_id)
+    settings=doc.settings.element
+    upd=settings.find(qn('w:updateFields'))
+    if upd is None:upd=OxmlElement('w:updateFields');settings.append(upd)
+    upd.set(qn('w:val'),'true')
+    # 可指定暫存路徑：交付檔只在 refresh_manual_word.ps1 完成後才被取代，
+    # 避免有人在重建途中打開未完成的檔案（2026-09-30 曾因此讓 Word 當掉）。
+    out=Path(args.out)
+    doc.save(out)
+    if args.report_dir:
+        report=Path(args.report_dir);report.mkdir(parents=True,exist_ok=True)
+        (report/'table_layout.json').write_text(json.dumps(table_log,ensure_ascii=False,indent=1),encoding='utf-8')
+        (report/'build_sources.json').write_text(json.dumps({'template':str(TEMPLATE.relative_to(MANUAL)),'template_sha256':digest(TEMPLATE),'sources':sources,'images':images,'table_counts':table_counts,'changes':changes,'output':str(out),'source_prose_rewritten':False},ensure_ascii=False,indent=2),encoding='utf-8')
+        (report/'ai_chapter_scope.json').write_text(json.dumps(AI_SCOPE,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(json.dumps({'output':str(out),'chapters':len(sources),'images':len(images),'tables':len(doc.tables),'changes':changes},ensure_ascii=False))
 
-        if should_skip_paragraph(line):
-            index += 1
-            continue
 
-        add_paragraph(doc, marker, line)
-        index += 1
-
-
-def paragraph_text(element) -> str:
-    return "".join(element.itertext()).strip()
-
-
-def main() -> None:
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    doc = Document(str(SOURCE))
-    body = doc._body._element
-
-    start = None
-    end = None
-    for child in list(body):
-        if child.tag != qn("w:p"):
-            continue
-        text = Paragraph(child, doc._body).text.strip()
-        if start is None and text == "需求模型":
-            start = child
-        elif start is not None and text == "使用手冊":
-            end = child
-            break
-
-    if start is None or end is None:
-        raise RuntimeError("Unable to locate the chapter 5 to chapter 12 replacement range in the source document.")
-
-    deleting = False
-    for child in list(body):
-        if child is start:
-            deleting = True
-        if child is end:
-            break
-        if deleting:
-            body.remove(child)
-
-    for chapter in CHAPTERS:
-        add_chapter(doc, end, chapter)
-
-    # Let Word/LibreOffice refresh the TOC, lists of figures/tables, references and page numbers.
-    settings = doc.settings._element
-    update = settings.find(qn("w:updateFields"))
-    if update is None:
-        update = OxmlElement("w:updateFields")
-        settings.append(update)
-    update.set(qn("w:val"), "true")
-
-    for paragraph in doc.paragraphs[:20]:
-        runs = paragraph.runs
-        if runs and "".join(r.text for r in runs).startswith("中華民國"):
-            for run in runs:
-                if run.text == "6":
-                    run.text = "10"
-                elif run.text == "2":
-                    run.text = "13"
-            break
-    for style_name in ("toc 1", "toc 2", "toc 3", "table of figures"):
-        try:
-            doc.styles[style_name].font.size = Pt(14)
-        except KeyError:
-            pass
-
-    core = doc.core_properties
-    core.title = "FocusFlow AI 系統手冊（複評更新版）"
-    core.subject = "FocusFlow AI 教學影片問答系統"
-
-    doc.save(str(OUTPUT))
-    print(OUTPUT)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

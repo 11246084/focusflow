@@ -163,7 +163,7 @@ Step 1 必須先完成 `references/diagram-brief.md`。一張圖原則上只回�
 
 ### 交付物
 
-Create／Modify 模式至少交付：完成的 diagram brief、版本化圖源（`.puml` 或 `.mmd`）、實際匯出的圖檔、正文整合（若在範圍內），以及依 `checklists/review.md` 得出的驗證結果。只做了文字檢查時不得宣稱「已渲染」或「視覺驗證通過」。
+Create／Modify 模式至少交付：完成的 diagram brief、與成品同目錄、同主檔名的圖源（`.puml` 或 `.mmd`；手冊依專案慣例不加版本後綴）、實際匯出的圖檔、正文整合（若在範圍內），以及依 `checklists/review.md` 得出的驗證結果。只做了文字檢查時不得宣稱「已渲染」或「視覺驗證通過」。
 
 ### 規則的單一來源
 

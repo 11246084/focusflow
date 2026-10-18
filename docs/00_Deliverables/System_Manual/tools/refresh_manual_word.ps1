@@ -1,5 +1,5 @@
 ﻿# Refresh TOC / figure / table indexes and page numbers with Microsoft Word, then export PDF.
-# Used after assemble_review_manual.py.
+# Used after build_manual.py (see rebuild_manual.ps1).
 #
 # Word only ever saves the working copy in place (Documents.Open + Save). On 2026-09-30
 # every call that writes to a named file (SaveAs2, ExportAsFixedFormat, PrintOut to file)

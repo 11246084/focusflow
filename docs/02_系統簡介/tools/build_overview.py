@@ -18,7 +18,7 @@ from docx.oxml.ns import qn
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_MD = ROOT / 'FocusFlow_系統簡介.md'
-TEMPLATE = ROOT / 'source-documents' / '四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx'
+TEMPLATE = ROOT.parent / '00_Deliverables' / 'System_Overview' / 'source-documents' / '四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx'
 OUTPUT_DIR = ROOT / 'output'
 OUTPUT_NAME = '四技第115413組-FocusFlow AI-系統簡介'
 

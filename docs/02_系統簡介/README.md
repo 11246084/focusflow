@@ -4,7 +4,7 @@
 
 交件檔：[Word](<output/四技第115413組-FocusFlow AI-系統簡介.docx>)、[PDF](<output/四技第115413組-FocusFlow AI-系統簡介.pdf>)，共 2 頁。10/13 複評只需繳 PDF 電子檔，不需紙本。
 
-規範：[115年_系統簡介規範.docx](../../00_學校公告/115年_系統簡介規範.docx)。原稿：[初評最終版](<source-documents/四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx>)。
+規範：[115年_系統簡介規範.docx](../00_學校公告/115年_系統簡介規範.docx)。原稿：[初評最終版](<../00_Deliverables/System_Overview/source-documents/四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx>)。
 
 規範共七節：前言、系統功能簡介、系統使用對象、系統特色、系統開發工具、系統使用環境、結論及未來發展。需包含組別、題目、指導教師、專題學生；大學部不得超過兩頁。
 
@@ -13,7 +13,7 @@
 改完 Markdown 後執行（需要 python-docx 與本機的 Microsoft Word）：
 
 ```powershell
-python docs\00_Deliverables\System_Overview\tools\build_overview.py
+python docs\02_系統簡介\tools\build_overview.py
 ```
 
 腳本以初評最終版 DOCX 為版面範本，只替換內文，並在結尾印出 PDF 頁數；超過 2 頁時需刪減 Markdown 內容。範本頁尾的「共 1 頁」原本是寫死的文字，腳本改成自動計算的總頁數。
@@ -39,4 +39,4 @@ python docs\00_Deliverables\System_Overview\tools\build_overview.py
 - 特色 5 的 NotebookLM 比較出自手冊表 1-3-1（團隊 2026 年 9 月的觀察），交件前需重新確認 NotebookLM 的現況。
 - 多模態檢索目前是 `STT_Whisper` 裡的實驗支線，尚未接上正式問答，所以列在未來發展；接上後才能移到功能或特色。
 
-`images/` 供後續必要插圖使用，目前正文無需插圖。來源原件保存在 `source-documents/`；舊草稿另歸檔。
+正文目前無需插圖；來源原件暫留原位，待雲端上傳確認後另行清理。建置程式暫時仍讀取該初評 DOCX 作為範本，刪除前需另行決定範本來源。

@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依短影片腳本分頁與短影片審核步驟程式繪製畫面移轉圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 教師端短影片畫面移轉圖
 hide empty description

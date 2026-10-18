@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依教師端課程管理彈窗與影片上傳追蹤程式繪製畫面移轉圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 教師端課程與影片畫面移轉圖
 hide empty description

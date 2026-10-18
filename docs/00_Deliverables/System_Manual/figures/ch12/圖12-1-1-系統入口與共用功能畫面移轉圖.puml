@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依一般入口、管理員入口、頂部列與側邊欄的導覽程式繪製畫面移轉圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 系統入口與共用功能畫面移轉圖
 hide empty description

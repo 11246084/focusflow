@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依管理員端影片、問題回報、使用統計頁面與公告面板程式繪製畫面移轉圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 管理員端影片、回報與統計畫面移轉圖
 hide empty description

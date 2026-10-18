@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依管理員端使用者與課程頁面的彈窗程式繪製畫面移轉圖
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 管理員端帳號與課程畫面移轉圖
 hide empty description

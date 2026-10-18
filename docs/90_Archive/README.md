@@ -5,7 +5,7 @@
 | 目錄 | 歸檔理由 |
 |---|---|
 | [manual-drafts](manual-drafts/) | 既有手冊／簡介草稿，保留原版本路徑線索 |
-| [frontend-progress](frontend-progress/) | 早期前端 PDF 進度快照 |
+| 前端進度 PDF（已移至雲端） | 0407～0423 共 4 份早期前端進度快照；2026-10-18 移至雲端「學校專題/99_開發資料/前端進度/」，repo 舊檔可從 git 歷史取回 |
 | [chat-history](chat-history/) | 歷史 AI 對話、除錯與研究材料 |
 | [learning-reports](learning-reports/) | Keras／深度學習學習資料，原子目錄關係保留 |
 | [後端程式碼理解筆記](learning-reports/backend-understanding-code-2026-05/README.md) | 2026-10-13 經確認封存原 `backend/UnderstandingCode/`；保留學習計畫、筆記及圖檔，不作目前架構依據 |

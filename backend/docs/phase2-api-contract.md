@@ -85,6 +85,15 @@
 }
 ```
 
+### 1.x FAQ 快取
+
+FAQ 快取保留可重用的答案，API 與 LINE 共用（`faqs` 集合＋`faqCache.service.js`）：
+
+- **命中條件**：正規化後文字完全相同直接命中；否則以問題向量和課程 FAQ 比較餘弦相似度，達 `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）即命中，跳過向量搜尋與模型生成。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。
+- **寫入條件**：只快取 runtime ready 且沒有對話歷史的回答。`answerGeneration.service.js` 的 `isNoAnswerReply()` 辨識「答不出來」的罐頭回覆（`NO_ANSWER_INSUFFICIENT`、`NO_ANSWER_UNDETERMINED`），這類回覆不快取。改罐頭文案時改常數，不改提示詞內的字面字串；提示詞只插入 `NO_ANSWER_INSUFFICIENT`，`NO_ANSWER_UNDETERMINED` 只用來辨識改版前的舊答案。
+- **失效**：沒有 TTL，只在影片刪除、影片重新處理完成、課程刪除、影片掛載到課程或自課程移除時清除該課程快取；單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時淘汰 `hitCount` 最低者。人工清除用 `DELETE /api/v1/courses/:courseId/faqs`，執行前確認授權與目標課程。
+- **修改注意**：改 QA 回應格式時，命中路徑 `respondFromFaqCache` 要同步；測試非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
+
 ## 2. Video / Course 顯示狀態
 
 影片列表與 QA 需要分開看：
@@ -103,6 +112,13 @@
 - 學生 Recent Queries：保留歷史，若來源不存在顯示「內容已下架」。
 - 老師 Top Segments：只顯示仍可操作的影片片段，過濾已刪除來源。
 - 管理員 Recent Events：保留稽核歷史，若來源不存在顯示已刪除標籤。
+
+### 2.x 影片資料來源與片段綁定
+
+`videos` 是混合集合：課程影片有 `courseId`、`uploadedBy`、`title`、`processing.status`；只有 `video_id` 或 `videoId` 的是 Pipeline 處理資訊，不是課程影片。
+
+- **文字片段**：[範圍服務](../src/services/bridgeScope.service.js)依「課程可存取影片 → `String(videos._id)` → `video_segments_text.videoId`」建立允許範圍；`addVideoIdentifiers` 只加入影片 `_id`。
+- **影像片段**：以 `video_segments_video.video_id = String(videos._id)` 綁定課程影片，欄位仍是 snake_case；舊 `video_001` 類識別碼另有檔名／路徑配對邏輯。兩者的識別碼規則不能互相套用。
 
 ## 3. Clip / Shorts 契約（部分已實作）
 
@@ -310,6 +326,12 @@ YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
 - Shorts：不要自動判定；由 Clip/Shorts job 決定是否發布為 Shorts。
 - playlist：可選，等課程/教師分流策略定版後再啟用。
 - recovery 與 uploads 清理：兩個 feature flag 都預設關閉；先觀察 `/health.runtime.youtubeUpload` 與持久化的 `youtubeUpload` 狀態，再由部署者明確開啟。
+
+權限與隱私限制：
+
+- 刪除影片時轉為私人影片，需 OAuth 權限屬於[上傳服務](../src/services/youtubeUpload.service.js)的 `PRIVACY_CAPABLE_SCOPES`（例如 `youtube.force-ssl`）；只有 `youtube.upload` 不足以轉私人。
+- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片；轉私人失敗只記錄錯誤、不中斷系統刪除，所以不能保證 YouTube 影片必定下架。
+- `unlisted` 是知道連結即可觀看；課程權限不能阻止取得連結的人轉貼。
 
 ## 5. 已完成與待定版
 

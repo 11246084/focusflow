@@ -41,7 +41,7 @@ docs/
 | [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md) |
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
-| [10 Operations](10_Operations/README.md) | 開發、維運、部署與[資料庫交付](10_Operations/database-delivery.md) |
+| [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)與[資料庫交付](10_Operations/database-delivery.md) |
 | [90 Archive](90_Archive/README.md) | 快照、重整紀錄、被取代方案與歷史原件 |
 | [目前狀態](current-status.md) | 唯一功能狀態正本 |
 | [重要決策](decision-log.md) | 決策原因與影響 |

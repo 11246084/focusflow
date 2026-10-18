@@ -33,4 +33,20 @@ npm.cmd run dev
 
 需要本機示範資料時，在確認 `MONGODB_URI` 後執行 `npm.cmd run seed`，此操作會寫入指定資料庫。例：空白本機資料庫 → 執行 seed → 以 `student@focusflow.local`／`Student123!` 登入；帳號定義見[種子資料](src/scripts/seedDemoUsers.js)。
 
-測試、規格檢查與資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。
+## 資料工具與問答設定
+
+下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
+
+| 指令 | 作用 |
+|---|---|
+| `npm.cmd run seed` | 把示範資料收斂到基準狀態，不清除既有資料 |
+| `npm.cmd run seed:reset` | 保守清除示範帳號產生的資料後重建 |
+| `npm.cmd run db:sync-atlas` | 把本機資料同步到 Atlas |
+| `npm.cmd run db:ensure-questions` | 建立 `questions` 集合並同步索引 |
+| `npm.cmd run db:backfill-questions` | 預設只預覽（dry-run），加 `-- --write` 才寫入 |
+
+問答設定有幾個限制：`QA_ANSWER_PROVIDER=gemini` 必須設定 `GEMINI_API_KEY`，缺少時直接回設定錯誤，不會改用其他方式；`QA_VECTOR_SEARCH_MODE=atlas` 不能搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`。服務是否可用，看 `/health` 的 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload`，不以 `.env` 有填值推定。
+
+例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
+
+測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。

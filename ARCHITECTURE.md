@@ -399,7 +399,7 @@ sequenceDiagram
     W-->>L: Reply message + timestamp link/instruction
 ```
 
-LINE 對話狀態存在 User 文件：`lineConversationState`、最近三輪的 `lineConversationHistory` 與 `activeCourseId`。撤銷資格時必須同步清除失效 scope 與對話上下文。
+LINE 對話狀態存在 User 文件：`lineConversationState`、依 `MAX_CONVERSATION_TURNS × 2` 保留近期訊息的 `lineConversationHistory`（設定見 `backend/src/config/env.js`）與 `activeCourseId`。切換課程時只列有效修課且課程為 `published` 的選項，選單最多 4 筆；課程已發布不等於使用者有修課權限。撤銷資格時必須同步清除失效 scope 與對話上下文。
 
 ### 4.5 Stable Embedding 與 Hierarchical Retrieval 安全門
 

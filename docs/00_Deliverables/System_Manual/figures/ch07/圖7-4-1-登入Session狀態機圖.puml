@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 AUTH_SESSION_STATUS、restoreAuthSession、requireAdminSession 與兩個入口的處理分支重繪；v3-1 改為直式版面
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 登入Session狀態機圖
 hide empty description

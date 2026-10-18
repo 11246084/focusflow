@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 STT_Whisper/src 模組 import 關係與 requirements.txt 重繪責任分群與第三方套件；v3-1 改為直式版面、移除版本
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title AI-Pipeline套件圖
 

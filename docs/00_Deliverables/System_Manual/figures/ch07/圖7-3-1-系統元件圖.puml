@@ -9,7 +9,7 @@
 ' implemented:  partial
 ' ai-assisted:  yes / Claude Code / 依 API 掛載點、外部 adapter 與 Pipeline CLI／webhook 契約重繪提供與需求介面
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 系統元件圖
 

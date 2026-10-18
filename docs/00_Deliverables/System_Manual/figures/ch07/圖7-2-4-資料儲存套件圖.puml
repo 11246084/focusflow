@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 Mongoose model、Pipeline uploader 與 database 工具的讀寫對象重繪資料存取分群；v3-1 改為直式版面
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 資料儲存套件圖
 

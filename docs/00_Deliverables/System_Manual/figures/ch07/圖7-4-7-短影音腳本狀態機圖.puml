@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 ALLOWED_TRANSITIONS 與各寫入點重繪；approved 只由成品上架觸發
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 短影音腳本狀態機圖
 hide empty description

@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 backend/src 各目錄 require 關係與 package.json 重繪分層、例外依賴與第三方套件；v3-1 移除版本（版本見第 9 章）
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 後端套件圖
 

@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 videoProcessing.service.js 的前置狀態檢查與冪等回放逐一重繪
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 影片處理狀態機圖
 hide empty description

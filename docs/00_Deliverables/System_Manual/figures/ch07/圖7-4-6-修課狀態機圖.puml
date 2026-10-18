@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 enrollment.service.js 的 upsert、撤銷條件與 course.service.js 的連動刪除重繪
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 修課狀態機圖
 hide empty description

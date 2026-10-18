@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 youtubeUpload.service.js 的 CAS 搶佔、失敗分類、手動重試條件與開機復原重繪
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title YouTube上傳狀態機圖
 hide empty description

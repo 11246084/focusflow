@@ -9,7 +9,7 @@
 ' implemented:  partial
 ' ai-assisted:  yes / Claude Code / 依 status 與 reviewStatus 的實際寫入點重繪；ready 列舉值目前無寫入路徑，標為保留
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 短影音成品狀態機圖
 hide empty description

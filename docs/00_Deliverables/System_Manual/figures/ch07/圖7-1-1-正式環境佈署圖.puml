@@ -9,7 +9,7 @@
 ' implemented:  partial
 ' ai-assisted:  yes / Claude Code / 依 deploy.yml、server.js 與部署文件重繪節點、artifact 與通訊協定；live 狀態未驗證
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title 正式環境佈署圖
 

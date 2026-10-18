@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 User 的 lineUserId、lineConversationState、activeCourseId 寫入點重繪；v3-1 改為直式版面
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title LINE對話範圍狀態機圖
 hide empty description

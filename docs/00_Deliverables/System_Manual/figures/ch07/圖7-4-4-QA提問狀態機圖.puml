@@ -9,7 +9,7 @@
 ' implemented:  yes
 ' ai-assisted:  yes / Claude Code / 依 askQuestion 處理分支與 Question.status 寫入點重繪；區分 4xx 拒絕與 5xx 失敗；v3-1 改為直式版面
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title QA提問狀態機圖
 hide empty description

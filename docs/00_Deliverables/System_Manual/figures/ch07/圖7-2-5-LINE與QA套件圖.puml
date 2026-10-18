@@ -9,7 +9,7 @@
 ' implemented:  partial
 ' ai-assisted:  yes / Claude Code / 依 Web／LINE 通道與共用 QA service 的 require 關係重繪
 ' ============================================
-!include ../_style.puml
+!include ../_shared/_style.puml
 
 title LINE與QA套件圖
 

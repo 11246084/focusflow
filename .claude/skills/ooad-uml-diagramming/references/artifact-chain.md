@@ -6,9 +6,9 @@
 
 | # | 落點 | 規格 | 範例 |
 |---|---|---|---|
-| 1 | 圖源檔名 | `{diagrams}/chapter{NN}/圖{章}-{節}-{序}-{名稱}-vX-x.puml` 或 `.mmd` | `chapter06/圖6-1-3-網頁問答循序圖-v1-0.mmd` |
+| 1 | 圖源檔名 | `figures/ch{NN}/圖{章}-{節}-{序}-{名稱}.puml` 或 `.mmd` | `figures/ch06/圖6-1-1-學生自助註冊循序圖.mmd` |
 | 2 | 圖源顯示名稱 | PlantUML `title`／Mermaid frontmatter `title` 必須等於 `{名稱}` | `title: 網頁問答循序圖` |
-| 3 | 匯出圖檔 | 與 active 圖源**同名同序號同版本**，僅副檔名不同 | `圖6-1-3-網頁問答循序圖-v1-0.png` |
+| 3 | 匯出圖檔 | 與現行圖源**同目錄、同主檔名**，僅副檔名不同 | `figures/ch06/圖6-1-1-學生自助註冊循序圖.png` |
 | 4 | 正文圖說 | 置於圖**下方**，格式 `圖{章}-{節}-{序} {名稱}` | `圖6-1-3 網頁問答循序圖` |
 | 5 | 正文引用 | 至少一處「⋯⋯如圖{章}-{節}-{序}所示」 | `流程如圖6-1-3所示。` |
 | 6 | 圖目錄 | 一列，名稱與圖說一致，含頁碼 | `圖6-1-3　網頁問答循序圖 …… 28` |
@@ -18,8 +18,8 @@
 - 圖號與名稱之間為**空格**，**無冒號、無句點分隔**
 - 檔名中的分隔用 `-`（檔案系統友善），圖說中用空格
 - 表格同理，但**表題置於表上方**
-- 改版檔名採 `-vX-x` 後綴：`圖3-1-1-系統架構圖-v1-1.png`
-- 版本後綴屬檔案識別，不屬於圖的顯示名稱；圖源與匯出圖檔須使用相同後綴，正文連結須指向版本化檔名，但顯示 title、圖說與圖目錄名稱維持不含後綴。版本判定與遞增規則由專案慣例定義。
+- 系統手冊程式產圖與截圖不加 `-vX-X`，只保留章節引用版本；舊版由 Git 歷史追溯。
+- 沒有原始碼且不是已確認截圖的第 3 類圖保留原檔名、版本與內容，由使用者判定後再處理；不以版本號檢查否決這項保留。完整規則見 `local/focusflow-conventions.md`。
 - 同一圖號只能有一個 active 圖源；`.puml` 與 `.mmd` 並存視為重複，除非其中一個已移入 archive。
 
 ## 八項一致性檢查
@@ -35,29 +35,28 @@
 | 5 | 圖目錄存在對應列且名稱一致 | 新增圖忘了更新圖目錄 |
 | 6 | **無孤兒圖檔** | 圖檔存在但正文從未引用 |
 | 7 | **無孤兒目錄列** | 目錄有列但圖不存在 |
-| 8 | **版本後綴一致** | 重繪圖仍無版本、圖源／圖檔版本不同，或正文仍指向舊版本 |
+| 8 | **現行檔名與保留規則一致** | 程式產圖／截圖仍帶版本後綴、正文指向已刪舊版，或擅自移除第 3 類版本 |
 
 ## 可執行的檢查方式
 
-以下指令假設專案的圖存放於 `diagrams/`、圖檔於 `images/`、章節 Markdown 於 `chapters/`。
+以下指令假設圖源與成品共置於 `figures/chNN/`，章節 Markdown 於 `chapters/`；共用檔置於 `figures/_shared/`。
 實際路徑見 `local/focusflow-conventions.md`。
 
-優先使用 skill 內建的跨平台檢查器。它支援 `.puml` 與 `.mmd`，檢查檔頭、版本化檔名、顯示 title、同名匯出圖檔、正文圖檔路徑／圖說／引用，以及圖目錄名稱／版本；它**不取代**所選 renderer 的真實渲染與圖片目視檢查。
+優先使用 skill 內建的跨平台檢查器。它支援 `.puml` 與 `.mmd`，檢查檔頭、現行檔名（手冊程式產圖不加版本後綴）、顯示 title、同名匯出圖檔、正文圖檔路徑／圖說／引用，以及圖目錄名稱／版本；它**不取代**所選 renderer 的真實渲染與圖片目視檢查。
 
 ```powershell
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
-  --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 `
-  --image-dir docs/00_Deliverables/System_Manual/images `
+  --diagram-dir docs/00_Deliverables/System_Manual/figures/ch06 `
+  --image-dir docs/00_Deliverables/System_Manual/figures/ch06 `
   --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md `
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md `
-  --require-version
+  --toc docs/00_Deliverables/System_Manual/圖表目錄.md
 ```
 
 下列 POSIX shell 指令只作無 Python 時的局部 fallback；版本後綴必須先移除再比對顯示名稱：
 
 ```bash
 # 1+3. PlantUML 檔名與 title 是否一致（Mermaid 請用 Python 檢查器）
-for f in $(find diagrams -name "*.puml"); do
+for f in $(find figures/ch* -name "*.puml"); do
   base=$(basename "$f" .puml)
   name="${base#*-*-*-}"                       # 去掉 圖X-Y-Z- 前綴
   name=$(printf '%s' "$name" | sed -E 's/-v[0-9]+-[0-9]+$//')
@@ -65,20 +64,20 @@ for f in $(find diagrams -name "*.puml"); do
 done
 
 # 2. 每個 PlantUML source 是否有對應圖檔
-for f in $(find diagrams -name "*.puml"); do
+for f in $(find figures/ch* -name "*.puml"); do
   base=$(basename "$f" .puml)
-  ls images/"$base".* >/dev/null 2>&1 || echo "缺匯出圖檔: $base"
+  ls "$(dirname "$f")/$base".* >/dev/null 2>&1 || echo "缺匯出圖檔: $base"
 done
 
 # 4+6. 孤兒圖檔：圖檔存在但正文未引用
-for img in images/圖*; do
+for img in figures/ch*/圖*.png; do
   id=$(basename "$img" | grep -o '^圖[0-9]*-[0-9]*-[0-9]*')
   grep -rq "$id" chapters/ || echo "孤兒圖檔: $id"
 done
 
 # 5+7. 圖目錄與實際圖檔雙向比對
 grep -o '^| 圖[0-9]*-[0-9]*-[0-9]*' 圖表目錄.md | sed 's/^| //' | sort -u > /tmp/toc.txt
-ls images/圖* | grep -o '圖[0-9]*-[0-9]*-[0-9]*' | sort -u > /tmp/files.txt
+ls figures/ch*/圖*.png | grep -o '圖[0-9]*-[0-9]*-[0-9]*' | sort -u > /tmp/files.txt
 diff /tmp/toc.txt /tmp/files.txt
 ```
 

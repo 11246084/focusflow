@@ -4,7 +4,7 @@ ai-assisted: Claude Code（Claude Opus 5），AI-DOC-20260919。
 數據只取報告公開的起訖年數值與 CAGR，不自行內插中間年份
 （出版商未公開逐年數值，且以起訖值反推的 CAGR 與報告標示值不完全一致）。
 
-執行：python market_charts.py（需 matplotlib；輸出至 ../../images/）
+執行：python market_charts.py（需 matplotlib；輸出至本章 figures/ch01/（與腳本同目錄））
 """
 from pathlib import Path
 
@@ -13,7 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-OUT_DIR = Path(__file__).resolve().parents[2] / "images"
+OUT_DIR = Path(__file__).resolve().parent
 
 plt.rcParams.update({
     # 英數用 Times New Roman，中文退回標楷體，與手冊字型規範一致
@@ -29,7 +29,7 @@ GRID = "#e4e3df"
 
 CHARTS = [
     {
-        "file": "圖1-2-1-台灣線上教育市場規模-v1-0.png",
+        "file": "圖1-2-1-台灣線上教育市場規模持續成長，顯示數位學習需求快速提升.png",
         "title": "台灣線上教育市場規模預估",
         "years": ["2025", "2034（預估）"],
         "values": [7.774, 51.079],
@@ -37,7 +37,7 @@ CHARTS = [
         "source": "資料來源：IMARC Group（2026），Taiwan Online Education Market Size, Share, Trends and Forecast, 2026–2034。本組依公開數值重繪。",
     },
     {
-        "file": "圖1-2-2-全球MOOCs市場規模-v1-0.png",
+        "file": "圖1-2-2-全球MOOCs市場快速擴張，凸顯線上課程與自主學習發展潛力.png",
         "title": "全球 MOOCs 市場規模預估",
         "years": ["2024", "2034（預估）"],
         "values": [260, 6843],

@@ -52,15 +52,14 @@ sequenceDiagram
 3. 已核准的 Kroki instance。
 
 ```powershell
-mmdc -i "diagrams/chapter06/圖6-1-1-登入循序圖-v1-0.mmd" `
-  -o "images/圖6-1-1-登入循序圖-v1-0.png"
+mmdc -i "figures/ch06/圖6-1-1-學生自助註冊循序圖.mmd" `
+  -o "figures/ch06/圖6-1-1-學生自助註冊循序圖.png"
 
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
-  --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 `
-  --image-dir docs/00_Deliverables/System_Manual/images `
+  --diagram-dir docs/00_Deliverables/System_Manual/figures/ch06 `
+  --image-dir docs/00_Deliverables/System_Manual/figures/ch06 `
   --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md `
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md `
-  --require-version
+  --toc docs/00_Deliverables/System_Manual/圖表目錄.md
 ```
 
 CLI／MCP 成功後仍要開啟 PNG／SVG 目視檢查。不同 Mermaid renderer 版本可能改變 layout；回報中記錄 renderer 與版本。

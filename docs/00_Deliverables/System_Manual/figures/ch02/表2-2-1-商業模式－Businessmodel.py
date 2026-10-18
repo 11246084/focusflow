@@ -3,7 +3,7 @@
 ai-assisted: Claude Code（Claude Opus 5），AI-DOC-20260919。
 內容與正文表2-2-1 一致；修改九宮格時兩處需同步。
 
-執行：python business_model_canvas.py（需 matplotlib；輸出至 ../../images/）
+執行：python 表2-2-1-商業模式－Businessmodel.py（需 matplotlib；輸出至本章 figures/ch02/（與腳本同目錄））
 """
 from pathlib import Path
 
@@ -13,7 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "images" / "圖2-2-1-FocusFlow商業模式-v1-1.png"
+OUT = Path(__file__).resolve().with_suffix(".png")
 
 plt.rcParams.update({"font.family": ["Times New Roman", "DFKai-SB"]})
 

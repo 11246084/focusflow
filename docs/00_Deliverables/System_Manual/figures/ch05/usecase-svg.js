@@ -126,7 +126,7 @@ function renderDiagram({ width, height, boundary, groups = [], actors = [], usec
 function writeOutputs(svg, baseName, dirname) {
   const fs = require('fs');
   const path = require('path');
-  const imagesDir = path.resolve(dirname, '..', '..', 'images');
+  const imagesDir = dirname;
   fs.writeFileSync(path.join(imagesDir, `${baseName}.svg`), svg, 'utf8');
   console.log('svg ->', path.join(imagesDir, `${baseName}.svg`));
   try {

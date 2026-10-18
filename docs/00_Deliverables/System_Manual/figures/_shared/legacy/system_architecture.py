@@ -4,7 +4,7 @@ ai-assisted: Claude Code（Claude Opus 5），AI-DOC-20260919。
 依 2026-09-19 查證的現況繪製：repository 程式碼、.github/workflows/deploy.yml、
 正式站回應標頭與正式後端 /health（經 ngrok 通道唯讀讀取）。架構改變時需同步更新。
 
-執行：python system_architecture.py（需 matplotlib；輸出至 ../../images/）
+執行：python system_architecture.py（需 matplotlib；輸出至本歷史腳本目錄；不屬於現行圖稿）
 """
 from pathlib import Path
 
@@ -14,7 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "images" / "圖3-1-1-系統架構圖-v1-0.png"
+OUT = Path(__file__).resolve().parent / "圖3-1-1-系統架構圖-v1-0.png"
 
 plt.rcParams.update({"font.family": ["Times New Roman", "DFKai-SB"]})
 

@@ -14,7 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { renderDiagram } = require('../tools/svgdiag.js');
+const { renderDiagram } = require('../svgdiag.js');
 
 const W = 190;
 
@@ -98,7 +98,7 @@ const svg = renderDiagram({
   edges,
 });
 
-const imagesDir = path.resolve(__dirname, '..', '..', 'images');
+const imagesDir = __dirname;
 const baseName = '圖5-4-1-系統分析類別圖-v2-0';
 fs.writeFileSync(path.join(imagesDir, baseName + '.svg'), svg, 'utf8');
 console.log('svg ->', path.join(imagesDir, baseName + '.svg'));

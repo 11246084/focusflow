@@ -15,4 +15,4 @@
 | [recut 素材開放與排除清單](recut-asset-exclusions.md) | AI 能挑選的 Fluent Emoji 範圍與排除理由 |
 | [recut 渲染工具](../../../short_render/README.md) | 「程式化動畫＋老師原片原音」plan 驗證與渲染 CLI（`recut-v1`）；本機工具，尚未串接後端與前端 |
 
-`evidence/` 待有本功能實際證據才加入；`archive/` 僅收已被取代版本。`specs/` 內腳本為主要版本。
+[`evidence/`](evidence/README.md) 目前放 recut 設計比較圖，驗收證據待有實際結果再加入；`archive/` 僅收已被取代版本。`specs/` 內腳本為主要版本。

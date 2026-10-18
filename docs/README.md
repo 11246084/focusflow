@@ -35,7 +35,7 @@
 | [開發與維運](40_Operations/README.md) | 開發工具、部署與憑證文件 |
 | [會議紀錄](50_Meetings/README.md) | 教授會議與組內會議 |
 | [視覺識別](60_Brand/README.md) | Logo 與各格式素材 |
-| [歷史歸檔](90_Archive/README.md) | 草稿、學習紀錄、外部範例及相同副本 |
+| [歷史歸檔](90_Archive/README.md) | 學習筆記、AI 對話紀錄、常用外部範例及 [recut 原型製作紀錄](90_Archive/recut-prototype-log-2026-10-14.md)；大檔與舊版改存雲端「學校專題」 |
 | [本次搬移與新增紀錄](10_Project_History/docs-reorganization-2026-09-13.md) | 原路徑、新路徑、雜湊及檢查結果 |
 
 ## 文件責任

@@ -25,10 +25,10 @@ Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修
 
 | 任務類型 | 規則檔 |
 |----------|--------|
-| API route / controller / response / error code | `@.claude/rules/api-design.md` |
-| Mongoose schema / index / data access | `@.claude/rules/database.md` |
-| 測試或 test harness | `@.claude/rules/testing.md` |
-| JWT / password / validation / CORS | `@.claude/rules/security.md` |
+| API route / controller / response / error code | `.claude/rules/api-design.md` |
+| Mongoose schema / index / data access | `.claude/rules/database.md` |
+| 測試或 test harness | `.claude/rules/testing.md` |
+| JWT / password / validation / CORS | `.claude/rules/security.md` |
 
 ## 專案概述
 

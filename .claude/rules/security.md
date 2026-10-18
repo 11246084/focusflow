@@ -1,3 +1,13 @@
+---
+paths:
+  - "backend/src/middleware/**"
+  - "backend/src/services/auth.service.js"
+  - "backend/src/services/loginThrottle.service.js"
+  - "backend/src/utils/**"
+  - "backend/src/config/**"
+  - "backend/src/app.js"
+---
+
 # 安全規範
 
 > 適用範圍：`backend/src/middleware/`、`backend/src/services/auth.service.js`、`backend/src/utils/`

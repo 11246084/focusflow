@@ -1,3 +1,12 @@
+---
+paths:
+  - "backend/src/routes/**"
+  - "backend/src/controllers/**"
+  - "backend/src/services/**"
+  - "backend/src/utils/apiResponse.js"
+  - "backend/docs/openapi.yaml"
+---
+
 # API 設計規範
 
 > 適用範圍：`backend/src/routes/`、`backend/src/controllers/`、`backend/src/services/`

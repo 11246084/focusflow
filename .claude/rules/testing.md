@@ -1,3 +1,10 @@
+---
+paths:
+  - "backend/tests/**"
+  - "frontend/focus-flow/tests/**"
+  - "STT_Whisper/tests/**"
+---
+
 # 測試規範
 
 > 適用範圍：`backend/tests/`

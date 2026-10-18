@@ -1,3 +1,11 @@
+---
+paths:
+  - "backend/src/models/**"
+  - "backend/src/services/demoSeed.service.js"
+  - "STT_Whisper/src/mongodb_uploader.py"
+  - "database/**"
+---
+
 # 資料庫規範
 
 > 適用範圍：`backend/src/models/`、`STT_Whisper/src/mongodb_uploader.py`

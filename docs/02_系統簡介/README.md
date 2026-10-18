@@ -4,7 +4,7 @@
 
 交件檔：[Word](<output/四技第115413組-FocusFlow AI-系統簡介.docx>)、[PDF](<output/四技第115413組-FocusFlow AI-系統簡介.pdf>)，共 2 頁。10/13 複評只需繳 PDF 電子檔，不需紙本。
 
-規範：[115年_系統簡介規範.docx](../00_學校公告/115年_系統簡介規範.docx)。原稿：[初評最終版](<../00_Deliverables/System_Overview/source-documents/四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx>)。
+規範：[115年_系統簡介規範.docx](../00_學校公告/115年_系統簡介規範.docx)。版面範本：[初評最終版](<tools/templates/四技第115413組-FocusFlow AI-系統簡介_初評最終版.docx>)，`build_overview.py` 以它為底稿，不可刪；同版 PDF 存於雲端「學校專題/02_初評資料/系統簡介/」。
 
 規範共七節：前言、系統功能簡介、系統使用對象、系統特色、系統開發工具、系統使用環境、結論及未來發展。需包含組別、題目、指導教師、專題學生；大學部不得超過兩頁。
 

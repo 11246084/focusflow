@@ -23,7 +23,7 @@
     "backend/src/services/shortScriptTopic.service.js": "aff7cc608e3cc4833ad9e3eeb42bdbb25a2da2e8ed2bba1bbc7589dc4d6d6244",
     "backend/src/services/shortScript.service.js": "609b99c28ed482a1dced599f6ceeed0088b66626c7a919dfeba8ec1627391bb2",
     "backend/src/services/shortAssetPublish.service.js": "086681be79f67fe7c798aa3f06236699fbd0503721ef0fd182e823946053d550",
-    "docs/00_Deliverables/System_Manual/chapters/03_系統規格.md": "a0efa23b58c3843d4257d09ff5dade0af1e5246204c51303ab52ce14eb3af450"
+    "docs/01_系統手冊/chapters/03_系統規格.md": "a0efa23b58c3843d4257d09ff5dade0af1e5246204c51303ab52ce14eb3af450"
   },
   "referenceFiles": [
     {

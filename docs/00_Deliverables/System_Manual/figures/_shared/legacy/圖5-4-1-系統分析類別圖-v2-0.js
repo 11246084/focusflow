@@ -2,7 +2,7 @@
 // ooad-phase:   需求分析
 // chapter:      5-4
 // realizes:     UC-01～UC-09（全系統分析類別）
-// source:       docs/00_Deliverables/System_Manual/chapters/05_需求模型.md（表5-4-1 主要分析類別）
+// source:       docs/01_系統手冊/chapters/05_需求模型.md（表5-4-1 主要分析類別）
 // verified:     2026-09-21
 // status:       draft
 // implemented:  partial

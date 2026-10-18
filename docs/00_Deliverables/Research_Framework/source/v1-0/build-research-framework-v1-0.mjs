@@ -153,7 +153,7 @@ const sources={
  R04:['backend/src/services/contextualQuestion.service.js','backend/src/services/qa.service.js','backend/src/services/answerGeneration.service.js','backend/src/services/leafContextSelection.service.js','backend/src/config/env.js'],
  R05:['backend/src/services/answerGeneration.service.js'],
  R06:['backend/src/services/qa.service.js','frontend/focus-flow/src/pages/StudentCourses.jsx'],
- R07:['backend/src/services/shortScriptTopic.service.js','backend/src/services/shortScript.service.js','backend/src/services/shortAssetPublish.service.js','docs/00_Deliverables/System_Manual/chapters/03_系統規格.md'],
+ R07:['backend/src/services/shortScriptTopic.service.js','backend/src/services/shortScript.service.js','backend/src/services/shortAssetPublish.service.js','docs/01_系統手冊/chapters/03_系統規格.md'],
 };
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const sourceFiles=Object.fromEntries([...new Set(Object.values(sources).flat())].map(p=>[p,hash(fs.readFileSync(path.join(root,p)))]));

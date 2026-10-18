@@ -48,7 +48,7 @@
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
   --diagram-dir docs/00_Deliverables/System_Manual/figures/ch06 `
   --image-dir docs/00_Deliverables/System_Manual/figures/ch06 `
-  --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md `
+  --chapter docs/01_系統手冊/chapters/06_設計模型.md `
   --toc docs/00_Deliverables/System_Manual/圖表目錄.md
 ```
 

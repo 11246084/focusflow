@@ -210,5 +210,5 @@ docs/00_Deliverables/System_Manual/source-documents/四技第115414組-*.pdf
 # Microsoft Word 暫存檔（開啟文件時的鎖定檔、系統手冊重建中的工作檔）
 # ================================
 ~$*
-docs/00_Deliverables/System_Manual/output/_building_*
-docs/00_Deliverables/System_Manual/output/mso*.tmp
+docs/01_系統手冊/output/_building_*
+docs/01_系統手冊/output/mso*.tmp

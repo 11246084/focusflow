@@ -12,7 +12,7 @@ FocusFlow 是 AI 教學影片問答系統，教師上傳影片後，學生可透
 - `.env`、`CLAUDE.local.md` 與 credentials 不作團隊共用規範；不得把 secret 寫入回報。
 - Backend 維持 `routes -> controllers -> services -> models`。response contract 變更需檢查前端、LINE、FAQ cache hit path、OpenAPI 與相關 route tests。
 - `database/tools/legacy/` 是歷史工具，不可拿舊 snake_case importer 更新目前 camelCase collection；pipeline 與 database uploader 使用前確認來源及目標契約。
-- 建立已授權的 commit 時用本人的 Git 身分，不加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer；AI 使用揭露依 [系統手冊 README](docs/00_Deliverables/System_Manual/README.md) 記錄。
+- 建立已授權的 commit 時用本人的 Git 身分，不加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer；AI 使用揭露依 [系統手冊 README](docs/01_系統手冊/README.md) 記錄。
 
 ## 按任務選讀
 

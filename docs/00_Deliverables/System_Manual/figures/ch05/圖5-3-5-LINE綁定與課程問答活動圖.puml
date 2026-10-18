@@ -11,7 +11,7 @@
 '
 ' 兩段式兩欄圖：第一段以連接點 (A) 結束，第二段由 (A) 接續。
 ' 產生方式：plantuml 產出 <本檔名>.png 與 <本檔名>_001.png，
-'           再以 node compose-columns.js 並排為一張圖（見 docs/reports/ch05-change-note.md）。
+'           再以 node compose-columns.js 並排為一張圖（見 docs/01_系統手冊/審查與修訂/ch05-change-note.md）。
 ' ============================================
 !include ../_shared/_style.puml
 

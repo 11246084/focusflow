@@ -15,7 +15,7 @@
 | 用途 | 路徑 |
 |---|---|
 | 手冊根目錄 | `docs/00_Deliverables/System_Manual/` |
-| 章節 Markdown | `docs/00_Deliverables/System_Manual/chapters/` |
+| 章節 Markdown | `docs/01_系統手冊/chapters/` |
 | 圖源母稿（PlantUML／Mermaid） | `docs/00_Deliverables/System_Manual/figures/ch{NN}/` |
 | 匯出圖檔與截圖 | `docs/00_Deliverables/System_Manual/figures/ch{NN}/`，與圖源同目錄 |
 | 共用樣式與製圖工具 | `docs/00_Deliverables/System_Manual/figures/_shared/` |

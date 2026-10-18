@@ -3,7 +3,7 @@
 ' ooad-phase:   測試
 ' chapter:      10-1
 ' realizes:     NFR-01, NFR-04, NFR-05, NFR-06, NFR-07, NFR-12
-' source:       docs/00_Deliverables/System_Manual/chapters/10_測試模型.md, backend/package.json, frontend/focus-flow/package.json（測試計畫與程式入口）
+' source:       docs/01_系統手冊/chapters/10_測試模型.md, backend/package.json, frontend/focus-flow/package.json（測試計畫與程式入口）
 ' verified:     2026-09-19
 ' status:       draft
 ' implemented:  partial

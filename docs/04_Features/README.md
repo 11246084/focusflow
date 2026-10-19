@@ -10,6 +10,7 @@
 | 自動產片原型操作 | [short_render 使用方式](../../short_render/README.md) |
 | 問答品質評測 | [方法與題庫](QA_Evaluation/README.md)、[具日期的評測報告](QA_Evaluation/reports/) |
 | 分層檢索 | [設計與資料契約](Hierarchical_Retrieval/README.md) |
+| YouTube 上傳恢復與原片清理 | [設計決策](YouTube_Lifecycle/decisions.md) |
 | 帳號、課程、影片、網頁與 LINE | [後端技術索引](../../backend/docs/current-state.md)、[網頁使用方式](../../frontend/focus-flow/README.md) |
 
 例：想知道短影片能否交付 → 讀狀態正本的短影片模組 → 再查該功能的規格與驗收證據；不能把規格中的目標當成驗收結果。

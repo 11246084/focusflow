@@ -1,5 +1,6 @@
 const Video = require('../models/video.model');
 const mongoose = require('mongoose');
+const { isLocalVideoSourceAvailable } = require('../utils/localVideoSource');
 
 const COURSE_BRIDGE_MODES = {
   STANDARD: 'standard',
@@ -253,6 +254,8 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
       fileName,
       file_name: fileName,
       file_path: plainVideo.filePath || plainVideo.file_path || null,
+      // 本機原片是否還在，重新處理按鈕據此停用並改提示補回原片（#21）。
+      sourceAvailable: isLocalVideoSourceAvailable(plainVideo.filePath),
       externalVideoId,
       ownership: VIDEO_OWNERSHIP_TYPES.APP_OWNED,
       qaScopeOnly: false,
@@ -282,6 +285,7 @@ function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
     ownership: VIDEO_OWNERSHIP_TYPES.PIPELINE_METADATA,
     fileName: fileName || null,
     filePath: plainVideo.filePath || null,
+    sourceAvailable: false,
     durationSec,
     createdAt: plainVideo.createdAt || null,
     updatedAt: plainVideo.updatedAt || null,

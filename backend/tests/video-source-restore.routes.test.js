@@ -108,6 +108,152 @@ describe('POST /videos/:videoId/source/restore', () => {
     return fs.readdirSync(tempUploadDir);
   }
 
+  it('學生被角色層擋下，不會寫入檔案', async () => {
+    markCleaned(teacherVideo());
+    const token = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+
+    const result = await restore(token);
+
+    assert.equal(result.status, 403);
+    assert.equal(result.body.error.code, 'FORBIDDEN');
+    assert.deepEqual(uploadedFiles(), []);
+    assert.equal(teacherVideo().filePath, null);
+  });
+
+  it('其他課程的教師回 403，並刪除剛上傳的檔案', async () => {
+    markCleaned(teacherVideo());
+    const token = await loginAs(serverContext.baseUrl, 'teacher2@focusflow.local', 'Teacher123!');
+
+    const result = await restore(token);
+
+    assert.equal(result.status, 403);
+    assert.equal(result.body.error.code, 'COURSE_MANAGE_DENIED');
+    assert.deepEqual(uploadedFiles(), []);
+    assert.equal(teacherVideo().filePath, null);
+  });
+
+  it('尚未清理的影片回 409，並刪除剛上傳的檔案', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const video = markCleaned(teacherVideo());
+    const notCleanedStates = [
+      { filePath: path.join(tempUploadDir, 'still-here.mp4') },
+      { youtubeUpload: { ...video.youtubeUpload, localCleanupAt: null } },
+      { youtubeVideoId: null },
+      { youtubeUpload: { ...video.youtubeUpload, status: 'failed' } },
+    ];
+
+    for (const state of notCleanedStates) {
+      resetStore();
+      Object.assign(markCleaned(teacherVideo()), state);
+
+      const result = await restore(token);
+
+      assert.equal(result.status, 409, JSON.stringify(state));
+      assert.equal(result.body.error.code, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');
+      assert.deepEqual(uploadedFiles(), []);
+    }
+  });
+
+  it('檔案型別、容器結構或缺檔不合格回 400，影片維持已清理', async () => {
+    markCleaned(teacherVideo());
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const wrongType = await restore(token, {
+      form: createRestoreForm({ type: 'text/plain', filename: 'notes.txt', contents: 'hello' }),
+    });
+    const truncated = await restore(token, {
+      form: createRestoreForm({ contents: VALID_MP4.subarray(0, 16) }),
+    });
+    const missingFile = await restore(token, { form: new FormData() });
+    const invalidId = await restore(token, { videoId: 'not-an-object-id' });
+
+    assert.equal(wrongType.status, 400);
+    assert.equal(wrongType.body.error.code, 'INVALID_FILE_TYPE');
+    assert.equal(truncated.status, 400);
+    assert.equal(truncated.body.error.code, 'INVALID_MEDIA_CONTAINER');
+    assert.equal(missingFile.status, 400);
+    assert.equal(missingFile.body.error.code, 'VIDEO_FILE_REQUIRED');
+    assert.equal(invalidId.status, 400);
+    assert.equal(invalidId.body.error.code, 'INVALID_ID');
+    assert.deepEqual(uploadedFiles(), []);
+    assert.equal(teacherVideo().filePath, null);
+    assert.ok(teacherVideo().youtubeUpload.localCleanupAt);
+  });
+
+  it('同課程另一支影片已使用相同檔案時回 409 DUPLICATE_VIDEO', async () => {
+    markCleaned(teacherVideo());
+    store.videos.push({
+      _id: newObjectId(),
+      courseId: ids.teacherCourse,
+      title: 'Another lecture',
+      sourceType: 'upload',
+      fileHash: crypto.createHash('sha256').update(VALID_MP4).digest('hex'),
+      uploadedBy: ids.teacher,
+      processing: createProcessingState({ status: 'completed' }),
+    });
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+
+    const result = await restore(token);
+
+    assert.equal(result.status, 409);
+    assert.equal(result.body.error.code, 'DUPLICATE_VIDEO');
+    assert.deepEqual(uploadedFiles(), []);
+    assert.equal(teacherVideo().filePath, null);
+  });
+
+  it('課程教師補回成功：寫回 filePath 與補回時間，播放欄位與 YouTube ID 不變', async () => {
+    markCleaned(teacherVideo());
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const before = await jsonRequest(serverContext.baseUrl, `/api/v1/videos/${ids.teacherVideo}`, { token });
+    const startedAt = Date.now();
+
+    const result = await restore(token);
+
+    assert.equal(before.body.data.video.sourceAvailable, false);
+    assert.equal(result.status, 200);
+    const files = uploadedFiles();
+    assert.equal(files.length, 1);
+    const video = teacherVideo();
+    assert.equal(path.resolve(video.filePath), path.join(tempUploadDir, files[0]));
+    assert.equal(video.fileName, 'restored-lecture.mp4');
+    assert.equal(video.fileHash, 'original-file-hash');
+    assert.equal(video.youtubeUpload.localCleanupAt, null);
+    assert.equal(video.youtubeUpload.localCleanupError, null);
+    assert.ok(new Date(video.youtubeUpload.localSourceRestoredAt).getTime() >= startedAt);
+    assert.equal(video.youtubeUpload.status, 'uploaded');
+    assert.equal(video.youtubeVideoId, YOUTUBE_ID);
+    assert.equal(video.videoUrl, YOUTUBE_URL);
+    assert.equal(video.sourceUrl, YOUTUBE_URL);
+    assert.equal(video.videoSource, 'youtube');
+    assert.equal(video.processing.status, 'completed');
+
+    // 回傳格式比照影片詳情。
+    const detail = await jsonRequest(serverContext.baseUrl, `/api/v1/videos/${ids.teacherVideo}`, { token });
+    assert.equal(result.body.data.video._id, detail.body.data.video._id);
+    assert.deepEqual(Object.keys(result.body.data.video).sort(), Object.keys(detail.body.data.video).sort());
+    assert.equal(result.body.data.video.sourceAvailable, true);
+    assert.equal(result.body.data.video.video_url, YOUTUBE_URL);
+    assert.equal(result.body.data.video.youtubeUpload.localCleanupAt, null);
+    assert.ok(result.body.data.video.youtubeUpload.localSourceRestoredAt);
+
+    // 補回後已不是清理狀態，再送一次回 409。
+    const again = await restore(token);
+    assert.equal(again.status, 409);
+    assert.equal(again.body.error.code, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');
+    assert.equal(uploadedFiles().length, 1);
+  });
+
+  it('admin 可補回任何課程的影片', async () => {
+    markCleaned(teacherVideo());
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');
+
+    const result = await restore(token);
+
+    assert.equal(result.status, 200);
+    assert.ok(teacherVideo().filePath);
+    assert.ok(teacherVideo().youtubeUpload.localSourceRestoredAt);
+  });
+
   it('原片已清理時重新處理回 SOURCE_UNAVAILABLE，影片不會被排入佇列', async () => {
     markCleaned(teacherVideo(), { processingStatus: 'failed' });
     const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
@@ -125,6 +271,55 @@ describe('POST /videos/:videoId/source/restore', () => {
     assert.equal(teacherVideo().processing.status, 'failed');
   });
 
+  it('補回後可重新處理，完成時不重新上傳 YouTube', async () => {
+    markCleaned(teacherVideo(), { processingStatus: 'failed' });
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const retryPath = `/api/v1/videos/${ids.teacherVideo}/processing/retry`;
+
+    const restored = await restore(token);
+    assert.equal(restored.status, 200);
+
+    const retried = await jsonRequest(serverContext.baseUrl, retryPath, { method: 'POST', token });
+    assert.equal(retried.status, 200);
+    assert.equal(retried.body.data.processing.status, 'queued');
+
+    const originalEnv = {
+      youtubeUploadEnabled: env.youtubeUploadEnabled,
+      youtubeUploadAccessToken: env.youtubeUploadAccessToken,
+      youtubeUploadCleanupEnabled: env.youtubeUploadCleanupEnabled,
+    };
+    const originalFetch = global.fetch;
+    const youtubeCalls = [];
+    env.youtubeUploadEnabled = true;
+    env.youtubeUploadAccessToken = 'access-token-for-tests';
+    env.youtubeUploadCleanupEnabled = false;
+    global.fetch = async (url, options) => {
+      if (/googleapis|youtube/i.test(String(url))) {
+        youtubeCalls.push(String(url));
+        throw new Error('YouTube must not be called for a restored video.');
+      }
+      return originalFetch(url, options);
+    };
+
+    try {
+      await videoProcessingService.startVideoProcessing(ids.teacherVideo);
+      await videoProcessingService.completeVideoProcessing(ids.teacherVideo, { durationSec: 60 });
+      const directAttempt = await youtubeUploadService.autoUploadVideoToYouTube(ids.teacherVideo);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(directAttempt, null);
+      assert.deepEqual(youtubeCalls, []);
+      const video = teacherVideo();
+      assert.equal(video.processing.status, 'completed');
+      assert.equal(video.youtubeVideoId, YOUTUBE_ID);
+      assert.equal(video.youtubeUpload.status, 'uploaded');
+      assert.equal(video.youtubeUpload.attemptCount, 1);
+      assert.equal(video.videoUrl, YOUTUBE_URL);
+    } finally {
+      global.fetch = originalFetch;
+      Object.assign(env, originalEnv);
+    }
+  });
 });
 
 describe('videoService.restoreVideoSource', () => {

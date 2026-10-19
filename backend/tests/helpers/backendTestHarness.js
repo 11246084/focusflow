@@ -47,6 +47,7 @@ const Conversation = require('../../src/models/conversation.model');
 const Message = require('../../src/models/message.model');
 const Feedback = require('../../src/models/feedback.model');
 const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
+const RuntimeSetting = require('../../src/models/runtimeSetting.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -74,6 +75,7 @@ const store = {
   messages: [],
   feedbacks: [],
   feedbackAttachments: [],
+  runtimeSettings: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
@@ -188,7 +190,12 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
   if (update.$push) {
     for (const [key, value] of Object.entries(update.$push)) {
       const currentValue = getNested(target, key);
-      const nextValue = Array.isArray(currentValue) ? [...currentValue, value] : [value];
+      const pushed = value && typeof value === 'object' && Array.isArray(value.$each) ? value.$each : [value];
+      let nextValue = Array.isArray(currentValue) ? [...currentValue, ...pushed] : [...pushed];
+      // 支援 { $each, $slice: -N } 只保留最後 N 筆。
+      if (value && typeof value === 'object' && Number.isInteger(value.$slice) && value.$slice < 0) {
+        nextValue = nextValue.slice(value.$slice);
+      }
       setNested(target, key, nextValue);
     }
   }
@@ -1199,6 +1206,16 @@ function installModelStubs() {
     store.feedbackAttachments.find((item) => matchesQuery(item, query)) || null
   );
 
+  RuntimeSetting.findOne = (query = {}) => createQuery(
+    store.runtimeSettings.find((item) => matchesQuery(item, query)) || null,
+  );
+  RuntimeSetting.find = (query = {}) => createQuery(
+    store.runtimeSettings.filter((item) => matchesQuery(item, query)),
+  );
+  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => createQuery(
+    findOneAndUpdateInStore(store.runtimeSettings, query, update, options),
+  );
+
   Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
   Avatar.findOneAndUpdate = async (query, update, options = {}) => {
     if (store.nextAvatarWriteError) {
@@ -1238,6 +1255,7 @@ function resetStore() {
   store.messages.length = 0;
   store.feedbacks.length = 0;
   store.feedbackAttachments.length = 0;
+  store.runtimeSettings.length = 0;
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.nextAvatarWriteError = null;

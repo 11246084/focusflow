@@ -588,6 +588,51 @@ async function scheduleYouTubeUploadRetry(videoId, user, { fetchImpl = global.fe
   return { videoId: String(video._id), status: 'retry_scheduled' };
 }
 
+// 恢復只撈「這一輪真的會處理」的影片（#8）：可安全重試、未達上限、已到重試時間的失敗，
+// 加上卡在 uploading 超過時限、待隔離的。舊查詢含永不重試的失敗且未排序，
+// 累積滿一批後每輪都撈到同樣幾筆，可重試的影片永遠輪不到。
+function buildRecoveryCandidateQuery(now) {
+  const staleBefore = new Date(now.getTime() - env.youtubeUploadStuckAfterMs);
+  return {
+    'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
+    $and: [
+      buildMissingYouTubeVideoIdCondition(),
+      {
+        $or: [
+          {
+            'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+            'youtubeUpload.retrySafe': true,
+            $and: [
+              {
+                $or: [
+                  { 'youtubeUpload.attemptCount': { $lt: env.youtubeUploadMaxAttempts } },
+                  { 'youtubeUpload.attemptCount': null },
+                  { 'youtubeUpload.attemptCount': { $exists: false } },
+                ],
+              },
+              {
+                $or: [
+                  { 'youtubeUpload.nextRetryAt': { $lte: now } },
+                  { 'youtubeUpload.nextRetryAt': null },
+                  { 'youtubeUpload.nextRetryAt': { $exists: false } },
+                ],
+              },
+            ],
+          },
+          {
+            'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
+            $or: [
+              { 'youtubeUpload.lastAttemptAt': { $lte: staleBefore } },
+              { 'youtubeUpload.lastAttemptAt': null },
+              { 'youtubeUpload.lastAttemptAt': { $exists: false } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 async function resolveRecoverySkipReason() {
   if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.RECOVERY))) return 'recovery_disabled';
   if (!isYouTubeUploadConfigured()) return 'upload_not_configured';
@@ -606,11 +651,10 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
 
   credentialState.lastRecoveryAttemptAt = now.toISOString();
   try {
-    const candidates = await Video.find({
-      'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
-      'youtubeUpload.status': { $in: [YOUTUBE_UPLOAD_STATUSES.FAILED, YOUTUBE_UPLOAD_STATUSES.UPLOADING] },
-      $and: [buildMissingYouTubeVideoIdCondition()],
-    }).limit(env.youtubeUploadRecoveryBatchSize).lean();
+    const candidates = await Video.find(buildRecoveryCandidateQuery(now))
+      .sort({ 'youtubeUpload.lastAttemptAt': 1 })
+      .limit(env.youtubeUploadRecoveryBatchSize)
+      .lean();
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
     let recovered = 0;
     let quarantined = 0;

@@ -270,6 +270,12 @@ function matchesQuery(document, query = {}) {
         return false;
       }
 
+      // 與 MongoDB 一致：缺欄位或 null 不符合 $lte。
+      if ('$lte' in value && (currentValue == null
+        || new Date(currentValue).getTime() > new Date(value.$lte).getTime())) {
+        return false;
+      }
+
       if ('$lt' in value) {
         const leftDate = new Date(currentValue).getTime();
         const rightDate = new Date(value.$lt).getTime();

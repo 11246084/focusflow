@@ -272,6 +272,78 @@ describe('YouTube 上傳恢復排程', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it('5 筆永不重試的失敗不會擋住可重試的影片', async () => {
+    for (let index = 0; index < 5; index += 1) {
+      addVideo({
+        filePath: makeSourceFile(`unsafe-${index}.mp4`),
+        youtubeVideoId: null,
+        youtubeUpload: {
+          status: 'failed',
+          attemptCount: 1,
+          retrySafe: false,
+          nextRetryAt: null,
+          lastAttemptAt: new Date(NOW.getTime() - (10 - index) * DAY_MS),
+        },
+      });
+    }
+    const retryable = addVideo({
+      filePath: makeSourceFile('retryable.mp4'),
+      youtubeVideoId: null,
+      youtubeUpload: {
+        status: 'failed',
+        attemptCount: 1,
+        retrySafe: true,
+        nextRetryAt: new Date(NOW.getTime() - 1000),
+        lastAttemptAt: new Date(NOW.getTime() - DAY_MS),
+      },
+    });
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: buildFetchMock().fetchImpl,
+      now: NOW,
+    });
+
+    assert.deepEqual(result, { recovered: 1, quarantined: 0, skipped: false });
+    assert.equal(retryable.youtubeUpload.status, 'uploaded');
+  });
+
+  it('未到重試時間的失敗不重試，到期後由下一輪重試', async () => {
+    const video = addVideo({
+      filePath: makeSourceFile('backoff.mp4'),
+      youtubeVideoId: null,
+      youtubeUpload: {
+        status: 'failed',
+        attemptCount: 1,
+        retrySafe: true,
+        nextRetryAt: new Date(NOW.getTime() + 60000),
+        lastAttemptAt: NOW,
+      },
+    });
+    const { fetchImpl, calls } = buildFetchMock();
+
+    const early = await youtubeUploadService.recoverPendingYouTubeUploads({ fetchImpl, now: NOW });
+    assert.deepEqual([early.recovered, calls.length, video.youtubeUpload.status], [0, 0, 'failed']);
+
+    const due = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl,
+      now: new Date(NOW.getTime() + 60000),
+    });
+    assert.deepEqual([due.recovered, video.youtubeUpload.status, video.youtubeUpload.attemptCount], [1, 'uploaded', 2]);
+  });
+
+  it('已達重試上限的失敗不再撈出', async () => {
+    const video = addVideo({
+      filePath: makeSourceFile('exhausted.mp4'),
+      youtubeVideoId: null,
+      youtubeUpload: { status: 'failed', attemptCount: 3, retrySafe: true, nextRetryAt: new Date(0) },
+    });
+    const { fetchImpl, calls } = buildFetchMock();
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({ fetchImpl, now: NOW });
+
+    assert.deepEqual([result.recovered, calls.length, video.youtubeUpload.status], [0, 0, 'failed']);
+  });
+
   it('執行期關閉恢復時整輪略過並回報原因', async () => {
     setRuntimeSwitch('recovery', false);
     const result = await youtubeUploadService.recoverPendingYouTubeUploads({ now: NOW });

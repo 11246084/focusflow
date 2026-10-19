@@ -200,6 +200,11 @@ const videoSchema = new mongoose.Schema(
             default: null,
             trim: true,
           },
+          // 清理後由教師或管理員補回原片的時間；保留期改從這個時間起算。
+          localSourceRestoredAt: {
+            type: Date,
+            default: null,
+          },
         },
         { _id: false },
       ),

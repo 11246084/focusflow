@@ -8,8 +8,10 @@ const env = require('../src/config/env');
 const RuntimeSetting = require('../src/models/runtimeSetting.model');
 const settingsService = require('../src/services/youtubeLifecycleSettings.service');
 const youtubeUploadService = require('../src/services/youtubeUpload.service');
+const lifecycleService = require('../src/services/youtubeLifecycle.service');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GB = 1024 ** 3;
 const NOW = new Date('2026-10-20T00:00:00.000Z');
 const ENV_KEYS = [
   'youtubeUploadEnabled',
@@ -429,4 +431,181 @@ describe('YouTube 上傳恢復排程', () => {
     assert.equal(result.quarantined, 0);
     assert.equal(video.youtubeUpload.status, 'uploaded');
   });
+});
+
+describe('youtubeLifecycle.service 原片清理', () => {
+  let originalEnv;
+  let uploadDir;
+
+  function makeUploadedVideo({ name, uploadedDaysAgo, restoredDaysAgo = null, sizeBytes = 1024, ...overrides }) {
+    const filePath = path.join(uploadDir, name);
+    fs.writeFileSync(filePath, Buffer.alloc(sizeBytes));
+    return addVideo({
+      filePath,
+      youtubeVideoId: `yt-${name}`,
+      videoSource: 'upload',
+      youtubeUpload: {
+        status: 'uploaded',
+        uploadedAt: new Date(NOW.getTime() - uploadedDaysAgo * DAY_MS),
+        localSourceRestoredAt: restoredDaysAgo === null ? null : new Date(NOW.getTime() - restoredDaysAgo * DAY_MS),
+      },
+      ...overrides,
+    });
+  }
+
+  const plentyOfSpace = async () => 100 * GB;
+
+  beforeEach(() => {
+    resetStore();
+    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
+    // 所有刪檔只發生在這個暫存目錄。
+    uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-yt-cleanup-'));
+    env.uploadDir = uploadDir;
+    env.youtubeUploadCleanupEnabled = true;
+    env.youtubeUploadCleanupMaxAgeDays = 180;
+    env.youtubeUploadCleanupMinFreeGb = 10;
+    env.youtubeUploadCleanupMinAgeDays = 14;
+  });
+
+  afterEach(() => {
+    Object.assign(env, originalEnv);
+    fs.rmSync(uploadDir, { recursive: true, force: true });
+  });
+
+  it('空間充足時只有超過最長保留期的影片列入，原因為 max_age', async () => {
+    const old = makeUploadedVideo({ name: 'old.mp4', uploadedDaysAgo: 181 });
+    makeUploadedVideo({ name: 'recent.mp4', uploadedDaysAgo: 100 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual(candidates.map((item) => [item.id, item.reason]), [[String(old._id), 'max_age']]);
+    assert.deepEqual(candidates[0].eligibleAt, new Date(NOW.getTime() - DAY_MS));
+    assert.equal(candidates[0].kind, 'video');
+    assert.equal(candidates[0].sizeBytes, 1024);
+  });
+
+  it('空間不足時從最早上傳完成的開始刪，回到門檻以上即停', async () => {
+    const oldest = makeUploadedVideo({ name: 'a.mp4', uploadedDaysAgo: 60, sizeBytes: 2048 });
+    makeUploadedVideo({ name: 'b.mp4', uploadedDaysAgo: 40, sizeBytes: 2048 });
+    makeUploadedVideo({ name: 'c.mp4', uploadedDaysAgo: 20, sizeBytes: 2048 });
+    const minFreeBytes = 10 * GB;
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({
+      now: NOW,
+      getFreeBytes: async () => minFreeBytes - 1000,
+    });
+
+    assert.deepEqual(candidates.map((item) => [item.id, item.reason]), [[String(oldest._id), 'low_space']]);
+  });
+
+  it('空間不足但未滿最短保留期的影片不刪', async () => {
+    makeUploadedVideo({ name: 'fresh-a.mp4', uploadedDaysAgo: 13 });
+    makeUploadedVideo({ name: 'fresh-b.mp4', uploadedDaysAgo: 1 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({
+      now: NOW,
+      getFreeBytes: async () => 0,
+    });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('超過最長保留期不論空間一律刪，並計入空間釋放量', async () => {
+    const expired = makeUploadedVideo({ name: 'expired.mp4', uploadedDaysAgo: 200, sizeBytes: 4096 });
+    makeUploadedVideo({ name: 'mid.mp4', uploadedDaysAgo: 30, sizeBytes: 4096 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({
+      now: NOW,
+      getFreeBytes: async () => 10 * GB - 4000,
+    });
+
+    assert.deepEqual(candidates.map((item) => [item.id, item.reason]), [[String(expired._id), 'max_age']]);
+  });
+
+  it('最長保留期設為 0 時只依空間清理', async () => {
+    env.youtubeUploadCleanupMaxAgeDays = 0;
+    makeUploadedVideo({ name: 'ancient.mp4', uploadedDaysAgo: 999 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('補回的原片保留期從補回時間重新起算', async () => {
+    makeUploadedVideo({ name: 'restored-max.mp4', uploadedDaysAgo: 400, restoredDaysAgo: 1 });
+    makeUploadedVideo({ name: 'restored-space.mp4', uploadedDaysAgo: 100, restoredDaysAgo: 5 });
+
+    const maxAge = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+    const lowSpace = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: async () => 0 });
+
+    assert.deepEqual([maxAge, lowSpace], [[], []]);
+  });
+
+  it('UPLOAD_DIR 外或被其他影片共用的檔案不列入候選', async () => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-yt-outside-'));
+    try {
+      const outsidePath = path.join(outsideDir, 'outside.mp4');
+      fs.writeFileSync(outsidePath, 'outside');
+      addVideo({
+        filePath: outsidePath,
+        youtubeVideoId: 'yt-outside',
+        youtubeUpload: { status: 'uploaded', uploadedAt: new Date(NOW.getTime() - 300 * DAY_MS) },
+      });
+      const shared = makeUploadedVideo({ name: 'shared.mp4', uploadedDaysAgo: 300 });
+      addVideo({ filePath: shared.filePath, processing: { status: 'processing' } });
+
+      const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+      assert.deepEqual(candidates, []);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('7 天預告列出 7 天內到期的影片與到期時間', async () => {
+    const soon = makeUploadedVideo({ name: 'soon.mp4', uploadedDaysAgo: 177 });
+    makeUploadedVideo({ name: 'later.mp4', uploadedDaysAgo: 170 });
+
+    const preview = await lifecycleService.buildYouTubeCleanupPreview({
+      scope: 'upcoming',
+      now: NOW,
+      getFreeBytes: plentyOfSpace,
+    });
+
+    assert.deepEqual(preview.items.map((item) => item.id), [String(soon._id)]);
+    assert.deepEqual(preview.items[0].eligibleAt, new Date(NOW.getTime() + 3 * DAY_MS));
+    assert.deepEqual([preview.count, preview.totalBytes, preview.windowDays], [1, 1024, 7]);
+  });
+
+  it('未知的預告範圍回傳 VALIDATION_ERROR', async () => {
+    await assert.rejects(
+      () => lifecycleService.listYouTubeCleanupCandidates({ scope: 'all' }),
+      (error) => error.code === 'VALIDATION_ERROR',
+    );
+  });
+
+  it('可用空間以 statfs 的 bavail 乘 bsize 計算，可注入假值', async () => {
+    const freeBytes = await lifecycleService.getUploadDirFreeBytes({
+      statfsImpl: async (target) => {
+        assert.equal(target, uploadDir);
+        return { bavail: 3, bsize: 4096 };
+      },
+    });
+    assert.equal(freeBytes, 12288);
+  });
+
+  it('查不到可用空間時只依最長保留期判斷', async () => {
+    const expired = makeUploadedVideo({ name: 'statfs-old.mp4', uploadedDaysAgo: 200 });
+    makeUploadedVideo({ name: 'statfs-mid.mp4', uploadedDaysAgo: 30 });
+
+    const preview = await lifecycleService.buildYouTubeCleanupPreview({
+      now: NOW,
+      getFreeBytes: async () => { throw new Error('statfs unavailable'); },
+    });
+
+    assert.deepEqual(preview.items.map((item) => item.id), [String(expired._id)]);
+    assert.equal(preview.freeBytes, null);
+    assert.match(preview.freeBytesError, /statfs unavailable/);
+  });
+
 });

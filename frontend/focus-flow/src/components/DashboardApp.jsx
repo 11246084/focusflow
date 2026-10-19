@@ -20,6 +20,7 @@ import AdminUsers       from '../pages/AdminUsers';
 import AdminCourses     from '../pages/AdminCourses';
 import AdminVideos      from '../pages/AdminVideos';
 import AdminFeedback    from '../pages/AdminFeedback';
+import AdminYouTubeLifecycle from '../pages/AdminYouTubeLifecycle';
 import AdminStats       from '../pages/AdminStats';
 import Profile           from '../pages/Profile';
 
@@ -28,7 +29,7 @@ function DashboardRouter({ role, sub, onNav, user, onProfileUpdated }) {
   const map = {
     student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile },
     teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortScripts: <TeacherShortScripts />, reviewShorts: <TeacherVideoReview />, profile },
-    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, feedback: <AdminFeedback />, stats: <AdminStats />, profile },
+    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, youtubeLifecycle: <AdminYouTubeLifecycle />, feedback: <AdminFeedback />, stats: <AdminStats />, profile },
   };
   return map[role]?.[sub] || null;
 }

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
   applyQuarantineItem,
+  describeSwitch,
   getCleanupPreview,
   getLifecycleSettings,
   listQuarantine,
@@ -36,6 +37,35 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   globalThis.localStorage = originalLocalStorage;
+});
+
+describe('兩層開關的停用原因', () => {
+  it('環境變數未允許時不可切換，並說明需改 VM 設定', () => {
+    const view = describeSwitch({ key: 'cleanup', envAllowed: false, runtimeEnabled: true, effective: false, reason: 'env_disabled' });
+    assert.equal(view.toggleable, false);
+    assert.equal(view.effective, false);
+    assert.match(view.note, /YOUTUBE_UPLOAD_CLEANUP_ENABLED/);
+    assert.match(view.note, /環境未允許/);
+  });
+
+  it('未設定時依預設：上傳與恢復視為開啟，清理視為關閉', () => {
+    const upload = describeSwitch({ key: 'upload', envAllowed: true, runtimeEnabled: null, effective: true, reason: null });
+    const cleanup = describeSwitch({ key: 'cleanup', envAllowed: true, runtimeEnabled: null, effective: false, reason: 'default_off' });
+    assert.equal(upload.unset, true);
+    assert.match(upload.note, /預設為開啟/);
+    assert.equal(upload.nextEnabled, false);
+    assert.equal(cleanup.unset, true);
+    assert.match(cleanup.note, /預設為關閉/);
+    assert.equal(cleanup.nextEnabled, true);
+  });
+
+  it('管理員停用後顯示為未生效，按鈕改為啟用', () => {
+    const view = describeSwitch({ key: 'recovery', envAllowed: true, runtimeEnabled: false, effective: false, reason: 'runtime_disabled' });
+    assert.equal(view.toggleable, true);
+    assert.equal(view.effective, false);
+    assert.equal(view.nextEnabled, true);
+    assert.match(view.note, /已由管理員停用/);
+  });
 });
 
 describe('YouTube 生命週期 API 呼叫', () => {

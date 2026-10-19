@@ -123,3 +123,68 @@ export async function restoreVideoSource(videoId, file) {
   if (!response.ok) throw buildApiError({ status: response.status, data });
   return data.data?.video || data.data || {};
 }
+
+// ---- 畫面判斷（純函式，供測試） ----
+
+// 回傳開關在畫面上的狀態：是否生效、能否切換、說明文字，以及按下後要送出的值。
+export function describeSwitch(sw = {}) {
+  const meta = SWITCH_META[sw.key] || { label: sw.key, description: '', envVar: '', defaultEnabled: false };
+  const effective = Boolean(sw.effective);
+  const toggleable = sw.envAllowed === true;
+  let note;
+  if (!toggleable) {
+    note = `環境未允許：VM 的 ${meta.envVar} 未開啟，需由有主機權限的人修改並重啟後才能切換。`;
+  } else if (sw.runtimeEnabled === null || sw.runtimeEnabled === undefined) {
+    note = meta.defaultEnabled
+      ? '尚未在此設定，依預設為開啟。'
+      : '尚未在此設定，依預設為關閉，需明確啟用一次。';
+  } else if (sw.runtimeEnabled) {
+    note = '已由管理員啟用。';
+  } else {
+    note = '已由管理員停用。';
+  }
+  return {
+    key: sw.key,
+    label: meta.label,
+    description: meta.description,
+    effective,
+    toggleable,
+    unset: sw.runtimeEnabled === null || sw.runtimeEnabled === undefined,
+    note,
+    nextEnabled: !effective,
+  };
+}
+
+export function describeSwitchChange(key, enabled) {
+  const label = SWITCH_META[key]?.label || key;
+  return enabled ? `啟用「${label}」` : `停用「${label}」`;
+}
+
+const SWITCH_CHANGE_NOTES = {
+  'upload:true': '之後處理完成的影片會自動上傳到 YouTube。',
+  'upload:false': '之後處理完成的影片不會上傳到 YouTube；正在上傳的影片會傳完。',
+  'recovery:true': '排程下一輪起會重傳可安全重試的失敗，並隔離卡住的影片。',
+  'recovery:false': '排程與「立即執行恢復」都會停止；已排入的重試不會再執行。',
+  'cleanup:false': '排程停止刪除原片；這一輪已刪除的檔案無法取回。',
+};
+
+// 切換開關前要給管理員確認的內容。
+export async function prepareSwitchChange(sw) {
+  const view = describeSwitch(sw);
+  if (!view.toggleable) throw new Error(view.note);
+  const enabled = view.nextEnabled;
+  const plan = {
+    key: view.key,
+    enabled,
+    title: describeSwitchChange(view.key, enabled),
+    summary: SWITCH_CHANGE_NOTES[`${view.key}:${enabled}`] || '',
+    preview: null,
+    danger: !enabled || view.key === 'cleanup',
+  };
+  return plan;
+}
+
+export function formatHistoryValue(value) {
+  if (value === null || value === undefined) return '未設定';
+  return value ? '開啟' : '關閉';
+}

@@ -1745,6 +1745,8 @@ paths:
         這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
 
         這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+
+        重試需要 `UPLOAD_DIR` 內的本機原片。原片已在 YouTube 上傳後清理（`youtubeUpload.localCleanupAt` 有值、`filePath` 為 null）或找不到時回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`，不會改從 YouTube 下載；前端依影片的 `sourceAvailable` 停用按鈕，並改用 `POST /api/v1/videos/{videoId}/source/restore` 補回原片。
       operationId: retryVideoProcessing
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -1764,7 +1766,24 @@ paths:
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
         '409':
-          $ref: '#/components/responses/VideoProcessingTransitionInvalidError'
+          description: processing 狀態不允許重試，或本機原片已清理／不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTransition:
+                  value:
+                    success: false
+                    message: Cannot transition video processing from completed to queued.
+                    error:
+                      code: VIDEO_PROCESSING_TRANSITION_INVALID
+                sourceUnavailable:
+                  value:
+                    success: false
+                    message: The local source file is unavailable for processing retry.
+                    error:
+                      code: VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE
   /api/v1/videos/{videoId}/youtube-upload/retry:
     post:
       tags:
@@ -4011,21 +4030,6 @@ components:
                 message: This video is metadata-only for QA scope and does not expose processing status.
                 error:
                   code: VIDEO_METADATA_ONLY
-    VideoProcessingTransitionInvalidError:
-      description: 目前 processing state 無法轉移到要求的目標狀態。
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            invalidTransition:
-              summary: processing 狀態轉移不合法
-              description: 目前影片的 processing state 與要求的目標狀態不相容，因此不能執行轉移。
-              value:
-                success: false
-                message: Cannot transition video processing from completed to queued.
-                error:
-                  code: VIDEO_PROCESSING_TRANSITION_INVALID
     QaRuntimeMisconfiguredError:
       description: QA runtime 設定對這次操作而言不合法。
       content:
@@ -4771,6 +4775,12 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        localSourceRestoredAt:
+          description: 清理後補回原片的時間；保留期從這個時間重新起算。
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
     Video:
       description: |
         影片回應主體。
@@ -4855,6 +4865,11 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        sourceAvailable:
+          type: boolean
+          description: |
+            `UPLOAD_DIR` 內是否有可供重新處理的本機原片。false 時 `POST /api/v1/videos/{videoId}/processing/retry` 會回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`；
+            若 `youtubeUpload.localCleanupAt` 有值，可改用補回原片。`metadataOnly` bridge video 一律為 false。
         durationSec:
           anyOf:
             - type: number

@@ -130,7 +130,8 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `VIDEO_BATCH_ITEM_FAILED` | 500 | 批次中的單支影片因未預期錯誤失敗；不公開內部錯誤細節 |
 | `VIDEO_BATCH_SCHEDULE_FAILED` | 500 | 批次 request 無法安全建立或啟動；已建立的影片會標記 processing failed |
 | `VIDEO_BATCH_RETRY_IN_PROGRESS` | 409 | 同一批次仍有執行中的 worker，暫不可啟動手動重試 |
-| `VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE` | 409 | 重試所需的本機來源檔不存在或不在允許的上傳目錄 |
+| `VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE` | 409 | 重試所需的本機來源檔不存在或不在允許的上傳目錄，含 YouTube 上傳後已清理的原片 |
+| `VIDEO_SOURCE_RESTORE_NOT_ALLOWED` | 409 | 補回原片只接受已清理的影片（YouTube 上傳完成、`filePath` 為 null、有 `localCleanupAt`），或同時送出的另一個補回已完成 |
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
 | `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |

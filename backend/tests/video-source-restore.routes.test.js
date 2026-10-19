@@ -75,6 +75,58 @@ function createRestoreForm({
   return formData;
 }
 
+describe('POST /videos/:videoId/source/restore', () => {
+  let serverContext;
+  let originalUploadDir;
+  let tempUploadDir;
+
+  before(async () => { serverContext = await startServer(); });
+  after(async () => { await stopServer(serverContext.server); });
+
+  beforeEach(() => {
+    resetStore();
+    // multer 與來源檢查都在呼叫時讀 env.uploadDir，測試檔案只寫進暫存目錄。
+    originalUploadDir = env.uploadDir;
+    tempUploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-restore-tests-'));
+    env.uploadDir = tempUploadDir;
+  });
+
+  afterEach(() => {
+    env.uploadDir = originalUploadDir;
+    fs.rmSync(tempUploadDir, { recursive: true, force: true });
+  });
+
+  async function restore(token, { videoId = ids.teacherVideo, form = createRestoreForm() } = {}) {
+    return jsonRequest(serverContext.baseUrl, `/api/v1/videos/${videoId}/source/restore`, {
+      method: 'POST',
+      token,
+      body: form,
+    });
+  }
+
+  function uploadedFiles() {
+    return fs.readdirSync(tempUploadDir);
+  }
+
+  it('原片已清理時重新處理回 SOURCE_UNAVAILABLE，影片不會被排入佇列', async () => {
+    markCleaned(teacherVideo(), { processingStatus: 'failed' });
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const before = await jsonRequest(serverContext.baseUrl, `/api/v1/videos/${ids.teacherVideo}`, { token });
+
+    const blocked = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/videos/${ids.teacherVideo}/processing/retry`,
+      { method: 'POST', token },
+    );
+
+    assert.equal(before.body.data.video.sourceAvailable, false);
+    assert.equal(blocked.status, 409);
+    assert.equal(blocked.body.error.code, 'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE');
+    assert.equal(teacherVideo().processing.status, 'failed');
+  });
+
+});
+
 describe('videoService.restoreVideoSource', () => {
   let originalUploadDir;
   let tempUploadDir;

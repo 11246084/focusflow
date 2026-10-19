@@ -9,7 +9,12 @@ const Course = require('../models/course.model');
 const mongoose = require('mongoose');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_PROCESSING_STATUSES, VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
+const {
+  VIDEO_PROCESSING_STATUSES,
+  VIDEO_SOURCE_TYPES,
+  USER_ROLES,
+  YOUTUBE_UPLOAD_STATUSES,
+} = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
 const {
@@ -40,6 +45,7 @@ const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { enqueueVideoProcessing } = require('./videoProcessingQueue.service');
 const { assertMediaIntegrity } = require('./mediaIntegrity.service');
 const { removeVideoNotifications } = require('./notification.service');
+const { isLocalVideoSourceAvailable } = require('../utils/localVideoSource');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -68,21 +74,31 @@ async function markUnexpectedSttExitFailed(videoId, failure) {
   await failVideoProcessing(videoId, failure);
 }
 
-function isSameOrDescendant(parentPath, candidatePath) {
-  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+// 已清理：YouTube 上傳完成、原片已由清理流程刪除（filePath 清空並記下 localCleanupAt）。
+function isLocalSourceCleaned(video) {
+  return Boolean(
+    video
+    && !video.filePath
+    && video.youtubeVideoId
+    && video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED
+    && video.youtubeUpload?.localCleanupAt,
+  );
+}
+
+function createRetrySourceUnavailableError() {
+  return new AppError(
+    'The local source file is unavailable for processing retry.',
+    409,
+    'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE',
+  );
 }
 
 function spawnLocalVideoPipeline({ videoId, filePath }, { onClose = null } = {}) {
   const normalizedVideoId = String(videoId || '').trim();
-  const normalizedPath = path.resolve(String(filePath || ''));
-  if (!normalizedVideoId || !filePath || !isSameOrDescendant(env.uploadDir, normalizedPath) || !existsSync(normalizedPath)) {
-    throw new AppError(
-      'The local source file is unavailable for processing retry.',
-      409,
-      'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE',
-    );
+  if (!normalizedVideoId || !isLocalVideoSourceAvailable(filePath)) {
+    throw createRetrySourceUnavailableError();
   }
+  const normalizedPath = path.resolve(String(filePath));
 
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
   const logPath = path.join(sttDir, 'data', `pipeline_${normalizedVideoId}.log`);
@@ -146,7 +162,14 @@ async function retryExistingVideoProcessing(videoId, user) {
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
   await assertCanManageCourse(user, course);
-  if (process.env.NODE_ENV !== 'test' && env.processingWebhookSecret !== 'processing-secret-for-tests') {
+  const skipLocalSourceChecks = process.env.NODE_ENV === 'test'
+    || env.processingWebhookSecret === 'processing-secret-for-tests';
+  // 原片已清理（#21）時一律擋下，不改走 YouTube 下載；先檢查來源再排入佇列，
+  // 避免影片卡在 queued。
+  if (isLocalSourceCleaned(video) || (!skipLocalSourceChecks && !isLocalVideoSourceAvailable(video.filePath))) {
+    throw createRetrySourceUnavailableError();
+  }
+  if (!skipLocalSourceChecks) {
     assertMediaIntegrity(video.filePath, video.fileName);
   }
   const queuedVideo = await queueVideoForProcessing(videoId);

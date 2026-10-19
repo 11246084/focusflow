@@ -10,6 +10,10 @@ const {
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
+const {
+  YOUTUBE_LIFECYCLE_SWITCHES,
+  isYouTubeLifecycleSwitchEnabled,
+} = require('./youtubeLifecycleSettings.service');
 
 const YOUTUBE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable';
@@ -330,9 +334,10 @@ async function uploadVideoFileToYouTube({ filePath, title, description = '' }, f
 }
 
 async function cleanupUploadedLocalVideo(videoId) {
-  // Cleanup requires both lifecycles to be terminal and verifies that no other
-  // Video references the path. Feature-off is the default deployment posture.
-  if (!env.youtubeUploadCleanupEnabled) return { cleaned: false, reason: 'disabled' };
+  // 每次刪檔前重新確認兩層開關（#14）：管理員中途關閉時，剩下的不再刪。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
+    return { cleaned: false, reason: 'disabled' };
+  }
 
   const video = await Video.findById(videoId);
   if (!video) return { cleaned: false, reason: 'video_not_found' };
@@ -401,6 +406,9 @@ async function autoUploadVideoToYouTube(
   { fetchImpl = global.fetch, allowRetry = true } = {},
 ) {
   const id = String(videoId);
+  if (runningUploadIds.has(id)) return null;
+  // 開關只在開始新上傳前檢查；已開始的上傳不中斷，避免製造隔離案例（#14）。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) return null;
   if (runningUploadIds.has(id)) return null;
   runningUploadIds.add(id);
   let attemptCount = 0;
@@ -566,6 +574,9 @@ async function assertRetryableUpload(videoId, user) {
   if (!isYouTubeUploadConfigured()) {
     throw new AppError('YouTube upload is not configured.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   }
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
+    throw new AppError('YouTube upload is disabled by an administrator.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+  }
   return video;
 }
 
@@ -577,11 +588,20 @@ async function scheduleYouTubeUploadRetry(videoId, user, { fetchImpl = global.fe
   return { videoId: String(video._id), status: 'retry_scheduled' };
 }
 
+async function resolveRecoverySkipReason() {
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.RECOVERY))) return 'recovery_disabled';
+  if (!isYouTubeUploadConfigured()) return 'upload_not_configured';
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) return 'upload_disabled';
+  return null;
+}
+
 async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = new Date() } = {}) {
   // Only explicitly retry-safe failures are replayed. Stale "uploading" rows
   // are quarantined because the remote upload may have succeeded already.
-  if (!env.youtubeUploadRecoveryEnabled || !isYouTubeUploadConfigured()) {
-    return { recovered: 0, quarantined: 0, skipped: true };
+  // 兩層開關在每輪開始前檢查（#14）。
+  const skipReason = await resolveRecoverySkipReason();
+  if (skipReason) {
+    return { recovered: 0, quarantined: 0, skipped: true, reason: skipReason };
   }
 
   credentialState.lastRecoveryAttemptAt = now.toISOString();
@@ -748,6 +768,7 @@ function scheduleYouTubeAutoUpload(video) {
     return null;
   }
 
+  // 執行期開關由 autoUploadVideoToYouTube 讀資料庫判斷；這裡只做同步的環境檢查。
   return autoUploadVideoToYouTube(String(video._id), { allowRetry: false }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`YouTube auto upload scheduling failed for video ${video._id}.`, error);

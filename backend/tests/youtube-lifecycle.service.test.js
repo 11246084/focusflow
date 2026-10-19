@@ -1,10 +1,15 @@
 const assert = require('node:assert/strict');
 const { afterEach, beforeEach, describe, it } = require('node:test');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { ids, resetStore, store } = require('./helpers/backendTestHarness');
 const env = require('../src/config/env');
 const RuntimeSetting = require('../src/models/runtimeSetting.model');
 const settingsService = require('../src/services/youtubeLifecycleSettings.service');
+const youtubeUploadService = require('../src/services/youtubeUpload.service');
 
+const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = new Date('2026-10-20T00:00:00.000Z');
 const ENV_KEYS = [
   'youtubeUploadEnabled',
@@ -29,6 +34,51 @@ const ENV_KEYS = [
   'uploadDir',
 ];
 
+function jsonResponse(payload, { status = 200, headers = {} } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: (name) => headers[String(name).toLowerCase()] ?? null },
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  };
+}
+
+async function drainStream(stream) {
+  if (!stream || typeof stream.on !== 'function') return;
+  await new Promise((resolve, reject) => {
+    stream.on('error', reject);
+    stream.on('end', resolve);
+    stream.resume();
+  });
+}
+
+async function waitFor(predicate, attempts = 200) {
+  for (let index = 0; index < attempts; index += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for asynchronous state.');
+}
+
+// 上傳 bytes 那一步可以被卡住，用來模擬「進行中的上傳」。
+function buildFetchMock({ gate = null, youtubeId = 'ytLifecycle123' } = {}) {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push(String(url));
+    if (String(url).includes('oauth2.googleapis.com/token')) {
+      return jsonResponse({ access_token: 'access-token-for-tests' });
+    }
+    if (String(url).includes('uploadType=resumable')) {
+      return jsonResponse({}, { headers: { location: 'https://upload.youtube.test/session' } });
+    }
+    if (gate) await gate;
+    await drainStream(options.body);
+    return jsonResponse({ id: youtubeId });
+  };
+  return { fetchImpl, calls };
+}
+
 function setRuntimeSwitch(key, value) {
   const settingKey = `youtubeLifecycle.${key}`;
   const existing = store.runtimeSettings.find((item) => item.key === settingKey);
@@ -37,6 +87,21 @@ function setRuntimeSwitch(key, value) {
     return;
   }
   store.runtimeSettings.push({ key: settingKey, value, history: [] });
+}
+
+let videoCounter = 0;
+function addVideo(overrides = {}) {
+  videoCounter += 1;
+  const video = {
+    _id: `6a0000000000000000${String(videoCounter).padStart(6, '0')}`,
+    courseId: ids.teacherCourse,
+    title: `Lifecycle video ${videoCounter}`,
+    uploadedBy: ids.teacher,
+    processing: { status: 'completed' },
+    ...overrides,
+  };
+  store.videos.push(video);
+  return video;
 }
 
 describe('youtubeLifecycleSettings.service 兩層開關', () => {
@@ -172,4 +237,76 @@ describe('youtubeLifecycleSettings.service 兩層開關', () => {
       (error) => error.code === 'VALIDATION_ERROR',
     );
   });
+});
+
+describe('YouTube 上傳恢復排程', () => {
+  let originalEnv;
+  let tempDir;
+
+  function makeSourceFile(name) {
+    const filePath = path.join(tempDir, name);
+    fs.writeFileSync(filePath, 'fake video bytes');
+    return filePath;
+  }
+
+  beforeEach(() => {
+    resetStore();
+    youtubeUploadService.resetYouTubeUploadState();
+    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
+    env.youtubeUploadEnabled = true;
+    env.youtubeClientId = 'client-id-for-tests';
+    env.youtubeClientSecret = 'client-secret-for-tests';
+    env.youtubeRefreshToken = 'refresh-token-for-tests';
+    env.youtubeUploadAccessToken = '';
+    env.youtubeUploadMaxAttempts = 3;
+    env.youtubeUploadRetryBaseMs = 60000;
+    env.youtubeUploadRecoveryEnabled = true;
+    env.youtubeUploadRecoveryBatchSize = 5;
+    env.youtubeUploadStuckAfterMs = 900000;
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-yt-recovery-'));
+  });
+
+  afterEach(() => {
+    youtubeUploadService.resetYouTubeUploadState();
+    Object.assign(env, originalEnv);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('執行期關閉恢復時整輪略過並回報原因', async () => {
+    setRuntimeSwitch('recovery', false);
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({ now: NOW });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: true, reason: 'recovery_disabled' });
+  });
+
+  it('執行期關閉上傳時恢復也略過', async () => {
+    setRuntimeSwitch('upload', false);
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({ now: NOW });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: true, reason: 'upload_disabled' });
+  });
+
+  it('上傳中途關閉上傳開關不會中斷，已開始的上傳照常完成', async () => {
+    const video = addVideo({ filePath: makeSourceFile('in-flight.mp4'), youtubeVideoId: null });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const { fetchImpl } = buildFetchMock({ gate });
+
+    const upload = youtubeUploadService.autoUploadVideoToYouTube(String(video._id), { fetchImpl });
+    await waitFor(() => video.youtubeUpload?.status === 'uploading');
+    await settingsService.setYouTubeLifecycleSwitch({ key: 'upload', enabled: false, user: { id: ids.admin } });
+    release();
+
+    assert.equal(await upload, 'ytLifecycle123');
+    assert.equal(video.youtubeUpload.status, 'uploaded');
+  });
+
+  it('上傳開關關閉後不開始新的上傳', async () => {
+    setRuntimeSwitch('upload', false);
+    const video = addVideo({ filePath: makeSourceFile('blocked.mp4'), youtubeVideoId: null });
+    const { fetchImpl, calls } = buildFetchMock();
+
+    const result = await youtubeUploadService.autoUploadVideoToYouTube(String(video._id), { fetchImpl });
+
+    assert.deepEqual([result, calls.length, video.youtubeUpload], [null, 0, undefined]);
+  });
+
 });

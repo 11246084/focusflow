@@ -53,6 +53,13 @@ const credentialState = {
   lastCleanupVideoId: null,
 };
 const runningUploadIds = new Set();
+// 恢復排程狀態（decisions.md #7）。同一時間只跑一輪，避免長上傳與下一輪重疊。
+const recoveryScheduler = {
+  timer: null,
+  intervalMs: null,
+  running: false,
+  startedAt: null,
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -648,7 +655,12 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
   if (skipReason) {
     return { recovered: 0, quarantined: 0, skipped: true, reason: skipReason };
   }
+  if (recoveryScheduler.running) {
+    return { recovered: 0, quarantined: 0, skipped: true, reason: 'already_running' };
+  }
 
+  recoveryScheduler.running = true;
+  recoveryScheduler.startedAt = now.toISOString();
   credentialState.lastRecoveryAttemptAt = now.toISOString();
   try {
     const candidates = await Video.find(buildRecoveryCandidateQuery(now))
@@ -661,6 +673,8 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
 
     for (const video of candidates) {
       if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
+        // 同一行程還在傳的影片只是比較久，不是卡住；只有行程外（例如重啟前）留下的才隔離。
+        if (runningUploadIds.has(String(video._id))) continue;
         const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
         const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
@@ -706,7 +720,58 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
   } catch (error) {
     credentialState.lastRecoveryError = shortErrorMessage(error);
     throw error;
+  } finally {
+    recoveryScheduler.running = false;
+    recoveryScheduler.startedAt = null;
   }
+}
+
+// 管理員「立即執行恢復」（#15）：與排程同一個入口，受兩層開關限制；
+// 上一輪還沒跑完時回 skipped（reason: already_running）。
+function runYouTubeUploadRecoveryNow({ fetchImpl = global.fetch, now = new Date() } = {}) {
+  return recoverPendingYouTubeUploads({ fetchImpl, now });
+}
+
+// 開機跑一次，之後依 YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS 重複（#7）；0 代表只在開機跑。
+// 環境變數不允許時不啟動：執行期設定無法越過總開關，排程跑了也只會略過。
+function startYouTubeUploadRecoveryScheduler({
+  intervalMs = env.youtubeUploadRecoveryIntervalMs,
+  fetchImpl = global.fetch,
+} = {}) {
+  if (!env.youtubeUploadRecoveryEnabled) return null;
+  const runOnce = (label) => recoverPendingYouTubeUploads({ fetchImpl }).catch((error) => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`${label} YouTube upload recovery failed.`, error);
+    }
+    return null;
+  });
+
+  const initialRun = runOnce('Initial');
+  if (intervalMs > 0 && !recoveryScheduler.timer) {
+    recoveryScheduler.intervalMs = intervalMs;
+    recoveryScheduler.timer = setInterval(() => runOnce('Scheduled'), intervalMs);
+    recoveryScheduler.timer.unref?.();
+  }
+  return initialRun;
+}
+
+function stopYouTubeUploadRecoveryScheduler() {
+  if (recoveryScheduler.timer) clearInterval(recoveryScheduler.timer);
+  recoveryScheduler.timer = null;
+  recoveryScheduler.intervalMs = null;
+}
+
+function getYouTubeUploadRecoverySchedulerState() {
+  return {
+    envAllowed: Boolean(env.youtubeUploadRecoveryEnabled),
+    timerActive: Boolean(recoveryScheduler.timer),
+    intervalMs: recoveryScheduler.timer ? recoveryScheduler.intervalMs : null,
+    running: recoveryScheduler.running,
+    runningSince: recoveryScheduler.startedAt,
+    lastAttemptAt: credentialState.lastRecoveryAttemptAt,
+    lastSuccessAt: credentialState.lastRecoverySuccessAt,
+    lastError: credentialState.lastRecoveryError,
+  };
 }
 
 // 把頻道上的影片改成指定隱私狀態（預設 private）。需要 `youtube.force-ssl` scope；
@@ -998,6 +1063,9 @@ function resetYouTubeUploadState() {
   credentialState.lastCleanupError = null;
   credentialState.lastCleanupVideoId = null;
   runningUploadIds.clear();
+  stopYouTubeUploadRecoveryScheduler();
+  recoveryScheduler.running = false;
+  recoveryScheduler.startedAt = null;
 }
 
 module.exports = {
@@ -1016,11 +1084,15 @@ module.exports = {
   normalizePrivacyStatus,
   privatizeVideoOnDelete,
   privatizeVideosOnDelete,
+  getYouTubeUploadRecoverySchedulerState,
   recoverPendingYouTubeUploads,
   resetYouTubeUploadState,
+  runYouTubeUploadRecoveryNow,
   scheduleYouTubeAutoUpload,
   scheduleYouTubeUploadRetry,
   setVideoPrivacy,
+  startYouTubeUploadRecoveryScheduler,
+  stopYouTubeUploadRecoveryScheduler,
   uploadLocalVideo,
   uploadVideoFileToYouTube,
   verifyYouTubeCredentials,

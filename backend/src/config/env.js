@@ -289,6 +289,11 @@ module.exports = {
     900000,
     'YOUTUBE_UPLOAD_STUCK_AFTER_MS',
   ),
+  // 恢復排程間隔；0 代表只在開機跑一次。
+  youtubeUploadRecoveryIntervalMs: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS,
+    300000,
+  ),
   youtubeUploadCleanupEnabled:
     String(process.env.YOUTUBE_UPLOAD_CLEANUP_ENABLED || 'false').toLowerCase() === 'true',
   // 刪除影片時把 FocusFlow 自己上傳的 YouTube 影片轉為 private（不刪除，可還原）。

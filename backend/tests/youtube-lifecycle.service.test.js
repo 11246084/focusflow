@@ -352,8 +352,37 @@ describe('YouTube 上傳恢復排程', () => {
 
   it('執行期關閉上傳時恢復也略過', async () => {
     setRuntimeSwitch('upload', false);
-    const result = await youtubeUploadService.recoverPendingYouTubeUploads({ now: NOW });
+    const result = await youtubeUploadService.runYouTubeUploadRecoveryNow({ now: NOW });
     assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: true, reason: 'upload_disabled' });
+  });
+
+  it('排程開機先跑一次，之後定期執行，停止後清除計時器', async () => {
+    const first = addVideo({
+      filePath: makeSourceFile('first.mp4'),
+      youtubeVideoId: null,
+      youtubeUpload: { status: 'failed', attemptCount: 1, retrySafe: true, nextRetryAt: new Date(0) },
+    });
+    const { fetchImpl } = buildFetchMock();
+
+    await youtubeUploadService.startYouTubeUploadRecoveryScheduler({ intervalMs: 20, fetchImpl });
+    assert.equal(first.youtubeUpload.status, 'uploaded');
+    assert.equal(youtubeUploadService.getYouTubeUploadRecoverySchedulerState().timerActive, true);
+
+    const second = addVideo({
+      filePath: makeSourceFile('second.mp4'),
+      youtubeVideoId: null,
+      youtubeUpload: { status: 'failed', attemptCount: 1, retrySafe: true, nextRetryAt: new Date(0) },
+    });
+    await waitFor(() => second.youtubeUpload.status === 'uploaded');
+
+    youtubeUploadService.stopYouTubeUploadRecoveryScheduler();
+    assert.equal(youtubeUploadService.getYouTubeUploadRecoverySchedulerState().timerActive, false);
+  });
+
+  it('環境變數不允許恢復時不啟動排程', () => {
+    env.youtubeUploadRecoveryEnabled = false;
+    assert.equal(youtubeUploadService.startYouTubeUploadRecoveryScheduler({ intervalMs: 20 }), null);
+    assert.equal(youtubeUploadService.getYouTubeUploadRecoverySchedulerState().timerActive, false);
   });
 
   it('上傳中途關閉上傳開關不會中斷，已開始的上傳照常完成', async () => {
@@ -381,4 +410,23 @@ describe('YouTube 上傳恢復排程', () => {
     assert.deepEqual([result, calls.length, video.youtubeUpload], [null, 0, undefined]);
   });
 
+  it('同一行程進行中的長上傳不會被恢復誤判為卡住而隔離', async () => {
+    const video = addVideo({ filePath: makeSourceFile('long-upload.mp4'), youtubeVideoId: null });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const upload = youtubeUploadService.autoUploadVideoToYouTube(String(video._id), {
+      fetchImpl: buildFetchMock({ gate }).fetchImpl,
+    });
+    await waitFor(() => video.youtubeUpload?.status === 'uploading');
+
+    const result = await youtubeUploadService.recoverPendingYouTubeUploads({
+      fetchImpl: buildFetchMock().fetchImpl,
+      now: new Date(Date.now() + DAY_MS),
+    });
+    release();
+    await upload;
+
+    assert.equal(result.quarantined, 0);
+    assert.equal(video.youtubeUpload.status, 'uploaded');
+  });
 });

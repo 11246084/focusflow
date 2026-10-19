@@ -4,12 +4,16 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
   applyQuarantineItem,
   buildCleanupEnableSummary,
+  describeApplyConfirm,
+  describeResetConfirm,
   describeSwitch,
   formatBytes,
   getCleanupPreview,
   getLifecycleSettings,
+  getQuarantineControls,
   listQuarantine,
   lookupQuarantineItem,
+  parseYouTubeVideoId,
   prepareSwitchChange,
   resetQuarantineItem,
   runRecoveryNow,
@@ -180,5 +184,52 @@ describe('YouTube 生命週期 API 呼叫', () => {
       { ok: false, status: 409 },
     ));
     await assert.rejects(resetQuarantineItem('video', 'v1'), (error) => error.code === 'YOUTUBE_UPLOAD_RETRY_UNSAFE' && error.status === 409);
+  });
+});
+
+describe('待處理清單的操作（#17）', () => {
+  it('尚未查詢時顯示查詢按鈕，不顯示手動輸入', () => {
+    const controls = getQuarantineControls({ searchable: null, lookup: null });
+    assert.equal(controls.showLookup, true);
+    assert.equal(controls.showManualInput, false);
+  });
+
+  it('憑證無法讀頻道時隱藏查詢、改為手動輸入', () => {
+    assert.deepEqual(
+      getQuarantineControls({ searchable: false, lookup: null }),
+      { showLookup: false, showManualInput: true, matches: [] },
+    );
+    const afterLookup = getQuarantineControls({ searchable: null, lookup: { loading: false, searchable: false, matches: [] } });
+    assert.equal(afterLookup.showLookup, false);
+    assert.equal(afterLookup.showManualInput, true);
+  });
+
+  it('查到結果時列出供確認；查無結果時開放手動輸入', () => {
+    const match = { youtubeVideoId: 'abcdefghijk', title: 'week3' };
+    const found = getQuarantineControls({ lookup: { loading: false, searchable: true, matches: [match] } });
+    assert.equal(found.showLookup, true);
+    assert.equal(found.showManualInput, false);
+    assert.deepEqual(found.matches, [match]);
+    const none = getQuarantineControls({ lookup: { loading: false, searchable: true, matches: [] } });
+    assert.equal(none.showManualInput, true);
+  });
+
+  it('確認文字說明系統會先驗證影片屬於自家頻道，重設文字警告重複上傳', () => {
+    const item = { kind: 'video', id: 'v1', title: 'week3' };
+    const apply = describeApplyConfirm(item, { youtubeVideoId: 'abcdefghijk', title: 'week3 lecture' });
+    assert.match(apply.summary, /abcdefghijk/);
+    assert.match(apply.summary, /屬於自家頻道/);
+    assert.match(apply.detail, /week3 lecture/);
+    assert.match(describeResetConfirm(item).summary, /兩支相同的影片/);
+  });
+
+  it('手動輸入接受影片 ID 與常見網址，其餘拒絕', () => {
+    assert.equal(parseYouTubeVideoId(' dQw4w9WgXcQ '), 'dQw4w9WgXcQ');
+    assert.equal(parseYouTubeVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=3'), 'dQw4w9WgXcQ');
+    assert.equal(parseYouTubeVideoId('https://youtu.be/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+    assert.equal(parseYouTubeVideoId('https://youtube.com/shorts/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+    assert.equal(parseYouTubeVideoId('https://studio.youtube.com/video/dQw4w9WgXcQ/edit'), 'dQw4w9WgXcQ');
+    assert.equal(parseYouTubeVideoId('short'), '');
+    assert.equal(parseYouTubeVideoId('https://example.com/watch?v=dQw4w9WgXcQ'), '');
   });
 });

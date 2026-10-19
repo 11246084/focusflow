@@ -210,6 +210,36 @@ export async function prepareSwitchChange(sw, { fetchPreview = getCleanupPreview
   return plan;
 }
 
+// 待處理清單每一筆要顯示哪些操作（#17）。
+// searchable：false 代表憑證不能讀頻道，隱藏查詢、改手動輸入；null 代表還不知道。
+export function getQuarantineControls({ searchable = null, lookup = null } = {}) {
+  const channelReadable = lookup?.searchable ?? searchable;
+  const lookedUp = Boolean(lookup && !lookup.loading && !lookup.error && lookup.searchable !== undefined);
+  return {
+    showLookup: channelReadable !== false,
+    showManualInput: channelReadable === false || (lookedUp && (lookup.matches || []).length === 0),
+    matches: lookup?.matches || [],
+  };
+}
+
+export function describeApplyConfirm(item, match) {
+  const label = KIND_LABELS[item.kind] || '項目';
+  return {
+    title: '確認套用 YouTube 影片',
+    summary: `系統會先向 YouTube 確認影片 ${match.youtubeVideoId} 存在且屬於自家頻道，`
+      + `再把「${item.title || '未命名'}」標成已上傳並改用這支 YouTube 影片播放。填錯會讓學生看到別的影片。`,
+    detail: match.title ? `YouTube 標題：${match.title}` : `這支${label}的 YouTube 影片 ID：${match.youtubeVideoId}`,
+  };
+}
+
+export function describeResetConfirm(item) {
+  return {
+    title: '重設為可重試',
+    summary: `只在確定 YouTube 上沒有「${item.title || '未命名'}」時使用。重設後重試次數歸零，`
+      + '恢復排程會重新上傳；如果其實已經上傳過，頻道會出現兩支相同的影片。',
+  };
+}
+
 export function formatHistoryValue(value) {
   if (value === null || value === undefined) return '未設定';
   return value ? '開啟' : '關閉';
@@ -220,6 +250,30 @@ export function formatRecoveryResult(result = {}) {
   const quarantined = Number(result.quarantined) || 0;
   const skipped = Number(result.skipped) || 0;
   return `已執行恢復：重新排入 ${recovered} 支、隔離 ${quarantined} 支、略過 ${skipped} 支。`;
+}
+
+// 管理員手動輸入時接受影片 ID 或常見 YouTube 網址；格式不符回傳空字串。
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+export function parseYouTubeVideoId(input) {
+  const text = String(input || '').trim();
+  if (YOUTUBE_ID_PATTERN.test(text)) return text;
+  let url;
+  try {
+    url = new URL(text);
+  } catch {
+    return '';
+  }
+  const host = url.hostname.replace(/^www\.|^m\./, '');
+  let candidate = '';
+  if (host === 'youtu.be') {
+    candidate = url.pathname.slice(1).split('/')[0];
+  } else if (host === 'youtube.com' || host === 'studio.youtube.com') {
+    candidate = url.searchParams.get('v')
+      || url.pathname.match(/^\/(?:shorts|embed|live|video)\/([^/]+)/)?.[1]
+      || '';
+  }
+  return YOUTUBE_ID_PATTERN.test(candidate) ? candidate : '';
 }
 
 export function quarantineItemKey(item) {

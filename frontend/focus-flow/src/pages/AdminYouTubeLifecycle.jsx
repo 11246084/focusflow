@@ -1,18 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useModalDialog from '../hooks/useModalDialog';
 import {
   CLEANUP_REASON_LABELS,
   KIND_LABELS,
   SWITCH_META,
+  applyQuarantineItem,
+  describeApplyConfirm,
+  describeResetConfirm,
   describeSwitch,
   formatBytes,
   formatHistoryValue,
   formatRecoveryResult,
   getCleanupPreview,
   getLifecycleSettings,
+  getQuarantineControls,
+  listQuarantine,
+  lookupQuarantineItem,
+  parseYouTubeVideoId,
   prepareSwitchChange,
   quarantineItemKey,
+  resetQuarantineItem,
   runRecoveryNow,
   updateLifecycleSwitch,
 } from '../services/youtubeLifecycle';
@@ -20,6 +28,8 @@ import {
 const TITLE = { fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' };
 const MUTED = { color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.6 };
 const SMALL_BTN = { borderRadius: 8, padding: '5px 10px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' };
+const GHOST_BTN = { ...SMALL_BTN, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.86)' };
+const WARN_BTN = { ...SMALL_BTN, background: 'none', border: '1px solid rgba(251,191,36,0.5)', color: '#fcd34d' };
 const DANGER_BTN = { ...SMALL_BTN, background: 'none', border: '1px solid rgba(220,38,38,0.5)', color: '#fca5a5' };
 const OK_BTN = { ...SMALL_BTN, background: 'none', border: '1px solid rgba(74,222,128,0.5)', color: '#86efac' };
 
@@ -123,11 +133,19 @@ export default function AdminYouTubeLifecycle() {
   const [settingsError, setSettingsError] = useState('');
   const [upcoming, setUpcoming] = useState(null);
   const [upcomingError, setUpcomingError] = useState('');
+  const [quarantine, setQuarantine] = useState({ items: [], searchable: null });
+  const [quarantineLoading, setQuarantineLoading] = useState(true);
+  const [quarantineError, setQuarantineError] = useState('');
+  const [lookups, setLookups] = useState({});
+  const [manualIds, setManualIds] = useState({});
+  const [itemMessages, setItemMessages] = useState({});
+  const [listMessage, setListMessage] = useState(null);
   const [switchMessage, setSwitchMessage] = useState(null);
   const [recoveryMessage, setRecoveryMessage] = useState(null);
   const [preparing, setPreparing] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const quarantineRef = useRef(null);
 
   const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
@@ -139,6 +157,10 @@ export default function AdminYouTubeLifecycle() {
     getCleanupPreview('upcoming')
       .then((data) => { if (active) { setUpcoming(data); setUpcomingError(''); } })
       .catch((e) => { if (active) setUpcomingError(e.message || '無法取得即將到期清單。'); });
+    listQuarantine()
+      .then((data) => { if (active) { setQuarantine(data); setQuarantineError(''); } })
+      .catch((e) => { if (active) setQuarantineError(e.message || '無法取得待處理清單。'); })
+      .finally(() => { if (active) setQuarantineLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
 
@@ -185,6 +207,70 @@ export default function AdminYouTubeLifecycle() {
         const result = await runRecoveryNow();
         setRecoveryMessage({ tone: 'ok', text: formatRecoveryResult(result) });
         refresh();
+      },
+    });
+  }
+
+  function setItemMessage(item, message) {
+    setItemMessages((prev) => ({ ...prev, [quarantineItemKey(item)]: message }));
+  }
+
+  function removeQuarantineItem(item) {
+    const key = quarantineItemKey(item);
+    setQuarantine((prev) => ({ ...prev, items: prev.items.filter((entry) => quarantineItemKey(entry) !== key) }));
+  }
+
+  async function handleLookup(item) {
+    const key = quarantineItemKey(item);
+    setItemMessage(item, null);
+    setLookups((prev) => ({ ...prev, [key]: { loading: true } }));
+    try {
+      const data = await lookupQuarantineItem(item.kind, item.id);
+      setLookups((prev) => ({ ...prev, [key]: { loading: false, searchable: data?.searchable, matches: data?.matches || [] } }));
+      // 憑證不能讀頻道時，其他項目也查不到，整個清單改為手動輸入。
+      if (data?.searchable === false) setQuarantine((prev) => ({ ...prev, searchable: false }));
+    } catch (e) {
+      setLookups((prev) => ({ ...prev, [key]: { loading: false, error: e.message || '查詢失敗。' } }));
+    }
+  }
+
+  function confirmApply(item, match) {
+    const text = describeApplyConfirm(item, match);
+    setConfirmAction({
+      title: text.title,
+      summary: text.summary,
+      body: <div style={{ fontSize: 12.5, color: '#fb923c', overflowWrap: 'anywhere' }}>{text.detail}</div>,
+      confirmLabel: '確認套用',
+      run: async () => {
+        await applyQuarantineItem(item.kind, item.id, match.youtubeVideoId);
+        removeQuarantineItem(item);
+        setListMessage({ tone: 'ok', text: `「${item.title || '未命名'}」已標成上傳完成，系統會通知上傳的教師。` });
+      },
+    });
+  }
+
+  function handleManualApply(item) {
+    const key = quarantineItemKey(item);
+    const youtubeVideoId = parseYouTubeVideoId(manualIds[key]);
+    if (!youtubeVideoId) {
+      setItemMessage(item, { tone: 'error', text: '請輸入 11 碼的 YouTube 影片 ID 或影片網址。' });
+      return;
+    }
+    setItemMessage(item, null);
+    confirmApply(item, { youtubeVideoId });
+  }
+
+  function confirmReset(item) {
+    const text = describeResetConfirm(item);
+    setConfirmAction({
+      title: text.title,
+      summary: text.summary,
+      danger: true,
+      confirmLabel: '確認重設',
+      run: async () => {
+        await resetQuarantineItem(item.kind, item.id);
+        removeQuarantineItem(item);
+        setListMessage({ tone: 'ok', text: `「${item.title || '未命名'}」已重設為可重試，恢復排程會重新上傳。` });
       },
     });
   }
@@ -272,6 +358,86 @@ export default function AdminYouTubeLifecycle() {
               <CleanupItemList items={upcoming.items} emptyText="7 天內沒有將到期的原片。" />
             </>
           )}
+        </div>
+      </div>
+
+      {/* 待處理清單（#17）：不確定 YouTube 是否已收到的影片與短片 */}
+      <div ref={quarantineRef} id="youtube-quarantine" className="card" style={{ padding: 22, marginBottom: 12, scrollMarginTop: 12 }}>
+        <div style={{ ...TITLE, marginBottom: 4 }}>待處理（需要確認 YouTube 是否已收到）</div>
+        <div style={{ ...MUTED, marginBottom: 12 }}>
+          {quarantine.searchable === false
+            ? '目前的憑證無法讀取頻道上傳清單，請向頻道擁有者取得影片 ID 後手動輸入。'
+            : '先「查詢 YouTube」比對頻道上傳清單；找到就確認套用，確定沒有上傳才重設為可重試。'}
+        </div>
+        <Message message={listMessage} />
+        {quarantineError && <div role="alert" style={{ fontSize: 12, color: '#f87171' }}>{quarantineError}</div>}
+        {quarantineLoading && <div style={MUTED}>讀取中...</div>}
+        {!quarantineLoading && !quarantineError && quarantine.items.length === 0 && (
+          <div style={MUTED}>目前沒有待處理的項目。</div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {quarantine.items.map((item) => {
+            const key = quarantineItemKey(item);
+            const lookup = lookups[key];
+            const controls = getQuarantineControls({ searchable: quarantine.searchable, lookup });
+            return (
+              <div key={key} style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span className="badge bb">{KIND_LABELS[item.kind] || item.kind}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', overflowWrap: 'anywhere' }}>{item.title || '未命名'}</span>
+                    </div>
+                    <div style={{ ...MUTED, marginTop: 4 }}>
+                      {item.courseTitle || '—'} · 上傳者 {item.uploadedBy?.name || '—'} · 失敗於 {formatDateTime(item.failedAt)} · 已嘗試 {item.attemptCount ?? 0} 次
+                    </div>
+                    {item.error && <div style={{ fontSize: 12, color: '#fdba74', marginTop: 3, overflowWrap: 'anywhere' }}>{item.error}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    {controls.showLookup && (
+                      <button type="button" onClick={() => handleLookup(item)} disabled={lookup?.loading} style={GHOST_BTN}>
+                        <Ic n="search" s={11} /> {lookup?.loading ? '查詢中...' : '查詢 YouTube'}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => confirmReset(item)} style={WARN_BTN}>重設為可重試</button>
+                  </div>
+                </div>
+
+                {lookup?.error && <div role="alert" style={{ fontSize: 12, color: '#fb923c', marginTop: 8 }}>{lookup.error}</div>}
+                {controls.matches.length > 0 && (
+                  <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>頻道上找到 {controls.matches.length} 支描述相符的影片：</div>
+                    {controls.matches.map((match) => (
+                      <div key={match.youtubeVideoId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,0.85)', overflowWrap: 'anywhere' }}>
+                          {match.title || '（無標題）'}
+                          <span style={{ color: 'rgba(255,255,255,0.45)' }}> · {match.youtubeVideoId} · {formatDateTime(match.publishedAt)} · {match.privacyStatus || '—'}</span>
+                        </div>
+                        <button type="button" onClick={() => confirmApply(item, match)} style={OK_BTN}>確認套用</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {lookup && !lookup.loading && !lookup.error && lookup.searchable !== false && controls.matches.length === 0 && (
+                  <div style={{ ...MUTED, marginTop: 8 }}>頻道上找不到這支{KIND_LABELS[item.kind] || '項目'}。若確定沒有上傳，可重設為可重試。</div>
+                )}
+                {controls.showManualInput && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <input
+                      className="ff-input"
+                      aria-label={`${item.title || '項目'}的 YouTube 影片 ID`}
+                      placeholder="YouTube 影片 ID 或網址"
+                      value={manualIds[key] || ''}
+                      onChange={(e) => setManualIds((prev) => ({ ...prev, [key]: e.target.value }))}
+                      style={{ flex: '1 1 220px', padding: '8px 12px', fontSize: 12 }}
+                    />
+                    <button type="button" onClick={() => handleManualApply(item)} style={OK_BTN}>確認套用</button>
+                  </div>
+                )}
+                <Message message={itemMessages[key]} />
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -24,6 +24,7 @@ import {
   runRecoveryNow,
   updateLifecycleSwitch,
 } from '../services/youtubeLifecycle';
+import { OPEN_QUARANTINE_EVENT, consumePendingQuarantineOpen } from '../utils/notificationTarget';
 
 const TITLE = { fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' };
 const MUTED = { color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.6 };
@@ -163,6 +164,18 @@ export default function AdminYouTubeLifecycle() {
       .finally(() => { if (active) setQuarantineLoading(false); });
     return () => { active = false; };
   }, [refreshKey]);
+
+  // 從「YouTube 上傳需要確認」通知進來時捲到待處理清單。
+  useEffect(() => {
+    const scrollToQuarantine = () => quarantineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (consumePendingQuarantineOpen()) window.setTimeout(scrollToQuarantine, 0);
+    const handleOpen = () => {
+      consumePendingQuarantineOpen();
+      scrollToQuarantine();
+    };
+    window.addEventListener(OPEN_QUARANTINE_EVENT, handleOpen);
+    return () => window.removeEventListener(OPEN_QUARANTINE_EVENT, handleOpen);
+  }, []);
 
   const switches = settings?.switches || [];
   const runtime = settings?.runtime || {};

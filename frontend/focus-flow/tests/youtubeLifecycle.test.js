@@ -11,11 +11,13 @@ import {
   getCleanupPreview,
   getLifecycleSettings,
   getQuarantineControls,
+  getVideoSourceState,
   listQuarantine,
   lookupQuarantineItem,
   parseYouTubeVideoId,
   prepareSwitchChange,
   resetQuarantineItem,
+  restoreVideoSource,
   runRecoveryNow,
   updateLifecycleSwitch,
 } from '../src/services/youtubeLifecycle.js';
@@ -231,5 +233,44 @@ describe('待處理清單的操作（#17）', () => {
     assert.equal(parseYouTubeVideoId('https://studio.youtube.com/video/dQw4w9WgXcQ/edit'), 'dQw4w9WgXcQ');
     assert.equal(parseYouTubeVideoId('short'), '');
     assert.equal(parseYouTubeVideoId('https://example.com/watch?v=dQw4w9WgXcQ'), '');
+  });
+});
+
+describe('補回原片（#21、#23）', () => {
+  it('原片已清理時停用重新處理並提供補回', () => {
+    const state = getVideoSourceState({ sourceAvailable: false, processing: { status: 'failed' } });
+    assert.equal(state.sourceMissing, true);
+    assert.equal(state.canRestore, true);
+    assert.equal(state.showReprocess, true);
+    assert.equal(state.reprocessDisabled, true);
+    assert.match(state.reprocessHint, /補回原片/);
+  });
+
+  it('原片存在或後端尚未提供欄位時照舊', () => {
+    for (const video of [{ sourceAvailable: true, processing: { status: 'failed' } }, { processing: { status: 'failed' } }]) {
+      const state = getVideoSourceState(video);
+      assert.equal(state.canRestore, false);
+      assert.equal(state.reprocessDisabled, false);
+      assert.equal(state.showReprocess, true);
+    }
+  });
+
+  it('只有 metadata 的影片沒有原片可補', () => {
+    const state = getVideoSourceState({ sourceAvailable: false, metadataOnly: true, processing: { status: 'failed' } });
+    assert.equal(state.canRestore, false);
+    assert.equal(state.showReprocess, false);
+  });
+
+  it('以 multipart 的 video 欄位送到 source/restore 並回傳影片', async () => {
+    const calls = mockFetch(async () => response({ success: true, data: { video: { id: 'v/1', sourceAvailable: true } } }));
+    const file = new Blob(['data'], { type: 'video/mp4' });
+    const video = await restoreVideoSource('v/1', file);
+
+    assert.equal(calls[0].url, `${BASE}/videos/v%2F1/source/restore`);
+    assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer admin-token');
+    assert.ok(calls[0].options.body instanceof FormData);
+    assert.ok(calls[0].options.body.get('video'));
+    assert.deepEqual(video, { id: 'v/1', sourceAvailable: true });
   });
 });

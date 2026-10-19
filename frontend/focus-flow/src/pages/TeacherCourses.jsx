@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
 import EnrollmentManagerModal from '../components/EnrollmentManagerModal';
+import RestoreSourceModal from '../components/RestoreSourceModal';
 import { apiFetch } from '../api';
+import { getVideoSourceState } from '../services/youtubeLifecycle';
 
 const COURSE_STATUS_LABEL = {
   draft: '草稿',
@@ -27,7 +29,7 @@ const YOUTUBE_NEEDS_ADMIN_HINT = 'YouTube 是否已收到這支影片需由管�
 
 // 重試失敗時依錯誤碼給出可行動的說明；未列出的錯誤碼沿用後端訊息。
 const RETRY_ERROR_MESSAGES = {
-  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原始影片檔已不存在，請刪除這支影片後重新上傳。',
+  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原片已從伺服器清理，請先「補回原片」再重新處理。',
   VIDEO_PROCESSING_TRANSITION_INVALID: '影片狀態已變更，請重新整理後再試。',
   YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
   YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: 'YouTube 上傳重試次數已達上限，請聯絡管理員處理。',
@@ -291,6 +293,7 @@ export default function TeacherCourses() {
   const [detachingId, setDetachingId] = useState(null);
   const [retrying, setRetrying] = useState(null);
   const [retryMessages, setRetryMessages] = useState({});
+  const [restoring, setRestoring] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
 
@@ -461,6 +464,19 @@ export default function TeacherCourses() {
         <EnrollmentManagerModal
           course={managingEnrollments}
           onClose={() => setManagingEnrollments(null)}
+        />
+      )}
+
+      {restoring && (
+        <RestoreSourceModal
+          video={restoring}
+          onClose={() => setRestoring(null)}
+          onRestored={() => {
+            const videoId = restoring.id || restoring._id;
+            setRestoring(null);
+            setRetryMessages(prev => ({ ...prev, [videoId]: { tone: 'ok', text: '已補回原片，現在可以重新處理。' } }));
+            setRefreshKey(key => key + 1);
+          }}
         />
       )}
 
@@ -690,8 +706,10 @@ export default function TeacherCourses() {
                             // 重試只在主課程列出，避免同一支影片在掛載課程重複出現按鈕。
                             const youtubeFailed = video.youtubeUpload?.status === 'failed';
                             const youtubeNeedsAdmin = youtubeFailed && video.youtubeUpload?.retrySafe === false;
-                            const canRetryProcessing = !isAttached && !video.metadataOnly && status === 'failed';
+                            const source = getVideoSourceState(video);
+                            const canRetryProcessing = !isAttached && source.showReprocess;
                             const canRetryYoutube = !isAttached && !video.metadataOnly && youtubeFailed && !youtubeNeedsAdmin;
+                            const canRestoreSource = !isAttached && source.canRestore;
                             const retryMessage = retryMessages[videoId];
                             return (
                               <div
@@ -725,6 +743,9 @@ export default function TeacherCourses() {
                                       {youtubeNeedsAdmin ? 'YouTube 待確認' : 'YouTube 失敗'}
                                     </span>
                                   )}
+                                  {source.sourceMissing && (
+                                    <span className="badge bb" title="原片已從伺服器清理，學生照常觀看 YouTube 版本">原片已清理</span>
+                                  )}
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
                                   {date ? new Date(date).toLocaleDateString('zh-TW') : '未記錄'}
@@ -733,9 +754,9 @@ export default function TeacherCourses() {
                                   {canRetryProcessing && (
                                     <button
                                       onClick={() => handleRetry(video, 'processing')}
-                                      disabled={!!retrying}
-                                      title="重新執行語音轉文字與 AI 索引"
-                                      style={RETRY_BUTTON_STYLE}
+                                      disabled={!!retrying || source.reprocessDisabled}
+                                      title={source.reprocessHint}
+                                      style={{ ...RETRY_BUTTON_STYLE, ...(source.reprocessDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : {}) }}
                                     >
                                       {retrying === `processing:${videoId}` ? '重試中...' : '重試處理'}
                                     </button>
@@ -748,6 +769,15 @@ export default function TeacherCourses() {
                                       style={RETRY_BUTTON_STYLE}
                                     >
                                       {retrying === `youtube:${videoId}` ? '排入中...' : '重傳 YouTube'}
+                                    </button>
+                                  )}
+                                  {canRestoreSource && (
+                                    <button
+                                      onClick={() => setRestoring(video)}
+                                      title="上傳原始影片檔，存回同一支影片後可重新處理"
+                                      style={{ ...RETRY_BUTTON_STYLE, border: '1px solid rgba(165,180,252,0.45)', color: '#c7d2fe' }}
+                                    >
+                                      補回原片
                                     </button>
                                   )}
                                   {isAttached ? (
@@ -772,6 +802,11 @@ export default function TeacherCourses() {
                                 {!isAttached && youtubeNeedsAdmin && !retryMessage && (
                                   <div style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>
                                     {YOUTUBE_NEEDS_ADMIN_HINT}
+                                  </div>
+                                )}
+                                {!isAttached && source.sourceMissing && canRetryProcessing && !retryMessage && (
+                                  <div style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>
+                                    {source.reprocessHint}
                                   </div>
                                 )}
                                 {retryMessage && (

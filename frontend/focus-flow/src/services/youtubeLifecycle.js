@@ -279,3 +279,18 @@ export function parseYouTubeVideoId(input) {
 export function quarantineItemKey(item) {
   return `${item.kind}:${item.id}`;
 }
+
+// 補回原片（#21、#23）：只有後端明確回 false 才視為原片已清理；舊資料沒有欄位時照舊。
+export function getVideoSourceState(video = {}) {
+  const sourceMissing = video.sourceAvailable === false && !video.metadataOnly;
+  const failed = video.processing?.status === 'failed';
+  return {
+    sourceMissing,
+    canRestore: sourceMissing,
+    reprocessDisabled: sourceMissing,
+    showReprocess: failed && !video.metadataOnly,
+    reprocessHint: sourceMissing
+      ? '原片已清理，無法重新處理；請先「補回原片」。'
+      : '重新執行語音轉文字與 AI 索引',
+  };
+}

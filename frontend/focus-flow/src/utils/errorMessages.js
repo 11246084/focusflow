@@ -25,7 +25,7 @@ const CODE_MESSAGES = {
   DUPLICATE_VIDEO: '這門課程已經有相同的 YouTube 影片。',
   UPLOAD_ERROR: '檔案上傳失敗，請確認檔案格式與大小。',
   VIDEO_PROCESSING_TRANSITION_INVALID: '影片目前的處理狀態不允許這個操作。',
-  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '找不到影片原始檔，無法重新處理，請重新上傳。',
+  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原片已從伺服器清理，無法重新處理，請先補回原片。',
   YOUTUBE_UPLOAD_NOT_CONFIGURED: 'YouTube 自動上傳尚未設定完成。',
   YOUTUBE_UPLOAD_FAILED: 'YouTube 上傳失敗，請稍後再試。',
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已經上傳到 YouTube。',

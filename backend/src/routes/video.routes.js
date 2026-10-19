@@ -48,6 +48,13 @@ router.post(
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
   videoController.retryYouTubeUpload,
 );
+// 補回原片只接受已清理的影片；權限與狀態在 service 檢查，失敗時刪除剛上傳的檔案。
+router.post(
+  '/videos/:videoId/source/restore',
+  authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  uploadSingleVideo,
+  videoController.restoreVideoSource,
+);
 // Multipart batch creation returns one durable aggregate while preserving an
 // item-level result for partial upload failures.
 router.post(

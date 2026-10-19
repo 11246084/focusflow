@@ -1745,6 +1745,8 @@ paths:
         這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
 
         這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+
+        重試需要 `UPLOAD_DIR` 內的本機原片。原片已在 YouTube 上傳後清理（`youtubeUpload.localCleanupAt` 有值、`filePath` 為 null）或找不到時回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`，不會改從 YouTube 下載；前端依影片的 `sourceAvailable` 停用按鈕，並改用 `POST /api/v1/videos/{videoId}/source/restore` 補回原片。
       operationId: retryVideoProcessing
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -1764,7 +1766,24 @@ paths:
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
         '409':
-          $ref: '#/components/responses/VideoProcessingTransitionInvalidError'
+          description: processing 狀態不允許重試，或本機原片已清理／不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTransition:
+                  value:
+                    success: false
+                    message: Cannot transition video processing from completed to queued.
+                    error:
+                      code: VIDEO_PROCESSING_TRANSITION_INVALID
+                sourceUnavailable:
+                  value:
+                    success: false
+                    message: The local source file is unavailable for processing retry.
+                    error:
+                      code: VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE
   /api/v1/videos/{videoId}/youtube-upload/retry:
     post:
       tags:
@@ -1818,6 +1837,113 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/videos/{videoId}/source/restore:
+    post:
+      tags:
+        - Videos
+      summary: 補回已清理的影片原片
+      description: |
+        僅限課程 owner teacher 或 admin。原片在 YouTube 上傳完成後被清理的影片，可上傳原檔（教師保留的原檔，或頻道擁有者從 YouTube Studio 下載的檔案）存回同一支影片，影片 ID 不變，之後即可重新處理。
+
+        只接受已清理狀態：`youtubeVideoId` 有值、`youtubeUpload.status=uploaded`、`filePath` 為 null 且 `youtubeUpload.localCleanupAt` 有值，否則回 `409 VIDEO_SOURCE_RESTORE_NOT_ALLOWED`。檔案沿用影片上傳的 MIME type、500 MB 上限與容器完整性檢查；同課程另一支影片已使用相同檔案時回 `409 DUPLICATE_VIDEO`。
+
+        成功後寫回 `filePath` 與 `fileName`、設定 `youtubeUpload.localSourceRestoredAt`，並清除 `localCleanupAt` 與 `localCleanupError`。播放欄位（`videoUrl`、`sourceUrl`、`videoSource`）與 `youtubeVideoId` 不變，學生照常播放 YouTube 版本，也不會重新上傳 YouTube。任何失敗都會刪除本次上傳的檔案。
+      operationId: restoreVideoSource
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - video
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: 影片檔案，欄位名與影片上傳相同；MIME type 須以 `video/` 開頭，容器須為完整的 MP4／MOV 或 MKV。
+      responses:
+        '200':
+          description: 已補回原片，回傳格式同影片詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoItemResponse'
+        '400':
+          description: videoId 無效、缺少檔案、檔案型別或容器結構不合格
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid video id.
+                    error:
+                      code: INVALID_ID
+                missingFile:
+                  value:
+                    success: false
+                    message: Video file is required.
+                    error:
+                      code: VIDEO_FILE_REQUIRED
+                invalidFileType:
+                  value:
+                    success: false
+                    message: Only video uploads are allowed.
+                    error:
+                      code: INVALID_FILE_TYPE
+                invalidContainer:
+                  value:
+                    success: false
+                    message: The MP4 container is incomplete (missing moov). Please replace or re-export the source video.
+                    error:
+                      code: INVALID_MEDIA_CONTAINER
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 角色不允許，或不是這門課的 owner teacher／admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbiddenRole:
+                  value:
+                    success: false
+                    message: You do not have permission to perform this action.
+                    error:
+                      code: FORBIDDEN
+                manageDenied:
+                  value:
+                    success: false
+                    message: You do not have permission to manage this course.
+                    error:
+                      code: COURSE_MANAGE_DENIED
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: 影片不是已清理狀態，或檔案已屬於同課程另一支影片
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notCleaned:
+                  value:
+                    success: false
+                    message: Only videos whose local source was cleaned after YouTube upload can be restored.
+                    error:
+                      code: VIDEO_SOURCE_RESTORE_NOT_ALLOWED
+                duplicateFile:
+                  value:
+                    success: false
+                    message: This file belongs to another video in this course.
+                    error:
+                      code: DUPLICATE_VIDEO
   /api/v1/conversations:
     get:
       tags: [QA]
@@ -3904,21 +4030,6 @@ components:
                 message: This video is metadata-only for QA scope and does not expose processing status.
                 error:
                   code: VIDEO_METADATA_ONLY
-    VideoProcessingTransitionInvalidError:
-      description: 目前 processing state 無法轉移到要求的目標狀態。
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            invalidTransition:
-              summary: processing 狀態轉移不合法
-              description: 目前影片的 processing state 與要求的目標狀態不相容，因此不能執行轉移。
-              value:
-                success: false
-                message: Cannot transition video processing from completed to queued.
-                error:
-                  code: VIDEO_PROCESSING_TRANSITION_INVALID
     QaRuntimeMisconfiguredError:
       description: QA runtime 設定對這次操作而言不合法。
       content:
@@ -4664,6 +4775,12 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        localSourceRestoredAt:
+          description: 清理後補回原片的時間；保留期從這個時間重新起算。
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
     Video:
       description: |
         影片回應主體。
@@ -4748,6 +4865,11 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        sourceAvailable:
+          type: boolean
+          description: |
+            `UPLOAD_DIR` 內是否有可供重新處理的本機原片。false 時 `POST /api/v1/videos/{videoId}/processing/retry` 會回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`；
+            若 `youtubeUpload.localCleanupAt` 有值，可改用補回原片。`metadataOnly` bridge video 一律為 false。
         durationSec:
           anyOf:
             - type: number

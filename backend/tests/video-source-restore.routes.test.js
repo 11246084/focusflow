@@ -150,6 +150,39 @@ describe('videoService.restoreVideoSource', () => {
     return { path: filePath, originalname: name, filename: name };
   }
 
+  it('同時送出兩次補回時，只有一次成功，另一個檔案被刪除', async () => {
+    markCleaned(teacherVideo());
+    const first = writeUpload('first.mp4');
+    const second = writeUpload('second.mp4');
+    let raced = false;
+    // 模擬第二個請求在條件更新前，第一個請求已完成補回。
+    store.beforeVideoCompareAndSwap = async () => {
+      if (raced) return;
+      raced = true;
+      await videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: first, user: teacher });
+    };
+
+    await assert.rejects(
+      videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: second, user: teacher }),
+      (error) => error.code === 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+    );
+    store.beforeVideoCompareAndSwap = null;
+
+    assert.equal(teacherVideo().filePath, first.path);
+    assert.equal(fs.existsSync(first.path), true);
+    assert.equal(fs.existsSync(second.path), false);
+  });
+
+  it('找不到影片時回 404 並刪除檔案', async () => {
+    const file = writeUpload('orphan.mp4');
+
+    await assert.rejects(
+      videoService.restoreVideoSource({ videoId: newObjectId(), file, user: teacher }),
+      (error) => error.code === 'VIDEO_NOT_FOUND',
+    );
+    assert.equal(fs.existsSync(file.path), false);
+  });
+
   it('影片回傳的 sourceAvailable 只在 UPLOAD_DIR 內有原片時為 true', async () => {
     const video = teacherVideo();
     const inside = writeUpload('inside.mp4');

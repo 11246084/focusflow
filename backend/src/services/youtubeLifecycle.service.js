@@ -12,6 +12,10 @@ const {
   isPathInside,
   resolveLocalUploadPath,
 } = require('./youtubeUpload.service');
+const {
+  YOUTUBE_LIFECYCLE_SWITCHES,
+  isYouTubeLifecycleSwitchEnabled,
+} = require('./youtubeLifecycleSettings.service');
 
 // 原片清理排程（decisions.md #22、#24、#26、#27）。「誰符合刪除條件」只有
 // listYouTubeCleanupCandidates 一份判斷，排程刪除與兩種預告都呼叫它。
@@ -31,6 +35,18 @@ const YOUTUBE_CLEANUP_REASONS = Object.freeze({
   MAX_AGE: 'max_age',
   LOW_SPACE: 'low_space',
 });
+
+const cleanupScheduler = {
+  timer: null,
+  intervalMs: null,
+  running: false,
+  startedAt: null,
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+  lastError: null,
+  lastCleanedCount: 0,
+  lastFreedBytes: 0,
+};
 
 function getCleanupPolicy() {
   const minFreeGb = Number(env.youtubeUploadCleanupMinFreeGb) || 0;
@@ -260,6 +276,116 @@ async function buildYouTubeCleanupPreview({
   };
 }
 
+async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
+  if (cleanupScheduler.running) {
+    return { skipped: true, reason: 'already_running', cleaned: 0, freedBytes: 0, results: [] };
+  }
+  // 每輪開始前檢查開關（#14）；刪每支前 cleanup() 會再檢查一次。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
+    return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
+  }
+
+  cleanupScheduler.running = true;
+  cleanupScheduler.startedAt = now.toISOString();
+  cleanupScheduler.lastAttemptAt = now.toISOString();
+  try {
+    const candidates = await listYouTubeCleanupCandidates({
+      scope: YOUTUBE_CLEANUP_SCOPES.ENABLE,
+      now,
+      getFreeBytes,
+    });
+    const results = [];
+    let cleaned = 0;
+    let freedBytes = 0;
+
+    for (const candidate of candidates) {
+      const source = CLEANUP_SOURCES[candidate.kind];
+      const result = await source.cleanup(candidate.id);
+      results.push({
+        kind: candidate.kind,
+        id: candidate.id,
+        reason: candidate.reason,
+        cleaned: Boolean(result?.cleaned),
+        skipReason: result?.cleaned ? null : (result?.reason || null),
+      });
+      if (result?.cleaned) {
+        cleaned += 1;
+        freedBytes += candidate.sizeBytes;
+      } else if (result?.reason === 'disabled') {
+        // 管理員中途關閉：剩下的這一輪不再刪。
+        break;
+      }
+    }
+
+    cleanupScheduler.lastSuccessAt = new Date().toISOString();
+    cleanupScheduler.lastError = null;
+    cleanupScheduler.lastCleanedCount = cleaned;
+    cleanupScheduler.lastFreedBytes = freedBytes;
+    return { skipped: false, candidates: candidates.length, cleaned, freedBytes, results };
+  } catch (error) {
+    cleanupScheduler.lastError = String(error?.message || error).slice(0, 300);
+    throw error;
+  } finally {
+    cleanupScheduler.running = false;
+    cleanupScheduler.startedAt = null;
+  }
+}
+
+// 開機跑一次，之後依 YOUTUBE_UPLOAD_CLEANUP_INTERVAL_MS 重複；0 代表只在開機跑。
+// 環境變數不允許時不啟動。
+function startYouTubeCleanupScheduler({
+  intervalMs = env.youtubeUploadCleanupIntervalMs,
+  getFreeBytes,
+} = {}) {
+  if (!env.youtubeUploadCleanupEnabled) return null;
+  const runOnce = (label) => runYouTubeCleanup({ getFreeBytes }).catch((error) => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`${label} YouTube local cleanup failed.`, error);
+    }
+    return null;
+  });
+
+  const initialRun = runOnce('Initial');
+  if (intervalMs > 0 && !cleanupScheduler.timer) {
+    cleanupScheduler.intervalMs = intervalMs;
+    cleanupScheduler.timer = setInterval(() => runOnce('Scheduled'), intervalMs);
+    cleanupScheduler.timer.unref?.();
+  }
+  return initialRun;
+}
+
+function stopYouTubeCleanupScheduler() {
+  if (cleanupScheduler.timer) clearInterval(cleanupScheduler.timer);
+  cleanupScheduler.timer = null;
+  cleanupScheduler.intervalMs = null;
+}
+
+function getYouTubeCleanupSchedulerState() {
+  return {
+    envAllowed: Boolean(env.youtubeUploadCleanupEnabled),
+    timerActive: Boolean(cleanupScheduler.timer),
+    intervalMs: cleanupScheduler.timer ? cleanupScheduler.intervalMs : null,
+    running: cleanupScheduler.running,
+    runningSince: cleanupScheduler.startedAt,
+    lastAttemptAt: cleanupScheduler.lastAttemptAt,
+    lastSuccessAt: cleanupScheduler.lastSuccessAt,
+    lastError: cleanupScheduler.lastError,
+    lastCleanedCount: cleanupScheduler.lastCleanedCount,
+    lastFreedBytes: cleanupScheduler.lastFreedBytes,
+  };
+}
+
+function resetYouTubeLifecycleStateForTests() {
+  stopYouTubeCleanupScheduler();
+  cleanupScheduler.running = false;
+  cleanupScheduler.startedAt = null;
+  cleanupScheduler.lastAttemptAt = null;
+  cleanupScheduler.lastSuccessAt = null;
+  cleanupScheduler.lastError = null;
+  cleanupScheduler.lastCleanedCount = 0;
+  cleanupScheduler.lastFreedBytes = 0;
+}
+
 module.exports = {
   CLEANUP_SOURCES,
   UPCOMING_WINDOW_DAYS,
@@ -268,7 +394,12 @@ module.exports = {
   buildYouTubeCleanupPreview,
   getCleanupPolicy,
   getUploadDirFreeBytes,
+  getYouTubeCleanupSchedulerState,
   listYouTubeCleanupCandidates,
+  resetYouTubeLifecycleStateForTests,
   resolveRetentionStartTime,
+  runYouTubeCleanup,
   selectCleanupCandidates,
+  startYouTubeCleanupScheduler,
+  stopYouTubeCleanupScheduler,
 };

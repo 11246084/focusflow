@@ -457,6 +457,7 @@ describe('youtubeLifecycle.service 原片清理', () => {
 
   beforeEach(() => {
     resetStore();
+    lifecycleService.resetYouTubeLifecycleStateForTests();
     originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
     // 所有刪檔只發生在這個暫存目錄。
     uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-yt-cleanup-'));
@@ -468,6 +469,7 @@ describe('youtubeLifecycle.service 原片清理', () => {
   });
 
   afterEach(() => {
+    lifecycleService.resetYouTubeLifecycleStateForTests();
     Object.assign(env, originalEnv);
     fs.rmSync(uploadDir, { recursive: true, force: true });
   });
@@ -582,6 +584,73 @@ describe('youtubeLifecycle.service 原片清理', () => {
       () => lifecycleService.listYouTubeCleanupCandidates({ scope: 'all' }),
       (error) => error.code === 'VALIDATION_ERROR',
     );
+  });
+
+  it('啟用預告與排程實際刪除的清單一致', async () => {
+    makeUploadedVideo({ name: 'p1.mp4', uploadedDaysAgo: 365, sizeBytes: 3000 });
+    makeUploadedVideo({ name: 'p2.mp4', uploadedDaysAgo: 90, sizeBytes: 3000 });
+    makeUploadedVideo({ name: 'p3.mp4', uploadedDaysAgo: 60, sizeBytes: 3000 });
+    makeUploadedVideo({ name: 'p4.mp4', uploadedDaysAgo: 3, sizeBytes: 3000 });
+    const getFreeBytes = async () => 10 * GB - 5000;
+    const originalPaths = new Map(store.videos.map((video) => [String(video._id), video.filePath]));
+
+    const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });
+    setRuntimeSwitch('cleanup', true);
+    const run = await lifecycleService.runYouTubeCleanup({ now: NOW, getFreeBytes });
+
+    const deletedIds = run.results.filter((item) => item.cleaned).map((item) => item.id);
+    assert.deepEqual(deletedIds, preview.items.map((item) => item.id));
+    assert.equal(preview.count, 2);
+    assert.deepEqual(
+      store.videos.filter((video) => deletedIds.includes(String(video._id))).map((video) => [
+        video.filePath,
+        video.videoSource,
+        fs.existsSync(originalPaths.get(String(video._id))),
+      ]),
+      [[null, 'youtube', false], [null, 'youtube', false]],
+    );
+  });
+
+  it('清理沒有明確啟用時排程不刪任何檔案', async () => {
+    const video = makeUploadedVideo({ name: 'keep.mp4', uploadedDaysAgo: 365 });
+
+    const run = await lifecycleService.runYouTubeCleanup({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual([run.skipped, run.reason], [true, 'cleanup_disabled']);
+    assert.equal(fs.existsSync(video.filePath), true);
+  });
+
+  it('清理中途被關閉時剩下的影片不再刪除', async () => {
+    const first = makeUploadedVideo({ name: 'stop-1.mp4', uploadedDaysAgo: 400 });
+    const second = makeUploadedVideo({ name: 'stop-2.mp4', uploadedDaysAgo: 300 });
+    const firstPath = first.filePath;
+    const secondPath = second.filePath;
+    setRuntimeSwitch('cleanup', true);
+    const source = lifecycleService.CLEANUP_SOURCES.video;
+    const originalCleanup = source.cleanup;
+    source.cleanup = async (id) => {
+      const result = await originalCleanup(id);
+      setRuntimeSwitch('cleanup', false);
+      return result;
+    };
+
+    try {
+      const run = await lifecycleService.runYouTubeCleanup({ now: NOW, getFreeBytes: plentyOfSpace });
+      assert.deepEqual(run.results.map((item) => [item.cleaned, item.skipReason]), [[true, null], [false, 'disabled']]);
+      assert.deepEqual([fs.existsSync(firstPath), fs.existsSync(secondPath)], [false, true]);
+    } finally {
+      source.cleanup = originalCleanup;
+    }
+  });
+
+  it('排程停止後清除計時器，環境變數不允許時不啟動', async () => {
+    await lifecycleService.startYouTubeCleanupScheduler({ intervalMs: 50, getFreeBytes: plentyOfSpace });
+    assert.equal(lifecycleService.getYouTubeCleanupSchedulerState().timerActive, true);
+    lifecycleService.stopYouTubeCleanupScheduler();
+    assert.equal(lifecycleService.getYouTubeCleanupSchedulerState().timerActive, false);
+
+    env.youtubeUploadCleanupEnabled = false;
+    assert.equal(lifecycleService.startYouTubeCleanupScheduler({ intervalMs: 50 }), null);
   });
 
   it('可用空間以 statfs 的 bavail 乘 bsize 計算，可注入假值', async () => {

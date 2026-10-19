@@ -340,6 +340,8 @@ async function uploadVideoFileToYouTube({ filePath, title, description = '' }, f
   return result.youtubeVideoId;
 }
 
+// 刪除單支影片的本機原片。只檢查安全條件（#4），不判斷保留期與空間；
+// 誰該被刪由 youtubeLifecycle.service 的候選函式決定，排程才呼叫這裡。
 async function cleanupUploadedLocalVideo(videoId) {
   // 每次刪檔前重新確認兩層開關（#14）：管理員中途關閉時，剩下的不再刪。
   if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
@@ -517,7 +519,7 @@ async function autoUploadVideoToYouTube(
       },
     });
 
-    await cleanupUploadedLocalVideo(id);
+    // 原片不在上傳完成時刪除，改由清理排程依保留期與空間判斷（#22）。
     return uploadResult.youtubeVideoId;
   } catch (error) {
     const retrySafe = error?.youtubeRetrySafe === true;

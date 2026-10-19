@@ -298,6 +298,10 @@ module.exports = {
     String(process.env.YOUTUBE_UPLOAD_CLEANUP_ENABLED || 'false').toLowerCase() === 'true',
   // 原片清理改由排程執行（decisions.md #22）：超過最長保留期一律刪；可用空間
   // 低於門檻時從最早上傳完成的開始刪，但未滿最短保留期不刪。0 代表停用該規則。
+  youtubeUploadCleanupIntervalMs: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_CLEANUP_INTERVAL_MS,
+    3600000,
+  ),
   youtubeUploadCleanupMaxAgeDays: parseNonNegativeNumber(
     process.env.YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS,
     180,

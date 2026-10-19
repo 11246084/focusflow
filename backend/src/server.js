@@ -17,6 +17,10 @@ const {
   verifyYouTubeCredentials,
 } = require('./services/youtubeUpload.service');
 const {
+  startYouTubeCleanupScheduler,
+  stopYouTubeCleanupScheduler,
+} = require('./services/youtubeLifecycle.service');
+const {
   refreshHierarchicalDataReadiness,
 } = require('./services/hierarchicalDataReadiness.service');
 const {
@@ -55,11 +59,13 @@ async function startServer() {
   verifyYouTubeCredentials()
     .catch(() => null)
     .then(() => startYouTubeUploadRecoveryScheduler());
+  startYouTubeCleanupScheduler();
 
   const shutdown = async () => {
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();
+    stopYouTubeCleanupScheduler();
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

@@ -8,10 +8,12 @@ import {
   describeSwitch,
   formatBytes,
   formatHistoryValue,
+  formatRecoveryResult,
   getCleanupPreview,
   getLifecycleSettings,
   prepareSwitchChange,
   quarantineItemKey,
+  runRecoveryNow,
   updateLifecycleSwitch,
 } from '../services/youtubeLifecycle';
 
@@ -122,6 +124,7 @@ export default function AdminYouTubeLifecycle() {
   const [upcoming, setUpcoming] = useState(null);
   const [upcomingError, setUpcomingError] = useState('');
   const [switchMessage, setSwitchMessage] = useState(null);
+  const [recoveryMessage, setRecoveryMessage] = useState(null);
   const [preparing, setPreparing] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -141,6 +144,8 @@ export default function AdminYouTubeLifecycle() {
 
   const switches = settings?.switches || [];
   const runtime = settings?.runtime || {};
+  const recoverySwitch = switches.find((sw) => sw.key === 'recovery');
+  const recoveryEffective = Boolean(recoverySwitch?.effective);
 
   async function handleToggle(sw) {
     setSwitchMessage(null);
@@ -168,6 +173,20 @@ export default function AdminYouTubeLifecycle() {
     } finally {
       setPreparing('');
     }
+  }
+
+  function handleRunRecovery() {
+    setRecoveryMessage(null);
+    setConfirmAction({
+      title: '立即執行恢復',
+      summary: '馬上執行一輪恢復：重新上傳可安全重試的失敗，並隔離卡在上傳中的影片。這會對 YouTube 頻道上傳影片。',
+      confirmLabel: '立即執行',
+      run: async () => {
+        const result = await runRecoveryNow();
+        setRecoveryMessage({ tone: 'ok', text: formatRecoveryResult(result) });
+        refresh();
+      },
+    });
   }
 
   return (
@@ -223,6 +242,23 @@ export default function AdminYouTubeLifecycle() {
       </div>
 
       <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        {/* 立即執行恢復（#15），受兩層開關限制 */}
+        <div className="card" style={{ padding: 22 }}>
+          <div style={{ ...TITLE, marginBottom: 4 }}>立即執行恢復</div>
+          <div style={{ ...MUTED, marginBottom: 12 }}>不等下一輪排程，馬上重試可安全重試的失敗並隔離卡住的影片。</div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleRunRecovery}
+            disabled={!recoveryEffective}
+            style={{ padding: '9px 18px', fontSize: 12, opacity: recoveryEffective ? 1 : 0.45, cursor: recoveryEffective ? 'pointer' : 'not-allowed' }}
+          >
+            <Ic n="sync" s={13} />立即執行
+          </button>
+          {settings && !recoveryEffective && <div style={{ ...MUTED, marginTop: 8 }}>「失敗恢復」未生效，無法執行。</div>}
+          <Message message={recoveryMessage} />
+        </div>
+
         {/* 7 天內將到期刪除（#27②），只顯示資訊 */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ ...TITLE, marginBottom: 4 }}>7 天內將到期刪除</div>

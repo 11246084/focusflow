@@ -215,6 +215,13 @@ export function formatHistoryValue(value) {
   return value ? '開啟' : '關閉';
 }
 
+export function formatRecoveryResult(result = {}) {
+  const recovered = Number(result.recovered) || 0;
+  const quarantined = Number(result.quarantined) || 0;
+  const skipped = Number(result.skipped) || 0;
+  return `已執行恢復：重新排入 ${recovered} 支、隔離 ${quarantined} 支、略過 ${skipped} 支。`;
+}
+
 export function quarantineItemKey(item) {
   return `${item.kind}:${item.id}`;
 }

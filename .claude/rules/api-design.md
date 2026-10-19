@@ -140,6 +140,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED` | 409 | 目前不是 failed 狀態，不可重試 |
 | `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，須先人工確認 YouTube Studio 以避免重複影片 |
 | `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 已達單支影片的有限重試上限 |
+| `YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` | 409 | 環境變數不允許的 YouTube 上傳／恢復／清理開關，不可在執行期切換 |
 | `QUESTION_TOO_LONG` | 400 | 問題超過 `QA_MAX_QUESTION_LENGTH` 字數上限（預設 50 字） |
 | `QA_DAILY_LIMIT_EXCEEDED` | 429 | 學生當天（台灣時間）提問次數已達上限：管理員設定的個別上限 `User.dailyAskLimitOverride`，未設定時為 `QA_DAILY_ASK_LIMIT_PER_STUDENT`（預設 5 次，網頁與 LINE 合併；failed 不計） |
 | `FAQ_INVALIDATION_FAILED` | 503 | 影片刪除／解除掛載前的 FAQ 清除失敗；mutation 未執行，可安全重試 |

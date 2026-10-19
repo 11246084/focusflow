@@ -5,10 +5,7 @@ const { VIDEO_PROCESSING_STATUSES } = require('../constants/enums');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { fanoutVideoCompletedNotifications } = require('./notification.service');
-const {
-  cleanupUploadedLocalVideo,
-  scheduleYouTubeAutoUpload,
-} = require('./youtubeUpload.service');
+const { scheduleYouTubeAutoUpload } = require('./youtubeUpload.service');
 
 function createQueuedProcessingState(now = new Date()) {
   return {
@@ -102,10 +99,7 @@ async function runCompletionSideEffects(video) {
   if (errors.length > 1) {
     throw new AggregateError(errors, 'Video completion side effects failed.');
   }
-
-  // Cleanup is opt-in and best-effort. It has its own safety gates and must not
-  // turn a successful processing webhook into a failure.
-  await cleanupUploadedLocalVideo(video._id).catch(() => null);
+  // 原片不在處理完成時刪除，改由清理排程依保留期與空間判斷（decisions.md #22）。
 }
 
 async function queueVideoForProcessing(videoId) {

@@ -8,6 +8,11 @@ const env = require('../src/config/env');
 const videoProcessingService = require('../src/services/videoProcessing.service');
 const youtubeUploadService = require('../src/services/youtubeUpload.service');
 
+// 清理在資料庫沒有設定時視為關閉（decisions.md #16），直接呼叫清理的測試需明確啟用。
+function enableRuntimeSwitch(key) {
+  store.runtimeSettings.push({ key: `youtubeLifecycle.${key}`, value: true, history: [] });
+}
+
 function jsonResponse(payload, { status = 200, headers = {} } = {}) {
   return {
     ok: status >= 200 && status < 300,
@@ -687,6 +692,7 @@ describe('youtubeUpload.service', () => {
 
   it('安全清理只在 YouTube 與 processing 都完成且路徑位於 UPLOAD_DIR 時刪除', async () => {
     env.youtubeUploadCleanupEnabled = true;
+    enableRuntimeSwitch('cleanup');
     const cleanupPath = path.join(env.uploadDir, `test-upload-youtube-cleanup-${Date.now()}.mp4`);
     fs.mkdirSync(env.uploadDir, { recursive: true });
     fs.writeFileSync(cleanupPath, 'cleanup fixture');
@@ -708,6 +714,7 @@ describe('youtubeUpload.service', () => {
 
   it('安全清理拒絕 UPLOAD_DIR 外的檔案', async () => {
     env.youtubeUploadCleanupEnabled = true;
+    enableRuntimeSwitch('cleanup');
     const video = store.videos.find((item) => item._id === ids.teacherVideo);
     video.filePath = tempFilePath;
     video.youtubeVideoId = 'ytOutside123';
@@ -723,6 +730,7 @@ describe('youtubeUpload.service', () => {
 
   it('安全清理拒絕仍被其他 Video 共用的本地檔案', async () => {
     env.youtubeUploadCleanupEnabled = true;
+    enableRuntimeSwitch('cleanup');
     const cleanupPath = path.join(env.uploadDir, `test-upload-youtube-shared-${Date.now()}.mp4`);
     fs.mkdirSync(env.uploadDir, { recursive: true });
     fs.writeFileSync(cleanupPath, 'shared cleanup fixture');

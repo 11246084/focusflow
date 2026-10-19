@@ -40,6 +40,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `Feedback` / `FeedbackAttachment` | `feedbacks` / `feedbackattachments`（問題回報與截圖本體） |
 | `ShortScript` / `ShortAsset` | `shortscripts` / `shortassets` |
 | `VideoBatch` | `videobatches` |
+| `RuntimeSetting` | `runtimesettings`（管理員執行期開關，一個 `key` 一份文件，內含最近 50 筆修改紀錄） |
 | `VideoSegmentParent` | 由 `VIDEO_SEGMENT_PARENT_COLLECTION` 決定（預設 `video_segments_parent`） |
 | `VideoSegmentVideo` | 由 `VIDEO_SEGMENT_VIDEO_COLLECTION` 決定（預設 `video_segments_video`，欄位仍為 snake_case） |
 

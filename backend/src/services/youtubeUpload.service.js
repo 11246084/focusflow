@@ -10,6 +10,10 @@ const {
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
+const {
+  YOUTUBE_LIFECYCLE_SWITCHES,
+  isYouTubeLifecycleSwitchEnabled,
+} = require('./youtubeLifecycleSettings.service');
 
 const YOUTUBE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const YOUTUBE_UPLOAD_URL = 'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable';
@@ -49,6 +53,13 @@ const credentialState = {
   lastCleanupVideoId: null,
 };
 const runningUploadIds = new Set();
+// 恢復排程狀態（decisions.md #7）。同一時間只跑一輪，避免長上傳與下一輪重疊。
+const recoveryScheduler = {
+  timer: null,
+  intervalMs: null,
+  running: false,
+  startedAt: null,
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -329,10 +340,13 @@ async function uploadVideoFileToYouTube({ filePath, title, description = '' }, f
   return result.youtubeVideoId;
 }
 
+// 刪除單支影片的本機原片。只檢查安全條件（#4），不判斷保留期與空間；
+// 誰該被刪由 youtubeLifecycle.service 的候選函式決定，排程才呼叫這裡。
 async function cleanupUploadedLocalVideo(videoId) {
-  // Cleanup requires both lifecycles to be terminal and verifies that no other
-  // Video references the path. Feature-off is the default deployment posture.
-  if (!env.youtubeUploadCleanupEnabled) return { cleaned: false, reason: 'disabled' };
+  // 每次刪檔前重新確認兩層開關（#14）：管理員中途關閉時，剩下的不再刪。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
+    return { cleaned: false, reason: 'disabled' };
+  }
 
   const video = await Video.findById(videoId);
   if (!video) return { cleaned: false, reason: 'video_not_found' };
@@ -401,6 +415,9 @@ async function autoUploadVideoToYouTube(
   { fetchImpl = global.fetch, allowRetry = true } = {},
 ) {
   const id = String(videoId);
+  if (runningUploadIds.has(id)) return null;
+  // 開關只在開始新上傳前檢查；已開始的上傳不中斷，避免製造隔離案例（#14）。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) return null;
   if (runningUploadIds.has(id)) return null;
   runningUploadIds.add(id);
   let attemptCount = 0;
@@ -502,7 +519,7 @@ async function autoUploadVideoToYouTube(
       },
     });
 
-    await cleanupUploadedLocalVideo(id);
+    // 原片不在上傳完成時刪除，改由清理排程依保留期與空間判斷（#22）。
     return uploadResult.youtubeVideoId;
   } catch (error) {
     const retrySafe = error?.youtubeRetrySafe === true;
@@ -566,6 +583,9 @@ async function assertRetryableUpload(videoId, user) {
   if (!isYouTubeUploadConfigured()) {
     throw new AppError('YouTube upload is not configured.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   }
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
+    throw new AppError('YouTube upload is disabled by an administrator.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+  }
   return video;
 }
 
@@ -577,26 +597,86 @@ async function scheduleYouTubeUploadRetry(videoId, user, { fetchImpl = global.fe
   return { videoId: String(video._id), status: 'retry_scheduled' };
 }
 
+// 恢復只撈「這一輪真的會處理」的影片（#8）：可安全重試、未達上限、已到重試時間的失敗，
+// 加上卡在 uploading 超過時限、待隔離的。舊查詢含永不重試的失敗且未排序，
+// 累積滿一批後每輪都撈到同樣幾筆，可重試的影片永遠輪不到。
+function buildRecoveryCandidateQuery(now) {
+  const staleBefore = new Date(now.getTime() - env.youtubeUploadStuckAfterMs);
+  return {
+    'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
+    $and: [
+      buildMissingYouTubeVideoIdCondition(),
+      {
+        $or: [
+          {
+            'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+            'youtubeUpload.retrySafe': true,
+            $and: [
+              {
+                $or: [
+                  { 'youtubeUpload.attemptCount': { $lt: env.youtubeUploadMaxAttempts } },
+                  { 'youtubeUpload.attemptCount': null },
+                  { 'youtubeUpload.attemptCount': { $exists: false } },
+                ],
+              },
+              {
+                $or: [
+                  { 'youtubeUpload.nextRetryAt': { $lte: now } },
+                  { 'youtubeUpload.nextRetryAt': null },
+                  { 'youtubeUpload.nextRetryAt': { $exists: false } },
+                ],
+              },
+            ],
+          },
+          {
+            'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
+            $or: [
+              { 'youtubeUpload.lastAttemptAt': { $lte: staleBefore } },
+              { 'youtubeUpload.lastAttemptAt': null },
+              { 'youtubeUpload.lastAttemptAt': { $exists: false } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+async function resolveRecoverySkipReason() {
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.RECOVERY))) return 'recovery_disabled';
+  if (!isYouTubeUploadConfigured()) return 'upload_not_configured';
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) return 'upload_disabled';
+  return null;
+}
+
 async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = new Date() } = {}) {
   // Only explicitly retry-safe failures are replayed. Stale "uploading" rows
   // are quarantined because the remote upload may have succeeded already.
-  if (!env.youtubeUploadRecoveryEnabled || !isYouTubeUploadConfigured()) {
-    return { recovered: 0, quarantined: 0, skipped: true };
+  // 兩層開關在每輪開始前檢查（#14）。
+  const skipReason = await resolveRecoverySkipReason();
+  if (skipReason) {
+    return { recovered: 0, quarantined: 0, skipped: true, reason: skipReason };
+  }
+  if (recoveryScheduler.running) {
+    return { recovered: 0, quarantined: 0, skipped: true, reason: 'already_running' };
   }
 
+  recoveryScheduler.running = true;
+  recoveryScheduler.startedAt = now.toISOString();
   credentialState.lastRecoveryAttemptAt = now.toISOString();
   try {
-    const candidates = await Video.find({
-      'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
-      'youtubeUpload.status': { $in: [YOUTUBE_UPLOAD_STATUSES.FAILED, YOUTUBE_UPLOAD_STATUSES.UPLOADING] },
-      $and: [buildMissingYouTubeVideoIdCondition()],
-    }).limit(env.youtubeUploadRecoveryBatchSize).lean();
+    const candidates = await Video.find(buildRecoveryCandidateQuery(now))
+      .sort({ 'youtubeUpload.lastAttemptAt': 1 })
+      .limit(env.youtubeUploadRecoveryBatchSize)
+      .lean();
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
     let recovered = 0;
     let quarantined = 0;
 
     for (const video of candidates) {
       if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
+        // 同一行程還在傳的影片只是比較久，不是卡住；只有行程外（例如重啟前）留下的才隔離。
+        if (runningUploadIds.has(String(video._id))) continue;
         const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
         const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
@@ -642,7 +722,58 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
   } catch (error) {
     credentialState.lastRecoveryError = shortErrorMessage(error);
     throw error;
+  } finally {
+    recoveryScheduler.running = false;
+    recoveryScheduler.startedAt = null;
   }
+}
+
+// 管理員「立即執行恢復」（#15）：與排程同一個入口，受兩層開關限制；
+// 上一輪還沒跑完時回 skipped（reason: already_running）。
+function runYouTubeUploadRecoveryNow({ fetchImpl = global.fetch, now = new Date() } = {}) {
+  return recoverPendingYouTubeUploads({ fetchImpl, now });
+}
+
+// 開機跑一次，之後依 YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS 重複（#7）；0 代表只在開機跑。
+// 環境變數不允許時不啟動：執行期設定無法越過總開關，排程跑了也只會略過。
+function startYouTubeUploadRecoveryScheduler({
+  intervalMs = env.youtubeUploadRecoveryIntervalMs,
+  fetchImpl = global.fetch,
+} = {}) {
+  if (!env.youtubeUploadRecoveryEnabled) return null;
+  const runOnce = (label) => recoverPendingYouTubeUploads({ fetchImpl }).catch((error) => {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`${label} YouTube upload recovery failed.`, error);
+    }
+    return null;
+  });
+
+  const initialRun = runOnce('Initial');
+  if (intervalMs > 0 && !recoveryScheduler.timer) {
+    recoveryScheduler.intervalMs = intervalMs;
+    recoveryScheduler.timer = setInterval(() => runOnce('Scheduled'), intervalMs);
+    recoveryScheduler.timer.unref?.();
+  }
+  return initialRun;
+}
+
+function stopYouTubeUploadRecoveryScheduler() {
+  if (recoveryScheduler.timer) clearInterval(recoveryScheduler.timer);
+  recoveryScheduler.timer = null;
+  recoveryScheduler.intervalMs = null;
+}
+
+function getYouTubeUploadRecoverySchedulerState() {
+  return {
+    envAllowed: Boolean(env.youtubeUploadRecoveryEnabled),
+    timerActive: Boolean(recoveryScheduler.timer),
+    intervalMs: recoveryScheduler.timer ? recoveryScheduler.intervalMs : null,
+    running: recoveryScheduler.running,
+    runningSince: recoveryScheduler.startedAt,
+    lastAttemptAt: credentialState.lastRecoveryAttemptAt,
+    lastSuccessAt: credentialState.lastRecoverySuccessAt,
+    lastError: credentialState.lastRecoveryError,
+  };
 }
 
 // 把頻道上的影片改成指定隱私狀態（預設 private）。需要 `youtube.force-ssl` scope；
@@ -748,6 +879,7 @@ function scheduleYouTubeAutoUpload(video) {
     return null;
   }
 
+  // 執行期開關由 autoUploadVideoToYouTube 讀資料庫判斷；這裡只做同步的環境檢查。
   return autoUploadVideoToYouTube(String(video._id), { allowRetry: false }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`YouTube auto upload scheduling failed for video ${video._id}.`, error);
@@ -933,6 +1065,9 @@ function resetYouTubeUploadState() {
   credentialState.lastCleanupError = null;
   credentialState.lastCleanupVideoId = null;
   runningUploadIds.clear();
+  stopYouTubeUploadRecoveryScheduler();
+  recoveryScheduler.running = false;
+  recoveryScheduler.startedAt = null;
 }
 
 module.exports = {
@@ -951,11 +1086,17 @@ module.exports = {
   normalizePrivacyStatus,
   privatizeVideoOnDelete,
   privatizeVideosOnDelete,
+  getYouTubeUploadRecoverySchedulerState,
+  isPathInside,
   recoverPendingYouTubeUploads,
   resetYouTubeUploadState,
+  resolveLocalUploadPath,
+  runYouTubeUploadRecoveryNow,
   scheduleYouTubeAutoUpload,
   scheduleYouTubeUploadRetry,
   setVideoPrivacy,
+  startYouTubeUploadRecoveryScheduler,
+  stopYouTubeUploadRecoveryScheduler,
   uploadLocalVideo,
   uploadVideoFileToYouTube,
   verifyYouTubeCredentials,

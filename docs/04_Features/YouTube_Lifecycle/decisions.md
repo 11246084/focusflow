@@ -101,6 +101,28 @@
 | `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 重設為可重試、次數歸零 | admin |
 | `POST /videos/:videoId/source/restore` | 補回原片（multipart） | 課程教師、admin |
 
+**核心服務介面**（A 塊匯出，供 B、D 塊呼叫；改簽名要同步本表）：
+
+開關 `key` 為 `upload`、`recovery`、`cleanup`。開關狀態物件：`{ key, envName, envAllowed, runtimeEnabled, effective, reason, updatedAt, updatedBy }`，`runtimeEnabled` 為 `null` 代表資料庫未設定，`reason` 為 `env_disabled`、`runtime_disabled`、`default_off` 或 `null`。
+
+| 函式 | 參數 | 回傳 |
+|---|---|---|
+| `getYouTubeLifecycleSettings()` | — | `{ switches: [開關狀態 ×3], history: [{ key, from, to, changedBy, changedByEmail, changedAt }] }`，紀錄由新到舊、最多 50 筆 |
+| `getYouTubeLifecycleSwitch(key)` | 開關 key | 開關狀態；未知 key 拋 `400 VALIDATION_ERROR` |
+| `isYouTubeLifecycleSwitchEnabled(key)` | 開關 key | `effective` 布林值；讀不到資料庫時回 `false` |
+| `setYouTubeLifecycleSwitch({ key, enabled, user })` | `enabled` 須為布林，`user` 取 `id`、`email` | `{ switch: 開關狀態, change: 紀錄一筆 }`；環境變數不允許時拋 `409 YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` |
+| `runYouTubeUploadRecoveryNow({ fetchImpl?, now? })` | — | `{ recovered, quarantined, skipped }`；略過時另有 `reason`：`recovery_disabled`、`upload_not_configured`、`upload_disabled`、`already_running` |
+| `listYouTubeCleanupCandidates({ scope, now?, getFreeBytes? })` | `scope`：`enable`（假設現在啟用，下一輪會刪的）或 `upcoming`（7 天內到期，含已到期） | `[{ kind, id, title, courseId, sizeBytes, retentionStartAt, eligibleAt, reason }]`，`reason` 為 `max_age` 或 `low_space`；未知 scope 拋 `400 VALIDATION_ERROR` |
+| `buildYouTubeCleanupPreview({ scope, now?, getFreeBytes? })` | 同上 | `{ scope, generatedAt, windowDays, count, totalBytes, freeBytes, freeBytesError, policy: { maxAgeDays, minAgeDays, minFreeGb }, items }`，`items` 即上一列的陣列 |
+| `runYouTubeCleanup({ now?, getFreeBytes? })` | — | `{ skipped, candidates, cleaned, freedBytes, results: [{ kind, id, reason, cleaned, skipReason }] }`；略過時 `reason` 為 `cleanup_disabled` 或 `already_running` |
+| `buildYouTubeLifecycleSnapshot()` | — | `/health` 的 `runtime.youtubeUpload` 補充欄位：`switches`、`schedulers.{recovery,cleanup}`、`disk`、`cleanupPolicy` |
+
+開關函式在 `services/youtubeLifecycleSettings.service.js`（資料存在 `RuntimeSetting` model、`runtimesettings` 集合，一個 key 一份文件）；恢復在 `services/youtubeUpload.service.js`；清理、預告與快照在 `services/youtubeLifecycle.service.js`。
+
+- **短片納入（D 塊）**：在 `youtubeLifecycle.service.js` 的 `CLEANUP_SOURCES` 加一個 kind，提供 `listEntries()`（回傳 `{ kind, id, title, courseId, sizeBytes, retentionStartTime }`，只列出符合短片安全條件的項目，`retentionStartTime` 為毫秒）與 `cleanup(id)`（刪檔前呼叫 `isYouTubeLifecycleSwitchEnabled('cleanup')`，回傳 `{ cleaned, reason }`，關閉時 `reason` 為 `disabled`）。保留期與空間判斷、預告與排程會自動涵蓋新 kind。
+- **補回原片（C 塊）**：補回成功時寫入 `youtubeUpload.localSourceRestoredAt`，保留期即從這個時間重新起算。
+- `getFreeBytes` 只供測試注入；正式執行用 `fs.statfs` 查 `UPLOAD_DIR`。
+
 **時程與驗收**：
 
 | 日期 | 內容 | 驗收證據 |

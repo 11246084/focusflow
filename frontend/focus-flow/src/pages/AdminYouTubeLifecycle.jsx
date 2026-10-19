@@ -2,11 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useModalDialog from '../hooks/useModalDialog';
 import {
+  CLEANUP_REASON_LABELS,
+  KIND_LABELS,
   SWITCH_META,
   describeSwitch,
+  formatBytes,
   formatHistoryValue,
+  getCleanupPreview,
   getLifecycleSettings,
   prepareSwitchChange,
+  quarantineItemKey,
   updateLifecycleSwitch,
 } from '../services/youtubeLifecycle';
 
@@ -18,6 +23,10 @@ const OK_BTN = { ...SMALL_BTN, background: 'none', border: '1px solid rgba(74,22
 
 function formatDateTime(value) {
   return value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—';
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString('zh-TW') : '—';
 }
 
 function Message({ message }) {
@@ -82,9 +91,36 @@ function ConfirmDialog({ action, onClose }) {
   );
 }
 
+function CleanupItemList({ items, emptyText }) {
+  if (!items?.length) return <div style={MUTED}>{emptyText}</div>;
+  return (
+    <div className="ff-tbl-wrap" style={{ maxHeight: 260, overflowY: 'auto' }}>
+      <table className="ff-tbl">
+        <thead>
+          <tr><th>類型</th><th>名稱</th><th>課程</th><th>大小</th><th>到期</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={quarantineItemKey(item)}>
+              <td><span className="badge bb">{KIND_LABELS[item.kind] || item.kind}</span></td>
+              <td style={{ maxWidth: 200, overflowWrap: 'anywhere' }}>{item.title || '未命名'}</td>
+              <td style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>{item.courseTitle || '—'}</td>
+              <td style={{ fontSize: 12 }}>{formatBytes(item.sizeBytes)}</td>
+              <td style={{ fontSize: 12 }}>{formatDate(item.eligibleAt)}</td>
+              <td style={{ fontSize: 12 }}>{CLEANUP_REASON_LABELS[item.reason] || item.reason || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AdminYouTubeLifecycle() {
   const [settings, setSettings] = useState(null);
   const [settingsError, setSettingsError] = useState('');
+  const [upcoming, setUpcoming] = useState(null);
+  const [upcomingError, setUpcomingError] = useState('');
   const [switchMessage, setSwitchMessage] = useState(null);
   const [preparing, setPreparing] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
@@ -97,6 +133,9 @@ export default function AdminYouTubeLifecycle() {
     getLifecycleSettings()
       .then((data) => { if (active) { setSettings(data); setSettingsError(''); } })
       .catch((e) => { if (active) setSettingsError(e.message || '無法取得開關設定。'); });
+    getCleanupPreview('upcoming')
+      .then((data) => { if (active) { setUpcoming(data); setUpcomingError(''); } })
+      .catch((e) => { if (active) setUpcomingError(e.message || '無法取得即將到期清單。'); });
     return () => { active = false; };
   }, [refreshKey]);
 
@@ -113,6 +152,9 @@ export default function AdminYouTubeLifecycle() {
         summary: plan.summary,
         danger: plan.danger,
         confirmLabel: plan.enabled ? '確認啟用' : '確認停用',
+        body: plan.preview ? (
+          <CleanupItemList items={plan.preview.items} emptyText="沒有會立即刪除的原片。" />
+        ) : null,
         run: async () => {
           const data = await updateLifecycleSwitch(plan.key, plan.enabled);
           if (data?.switches) setSettings(data);
@@ -178,6 +220,23 @@ export default function AdminYouTubeLifecycle() {
             <span>上次恢復：{formatDateTime(runtime.lastRecoveryAt)}</span>
           </div>
         )}
+      </div>
+
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        {/* 7 天內將到期刪除（#27②），只顯示資訊 */}
+        <div className="card" style={{ padding: 22 }}>
+          <div style={{ ...TITLE, marginBottom: 4 }}>7 天內將到期刪除</div>
+          {upcomingError && <div role="alert" style={{ fontSize: 12, color: '#f87171' }}>{upcomingError}</div>}
+          {!upcomingError && !upcoming && <div style={MUTED}>讀取中...</div>}
+          {upcoming && (
+            <>
+              <div style={{ ...MUTED, marginBottom: 10 }}>
+                共 {upcoming.count || 0} 支（{formatBytes(upcoming.totalBytes)}）。需要保留原片的影片，請在到期前重新處理或另存原檔。
+              </div>
+              <CleanupItemList items={upcoming.items} emptyText="7 天內沒有將到期的原片。" />
+            </>
+          )}
+        </div>
       </div>
 
       {/* 修改紀錄（#12），後端保留最近 50 筆 */}

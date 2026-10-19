@@ -155,6 +155,25 @@ export function describeSwitch(sw = {}) {
   };
 }
 
+// 啟用清理是唯一需要先看預告的切換（#27①）。
+export function needsCleanupPreview(key, nextEnabled) {
+  return key === 'cleanup' && nextEnabled === true;
+}
+
+export function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(2)} GB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(0)} KB`;
+  return `${value} B`;
+}
+
+export function buildCleanupEnableSummary(preview = {}) {
+  const count = Number(preview.count) || 0;
+  if (count === 0) return '目前沒有符合條件的原片，啟用後不會立即刪除任何檔案。';
+  return `啟用後會立即刪除 ${count} 支（共 ${formatBytes(preview.totalBytes)}）原片，刪除後無法自動取回。`;
+}
+
 export function describeSwitchChange(key, enabled) {
   const label = SWITCH_META[key]?.label || key;
   return enabled ? `啟用「${label}」` : `停用「${label}」`;
@@ -168,8 +187,9 @@ const SWITCH_CHANGE_NOTES = {
   'cleanup:false': '排程停止刪除原片；這一輪已刪除的檔案無法取回。',
 };
 
-// 切換開關前要給管理員確認的內容。
-export async function prepareSwitchChange(sw) {
+// 切換開關前要給管理員確認的內容。啟用清理會先向後端取「啟用後立即刪除」清單（#27①），
+// 取不到清單就不讓啟用，避免在不知道影響範圍時刪檔。
+export async function prepareSwitchChange(sw, { fetchPreview = getCleanupPreview } = {}) {
   const view = describeSwitch(sw);
   if (!view.toggleable) throw new Error(view.note);
   const enabled = view.nextEnabled;
@@ -181,10 +201,20 @@ export async function prepareSwitchChange(sw) {
     preview: null,
     danger: !enabled || view.key === 'cleanup',
   };
+  if (needsCleanupPreview(view.key, enabled)) {
+    const preview = await fetchPreview('enable');
+    plan.preview = { ...preview, items: preview?.items || [] };
+    plan.summary = buildCleanupEnableSummary(preview);
+    plan.danger = true;
+  }
   return plan;
 }
 
 export function formatHistoryValue(value) {
   if (value === null || value === undefined) return '未設定';
   return value ? '開啟' : '關閉';
+}
+
+export function quarantineItemKey(item) {
+  return `${item.kind}:${item.id}`;
 }

@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
   applyQuarantineItem,
+  buildCleanupEnableSummary,
   describeSwitch,
+  formatBytes,
   getCleanupPreview,
   getLifecycleSettings,
   listQuarantine,
   lookupQuarantineItem,
+  prepareSwitchChange,
   resetQuarantineItem,
   runRecoveryNow,
   updateLifecycleSwitch,
@@ -65,6 +68,68 @@ describe('兩層開關的停用原因', () => {
     assert.equal(view.effective, false);
     assert.equal(view.nextEnabled, true);
     assert.match(view.note, /已由管理員停用/);
+  });
+});
+
+describe('啟用清理的預告確認（#27①）', () => {
+  it('啟用清理前先取 scope=enable 清單，摘要顯示支數與 GB', async () => {
+    const scopes = [];
+    const plan = await prepareSwitchChange(
+      { key: 'cleanup', envAllowed: true, runtimeEnabled: null, effective: false },
+      {
+        fetchPreview: async (scope) => {
+          scopes.push(scope);
+          return {
+            scope,
+            count: 2,
+            totalBytes: 3 * 1024 ** 3,
+            items: [
+              { kind: 'video', id: 'v1', title: 'week1', sizeBytes: 2 * 1024 ** 3, reason: 'max_age' },
+              { kind: 'short_asset', id: 's1', title: 'short', sizeBytes: 1024 ** 3, reason: 'low_space' },
+            ],
+          };
+        },
+      },
+    );
+    assert.deepEqual(scopes, ['enable']);
+    assert.equal(plan.enabled, true);
+    assert.equal(plan.danger, true);
+    assert.equal(plan.preview.items.length, 2);
+    assert.equal(plan.summary, '啟用後會立即刪除 2 支（共 3.00 GB）原片，刪除後無法自動取回。');
+  });
+
+  it('預告取不到時不產生確認內容，避免在不知道影響範圍時啟用', async () => {
+    await assert.rejects(
+      prepareSwitchChange(
+        { key: 'cleanup', envAllowed: true, runtimeEnabled: false, effective: false },
+        { fetchPreview: async () => { throw new Error('preview failed'); } },
+      ),
+      /preview failed/,
+    );
+  });
+
+  it('停用清理或切換其他開關不需要預告', async () => {
+    let called = false;
+    const fetchPreview = async () => { called = true; return {}; };
+    const disableCleanup = await prepareSwitchChange({ key: 'cleanup', envAllowed: true, runtimeEnabled: true, effective: true }, { fetchPreview });
+    const enableUpload = await prepareSwitchChange({ key: 'upload', envAllowed: true, runtimeEnabled: false, effective: false }, { fetchPreview });
+    assert.equal(called, false);
+    assert.equal(disableCleanup.enabled, false);
+    assert.equal(disableCleanup.preview, null);
+    assert.equal(enableUpload.enabled, true);
+  });
+
+  it('環境未允許的開關不能準備切換', async () => {
+    await assert.rejects(
+      prepareSwitchChange({ key: 'upload', envAllowed: false, runtimeEnabled: null, effective: false }),
+      /環境未允許/,
+    );
+  });
+
+  it('沒有符合條件的原片時說明不會立即刪除', () => {
+    assert.match(buildCleanupEnableSummary({ count: 0, totalBytes: 0 }), /不會立即刪除/);
+    assert.equal(formatBytes(1536 * 1024 ** 2), '1.50 GB');
+    assert.equal(formatBytes(5 * 1024 ** 2), '5.0 MB');
   });
 });
 

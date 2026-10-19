@@ -22,11 +22,14 @@ const VIDEO_STATUS_MAP = {
   failed: { text: '失敗', cls: 'br' },
 };
 
+// 教師沒有系統頻道帳號（決策 #19），不能安全重試的失敗交給管理員收尾。
+const YOUTUBE_NEEDS_ADMIN_HINT = 'YouTube 是否已收到這支影片需由管理員確認，處理後會自動更新。';
+
 // 重試失敗時依錯誤碼給出可行動的說明；未列出的錯誤碼沿用後端訊息。
 const RETRY_ERROR_MESSAGES = {
   VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原始影片檔已不存在，請刪除這支影片後重新上傳。',
   VIDEO_PROCESSING_TRANSITION_INVALID: '影片狀態已變更，請重新整理後再試。',
-  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，請先到 YouTube Studio 確認沒有重複影片，再聯絡管理員處理。',
+  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
   YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: 'YouTube 上傳重試次數已達上限，請聯絡管理員處理。',
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已成功上傳到 YouTube，不需要重試。',
   YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前不是上傳失敗狀態，請重新整理後再確認。',
@@ -686,8 +689,9 @@ export default function TeacherCourses() {
                             const isAttached = !video.metadataOnly && video.courseId && String(video.courseId) !== String(course._id);
                             // 重試只在主課程列出，避免同一支影片在掛載課程重複出現按鈕。
                             const youtubeFailed = video.youtubeUpload?.status === 'failed';
+                            const youtubeNeedsAdmin = youtubeFailed && video.youtubeUpload?.retrySafe === false;
                             const canRetryProcessing = !isAttached && !video.metadataOnly && status === 'failed';
-                            const canRetryYoutube = !isAttached && !video.metadataOnly && youtubeFailed;
+                            const canRetryYoutube = !isAttached && !video.metadataOnly && youtubeFailed && !youtubeNeedsAdmin;
                             const retryMessage = retryMessages[videoId];
                             return (
                               <div
@@ -717,7 +721,9 @@ export default function TeacherCourses() {
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                   {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>未知</span>}
                                   {youtubeFailed && (
-                                    <span className="badge br" title={video.youtubeUpload?.error || 'YouTube 上傳失敗'}>YouTube 失敗</span>
+                                    <span className="badge br" title={youtubeNeedsAdmin ? YOUTUBE_NEEDS_ADMIN_HINT : video.youtubeUpload?.error || 'YouTube 上傳失敗'}>
+                                      {youtubeNeedsAdmin ? 'YouTube 待確認' : 'YouTube 失敗'}
+                                    </span>
                                   )}
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
@@ -763,6 +769,11 @@ export default function TeacherCourses() {
                                     </button>
                                   )}
                                 </div>
+                                {!isAttached && youtubeNeedsAdmin && !retryMessage && (
+                                  <div style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>
+                                    {YOUTUBE_NEEDS_ADMIN_HINT}
+                                  </div>
+                                )}
                                 {retryMessage && (
                                   <div
                                     role={retryMessage.tone === 'error' ? 'alert' : 'status'}

@@ -30,7 +30,7 @@ const CODE_MESSAGES = {
   YOUTUBE_UPLOAD_FAILED: 'YouTube 上傳失敗，請稍後再試。',
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已經上傳到 YouTube。',
   YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前的狀態不能重新上傳到 YouTube。',
-  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，請先到 YouTube Studio 確認，避免重複上傳。',
+  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
   YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: '已達重新上傳次數上限。',
   FAQ_INVALIDATION_FAILED: '暫時無法清除問答快取，操作尚未執行，請稍後再試。',
   QA_RUNTIME_MISCONFIGURED: 'AI 問答服務設定異常，請聯絡管理員。',

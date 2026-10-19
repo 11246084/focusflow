@@ -5258,13 +5258,13 @@ components:
       properties:
         uploadEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_ENABLED`"
+          description: "`YOUTUBE_UPLOAD_ENABLED`（環境變數總開關；實際生效看 `switches.upload`）"
         recoveryEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_RECOVERY_ENABLED`；預設 false。"
+          description: "`YOUTUBE_UPLOAD_RECOVERY_ENABLED`；預設 false（實際生效看 `switches.recovery`）。"
         cleanupEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_CLEANUP_ENABLED`；預設 false。"
+          description: "`YOUTUBE_UPLOAD_CLEANUP_ENABLED`；預設 false（實際生效看 `switches.cleanup`）。"
         maxAttempts:
           type: integer
           minimum: 1
@@ -5422,6 +5422,125 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+        switches:
+          description: >-
+            上傳、恢復、清理兩層開關的實際生效值。`uploadEnabled`、`recoveryEnabled`、`cleanupEnabled` 只反映環境變數；
+            是否真的會執行看這裡的 `effective`。讀取資料庫失敗時為 null，原因見 `switchesError`。
+          anyOf:
+            - type: object
+              required:
+                - upload
+                - recovery
+                - cleanup
+              properties:
+                upload:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+                recovery:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+                cleanup:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+            - type: 'null'
+        switchesError:
+          anyOf:
+            - type: string
+            - type: 'null'
+        schedulers:
+          type: object
+          properties:
+            recovery:
+              $ref: '#/components/schemas/YouTubeLifecycleSchedulerSnapshot'
+            cleanup:
+              $ref: '#/components/schemas/YouTubeLifecycleSchedulerSnapshot'
+        disk:
+          description: "`UPLOAD_DIR` 所在磁碟的可用空間（`fs.statfs`）；查詢失敗時 `freeBytes` 為 null。"
+          type: object
+          properties:
+            freeBytes:
+              anyOf:
+                - type: number
+                - type: 'null'
+            minFreeBytes:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB` 換算的位元組；0 代表不依空間清理。"
+            belowThreshold:
+              anyOf:
+                - type: boolean
+                - type: 'null'
+            error:
+              anyOf:
+                - type: string
+                - type: 'null'
+        cleanupPolicy:
+          type: object
+          properties:
+            maxAgeDays:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS`；0 代表只依空間清理。"
+            minAgeDays:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS`"
+            minFreeGb:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB`"
+    YouTubeLifecycleSwitchSnapshot:
+      description: 兩層開關之一：環境變數允許且執行期設定開啟（或未設定且該開關預設跟隨環境變數）才生效。
+      type: object
+      required:
+        - envAllowed
+        - runtimeEnabled
+        - effective
+        - reason
+      properties:
+        envAllowed:
+          type: boolean
+        runtimeEnabled:
+          description: 管理員在資料庫的設定；null 代表尚未設定（上傳、恢復跟隨環境變數，清理視為關閉）。
+          anyOf:
+            - type: boolean
+            - type: 'null'
+        effective:
+          type: boolean
+        reason:
+          anyOf:
+            - type: string
+              enum:
+                - env_disabled
+                - runtime_disabled
+                - default_off
+            - type: 'null'
+    YouTubeLifecycleSchedulerSnapshot:
+      description: 恢復或清理排程的 process 內狀態；環境變數不允許時不啟動計時器。
+      type: object
+      properties:
+        envAllowed:
+          type: boolean
+        timerActive:
+          type: boolean
+        intervalMs:
+          anyOf:
+            - type: number
+            - type: 'null'
+        running:
+          type: boolean
+        runningSince:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastAttemptAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastSuccessAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastError:
+          anyOf:
+            - type: string
+            - type: 'null'
     ShortAssetLifecycleStatus:
       type: string
       description: ShortAsset 的素材生命週期，與 reviewStatus 分離。

@@ -677,4 +677,21 @@ describe('youtubeLifecycle.service 原片清理', () => {
     assert.match(preview.freeBytesError, /statfs unavailable/);
   });
 
+  it('健康檢查快照包含三個開關的實際生效值、排程狀態與可用空間', async () => {
+    env.youtubeUploadEnabled = true;
+    env.youtubeUploadRecoveryEnabled = false;
+    setRuntimeSwitch('upload', false);
+
+    const snapshot = await lifecycleService.buildYouTubeLifecycleSnapshot({ getFreeBytes: async () => 5 * GB });
+
+    assert.deepEqual(snapshot.switches, {
+      upload: { envAllowed: true, runtimeEnabled: false, effective: false, reason: 'runtime_disabled' },
+      recovery: { envAllowed: false, runtimeEnabled: null, effective: false, reason: 'env_disabled' },
+      cleanup: { envAllowed: true, runtimeEnabled: null, effective: false, reason: 'default_off' },
+    });
+    assert.deepEqual(
+      [snapshot.disk.freeBytes, snapshot.disk.belowThreshold, snapshot.schedulers.cleanup.timerActive],
+      [5 * GB, true, false],
+    );
+  });
 });

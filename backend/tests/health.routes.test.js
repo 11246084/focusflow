@@ -103,6 +103,22 @@ describe('health routes', () => {
     assert.equal(result.body.data.runtime.youtubeUpload.credentialCheck.status, 'unknown');
   });
 
+  it('YouTube 狀態包含三個開關的實際生效值、排程狀態與可用空間', async () => {
+    const result = await jsonRequest(serverContext.baseUrl, '/health');
+    const youtubeUpload = result.body.data.runtime.youtubeUpload;
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(youtubeUpload.switches.upload, {
+      envAllowed: false,
+      runtimeEnabled: null,
+      effective: false,
+      reason: 'env_disabled',
+    });
+    assert.deepEqual(Object.keys(youtubeUpload.schedulers).sort(), ['cleanup', 'recovery']);
+    assert.equal('freeBytes' in youtubeUpload.disk, true);
+    assert.equal(youtubeUpload.cleanupPolicy.maxAgeDays, env.youtubeUploadCleanupMaxAgeDays);
+  });
+
   it('marks qa runtime as hard-fail when the configured answer provider is missing required keys', async () => {
     env.qaAnswerProvider = 'gemini';
     env.geminiApiKey = '';

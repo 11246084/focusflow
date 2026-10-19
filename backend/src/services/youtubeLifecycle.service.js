@@ -9,11 +9,13 @@ const {
 const AppError = require('../utils/appError');
 const {
   cleanupUploadedLocalVideo,
+  getYouTubeUploadRecoverySchedulerState,
   isPathInside,
   resolveLocalUploadPath,
 } = require('./youtubeUpload.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
+  getYouTubeLifecycleSettings,
   isYouTubeLifecycleSwitchEnabled,
 } = require('./youtubeLifecycleSettings.service');
 
@@ -375,6 +377,48 @@ function getYouTubeCleanupSchedulerState() {
   };
 }
 
+// /health 的 runtime.youtubeUpload 補充欄位：兩層開關實際生效值、排程、可用空間。
+// 任何一項讀取失敗只在該欄位標示錯誤，不讓 /health 失敗。
+async function buildYouTubeLifecycleSnapshot({ getFreeBytes } = {}) {
+  const policy = getCleanupPolicy();
+  let switches = null;
+  let switchesError = null;
+  try {
+    const settings = await getYouTubeLifecycleSettings();
+    switches = Object.fromEntries(settings.switches.map((item) => [item.key, {
+      envAllowed: item.envAllowed,
+      runtimeEnabled: item.runtimeEnabled,
+      effective: item.effective,
+      reason: item.reason,
+    }]));
+  } catch (error) {
+    switchesError = String(error?.message || error).slice(0, 300);
+  }
+  const space = await readFreeBytes(getFreeBytes);
+
+  return {
+    switches,
+    switchesError,
+    schedulers: {
+      recovery: getYouTubeUploadRecoverySchedulerState(),
+      cleanup: getYouTubeCleanupSchedulerState(),
+    },
+    disk: {
+      freeBytes: space.freeBytes,
+      minFreeBytes: policy.minFreeBytes,
+      belowThreshold: space.freeBytes === null || policy.minFreeBytes <= 0
+        ? null
+        : space.freeBytes < policy.minFreeBytes,
+      error: space.error,
+    },
+    cleanupPolicy: {
+      maxAgeDays: policy.maxAgeDays,
+      minAgeDays: policy.minAgeDays,
+      minFreeGb: policy.minFreeGb,
+    },
+  };
+}
+
 function resetYouTubeLifecycleStateForTests() {
   stopYouTubeCleanupScheduler();
   cleanupScheduler.running = false;
@@ -392,6 +436,7 @@ module.exports = {
   YOUTUBE_CLEANUP_REASONS,
   YOUTUBE_CLEANUP_SCOPES,
   buildYouTubeCleanupPreview,
+  buildYouTubeLifecycleSnapshot,
   getCleanupPolicy,
   getUploadDirFreeBytes,
   getYouTubeCleanupSchedulerState,

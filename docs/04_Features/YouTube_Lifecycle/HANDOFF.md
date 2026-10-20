@@ -17,20 +17,24 @@
 
 基底分支是 `feat/youtube-lifecycle`，各塊從它切出，完成後合併回它。
 
-| 塊 | 分支（本機，未 push） | worktree | 狀態（10/20） |
-|---|---|---|---|
-| 設計文件 | `feat/youtube-lifecycle` | — | decisions.md、本文件、work-orders |
-| A 核心 | `feat/youtube-lifecycle-a-core` | `.claude/worktrees/yt-a-core-d304b6` | 開發中；已有一筆大 commit `3a98d27`，可能正在拆成小 commit |
-| C 補回原片 | `claude/yt-c-restore-ac99e4` | `.claude/worktrees/yt-c-restore-ac99e4` | 開發中；已有 `fff6547`、`a5975f1` |
-| E 前端 | `claude/yt-e-frontend-540a69` | `.claude/worktrees/yt-e-frontend-540a69` | **完成**：8 筆 commit（`e59bf1d..abbd593`），前端測試 101 項通過、build 成功，已確認作者正確 |
-| B 管理員 API | 尚未建立，預定 `wip/yt-b-admin` | — | 等 A 合併後派給 Codex，說明見 [work-orders/B-admin-api.md](work-orders/B-admin-api.md) |
-| D 短片 | 尚未建立，預定 `wip/yt-d-shorts` | — | 等 A 合併後派給 Codex，說明見 [work-orders/D-short-assets.md](work-orders/D-short-assets.md) |
+| 塊 | 分支（本機，未 push） | 狀態（10/20） |
+|---|---|---|
+| 整合 | `feat/youtube-lifecycle`（worktree `.claude/worktrees/yt-integration`） | A～E 全部合併並補齊缺口；合併進 `dev` 後由使用者 push |
+| A 核心 | `feat/youtube-lifecycle-a-core` | 已合併 |
+| B 管理員 API | `wip/yt-b-admin-claude-c0e4f3`（Claude 接手） | 已合併 |
+| C 補回原片 | `claude/yt-c-restore-ac99e4` | 已合併 |
+| D 短片 | `wip/yt-d-shorts-claude-a064be`（Claude 接手） | 已合併 |
+| E 前端 | `claude/yt-e-frontend-540a69` | 已合併 |
+
+`wip/yt-b-admin`、`wip/yt-d-shorts` 是 Codex 額度用完時留下的未提交草稿（worktree 仍在），已被 Claude 接手的分支取代，不合併。各塊分支與 worktree 由使用者決定何時清理。
 
 `claude/` 開頭的兩條分支是在改分支前綴之前建立的；合併進 `feat/youtube-lifecycle` 後刪除，不要 push。
 
 Claude 接手時可參考的 session（用 Claude Desktop 打開後說「繼續」即可）：A `local_6b455304-cfeb-4b45-bd6d-cf5253271203`、C `local_cfc00d53-8a5c-448a-9c0f-f855a29b6004`、E `local_976a39e8-31fb-4d65-896c-47d23a78ff5f`。
 
 ## 下一步（依序）
+
+第 1～6 步已於 10/20 完成（第 5 步的瀏覽器實測未做，留到第 8 步部署後與驗收一起做）；從第 7 步繼續。
 
 1. **確認 A、C 完成**：worktree 內 `git status --short` 為空；`backend/` 執行 `npm.cmd test` 全套通過。若 session 因額度中斷，未提交的修改仍在 worktree 裡，接手者先檢查再依小步規則提交。
 2. **檢查身分**，每條分支合併前都要跑，輸出只能有 Weihao，第二行要是 0：

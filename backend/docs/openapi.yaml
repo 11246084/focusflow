@@ -6782,6 +6782,8 @@ components:
             - video_completed
             - system_maintenance
             - short_asset_rejected
+            - youtube_upload_needs_review
+            - youtube_upload_resolved
         title:
           type: string
           maxLength: 120
@@ -6813,7 +6815,9 @@ components:
             - boolean
             - 'null'
         scriptId:
-          description: short_asset_rejected 通知要跳轉的短影片腳本；其他來源為 null。
+          description: |
+            short_asset_rejected 通知要跳轉的短影片腳本；短片的 youtube_upload_needs_review／youtube_upload_resolved
+            通知為該成品的來源腳本（沒有時為 null）；其他來源為 null。
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - type: 'null'

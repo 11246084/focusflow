@@ -20,6 +20,7 @@ const {
   normalizePrivacyStatus,
 } = require('./youtubeUpload.service');
 const { markShortAssetPublished } = require('./shortAssetPublish.service');
+const { notifyYouTubeUploadResolved } = require('./notification.service');
 
 // 被隔離的上傳由管理員收尾（decisions.md #17、#18、#28）。隔離＝上傳失敗且不可自動重試
 // （retrySafe 不是 true），YouTube 可能已收到影片，自動重試會在頻道留下兩支相同的影片。
@@ -394,7 +395,7 @@ async function applyQuarantinedItem({
 } = {}) {
   const definition = getKindDefinition(kind);
   const normalizedYouTubeVideoId = normalizeYouTubeVideoId(youtubeVideoId);
-  await loadQuarantinedItem(kind, id);
+  const item = await loadQuarantinedItem(kind, id);
   await assertYouTubeVideoIdUnused(normalizedYouTubeVideoId);
   const remote = await verifyOwnYouTubeVideo(normalizedYouTubeVideoId, fetchImpl);
 
@@ -405,6 +406,13 @@ async function applyQuarantinedItem({
   }));
   if (!updated) throw createStateChangedError(definition);
   await definition.afterApply(updated);
+  // 用處理前的失敗時間防重複：同一次失敗只通知一次。
+  await notifyYouTubeUploadResolved({
+    kind,
+    item,
+    uploaderId: definition.uploaderId(item),
+    action: 'applied',
+  });
 
   return { kind, id: String(id), status: YOUTUBE_UPLOAD_STATUSES.UPLOADED };
 }
@@ -412,7 +420,7 @@ async function applyQuarantinedItem({
 // 「重設為可重試」：確定 YouTube 上沒有這支時使用，次數歸零，交給恢復排程或教師重試。
 async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
   const definition = getKindDefinition(kind);
-  await loadQuarantinedItem(kind, id);
+  const item = await loadQuarantinedItem(kind, id);
 
   const updated = await updateIfStillQuarantined(kind, id, {
     'youtubeUpload.retrySafe': true,
@@ -420,6 +428,12 @@ async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
     'youtubeUpload.nextRetryAt': now,
   });
   if (!updated) throw createStateChangedError(definition);
+  await notifyYouTubeUploadResolved({
+    kind,
+    item,
+    uploaderId: definition.uploaderId(item),
+    action: 'reset',
+  });
 
   return {
     kind,

@@ -5,6 +5,7 @@ const {
   isShortAssetUploadRunning,
   runTrackedShortAssetUpload,
 } = require('./shortAssetPublish.service');
+const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 
 // 短片成品納入 YouTube 上傳恢復排程（decisions.md #28）。由 youtubeUpload.service 的
 // recoverPendingYouTubeUploads 在處理完影片後呼叫：兩層開關、同一輪的鎖與批次大小都沿用影片的，
@@ -129,8 +130,12 @@ async function recoverShortAssetUploads({ fetchImpl = global.fetch, now = new Da
         continue;
       }
       const quarantinedAsset = await quarantineStaleShortAsset(asset, now);
-      if (quarantinedAsset) quarantined += 1;
-      else skippedItems += 1;
+      if (quarantinedAsset) {
+        quarantined += 1;
+        await notifyYouTubeUploadNeedsReview({ kind: 'short_asset', item: quarantinedAsset });
+      } else {
+        skippedItems += 1;
+      }
       continue;
     }
 

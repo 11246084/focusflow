@@ -15,6 +15,7 @@ const {
 } = require('./youtubeUpload.service');
 const { recordShortAssetRegeneration } = require('./shortAsset.service');
 const { markScriptPublished } = require('./shortScript.service');
+const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 const {
   SHORT_ASSET_REVIEW_STATUSES,
   SHORT_ASSET_STATUSES,
@@ -108,7 +109,7 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
   const retrySafe = error?.youtubeRetrySafe === true;
   const failedAt = new Date();
   // 失敗時 status 維持 draft（不寫 status），只記錄原因與可否重試。
-  await ShortAsset.findByIdAndUpdate(assetId, {
+  const failedAsset = await ShortAsset.findByIdAndUpdate(assetId, {
     $set: {
       'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
       'youtubeUpload.error': shortErrorMessage(error),
@@ -119,7 +120,11 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
       'youtubeUpload.retrySafe': retrySafe,
       'youtubeUpload.nextRetryAt': computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
     },
-  });
+  }, { new: true });
+  // 不可重試的失敗會進入待處理清單，通知管理員（#20、#28）。
+  if (!retrySafe && failedAsset) {
+    await notifyYouTubeUploadNeedsReview({ kind: 'short_asset', item: failedAsset });
+  }
 }
 
 /**

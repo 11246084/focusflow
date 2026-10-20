@@ -10,6 +10,7 @@ const {
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
+const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
   isYouTubeLifecycleSwitchEnabled,
@@ -486,6 +487,7 @@ async function autoUploadVideoToYouTube(
 
     const filePath = resolveLocalUploadPath(claimedVideo.filePath);
     if (!claimedVideo.filePath || !existsSync(filePath)) {
+      const failedAt = new Date();
       await Video.findByIdAndUpdate(id, {
         $set: {
           'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
@@ -493,9 +495,19 @@ async function autoUploadVideoToYouTube(
           'youtubeUpload.uploadedAt': null,
           'youtubeUpload.attemptCount': attemptCount,
           'youtubeUpload.lastAttemptAt': attemptStartedAt,
-          'youtubeUpload.failedAt': new Date(),
+          'youtubeUpload.failedAt': failedAt,
           'youtubeUpload.retrySafe': false,
           'youtubeUpload.nextRetryAt': null,
+        },
+      });
+      // 不可重試的失敗會進入待處理清單，通知管理員（#20）。
+      await notifyYouTubeUploadNeedsReview({
+        kind: 'video',
+        item: {
+          _id: claimedVideo._id,
+          title: claimedVideo.title,
+          courseId: claimedVideo.courseId,
+          youtubeUpload: { failedAt },
         },
       });
       return null;
@@ -534,19 +546,24 @@ async function autoUploadVideoToYouTube(
     const nextRetryAt = canRetry
       ? new Date(Date.now() + (env.youtubeUploadRetryBaseMs * (2 ** (attemptCount - 1))))
       : null;
+    const failedAt = new Date();
 
-    await Video.findByIdAndUpdate(id, {
+    const failedVideo = await Video.findByIdAndUpdate(id, {
       $set: {
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
         'youtubeUpload.error': String(error.message || error).slice(0, 500),
         'youtubeUpload.uploadedAt': null,
         'youtubeUpload.attemptCount': attemptCount,
         'youtubeUpload.lastAttemptAt': attemptStartedAt,
-        'youtubeUpload.failedAt': new Date(),
+        'youtubeUpload.failedAt': failedAt,
         'youtubeUpload.retrySafe': retrySafe,
         'youtubeUpload.nextRetryAt': nextRetryAt,
       },
-    });
+    }, { new: true });
+    // 送出 bytes 後才失敗：YouTube 可能已收到，進入待處理清單並通知管理員（#20）。
+    if (!retrySafe && failedVideo) {
+      await notifyYouTubeUploadNeedsReview({ kind: 'video', item: failedVideo });
+    }
 
     if (process.env.NODE_ENV !== 'test') {
       console.error(`YouTube auto upload failed for video ${id}.`, error);
@@ -713,8 +730,12 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
             },
             { new: true },
           );
-          if (quarantinedVideo) quarantined += 1;
-          else skippedItems += 1;
+          if (quarantinedVideo) {
+            quarantined += 1;
+            await notifyYouTubeUploadNeedsReview({ kind: 'video', item: quarantinedVideo });
+          } else {
+            skippedItems += 1;
+          }
         } else {
           skippedItems += 1;
         }

@@ -216,6 +216,36 @@ describe('短片成品的上傳恢復與隔離', () => {
     assert.deepEqual(result, { recovered: 1, quarantined: 1, skipped: false, skippedItems: 0 });
   });
 
+  it('管理員停用上傳時，新成品不送出並記成可重試，留給恢復排程', async () => {
+    store.runtimeSettings.push({ key: 'youtubeLifecycle.upload', value: false, history: [] });
+    env.youtubeUploadEnabled = true;
+    const asset = addAsset(tempDir, { youtubeUpload: { status: null, attemptCount: 0 } });
+
+    await shortAssetPublishService.scheduleUploadOnCreate(asset);
+
+    assert.equal(asset.youtubeVideoId, undefined);
+    assert.equal(asset.youtubeUpload.status, 'failed');
+    assert.equal(asset.youtubeUpload.retrySafe, true);
+    assert.match(asset.youtubeUpload.error, /disabled by an administrator/);
+  });
+
+  it('管理員停用上傳時，教師重試短片回 503', async () => {
+    store.runtimeSettings.push({ key: 'youtubeLifecycle.upload', value: false, history: [] });
+    const asset = addAsset(tempDir, {
+      youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 1 },
+    });
+    const teacher = store.users.find((user) => user._id === ids.teacher);
+
+    await assert.rejects(
+      shortAssetPublishService.retryShortAssetUpload({
+        user: { id: ids.teacher, role: teacher.role },
+        assetId: asset._id,
+      }),
+      (error) => error.statusCode === 503 && error.code === 'YOUTUBE_UPLOAD_NOT_CONFIGURED',
+    );
+    assert.equal(asset.youtubeUpload.attemptCount, 1);
+  });
+
   it('恢復開關關閉時短片也不處理', async () => {
     store.runtimeSettings.push({ key: 'youtubeLifecycle.recovery', value: false, history: [] });
     const asset = addAsset(tempDir, {

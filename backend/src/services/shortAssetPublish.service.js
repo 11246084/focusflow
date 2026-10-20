@@ -13,6 +13,10 @@ const {
   setVideoPrivacy,
   uploadLocalVideo,
 } = require('./youtubeUpload.service');
+const {
+  YOUTUBE_LIFECYCLE_SWITCHES,
+  isYouTubeLifecycleSwitchEnabled,
+} = require('./youtubeLifecycleSettings.service');
 const { recordShortAssetRegeneration } = require('./shortAsset.service');
 const { markScriptPublished } = require('./shortScript.service');
 const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
@@ -334,7 +338,12 @@ function scheduleUploadOnCreate(asset) {
     return recordSkippedUpload(asset._id, 'YouTube upload is not configured.');
   }
 
-  return runTrackedShortAssetUpload({ assetId: asset._id }).catch((error) => {
+  // 管理員停用上傳時同樣不送出（兩層開關，decisions.md #9、#28）；記成可安全重試，
+  // 重新啟用後由恢復排程補傳。
+  return isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD).then((enabled) => {
+    if (!enabled) return recordSkippedUpload(asset._id, 'YouTube upload is disabled by an administrator.');
+    return runTrackedShortAssetUpload({ assetId: asset._id });
+  }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`[shortAsset] YouTube upload failed for ${asset._id}.`, error);
     }
@@ -415,6 +424,11 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch }
       409,
       'YOUTUBE_UPLOAD_RETRY_UNSAFE',
     );
+  }
+
+  // 比照影片的教師重試：管理員停用上傳時不送出。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
+    throw new AppError('YouTube upload is disabled by an administrator.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   }
 
   return runTrackedShortAssetUpload({ assetId, fetchImpl });

@@ -320,3 +320,101 @@ describe('短片成品的清理候選（#28、#30）', () => {
     );
   });
 });
+
+describe('短片成品清理後的狀態與行為（#31）', () => {
+  useTempUploadDir();
+
+  // 走排程把一支成品清掉，回傳清理前的本機路徑。
+  async function cleanAsset(asset) {
+    const localPath = asset.filePath;
+    setCleanupSwitch(true);
+    const run = await lifecycleService.runYouTubeCleanup({ now: NOW, getFreeBytes: plentyOfSpace });
+    assert.deepEqual(run.results.map((item) => [item.id, item.cleaned]), [[String(asset._id), true]]);
+    return localPath;
+  }
+
+  it('清理刪除檔案但保留 filePath，記錄 localCleanupAt，下一輪不再列入', async () => {
+    const asset = addUploadedAsset();
+
+    const localPath = await cleanAsset(asset);
+    const next = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.equal(fs.existsSync(localPath), false);
+    assert.equal(asset.filePath, localPath);
+    assert.ok(asset.youtubeUpload.localCleanupAt instanceof Date);
+    assert.equal(asset.youtubeUpload.localCleanupError, null);
+    assert.deepEqual(next, []);
+  });
+
+  it('清理開關沒有啟用時不刪檔，回傳 disabled', async () => {
+    const asset = addUploadedAsset();
+    const source = lifecycleService.CLEANUP_SOURCES.short_asset;
+
+    const result = await source.cleanup(String(asset._id));
+
+    assert.deepEqual(result, { cleaned: false, reason: 'disabled' });
+    assert.equal(fs.existsSync(asset.filePath), true);
+  });
+
+  it('刪檔前重新確認：已變回草稿的成品不刪', async () => {
+    const asset = addUploadedAsset();
+    setCleanupSwitch(true);
+    asset.status = 'draft';
+
+    const result = await lifecycleService.CLEANUP_SOURCES.short_asset.cleanup(String(asset._id));
+
+    assert.deepEqual(result, { cleaned: false, reason: 'lifecycle_not_complete' });
+    assert.equal(fs.existsSync(asset.filePath), true);
+  });
+
+  it('刪檔前重新確認：與影片共用同一檔案時不刪並記錄原因', async () => {
+    const asset = addUploadedAsset();
+    setCleanupSwitch(true);
+    store.videos.push({ _id: newObjectId(), courseId: ids.teacherCourse, filePath: asset.filePath });
+
+    const result = await lifecycleService.CLEANUP_SOURCES.short_asset.cleanup(String(asset._id));
+
+    assert.deepEqual(result, { cleaned: false, reason: 'shared_reference' });
+    assert.equal(fs.existsSync(asset.filePath), true);
+    assert.match(asset.youtubeUpload.localCleanupError, /referenced by another/);
+  });
+
+  it('清理後的成品被退回時仍會把 YouTube 影片轉私人', async () => {
+    const asset = addUploadedAsset();
+    await cleanAsset(asset);
+    const fake = fakeYouTube({ youtubeId: asset.youtubeVideoId });
+
+    const updated = await publishService.privatizeRejectedShortAsset(asset, { fetchImpl: fake.fetchImpl });
+
+    assert.notEqual(updated, null);
+    assert.equal(fake.privacyUpdates[0].status.privacyStatus, 'private');
+    assert.equal(asset.youtubePrivacyStatus, 'private');
+  });
+
+  it('清理後的成品核准時仍會上架進學生牆', async () => {
+    const asset = addUploadedAsset({ status: 'archived', reviewedGenerationVersion: 1 });
+    await cleanAsset(asset);
+    asset.status = 'draft';
+
+    const published = await publishService.publishApprovedShortAsset(asset);
+
+    assert.notEqual(published, null);
+    assert.equal(asset.status, 'published');
+    assert.ok(asset.publishedAt instanceof Date);
+  });
+
+  it('清理後重新上傳 YouTube 回傳 SHORT_ASSET_SOURCE_FILE_MISSING 且標為不可重試', async () => {
+    const asset = addUploadedAsset();
+    await cleanAsset(asset);
+    // 例如管理員確認 YouTube 上沒有這支、清掉影片 ID 後重新上傳。
+    delete asset.youtubeVideoId;
+    const fake = fakeYouTube();
+
+    await assert.rejects(
+      () => publishService.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl: fake.fetchImpl }),
+      (error) => error.code === 'SHORT_ASSET_SOURCE_FILE_MISSING',
+    );
+    assert.equal(fake.metadata.length, 0);
+    assert.deepEqual([asset.youtubeUpload.status, asset.youtubeUpload.retrySafe], ['failed', false]);
+  });
+});

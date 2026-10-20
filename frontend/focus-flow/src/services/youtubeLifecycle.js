@@ -280,17 +280,22 @@ export function quarantineItemKey(item) {
   return `${item.kind}:${item.id}`;
 }
 
-// 補回原片（#21、#23）：只有後端明確回 false 才視為原片已清理；舊資料沒有欄位時照舊。
+// 補回原片（#21、#23）：只有後端明確回 false 才視為沒有原片；舊資料沒有欄位時照舊。
+// 後端只接受清理流程刪掉的原片（有 localCleanupAt），從 YouTube 連結匯入的影片
+// 本來就沒有原片，不標成「已清理」也不提供補回。
 export function getVideoSourceState(video = {}) {
   const sourceMissing = video.sourceAvailable === false && !video.metadataOnly;
+  const sourceCleaned = sourceMissing && Boolean(video.youtubeUpload?.localCleanupAt);
   const failed = video.processing?.status === 'failed';
+  let reprocessHint = '重新執行語音轉文字與 AI 索引';
+  if (sourceCleaned) reprocessHint = '原片已清理，無法重新處理；請先「補回原片」。';
+  else if (sourceMissing) reprocessHint = '伺服器上沒有這支影片的原片，無法重新處理。';
   return {
     sourceMissing,
-    canRestore: sourceMissing,
+    sourceCleaned,
+    canRestore: sourceCleaned,
     reprocessDisabled: sourceMissing,
     showReprocess: failed && !video.metadataOnly,
-    reprocessHint: sourceMissing
-      ? '原片已清理，無法重新處理；請先「補回原片」。'
-      : '重新執行語音轉文字與 AI 索引',
+    reprocessHint,
   };
 }

@@ -107,7 +107,7 @@ export default function AdminVideos() {
                     <span className={`badge ${STATUS_BADGE[v.status] || 'bb'}`}>
                       {STATUS_LABEL[v.status] || v.status}
                     </span>
-                    {getVideoSourceState(v).sourceMissing && (
+                    {getVideoSourceState(v).sourceCleaned && (
                       <span className="badge bb" style={{ marginLeft: 4 }} title="原片已從伺服器清理，播放改走 YouTube">原片已清理</span>
                     )}
                   </td>

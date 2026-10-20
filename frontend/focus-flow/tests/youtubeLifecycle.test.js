@@ -238,8 +238,13 @@ describe('待處理清單的操作（#17）', () => {
 
 describe('補回原片（#21、#23）', () => {
   it('原片已清理時停用重新處理並提供補回', () => {
-    const state = getVideoSourceState({ sourceAvailable: false, processing: { status: 'failed' } });
+    const state = getVideoSourceState({
+      sourceAvailable: false,
+      processing: { status: 'failed' },
+      youtubeUpload: { status: 'uploaded', localCleanupAt: '2026-10-01T00:00:00.000Z' },
+    });
     assert.equal(state.sourceMissing, true);
+    assert.equal(state.sourceCleaned, true);
     assert.equal(state.canRestore, true);
     assert.equal(state.showReprocess, true);
     assert.equal(state.reprocessDisabled, true);
@@ -253,6 +258,14 @@ describe('補回原片（#21、#23）', () => {
       assert.equal(state.reprocessDisabled, false);
       assert.equal(state.showReprocess, true);
     }
+  });
+
+  it('從 YouTube 連結匯入、沒有清理紀錄的影片不提供補回', () => {
+    const state = getVideoSourceState({ sourceAvailable: false, processing: { status: 'failed' }, youtubeUpload: {} });
+    assert.equal(state.sourceCleaned, false);
+    assert.equal(state.canRestore, false);
+    assert.equal(state.reprocessDisabled, true);
+    assert.doesNotMatch(state.reprocessHint, /補回原片/);
   });
 
   it('只有 metadata 的影片沒有原片可補', () => {

@@ -743,7 +743,7 @@ export default function TeacherCourses() {
                                       {youtubeNeedsAdmin ? 'YouTube 待確認' : 'YouTube 失敗'}
                                     </span>
                                   )}
-                                  {source.sourceMissing && (
+                                  {source.sourceCleaned && (
                                     <span className="badge bb" title="原片已從伺服器清理，學生照常觀看 YouTube 版本">原片已清理</span>
                                   )}
                                 </div>

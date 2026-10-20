@@ -221,6 +221,14 @@ async function listQuarantinedItems() {
   return { items, searchable: resolveSearchableHint() };
 }
 
+// 系統狀態用的待處理數量，與清單同一份條件。
+async function countQuarantinedItems() {
+  const counts = await Promise.all(
+    Object.values(KIND_DEFINITIONS).map((definition) => definition.model.countDocuments(definition.query())),
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
+}
+
 function createVerifyError(message, responseText) {
   const suffix = responseText ? ` ${String(responseText).slice(0, 300)}` : '';
   return new AppError(`${message}${suffix}`.trim(), 502, 'YOUTUBE_QUARANTINE_VERIFY_FAILED');
@@ -451,6 +459,7 @@ module.exports = {
   YOUTUBE_PLAYLIST_ITEMS_URL,
   YOUTUBE_VIDEOS_URL,
   applyQuarantinedItem,
+  countQuarantinedItems,
   listQuarantinedItems,
   loadQuarantinedItem,
   lookupQuarantinedItem,

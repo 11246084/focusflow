@@ -688,6 +688,7 @@ function installModelStubs() {
     },
   );
   Video.findOne = async (query = {}) => store.videos.find((item) => matchesQuery(item, query)) || null;
+  Video.countDocuments = async (query = {}) => store.videos.filter((item) => matchesQuery(item, query)).length;
   Video.findById = (id) => createQuery(
     store.videos.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
     {
@@ -1099,6 +1100,7 @@ function installModelStubs() {
     return asset;
   };
   ShortAsset.find = (query = {}) => createQuery(store.shortAssets.filter((item) => matchesQuery(item, query)));
+  ShortAsset.countDocuments = async (query = {}) => store.shortAssets.filter((item) => matchesQuery(item, query)).length;
   ShortAsset.findById = (id) => createQuery(
     store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
   );

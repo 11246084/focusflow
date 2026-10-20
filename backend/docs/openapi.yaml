@@ -2263,7 +2263,7 @@ paths:
       tags:
         - Admin
       summary: 系統服務狀態
-      description: 僅限 admin。回傳管理員總覽「系統服務」區塊的資料：MongoDB 連線、AI 問答、LINE Bot、語音轉文字 Pipeline、YouTube 自動上傳。狀態依本程序的連線狀態、runtime 設定與最近一次呼叫結果判斷，不主動呼叫外部 API。
+      description: 僅限 admin。回傳管理員總覽「系統服務」區塊的資料：MongoDB 連線、AI 問答、LINE Bot、語音轉文字 Pipeline、YouTube 自動上傳，以及 YouTube 待處理（被隔離的上傳）與 7 天內將到期刪除的原片數量。狀態依本程序的連線狀態、runtime 設定、資料庫與最近一次呼叫結果判斷，不主動呼叫外部 API。
       operationId: getAdminSystemStatus
       responses:
         '200':
@@ -2288,7 +2288,7 @@ paths:
                               properties:
                                 key:
                                   type: string
-                                  enum: [database, qa, line, stt, youtube]
+                                  enum: [database, qa, line, stt, youtube, youtube_lifecycle]
                                 name:
                                   type: string
                                 status:
@@ -2296,6 +2296,24 @@ paths:
                                   enum: [ok, degraded, down, not_enabled, unknown]
                                 detail:
                                   type: string
+                          youtubeLifecycle:
+                            description: 讀取失敗時三個數量為 null（`youtube_lifecycle` 列顯示 unknown）。
+                            type: object
+                            properties:
+                              quarantineCount:
+                                description: 被隔離、等管理員收尾的影片與短片數量。
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
+                              upcomingCleanupCount:
+                                description: 7 天內到期（含已到期）將刪除的原片數量，與清理排程共用判斷。
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
+                              upcomingCleanupBytes:
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':

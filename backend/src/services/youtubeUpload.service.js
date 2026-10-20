@@ -53,6 +53,13 @@ const credentialState = {
   lastCleanupVideoId: null,
 };
 const runningUploadIds = new Set();
+// 影片以外、同樣上傳到 YouTube 的來源（短片成品，decisions.md #28），共用恢復排程、
+// 兩層開關與同一輪的鎖。回傳 { recovered, quarantined, skippedItems }。
+// lazy require：shortAssetPublish.service 反過來依賴本檔，不能在載入時互相 require。
+const RECOVERY_SOURCES = {
+  short_asset: (options) => require('./shortAssetRecovery.service').recoverShortAssetUploads(options),
+};
+
 // 恢復排程狀態（decisions.md #7）。同一時間只跑一輪，避免長上傳與下一輪重疊。
 const recoveryScheduler = {
   timer: null,
@@ -724,6 +731,13 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
       }
     }
 
+    for (const recoverSource of Object.values(RECOVERY_SOURCES)) {
+      const sourceResult = await recoverSource({ fetchImpl, now });
+      recovered += Number(sourceResult?.recovered || 0);
+      quarantined += Number(sourceResult?.quarantined || 0);
+      skippedItems += Number(sourceResult?.skippedItems || 0);
+    }
+
     credentialState.lastRecoverySuccessAt = nowIso();
     credentialState.lastRecoveryError = null;
     credentialState.lastRecoveryRecoveredCount = recovered;
@@ -1081,6 +1095,7 @@ function resetYouTubeUploadState() {
 }
 
 module.exports = {
+  RECOVERY_SOURCES,
   YOUTUBE_TOKEN_URL,
   YOUTUBE_UPLOAD_URL,
   YOUTUBE_VIDEOS_URL,

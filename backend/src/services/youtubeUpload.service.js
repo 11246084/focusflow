@@ -1090,6 +1090,7 @@ module.exports = {
   cleanupUploadedLocalVideo,
   fetchAccessToken,
   guessMimeType,
+  hasPrivacyCapableScope,
   isFocusFlowUploadedVideo,
   isPrivatizeOnDeleteConfigured,
   isYouTubeUploadConfigured,

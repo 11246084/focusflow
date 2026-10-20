@@ -2495,6 +2495,111 @@ paths:
                       code: YOUTUBE_RECOVERY_NOT_RUN
                       details:
                         reason: recovery_disabled
+  /api/v1/admin/youtube-quarantine:
+    get:
+      tags:
+        - Admin
+      summary: YouTube 上傳待處理清單（被隔離的影片與短片）
+      description: |
+        僅限 admin（decisions.md #17、#28）。列出上傳失敗且不可自動重試的影片與短片成品
+        （YouTube 可能已收到，需人工確認），由新到舊。`searchable` 是不呼叫 YouTube 的初步判斷：
+        `false` 代表憑證未設定或沒有讀取權限，`null` 代表本行程尚未換過 token。
+      operationId: listAdminYouTubeQuarantine
+      responses:
+        '200':
+          description: 待處理清單
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          searchable:
+                            anyOf:
+                              - type: boolean
+                              - type: 'null'
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/YouTubeQuarantineItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/lookup:
+    post:
+      tags:
+        - Admin
+      summary: 查詢 YouTube 上是否已有這支被隔離的影片
+      description: |
+        僅限 admin（decisions.md #17）。用上傳時寫入描述的標記比對自家頻道的上傳清單（最多往回 1000 支），
+        只回傳比對結果、不修改資料。憑證沒有讀取權限或未設定時回 `searchable: false`，改由管理員手動輸入影片 ID。
+      operationId: lookupAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 比對結果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeQuarantineLookup'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/lookup:
+    post:
+      tags:
+        - Admin
+      summary: 查詢 YouTube 上是否已有這支被隔離的短片成品
+      description: |
+        僅限 admin（decisions.md #17）。用上傳時寫入描述的標記比對自家頻道的上傳清單（最多往回 1000 支），
+        只回傳比對結果、不修改資料。憑證沒有讀取權限或未設定時回 `searchable: false`，改由管理員手動輸入影片 ID。
+      operationId: lookupAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: 比對結果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeQuarantineLookup'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
   /api/v1/admin/users:
     get:
       tags:
@@ -4368,6 +4473,32 @@ components:
                 message: Cannot move a short script from dismissed to generated.
                 error:
                   code: SHORT_SCRIPT_STATE_INVALID
+    YouTubeQuarantineNotAllowedError:
+      description: 項目不是被隔離的狀態（上傳失敗且不可自動重試），不可查詢、套用或重設。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notQuarantined:
+              value:
+                success: false
+                message: Only quarantined YouTube uploads can be resolved; this video is not quarantined.
+                error:
+                  code: YOUTUBE_QUARANTINE_NOT_ALLOWED
+    YouTubeQuarantineVerifyFailedError:
+      description: 向 YouTube 查詢頻道、上傳清單或影片時失敗（例如憑證沒有讀取權限）。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            verifyFailed:
+              value:
+                success: false
+                message: Failed to read the YouTube channel of the configured credentials.
+                error:
+                  code: YOUTUBE_QUARANTINE_VERIFY_FAILED
   schemas:
     ObjectId:
       description: MongoDB ObjectId 的字串格式。
@@ -5901,6 +6032,70 @@ components:
                 - type: string
                   format: date-time
                 - type: 'null'
+    YouTubeQuarantineItem:
+      description: 被隔離的上傳（影片或短片成品）。
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [video, short_asset]
+        id:
+          type: string
+        title:
+          type: string
+        courseId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        courseTitle:
+          type: string
+        uploadedBy:
+          description: 影片為 `uploadedBy`，短片為確認揭露的教師；沒有紀錄時 id 與 name 為 null。
+          type: object
+          properties:
+            id:
+              anyOf:
+                - type: string
+                - type: 'null'
+            name:
+              anyOf:
+                - type: string
+                - type: 'null'
+        failedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+        attemptCount:
+          type: integer
+    YouTubeQuarantineLookup:
+      type: object
+      properties:
+        searchable:
+          type: boolean
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              youtubeVideoId:
+                type: string
+              title:
+                type: string
+              publishedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                  - type: 'null'
+              privacyStatus:
+                anyOf:
+                  - type: string
+                    enum: [private, unlisted, public]
+                  - type: 'null'
     YouTubeLifecycleSchedulerSnapshot:
       description: 恢復或清理排程的 process 內狀態；環境變數不允許時不啟動計時器。
       type: object

@@ -14,6 +14,9 @@ router.get('/youtube-lifecycle/settings', youtubeAdminController.getLifecycleSet
 router.patch('/youtube-lifecycle/settings', youtubeAdminController.updateLifecycleSwitch);
 router.get('/youtube-lifecycle/cleanup-preview', youtubeAdminController.getCleanupPreview);
 router.post('/youtube-lifecycle/recovery/run', youtubeAdminController.runRecoveryNow);
+router.get('/youtube-quarantine', youtubeAdminController.listQuarantine);
+router.post('/youtube-quarantine/videos/:videoId/lookup', youtubeAdminController.lookupQuarantinedVideo);
+router.post('/youtube-quarantine/short-assets/:assetId/lookup', youtubeAdminController.lookupQuarantinedShortAsset);
 
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.listUsers);

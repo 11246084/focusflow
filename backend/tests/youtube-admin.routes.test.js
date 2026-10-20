@@ -292,3 +292,148 @@ describe('管理員清理預告與立即恢復 API', () => {
     assert.equal(result.status, 403);
   });
 });
+
+describe('管理員隔離清單與查詢 API', () => {
+  const VIDEO_ID = '6d0000000000000000000001';
+  const ASSET_ID = '6d0000000000000000000002';
+  const QUARANTINE_ENV_KEYS = [
+    'youtubeUploadEnabled',
+    'youtubeClientId',
+    'youtubeClientSecret',
+    'youtubeRefreshToken',
+    'youtubeUploadAccessToken',
+  ];
+  let serverContext;
+  let originalEnv;
+  let originalFetch;
+  let adminToken;
+  let youtubeCalls;
+
+  before(async () => {
+    serverContext = await startServer();
+  });
+
+  after(async () => {
+    await stopServer(serverContext.server);
+  });
+
+  beforeEach(async () => {
+    resetStore();
+    require('../src/services/youtubeUpload.service').resetYouTubeUploadState();
+    originalEnv = Object.fromEntries(QUARANTINE_ENV_KEYS.map((key) => [key, env[key]]));
+    env.youtubeUploadEnabled = true;
+    env.youtubeClientId = 'client-id';
+    env.youtubeClientSecret = 'client-secret';
+    env.youtubeRefreshToken = 'refresh-token';
+    env.youtubeUploadAccessToken = '';
+    adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+
+    // 只攔截 Google API；打本機測試伺服器的請求照常送出。
+    youtubeCalls = [];
+    originalFetch = global.fetch;
+    global.fetch = async (url, options) => {
+      const text = String(url);
+      if (!/googleapis\.com/.test(text)) return originalFetch(url, options);
+      youtubeCalls.push(text);
+      const reply = (payload) => new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (text.includes('oauth2.googleapis.com/token')) {
+        return reply({ access_token: 'route-token', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
+      }
+      if (text.includes('/youtube/v3/channels')) {
+        return reply({ items: [{ id: 'UCown', contentDetails: { relatedPlaylists: { uploads: 'UUown' } } }] });
+      }
+      if (text.includes('/youtube/v3/playlistItems')) {
+        return reply({
+          items: [{
+            snippet: { title: 'Found', description: `Uploaded by FocusFlow (video ${VIDEO_ID}).`, publishedAt: '2026-10-01T00:00:00Z' },
+            contentDetails: { videoId: 'foundVideo1', videoPublishedAt: '2026-10-01T00:00:00Z' },
+            status: { privacyStatus: 'unlisted' },
+          }],
+        });
+      }
+      throw new Error(`Unexpected Google API call: ${text}`);
+    };
+
+    store.videos.push({
+      _id: VIDEO_ID,
+      courseId: ids.teacherCourse,
+      title: 'Quarantined lecture',
+      uploadedBy: ids.teacher,
+      processing: { status: 'completed' },
+      youtubeUpload: { status: 'failed', retrySafe: false, attemptCount: 1, failedAt: new Date() },
+    });
+    store.shortAssets.push({
+      _id: ASSET_ID,
+      courseId: ids.teacherCourse,
+      title: 'Quarantined short',
+      filePath: 'uploads/test-upload-short.mp4',
+      status: 'draft',
+      disclosure: { confirmedBy: ids.teacher },
+      youtubeUpload: { status: 'failed', retrySafe: false, attemptCount: 1, failedAt: new Date() },
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    Object.assign(env, originalEnv);
+  });
+
+  it('非 admin 不能讀取待處理清單', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!', 'teacher');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/youtube-quarantine', { token });
+
+    assert.equal(result.status, 403);
+  });
+
+  it('待處理清單同時列出影片與短片', async () => {
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/youtube-quarantine', { token: adminToken });
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.data.items.map((item) => item.kind).sort(), ['short_asset', 'video']);
+    assert.equal(result.body.data.searchable, null);
+  });
+
+  it('查詢影片回傳描述相符的 YouTube 影片', async () => {
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/lookup`,
+      { method: 'POST', token: adminToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.searchable, true);
+    assert.deepEqual(result.body.data.matches.map((match) => match.youtubeVideoId), ['foundVideo1']);
+  });
+
+  it('查詢短片時走短片標記，影片標記不會配到', async () => {
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/short-assets/${ASSET_ID}/lookup`,
+      { method: 'POST', token: adminToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.data.matches, []);
+  });
+
+  it('查詢不存在的影片回 404，ID 格式錯誤回 400', async () => {
+    const missing = await jsonRequest(
+      serverContext.baseUrl,
+      '/api/v1/admin/youtube-quarantine/videos/6d00000000000000000000ff/lookup',
+      { method: 'POST', token: adminToken },
+    );
+    const invalid = await jsonRequest(
+      serverContext.baseUrl,
+      '/api/v1/admin/youtube-quarantine/videos/not-an-id/lookup',
+      { method: 'POST', token: adminToken },
+    );
+
+    assert.equal(missing.status, 404);
+    assert.equal(missing.body.error.code, 'VIDEO_NOT_FOUND');
+    assert.equal(invalid.status, 400);
+    assert.equal(youtubeCalls.length, 0);
+  });
+});

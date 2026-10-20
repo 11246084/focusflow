@@ -181,6 +181,97 @@ describe('YouTube 上傳隔離與收尾通知', () => {
     assert.equal(needsReview().length, activeAdminIds().length);
   });
 
+  // decisions.md #34：可安全重試的失敗用完次數時，同樣通知管理員（同一次失敗只通知一次）。
+  it('影片最後一次可安全重試的失敗達上限時通知管理員一次', async () => {
+    const filePath = path.join(tempDir, 'lecture.mp4');
+    fs.writeFileSync(filePath, Buffer.from('video bytes'));
+    const video = {
+      _id: '6f0000000000000000000007',
+      courseId: ids.teacherCourse,
+      title: 'Limit lecture',
+      uploadedBy: ids.teacher,
+      filePath,
+      processing: { status: 'completed' },
+      youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 2, nextRetryAt: null },
+    };
+    store.videos.push(video);
+    const sessionFailureFetch = async () => ({ ok: false, status: 500, text: async () => 'boom', headers: { get: () => null } });
+
+    await youtubeUploadService.autoUploadVideoToYouTube(video._id, { fetchImpl: sessionFailureFetch });
+    const { notifyYouTubeUploadNeedsReview } = require('../src/services/notification.service');
+    await notifyYouTubeUploadNeedsReview({ kind: 'video', item: video, reason: 'retry_limit' });
+
+    assert.equal(video.youtubeUpload.attemptCount, 3);
+    assert.equal(video.youtubeUpload.retrySafe, true);
+    const notifications = needsReview();
+    assert.deepEqual(notifications.map((item) => String(item.recipientId)).sort(), activeAdminIds());
+    assert.match(notifications[0].title, /已達重試上限：Limit lecture/);
+    assert.equal(notifications[0].videoId, video._id);
+    assert.ok(notifications[0].dedupeKey.includes(':retry_limit:'));
+  });
+
+  it('短片最後一次可安全重試的失敗達上限時通知管理員', async () => {
+    const filePath = path.join(tempDir, 'short.mp4');
+    fs.writeFileSync(filePath, Buffer.from('short bytes'));
+    store.shortAssets.push({
+      _id: '6f0000000000000000000008',
+      courseId: ids.teacherCourse,
+      title: 'Limit short',
+      filePath,
+      status: 'draft',
+      disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true, confirmedBy: ids.teacher },
+      youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 2 },
+    });
+    const sessionFailureFetch = async () => ({ ok: false, status: 500, text: async () => 'boom', headers: { get: () => null } });
+
+    await assert.rejects(shortAssetPublishService.runTrackedShortAssetUpload({
+      assetId: '6f0000000000000000000008',
+      fetchImpl: sessionFailureFetch,
+    }));
+
+    const asset = store.shortAssets.find((item) => item._id === '6f0000000000000000000008');
+    assert.equal(asset.youtubeUpload.attemptCount, 3);
+    assert.equal(asset.youtubeUpload.retrySafe, true);
+    assert.equal(asset.youtubeUpload.nextRetryAt, null);
+    assert.equal(needsReview().length, activeAdminIds().length);
+    assert.match(needsReview()[0].title, /已達重試上限/);
+  });
+
+  it('未達上限的可安全重試失敗不通知', async () => {
+    const filePath = path.join(tempDir, 'short.mp4');
+    fs.writeFileSync(filePath, Buffer.from('short bytes'));
+    store.shortAssets.push({
+      _id: '6f0000000000000000000009',
+      courseId: ids.teacherCourse,
+      title: 'First failure short',
+      filePath,
+      status: 'draft',
+      disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true, confirmedBy: ids.teacher },
+      youtubeUpload: { status: null, attemptCount: 0 },
+    });
+    const sessionFailureFetch = async () => ({ ok: false, status: 500, text: async () => 'boom', headers: { get: () => null } });
+
+    await assert.rejects(shortAssetPublishService.runTrackedShortAssetUpload({
+      assetId: '6f0000000000000000000009',
+      fetchImpl: sessionFailureFetch,
+    }));
+
+    assert.equal(needsReview().length, 0);
+  });
+
+  it('管理員重設已達上限的影片後通知教師「已重新排入上傳」', async () => {
+    const video = addStaleVideo({
+      youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 3, failedAt: NOW },
+    });
+
+    await quarantineService.resetQuarantinedItem({ kind: 'video', id: video._id, now: NOW });
+
+    const notifications = resolved();
+    assert.equal(notifications.length, 1);
+    assert.equal(String(notifications[0].recipientId), ids.teacher);
+    assert.match(notifications[0].title, /已重新排入/);
+  });
+
   it('套用後通知上傳影片的教師「已上傳完成」', async () => {
     const video = addStaleVideo({
       youtubeUpload: { status: 'failed', retrySafe: false, attemptCount: 1, failedAt: NOW },

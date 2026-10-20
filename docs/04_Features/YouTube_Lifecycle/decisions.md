@@ -63,6 +63,12 @@
 | 32 | 短片不提供「補回原片」 | 短片不需要重新處理；成品檔只用於上傳 YouTube，上架後 YouTube 已有一份 |
 | 33 | 依時程分階段開啟與驗收（見「實作切分」的時程表）：複評前只在分支開發；10/24 合併部署並開啟恢復；清理以**本機端到端驗收**為正式證據，11/13 前在正式環境開啟清理並確認預告為 0 支；11/16～11/27 凍結部署。正式環境第一次自動刪檔的紀錄於展覽後補入 | 11/24 佈展前功能須全部完成、11/16 那週準備佈展；正式環境短期內不會達到刪除條件（可用 30G、影片未滿 180 天），無法等待自然發生 |
 
+以下為 2026-10-20 討論定案：
+
+| # | 決策 | 理由／證據 |
+|---|---|---|
+| 34 | **已達重試上限**的上傳（失敗時判定可安全重試，但重試次數已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`）列入管理員待處理清單，每筆以 `reason` 區分 `quarantined`（需確認 YouTube）與 `retry_limit`（已達重試上限）。管理員確認原因排除後，用既有的「重設」替教師把次數歸零並立即排入；這類項目不提供「查詢 YouTube」與「確認套用」。達到上限時比照 #20 通知所有啟用中的管理員（同一次失敗只通知一次），重設後沿用「已重新排入上傳」通知教師；教師按重試時改提示「已達重試上限，已通知管理員處理，處理後會自動更新」。影片與短片都適用 | 原本這類項目不在清單內：恢復排程不再撈、教師按重試只看到「已達上限」，**教師沒有其他出路**，也沒有人會得知。上限存在是為了避免同一個原因（例如憑證過期、配額用完）造成**無限重試**；改由管理員確認原因排除後才重設，保留上限的保護又不會讓影片永遠卡住。這類失敗都發生在送出影片內容之前，YouTube 上確定沒有這支，查詢不會有結果，套用只可能接上錯的影片（#18 的風險），所以只開放重設（[隔離收尾服務](../../../backend/src/services/youtubeQuarantine.service.js)） |
+
 ## 待討論（實作前需定案）
 
 1. ~~恢復要不要定期執行~~：已定案，見 #7～#16。
@@ -95,10 +101,10 @@
 | `PATCH /admin/youtube-lifecycle/settings` | 切換單一開關 `{ key, enabled }` | admin |
 | `GET /admin/youtube-lifecycle/cleanup-preview` | `?scope=enable` 啟用後立即刪除清單；`?scope=upcoming` 7 天內到期清單 | admin |
 | `POST /admin/youtube-lifecycle/recovery/run` | 立即執行一次恢復 | admin |
-| `GET /admin/youtube-quarantine` | 待處理清單（影片與短片） | admin |
+| `GET /admin/youtube-quarantine` | 待處理清單（影片與短片），每筆附 `reason`：`quarantined` 或 `retry_limit`（#34） | admin |
 | `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/lookup` | 查詢 YouTube，只回傳比對結果 | admin |
 | `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/apply` | 驗證並套用 `{ youtubeVideoId }` | admin |
-| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 重設為可重試、次數歸零 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 重設為可重試、次數歸零、立即排入；兩種原因都接受 | admin |
 | `POST /videos/:videoId/source/restore` | 補回原片（multipart） | 課程教師、admin |
 
 **核心服務介面**（A 塊匯出，供 B、D 塊呼叫；改簽名要同步本表）：
@@ -121,7 +127,7 @@
 
 - **短片納入（D 塊）**：在 `youtubeLifecycle.service.js` 的 `CLEANUP_SOURCES` 加一個 kind，提供 `listEntries()`（回傳 `{ kind, id, title, courseId, sizeBytes, retentionStartTime }`，只列出符合短片安全條件的項目，`retentionStartTime` 為毫秒）與 `cleanup(id)`（刪檔前呼叫 `isYouTubeLifecycleSwitchEnabled('cleanup')`，回傳 `{ cleaned, reason }`，關閉時 `reason` 為 `disabled`）。保留期與空間判斷、預告與排程會自動涵蓋新 kind。
 - **短片恢復與隔離（B 塊）**：`youtubeUpload.service.js` 的 `RECOVERY_SOURCES` 在處理完影片後依序呼叫，`short_asset` 由 `shortAssetRecovery.service.js` 的 `recoverShortAssetUploads({ fetchImpl, now })` 處理，回傳 `{ recovered, quarantined, skippedItems }`；兩層開關、同一輪的鎖與批次大小沿用影片。短片上傳的入口都經 `shortAssetPublish.service.js` 的 `runTrackedShortAssetUpload`，失敗時寫入 `youtubeUpload.nextRetryAt`。
-- **隔離收尾與通知（B 塊）**：`youtubeQuarantine.service.js` 提供 `listQuarantinedItems`、`lookupQuarantinedItem`、`applyQuarantinedItem`、`resetQuarantinedItem`、`countQuarantinedItems`，隔離條件為失敗且 `retrySafe` 不是 `true`（短片另需有 `filePath`、未封存）。通知在 `notification.service.js` 的 `notifyYouTubeUploadNeedsReview({ kind, item })` 與 `notifyYouTubeUploadResolved({ kind, item, uploaderId, action })`，`dedupeKey` 含失敗時間，失敗只記 log。
+- **隔離收尾與通知（B 塊）**：`youtubeQuarantine.service.js` 提供 `listQuarantinedItems`、`lookupQuarantinedItem`、`applyQuarantinedItem`、`resetQuarantinedItem`、`countQuarantinedItems`。待處理條件為失敗、尚無 YouTube ID（短片另需有 `filePath`、未封存），且符合其一：`retrySafe` 不是 `true`（`quarantined`），或 `retrySafe` 為 `true` 但次數已達上限（`retry_limit`，#34）；查詢與套用只接受 `quarantined`。通知在 `notification.service.js` 的 `notifyYouTubeUploadNeedsReview({ kind, item, reason })` 與 `notifyYouTubeUploadResolved({ kind, item, uploaderId, action })`，`dedupeKey` 含失敗時間，失敗只記 log。
 - **補回原片（C 塊）**：補回成功時寫入 `youtubeUpload.localSourceRestoredAt`，保留期即從這個時間重新起算。
 - `getFreeBytes` 只供測試注入；正式執行用 `fs.statfs` 查 `UPLOAD_DIR`。
 
@@ -141,6 +147,7 @@
 
 - **2026-10 複評（10/22～10/23）結束前，任何環境都不得啟用清理或刪除 VM 上的原片與資料**；實作與測試只能在暫存目錄操作，部署時清理開關維持關閉。結束後是否啟用，依第 7 題另行授權。
 
+- **部署前提：YouTube 憑證需要 `youtube.force-ssl` 權限**。「查詢 YouTube」與「確認套用」要讀自家頻道（#17、#18），只有 `youtube.upload` 時查詢會退回手動輸入、套用會回 `502 YOUTUBE_QUARANTINE_VERIFY_FAILED`，刪除影片也無法轉私人。10/24 部署後依[部署前檢查](../../10_Operations/deployment/部署與連線排錯.md#部署前檢查youtube-憑證權限)確認 `/health` 的 `runtime.youtubeUpload`；缺少時需用頻道擁有者帳號重新授權，換新的 refresh token。
 - 實際上傳、改隱私或刪除 YouTube 影片都會動到外部帳號，每次執行前需使用者明確授權。
 - 清理會刪除伺服器檔案，無法復原；正式環境開啟前需確認備份或可從 YouTube 取回。
 - 不公開（unlisted）影片只要知道連結就能看，課程權限擋不住轉貼，見[後端注意事項](../../../backend/docs/handoff-known-issues.md)。

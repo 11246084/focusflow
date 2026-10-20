@@ -138,9 +138,14 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
       'youtubeUpload.nextRetryAt': computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
     },
   }, { new: true });
-  // 不可重試的失敗會進入待處理清單，通知管理員（#20、#28）。
-  if (!retrySafe && failedAsset) {
-    await notifyYouTubeUploadNeedsReview({ kind: 'short_asset', item: failedAsset });
+  // 不可重試或已達重試上限的失敗會進入待處理清單，通知管理員（#20、#28、#34）。
+  const limitReached = retrySafe && attemptCount >= env.youtubeUploadMaxAttempts;
+  if (failedAsset && (!retrySafe || limitReached)) {
+    await notifyYouTubeUploadNeedsReview({
+      kind: 'short_asset',
+      item: failedAsset,
+      reason: retrySafe ? 'retry_limit' : 'quarantined',
+    });
   }
 }
 

@@ -4,6 +4,7 @@ import useModalDialog from '../hooks/useModalDialog';
 import {
   CLEANUP_REASON_LABELS,
   KIND_LABELS,
+  QUARANTINE_REASON_LABELS,
   SWITCH_META,
   applyQuarantineItem,
   describeApplyConfirm,
@@ -376,11 +377,12 @@ export default function AdminYouTubeLifecycle() {
 
       {/* 待處理清單（#17）：不確定 YouTube 是否已收到的影片與短片 */}
       <div ref={quarantineRef} id="youtube-quarantine" className="card" style={{ padding: 22, marginBottom: 12, scrollMarginTop: 12 }}>
-        <div style={{ ...TITLE, marginBottom: 4 }}>待處理（需要確認 YouTube 是否已收到）</div>
+        <div style={{ ...TITLE, marginBottom: 4 }}>待處理（需要管理員處理的 YouTube 上傳）</div>
         <div style={{ ...MUTED, marginBottom: 12 }}>
           {quarantine.searchable === false
-            ? '目前的憑證無法讀取頻道上傳清單，請向頻道擁有者取得影片 ID 後手動輸入。'
-            : '先「查詢 YouTube」比對頻道上傳清單；找到就確認套用，確定沒有上傳才重設為可重試。'}
+            ? '「需確認 YouTube」：目前的憑證無法讀取頻道上傳清單，請向頻道擁有者取得影片 ID 後手動輸入。'
+            : '「需確認 YouTube」：先「查詢 YouTube」比對頻道上傳清單；找到就確認套用，確定沒有上傳才重設為可重試。'}
+          {' '}「已達重試上限」：YouTube 上沒有這支，排除原因後重設重試次數。
         </div>
         <Message message={listMessage} />
         {quarantineError && <div role="alert" style={{ fontSize: 12, color: '#f87171' }}>{quarantineError}</div>}
@@ -392,13 +394,17 @@ export default function AdminYouTubeLifecycle() {
           {quarantine.items.map((item) => {
             const key = quarantineItemKey(item);
             const lookup = lookups[key];
-            const controls = getQuarantineControls({ searchable: quarantine.searchable, lookup });
+            const retryLimit = item.reason === 'retry_limit';
+            const controls = getQuarantineControls({ searchable: quarantine.searchable, lookup, reason: item.reason });
             return (
               <div key={key} style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0, flex: '1 1 260px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span className="badge bb">{KIND_LABELS[item.kind] || item.kind}</span>
+                      <span className={`badge ${retryLimit ? 'by' : 'br'}`}>
+                        {QUARANTINE_REASON_LABELS[item.reason] || QUARANTINE_REASON_LABELS.quarantined}
+                      </span>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', overflowWrap: 'anywhere' }}>{item.title || '未命名'}</span>
                     </div>
                     <div style={{ ...MUTED, marginTop: 4 }}>
@@ -412,7 +418,7 @@ export default function AdminYouTubeLifecycle() {
                         <Ic n="search" s={11} /> {lookup?.loading ? '查詢中...' : '查詢 YouTube'}
                       </button>
                     )}
-                    <button type="button" onClick={() => confirmReset(item)} style={WARN_BTN}>重設為可重試</button>
+                    <button type="button" onClick={() => confirmReset(item)} style={WARN_BTN}>{retryLimit ? '重設重試次數' : '重設為可重試'}</button>
                   </div>
                 </div>
 

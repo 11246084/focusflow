@@ -54,6 +54,13 @@ test('帳號鎖定時顯示大約還要等幾分鐘', () => {
   assert.match(message, /請約 11 分鐘後再試/);
 });
 
+test('已達 YouTube 重試上限時告知已通知管理員（#34）', () => {
+  assert.equal(
+    toChineseErrorMessage({ code: 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED', status: 409, message: 'YouTube upload retry limit reached.' }),
+    '已達重試上限，已通知管理員處理，處理後會自動更新。',
+  );
+});
+
 test('沒有狀態碼時視為連線失敗', () => {
   assert.equal(toChineseErrorMessage({}), '無法連線到伺服器，請確認網路後再試。');
 });

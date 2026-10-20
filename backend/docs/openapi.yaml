@@ -2517,10 +2517,12 @@ paths:
     get:
       tags:
         - Admin
-      summary: YouTube 上傳待處理清單（被隔離的影片與短片）
+      summary: YouTube 上傳待處理清單（被隔離或已達重試上限的影片與短片）
       description: |
-        僅限 admin（decisions.md #17、#28）。列出上傳失敗且不可自動重試的影片與短片成品
-        （YouTube 可能已收到，需人工確認），由新到舊。`searchable` 是不呼叫 YouTube 的初步判斷：
+        僅限 admin（decisions.md #17、#28、#34）。列出需要管理員處理的影片與短片成品，由新到舊，
+        每筆的 `reason` 標示原因：`quarantined` 為上傳失敗且不可自動重試（YouTube 可能已收到，需人工確認，
+        可查詢、套用或重設）；`retry_limit` 為可安全重試但已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`
+        （送出影片內容前就失敗，YouTube 上沒有，只能重設）。`searchable` 是不呼叫 YouTube 的初步判斷：
         `false` 代表憑證未設定或沒有讀取權限，`null` 代表本行程尚未換過 token。
       operationId: listAdminYouTubeQuarantine
       responses:
@@ -2673,7 +2675,7 @@ paths:
           $ref: '#/components/responses/VideoNotFoundError'
         '409':
           description: |
-            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態，或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態（含已達重試上限的項目，只能重設），或處理期間狀態已改變
             - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
           content:
             application/json:
@@ -2713,10 +2715,11 @@ paths:
     post:
       tags:
         - Admin
-      summary: 把被隔離的影片重設為可重試
+      summary: 把被隔離或已達重試上限的影片重設為可重試
       description: |
-        僅限 admin。用於確定 YouTube 上沒有這支的情況：標成可安全重試、次數歸零、重試時間設為現在，
-        交給恢復排程或教師重試。完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+        僅限 admin（decisions.md #17、#34）。用於確定 YouTube 上沒有這支的情況，或已達重試上限且原因已排除時：
+        標成可安全重試、次數歸零、重試時間設為現在，交給恢復排程或教師重試。
+        完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
       operationId: resetAdminQuarantinedVideo
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -2810,7 +2813,7 @@ paths:
           $ref: '#/components/responses/ShortAssetNotFoundError'
         '409':
           description: |
-            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態，或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態（含已達重試上限的項目，只能重設），或處理期間狀態已改變
             - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
           content:
             application/json:
@@ -2850,10 +2853,11 @@ paths:
     post:
       tags:
         - Admin
-      summary: 把被隔離的短片成品重設為可重試
+      summary: 把被隔離或已達重試上限的短片成品重設為可重試
       description: |
-        僅限 admin。用於確定 YouTube 上沒有這支的情況：標成可安全重試、次數歸零、重試時間設為現在，
-        交給恢復排程或教師重試。完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+        僅限 admin（decisions.md #17、#34）。用於確定 YouTube 上沒有這支的情況，或已達重試上限且原因已排除時：
+        標成可安全重試、次數歸零、重試時間設為現在，交給恢復排程或教師重試。
+        完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
       operationId: resetAdminQuarantinedShortAsset
       parameters:
         - $ref: '#/components/parameters/AssetId'
@@ -4766,7 +4770,9 @@ components:
                 error:
                   code: SHORT_SCRIPT_STATE_INVALID
     YouTubeQuarantineNotAllowedError:
-      description: 項目不是被隔離的狀態（上傳失敗且不可自動重試），不可查詢、套用或重設。
+      description: |
+        項目不在待處理清單，或處理期間狀態已改變。查詢與套用只接受被隔離的項目（上傳失敗且不可自動重試）；
+        重設另接受已達重試上限的項目（decisions.md #34）。
       content:
         application/json:
           schema:
@@ -4776,6 +4782,13 @@ components:
               value:
                 success: false
                 message: Only quarantined YouTube uploads can be resolved; this video is not quarantined.
+                error:
+                  code: YOUTUBE_QUARANTINE_NOT_ALLOWED
+            retryLimitReached:
+              summary: 對已達重試上限的項目查詢或套用
+              value:
+                success: false
+                message: This video failed before any video data reached YouTube; reset it instead.
                 error:
                   code: YOUTUBE_QUARANTINE_NOT_ALLOWED
     YouTubeQuarantineVerifyFailedError:
@@ -6325,7 +6338,7 @@ components:
                   format: date-time
                 - type: 'null'
     YouTubeQuarantineItem:
-      description: 被隔離的上傳（影片或短片成品）。
+      description: 待處理的上傳（影片或短片成品）。
       type: object
       properties:
         kind:
@@ -6333,6 +6346,12 @@ components:
           enum: [video, short_asset]
         id:
           type: string
+        reason:
+          description: |
+            `quarantined`：失敗且不可自動重試，不確定 YouTube 是否已收到；
+            `retry_limit`：可安全重試但已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`，只能重設（decisions.md #34）。
+          type: string
+          enum: [quarantined, retry_limit]
         title:
           type: string
         courseId:

@@ -25,6 +25,7 @@
 | C 補回原片 | `claude/yt-c-restore-ac99e4` | 已合併 |
 | D 短片 | `wip/yt-d-shorts-claude-a064be`（Claude 接手） | 已合併 |
 | E 前端 | `claude/yt-e-frontend-540a69` | 已合併 |
+| 已達重試上限（#34）＋部署前提文件 | `wip/yt-retry-limit-aa6b07`（worktree `.claude/worktrees/yt-retry-limit-aa6b07`，從 `dev` 切出） | 完成後直接合併進本機 `dev` |
 
 `wip/yt-b-admin`、`wip/yt-d-shorts` 是 Codex 額度用完時留下的未提交草稿（worktree 仍在），已被 Claude 接手的分支取代，不合併。各塊分支與 worktree 由使用者決定何時清理。
 
@@ -53,7 +54,7 @@ Claude 接手時可參考的 session（用 Claude Desktop 打開後說「繼續�
 5. **前後端對齊**：E 依 work-orders/B 的「回應格式」實作；B 合併後在瀏覽器實測管理員頁與教師頁，不一致的地方以 B 的實際回應為準修正前端。
 6. **文件同步**：功能開關、`.env.example`、OpenAPI、API 設計規範錯誤碼、API 契約、`backend/docs/` 的 todo／implementation-log／README（清單見 decisions.md「實作切分」最後一段）。
 7. **獨立 code review**（10/26～11/6）：交給 Codex 審 Claude 寫的部分、Claude 審 Codex 寫的部分；工作說明屆時另寫並先給使用者看。
-8. **10/24 之後**的合併 `main`、部署、開啟恢復與清理，每一步都要使用者明確授權，驗收方式見 decisions.md #33 與時程表。
+8. **10/24 之後**的合併 `main`、部署、開啟恢復與清理，每一步都要使用者明確授權，驗收方式見 decisions.md #33 與時程表。部署後先依[部署前檢查](../../10_Operations/deployment/部署與連線排錯.md#部署前檢查youtube-憑證權限)確認憑證含 `youtube.force-ssl`。
 
 ## 額度用完時
 

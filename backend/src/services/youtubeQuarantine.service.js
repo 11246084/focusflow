@@ -1,3 +1,4 @@
+const env = require('../config/env');
 const Course = require('../models/course.model');
 const ShortAsset = require('../models/shortAsset.model');
 const User = require('../models/user.model');
@@ -24,6 +25,7 @@ const { notifyYouTubeUploadResolved } = require('./notification.service');
 
 // 被隔離的上傳由管理員收尾（decisions.md #17、#18、#28）。隔離＝上傳失敗且不可自動重試
 // （retrySafe 不是 true），YouTube 可能已收到影片，自動重試會在頻道留下兩支相同的影片。
+// 已達重試上限的可安全重試失敗也列入待處理（#34）：教師與排程都不會再重試，只能由管理員重設。
 
 const YOUTUBE_CHANNELS_URL = 'https://www.googleapis.com/youtube/v3/channels';
 const YOUTUBE_PLAYLIST_ITEMS_URL = 'https://www.googleapis.com/youtube/v3/playlistItems';
@@ -38,6 +40,14 @@ const QUARANTINE_KINDS = Object.freeze({
   SHORT_ASSET: 'short_asset',
 });
 
+// 待處理的原因：quarantined＝不確定 YouTube 是否已收到；retry_limit＝送出前就失敗、
+// YouTube 確定沒有，但重試次數已用完（#34）。
+const PENDING_REASONS = Object.freeze({
+  QUARANTINED: 'quarantined',
+  RETRY_LIMIT: 'retry_limit',
+});
+const ALL_PENDING_REASONS = Object.freeze(Object.values(PENDING_REASONS));
+
 // 與 youtubeUpload.service 的「尚未上傳」定義一致，含舊資料存成空字串的 ID。
 const MISSING_YOUTUBE_VIDEO_ID = {
   $or: [
@@ -47,10 +57,14 @@ const MISSING_YOUTUBE_VIDEO_ID = {
   ],
 };
 
-const QUARANTINED_UPLOAD = {
-  'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
+const PENDING_REASON_CONDITIONS = {
   // 舊資料可能沒有 retrySafe；沒標記過的一律視為不安全（同 assertRetryableUpload）。
-  'youtubeUpload.retrySafe': { $ne: true },
+  [PENDING_REASONS.QUARANTINED]: () => ({ 'youtubeUpload.retrySafe': { $ne: true } }),
+  // 上限在呼叫時才讀，與 assertRetryableUpload、恢復排程用同一個值。
+  [PENDING_REASONS.RETRY_LIMIT]: () => ({
+    'youtubeUpload.retrySafe': true,
+    'youtubeUpload.attemptCount': { $gte: env.youtubeUploadMaxAttempts },
+  }),
 };
 
 const KIND_DEFINITIONS = {
@@ -60,7 +74,7 @@ const KIND_DEFINITIONS = {
     notFound: () => new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND'),
     // 上傳時寫入描述的標記（youtubeUpload.service autoUploadVideoToYouTube）。
     descriptionMarker: (id) => `Uploaded by FocusFlow (video ${id})`,
-    query: () => ({ ...QUARANTINED_UPLOAD, $and: [MISSING_YOUTUBE_VIDEO_ID] }),
+    baseQuery: () => ({ 'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED }),
     uploaderId: (item) => item.uploadedBy?._id || item.uploadedBy || null,
     // 比照 autoUploadVideoToYouTube 上傳成功時寫入的欄位：播放改走 YouTube。
     buildApplyUpdate: ({ youtubeVideoId, now }) => {
@@ -87,11 +101,10 @@ const KIND_DEFINITIONS = {
     // 短片上傳時加在描述末尾的標記（#29），與上傳共用同一個函式。
     descriptionMarker: buildShortAssetYouTubeMarker,
     // 只處理本功能上傳的成品（有 filePath）；已封存的成品不再上架，不列入。
-    query: () => ({
-      ...QUARANTINED_UPLOAD,
+    baseQuery: () => ({
+      'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
       filePath: { $exists: true, $nin: [null, ''] },
       status: { $ne: SHORT_ASSET_STATUSES.ARCHIVED },
-      $and: [MISSING_YOUTUBE_VIDEO_ID],
     }),
     // ShortAsset 沒有 uploadedBy；確認揭露的就是上傳成品的教師。
     uploaderId: (item) => item.disclosure?.confirmedBy || null,
@@ -130,6 +143,17 @@ const KIND_DEFINITIONS = {
   },
 };
 
+// reasons 限定要找哪幾種待處理原因；預設兩種都找（清單與數量）。
+function buildPendingQuery(definition, reasons = ALL_PENDING_REASONS) {
+  return {
+    ...definition.baseQuery(),
+    $and: [
+      MISSING_YOUTUBE_VIDEO_ID,
+      { $or: reasons.map((reason) => PENDING_REASON_CONDITIONS[reason]()) },
+    ],
+  };
+}
+
 function getKindDefinition(kind) {
   const definition = KIND_DEFINITIONS[kind];
   if (!definition) {
@@ -150,30 +174,47 @@ async function loadById(model, ids, fields) {
   return new Map(documents.map((document) => [String(document._id), document]));
 }
 
-function isQuarantined(kind, item) {
-  if (!item || item.youtubeVideoId) return false;
-  if (item.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.FAILED) return false;
-  if (item.youtubeUpload?.retrySafe === true) return false;
-  if (kind === QUARANTINE_KINDS.SHORT_ASSET) {
-    return Boolean(item.filePath) && item.status !== SHORT_ASSET_STATUSES.ARCHIVED;
+// 與 buildPendingQuery 同一份條件；不是待處理項目時回 null。
+function resolvePendingReason(kind, item) {
+  if (!item || item.youtubeVideoId) return null;
+  if (item.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.FAILED) return null;
+  if (
+    kind === QUARANTINE_KINDS.SHORT_ASSET
+    && (!item.filePath || item.status === SHORT_ASSET_STATUSES.ARCHIVED)
+  ) {
+    return null;
   }
-  return true;
+  if (item.youtubeUpload?.retrySafe !== true) return PENDING_REASONS.QUARANTINED;
+  if (Number(item.youtubeUpload?.attemptCount || 0) >= env.youtubeUploadMaxAttempts) {
+    return PENDING_REASONS.RETRY_LIMIT;
+  }
+  return null;
 }
 
-// 只有被隔離的項目可以查詢、套用或重設；其他狀態回 409，避免覆寫正常上傳流程。
-async function loadQuarantinedItem(kind, id) {
+// 只有待處理的項目可以處理；其他狀態回 409，避免覆寫正常上傳流程。
+// 查詢與套用只接受被隔離的項目：已達上限的失敗都發生在送出影片內容之前，
+// YouTube 上確定沒有這支，查詢不會有結果，套用只可能接上錯的影片（#34）。
+async function loadQuarantinedItem(kind, id, { reasons = [PENDING_REASONS.QUARANTINED] } = {}) {
   const definition = getKindDefinition(kind);
   assertObjectId(id, definition.label);
   const item = await definition.model.findById(id).lean();
   if (!item) throw definition.notFound();
-  if (!isQuarantined(kind, item)) {
+  const reason = resolvePendingReason(kind, item);
+  if (reason === PENDING_REASONS.RETRY_LIMIT && !reasons.includes(reason)) {
+    throw new AppError(
+      `This ${definition.label} failed before any video data reached YouTube; reset it instead.`,
+      409,
+      'YOUTUBE_QUARANTINE_NOT_ALLOWED',
+    );
+  }
+  if (!reason || !reasons.includes(reason)) {
     throw new AppError(
       `Only quarantined YouTube uploads can be resolved; this ${definition.label} is not quarantined.`,
       409,
       'YOUTUBE_QUARANTINE_NOT_ALLOWED',
     );
   }
-  return item;
+  return { ...item, pendingReason: reason };
 }
 
 // 不呼叫 YouTube 的初步判斷，給清單決定要不要顯示「查詢 YouTube」：
@@ -187,7 +228,7 @@ function resolveSearchableHint() {
 
 async function listQuarantinedItems() {
   const groups = await Promise.all(Object.entries(KIND_DEFINITIONS).map(async ([kind, definition]) => {
-    const items = await definition.model.find(definition.query()).lean();
+    const items = await definition.model.find(buildPendingQuery(definition)).lean();
     return items.map((item) => ({ kind, item, definition }));
   }));
   const entries = groups.flat();
@@ -203,6 +244,7 @@ async function listQuarantinedItems() {
     return {
       kind,
       id: String(item._id),
+      reason: resolvePendingReason(kind, item),
       title: item.title || '',
       courseId,
       courseTitle: courses.get(courseId)?.title || item.courseSnapshot?.title || '',
@@ -221,10 +263,10 @@ async function listQuarantinedItems() {
   return { items, searchable: resolveSearchableHint() };
 }
 
-// 系統狀態用的待處理數量，與清單同一份條件。
+// 系統狀態用的待處理數量，與清單同一份條件（含已達重試上限）。
 async function countQuarantinedItems() {
   const counts = await Promise.all(
-    Object.values(KIND_DEFINITIONS).map((definition) => definition.model.countDocuments(definition.query())),
+    Object.values(KIND_DEFINITIONS).map((definition) => definition.model.countDocuments(buildPendingQuery(definition))),
   );
   return counts.reduce((sum, count) => sum + count, 0);
 }
@@ -375,11 +417,11 @@ async function verifyOwnYouTubeVideo(youtubeVideoId, fetchImpl) {
   return { privacyStatus: remote.status?.privacyStatus || null };
 }
 
-// 只在項目仍是隔離狀態時寫入；檢查後被其他流程改掉時回 null，不覆寫。
-function updateIfStillQuarantined(kind, id, $set) {
+// 只在項目仍是同一種待處理狀態時寫入；檢查後被其他流程改掉時回 null，不覆寫。
+function updateIfStillQuarantined(kind, id, $set, reasons = [PENDING_REASONS.QUARANTINED]) {
   const definition = getKindDefinition(kind);
   return definition.model.findOneAndUpdate(
-    { _id: id, ...definition.query() },
+    { _id: id, ...buildPendingQuery(definition, reasons) },
     { $set },
     { new: true },
   );
@@ -425,16 +467,17 @@ async function applyQuarantinedItem({
   return { kind, id: String(id), status: YOUTUBE_UPLOAD_STATUSES.UPLOADED };
 }
 
-// 「重設為可重試」：確定 YouTube 上沒有這支時使用，次數歸零，交給恢復排程或教師重試。
+// 「重設為可重試」：確定 YouTube 上沒有這支時使用，次數歸零、立即排入，交給恢復排程或教師重試。
+// 已達重試上限的項目也用這個動作，由管理員確認原因排除後替教師重設（#34）。
 async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
   const definition = getKindDefinition(kind);
-  const item = await loadQuarantinedItem(kind, id);
+  const item = await loadQuarantinedItem(kind, id, { reasons: ALL_PENDING_REASONS });
 
   const updated = await updateIfStillQuarantined(kind, id, {
     'youtubeUpload.retrySafe': true,
     'youtubeUpload.attemptCount': 0,
     'youtubeUpload.nextRetryAt': now,
-  });
+  }, [item.pendingReason]);
   if (!updated) throw createStateChangedError(definition);
   await notifyYouTubeUploadResolved({
     kind,
@@ -454,6 +497,7 @@ async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
 
 module.exports = {
   LOOKUP_MAX_PAGES,
+  PENDING_REASONS,
   QUARANTINE_KINDS,
   YOUTUBE_CHANNELS_URL,
   YOUTUBE_PLAYLIST_ITEMS_URL,

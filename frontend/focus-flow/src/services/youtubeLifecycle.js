@@ -29,6 +29,8 @@ export const SWITCH_META = {
 };
 
 export const KIND_LABELS = { video: '影片', short_asset: '短片' };
+// 待處理原因（後端清單的 reason）：被隔離（#17）或已達重試上限（#34）。
+export const QUARANTINE_REASON_LABELS = { quarantined: '需確認 YouTube', retry_limit: '已達重試上限' };
 const KIND_PATHS = { video: 'videos', short_asset: 'short-assets' };
 
 export const CLEANUP_REASON_LABELS = {
@@ -212,7 +214,9 @@ export async function prepareSwitchChange(sw, { fetchPreview = getCleanupPreview
 
 // 待處理清單每一筆要顯示哪些操作（#17）。
 // searchable：false 代表憑證不能讀頻道，隱藏查詢、改手動輸入；null 代表還不知道。
-export function getQuarantineControls({ searchable = null, lookup = null } = {}) {
+export function getQuarantineControls({ searchable = null, lookup = null, reason = null } = {}) {
+  // 已達上限的失敗發生在送出影片內容之前，YouTube 上確定沒有，只能重設（#34）。
+  if (reason === 'retry_limit') return { showLookup: false, showManualInput: false, matches: [] };
   const channelReadable = lookup?.searchable ?? searchable;
   const lookedUp = Boolean(lookup && !lookup.loading && !lookup.error && lookup.searchable !== undefined);
   return {
@@ -233,6 +237,13 @@ export function describeApplyConfirm(item, match) {
 }
 
 export function describeResetConfirm(item) {
+  if (item.reason === 'retry_limit') {
+    return {
+      title: '重設重試次數',
+      summary: `「${item.title || '未命名'}」每次都在送出影片內容前失敗，YouTube 上沒有這支，但重試次數已用完。`
+        + '請先排除失敗原因（例如憑證或配額）再重設；重設後次數歸零並立即排入上傳，再失敗會重新計算次數。',
+    };
+  }
   return {
     title: '重設為可重試',
     summary: `只在確定 YouTube 上沒有「${item.title || '未命名'}」時使用。重設後重試次數歸零，`

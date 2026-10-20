@@ -18,7 +18,7 @@
 
 **YouTube 上傳｜已實作。** [上傳服務](../backend/src/services/youtubeUpload.service.js)由[影片完成通知](../backend/src/services/videoProcessing.service.js)排程，受功能開關與憑證條件控制；目前部署環境的上傳結果未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**YouTube 恢復／清理｜已實作；正式環境的恢復與清理未驗證。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-20 本機後端與前端自動化測試通過，只用測試替身；未在瀏覽器實測，也沒有呼叫 YouTube，部署與開啟恢復、清理依決策 #33 分階段授權。最後驗證：2026-10-20；負責人：＿＿（待填）。
+**YouTube 恢復／清理｜已實作；正式環境的恢復與清理未驗證。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-20 本機後端與前端自動化測試通過，只用測試替身；未在瀏覽器實測，也沒有呼叫 YouTube，部署與開啟恢復、清理依決策 #33 分階段授權。最後驗證：2026-10-20；負責人：＿＿（待填）。
 
 **多影片批次｜已實作。** [批次服務](../backend/src/services/videoBatchProcessing.service.js)與[批次入口](../STT_Whisper/src/batch_main.py)串接排程、重試及恢復；真實語音模型、向量產生與部署的完整流程未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 

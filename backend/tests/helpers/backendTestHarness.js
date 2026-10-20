@@ -266,7 +266,9 @@ function matchesQuery(document, query = {}) {
         return false;
       }
 
-      if ('$gte' in value && new Date(currentValue).getTime() < new Date(value.$gte).getTime()) {
+      // 與 MongoDB 一致：缺欄位或 null 不符合 $gte。
+      if ('$gte' in value && (currentValue == null
+        || new Date(currentValue).getTime() < new Date(value.$gte).getTime())) {
         return false;
       }
 

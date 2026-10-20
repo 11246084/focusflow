@@ -13,6 +13,7 @@ import {
   getQuarantineControls,
   getVideoSourceState,
   listQuarantine,
+  QUARANTINE_REASON_LABELS,
   lookupQuarantineItem,
   parseYouTubeVideoId,
   prepareSwitchChange,
@@ -223,6 +224,29 @@ describe('待處理清單的操作（#17）', () => {
     assert.match(apply.summary, /屬於自家頻道/);
     assert.match(apply.detail, /week3 lecture/);
     assert.match(describeResetConfirm(item).summary, /兩支相同的影片/);
+  });
+
+  it('已達重試上限的項目只能重設，不顯示查詢與手動輸入（#34）', () => {
+    assert.deepEqual(
+      getQuarantineControls({ searchable: true, lookup: null, reason: 'retry_limit' }),
+      { showLookup: false, showManualInput: false, matches: [] },
+    );
+    assert.deepEqual(
+      getQuarantineControls({ searchable: false, lookup: null, reason: 'retry_limit' }),
+      { showLookup: false, showManualInput: false, matches: [] },
+    );
+    assert.equal(getQuarantineControls({ searchable: null, lookup: null, reason: 'quarantined' }).showLookup, true);
+  });
+
+  it('待處理原因分別標示，重設已達上限的確認文字說明 YouTube 上沒有這支', () => {
+    assert.equal(QUARANTINE_REASON_LABELS.quarantined, '需確認 YouTube');
+    assert.equal(QUARANTINE_REASON_LABELS.retry_limit, '已達重試上限');
+    const text = describeResetConfirm({ kind: 'short_asset', id: 's1', title: 'week3 short', reason: 'retry_limit' });
+    assert.equal(text.title, '重設重試次數');
+    assert.match(text.summary, /week3 short/);
+    assert.match(text.summary, /YouTube 上沒有這支/);
+    assert.match(text.summary, /次數歸零並立即排入上傳/);
+    assert.doesNotMatch(text.summary, /兩支相同的影片/);
   });
 
   it('手動輸入接受影片 ID 與常見網址，其餘拒絕', () => {

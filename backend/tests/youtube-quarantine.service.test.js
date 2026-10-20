@@ -164,6 +164,7 @@ describe('youtubeQuarantine.service 隔離清單與查詢', () => {
     assert.deepEqual(result.items[1], {
       kind: 'video',
       id: VIDEO_ID,
+      reason: 'quarantined',
       title: 'Quarantined lecture',
       courseId: ids.teacherCourse,
       courseTitle: course.title,
@@ -436,3 +437,133 @@ describe('youtubeQuarantine.service 套用與重設', () => {
   });
 });
 
+
+// decisions.md #34：可安全重試但已達上限的失敗也列入待處理，管理員只能重設。
+describe('youtubeQuarantine.service 已達重試上限', () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    resetStore();
+    youtubeUploadService.resetYouTubeUploadState();
+    originalEnv = Object.fromEntries([...ENV_KEYS, 'youtubeUploadMaxAttempts'].map((key) => [key, env[key]]));
+    env.youtubeUploadEnabled = true;
+    env.youtubeClientId = 'client-id';
+    env.youtubeClientSecret = 'client-secret';
+    env.youtubeRefreshToken = 'refresh-token';
+    env.youtubeUploadAccessToken = '';
+    env.youtubeUploadMaxAttempts = 3;
+  });
+
+  afterEach(() => {
+    Object.assign(env, originalEnv);
+    youtubeUploadService.resetYouTubeUploadState();
+  });
+
+  const limitReachedUpload = (overrides = {}) => ({
+    status: 'failed',
+    error: 'Failed to create YouTube upload session.',
+    retrySafe: true,
+    attemptCount: 3,
+    failedAt: new Date('2026-10-20T01:00:00Z'),
+    nextRetryAt: null,
+    ...overrides,
+  });
+
+  it('清單納入已達上限的影片與短片並標示原因，未達上限的不列入', async () => {
+    addQuarantinedVideo();
+    addQuarantinedAsset({ youtubeUpload: limitReachedUpload() });
+    store.videos.push({
+      _id: '6c0000000000000000000005',
+      courseId: ids.teacherCourse,
+      title: 'Limit reached lecture',
+      uploadedBy: ids.teacher,
+      processing: { status: 'completed' },
+      youtubeUpload: limitReachedUpload({ attemptCount: 4 }),
+    });
+    store.videos.push({
+      _id: '6c0000000000000000000006',
+      courseId: ids.teacherCourse,
+      title: 'Still retrying',
+      processing: { status: 'completed' },
+      youtubeUpload: limitReachedUpload({ attemptCount: 2 }),
+    });
+    store.videos.push({
+      _id: '6c0000000000000000000007',
+      courseId: ids.teacherCourse,
+      title: 'Retry safe without count',
+      processing: { status: 'completed' },
+      youtubeUpload: { status: 'failed', retrySafe: true },
+    });
+
+    const result = await quarantineService.listQuarantinedItems();
+
+    assert.deepEqual(
+      result.items.map((item) => `${item.kind}:${item.id}:${item.reason}`).sort(),
+      [
+        `short_asset:${ASSET_ID}:retry_limit`,
+        `video:${VIDEO_ID}:quarantined`,
+        'video:6c0000000000000000000005:retry_limit',
+      ],
+    );
+    assert.equal(await quarantineService.countQuarantinedItems(), 3);
+  });
+
+  it('上限以目前的 YOUTUBE_UPLOAD_MAX_ATTEMPTS 判斷', async () => {
+    addQuarantinedVideo({ youtubeUpload: limitReachedUpload({ attemptCount: 3 }) });
+    env.youtubeUploadMaxAttempts = 5;
+
+    assert.equal((await quarantineService.listQuarantinedItems()).items.length, 0);
+  });
+
+  it('已達上限的項目不能查詢或套用，也不呼叫 YouTube', async () => {
+    const video = addQuarantinedVideo({ youtubeUpload: limitReachedUpload() });
+    const { fetchImpl, calls } = buildYouTubeFake({ videos: { abcdefghijk: { snippet: { channelId: 'UCownChannel' } } } });
+
+    await assert.rejects(
+      quarantineService.lookupQuarantinedItem({ kind: 'video', id: VIDEO_ID, fetchImpl }),
+      (error) => error.statusCode === 409
+        && error.code === 'YOUTUBE_QUARANTINE_NOT_ALLOWED'
+        && /reset it instead/.test(error.message),
+    );
+    await assert.rejects(
+      quarantineService.applyQuarantinedItem({ kind: 'video', id: VIDEO_ID, youtubeVideoId: 'abcdefghijk', fetchImpl }),
+      (error) => error.statusCode === 409 && error.code === 'YOUTUBE_QUARANTINE_NOT_ALLOWED',
+    );
+    assert.deepEqual(calls, []);
+    assert.equal(video.youtubeUpload.status, 'failed');
+    assert.equal(video.youtubeUpload.attemptCount, 3);
+  });
+
+  it('重設已達上限的影片：次數歸零、立即排入，並離開待處理清單', async () => {
+    const video = addQuarantinedVideo({ youtubeUpload: limitReachedUpload() });
+    const now = new Date('2026-10-20T09:00:00Z');
+
+    const result = await quarantineService.resetQuarantinedItem({ kind: 'video', id: VIDEO_ID, now });
+
+    assert.deepEqual(result, { kind: 'video', id: VIDEO_ID, status: 'failed', retrySafe: true, attemptCount: 0 });
+    assert.equal(video.youtubeUpload.retrySafe, true);
+    assert.equal(video.youtubeUpload.attemptCount, 0);
+    assert.equal(video.youtubeUpload.nextRetryAt, now);
+    assert.equal((await quarantineService.listQuarantinedItems()).items.length, 0);
+  });
+
+  it('重設已達上限的短片：次數歸零、立即排入', async () => {
+    const asset = addQuarantinedAsset({ youtubeUpload: limitReachedUpload() });
+    const now = new Date('2026-10-20T09:00:00Z');
+
+    await quarantineService.resetQuarantinedItem({ kind: 'short_asset', id: ASSET_ID, now });
+
+    assert.equal(asset.youtubeUpload.retrySafe, true);
+    assert.equal(asset.youtubeUpload.attemptCount, 0);
+    assert.equal(asset.youtubeUpload.nextRetryAt, now);
+  });
+
+  it('可安全重試且未達上限的項目重設回 409', async () => {
+    addQuarantinedVideo({ youtubeUpload: limitReachedUpload({ attemptCount: 1 }) });
+
+    await assert.rejects(
+      quarantineService.resetQuarantinedItem({ kind: 'video', id: VIDEO_ID }),
+      (error) => error.statusCode === 409 && error.code === 'YOUTUBE_QUARANTINE_NOT_ALLOWED',
+    );
+  });
+});

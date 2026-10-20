@@ -561,8 +561,13 @@ async function autoUploadVideoToYouTube(
       },
     }, { new: true });
     // 送出 bytes 後才失敗：YouTube 可能已收到，進入待處理清單並通知管理員（#20）。
-    if (!retrySafe && failedVideo) {
-      await notifyYouTubeUploadNeedsReview({ kind: 'video', item: failedVideo });
+    // 可安全重試但次數用完：排程與教師都不會再試，同樣進入待處理清單（#34）。
+    if (failedVideo && (!retrySafe || !canRetry)) {
+      await notifyYouTubeUploadNeedsReview({
+        kind: 'video',
+        item: failedVideo,
+        reason: retrySafe ? 'retry_limit' : 'quarantined',
+      });
     }
 
     if (process.env.NODE_ENV !== 'test') {

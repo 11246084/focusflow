@@ -7,7 +7,7 @@
 | `SHORT_SCRIPT_AUTOMATION_ENABLED`：腳本介面與成品上傳排程 | [環境設定](../src/config/env.js)、[腳本路由](../src/routes/short-script.routes.js) | env | 重啟後端 |
 | `YOUTUBE_UPLOAD_ENABLED`：影片及短影片上傳 | [環境設定](../src/config/env.js)、[上傳檢查](../src/services/youtubeUpload.service.js) | 兩層：env 總開關＋資料庫執行期開關 | env 需重啟；執行期開關下一次檢查生效 |
 | `YOUTUBE_UPLOAD_RECOVERY_ENABLED`：定期重試可安全重試的上傳、隔離卡住的上傳 | [環境設定](../src/config/env.js)、[上傳服務](../src/services/youtubeUpload.service.js) | 兩層：env 總開關＋資料庫執行期開關 | env 需重啟；執行期開關下一輪生效 |
-| `YOUTUBE_UPLOAD_CLEANUP_ENABLED`：定期清理已上傳 YouTube 的原片 | [環境設定](../src/config/env.js)、[清理服務](../src/services/youtubeLifecycle.service.js) | 兩層：env 總開關＋資料庫執行期開關；未設定視為關閉 | env 需重啟；執行期開關在每次刪檔前檢查 |
+| `YOUTUBE_UPLOAD_CLEANUP_ENABLED`：定期清理已上傳 YouTube 的原片（含已上架或已封存的短片成品） | [環境設定](../src/config/env.js)、[清理服務](../src/services/youtubeLifecycle.service.js)、[短片清理](../src/services/shortAssetCleanup.service.js) | 兩層：env 總開關＋資料庫執行期開關；未設定視為關閉 | env 需重啟；執行期開關在每次刪檔前檢查 |
 | `YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS`／`YOUTUBE_UPLOAD_CLEANUP_INTERVAL_MS`：排程間隔，`0` 只在開機跑 | [環境設定](../src/config/env.js) | env；調整參數 | 重啟後端 |
 | `YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS`／`MIN_FREE_GB`／`MIN_AGE_DAYS`：清理的保留期與空間門檻 | [環境設定](../src/config/env.js)、[清理服務](../src/services/youtubeLifecycle.service.js) | env；調整參數 | 重啟後端 |
 | `SHORTS_SYNC_INTERVAL_MS`：同步週期，`0` 停用排程 | [環境設定](../src/config/env.js)、[同步服務](../src/services/shortsSync.service.js) | env | 重啟後端 |

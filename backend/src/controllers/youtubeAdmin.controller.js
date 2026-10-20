@@ -38,15 +38,41 @@ function lookupQuarantined(kind, paramName) {
   });
 }
 
+function applyQuarantined(kind, paramName) {
+  return asyncHandler(async (req, res) => {
+    const result = await youtubeQuarantineService.applyQuarantinedItem({
+      kind,
+      id: req.params[paramName],
+      youtubeVideoId: req.body?.youtubeVideoId,
+    });
+    return sendSuccess(res, { message: 'YouTube upload marked as completed.', data: result });
+  });
+}
+
+function resetQuarantined(kind, paramName) {
+  return asyncHandler(async (req, res) => {
+    const result = await youtubeQuarantineService.resetQuarantinedItem({ kind, id: req.params[paramName] });
+    return sendSuccess(res, { message: 'YouTube upload reset for retry.', data: result });
+  });
+}
+
 const lookupQuarantinedVideo = lookupQuarantined(QUARANTINE_KINDS.VIDEO, 'videoId');
 const lookupQuarantinedShortAsset = lookupQuarantined(QUARANTINE_KINDS.SHORT_ASSET, 'assetId');
+const applyQuarantinedVideo = applyQuarantined(QUARANTINE_KINDS.VIDEO, 'videoId');
+const applyQuarantinedShortAsset = applyQuarantined(QUARANTINE_KINDS.SHORT_ASSET, 'assetId');
+const resetQuarantinedVideo = resetQuarantined(QUARANTINE_KINDS.VIDEO, 'videoId');
+const resetQuarantinedShortAsset = resetQuarantined(QUARANTINE_KINDS.SHORT_ASSET, 'assetId');
 
 module.exports = {
+  applyQuarantinedShortAsset,
+  applyQuarantinedVideo,
   getCleanupPreview,
   getLifecycleSettings,
   listQuarantine,
   lookupQuarantinedShortAsset,
   lookupQuarantinedVideo,
+  resetQuarantinedShortAsset,
+  resetQuarantinedVideo,
   runRecoveryNow,
   updateLifecycleSwitch,
 };

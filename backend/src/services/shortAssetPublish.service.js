@@ -569,6 +569,7 @@ async function createAssetFromScript({
 module.exports = {
   createAssetFromScript,
   listCourseShortAssets,
+  markShortAssetPublished,
   privatizeRejectedShortAsset,
   publishApprovedShortAsset,
   retryShortAssetUpload,

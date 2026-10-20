@@ -2,15 +2,24 @@ const Course = require('../models/course.model');
 const ShortAsset = require('../models/shortAsset.model');
 const User = require('../models/user.model');
 const Video = require('../models/video.model');
-const { SHORT_ASSET_STATUSES, YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
+const {
+  SHORT_ASSET_REVIEW_STATUSES,
+  SHORT_ASSET_STATUSES,
+  VIDEO_SOURCE_TYPES,
+  YOUTUBE_AVAILABILITIES,
+  YOUTUBE_UPLOAD_STATUSES,
+} = require('../constants/enums');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const {
   YOUTUBE_VIDEOS_URL,
   buildYouTubeUploadSnapshot,
+  buildYouTubeWatchUrl,
   fetchAccessToken,
   hasPrivacyCapableScope,
+  normalizePrivacyStatus,
 } = require('./youtubeUpload.service');
+const { markShortAssetPublished } = require('./shortAssetPublish.service');
 
 // 被隔離的上傳由管理員收尾（decisions.md #17、#18、#28）。隔離＝上傳失敗且不可自動重試
 // （retrySafe 不是 true），YouTube 可能已收到影片，自動重試會在頻道留下兩支相同的影片。
@@ -20,6 +29,8 @@ const YOUTUBE_PLAYLIST_ITEMS_URL = 'https://www.googleapis.com/youtube/v3/playli
 // 上傳清單由新到舊，每頁 50 支、每頁 1 單位配額；只往回看 1000 支，避免頻道很大時耗盡配額。
 const LOOKUP_PAGE_SIZE = 50;
 const LOOKUP_MAX_PAGES = 20;
+
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 const QUARANTINE_KINDS = Object.freeze({
   VIDEO: 'video',
@@ -50,6 +61,23 @@ const KIND_DEFINITIONS = {
     descriptionMarker: (id) => `Uploaded by FocusFlow (video ${id})`,
     query: () => ({ ...QUARANTINED_UPLOAD, $and: [MISSING_YOUTUBE_VIDEO_ID] }),
     uploaderId: (item) => item.uploadedBy?._id || item.uploadedBy || null,
+    // 比照 autoUploadVideoToYouTube 上傳成功時寫入的欄位：播放改走 YouTube。
+    buildApplyUpdate: ({ youtubeVideoId, now }) => {
+      const youtubeUrl = buildYouTubeWatchUrl(youtubeVideoId);
+      return {
+        youtubeVideoId,
+        sourceUrl: youtubeUrl,
+        videoUrl: youtubeUrl,
+        videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
+        'youtubeUpload.error': null,
+        'youtubeUpload.uploadedAt': now,
+        'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false,
+        'youtubeUpload.nextRetryAt': null,
+      };
+    },
+    afterApply: async () => null,
   },
   [QUARANTINE_KINDS.SHORT_ASSET]: {
     model: ShortAsset,
@@ -66,6 +94,38 @@ const KIND_DEFINITIONS = {
     }),
     // ShortAsset 沒有 uploadedBy；確認揭露的就是上傳成品的教師。
     uploaderId: (item) => item.disclosure?.confirmedBy || null,
+    // 比照 uploadShortAssetToYouTube 上傳成功時的欄位；status 不動，上架另由審核判斷。
+    buildApplyUpdate: ({ youtubeVideoId, privacyStatus, now }) => {
+      const normalizedPrivacy = normalizePrivacyStatus(privacyStatus);
+      return {
+        youtubeVideoId,
+        youtubeUrl: buildYouTubeWatchUrl(youtubeVideoId),
+        // 已轉成 private 的影片學生端嵌入不了，比照退回時的標示。
+        youtubeAvailability: normalizedPrivacy === 'private'
+          ? YOUTUBE_AVAILABILITIES.UNAVAILABLE
+          : YOUTUBE_AVAILABILITIES.PLAYABLE,
+        youtubePrivacyStatus: normalizedPrivacy,
+        lastCheckedAt: now,
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
+        'youtubeUpload.error': null,
+        'youtubeUpload.uploadedAt': now,
+        'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false,
+        'youtubeUpload.nextRetryAt': null,
+      };
+    },
+    // 審核比收尾早通過時，比照上傳成功後的判斷補上架，否則成品會卡在「已通過但沒進學生牆」。
+    afterApply: async (asset) => {
+      if (
+        asset.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
+        && Number(asset.reviewedGenerationVersion) === Number(asset.generationVersion || 1)
+        && asset.status !== SHORT_ASSET_STATUSES.PUBLISHED
+        && asset.youtubeAvailability === YOUTUBE_AVAILABILITIES.PLAYABLE
+      ) {
+        return markShortAssetPublished(asset);
+      }
+      return null;
+    },
   },
 };
 
@@ -252,13 +312,133 @@ async function lookupQuarantinedItem({ kind, id, fetchImpl = global.fetch } = {}
   return { searchable: true, matches: matches.filter((match) => match.youtubeVideoId) };
 }
 
+function normalizeYouTubeVideoId(value) {
+  const youtubeVideoId = String(value || '').trim();
+  if (!YOUTUBE_VIDEO_ID_PATTERN.test(youtubeVideoId)) {
+    throw new AppError('youtubeVideoId must be an 11-character YouTube video ID.', 400, 'VALIDATION_ERROR');
+  }
+  return youtubeVideoId;
+}
+
+// 同一支 YouTube 影片不能同時是兩個 FocusFlow 上傳項目的播放來源，
+// 否則清理其中一支的原片時，另一支的原片其實沒有 YouTube 備份。
+async function assertYouTubeVideoIdUnused(youtubeVideoId) {
+  const [videos, assets] = await Promise.all([
+    Video.find({ youtubeVideoId, 'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED })
+      .select('_id').limit(1).lean(),
+    ShortAsset.find({ youtubeVideoId }).select('_id').limit(1).lean(),
+  ]);
+  if (videos.length || assets.length) {
+    throw new AppError(
+      `YouTube video ${youtubeVideoId} is already linked to another FocusFlow upload.`,
+      409,
+      'YOUTUBE_QUARANTINE_VIDEO_IN_USE',
+    );
+  }
+}
+
+// 套用前向 YouTube 確認影片存在且屬於自家頻道（#18）：填錯 ID 會讓學生看到別的影片，
+// 清理開著時還會刪掉唯一的原片。
+async function verifyOwnYouTubeVideo(youtubeVideoId, fetchImpl) {
+  const accessToken = await fetchAccessToken({ fetchImpl });
+  const { channelId } = await fetchOwnChannel(accessToken, fetchImpl);
+  const payload = await youtubeGet(
+    `${YOUTUBE_VIDEOS_URL}?part=snippet,status&id=${encodeURIComponent(youtubeVideoId)}`,
+    accessToken,
+    fetchImpl,
+    'Failed to read the YouTube video.',
+  );
+  const remote = payload?.items?.[0];
+  if (!remote) {
+    throw new AppError(
+      `YouTube video ${youtubeVideoId} was not found.`,
+      422,
+      'YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND',
+    );
+  }
+  if (remote.snippet?.channelId !== channelId) {
+    throw new AppError(
+      `YouTube video ${youtubeVideoId} does not belong to the FocusFlow channel.`,
+      422,
+      'YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED',
+    );
+  }
+  return { privacyStatus: remote.status?.privacyStatus || null };
+}
+
+// 只在項目仍是隔離狀態時寫入；檢查後被其他流程改掉時回 null，不覆寫。
+function updateIfStillQuarantined(kind, id, $set) {
+  const definition = getKindDefinition(kind);
+  return definition.model.findOneAndUpdate(
+    { _id: id, ...definition.query() },
+    { $set },
+    { new: true },
+  );
+}
+
+function createStateChangedError(definition) {
+  return new AppError(
+    `The ${definition.label} is no longer quarantined; refresh and try again.`,
+    409,
+    'YOUTUBE_QUARANTINE_NOT_ALLOWED',
+  );
+}
+
+// 「確認套用」（#17、#18）：驗證通過才標成已上傳並切換播放。
+async function applyQuarantinedItem({
+  kind,
+  id,
+  youtubeVideoId,
+  fetchImpl = global.fetch,
+  now = new Date(),
+} = {}) {
+  const definition = getKindDefinition(kind);
+  const normalizedYouTubeVideoId = normalizeYouTubeVideoId(youtubeVideoId);
+  await loadQuarantinedItem(kind, id);
+  await assertYouTubeVideoIdUnused(normalizedYouTubeVideoId);
+  const remote = await verifyOwnYouTubeVideo(normalizedYouTubeVideoId, fetchImpl);
+
+  const updated = await updateIfStillQuarantined(kind, id, definition.buildApplyUpdate({
+    youtubeVideoId: normalizedYouTubeVideoId,
+    privacyStatus: remote.privacyStatus,
+    now,
+  }));
+  if (!updated) throw createStateChangedError(definition);
+  await definition.afterApply(updated);
+
+  return { kind, id: String(id), status: YOUTUBE_UPLOAD_STATUSES.UPLOADED };
+}
+
+// 「重設為可重試」：確定 YouTube 上沒有這支時使用，次數歸零，交給恢復排程或教師重試。
+async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
+  const definition = getKindDefinition(kind);
+  await loadQuarantinedItem(kind, id);
+
+  const updated = await updateIfStillQuarantined(kind, id, {
+    'youtubeUpload.retrySafe': true,
+    'youtubeUpload.attemptCount': 0,
+    'youtubeUpload.nextRetryAt': now,
+  });
+  if (!updated) throw createStateChangedError(definition);
+
+  return {
+    kind,
+    id: String(id),
+    status: YOUTUBE_UPLOAD_STATUSES.FAILED,
+    retrySafe: true,
+    attemptCount: 0,
+  };
+}
+
 module.exports = {
   LOOKUP_MAX_PAGES,
   QUARANTINE_KINDS,
   YOUTUBE_CHANNELS_URL,
   YOUTUBE_PLAYLIST_ITEMS_URL,
   YOUTUBE_VIDEOS_URL,
+  applyQuarantinedItem,
   listQuarantinedItems,
   loadQuarantinedItem,
   lookupQuarantinedItem,
+  resetQuarantinedItem,
 };

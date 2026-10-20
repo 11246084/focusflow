@@ -2600,6 +2600,280 @@ paths:
           $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
         '502':
           $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/apply:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的影片套用為已上傳的 YouTube 影片
+      description: |
+        僅限 admin（decisions.md #17、#18）。先向 YouTube 確認影片存在且屬於自家頻道，
+        通過後才標成已上傳並切換播放欄位（比照上傳成功時寫入的欄位）；短片若已通過審核會一併上架。
+        完成後通知上傳者（沒有時通知課程教師）「已上傳完成」。
+      operationId: applyAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - youtubeVideoId
+              properties:
+                youtubeVideoId:
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]{11}$'
+      responses:
+        '200':
+          description: 已套用
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [uploaded]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: |
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態，或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                videoInUse:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk is already linked to another FocusFlow upload.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_IN_USE
+        '422':
+          description: |
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND`：YouTube 上找不到這支影片
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED`：影片不屬於系統的 YouTube 頻道
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notOwned:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk does not belong to the FocusFlow channel.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+        '503':
+          description: "`YOUTUBE_UPLOAD_NOT_CONFIGURED`：未設定 YouTube 憑證，無法向 YouTube 確認"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/reset:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的影片重設為可重試
+      description: |
+        僅限 admin。用於確定 YouTube 上沒有這支的情況：標成可安全重試、次數歸零、重試時間設為現在，
+        交給恢復排程或教師重試。完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+      operationId: resetAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 已重設
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [failed]
+                          retrySafe:
+                            const: true
+                          attemptCount:
+                            const: 0
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/apply:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的短片成品套用為已上傳的 YouTube 影片
+      description: |
+        僅限 admin（decisions.md #17、#18）。先向 YouTube 確認影片存在且屬於自家頻道，
+        通過後才標成已上傳並切換播放欄位（比照上傳成功時寫入的欄位）；短片若已通過審核會一併上架。
+        完成後通知上傳者（沒有時通知課程教師）「已上傳完成」。
+      operationId: applyAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - youtubeVideoId
+              properties:
+                youtubeVideoId:
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]{11}$'
+      responses:
+        '200':
+          description: 已套用
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [uploaded]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          description: |
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態，或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                videoInUse:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk is already linked to another FocusFlow upload.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_IN_USE
+        '422':
+          description: |
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND`：YouTube 上找不到這支影片
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED`：影片不屬於系統的 YouTube 頻道
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notOwned:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk does not belong to the FocusFlow channel.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+        '503':
+          description: "`YOUTUBE_UPLOAD_NOT_CONFIGURED`：未設定 YouTube 憑證，無法向 YouTube 確認"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/reset:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的短片成品重設為可重試
+      description: |
+        僅限 admin。用於確定 YouTube 上沒有這支的情況：標成可安全重試、次數歸零、重試時間設為現在，
+        交給恢復排程或教師重試。完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+      operationId: resetAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: 已重設
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [failed]
+                          retrySafe:
+                            const: true
+                          attemptCount:
+                            const: 0
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
   /api/v1/admin/users:
     get:
       tags:

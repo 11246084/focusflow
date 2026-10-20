@@ -354,6 +354,9 @@ describe('管理員隔離清單與查詢 API', () => {
           }],
         });
       }
+      if (text.includes('/youtube/v3/videos')) {
+        return reply({ items: [{ snippet: { channelId: 'UCown' }, status: { privacyStatus: 'unlisted' } }] });
+      }
       throw new Error(`Unexpected Google API call: ${text}`);
     };
 
@@ -435,5 +438,63 @@ describe('管理員隔離清單與查詢 API', () => {
     assert.equal(missing.body.error.code, 'VIDEO_NOT_FOUND');
     assert.equal(invalid.status, 400);
     assert.equal(youtubeCalls.length, 0);
+  });
+
+  it('套用影片回傳 uploaded 並改走 YouTube 播放', async () => {
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/apply`,
+      { method: 'POST', token: adminToken, body: { youtubeVideoId: 'foundVideo1' } },
+    );
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.data, { kind: 'video', id: VIDEO_ID, status: 'uploaded' });
+    const video = store.videos.find((item) => item._id === VIDEO_ID);
+    assert.equal(video.youtubeVideoId, 'foundVideo1');
+  });
+
+  it('重設短片回傳可重試狀態', async () => {
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/short-assets/${ASSET_ID}/reset`,
+      { method: 'POST', token: adminToken },
+    );
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.data, {
+      kind: 'short_asset', id: ASSET_ID, status: 'failed', retrySafe: true, attemptCount: 0,
+    });
+  });
+
+  it('非隔離項目套用回 409', async () => {
+    const video = store.videos.find((item) => item._id === VIDEO_ID);
+    video.youtubeUpload.retrySafe = true;
+
+    const result = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/apply`,
+      { method: 'POST', token: adminToken, body: { youtubeVideoId: 'foundVideo1' } },
+    );
+
+    assert.equal(result.status, 409);
+    assert.equal(result.body.error.code, 'YOUTUBE_QUARANTINE_NOT_ALLOWED');
+  });
+
+  it('非 admin 不能套用或重設', async () => {
+    const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!', 'teacher');
+    const apply = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/apply`,
+      { method: 'POST', token, body: { youtubeVideoId: 'foundVideo1' } },
+    );
+    const reset = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/reset`,
+      { method: 'POST', token },
+    );
+
+    assert.equal(apply.status, 403);
+    assert.equal(reset.status, 403);
+    assert.equal(store.videos.find((item) => item._id === VIDEO_ID).youtubeUpload.status, 'failed');
   });
 });

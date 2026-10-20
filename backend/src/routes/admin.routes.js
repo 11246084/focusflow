@@ -17,6 +17,10 @@ router.post('/youtube-lifecycle/recovery/run', youtubeAdminController.runRecover
 router.get('/youtube-quarantine', youtubeAdminController.listQuarantine);
 router.post('/youtube-quarantine/videos/:videoId/lookup', youtubeAdminController.lookupQuarantinedVideo);
 router.post('/youtube-quarantine/short-assets/:assetId/lookup', youtubeAdminController.lookupQuarantinedShortAsset);
+router.post('/youtube-quarantine/videos/:videoId/apply', youtubeAdminController.applyQuarantinedVideo);
+router.post('/youtube-quarantine/short-assets/:assetId/apply', youtubeAdminController.applyQuarantinedShortAsset);
+router.post('/youtube-quarantine/videos/:videoId/reset', youtubeAdminController.resetQuarantinedVideo);
+router.post('/youtube-quarantine/short-assets/:assetId/reset', youtubeAdminController.resetQuarantinedShortAsset);
 
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.listUsers);

@@ -19,7 +19,7 @@ const {
   hasPrivacyCapableScope,
   normalizePrivacyStatus,
 } = require('./youtubeUpload.service');
-const { markShortAssetPublished } = require('./shortAssetPublish.service');
+const { buildShortAssetYouTubeMarker, markShortAssetPublished } = require('./shortAssetPublish.service');
 const { notifyYouTubeUploadResolved } = require('./notification.service');
 
 // 被隔離的上傳由管理員收尾（decisions.md #17、#18、#28）。隔離＝上傳失敗且不可自動重試
@@ -84,8 +84,8 @@ const KIND_DEFINITIONS = {
     model: ShortAsset,
     label: 'short asset',
     notFound: () => new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND'),
-    // 短片上傳時加在描述末尾的標記（#29，D 塊）。
-    descriptionMarker: (id) => `(FocusFlow short ${id})`,
+    // 短片上傳時加在描述末尾的標記（#29），與上傳共用同一個函式。
+    descriptionMarker: buildShortAssetYouTubeMarker,
     // 只處理本功能上傳的成品（有 filePath）；已封存的成品不再上架，不列入。
     query: () => ({
       ...QUARANTINED_UPLOAD,

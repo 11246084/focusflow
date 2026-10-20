@@ -254,6 +254,19 @@ describe('POST /videos/:videoId/source/restore', () => {
     assert.ok(teacherVideo().youtubeUpload.localSourceRestoredAt);
   });
 
+  it('管理員影片清單附上原片狀態，供補回原片按鈕判斷', async () => {
+    // 清單查詢條件是 deletedAt: null；harness 不把缺欄位視為 null，這裡明確補上。
+    Object.assign(markCleaned(teacherVideo()), { deletedAt: null });
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+    const res = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/videos', { token });
+
+    assert.equal(res.status, 200);
+    const row = res.body.data.videos.find((video) => video.id === ids.teacherVideo);
+    assert.equal(row.sourceAvailable, false);
+    assert.equal(row.metadataOnly, false);
+    assert.deepEqual(row.youtubeUpload, { status: 'uploaded', localCleanupAt: '2026-10-01T00:00:00.000Z' });
+  });
+
   it('原片已清理時重新處理回 SOURCE_UNAVAILABLE，影片不會被排入佇列', async () => {
     markCleaned(teacherVideo(), { processingStatus: 'failed' });
     const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');

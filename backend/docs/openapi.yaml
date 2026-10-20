@@ -3012,7 +3012,7 @@ paths:
       tags:
         - Admin
       summary: 列出影片（後台）
-      description: 僅限 admin。回傳後台視角的影片列表。
+      description: 僅限 admin。回傳後台視角的影片列表；每支影片附 `metadataOnly`、`sourceAvailable`（UPLOAD_DIR 內是否有原片）與 `youtubeUpload.status`／`youtubeUpload.localCleanupAt`，管理員影片頁據此標示原片已清理並提供補回原片。
       operationId: adminListVideos
       responses:
         '200':

@@ -300,6 +300,7 @@ Phase 2 自動上傳流程定義如下：
    - `YOUTUBE_UPLOAD_PRIVACY_STATUS=unlisted`
 7. YouTube 上傳失敗只更新 `youtubeUpload` lifecycle，processing 維持 `completed`，本機播放來源也保留。
 8. 只有在 YouTube upload 與 processing 都完成後，才允許清理 `backend/uploads` 原始檔；清理前先把播放欄位切到 YouTube，並拒絕 `UPLOAD_DIR` 外路徑或仍被其他 Video 共用的檔案。
+   短影片成品（`ShortAsset`）同一套排程清理，但只清**已上架或已封存**且 YouTube 上傳完成的成品，保留期從 `youtubeUpload.uploadedAt` 起算，也拒絕與其他成品或影片共用的檔案。清理後 `filePath` **保留**，改記 `youtubeUpload.localCleanupAt`（失敗記 `localCleanupError`），因為上傳排程、退回轉私人與核准上架都以 `filePath` 有值判斷是否為教師上傳的成品；之後重新上傳會回 `SHORT_ASSET_SOURCE_FILE_MISSING`。短片不提供補回原片。短片上傳 YouTube 時描述欄末尾固定加一行 `(FocusFlow short <成品ID>)`，供管理員比對頻道上傳清單；依據見[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #28～#32。
 9. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。啟動後發現 stale `uploading` 也只隔離並要求人工確認 YouTube Studio，不自動重送。
 
 建議環境變數：

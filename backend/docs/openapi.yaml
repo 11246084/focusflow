@@ -2300,6 +2300,85 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-lifecycle/settings:
+    get:
+      tags:
+        - Admin
+      summary: YouTube 上傳、恢復、清理的兩層開關
+      description: |
+        僅限 admin（decisions.md #9～#16）。回傳三個開關的環境允許、執行期設定、實際生效與原因，
+        最近 50 筆修改紀錄（由新到舊），以及恢復間隔、清理門檻、可用空間與上次恢復時間。
+      operationId: getAdminYouTubeLifecycleSettings
+      responses:
+        '200':
+          description: 成功取得開關設定
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeLifecycleSettings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    patch:
+      tags:
+        - Admin
+      summary: 切換單一 YouTube 生命週期開關
+      description: |
+        僅限 admin。只寫入執行期設定並記錄修改者；環境變數不允許的開關不可切換。
+        回傳切換後的整份設定（格式同 GET）。
+      operationId: updateAdminYouTubeLifecycleSwitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - enabled
+              properties:
+                key:
+                  type: string
+                  enum: [upload, recovery, cleanup]
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: 已切換，回傳最新設定
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeLifecycleSettings'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許此開關，執行期不可切換"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                envDisabled:
+                  value:
+                    success: false
+                    message: YOUTUBE_UPLOAD_CLEANUP_ENABLED is disabled; this switch cannot be changed at runtime.
+                    error:
+                      code: YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED
   /api/v1/admin/users:
     get:
       tags:
@@ -5630,6 +5709,82 @@ components:
                 - runtime_disabled
                 - default_off
             - type: 'null'
+    YouTubeLifecycleSettings:
+      description: 管理員「YouTube 上傳管理」頁的開關、修改紀錄與執行期參數。
+      type: object
+      required:
+        - switches
+        - history
+        - runtime
+      properties:
+        switches:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+              - type: object
+                required:
+                  - key
+                properties:
+                  key:
+                    type: string
+                    enum: [upload, recovery, cleanup]
+        history:
+          type: array
+          description: 最近 50 筆修改紀錄，由新到舊。
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                enum: [upload, recovery, cleanup]
+              from:
+                description: 修改前的執行期設定；null 代表原本未設定。
+                anyOf:
+                  - type: boolean
+                  - type: 'null'
+              to:
+                type: boolean
+              changedBy:
+                type: object
+                properties:
+                  id:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  name:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  email:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+              changedAt:
+                type: string
+                format: date-time
+        runtime:
+          type: object
+          properties:
+            recoveryIntervalMs:
+              type: number
+              description: "`YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS`；0 代表只在開機執行。"
+            cleanupMinFreeGb:
+              type: number
+            cleanupMinAgeDays:
+              type: number
+            cleanupMaxAgeDays:
+              type: number
+            freeSpaceGb:
+              description: "`UPLOAD_DIR` 所在磁碟的可用空間（GB，小數兩位）；讀取失敗時為 null。"
+              anyOf:
+                - type: number
+                - type: 'null'
+            lastRecoveryAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
     YouTubeLifecycleSchedulerSnapshot:
       description: 恢復或清理排程的 process 內狀態；環境變數不允許時不啟動計時器。
       type: object

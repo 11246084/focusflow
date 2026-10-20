@@ -4,10 +4,14 @@ const { authorizeRoles } = require('../middleware/role.middleware');
 const { USER_ROLES } = require('../constants/enums');
 const adminController = require('../controllers/admin.controller');
 const notificationController = require('../controllers/notification.controller');
+const youtubeAdminController = require('../controllers/youtubeAdmin.controller');
 
 const router = express.Router();
 
 router.use(authenticate, authorizeRoles(USER_ROLES.ADMIN));
+
+router.get('/youtube-lifecycle/settings', youtubeAdminController.getLifecycleSettings);
+router.patch('/youtube-lifecycle/settings', youtubeAdminController.updateLifecycleSwitch);
 
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.listUsers);

@@ -32,7 +32,7 @@ const RETRY_ERROR_MESSAGES = {
   VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原片已從伺服器清理，請先「補回原片」再重新處理。',
   VIDEO_PROCESSING_TRANSITION_INVALID: '影片狀態已變更，請重新整理後再試。',
   YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
-  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: 'YouTube 上傳重試次數已達上限，請聯絡管理員處理。',
+  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: '已達重試上限，已通知管理員處理，處理後會自動更新。',
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已成功上傳到 YouTube，不需要重試。',
   YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前不是上傳失敗狀態，請重新整理後再確認。',
   YOUTUBE_UPLOAD_NOT_CONFIGURED: 'YouTube 上傳尚未設定完成，請聯絡管理員。',

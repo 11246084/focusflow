@@ -31,7 +31,7 @@ const CODE_MESSAGES = {
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已經上傳到 YouTube。',
   YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前的狀態不能重新上傳到 YouTube。',
   YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
-  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: '已達重新上傳次數上限。',
+  YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: '已達重試上限，已通知管理員處理，處理後會自動更新。',
   YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED: '這個開關未在主機環境變數允許，需由有主機權限的人修改後重啟才能切換。',
   YOUTUBE_RECOVERY_NOT_RUN: '這一輪恢復沒有執行，請稍後再試。',
   YOUTUBE_QUARANTINE_NOT_ALLOWED: '這個項目已不在待處理狀態，請重新整理後再試。',

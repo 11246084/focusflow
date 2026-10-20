@@ -1092,6 +1092,8 @@ function installModelStubs() {
         uploadedAt: null,
         failedAt: null,
         retrySafe: false,
+        localCleanupAt: null,
+        localCleanupError: null,
       },
       ...payload,
     };

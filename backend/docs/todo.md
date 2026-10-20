@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-09-28
+最後更新：2026-10-20
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -354,7 +354,7 @@
   - ~~OAuth 同意畫面從 Testing 切到正式發布 + 重換 refresh token~~（✅ 2026-08-02 完成，token 已驗證可換發 access token、scope `youtube.force-ssl`）
   - ~~`/health` 補 YouTube 憑證狀態指標~~（✅ 2026-08-02 完成：`/health.runtime.youtubeUpload`，含 scope 檢查與最後一次轉 private 結果）
   - playlist / Shorts 發布策略定版
-  - 本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開
+  - ~~本機原始檔自動清理需等 YouTube/cloud + processing retry 策略穩定後再開~~（✅ 2026-10-20 改為排程清理，見第 22 項）
 
 ---
 
@@ -386,6 +386,20 @@
   - 對課程影片實際執行 CLI 並寫入共享 Atlas（需確認目標影片與費用）
   - 以真實資料調整 `QA_VISUAL_MIN_SCORE`，再決定是否在 VM 開啟 `QA_VISUAL_RETRIEVAL_ENABLED`
   - 教師上傳後自動產生影像片段（`main.py` 選用 stage）
+
+### 22. YouTube 上傳恢復與原片清理
+
+- **狀態**：Done（2026-10-20，本機實作與測試；正式環境未開啟、未驗收）
+- **完成內容**：依[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #7～#33。
+  - 上傳、恢復、清理改為兩層開關（環境變數＋`runtimesettings` 執行期開關，保留 50 筆修改紀錄）；恢復與清理改為定期排程。
+  - 清理依可用空間與保留期（180／14 天、10 GB）判斷，刪除前預告；補回原片 `POST /videos/:videoId/source/restore`，保留期從補回時間起算。
+  - 管理員介面：開關、清理預告、立即執行恢復、隔離項目的查詢／套用／重設；隔離時通知管理員、收尾後通知教師；系統狀態新增 `youtube_lifecycle` 列。
+  - 短片成品納入恢復、隔離、清理與上傳開關；描述欄加 `(FocusFlow short <成品ID>)` 標記，清理後保留 `filePath`。
+  - 前端：管理員「YouTube 上傳管理」頁、補回原片、教師端「需由管理員確認」提示與錯誤碼中文訊息。
+- **驗收**：見[目前狀態](../../docs/current-status.md)；本機測試只用測試替身，沒有呼叫 YouTube 或 Atlas。
+- **待辦**：
+  - 部署後依決策 #33 開啟恢復、本機端到端驗收清理、正式環境開啟清理（各需授權）
+  - 決定「可安全重試但已達上限」的失敗要不要納入管理員待處理清單（目前教師與管理員都沒有可按的動作）
 
 ---
 

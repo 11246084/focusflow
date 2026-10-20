@@ -342,14 +342,15 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 | `GET`／`PATCH /admin/youtube-lifecycle/settings` | 三個開關的環境允許、執行期設定、實際生效值與原因，加最近 50 筆修改紀錄；`PATCH { key, enabled }` 回傳與 `GET` 相同的完整內容 | admin |
 | `GET /admin/youtube-lifecycle/cleanup-preview?scope=enable\|upcoming` | 啟用清理後會立即刪除的清單，或 7 天內到期的清單 | admin |
 | `POST /admin/youtube-lifecycle/recovery/run` | 立即執行一輪恢復；`skipped` 是撈到但這一輪沒處理的筆數。整輪沒有執行時回 `409 YOUTUBE_RECOVERY_NOT_RUN`，`error.details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running` | admin |
-| `GET /admin/youtube-quarantine` | 待處理清單：`youtubeUpload.status=failed` 且 `retrySafe` 不是 `true`、尚無 YouTube ID 的影片與短片；`data.searchable` 表示憑證能否讀頻道 | admin |
-| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/lookup` | 用描述標記比對自家頻道上傳清單，只回傳 `{ searchable, matches }`，最多往回看 1000 支 | admin |
-| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/apply` | `{ youtubeVideoId }`：先向 YouTube 確認影片存在、屬於自家頻道且未被其他項目使用，再標成上傳完成並切換播放；完成後通知上傳的教師 | admin |
-| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 確定沒有上傳時使用：重設為可安全重試、次數歸零，由恢復排程重新上傳；完成後通知上傳的教師 | admin |
+| `GET /admin/youtube-quarantine` | 待處理清單：`youtubeUpload.status=failed`、尚無 YouTube ID 的影片與短片，每筆 `reason` 標示原因：`quarantined`＝`retrySafe` 不是 `true`；`retry_limit`＝`retrySafe=true` 但 `attemptCount` 已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`。`data.searchable` 表示憑證能否讀頻道 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/lookup` | 只接受 `quarantined`：用描述標記比對自家頻道上傳清單，只回傳 `{ searchable, matches }`，最多往回看 1000 支 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/apply` | 只接受 `quarantined`：`{ youtubeVideoId }`，先向 YouTube 確認影片存在、屬於自家頻道且未被其他項目使用，再標成上傳完成並切換播放；完成後通知上傳的教師 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 兩種原因都接受：確定沒有上傳、或已達上限且原因已排除時使用，重設為可安全重試、次數歸零、重試時間設為現在，由恢復排程重新上傳；完成後通知上傳的教師 | admin |
 | `POST /videos/:videoId/source/restore` | 補回原片（multipart 欄位 `video`）：只接受已清理的影片，影片 ID 不變、不重新上傳 YouTube，保留期從補回時間起算 | 課程教師、admin |
 
 - 查詢與套用需要讀自家頻道的權限（`youtube.force-ssl`）；憑證只有 `youtube.upload` 時，查詢回 `searchable: false`，套用會回 `502 YOUTUBE_QUARANTINE_VERIFY_FAILED`。
-- 影片被隔離時通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
+- `retry_limit` 的失敗都發生在送出影片內容之前，YouTube 上確定沒有這支，所以不提供查詢與套用（回 `409 YOUTUBE_QUARANTINE_NOT_ALLOWED`），只能重設（[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #34）。教師重試已達上限的項目仍回 `409 YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED`，畫面提示已通知管理員。
+- 影片或短片被隔離、或最後一次可安全重試的失敗達到上限時，通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
 - 課程影片清單與 `GET /admin/videos` 的每支影片附 `sourceAvailable`；前端只有在 `sourceAvailable=false` 且有 `youtubeUpload.localCleanupAt` 時才視為原片已清理並提供補回。
 - 系統狀態 `/admin/system-status` 另有 `youtube_lifecycle` 列，顯示待處理與 7 天內到期刪除的數量。
 

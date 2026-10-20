@@ -140,10 +140,10 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `YOUTUBE_UPLOAD_ALREADY_COMPLETED` | 409 | 影片已成功上傳，不可再排入重試 |
 | `YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED` | 409 | 目前不是 failed 狀態，不可重試 |
 | `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，不可由教師重試；由管理員在「YouTube 上傳管理」待處理清單查詢、套用或重設，避免重複影片 |
-| `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 已達單支影片的有限重試上限 |
+| `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 影片或短片已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`，教師不可再重試；項目已在管理員待處理清單，由管理員重設次數 |
 | `YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` | 409 | 環境變數不允許的 YouTube 上傳／恢復／清理開關，不可在執行期切換 |
 | `YOUTUBE_RECOVERY_NOT_RUN` | 409 | 管理員「立即執行恢復」這一輪沒有執行；`details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`（正式環境也回傳） |
-| `YOUTUBE_QUARANTINE_NOT_ALLOWED` | 409 | 只有被隔離的上傳（失敗且不可自動重試）可以查詢、套用或重設，或處理期間狀態已改變 |
+| `YOUTUBE_QUARANTINE_NOT_ALLOWED` | 409 | 項目不在待處理清單，或處理期間狀態已改變；查詢與套用只接受被隔離的上傳（失敗且不可自動重試），重設另接受已達重試上限的上傳 |
 | `YOUTUBE_QUARANTINE_VIDEO_IN_USE` | 409 | 要套用的 YouTube 影片已是其他 FocusFlow 上傳項目（影片或短片）的播放來源 |
 | `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND` | 422 | 套用時 YouTube 上找不到這支影片 |
 | `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED` | 422 | 套用的 YouTube 影片不屬於系統頻道 |

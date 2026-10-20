@@ -50,6 +50,19 @@ function resolveLocalUploadPath(filePath) {
     : path.resolve(env.projectRoot, filePath || '');
 }
 
+// 描述欄末尾的系統標記（decisions.md #29）。管理員「查詢 YouTube」用它比對頻道上傳清單，
+// 格式改了就比對不到，所以集中在這裡。
+function buildShortAssetYouTubeMarker(assetId) {
+  return `(FocusFlow short ${assetId})`;
+}
+
+// 教師描述原文 + 標記；描述是空的就只放標記。資料庫裡的 description 保持原文不加標記。
+function buildShortAssetYouTubeDescription(asset) {
+  return [String(asset.description || '').trim(), buildShortAssetYouTubeMarker(asset._id)]
+    .filter(Boolean)
+    .join('\n');
+}
+
 function shortErrorMessage(error) {
   return String(error?.message || error || 'Unknown error').slice(0, 300);
 }
@@ -168,7 +181,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch } =
     uploadResult = await uploadLocalVideo({
       filePath,
       title: asset.title,
-      description: asset.description || '',
+      description: buildShortAssetYouTubeDescription(asset),
       privacyStatus: SHORT_ASSET_PRIVACY_STATUS,
       fetchImpl,
     });
@@ -567,6 +580,8 @@ async function createAssetFromScript({
 }
 
 module.exports = {
+  buildShortAssetYouTubeDescription,
+  buildShortAssetYouTubeMarker,
   createAssetFromScript,
   listCourseShortAssets,
   privatizeRejectedShortAsset,

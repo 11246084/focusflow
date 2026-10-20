@@ -135,11 +135,11 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
 | `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |
-| `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整 |
+| `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整，或管理員停用了上傳的執行期開關（影片與短片重試） |
 | `YOUTUBE_UPLOAD_FAILED` | 502 | YouTube OAuth 或影片上傳 API 失敗 |
 | `YOUTUBE_UPLOAD_ALREADY_COMPLETED` | 409 | 影片已成功上傳，不可再排入重試 |
 | `YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED` | 409 | 目前不是 failed 狀態，不可重試 |
-| `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，須先人工確認 YouTube Studio 以避免重複影片 |
+| `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，不可由教師重試；由管理員在「YouTube 上傳管理」待處理清單查詢、套用或重設，避免重複影片 |
 | `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 已達單支影片的有限重試上限 |
 | `YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` | 409 | 環境變數不允許的 YouTube 上傳／恢復／清理開關，不可在執行期切換 |
 | `YOUTUBE_RECOVERY_NOT_RUN` | 409 | 管理員「立即執行恢復」這一輪沒有執行；`details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`（正式環境也回傳） |

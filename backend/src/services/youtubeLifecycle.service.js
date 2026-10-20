@@ -18,6 +18,11 @@ const {
   getYouTubeLifecycleSettings,
   isYouTubeLifecycleSwitchEnabled,
 } = require('./youtubeLifecycleSettings.service');
+const {
+  SHORT_ASSET_CLEANUP_KIND,
+  cleanupShortAssetLocalFile,
+  listShortAssetCleanupEntries,
+} = require('./shortAssetCleanup.service');
 
 // 原片清理排程（decisions.md #22、#24、#26、#27）。「誰符合刪除條件」只有
 // listYouTubeCleanupCandidates 一份判斷，排程刪除與兩種預告都呼叫它。
@@ -154,6 +159,11 @@ const CLEANUP_SOURCES = {
   video: {
     listEntries: listVideoCleanupEntries,
     cleanup: (id) => cleanupUploadedLocalVideo(id),
+  },
+  // 短片成品（decisions.md #28、#30、#31），條件與刪除見 shortAssetCleanup.service。
+  [SHORT_ASSET_CLEANUP_KIND]: {
+    listEntries: listShortAssetCleanupEntries,
+    cleanup: (id) => cleanupShortAssetLocalFile(id),
   },
 };
 

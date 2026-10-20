@@ -6,6 +6,7 @@ const { afterEach, beforeEach, describe, it } = require('node:test');
 const { ids, newObjectId, resetStore, store } = require('./helpers/backendTestHarness');
 const env = require('../src/config/env');
 const publishService = require('../src/services/shortAssetPublish.service');
+const lifecycleService = require('../src/services/youtubeLifecycle.service');
 
 // 短片成品的 YouTube 生命週期（decisions.md #28～#32）。
 // YouTube 一律用假的 fetchImpl；檔案只在每個測試自己建立的暫存目錄。
@@ -16,7 +17,15 @@ const ENV_KEYS = [
   'youtubeUploadAccessToken',
   'youtubeUploadMaxAttempts',
   'shortScriptAutomationEnabled',
+  'youtubeUploadCleanupEnabled',
+  'youtubeUploadCleanupMaxAgeDays',
+  'youtubeUploadCleanupMinAgeDays',
+  'youtubeUploadCleanupMinFreeGb',
 ];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const GB = 1024 ** 3;
+const NOW = new Date('2026-10-20T00:00:00.000Z');
 
 let tempRoot;
 let originalEnv;
@@ -41,6 +50,31 @@ function addAsset(overrides = {}) {
   store.shortAssets.push(asset);
   return asset;
 }
+
+function daysAgo(days) {
+  return new Date(NOW.getTime() - days * DAY_MS);
+}
+
+// YouTube 上傳完成的成品；status 決定能不能清理（#30）。
+function addUploadedAsset({ status = 'published', uploadedDaysAgo = 200, sizeBytes = 1024, ...overrides } = {}) {
+  const asset = addAsset({
+    status,
+    reviewStatus: status === 'draft' ? 'pending' : 'approved',
+    youtubeVideoId: `yt-short-${newObjectId()}`,
+    youtubeUpload: { status: 'uploaded', attemptCount: 1, uploadedAt: daysAgo(uploadedDaysAgo) },
+    ...overrides,
+  });
+  fs.writeFileSync(asset.filePath, Buffer.alloc(sizeBytes));
+  return asset;
+}
+
+function setCleanupSwitch(value) {
+  const existing = store.runtimeSettings.find((item) => item.key === 'youtubeLifecycle.cleanup');
+  if (existing) existing.value = value;
+  else store.runtimeSettings.push({ key: 'youtubeLifecycle.cleanup', value, history: [] });
+}
+
+const plentyOfSpace = async () => 100 * GB;
 
 function response(payload, headers = {}) {
   return {
@@ -87,9 +121,15 @@ function useTempUploadDir() {
     env.youtubeUploadAccessToken = 'test-token';
     env.youtubeUploadMaxAttempts = 3;
     env.shortScriptAutomationEnabled = false;
+    env.youtubeUploadCleanupEnabled = true;
+    env.youtubeUploadCleanupMaxAgeDays = 180;
+    env.youtubeUploadCleanupMinAgeDays = 14;
+    env.youtubeUploadCleanupMinFreeGb = 10;
+    lifecycleService.resetYouTubeLifecycleStateForTests();
   });
 
   afterEach(() => {
+    lifecycleService.resetYouTubeLifecycleStateForTests();
     Object.assign(env, originalEnv);
     fs.rmSync(tempRoot, { recursive: true, force: true });
   });
@@ -159,5 +199,124 @@ describe('短片上傳描述標記（#29）', () => {
 
     assert.equal(asset.generationVersion, 2);
     assert.equal(fake.metadata[0].snippet.description, `新版說明\n(FocusFlow short ${asset._id})`);
+  });
+});
+
+describe('短片成品的清理候選（#28、#30）', () => {
+  useTempUploadDir();
+
+  it('四種狀態中只有已上架與已封存列入，草稿與被退回的不清理', async () => {
+    addUploadedAsset({ status: 'draft' });
+    addUploadedAsset({ status: 'draft', reviewStatus: 'rejected' });
+    const published = addUploadedAsset({ status: 'published' });
+    const archived = addUploadedAsset({ status: 'archived', uploadedDaysAgo: 300 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual(
+      candidates.map((item) => [item.kind, item.id, item.reason]),
+      [['short_asset', String(archived._id), 'max_age'], ['short_asset', String(published._id), 'max_age']],
+    );
+  });
+
+  it('YouTube 上傳未完成或已清理過的成品不列入', async () => {
+    addUploadedAsset({ youtubeUpload: { status: 'failed', attemptCount: 1, uploadedAt: null } });
+    addUploadedAsset({ youtubeVideoId: undefined });
+    addUploadedAsset({
+      youtubeUpload: { status: 'uploaded', uploadedAt: daysAgo(300), localCleanupAt: daysAgo(10) },
+    });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('保留期從 YouTube 上傳完成起算，不看成品建立時間', async () => {
+    const asset = addUploadedAsset({ uploadedDaysAgo: 177, createdAt: daysAgo(400), sizeBytes: 2048 });
+
+    const enable = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+    const upcoming = await lifecycleService.buildYouTubeCleanupPreview({
+      scope: 'upcoming',
+      now: NOW,
+      getFreeBytes: plentyOfSpace,
+    });
+
+    assert.deepEqual(enable, []);
+    assert.deepEqual(upcoming.items.map((item) => [item.id, item.sizeBytes]), [[String(asset._id), 2048]]);
+    assert.deepEqual(upcoming.items[0].retentionStartAt, daysAgo(177));
+    assert.deepEqual(upcoming.items[0].eligibleAt, new Date(NOW.getTime() + 3 * DAY_MS));
+  });
+
+  it('空間不足時與一般影片一起從最早上傳完成的開始刪，未滿最短保留期的不刪', async () => {
+    const oldest = addUploadedAsset({ uploadedDaysAgo: 60, sizeBytes: 2048 });
+    const videoPath = path.join(tempRoot, 'video.mp4');
+    fs.writeFileSync(videoPath, Buffer.alloc(2048));
+    store.videos.push({
+      _id: newObjectId(),
+      courseId: ids.teacherCourse,
+      title: '一般影片',
+      filePath: videoPath,
+      youtubeVideoId: 'yt-video',
+      processing: { status: 'completed' },
+      youtubeUpload: { status: 'uploaded', uploadedAt: daysAgo(40) },
+    });
+    addUploadedAsset({ uploadedDaysAgo: 5, sizeBytes: 2048 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({
+      now: NOW,
+      getFreeBytes: async () => 10 * GB - 3000,
+    });
+
+    assert.deepEqual(
+      candidates.map((item) => [item.kind, item.reason]),
+      [['short_asset', 'low_space'], ['video', 'low_space']],
+    );
+    assert.equal(candidates[0].id, String(oldest._id));
+  });
+
+  it('最長保留期設為 0 時只依空間清理', async () => {
+    env.youtubeUploadCleanupMaxAgeDays = 0;
+    addUploadedAsset({ uploadedDaysAgo: 999 });
+
+    const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+    assert.deepEqual(candidates, []);
+  });
+
+  it('UPLOAD_DIR 外，或與其他成品、影片共用同一檔案的不列入', async () => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-short-outside-'));
+    try {
+      const outsidePath = path.join(outsideDir, 'outside.mp4');
+      fs.writeFileSync(outsidePath, 'outside');
+      addUploadedAsset({ filePath: outsidePath });
+      const sharedWithAsset = addUploadedAsset();
+      addAsset({ filePath: sharedWithAsset.filePath });
+      const sharedWithVideo = addUploadedAsset();
+      store.videos.push({ _id: newObjectId(), courseId: ids.teacherCourse, filePath: sharedWithVideo.filePath });
+
+      const candidates = await lifecycleService.listYouTubeCleanupCandidates({ now: NOW, getFreeBytes: plentyOfSpace });
+
+      assert.deepEqual(candidates, []);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('啟用預告與排程實際刪除的清單一致', async () => {
+    const expired = addUploadedAsset({ status: 'archived', uploadedDaysAgo: 365, sizeBytes: 3000 });
+    const lowSpace = addUploadedAsset({ uploadedDaysAgo: 90, sizeBytes: 3000 });
+    addUploadedAsset({ uploadedDaysAgo: 60, sizeBytes: 3000 });
+    addUploadedAsset({ status: 'draft', uploadedDaysAgo: 365, sizeBytes: 3000 });
+    const getFreeBytes = async () => 10 * GB - 5000;
+
+    const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });
+    setCleanupSwitch(true);
+    const run = await lifecycleService.runYouTubeCleanup({ now: NOW, getFreeBytes });
+
+    assert.deepEqual(preview.items.map((item) => item.id), [String(expired._id), String(lowSpace._id)]);
+    assert.deepEqual(
+      run.results.filter((item) => item.cleaned).map((item) => [item.kind, item.id]),
+      preview.items.map((item) => [item.kind, item.id]),
+    );
   });
 });

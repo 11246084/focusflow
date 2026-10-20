@@ -57,3 +57,31 @@ test('帳號鎖定時顯示大約還要等幾分鐘', () => {
 test('沒有狀態碼時視為連線失敗', () => {
   assert.equal(toChineseErrorMessage({}), '無法連線到伺服器，請確認網路後再試。');
 });
+
+test('YouTube 隔離收尾與補回原片的錯誤碼有中文說明', () => {
+  for (const code of [
+    'YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED',
+    'YOUTUBE_QUARANTINE_NOT_ALLOWED',
+    'YOUTUBE_QUARANTINE_VIDEO_IN_USE',
+    'YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND',
+    'YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED',
+    'YOUTUBE_QUARANTINE_VERIFY_FAILED',
+    'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+  ]) {
+    const message = toChineseErrorMessage({ code, status: 409, message: 'English message.' });
+    assert.notEqual(message, toChineseErrorMessage({ status: 409 }), code);
+  }
+});
+
+test('立即執行恢復沒有執行時依原因說明', () => {
+  const message = toChineseErrorMessage({
+    code: 'YOUTUBE_RECOVERY_NOT_RUN',
+    status: 409,
+    details: { reason: 'already_running' },
+  });
+  assert.match(message, /上一輪恢復還在執行中/);
+  assert.equal(
+    toChineseErrorMessage({ code: 'YOUTUBE_RECOVERY_NOT_RUN', status: 409 }),
+    '這一輪恢復沒有執行，請稍後再試。',
+  );
+});

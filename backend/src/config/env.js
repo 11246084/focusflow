@@ -289,8 +289,31 @@ module.exports = {
     900000,
     'YOUTUBE_UPLOAD_STUCK_AFTER_MS',
   ),
+  // 恢復排程間隔；0 代表只在開機跑一次。
+  youtubeUploadRecoveryIntervalMs: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS,
+    300000,
+  ),
   youtubeUploadCleanupEnabled:
     String(process.env.YOUTUBE_UPLOAD_CLEANUP_ENABLED || 'false').toLowerCase() === 'true',
+  // 原片清理改由排程執行（decisions.md #22）：超過最長保留期一律刪；可用空間
+  // 低於門檻時從最早上傳完成的開始刪，但未滿最短保留期不刪。0 代表停用該規則。
+  youtubeUploadCleanupIntervalMs: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_CLEANUP_INTERVAL_MS,
+    3600000,
+  ),
+  youtubeUploadCleanupMaxAgeDays: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS,
+    180,
+  ),
+  youtubeUploadCleanupMinFreeGb: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB,
+    10,
+  ),
+  youtubeUploadCleanupMinAgeDays: parseNonNegativeNumber(
+    process.env.YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS,
+    14,
+  ),
   // 刪除影片時把 FocusFlow 自己上傳的 YouTube 影片轉為 private（不刪除，可還原）。
   // 需要 `youtube.force-ssl` scope 的 refresh token；只有憑證齊備時才會實際執行。
   youtubePrivatizeOnDelete:

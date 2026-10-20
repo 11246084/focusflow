@@ -9,7 +9,12 @@ const Course = require('../models/course.model');
 const mongoose = require('mongoose');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
-const { VIDEO_PROCESSING_STATUSES, VIDEO_SOURCE_TYPES, USER_ROLES } = require('../constants/enums');
+const {
+  VIDEO_PROCESSING_STATUSES,
+  VIDEO_SOURCE_TYPES,
+  USER_ROLES,
+  YOUTUBE_UPLOAD_STATUSES,
+} = require('../constants/enums');
 const env = require('../config/env');
 const { decodeUploadFilename } = require('../middleware/upload.middleware');
 const {
@@ -40,6 +45,7 @@ const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { enqueueVideoProcessing } = require('./videoProcessingQueue.service');
 const { assertMediaIntegrity } = require('./mediaIntegrity.service');
 const { removeVideoNotifications } = require('./notification.service');
+const { isLocalVideoSourceAvailable } = require('../utils/localVideoSource');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -68,21 +74,31 @@ async function markUnexpectedSttExitFailed(videoId, failure) {
   await failVideoProcessing(videoId, failure);
 }
 
-function isSameOrDescendant(parentPath, candidatePath) {
-  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+// 已清理：YouTube 上傳完成、原片已由清理流程刪除（filePath 清空並記下 localCleanupAt）。
+function isLocalSourceCleaned(video) {
+  return Boolean(
+    video
+    && !video.filePath
+    && video.youtubeVideoId
+    && video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED
+    && video.youtubeUpload?.localCleanupAt,
+  );
+}
+
+function createRetrySourceUnavailableError() {
+  return new AppError(
+    'The local source file is unavailable for processing retry.',
+    409,
+    'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE',
+  );
 }
 
 function spawnLocalVideoPipeline({ videoId, filePath }, { onClose = null } = {}) {
   const normalizedVideoId = String(videoId || '').trim();
-  const normalizedPath = path.resolve(String(filePath || ''));
-  if (!normalizedVideoId || !filePath || !isSameOrDescendant(env.uploadDir, normalizedPath) || !existsSync(normalizedPath)) {
-    throw new AppError(
-      'The local source file is unavailable for processing retry.',
-      409,
-      'VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE',
-    );
+  if (!normalizedVideoId || !isLocalVideoSourceAvailable(filePath)) {
+    throw createRetrySourceUnavailableError();
   }
+  const normalizedPath = path.resolve(String(filePath));
 
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
   const logPath = path.join(sttDir, 'data', `pipeline_${normalizedVideoId}.log`);
@@ -146,7 +162,14 @@ async function retryExistingVideoProcessing(videoId, user) {
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
   await assertCanManageCourse(user, course);
-  if (process.env.NODE_ENV !== 'test' && env.processingWebhookSecret !== 'processing-secret-for-tests') {
+  const skipLocalSourceChecks = process.env.NODE_ENV === 'test'
+    || env.processingWebhookSecret === 'processing-secret-for-tests';
+  // 原片已清理（#21）時一律擋下，不改走 YouTube 下載；先檢查來源再排入佇列，
+  // 避免影片卡在 queued。
+  if (isLocalSourceCleaned(video) || (!skipLocalSourceChecks && !isLocalVideoSourceAvailable(video.filePath))) {
+    throw createRetrySourceUnavailableError();
+  }
+  if (!skipLocalSourceChecks) {
     assertMediaIntegrity(video.filePath, video.fileName);
   }
   const queuedVideo = await queueVideoForProcessing(videoId);
@@ -469,6 +492,91 @@ async function createCourseVideo({
   });
 }
 
+function removeUploadedFile(file) {
+  try {
+    if (file?.path && existsSync(file.path)) unlinkSync(file.path);
+  } catch {
+    // Best-effort cleanup of a rejected restore upload.
+  }
+}
+
+// 補回原片（#23）：只接受已清理的影片，存回同一支影片讓之後可以重新處理。
+// 播放欄位與 youtubeVideoId 不動，學生照常看 YouTube 版本；自動上傳遇到
+// 已有 youtubeVideoId 會略過，所以重新處理完成不會再傳一次 YouTube（#25）。
+async function restoreVideoSource({ videoId, file, user }) {
+  if (!file) {
+    throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
+  }
+
+  try {
+    assertObjectId(videoId, 'video');
+    const video = await Video.findById(videoId);
+    if (!video || !Video.isAppOwnedRecord(video)) {
+      throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+    }
+    const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
+    await assertCanManageCourse(user, course);
+
+    if (!isLocalSourceCleaned(video)) {
+      throw new AppError(
+        'Only videos whose local source was cleaned after YouTube upload can be restored.',
+        409,
+        'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+      );
+    }
+
+    // 補回的檔案之後要給 STT 重新處理，容器檢查在所有環境都執行。
+    const originalName = decodeUploadFilename(file.originalname);
+    assertMediaIntegrity(file.path, originalName);
+
+    const fileHash = await computeFileHash(file.path);
+    const otherVideo = await Video.findOne({
+      courseId: video.courseId?._id || video.courseId,
+      fileHash,
+      _id: { $ne: video._id },
+    });
+    if (otherVideo) {
+      throw new AppError(
+        'This file belongs to another video in this course.',
+        409,
+        'DUPLICATE_VIDEO',
+        { existingVideoId: String(otherVideo._id) },
+      );
+    }
+
+    // 條件更新：同時送出兩次補回時只有一次成功，另一次回 409。
+    const restoredVideo = await Video.findOneAndUpdate(
+      {
+        _id: video._id,
+        filePath: null,
+        'youtubeUpload.localCleanupAt': { $ne: null },
+      },
+      {
+        $set: {
+          filePath: file.path,
+          fileName: originalName,
+          'youtubeUpload.localSourceRestoredAt': new Date(),
+          'youtubeUpload.localCleanupAt': null,
+          'youtubeUpload.localCleanupError': null,
+        },
+      },
+      { new: true },
+    );
+    if (!restoredVideo) {
+      throw new AppError(
+        'The video source was restored by another request.',
+        409,
+        'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+      );
+    }
+  } catch (error) {
+    removeUploadedFile(file);
+    throw error;
+  }
+
+  return getVideoById(videoId, user);
+}
+
 async function listCourseVideos(courseId, user) {
   const course = await ensureCourseExists(courseId);
   await assertCanAccessCourse(user, course);
@@ -608,5 +716,6 @@ module.exports = {
   scheduleExistingVideoProcessing,
   recoverQueuedVideoProcessing,
   retryExistingVideoProcessing,
+  restoreVideoSource,
   spawnLocalVideoPipeline,
 };

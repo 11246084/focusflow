@@ -82,6 +82,12 @@ const shortAssetUploadSchema = new mongoose.Schema(
     failedAt: { type: Date, default: null },
     // 是否確定沒有送出任何影片 bytes。送出過就不能自動重試，否則會在 YouTube 上留下重複影片。
     retrySafe: { type: Boolean, default: false },
+    // 可安全重試的失敗下一次重試時間（退避），恢復排程只撈已到時間的（decisions.md #28）。
+    nextRetryAt: { type: Date, default: null },
+    // 原片清理（decisions.md #30、#31）。清理後 filePath 保留不清空：上傳排程、退回轉私人、
+    // 核准上架都以 filePath 有值判斷「是本功能上傳的成品」，改看這兩個欄位得知檔案已刪。
+    localCleanupAt: { type: Date, default: null },
+    localCleanupError: { type: String, default: null, trim: true },
   },
   { _id: false },
 );

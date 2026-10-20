@@ -200,6 +200,12 @@ const videoSchema = new mongoose.Schema(
             default: null,
             trim: true,
           },
+          // 清理後補回原片的時間（decisions.md #23、#24）。清理保留期從
+          // max(uploadedAt, localSourceRestoredAt) 起算，避免補回後下一輪就被刪。
+          localSourceRestoredAt: {
+            type: Date,
+            default: null,
+          },
         },
         { _id: false },
       ),

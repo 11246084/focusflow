@@ -430,6 +430,137 @@ async function notifyShortAssetRejected({ asset, script, reasons = [] }) {
   }
 }
 
+const YOUTUBE_UPLOAD_KIND_LABELS = {
+  video: '影片',
+  short_asset: '短影片',
+};
+
+function toObjectIdString(value) {
+  if (!value) return null;
+  return String(value._id || value);
+}
+
+// 同一個項目、同一次失敗只通知一次：失敗時間不同就是另一次失敗（例如重設後又被隔離）。
+function buildYouTubeUploadDedupeKey(prefix, { kind, item, suffix = '' }) {
+  const failedAt = item?.youtubeUpload?.failedAt ? new Date(item.youtubeUpload.failedAt).getTime() : 'unknown';
+  return [prefix, kind, String(item._id), suffix, failedAt].filter(Boolean).join(':');
+}
+
+function buildYouTubeUploadTarget(kind, item) {
+  const courseId = toObjectIdString(item.courseId);
+  return {
+    courseIds: courseId ? [courseId] : [],
+    // 影片導回課程頁；短片有腳本時導到腳本頁（前端 notificationTarget.js）。
+    videoId: kind === 'video' ? String(item._id) : null,
+    scriptId: kind === 'short_asset' ? toObjectIdString(item.sourceScriptId) : null,
+  };
+}
+
+async function upsertDedupedNotifications(operations) {
+  if (!operations.length) return { recipientCount: 0, createdCount: 0 };
+  let result;
+  try {
+    result = await Notification.bulkWrite(operations, { ordered: false });
+  } catch (error) {
+    const writeErrors = Array.isArray(error?.writeErrors) ? error.writeErrors : [];
+    const writeErrorCode = (writeError) => writeError?.code ?? writeError?.err?.code;
+    const duplicateOnly = writeErrors.length
+      ? writeErrors.every((writeError) => writeErrorCode(writeError) === 11000)
+      : error?.code === 11000;
+    // 同時寫入撞到唯一索引代表另一邊已建立同一則通知，結果相同。
+    if (!duplicateOnly || hasWriteConcernError(error)) throw error;
+    result = error?.result || {};
+  }
+  return { recipientCount: operations.length, createdCount: result.upsertedCount ?? 0 };
+}
+
+function buildUpsertOperation({ recipientId, dedupeKey, document }) {
+  return {
+    updateOne: {
+      filter: { recipientId, dedupeKey },
+      update: {
+        $setOnInsert: {
+          recipientId,
+          urgent: false,
+          readAt: null,
+          createdBy: null,
+          dedupeKey,
+          ...document,
+        },
+      },
+      upsert: true,
+    },
+  };
+}
+
+// 上傳被隔離時通知所有啟用中的管理員（decisions.md #20），點擊進入 YouTube 上傳管理的待處理清單。
+// 屬於附帶動作：失敗只記 log，不影響上傳流程的失敗紀錄。
+async function notifyYouTubeUploadNeedsReview({ kind, item }) {
+  try {
+    if (!item?._id || !YOUTUBE_UPLOAD_KIND_LABELS[kind]) return null;
+    const admins = await User.find({ role: USER_ROLES.ADMIN, isActive: true }).select('_id').lean();
+    const label = YOUTUBE_UPLOAD_KIND_LABELS[kind];
+    const itemTitle = String(item.title || label).trim() || label;
+    const dedupeKey = buildYouTubeUploadDedupeKey('youtube_upload_needs_review', { kind, item });
+    const target = buildYouTubeUploadTarget(kind, item);
+    const document = {
+      source: NOTIFICATION_SOURCES.YOUTUBE_UPLOAD_NEEDS_REVIEW,
+      title: truncate(`YouTube 上傳需要確認：${itemTitle}`, 120),
+      content: truncate(
+        `${label}「${itemTitle}」上傳 YouTube 時中斷，無法確定 YouTube 是否已收到，系統不會自動重試。`
+        + '請到「YouTube 上傳管理」查詢後套用或重設。',
+        2000,
+      ),
+      ...target,
+    };
+    return await upsertDedupedNotifications(admins.map((admin) => buildUpsertOperation({
+      recipientId: String(admin._id),
+      dedupeKey,
+      document,
+    })));
+  } catch (error) {
+    console.error('[notification] failed to notify admins about a quarantined YouTube upload.', error);
+    return null;
+  }
+}
+
+// 管理員收尾後通知上傳者，沒有上傳者時改通知課程教師（decisions.md #20）。
+// action：applied＝已上傳完成，reset＝已重新排入上傳。
+async function notifyYouTubeUploadResolved({ kind, item, uploaderId = null, action }) {
+  try {
+    if (!item?._id || !YOUTUBE_UPLOAD_KIND_LABELS[kind]) return null;
+    let recipientId = toObjectIdString(uploaderId);
+    if (!recipientId && item.courseId) {
+      const course = await Course.findById(toObjectIdString(item.courseId)).select('_id teacherId').lean();
+      recipientId = toObjectIdString(course?.teacherId);
+    }
+    if (!recipientId) return null;
+
+    const label = YOUTUBE_UPLOAD_KIND_LABELS[kind];
+    const itemTitle = String(item.title || label).trim() || label;
+    const applied = action === 'applied';
+    const dedupeKey = buildYouTubeUploadDedupeKey('youtube_upload_resolved', { kind, item, suffix: action });
+    return await upsertDedupedNotifications([buildUpsertOperation({
+      recipientId,
+      dedupeKey,
+      document: {
+        source: NOTIFICATION_SOURCES.YOUTUBE_UPLOAD_RESOLVED,
+        title: truncate(`${applied ? 'YouTube 已上傳完成' : '已重新排入 YouTube 上傳'}：${itemTitle}`, 120),
+        content: truncate(
+          applied
+            ? `管理員已確認${label}「${itemTitle}」已上傳完成到 YouTube，播放已改走 YouTube。`
+            : `管理員已將${label}「${itemTitle}」重新排入 YouTube 上傳，系統會自動重新上傳。`,
+          2000,
+        ),
+        ...buildYouTubeUploadTarget(kind, item),
+      },
+    })]);
+  } catch (error) {
+    console.error('[notification] failed to notify the uploader about a resolved YouTube upload.', error);
+    return null;
+  }
+}
+
 // 影片刪除後，「影片處理完成，現在可以觀看」的通知已經不成立，一併移除。
 // 屬於清理步驟：失敗只記 log，不中斷影片／課程刪除。
 async function removeVideoNotifications(videoIds = []) {
@@ -449,6 +580,8 @@ module.exports = {
   MAX_LIMIT,
   removeVideoNotifications,
   notifyShortAssetRejected,
+  notifyYouTubeUploadNeedsReview,
+  notifyYouTubeUploadResolved,
   toPublicNotification,
   listNotifications,
   markNotificationRead,

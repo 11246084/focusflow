@@ -25,13 +25,21 @@ const CODE_MESSAGES = {
   DUPLICATE_VIDEO: '這門課程已經有相同的 YouTube 影片。',
   UPLOAD_ERROR: '檔案上傳失敗，請確認檔案格式與大小。',
   VIDEO_PROCESSING_TRANSITION_INVALID: '影片目前的處理狀態不允許這個操作。',
-  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '找不到影片原始檔，無法重新處理，請重新上傳。',
-  YOUTUBE_UPLOAD_NOT_CONFIGURED: 'YouTube 自動上傳尚未設定完成。',
+  VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE: '原片已從伺服器清理，無法重新處理，請先補回原片。',
+  YOUTUBE_UPLOAD_NOT_CONFIGURED: 'YouTube 自動上傳尚未設定完成，或已由管理員停用。',
   YOUTUBE_UPLOAD_FAILED: 'YouTube 上傳失敗，請稍後再試。',
   YOUTUBE_UPLOAD_ALREADY_COMPLETED: '這支影片已經上傳到 YouTube。',
   YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED: '目前的狀態不能重新上傳到 YouTube。',
-  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，請先到 YouTube Studio 確認，避免重複上傳。',
+  YOUTUBE_UPLOAD_RETRY_UNSAFE: '這支影片可能已經傳到 YouTube，需由管理員確認，處理後會自動更新。',
   YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED: '已達重新上傳次數上限。',
+  YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED: '這個開關未在主機環境變數允許，需由有主機權限的人修改後重啟才能切換。',
+  YOUTUBE_RECOVERY_NOT_RUN: '這一輪恢復沒有執行，請稍後再試。',
+  YOUTUBE_QUARANTINE_NOT_ALLOWED: '這個項目已不在待處理狀態，請重新整理後再試。',
+  YOUTUBE_QUARANTINE_VIDEO_IN_USE: '這支 YouTube 影片已是其他影片或短片的播放來源，請確認影片 ID。',
+  YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND: 'YouTube 上找不到這支影片，請確認影片 ID。',
+  YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED: '這支 YouTube 影片不屬於系統頻道，不能套用。',
+  YOUTUBE_QUARANTINE_VERIFY_FAILED: '無法向 YouTube 確認頻道或影片，可能是憑證沒有讀取權限，請稍後再試或聯絡系統負責人。',
+  VIDEO_SOURCE_RESTORE_NOT_ALLOWED: '只有原片已從伺服器清理的影片可以補回原片，請重新整理後確認狀態。',
   FAQ_INVALIDATION_FAILED: '暫時無法清除問答快取，操作尚未執行，請稍後再試。',
   QA_RUNTIME_MISCONFIGURED: 'AI 問答服務設定異常，請聯絡管理員。',
   QA_ATLAS_NOT_READY: 'AI 問答的搜尋服務尚未就緒，請稍後再試。',
@@ -143,9 +151,24 @@ function buildLoginAttemptMessage(code, details) {
   return null;
 }
 
+// 「立即執行恢復」沒有執行時，後端在 details.reason 說明原因。
+const RECOVERY_NOT_RUN_MESSAGES = {
+  recovery_disabled: '「失敗恢復」開關未生效，這一輪沒有執行。',
+  upload_not_configured: 'YouTube 自動上傳尚未設定完成，這一輪沒有執行。',
+  upload_disabled: '「自動上傳」開關未生效，這一輪沒有執行。',
+  already_running: '上一輪恢復還在執行中，請稍後再試。',
+};
+
+function buildRecoveryNotRunMessage(code, details) {
+  if (code !== 'YOUTUBE_RECOVERY_NOT_RUN') return null;
+  return RECOVERY_NOT_RUN_MESSAGES[details?.reason] || null;
+}
+
 export function toChineseErrorMessage({ code, status, message, details } = {}) {
   const loginAttemptMessage = buildLoginAttemptMessage(code, details);
   if (loginAttemptMessage) return loginAttemptMessage;
+  const recoveryMessage = buildRecoveryNotRunMessage(code, details);
+  if (recoveryMessage) return recoveryMessage;
   if (message && VALIDATION_MESSAGES[message]) return VALIDATION_MESSAGES[message];
   if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code];
   // 後端有些訊息本身就是中文（例如 LINE、FAQ 相關），直接沿用。

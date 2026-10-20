@@ -7,6 +7,7 @@ const Enrollment = require('../models/enrollment.model');
 const env = require('../config/env');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
+const { isLocalVideoSourceAvailable } = require('../utils/localVideoSource');
 const { USER_ROLES, USER_ROLE_VALUES } = require('../constants/enums');
 const videoService = require('./video.service');
 const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
@@ -153,6 +154,7 @@ async function listVideos() {
     const course = v.courseId ? courseMap[String(v.courseId)] : null;
     const teacher = course?.teacherId ? teacherMap[String(course.teacherId)] : null;
     const segKey = v.videoId || String(v._id);
+    const appOwned = Video.isAppOwnedRecord(v);
     return {
       id: String(v._id),
       title: v.title || v.fileName || 'Untitled',
@@ -161,6 +163,14 @@ async function listVideos() {
       status: v.processing?.status || 'pending',
       segments: segMap[segKey] || 0,
       createdAt: v.createdAt,
+      // 原片狀態（decisions.md #21、#23）：管理員影片頁據此標示「原片已清理」並提供補回原片，
+      // 判斷與課程影片清單相同；只有 localCleanupAt 有值的才是清理流程刪掉的。
+      metadataOnly: !appOwned,
+      sourceAvailable: appOwned && isLocalVideoSourceAvailable(v.filePath),
+      youtubeUpload: {
+        status: v.youtubeUpload?.status || null,
+        localCleanupAt: v.youtubeUpload?.localCleanupAt || null,
+      },
     };
   });
 }

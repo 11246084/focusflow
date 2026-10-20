@@ -38,7 +38,7 @@ docs/
 | [01 系統手冊](01_系統手冊/README.md) | 15 章 Markdown、交件成品、建置工具及審查修訂 |
 | [02 系統簡介](02_系統簡介/README.md) | 七節簡介、Word／PDF 與建置方式 |
 | [03 競賽](03_競賽/README.md) | 各場送件版、修訂稿、評審意見與空白表格 |
-| [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md) |
+| [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md)、[YouTube 恢復與清理](04_Features/YouTube_Lifecycle/decisions.md) |
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
 | [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)與[資料庫交付](10_Operations/database-delivery.md) |

@@ -46,7 +46,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 const getSystemStatus = asyncHandler(async (req, res) => {
-  const status = systemStatusService.getSystemStatus();
+  const status = await systemStatusService.getSystemStatus();
   return sendSuccess(res, { data: status });
 });
 

@@ -115,6 +115,23 @@ const retryYouTubeUpload = asyncHandler(async (req, res) => {
   });
 });
 
+const restoreVideoSource = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
+  }
+
+  const video = await videoService.restoreVideoSource({
+    videoId: req.params.videoId,
+    file: req.file,
+    user: req.user,
+  });
+
+  return sendSuccess(res, {
+    message: 'Video source restored.',
+    data: { video },
+  });
+});
+
 const startInternalVideoProcessing = asyncHandler(async (req, res) => {
   const video = await videoProcessingService.startVideoProcessing(req.params.videoId);
 
@@ -185,6 +202,7 @@ module.exports = {
   getVideoProcessing,
   retryVideoProcessing,
   retryYouTubeUpload,
+  restoreVideoSource,
   deleteVideo,
   attachVideo,
   detachVideo,

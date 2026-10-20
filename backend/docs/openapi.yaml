@@ -2379,6 +2379,122 @@ paths:
                     message: YOUTUBE_UPLOAD_CLEANUP_ENABLED is disabled; this switch cannot be changed at runtime.
                     error:
                       code: YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED
+  /api/v1/admin/youtube-lifecycle/cleanup-preview:
+    get:
+      tags:
+        - Admin
+      summary: 原片清理預告清單
+      description: |
+        僅限 admin（decisions.md #27）。與清理排程共用同一套判斷，只顯示資訊、不刪檔。
+        `scope=enable`（預設）列出「假設現在啟用清理，下一輪會刪除」的原片；
+        `scope=upcoming` 列出 7 天內到期（含已到期）的原片。
+      operationId: getAdminYouTubeCleanupPreview
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [enable, upcoming]
+            default: enable
+      responses:
+        '200':
+          description: 成功取得預告清單
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          scope:
+                            type: string
+                            enum: [enable, upcoming]
+                          count:
+                            type: integer
+                          totalBytes:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum: [video, short_asset]
+                                id:
+                                  type: string
+                                title:
+                                  type: string
+                                courseTitle:
+                                  type: string
+                                sizeBytes:
+                                  type: integer
+                                eligibleAt:
+                                  type: string
+                                  format: date-time
+                                reason:
+                                  type: string
+                                  enum: [max_age, low_space]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-lifecycle/recovery/run:
+    post:
+      tags:
+        - Admin
+      summary: 立即執行一輪上傳恢復
+      description: |
+        僅限 admin（decisions.md #15）。與恢復排程同一個入口，受上傳與恢復兩層開關限制：
+        重新上傳可安全重試的失敗（影片與短片），並隔離卡在上傳中超過時限的項目。
+        `skipped` 是撈到但這一輪沒處理的筆數（例如仍在本行程上傳中）。
+      operationId: runAdminYouTubeUploadRecovery
+      responses:
+        '200':
+          description: 已執行一輪恢復
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          recovered:
+                            type: integer
+                          quarantined:
+                            type: integer
+                          skipped:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: |
+            `YOUTUBE_RECOVERY_NOT_RUN`：這一輪沒有執行，`error.details.reason` 為
+            `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                recoveryDisabled:
+                  value:
+                    success: false
+                    message: YouTube upload recovery is disabled.
+                    error:
+                      code: YOUTUBE_RECOVERY_NOT_RUN
+                      details:
+                        reason: recovery_disabled
   /api/v1/admin/users:
     get:
       tags:

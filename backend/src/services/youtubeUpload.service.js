@@ -672,11 +672,16 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
     let recovered = 0;
     let quarantined = 0;
+    // 撈到但這一輪沒處理的筆數（還在本行程上傳、或被其他寫入搶先），供管理員「立即執行」顯示。
+    let skippedItems = 0;
 
     for (const video of candidates) {
       if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
         // 同一行程還在傳的影片只是比較久，不是卡住；只有行程外（例如重啟前）留下的才隔離。
-        if (runningUploadIds.has(String(video._id))) continue;
+        if (runningUploadIds.has(String(video._id))) {
+          skippedItems += 1;
+          continue;
+        }
         const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
         const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
@@ -702,6 +707,9 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
             { new: true },
           );
           if (quarantinedVideo) quarantined += 1;
+          else skippedItems += 1;
+        } else {
+          skippedItems += 1;
         }
         continue;
       }
@@ -711,6 +719,8 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
       if (video.youtubeUpload?.retrySafe === true && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
         await autoUploadVideoToYouTube(String(video._id), { fetchImpl, allowRetry: true });
         recovered += 1;
+      } else {
+        skippedItems += 1;
       }
     }
 
@@ -718,7 +728,7 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
     credentialState.lastRecoveryError = null;
     credentialState.lastRecoveryRecoveredCount = recovered;
     credentialState.lastRecoveryQuarantinedCount = quarantined;
-    return { recovered, quarantined, skipped: false };
+    return { recovered, quarantined, skipped: false, skippedItems };
   } catch (error) {
     credentialState.lastRecoveryError = shortErrorMessage(error);
     throw error;

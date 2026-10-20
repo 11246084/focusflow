@@ -12,6 +12,8 @@ router.use(authenticate, authorizeRoles(USER_ROLES.ADMIN));
 
 router.get('/youtube-lifecycle/settings', youtubeAdminController.getLifecycleSettings);
 router.patch('/youtube-lifecycle/settings', youtubeAdminController.updateLifecycleSwitch);
+router.get('/youtube-lifecycle/cleanup-preview', youtubeAdminController.getCleanupPreview);
+router.post('/youtube-lifecycle/recovery/run', youtubeAdminController.runRecoveryNow);
 
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.listUsers);

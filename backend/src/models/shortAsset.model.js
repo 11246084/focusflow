@@ -82,6 +82,8 @@ const shortAssetUploadSchema = new mongoose.Schema(
     failedAt: { type: Date, default: null },
     // 是否確定沒有送出任何影片 bytes。送出過就不能自動重試，否則會在 YouTube 上留下重複影片。
     retrySafe: { type: Boolean, default: false },
+    // 可安全重試的失敗下一次重試時間（退避），恢復排程只撈已到時間的（decisions.md #28）。
+    nextRetryAt: { type: Date, default: null },
   },
   { _id: false },
 );

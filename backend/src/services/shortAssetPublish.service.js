@@ -13,8 +13,13 @@ const {
   setVideoPrivacy,
   uploadLocalVideo,
 } = require('./youtubeUpload.service');
+const {
+  YOUTUBE_LIFECYCLE_SWITCHES,
+  isYouTubeLifecycleSwitchEnabled,
+} = require('./youtubeLifecycleSettings.service');
 const { recordShortAssetRegeneration } = require('./shortAsset.service');
 const { markScriptPublished } = require('./shortScript.service');
+const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 const {
   SHORT_ASSET_REVIEW_STATUSES,
   SHORT_ASSET_STATUSES,
@@ -41,6 +46,10 @@ const {
 // public 會讓非修課者從搜尋與頻道頁看到；private 則無法用 iframe 嵌入，學生端播不了。
 // 兩端都不可行，這個值就不是部署可調的設定，寫死才不會因為某台機器的 .env 而外流。
 const SHORT_ASSET_PRIVACY_STATUS = 'unlisted';
+
+// 本行程正在上傳的成品（id → 進行中的次數）。恢復排程靠它分辨「傳很久」與
+// 「重啟前卡住」，只隔離後者（#28）。用計數而不擋重複呼叫，維持原本的上傳行為。
+const runningShortAssetUploads = new Map();
 
 // autoUploadVideoToYouTube 綁死 Video model（讀 video.filePath、寫 video.youtubeUpload），
 // 對 ShortAsset 不能直接用。真正可複用的原語是 uploadLocalVideo。
@@ -91,20 +100,35 @@ function assertReviewApproved(asset) {
   }
 }
 
+// 可安全重試的失敗依退避排下一次（比照影片：從 YOUTUBE_UPLOAD_RETRY_BASE_MS 起倍增）；
+// 不可重試或已達上限時為 null，恢復排程不會再撈到。
+function computeNextRetryAt({ retrySafe, attemptCount, failedAt }) {
+  if (!retrySafe || attemptCount >= env.youtubeUploadMaxAttempts) return null;
+  const exponent = Math.max(Number(attemptCount) || 0, 1) - 1;
+  return new Date(failedAt.getTime() + (env.youtubeUploadRetryBaseMs * (2 ** exponent)));
+}
+
 async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) {
+  // 沒標記過的一律視為不安全：可能已送出影片 bytes，自動重試會產生重複影片。
+  const retrySafe = error?.youtubeRetrySafe === true;
+  const failedAt = new Date();
   // 失敗時 status 維持 draft（不寫 status），只記錄原因與可否重試。
-  await ShortAsset.findByIdAndUpdate(assetId, {
+  const failedAsset = await ShortAsset.findByIdAndUpdate(assetId, {
     $set: {
       'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
       'youtubeUpload.error': shortErrorMessage(error),
       'youtubeUpload.attemptCount': attemptCount,
       'youtubeUpload.lastAttemptAt': startedAt,
-      'youtubeUpload.failedAt': new Date(),
+      'youtubeUpload.failedAt': failedAt,
       'youtubeUpload.uploadedAt': null,
-      // 沒標記過的一律視為不安全：可能已送出影片 bytes，自動重試會產生重複影片。
-      'youtubeUpload.retrySafe': error?.youtubeRetrySafe === true,
+      'youtubeUpload.retrySafe': retrySafe,
+      'youtubeUpload.nextRetryAt': computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
     },
-  });
+  }, { new: true });
+  // 不可重試的失敗會進入待處理清單，通知管理員（#20、#28）。
+  if (!retrySafe && failedAsset) {
+    await notifyYouTubeUploadNeedsReview({ kind: 'short_asset', item: failedAsset });
+  }
 }
 
 /**
@@ -210,6 +234,24 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch } =
   return uploaded;
 }
 
+function isShortAssetUploadRunning(assetId) {
+  return runningShortAssetUploads.has(String(assetId));
+}
+
+// 會啟動成品上傳的入口（建立、換代、教師重試、恢復排程）都經過這裡，
+// 恢復排程才看得到哪些還在本行程傳。
+async function runTrackedShortAssetUpload({ assetId, fetchImpl = global.fetch } = {}) {
+  const id = String(assetId);
+  runningShortAssetUploads.set(id, (runningShortAssetUploads.get(id) || 0) + 1);
+  try {
+    return await uploadShortAssetToYouTube({ assetId, fetchImpl });
+  } finally {
+    const remaining = (runningShortAssetUploads.get(id) || 1) - 1;
+    if (remaining > 0) runningShortAssetUploads.set(id, remaining);
+    else runningShortAssetUploads.delete(id);
+  }
+}
+
 /**
  * 把已上傳且審核通過的成品標成 published，這一步才是對學生公開（DR-21）。
  *
@@ -296,7 +338,12 @@ function scheduleUploadOnCreate(asset) {
     return recordSkippedUpload(asset._id, 'YouTube upload is not configured.');
   }
 
-  return uploadShortAssetToYouTube({ assetId: asset._id }).catch((error) => {
+  // 管理員停用上傳時同樣不送出（兩層開關，decisions.md #9、#28）；記成可安全重試，
+  // 重新啟用後由恢復排程補傳。
+  return isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD).then((enabled) => {
+    if (!enabled) return recordSkippedUpload(asset._id, 'YouTube upload is disabled by an administrator.');
+    return runTrackedShortAssetUpload({ assetId: asset._id });
+  }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`[shortAsset] YouTube upload failed for ${asset._id}.`, error);
     }
@@ -379,7 +426,12 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch }
     );
   }
 
-  return uploadShortAssetToYouTube({ assetId, fetchImpl });
+  // 比照影片的教師重試：管理員停用上傳時不送出。
+  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
+    throw new AppError('YouTube upload is disabled by an administrator.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+  }
+
+  return runTrackedShortAssetUpload({ assetId, fetchImpl });
 }
 
 function toTeacherAsset(asset) {
@@ -567,11 +619,15 @@ async function createAssetFromScript({
 }
 
 module.exports = {
+  computeNextRetryAt,
   createAssetFromScript,
+  isShortAssetUploadRunning,
   listCourseShortAssets,
+  markShortAssetPublished,
   privatizeRejectedShortAsset,
   publishApprovedShortAsset,
   retryShortAssetUpload,
+  runTrackedShortAssetUpload,
   scheduleUploadOnCreate,
   uploadShortAssetToYouTube,
   toTeacherAsset,

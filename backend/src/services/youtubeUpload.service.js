@@ -10,6 +10,7 @@ const {
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
+const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
   isYouTubeLifecycleSwitchEnabled,
@@ -53,6 +54,13 @@ const credentialState = {
   lastCleanupVideoId: null,
 };
 const runningUploadIds = new Set();
+// 影片以外、同樣上傳到 YouTube 的來源（短片成品，decisions.md #28），共用恢復排程、
+// 兩層開關與同一輪的鎖。回傳 { recovered, quarantined, skippedItems }。
+// lazy require：shortAssetPublish.service 反過來依賴本檔，不能在載入時互相 require。
+const RECOVERY_SOURCES = {
+  short_asset: (options) => require('./shortAssetRecovery.service').recoverShortAssetUploads(options),
+};
+
 // 恢復排程狀態（decisions.md #7）。同一時間只跑一輪，避免長上傳與下一輪重疊。
 const recoveryScheduler = {
   timer: null,
@@ -479,6 +487,7 @@ async function autoUploadVideoToYouTube(
 
     const filePath = resolveLocalUploadPath(claimedVideo.filePath);
     if (!claimedVideo.filePath || !existsSync(filePath)) {
+      const failedAt = new Date();
       await Video.findByIdAndUpdate(id, {
         $set: {
           'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
@@ -486,9 +495,19 @@ async function autoUploadVideoToYouTube(
           'youtubeUpload.uploadedAt': null,
           'youtubeUpload.attemptCount': attemptCount,
           'youtubeUpload.lastAttemptAt': attemptStartedAt,
-          'youtubeUpload.failedAt': new Date(),
+          'youtubeUpload.failedAt': failedAt,
           'youtubeUpload.retrySafe': false,
           'youtubeUpload.nextRetryAt': null,
+        },
+      });
+      // 不可重試的失敗會進入待處理清單，通知管理員（#20）。
+      await notifyYouTubeUploadNeedsReview({
+        kind: 'video',
+        item: {
+          _id: claimedVideo._id,
+          title: claimedVideo.title,
+          courseId: claimedVideo.courseId,
+          youtubeUpload: { failedAt },
         },
       });
       return null;
@@ -527,19 +546,24 @@ async function autoUploadVideoToYouTube(
     const nextRetryAt = canRetry
       ? new Date(Date.now() + (env.youtubeUploadRetryBaseMs * (2 ** (attemptCount - 1))))
       : null;
+    const failedAt = new Date();
 
-    await Video.findByIdAndUpdate(id, {
+    const failedVideo = await Video.findByIdAndUpdate(id, {
       $set: {
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
         'youtubeUpload.error': String(error.message || error).slice(0, 500),
         'youtubeUpload.uploadedAt': null,
         'youtubeUpload.attemptCount': attemptCount,
         'youtubeUpload.lastAttemptAt': attemptStartedAt,
-        'youtubeUpload.failedAt': new Date(),
+        'youtubeUpload.failedAt': failedAt,
         'youtubeUpload.retrySafe': retrySafe,
         'youtubeUpload.nextRetryAt': nextRetryAt,
       },
-    });
+    }, { new: true });
+    // 送出 bytes 後才失敗：YouTube 可能已收到，進入待處理清單並通知管理員（#20）。
+    if (!retrySafe && failedVideo) {
+      await notifyYouTubeUploadNeedsReview({ kind: 'video', item: failedVideo });
+    }
 
     if (process.env.NODE_ENV !== 'test') {
       console.error(`YouTube auto upload failed for video ${id}.`, error);
@@ -672,11 +696,16 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
     let recovered = 0;
     let quarantined = 0;
+    // 撈到但這一輪沒處理的筆數（還在本行程上傳、或被其他寫入搶先），供管理員「立即執行」顯示。
+    let skippedItems = 0;
 
     for (const video of candidates) {
       if (video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADING) {
         // 同一行程還在傳的影片只是比較久，不是卡住；只有行程外（例如重啟前）留下的才隔離。
-        if (runningUploadIds.has(String(video._id))) continue;
+        if (runningUploadIds.has(String(video._id))) {
+          skippedItems += 1;
+          continue;
+        }
         const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
         const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
@@ -701,7 +730,14 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
             },
             { new: true },
           );
-          if (quarantinedVideo) quarantined += 1;
+          if (quarantinedVideo) {
+            quarantined += 1;
+            await notifyYouTubeUploadNeedsReview({ kind: 'video', item: quarantinedVideo });
+          } else {
+            skippedItems += 1;
+          }
+        } else {
+          skippedItems += 1;
         }
         continue;
       }
@@ -711,14 +747,23 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
       if (video.youtubeUpload?.retrySafe === true && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
         await autoUploadVideoToYouTube(String(video._id), { fetchImpl, allowRetry: true });
         recovered += 1;
+      } else {
+        skippedItems += 1;
       }
+    }
+
+    for (const recoverSource of Object.values(RECOVERY_SOURCES)) {
+      const sourceResult = await recoverSource({ fetchImpl, now });
+      recovered += Number(sourceResult?.recovered || 0);
+      quarantined += Number(sourceResult?.quarantined || 0);
+      skippedItems += Number(sourceResult?.skippedItems || 0);
     }
 
     credentialState.lastRecoverySuccessAt = nowIso();
     credentialState.lastRecoveryError = null;
     credentialState.lastRecoveryRecoveredCount = recovered;
     credentialState.lastRecoveryQuarantinedCount = quarantined;
-    return { recovered, quarantined, skipped: false };
+    return { recovered, quarantined, skipped: false, skippedItems };
   } catch (error) {
     credentialState.lastRecoveryError = shortErrorMessage(error);
     throw error;
@@ -1071,6 +1116,7 @@ function resetYouTubeUploadState() {
 }
 
 module.exports = {
+  RECOVERY_SOURCES,
   YOUTUBE_TOKEN_URL,
   YOUTUBE_UPLOAD_URL,
   YOUTUBE_VIDEOS_URL,
@@ -1080,6 +1126,7 @@ module.exports = {
   cleanupUploadedLocalVideo,
   fetchAccessToken,
   guessMimeType,
+  hasPrivacyCapableScope,
   isFocusFlowUploadedVideo,
   isPrivatizeOnDeleteConfigured,
   isYouTubeUploadConfigured,

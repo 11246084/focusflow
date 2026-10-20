@@ -7,6 +7,8 @@ const {
   buildLineRuntimeSnapshot,
 } = require('./runtimeDiagnostics.service');
 const { buildYouTubeUploadSnapshot } = require('./youtubeUpload.service');
+const { buildYouTubeCleanupPreview, YOUTUBE_CLEANUP_SCOPES } = require('./youtubeLifecycle.service');
+const { countQuarantinedItems } = require('./youtubeQuarantine.service');
 const { getVideoProcessingQueueSnapshot } = require('./videoProcessingQueue.service');
 
 // 管理員總覽「系統服務」區塊的資料來源。狀態只根據本程序可觀察到的事實判斷
@@ -101,6 +103,50 @@ function buildYouTubeStatus(youtube) {
   };
 }
 
+function formatGb(bytes) {
+  return `${(Number(bytes || 0) / (1024 ** 3)).toFixed(2)} GB`;
+}
+
+// 待處理（被隔離的上傳）與 7 天內將到期刪除的原片（decisions.md #13、#27）。
+// 有待處理項目時標 degraded，提醒管理員到「YouTube 上傳管理」處理。
+function buildYouTubeLifecycleStatus(lifecycle, youtube) {
+  const base = { key: 'youtube_lifecycle', name: 'YouTube 待處理與清理預告' };
+  if (lifecycle.error) {
+    return { ...base, status: 'unknown', detail: '無法讀取待處理與到期清單' };
+  }
+  const { quarantineCount, upcomingCleanupCount, upcomingCleanupBytes } = lifecycle;
+  if (toStatus(youtube.readiness) === 'not_enabled' && !quarantineCount && !upcomingCleanupCount) {
+    return { ...base, status: 'not_enabled', detail: '功能未啟用' };
+  }
+  return {
+    ...base,
+    status: quarantineCount > 0 ? 'degraded' : 'ok',
+    detail: `待處理 ${quarantineCount} 支・7 天內將刪除原片 ${upcomingCleanupCount} 支（${formatGb(upcomingCleanupBytes)}）`,
+  };
+}
+
+async function collectYouTubeLifecycleCounts() {
+  try {
+    const [quarantineCount, upcoming] = await Promise.all([
+      countQuarantinedItems(),
+      buildYouTubeCleanupPreview({ scope: YOUTUBE_CLEANUP_SCOPES.UPCOMING }),
+    ]);
+    return {
+      quarantineCount,
+      upcomingCleanupCount: upcoming.count,
+      upcomingCleanupBytes: upcoming.totalBytes,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      quarantineCount: null,
+      upcomingCleanupCount: null,
+      upcomingCleanupBytes: null,
+      error: String(error?.message || error).slice(0, 300),
+    };
+  }
+}
+
 function resolveSttVenvPython() {
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
   return process.platform === 'win32'
@@ -113,28 +159,41 @@ function buildSystemStatus({
   qa,
   line,
   youtube,
+  youtubeLifecycle = null,
   venvPythonExists,
   queue,
   checkedAt = new Date(),
 }) {
+  const services = [
+    buildDatabaseStatus(dbReadyState),
+    buildQaStatus(qa),
+    buildLineStatus(line),
+    buildSttStatus({ venvPythonExists, queue }),
+    buildYouTubeStatus(youtube),
+  ];
+  if (youtubeLifecycle) services.push(buildYouTubeLifecycleStatus(youtubeLifecycle, youtube));
+
   return {
     checkedAt: checkedAt.toISOString(),
-    services: [
-      buildDatabaseStatus(dbReadyState),
-      buildQaStatus(qa),
-      buildLineStatus(line),
-      buildSttStatus({ venvPythonExists, queue }),
-      buildYouTubeStatus(youtube),
-    ],
+    services,
+    ...(youtubeLifecycle ? {
+      youtubeLifecycle: {
+        quarantineCount: youtubeLifecycle.quarantineCount,
+        upcomingCleanupCount: youtubeLifecycle.upcomingCleanupCount,
+        upcomingCleanupBytes: youtubeLifecycle.upcomingCleanupBytes,
+      },
+    } : {}),
   };
 }
 
-function getSystemStatus() {
+async function getSystemStatus() {
+  const youtubeLifecycle = await collectYouTubeLifecycleCounts();
   return buildSystemStatus({
     dbReadyState: mongoose.connection.readyState,
     qa: buildQaRuntimeSnapshot(),
     line: buildLineRuntimeSnapshot(),
     youtube: buildYouTubeUploadSnapshot(),
+    youtubeLifecycle,
     venvPythonExists: existsSync(resolveSttVenvPython()),
     queue: getVideoProcessingQueueSnapshot(),
   });

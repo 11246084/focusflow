@@ -111,7 +111,7 @@
 | `getYouTubeLifecycleSwitch(key)` | 開關 key | 開關狀態；未知 key 拋 `400 VALIDATION_ERROR` |
 | `isYouTubeLifecycleSwitchEnabled(key)` | 開關 key | `effective` 布林值；讀不到資料庫時回 `false` |
 | `setYouTubeLifecycleSwitch({ key, enabled, user })` | `enabled` 須為布林，`user` 取 `id`、`email` | `{ switch: 開關狀態, change: 紀錄一筆 }`；環境變數不允許時拋 `409 YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` |
-| `runYouTubeUploadRecoveryNow({ fetchImpl?, now? })` | — | `{ recovered, quarantined, skipped }`；略過時另有 `reason`：`recovery_disabled`、`upload_not_configured`、`upload_disabled`、`already_running` |
+| `runYouTubeUploadRecoveryNow({ fetchImpl?, now? })` | — | `{ recovered, quarantined, skipped, skippedItems }`；`skippedItems` 是撈到但這一輪沒處理的筆數（含短片）；整輪略過時沒有 `skippedItems`，另有 `reason`：`recovery_disabled`、`upload_not_configured`、`upload_disabled`、`already_running` |
 | `listYouTubeCleanupCandidates({ scope, now?, getFreeBytes? })` | `scope`：`enable`（假設現在啟用，下一輪會刪的）或 `upcoming`（7 天內到期，含已到期） | `[{ kind, id, title, courseId, sizeBytes, retentionStartAt, eligibleAt, reason }]`，`reason` 為 `max_age` 或 `low_space`；未知 scope 拋 `400 VALIDATION_ERROR` |
 | `buildYouTubeCleanupPreview({ scope, now?, getFreeBytes? })` | 同上 | `{ scope, generatedAt, windowDays, count, totalBytes, freeBytes, freeBytesError, policy: { maxAgeDays, minAgeDays, minFreeGb }, items }`，`items` 即上一列的陣列 |
 | `runYouTubeCleanup({ now?, getFreeBytes? })` | — | `{ skipped, candidates, cleaned, freedBytes, results: [{ kind, id, reason, cleaned, skipReason }] }`；略過時 `reason` 為 `cleanup_disabled` 或 `already_running` |
@@ -120,6 +120,8 @@
 開關函式在 `services/youtubeLifecycleSettings.service.js`（資料存在 `RuntimeSetting` model、`runtimesettings` 集合，一個 key 一份文件）；恢復在 `services/youtubeUpload.service.js`；清理、預告與快照在 `services/youtubeLifecycle.service.js`。
 
 - **短片納入（D 塊）**：在 `youtubeLifecycle.service.js` 的 `CLEANUP_SOURCES` 加一個 kind，提供 `listEntries()`（回傳 `{ kind, id, title, courseId, sizeBytes, retentionStartTime }`，只列出符合短片安全條件的項目，`retentionStartTime` 為毫秒）與 `cleanup(id)`（刪檔前呼叫 `isYouTubeLifecycleSwitchEnabled('cleanup')`，回傳 `{ cleaned, reason }`，關閉時 `reason` 為 `disabled`）。保留期與空間判斷、預告與排程會自動涵蓋新 kind。
+- **短片恢復與隔離（B 塊）**：`youtubeUpload.service.js` 的 `RECOVERY_SOURCES` 在處理完影片後依序呼叫，`short_asset` 由 `shortAssetRecovery.service.js` 的 `recoverShortAssetUploads({ fetchImpl, now })` 處理，回傳 `{ recovered, quarantined, skippedItems }`；兩層開關、同一輪的鎖與批次大小沿用影片。短片上傳的入口都經 `shortAssetPublish.service.js` 的 `runTrackedShortAssetUpload`，失敗時寫入 `youtubeUpload.nextRetryAt`。
+- **隔離收尾與通知（B 塊）**：`youtubeQuarantine.service.js` 提供 `listQuarantinedItems`、`lookupQuarantinedItem`、`applyQuarantinedItem`、`resetQuarantinedItem`、`countQuarantinedItems`，隔離條件為失敗且 `retrySafe` 不是 `true`（短片另需有 `filePath`、未封存）。通知在 `notification.service.js` 的 `notifyYouTubeUploadNeedsReview({ kind, item })` 與 `notifyYouTubeUploadResolved({ kind, item, uploaderId, action })`，`dedupeKey` 含失敗時間，失敗只記 log。
 - **補回原片（C 塊）**：補回成功時寫入 `youtubeUpload.localSourceRestoredAt`，保留期即從這個時間重新起算。
 - `getFreeBytes` 只供測試注入；正式執行用 `fs.statfs` 查 `UPLOAD_DIR`。
 

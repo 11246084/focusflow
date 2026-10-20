@@ -305,7 +305,7 @@ describe('YouTube 上傳恢復排程', () => {
       now: NOW,
     });
 
-    assert.deepEqual(result, { recovered: 1, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 1, quarantined: 0, skipped: false, skippedItems: 0 });
     assert.equal(retryable.youtubeUpload.status, 'uploaded');
   });
 

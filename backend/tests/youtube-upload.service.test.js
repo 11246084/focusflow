@@ -455,7 +455,7 @@ describe('youtubeUpload.service', () => {
       fetchImpl: buildSuccessfulFetchMock([]),
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
-    assert.deepEqual(recovered, { recovered: 1, quarantined: 0, skipped: false });
+    assert.deepEqual(recovered, { recovered: 1, quarantined: 0, skipped: false, skippedItems: 0 });
     assert.equal(video.youtubeUpload.status, 'uploaded');
 
     resetStore();
@@ -471,7 +471,7 @@ describe('youtubeUpload.service', () => {
       fetchImpl: async () => { throw new Error('must not call YouTube'); },
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
-    assert.deepEqual(quarantined, { recovered: 0, quarantined: 1, skipped: false });
+    assert.deepEqual(quarantined, { recovered: 0, quarantined: 1, skipped: false, skippedItems: 0 });
     assert.equal(stale.youtubeUpload.status, 'failed');
     assert.equal(stale.youtubeUpload.retrySafe, false);
     assert.match(stale.youtubeUpload.error, /review YouTube Studio/i);
@@ -501,7 +501,7 @@ describe('youtubeUpload.service', () => {
         now,
       });
 
-      assert.deepEqual(result, { recovered: 0, quarantined: 1, skipped: false });
+      assert.deepEqual(result, { recovered: 0, quarantined: 1, skipped: false, skippedItems: 0 });
       assert.equal(stale.youtubeUpload.status, 'failed');
       assert.equal(stale.youtubeUpload.retrySafe, false);
     }
@@ -521,7 +521,7 @@ describe('youtubeUpload.service', () => {
       now,
     });
 
-    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false, skippedItems: 0 });
     assert.equal(uploaded.youtubeUpload.status, 'uploading');
     assert.equal(uploaded.youtubeVideoId, 'already-uploaded');
   });
@@ -550,7 +550,7 @@ describe('youtubeUpload.service', () => {
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
 
-    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false, skippedItems: 1 });
     assert.equal(stale.youtubeVideoId, 'uploaded-during-recovery');
     assert.equal(stale.youtubeUpload.status, 'uploaded');
   });
@@ -578,7 +578,7 @@ describe('youtubeUpload.service', () => {
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
 
-    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false, skippedItems: 1 });
     assert.equal(stale.youtubeUpload.status, 'uploading');
     assert.equal(stale.youtubeUpload.attemptCount, 2);
   });
@@ -602,7 +602,7 @@ describe('youtubeUpload.service', () => {
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
 
-    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false, skippedItems: 1 });
     assert.equal(stale.youtubeUpload.status, 'uploading');
     assert.equal(stale.youtubeUpload.lastAttemptAt, undefined);
   });
@@ -626,7 +626,7 @@ describe('youtubeUpload.service', () => {
       now: new Date('2026-08-12T00:00:00.000Z'),
     });
 
-    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false });
+    assert.deepEqual(result, { recovered: 0, quarantined: 0, skipped: false, skippedItems: 0 });
     assert.equal(video.youtubeUpload.status, 'failed');
     assert.equal(calls.length, 0);
   });

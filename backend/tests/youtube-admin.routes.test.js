@@ -399,6 +399,36 @@ describe('管理員隔離清單與查詢 API', () => {
     assert.equal(result.body.data.searchable, null);
   });
 
+  it('待處理清單附原因：已達重試上限的項目標 retry_limit，可重設不可套用', async () => {
+    const video = store.videos.find((item) => item._id === VIDEO_ID);
+    video.youtubeUpload = {
+      status: 'failed', retrySafe: true, attemptCount: env.youtubeUploadMaxAttempts, failedAt: new Date(),
+    };
+
+    const list = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/youtube-quarantine', { token: adminToken });
+    const apply = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/apply`,
+      { method: 'POST', token: adminToken, body: { youtubeVideoId: 'foundVideo1' } },
+    );
+    const reset = await jsonRequest(
+      serverContext.baseUrl,
+      `/api/v1/admin/youtube-quarantine/videos/${VIDEO_ID}/reset`,
+      { method: 'POST', token: adminToken },
+    );
+
+    assert.equal(list.status, 200);
+    assert.deepEqual(
+      Object.fromEntries(list.body.data.items.map((item) => [item.kind, item.reason])),
+      { video: 'retry_limit', short_asset: 'quarantined' },
+    );
+    assert.equal(apply.status, 409);
+    assert.equal(apply.body.error.code, 'YOUTUBE_QUARANTINE_NOT_ALLOWED');
+    assert.deepEqual(youtubeCalls, []);
+    assert.equal(reset.status, 200);
+    assert.equal(video.youtubeUpload.attemptCount, 0);
+  });
+
   it('查詢影片回傳描述相符的 YouTube 影片', async () => {
     const result = await jsonRequest(
       serverContext.baseUrl,

@@ -14,22 +14,22 @@
 
 | 用途 | 路徑 |
 |---|---|
-| 手冊根目錄 | `docs/00_Deliverables/System_Manual/` |
-| 章節 Markdown | `docs/00_Deliverables/System_Manual/chapters/` |
-| 圖源母稿（PlantUML／Mermaid） | `docs/00_Deliverables/System_Manual/diagrams/chapter{NN}/` |
-| 匯出圖檔與截圖 | `docs/00_Deliverables/System_Manual/images/` |
-| 圖表目錄 | `docs/00_Deliverables/System_Manual/圖表目錄.md` |
-| 官方規範原件 | `docs/00_Deliverables/System_Manual/source-documents/` |
+| 手冊根目錄 | `docs/01_系統手冊/` |
+| 章節 Markdown | `docs/01_系統手冊/chapters/` |
+| 圖源母稿（PlantUML／Mermaid） | `docs/05_圖庫/系統手冊/ch{NN}/` |
+| 匯出圖檔與截圖 | `docs/05_圖庫/系統手冊/ch{NN}/`，與圖源同目錄 |
+| 共用樣式與製圖工具 | `docs/05_圖庫/系統手冊/_shared/` |
+| 圖表目錄 | `docs/05_圖庫/README.md` |
+| 官方規範原件 | `docs/00_學校公告/` |
 
-`[FF:MUST]` 圖檔命名 `圖{章}-{節}-{序}-{名稱}.{副檔名}`；改版後綴 `-vX-x`，例如
-`圖3-1-1-系統架構圖-v1-1.png`。僅改名而內容未變時不加版本號。
+`[FF:MUST]` 自 2026-10-18 起，系統手冊有原始碼的圖與截圖採
+`圖{章}-{節}-{序}-{名稱}.{副檔名}`，不加版本後綴；原始碼與成品須同主檔名、同章節目錄。
+圖號與名稱依 `chapters/*.md` 圖說；附錄檔名維持 `圖15-x-x`。以圖片呈現的表格依正文表號命名。
 
-`[FF:MUST]` 新增或重繪圖表時，必須在建立／匯出前先完成版本判定：首次正式產出為
-`v1-0`，既有正式草稿的重大重繪遞增主版本（例如 `v2-0`），小幅修正遞增次版本
-（例如 `v1-1`）；移入 archive 不會重置版本。active 圖源（`.puml`／`.mmd`）與匯出圖檔的檔名必須使用相同
-版本後綴，正文圖片路徑同步更新。版本後綴屬檔案識別，不加入圖內 `title`、正文圖說或
-圖目錄顯示名稱；圖目錄狀態欄應記錄目前版本。執行 artifact-chain review 前，先檢查所有
-新／改圖是否仍為無版本檔名。
+`[FF:MUST]` 只保留章節正在引用的版本；歷史版本由 Git 追溯。
+沒有原始碼且不是已確認截圖的第 3 類圖，須保留原檔名、所有版本與內容，列入圖片盤點由使用者判定；
+不得推定是 AI 圖而自行刪除。此類圖保留原有 `-vX-X`；不套用現行程式產圖的去版本後綴規則。
+搬移時使用 `git mv`，同步正文圖片連結、圖表目錄、盤點表與腳本輸出位置。
 
 ## 與官方規範的已知偏離
 
@@ -44,7 +44,7 @@
 
 ## 既有圖表的已知落差
 
-`[FF]` 以下依 `圖表目錄.md` 與 `diagrams/chapter06/` 盤點，供後續處理時參考。
+`[FF]` 以下依 `圖表目錄.md` 與 `figures/ch06/` 盤點，供後續處理時參考。
 **這些是待處理事項，不是現況事實的證據。**
 
 | # | 落差 | 建議處理 |
@@ -53,7 +53,7 @@
 | 2 | `圖7-4-1 登入狀態機`、`圖7-4-2 註冊狀態機` 疑為畫面流程而非物件生命週期 | 若確為畫面流程，移至第 12 章作為畫面移轉圖（反模式 D1） |
 | 4 | 第 5 章目前無任何活動圖，但 5-3 依規範須以活動圖描述使用個案 | 補畫（`ntub-chapter-contract.md` 的 5-3 特別規則）。2026-09-18 團隊已確認：即便同系所前一屆手冊（114 學年度 114414 組《動起來「揪」對了》）5-3 章節標題寫「使用活動圖描述」但實際只有文字表格、無任何活動圖，**FocusFlow 仍依 115 年規範原文補齊**，不因舊案例而省略 |
 
-2026-09-19 已完成上述第 6 章 artifact-chain 與拆圖工作：現行 `diagrams/chapter06/` 為 9 張循序圖、3 張設計類別圖與 1 張設計物件圖，均含檔頭宣告；正文、圖表目錄與 PNG 檔名同步。5 張既有正式草稿的重大重繪使用 `v2-0`，8 張首次正式產出的圖使用 `v1-0`。被取代圖檔已移至 `images/archive/chapter06-before-20260919/`。
+2026-09-19 已完成上述第 6 章 artifact-chain 與拆圖工作：現行 `figures/ch06/` 為 9 張循序圖、3 張設計類別圖與 1 張設計物件圖，均含檔頭宣告；正文、圖表目錄與 PNG 檔名同步。5 張既有正式草稿的重大重繪使用 `v2-0`，8 張首次正式產出的圖使用 `v1-0`。被取代圖檔已移至 `images/archive/chapter06-before-20260919/`。
 
 ## 循序圖拆圖粒度（2026-09-18 決議）
 
@@ -127,8 +127,8 @@
 表5-4-1 的邊界／控制類別屬責任歸屬說明，不重複畫入圖中——B/C/E 協作虛線正是先前版本
 （3 張圖、9 條虛線依賴）不可讀的主因。協作順序由 6-1 循序圖承接。
 
-此決議取代 2026-09-19 的「依子領域拆三張」做法；被取代圖檔在
-`images/archive/chapter05-before-20260921/`。
+此決議取代 2026-09-19 的「依子領域拆三張」做法；被取代圖檔原在
+`images/archive/chapter05-before-20260921/`，2026-10-18 已刪除，需要時從 git 歷史取回。
 
 `[FF]` 注意：官方對 B/C/E 是 `[OOAD:MAY]`（見 `ntub-chapter-contract.md`「官方未要求的模型」），
 因此不畫進圖面不構成缺陷。
@@ -184,13 +184,13 @@ review 時列為 warning，不阻擋製圖。
 
 ## 圖源格式與樣式
 
-`[FF]` 共用樣式檔置於 `diagrams/_style.puml`。單一 PlantUML 圖不得自訂 `skinparam`。
+`[FF]` 共用樣式檔置於 `figures/_shared/_style.puml`。單一 PlantUML 圖不得自訂 `skinparam`。
 
 `[FF:MUST]` **依圖種分工具**（2026-09-21 訂定，同日依初評比對結果修正循序圖／設計類別圖）：
 
 | 圖種 | 工具 | 理由 |
 |---|---|---|
-| 5-4 系統分析類別圖（整個系統單一圖，14+ 類別） | `diagrams/tools/svgdiag.js`（手工座標 SVG 產生器） | 元素數多，自動排版無法控制方框位置與走線；此產生器可指定每個方框 x/y 與每條線的走線點 |
+| 5-4 系統分析類別圖（整個系統單一圖，14+ 類別） | `figures/_shared/svgdiag.js`（手工座標 SVG 產生器） | 元素數多，自動排版無法控制方框位置與走線；此產生器可指定每個方框 x/y 與每條線的走線點 |
 | 6-1 循序圖、6-2 設計類別圖／物件圖 | **Mermaid.js**（`sequenceDiagram`／`classDiagram`） | 初評第 6 章已證明：participant／類別數控制在 5～7 個時，Mermaid 自動排版即乾淨可讀，不需手工座標；沿用初評的弧形關聯線畫風 |
 | 5-3 活動圖 | PlantUML | 套用「各分支獨立 stop」後即為線性流程，PlantUML 排版穩定 |
 | 5-2 使用個案圖 | **draw.io**（手寫 mxfile XML ＋ desktop CLI 匯出） | 使用個案圖版面慣例固定（行為者置於兩側、使用個案置中、`«include»` 另成一欄），PlantUML 的 usecase 自動排版無法控制橢圓與行為者位置；draw.io 可精確指定座標與連線錨點。圖源是純文字 XML，agent 與使用者可編輯同一份母稿 |
@@ -202,16 +202,16 @@ review 時列為 warning，不阻擋製圖。
   `%LOCALAPPDATA%\Programs\draw.io\draw.io.exe`。PNG 與 SVG 各跑一次：
 
   ```
-  draw.io.exe -x -f png -e -b 12 -s 2 --disable-gpu -o "images/圖X-vN-n.png" "diagrams/chapterNN/圖X-vN-n.drawio"
-  draw.io.exe -x -f svg -e -b 12 --disable-gpu -o "images/圖X-vN-n.svg" "diagrams/chapterNN/圖X-vN-n.drawio"
+  draw.io.exe -x -f png -e -b 12 -s 2 --disable-gpu -o "figures/chNN/圖X.png" "figures/chNN/圖X.drawio"
+  draw.io.exe -x -f svg -e -b 12 --disable-gpu -o "figures/chNN/圖X.svg" "figures/chNN/圖X.drawio"
   ```
 
   `-e` 把圖源 XML 嵌進匯出檔，匯出的 PNG／SVG 仍可拖回 draw.io 編輯；`-s 2` 讓 PNG 在 14 字內文環境下清晰；`--disable-gpu` 避免 Electron 在無 GPU 環境回報 `GPU process isn't usable`。此管道不經 kroki.io，也不需要 `sharp`。
 - PlantUML 圖以 **kroki.io** 的 `POST /plantuml/png` 轉檔（本機無需安裝 Java／plantuml.jar）；
-  送出前需將 `!include ../_style.puml` 就地展開，因為 kroki 讀不到本機檔案。
+  送出前需將 `!include ../_shared/_style.puml` 就地展開，因為 kroki 讀不到本機檔案。
 - Mermaid 圖以 **kroki.io** 的 `POST /mermaid/svg`（**不是 `/png`**，見下方已知問題）轉檔，母稿存
   `.mmd`，`%%{init: {'theme':'neutral'}}%%` 開頭套用中性灰階主題（最接近初評畫風）；SVG 再以
-  `sharp`（**`density 72`**）轉 PNG 進 `images/`，不需另存 JPG 截圖（初評用截圖是因為從 Notion
+  `sharp`（**`density 72`**）轉 PNG 至同一個 `figures/chNN/`，不需另存 JPG 截圖（初評用截圖是因為從 Notion
   匯出，本專案母稿與轉檔可控，不需要這個中間步驟）。
 - SVG 產生器（5-4 專用）以 `sharp` 轉 PNG（`density 150`）。
 

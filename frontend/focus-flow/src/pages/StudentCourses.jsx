@@ -4,6 +4,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import { apiFetch, BACKEND_ORIGIN } from '../api';
 import {
+  findExtendedResourcesQuestion,
+  formatVideoMeta,
+  isFeatureDisabledError,
+  pickDisplayVideos,
+} from '../utils/extendedResources';
+import {
   SOURCE_PREVIEW_COUNT,
   formatConversationDate,
   getRemainingSourceCount,
@@ -464,6 +470,59 @@ function PendingAnswer() {
   );
 }
 
+// 後端功能開關關閉時回 404 NOT_FOUND；確認一次後，這次頁面載入內不再重複呼叫。
+let extendedResourcesDisabled = false;
+
+// 教育開放資料（國家教育研究院愛學網）的延伸學習影片，放在課程答案之外，
+// 與課程片段分區顯示。失敗、無結果或功能未啟用時整塊不顯示。
+function ExtendedLearning({ courseId, question }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (!question || extendedResourcesDisabled) return undefined;
+    let active = true;
+    apiFetch('/qa/extended-resources', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, question }),
+    })
+      .then((response) => { if (active) setData(response.data); })
+      .catch((error) => {
+        if (isFeatureDisabledError(error)) extendedResourcesDisabled = true;
+      });
+    return () => { active = false; };
+  }, [courseId, question]);
+
+  const videos = pickDisplayVideos(data);
+  if (!videos.length) return null;
+
+  return (
+    <div className="extended-learning" style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
+        延伸學習
+      </div>
+      {videos.map((video) => (
+        <a
+          key={video.videoUrl}
+          href={video.videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'block', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 6, textDecoration: 'none' }}
+        >
+          <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5 }}>{video.title}</span>
+          {formatVideoMeta(video) && (
+            <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{formatVideoMeta(video)}</span>
+          )}
+        </a>
+      ))}
+      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+        資料來源：{data.attribution?.source || '國家教育研究院愛學網'}（{data.attribution?.license || '政府資料開放授權條款－第1版'}）。
+        延伸影片不屬於本課程教材，內容以教師課程為準。
+      </div>
+    </div>
+  );
+}
+
 function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -735,6 +794,10 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
                 : `查看其他 ${getRemainingSourceCount(result.segments || result.matches || [])} 個相關片段`}
             </button>
           )}
+          <ExtendedLearning
+            courseId={courseId}
+            question={findExtendedResourcesQuestion(messages, messageIndex)}
+          />
         </div>
         ); })())}
         {awaitingAnswer && <PendingAnswer />}

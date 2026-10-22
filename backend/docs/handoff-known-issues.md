@@ -1,221 +1,31 @@
-# Handoff / Known Issues
+# 後端技術限制與交接注意事項
 
-最後更新：2026-08-08（stable embedding query contract 已在 Backend 落地；Pipeline／Database active vector migration 仍待跨組完成）
+這份文件說明操作後端時要注意的資料與環境限制，避免把舊快照當成現況。請依相關程式確認行為；進度與驗收日期只看[目前狀態](../../docs/current-status.md)。
 
-這份文件只整理 backend 無法單獨定版、但目前已在 backend 內明確化的問題，以及交接與 demo 期間的暫時應對方式。
+| 主題 | 限制與處理方式 | 程式依據 |
+|---|---|---|
+| 資料庫與索引 | 索引是加速查詢的資料結構；初始化腳本存在，不代表共用資料庫已套用。資料量、索引與目前使用的向量版本須實查，不沿用舊數字。 | [初始化索引](../../database/tools/setup/init_indexes.js)、[資料相容性檢查](../src/services/hierarchicalDataReadiness.service.js) |
+| 課程搜尋範圍 | 文字片段的 `videoId` 必須命中允許影片的識別碼；無權限或無資料不能靠切換搜尋模式解決。 | [範圍檢查](../src/services/bridgeScope.service.js)、[問答服務](../src/services/qa.service.js) |
+| 模型與資料契約 | 契約指雙方約定的資料格式；模型名稱相同仍需比對向量維度、資料版本與生成方式，不能直接混用新舊向量。 | [向量契約](../../STT_Whisper/src/embedding_contract.py)、[資料檢查](../src/services/hierarchicalDataReadiness.service.js) |
+| 影片所有權與欄位 | 只含處理資訊的影片不等於可播放影片；文字片段與影像片段的欄位命名不同，匯入前要核對模型。 | [影片呈現](../src/services/bridgeScope.service.js)、[文字模型](../src/models/videoSegment.model.js)、[影像模型](../src/models/videoSegmentVideo.model.js) |
+| YouTube 與本機檔案 | [上傳服務](../src/services/youtubeUpload.service.js)由[完成通知](../src/services/videoProcessing.service.js)排程；清理原片有開關、完成狀態、路徑及共用檔案檢查，不可整批清空 uploads。YouTube 的 unlisted 是知道連結即可觀看，課程權限不能阻止轉貼連結。 | [上傳與清理](../src/services/youtubeUpload.service.js)、[短片發布](../src/services/shortAssetPublish.service.js) |
+| 影像回覆 | 沒有逐字稿的影像命中只提供來源提示；並行查詢開關關閉時仍保留文字查無結果的影像備援，詳見[功能開關](current-state.md#功能開關)。 | [查詢與回覆](../src/services/qa.service.js) |
+| LINE 與部署設定 | LINE 回報網址、憑證及環境設定要對照實際部署；健康檢查或歷史成功紀錄不能保證外部服務當下可用。 | [LINE 路由](../src/routes/line.routes.js)、[診斷服務](../src/services/runtimeDiagnostics.service.js) |
+| 操作寫入範圍 | 啟動後端、示範資料與上傳工具可能寫入資料庫；先核對目標。需要模擬或隔離驗證時，依[測試規則](../../.claude/rules/testing.md)選擇工具。 | [資料庫連線](../src/config/database.js)、[上傳工具](../../STT_Whisper/src/mongodb_uploader.py) |
 
-## 尚未解決但已明確化的問題
+例：影片處理完成但 YouTube 上傳失敗 → 檢查上傳錯誤與憑證 → 依重試條件處理；不能直接刪除仍供播放的本機原片。
 
-### DB / MongoDB 協作缺口
+## 分層檢索啟用前檢查
 
-**2026-05-01 更新：共享 Atlas 已被重置**
+Gate 是控制是否使用分層檢索的開關；下列條件供下一次審查使用，不代表已通過驗收或授權啟用。實際環境結果為 **⚠️ 未驗證**，查證日期與結論統一寫回[目前狀態](../../docs/current-status.md)，[舊審查](../../docs/04_Features/Hierarchical_Retrieval/evidence/Phase2-2_Hierarchical_Retrieval_Gate_Review.md)只保留歷史證據。
 
-- `videos` 從 9 → 1 筆，`video_segments_text` 從 105 → 9 筆，內容只剩單一新上傳影片的 chunks
-- Atlas Search / Vector Search Index 全數消失（Atlas UI 與 MCP 都驗證），`text_embedding_index` 目前不存在
-- 後果：`.env` 仍是 `QA_VECTOR_SEARCH_MODE=atlas` 但會 fail-fast；要恢復 atlas mode 需在 Atlas 重建 `text_embedding_index`（3072 維 cosine，filter：`courseId` ObjectId、`videoId` camelCase）
-- 應對：先切 `QA_VECTOR_SEARCH_MODE=memory` 即可在現有 9 筆 segments 上跑 QA
+- [ ] **資料與契約：**核對實際使用的向量格式、版本及允許影片的涵蓋範圍；每個大段落（Parent）引用的小片段（Leaf）須存在且無重複，影片與課程歸屬正確。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[分層查詢](../src/services/hierarchicalRetrieval.service.js)。
+- [ ] **索引：**確認實際 `chunkId_1` 索引可用、大段落向量索引可查詢，並支援 `courseId/videoId/generationVersion/isActive` 篩選；另檢查查詢執行計畫是否使用索引。依據：[資料檢查](../src/services/hierarchicalDataReadiness.service.js)、[索引腳本](../../database/tools/setup/init_indexes.js)；腳本內容不等於部署結果。
+- [ ] **範圍與模式：**檢查環境設定及允許的課程、影片、使用者；影片範圍須與使用者權限取交集。`shadow` 保留原答案、另做分層查詢供比較，`serve` 則採用分層查詢結果；兩者都必須通過資料檢查，不能只改開關。依據：[控制服務](../src/services/hierarchicalRollout.service.js)。
+- [ ] **引用與備援：**驗證來源識別碼、時間戳及課程隔離；查無資料、索引不可用或逾時時，檢查改回片段查詢的行為與原因紀錄。依據：[整合測試](../tests/hierarchical-retrieval.qa.integration.test.js)、[隔離驗證工具](../src/scripts/phase2_2_hierarchical_e2e_runner.js)；驗證時需確認沒有資料庫寫入，不變更共用開關。
+- [ ] **擴大使用前：**以有答案及無答案的題目評估回答率、引用正確性、分數分布、延遲與備援比例，檢查外部模型逾時處理，並由團隊訂定可接受門檻；不可沿用舊審查的小樣本數字。量測入口：[分層診斷](../src/services/hierarchicalRollout.service.js)、[隔離驗證工具](../src/scripts/phase2_2_hierarchical_e2e_runner.js)。
+- [ ] **回復與核准：**在獲授權的隔離環境驗證關閉開關、重啟後回到原片段查詢的流程；共用環境啟用前仍須人工審查及明確授權。依據：[環境設定](../src/config/env.js)、[控制服務](../src/services/hierarchicalRollout.service.js)、[工作邊界](../../AGENTS.md)。
 
-**已確認（2026-04-19，舊快照保留作參考）：**
+例：允許的影片缺少大段落資料 → 資料檢查不通過 → 控制服務維持原片段查詢；不能把另一支影片的歷史驗收當成通過依據。
 
-- Atlas `text_embedding_index`：當時狀態 READY，105/105 筆 100% 索引
-  - filter fields（向量索引搜尋時允許用來篩選的欄位，需事先登記）：`courseId`（ObjectId 型別）、`videoId`（camelCase 字串）
-  - DB 組已於 2026-04-19 完成：vector index filter 改為 `videoId`（camelCase）、105 筆文件欄位遷移為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
-- M0 free cluster：vector indexes（向量索引，Atlas 做相似度搜尋所需，類似書的目錄）1 of 3 used，剩 2 個配額可用
-- `video_segments_text` regular indexes（DB 組 2026-04-19 更新後）：`_id_`、`courseId_1`、`segmentId_1`、`videoId_1`、`courseId_1_videoId_1`；105 筆文件已遷移為 camelCase，`videoId_1` 現在對應真實欄位，不再是孤立索引；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
-- Atlas filter 兩處 bug 已修（`qa.service.js`）：
-  - ① `courseId` 型別不符：backend 傳純字串，但 DB 存的是 ObjectId（MongoDB 的專用 ID 型別，外觀相似但 Atlas 視為不同型別，比對不到就回傳 0 筆）→ 已修正為傳 ObjectId
-  - ② `videoId`（camelCase）不在舊 vector index filter fields，Atlas 拒絕此條件 → 已從 atlas filter 中剔除；DB 組已將 vector index filter 更新為 `videoId`，backend `isAtlasFilterCompatible` 同步對齊
-- `video_segments_video`：有 embedding（3072 維），`video_embedding_index` 已 READY；backend 已接初版 course-scoped visual citation retrieval。限制：視覺片段沒有 transcript / caption，不提供畫面內容生成
-
-**尚未定版：**
-
-- `video_segments_text` canonical 欄位口徑：已定版為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）；DB 文件、backend model/service、vector index filter 三者一致（2026-04-19）
-- `video_segments_video` 的 caption / OCR / frame description 與正式 clip source 分工；目前只作 visual citation retrieval
-- `videos` mixed collection 的 ownership 邊界；共享 Atlas 目前只剩 1 筆 app-owned video，舊快照曾同時存在 pipeline-owned 與 app-owned records
-- Collections / init 腳本不同步：共享 Atlas 目前 13 個 collections；`database/tools/setup/init_collections.js` 列 15 個。init 有但 Atlas 沒有：`stt_cache`、`raw_transcripts`、`video_segments`；Atlas 有但 init 沒有：`questions`
-- shared DB 是否允許 smoke 痕跡（`usage_logs` 目前 7 筆）
-
-**Atlas 維運注記（2026-05-01 ~ 2026-05-05）：**
-
-- `questions.sourceUsageLogId_1` 舊 unique index 需手動處理：必須先 `dropIndex('sourceUsageLogId_1')`，並對歷史資料執行 `$unset: { sourceUsageLogId: null }` 清除 null 值，再以 partial unique sparse index 重建（filter: `{ sourceUsageLogId: { $exists: true } }`）。否則新增 `questions` 文件遇到 null 會撞 duplicate key
-- `videos.video_id_1` 舊 snake_case index 已從 Atlas 刪除；目前保留 `_id_` / `courseId_1` / `videoId_1`，與 schema camelCase 對齊
-- `backend/uploads/` 一次性手動清理（2026-05-05）：刪除 42 個未被任何 Video 文件引用的 mp4，保留 3 個有 DB 引用的檔案；`0505test` 目錄列為孤兒（無對應 DB 紀錄），暫不處理留待後續決策
-- 一次性 Node 維運腳本連 Atlas 時若遇到 `querySrv ECONNREFUSED`，需在腳本開頭加上 `dns.setServers(['8.8.8.8','8.8.4.4'])` 強制走 Google DNS 解析 SRV record（系統 DNS 在某些環境下無法解析 `_mongodb._tcp.<cluster>.mongodb.net`）
-- `usage_logs` vs `questions` 對齊診斷（2026-05-07）：真實 collection 名稱為 `usage_logs`（`UsageLog` 顯式 `collection: 'usage_logs'`，不是 Mongoose 預設 `usagelogs`）與 `questions`。歷史 cascade 殘餘可能造成 `usage_logs(event=ask).count` > `questions.count`。診斷流程：(1) dry-run 比對總筆數差距；(2) 用 `userId` 分組看分散程度（單一 user 通常不是 race）；(3) 用「同 userId + 同 courseId + 時間戳 ±5s」配對找出 orphan ASK usage_log。本次處理：找到 2 筆 2026-05-01 早期 cascade 殘餘的 ASK usage_log（指向已刪除課程 `68000000...`），刪除後 admin TOTAL QUERIES 由 25 → 23，與學生 TOTAL QUERIES 23 對齊。維運腳本見 `context/`（`reset-usagelogs-questions.js` / `diagnose-ask-vs-question-gap.js` / `reconcile-ask-vs-question.js`），不視為公用工具
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| `video_segments_text` 文件遷移 | **Done（2026-04-19）** | 105 筆文件已遷移為 camelCase；`videoId_1`、`segmentId_1` regular index 現在對應真實欄位，不再是孤立索引 |
-| Pipeline STT 產出 schema 確認 | **Pipeline** | 確認後續 STT 產出改為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`），與現有 backend schema 對齊 |
-| `video_segments_video` visual retrieval | **Done（2026-07-10）** | `video_embedding_index` 已 READY；backend 以 course-scoped visual ID + `video_id` filter 接入 QA citation。後續若要生成畫面內容，需 Pipeline 提供 caption / OCR / frame description |
-| `videos` ownership 邊界 | **Database + Backend** | 三選一：(a) 為 pipeline-owned 文件補 `sourceType: "pipeline"` 欄位；(b) 將 pipeline metadata 拆到獨立 collection；(c) 在 backend model 加 `sourceType` 欄位並更新 `video.service.js` 查詢邏輯 |
-| Collections / init 腳本不同步 | **Database + Backend** | 決定 `stt_cache`、`raw_transcripts`、`video_segments` 是否仍需建立；將 `questions` 補進 init，或明確改由 Mongoose/runtime 建立 |
-| `usage_logs` smoke 痕跡 | **整體決策** | 三選一：(a) demo 前 reseed 清除；(b) 另開隔離 demo DB instance；(c) 接受共享 DB 現況並在 demo 說明 |
-
-**backend 目前已採取的行為：**
-
-- `QA_VECTOR_SEARCH_MODE=atlas` 已生效，缺 index 或 aggregate 失敗會直接 fail-fast（不靜默回 memory）
-- atlas filter 僅使用 vector index 支援欄位（`courseId` ObjectId、`videoId` camelCase）；`video_id` snake_case 已排除（文件已全面遷移為 camelCase）
-- pipeline metadata 只拿來做 QA bridge，不當正式 app-owned video 使用
-- `videos` 新資料以 camelCase 欄位為主；`storagePath` 已從 schema 移除，`videos.video_id` 僅作 legacy 讀取相容
-
----
-
-### AI / Pipeline 協作缺口
-
-**已定版：**
-
-- query embedding provider：Backend 使用可設定的 stable `gemini-embedding-2`（3072 維、文字 instruction、無 task type）；STT pipeline 目前仍是 preview／legacy task contract，尚未重建 vectors，兩者不可宣稱一致
-- `video_segments_text`：2026-04-19 舊快照為 105 筆且全部有 embedding；2026-05-01 共享 Atlas 重置後目前為 9 筆，欄位為 camelCase（`videoId`、`startSec`、`endSec`、`chunkId`、`segmentId`）
-- `videoId` 確認為 canonical（camelCase）；`segmentId` 值為 null，實際識別碼為 `chunkId`（如 `video_001_chunk_0001`）
-
-**仍未定版：**
-- 哪些影片目前真的已有 searchable coverage（2026-05-01 共享 Atlas 目前僅 1 支影片 / 9 筆 segments，均屬 Pipeline Bridge Course；先前 105 筆快照已不再存在）
-- `clips` 與 `video_segments_video` 的正式分工（`clips` 目前只有 1 筆）
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| `videoId_1` 索引 | **Done（2026-04-19）** | 文件遷移後 `videoId_1` 已對應真實欄位，不再是孤立索引；無需額外清除動作 |
-| searchable coverage 範圍 | **Pipeline** | 說明目前 105 筆 segments 對應的是哪幾支影片、哪幾門課；若其他課程要有 QA coverage，需明確排定影片處理時程 |
-| `clips` 與 `video_segments_video` 分工 | **Pipeline + Backend** | 決定 Phase-2 clip source：(a) `clips` collection 繼續作為 clip cache；(b) 由 `video_segments_video` 直接提供 clip path；決定後 Backend 更新 `findCachedClip` 邏輯 |
-
-**backend 目前已採取的行為：**
-
-- `.env` 仍可設定 atlas，但共享 Atlas 目前缺 `text_embedding_index`；實務 QA 需切 memory 或先重建 index
-- 無法做 vector scoring 時改走 lexical fallback，並在 `runtime.fallbacks` 留下訊號
-- 若課程只有 metadata，回 `runtime.matchStatus=no_searchable_segments`
-
----
-
-### LINE 協作缺口（已解決，2026-04-19）
-
-**已完成：**
-
-- `LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` 已填入 `.env`
-- 真實 LINE 端對端 live smoke 已驗證：bind → switch course → ask 全程走通
-- `/health` 顯示 `runtime.line.readiness=ready`、`deliveryMode=live`
-
-**仍需持續注意：**
-
-- ngrok 每次重啟 URL 會變，需手動更新 LINE Console → 正式環境需部署到固定 HTTPS
-- repo 目前實際存在的是 webhook + bind-token/message QR 流程；LIFF endpoints / pages 尚未實作，不能把 `context/LIFF_QRCode_實作紀錄.md` 當成已上線狀態
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| ngrok URL 不固定 | **DevOps / 整體** | demo 前確認 ngrok 已啟動並更新 LINE Developers Console Webhook URL；正式環境決定部署目標（Railway / Render / 自建 VPS），改用固定 HTTPS domain |
-| 學生綁定代碼 | **Frontend** | 實作登入後的綁定頁面，呼叫 `POST /api/v1/line/bind-token` 取得代碼，搭配 QR Code 顯示；Backend 側 API 已就緒，不需修改 |
-| LIFF 方案 | **Frontend + Backend** | 若決定改走 LIFF，需新增前端 LIFF pages、`@line/liff`、後端 `liff-bind` / `liff-switch-course` endpoints 與測試 |
-
----
-
-### STT Pipeline 自動化 / YouTube 整合狀態
-
-**已完成：**
-
-- `video.service.js` 影片上傳後自動 spawn STT pipeline（背景執行，不阻擋 HTTP 回應）
-- STT pipeline 新增 `--video-path`、`--video-id` CLI 參數
-- STT pipeline 新增 `--youtube-url` CLI 參數，YouTube URL 模式會用 `yt-dlp` 下載音訊
-- STT pipeline 透過 `POST /api/v1/internal/videos/:id/processing/start|complete|fail` 回報狀態
-- STT pipeline 完成後自動執行 `mongodb_uploader.py` 寫入 `video_segments_text`
-- `STT_Whisper/.env.example` 新增 `BACKEND_URL`、`PROCESSING_WEBHOOK_SECRET`
-- `Video.youtubeVideoId` 已新增
-- `POST /api/v1/courses/:courseId/videos/youtube` 已新增
-- QA / LINE 可回傳 YouTube timestamp link
-- 學生端 YouTube iframe 可用 IFrame API 跳轉 timestamp
-
-**尚未實作（需補）：**
-
-- backend 自動上傳 YouTube（YouTube Data API v3）尚未實作；目前是教師手動上傳 YouTube 後貼 URL
-- backend/uploads 原始 mp4 自動清理尚未實作
-- YouTube playlist（依教師 / 課程分流）尚未做
-- LINE Bot 的 YouTube timestamp link 與前端 iframe timestamp seek 已接入，但仍需實機 smoke 記錄
-
-**2026-05-07 已補強：**
-
-- ✅ STT pipeline race-condition guard：`mongodb_uploader._target_video_exists()` 在所有 upload 函式之前檢查 Video record；不存在直接 return False，由 `main.py` notify_backend(fail)。杜絕「教師在 pipeline 跑到一半時刪影片」產生新孤兒 segments
-- ✅ `qa.service.js` 在 `scopedVideos.videos` 為空時直接拒答；`line.service.js` 加 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程
-- ✅ 一次性孤兒清理：`context/cleanup-orphan-data.js`（只清 segments / `course.videoIds`，不再清 UsageLog / Question）
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| YouTube 自動上傳 | **Backend** | 本機上傳影片後呼叫 YouTube Data API v3，影片設為 unlisted，取得 ID 存入 `youtubeVideoId` |
-| OAuth 憑證 | **專案負責人** | 提供 FocusFlow Google 帳號的 YouTube API OAuth 憑證給後端 |
-| uploads 清理 | **Backend + Pipeline** | YouTube 流程穩定後，補 STT 完成後清除本機原始 mp4 的策略 |
-
-注意：本機 upload 影片目前仍透過 `sourceUrl=/uploads/<file>` 給前端 `<video>` 播放；除非改為 YouTube / object storage，否則不能把 `backend/uploads/` 當純 pipeline input 清掉。
-
----
-
-### 測試與 dashboard 統計缺口（✅ 已收斂）
-
-**已完成（2026-05-06 / 2026-05-07）：**
-
-- ✅ `tests/qa.routes.test.js` 8 passed；`tests/course-video.routes.test.js` 20 passed；`tests/line.routes.test.js` 14；`tests/docs.routes.test.js` 2；`teacherStats.service.test.js` 3；`textEncoding.test.js` 6
-- ✅ `npm test` 全套 83/83 passed（2026-05-07）
-- ✅ Student dashboard 問題統計 `visibleQuestionFilter` 已從 `studentId` 改為 `userId`（2026-05-06）
-- ✅ 學生 demo 權限與 `matches[].videoTitle` response shape 都已對齊
-- ✅ 測試 harness `createQuery` 補 `.lean()` / `.select()` no-op；`VideoSegment.find` 改用 thenable 相容 `.lean()`
-
-**STT_Whisper/.env 需手動補上：**
-```
-BACKEND_URL=http://localhost:4000
-PROCESSING_WEBHOOK_SECRET=（與 backend/.env 相同的值）
-```
-
-**STT_Whisper/.venv 注意事項：**
-
-- `.venv` 必須建立在 `STT_Whisper/.venv`
-- backend 會優先使用 `STT_Whisper/.venv/Scripts/python.exe`
-- 若 `.venv` 建在 repo 根目錄，backend 可能 fallback 到系統 Python，導致 faster-whisper / pymongo / yt-dlp 找不到
-- 不要上傳 `.venv` 到 GitHub；請用 `requirements.txt` 重建
-
----
-
-### Frontend / Demo Consumer 協作缺口
-
-**已確認（2026-04-21 教授開會）：**
-
-- LINE Bot 不完全整合進網頁：網頁負責影片觀看，LINE Bot 負責問答，各自角色獨立
-- 影片採 YouTube 託管：利用 YouTube embed 追蹤觀看狀態；LINE Bot 回覆含時間戳的 YouTube 連結
-- 禁止學生直接上傳影片（版權考量）：改用分享連結（如 YouTube URL）
-- LINE 綁定流程：現階段一次性 token 可接受；未來前端以 QR Code 顯示（含課程 ID）
-
-**尚未定版：**
-
-- bridge course 在 UI 上要隱藏、標示 `QA-only`，還是做 metadata-only 呈現
-- 是否要把 degraded / backend-only 訊號直接顯示在畫面上
-- demo 口徑是否接受 bridge course 只作 QA scope，不當完整影片課程
-
-**應採取的行動：**
-
-| 項目 | 誰做 | 具體動作 |
-|------|------|----------|
-| Frontend API 整合 | **Frontend** | 第一階段頁面 UI 已完成（2026-04-21）；下一步串接登入、課程列表、QA 問答、LINE 綁定 API |
-| LINE 綁定 QR Code 頁面 | **Frontend** | 呼叫 `POST /api/v1/line/bind-token`，以 QR Code 顯示 token（或直接顯示供使用者輸入）；Backend 側 API 已就緒 |
-| YouTube embed 整合 | **Frontend** | 影片頁改用 YouTube embed；QA 回答含時間戳時，連結格式為 `https://youtu.be/<id>?t=<sec>` |
-| bridge course UI 策略 | **Frontend** | 決定三選一：(a) 課程列表隱藏 bridge course；(b) 顯示但標示「QA only」badge；(c) 顯示且允許進入，只是影片頁回 metadata-only 提示。決定後通知 Backend，若需要新 API 欄位再補 |
-| demo 口徑 | **整體（Demo 決策）** | 在 demo 前統一說法：bridge course 是「已索引影片的 QA demo」，不是「完整上傳流程的 demo」 |
-
-**backend 目前已採取的行為：**
-
-- bridge course 標示 `qaScopeOnly`、`bridgeMode`、`bridgeContract`
-- `/api/v1/courses/:courseId/videos` 會回 `metadataOnly=true`
-- metadata-only bridge video 的 processing API 會回 `409 VIDEO_METADATA_ONLY`
-
----
-
-## 若尚未定版時的應對方式
-
-- **Atlas index 未 ready**：切回 `QA_VECTOR_SEARCH_MODE=memory`，走 memory cosine similarity，對外說明目前是降級模式
-- **DB / AI 口徑未 freeze 前**：以 `/health`、Atlas index 狀態與實際 runtime 為準
-- **bridge coverage 未補齊前**：說 `QA-only` 或 `metadata-only`；回 `no_searchable_segments` 照實說
-- **LINE 條件未到位前**：只講 backend-only 驗證完成，不講 live reply ready
-- **共享 DB 不可寫前**：走 `/health`、acceptance smoke 與 route tests
+舊資料庫數字與歷史處置不是操作指令。需追查原文時，在 repo 根目錄執行 `git show 9140f9e:backend/docs/handoff-known-issues.md` → 顯示整理前版本；目前狀態仍回到[唯一正本](../../docs/current-status.md)。

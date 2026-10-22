@@ -106,7 +106,7 @@ FR-xx / NFR-xx ──┬─→ UC-xx ──→ 設計圖（realizes: UC-xx）─
 
 ```bash
 # 列出所有圖的 realizes 標註
-grep -rh "^' realizes:" diagrams/ | sort -u
+grep -rh "^' realizes:" figures/ch*/ | sort -u
 
 # 找出缺少宣告欄位的 PlantUML source；Mermaid 與跨平台檢查使用 validate_diagram_artifacts.py
 for f in $(find diagrams -name "*.puml"); do

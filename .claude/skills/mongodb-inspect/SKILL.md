@@ -32,6 +32,8 @@ select:mcp__mongodb__collection-indexes,mcp__mongodb__aggregate,mcp__mongodb__co
 
 ## Collection 地圖
 
+> ⚠️ 歷史快照（2026-09-25），不是資料庫現況；現況以實際查詢為準。
+
 `focusflow` database，2026-09-25 實查為 24 個 collection（數量會變，以 `list-collections` 為準）。
 
 | Collection | 用途 |
@@ -66,12 +68,16 @@ course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segmen
 
 實務分佈：
 
+> ⚠️ 歷史快照（查證日期待確認），不是資料庫現況；現況以實際查詢為準。
+
 - **app-owned 影片**：`videos.videoId` 是 `undefined`，pipeline 把 `String(videos._id)` 寫進片段的 `videoId`
 - **只有 pipeline metadata 影片**才有 `videoId` / `video_id`
 
 所以 join 片段時要用 `String(videos._id)`，用 `videos.videoId` 會讓 app-owned 影片全部對不到。
 
 ### 3. Leaf 文件可能沒有 `courseId`、`segmentId` 為 null
+
+> ⚠️ 歷史快照（查證日期待確認），不是資料庫現況；現況以實際查詢為準。
 
 實查過的一批 Leaf：**沒有 `courseId` 欄位**、`segmentId` 是 `null`、只有 `videoId`。代表 scope 過濾的 `courseId` 條件對這批資料不成立，實際只有 `videoId` 那條會命中。設計查詢或解讀 explain 時要記得。
 
@@ -80,6 +86,8 @@ course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segmen
 不要憑文件斷言 Atlas vector index 存不存在——歷史上同一個 index 被記載過「不存在」也被記載過「READY」。一律用 `collection-indexes` 看 `searchIndexes` 的 `status` 與 `queryable`。
 
 快照（`text_embedding_index` 最後實查 2026-09-23；使用前一律重查）：
+
+> ⚠️ 歷史快照（文字索引：2026-09-23；Parent 索引查證日期待確認），不是資料庫現況；現況以實際查詢為準。
 
 | Collection | Vector index | 狀態 |
 |------------|-------------|------|

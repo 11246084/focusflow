@@ -1,8 +1,6 @@
 # FocusFlow 專案概覽
 
-FocusFlow 是一個 **AI 驅動的教育影片問答系統**。教師上傳教學影片，學生可對影片內容提問，系統以 AI 生成答案並附上對應影片時間段。
-
-Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用**（試用，不是正式上線）；Phase 2 短影片與階層式檢索部分實作中。進度詳見 [docs/current-status.md](docs/current-status.md)。
+FocusFlow 是一個 **AI 驅動的教育影片問答系統**，讓學生對教師上傳的教材提問，取得附有影片時間位置的回答。這份概覽說明產品目的與功能範圍，方便團隊決定要交付哪些使用流程。請先閱讀範圍與模組；完成度、試用日期及驗收結果統一見[目前狀態](docs/current-status.md)。
 
 ---
 
@@ -16,7 +14,7 @@ Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學
 
 ---
 
-## Phase 1 MVP 範圍
+## 核心使用範圍
 
 1. 使用者登入與角色控制（admin / teacher / student）
 2. 課程與影片管理（教師建立、上傳本機影片或貼 YouTube URL，含 PATCH/DELETE）
@@ -26,7 +24,7 @@ Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學
 6. Teacher / Student / Admin dashboard 統計與管理介面
 7. 基本測試與錯誤處理
 
-試用期補上的營運功能（2026-09）：修課學生 CSV 匯入、學生每日提問與字數上限、登入失敗鎖定、忘記密碼、網頁多輪問答、問題回報、管理員系統服務狀態。
+營運需求範圍包含修課學生 CSV（以逗號分隔欄位的表格檔）匯入、學生每日提問與字數上限、登入失敗鎖定、忘記密碼、網頁多輪問答、問題回報與管理員服務診斷；此處列產品範圍，不另判定完成度。
 
 ---
 
@@ -37,7 +35,7 @@ Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學
 - **courses / videos** — 課程與影片 CRUD（含 PATCH/DELETE）、processing 狀態機、修課授權（Enrollment）、多影片批次上傳
 - **conversations** — 網頁多輪問答，與 QA 共用每日提問上限
 - **notifications / feedback** — 站內通知、使用者問題回報
-- **short-scripts / shorts** — 短影片腳本自動生成、教師審核上架（功能開關預設關閉）
+- **short-scripts / shorts** — 短影片腳本自動生成、教師審核上架；設定條件見[功能開關](backend/docs/feature-flags.md)
 - **qa** — 雙策略搜尋（向量 + 詞彙）+ 可插拔 provider（gemini/openai/mock）+ 自動將提問寫入 `questions`
 - **line** — Webhook 簽章驗證、帳號綁定（一次性 token / QR）、問答 routing、多輪對話歷史
 - **stats** — Teacher / Student dashboard 統計
@@ -47,7 +45,7 @@ Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學
 - **demoSeed** — 透過 `npm run seed` / `seed:reset` 植入示範資料
 
 ### Frontend（`frontend/focus-flow/`）
-登入頁採 Three.js 3D 場景；學生 / 教師 / 管理員三套介面目前有 16 個頁面檔：StudentDashboard / StudentCourses / StudentLineBot / StudentShortsWall、TeacherDashboard / TeacherCourses / TeacherUpload / TeacherShortScripts / TeacherVideoReview、AdminOverview / AdminStats / AdminUsers / AdminVideos / AdminCourses / AdminFeedback，以及共用 Profile。第一階段 API 整合已完成；正式供應商與部署驗收仍依功能各自判定。
+網頁按學生、教師與管理員角色區分操作範圍：學生觀看教材與提問，教師管理課程、上傳影片與審核短片，管理員維護帳號及查看服務診斷，個人資料由各角色共用。頁面入口見[前端應用程式](frontend/focus-flow/src/App.jsx)，操作與設定見[前端 README](frontend/focus-flow/README.md)，整合及驗收結果見[目前狀態](docs/current-status.md)。
 
 ### AI Pipeline（`STT_Whisper/`）
 獨立 CLI 流程：本機影片或 YouTube URL → FFmpeg / yt-dlp 音訊處理 → Faster-Whisper STT → 文字分段 → Gemini 向量嵌入 → 匯出 JSON / JSONL → `mongodb_uploader.py` 寫入 MongoDB。Backend 建立影片後可背景 spawn 這個 CLI，並透過 internal webhook 接收處理狀態。
@@ -61,15 +59,15 @@ Phase 1 MVP 已於 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學
 | `User`（`users`）| 帳號、角色、密碼雜湊；含 LINE 綁定狀態（`lineUserId`、`lineConversationState`、`lineConversationHistory`、`activeCourseId`） |
 | `Course`（`courses`）| 課程容器（draft / published / archived） |
 | `Video`（`videos`）| 影片元資料與 processing 狀態；App-owned 影片以 camelCase 欄位為主，支援 `sourceType: upload / youtube` 與 `youtubeVideoId`；仍保留少量 legacy pipeline metadata 相容 |
-| `VideoSegment`（`video_segments_text`，可由 `VIDEO_SEGMENT_COLLECTION` 切換）| 問答核心：文字片段 + text embedding（v1 正式，欄位 camelCase） |
+| `VideoSegment`（`video_segments_text`，可由 `VIDEO_SEGMENT_COLLECTION` 切換）| 問答用的文字片段與搜尋向量；欄位採 camelCase 命名 |
 | `Question`（`questions`）| 每則 QA 提問與回答歷史，含 matches、runtime 訊號與 `sourceUsageLogId` 連結 |
 | `Enrollment`（`enrollments`）| 學生修課授權（`studentId`、`courseId`、`active/revoked`、指派／撤銷稽核欄位、`progress`、`lineNotify`）；學生內容存取需同時符合 active Enrollment 與 published Course |
-| `Clip`（`clips`）| 影片精華片段；目前定位為過渡層，`video_segments_video` 尚未接手 |
+| `Clip`（`clips`）| 影片精華片段相關資料 |
 | `UsageLog`（`usage_logs`）| 使用行為記錄（login / watch / ask / clip_view） |
 | `LineBindToken`（`line_bind_tokens`）| LINE 帳號綁定一次性 token，TTL 索引自動清除 |
 
-其他 model：`Notification`、`Avatar`、`Faq`（FAQ 快取）、`Conversation` / `Message`（網頁多輪問答）、`Feedback` / `FeedbackAttachment`（問題回報）、`ShortScript` / `ShortAsset`（短影片）、`VideoBatch`（多影片批次）、`VideoSegmentParent`（`video_segments_parent`，階層式檢索，Gate 關閉）、`VideoSegmentVideo`（`video_segments_video`，影片片段 + video embedding，只作 course-scoped visual citation，不是 caption QA 來源）。
+其他 model：`Notification`、`Avatar`、`Faq`（FAQ 快取）、`Conversation` / `Message`（網頁多輪問答）、`Feedback` / `FeedbackAttachment`（問題回報）、`ShortScript` / `ShortAsset`（短影片）、`VideoBatch`（多影片批次）、`VideoSegmentParent`（較大段落的檢索資料）、`VideoSegmentVideo`（影像片段與搜尋向量）。分層及影像查詢的範圍與設定見[後端技術索引](backend/docs/current-state.md)，可用性與驗收見[目前狀態](docs/current-status.md)。
 
-共享 Atlas 的 collection 清單與筆數會變動，以唯讀實查為準；最近一次記錄見 [backend/docs/current-state.md](backend/docs/current-state.md) 的「資料庫實況」。舊版 `video_segments` 是 legacy／init 腳本殘留項，不是 backend runtime 依賴。
+資料庫的集合清單、筆數與索引需實查，結果由[目前狀態](docs/current-status.md)追查；實查項目見[DB 交接清單](database/docs/db-handoff-current.txt)。
 
-正式資料契約目前請以 [ARCHITECTURE.md](ARCHITECTURE.md)、[docs/current-status.md](docs/current-status.md)、[backend/docs/current-state.md](backend/docs/current-state.md) 與實際程式碼為準；[docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md](docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md) 僅保留作歷史參考。
+資料欄位與契約請對照[架構說明](ARCHITECTURE.md)、[後端技術索引](backend/docs/current-state.md)與實際程式碼；[資料庫舊契約](docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md)僅供歷史參考。

@@ -13,6 +13,7 @@ const {
   resetStore,
   startServer,
   stopServer,
+  store,
 } = require('./helpers/backendTestHarness');
 const { buildSystemStatus } = require('../src/services/systemStatus.service');
 
@@ -65,6 +66,20 @@ describe('buildSystemStatus', () => {
     assert.equal(serviceByKey(result, 'youtube').status, 'not_enabled');
   });
 
+  it('沒有待處理也沒有到期清單且 YouTube 未啟用時，生命週期列顯示未啟用', () => {
+    const result = buildSystemStatus(baseInput({
+      youtubeLifecycle: { quarantineCount: 0, upcomingCleanupCount: 0, upcomingCleanupBytes: 0, error: null },
+    }));
+    assert.equal(serviceByKey(result, 'youtube_lifecycle').status, 'not_enabled');
+  });
+
+  it('讀不到待處理數量時生命週期列為 unknown', () => {
+    const result = buildSystemStatus(baseInput({
+      youtubeLifecycle: { quarantineCount: null, upcomingCleanupCount: null, upcomingCleanupBytes: null, error: 'db down' },
+    }));
+    assert.equal(serviceByKey(result, 'youtube_lifecycle').status, 'unknown');
+  });
+
   it('找不到 STT venv 時 Pipeline 為 degraded', () => {
     const result = buildSystemStatus(baseInput({ venvPythonExists: false }));
     assert.equal(serviceByKey(result, 'stt').status, 'degraded');
@@ -93,8 +108,29 @@ describe('系統狀態 API、404 與安全標頭', () => {
     assert.equal(result.status, 200);
     assert.deepEqual(
       result.body.data.services.map((service) => service.key),
-      ['database', 'qa', 'line', 'stt', 'youtube'],
+      ['database', 'qa', 'line', 'stt', 'youtube', 'youtube_lifecycle'],
     );
+  });
+
+  it('系統狀態附上 YouTube 待處理與 7 天內到期刪除的數量', async () => {
+    store.videos.push({
+      _id: '6f1000000000000000000001',
+      courseId: ids.teacherCourse,
+      title: 'Quarantined',
+      youtubeUpload: { status: 'failed', retrySafe: false, attemptCount: 1 },
+    });
+    const token = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/system-status', { token });
+
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body.data.youtubeLifecycle, {
+      quarantineCount: 1,
+      upcomingCleanupCount: 0,
+      upcomingCleanupBytes: 0,
+    });
+    const lifecycle = result.body.data.services.find((service) => service.key === 'youtube_lifecycle');
+    assert.equal(lifecycle.status, 'degraded');
+    assert.match(lifecycle.detail, /待處理 1 支/);
   });
 
   it('學生不能讀取系統服務狀態', async () => {

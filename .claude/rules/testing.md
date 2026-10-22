@@ -1,3 +1,10 @@
+---
+paths:
+  - "backend/tests/**"
+  - "frontend/focus-flow/tests/**"
+  - "STT_Whisper/tests/**"
+---
+
 # 測試規範
 
 > 適用範圍：`backend/tests/`
@@ -74,7 +81,7 @@ describe('POST /api/v1/courses', () => {
 
 - 每個新 API 路由至少需要：成功情境 + 未授權情境 + 主要失敗情境
 - 新增 service 函式時，若含有複雜邏輯（如 QA 搜尋的評分策略），需撰寫 service 單元測試
-- 前端（`npm test`，`node:test`）與 AI Pipeline（`unittest`）各有測試；前端依 AGENTS.md 的影響範圍選擇 `lint` 與 `build`，完整指令見 CLAUDE.md「測試規範」
+- 前端（`npm test`，`node:test`）與 AI Pipeline（`unittest`）各有測試；前端依 AGENTS.md 的影響範圍選擇 `lint` 與 `build`，完整指令見下方「其他服務的測試」
 
 ---
 
@@ -95,6 +102,21 @@ describe('模組名稱', () => {
 - 測試描述使用**中文**，清楚說明情境（「教師可建立課程」、「未登入時回傳 401」）
 - 每個 `it` 只測一件事，不在同一個 `it` 中混合多個驗證點
 - 測試期間在 `backend/uploads/` 寫入的檔案會帶 `test-upload-` 前綴，`cleanupTestUploads()` 會自動清理
+
+---
+
+## API 規格檢查
+
+- `tests/docs.routes.test.js` 從實際註冊的路由盤點，和 `backend/docs/openapi.yaml` 比對缺漏、過時、method、路徑參數與重複註冊；新增或刪除 route 沒同步規格會讓 `npm test` 失敗。
+- 刻意不公開的端點列在該測試的 `UNDOCUMENTED_BY_DESIGN`（內部處理通知 ×3、`GET /api/v1/line/webhook`），每筆附理由。
+- `npm run docs:lint` 以 Redocly（設定 `backend/redocly.yaml`）檢查規格結構與範例，不併入 `npm test`；逐筆例外寫在 `backend/.redocly.lint-ignore.yaml` 並附理由。
+- 這兩項只檢查路由與規格格式，不能代替請求／回應與實作一致性的驗證。
+
+## 其他服務的測試
+
+- 前端：`frontend/focus-flow/tests/`，使用 `node:test`；在前端目錄執行 `npm test`、`npm run lint`、`npm run build`。
+- Pipeline：`STT_Whisper/tests/`，使用 unittest；執行 `.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'`。
+- 變更依賴 FFmpeg、外部模型或 API key 時，回報需說明是否實際驗證。
 
 ---
 

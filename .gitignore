@@ -170,7 +170,6 @@ CLAUDE.local.md
 .playwright-mcp/
 /.playwright-cli/
 /output/playwright/
-.agents/skills/docs-maintainer
 
 # ================================
 # Local planning / temp docs
@@ -196,10 +195,10 @@ database/pyvenv.cfg
 # ================================
 # 其他組別系統手冊（僅供格式比對，非本專題著作，repo 為 public 故不進版控）
 # ================================
-docs/00_Deliverables/System_Manual/source-documents/四技第113402組-*.pdf
-docs/00_Deliverables/System_Manual/source-documents/四技第114406組-*.pdf
-docs/00_Deliverables/System_Manual/source-documents/四技第114414組-*.pdf
-docs/00_Deliverables/System_Manual/source-documents/四技第115414組-*.pdf
+docs/**/四技第113402組-*.pdf
+docs/**/四技第114406組-*.pdf
+docs/**/四技第114414組-*.pdf
+docs/**/四技第115414組-*.pdf
 
 # ================================
 # Archify visual-check 驗證輸出（可重跑產生，JSON 含本機路徑）
@@ -210,5 +209,5 @@ docs/00_Deliverables/System_Manual/source-documents/四技第115414組-*.pdf
 # Microsoft Word 暫存檔（開啟文件時的鎖定檔、系統手冊重建中的工作檔）
 # ================================
 ~$*
-docs/00_Deliverables/System_Manual/output/_building_*
-docs/00_Deliverables/System_Manual/output/mso*.tmp
+docs/01_系統手冊/output/_building_*
+docs/01_系統手冊/output/mso*.tmp

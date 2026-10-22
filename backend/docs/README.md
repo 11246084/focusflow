@@ -1,53 +1,18 @@
-# Backend 文件入口
+# 後端文件使用入口
 
-最後更新：2026-09-29（影像片段綁定課程影片：`video_segments_video.video_id = String(videos._id)`、pipeline CLI `--video-id`／`--upload`；`QA_VISUAL_RETRIEVAL_ENABLED` 開啟時影像與文字並行檢索並附加補充 citation，預設關閉；前次 2026-09-28：管理員可在使用者管理頁為個別學生設定每日提問上限：`User.dailyAskLimitOverride`；再前次 2026-09-25：OpenAPI route coverage 測試與 Redocly lint：`openapi.yaml` 補齊 feedback、admin/feedback、short-scripts、short-assets 共 13 個 operation，`npm run docs:lint` 0 error／0 warning；同日稍早為稽核高優先修正）
+這份索引幫助你找到後端的安裝、介面與操作說明，避免從歷史交接判斷現況。請依下表選讀；所有功能進度及驗收結果都以[目前狀態](../../docs/current-status.md)為準。
 
-> 跨服務進度（frontend / pipeline / 跨組缺口）見 [docs/current-status.md](../../docs/current-status.md)。
+| 要做的事 | 閱讀入口 |
+|---|---|
+| 安裝與啟動 | [後端 README](../README.md) |
+| 查資料流與功能開關 | [技術索引](current-state.md) |
+| 理解環境、資料與播放限制 | [已知問題](handoff-known-issues.md) |
+| 查 API，也就是前端呼叫後端的介面 | [OpenAPI 規格](openapi.yaml)、[回應語意](phase2-api-contract.md)；啟動後由 `/docs` 閱讀 |
+| 操作影片處理與續跑 | [Pipeline 使用方式](../../STT_Whisper/README.md) |
+| 查學生短片牆的接線與操作 | [前端完成交接](handoff-shorts-frontend-done.md) |
+| 查待辦或追溯變更 | [待辦](todo.md)、[實作紀錄](implementation-log.md)、[較早紀錄](implementation-log.archive.md)；保留原日期，不當目前狀態 |
+| 追溯語音轉文字交接 | [STT 交接](handoff-stt-pipeline-integration.md)；使用方式請回到上方 Pipeline README |
 
-## 先看哪一份
+例：教師上傳失敗 → 先查技術索引的影片流程 → 依 Pipeline README 查對應處理日誌。不要因舊交接寫「尚未實作」就判定功能不存在。
 
-- 要確認 backend 現在到底怎麼跑、哪些能講、哪些不能講：看 [current-state.md](current-state.md)
-- 要交接、找跨組缺口、整理 demo 風險與暫時口徑：看 [handoff-known-issues.md](handoff-known-issues.md)
-- 要看下一步優先順序與這輪刻意不碰的範圍：看 [todo.md](todo.md)
-- 要追查這些內容是在哪一輪被新增或收斂：看 [implementation-log.md](implementation-log.md)（較舊的紀錄已歸檔到 [implementation-log.archive.md](implementation-log.archive.md)）
-- 要查 API spec：看 [openapi.yaml](openapi.yaml)（執行時掛在 `/docs`）；涵蓋 `/api/v1/*` 與 `/health` 的全部公開 route，由 `tests/docs.routes.test.js` 比對 runtime router 強制；刻意不收錄的端點列在該測試的 `UNDOCUMENTED_BY_DESIGN`。改 spec 後跑 `npm run docs:lint`
-- 要查 Phase 2 回傳語意：看 [phase2-api-contract.md](phase2-api-contract.md)（QA citations/no-answer、Video 顯示狀態、已實作的 ShortAsset feed/sync 與仍待實作的 Clip/發布產線）
-- 要了解影片上傳後如何自動觸發 STT pipeline、環境設定與後續 YouTube 整合待辦：看 [handoff-stt-pipeline-integration.md](handoff-stt-pipeline-integration.md)
-- 要啟用 YouTube 自動上傳與刪除轉 private：設定項與行為邊界見 [current-state.md](current-state.md) 與 `backend/.env.example`；憑證是否有效看 `/health.runtime.youtubeUpload`（schema 在 [openapi.yaml](openapi.yaml) 的 `YouTubeUploadRuntimeSnapshot`）；OAuth 憑證取得的逐步操作紀錄留在個人筆記（`context/`，未進版控）
-- 要審核學生 Short 修課過濾的前端串接方案（JWT、課程顯示、空狀態、分頁與 modal 保留方式）：看 [handoff-shorts-frontend-plan.md](handoff-shorts-frontend-plan.md)；本輪只有方案，尚未修改前端
-- 2026-05-06 已修：student dashboard questions 統計改用 `userId`、`tests/qa.routes.test.js` 與 `tests/course-video.routes.test.js` expected 同步至 demo 權限模型 + `matches[].videoTitle`
-- 要確認最新待補：看 [todo.md](todo.md)（YouTube 真實 OAuth smoke、caption / OCR / frame description、Clip / Shorts 正式 routes 等上線前 / Phase 2 項目）
-
-## 每份文件的用途
-
-- `README.md`
-  - 只做入口頁，不重講 runtime 現況或 handoff 內容
-- `current-state.md`
-  - phase-1 backend 現況唯一真相頁
-- `handoff-known-issues.md`
-  - backend 無法單獨定版、仍需跨組協作的問題與應對方式
-- `implementation-log.md`
-  - 每一輪文件或程式收斂的變更紀錄；2026-04-15 以前的紀錄收在 `implementation-log.archive.md`
-- `todo.md`
-  - 下一步規劃與優先順序
-- `openapi.yaml`
-  - REST API 規格來源（Swagger UI 由此生成）；公開 route 全覆蓋，internal processing webhook 與 `GET /api/v1/line/webhook` 刻意不收錄
-- `phase2-api-contract.md`
-  - Phase 2 API contract 補充文件：QA、video display states、已實作的 ShortAsset feed/sync，以及尚未實作的 Clip/發布 worker
-- `handoff-shorts-frontend-plan.md`
-  - 學生 Short 修課過濾的前端串接方案；記錄既有 authenticated helper、預計 UI 改動、小改動判準與待確認契約，本輪不含前端程式碼修改
-
-## 文件之間的關係
-
-- `current-state.md` 是事實來源。其他文件若提到 runtime、ready 狀態或 phase-1 邊界，都以這份為準。
-- `handoff-known-issues.md` 只整理尚未定版或需要外部配合的缺口，不重寫完整現況。
-- `todo.md` 只保留接下來要做什麼，不重複現況與已知問題細節。
-- `implementation-log.md` 只記錄變更，不充當狀態頁或交接頁。
-
-## 維護原則
-
-- runtime 事實變了，先改 `current-state.md`
-- 協作缺口或 demo 風險變了，改 `handoff-known-issues.md`
-- 優先順序變了，改 `todo.md`
-- 只是記錄這輪做了什麼，改 `implementation-log.md`
-- 外部交接紀錄只能作為待驗證來源；正式文件需以 route files、models、services、tests 與實際 DB 狀態為準
+修改 API 規格後，在 `backend/` 執行 `npm.cmd run docs:lint`；這是檢查規格格式的指令，不能代替功能驗收。進度更新寫入狀態正本，本索引只維護文件用途與連結。

@@ -34,7 +34,7 @@ Resolve the deliverable or chapter, mode, UML/non-UML scope, acceptance boundary
 For the NTUB manual, read as applicable:
 
 - `AGENTS.md`, `CLAUDE.md`, and relevant repo rules;
-- official sources in `docs/00_Deliverables/System_Manual/source-documents/`;
+- official sources in `docs/00_學校公告/`;
 - `.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md`;
 - `.claude/skills/ooad-uml-diagramming/references/local/focusflow-conventions.md`.
 

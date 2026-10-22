@@ -121,18 +121,17 @@ title <圖名，須與檔名中的名稱一致>
 
 ```bash
 # 匯出單一檔案（需本機有 plantuml）
-plantuml -tpng -o ../../images "diagrams/chapter06/圖6-1-3-網頁問答循序圖-v1-0.puml"
+plantuml -tpng "figures/ch05/圖5-3-1-註冊與登入活動圖.puml"
 
 # 僅檢查語法，不產圖
-plantuml -checkonly "diagrams/chapter06/圖6-1-3-網頁問答循序圖-v1-0.puml"
+plantuml -checkonly "figures/ch05/圖5-3-1-註冊與登入活動圖.puml"
 
 # 檢查檔頭、檔名／title、版本、PNG、正文與圖目錄鏈結
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py \
-  --diagram-dir docs/00_Deliverables/System_Manual/diagrams/chapter06 \
-  --image-dir docs/00_Deliverables/System_Manual/images \
-  --chapter docs/00_Deliverables/System_Manual/chapters/06_設計模型.md \
-  --toc docs/00_Deliverables/System_Manual/圖表目錄.md \
-  --require-version
+  --diagram-dir docs/05_圖庫/系統手冊/ch06 \
+  --image-dir docs/05_圖庫/系統手冊/ch06 \
+  --chapter docs/01_系統手冊/chapters/06_設計模型.md \
+  --toc docs/05_圖庫/README.md
 ```
 
 `[DOC:MUST]` review 第 1 層包含 PlantUML 語法／渲染通過與匯出圖檔目視檢查；Python 驗證器不能取代 PlantUML renderer。

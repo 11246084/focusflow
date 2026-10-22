@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10 | 短影片新增 recut 產片方式：老師原音＋程式動畫，與數位分身並存
+
+**決策**：教師選題後可選「生成模式（數位分身，ComfyUI）」或「recut」。recut 只使用老師授課錄音（不改聲音），畫面全由程式組合的動畫圖卡構成；AI 只寫施工單（選段、字幕、選元件與素材），不畫圖、不寫秒數。渲染由組員電腦上的 worker 執行，VM 渲染預設關閉。
+
+**原因**：ComfyUI 地端模型一支約 6 小時且只有一台 GPU；生成模型無法保證中文字與數字正確。recut 的文字與數字可驗證回逐字稿，CPU 數分鐘即可完成。
+
+**影響**：需要連續視窗證據、視窗語音辨識、背景工作、上傳時的同意勾選、素材庫與 worker。完整定案與待討論見 [recut 設計決策](04_Features/Short_Video/recut-design-decisions.md)；VM 的 Node 20 → 24 升級須在 `dev` 合併 `main` 前完成。
+
+---
+
 ## 2026-03 | AI Pipeline 作為離線 CLI，不內嵌於 Backend
 
 **決策**：Whisper STT 與 embedding pipeline 作為獨立 Python CLI（`STT_Whisper/`），與 backend process 分離；主線先輸出標準化 JSON / JSONL，必要時再由 uploader 導入 MongoDB，backend 只查詢結果。
@@ -42,7 +52,7 @@
 
 **原因**：文字與影片 embedding 維度、查詢模式與 Atlas index 設定不同，合併在一個 collection 會造成 index 複雜度與查詢效率問題。
 
-**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。正式欄位口徑請以 `docs/current-status.md`、`backend/docs/current-state.md` 與實際程式碼為準；`docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考。
+**影響**：Backend `qa.service.js` 有 legacy 相容邏輯待清除。Atlas vector index 需跨組確認 name 與 filter fields。正式欄位口徑請以 `docs/current-status.md`、`backend/docs/current-state.md` 與實際程式碼為準；`docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考。
 
 ---
 
@@ -72,4 +82,4 @@
 
 **原因**：學校邊界不開放 port 80（2026-08-12 tcpdump 證實封包未抵達 VM，技士已表示不會開放），HTTP-01 無法使用；certbot 沒有實作 TLS-ALPN-01。DNS-01 需學校 DNS 管理者每 60 天手動加 TXT，無法自動續約。自簽憑證則無法消除瀏覽器警告。
 
-**影響**：每次續約 acme.sh 會停 nginx 約 30 秒。續約能否成功取決於 443 持續對外開放；失敗不會主動通知，需定期檢查憑證 `notAfter`。acme.sh 是非官方套件庫的第三方腳本並以 root 執行，若日後學校開放 port 80 或提供 `ntub.edu.tw` 萬用憑證，可改用 EPEL 的 certbot 或學校憑證，只需改 nginx 的兩行憑證路徑。操作與回滾步驟見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。
+**影響**：每次續約 acme.sh 會停 nginx 約 30 秒。續約能否成功取決於 443 持續對外開放；失敗不會主動通知，需定期檢查憑證 `notAfter`。acme.sh 是非官方套件庫的第三方腳本並以 root 執行，若日後學校開放 port 80 或提供 `ntub.edu.tw` 萬用憑證，可改用 EPEL 的 certbot 或學校憑證，只需改 nginx 的兩行憑證路徑。操作與回滾步驟見 [docs/10_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](10_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)。

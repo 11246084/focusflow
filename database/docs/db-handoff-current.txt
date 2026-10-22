@@ -1,3 +1,22 @@
+⚠️ 本文件內容待實查，實查前請勿當作現況使用
+
+這份文件保留舊交接原文與數字，避免把歷史資料誤當成目前資料庫內容。請 DB（資料庫）負責人以唯讀查詢完成下列清單，記錄查詢日期、目標環境、查詢方式與結果；現況結論寫回[目前狀態](../../docs/current-status.md)。
+
+DB 負責人實查清單（本次均為 ⚠️ 未驗證；不建立索引、不匯入或修改資料）
+- [ ] 確認目標資料庫、查詢帳號的唯讀權限與集合清單；集合是存放同類資料的地方。重新查各集合筆數，不沿用下方數字。依據：[資料模型](../../backend/src/models/)、[初始化工具](../tools/setup/init_indexes.js)。
+- [ ] 檢查文字片段的 videoId/chunkId/segmentId/courseId 型別、缺漏、重複及舊欄位殘留；對照實際影片與課程，確認查詢只涵蓋有權限的影片。依據：[文字模型](../../backend/src/models/videoSegment.model.js)、[範圍檢查](../../backend/src/services/bridgeScope.service.js)。
+- [ ] 查實際索引名稱、欄位及可用性；索引是加速查詢的資料結構。對照[初始化工具](../tools/setup/init_indexes.js)，並查文字片段查詢的執行計畫，確認是否使用索引而非掃描整個集合。
+- [ ] 查分層檢索的大段落與小片段是否存在、關聯正確且涵蓋允許的影片；核對啟用版本、模型、向量維度及資料格式，並檢查向量索引狀態與篩選欄位。依據：[資料檢查](../../backend/src/services/hierarchicalDataReadiness.service.js)。
+- [ ] 查 videos 的課程關聯、播放來源與處理資訊，區分後端建立的影片及處理程序寫入的資料；對照兩套[STT 上傳工具](../../STT_Whisper/src/mongodb_uploader.py)與[DB 上傳工具](../tools/mongodb_uploader.py)的寫入欄位，不使用 legacy 舊工具修資料。
+- [ ] 查影像片段的 video_id/clip_id 對應、實際課程涵蓋範圍、向量維度及搜尋索引可用性；不能把文字片段的欄位規則直接套用。依據：[影像模型](../../backend/src/models/videoSegmentVideo.model.js)。
+- [ ] 查 notifications 集合與索引，核對 recipientId、readAt 與 dedupeKey；確認去重索引只限制字串 dedupeKey，並檢查重複或失去收件人的資料。依據：[通知模型](../../backend/src/models/notification.model.js)。
+- [ ] 查 User.avatar 中的圖片類型與更新時間，以及 avatars 集合的 userId、類型、大小、唯一索引及失去使用者關聯的紀錄；查舊 filename 是否殘留，不輸出圖片內容或個資。依據：[使用者模型](../../backend/src/models/user.model.js)、[頭貼模型](../../backend/src/models/avatar.model.js)。
+
+例：唯讀查詢集合與索引 → 比對程式欄位 → 記錄差異與查詢日期 → 將結論寫回目前狀態；發現缺少索引時先回報，不在本次查詢中建立。
+
+以下為原始交接全文；日期、數字與敘述原樣保留，仍須以上述清單實查。
+---
+
 FocusFlow 資料庫現況交接給後端
 最後更新：2026-07-24
 
@@ -90,7 +109,7 @@ backend 目前可以安全假設的事情
 目前對 video_segments_text 來說已過期的文件
 1. backend/docs/current-state.md
 2. backend/docs/handoff-known-issues.md
-3. docs/20_Architecture/database/archive/MongoDB_契約定版_v1.md
+3. docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md
 
 為什麼說它們過期
 因為這些文件仍描述 video_segments_text 目前使用 snake_case，但現在的 uploader、backend model、bridge lookup、database README 都已對齊到 camelCase text segment 結構。
@@ -102,7 +121,7 @@ backend 目前可以安全假設的事情
 4. 如果要更新文件，優先修正以下幾份裡的 snake_case 舊說法：
    - backend/docs/current-state.md
    - backend/docs/handoff-known-issues.md
-   - docs/20_Architecture/database/archive/MongoDB_契約定版_v1.md
+   - docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md
 5. 如果後續要進 Phase 2，建議先把這三件事講清楚：
    - bridge course mapping contract
    - videos ownership contract

@@ -12,9 +12,14 @@ const {
   stopShortsSyncScheduler,
 } = require('./services/shortsSync.service');
 const {
-  recoverPendingYouTubeUploads,
+  startYouTubeUploadRecoveryScheduler,
+  stopYouTubeUploadRecoveryScheduler,
   verifyYouTubeCredentials,
 } = require('./services/youtubeUpload.service');
+const {
+  startYouTubeCleanupScheduler,
+  stopYouTubeCleanupScheduler,
+} = require('./services/youtubeLifecycle.service');
 const {
   refreshHierarchicalDataReadiness,
 } = require('./services/hierarchicalDataReadiness.service');
@@ -50,13 +55,17 @@ async function startServer() {
   startShortsSyncScheduler();
   startVideoBatchReconciliationScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
+  // 恢復排程在憑證檢查後啟動；每輪是否執行由兩層開關決定。
   verifyYouTubeCredentials()
-    .then((verified) => (verified ? recoverPendingYouTubeUploads() : null))
-    .catch(() => null);
+    .catch(() => null)
+    .then(() => startYouTubeUploadRecoveryScheduler());
+  startYouTubeCleanupScheduler();
 
   const shutdown = async () => {
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
+    stopYouTubeUploadRecoveryScheduler();
+    stopYouTubeCleanupScheduler();
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

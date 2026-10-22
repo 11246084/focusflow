@@ -85,6 +85,15 @@
 }
 ```
 
+### 1.x FAQ 快取
+
+FAQ 快取保留可重用的答案，API 與 LINE 共用（`faqs` 集合＋`faqCache.service.js`）：
+
+- **命中條件**：正規化後文字完全相同直接命中；否則以問題向量和課程 FAQ 比較餘弦相似度，達 `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）即命中，跳過向量搜尋與模型生成。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。
+- **寫入條件**：只快取 runtime ready 且沒有對話歷史的回答。`answerGeneration.service.js` 的 `isNoAnswerReply()` 辨識「答不出來」的罐頭回覆（`NO_ANSWER_INSUFFICIENT`、`NO_ANSWER_UNDETERMINED`），這類回覆不快取。改罐頭文案時改常數，不改提示詞內的字面字串；提示詞只插入 `NO_ANSWER_INSUFFICIENT`，`NO_ANSWER_UNDETERMINED` 只用來辨識改版前的舊答案。
+- **失效**：沒有 TTL，只在影片刪除、影片重新處理完成、課程刪除、影片掛載到課程或自課程移除時清除該課程快取；單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時淘汰 `hitCount` 最低者。人工清除用 `DELETE /api/v1/courses/:courseId/faqs`，執行前確認授權與目標課程。
+- **修改注意**：改 QA 回應格式時，命中路徑 `respondFromFaqCache` 要同步；測試非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
+
 ## 2. Video / Course 顯示狀態
 
 影片列表與 QA 需要分開看：
@@ -103,6 +112,13 @@
 - 學生 Recent Queries：保留歷史，若來源不存在顯示「內容已下架」。
 - 老師 Top Segments：只顯示仍可操作的影片片段，過濾已刪除來源。
 - 管理員 Recent Events：保留稽核歷史，若來源不存在顯示已刪除標籤。
+
+### 2.x 影片資料來源與片段綁定
+
+`videos` 是混合集合：課程影片有 `courseId`、`uploadedBy`、`title`、`processing.status`；只有 `video_id` 或 `videoId` 的是 Pipeline 處理資訊，不是課程影片。
+
+- **文字片段**：[範圍服務](../src/services/bridgeScope.service.js)依「課程可存取影片 → `String(videos._id)` → `video_segments_text.videoId`」建立允許範圍；`addVideoIdentifiers` 只加入影片 `_id`。
+- **影像片段**：以 `video_segments_video.video_id = String(videos._id)` 綁定課程影片，欄位仍是 snake_case；舊 `video_001` 類識別碼另有檔名／路徑配對邏輯。兩者的識別碼規則不能互相套用。
 
 ## 3. Clip / Shorts 契約（部分已實作）
 
@@ -284,7 +300,8 @@ Phase 2 自動上傳流程定義如下：
    - `YOUTUBE_UPLOAD_PRIVACY_STATUS=unlisted`
 7. YouTube 上傳失敗只更新 `youtubeUpload` lifecycle，processing 維持 `completed`，本機播放來源也保留。
 8. 只有在 YouTube upload 與 processing 都完成後，才允許清理 `backend/uploads` 原始檔；清理前先把播放欄位切到 YouTube，並拒絕 `UPLOAD_DIR` 外路徑或仍被其他 Video 共用的檔案。
-9. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。啟動後發現 stale `uploading` 也只隔離並要求人工確認 YouTube Studio，不自動重送。
+   短影片成品（`ShortAsset`）同一套排程清理，但只清**已上架或已封存**且 YouTube 上傳完成的成品，保留期從 `youtubeUpload.uploadedAt` 起算，也拒絕與其他成品或影片共用的檔案。清理後 `filePath` **保留**，改記 `youtubeUpload.localCleanupAt`（失敗記 `localCleanupError`），因為上傳排程、退回轉私人與核准上架都以 `filePath` 有值判斷是否為教師上傳的成品；之後重新上傳會回 `SHORT_ASSET_SOURCE_FILE_MISSING`。短片不提供補回原片。短片上傳 YouTube 時描述欄末尾固定加一行 `(FocusFlow short <成品ID>)`，供管理員比對頻道上傳清單；依據見[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #28～#32。
+9. OAuth/session 建立等「確認尚未傳送影片 bytes」的失敗才可有限重試；上傳串流開始後的錯誤一律標記 `retrySafe=false`。恢復排程發現卡在 `uploading` 的項目也只隔離、不自動重送，交由管理員在待處理清單收尾（見 4.1）。
 
 建議環境變數：
 
@@ -297,11 +314,16 @@ YOUTUBE_UPLOAD_ACCESS_TOKEN=
 YOUTUBE_UPLOAD_PRIVACY=unlisted
 YOUTUBE_UPLOAD_CATEGORY_ID=27
 YOUTUBE_UPLOAD_RECOVERY_ENABLED=false
+YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS=300000
 YOUTUBE_UPLOAD_MAX_ATTEMPTS=3
 YOUTUBE_UPLOAD_RETRY_BASE_MS=60000
 YOUTUBE_UPLOAD_RECOVERY_BATCH_SIZE=5
 YOUTUBE_UPLOAD_STUCK_AFTER_MS=900000
 YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
+YOUTUBE_UPLOAD_CLEANUP_INTERVAL_MS=3600000
+YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS=180
+YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB=10
+YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 ```
 
 預設策略：
@@ -309,7 +331,34 @@ YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
 - `visibility`：`unlisted`，避免公開發布未審核影片。
 - Shorts：不要自動判定；由 Clip/Shorts job 決定是否發布為 Shorts。
 - playlist：可選，等課程/教師分流策略定版後再啟用。
-- recovery 與 uploads 清理：兩個 feature flag 都預設關閉；先觀察 `/health.runtime.youtubeUpload` 與持久化的 `youtubeUpload` 狀態，再由部署者明確開啟。
+- recovery 與 uploads 清理：兩個 feature flag 都預設關閉；先觀察 `/health.runtime.youtubeUpload` 與持久化的 `youtubeUpload` 狀態，再由部署者明確開啟。上傳、恢復、清理都是兩層開關（環境變數＋管理員執行期開關），規則見[功能開關](feature-flags.md)。
+
+### 4.1 恢復、隔離收尾與原片清理
+
+設計依據見[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md)；request／response schema 以 [OpenAPI](openapi.yaml) 為準。
+
+| 方法與路徑 | 用途 | 權限 |
+|---|---|---|
+| `GET`／`PATCH /admin/youtube-lifecycle/settings` | 三個開關的環境允許、執行期設定、實際生效值與原因，加最近 50 筆修改紀錄；`PATCH { key, enabled }` 回傳與 `GET` 相同的完整內容 | admin |
+| `GET /admin/youtube-lifecycle/cleanup-preview?scope=enable\|upcoming` | 啟用清理後會立即刪除的清單，或 7 天內到期的清單 | admin |
+| `POST /admin/youtube-lifecycle/recovery/run` | 立即執行一輪恢復；`skipped` 是撈到但這一輪沒處理的筆數。整輪沒有執行時回 `409 YOUTUBE_RECOVERY_NOT_RUN`，`error.details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running` | admin |
+| `GET /admin/youtube-quarantine` | 待處理清單：`youtubeUpload.status=failed`、尚無 YouTube ID 的影片與短片，每筆 `reason` 標示原因：`quarantined`＝`retrySafe` 不是 `true`；`retry_limit`＝`retrySafe=true` 但 `attemptCount` 已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`。`data.searchable` 表示憑證能否讀頻道 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/lookup` | 只接受 `quarantined`：用描述標記比對自家頻道上傳清單，只回傳 `{ searchable, matches }`，最多往回看 1000 支 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/apply` | 只接受 `quarantined`：`{ youtubeVideoId }`，先向 YouTube 確認影片存在、屬於自家頻道且未被其他項目使用，再標成上傳完成並切換播放；完成後通知上傳的教師 | admin |
+| `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 兩種原因都接受：確定沒有上傳、或已達上限且原因已排除時使用，重設為可安全重試、次數歸零、重試時間設為現在，由恢復排程重新上傳；完成後通知上傳的教師 | admin |
+| `POST /videos/:videoId/source/restore` | 補回原片（multipart 欄位 `video`）：只接受已清理的影片，影片 ID 不變、不重新上傳 YouTube，保留期從補回時間起算 | 課程教師、admin |
+
+- 查詢與套用需要讀自家頻道的權限（`youtube.force-ssl`）；憑證只有 `youtube.upload` 時，查詢回 `searchable: false`，套用會回 `502 YOUTUBE_QUARANTINE_VERIFY_FAILED`。
+- `retry_limit` 的失敗都發生在送出影片內容之前，YouTube 上確定沒有這支，所以不提供查詢與套用（回 `409 YOUTUBE_QUARANTINE_NOT_ALLOWED`），只能重設（[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #34）。教師重試已達上限的項目仍回 `409 YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED`，畫面提示已通知管理員。
+- 影片或短片被隔離、或最後一次可安全重試的失敗達到上限時，通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
+- 課程影片清單與 `GET /admin/videos` 的每支影片附 `sourceAvailable`；前端只有在 `sourceAvailable=false` 且有 `youtubeUpload.localCleanupAt` 時才視為原片已清理並提供補回。
+- 系統狀態 `/admin/system-status` 另有 `youtube_lifecycle` 列，顯示待處理與 7 天內到期刪除的數量。
+
+權限與隱私限制：
+
+- 刪除影片時轉為私人影片，需 OAuth 權限屬於[上傳服務](../src/services/youtubeUpload.service.js)的 `PRIVACY_CAPABLE_SCOPES`（例如 `youtube.force-ssl`）；只有 `youtube.upload` 不足以轉私人。
+- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片；轉私人失敗只記錄錯誤、不中斷系統刪除，所以不能保證 YouTube 影片必定下架。
+- `unlisted` 是知道連結即可觀看；課程權限不能阻止取得連結的人轉貼。
 
 ## 5. 已完成與待定版
 
@@ -321,6 +370,7 @@ YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
 - 同課程重複 YouTube URL 與相同 mp4 SHA-256 防呆。
 - 本機檔案 YouTube auto-upload adapter：OAuth refresh token、resumable upload、`youtubeVideoId` / `videoUrl` 寫回路徑與測試。
 - YouTube 上傳有限恢復與安全清理：`POST /videos/:videoId/youtube-upload/retry`、pre-byte-only retry、stale upload quarantine、attempt/backoff 狀態、完成後 path/shared-reference guard，以及 health diagnostics；recovery/cleanup 預設關閉。
+- YouTube 恢復與清理第二版（2026-10-20，本機測試）：兩層開關、定期恢復與清理排程、管理員隔離收尾、刪除預告、補回原片、短片成品納入，見 4.1。
 - `db:ensure-questions` / `db:backfill-questions` scripts 補齊。
 - `/health.runtime.qa.costControl` 監控 snapshot，顯示 guardrails 是否啟用與 UTC 月重置口徑。
 - `/health.runtime.multimodal` 監控 snapshot，顯示 `video_segments_video` / `video_embedding_index` 狀態與目前 QA 接入邊界。
@@ -331,7 +381,7 @@ YOUTUBE_UPLOAD_CLEANUP_ENABLED=false
 
 待定版：
 
-- recovery／cleanup feature flag 開啟後的正式環境長期觀察（本輪沒有呼叫 YouTube live API，也沒有清正式檔案）。
+- recovery／cleanup 開啟後的正式環境驗收與長期觀察（本機測試只用測試替身，沒有呼叫 YouTube live API，也沒有清正式檔案）。
 - 跨課程共用同一支影片的多對多資料模型。
 - mixed `videos` collection 是否拆分為 app-owned / pipeline-owned 實體 collection。
 - Clip candidate/job、自動選片、FFmpeg／字幕、Short 發布與教師管理 endpoints/background workers。

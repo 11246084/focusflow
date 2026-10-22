@@ -6,7 +6,7 @@
 >
 > 本文件只記錄低頻變動的架構。功能完成度、部署可用性與待辦放在 [docs/current-status.md](docs/current-status.md)；重要決策與原因放在 [docs/decision-log.md](docs/decision-log.md)。
 >
-> `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 只供歷史參考，不是目前資料契約。
+> `docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md` 只供歷史參考，不是目前資料契約。
 
 ### 閱讀捷徑（How to Read This Document）
 
@@ -399,7 +399,7 @@ sequenceDiagram
     W-->>L: Reply message + timestamp link/instruction
 ```
 
-LINE 對話狀態存在 User 文件：`lineConversationState`、最近三輪的 `lineConversationHistory` 與 `activeCourseId`。撤銷資格時必須同步清除失效 scope 與對話上下文。
+LINE 對話狀態存在 User 文件：`lineConversationState`、依 `MAX_CONVERSATION_TURNS × 2` 保留近期訊息的 `lineConversationHistory`（設定見 `backend/src/config/env.js`）與 `activeCourseId`。切換課程時只列有效修課且課程為 `published` 的選項，選單最多 4 筆；課程已發布不等於使用者有修課權限。撤銷資格時必須同步清除失效 scope 與對話上下文。
 
 ### 4.5 Stable Embedding 與 Hierarchical Retrieval 安全門
 

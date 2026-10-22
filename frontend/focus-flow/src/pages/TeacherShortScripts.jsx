@@ -1161,7 +1161,7 @@ export default function TeacherShortScripts() {
                               ) : (
                                 <div style={{ ...MUTED, marginTop: 4, lineHeight: 1.7 }}>
                                   這次失敗可能已經送出影片內容，直接重試會在頻道留下重複影片。
-                                  請先到 YouTube Studio 確認後再決定。
+                                  需由管理員確認 YouTube 是否已收到，處理後會自動更新。
                                 </div>
                               )}
                             </div>

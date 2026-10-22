@@ -1,17 +1,20 @@
 # 歷史歸檔
 
-本區資料保留供追溯，不作目前功能完成或正式部署的依據。2026-09-13 整理未刪除任何既有檔案。
+本區保留歷史原文供追溯，不作目前功能或部署的依據。請依下表找當時紀錄，現況查[狀態正本](../current-status.md)。
 
-| 目錄 | 歸檔理由 |
+| 目錄 | 內容 |
 |---|---|
-| [manual-drafts](manual-drafts/) | 既有手冊／簡介草稿，保留原版本路徑線索 |
-| [frontend-progress](frontend-progress/) | 早期前端 PDF 進度快照 |
-| [chat-history](chat-history/) | 歷史 AI 對話、除錯與研究材料 |
-| [learning-reports](learning-reports/) | Keras／深度學習學習資料，原子目錄關係保留 |
-| [external-examples](external-examples/) | 其他組別／學制的參考，不作 FocusFlow 實作證據或四技部規範 |
-| [retired-features](retired-features/) | 供未來正式下線功能使用；本次未將現有功能判為下線 |
-| [duplicates](duplicates/) | 搬移前 SHA-256 完全相同的 21 個額外副本，保留原始內容 |
+| [snapshots](snapshots/) | 有日期的專案快照、差距盤點與舊代理入口 |
+| [docs-reorganization](docs-reorganization/) | 文件搬移對照、手冊圖片盤點與重整規格 |
+| [superseded](superseded/) | 已過期 MongoDB 契約、舊短片前端方案與 recut 原型紀錄 |
+| [chat-history](chat-history/) | 歷史對話、除錯與研究材料 |
+| [learning-reports](learning-reports/) | 後端理解筆記；舊 Keras／深度學習週報已移雲端 |
+| [external-examples](external-examples/) | 常參考的 AI底家（114402）、救「舊」我的書（115414）、動起來「揪」對了（114414）手冊；不作本專案事實來源 |
 
-同名但內容不同的檔案仍分別保留。全部來源、去向、相同副本主要版本與雜湊見 [搬移清單](../10_Project_History/docs-reorganization-2026-09-13.md)。
+例：追查舊資料庫契約 → 開啟 `superseded/` 原件 → 回到現行資料庫文件核對，不能直接套用舊 importer。
 
-需要刪除或取代歸檔內容時，先檢查引用與用途，再由團隊確認。本次只整理與保留。
+## 雲端與歷史保留
+
+初評前的手冊草稿 v1～v5、簡介草稿、期末簡報 PDF 已於 2026-10-18 移出 repo；草稿 v1、v5、簡介草稿與 0611 期末簡報在「學校專題/02_初評資料/系統手冊/草稿/」，草稿 PDF 在「02_初評資料/系統手冊/」「02_初評資料/系統簡介/」，v3、v4 從 Git 歷史取回。0407～0423 前端快照在「學校專題/99_開發資料/前端進度/」；32 個學習週報檔案在「學校專題/98_專題歷程/」，子資料夾結構不變；其他組手冊與簡報在「學校專題/99_參考專題/」。
+
+2026-10-18 刪除原相同副本 21 份，必要時從 Git 歷史取回；同名但不同內容的檔案分別保留。既有搬移與雜湊見[2026-09-13 搬移紀錄](docs-reorganization/docs-reorganization-2026-09-13.md)。歷史原文中的舊連結保留原樣；刪除與取代原件需團隊確認。

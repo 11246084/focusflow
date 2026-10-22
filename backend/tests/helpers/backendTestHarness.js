@@ -38,6 +38,7 @@ const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
+const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
@@ -46,6 +47,7 @@ const Conversation = require('../../src/models/conversation.model');
 const Message = require('../../src/models/message.model');
 const Feedback = require('../../src/models/feedback.model');
 const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
+const RuntimeSetting = require('../../src/models/runtimeSetting.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -65,6 +67,7 @@ const store = {
   questions: [],
   lineBindTokens: [],
   faqs: [],
+  openEduVideos: [],
   shortAssets: [],
   shortScripts: [],
   notifications: [],
@@ -72,6 +75,7 @@ const store = {
   messages: [],
   feedbacks: [],
   feedbackAttachments: [],
+  runtimeSettings: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
@@ -186,7 +190,12 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
   if (update.$push) {
     for (const [key, value] of Object.entries(update.$push)) {
       const currentValue = getNested(target, key);
-      const nextValue = Array.isArray(currentValue) ? [...currentValue, value] : [value];
+      const pushed = value && typeof value === 'object' && Array.isArray(value.$each) ? value.$each : [value];
+      let nextValue = Array.isArray(currentValue) ? [...currentValue, ...pushed] : [...pushed];
+      // 支援 { $each, $slice: -N } 只保留最後 N 筆。
+      if (value && typeof value === 'object' && Number.isInteger(value.$slice) && value.$slice < 0) {
+        nextValue = nextValue.slice(value.$slice);
+      }
       setNested(target, key, nextValue);
     }
   }
@@ -257,7 +266,15 @@ function matchesQuery(document, query = {}) {
         return false;
       }
 
-      if ('$gte' in value && new Date(currentValue).getTime() < new Date(value.$gte).getTime()) {
+      // 與 MongoDB 一致：缺欄位或 null 不符合 $gte。
+      if ('$gte' in value && (currentValue == null
+        || new Date(currentValue).getTime() < new Date(value.$gte).getTime())) {
+        return false;
+      }
+
+      // 與 MongoDB 一致：缺欄位或 null 不符合 $lte。
+      if ('$lte' in value && (currentValue == null
+        || new Date(currentValue).getTime() > new Date(value.$lte).getTime())) {
         return false;
       }
 
@@ -673,6 +690,7 @@ function installModelStubs() {
     },
   );
   Video.findOne = async (query = {}) => store.videos.find((item) => matchesQuery(item, query)) || null;
+  Video.countDocuments = async (query = {}) => store.videos.filter((item) => matchesQuery(item, query)).length;
   Video.findById = (id) => createQuery(
     store.videos.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
     {
@@ -1022,6 +1040,10 @@ function installModelStubs() {
     return document;
   };
 
+  OpenEduVideo.find = (query = {}) => createQuery(
+    store.openEduVideos.filter((item) => matchesQuery(item, query)),
+  );
+
   Faq.find = (query = {}) => createQuery(store.faqs.filter((item) => matchesQuery(item, query)));
   Faq.findOne = async (query = {}) => store.faqs.find((item) => matchesQuery(item, query)) || null;
   Faq.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(
@@ -1073,6 +1095,8 @@ function installModelStubs() {
         uploadedAt: null,
         failedAt: null,
         retrySafe: false,
+        localCleanupAt: null,
+        localCleanupError: null,
       },
       ...payload,
     };
@@ -1080,6 +1104,7 @@ function installModelStubs() {
     return asset;
   };
   ShortAsset.find = (query = {}) => createQuery(store.shortAssets.filter((item) => matchesQuery(item, query)));
+  ShortAsset.countDocuments = async (query = {}) => store.shortAssets.filter((item) => matchesQuery(item, query)).length;
   ShortAsset.findById = (id) => createQuery(
     store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
   );
@@ -1193,6 +1218,16 @@ function installModelStubs() {
     store.feedbackAttachments.find((item) => matchesQuery(item, query)) || null
   );
 
+  RuntimeSetting.findOne = (query = {}) => createQuery(
+    store.runtimeSettings.find((item) => matchesQuery(item, query)) || null,
+  );
+  RuntimeSetting.find = (query = {}) => createQuery(
+    store.runtimeSettings.filter((item) => matchesQuery(item, query)),
+  );
+  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => createQuery(
+    findOneAndUpdateInStore(store.runtimeSettings, query, update, options),
+  );
+
   Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
   Avatar.findOneAndUpdate = async (query, update, options = {}) => {
     if (store.nextAvatarWriteError) {
@@ -1224,6 +1259,7 @@ function resetStore() {
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
   store.faqs.length = 0;
+  store.openEduVideos.length = 0;
   store.shortAssets.length = 0;
   store.shortScripts.length = 0;
   store.notifications.length = 0;
@@ -1231,6 +1267,7 @@ function resetStore() {
   store.messages.length = 0;
   store.feedbacks.length = 0;
   store.feedbackAttachments.length = 0;
+  store.runtimeSettings.length = 0;
   store.nextUserCreateError = null;
   store.nextUserFindByIdAndUpdateError = null;
   store.nextAvatarWriteError = null;

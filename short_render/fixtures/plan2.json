@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "recut-v1",
+  "canvas": { "width": 720, "height": 1280, "fps": 30 },
+  "layout": "panel-over-teacher",
+  "source": { "videoId": "fixture-video-5", "teacherRegion": { "x": 1520, "y": 272, "w": 359, "h": 268 } },
+  "title": { "tag": "AI 課｜概念解析", "text": "Siri 怎麼聽懂一句話？" },
+  "clips": [
+    { "id": "q1", "chunkIds": ["fx5_c01"], "cut": "exact", "from": { "text": "最經典的案例" }, "to": { "text": "附近有哪些餐廳" } },
+    { "id": "q2", "chunkIds": ["fx5_c04"], "from": { "text": "其中最重要的字是餐廳" }, "to": { "text": "你要找的是餐廳" } },
+    { "id": "q3", "chunkIds": ["fx5_c04"], "from": { "text": "但是如果他不能理解" }, "to": { "text": "有可能會發生什麼事" } },
+    { "id": "q5", "chunkIds": ["fx5_c04", "fx5_c05"], "cut": "exact", "from": { "text": "舉例來講你在台北" }, "to": { "text": "你中午要吃飯" } },
+    { "id": "q6", "chunkIds": ["fx5_c05"], "from": { "text": "有什麼餐廳推薦" }, "to": { "text": "高雄夢時代裡面的餐廳" } },
+    { "id": "q7", "chunkIds": ["fx5_c06"], "from": { "text": "這個就很尷尬了" }, "to": { "text": "從高雄殺到台北" } },
+    { "id": "q8", "chunkIds": ["fx5_c06"], "from": { "text": "所以附近這兩個字" }, "to": { "text": "很重要" } },
+    { "id": "q9", "chunkIds": ["fx5_c07", "fx5_c08"], "from": { "text": "第一個重要的是餐廳" }, "to": { "text": "補充這個餐廳" } },
+    { "id": "q10", "chunkIds": ["fx5_c08"], "from": { "text": "他要能理解" }, "to": { "text": "字的關聯" } },
+    { "id": "q11", "chunkIds": ["fx5_c08"], "from": { "text": "然後才能夠" }, "to": { "text": "把對的結果找出來" } }
+  ],
+  "subtitles": [
+    { "clip": "q1", "from": { "text": "最經典的案例" }, "runs": [{ "t": "經典案例：問 " }, { "t": "Siri", "hl": true }] },
+    { "clip": "q1", "from": { "text": "請問附近" }, "runs": [{ "t": "附近有哪些餐廳", "hl": true }, { "t": "？" }] },
+    { "clip": "q2", "from": { "text": "其中最重要" }, "runs": [{ "t": "最重要的字是" }, { "t": "餐廳", "hl": true }] },
+    { "clip": "q2", "from": { "text": "因為你要找" }, "runs": [{ "t": "因為你要找的是餐廳" }] },
+    { "clip": "q3", "from": { "text": "但是如果他不能理解" }, "runs": [{ "t": "但如果看不懂" }, { "t": "字與字的關係", "hl": true }] },
+    { "clip": "q3", "from": { "text": "他只看到餐廳" }, "runs": [{ "t": "只看到" }, { "t": "餐廳", "hl": true }] },
+    { "clip": "q3", "from": { "text": "有可能會發生" }, "runs": [{ "t": "會發生什麼事？" }] },
+    { "clip": "q5", "from": { "text": "舉例來講" }, "runs": [{ "t": "你在" }, { "t": "台北", "hl": true }, { "t": "，中午要吃飯" }] },
+    { "clip": "q6", "from": { "text": "有什麼餐廳推薦" }, "runs": [{ "t": "問：有什麼餐廳推薦？" }] },
+    { "clip": "q6", "from": { "text": "結果他推薦" }, "runs": [{ "t": "他推薦" }, { "t": "高雄夢時代", "hl": true }] },
+    { "clip": "q7", "from": { "text": "這個就很尷尬了" }, "runs": [{ "t": "這就很" }, { "t": "尷尬", "hl": true }, { "t": "了" }] },
+    { "clip": "q7", "from": { "text": "為了吃個午飯" }, "runs": [{ "t": "為了吃個午飯" }] },
+    { "clip": "q7", "from": { "text": "從台北殺到高雄" }, "runs": [{ "t": "台北殺到高雄", "hl": true }, { "t": "？" }] },
+    { "clip": "q8", "from": { "text": "所以附近" }, "runs": [{ "t": "附近", "hl": true }, { "t": "這兩個字很重要" }] },
+    { "clip": "q9", "from": { "text": "第一個重要的是餐廳" }, "runs": [{ "t": "第一個重要的是" }, { "t": "餐廳", "hl": true }] },
+    { "clip": "q9", "from": { "text": "這個附近是用來" }, "runs": [{ "t": "附近", "hl": true }, { "t": "是用來補充餐廳的" }] },
+    { "clip": "q10", "from": { "text": "他要能理解" }, "runs": [{ "t": "要理解" }, { "t": "字與字的關聯", "hl": true }] },
+    { "clip": "q11", "from": { "text": "然後才能夠" }, "runs": [{ "t": "才能把" }, { "t": "對的結果", "hl": true }, { "t": "找出來" }] }
+  ],
+  "scenes": [
+    {
+      "id": "s0", "clips": ["q1"], "component": "quote-reveal", "basedOn": ["fx5_c01"],
+      "params": { "label": "Siri", "text": "請問附近有哪些餐廳？" },
+      "cues": { "label": { "text": "如果你去問" }, "text": { "text": "請問附近" } }
+    },
+    {
+      "id": "s1", "clips": ["q2"], "component": "chips", "basedOn": ["fx5_c04"],
+      "params": { "chips": ["附近", "有", "哪些", "餐廳"], "note": "哪個字最重要？", "caption": "你要找的是「餐廳」", "highlight": [3] },
+      "cues": { "note": { "text": "最重要的字" }, "hl3": { "text": "是餐廳", "offset": 0.1 }, "caption": { "text": "你要找的是" } }
+    },
+    {
+      "id": "s2", "clips": ["q3"], "component": "chips", "basedOn": ["fx5_c04"],
+      "params": { "chips": ["附近", "有", "哪些", "餐廳"], "note": "只看到「餐廳」……", "question": true, "dimKeep": 3 },
+      "cues": { "note": { "text": "字跟字之間" }, "dim": { "text": "只看到餐廳" }, "q": { "text": "發生什麼事" } }
+    },
+    {
+      "id": "s3", "clips": ["q5", "q6"], "component": "compare", "basedOn": ["fx5_c04", "fx5_c05"],
+      "params": {
+        "left": { "label": "你在", "value": "台北" },
+        "right": { "label": "他推薦", "value": "高雄夢時代", "bad": true },
+        "link": "→", "mark": "✕"
+      },
+      "cues": {
+        "left": { "text": "你在台北", "clip": "q5" },
+        "right": { "text": "高雄夢時代", "clip": "q6" },
+        "mark": { "text": "餐廳", "clip": "q6", "nth": 2 }
+      }
+    },
+    {
+      "id": "s4", "clips": ["q7"], "component": "checklist", "basedOn": ["fx5_c06"],
+      "params": { "head": "只為了吃個午飯？", "items": ["台北 → 高雄", "高雄 → 台北"], "mark": "none" },
+      "cues": {
+        "head": { "text": "為了吃個午飯" }, "item0": { "text": "從台北殺到高雄" }, "item1": { "text": "從高雄殺到台北" },
+        "stamp": { "text": "尷尬" }
+      },
+      "stamp": { "text": "尷尬" }
+    },
+    {
+      "id": "s5", "clips": ["q8"], "component": "rows", "basedOn": ["fx5_c06"],
+      "params": { "rows": [{ "tokens": [{ "t": "附近", "style": "huge" }] }, { "tokens": [{ "t": "兩個字，很重要", "style": "mid" }] }] },
+      "cues": { "r0t0": { "text": "附近" }, "r1t0": { "text": "很重要" } }
+    },
+    {
+      "id": "s6", "clips": ["q9"], "component": "compare", "basedOn": ["fx5_c07", "fx5_c08"],
+      "params": { "left": { "value": "附近" }, "right": { "value": "餐廳", "highlight": true }, "link": "補充" },
+      "cues": { "right": { "text": "餐廳" }, "left": { "text": "附近" }, "link": { "text": "補充" } }
+    },
+    {
+      "id": "s7", "clips": ["q10"], "component": "relation", "basedOn": ["fx5_c08"],
+      "params": { "words": ["附近", "有哪些", "餐廳"], "note": "字與字的「關聯」" },
+      "cues": {
+        "w0": { "text": "這個句子" }, "w1": { "text": "之間" }, "w2": { "text": "這些字" },
+        "l0": { "text": "這些字", "offset": 0.5 }, "l1": { "text": "關聯", "offset": -0.3 }, "note": { "text": "關聯" }
+      }
+    },
+    {
+      "id": "s8", "clips": ["q11"], "component": "compare", "basedOn": ["fx5_c08"],
+      "params": { "left": { "value": "理解關聯" }, "right": { "value": "對的結果", "highlight": true }, "link": "→", "mark": "✓" },
+      "cues": { "right": { "text": "對的結果" }, "mark": { "text": "找出來" } }
+    }
+  ],
+  "endCard": { "line1": "FocusFlow", "line2": "AI 教學影片問答", "seconds": 3.6 },
+  "derived": []
+}

@@ -1,331 +1,47 @@
-# CLAUDE.md
+@AGENTS.md
 
-本檔案提供 Claude Code 在 FocusFlow 專案中的工作指引。
+# Claude Code 補充
 
-> 本文件是給 Claude Code 的操作規則；跨代理入口索引請看 [AGENTS.md](AGENTS.md)。修改規範時，兩份文件需保持一致。
-
-## 接手讀取順序
-
-Claude Code 接手任何 FocusFlow 任務時，先建立上下文，再開始修改：
-
-1. 先讀 [AGENTS.md](AGENTS.md)，確認跨 agent 入口、專案服務與文件索引。
-2. 依 `AGENTS.md` 的「按任務選讀」選擇任務相關文件。
-3. 依任務類型讀 `.claude/rules` 對應規則。
-4. 再讀實際程式碼與測試，避免只根據單一文件或舊會議紀錄推論現況。
-
-注意：
-- `docs/current-status.md` 與 `backend/docs/current-state.md` 是目前狀態入口。
-- [學生試用版後端整合文件](docs/30_Features/Student_Pilot_Backend/README.md) 是 2026 年 9 月學生試用版後端的規格、施工單與驗收證據入口；執行該任務時依資料夾內的專用權威順序工作。
-- `docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md` 僅供歷史參考，不可當成目前資料庫真相。
-- `CLAUDE.local.md` 是個人本機偏好，不是團隊共用規範。
-
-## 專屬規則
-
-進行對應任務前，先閱讀規則檔：
-
-| 任務類型 | 規則檔 |
-|----------|--------|
-| API route / controller / response / error code | `@.claude/rules/api-design.md` |
-| Mongoose schema / index / data access | `@.claude/rules/database.md` |
-| 測試或 test harness | `@.claude/rules/testing.md` |
-| JWT / password / validation / CORS | `@.claude/rules/security.md` |
-
-## 專案概述
-
-**FocusFlow** 是 AI 教學影片問答系統，2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用（試用，不是正式上線，見「不能誤稱的邊界」）：
-
-教師本地上傳影片（單一軌道，2026-07-12 起）→ backend 觸發 STT pipeline → 產生文字片段與 embedding（設定憑證時另自動上傳 YouTube）→ 學生在前端或 LINE Bot 提問 → 系統回傳 AI 答案與影片時間戳。貼 YouTube URL 的 API 保留但不在教師上傳頁露出。
-
-三個服務：
-
-- `backend/` — Node.js / Express REST API，預設 port `4000`
-- `frontend/focus-flow/` — React 19 + Vite SPA，預設 port `5173`
-- `STT_Whisper/` — Python 離線 AI Pipeline CLI
-
-最新跨服務狀態以 [docs/current-status.md](docs/current-status.md) 為準；backend 細節以 [backend/docs/current-state.md](backend/docs/current-state.md) 為準。
+共用規則以 AGENTS.md 為準；本檔只放每次工作都用得到、且讀程式看不出來的事項。`.claude/rules/` 會在修改對應路徑時自動載入，功能狀態只看[目前狀態](docs/current-status.md)。
 
 ## 常用指令
 
-### Backend
-
-首次設定：
-
 ```powershell
-cd backend
-npm install
-Copy-Item .env.example .env
+# backend/
 npm run dev
-```
-
-常用指令：
-
-```powershell
-npm start
-npm run seed
-npm run seed:reset
-npm run db:sync-atlas
 npm test
 node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
 npm run docs:lint
-```
 
-注意：
+# frontend/focus-flow/
+npm run dev; npm test; npm run lint; npm run build
 
-- `npm run seed` 是 converge baseline，不清除既有資料。
-- `npm run seed:reset` 會保守清除 demo-owned / demo-derived 痕跡後重建。
-- `db:ensure-questions`（建立 `questions` 並同步 indexes）、`db:backfill-questions`（預設 dry-run，加 `-- --write` 才寫入）的 script 檔都存在；兩者都會寫共享 DB，對 Atlas 執行前需確認目標。
-- Swagger UI 掛在 `/docs`，raw spec 掛在 `/docs/openapi.yaml`，repo 規格檔在 `backend/docs/openapi.yaml`。
-- OpenAPI 是 `/api/v1/*` 與 `/health` 的公開 API contract，涵蓋每一個實際註冊的 route；`tests/docs.routes.test.js` 從 runtime router 盤點並比對 missing／stale／method／path 參數／重複註冊，新增或刪除 route 沒同步 `openapi.yaml` 會讓 `npm test` 失敗。刻意不收錄的端點列在該測試的 `UNDOCUMENTED_BY_DESIGN`（internal processing webhook ×3、`GET /api/v1/line/webhook`），每筆要附理由。
-- `npm run docs:lint` 以 Redocly（devDependency 固定 2.54.2，設定在 `backend/redocly.yaml`）檢查 spec 結構與 example 是否符合 schema；不併入 `npm test`。逐筆例外寫在 `backend/.redocly.lint-ignore.yaml` 並附理由。
-
-### Frontend
-
-```powershell
-cd frontend\focus-flow
-npm install
-Copy-Item .env.example .env
-npm run dev
-```
-
-修改前端後至少執行：
-
-```powershell
-npm test
-npm run lint
-npm run build
-```
-
-### AI Pipeline
-
-```powershell
-cd STT_Whisper
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-Copy-Item .env.example .env
-python src/main.py --limit 1
-```
-
-Backend 自動觸發 pipeline 時會優先使用 `STT_Whisper/.venv/Scripts/python.exe`。YouTube URL MVP 需要 `yt-dlp`，已列在 `STT_Whisper/requirements.txt`。
-
-## Backend 架構
-
-遵循 `routes -> controllers -> services -> models`：
-
-```text
-backend/src/
-├── server.js          # 連 DB、seed、啟動 Express
-├── app.js             # Express 設定、middleware、docs、route mount
-├── routes/            # auth、course、video、qa、line、stats、admin、health、internal-video
-├── controllers/       # HTTP request/response layer
-├── services/          # 業務邏輯
-├── models/            # Mongoose schema
-├── middleware/        # auth、role、upload、LINE signature、error handling
-├── config/            # env.js、database.js
-├── constants/         # enum / lifecycle constants
-├── utils/             # apiResponse、AppError、ObjectId helpers
-└── scripts/           # seedDemoUsers、syncLocalMongoToAtlas、syncQuestionsToAtlas
-```
-
-Controllers 不放主要業務邏輯；新增或修改行為時，優先把規則寫進 service，controller 只負責輸入、呼叫 service、回應。
-
-## Runtime 與環境變數
-
-`backend/src/config/env.js` 的程式碼預設偏本機可跑；`backend/.env.example` 目前代表共享 demo 主線，偏 `gemini + atlas + gemini`。
-
-共享 demo 主線：
-
-```env
-QA_QUERY_EMBEDDING_PROVIDER=gemini
-QA_VECTOR_SEARCH_MODE=atlas
-QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
-QA_ATLAS_FILTER_MODE=bridge_course_or_video
-QA_ANSWER_PROVIDER=gemini
-GEMINI_CHAT_MODEL=gemini-3.5-flash
-QA_MATCH_LIMIT=15
-DEMO_SEED_ENABLED=false
-```
-
-重要邊界：
-
-- 共享 Atlas 的 `text_embedding_index`（`video_segments_text`，3072 維）狀態以連 Atlas 實查為準，不要憑文件斷言；歷史上它被記載過「不存在」也被記載過「READY」。若查到不存在，需先重建 index，否則 atlas 模式會 fail-fast。
-- 本機無 API key smoke 可改成：
-
-```env
-QA_QUERY_EMBEDDING_PROVIDER=mock
-QA_ANSWER_PROVIDER=template
-QA_VECTOR_SEARCH_MODE=memory
-```
-
-- `QA_ANSWER_PROVIDER=gemini` 時必須設定 `GEMINI_API_KEY`；缺 key 不會 fallback，會直接回設定錯誤。
-- `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock` 是不合法設定。
-- `QA_MATCH_LIMIT` 決定送進 answer prompt 的片段數，直接決定答案品質。2026-07-25 從 `3` 調成 `15`：`3` 時整門課只有約 166 字進 prompt（全課程逐字稿約 6,700 字），跨片段歸納型問題會一律回「目前資料庫片段不足以回答這個問題。」。調整這個值後既有 FAQ 快取不會失效，需手動 `DELETE /api/v1/courses/:courseId/faqs` 才看得到差異。
-- `/health` 是判斷 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload` 是否 ready 的入口，不要只看 `.env` 推測狀態。YouTube 憑證是否有效、scope 夠不夠轉 private，都要看 `/health.runtime.youtubeUpload`，不要憑 `.env` 有填就當作可用。
-
-## 部署與對外連線（VM）
-
-正式環境跑在 Rocky Linux 9 VM（`rocky101702`，`140.131.115.105`），程式在 `/opt/focusflow`（owner `focusflow`）。push 到 `main` 會由 GitHub Actions self-hosted runner 觸發 `.github/workflows/deploy.yml`：`git pull` → backend `npm install` → frontend build → `restorecon` → `pm2 restart focusflow-backend` + `systemctl reload nginx`。**push `main` 等於 production deploy。**
-
-必須知道的邊界（2026-08-04 實測）：
-
-- **`.env` 不進版控，部署不會同步。** `backend/.env` 與 `STT_Whisper/.env` 只能在 VM 上手動維護（`sudo -u focusflow`）。新增任何環境變數後，本機可跑不代表 VM 可跑——YouTube 憑證就曾只存在本機、VM 上整組缺失，直到 `/health` 才發現。判斷 VM 實際狀態一律看 `/health`，不要看 repo 的 `.env.example`。
-- nginx 服務前端靜態檔並把 `/api/` 反向代理到 `localhost:4000`；設定在 `/etc/nginx/conf.d/focusflow.conf`，另有手動加的 `upload_size.conf`（`client_max_body_size 500M`，沒有它影片上傳會被 nginx 以 413 擋掉）。443 server block 自 2026-09-18 起加了 HSTS、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`（server 層 `add_header`；日後若在 location 內新增任何 `add_header`，該 location 會不再繼承這些標頭，需一併複製）。
-- HTTPS 自 2026-09-10 起是 **Let's Encrypt 正式憑證**（`CN=YE2`，效期至 2026-12-09），nginx 讀 `/etc/nginx/ssl/focusflow.crt/.key`。學校不開放 port 80，certbot（只支援 HTTP-01）不能用，改由 acme.sh（`/opt/acme.sh`，須在 `sudo -i` 的 root shell 執行，不接受 sudo）以 TLS-ALPN-01 走 443 簽發；root cron 每日檢查、到期前自動續約，續約時會停 nginx 約 30 秒。舊的自簽 `selfsigned.*` 保留作回滾。細節見 [docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md](docs/40_Operations/deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)（含續約檢查與回滾步驟）。
-- port 80 對外不通（2026-08-12 tcpdump 證實封包未抵達 VM，技士表示不會開放）。`focusflow.conf` 的 80 block 已標 `default_server` 並 301 轉 HTTPS，但只在 VM 內部生效；判斷 80 是否通要用 `curl -v http://...`，瀏覽器會自動改走 HTTPS 造成假陽性。
-- `ngrok.service`（systemd，開機自啟）把 `chevy-cradling-elevate.ngrok-free.dev` 轉到 port 4000，繞過學校防火牆，是 LINE webhook 目前實際可用的通道。是否改走 `https://focusflow.ntub.edu.tw/api/v1/line/webhook` 需先與指導教授討論，不是試用期的阻擋項。
-- CORS 已收斂：2026-09-23 從外部實測，非白名單 Origin 的預檢請求不會拿到 `Access-Control-Allow-Origin`，`https://focusflow.ntub.edu.tw` 會拿到，代表 VM 的 `ALLOWED_ORIGINS` 已設定。
-- 正式環境的 `/health` 沒有經過 nginx 轉發（從外部打會拿到前端 HTML），要在 VM 內 `curl localhost:4000/health` 或看管理員「系統服務」頁（`GET /api/v1/admin/system-status`）。
-
-## QA / Video / LINE 邊界
-
-### QA Provider
-
-支援：
-
-- `QA_QUERY_EMBEDDING_PROVIDER`: `mock` | `openai` | `gemini`
-- `QA_ANSWER_PROVIDER`: `template` | `openai` | `gemini`
-- `QA_VECTOR_SEARCH_MODE`: `memory` | `atlas`
-
-QA 與 LINE Bot 提問都會寫入 `questions` collection，並保留 matches、runtime 與 `sourceUsageLogId`。
-
-### FAQ 快取（2026-07-13）
-
-`askQuestion` 內建兩層 FAQ 快取（`faqs` collection + `faqCache.service.js`，API 與 LINE 共用）：正規化文字完全相同直接命中（零 token）；否則以 query embedding 對課程 FAQ 比 cosine 相似度 ≥ `FAQ_CACHE_SIMILARITY_THRESHOLD`（預設 0.95）命中，跳過向量搜尋與 LLM。命中時 `runtime.faqCache.hit=true`、`answerProviderUsed='faq_cache'`，仍照常寫 `usage_logs` 與 `questions`。只快取 runtime ready 且無對話歷史的回答；影片刪除／重新處理完成／課程刪除會自動清該課程快取。修改 QA 回應格式時，快取命中路徑（`respondFromFaqCache`）需同步；測試要走非快取路徑可設 `FAQ_CACHE_ENABLED=false` 或避免同題重問。
-
-自動失效時機（`faqs` 無 TTL，只有事件驅動失效）：影片刪除、影片重新處理完成、課程刪除、影片掛載到課程（`attachVideoToCourse`）、影片自課程移除（`detachVideoFromCourse`）。另有容量淘汰：單一課程超過 `FAQ_CACHE_MAX_ENTRIES_PER_COURSE` 時砍 `hitCount` 最低的。
-
-「答不出來」的回覆不會被快取（2026-07-25 起）：`answerGeneration.service.js` 的 `isNoAnswerReply()` 比對兩個罐頭字串（`NO_ANSWER_INSUFFICIENT` / `NO_ANSWER_UNDETERMINED`），命中時 `shouldSaveFaq` 為 false。修改 prompt 的罐頭文案時改常數，不要改 prompt 內的字面字串。
-
-2026-08-30 起 prompt 只插入 `NO_ANSWER_INSUFFICIENT` 一句，且觸發條件收斂成「所有片段都沒有提到問題的主題」；`NO_ANSWER_UNDETERMINED` 留在 `isNoAnswerReply()` 只為了辨識改版前留下的舊答案，不要再把它寫回 prompt。
-
-**尚存缺口：設定 / 模型 / prompt 變更不會讓快取失效**。改 `QA_MATCH_LIMIT`、`GEMINI_CHAT_MODEL` 或 prompt 規則後，舊快取仍回舊答案，必須手動 `DELETE /api/v1/courses/:courseId/faqs`。
-
-### Video Model
-
-`videos` collection 是 mixed collection：
-
-- App-owned video：有 `courseId`、`uploadedBy`、`title`、`processing.status`
-- Pipeline metadata：有 `video_id` 或 `videoId`，但不是 app-owned
-
-QA bridge contract：
-
-```text
-course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId
-```
-
-`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` **三種 key 全部**放進 allowed set，命中任一即納入 scope。實務分佈：
-
-- App-owned 影片**沒有 `videoId` 欄位**（值為 `undefined`），pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`
-- 只有 pipeline metadata 影片才有 `videoId` / `video_id`
-
-所以查 collection 時不要用 `videos.videoId` 去 join `video_segments_text`，app-owned 影片會全部對不到（2026-07-25 排查時踩過）。要用 `String(videos._id)`。
-
-不要誤稱 `video_segments_video` 已成為正式 clip source；它目前仍是預留 / legacy 邊界，且欄位仍偏 snake_case。
-
-影像片段綁定（2026-09-29）：`video_segments_video.video_id = String(videos._id)`，由 `video_multimodal_pipeline.py --video-path … --video-id <_id> --upload` 人工產生；舊的 `video_001` 片段仍靠檔名配對。`QA_VISUAL_RETRIEVAL_ENABLED`（預設 false）開啟時影像與文字並行檢索，影像片段只作補充 citation、不進回答 prompt。共享 Atlas 是否已有綁定片段要實查，不要憑文件斷言。
-
-### Processing State Machine
-
-影片處理由 `videoProcessing.service.js` 強制狀態轉換：
-
-| 操作 | 前置狀態 | 目標狀態 |
-|------|----------|----------|
-| retry | `failed` | `queued` |
-| start webhook | `queued` | `processing` |
-| complete webhook | `processing` | `completed` |
-| fail webhook | `queued` 或 `processing` | `failed` |
-
-非法轉換回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
-
-### LINE Bot
-
-LINE Bot 在 `User` 上維護：
-
-- `lineConversationState`
-- `lineConversationHistory`，最近 6 筆訊息
-- `activeCourseId`
-
-切換課程時，選項 = 自己 enrollment ∪ 所有 `published` 課程，去重後最多顯示 4 筆。
-
-LINE live 曾端對端驗證成功，但 ngrok URL、Channel Secret、Channel Access Token 是部署時變動項。不要把暫時 ngrok URL 寫成固定正式網址。
-
-## 測試規範
-
-驗證範圍依 [AGENTS.md](AGENTS.md) 的「驗證依變更影響選擇」；以下為工具指令，不表示每次修改都跑全套。純文件只檢查文件，單一行為先跑受影響測試；跨模組、共用 harness 或發布準備跑全套，保留 CI 與任務驗收門檻。
-
-### Backend
-
-測試位於 `backend/tests/`，使用 Node 內建 `node:test`。route tests 透過 `tests/helpers/backendTestHarness.js` 的 in-memory store，不依賴真實 MongoDB。
-
-跨模組或發布準備時執行 Backend 全套：
-
-```powershell
-cd backend
-npm test
-```
-
-單一模組修改使用對應測試；若無其他受影響範圍，不必再重跑全套：
-
-```powershell
-node --test --experimental-test-isolation=none --test-concurrency=1 tests\<file>.test.js
-```
-
-### Frontend
-
-測試位於 `frontend/focus-flow/tests/`，使用 `node:test`。Frontend 完整驗證指令（依影響選擇）：
-
-```powershell
-cd frontend\focus-flow
-npm test
-npm run lint
-npm run build
-```
-
-### AI Pipeline
-
-測試位於 `STT_Whisper/tests/`（unittest）。Pipeline 完整驗證指令（依影響選擇）：
-
-```powershell
-cd STT_Whisper
+# STT_Whisper/
 .venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
 ```
 
-若變更依賴 FFmpeg、外部模型或 API key，回覆中需說明是否實際驗證。
+安裝步驟見各服務 README；驗證範圍依 [AGENTS.md](AGENTS.md#驗證依變更影響選擇) 選擇。
 
-## 開發原則
+## 容易踩的坑
 
-- 僅專注 Phase 1 MVP，不提前實作後續階段功能。
-- 優先沿用既有資料夾、命名、service pattern、response helper 與 error middleware。
-- 非必要不重新命名、不搬動大型結構、不重寫無關模組。
-- 新增 API 時維持 request/response 格式一致，補基本輸入驗證與清楚錯誤碼。
-- 修改 schema、index、資料存取前，先讀 `.claude/rules/database.md`。
-- 涉及 JWT、密碼、CORS、LINE signature、外部 webhook secret 前，先讀 `.claude/rules/security.md`。
-- 不刪除檔案或清資料，除非使用者明確要求且已確認影響。
-- 建立 git commit 時，作者一律使用本人的 git 身分，不要加 `Co-Authored-By: Claude`、`Claude-Session` 等 AI trailer（雲端 session 也適用）；AI 協助的揭露統一記在系統手冊的 AI 使用紀錄（`docs/00_Deliverables/System_Manual/README.md` 的「AI 輔助產出說明」），不放在 commit 訊息。
+- `npm run seed:reset`、`db:sync-atlas`、`db:ensure-questions`、`db:backfill-questions -- --write` 會寫入資料庫；對 Atlas 執行前確認目標。
+- 本機沒有金鑰時用 `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory`；`atlas` 搭配 `mock` 不合法，`gemini` 缺金鑰會直接報錯。
+- 服務是否可用看 `/health` 的 `runtime.*`，不看 `.env`。
+- 新增或刪除 route 要同步 `backend/docs/openapi.yaml`，否則 `tests/docs.routes.test.js` 失敗。
+- 改 QA 回應格式要同步 FAQ 快取命中路徑 `respondFromFaqCache`；比較設定或提示詞效果前先排除快取（`FAQ_CACHE_ENABLED=false`）。
+- 改「答不出來」文案時改 `NO_ANSWER_*` 常數，不改提示詞內的字面字串。
+- `docs/90_Archive/` 是歷史原文，不當成目前真相，也不改內文。
 
-## 文件更新
+## 技術參考
 
-修改功能時，檢查是否需要同步：
+| 主題 | 文件 |
+|---|---|
+| 後端分層、資料流、LINE 對話規則 | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| 資料工具、問答設定組合 | [後端 README](backend/README.md) |
+| FAQ 快取、影片與片段綁定、YouTube 權限 | [API 契約](backend/docs/phase2-api-contract.md) |
+| STT 整合與處理狀態機 | [STT 整合流程](backend/docs/stt-integration.md) |
+| 功能開關 | [功能開關](backend/docs/feature-flags.md) |
+| 技術限制與交接注意 | [後端注意事項](backend/docs/handoff-known-issues.md) |
+| 部署、nginx、憑證與連線排錯 | [部署與連線排錯](docs/10_Operations/deployment/部署與連線排錯.md) |
 
-- [README.md](README.md)
-- [docs/current-status.md](docs/current-status.md)
-- [backend/docs/current-state.md](backend/docs/current-state.md)
-- [backend/docs/openapi.yaml](backend/docs/openapi.yaml)
-- `backend/.env.example`
-- `frontend/focus-flow/README.md`
-- `STT_Whisper/README.md`
-
-若只修內部實作且對使用方式、runtime、API contract 沒影響，可以不改文件，但完成回覆中需明確說明未改文件的理由。
-
-## 不能誤稱的邊界
-
-- atlas mode 是否 ready 要連 Atlas 實查 `listSearchIndexes` 確認 `text_embedding_index` 為 READY，並需 `QA_QUERY_EMBEDDING_PROVIDER=gemini` + `GEMINI_API_KEY`；不要憑文件斷言它存在或不存在。
-- 不能把單次 LINE live smoke 說成正式部署完成。
-- 不能說所有前端功能都已 live 驗證：16 個頁面都已接 backend API，但部分功能受 feature flag 控制（例如 `SHORT_SCRIPT_AUTOMATION_ENABLED` 關閉時，短影片腳本 API 回 404）。
-- YouTube Data API 自動上傳：2026-08-02 已用真實 OAuth 憑證完成 live 端對端驗證（教師上傳 → 影片以 unlisted 出現在 FocusFlow 頻道）。feature flag `YOUTUBE_UPLOAD_ENABLED` 預設仍關閉，需 `youtube.force-ssl` scope 的 refresh token。OAuth 同意畫面同日已發布為正式版（未送 Google 驗證，授權時仍顯示未驗證警告、未驗證 app 有 100 使用者上限），refresh token 不再 7 天過期；但尚未經過長期運行觀察，不能說成「已長期穩定運作」。
-- 刪除影片／課程時轉 private（2026-08-02，`privatizeVideoOnDelete`）：同日已 live 驗證（系統刪除後 YouTube Studio 顯示「私人」）。只處理 `youtubeUpload.status === 'uploaded'` 的自家頻道影片；轉 private 失敗只記 log 不中斷刪除，所以不能說「刪除必定讓 YouTube 影片下架」。
-- 上傳預設 unlisted 是架構限制不是疏漏：private 影片無法用 iframe 嵌入播放，學生端會全部掛掉。unlisted 代表「拿到連結就能看」，不能說成「只有修課學生看得到」。
-- 不能說 `video_segments_video` 已接成正式 multimodal QA source。
-- OpenAPI 的 route 覆蓋（method + path）由 `docs.routes.test.js` 強制，但 request／response schema 與實作是否一致**沒有**自動化測試保證（Redocly 只驗 spec 本身與 example）；不能說「schema 已由測試驗證」。internal processing webhook 刻意不在公開 spec 內。
-- **對外口徑是「2026-09-21 起開放學生試用」，不是「已正式上線」**：校外可經 `https://focusflow.ntub.edu.tw` 使用（443 全球可達、Let's Encrypt 憑證受信任、CORS 已收斂、HSTS 已加）。仍屬試用的原因：學生試用驗收證據（附錄 I 的 12＋2 題）持續進行中、LINE webhook 仍走 ngrok（改正式網域待與教授討論）、port 80 對外不通（學校不開放，對外一律給 `https://` 網址）。也不能說「自動續約已驗證」——第一次實際續約預計在 2026-11-10 前後。判斷連線問題用 `tcpdump -ni ens3 'tcp[tcpflags] & tcp-syn != 0 and dst host 140.131.115.105 and (dst port 80 or dst port 443)'`，可分辨「封包沒到」與「到了被拒」；tcpdump 在防火牆之前抓封包，0 packets 代表封包沒到網卡。
+改功能時檢查是否要同步：根 README、[目前狀態](docs/current-status.md)、[後端技術索引](backend/docs/current-state.md)、OpenAPI、`backend/.env.example` 與各服務 README。

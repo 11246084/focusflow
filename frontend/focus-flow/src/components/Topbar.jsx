@@ -5,6 +5,11 @@ import { apiFetch, getUser } from '../api';
 import { getDisplayName } from '../utils/userDisplay';
 import { requestOpenScript } from '../utils/scriptDeepLink';
 import {
+  notificationTargetLabel,
+  requestOpenQuarantine,
+  resolveNotificationTarget,
+} from '../utils/notificationTarget';
+import {
   createAvatarUrlController,
   fetchCurrentUserAvatarObjectUrl,
   getAvatarVersion,
@@ -292,24 +297,18 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
     }
   }
 
-  function canOpenVideo(notification) {
-    return Boolean(notification.videoId) && notification.videoAvailable !== false;
-  }
-
   function handleNotificationClick(notification) {
     if (!notification.read) void markOneRead(notification.id);
-    if (notification.scriptId) {
+    const target = resolveNotificationTarget(notification, user.role);
+    if (!target) return;
+    if (target.scriptId) {
       // Rejection notices jump straight to the script so the teacher can regenerate it.
-      requestOpenScript({ scriptId: notification.scriptId, courseId: notification.courseIds?.[0] });
-      setNotifOpen(false);
-      onNav?.('shortScripts');
-      return;
+      requestOpenScript({ scriptId: target.scriptId, courseId: target.courseId });
     }
-    if (canOpenVideo(notification)) {
-      // 影片完成通知帶到課程頁，學生與教師的課程頁代號都是 courses。
-      setNotifOpen(false);
-      onNav?.('courses');
-    }
+    if (target.section === 'quarantine') requestOpenQuarantine();
+    // 影片完成通知帶到課程頁，學生與教師的課程頁代號都是 courses。
+    setNotifOpen(false);
+    onNav?.(target.sub);
   }
 
   async function markAllRead() {
@@ -488,7 +487,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
                       borderBottom: '1px solid rgba(0,0,0,0.06)',
                       borderLeft: n.urgent ? '3px solid #dc2626' : '3px solid transparent',
                       background: n.urgent ? 'rgba(220,38,38,0.06)' : (n.read ? 'transparent' : 'rgba(241,79,33,0.05)'),
-                      cursor: n.scriptId || canOpenVideo(n) || (!n.read && !pendingReadIds.has(n.id)) ? 'pointer' : 'default',
+                      cursor: resolveNotificationTarget(n, user.role) || (!n.read && !pendingReadIds.has(n.id)) ? 'pointer' : 'default',
                       // Read items fade so unread ones stand out at a glance.
                       opacity: pendingReadIds.has(n.id) ? 0.65 : (n.read ? 0.5 : 1),
                     }}
@@ -505,8 +504,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                       <span style={{ fontSize: 10.5, color: 'rgba(0,0,0,0.4)' }}>{formatNotificationTime(n.createdAt)}</span>
-                      {n.scriptId && <span style={{ fontSize: 11, fontWeight: 700, color: '#F14F21' }}>前往腳本 →</span>}
-                      {!n.scriptId && canOpenVideo(n) && <span style={{ fontSize: 11, fontWeight: 700, color: '#F14F21' }}>前往課程 →</span>}
+                      {resolveNotificationTarget(n, user.role) && <span style={{ fontSize: 11, fontWeight: 700, color: '#F14F21' }}>{notificationTargetLabel(resolveNotificationTarget(n, user.role))}</span>}
                       {n.videoAvailable === false && <span style={{ display: 'inline-flex', padding: '3px 9px', borderRadius: 50, fontSize: 11, fontWeight: 700, background: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.5)' }}>影片已移除</span>}
                       {n.urgent && <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 50, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>緊急</span>}
                     </div>

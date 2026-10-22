@@ -1,0 +1,860 @@
+{
+  "schemaVersion": "recut-v1",
+  "canvas": {
+    "width": 720,
+    "height": 1280,
+    "fps": 30
+  },
+  "layout": "panel-over-teacher",
+  "source": {
+    "videoId": "fixture-video-1",
+    "teacherRegion": {
+      "x": 1400,
+      "y": 317,
+      "w": 359,
+      "h": 269
+    }
+  },
+  "title": {
+    "tag": "AI 課｜算給你看",
+    "text": "訓練大模型的入門票，多少錢？"
+  },
+  "clips": [
+    {
+      "id": "p1",
+      "chunkIds": [
+        "fx1_c01"
+      ],
+      "from": {
+        "text": "你想要做一個大語言模型"
+      },
+      "to": {
+        "text": "模型的話"
+      }
+    },
+    {
+      "id": "p2",
+      "chunkIds": [
+        "fx1_c01"
+      ],
+      "from": {
+        "text": "入門門檻叫做"
+      },
+      "to": {
+        "text": "叫做"
+      }
+    },
+    {
+      "id": "p3",
+      "chunkIds": [
+        "fx1_c01"
+      ],
+      "from": {
+        "text": "200張的"
+      },
+      "to": {
+        "text": "200張的"
+      }
+    },
+    {
+      "id": "p4",
+      "chunkIds": [
+        "fx1_c01"
+      ],
+      "from": {
+        "text": "當時是A100"
+      },
+      "to": {
+        "text": "當時是A100"
+      }
+    },
+    {
+      "id": "a",
+      "chunkIds": [
+        "fx1_c03"
+      ],
+      "from": {
+        "text": "正在測一台"
+      },
+      "to": {
+        "text": "A100"
+      }
+    },
+    {
+      "id": "b",
+      "chunkIds": [
+        "fx1_c04"
+      ],
+      "from": {
+        "text": "不過我跟他的主管"
+      },
+      "to": {
+        "text": "確切金額不能講"
+      }
+    },
+    {
+      "id": "c",
+      "chunkIds": [
+        "fx1_c04"
+      ],
+      "from": {
+        "text": "他說他不能告訴我"
+      },
+      "to": {
+        "text": "六開頭一張"
+      }
+    },
+    {
+      "id": "d",
+      "chunkIds": [
+        "fx1_c05"
+      ],
+      "from": {
+        "text": "我假設算60萬"
+      },
+      "to": {
+        "text": "60萬"
+      }
+    },
+    {
+      "id": "f",
+      "chunkIds": [
+        "fx1_c05"
+      ],
+      "from": {
+        "text": "個十百千萬"
+      },
+      "to": {
+        "text": "個十百千萬"
+      }
+    },
+    {
+      "id": "g",
+      "chunkIds": [
+        "fx1_c05"
+      ],
+      "from": {
+        "text": "這算出來是這樣"
+      },
+      "to": {
+        "text": "單位是1"
+      }
+    },
+    {
+      "id": "h",
+      "chunkIds": [
+        "fx1_c06"
+      ],
+      "from": {
+        "text": "這還叫做入門門檻"
+      },
+      "to": {
+        "text": "光顯卡"
+      }
+    },
+    {
+      "id": "i",
+      "chunkIds": [
+        "fx1_c06"
+      ],
+      "from": {
+        "text": "還不算機房"
+      },
+      "to": {
+        "text": "光顯卡",
+        "nth": 2
+      }
+    },
+    {
+      "id": "j",
+      "chunkIds": [
+        "fx1_c06"
+      ],
+      "from": {
+        "text": "這叫入門的門票"
+      },
+      "to": {
+        "text": "這叫入門的門票"
+      }
+    }
+  ],
+  "subtitles": [
+    {
+      "clip": "p1",
+      "from": {
+        "text": "你想要做"
+      },
+      "runs": [
+        {
+          "t": "想做"
+        },
+        {
+          "t": "大語言模型",
+          "hl": true
+        },
+        {
+          "t": "？"
+        }
+      ]
+    },
+    {
+      "clip": "p2",
+      "from": {
+        "text": "入門門檻"
+      },
+      "runs": [
+        {
+          "t": "入門門檻："
+        },
+        {
+          "t": "200 張",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "p4",
+      "from": {
+        "text": "當時是A100"
+      },
+      "runs": [
+        {
+          "t": "A100",
+          "hl": true
+        },
+        {
+          "t": " 顯卡"
+        }
+      ]
+    },
+    {
+      "clip": "a",
+      "from": {
+        "text": "正在測一台"
+      },
+      "runs": [
+        {
+          "t": "一台"
+        },
+        {
+          "t": "伺服器",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "a",
+      "from": {
+        "text": "上面就"
+      },
+      "runs": [
+        {
+          "t": "插了"
+        },
+        {
+          "t": "四張 A100",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "b",
+      "from": {
+        "text": "不過我跟他的主管"
+      },
+      "runs": [
+        {
+          "t": "主管幫忙探聽了一下"
+        }
+      ]
+    },
+    {
+      "clip": "b",
+      "from": {
+        "text": "確切金額"
+      },
+      "runs": [
+        {
+          "t": "確切金額，"
+        },
+        {
+          "t": "不能講",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "c",
+      "from": {
+        "text": "他說他不能告訴我"
+      },
+      "runs": [
+        {
+          "t": "他不能告訴我"
+        }
+      ]
+    },
+    {
+      "clip": "c",
+      "from": {
+        "text": "但是大致在"
+      },
+      "runs": [
+        {
+          "t": "但大致是"
+        },
+        {
+          "t": "六開頭",
+          "hl": true
+        },
+        {
+          "t": "一張"
+        }
+      ]
+    },
+    {
+      "clip": "d",
+      "from": {
+        "text": "我假設算"
+      },
+      "runs": [
+        {
+          "t": "假設一張 "
+        },
+        {
+          "t": "60 萬",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "f",
+      "from": {
+        "text": "個十百千萬"
+      },
+      "runs": [
+        {
+          "t": "個、十、百、千、"
+        },
+        {
+          "t": "萬",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "g",
+      "from": {
+        "text": "這算出來"
+      },
+      "runs": [
+        {
+          "t": "算出來是這樣"
+        }
+      ]
+    },
+    {
+      "clip": "h",
+      "from": {
+        "text": "這還叫做入門門檻"
+      },
+      "runs": [
+        {
+          "t": "這還只是"
+        },
+        {
+          "t": "入門門檻",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "h",
+      "from": {
+        "text": "而且是光顯卡"
+      },
+      "runs": [
+        {
+          "t": "而且"
+        },
+        {
+          "t": "只算顯卡",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "i",
+      "from": {
+        "text": "還不算機房"
+      },
+      "runs": [
+        {
+          "t": "不算機房、不算伺服器"
+        }
+      ]
+    },
+    {
+      "clip": "i",
+      "from": {
+        "text": "還不算工程師"
+      },
+      "runs": [
+        {
+          "t": "不算工程師、不算電力"
+        }
+      ]
+    },
+    {
+      "clip": "i",
+      "from": {
+        "text": "全部都不算"
+      },
+      "runs": [
+        {
+          "t": "全部都不算",
+          "hl": true
+        }
+      ]
+    },
+    {
+      "clip": "j",
+      "from": {
+        "text": "這叫入門"
+      },
+      "runs": [
+        {
+          "t": "這叫"
+        },
+        {
+          "t": "入門的門票",
+          "hl": true
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s0",
+      "clips": [
+        "p1",
+        "p2",
+        "p3",
+        "p4"
+      ],
+      "component": "stat",
+      "basedOn": [
+        "fx1_c01"
+      ],
+      "params": {
+        "label": "訓練大語言模型",
+        "kicker": "入門門檻",
+        "value": 200,
+        "unit": "張",
+        "badge": "A100"
+      },
+      "cues": {
+        "label": {
+          "text": "大語言模型",
+          "clip": "p1"
+        },
+        "kicker": {
+          "text": "入門門檻",
+          "clip": "p2"
+        },
+        "value": {
+          "text": "200張",
+          "clip": "p3"
+        },
+        "unit": {
+          "text": "張",
+          "clip": "p3"
+        },
+        "badge": {
+          "text": "A100",
+          "clip": "p4"
+        }
+      }
+    },
+    {
+      "id": "s1",
+      "clips": [
+        "a"
+      ],
+      "component": "slots",
+      "basedOn": [
+        "fx1_c03"
+      ],
+      "params": {
+        "label": "1 台伺服器",
+        "count": 4,
+        "badge": "A100"
+      },
+      "cues": {
+        "show": {
+          "text": "伺服器"
+        },
+        "lit0": {
+          "text": "四張"
+        },
+        "lit1": {
+          "text": "四張",
+          "offset": 0.3
+        },
+        "lit2": {
+          "text": "A100"
+        },
+        "lit3": {
+          "text": "A100",
+          "offset": 0.35
+        }
+      }
+    },
+    {
+      "id": "s2",
+      "clips": [
+        "b"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c04"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "價錢？",
+                "style": "display"
+              }
+            ]
+          }
+        ]
+      },
+      "cues": {
+        "r0t0": {
+          "text": "稍微探聽"
+        },
+        "stamp": {
+          "text": "不能講"
+        }
+      },
+      "stamp": {
+        "text": "不能講"
+      }
+    },
+    {
+      "id": "s3",
+      "clips": [
+        "c"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c04"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "一張",
+                "style": "mid"
+              },
+              {
+                "t": "6",
+                "style": "huge"
+              },
+              {
+                "t": "□",
+                "style": "blank"
+              },
+              {
+                "t": "萬",
+                "style": "mid"
+              }
+            ]
+          }
+        ],
+        "note": "大致「六開頭」"
+      },
+      "cues": {
+        "r0t1": {
+          "text": "六開頭"
+        },
+        "note": {
+          "text": "六開頭",
+          "offset": 0.6
+        }
+      }
+    },
+    {
+      "id": "s4",
+      "clips": [
+        "d"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c05"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "假設",
+                "style": "mid"
+              },
+              {
+                "t": "一張 =",
+                "style": "mid"
+              }
+            ]
+          },
+          {
+            "tokens": [
+              {
+                "t": "60",
+                "style": "huge"
+              },
+              {
+                "t": "萬",
+                "style": "unit"
+              }
+            ]
+          }
+        ]
+      },
+      "cues": {
+        "r1t0": {
+          "text": "60萬"
+        },
+        "r1t1": {
+          "text": "60萬",
+          "offset": 0.3
+        }
+      }
+    },
+    {
+      "id": "s6",
+      "clips": [
+        "f"
+      ],
+      "component": "place-values",
+      "basedOn": [
+        "fx1_c05"
+      ],
+      "params": {
+        "digits": [
+          "1",
+          "2",
+          "0",
+          "0",
+          "0"
+        ],
+        "labels": [
+          "萬",
+          "千",
+          "百",
+          "十",
+          "個"
+        ],
+        "note": "單位：萬"
+      },
+      "cues": {
+        "d4": {
+          "text": "個十百千萬"
+        },
+        "d3": {
+          "text": "個十百千萬",
+          "offset": 0.5
+        },
+        "d2": {
+          "text": "個十百千萬",
+          "offset": 0.8
+        },
+        "d1": {
+          "text": "個十百千萬",
+          "offset": 1.2
+        },
+        "d0": {
+          "text": "個十百千萬",
+          "offset": 1.6
+        }
+      }
+    },
+    {
+      "id": "s7",
+      "clips": [
+        "g"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c01",
+        "fx1_c05"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "200",
+                "style": "mid"
+              },
+              {
+                "t": "×",
+                "style": "op"
+              },
+              {
+                "t": "60",
+                "style": "mid"
+              },
+              {
+                "t": "=",
+                "style": "op"
+              },
+              {
+                "t": "12,000 萬",
+                "style": "mid"
+              }
+            ]
+          },
+          {
+            "tokens": [
+              {
+                "t": "≈ 1.2 億",
+                "style": "huge"
+              }
+            ]
+          }
+        ]
+      },
+      "cues": {
+        "r1t0": {
+          "text": "單位是1"
+        }
+      }
+    },
+    {
+      "id": "s8",
+      "clips": [
+        "h"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c06"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "只是入門門檻",
+                "style": "mid"
+              }
+            ]
+          },
+          {
+            "tokens": [
+              {
+                "t": "光顯卡 1.2 億",
+                "style": "huge"
+              }
+            ]
+          }
+        ]
+      },
+      "cues": {
+        "r1t0": {
+          "text": "光顯卡"
+        }
+      }
+    },
+    {
+      "id": "s9",
+      "clips": [
+        "i"
+      ],
+      "component": "checklist",
+      "basedOn": [
+        "fx1_c06"
+      ],
+      "params": {
+        "items": [
+          "機房",
+          "伺服器",
+          "工程師",
+          "電力"
+        ],
+        "mark": "✕",
+        "banner": "全部都不算"
+      },
+      "cues": {
+        "item0": {
+          "text": "機房"
+        },
+        "item1": {
+          "text": "伺服器"
+        },
+        "item2": {
+          "text": "工程師"
+        },
+        "item3": {
+          "text": "電力"
+        },
+        "banner": {
+          "text": "全部都不算"
+        }
+      }
+    },
+    {
+      "id": "s10",
+      "clips": [
+        "j"
+      ],
+      "component": "rows",
+      "basedOn": [
+        "fx1_c06"
+      ],
+      "params": {
+        "rows": [
+          {
+            "tokens": [
+              {
+                "t": "入門門票",
+                "style": "mid"
+              }
+            ]
+          },
+          {
+            "tokens": [
+              {
+                "t": "1.2 億",
+                "style": "huge"
+              }
+            ]
+          }
+        ]
+      },
+      "cues": {
+        "r1t0": {
+          "text": "門票"
+        }
+      }
+    }
+  ],
+  "endCard": {
+    "line1": "FocusFlow",
+    "line2": "AI 教學影片問答",
+    "seconds": 3.6
+  },
+  "derived": [
+    {
+      "expr": "60*200",
+      "value": 12000,
+      "shows": [
+        "12,000",
+        "1.2"
+      ]
+    }
+  ]
+}

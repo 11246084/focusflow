@@ -1,0 +1,51 @@
+[
+ {
+  "chunkId": "fx1_c01",
+  "videoId": "fixture-video-1",
+  "startSec": 674.65,
+  "endSec": 699.65,
+  "rawText": "你要開始,你今天是一個組織也好,或者是一個什麼東西也好,你想要做一個大語言模型的話,那個入門門檻,入門門檻叫做200張的,當時是A100,200張的A100,"
+ },
+ {
+  "chunkId": "fx1_c02",
+  "videoId": "fixture-video-1",
+  "startSec": 699.65,
+  "endSec": 706.65,
+  "rawText": "這什麼東西啊,A100是什麼,大家應該知道前幾天,黃能勳不是跑來台灣嗎,"
+ },
+ {
+  "chunkId": "fx1_c03",
+  "videoId": "fixture-video-1",
+  "startSec": 1191.05,
+  "endSec": 1212.05,
+  "rawText": "所以我們都要定期去訪視,那我就跑去,那個當時我就跑去現場做那個訪視啊,然後看到他的工作的那個位置上面,他正在測一台那個,一台伺服器,那上面就差了四張的A100,"
+ },
+ {
+  "chunkId": "fx1_c04",
+  "videoId": "fixture-video-1",
+  "startSec": 1213.05,
+  "endSec": 1232.05,
+  "rawText": "那他們就那個,他就詳細的價錢他當然不能講,那不過我跟他的主管稍微探聽了一下,確切金額不能講,他說他不能告訴我,但是大致在六開頭一張,"
+ },
+ {
+  "chunkId": "fx1_c05",
+  "videoId": "fixture-video-1",
+  "startSec": 1232.05,
+  "endSec": 1265.58,
+  "rawText": "就是真正到市面上大概在六開頭一張,那我假設算60萬,60萬,所以這會造成什麼樣的結果,來,個十百千萬,這算出來是這樣,然後這單位是1,"
+ },
+ {
+  "chunkId": "fx1_c06",
+  "videoId": "fixture-video-1",
+  "startSec": 1270.42,
+  "endSec": 1289.42,
+  "rawText": "這個單位是1,這還叫做入門門檻,而且是光顯卡,還不算機房,還不算伺服器,還不算工程師,還不算電力,全部都不算,光顯卡,這叫入門的門票,"
+ },
+ {
+  "chunkId": "fx1_c07",
+  "videoId": "fixture-video-1",
+  "startSec": 1290.42,
+  "endSec": 1297.42,
+  "rawText": "那大家可能會覺得奇怪,這看起來是24G對不對,"
+ }
+]

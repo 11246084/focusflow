@@ -1745,6 +1745,8 @@ paths:
         這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
 
         這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+
+        重試需要 `UPLOAD_DIR` 內的本機原片。原片已在 YouTube 上傳後清理（`youtubeUpload.localCleanupAt` 有值、`filePath` 為 null）或找不到時回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`，不會改從 YouTube 下載；前端依影片的 `sourceAvailable` 停用按鈕，並改用 `POST /api/v1/videos/{videoId}/source/restore` 補回原片。
       operationId: retryVideoProcessing
       parameters:
         - $ref: '#/components/parameters/VideoId'
@@ -1764,7 +1766,24 @@ paths:
         '404':
           $ref: '#/components/responses/VideoNotFoundError'
         '409':
-          $ref: '#/components/responses/VideoProcessingTransitionInvalidError'
+          description: processing 狀態不允許重試，或本機原片已清理／不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidTransition:
+                  value:
+                    success: false
+                    message: Cannot transition video processing from completed to queued.
+                    error:
+                      code: VIDEO_PROCESSING_TRANSITION_INVALID
+                sourceUnavailable:
+                  value:
+                    success: false
+                    message: The local source file is unavailable for processing retry.
+                    error:
+                      code: VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE
   /api/v1/videos/{videoId}/youtube-upload/retry:
     post:
       tags:
@@ -1818,6 +1837,113 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/videos/{videoId}/source/restore:
+    post:
+      tags:
+        - Videos
+      summary: 補回已清理的影片原片
+      description: |
+        僅限課程 owner teacher 或 admin。原片在 YouTube 上傳完成後被清理的影片，可上傳原檔（教師保留的原檔，或頻道擁有者從 YouTube Studio 下載的檔案）存回同一支影片，影片 ID 不變，之後即可重新處理。
+
+        只接受已清理狀態：`youtubeVideoId` 有值、`youtubeUpload.status=uploaded`、`filePath` 為 null 且 `youtubeUpload.localCleanupAt` 有值，否則回 `409 VIDEO_SOURCE_RESTORE_NOT_ALLOWED`。檔案沿用影片上傳的 MIME type、500 MB 上限與容器完整性檢查；同課程另一支影片已使用相同檔案時回 `409 DUPLICATE_VIDEO`。
+
+        成功後寫回 `filePath` 與 `fileName`、設定 `youtubeUpload.localSourceRestoredAt`，並清除 `localCleanupAt` 與 `localCleanupError`。播放欄位（`videoUrl`、`sourceUrl`、`videoSource`）與 `youtubeVideoId` 不變，學生照常播放 YouTube 版本，也不會重新上傳 YouTube。任何失敗都會刪除本次上傳的檔案。
+      operationId: restoreVideoSource
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - video
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: 影片檔案，欄位名與影片上傳相同；MIME type 須以 `video/` 開頭，容器須為完整的 MP4／MOV 或 MKV。
+      responses:
+        '200':
+          description: 已補回原片，回傳格式同影片詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoItemResponse'
+        '400':
+          description: videoId 無效、缺少檔案、檔案型別或容器結構不合格
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidId:
+                  value:
+                    success: false
+                    message: Invalid video id.
+                    error:
+                      code: INVALID_ID
+                missingFile:
+                  value:
+                    success: false
+                    message: Video file is required.
+                    error:
+                      code: VIDEO_FILE_REQUIRED
+                invalidFileType:
+                  value:
+                    success: false
+                    message: Only video uploads are allowed.
+                    error:
+                      code: INVALID_FILE_TYPE
+                invalidContainer:
+                  value:
+                    success: false
+                    message: The MP4 container is incomplete (missing moov). Please replace or re-export the source video.
+                    error:
+                      code: INVALID_MEDIA_CONTAINER
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 角色不允許，或不是這門課的 owner teacher／admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                forbiddenRole:
+                  value:
+                    success: false
+                    message: You do not have permission to perform this action.
+                    error:
+                      code: FORBIDDEN
+                manageDenied:
+                  value:
+                    success: false
+                    message: You do not have permission to manage this course.
+                    error:
+                      code: COURSE_MANAGE_DENIED
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: 影片不是已清理狀態，或檔案已屬於同課程另一支影片
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notCleaned:
+                  value:
+                    success: false
+                    message: Only videos whose local source was cleaned after YouTube upload can be restored.
+                    error:
+                      code: VIDEO_SOURCE_RESTORE_NOT_ALLOWED
+                duplicateFile:
+                  value:
+                    success: false
+                    message: This file belongs to another video in this course.
+                    error:
+                      code: DUPLICATE_VIDEO
   /api/v1/conversations:
     get:
       tags: [QA]
@@ -2019,6 +2145,50 @@ paths:
           $ref: '#/components/responses/QaRuntimeMisconfiguredError'
         '503':
           $ref: '#/components/responses/QaAtlasNotReadyError'
+  /api/v1/qa/extended-resources:
+    post:
+      tags:
+        - QA
+      summary: 取得問題的延伸學習推薦（教育開放資料）
+      description: |
+        依問題主題比對國家教育研究院愛學網（政府資料開放平臺資料集 6318，政府資料開放授權條款－第1版）
+        的教學影片清單，回傳最多 3 筆延伸學習影片。
+
+        這是答案之外的補充資料，不進入 `/api/v1/qa/ask` 的回答 prompt，也不影響 FAQ 快取與 LINE 問答。
+        沒有足夠相符的影片時回 `videos: []`，不是錯誤。
+
+        受 feature flag `OPEN_DATA_EXTENSION_ENABLED` 控制，預設關閉；關閉時回 `404 NOT_FOUND`。
+        呼叫者需有該課程的存取權限（同 `/api/v1/qa/ask`）。
+      operationId: getQaExtendedResources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaExtendedResourcesRequest'
+      responses:
+        '200':
+          description: 推薦結果（可能為空陣列）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QaExtendedResourcesResponse'
+        '400':
+          description: 缺少 `courseId` 或 `question`，或 ObjectId 格式不合法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CourseAccessDeniedError'
+        '404':
+          description: 課程不存在（`COURSE_NOT_FOUND`），或此功能未啟用（`NOT_FOUND`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/stats/teacher:
     get:
       tags:
@@ -2093,7 +2263,7 @@ paths:
       tags:
         - Admin
       summary: 系統服務狀態
-      description: 僅限 admin。回傳管理員總覽「系統服務」區塊的資料：MongoDB 連線、AI 問答、LINE Bot、語音轉文字 Pipeline、YouTube 自動上傳。狀態依本程序的連線狀態、runtime 設定與最近一次呼叫結果判斷，不主動呼叫外部 API。
+      description: 僅限 admin。回傳管理員總覽「系統服務」區塊的資料：MongoDB 連線、AI 問答、LINE Bot、語音轉文字 Pipeline、YouTube 自動上傳，以及 YouTube 待處理（被隔離的上傳）與 7 天內將到期刪除的原片數量。狀態依本程序的連線狀態、runtime 設定、資料庫與最近一次呼叫結果判斷，不主動呼叫外部 API。
       operationId: getAdminSystemStatus
       responses:
         '200':
@@ -2118,7 +2288,7 @@ paths:
                               properties:
                                 key:
                                   type: string
-                                  enum: [database, qa, line, stt, youtube]
+                                  enum: [database, qa, line, stt, youtube, youtube_lifecycle]
                                 name:
                                   type: string
                                 status:
@@ -2126,10 +2296,606 @@ paths:
                                   enum: [ok, degraded, down, not_enabled, unknown]
                                 detail:
                                   type: string
+                          youtubeLifecycle:
+                            description: 讀取失敗時三個數量為 null（`youtube_lifecycle` 列顯示 unknown）。
+                            type: object
+                            properties:
+                              quarantineCount:
+                                description: 被隔離、等管理員收尾的影片與短片數量。
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
+                              upcomingCleanupCount:
+                                description: 7 天內到期（含已到期）將刪除的原片數量，與清理排程共用判斷。
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
+                              upcomingCleanupBytes:
+                                anyOf:
+                                  - type: integer
+                                  - type: 'null'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-lifecycle/settings:
+    get:
+      tags:
+        - Admin
+      summary: YouTube 上傳、恢復、清理的兩層開關
+      description: |
+        僅限 admin（decisions.md #9～#16）。回傳三個開關的環境允許、執行期設定、實際生效與原因，
+        最近 50 筆修改紀錄（由新到舊），以及恢復間隔、清理門檻、可用空間與上次恢復時間。
+      operationId: getAdminYouTubeLifecycleSettings
+      responses:
+        '200':
+          description: 成功取得開關設定
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeLifecycleSettings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    patch:
+      tags:
+        - Admin
+      summary: 切換單一 YouTube 生命週期開關
+      description: |
+        僅限 admin。只寫入執行期設定並記錄修改者；環境變數不允許的開關不可切換。
+        回傳切換後的整份設定（格式同 GET）。
+      operationId: updateAdminYouTubeLifecycleSwitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - enabled
+              properties:
+                key:
+                  type: string
+                  enum: [upload, recovery, cleanup]
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: 已切換，回傳最新設定
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeLifecycleSettings'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許此開關，執行期不可切換"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                envDisabled:
+                  value:
+                    success: false
+                    message: YOUTUBE_UPLOAD_CLEANUP_ENABLED is disabled; this switch cannot be changed at runtime.
+                    error:
+                      code: YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED
+  /api/v1/admin/youtube-lifecycle/cleanup-preview:
+    get:
+      tags:
+        - Admin
+      summary: 原片清理預告清單
+      description: |
+        僅限 admin（decisions.md #27）。與清理排程共用同一套判斷，只顯示資訊、不刪檔。
+        `scope=enable`（預設）列出「假設現在啟用清理，下一輪會刪除」的原片；
+        `scope=upcoming` 列出 7 天內到期（含已到期）的原片。
+      operationId: getAdminYouTubeCleanupPreview
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [enable, upcoming]
+            default: enable
+      responses:
+        '200':
+          description: 成功取得預告清單
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          scope:
+                            type: string
+                            enum: [enable, upcoming]
+                          count:
+                            type: integer
+                          totalBytes:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum: [video, short_asset]
+                                id:
+                                  type: string
+                                title:
+                                  type: string
+                                courseTitle:
+                                  type: string
+                                sizeBytes:
+                                  type: integer
+                                eligibleAt:
+                                  type: string
+                                  format: date-time
+                                reason:
+                                  type: string
+                                  enum: [max_age, low_space]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-lifecycle/recovery/run:
+    post:
+      tags:
+        - Admin
+      summary: 立即執行一輪上傳恢復
+      description: |
+        僅限 admin（decisions.md #15）。與恢復排程同一個入口，受上傳與恢復兩層開關限制：
+        重新上傳可安全重試的失敗（影片與短片），並隔離卡在上傳中超過時限的項目。
+        `skipped` 是撈到但這一輪沒處理的筆數（例如仍在本行程上傳中）。
+      operationId: runAdminYouTubeUploadRecovery
+      responses:
+        '200':
+          description: 已執行一輪恢復
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          recovered:
+                            type: integer
+                          quarantined:
+                            type: integer
+                          skipped:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: |
+            `YOUTUBE_RECOVERY_NOT_RUN`：這一輪沒有執行，`error.details.reason` 為
+            `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                recoveryDisabled:
+                  value:
+                    success: false
+                    message: YouTube upload recovery is disabled.
+                    error:
+                      code: YOUTUBE_RECOVERY_NOT_RUN
+                      details:
+                        reason: recovery_disabled
+  /api/v1/admin/youtube-quarantine:
+    get:
+      tags:
+        - Admin
+      summary: YouTube 上傳待處理清單（被隔離或已達重試上限的影片與短片）
+      description: |
+        僅限 admin（decisions.md #17、#28、#34）。列出需要管理員處理的影片與短片成品，由新到舊，
+        每筆的 `reason` 標示原因：`quarantined` 為上傳失敗且不可自動重試（YouTube 可能已收到，需人工確認，
+        可查詢、套用或重設）；`retry_limit` 為可安全重試但已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`
+        （送出影片內容前就失敗，YouTube 上沒有，只能重設）。`searchable` 是不呼叫 YouTube 的初步判斷：
+        `false` 代表憑證未設定或沒有讀取權限，`null` 代表本行程尚未換過 token。
+      operationId: listAdminYouTubeQuarantine
+      responses:
+        '200':
+          description: 待處理清單
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          searchable:
+                            anyOf:
+                              - type: boolean
+                              - type: 'null'
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/YouTubeQuarantineItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/lookup:
+    post:
+      tags:
+        - Admin
+      summary: 查詢 YouTube 上是否已有這支被隔離的影片
+      description: |
+        僅限 admin（decisions.md #17）。用上傳時寫入描述的標記比對自家頻道的上傳清單（最多往回 1000 支），
+        只回傳比對結果、不修改資料。憑證沒有讀取權限或未設定時回 `searchable: false`，改由管理員手動輸入影片 ID。
+      operationId: lookupAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 比對結果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeQuarantineLookup'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/lookup:
+    post:
+      tags:
+        - Admin
+      summary: 查詢 YouTube 上是否已有這支被隔離的短片成品
+      description: |
+        僅限 admin（decisions.md #17）。用上傳時寫入描述的標記比對自家頻道的上傳清單（最多往回 1000 支），
+        只回傳比對結果、不修改資料。憑證沒有讀取權限或未設定時回 `searchable: false`，改由管理員手動輸入影片 ID。
+      operationId: lookupAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: 比對結果
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeQuarantineLookup'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/apply:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的影片套用為已上傳的 YouTube 影片
+      description: |
+        僅限 admin（decisions.md #17、#18）。先向 YouTube 確認影片存在且屬於自家頻道，
+        通過後才標成已上傳並切換播放欄位（比照上傳成功時寫入的欄位）；短片若已通過審核會一併上架。
+        完成後通知上傳者（沒有時通知課程教師）「已上傳完成」。
+      operationId: applyAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - youtubeVideoId
+              properties:
+                youtubeVideoId:
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]{11}$'
+      responses:
+        '200':
+          description: 已套用
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [uploaded]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          description: |
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態（含已達重試上限的項目，只能重設），或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                videoInUse:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk is already linked to another FocusFlow upload.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_IN_USE
+        '422':
+          description: |
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND`：YouTube 上找不到這支影片
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED`：影片不屬於系統的 YouTube 頻道
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notOwned:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk does not belong to the FocusFlow channel.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+        '503':
+          description: "`YOUTUBE_UPLOAD_NOT_CONFIGURED`：未設定 YouTube 憑證，無法向 YouTube 確認"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-quarantine/videos/{videoId}/reset:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離或已達重試上限的影片重設為可重試
+      description: |
+        僅限 admin（decisions.md #17、#34）。用於確定 YouTube 上沒有這支的情況，或已達重試上限且原因已排除時：
+        標成可安全重試、次數歸零、重試時間設為現在，交給恢復排程或教師重試。
+        完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+      operationId: resetAdminQuarantinedVideo
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        '200':
+          description: 已重設
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [failed]
+                          retrySafe:
+                            const: true
+                          attemptCount:
+                            const: 0
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/VideoNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/apply:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離的短片成品套用為已上傳的 YouTube 影片
+      description: |
+        僅限 admin（decisions.md #17、#18）。先向 YouTube 確認影片存在且屬於自家頻道，
+        通過後才標成已上傳並切換播放欄位（比照上傳成功時寫入的欄位）；短片若已通過審核會一併上架。
+        完成後通知上傳者（沒有時通知課程教師）「已上傳完成」。
+      operationId: applyAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - youtubeVideoId
+              properties:
+                youtubeVideoId:
+                  type: string
+                  pattern: '^[A-Za-z0-9_-]{11}$'
+      responses:
+        '200':
+          description: 已套用
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [uploaded]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          description: |
+            - `YOUTUBE_QUARANTINE_NOT_ALLOWED`：不是被隔離的狀態（含已達重試上限的項目，只能重設），或處理期間狀態已改變
+            - `YOUTUBE_QUARANTINE_VIDEO_IN_USE`：這支 YouTube 影片已是其他 FocusFlow 上傳項目的播放來源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                videoInUse:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk is already linked to another FocusFlow upload.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_IN_USE
+        '422':
+          description: |
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND`：YouTube 上找不到這支影片
+            - `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED`：影片不屬於系統的 YouTube 頻道
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notOwned:
+                  value:
+                    success: false
+                    message: YouTube video abcdefghijk does not belong to the FocusFlow channel.
+                    error:
+                      code: YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED
+        '502':
+          $ref: '#/components/responses/YouTubeQuarantineVerifyFailedError'
+        '503':
+          description: "`YOUTUBE_UPLOAD_NOT_CONFIGURED`：未設定 YouTube 憑證，無法向 YouTube 確認"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-quarantine/short-assets/{assetId}/reset:
+    post:
+      tags:
+        - Admin
+      summary: 把被隔離或已達重試上限的短片成品重設為可重試
+      description: |
+        僅限 admin（decisions.md #17、#34）。用於確定 YouTube 上沒有這支的情況，或已達重試上限且原因已排除時：
+        標成可安全重試、次數歸零、重試時間設為現在，交給恢復排程或教師重試。
+        完成後通知上傳者（沒有時通知課程教師）「已重新排入上傳」。
+      operationId: resetAdminQuarantinedShortAsset
+      parameters:
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: 已重設
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                            enum: [video, short_asset]
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [failed]
+                          retrySafe:
+                            const: true
+                          attemptCount:
+                            const: 0
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortAssetNotFoundError'
+        '409':
+          $ref: '#/components/responses/YouTubeQuarantineNotAllowedError'
   /api/v1/admin/users:
     get:
       tags:
@@ -2250,7 +3016,7 @@ paths:
       tags:
         - Admin
       summary: 列出影片（後台）
-      description: 僅限 admin。回傳後台視角的影片列表。
+      description: 僅限 admin。回傳後台視角的影片列表；每支影片附 `metadataOnly`、`sourceAvailable`（UPLOAD_DIR 內是否有原片）與 `youtubeUpload.status`／`youtubeUpload.localCleanupAt`，管理員影片頁據此標示原片已清理並提供補回原片。
       operationId: adminListVideos
       responses:
         '200':
@@ -3860,21 +4626,6 @@ components:
                 message: This video is metadata-only for QA scope and does not expose processing status.
                 error:
                   code: VIDEO_METADATA_ONLY
-    VideoProcessingTransitionInvalidError:
-      description: 目前 processing state 無法轉移到要求的目標狀態。
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            invalidTransition:
-              summary: processing 狀態轉移不合法
-              description: 目前影片的 processing state 與要求的目標狀態不相容，因此不能執行轉移。
-              value:
-                success: false
-                message: Cannot transition video processing from completed to queued.
-                error:
-                  code: VIDEO_PROCESSING_TRANSITION_INVALID
     QaRuntimeMisconfiguredError:
       description: QA runtime 設定對這次操作而言不合法。
       content:
@@ -4018,6 +4769,41 @@ components:
                 message: Cannot move a short script from dismissed to generated.
                 error:
                   code: SHORT_SCRIPT_STATE_INVALID
+    YouTubeQuarantineNotAllowedError:
+      description: |
+        項目不在待處理清單，或處理期間狀態已改變。查詢與套用只接受被隔離的項目（上傳失敗且不可自動重試）；
+        重設另接受已達重試上限的項目（decisions.md #34）。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notQuarantined:
+              value:
+                success: false
+                message: Only quarantined YouTube uploads can be resolved; this video is not quarantined.
+                error:
+                  code: YOUTUBE_QUARANTINE_NOT_ALLOWED
+            retryLimitReached:
+              summary: 對已達重試上限的項目查詢或套用
+              value:
+                success: false
+                message: This video failed before any video data reached YouTube; reset it instead.
+                error:
+                  code: YOUTUBE_QUARANTINE_NOT_ALLOWED
+    YouTubeQuarantineVerifyFailedError:
+      description: 向 YouTube 查詢頻道、上傳清單或影片時失敗（例如憑證沒有讀取權限）。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            verifyFailed:
+              value:
+                success: false
+                message: Failed to read the YouTube channel of the configured credentials.
+                error:
+                  code: YOUTUBE_QUARANTINE_VERIFY_FAILED
   schemas:
     ObjectId:
       description: MongoDB ObjectId 的字串格式。
@@ -4620,6 +5406,12 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        localSourceRestoredAt:
+          description: 清理後補回原片的時間；保留期從這個時間重新起算。
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
     Video:
       description: |
         影片回應主體。
@@ -4704,6 +5496,11 @@ components:
           anyOf:
             - type: string
             - type: 'null'
+        sourceAvailable:
+          type: boolean
+          description: |
+            `UPLOAD_DIR` 內是否有可供重新處理的本機原片。false 時 `POST /api/v1/videos/{videoId}/processing/retry` 會回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`；
+            若 `youtubeUpload.localCleanupAt` 有值，可改用補回原片。`metadataOnly` bridge video 一律為 false。
         durationSec:
           anyOf:
             - type: number
@@ -5214,13 +6011,13 @@ components:
       properties:
         uploadEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_ENABLED`"
+          description: "`YOUTUBE_UPLOAD_ENABLED`（環境變數總開關；實際生效看 `switches.upload`）"
         recoveryEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_RECOVERY_ENABLED`；預設 false。"
+          description: "`YOUTUBE_UPLOAD_RECOVERY_ENABLED`；預設 false（實際生效看 `switches.recovery`）。"
         cleanupEnabled:
           type: boolean
-          description: "`YOUTUBE_UPLOAD_CLEANUP_ENABLED`；預設 false。"
+          description: "`YOUTUBE_UPLOAD_CLEANUP_ENABLED`；預設 false（實際生效看 `switches.cleanup`）。"
         maxAttempts:
           type: integer
           minimum: 1
@@ -5378,6 +6175,271 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DiagnosticItem'
+        switches:
+          description: >-
+            上傳、恢復、清理兩層開關的實際生效值。`uploadEnabled`、`recoveryEnabled`、`cleanupEnabled` 只反映環境變數；
+            是否真的會執行看這裡的 `effective`。讀取資料庫失敗時為 null，原因見 `switchesError`。
+          anyOf:
+            - type: object
+              required:
+                - upload
+                - recovery
+                - cleanup
+              properties:
+                upload:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+                recovery:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+                cleanup:
+                  $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+            - type: 'null'
+        switchesError:
+          anyOf:
+            - type: string
+            - type: 'null'
+        schedulers:
+          type: object
+          properties:
+            recovery:
+              $ref: '#/components/schemas/YouTubeLifecycleSchedulerSnapshot'
+            cleanup:
+              $ref: '#/components/schemas/YouTubeLifecycleSchedulerSnapshot'
+        disk:
+          description: "`UPLOAD_DIR` 所在磁碟的可用空間（`fs.statfs`）；查詢失敗時 `freeBytes` 為 null。"
+          type: object
+          properties:
+            freeBytes:
+              anyOf:
+                - type: number
+                - type: 'null'
+            minFreeBytes:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB` 換算的位元組；0 代表不依空間清理。"
+            belowThreshold:
+              anyOf:
+                - type: boolean
+                - type: 'null'
+            error:
+              anyOf:
+                - type: string
+                - type: 'null'
+        cleanupPolicy:
+          type: object
+          properties:
+            maxAgeDays:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MAX_AGE_DAYS`；0 代表只依空間清理。"
+            minAgeDays:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS`"
+            minFreeGb:
+              type: number
+              description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB`"
+    YouTubeLifecycleSwitchSnapshot:
+      description: 兩層開關之一：環境變數允許且執行期設定開啟（或未設定且該開關預設跟隨環境變數）才生效。
+      type: object
+      required:
+        - envAllowed
+        - runtimeEnabled
+        - effective
+        - reason
+      properties:
+        envAllowed:
+          type: boolean
+        runtimeEnabled:
+          description: 管理員在資料庫的設定；null 代表尚未設定（上傳、恢復跟隨環境變數，清理視為關閉）。
+          anyOf:
+            - type: boolean
+            - type: 'null'
+        effective:
+          type: boolean
+        reason:
+          anyOf:
+            - type: string
+              enum:
+                - env_disabled
+                - runtime_disabled
+                - default_off
+            - type: 'null'
+    YouTubeLifecycleSettings:
+      description: 管理員「YouTube 上傳管理」頁的開關、修改紀錄與執行期參數。
+      type: object
+      required:
+        - switches
+        - history
+        - runtime
+      properties:
+        switches:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/YouTubeLifecycleSwitchSnapshot'
+              - type: object
+                required:
+                  - key
+                properties:
+                  key:
+                    type: string
+                    enum: [upload, recovery, cleanup]
+        history:
+          type: array
+          description: 最近 50 筆修改紀錄，由新到舊。
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                enum: [upload, recovery, cleanup]
+              from:
+                description: 修改前的執行期設定；null 代表原本未設定。
+                anyOf:
+                  - type: boolean
+                  - type: 'null'
+              to:
+                type: boolean
+              changedBy:
+                type: object
+                properties:
+                  id:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  name:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  email:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+              changedAt:
+                type: string
+                format: date-time
+        runtime:
+          type: object
+          properties:
+            recoveryIntervalMs:
+              type: number
+              description: "`YOUTUBE_UPLOAD_RECOVERY_INTERVAL_MS`；0 代表只在開機執行。"
+            cleanupMinFreeGb:
+              type: number
+            cleanupMinAgeDays:
+              type: number
+            cleanupMaxAgeDays:
+              type: number
+            freeSpaceGb:
+              description: "`UPLOAD_DIR` 所在磁碟的可用空間（GB，小數兩位）；讀取失敗時為 null。"
+              anyOf:
+                - type: number
+                - type: 'null'
+            lastRecoveryAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+    YouTubeQuarantineItem:
+      description: 待處理的上傳（影片或短片成品）。
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [video, short_asset]
+        id:
+          type: string
+        reason:
+          description: |
+            `quarantined`：失敗且不可自動重試，不確定 YouTube 是否已收到；
+            `retry_limit`：可安全重試但已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`，只能重設（decisions.md #34）。
+          type: string
+          enum: [quarantined, retry_limit]
+        title:
+          type: string
+        courseId:
+          anyOf:
+            - type: string
+            - type: 'null'
+        courseTitle:
+          type: string
+        uploadedBy:
+          description: 影片為 `uploadedBy`，短片為確認揭露的教師；沒有紀錄時 id 與 name 為 null。
+          type: object
+          properties:
+            id:
+              anyOf:
+                - type: string
+                - type: 'null'
+            name:
+              anyOf:
+                - type: string
+                - type: 'null'
+        failedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        error:
+          anyOf:
+            - type: string
+            - type: 'null'
+        attemptCount:
+          type: integer
+    YouTubeQuarantineLookup:
+      type: object
+      properties:
+        searchable:
+          type: boolean
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              youtubeVideoId:
+                type: string
+              title:
+                type: string
+              publishedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                  - type: 'null'
+              privacyStatus:
+                anyOf:
+                  - type: string
+                    enum: [private, unlisted, public]
+                  - type: 'null'
+    YouTubeLifecycleSchedulerSnapshot:
+      description: 恢復或清理排程的 process 內狀態；環境變數不允許時不啟動計時器。
+      type: object
+      properties:
+        envAllowed:
+          type: boolean
+        timerActive:
+          type: boolean
+        intervalMs:
+          anyOf:
+            - type: number
+            - type: 'null'
+        running:
+          type: boolean
+        runningSince:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastAttemptAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastSuccessAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastError:
+          anyOf:
+            - type: string
+            - type: 'null'
     ShortAssetLifecycleStatus:
       type: string
       description: ShortAsset 的素材生命週期，與 reviewStatus 分離。
@@ -5757,6 +6819,8 @@ components:
             - video_completed
             - system_maintenance
             - short_asset_rejected
+            - youtube_upload_needs_review
+            - youtube_upload_resolved
         title:
           type: string
           maxLength: 120
@@ -5788,7 +6852,9 @@ components:
             - boolean
             - 'null'
         scriptId:
-          description: short_asset_rejected 通知要跳轉的短影片腳本；其他來源為 null。
+          description: |
+            short_asset_rejected 通知要跳轉的短影片腳本；短片的 youtube_upload_needs_review／youtube_upload_resolved
+            通知為該成品的來源腳本（沒有時為 null）；其他來源為 null。
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
             - type: 'null'
@@ -5961,6 +7027,67 @@ components:
           $ref: '#/components/schemas/CourseStatus'
         teacherId:
           $ref: '#/components/schemas/ObjectId'
+    QaExtendedResourcesRequest:
+      description: "`/api/v1/qa/extended-resources` 的 request body。"
+      type: object
+      required:
+        - courseId
+        - question
+      properties:
+        courseId:
+          $ref: '#/components/schemas/ObjectId'
+        question:
+          type: string
+    QaExtendedResourcesResponse:
+      description: "`/api/v1/qa/extended-resources` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - videos
+                - attribution
+              properties:
+                videos:
+                  type: array
+                  maxItems: 3
+                  items:
+                    type: object
+                    required:
+                      - title
+                      - videoUrl
+                      - learningField
+                      - learningStage
+                    properties:
+                      title:
+                        type: string
+                      videoUrl:
+                        type: string
+                        format: uri
+                      learningField:
+                        type: string
+                      learningStage:
+                        type: string
+                attribution:
+                  type: object
+                  required:
+                    - source
+                    - license
+                    - url
+                  properties:
+                    source:
+                      type: string
+                      example: 國家教育研究院愛學網
+                    license:
+                      type: string
+                      example: 政府資料開放授權條款－第1版
+                    url:
+                      type: string
+                      format: uri
     QaAskRequest:
       description: "`/api/v1/qa/ask` 的 request body。"
       type: object

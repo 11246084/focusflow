@@ -1,3 +1,12 @@
+---
+paths:
+  - "backend/src/routes/**"
+  - "backend/src/controllers/**"
+  - "backend/src/services/**"
+  - "backend/src/utils/apiResponse.js"
+  - "backend/docs/openapi.yaml"
+---
+
 # API 設計規範
 
 > 適用範圍：`backend/src/routes/`、`backend/src/controllers/`、`backend/src/services/`
@@ -121,16 +130,24 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `VIDEO_BATCH_ITEM_FAILED` | 500 | 批次中的單支影片因未預期錯誤失敗；不公開內部錯誤細節 |
 | `VIDEO_BATCH_SCHEDULE_FAILED` | 500 | 批次 request 無法安全建立或啟動；已建立的影片會標記 processing failed |
 | `VIDEO_BATCH_RETRY_IN_PROGRESS` | 409 | 同一批次仍有執行中的 worker，暫不可啟動手動重試 |
-| `VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE` | 409 | 重試所需的本機來源檔不存在或不在允許的上傳目錄 |
+| `VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE` | 409 | 重試所需的本機來源檔不存在或不在允許的上傳目錄，含 YouTube 上傳後已清理的原片 |
+| `VIDEO_SOURCE_RESTORE_NOT_ALLOWED` | 409 | 補回原片只接受已清理的影片（YouTube 上傳完成、`filePath` 為 null、有 `localCleanupAt`），或同時送出的另一個補回已完成 |
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
 | `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |
-| `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整 |
+| `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整，或管理員停用了上傳的執行期開關（影片與短片重試） |
 | `YOUTUBE_UPLOAD_FAILED` | 502 | YouTube OAuth 或影片上傳 API 失敗 |
 | `YOUTUBE_UPLOAD_ALREADY_COMPLETED` | 409 | 影片已成功上傳，不可再排入重試 |
 | `YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED` | 409 | 目前不是 failed 狀態，不可重試 |
-| `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，須先人工確認 YouTube Studio 以避免重複影片 |
-| `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 已達單支影片的有限重試上限 |
+| `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，不可由教師重試；由管理員在「YouTube 上傳管理」待處理清單查詢、套用或重設，避免重複影片 |
+| `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 影片或短片已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`，教師不可再重試；項目已在管理員待處理清單，由管理員重設次數 |
+| `YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` | 409 | 環境變數不允許的 YouTube 上傳／恢復／清理開關，不可在執行期切換 |
+| `YOUTUBE_RECOVERY_NOT_RUN` | 409 | 管理員「立即執行恢復」這一輪沒有執行；`details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`（正式環境也回傳） |
+| `YOUTUBE_QUARANTINE_NOT_ALLOWED` | 409 | 項目不在待處理清單，或處理期間狀態已改變；查詢與套用只接受被隔離的上傳（失敗且不可自動重試），重設另接受已達重試上限的上傳 |
+| `YOUTUBE_QUARANTINE_VIDEO_IN_USE` | 409 | 要套用的 YouTube 影片已是其他 FocusFlow 上傳項目（影片或短片）的播放來源 |
+| `YOUTUBE_QUARANTINE_VIDEO_NOT_FOUND` | 422 | 套用時 YouTube 上找不到這支影片 |
+| `YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED` | 422 | 套用的 YouTube 影片不屬於系統頻道 |
+| `YOUTUBE_QUARANTINE_VERIFY_FAILED` | 502 | 向 YouTube 讀取自家頻道、上傳清單或影片失敗（例如憑證沒有讀取權限） |
 | `QUESTION_TOO_LONG` | 400 | 問題超過 `QA_MAX_QUESTION_LENGTH` 字數上限（預設 50 字） |
 | `QA_DAILY_LIMIT_EXCEEDED` | 429 | 學生當天（台灣時間）提問次數已達上限：管理員設定的個別上限 `User.dailyAskLimitOverride`，未設定時為 `QA_DAILY_ASK_LIMIT_PER_STUDENT`（預設 5 次，網頁與 LINE 合併；failed 不計） |
 | `FAQ_INVALIDATION_FAILED` | 503 | 影片刪除／解除掛載前的 FAQ 清除失敗；mutation 未執行，可安全重試 |

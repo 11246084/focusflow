@@ -1,3 +1,11 @@
+---
+paths:
+  - "backend/src/models/**"
+  - "backend/src/services/demoSeed.service.js"
+  - "STT_Whisper/src/mongodb_uploader.py"
+  - "database/**"
+---
+
 # 資料庫規範
 
 > 適用範圍：`backend/src/models/`、`STT_Whisper/src/mongodb_uploader.py`
@@ -32,6 +40,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `Feedback` / `FeedbackAttachment` | `feedbacks` / `feedbackattachments`（問題回報與截圖本體） |
 | `ShortScript` / `ShortAsset` | `shortscripts` / `shortassets` |
 | `VideoBatch` | `videobatches` |
+| `RuntimeSetting` | `runtimesettings`（管理員執行期開關，一個 `key` 一份文件，內含最近 50 筆修改紀錄） |
 | `VideoSegmentParent` | 由 `VIDEO_SEGMENT_PARENT_COLLECTION` 決定（預設 `video_segments_parent`） |
 | `VideoSegmentVideo` | 由 `VIDEO_SEGMENT_VIDEO_COLLECTION` 決定（預設 `video_segments_video`，欄位仍為 snake_case） |
 
@@ -107,7 +116,7 @@ videoSegmentSchema.index({ courseId: 1, startSec: 1 });
 ```
 
 ### 向量索引（Atlas Vector Search）
-舊版 v1 契約文件已過期，只保留作歷史參考：`docs/20_Architecture/database/archive/MongoDB_契約定版_v1_已過期.md`。目前資料契約以 `ARCHITECTURE.md`、`backend/docs/current-state.md` 與實際 model 為準；Parent 階層式檢索另見 `docs/20_Architecture/hierarchical-retrieval/Phase2-2_Hierarchy_Data_Contract_v1.md`。
+舊版 v1 契約文件已過期，只保留作歷史參考：`docs/90_Archive/superseded/MongoDB_契約定版_v1_已過期.md`。目前資料契約以 `ARCHITECTURE.md`、`backend/docs/current-state.md` 與實際 model 為準；Parent 階層式檢索另見 `docs/04_Features/Hierarchical_Retrieval/specs/Phase2-2_Hierarchy_Data_Contract_v1.md`。
 
 v1 契約定下、目前仍沿用的分 collection 設計：
 

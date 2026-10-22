@@ -1,372 +1,52 @@
-# FocusFlow Backend
+# FocusFlow 後端安裝與使用
 
-FocusFlow 的 REST API（Node.js / Express）。系統自 **2026-09-21 起在 `https://focusflow.ntub.edu.tw` 開放學生試用**（試用，不是正式上線）。
+這份文件說明如何啟動 FocusFlow 後端，供網頁與 LINE 呼叫。請先設定自己的資料庫，再啟動服務；功能進度及驗收結果只看[目前狀態](../docs/current-status.md)。
 
-最新 runtime、功能清單、測試結果與不能誤稱的邊界以 [docs/current-state.md](docs/current-state.md) 為準；本檔下方各段保留各輪的實作說明，日期即當時狀態。
+## 安裝與設定
 
-## Phase 2-2 Hierarchical Retrieval Round 1
-
-本輪加入預設關閉的 `HIERARCHICAL_RETRIEVAL_ENABLED` Kill Switch，以及預設開啟的 `HIERARCHICAL_RETRIEVAL_FALLBACK_TO_LEAF`。Gate 關閉時完全沿用既有 Leaf-only QA；Gate 開啟但 Parent collection／index unavailable、timeout、無命中、文件無效或 Child expansion 無有效 Leaf 時，會安全退回 Leaf retrieval，並只在 `runtime.hierarchicalRetrieval` 保存診斷 metadata。
-
-Round 1 已建立 Parent Search interface、離線 Fake repository、Child Expansion、deterministic Leaf deduplication、有限制的 Leaf Context Assembly，以及 Leaf Citation 相容測試。2026-08-02 已補上正式 Atlas Parent Search adapter，從環境變數讀取 collection／index 契約，以 `courseId` ObjectId 或課程允許的掛載 `videoId` 執行 scoped `$vectorSearch`，並接入 QA；Frontend 與 Citation response contract 未變更。
-
-本輪測試只證明 adapter、QA 接線、安全 fallback 與契約行為，不能證明 AI 回覆品質已提升。真實 Parent 資料上傳與 Atlas 端對端查詢仍是後續聯合驗收。
-
-離線驗證：
-
-```powershell
-npm test
-```
-
-## Phase 2-2 Parent Storage（2026-08-02）
-
-Storage 層已由 DB 組完成。共享 Atlas 上已建立 `video_segments_parent`，含 regular index `parentId_1`（unique）、`courseId_1_videoId_1`、`videoId_1_hierarchyFingerprint_1`，以及 Atlas Vector Index `parent_embedding_index`（3072 維 cosine，filter=`courseId`+`videoId`），實查為 READY/queryable。
-
-建立與重建（冪等，既存 index 會直接略過）：
-
-```powershell
-npm run db:ensure-parent-storage -- --dry-run
-```
-
-```powershell
-npm run db:ensure-parent-storage
-```
-
-相關設定（`.env.example` 已同步）：
-
-```env
-VIDEO_SEGMENT_PARENT_COLLECTION=video_segments_parent
-VIDEO_SEGMENTS_PARENT_VECTOR_INDEX_NAME=parent_embedding_index
-```
-
-DB 組拍板的決策：MVP 採單一 generation，unique key 用單鍵 `parentId`（重跑同影片以 idempotent upsert 覆蓋）；`generationVersion` / `isActive` 當時不進 index 與 filter（2026-08-13 起新版 source contract 已要求 `{videoId,generationVersion,isActive}` index 與對應 vector filter，見 current-state）；cleanup 現階段只 upsert 不刪，正式開檢索前才啟用 guarded stale 清理；rollback 即關閉 `HIERARCHICAL_RETRIEVAL_ENABLED`。
-
-**2026-08-02 當時 collection 是 0 筆。** 正式 `searchParents()` Atlas adapter 已實作並接入 QA；Parent uploader 已於 2026-08 由 AI Pipeline 組完成（stable-only preflight、idempotent upsert），但尚未寫入 shared Atlas，Gate 維持關閉；尚未以真實 Parent 文件驗證 Parent → Child → Leaf Citation 端對端流程，不能誤稱 Hierarchical Retrieval 已可用。
-
-另須在開 Gate 前完成 embedding 模型遷移：Backend query 已切到 stable `gemini-embedding-2`（2026-08），Pipeline 的 Parent／Leaf artifact 也已改用 stable contract，但 shared Atlas 既有 preview 向量尚未重建。新舊向量空間與 retrieval instruction 契約不可混用，不能只切 Backend model。
-
-## 目前真實 runtime
-
-phase-1 共享 demo 設定（2026-05-05 紀錄；正式 VM 的實際值以 VM 上的 `.env` 與 `/health` 為準）：
-
-```env
-DEMO_SEED_ENABLED=false
-QA_QUERY_EMBEDDING_PROVIDER=gemini
-QA_VECTOR_SEARCH_MODE=atlas
-QA_ATLAS_VECTOR_INDEX_NAME=text_embedding_index
-QA_ATLAS_FILTER_MODE=bridge_course_or_video
-QA_ANSWER_PROVIDER=gemini
-GEMINI_API_KEY=<需填入>
-LINE_CHANNEL_SECRET=<需填入>
-LINE_CHANNEL_ACCESS_TOKEN=<需填入>
-VIDEO_SEGMENT_COLLECTION=video_segments_text
-```
-
-代表：
-
-- query embedding 使用 Gemini（2026-08 起為 stable `gemini-embedding-2`，3072 維；當時為 `gemini-embedding-2-preview`）
-- `.env` 指向 Atlas vector search（`text_embedding_index`）；該 index 2026-05-01 曾不存在、2026-05-23 重新驗證為 READY，目前狀態以 `/health.runtime.qa` 與唯讀實查為準
-- answer provider 是 Gemini
-- LINE live 已完整驗證（`readiness=ready`、`deliveryMode=live`）
-- 影片建立後可背景 spawn `STT_Whisper`；支援本機上傳與 YouTube URL MVP；STT pipeline 寫入前會檢查 Video record 是否仍存在（`mongodb_uploader._target_video_exists()`），避免教師在 pipeline 跑到一半時刪影片產生孤兒 segments
-- 本地影片自動上傳 YouTube：`processing=completed` 後由 `youtubeUpload.service.js` 背景上傳（feature flag `YOUTUBE_UPLOAD_ENABLED` 預設關閉，需 `youtube.force-ssl` scope 的 OAuth 憑證；2026-08-02 已完成 live 驗證，並於刪除影片／課程時自動把影片轉為 private）；2026-08-12 補上 pre-byte-only 有限重試、stale upload 隔離、owner/admin retry API 與生命週期完成後的安全本地清理，recovery/cleanup 仍預設關閉
-- 教師可刪自己課程：`DELETE /api/v1/courses/:id` route 放寬到 TEACHER + ADMIN，service 仍限 admin 或 owner teacher；cascade 清 Video / Segment / transcripts / `course.videoIds $pull` / `Enrollment` / `User.activeCourseId $unset`
-- 歷史紀錄保留：刪 Video / Course **不**連動刪 UsageLog / Question；Display 層分流（老師 Top Segments filter；學生 Recent Queries / 管理員 Recent Events 顯示「內容已下架」badge）
-- 2026-05-07 後端查詢平行化：`teacherStats.service.js` dashboard 兩輪 `Promise.all` + 全 `.lean()`；`qa.service.js` 三處平行；`loadScopedSearchableSegments` 加 `.lean()`；學生 dashboard 從 1.6–2.4s 降到 ~0.8–1s，QA segments hydration 從 8.8s 降到 ~1s
-- 2026-05-07 自助註冊：新增 `POST /api/v1/auth/register`（無 auth），當時限 `student` / `teacher`（**2026-09-18 起只開放 `student`**，教師帳號由管理員建立）；validation：姓名必填、email 格式、密碼 ≥ 8；email 重複 → `409 DUPLICATE_RESOURCE`；bcrypt salt=10；成功回 `201 + { token, user }` 並寫 `UsageLog event=login metadata.via=register`
-- 2026-05-07 重複上傳防呆：YouTube 於 `createCourseVideoFromYouTube` 在建立前以 `(courseId, youtubeVideoId)` 查重，命中回 `409 DUPLICATE_VIDEO`；mp4 於 `createCourseVideo` 上傳完成後 SHA-256 stream-hash，命中 `(courseId, fileHash)` 既存 video → `unlinkSync` 暫存檔 → 回 `409 DUPLICATE_VIDEO`；`Video` 新增 `fileHash` 欄位 + `{ courseId, fileHash }` index
-- 2026-07-12 影片多課程掛載（P1-3）：`POST /api/v1/courses/:courseId/videos/:videoId/attach|detach`；主課程記在 `video.courseId`，掛載課程用 `course.videoIds` 引用；刪影片/刪課程清所有課程引用；QA / 播放 / watched 進度支援掛載課程
-- 2026-07-12 老師 Top Segments 修復（老師 #13）：課程所有影片被刪除後不再整列丟棄，改標 `contentMissing` 併同課程合併一列，前端顯示「內容已下架」badge
-- 2026-07-13 學生進度 0% 修復 + 統計語意：watched 進度分母補上主課程影片、dashboard 依 `watchedVideoIds` 即時重算；學生統計卡片加「本週（最近 7 天）/ 累計」中文說明；LINE 命中影片無 YouTube 連結時改附「請到網站播放對應時間點」提示
-- 2026-07-13 FAQ 快取：`faqs` collection + `faqCache.service.js` 兩層快取（正規化文字相同零 token 直接命中；query embedding 相似度 ≥ 0.95 跳過向量搜尋與 LLM），API 與 LINE 共用；影片刪除/重新處理完成/課程刪除自動清該課程快取；`GET/DELETE /api/v1/courses/:courseId/faqs`；env `FAQ_CACHE_ENABLED`（預設開）、`FAQ_CACHE_SIMILARITY_THRESHOLD`、`FAQ_CACHE_MAX_ENTRIES_PER_COURSE`
-- 2026-08-14 多影片批次整合：`POST /courses/:courseId/video-batches` 建立可追蹤 batch；`VIDEO_BATCH_PIPELINE_ENABLED=true` 時產生 versioned Python request。Backend 會以 `VIDEO_BATCH_RECONCILE_INTERVAL_MS` 對帳 `batch_manifest.json`，重啟後排程 `--batch-resume`；Python execution lease 阻擋同批次雙重執行。單項手動 retry 會對既有 manifest 的指定 `videoId` 授予一次額外嘗試並沿用 checkpoint；single adapter 則會安全重啟本機來源 worker。功能旗標預設 false，真實 STT/Gemini 與正式部署仍須獨立驗收。
-- 2026-05-07 學生 watched 進度 endpoint：新增 `POST /api/v1/courses/:courseId/videos/:videoId/watched`（學生身分），由 `course.service.markVideoWatched` 驗證影片屬該課程後 `$addToSet` 至 `Enrollment.watchedVideoIds` 並重算 `progress`；首次觀看時同步寫 `UsageLog event=WATCH metadata.videoId=...`（重複不重複寫），讓 admin Usage Statistics 的 WATCH 卡片可實際累加
-- 新增 `[qa-timing]` 診斷 log（`course-lookup` / `access+videos` / `load-segments` / `embed` / `search` / `llm+clip` / `writes` / `TOTAL`）；可用 `QA_TIMING=off` 關閉，`NODE_ENV=test` 自動靜音
-- startup 不會自動 seed
-
-## 必要 env
-
-最少需要：
-
-- `MONGODB_URI`
-- `JWT_SECRET`
-- `PROCESSING_WEBHOOK_SECRET`
-
-依 runtime 決定：
-
-- `GEMINI_API_KEY`
-  - `QA_ANSWER_PROVIDER=gemini` 時必填
-- `OPENAI_API_KEY`
-  - `QA_QUERY_EMBEDDING_PROVIDER=openai` 或 `QA_ANSWER_PROVIDER=openai` 時必填
-- `LINE_CHANNEL_SECRET`
-  - 驗 LINE webhook signature 必填
-- `LINE_CHANNEL_ACCESS_TOKEN`
-  - 要送出 live LINE reply 必填
-
-## Fail-Fast 與 Fallback
-
-### 會直接 fail-fast 的情況
-
-- `QA_QUERY_EMBEDDING_PROVIDER` / `QA_VECTOR_SEARCH_MODE` / `QA_ANSWER_PROVIDER` 設成不支援值
-- `QA_ANSWER_PROVIDER=gemini` 但缺 `GEMINI_API_KEY`
-- `QA_QUERY_EMBEDDING_PROVIDER=openai` 或 `QA_ANSWER_PROVIDER=openai` 但缺 `OPENAI_API_KEY`
-- `QA_VECTOR_SEARCH_MODE=atlas` 但缺 `QA_ATLAS_VECTOR_INDEX_NAME`
-- `QA_VECTOR_SEARCH_MODE=atlas` 搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`
-- Atlas aggregate 失敗時，回 `503 QA_ATLAS_NOT_READY`
-
-### 目前仍保留 fallback，但會明確標記的情況
-
-- memory ranking 無法做向量比對時，退回 lexical ranking
-  - `/api/v1/qa/ask` 會回 `data.runtime.fallbacks`
-- Gemini 在已正確設定 key 的前提下若臨時失敗
-  - 會改用 template answer
-  - `/api/v1/qa/ask` 會回 `data.runtime.fallbacks`
-- LINE 在 backend-only / non-live 驗證時若缺 `LINE_CHANNEL_ACCESS_TOKEN`
-  - webhook 不會假裝 live reply 已送出
-  - 會回 `replySkipped=true` 與 `replyReason=line_channel_access_token_missing`
-
-## Health 與可觀測性
-
-`GET /health` 現在會回：
-
-- `runtime.qa`
-- `runtime.line`
-- `runtime.multimodal`
-- `runtime.shortsSync`
-- `runtime.youtubeUpload`
-
-可快速看出：
-
-- 目前 QA provider / search mode / answer mode
-- `runtime.qa.readiness`
-  - `ready`
-  - `degraded`
-  - `hard_fail`
-- `runtime.qa.readyForAsk`
-- `runtime.qa.warnings`
-- `runtime.qa.hardFailures`
-- Atlas index 是否有配置
-- Gemini / OpenAI key 是否已配置
-- Hierarchical Retrieval gate、Leaf fallback、Parent storage mode 與 query embedding 相容性
-- LINE live flow 是否真的 ready
-- `runtime.line.readiness`
-  - `ready`
-  - `degraded`
-  - `hard_fail`
-- `runtime.line.deliveryMode`
-  - `live`
-  - `backend_only`
-  - `disabled`
-- `runtime.line.degradedReasons`
-- `runtime.line.hardFailures`
-- YouTube upload／刪除轉 private 的憑證、scope 與最近執行狀態
-- Shorts metadata sync 與 multimodal index readiness
-
-完整欄位與狀態語意以 [`docs/current-state.md`](docs/current-state.md) 與 [`docs/openapi.yaml`](docs/openapi.yaml) 為準。
-
-## QA API
-
-### 目前最小 bridge contract
-
-`course.videoIds -> videos._id | videos.videoId | videos.video_id -> video_segments_text.videoId`
-
-`bridgeScope.service.js` 會把同一支影片的 `_id`、`videoId`、`video_id` 三種 key 全部放進 allowed set，命中任一即納入 scope（`video_id` 是 legacy 相容讀取）。
-
-實務分佈（2026-07-25 實查）：**app-owned 影片沒有 `videoId` 欄位**，pipeline 直接把 `String(videos._id)` 寫進片段的 `videoId`；只有 pipeline metadata 影片才帶 `videoId` / `video_id`。手動查 collection 時要用 `String(videos._id)` 對 `video_segments_text.videoId`，用 `videos.videoId` 會全部對不到。
-
-### `/api/v1/qa/ask` 現在的可觀測欄位
-
-成功與 no-match 回應都會帶：
-
-- `data.runtime.status`
-  - `ready`
-  - `degraded`
-- `data.runtime.degraded`
-- `data.runtime.degradedReasons`
-- `data.runtime.matchStatus`
-  - `matched`
-  - `no_relevant_match`
-  - `no_searchable_segments`
-- `data.runtime.searchableSegmentCount`
-- `data.runtime.searchBackendUsed`
-- `data.runtime.answerProviderUsed`
-- `data.runtime.course.qaScopeOnly`
-- `data.runtime.course.bridgeMode`
-- `data.runtime.fallbacks`
-
-### bridge course 沒 searchable data 時的行為
-
-若課程只有 metadata、沒有 searchable segment：
-
-- API 仍回 `200`
-- `matches=[]`
-- `runtime.matchStatus=no_searchable_segments`
-- answer 明確說明目前只有 bridge metadata，尚未有可搜尋片段
-
-## Courses / Videos
-
-`FocusFlow Pipeline Bridge Course` 目前不再是「課程列得出來，但影片清單空掉」。
-
-課程 response 會帶：
-
-- `qaScopeOnly`
-- `bridgeMode`
-- `videoCount`
-- `appVideoCount`
-- `bridgeVideoCount`
-- `bridgeContract`
-- `bridgeContractPath`
-
-bridge course 的 `/api/v1/courses/:courseId/videos` 會回 `metadataOnly=true` 的 bridge rows。
-
-限制：
-
-- 這些 rows 可用於 QA scope
-- 不是完整 app-owned video
-- `GET /api/v1/videos/:videoId/processing` 會回 `409 VIDEO_METADATA_ONLY`
-
-## LINE
-
-### live 狀態（2026-04-19 已驗證）
-
-端對端流程已在真實裝置走通：
-
-```text
-學生在 LINE 輸入問題
-↓
-LINE Platform → POST /api/v1/line/webhook（ngrok → localhost:4000）
-↓
-lineSignature.middleware 驗證 HMAC-SHA256
-↓
-line.service.handleQuestion()
-↓
-qa.service.askQuestion()
-↓
-Gemini / memory 或 Atlas 搜尋 → video_segments_text
-↓
-Gemini gemini-3.5-flash 生成答案
-↓
-LINE reply API 回傳答案 + 影片時間戳；YouTube 影片可附 https://youtu.be/<id>?t=<sec>
-```
-
-### 可驗證內容
-
-- `POST /api/v1/line/bind-token` — 發放綁定代碼（需 JWT）
-- bind token → bind（LINE 傳入代碼完成帳號綁定）
-- `BIND:<token>:COURSE:<courseId>` → 綁定後直接切換課程
-- 「切換課程」→ `select_course` postback
-- `COURSE:<courseId>` → 只有 published 課程且使用者已有 active Enrollment 時才能切換；LINE 不會自行建立修課權限
-- 自然語言提問 → QA 語意搜尋 → 答案 + 時間戳回傳至 LINE
-
-### live LINE 與 backend-only 的差異
-
-- 有 `LINE_CHANNEL_SECRET + LINE_CHANNEL_ACCESS_TOKEN`（目前狀態）
-  - webhook 可驗簽且可送出 live reply，`/health` 顯示 `readiness=ready`
-- 只有 `LINE_CHANNEL_SECRET`（金鑰遺失時的降級狀態）
-  - webhook route 仍可做 backend-only 驗證
-  - `/health` 會顯示 `runtime.line.readiness=degraded`、`deliveryMode=backend_only`
-  - 結果會標示 `replySkipped=true`
-
-### 已知短期限制
-
-- ngrok 每次重啟 URL 會變，需手動更新 LINE Developers Console Webhook URL
-- 目前 repo 實際存在的是 webhook + bind-token/message QR 流程；LIFF endpoints / pages 尚未實作
-
-## YouTube URL MVP
-
-已上線的 YouTube 流程：
-
-```text
-POST /api/v1/courses/:courseId/videos/youtube
-→ video.service.parseYouTubeVideoId()
-→ 建立 sourceType=youtube 的 Video
-→ 背景 spawn STT_Whisper/src/main.py --youtube-url <url> --video-id <mongoId> --overwrite
-→ yt-dlp 下載音訊
-→ STT / chunk / embedding / MongoDB upload
-→ internal webhook 回報 completed / failed
-```
-
-Backend 已可自動把本機影片上傳到 YouTube。`backend/uploads/` 清理由 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 明確控制，且只在 YouTube upload 與 processing 都完成、路徑位於 `UPLOAD_DIR`、沒有其他 Video 共用時執行；不能無差別清除。YouTube playlist 管理仍未實作。
-
-LINE Bot 回覆會在有 YouTube videoId 時附 `跳轉：https://youtu.be/<id>?t=<sec>`；課程選單透過 `filterCoursesWithLiveVideos()` 過濾沒有 live video 的課程，避免使用者切到無法回答的空課程。
-
-### LINE question flow 的 hard-fail 訊號
-
-若 LINE 問答碰到 QA runtime 問題，webhook result 不再只剩 generic `internal_error`，而會帶：
-
-- `reason`
-  - `qa_runtime_misconfigured`
-  - `qa_atlas_not_ready`
-  - `answer_provider_not_configured`
-  - `qa_internal_error`
-- `errorCode`
-- `qaRuntime.readiness`
-- `qaRuntime.readyForAsk`
-- `qaRuntime.hardFailureCodes`
-
-## Quick Start
+使用 Node.js 20.x（至少 20.19.0）或 22.12.0 以上、npm 10 以上；需求依據見[鎖定檔](package-lock.json)。從 repo 根目錄執行：
 
 ```powershell
 cd backend
-npm install
-Copy-Item .env.example .env
+npm.cmd ci
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-新環境若需要 demo 基礎資料，再手動執行：
+`.env` 是程序讀取的環境設定檔。啟動前編輯下列項目；更多設定見[範例檔](.env.example)：
+
+| 設定 | 本機操作 |
+|---|---|
+| `MONGODB_URI` | 指向自己的資料庫，例如 `mongodb://127.0.0.1:27017/focusflow_local`。 |
+| `JWT_SECRET` | 設定自行產生的隨機密鑰，用於驗證登入憑證。 |
+| `PROCESSING_WEBHOOK_SECRET` | 設定影片處理回報的密鑰，與 Pipeline 相同。 |
+| `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory` | 本機模擬問答設定；仍需資料庫，不代表真實模型效果。 |
+
+Gemini、LINE 與 YouTube 的金鑰依要使用的功能填寫；不要把金鑰提交到 Git。後端連線使用 [Mongoose](src/config/database.js)（操作 MongoDB 的套件），啟動可能建立索引，請勿用共用 Atlas 驗證啟動。
+
+## 啟動與操作
 
 ```powershell
-cd backend
-npm run seed
+npm.cmd run dev
 ```
 
-說明：
+開發模式會監看檔案變更；一般啟動用 `npm.cmd start`。預設服務在 `http://localhost:4000`，可讀取 `/health`，並由 `/docs` 查看 API（前端呼叫後端的介面）說明。
 
-- `npm run seed` 只建立 / 更新 backend demo users、courses、videos、segments、clip（converge baseline，不清除既有資料）
-- `npm run seed:reset` 先清除 demo-owned / demo-derived 痕跡，再重建基線
-- 不負責 pipeline metadata
-- 不負責建立 Atlas vector index
-- 不會保證多影片 searchable coverage
+需要本機示範資料時，在確認 `MONGODB_URI` 後執行 `npm.cmd run seed`，此操作會寫入指定資料庫。例：空白本機資料庫 → 執行 seed → 以 `student@focusflow.local`／`Student123!` 登入；帳號定義見[種子資料](src/scripts/seedDemoUsers.js)。
 
-嚴格修課權限上線後，若既有學生曾在 published 課程提問、帳號仍啟用，卻沒有任何 Enrollment 關聯，可用受控修復工具補回既有存取權。工具預設只做 dry-run；apply 必須帶入剛取得的候選數量，且不會重新啟用 revoked Enrollment：
+## 資料工具與問答設定
 
-```powershell
-npm run db:repair-legacy-enrollments -- --course-id <courseObjectId>
-npm run db:repair-legacy-enrollments -- --course-id <courseObjectId> --apply --expected-count <dryRunCandidateCount>
-```
+下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
 
-啟動：
+| 指令 | 作用 |
+|---|---|
+| `npm.cmd run seed` | 把示範資料收斂到基準狀態，不清除既有資料 |
+| `npm.cmd run seed:reset` | 保守清除示範帳號產生的資料後重建 |
+| `npm.cmd run db:sync-atlas` | 把本機資料同步到 Atlas |
+| `npm.cmd run db:ensure-questions` | 建立 `questions` 集合並同步索引 |
+| `npm.cmd run db:backfill-questions` | 預設只預覽（dry-run），加 `-- --write` 才寫入 |
 
-```powershell
-cd backend
-npm start
-```
+問答設定有幾個限制：`QA_ANSWER_PROVIDER=gemini` 必須設定 `GEMINI_API_KEY`，缺少時直接回設定錯誤，不會改用其他方式；`QA_VECTOR_SEARCH_MODE=atlas` 不能搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`。服務是否可用，看 `/health` 的 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload`，不以 `.env` 有填值推定。
 
-## 驗證
+例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
 
-最近重新確認：
-
-- `npm test` 全套
-  - 2026-05-07 實跑結果：**87 passed / 0 failed**（含 dashboard 平行化、QA `.lean()`、刪除 cascade、display 分流、教師上傳表單解鎖、重複上傳防呆、學生 watched endpoint 等變動後）
-  - 整套執行時間 ~20s（dashboard / QA 平行化的副效果，與先前 ~30s 相比快 30%）
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\qa.routes.test.js`：8 passed
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\course-video.routes.test.js`：20 passed（含 YouTube 註冊不暴露 `/uploads` URL）
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\line.routes.test.js`：14 passed
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\docs.routes.test.js`：2 passed
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\teacherStats.service.test.js`：3 passed（含已刪影片 fallback、Recent Videos 排序、合併同影片 top segments）
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\textEncoding.test.js`：6 passed
-- `node --test --experimental-test-isolation=none --test-concurrency=1 tests\\mvp.acceptance.test.js`
-  - 鎖 `health -> auth -> courses -> QA -> LINE` backend-only demo 主線
-- `tests\\health.routes.test.js`
-  - 鎖 `/health` readiness / deliveryMode contract
-- 實際 backend startup + `/health`
-  - passed（2026-04-14）
-- `auth / me`、courses、bridge course videos、QA、LINE bind/ask
-  - 以 backend route tests / harness 重新驗證
-  - 這樣可避免在共享 MongoDB 上新增 usage log / bind token
-
-## 先看哪些文件
-
-- [backend/docs/current-state.md](docs/current-state.md)
-- [backend/docs/handoff-known-issues.md](docs/handoff-known-issues.md)
-- [backend/docs/todo.md](docs/todo.md)
-- [backend/docs/implementation-log.md](docs/implementation-log.md)
+測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。

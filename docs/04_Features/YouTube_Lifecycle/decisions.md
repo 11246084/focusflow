@@ -136,9 +136,9 @@
 | 日期 | 內容 | 驗收證據 |
 |---|---|---|
 | 10/20～10/23 | A～E 開發，各自測試 | Backend 相關 `node:test`、`npm run docs:lint`；Frontend `npm test`、`lint`、`build` |
-| 10/24 | 合併部署（需使用者授權）；開啟恢復 | `/health` 顯示排程執行、憑證含 `youtube.force-ssl`；測試課程上傳一支影片成功 |
+| 10/22（原訂 10/24，複評結束後提前） | ✅ 合併部署（使用者授權並自行 push）；開啟恢復。清理的環境變數依使用者決定維持 `false`，11/9 開清理時才改：刪檔無法復原，上線初期保留 VM 這道關卡 | ✅ `/health` 顯示恢復排程執行、憑證含 `youtube.force-ssl`；✅ 管理員頁截圖。測試上傳延後到團隊下次實際上傳課程影片，不為驗收另傳測試片到頻道。見[上線紀錄](../../10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md) |
 | 10/26～11/6 | 本機端到端驗收清理；另開 session 做獨立 code review | 結果寫入 `evidence/`：依規則刪檔、補回原片、預告清單、短片清理、隔離收尾 |
-| 11/9～11/13 | 正式環境開啟清理（需使用者授權），預告須為 0 支；瀏覽器實際操作管理員介面 | 截圖與 `/health` 紀錄；更新[目前狀態](../../current-status.md) |
+| 11/9～11/13 | 正式環境開啟清理（需使用者授權）：先把 VM 的 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 改成 `true` 並重啟，再由管理員啟用，預告須為 0 支；瀏覽器實際操作管理員介面 | 截圖與 `/health` 紀錄；更新[目前狀態](../../current-status.md) |
 | 11/16～11/27 | 凍結部署，只修緊急問題 | — |
 
 完成時同步：[功能開關](../../../backend/docs/feature-flags.md)、`backend/.env.example`、[OpenAPI](../../../backend/docs/openapi.yaml)、[API 設計規範](../../../.claude/rules/api-design.md)錯誤碼、[API 契約](../../../backend/docs/phase2-api-contract.md)、[目前狀態](../../current-status.md)，以及 `backend/docs/` 的 todo、implementation-log 與 README。

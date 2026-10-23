@@ -4,6 +4,7 @@
 
 - [部署與連線排錯](deployment/部署與連線排錯.md)：部署流程、nginx、憑證位置與連線檢查方法。
 - [部署紀錄](deployment/)：VM、Nginx、憑證及回滾相關原文件。
+  - [2026-10 YouTube 恢復與清理上線紀錄](deployment/2026-10_YouTube恢復與清理上線紀錄.md)：合併內容、VM 環境變數、部署前檢查與上線驗收
   - [2026-09 開放學生試用紀錄](deployment/2026-09_開放學生試用紀錄.md)：試用口徑、使用限制與開放時的對外狀態
   - [2026-09-10 Let's Encrypt 憑證申請紀錄](deployment/2026-09-10_Lets_Encrypt憑證申請紀錄.md)：acme.sh + TLS-ALPN-01、續約檢查與回滾
 - [資料庫交付與還原](database-delivery.md)：校方交付包的匯出、還原與驗證方式。

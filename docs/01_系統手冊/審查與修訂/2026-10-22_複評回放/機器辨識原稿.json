@@ -1,0 +1,4422 @@
+{
+  "notice": "Unedited machine transcription. Not human-verified. Original livestream timestamps. Do not use as exact quotations or as acceptance evidence.",
+  "source_video_id": "FoF6-8YnPWw",
+  "source_audio_format": "249 (Opus); derived mono 16 kHz WAV",
+  "source_range_seconds": [
+    139,
+    1785
+  ],
+  "model": "Systran/faster-whisper-small",
+  "primary_pass_parameters": {
+    "device": "cpu",
+    "compute_type": "int8",
+    "cpu_threads": 8,
+    "beam_size": 5,
+    "vad_filter": true,
+    "condition_on_previous_text": false
+  },
+  "presentation": {
+    "source_offset_seconds": 139,
+    "model": "Systran/faster-whisper-small",
+    "device": "cpu",
+    "compute_type": "int8",
+    "language": "zh",
+    "language_probability": 1,
+    "elapsed_seconds": 253.68,
+    "segments": [
+      {
+        "start": 139.0,
+        "end": 143.5,
+        "text": "我是張嘉瑜。我是張平衡。我是周文豪。我是張百豪。",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 143.5,
+        "end": 147.5,
+        "text": "我是 FocusFlow 教練影片上的Google 樣配Lotion。",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 147.5,
+        "end": 153.84,
+        "text": "在正式開始之前,我們先用一個 1 分鐘的那一段影片讓大家快速瞭解。",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 153.84,
+        "end": 158.34,
+        "text": "很快一、兩個小時。老師講的那一段,到底在哪?",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 158.34,
+        "end": 163.34,
+        "text": "FocusFlow 讓學生直接問課程,跳到老師講解的那一段。",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 163.34,
+        "end": 166.34,
+        "text": "學生只要用一句話,說出自己的問題。",
+        "avg_logprob": -0.453,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 166.34,
+        "end": 176.42,
+        "text": "系統會從整門課的內容找出一句深層答案並附上參考片段",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 176.42,
+        "end": 180.42,
+        "text": "點一下時間說,就交到老師講解的那一面",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 180.42,
+        "end": 185.42,
+        "text": "那部分CVTAR本身也有內建一些那個",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 185.42,
+        "end": 188.42,
+        "text": "系統還會從學生最超問的問題選",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 188.42,
+        "end": 191.42,
+        "text": "依照課程度至港寫出短片交換",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 191.42,
+        "end": 196.95,
+        "text": "每門課也有教學短片,幫助快速補習",
+        "avg_logprob": -0.325,
+        "no_speech_prob": 0.715
+      },
+      {
+        "start": 196.95,
+        "end": 200.95,
+        "text": "你以為越厲害的工具就一定要用嗎?",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 200.95,
+        "end": 202.45,
+        "text": "老師只要上傳影片",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 202.45,
+        "end": 205.95,
+        "text": "系統就會自動轉成屬次檔並建立AXA",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 205.95,
+        "end": 210.2,
+        "text": "學生也能在亂上提問",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 210.2,
+        "end": 213.5,
+        "text": "維護同樣附上的影片片段與跳轉連結",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 213.5,
+        "end": 218.64,
+        "text": "Google Slow 開放學生試用中",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 218.64,
+        "end": 223.9,
+        "text": "我們從一個最常遇到的場景開始",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 223.9,
+        "end": 225.9,
+        "text": "在節目複習的時候",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 225.9,
+        "end": 227.4,
+        "text": "學長老師講過某一個概念",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 227.4,
+        "end": 228.9,
+        "text": "但只要有 Google、YouTube",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 228.9,
+        "end": 230.9,
+        "text": "一大三之後就一無所過",
+        "avg_logprob": -0.39,
+        "no_speech_prob": 0.452
+      },
+      {
+        "start": 230.9,
+        "end": 232.9,
+        "text": "這個就是浪費時間的",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 232.9,
+        "end": 234.9,
+        "text": "是不是學習而是找到答案",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 234.9,
+        "end": 236.9,
+        "text": "做了工作",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 236.9,
+        "end": 239.9,
+        "text": "讓專業影片變成可以再問答的支持庫",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 239.9,
+        "end": 240.9,
+        "text": "進行會自動轉聞",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 240.9,
+        "end": 242.9,
+        "text": "是切斷還有語音的建立",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 242.9,
+        "end": 244.9,
+        "text": "對學生",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 244.9,
+        "end": 246.9,
+        "text": "他可以在電腦上邊看影片編問",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 246.9,
+        "end": 249.9,
+        "text": "也可以用賴提問",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 249.9,
+        "end": 250.9,
+        "text": "那對老師的話",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 250.9,
+        "end": 252.9,
+        "text": "從單次的送客變成可以",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 252.9,
+        "end": 254.9,
+        "text": "實施無等的班級的AI註校",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 254.9,
+        "end": 256.9,
+        "text": "管理員的所有程序",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 256.9,
+        "end": 258.9,
+        "text": "我們一定要把他可以下載內容",
+        "avg_logprob": -0.402,
+        "no_speech_prob": 0.453
+      },
+      {
+        "start": 258.9,
+        "end": 260.9,
+        "text": "全程帳號 全程都可以被集合",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 261.9,
+        "end": 264.9,
+        "text": "那我們都參觀一下 我們都不改為你的差別式",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 264.9,
+        "end": 265.9,
+        "text": "我們直接問",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 265.9,
+        "end": 267.9,
+        "text": "就可以直接猜到做一個片段",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 267.9,
+        "end": 269.9,
+        "text": "然後還可以用在隨地的使用",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 269.9,
+        "end": 272.9,
+        "text": "還有資料組成 留在老師的手上",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 272.9,
+        "end": 274.9,
+        "text": "那不見透明是真的嗎",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 274.9,
+        "end": 276.9,
+        "text": "所以我們做了一個問餐調查",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 277.9,
+        "end": 280.9,
+        "text": "之後發生以上同學都曾經異過",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 280.9,
+        "end": 281.9,
+        "text": "知道老師有講過某個概念",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 281.9,
+        "end": 284.9,
+        "text": "但是都找不到在影片中的哪一段",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 284.9,
+        "end": 286.9,
+        "text": "還有走成以上同學",
+        "avg_logprob": -0.427,
+        "no_speech_prob": 0.748
+      },
+      {
+        "start": 286.9,
+        "end": 289.9,
+        "text": "同學都覺得在小影片裡面找答案是非常耗子的",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 290.9,
+        "end": 294.9,
+        "text": "在資料產項的同學都曾經因為無法離世極穩而跳出學習",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 294.9,
+        "end": 298.9,
+        "text": "所以這次的問題是學生一直被過於開始習慣性",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 298.9,
+        "end": 302.92,
+        "text": "而這真是都錯要解決了",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 302.92,
+        "end": 304.92,
+        "text": "這個就介紹一下信母的使用體制",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 304.92,
+        "end": 310.26,
+        "text": "從出名到現在我們不只增強了AI的委婦品質",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 310.26,
+        "end": 312.26,
+        "text": "在功能部分也增加了",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 312.26,
+        "end": 314.26,
+        "text": "觀影音找位清晨和國文最好的功能",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 314.26,
+        "end": 318.26,
+        "text": "那目前信母已經完成順次復古開放式用作",
+        "avg_logprob": -0.525,
+        "no_speech_prob": 0.514
+      },
+      {
+        "start": 318.26,
+        "end": 321.84,
+        "text": "那系統的角色有三個,學生到自己的管理人",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 321.84,
+        "end": 325.68,
+        "text": "像是上台影片到台之後,學生使用在原型的詢問",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 325.68,
+        "end": 328.0,
+        "text": "專業人則是查看系統的使用情況",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 328.0,
+        "end": 330.3,
+        "text": "這裡是系統的首頁",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 330.3,
+        "end": 334.14,
+        "text": "左邊用戶會先依照自己的身份選擇跟你的場口",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 334.14,
+        "end": 336.9,
+        "text": "學生跟教室的話會使用同一個",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 336.9,
+        "end": 339.14,
+        "text": "專業人的話則是有異化的獨立場口",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 339.14,
+        "end": 343.1,
+        "text": "所以是視乎學生、教師使用右邊,專業人則是使用左邊的",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 343.1,
+        "end": 348.1,
+        "text": "接著會依照各個角色的使用介面以及核心功能的進行介紹",
+        "avg_logprob": -0.4,
+        "no_speech_prob": 0.512
+      },
+      {
+        "start": 348.1,
+        "end": 349.38,
+        "text": "首先是學生端",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 349.9,
+        "end": 354.24,
+        "text": "學生端用平台之後可以透過平台的數據了解自身的學習情況",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 355.26,
+        "end": 358.6,
+        "text": "那先用造成之後就可以針對老師已經發佈的內容",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 358.6,
+        "end": 360.38,
+        "text": "進行自然語言的提問",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 360.9,
+        "end": 363.72,
+        "text": "系統會自動檢索十五段最相關的答覆",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 363.72,
+        "end": 365.26,
+        "text": "以確保回答的完整性",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 365.26,
+        "end": 367.04,
+        "text": "那我們也會做到時間戳定",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 367.04,
+        "end": 369.86,
+        "text": "下次可以跳轉來老師原始影片的教學位置",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 370.88,
+        "end": 372.68,
+        "text": "那我們除了提供RWD網頁",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 372.68,
+        "end": 374.72,
+        "text": "讓學生在不同的用處下使用之外",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.153
+      },
+      {
+        "start": 374.72,
+        "end": 376.08,
+        "text": "我們可以開發文化一段",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 376.08,
+        "end": 377.88,
+        "text": "讓學生可以在手機的環境下",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 377.88,
+        "end": 379.72,
+        "text": "使用我們的服務持續選擇",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 380.72,
+        "end": 382.12,
+        "text": "我們來大致訪定一下",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 382.12,
+        "end": 384.52,
+        "text": "就可以進行詆問的指揮",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 384.52,
+        "end": 386.4,
+        "text": "系統主要讓學生",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 386.4,
+        "end": 387.44,
+        "text": "讀功詆問之外",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 387.44,
+        "end": 389.24,
+        "text": "每份生計學生的詆問",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 389.24,
+        "end": 390.64,
+        "text": "將相關的問題",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 390.64,
+        "end": 391.96,
+        "text": "我們只要常問到問題",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 391.96,
+        "end": 394.48,
+        "text": "規納成一個關於教材作為",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 394.48,
+        "end": 395.8,
+        "text": "讀功教材就使用",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 395.8,
+        "end": 397.2,
+        "text": "那有關於在上架之前",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 397.2,
+        "end": 398.64,
+        "text": "都會經過網絡政策",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 398.64,
+        "end": 400.24,
+        "text": "後面會再詳細鎖道",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 400.84,
+        "end": 402.72,
+        "text": "這就是教師的介面",
+        "avg_logprob": -0.547,
+        "no_speech_prob": 0.724
+      },
+      {
+        "start": 402.72,
+        "end": 406.04,
+        "text": "學生的提問會進一步準備到教師的後裁",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 406.04,
+        "end": 408.58,
+        "text": "讓教師可以掌握學生的選擇情況",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 408.58,
+        "end": 411.5,
+        "text": "作為調整教材或是教學方式的提問",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 411.5,
+        "end": 414.9,
+        "text": "老師只要建立課程的上傳影片教材",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 414.9,
+        "end": 417.9,
+        "text": "系統就會自動被背景完成影片的處理",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 417.9,
+        "end": 422.7,
+        "text": "老師可以針對課程建立或是刪除",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 422.7,
+        "end": 425.04,
+        "text": "他也可以管理修課學生的心單",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 425.04,
+        "end": 428.92,
+        "text": "以及針對課程去上傳或是新增一些教材內容",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 428.92,
+        "end": 431.92,
+        "text": "剛剛前面有提到說學生可以看專業",
+        "avg_logprob": -0.374,
+        "no_speech_prob": 0.089
+      },
+      {
+        "start": 431.92,
+        "end": 434.22,
+        "text": "可是浩子就關於什麼產生的呢",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 434.22,
+        "end": 435.38,
+        "text": "那關於就是",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 435.38,
+        "end": 437.38,
+        "text": "我們會先依照學生的提問",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 437.38,
+        "end": 440.28,
+        "text": "然後將相似的提問歸並成單一的主題",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 440.28,
+        "end": 443.44,
+        "text": "再分去主題是產生專一的腳本",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 443.44,
+        "end": 445.16,
+        "text": "腳本本就會不符合",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 445.16,
+        "end": 447.04,
+        "text": "老師實際教學的這個需求",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 447.04,
+        "end": 448.02,
+        "text": "或是問題",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 448.02,
+        "end": 449.44,
+        "text": "還有情報的等格",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 449.44,
+        "end": 452.14,
+        "text": "那這時候老師就可以針對腳本不符合進行",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 452.14,
+        "end": 453.02,
+        "text": "手動的調整",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 453.02,
+        "end": 453.88,
+        "text": "或者是鳥粉的",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 453.88,
+        "end": 455.52,
+        "text": "重新生存都是合理的",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 456.28,
+        "end": 457.78,
+        "text": "那腳本沒有問題",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 457.78,
+        "end": 460.82,
+        "text": "就會進一步去產生專一的這個實際",
+        "avg_logprob": -0.461,
+        "no_speech_prob": 0.12
+      },
+      {
+        "start": 460.82,
+        "end": 462.72,
+        "text": "這會有兩個結果",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 462.72,
+        "end": 464.52,
+        "text": "第一個是通過讓學者通過",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 464.52,
+        "end": 467.52,
+        "text": "通過的話就是會直接公開把不讓學者觀看",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 467.52,
+        "end": 468.84,
+        "text": "不通過的話就會提到",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 468.84,
+        "end": 471.34,
+        "text": "就全解一下會回的原因是什麼",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 471.34,
+        "end": 473.6,
+        "text": "系統會保留最適合成程的結果",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 473.6,
+        "end": 475.76,
+        "text": "然後再重新產生一個新版的單一頁",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 475.76,
+        "end": 478.8,
+        "text": "讓老師是確認這些教材品質的內容",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 478.8,
+        "end": 479.88,
+        "text": "都必須要有問題的",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 479.88,
+        "end": 482.04,
+        "text": "才會公開把不讓學者觀看",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 482.04,
+        "end": 484.24,
+        "text": "那就是這個管理員的介面",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 484.24,
+        "end": 486.4,
+        "text": "當業務不開始使用系統之後",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 486.4,
+        "end": 489.28,
+        "text": "就在後台就會產生一些使用的季度",
+        "avg_logprob": -0.465,
+        "no_speech_prob": 0.055
+      },
+      {
+        "start": 489.28,
+        "end": 491.84,
+        "text": "然後管理員就可以看到這些使用紀錄的",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 491.84,
+        "end": 495.42,
+        "text": "然後也可以去做全站的公司發布",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 496.18,
+        "end": 497.98,
+        "text": "管理員甚至可以在必要的時候",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 497.98,
+        "end": 500.8,
+        "text": "針對課程底下的影片進行刪除以下",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 500.8,
+        "end": 503.97,
+        "text": "要不然使用系統之後",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 503.97,
+        "end": 505.25,
+        "text": "可能就會產生一些問題",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 505.25,
+        "end": 507.55,
+        "text": "或是有什麼建議都可以提供給我們",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 507.55,
+        "end": 509.85,
+        "text": "那他們就可以透過我們開發系統回報",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 509.85,
+        "end": 511.91,
+        "text": "這個功能進行系統的回報",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 511.91,
+        "end": 513.95,
+        "text": "管理員會有一個介面",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 513.95,
+        "end": 516.77,
+        "text": "可以統一管理這些用戶的回報",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 516.77,
+        "end": 518.05,
+        "text": "然後作為後續別代",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 518.05,
+        "end": 520.35,
+        "text": "或者是優化系統之一的音訊",
+        "avg_logprob": -0.286,
+        "no_speech_prob": 0.099
+      },
+      {
+        "start": 520.91,
+        "end": 524.91,
+        "text": "那三種角色除了有自己的核心針操作工程之外",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 524.91,
+        "end": 526.91,
+        "text": "也有一些共同的工程都要分享一下",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 526.91,
+        "end": 529.91,
+        "text": "三種角色都可以去接收存在的工具",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 529.91,
+        "end": 531.91,
+        "text": "也可以管理自己的個人資料",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 531.91,
+        "end": 533.91,
+        "text": "像是杏仁妹喔,然後頭像等等",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 533.91,
+        "end": 541.08,
+        "text": "主持人好,接下來我們來介紹商業模式的部分",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 541.08,
+        "end": 543.08,
+        "text": "那從主要來看的話",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 543.08,
+        "end": 544.08,
+        "text": "我們面臨這兩個困境",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 544.08,
+        "end": 547.08,
+        "text": "第一個是模型的依賴以及大廠的性徵",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 547.08,
+        "end": 550.08,
+        "text": "但是我們有性徵的一些我們創新點",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 550.08,
+        "end": 552.08,
+        "text": "譬如說我們可以製作轉移型",
+        "avg_logprob": -0.341,
+        "no_speech_prob": 0.529
+      },
+      {
+        "start": 552.08,
+        "end": 554.84,
+        "text": "我們也向其他大腦他們製作的水平工具",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 554.84,
+        "end": 556.84,
+        "text": "這樣可以進行解鎖問答",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 557.34,
+        "end": 559.34,
+        "text": "所以我覺得這也可以為我們帶來",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 559.34,
+        "end": 562.14,
+        "text": "可以跟KOL或者是教育平台合作的疾問",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 563.24,
+        "end": 564.48,
+        "text": "中業模式的部分的話",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 564.48,
+        "end": 565.74,
+        "text": "我們走兩條路線",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 565.74,
+        "end": 567.2,
+        "text": "第一個是我們會跟學校",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 567.2,
+        "end": 569.98,
+        "text": "還有補習班去進行合作提供API授權",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 570.34,
+        "end": 571.14,
+        "text": "那第二個的話",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 571.14,
+        "end": 573.04,
+        "text": "這是我們可以跟KOL",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 573.04,
+        "end": 574.64,
+        "text": "或者數位課程的創作者",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 574.64,
+        "end": 577.24,
+        "text": "進行合作提供API助教的價值服務",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 578.7,
+        "end": 579.64,
+        "text": "等等的方面的話",
+        "avg_logprob": -0.352,
+        "no_speech_prob": 0.367
+      },
+      {
+        "start": 579.64,
+        "end": 582.2,
+        "text": "我們估算出乎大概AI成本",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 582.2,
+        "end": 584.24,
+        "text": "會是能夠成本的35分之1",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 584.24,
+        "end": 585.54,
+        "text": "然後我們支付1成本",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 585.54,
+        "end": 587.84,
+        "text": "大約每個學期會是33000塊",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 587.84,
+        "end": 589.04,
+        "text": "然後我們推廣各業化",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 589.04,
+        "end": 590.74,
+        "text": "我們短期會先在上面進行試用",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 590.74,
+        "end": 592.64,
+        "text": "然後逐步去擴展到其他市場",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 593.44,
+        "end": 595.34,
+        "text": "再來是我們系統架構的部分",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 595.94,
+        "end": 597.64,
+        "text": "首先介紹一下我們開發盤隊伍",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 597.64,
+        "end": 598.84,
+        "text": "是丘瑞勞夫主要負責",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 598.84,
+        "end": 601.14,
+        "text": "施厚端以及DI的部分",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 602.84,
+        "end": 604.64,
+        "text": "張明瑜的話主要是負責",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 604.64,
+        "end": 607.04,
+        "text": "我們的HED跟Invadee的部分",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.701
+      },
+      {
+        "start": 607.04,
+        "end": 612.04,
+        "text": "中百勞則負責QA評測以及端英腳本的產生",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 612.04,
+        "end": 615.04,
+        "text": "中教育的話則負責我們整個系統的前端介面",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 615.04,
+        "end": 617.04,
+        "text": "以及安全性的 UI 學者",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 617.04,
+        "end": 619.04,
+        "text": "這是我們整體的系統架構圖",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 619.04,
+        "end": 621.04,
+        "text": "那從圖上面的話",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 621.04,
+        "end": 623.04,
+        "text": "我們可以看到老師今天上傳影片",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 623.04,
+        "end": 626.04,
+        "text": "他可以進行切斷然後建立所謂",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 626.04,
+        "end": 629.04,
+        "text": "接著我們就會去讓學生提供一個",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 629.04,
+        "end": 632.04,
+        "text": "網頁跟賴一端的提問",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 632.04,
+        "end": 634.04,
+        "text": "並且我們還有設計設計飛輪",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 634.04,
+        "end": 636.04,
+        "text": "先會根據學生常問的問題",
+        "avg_logprob": -0.316,
+        "no_speech_prob": 0.687
+      },
+      {
+        "start": 636.04,
+        "end": 639.2,
+        "text": "問題去產生短暈腳踏冰層的聲音變出來",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 639.2,
+        "end": 640.28,
+        "text": "可以去申請觀看",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 641.54,
+        "end": 642.68,
+        "text": "出名之後的變化",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 642.68,
+        "end": 645.28,
+        "text": "我們在創合的部分我們有進行縮短",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 645.28,
+        "end": 648.54,
+        "text": "然後並且我們在雲短的部分有進行加快",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 648.54,
+        "end": 651.38,
+        "text": "然後呢 接觸的部分我們有做一些塗魚罩的調整",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 652.38,
+        "end": 655.18,
+        "text": "Invade的部分我們是選擇Gemline Beading Tool",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 655.18,
+        "end": 657.88,
+        "text": "為我們多麼態的解鎖打下一個樓梯的技術",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 658.88,
+        "end": 660.58,
+        "text": "我們的食藥品牌總共有三種",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 660.58,
+        "end": 662.08,
+        "text": "文字 隱音跟聲音",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 662.08,
+        "end": 664.04,
+        "text": "那文字是我們目前的問答處理",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 664.04,
+        "end": 665.54,
+        "text": "隱音的話已經建立鎖應",
+        "avg_logprob": -0.531,
+        "no_speech_prob": 0.802
+      },
+      {
+        "start": 665.54,
+        "end": 669.24,
+        "text": "然後聲音的話 目前已經產生相當大剩餘的接觸聲色為困擾",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 670.84,
+        "end": 672.74,
+        "text": "然後我們今天在研修的部分的話",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 672.74,
+        "end": 674.54,
+        "text": "我們主要會選舉15段",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 674.54,
+        "end": 677.24,
+        "text": "為了兼顧我們的內容完成以及來源的精確度",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 678.24,
+        "end": 681.04,
+        "text": "並且我們每次的引用都會經過後端的延伸",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 681.04,
+        "end": 682.74,
+        "text": "讓AI買到保衛中的輸出",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 683.74,
+        "end": 686.64,
+        "text": "然後我們在進行歸搭之前",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 686.64,
+        "end": 688.94,
+        "text": "我們會先重排一下引擎的順序",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 689.24,
+        "end": 691.54,
+        "text": "並保留它的前後吻的脈絡",
+        "avg_logprob": -0.467,
+        "no_speech_prob": 0.196
+      },
+      {
+        "start": 691.54,
+        "end": 695.94,
+        "text": "然後今天我們如果搜尋不到任何影用的話",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 695.94,
+        "end": 697.14,
+        "text": "我們就會陳時俱達",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 697.14,
+        "end": 700.54,
+        "text": "遍免兼學生他可能收到一些錯誤的資訊",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 700.54,
+        "end": 704.24,
+        "text": "然後我們內部還有進行50滴",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 704.24,
+        "end": 706.04,
+        "text": "同一組的兩人內部評測",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 706.04,
+        "end": 709.14,
+        "text": "然後我們正確性從4.18滴升到4.64",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 709.14,
+        "end": 710.74,
+        "text": "講俱達從5滴降到了1滴",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 710.74,
+        "end": 713.74,
+        "text": "然後我們還有特定裝成於快學的機制",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 713.74,
+        "end": 716.24,
+        "text": "讓回憶的時間先從3.0秒升到1.2秒",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 716.24,
+        "end": 719.04,
+        "text": "然後我們在安水部分的話",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 719.04,
+        "end": 720.54,
+        "text": "我們今天不只會看你是誰",
+        "avg_logprob": -0.354,
+        "no_speech_prob": 0.661
+      },
+      {
+        "start": 720.54,
+        "end": 722.7,
+        "text": "我們還會看你跟課程的關係",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 722.7,
+        "end": 724.4,
+        "text": "每次查評他都會去看一下",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 724.4,
+        "end": 725.7,
+        "text": "這個學生他跟課程",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 725.7,
+        "end": 727.74,
+        "text": "到底有相關的前線是怎麼樣的",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 729.14,
+        "end": 730.98,
+        "text": "然後今天如果我們系統中",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 730.98,
+        "end": 732.1,
+        "text": "有出現任何問題的話",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 732.1,
+        "end": 733.14,
+        "text": "他會直接報錯",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 733.14,
+        "end": 734.88,
+        "text": "我們之前在出評的時候",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 734.88,
+        "end": 737.48,
+        "text": "我們有設計跟降級機制",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 737.48,
+        "end": 738.28,
+        "text": "但我們發現這樣",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 738.28,
+        "end": 739.78,
+        "text": "只會導致我們系統等有時候",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 739.78,
+        "end": 741.08,
+        "text": "會否揭露標誤模式",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 741.08,
+        "end": 742.18,
+        "text": "我們要把察覺",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 742.18,
+        "end": 743.98,
+        "text": "各系統他今天有中的問題",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 745.54,
+        "end": 747.58,
+        "text": "然後接下來是我們資料庫的部分",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 747.78,
+        "end": 753.56,
+        "text": "來 給我來介紹一下資料庫的部分",
+        "avg_logprob": -0.372,
+        "no_speech_prob": 0.325
+      },
+      {
+        "start": 753.56,
+        "end": 758.05,
+        "text": "我們的資料庫裡面有四個資料表",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 758.05,
+        "end": 760.05,
+        "text": "其中我們用分為這個部分",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 761.05,
+        "end": 763.55,
+        "text": "那我們來看一下我們的核心的資料觀點",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 763.55,
+        "end": 767.55,
+        "text": "一個學生可以看多門課程",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 767.55,
+        "end": 768.55,
+        "text": "到每個課程裡面",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 768.55,
+        "end": 769.55,
+        "text": "我都不以前",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 769.55,
+        "end": 771.55,
+        "text": "每一部影片又可以先看多個片段",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 771.55,
+        "end": 773.55,
+        "text": "那這些學生的疑問",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 773.55,
+        "end": 775.55,
+        "text": "就是從這邊看到裡面的答案",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 776.55,
+        "end": 778.05,
+        "text": "那接下來是使用者",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 778.05,
+        "end": 780.55,
+        "text": "使用者我們這個資料表面進入了",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 780.55,
+        "end": 781.55,
+        "text": "使用者的角色",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 781.55,
+        "end": 783.55,
+        "text": "然後他的每日的圖文上線",
+        "avg_logprob": -0.373,
+        "no_speech_prob": 0.269
+      },
+      {
+        "start": 783.55,
+        "end": 787.85,
+        "text": "它特征的介绍表里面都是进入了",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 787.85,
+        "end": 789.95,
+        "text": "明天目前的处理状况跟",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 789.95,
+        "end": 791.55,
+        "text": "组织额上环状态",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 791.55,
+        "end": 794.85,
+        "text": "那接下来是相当的检索度",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 794.85,
+        "end": 796.45,
+        "text": "我们总要做两个部分",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 796.45,
+        "end": 797.15,
+        "text": "一个是币子",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 797.15,
+        "end": 797.95,
+        "text": "一个是币子",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 797.95,
+        "end": 800.45,
+        "text": "币子就是把一个片段切成小片",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 800.45,
+        "end": 803.05,
+        "text": "小片主要是为了做精确的伟大",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 803.05,
+        "end": 806.05,
+        "text": "那币子就是把很小的片段",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 806.05,
+        "end": 807.55,
+        "text": "集结成一个大片段",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 807.55,
+        "end": 809.55,
+        "text": "为了让大家可以看得懂到下文",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 809.55,
+        "end": 811.85,
+        "text": "那接下来是",
+        "avg_logprob": -0.49,
+        "no_speech_prob": 0.832
+      },
+      {
+        "start": 811.85,
+        "end": 814.39,
+        "text": "因為根據出品評審的建議",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 814.39,
+        "end": 816.51,
+        "text": "我們做了快取的這項戶",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 816.51,
+        "end": 818.19,
+        "text": "它主要的功能是",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 818.19,
+        "end": 819.99,
+        "text": "可以當每個提問",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 819.99,
+        "end": 820.81,
+        "text": "打零件",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 820.81,
+        "end": 822.27,
+        "text": "收入的上限之後",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 822.27,
+        "end": 823.37,
+        "text": "我們就會直接",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 823.37,
+        "end": 824.99,
+        "text": "從這項戶裡面找出答案",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 824.99,
+        "end": 827.19,
+        "text": "不再透過 LLN 做回答",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 828.39,
+        "end": 830.03,
+        "text": "所以已經的部分",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 830.03,
+        "end": 832.03,
+        "text": "裡面存放了小本",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 832.03,
+        "end": 834.53,
+        "text": "審核到上傳的輸入戶口",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 835.43,
+        "end": 838.17,
+        "text": "那因為我們有目前的開放給",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 838.17,
+        "end": 839.43,
+        "text": "學生關注使用",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 839.43,
+        "end": 840.85,
+        "text": "所以我們建議了一個",
+        "avg_logprob": -0.569,
+        "no_speech_prob": 0.183
+      },
+      {
+        "start": 840.85,
+        "end": 842.97,
+        "text": "使用者回到渠道表去給",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 842.97,
+        "end": 844.95,
+        "text": "選擇端的回覆作為有決賽",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 846.27,
+        "end": 847.95,
+        "text": "那公開招表的分分",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 848.45,
+        "end": 851.57,
+        "text": "之前我們已經有參與一個研討會",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 851.57,
+        "end": 853.85,
+        "text": "那有五個比賽就在進行中",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 853.85,
+        "end": 855.65,
+        "text": "然後有一個已經進行決賽",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 856.45,
+        "end": 858.65,
+        "text": "這是我們的公開招表的證明",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 859.25,
+        "end": 861.45,
+        "text": "這是我們進行決賽的證明",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 862.25,
+        "end": 865.55,
+        "text": "那我們再去出品評審的一些建議",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 865.55,
+        "end": 866.71,
+        "text": "作為一個資訊",
+        "avg_logprob": -0.581,
+        "no_speech_prob": 0.405
+      },
+      {
+        "start": 866.71,
+        "end": 872.71,
+        "text": "但是我們打贏線的全線的控管重新做了一個表現",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 873.71,
+        "end": 877.71,
+        "text": "成本的部分我們也一直要量重新估算的成本",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 877.71,
+        "end": 881.71,
+        "text": "我們也正在關懷API的授權的商業模式",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 881.71,
+        "end": 885.34,
+        "text": "系統的整個完成度",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 885.34,
+        "end": 891.34,
+        "text": "從成端後端API的流程的力度已經完成製作",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 891.34,
+        "end": 893.34,
+        "text": "我們也有已經上架到DM",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 893.34,
+        "end": 896.34,
+        "text": "然後我們有做了HDPM值的一個",
+        "avg_logprob": -0.414,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 896.34,
+        "end": 899.34,
+        "text": "那我沒有做分成檢索的部分",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 900.34,
+        "end": 902.34,
+        "text": "整體功能的完整性",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 903.34,
+        "end": 905.34,
+        "text": "從學生 教室 管理員的平台功能功能",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 905.34,
+        "end": 907.34,
+        "text": "我們都已經持續完成",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 907.34,
+        "end": 911.34,
+        "text": "那我們也已經成功給學生關注使用",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 911.34,
+        "end": 914.23,
+        "text": "接著我們的系統",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 914.23,
+        "end": 916.23,
+        "text": "我們不是想要做得有更好",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 916.23,
+        "end": 918.23,
+        "text": "我們還想要做得更精確一點",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 918.23,
+        "end": 919.23,
+        "text": "所以我們今天也有",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 919.23,
+        "end": 921.23,
+        "text": "六個面向的評測",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 921.23,
+        "end": 922.23,
+        "text": "正式評測",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 922.23,
+        "end": 925.23,
+        "text": "那最終的加成功能是4.68分",
+        "avg_logprob": -0.334,
+        "no_speech_prob": 0.676
+      },
+      {
+        "start": 925.23,
+        "end": 930.36,
+        "text": "你将做我的报答,谢谢大家",
+        "avg_logprob": -0.666,
+        "no_speech_prob": 0.567
+      }
+    ]
+  },
+  "qa": {
+    "source_offset_seconds": 937,
+    "model": "Systran/faster-whisper-small",
+    "device": "cpu",
+    "compute_type": "int8",
+    "language": "zh",
+    "language_probability": 1,
+    "elapsed_seconds": 248.66,
+    "segments": [
+      {
+        "start": 938.42,
+        "end": 941.42,
+        "text": "謝謝這一組的報告。",
+        "avg_logprob": -0.563,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 941.42,
+        "end": 948.42,
+        "text": "因為我算是校內老師,所以有個課長兼顧我們這樣。",
+        "avg_logprob": -0.563,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 948.42,
+        "end": 958.99,
+        "text": "那兩位有沒有想可以就請校外的學生來請度一下。",
+        "avg_logprob": -0.563,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 958.99,
+        "end": 968.62,
+        "text": "想問一下就是學生跟老師要用資本,他們知道先做資本。",
+        "avg_logprob": -0.563,
+        "no_speech_prob": 0.343
+      },
+      {
+        "start": 968.62,
+        "end": 971.62,
+        "text": "其實部分的話我們有建立了一個",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 971.62,
+        "end": 973.62,
+        "text": "我們有直接匯入這個門",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 973.62,
+        "end": 975.62,
+        "text": "就是我們可以打學生的這個",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 975.62,
+        "end": 977.62,
+        "text": "音效檔 然後會叫我們行程",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 977.62,
+        "end": 979.62,
+        "text": "然後它就直接建立了一個",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 979.62,
+        "end": 980.62,
+        "text": "賞毫的密碼",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 980.62,
+        "end": 983.62,
+        "text": "我們目前是先用學生的學號作賞",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 983.62,
+        "end": 985.62,
+        "text": "學生的資料作賞毫",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 985.62,
+        "end": 987.62,
+        "text": "然後密碼是學生的學毫",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 987.62,
+        "end": 989.62,
+        "text": "然後他們進去這個系統都在做分析",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 989.62,
+        "end": 990.62,
+        "text": "然後老師的部分",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 990.62,
+        "end": 993.62,
+        "text": "他和美政體一樣的方式去組織",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 993.62,
+        "end": 997.79,
+        "text": "那我看你們",
+        "avg_logprob": -0.415,
+        "no_speech_prob": 0.679
+      },
+      {
+        "start": 997.79,
+        "end": 1000.99,
+        "text": "尚老師的影片上傳快速會贏",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1000.99,
+        "end": 1002.99,
+        "text": "日本上傳比羅上載",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1002.99,
+        "end": 1004.49,
+        "text": "然後你們有思考",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1004.49,
+        "end": 1006.75,
+        "text": "因為學習可能處理",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1006.75,
+        "end": 1008.39,
+        "text": "大陸老師會同時上傳",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1008.39,
+        "end": 1009.59,
+        "text": "那我們有討論過",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1009.59,
+        "end": 1013.59,
+        "text": "就是日本的當日上傳的上線",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1013.59,
+        "end": 1015.39,
+        "text": "如果萬一慢了",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1015.39,
+        "end": 1017.59,
+        "text": "然後系統後續會贏",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1017.59,
+        "end": 1019.19,
+        "text": "這個部分的話",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1019.19,
+        "end": 1022.49,
+        "text": "我們有該跟教授持續的討論跟規劃",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1022.49,
+        "end": 1024.59,
+        "text": "我們目前預計的話",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1024.59,
+        "end": 1026.39,
+        "text": "這間老師上傳的影片之後",
+        "avg_logprob": -0.605,
+        "no_speech_prob": 0.838
+      },
+      {
+        "start": 1026.39,
+        "end": 1032.01,
+        "text": "就是我們可能在一些相關老師上面的大洋間",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1032.01,
+        "end": 1033.59,
+        "text": "我們可能就是這個一個",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1033.59,
+        "end": 1035.81,
+        "text": "就是副組長大臉很多的區域",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1035.81,
+        "end": 1038.81,
+        "text": "做一個擴展他的伺服器的部分",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1040.15,
+        "end": 1041.35,
+        "text": "就是目前的話",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1041.35,
+        "end": 1042.97,
+        "text": "就是這樣去進行規劃",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1042.97,
+        "end": 1048.37,
+        "text": "但是我們還沒有進行製作",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1048.37,
+        "end": 1052.57,
+        "text": "上面模式是跟誰家去談魚端服務",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1052.57,
+        "end": 1057.59,
+        "text": "還是說你們是談系統的什麼授權",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1057.59,
+        "end": 1058.55,
+        "text": "就是你們跟人家談",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1058.55,
+        "end": 1061.31,
+        "text": "是包含你們組長的一些硬體設備",
+        "avg_logprob": -0.603,
+        "no_speech_prob": 0.444
+      },
+      {
+        "start": 1061.31,
+        "end": 1066.81,
+        "text": "那些說是誰要談我們的系統",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1066.81,
+        "end": 1070.15,
+        "text": "但是他們比較提供對一個民族的帳號",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1070.15,
+        "end": 1073.69,
+        "text": "相關的AI的",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1073.69,
+        "end": 1075.69,
+        "text": "主要跟學校討論的話",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1075.69,
+        "end": 1077.99,
+        "text": "應該是會討論相關的",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1077.99,
+        "end": 1082.09,
+        "text": "像是系統面的授權值",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1082.09,
+        "end": 1084.29,
+        "text": "但如果是系統的固執成本的話",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1084.29,
+        "end": 1085.49,
+        "text": "就更難有考慮",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1085.49,
+        "end": 1088.69,
+        "text": "比較要跟學校進行討論",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1088.69,
+        "end": 1090.23,
+        "text": "最後是可以建議你們",
+        "avg_logprob": -0.513,
+        "no_speech_prob": 0.824
+      },
+      {
+        "start": 1090.23,
+        "end": 1093.49,
+        "text": "像以肥瘡為儀 自肥瘡水質很多",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1093.49,
+        "end": 1097.65,
+        "text": "那負責對應的成班導師可能也不一樣",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1097.65,
+        "end": 1101.87,
+        "text": "那你們 因為看起來是你們後裁比較沒有體制的概念",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1101.87,
+        "end": 1105.17,
+        "text": "後期未來可以考慮可以增加不同的機制",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1105.17,
+        "end": 1107.97,
+        "text": "然後分成構成給不同的教育",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1107.97,
+        "end": 1112.67,
+        "text": "我們去做管理學生跟導師",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1112.67,
+        "end": 1113.67,
+        "text": "謝謝你們 謝謝",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1113.67,
+        "end": 1117.11,
+        "text": "謝謝你們 建議收入到我們後續會再進行的活動",
+        "avg_logprob": -0.639,
+        "no_speech_prob": 0.547
+      },
+      {
+        "start": 1117.11,
+        "end": 1126.09,
+        "text": "我覺得大問題",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1126.09,
+        "end": 1128.09,
+        "text": "第一個是",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1128.09,
+        "end": 1130.09,
+        "text": "我還是不太知道你們什麼時候",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1130.09,
+        "end": 1131.09,
+        "text": "什麼時候用LM",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1131.09,
+        "end": 1133.09,
+        "text": "什麼時候用資料庫",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1133.09,
+        "end": 1134.09,
+        "text": "但是在什麼時候",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1134.09,
+        "end": 1135.09,
+        "text": "會取決一樣資料庫",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1135.09,
+        "end": 1137.09,
+        "text": "什麼時候用LM",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1137.09,
+        "end": 1139.09,
+        "text": "對,這邊我有點好奇",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1139.09,
+        "end": 1141.09,
+        "text": "是,楊洛學生",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1141.09,
+        "end": 1143.09,
+        "text": "第一次問這個問題",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1143.09,
+        "end": 1145.09,
+        "text": "我們都在這個訊息裡面",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1145.09,
+        "end": 1147.09,
+        "text": "抓了一些精神",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1147.09,
+        "end": 1148.09,
+        "text": "按個REG",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1148.09,
+        "end": 1150.09,
+        "text": "然後我們把REG",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1150.09,
+        "end": 1152.09,
+        "text": "然後不只輸入到LM",
+        "avg_logprob": -0.457,
+        "no_speech_prob": 0.435
+      },
+      {
+        "start": 1152.09,
+        "end": 1155.09,
+        "text": "然後跟LM再去生的回答",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1155.09,
+        "end": 1158.09,
+        "text": "像是如果他以前已經問過一樣的問題",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1158.09,
+        "end": 1160.09,
+        "text": "然後我們再問第二次的時候",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1160.09,
+        "end": 1163.09,
+        "text": "我們就會去做我剛剛說的快知料表的部分",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1163.09,
+        "end": 1164.09,
+        "text": "那他就會直接",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1164.09,
+        "end": 1165.09,
+        "text": "會去算一整回答",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1165.09,
+        "end": 1166.09,
+        "text": "直接直接講",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1166.09,
+        "end": 1169.09,
+        "text": "是會降低我們的成分",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1169.09,
+        "end": 1170.09,
+        "text": "所以你們是用到一個",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1170.09,
+        "end": 1172.09,
+        "text": "我們用到所謂RAID的概念嗎",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1172.09,
+        "end": 1173.09,
+        "text": "對 我們有用RAID",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1173.09,
+        "end": 1176.09,
+        "text": "可是我們有報告書沒有看到",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1176.09,
+        "end": 1178.37,
+        "text": "對",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1179.37,
+        "end": 1181.37,
+        "text": "就是我剛才講的是感覺",
+        "avg_logprob": -0.429,
+        "no_speech_prob": 0.756
+      },
+      {
+        "start": 1181.37,
+        "end": 1183.97,
+        "text": "就是感覺你們可以解決Rig的概念",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1183.97,
+        "end": 1185.97,
+        "text": "對 這樣包含什麼可以看到",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1185.97,
+        "end": 1187.97,
+        "text": "那Rig就是蠻不錯的",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1187.97,
+        "end": 1188.97,
+        "text": "那第二個",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1188.97,
+        "end": 1191.97,
+        "text": "你們的Rig有什麼名段還是地段",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1191.97,
+        "end": 1200.46,
+        "text": "我們部選的話",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1200.46,
+        "end": 1203.96,
+        "text": "整個問法是台灣生產的ADI",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1203.96,
+        "end": 1206.96,
+        "text": "所以它的資料可能存在名段上面",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1206.96,
+        "end": 1209.46,
+        "text": "然後我們的資料資料主要是存在",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1209.46,
+        "end": 1210.96,
+        "text": "防狗PD的部分",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1210.96,
+        "end": 1212.96,
+        "text": "但是專營生產的話",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1212.96,
+        "end": 1215.46,
+        "text": "因為它可能會跟教授的",
+        "avg_logprob": -0.622,
+        "no_speech_prob": 0.64
+      },
+      {
+        "start": 1215.46,
+        "end": 1217.46,
+        "text": "跟臉部什麼之類的",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1217.46,
+        "end": 1219.26,
+        "text": "就是一切有些牽扯",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1219.26,
+        "end": 1220.36,
+        "text": "可能會有各種答案",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1220.36,
+        "end": 1222.36,
+        "text": "所以我們是目前是",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1222.36,
+        "end": 1224.36,
+        "text": "建立在整個",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1224.36,
+        "end": 1227.06,
+        "text": "因為教室我們都知道叫做有GPU",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1227.06,
+        "end": 1229.76,
+        "text": "這是建立在叫做它的地段的模型",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1229.76,
+        "end": 1231.36,
+        "text": "然後透過Compute UI",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1231.36,
+        "end": 1236.36,
+        "text": "跟Compute UI跟等級模型的那個minimaxSH3",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1236.36,
+        "end": 1238.16,
+        "text": "去進行斷片的生產",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1238.16,
+        "end": 1240.86,
+        "text": "目前主要是由原端跟地段的部分",
+        "avg_logprob": -0.433,
+        "no_speech_prob": 0.697
+      },
+      {
+        "start": 1240.86,
+        "end": 1244.86,
+        "text": "可是這不像裡面沒寫到的人",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1244.86,
+        "end": 1248.86,
+        "text": "我們剛剛講那個關於影片",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1248.86,
+        "end": 1251.86,
+        "text": "進入到的地方會有寫到嗎",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1251.86,
+        "end": 1253.86,
+        "text": "可是",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1253.86,
+        "end": 1255.86,
+        "text": "好 沒關係 沒關係",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1255.86,
+        "end": 1258.86,
+        "text": "因為其實",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1258.86,
+        "end": 1262.86,
+        "text": "我們現在在做很多研究",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1262.86,
+        "end": 1264.86,
+        "text": "至於行政上做效務分析",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1264.86,
+        "end": 1267.86,
+        "text": "我們都很擔心有所謂叫做",
+        "avg_logprob": -0.385,
+        "no_speech_prob": 0.217
+      },
+      {
+        "start": 1267.86,
+        "end": 1270.68,
+        "text": "各自把握影視的東西",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1270.68,
+        "end": 1277.32,
+        "text": "所以現在整個教育部和注意國科委都在推倒主權AI",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1277.32,
+        "end": 1280.16,
+        "text": "部主權AI的問題在就是說",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1280.16,
+        "end": 1283.72,
+        "text": "可能要足夠有好的一個GPU server",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1283.72,
+        "end": 1286.56,
+        "text": "可能要用到HB100或H200",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1286.56,
+        "end": 1287.84,
+        "text": "那都非常的貴",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1287.84,
+        "end": 1289.88,
+        "text": "再來就是說",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1289.88,
+        "end": 1292.94,
+        "text": "為了說預防這樣的一個職責問題之後",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1292.94,
+        "end": 1296.78,
+        "text": "會有叫做一個叫資料清洗的動作",
+        "avg_logprob": -0.487,
+        "no_speech_prob": 0.581
+      },
+      {
+        "start": 1296.78,
+        "end": 1302.78,
+        "text": "我們需要講 其實諾舊評論表來看的話",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1302.78,
+        "end": 1307.28,
+        "text": "你們真的是完全按照評論表去設計的",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1307.28,
+        "end": 1309.78,
+        "text": "真的是可以拿到很高分的",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1309.78,
+        "end": 1311.78,
+        "text": "真的是蠻不錯的",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1311.78,
+        "end": 1313.78,
+        "text": "剛剛我挑戰最後一個問題是",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1313.78,
+        "end": 1316.78,
+        "text": "當然我是電視出生的 電影公司出生的",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1316.78,
+        "end": 1320.78,
+        "text": "但就是所謂計算機組 就是職工",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1320.78,
+        "end": 1322.78,
+        "text": "我通常會問一個詢問就是說",
+        "avg_logprob": -0.438,
+        "no_speech_prob": 0.516
+      },
+      {
+        "start": 1322.78,
+        "end": 1326.78,
+        "text": "你們這邊的媽你們有自己的媽都會有算法",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1326.78,
+        "end": 1329.48,
+        "text": "每一組都會問這個問題",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1329.48,
+        "end": 1334.11,
+        "text": "但這個問題我想到這邊的評分",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1334.11,
+        "end": 1336.11,
+        "text": "因為這個評分沒有這個選項",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1336.11,
+        "end": 1337.11,
+        "text": "對不對",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1337.11,
+        "end": 1339.11,
+        "text": "但是我通常都會問這個問題",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1339.11,
+        "end": 1341.11,
+        "text": "想了解你們有沒有",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1341.11,
+        "end": 1342.11,
+        "text": "有嘗試自己去",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1342.11,
+        "end": 1344.11,
+        "text": "跟感媽都會有算法",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1344.11,
+        "end": 1346.11,
+        "text": "還說你們主任",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1346.11,
+        "end": 1348.11,
+        "text": "主要是去使用她",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1348.11,
+        "end": 1353.38,
+        "text": "我們在設計的時候",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1353.38,
+        "end": 1356.38,
+        "text": "就是跟學生進行問她的不同",
+        "avg_logprob": -0.307,
+        "no_speech_prob": 0.709
+      },
+      {
+        "start": 1356.38,
+        "end": 1359.38,
+        "text": "我們主要是採用雲端的AZI",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1359.38,
+        "end": 1364.38,
+        "text": "就沒有特別去幹什麼",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1364.38,
+        "end": 1368.38,
+        "text": "對 但後續我們可以再去進行討論",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1368.38,
+        "end": 1370.38,
+        "text": "並且去看會不會做出來",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1370.38,
+        "end": 1375.37,
+        "text": "你們智慧會繼續升學嗎",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1375.37,
+        "end": 1378.37,
+        "text": "如果要繼續升學的話",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1378.37,
+        "end": 1381.37,
+        "text": "就會建議這邊可能還是要做",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1381.37,
+        "end": 1383.37,
+        "text": "因為到說是辦了之後",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1383.37,
+        "end": 1386.37,
+        "text": "就會需要做到這部分的東西",
+        "avg_logprob": -0.351,
+        "no_speech_prob": 0.475
+      },
+      {
+        "start": 1386.37,
+        "end": 1390.37,
+        "text": "儘管電池電機或是供接軸的話",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1390.37,
+        "end": 1391.37,
+        "text": "對不對",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1391.37,
+        "end": 1392.37,
+        "text": "不過整體的論文",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1392.37,
+        "end": 1395.37,
+        "text": "我覺得你們這組真的做得還滿不錯的",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1395.37,
+        "end": 1398.37,
+        "text": "真的就是整個系統",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1398.37,
+        "end": 1400.37,
+        "text": "包含完成度啦",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1400.37,
+        "end": 1402.37,
+        "text": "根據設計文件功能完成",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1402.37,
+        "end": 1403.37,
+        "text": "不然最後一個問題",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1403.37,
+        "end": 1405.37,
+        "text": "我真的不知道怎麼去評分",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1405.37,
+        "end": 1408.71,
+        "text": "就是你們每",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1408.71,
+        "end": 1409.71,
+        "text": "這些問就好",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1409.71,
+        "end": 1410.71,
+        "text": "問就可以了",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1410.71,
+        "end": 1411.71,
+        "text": "你們每週",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1411.71,
+        "end": 1412.71,
+        "text": "你們是",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1412.71,
+        "end": 1413.71,
+        "text": "因為一個評分叫做",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1413.71,
+        "end": 1416.71,
+        "text": "每週進度文件資料上傳",
+        "avg_logprob": -0.301,
+        "no_speech_prob": 0.736
+      },
+      {
+        "start": 1416.71,
+        "end": 1420.71,
+        "text": "這個你們有 我會想到幾 剩兩每週都上傳",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1421.71,
+        "end": 1423.71,
+        "text": "這個部分的話 我們通常都是",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1423.71,
+        "end": 1425.71,
+        "text": "有的進度就上傳對不對",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1425.71,
+        "end": 1427.71,
+        "text": "收的時間跟教科討論",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1427.71,
+        "end": 1429.71,
+        "text": "討論前會把我們當作的進度",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1429.71,
+        "end": 1431.71,
+        "text": "上傳到我們的平台的上面",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1431.71,
+        "end": 1433.71,
+        "text": "當然有一些如果是沒有辦法",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1433.71,
+        "end": 1434.71,
+        "text": "透過平台的上傳",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1434.71,
+        "end": 1436.71,
+        "text": "或者上傳起來的太方便",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1436.71,
+        "end": 1438.71,
+        "text": "譬如說檔案比較大的套路",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1438.71,
+        "end": 1439.71,
+        "text": "你們都會採用的是",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1439.71,
+        "end": 1442.71,
+        "text": "像是Google原章硬碟來建議合同",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1442.71,
+        "end": 1443.71,
+        "text": "所以我這邊想",
+        "avg_logprob": -0.397,
+        "no_speech_prob": 0.755
+      },
+      {
+        "start": 1443.71,
+        "end": 1446.53,
+        "text": "說明是說明,每週都有跟老師密集",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1446.53,
+        "end": 1449.35,
+        "text": "因為我覺得這一個分所要care是這一段",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1449.35,
+        "end": 1450.61,
+        "text": "因為從你的文件",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1450.61,
+        "end": 1451.65,
+        "text": "你看",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1451.65,
+        "end": 1454.71,
+        "text": "可以看到你唱,看到是你週",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1454.71,
+        "end": 1457.53,
+        "text": "他可能這邊有個五分,可能要再一次說",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1457.53,
+        "end": 1459.83,
+        "text": "你們的每週都確實在",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1459.83,
+        "end": 1462.65,
+        "text": "跟老師討論專輯的部分",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1462.65,
+        "end": 1463.69,
+        "text": "對,好啊",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1463.69,
+        "end": 1464.95,
+        "text": "就這樣,謝謝",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1464.95,
+        "end": 1465.99,
+        "text": "謝謝小時候",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1465.99,
+        "end": 1470.91,
+        "text": "謝謝,那",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1470.91,
+        "end": 1474.49,
+        "text": "人這一組我覺得那個功能很酷的",
+        "avg_logprob": -0.692,
+        "no_speech_prob": 0.632
+      },
+      {
+        "start": 1474.49,
+        "end": 1477.49,
+        "text": "就是可以直接做提問",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1477.49,
+        "end": 1482.49,
+        "text": "然後直接跳到裡面講解的地方",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1482.49,
+        "end": 1484.49,
+        "text": "這個功能我覺得蠻順的",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1484.49,
+        "end": 1487.49,
+        "text": "那我有幾個想要了解的地方",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1487.49,
+        "end": 1490.49,
+        "text": "就是在你們剛剛有在報告過程中",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1490.49,
+        "end": 1492.49,
+        "text": "其實我蠻想要知道那個團體",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1492.49,
+        "end": 1494.49,
+        "text": "已經退貨的生存方式",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1494.49,
+        "end": 1497.49,
+        "text": "那看起來就是給一些提示器",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1497.49,
+        "end": 1498.49,
+        "text": "對",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1498.49,
+        "end": 1501.49,
+        "text": "但我也在實施團體的事情",
+        "avg_logprob": -0.288,
+        "no_speech_prob": 0.187
+      },
+      {
+        "start": 1501.49,
+        "end": 1505.19,
+        "text": "如果我們建議第四次 那生成的短硬片",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1505.19,
+        "end": 1508.49,
+        "text": "那個驗證怎麼樣去驗證",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1508.49,
+        "end": 1510.99,
+        "text": "是員工的驗證",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1510.99,
+        "end": 1514.79,
+        "text": "然後會不會要花很多時間",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1514.79,
+        "end": 1516.79,
+        "text": "那短硬件的部分的話",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1516.79,
+        "end": 1518.49,
+        "text": "我們目前交本產生",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1518.49,
+        "end": 1520.99,
+        "text": "就是主要是寄文字方片",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1520.99,
+        "end": 1522.49,
+        "text": "然後它會產生一個施工單",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1522.49,
+        "end": 1524.79,
+        "text": "它不只包含我們要的內容",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1524.79,
+        "end": 1527.99,
+        "text": "還有更是一件比較重要的規格",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1527.99,
+        "end": 1528.99,
+        "text": "我們應該要如果",
+        "avg_logprob": -0.381,
+        "no_speech_prob": 0.08
+      },
+      {
+        "start": 1528.99,
+        "end": 1532.99,
+        "text": "這些有威力就是傳給AI的模型",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1532.99,
+        "end": 1534.91,
+        "text": "我們現在還有在設計",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1534.91,
+        "end": 1536.11,
+        "text": "稍微機制是說",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1536.11,
+        "end": 1537.99,
+        "text": "透過程式去控制它",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1537.99,
+        "end": 1539.75,
+        "text": "但這到底是目前",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1539.75,
+        "end": 1541.39,
+        "text": "生成出來的效果",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1541.39,
+        "end": 1542.55,
+        "text": "還沒有到這麼好",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1542.55,
+        "end": 1544.75,
+        "text": "所以我們還沒有介入到跟設計",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1544.75,
+        "end": 1548.19,
+        "text": "目前主要是用生成式AI的模型",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1548.19,
+        "end": 1549.75,
+        "text": "產生影片為主",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1549.75,
+        "end": 1552.03,
+        "text": "但程式方面我們這邊也有在考量",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1552.03,
+        "end": 1554.15,
+        "text": "因為我們的考量就說它可能",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1554.15,
+        "end": 1556.07,
+        "text": "影片生成出來我們要把控制",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1556.07,
+        "end": 1558.43,
+        "text": "叫做我們教室很多次",
+        "avg_logprob": -0.451,
+        "no_speech_prob": 0.597
+      },
+      {
+        "start": 1558.43,
+        "end": 1562.03,
+        "text": "所以有區域了解一下",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1562.03,
+        "end": 1563.19,
+        "text": "往後面驗證",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1563.19,
+        "end": 1565.23,
+        "text": "因為可能他生成出來的專業",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1565.23,
+        "end": 1567.47,
+        "text": "因為可能離我們執行的",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1567.47,
+        "end": 1568.79,
+        "text": "還有一段落差",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1568.79,
+        "end": 1570.47,
+        "text": "然後要去做調整",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1570.47,
+        "end": 1572.87,
+        "text": "那這個過程的調整會",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1572.87,
+        "end": 1574.87,
+        "text": "會很複雜嗎",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1574.87,
+        "end": 1578.07,
+        "text": "所以要直接在平台上直接調整",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1578.87,
+        "end": 1580.63,
+        "text": "調整起來的話",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1580.63,
+        "end": 1583.23,
+        "text": "主要就是教育中給我們",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1583.23,
+        "end": 1585.43,
+        "text": "就是提供給AI一些建議",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1585.43,
+        "end": 1587.63,
+        "text": "AI會再回頭充好自由省",
+        "avg_logprob": -0.526,
+        "no_speech_prob": 0.381
+      },
+      {
+        "start": 1587.63,
+        "end": 1588.91,
+        "text": "目前是這樣",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1588.91,
+        "end": 1590.33,
+        "text": "在這步驟後面",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1590.33,
+        "end": 1592.49,
+        "text": "我們可能不會再持續進行優化",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1592.49,
+        "end": 1594.15,
+        "text": "OK,這可能可以是打擊其他",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1594.15,
+        "end": 1595.75,
+        "text": "因為去看大學老師指導",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1595.75,
+        "end": 1597.63,
+        "text": "我們的演算法的部分",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1597.63,
+        "end": 1600.79,
+        "text": "因為今次是不是有研究在做這方面",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1601.79,
+        "end": 1603.73,
+        "text": "我甚至可以給你一個方向",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1603.73,
+        "end": 1605.29,
+        "text": "有些人在研究說",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1605.29,
+        "end": 1609.13,
+        "text": "各位知道有一些職業賽事會有現場直播嗎",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1609.13,
+        "end": 1612.47,
+        "text": "現場直播可能又可以在這場比賽的影片",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1612.47,
+        "end": 1616.29,
+        "text": "然後通常會最後有一個賽事的精華演技",
+        "avg_logprob": -0.565,
+        "no_speech_prob": 0.366
+      },
+      {
+        "start": 1616.29,
+        "end": 1619.63,
+        "text": "對,以往只能功夫,現在有得來再做",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1619.63,
+        "end": 1622.81,
+        "text": "對,所以其實像我們現在靠著他們的推出",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1622.81,
+        "end": 1624.61,
+        "text": "比較溫馨的模式,我們都考慮說",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1624.61,
+        "end": 1627.81,
+        "text": "讓他進行控制,留成的部分",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1627.81,
+        "end": 1633.07,
+        "text": "對,那還有一個方式我也不知道很會嘗試看看",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1633.07,
+        "end": 1635.73,
+        "text": "一樣說,你們現在可能是",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1635.73,
+        "end": 1638.43,
+        "text": "透過Li幫你們去解決成關機",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1638.43,
+        "end": 1640.73,
+        "text": "那可能還要做一個人工的修正",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1640.73,
+        "end": 1643.23,
+        "text": "好,那人工修正出來的一件是",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1643.23,
+        "end": 1645.13,
+        "text": "我們想要的一件",
+        "avg_logprob": -0.498,
+        "no_speech_prob": 0.377
+      },
+      {
+        "start": 1645.13,
+        "end": 1651.5,
+        "text": "對 也許這個資料累積久了",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1651.5,
+        "end": 1660.01,
+        "text": "就給你來問 最後其實有在規劃",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1660.01,
+        "end": 1662.41,
+        "text": "應該說我們目前已經是做到一半",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1662.41,
+        "end": 1665.45,
+        "text": "但是還沒有完成的輸出",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1665.45,
+        "end": 1669.17,
+        "text": "這部分我們會再繼續的去討論",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1669.17,
+        "end": 1670.97,
+        "text": "好 那就期待一下",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1670.97,
+        "end": 1674.53,
+        "text": "那你們有一個同仁算是叫做賴提問",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1674.53,
+        "end": 1676.57,
+        "text": "那我們剛指示賴提示",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1676.57,
+        "end": 1679.97,
+        "text": "就是有一個提問的",
+        "avg_logprob": -0.523,
+        "no_speech_prob": 0.554
+      },
+      {
+        "start": 1679.97,
+        "end": 1684.91,
+        "text": "有需要讓你說出學生學習的小包含疾問的詩詩",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1684.91,
+        "end": 1688.41,
+        "text": "那賴上面的疾問會影響到那邊嗎",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1688.41,
+        "end": 1690.41,
+        "text": "會影響到那邊",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1690.41,
+        "end": 1693.41,
+        "text": "所以過去的業務還是賴慰頭的疾問",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1693.41,
+        "end": 1694.91,
+        "text": "他們是頭部的疾問",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1694.91,
+        "end": 1696.91,
+        "text": "我覺得在他的選擇",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1696.91,
+        "end": 1698.91,
+        "text": "所以那邊數據會更加大",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1698.91,
+        "end": 1700.91,
+        "text": "跟剛才的影響這樣子",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1700.91,
+        "end": 1706.41,
+        "text": "好 那你剛剛又提到一個有關這個聲音的部分",
+        "avg_logprob": -0.71,
+        "no_speech_prob": 0.281
+      },
+      {
+        "start": 1706.41,
+        "end": 1710.09,
+        "text": "我剛好定了說那部分是還沒有完成",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1710.09,
+        "end": 1714.19,
+        "text": "還是聲音的部分我們已經產生像樣",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1714.19,
+        "end": 1717.19,
+        "text": "但是我們還沒有揭露正式問答",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1717.19,
+        "end": 1720.49,
+        "text": "因為他目前設計起來",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1720.49,
+        "end": 1722.53,
+        "text": "會變成三個比較無辜的民族",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1722.53,
+        "end": 1726.27,
+        "text": "以上就是目前還沒有完整的討論之外",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1726.27,
+        "end": 1729.27,
+        "text": "所以目前主要就是文字問答為主",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1729.27,
+        "end": 1731.77,
+        "text": "然後文字問答如果有需要用到畫面",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1731.77,
+        "end": 1733.47,
+        "text": "或者是沒辦法回答的時候",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1733.47,
+        "end": 1735.77,
+        "text": "就會透過去畫面的像樣",
+        "avg_logprob": -0.422,
+        "no_speech_prob": 0.345
+      },
+      {
+        "start": 1735.77,
+        "end": 1737.77,
+        "text": "再去進行回答 過年之後",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1737.77,
+        "end": 1739.77,
+        "text": "OK 好 大家記得",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1739.77,
+        "end": 1741.77,
+        "text": "好 謝謝 像是我的問題",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1741.77,
+        "end": 1744.77,
+        "text": "那就謝謝這一組的一個報告",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1744.77,
+        "end": 1746.77,
+        "text": "感謝您",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1746.77,
+        "end": 1748.77,
+        "text": "然後真的剛剛的部分",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1748.77,
+        "end": 1752.77,
+        "text": "我們在302頁還有會議紀錄",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1752.77,
+        "end": 1755.77,
+        "text": "就我們每週討論都在302頁",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1755.77,
+        "end": 1757.77,
+        "text": "有的 有的",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1757.77,
+        "end": 1758.77,
+        "text": "謝謝",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1758.77,
+        "end": 1759.77,
+        "text": "這是剛剛的提到的",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1759.77,
+        "end": 1760.77,
+        "text": "像那個",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1760.77,
+        "end": 1761.77,
+        "text": "因為你的一個評分",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1761.77,
+        "end": 1763.77,
+        "text": "我才知道那個",
+        "avg_logprob": -0.462,
+        "no_speech_prob": 0.411
+      },
+      {
+        "start": 1763.77,
+        "end": 1765.73,
+        "text": "三十五十五分 五十五分",
+        "avg_logprob": -1.069,
+        "no_speech_prob": 0.503
+      },
+      {
+        "start": 1765.73,
+        "end": 1779.34,
+        "text": "四十五十五分 三十五十五分",
+        "avg_logprob": -1.069,
+        "no_speech_prob": 0.503
+      }
+    ]
+  }
+}

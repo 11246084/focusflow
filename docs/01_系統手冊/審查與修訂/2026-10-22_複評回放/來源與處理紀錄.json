@@ -1,0 +1,149 @@
+{
+  "整理日期": "2026-10-23",
+  "來源": {
+    "video_id": "FoF6-8YnPWw",
+    "title": "國立臺北商業大學資訊管理系-大學部畢業專題成果展示",
+    "channel": "黃銘仁",
+    "url": "https://www.youtube.com/watch?v=FoF6-8YnPWw",
+    "upload_date": "20261022",
+    "live_status": "was_live",
+    "full_replay_duration_seconds": 29765,
+    "requested_original_range_seconds": [
+      139,
+      1785
+    ],
+    "presentation_original_range_seconds": [
+      139,
+      937
+    ],
+    "qa_original_range_seconds": [
+      937,
+      1785
+    ],
+    "timezone_for_dates": "Asia/Taipei",
+    "event_date_verification": "Folder date follows upload_date; event announcement not separately verified"
+  },
+  "影片": {
+    "local_path": "D:\\AI-workspace\\01_Projects\\FocusFlow專題\\影片\\03_複評直播回放\\2026-10-22_FocusFlow_複評報告與QA.mp4",
+    "format": "MP4 / H.264 1920x1080 60 fps + AAC stereo 44100 Hz",
+    "duration_seconds": 1646.083333,
+    "size_bytes": 333646207,
+    "sha256": "8048f3dc59c0233b381899ed4a1e68d658dbd85cb78d4be2fb7cb24ea4bb13a7",
+    "download_formats": [
+      "299",
+      "140"
+    ],
+    "download_tool": "yt-dlp 2026.08.19 (existing local environment)",
+    "remux": "FFmpeg stream copy, +faststart, no re-encoding",
+    "original_to_clip_offset_seconds": 139,
+    "boundary_tolerance_seconds": 0.2,
+    "note": "Requested 1646 seconds; actual MP4 duration includes codec/frame boundary padding."
+  },
+  "本機檔案": {
+    "working_directory": "D:\\AI-workspace\\04_Workbench\\focusflow-review-replay-2026-10-23",
+    "low_bitrate_analysis_audio": "D:\\AI-workspace\\04_Workbench\\focusflow-review-replay-2026-10-23\\source\\review_audio_from_fallback.wav",
+    "high_quality_crosscheck_audio": "D:\\AI-workspace\\04_Workbench\\focusflow-review-replay-2026-10-23\\source\\review_audio_high_quality.wav",
+    "primary_script": "D:\\AI-workspace\\04_Workbench\\focusflow-review-replay-2026-10-23\\transcribe_local.py",
+    "crosscheck_script": "D:\\AI-workspace\\04_Workbench\\focusflow-review-replay-2026-10-23\\transcribe_hq.py",
+    "subtitle": "D:\\AI-workspace\\01_Projects\\FocusFlow專題\\影片\\03_複評直播回放\\2026-10-22_FocusFlow_複評報告與QA.srt"
+  },
+  "辨識": {
+    "model": "Systran/faster-whisper-small",
+    "engine": "faster-whisper 1.2.1",
+    "device": "CPU",
+    "compute_type": "int8",
+    "primary_audio_format": "YouTube 249 Opus, derived mono 16 kHz WAV",
+    "primary_segments": 626,
+    "primary_presentation_segments": 310,
+    "primary_qa_segments": 316,
+    "primary_parameters": {
+      "device": "cpu",
+      "compute_type": "int8",
+      "cpu_threads": 8,
+      "beam_size": 5,
+      "vad_filter": true,
+      "condition_on_previous_text": false
+    },
+    "primary_language": "zh",
+    "timestamp_reference": "Original livestream seconds; SRT timestamps subtract 139 seconds",
+    "human_verbatim_verification": false,
+    "crosscheck": "AAC format 140 (128 kbps), batched small model, batch_size=4; used only for cautious semantic comparison, not substituted as a fully verified transcript",
+    "rejected_or_incomplete_attempts": [
+      "Denoised/context-conditioned check was less reliable and stopped.",
+      "English translation check was stopped and not used as a quotation source.",
+      "Medium model and GPU runtime downloads were stopped due to insufficient download speed; medium model was not run.",
+      "Some batched outputs echoed prompt terms or omitted questions; these outputs were not adopted as the primary transcript."
+    ],
+    "transcript_edit_policy": "Primary ASR text otherwise retained; unreliable introduction names and distant closing numbers replaced by explanatory brackets in MD/SRT only. Unedited primary text preserved in JSON."
+  },
+  "畫面": [
+    {
+      "file": "畫面/05m30s_直播主畫面無訊號.jpg",
+      "original_seconds": 330,
+      "url": "https://youtu.be/FoF6-8YnPWw?t=330",
+      "sha256": "479f4e0a6970ab4506b3c28669b304729e24c86e5a2d81e1136c1757e1102448",
+      "size_bytes": 85811
+    },
+    {
+      "file": "畫面/10m20s_系統架構.jpg",
+      "original_seconds": 620,
+      "url": "https://youtu.be/FoF6-8YnPWw?t=620",
+      "sha256": "d15ba5c615a24457736ec41b1d90d1ce921c3ddce253faeb9b1f864eae1e71dd",
+      "size_bytes": 157238
+    },
+    {
+      "file": "畫面/11m30s_時間重排.jpg",
+      "original_seconds": 690,
+      "url": "https://youtu.be/FoF6-8YnPWw?t=690",
+      "sha256": "6669956d61f1cfaeb34f2332ea4cbcc9d14ff17c674c185c6ec0c112b488bfe0",
+      "size_bytes": 115612
+    },
+    {
+      "file": "畫面/11m44s_兩輪評測比較.jpg",
+      "original_seconds": 704,
+      "url": "https://youtu.be/FoF6-8YnPWw?t=704",
+      "sha256": "e15efa0eeac923f11e1bf1fab1340217d6826944d857e904bdca31fd59023725",
+      "size_bytes": 121545
+    },
+    {
+      "file": "畫面/15m20s_現場評測數據.jpg",
+      "original_seconds": 920,
+      "url": "https://youtu.be/FoF6-8YnPWw?t=920",
+      "sha256": "0f6493f6db2010500dd3a7bed6d2ee4e2f5d0a61169483b85c37dec806bb81e4",
+      "size_bytes": 109639
+    }
+  ],
+  "檢查": {
+    "video_probe_passed": true,
+    "video_decode_samples_clip_seconds": [
+      0,
+      820,
+      1642
+    ],
+    "decode_sample_duration_seconds": 2,
+    "full_video_decode_or_manual_playback_completed": false,
+    "audio_extraction_duration_seconds": 1646,
+    "primary_segment_bounds_passed": true,
+    "srt_cues": 626,
+    "local_links_checked": 54,
+    "timestamp_links_checked": 98,
+    "unit_tests_run": false,
+    "reason": "Documentation and media analysis only; no product code, data contract or runtime configuration changes.",
+    "external_ai_api_calls": false,
+    "database_or_live_service_writes": false,
+    "deployment_or_formal_acceptance": false,
+    "external_link_http_health_checked": false
+  },
+  "界線": "This is a historical, AI-assisted replay analysis. Summary is not an exact quotation, product acceptance, score determination, or newly adopted team decision. Speech recognition has substantial errors and needs human listening for exact wording; image-backed metrics preserve observed inconsistencies.",
+  "Notion同步": {
+    "page_id": "4024fe40-c8bb-81ea-acf7-ec5983235869",
+    "url": "https://app.notion.com/p/4024fe40c8bb81eaacf7ec5983235869",
+    "visibility": "private draft; destination not specified by user",
+    "sync_date": "2026-10-23",
+    "content": "Task scope, report analysis, all 12 QA topics, verification limits and 5 directly uploaded screenshots",
+    "image_count": 5,
+    "readback_verified": true,
+    "notion_task_database_item": false,
+    "note": "Not a shared database item. No assignee or deadline was invented."
+  }
+}

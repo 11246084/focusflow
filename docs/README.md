@@ -48,6 +48,8 @@ docs/
 | [文件分類待遷移清單](md-audit.md) | 交件後分工與整理工作 |
 | [本次重整規格](90_Archive/docs-reorganization/docs-restructure-plan-2026-10-18.md) | 搬移對照與驗證要求，保留原文 |
 
+複評回放：[2026-10-22 報告與 QA 整理](01_系統手冊/審查與修訂/2026-10-22_複評回放/報告與QA整理.md)、[評審問答](01_系統手冊/審查與修訂/2026-10-22_複評回放/評審問答.md)、[時間戳逐字稿](01_系統手冊/審查與修訂/2026-10-22_複評回放/時間戳逐字稿.md)。
+
 ## 文件責任
 
 設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件保留已定案事項、待答題目與理由，供接續討論。

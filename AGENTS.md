@@ -49,4 +49,5 @@ FocusFlow 是 AI 教學影片問答系統：教師上傳影片，學生在網頁
 - 分開列出本輪已執行、未執行的驗證及原因。單元測試通過不代表 Atlas、外部服務、正式部署或人工驗收完成；對外稱試用或上線須有驗收證據。
 - Feature flag、collection／index、webhook URL、provider 與 VM 設定要當次查證，舊結果不代表現況。
 - 進度與狀態只寫在 [docs/current-status.md](docs/current-status.md)，其他文件用連結；新增 md 前先登記在 [docs/README.md](docs/README.md)。
+- 設計討論的已定案事項、目前這一輪的待答題目與建議答案，寫在該功能的 `docs/04_Features/<功能>/decisions.md`，不只留在對話裡；換 session 或換 agent（Claude Code、Codex）時，以文件為準接續。
 - 改功能時依影響更新對應文件；不需要更新時，回報說明理由。撰寫文件依[文件寫作規則](.claude/skills/docs-maintainer/references/writing-style.md)。

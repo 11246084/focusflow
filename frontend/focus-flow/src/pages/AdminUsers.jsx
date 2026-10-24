@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
@@ -29,6 +29,10 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
   );
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [needsStepUp, setNeedsStepUp] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const passwordRef = useRef(null);
+  useEffect(() => { if (needsStepUp) passwordRef.current?.focus(); }, [needsStepUp]);
 
   const resolveOverride = () => {
     if (askLimitMode === 'default') return null;
@@ -41,10 +45,16 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
   };
 
   const save = async () => {
+    if (saving) return;
     setSaving(true); setErr('');
     try {
       const body = { name, role, isActive };
       if (role === 'student') body.dailyAskLimitOverride = resolveOverride();
+      if (needsStepUp) {
+        if (!adminPassword) throw new Error('請重新輸入你的管理員密碼。');
+        await apiFetch('/auth/step-up', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: adminPassword }), sessionFailure: false });
+        setAdminPassword(''); setNeedsStepUp(false);
+      }
       const updated = await apiFetch(`/admin/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +62,8 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
       });
       onSaved(updated.data);
     } catch (e) {
-      setErr(e.message || '儲存失敗');
+      if (e.code === 'STEP_UP_REQUIRED') setNeedsStepUp(true);
+      setErr(e.code === 'TOO_MANY_LOGIN_ATTEMPTS' ? '高風險操作的密碼驗證已暫時鎖定，請 15 分鐘後再試；一般登入不受影響。' : (e.message || '儲存失敗'));
     } finally {
       setSaving(false);
     }
@@ -128,6 +139,11 @@ function EditModal({ user, dailyAskLimitDefault, onClose, onSaved }) {
           </label>
         </div>
 
+        {needsStepUp && <div style={{ marginBottom: 16 }}>
+          <label className="ff-label" htmlFor="admin-step-up-password">重新輸入你的管理員密碼</label>
+          <p className="auth-help">儲存管理員身分前需再確認一次，驗證後 5 分鐘內可繼續執行高風險操作。</p>
+          <input id="admin-step-up-password" ref={passwordRef} className="ff-input" type="password" autoComplete="current-password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} disabled={saving} />
+        </div>}
         {err && <div style={{ fontSize: 12, color: '#fb923c', marginBottom: 14 }}>{err}</div>}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

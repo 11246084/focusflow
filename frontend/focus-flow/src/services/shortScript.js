@@ -1,6 +1,6 @@
-import { apiFetch, buildApiError, getToken } from '../api.js';
+import { apiFetch } from '../api.js';
 
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+
 
 // 短影片腳本自動化的 API client（backend docs/04_Features/Short_Script_Automation）。
 //
@@ -101,26 +101,10 @@ export const ASSET_REVIEW_LABELS = {
   rejected: '已退回',
 };
 
-// 上傳走 multipart，不能用 apiFetch（它不處理 FormData，且會被 Content-Type 蓋掉 boundary）。
-// 錯誤物件的形狀要與 apiFetch 一致（message / code / status），呼叫端的 describeError 才吃得到。
+// FormData 保留瀏覽器產生的 boundary，透過共用 API 補 CSRF 與登入世代檢查。
 async function requestUpload(path, formData) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: formData,
-  });
-
-  // nginx 擋下超大檔案時回的是 HTML 不是 JSON，解析失敗只會得到空物件；
-  // 這種情況要給教師看得懂的原因。
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw buildApiError({
-      status: response.status,
-      data,
-      fallbackMessage: response.status === 413 ? '影片檔案超過伺服器允許的上傳大小。' : undefined,
-    });
-  }
-  return data;
+  return apiFetch(path, { method: 'POST', body: formData,
+    fallbackMessage: '影片上傳失敗；請確認伺服器允許的檔案大小。' });
 }
 
 export async function listAssets(courseId) {

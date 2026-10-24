@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.css';
 import AdminLoginPage from './components/AdminLoginPage';
 import DashboardApp    from './components/DashboardApp';
-import { clearToken, clearUser } from './api';
+import { getAuthEpoch, logoutSession, isPendingFlowActive } from './api';
 import {
   AUTH_SESSION_STATUS,
   requireAdminSession,
   restoreAuthSession,
+  observeAuthSession,
 } from './authSession';
 import { readRoute, resolveSubForRole, useUrlRoute } from './utils/pageRouting';
 
@@ -18,13 +19,15 @@ export default function AdminApp() {
   const [error, setError] = useState('');
   const [authInitializing, setAuthInitializing] = useState(true);
   const [authRestoreError, setAuthRestoreError] = useState(null);
+  const hadSession = useRef(false);
 
   const restoreSession = useCallback(async (isActive = () => true) => {
     const session = requireAdminSession(await restoreAuthSession());
-    if (!isActive()) return;
+    if (!isActive() || session.status === AUTH_SESSION_STATUS.STALE) return;
     setAuthRestoreError(null);
 
     if (session.status === AUTH_SESSION_STATUS.AUTHENTICATED) {
+      hadSession.current = true;
       navigate('app', resolveSubForRole('admin', readRoute('/admin').sub), { replace: true });
       setPage('admin-app');
     } else if (session.status === AUTH_SESSION_STATUS.FORBIDDEN) {
@@ -34,7 +37,8 @@ export default function AdminApp() {
       session.status === AUTH_SESSION_STATUS.ANONYMOUS
       || session.status === AUTH_SESSION_STATUS.INVALID
     ) {
-      setPage('admin-login');
+      if (hadSession.current) setError('登入已過期，請重新登入');
+      hadSession.current = false; setPage('admin-login');
     } else {
       setAuthRestoreError(session.error || new Error('無法驗證登入狀態。'));
     }
@@ -53,24 +57,21 @@ export default function AdminApp() {
     return () => { active = false; };
   }, [restoreSession]);
 
+  useEffect(() => observeAuthSession((event) => {
+    setAuthRestoreError(null); setPage('admin-login');
+    if (event.type === 'expired' || event.type === 'signed-out') {
+      hadSession.current = false; setAuthInitializing(false);
+      setError(event.type === 'expired' ? '登入已過期，請重新登入' : '');
+      navigate('login', null, { replace: true });
+    } else { if (!isPendingFlowActive()) setAuthInitializing(true); void restoreSession(); }
+  }), [navigate, restoreSession]);
   const handleLogin = (user) => {
-    if (user.role !== 'admin') {
-      clearToken();
-      clearUser();
-      setError('此入口僅供管理員使用');
-      return;
-    }
-    setError('');
-    navigate('app', 'home');
-    setPage('admin-app');
+    if (user.role !== 'admin') { setError('此入口僅供管理員使用'); return; }
+    hadSession.current = true; setError(''); navigate('app', 'home'); setPage('admin-app');
   };
-
-  const handleLogout = () => {
-    clearToken();
-    clearUser();
-    setError('');
-    navigate('login');
-    setPage('admin-login');
+  const handleLogout = async () => {
+    try { await logoutSession(); }
+    catch (error) { if (error.code !== 'STALE_AUTH_RESPONSE') setError(`登出未完成：${error.message}`); }
   };
 
   if (authInitializing) {
@@ -82,7 +83,7 @@ export default function AdminApp() {
   }
 
   if (page === 'admin-app') {
-    return <DashboardApp role="admin" sub={sub} onNav={setSub} onLogout={handleLogout} />;
+    return <><div role="alert" className="auth-session-notice">{error}</div><DashboardApp key={getAuthEpoch()} role="admin" sub={sub} onNav={setSub} onLogout={handleLogout} /></>;
   }
 
   return <AdminLoginPage onLogin={handleLogin} error={error} />;

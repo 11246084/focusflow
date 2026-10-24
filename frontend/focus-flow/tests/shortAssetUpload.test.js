@@ -55,7 +55,7 @@ describe('短影片成品上傳契約', () => {
     const [url, options] = calls[0];
     assert.ok(url.endsWith('/short-scripts/script-1/asset'));
     assert.equal(options.method, 'POST');
-    assert.equal(options.headers.Authorization, 'Bearer teacher-token');
+    assert.equal(options.headers.Authorization, undefined);
     // multipart 的 boundary 必須由 fetch 自行決定，手動設 Content-Type 會讓後端解不到欄位。
     assert.equal(options.headers['Content-Type'], undefined);
     assert.equal(options.body.get('title'), '什麼是過擬合');

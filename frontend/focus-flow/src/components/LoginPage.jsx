@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { apiFetch, setToken, setUser } from '../api';
+import { apiFetch, acceptAuthUser, advanceAuthEpoch, setPendingFlowActive } from '../api';
+import PendingVerification from './PendingVerification';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
 function Sparkle({ x, y, s = 1, op = 0.3 }) {
@@ -13,27 +14,30 @@ function Sparkle({ x, y, s = 1, op = 0.3 }) {
   );
 }
 
-export default function LoginPage({ onLogin, onBack, onGoRegister }) {
+export default function LoginPage({ onLogin, onBack, onGoRegister, externalError }) {
   const [role, setRole] = useState('student');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(null);
   const [error, setError] = useState('');
   const [forgotOpen, setForgotOpen] = useState(false);
 
   const go = async () => {
     if (!email || !pw) { setError('請輸入 Email 與密碼'); return; }
+    if (loading) return;
+    advanceAuthEpoch();
     setLoading(true);
     setError('');
     try {
       // Role is part of the auth contract so a valid account cannot enter through another role's portal.
-      const res = await apiFetch('/auth/login', {
+      const res = await apiFetch('/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw, role }),
       });
-      setToken(res.data.token);
-      setUser(res.data.user);
+      if (res.data.requiresVerification) { setPendingFlowActive(true); setPending(res.data); setPw(''); return; }
+      acceptAuthUser(res.data.user, { announce: true });
       onLogin(res.data.user.role);
     } catch (e) {
       setError(
@@ -45,6 +49,8 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
       setLoading(false);
     }
   };
+
+  if (pending) return <PendingVerification initialFlow={pending} onCancel={() => setPending(null)} onDone={(user) => { acceptAuthUser(user, { announce: true }); onLogin(user.role); }} />;
 
   return (
     <div className="login-page">
@@ -147,9 +153,9 @@ export default function LoginPage({ onLogin, onBack, onGoRegister }) {
               </div>
             </div>
 
-            {error && (
+            {(error || externalError) && (
               <div style={{ fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>
-                {error}
+                {error || externalError}
               </div>
             )}
 

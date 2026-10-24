@@ -1,73 +1,47 @@
-import {
-  apiFetch,
-  clearToken,
-  clearUser,
-  getToken,
-  setUser,
-} from './api.js';
+import { apiFetch, clearUser, setUser, getUser, getAuthEpoch, assertAuthEpoch,
+  acceptAuthUser, advanceAuthEpoch, removeLegacyToken, invalidateAuthSession, subscribeAuthEvents } from './api.js';
 
-export const AUTH_SESSION_STATUS = Object.freeze({
-  ANONYMOUS: 'anonymous',
-  AUTHENTICATED: 'authenticated',
-  INVALID: 'invalid',
-  UNAVAILABLE: 'unavailable',
-  FORBIDDEN: 'forbidden',
-});
-
-export function isInvalidSessionError(error) {
-  return error?.status === 401 || error?.status === 403;
-}
-
-export async function restoreAuthSession({
-  apiFetchImpl = apiFetch,
-  clearTokenImpl = clearToken,
-  clearUserImpl = clearUser,
-  getTokenImpl = getToken,
-  setUserImpl = setUser,
-} = {}) {
-  if (!getTokenImpl()) {
-    return { status: AUTH_SESSION_STATUS.ANONYMOUS };
-  }
-
+export const AUTH_SESSION_STATUS = Object.freeze({ ANONYMOUS: 'anonymous', AUTHENTICATED: 'authenticated',
+  INVALID: 'invalid', UNAVAILABLE: 'unavailable', FORBIDDEN: 'forbidden', STALE: 'stale' });
+export const isInvalidSessionError = (error) => error?.status === 401;
+export async function restoreAuthSession({ apiFetchImpl = apiFetch, clearUserImpl = clearUser,
+  setUserImpl = setUser, getEpochImpl = getAuthEpoch, assertEpochImpl = assertAuthEpoch,
+  acceptUserImpl = acceptAuthUser } = {}) {
+  removeLegacyToken();
+  const epoch = getEpochImpl();
   try {
-    const response = await apiFetchImpl('/auth/me');
+    const response = await apiFetchImpl('/auth/me', { sessionFailure: false });
+    assertEpochImpl(epoch);
     const user = response?.data?.user;
-
-    // A successful response without a public user is a server/contract problem,
-    // not evidence that the persisted token is invalid.
-    if (!user || typeof user.role !== 'string') {
-      return {
-        status: AUTH_SESSION_STATUS.UNAVAILABLE,
-        error: new Error('登入資料不完整，請重新整理或稍後再試。'),
-      };
-    }
-
-    setUserImpl(user);
+    if (!user?.id || !['student', 'teacher', 'admin'].includes(user.role)) return { status: AUTH_SESSION_STATUS.UNAVAILABLE, error: new Error('登入資料不完整，請稍後再試。') };
+    const cached = getUser();
+    if (cached?.id && (cached.id !== user.id || cached.role !== user.role)) advanceAuthEpoch();
+    setUserImpl(user); acceptUserImpl(user);
     return { status: AUTH_SESSION_STATUS.AUTHENTICATED, user };
   } catch (error) {
+    if (error?.code === 'STALE_AUTH_RESPONSE') return { status: AUTH_SESSION_STATUS.STALE };
     if (isInvalidSessionError(error)) {
-      clearTokenImpl();
       clearUserImpl();
-      return { status: AUTH_SESSION_STATUS.INVALID, error };
+      return { status: AUTH_SESSION_STATUS.ANONYMOUS, error };
     }
-
-    // Keep the persisted session for retry when the API is temporarily down or
-    // the browser is offline. Only the backend can establish token invalidity.
     return { status: AUTH_SESSION_STATUS.UNAVAILABLE, error };
   }
 }
-
 export function requireAdminSession(session) {
-  if (session.status !== AUTH_SESSION_STATUS.AUTHENTICATED) {
-    return session;
-  }
-
-  if (session.user.role === 'admin') {
-    return session;
-  }
-
-  // This is based on the freshly verified backend user, never the cached role.
-  // A non-admin account is authenticated but forbidden from this UI; it must
-  // retain its valid session for the normal student/teacher entry point.
+  if (session.status !== AUTH_SESSION_STATUS.AUTHENTICATED || session.user.role === 'admin') return session;
   return { status: AUTH_SESSION_STATUS.FORBIDDEN, user: session.user };
+}
+export function observeAuthSession(onEvent, { documentImpl = globalThis.document, now = Date.now } = {}) {
+  const unsubscribe = subscribeAuthEvents(onEvent);
+  let lastVisibleCheck = now();
+  const visible = () => {
+    if (documentImpl?.visibilityState !== 'visible' || now() - lastVisibleCheck < 30000) return;
+    lastVisibleCheck = now();
+    invalidateAuthSession('revalidate');
+  };
+  documentImpl?.addEventListener('visibilitychange', visible);
+  return () => { unsubscribe(); documentImpl?.removeEventListener('visibilitychange', visible); };
+}
+export function sessionIdentityMatches(epoch, userId) {
+  return epoch === getAuthEpoch() && userId === getUser()?.id;
 }

@@ -1,9 +1,9 @@
-import { apiFetch, buildApiError, getToken } from '../api.js';
+import { apiFetch } from '../api.js';
 
 // YouTube 上傳恢復與原片清理（docs/04_Features/YouTube_Lifecycle/decisions.md）的前端 API。
 // 所有呼叫集中在這裡，後端格式調整時只需改這個檔案。
 
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+
 
 export const SWITCH_KEYS = ['upload', 'recovery', 'cleanup'];
 
@@ -116,13 +116,7 @@ export async function resetQuarantineItem(kind, id) {
 export async function restoreVideoSource(videoId, file) {
   const formData = new FormData();
   formData.append('video', file);
-  const response = await fetch(`${API_BASE}/videos/${encodeURIComponent(videoId)}/source/restore`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: formData,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw buildApiError({ status: response.status, data });
+  const data = await apiFetch(`/videos/${encodeURIComponent(videoId)}/source/restore`, { method: 'POST', body: formData });
   return data.data?.video || data.data || {};
 }
 

@@ -23,7 +23,7 @@ import {
   updateLifecycleSwitch,
 } from '../src/services/youtubeLifecycle.js';
 
-const BASE = 'http://localhost:4000/api/v1';
+const BASE = '/api/v1';
 const originalFetch = globalThis.fetch;
 const originalLocalStorage = globalThis.localStorage;
 
@@ -152,7 +152,7 @@ describe('YouTube 生命週期 API 呼叫', () => {
     assert.equal(calls[1].url, `${BASE}/admin/youtube-lifecycle/settings`);
     assert.equal(calls[1].options.method, 'PATCH');
     assert.deepEqual(JSON.parse(calls[1].options.body), { key: 'cleanup', enabled: true });
-    assert.equal(calls[1].options.headers.Authorization, 'Bearer admin-token');
+    assert.equal(calls[1].options.headers.Authorization, undefined);
     assert.equal(calls[2].url, `${BASE}/admin/youtube-lifecycle/cleanup-preview?scope=upcoming`);
     assert.equal(calls[3].url, `${BASE}/admin/youtube-lifecycle/recovery/run`);
     assert.equal(calls[3].options.method, 'POST');
@@ -305,7 +305,7 @@ describe('補回原片（#21、#23）', () => {
 
     assert.equal(calls[0].url, `${BASE}/videos/v%2F1/source/restore`);
     assert.equal(calls[0].options.method, 'POST');
-    assert.equal(calls[0].options.headers.Authorization, 'Bearer admin-token');
+    assert.equal(calls[0].options.headers.Authorization, undefined);
     assert.ok(calls[0].options.body instanceof FormData);
     assert.ok(calls[0].options.body.get('video'));
     assert.deepEqual(video, { id: 'v/1', sourceAvailable: true });

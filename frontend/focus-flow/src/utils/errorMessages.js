@@ -1,6 +1,16 @@
 // 後端錯誤訊息是英文（給開發者與 log 用），使用者看到的一律換成中文。
 // 優先依錯誤碼對應；沒有對應時依 HTTP 狀態給通用說明。
 const CODE_MESSAGES = {
+  AUTH_UNAVAILABLE: '暫時無法驗證登入狀態，請稍後重試。',
+  CSRF_REJECTED: '請求來源驗證失敗，請重新整理網頁後再試。',
+  VERIFICATION_REQUIRED: '請先驗證信箱並完成必要的密碼更新。',
+  VERIFICATION_EMAIL_FAILED: '驗證信寄送失敗，請稍後再試。',
+  VERIFICATION_MAIL_PAUSED: '重寄次數已用完，暫停寄信 10 分鐘；已收到的有效驗證碼仍可使用。',
+  PENDING_INVALID: '驗證碼錯誤或已過期，請重新確認。',
+  STEP_UP_REQUIRED: '請重新輸入管理員密碼，確認此操作。',
+  STEP_UP_PASSWORD_INCORRECT: '管理員密碼不正確，請重試。',
+  SELF_ADMIN_CHANGE_FORBIDDEN: '不能停用或降級自己的管理員帳號。',
+  LAST_ADMIN_REQUIRED: '系統至少必須保留一個啟用中的管理員。',
   UNAUTHORIZED: '請先登入。',
   INVALID_TOKEN: '登入已過期，請重新登入。',
   INVALID_CREDENTIALS: 'Email 或密碼錯誤。',
@@ -96,6 +106,7 @@ const VALIDATION_MESSAGES = {
   'Name is required.': '請輸入姓名。',
   'Name cannot be empty.': '姓名不可空白。',
   'A valid email is required.': '請輸入正確的 Email。',
+  'Password must contain at least 8 characters and an English letter.': '密碼至少 8 碼，並包含至少一個英文字母。',
   'Password must be at least 8 characters.': '密碼至少 8 個字元。',
   'New password must be at least 8 characters.': '新密碼至少 8 個字元。',
   'New password must differ from the current password.': '新密碼不可與目前密碼相同。',

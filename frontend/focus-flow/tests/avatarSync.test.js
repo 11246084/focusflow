@@ -20,7 +20,7 @@ describe('Topbar 頭貼同步工具', () => {
     assert.equal(getAvatarVersion({ id: 'user-1', hasAvatar: false }), null);
   });
 
-  it('有頭貼時以 Bearer token、no-store 取得並建立 Blob URL', async () => {
+  it('有頭貼時以同來源 cookie、no-store 取得並建立 Blob URL', async () => {
     const calls = [];
     const url = await fetchCurrentUserAvatarObjectUrl({
       token: 'student-token',
@@ -29,7 +29,7 @@ describe('Topbar 頭貼同步工具', () => {
         return {
           ok: true,
           headers: { get: () => 'image/png' },
-          blob: async () => new Blob(['avatar']),
+          blob: async () => new Blob(['avatar'], { type: 'image/png' }),
         };
       },
       createObjectUrl: (blob) => {
@@ -40,8 +40,8 @@ describe('Topbar 頭貼同步工具', () => {
 
     assert.equal(url, 'blob:avatar-1');
     const [requestUrl, options] = calls[0];
-    assert.equal(requestUrl, 'http://localhost:4000/api/v1/auth/me/avatar');
-    assert.equal(options.headers.Authorization, 'Bearer student-token');
+    assert.equal(requestUrl, '/api/v1/auth/me/avatar');
+    assert.equal(options.headers.Authorization, undefined);
     assert.equal(options.cache, 'no-store');
   });
 

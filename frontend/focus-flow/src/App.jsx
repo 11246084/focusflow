@@ -5,8 +5,8 @@ import Button3D          from './components/Button3D';
 import LoginPage         from './components/LoginPage';
 import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
-import { clearToken, clearUser } from './api';
-import { AUTH_SESSION_STATUS, restoreAuthSession } from './authSession';
+import { getAuthEpoch, logoutSession, isPendingFlowActive } from './api';
+import { AUTH_SESSION_STATUS, restoreAuthSession, observeAuthSession } from './authSession';
 import { readRoute, resolveSubForRole, useUrlRoute } from './utils/pageRouting';
 
 function Cursor() {
@@ -30,23 +30,30 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [authInitializing, setAuthInitializing] = useState(true);
   const [authRestoreError, setAuthRestoreError] = useState(null);
+  const [authMessage, setAuthMessage] = useState('');
+  const hadSession = useRef(false);
   const { page } = route;
   const sub = resolveSubForRole(role, route.sub);
 
   const restoreSession = useCallback(async (isActive = () => true) => {
     const session = await restoreAuthSession();
-    if (!isActive()) return;
+    if (!isActive() || session.status === AUTH_SESSION_STATUS.STALE) return;
     setAuthRestoreError(null);
     // 以開啟網頁當下的網址決定要回到哪一頁（重新整理時停在原頁）。
     const initial = readRoute('');
 
     if (session.status === AUTH_SESSION_STATUS.AUTHENTICATED) {
+      hadSession.current = true;
       setRole(session.user.role);
       setAuthenticated(true);
       navigate('app', resolveSubForRole(session.user.role, initial.sub), { replace: true });
     } else if (session.status === AUTH_SESSION_STATUS.INVALID) {
+      hadSession.current = false;
+      setAuthenticated(false);
       navigate('login', null, { replace: true });
     } else if (session.status === AUTH_SESSION_STATUS.ANONYMOUS) {
+      if (hadSession.current) setAuthMessage('登入已過期，請重新登入');
+      hadSession.current = false; setAuthenticated(false);
       // 未登入時進 /app/... 一律導到登入頁；首頁、登入、註冊維持原樣。
       navigate(initial.page === 'app' ? 'login' : initial.page, null, { replace: true });
     } else {
@@ -78,8 +85,22 @@ export default function App() {
     return () => { active = false; };
   }, [restoreSession]);
 
-  const handleLogin = (r) => { setRole(r); setAuthenticated(true); navigate('app', 'home'); };
-  const handleLogout = () => { clearToken(); clearUser(); setAuthenticated(false); navigate('login'); };
+  useEffect(() => observeAuthSession((event) => {
+    setAuthenticated(false); setAuthRestoreError(null);
+    if (event.type === 'expired' || event.type === 'signed-out') {
+      hadSession.current = false; setAuthInitializing(false);
+      setAuthMessage(event.type === 'expired' ? '登入已過期，請重新登入' : '');
+      navigate('login', null, { replace: true });
+    } else {
+      if (!isPendingFlowActive()) setAuthInitializing(true);
+      void restoreSession();
+    }
+  }), [navigate, restoreSession]);
+  const handleLogin = (r) => { hadSession.current = true; setAuthMessage(''); setRole(r); setAuthenticated(true); navigate('app', 'home'); };
+  const handleLogout = async () => {
+    try { await logoutSession(); }
+    catch (error) { if (error.code !== 'STALE_AUTH_RESPONSE') setAuthMessage(`登出未完成：${error.message}`); }
+  };
 
   if (authInitializing) {
     return <AuthInitializing />;
@@ -94,6 +115,7 @@ export default function App() {
       <LoginPage
         onBack={() => setPage('landing')}
         onLogin={handleLogin}
+        externalError={authMessage}
         onGoRegister={() => setPage('register')}
       />
     );
@@ -109,7 +131,7 @@ export default function App() {
   }
 
   if (page === 'app') {
-    return <DashboardApp role={role} sub={sub} onNav={setSub} onLogout={handleLogout} />;
+    return <><div role="alert" className="auth-session-notice">{authMessage}</div><DashboardApp key={getAuthEpoch()} role={role} sub={sub} onNav={setSub} onLogout={handleLogout} /></>;
   }
 
   return (

@@ -2,11 +2,20 @@
 
 這份文件集中記錄各模組的進度，避免不同文件各寫一份。請先看狀態與依據，再由團隊填寫負責人及待決項目；後端技術說明見[技術索引](../backend/docs/current-state.md)。
 
-**狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。本次僅查閱程式及歷史紀錄，未啟動專案、執行測試或連線外部服務；日期為最後查閱日期，驗收日期另列。
+**狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
 ## 各模組
 
-**httpOnly cookie 認證｜實作中，未驗收。** 2026-10-24 依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成後端 API 接線，本機 Backend 全套 1,146 項與 OpenAPI lint 通過；隔離 Mongo 六項驗證通過，含索引衝突、TTL、並行簽發與單次消耗。第 8 項已依使用者補充保留 Node fetch 相容性。前端、部署 workflow 與本機瀏覽器整合進行中；尚未完成獨立逐條審查或正式環境驗收。未寫入 Atlas、修改 VM、部署或 push。
+**httpOnly cookie 認證｜實作中，待升權規則定案；未正式驗收。** 2026-10-24 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋，修正後已再次驗證。**剩餘待答**：學生／教師實際升為 admin 時，是否遞增版本並撤銷全部憑證、要求重新走 admin 登入；現有 7 天 session 會立即取得新角色，因此不能宣告本任務全部完成。問題與建議見[本輪待確認](04_Features/HttpOnly_Cookie/decisions.md#本輪待確認)。
+
+| 驗證範圍 | 2026-10-24 本機結果 |
+|---|---|
+| Backend | 全套 1,151／1,151 通過；OpenAPI lint 通過，docs route 11 項通過。含 CSRF、Node fetch 分流、資料庫故障拒絕、撤銷與 GET 例外盤點 |
+| 隔離 Mongo | 9／9 通過：索引重跑與衝突、真實 TTL、80 次並行簽發、單次驗證消耗、重寄計數與競態、原子版本遞增、最後一位 admin 保護；未連 Atlas |
+| Frontend／workflow | 116／116、lint、相對 API 設定的 build 通過；deploy.yml 的 YAML、3 段 Node、21 段 Bash 語法通過；相同 dist 掃描通過（29 檔），在服務重啟前執行。原有非相對 API 環境設定會被 build guard 拒絕；未改本機 .env |
+| 本機 Chromium＋Vite proxy | cookie 屬性、同來源 Network、重新整理、登入登出、全裝置登出、多分頁換帳號、admin 兩段式驗證與信任裝置、首次登入、註冊信箱驗證、step-up、影片上傳與 /uploads 讀取、頭像、回饋附件、跨來源表單 403、網路故障後重試通過；使用記憶體資料與假寄信，影片只驗證上傳／讀取，未做 STT |
+| 原有腳本 | runQaEval 用 mock／template 跑 1 題、0 錯誤；verifyShortsDeployment 經 fetch 登入通過，允許空 feed 且不查 YouTube；未呼叫付費服務 |
+| 正式環境 | 第 15 項第 6 層未執行：LINE 內建瀏覽器、Email／跨站轉址、真實寄信、nginx 與部署探測仍待使用者部署後驗收。未寫入 Atlas、修改 VM、部署或 push |
 
 **帳號、課程與管理功能｜已實作。** 範圍含登入、修課、通知、頭貼、統計及問題回報；依據：[路由入口](../backend/src/routes/index.js)、[帳號介面](../backend/src/routes/auth.routes.js)、[課程權限](../backend/src/services/courseAccess.service.js)。最後驗證：2026-10-14；負責人：＿＿（待填）。
 

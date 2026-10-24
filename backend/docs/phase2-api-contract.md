@@ -418,4 +418,6 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 
 本機隔離 Mongo 的連線必須是明確 loopback 與 port，例如 PowerShell 設 `$env:AUTH_TEST_MONGODB_URI='mongodb://127.0.0.1:27028'`，再跑 `npm.cmd run test:auth-mongo`。測試只用隨機 `focusflow_auth_test_*` 資料庫並清理，禁止 Atlas URI；測 TTL 時以獨立 mongod 的 `ttlMonitorSleepSecs=1` 縮短等待，不改正式設定。
 
+本機瀏覽器可設定 `$env:AUTH_BROWSER_FIXTURE='local-only'`，執行 `node integration/auth.browser.cjs`，另啟動前端 Vite。此 fixture 只在 `127.0.0.1:4000` 使用記憶體 model 與假寄信；`127.0.0.1:4001` 可讀取假信驗證碼，`POST /reset?production=true&firstLoginRole=admin` 可重建 admin 首次登入情境，`POST /shutdown` 會關閉服務並清理專用上傳暫存目錄。它不載入 `server.js`、不連 Mongo、不寄真信或啟動 STT；production 參數只切換認證設定，正式 TLS、寄信送達與外部進站仍須另行驗收。
+
 adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-audit -- --database focusflow`。此帳號須有該集合的 createCollection 權限；authSessionsIndexer 不能代替。應用程式的新 model 都不在啟動時建集合或索引。

@@ -60,5 +60,15 @@
 
 ## 待討論
 
+### 2026-10-24 實作前待確認
+
+以下是本輪對照程式時發現的缺漏或衝突，建議答案尚未經使用者確認，不改動上方第 1～16 項的定案內容。
+
+| 題目 | 程式或文件依據 | 建議答案與理由（待確認） |
+|---|---|---|
+| 既有教師／學生如何區分「已驗證」「只需驗證信箱」「匯入後須驗證並改密碼」？ | [User schema](../../../backend/src/models/user.model.js) 沒有信箱驗證或匯入來源欄位；[網頁匯入](../../../backend/src/services/enrollment.service.js) 與 [CLI 匯入](../../../backend/src/scripts/importStudents.js) 都未留下可可靠判斷來源的標記。第 14 項與系統設定第 34 項未定義既有帳號的處理方式，不能從密碼雜湊反推 | 新匯入帳號明確標記須走 `first_login`；舊匯入帳號依使用者確認的名單標記，其他既有教師／學生走 `email_verify`，不自動視為已驗證。這次只準備可檢視的處理方式，不寫入 Atlas；開關不因日期已到而自動啟用 |
+| 影片批次的 GET 會寫回狀態，是否一起改成唯讀？ | 第 7、15 項要求 GET 不改資料；但 [videoBatch.service.js](../../../backend/src/services/videoBatch.service.js) 的 `getVideoBatch`、`listCourseVideoBatches` 都呼叫 `syncBatchStatus`，狀態不同時執行 `VideoBatch.findOneAndUpdate` | 同意一起修正：兩個 GET 只呼叫 `buildBatchPresentation` 計算回傳狀態，不寫資料；既有建立、重試等寫入流程仍可同步狀態。維持畫面取得最新狀態的行為，符合 GET 免 CSRF 的前提 |
+| 第 14 項的「送驗證碼」是提交 6 碼驗證，還是另一次寄信？ | 第 14 項列 pending 只能呼叫「送驗證碼、重寄、設定新密碼、取消」四支 API，但同項又要求比對並消耗驗證碼；系統設定第 32 項已規定登入密碼正確後自動寄出第一封信 | 將「送驗證碼」明確解釋為「提交驗證碼供後端驗證」。四支 API 定為 `POST /auth/pending/verify`、`POST /auth/pending/resend`、`POST /auth/pending/password`、`DELETE /auth/pending`；登入／註冊時寄第一封信，不另增第五支寄信 API，避免重複寄信或遺漏驗證入口 |
+
 - **已登入裝置清單**：`authSessions` 已存 `createdAt` 與 `userAgent`，畫面與 `lastSeenAt`（需節流寫入）留待之後決定。
 - **`/uploads` 的存取控制**：`backend/src/app.js` 以 `express.static` 公開提供 `/uploads`，不需登入，知道網址就能下載（例如教師上傳的本機影片）。這是改 cookie 之前就存在的行為；改用 cookie 後，`<video src>` 會自動帶 cookie，才有條件改成「登入且有選課才能存取」。需另外盤點 VM 上 `/uploads` 實際存放的檔案，並確認 nginx 是否也直接提供這個路徑。

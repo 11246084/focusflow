@@ -24,12 +24,13 @@ function getTransport() {
   return transport;
 }
 
-async function sendMail({ to, subject, text }) {
+async function sendMail({ to, subject, text, html }) {
   return getTransport().sendMail({
     from: env.mailFrom || `FocusFlow <${env.smtpUser}>`,
     to,
     subject,
     text,
+    html,
   });
 }
 

@@ -204,6 +204,7 @@ async function importStudents({ user, courseId, students }) {
           name: item.name,
           email: item.email,
           passwordHash: await bcrypt.hash(item.studentNumber, 10),
+          mustChangePassword: true,
           role: USER_ROLES.STUDENT,
         });
         created += 1;

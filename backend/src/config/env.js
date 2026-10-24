@@ -89,6 +89,14 @@ function resolveJwtSecret() {
   return DEFAULT_JWT_SECRET;
 }
 
+if (process.env.NODE_ENV === 'production') {
+  for (const key of ['ALLOWED_ORIGINS', 'CSRF_TRUSTED_ORIGINS']) {
+    if (!String(process.env[key] || '').trim() || String(process.env[key]).includes('*')) {
+      throw new Error(`${key} must contain explicit trusted origins in production.`);
+    }
+  }
+}
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
@@ -108,6 +116,11 @@ module.exports = {
     || 'parent_embedding_index',
   jwtSecret: resolveJwtSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  csrfTrustedOrigins: String(process.env.CSRF_TRUSTED_ORIGINS
+    || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((value) => value.trim()).filter(Boolean),
+  adminEmail2faEnabled: parseBoolean(process.env.ADMIN_EMAIL_2FA_ENABLED, true, 'ADMIN_EMAIL_2FA_ENABLED'),
+  emailVerificationEnabled: parseBoolean(process.env.EMAIL_VERIFICATION_ENABLED, true, 'EMAIL_VERIFICATION_ENABLED'),
+  systemSettingsDbEnabled: parseBoolean(process.env.SYSTEM_SETTINGS_DB_ENABLED, true, 'SYSTEM_SETTINGS_DB_ENABLED'),
   // Forgot-password mail (Gmail app password). Empty user/pass keeps the feature off.
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
   smtpPort: parsePositiveInteger(process.env.SMTP_PORT, 465, 'SMTP_PORT'),

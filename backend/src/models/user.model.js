@@ -37,6 +37,32 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    tokenVersion: { type: Number, default: 0 },
+    emailVerifiedAt: { type: Date, default: null },
+    // Default true deliberately includes hydrated legacy documents. Registration
+    // explicitly sets false; CSV import explicitly sets true.
+    mustChangePassword: { type: Boolean, default: true },
+    pendingVerification: {
+      type: new mongoose.Schema({
+        jti: String, purpose: { type: String, enum: ['admin_2fa', 'email_verify', 'first_login'] },
+        codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 },
+        resendCount: { type: Number, default: 0 }, requestedAt: Date, codeVerifiedAt: { type: Date, default: null },
+      }, { _id: false }), default: null,
+    },
+    // Account-level counters survive replacement/cancellation of pending tokens.
+    verificationMail: {
+      type: new mongoose.Schema({
+        resendCount: { type: Number, default: -1 }, blockedUntil: { type: Date, default: null },
+      }, { _id: false }), default: () => ({}),
+    },
+    trustedDevices: {
+      type: [new mongoose.Schema({ hash: String, createdAt: Date, expiresAt: Date,
+        userAgent: String, tokenVersion: Number }, { _id: false })], default: [],
+    },
+    passwordResetMail: {
+      type: new mongoose.Schema({ resendCount: { type: Number, default: -1 },
+        blockedUntil: { type: Date, default: null } }, { _id: false }), default: () => ({}),
+    },
     role: {
       type: String,
       enum: USER_ROLE_VALUES,

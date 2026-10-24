@@ -427,16 +427,7 @@ describe('auth routes', () => {
   });
 
   it('token 對應帳號已停用時拒絕 /auth/me', async () => {
-    const token = jwt.sign(
-      {
-        sub: ids.teacher,
-        role: 'teacher',
-      },
-      env.jwtSecret,
-      {
-        expiresIn: env.jwtExpiresIn,
-      },
-    );
+    const token = await require('../src/services/authTokens.service').issueSession(store.users.find((user) => user._id === ids.teacher)).then((session) => session.token);
 
     store.users.find((user) => user._id === ids.teacher).isActive = false;
 
@@ -455,6 +446,7 @@ describe('auth routes', () => {
       const email = `  NEW.${role.toUpperCase()}@Example.COM `;
       const password = `${role}Pass123!`;
       const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
         method: 'POST',
         body: {
           name: `  New ${role}  `,
@@ -477,7 +469,9 @@ describe('auth routes', () => {
       assert.notEqual(storedUser.passwordHash, password);
       assert.equal(await bcrypt.compare(password, storedUser.passwordHash), true);
 
-      const decodedToken = jwt.verify(result.body.data.token, env.jwtSecret);
+      assert.equal(result.body.data.token, undefined);
+      const sessionCookie = result.response.headers.getSetCookie().find((value) => value.startsWith('ff_session='));
+      const decodedToken = jwt.verify(sessionCookie.split(';')[0].split('=')[1], env.jwtSecret);
       assert.equal(decodedToken.sub, storedUser._id);
       assert.equal(Object.hasOwn(decodedToken, 'role'), false);
       assert.equal(store.usageLogs.length, 1);
@@ -488,6 +482,7 @@ describe('auth routes', () => {
   it('兩個不同 email 的註冊資料都不會產生 lineUserId null', async () => {
     for (const suffix of ['one', 'two']) {
       const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
         method: 'POST',
         body: {
           name: `No LINE ${suffix}`,
@@ -509,6 +504,7 @@ describe('auth routes', () => {
 
   it('註冊空 body 時沿用欄位驗證回傳明確錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
     });
 
@@ -520,6 +516,7 @@ describe('auth routes', () => {
 
   it('註冊 body 為 array 時不解構非物件 payload，回傳欄位驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: [{
         name: 'Array User',
@@ -538,6 +535,7 @@ describe('auth routes', () => {
 
   it('註冊 non-JSON scalar body 時回傳欄位驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -553,6 +551,7 @@ describe('auth routes', () => {
 
   it('註冊缺少 name 時回傳明確驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         email: 'new@example.com',
@@ -568,6 +567,7 @@ describe('auth routes', () => {
 
   it('註冊缺少 email 時回傳明確驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Student',
@@ -583,6 +583,7 @@ describe('auth routes', () => {
 
   it('註冊 email 格式錯誤時回傳明確驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Student',
@@ -599,6 +600,7 @@ describe('auth routes', () => {
 
   it('註冊密碼少於八字元時回傳明確驗證錯誤', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Student',
@@ -646,6 +648,7 @@ describe('auth routes', () => {
         [nonStringCase.field]: nonStringCase.value,
       };
       const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
         method: 'POST',
         body,
       });
@@ -721,6 +724,7 @@ describe('auth routes', () => {
 
   it('teacher 不可透過自助註冊建立', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Teacher',
@@ -738,6 +742,7 @@ describe('auth routes', () => {
 
   it('admin 不可透過自助註冊建立', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Admin',
@@ -755,6 +760,7 @@ describe('auth routes', () => {
 
   it('註冊已存在的 email 時由 precheck 回傳衝突', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'Duplicate Teacher',
@@ -777,6 +783,7 @@ describe('auth routes', () => {
     store.nextUserCreateError = duplicateError;
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'Race Student',
@@ -801,6 +808,7 @@ describe('auth routes', () => {
     store.nextUserCreateError = duplicateError;
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'LINE Conflict Student',
@@ -824,6 +832,7 @@ describe('auth routes', () => {
     store.nextUserCreateError = duplicateError;
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'Generic Conflict Student',

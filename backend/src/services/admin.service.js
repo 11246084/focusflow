@@ -94,12 +94,21 @@ function parseDailyAskLimitOverride(value) {
   return value;
 }
 
-async function updateUser(userId, { name, role, isActive, dailyAskLimitOverride }) {
+let userUpdateQueue = Promise.resolve();
+// Single PM2 process: serialize role/activation edits and re-check the actor.
+// Multi-process deployment requires a database-backed invariant/lock.
+async function updateUser(userId, fields, actor) {
+  const operation = userUpdateQueue.then(() => updateUserSerial(userId, fields, actor));
+  userUpdateQueue = operation.catch(() => {});
+  return operation;
+}
+async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOverride }, actor) {
   assertObjectId(userId, 'user');
 
   const update = {};
   if (name !== undefined) {
-    const trimmed = String(name).trim();
+    if (typeof name !== 'string') throw new AppError('Name must be a string.', 400, 'VALIDATION_ERROR');
+    const trimmed = name.trim();
     if (!trimmed) throw new AppError('Name cannot be empty.', 400, 'VALIDATION_ERROR');
     update.name = trimmed;
   }
@@ -107,7 +116,10 @@ async function updateUser(userId, { name, role, isActive, dailyAskLimitOverride 
     if (!USER_ROLE_VALUES.includes(role)) throw new AppError('Invalid role.', 400, 'VALIDATION_ERROR');
     update.role = role;
   }
-  if (isActive !== undefined) update.isActive = Boolean(isActive);
+  if (isActive !== undefined) {
+    if (typeof isActive !== 'boolean') throw new AppError('isActive must be a boolean.', 400, 'VALIDATION_ERROR');
+    update.isActive = isActive;
+  }
   if (dailyAskLimitOverride !== undefined) {
     update.dailyAskLimitOverride = parseDailyAskLimitOverride(dailyAskLimitOverride);
   }
@@ -116,7 +128,24 @@ async function updateUser(userId, { name, role, isActive, dailyAskLimitOverride 
     throw new AppError('No fields to update.', 400, 'VALIDATION_ERROR');
   }
 
-  const user = await User.findByIdAndUpdate(userId, update, { new: true }).lean();
+  const existing = await User.findById(userId);
+  if (!existing) throw new AppError('User not found.', 404, 'NOT_FOUND');
+  if (actor) {
+    const currentActor = await User.findById(actor.id);
+    if (!currentActor || currentActor.role !== 'admin' || currentActor.isActive === false) throw new AppError('Admin required.', 403, 'FORBIDDEN');
+    if (String(actor.id) === String(userId) && (isActive === false || (role !== undefined && role !== 'admin'))) {
+      throw new AppError('Cannot disable or demote yourself.', 400, 'SELF_ADMIN_CHANGE_FORBIDDEN');
+    }
+  }
+  if (existing.role === 'admin' && existing.isActive !== false && (isActive === false || (role && role !== 'admin'))
+    && await User.countDocuments({ role: 'admin', isActive: true }) <= 1) {
+    throw new AppError('At least one active admin is required.', 409, 'LAST_ADMIN_REQUIRED');
+  }
+  const rank = { student: 0, teacher: 1, admin: 2 };
+  const revoke = isActive === false || (role && rank[role] < rank[existing.role]);
+  const user = revoke
+    ? await require('./authTokens.service').revokeAll(userId, { $set: update })
+    : await User.findByIdAndUpdate(userId, { $set: update }, { new: true });
   if (!user) throw new AppError('User not found.', 404, 'NOT_FOUND');
 
   return {

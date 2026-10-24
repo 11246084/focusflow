@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "seed": "node src/scripts/seedDemoUsers.js",
     "seed:reset": "node src/scripts/seedDemoUsers.js --reset",
+    "db:ensure-auth-sessions": "node src/scripts/ensureAuthSessions.js",
     "db:ensure-questions": "node src/scripts/ensureQuestionsCollection.js",
     "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
     "db:ensure-video-vector-index": "node src/scripts/ensureVideoVectorIndex.js",

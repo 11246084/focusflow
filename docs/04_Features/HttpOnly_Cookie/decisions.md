@@ -69,5 +69,11 @@
 
 ## 待討論
 
+### 2026-10-24 腳本相容性待確認
+
+- **題目**：第 8 項要求 `/auth/login` 拒絕任何 `Sec-Fetch-*` header，並預期三支腳本與測試不用改；但 Node.js `v22.23.4` 的原生 `fetch()` 會自動附上 `Sec-Fetch-Mode: cors`。本機接收端實測未設定此 header 的 POST，收到 `{ origin: null, secFetchMode: 'cors' }`。[runQaEval](../../../backend/scripts/qa-eval/runQaEval.js)、[verifyShortsDeployment](../../../backend/src/scripts/verifyShortsDeployment.js)、[runStudentLoadTest](../../../backend/scripts/load-test/runStudentLoadTest.js) 與測試 harness 目前都使用原生 fetch，所以新版登入規則會一併拒絕它們。
+- **建議答案（待使用者確認）**：維持第 8 項拒絕規則，將上述腳本與測試 harness 的腳本模式請求改用 Node 原生 `http`／`https` 客戶端；沿用 `/auth/login`、既有 request／response、timeout 與錯誤處理，不以可偽造的額外 header 當成安全例外。
+- **理由**：保留瀏覽器登入與腳本登入的邊界，同時讓真正的 Node 腳本能取得 Bearer token；不在使用者未確認前放寬安全規則或擅改「腳本不用改」的約定。
+
 - **已登入裝置清單**：`authSessions` 已存 `createdAt` 與 `userAgent`，畫面與 `lastSeenAt`（需節流寫入）留待之後決定。
 - **`/uploads` 的存取控制**：`backend/src/app.js` 以 `express.static` 公開提供 `/uploads`，不需登入，知道網址就能下載（例如教師上傳的本機影片）。這是改 cookie 之前就存在的行為；改用 cookie 後，`<video src>` 會自動帶 cookie，才有條件改成「登入且有選課才能存取」。需另外盤點 VM 上 `/uploads` 實際存放的檔案，並確認 nginx 是否也直接提供這個路徑。

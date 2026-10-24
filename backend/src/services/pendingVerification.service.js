@@ -77,20 +77,26 @@ async function resend({ token }) {
   if (state.codeVerifiedAt) throw invalid();
   const budget = await reserveMail(user._id);
   const code = createCode();
-  const next = { ...state, codeHash: hashCode(user._id, code), resendCount: state.resendCount + 1, requestedAt: new Date() };
+  const codeHash = hashCode(user._id, code);
   const updated = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)),
     'pendingVerification.jti': state.jti, 'pendingVerification.codeHash': state.codeHash,
+    'pendingVerification.attempts': { $lt: 5 },
     'pendingVerification.codeVerifiedAt': null,
-    'pendingVerification.expiresAt': { $gt: new Date() } }, { $set: { pendingVerification: next } }, { new: true });
+    'pendingVerification.expiresAt': { $gt: new Date() } }, {
+    // A verification may claim an attempt after readPending. Never replace
+    // that counter with the older snapshot while rotating the code.
+    $set: { 'pendingVerification.codeHash': codeHash, 'pendingVerification.requestedAt': new Date() },
+    $inc: { 'pendingVerification.resendCount': 1 },
+  }, { new: true });
   if (!updated) throw invalid();
   try { await sendCode(user, code, state.purpose, state.expiresAt); }
   catch (error) {
     await User.findOneAndUpdate({ _id: user._id, 'pendingVerification.jti': state.jti,
-      'pendingVerification.codeHash': next.codeHash }, { $set: { 'pendingVerification.codeHash': state.codeHash } });
+      'pendingVerification.codeHash': codeHash }, { $set: { 'pendingVerification.codeHash': state.codeHash } });
     if (user.role === 'admin') await audit(user._id, 'verification_mail', 'failure', 'mail_failed');
     throw error;
   }
-  return resultFor(updated, next, budget.remainingResends);
+  return resultFor(updated, updated.pendingVerification, budget.remainingResends);
 }
 async function setPassword({ token, newPassword, userAgent }) {
   const { user, state, payload } = await readPending(token);

@@ -854,7 +854,7 @@ paths:
               examples:
                 success:
                   summary: 登入成功範例
-                  description: 回傳 token 與目前登入者的 public user 資訊，供 frontend 後續帶入 BearerAuth。
+                  description: 回傳 token 與目前登入者的 public user 資訊，供腳本後續帶入 BearerAuth；瀏覽器使用 /auth/session。
                   value:
                     success: true
                     message: Login successful.
@@ -1018,8 +1018,11 @@ paths:
       security: []
       summary: 忘記密碼：寄送 6 位數驗證碼
       description: |
-        不需登入。Email 已註冊且帳號啟用時寄出驗證碼（10 分鐘有效），同一帳號 60 秒內重複申請不重寄。
-        為避免帳號探測，Email 不存在時也回相同的 200 訊息。未設定 SMTP 時回 503。
+        不需登入。Email 已註冊且帳號啟用時寄出驗證碼（10 分鐘有效）；不限制重寄間隔，最多重寄 5 次。
+        重寄不重設猜碼次數，也不延長原驗證期限。5 次用完後，該帳號暫停寄信 10 分鐘；已寄出且未過期的驗證碼仍可使用。
+        回應含剩餘重寄次數，Email 不存在時也回相同的 200 訊息。未設定 SMTP 時回 503。
+        帶 Origin 或 cookie 的瀏覽器請求須符合 CSRF_TRUSTED_ORIGINS 並帶 X-Requested-With: FocusFlow；無 Origin 的腳本不設 cookie。
+        所有回應 Cache-Control: no-store。
       operationId: requestPasswordReset
       requestBody:
         required: true
@@ -1035,10 +1038,38 @@ paths:
       responses:
         '200':
           description: 若 Email 已註冊，驗證碼已寄出
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: object
+                        required: [remainingResends]
+                        properties:
+                          remainingResends:
+                            type: integer
+                            minimum: 0
+                            maximum: 5
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          description: CSRF_REJECTED：瀏覽器來源或自訂 header 不符合要求。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: VERIFICATION_MAIL_PAUSED：帳號暫停寄信，error.details 含 remainingResends（0）與 retryAfterSec。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: 驗證信寄送失敗（PASSWORD_RESET_EMAIL_FAILED），驗證碼已作廢
+          description: 驗證信寄送失敗（PASSWORD_RESET_EMAIL_FAILED）；本次新碼作廢，重寄前仍有效的原碼與已消耗的猜碼次數保留。
           content:
             application/json:
               schema:
@@ -1055,7 +1086,11 @@ paths:
         - Auth
       security: []
       summary: 忘記密碼：以驗證碼設定新密碼
-      description: 驗證碼錯誤累計 5 次即作廢；成功後驗證碼立即失效，新密碼以 bcrypt 雜湊儲存。
+      description: >-
+        驗證碼錯誤累計 5 次即作廢；成功後原子消耗驗證碼，遞增 tokenVersion 並撤銷全部 session、pending 與信任裝置。
+        新密碼至少 8 碼、包含一個英文字母，且不得與目前密碼相同，以 bcrypt 雜湊儲存；不發 session，使用者須重新登入。
+        帶 Origin 或 cookie 的瀏覽器請求須符合 CSRF_TRUSTED_ORIGINS 並帶 X-Requested-With: FocusFlow。
+        所有回應 Cache-Control: no-store。
       operationId: confirmPasswordReset
       requestBody:
         required: true
@@ -1074,6 +1109,8 @@ paths:
                 newPassword:
                   type: string
                   minLength: 8
+                  pattern: '[A-Za-z]'
+                  description: 不得與目前密碼相同。
       responses:
         '200':
           description: 密碼已重設
@@ -1083,12 +1120,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED：瀏覽器來源或自訂 header 不符合要求。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/auth/me:
     get:
       tags:
         - Auth
       summary: 讀取目前登入使用者
-      description: 需要有效的 bearer token。
+      description: 需要有效的 session cookie 或 Bearer token；同時提供時只驗 Bearer，失敗不改用 cookie。每次核對 User 與 authSessions。
       operationId: getCurrentUser
       responses:
         '200':
@@ -1105,8 +1148,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 unauthorized:
-                  summary: 未提供 Bearer token
-                  description: 呼叫端未帶入 Bearer token，因此 backend 直接回 `UNAUTHORIZED`。
+                  summary: 未提供登入憑證
+                  description: 呼叫端未帶入 session cookie 或 Bearer token，因此 backend 回 `UNAUTHORIZED`。
                   value:
                     success: false
                     message: Authentication required.

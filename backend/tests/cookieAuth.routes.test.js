@@ -161,6 +161,39 @@ describe('cookie authentication decisions 1–25', () => {
     const failed = await session('admin'); assert.equal(failed.status, 502); assert.equal(cookieFor(failed, 'session'), undefined);
     assert.equal(JSON.stringify(failed.body).includes('sensitive'), false);
   });
+  it('重寄與錯碼驗證重疊時保留已消耗的猜碼次數', async () => {
+    const User = require('../src/models/user.model');
+    production(); const login = await session('admin');
+    const value = cookieFor(login, 'pending'); const token = value.split('=')[1];
+    const account = store.users.find((item) => item._id === ids.admin);
+    const original = User.findOneAndUpdate;
+    let release;
+    const held = new Promise((resolve) => { release = resolve; });
+    let entered;
+    const ready = new Promise((resolve) => { entered = resolve; });
+    User.findOneAndUpdate = async function (query, update, options) {
+      if (update.$set?.['pendingVerification.codeHash'] || update.$set?.pendingVerification?.codeHash) {
+        entered(); await held;
+      }
+      return original.call(this, query, update, options);
+    };
+    let resend;
+    try {
+      resend = pendingService.resend({ token });
+      await ready;
+      const wrong = lastCode() === '000000' ? '999999' : '000000';
+      await assert.rejects(pendingService.verify({ token, code: wrong }), { code: 'PENDING_INVALID' });
+      assert.equal(account.pendingVerification.attempts, 1);
+      release(); await resend;
+      assert.equal(account.pendingVerification.attempts, 1);
+      assert.equal(account.pendingVerification.resendCount, 1);
+      const nextWrong = lastCode() === '000000' ? '999999' : '000000';
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        await assert.rejects(pendingService.verify({ token, code: nextWrong }), { code: 'PENDING_INVALID' });
+      }
+      assert.equal(account.pendingVerification, null);
+    } finally { release(); await resend?.catch(() => {}); User.findOneAndUpdate = original; }
+  });
   it('trusted device uses opaque cookie, caps at five and logout-all invalidates it', async () => {
     production(); let trusted;
     for (let i = 0; i < 6; i += 1) {

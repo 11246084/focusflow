@@ -75,10 +75,69 @@ it('隔離 Mongo：重寄限制的原子更新與 legacy 預設值', async () =>
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 6);
   assert.equal((await User.findById(user._id)).verificationMail.resendCount, 5);
 });
+it('隔離 Mongo：重寄與錯碼驗證重疊不會重設 attempts', async () => {
+  await User.updateOne({ _id: user._id }, { $set: { verificationMail: { resendCount: -1, blockedUntil: null } } });
+  const started = await pending.begin(await User.findById(user._id), 'email_verify');
+  const token = started.pendingToken;
+  const original = User.findOneAndUpdate;
+  let release; const held = new Promise((resolve) => { release = resolve; });
+  let entered; const ready = new Promise((resolve) => { entered = resolve; });
+  User.findOneAndUpdate = async function (query, update, options) {
+    if (update.$set?.['pendingVerification.codeHash'] || update.$set?.pendingVerification?.codeHash) {
+      entered(); await held;
+    }
+    return original.call(this, query, update, options);
+  };
+  let resend;
+  try {
+    resend = pending.resend({ token }); await ready;
+    const wrong = code === '000000' ? '999999' : '000000';
+    await assert.rejects(pending.verify({ token, code: wrong }), { code: 'PENDING_INVALID' });
+    assert.equal((await User.findById(user._id)).pendingVerification.attempts, 1);
+    release(); await resend;
+    const state = (await User.findById(user._id)).pendingVerification;
+    assert.equal(state.attempts, 1); assert.equal(state.resendCount, 1);
+    const nextWrong = code === '000000' ? '999999' : '000000';
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await assert.rejects(pending.verify({ token, code: nextWrong }), { code: 'PENDING_INVALID' });
+    }
+    assert.equal((await User.findById(user._id)).pendingVerification, null);
+  } finally { release(); await resend?.catch(() => {}); User.findOneAndUpdate = original; }
+});
 it('隔離 Mongo：並行 $inc 不遺失版本，撤銷後沒有 session', async () => {
   await Promise.all(Array.from({ length: 10 }, () => revokeAll(user._id)));
   assert.equal((await User.findById(user._id)).tokenVersion, 10);
   assert.equal(await AuthSession.countDocuments({ userId: user._id }), 0);
+});
+it('隔離 Mongo：忘記密碼重寄與錯碼驗證重疊不會重設 attempts', async () => {
+  const reset = require('../src/services/passwordReset.service');
+  const email = user.email;
+  await reset.requestPasswordReset({ email });
+  const expiry = (await User.findById(user._id)).passwordReset.expiresAt;
+  const original = User.findOneAndUpdate;
+  let release; const held = new Promise((resolve) => { release = resolve; });
+  let entered; const ready = new Promise((resolve) => { entered = resolve; });
+  User.findOneAndUpdate = async function (query, update, options) {
+    if (update.$set?.['passwordReset.codeHash'] || update.$set?.passwordReset?.codeHash) {
+      entered(); await held;
+    }
+    return original.call(this, query, update, options);
+  };
+  let resend;
+  try {
+    resend = reset.requestPasswordReset({ email }); await ready;
+    const wrong = code === '000000' ? '111111' : '000000';
+    await assert.rejects(reset.confirmPasswordReset({ email, code: wrong, newPassword: 'ResetPass789!' }), { code: 'PASSWORD_RESET_CODE_INVALID' });
+    assert.equal((await User.findById(user._id)).passwordReset.attempts, 1);
+    release(); await resend;
+    const state = (await User.findById(user._id)).passwordReset;
+    assert.equal(state.attempts, 1); assert.equal(state.expiresAt.getTime(), expiry.getTime());
+    const nextWrong = code === '000000' ? '111111' : '000000';
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await assert.rejects(reset.confirmPasswordReset({ email, code: nextWrong, newPassword: 'ResetPass789!' }), { code: 'PASSWORD_RESET_CODE_INVALID' });
+    }
+    assert.equal((await User.findById(user._id)).passwordReset.attempts, 5);
+  } finally { release(); await resend?.catch(() => {}); User.findOneAndUpdate = original; }
 });
 it('隔離 Mongo：同時停用其他管理員仍保留至少一位啟用中的管理員', async () => {
   const adminService = require('../src/services/admin.service');

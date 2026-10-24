@@ -80,3 +80,16 @@ it('隔離 Mongo：並行 $inc 不遺失版本，撤銷後沒有 session', async
   assert.equal((await User.findById(user._id)).tokenVersion, 10);
   assert.equal(await AuthSession.countDocuments({ userId: user._id }), 0);
 });
+it('隔離 Mongo：同時停用其他管理員仍保留至少一位啟用中的管理員', async () => {
+  const adminService = require('../src/services/admin.service');
+  const admins = await User.create([
+    { name: 'Local admin A', email: 'admin-a@example.invalid', role: 'admin', isActive: true, passwordHash: 'unused', mustChangePassword: false },
+    { name: 'Local admin B', email: 'admin-b@example.invalid', role: 'admin', isActive: true, passwordHash: 'unused', mustChangePassword: false },
+  ]);
+  const results = await Promise.allSettled([
+    adminService.updateUser(String(admins[0]._id), { isActive: false }, { id: String(admins[1]._id) }),
+    adminService.updateUser(String(admins[1]._id), { isActive: false }, { id: String(admins[0]._id) }),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(await User.countDocuments({ role: 'admin', isActive: true }), 1);
+});

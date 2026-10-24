@@ -46,7 +46,8 @@ describe('JWT_SECRET 啟動檢查', () => {
     assert.deepEqual(result, { ok: true, isDefault: true });
   });
   it('production 缺任一 Origin 名單或使用萬用字元都拒絕啟動', () => {
-    for (const overrides of [{ ALLOWED_ORIGINS: '' }, { CSRF_TRUSTED_ORIGINS: '' }, { ALLOWED_ORIGINS: '*' }]) {
+    for (const overrides of [{ ALLOWED_ORIGINS: '' }, { CSRF_TRUSTED_ORIGINS: '' }, { ALLOWED_ORIGINS: '*' },
+      { ALLOWED_ORIGINS: ', , ' }, { CSRF_TRUSTED_ORIGINS: 'https://example.com/path' }]) {
       const result = loadEnv({ NODE_ENV: 'production', JWT_SECRET: 'test-secret-not-the-default', ...overrides });
       assert.equal(result.ok, false);
       assert.match(result.message, /ORIGINS/);

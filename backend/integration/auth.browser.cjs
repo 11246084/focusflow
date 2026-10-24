@@ -14,6 +14,7 @@ env.uploadDir = uploadDirectory;
 env.csrfTrustedOrigins = ['http://localhost:5173', 'https://localhost:5173', 'http://127.0.0.1:5173'];
 env.allowedOrigins = env.csrfTrustedOrigins;
 env.shortScriptAutomationEnabled = true;
+env.shortsSyncIntervalMs = 600000;
 const messages = [];
 mailer.setTransportForTests({ sendMail: async (message) => { messages.push(message); } });
 function reset(production = false, firstLoginRole = null) {
@@ -22,11 +23,19 @@ function reset(production = false, firstLoginRole = null) {
     user.mustChangePassword = user.role === firstLoginRole;
     user.emailVerifiedAt = user.role === firstLoginRole ? null : new Date();
   }
+  // An empty successful sync is enough for the existing smoke script; any
+  // unexpected attempt to call YouTube fails inside this fixture.
+  void require('../src/services/shortsSync.service').runShortsSync({
+    fetchImpl: async () => { throw new Error('External HTTP forbidden in local fixture.'); },
+  });
 }
 reset();
 const server = app.listen(4000, '127.0.0.1');
 const controls = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'application/json');
+  if (req.method === 'POST' && req.url === '/shutdown') {
+    res.end('{}'); setImmediate(shutdown); return;
+  }
   if (req.method === 'POST' && req.url.startsWith('/reset')) {
     const url = new URL(req.url, 'http://127.0.0.1');
     reset(url.searchParams.get('production') === 'true', url.searchParams.get('firstLoginRole'));

@@ -91,7 +91,14 @@ function resolveJwtSecret() {
 
 if (process.env.NODE_ENV === 'production') {
   for (const key of ['ALLOWED_ORIGINS', 'CSRF_TRUSTED_ORIGINS']) {
-    if (!String(process.env[key] || '').trim() || String(process.env[key]).includes('*')) {
+    const origins = String(process.env[key] || '').split(',').map((value) => value.trim()).filter(Boolean);
+    const invalid = origins.some((origin) => {
+      try {
+        const url = new URL(origin);
+        return !['http:', 'https:'].includes(url.protocol) || url.origin !== origin || origin.includes('*');
+      } catch { return true; }
+    });
+    if (!origins.length || invalid) {
       throw new Error(`${key} must contain explicit trusted origins in production.`);
     }
   }

@@ -42,7 +42,23 @@ async function readPending(token) {
     || new Date(state.expiresAt).getTime() <= Date.now() || state.attempts >= 5) throw invalid();
   return { user, state: { ...(state.toObject ? state.toObject() : state) }, payload };
 }
-async function verify({ token, code, userAgent }) {
+async function verify(options) {
+  try { return await verifyPending(options); }
+  catch (error) {
+    // An expired/replaced pending token can still identify the account for an
+    // audit entry, but only after signature verification. Never trust a decoded
+    // payload or allow ignoreExpiration on an authentication path.
+    let payload;
+    try { payload = verifyToken(options.token, { ignoreExpiration: true }); } catch { /* Untrusted token. */ }
+    if (payload?.typ === 'pending' && /^[a-f0-9]{24}$/i.test(payload.sub || '')) {
+      const account = await User.findById(payload.sub);
+      if (account?.role === 'admin') await audit(account._id, 'verification', 'failure',
+        error.code === 'PENDING_INVALID' ? 'invalid_pending' : 'unavailable');
+    }
+    throw error;
+  }
+}
+async function verifyPending({ token, code, userAgent }) {
   const { user, state, payload } = await readPending(token);
   if (state.codeVerifiedAt || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw invalid();
   const claimed = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(payload.ver),
@@ -56,7 +72,6 @@ async function verify({ token, code, userAgent }) {
   if (!equalHash(state.codeHash, hashCode(user._id, code))) {
     await User.findOneAndUpdate({ _id: user._id, 'pendingVerification.jti': state.jti,
       'pendingVerification.attempts': { $gte: 5 } }, { $set: { pendingVerification: null } });
-    if (user.role === 'admin') await audit(user._id, 'verification', 'failure', 'invalid_code');
     throw invalid();
   }
   const next = state.purpose === 'first_login' ? { ...state, jti: crypto.randomBytes(16).toString('hex'),

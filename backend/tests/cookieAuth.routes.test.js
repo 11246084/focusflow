@@ -211,6 +211,39 @@ describe('cookie authentication decisions 1–25', () => {
     assert.ok(store.adminAuditLogs.some((item) => item.event === 'trusted_device_use'));
     assert.equal(JSON.stringify(store.adminAuditLogs).includes(trusted.split('=')[1]), false);
   });
+  it('admin pending 過期、替換、claim 或 consume 失敗皆只記一筆不含憑證的稽核', async () => {
+    const User = require('../src/models/user.model');
+    const original = User.findOneAndUpdate;
+    for (const failure of ['expired', 'token_expired', 'replaced', 'claim', 'consume', 'wrong_code', 'untrusted']) {
+      resetStore(); production(); sent = [];
+      const login = await session('admin');
+      let token = cookieFor(login, 'pending').split('=')[1];
+      const code = lastCode();
+      const account = store.users.find((item) => item._id === ids.admin);
+      if (failure === 'expired') account.pendingVerification.expiresAt = new Date(0);
+      if (failure === 'token_expired') token = tokens.signPendingToken(account, { ...account.pendingVerification, expiresAt: new Date(0) });
+      if (failure === 'replaced') await session('admin');
+      User.findOneAndUpdate = function (query, update, options) {
+        if ((failure === 'claim' && update.$inc?.['pendingVerification.attempts'])
+          || (failure === 'consume' && update.$set?.pendingVerification === null)) return Promise.resolve(null);
+        return original.call(this, query, update, options);
+      };
+      const beforeAudit = store.adminAuditLogs.length;
+      try {
+        await assert.rejects(pendingService.verify({ token: failure === 'untrusted' ? `${token}invalid` : token,
+          code: failure === 'wrong_code' ? (code === '000000' ? '999999' : '000000') : code }), { code: 'PENDING_INVALID' });
+        const entries = store.adminAuditLogs.slice(beforeAudit);
+        assert.equal(entries.length, failure === 'untrusted' ? 0 : 1, failure);
+        if (entries.length) {
+          assert.equal(entries[0].event, 'verification'); assert.equal(entries[0].result, 'failure');
+          assert.equal(entries[0].reason, 'invalid_pending');
+          assert.equal(String(entries[0].userId), ids.admin);
+          assert.equal(JSON.stringify(entries).includes(token), false);
+          assert.equal(JSON.stringify(entries).includes(code), false);
+        }
+      } finally { User.findOneAndUpdate = original; }
+    }
+  });
   it('step-up binds session and scope, caps expiry, rejects Bearer and locks independently', async () => {
     const login = await session('admin'); const value = cookieFor(login, 'session');
     const sessionToken = value.split('=')[1];

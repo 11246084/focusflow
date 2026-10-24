@@ -9,7 +9,8 @@ const throttle = createLoginThrottle();
 async function stepUp(user, session, password) {
   if (user.role !== 'admin') throw new AppError('Admin required.', 403, 'FORBIDDEN');
   const key = String(user._id);
-  throttle.assertAllowed(key);
+  try { throttle.assertAllowed(key); }
+  catch (error) { await audit(user._id, 'step_up', 'failure', 'throttled'); throw error; }
   if (typeof password !== 'string' || !await bcrypt.compare(password, user.passwordHash)) {
     await audit(user._id, 'step_up', 'failure', 'invalid_password');
     throw throttle.fail(key);

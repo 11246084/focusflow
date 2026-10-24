@@ -41,7 +41,7 @@ tags:
   - name: Stats
     description: Teacher / Student dashboard 的彙總統計端點，回應為彙整後的 dashboard 數據。
   - name: Admin
-    description: 僅限 admin 角色使用的後台管理端點（使用者、影片、事件統計）；全部需 Bearer token + admin 權限。
+    description: 僅限 admin 角色使用的後台管理端點（使用者、影片、事件統計）；需有效 cookie 或 Bearer 及 admin 權限；敏感操作另須瀏覽器 step-up。
   - name: Feedback
     description: |
       已登入使用者（student、teacher、admin）回報系統問題，可附最多 3 張截圖。
@@ -63,6 +63,8 @@ tags:
       本文件只描述目前 backend 可觀測的 Phase-1 流程，不代表 live production integration 已完整驗證。
 security:
   - BearerAuth: []
+  - CookieAuth: []
+  - DevCookieAuth: []
 paths:
   /health:
     get:
@@ -264,13 +266,571 @@ paths:
                           degradedReasons:
                             - code: LINE_CHANNEL_ACCESS_TOKEN_MISSING
                               message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
+  /api/v1/auth/session:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: 瀏覽器登入
+      operationId: createBrowserSession
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: 成功或仍需完成驗證。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            required:
+                              - user
+                            properties:
+                              user:
+                                $ref: '#/components/schemas/PublicUser'
+                          - type: object
+                            required:
+                              - requiresVerification
+                              - purpose
+                              - maskedEmail
+                              - codeVerified
+                              - remainingResends
+                            properties:
+                              requiresVerification:
+                                type: boolean
+                                const: true
+                              purpose:
+                                type: string
+                                enum:
+                                  - admin_2fa
+                                  - email_verify
+                                  - first_login
+                              maskedEmail:
+                                type: string
+                              codeVerified:
+                                type: boolean
+                              remainingResends:
+                                type: integer
+                                minimum: 0
+                                maximum: 5
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Auth
+      operationId: deleteCurrentSession
+      summary: 撤銷目前 session（冪等）
+      description: >-
+        Cookie 模式需可信 Origin 與 X-Requested-With。已過期／撤銷仍清 session、step-up cookie 並回 204。若帶 Authorization，只刪 Bearer
+        對應的紀錄，不讀或清 cookie。
+      security: []
+      responses:
+        '204':
+          description: 已登出，沒有 body。
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/logout-all:
+    post:
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+        - DevCookieAuth: []
+      summary: 登出所有裝置（含目前裝置）
+      operationId: logoutAllDevices
+      description: 有效 cookie 或 Bearer；cookie 寫入需 CSRF 驗證。先以 $inc 遞增 tokenVersion，再刪除全部 sessions；pending、step-up 與信任裝置一併失效。
+      responses:
+        '204':
+          description: 完成；沒有回應 body。
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/step-up:
+    post:
+      tags:
+        - Auth
+      security:
+        - CookieAuth: []
+        - DevCookieAuth: []
+      summary: 管理員重新輸入密碼
+      operationId: createAdminStepUp
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。僅限 admin；__Host-ff_stepup 有效期為 5 分鐘與 session
+        剩餘效期較短者，密碼錯 5 次獨立鎖 15 分鐘。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  writeOnly: true
+      responses:
+        '204':
+          description: 完成；沒有回應 body。
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/pending/verify:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: 提交六碼驗證碼
+      operationId: verifyPendingCode
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。admin_2fa／email_verify 成功後發
+        session；first_login 換新 pending jti 並回 codeVerified: true，仍不發 session。admin 可勾選信任此裝置 7 天。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  pattern: ^\d{6}$
+                trustDevice:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: 成功或仍需完成驗證。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            required:
+                              - user
+                            properties:
+                              user:
+                                $ref: '#/components/schemas/PublicUser'
+                          - type: object
+                            required:
+                              - requiresVerification
+                              - purpose
+                              - maskedEmail
+                              - codeVerified
+                              - remainingResends
+                            properties:
+                              requiresVerification:
+                                type: boolean
+                                const: true
+                              purpose:
+                                type: string
+                                enum:
+                                  - admin_2fa
+                                  - email_verify
+                                  - first_login
+                              maskedEmail:
+                                type: string
+                              codeVerified:
+                                type: boolean
+                              remainingResends:
+                                type: integer
+                                minimum: 0
+                                maximum: 5
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/pending/resend:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: 重寄驗證碼
+      operationId: resendPendingCode
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。無間隔限制，最多重寄 5 次；帳號暫停寄信 10
+        分鐘，重新登入不重置。既有未過期碼仍可用。嘗試次數不歸零，pending 期限不延長。
+      responses:
+        '200':
+          description: 成功或仍需完成驗證。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            required:
+                              - user
+                            properties:
+                              user:
+                                $ref: '#/components/schemas/PublicUser'
+                          - type: object
+                            required:
+                              - requiresVerification
+                              - purpose
+                              - maskedEmail
+                              - codeVerified
+                              - remainingResends
+                            properties:
+                              requiresVerification:
+                                type: boolean
+                                const: true
+                              purpose:
+                                type: string
+                                enum:
+                                  - admin_2fa
+                                  - email_verify
+                                  - first_login
+                              maskedEmail:
+                                type: string
+                              codeVerified:
+                                type: boolean
+                              remainingResends:
+                                type: integer
+                                minimum: 0
+                                maximum: 5
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/pending/password:
+    post:
+      tags:
+        - Auth
+      security: []
+      summary: 首次登入設定新密碼
+      operationId: completeFirstLogin
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。僅接受 codeVerifiedAt 已設定的
+        first_login；密碼至少八碼、至少一英文字母、不可與目前密碼相同。原子改密碼、遞增版本、消耗 pending，才發正式 session。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newPassword
+              properties:
+                newPassword:
+                  type: string
+                  minLength: 8
+                  pattern: '[A-Za-z]'
+                  writeOnly: true
+                trustDevice:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: 成功或仍需完成驗證。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            required:
+                              - user
+                            properties:
+                              user:
+                                $ref: '#/components/schemas/PublicUser'
+                          - type: object
+                            required:
+                              - requiresVerification
+                              - purpose
+                              - maskedEmail
+                              - codeVerified
+                              - remainingResends
+                            properties:
+                              requiresVerification:
+                                type: boolean
+                                const: true
+                              purpose:
+                                type: string
+                                enum:
+                                  - admin_2fa
+                                  - email_verify
+                                  - first_login
+                              maskedEmail:
+                                type: string
+                              codeVerified:
+                                type: boolean
+                              remainingResends:
+                                type: integer
+                                minimum: 0
+                                maximum: 5
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/pending:
+    delete:
+      tags:
+        - Auth
+      security: []
+      summary: 取消待驗證流程
+      operationId: cancelPendingVerification
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。
+      responses:
+        '204':
+          description: 完成；沒有回應 body。
+        '400':
+          description: 輸入不符格式或密碼規則。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/auth/login:
     post:
       tags:
         - Auth
       security: []
-      summary: 使用 email 與 password 登入
-      description: 成功後回傳 JWT bearer token 與目前登入者的 public user 資訊。
+      summary: 腳本登入，回傳 Bearer token
+      description: >-
+        只供腳本使用，不設 cookie。帶 Origin、Sec-Fetch-Site 或 Sec-Fetch-Dest 任一 header 即拒絕；Sec-Fetch-Mode 不列入拒絕條件，Node 22
+        原生 fetch 可沿用。需信箱驗證時回 403 VERIFICATION_REQUIRED，不發 pending。Cache-Control: no-store。
       operationId: login
       requestBody:
         required: true
@@ -318,25 +878,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/InvalidCredentialsError'
-        '429':
-          description: |
-            同一 Email 在 15 分鐘內連續輸錯 5 次，帳號暫時鎖定 15 分鐘（`TOO_MANY_LOGIN_ATTEMPTS`，第 5 次輸錯即回此錯誤）。
-            `error.details` 在 production 也會回傳 `retryAfterSec`、`lockMinutes`；尚未鎖定的 401 `INVALID_CREDENTIALS`
-            也會帶 `details.remainingAttempts`、`maxAttempts`、`lockMinutes`，供前端提醒剩餘次數（不存在的 Email 同樣計數，不洩漏帳號是否存在）。
-            次數與時間可由 `LOGIN_MAX_FAILED_ATTEMPTS`、`LOGIN_FAILURE_WINDOW_MINUTES`、`LOGIN_LOCK_MINUTES` 調整。
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                locked:
-                  value:
-                    success: false
-                    message: Too many failed login attempts. Please try again later.
-                    error:
-                      code: TOO_MANY_LOGIN_ATTEMPTS
         '403':
-          description: 帳號停用，或帳號角色與登入入口不符
+          description: 帳號停用／角色不符、瀏覽器來源訊號（BROWSER_LOGIN_REJECTED）、或 VERIFICATION_REQUIRED。
           content:
             application/json:
               schema:
@@ -354,74 +897,120 @@ paths:
                     message: Account type does not match the selected role.
                     error:
                       code: ROLE_MISMATCH
+        '429':
+          description: |
+            同一 Email 在 15 分鐘內連續輸錯 5 次，帳號暫時鎖定 15 分鐘（`TOO_MANY_LOGIN_ATTEMPTS`，第 5 次輸錯即回此錯誤）。
+            `error.details` 在 production 也會回傳 `retryAfterSec`、`lockMinutes`；尚未鎖定的 401 `INVALID_CREDENTIALS`
+            也會帶 `details.remainingAttempts`、`maxAttempts`、`lockMinutes`，供前端提醒剩餘次數（不存在的 Email 同樣計數，不洩漏帳號是否存在）。
+            次數與時間可由 `LOGIN_MAX_FAILED_ATTEMPTS`、`LOGIN_FAILURE_WINDOW_MINUTES`、`LOGIN_LOCK_MINUTES` 調整。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                locked:
+                  value:
+                    success: false
+                    message: Too many failed login attempts. Please try again later.
+                    error:
+                      code: TOO_MANY_LOGIN_ATTEMPTS
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/auth/register:
     post:
       tags:
         - Auth
       security: []
-      summary: 自助註冊（限 student / teacher）
-      description: |
-        新使用者自行建立帳號。`role` 僅接受 `student` 或 `teacher`；`admin` 必須由現有管理員建立，不開放自助註冊。
-
-        成功時直接回 JWT 與 public user，前端可立即跳到 dashboard。
+      summary: 學生自助註冊，先驗證信箱再進入系統
       operationId: register
+      description: >-
+        瀏覽器專用：Origin 必須完全符合 CSRF_TRUSTED_ORIGINS，且 X-Requested-With 必須是 FocusFlow。不可帶 Authorization；回應
+        Cache-Control: no-store，正式 JWT 僅放在 HttpOnly cookie，不回 body。
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AuthRegisterRequest'
-            examples:
-              studentRegister:
-                value:
-                  name: 王小明
-                  email: student-new@focusflow.local
-                  password: Student123!
-                  role: student
       responses:
         '201':
-          description: 註冊成功
+          description: 成功或仍需完成驗證。
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthLoginResponse'
-              examples:
-                success:
-                  summary: 註冊成功範例
-                  value:
-                    success: true
-                    message: Registration successful.
-                    data:
-                      token: <jwt-token>
-                      user:
-                        id: 507f1f77bcf86cd799439099
-                        name: 王小明
-                        email: student-new@focusflow.local
-                        role: student
-                        isActive: true
-                        hasAvatar: false
-                        avatarUpdatedAt: null
-                        isLineBound: false
-                        lineBindAt: null
-                        activeCourseId: null
-                        lineConversationState: idle
-                        createdAt: '2026-05-07T09:00:00.000Z'
-                        updatedAt: '2026-05-07T09:00:00.000Z'
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        oneOf:
+                          - type: object
+                            required:
+                              - user
+                            properties:
+                              user:
+                                $ref: '#/components/schemas/PublicUser'
+                          - type: object
+                            required:
+                              - requiresVerification
+                              - purpose
+                              - maskedEmail
+                              - codeVerified
+                              - remainingResends
+                            properties:
+                              requiresVerification:
+                                type: boolean
+                                const: true
+                              purpose:
+                                type: string
+                                enum:
+                                  - admin_2fa
+                                  - email_verify
+                                  - first_login
+                              maskedEmail:
+                                type: string
+                              codeVerified:
+                                type: boolean
+                              remainingResends:
+                                type: integer
+                                minimum: 0
+                                maximum: 5
         '400':
-          $ref: '#/components/responses/ValidationError'
-        '409':
-          description: Email 已被使用（DUPLICATE_RESOURCE）
+          description: 輸入不符格式或密碼規則。
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                duplicate:
-                  value:
-                    success: false
-                    message: Email is already registered.
-                    error:
-                      code: DUPLICATE_RESOURCE
+        '401':
+          description: 登入／pending 憑證失效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: CSRF_REJECTED 或 BROWSER_SESSION_REQUIRED。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登入／step-up 鎖定，或 VERIFICATION_MAIL_PAUSED（error.details 含 remainingResends、retryAfterSec）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AUTH_UNAVAILABLE：資料庫故障，拒絕簽發或驗證憑證。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/auth/password-reset/request:
     post:
       tags:
@@ -4316,6 +4905,16 @@ paths:
           $ref: '#/components/responses/ShortScriptCourseNotFoundError'
 components:
   securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-ff_session
+      description: 正式環境 HttpOnly、Secure、SameSite=Strict、Path=/；寫入須通過 CSRF。
+    DevCookieAuth:
+      type: apiKey
+      in: cookie
+      name: ff_session
+      description: 本機 HTTP 開發用 HttpOnly session cookie。
     BearerAuth:
       type: http
       scheme: bearer

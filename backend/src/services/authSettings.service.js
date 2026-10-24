@@ -12,8 +12,8 @@ async function enabled(key, environmentValue) {
   } catch { return true; }
 }
 async function requiredPurpose(user) {
-  if (env.nodeEnv !== 'production') return null;
   if (user.mustChangePassword !== false) return 'first_login';
+  if (env.nodeEnv !== 'production') return null;
   if (user.role === 'admin') {
     return await enabled('auth.adminEmail2faEnabled', env.adminEmail2faEnabled) ? 'admin_2fa' : null;
   }

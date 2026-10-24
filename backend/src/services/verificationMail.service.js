@@ -19,7 +19,9 @@ function mailLimitError(until) {
 // a replaceable pending credential. CAS also limits concurrent resends.
 async function reserveMail(userId, field = 'verificationMail', now = new Date()) {
   for (let tries = 0; tries < 10; tries += 1) {
-    const user = await User.findById(userId);
+    // lean is essential: Mongoose supplies defaults for legacy documents, but
+    // CAS predicates must describe the fields actually persisted in MongoDB.
+    const user = await User.findById(userId).lean();
     const state = user?.[field];
     if (!user) throw new AppError('Account unavailable.', 401, 'UNAUTHORIZED');
     const until = state?.blockedUntil && new Date(state.blockedUntil).getTime();

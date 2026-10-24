@@ -112,11 +112,11 @@ describe('忘記密碼（Email 驗證碼）', () => {
     assert.equal(reused.body.error.code, 'PASSWORD_RESET_CODE_INVALID');
   });
 
-  it('60 秒內重複申請不會重寄', async () => {
+  it('重複申請立即重寄並回傳剩餘次數', async () => {
     await request();
     await request();
 
-    assert.equal(sent.length, 1);
+    assert.equal(sent.length, 2);
   });
 
   it('新密碼少於 8 碼時回驗證錯誤', async () => {

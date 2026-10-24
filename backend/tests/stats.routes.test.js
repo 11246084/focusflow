@@ -32,6 +32,7 @@ describe('GET /api/v1/stats/student', () => {
 
   it('新註冊且尚無學習活動的學生會收到穩定的 zero-state', async () => {
     const registration = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'Zero State Student',
@@ -49,7 +50,7 @@ describe('GET /api/v1/stats/student', () => {
     assert.equal(store.usageLogs.length, 0);
 
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/stats/student', {
-      token: registration.body.data.token,
+      token: registration.response.headers.getSetCookie().find((value) => value.startsWith('ff_session=')).split(';')[0].split('=')[1],
     });
 
     assert.equal(result.status, 200);

@@ -45,8 +45,10 @@ async function confirmPasswordReset({ email, code, newPassword, now = new Date()
     { $inc: { 'passwordReset.attempts': 1 } }, { new: true });
   if (!claimed || !equalHash(reset.codeHash, hashCode(user._id, code.trim()))) throw invalidCodeError();
   await assertPassword(newPassword, user.passwordHash);
-  const updated = await User.findOneAndUpdate({ _id: user._id, 'passwordReset.codeHash': reset.codeHash },
-    { $set: { passwordHash: await bcrypt.hash(newPassword, 10), passwordReset: null, pendingVerification: null,
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const updated = await User.findOneAndUpdate({ _id: user._id, 'passwordReset.codeHash': reset.codeHash,
+    'passwordReset.expiresAt': { $gt: new Date() } },
+    { $set: { passwordHash, passwordReset: null, pendingVerification: null,
       trustedDevices: [], mustChangePassword: false, emailVerifiedAt: now, passwordResetMail: { resendCount: -1, blockedUntil: null } },
       $inc: { tokenVersion: 1 } }, { new: true });
   if (!updated) throw invalidCodeError();

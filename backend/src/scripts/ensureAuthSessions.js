@@ -4,6 +4,7 @@ const INDEXES = [
   { key: { userId: 1 }, name: 'userId_1' },
   { key: { expiresAt: 1 }, name: 'expiresAt_1', expireAfterSeconds: 0 },
 ];
+class IndexContractError extends Error {}
 async function ensureAuthSessions(db) {
   try { await db.createCollection('authSessions'); }
   catch (error) { if (error.code !== 48) throw error; }
@@ -16,7 +17,7 @@ async function ensureAuthSessions(db) {
       if (JSON.stringify(index.key) !== JSON.stringify(expected.key)
         || index.expireAfterSeconds !== expected.expireAfterSeconds
         || index.unique || index.sparse || index.partialFilterExpression || index.collation || index.hidden) {
-        throw new Error(`authSessions index ${index.name} has conflicting options; stop for manual review.`);
+        throw new IndexContractError(`authSessions index ${index.name} has conflicting options; stop for manual review.`);
       }
     }
   }
@@ -43,5 +44,8 @@ async function main() {
     console.log(JSON.stringify({ database, collection: 'authSessions', indexes }, null, 2));
   } finally { await client.close(); }
 }
-if (require.main === module) main().catch(() => { console.error('authSessions ensure failed; verify target and index options.'); process.exitCode = 1; });
+if (require.main === module) main().catch((error) => {
+  console.error(error instanceof IndexContractError ? error.message : 'authSessions ensure failed; verify target and index options.');
+  process.exitCode = 1;
+});
 module.exports = { ensureAuthSessions, INDEXES };

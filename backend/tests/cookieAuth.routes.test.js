@@ -46,9 +46,10 @@ describe('cookie authentication decisions 1–25', () => {
     }
   });
   it('script login rejects every browser signal and has no Set-Cookie', async () => {
-    for (const headers of [{ Origin: origin }, { Origin: 'null' }, { 'Sec-Fetch-Site': 'none' }, { 'Sec-Fetch-Mode': 'cors' }]) {
+    for (const headers of [{ Origin: origin }, { Origin: 'null' }, { 'Sec-Fetch-Site': 'none' }, { 'Sec-Fetch-Dest': 'empty' }]) {
       assert.equal((await request('/auth/login', { method: 'POST', headers, body: credentials() })).status, 403);
     }
+    // Native Node fetch supplies Sec-Fetch-Mode: cors automatically.
     const result = await request('/auth/login', { method: 'POST', body: credentials() });
     assert.ok(result.body.data.token); assert.equal(setCookies(result).length, 0);
   });
@@ -209,5 +210,62 @@ describe('cookie authentication decisions 1–25', () => {
     assert.doesNotMatch(mail.html, /<img|https?:\/\//);
     const same = await request('/auth/password-reset/confirm', { method: 'POST', body: { email: 'student@focusflow.local', code: lastCode(), newPassword: 'Student123!' } });
     assert.equal(same.status, 400);
+  });
+  it('非正式環境略過寄信，但匯入帳號仍須先設定新密碼', async () => {
+    store.users.find((user) => user._id === ids.student).mustChangePassword = true;
+    const login = await session();
+    assert.equal(login.body.data.purpose, 'first_login');
+    assert.equal(login.body.data.codeVerified, true); assert.equal(sent.length, 0);
+    assert.equal(cookieFor(login, 'session'), undefined);
+    const changed = await request('/auth/pending/password', { method: 'POST', headers: { ...browser, Cookie: cookieFor(login, 'pending') }, body: { newPassword: 'FreshStudent123!' } });
+    assert.equal(changed.status, 200); assert.ok(cookieFor(changed, 'session'));
+  });
+  it('重新登入換 jti、取消受 CSRF 保護，腳本需驗證時不發 pending', async () => {
+    production();
+    const script = await request('/auth/login', { method: 'POST', body: credentials('admin') });
+    assert.equal(script.status, 403); assert.equal(script.body.error.code, 'VERIFICATION_REQUIRED');
+    assert.equal(setCookies(script).length, 0);
+    const old = cookieFor(await session('admin'), 'pending');
+    const next = cookieFor(await session('admin'), 'pending');
+    assert.notEqual(old, next);
+    assert.equal((await request('/auth/pending/verify', { method: 'POST', headers: { ...browser, Cookie: old }, body: { code: lastCode() } })).status, 401);
+    assert.equal((await request('/auth/pending', { method: 'DELETE', headers: { Cookie: next } })).status, 403);
+    assert.equal((await request('/auth/pending', { method: 'DELETE', headers: { ...browser, Cookie: next } })).status, 204);
+    assert.equal(store.users.find((user) => user._id === ids.admin).pendingVerification, null);
+  });
+  it('step-up 不可跨 session、版本或使用者，期限不超過短 session', async () => {
+    const account = store.users.find((user) => user._id === ids.admin);
+    const session = await tokens.issueSession(account, { expiresIn: 30 });
+    const payload = tokens.verifyToken(session.token);
+    const step = tokens.signStepUpToken(account, payload);
+    assert.ok(tokens.verifyToken(step).exp <= payload.exp);
+    const req = { headers: { origin, 'x-requested-with': 'FocusFlow', cookie: `ff_stepup=${step}` }, auth: { account, payload } };
+    assert.doesNotThrow(() => assertStepUp(req));
+    for (const badPayload of [{ ...payload, sid: 'a'.repeat(32) }, { ...payload, exp: payload.exp - 1 }]) {
+      assert.throws(() => assertStepUp({ ...req, auth: { account, payload: badPayload } }), { code: 'STEP_UP_REQUIRED' });
+    }
+    for (const badAccount of [{ ...account, _id: ids.student }, { ...account, tokenVersion: 1 }, { ...account, role: 'student' }]) {
+      assert.throws(() => assertStepUp({ ...req, auth: { account: badAccount, payload } }), { code: 'STEP_UP_REQUIRED' });
+    }
+  });
+  it('目前角色來自 User，管理員降級他人會撤銷該帳號 session', async () => {
+    const teacher = cookieFor(await session('teacher'), 'session');
+    const actor = await loginAs(server.baseUrl, 'admin@focusflow.local', 'Admin123!', 'admin');
+    const result = await request(`/admin/users/${ids.teacher}`, { method: 'PATCH', token: actor, body: { role: 'student' } });
+    assert.equal(result.status, 200);
+    assert.equal(store.users.find((user) => user._id === ids.teacher).tokenVersion, 1);
+    assert.equal((await request('/auth/me', { headers: { Cookie: teacher } })).status, 401);
+    const student = cookieFor(await session(), 'session');
+    assert.equal((await request('/stats/teacher', { headers: { Cookie: student } })).status, 403);
+  });
+  it('忘記密碼重寄 5 次後暫停寄信，既有未過期驗證碼仍可使用', async () => {
+    const body = { email: 'student@focusflow.local' };
+    for (let n = 0; n <= 5; n += 1) {
+      const result = await request('/auth/password-reset/request', { method: 'POST', body });
+      assert.equal(result.status, 200); assert.equal(result.body.data.remainingResends, 5 - n);
+    }
+    assert.equal((await request('/auth/password-reset/request', { method: 'POST', body })).status, 429);
+    const confirmed = await request('/auth/password-reset/confirm', { method: 'POST', body: { ...body, code: lastCode(), newPassword: 'ResetStudent123!' } });
+    assert.equal(confirmed.status, 200); assert.equal(setCookies(confirmed).length, 0);
   });
 });

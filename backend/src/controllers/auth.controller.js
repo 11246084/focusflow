@@ -6,8 +6,8 @@ const avatarService = require('../services/avatar.service');
 const passwordResetService = require('../services/passwordReset.service');
 const { USER_ROLE_VALUES } = require('../constants/enums');
 const { requestCredential } = require('../middleware/auth.middleware');
-const { verifyToken, revokeAll, unavailable } = require('../services/authTokens.service');
-const AuthSession = require('../models/authSession.model');
+const { verifyToken, revokeAll } = require('../services/authTokens.service');
+const { revokeCurrent } = require('../services/authSession.service');
 const pending = require('../services/pendingVerification.service');
 const { createTrustedDevice } = require('../services/trustedDevice.service');
 const { toPublicUser } = require('../utils/publicUser');
@@ -31,7 +31,7 @@ function respondBrowser(req, res, result, statusCode = 200) {
 const login = asyncHandler(async (req, res) => {
   const browser = req.path === '/session';
   if (browser) cookies.assertBrowser(req);
-  else if (Object.hasOwn(req.headers, 'origin') || Object.keys(req.headers).some((key) => key.startsWith('sec-fetch-'))) {
+  else if (['origin', 'sec-fetch-site', 'sec-fetch-dest'].some((key) => Object.hasOwn(req.headers, key))) {
     throw new AppError('Use the browser session endpoint.', 403, 'BROWSER_LOGIN_REJECTED');
   }
   const {
@@ -159,16 +159,7 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
 const logout = asyncHandler(async (req, res) => {
   const credential = requestCredential(req);
   if (credential.transport === 'cookie') cookies.assertCsrf(req);
-  let payload;
-  try {
-    payload = verifyToken(credential.token, { ignoreExpiration: true });
-    if (payload.typ !== 'session' || !/^[a-f0-9]{32}$/.test(payload.sid) || !Number.isInteger(payload.ver)) throw new Error();
-  } catch {
-    if (credential.transport === 'bearer') throw new AppError('Invalid token.', 401, 'INVALID_TOKEN');
-  }
-  if (payload) {
-    try { await AuthSession.deleteMany({ _id: payload.sid, userId: payload.sub }); } catch { throw unavailable(); }
-  }
+  await revokeCurrent(credential);
   if (credential.transport === 'cookie') cookies.clearSessionCookies(res);
   return res.sendStatus(204);
 });

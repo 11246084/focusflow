@@ -15,12 +15,14 @@ function resultFor(user, state, remainingResends) {
     requiresVerification: true, purpose: state.purpose, maskedEmail: maskedEmail(user.email),
     codeVerified: Boolean(state.codeVerifiedAt), remainingResends };
 }
-async function begin(user, purpose) {
-  const budget = await reserveMail(user._id);
+async function begin(user, purpose, { skipEmail = false } = {}) {
+  const budget = skipEmail ? { remainingResends: 5 } : await reserveMail(user._id);
   const code = createCode();
   const state = { jti: crypto.randomBytes(16).toString('hex'), purpose, codeHash: hashCode(user._id, code),
-    expiresAt: new Date(Date.now() + TTL_MS), attempts: 0, resendCount: 0, requestedAt: new Date(), codeVerifiedAt: null };
+    expiresAt: new Date(Date.now() + TTL_MS), attempts: 0, resendCount: 0, requestedAt: new Date(),
+    codeVerifiedAt: skipEmail ? new Date() : null };
   await User.findByIdAndUpdate(user._id, { $set: { pendingVerification: state } });
+  if (skipEmail) return resultFor(user, state, budget.remainingResends);
   try { await sendCode(user, code, purpose, state.expiresAt); }
   catch (error) {
     await User.findOneAndUpdate({ _id: user._id, 'pendingVerification.jti': state.jti }, { $set: { pendingVerification: null } });
@@ -61,7 +63,8 @@ async function verify({ token, code, userAgent }) {
     codeVerifiedAt: new Date(), expiresAt: new Date(Date.now() + TTL_MS) } : null;
   const consumed = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(payload.ver),
     'pendingVerification.jti': state.jti, 'pendingVerification.codeHash': state.codeHash,
-    'pendingVerification.codeVerifiedAt': null }, { $set: { pendingVerification: next,
+    'pendingVerification.codeVerifiedAt': null,
+    'pendingVerification.expiresAt': { $gt: new Date() } }, { $set: { pendingVerification: next,
     ...(next ? {} : { emailVerifiedAt: new Date(), verificationMail: { resendCount: -1, blockedUntil: null } }) } }, { new: true });
   if (!consumed) throw invalid();
   if (user.role === 'admin') await audit(user._id, 'verification', 'success');
@@ -77,7 +80,8 @@ async function resend({ token }) {
   const next = { ...state, codeHash: hashCode(user._id, code), resendCount: state.resendCount + 1, requestedAt: new Date() };
   const updated = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)),
     'pendingVerification.jti': state.jti, 'pendingVerification.codeHash': state.codeHash,
-    'pendingVerification.codeVerifiedAt': null }, { $set: { pendingVerification: next } }, { new: true });
+    'pendingVerification.codeVerifiedAt': null,
+    'pendingVerification.expiresAt': { $gt: new Date() } }, { $set: { pendingVerification: next } }, { new: true });
   if (!updated) throw invalid();
   try { await sendCode(user, code, state.purpose, state.expiresAt); }
   catch (error) {
@@ -92,9 +96,11 @@ async function setPassword({ token, newPassword, userAgent }) {
   const { user, state, payload } = await readPending(token);
   if (state.purpose !== 'first_login' || !state.codeVerifiedAt) throw invalid();
   await assertPassword(newPassword, user.passwordHash);
+  const passwordHash = await bcrypt.hash(newPassword, 10);
   const updated = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(payload.ver),
-    'pendingVerification.jti': state.jti, 'pendingVerification.codeVerifiedAt': { $ne: null } }, {
-    $set: { passwordHash: await bcrypt.hash(newPassword, 10), mustChangePassword: false,
+    'pendingVerification.jti': state.jti, 'pendingVerification.codeVerifiedAt': { $ne: null },
+    'pendingVerification.expiresAt': { $gt: new Date() } }, {
+    $set: { passwordHash, mustChangePassword: false,
       emailVerifiedAt: new Date(), pendingVerification: null, trustedDevices: [], verificationMail: { resendCount: -1, blockedUntil: null } },
     $inc: { tokenVersion: 1 },
   }, { new: true });

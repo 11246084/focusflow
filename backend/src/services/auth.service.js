@@ -74,7 +74,7 @@ async function completeLogin(user, { browser = false, userAgent = '', trustedDev
   if (purpose === 'admin_2fa' && await useTrustedDevice(user, trustedDevice)) purpose = null;
   if (purpose) {
     if (!browser) throw new AppError('Email verification required.', 403, 'VERIFICATION_REQUIRED');
-    return pending.begin(user, purpose);
+    return pending.begin(user, purpose, { skipEmail: env.nodeEnv !== 'production' });
   }
   return { ...await issueSession(user, { userAgent }), user: toPublicUser(user) };
 }
@@ -138,7 +138,7 @@ async function register({ name, email, password, role }, options = {}) {
   return result;
 }
 
-async function login({ email, password, role }, options = {}) {
+async function loginInternal({ email, password, role }, options = {}) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const requestedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
 
@@ -155,17 +155,16 @@ async function login({ email, password, role }, options = {}) {
   assertLoginAllowed(normalizedEmail);
 
   const user = await User.findOne({ email: normalizedEmail });
+  options.auditContext.user = user;
 
   // 失敗時回傳剩餘次數，讓前端提醒「再錯幾次會被鎖定」；達上限時直接回鎖定錯誤。
   if (!user) {
-    if (requestedRole === USER_ROLES.ADMIN) await audit(null, 'admin_login', 'failure', 'invalid_credentials');
     throw buildLoginFailureError(normalizedEmail);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    if (user.role === USER_ROLES.ADMIN) await audit(user._id, 'admin_login', 'failure', 'invalid_credentials');
     throw buildLoginFailureError(normalizedEmail);
   }
 
@@ -185,7 +184,6 @@ async function login({ email, password, role }, options = {}) {
   }
 
   const result = await completeLogin(user, options);
-  if (user.role === USER_ROLES.ADMIN) await audit(user._id, 'admin_login', 'success');
 
   await recordUsage({
     userId: user._id,
@@ -196,6 +194,23 @@ async function login({ email, password, role }, options = {}) {
   });
 
   return result;
+}
+
+async function login(input, options = {}) {
+  const auditContext = { user: null };
+  try {
+    const result = await loginInternal(input, { ...options, auditContext });
+    if (auditContext.user?.role === USER_ROLES.ADMIN) await audit(auditContext.user._id, 'admin_login', 'success');
+    return result;
+  } catch (error) {
+    if (auditContext.user?.role === USER_ROLES.ADMIN || input.role === USER_ROLES.ADMIN) {
+      const reasons = { INVALID_CREDENTIALS: 'invalid_credentials', USER_INACTIVE: 'inactive', ROLE_MISMATCH: 'role_mismatch',
+        TOO_MANY_LOGIN_ATTEMPTS: 'throttled', VERIFICATION_EMAIL_FAILED: 'mail_failed', VERIFICATION_REQUIRED: 'verification_required',
+        VERIFICATION_MAIL_PAUSED: 'mail_paused', VALIDATION_ERROR: 'invalid_input' };
+      await audit(auditContext.user?._id || null, 'admin_login', 'failure', reasons[error.code] || 'unavailable');
+    }
+    throw error;
+  }
 }
 
 async function getCurrentUser(userId) {

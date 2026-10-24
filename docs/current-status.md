@@ -6,7 +6,7 @@
 
 ## 各模組
 
-**httpOnly cookie 認證｜實作中，未驗收。** 2026-10-24 依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)進行後端接線，尚未通過後端測試門檻，也尚未開始前端、部署 workflow 與獨立審查。已執行部分記憶體 stub route 測試，發現 Node.js 原生 fetch 自動帶 `Sec-Fetch-Mode`，與第 8 項腳本相容性預期衝突，待使用者確認處理方式後續作。本機 Mongo、完整測試、OpenAPI、瀏覽器及正式驗收均未完成；未寫入 Atlas、修改 VM、部署或 push。
+**httpOnly cookie 認證｜實作中，未驗收。** 2026-10-24 依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成後端 API 接線，本機 Backend 全套 1,146 項與 OpenAPI lint 通過；隔離 Mongo 六項驗證通過，含索引衝突、TTL、並行簽發與單次消耗。第 8 項已依使用者補充保留 Node fetch 相容性。前端、部署 workflow 與本機瀏覽器整合進行中；尚未完成獨立逐條審查或正式環境驗收。未寫入 Atlas、修改 VM、部署或 push。
 
 **帳號、課程與管理功能｜已實作。** 範圍含登入、修課、通知、頭貼、統計及問題回報；依據：[路由入口](../backend/src/routes/index.js)、[帳號介面](../backend/src/routes/auth.routes.js)、[課程權限](../backend/src/services/courseAccess.service.js)。最後驗證：2026-10-14；負責人：＿＿（待填）。
 

@@ -539,6 +539,8 @@ describe('auth routes', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
+        Origin: 'http://localhost:5173',
+        'X-Requested-With': 'FocusFlow',
       },
       body: 'not-an-object',
     });

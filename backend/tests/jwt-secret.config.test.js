@@ -18,7 +18,7 @@ function loadEnv(overrides) {
   `;
   const result = spawnSync(process.execPath, ['-e', script], {
     cwd: path.join(__dirname, '..'),
-    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, ...overrides },
+    env: { ALLOWED_ORIGINS: 'https://focusflow.ntub.edu.tw', CSRF_TRUSTED_ORIGINS: 'https://focusflow.ntub.edu.tw', PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, ...overrides },
     encoding: 'utf8',
   });
   return JSON.parse(result.stdout);
@@ -45,4 +45,12 @@ describe('JWT_SECRET 啟動檢查', () => {
     const result = loadEnv({ NODE_ENV: 'development', JWT_SECRET: '' });
     assert.deepEqual(result, { ok: true, isDefault: true });
   });
+  it('production 缺任一 Origin 名單或使用萬用字元都拒絕啟動', () => {
+    for (const overrides of [{ ALLOWED_ORIGINS: '' }, { CSRF_TRUSTED_ORIGINS: '' }, { ALLOWED_ORIGINS: '*' }]) {
+      const result = loadEnv({ NODE_ENV: 'production', JWT_SECRET: 'test-secret-not-the-default', ...overrides });
+      assert.equal(result.ok, false);
+      assert.match(result.message, /ORIGINS/);
+    }
+  });
+
 });

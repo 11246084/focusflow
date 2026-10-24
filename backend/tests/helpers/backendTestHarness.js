@@ -499,7 +499,7 @@ function installModelStubs() {
   // Monkey-patch the mongoose models once so production services can run unchanged.
   User.findOne = async (query = {}) => store.users.find((item) => matchesQuery(item, query)) || null;
   User.countDocuments = async (query = {}) => store.users.filter((item) => matchesQuery(item, query)).length;
-  User.findById = async (id) => findUserById(id);
+  User.findById = (id) => createQuery(findUserById(id));
   User.find = (query = {}) => createQuery(store.users.filter((item) => matchesQuery(item, query)));
   User.create = async (payload) => {
     if (store.nextUserCreateError) {
@@ -1498,6 +1498,8 @@ function resetStore() {
     keyPoints: ['JWT auth', 'RBAC'],
     hitCount: 0,
   });
+  // Baseline fixtures represent accounts that already completed first login.
+  for (const user of store.users) { user.mustChangePassword = false; user.tokenVersion = 0; }
 }
 
 async function startServer() {

@@ -19,8 +19,8 @@ const listUsers = asyncHandler(async (req, res) => {
 const updateUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { name, role, isActive, dailyAskLimitOverride } = req.body;
-  if (role === 'admin') require('../services/stepUp.service').assertStepUp(req);
-  const user = await adminService.updateUser(userId, { name, role, isActive, dailyAskLimitOverride }, req.user);
+  const user = await adminService.updateUser(userId, { name, role, isActive, dailyAskLimitOverride }, req.user,
+    () => require('../services/stepUp.service').assertStepUp(req));
   return sendSuccess(res, { message: 'User updated.', data: user });
 });
 

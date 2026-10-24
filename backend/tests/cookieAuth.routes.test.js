@@ -282,4 +282,14 @@ describe('cookie authentication decisions 1–25', () => {
     });
     assert.equal(internal.status, 200);
   });
+  it('只在實際升為管理員時要求 step-up，原有管理員改姓名不需重驗', async () => {
+    const value = cookieFor(await session('admin'), 'session');
+    const headers = { ...browser, Cookie: value };
+    const renamed = await request(`/admin/users/${ids.admin}`, { method: 'PATCH', headers,
+      body: { name: 'Renamed admin', role: 'admin', isActive: true } });
+    assert.equal(renamed.status, 200);
+    const promotion = await request(`/admin/users/${ids.student}`, { method: 'PATCH', headers,
+      body: { name: 'Student', role: 'admin', isActive: true } });
+    assert.equal(promotion.status, 403); assert.equal(promotion.body.error.code, 'STEP_UP_REQUIRED');
+  });
 });

@@ -97,12 +97,12 @@ function parseDailyAskLimitOverride(value) {
 let userUpdateQueue = Promise.resolve();
 // Single PM2 process: serialize role/activation edits and re-check the actor.
 // Multi-process deployment requires a database-backed invariant/lock.
-async function updateUser(userId, fields, actor) {
-  const operation = userUpdateQueue.then(() => updateUserSerial(userId, fields, actor));
+async function updateUser(userId, fields, actor, authorizePromotion) {
+  const operation = userUpdateQueue.then(() => updateUserSerial(userId, fields, actor, authorizePromotion));
   userUpdateQueue = operation.catch(() => {});
   return operation;
 }
-async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOverride }, actor) {
+async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOverride }, actor, authorizePromotion) {
   assertObjectId(userId, 'user');
 
   const update = {};
@@ -130,6 +130,12 @@ async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOve
 
   const existing = await User.findById(userId);
   if (!existing) throw new AppError('User not found.', 404, 'NOT_FOUND');
+  // Check the actual transition inside the serialized update. An unchanged
+  // admin role (for example editing a name) is not an elevation of privilege.
+  if (role === 'admin' && existing.role !== 'admin') {
+    if (typeof authorizePromotion !== 'function') throw new AppError('Please re-enter your password.', 403, 'STEP_UP_REQUIRED');
+    authorizePromotion();
+  }
   if (actor) {
     const currentActor = await User.findById(actor.id);
     if (!currentActor || currentActor.role !== 'admin' || currentActor.isActive === false) throw new AppError('Admin required.', 403, 'FORBIDDEN');

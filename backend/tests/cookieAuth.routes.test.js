@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { describe, it, before, after, beforeEach } = require('node:test');
-const { env, ids, store, resetStore, startServer, stopServer, jsonRequest, loginAs } = require('./helpers/backendTestHarness');
+const { env, ids, store, resetStore, startServer, stopServer, jsonRequest, loginAs, postLineWebhook, createLineSignature } = require('./helpers/backendTestHarness');
 const tokens = require('../src/services/authTokens.service');
 const cookie = require('../src/utils/authCookies');
 const mailer = require('../src/services/mailer.service');
@@ -267,5 +267,19 @@ describe('cookie authentication decisions 1–25', () => {
     assert.equal((await request('/auth/password-reset/request', { method: 'POST', body })).status, 429);
     const confirmed = await request('/auth/password-reset/confirm', { method: 'POST', body: { ...body, code: lastCode(), newPassword: 'ResetStudent123!' } });
     assert.equal(confirmed.status, 200); assert.equal(setCookies(confirmed).length, 0);
+  });
+  it('LINE 與 internal webhook 忽略 cookie，沿用自己的驗證', async () => {
+    const foreign = { Origin: 'https://foreign.example.invalid', Cookie: 'ff_session=invalid' };
+    const lineBody = { events: [] };
+    const line = await postLineWebhook(server.baseUrl, lineBody, {
+      ...foreign, 'X-Line-Signature': createLineSignature(JSON.stringify(lineBody)),
+    });
+    assert.equal(line.status, 200);
+    const video = store.videos.find((item) => item._id === ids.teacherVideo);
+    video.processing = { status: 'queued', attemptCount: 0 };
+    const internal = await request(`/internal/videos/${ids.teacherVideo}/processing/start`, {
+      method: 'POST', headers: { ...foreign, 'X-Processing-Secret': env.processingWebhookSecret }, body: {},
+    });
+    assert.equal(internal.status, 200);
   });
 });

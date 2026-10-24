@@ -412,6 +412,8 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 
 `authenticate` 每次驗證 session 紀錄與 User.tokenVersion；任何相關儲存故障均拒絕，不退回只驗 JWT。LINE webhook 與 internal processing webhook 沿用各自驗證，忽略 cookie。
 
+管理員實際將學生／教師升為 admin 時，操作人須通過瀏覽器 step-up；目標帳號的角色與 tokenVersion 在同次更新中變更，再刪除全部 session，pending、step-up 與信任裝置也失效。目標帳號重新走 admin 登入及信箱兩段式驗證，新 session 為 12 小時；原 admin 只改姓名或傳入未變的 role 不撤銷。刪除 session 故障回 503 時，已遞增的版本仍會擋住舊憑證。
+
 ### 索引與隔離測試
 
 正式環境由使用者確認目標與授權後，使用限 authSessions 的帳號設定 `AUTH_SESSIONS_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-sessions -- --database focusflow`。腳本不載入應用程式 .env、不初始化其他 model，只建立 collection 與缺少的 userId／expiresAt TTL 索引；現有設定衝突會報錯停止，不刪除或重建。

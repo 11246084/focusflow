@@ -26,6 +26,7 @@ paths:
 - 正式 cookie 為 `__Host-ff_session`、`__Host-ff_pending`、`__Host-ff_stepup`、`__Host-ff_trusted`，皆 HttpOnly、Secure、SameSite=Strict、Path=/，不設 Domain。非 production 用無 `__Host-` 前綴的名稱、不加 Secure，只看 NODE_ENV。
 - `authenticate` 有 Authorization 就只驗 Bearer，失敗不改用 cookie；JWT 只接受 HS256、typ=session、完整 ver 與 sid。每次重查啟用中的 User、目前 tokenVersion 與 authSessions 的 sid／userId／expiresAt，不靠 TTL 即時清除。
 - 一般登出刪目前 sid，已失效仍冪等回 204；全裝置登出先 `$inc` 版本，再刪全部 session。自己改密碼重發新 sid，刪其他紀錄；版本遞增也清 pending 與信任裝置。
+- 停用、降級及實際升為 admin 都遞增版本並撤銷全部憑證；升為 admin 的角色變更與版本遞增必須同次更新，目標帳號重新走 admin 登入與信箱驗證，不能沿用舊 7 天 session。角色未變的 admin 資料編輯不撤銷。
 - 儲存查詢、寫入或刪除失敗回 503 AUTH_UNAVAILABLE，不得退回只驗 JWT。
 - cookie 寫入須 Origin 完全符合 `CSRF_TRUSTED_ORIGINS`，且帶 `X-Requested-With: FocusFlow`。GET／HEAD／OPTIONS 免檢；影片批次 GET 的伺服器計算、冪等狀態同步是明確例外。
 - 發 cookie 一律經 `setAuthCookie`，函式自行重驗可信 Origin。所有登入與驗證回應 no-store，瀏覽器端點不回 body JWT。

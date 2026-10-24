@@ -354,8 +354,55 @@ describe('cookie authentication decisions 1–25', () => {
     const renamed = await request(`/admin/users/${ids.admin}`, { method: 'PATCH', headers,
       body: { name: 'Renamed admin', role: 'admin', isActive: true } });
     assert.equal(renamed.status, 200);
+    assert.equal(store.users.find((user) => user._id === ids.admin).tokenVersion, 0);
+    assert.equal((await request('/auth/me', { headers: { Cookie: value } })).status, 200);
     const promotion = await request(`/admin/users/${ids.student}`, { method: 'PATCH', headers,
       body: { name: 'Student', role: 'admin', isActive: true } });
     assert.equal(promotion.status, 403); assert.equal(promotion.body.error.code, 'STEP_UP_REQUIRED');
+  });
+  for (const role of ['student', 'teacher']) {
+    it(`${role} 升為 admin 撤銷舊憑證，重新兩段式驗證後只發 12 小時 session`, async () => {
+      const account = store.users.find((user) => user._id === ids[role]);
+      const oldCookie = cookieFor(await session(role), 'session');
+      const oldBearer = await loginAs(server.baseUrl, `${role}@focusflow.local`, credentials(role).password, role);
+      const oldPending = await pendingService.begin(account, 'email_verify', { skipEmail: true });
+      account.trustedDevices = [{ hash: 'a'.repeat(64), tokenVersion: 0, expiresAt: new Date(Date.now() + 86400000) }];
+      const oldPayload = tokens.verifyToken(oldBearer);
+      assert.equal(oldPayload.exp - oldPayload.iat, 604800);
+      const actorCookie = cookieFor(await session('admin'), 'session');
+      const step = await request('/auth/step-up', { method: 'POST', headers: { ...browser, Cookie: actorCookie }, body: { password: 'Admin123!' } });
+      const promoted = await request(`/admin/users/${ids[role]}`, { method: 'PATCH',
+        headers: { ...browser, Cookie: `${actorCookie}; ${cookieFor(step, 'stepup')}` }, body: { role: 'admin' } });
+      assert.equal(promoted.status, 200); assert.equal(account.role, 'admin'); assert.equal(account.tokenVersion, 1);
+      assert.equal(account.pendingVerification, null); assert.deepEqual(account.trustedDevices, []);
+      assert.equal(store.authSessions.filter((item) => String(item.userId) === ids[role]).length, 0);
+      assert.equal((await request('/auth/me', { headers: { Cookie: oldCookie } })).status, 401);
+      assert.equal((await request('/auth/me', { token: oldBearer })).status, 401);
+      await assert.rejects(pendingService.readPending(oldPending.pendingToken), { code: 'PENDING_INVALID' });
+      assert.equal((await request('/auth/me', { headers: { Cookie: actorCookie } })).status, 200);
+      env.nodeEnv = 'production'; account.emailVerifiedAt = new Date();
+      const login = await request('/auth/session', { method: 'POST', headers: browser,
+        body: { ...credentials(role), role: 'admin' } });
+      assert.equal(login.body.data.purpose, 'admin_2fa'); assert.equal(cookieFor(login, 'session'), undefined);
+      assert.equal(store.authSessions.filter((item) => String(item.userId) === ids[role]).length, 0);
+      const verified = await request('/auth/pending/verify', { method: 'POST',
+        headers: { ...browser, Cookie: cookieFor(login, 'pending') }, body: { code: lastCode() } });
+      assert.equal(verified.status, 200); assert.equal(verified.body.data.token, undefined);
+      const payload = tokens.verifyToken(cookieFor(verified, 'session').split('=')[1]);
+      assert.equal(payload.exp - payload.iat, 43200); assert.equal(payload.ver, 1);
+      assert.notEqual(payload.sid, oldPayload.sid);
+    });
+  }
+  it('升為 admin 後刪 session 故障仍先遞增版本，舊憑證不能取得新權限', async () => {
+    const old = cookieFor(await session(), 'session');
+    const actor = cookieFor(await session('admin'), 'session');
+    const step = await request('/auth/step-up', { method: 'POST', headers: { ...browser, Cookie: actor }, body: { password: 'Admin123!' } });
+    store.nextAuthSessionDeleteError = new Error('local injected failure');
+    const result = await request(`/admin/users/${ids.student}`, { method: 'PATCH',
+      headers: { ...browser, Cookie: `${actor}; ${cookieFor(step, 'stepup')}` }, body: { role: 'admin' } });
+    assert.equal(result.status, 503);
+    const account = store.users.find((user) => user._id === ids.student);
+    assert.equal(account.role, 'admin'); assert.equal(account.tokenVersion, 1);
+    assert.equal((await request('/auth/me', { token: old.split('=')[1] })).status, 401);
   });
 });

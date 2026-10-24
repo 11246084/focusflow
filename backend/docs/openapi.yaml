@@ -3573,6 +3573,9 @@ paths:
       summary: 更新使用者（名稱 / 角色 / 啟用狀態 / 每日提問上限）
       description: |
         僅限 admin。`name`、`role`、`isActive`、`dailyAskLimitOverride` 至少提供一個；`name` trim 後不可為空。
+        停用或降級會遞增目標帳號的 tokenVersion 並撤銷全部憑證；不可停用或降級自己，且至少保留一位啟用中的 admin。
+        實際升為 admin 須有效瀏覽器 step-up，拒絕 Authorization；角色變更與版本遞增同次更新，再刪全部 session 並作廢 pending、step-up、信任裝置。
+        目標帳號須重新走 admin 登入及信箱兩段式驗證，取得 12 小時 session；角色未變的 admin 資料編輯不要求 step-up 或撤銷。
         `dailyAskLimitOverride` 只影響學生角色：`null` 跟隨全站預設，`0` 不限次數，正整數為自訂每日次數。
       operationId: adminUpdateUser
       parameters:

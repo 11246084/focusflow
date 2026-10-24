@@ -152,3 +152,37 @@ it('隔離 Mongo：同時停用其他管理員仍保留至少一位啟用中的�
   assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
   assert.equal(await User.countDocuments({ role: 'admin', isActive: true }), 1);
 });
+for (const role of ['student', 'teacher']) {
+  it(`隔離 Mongo：${role} 升 admin 的舊憑證撤銷與新 12 小時 session`, async () => {
+    const adminService = require('../src/services/admin.service');
+    const { authenticate } = require('../src/middleware/auth.middleware');
+    const { verifyToken } = require('../src/services/authTokens.service');
+    const actor = await User.findOne({ role: 'admin', isActive: true });
+    const target = await User.create({ name: `Local ${role}`, email: `promoted-${role}@example.invalid`,
+      role, isActive: true, passwordHash: 'unused', mustChangePassword: false, emailVerifiedAt: new Date(),
+      trustedDevices: [{ hash: 'a'.repeat(64), createdAt: new Date(), expiresAt: new Date(Date.now() + 86400000), userAgent: 'local', tokenVersion: 0 }] });
+    const old = await issueSession(target); await issueSession(target);
+    const oldPending = await pending.begin(target, 'email_verify', { skipEmail: true });
+    assert.equal(verifyToken(old.token).exp - verifyToken(old.token).iat, 604800);
+    let authorized = 0;
+    await adminService.updateUser(String(target._id), { role: 'admin' }, { id: String(actor._id) }, () => { authorized += 1; });
+    assert.equal(authorized, 1);
+    const promoted = await User.findById(target._id);
+    assert.equal(promoted.role, 'admin'); assert.equal(promoted.tokenVersion, 1);
+    assert.equal(promoted.pendingVerification, null); assert.equal(promoted.trustedDevices.length, 0);
+    assert.equal(await AuthSession.countDocuments({ userId: target._id }), 0);
+    await assert.rejects(pending.readPending(oldPending.pendingToken), { code: 'PENDING_INVALID' });
+    const rejected = { headers: { authorization: `Bearer ${old.token}` }, method: 'GET' };
+    let failure;
+    await authenticate(rejected, {}, (error) => { failure = error; });
+    assert.equal(failure?.statusCode, 401); assert.equal(rejected.user, undefined);
+    const fresh = await issueSession(promoted);
+    const payload = verifyToken(fresh.token);
+    assert.equal(payload.exp - payload.iat, 43200); assert.equal(payload.ver, 1);
+    await adminService.updateUser(String(target._id), { role: 'admin', name: 'Renamed admin' }, { id: String(actor._id) }, () => { throw new Error('Unchanged admin must not require step-up'); });
+    assert.equal((await User.findById(target._id)).tokenVersion, 1);
+    const accepted = { headers: { authorization: `Bearer ${fresh.token}` }, method: 'GET' };
+    await authenticate(accepted, {}, (error) => { assert.equal(error, undefined); });
+    assert.equal(accepted.user.role, 'admin');
+  });
+}

@@ -132,7 +132,8 @@ async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOve
   if (!existing) throw new AppError('User not found.', 404, 'NOT_FOUND');
   // Check the actual transition inside the serialized update. An unchanged
   // admin role (for example editing a name) is not an elevation of privilege.
-  if (role === 'admin' && existing.role !== 'admin') {
+  const promotingToAdmin = role === 'admin' && existing.role !== 'admin';
+  if (promotingToAdmin) {
     if (typeof authorizePromotion !== 'function') throw new AppError('Please re-enter your password.', 403, 'STEP_UP_REQUIRED');
     authorizePromotion();
   }
@@ -148,7 +149,9 @@ async function updateUserSerial(userId, { name, role, isActive, dailyAskLimitOve
     throw new AppError('At least one active admin is required.', 409, 'LAST_ADMIN_REQUIRED');
   }
   const rank = { student: 0, teacher: 1, admin: 2 };
-  const revoke = isActive === false || (role && rank[role] < rank[existing.role]);
+  // A former 7-day session must never inherit admin privileges or bypass MFA.
+  // revokeAll persists the new role and version atomically before deleting sids.
+  const revoke = promotingToAdmin || isActive === false || (role && rank[role] < rank[existing.role]);
   const user = revoke
     ? await require('./authTokens.service').revokeAll(userId, { $set: update })
     : await User.findByIdAndUpdate(userId, { $set: update }, { new: true });

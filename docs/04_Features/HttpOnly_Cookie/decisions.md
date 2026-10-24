@@ -63,9 +63,13 @@
 
 ## 程式依據
 
-2026-10-23～24 唯讀核對：目前仍是 Bearer，尚無上述 cookie／登出路由。簽發器只帶 sub，schema 尚無 tokenVersion。主要依據：[認證 middleware](../../../backend/src/middleware/auth.middleware.js)、[認證 service](../../../backend/src/services/auth.service.js)、[User](../../../backend/src/models/user.model.js)、[auth routes](../../../backend/src/routes/auth.routes.js)、[部署 workflow](../../../.github/workflows/deploy.yml)。
+實作審查對照：[認證 middleware](../../../backend/src/middleware/auth.middleware.js)、[認證 service](../../../backend/src/services/auth.service.js)、[集中簽發與撤銷](../../../backend/src/services/authTokens.service.js)、[AuthSession](../../../backend/src/models/authSession.model.js)、[User](../../../backend/src/models/user.model.js)、[auth routes](../../../backend/src/routes/auth.routes.js)、[部署 workflow](../../../.github/workflows/deploy.yml)。session、pending 與 step-up 分別使用明確的 payload 類型；程式與驗證狀態只記在[目前狀態](../../current-status.md)。
 
-前端依據：[api](../../../frontend/focus-flow/src/api.js)、[Profile](../../../frontend/focus-flow/src/pages/Profile.jsx)、[Vite](../../../frontend/focus-flow/vite.config.js)。實作時還須逐一核對 AdminFeedback、shortScript、videoUpload、youtubeLifecycle、avatarImage、authSession、App 與 AdminApp；不能把上述方案當成程式現況。
+前端審查對照：[共用 API](../../../frontend/focus-flow/src/api.js)、[登入恢復](../../../frontend/focus-flow/src/authSession.js)、[Profile](../../../frontend/focus-flow/src/pages/Profile.jsx)、[Vite](../../../frontend/focus-flow/vite.config.js)。另須逐一核對 AdminFeedback、shortScript、videoUpload、youtubeLifecycle、avatarImage、App 與 AdminApp 的呼叫路徑，避免遺留 Bearer、絕對 API 或舊登入回應。
+
+## 本輪待確認
+
+- **實際升為 admin 後，是否撤銷該帳號全部憑證並重新登入？** 第 5 項目前只明列停用、降級需要遞增 `tokenVersion` 並撤銷；但依第 2 項每次讀取 User 的角色，學生／教師現有的 7 天 session 會在提升後立即取得 admin 權限，也未經 admin 信箱兩段式驗證，與第 6 項 admin 12 小時效期及系統設定第 32 項有衝突。**建議**：實際升為 admin 時也遞增 `tokenVersion`、刪除全部 session 並作廢 pending、step-up、信任裝置，要求重新走 admin 登入流程；僅編輯原 admin 的姓名不觸發。**理由**：讓新角色使用符合 admin 效期與信箱驗證的憑證。2026-10-24 獨立審查確認可重現，等待使用者答覆後才實作。
 
 ## 待討論
 

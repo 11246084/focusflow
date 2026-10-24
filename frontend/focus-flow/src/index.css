@@ -484,6 +484,7 @@ body {
 
 /* Background gradient used by login page */
 .ff-bg {
+  pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -681,6 +682,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 /* ── Right form panel ── */
 .login-right {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   align-items: center;

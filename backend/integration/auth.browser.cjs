@@ -4,12 +4,14 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-auth-browser-'));
+// app.js captures this directory when express.static is created.
+process.env.UPLOAD_DIR = uploadDirectory;
 const { env, store, ids, resetStore } = require('../tests/helpers/backendTestHarness');
 const app = require('../src/app');
 const mongoose = require('mongoose');
 const mailer = require('../src/services/mailer.service');
 if (mongoose.connection.readyState !== 0) throw new Error('Fixture must never connect to a database.');
-const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-auth-browser-'));
 env.uploadDir = uploadDirectory;
 env.csrfTrustedOrigins = ['http://localhost:5173', 'https://localhost:5173', 'http://127.0.0.1:5173'];
 env.allowedOrigins = env.csrfTrustedOrigins;

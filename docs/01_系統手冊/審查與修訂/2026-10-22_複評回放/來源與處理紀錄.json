@@ -138,12 +138,56 @@
   "Notion同步": {
     "page_id": "4024fe40-c8bb-81ea-acf7-ec5983235869",
     "url": "https://app.notion.com/p/4024fe40c8bb81eaacf7ec5983235869",
-    "visibility": "private draft; destination not specified by user",
+    "visibility": "D - 專題任務追蹤 within 畢業專題(115413組)",
     "sync_date": "2026-10-23",
-    "content": "Task scope, report analysis, all 12 QA topics, verification limits and 5 directly uploaded screenshots",
-    "image_count": 5,
+    "content": "Reviewer-grouped QA: front summary table, quotation drafts, question cores, contemporaneous replies, and 3 directly uploaded QA screenshots",
+    "image_count": 3,
     "readback_verified": true,
-    "notion_task_database_item": false,
-    "note": "Not a shared database item. No assignee or deadline was invented."
+    "notion_task_database_item": true,
+    "note": "User-changed title and existing task properties retained. No reviewer names inferred.",
+    "last_revision_date": "2026-10-24",
+    "title": "複評複盤與 QA 整理｜2026-10-22",
+    "data_source_id": "22f4fe40-c8bb-80b5-bfbc-000b15b4be17"
+  },
+  "QA再整理": {
+    "date": "2026-10-24",
+    "scope": "Notion body and corresponding repository QA document",
+    "reviewer_count": 3,
+    "topic_count": 12,
+    "layout": "Summary first; then three reviewers, each with a QA screenshot, question quotation excerpts, core and contemporaneous reply",
+    "quotation_status": "ASR-based edited excerpts; not fully human-verified; unclear words marked 〔聽不清〕; omissions marked ……",
+    "crosscheck_engine": "sherpa-onnx 2.0.0 / SenseVoiceSmall int8 2024-07-17 / CPU / zh",
+    "crosscheck_raw_path": "D:/AI-workspace/04_Workbench/focusflow-review-replay-2026-10-23/qa-rewrite/sensevoice_qa_crosscheck.json",
+    "backup_of_previous_notion_body": "D:/AI-workspace/04_Workbench/focusflow-review-replay-2026-10-23/qa-rewrite/notion-before-rewrite.json",
+    "key_correction": "Reviewer 1 asked about the shared YouTube account daily upload limit, not only generic processing capacity. Team reply described server expansion but did not directly resolve the YouTube quota question.",
+    "qa_images": [
+      {
+        "file": "畫面/16m50s_評審一與團隊QA.jpg",
+        "original_seconds": 1010,
+        "reviewer_by_speaking_order": 1,
+        "url": "https://youtu.be/FoF6-8YnPWw?t=1010",
+        "sha256": "5cd11075638a68c5c5afef1eb81666da2d3633be0cc1eb751c87279ab0bac567",
+        "size_bytes": 116168
+      },
+      {
+        "file": "畫面/20m50s_評審二與團隊QA.jpg",
+        "original_seconds": 1250,
+        "reviewer_by_speaking_order": 2,
+        "url": "https://youtu.be/FoF6-8YnPWw?t=1250",
+        "sha256": "66dd33f1a140d251f2a9383d1030ae32b4e6c9bfd26a3fbba539692abfef5cfc",
+        "size_bytes": 119933
+      },
+      {
+        "file": "畫面/24m30s_評審三與團隊QA.jpg",
+        "original_seconds": 1470,
+        "reviewer_by_speaking_order": 3,
+        "url": "https://youtu.be/FoF6-8YnPWw?t=1470",
+        "sha256": "14113ee68ab258000fca1c7824858b2f41f8e40ef0688c2fec9755c62865a4d0",
+        "size_bytes": 118059
+      }
+    ],
+    "notion_readback_verified": true,
+    "notion_image_count": 3,
+    "unrelated_task_properties_preserved": true
   }
 }

@@ -52,7 +52,7 @@ docs/
 
 ## 文件責任
 
-設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件保留已定案事項、待答題目與理由，供接續討論。
+設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件保留已定案事項、待答題目與理由，供接續討論。
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 

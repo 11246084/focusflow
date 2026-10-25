@@ -1,0 +1,49 @@
+---
+title: 一次提問的RAG流程圖
+config:
+  theme: neutral
+  fontFamily: "Microsoft JhengHei, Noto Sans TC, WenQuanYi Zen Hei, sans-serif"
+  flowchart:
+    nodeSpacing: 16
+    rankSpacing: 14
+    wrappingWidth: 280
+---
+%% ============================================
+%% ooad-phase:   系統設計
+%% chapter:      6-3
+%% realizes:     UC-04, UC-05, FR-14, FR-15, FR-16
+%% source:       backend/src/services/qa.service.js（askQuestion、respondFromFaqCache、revalidateFaqMatches、resolveSupportingMatches）、faqCache.service.js、contextualQuestion.service.js、conversation.service.js、answerGeneration.service.js、backend/src/config/env.js（實作證據）
+%% verified:     2026-10-25
+%% status:       draft
+%% implemented:  yes
+%% ai-assisted:  yes / OpenAI Codex / AI-DOC-RAG-20261025；新增非 UML 文字問答概觀，說明 FAQ、檢索與生成分工；圖6-1-9保留訊息順序，圖7-2-6保留影片索引建立；本圖不計入 UML 圖數
+%% ============================================
+%% Diagram brief
+%% 讀者／用途：複評評審與教授，以白話分辨何時查資料庫、何時呼叫模型。
+%% 主要問題：學生送出一次問題後，系統何時沿用答案，何時重新檢索生成？
+%% 階段／章節：系統設計；6-3 非 UML 補充，與6-1循序圖及6-2設計類別圖分隔。
+%% 圖種／理由：Mermaid flowchart，呈現互斥處理路徑；不是 UML 活動圖。
+%% 範圍：一次文字提問；授權、兩層FAQ、檢索、證據、拒答及紀錄。
+%% 範圍外：影片索引建立、影像補充、階層及鄰接片段rollout、Jev；不宣稱live開關。
+%% 主情境：無快取時從授權課程取回片段，依片段生成並回傳有時間的來源。
+%% 替代：FAQ停用／有歷史略過兩層；命中需範圍及證據重驗；不足則不存FAQ。
+%% 元素證據：入口/快取 qa.service.js:1238-1384；檢索1491-1563；證據1672-1716；寫入1761-1797；追問contextualQuestion.service.js及conversation.service.js。
+%% 版本／輸出：首次建立；依2026-10-18手冊命名慣例不加版本後綴；同名mmd/png，正文6-3與docs/05_圖庫/README.md登錄。
+%% renderer：本機 @mermaid-js/mermaid-cli；A4直式，主線與快取／不足分支分欄；實際版本見本輪驗證回報。
+%% 驗證邊界：本機程式走讀；F01是既有歷史實例，非本圖重新執行；未作外部服務或正式環境驗收。
+%% 短標籤：FAQ可用＝已啟用且無歷史；同題有效／語意有效＝該層命中且課程範圍、答案證據重驗通過。正文圖後同步說明，縮短菱形避免A4縮字。
+flowchart TB
+    A["學生提問，先驗證權限與提問限制<br/>界定可搜尋的課程影片<br/>FAQ可用＝啟用且沒有對話歷史"] --> H{"FAQ可用？"}
+    H -- 是 --> E{"同題有效？"}
+    H -- 否 --> Q["月額度檢查後，產生問題向量<br/>追問使用已補回主題的問題"]
+    E -- 否 --> Q
+    E -- 是 --> C["資料庫：沿用FAQ，仍記錄提問<br/>同題命中免embedding與生成<br/>語意命中免重新生成"]
+    Q --> S{"語意有效？"}
+    S -- 是 --> C
+    S -- 否或FAQ不可用 --> R["資料庫：在授權課程檢索片段<br/>一般文字檢索預設最多15筆"]
+    R -- 無文字片段 --> N["說明教材不足或查無片段<br/>記錄結果，不存FAQ"]
+    R -- 有文字片段 --> G["生成模型：依片段回答<br/>回傳答案與實際採用證據ID"]
+    G -- 教材不足 --> N
+    G -- 可回答 --> W["後端驗證證據、組裝引用及記錄<br/>無歷史且未降級等條件成立才存FAQ"]
+    W --> O["學生看到答案、影片與時間來源"]
+    C --> O

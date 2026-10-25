@@ -20,9 +20,47 @@ jobs:
 
       - name: Build frontend
         run: |
+          set -euo pipefail
           cd /opt/focusflow/frontend/focus-flow
           npm install
           npm run build
+
+      - name: Verify frontend same-origin build
+        run: |
+          set -euo pipefail
+          cd /opt/focusflow/frontend/focus-flow
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = path.resolve('dist');
+          if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+            throw new Error('Frontend dist is missing; stop before restarting services.');
+          }
+          const violations = [];
+          let fileCount = 0;
+          function inspect(directory) {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const filename = path.join(directory, entry.name);
+              if (entry.isDirectory()) {
+                inspect(filename);
+              } else if (entry.isFile()) {
+                fileCount += 1;
+                const contents = fs.readFileSync(filename, 'utf8');
+                if (/localhost|127\.0\.0\.1|https?:\/\/[^\s"'<>`\\]*\/api(?:[/?#\s"'<>`\\]|$)/i.test(contents)) {
+                  violations.push(path.relative(root, filename));
+                }
+              } else {
+                throw new Error('Unexpected frontend dist entry; stop before restarting services.');
+              }
+            }
+          }
+          inspect(root);
+          if (!fileCount || violations.length) {
+            console.error(JSON.stringify({ error: 'Frontend same-origin build check failed.', files: violations }));
+            process.exit(1);
+          }
+          console.log(`Frontend same-origin build check passed (${fileCount} files).`);
+          NODE
 
       - name: Fix SELinux
         run: sudo restorecon -Rv /opt/focusflow/frontend/focus-flow/dist
@@ -71,9 +109,11 @@ jobs:
           cd /opt/focusflow/backend
           node <<'NODE'
           const mongoose = require('mongoose');
-          const jwt = require('jsonwebtoken');
           const env = require('./src/config/env');
           const User = require('./src/models/user.model');
+          const Enrollment = require('./src/models/enrollment.model');
+          const { buildActiveEnrollmentFilter } = require('./src/services/courseAccess.service');
+          const { issueSession } = require('./src/services/authTokens.service');
           const baseUrl = 'http://127.0.0.1:4000/api/v1';
           const courseId = '69fb4d4c069e21f4e65b74dc';
           const allowedVideoIds = new Set([
@@ -104,13 +144,24 @@ jobs:
           (async () => {
             mongoose.set('autoCreate', false);
             mongoose.set('autoIndex', false);
-            await mongoose.connect(env.mongodbUri, { autoCreate: false, autoIndex: false });
-            const student = await User.findOne({ email: 'student@focusflow.local', role: 'student' })
-              .select('_id role isActive')
-              .lean();
-            await mongoose.disconnect();
-            if (!student?.isActive) throw new Error('Active demo student was not found.');
-            const token = jwt.sign({ sub: String(student._id) }, env.jwtSecret, { expiresIn: '5m' });
+            let token;
+            try {
+              await mongoose.connect(env.mongodbUri, { autoCreate: false, autoIndex: false });
+              const student = await User.findOne({ email: 'deploy-probe@focusflow.local', role: 'student' })
+                .select('_id role isActive tokenVersion emailVerifiedAt mustChangePassword')
+                .lean();
+              if (student?.isActive !== true || !student.emailVerifiedAt || student.mustChangePassword !== false) {
+                throw new Error('Verified, active deployment probe student was not found.');
+              }
+              const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({ studentId: student._id }))
+                .select('courseId').lean();
+              if (enrollments.length !== 1 || String(enrollments[0].courseId) !== courseId) {
+                throw new Error('Deployment probe must be enrolled only in the required probe course.');
+              }
+              ({ token } = await issueSession(student, { expiresIn: '5m', userAgent: 'deploy-atlas-qa-validation' }));
+            } finally {
+              await mongoose.disconnect();
+            }
             const qa = await request('/qa/ask', {
               token,
               body: {
@@ -156,9 +207,12 @@ jobs:
           const fs = require('fs');
           const { execFileSync } = require('child_process');
           const mongoose = require('mongoose');
-          const jwt = require('jsonwebtoken');
           const env = require('./src/config/env');
           const User = require('./src/models/user.model');
+          const Enrollment = require('./src/models/enrollment.model');
+          const { buildActiveEnrollmentFilter } = require('./src/services/courseAccess.service');
+          const { issueSession } = require('./src/services/authTokens.service');
+          const courseId = '69fb4d4c069e21f4e65b74dc';
 
           function backendPid() {
             const raw = execFileSync('pm2', ['pid', 'focusflow-backend'], { encoding: 'utf8' });
@@ -192,18 +246,29 @@ jobs:
             try {
               mongoose.set('autoCreate', false);
               mongoose.set('autoIndex', false);
-              await mongoose.connect(env.mongodbUri, { autoCreate: false, autoIndex: false });
-              const student = await User.findOne({ email: 'student@focusflow.local', role: 'student' })
-                .select('_id isActive')
-                .lean();
-              await mongoose.disconnect();
-              if (!student?.isActive) throw new Error('PROBE_SETUP_STUDENT');
-              const token = jwt.sign({ sub: String(student._id) }, env.jwtSecret, { expiresIn: '5m' });
+              let token;
+              try {
+                await mongoose.connect(env.mongodbUri, { autoCreate: false, autoIndex: false });
+                const student = await User.findOne({ email: 'deploy-probe@focusflow.local', role: 'student' })
+                  .select('_id role isActive tokenVersion emailVerifiedAt mustChangePassword')
+                  .lean();
+                if (student?.isActive !== true || !student.emailVerifiedAt || student.mustChangePassword !== false) {
+                  throw new Error('PROBE_SETUP_STUDENT');
+                }
+                const enrollments = await Enrollment.find(buildActiveEnrollmentFilter({ studentId: student._id }))
+                  .select('courseId').lean();
+                if (enrollments.length !== 1 || String(enrollments[0].courseId) !== courseId) {
+                  throw new Error('PROBE_SETUP_ENROLLMENT');
+                }
+                ({ token } = await issueSession(student, { expiresIn: '5m', userAgent: 'deploy-atlas-qa-diagnostic' }));
+              } finally {
+                await mongoose.disconnect();
+              }
               const response = await fetch('http://127.0.0.1:4000/api/v1/qa/ask', {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
                 body: JSON.stringify({
-                  courseId: '69fb4d4c069e21f4e65b74dc',
+                  courseId,
                   question: '請依教材說明沒有 GPU 時使用 OpenCV 的理由，以及它和 YOLO 的訓練需求差異。',
                 }),
               });
@@ -222,7 +287,7 @@ jobs:
                 ? 'http'
                 : message === 'PROBE_ACCEPTANCE'
                   ? 'acceptance'
-                  : message === 'PROBE_SETUP_STUDENT'
+                  : message.startsWith('PROBE_SETUP_')
                     ? 'setup'
                     : 'transport_or_process';
             }
@@ -269,7 +334,7 @@ jobs:
 
       - name: Diagnostic error class - probe setup
         if: steps.atlas_qa_probe.outputs.error_class == 'setup'
-        run: echo "QA probe could not resolve the active demo student."
+        run: echo "QA probe account or least-privilege enrollment is not ready."
 
       - name: Diagnostic memory - under 256 MiB before QA
         if: steps.atlas_qa_probe.outputs.rss_bucket == 'under_256_mib'

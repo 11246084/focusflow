@@ -2,7 +2,7 @@
 
 這份文件讓任何接手的人或 AI（Claude Code、Codex）在額度用完、換 session 時，不必重讀原始對話就能繼續開發。設計決策只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只記錄開發進行到哪、下一步怎麼做。功能完成時，在同一個 PR 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-10-20
+最後更新：2026-10-22
 
 ## 必守規則
 
@@ -35,7 +35,7 @@ Claude 接手時可參考的 session（用 Claude Desktop 打開後說「繼續�
 
 ## 下一步（依序）
 
-第 1～6 步已於 10/20 完成（第 5 步的瀏覽器實測未做，留到第 8 步部署後與驗收一起做）；從第 7 步繼續。
+第 1～6 步已於 10/20 完成；第 8 步的合併部署與開啟恢復已於 10/22 提前完成（見[上線紀錄](../../10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)），正式站管理員頁已實際開啟確認。接下來做第 7 步，以及第 8 步剩下的上傳驗收與開啟清理。
 
 1. **確認 A、C 完成**：worktree 內 `git status --short` 為空；`backend/` 執行 `npm.cmd test` 全套通過。若 session 因額度中斷，未提交的修改仍在 worktree 裡，接手者先檢查再依小步規則提交。
 2. **檢查身分**，每條分支合併前都要跑，輸出只能有 Weihao，第二行要是 0：
@@ -54,7 +54,9 @@ Claude 接手時可參考的 session（用 Claude Desktop 打開後說「繼續�
 5. **前後端對齊**：E 依 work-orders/B 的「回應格式」實作；B 合併後在瀏覽器實測管理員頁與教師頁，不一致的地方以 B 的實際回應為準修正前端。
 6. **文件同步**：功能開關、`.env.example`、OpenAPI、API 設計規範錯誤碼、API 契約、`backend/docs/` 的 todo／implementation-log／README（清單見 decisions.md「實作切分」最後一段）。
 7. **獨立 code review**（10/26～11/6）：交給 Codex 審 Claude 寫的部分、Claude 審 Codex 寫的部分；工作說明屆時另寫並先給使用者看。
-8. **10/24 之後**的合併 `main`、部署、開啟恢復與清理，每一步都要使用者明確授權，驗收方式見 decisions.md #33 與時程表。部署後先依[部署前檢查](../../10_Operations/deployment/部署與連線排錯.md#部署前檢查youtube-憑證權限)確認憑證含 `youtube.force-ssl`。
+8. **部署與開啟**：10/22 已合併 `main`（`88e3454`）並部署，恢復已開啟、憑證含 `youtube.force-ssl`。剩下兩項，每一步都要使用者明確授權：
+   - **上傳驗收**：團隊下次實際上傳課程影片時，確認影片上傳 YouTube 成功，結果補進[上線紀錄](../../10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)。
+   - **開啟清理**（11/9～11/13）：VM 的 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 目前是 `false`，先改成 `true` 並重啟後端，再由管理員在「YouTube 上傳管理」頁看預告清單（須為 0 支）後啟用；驗收方式見 decisions.md #33 與時程表。
 
 ## 額度用完時
 

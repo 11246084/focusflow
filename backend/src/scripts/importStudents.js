@@ -210,6 +210,7 @@ async function applyImport(db, plan, { expectedCount, courseId, now = new Date()
     name: item.name,
     email: item.email,
     passwordHash: await bcrypt.hash(item.studentId, 10),
+    mustChangePassword: true,
     role: 'student',
     isActive: true,
     avatar: null,

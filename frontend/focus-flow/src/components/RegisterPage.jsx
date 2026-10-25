@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { apiFetch, setToken, setUser } from '../api';
+import { apiFetch, acceptAuthUser, advanceAuthEpoch, setPendingFlowActive } from '../api';
+import PendingVerification from './PendingVerification';
 
 export default function RegisterPage({ onRegistered, onBack }) {
   const [name, setName] = useState('');
@@ -7,14 +8,17 @@ export default function RegisterPage({ onRegistered, onBack }) {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(null);
   const [error, setError] = useState('');
 
   const submit = async () => {
     if (!name.trim()) { setError('請輸入姓名'); return; }
     if (!email.trim()) { setError('請輸入 Email'); return; }
-    if (pw.length < 8) { setError('密碼至少 8 個字元'); return; }
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw)) { setError('密碼至少 8 碼，並包含至少一個英文字母'); return; }
     if (pw !== pw2) { setError('兩次輸入的密碼不一致'); return; }
 
+    if (loading) return;
+    advanceAuthEpoch();
     setLoading(true);
     setError('');
     try {
@@ -24,8 +28,8 @@ export default function RegisterPage({ onRegistered, onBack }) {
         // 只開放學生自行註冊；教師帳號由管理員建立。
         body: JSON.stringify({ name: name.trim(), email: email.trim(), password: pw, role: 'student' }),
       });
-      setToken(res.data.token);
-      setUser(res.data.user);
+      if (res.data.requiresVerification) { setPendingFlowActive(true); setPending(res.data); setPw(''); return; }
+      acceptAuthUser(res.data.user, { announce: true });
       onRegistered(res.data.user.role);
     } catch (e) {
       setError(e.message || '註冊失敗，請稍後再試');
@@ -33,6 +37,8 @@ export default function RegisterPage({ onRegistered, onBack }) {
       setLoading(false);
     }
   };
+
+  if (pending) return <PendingVerification initialFlow={pending} onCancel={() => setPending(null)} onDone={(user) => { acceptAuthUser(user, { announce: true }); onRegistered(user.role); }} />;
 
   return (
     <div className="login-page">
@@ -94,7 +100,7 @@ export default function RegisterPage({ onRegistered, onBack }) {
                 <input
                   className="ff-input"
                   type="password"
-                  placeholder="至少 8 個字元"
+                  placeholder="至少 8 碼，包含英文字母"
                   value={pw}
                   onChange={e => setPw(e.target.value)}
                 />

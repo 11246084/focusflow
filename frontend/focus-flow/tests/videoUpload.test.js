@@ -75,9 +75,9 @@ describe('多影片批次上傳契約', () => {
 
     assert.equal(calls.length, 1);
     const [url, options] = calls[0];
-    assert.equal(url, 'http://localhost:4000/api/v1/courses/course-1/video-batches');
+    assert.equal(url, '/api/v1/courses/course-1/video-batches');
     assert.equal(options.method, 'POST');
-    assert.equal(options.headers.Authorization, 'Bearer teacher-token');
+    assert.equal(options.headers.Authorization, undefined);
     assert.equal(options.body instanceof FormData, true);
     assert.deepEqual(JSON.parse(options.body.get('titles')), ['第一支', '第二支']);
     assert.equal(options.body.getAll('videos').length, 2);

@@ -1,118 +1,66 @@
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user.model');
+const AuthSession = require('../models/authSession.model');
 const AppError = require('../utils/appError');
 const mailer = require('./mailer.service');
-
-// Forgot-password flow: email a 6-digit code, then accept it once to set a new
-// password. Only a hash of the code is stored; responses for unknown emails are
-// identical to known ones so the endpoint cannot be used to enumerate accounts.
-
-const CODE_TTL_MS = 10 * 60 * 1000;
-const RESEND_INTERVAL_MS = 60 * 1000;
+const { assertPassword } = require('../utils/passwordPolicy');
+const { versionOf } = require('./authTokens.service');
+const { versionFilter } = require('./pendingVerification.service');
+const { TTL_MS, hashCode, createCode, equalHash, reserveMail, sendCode } = require('./verificationMail.service');
 const MAX_ATTEMPTS = 5;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function normalizeEmail(email) {
-  return typeof email === 'string' ? email.trim().toLowerCase() : '';
-}
-
-function hashCode(userId, code) {
-  return crypto.createHash('sha256').update(`${userId}:${code}`).digest('hex');
-}
-
-function invalidCodeError() {
-  return new AppError(
-    'The verification code is invalid or has expired.',
-    400,
-    'PASSWORD_RESET_CODE_INVALID',
-  );
-}
+const invalidCodeError = () => new AppError('The verification code is invalid or has expired.', 400, 'PASSWORD_RESET_CODE_INVALID');
+const normalizeEmail = (email) => typeof email === 'string' ? email.trim().toLowerCase() : '';
 
 async function requestPasswordReset({ email, now = new Date() }) {
-  if (!mailer.isMailConfigured()) {
-    throw new AppError('Password reset by email is not enabled.', 503, 'PASSWORD_RESET_UNAVAILABLE');
+  if (!mailer.isMailConfigured()) throw new AppError('Password reset by email is not enabled.', 503, 'PASSWORD_RESET_UNAVAILABLE');
+  const normalized = normalizeEmail(email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new AppError('A valid email is required.', 400, 'VALIDATION_ERROR');
+  const user = await User.findOne({ email: normalized });
+  // Keep account existence private; the UI counts its own requests for unknown
+  // accounts, while the server enforces the persisted budget for actual users.
+  if (!user || user.isActive === false) return { remainingResends: 5 };
+  const budget = await reserveMail(user._id, 'passwordResetMail', now);
+  const code = createCode();
+  const previous = user.passwordReset;
+  const ongoing = previous && new Date(previous.expiresAt).getTime() > now.getTime();
+  const reset = { codeHash: hashCode(user._id, code),
+    expiresAt: ongoing ? previous.expiresAt : new Date(now.getTime() + TTL_MS),
+    attempts: ongoing ? previous.attempts : 0, requestedAt: now };
+  const updated = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)),
+    isActive: { $ne: false }, 'passwordReset.codeHash': previous?.codeHash || null,
+    ...(ongoing ? { 'passwordReset.expiresAt': { $gt: now }, 'passwordReset.attempts': { $lt: MAX_ATTEMPTS } } : {}),
+  }, { $set: ongoing ? {
+    'passwordReset.codeHash': reset.codeHash, 'passwordReset.requestedAt': now,
+  } : { passwordReset: reset } }, { new: true });
+  if (!updated) throw invalidCodeError();
+  try { await sendCode(user, code, 'password_reset', reset.expiresAt); }
+  catch {
+    await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)), 'passwordReset.codeHash': reset.codeHash },
+      { $set: ongoing ? { 'passwordReset.codeHash': previous.codeHash, 'passwordReset.requestedAt': previous.requestedAt }
+        : { passwordReset: previous || null } });
+    throw new AppError('驗證信寄送失敗，請稍後再試', 502, 'PASSWORD_RESET_EMAIL_FAILED');
   }
-
-  const normalizedEmail = normalizeEmail(email);
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
-    throw new AppError('A valid email is required.', 400, 'VALIDATION_ERROR');
-  }
-
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user || user.isActive === false) return;
-
-  // Throttle per account so the button cannot be used to flood a mailbox.
-  const lastRequestedAt = user.passwordReset?.requestedAt ? new Date(user.passwordReset.requestedAt) : null;
-  if (lastRequestedAt && now.getTime() - lastRequestedAt.getTime() < RESEND_INTERVAL_MS) return;
-
-  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-  await User.findByIdAndUpdate(user._id, {
-    $set: {
-      passwordReset: {
-        codeHash: hashCode(user._id, code),
-        expiresAt: new Date(now.getTime() + CODE_TTL_MS),
-        attempts: 0,
-        requestedAt: now,
-      },
-    },
-  });
-
-  try {
-    await mailer.sendMail({
-      to: normalizedEmail,
-      subject: 'FocusFlow 密碼重設驗證碼',
-      text: [
-        `${user.name || ''} 您好：`,
-        '',
-        `您的 FocusFlow 密碼重設驗證碼是：${code}`,
-        '驗證碼 10 分鐘內有效，請勿提供給他人。',
-        '',
-        '如果不是您本人申請，請忽略這封信，您的密碼不會被更改。',
-      ].join('\n'),
-    });
-  } catch (error) {
-    // A code the user never received must not stay valid.
-    await User.findByIdAndUpdate(user._id, { $set: { passwordReset: null } });
-    console.error('[passwordReset] failed to send verification email', { message: error.message });
-    throw new AppError('Failed to send the verification email.', 502, 'PASSWORD_RESET_EMAIL_FAILED');
-  }
+  return { remainingResends: budget.remainingResends };
 }
-
 async function confirmPasswordReset({ email, code, newPassword, now = new Date() }) {
-  if (typeof newPassword !== 'string' || newPassword.length < 8) {
-    throw new AppError('New password must be at least 8 characters.', 400, 'VALIDATION_ERROR');
-  }
-  const normalizedCode = typeof code === 'string' ? code.trim() : '';
-  if (!/^\d{6}$/.test(normalizedCode)) throw invalidCodeError();
-
+  await assertPassword(newPassword);
+  if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) throw invalidCodeError();
   const user = await User.findOne({ email: normalizeEmail(email) });
   const reset = user?.passwordReset;
-  if (
-    !user
-    || user.isActive === false
-    || !reset?.codeHash
-    || new Date(reset.expiresAt).getTime() <= now.getTime()
-    || (reset.attempts || 0) >= MAX_ATTEMPTS
-  ) {
-    throw invalidCodeError();
-  }
-
-  const expected = Buffer.from(reset.codeHash, 'hex');
-  const actual = Buffer.from(hashCode(user._id, normalizedCode), 'hex');
-  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-    await User.findByIdAndUpdate(user._id, {
-      $set: { passwordReset: { ...reset, attempts: (reset.attempts || 0) + 1 } },
-    });
-    throw invalidCodeError();
-  }
-
+  if (!user || user.isActive === false || !reset?.codeHash
+    || new Date(reset.expiresAt).getTime() <= now.getTime() || reset.attempts >= MAX_ATTEMPTS) throw invalidCodeError();
+  const claimed = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)), isActive: { $ne: false }, 'passwordReset.codeHash': reset.codeHash,
+    'passwordReset.expiresAt': { $gt: now }, 'passwordReset.attempts': { $lt: 5 } },
+    { $inc: { 'passwordReset.attempts': 1 } }, { new: true });
+  if (!claimed || !equalHash(reset.codeHash, hashCode(user._id, code.trim()))) throw invalidCodeError();
+  await assertPassword(newPassword, user.passwordHash);
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await User.findByIdAndUpdate(user._id, { $set: { passwordHash, passwordReset: null } });
+  const updated = await User.findOneAndUpdate({ _id: user._id, ...versionFilter(versionOf(user)), isActive: { $ne: false }, 'passwordReset.codeHash': reset.codeHash,
+    'passwordReset.expiresAt': { $gt: new Date() } },
+    { $set: { passwordHash, passwordReset: null, pendingVerification: null,
+      trustedDevices: [], mustChangePassword: false, emailVerifiedAt: now, passwordResetMail: { resendCount: -1, blockedUntil: null } },
+      $inc: { tokenVersion: 1 } }, { new: true });
+  if (!updated) throw invalidCodeError();
+  await AuthSession.deleteMany({ userId: user._id });
 }
-
-module.exports = {
-  requestPasswordReset,
-  confirmPasswordReset,
-  MAX_ATTEMPTS,
-};
+module.exports = { requestPasswordReset, confirmPasswordReset, MAX_ATTEMPTS };

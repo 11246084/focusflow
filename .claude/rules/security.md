@@ -16,30 +16,22 @@ paths:
 
 ## JWT 驗證流程
 
-### Token 發放（登入時）
-```
-POST /api/v1/auth/login
-  → auth.service 驗證 email + bcrypt.compare(password, passwordHash)
-  → jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
-  → 回傳 { token }
-```
+### 憑證簽發與驗證
 
-- payload 僅包含 `sub`（userId），不存放角色或敏感資料
-- `NODE_ENV=production` 時 `JWT_SECRET` 必須設定且不可是範例值 `change-me-in-local-env`，否則 `config/env.js` 拒絕啟動
-- 同一 Email 連續登入失敗達上限會暫時鎖定（`loginThrottle.service.js`，預設 15 分鐘內 5 次、鎖 15 分鐘），回 `429 TOO_MANY_LOGIN_ATTEMPTS`
-- 有效期由 `JWT_EXPIRES_IN` 環境變數控制（預設 `7d`）
+瀏覽器呼叫 `POST /auth/session`，腳本呼叫 `POST /auth/login`。後端驗證密碼後，先完成必要的 pending 流程，再以 `issueSession` 建立 authSessions、成功後簽發 `{ sub, typ: 'session', ver, sid, iat, exp }`。瀏覽器只收到 HttpOnly cookie；腳本只收到 body token，不設 cookie。
 
-### Token 驗證（每次 API 請求）
-```
-Authorization: Bearer <token>
-  → auth.middleware.js 的 authenticate()
-  → jwt.verify(token, JWT_SECRET)
-  → User.findById(payload.sub) 確認帳號仍存在且 isActive = true
-  → req.user = toPublicUser(user)  // 過濾敏感欄位
-```
-
-- Token 無效或過期 → `AppError(401, 'INVALID_TOKEN')`
-- 帳號不存在或停用 → `AppError(401, 'UNAUTHORIZED')`
+- `typ` 是 payload 欄位；session、pending、step-up 分別只經 `issueSession`、`signPendingToken`、`signStepUpToken` 簽發，JWT 不存角色或敏感資料。
+- admin session 12 小時，教師與學生 7 天；不由 `JWT_EXPIRES_IN` 覆寫。pending 10 分鐘；step-up 最多 5 分鐘且不超過 session。
+- `/auth/login` 拒絕 `Origin`、`Sec-Fetch-Site` 或 `Sec-Fetch-Dest`；不檢查 `Sec-Fetch-Mode`，保留 Node fetch 相容性。
+- 正式 cookie 為 `__Host-ff_session`、`__Host-ff_pending`、`__Host-ff_stepup`、`__Host-ff_trusted`，皆 HttpOnly、Secure、SameSite=Strict、Path=/，不設 Domain。非 production 用無 `__Host-` 前綴的名稱、不加 Secure，只看 NODE_ENV。
+- `authenticate` 有 Authorization 就只驗 Bearer，失敗不改用 cookie；JWT 只接受 HS256、typ=session、完整 ver 與 sid。每次重查啟用中的 User、目前 tokenVersion 與 authSessions 的 sid／userId／expiresAt，不靠 TTL 即時清除。
+- 一般登出刪目前 sid，已失效仍冪等回 204；全裝置登出先 `$inc` 版本，再刪全部 session。自己改密碼重發新 sid，刪其他紀錄；版本遞增也清 pending 與信任裝置。
+- 停用、降級及實際升為 admin 都遞增版本並撤銷全部憑證；升為 admin 的角色變更與版本遞增必須同次更新，目標帳號重新走 admin 登入與信箱驗證，不能沿用舊 7 天 session。角色未變的 admin 資料編輯不撤銷。
+- 儲存查詢、寫入或刪除失敗回 503 AUTH_UNAVAILABLE，不得退回只驗 JWT。
+- cookie 寫入須 Origin 完全符合 `CSRF_TRUSTED_ORIGINS`，且帶 `X-Requested-With: FocusFlow`。GET／HEAD／OPTIONS 免檢；影片批次 GET 的伺服器計算、冪等狀態同步是明確例外。
+- 發 cookie 一律經 `setAuthCookie`，函式自行重驗可信 Origin。所有登入與驗證回應 no-store，瀏覽器端點不回 body JWT。
+- step-up 與敏感操作拒絕任何 Authorization，核對 typ／scope／sub／ver／sid、目前 admin 角色及期限；升為 admin 必須 step-up。錯誤密碼以 userId 獨立計數，5 次鎖 15 分鐘。
+- production 的 JWT_SECRET 必須是非範例值；`ALLOWED_ORIGINS`、`CSRF_TRUSTED_ORIGINS` 都必須設定，否則拒絕啟動。
 
 ### 角色授權
 ```js
@@ -48,13 +40,17 @@ router.post('/', authenticate, requireRole('teacher', 'admin'), createCourse);
 ```
 
 - `authenticate` 必須在 `requireRole` 之前
-- 不要在 controller 或 service 層自行判斷 `req.user.role`，統一透過 `role.middleware.js`
+- 一般 route 以 `role.middleware.js` 授權；step-up 與角色修改等敏感服務另核對目前資料庫帳號。
 
 ---
 
 ## 密碼處理
 
 - 儲存時使用 **bcryptjs**，預設 salt rounds = 10
+- 註冊、修改、重設與 first_login 共用 `assertPassword`：至少 8 碼、至少一個英文字母，不得與目前密碼相同。
+- 舊 User 缺 mustChangePassword 視為 true，不做遷移；匯入明確設 true。非 production 只略過信箱驗證與兩段式，仍須完成必要的首次改密碼。
+- 驗證碼只存雜湊，以 timingSafeEqual 比對，原子佔用嘗試後再消耗；最多 5 次。pending 與忘記密碼分開計數，重寄無間隔、最多 5 次後帳號暫停該流程寄信 10 分鐘，重新登入不重置；寄信失敗不放行。
+- admin 信任裝置 cookie 是隨機值，User 只存雜湊、版本及最少 metadata；最多 5 台、7 天，遞增版本時全部作廢。使用與建立都寫入 adminAuditLogs，不記密碼、JWT、cookie。
 - 欄位名稱為 `passwordHash`，不叫 `password`
 - **絕對不回傳 `passwordHash`**，透過 `toPublicUser()` 過濾
 

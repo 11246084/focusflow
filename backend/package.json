@@ -8,6 +8,8 @@
     "start": "node src/server.js",
     "seed": "node src/scripts/seedDemoUsers.js",
     "seed:reset": "node src/scripts/seedDemoUsers.js --reset",
+    "db:ensure-auth-audit": "node src/scripts/ensureAuthAuditLog.js",
+    "db:ensure-auth-sessions": "node src/scripts/ensureAuthSessions.js",
     "db:ensure-questions": "node src/scripts/ensureQuestionsCollection.js",
     "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
     "db:ensure-video-vector-index": "node src/scripts/ensureVideoVectorIndex.js",
@@ -29,6 +31,7 @@
     "snapshot:student-pilot": "node src/scripts/printStudentPilotFlagSnapshot.js",
     "report:pilot-usage": "node src/scripts/pilotUsageReport.js",
     "docs:lint": "redocly lint docs/openapi.yaml",
+    "test:auth-mongo": "node --test integration/auth.mongo.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [

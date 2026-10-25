@@ -484,6 +484,7 @@ body {
 
 /* Background gradient used by login page */
 .ff-bg {
+  pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -681,6 +682,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 
 /* ── Right form panel ── */
 .login-right {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   align-items: center;
@@ -2050,3 +2053,18 @@ option{
   .dashboard-shell:has(.course-study) .fab-group { position: static; flex-shrink: 0; flex-wrap: nowrap; margin: 6px 12px max(6px, env(safe-area-inset-bottom)); gap: 8px; }
   .dashboard-shell:has(.course-study) .fab-group > * { min-height: 30px; padding: 0 12px; font-size: 11px; }
 }
+
+/* Authentication feedback shares the existing login card and brand palette. */
+.auth-message { padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.6; }
+.auth-error { color: #ffb0b0; background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); }
+.auth-help { color: rgba(255,255,255,.75); font-size: 14px; line-height: 1.7; margin: 0; }
+.auth-trust-device { display: flex; align-items: center; gap: 10px; min-height: 44px; color: rgba(255,255,255,.85); font-size: 14px; cursor: pointer; }
+.auth-trust-device input { width: 18px; height: 18px; accent-color: #f14f21; }
+.verification-code { font-size: 28px; letter-spacing: .35em; }
+.auth-spinner { display: inline-block; width: 15px; height: 15px; margin-right: 8px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: auth-spin .8s linear infinite; vertical-align: middle; }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .auth-spinner { animation: none; } }
+
+.auth-session-notice:not(:empty) { position: fixed; z-index: 1800; top: 16px; left: 50%; transform: translateX(-50%); max-width: min(90vw, 640px); padding: 12px 20px; border-radius: 10px; background: #451d2d; color: #fff; box-shadow: 0 8px 30px #0005; }
+
+.login-form-header h1 { margin: 0; }

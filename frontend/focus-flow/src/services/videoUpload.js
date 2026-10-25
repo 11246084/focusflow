@@ -1,19 +1,11 @@
-import { buildApiError, getToken } from '../api.js';
-
-const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1';
+import { apiFetch } from '../api.js';
 
 export async function uploadSingleCourseVideo({ courseId, file, title }) {
   const formData = new FormData();
   formData.append('video', file);
   if (title) formData.append('title', title);
 
-  const response = await fetch(`${API_BASE}/courses/${courseId}/videos`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: formData,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw buildApiError({ status: response.status, data });
+  const data = await apiFetch(`/courses/${courseId}/videos`, { method: 'POST', body: formData });
   return data.data?.video || data.data || {};
 }
 
@@ -28,15 +20,7 @@ export async function uploadCourseVideos({ courseId, items, onItemChange }) {
   formData.append('titles', JSON.stringify(items.map((item) => item.title || '')));
   items.forEach((item) => formData.append('videos', item.file));
 
-  const response = await fetch(`${API_BASE}/courses/${courseId}/video-batches`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: formData,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw buildApiError({ status: response.status, data });
-  }
+  const data = await apiFetch(`/courses/${courseId}/video-batches`, { method: 'POST', body: formData });
 
   const batch = data.data?.batch;
   // Reject malformed success responses instead of displaying an untrackable

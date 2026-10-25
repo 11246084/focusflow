@@ -145,8 +145,8 @@ describe('POST /videos/:videoId/source/restore', () => {
     for (const state of notCleanedStates) {
       resetStore();
       Object.assign(markCleaned(teacherVideo()), state);
-
-      const result = await restore(token);
+      const currentToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+      const result = await restore(currentToken);
 
       assert.equal(result.status, 409, JSON.stringify(state));
       assert.equal(result.body.error.code, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');

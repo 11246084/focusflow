@@ -112,11 +112,41 @@ describe('忘記密碼（Email 驗證碼）', () => {
     assert.equal(reused.body.error.code, 'PASSWORD_RESET_CODE_INVALID');
   });
 
-  it('60 秒內重複申請不會重寄', async () => {
+  it('重複申請立即重寄並回傳剩餘次數', async () => {
     await request();
     await request();
 
-    assert.equal(sent.length, 1);
+    assert.equal(sent.length, 2);
+  });
+  it('重寄與錯碼驗證重疊時不會重設已消耗的次數或延長期限', async () => {
+    const User = require('../src/models/user.model');
+    const service = require('../src/services/passwordReset.service');
+    await request(); const expiry = studentRecord().passwordReset.expiresAt;
+    const original = User.findOneAndUpdate;
+    let release; const held = new Promise((resolve) => { release = resolve; });
+    let entered; const ready = new Promise((resolve) => { entered = resolve; });
+    User.findOneAndUpdate = async function (query, update, options) {
+      if (update.$set?.['passwordReset.codeHash'] || update.$set?.passwordReset?.codeHash) {
+        entered(); await held;
+      }
+      return original.call(this, query, update, options);
+    };
+    let resend;
+    try {
+      resend = service.requestPasswordReset({ email: STUDENT_EMAIL }); await ready;
+      const wrong = sentCode() === '000000' ? '111111' : '000000';
+      await assert.rejects(service.confirmPasswordReset({ email: STUDENT_EMAIL, code: wrong, newPassword: 'ResetPass789!' }), { code: 'PASSWORD_RESET_CODE_INVALID' });
+      assert.equal(studentRecord().passwordReset.attempts, 1);
+      release(); await resend;
+      assert.equal(studentRecord().passwordReset.attempts, 1);
+      assert.equal(new Date(studentRecord().passwordReset.expiresAt).getTime(), new Date(expiry).getTime());
+      const nextWrong = sentCode() === '000000' ? '111111' : '000000';
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        await assert.rejects(service.confirmPasswordReset({ email: STUDENT_EMAIL, code: nextWrong, newPassword: 'ResetPass789!' }), { code: 'PASSWORD_RESET_CODE_INVALID' });
+      }
+      assert.equal(studentRecord().passwordReset.attempts, 5);
+      assert.equal((await confirm({ code: sentCode(), newPassword: 'ResetPass789!' })).status, 400);
+    } finally { release(); await resend?.catch(() => {}); User.findOneAndUpdate = original; }
   });
 
   it('新密碼少於 8 碼時回驗證錯誤', async () => {

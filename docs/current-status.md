@@ -2,9 +2,20 @@
 
 這份文件集中記錄各模組的進度，避免不同文件各寫一份。請先看狀態與依據，再由團隊填寫負責人及待決項目；後端技術說明見[技術索引](../backend/docs/current-state.md)。
 
-**狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。本次僅查閱程式及歷史紀錄，未啟動專案、執行測試或連線外部服務；日期為最後查閱日期，驗收日期另列。
+**狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
 ## 各模組
+
+**httpOnly cookie 認證｜已實作，本機驗證通過；未正式驗收。** 2026-10-24～25 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查及修正後複核。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋。2026-10-25 依使用者補充定案完成升權撤銷：學生／教師實際升為 admin 時，同次更新角色與版本、撤銷全部憑證；重新登入並通過信箱兩段式驗證，才取得 12 小時新 session。原 admin 僅編輯姓名不撤銷，session 刪除故障也不放行舊憑證。原審查 findings 已全部處理，本輪完整後端測試通過。
+
+| 驗證範圍 | 2026-10-24～25 本機結果 |
+|---|---|
+| Backend | 全套 1,154／1,154 通過；OpenAPI lint 通過，docs route 11 項通過。含 CSRF、Node fetch 分流、資料庫故障拒絕、撤銷、升權重登／MFA／12 小時效期與 GET 例外盤點 |
+| 隔離 Mongo | 11／11 通過：索引重跑與衝突、真實 TTL、80 次並行簽發、單次驗證消耗、重寄計數與競態、原子版本遞增、最後一位 admin 保護，以及學生／教師升 admin 的舊憑證撤銷與新 12 小時 session；未連 Atlas |
+| Frontend／workflow | 116／116、lint、相對 API 設定的 build 通過；deploy.yml 的 YAML、3 段 Node、21 段 Bash 語法通過；相同 dist 掃描通過（29 檔），在服務重啟前執行。原有非相對 API 環境設定會被 build guard 拒絕；未改本機 .env |
+| 本機 Chromium＋Vite proxy | cookie 屬性、同來源 Network、重新整理、登入登出、全裝置登出、多分頁換帳號、admin 兩段式驗證與信任裝置、首次登入、註冊信箱驗證、step-up、影片上傳與 /uploads 讀取、頭像、回饋附件、跨來源表單 403、網路故障後重試通過；2026-10-25 另驗證升權後目標舊登入遭拒、畫面清除、操作人維持登入，目標重新 MFA 後取得 12 小時 cookie。使用記憶體資料與假寄信，影片只驗證上傳／讀取，未做 STT |
+| 原有腳本 | runQaEval 用 mock／template 跑 1 題、0 錯誤；verifyShortsDeployment 經 fetch 登入通過，允許空 feed 且不查 YouTube；未呼叫付費服務 |
+| 正式環境 | 第 15 項第 6 層未執行：LINE 內建瀏覽器、Email／跨站轉址、真實寄信、nginx 與部署探測仍待使用者部署後驗收。未寫入 Atlas、修改 VM、部署或 push |
 
 **帳號、課程與管理功能｜已實作。** 範圍含登入、修課、通知、頭貼、統計及問題回報；依據：[路由入口](../backend/src/routes/index.js)、[帳號介面](../backend/src/routes/auth.routes.js)、[課程權限](../backend/src/services/courseAccess.service.js)。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
@@ -16,9 +27,9 @@
 
 **單支影片與語音轉文字｜已實作。** 後端啟動處理程序，產生逐字稿、切段與搜尋向量，再接收完成或失敗通知；向量是用來比較內容相似度的一串數字。依據：[影片服務](../backend/src/services/video.service.js)、[處理入口](../STT_Whisper/src/main.py)、[回報處理](../backend/src/services/videoProcessing.service.js)；真實影片完整流程 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
-**YouTube 上傳｜已實作。** [上傳服務](../backend/src/services/youtubeUpload.service.js)由[影片完成通知](../backend/src/services/videoProcessing.service.js)排程，受功能開關與憑證條件控制；目前部署環境的上傳結果未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
+**YouTube 上傳｜已實作。** [上傳服務](../backend/src/services/youtubeUpload.service.js)由[影片完成通知](../backend/src/services/videoProcessing.service.js)排程，受功能開關與憑證條件控制。2026-10-22 部署後正式站憑證檢查為 `ok`、權限含 `youtube.force-ssl`（見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)）；經新版程式實際上傳的結果未驗證，延後到團隊下次上傳課程影片時確認。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
-**YouTube 恢復／清理｜已實作；正式環境的恢復與清理未驗證。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-20 本機後端與前端自動化測試通過，只用測試替身；未在瀏覽器實測，也沒有呼叫 YouTube，部署與開啟恢復、清理依決策 #33 分階段授權。最後驗證：2026-10-20；負責人：＿＿（待填）。
+**YouTube 恢復／清理｜已部署；恢復已開啟，清理未開啟。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-22 合併 `main` 部署到正式站（本機 Backend 1123、Frontend 107 項測試通過），恢復排程每 5 分鐘執行、管理員頁開關與待處理清單正常；清理的環境變數維持不允許，依決策 #33 於 2026-11-09～11-13 開啟。實際失敗後的自動恢復、清理刪檔與短片流程在正式站未驗證，過程見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
 **多影片批次｜已實作。** [批次服務](../backend/src/services/videoBatchProcessing.service.js)與[批次入口](../STT_Whisper/src/batch_main.py)串接排程、重試及恢復；真實語音模型、向量產生與部署的完整流程未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
@@ -32,11 +43,11 @@
 
 **影像補充引用｜已實作；實際資料覆蓋未驗證。** [問答服務](../backend/src/services/qa.service.js)串接影像查詢與來源引用，但仍需另查課程影片是否有可用影像資料。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**教育開放資料推薦｜已實作。** [推薦服務](../backend/src/services/openDataExtension.service.js)與[課程頁](../frontend/focus-flow/src/pages/StudentCourses.jsx)以關鍵字推薦延伸影片；真實清單匯入、部署及推薦品質 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
+**教育開放資料推薦｜已實作。** [推薦服務](../backend/src/services/openDataExtension.service.js)與[課程頁](../frontend/focus-flow/src/pages/StudentCourses.jsx)以關鍵字推薦延伸影片。程式已隨 2026-10-22 部署上線，但正式站 `OPEN_DATA_EXTENSION_ENABLED` 未開、未匯入清單；真實清單匯入與推薦品質 ⚠️ 未驗證。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
 **資料庫交付工具｜已實作；真實資料還原未驗證。** [匯出與還原服務](../backend/src/services/databaseDeliverable.service.js)有對應程式；舊文的記憶體模擬測試不代表實際資料庫還原成功。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**學生試用與部署｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。[部署設定](../.github/workflows/deploy.yml)只能證明部署步驟存在；歷史開放試用不等於本次驗收，需補目前環境與驗收紀錄。最後驗證：2026-10-15；負責人：＿＿（待填）。
+**學生試用與部署｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。[部署設定](../.github/workflows/deploy.yml)只能證明部署步驟存在；歷史開放試用不等於本次驗收，需補目前環境與驗收紀錄。2026-10-23 VM 資安更新完成：Rocky Linux 9.8、Node.js 22.23.4、nginx 安全修補與 ngrok 更新，重開機後 `/health`、nginx 代理與 LINE 問答實測正常；語音轉文字流程更新後未實測，見[檢查報告](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)。最後驗證：2026-10-23；負責人：＿＿（待填）。
 
 ## 歷史查證索引（保留原日期，未重新驗證）
 

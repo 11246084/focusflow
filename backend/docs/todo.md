@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-10-20
+最後更新：2026-10-25
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,15 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### 本機展示帳號不受首次登入阻擋（2026-10-25）
+
+- **狀態**：Done
+- **背景**：cookie 認證上線後，`mustChangePassword` 預設為 `true`；`npm run seed` 建立的展示帳號因此被當成舊帳號，本機登入要求收驗證碼，沒有 SMTP 或信箱為 `@focusflow.local` 時無法登入。
+- **處理**：`demoSeed.service.js` 把展示帳號設為 `mustChangePassword: false` 並寫入 `emailVerifiedAt`，再次執行 seed 也會修正舊的展示帳號；正式站 `DEMO_SEED_ENABLED=false`，不受影響。
+- **驗證**：`demo-seed.service.test.js` 新增情境，未修正時失敗、修正後通過。
 
 ---
 

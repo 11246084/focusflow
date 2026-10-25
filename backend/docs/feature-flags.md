@@ -4,6 +4,9 @@
 
 | 開關／控制項 | 定義位置 | env 或資料庫 | 修改後是否重啟 |
 |---|---|---|---|
+| `ADMIN_EMAIL_2FA_ENABLED` | [認證設定](../src/services/authSettings.service.js) | env ＋ `auth.adminEmail2faEnabled`，皆預設開啟；非 production 略過 | env 需重啟，資料庫下次登入檢查 |
+| `EMAIL_VERIFICATION_ENABLED` | [認證設定](../src/services/authSettings.service.js) | env ＋ `auth.emailVerificationEnabled`，皆預設開啟；非 production 略過 | env 需重啟，資料庫下次登入檢查 |
+| `SYSTEM_SETTINGS_DB_ENABLED` | [認證設定](../src/services/authSettings.service.js) | false 時認證開關只看 env；不修改 env 物件 | 重啟後端 |
 | `SHORT_SCRIPT_AUTOMATION_ENABLED`：腳本介面與成品上傳排程 | [環境設定](../src/config/env.js)、[腳本路由](../src/routes/short-script.routes.js) | env | 重啟後端 |
 | `YOUTUBE_UPLOAD_ENABLED`：影片及短影片上傳 | [環境設定](../src/config/env.js)、[上傳檢查](../src/services/youtubeUpload.service.js) | 兩層：env 總開關＋資料庫執行期開關 | env 需重啟；執行期開關下一次檢查生效 |
 | `YOUTUBE_UPLOAD_RECOVERY_ENABLED`：定期重試可安全重試的上傳、隔離卡住的上傳 | [環境設定](../src/config/env.js)、[上傳服務](../src/services/youtubeUpload.service.js) | 兩層：env 總開關＋資料庫執行期開關 | env 需重啟；執行期開關下一輪生效 |
@@ -23,3 +26,5 @@
 - **關閉腳本功能，不會關閉學生短片牆。** [學生介面](../src/routes/youtube.routes.js)仍依修課與影片發布條件提供清單。
 - **`QA_VISUAL_RETRIEVAL_ENABLED=false` 時，文字查無結果仍會改走影像備援查詢。** 這是刻意設計，目的是避免文字查不到時完全沒有回答；找到影像時提供可檢視的來源提示，不把沒有逐字稿的畫面說成完整文字答案。依據：[查詢與回覆](../src/services/qa.service.js)。
 - 流程例：關閉並行查詢＋提問「投影片流程圖在哪裡？」→ 文字查無結果 → 嘗試影像查詢 → 有命中則回覆片段提示與時間位置；仍無命中則回覆查無依據。
+
+認證開關目前由 env 與 runtimesettings 讀取，沒有新增系統設定畫面或設定寫入 API。`mustChangePassword` 的首次改密碼不由這兩個驗證開關略過；資料庫設定讀取失敗時不關閉驗證。

@@ -8,6 +8,15 @@ const { uploadSingleAvatar } = require('../middleware/avatarUpload.middleware');
 
 // 建立 Express Router 實例，用於定義路由
 const router = express.Router();
+router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+router.post('/session', authController.login);
+router.delete('/session', authController.logout);
+router.post('/logout-all', authenticate, authController.logoutAll);
+router.post('/step-up', authenticate, authController.stepUp);
+router.post('/pending/verify', authController.verifyPending);
+router.post('/pending/resend', authController.resendPending);
+router.post('/pending/password', authController.pendingPassword);
+router.delete('/pending', authController.cancelPending);
 
 // ========== 路由定義 ==========
 
@@ -38,4 +47,8 @@ router.put('/me/avatar', authenticate, uploadSingleAvatar, authController.update
 router.get('/me/avatar', authenticate, authController.getAvatar);
 
 // 匯出 router，供 app.js 註冊路由使用
+router.use((error, req, res, next) => {
+  const AppError = require('../utils/appError');
+  next(error instanceof AppError ? error : require('../services/authTokens.service').unavailable());
+});
 module.exports = router;

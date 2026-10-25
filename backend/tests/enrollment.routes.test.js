@@ -19,6 +19,7 @@ describe('strict Enrollment routes and access', () => {
 
   async function registerStudent(email = 'strict.student@example.com') {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'Strict Student',
@@ -29,7 +30,7 @@ describe('strict Enrollment routes and access', () => {
     });
     assert.equal(result.status, 201);
     return {
-      token: result.body.data.token,
+      token: await loginAs(serverContext.baseUrl, email, 'StrictPass123!', 'student'),
       user: store.users.find((item) => item.email === email),
     };
   }
@@ -153,7 +154,7 @@ describe('strict Enrollment routes and access', () => {
     assert.equal(forbiddenManage.body.error.code, 'COURSE_MANAGE_DENIED');
   });
 
-  it('教師匯入名單會建立新帳號、以學號登入並取得課程權限', async () => {
+  it('教師匯入帳號先完成首次改密碼，才取得課程權限', async () => {
     const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
     const imported = await jsonRequest(
       serverContext.baseUrl,
@@ -164,7 +165,19 @@ describe('strict Enrollment routes and access', () => {
         body: { students: [{ name: '王小明', email: '11246001@ntub.edu.tw', studentId: '11246001' }] },
       },
     );
-    const studentToken = await loginAs(serverContext.baseUrl, '11246001@ntub.edu.tw', '11246001', 'student');
+    const browser = { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' };
+    const firstLogin = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/session', {
+      method: 'POST', headers: browser,
+      body: { email: '11246001@ntub.edu.tw', password: '11246001', role: 'student' },
+    });
+    assert.equal(firstLogin.body.data.purpose, 'first_login');
+    assert.equal(firstLogin.body.data.codeVerified, true);
+    const pendingCookie = firstLogin.response.headers.getSetCookie().find((value) => value.startsWith('ff_pending=')).split(';')[0];
+    const changed = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/pending/password', {
+      method: 'POST', headers: { ...browser, Cookie: pendingCookie }, body: { newPassword: 'ImportedStudent123!' },
+    });
+    assert.equal(changed.status, 200);
+    const studentToken = await loginAs(serverContext.baseUrl, '11246001@ntub.edu.tw', 'ImportedStudent123!', 'student');
     const courses = await jsonRequest(serverContext.baseUrl, '/api/v1/courses', { token: studentToken });
 
     assert.equal(imported.status, 200);

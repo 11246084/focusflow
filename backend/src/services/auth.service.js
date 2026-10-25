@@ -1,5 +1,11 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const { issueSession, unavailable } = require('./authTokens.service');
+const AuthSession = require('../models/authSession.model');
+const { assertPassword } = require('../utils/passwordPolicy');
+const { requiredPurpose } = require('./authSettings.service');
+const pending = require('./pendingVerification.service');
+const { useTrustedDevice } = require('./trustedDevice.service');
+const { audit } = require('./adminAudit.service');
 const env = require('../config/env');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
@@ -63,15 +69,17 @@ function buildDuplicateUserError(error) {
   );
 }
 
-function signToken(user) {
-  return jwt.sign(
-    { sub: String(user._id) },
-    env.jwtSecret,
-    { expiresIn: env.jwtExpiresIn },
-  );
+async function completeLogin(user, { browser = false, userAgent = '', trustedDevice = '' } = {}) {
+  let purpose = await requiredPurpose(user);
+  if (purpose === 'admin_2fa' && await useTrustedDevice(user, trustedDevice)) purpose = null;
+  if (purpose) {
+    if (!browser) throw new AppError('Email verification required.', 403, 'VERIFICATION_REQUIRED');
+    return pending.begin(user, purpose, { skipEmail: env.nodeEnv !== 'production' });
+  }
+  return { ...await issueSession(user, { userAgent }), user: toPublicUser(user) };
 }
 
-async function register({ name, email, password, role }) {
+async function register({ name, email, password, role }, options = {}) {
   const trimmedName = String(name || '').trim();
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const rawPassword = typeof password === 'string' ? password : '';
@@ -86,6 +94,7 @@ async function register({ name, email, password, role }) {
   if (typeof password !== 'string' || rawPassword.length < 8) {
     throw new AppError('Password must be at least 8 characters.', 400, 'VALIDATION_ERROR');
   }
+  await assertPassword(password);
   if (role != null && typeof role !== 'string') {
     throw new AppError('Role is not open for self-registration.', 400, 'VALIDATION_ERROR');
   }
@@ -107,6 +116,8 @@ async function register({ name, email, password, role }) {
       email: normalizedEmail,
       passwordHash,
       role: targetRole,
+      mustChangePassword: false,
+      tokenVersion: 0,
     });
   } catch (error) {
     // The pre-check gives fast feedback; the unique index remains authoritative when registrations race.
@@ -116,7 +127,7 @@ async function register({ name, email, password, role }) {
     throw error;
   }
 
-  const token = signToken(user);
+  const result = await completeLogin(user, options);
 
   await recordUsage({
     userId: user._id,
@@ -124,13 +135,10 @@ async function register({ name, email, password, role }) {
     metadata: { role: user.role, via: 'register' },
   });
 
-  return {
-    token,
-    user: toPublicUser(user),
-  };
+  return result;
 }
 
-async function login({ email, password, role }) {
+async function loginInternal({ email, password, role }, options = {}) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const requestedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
 
@@ -147,6 +155,7 @@ async function login({ email, password, role }) {
   assertLoginAllowed(normalizedEmail);
 
   const user = await User.findOne({ email: normalizedEmail });
+  options.auditContext.user = user;
 
   // 失敗時回傳剩餘次數，讓前端提醒「再錯幾次會被鎖定」；達上限時直接回鎖定錯誤。
   if (!user) {
@@ -174,7 +183,7 @@ async function login({ email, password, role }) {
     );
   }
 
-  const token = signToken(user);
+  const result = await completeLogin(user, options);
 
   await recordUsage({
     userId: user._id,
@@ -184,10 +193,24 @@ async function login({ email, password, role }) {
     },
   });
 
-  return {
-    token,
-    user: toPublicUser(user),
-  };
+  return result;
+}
+
+async function login(input, options = {}) {
+  const auditContext = { user: null };
+  try {
+    const result = await loginInternal(input, { ...options, auditContext });
+    if (auditContext.user?.role === USER_ROLES.ADMIN) await audit(auditContext.user._id, 'admin_login', 'success');
+    return result;
+  } catch (error) {
+    if (auditContext.user?.role === USER_ROLES.ADMIN || input.role === USER_ROLES.ADMIN) {
+      const reasons = { INVALID_CREDENTIALS: 'invalid_credentials', USER_INACTIVE: 'inactive', ROLE_MISMATCH: 'role_mismatch',
+        TOO_MANY_LOGIN_ATTEMPTS: 'throttled', VERIFICATION_EMAIL_FAILED: 'mail_failed', VERIFICATION_REQUIRED: 'verification_required',
+        VERIFICATION_MAIL_PAUSED: 'mail_paused', VALIDATION_ERROR: 'invalid_input' };
+      await audit(auditContext.user?._id || null, 'admin_login', 'failure', reasons[error.code] || 'unavailable');
+    }
+    throw error;
+  }
 }
 
 async function getCurrentUser(userId) {
@@ -202,7 +225,7 @@ async function getCurrentUser(userId) {
 
 // Passwords are only ever persisted as bcrypt hashes; the current password is
 // required so a stolen/left-open session cannot silently take over the account.
-async function changePassword({ userId, currentPassword, newPassword }) {
+async function changePassword({ userId, currentPassword, newPassword, userAgent }) {
   if (typeof currentPassword !== 'string' || !currentPassword) {
     throw new AppError('Current password is required.', 400, 'VALIDATION_ERROR');
   }
@@ -224,7 +247,16 @@ async function changePassword({ userId, currentPassword, newPassword }) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await User.findByIdAndUpdate(user._id, { $set: { passwordHash } });
+  await assertPassword(newPassword, user.passwordHash);
+  try {
+    const updated = await User.findByIdAndUpdate(user._id, {
+      $set: { passwordHash, trustedDevices: [], pendingVerification: null, mustChangePassword: false },
+      $inc: { tokenVersion: 1 },
+    }, { new: true });
+    const session = await issueSession(updated, { userAgent });
+    await AuthSession.deleteMany({ userId: user._id, _id: { $ne: session.sid } });
+    return { ...session, user: toPublicUser(updated) };
+  } catch { throw unavailable(); }
 }
 
 // Email is the login identifier, so changing it requires the current password;

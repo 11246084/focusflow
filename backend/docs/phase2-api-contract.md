@@ -1,6 +1,6 @@
 # Phase 2 API Contract
 
-最後更新：2026-09-05
+最後更新：2026-10-24
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
@@ -386,3 +386,40 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 - mixed `videos` collection 是否拆分為 app-owned / pipeline-owned 實體 collection。
 - Clip candidate/job、自動選片、FFmpeg／字幕、Short 發布與教師管理 endpoints/background workers。
 - 視覺片段 caption / OCR / frame description；目前 visual retrieval 只提供 citation，不生成畫面內容。
+
+## Cookie 認證契約
+
+依 [httpOnly 決策第 1～25 項](../../docs/04_Features/HttpOnly_Cookie/decisions.md)。所有登入／驗證回應均為 `Cache-Control: no-store`；瀏覽器 body 不含 JWT。
+
+| 呼叫 | 結果 |
+|---|---|
+| `POST /auth/login` | 腳本用，body `{ token, user }`，不設 cookie；拒絕 Origin、Sec-Fetch-Site、Sec-Fetch-Dest，允許 Node fetch 的 Sec-Fetch-Mode |
+| `POST /auth/session`、`POST /auth/register` | 瀏覽器用，需可信 Origin 與 `X-Requested-With: FocusFlow`；成功只設 session cookie，body `{ user }` |
+| 尚須驗證 | body `{ requiresVerification: true, purpose, maskedEmail, codeVerified, remainingResends }`，只設 pending cookie；腳本回 `403 VERIFICATION_REQUIRED` |
+| `POST /auth/pending/verify` | `{ code, trustDevice?: boolean }`；first_login 回新的 pending（codeVerified=true），其他流程發 session |
+| `POST /auth/pending/resend` | 無間隔、最多重寄五次；回剩餘次數，不延長原期限、不歸零猜碼次數 |
+| `POST /auth/pending/password` | `{ newPassword, trustDevice?: boolean }`；只收已驗證的 first_login，完成後換正式 session |
+| `DELETE /auth/pending` | 取消並清 pending cookie，204 |
+| `DELETE /auth/session` | 冪等撤銷目前 sid，204；Bearer 與 cookie 並存時只處理 Bearer、不清 cookie |
+| `POST /auth/logout-all` | 先遞增版本再刪全部 session，204；撤銷信任裝置、pending、step-up |
+| `POST /auth/step-up` | admin 瀏覽器用 `{ password }`，204、只設 step-up cookie；5 分鐘內可用於敏感操作 |
+| `PATCH /auth/me/password` | cookie 模式換新 session；腳本回新 `{ token, user }`；其他 session 撤銷 |
+| 忘記密碼 confirm | 只改密碼、撤銷其他憑證，不發 session，使用者重新登入 |
+
+舊帳號缺 mustChangePassword 視為 true，必須先驗證再改密碼；非 production 略過寄信，但必要的首次改密碼仍用 codeVerified=true 的 pending 完成。新自行註冊設 false，CSV 建立設 true。第一次驗證成功寫 emailVerifiedAt。所有密碼入口至少八碼、至少一個英文字母，不能與目前密碼相同。
+
+`remainingResends` 為 0 後仍可使用已寄出的未過期碼；額度保存在帳號，不因重新登入而重置。寄信暫停回 `429 VERIFICATION_MAIL_PAUSED`，公開 details 含 `remainingResends: 0`、`retryAfterSec`。pending 與忘記密碼各有獨立的計數。信任裝置只限 admin，最多五台、七天，cookie 明文不存入資料庫或稽核。
+
+`authenticate` 每次驗證 session 紀錄與 User.tokenVersion；任何相關儲存故障均拒絕，不退回只驗 JWT。LINE webhook 與 internal processing webhook 沿用各自驗證，忽略 cookie。
+
+管理員實際將學生／教師升為 admin 時，操作人須通過瀏覽器 step-up；目標帳號的角色與 tokenVersion 在同次更新中變更，再刪除全部 session，pending、step-up 與信任裝置也失效。目標帳號重新走 admin 登入及信箱兩段式驗證，新 session 為 12 小時；原 admin 只改姓名或傳入未變的 role 不撤銷。刪除 session 故障回 503 時，已遞增的版本仍會擋住舊憑證。
+
+### 索引與隔離測試
+
+正式環境由使用者確認目標與授權後，使用限 authSessions 的帳號設定 `AUTH_SESSIONS_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-sessions -- --database focusflow`。腳本不載入應用程式 .env、不初始化其他 model，只建立 collection 與缺少的 userId／expiresAt TTL 索引；現有設定衝突會報錯停止，不刪除或重建。
+
+本機隔離 Mongo 的連線必須是明確 loopback 與 port，例如 PowerShell 設 `$env:AUTH_TEST_MONGODB_URI='mongodb://127.0.0.1:27028'`，再跑 `npm.cmd run test:auth-mongo`。測試只用隨機 `focusflow_auth_test_*` 資料庫並清理，禁止 Atlas URI；測 TTL 時以獨立 mongod 的 `ttlMonitorSleepSecs=1` 縮短等待，不改正式設定。
+
+本機瀏覽器可設定 `$env:AUTH_BROWSER_FIXTURE='local-only'`，執行 `node integration/auth.browser.cjs`，另啟動前端 Vite。此 fixture 只在 `127.0.0.1:4000` 使用記憶體 model 與假寄信；`127.0.0.1:4001` 可讀取假信驗證碼，`POST /reset?production=true&firstLoginRole=admin` 可重建 admin 首次登入情境，`POST /shutdown` 會關閉服務並清理專用上傳暫存目錄。它不載入 `server.js`、不連 Mongo、不寄真信或啟動 STT；production 參數只切換認證設定，正式 TLS、寄信送達與外部進站仍須另行驗收。
+
+adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-audit -- --database focusflow`。此帳號須有該集合的 createCollection 權限；authSessionsIndexer 不能代替。應用程式的新 model 都不在啟動時建集合或索引。

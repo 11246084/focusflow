@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
-import { apiFetch, getToken, BACKEND_ORIGIN } from '../api';
+import { apiFetch, apiBlob } from '../api';
 
 const CATEGORY_LABEL = {
   login_account: '登入／帳號',
@@ -34,23 +34,23 @@ function AttachmentsModal({ feedbackId, attachments, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    const token = getToken();
+    const controller = new AbortController();
+    const urls = [];
     Promise.all(attachments.map(async (attachment) => {
-      const res = await fetch(
-        `${BACKEND_ORIGIN}/api/v1/feedback/${feedbackId}/attachments/${attachment.attachmentId}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-      );
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      return { url: URL.createObjectURL(blob), name: attachment.originalName || '附件' };
+      const blob = await apiBlob(`/feedback/${feedbackId}/attachments/${attachment.attachmentId}`, { signal: controller.signal });
+      if (cancelled) return null;
+      const url = URL.createObjectURL(blob); urls.push(url);
+      return { url, name: attachment.originalName || '附件' };
     })).then((results) => {
       if (!cancelled) setImages(results.filter(Boolean));
-    }).finally(() => {
+      else results.filter(Boolean).forEach((image) => URL.revokeObjectURL(image.url));
+    }).catch(() => {}).finally(() => {
       if (!cancelled) setLoading(false);
     });
     return () => {
       cancelled = true;
-      images.forEach((image) => URL.revokeObjectURL(image.url));
+      controller.abort();
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedbackId]);

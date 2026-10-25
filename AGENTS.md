@@ -12,6 +12,7 @@ FocusFlow 是 AI 教學影片問答系統：教師上傳影片，學生在網頁
 - Backend 維持 `routes -> controllers -> services -> models`；改 response contract 要檢查前端、LINE、FAQ 快取命中路徑、OpenAPI 與 route tests。
 - `database/tools/legacy/` 是舊 snake_case 工具，不可用來更新目前的 camelCase 集合。
 - 在授權範圍內持續完成修改與必要驗證，不自行增加確認點；使用者要求分階段時，才在每階段停下回報。
+- 每個 session 第一次執行 Node.js 相關指令前，先跑 `node -v` 對照[根 README 環境需求](README.md#環境需求)；低於最低版本時先告知使用者並附上升級指令，經同意才升級，不用舊版跑測試或 build。
 
 ## 按任務選讀
 

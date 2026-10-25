@@ -189,5 +189,16 @@
     "notion_readback_verified": true,
     "notion_image_count": 3,
     "unrelated_task_properties_preserved": true
+  },
+  "錄音比對": {
+    "date": "2026-10-24",
+    "source": "Team's on-site phone recording of the QA (m4a, 852 s); kept outside the repository",
+    "alignment": "original livestream seconds ≈ recording seconds + 932",
+    "engine": "faster-whisper 1.2.1 / Systran/faster-whisper-medium / CPU int8 / zh / beam_size 5 / vad_filter true",
+    "speaker_attribution": "Team replies attributed by median pitch per segment (female ~230-260 Hz = 百陶, male ~110-140 Hz = 偉豪) and checked against livestream frames at 16:12, 17:02, 19:05, 28:10",
+    "reviewer_identity": "Confirmed by user 2026-10-24: reviewer 1 external industry mentor, reviewer 2 NTUT electronic engineering professor, reviewer 3 NTUB faculty",
+    "clip_crosscheck": "Uncertain spots re-transcribed from both the replay MP4 audio and the recording (medium, domain prompt): 1-1 '註冊' and 'Gmail' agreed; 1-4 ASR leaned '處室' (MP4 twice, team notes; recording once heard '學生'); 2-2 MP4 heard 'LN'",
+    "human_verbatim_verification": "2026-10-24: team member listened and corrected reviewer quotations and team replies in Notion (1-4 confirmed as '北商學生很多', 2-2 confirmed as 'LLM', 1-3 blank confirmed as 'YouTube 帳號'); tables, question cores and follow-ups were rewritten from the verified text. Earlier ASR-only fields above remain as historical processing records.",
+    "notion_revision": "Discussion layout: one table per reviewer with replay links, per-question follow-up and questions for the advisor; previous body kept in a collapsed toggle"
   }
 }

@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import {
   apiFetch,
-  BACKEND_ORIGIN,
-  getToken,
+  getAuthEpoch,
+  apiBlob,
+  acceptAuthUser,
+  logoutSession,
   getUser,
   setUser,
 } from '../api';
+import { sessionIdentityMatches } from '../authSession';
 import { applyProfileUserUpdate } from '../utils/profileUser';
 
 const ROLE_LABELS = { student: '學生', teacher: '教師', admin: '管理員' };
@@ -53,24 +56,9 @@ async function resizeAvatar(file) {
   return blob;
 }
 
-async function fetchAvatarObjectUrl({ token, signal }) {
-  const response = await fetch(`${BACKEND_ORIGIN}/api/v1/auth/me/avatar`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: 'no-store',
-    signal,
-  });
-
-  // A missing avatar is not an error for the viewer; fall back to the initial.
-  if (response.status === 404) return null;
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    const error = new Error(errorBody.message || '頭像讀取失敗。');
-    error.code = errorBody.error?.code;
-    throw error;
-  }
-
-  return URL.createObjectURL(await response.blob());
+async function fetchAvatarObjectUrl({ signal }) {
+  try { return URL.createObjectURL(await apiBlob('/auth/me/avatar', { cache: 'no-store', signal })); }
+  catch (error) { if (error.status === 404) return null; throw error; }
 }
 
 function AvatarUploader({ name, previewUrl, onPick, disabled }) {
@@ -258,19 +246,20 @@ function ChangePasswordCard() {
     setError('');
     setMessage('');
     if (!form.currentPassword) return setError('請輸入目前密碼。');
-    if (form.newPassword.length < 8) return setError('新密碼至少需要 8 個字元。');
+    if (form.newPassword.length < 8 || !/[A-Za-z]/.test(form.newPassword)) return setError('新密碼至少 8 碼，並包含至少一個英文字母。');
     if (form.newPassword !== form.confirmPassword) return setError('兩次輸入的新密碼不一致。');
     if (form.newPassword === form.currentPassword) return setError('新密碼不可與目前密碼相同。');
 
     setSaving(true);
     try {
-      await apiFetch('/auth/me/password', {
+      const response = await apiFetch('/auth/me/password', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }),
       });
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setMessage('密碼已更新，下次登入請使用新密碼。');
+      if (response.data?.user) acceptAuthUser(response.data.user, { announce: true });
+      setMessage('密碼已更新，其他裝置已登出。');
     } catch (err) {
       setError(err.code === 'CURRENT_PASSWORD_INCORRECT' ? '目前密碼不正確。' : (err.message || '修改密碼失敗。'));
     } finally {
@@ -324,6 +313,8 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
   const [avatarError, setAvatarError] = useState('');
   const [avatarMessage, setAvatarMessage] = useState('');
   const [stats, setStats] = useState(null);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const [statsLoading, setStatsLoading] = useState(role === 'student' || role === 'teacher');
   const mountedRef = useRef(false);
   const profileGenerationRef = useRef(0);
@@ -333,8 +324,9 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
   const uploadPendingRef = useRef(false);
 
   const refreshProfile = useCallback(async ({ showLoading = true } = {}) => {
-    const sessionToken = getToken();
-    if (!mountedRef.current || !sessionToken) return false;
+    const sessionEpoch = getAuthEpoch();
+    const sessionUserId = getUser()?.id;
+    if (!mountedRef.current || !sessionUserId) return false;
 
     // Cancel the prior generation so an older profile read cannot win this request race.
     const requestId = profileGenerationRef.current + 1;
@@ -348,7 +340,7 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       && !controller.signal.aborted
       && requestId === profileGenerationRef.current
       // A response from a previous login session must never replace the current user's profile.
-      && getToken() === sessionToken
+      && sessionIdentityMatches(sessionEpoch, sessionUserId)
     );
 
     if (showLoading && requestIsCurrent()) {
@@ -365,7 +357,6 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       const freshUser = res.data.user;
       if (freshUser.hasAvatar) {
         objectUrl = await fetchAvatarObjectUrl({
-          token: sessionToken,
           signal: controller.signal,
         });
       }
@@ -431,8 +422,9 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
   async function handlePickAvatar(file) {
     if (uploadPendingRef.current) return;
 
-    const sessionToken = getToken();
-    if (!mountedRef.current || !sessionToken) return;
+    const sessionEpoch = getAuthEpoch();
+    const sessionUserId = getUser()?.id;
+    if (!mountedRef.current || !sessionUserId) return;
 
     setAvatarError('');
     setAvatarMessage('');
@@ -453,7 +445,7 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       setAvatarError('無法讀取這張圖片，請換一張再試。');
       return;
     }
-    if (!mountedRef.current || getToken() !== sessionToken) return;
+    if (!mountedRef.current || !sessionIdentityMatches(sessionEpoch, sessionUserId)) return;
 
     const formData = new FormData();
     formData.append('avatar', resized, resized.type === 'image/webp' ? 'avatar.webp' : 'avatar.jpg');
@@ -470,7 +462,7 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       mountedRef.current
       && !controller.signal.aborted
       && requestId === uploadGenerationRef.current
-      && getToken() === sessionToken
+      && sessionIdentityMatches(sessionEpoch, sessionUserId)
     );
 
     try {
@@ -504,7 +496,7 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       if (requestId === uploadGenerationRef.current) {
         uploadPendingRef.current = false;
         uploadAbortRef.current = null;
-        if (mountedRef.current && getToken() === sessionToken) {
+        if (mountedRef.current && sessionIdentityMatches(sessionEpoch, sessionUserId)) {
           setAvatarUploading(false);
         }
       }
@@ -540,6 +532,18 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       />
 
       <ChangePasswordCard />
+      <section className="card" style={{ padding: 24, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>帳號安全</h2>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)' }}>若懷疑帳號被他人使用，可一次登出所有裝置。</p>
+        {logoutError && <p role="alert" className="auth-error auth-message">{logoutError}</p>}
+        <button type="button" className="btn-primary" style={{ padding: '12px 18px' }} disabled={logoutBusy} onClick={async () => {
+          if (!window.confirm('所有裝置（包含這台）都會登出')) return;
+          setLogoutBusy(true); setLogoutError('');
+          try { await logoutSession({ all: true }); }
+          catch (error) { if (error.code !== 'STALE_AUTH_RESPONSE') setLogoutError(error.message); }
+          finally { setLogoutBusy(false); }
+        }}>{logoutBusy ? '登出中…' : '登出所有裝置'}</button>
+      </section>
 
       {(role === 'student' || role === 'teacher') && (
         <div style={{ maxWidth: '100%' }}>

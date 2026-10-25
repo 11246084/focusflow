@@ -11,8 +11,12 @@
 | 問答品質評測 | [方法與題庫](QA_Evaluation/README.md)、[具日期的評測報告](QA_Evaluation/reports/) |
 | 分層檢索 | [設計與資料契約](Hierarchical_Retrieval/README.md) |
 | YouTube 上傳恢復與原片清理 | [設計決策](YouTube_Lifecycle/decisions.md)、[開發接手](YouTube_Lifecycle/HANDOFF.md)、[工作說明](YouTube_Lifecycle/work-orders/) |
+| 系統設定（後台調整模型、開關、門檻與學生額度） | [設計決策](System_Settings/decisions.md)、[資安審查證據](System_Settings/evidence/2026-10-21_security-review.md) |
 | recut 預覽與選段說明 | [體驗設計討論](Short_Video/decisions.md)、[產製設計決策](Short_Video/recut-design-decisions.md)、[評估素材](Short_Video/evidence/2026-10-21_recut-teacher-ux/heuristic-evaluation.md) |
 | httpOnly cookie 登入 | [設計決策（2026-10-24 全部定案）](HttpOnly_Cookie/decisions.md)；銜接系統設定的帳號驗證與撤銷機制 |
+| Jev 問題守門與 LINE 意圖分類 | [設計決策與待答題目](Jev_Judgment/decisions.md) |
+| LINE 帳號綁定 | [設計決策與待答題目](LINE_Binding/decisions.md)；回呼設計須等 cookie 方案定案 |
+| 學生端播放介面（章節、分段時間軸、回到目前播放位置） | [設計決策與待答題目](Student_Player_UX/decisions.md) |
 | 帳號、課程、影片、網頁與 LINE | [後端技術索引](../../backend/docs/current-state.md)、[網頁使用方式](../../frontend/focus-flow/README.md) |
 
 例：想知道短影片能否交付 → 讀狀態正本的短影片模組 → 再查該功能的規格與驗收證據；不能把規格中的目標當成驗收結果。

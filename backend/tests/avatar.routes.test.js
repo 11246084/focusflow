@@ -360,6 +360,7 @@ describe('auth avatar routes', () => {
       token: login.body.data.token,
     });
     const register = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'FocusFlow' },
       method: 'POST',
       body: {
         name: 'New Avatarless Student',

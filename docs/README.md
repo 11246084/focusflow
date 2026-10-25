@@ -38,7 +38,7 @@ docs/
 | [01 系統手冊](01_系統手冊/README.md) | 15 章 Markdown、交件成品、建置工具及審查修訂 |
 | [02 系統簡介](02_系統簡介/README.md) | 七節簡介、Word／PDF 與建置方式 |
 | [03 競賽](03_競賽/README.md) | 各場送件版、修訂稿、評審意見與空白表格 |
-| [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md)、[YouTube 恢復與清理](04_Features/YouTube_Lifecycle/decisions.md)、[recut 教師體驗評估素材](04_Features/Short_Video/evidence/README.md) |
+| [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md)、[YouTube 恢復與清理](04_Features/YouTube_Lifecycle/decisions.md)、[系統設定](04_Features/System_Settings/decisions.md)、[recut 教師體驗評估素材](04_Features/Short_Video/evidence/README.md) |
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
 | [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
@@ -48,11 +48,11 @@ docs/
 | [文件分類待遷移清單](md-audit.md) | 交件後分工與整理工作 |
 | [本次重整規格](90_Archive/docs-reorganization/docs-restructure-plan-2026-10-18.md) | 搬移對照與驗證要求，保留原文 |
 
-複評回放：[2026-10-22 報告與 QA 整理](01_系統手冊/審查與修訂/2026-10-22_複評回放/報告與QA整理.md)、[評審問答](01_系統手冊/審查與修訂/2026-10-22_複評回放/評審問答.md)、[時間戳逐字稿](01_系統手冊/審查與修訂/2026-10-22_複評回放/時間戳逐字稿.md)。
+複評回放：[2026-10-22 報告與 QA 整理](01_系統手冊/審查與修訂/2026-10-22_複評回放/報告與QA整理.md)、[評審問答](01_系統手冊/審查與修訂/2026-10-22_複評回放/評審問答.md)、[時間戳逐字稿](01_系統手冊/審查與修訂/2026-10-22_複評回放/時間戳逐字稿.md)、[後續處理總表](01_系統手冊/審查與修訂/2026-10-22_複評回放/後續處理總表.md)。
 
 ## 文件責任
 
-設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件保留已定案事項、待答題目與理由，供接續討論。
+設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 

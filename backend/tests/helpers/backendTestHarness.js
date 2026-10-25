@@ -48,6 +48,8 @@ const Message = require('../../src/models/message.model');
 const Feedback = require('../../src/models/feedback.model');
 const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
 const RuntimeSetting = require('../../src/models/runtimeSetting.model');
+const AuthSession = require('../../src/models/authSession.model');
+const AdminAuditLog = require('../../src/models/adminAuditLog.model');
 
 const uploadsDir = env.uploadDir;
 const TEST_UPLOAD_PREFIX = 'test-upload-';
@@ -55,6 +57,11 @@ const TEST_UPLOAD_PREFIX = 'test-upload-';
 // All model stubs read from and write to this shared in-memory store.
 const store = {
   users: [],
+  authSessions: [],
+  adminAuditLogs: [],
+  nextAuthSessionReadError: null,
+  nextAuthSessionWriteError: null,
+  nextAuthSessionDeleteError: null,
   avatars: [],
   courses: [],
   videos: [],
@@ -243,6 +250,7 @@ function matchesQuery(document, query = {}) {
     }
 
     const currentValue = getNested(document, key);
+    if (value == null) return currentValue == null;
 
     const isOperatorObject = value
       && typeof value === 'object'
@@ -284,6 +292,7 @@ function matchesQuery(document, query = {}) {
         const isDateComparison = !Number.isNaN(leftDate) && !Number.isNaN(rightDate);
         if (isDateComparison ? leftDate >= rightDate : normalizeValue(currentValue) >= normalizeValue(value.$lt)) return false;
       }
+      if ('$gt' in value && (currentValue == null || currentValue <= value.$gt)) return false;
 
       return true;
     }
@@ -385,6 +394,10 @@ function createQuery(initialValue, options = {}) {
 
       return this;
     },
+    skip(count) {
+      if (Array.isArray(state.value)) state.value = state.value.slice(count);
+      return this;
+    },
     lean() {
       // store 已是 plain JS objects，hydration 在這個 harness 是 no-op
       return this;
@@ -458,6 +471,12 @@ async function bulkWriteInStore(collection, operations = []) {
 }
 
 function installModelStubs() {
+  const fault = (key) => { if (store[key]) { const error = store[key]; store[key] = null; throw error; } };
+  AuthSession.create = async (payload) => { fault('nextAuthSessionWriteError'); store.authSessions.push({ ...payload }); return payload; };
+  AuthSession.findOne = async (query = {}) => { fault('nextAuthSessionReadError'); return store.authSessions.find((item) => matchesQuery(item, query)) || null; };
+  AuthSession.find = (query = {}) => { fault('nextAuthSessionReadError'); return createQuery(store.authSessions.filter((item) => matchesQuery(item, query))); };
+  AuthSession.deleteMany = async (query = {}) => { fault('nextAuthSessionDeleteError'); return deleteManyInStore(store.authSessions, query); };
+  AdminAuditLog.create = async (payload) => { store.adminAuditLogs.push({ ...payload }); return payload; };
   if (installModelStubs.installed) {
     return;
   }
@@ -479,7 +498,8 @@ function installModelStubs() {
 
   // Monkey-patch the mongoose models once so production services can run unchanged.
   User.findOne = async (query = {}) => store.users.find((item) => matchesQuery(item, query)) || null;
-  User.findById = async (id) => findUserById(id);
+  User.countDocuments = async (query = {}) => store.users.filter((item) => matchesQuery(item, query)).length;
+  User.findById = (id) => createQuery(findUserById(id));
   User.find = (query = {}) => createQuery(store.users.filter((item) => matchesQuery(item, query)));
   User.create = async (payload) => {
     if (store.nextUserCreateError) {
@@ -1243,6 +1263,12 @@ function installModelStubs() {
 }
 
 function resetStore() {
+  store.authSessions.length = 0;
+  store.adminAuditLogs.length = 0;
+  store.nextAuthSessionReadError = null;
+  store.nextAuthSessionWriteError = null;
+  store.nextAuthSessionDeleteError = null;
+  require('../../src/services/stepUp.service').throttle.reset();
   // Rehydrate the baseline fixtures before each test to keep suites isolated.
   resetLoginThrottleForTests();
   cleanupTestAvatars();
@@ -1472,6 +1498,8 @@ function resetStore() {
     keyPoints: ['JWT auth', 'RBAC'],
     hitCount: 0,
   });
+  // Baseline fixtures represent accounts that already completed first login.
+  for (const user of store.users) { user.mustChangePassword = false; user.tokenVersion = 0; }
 }
 
 async function startServer() {
@@ -1518,7 +1546,7 @@ async function jsonRequest(baseUrl, pathname, { method = 'GET', token, body, hea
   return {
     response,
     status: response.status,
-    body: await response.json(),
+    body: await response.json().catch(() => null),
   };
 }
 
@@ -1551,7 +1579,7 @@ async function postLineWebhook(baseUrl, payload, headers = {}) {
   return {
     response,
     status: response.status,
-    body: await response.json(),
+    body: await response.json().catch(() => null),
     rawBody,
   };
 }

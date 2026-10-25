@@ -63,9 +63,9 @@ describe('ShortAsset review API contract', () => {
 
     assert.deepEqual(list, { items: [{ id: 'asset-1', generationVersion: 3 }] });
     assert.deepEqual(detail, { id: 'asset/1', generationVersion: 4 });
-    assert.equal(calls[0][0], 'http://localhost:4000/api/v1/shorts?reviewStatus=pending&limit=12');
-    assert.equal(calls[1][0], 'http://localhost:4000/api/v1/shorts/asset%2F1');
-    assert.equal(calls[0][1].headers.Authorization, 'Bearer teacher-token');
+    assert.equal(calls[0][0], '/api/v1/shorts?reviewStatus=pending&limit=12');
+    assert.equal(calls[1][0], '/api/v1/shorts/asset%2F1');
+    assert.equal(calls[0][1].headers.Authorization, undefined);
   });
 
   it('submits shortAssetId, decision, reasons, and expectedGenerationVersion', async () => {
@@ -91,10 +91,10 @@ describe('ShortAsset review API contract', () => {
 
     assert.equal(calls.length, 1);
     const [url, options] = calls[0];
-    assert.equal(url, 'http://localhost:4000/api/v1/shorts/short-123/review');
+    assert.equal(url, '/api/v1/shorts/short-123/review');
     assert.equal(options.method, 'POST');
     assert.equal(options.headers['Content-Type'], 'application/json');
-    assert.equal(options.headers.Authorization, 'Bearer teacher-token');
+    assert.equal(options.headers.Authorization, undefined);
     assert.deepEqual(JSON.parse(options.body), {
       status: 'rejected',
       expectedGenerationVersion: 7,

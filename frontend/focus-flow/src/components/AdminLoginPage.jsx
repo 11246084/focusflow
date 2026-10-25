@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { apiFetch, setToken, setUser } from '../api';
+import { apiFetch, acceptAuthUser, advanceAuthEpoch, setPendingFlowActive } from '../api';
+import PendingVerification from './PendingVerification';
 
 function Sparkle({ x, y, s = 1, op = 0.3 }) {
   return (
@@ -16,20 +17,23 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(null);
   const [error, setError] = useState('');
 
   const go = async () => {
     if (!email || !pw) { setError('請輸入 Email 與密碼'); return; }
+    if (loading) return;
+    advanceAuthEpoch();
     setLoading(true);
     setError('');
     try {
-      const res = await apiFetch('/auth/login', {
+      const res = await apiFetch('/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pw, role: 'admin' }),
       });
-      setToken(res.data.token);
-      setUser(res.data.user);
+      if (res.data.requiresVerification) { setPendingFlowActive(true); setPending(res.data); setPw(''); return; }
+      acceptAuthUser(res.data.user, { announce: true });
       onLogin(res.data.user);
     } catch (e) {
       setError(
@@ -41,6 +45,8 @@ export default function AdminLoginPage({ onLogin, error: externalError }) {
       setLoading(false);
     }
   };
+
+  if (pending) return <PendingVerification initialFlow={pending} allowTrust onCancel={() => setPending(null)} onDone={(user) => { acceptAuthUser(user, { announce: true }); onLogin(user); }} />;
 
   const shownError = error || externalError;
 

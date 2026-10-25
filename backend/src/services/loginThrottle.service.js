@@ -101,6 +101,32 @@ function resetLoginThrottleForTests() {
 }
 
 module.exports = {
+  // A separate instance gives step-up its own fixed policy and key space.
+  createLoginThrottle() {
+    const failures = new Map();
+    return {
+      assertAllowed(key, now = Date.now()) {
+        if ((failures.get(key)?.until || 0) > now) {
+          const error = buildLockedError(failures.get(key).until, now);
+          error.publicDetails.lockMinutes = 15; throw error;
+        }
+      },
+      fail(key, now = Date.now()) {
+        const entry = failures.get(key) || { times: [], until: 0 };
+        entry.times = entry.times.filter((time) => time > now - 900000);
+        entry.times.push(now);
+        if (entry.times.length >= 5) { entry.until = now + 900000; entry.times = []; }
+        failures.set(key, entry);
+        if (entry.until > now) {
+          const error = buildLockedError(entry.until, now);
+          error.publicDetails.lockMinutes = 15; return error;
+        }
+        return new AppError('Current password is incorrect.', 401, 'STEP_UP_PASSWORD_INCORRECT');
+      },
+      success(key) { failures.delete(key); },
+      reset() { failures.clear(); },
+    };
+  },
   assertLoginAllowed,
   buildLoginFailureError,
   recordLoginFailure,

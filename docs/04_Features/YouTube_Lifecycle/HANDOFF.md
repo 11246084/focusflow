@@ -4,6 +4,8 @@
 
 最後更新：2026-10-22
 
+獨立審查：[2026-10-25 Codex 審查報告](evidence/2026-10-25_codex-review.md)。包含決策第 1～34 條的問題、已確認項目、重現結果與測試限制；修正與後續驗收請先參照此報告。
+
 ## 必守規則
 
 - **作者只有 Weihao**：本機 Git 身分 `Weihao <11246062@ntub.edu.tw>`；不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等任何 AI 署名。

@@ -6,16 +6,16 @@
 
 ## 各模組
 
-**httpOnly cookie 認證｜已實作，本機驗證通過；未正式驗收。** 2026-10-24～25 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查及修正後複核。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋。2026-10-25 依使用者補充定案完成升權撤銷：學生／教師實際升為 admin 時，同次更新角色與版本、撤銷全部憑證；重新登入並通過信箱兩段式驗證，才取得 12 小時新 session。原 admin 僅編輯姓名不撤銷，session 刪除故障也不放行舊憑證。原審查 findings 已全部處理，本輪完整後端測試通過。
+**httpOnly cookie 認證｜已部署；2026-10-25 正式環境驗收通過。** 2026-10-25 13:13 部署到正式站（`main` = `d3de1ef`），部署探測與瀏覽器驗收通過，過程、Atlas 寫入與 VM 設定見[上線紀錄](10_Operations/deployment/2026-10-25_httpOnly_cookie認證上線紀錄.md)；正式站未測 step-up 與信任裝置，nginx 未轉送 `/uploads` 為既有問題。2026-10-24～25 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查及修正後複核。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋。2026-10-25 依使用者補充定案完成升權撤銷：學生／教師實際升為 admin 時，同次更新角色與版本、撤銷全部憑證；重新登入並通過信箱兩段式驗證，才取得 12 小時新 session。原 admin 僅編輯姓名不撤銷，session 刪除故障也不放行舊憑證。原審查 findings 已全部處理，本輪完整後端測試通過。
 
-| 驗證範圍 | 2026-10-24～25 本機結果 |
+| 驗證範圍 | 結果（本機 2026-10-24～25；正式環境另註日期） |
 |---|---|
 | Backend | 全套 1,154／1,154 通過；OpenAPI lint 通過，docs route 11 項通過。含 CSRF、Node fetch 分流、資料庫故障拒絕、撤銷、升權重登／MFA／12 小時效期與 GET 例外盤點 |
 | 隔離 Mongo | 11／11 通過：索引重跑與衝突、真實 TTL、80 次並行簽發、單次驗證消耗、重寄計數與競態、原子版本遞增、最後一位 admin 保護，以及學生／教師升 admin 的舊憑證撤銷與新 12 小時 session；未連 Atlas |
 | Frontend／workflow | 116／116、lint、相對 API 設定的 build 通過；deploy.yml 的 YAML、3 段 Node、21 段 Bash 語法通過；相同 dist 掃描通過（29 檔），在服務重啟前執行。原有非相對 API 環境設定會被 build guard 拒絕；未改本機 .env |
 | 本機 Chromium＋Vite proxy | cookie 屬性、同來源 Network、重新整理、登入登出、全裝置登出、多分頁換帳號、admin 兩段式驗證與信任裝置、首次登入、註冊信箱驗證、step-up、影片上傳與 /uploads 讀取、頭像、回饋附件、跨來源表單 403、網路故障後重試通過；2026-10-25 另驗證升權後目標舊登入遭拒、畫面清除、操作人維持登入，目標重新 MFA 後取得 12 小時 cookie。使用記憶體資料與假寄信，影片只驗證上傳／讀取，未做 STT |
 | 原有腳本 | runQaEval 用 mock／template 跑 1 題、0 錯誤；verifyShortsDeployment 經 fetch 登入通過，允許空 feed 且不查 YouTube；未呼叫付費服務 |
-| 正式環境 | 第 15 項第 6 層未執行：LINE 內建瀏覽器、Email／跨站轉址、真實寄信、nginx 與部署探測仍待使用者部署後驗收。未寫入 Atlas、修改 VM、部署或 push |
+| 正式環境（2026-10-25） | 第 15 項第 6 層通過：真實寄信、admin 首次登入與兩段式驗證、教師與學生首次登入、cookie 屬性、同來源 Network、多分頁與全裝置登出、頭像與回饋附件、LINE 內建瀏覽器與 Email 連結進站恢復登入、部署探測（舊 JWT 拒收、登出即失效）。step-up 與信任裝置未在正式站測 |
 
 **帳號、課程與管理功能｜已實作。** 範圍含登入、修課、通知、頭貼、統計及問題回報；依據：[路由入口](../backend/src/routes/index.js)、[帳號介面](../backend/src/routes/auth.routes.js)、[課程權限](../backend/src/services/courseAccess.service.js)。最後驗證：2026-10-14；負責人：＿＿（待填）。
 

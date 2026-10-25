@@ -4,7 +4,7 @@
 
 ## 安裝與啟動
 
-[套件鎖定檔](package-lock.json)中的 Vite（前端開發與打包工具）要求 Node.js 20.x 至少 20.19.0，或 22.12.0 以上。從 repo 根目錄執行：
+使用 Node.js 22.23.4 以上；[套件鎖定檔](package-lock.json)中的 Vite（前端開發與打包工具）只要求 20.19.0 或 22.12.0 以上，團隊統一版本的理由見[根 README 環境需求](../../README.md#環境需求)。從 repo 根目錄執行：
 
 ```powershell
 cd frontend\focus-flow

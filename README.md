@@ -4,7 +4,9 @@ FocusFlow 是教學影片問答系統，讓學生從課程影片取得回答與�
 
 ## 環境需求
 
-- Node.js 20.x（至少 20.19.0）或 22.12.0 以上、npm 10 以上；依據為[前端鎖定檔](frontend/focus-flow/package-lock.json)的 Vite 與[後端鎖定檔](backend/package-lock.json)的 Redocly 套件需求。
+- Node.js 22.23.4 以上的 22 版（團隊與正式站統一使用），或 24.22.1 以上的 24 版；npm 10 以上。套件本身只要求 20.19.0／22.12.0 以上（見[前端鎖定檔](frontend/focus-flow/package-lock.json)的 Vite 與[後端鎖定檔](backend/package-lock.json)的 Redocly），但 Node.js 20 已於 2026-04-30 停止支援，22.23.4 是 2026-10 的安全修補版，原因見 [VM 資安檢查報告](docs/10_Operations/deployment/2026-10-23_VM資安檢查報告.md)。正式站 VM 已在 2026-10-23 升到同一版本。
+
+  檢查方式：輸入 `node -v`，顯示 `v22.23.4` 或更新的 22 版即可；顯示 `v22.23.2` 這類較舊版本時，Windows 用 winget 安裝者執行 `winget upgrade --id OpenJS.NodeJS.22 --exact`，用 nvm 安裝者執行 `nvm install 22.23.4`，再重開終端機確認。
 - 後端需要 MongoDB 資料庫；開發請指定自己的本機資料庫。
 - 影片處理需要 Python 與 FFmpeg（影音處理工具），安裝方式見 [Pipeline README](STT_Whisper/README.md)。Pipeline 是把影片依序轉成逐字稿與搜尋資料的處理流程。
 

@@ -4,7 +4,7 @@
 
 ## 安裝與設定
 
-使用 Node.js 20.x（至少 20.19.0）或 22.12.0 以上、npm 10 以上；需求依據見[鎖定檔](package-lock.json)。從 repo 根目錄執行：
+使用 Node.js 22.23.4 以上、npm 10 以上；版本理由與檢查方式見[根 README 環境需求](../README.md#環境需求)。從 repo 根目錄執行：
 
 ```powershell
 cd backend

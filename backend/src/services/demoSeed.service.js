@@ -162,6 +162,10 @@ async function seedDemoUsers({ silent = false } = {}) {
           passwordHash,
           role: demoUser.role,
           isActive: true,
+          // Demo passwords are public in this repo, so forcing first_login adds
+          // nothing and blocks local logins without SMTP (cookie decision #21).
+          mustChangePassword: false,
+          emailVerifiedAt: new Date(),
           lineUserId: demoUser.lineUserId,
           lineBindAt: null,
           activeCourseId: null,

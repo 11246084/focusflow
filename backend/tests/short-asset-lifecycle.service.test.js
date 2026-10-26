@@ -307,7 +307,10 @@ describe('短片成品的清理候選（#28、#30）', () => {
     const lowSpace = addUploadedAsset({ uploadedDaysAgo: 90, sizeBytes: 3000 });
     addUploadedAsset({ uploadedDaysAgo: 60, sizeBytes: 3000 });
     addUploadedAsset({ status: 'draft', uploadedDaysAgo: 365, sizeBytes: 3000 });
-    const getFreeBytes = async () => 10 * GB - 5000;
+    const diskFiles = store.shortAssets.filter((item) => item.filePath && fs.existsSync(item.filePath))
+      .map((item) => ({ path: item.filePath, size: fs.statSync(item.filePath).size }));
+    const getFreeBytes = async () => 10 * GB - 5000
+      + diskFiles.filter((file) => !fs.existsSync(file.path)).reduce((sum, file) => sum + file.size, 0);
 
     const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });
     setCleanupSwitch(true);

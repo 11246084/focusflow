@@ -353,6 +353,8 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 - 影片或短片被隔離、或最後一次可安全重試的失敗達到上限時，通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
 - 課程影片清單與 `GET /admin/videos` 的每支影片附 `sourceAvailable`；前端只有在 `sourceAvailable=false` 且有 `youtubeUpload.localCleanupAt` 時才視為原片已清理並提供補回。
 - 系統狀態 `/admin/system-status` 另有 `youtube_lifecycle` 列，顯示待處理與 7 天內到期刪除的數量。
+- 清理預告是查詢當下的估算。預告與實刪共用 Video／ShortAsset 的實體檔案引用檢查；相對路徑以 backend 根目錄解析，根外、根目錄本身與經 symlink／junction 的來源拒絕清理。任何草稿、處理中或其他引用都會保護同檔來源。
+- 每支低空間候選在刪除前重新讀取可用空間，未知或已達門檻即略過；超最長保留期仍獨立處理。每次 unlink 前重查清理開關，停用或設定讀取失敗即停止。刪檔成功但資料庫收尾失敗時，下輪以缺檔狀態補寫，不重複計算釋放量。
 
 權限與隱私限制：
 

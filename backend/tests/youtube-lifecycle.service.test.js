@@ -591,7 +591,10 @@ describe('youtubeLifecycle.service 原片清理', () => {
     makeUploadedVideo({ name: 'p2.mp4', uploadedDaysAgo: 90, sizeBytes: 3000 });
     makeUploadedVideo({ name: 'p3.mp4', uploadedDaysAgo: 60, sizeBytes: 3000 });
     makeUploadedVideo({ name: 'p4.mp4', uploadedDaysAgo: 3, sizeBytes: 3000 });
-    const getFreeBytes = async () => 10 * GB - 5000;
+    const diskFiles = store.videos.filter((item) => item.filePath && fs.existsSync(item.filePath))
+      .map((item) => ({ path: item.filePath, size: fs.statSync(item.filePath).size }));
+    const getFreeBytes = async () => 10 * GB - 5000
+      + diskFiles.filter((file) => !fs.existsSync(file.path)).reduce((sum, file) => sum + file.size, 0);
     const originalPaths = new Map(store.videos.map((video) => [String(video._id), video.filePath]));
 
     const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });

@@ -1,5 +1,7 @@
 const { createReadStream, existsSync, statSync, unlinkSync } = require('fs');
 const path = require('path');
+const { resolveLocalUploadPath } = require('../utils/localVideoSource');
+const { inspectCleanupSource, deleteCleanupSource } = require('./localSourceCleanup.service');
 const env = require('../config/env');
 const Video = require('../models/video.model');
 const {
@@ -84,11 +86,6 @@ function tagRetrySafety(error, retrySafe) {
   return error;
 }
 
-function resolveLocalUploadPath(filePath) {
-  return path.isAbsolute(filePath || '')
-    ? path.resolve(filePath)
-    : path.resolve(env.projectRoot, filePath || '');
-}
 
 function isPathInside(parentPath, candidatePath) {
   const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
@@ -350,13 +347,13 @@ async function uploadVideoFileToYouTube({ filePath, title, description = '' }, f
 
 // 刪除單支影片的本機原片。只檢查安全條件（#4），不判斷保留期與空間；
 // 誰該被刪由 youtubeLifecycle.service 的候選函式決定，排程才呼叫這裡。
-async function cleanupUploadedLocalVideo(videoId) {
+async function cleanupUploadedLocalVideo(videoId, options = {}) {
   // 每次刪檔前重新確認兩層開關（#14）：管理員中途關閉時，剩下的不再刪。
   if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
     return { cleaned: false, reason: 'disabled' };
   }
 
-  const video = await Video.findById(videoId);
+  const video = await Video.findById(videoId).lean();
   if (!video) return { cleaned: false, reason: 'video_not_found' };
   if (
     !video.youtubeVideoId
@@ -367,18 +364,13 @@ async function cleanupUploadedLocalVideo(videoId) {
   }
   if (!video.filePath) return { cleaned: false, reason: 'already_cleaned' };
 
-  const localPath = resolveLocalUploadPath(video.filePath);
-  if (!isPathInside(env.uploadDir, localPath) || localPath === path.resolve(env.uploadDir)) {
-    const message = 'Refusing to clean a video path outside UPLOAD_DIR.';
+  const source = await inspectCleanupSource('video', video);
+  if (source.reason) {
+    const message = source.reason === 'unsafe_path'
+      ? 'Refusing to clean a video path outside UPLOAD_DIR or through a link.'
+      : 'Refusing to clean a local file referenced by another Video or ShortAsset, or whose references cannot be verified.';
     await Video.findByIdAndUpdate(videoId, { $set: { 'youtubeUpload.localCleanupError': message } });
-    return { cleaned: false, reason: 'unsafe_path' };
-  }
-
-  const sharedReference = await Video.findOne({ _id: { $ne: video._id }, filePath: video.filePath });
-  if (sharedReference) {
-    const message = 'Refusing to clean a local file referenced by another Video.';
-    await Video.findByIdAndUpdate(videoId, { $set: { 'youtubeUpload.localCleanupError': message } });
-    return { cleaned: false, reason: 'shared_reference' };
+    return { cleaned: false, reason: source.reason };
   }
 
   credentialState.lastCleanupAttemptAt = nowIso();
@@ -395,26 +387,29 @@ async function cleanupUploadedLocalVideo(videoId) {
     },
   });
 
+  const deletion = await deleteCleanupSource(source.file, options);
+  if (!deletion.cleaned) {
+    if (deletion.reason === 'delete_failed') {
+      credentialState.lastCleanupError = 'Local file deletion failed; source retained for retry.';
+      await Video.findByIdAndUpdate(videoId, { $set: { 'youtubeUpload.localCleanupError': credentialState.lastCleanupError } });
+    }
+    return { cleaned: false, reason: deletion.reason };
+  }
+  const cleanedAt = new Date();
   try {
-    if (existsSync(localPath)) unlinkSync(localPath);
-    const cleanedAt = new Date();
-    await Video.findByIdAndUpdate(videoId, {
-      $set: {
-        filePath: null,
-        'youtubeUpload.localCleanupAt': cleanedAt,
-        'youtubeUpload.localCleanupError': null,
-      },
-    });
+    await Video.findByIdAndUpdate(videoId, { $set: {
+      filePath: null,
+      'youtubeUpload.localCleanupAt': cleanedAt,
+      'youtubeUpload.localCleanupError': null,
+    } });
     credentialState.lastCleanupSuccessAt = cleanedAt.toISOString();
     credentialState.lastCleanupError = null;
+    if (!deletion.existed) return { cleaned: false, reason: 'already_missing' };
     return { cleaned: true, reason: null };
-  } catch (error) {
-    const message = shortErrorMessage(error);
-    credentialState.lastCleanupError = message;
-    await Video.findByIdAndUpdate(videoId, {
-      $set: { 'youtubeUpload.localCleanupError': message },
-    });
-    return { cleaned: false, reason: 'delete_failed' };
+  } catch {
+    // 下一輪會看見缺檔，重試收尾；不能把已成功 unlink 誤報成刪檔失敗。
+    credentialState.lastCleanupError = 'Local file removed; database finalization must be retried.';
+    return { cleaned: true, reason: 'state_write_failed', freedBytes: deletion.freedBytes };
   }
 }
 

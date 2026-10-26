@@ -1,13 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const env = require('../config/env');
+const { inspectCleanupSource, loadLocalFileReferences, deleteCleanupSource } = require('./localSourceCleanup.service');
 const ShortAsset = require('../models/shortAsset.model');
-const Video = require('../models/video.model');
 const {
   SHORT_ASSET_STATUSES,
   YOUTUBE_UPLOAD_STATUSES,
 } = require('../constants/enums');
-const { isPathInside, resolveLocalUploadPath } = require('./youtubeUpload.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
   isYouTubeLifecycleSwitchEnabled,
@@ -28,10 +24,6 @@ const CLEANABLE_SHORT_ASSET_STATUSES = Object.freeze([
   SHORT_ASSET_STATUSES.ARCHIVED,
 ]);
 
-function shortErrorMessage(error) {
-  return String(error?.message || error || 'Unknown error').slice(0, 300);
-}
-
 function toValidTime(value) {
   if (!value) return null;
   const time = new Date(value).getTime();
@@ -50,32 +42,6 @@ function isCleanableShortAsset(asset) {
   );
 }
 
-function isSafeUploadPath(localPath) {
-  const uploadRoot = path.resolve(env.uploadDir);
-  return isPathInside(uploadRoot, localPath) && localPath !== uploadRoot;
-}
-
-// 同一個 filePath 被幾筆成品與影片引用。清理後的成品仍保留 filePath，所以照樣計入。
-async function countFileReferences(filePaths) {
-  const [assets, videos] = await Promise.all([
-    ShortAsset.find({ filePath: { $in: filePaths } }).select('_id filePath').lean(),
-    Video.find({ filePath: { $in: filePaths } }).select('_id filePath').lean(),
-  ]);
-  const counts = new Map();
-  for (const reference of [...assets, ...videos]) {
-    counts.set(reference.filePath, (counts.get(reference.filePath) || 0) + 1);
-  }
-  return counts;
-}
-
-function readFileSize(localPath) {
-  try {
-    return fs.statSync(localPath).size;
-  } catch {
-    return 0;
-  }
-}
-
 // CLEANUP_SOURCES.short_asset.listEntries：只列出符合短片安全條件的成品，
 // 保留期從 YouTube 上傳完成起算（#30）。
 async function listShortAssetCleanupEntries() {
@@ -85,24 +51,24 @@ async function listShortAssetCleanupEntries() {
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     filePath: { $exists: true, $nin: [null, ''] },
   })
-    .select('_id title courseId filePath status youtubeVideoId youtubeUpload')
+    .select('_id title courseId filePath status generationVersion youtubeVideoId youtubeUpload')
     .lean();
   const cleanable = assets.filter(isCleanableShortAsset);
   if (!cleanable.length) return [];
 
-  const referenceCounts = await countFileReferences([...new Set(cleanable.map((asset) => asset.filePath))]);
+  const references = await loadLocalFileReferences();
   const entries = [];
   for (const asset of cleanable) {
-    const localPath = resolveLocalUploadPath(asset.filePath);
-    if (!isSafeUploadPath(localPath)) continue;
-    if ((referenceCounts.get(asset.filePath) || 0) > 1) continue;
+    const source = await inspectCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset, references);
+    if (source.reason) continue;
 
     entries.push({
       kind: SHORT_ASSET_CLEANUP_KIND,
       id: String(asset._id),
       title: asset.title || '',
       courseId: asset.courseId ? String(asset.courseId?._id || asset.courseId) : null,
-      sizeBytes: readFileSize(localPath),
+      sizeBytes: source.file.sizeBytes,
+      sourceSnapshot: source.snapshot,
       retentionStartTime: toValidTime(asset.youtubeUpload.uploadedAt),
     });
   }
@@ -115,7 +81,7 @@ async function recordCleanupError(assetId, message) {
 
 // CLEANUP_SOURCES.short_asset.cleanup：刪檔前重新確認開關（#14）與每一項安全條件。
 // 成功後 filePath 保留不清空，改記 localCleanupAt（#31）。
-async function cleanupShortAssetLocalFile(assetId) {
+async function cleanupShortAssetLocalFile(assetId, options = {}) {
   if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
     return { cleaned: false, reason: 'disabled' };
   }
@@ -125,33 +91,27 @@ async function cleanupShortAssetLocalFile(assetId) {
   if (asset.youtubeUpload?.localCleanupAt) return { cleaned: false, reason: 'already_cleaned' };
   if (!isCleanableShortAsset(asset)) return { cleaned: false, reason: 'lifecycle_not_complete' };
 
-  const localPath = resolveLocalUploadPath(asset.filePath);
-  if (!isSafeUploadPath(localPath)) {
-    await recordCleanupError(assetId, 'Refusing to clean a short asset path outside UPLOAD_DIR.');
-    return { cleaned: false, reason: 'unsafe_path' };
+  const source = await inspectCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset);
+  if (source.reason) {
+    await recordCleanupError(assetId, source.reason === 'shared_reference'
+      ? 'Refusing to clean a local file referenced by another short asset or video.'
+      : `Refusing cleanup: ${source.reason}.`);
+    return { cleaned: false, reason: source.reason };
   }
-
-  const [otherAssets, videos] = await Promise.all([
-    ShortAsset.find({ _id: { $ne: asset._id }, filePath: asset.filePath }).select('_id').lean(),
-    Video.find({ filePath: asset.filePath }).select('_id').lean(),
-  ]);
-  if (otherAssets.length || videos.length) {
-    await recordCleanupError(assetId, 'Refusing to clean a local file referenced by another short asset or video.');
-    return { cleaned: false, reason: 'shared_reference' };
+  const deletion = await deleteCleanupSource(source.file, options);
+  if (!deletion.cleaned) {
+    if (deletion.reason === 'delete_failed') await recordCleanupError(assetId, 'Local file deletion failed; source retained for retry.');
+    return { cleaned: false, reason: deletion.reason };
   }
-
   try {
-    if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
-    await ShortAsset.findByIdAndUpdate(assetId, {
-      $set: {
-        'youtubeUpload.localCleanupAt': new Date(),
-        'youtubeUpload.localCleanupError': null,
-      },
-    });
+    await ShortAsset.findByIdAndUpdate(assetId, { $set: {
+      'youtubeUpload.localCleanupAt': new Date(),
+      'youtubeUpload.localCleanupError': null,
+    } });
+    if (!deletion.existed) return { cleaned: false, reason: 'already_missing' };
     return { cleaned: true, reason: null };
-  } catch (error) {
-    await recordCleanupError(assetId, shortErrorMessage(error));
-    return { cleaned: false, reason: 'delete_failed' };
+  } catch {
+    return { cleaned: true, reason: 'state_write_failed', freedBytes: deletion.freedBytes };
   }
 }
 

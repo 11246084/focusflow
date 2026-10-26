@@ -200,3 +200,15 @@
 - 實際上傳、改隱私或刪除 YouTube 影片都會動到外部帳號，每次執行前需使用者明確授權。
 - 清理會刪除伺服器檔案，無法復原；正式環境開啟前需確認備份或可從 YouTube 取回。
 - 不公開（unlisted）影片只要知道連結就能看，課程權限擋不住轉貼，見[後端注意事項](../../../backend/docs/handoff-known-issues.md)。
+
+## F 工單的實作約束（2026-10-26）
+
+以下是 F0～F2 採用的技術方案，沿用第 1～34 條，沒有加入每日額度方案。修正進度與驗證結果只見[目前狀態](../../current-status.md)。
+
+- **單一寫入行程**：採 [F 工單](work-orders/F-review-fixes.md)允許的單行程互斥方案，沿用 #11 的部署前提。來源、短片狀態、實體檔案與 YouTube ID 的鎖共用 [youtubeWorkOwnership.service.js](../../../backend/src/services/youtubeWorkOwnership.service.js)，在第一個 await 前佔用並於 finally 釋放。不得同時由多個 backend、cluster worker 或外部寫入工具改動這些來源／備份欄位；擴為多台前須改用共用所有權儲存。repo 的部署指令只顯示 `pm2 restart focusflow-backend`，不證明現場實際 instance 數；部署前需另行查證，本輪沒有讀 VM。
+- **上傳所有權**：Video／ShortAsset 的 `youtubeUpload.attemptId` 是每次佔用產生的 UUID。重試的同一次條件更新核對 failed、安全、未達上限、已到期及觀察到的來源／attempt 版本；成功與失敗都只接受本次 attempt 回寫。重啟後遺留的 uploading 仍依 #3 隔離，不因 token 存在就重傳；進行中的工作不因開關關閉而中斷。
+- **來源版本**：兩個 model 的 `youtubeUpload.localSourceVersion` 是來源操作成功佔用時換新的 UUID，用來拒絕舊候選與過期收尾，不是要等待到期的持久鎖。清理核對候選的 filePath、上傳／補回時間、狀態、短片代數、來源版本與實體檔案身份；補回、既有 failed 重處理及短片建立／換代共用來源與檔案鎖。短片審核、封存及回復另共用狀態鎖，避免在刪檔前最後一次設定等待中轉回草稿；狀態鎖與上傳分開，保留上傳中仍可審核的行為，封存後完成上傳也不重新上架。
+- **舊資料相容**：上述兩個欄位都可缺省，schema 預設 null；lean 讀取保留舊資料的缺欄位，條件更新區分缺欄位與明確 null。初次上傳或略過上傳遇到 youtubeUpload 為 null／缺欄位時，一次建立完整狀態，避免 Mongo 無法對 null parent 寫子欄位。不新增 collection、index 或批次遷移，不對 Video 的 YouTube ID 加 unique index。匯入的 Video URL 仍可跨課程共用；系統上傳的備份不能被另一筆上傳內容佔用。發現舊資料重複佔用備份時，預告與清理拒絕刪原片，交由管理員確認，沒有自動修正 Shared Atlas。
+- **失敗恢復**：不能確認 DB 所有權／引用時不傳送影片或刪檔。驗證、佔用或回寫失敗會釋放行程鎖；來源版本可在下一次成功條件更新時換新，不會永久卡住。unlink 失敗保留來源並維持 YouTube 播放；unlink 成功但 DB 收尾失敗會回報 `state_write_failed`，下輪以缺檔補寫清理狀態，不再計入刪除數量／釋放容量。遭拒的上傳檔案只有在 DB 確認無引用且沒有其他工作持有檔案鎖時才移除，否則保留待確認。
+
+F3 的 completed 影片重新處理入口接續同一套來源所有權；本節沒有新增該狀態轉移或教師操作。

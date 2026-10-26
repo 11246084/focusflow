@@ -28,11 +28,11 @@ describe('YouTube 清理的檔案身份與刪除控制 F1', () => {
     Object.assign(env, { uploadDir: root, youtubeUploadCleanupEnabled: true, youtubeUploadCleanupMinAgeDays: 14, youtubeUploadCleanupMaxAgeDays: 180, youtubeUploadCleanupMinFreeGb: 1 });
     store.videos = []; store.shortAssets = [];
     store.runtimeSettings.push({ key: 'youtubeLifecycle.cleanup', value: true });
-    originals = { videoFind: Video.find, assetFind: ShortAsset.find, settingsFind: RuntimeSetting.findOne, update: Video.findByIdAndUpdate, unlink: fs.unlinkSync, cleanup: lifecycle.CLEANUP_SOURCES.video.cleanup };
+    originals = { videoFind: Video.find, assetFind: ShortAsset.find, settingsFind: RuntimeSetting.findOne, update: Video.findByIdAndUpdate, cas: Video.findOneAndUpdate, unlink: fs.unlinkSync, cleanup: lifecycle.CLEANUP_SOURCES.video.cleanup };
   });
   afterEach(() => {
     Video.find = originals.videoFind; ShortAsset.find = originals.assetFind; RuntimeSetting.findOne = originals.settingsFind;
-    Video.findByIdAndUpdate = originals.update; fs.unlinkSync = originals.unlink;
+    Video.findByIdAndUpdate = originals.update; Video.findOneAndUpdate = originals.cas; fs.unlinkSync = originals.unlink;
     lifecycle.CLEANUP_SOURCES.video.cleanup = originals.cleanup;
     Object.assign(env, saved);
     fs.rmSync(root, { recursive: true, force: true });
@@ -141,12 +141,14 @@ describe('YouTube 清理的檔案身份與刪除控制 F1', () => {
   it('unlink 成功但 DB 收尾失敗可於下一輪補寫，釋放量只計算一次', async () => {
     const item = add('video'); const originalPath = item.filePath;
     let fail = true;
-    Video.findByIdAndUpdate = (...args) => {
+    Video.findOneAndUpdate = (...args) => {
       if (fail && args[1].$set?.filePath === null) { fail = false; throw new Error('injected finalization failure'); }
-      return originals.update(...args);
+      return originals.cas(...args);
     };
     const first = await lifecycle.runYouTubeCleanup({ now: NOW, getFreeBytes: async () => 10 * GB });
     assert.equal(first.cleaned, 1); assert.equal(first.freedBytes, 7);
+    assert.equal(first.results[0].skipReason, 'state_write_failed');
+    assert.match(lifecycle.getYouTubeCleanupSchedulerState().lastError, /finalization must be retried/);
     assert.ok(!fs.existsSync(originalPath)); assert.equal(item.filePath, originalPath);
     const retry = await lifecycle.runYouTubeCleanup({ now: NOW, getFreeBytes: async () => 10 * GB });
     assert.equal(retry.cleaned, 0); assert.equal(retry.freedBytes, 0);

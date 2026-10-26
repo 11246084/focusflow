@@ -240,7 +240,11 @@ function buildCourseBridgePresentation(course, scopedVideos) {
 }
 
 function buildVideoBridgePresentation(video, summary = {}, { courseId } = {}) {
-  const plainVideo = toPlainObject(video);
+  const plainVideo = { ...toPlainObject(video) };
+  if (plainVideo.youtubeUpload) {
+    const { attemptId, localSourceVersion, ...publicUpload } = plainVideo.youtubeUpload;
+    plainVideo.youtubeUpload = publicUpload;
+  }
   const externalVideoId = normalizeIdentifier(plainVideo.videoId, plainVideo.video_id);
   const durationSec = normalizeNumber(plainVideo.durationSec, plainVideo.duration_sec);
   const fileName = normalizeTranscript(plainVideo.fileName, plainVideo.file_name);

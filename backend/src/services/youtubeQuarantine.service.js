@@ -1,3 +1,4 @@
+const { isBackupUnassigned, observedFields, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const Course = require('../models/course.model');
 const ShortAsset = require('../models/shortAsset.model');
@@ -374,12 +375,7 @@ function normalizeYouTubeVideoId(value) {
 // 同一支 YouTube 影片不能同時是兩個 FocusFlow 上傳項目的播放來源，
 // 否則清理其中一支的原片時，另一支的原片其實沒有 YouTube 備份。
 async function assertYouTubeVideoIdUnused(youtubeVideoId) {
-  const [videos, assets] = await Promise.all([
-    Video.find({ youtubeVideoId, 'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED })
-      .select('_id').limit(1).lean(),
-    ShortAsset.find({ youtubeVideoId }).select('_id').limit(1).lean(),
-  ]);
-  if (videos.length || assets.length) {
+  if (!(await isBackupUnassigned(youtubeVideoId))) {
     throw new AppError(
       `YouTube video ${youtubeVideoId} is already linked to another FocusFlow upload.`,
       409,
@@ -418,10 +414,12 @@ async function verifyOwnYouTubeVideo(youtubeVideoId, fetchImpl) {
 }
 
 // 只在項目仍是同一種待處理狀態時寫入；檢查後被其他流程改掉時回 null，不覆寫。
-function updateIfStillQuarantined(kind, id, $set, reasons = [PENDING_REASONS.QUARANTINED]) {
+function updateIfStillQuarantined(kind, id, $set, reasons = [PENDING_REASONS.QUARANTINED], observed) {
   const definition = getKindDefinition(kind);
   return definition.model.findOneAndUpdate(
-    { _id: id, ...buildPendingQuery(definition, reasons) },
+    { _id: id, $and: [buildPendingQuery(definition, reasons),
+      ...(observed ? observedFields(observed, ['youtubeUpload.attemptId', 'youtubeUpload.lastAttemptAt', 'youtubeUpload.failedAt', 'youtubeUpload.attemptCount', 'generationVersion', 'filePath']) : []),
+    ] },
     { $set },
     { new: true },
   );
@@ -436,7 +434,7 @@ function createStateChangedError(definition) {
 }
 
 // 「確認套用」（#17、#18）：驗證通過才標成已上傳並切換播放。
-async function applyQuarantinedItem({
+async function applyQuarantinedItemOwned({
   kind,
   id,
   youtubeVideoId,
@@ -453,7 +451,7 @@ async function applyQuarantinedItem({
     youtubeVideoId: normalizedYouTubeVideoId,
     privacyStatus: remote.privacyStatus,
     now,
-  }));
+  }), [PENDING_REASONS.QUARANTINED], item);
   if (!updated) throw createStateChangedError(definition);
   await definition.afterApply(updated);
   // 用處理前的失敗時間防重複：同一次失敗只通知一次。
@@ -469,7 +467,7 @@ async function applyQuarantinedItem({
 
 // 「重設為可重試」：確定 YouTube 上沒有這支時使用，次數歸零、立即排入，交給恢復排程或教師重試。
 // 已達重試上限的項目也用這個動作，由管理員確認原因排除後替教師重設（#34）。
-async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
+async function resetQuarantinedItemOwned({ kind, id, now = new Date() } = {}) {
   const definition = getKindDefinition(kind);
   const item = await loadQuarantinedItem(kind, id, { reasons: ALL_PENDING_REASONS });
 
@@ -477,7 +475,7 @@ async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
     'youtubeUpload.retrySafe': true,
     'youtubeUpload.attemptCount': 0,
     'youtubeUpload.nextRetryAt': now,
-  }, [item.pendingReason]);
+  }, [item.pendingReason], item);
   if (!updated) throw createStateChangedError(definition);
   await notifyYouTubeUploadResolved({
     kind,
@@ -493,6 +491,18 @@ async function resetQuarantinedItem({ kind, id, now = new Date() } = {}) {
     retrySafe: true,
     attemptCount: 0,
   };
+}
+
+async function applyQuarantinedItem(options = {}) {
+  const youtubeId = normalizeYouTubeVideoId(options.youtubeVideoId);
+  const release = tryAcquireWork([`youtube-id:${youtubeId}`, sourceWorkKey(options.kind, options.id)]);
+  if (!release) throw new AppError('The YouTube backup or item is already being handled.', 409, 'YOUTUBE_QUARANTINE_VIDEO_IN_USE');
+  try { return await applyQuarantinedItemOwned(options); } finally { release(); }
+}
+async function resetQuarantinedItem(options = {}) {
+  const release = tryAcquireWork([sourceWorkKey(options.kind, options.id)]);
+  if (!release) throw new AppError('The item is already being handled.', 409, 'YOUTUBE_QUARANTINE_NOT_ALLOWED');
+  try { return await resetQuarantinedItemOwned(options); } finally { release(); }
 }
 
 module.exports = {

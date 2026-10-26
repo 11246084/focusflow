@@ -179,6 +179,9 @@ const videoSchema = new mongoose.Schema(
             type: Date,
             default: null,
           },
+          attemptId: { type: String, default: null },
+          // 每次來源操作換新版本；不是會逾時或永久殘留的 lease。
+          localSourceVersion: { type: String, default: null },
           failedAt: {
             type: Date,
             default: null,

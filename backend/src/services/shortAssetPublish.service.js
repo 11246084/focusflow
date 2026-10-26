@@ -1,4 +1,6 @@
-const path = require('path');
+const { discardUnreferencedUpload } = require('./localSourceCleanup.service');
+const { inspectLocalUploadFile, resolveLocalUploadPath } = require('../utils/localVideoSource');
+const { attemptOwnerQuery, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
 const { existsSync, unlinkSync } = require('fs');
 const ShortAsset = require('../models/shortAsset.model');
 const ShortScript = require('../models/shortScript.model');
@@ -47,18 +49,11 @@ const {
 // 兩端都不可行，這個值就不是部署可調的設定，寫死才不會因為某台機器的 .env 而外流。
 const SHORT_ASSET_PRIVACY_STATUS = 'unlisted';
 
-// 本行程正在上傳的成品（id → 進行中的次數）。恢復排程靠它分辨「傳很久」與
-// 「重啟前卡住」，只隔離後者（#28）。用計數而不擋重複呼叫，維持原本的上傳行為。
+// 所有入口共用排他佔用；本行程仍持有的工作不會被恢復排程隔離。
 const runningShortAssetUploads = new Map();
 
 // autoUploadVideoToYouTube 綁死 Video model（讀 video.filePath、寫 video.youtubeUpload），
 // 對 ShortAsset 不能直接用。真正可複用的原語是 uploadLocalVideo。
-function resolveLocalUploadPath(filePath) {
-  return path.isAbsolute(filePath || '')
-    ? path.resolve(filePath)
-    : path.resolve(env.projectRoot, filePath || '');
-}
-
 // 描述欄末尾的系統標記（decisions.md #29）。管理員「查詢 YouTube」用它比對頻道上傳清單，
 // 格式改了就比對不到，所以集中在這裡。
 function buildShortAssetYouTubeMarker(assetId) {
@@ -121,13 +116,13 @@ function computeNextRetryAt({ retrySafe, attemptCount, failedAt }) {
   return new Date(failedAt.getTime() + (env.youtubeUploadRetryBaseMs * (2 ** exponent)));
 }
 
-async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) {
+async function recordUploadFailure(assetId, { error, attemptCount, startedAt, owner, snapshot }) {
   // 沒標記過的一律視為不安全：可能已送出影片 bytes，自動重試會產生重複影片。
   const retrySafe = error?.youtubeRetrySafe === true;
   const failedAt = new Date();
   // 失敗時 status 維持 draft（不寫 status），只記錄原因與可否重試。
-  const failedAsset = await ShortAsset.findByIdAndUpdate(assetId, {
-    $set: {
+  const failedAsset = await ShortAsset.findOneAndUpdate(owner || { _id: assetId, youtubeVideoId: null, 'youtubeUpload.status': null }, {
+    $set: uploadStateUpdate(snapshot || { youtubeUpload: {} }, {
       'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
       'youtubeUpload.error': shortErrorMessage(error),
       'youtubeUpload.attemptCount': attemptCount,
@@ -136,7 +131,7 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
       'youtubeUpload.uploadedAt': null,
       'youtubeUpload.retrySafe': retrySafe,
       'youtubeUpload.nextRetryAt': computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
-    },
+    }),
   }, { new: true });
   // 不可重試或已達重試上限的失敗會進入待處理清單，通知管理員（#20、#28、#34）。
   const limitReached = retrySafe && attemptCount >= env.youtubeUploadMaxAttempts;
@@ -156,118 +151,86 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt }) 
  * publishApprovedShortAsset()。若上傳完成時審核已經通過（審核比上傳早結束），
  * 這裡會補上那一步，否則資產會停在「已審核通過但沒進學生牆」。
  */
-async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch } = {}) {
+async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, observed, now = new Date() } = {}) {
   assertObjectId(assetId, 'short asset');
-  const asset = await ShortAsset.findById(assetId).lean();
-  if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
-
-  if (asset.youtubeVideoId) {
-    throw new AppError(
-      'This short asset is already uploaded to YouTube.',
-      409,
-      'YOUTUBE_UPLOAD_ALREADY_COMPLETED',
-    );
-  }
-  assertDisclosureConfirmed(asset);
-  assertUploadConfigured();
-
-  const attemptCount = Number(asset.youtubeUpload?.attemptCount || 0) + 1;
-  if (attemptCount > env.youtubeUploadMaxAttempts) {
-    throw new AppError(
-      'YouTube upload retry limit reached for this short asset.',
-      409,
-      'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED',
-    );
-  }
-
-  const startedAt = new Date();
-  const filePath = resolveLocalUploadPath(asset.filePath);
-  if (!asset.filePath || !existsSync(filePath)) {
-    const error = new AppError(
-      'Local short video file is missing; cannot upload to YouTube.',
-      409,
-      'SHORT_ASSET_SOURCE_FILE_MISSING',
-    );
-    // 檔案不在就重試幾次也不會出現，標成不可重試，讓教師知道要重新上傳。
-    error.youtubeRetrySafe = false;
-    await recordUploadFailure(assetId, { error, attemptCount, startedAt });
-    throw error;
-  }
-
-  await ShortAsset.findByIdAndUpdate(assetId, {
-    $set: {
-      'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
-      'youtubeUpload.error': null,
-      'youtubeUpload.attemptCount': attemptCount,
-      'youtubeUpload.lastAttemptAt': startedAt,
-      'youtubeUpload.failedAt': null,
-      'youtubeUpload.retrySafe': false,
-    },
-  });
-
-  let uploadResult;
+  const release = tryAcquireWork([sourceWorkKey('short_asset', assetId)]);
+  if (!release) throw new AppError('Short asset upload or source operation is already running.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+  runningShortAssetUploads.set(String(assetId).toLowerCase(), true);
+  let releaseFile;
   try {
-    uploadResult = await uploadLocalVideo({
-      filePath,
-      title: asset.title,
-      description: buildShortAssetYouTubeDescription(asset),
-      privacyStatus: SHORT_ASSET_PRIVACY_STATUS,
-      fetchImpl,
-    });
-  } catch (error) {
-    await recordUploadFailure(assetId, { error, attemptCount, startedAt });
-    throw error;
-  }
-
-  const uploadedAt = new Date();
-  // 只寫 YouTube 相關欄位：status 仍是 draft，publishedAt 仍是空的，
-  // 學生牆的查詢條件（status=published + publishedAt）因此不會撈到未審核的影片。
-  const uploaded = await ShortAsset.findByIdAndUpdate(
-    assetId,
-    {
-      $set: {
+    const asset = await ShortAsset.findById(assetId).lean();
+    if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
+    if (asset.youtubeVideoId) throw new AppError('This short asset is already uploaded to YouTube.', 409, 'YOUTUBE_UPLOAD_ALREADY_COMPLETED');
+    assertDisclosureConfirmed(asset);
+    assertUploadConfigured();
+    if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
+      throw new AppError('YouTube upload is disabled.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
+    }
+    const attemptCount = Number(asset.youtubeUpload?.attemptCount || 0) + 1;
+    if (attemptCount > env.youtubeUploadMaxAttempts) throw new AppError('YouTube upload retry limit reached for this short asset.', 409, 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED');
+    const startedAt = new Date();
+    const attemptId = randomWorkId();
+    const claimed = await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true }), {
+      $set: uploadStateUpdate(asset, {
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING, 'youtubeUpload.attemptId': attemptId,
+        'youtubeUpload.error': null, 'youtubeUpload.attemptCount': attemptCount,
+        'youtubeUpload.lastAttemptAt': startedAt, 'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
+      }),
+    }, { new: true });
+    if (!claimed) return null;
+    const owner = attemptOwnerQuery(asset, attemptId);
+    let uploadResult;
+    try {
+      const filePath = resolveLocalUploadPath(asset.filePath);
+      if (!asset.filePath || !existsSync(filePath)) {
+        const error = new AppError('Local short video file is missing; cannot upload to YouTube.', 409, 'SHORT_ASSET_SOURCE_FILE_MISSING');
+        error.youtubeRetrySafe = false;
+        throw error;
+      }
+      const file = inspectLocalUploadFile(asset.filePath);
+      releaseFile = tryAcquireWork(fileWorkKeys(file));
+      if (!releaseFile) { const error = new Error('Local source is in use.'); error.youtubeRetrySafe = true; throw error; }
+      uploadResult = await uploadLocalVideo({ filePath, title: asset.title,
+        description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl });
+    } catch (error) {
+      error.youtubeUploadAttempted = true;
+      await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
+      throw error;
+    }
+    const uploadedAt = new Date();
+    let uploaded;
+    try {
+      uploaded = await ShortAsset.findOneAndUpdate(owner, { $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
         youtubeAvailability: YOUTUBE_AVAILABILITIES.PLAYABLE,
-        youtubePrivacyStatus: normalizePrivacyStatus(uploadResult.privacyStatus),
-        lastCheckedAt: uploadedAt,
-        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
-        'youtubeUpload.error': null,
-        'youtubeUpload.uploadedAt': uploadedAt,
-        'youtubeUpload.failedAt': null,
-        'youtubeUpload.retrySafe': false,
-      },
-    },
-    { new: true },
-  );
-
-  // 審核比上傳早結束時，上架動作在這裡補做，否則資產會卡在「已通過但沒進學生牆」。
-  if (
-    uploaded.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
-    && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)
-  ) {
-    return markShortAssetPublished(uploaded);
-  }
-
-  return uploaded;
+        youtubePrivacyStatus: normalizePrivacyStatus(uploadResult.privacyStatus), lastCheckedAt: uploadedAt,
+        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED, 'youtubeUpload.error': null,
+        'youtubeUpload.uploadedAt': uploadedAt, 'youtubeUpload.failedAt': null,
+        'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
+      } }, { new: true });
+    } catch (error) {
+      error.youtubeRetrySafe = false; error.youtubeUploadAttempted = true;
+      await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
+      throw error;
+    }
+    if (!uploaded) return null;
+    if (uploaded.status !== SHORT_ASSET_STATUSES.ARCHIVED
+      && uploaded.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
+      && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)) return markShortAssetPublished(uploaded);
+    return uploaded;
+  } finally { releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release(); }
 }
 
 function isShortAssetUploadRunning(assetId) {
-  return runningShortAssetUploads.has(String(assetId));
+  return runningShortAssetUploads.has(String(assetId).toLowerCase());
 }
 
 // 會啟動成品上傳的入口（建立、換代、教師重試、恢復排程）都經過這裡，
 // 恢復排程才看得到哪些還在本行程傳。
-async function runTrackedShortAssetUpload({ assetId, fetchImpl = global.fetch } = {}) {
-  const id = String(assetId);
-  runningShortAssetUploads.set(id, (runningShortAssetUploads.get(id) || 0) + 1);
-  try {
-    return await uploadShortAssetToYouTube({ assetId, fetchImpl });
-  } finally {
-    const remaining = (runningShortAssetUploads.get(id) || 1) - 1;
-    if (remaining > 0) runningShortAssetUploads.set(id, remaining);
-    else runningShortAssetUploads.delete(id);
-  }
+function runTrackedShortAssetUpload(options = {}) {
+  return uploadShortAssetToYouTube(options);
 }
 
 /**
@@ -321,12 +284,16 @@ async function publishApprovedShortAsset(asset) {
   return markShortAssetPublished(asset);
 }
 
-async function recordSkippedUpload(assetId, message) {
+async function recordSkippedUpload(asset, message) {
   // 略過不能不留痕跡（規格書 K.3「不得靜默略過」）。沒有這筆紀錄，資產會停在
   // 「已上傳、YouTube 狀態空白」，重試路徑因為找不到失敗紀錄而拒絕，教師沒有任何出路。
   const error = new AppError(message, 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   error.youtubeRetrySafe = true;
-  await recordUploadFailure(assetId, {
+  await recordUploadFailure(asset._id, {
+    snapshot: asset,
+    owner: { _id: asset._id, youtubeVideoId: null, 'youtubeUpload.status': null,
+      $and: observedFields(asset, ['generationVersion', 'filePath', 'youtubeUpload.status', 'youtubeUpload.attemptId']),
+    },
     error,
     attemptCount: 0,
     startedAt: new Date(),
@@ -348,18 +315,18 @@ function scheduleUploadOnCreate(asset) {
   // feature flag 關閉時不得把任何東西送上 YouTube，但要讓教師知道為什麼沒有預覽。
   if (!env.shortScriptAutomationEnabled) {
     return recordSkippedUpload(
-      asset._id,
+      asset,
       'Short script automation is disabled; enable SHORT_SCRIPT_AUTOMATION_ENABLED and retry.',
     );
   }
   if (!isYouTubeUploadConfigured()) {
-    return recordSkippedUpload(asset._id, 'YouTube upload is not configured.');
+    return recordSkippedUpload(asset, 'YouTube upload is not configured.');
   }
 
   // 管理員停用上傳時同樣不送出（兩層開關，decisions.md #9、#28）；記成可安全重試，
   // 重新啟用後由恢復排程補傳。
   return isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD).then((enabled) => {
-    if (!enabled) return recordSkippedUpload(asset._id, 'YouTube upload is disabled by an administrator.');
+    if (!enabled) return recordSkippedUpload(asset, 'YouTube upload is disabled by an administrator.');
     return runTrackedShortAssetUpload({ assetId: asset._id });
   }).catch((error) => {
     if (process.env.NODE_ENV !== 'test') {
@@ -409,7 +376,7 @@ async function privatizeRejectedShortAsset(asset, { fetchImpl = global.fetch } =
 /**
  * 教師手動重試上架（施工單 WO-08）。
  */
-async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch } = {}) {
+async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch, now = new Date() } = {}) {
   assertObjectId(assetId, 'short asset');
   const asset = await ShortAsset.findById(assetId).lean();
   if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
@@ -449,7 +416,9 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch }
     throw new AppError('YouTube upload is disabled by an administrator.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
   }
 
-  return runTrackedShortAssetUpload({ assetId, fetchImpl });
+  const result = await runTrackedShortAssetUpload({ assetId, fetchImpl, observed: asset, now });
+  if (!result) throw new AppError('Short asset upload state changed; refresh and try again.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+  return result;
 }
 
 function toTeacherAsset(asset) {
@@ -501,20 +470,12 @@ function parseBooleanFlag(value) {
   return String(value ?? '').trim().toLowerCase() === 'true';
 }
 
-function cleanupUploadedFile(file) {
-  try {
-    if (file?.path && existsSync(file.path)) unlinkSync(file.path);
-  } catch {
-    // Best-effort cleanup after validation fails.
-  }
-}
-
 /**
  * 教師依腳本產出影片後上傳，建立 ShortAsset（draft）。**不上架**。
  *
  * 記錄 sourceScriptId / sourceVersionNo（規格書 DR-20），成品被退回時才找得回腳本。
  */
-async function createAssetFromScript({
+async function createAssetFromScriptOwned({
   user, scriptId, file, title, description, versionNo,
   aiDisclosureConfirmed, consentConfirmed,
 } = {}) {
@@ -591,16 +552,8 @@ async function createAssetFromScript({
         disclosure,
         youtubeVideoId: null,
       });
-      // 上一代的上傳紀錄屬於上一支影片，換代後要歸零，否則重試判斷會看到舊的失敗。
-      await ShortAsset.findByIdAndUpdate(pending._id, {
-        $set: {
-          youtubeUpload: {
-            status: null, error: null, attemptCount: 0, lastAttemptAt: null, uploadedAt: null, failedAt: null, retrySafe: false,
-          },
-        },
-      });
       if (pending.filePath && pending.filePath !== file.path) {
-        cleanupUploadedFile({ path: resolveLocalUploadPath(pending.filePath) });
+        await discardUnreferencedUpload({ path: resolveLocalUploadPath(pending.filePath) });
       }
 
       // 一定要重讀，不能把 recordShortAssetRegeneration 的回傳值展開來用：那是 Mongoose
@@ -612,7 +565,10 @@ async function createAssetFromScript({
       return nextGeneration;
     }
 
-    const created = await ShortAsset.create({
+    let created;
+    const releaseFile = tryAcquireWork(fileWorkKeys(inspectLocalUploadFile(file.path)));
+    if (!releaseFile) throw new AppError('The short asset source is in use.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+    try { created = await ShortAsset.create({
       courseId: script.courseId,
       sourceScriptId: script._id,
       sourceVersionNo: targetVersion.versionNo,
@@ -623,7 +579,7 @@ async function createAssetFromScript({
       reviewStatus: SHORT_ASSET_REVIEW_STATUSES.PENDING,
       generationVersion: 1,
       disclosure,
-    });
+    }); } finally { releaseFile(); }
 
     // 教師要先看得到影片才審得動，所以上傳當下就把它送上 YouTube（unlisted）。
     // 不 await：整支影片傳完要時間，同步做會讓上傳請求逾時。
@@ -631,9 +587,18 @@ async function createAssetFromScript({
     return created;
   } catch (error) {
     // 驗證失敗時 multer 已把檔案寫到磁碟，不清掉會累積孤兒檔案。
-    cleanupUploadedFile(file);
+    await discardUnreferencedUpload(file);
     throw error;
   }
+}
+
+async function createAssetFromScript(options = {}) {
+  const release = tryAcquireWork([`short-script-source:${String(options.scriptId).toLowerCase()}`]);
+  try {
+    if (!release) throw new AppError('The script source is being replaced.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
+    return await createAssetFromScriptOwned(options);
+  } catch (error) { await discardUnreferencedUpload(options.file); throw error; }
+  finally { release?.(); }
 }
 
 module.exports = {

@@ -1,4 +1,6 @@
-const { inspectCleanupSource, loadLocalFileReferences, deleteCleanupSource } = require('./localSourceCleanup.service');
+const { inspectLocalUploadFile } = require('../utils/localVideoSource');
+const { fileWorkKeys, sourceStatusWorkKey, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
+const { claimCleanupSource, inspectCleanupSource, loadLocalFileReferences, deleteCleanupSource } = require('./localSourceCleanup.service');
 const ShortAsset = require('../models/shortAsset.model');
 const {
   SHORT_ASSET_STATUSES,
@@ -82,37 +84,40 @@ async function recordCleanupError(assetId, message) {
 // CLEANUP_SOURCES.short_asset.cleanup：刪檔前重新確認開關（#14）與每一項安全條件。
 // 成功後 filePath 保留不清空，改記 localCleanupAt（#31）。
 async function cleanupShortAssetLocalFile(assetId, options = {}) {
-  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
-    return { cleaned: false, reason: 'disabled' };
-  }
-
-  const asset = await ShortAsset.findById(assetId).lean();
-  if (!asset) return { cleaned: false, reason: 'short_asset_not_found' };
-  if (asset.youtubeUpload?.localCleanupAt) return { cleaned: false, reason: 'already_cleaned' };
-  if (!isCleanableShortAsset(asset)) return { cleaned: false, reason: 'lifecycle_not_complete' };
-
-  const source = await inspectCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset);
-  if (source.reason) {
-    await recordCleanupError(assetId, source.reason === 'shared_reference'
-      ? 'Refusing to clean a local file referenced by another short asset or video.'
-      : `Refusing cleanup: ${source.reason}.`);
-    return { cleaned: false, reason: source.reason };
-  }
-  const deletion = await deleteCleanupSource(source.file, options);
-  if (!deletion.cleaned) {
-    if (deletion.reason === 'delete_failed') await recordCleanupError(assetId, 'Local file deletion failed; source retained for retry.');
-    return { cleaned: false, reason: deletion.reason };
-  }
+  const release = tryAcquireWork([sourceWorkKey(SHORT_ASSET_CLEANUP_KIND, assetId), sourceStatusWorkKey(SHORT_ASSET_CLEANUP_KIND, assetId)]);
+  if (!release) return { cleaned: false, reason: 'operation_in_progress' };
+  let releaseFile;
   try {
-    await ShortAsset.findByIdAndUpdate(assetId, { $set: {
-      'youtubeUpload.localCleanupAt': new Date(),
-      'youtubeUpload.localCleanupError': null,
-    } });
-    if (!deletion.existed) return { cleaned: false, reason: 'already_missing' };
-    return { cleaned: true, reason: null };
-  } catch {
-    return { cleaned: true, reason: 'state_write_failed', freedBytes: deletion.freedBytes };
-  }
+    if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) return { cleaned: false, reason: 'disabled' };
+    const asset = await ShortAsset.findById(assetId).lean();
+    if (!asset) return { cleaned: false, reason: 'short_asset_not_found' };
+    if (asset.youtubeUpload?.localCleanupAt) return { cleaned: false, reason: 'already_cleaned' };
+    if (!isCleanableShortAsset(asset)) return { cleaned: false, reason: 'lifecycle_not_complete' };
+    let file;
+    try { file = inspectLocalUploadFile(asset.filePath); } catch { return { cleaned: false, reason: 'reference_check_failed' }; }
+    releaseFile = tryAcquireWork(fileWorkKeys(file));
+    if (!releaseFile) return { cleaned: false, reason: 'operation_in_progress' };
+    const source = await inspectCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset);
+    if (source.reason) {
+      await recordCleanupError(assetId, source.reason === 'shared_reference'
+        ? 'Refusing to clean a local file referenced by another short asset or video.' : `Refusing cleanup: ${source.reason}.`);
+      return { cleaned: false, reason: source.reason };
+    }
+    const owner = await claimCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset, source, options);
+    if (!owner) return { cleaned: false, reason: 'source_changed' };
+    const deletion = await deleteCleanupSource(source.file, { ...options, verifyOwnership: owner.verifyOwnership });
+    if (!deletion.cleaned) {
+      if (deletion.reason === 'delete_failed') await ShortAsset.findOneAndUpdate(owner.filter, { $set: { 'youtubeUpload.localCleanupError': 'Local file deletion failed; source retained for retry.' } });
+      return { cleaned: false, reason: deletion.reason };
+    }
+    try {
+      const finalized = await ShortAsset.findOneAndUpdate(owner.filter, { $set: {
+        'youtubeUpload.localCleanupAt': new Date(), 'youtubeUpload.localCleanupError': null,
+      } }, { new: true });
+      if (!finalized) throw new Error('Cleanup ownership changed before finalization.');
+      return { cleaned: deletion.existed, reason: deletion.existed ? null : 'already_missing' };
+    } catch { return { cleaned: deletion.existed, reason: 'state_write_failed', freedBytes: deletion.freedBytes }; }
+  } finally { releaseFile?.(); release(); }
 }
 
 module.exports = {

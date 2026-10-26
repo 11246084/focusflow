@@ -50,3 +50,12 @@ npm.cmd run dev
 例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
 
 測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。
+
+YouTube 所有權的真實 Mongo 整合測試需另外執行，不會隨 `npm.cmd test` 連線。先啟動只綁定 loopback 的測試 Mongo（例如 Docker `-p 127.0.0.1:27126:27017 mongo:7`），再由 backend 目錄執行：
+
+```powershell
+$env:YOUTUBE_TEST_MONGODB_URI = 'mongodb://127.0.0.1:27126'
+npm.cmd run test:youtube-mongo
+```
+
+只接受明確 port、沒有資料庫名稱或認證參數的本機 URI，不從 `.env` 取得預設值。每次建立隨機 `focusflow_youtube_test_` 資料庫，成功與失敗都會刪除該次資料庫並關閉連線；測試不載入正式 server 或記憶體 harness，關閉 autoIndex／autoCreate，只在測試 DB 明確建立必要 collection 與既有 ShortAsset index。YouTube 呼叫全部是假 API。

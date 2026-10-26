@@ -273,6 +273,7 @@ function matchesQuery(document, query = {}) {
       && Object.keys(value).some((operator) => operator.startsWith('$'));
 
     if (isOperatorObject) {
+      if ('$eq' in value && normalizeValue(currentValue) !== normalizeValue(value.$eq)) return false;
       if ('$exists' in value) {
         const exists = currentValue !== undefined;
         if (exists !== Boolean(value.$exists)) return false;

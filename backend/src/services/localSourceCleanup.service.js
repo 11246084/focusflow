@@ -3,6 +3,7 @@ const Video = require('../models/video.model');
 const ShortAsset = require('../models/shortAsset.model');
 const { inspectLocalUploadFile, sameLocalFile } = require('../utils/localVideoSource');
 const { isYouTubeLifecycleSwitchEnabled } = require('./youtubeLifecycleSettings.service');
+const { fileWorkKeys, getNested, isBackupUnassigned, observedField, randomWorkId, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 
 function sourceSnapshot(item, file) {
   return {
@@ -17,6 +18,7 @@ function sourceSnapshot(item, file) {
       'processing.status': item.processing?.status,
       status: item.status,
       generationVersion: item.generationVersion,
+      'youtubeUpload.localSourceVersion': item.youtubeUpload?.localSourceVersion,
     },
   };
 }
@@ -38,14 +40,20 @@ async function inspectCleanupSource(kind, item, references) {
     if (refs.some((ref) => (ref.kind !== kind || ref.id !== String(item._id)) && sameLocalFile(ref.file, file))) {
       return { reason: 'shared_reference' };
     }
+    if (item.youtubeVideoId && !(await isBackupUnassigned(item.youtubeVideoId, { kind, id: item._id }))) {
+      return { reason: 'backup_in_use' };
+    }
     return { file, snapshot: sourceSnapshot(item, file), reason: null };
   } catch { return { reason: 'reference_check_failed' }; }
 }
 
 // 所有非破壞性 await 完成後才重查開關，接著同步核對實體身份並 unlink。
-async function deleteCleanupSource(file, { beforeDelete } = {}) {
+async function deleteCleanupSource(file, { beforeDelete, verifyOwnership } = {}) {
   const stopReason = beforeDelete ? await beforeDelete() : null;
   if (stopReason) return { cleaned: false, reason: stopReason };
+  try {
+    if (verifyOwnership && !(await verifyOwnership())) return { cleaned: false, reason: 'source_changed' };
+  } catch { return { cleaned: false, reason: 'reference_check_failed' }; }
   if (!(await isYouTubeLifecycleSwitchEnabled('cleanup'))) return { cleaned: false, reason: 'disabled' };
   try {
     const current = inspectLocalUploadFile(file.localPath);
@@ -57,4 +65,53 @@ async function deleteCleanupSource(file, { beforeDelete } = {}) {
   } catch { return { cleaned: false, reason: 'delete_failed' }; }
 }
 
-module.exports = { deleteCleanupSource, inspectCleanupSource, loadLocalFileReferences, sourceSnapshot };
+function matchesSourceSnapshot(item, file, snapshot) {
+  if (!snapshot) return true;
+  if (file.pathKey !== snapshot.file.pathKey || file.fingerprint !== snapshot.file.fingerprint) return false;
+  return Object.entries(snapshot.fields).every(([field, expected]) => {
+    const actual = getNested(item, field);
+    if (expected instanceof Date || actual instanceof Date) return new Date(actual).getTime() === new Date(expected).getTime();
+    return actual === expected;
+  });
+}
+
+async function claimCleanupSource(kind, item, source, options, playback = {}) {
+  const snapshot = options.candidate?.sourceSnapshot || source.snapshot;
+  if (!matchesSourceSnapshot(item, source.file, snapshot)) return null;
+  const model = kind === 'video' ? Video : ShortAsset;
+  const version = randomWorkId();
+  const conditions = Object.entries(snapshot.fields).map(([field, value]) => observedField(field, value));
+  const claimed = await model.findOneAndUpdate({ _id: item._id, $and: conditions }, {
+    $set: { ...playback, 'youtubeUpload.localSourceVersion': version },
+  }, { new: true });
+  if (!claimed) return null;
+  const filter = { _id: item._id, $and: [
+    ...Object.entries(snapshot.fields).filter(([field]) => field !== 'youtubeUpload.localSourceVersion').map(([field, value]) => observedField(field, value)),
+    { 'youtubeUpload.localSourceVersion': version },
+  ] };
+  return {
+    filter,
+    verifyOwnership: async () => {
+      const current = await model.find(filter).limit(1).lean();
+      if (!current.length) return false;
+      return !(await inspectCleanupSource(kind, current[0])).reason;
+    },
+  };
+}
+
+// multer 已收下但請求被拒的檔案：DB 無法證明無引用時保留，不刪其他請求的來源。
+async function discardUnreferencedUpload(file) {
+  let release;
+  try {
+    if (!file?.path) return;
+    const source = inspectLocalUploadFile(file.path);
+    if (!source.safe || !source.exists) return;
+    release = tryAcquireWork(fileWorkKeys(source));
+    if (!release) return;
+    const refs = await loadLocalFileReferences();
+    if (!refs.some((ref) => sameLocalFile(ref.file, source))) fs.unlinkSync(source.localPath);
+  } catch { /* DB／檔案身份未知時保留，待人工或後續孤兒檔清理。 */ }
+  finally { release?.(); }
+}
+
+module.exports = { claimCleanupSource, deleteCleanupSource, discardUnreferencedUpload, inspectCleanupSource, loadLocalFileReferences, matchesSourceSnapshot, sourceSnapshot };

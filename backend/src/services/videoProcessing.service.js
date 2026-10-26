@@ -1,3 +1,4 @@
+const { observedFields } = require('./youtubeWorkOwnership.service');
 const Video = require('../models/video.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
@@ -103,7 +104,8 @@ async function runCompletionSideEffects(video) {
 }
 
 async function queueVideoForProcessing(videoId) {
-  const video = await getVideoByIdOrThrow(videoId);
+  const video = await Video.findById(videoId).lean();
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   const currentStatus = video.processing?.status;
 
   if (currentStatus !== VIDEO_PROCESSING_STATUSES.FAILED) {
@@ -111,7 +113,9 @@ async function queueVideoForProcessing(videoId) {
   }
 
   // Retrying a failed job clears failure details but preserves how many attempts already ran.
-  return updateVideoProcessing(videoId, {
+  const queued = await Video.findOneAndUpdate({ _id: videoId, 'processing.status': currentStatus,
+    $and: observedFields(video, ['filePath', 'youtubeUpload.localSourceVersion']),
+  }, {
     $set: {
       'processing.status': VIDEO_PROCESSING_STATUSES.QUEUED,
       'processing.errorMessage': null,
@@ -121,7 +125,9 @@ async function queueVideoForProcessing(videoId) {
       'processing.completedAt': null,
       'processing.failedAt': null,
     },
-  });
+  }, { new: true });
+  if (!queued) throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.QUEUED);
+  return queued;
 }
 
 async function startVideoProcessing(videoId) {

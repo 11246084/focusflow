@@ -276,15 +276,13 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
   if (cleanupScheduler.running) {
     return { skipped: true, reason: 'already_running', cleaned: 0, freedBytes: 0, results: [] };
   }
-  // 每輪開始前檢查開關（#14）；刪每支前 cleanup() 會再檢查一次。
-  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
-    return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
-  }
-
   cleanupScheduler.running = true;
   cleanupScheduler.startedAt = now.toISOString();
   cleanupScheduler.lastAttemptAt = now.toISOString();
   try {
+    if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
+      return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
+    }
     const entries = await listAllCleanupEntries();
     // 不預先用推估釋放量截斷：失敗或跳過後仍可補選後面的合格檔案。
     const policy = getCleanupPolicy();
@@ -321,7 +319,7 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
         id: candidate.id,
         reason: candidate.reason,
         cleaned: Boolean(result?.cleaned),
-        skipReason: result?.cleaned ? null : (result?.reason || null),
+        skipReason: result?.reason || null,
       });
       if (result?.cleaned) {
         cleaned += 1;
@@ -333,7 +331,8 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
     }
 
     cleanupScheduler.lastSuccessAt = new Date().toISOString();
-    cleanupScheduler.lastError = null;
+    cleanupScheduler.lastError = results.some((result) => result.skipReason === 'state_write_failed')
+      ? 'Local files removed; database finalization must be retried.' : null;
     cleanupScheduler.lastCleanedCount = cleaned;
     cleanupScheduler.lastFreedBytes = freedBytes;
     return { skipped: false, candidates: candidates.length, cleaned, freedBytes, results };

@@ -195,7 +195,7 @@ describe('短片上傳描述標記（#29）', () => {
       consentConfirmed: true,
     });
     const fake = fakeYouTube();
-    await publishService.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl: fake.fetchImpl });
+    await publishService.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl: fake.fetchImpl, now: new Date(Date.now() + env.youtubeUploadRetryBaseMs + 1000) });
 
     assert.equal(asset.generationVersion, 2);
     assert.equal(fake.metadata[0].snippet.description, `新版說明\n(FocusFlow short ${asset._id})`);
@@ -411,6 +411,7 @@ describe('短片成品清理後的狀態與行為（#31）', () => {
     await cleanAsset(asset);
     // 例如管理員確認 YouTube 上沒有這支、清掉影片 ID 後重新上傳。
     delete asset.youtubeVideoId;
+    Object.assign(asset.youtubeUpload, { status: 'failed', retrySafe: true, attemptCount: 0, nextRetryAt: null });
     const fake = fakeYouTube();
 
     await assert.rejects(

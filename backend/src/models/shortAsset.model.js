@@ -78,6 +78,8 @@ const shortAssetUploadSchema = new mongoose.Schema(
     error: { type: String, default: null, trim: true },
     attemptCount: { type: Number, default: 0, min: 0 },
     lastAttemptAt: { type: Date, default: null },
+    attemptId: { type: String, default: null },
+    localSourceVersion: { type: String, default: null },
     uploadedAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
     // 是否確定沒有送出任何影片 bytes。送出過就不能自動重試，否則會在 YouTube 上留下重複影片。

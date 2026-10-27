@@ -56,7 +56,7 @@
 
 **短影片腳本｜已實作；上架未驗證。** [腳本介面](../backend/src/routes/short-script.routes.js)串接選題、生成、成品上傳與審核；[發布服務](../backend/src/services/shortAssetPublish.service.js)處理 YouTube 上傳與審核後提供學生瀏覽。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**短影片自動產片｜規劃中。** 新方向原型位於 [short_render/](../short_render/)（原片剪輯加程式動畫，不使用教授端生成模型），尚未接入前後端。依據：[指令入口](../short_render/bin/short-render.js)與 2026-10-15 團隊決定。最後驗證：2026-10-15；負責人：＿＿（待填）。
+**短影片自動產片｜開發中。** RC1 已實作資料模型、版本核准狀態機、持久化背景工作、取消／啟動恢復、教師通知與最小 API；[接手介面與取捨](../backend/docs/recut-foundation.md)。本輪以 Node 22.23.4 執行 backend `npm.cmd test` 1243／1243（含 RC1 專屬 44 項）、隔離本機 Mongo 4／4，OpenAPI lint 通過；8 拍生成程式與既有測試未改。外部步驟皆為假實作；尚未執行真實辨識、Gemini、渲染、VM／Atlas／YouTube、前端或人工驗收。後續工單依 [HANDOFF](04_Features/Short_Video/HANDOFF.md) 接續；獨立審查排定 11/6 起，未視為已驗收或上線。最後測試：2026-10-27；紀錄核對與更新：2026-10-28。
 
 **分層檢索與向量發布｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。分層檢索是先找較大段落，再找可引用的小片段；[檢索服務](../backend/src/services/hierarchicalRetrieval.service.js)、[資料檢查](../backend/src/services/hierarchicalDataReadiness.service.js)與[發布入口](../STT_Whisper/src/publish_parent_embeddings.py)有對應程式，不據此判定可啟用。最後驗證：2026-10-15；負責人：＿＿（待填）。
 

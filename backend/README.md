@@ -51,6 +51,8 @@ npm.cmd run dev
 
 測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。
 
+recut 的最小 API 沿用 `SHORT_SCRIPT_AUTOMATION_ENABLED`，預設關閉。RC2～RC4 註冊步驟前，啟動生成回 `503 RECUT_STEPS_NOT_CONFIGURED`；開關不會啟用假的產片。集合、句子樣本、註冊方式及本機隔離 Mongo 測試見 [recut 後端接手](docs/recut-foundation.md)。
+
 YouTube 所有權的真實 Mongo 整合測試需另外執行，不會隨 `npm.cmd test` 連線。課程刪除使用 transaction，因此完整測試需要 replica set。先啟動只綁定 loopback 的測試 Mongo，再由 backend 目錄執行（名稱與 port 須未被使用）：
 
 ```powershell

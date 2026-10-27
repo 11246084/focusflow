@@ -1,8 +1,24 @@
 # Phase 2 API Contract
 
-最後更新：2026-10-24
+最後更新：2026-10-28
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
+
+## recut RC1 介面
+
+以下沿用 Short Scripts 的 feature flag、session 驗證與課程教師／admin 權限；學生、非該課程教師回 403，功能關閉回 404。`ShortScript.productionMode` 舊資料缺欄位時讀為 `avatar`，不寫遷移；建立腳本的 `POST /courses/:courseId/short-scripts/auto` 可帶 `productionMode`，省略為 avatar。
+
+| method + path（省略 `/api/v1`） | 輸入與回應 |
+|---|---|
+| `PATCH /short-scripts/:scriptId/production-mode` | `{ productionMode: 'avatar'\|'recut' }`；200 回 `data.{scriptId,productionMode,recut}`，生成／渲染中不可切換，舊紀錄保留 |
+| `POST /short-scripts/:scriptId/recut/generate` | 無 body 或 `{}`；202 回 `data.id` 任務 ID，含固定 `callLimit`、`callsUsed` 與狀態；不等待生成 |
+| `GET /short-scripts/:scriptId/recut` | 200 回 `data.{scriptId,productionMode,recut,task}`；task 是最新任務或 null |
+| `GET /short-scripts/:scriptId/recut/tasks/:taskId` | 200 回任務；不含內部輸入輸出、恢復快照或 `__v` |
+| `POST /short-scripts/:scriptId/recut/tasks/:taskId/cancel` | 無 body 或 `{}`；200 回目前任務，可能是 `cancel_requested` 或 `cancelled`；已結束者保留結果 |
+
+task 必須屬於 script；不屬於時回 404 `RECUT_TASK_NOT_FOUND`。拒絕多餘輸入欄位，不接受教師指定呼叫額度或任務類型。尚未註冊生成步驟回 503 `RECUT_STEPS_NOT_CONFIGURED`；未選 recut、版本過時、重複啟動或非法轉換回 409 `RECUT_STATE_INVALID`。背景錯誤存在 `task.error.{code,message}`，不把已回 202 的請求改成同步錯誤。
+
+任務狀態是 `queued/running/cancel_requested/succeeded/failed/cancelled`。取消在步驟間生效，進行中的呼叫留紀錄但不採用晚到輸出；取消或失敗恢復原版並保留未套用修改。首次與修改預設共用額度各 5 次，任務建立時固定；上限讀取介面與狀態轉換規則見 [recut 後端接手](recut-foundation.md)。審閱／修改 API 由 RC8 接手。
 
 ## 1. QA 回答契約
 

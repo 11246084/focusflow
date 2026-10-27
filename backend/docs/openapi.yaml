@@ -54,7 +54,7 @@ tags:
       feature flag 檢查排在這組路由自己的身分驗證之前，所以 `/api/v1/short-scripts/*`、`/api/v1/short-assets/*` 未帶 token 也回 404。
       例外：`/api/v1/courses/{courseId}/short-*` 會先經過課程路由的身分驗證，未帶 token 時回 `401`。
 
-      Short Script 回應是 MongoDB 文件原樣輸出，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；與其他資源使用的 `id` 不同。
+      既有 Short Script 回應沿用 MongoDB 文件格式，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；缺少 productionMode 時讀為 avatar。recut 最小 API 另使用明確欄位 mapper，任務識別為 `id`。
   - name: LINE Webhook
     description: |
       LINE Platform 的 `integration-facing` webhook callback 入口。
@@ -9453,7 +9453,7 @@ components:
                 - type: 'null'
     ShortScript:
       description: |
-        短影片腳本（MongoDB 文件原樣輸出，未經 mapper）。讀取時不會補上 schema default，
+        短影片腳本沿用 MongoDB 文件格式；讀取時缺少 productionMode 會補 avatar，其餘不補 schema default，
         因此 `required` 只列建立時一定寫入的欄位；其餘欄位在舊資料上可能不存在。
       type: object
       required:

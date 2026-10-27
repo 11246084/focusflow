@@ -362,19 +362,18 @@ describe('videoService.restoreVideoSource', () => {
     markCleaned(teacherVideo());
     const first = writeUpload('first.mp4');
     const second = writeUpload('second.mp4');
-    let raced = false;
-    // 模擬第二個請求在條件更新前，第一個請求已完成補回。
-    store.beforeVideoCompareAndSwap = async () => {
-      if (raced) return;
-      raced = true;
-      await videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: first, user: teacher });
-    };
-
-    await assert.rejects(
-      videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: second, user: teacher }),
-      (error) => error.code === 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
-    );
-    store.beforeVideoCompareAndSwap = null;
+    let entered; const ready = new Promise((resolve) => { entered = resolve; });
+    let release; const held = new Promise((resolve) => { release = resolve; });
+    store.beforeVideoCompareAndSwap = async () => { entered(); await held; };
+    const winner = videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: first, user: teacher });
+    try {
+      await ready;
+      await assert.rejects(
+        videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: second, user: teacher }),
+        (error) => error.code === 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+      );
+    } finally { release(); store.beforeVideoCompareAndSwap = null; }
+    await winner;
 
     assert.equal(teacherVideo().filePath, first.path);
     assert.equal(fs.existsSync(first.path), true);

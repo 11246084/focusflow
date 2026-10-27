@@ -1,3 +1,4 @@
+const { expiredUploadHeartbeat, observedFields } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const ShortAsset = require('../models/shortAsset.model');
 const { SHORT_ASSET_STATUSES, YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
@@ -91,6 +92,8 @@ async function quarantineStaleShortAsset(asset, now) {
       $and: [
         MISSING_YOUTUBE_VIDEO_ID,
         buildObservedAttemptCondition(asset.youtubeUpload?.lastAttemptAt),
+        expiredUploadHeartbeat(),
+        ...observedFields(asset, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']),
       ],
     },
     {
@@ -144,14 +147,17 @@ async function recoverShortAssetUploads({ fetchImpl = global.fetch, now = new Da
       continue;
     }
     try {
-      await runTrackedShortAssetUpload({ assetId: asset._id, fetchImpl });
+      const uploaded = await runTrackedShortAssetUpload({ assetId: asset._id, fetchImpl, observed: asset, now });
+      if (uploaded) recovered += 1;
+      else skippedItems += 1;
     } catch (error) {
+      if (error.youtubeUploadAttempted) recovered += 1;
+      else skippedItems += 1;
       // 失敗原因與下一次重試時間已寫進 youtubeUpload；這一輪繼續處理下一支。
       if (process.env.NODE_ENV !== 'test') {
         console.error(`[shortAsset] YouTube upload recovery failed for ${asset._id}.`, error);
       }
     }
-    recovered += 1;
   }
 
   return { recovered, quarantined, skippedItems };

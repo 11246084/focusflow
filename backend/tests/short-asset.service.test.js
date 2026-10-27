@@ -259,7 +259,7 @@ describe('ShortAsset model/service', () => {
     assert.equal(new Date(asset.archivedAt).toISOString(), '2026-07-18T09:00:00.000Z');
   });
 
-  it('Course.deleteOne 失敗時 best-effort 還原本次封存', async () => {
+  it('Course.deleteOne 失敗時整個 transaction 還原本次封存', async () => {
     const asset = addAsset({ status: 'published' });
     const originalDeleteOne = Course.deleteOne;
     Course.deleteOne = async () => {

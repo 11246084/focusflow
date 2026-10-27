@@ -50,3 +50,20 @@ npm.cmd run dev
 例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
 
 測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。
+
+YouTube 所有權的真實 Mongo 整合測試需另外執行，不會隨 `npm.cmd test` 連線。課程刪除使用 transaction，因此完整測試需要 replica set。先啟動只綁定 loopback 的測試 Mongo，再由 backend 目錄執行（名稱與 port 須未被使用）：
+
+```powershell
+docker run --detach --name focusflow-youtube-test --publish 127.0.0.1:27128:27128 mongo:7 mongod --replSet ffReview --bind_ip_all --port 27128
+docker exec focusflow-youtube-test mongosh --port 27128 --quiet --eval 'rs.initiate({_id:"ffReview",members:[{_id:0,host:"127.0.0.1:27128"}]})'
+$env:YOUTUBE_TEST_MONGODB_URI = 'mongodb://127.0.0.1:27128'
+npm.cmd run test:youtube-mongo
+```
+
+只接受明確 port、沒有資料庫名稱或認證參數的本機 URI，不從 `.env` 取得預設值。每次建立隨機 `focusflow_youtube_test_` 資料庫，成功與失敗都會刪除該次資料庫並關閉連線；測試不載入正式 server 或記憶體 harness，關閉 autoIndex／autoCreate，只在測試 DB 明確建立必要 collection 與既有 ShortAsset index。YouTube 呼叫全部是假 API。
+
+此指令也執行 [FR01～FR06 回歸](integration/youtube-review-fixes.mongo.js)：以獨立 Node 子行程重現共用 DB 的競態，並測試舊資料、合法跨課程掛載與刪檔後的資料庫恢復。`youtubebackups` 使用 Mongo 內建 `_id` 唯一索引；不對 `videos.youtubeVideoId` 加唯一索引。所有 backend writer 升級與持久佔用的限制見[實作約束](../docs/04_Features/YouTube_Lifecycle/decisions.md#fr01fr06-共用資料庫修復約束2026-10-27)。
+
+[NR01／NR02 回歸](integration/youtube-recovery-atomicity.mongo.js)另外檢查恢復接管、課程刪除交易與外部工作重試。預設以隔離 DB 時間戳注入租約過期；設 `$env:YOUTUBE_TEST_REAL_LEASE = 'true'` 會讓兩個原始競態案例各實際等待 120 秒。程序中斷測試可能等待 Mongo 清除未完成交易，整套需要數分鐘。要檢查 standalone 的拒絕行為，另用獨立的 loopback standalone Mongo URI 執行 `node --test integration/course-deletion-standalone.mongo.js`；預期回 503 且資料完全不變。
+
+課程刪除的資料庫變更與 `coursedeletionjobs` 待辦在同一交易提交；YouTube 轉私人由提交後與啟動／每分鐘排程執行。單筆外部操作（含 token 與回應本文）上限 30 秒，超時取消請求並保留待辦重試，繼續處理下一筆。該集合以 `_id` 防重複、無 TTL 或自動索引同步；失敗及租約過期會重試，已完成紀錄保留。需要可交易的 MongoDB，standalone 回 `503 COURSE_DELETE_UNAVAILABLE`，不退回逐筆刪除。正式環境仍須另行授權查證；本機測試不代表部署前提已成立。

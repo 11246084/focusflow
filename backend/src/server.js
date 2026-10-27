@@ -30,6 +30,7 @@ const {
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
 const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
+const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = require('./services/courseDeletionJobs.service');
 
 async function startServer() {
   validateStudentPilotRuntime();
@@ -60,12 +61,14 @@ async function startServer() {
     .catch(() => null)
     .then(() => startYouTubeUploadRecoveryScheduler());
   startYouTubeCleanupScheduler();
+  startCourseDeletionJobScheduler();
 
   const shutdown = async () => {
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();
     stopYouTubeCleanupScheduler();
+    stopCourseDeletionJobScheduler();
     server.close(async () => {
       await mongoose.disconnect();
       process.exit(0);

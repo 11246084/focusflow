@@ -234,7 +234,7 @@ Shorts asset 是可管理的短影片成果。它可能只是 local/cloud draft�
 課程生命週期：
 
 - Course 改成 `archived` 時不修改 ShortAsset；feed 會因 Course status 自動隱藏，恢復 `published` 後重新顯示。
-- Course hard delete 時，在既有 cascade 成功後、`Course.deleteOne()` 前 idempotent 封存該課程尚未封存的 ShortAsset，保存最小 `courseSnapshot`；Course 刪除失敗時只 best-effort 還原本輪封存，不提供 transaction/atomicity 保證，也不刪除 ShortAsset。
+- Course hard delete 時，在同一資料庫交易內封存該課程尚未封存的 ShortAsset，保存最小 `courseSnapshot`，並完成影片／選課等 cascade；任一步衝突或失敗皆回滾，不刪除 ShortAsset。外部 YouTube 轉私人由交易內保存的待辦在提交後執行，詳見 4.1。
 
 YouTube metadata 同步只使用 `YOUTUBE_API_KEY` 呼叫 `videos.list`（每批最多 50 IDs）。`SHORTS_SYNC_INTERVAL_MS` 預設 600000，設 0 停用；startup、interval 與直接呼叫共用 single-flight promise，避免重疊消耗 quota 或舊結果覆寫新狀態。只有 public/unlisted 會標為 playable；private 或成功回應中缺少 ID 會標為 unavailable。網路、429、5xx 依 Retry-After 或 1s/2s/4s+jitter 最多重試三次；400/401/404 與 quotaExceeded 不重試。暫時性整批失敗保留上次成功 availability/privacy，只更新 `lastCheckedAt`。`youtube_video_not_returned` 與 `private` 原因只寫結構化 server log，不持久化到 ShortAsset。
 
@@ -353,11 +353,16 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 - 影片或短片被隔離、或最後一次可安全重試的失敗達到上限時，通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
 - 課程影片清單與 `GET /admin/videos` 的每支影片附 `sourceAvailable`；前端只有在 `sourceAvailable=false` 且有 `youtubeUpload.localCleanupAt` 時才視為原片已清理並提供補回。
 - 系統狀態 `/admin/system-status` 另有 `youtube_lifecycle` 列，顯示待處理與 7 天內到期刪除的數量。
+- 上傳核心以當前狀態與觀察版本原子佔用；重試需 failed、retrySafe=true、未達上限且已到退避時間。短片各入口共用排他權，過期 attempt 的成功／失敗結果不會覆寫新來源；佔用競爭可回既有 `409 YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED`。
+- 隔離套用與上傳完成先用共用 `youtubebackups` 集合原子佔用 YouTube ID（以 `_id` 唯一）；不同內容競爭回既有 `409 YOUTUBE_QUARANTINE_VIDEO_IN_USE`。歸屬綁內容，ShortAsset 另含代數；同一 Video 的跨課程 attach／detach 與匯入 URL 共用仍保留。清理 intent、上傳 heartbeat、attempt 與來源版本屬內部欄位，不擴充公開 response。所有 writer 都需遵守新版條件更新；舊資料相容與失敗恢復見[實作約束](../../docs/04_Features/YouTube_Lifecycle/decisions.md#fr01fr06-共用資料庫修復約束2026-10-27)。
+- 清理預告是查詢當下的估算。預告與實刪共用 Video／ShortAsset 的實體檔案引用檢查；相對路徑以 backend 根目錄解析，根外、根目錄本身與經 symlink／junction 的來源拒絕清理。任何草稿、處理中或其他引用都會保護同檔來源。
+- 每支低空間候選在刪除前重新讀取可用空間，未知或已達門檻即略過；超最長保留期仍獨立處理。每次 unlink 前重查清理開關，停用或設定讀取失敗即停止。刪檔成功但資料庫收尾失敗時，保留 intent；恢復者須先原子接管並換 id／來源版本，再觀察檔案、以相同新 id 收尾或取消，不得依接管前的存在快照取消。Video 清空 filePath；ShortAsset 保留路徑並記 localCleanupAt，禁止錯誤回到 draft。不重複計算釋放量。
+- 課程 hard delete 在同一 Mongo transaction 封存 ShortAsset、刪除主課程影片／segments／通知／選課／FAQ、移除掛載與 activeCourseId，並寫入轉私人待辦。清理 intent、活躍影片上傳或狀態競爭會回 409，整個交易回滾；standalone Mongo 回 `503 COURSE_DELETE_UNAVAILABLE` 且不刪資料。200 代表 DB 交易已提交，YouTube 外部操作不在交易內。
 
 權限與隱私限制：
 
 - 刪除影片時轉為私人影片，需 OAuth 權限屬於[上傳服務](../src/services/youtubeUpload.service.js)的 `PRIVACY_CAPABLE_SCOPES`（例如 `youtube.force-ssl`）；只有 `youtube.upload` 不足以轉私人。
-- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片；轉私人失敗只記錄錯誤、不中斷系統刪除，所以不能保證 YouTube 影片必定下架。
+- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片。課程刪除先持久記錄 `coursedeletionjobs`，提交後失敗會每分鐘重試；單筆外部操作含 token／回應本文上限 30 秒，超時取消並保留待辦、繼續下一筆。執行中的工作在租約過期後可接管，重複設定 private 可安全重做。沿用原有轉私人開關及 OAuth 條件，條件不足會保留待辦，不能保證刪課回應時已在 YouTube 下架。單支影片刪除維持既有行為。
 - `unlisted` 是知道連結即可觀看；課程權限不能阻止取得連結的人轉貼。
 
 ## 5. 已完成與待定版
@@ -376,7 +381,7 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 - `/health.runtime.multimodal` 監控 snapshot，顯示 `video_segments_video` / `video_embedding_index` 狀態與目前 QA 接入邊界。
 - `video_segments_video` 初版 visual citation retrieval：backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID，並用 Atlas `video_embedding_index` + `video_id` filter 檢索同課程視覺片段；回覆標示 `modality=video`、`clipPath` 與 timestamp citation。
 - Video presentation ownership：`ownership=app_owned|pipeline_metadata`、`isAppOwned`、`metadataOnly` 已固定為前端/LINE 共用語意。
-- `ShortAsset` model、內部 create/update service、修課限定學生 feed、Course hard delete idempotent 封存與 best-effort rollback。
+- `ShortAsset` model、內部 create/update service、修課限定學生 feed、Course hard delete 交易內封存及原子回滾。
 - YouTube metadata `videos.list` 批次同步、retry/backoff、結構化 unavailable log 與 `/health.runtime.shortsSync` 診斷。
 
 待定版：

@@ -1,4 +1,4 @@
-const { observedFields } = require('./youtubeWorkOwnership.service');
+const { expiredUploadHeartbeat, observedFields } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const ShortAsset = require('../models/shortAsset.model');
 const { SHORT_ASSET_STATUSES, YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
@@ -92,6 +92,7 @@ async function quarantineStaleShortAsset(asset, now) {
       $and: [
         MISSING_YOUTUBE_VIDEO_ID,
         buildObservedAttemptCondition(asset.youtubeUpload?.lastAttemptAt),
+        expiredUploadHeartbeat(),
         ...observedFields(asset, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']),
       ],
     },

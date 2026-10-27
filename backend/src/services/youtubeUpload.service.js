@@ -2,7 +2,7 @@ const { createReadStream, existsSync, statSync, unlinkSync } = require('fs');
 const path = require('path');
 const { inspectLocalUploadFile, resolveLocalUploadPath } = require('../utils/localVideoSource');
 const { claimCleanupSource, inspectCleanupSource, deleteCleanupSource } = require('./localSourceCleanup.service');
-const { attemptOwnerQuery, fileWorkKeys, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
+const { uploadClaimUpdate, expiredUploadHeartbeat, keepUploadAlive, reserveYouTubeBackup, attemptOwnerQuery, fileWorkKeys, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const Video = require('../models/video.model');
 const {
@@ -250,6 +250,7 @@ async function uploadLocalVideo({
   mimeType,
   privacyStatus = env.youtubeUploadPrivacy || env.youtubeUploadPrivacyStatus,
   fetchImpl = global.fetch,
+  signal,
 } = {}) {
   if (!filePath) {
     throw new AppError('filePath is required for YouTube upload.', 400, 'VALIDATION_ERROR');
@@ -280,6 +281,7 @@ async function uploadLocalVideo({
   let sessionResponse;
   try {
     sessionResponse = await fetchImpl(YOUTUBE_UPLOAD_URL, {
+      signal,
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -307,6 +309,7 @@ async function uploadLocalVideo({
   const uploadStream = createReadStream(filePath);
   try {
     uploadResponse = await fetchImpl(uploadUrl, {
+      signal,
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -352,6 +355,8 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
   const release = tryAcquireWork([sourceWorkKey('video', videoId)]);
   if (!release) return { cleaned: false, reason: 'operation_in_progress' };
   let releaseFile;
+  let owner;
+  let sourceRemoved = false;
   try {
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) return { cleaned: false, reason: 'disabled' };
     const video = await Video.findById(videoId).lean();
@@ -374,11 +379,12 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
     credentialState.lastCleanupAttemptAt = nowIso();
     credentialState.lastCleanupVideoId = String(videoId);
     const youtubeUrl = buildYouTubeWatchUrl(video.youtubeVideoId);
-    const owner = await claimCleanupSource('video', video, source, options, {
+    owner = await claimCleanupSource('video', video, source, options, {
       sourceUrl: youtubeUrl, videoUrl: youtubeUrl, videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
     });
     if (!owner) return { cleaned: false, reason: 'source_changed' };
-    const deletion = await deleteCleanupSource(source.file, { ...options, verifyOwnership: owner.verifyOwnership });
+    const deletion = await deleteCleanupSource(source.file, { ...options, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
+    sourceRemoved = deletion.cleaned;
     if (!deletion.cleaned) {
       if (deletion.reason === 'delete_failed') {
         credentialState.lastCleanupError = 'Local file deletion failed; source retained for retry.';
@@ -390,16 +396,17 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
     try {
       const finalized = await Video.findOneAndUpdate(owner.filter, { $set: {
         filePath: null, 'youtubeUpload.localCleanupAt': cleanedAt, 'youtubeUpload.localCleanupError': null,
-      } }, { new: true });
+      }, $unset: { 'youtubeUpload.cleanupIntent': 1, 'youtubeUpload.cleanupClaimedAt': 1 } }, { new: true });
       if (!finalized) throw new Error('Cleanup ownership changed before finalization.');
       credentialState.lastCleanupSuccessAt = cleanedAt.toISOString();
       credentialState.lastCleanupError = null;
       return { cleaned: deletion.existed, reason: deletion.existed ? null : 'already_missing' };
     } catch {
+      await owner.deferFinalization();
       credentialState.lastCleanupError = 'Local file removed; database finalization must be retried.';
       return { cleaned: deletion.existed, reason: 'state_write_failed', freedBytes: deletion.freedBytes };
     }
-  } finally { releaseFile?.(); release(); }
+  } finally { if (owner && !sourceRemoved) await owner.release(); releaseFile?.(); release(); }
 }
 
 async function autoUploadVideoToYouTube(
@@ -412,6 +419,7 @@ async function autoUploadVideoToYouTube(
   runningUploadIds.add(id);
   let releaseFile;
   let owner = null;
+  let heartbeat;
   const attemptId = randomWorkId();
   let attemptCount = 0;
   let attemptStartedAt = new Date();
@@ -436,8 +444,7 @@ async function autoUploadVideoToYouTube(
     attemptStartedAt = new Date();
     const claimedVideo = await Video.findOneAndUpdate(
       uploadClaimQuery(video, { allowRetry, observed: observed || video, now }),
-      {
-        $set: uploadStateUpdate(video, {
+      uploadClaimUpdate(video, {
           'youtubeUpload.attemptId': attemptId,
           'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
           'youtubeUpload.error': null,
@@ -447,12 +454,12 @@ async function autoUploadVideoToYouTube(
           'youtubeUpload.failedAt': null,
           'youtubeUpload.retrySafe': false,
           'youtubeUpload.nextRetryAt': null,
-        }),
-      },
+      }),
       { new: true },
     );
     if (!claimedVideo) return null;
     owner = attemptOwnerQuery(video, attemptId);
+    heartbeat = keepUploadAlive(Video, owner);
     onClaim?.();
 
     const filePath = resolveLocalUploadPath(claimedVideo.filePath);
@@ -490,8 +497,9 @@ async function autoUploadVideoToYouTube(
       filePath,
       title: claimedVideo.title,
       description: `Uploaded by FocusFlow (video ${id}).`,
-      fetchImpl,
+      fetchImpl, signal: heartbeat.signal,
     });
+    await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'video', video);
     const uploadedAt = new Date();
 
     const completed = await Video.findOneAndUpdate(owner, {
@@ -550,6 +558,7 @@ async function autoUploadVideoToYouTube(
     }
     return null;
   } finally {
+    await heartbeat?.stop();
     releaseFile?.();
     runningUploadIds.delete(id);
     release();
@@ -699,6 +708,7 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
               $and: [
                 buildMissingYouTubeVideoIdCondition(),
                 buildObservedLastAttemptCondition(observedLastAttemptAt),
+                expiredUploadHeartbeat(),
                 { 'youtubeUpload.attemptId': video.youtubeUpload?.attemptId ?? null },
               ],
             },

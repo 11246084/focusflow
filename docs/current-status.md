@@ -31,7 +31,11 @@
 
 **YouTube 恢復／清理｜已部署；恢復已開啟，清理未開啟。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-22 合併 `main` 部署到正式站（本機 Backend 1123、Frontend 107 項測試通過），恢復排程每 5 分鐘執行、管理員頁開關與待處理清單正常；清理的環境變數維持不允許，依決策 #33 於 2026-11-09～11-13 開啟。實際失敗後的自動恢復、清理刪檔與短片流程在正式站未驗證，過程見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
-2026-10-26 審查修正（分支 `fix/youtube-lifecycle-review`，未部署）：依 [F 工單](04_Features/YouTube_Lifecycle/work-orders/F-review-fixes.md)完成 F0～F2 與最後整合檢查；分組提交後停止，待獨立審查再接 F3／F4。沒有實作每日額度方案，也沒有新增 completed 重新處理入口。
+2026-10-27 收尾複驗（分支 `fix/youtube-lifecycle-review`，本機提交／未合併／未部署）：**F0～F2 可結案，FR01～FR06 PASS；沒有未解決的已知 P1／P2 程式合併阻礙，建議進入 Commit／Merge 整合。** 已確認 NR01 P1 的 intent 接管／刪檔收尾，以及 NR02 P2 的課程刪除交易／持久外部待辦；本輪另重現並修正外部請求無回應會卡住排程的 P2，加入含回應本文的 30 秒期限。最終 Backend 全套 **1199／1199**、隔離 Mongo **62／62**、`docs:lint` 與 `git diff --check` 通過；真實 120 秒租約 **58／58**、standalone 拒絕 **1／1** 沿用未受本輪修改影響的證據，沒有重跑同樣的長測試。判定是本輪程式審查與隔離驗證，不宣稱另一位未參與修復的獨立審查者或正式環境驗收；詳見[最終報告](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f0-f2-final-review.md)。前輪 [FR 修復](04_Features/YouTube_Lifecycle/evidence/2026-10-27_fr01-fr06-fixes.md)與 [NR 交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_nr01-nr02-fixes.md)保留歷史結果。部署前仍需確認交易能力、所有 writer 升級與原有啟用門檻。沒有實作 Q-A～Q-F、F3／F4，未連 Atlas、VM 或真實 YouTube，未 Push、Merge 或部署。
+
+2026-10-27 本機整合：使用者授權提交 F0～F2 修復與證據。合併前發現本機 `dev` 與修復分支已分歧（`dev` 獨有 8 個 commit，修復分支提交前獨有 3 個），無法 fast-forward；依使用者停止條件保留本機提交並暫停合併，不自行 rebase 或建立非 fast-forward merge。主工作目錄的第三輪 7 份規格與其他未提交檔案均不切換、不提交、不覆蓋。
+
+以下保留 2026-10-26 初次實作的歷史測試記錄，不作 FR01～FR06 已結案的依據：
 
 | 問題 | 修改入口 | 測試證據與限制 |
 |---|---|---|
@@ -42,7 +46,7 @@
 | R04、R05 | [影片上傳](../backend/src/services/youtubeUpload.service.js)、[短片上傳](../backend/src/services/shortAssetPublish.service.js)、[短片恢復](../backend/src/services/shortAssetRecovery.service.js) | F2 競態：A／B 候選與教師重試交錯、unsafe／退避／上限、所有開始入口共用排他權、舊 attempt 拒絕回寫、DB 失敗不送 bytes、上傳後回寫失敗不再重傳、上傳中仍可審核且封存後不重新上架；YouTube 全為 mock |
 | R06 | [隔離套用](../backend/src/services/youtubeQuarantine.service.js)、[共同備份檢查](../backend/src/services/youtubeWorkOwnership.service.js) | Video／Video 與 Video／ShortAsset 同 ID 競爭、驗證與回寫失敗釋放、歷史重複備份拒刪；採工單允許的單一 writer 限制，不是跨行程 DB 唯一性，詳見[實作約束](04_Features/YouTube_Lifecycle/decisions.md#f-工單的實作約束2026-10-26) |
 
-F2 最終整合：backend 全套 1199／1199、Windows 與 Linux 容器清理／所有權各 41／41、隔離 Mongo 14／14 通過（未載入記憶體 harness；明確 loopback URI、隨機 DB、成功與失敗移除 DB；另驗證 null／缺欄位初次上傳、略過上傳及重啟遺留 token 隔離）。測試只處理自建暫存檔，沒有連 Atlas、VM 或真實 YouTube；未執行 STT／FFmpeg、前端／瀏覽器及決策 #33 的正式驗收，這些不屬於本輪 F0～F2 的交付證據。
+2026-10-26 F2 整合：backend 全套 1199／1199、Windows 與 Linux 容器清理／所有權各 41／41、隔離 Mongo 14／14 通過（未載入記憶體 harness；明確 loopback URI、隨機 DB、成功與失敗移除 DB；另驗證 null／缺欄位初次上傳、略過上傳及重啟遺留 token 隔離）。測試只處理自建暫存檔，沒有連 Atlas、VM 或真實 YouTube；未執行 STT／FFmpeg、前端／瀏覽器及決策 #33 的正式驗收。
 
 **多影片批次｜已實作。** [批次服務](../backend/src/services/videoBatchProcessing.service.js)與[批次入口](../STT_Whisper/src/batch_main.py)串接排程、重試及恢復；真實語音模型、向量產生與部署的完整流程未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 

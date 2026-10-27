@@ -47,7 +47,7 @@ const { assertMediaIntegrity } = require('./mediaIntegrity.service');
 const { removeVideoNotifications } = require('./notification.service');
 const { inspectLocalUploadFile, isLocalVideoSourceAvailable, resolveLocalUploadPath } = require('../utils/localVideoSource');
 const { discardUnreferencedUpload } = require('./localSourceCleanup.service');
-const { fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
+const { NO_CLEANUP_INTENT, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -543,6 +543,7 @@ async function restoreVideoSourceOwned({ videoId, file, user }) {
       {
         _id: video._id,
         filePath: null,
+        ...NO_CLEANUP_INTENT,
         'youtubeUpload.localCleanupAt': { $ne: null },
         $and: observedFields(video, ['youtubeUpload.localCleanupAt', 'youtubeUpload.localSourceVersion', 'processing.status']),
       },

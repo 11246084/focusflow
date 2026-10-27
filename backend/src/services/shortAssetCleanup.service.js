@@ -87,6 +87,8 @@ async function cleanupShortAssetLocalFile(assetId, options = {}) {
   const release = tryAcquireWork([sourceWorkKey(SHORT_ASSET_CLEANUP_KIND, assetId), sourceStatusWorkKey(SHORT_ASSET_CLEANUP_KIND, assetId)]);
   if (!release) return { cleaned: false, reason: 'operation_in_progress' };
   let releaseFile;
+  let owner;
+  let sourceRemoved = false;
   try {
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) return { cleaned: false, reason: 'disabled' };
     const asset = await ShortAsset.findById(assetId).lean();
@@ -103,9 +105,10 @@ async function cleanupShortAssetLocalFile(assetId, options = {}) {
         ? 'Refusing to clean a local file referenced by another short asset or video.' : `Refusing cleanup: ${source.reason}.`);
       return { cleaned: false, reason: source.reason };
     }
-    const owner = await claimCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset, source, options);
+    owner = await claimCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset, source, options);
     if (!owner) return { cleaned: false, reason: 'source_changed' };
-    const deletion = await deleteCleanupSource(source.file, { ...options, verifyOwnership: owner.verifyOwnership });
+    const deletion = await deleteCleanupSource(source.file, { ...options, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
+    sourceRemoved = deletion.cleaned;
     if (!deletion.cleaned) {
       if (deletion.reason === 'delete_failed') await ShortAsset.findOneAndUpdate(owner.filter, { $set: { 'youtubeUpload.localCleanupError': 'Local file deletion failed; source retained for retry.' } });
       return { cleaned: false, reason: deletion.reason };
@@ -113,11 +116,14 @@ async function cleanupShortAssetLocalFile(assetId, options = {}) {
     try {
       const finalized = await ShortAsset.findOneAndUpdate(owner.filter, { $set: {
         'youtubeUpload.localCleanupAt': new Date(), 'youtubeUpload.localCleanupError': null,
-      } }, { new: true });
+      }, $unset: { 'youtubeUpload.cleanupIntent': 1, 'youtubeUpload.cleanupClaimedAt': 1 } }, { new: true });
       if (!finalized) throw new Error('Cleanup ownership changed before finalization.');
       return { cleaned: deletion.existed, reason: deletion.existed ? null : 'already_missing' };
-    } catch { return { cleaned: deletion.existed, reason: 'state_write_failed', freedBytes: deletion.freedBytes }; }
-  } finally { releaseFile?.(); release(); }
+    } catch {
+      await owner.deferFinalization();
+      return { cleaned: deletion.existed, reason: 'state_write_failed', freedBytes: deletion.freedBytes };
+    }
+  } finally { if (owner && !sourceRemoved) await owner.release(); releaseFile?.(); release(); }
 }
 
 module.exports = {

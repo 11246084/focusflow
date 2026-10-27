@@ -1,6 +1,6 @@
 const { discardUnreferencedUpload } = require('./localSourceCleanup.service');
 const { inspectLocalUploadFile, resolveLocalUploadPath } = require('../utils/localVideoSource');
-const { attemptOwnerQuery, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
+const { uploadClaimUpdate, keepUploadAlive, NO_CLEANUP_INTENT, reserveYouTubeBackup, attemptOwnerQuery, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
 const { existsSync, unlinkSync } = require('fs');
 const ShortAsset = require('../models/shortAsset.model');
 const ShortScript = require('../models/shortScript.model');
@@ -157,6 +157,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
   if (!release) throw new AppError('Short asset upload or source operation is already running.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
   runningShortAssetUploads.set(String(assetId).toLowerCase(), true);
   let releaseFile;
+  let heartbeat;
   try {
     const asset = await ShortAsset.findById(assetId).lean();
     if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
@@ -170,16 +171,15 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     if (attemptCount > env.youtubeUploadMaxAttempts) throw new AppError('YouTube upload retry limit reached for this short asset.', 409, 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED');
     const startedAt = new Date();
     const attemptId = randomWorkId();
-    const claimed = await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true }), {
-      $set: uploadStateUpdate(asset, {
+    const claimed = await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true }), uploadClaimUpdate(asset, {
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING, 'youtubeUpload.attemptId': attemptId,
         'youtubeUpload.error': null, 'youtubeUpload.attemptCount': attemptCount,
         'youtubeUpload.lastAttemptAt': startedAt, 'youtubeUpload.failedAt': null,
         'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
-      }),
-    }, { new: true });
+    }), { new: true });
     if (!claimed) return null;
     const owner = attemptOwnerQuery(asset, attemptId);
+    heartbeat = keepUploadAlive(ShortAsset, owner);
     let uploadResult;
     try {
       const filePath = resolveLocalUploadPath(asset.filePath);
@@ -192,7 +192,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       releaseFile = tryAcquireWork(fileWorkKeys(file));
       if (!releaseFile) { const error = new Error('Local source is in use.'); error.youtubeRetrySafe = true; throw error; }
       uploadResult = await uploadLocalVideo({ filePath, title: asset.title,
-        description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl });
+        description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl, signal: heartbeat.signal });
     } catch (error) {
       error.youtubeUploadAttempted = true;
       await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
@@ -201,6 +201,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     const uploadedAt = new Date();
     let uploaded;
     try {
+      await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'short_asset', asset);
       uploaded = await ShortAsset.findOneAndUpdate(owner, { $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
@@ -218,9 +219,9 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     if (!uploaded) return null;
     if (uploaded.status !== SHORT_ASSET_STATUSES.ARCHIVED
       && uploaded.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
-      && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)) return markShortAssetPublished(uploaded);
+      && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)) return await markShortAssetPublished(uploaded);
     return uploaded;
-  } finally { releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release(); }
+  } finally { await heartbeat?.stop(); releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release(); }
 }
 
 function isShortAssetUploadRunning(assetId) {
@@ -240,9 +241,23 @@ function runTrackedShortAssetUpload(options = {}) {
  * 只改 FocusFlow 這端的可見性。
  */
 async function markShortAssetPublished(asset) {
+  assertReviewApproved(asset);
+  if (!asset.youtubeVideoId) return null;
   const publishedAt = new Date();
-  const published = await ShortAsset.findByIdAndUpdate(
-    asset._id,
+  const published = await ShortAsset.findOneAndUpdate(
+    { _id: asset._id, status: { $nin: [SHORT_ASSET_STATUSES.ARCHIVED, SHORT_ASSET_STATUSES.PUBLISHED] },
+      ...NO_CLEANUP_INTENT, reviewStatus: SHORT_ASSET_REVIEW_STATUSES.APPROVED,
+      // Hydrated legacy documents have a default generation/attempt which may
+      // still be absent in Mongo. Null and missing mean "no attempt" here;
+      // every new upload has a non-null token and every regeneration increments.
+      'youtubeUpload.attemptId': asset.youtubeUpload?.attemptId ?? null,
+      $and: [
+        Number(asset.generationVersion || 1) === 1
+          ? { $or: [{ generationVersion: 1 }, { generationVersion: null }] }
+          : { generationVersion: asset.generationVersion },
+        ...observedFields(asset, ['reviewedGenerationVersion', 'filePath', 'youtubeVideoId']),
+      ],
+    },
     {
       $set: {
         status: SHORT_ASSET_STATUSES.PUBLISHED,
@@ -251,6 +266,8 @@ async function markShortAssetPublished(asset) {
     },
     { new: true },
   );
+
+  if (!published) return null;
 
   // 影片已經對學生可見，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
   if (asset.sourceScriptId) {

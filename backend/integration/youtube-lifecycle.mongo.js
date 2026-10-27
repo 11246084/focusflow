@@ -58,14 +58,14 @@ before(async () => {
     youtubeUploadCleanupEnabled: true, youtubeUploadCleanupMaxAgeDays: 180, youtubeUploadCleanupMinFreeGb: 0 });
   isolated = await openIsolatedYouTubeMongo(uri);
   await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false });
-  for (const name of ['videos', 'shortassets', 'runtimesettings', 'users', 'courses', 'notifications']) await isolated.db.createCollection(name);
+  for (const name of ['videos', 'shortassets', 'runtimesettings', 'users', 'courses', 'notifications', 'youtubebackups']) await isolated.db.createCollection(name);
   await mongoose.connection.db.collection('courses').insertOne({ _id: courseId, title: 'Isolated course', teacherId: new mongoose.Types.ObjectId(), status: 'draft', videoIds: [] });
   // Only the existing ShortAsset index is explicitly created in this random DB.
   await isolated.db.collection('shortassets').createIndex({ youtubeVideoId: 1 }, { unique: true, sparse: true });
 });
 beforeEach(async () => {
   upload.resetYouTubeUploadState(); lifecycle.resetYouTubeLifecycleStateForTests();
-  for (const name of ['videos', 'shortassets', 'runtimesettings', 'notifications']) await isolated.db.collection(name).deleteMany({});
+  for (const name of ['videos', 'shortassets', 'runtimesettings', 'notifications', 'youtubebackups']) await isolated.db.collection(name).deleteMany({});
   await RuntimeSetting.create({ key: 'youtubeLifecycle.cleanup', value: true });
 });
 after(async () => {

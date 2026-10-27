@@ -182,7 +182,9 @@ describe('短影片上架（WO-08）', () => {
     stubYouTubeUpload();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // HTTP 201 precedes the background upload; drain it before clearing fixtures.
+    await waitFor(() => store.shortAssets.every((asset) => !publishService.isShortAssetUploadRunning(asset._id)));
     global.fetch = originalFetch;
     disableYouTube();
     env.shortScriptAutomationEnabled = false;

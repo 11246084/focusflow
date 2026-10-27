@@ -6,7 +6,7 @@ const {
   YOUTUBE_UPLOAD_STATUSES,
 } = require('../constants/enums');
 const AppError = require('../utils/appError');
-const { inspectCleanupSource, loadLocalFileReferences } = require('./localSourceCleanup.service');
+const { repairCleanupIntents, inspectCleanupSource, loadLocalFileReferences } = require('./localSourceCleanup.service');
 const {
   cleanupUploadedLocalVideo,
   getYouTubeUploadRecoverySchedulerState,
@@ -280,6 +280,8 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
   cleanupScheduler.startedAt = now.toISOString();
   cleanupScheduler.lastAttemptAt = now.toISOString();
   try {
+    const repair = await repairCleanupIntents();
+    cleanupScheduler.lastError = repair.unresolved > 0 ? 'Local cleanup database finalization must be retried.' : null;
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
       return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
     }
@@ -307,7 +309,9 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
       const source = CLEANUP_SOURCES[candidate.kind];
       const result = await source.cleanup(candidate.id, {
         candidate,
-        beforeDelete: candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE ? async () => {
+        minFreeBytes: candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE && !getFreeBytes ? policy.minFreeBytes : 0,
+        finalFreeBytes: () => { const stat = fs.statfsSync(env.uploadDir); return Number(stat.bavail) * Number(stat.bsize); },
+        beforeDelete: candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE && getFreeBytes ? async () => {
           const space = await readFreeBytes(getFreeBytes);
           if (space.freeBytes === null) return 'space_unknown';
           return space.freeBytes >= policy.minFreeBytes ? 'space_recovered' : null;
@@ -331,7 +335,7 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
     }
 
     cleanupScheduler.lastSuccessAt = new Date().toISOString();
-    cleanupScheduler.lastError = results.some((result) => result.skipReason === 'state_write_failed')
+    cleanupScheduler.lastError = repair.unresolved > 0 || results.some((result) => result.skipReason === 'state_write_failed')
       ? 'Local files removed; database finalization must be retried.' : null;
     cleanupScheduler.lastCleanedCount = cleaned;
     cleanupScheduler.lastFreedBytes = freedBytes;

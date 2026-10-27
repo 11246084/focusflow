@@ -64,6 +64,8 @@ const Message = require('../../src/models/message.model');
 const Feedback = require('../../src/models/feedback.model');
 const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
 const RuntimeSetting = require('../../src/models/runtimeSetting.model');
+const YouTubeBackup = require('../../src/models/youTubeBackup.model');
+const CourseDeletionJob = require('../../src/models/courseDeletionJob.model');
 const AuthSession = require('../../src/models/authSession.model');
 const AdminAuditLog = require('../../src/models/adminAuditLog.model');
 
@@ -99,6 +101,8 @@ const store = {
   feedbacks: [],
   feedbackAttachments: [],
   runtimeSettings: [],
+  youtubeBackups: [],
+  courseDeletionJobs: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
@@ -179,6 +183,15 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
   if (!update) {
     return target;
   }
+  if (Array.isArray(update)) {
+    for (const stage of update) {
+      for (const [key, value] of Object.entries(stage.$set || {})) {
+        setNested(target, key, value === '$$NOW' ? new Date() : value);
+      }
+    }
+    return target;
+  }
+  for (const key of Object.keys(update.$currentDate || {})) setNested(target, key, new Date());
 
   const plainEntries = Object.entries(update).filter(([key]) => !key.startsWith('$'));
   for (const [key, value] of plainEntries) {
@@ -257,6 +270,17 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
 
 function matchesQuery(document, query = {}) {
   return Object.entries(query).every(([key, value]) => {
+    if (key === '$expr') {
+      const evaluate = (expression) => {
+        if (expression === '$$NOW') return new Date();
+        if (typeof expression === 'string' && expression.startsWith('$')) return getNested(document, expression.slice(1));
+        if (typeof expression === 'number' || expression instanceof Date) return expression;
+        if (expression?.$subtract) { const [a, b] = expression.$subtract.map(evaluate); return a - b; }
+        if (expression?.$lte) { const [a, b] = expression.$lte.map(evaluate); return a <= b; }
+        throw new Error('Unsupported test expression');
+      };
+      return evaluate(value);
+    }
     if (key === '$and') {
       return value.every((candidate) => matchesQuery(document, candidate));
     }
@@ -498,6 +522,23 @@ async function bulkWriteInStore(collection, operations = []) {
 }
 
 function installModelStubs() {
+  // Unit-test rollback only. Isolation/write conflicts are verified by the
+  // explicit replica-set integration suite, never inferred from this harness.
+  mongoose.connection.transaction = async (action) => {
+    const snapshots = Object.entries(store).filter(([, value]) => Array.isArray(value))
+      .map(([key, value]) => [key, value.map((item) => ({ original: item, copy: cloneSnapshot(item) }))]);
+    try { return await action({ testOnly: true }); }
+    catch (error) {
+      for (const [key, rows] of snapshots) {
+        for (const { original, copy } of rows) {
+          for (const field of Object.keys(original)) delete original[field];
+          Object.assign(original, copy);
+        }
+        store[key].splice(0, store[key].length, ...rows.map(({ original }) => original));
+      }
+      throw error;
+    }
+  };
   const fault = (key) => { if (store[key]) { const error = store[key]; store[key] = null; throw error; } };
   AuthSession.create = async (payload) => { fault('nextAuthSessionWriteError'); store.authSessions.push({ ...payload }); return payload; };
   AuthSession.findOne = async (query = {}) => { fault('nextAuthSessionReadError'); return store.authSessions.find((item) => matchesQuery(item, query)) || null; };
@@ -1268,6 +1309,16 @@ function installModelStubs() {
   RuntimeSetting.findOne = (query = {}) => createQuery(
     store.runtimeSettings.find((item) => matchesQuery(item, query)) || null,
   );
+  YouTubeBackup.findOneAndUpdate = async (query, update, options) => {
+    const existing = store.youtubeBackups.find((item) => item._id === query._id);
+    if (existing && existing.contentKey !== query.contentKey) throw Object.assign(new Error('Duplicate backup owner'), { code: 11000 });
+    return findOneAndUpdateInStore(store.youtubeBackups, query, update, options);
+  };
+  CourseDeletionJob.insertMany = async (rows) => {
+    const documents = rows.map((row) => ({ attemptCount: 0, nextAttemptAt: null, ...row }));
+    store.courseDeletionJobs.push(...documents); return documents;
+  };
+  CourseDeletionJob.findOneAndUpdate = async (query, update, options) => findOneAndUpdateInStore(store.courseDeletionJobs, query, update, options);
   RuntimeSetting.find = (query = {}) => createQuery(
     store.runtimeSettings.filter((item) => matchesQuery(item, query)),
   );
@@ -1290,6 +1341,8 @@ function installModelStubs() {
 }
 
 function resetStore() {
+  store.courseDeletionJobs = [];
+  store.youtubeBackups = [];
   store.authSessions.length = 0;
   store.adminAuditLogs.length = 0;
   store.nextAuthSessionReadError = null;

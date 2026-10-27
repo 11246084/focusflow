@@ -1529,6 +1529,9 @@ paths:
 
         刪除會 cascade 清理對應的 Video / Segment / transcripts、`course.videoIds`、`Enrollment` 與 `User.activeCourseId`；
         但**保留** UsageLog / Question 歷史紀錄（改由 display 層分流顯示「內容已下架」）。
+        DB cascade、短片封存與待執行的 YouTube 轉私人工作以同一 MongoDB transaction 提交。
+        清理／來源衝突或 DB 操作失敗時整批回滾；不支援 transaction 的 MongoDB 不執行刪除。
+        200 代表 DB 刪除已完成；外部轉私人若未完成會保留持久工作，由啟動及週期排程重試。
       operationId: deleteCourse
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -1552,6 +1555,18 @@ paths:
           $ref: '#/components/responses/CourseManageDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+        '409':
+          description: SHORT_ASSET_REVIEW_CONFLICT、COURSE_DELETE_CONFLICT 或 YOUTUBE_QUARANTINE_VIDEO_IN_USE；本次 DB 刪除整批回滾。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: COURSE_DELETE_UNAVAILABLE；資料庫不支援 transaction，未刪除資料。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/courses/{courseId}/enrollments:
     get:
       tags:

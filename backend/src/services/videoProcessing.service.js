@@ -1,4 +1,4 @@
-const { observedFields } = require('./youtubeWorkOwnership.service');
+const { NO_CLEANUP_INTENT, observedFields } = require('./youtubeWorkOwnership.service');
 const Video = require('../models/video.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
@@ -113,7 +113,7 @@ async function queueVideoForProcessing(videoId) {
   }
 
   // Retrying a failed job clears failure details but preserves how many attempts already ran.
-  const queued = await Video.findOneAndUpdate({ _id: videoId, 'processing.status': currentStatus,
+  const queued = await Video.findOneAndUpdate({ _id: videoId, ...NO_CLEANUP_INTENT, 'processing.status': currentStatus,
     $and: observedFields(video, ['filePath', 'youtubeUpload.localSourceVersion']),
   }, {
     $set: {

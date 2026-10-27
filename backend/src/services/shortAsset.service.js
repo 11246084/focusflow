@@ -1,5 +1,5 @@
 const { inspectLocalUploadFile } = require('../utils/localVideoSource');
-const { fileWorkKeys, isBackupUnassigned, observedFields, randomWorkId, sourceStatusWorkKey, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
+const { NO_CLEANUP_INTENT, reserveYouTubeBackup, fileWorkKeys, observedFields, randomWorkId, sourceStatusWorkKey, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const Enrollment = require('../models/enrollment.model');
@@ -308,6 +308,7 @@ async function createShortAssetOwned(payload) {
     assertPublicationApproved(fields);
   }
   assertPublishedPlayableMetadata(fields);
+  fields._id = new mongoose.Types.ObjectId();
   await assertLocalBackupAvailable(fields);
   return ShortAsset.create(fields);
 }
@@ -319,6 +320,9 @@ async function updateShortAssetOwned(assetId, patch) {
   const existing = await ShortAsset.findById(assetId).lean();
   if (!existing) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
   const fields = pickFields(patch, UPDATE_FIELDS);
+  if (fields.filePath !== undefined && fields.filePath !== existing.filePath) {
+    throw new AppError('Replace the short source through regeneration.', 409, 'SHORT_ASSET_REVIEW_CONFLICT');
+  }
   await assertLocalBackupAvailable({ ...existing, ...fields }, assetId);
   const isPublishTransition = (
     fields.status === SHORT_ASSET_STATUSES.PUBLISHED
@@ -334,16 +338,19 @@ async function updateShortAssetOwned(assetId, patch) {
     update.$unset = { youtubeVideoId: 1 };
   }
   const publicationGenerationVersion = normalizeGenerationVersion(existing.generationVersion);
-  const asset = await (isPublishTransition ? ShortAsset.findOneAndUpdate : ShortAsset.findByIdAndUpdate)(
+  const asset = await ShortAsset.findOneAndUpdate(
     isPublishTransition
       ? {
-        _id: assetId,
+        _id: assetId, ...NO_CLEANUP_INTENT,
         status: existing.status,
         reviewStatus: SHORT_ASSET_REVIEW_STATUSES.APPROVED,
         generationVersion: publicationGenerationVersion,
         reviewedGenerationVersion: publicationGenerationVersion,
       }
-      : assetId,
+      : { _id: assetId, ...NO_CLEANUP_INTENT,
+        ...(fields.status === SHORT_ASSET_STATUSES.DRAFT ? { 'youtubeUpload.localCleanupAt': null } : {}),
+        $and: observedFields(existing, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']),
+      },
     update,
     { new: true, runValidators: true },
   );
@@ -355,7 +362,7 @@ async function updateShortAssetOwned(assetId, patch) {
         'SHORT_ASSET_NOT_APPROVED',
       );
     }
-    throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
+    throw new AppError('Short asset source or lifecycle changed; reload before updating.', 409, 'SHORT_ASSET_REVIEW_CONFLICT');
   }
   return asset;
 }
@@ -561,7 +568,7 @@ async function reviewShortAssetOwned({
     reasons: normalizedReasons,
   };
   const updated = await ShortAsset.findOneAndUpdate(
-    buildLegacyAwareReviewCasFilter(assetId, expectedGenerationVersion),
+    { ...buildLegacyAwareReviewCasFilter(assetId, expectedGenerationVersion), ...NO_CLEANUP_INTENT, 'youtubeUpload.localCleanupAt': null },
     {
       $set: {
         reviewStatus: status,
@@ -614,8 +621,12 @@ async function recordShortAssetRegenerationOwned(assetId, patch = {}) {
   if (!existing) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
 
   const fields = pickFields(patch, REGENERATION_FIELDS);
-  await assertLocalBackupAvailable({ ...existing, ...fields }, assetId);
   const nextGenerationVersion = normalizeGenerationVersion(existing.generationVersion) + 1;
+  // Backfill the old generation's reservation before moving away from it.
+  // Missing youtubeVideoId in a regeneration means a new, unuploaded source.
+  await assertLocalBackupAvailable(existing, assetId);
+  if (fields.youtubeVideoId === undefined) fields.youtubeVideoId = null;
+  await assertLocalBackupAvailable({ ...existing, ...fields, generationVersion: nextGenerationVersion }, assetId);
   const update = {
     $set: {
       ...fields,
@@ -637,11 +648,11 @@ async function recordShortAssetRegenerationOwned(assetId, patch = {}) {
   }
 
   const updated = await ShortAsset.findOneAndUpdate(
-    { _id: assetId, $and: observedFields(existing, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']) },
+    { _id: assetId, ...NO_CLEANUP_INTENT, 'youtubeUpload.status': { $ne: 'uploading' }, $and: observedFields(existing, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']) },
     update,
     { new: true, runValidators: true },
   );
-  if (!updated) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
+  if (!updated) throw new AppError('Short asset source or lifecycle changed; reload before regenerating.', 409, 'SHORT_ASSET_REVIEW_CONFLICT');
   return updated;
 }
 
@@ -712,11 +723,11 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
   };
 }
 
-async function archiveForCourseDeletion(course, { now = new Date() } = {}) {
+async function archiveForCourseDeletion(course, { now = new Date(), session } = {}) {
   const assets = await ShortAsset.find({
     courseId: course._id,
     status: { $ne: SHORT_ASSET_STATUSES.ARCHIVED },
-  }).select('_id status').lean();
+  }, null, { session }).select('_id status').lean();
 
   if (!assets.length) return [];
   const archivedAssets = assets.map((asset) => ({
@@ -733,9 +744,9 @@ async function archiveForCourseDeletion(course, { now = new Date() } = {}) {
   };
   const release = acquireStatusMutation(assets.map((asset) => asset._id));
   try {
-    await ShortAsset.bulkWrite(assets.map((asset) => ({
+    const result = await ShortAsset.bulkWrite(assets.map((asset) => ({
       updateOne: {
-        filter: { _id: asset._id, status: { $ne: SHORT_ASSET_STATUSES.ARCHIVED } },
+        filter: { _id: asset._id, ...NO_CLEANUP_INTENT, status: asset.status },
         update: {
           $set: {
             status: SHORT_ASSET_STATUSES.ARCHIVED,
@@ -747,7 +758,8 @@ async function archiveForCourseDeletion(course, { now = new Date() } = {}) {
           },
         },
       },
-    })), { ordered: false });
+    })), { ordered: true, session });
+    if (result.modifiedCount !== assets.length) throw new AppError('Short asset lifecycle changed during course archival.', 409, 'SHORT_ASSET_REVIEW_CONFLICT');
   } finally { release(); }
 
   return archivedAssets;
@@ -758,10 +770,11 @@ async function rollbackCourseDeletionArchive(archivedAssets) {
 
   const release = acquireStatusMutation(archivedAssets.map((asset) => asset.assetId));
   try {
-    await ShortAsset.bulkWrite(archivedAssets.map((asset) => ({
+    const result = await ShortAsset.bulkWrite(archivedAssets.map((asset) => ({
       updateOne: {
         filter: {
-          _id: asset.assetId,
+          _id: asset.assetId, ...NO_CLEANUP_INTENT,
+          ...(asset.status === SHORT_ASSET_STATUSES.DRAFT ? { 'youtubeUpload.localCleanupAt': null } : {}),
           status: SHORT_ASSET_STATUSES.ARCHIVED,
           archiveReason: 'course_deleted',
           archivedAt: asset.archivedAt,
@@ -778,6 +791,7 @@ async function rollbackCourseDeletionArchive(archivedAssets) {
         },
       },
     })), { ordered: false });
+    if (result.modifiedCount !== archivedAssets.length) throw new AppError('Short asset rollback conflicted with cleanup or another lifecycle change.', 409, 'SHORT_ASSET_REVIEW_CONFLICT');
   } finally { release(); }
 }
 
@@ -793,9 +807,7 @@ async function reviewShortAsset(options) {
 }
 
 async function assertLocalBackupAvailable(item, id) {
-  if (item.filePath && item.youtubeVideoId && !(await isBackupUnassigned(item.youtubeVideoId, { kind: 'short_asset', id }))) {
-    throw new AppError('YouTube backup is already assigned to another upload.', 409, 'YOUTUBE_QUARANTINE_VIDEO_IN_USE');
-  }
+  if (item.youtubeVideoId) await reserveYouTubeBackup(item.youtubeVideoId, 'short_asset', { ...item, _id: id || item._id });
 }
 
 function acquireMutation(assetId, patch = {}) {

@@ -1,4 +1,4 @@
-const { isBackupUnassigned, observedFields, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
+const { NO_CLEANUP_INTENT, reserveYouTubeBackup, isBackupUnassigned, observedFields, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const Course = require('../models/course.model');
 const ShortAsset = require('../models/shortAsset.model');
@@ -417,7 +417,7 @@ async function verifyOwnYouTubeVideo(youtubeVideoId, fetchImpl) {
 function updateIfStillQuarantined(kind, id, $set, reasons = [PENDING_REASONS.QUARANTINED], observed) {
   const definition = getKindDefinition(kind);
   return definition.model.findOneAndUpdate(
-    { _id: id, $and: [buildPendingQuery(definition, reasons),
+    { _id: id, ...NO_CLEANUP_INTENT, $and: [buildPendingQuery(definition, reasons),
       ...(observed ? observedFields(observed, ['youtubeUpload.attemptId', 'youtubeUpload.lastAttemptAt', 'youtubeUpload.failedAt', 'youtubeUpload.attemptCount', 'generationVersion', 'filePath']) : []),
     ] },
     { $set },
@@ -446,6 +446,7 @@ async function applyQuarantinedItemOwned({
   const item = await loadQuarantinedItem(kind, id);
   await assertYouTubeVideoIdUnused(normalizedYouTubeVideoId);
   const remote = await verifyOwnYouTubeVideo(normalizedYouTubeVideoId, fetchImpl);
+  await reserveYouTubeBackup(normalizedYouTubeVideoId, kind, item);
 
   const updated = await updateIfStillQuarantined(kind, id, definition.buildApplyUpdate({
     youtubeVideoId: normalizedYouTubeVideoId,

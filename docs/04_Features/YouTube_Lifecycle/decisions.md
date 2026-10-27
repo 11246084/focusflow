@@ -203,6 +203,8 @@
 
 ## F 工單的實作約束（2026-10-26）
 
+本節保留當時方案。FR01～FR06 的共用 DB 修復改以下一節為準，取代此處的單一 writer 前提、沒有新集合與清理恢復方式；第 1～34 條及每日額度規格不受影響。
+
 以下是 F0～F2 採用的技術方案，沿用第 1～34 條，沒有加入每日額度方案。修正進度與驗證結果只見[目前狀態](../../current-status.md)。
 
 - **單一寫入行程**：採 [F 工單](work-orders/F-review-fixes.md)允許的單行程互斥方案，沿用 #11 的部署前提。來源、短片狀態、實體檔案與 YouTube ID 的鎖共用 [youtubeWorkOwnership.service.js](../../../backend/src/services/youtubeWorkOwnership.service.js)，在第一個 await 前佔用並於 finally 釋放。不得同時由多個 backend、cluster worker 或外部寫入工具改動這些來源／備份欄位；擴為多台前須改用共用所有權儲存。repo 的部署指令只顯示 `pm2 restart focusflow-backend`，不證明現場實際 instance 數；部署前需另行查證，本輪沒有讀 VM。
@@ -212,3 +214,31 @@
 - **失敗恢復**：不能確認 DB 所有權／引用時不傳送影片或刪檔。驗證、佔用或回寫失敗會釋放行程鎖；來源版本可在下一次成功條件更新時換新，不會永久卡住。unlink 失敗保留來源並維持 YouTube 播放；unlink 成功但 DB 收尾失敗會回報 `state_write_failed`，下輪以缺檔補寫清理狀態，不再計入刪除數量／釋放容量。遭拒的上傳檔案只有在 DB 確認無引用且沒有其他工作持有檔案鎖時才移除，否則保留待確認。
 
 F3 的 completed 影片重新處理入口接續同一套來源所有權；本節沒有新增該狀態轉移或教師操作。
+
+## FR01～FR06 共用資料庫修復約束（2026-10-27）
+
+依本輪授權，修復須支援不同 backend 共用同一資料庫，不能只靠行程內的 Set。以下是本次實作選擇及理由；驗證與待審狀態見[目前狀態](../../current-status.md)與[複驗交接](evidence/2026-10-27_fr01-fr06-fixes.md)。沒有變更 Q-A～Q-F，也沒有提前實作 F3／F4。
+
+- **備份歸屬**：新增 `youtubebackups`，`_id` 為 YouTube ID、`contentKey` 為 `video:<id>` 或 `short_asset:<id>:<generation>`，另有 timestamps。依內建 `_id` 唯一索引條件 upsert；所有系統上傳完成、隔離套用、ShortAsset 建立／更新／換代都經此處。驗證 YouTube 成功後才預留，DB 結果不明時保留預留，同一內容可以續做，其他內容不得繼承。沒有 TTL 或自動回收，避免遲到結果錯綁；需要處理孤立預留時應先確認實際歸屬，不能逕刪紀錄。匯入 Video URL 仍可共用，attach／detach 不改內容歸屬。
+- **清理佔用**：`youtubeUpload.cleanupIntent` 記 id、storageKey 與檔案身份，`cleanupClaimedAt` 由 Mongo 設定。claim 與來源版本檢查在同一次原子更新完成；來源補回、failed 重處理佔用、上傳、短片審核／換代／封存／回復的 DB 寫入都要求沒有 intent。刪除及 DB 收尾之前持續保留 intent；競爭不靠「先讀一次」判斷。清理完成的短片不得直接回到需要原片的 draft。
+- **清理過期與收尾**：工作從 claim 前開始計算 120 秒單調時間期限；每次 await 後，在同步 unlink 前檢查期限、實體身份及空間。仍有檔案的過期 intent 可由同 storage 的下一輪依 Mongo 時間取消，舊 worker 超時不得刪檔。已無檔案則補寫 `localCleanupAt`，Video 清空 filePath、ShortAsset 保留 filePath；不重新計入刪除數／釋放量。補寫在每輪清理入口、開關與候選選擇之前執行，所以不依賴 low_space 或 max_age。storageKey 為 hostname 與 UPLOAD_DIR realpath 的雜湊，其他本機 backend 不能因自己看不到原片而收尾別台的 intent。
+- **活躍上傳**：佔用時寫入伺服器時間 `heartbeatAt`，執行中每 15 秒以相同 attempt／來源條件續寫。恢復隔離的原子更新要求 heartbeat 缺省或比 Mongo `$$NOW` 舊 120 秒；排程傳入的 now 只影響候選，不可讓健康工作被誤隔離。續寫失敗或失去 attempt 時中止遠端 session／PUT；成功與失敗結果仍須符合原 attempt。長時間無法續租或程序死亡後照既有規則隔離、不自動重傳。
+- **最後上架**：`markShortAssetPublished` 的 DB 更新同時核對未封存／未上架、approved、審核代數、來源、YouTube ID 與 attempt；呼叫端 await 收尾。新一代一律回 pending，未指定新 ID 時清除舊備份；不能把舊一代的 ID 當成新內容。一般 metadata 更新不得換 filePath，必須走換代入口。
+- **最終空間判斷**：low_space 的正式路徑在所有 DB／設定 await 結束後使用 `statfsSync`，同步核對檔案／期限再 unlink。空間恢復或無法讀取即保留來源。測試可注入非同步空間 provider，但不把正式路徑改為先查空間再等待 DB。
+- **相容與邊界**：attemptId、localSourceVersion、heartbeatAt、cleanupIntent 可為缺欄位或 null；不需先批次回填。null 的整份 youtubeUpload 以一次更新建立；公開回應不暴露內部佔用欄位。舊重複備份只拒絕新增錯綁／刪檔，不自動修正式資料。多 writer 保證適用所有 writer 都執行新版協定；舊 binary 或外部直接寫入不受應用層條件保護。檔案與 Mongo 不是共同 transaction；本輪用持久 intent、期限及恢復補齊，檔案不得由不遵守協定的外部程式任意替換。租期假設 Mongo 時鐘正常前進；主機／目錄改名後要確認原 storage intent，不能自動認領。
+
+本輪不需追加產品規格問題；使用者已授權自行選擇最小可靠修復。下一道關卡是獨立審查 FR01～FR06，不代表可以提交、部署或啟用正式清理。
+
+## NR01／NR02 再複驗修復約束（2026-10-27）
+
+使用者依獨立複驗授權只修兩個根因。本節取代上一節的過期 intent 取消描述，並補上課程刪除的一致性；FR01、FR03、FR04、FR06 的核心協定沿用。結果與待審狀態見[目前狀態](../../current-status.md)，重現及故障測試見[修復交接](evidence/2026-10-27_nr01-nr02-fixes.md)。
+
+- **清理狀態機**：claim 寫 `phase=claimed`，刪檔工作先以相同 owner 原子轉成 `deleting`。unlink 後收尾失敗，原 owner 可標 `repairable` 提前交接；這時不再做檔案操作。若 DB 也寫失敗，保留舊 intent，等 120 秒過期。租期與同步 unlink 的最後防線不變，沒有靠延長租期解競態。
+- **先接管再觀察**：恢復者以舊 id、storageKey 所屬資料、過期或 repairable 條件原子換成新的 id／來源版本與 `recovering`，intent 全程不消失。取得所有權後才查看檔案，且取消或補寫只能用新的 id／版本。檔案存在才取消；缺檔補寫清理完成，Video 清 filePath，ShortAsset 保留路徑及 localCleanupAt。舊 worker 的取消／收尾不能清掉新 owner；恢復者死亡或 DB 失敗也留 intent，下一次過期接管重做。缺 phase 的舊 intent 僅在過期後接管。
+- **課程 DB 原子刪除**：以 Mongoose transaction、snapshot readConcern、majority writeConcern 連續處理課程、ShortAsset 封存、影片／兩種 segments／通知／選課／FAQ、其他課程掛載與使用者 activeCourseId。課程先取得寫入衝突鎖；Video 刪除條件要求無 cleanupIntent 且非 uploading，ShortAsset 封存使用原有狀態／intent 條件。任一步失敗全部 abort，不以普通前置讀取或事後 best-effort 回滾代替。UsageLog／Question 保留歷史行為。
+- **部署前提**：Mongo 必須支援 transaction（replica set 或 sharded cluster）；standalone 明確回 `503 COURSE_DELETE_UNAVAILABLE`，不做降級刪除。這是最小可驗證的一致性方案；若採跨集合持久鎖，所有刪除與復原步驟都需額外補償，複雜度更高。本輪只驗證本機 replica set 與 standalone 拒絕，沒有查正式 Atlas 設定。
+- **外部操作恢復**：新增 `coursedeletionjobs`，課程 DB 交易內以 `_id=<courseId>:<youtubeVideoId>` 寫 pending 待辦，同時為舊 Video 補齊既有備份歸屬。保留歸屬可避免影片被刪後 ID 轉給其他內容，讓遲到的 private 操作誤傷。交易確認提交後、服務啟動與每分鐘批次執行。以原子 claim／attemptId／伺服器 claimedAt 取得 120 秒租約，失敗轉 pending，程序死亡則到期接管；已在 YouTube 生效但回應或 DB 確認遺失時重做 private。無法在交易內撤銷外部操作，因此採持久向前完成，不在 abort 時改回公開。
+- **集合及邊界**：待辦保留 courseId、youtubeVideoId、status、attemptId／Count、claimedAt、nextAttemptAt、completedAt、lastError 與 timestamps，沒有 token、TTL 或額外索引；model 關閉 autoIndex／autoCreate。轉私人受原開關／OAuth 設定控制，停用時保留待辦。完成紀錄與備份歸屬不自動回收。這不增加單支影片刪除工作，也不改外部 pipeline 或任意 DB writer 的協定。
+- **外部操作期限**：收尾複驗確認無回應的外部請求會卡住整輪待辦。單筆 token、轉私人及回應本文合計限 30 秒，超時發出 AbortSignal、結束等待並轉回 pending，繼續下一筆。逾時後不得開始後續 HTTP 呼叫或把遲到結果當成工作完成；若外部已生效，仍按相同 private 動作重試。此期限小於 120 秒工作租期，不改上傳 heartbeat 或清理協定。
+
+無新增待答產品問題；後續技術收尾依[最終審查與驗證](evidence/2026-10-27_f0-f2-final-review.md)，結案判定見狀態正本。未授權 Commit、Push、Merge 或部署。

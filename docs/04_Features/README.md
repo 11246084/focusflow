@@ -10,6 +10,7 @@
 | 自動產片原型操作 | [short_render 使用方式](../../short_render/README.md) |
 | 問答品質評測 | [方法與題庫](QA_Evaluation/README.md)、[具日期的評測報告](QA_Evaluation/reports/) |
 | 分層檢索 | [設計與資料契約](Hierarchical_Retrieval/README.md) |
+| 教育開放資料補強（愛學網、學術名詞、教師統計；未入圍該組決賽，暫停） | [設計決策與待答題目](Open_Data/decisions.md) |
 | 多模態檢索（文字、聲音、影像三路合併） | [設計決策與待答題目](Multimodal_Retrieval/decisions.md)、[參考文獻](Multimodal_Retrieval/references.md) |
 | YouTube 上傳恢復與原片清理 | [設計決策](YouTube_Lifecycle/decisions.md)、[開發接手](YouTube_Lifecycle/HANDOFF.md)、[工作說明](YouTube_Lifecycle/work-orders/)、[額度與上傳可靠性技術研究](YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](YouTube_Lifecycle/local-playback-research.md)、[共用資料契約](YouTube_Lifecycle/shared-data-contract.md) |
 | 系統設定（後台調整模型、開關、門檻與學生額度） | [設計決策](System_Settings/decisions.md)、[開發接手](System_Settings/HANDOFF.md)、[工作說明](System_Settings/work-orders/)、[資安審查證據](System_Settings/evidence/2026-10-21_security-review.md) |

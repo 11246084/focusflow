@@ -17,6 +17,7 @@
 ```text
 Short_Script_Automation/
 ├── README.md
+├── decisions.md
 ├── archive/
 │   └── README.md
 ├── evidence/

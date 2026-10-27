@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { PRODUCTION_MODES, RECUT_STATES } = require('../constants/recut');
 const {
   SHORT_SCRIPT_STATUSES,
   SHORT_SCRIPT_STATUS_VALUES,
@@ -73,6 +74,17 @@ const shortScriptSchema = new mongoose.Schema(
     evidence: { type: [evidenceSchema], default: [] },
     evidenceFrozenAt: { type: Date, default: null },
     versions: { type: [versionSchema], default: [] },
+    productionMode: { type: String, enum: Object.values(PRODUCTION_MODES), default: PRODUCTION_MODES.AVATAR },
+    recut: {
+      state: { type: String, enum: Object.values(RECUT_STATES), default: RECUT_STATES.IDLE },
+      revision: { type: Number, default: 0 },
+      currentVersionId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutVersion', default: null },
+      currentAssetId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShortAsset', default: null },
+      currentAssetGenerationVersion: { type: Number, default: null },
+      activeTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutTask', default: null },
+      lastCompletedTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutTask', default: null },
+      pendingEditId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutReviewEvent', default: null },
+    },
     status: {
       type: String,
       enum: SHORT_SCRIPT_STATUS_VALUES,

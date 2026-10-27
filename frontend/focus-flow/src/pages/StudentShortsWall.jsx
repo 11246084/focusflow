@@ -3,12 +3,7 @@ import { apiFetch } from '../api';
 
 const CHANNEL_URL = 'https://www.youtube.com/@FocusFlow-ai413';
 
-const GRID_STYLE = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-  gap: 14,
-};
-
+// 版面在 index.css 的 .shorts-grid／.shorts-card：桌面是格狀，≤768px 改成直向一頁一支並 scroll-snap。
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
@@ -26,19 +21,11 @@ function relativeTime(iso) {
 
 function SkeletonCard() {
   return (
-    <div style={{
-      borderRadius: 16, overflow: 'hidden',
-      background: 'rgba(38,12,30,0.7)',
-      border: '1px solid rgba(255,255,255,0.07)',
-    }}>
-      <div style={{ paddingTop: '177.78%', background: 'rgba(255,255,255,0.06)', position: 'relative' }}>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)',
-          animation: 'ff-shimmer 1.5s infinite',
-        }} />
+    <div className="shorts-card" aria-hidden="true">
+      <div className="shorts-thumb" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <div className="shorts-shimmer" />
       </div>
-      <div style={{ padding: '10px 12px 14px' }}>
+      <div className="shorts-info shorts-info-skeleton">
         <div style={{ height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.08)', marginBottom: 8 }} />
         <div style={{ height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.05)', width: '70%' }} />
       </div>
@@ -105,24 +92,20 @@ function VideoCard({ video, onClick }) {
 
   return (
     <div
+      className={`shorts-card shorts-card-video${hovered ? ' is-hovered' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`播放 ${video.title}`}
       onClick={() => onClick(video)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(video); } }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        borderRadius: 16, overflow: 'hidden',
-        background: 'rgba(38,12,30,0.7)',
-        border: '1px solid rgba(255,255,255,0.07)',
-        cursor: 'pointer',
-        transform: hovered ? 'translateY(-4px)' : 'none',
-        boxShadow: hovered ? '0 12px 32px rgba(241,79,33,0.18)' : 'none',
-        transition: 'transform .18s, box-shadow .18s',
-      }}
     >
-      <div style={{ position: 'relative', paddingTop: '177.78%', background: '#1a0a14' }}>
+      <div className="shorts-thumb" style={{ background: '#1a0a14' }}>
         {video.thumbnail ? (
           <img
             src={video.thumbnail}
-            alt={video.title}
+            alt=""
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             loading="lazy"
           />
@@ -134,13 +117,7 @@ function VideoCard({ video, onClick }) {
             <span style={{ fontSize: 32, opacity: 0.3 }}>▶</span>
           </div>
         )}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          opacity: hovered ? 1 : 0,
-          transition: 'opacity .18s',
-        }}>
+        <div className="shorts-play-overlay">
           <div style={{
             width: 44, height: 44, borderRadius: '50%',
             background: 'rgba(241,79,33,0.9)',
@@ -152,7 +129,7 @@ function VideoCard({ video, onClick }) {
           </div>
         </div>
       </div>
-      <div style={{ padding: '10px 12px 14px' }}>
+      <div className="shorts-info">
         <p style={{
           margin: '0 0 4px', fontSize: 13, fontWeight: 600, color: '#fff',
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
@@ -242,12 +219,11 @@ export default function StudentShortsWall() {
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 4px' }}>
-      <style>{`@keyframes ff-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }`}</style>
+    <div className="shorts-wall" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 4px' }}>
 
       {/* Error */}
       {error && !loading && (
-        <div style={{
+        <div className="shorts-snap-end" style={{
           padding: '28px 24px', borderRadius: 16, textAlign: 'center',
           background: 'rgba(241,79,33,0.08)', border: '1px solid rgba(241,79,33,0.2)',
         }}>
@@ -269,21 +245,21 @@ export default function StudentShortsWall() {
 
       {/* Skeleton */}
       {loading && (
-        <div style={GRID_STYLE}>
+        <div className="shorts-grid">
           {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       )}
 
       {/* Empty */}
       {!loading && !error && items.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>
+        <div className="shorts-snap-end" style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>
           目前修課尚無教學短片
         </div>
       )}
 
       {/* Grid */}
       {!loading && items.length > 0 && (
-        <div style={GRID_STYLE}>
+        <div className="shorts-grid">
           {items.map((v) => (
             <VideoCard key={v.videoId} video={v} onClick={setModal} />
           ))}
@@ -292,7 +268,7 @@ export default function StudentShortsWall() {
 
       {/* Load more */}
       {!loading && nextPageToken && (
-        <div style={{ textAlign: 'center', marginTop: 28 }}>
+        <div className="shorts-snap-end" style={{ textAlign: 'center', marginTop: 28 }}>
           <button
             onClick={loadMore}
             disabled={loadingMore}

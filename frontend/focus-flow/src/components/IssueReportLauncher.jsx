@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import useModalDialog from '../hooks/useModalDialog';
 import { apiFetch, buildApiError } from '../api';
@@ -172,104 +172,111 @@ function IssueReportDialog({ onClose }) {
       >
         <button type="button" className="issue-report-close" aria-label="關閉問題回報視窗" onClick={onClose}>×</button>
 
-        <div className="issue-report-icon" aria-hidden="true">
-          <ChatIcon size={24} />
-        </div>
-        <h2 id="issue-report-title">回報問題</h2>
-        <p id="issue-report-description">
-          告訴我們哪裡卡住了，可以附上截圖。送出後管理員會在後台看到你的回報。
-        </p>
+        <header className="issue-report-header">
+          <div className="issue-report-title-row">
+            <div className="issue-report-icon" aria-hidden="true">
+              <ChatIcon size={22} />
+            </div>
+            <h2 id="issue-report-title">回報問題</h2>
+          </div>
+          <p id="issue-report-description">
+            告訴我們哪裡卡住了，可以附上截圖。送出後管理員會在後台看到你的回報。
+          </p>
+        </header>
 
         <form onSubmit={handleSubmit} className="issue-report-form">
-          <label className="issue-report-field">
-            <span>回報類型</span>
-            <select className="ff-input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={status === 'submitting'}>
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="issue-report-field">
-            <span>對你使用的影響程度</span>
-            <select
-              ref={severityRef}
-              className="ff-input"
-              value={severity}
-              onChange={(e) => setSeverity(e.target.value)}
-              disabled={status === 'submitting'}
-            >
-              <option value="" disabled>請選擇……</option>
-              {SEVERITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          {showCourseContext && (
+          {/* 只有欄位區捲動；標題與操作按鈕固定在對話框內 */}
+          <div className="issue-report-body">
             <label className="issue-report-field">
-              <span>課程名稱／影片名稱（選填）</span>
-              <input
-                type="text"
+              <span>回報類型</span>
+              <select className="ff-input" value={category} onChange={(e) => setCategory(e.target.value)} disabled={status === 'submitting'}>
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="issue-report-field">
+              <span>對你使用的影響程度</span>
+              <select
+                ref={severityRef}
                 className="ff-input"
-                maxLength={200}
-                placeholder="例如：AI 入門基礎課 / 第三講 影片處理工具"
-                value={courseVideoName}
-                onChange={(e) => setCourseVideoName(e.target.value)}
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value)}
+                disabled={status === 'submitting'}
+              >
+                <option value="" disabled>請選擇……</option>
+                {SEVERITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+
+            {showCourseContext && (
+              <label className="issue-report-field">
+                <span>課程名稱／影片名稱（選填）</span>
+                <input
+                  type="text"
+                  className="ff-input"
+                  maxLength={200}
+                  placeholder="例如：AI 入門基礎課 / 第三講 影片處理工具"
+                  value={courseVideoName}
+                  onChange={(e) => setCourseVideoName(e.target.value)}
+                  disabled={status === 'submitting'}
+                />
+              </label>
+            )}
+
+            <label className="issue-report-field">
+              <span>問題描述</span>
+              <textarea
+                ref={descriptionRef}
+                className="ff-input"
+                rows={4}
+                maxLength={2000}
+                placeholder="請描述發生的狀況，例如：在哪個頁面、做了什麼操作、看到什麼錯誤訊息……"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 disabled={status === 'submitting'}
               />
             </label>
-          )}
 
-          <label className="issue-report-field">
-            <span>問題描述</span>
-            <textarea
-              ref={descriptionRef}
-              className="ff-input"
-              rows={4}
-              maxLength={2000}
-              placeholder="請描述發生的狀況，例如：在哪個頁面、做了什麼操作、看到什麼錯誤訊息……"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={status === 'submitting'}
-            />
-          </label>
+            <label className="issue-report-field">
+              <span>附上截圖（選填，最多 {MAX_ATTACHMENTS} 張，JPEG／PNG／WebP，單張 10 MB 內）</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                multiple
+                onChange={handleFilesSelected}
+                disabled={status === 'submitting' || attachments.length >= MAX_ATTACHMENTS}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                className="issue-report-attach-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={status === 'submitting' || attachments.length >= MAX_ATTACHMENTS}
+              >
+                選擇圖片 / 拍照
+              </button>
+            </label>
 
-          <label className="issue-report-field">
-            <span>附上截圖（選填，最多 {MAX_ATTACHMENTS} 張，JPEG／PNG／WebP，單張 10 MB 內）</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              multiple
-              onChange={handleFilesSelected}
-              disabled={status === 'submitting' || attachments.length >= MAX_ATTACHMENTS}
-              style={{ display: 'none' }}
-            />
-            <button
-              type="button"
-              className="issue-report-attach-btn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={status === 'submitting' || attachments.length >= MAX_ATTACHMENTS}
-            >
-              選擇圖片 / 拍照
-            </button>
-          </label>
+            {attachments.length > 0 && (
+              <ul className="issue-report-attachment-list">
+                {attachments.map((file, index) => (
+                  <li key={`${file.name}-${index}`}>
+                    <span>{file.name}</span>
+                    <span className="issue-report-attachment-size">{formatBytes(file.size)}</span>
+                    <button type="button" onClick={() => removeAttachment(index)} disabled={status === 'submitting'} aria-label={`移除 ${file.name}`}>×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-          {attachments.length > 0 && (
-            <ul className="issue-report-attachment-list">
-              {attachments.map((file, index) => (
-                <li key={`${file.name}-${index}`}>
-                  <span>{file.name}</span>
-                  <span className="issue-report-attachment-size">{formatBytes(file.size)}</span>
-                  <button type="button" onClick={() => removeAttachment(index)} disabled={status === 'submitting'} aria-label={`移除 ${file.name}`}>×</button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {error && <div className="issue-report-error">{error}</div>}
+          {error && <div className="issue-report-error" role="alert">{error}</div>}
 
           <div className="issue-report-actions">
             <button type="button" className="btn-outline" onClick={onClose} disabled={status === 'submitting'}>
@@ -285,32 +292,47 @@ function IssueReportDialog({ onClose }) {
   );
 }
 
-export default function IssueReportLauncher() {
+// 側欄 footer 裡的「意見回饋／回報問題」兩個入口，樣式沿用 .nav-item。
+// onActivate 讓 Sidebar 在手機浮層展開時點選後收回側欄（比照 navigate()）。
+export default function IssueReportLauncher({ onActivate }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const wasOpenRef = useRef(false);
+
+  // 對話框卸載時 useModalDialog 會還原開啟前的焦點，但 Safari 點按鈕不會給焦點；
+  // 這裡明確把焦點送回觸發按鈕。子元件的卸載清理會先於這個 effect 執行。
+  useEffect(() => {
+    if (wasOpenRef.current && !open) triggerRef.current?.focus();
+    wasOpenRef.current = open;
+  }, [open]);
 
   return (
     <>
-      <div className="fab-group">
-        <a
-          className="fab-feedback"
-          href={FEEDBACK_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <FeedbackIcon />
-          <span>意見回饋</span>
-        </a>
-        <button
-          type="button"
-          className="issue-report-launcher"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => setOpen(true)}
-        >
-          <ChatIcon />
-          <span>回報問題</span>
-        </button>
-      </div>
+      <a
+        className="nav-item"
+        href={FEEDBACK_FORM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="意見回饋（在新分頁開啟表單）"
+        title="意見回饋"
+        onClick={() => onActivate?.()}
+      >
+        <span className="ni"><FeedbackIcon size={16} /></span>
+        <span className="sidebar-item-label">意見回饋</span>
+      </a>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="nav-item"
+        aria-label="回報問題"
+        title="回報問題"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => { setOpen(true); onActivate?.(); }}
+      >
+        <span className="ni"><ChatIcon size={16} /></span>
+        <span className="sidebar-item-label">回報問題</span>
+      </button>
 
       {open && createPortal(
         <IssueReportDialog onClose={() => setOpen(false)} />,

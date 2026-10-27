@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ic } from './Icons';
 import { navItems, roleLabels, roleDot } from './navigationConfig';
+import IssueReportLauncher from './IssueReportLauncher';
 import { getUser } from '../api';
 import { getDisplayName } from '../utils/userDisplay';
 import { createAvatarUrlController, getAvatarVersion } from '../utils/avatarImage';
@@ -45,9 +46,12 @@ export default function Sidebar({ role, active, onNav, onLogout, user: userProp 
     document.addEventListener('keydown', closeOverlay);
     return () => { document.removeEventListener('pointerdown', closeOverlay); document.removeEventListener('keydown', closeOverlay); };
   }, [collapsed]);
+  function collapseOverlay() {
+    if (window.matchMedia('(max-width: 768px)').matches) setCompactOverride(true);
+  }
   function navigate(page) {
     onNav(page);
-    if (window.matchMedia('(max-width: 768px)').matches) setCompactOverride(true);
+    collapseOverlay();
   }
   useEffect(() => {
     const query = window.matchMedia('(max-width: 1100px)');
@@ -102,8 +106,9 @@ export default function Sidebar({ role, active, onNav, onLogout, user: userProp 
         ))}
       </nav>
 
-      {/* Footer: role + sign out */}
+      {/* Footer: feedback / issue report + role + sign out */}
       <div className="sidebar-footer">
+        {(role === 'student' || role === 'teacher') && <IssueReportLauncher onActivate={collapseOverlay} />}
         <div
           className="sidebar-role-card"
           role="button"

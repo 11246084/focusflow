@@ -1012,6 +1012,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   height: calc(100% - 28px);
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -1091,9 +1092,12 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   padding-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 12px;
   margin-top: auto;
 }
+
+/* 意見回饋是 <a>，清掉連結底線 */
+a.nav-item { text-decoration: none; }
 
 .sidebar-role-card {
   padding: 12px 14px;
@@ -1187,55 +1191,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 @keyframes modalIn { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .modal-box { animation: modalIn .25s ease forwards; }
 
-/* Student floating action buttons: issue report + feedback. */
-.fab-group {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-  z-index: 420;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-.fab-group > a,
-.fab-group > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 0 18px;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 16px;
-  font-family: 'Noto Sans TC', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-.fab-feedback {
-  background: #7C3AED;
-  box-shadow: 0 14px 34px rgba(12, 3, 10, 0.48), 0 5px 16px rgba(124, 58, 237, 0.28);
-}
-.fab-feedback:hover {
-  background: #6D28D9;
-  transform: translateY(-2px);
-  box-shadow: 0 18px 40px rgba(12, 3, 10, 0.55), 0 7px 20px rgba(124, 58, 237, 0.34);
-}
-.issue-report-launcher {
-  background: #F14F21;
-  box-shadow: 0 14px 34px rgba(12, 3, 10, 0.48), 0 5px 16px rgba(241, 79, 33, 0.28);
-}
-.issue-report-launcher:hover {
-  background: #d94318;
-  transform: translateY(-2px);
-  box-shadow: 0 18px 40px rgba(12, 3, 10, 0.55), 0 7px 20px rgba(241, 79, 33, 0.34);
-}
-.issue-report-launcher:focus-visible,
-.fab-feedback:focus-visible,
+/* Issue report dialog (opened from the sidebar footer). */
 .issue-report-close:focus-visible,
 .issue-report-actions a:focus-visible,
 .issue-report-actions button:focus-visible {
@@ -1257,10 +1213,12 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 .issue-report-dialog {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(460px, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 30px;
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+  padding: 26px;
   color: #fff;
   background: #1A0D1E;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1270,6 +1228,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 .issue-report-icon {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 48px;
@@ -1313,6 +1272,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 .issue-report-actions {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 24px;
@@ -1324,18 +1284,50 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   text-decoration: none;
 }
 
-.issue-report-form-dialog { width: min(520px, 100%); }
+.issue-report-form-dialog { width: min(520px, 100%); padding: 24px 26px 22px; }
+
+/* 表單版：標題列與操作列固定，只有 .issue-report-body 捲動，捲軸不貼外框圓角。 */
+.issue-report-header { flex-shrink: 0; }
+.issue-report-title-row { display: flex; align-items: center; gap: 12px; margin: 0 42px 8px 0; }
+.issue-report-title-row .issue-report-icon { width: 40px; height: 40px; margin: 0; border-radius: 13px; }
+.issue-report-title-row h2 { margin: 0; }
+.issue-report-header > p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
 
 .issue-report-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 20px;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  margin-top: 16px;
 }
+.issue-report-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 捲軸與焦點外框留在內容區內，不碰到對話框圓角 */
+  margin: 0 -10px;
+  padding: 2px 10px;
+  scrollbar-gutter: stable;
+}
+.issue-report-body::-webkit-scrollbar { width: 4px; }
+.issue-report-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 3px; }
+.issue-report-form .issue-report-error { flex-shrink: 0; }
+.issue-report-form .issue-report-actions { margin-top: 4px; }
+.issue-report-form .ff-input { padding: 10px 14px; }
+.issue-report-form select.ff-input { padding-right: 40px; }
 .issue-report-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .issue-report-field > span {
   font-size: 12px;
@@ -1344,7 +1336,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 .issue-report-field textarea.ff-input {
   resize: vertical;
-  min-height: 96px;
+  min-height: 88px;
   font-family: 'Noto Sans TC', sans-serif;
 }
 .issue-report-attach-btn {
@@ -1411,8 +1403,6 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .issue-report-launcher,
-  .fab-feedback,
   .issue-report-dialog {
     animation: none;
     transition: none;
@@ -1445,10 +1435,11 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .dd-row:hover { background: rgba(0,0,0,0.03); }
 
 /* Course detail grid */
-.course-study { height: 100%; min-height: 0; padding: 18px 24px 72px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.course-study { height: 100%; min-height: 0; padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
 .course-study-header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .course-study-title { flex: 1; min-width: 0; }
-.course-study-title > div:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-study-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.course-study-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .course-detail-grid { display: grid; grid-template-columns: minmax(0, var(--study-video-width, 38fr)) 18px minmax(0, var(--study-chat-width, 62fr)); flex: 1; min-height: 0; }
 .study-resizer { cursor: col-resize; touch-action: none; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
 .study-resizer::after { content: ''; height: 48px; width: 3px; border-radius: 3px; background: rgba(255,255,255,.25); }
@@ -1457,15 +1448,24 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .course-media { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
 .course-player { width: 100%; aspect-ratio: 16/9; max-height: 55dvh; flex-shrink: 0; background: #000; border-radius: 14px; overflow: hidden; }
 .course-player-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 0; flex-shrink: 0; }
-.course-playing-title { flex: 1; min-width: 0; font-size: 13px; }
+/* 目前影片名稱是開啟影片清單的按鈕 */
+.course-playing-title { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; margin-left: -8px; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; font-family: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color .15s; }
+.course-playing-title:hover { background: rgba(255,255,255,.07); }
+.course-playing-text { flex: 0 1 auto; min-width: 0; }
 .course-playing-title strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.course-playing-title > span { display: block; font-size: 11px; color: #fb9476; margin-top: 3px; }
+.course-playing-text > span { display: block; font-size: 11px; color: #fb9476; margin-top: 3px; }
+.course-playing-chevron { flex-shrink: 0; font-size: 11px; color: rgba(255,255,255,.55); }
+.course-playing-title:hover .course-playing-chevron { color: #fff; }
 .study-control { border: 1px solid rgba(255,255,255,.16); border-radius: 8px; padding: 7px 9px; color: rgba(255,255,255,.8); background: rgba(255,255,255,.04); font: inherit; font-size: 12px; flex-shrink: 0; cursor: pointer; }
 .study-control:hover { background: rgba(255,255,255,.09); }
 .course-study button:focus-visible, .citation-card:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
 .course-player-expand { display: none; }
 .course-playlist { min-height: 0; padding: 2px; }
 .course-playlist .vid-row { width: 100%; font: inherit; }
+.course-playlist-list { display: flex; flex-direction: column; gap: 8px; }
+.vid-row-icon { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; }
+.vid-row-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vid-row-meta { margin-top: 2px; font-size: 11px; color: rgba(255,255,255,.33); }
 .qa-history-toggle { margin-left: auto; }
 .qa-conversation-header { flex-wrap: wrap; }
 .qa-empty-state { padding: 30px 8px; color: rgba(255,255,255,.8); font-size: 14px; line-height: 1.9; }
@@ -1474,9 +1474,6 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .citation-active-label { color: #fb9476; font-size: 11px; margin-left: 6px; }
 .citation-unavailable { color: rgba(255,255,255,.45); font-size: 11px; }
 
-/* Keep feedback reachable without covering the study composer. */
-.dashboard-shell:has(.course-study) .fab-group { flex-direction: row; bottom: 12px; right: 24px; }
-.dashboard-shell:has(.course-study) .fab-group > * { min-height: 36px; font-size: 12px; }
 
 .qa-conversation-panel {
   display: flex;
@@ -1486,8 +1483,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   margin-top: 0;
   padding: 16px 18px 0;
   overflow: hidden;
-  background: rgba(241,79,33,0.06);
-  border: 1px solid rgba(241,79,33,0.18);
+  background: rgba(0, 0, 0, 0.436);
+  /* border: 1px solid rgba(241,79,33,0.18); */
   border-radius: 14px;
 }
 
@@ -1507,6 +1504,30 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 }
 
 .qa-recent-conversations { max-height: 32%; overflow-y: auto; }
+
+/* Desktop recent conversations: floating menu over the messages. */
+.qa-history-anchor { position: relative; display: inline-flex; margin-left: auto; }
+.qa-history-anchor .qa-history-toggle { margin-left: 0; }
+.qa-history-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: flex; flex-direction: column; gap: 2px; width: 300px; max-height: 320px; padding: 6px; overflow-y: auto; background: #22101c; border: 1px solid rgba(255,255,255,.14); border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+.qa-history-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,.85); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.qa-history-item:hover, .qa-history-item:focus { background: rgba(255,255,255,.08); }
+.qa-history-item.active { background: rgba(241,79,33,.16); color: #fff; box-shadow: inset 3px 0 0 #F14F21; }
+.qa-history-item.active .qa-history-item-title { font-weight: 700; }
+.course-study .qa-history-item:focus-visible { outline: 2px solid #fb9476; outline-offset: -2px; }
+.qa-history-item:disabled { opacity: .5; cursor: default; }
+.qa-history-item-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-history-item-meta { flex-shrink: 0; font-size: 12px; color: rgba(255,255,255,.5); }
+.qa-history-item.active .qa-history-item-meta, .sheet-row.active .sheet-row-meta { color: #fb9476; }
+
+/* AI messages: no bubble; brand avatar on the left, text on the panel background. */
+.qa-ai-message { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+.qa-ai-avatar { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%; background: linear-gradient(135deg, #f14f21, #97265d); padding-right: 2px; }
+.qa-ai-avatar img { width: 16px; height: 16px; }
+.qa-ai-body { flex: 1; min-width: 0; color: rgba(255,255,255,.9); }
+.qa-pending-body { display: flex; align-items: center; gap: 10px; min-height: 26px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,.8); }
+.qa-ai-error .qa-ai-body { padding-top: 3px; font-size: 13px; line-height: 1.6; color: #ffa3a3; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* AI 回答等待中的三點動畫 */
 .qa-pending-dots { display: inline-flex; gap: 4px; flex-shrink: 0; }
@@ -1691,17 +1712,18 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   .course-study-header { gap: 8px; }
   .course-study-line .btn-primary { padding: 6px 8px !important; font-size: 11px !important; }
   .course-detail-grid { grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
-  .course-player { height: clamp(90px, 19dvh, 160px); aspect-ratio: auto; border-radius: 10px; }
+  /* 播放器維持 16:9：寬度受畫面高度限制，避免矮手機上播放器吃掉問答區 */
+  .course-player { width: min(100%, calc(26dvh * 16 / 9)); max-height: none; margin-inline: auto; border-radius: 10px; }
   .course-player iframe { display: block; }
-  .player-expanded .course-player { height: clamp(120px, 32dvh, 300px); }
+  .player-expanded .course-player { width: min(100%, calc(42dvh * 16 / 9)); }
   .course-player-expand { display: block; }
   .course-player-toolbar { padding: 6px 0 0; gap: 5px; }
   .course-playing-title { font-size: 11px; min-height: 31px; }
   .course-player-toolbar .study-control { font-size: 11px; padding: 6px; }
-  .course-playlist:not([hidden]) { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; max-height: 32dvh; padding: 8px; background: #260c1e; border: 1px solid rgba(255,255,255,.15); border-radius: 12px; box-shadow: 0 12px 30px #0008; }
   .qa-conversation-panel { height: 100%; padding: 10px 12px 0; }
   .qa-conversation-panel .qa-input-area { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
-  .qa-input-area .ff-input { font-size: 16px; }
+  .qa-input-area .ff-input { font-size: 12px; }
+  .qa-conversation-panel .qa-input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 
   /* Table scrollable on mobile */
   .ff-tbl { font-size: 12px; }
@@ -1710,29 +1732,12 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   /* Page padding a bit tighter on phones */
   .dashboard-content > div { padding-left: 16px !important; padding-right: 16px !important; }
 
-  /* 手機版讓浮動按鈕回到頁面正常流動內、變成頁尾一列，不再用 position:fixed
-     固定在右下角——固定角落在手機窄螢幕上很容易蓋住頁面自己在同一角落的重要
-     控制項（例如課程 QA 頁的「送出」鍵、短影片牆最後一張卡片的標題）。
-     意見回饋／回報問題本來就是次要動作，改成頁尾也仍然找得到，不需要固定可見。 */
-  .fab-group {
-    position: static;
-    right: auto;
-    bottom: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin: 24px 16px max(16px, env(safe-area-inset-bottom));
+  .issue-report-dialog,
+  .issue-report-form-dialog {
+    padding: 22px 18px 18px;
   }
-  .fab-group > a,
-  .fab-group > button {
-    min-height: 44px;
-    padding: 0 16px;
-    border-radius: 14px;
-  }
-
-  .issue-report-dialog {
-    padding: 25px 20px 20px;
-  }
+  .issue-report-overlay { padding: 12px; }
+  .issue-report-dialog { max-height: calc(100dvh - 24px); }
 
   .issue-report-actions {
     flex-direction: column-reverse;
@@ -2014,7 +2019,7 @@ option{
 .sidebar-wordmark { white-space: nowrap; font-family: Arial, Helvetica, sans-serif; font-size: 18px; letter-spacing: -.5px; color: #fff; }
 .sidebar-wordmark strong { font-weight: 600; }
 .sidebar-wordmark em { color: #F2C46A; font-weight: 500; }
-.sidebar-toggle { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; margin-left: auto; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); cursor: pointer; }
+.sidebar-toggle { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; margin-left: auto; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); cursor: pointer !important; }
 .sidebar-toggle-logo { display: none; width: 34px; height: 34px; }
 .sidebar-toggle-icon { flex-shrink: 0; }
 .sidebar-avatar { display: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; align-items: center; justify-content: center; background: linear-gradient(135deg, #f14f21, #97265d); color: #fff; font-size: 15px; font-weight: 700; }
@@ -2026,7 +2031,7 @@ option{
 .sidebar-collapsed .sidebar-brand, .sidebar-collapsed .sidebar-item-label, .sidebar-collapsed .sidebar-username, .sidebar-collapsed .sidebar-role-label { display: none; }
 .sidebar-collapsed .sidebar-toggle { margin: 0 auto; border-color: transparent; background: transparent; }
 .sidebar-collapsed .sidebar-toggle-logo { display: block; }
-.sidebar-collapsed .sidebar-toggle-icon { position: absolute; opacity: 0; }
+.sidebar-collapsed .sidebar-toggle-icon { position: absolute; opacity: 0; cursor: pointer; transition: opacity .15s; }
 .sidebar-collapsed .sidebar-toggle:focus-visible .sidebar-toggle-logo { opacity: 0; }
 .sidebar-collapsed .sidebar-toggle:focus-visible .sidebar-toggle-icon { opacity: 1; }
 .sidebar-collapsed .nav-item { justify-content: center; padding: 12px 0; gap: 0; }
@@ -2048,10 +2053,158 @@ option{
 
 @media (max-width: 768px) {
   .sidebar.sidebar-collapsed { width: 56px; padding: 14px 4px; }
-  .fab-group { margin-left: 72px; }
   .study-resizer { display: none; }
-  .dashboard-shell:has(.course-study) .fab-group { position: static; flex-shrink: 0; flex-wrap: nowrap; margin: 6px 12px max(6px, env(safe-area-inset-bottom)); gap: 8px; }
-  .dashboard-shell:has(.course-study) .fab-group > * { min-height: 30px; padding: 0 12px; font-size: 11px; }
+}
+
+/* Student home: LINE entry card. ≤768px stacks icon+title / description / button. */
+.student-line-card { display: flex; align-items: center; gap: 20px; padding: 18px 24px; }
+.student-line-card-text { flex: 1; min-width: 0; }
+.student-line-card-desc { margin-top: 3px; line-height: 1.6; }
+.student-line-card-btn { flex-shrink: 0; }
+
+/* Student LINE page card. */
+.linebot-card { padding: 40px; }
+
+/* Student shorts wall: desktop grid. */
+.shorts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+.shorts-card { border-radius: 16px; overflow: hidden; background: rgba(38,12,30,0.7); border: 1px solid rgba(255,255,255,0.07); }
+.shorts-card-video { cursor: pointer; transition: transform .18s, box-shadow .18s; }
+.shorts-card-video.is-hovered { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(241,79,33,0.18); }
+.shorts-card-video:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+.shorts-thumb { position: relative; padding-top: 177.78%; }
+.shorts-shimmer { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent); animation: ff-shimmer 1.5s infinite; }
+@keyframes ff-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.shorts-play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%); opacity: 0; transition: opacity .18s; }
+.shorts-card-video.is-hovered .shorts-play-overlay,
+.shorts-card-video:focus-visible .shorts-play-overlay { opacity: 1; }
+.shorts-info { padding: 10px 12px 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .shorts-shimmer { animation: none; }
+  .shorts-card-video, .shorts-play-overlay { transition: none; }
+  .shorts-card-video.is-hovered { transform: none; }
+}
+
+@media (max-width: 768px) {
+  .student-line-card { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px 14px; padding: 16px 18px; }
+  .student-line-card-text { display: contents; }
+  .student-line-card-desc { grid-column: 1 / -1; margin-top: 0; }
+  .student-line-card-btn { grid-column: 1 / -1; width: 100%; }
+
+  .linebot-card { padding: 22px 18px; }
+
+  /* Shorts: one video per screen, width first. A card fills the content width
+     at 9:16; only when that would exceed 82% of the scroll area's height (cqh,
+     topbar excluded) does the height cap drive the width, so the next card
+     always peeks in and the thumbnail is never cropped. */
+  .dashboard-content:has(.shorts-wall) { container-type: size; scroll-snap-type: y mandatory; scroll-padding-top: 12px; }
+  .shorts-grid { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 12px 0; }
+  .shorts-card {
+    position: relative;
+    flex-shrink: 0;
+    aspect-ratio: 9 / 16;
+    width: min(100%, calc(72dvh * 9 / 16));
+    width: min(100%, calc(82cqh * 9 / 16));
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .shorts-thumb { position: absolute; inset: 0; padding-top: 0; }
+  .shorts-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 48px 14px 14px; background: linear-gradient(to top, rgba(14,4,11,0.94) 0%, rgba(14,4,11,0.7) 55%, transparent 100%); }
+  .shorts-info-skeleton { background: none; }
+  .shorts-play-overlay { opacity: 1; background: none; }
+  .shorts-snap-end { scroll-snap-align: end; }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .dashboard-content:has(.shorts-wall) { scroll-behavior: auto; }
+}
+
+/* ── Bottom sheet (shared by the compact study page's video list, recent
+   conversations and "more" menu). Mounted only while open. ── */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(8, 2, 7, 0.6);
+  animation: sheetFade .2s ease;
+}
+.bottom-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(72dvh, 640px);
+  padding-bottom: env(safe-area-inset-bottom);
+  color: #fff;
+  background: #1A0D1E;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+  animation: sheetUp .24s ease;
+  transition: transform .18s ease;
+}
+.bottom-sheet-header { position: relative; display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 16px 10px 6px 20px; touch-action: none; cursor: grab; }
+.bottom-sheet-handle { position: absolute; top: 6px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
+.bottom-sheet-header h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 700; }
+.bottom-sheet-close { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 12px; background: transparent; color: rgba(255, 255, 255, 0.7); font-size: 24px; line-height: 1; cursor: pointer; }
+.bottom-sheet-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.bottom-sheet-body { min-height: 0; padding: 4px 12px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.sheet-list { display: flex; flex-direction: column; gap: 4px; }
+.sheet-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.85); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.sheet-row:hover { background: rgba(255, 255, 255, 0.08); }
+.sheet-row:disabled { opacity: .5; cursor: default; }
+.sheet-row.active { background: rgba(241, 79, 33, 0.12); border-color: rgba(241, 79, 33, 0.35); color: #fff; }
+.sheet-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-row-title svg { vertical-align: -3px; margin-right: 6px; }
+.sheet-row-meta { flex-shrink: 0; font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+.sheet-empty { padding: 16px 4px; font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+.sheet-row:focus-visible, .bottom-sheet-close:focus-visible, .course-playlist-sheet .vid-row:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+.course-playlist-sheet .course-playlist-list { gap: 4px; }
+.course-playlist-sheet .vid-row { width: 100%; min-height: 52px; gap: 12px; padding: 8px 12px; font: inherit; }
+.course-playlist-sheet .vid-row-title { font-size: 14px; }
+.course-playlist-sheet .vid-row-meta { margin-top: 3px; }
+.study-more-ta { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 4px 4px; }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetFade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet, .bottom-sheet-overlay { animation: none; transition: none; }
+}
+
+/* Square 44×44 icon buttons for the compact study page (⋯, ＋). */
+.study-icon-btn { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.85); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+.study-icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.study-icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Study page, compact (≤768px): header / video / QA stacked; the QA area
+   loses its card frame so messages fill the remaining height. ── */
+@media (max-width: 768px) {
+  .course-study.course-study-compact { gap: 6px; }
+  .course-study-compact .course-study-header { gap: 8px; }
+  .course-study-compact .study-back-btn { width: 44px !important; height: 44px !important; border-radius: 12px !important; }
+  .course-study-compact .course-study-name { font-size: 15px !important; }
+  .course-study-compact .course-detail-grid { gap: 6px; }
+  .course-study-compact .course-player-toolbar { gap: 6px; padding: 10px 0; }
+  .course-study-compact .course-playing-title { min-height: 44px; font-size: 12px; }
+  .course-study-compact .course-player-toolbar .study-control { min-width: 44px; min-height: 32px; padding: 0 12px; border-radius: 10px; font-size: 12px; letter-spacing: 1px;
+        text-align: center; }
+  .course-study-compact .study-switch { color: #fb9476; border-color: rgba(241, 79, 33, 0.4); }
+  /* 放大影片：播放器延伸到內容區左右邊緣 */
+  .course-study-compact .player-expanded .course-player { width: calc(100% + 32px); margin-inline: -16px; border-radius: 0; }
+
+  .qa-conversation-panel.qa-compact { padding: 0; background: none; border: 0; border-radius: 0; }
+  .qa-compact .qa-compact-bar { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .qa-compact-title { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 4px; border: 0; border-radius: 10px; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; }
+  .qa-compact-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .study-icon-btn:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+  /* 問答區有 overflow:hidden，焦點外框畫在按鈕內側才不會被裁掉 */
+  .qa-compact .qa-compact-title:focus-visible, .qa-compact .study-icon-btn:focus-visible { outline: 2px solid #fb9476; outline-offset: -2px; }
+  .qa-compact-new { color: #F14F21; border-color: rgba(241, 79, 33, 0.35); }
+  .qa-compact .qa-message-list { padding-right: 0; }
+  .qa-conversation-panel.qa-compact .qa-input-area { margin: 6px 0 0; padding: 10px 0 max(10px, env(safe-area-inset-bottom)); background: none; }
+  .qa-compact .qa-input-area .btn-primary { min-height: 44px; }
 }
 
 /* Authentication feedback shares the existing login card and brand palette. */

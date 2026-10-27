@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const env = require('../config/env');
 const Video = require('../models/video.model');
 const {
@@ -7,11 +6,10 @@ const {
   YOUTUBE_UPLOAD_STATUSES,
 } = require('../constants/enums');
 const AppError = require('../utils/appError');
+const { repairCleanupIntents, inspectCleanupSource, loadLocalFileReferences } = require('./localSourceCleanup.service');
 const {
   cleanupUploadedLocalVideo,
   getYouTubeUploadRecoverySchedulerState,
-  isPathInside,
-  resolveLocalUploadPath,
 } = require('./youtubeUpload.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
@@ -101,15 +99,6 @@ function resolveRetentionStartTime(youtubeUpload = {}) {
   return times.length ? Math.max(...times) : null;
 }
 
-function readFileSize(localPath) {
-  try {
-    return fs.statSync(localPath).size;
-  } catch {
-    // 檔案已不在：清理只會切播放欄位，不釋放空間。
-    return 0;
-  }
-}
-
 // 一般影片的清理條件（#4）：處理完成、YouTube 上傳完成、路徑在 UPLOAD_DIR 內、
 // 沒有其他影片共用同一檔案。不符合的不列入候選，預告與排程都看不到。
 async function listVideoCleanupEntries() {
@@ -119,23 +108,15 @@ async function listVideoCleanupEntries() {
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     filePath: { $exists: true, $nin: [null, ''] },
   })
-    .select('_id title courseId filePath youtubeVideoId youtubeUpload')
+    .select('_id title courseId filePath processing youtubeVideoId youtubeUpload')
     .lean();
   if (!videos.length) return [];
 
-  const filePaths = [...new Set(videos.map((video) => video.filePath))];
-  const references = await Video.find({ filePath: { $in: filePaths } }).select('_id filePath').lean();
-  const referenceCounts = new Map();
-  for (const reference of references) {
-    referenceCounts.set(reference.filePath, (referenceCounts.get(reference.filePath) || 0) + 1);
-  }
-
-  const uploadRoot = path.resolve(env.uploadDir);
+  const references = await loadLocalFileReferences();
   const entries = [];
   for (const video of videos) {
-    const localPath = resolveLocalUploadPath(video.filePath);
-    if (!isPathInside(uploadRoot, localPath) || localPath === uploadRoot) continue;
-    if ((referenceCounts.get(video.filePath) || 0) > 1) continue;
+    const source = await inspectCleanupSource('video', video, references);
+    if (source.reason) continue;
     const retentionStartTime = resolveRetentionStartTime(video.youtubeUpload);
     if (retentionStartTime === null) continue;
 
@@ -144,7 +125,8 @@ async function listVideoCleanupEntries() {
       id: String(video._id),
       title: video.title || '',
       courseId: video.courseId ? String(video.courseId?._id || video.courseId) : null,
-      sizeBytes: readFileSize(localPath),
+      sizeBytes: source.file.sizeBytes,
+      sourceSnapshot: source.snapshot,
       retentionStartTime,
     });
   }
@@ -158,12 +140,12 @@ async function listVideoCleanupEntries() {
 const CLEANUP_SOURCES = {
   video: {
     listEntries: listVideoCleanupEntries,
-    cleanup: (id) => cleanupUploadedLocalVideo(id),
+    cleanup: (id, options) => cleanupUploadedLocalVideo(id, options),
   },
   // 短片成品（decisions.md #28、#30、#31），條件與刪除見 shortAssetCleanup.service。
   [SHORT_ASSET_CLEANUP_KIND]: {
     listEntries: listShortAssetCleanupEntries,
-    cleanup: (id) => cleanupShortAssetLocalFile(id),
+    cleanup: (id, options) => cleanupShortAssetLocalFile(id, options),
   },
 };
 
@@ -181,6 +163,7 @@ function selectCleanupCandidates(entries, {
   freeBytes = null,
   policy = getCleanupPolicy(),
   horizonMs = 0,
+  includeAllLowSpace = false,
 } = {}) {
   const nowMs = now.getTime();
   const maxAgeMs = policy.maxAgeDays * DAY_MS;
@@ -202,7 +185,7 @@ function selectCleanupCandidates(entries, {
     // 同一輪先刪的超齡檔也算進釋放量；從最早的開始，回到門檻以上就停。
     let projectedFreeBytes = freeBytes + selected.reduce((sum, item) => sum + item.entry.sizeBytes, 0);
     for (const entry of remaining) {
-      if (projectedFreeBytes >= policy.minFreeBytes) break;
+      if (!includeAllLowSpace && projectedFreeBytes >= policy.minFreeBytes) break;
       if (entry.retentionStartTime + minAgeMs > nowMs) continue;
       selected.push({ entry, eligibleAtMs: nowMs, reason: YOUTUBE_CLEANUP_REASONS.LOW_SPACE });
       projectedFreeBytes += entry.sizeBytes;
@@ -210,6 +193,7 @@ function selectCleanupCandidates(entries, {
   }
 
   return selected.map(({ entry, eligibleAtMs, reason }) => ({
+    sourceSnapshot: entry.sourceSnapshot,
     kind: entry.kind,
     id: entry.id,
     title: entry.title,
@@ -284,7 +268,7 @@ async function buildYouTubeCleanupPreview({
       minAgeDays: policy.minAgeDays,
       minFreeGb: policy.minFreeGb,
     },
-    items,
+    items: items.map(({ sourceSnapshot, ...item }) => item),
   };
 }
 
@@ -292,37 +276,58 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
   if (cleanupScheduler.running) {
     return { skipped: true, reason: 'already_running', cleaned: 0, freedBytes: 0, results: [] };
   }
-  // 每輪開始前檢查開關（#14）；刪每支前 cleanup() 會再檢查一次。
-  if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
-    return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
-  }
-
   cleanupScheduler.running = true;
   cleanupScheduler.startedAt = now.toISOString();
   cleanupScheduler.lastAttemptAt = now.toISOString();
   try {
-    const candidates = await listYouTubeCleanupCandidates({
-      scope: YOUTUBE_CLEANUP_SCOPES.ENABLE,
-      now,
-      getFreeBytes,
+    const repair = await repairCleanupIntents();
+    cleanupScheduler.lastError = repair.unresolved > 0 ? 'Local cleanup database finalization must be retried.' : null;
+    if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) {
+      return { skipped: true, reason: 'cleanup_disabled', cleaned: 0, freedBytes: 0, results: [] };
+    }
+    const entries = await listAllCleanupEntries();
+    // 不預先用推估釋放量截斷：失敗或跳過後仍可補選後面的合格檔案。
+    const policy = getCleanupPolicy();
+    const candidates = selectCleanupCandidates(entries, {
+      now, freeBytes: policy.minFreeBytes > 0 ? 0 : null,
+      policy, includeAllLowSpace: true,
     });
     const results = [];
     let cleaned = 0;
     let freedBytes = 0;
+    let lowSpaceStopped = false;
 
     for (const candidate of candidates) {
+      if (candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE) {
+        if (lowSpaceStopped) continue;
+        const space = await readFreeBytes(getFreeBytes);
+        if (space.freeBytes === null || space.freeBytes >= policy.minFreeBytes) {
+          lowSpaceStopped = true;
+          continue;
+        }
+      }
       const source = CLEANUP_SOURCES[candidate.kind];
-      const result = await source.cleanup(candidate.id);
+      const result = await source.cleanup(candidate.id, {
+        candidate,
+        minFreeBytes: candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE && !getFreeBytes ? policy.minFreeBytes : 0,
+        finalFreeBytes: () => { const stat = fs.statfsSync(env.uploadDir); return Number(stat.bavail) * Number(stat.bsize); },
+        beforeDelete: candidate.reason === YOUTUBE_CLEANUP_REASONS.LOW_SPACE && getFreeBytes ? async () => {
+          const space = await readFreeBytes(getFreeBytes);
+          if (space.freeBytes === null) return 'space_unknown';
+          return space.freeBytes >= policy.minFreeBytes ? 'space_recovered' : null;
+        } : null,
+      });
+      if (['space_unknown', 'space_recovered'].includes(result?.reason)) lowSpaceStopped = true;
       results.push({
         kind: candidate.kind,
         id: candidate.id,
         reason: candidate.reason,
         cleaned: Boolean(result?.cleaned),
-        skipReason: result?.cleaned ? null : (result?.reason || null),
+        skipReason: result?.reason || null,
       });
       if (result?.cleaned) {
         cleaned += 1;
-        freedBytes += candidate.sizeBytes;
+        freedBytes += result.freedBytes ?? candidate.sizeBytes;
       } else if (result?.reason === 'disabled') {
         // 管理員中途關閉：剩下的這一輪不再刪。
         break;
@@ -330,7 +335,8 @@ async function runYouTubeCleanup({ now = new Date(), getFreeBytes } = {}) {
     }
 
     cleanupScheduler.lastSuccessAt = new Date().toISOString();
-    cleanupScheduler.lastError = null;
+    cleanupScheduler.lastError = repair.unresolved > 0 || results.some((result) => result.skipReason === 'state_write_failed')
+      ? 'Local files removed; database finalization must be retried.' : null;
     cleanupScheduler.lastCleanedCount = cleaned;
     cleanupScheduler.lastFreedBytes = freedBytes;
     return { skipped: false, candidates: candidates.length, cleaned, freedBytes, results };

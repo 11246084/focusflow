@@ -45,7 +45,9 @@ const { clearFaqsForVideoCourses } = require('./faqCache.service');
 const { enqueueVideoProcessing } = require('./videoProcessingQueue.service');
 const { assertMediaIntegrity } = require('./mediaIntegrity.service');
 const { removeVideoNotifications } = require('./notification.service');
-const { isLocalVideoSourceAvailable } = require('../utils/localVideoSource');
+const { inspectLocalUploadFile, isLocalVideoSourceAvailable, resolveLocalUploadPath } = require('../utils/localVideoSource');
+const { discardUnreferencedUpload } = require('./localSourceCleanup.service');
+const { NO_CLEANUP_INTENT, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork } = require('./youtubeWorkOwnership.service');
 
 // 依作業系統解析 STT venv 的 Python 執行檔；找不到 venv 時 fallback 到系統 Python。
 // Windows venv 在 .venv\Scripts\python.exe，Linux/macOS 在 .venv/bin/python。
@@ -98,7 +100,7 @@ function spawnLocalVideoPipeline({ videoId, filePath }, { onClose = null } = {})
   if (!normalizedVideoId || !isLocalVideoSourceAvailable(filePath)) {
     throw createRetrySourceUnavailableError();
   }
-  const normalizedPath = path.resolve(String(filePath));
+  const normalizedPath = resolveLocalUploadPath(filePath);
 
   const sttDir = path.resolve(env.projectRoot, '../STT_Whisper');
   const logPath = path.join(sttDir, 'data', `pipeline_${normalizedVideoId}.log`);
@@ -142,7 +144,7 @@ function spawnLocalVideoPipeline({ videoId, filePath }, { onClose = null } = {})
 async function scheduleExistingVideoProcessing(videoId) {
   const video = await Video.findById(videoId);
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
-  assertMediaIntegrity(video.filePath, video.fileName);
+  assertMediaIntegrity(resolveLocalUploadPath(video.filePath), video.fileName);
   const normalizedVideoId = String(video._id);
   return enqueueVideoProcessing({
     videoId: normalizedVideoId,
@@ -157,7 +159,7 @@ async function scheduleExistingVideoProcessing(videoId) {
   });
 }
 
-async function retryExistingVideoProcessing(videoId, user) {
+async function retryExistingVideoProcessingOwned(videoId, user) {
   const video = await Video.findById(videoId);
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
@@ -170,7 +172,7 @@ async function retryExistingVideoProcessing(videoId, user) {
     throw createRetrySourceUnavailableError();
   }
   if (!skipLocalSourceChecks) {
-    assertMediaIntegrity(video.filePath, video.fileName);
+    assertMediaIntegrity(resolveLocalUploadPath(video.filePath), video.fileName);
   }
   const queuedVideo = await queueVideoForProcessing(videoId);
   if (process.env.NODE_ENV === 'test' || env.processingWebhookSecret === 'processing-secret-for-tests') {
@@ -187,7 +189,7 @@ async function recoverQueuedVideoProcessing() {
   }).sort({ 'processing.queuedAt': 1, createdAt: 1 });
   const results = [];
   for (const video of queuedVideos) {
-    if (!video.filePath || !existsSync(path.resolve(video.filePath))) continue;
+    if (!video.filePath || !existsSync(resolveLocalUploadPath(video.filePath))) continue;
     try {
       results.push(await scheduleExistingVideoProcessing(video._id));
     } catch (error) {
@@ -492,25 +494,17 @@ async function createCourseVideo({
   });
 }
 
-function removeUploadedFile(file) {
-  try {
-    if (file?.path && existsSync(file.path)) unlinkSync(file.path);
-  } catch {
-    // Best-effort cleanup of a rejected restore upload.
-  }
-}
-
 // 補回原片（#23）：只接受已清理的影片，存回同一支影片讓之後可以重新處理。
 // 播放欄位與 youtubeVideoId 不動，學生照常看 YouTube 版本；自動上傳遇到
 // 已有 youtubeVideoId 會略過，所以重新處理完成不會再傳一次 YouTube（#25）。
-async function restoreVideoSource({ videoId, file, user }) {
+async function restoreVideoSourceOwned({ videoId, file, user }) {
   if (!file) {
     throw new AppError('Video file is required.', 400, 'VIDEO_FILE_REQUIRED');
   }
 
   try {
     assertObjectId(videoId, 'video');
-    const video = await Video.findById(videoId);
+    const video = await Video.findById(videoId).lean();
     if (!video || !Video.isAppOwnedRecord(video)) {
       throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
     }
@@ -549,12 +543,15 @@ async function restoreVideoSource({ videoId, file, user }) {
       {
         _id: video._id,
         filePath: null,
+        ...NO_CLEANUP_INTENT,
         'youtubeUpload.localCleanupAt': { $ne: null },
+        $and: observedFields(video, ['youtubeUpload.localCleanupAt', 'youtubeUpload.localSourceVersion', 'processing.status']),
       },
       {
         $set: {
           filePath: file.path,
           fileName: originalName,
+          'youtubeUpload.localSourceVersion': randomWorkId(),
           'youtubeUpload.localSourceRestoredAt': new Date(),
           'youtubeUpload.localCleanupAt': null,
           'youtubeUpload.localCleanupError': null,
@@ -570,11 +567,44 @@ async function restoreVideoSource({ videoId, file, user }) {
       );
     }
   } catch (error) {
-    removeUploadedFile(file);
     throw error;
   }
 
   return getVideoById(videoId, user);
+}
+
+async function restoreVideoSource(options) {
+  const release = tryAcquireWork([sourceWorkKey('video', options.videoId)]);
+  let releaseFile;
+  try {
+    if (!release) throw new AppError('The video source is in use.', 409, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');
+    if (options.file?.path) {
+      const source = inspectLocalUploadFile(options.file.path);
+      if (!source.safe) throw new AppError('Invalid local restore source.', 409, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');
+      releaseFile = tryAcquireWork(fileWorkKeys(source));
+      if (!releaseFile) throw new AppError('The restore source is in use.', 409, 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED');
+    }
+    return await restoreVideoSourceOwned(options);
+  } catch (error) {
+    releaseFile?.(); releaseFile = null;
+    await discardUnreferencedUpload(options.file);
+    throw error;
+  } finally { releaseFile?.(); release?.(); }
+}
+
+async function retryExistingVideoProcessing(videoId, user) {
+  const release = tryAcquireWork([sourceWorkKey('video', videoId)]);
+  let releaseFile;
+  try {
+    if (!release) throw new AppError('The video source is in use.', 409, 'VIDEO_PROCESSING_TRANSITION_INVALID');
+    const video = await Video.findById(videoId).lean();
+    if (video?.filePath) {
+      const source = inspectLocalUploadFile(video.filePath);
+      releaseFile = tryAcquireWork(fileWorkKeys(source));
+      if (!releaseFile) throw createRetrySourceUnavailableError();
+    }
+    return await retryExistingVideoProcessingOwned(videoId, user);
+  } finally { releaseFile?.(); release?.(); }
 }
 
 async function listCourseVideos(courseId, user) {

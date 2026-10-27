@@ -56,6 +56,14 @@ docs/
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 
+YouTube 恢復與清理：[2026-10-26 F0～F2 獨立審查](04_Features/YouTube_Lifecycle/evidence/2026-10-26_f0-f2-review.md)，記錄交錯重現、共享資料庫限制、舊資料相容性與測試辨識力。
+
+YouTube 審查修復：[2026-10-27 FR01～FR06 修復與複驗交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_fr01-fr06-fixes.md)，記錄修改、跨行程回歸與修正前對照結果。
+
+YouTube 再複驗修復：[2026-10-27 NR01／NR02 修復交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_nr01-nr02-fixes.md)，記錄過期清理接管、課程刪除交易、持久外部工作與故障回歸。
+
+YouTube 收尾複驗：[2026-10-27 F0～F2 最終審查與驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f0-f2-final-review.md)，記錄阻斷問題判定、外部待辦期限修復及最終驗收證據。
+
 根目錄 [README](../README.md) 負責啟動導覽，[PROJECT](../PROJECT.md) 負責產品範圍，[ARCHITECTURE](../ARCHITECTURE.md) 負責穩定架構，[AGENTS](../AGENTS.md) 負責代理工作入口。技術細節仍由 [Backend](../backend/docs/)、[Pipeline](../STT_Whisper/README.md)、[Database](../database/README.md) 維護。進度與狀態只寫在狀態正本；歷史原文與會議紀錄不改內文。
 
 新增或整理文件時，依[文件類型與寫法](../.claude/skills/docs-maintainer/references/doc-types.md)決定放哪裡、怎麼寫。

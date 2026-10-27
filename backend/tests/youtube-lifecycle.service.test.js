@@ -66,6 +66,7 @@ async function waitFor(predicate, attempts = 200) {
 // 上傳 bytes 那一步可以被卡住，用來模擬「進行中的上傳」。
 function buildFetchMock({ gate = null, youtubeId = 'ytLifecycle123' } = {}) {
   const calls = [];
+  let uploads = 0;
   const fetchImpl = async (url, options = {}) => {
     calls.push(String(url));
     if (String(url).includes('oauth2.googleapis.com/token')) {
@@ -76,7 +77,8 @@ function buildFetchMock({ gate = null, youtubeId = 'ytLifecycle123' } = {}) {
     }
     if (gate) await gate;
     await drainStream(options.body);
-    return jsonResponse({ id: youtubeId });
+    uploads += 1;
+    return jsonResponse({ id: uploads === 1 ? youtubeId : `${youtubeId}-${uploads}` });
   };
   return { fetchImpl, calls };
 }
@@ -591,7 +593,10 @@ describe('youtubeLifecycle.service 原片清理', () => {
     makeUploadedVideo({ name: 'p2.mp4', uploadedDaysAgo: 90, sizeBytes: 3000 });
     makeUploadedVideo({ name: 'p3.mp4', uploadedDaysAgo: 60, sizeBytes: 3000 });
     makeUploadedVideo({ name: 'p4.mp4', uploadedDaysAgo: 3, sizeBytes: 3000 });
-    const getFreeBytes = async () => 10 * GB - 5000;
+    const diskFiles = store.videos.filter((item) => item.filePath && fs.existsSync(item.filePath))
+      .map((item) => ({ path: item.filePath, size: fs.statSync(item.filePath).size }));
+    const getFreeBytes = async () => 10 * GB - 5000
+      + diskFiles.filter((file) => !fs.existsSync(file.path)).reduce((sum, file) => sum + file.size, 0);
     const originalPaths = new Map(store.videos.map((video) => [String(video._id), video.filePath]));
 
     const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });

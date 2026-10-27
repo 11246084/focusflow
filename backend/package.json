@@ -32,6 +32,7 @@
     "report:pilot-usage": "node src/scripts/pilotUsageReport.js",
     "docs:lint": "redocly lint docs/openapi.yaml",
     "test:auth-mongo": "node --test integration/auth.mongo.js",
+    "test:youtube-mongo": "node --test integration/youtube-lifecycle.mongo.js integration/youtube-review-fixes.mongo.js integration/youtube-recovery-atomicity.mongo.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [

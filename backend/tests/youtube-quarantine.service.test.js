@@ -5,18 +5,11 @@ const env = require('../src/config/env');
 const youtubeUploadService = require('../src/services/youtubeUpload.service');
 const quarantineService = require('../src/services/youtubeQuarantine.service');
 
+const { clearYouTubeCredentials, useYouTubeTestEnvironment } = require('./helpers/youtubeTestEnvironment');
+
 const FORCE_SSL_SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl';
 const UPLOAD_SCOPE = 'https://www.googleapis.com/auth/youtube.upload';
-const ENV_KEYS = [
-  'youtubeUploadEnabled',
-  'youtubeClientId',
-  'youtubeClientSecret',
-  'youtubeRefreshToken',
-  'youtubeOAuthClientId',
-  'youtubeOAuthClientSecret',
-  'youtubeOAuthRefreshToken',
-  'youtubeUploadAccessToken',
-];
+
 
 const VIDEO_ID = '6c0000000000000000000001';
 const ASSET_ID = '6c0000000000000000000002';
@@ -117,22 +110,16 @@ function addQuarantinedAsset(overrides = {}) {
 }
 
 describe('youtubeQuarantine.service 隔離清單與查詢', () => {
-  let originalEnv;
+  let restoreEnvironment;
 
   beforeEach(() => {
     resetStore();
     youtubeUploadService.resetYouTubeUploadState();
-    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
-    env.youtubeUploadEnabled = true;
-    env.youtubeClientId = 'client-id';
-    env.youtubeClientSecret = 'client-secret';
-    env.youtubeRefreshToken = 'refresh-token';
-    env.youtubeUploadAccessToken = '';
+    restoreEnvironment = useYouTubeTestEnvironment(env, youtubeUploadService.resetYouTubeUploadState);
   });
 
   afterEach(() => {
-    Object.assign(env, originalEnv);
-    youtubeUploadService.resetYouTubeUploadState();
+    restoreEnvironment();
   });
 
   it('清單列出隔離的影片與短片，不含可重試或已上傳的項目', async () => {
@@ -187,7 +174,7 @@ describe('youtubeQuarantine.service 隔離清單與查詢', () => {
 
   it('清單在本行程還沒換過 token 時 searchable 為 null，未設定憑證時為 false', async () => {
     assert.equal((await quarantineService.listQuarantinedItems()).searchable, null);
-    env.youtubeClientId = '';
+    clearYouTubeCredentials(env);
     assert.equal((await quarantineService.listQuarantinedItems()).searchable, false);
   });
 
@@ -241,7 +228,13 @@ describe('youtubeQuarantine.service 隔離清單與查詢', () => {
 
   it('沒有設定憑證時回 searchable: false', async () => {
     addQuarantinedVideo();
-    env.youtubeRefreshToken = '';
+    Object.assign(env, {
+      youtubeClientId: 'existing-primary', youtubeClientSecret: 'existing-secret',
+      youtubeRefreshToken: 'existing-refresh', youtubeOAuthClientId: 'existing-alias',
+      youtubeOAuthClientSecret: 'existing-alias-secret', youtubeOAuthRefreshToken: 'existing-alias-refresh',
+      youtubeUploadAccessToken: 'existing-direct-token',
+    });
+    clearYouTubeCredentials(env);
     const { fetchImpl, calls } = buildYouTubeFake();
 
     const result = await quarantineService.lookupQuarantinedItem({ kind: 'video', id: VIDEO_ID, fetchImpl });
@@ -277,22 +270,16 @@ function ownVideo(privacyStatus = 'unlisted', channelId = 'UCownChannel') {
 }
 
 describe('youtubeQuarantine.service 套用與重設', () => {
-  let originalEnv;
+  let restoreEnvironment;
 
   beforeEach(() => {
     resetStore();
     youtubeUploadService.resetYouTubeUploadState();
-    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
-    env.youtubeUploadEnabled = true;
-    env.youtubeClientId = 'client-id';
-    env.youtubeClientSecret = 'client-secret';
-    env.youtubeRefreshToken = 'refresh-token';
-    env.youtubeUploadAccessToken = '';
+    restoreEnvironment = useYouTubeTestEnvironment(env, youtubeUploadService.resetYouTubeUploadState);
   });
 
   afterEach(() => {
-    Object.assign(env, originalEnv);
-    youtubeUploadService.resetYouTubeUploadState();
+    restoreEnvironment();
   });
 
   it('套用影片時確認屬於自家頻道後切換播放欄位', async () => {
@@ -440,23 +427,17 @@ describe('youtubeQuarantine.service 套用與重設', () => {
 
 // decisions.md #34：可安全重試但已達上限的失敗也列入待處理，管理員只能重設。
 describe('youtubeQuarantine.service 已達重試上限', () => {
-  let originalEnv;
+  let restoreEnvironment;
 
   beforeEach(() => {
     resetStore();
     youtubeUploadService.resetYouTubeUploadState();
-    originalEnv = Object.fromEntries([...ENV_KEYS, 'youtubeUploadMaxAttempts'].map((key) => [key, env[key]]));
-    env.youtubeUploadEnabled = true;
-    env.youtubeClientId = 'client-id';
-    env.youtubeClientSecret = 'client-secret';
-    env.youtubeRefreshToken = 'refresh-token';
-    env.youtubeUploadAccessToken = '';
+    restoreEnvironment = useYouTubeTestEnvironment(env, youtubeUploadService.resetYouTubeUploadState);
     env.youtubeUploadMaxAttempts = 3;
   });
 
   afterEach(() => {
-    Object.assign(env, originalEnv);
-    youtubeUploadService.resetYouTubeUploadState();
+    restoreEnvironment();
   });
 
   const limitReachedUpload = (overrides = {}) => ({

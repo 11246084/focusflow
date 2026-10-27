@@ -182,7 +182,9 @@ describe('短影片上架（WO-08）', () => {
     stubYouTubeUpload();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // HTTP 201 precedes the background upload; drain it before clearing fixtures.
+    await waitFor(() => store.shortAssets.every((asset) => !publishService.isShortAssetUploadRunning(asset._id)));
     global.fetch = originalFetch;
     disableYouTube();
     env.shortScriptAutomationEnabled = false;
@@ -777,7 +779,8 @@ describe('短影片上架（WO-08）', () => {
       enableYouTube();
       stubYouTubeUpload();
 
-      const published = await publishService.retryShortAssetUpload({ user: TEACHER, assetId: asset._id });
+      const published = await publishService.retryShortAssetUpload({ user: TEACHER, now: new Date(Date.now() + env.youtubeUploadRetryBaseMs + 1000),
+        assetId: asset._id });
 
       assert.equal(published.status, 'published');
     });

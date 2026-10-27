@@ -9,6 +9,7 @@
 1. `short_render/README.md`（現況、plan 格式、已驗證與未驗證）與 `short_render/src/` 全部。
 2. [recut 設計決策](../recut-design-decisions.md)第 5、6、10、20～25、29～31、38、43、62、65、67 項。
 3. [素材開放與排除清單](../recut-asset-exclusions.md)。
+4. `D:\AI-workspace\01_Projects\短影音測試製作\PROCESS.md`（repo 外、只在使用者電腦上的 2026-10-14 原型製作紀錄：管線、耗時與踩過的坑）。**只供參考**：不複製其中的素材、成品或腳本進 repo；原片與成品含老師肖像，不得外傳。
 
 ## 和現況不同、要改的地方
 

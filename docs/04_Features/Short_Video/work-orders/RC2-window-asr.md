@@ -10,6 +10,7 @@
 2. RC1 回報中的句子清單格式、樣本資料與背景工作步驟介面。
 3. `backend/src/services/shortScriptTopic.service.js`、`backend/src/services/shortScript.service.js`（選題與證據凍結的既有做法）、`backend/src/models/videoSegment.model.js`。
 4. `short_render/src/align/transcribe_words.py`（逐字時間辨識，已處理靜默重複與提示詞）、`short_render/src/align/align.js`、`STT_Whisper/README.md`。
+5. `D:\AI-workspace_Projects\短影音測試製作\PROCESS.md`（repo 外、只在使用者電腦上的 2026-10-14 原型製作紀錄：管線、耗時與踩過的坑）。**只供參考**：不複製其中的素材、成品或腳本進 repo；原片與成品含老師肖像，不得外傳。
 
 ## 要做
 

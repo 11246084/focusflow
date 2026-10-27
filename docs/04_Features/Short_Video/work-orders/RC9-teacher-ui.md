@@ -2,12 +2,12 @@
 
 分支 `wip/recut-rc9-teacher-ui`，從 `feat/recut` 切出（RC8 的 OpenAPI 已定稿）。先讀 `AGENTS.md` 與 [HANDOFF.md](../HANDOFF.md) 的「必守規則」。
 
-**開工前**：決策第 57 項①的啟發式評估須已完成，依評估結果修正後的示意圖才是實作基準。
+**第一步**（決策第 89 項）：先另開子 agent 依 Nielsen 十大原則評估示意圖與評估素材，產出問題清單與嚴重度；依清單修正設計後再實作，清單附在回報，並標明是 AI 評估。
 
 ## 先讀
 
 1. [體驗設計決策](../decisions.md)全部（UX-1～UX-19 與已定案明細）與[評估素材](../evidence/2026-10-21_recut-teacher-ux/heuristic-evaluation.md)、示意圖原始檔 `preview-mockup.html`。
-2. [recut 設計決策](../recut-design-decisions.md)第 16、19、38、50、51、54、68、69、73、75～78、81 項。
+2. [recut 設計決策](../recut-design-decisions.md)第 16、19、38、50、51、54、57、58、68、69、73、75～78、81、89、90 項。
 3. 現有前端：`frontend/focus-flow/src/pages/TeacherShortScripts.jsx`、`frontend/focus-flow/src/services/shortScript.js`、`frontend/focus-flow/src/components/navigationConfig.js`、`frontend/focus-flow/README.md`；RC8 的 OpenAPI 端點。
 
 ## 要做
@@ -25,4 +25,4 @@
 
 ## 完成時回報
 
-commit 清單、測試結果、和示意圖不同的地方與原因、截圖，以及第 57 項②代理使用者測試可直接使用的操作入口。
+commit 清單、測試結果、AI 啟發式評估的問題清單與處理方式、和示意圖不同的地方與原因、截圖，以及第 58、76 項操作紀錄的資料位置（第 90 項以操作紀錄取代代理使用者測試）。

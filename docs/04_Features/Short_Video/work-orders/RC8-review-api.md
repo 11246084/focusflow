@@ -1,6 +1,6 @@
 # 工作說明：recut RC8（審閱流程 API）
 
-分支 `wip/recut-rc8-review-api`，從 `feat/recut` 切出（RC4 已合併）。先讀 `AGENTS.md` 與 [HANDOFF.md](../HANDOFF.md) 的「必守規則」。
+分支 `wip/recut-rc8-review-api`，從 `feat/recut` 切出（RC1 已合併；RC4 還沒合併時，重跑第二、三步先接 RC1 的步驟介面與假步驟，RC4 合併後再接上）。先讀 `AGENTS.md` 與 [HANDOFF.md](../HANDOFF.md) 的「必守規則」。
 
 這張工單提供教師審閱介面（RC9）需要的所有後端操作。先把 API 寫進 OpenAPI 並請審查確認，RC9 才能開工。
 

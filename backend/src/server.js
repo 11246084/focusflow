@@ -29,6 +29,7 @@ const {
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
+const { recoverQueuedRecutTasks, recutQueue } = require('./services/recutQueue.service');
 const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
 const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = require('./services/courseDeletionJobs.service');
 
@@ -54,6 +55,9 @@ async function startServer() {
     console.error('Failed to recover queued video processing.', error);
   });
   startShortsSyncScheduler();
+  if (env.shortScriptAutomationEnabled) recoverQueuedRecutTasks().catch((error) => {
+    console.error('Failed to recover queued recut tasks.', error);
+  });
   startVideoBatchReconciliationScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
   // 恢復排程在憑證檢查後啟動；每輪是否執行由兩層開關決定。
@@ -64,6 +68,7 @@ async function startServer() {
   startCourseDeletionJobScheduler();
 
   const shutdown = async () => {
+    recutQueue.stop();
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();

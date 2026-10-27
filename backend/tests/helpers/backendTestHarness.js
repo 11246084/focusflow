@@ -56,6 +56,9 @@ const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
 const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
+const recutModels = ['Source', 'Version', 'Task', 'Attempt', 'Approval', 'ReviewEvent'].map((name) => ({
+  key: `recut${name}s`, Model: require(`../../src/models/recut${name}.model`),
+}));
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
 const { resetLoginThrottleForTests } = require('../../src/services/loginThrottle.service');
@@ -74,6 +77,7 @@ const TEST_UPLOAD_PREFIX = 'test-upload-';
 
 // All model stubs read from and write to this shared in-memory store.
 const store = {
+  ...Object.fromEntries(recutModels.map(({ key }) => [key, []])),
   users: [],
   authSessions: [],
   adminAuditLogs: [],
@@ -1233,6 +1237,22 @@ function installModelStubs() {
     return script;
   };
   ShortScript.deleteMany = async (query = {}) => deleteManyInStore(store.shortScripts, query);
+  ShortScript.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(store.shortScripts, query, update, options);
+
+  for (const { key, Model } of recutModels) {
+    Model.create = async (payload) => {
+      const doc = new Model(payload);
+      const error = doc.validateSync();
+      if (error) throw error;
+      const item = cloneSnapshot({ ...doc.toObject({ flattenMaps: true }), createdAt: payload.createdAt || new Date(), updatedAt: new Date() });
+      store[key].push(item);
+      return cloneSnapshot(item);
+    };
+    Model.find = (query = {}) => createQuery(store[key].filter((item) => matchesQuery(item, query)));
+    Model.findById = (id) => createQuery(store[key].find((item) => normalizeValue(item._id) === normalizeValue(id)) || null);
+    Model.findOneAndUpdate = async (query, update, options = {}) => cloneSnapshot(findOneAndUpdateInStore(store[key], query, update, options));
+    Model.findByIdAndUpdate = async (id, update, options = {}) => cloneSnapshot(findOneAndUpdateInStore(store[key], { _id: id }, update, options));
+  }
 
   LineBindToken.create = async (payload) => {
     const token = {
@@ -1341,6 +1361,7 @@ function installModelStubs() {
 }
 
 function resetStore() {
+  for (const { key } of recutModels) store[key].length = 0;
   store.courseDeletionJobs = [];
   store.youtubeBackups = [];
   store.authSessions.length = 0;

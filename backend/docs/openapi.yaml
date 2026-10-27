@@ -54,7 +54,7 @@ tags:
       feature flag 檢查排在這組路由自己的身分驗證之前，所以 `/api/v1/short-scripts/*`、`/api/v1/short-assets/*` 未帶 token 也回 404。
       例外：`/api/v1/courses/{courseId}/short-*` 會先經過課程路由的身分驗證，未帶 token 時回 `401`。
 
-      Short Script 回應是 MongoDB 文件原樣輸出，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；與其他資源使用的 `id` 不同。
+      既有 Short Script 回應沿用 MongoDB 文件格式，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；缺少 productionMode 時讀為 avatar。recut 最小 API 另使用明確欄位 mapper，任務識別為 `id`。
   - name: LINE Webhook
     description: |
       LINE Platform 的 `integration-facing` webhook callback 入口。
@@ -4597,6 +4597,160 @@ paths:
                       code: SHORT_SCRIPT_EVIDENCE_EMPTY
         '502':
           $ref: '#/components/responses/EmbeddingProviderError'
+  /api/v1/short-scripts/{scriptId}/production-mode:
+    patch:
+      tags: [Short Scripts]
+      summary: 設定短影片產片方式
+      description: 教師限管理自己的課程；admin 可管理所有課程。切換保留既有兩種產片紀錄，背景工作或渲染中回 409。沿用短影片 feature flag，關閉時回 404。
+      operationId: setShortScriptProductionMode
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [productionMode]
+              properties:
+                productionMode:
+                  $ref: '#/components/schemas/ShortScriptProductionMode'
+      responses:
+        '200':
+          description: 產片方式與目前 recut 狀態。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutStateResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/generate:
+    post:
+      tags: [Short Scripts]
+      summary: 排入 recut 初次生成工作
+      description: |
+        需先選 recut；教師限自己的課程，admin 可管理所有課程。回 202 與 data.id，不等待生成。
+        body 可省略或為空物件；教師不能指定模型、呼叫額度、步驟或任務類型。
+        RC2～RC4 尚未註冊步驟時回 503 RECUT_STEPS_NOT_CONFIGURED；不建立假的成功工作。
+        沿用 SHORT_SCRIPT_AUTOMATION_ENABLED，關閉時回 404。
+      operationId: startRecutGeneration
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '202':
+          description: 工作已持久化；data.id 是查詢與取消使用的 taskId。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+        '503':
+          description: RECUT_STEPS_NOT_CONFIGURED 或 RECUT_SETTING_INVALID，尚未註冊步驟或後端呼叫上限設定無效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/short-scripts/{scriptId}/recut:
+    get:
+      tags: [Short Scripts]
+      summary: 查詢產片方式、recut 目前狀態與最新任務
+      description: 教師限自己的課程；admin 可管理所有課程。舊文件缺少 productionMode 時讀為 avatar，不寫資料遷移。沿用短影片 feature flag，關閉時回 404。
+      operationId: getRecutState
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      responses:
+        '200':
+          description: 狀態與最新任務；沒有任務時 task 為 null。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutStateResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+  /api/v1/short-scripts/{scriptId}/recut/tasks/{taskId}:
+    get:
+      tags: [Short Scripts]
+      summary: 查詢 recut 任務
+      description: 教師限自己的課程，admin 可管理所有課程；task 必須屬於 script。回應不含內部輸入輸出或完整恢復快照。沿用短影片 feature flag，關閉時回 404。
+      operationId: getRecutTask
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+        - $ref: '#/components/parameters/RecutTaskId'
+      responses:
+        '200':
+          description: 任務類型、狀態、固定額度、用量與錯誤原因。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/RecutTaskNotFoundError'
+  /api/v1/short-scripts/{scriptId}/recut/tasks/{taskId}/cancel:
+    post:
+      tags: [Short Scripts]
+      summary: 要求取消 recut 工作
+      description: |
+        教師限自己的課程，admin 可管理所有課程；task 必須屬於 script。每一步之間取消；進行中的呼叫不強制中斷，晚到結果留紀錄但不採用。
+        排隊工作可立即取消；已結束的工作保持原結果。取消或失敗恢復原版本並保留未套用修改。沿用短影片 feature flag，關閉時回 404。
+      operationId: cancelRecutTask
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+        - $ref: '#/components/parameters/RecutTaskId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: 目前工作狀態（cancel_requested、cancelled，或已結束狀態）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/RecutTaskNotFoundError'
   /api/v1/short-scripts/{scriptId}:
     get:
       tags:
@@ -5039,6 +5193,13 @@ components:
       description: 目標短影片腳本的 MongoDB ObjectId（腳本回應中的 `_id`）。
       schema:
         $ref: '#/components/schemas/ObjectId'
+    RecutTaskId:
+      name: taskId
+      in: path
+      required: true
+      description: recut 工作的 MongoDB ObjectId（202 回應的 data.id）。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
     AssetId:
       name: assetId
       in: path
@@ -5047,6 +5208,18 @@ components:
       schema:
         $ref: '#/components/schemas/ObjectId'
   responses:
+    RecutConflictError:
+      description: RECUT_STATE_INVALID，產片方式、目前版本或狀態不允許此操作。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RecutTaskNotFoundError:
+      description: RECUT_TASK_NOT_FOUND、SHORT_SCRIPT_NOT_FOUND、COURSE_NOT_FOUND，或功能關閉時 NOT_FOUND。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     ValidationError:
       description: request payload 驗證失敗。
       content:
@@ -9210,9 +9383,77 @@ components:
         rejectedAsAsset:
           description: 這一版的回饋來自成品影片被退回，而不是腳本審核。
           type: boolean
+    ShortScriptProductionMode:
+      type: string
+      enum: [avatar, recut]
+      default: avatar
+    RecutSnapshot:
+      type: object
+      required: [state, revision, currentVersionId, currentAssetId, currentAssetGenerationVersion, activeTaskId, lastCompletedTaskId, pendingEditId]
+      properties:
+        state:
+          type: string
+          enum: [idle, queued, generating, updating, script_review, script_approved, render_queued, rendering, render_failed, asset_review, asset_approved, published]
+        revision: { type: integer, minimum: 0 }
+        currentVersionId: { type: [string, 'null'] }
+        currentAssetId: { type: [string, 'null'] }
+        currentAssetGenerationVersion: { type: [integer, 'null'], minimum: 1 }
+        activeTaskId: { type: [string, 'null'] }
+        lastCompletedTaskId: { type: [string, 'null'] }
+        pendingEditId: { type: [string, 'null'] }
+    RecutTask:
+      type: object
+      required: [id, scriptId, type, status, callLimit, callsUsed, stepIds, resultVersionId, queuedAt, startedAt, finishedAt, error]
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        scriptId:
+          $ref: '#/components/schemas/ObjectId'
+        type: { type: string, enum: [generate, apply_selection, apply_suggestions] }
+        status: { type: string, enum: [queued, running, cancel_requested, succeeded, failed, cancelled] }
+        callLimit: { type: integer, minimum: 2 }
+        callsUsed: { type: integer, minimum: 0 }
+        stepIds: { type: array, items: { type: string } }
+        resultVersionId: { type: [string, 'null'] }
+        queuedAt: { type: string, format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        error:
+          type: [object, 'null']
+          properties:
+            code: { type: string }
+            message: { type: string }
+    RecutTaskResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          $ref: '#/components/schemas/RecutTask'
+    RecutStateResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [scriptId, productionMode, recut]
+          properties:
+            scriptId:
+              $ref: '#/components/schemas/ObjectId'
+            productionMode:
+              $ref: '#/components/schemas/ShortScriptProductionMode'
+            recut:
+              $ref: '#/components/schemas/RecutSnapshot'
+            task:
+              oneOf:
+                - $ref: '#/components/schemas/RecutTask'
+                - type: 'null'
     ShortScript:
       description: |
-        短影片腳本（MongoDB 文件原樣輸出，未經 mapper）。讀取時不會補上 schema default，
+        短影片腳本沿用 MongoDB 文件格式；讀取時缺少 productionMode 會補 avatar，其餘不補 schema default，
         因此 `required` 只列建立時一定寫入的欄位；其餘欄位在舊資料上可能不存在。
       type: object
       required:
@@ -9236,6 +9477,10 @@ components:
         topicKey:
           description: 代表問句的正規化文字；同一課程內唯一。
           type: string
+        productionMode:
+          $ref: '#/components/schemas/ShortScriptProductionMode'
+        recut:
+          $ref: '#/components/schemas/RecutSnapshot'
         sourceQuestions:
           type: array
           items:
@@ -9331,6 +9576,8 @@ components:
     ShortScriptCreateRequest:
       type: object
       properties:
+        productionMode:
+          $ref: '#/components/schemas/ShortScriptProductionMode'
         topicKey:
           description: 教師指定的候選 `topicKey`；省略或空白時由系統依排序自動選題。
           type: string

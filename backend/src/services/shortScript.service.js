@@ -1,4 +1,6 @@
 const ShortScript = require('../models/shortScript.model');
+const { productionMode: readProductionMode } = require('./recutState.service');
+const { PRODUCTION_MODES } = require('../constants/recut');
 const VideoSegment = require('../models/videoSegment.model');
 const AppError = require('../utils/appError');
 const env = require('../config/env');
@@ -160,8 +162,11 @@ function buildEvidence(expandedMatches, { limit } = {}) {
  * 第 3 層（涵蓋度過濾）在此以 minEvidenceItems 落地；
  * 第 4 層（弧線適用性判定）需要 LLM，留到腳本生成的工作項。
  */
-async function createScriptWithFrozenEvidence({ user, courseId, topicKey = null } = {}) {
+async function createScriptWithFrozenEvidence({ user, courseId, topicKey = null, productionMode = PRODUCTION_MODES.AVATAR } = {}) {
   assertObjectId(courseId, 'course');
+  if (!Object.values(PRODUCTION_MODES).includes(productionMode)) {
+    throw new AppError('productionMode must be avatar or recut.', 400, 'VALIDATION_ERROR');
+  }
 
   const course = await getCourseByIdOrThrow(courseId);
   await assertCanManageCourse(user, course);
@@ -248,6 +253,7 @@ async function createScriptWithFrozenEvidence({ user, courseId, topicKey = null 
   return ShortScript.create({
     courseId: course._id,
     topic: selected.question,
+    productionMode,
     topicKey: selected.topicKey,
     sourceQuestions: selected.variants.map((variant) => ({
       question: variant.question,
@@ -372,6 +378,7 @@ function latestVersion(script) {
  */
 async function generateScriptVersion({ user, scriptId } = {}) {
   const { script, course } = await loadScriptForManage({ user, scriptId });
+  assertAvatarMode(script);
   assertTransition(script.status, SHORT_SCRIPT_STATUSES.GENERATED);
 
   const previous = latestVersion(script);
@@ -467,6 +474,7 @@ async function submitReview({
   user, scriptId, decision, feedback = null, feedbackType = null,
 } = {}) {
   const { script } = await loadScriptForManage({ user, scriptId });
+  assertAvatarMode(script);
 
   // approved 不開放人工按出來（2026-09-09 決議）：它只有一種來源——這份腳本的影片
   // 已成功上架 YouTube（markScriptPublished）。兩種來源會讓「已上架」這個標籤不可信。
@@ -648,7 +656,7 @@ async function getScriptById({ user, scriptId } = {}) {
   const course = await getCourseByIdOrThrow(script.courseId);
   await assertCanManageCourse(user, course);
 
-  return script;
+  return { ...script, productionMode: readProductionMode(script) };
 }
 
 async function listCourseScripts({ user, courseId } = {}) {
@@ -657,7 +665,14 @@ async function listCourseScripts({ user, courseId } = {}) {
   const course = await getCourseByIdOrThrow(courseId);
   await assertCanManageCourse(user, course);
 
-  return ShortScript.find({ courseId: course._id }).lean();
+  const scripts = await ShortScript.find({ courseId: course._id }).lean();
+  return scripts.map((script) => ({ ...script, productionMode: readProductionMode(script) }));
+}
+
+function assertAvatarMode(script) {
+  if (readProductionMode(script) !== PRODUCTION_MODES.AVATAR) {
+    throw new AppError('Use the recut workflow for this script.', 409, 'RECUT_STATE_INVALID');
+  }
 }
 
 module.exports = {

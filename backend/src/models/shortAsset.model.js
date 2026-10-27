@@ -122,6 +122,7 @@ const shortAssetSchema = new mongoose.Schema(
       index: true,
     },
     sourceVersionNo: { type: Number, default: null, min: 1 },
+    recutVersionId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutVersion', default: null },
     // 教師上傳的本機影片檔。上架是在成品審核通過之後才發生的，
     // 那時 multipart 請求早已結束，所以必須把路徑存下來。
     filePath: { type: String, default: null, trim: true },

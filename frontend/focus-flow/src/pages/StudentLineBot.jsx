@@ -79,8 +79,9 @@ export default function StudentLineBot() {
   const lineOpenUrl = bindToken ? lineMessageUrl(bindToken) : LINE_BOT_URL;
 
   return (
-    <div className="fu scrl" style={{ padding: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <div className="card" style={{ maxWidth: 720, width: '100%', padding: 40 }}>
+    // 卡片用 margin:auto 置中：內容比畫面矮時置中，比畫面高時從頂端排列、可完整捲動。
+    <div className="fu scrl" style={{ padding: 26, display: 'flex', height: '100%' }}>
+      <div className="card linebot-card" style={{ maxWidth: 720, width: '100%', margin: 'auto' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
@@ -159,8 +160,8 @@ export default function StudentLineBot() {
                 {bindToken ? (
                   <div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>你的綁定碼（傳送到 LINE 聊天室）：</div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontFamily: 'monospace', color: '#F14F21', letterSpacing: '.06em', wordBreak: 'break-all' }}>{bindToken}</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontFamily: 'monospace', color: '#F14F21', letterSpacing: '.06em', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>{bindToken}</div>
                       <button type="button" onClick={copyToken} className="btn-primary" style={{ padding: '10px 16px', fontSize: 12, flexShrink: 0 }}>
                         {copied ? '已複製' : '複製'}
                       </button>

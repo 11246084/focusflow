@@ -2,6 +2,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
+import BottomSheet from '../components/BottomSheet';
+import brandMark from '../assets/mark-white.svg';
 import { apiFetch, BACKEND_ORIGIN } from '../api';
 import {
   findExtendedResourcesQuestion,
@@ -12,6 +14,7 @@ import {
 import {
   SOURCE_PREVIEW_COUNT,
   formatConversationDate,
+  formatConversationLabel,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
@@ -222,6 +225,60 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
 
 // 點擊後在頁面內展開 QR code 小卡，不開新分頁
 // Portal keeps viewport coordinates independent of transformed/filtered ancestors.
+async function buildCourseBindUrl(courseId) {
+  if (!LINE_BOT_URL) return '';
+  if (!courseId) return LINE_BOT_URL || '';
+
+  try {
+    const res = await apiFetch('/line/bind-token', { method: 'POST' });
+    const token = res.data?.token || res.data?.bindToken || '';
+    return token ? lineMessageUrl(`BIND:${token}:COURSE:${courseId}`) : lineMessageUrl(`COURSE:${courseId}`);
+  } catch {
+    return lineMessageUrl(`COURSE:${courseId}`);
+  }
+}
+
+function AskTAContent({ url, loading, courseName }) {
+  return (
+    <>
+      {url && !loading && <div style={{ padding: 10, background: '#fff', borderRadius: 12 }}>
+        <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
+      </div>}
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
+        {loading ? '產生 QR code 中…' : url ? '用手機 LINE 掃描後送出訊息' : '尚未設定 LINE 助教連結，暫時無法掃碼。'}<br />
+        <span style={{ color: '#F14F21' }}>{courseName}</span>
+      </div>
+      {/* 手機上無法用同一支手機掃 QR code，直接開啟 LINE 並帶入訊息 */}
+      {url && !loading && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-primary"
+          style={{ background: '#06C755', padding: '8px 16px', fontSize: 12, textDecoration: 'none', color: '#fff' }}
+        >
+          在手機上開啟 LINE
+        </a>
+      )}
+    </>
+  );
+}
+
+// 手機版「⋯」選單裡的詢問助教：展開時才產生綁定碼連結。
+function AskTAPanel({ courseId, courseName }) {
+  const [state, setState] = useState({ loading: true, url: '' });
+  useEffect(() => {
+    let active = true;
+    buildCourseBindUrl(courseId).then((url) => { if (active) setState({ loading: false, url }); });
+    return () => { active = false; };
+  }, [courseId]);
+  return (
+    <div className="study-more-ta">
+      <AskTAContent url={state.url} loading={state.loading} courseName={courseName} />
+    </div>
+  );
+}
+
 function AskTAButton({ courseId, courseName, variant = 'list' }) {
   const [pos, setPos] = useState(null); // null = closed, {top,right} = open
   const [url, setUrl] = useState(LINE_BOT_URL || '');
@@ -270,27 +327,16 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
 
   const isDetail = variant === 'detail';
 
-  async function buildCourseBindUrl() {
-    if (!LINE_BOT_URL) return '';
-    if (!courseId) return LINE_BOT_URL || '';
-
-    try {
-      setLoadingUrl(true);
-      const res = await apiFetch('/line/bind-token', { method: 'POST' });
-      const token = res.data?.token || res.data?.bindToken || '';
-      return token ? lineMessageUrl(`BIND:${token}:COURSE:${courseId}`) : lineMessageUrl(`COURSE:${courseId}`);
-    } catch {
-      return lineMessageUrl(`COURSE:${courseId}`);
-    } finally {
-      setLoadingUrl(false);
-    }
-  }
-
   async function handleClick(e) {
     e.stopPropagation();
     if (pos) { setPos(null); return; }
     setPos({ top: 0, left: 0 });
-    setUrl(await buildCourseBindUrl());
+    setLoadingUrl(true);
+    try {
+      setUrl(await buildCourseBindUrl(courseId));
+    } finally {
+      setLoadingUrl(false);
+    }
   }
 
   return (
@@ -314,29 +360,25 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
           aria-label="LINE 助教 QR Code"
           style={{ position: 'fixed', zIndex: 1000, top: pos.top, left: pos.left, width: 224, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto', background: 'rgba(22,8,18,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
         >
-          {url && !loadingUrl && <div style={{ padding: 10, background: '#fff', borderRadius: 12 }}>
-            <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
-          </div>}
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.6 }}>
-            {loadingUrl ? '產生 QR code 中…' : url ? '用手機 LINE 掃描後送出訊息' : '尚未設定 LINE 助教連結，暫時無法掃碼。'}<br />
-            <span style={{ color: '#F14F21' }}>{courseName}</span>
-          </div>
-          {/* 手機上無法用同一支手機掃 QR code，直接開啟 LINE 並帶入訊息 */}
-          {url && !loadingUrl && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary"
-              style={{ background: '#06C755', padding: '8px 16px', fontSize: 12, textDecoration: 'none', color: '#fff' }}
-            >
-              在手機上開啟 LINE
-            </a>
-          )}
+          <AskTAContent url={url} loading={loadingUrl} courseName={courseName} />
         </div>, document.body
       )}
     </>
   );
+}
+
+// 與 index.css 的手機斷點一致：≤768px 學習頁改用上下排列與底部抽屜。
+const COMPACT_QUERY = '(max-width: 768px)';
+
+function useCompactLayout() {
+  const [compact, setCompact] = useState(() => window.matchMedia(COMPACT_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(COMPACT_QUERY);
+    const handleChange = (event) => setCompact(event.matches);
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, []);
+  return compact;
 }
 
 const COLORS = ['#a5b4fc', '#4ade80', '#F14F21', '#fb923c', '#38bdf8', '#f472b6'];
@@ -450,22 +492,29 @@ function AnswerContent({ answer }) {
 }
 
 // 2026-09-18 前建立的對話預設標題是英文。
-function displayConversationTitle(title) {
-  return !title || title === 'New conversation' ? '新對話' : title;
-}
-
 function isDefaultConversationTitle(title) {
   return !title || title === '新對話' || title === 'New conversation';
 }
 
 // AI 回答通常要 10～20 秒，等待期間在對話尾端顯示明確的進度，避免看起來像當掉。
+// AI 回答、等待中與錯誤訊息共用：左側系統 logo 頭像，文字直接排在問答區背景上。
+function AiAvatar() {
+  return (
+    <span className="qa-ai-avatar" aria-hidden="true">
+      <img src={brandMark} alt="" />
+    </span>
+  );
+}
+
 function PendingAnswer() {
   return (
-    <div className="qa-pending-answer" role="status" style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span className="qa-pending-dots" aria-hidden="true"><span /><span /><span /></span>
-      <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-        AI 正在搜尋課程片段並整理答案，通常需要 10～20 秒，請稍候…
-      </span>
+    <div className="qa-ai-message qa-pending-answer" role="status">
+      <AiAvatar />
+      <div className="qa-ai-body qa-pending-body">
+        <span className="sr-only">AI 回答：</span>
+        <span className="qa-pending-dots" aria-hidden="true"><span /><span /><span /></span>
+        <span>AI 正在搜尋課程片段並整理答案，通常需要 10～20 秒，請稍候…</span>
+      </div>
     </div>
   );
 }
@@ -523,7 +572,14 @@ function ExtendedLearning({ courseId, question }) {
   );
 }
 
-function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
+// 只捲動選單本身，不用 scrollIntoView（它也會捲動 overflow:hidden 的外層容器）。
+function scrollMenuItemIntoView(menu, item) {
+  if (!menu || !item) return;
+  if (item.offsetTop < menu.scrollTop) menu.scrollTop = item.offsetTop;
+  else if (item.offsetTop + item.offsetHeight > menu.scrollTop + menu.clientHeight) menu.scrollTop = item.offsetTop + item.offsetHeight - menu.clientHeight;
+}
+
+function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
@@ -539,6 +595,8 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
   const [expandedMessageIds, setExpandedMessageIds] = useState(new Set());
   const messageListRef = useRef(null);
   const latestMessageRef = useRef(null);
+  const historyButtonRef = useRef(null);
+  const historyMenuRef = useRef(null);
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
   useEffect(() => {
@@ -563,6 +621,33 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
     if (!awaitingAnswer || !messageListRef.current) return;
     messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
   }, [awaitingAnswer]);
+
+  useEffect(() => {
+    if (compact || !historyOpen) return undefined;
+    const menu = historyMenuRef.current;
+    // 問答區是 overflow:hidden：選單左側或底部超出時會被裁切，開啟時往右挪並限制高度，維持在問答區內。
+    const panel = menu?.closest('.qa-conversation-panel')?.getBoundingClientRect();
+    if (menu && panel) {
+      const rect = menu.getBoundingClientRect();
+      const overflowLeft = panel.left + 8 - rect.left;
+      if (overflowLeft > 0) menu.style.right = `${-overflowLeft}px`;
+      menu.style.maxHeight = `${Math.max(120, Math.min(320, panel.bottom - rect.top - 8))}px`;
+    }
+    // preventScroll：預設的 focus 捲動會連 overflow:hidden 的外層一起捲，把整個學習頁往上推。
+    const initial = menu?.querySelector('[aria-checked="true"]') || menu?.querySelector('[role="menuitemradio"]');
+    initial?.focus({ preventScroll: true });
+    scrollMenuItemIntoView(menu, initial);
+    const closeOnOutside = (event) => {
+      if (menu?.contains(event.target) || historyButtonRef.current?.contains(event.target)) return;
+      setHistoryOpen(false);
+      // 點到可聚焦的元素（例如輸入框）就讓它取得焦點，否則回到「最近對話」按鈕。
+      setTimeout(() => {
+        if (!document.activeElement || document.activeElement === document.body) historyButtonRef.current?.focus();
+      }, 0);
+    };
+    document.addEventListener('mousedown', closeOnOutside);
+    return () => document.removeEventListener('mousedown', closeOnOutside);
+  }, [compact, historyOpen]);
 
   async function createNewConversation() {
     setError('');
@@ -664,37 +749,103 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
     }
   }
 
+  const startNewConversation = () => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'));
+  const currentTitle = formatConversationLabel(conversations.find((item) => item.id === conversationId));
+  const recentConversations = conversations.slice(0, 20);
+
+  function closeHistory() {
+    setHistoryOpen(false);
+    historyButtonRef.current?.focus();
+  }
+
+  function selectConversation(id) {
+    closeHistory();
+    if (id !== conversationId) resumeConversation(id);
+  }
+
+  // 電腦版浮動選單：方向鍵／Home／End 移動，Enter 選取（原生 button），Esc 關閉並回到觸發按鈕。
+  function handleHistoryMenuKeyDown(event) {
+    const items = [...(historyMenuRef.current?.querySelectorAll('[role="menuitemradio"]:not(:disabled)') || [])];
+    const index = items.indexOf(document.activeElement);
+    const move = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: items.length - 1 }[event.key];
+    if (move !== undefined && items.length) {
+      event.preventDefault();
+      const next = items[(move + items.length) % items.length];
+      next.focus({ preventScroll: true });
+      scrollMenuItemIntoView(historyMenuRef.current, next);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeHistory();
+    } else if (event.key === 'Tab') {
+      setHistoryOpen(false);
+    }
+  }
+
   return (
-    <div className="qa-conversation-panel">
+    <div className={`qa-conversation-panel${compact ? ' qa-compact' : ''}`}>
+      {compact ? (
+        <div className="qa-compact-bar">
+          <button ref={historyButtonRef} type="button" className="qa-compact-title" aria-haspopup="dialog" aria-expanded={historyOpen} aria-label={`最近對話，目前：${currentTitle}`} onClick={() => setHistoryOpen(true)}>
+            <span className="qa-compact-title-text">{currentTitle}</span>
+            <span aria-hidden="true">▾</span>
+          </button>
+          <button type="button" className="study-icon-btn qa-compact-new" aria-label="新對話" title="新對話" onClick={startNewConversation} disabled={loading}>＋</button>
+        </div>
+      ) : (
       <div className="qa-conversation-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F14F21', letterSpacing: '.06em' }}>AI 問答</div>
-        <button type="button" className="study-control qa-history-toggle" aria-expanded={historyOpen} aria-controls="qa-history" onClick={() => setHistoryOpen(!historyOpen)}>
-          最近對話 {historyOpen ? '▴' : '▾'}
-        </button>
-        <button type="button" onClick={() => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'))} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(241,79,33,0.35)', background: 'transparent', color: '#F14F21', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+        {/* 選單是按鈕的定位錨點內的子元素，對齊按鈕右下，浮在對話內容上方 */}
+        <span className="qa-history-anchor">
+          <button ref={historyButtonRef} type="button" className="study-control qa-history-toggle" aria-haspopup="menu" aria-expanded={historyOpen} aria-controls="qa-history" onClick={() => setHistoryOpen(!historyOpen)}>
+            最近對話 {historyOpen ? '▴' : '▾'}
+          </button>
+          {historyOpen && (
+            <div id="qa-history" ref={historyMenuRef} className="qa-history-menu" role="menu" aria-label="最近對話" onKeyDown={handleHistoryMenuKeyDown}>
+              {conversationLoading ? (
+                <div className="sheet-empty">載入中…</div>
+              ) : conversations.length === 0 ? (
+                <div className="sheet-empty">尚無對話，輸入問題開始。</div>
+              ) : recentConversations.map((conversation) => (
+                <button key={conversation.id} type="button" role="menuitemradio" tabIndex={-1} aria-checked={conversationId === conversation.id} className={`qa-history-item${conversationId === conversation.id ? ' active' : ''}`} onClick={() => selectConversation(conversation.id)} disabled={loading}>
+                  <span className="qa-history-item-title">{formatConversationLabel(conversation)}</span>
+                  <span className="qa-history-item-meta">{conversationId === conversation.id ? '目前對話' : formatConversationDate(conversation.updatedAt || conversation.createdAt)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </span>
+        <button type="button" onClick={startNewConversation} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(241,79,33,0.35)', background: 'transparent', color: '#F14F21', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
           ＋ 新對話
         </button>
       </div>
-      {historyOpen && (
-        <div id="qa-history" className="qa-recent-conversations" style={{ marginBottom: 12, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginBottom: 6, letterSpacing: '.06em' }}>最近對話</div>
-          {conversationLoading ? (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>載入中…</div>
-          ) : conversations.length === 0 ? (
-            <div style={{ fontSize: 12 }}>尚無對話，輸入問題開始。</div>
-          ) : conversations.slice(0, 5).map((conversation) => (
-            <button key={conversation.id} type="button" onClick={() => resumeConversation(conversation.id)} disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 4px', border: 0, background: conversationId === conversation.id ? 'rgba(241,79,33,0.09)' : 'transparent', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', textAlign: 'left', borderRadius: 6 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{displayConversationTitle(conversation.title)}</span>
-              <span style={{ flexShrink: 0, color: 'rgba(255,255,255,0.32)', fontSize: 10 }}>{formatConversationDate(conversation.updatedAt || conversation.createdAt)}</span>
-            </button>
-          ))}
-        </div>
+      )}
+      {compact && historyOpen && (
+        <BottomSheet title="最近對話" onClose={() => setHistoryOpen(false)} returnFocusRef={historyButtonRef}>
+          <div className="sheet-list">
+            {conversationLoading ? (
+              <div className="sheet-empty">載入中…</div>
+            ) : conversations.length === 0 ? (
+              <div className="sheet-empty">尚無對話，輸入問題開始。</div>
+            ) : recentConversations.map((conversation) => (
+              <button key={conversation.id} type="button" className={`sheet-row${conversationId === conversation.id ? ' active' : ''}`} aria-current={conversationId === conversation.id ? 'true' : undefined} onClick={() => selectConversation(conversation.id)} disabled={loading}>
+                <span className="sheet-row-title">{formatConversationLabel(conversation)}</span>
+                <span className="sheet-row-meta">{conversationId === conversation.id ? '目前對話' : formatConversationDate(conversation.updatedAt || conversation.createdAt)}</span>
+              </button>
+            ))}
+          </div>
+        </BottomSheet>
       )}
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
         {messages.length === 0 && !awaitingAnswer && (
           <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span></div>
         )}
-        {error && <div style={{ marginTop: 8, fontSize: 12, color: '#ff6b6b' }}>{error}</div>}
+        {error && (
+          <div className="qa-ai-message qa-ai-error" role="alert">
+            <AiAvatar />
+            <div className="qa-ai-body"><span className="sr-only">系統訊息：</span>{error}</div>
+          </div>
+        )}
         {messages.map((message, messageIndex) => message.id && message.id === retryingMessageId ? (
           <div key={message.id} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined}>
             <PendingAnswer />
@@ -704,7 +855,10 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
           {message.content}
         </div>
       ) : (() => { const result = message; return (
-        <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(255,255,255,0.025)', borderRadius: 12 }}>
+        <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} className="qa-ai-message">
+          <AiAvatar />
+          <div className="qa-ai-body">
+          <span className="sr-only">AI 回答：</span>
           <AnswerContent answer={result.answer} />
           {result.status === 'failed' && (
             <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
@@ -798,6 +952,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey }) {
             courseId={courseId}
             question={findExtendedResourcesQuestion(messages, messageIndex)}
           />
+          </div>
         </div>
         ); })())}
         {awaitingAnswer && <PendingAnswer />}
@@ -867,6 +1022,14 @@ export default function StudentCourses() {
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const [playerExpanded, setPlayerExpanded] = useState(false);
   const [videoWidth, setVideoWidth] = useState(38);
+  // 手機版（≤768px）：影片清單與「⋯」選單改用底部抽屜，桌面版維持並排與下拉清單。
+  const compact = useCompactLayout();
+  const [videoSheetOpen, setVideoSheetOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [askTAOpen, setAskTAOpen] = useState(false);
+  // 影片清單抽屜可由「切換」或影片名稱開啟，關閉後回到實際觸發的按鈕。
+  const playlistTriggerRef = useRef(null);
+  const moreButtonRef = useRef(null);
   const studyGridRef = useRef(null);
   const [progressByCourse, setProgressByCourse] = useState({});
   const videoRef = useRef(null);
@@ -903,6 +1066,7 @@ export default function StudentCourses() {
     setPlayingVid(index);
     setSeekRequest(null);
     setPlaylistOpen(false);
+    setVideoSheetOpen(false);
   }
 
   useEffect(() => {
@@ -956,17 +1120,51 @@ export default function StudentCourses() {
     const youtubeId = playback.youtubeId;
     const videoUrl = playback.videoUrl;
 
+    const playingLabel = playing ? formatVideoLabel({}, playing) : '尚未選擇影片';
+    const playlistTriggerProps = compact
+      ? { 'aria-haspopup': 'dialog', 'aria-expanded': videoSheetOpen, onClick: (event) => { playlistTriggerRef.current = event.currentTarget; setVideoSheetOpen(true); } }
+      : { 'aria-expanded': playlistOpen, 'aria-controls': 'course-playlist', onClick: () => setPlaylistOpen(!playlistOpen) };
+    const playlistItems = vLoading ? (
+      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>載入中…</div>
+    ) : videos.length === 0 ? (
+      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>此課程尚無影片</div>
+    ) : (
+      <div className="course-playlist-list">
+        {videos.map((v, i) => (
+          <button type="button" key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} aria-pressed={playingVid === i} onClick={() => openVideo(i)}>
+            <div className="vid-row-icon" style={{ background: playingVid === i ? 'rgba(241,79,33,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playingVid === i ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`, color: playingVid === i ? '#F14F21' : 'rgba(255,255,255,0.4)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <div className="vid-row-title" style={{ color: playingVid === i ? '#fff' : 'rgba(255,255,255,0.78)' }}>{v.title || v.file_name || '未命名'}</div>
+              <div className="vid-row-meta">
+                <span className={`badge ${v.processing?.status === 'completed' ? 'bg' : v.processing?.status === 'processing' ? 'by' : 'bb'}`} style={{ fontSize: 10 }}>
+                  {v.processing?.status === 'completed' ? '可提問' : v.processing?.status === 'processing' ? '處理中' : v.processing?.status || '—'}
+                </span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+
     return (
-      <div className="course-study">
+      <div className={`course-study${compact ? ' course-study-compact' : ''}`}>
         <div className="course-study-header">
-          <button type="button" aria-label="返回課程列表" onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div className="course-study-title">
-            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff' }}>{selectedCourse.title}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{videos.length} 部影片</div>
+            {/* 電腦版「詢問助教」緊接在課程名稱右側，不再推到最右邊壓在問答區上方 */}
+            <div className="course-study-title-row">
+              <div className="course-study-name" style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff' }}>{selectedCourse.title}</div>
+              {!compact && <AskTAButton courseId={selectedCourse._id} courseName={selectedCourse.title} variant="list" />}
+            </div>
+            {!compact && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{videos.length} 部影片</div>}
           </div>
-          <div className="course-study-line"><AskTAButton courseId={selectedCourse._id} courseName={selectedCourse.title} variant="detail" /></div>
+          {compact && (
+            <button ref={moreButtonRef} type="button" className="study-icon-btn" aria-label="更多選項" title="更多選項" aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => setMoreOpen(true)}>⋯</button>
+          )}
         </div>
 
         <div ref={studyGridRef} className="course-detail-grid" style={{ '--study-video-width': `${videoWidth}fr`, '--study-chat-width': `${100 - videoWidth}fr` }}>
@@ -1009,38 +1207,27 @@ export default function StudentCourses() {
               )}
             </div>
             <div className="course-player-toolbar">
-              <div className="course-playing-title" role="status">
-                <strong>{playing ? formatVideoLabel({}, playing) : '尚未選擇影片'}</strong>
-                {seekRequest?.sourceKey && <span>來源起點 {formatTime(seekRequest.startSec)}</span>}
-              </div>
+              {/* 影片名稱本身也能開影片清單，行為同「切換／影片清單」按鈕 */}
+              <button type="button" className="course-playing-title" aria-label={`影片清單，目前：${playingLabel}`} {...playlistTriggerProps}>
+                <span className="course-playing-text">
+                  <strong>{playingLabel}</strong>
+                  {seekRequest?.sourceKey && <span>來源起點 {formatTime(seekRequest.startSec)}</span>}
+                </span>
+                <span className="course-playing-chevron" aria-hidden="true">{(compact ? videoSheetOpen : playlistOpen) ? '▴' : '▾'}</span>
+              </button>
+              <span className="sr-only" role="status">{playing ? `目前影片：${playingLabel}` : ''}</span>
               <button type="button" className="study-control course-player-expand" aria-expanded={playerExpanded} onClick={() => setPlayerExpanded(!playerExpanded)}>{playerExpanded ? '縮小影片' : '放大影片'}</button>
-              <button type="button" className="study-control" aria-expanded={playlistOpen} aria-controls="course-playlist" onClick={() => setPlaylistOpen(!playlistOpen)}>影片清單 {playlistOpen ? '▴' : '▾'}</button>
+              {compact ? (
+                <button type="button" className="study-control study-switch" aria-label="切換影片" {...playlistTriggerProps}>切換</button>
+              ) : (
+                <button type="button" className="study-control" {...playlistTriggerProps}>影片清單 {playlistOpen ? '▴' : '▾'}</button>
+              )}
             </div>
+            {!compact && (
             <div id="course-playlist" className="course-playlist scrl" hidden={!playlistOpen}>
-            {vLoading ? (
-              <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>載入中…</div>
-            ) : videos.length === 0 ? (
-              <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, padding: '20px 0' }}>此課程尚無影片</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {videos.map((v, i) => (
-                  <button type="button" key={v.id || v._id || i} className={`vid-row${playingVid === i ? ' playing' : ''}`} aria-pressed={playingVid === i} onClick={() => openVideo(i)}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: playingVid === i ? 'rgba(241,79,33,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playingVid === i ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: playingVid === i ? '#F14F21' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: playingVid === i ? '#fff' : 'rgba(255,255,255,0.78)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.title || v.file_name || '未命名'}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.33)', marginTop: 2 }}>
-                        <span className={`badge ${v.processing?.status === 'completed' ? 'bg' : v.processing?.status === 'processing' ? 'by' : 'bb'}`} style={{ fontSize: 10 }}>
-                          {v.processing?.status === 'completed' ? '可提問' : v.processing?.status === 'processing' ? '處理中' : v.processing?.status || '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+            {playlistItems}
             </div>
+            )}
           </section>
           <div
             className="study-resizer"
@@ -1069,8 +1256,25 @@ export default function StudentCourses() {
               setVideoWidth((value) => event.key === 'Home' ? 25 : event.key === 'End' ? 60 : Math.max(25, Math.min(60, value + (event.key === 'ArrowLeft' ? -2 : 2))));
             }}
           />
-          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} />
+          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} compact={compact} />
         </div>
+
+        {compact && videoSheetOpen && (
+          <BottomSheet title="影片清單" onClose={() => setVideoSheetOpen(false)} returnFocusRef={playlistTriggerRef}>
+            <div className="course-playlist-sheet">{playlistItems}</div>
+          </BottomSheet>
+        )}
+        {compact && moreOpen && (
+          <BottomSheet title="更多" onClose={() => { setMoreOpen(false); setAskTAOpen(false); }} returnFocusRef={moreButtonRef}>
+            <div className="sheet-list">
+              <button type="button" className="sheet-row" aria-expanded={askTAOpen} onClick={() => setAskTAOpen((open) => !open)}>
+                <span className="sheet-row-title"><Ic n="chat" s={16} /> 詢問助教（LINE）</span>
+                <span className="sheet-row-meta" aria-hidden="true">{askTAOpen ? '▴' : '▾'}</span>
+              </button>
+              {askTAOpen && <AskTAPanel courseId={selectedCourse._id} courseName={selectedCourse.title} />}
+            </div>
+          </BottomSheet>
+        )}
       </div>
     );
   }

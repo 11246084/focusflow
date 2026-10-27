@@ -7,6 +7,8 @@ const schema = new Schema({
   versionId: { type: Schema.Types.ObjectId, ref: 'RecutVersion', required: true },
   kind: { type: String, enum: ['suggestion', 'edit', 'timing'], required: true },
   actorId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  taskId: { type: Schema.Types.ObjectId, ref: 'RecutTask', default: null },
+  draftId: { type: Schema.Types.ObjectId, default: null }, revertedAt: { type: Date, default: null },
   suggestionType: { type: String, trim: true }, content: { type: String, trim: true },
   adopted: { type: Boolean, default: null }, adoptedAt: Date,
   sentenceId: { type: String, trim: true }, originalLabel: { type: String, enum: RECUT_REASON_LABELS, trim: true },

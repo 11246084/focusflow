@@ -6,6 +6,7 @@ const { authorizeRoles } = require('../middleware/role.middleware');
 const { USER_ROLES } = require('../constants/enums');
 const { uploadSingleVideo } = require('../middleware/upload.middleware');
 const controller = require('../controllers/shortScript.controller');
+const recutController = require('../controllers/recut.controller');
 
 const router = express.Router();
 
@@ -29,6 +30,11 @@ router.get('/courses/:courseId/short-scripts', guard, controller.listScripts);
 router.post('/courses/:courseId/short-scripts/auto', guard, controller.createScript);
 
 router.get('/short-scripts/:scriptId', guard, controller.getScript);
+router.patch('/short-scripts/:scriptId/production-mode', guard, recutController.setProductionMode);
+router.post('/short-scripts/:scriptId/recut/generate', guard, recutController.startGeneration);
+router.get('/short-scripts/:scriptId/recut', guard, recutController.getState);
+router.get('/short-scripts/:scriptId/recut/tasks/:taskId', guard, recutController.getTask);
+router.post('/short-scripts/:scriptId/recut/tasks/:taskId/cancel', guard, recutController.cancelTask);
 router.post('/short-scripts/:scriptId/generate', guard, controller.generateVersion);
 router.post('/short-scripts/:scriptId/review', guard, controller.reviewScript);
 

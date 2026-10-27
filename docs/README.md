@@ -37,7 +37,7 @@ docs/
 | [00 學校公告](00_學校公告/README.md) | 繳交清單、期限、官方規範與空白表單 |
 | [01 系統手冊](01_系統手冊/README.md) | 15 章 Markdown、交件成品、建置工具及審查修訂 |
 | [02 系統簡介](02_系統簡介/README.md) | 七節簡介、Word／PDF 與建置方式 |
-| [03 競賽](03_競賽/README.md) | 各場送件版、修訂稿、評審意見與空白表格 |
+| [03 競賽](03_競賽/README.md) | 各場送件版、修訂稿、評審意見與空白表格；[InnoServe 鈦坦敏捷特別獎決賽準備](03_競賽/2026_資訊應用服務創新競賽/決賽準備_鈦坦敏捷開發特別獎.md) |
 | [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md)、[YouTube 恢復與清理](04_Features/YouTube_Lifecycle/decisions.md)、[系統設定](04_Features/System_Settings/decisions.md)、[recut 教師體驗評估素材](04_Features/Short_Video/evidence/README.md)、[自研方法與比較實驗](04_Features/Research_Methods/自研方法與比較實驗.md) |
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |

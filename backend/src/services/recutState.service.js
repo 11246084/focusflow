@@ -54,7 +54,7 @@ async function saveSnapshot(script, next, extra = {}) {
   return updated;
 }
 
-async function setProductionModeForScript({ scriptId, mode }) {
+async function setProductionModeOwned({ scriptId, mode }) {
   if (!Object.values(PRODUCTION_MODES).includes(mode)) {
     throw new AppError('productionMode must be avatar or recut.', 400, 'VALIDATION_ERROR');
   }
@@ -111,9 +111,12 @@ async function versionFor(scriptId, versionId) {
 }
 // 第 75 項：依資料比較原音與順序，不信任呼叫端宣稱「只改顏色」。
 function narrationKey(version) {
+  const anchorKey = (anchor) => [anchor?.text || '', anchor?.nth || 1, anchor?.offset || 0];
   return JSON.stringify({ sourceId: String(version.sourceId),
     ranges: (version.selection?.ranges || []).map(({ from, to, startAt, endAt }) => [from, to, startAt || null, endAt || null]),
     openingSentenceId: version.selection?.openingSentenceId || null, fullScript: version.fullScript || '',
+    planSourceVideoId: version.plan?.source?.videoId || null,
+    planClips: (version.plan?.clips || []).map((clip) => [clip.chunkIds, anchorKey(clip.from), anchorKey(clip.to), clip.cut || 'snap']),
   });
 }
 async function scriptApproval(scriptId, versionId) {
@@ -130,6 +133,17 @@ async function assertCurrentAsset(script, snapshot, { assetId, generationVersion
 function assertSettled(snapshot) {
   if (snapshot.pendingEditId) invalid('Apply or restore the pending selection edits first.');
   if (snapshot.activeTaskId) invalid('Recut is still generating or updating.');
+}
+async function assertRecutAssetPublishable(asset) {
+  if (!asset.recutVersionId) return;
+  const script = await loadScript(asset.sourceScriptId);
+  assertRecut(script);
+  const current = recutSnapshot(script);
+  requireState(current.state, [S.ASSET_APPROVED, S.PUBLISHED]); assertSettled(current);
+  await assertCurrentAsset(script, current, { assetId: asset._id, generationVersion: asset.generationVersion });
+  const approvals = await RecutApproval.find({ scriptId: script._id, versionId: current.currentVersionId,
+    type: 'asset', assetId: asset._id, generationVersion: asset.generationVersion }).lean();
+  if (!approvals.some((a) => a.approvedBy && a.approvedAt)) invalid('This MP4 has not been approved.');
 }
 
 /** 唯一 recut 狀態寫入入口。內部使用；route 必須先做課程管理權限檢查。 */
@@ -245,5 +259,6 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
 }
 
 const transitionRecut = (options) => withRecutScriptLock(options.scriptId, () => transitionOwned(options));
+const setProductionModeForScript = (options) => withRecutScriptLock(options.scriptId, () => setProductionModeOwned(options));
 module.exports = { transitionRecut, withRecutScriptLock, setProductionModeForScript, productionMode, recutSnapshot,
-  createRecutSource, createRecutVersion, validateSentenceList, narrationKey };
+  createRecutSource, createRecutVersion, validateSentenceList, narrationKey, assertRecutAssetPublishable };

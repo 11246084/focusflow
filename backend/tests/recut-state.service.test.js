@@ -88,12 +88,43 @@ describe('recut 資料與狀態機', () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
     script.recut.state = 'asset_approved';
     await blocked(() => move({ scriptId: script._id, event: 'publish', versionId: version._id, assetId: asset._id, generationVersion: 1 }));
+    await blocked(() => require('../src/services/recutState.service').assertRecutAssetPublishable(asset));
+  });
+  it('既有成品發布 service 也擋缺少 recut 核准的 MP4，核准後可發布', async () => {
+    const script = seedScript(); const { version, asset } = await renderedAsset(script);
+    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1 });
+    const { updateShortAsset } = require('../src/services/shortAsset.service');
+    const { markShortAssetPublished } = require('../src/services/shortAssetPublish.service');
+    await blocked(() => updateShortAsset(asset._id, { status: 'published' }));
+    await blocked(() => markShortAssetPublished(asset));
+    await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
+    assert.equal((await updateShortAsset(asset._id, { status: 'published' })).status, 'published');
+  });
+  it('既有發布入口在核准檢查到寫入之間不允許並行切換目前版', async () => {
+    const script = seedScript(); const { version, asset } = await renderedAsset(script);
+    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeVideoId: 'fake-recut-id' });
+    await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
+    const newer = await makeVersion(script, { fullScript: '修改內容' }); let movement; let duringWrite;
+    store.beforeShortAssetCompareAndSwap = async () => {
+      movement = move({ scriptId: script._id, event: 'revise', versionId: newer._id });
+      await new Promise(setImmediate); duringWrite = String(snapshot(script).currentVersionId);
+    };
+    const published = await require('../src/services/shortAssetPublish.service').markShortAssetPublished(asset);
+    await movement;
+    assert.equal(published.status, 'published'); assert.equal(duringWrite, String(version._id));
+    assert.equal(String(snapshot(script).currentVersionId), String(newer._id));
   });
   it('舊 MP4 核准不得用於新版 generation', async () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
     await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
     asset.generationVersion = 2; script.recut.currentAssetGenerationVersion = 2;
     await blocked(() => move({ scriptId: script._id, event: 'publish', versionId: version._id, assetId: asset._id, generationVersion: 2 }));
+  });
+  it('另一支新 MP4 不能沿用舊成品的核准，即使 generation 同為 1', async () => {
+    const script = seedScript(); const { version, asset } = await renderedAsset(script);
+    await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
+    const newer = { ...asset, _id: newObjectId() }; store.shortAssets.push(newer); script.recut.currentAssetId = newer._id;
+    await blocked(() => move({ scriptId: script._id, event: 'publish', versionId: version._id, assetId: newer._id, generationVersion: 1 }));
   });
   it('純呈現修改沿用講稿核准但清除成品；每版新 MP4 都要重審', async () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
@@ -114,6 +145,13 @@ describe('recut 資料與狀態機', () => {
       assert.equal(snapshot(script).state, 'script_review');
       await blocked(() => move({ scriptId: script._id, event: 'queue_render', versionId: next._id }));
     }
+  });
+  it('施工單實際剪點改變也回講稿審閱，不信任未同步的選段資料', async () => {
+    const script = seedScript(); const current = await approvedScript(script);
+    const next = await makeVersion(script, { sourceId: current.sourceId,
+      plan: { schemaVersion: 'recut-v1', clips: [{ chunkIds: ['chunk_0002'], from: { text: '新剪點' }, to: { text: '工具箱' } }] } });
+    await move({ scriptId: script._id, event: 'revise', versionId: next._id });
+    assert.equal(snapshot(script).state, 'script_review');
   });
   it('不同腳本的版本與並行舊 revision 都不可覆蓋目前版本', async () => {
     const script = seedScript(); const other = seedScript(); const version = await makeVersion(other);

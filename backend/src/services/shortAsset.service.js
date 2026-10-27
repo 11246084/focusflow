@@ -330,6 +330,7 @@ async function updateShortAssetOwned(assetId, patch) {
   );
   if (isPublishTransition) {
     assertPublicationApproved(existing);
+    await require('./recutState.service').assertRecutAssetPublishable(existing);
   }
   assertPublishedPlayableMetadata({ ...existing, ...fields });
   const update = { $set: fields };
@@ -824,7 +825,15 @@ async function createShortAsset(payload) {
 }
 async function updateShortAsset(assetId, patch) {
   const release = acquireMutation(assetId, patch);
-  try { return await updateShortAssetOwned(assetId, patch); } finally { release(); }
+  try {
+    if (patch.status === SHORT_ASSET_STATUSES.PUBLISHED) {
+      const asset = await ShortAsset.findById(assetId).lean();
+      if (asset?.recutVersionId) {
+        return await require('./recutState.service').withRecutScriptLock(asset.sourceScriptId, () => updateShortAssetOwned(assetId, patch));
+      }
+    }
+    return await updateShortAssetOwned(assetId, patch);
+  } finally { release(); }
 }
 async function recordShortAssetRegeneration(assetId, patch = {}) {
   const release = acquireMutation(assetId, patch);

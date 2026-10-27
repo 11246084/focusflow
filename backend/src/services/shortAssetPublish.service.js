@@ -241,7 +241,15 @@ function runTrackedShortAssetUpload(options = {}) {
  * 只改 FocusFlow 這端的可見性。
  */
 async function markShortAssetPublished(asset) {
+  if (asset.recutVersionId) {
+    return require('./recutState.service').withRecutScriptLock(asset.sourceScriptId, () => markShortAssetPublishedOwned(asset));
+  }
+  return markShortAssetPublishedOwned(asset);
+}
+
+async function markShortAssetPublishedOwned(asset) {
   assertReviewApproved(asset);
+  await require('./recutState.service').assertRecutAssetPublishable(asset);
   if (!asset.youtubeVideoId) return null;
   const publishedAt = new Date();
   const published = await ShortAsset.findOneAndUpdate(
@@ -507,6 +515,10 @@ async function createAssetFromScriptOwned({
 
     const course = await getCourseByIdOrThrow(script.courseId);
     await assertCanManageCourse(user, course);
+
+    if (script.productionMode === 'recut') {
+      throw new AppError('Recut assets must use the approved render workflow.', 409, 'RECUT_STATE_INVALID');
+    }
 
     const versions = script.versions || [];
     if (!versions.length) {

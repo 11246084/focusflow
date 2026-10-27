@@ -1244,7 +1244,7 @@ function installModelStubs() {
       const doc = new Model(payload);
       const error = doc.validateSync();
       if (error) throw error;
-      const item = cloneSnapshot({ ...doc.toObject(), createdAt: payload.createdAt || new Date(), updatedAt: new Date() });
+      const item = cloneSnapshot({ ...doc.toObject({ flattenMaps: true }), createdAt: payload.createdAt || new Date(), updatedAt: new Date() });
       store[key].push(item);
       return cloneSnapshot(item);
     };

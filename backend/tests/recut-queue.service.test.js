@@ -1,4 +1,4 @@
-const { describe, it, beforeEach } = require('node:test');
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { resetStore, store, ids } = require('./helpers/backendTestHarness');
 const { seedScript, makeVersion, reviewScript, snapshot } = require('./helpers/recutFixtures');
@@ -9,6 +9,7 @@ const { transitionRecut } = require('../src/services/recutState.service');
 const { createRecutQueue } = require('../src/services/recutQueue.service');
 const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { promise, resolve }; };
 const taskFor = (id) => store.recutTasks.find((t) => String(t._id) === String(id));
+const queues = [];
 function payload(version) {
   const { _id, createdAt, updatedAt, __v, ...data } = version;
   return data;
@@ -17,6 +18,7 @@ async function setup(type = 'generate', options = {}) {
   const script = seedScript();
   const version = await makeVersion(script);
   const q = createRecutQueue(options);
+  queues.push(q);
   q.registerSteps(type, [{ id: 'fake-selection-v1', stage: 'selection', run: async () => ({ version: payload(version) }) }]);
   return { q, script, version };
 }
@@ -24,6 +26,7 @@ const enqueue = (q, script, extras = {}) => q.enqueue({ script, requestedBy: ids
 
 describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
   beforeEach(resetStore);
+  afterEach(async () => { for (const q of queues) { await q.idle(); q.stop(); } queues.length = 0; });
   it('未註冊步驟不建立假成功工作', async () => {
     const q = createRecutQueue();
     await assert.rejects(() => enqueue(q, seedScript()), { code: 'RECUT_STEPS_NOT_CONFIGURED' });
@@ -82,6 +85,13 @@ describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
     assert.equal(taskFor(task._id).status, 'succeeded'); assert.equal(String(snapshot(script).currentVersionId), String(current));
     assert.equal(store.notifications.length, 1);
   });
+  it('目前版已提交、task 尚未收尾時的取消回成功，不推翻新版本', async () => {
+    const { q, script } = await setup(); const task = await enqueue(q, script); await q.idle();
+    const versionId = snapshot(script).currentVersionId;
+    taskFor(task._id).status = 'running';
+    const response = await q.requestCancel(task._id);
+    assert.equal(response.status, 'succeeded'); assert.equal(String(snapshot(script).currentVersionId), String(versionId));
+  });
   it('重啟時執行中的工作失敗並回原版，不重新呼叫步驟；未完成嘗試留下原因', async () => {
     const { q, script } = await setup(); const base = await reviewScript(script); q.stop();
     const task = await enqueue(q, script);
@@ -131,10 +141,13 @@ describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
   });
   it('步驟失敗回原版並保留錯誤原因，完成與失敗均通知教師', async () => {
     const { q, script } = await setup(); const current = await reviewScript(script);
-    q.registerSteps('generate', [{ id: 'bad-source', stage: 'sourceCheck', run: async () => { const error = new Error('fake source is missing audio'); error.code = 'FAKE_NO_AUDIO'; throw error; } }]);
-    const task = await enqueue(q, script); await q.idle();
+    const edit = await RecutReviewEvent.create({ scriptId: script._id, versionId: current._id, kind: 'edit', sentenceId: 's2', originalLabel: '例子', action: 'remove' });
+    await transitionRecut({ scriptId: script._id, event: 'set_pending_edits', pendingEditId: edit._id });
+    q.registerSteps('apply_selection', [{ id: 'bad-source', stage: 'cards', run: async () => { const error = new Error('fake source is missing audio'); error.code = 'FAKE_NO_AUDIO'; throw error; } }]);
+    const task = await enqueue(q, script, { type: 'apply_selection' }); await q.idle();
     assert.equal(taskFor(task._id).status, 'failed'); assert.equal(taskFor(task._id).error.code, 'FAKE_NO_AUDIO');
     assert.equal(String(snapshot(script).currentVersionId), String(current._id));
+    assert.equal(String(snapshot(script).pendingEditId), String(edit._id));
     assert.equal(store.notifications.length, 1); assert.equal(String(store.notifications[0].recipientId), ids.teacher);
     assert.match(store.notifications[0].content, /missing audio/);
     assert.equal(store.recutAttempts[0].status, 'failed');

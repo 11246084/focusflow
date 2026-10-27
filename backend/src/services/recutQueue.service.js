@@ -198,11 +198,19 @@ function createRecutQueue({ getSetting = defaultGetSetting, notify = (task) => n
   async function requestCancel(taskId) {
     const observed = await RecutTask.findById(taskId).lean();
     if (!observed) return null;
-    const task = await withRecutScriptLock(observed.scriptId, () => RecutTask.findOneAndUpdate({ _id: taskId, status: { $in: [J.QUEUED, J.RUNNING] } },
-      { $set: { status: J.CANCEL_REQUESTED } }, { new: true }));
+    const task = await withRecutScriptLock(observed.scriptId, async () => {
+      const script = await ShortScript.findById(observed.scriptId).lean();
+      if (sameId(script?.recut?.lastCompletedTaskId, taskId)) {
+        // 版本已提交就已結束；不要把 task 收尾前的空隙回報成可取消。
+        return RecutTask.findOneAndUpdate({ _id: taskId, status: { $in: [J.QUEUED, J.RUNNING, J.CANCEL_REQUESTED] } },
+          { $set: { status: J.SUCCEEDED, resultVersionId: script.recut.currentVersionId, finishedAt: new Date() } }, { new: true });
+      }
+      return RecutTask.findOneAndUpdate({ _id: taskId, status: { $in: [J.QUEUED, J.RUNNING] } },
+        { $set: { status: J.CANCEL_REQUESTED } }, { new: true });
+    });
     const current = task || await RecutTask.findById(taskId).lean();
     if (current?.status === J.CANCEL_REQUESTED && !draining) await restore(current, cancelled(), J.CANCELLED);
-    wake();
+    if (current?.status === J.CANCEL_REQUESTED) wake();
     return RecutTask.findById(taskId).lean();
   }
 

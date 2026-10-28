@@ -156,6 +156,14 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `RECUT_TASK_NOT_FOUND` | 404 | recut 任務不存在或不屬於指定腳本 |
 | `RECUT_STEPS_NOT_CONFIGURED` | 503 | recut 步驟尚未註冊，或排隊時記錄的步驟 ID 與目前程式不符 |
 | `RECUT_SETTING_INVALID` | 503 | recut 呼叫上限設定無效（初次至少 3 次，修改至少 2 次） |
+| `RECUT_WINDOW_NOT_FOUND` | 422 | 直接命中無法形成同影片連續 120～180 秒視窗 |
+| `RECUT_SOURCE_UNAVAILABLE` | 422 | 課程內本機原片不可用 |
+| `RECUT_SOURCE_NO_AUDIO` | 422 | 原片無聲音軌 |
+| `RECUT_SOURCE_TOO_SHORT` | 422 | 原片或音軌長度不足 |
+| `RECUT_SOURCE_UNDECODABLE` | 422 | 原片工具檢查或解碼失敗 |
+| `RECUT_SOURCE_AUDIO_INVALID` | 422 | 響度或真峰值量測無效 |
+| `RECUT_SOURCE_TOO_QUIET` | 422 | 受峰值限制而離目標響度至少 2 LU |
+| `RECUT_ASR_INVALID` | 422 | 逐字時間為空、無效或不在視窗內 |
 | `RECUT_CALL_LIMIT_EXCEEDED` | 409 | 任務固定的共用呼叫額度已用完（寫入任務錯誤，不直接回生成請求） |
 | `RECUT_VALIDATION_FAILED` | 422 | 背景步驟驗證未通過或沒有提供版本（寫入任務錯誤） |
 | `RECUT_TASK_INTERRUPTED` | 409 | 後端重啟中斷執行，保留嘗試紀錄並恢復原版（寫入任務錯誤） |

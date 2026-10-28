@@ -35,6 +35,8 @@ npm.cmd run dev
 
 ## 資料工具與問答設定
 
+recut 視窗處理的 `RECUT_FFMPEG`、`RECUT_FFPROBE`、`RECUT_PYTHON`、`RECUT_ASR_MODEL` 設定與離線模型前提見[原片處理說明](docs/recut-source.md)。
+
 下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
 
 | 指令 | 作用 |

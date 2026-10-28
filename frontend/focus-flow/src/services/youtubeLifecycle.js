@@ -60,8 +60,13 @@ export async function getLifecycleSettings() {
 }
 
 export async function updateLifecycleSwitch(key, enabled) {
-  const res = await apiFetch('/admin/youtube-lifecycle/settings', jsonRequest('PATCH', { key, enabled: Boolean(enabled) }));
-  return res.data;
+  try {
+    const res = await apiFetch('/admin/youtube-lifecycle/settings', jsonRequest('PATCH', { key, enabled: Boolean(enabled) }));
+    return res.data;
+  } catch (error) {
+    if (error.code === 'YOUTUBE_LIFECYCLE_SWITCH_CONFLICT') error.message = '設定剛被其他管理員修改，請重新整理後再試。';
+    throw error;
+  }
 }
 
 export async function getCleanupPreview(scope) {
@@ -118,6 +123,11 @@ export async function restoreVideoSource(videoId, file) {
   formData.append('video', file);
   const data = await apiFetch(`/videos/${encodeURIComponent(videoId)}/source/restore`, { method: 'POST', body: formData });
   return data.data?.video || data.data || {};
+}
+
+export async function reprocessVideo(videoId) {
+  const result = await apiFetch(`/videos/${encodeURIComponent(videoId)}/processing/retry`, { method: 'POST' });
+  return result.data;
 }
 
 // ---- 畫面判斷（純函式，供測試） ----
@@ -291,7 +301,8 @@ export function quarantineItemKey(item) {
 export function getVideoSourceState(video = {}) {
   const sourceMissing = video.sourceAvailable === false && !video.metadataOnly;
   const sourceCleaned = sourceMissing && Boolean(video.youtubeUpload?.localCleanupAt);
-  const failed = video.processing?.status === 'failed';
+  const processingStatus = video.processing?.status || video.status;
+  const reprocessable = processingStatus === 'failed' || processingStatus === 'completed';
   let reprocessHint = '重新執行語音轉文字與 AI 索引';
   if (sourceCleaned) reprocessHint = '原片已清理，無法重新處理；請先「補回原片」。';
   else if (sourceMissing) reprocessHint = '伺服器上沒有這支影片的原片，無法重新處理。';
@@ -300,7 +311,7 @@ export function getVideoSourceState(video = {}) {
     sourceCleaned,
     canRestore: sourceCleaned,
     reprocessDisabled: sourceMissing,
-    showReprocess: failed && !video.metadataOnly,
+    showReprocess: reprocessable && !video.metadataOnly,
     reprocessHint,
   };
 }

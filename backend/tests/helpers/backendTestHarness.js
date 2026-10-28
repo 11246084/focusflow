@@ -1322,9 +1322,13 @@ function installModelStubs() {
   RuntimeSetting.find = (query = {}) => createQuery(
     store.runtimeSettings.filter((item) => matchesQuery(item, query)),
   );
-  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => createQuery(
-    findOneAndUpdateInStore(store.runtimeSettings, query, update, options),
-  );
+  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => {
+    const existing = store.runtimeSettings.find((item) => item.key === query.key);
+    if (options.upsert && existing && !matchesQuery(existing, query)) {
+      throw Object.assign(new Error('Duplicate runtime setting key'), { code: 11000 });
+    }
+    return createQuery(findOneAndUpdateInStore(store.runtimeSettings, query, update, options));
+  };
 
   Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
   Avatar.findOneAndUpdate = async (query, update, options = {}) => {

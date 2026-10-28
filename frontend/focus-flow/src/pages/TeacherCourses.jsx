@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
 import EnrollmentManagerModal from '../components/EnrollmentManagerModal';
 import RestoreSourceModal from '../components/RestoreSourceModal';
+import ReprocessVideoModal from '../components/ReprocessVideoModal';
 import { apiFetch } from '../api';
 import { getVideoSourceState } from '../services/youtubeLifecycle';
 
@@ -294,6 +295,7 @@ export default function TeacherCourses() {
   const [retrying, setRetrying] = useState(null);
   const [retryMessages, setRetryMessages] = useState({});
   const [restoring, setRestoring] = useState(null);
+  const [reprocessing, setReprocessing] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
 
@@ -478,6 +480,15 @@ export default function TeacherCourses() {
             setRefreshKey(key => key + 1);
           }}
         />
+      )}
+
+      {reprocessing && (
+        <ReprocessVideoModal video={reprocessing} onClose={() => setReprocessing(null)} onQueued={() => {
+          const videoId = reprocessing.id || reprocessing._id;
+          setReprocessing(null);
+          setRetryMessages(prev => ({ ...prev, [videoId]: { tone: 'ok', text: '已重新排入處理佇列。' } }));
+          setRefreshKey(key => key + 1);
+        }} />
       )}
 
       {attaching && (
@@ -753,12 +764,12 @@ export default function TeacherCourses() {
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
                                   {canRetryProcessing && (
                                     <button
-                                      onClick={() => handleRetry(video, 'processing')}
+                                      onClick={() => setReprocessing(video)}
                                       disabled={!!retrying || source.reprocessDisabled}
                                       title={source.reprocessHint}
                                       style={{ ...RETRY_BUTTON_STYLE, ...(source.reprocessDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : {}) }}
                                     >
-                                      {retrying === `processing:${videoId}` ? '重試中...' : '重試處理'}
+                                      {retrying === `processing:${videoId}` ? '排入中...' : '重新處理'}
                                     </button>
                                   )}
                                   {canRetryYoutube && (

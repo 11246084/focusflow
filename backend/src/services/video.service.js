@@ -160,21 +160,24 @@ async function scheduleExistingVideoProcessing(videoId) {
 }
 
 async function retryExistingVideoProcessingOwned(videoId, user) {
-  const video = await Video.findById(videoId);
+  const video = await Video.findById(videoId).lean();
   if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
   const course = await getCourseByIdOrThrow(video.courseId?._id || video.courseId);
   await assertCanManageCourse(user, course);
   const skipLocalSourceChecks = process.env.NODE_ENV === 'test'
     || env.processingWebhookSecret === 'processing-secret-for-tests';
+  const completed = video.processing?.status === VIDEO_PROCESSING_STATUSES.COMPLETED;
   // 原片已清理（#21）時一律擋下，不改走 YouTube 下載；先檢查來源再排入佇列，
   // 避免影片卡在 queued。
-  if (isLocalSourceCleaned(video) || (!skipLocalSourceChecks && !isLocalVideoSourceAvailable(video.filePath))) {
+  if (isLocalSourceCleaned(video) || ((completed || !skipLocalSourceChecks) && !isLocalVideoSourceAvailable(video.filePath))) {
     throw createRetrySourceUnavailableError();
   }
-  if (!skipLocalSourceChecks) {
+  if (completed || !skipLocalSourceChecks) {
     assertMediaIntegrity(resolveLocalUploadPath(video.filePath), video.fileName);
   }
-  const queuedVideo = await queueVideoForProcessing(videoId);
+  // Pass the source checked above: a new read alone could accept a source
+  // already removed by another backend between validation and queueing.
+  const queuedVideo = await queueVideoForProcessing(videoId, { allowCompleted: completed, observed: video });
   if (process.env.NODE_ENV === 'test' || env.processingWebhookSecret === 'processing-secret-for-tests') {
     return queuedVideo;
   }

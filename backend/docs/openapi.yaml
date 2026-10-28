@@ -2387,11 +2387,11 @@ paths:
     post:
       tags:
         - Videos
-      summary: 重新排入失敗影片的 processing
+      summary: 明確重新處理已有本機原片的影片
       description: |
-        這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
+        這是 app-owned Video 的明確重新處理端點，保留原影片與 YouTube ID、播放 URL，不重新上傳 YouTube。
 
-        這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+        只有 course owner teacher 與 admin 可呼叫；目前狀態必須為 `failed` 或 `completed`。完成影片須有安全且完整的本機原片，補回後仍須明確呼叫本端點。以來源版本與狀態條件原子排入一次；清理 intent、進行中的上傳或狀態競爭回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
 
         重試需要 `UPLOAD_DIR` 內的本機原片。原片已在 YouTube 上傳後清理（`youtubeUpload.localCleanupAt` 有值、`filePath` 為 null）或找不到時回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`，不會改從 YouTube 下載；前端依影片的 `sourceAvailable` 停用按鈕，並改用 `POST /api/v1/videos/{videoId}/source/restore` 補回原片。
       operationId: retryVideoProcessing
@@ -2422,7 +2422,7 @@ paths:
                 invalidTransition:
                   value:
                     success: false
-                    message: Cannot transition video processing from completed to queued.
+                    message: Cannot transition video processing from queued to queued.
                     error:
                       code: VIDEO_PROCESSING_TRANSITION_INVALID
                 sourceUnavailable:
@@ -2944,7 +2944,7 @@ paths:
                                 detail:
                                   type: string
                           youtubeLifecycle:
-                            description: 讀取失敗時三個數量為 null（`youtube_lifecycle` 列顯示 unknown）。
+                            description: 當次有效開關與 7 天內到期清單，與 upcoming preview 共用政策。讀取失敗時資料為 null、服務列顯示 unknown，error 不含底層錯誤。
                             type: object
                             properties:
                               quarantineCount:
@@ -2960,6 +2960,20 @@ paths:
                               upcomingCleanupBytes:
                                 anyOf:
                                   - type: integer
+                                  - type: 'null'
+                              switches:
+                                anyOf:
+                                  - $ref: '#/components/schemas/YouTubeLifecycleSettings/properties/switches'
+                                  - type: 'null'
+                              upcomingCleanupItems:
+                                anyOf:
+                                  - type: array
+                                    items:
+                                      $ref: '#/components/schemas/YouTubeCleanupPreviewItem'
+                                  - type: 'null'
+                              error:
+                                anyOf:
+                                  - type: string
                                   - type: 'null'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
@@ -2996,7 +3010,7 @@ paths:
       summary: 切換單一 YouTube 生命週期開關
       description: |
         僅限 admin。只寫入執行期設定並記錄修改者；環境變數不允許的開關不可切換。
-        回傳切換後的整份設定（格式同 GET）。
+        回傳切換後的整份設定（格式同 GET）。值與 history 的 from/to 於同次條件更新寫入；並行衝突重新讀取後重試。同值請求仍記錄一次，保留最近 50 筆。
       operationId: updateAdminYouTubeLifecycleSwitch
       requestBody:
         required: true
@@ -3032,7 +3046,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
         '409':
-          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許此開關，執行期不可切換"
+          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許；`YOUTUBE_LIFECYCLE_SWITCH_CONFLICT`：並行修改重試達上限，重新整理後再試。"
           content:
             application/json:
               schema:
@@ -6895,6 +6909,26 @@ components:
             minFreeGb:
               type: number
               description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB`"
+    YouTubeCleanupPreviewItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [video, short_asset]
+        id:
+          type: string
+        title:
+          type: string
+        courseTitle:
+          type: string
+        sizeBytes:
+          type: integer
+        eligibleAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          enum: [max_age, low_space]
     YouTubeLifecycleSwitchSnapshot:
       description: 兩層開關之一：環境變數允許且執行期設定開啟（或未設定且該開關預設跟隨環境變數）才生效。
       type: object

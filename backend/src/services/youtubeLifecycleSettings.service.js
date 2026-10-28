@@ -1,6 +1,7 @@
 const env = require('../config/env');
 const RuntimeSetting = require('../models/runtimeSetting.model');
 const AppError = require('../utils/appError');
+const { observedField } = require('./youtubeWorkOwnership.service');
 
 // YouTube 上傳、恢復、清理的兩層開關（decisions.md #9～#16）：
 // 環境變數決定這個環境「允不允許」，資料庫的執行期設定在允許範圍內切換。
@@ -146,7 +147,7 @@ async function getYouTubeLifecycleSettings() {
   return { switches, history };
 }
 
-async function setYouTubeLifecycleSwitch({ key, enabled, user, now = new Date() } = {}) {
+async function setYouTubeLifecycleSwitch({ key, enabled, user, now } = {}) {
   const definition = getSwitchDefinition(key);
   if (typeof enabled !== 'boolean') {
     throw new AppError('enabled must be a boolean.', 400, 'VALIDATION_ERROR');
@@ -160,32 +161,27 @@ async function setYouTubeLifecycleSwitch({ key, enabled, user, now = new Date() 
     );
   }
 
-  // 先讀再寫：from 值在兩位管理員同時切換時可能不精確，但只影響紀錄，
-  // 不影響開關本身；單一 pm2 行程、低頻操作下可接受。
-  const current = await RuntimeSetting.findOne({ key: definition.settingKey }).lean();
-  const from = normalizeRuntimeValue(current?.value);
   const changedBy = user?.id || user?._id || null;
-  const change = {
-    from,
-    to: enabled,
-    changedBy,
-    changedByEmail: user?.email || null,
-    changedAt: now,
-  };
-
-  const document = await RuntimeSetting.findOneAndUpdate(
-    { key: definition.settingKey },
-    {
-      $set: { value: enabled, updatedBy: changedBy },
-      $push: { history: { $each: [change], $slice: -RUNTIME_SETTING_HISTORY_LIMIT } },
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
-  ).lean();
-
-  return {
-    switch: toSwitchState(key, document),
-    change: toHistoryEntry(key, change),
-  };
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const current = await RuntimeSetting.findOne({ key: definition.settingKey }).lean();
+    const change = { from: normalizeRuntimeValue(current?.value), to: enabled, changedBy,
+      changedByEmail: user?.email || null, changedAt: now || new Date() };
+    try {
+      // The old value is the CAS token. Same-value requests are still audited;
+      // failed CAS attempts append nothing. The existing unique key index
+      // arbitrates simultaneous first creation; duplicate upsert retries read.
+      const document = await RuntimeSetting.findOneAndUpdate(
+        { key: definition.settingKey, ...observedField('value', current?.value) },
+        { $set: { value: enabled, updatedBy: changedBy },
+          $push: { history: { $each: [change], $slice: -RUNTIME_SETTING_HISTORY_LIMIT } } },
+        { new: true, upsert: !current, setDefaultsOnInsert: true },
+      ).lean();
+      if (document) return { switch: toSwitchState(key, document), change: toHistoryEntry(key, change) };
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+    }
+  }
+  throw new AppError('The switch changed concurrently; reload and retry.', 409, 'YOUTUBE_LIFECYCLE_SWITCH_CONFLICT');
 }
 
 module.exports = {

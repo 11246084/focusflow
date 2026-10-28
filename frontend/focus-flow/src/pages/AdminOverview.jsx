@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
+import { describeSwitch, formatBytes, KIND_LABELS, CLEANUP_REASON_LABELS } from '../services/youtubeLifecycle';
 
 // function timeAgo(ts) {
 //   const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
@@ -133,6 +134,33 @@ export default function AdminOverview({ onNav }) {
           })}
         </div>
       </div>
+
+      <section className="card" aria-labelledby="youtube-preview-title" style={{ padding: 20, marginTop: 12 }}>
+        <h2 id="youtube-preview-title" style={{ fontSize: 15, margin: '0 0 12px', color: '#fff' }}>YouTube 開關與 7 天內到期原片</h2>
+        {!systemStatus && !systemStatusError && <p>讀取中...</p>}
+        {(systemStatusError || systemStatus?.youtubeLifecycle?.error) && <p role="alert">無法讀取 YouTube 設定與清理預告，請稍後重新整理。狀態未知。</p>}
+        {systemStatus?.youtubeLifecycle?.switches?.map(sw => {
+          const state = describeSwitch(sw);
+          return <p key={sw.key} data-overview-switch={sw.key} style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+            <strong>{state.label}：{state.effective ? '已啟用' : '未啟用'}</strong> · {state.note}
+          </p>;
+        })}
+        {systemStatus?.youtubeLifecycle && !systemStatus.youtubeLifecycle.error && (
+          <>
+            <p style={{ fontSize: 13 }}>7 天內到期原片 {systemStatus.youtubeLifecycle.upcomingCleanupCount} 支（共 {formatBytes(systemStatus.youtubeLifecycle.upcomingCleanupBytes)}）。清單是目前估算，實際清理仍會重新檢查。</p>
+            {systemStatus.youtubeLifecycle.upcomingCleanupItems?.length ? (
+              <div className="ff-tbl-wrap"><table className="ff-tbl" aria-label="7 天內到期清理清單">
+                <thead><tr><th>名稱／課程</th><th>類型</th><th>容量</th><th>到期時間</th><th>原因</th></tr></thead>
+                <tbody>{systemStatus.youtubeLifecycle.upcomingCleanupItems.map(item => <tr key={`${item.kind}:${item.id}`}>
+                  <td>{item.title}<div>{item.courseTitle || '—'}</div></td><td>{KIND_LABELS[item.kind] || item.kind}</td>
+                  <td>{formatBytes(item.sizeBytes)}</td><td>{item.eligibleAt ? new Date(item.eligibleAt).toLocaleString('zh-TW', { hour12: false }) : '—'}</td>
+                  <td>{CLEANUP_REASON_LABELS[item.reason] || item.reason}</td>
+                </tr>)}</tbody>
+              </table></div>
+            ) : <p>7 天內沒有到期的原片。</p>}
+          </>
+        )}
+      </section>
 
       {/* Recent Events — 暫時隱藏
       <div className="card" style={{ marginTop: 12, padding: '14px 20px' }}>

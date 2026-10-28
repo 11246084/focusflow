@@ -50,6 +50,8 @@
 
 2026-10-26 F2 整合：backend 全套 1199／1199、Windows 與 Linux 容器清理／所有權各 41／41、隔離 Mongo 14／14 通過（未載入記憶體 harness；明確 loopback URI、隨機 DB、成功與失敗移除 DB；另驗證 null／缺欄位初次上傳、略過上傳及重啟遺留 token 隔離）。測試只處理自建暫存檔，沒有連 Atlas、VM 或真實 YouTube；未執行 STT／FFmpeg、前端／瀏覽器及決策 #33 的正式驗收。
 
+2026-10-27 F3／F4 修復（`fix/youtube-lifecycle-f3-f4`，基於 dev `b35c121`；未提交、未合併、未部署）：R07 已加入 completed 影片補回後的明確重新處理，沿用 F0～F2 原子來源所有權，保留 Video／YouTube ID、播放與保留期；R10～R12 已修正總覽有效開關、雙來源 7 天預告清單與並行 history。Backend **1208／1208**、隔離 Mongo **68／68**、Frontend **118／118**、真實元件瀏覽器（假 API）**8／8**，lint、build、OpenAPI lint、文件連結與 `git diff --check` 通過。未發現已知 P1／P2；程式與本機驗證達可提交候選標準，依既有 F 工單仍須獨立 diff 複驗後整合。本輪沒有驗證真實 STT／FFmpeg、YouTube、Atlas、VM 或正式清理，沒有實作 Q-A～Q-F；第三輪 #51～#64 與 Q-0／Q 工單完整保留。詳見[修復與驗證交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)。
+
 **多影片批次｜已實作。** [批次服務](../backend/src/services/videoBatchProcessing.service.js)與[批次入口](../STT_Whisper/src/batch_main.py)串接排程、重試及恢復；真實語音模型、向量產生與部署的完整流程未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
 **學生短影片瀏覽｜已實作。** [短影片頁](../frontend/focus-flow/src/pages/StudentShortsWall.jsx)串接[學生介面](../backend/src/routes/youtube.routes.js)。較新紀錄：[2026-09-29 後端整體回歸](../backend/docs/implementation-log.md)（原文為工作分支紀錄，非正式環境驗收）；直接相關的[縮圖測試](../backend/tests/shorts.routes.test.js)於 2026-09-27 加入（Git `d8360fc`，未記載單項執行結果）。最近播放驗收仍為 2026-08-13（限當時環境），未找到更新的播放驗收。最後驗證：2026-10-15；負責人：＿＿（待填）。

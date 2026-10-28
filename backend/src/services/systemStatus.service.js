@@ -7,7 +7,9 @@ const {
   buildLineRuntimeSnapshot,
 } = require('./runtimeDiagnostics.service');
 const { buildYouTubeUploadSnapshot } = require('./youtubeUpload.service');
-const { buildYouTubeCleanupPreview, YOUTUBE_CLEANUP_SCOPES } = require('./youtubeLifecycle.service');
+const { YOUTUBE_CLEANUP_SCOPES } = require('./youtubeLifecycle.service');
+const { getCleanupPreview } = require('./youtubeAdmin.service');
+const { getYouTubeLifecycleSettings } = require('./youtubeLifecycleSettings.service');
 const { countQuarantinedItems } = require('./youtubeQuarantine.service');
 const { getVideoProcessingQueueSnapshot } = require('./videoProcessingQueue.service');
 
@@ -90,12 +92,18 @@ function buildSttStatus({ venvPythonExists, queue }) {
   };
 }
 
-function buildYouTubeStatus(youtube) {
+function buildYouTubeStatus(youtube, lifecycle) {
+  const base = { key: 'youtube', name: 'YouTube 自動上傳' };
+  if (lifecycle?.error) return { ...base, status: 'unknown', detail: '無法讀取執行期設定' };
+  const upload = lifecycle?.switches?.find((item) => item.key === 'upload');
+  if (upload && !upload.effective) {
+    const reasons = { env_disabled: '環境設定未允許', runtime_disabled: '執行期設定已關閉', default_off: '尚未啟用' };
+    return { ...base, status: 'not_enabled', detail: reasons[upload.reason] || '功能未啟用' };
+  }
   const status = toStatus(youtube.readiness);
 
   return {
-    key: 'youtube',
-    name: 'YouTube 自動上傳',
+    ...base,
     status,
     detail: status === 'not_enabled'
       ? '功能未啟用'
@@ -115,7 +123,9 @@ function buildYouTubeLifecycleStatus(lifecycle, youtube) {
     return { ...base, status: 'unknown', detail: '無法讀取待處理與到期清單' };
   }
   const { quarantineCount, upcomingCleanupCount, upcomingCleanupBytes } = lifecycle;
-  if (toStatus(youtube.readiness) === 'not_enabled' && !quarantineCount && !upcomingCleanupCount) {
+  const allDisabled = lifecycle.switches
+    ? lifecycle.switches.every((item) => !item.effective) : toStatus(youtube.readiness) === 'not_enabled';
+  if (allDisabled && !quarantineCount && !upcomingCleanupCount) {
     return { ...base, status: 'not_enabled', detail: '功能未啟用' };
   }
   return {
@@ -127,22 +137,27 @@ function buildYouTubeLifecycleStatus(lifecycle, youtube) {
 
 async function collectYouTubeLifecycleCounts() {
   try {
-    const [quarantineCount, upcoming] = await Promise.all([
+    const [quarantineCount, upcoming, settings] = await Promise.all([
       countQuarantinedItems(),
-      buildYouTubeCleanupPreview({ scope: YOUTUBE_CLEANUP_SCOPES.UPCOMING }),
+      getCleanupPreview({ scope: YOUTUBE_CLEANUP_SCOPES.UPCOMING }),
+      getYouTubeLifecycleSettings(),
     ]);
     return {
       quarantineCount,
       upcomingCleanupCount: upcoming.count,
       upcomingCleanupBytes: upcoming.totalBytes,
+      upcomingCleanupItems: upcoming.items,
+      switches: settings.switches,
       error: null,
     };
-  } catch (error) {
+  } catch {
     return {
       quarantineCount: null,
       upcomingCleanupCount: null,
       upcomingCleanupBytes: null,
-      error: String(error?.message || error).slice(0, 300),
+      upcomingCleanupItems: null,
+      switches: null,
+      error: '無法讀取 YouTube 設定與清理預告，請稍後重試。',
     };
   }
 }
@@ -169,7 +184,7 @@ function buildSystemStatus({
     buildQaStatus(qa),
     buildLineStatus(line),
     buildSttStatus({ venvPythonExists, queue }),
-    buildYouTubeStatus(youtube),
+    buildYouTubeStatus(youtube, youtubeLifecycle),
   ];
   if (youtubeLifecycle) services.push(buildYouTubeLifecycleStatus(youtubeLifecycle, youtube));
 
@@ -181,6 +196,9 @@ function buildSystemStatus({
         quarantineCount: youtubeLifecycle.quarantineCount,
         upcomingCleanupCount: youtubeLifecycle.upcomingCleanupCount,
         upcomingCleanupBytes: youtubeLifecycle.upcomingCleanupBytes,
+        upcomingCleanupItems: youtubeLifecycle.upcomingCleanupItems ?? (youtubeLifecycle.error ? null : []),
+        switches: youtubeLifecycle.switches ?? null,
+        error: youtubeLifecycle.error || null,
       },
     } : {}),
   };

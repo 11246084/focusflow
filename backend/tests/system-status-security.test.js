@@ -123,11 +123,15 @@ describe('系統狀態 API、404 與安全標頭', () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/system-status', { token });
 
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body.data.youtubeLifecycle, {
+    const { switches, upcomingCleanupItems, error, ...counts } = result.body.data.youtubeLifecycle;
+    assert.deepEqual(counts, {
       quarantineCount: 1,
       upcomingCleanupCount: 0,
       upcomingCleanupBytes: 0,
     });
+    assert.equal(switches.length, 3);
+    assert.deepEqual(upcomingCleanupItems, []);
+    assert.equal(error, null);
     const lifecycle = result.body.data.services.find((service) => service.key === 'youtube_lifecycle');
     assert.equal(lifecycle.status, 'degraded');
     assert.match(lifecycle.detail, /待處理 1 支/);

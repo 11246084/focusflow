@@ -284,8 +284,8 @@ describe('POST /videos/:videoId/source/restore', () => {
     assert.equal(teacherVideo().processing.status, 'failed');
   });
 
-  it('補回後可重新處理，完成時不重新上傳 YouTube', async () => {
-    markCleaned(teacherVideo(), { processingStatus: 'failed' });
+  for (const processingStatus of ['failed', 'completed']) it(`${processingStatus} 補回後可重新處理，完成時不重新上傳 YouTube`, async () => {
+    markCleaned(teacherVideo(), { processingStatus });
     const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
     const retryPath = `/api/v1/videos/${ids.teacherVideo}/processing/retry`;
 

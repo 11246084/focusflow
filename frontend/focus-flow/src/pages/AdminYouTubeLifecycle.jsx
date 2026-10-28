@@ -155,10 +155,10 @@ export default function AdminYouTubeLifecycle() {
     let active = true;
     getLifecycleSettings()
       .then((data) => { if (active) { setSettings(data); setSettingsError(''); } })
-      .catch((e) => { if (active) setSettingsError(e.message || '無法取得開關設定。'); });
+      .catch((e) => { if (active) { setSettings(null); setSettingsError(e.message || '無法取得開關設定。'); } });
     getCleanupPreview('upcoming')
       .then((data) => { if (active) { setUpcoming(data); setUpcomingError(''); } })
-      .catch((e) => { if (active) setUpcomingError(e.message || '無法取得即將到期清單。'); });
+      .catch((e) => { if (active) { setUpcoming(null); setUpcomingError(e.message || '無法取得即將到期清單。'); } });
     listQuarantine()
       .then((data) => { if (active) { setQuarantine(data); setQuarantineError(''); } })
       .catch((e) => { if (active) setQuarantineError(e.message || '無法取得待處理清單。'); })

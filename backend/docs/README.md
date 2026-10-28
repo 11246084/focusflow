@@ -9,6 +9,7 @@
 | 理解環境、資料與播放限制 | [已知問題](handoff-known-issues.md) |
 | 查 API，也就是前端呼叫後端的介面 | [OpenAPI 規格](openapi.yaml)、[回應語意](phase2-api-contract.md)；啟動後由 `/docs` 閱讀 |
 | 接上 recut 原片處理、生成與審閱 | [資料、狀態機與背景工作](recut-foundation.md)；含句子格式、註冊步驟與恢復規則 |
+| 接上 recut 視窗與辨識 | [連續視窗、音量與切句規則](recut-source.md) |
 | 操作影片處理與續跑 | [Pipeline 使用方式](../../STT_Whisper/README.md) |
 | 查學生短片牆的接線與操作 | [前端完成交接](handoff-shorts-frontend-done.md) |
 | 查待辦或追溯變更 | [待辦](todo.md)、[實作紀錄](implementation-log.md)、[較早紀錄](implementation-log.archive.md)；保留原日期，不當目前狀態 |

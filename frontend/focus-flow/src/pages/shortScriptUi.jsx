@@ -1,10 +1,11 @@
-import { useId } from 'react';
+import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import useModalDialog from '../hooks/useModalDialog';
 import BottomSheet from '../components/BottomSheet';
-import { DIVIDER, SECTION_LABEL } from './shortScriptStyles';
+import { Ic } from '../components/Icons';
+import { DIVIDER } from './shortScriptStyles';
 
-// 短影片腳本頁、成品上傳頁共用的小元件；樣式常數在 shortScriptStyles.js。
+// 短影片腳本頁、上傳短片頁共用的小元件；樣式常數在 shortScriptStyles.js。
 
 const TONES = {
   indigo: { color: '#a5b4fc', background: 'rgba(165,180,252,0.12)', border: 'rgba(165,180,252,0.22)' },
@@ -29,6 +30,21 @@ const DISPLAY_TONE = {
   dismissed: 'grey',
 };
 
+// 狀態圖示：讓狀態不只靠顏色辨識（灰階也分得出來）。
+const STATUS_ICON = {
+  to_generate: 'spark',
+  to_film: 'camera',
+  changes_requested: 'edit',
+  asset_rejected: 'edit',
+  upload_failed: 'warning',
+  uploading: 'clock',
+  upload_needs_admin: 'info',
+  in_review: 'hourglass',
+  approved_waiting_upload: 'up',
+  published: 'checkCircle',
+  dismissed: 'ban',
+};
+
 export function Pill({ tone = 'grey', children }) {
   const style = TONES[tone] || TONES.grey;
   return (
@@ -41,81 +57,214 @@ export function Pill({ tone = 'grey', children }) {
   );
 }
 
-export function StatusPill({ status }) {
-  return <Pill tone={DISPLAY_TONE[status.key]}>{status.label}</Pill>;
+export function StatusIcon({ statusKey }) {
+  const name = STATUS_ICON[statusKey];
+  if (!name) return null;
+  return <span className="ss-icon" aria-hidden="true"><Ic n={name} s={12} /></span>;
 }
 
-// 腳本清單的一列：標題（最多兩行）、下一步、狀態。row 來自 groupScripts()。
-export function ScriptRow({ row, active, onOpen, last }) {
+export function StatusPill({ status }) {
+  return <Pill tone={DISPLAY_TONE[status.key]}><StatusIcon statusKey={status.key} />{status.label}</Pill>;
+}
+
+// 「需要你處理」列右側的下一步動作（上傳、重試…）。整列是一個按鈕，這裡只是標示。
+function CueChip({ children }) {
+  return <span className="ss-row-cue">{children} <span aria-hidden="true">→</span></span>;
+}
+
+// 腳本清單的一列：標題（最多兩行）、下一步、狀態。row 來自 groupScripts() 或 groupUploadScripts()。
+// variant：action＝右側顯示下一步動作；waiting＝副標改成正在等什麼。
+export function ScriptRow({ row, active, onOpen, last, variant }) {
+  const waiting = variant === 'waiting' && row.cue;
   return (
     <button
       type="button"
       className={`ss-row${active ? ' active' : ''}`}
       aria-current={active ? 'true' : undefined}
+      data-script-id={row.script._id}
       style={{ borderBottom: last ? 'none' : DIVIDER }}
       onClick={() => onOpen(row.script._id)}
     >
       <span style={{ flex: 1, minWidth: 0 }}>
         <span className="ss-row-title">{row.script.topic}</span>
-        {row.status.next && <span className="ss-row-next">下一步：{row.status.next}</span>}
+        {waiting ? (
+          <span className="ss-row-next ss-row-wait"><StatusIcon statusKey={row.status.key} />{row.cue}</span>
+        ) : row.status.next && <span className="ss-row-next">下一步：{row.status.next}</span>}
       </span>
-      <StatusPill status={row.status} />
+      {variant === 'action' && row.cue ? (
+        <span className="ss-row-aside">
+          <StatusPill status={row.status} />
+          <CueChip>{row.cue}</CueChip>
+        </span>
+      ) : <StatusPill status={row.status} />}
     </button>
   );
 }
 
-export function ScriptRows({ rows, selectedId, onOpen, empty }) {
+export function ScriptRows({ rows, selectedId, onOpen, empty, variant }) {
   if (!rows.length) return <EmptyRow>{empty}</EmptyRow>;
   return rows.map((row, index) => (
-    <ScriptRow key={row.script._id} row={row} active={selectedId === row.script._id} onOpen={onOpen} last={index === rows.length - 1} />
+    <ScriptRow key={row.script._id} row={row} variant={variant} active={selectedId === row.script._id} onOpen={onOpen} last={index === rows.length - 1} />
   ));
 }
 
-export function CollapseToggle({ open, onClick, controls, label }) {
+// 狀態分頁：圖示＋名稱＋數量徽章，取代分組卡片與統計卡。方向鍵、Home、End 切換，只有選中的分頁在 Tab 順序裡。
+// tabs：[{ key, label, icon, count, hint? }]；children 是選中分頁的內容。「需要你處理」有資料時徽章用強調色實心。
+export function StatusTabs({ tabs, active, onChange, label, children }) {
+  const baseId = useId();
+  const tabRefs = useRef({});
+  const tabId = (key) => `${baseId}-tab-${key}`;
+  const panelId = `${baseId}-panel`;
+  const current = tabs.find((tab) => tab.key === active);
+
+  function handleKeyDown(event, index) {
+    const last = tabs.length - 1;
+    const next = { ArrowRight: index === last ? 0 : index + 1, ArrowLeft: index === 0 ? last : index - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    onChange(tabs[next].key);
+    tabRefs.current[tabs[next].key]?.focus();
+  }
+
   return (
-    <button type="button" className="ss-collapse-btn" aria-expanded={open} aria-controls={controls} onClick={onClick}>
-      {open ? '收合' : '展開'}{label ? ` ${label}` : ''} <span aria-hidden="true">{open ? '▴' : '▾'}</span>
-    </button>
+    <>
+      <div className="ss-tabs" role="tablist" aria-label={label}>
+        {tabs.map((tab, index) => {
+          const selected = tab.key === active;
+          return (
+            <button
+              key={tab.key}
+              ref={(node) => { tabRefs.current[tab.key] = node; }}
+              type="button"
+              role="tab"
+              id={tabId(tab.key)}
+              aria-selected={selected}
+              aria-controls={panelId}
+              tabIndex={selected ? 0 : -1}
+              className={`ss-tab${selected ? ' active' : ''}`}
+              onClick={() => onChange(tab.key)}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+            >
+              <span className="ss-tab-icon" aria-hidden="true"><Ic n={tab.icon} s={15} /></span>
+              {tab.label}
+              <span className={`ss-tab-count${tab.key === 'action' && tab.count > 0 ? ' strong' : ''}`}>{tab.count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId(active)} className="ss-tab-panel">
+        {current?.hint && <div className="ss-tab-hint">{current.hint}</div>}
+        {children}
+      </div>
+    </>
   );
 }
 
-// 手機詳情頂部的「切換腳本」抽屜：依分組列出腳本與狀態，選完直接切換，不用先回清單。
-// groups：[[分組標題, rows], ...]
-export function ScriptSwitchSheet({ groups, selectedId, onSelect, onClose, returnFocusRef }) {
+// 分頁列橫跨整個面板、與下方清單分開排版時用這一組：StatusTabList 只畫 tablist（放在課程選擇那一列下方），
+// StatusTabPanel 畫說明文字＋內容（放在左欄清單頂端）。兩者用同一個 idBase 讓 aria-controls／aria-labelledby 對得上。
+export function StatusTabList({ idBase, tabs, active, onChange, label }) {
+  const tabRefs = useRef({});
+  const tabId = (key) => `${idBase}-tab-${key}`;
+  const panelId = `${idBase}-panel`;
+
+  function handleKeyDown(event, index) {
+    const last = tabs.length - 1;
+    const next = { ArrowRight: index === last ? 0 : index + 1, ArrowLeft: index === 0 ? last : index - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    onChange(tabs[next].key);
+    tabRefs.current[tabs[next].key]?.focus();
+  }
+
+  return (
+    <div className="ss-tabs" role="tablist" aria-label={label}>
+      {tabs.map((tab, index) => {
+        const selected = tab.key === active;
+        return (
+          <button
+            key={tab.key}
+            ref={(node) => { tabRefs.current[tab.key] = node; }}
+            type="button"
+            role="tab"
+            id={tabId(tab.key)}
+            aria-selected={selected}
+            aria-controls={panelId}
+            tabIndex={selected ? 0 : -1}
+            className={`ss-tab${selected ? ' active' : ''}`}
+            onClick={() => onChange(tab.key)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+          >
+            <span className="ss-tab-icon" aria-hidden="true"><Ic n={tab.icon} s={15} /></span>
+            {tab.label}
+            <span className={`ss-tab-count${tab.key === 'action' && tab.count > 0 ? ' strong' : ''}`}>{tab.count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function StatusTabPanel({ idBase, tab, children }) {
+  return (
+    <div role="tabpanel" id={`${idBase}-panel`} aria-labelledby={`${idBase}-tab-${tab.key}`} className="ss-tab-panel">
+      {tab.hint && <div className="ss-tab-hint">{tab.hint}</div>}
+      {children}
+    </div>
+  );
+}
+
+// 可收合的區塊：預設收起，整列標題都可以點；右側寫「點開／收合」加箭頭，標題旁顯示內容數量。
+// 傳 open／onToggle 時由外部控制（例如待生成時的「點開核對證據」）。
+export function Disclosure({ title, count, open: controlledOpen, onToggle, id, nested = false, children }) {
+  const bodyId = useId();
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = controlledOpen ?? innerOpen;
+  function toggle() {
+    if (onToggle) onToggle(!open);
+    else setInnerOpen(!open);
+  }
+  return (
+    <div id={id} className={`ss-disclosure${nested ? ' nested' : ''}`}>
+      <button type="button" className="ss-disclosure-head" aria-expanded={open} aria-controls={bodyId} onClick={toggle}>
+        <span className="ss-disclosure-title">
+          {title}
+          {count != null && count !== '' && <span className="ss-disclosure-count"> · {count}</span>}
+        </span>
+        <span className="ss-disclosure-hint">{open ? '收合' : '點開'} <span aria-hidden="true">{open ? '▴' : '▾'}</span></span>
+      </button>
+      <div id={bodyId} className="ss-disclosure-body" hidden={!open}>{children}</div>
+    </div>
+  );
+}
+
+// 手機詳情頂部的「切換腳本」抽屜：用和清單一樣的分頁列出腳本與狀態，選完直接切換，不用先回清單。
+// tabs 同 StatusTabs，另帶 rows 與 variant；抽屜自己記目前分頁，初始值是清單選中的分頁。
+export function ScriptSwitchSheet({ tabs, initialTab, selectedId, onSelect, onClose, returnFocusRef }) {
+  const [active, setActive] = useState(initialTab);
+  const current = tabs.find((tab) => tab.key === active) || tabs[0];
   return (
     <BottomSheet title="切換腳本" onClose={onClose} returnFocusRef={returnFocusRef}>
-      {groups.map(([title, rows]) => (
-        <div key={title} style={{ marginBottom: 12 }}>
-          <div style={{ ...SECTION_LABEL, padding: '6px 4px' }}>{title} · {rows.length}</div>
-          <div className="sheet-list">
-            {rows.length ? rows.map((row) => (
-              <button
-                key={row.script._id}
-                type="button"
-                className={`sheet-row${selectedId === row.script._id ? ' active' : ''}`}
-                aria-current={selectedId === row.script._id ? 'true' : undefined}
-                onClick={() => onSelect(row.script._id)}
-              >
-                <span className="sheet-row-title">{row.script.topic}</span>
-                <span className="sheet-row-meta">{row.status.label}</span>
-              </button>
-            )) : <div className="sheet-empty">沒有腳本</div>}
-          </div>
+      <StatusTabs tabs={tabs} active={current.key} onChange={setActive} label="腳本狀態">
+        <div className="sheet-list ss-sheet-list">
+          {current.rows.length ? current.rows.map((row) => (
+            <button
+              key={row.script._id}
+              type="button"
+              className={`sheet-row${selectedId === row.script._id ? ' active' : ''}`}
+              aria-current={selectedId === row.script._id ? 'true' : undefined}
+              onClick={() => onSelect(row.script._id)}
+            >
+              <span className="sheet-row-title">{row.script.topic}</span>
+              <span className="sheet-row-meta ss-sheet-meta">
+                <StatusIcon statusKey={row.status.key} />
+                {current.variant === 'waiting' && row.cue ? row.cue : row.status.label}
+                {current.variant === 'action' && row.cue && <CueChip>{row.cue}</CueChip>}
+              </span>
+            </button>
+          )) : <div className="sheet-empty">這個分頁沒有腳本</div>}
         </div>
-      ))}
+      </StatusTabs>
     </BottomSheet>
-  );
-}
-
-export function SectionCard({ title, action, children, style }) {
-  return (
-    <section className="card" style={{ overflow: 'hidden', ...style }}>
-      <div className="ss-section-head">
-        <div style={SECTION_LABEL}>{title}</div>
-        {action}
-      </div>
-      {children}
-    </section>
   );
 }
 

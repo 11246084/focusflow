@@ -2208,35 +2208,70 @@ option{
   .qa-compact .qa-input-area .btn-primary { min-height: 44px; }
 }
 
-/* ── Teacher short scripts / uploads (TeacherShortScripts.jsx, TeacherShortUploads.jsx, ShortAssetPanel.jsx) ──
-   Desktop/tablet: list | detail columns. ≤768px: single column, list or detail. */
+/* ── Teacher short scripts / short uploads (TeacherShortScripts.jsx, TeacherShortUploads.jsx, ShortAssetPanel.jsx) ──
+   一個面板（.card）：頂部列＋左右兩欄，欄與區塊之間只用 1px 分隔線。≤768px：單欄，清單或詳情。 */
 .ss-page { height: 100%; padding: 26px; overflow-x: hidden; }
-.ss-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.ss-panel { overflow: hidden; background: rgb(38 12 30 / 48%); }
+.ss-panel-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.ss-bar-spacer { flex: 1; }
 .ss-course-select { flex: 0 1 360px; min-width: 200px; width: auto; padding: 9px 40px 9px 16px; border-radius: 10px; font-size: 13px; }
-.ss-layout { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 20px; align-items: start; }
-.ss-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.ss-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 4px 12px 4px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.ss-collapse-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,0.65); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-.ss-collapse-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+/* 兩欄等高（grid stretch），右欄內容較短時貼齊上方，分隔線與面板外框仍然完整 */
+.ss-panel-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: stretch; }
+.ss-pane { min-width: 0; }
+.ss-detail-pane { border-left: 1px solid rgba(255,255,255,0.08); }
+.ss-pane-note { padding: 14px 20px; border-top: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.7; }
+.ss-icon-btn { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); cursor: pointer; }
+.ss-icon-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.ss-icon-btn:disabled { opacity: .5; cursor: default; }
+
+/* 狀態分頁：橫跨整個面板，圖示＋名稱＋數量徽章。選中的分頁有外框與底色，徽章「需要你處理」>0 時是強調色實心（灰階也分得出來）。
+   不換行，寬度不夠時在分頁列內水平捲動。 */
+.ss-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px 8px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); scrollbar-width: none; }
+.ss-tabs::-webkit-scrollbar { display: none; }
+.ss-tab { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 6px 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: rgba(255,255,255,0.65); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ss-tab:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.ss-tab.active { color: #fff; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.28); }
+.ss-tab-icon { display: inline-flex; }
+.ss-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 7px; border: 1px solid rgba(255,255,255,0.2); border-radius: 11px; color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 700; }
+.ss-tab-count.strong { border-color: #F14F21; background: #F14F21; color: #fff; }
+.ss-tab-hint { padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 12.5px; line-height: 1.6; }
+.ss-tab:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
+
 .ss-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 12px 20px; border: 0; border-left: 2px solid transparent; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .15s; }
 .ss-row:hover { background: rgba(255,255,255,0.025); }
 .ss-row.active { background: rgba(241,79,33,0.07); border-left-color: #F14F21; }
 .ss-row-title { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: 13.5px; font-weight: 600; line-height: 1.5; color: #fff; }
 .ss-row-next { display: block; margin-top: 3px; font-size: 12.5px; color: rgba(255,255,255,0.5); }
+.ss-row-wait { display: flex; align-items: center; gap: 6px; }
+.ss-row-aside { display: flex; flex-shrink: 0; flex-direction: column; align-items: flex-end; gap: 6px; }
+.ss-row-cue { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border: 1px solid rgba(241,79,33,0.55); border-radius: 8px; background: rgba(241,79,33,0.1); color: #fb9476; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .ss-candidate { align-items: flex-start; }
 .ss-rank { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 24px; height: 24px; margin-top: 1px; border-radius: 7px; font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
 .ss-rank.picked { color: #fff; background: #F14F21; border-color: #F14F21; }
-.ss-create { padding: 14px 20px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
 .ss-text-btn { display: inline-flex; align-items: center; min-height: 32px; padding: 0 4px; border: 0; background: none; color: #fb9476; font: inherit; font-size: 12.5px; cursor: pointer; }
 .ss-text-btn:hover { color: #fff; }
-.ss-pill { display: inline-block; flex-shrink: 0; padding: 3px 10px; border-radius: 50px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.ss-pill { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.ss-icon { display: inline-flex; flex-shrink: 0; align-items: center; }
+
+/* 可收合區塊：整列標題可點，右側「點開／收合」加箭頭，標題旁顯示數量 */
+.ss-disclosure { border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ss-disclosure-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 8px 20px; border: 0; background: transparent; color: rgba(255,255,255,0.85); font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; cursor: pointer; }
+.ss-disclosure-head:hover { color: #fff; background: rgba(255,255,255,0.025); }
+.ss-disclosure-title { min-width: 0; overflow-wrap: anywhere; }
+.ss-disclosure-count { color: rgba(255,255,255,0.55); font-weight: 500; }
+.ss-disclosure-hint { flex-shrink: 0; color: rgba(255,255,255,0.7); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.ss-disclosure-body { padding: 0 20px 16px; }
+.ss-disclosure.nested { margin-top: 6px; border-bottom: 0; }
+.ss-disclosure.nested > .ss-disclosure-head { padding-left: 0; padding-right: 0; }
+.ss-disclosure.nested > .ss-disclosure-body { padding: 0 0 8px; }
+
 .ss-detail-head { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ss-mobile-head { display: flex; align-items: center; gap: 8px; }
+.ss-mobile-title { flex: 1; min-width: 0; overflow: hidden; color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .ss-action { display: flex; flex-direction: column; gap: 12px; }
 .ss-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ss-secondary { padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
 .ss-warning { margin-bottom: 12px; padding: 10px 14px; color: rgba(255,255,255,0.85); font-size: 13px; line-height: 1.7; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.28); }
-.ss-nested-details { margin-top: 6px; }
-.ss-nested-details > .ss-summary { padding-left: 0; }
 .ss-feedback { padding: 12px 16px; background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.2); }
 .ss-paths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ss-path { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: rgba(255,255,255,0.03); }
@@ -2247,9 +2282,6 @@ option{
 .ss-body-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .ss-script-text { min-height: 280px; padding: 12px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; resize: vertical; }
 .ss-wrap { overflow-wrap: anywhere; }
-.ss-details { border-bottom: 1px solid rgba(255,255,255,0.05); }
-.ss-summary { display: flex; align-items: center; min-height: 48px; padding: 8px 20px; color: rgba(255,255,255,0.7); font-size: 12.5px; font-weight: 600; letter-spacing: .04em; cursor: pointer; }
-.ss-summary:hover { color: #fff; background: rgba(255,255,255,0.025); }
 .ss-asset-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 20px; }
 .ss-field { padding: 10px 14px; font-size: 13px; }
 .ss-confirm-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.7; }
@@ -2262,33 +2294,64 @@ option{
 .ss-confirm-body { color: rgba(255,255,255,0.78); font-size: 13.5px; line-height: 1.75; }
 .ss-confirm-body p { margin: 0 0 6px; }
 .ss-confirm-body ul { margin: 0 0 12px; padding-left: 1.3em; }
-.ss-page button:focus-visible, .ss-page .ss-dropzone:focus-visible, .ss-summary:focus-visible { outline: 2px solid #fb9476; outline-offset: -2px; }
+.ss-page button:focus-visible, .ss-page .ss-dropzone:focus-visible, .bottom-sheet .ss-row:focus-visible { outline: 2px solid #fb9476; outline-offset: -2px; }
 .ss-page .btn-primary { min-height: 40px; }
+
+/* 「＋ 新腳本」檢視（桌面在右欄，手機在底部抽屜） */
+.ss-new-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ss-new-head h2:focus { outline: none; }
+.ss-new-head h2:focus-visible { outline: 2px solid #fb9476; outline-offset: 4px; }
+.ss-new-intro { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ss-create { padding: 14px 20px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+.bottom-sheet .ss-new-intro, .bottom-sheet .ss-create { padding-left: 8px; padding-right: 8px; }
+.bottom-sheet .ss-row { padding-left: 8px; padding-right: 8px; }
+
+/* 手機「切換腳本」抽屜：同樣的分頁 */
+.bottom-sheet .ss-tabs { padding: 4px 0 10px; }
+.ss-sheet-list { padding-top: 10px; }
+.ss-sheet-meta { display: inline-flex; align-items: center; gap: 6px; }
+
+/* 右欄「尚未選擇腳本」的引導：建議下一步，區塊間只用分隔線 */
+.ss-next { display: flex; flex-direction: column; gap: 10px; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.ss-next-title { overflow-wrap: anywhere; color: #fff; font-size: 15px; font-weight: 700; line-height: 1.5; }
+.ss-next-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+
+/* 頁首常駐的說明（流程說明／上傳短片頁的範圍說明）：主面板之上，不加卡片底色，一列＋一行文字 */
+.ss-flow-bar { margin-bottom: 16px; padding: 0 2px; color: rgba(255,255,255,0.78); font-size: 13px; line-height: 1.7; }
+.ss-flow-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; margin: 0 0 6px; padding: 0; list-style: none; color: rgba(255,255,255,0.78); font-size: 13px; }
+.ss-flow-steps li { display: inline-flex; align-items: center; gap: 6px; }
+.ss-flow-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid rgba(255,255,255,0.14); border-radius: 7px; color: rgba(255,255,255,0.7); }
+.ss-flow-arrow { margin: 0 4px; color: rgba(255,255,255,0.35); }
 
 /* 769–1100px：側欄自動收合，左欄可以縮窄 */
 @media (max-width: 1100px) {
-  .ss-layout { grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr); gap: 16px; }
+  .ss-panel-body { grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr); }
 }
 @media (max-width: 1024px) {
   .ss-page { padding: 20px; }
   .ss-paths { grid-template-columns: 1fr; }
+  .ss-course-select { flex-basis: 260px; }
 }
-/* ≤768px：單欄。課程選擇獨占一列；兩條路上下排列；觸控範圍 44px、輸入框 16px。 */
+/* ≤768px：單欄。課程選擇獨占一列；分頁改成可水平捲動的膠囊列；觸控範圍 44px、輸入框 16px。 */
 @media (max-width: 768px) {
   .ss-page { padding-top: 14px; padding-bottom: 24px; }
+  .ss-panel-bar { padding: 12px 16px; }
   .ss-course-select { flex: 1 1 100%; min-width: 0; width: 100%; font-size: 16px; }
-  .ss-toolbar .btn-primary { min-height: 44px; }
-  .ss-layout { display: block; }
-  .ss-section-head { padding-left: 16px; }
+  .ss-icon-btn { width: 44px; height: 44px; }
+  .ss-panel-body { display: block; }
+  .ss-detail-pane { border-left: 0; }
+  .ss-tabs { padding: 12px 16px; }
+  .ss-tab { min-height: 44px; border-color: rgba(255,255,255,0.1); border-radius: 50px; }
+  .ss-tab.active { border-color: rgba(255,255,255,0.4); }
+  .ss-tab-hint, .ss-pane-note { padding-left: 16px; padding-right: 16px; }
   .ss-row { padding: 12px 16px; }
-  .ss-create, .ss-detail-head { padding-left: 16px; padding-right: 16px; }
-  .ss-mobile-head { display: flex; align-items: center; gap: 8px; }
-  .ss-mobile-title { flex: 1; min-width: 0; overflow: hidden; color: #fff; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-  .ss-icon-btn { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); cursor: pointer; }
+  .ss-detail-head, .ss-disclosure-head { padding-left: 16px; padding-right: 16px; }
+  .ss-disclosure-body { padding-left: 16px; padding-right: 16px; }
+  .ss-disclosure-head { min-height: 52px; }
   .ss-switch-btn { width: 100%; margin-top: 10px; min-height: 44px; }
-  .ss-page .btn-primary { min-height: 44px; }
+  .ss-page .btn-primary, .bottom-sheet .ss-create .btn-primary { min-height: 44px; }
   .ss-chip, .ss-text-btn { min-height: 44px; }
-  .ss-row-next, .ss-collapse-btn, .ss-summary, .ss-text-btn, .ss-chip, .ss-link { font-size: 13px; }
+  .ss-row-next, .ss-disclosure-hint, .ss-text-btn, .ss-chip, .ss-link { font-size: 13px; }
   .ss-page .ff-input, .issue-report-dialog.ss-confirm-dialog .ff-input { font-size: 16px; }
   .ss-script-text { font-size: 13px; }
   .ss-dropzone { height: auto; min-height: 120px; }

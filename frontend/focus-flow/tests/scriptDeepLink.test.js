@@ -33,7 +33,7 @@ describe('開啟指定腳本的深連結', () => {
     assert.equal(consumePendingScriptOpen(SHORT_SCRIPT_PAGE), null);
   });
 
-  it('指定成品上傳頁時，腳本頁不會取走這個請求', () => {
+  it('指定上傳短片頁時，腳本頁不會取走這個請求', () => {
     requestOpenScript({ scriptId: 's2', courseId: 'c1', page: SHORT_UPLOAD_PAGE });
     assert.equal(consumePendingScriptOpen(SHORT_SCRIPT_PAGE), null);
     assert.equal(consumePendingScriptOpen(SHORT_UPLOAD_PAGE).scriptId, 's2');

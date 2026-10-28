@@ -6,7 +6,7 @@ import { formatFileSize } from './teacherUploadUtils';
 import { EmptyRow, ErrorBanner, Pill } from './shortScriptUi';
 import { ACCENT, BODY, DIVIDER, GHOST_BTN, MUTED, SECTION_LABEL, SMALL_BTN, describeError } from './shortScriptStyles';
 
-// 成品上傳區（成品上傳頁 TeacherShortUploads.jsx 使用）：教師拍完影片回來上傳，
+// 成品上傳區（上傳短片頁 TeacherShortUploads.jsx 使用）：教師拍完影片回來上傳，
 // 只建立待審核的成品，不直接上架（規格書 R-08）。表單狀態都留在這個元件內，
 // 對外只透過 onChanged 通知重讀資料。呼叫端用 key={script._id} 讓換腳本時表單歸零。
 

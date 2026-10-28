@@ -3,7 +3,7 @@
 // sessionStorage covers the case where the target page is not mounted yet;
 // the window event covers the case where it already is.
 //
-// page 指定由哪一頁接手：shortScripts（腳本頁，預設）或 shortUploads（成品上傳頁）。
+// page 指定由哪一頁接手：shortScripts（腳本頁，預設）或 shortUploads（上傳短片頁）。
 // 每一頁只取走指定給自己的請求，另一頁的請求留在 sessionStorage 等它掛載。
 
 const STORAGE_KEY = 'ff_open_script';
@@ -40,7 +40,7 @@ export function consumePendingScriptOpen(page = SHORT_SCRIPT_PAGE) {
   }
 }
 
-// 腳本頁與成品上傳頁共用目前選的課程，切換頁面時不必重選。
+// 腳本頁與上傳短片頁共用目前選的課程，切換頁面時不必重選。
 export function rememberShortScriptCourse(courseId) {
   if (!courseId) return;
   try {

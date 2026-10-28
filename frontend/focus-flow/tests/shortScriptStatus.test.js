@@ -71,47 +71,81 @@ describe('成品詳情的三種狀態分開呈現', () => {
   });
 });
 
-describe('腳本清單分組', () => {
-  it('需要我處理與等待中／已完成分開，同組最近更新的在前', () => {
+describe('腳本頁的分頁', () => {
+  it('分成需要你處理、等待中、已上架、已否決，同組最近更新的在前', () => {
     const scripts = [
       script('evidence_ready', { _id: 'e', updatedAt: '2026-10-01' }),
       script('changes_requested', { _id: 'c', updatedAt: '2026-10-03' }),
+      script('generated', { _id: 'r', updatedAt: '2026-10-05' }),
       script('approved', { _id: 'p', updatedAt: '2026-10-02' }),
       script('dismissed', { _id: 'd', updatedAt: '2026-10-04' }),
     ];
-    const { action, others } = groupScripts(scripts, []);
+    const { action, waiting, published, dismissed } = groupScripts(scripts, [asset({ sourceScriptId: 'r' })]);
     assert.deepEqual(action.map((row) => row.script._id), ['c', 'e']);
-    assert.deepEqual(others.map((row) => row.script._id), ['d', 'p']);
+    assert.deepEqual(waiting.map((row) => row.script._id), ['r']);
+    assert.deepEqual(published.map((row) => row.script._id), ['p']);
+    assert.deepEqual(dismissed.map((row) => row.script._id), ['d']);
   });
 });
 
-describe('成品上傳頁的清單分組', () => {
+describe('上傳短片頁依「誰要動手」分組', () => {
   const scripts = [
     script('evidence_ready', { _id: 'e' }),
     script('generated', { _id: 'f' }),
     script('changes_requested', { _id: 'c' }),
+    script('generated', { _id: 'j' }),
+    script('generated', { _id: 'n' }),
     script('generated', { _id: 'u' }),
     script('generated', { _id: 'r' }),
+    script('generated', { _id: 'w' }),
     script('generated', { _id: 'x' }),
+    script('generated', { _id: 'm' }),
     script('approved', { _id: 'p' }),
     script('dismissed', { _id: 'd' }),
   ];
   const assets = [
+    asset({ sourceScriptId: 'j', reviewStatus: 'rejected' }),
+    asset({ sourceScriptId: 'n', upload: { status: null } }),
     asset({ sourceScriptId: 'u', upload: { status: 'uploading' } }),
     asset({ sourceScriptId: 'r' }),
+    asset({ sourceScriptId: 'w', reviewStatus: 'approved' }),
     asset({ sourceScriptId: 'x', upload: { status: 'failed', retrySafe: true } }),
+    asset({ sourceScriptId: 'm', upload: { status: 'failed', retrySafe: false } }),
     asset({ sourceScriptId: 'p', status: 'published', reviewStatus: 'approved' }),
   ];
+  const ids = (rows) => rows.map((row) => row.script._id).sort();
 
-  it('待上傳是待拍攝上傳與需修改；處理中是傳送中、上傳失敗、待審核', () => {
-    const { toUpload, processing } = groupUploadScripts(scripts, assets);
-    assert.deepEqual(toUpload.map((row) => row.script._id).sort(), ['c', 'f']);
-    assert.deepEqual(processing.map((row) => row.script._id).sort(), ['r', 'u', 'x']);
+  it('需要你處理：待拍攝上傳、需修改、成品已退回、可重試的上傳失敗', () => {
+    assert.deepEqual(ids(groupUploadScripts(scripts, assets).action), ['c', 'f', 'j', 'x']);
   });
 
-  it('待生成、已上架、已否決不列在成品上傳頁', () => {
-    const { toUpload, processing } = groupUploadScripts(scripts, assets);
-    const listed = [...toUpload, ...processing].map((row) => row.script._id);
+  it('等待中：傳送中（含剛建立）、待審核、審核通過等上架、需管理員處理的上傳失敗', () => {
+    assert.deepEqual(ids(groupUploadScripts(scripts, assets).waiting), ['m', 'n', 'r', 'u', 'w']);
+  });
+
+  it('retrySafe 不是 true 都算需管理員處理（含沒寫入的情況）', () => {
+    const { action, waiting } = groupUploadScripts(
+      [script('generated', { _id: 'q' })],
+      [asset({ sourceScriptId: 'q', upload: { status: 'failed' } })],
+    );
+    assert.equal(action.length, 0);
+    assert.equal(waiting[0].cue, '等管理員確認');
+  });
+
+  it('每列帶著下一步動作或正在等什麼', () => {
+    const { action, waiting } = groupUploadScripts(scripts, assets);
+    const cueOf = (rows, id) => rows.find((row) => row.script._id === id).cue;
+    assert.equal(cueOf(action, 'f'), '上傳');
+    assert.equal(cueOf(action, 'x'), '重試');
+    assert.equal(cueOf(waiting, 'u'), '傳送到 YouTube 中');
+    assert.equal(cueOf(waiting, 'r'), '等待審核');
+    assert.equal(cueOf(waiting, 'w'), '等影片傳完後上架');
+    assert.equal(cueOf(waiting, 'm'), '等管理員確認');
+  });
+
+  it('待生成、已上架、已否決不列在上傳短片頁', () => {
+    const { action, waiting } = groupUploadScripts(scripts, assets);
+    const listed = [...action, ...waiting].map((row) => row.script._id);
     for (const id of ['e', 'p', 'd']) assert.equal(listed.includes(id), false);
   });
 });

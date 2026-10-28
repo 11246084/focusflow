@@ -1,4 +1,4 @@
-// 短影片腳本頁與成品上傳區共用的樣式常數。版面照專案既有頁面的寫法
+// 短影片腳本頁與上傳短片頁共用的樣式常數。版面照專案既有頁面的寫法
 // （TeacherCourses.jsx / TeacherVideoReview.jsx）：Space Grotesk 標題、.card 大卡片、
 // 列與列之間用 1px 分隔線，強調色 #F14F21。.card / .card-sm 只給背景與圓角，padding 由各處 inline 指定。
 export const HEADING = { fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' };

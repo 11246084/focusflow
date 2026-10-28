@@ -2228,13 +2228,13 @@ option{
    不換行，寬度不夠時在分頁列內水平捲動。 */
 .ss-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px 8px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); scrollbar-width: none; }
 .ss-tabs::-webkit-scrollbar { display: none; }
-.ss-tab { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 6px 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: rgba(255,255,255,0.65); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ss-tab {display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; min-height: 40px; padding: 6px 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: rgba(255, 255, 255, 0.308); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .ss-tab:hover { color: #fff; background: rgba(255,255,255,0.05); }
-.ss-tab.active { color: #fff; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.28); }
+.ss-tab.active { color: #fff;transition: ease-in-out .15s; background: rgba(241, 78, 33, 0.18); }
 .ss-tab-icon { display: inline-flex; }
 .ss-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 7px; border: 1px solid rgba(255,255,255,0.2); border-radius: 11px; color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 700; }
 .ss-tab-count.strong { border-color: #F14F21; background: #F14F21; color: #fff; }
-.ss-tab-hint { padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); font-size: 12.5px; line-height: 1.6; }
+.ss-tab-hint { padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #f14f21; font-size: 12.5px; line-height: 1.6; }
 .ss-tab:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
 
 .ss-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 12px 20px; border: 0; border-left: 2px solid transparent; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .15s; }

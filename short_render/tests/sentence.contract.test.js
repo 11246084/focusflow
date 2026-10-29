@@ -97,3 +97,12 @@ test('RC6 code limits, exact variable names, intentional errors and source metad
     const value = structuredClone(p); mutate(value); assert.ok(describeComponent('code', value).errors.length);
   }
 });
+test('all sentence-v1 entry points reject unknown fields and direct executable presentation payloads', () => {
+  for (const mutate of [(p) => { p.html = '<script>x</script>'; }, (p) => { p.scenes[0].css = 'url(https://remote)'; }, (p) => { p.scenes[0].params.url = 'https://remote'; }, (p) => { p.scenes[0].cues.text.offset = 1; }, (p) => { p.audio.filter = 'loudnorm'; }, (p) => { p.subtitles[0].runs[0].onclick = 'x'; }]) {
+    const { plan, sentences } = fixture(); mutate(plan);
+    assert.ok(validateStructure(plan).some((e) => e.code === 'FIELD_UNKNOWN'));
+    assert.ok(resolvePlan(plan, { sentences }).errors.length);
+  }
+  const { plan, sentences } = fixture(); plan.clips[0].textAnchors.from.text = '偽造';
+  assert.ok(resolvePlan(plan, { sentences }).errors.length);
+});

@@ -14,7 +14,7 @@ const PARAM_SCHEMAS = {
   rows: obj({ rows: arr(obj({ tokens: arr(obj({ t: str(), style: { type: 'STRING', enum: TOKEN_STYLES }, icon: str() }, ['t'])) }, ['tokens'])), note: str() }, ['rows']),
   'quote-reveal': obj({ text: str(), label: str(), icon: str() }, ['text']),
   chips: obj({ chips: arr(item), highlight: arr(integer), dimKeep: integer, question: { type: 'BOOLEAN' }, note: str(), caption: str() }, ['chips']),
-  compare: obj({ left: obj({ text: str(), label: str(), icon: str() }, ['text']), right: obj({ text: str(), label: str(), icon: str() }, ['text']), link: str(), mark: { type: 'STRING', enum: ['✕', '✓', 'none'] } }, ['left', 'right']),
+  compare: obj({ left: obj({ text: str(), value: str(), label: str(), icon: str(), highlight: { type: 'BOOLEAN' }, bad: { type: 'BOOLEAN' } }, ['text']), right: obj({ text: str(), value: str(), label: str(), icon: str(), highlight: { type: 'BOOLEAN' }, bad: { type: 'BOOLEAN' } }, ['text']), link: str(), mark: { type: 'STRING', enum: ['✕', '✓', 'none'] } }, ['left', 'right']),
   checklist: obj({ items: arr(item), head: str(), banner: str(), mark: { type: 'STRING', enum: ['✕', '✓', 'none'] } }, ['items']),
   'place-values': obj({ digits: arr(str()), labels: arr(item), note: str(), icon: str() }, ['digits', 'labels']),
   relation: obj({ words: arr(item), note: str() }, ['words']),

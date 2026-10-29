@@ -14,7 +14,20 @@ const planHash = (plan) => crypto.createHash('sha256').update(JSON.stringify(pla
 function validateSentenceStructure(plan) {
   const errors = [];
   const add = (code, path, message) => errors.push(issue(code, path, message));
+  const keys = (value, allowed, path) => { if (value && typeof value === 'object' && !Array.isArray(value)) for (const key of Object.keys(value)) if (!allowed.includes(key)) add('FIELD_UNKNOWN', `${path}.${key}`, 'field is not in the sentence-v1 contract'); };
+  const paramKeys = (value, schema, path) => {
+    if (schema?.type === 'ARRAY' && Array.isArray(value)) return value.forEach((v, i) => paramKeys(v, schema.items, `${path}[${i}]`));
+    if (schema?.type === 'OBJECT' && value && typeof value === 'object' && !Array.isArray(value)) {
+      keys(value, Object.keys(schema.properties || {}), path);
+      for (const [k, v] of Object.entries(value)) paramKeys(v, schema.properties?.[k], `${path}.${k}`);
+    }
+  };
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return [issue('PLAN_INVALID', '$', 'plan must be an object')];
+  keys(plan, ['schemaVersion', 'contractVersion', 'layout', 'canvas', 'source', 'versions', 'theme', 'audio', 'title', 'clips', 'scenes', 'subtitles', 'endCard'], '$');
+  keys(plan.canvas, ['width', 'height', 'fps'], 'canvas'); keys(plan.source, ['videoId'], 'source');
+  keys(plan.versions, ['modelId', 'shortRender', 'assets'], 'versions'); keys(plan.versions?.assets, ['@iconify-json/fluent-emoji-flat', '@phosphor-icons/core'], 'versions.assets');
+  keys(plan.audio, ['gainDb', 'inputIntegratedLufs', 'inputTruePeakDbtp', 'targetLufs', 'maxTruePeakDbtp'], 'audio');
+  keys(plan.title, ['text', 'tag'], 'title'); keys(plan.endCard, ['line1', 'line2', 'seconds'], 'endCard');
   if (plan.schemaVersion !== 'recut-v1' || plan.contractVersion !== CONTRACT_VERSION) add('SCHEMA_VERSION', 'contractVersion', 'recut-v1 sentence-v1 is required');
   if (plan.layout !== 'full-animation') add('LAYOUT_INVALID', 'layout', 'sentence-v1 requires full-animation');
   if (plan.canvas?.width !== 720 || plan.canvas?.height !== 1280 || plan.canvas?.fps !== 30) add('CANVAS_INVALID', 'canvas', '720x1280 at 30fps is required');
@@ -26,6 +39,10 @@ function validateSentenceStructure(plan) {
   const ids = new Set();
   if (!Array.isArray(plan.clips) || !plan.clips.length || plan.clips.length > 16) add('CLIPS_INVALID', 'clips', '1-16 clips required');
   else for (const [i, c] of plan.clips.entries()) {
+    keys(c, ['id', 'from', 'to', 'startAt', 'endAt', 'chunkIds', 'opening', 'textAnchors'], `clips[${i}]`);
+    if (c?.opening !== undefined && typeof c.opening !== 'boolean') add('CLIP_RANGE', `clips[${i}].opening`, 'opening must be a boolean');
+    keys(c?.textAnchors, ['from', 'to'], `clips[${i}].textAnchors`);
+    keys(c?.textAnchors?.from, ['text'], `clips[${i}].textAnchors.from`); keys(c?.textAnchors?.to, ['text'], `clips[${i}].textAnchors.to`);
     if (!safeId(c?.id) || ids.has(c.id)) add('CLIP_ID', `clips[${i}].id`, 'unique safe id required');
     ids.add(c?.id);
     if (!safeId(c?.from) || !safeId(c?.to) || !Array.isArray(c?.chunkIds) || !c.chunkIds.length || !c.chunkIds.every(text)) add('CLIP_RANGE', `clips[${i}]`, 'sentence from/to and chunkIds required');
@@ -35,23 +52,30 @@ function validateSentenceStructure(plan) {
   if (!Array.isArray(plan.scenes) || !plan.scenes.length || plan.scenes.length > 14) add('SCENES_INVALID', 'scenes', '1-14 scenes required');
   else for (const [i, s] of plan.scenes.entries()) {
     const path = `scenes[${i}]`;
+    keys(s, ['id', 'from', 'to', 'clips', 'component', 'params', 'cues', 'basedOn', 'stamp'], path);
+    paramKeys(s?.params, require('./catalog').PARAM_SCHEMAS[s?.component], `${path}.params`);
     // Reserve renderer-owned IDs to prevent selector/script injection and collisions.
     if (!safeId(s?.id) || /^(?:root|hdr|endcard|end1|end2|narration|sub\d+)$/.test(s.id) || sceneIds.has(s.id)) add('SCENE_ID', path, 'unique safe non-reserved scene id required');
     sceneIds.add(s?.id);
+    if (typeof s?.id === 'string' && [...sceneIds].some((v) => typeof v === 'string' && v !== s.id && (v.startsWith(`${s.id}-`) || s.id.startsWith(`${v}-`)))) add('SCENE_ID', path, 'scene id overlaps a generated child id namespace');
     if (!safeId(s?.from) || !safeId(s?.to) || !Array.isArray(s?.clips) || !s.clips.length || !s.clips.every((id) => ids.has(id))) add('SCENE_CLIPS', path, 'sentence range and existing clips required');
     if (!Array.isArray(s?.basedOn) || !s.basedOn.length || !s.basedOn.every(text)) add('SCENE_BASED_ON', path, 'basedOn chunkIds required');
     const d = describeComponent(s?.component, s?.params);
     for (const message of d.errors) add('COMPONENT_PARAMS', `${path}.params`, message);
     if (s?.cues !== undefined && (!s.cues || typeof s.cues !== 'object' || Array.isArray(s.cues))) add('CUES_INVALID', `${path}.cues`, 'cues must be an object');
     else for (const [key, anchor] of Object.entries(s?.cues || {})) {
+      keys(anchor, ['sentenceId', 'text'], `${path}.cues.${key}`);
       if (!d.cues.includes(key)) add('CUE_UNKNOWN', `${path}.cues.${key}`, 'unknown component cue');
       if (!safeId(anchor?.sentenceId) || (anchor?.text !== undefined && !text(anchor.text)) || anchor?.offset !== undefined || anchor?.nth !== undefined) add('ANCHOR_INVALID', `${path}.cues.${key}`, 'sentenceId + optional unique text; offsets are not accepted');
     }
+    keys(s?.stamp, ['text', 'tone'], `${path}.stamp`);
     if (s?.stamp !== undefined && (!text(s.stamp?.text) || [...s.stamp.text].length > 6 || (s.stamp.tone !== undefined && s.stamp.tone !== 'alert'))) add('STAMP_INVALID', `${path}.stamp`, 'stamp text max 6 characters / alert tone');
   }
   if (!Array.isArray(plan.subtitles) || !plan.subtitles.length) add('SUBTITLES_INVALID', 'subtitles', 'subtitles required');
   else for (const [i, s] of plan.subtitles.entries()) {
     const path = `subtitles[${i}]`;
+    keys(s, ['from', 'runs', 'level', 'clip'], path); keys(s?.from, ['sentenceId', 'text'], `${path}.from`);
+    if (Array.isArray(s?.runs)) s.runs.forEach((r, j) => keys(r, ['t', 'hl'], `${path}.runs[${j}]`));
     if (!ids.has(s?.clip) || !safeId(s?.from?.sentenceId) || (s.from.text !== undefined && !text(s.from.text)) || s.from.offset !== undefined) add('ANCHOR_INVALID', `${path}.from`, 'clip and sentence anchor required');
     if (!Array.isArray(s?.runs) || !s.runs.length || !s.runs.every((r) => text(r?.t) && (r.hl === undefined || typeof r.hl === 'boolean'))) add('SUBTITLE_RUNS', path, 'runs {t,hl?} required');
     else {
@@ -112,6 +136,9 @@ function resolveSentencePlan(plan, { sentences } = {}) {
         if (clips.length || ++openingCount > 1 || first.id !== last.id) throw new Error('cold open must be the first single sentence and occur once');
       } else { if (first.index <= lastIndex) throw new Error('clips must retain source chronological order'); lastIndex = last.index; }
       const range = sentences.slice(first.index, last.index + 1);
+      const expectedChunks = [...new Set(range.flatMap((s) => s.chunkIds || []))].sort();
+      if (JSON.stringify([...new Set(c.chunkIds)].sort()) !== JSON.stringify(expectedChunks)) throw new Error('clip chunk references differ from the selected frozen sentences');
+      if (c.textAnchors && (c.textAnchors.from?.text !== (c.startAt || first.text) || c.textAnchors.to?.text !== (c.endAt || last.text))) throw new Error('filled textual anchors differ from frozen sentences');
       const a = phraseWords(first, c.startAt).first, b = phraseWords(last, c.endAt).last;
       const words = range.flatMap((s, i) => {
         if (used.has(s.id)) throw new Error('sentence appears more than once');
@@ -146,6 +173,8 @@ function resolveSentencePlan(plan, { sentences } = {}) {
       if (a !== covered || b < a) throw new Error('scenes must cover every selected sentence in playback order exactly once');
       covered = b + 1;
       const actualClips = [...new Set(occurrences.slice(a, b + 1).map((s) => s.clip))];
+      const expectedChunks = [...new Set(occurrences.slice(a, b + 1).flatMap((s) => s.source.chunkIds || []))].sort();
+      if (JSON.stringify([...new Set(scene.basedOn)].sort()) !== JSON.stringify(expectedChunks)) throw new Error('scene evidence differs from frozen sentence range');
       if (JSON.stringify(actualClips) !== JSON.stringify(scene.clips)) throw new Error('scene clips differ from its sentence range');
       const t0 = occurrences[a].t0;
       // The next scene starts at a sentence's first word; intervening pause

@@ -10,6 +10,7 @@ const schema = new Schema({
   callLimit: { type: Number, required: true, min: 2, immutable: true }, callsUsed: { type: Number, default: 0, min: 0 },
   stepIds: { type: [String], required: true }, input: { type: Schema.Types.Mixed, default: {} },
   baseSnapshot: { type: Schema.Types.Mixed, required: true },
+  settingsSnapshot: { type: Schema.Types.Mixed, default: {}, immutable: true },
   resultVersionId: { type: Schema.Types.ObjectId, ref: 'RecutVersion', default: null },
   queuedAt: { type: Date, required: true }, startedAt: { type: Date, default: null }, finishedAt: { type: Date, default: null },
   readyAt: { type: Date, default: null },

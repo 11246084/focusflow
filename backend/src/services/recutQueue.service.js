@@ -5,15 +5,14 @@ const AppError = require('../utils/appError');
 const { RECUT_STAGES, RECUT_TASK_TYPES: T, RECUT_TASK_STATUSES: J } = require('../constants/recut');
 const { transitionRecut, recutSnapshot, createRecutVersion, withRecutScriptLock } = require('./recutState.service');
 const notifications = require('./notification.service');
+const { getSetting: defaultGetSetting } = require('./recutSettings.service');
 
 const errorRecord = (error) => ({ code: error.code || 'RECUT_TASK_FAILED', message: String(error.message || error).slice(0, 1000) });
 const cancelled = () => new AppError('Recut task cancelled.', 409, 'RECUT_TASK_CANCELLED');
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
 // 設定 S1 接上之前的轉接點。呼叫者可注入正式 getSetting；不從教師請求接受上限。
-async function defaultGetSetting() { return 5; }
-
-function createRecutQueue({ getSetting = defaultGetSetting, notify = (task) => notifications.notifyRecutTaskFinished(task) } = {}) {
+function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = () => ({}), notify = (task) => notifications.notifyRecutTaskFinished(task) } = {}) {
   const pipelines = new Map();
   let draining = null;
   let scheduled = false;
@@ -182,7 +181,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, notify = (task) => n
     }
     const task = await RecutTask.create({ scriptId: script._id, courseId: script.courseId, requestedBy,
       type, status: J.QUEUED, callLimit, callsUsed: 0, input, stepIds: steps.map((s) => s.id),
-      baseSnapshot: recutSnapshot(script), queuedAt: new Date() });
+      baseSnapshot: recutSnapshot(script), settingsSnapshot: await captureSettings(), queuedAt: new Date() });
     try {
       await transitionRecut({ scriptId: script._id, event: 'queue_task', taskId: task._id,
         expectedRevision: recutSnapshot(script).revision });
@@ -247,7 +246,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, notify = (task) => n
     idle: async () => { if (scheduled) await new Promise(setImmediate); if (draining) await draining; } };
 }
 
-const recutQueue = createRecutQueue();
+const recutQueue = createRecutQueue({ captureSettings: () => ({ model: defaultGetSetting('recut.geminiModel') }) });
 module.exports = { createRecutQueue, recutQueue,
   registerRecutSteps: (...args) => recutQueue.registerSteps(...args),
   recoverQueuedRecutTasks: () => recutQueue.recover() };

@@ -23,6 +23,8 @@ RC2 的視窗選擇、原片檢查、增益與四步串接見[原片處理說明
 
 RC3 的 `createRecutSelectionStep`、`selectionResult` 與共用 `runValidatedDecision` 見[選段介面](recut-selection.md)。S1 合併後替換設定轉接點，RC4 註冊完整管線後再開啟真實生成。
 
+RC8 的九端點、教師草稿、重跑介面及 AI 建議格式見[審閱介面](recut-review.md)；RC9 依 OpenAPI 接資料，RC4 依 `registerRecutReviewSteps` 接 cards／wholeCheck。契約確認與驗證範圍見狀態正本，不能把假步驟測試視為成品驗收。
+
 ---
 
 ### 本機展示帳號不受首次登入阻擋（2026-10-25）

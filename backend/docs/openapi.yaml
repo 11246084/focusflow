@@ -9818,6 +9818,8 @@ components:
           not:
             required:
               - timingId
+            properties:
+              timingId: {}
         - required:
             - timingId
           properties:

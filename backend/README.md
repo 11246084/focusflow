@@ -37,6 +37,8 @@ npm.cmd run dev
 
 recut 視窗處理的 `RECUT_FFMPEG`、`RECUT_FFPROBE`、`RECUT_PYTHON`、`RECUT_ASR_MODEL` 設定與離線模型前提見[原片處理說明](docs/recut-source.md)。
 
+recut 模型與額度暫透過設定轉接函式讀 `RECUT_GEMINI_MODEL`、`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT`；模型未填沿用 `GEMINI_CHAT_MODEL`，上限預設各 5。步驟註冊及 S1 替換方式見[選段說明](docs/recut-selection.md)。
+
 下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
 
 | 指令 | 作用 |

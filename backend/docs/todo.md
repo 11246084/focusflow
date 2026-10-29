@@ -21,6 +21,8 @@ recut RC1 的實作與驗證以[目前狀態](../../docs/current-status.md)為�
 
 RC2 的視窗選擇、原片檢查、增益與四步串接見[原片處理說明](recut-source.md)；RC3 直接使用 `sourceId`，RC4 最後才交付完整版本。
 
+RC3 的 `createRecutSelectionStep`、`selectionResult` 與共用 `runValidatedDecision` 見[選段介面](recut-selection.md)。S1 合併後替換設定轉接點，RC4 註冊完整管線後再開啟真實生成。
+
 ---
 
 ### 本機展示帳號不受首次登入阻擋（2026-10-25）

@@ -56,6 +56,8 @@ recut 後端接手：[RC1 資料、狀態機與背景工作](../backend/docs/rec
 
 recut 原片處理：[連續視窗、音量與切句規則](../backend/docs/recut-source.md)。
 
+recut 選段：[指示文字、驗證與共用呼叫介面](../backend/docs/recut-selection.md)。
+
 YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lifecycle/shared-data-contract.md)、[Q-A～Q-F 工作說明](04_Features/YouTube_Lifecycle/work-orders/Q-quota-playback-plan.md)、[額度與上傳可靠性研究](04_Features/YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](04_Features/YouTube_Lifecycle/local-playback-research.md)。
 
 設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。

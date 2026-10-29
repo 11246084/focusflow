@@ -28,7 +28,7 @@
 | [RC1 資料模型、狀態機與背景工作](work-orders/RC1-data-model-state.md) | 後端 | `wip/recut-rc1-data-model` | 無 | 10/29 | 本機開發與驗證完成；獨立審查待 11/6 |
 | [RC5 short_render 對齊決策](work-orders/RC5-short-render.md) | short_render | `wip/recut-rc5-render` | 無 | 10/29 | 未開工 |
 | [RC2 連續視窗、原片檢查與視窗辨識](work-orders/RC2-window-asr.md) | 後端＋Python | `wip/recut-rc2-window` | RC1 | 11/1 | 本機開發與驗證完成；獨立審查待 11/6 |
-| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 未開工 |
+| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 本機開發與驗證完成；草稿複核通過，完整獨立審查待 11/6 |
 | [RC8 審閱流程 API](work-orders/RC8-review-api.md) | 後端 | `wip/recut-rc8-review-api` | RC1（RC4 合併後接上重跑入口） | 11/1 | 未開工 |
 | [RC4 第二、三步：圖卡、字幕與整段檢查](work-orders/RC4-step2-3-cards-check.md) | 後端 | `wip/recut-rc4-cards` | RC3、RC5 | 11/3 | 未開工 |
 | [RC9 教師審閱介面](work-orders/RC9-teacher-ui.md) | 前端 | `wip/recut-rc9-teacher-ui` | RC8 的 OpenAPI | 11/3 | 未開工 |

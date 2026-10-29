@@ -280,7 +280,7 @@ describe('YouTube 上傳隔離與收尾通知', () => {
       const text = String(url);
       const reply = (payload) => ({ ok: true, status: 200, json: async () => payload, text: async () => '' });
       if (text.includes('/channels')) return reply({ items: [{ id: 'UCown', contentDetails: { relatedPlaylists: { uploads: 'UU' } } }] });
-      if (text.includes('/videos')) return reply({ items: [{ snippet: { channelId: 'UCown' }, status: { privacyStatus: 'unlisted' } }] });
+      if (text.includes('/videos')) return reply({ items: [{ snippet: { channelId: 'UCown' }, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
       throw new Error(text);
     };
 

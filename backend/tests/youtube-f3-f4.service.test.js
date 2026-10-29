@@ -80,6 +80,7 @@ it('F4 三種開關的環境、runtime 與預設值在設定、health、總覽�
     for (const item of state.switches) {
       const { envAllowed, runtimeEnabled, effective, reason } = item;
       assert.deepEqual(health.switches[item.key], { envAllowed, runtimeEnabled, effective, reason });
+      if (item.key === 'privacy_guard') continue;
       assert.equal(effective, allowed && runtime !== false && (runtime !== undefined || item.key !== 'cleanup'));
       assert.equal(reason, !allowed ? 'env_disabled' : runtime === false ? 'runtime_disabled' : item.key === 'cleanup' && runtime === undefined ? 'default_off' : null);
     }
@@ -101,9 +102,10 @@ it('F4 總覽影片與短片清單、容量、時間、原因與 upcoming previe
   env.youtubeUploadCleanupMaxAgeDays = 180;
   const video = completedVideo(); video.youtubeUpload.uploadedAt = new Date('2025-01-01');
   video.youtubeUpload.localSourceRestoredAt = null;
+  video.youtubeUpload.remoteState = 'ready'; video.youtubeUpload.readyAt = video.youtubeUpload.uploadedAt;
   const shortPath = path.join(root, 'published.mp4'); fs.writeFileSync(shortPath, Buffer.alloc(512));
   store.shortAssets.push({ _id: newObjectId(), title: 'F4 已上架短片', courseId: ids.teacherCourse,
-    status: 'published', filePath: shortPath, youtubeVideoId: 'f4Short0001', youtubeUpload: { status: 'uploaded', uploadedAt: new Date('2025-01-01') } });
+    status: 'published', filePath: shortPath, youtubeVideoId: 'f4Short0001', youtubeUpload: { status: 'uploaded', uploadedAt: new Date('2025-01-01'), remoteState: 'ready', readyAt: new Date('2025-01-01') } });
   const preview = await getCleanupPreview({ scope: 'upcoming' });
   const overview = (await getSystemStatus()).youtubeLifecycle;
   assert.equal(preview.count, 2); assert.deepEqual(new Set(preview.items.map(row => row.kind)), new Set(['video', 'short_asset']));

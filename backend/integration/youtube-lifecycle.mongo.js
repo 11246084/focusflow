@@ -31,6 +31,10 @@ async function insert(kind, overrides = {}) {
   const item = { _id: new mongoose.Types.ObjectId(), courseId, sourceType: 'upload', uploadedBy: new mongoose.Types.ObjectId(), title: 'Isolated fixture', filePath: file(),
     processing: { status: 'completed' }, status: kind === 'video' ? undefined : 'draft', generationVersion: kind === 'video' ? undefined : 1,
     disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true }, youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 1, nextRetryAt: null }, ...overrides };
+  if (item.youtubeUpload?.status === 'uploaded' && item.youtubeUpload.uploadedAt) {
+    item.youtubeUpload.remoteState ??= 'ready'; item.youtubeUpload.readyAt ??= item.youtubeUpload.uploadedAt;
+    if (kind === 'video') item.videoSource ??= 'youtube';
+  }
   // Native insert preserves genuinely absent legacy fields; no hydration defaults.
   if (kind === 'video') { delete item.status; delete item.generationVersion; }
   await mongoose.connection.db.collection('users').insertOne({ _id: item.uploadedBy, name: 'Isolated teacher', email: `${item.uploadedBy}@example.invalid`, role: 'teacher', isActive: true });
@@ -42,7 +46,7 @@ function fakeYouTube(counters = {}) {
   return async (url, options = {}) => {
     if (String(url).includes('oauth2.googleapis.com/token')) return response({ access_token: 'isolated-fake', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
     if (String(url).startsWith(quarantine.YOUTUBE_CHANNELS_URL)) return response({ items: [{ id: 'own-channel', contentDetails: { relatedPlaylists: { uploads: 'own-uploads' } } }] });
-    if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) return response({ items: [{ snippet: { channelId: 'own-channel' }, status: { privacyStatus: 'unlisted' } }] });
+    if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) return response({ items: (new URL(String(url)).searchParams.get('id') || '').split(',').map(id => ({ id, snippet: { channelId: 'own-channel' }, status: { uploadStatus: 'processed', privacyStatus: 'unlisted', embeddable: true } })) });
     if (url === upload.YOUTUBE_UPLOAD_URL) { counters.sessions = (counters.sessions || 0) + 1; return response({}, { location: 'https://isolated-upload.test/session' }); }
     if (url === 'https://isolated-upload.test/session') { counters.puts = (counters.puts || 0) + 1; for await (const chunk of options.body) assert.ok(chunk.length); return response({ id: `isolated${counters.puts}` }); }
     throw new Error('Unexpected network URL in isolated Mongo test');
@@ -50,15 +54,16 @@ function fakeYouTube(counters = {}) {
 }
 before(async () => {
   saved = { ...env }; savedFetch = global.fetch;
-  global.fetch = async () => { throw new Error('No external network allowed.'); };
+  global.fetch = fakeYouTube();
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-youtube-mongo-'));
   Object.assign(env, { uploadDir: root, youtubeUploadEnabled: true, youtubeClientId: 'fake', youtubeClientSecret: 'fake', youtubeRefreshToken: 'fake',
     youtubeOAuthClientId: '', youtubeOAuthClientSecret: '', youtubeOAuthRefreshToken: '', youtubeUploadAccessToken: '',
     youtubeUploadMaxAttempts: 3, youtubeUploadRetryBaseMs: 0, youtubeUploadRecoveryEnabled: true,
     youtubeUploadCleanupEnabled: true, youtubeUploadCleanupMaxAgeDays: 180, youtubeUploadCleanupMinFreeGb: 0 });
   isolated = await openIsolatedYouTubeMongo(uri);
-  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false });
+  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false, directConnection: true });
   for (const name of ['videos', 'shortassets', 'runtimesettings', 'users', 'courses', 'notifications', 'youtubebackups']) await isolated.db.createCollection(name);
+  await RuntimeSetting.collection.createIndex({ key: 1 }, { unique: true });
   await mongoose.connection.db.collection('courses').insertOne({ _id: courseId, title: 'Isolated course', teacherId: new mongoose.Types.ObjectId(), status: 'draft', videoIds: [] });
   // Only the existing ShortAsset index is explicitly created in this random DB.
   await isolated.db.collection('shortassets').createIndex({ youtubeVideoId: 1 }, { unique: true, sparse: true });
@@ -86,7 +91,7 @@ it('並行隨機 DB 不共用；成功與失敗 finally 均移除資料庫', asy
   await Promise.all([withIsolatedYouTubeMongo(uri, async ({ databaseName }) => { names.push(databaseName); }),
     assert.rejects(withIsolatedYouTubeMongo(uri, async ({ databaseName }) => { names.push(databaseName); throw new Error('injected failure'); }), /injected failure/)]);
   assert.notEqual(names[0], names[1]);
-  const client = new MongoClient(uri);
+  const client = new MongoClient(uri, { directConnection: true });
   try { await client.connect(); const result = await client.db('admin').admin().listDatabases({ nameOnly: true }); assert.ok(names.every((name) => !result.databases.some((db) => db.name === name))); }
   finally { await client.close(); }
 });
@@ -201,7 +206,7 @@ it('F2-T7 重啟前遺留的 attempt token 不能當作可重傳憑據，兩種�
   for (const [model, item] of [[Video, video], [ShortAsset, short]]) {
     const failed = await model.findById(item._id).lean();
     assert.equal(failed.youtubeUpload.status, 'failed'); assert.equal(failed.youtubeUpload.retrySafe, false);
-    assert.equal(failed.youtubeUpload.attemptId, 'before-restart');
+    assert.notEqual(failed.youtubeUpload.attemptId, 'before-restart'); // Q-A fences the stale sender before querying/quarantining.
   }
   assert.deepEqual(counters, {});
 });

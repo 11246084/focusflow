@@ -41,8 +41,6 @@ app.use(express.urlencoded({ extended: true }));
 // Morgan：請求日誌（production 用 combined，開發用 dev）
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
-// 靜態檔案：提供 uploads 目錄中的檔案（如影片）
-app.use('/uploads', express.static(env.uploadDir));
 
 // ========== 文件與 API 端點 ==========
 

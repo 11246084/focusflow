@@ -12,7 +12,7 @@ function assertLoopbackMongoUri(uri) {
 async function openIsolatedYouTubeMongo(uri) {
   assertLoopbackMongoUri(uri);
   const databaseName = `focusflow_youtube_test_${crypto.randomBytes(8).toString('hex')}`;
-  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000, directConnection: true });
   let db;
   try {
     await client.connect();

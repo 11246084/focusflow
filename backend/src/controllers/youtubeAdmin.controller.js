@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
 const youtubeAdminService = require('../services/youtubeAdmin.service');
 const youtubeQuarantineService = require('../services/youtubeQuarantine.service');
+const uploadAdminService = require('../services/youtubeUploadAdmin.service');
 
 const { QUARANTINE_KINDS } = youtubeQuarantineService;
 
@@ -9,6 +10,14 @@ const getLifecycleSettings = asyncHandler(async (req, res) => {
   const settings = await youtubeAdminService.getLifecycleSettings();
   return sendSuccess(res, { data: settings });
 });
+
+const getUploadOverview = asyncHandler(async (req, res) => sendSuccess(res, { data: await uploadAdminService.getUploadOverview() }));
+const probeUploads = asyncHandler(async (req, res) => sendSuccess(res, { data: await uploadAdminService.probeUploads({ user: req.user }) }));
+const listPrivacyIncidents = asyncHandler(async (req, res) => sendSuccess(res, { data: await uploadAdminService.listPrivacyIncidents() }));
+const restorePrivacy = asyncHandler(async (req, res) => sendSuccess(res, { data: await uploadAdminService.restorePrivacy({
+  kind: req.params.kind, id: req.params.id, user: req.user,
+}) }));
+const getStorageOverview = asyncHandler(async (req, res) => sendSuccess(res, { data: await uploadAdminService.getStorageOverview() }));
 
 const updateLifecycleSwitch = asyncHandler(async (req, res) => {
   const { key, enabled } = req.body || {};
@@ -64,6 +73,11 @@ const resetQuarantinedVideo = resetQuarantined(QUARANTINE_KINDS.VIDEO, 'videoId'
 const resetQuarantinedShortAsset = resetQuarantined(QUARANTINE_KINDS.SHORT_ASSET, 'assetId');
 
 module.exports = {
+  getUploadOverview,
+  probeUploads,
+  listPrivacyIncidents,
+  restorePrivacy,
+  getStorageOverview,
   applyQuarantinedShortAsset,
   applyQuarantinedVideo,
   getCleanupPreview,

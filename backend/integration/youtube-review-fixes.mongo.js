@@ -29,6 +29,13 @@ async function insert(kind, extra = {}) {
   const item = { _id: new mongoose.Types.ObjectId(), courseId, uploadedBy: teacherId, sourceType: 'upload', title: 'Fixture', filePath: file(),
     disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true }, youtubeUpload: { status: 'failed', retrySafe: true, attemptCount: 1, nextRetryAt: null },
     ...(kind === 'video' ? { processing: { status: 'completed' } } : { status: 'draft', generationVersion: 1 }), ...extra };
+  // These pre-Q fixtures exercise source ownership, not remote readiness.
+  // Explicitly establish the ready/switch boundary required by the Q contract.
+  if (item.youtubeUpload?.status === 'uploaded' && item.youtubeUpload.uploadedAt) {
+    item.youtubeUpload.remoteState ??= 'ready';
+    item.youtubeUpload.readyAt ??= item.youtubeUpload.uploadedAt;
+    if (kind === 'video') item.videoSource ??= 'youtube';
+  }
   await db.collection(kind === 'video' ? 'videos' : 'shortassets').insertOne(item); return item;
 }
 function worker(config) {
@@ -44,7 +51,7 @@ async function runWorker(config) { const w = worker(config); const result = awai
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-review-regression-')); env.uploadDir = root;
   isolated = await openIsolatedYouTubeMongo(uri);
-  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false }); db = mongoose.connection.db;
+  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false, directConnection: true }); db = mongoose.connection.db;
   for (const name of ['videos', 'shortassets', 'users', 'courses', 'notifications', 'runtimesettings', 'youtubebackups', 'faqs']) await db.createCollection(name);
   await db.collection('shortassets').createIndex({ youtubeVideoId: 1 }, { unique: true, sparse: true });
   await db.collection('courses').insertOne(course);
@@ -162,7 +169,7 @@ for (const kind of ['video', 'short_asset']) it(`FR05 ${kind} repairs lost DB fi
 it('FR06 space recovered in final reference query prevents unlink', async () => {
   const item = await insert('video', { youtubeVideoId: 'backupYt001', youtubeUpload: { status: 'uploaded', uploadedAt: new Date('2025-01-01') } });
   let freeBytes = 0; let freeReads = 0; let refsAfterFirstRead = 0; const original = ShortAsset.find;
-  ShortAsset.find = function (query, ...args) { if (freeReads > 0 && query.filePath && ++refsAfterFirstRead === 2) freeBytes = 2 * 1024 ** 3; return original.call(this, query, ...args); };
+  ShortAsset.find = function (query, ...args) { if (freeReads > 0 && query.filePath && ++refsAfterFirstRead === 1) freeBytes = 2 * 1024 ** 3; return original.call(this, query, ...args); };
   let result; try { result = await lifecycle.runYouTubeCleanup({ getFreeBytes: async () => { freeReads++; return freeBytes; } }); } finally { ShortAsset.find = original; }
   assert.equal(freeBytes, 2 * 1024 ** 3); assert.equal(result.cleaned, 0); assert.ok(fs.existsSync(item.filePath));
 });
@@ -197,13 +204,13 @@ for (const kind of ['video', 'short_asset']) for (const mode of ['missing', 'nul
     : await shortUpload.uploadShortAssetToYouTube({ assetId: String(item._id), fetchImpl: fakeYouTube() });
   assert.ok(result); assert.equal((await model.findById(item._id).lean()).youtubeUpload.status, 'uploaded');
   if (kind === 'short_asset') assert.equal((await model.findById(item._id).lean()).status, 'published');
-  await model.collection.updateOne({ _id: item._id }, { $set: { 'youtubeUpload.uploadedAt': new Date('2025-01-01') } });
+  await model.collection.updateOne({ _id: item._id }, { $set: { 'youtubeUpload.uploadedAt': new Date('2025-01-01'), 'youtubeUpload.readyAt': new Date('2025-01-01') } });
   const cleaned = kind === 'video' ? await upload.cleanupUploadedLocalVideo(String(item._id)) : await cleanupShortAssetLocalFile(String(item._id));
   assert.equal(cleaned.cleaned, true);
   if (kind === 'video') await restoreVideoSource({ videoId: String(item._id), file: { path: file(), originalname: 'legacy-restored.mp4' }, user: { id: String(teacherId), role: 'admin' } });
 });
 it('FR03 hydrated legacy approved short without attemptId can publish', async () => {
-  const item = await insert('short_asset', { youtubeVideoId: 'legacyYt001', reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeUpload: { status: 'uploaded' } });
+  const item = await insert('short_asset', { youtubeVideoId: 'legacyYt001', reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: new Date() } });
   await ShortAsset.collection.updateOne({ _id: item._id }, { $unset: { generationVersion: 1 } });
   const legacy = await ShortAsset.findById(item._id);
   assert.equal(legacy.generationVersion, 1); assert.equal(legacy.youtubeUpload.attemptId, null);

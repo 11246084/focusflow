@@ -11,6 +11,8 @@ const RuntimeSetting = require('../src/models/runtimeSetting.model');
 const lifecycle = require('../src/services/youtubeLifecycle.service');
 const { cleanupUploadedLocalVideo } = require('../src/services/youtubeUpload.service');
 const { cleanupShortAssetLocalFile } = require('../src/services/shortAssetCleanup.service');
+const youtubeUpload = require('../src/services/youtubeUpload.service');
+const { useYouTubeTestEnvironment } = require('./helpers/youtubeTestEnvironment');
 const { isLocalVideoSourceAvailable } = require('../src/utils/localVideoSource');
 
 const NOW = new Date('2026-10-26T00:00:00Z');
@@ -20,9 +22,14 @@ const cleanup = { video: cleanupUploadedLocalVideo, short_asset: cleanupShortAss
 function deferred() { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; }
 
 describe('YouTube 清理的檔案身份與刪除控制 F1', () => {
-  let root; let saved; let originals;
+  let root; let saved; let originals; let restoreYouTube;
   beforeEach(() => {
     resetStore(); lifecycle.resetYouTubeLifecycleStateForTests();
+    restoreYouTube = useYouTubeTestEnvironment(env, youtubeUpload.resetYouTubeUploadState);
+    global.fetch = async (url) => {
+      const body = String(url).includes('oauth2.googleapis.com') ? {access_token:'fake'} : {items: new URL(url).searchParams.get('id').split(',').map(id=>({id,status:{privacyStatus:'unlisted',uploadStatus:'processed',embeddable:true}}))};
+      return {ok:true,status:200,json:async()=>body,text:async()=>JSON.stringify(body)};
+    };
     saved = Object.fromEntries(keys.map((key) => [key, env[key]]));
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-cleanup-safety-'));
     Object.assign(env, { uploadDir: root, youtubeUploadCleanupEnabled: true, youtubeUploadCleanupMinAgeDays: 14, youtubeUploadCleanupMaxAgeDays: 180, youtubeUploadCleanupMinFreeGb: 1 });
@@ -34,13 +41,14 @@ describe('YouTube 清理的檔案身份與刪除控制 F1', () => {
     Video.find = originals.videoFind; ShortAsset.find = originals.assetFind; RuntimeSetting.findOne = originals.settingsFind;
     Video.findByIdAndUpdate = originals.update; Video.findOneAndUpdate = originals.cas; fs.unlinkSync = originals.unlink;
     lifecycle.CLEANUP_SOURCES.video.cleanup = originals.cleanup;
+    restoreYouTube();
     Object.assign(env, saved);
     fs.rmSync(root, { recursive: true, force: true });
   });
   function add(kind, days = 200, filePath) {
     const item = { _id: newObjectId(), filePath: filePath || path.join(root, `${newObjectId()}.mp4`),
-      youtubeVideoId: newObjectId(), status: 'published', generationVersion: 1,
-      processing: { status: 'completed' }, youtubeUpload: { status: 'uploaded', uploadedAt: new Date(NOW.getTime() - days * 86400000) } };
+      videoSource:'youtube', youtubeVideoId: newObjectId(), status: 'published', generationVersion: 1,
+      processing: { status: 'completed' }, youtubeUpload: { status: 'uploaded', remoteState:'ready', readyAt:new Date(NOW.getTime() - days * 86400000), uploadedAt: new Date(NOW.getTime() - days * 86400000) } };
     fs.writeFileSync(item.filePath, 'fixture');
     store[kind === 'video' ? 'videos' : 'shortAssets'].push(item);
     return item;

@@ -66,7 +66,7 @@ describe('expressRouteInventory', () => {
     assert.equal(routes.length, 7);
   });
 
-  it('忽略 Express 自動處理的 HEAD、OPTIONS 與 router.all', () => {
+  it('保留明確 HEAD 並忽略 OPTIONS 與 router.all', () => {
     const app = express();
     const router = express.Router();
     router.all('/any', (req, res) => res.end());
@@ -75,7 +75,7 @@ describe('expressRouteInventory', () => {
     router.get('/probe', (req, res) => res.end());
     app.use('/api/v1', router);
 
-    assert.deepEqual(keysOf(listExpressRoutes(app)), ['GET /api/v1/probe']);
+    assert.deepEqual(keysOf(listExpressRoutes(app)), ['GET /api/v1/probe', 'HEAD /api/v1/probe']);
   });
 
   it('Express 參數轉成 OpenAPI path template', () => {

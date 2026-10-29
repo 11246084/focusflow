@@ -592,7 +592,41 @@ async function removeVideoNotifications(videoIds = []) {
   }
 }
 
+async function notifyYouTubeSystemEvent({ dedupeKey, title, content, urgent = false, source = NOTIFICATION_SOURCES.SYSTEM_MAINTENANCE }) {
+  try {
+    const admins = await User.find({ role: USER_ROLES.ADMIN, isActive: true }).select('_id').lean();
+    return await upsertDedupedNotifications(admins.map((admin) => buildUpsertOperation({
+      recipientId: String(admin._id), dedupeKey,
+      document: { source, title: truncate(title, 120), content: truncate(content, 2000), urgent, courseIds: [] },
+    })));
+  } catch { return null; }
+}
+
+function notifyYouTubeUploadPaused({ type, since, until }) {
+  return notifyYouTubeSystemEvent({ dedupeKey: `youtube_upload_paused:${type}:${new Date(since).toISOString()}`,
+    title: 'YouTube 上傳暫停', content: `已達${type === 'api_daily' ? '每日上傳配額' : '頻道上傳上限'}，最快於 ${new Date(until).toISOString()} 自動補傳。` });
+}
+function notifyYouTubeUploadBlockedRounds({ since }) {
+  return notifyYouTubeSystemEvent({ dedupeKey: `youtube_upload_blocked_rounds:${new Date(since).toISOString()}`,
+    title: 'YouTube 上傳連續受阻', content: '連續三個恢復週期仍碰到上傳額度限制，影片將繼續等待，請管理員確認頻道與配額。', urgent: true });
+}
+function notifyYouTubeRemoteEvent({ kind, item, reason, detectedAt, urgent = false }) {
+  const originalPresent = Boolean(item.filePath && !item.youtubeUpload?.localCleanupAt);
+  const message = reason === 'privacy_public' ? '影片意外設為公開，請確認隱私事件與處置結果。'
+    : reason === 'query_failed' ? '連續一小時無法確認 YouTube 狀態，系統保留原片。'
+      : kind === 'short_asset' ? 'YouTube 短片無法播放，請管理員確認原因。'
+        : originalPresent ? 'YouTube 無法播放，系統已保留原片並在可用時切回原片，請確認原因。'
+          : 'YouTube 無法播放，原片已清理，請補回原片。';
+  return notifyYouTubeSystemEvent({ dedupeKey: `youtube_remote:${reason}:${kind}:${item._id}:${new Date(detectedAt).toISOString()}`,
+    title: reason === 'privacy_public' ? 'YouTube 影片意外公開' : 'YouTube 影片需要確認',
+    content: `「${String(item.title || '影片')}」：${message}`, urgent });
+}
+
 module.exports = {
+  notifyYouTubeSystemEvent,
+  notifyYouTubeRemoteEvent,
+  notifyYouTubeUploadPaused,
+  notifyYouTubeUploadBlockedRounds,
   DEFAULT_LIMIT,
   MAX_LIMIT,
   removeVideoNotifications,

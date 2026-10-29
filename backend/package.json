@@ -31,8 +31,10 @@
     "snapshot:student-pilot": "node src/scripts/printStudentPilotFlagSnapshot.js",
     "report:pilot-usage": "node src/scripts/pilotUsageReport.js",
     "docs:lint": "redocly lint docs/openapi.yaml",
+    "youtube:release-waiting": "node src/scripts/releaseWaitingYouTubeUploads.js",
+    "test:youtube-q-mongo": "node --test integration/youtube-readiness.mongo.js integration/upload-storage.mongo.js integration/youtube-q-full-lifecycle.mongo.js",
     "test:auth-mongo": "node --test integration/auth.mongo.js",
-    "test:youtube-mongo": "node --test integration/youtube-lifecycle.mongo.js integration/youtube-review-fixes.mongo.js integration/youtube-recovery-atomicity.mongo.js integration/youtube-f3-f4.mongo.js",
+    "test:youtube-mongo": "node --test integration/youtube-lifecycle.mongo.js integration/youtube-review-fixes.mongo.js integration/youtube-recovery-atomicity.mongo.js integration/youtube-f3-f4.mongo.js integration/youtube-quota.mongo.js",
     "test": "node --test --experimental-test-isolation=none --test-concurrency=1"
   },
   "keywords": [

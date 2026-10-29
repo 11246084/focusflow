@@ -186,7 +186,8 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
   if (Array.isArray(update)) {
     for (const stage of update) {
       for (const [key, value] of Object.entries(stage.$set || {})) {
-        setNested(target, key, value === '$$NOW' ? new Date() : value);
+        setNested(target, key, value === '$$NOW' ? new Date() : value?.$literal !== undefined ? value.$literal
+          : value?.$add ? new Date(Date.now() + Number(value.$add[1])) : value);
       }
     }
     return target;
@@ -276,7 +277,8 @@ function matchesQuery(document, query = {}) {
         if (typeof expression === 'string' && expression.startsWith('$')) return getNested(document, expression.slice(1));
         if (typeof expression === 'number' || expression instanceof Date) return expression;
         if (expression?.$subtract) { const [a, b] = expression.$subtract.map(evaluate); return a - b; }
-        if (expression?.$lte) { const [a, b] = expression.$lte.map(evaluate); return a <= b; }
+        if (expression?.$lte) { const [a, b] = expression.$lte.map(evaluate); return new Date(a).getTime() <= new Date(b).getTime(); }
+        if (expression?.$gt) { const [a, b] = expression.$gt.map(evaluate); return new Date(a).getTime() > new Date(b).getTime(); }
         throw new Error('Unsupported test expression');
       };
       return evaluate(value);
@@ -1192,6 +1194,7 @@ function installModelStubs() {
     return asset;
   };
   ShortAsset.find = (query = {}) => createQuery(store.shortAssets.filter((item) => matchesQuery(item, query)));
+  ShortAsset.findOne = (query = {}) => createQuery(store.shortAssets.find((item) => matchesQuery(item, query)) || null);
   ShortAsset.countDocuments = async (query = {}) => store.shortAssets.filter((item) => matchesQuery(item, query)).length;
   ShortAsset.findById = (id) => createQuery(
     store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
@@ -1309,6 +1312,16 @@ function installModelStubs() {
   RuntimeSetting.findOne = (query = {}) => createQuery(
     store.runtimeSettings.find((item) => matchesQuery(item, query)) || null,
   );
+  RuntimeSetting.create = async (document) => {
+    if (store.runtimeSettings.some((item) => item.key === document.key)) throw Object.assign(new Error('Duplicate runtime setting key'), { code: 11000 });
+    const item = { _id: newObjectId(), history: [], ...cloneSnapshot(document) };
+    store.runtimeSettings.push(item); return item;
+  };
+  RuntimeSetting.updateOne = async (query, update) => {
+    const item = store.runtimeSettings.find((document) => matchesQuery(document, query));
+    if (!item) return { matchedCount: 0, modifiedCount: 0 };
+    applyUpdate(item, cloneSnapshot(update)); return { matchedCount: 1, modifiedCount: 1 };
+  };
   YouTubeBackup.findOneAndUpdate = async (query, update, options) => {
     const existing = store.youtubeBackups.find((item) => item._id === query._id);
     if (existing && existing.contentKey !== query.contentKey) throw Object.assign(new Error('Duplicate backup owner'), { code: 11000 });

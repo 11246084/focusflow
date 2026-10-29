@@ -40,8 +40,9 @@ function uploadClaimUpdate(item, fields) {
 const UPLOAD_OBSERVED_FIELDS = [
   'filePath', 'youtubeUpload.status', 'youtubeUpload.retrySafe', 'youtubeUpload.attemptCount',
   'youtubeUpload.lastAttemptAt', 'youtubeUpload.attemptId', 'youtubeUpload.nextRetryAt', 'generationVersion',
+  'youtubeUpload.waitReason', 'youtubeUpload.phase',
 ];
-function uploadClaimQuery(item, { allowRetry = true, now = new Date(), observed = item, shortAsset = false } = {}) {
+function uploadClaimQuery(item, { allowRetry = true, now = new Date(), observed = item, shortAsset = false, probe = false } = {}) {
   const initial = { 'youtubeUpload.status': null };
   const retry = {
     'youtubeUpload.status': 'failed', 'youtubeUpload.retrySafe': true,
@@ -50,6 +51,7 @@ function uploadClaimQuery(item, { allowRetry = true, now = new Date(), observed 
       { $or: [{ 'youtubeUpload.nextRetryAt': { $lte: now } }, { 'youtubeUpload.nextRetryAt': null }] },
     ],
   };
+  const waiting = { 'youtubeUpload.status': 'waiting', ...(probe ? {} : { 'youtubeUpload.nextRetryAt': { $lte: now } }) };
   return {
     _id: item._id,
     ...NO_CLEANUP_INTENT,
@@ -57,7 +59,7 @@ function uploadClaimQuery(item, { allowRetry = true, now = new Date(), observed 
       : { 'processing.status': 'completed' }),
     $and: [
       { $or: [{ youtubeVideoId: null }, { youtubeVideoId: '' }] },
-      { $or: allowRetry ? [initial, retry] : [initial] },
+      { $or: allowRetry ? [initial, retry, waiting] : [initial] },
       ...observedFields(observed, UPLOAD_OBSERVED_FIELDS),
     ],
   };

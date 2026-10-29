@@ -70,15 +70,15 @@ describe('管理員 YouTube 生命週期設定 API', () => {
     assert.equal(result.body.error.code, 'FORBIDDEN');
   });
 
-  it('GET 回傳三個開關、修改紀錄與執行期參數', async () => {
+  it('GET 回傳四個開關、修改紀錄與執行期參數', async () => {
     const result = await jsonRequest(serverContext.baseUrl, '/api/v1/admin/youtube-lifecycle/settings', {
       token: adminToken,
     });
 
     assert.equal(result.status, 200);
     const { switches, history, runtime } = result.body.data;
-    assert.deepEqual(switches.map((item) => item.key), ['upload', 'recovery', 'cleanup']);
-    assert.deepEqual(switches[2], {
+    assert.deepEqual(new Set(switches.map((item) => item.key)), new Set(['upload', 'recovery', 'cleanup', 'privacy_guard']));
+    assert.deepEqual(switches.find((item) => item.key === 'cleanup'), {
       key: 'cleanup',
       envAllowed: false,
       runtimeEnabled: null,
@@ -177,6 +177,7 @@ describe('管理員清理預告與立即恢復 API', () => {
   function addUploadedVideo({ uploadedDaysAgo, bytes = 2048 }) {
     const filePath = path.join(tempDir, `source-${uploadedDaysAgo}.mp4`);
     fs.writeFileSync(filePath, Buffer.alloc(bytes));
+    const uploadedAt = new Date(Date.now() - uploadedDaysAgo * DAY_MS);
     const video = {
       _id: `6b00000000000000000000${String(uploadedDaysAgo).padStart(2, '0')}`,
       courseId: ids.teacherCourse,
@@ -184,9 +185,12 @@ describe('管理員清理預告與立即恢復 API', () => {
       filePath,
       youtubeVideoId: `yt${String(uploadedDaysAgo).padStart(9, '0')}`,
       processing: { status: 'completed' },
+      videoSource: 'youtube',
       youtubeUpload: {
         status: 'uploaded',
-        uploadedAt: new Date(Date.now() - uploadedDaysAgo * DAY_MS),
+        remoteState: 'ready',
+        readyAt: uploadedAt,
+        uploadedAt,
       },
     };
     store.videos.push(video);
@@ -355,7 +359,7 @@ describe('管理員隔離清單與查詢 API', () => {
         });
       }
       if (text.includes('/youtube/v3/videos')) {
-        return reply({ items: [{ snippet: { channelId: 'UCown' }, status: { privacyStatus: 'unlisted' } }] });
+        return reply({ items: [{ id: 'foundVideo1', snippet: { channelId: 'UCown' }, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
       }
       throw new Error(`Unexpected Google API call: ${text}`);
     };

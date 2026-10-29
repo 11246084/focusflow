@@ -38,6 +38,10 @@ router.post(
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
   videoController.detachVideo,
 );
+router.get('/videos/upload-storage', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), videoController.getUploadStorage);
+router.get('/videos/upload-status', authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN), videoController.getUploadStatus);
+router.head('/videos/:videoId/source', videoController.getVideoSource);
+router.get('/videos/:videoId/source', videoController.getVideoSource);
 router.get('/videos/:videoId', videoController.getVideoById);
 router.get('/videos/:videoId/processing', videoController.getVideoProcessing);
 router.post('/videos/:videoId/processing/retry', videoController.retryVideoProcessing);

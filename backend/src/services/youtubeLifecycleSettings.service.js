@@ -13,6 +13,7 @@ const YOUTUBE_LIFECYCLE_SWITCHES = Object.freeze({
   UPLOAD: 'upload',
   RECOVERY: 'recovery',
   CLEANUP: 'cleanup',
+  PRIVACY_GUARD: 'privacy_guard',
 });
 
 const YOUTUBE_LIFECYCLE_SWITCH_REASONS = Object.freeze({
@@ -23,6 +24,10 @@ const YOUTUBE_LIFECYCLE_SWITCH_REASONS = Object.freeze({
 
 // 資料庫還沒有設定時：上傳與恢復跟隨環境變數，清理視為關閉（#16）。
 const SWITCH_DEFINITIONS = Object.freeze({
+  [YOUTUBE_LIFECYCLE_SWITCHES.PRIVACY_GUARD]: {
+    settingKey: 'privacy_guard', envName: 'YOUTUBE_PRIVACY_GUARD_ENABLED',
+    readEnv: () => Boolean(env.youtubePrivacyGuardEnabled), enabledWhenUnset: false,
+  },
   [YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD]: {
     settingKey: 'youtubeLifecycle.upload',
     envName: 'YOUTUBE_UPLOAD_ENABLED',
@@ -93,7 +98,7 @@ function resolveYouTubeLifecycleSwitch(key, runtimeValue) {
 
 function toSwitchState(key, document) {
   return {
-    ...resolveYouTubeLifecycleSwitch(key, document?.value),
+    ...resolveYouTubeLifecycleSwitch(key, key === 'privacy_guard' && document?.value && typeof document.value === 'object' ? document.value.enabled : document?.value),
     updatedAt: document?.updatedAt || null,
     updatedBy: document?.updatedBy ? String(document.updatedBy) : null,
   };
@@ -164,7 +169,9 @@ async function setYouTubeLifecycleSwitch({ key, enabled, user, now } = {}) {
   const changedBy = user?.id || user?._id || null;
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const current = await RuntimeSetting.findOne({ key: definition.settingKey }).lean();
-    const change = { from: normalizeRuntimeValue(current?.value), to: enabled, changedBy,
+    const currentEnabled = key === 'privacy_guard' && current?.value && typeof current.value === 'object' ? current.value.enabled : current?.value;
+    const nextValue = key === 'privacy_guard' ? { ...(current?.value && typeof current.value === 'object' ? current.value : {}), enabled } : enabled;
+    const change = { from: normalizeRuntimeValue(currentEnabled), to: enabled, changedBy,
       changedByEmail: user?.email || null, changedAt: now || new Date() };
     try {
       // The old value is the CAS token. Same-value requests are still audited;
@@ -172,7 +179,7 @@ async function setYouTubeLifecycleSwitch({ key, enabled, user, now } = {}) {
       // arbitrates simultaneous first creation; duplicate upsert retries read.
       const document = await RuntimeSetting.findOneAndUpdate(
         { key: definition.settingKey, ...observedField('value', current?.value) },
-        { $set: { value: enabled, updatedBy: changedBy },
+        { $set: { value: nextValue, updatedBy: changedBy },
           $push: { history: { $each: [change], $slice: -RUNTIME_SETTING_HISTORY_LIMIT } } },
         { new: true, upsert: !current, setDefaultsOnInsert: true },
       ).lean();

@@ -266,8 +266,31 @@ describe('youtubeQuarantine.service 隔離清單與查詢', () => {
 });
 
 function ownVideo(privacyStatus = 'unlisted', channelId = 'UCownChannel') {
-  return { snippet: { channelId, title: 'Remote' }, status: { privacyStatus } };
+  return { snippet: { channelId, title: 'Remote' }, status: { privacyStatus, uploadStatus:'processed', embeddable:true } };
 }
+
+describe('Q-B 隔離套用也須通過遠端就緒政策', () => {
+  let restore;
+  beforeEach(() => { resetStore(); restore = useYouTubeTestEnvironment(env, youtubeUploadService.resetYouTubeUploadState); });
+  afterEach(() => restore());
+  for (const privacy of ['public', 'private', null]) it(`隔離套用 ${privacy} 保持 failed 且不連結備份`, async () => {
+    const item = addQuarantinedVideo();
+    const { fetchImpl } = buildYouTubeFake({ videos: { abcdefghijk: ownVideo(privacy) } });
+    await assert.rejects(quarantineService.applyQuarantinedItem({ kind: 'video', id: VIDEO_ID, youtubeVideoId: 'abcdefghijk', fetchImpl }),
+      (error) => error.code === 'YOUTUBE_QUARANTINE_VIDEO_NOT_READY');
+    assert.equal(item.youtubeUpload.status, 'failed'); assert.equal(item.youtubeVideoId, undefined);
+  });
+  it('隔離影片未 processed 或不可嵌入不能套用', async () => {
+    const item = addQuarantinedVideo();
+    for (const status of [{ uploadStatus: 'uploaded' }, { embeddable: false }]) {
+      const video = ownVideo(); Object.assign(video.status, status);
+      const { fetchImpl } = buildYouTubeFake({ videos: { abcdefghijk: video } });
+      await assert.rejects(quarantineService.applyQuarantinedItem({ kind: 'video', id: VIDEO_ID, youtubeVideoId: 'abcdefghijk', fetchImpl }),
+        (error) => error.code === 'YOUTUBE_QUARANTINE_VIDEO_NOT_READY');
+      assert.equal(item.youtubeUpload.status, 'failed');
+    }
+  });
+});
 
 describe('youtubeQuarantine.service 套用與重設', () => {
   let restoreEnvironment;

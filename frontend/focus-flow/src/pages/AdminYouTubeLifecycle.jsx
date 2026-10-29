@@ -13,6 +13,11 @@ import {
   formatBytes,
   formatHistoryValue,
   formatRecoveryResult,
+  getUploadOverview,
+  getPrivacyIncidents,
+  getAdminStorage,
+  probeUpload,
+  restoreUnlisted,
   getCleanupPreview,
   getLifecycleSettings,
   getQuarantineControls,
@@ -127,6 +132,70 @@ function CleanupItemList({ items, emptyText }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+const UPLOAD_LABELS = { waiting: '等待補傳', uploading: '上傳中', uploaded: '已上傳', failed: '上傳失敗', claimed: '已排入', session_saved: '已建立工作階段', sending: '傳送中', processing: '處理中', ready: '可播放', blocked: '不可播放', public: '公開', private: '私人', unlisted: '不公開', api_daily: '每日配額', channel_limit: '頻道上限', rate_limit: '請求過於頻繁', gate_busy: '等待其他上傳', unknown: '原因待確認' };
+function labelUploadValue(value) { return value ? (UPLOAD_LABELS[value] || value) : '—'; }
+
+function UploadOverview({ refreshKey }) {
+  const [overview, setOverview] = useState(null);
+  const [incidents, setIncidents] = useState(null);
+  const [storage, setStorage] = useState(null);
+  const [error, setError] = useState('');
+  const [action, setAction] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [reload, setReload] = useState(0);
+  const busyRef = useRef(false);
+  useEffect(() => {
+    let active = true;
+    Promise.all([getUploadOverview(), getPrivacyIncidents(), getAdminStorage()])
+      .then(([uploads, privacy, disk]) => { if (active) { setOverview(uploads); setIncidents(privacy); setStorage(disk); setError(''); } })
+      .catch((e) => { if (active) { setOverview(null); setIncidents(null); setStorage(null); setError(e.message || '無法取得上傳狀態。'); } });
+    return () => { active = false; };
+  }, [refreshKey, reload]);
+  const update = () => setReload((value) => value + 1);
+  async function handleProbe() {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setMessage(null);
+    try {
+      const result = await probeUpload();
+      setMessage({ tone: result.succeeded ? 'success' : 'error', text: result.succeeded ? '試傳成功，系統已解除暫停。' : result.attempted ? '試傳未成功，系統仍會依狀態等待。' : `目前無法試傳：${result.reason || '沒有可試傳的項目'}。` });
+      update();
+    } catch (e) { setMessage({ tone: 'error', text: e.message || '試傳失敗，請稍後再試。' }); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  function confirmPrivacy(item) {
+    setAction({ title: '改回不公開', summary: `確認將「${item.title || '未命名'}」改為不公開？系統會先確認影片屬於自家頻道並讀回設定。`, confirmLabel: '確認改回', run: async () => { await restoreUnlisted(item.kind, item.id); setMessage({ tone: 'success', text: '已提交隱私修復，請查看最新狀態。' }); update(); } });
+  }
+  return (
+    <>
+      {action && <ConfirmDialog action={action} onClose={() => setAction(null)} />}
+      <div className="card" style={{ padding: 22, marginBottom: 12 }}>
+        <div style={TITLE}>上傳狀態</div>
+        {error && <div role="alert" style={{ color: '#f87171', fontSize: 12 }}>{error}</div>}
+        {!error && !overview && <div style={MUTED}>讀取中...</div>}
+        {overview && <>
+          {overview.pause?.paused && <div role="status" style={{ color: '#fcd34d', marginTop: 8, lineHeight: 1.6 }}>YouTube 上傳暫停中。最快恢復時間：{formatDateTime(overview.pause.earliestRetryAt)}；等待中的影片會自動補傳。</div>}
+          <div style={{ ...MUTED, margin: '10px 0' }}>等待 {overview.waitingCount ?? 0} 支 · 上傳中 {overview.uploadingCount ?? 0} 支 · 最近 24 小時成功 {overview.successLast24Hours ?? 0} 支 · 上次暫停前成功 {overview.lastPauseSuccessCount ?? '—'} 支</div>
+          <button type="button" style={GHOST_BTN} onClick={handleProbe} disabled={busy || !overview.pause?.paused || Boolean(overview.pause?.probe)}>{busy || overview.pause?.probe ? '試傳進行中...' : '提前檢查並嘗試恢復'}</button>
+          <Message message={message} />
+          <div className="ff-tbl-wrap" style={{ marginTop: 12, maxHeight: 300, overflowY: 'auto' }}><table className="ff-tbl"><thead><tr><th>類型／名稱</th><th>上傳狀態</th><th>可播放／隱私</th><th>等待至</th><th>需確認的孤兒上傳</th></tr></thead><tbody>
+            {(overview.items || []).map((item) => <tr key={`${item.kind}:${item.id}`}><td>{KIND_LABELS[item.kind] || item.kind} · {item.title || '未命名'}</td><td>{labelUploadValue(item.status)}{item.phase ? `（${labelUploadValue(item.phase)}）` : ''}{item.waitReason ? `（${labelUploadValue(item.waitReason)}）` : ''}</td><td>{labelUploadValue(item.remoteState)}／{labelUploadValue(item.privacyStatus)}</td><td>{formatDateTime(item.nextRetryAt)}</td><td>{item.orphanUploads?.length ? item.orphanUploads.map((orphan) => <div key={`${orphan.attemptId}:${orphan.youtubeVideoId}`}>{orphan.youtubeVideoId}（{formatDateTime(orphan.detectedAt)}）</div>) : '—'}</td></tr>)}
+          </tbody></table></div>
+          {!overview.items?.length && <div style={MUTED}>目前沒有上傳紀錄。</div>}
+        </>}
+      </div>
+      <div className="card" style={{ padding: 22, marginBottom: 12 }}>
+        <div style={TITLE}>儲存空間</div>
+        {storage && <><div style={{ ...MUTED, marginTop: 8 }}>可用於上傳 {formatBytes(storage.availableBytes)} · 已預約 {formatBytes(storage.reservedBytes)} · 尚未就緒的原片 {formatBytes(storage.pendingLocalBytes)} · 無法讀取 {storage.unreadableLocalCount || 0} 支</div><div style={{ ...MUTED, marginTop: 8 }}>不可播放：{storage.blocked?.length ? storage.blocked.map((item) => item.title || '未命名').join('、') : '無'}</div></>}
+      </div>
+      <div className="card" style={{ padding: 22, marginBottom: 12 }}>
+        <div style={TITLE}>隱私事件</div>
+        {!incidents ? <div style={{ ...MUTED, marginTop: 8 }}>{error ? '無法取得隱私事件。' : '讀取中...'}</div> : !incidents.items?.length ? <div style={{ ...MUTED, marginTop: 8 }}>目前沒有隱私事件。</div> : <div className="ff-tbl-wrap" style={{ marginTop: 8 }}><table className="ff-tbl"><thead><tr><th>影片</th><th>偵測時間</th><th>發現／處理結果</th><th>目前隱私</th><th>操作</th></tr></thead><tbody>{incidents.items.map((item, index) => <tr key={`${item.kind}:${item.id}:${item.detectedAt}:${index}`}><td>{item.title || '未命名'}</td><td>{formatDateTime(item.detectedAt)}</td><td>{labelUploadValue(item.observed)}／{labelUploadValue(item.action)}／{labelUploadValue(item.result)}</td><td>{labelUploadValue(item.privacyStatus)}</td><td><button type="button" style={GHOST_BTN} onClick={() => confirmPrivacy(item)}>改回不公開</button></td></tr>)}</tbody></table></div>}
+      </div>
+    </>
   );
 }
 
@@ -297,6 +366,8 @@ export default function AdminYouTubeLifecycle() {
         <div style={{ ...TITLE, fontSize: 15 }}>YouTube 上傳管理</div>
         <button className="btn-primary" onClick={refresh} style={{ padding: '9px 20px', fontSize: 12 }}><Ic n="sync" s={13} />重新整理</button>
       </div>
+
+      <UploadOverview refreshKey={refreshKey} />
 
       {/* 兩層開關：環境變數允許 + 執行期設定（#9、#13、#16） */}
       <div className="card" style={{ padding: 22, marginBottom: 12 }}>

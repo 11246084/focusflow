@@ -1,9 +1,11 @@
 const RecutTask = require('../models/recutTask.model');
 const RecutAttempt = require('../models/recutAttempt.model');
 const ShortScript = require('../models/shortScript.model');
+const RecutVersion = require('../models/recutVersion.model');
+const RecutSource = require('../models/recutSource.model');
 const AppError = require('../utils/appError');
 const { RECUT_STAGES, RECUT_TASK_TYPES: T, RECUT_TASK_STATUSES: J } = require('../constants/recut');
-const { transitionRecut, recutSnapshot, createRecutVersion, withRecutScriptLock } = require('./recutState.service');
+const { transitionRecut, recutSnapshot, createRecutVersion, withRecutScriptLock, narrationKey } = require('./recutState.service');
 const notifications = require('./notification.service');
 const { getSetting: defaultGetSetting } = require('./recutSettings.service');
 
@@ -127,8 +129,30 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
       }
       await checkCancelled(task._id);
       if (!context.data.version) throw new AppError('Recut pipeline returned no version.', 502, 'RECUT_VALIDATION_FAILED');
+      if (task.input?.lockedSelection) {
+        const { selectionKey } = require('./recutReviewSteps.service');
+        const output = context.data.version;
+        if (selectionKey(output.selection || {}) !== selectionKey(task.input.lockedSelection)
+          || String(output.sourceId) !== String(task.input.sourceId) || output.fullScript !== task.input.fullScript
+          || (task.input.originalNarrationKey && narrationKey(output) !== task.input.originalNarrationKey)) {
+          throw new AppError('重新配圖或檢查改動了鎖定選段，原版與修改已保留。', 422, 'RECUT_LOCKED_SELECTION_CHANGED');
+        }
+      }
+      if (task.input?.presentationScope) {
+        const { scopeMatches } = require('./recutReviewScope.service');
+        const scope = task.input.presentationScope;
+        if (!scopeMatches(scope.before, { plan: context.data.version.plan, theme: context.data.version.theme }, scope.allowedPaths)) {
+          throw new AppError('背景工作改動了未採納建議的範圍，原版已保留。', 422, 'RECUT_SUGGESTION_SCOPE_CHANGED');
+        }
+      }
       const version = await createRecutVersion({ ...context.data.version, scriptId: task.scriptId, taskId: task._id,
         parentVersionId: task.baseSnapshot.currentVersionId || null });
+      if (task.input?.baseVersionId) {
+        const previous = await RecutVersion.findById(task.input.baseVersionId).lean();
+        const source = await RecutSource.findById(version.sourceId).lean();
+        const { summarizeChanges } = require('./recutChangeSummary.service');
+        await RecutTask.findByIdAndUpdate(task._id, { $set: { changeSummary: summarizeChanges(previous, context.data.version, source) } });
+      }
       await checkCancelled(task._id);
       await transitionRecut({ scriptId: task.scriptId, event: 'complete_task', taskId: task._id, versionId: version._id });
       const finished = await RecutTask.findByIdAndUpdate(task._id, { $set: {
@@ -164,7 +188,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
     });
   }
 
-  async function enqueue({ script, requestedBy, type = T.GENERATE, input = {} }) {
+  async function enqueue({ script, requestedBy, type = T.GENERATE, input = {}, transition = transitionRecut }) {
     const steps = pipelines.get(type);
     if (!steps) throw new AppError('Recut steps are not registered yet.', 503, 'RECUT_STEPS_NOT_CONFIGURED');
     if ((script.productionMode || 'avatar') !== 'recut' || script.recut?.activeTaskId) {
@@ -183,7 +207,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
       type, status: J.QUEUED, callLimit, callsUsed: 0, input, stepIds: steps.map((s) => s.id),
       baseSnapshot: recutSnapshot(script), settingsSnapshot: await captureSettings(), queuedAt: new Date() });
     try {
-      await transitionRecut({ scriptId: script._id, event: 'queue_task', taskId: task._id,
+      await transition({ scriptId: script._id, event: 'queue_task', taskId: task._id,
         expectedRevision: recutSnapshot(script).revision });
       await RecutTask.findByIdAndUpdate(task._id, { $set: { readyAt: new Date() } });
     } catch (error) {

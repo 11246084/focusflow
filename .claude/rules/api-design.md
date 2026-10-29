@@ -166,6 +166,12 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `RECUT_ASR_INVALID` | 422 | 逐字時間為空、無效或不在視窗內 |
 | `RECUT_SOURCE_INVALID` | 422 | 選段來源不存在或不屬於該腳本 |
 | `RECUT_MODEL_FAILED` | 502 | recut 模型呼叫失敗，已用額度與用量保留 |
+| `RECUT_REVIEW_NOT_READY` | 409 | 無目前 recut 版本，或無法回答時試圖從零手動選句 |
+| `RECUT_DURATION_INVALID` | 422 | 修改後總長不在 30～65 秒；草稿保留 |
+| `RECUT_LOCK_CONFIRM_REQUIRED` | 409 | 採納建議將改教師鎖定選段，需明確確認 |
+| `RECUT_SUGGESTION_NOT_READY` | 409 | 呈現建議未提供明確合法修改範圍 |
+| `RECUT_LOCKED_SELECTION_CHANGED` | 422 | 背景步驟推翻鎖定選段，任務失敗並恢復原版 |
+| `RECUT_SUGGESTION_SCOPE_CHANGED` | 422 | 背景步驟修改未採納的呈現範圍，任務失敗並恢復原版 |
 | `RECUT_CALL_LIMIT_EXCEEDED` | 409 | 任務固定的共用呼叫額度已用完（寫入任務錯誤，不直接回生成請求） |
 | `RECUT_VALIDATION_FAILED` | 422 | 背景步驟驗證未通過或沒有提供版本（寫入任務錯誤） |
 | `RECUT_TASK_INTERRUPTED` | 409 | 後端重啟中斷執行，保留嘗試紀錄並恢復原版（寫入任務錯誤） |

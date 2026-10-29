@@ -1,6 +1,6 @@
 # Phase 2 API Contract
 
-最後更新：2026-10-28
+最後更新：2026-10-29
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
@@ -19,6 +19,14 @@
 task 必須屬於 script；不屬於時回 404 `RECUT_TASK_NOT_FOUND`。拒絕多餘輸入欄位，不接受教師指定呼叫額度或任務類型。尚未註冊生成步驟回 503 `RECUT_STEPS_NOT_CONFIGURED`；未選 recut、版本過時、重複啟動或非法轉換回 409 `RECUT_STATE_INVALID`。背景錯誤存在 `task.error.{code,message}`，不把已回 202 的請求改成同步錯誤。
 
 任務狀態是 `queued/running/cancel_requested/succeeded/failed/cancelled`。取消在步驟間生效，進行中的呼叫留紀錄但不採用晚到輸出；取消或失敗恢復原版並保留未套用修改。首次與修改預設共用額度各 5 次，任務建立時固定；上限讀取介面與狀態轉換規則見 [recut 後端接手](recut-foundation.md)。審閱／修改 API 由 RC8 接手。
+
+## recut RC8 審閱契約
+
+九個新增端點與 RC9 接手例子見[審閱介面](recut-review.md#rc9-端點)，OpenAPI 定義所有欄位。沿用 RC1 功能開關、課程教師／admin 權限。寫入都帶目前 `versionId/expectedRevision`，計時停止例外使用原 `versionId/timingId`；不接受任意 plan、來源路徑、額度或計時秒數。
+
+`GET /short-scripts/:scriptId/recut/review` 的 `fullScript/current` 是目前版，`draft` 是未套用預覽；逐句標記以草稿優先。修改先存 DB、立即回總長與 `durationValid`；未套用時核准被擋。套用或採納建議回 202 單一任務，RC4 未註冊回 503；失敗／取消回原版並保留草稿，完成摘要從持久任務重讀。只改呈現時保留講稿核准，新 MP4 仍重新核准；改原話或順序先重審講稿。
+
+`adopted:null` 為未決定，true 為教師按過套用，false 為未採納；任務成敗另查。直接核准將該版本未決定建議結算 false。品質建議不擋核准。講稿核准、等待製作與成品核准為不同 API，不直接呼叫 YouTube 或發布。
 
 ## 1. QA 回答契約
 

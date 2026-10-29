@@ -259,6 +259,9 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
 }
 
 const transitionRecut = (options) => withRecutScriptLock(options.scriptId, () => transitionOwned(options));
+// 同一鎖內完成草稿／任務快照；scopedTransition 仍只走上面的狀態入口，避免遞迴取鎖。
+const withRecutTransition = (scriptId, action) => withRecutScriptLock(scriptId,
+  () => action((options) => transitionOwned({ ...options, scriptId })));
 const setProductionModeForScript = (options) => withRecutScriptLock(options.scriptId, () => setProductionModeOwned(options));
-module.exports = { transitionRecut, withRecutScriptLock, setProductionModeForScript, productionMode, recutSnapshot,
+module.exports = { transitionRecut, withRecutScriptLock, withRecutTransition, setProductionModeForScript, productionMode, recutSnapshot,
   createRecutSource, createRecutVersion, validateSentenceList, narrationKey, assertRecutAssetPublishable };

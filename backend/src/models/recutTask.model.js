@@ -12,6 +12,7 @@ const schema = new Schema({
   baseSnapshot: { type: Schema.Types.Mixed, required: true },
   settingsSnapshot: { type: Schema.Types.Mixed, default: {}, immutable: true },
   resultVersionId: { type: Schema.Types.ObjectId, ref: 'RecutVersion', default: null },
+  changeSummary: { type: [String], default: null },
   queuedAt: { type: Date, required: true }, startedAt: { type: Date, default: null }, finishedAt: { type: Date, default: null },
   readyAt: { type: Date, default: null },
   error: { type: Schema.Types.Mixed, default: null }, notifiedAt: { type: Date, default: null },

@@ -49,4 +49,4 @@ async function cancelTask(options) {
   await loadTask(options);
   return toPublicTask(await recutQueue.requestCancel(options.taskId));
 }
-module.exports = { setProductionMode, startGeneration, getState, getTask, cancelTask };
+module.exports = { setProductionMode, startGeneration, getState, getTask, cancelTask, loadForManage, toPublicTask };

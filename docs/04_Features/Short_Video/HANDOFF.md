@@ -2,7 +2,7 @@
 
 這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能開工或接續 recut。設計只看 [recut 設計決策](recut-design-decisions.md)（下稱「決策」）與[體驗設計決策](decisions.md)（UX-1～UX-19），功能狀態只看[目前狀態](../../current-status.md)；這裡只記錄工單、分支、時程、人工確認點與下一步。功能完成時，在同一個 PR 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-10-27（排定時程：11/5 先在本機產出短片並以網頁審閱；尚未開工）
+最後更新：2026-10-29（功能狀態見[目前狀態](../../current-status.md)。目標仍為 11/5 在本機產片並以網頁審閱）
 
 ## 必守規則
 
@@ -25,11 +25,11 @@
 
 | 工單 | 範圍 | 分支 | 前提 | 目標日 | 狀態 |
 |---|---|---|---|---|---|
-| [RC1 資料模型、狀態機與背景工作](work-orders/RC1-data-model-state.md) | 後端 | `wip/recut-rc1-data-model` | 無 | 10/29 | 未開工 |
+| [RC1 資料模型、狀態機與背景工作](work-orders/RC1-data-model-state.md) | 後端 | `wip/recut-rc1-data-model` | 無 | 10/29 | 本機開發與驗證完成；獨立審查待 11/6 |
 | [RC5 short_render 對齊決策](work-orders/RC5-short-render.md) | short_render | `wip/recut-rc5-render` | 無 | 10/29 | 未開工 |
-| [RC2 連續視窗、原片檢查與視窗辨識](work-orders/RC2-window-asr.md) | 後端＋Python | `wip/recut-rc2-window` | RC1 | 11/1 | 未開工 |
-| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 未開工 |
-| [RC8 審閱流程 API](work-orders/RC8-review-api.md) | 後端 | `wip/recut-rc8-review-api` | RC1（RC4 合併後接上重跑入口） | 11/1 | 未開工 |
+| [RC2 連續視窗、原片檢查與視窗辨識](work-orders/RC2-window-asr.md) | 後端＋Python | `wip/recut-rc2-window` | RC1 | 11/1 | 本機開發與驗證完成；獨立審查待 11/6 |
+| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 本機開發與驗證完成；草稿複核通過，完整獨立審查待 11/6 |
+| [RC8 審閱流程 API](work-orders/RC8-review-api.md) | 後端 | `wip/recut-rc8-review-api` | RC1（RC4 合併後接上重跑入口） | 11/1 | 本機開發與驗證完成；API 契約確認，完整獨立審查待 11/6 |
 | [RC4 第二、三步：圖卡、字幕與整段檢查](work-orders/RC4-step2-3-cards-check.md) | 後端 | `wip/recut-rc4-cards` | RC3、RC5 | 11/3 | 未開工 |
 | [RC9 教師審閱介面](work-orders/RC9-teacher-ui.md) | 前端 | `wip/recut-rc9-teacher-ui` | RC8 的 OpenAPI | 11/3 | 未開工 |
 | [RC6 程式碼圖卡](work-orders/RC6-code-card.md) | 後端＋short_render | `wip/recut-rc6-code-card` | RC4 | 11/4 | 未開工 |
@@ -65,6 +65,6 @@
 
 ## 下一步
 
-1. 建立 `feat/recut` 與 RC1、RC5 的 worktree，交給 Codex 同時開工。
-2. RC1 合併後，同時交出 RC2、RC3、RC8。
+1. RC4 依 [RC3 選段介面](../../../backend/docs/recut-selection.md) 與 [RC8 重跑／建議介面](../../../backend/docs/recut-review.md) 接上第二、三步；RC5 可獨立開工。完整生成步驟未註冊時仍明確回 503。
+2. RC9 依 RC8 已確認的 OpenAPI 接審閱；先核對 `dev` 目前教師腳本／上傳頁版面，保留前端同仁的新布局。沒有完成真實生成、渲染或網頁人工驗收。
 3. 系統設定 S1 合併進 `dev` 後，RC3 改用正式的 `getSetting`，移除轉接函式。

@@ -53,6 +53,13 @@ docs/
 ## 文件責任
 
 YouTube Q 整合：[2026-10-29 本機驗收證據](04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)、[部署與退回程序](10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)、[後端文件入口](../backend/docs/README.md)。
+recut 後端接手：[RC1 資料、狀態機與背景工作](../backend/docs/recut-foundation.md)（集合、句子格式、RC2／RC3／RC8 介面）；本機變更紀錄沿用 [implementation-log](../backend/docs/implementation-log.md)。
+
+recut 原片處理：[連續視窗、音量與切句規則](../backend/docs/recut-source.md)。
+
+recut 選段：[指示文字、驗證與共用呼叫介面](../backend/docs/recut-selection.md)。
+
+recut 教師審閱：[RC8 API、草稿與 RC4／RC9 接手](../backend/docs/recut-review.md)。
 
 YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lifecycle/shared-data-contract.md)、[Q-A～Q-F 工作說明](04_Features/YouTube_Lifecycle/work-orders/Q-quota-playback-plan.md)、[額度與上傳可靠性研究](04_Features/YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](04_Features/YouTube_Lifecycle/local-playback-research.md)。
 

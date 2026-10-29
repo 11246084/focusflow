@@ -35,6 +35,12 @@ npm.cmd run dev
 
 ## 資料工具與問答設定
 
+recut 視窗處理的 `RECUT_FFMPEG`、`RECUT_FFPROBE`、`RECUT_PYTHON`、`RECUT_ASR_MODEL` 設定與離線模型前提見[原片處理說明](docs/recut-source.md)。
+
+recut 模型與額度暫透過設定轉接函式讀 `RECUT_GEMINI_MODEL`、`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT`；模型未填沿用 `GEMINI_CHAT_MODEL`，上限預設各 5。步驟註冊及 S1 替換方式見[選段說明](docs/recut-selection.md)。
+
+教師審閱 API、草稿／復原、核准與 RC4 重跑註冊見[審閱介面](docs/recut-review.md)。RC9 以 OpenAPI 的 `GET /recut/review` 接資料；尚未註冊 RC4 時套用回 503。
+
 下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
 
 | 指令 | 作用 |
@@ -50,6 +56,8 @@ npm.cmd run dev
 例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
 
 測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。
+
+recut 的最小 API 沿用 `SHORT_SCRIPT_AUTOMATION_ENABLED`，預設關閉。RC2～RC4 註冊步驟前，啟動生成回 `503 RECUT_STEPS_NOT_CONFIGURED`；開關不會啟用假的產片。集合、句子樣本、註冊方式及本機隔離 Mongo 測試見 [recut 後端接手](docs/recut-foundation.md)。
 
 YouTube 所有權的真實 Mongo 整合測試需另外執行，不會隨 `npm.cmd test` 連線。課程刪除使用 transaction，因此完整測試需要 replica set。先啟動只綁定 loopback 的測試 Mongo，再由 backend 目錄執行（名稱與 port 須未被使用）：
 

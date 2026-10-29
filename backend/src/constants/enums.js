@@ -118,6 +118,7 @@ const USAGE_LOG_EVENTS = {
 };
 
 const NOTIFICATION_SOURCES = {
+  RECUT_TASK_FINISHED: 'recut_task_finished',
   VIDEO_COMPLETED: 'video_completed',
   SYSTEM_MAINTENANCE: 'system_maintenance',
   // Sent to the script owner when a generated short is rejected; links back to the script.

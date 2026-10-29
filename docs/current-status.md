@@ -62,7 +62,7 @@
 
 **短影片腳本｜已實作；上架未驗證。** [腳本介面](../backend/src/routes/short-script.routes.js)串接選題、生成、成品上傳與審核；[發布服務](../backend/src/services/shortAssetPublish.service.js)處理 YouTube 上傳與審核後提供學生瀏覽。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**短影片自動產片｜規劃中。** 新方向原型位於 [short_render/](../short_render/)（原片剪輯加程式動畫，不使用教授端生成模型），尚未接入前後端。依據：[指令入口](../short_render/bin/short-render.js)與 2026-10-15 團隊決定。最後驗證：2026-10-15；負責人：＿＿（待填）。
+**短影片自動產片｜開發中。** RC1 資料／狀態機／背景工作、RC2 視窗／原片檢查／辨識包裝／切句、RC3 設定轉接／選段判斷／逐字驗證、RC8 教師審閱／草稿／採納建議／核准／計時已完成本機實作；介面見 [RC1](../backend/docs/recut-foundation.md)、[RC2](../backend/docs/recut-source.md)、[RC3](../backend/docs/recut-selection.md)、[RC8](../backend/docs/recut-review.md)。2026-10-29 Node 22.23.4 的 backend 全套 1322／1322、隔離 loopback Mongo 6／6、OpenAPI lint 與文件路由測試 11／11 通過。RC2 專屬19項、RC3專屬21項、RC8專屬39項，8拍程式與既有測試未改。子 agent 已複核選段草稿與審閱API契約；外部工具及模型皆注入假實作。未執行真實辨識、Gemini、渲染、VM／Atlas／YouTube、前端或人工驗收；完整管線待 RC4、RC5，S1 尚用轉接。後續依 [HANDOFF](04_Features/Short_Video/HANDOFF.md) 接續，完整獨立審查排定 11/6 起。
 
 **分層檢索與向量發布｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。分層檢索是先找較大段落，再找可引用的小片段；[檢索服務](../backend/src/services/hierarchicalRetrieval.service.js)、[資料檢查](../backend/src/services/hierarchicalDataReadiness.service.js)與[發布入口](../STT_Whisper/src/publish_parent_embeddings.py)有對應程式，不據此判定可啟用。最後驗證：2026-10-15；負責人：＿＿（待填）。
 

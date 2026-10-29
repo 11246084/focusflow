@@ -30,6 +30,7 @@ const {
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
+const { recoverQueuedRecutTasks, recutQueue } = require('./services/recutQueue.service');
 const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
 const { cleanupIncoming, warnLowSpace } = require('./services/uploadStorage.service');
 const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = require('./services/courseDeletionJobs.service');
@@ -57,6 +58,9 @@ async function startServer() {
     console.error('Failed to recover queued video processing.', error);
   });
   startShortsSyncScheduler();
+  if (env.shortScriptAutomationEnabled) recoverQueuedRecutTasks().catch((error) => {
+    console.error('Failed to recover queued recut tasks.', error);
+  });
   startVideoBatchReconciliationScheduler();
   startYouTubeRemoteStateScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
@@ -73,6 +77,7 @@ async function startServer() {
   warnLowSpace().catch((error) => console.error('Upload storage warning failed.', error.message));
 
   const shutdown = async () => {
+    recutQueue.stop();
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();

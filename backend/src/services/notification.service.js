@@ -622,11 +622,23 @@ function notifyYouTubeRemoteEvent({ kind, item, reason, detectedAt, urgent = fal
     content: `「${String(item.title || '影片')}」：${message}`, urgent });
 }
 
+async function notifyRecutTaskFinished(task) {
+  const succeeded = task.status === 'succeeded';
+  const course = await Course.findById(task.courseId).select('teacherId').lean();
+  const recipientId = course?.teacherId || task.requestedBy;
+  return upsertDedupedNotifications([{ updateOne: {
+    filter: { recipientId, dedupeKey: `recut_task_finished:${task._id}` },
+    update: { $setOnInsert: { recipientId, source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED,
+      title: succeeded ? 'recut 講稿已更新' : 'recut 處理失敗，已回到原版',
+      content: succeeded ? '請開啟講稿審閱最新版本。' : truncate(task.error?.message || '處理失敗，請稍後重試。', 2000),
+      urgent: false, readAt: null, courseIds: [task.courseId], scriptId: task.scriptId,
+      dedupeKey: `recut_task_finished:${task._id}` } }, upsert: true,
+  } }]);
+}
+
 module.exports = {
-  notifyYouTubeSystemEvent,
-  notifyYouTubeRemoteEvent,
-  notifyYouTubeUploadPaused,
-  notifyYouTubeUploadBlockedRounds,
+  notifyYouTubeSystemEvent, notifyYouTubeRemoteEvent, notifyYouTubeUploadPaused, notifyYouTubeUploadBlockedRounds, notifyRecutTaskFinished,
+
   DEFAULT_LIMIT,
   MAX_LIMIT,
   removeVideoNotifications,

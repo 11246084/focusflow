@@ -7,6 +7,7 @@ const { USER_ROLES } = require('../constants/enums');
 const { uploadSingleVideo } = require('../middleware/upload.middleware');
 const controller = require('../controllers/shortScript.controller');
 const recutController = require('../controllers/recut.controller');
+const recutReview = require('../controllers/recutReview.controller');
 
 const router = express.Router();
 
@@ -35,6 +36,15 @@ router.post('/short-scripts/:scriptId/recut/generate', guard, recutController.st
 router.get('/short-scripts/:scriptId/recut', guard, recutController.getState);
 router.get('/short-scripts/:scriptId/recut/tasks/:taskId', guard, recutController.getTask);
 router.post('/short-scripts/:scriptId/recut/tasks/:taskId/cancel', guard, recutController.cancelTask);
+router.get('/short-scripts/:scriptId/recut/review', guard, recutReview.getReview);
+router.patch('/short-scripts/:scriptId/recut/selection', guard, recutReview.editSelection);
+router.post('/short-scripts/:scriptId/recut/selection/restore', guard, recutReview.restoreSelection);
+router.post('/short-scripts/:scriptId/recut/selection/apply', guard, recutReview.applySelection);
+router.post('/short-scripts/:scriptId/recut/suggestions/apply', guard, recutReview.applySuggestions);
+router.post('/short-scripts/:scriptId/recut/approve-script', guard, recutReview.approveScript);
+router.post('/short-scripts/:scriptId/recut/render', guard, recutReview.queueRender);
+router.post('/short-scripts/:scriptId/recut/approve-asset', guard, recutReview.approveAsset);
+router.post('/short-scripts/:scriptId/recut/review-time', guard, recutReview.recordTime);
 router.post('/short-scripts/:scriptId/generate', guard, controller.generateVersion);
 router.post('/short-scripts/:scriptId/review', guard, controller.reviewScript);
 

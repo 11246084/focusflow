@@ -39,6 +39,8 @@ recut 視窗處理的 `RECUT_FFMPEG`、`RECUT_FFPROBE`、`RECUT_PYTHON`、`RECUT
 
 recut 模型與額度暫透過設定轉接函式讀 `RECUT_GEMINI_MODEL`、`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT`；模型未填沿用 `GEMINI_CHAT_MODEL`，上限預設各 5。步驟註冊及 S1 替換方式見[選段說明](docs/recut-selection.md)。
 
+教師審閱 API、草稿／復原、核准與 RC4 重跑註冊見[審閱介面](docs/recut-review.md)。RC9 以 OpenAPI 的 `GET /recut/review` 接資料；尚未註冊 RC4 時套用回 503。
+
 下列指令會寫入 `MONGODB_URI` 指向的資料庫；指向共用 Atlas 時，先確認目標與授權。
 
 | 指令 | 作用 |

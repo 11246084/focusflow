@@ -26,7 +26,7 @@ function anchorIndex(sentence, phrase, end) {
   }
   invalid(`${sentence.id} 的錨點不在可用逐字邊界`);
 }
-function resolveSelection(source, input) {
+function resolveSelection(source, input, { allowInvalidDuration = false } = {}) {
   const sentences = source.sentences; const index = new Map(sentences.map((s, i) => [s.id, i]));
   shape(input, ['answerable', 'unanswerableReason', 'ranges', 'sentenceLabels', 'openingSentenceId'], ['lockedSentenceIds']);
   if (typeof input.answerable !== 'boolean' || !Array.isArray(input.ranges) || !Array.isArray(input.sentenceLabels)) invalid('輸出型別錯誤');
@@ -42,7 +42,7 @@ function resolveSelection(source, input) {
       || [...labels.values()].some((v) => KEEP.has(v))) invalid('無法回答時須附原因、全部跳過且不得選段');
     return { selection: { ...input, lockedSentenceIds: [] }, clips: [], durationSec: 0, fullScript: '' };
   }
-  if (input.unanswerableReason !== null || !input.ranges.length) invalid('可回答時須有範圍且原因為 null');
+  if (input.unanswerableReason !== null || (!allowInvalidDuration && !input.ranges.length)) invalid('可回答時須有範圍且原因為 null');
   const opening = input.openingSentenceId;
   if (opening !== null && (!index.has(opening) || labels.get(opening) !== '冷開場'
     || sentences[index.get(opening)].endSec - sentences[index.get(opening)].startSec > 3)) invalid('片頭須為同一視窗不超過三秒的冷開場句');
@@ -85,7 +85,7 @@ function resolveSelection(source, input) {
   }
   for (const [id, label] of labels) if (KEEP.has(label) !== selected.has(id)) invalid(`${id} 的理由標籤與實際範圍矛盾`);
   const durationSec = round(clips.reduce((sum, c) => sum + c.endSec - c.startSec, 0));
-  if (durationSec < 30 || durationSec > 65) invalid(`總長 ${durationSec} 秒，不在 30～65 秒`);
+  if (!allowInvalidDuration && (durationSec < 30 || durationSec > 65)) invalid(`總長 ${durationSec} 秒，不在 30～65 秒`);
   const locked = input.lockedSentenceIds || [];
   if (!Array.isArray(locked) || new Set(locked).size !== locked.length || locked.some((id) => !index.has(id))) invalid('鎖定句子不存在或重複');
   return { selection: { ...input, ranges, lockedSentenceIds: [...locked] }, clips, durationSec, fullScript: clips.map((c) => c.text).join('\n\n') };

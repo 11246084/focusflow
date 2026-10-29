@@ -52,6 +52,8 @@ docs/
 
 ## 文件責任
 
+YouTube Q 整合：[2026-10-29 本機驗收證據](04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)、[部署與退回程序](10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)、[後端文件入口](../backend/docs/README.md)。
+
 YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lifecycle/shared-data-contract.md)、[Q-A～Q-F 工作說明](04_Features/YouTube_Lifecycle/work-orders/Q-quota-playback-plan.md)、[額度與上傳可靠性研究](04_Features/YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](04_Features/YouTube_Lifecycle/local-playback-research.md)。
 
 YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)，記錄 R07、R10～R12 的來源重新處理、總覽與並行稽核證據。

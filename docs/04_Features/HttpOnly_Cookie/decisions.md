@@ -71,3 +71,5 @@
 
 - **已登入裝置清單**：`authSessions` 已存 `createdAt` 與 `userAgent`，畫面與 `lastSeenAt`（需節流寫入）留待之後決定。
 - **`/uploads` 的存取控制**：`backend/src/app.js` 以 `express.static` 公開提供 `/uploads`，不需登入，知道網址就能下載（例如教師上傳的本機影片）。這是改 cookie 之前就存在的行為；改用 cookie 後，`<video src>` 會自動帶 cookie，才有條件改成「登入且有選課才能存取」。需另外盤點 VM 上 `/uploads` 實際存放的檔案，並確認 nginx 是否也直接提供這個路徑。
+
+`/uploads` 原片存取控制由 [YouTube Lifecycle 決策 #62](../YouTube_Lifecycle/decisions.md)定案：移除公開靜態路徑，使用同來源 cookie 的 GET／HEAD `/api/v1/videos/:videoId/source`，每次 Range 重新驗課程權限；不變更本文件既定 cookie／CSRF 規則。

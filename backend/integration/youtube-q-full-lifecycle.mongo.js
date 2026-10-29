@@ -66,7 +66,7 @@ beforeEach(async () => {
   failQuota = true; counters = { sessions: 0, puts: 0, privacyUpdates: 0 }; statuses = new Map();
 });
 after(async () => { await mongoose.disconnect(); await isolated?.close(); if (root && path.basename(root).startsWith('ff-qf-local-')) fs.rmSync(root, { recursive: true, force: true }); });
-it('Q-F 原片播放→額度等待→單支試傳→processing→ready切換→同輪重查後清理', async () => {
+it('Q-F 原片播放→額度等待→中斷安全接手→單支試傳→ready切換→同輪重查後清理', async () => {
   const item = await add();
   assert.equal(playback.resolvePlaybackSource(item).type, 'local');
   assert.equal(playback.authorizeSource({ video: item }, { role: 'student' }), fs.realpathSync(item.filePath));
@@ -75,6 +75,21 @@ it('Q-F 原片播放→額度等待→單支試傳→processing→ready切換→
   assert.equal(current.youtubeUpload.status, 'waiting'); assert.equal(current.youtubeUpload.attemptCount, 0); assert.equal(counters.puts, 0);
   assert.equal((await gate.getUploadPauseSnapshot()).paused, true);
   assert.equal((await admin.getUploadOverview()).waitingCount, 1);
+  // Simulate a process loss after session persistence, before the media boundary.
+  // Expired heartbeat and the observed attempt/phase still fence the real Mongo takeover.
+  await Video.collection.updateOne({ _id: item._id }, { $set: {
+    'youtubeUpload.status': 'uploading', 'youtubeUpload.phase': 'session_saved',
+    'youtubeUpload.attemptId': 'qf-interrupted', 'youtubeUpload.attemptCount': 1,
+    'youtubeUpload.lastAttemptAt': new Date(Date.now() - 20 * 60000),
+    'youtubeUpload.heartbeatAt': new Date(Date.now() - 5 * 60000),
+    'youtubeUpload.session': { url: 'https://qf.invalid/session', fileSize: fs.statSync(item.filePath).size, createdAt: new Date() },
+  } });
+  const interrupted = await Video.findById(item._id).select('+youtubeUpload.session.url').lean();
+  const recovered = await upload.recoverStaleUpload({ model: Video, kind: 'video', item: interrupted, fetchImpl: fake });
+  assert.equal(recovered.youtubeUpload.retrySafe, true); assert.equal(recovered.youtubeUpload.attemptCount, 0);
+  assert.notEqual(recovered.youtubeUpload.attemptId, 'qf-interrupted'); assert.equal(counters.puts, 0);
+  await upload.autoUploadVideoToYouTube(String(item._id), { fetchImpl: fake });
+  assert.equal((await Video.findById(item._id).lean()).youtubeUpload.status, 'waiting');
   const probe = await gate.runUploadProbe({ actor: String(teacher), fetchImpl: fake }); assert.equal(probe.succeeded, true);
   current = await Video.findById(item._id).lean(); assert.equal(current.youtubeUpload.remoteState, 'processing');
   assert.equal(current.videoSource, 'upload'); assert.equal(playback.resolvePlaybackSource(current).type, 'local');

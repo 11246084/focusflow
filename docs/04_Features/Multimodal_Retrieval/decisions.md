@@ -31,11 +31,27 @@
 | 分層開關 | `HIERARCHY_ENABLED`、`PARENT_EMBEDDING_ENABLED` 預設關閉，後者需要前者；Parent 規則是固定 3 個 chunk 合併 | [config.py](../../../STT_Whisper/src/config.py) |
 | AI入門 6 支 chunk | 共 694 筆、總長約 10,846 秒。平均 12.7～21.0 秒；最短 2 秒；V3、V5 各有一筆 600 秒以上、文字只有「好好」的片段（長時間沒講話被併成一段） | Atlas 唯讀彙總 `video_segments_text` |
 | 題庫 | 50 題，其中 43 題有標準答案（7 題課程外應拒答）；每題標註影片代號與秒數範圍。只涉及 V1 的有 7 題，另有 2 題同時涉及 V1 與 V2 | [question-bank.json](../QA_Evaluation/datasets/question-bank.json) |
-| Atlas 搜尋索引 | 已有 3 個向量索引：`text_embedding_index`、`parent_embedding_index`、`video_embedding_index`（皆 READY）。2026-04-19 實作紀錄寫叢集是免費方案；**免費方案不分種類最多 3 個搜尋索引、資料上限 0.5 GB**，Flex 方案 10 個。目前資料量約 56 MB。叢集方案本輪無法以工具查證（Atlas 管理 API 未開放給 AI 用戶端） | [實作紀錄](../../../backend/docs/implementation-log.md) 2026-04-19；[MongoDB 免費與 Flex 限制](https://www.mongodb.com/docs/atlas/atlas-search/shared-tier-limitations/)、[免費叢集限制](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) |
+| Atlas 搜尋索引 | 已有 3 個向量索引：`text_embedding_index`、`parent_embedding_index`、`video_embedding_index`（皆 READY）。2026-04-19 實作紀錄寫叢集是免費方案；**免費方案不分種類最多 3 個搜尋索引、資料上限 0.5 GB**，Flex 方案 10 個。目前資料量約 56 MB。**使用者 2026-10-29 確認目前是免費方案**，3 個索引名額已用滿；免費方案另有每秒 100 次讀寫、每 7 天進出各 10 GB 的限制，版本固定為 MongoDB 8.0（Atlas 管理 API 未開放給 AI 用戶端，無法以工具查證） | [實作紀錄](../../../backend/docs/implementation-log.md) 2026-04-19；[MongoDB 免費與 Flex 限制](https://www.mongodb.com/docs/atlas/atlas-search/shared-tier-limitations/)、[免費叢集限制](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/) |
 | 重跑入口 | 重新處理只接受 `failed` 狀態的影片；已完成的 6 支要重跑需要另外的入口或狀態轉換 | [YouTube 恢復與清理](../YouTube_Lifecycle/decisions.md)交接紀錄 |
 | 原片位置 | 進場實測要從原片切出聲音與畫面片段。6 支原片在使用者本機 `D:\AI-workspace\01_Projects\短影音測試製作\sourceiA10_1140119_1～6.mp4`（2025-04-18，H.264＋AAC，30 fps）；各支長度與資料庫 chunk 的最後時間相差 1～25 秒，是同一批影片。不必再從雲端硬碟下載 | ffprobe 實查；[學生端播放介面](../Student_Player_UX/decisions.md)第 2 項原本寫要重新下載 |
+| 向量實際大小 | AI入門 694 筆 chunk 的 `embedding` 都是 3072 個 double 的陣列；整筆文件平均 42,227 bytes，扣掉向量只有 313 bytes，即每個向量約 41.9 KB | Atlas 唯讀彙總（`$bsonSize`），`mongodb` MCP |
+| 重跑耗時估算 | 見下方「重跑耗時估算」 | 2026-05-06 pipeline 紀錄、本機硬體 |
 | 畫面內容 | 抽查 V1、V3、V5、V6 每 5 分鐘一格：螢幕錄影為主，內容是中文投影片，老師常用紅筆手寫註記（含數字，例「4090 → 24GB ×4 = 96G」）；右側有講者鏡頭小窗；部分時段改顯示網頁、Colab 等畫面；也有只顯示「思齊」頭像、沒有分享畫面的時段 | ffmpeg 抽格檢視 |
 | 目前的檢索架構 | 平面式：問題向量直接比對所有 chunk 取前幾名，再補同影片相鄰片段當上下文。分層檢索程式已有，但 `HIERARCHICAL_RETRIEVAL_ENABLED` 預設關閉，Parent 只有 1 支影片 3 筆；正式環境的實際值要看 `/health` 當次查證 | [env.js](../../../backend/src/config/env.js)、[qa.service.js](../../../backend/src/services/qa.service.js) |
+
+### 重跑耗時估算（2026-10-29）
+
+依本機（i7-12700H、RTX 3050 筆電版；pipeline 紀錄使用 CPU int8）與 2026-05-06 的 pipeline 紀錄估算，6 支共約 10,850 秒音訊。**只有「Whisper small」與「文字向量」兩項有實測依據，其他是推估**，正式重跑前先用 V1 試跑一次量實際時間。
+
+| 步驟 | 依據 | 6 支估計 |
+|---|---|---|
+| Whisper 轉錄 | 實測：small、CPU int8，120 秒音訊（去靜音後 102 秒）轉錄約 50 秒，約為音訊長度的 0.4～0.5 倍 | small 約 75～90 分鐘；tiny 推估約 20～30 分鐘（未實測）；GPU 未設定、未實測 |
+| 文字向量 | 實測：8 筆約 4.3 秒，每筆約 0.55 秒（一筆一次請求） | 694 筆約 6～7 分鐘 |
+| Parent 向量 | 推估：約 230 筆 | 約 2 分鐘 |
+| 逐段聲音＋影像向量 | 推估：1,388 次「切片＋呼叫」，每次 2～3 秒 | 依序約 45～70 分鐘，4 路平行約 15～20 分鐘 |
+| 寫入 Atlas 與索引重建 | 推估：每筆 3 個向量約 126 KB，共約 87 MB | 數分鐘；索引重建時間未知，重建期間舊定義仍可查（D9） |
+
+合計機器時間：Whisper small 約 2.5～3 小時、tiny 約 1.5 小時，另加失敗重試與人工檢查（章節抽查、50 題預先提問）。**尚未估入的工作**：已完成影片的重跑入口（目前只接受 `failed`）要先開發；11/3 落在期中考週（11/2～6）。
 
 ### Gemini Embedding 2 官方規格與價格（2026-10-27 查證）
 
@@ -86,74 +102,170 @@
 | 9 | 聲音、影像都沿用 chunk 起訖時間，一個 chunk 各一個聲音向量、一個影像向量，分開算不混成一個；短於 8 秒前後延伸到 8 秒，向量仍掛原 chunk；長於 60 秒不產生並記錄原因 | 一對一對應讓證據與去重最單純；chunk 長度落在業界範圍（D4～D6）；分開再合併優於混成一個（R9：0.8465 對 0.8373）。60 秒以上多為沒講話的時段 |
 | 10 | 這次實測不加投影片 OCR；畫面以中文投影片加手寫註記為主（2026-10-27 抽格確認），OCR 列為第一順位的後備方案，屆時改用 Gemini 直接讀畫面，不用一般 OCR | 研究支持 OCR 對講課影片有效（R7、R9），但題庫依逐字稿出題，效果可能量不出來。影像向量只能幫忙「找到」，不能當回答證據；只寫在投影片上、沒唸出來的資訊要靠 OCR 或把畫面給回答模型 |
 
+### 第二輪（2026-10-29 使用者同意 Q7～Q11 全部照建議）
+
+| # | 決策 | 理由、取捨與來源 |
+|---|---|---|
+| 11 | 聲音、影像**各自**判斷是否預設開啟。比較「只用文字」與該模態合併組（一般 RRF、文字加權 RRF 取較好者，兩版都列出）；通過條件是 Recall@5 淨多命中至少 3 題且 MRR 不低於只用文字，只用文字失敗題少於 6 題時改為救回一半以上；原本命中的題目最多掉 1 題，新命中題逐題人工確認；附配對隨機化檢定 p 值但不當門檻 | 43 題中 3 題約 7 個百分點，大於隨機波動；題目少時建議用隨機化檢定（R12），但預期提升小（R2、R3），以顯著當門檻等於事先決定不開。掉題上限避免「總數變多、原本答得出的反而答不出」 |
+| 12 | 證據一律用同一筆 chunk 的逐字稿加相鄰片段，提示詞不改；引用多回傳 `retrievedBy`，網頁引用卡片顯示「比對方式」小標籤，LINE 不顯示；新開關 `QA_MULTIMODAL_FUSION_ENABLED` 打開時停用舊的影像補充引用路徑；FAQ 快取的證據版本納入檢索設定 | 向量不能當證據；回答與引用驗證不必改。標籤讓佈展看得出靠語音找到並誠實揭露。新舊影像路徑同開會重複引用。快取不分設定會在切換後回舊答案 |
+| 13 | 聲音、影像向量存成 `video_segments_text` 每筆 chunk 的 `audioEmbedding`、`visualEmbedding`（3072 維數字陣列）及狀態、取樣時間、模型、契約版本、略過原因；`text_embedding_index` 加兩個向量欄位，沿用 `courseId`、`videoId` 過濾；RRF 在後端程式內做；舊影像集合與索引、空的 `video_segments_audio` 不動；改索引與寫入需另外授權 | 叢集是免費方案、3 個索引已滿（D8，使用者 2026-10-29 確認）；同一索引可放多個向量欄位、修改時舊定義仍可查（D8、D9）。程式內 RRF 讓 memory 模式評測與正式環境同一套邏輯，且不依賴免費叢集版本。實測每個向量 41.9 KB，AI入門多約 58 MB；之後每小時影片約 29 MB，約再 13 小時要改 BinData（D10）或升級 |
+| 14 | 重跑時不論實測結果都產生逐段聲音與影像向量（約 US$10）；逐段向量做成可對已存在 chunk 補產的獨立步驟，趕不上 11/3 就重跑後補產；重跑同時開分層開關、關舊的整支音軌與 120 秒影像程式；Whisper 與 chunk 參數由重跑負責人決定並記錄實際值 | 實測延誤不會卡住重跑；chunk 一對一讓事後補產可行。舊整支音軌受 180 秒上限而無效（D1）。Whisper 改變文字組基準，必須記錄 |
+| 15 | 正式比較實驗做成 2×2（平面／分層 × 只用文字／多模態），用重跑後資料、50 題全跑；每組算檢索指標並用六面向評分（Claude 先評、使用者抽 20% 盲評，一致率低於 80% 修準則）；四組都關 FAQ 快取、固定回答模型與提示詞；進場實測與正式實驗分開報告 | 分開兩組實驗看不出兩者合用時加分還是抵銷；2×2 只多 1 組、共 200 個回答。評分沿用[問答評測](../QA_Evaluation/README.md)做法 |
+
 ## 目前這一輪待答題目
 
-第二輪：第一輪定案後，接入門檻、證據規則、資料契約、重跑與比較實驗的前提都已確定。多模態在分層檢索模式下怎麼合併、工單切法，依本輪答案在下一輪提出。
+第三輪。2026-10-29 Weihao 決定實作改由組員庭語負責；同日補充：庭語對技術不熟，**技術架構必須由 Weihao 這邊先全部定案**。原則：
 
-### Q7：預設開啟的門檻
+- **需 Weihao 定案**：凡是影響資料結構、索引、模型、參數、實驗設計與結果判讀的事項。本輪 Q12～Q19 全部屬於這一類。
+- **庭語可自行決定**：不影響架構的小細節，例如變數命名、報告排版、commit 訊息措辭。她的 AI 工具可用 repo 內的 `grilling` skill（`.claude/skills/grilling`、`.agents/skills/grilling`）和她確認這類細節。
+- 文件寫不到、需要技術判斷的情況，一律停下來找 Weihao（列在 [HANDOFF](HANDOFF.md) 的「先找 Weihao 討論」一節）。
 
-**問題**：是否每種模態分開判斷（聲音、影像各自決定），採以下門檻？
+### Q12：分層模式下怎麼合併
 
-- 比較對象：「只用文字」與該模態的合併組（一般 RRF、文字加權 RRF 兩版取較好者，兩版數字都列出）。
-- 通過條件：Recall@5 淨多命中至少 3 題，且 MRR 不低於只用文字。若只用文字的失敗題少於 6 題，改為「救回其中一半以上」。
-- 不論通過與否，都不能讓原本命中的題目掉超過 1 題；新命中的題目逐題人工確認證據真的相關。
-- 報告附配對隨機化檢定（paired randomization test）的 p 值，但不以 p<0.05 當門檻。
+**類別**：需 Weihao 定案（影響實驗設計與結果判讀）。
+
+**問題**：是否在兩種模式都用同一條規則——「文字檢索器」先產出一份排好序的 chunk 清單（平面模式是直接向量比對；分層模式是先找 Parent 再展開出的 chunk 順序），聲音、影像各產出一份 chunk 清單，三份在 **chunk 層**做 RRF，之後交給同一個上下文組合步驟（沿用現有片段數與字數上限）？
+
+**建議答案**：是。聲音或影像命中、但不在展開範圍內的 chunk，這一版不再回頭補它所屬 Parent 的其他片段。
+
+**理由**：2×2 實驗要能分清楚「分層」與「多模態」各自的效果，最乾淨的做法是分層只改變文字檢索器、合併規則兩種模式完全相同。證據本來就在 chunk 層（已定案第 9、12 項），在同一層合併不必換算；業界常見的做法也是先在小片段層合併、再視需要往上合併（LlamaIndex 的 AutoMergingRetriever 在同一 Parent 的子片段命中超過一半時才換成 Parent，D11）。補 Parent 會讓上下文多出一批片段、擠掉其他證據，也讓實驗多一個變數；若正式實驗發現聲音命中的片段常缺上下文，再比照 D11 加入。
+
+### Q13：誰做、誰審、誰按確認
+
+**類別**：需 Weihao 定案。
+
+**問題**：是否採以下分工？
+
+- **實作與執行**：庭語，使用她自己選的 AI 工具（Claude Code 或 Codex），照工單與 Q19 的技術規格做，不自行改架構。
+- **審查**：Weihao 的協調 session 依本文件逐條審查每張工單的 commit、實作紀錄與測試結果；不通過就退回並寫明要改什麼。
+- **三個關卡由庭語按確認**：付費呼叫 Gemini、寫入 Atlas（含修改 `text_embedding_index`）、重跑 6 支影片。每個關卡的「寫入哪個集合與索引、跑哪個指令、費用上限、成功與失敗怎麼判斷」事先寫死在 HANDOFF 的關卡執行稿；庭語只核對與執行，**結果不符合成功條件就停下來找 Weihao**，不自行重試或修改。
+- **Weihao 只做兩次判斷**：判斷①（進場實測後，是否預設開啟）、判斷②（正式實驗後，是否部署開啟）。
 
 **建議答案**：是。
 
-**理由**：43 題中 3 題約 7 個百分點，比 1～2 題的隨機波動大，又是佈展前做得到的規模。研究比較過資訊檢索常用的顯著性檢定，題目少時建議用隨機化檢定（R12）；但預期提升本來就小（R2、R3），43 題幾乎不可能達到 p<0.05，若以顯著當門檻等於事先決定不開，所以只報告、不當門檻。「掉題上限」是為了避免合併後總數變多、但原本答得出的題目反而答不出。兩版取較好者有一點挑選偏差，報告時兩版都列出。
+**理由**：把需要技術判斷的部分事先寫成可核對的條件，庭語按確認時只需比對「指令一樣、預估費用在上限內、結果符合成功條件」，不必理解底層技術；任何不符都停下來，避免在不了解影響的情況下擴大錯誤。審查與判斷留在 Weihao 這邊，確保結果符合已定案的設計。
 
-### Q8：聲音或影像命中時的證據與顯示
+### Q14：截止日
 
-**問題**：是否採以下規則？
+**類別**：需 Weihao 定案（各階段的每日安排寫在 HANDOFF）。
 
-- 送進回答模型的證據一律是**同一筆 chunk 的逐字稿**，再照現行做法補同影片相鄰片段；回答提示詞不改。
-- 引用卡片照舊跳到 chunk 起點播放；API 在每筆引用多回傳 `retrievedBy`（例：`["text","audio"]`），網頁的引用卡片顯示一個小標籤「比對方式：逐字稿、語音」，LINE 不顯示。
-- 新開關 `QA_MULTIMODAL_FUSION_ENABLED` 打開時，停用現有的影像補充引用（`QA_VISUAL_RETRIEVAL_ENABLED` 的附加與「只用影像回答」路徑），舊路徑佈展後再決定是否移除。
-- FAQ 快取的證據版本納入「檢索設定」，切換開關後不重用舊開關下存的答案。
+**問題**：是否採以下截止日？11/2～11/6 是期中考，不排需要庭語投入的工作。
+
+| 截止 | 里程碑 | Weihao |
+|---|---|---|
+| 10/31（六） | 庭語讀完 HANDOFF、環境能跑測試、拿到原片與文字向量匯出檔 | 提供原片、匯出檔、Atlas 與 Gemini 專用帳號（Q18） |
+| 11/1（日） | 先完成 M3 的 RRF 模組與 M1 的切片程式（不呼叫付費 API） | 協調 session 審查 |
+| 11/8（日） | M1 產生逐段向量、M2 跑出進場實測報告 | **判斷①** |
+| 11/10（二） | M1～M5 審查通過、合併，開關預設關閉；更新索引 | 協調 session 審查 |
+| 11/13（五） | 重跑後補產、寫入 Atlas、正式 2×2 實驗與評分報告（M6） | — |
+| 11/14（六） | — | **判斷②**：是否開啟與部署 |
+| 11/16（一） | 凍結部署（佈展） | — |
+
+**建議答案**：是。若 11/1 前已完成進場實測，判斷①提前。
+
+**理由**：庭語需要上手時間，期中考又占掉一整週；「程式完成」仍維持 11/10、「正式實驗與是否開啟」放到 11/14，仍在 11/16 凍結前。程式先以開關預設關閉合併，正式實驗延誤也不影響部署。
+
+### Q15：實驗結果放哪裡
+
+**類別**：需 Weihao 定案（影響結果判讀與追溯）。
+
+**問題**：是否把實驗紀錄放在 `docs/04_Features/Multimodal_Retrieval/evidence/`——每次一份報告（含日期、資料版本、設定、各組數字、逐題結果摘要與限制）與逐題結果 JSON；向量與切出的影音片段只留本機 `STT_Whisper/data/`（已在 `.gitignore`），不進 repo？
 
 **建議答案**：是。
 
-**理由**：聲音與影像向量只是一串數字，回答模型讀不了，學生也看不到；用同時段逐字稿當證據，回答流程與引用驗證都不必改。標籤讓佈展時看得出「這筆是靠語音找到的」，也誠實揭露來源；LINE 版面小，先不放。新舊兩條影像路徑同時開會重複引用，所以互斥。快取若不分檢索設定，切換開關後學生仍會拿到舊答案，比較效果時也會被快取干擾（專案規則：比較設定前先排除快取）。
+**理由**：報告與逐題結果是期末報告與面試的證據，要能追溯；向量一份就有數十 MB、影音片段更大，依 repo「只留最新、大檔上雲端」的原則不進版控。逐題結果保留每題各組的名次，日後有人質疑可以重算。
 
-### Q9：資料存放與索引
+### Q16：實作紀錄怎麼寫
 
-**問題**：是否把聲音與影像向量存成 `video_segments_text` 每筆 chunk 上的兩個新欄位，並在現有的 `text_embedding_index` 加兩個向量欄位，不建新集合、不建新索引？
+**類別**：需 Weihao 定案；段落排版可由庭語調整。
 
-- 新欄位：`audioEmbedding`、`visualEmbedding`（3072 維，與現有 `embedding` 一樣存成數字陣列），以及各自的狀態、實際取樣時間（延伸到 8 秒後的起訖）、模型、契約版本（例：`gemini_embedding_2_audio_v1`）、略過原因。
-- 索引：`text_embedding_index` 加 `audioEmbedding`、`visualEmbedding` 兩個 `vector` 欄位，沿用 `courseId`、`videoId` 過濾。後端對三個欄位各查一次，再在程式內做 RRF，不依賴資料庫的 `$rankFusion`。
-- 舊的 `video_segments_video`、`video_embedding_index`、空的 `video_segments_audio` 這次不動。
-- 修改索引與寫入欄位都需使用者另外授權（已定案第 3 項）。
+**問題**：是否採以下三層紀錄，讓日後出 bug 能追到「哪張工單、哪個決策、哪段程式」？
 
-**建議答案**：是。另請使用者在 Atlas 介面確認叢集方案，只影響容量規劃，不影響本題。
+- **開發接手** `HANDOFF.md`：工單、分支、時程、狀態表與使用者判斷點，比照[系統設定](../System_Settings/HANDOFF.md)；功能完成時在同一個 PR 封存。
+- **每張工單一份實作紀錄** `evidence/<日期>_<工單>-實作紀錄.md`：目標與對應決策編號、commit 清單、改了哪些檔案與各自責任、與工單或決策不同之處與原因、演算法與參數（例：RRF 的 k、補長規則）、測試指令與結果（已執行與未執行分開）、已知限制、**除錯指引**（相關開關、log 關鍵字、診斷欄位、怎麼重現）。由庭語的 AI 工具寫、Weihao 的協調 session 審查時核對。
+- **執行期可追溯**：問答回應的 `runtime` 診斷記錄融合設定（是否開啟、版本、k、權重）、每一路的筆數、耗時與退回原因；每筆引用記錄 `retrievedBy` 與各路名次。pipeline 對每個 chunk 記錄聲音、影像向量的狀態與略過原因。
 
-**理由**：現有 3 個向量索引若在免費方案已用滿（D8），新建集合要先刪舊索引或升級；同一個索引可放多個向量欄位（D8），修改定義時舊定義在重建期間仍可查詢（D9），正式問答不中斷。一對一掛在 chunk 上，命中後直接拿同一筆文件的逐字稿，不必跨集合查詢。在程式內做 RRF，是因為評測用的 memory 模式也要同一套邏輯，而 `$rankFusion` 在免費叢集的版本是否可用查不到確定答案。容量估算：每個 3072 維數字陣列約 42 KB，AI入門 694 筆加兩個欄位約多 60 MB，目前資料約 56 MB，免費方案上限 0.5 GB；改存成 BinData float32 可再省約三分之二（D10），但 memory 模式要另寫解碼，列為容量不足時再做。
+**建議答案**：是。功能狀態仍只寫在[目前狀態](../../current-status.md)，實作紀錄只連過去。
 
-### Q10：重跑 6 支時的做法
+**理由**：每張工單各寫一份，平行開發時不會互相衝突，也能從 bug 直接對到負責的工單。除錯指引寫在紀錄裡，是因為接手的人通常不知道該看哪個開關或 log。執行期診斷讓正式環境出問題時，從一次提問的回應就看得出是哪一路找到、哪一路失敗，不必重現。後端原本的 `implementation-log.md` 已改成入口頁、不再逐筆記錄，所以紀錄改放在功能資料夾。
+
+### Q17：人工確認與評分由誰做
+
+**類別**：需 Weihao 定案。
+
+**問題**：是否修改已定案第 11、15 項中需要人做的部分？
+
+- 第 11 項「新命中題逐題確認證據」→ 庭語的 AI 工具依 M2 腳本產出每題的命中片段文字；Weihao 的協調 session 逐題確認是否真的相關，結果附在實測報告；Weihao 在判斷①看摘要。
+- 第 15 項「使用者抽 20% 盲評」→ 兩個不同家族的模型各自獨立評全部 200 個回答：**Claude 主評、DeepSeek 第二評**，評分提示與準則沿用[問答評測](../QA_Evaluation/README.md)；一致率低於 80% 時停下來找 Weihao 修準則；**不用 Gemini 評分**（回答是 Gemini 產生的）。分歧題清單交 Weihao 在判斷②看。
+- 庭語只負責照執行稿跑評分與整理清單，不做內容判斷。
+
+**建議答案**：是。
+
+**理由**：強模型當評審與人類的一致率可達 80% 以上，與人類彼此相當，但模型會偏好自己產生的答案（R13），所以避開 Gemini、用第二個不同家族的模型交叉檢查。內容是否正確的判斷需要懂題目與技術，留給 Weihao 這邊；庭語不必做判讀。
+
+### Q18：原片、金鑰與資料庫權限
+
+**類別**：需 Weihao 定案。
 
 **問題**：是否採以下做法？
 
-- 重跑時**不論進場實測結果，都產生**逐段聲音與影像向量（約 US$10），實測只決定問答是否預設開啟。
-- 逐段向量做成「可對已存在的 chunk 補產」的獨立步驟：程式趕得上 11/3 重跑就一起跑，趕不上就重跑後補產，不讓多模態卡住重跑時程。
-- 重跑同時打開分層開關（`HIERARCHY_ENABLED`、`PARENT_EMBEDDING_ENABLED`），關閉舊的整支音軌向量與舊的 120 秒影像實驗程式。
-- Whisper 模型與 chunk 參數不由本功能決定，由重跑負責人定；重跑紀錄要寫下實際值。
+- **原片**：Weihao 把 6 支原片（約 630 MB，在 Weihao 電腦 `D:\AI-workspace\01_Projects\短影音測試製作\source\`）放到團隊雲端硬碟給庭語。
+- **文字向量**：Weihao 的協調 session 從 Atlas 唯讀匯出 AI入門 694 筆 chunk（含文字向量，約 29 MB）給庭語；進場實測用 memory 模式，不連 Atlas。
+- **Gemini**：建一把只開放 Generative Language API 的專用金鑰給庭語，並在 Google Cloud 設預算提醒（例：US$30）；佈展後撤銷。
+- **Atlas**：建一個專用資料庫帳號，自訂角色只允許 `focusflow.video_segments_text` 的讀取與更新，以及該集合的搜尋索引查詢與更新；不能刪除、不能動其他集合。佈展後刪除這個帳號。
+- 金鑰與帳密只放在庭語本機的 `.env`，不寫進任何文件或回報。
 
 **建議答案**：是。
 
-**理由**：向量費用遠低於重跑一次的人力；若等實測結果才決定要不要產生，實測一延誤就會卡住重跑，之後要開還得再補一次。chunk 一對一的設計讓補產可行：只要知道 chunk 起訖與原片，就能事後補上，不必重切逐字稿。舊的整支音軌向量會因 180 秒上限而失敗或只代表一小段（D1），留著只會產生無用紀錄。Whisper 換不換影響所有功能，不該由多模態決定；但它會改變文字組的基準，必須記錄下來。
+**理由**：庭語要按確認，就需要能執行的權限；把權限縮到「只能更新這一個集合與它的索引」，即使操作失誤也不會波及其他資料。專用金鑰與帳號可追蹤、用完可撤銷，不必交出主要帳密。自訂角色的實際權限名稱（`find`、`update`、`listSearchIndexes`、`updateSearchIndex`）在建立帳號時當場查證。
 
-### Q11：與兩組比較實驗的關係
+### Q19：技術規格
 
-**問題**：是否把正式比較實驗做成 2×2：檢索方式（平面／分層）× 模態（只用文字／多模態），用重跑後的資料、50 題全部跑？
+**類別**：需 Weihao 定案。
 
-- 每組都算 Q7 的檢索指標（自動計算）。
-- 每組都用現有六面向評分表評回答品質：Claude 先評、使用者抽 20% 盲評，一致率低於 80% 就修評分準則（沿用[問答評測](../QA_Evaluation/README.md)的做法）。
-- 四組都關閉 FAQ 快取，回答模型與提示詞固定。
-- 進場實測（舊資料、只看檢索）和正式比較實驗分開報告。
+**問題**：是否把以下規格定為工單的唯一依據，庭語照做、不自行更改？
+
+**① 逐段向量產生（M1，`STT_Whisper`）**
+
+- 新增模組 `src/segment_media_embedding.py`，可單獨執行，也可由 `main.py` 在新階段 `segment_media_embedding` 呼叫。
+- 輸入：原片路徑、`videoId`、chunk 清單（JSONL，欄位 `chunkId`、`videoId`、`startSec`、`endSec`、`text`）。輸出：`data/outputs/segment_media/<videoId>.jsonl`，每行一筆。
+- 取樣時間：chunk 短於 8 秒時，以中點為準前後延伸到 8 秒（不超出影片頭尾）；長於 60 秒標為 `skipped_too_long`，不呼叫 API。8 與 60 寫成程式常數，不開放設定。
+- 切片：聲音用 FFmpeg 轉單聲道 16 kHz WAV；畫面用 FFmpeg 轉無聲 MP4（高 480、每秒 1 格、H.264）。以 inline bytes 送出，每次請求只放一段、取回一個向量；不加文字前綴。
+- 模型 `gemini-embedding-2`、3072 維、L2 正規化；最多 4 路平行；遇到 429 沿用現有退避重試。
+- 每筆紀錄欄位：`chunkId`、`videoId`、`modality`（`audio`／`visual`）、`sampleStartSec`、`sampleEndSec`、`status`（`success`／`skipped_too_long`／`failed`）、`skipReason`、`embedding`、`model`、`dimension`、`contractVersion`（`gemini_embedding_2_audio_v1`／`gemini_embedding_2_visual_v1`）、`requestId`、`createdAt`。
+- 斷點續跑：同一 `chunkId`＋`modality`＋取樣時間已成功的不重算。
+- 費用保護：執行前印出預估費用（聲音秒數 × US$0.00016＋畫面格數 × US$0.00079），必須帶 `--max-cost-usd`，預估超過就不執行。
+- 新開關（預設皆關閉）：`SEGMENT_AUDIO_EMBEDDING_ENABLED`、`SEGMENT_VISUAL_EMBEDDING_ENABLED`；舊的整支音軌向量改由新開關 `AUDIO_TRACK_EMBEDDING_ENABLED`（預設關閉）控制；`ENABLE_GEMINI_VIDEO_EMBEDDING` 維持關閉。
+
+**② 進場實測（M2，`backend/scripts/multimodal-eval/`）**
+
+- `exportCourseChunks.js`：唯讀匯出指定課程的 chunk 與文字向量成 JSONL（由 Weihao 的協調 session 執行）。
+- `runEntryExperiment.js`：讀匯出檔、逐段向量 JSONL 與題庫，問題向量呼叫一次 Gemini 後快取成檔案；完整餘弦比對；依已定案第 7、8 項算 6 組 × 2 版；隨機化檢定 10,000 次、亂數種子固定 `20261108`。
+- 輸出 `evidence/<日期>_entry-experiment/`：`report.md`、`per-question.json`（每題各組前 20 名的 `chunkId` 與名次）、`config.json`（輸入檔雜湊、參數、程式版本）。
+
+**③ 資料與索引（M5）**
+
+- `video_segments_text` 新欄位：`audioEmbedding`、`visualEmbedding`（3072 個數字的陣列）；`mediaEmbeddingMeta.audio`、`mediaEmbeddingMeta.visual`（`status`、`sampleStartSec`、`sampleEndSec`、`model`、`contractVersion`、`skipReason`、`createdAt`）。
+- 寫入腳本 `STT_Whisper/src/upload_segment_media_embeddings.py`：只用 `chunkId`＋`videoId` 比對、只 `$set` 上述欄位、**不新增文件（不 upsert）**；有 `--dry-run`，會先印出「預計更新筆數」與「找不到的 chunkId」。
+- 索引腳本 `backend/src/scripts/ensureMultimodalVectorFields.js`（比照 `ensureVideoVectorIndex.js`）：把 `text_embedding_index` 改為 `embedding`、`audioEmbedding`、`visualEmbedding` 三個 3072 維 cosine 向量欄位，加上原有的 `courseId`、`videoId` 過濾；有 `--dry-run`；套用後每 30 秒查一次，最多 30 分鐘，直到 `queryable: true` 且定義正確。
+- 後端 model `videoSegment.model.js` 加上新欄位，預設不讀出向量。
+
+**④ 後端融合（M3）**
+
+- 新服務 `backend/src/services/rankFusion.service.js`：`reciprocalRankFusion(lists, { k = 60, weights })`，k 固定 60；輸出每筆的 `fusionScore`、`retrievedBy`、`channelRanks`。M2 直接呼叫這個函式。
+- 環境變數：`QA_MULTIMODAL_FUSION_ENABLED`（預設 `false`）、`QA_MULTIMODAL_FUSION_CHANNELS`（`audio`、`visual` 的逗號清單，依判斷①填）、`QA_MULTIMODAL_FUSION_MODE`（`equal` 或 `text_weighted`，依判斷①填）、`QA_MULTIMODAL_CHANNEL_LIMIT`（預設 20）。
+- Atlas 模式對同一個 `text_embedding_index` 分別以 `path` 查三個欄位；memory 模式用同一套函式計算；兩種模式都在 chunk 層合併（Q12）。
+- 回應：每筆引用加 `retrievedBy`、`match.channelRanks`；`runtime.retrieval.fusion` 記錄 `enabled`、`channels`、`mode`、`k`、`weights` 與每一路的 `count`、`ms`、`fallback`。
+- 開關打開時跳過 `searchVisualSegmentsWithAtlas` 與「只用影像回答」路徑；FAQ 的證據版本加入檢索設定指紋（開關、通道、模式、分層開關）。
+- 同步 `backend/docs/openapi.yaml`、`.env.example`、`backend/docs/feature-flags.md`。
+
+**⑤ 前端（M4）**
+
+- `StudentCourses.jsx` 的引用卡片：`retrievedBy` 含 `audio` 或 `visual` 時，顯示「比對方式：逐字稿、語音、畫面」（只列出實際有的）；只有 `text` 時不顯示。LINE 不改。
 
 **建議答案**：是。
 
-**理由**：分開做兩組實驗，看不出「分層」與「多模態」合在一起時會互相加分還是互相抵銷；2×2 只多 1 組、共 200 個回答，生成費用很低，主要成本是評分，靠 Claude 先評加 20% 人工抽查控制。進場實測是用舊資料決定開關，正式實驗用重跑後資料回答「整體有沒有變好」，兩者分開寫才不會把挑選過程和最終結果混在一起。
+**理由**：庭語不需做技術判斷，規格就必須寫到「照做即可」的程度：檔名、欄位、開關、參數、輸出格式與成功條件都固定。關鍵選擇的依據都已在前面定案（chunk 一對一、分開兩個向量、程式內 RRF、不新增索引）；這裡把它們落成具體名稱。切片用 inline bytes 而非上傳檔案，是因為 8～60 秒的片段只有數 MB，且可省去檔案上傳與清理；畫面降到 480 高是因為 Gemini 依格數計價，解析度不影響費用但影響上傳大小。
 
 ## 實作切分
 

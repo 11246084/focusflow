@@ -33,6 +33,7 @@ function checkAnchor(errors, anchor, path) {
  * 回傳的是問題清單，不拋例外——呼叫端要一次看到所有問題，才能整批退回重生。
  */
 function validateStructure(plan) {
+  if (plan?.contractVersion !== undefined) return require('./sentences').validateSentenceStructure(plan);
   const errors = [];
 
   if (!plan || typeof plan !== 'object') {

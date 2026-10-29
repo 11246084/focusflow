@@ -1,4 +1,5 @@
 'use strict';
+const { validateIcon } = require('./assets');
 
 // 元件庫：每個元件宣告「接受哪些參數」「有哪些 cue」「畫面上會出現哪些文字」。
 // 同一份宣告同時支援：參數檢查、cue 名稱檢查、數字／名詞對證（texts）。
@@ -209,7 +210,70 @@ const DEFINITIONS = {
   },
 };
 
+function sceneItems(params, keys) {
+  const errors = [], texts = [];
+  for (const key of keys) {
+    const value = params[key];
+    if (!value || typeof value !== 'object' || !isText(value.text) || [...value.text].length > 12) errors.push(`params.${key} requires text (max 12 characters) and optional icon`);
+    else texts.push(value.text);
+  }
+  return { errors, texts };
+}
+
+DEFINITIONS['not-fit'] = (p) => ({ ...sceneItems(p, ['object', 'container']), cues: ['object', 'container', 'attempt', 'reject'] });
+DEFINITIONS['not-merge'] = (p) => ({ ...sceneItems(p, ['left', 'right', 'result']), cues: ['left', 'right', 'attempt', 'reject'] });
+DEFINITIONS.nested = (p) => {
+  if (!Array.isArray(p.layers) || p.layers.length < 2 || p.layers.length > 3) return { errors: ['params.layers must contain 2-3 outer-to-inner items'], texts: [], cues: [] };
+  const r = sceneItems(Object.fromEntries(p.layers.map((v, i) => [i, v])), p.layers.map((_, i) => i));
+  return { ...r, cues: p.layers.map((_, i) => `layer${i}`) };
+};
+const CODE_SOURCES = ['畫面原樣', 'AI 修正', 'AI 補寫'];
+DEFINITIONS.code = (p) => {
+  const errors = [], texts = [];
+  if (!['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'].includes(p.language)) errors.push('params.language must be a supported language');
+  if (!Array.isArray(p.lines) || p.lines.length < 1 || p.lines.length > 12) errors.push('params.lines must contain 1-12 lines');
+  else for (const [i, line] of p.lines.entries()) {
+    if (typeof line?.text !== 'string' || [...line.text].length > 36 || /[\r\n]/.test(line.text)) errors.push(`line ${i + 1} must be one line of at most 36 characters`);
+    if (!CODE_SOURCES.includes(line?.source) || typeof line?.originalText !== 'string') errors.push(`line ${i + 1} requires source and originalText`);
+    if (line?.source === '畫面原樣' && line.text !== line.originalText) errors.push(`line ${i + 1} original source must match text`);
+    if (line?.intentionalError && line.text !== line.originalText) errors.push(`line ${i + 1} intentional error must remain unchanged`);
+    if (typeof line?.text === 'string') texts.push(line.text);
+  }
+  const count = p.lines?.length || 0;
+  for (const n of p.highlightLines || []) if (!Number.isInteger(n) || n < 1 || n > count) errors.push('highlightLines must reference existing one-based lines');
+  for (const box of p.boxes || []) {
+    const text = p.lines?.[box?.line - 1]?.text;
+    if (!text || !isText(box?.text) || !text.includes(box.text) || text.indexOf(box.text) !== text.lastIndexOf(box.text)) errors.push('boxes must reference an existing line and unique literal text');
+  }
+  const all = (p.lines || []).map((v) => v?.text || '').join('\n');
+  for (const name of p.requiredVariables || []) if (!isText(name) || !new RegExp(`(^|[^\\p{L}\\p{N}_])${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}_]|$)`, 'u').test(all)) errors.push('required variable is missing');
+  if (p.errorMessage !== undefined) { if (!isText(p.errorMessage) || [...p.errorMessage].length > 80) errors.push('errorMessage must have 1-80 characters'); else texts.push(p.errorMessage); }
+  if (p.diagram !== undefined) { const d = DEFINITIONS.nested(p.diagram); errors.push(...d.errors); texts.push(...d.texts); }
+  return { errors, texts, cues: ['enter', ...(p.lines || []).map((_, i) => `line${i + 1}`), 'error', 'diagram'] };
+};
 const COMPONENT_NAMES = Object.keys(DEFINITIONS);
+
+// Rich item variants preserve the original string-only fixture interface.
+function normalizeComponentParams(component, input) {
+  const p = structuredClone(input);
+  const text = (item) => typeof item === 'object' && item ? item.text : item;
+  if (component === 'compare') for (const side of ['left', 'right']) if (p[side]?.text !== undefined && p[side].value === undefined) p[side].value = p[side].text;
+  if (component === 'chips') p.chips = p.chips?.map(text);
+  if (component === 'checklist') p.items = p.items?.map(text);
+  if (component === 'relation') p.words = p.words?.map(text);
+  if (component === 'place-values') p.labels = p.labels?.map(text);
+  return p;
+}
+
+function iconErrors(value, prefix = 'params') {
+  if (!value || typeof value !== 'object') return [];
+  const errors = [];
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'icon' && !validateIcon(child)) errors.push(`${prefix}.icon is not in the approved asset allowlist`);
+    else if (child && typeof child === 'object') errors.push(...iconErrors(child, `${prefix}.${key}`));
+  }
+  return errors;
+}
 
 /**
  * @returns {{errors: string[], texts: string[], cues: string[]}}
@@ -222,8 +286,12 @@ function describeComponent(component, params) {
   if (!params || typeof params !== 'object' || Array.isArray(params)) {
     return { errors: ['params must be an object'], texts: [], cues: [] };
   }
-  const described = definition(params);
-  return { ...described, cues: [...new Set([...described.cues, 'stamp'])] };
+  try {
+    const described = definition(normalizeComponentParams(component, params));
+    return { ...described, errors: [...described.errors, ...iconErrors(params)], cues: [...new Set([...described.cues, 'stamp'])] };
+  } catch {
+    return { errors: ['component params have invalid field types'], texts: [], cues: [] };
+  }
 }
 
-module.exports = { COMPONENT_NAMES, TOKEN_STYLES, describeComponent };
+module.exports = { COMPONENT_NAMES, TOKEN_STYLES, CODE_SOURCES, describeComponent, normalizeComponentParams };

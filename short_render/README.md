@@ -1,5 +1,21 @@
 # short_render
 
+## RC5 句子契約（0.2.0）
+
+後端以 `require('./src/plan')` 使用 `buildRecutPlan`、`validatePlan`、`resolvePlan`、`getComponentCatalog`、`getCardsResponseSchema`、`getAllowedIcons`、`getAssetCatalog`、`getRendererMetadata`。新版仍用 `schemaVersion: 'recut-v1'`，另帶 `contractVersion: 'sentence-v1'`，與下方歷史文字錨點原型分開辨識。`tests/sentence.fixture.js` 是無真人素材的完整合成樣本。
+
+- `buildRecutPlan({source,selectionResult,scenes,subtitles,title,endCard,modelId,audio,theme})` 回 `{plan,resolved,errors}`；來源與選段使用 RC2／RC3 的凍結句子及絕對逐字秒數。`audio` 可用 RC2 的 `integratedLufs/truePeakDbtp/fixedGainDb`；預設 N2、結尾卡額外時長 0，避免擅改已鎖定的 65 秒選段。
+- `validatePlan(plan,{sentences,evidence,resolved?})` 回 `{valid,errors,warnings}`；`evidence` 可為凍結 chunk 陣列或 RC2 source。`resolvePlan(plan,{sentences})` 回 `{resolved,errors}`。新版不再呼叫第二次 ASR、模糊比對或靜音吸附，剪點須與 RC3 逐字邊界相同。
+- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:{text:{sentenceId:'s1',text?:'原話片語'}}}]`；程式填回 `clips/basedOn`。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
+- 圖卡目錄共 12 種加 RC6 `code` 擴充。`getComponentCatalog({aiOnly:true})` 暫回原有 9 種；三種新卡必須經另一位代理完成手機可讀性檢查才開 AI；`code` 由 RC6 畫面抄錄步驟提供，配圖模型不可自行編寫。每筆目錄含用途、參數 schema、三行範例與不適用情境。
+- RC6 `code.params`：`language`、`lines:[{text,source:'畫面原樣|AI 修正|AI 補寫',originalText,intentionalError?}]`，選填 `highlightLines:[1]`、`boxes:[{line:1,text:'唯一文字'}]`、`requiredVariables:['x']`、`errorMessage`、`diagram:{layers:[{text,icon?}]}`。每行至多 36 字、每卡至多 12 行；故意錯誤必須維持畫面原樣。
+
+素材只讀固定 npm 套件：Fluent 1.2.6、Phosphor 2.1.1；依已核准的 2026-10-17 清單開放 1,341 個預設 Fluent，排除 51 個物件、Flags 及非白名單 Symbols。Iconify 的右指手勢是鏡像 alias，程式明確保留這個預設 alias；不能用名字結尾 `light` 一律判膚色，否則會誤擋紅綠燈。
+
+演算法與限制：建立句子 ID 索引，逐段依 RC3 首尾完整字詞選取、累加原片首字至末字的時間；冷開場只允許一次、不重複播放。片語僅在指定句內做唯一且完整字詞的比對，保留小數點、負號與程式符號；拒絕字元比例推算及模糊命中。圖卡完整覆蓋選句、每張 3～12 秒、只在句界更換。預覽與成品的固定增益為 `min(-16-inputLUFS,-1.5-inputTruePeak)` dB；峰值限制後低於 -18 LUFS 即拒絕。上述測試是離線合成資料驗證，未宣稱模型品質或實際 MP4 驗收。
+
+下方是保留回溯的第一階段原型說明；其中舊畫面、舊 ASR、舊音量資訊不適用 `sentence-v1`，RC5 的 HTML／worker 接線另依本模組後續更新。
+
 「程式化動畫＋老師原片原音」短影片的 plan 驗證器與渲染 CLI（`recut-v1`）。獨立於 `backend/`，做法與 `STT_Whisper/` 相同：自己的依賴、自己的指令。
 
 **狀態：第一階段（本機工具）。** 後端沒有呼叫它，也沒有 API／資料表／前端；`ShortScript.payload.kind = "recut-v1"`、LLM 生成 plan、教師審核介面都還沒做。目前只驗證過兩支原型（見「已驗證與未驗證」）。

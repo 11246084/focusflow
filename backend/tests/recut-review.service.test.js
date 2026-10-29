@@ -9,6 +9,7 @@ const { registerRecutReviewSteps } = require('../src/services/recutReviewSteps.s
 const { transitionRecut } = require('../src/services/recutState.service');
 const ReviewEvent = require('../src/models/recutReviewEvent.model');
 const RecutVersion = require('../src/models/recutVersion.model');
+const RecutTask = require('../src/models/recutTask.model');
 const queues = [];
 const options = (f, extra = {}) => ({ user: teacher, scriptId: f.script._id, versionId: String(snapshot(f.script).currentVersionId), expectedRevision: snapshot(f.script).revision, ...extra });
 async function setup(config = {}) {
@@ -80,6 +81,18 @@ describe('recut 審閱、草稿、鎖定與兩階段核准', () => {
   it('RC4尚未註冊回503且保留草稿', async () => {
     const f = await setup(); await edit(f, [{ sentenceId: 's7', action: 'add' }]);
     await assert.rejects(() => apply(f), { code: 'RECUT_STEPS_NOT_CONFIGURED' }); assert.ok(snapshot(f.script).pendingEditId); assert.equal(store.recutTasks.length, 0);
+  });
+  it('附加任務後資料庫寫入失敗，在同一鎖還原而不死鎖', { timeout: 5000 }, async () => {
+    const f = await setup(); install(f); await edit(f, [{ sentenceId: 's7', action: 'add' }]);
+    const update = RecutTask.findByIdAndUpdate;
+    RecutTask.findByIdAndUpdate = function (id, change, ...rest) {
+      if (change.$set?.readyAt) throw new Error('fake ready failure');
+      return update.call(this, id, change, ...rest);
+    };
+    try { await assert.rejects(() => apply(f), { message: 'fake ready failure' }); }
+    finally { RecutTask.findByIdAndUpdate = update; }
+    assert.equal(snapshot(f.script).state, 'script_review'); assert.ok(snapshot(f.script).pendingEditId);
+    assert.equal(snapshot(f.script).activeTaskId, null); assert.equal(store.recutTasks[0].status, 'failed');
   });
   it('套用後選段鎖定，重跑配圖及檢查成功才切新版並清草稿', async () => {
     const f = await setup(); install(f); await edit(f, [{ sentenceId: 's7', action: 'add' }]);

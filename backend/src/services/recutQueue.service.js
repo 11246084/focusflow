@@ -41,7 +41,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
     }
   }
 
-  async function restore(task, error, status = J.FAILED) {
+  async function restore(task, error, status = J.FAILED, transition = transitionRecut) {
     const script = await ShortScript.findById(task.scriptId).lean();
     // 完成指標先寫入 ShortScript，開機時辨識「版本已提交，但 task 尚未收尾」。
     if (sameId(script?.recut?.lastCompletedTaskId, task._id)) {
@@ -51,7 +51,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
       return;
     }
     if (sameId(script?.recut?.activeTaskId, task._id)) {
-      await transitionRecut({ scriptId: task.scriptId, event: 'restore_task', taskId: task._id, baseSnapshot: task.baseSnapshot });
+      await transition({ scriptId: task.scriptId, event: 'restore_task', taskId: task._id, baseSnapshot: task.baseSnapshot });
     }
     const failed = await RecutTask.findByIdAndUpdate(task._id, { $set: {
       status, error: errorRecord(error), finishedAt: new Date(),
@@ -211,7 +211,8 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
         expectedRevision: recutSnapshot(script).revision });
       await RecutTask.findByIdAndUpdate(task._id, { $set: { readyAt: new Date() } });
     } catch (error) {
-      await restore(task, error);
+      // RC8 可能仍持有腳本鎖；附加成功但 readyAt 寫入失敗也用同一 scoped transition 還原。
+      await restore(task, error, J.FAILED, transition);
       throw error;
     }
     wake();

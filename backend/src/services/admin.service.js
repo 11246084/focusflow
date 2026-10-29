@@ -207,6 +207,10 @@ async function listVideos() {
       sourceAvailable: appOwned && isLocalVideoSourceAvailable(v.filePath),
       youtubeUpload: {
         status: v.youtubeUpload?.status || null,
+        waitReason: v.youtubeUpload?.waitReason || null,
+        nextRetryAt: v.youtubeUpload?.nextRetryAt || null,
+        remoteState: v.youtubeUpload?.remoteState || null,
+        blockedReason: v.youtubeUpload?.blockedReason || null,
         localCleanupAt: v.youtubeUpload?.localCleanupAt || null,
       },
     };

@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
+import { formatBytes, getTeacherUploadStatus, getUploadStorage, waitingUploadText } from '../services/youtubeLifecycle';
 import { retryAssetUpload, uploadAsset } from '../services/shortScript';
 import { describeAssetState } from '../services/shortScriptStatus';
 import { formatFileSize } from './teacherUploadUtils';
@@ -47,6 +48,14 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const inputRef = useRef(null);
+  const [uploadStatus, setUploadStatus] = useState(null);
+  const [storage, setStorage] = useState(null);
+  useEffect(() => {
+    let active = true;
+    getTeacherUploadStatus().then((data) => { if (active) setUploadStatus(data); }).catch(() => {});
+    getUploadStorage().then((data) => { if (active) setStorage(data); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   if (!version) return <EmptyRow>這份腳本還沒生成，請先到「短影片腳本」頁生成腳本，才能上傳成品。</EmptyRow>;
 
@@ -85,7 +94,7 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
         versionNo: version.versionNo,
       });
       resetForm();
-      setNotice('已送出。系統正在把影片以「非公開」傳上 YouTube，傳完就能在「短影片審核」頁看片審核；審核通過後學生才看得到。');
+      setNotice(uploadStatus?.pause?.paused ? '已送出。YouTube 上傳暫停中，系統會自動補傳；完成後可在「短影片審核」頁看片審核。' : '已送出。系統會將影片傳上 YouTube，完成後可在「短影片審核」頁看片審核；審核通過後學生才看得到。');
       // 上傳可能把同一份腳本既有的待上架成品換代，腳本狀態也可能改變，兩邊都要重讀。
       await onChanged?.();
     } catch (requestError) {
@@ -242,6 +251,11 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
         </div>
       )}
 
+      {(uploadStatus?.pause?.paused || storage) && <div style={{ ...MUTED, padding: '0 20px 12px', lineHeight: 1.7 }} role="status">
+        {uploadStatus?.pause?.paused && <div>目前 YouTube 上傳暫停，成品仍可送出；系統會自動補傳{uploadStatus.pause.earliestRetryAt ? `，最快 ${new Date(uploadStatus.pause.earliestRetryAt).toLocaleString('zh-TW', { hour12: false })}` : ''}。</div>}
+        {storage && <div>目前可用於上傳：約 {formatBytes(storage.availableBytes)}；實際可否上傳以伺服器檢查為準。</div>}
+      </div>}
+
       {assets.length > 0 && (
         <div style={{ padding: '16px 20px' }}>
           <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>這份腳本的成品</div>
@@ -269,6 +283,7 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
                 {asset.youtubeUrl && (
                   <a href={asset.youtubeUrl} target="_blank" rel="noreferrer" className="ss-link">在 YouTube 開啟 ↗</a>
                 )}
+                {asset.upload?.status === 'waiting' && <div role="status" style={{ ...MUTED, marginTop: 6 }}>{waitingUploadText(asset.upload)}</div>}
                 {asset.upload?.status === 'failed' && (
                   <div style={{ marginTop: 6 }}>
                     <div style={{ fontSize: 12.5, color: '#ff8b72', lineHeight: 1.7, overflowWrap: 'anywhere' }}>

@@ -4,6 +4,8 @@
 
 建立日期：2026-10-26。
 
+執行授權補記（2026-10-28）：使用者已一次授權 F3／F4 複驗及 Q-A～Q-F 的本機實作、測試、Commit／Merge；下文保留原定規格與正式環境限制。實際完成範圍及未執行驗收以[目前狀態](../../../current-status.md)與[本機證據](../evidence/2026-10-29_q-integration.md)為準。
+
 ## 共同規則
 
 - **前提**：下方「F 合併前提」與使用者實作授權仍適用；F0～F2 已合併，F3／F4 不能視為已完成。沿用 F2 的 `uploadClaimQuery`、`uploadClaimUpdate`、`attemptOwnerQuery`、heartbeat、cleanup intent 與持久備份歸屬，`tryAcquireWork` 只是行程內輔助，不另寫一套（#53）。欄位與狀態一律依[共用資料契約](../shared-data-contract.md)，需要新增或改名欄位時先改契約並經使用者核可。

@@ -27,6 +27,10 @@
 
 **單支影片與語音轉文字｜已實作。** 後端啟動處理程序，產生逐字稿、切段與搜尋向量，再接收完成或失敗通知；向量是用來比較內容相似度的一串數字。依據：[影片服務](../backend/src/services/video.service.js)、[處理入口](../STT_Whisper/src/main.py)、[回報處理](../backend/src/services/videoProcessing.service.js)；真實影片完整流程 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
+**YouTube Lifecycle F3／F4、Q-A～Q-F｜本機開發及隔離驗收完成；未部署。** 2026-10-29：F3／F4 經獨立複驗後，以 `b2feceb` 提交、`6cd381b` 合併至 dev；Q 共用契約 `3dc8c92`、後端 `ae8d22b`、前端 `5a0ee05`。範圍含額度暫停與單支試傳、租約與傳送階段、就緒／隱私政策、受保護 Range 播放、容量預約及半成品清理、教師與管理頁、來源切換續播與錯誤提示。隔離 Mongo **94／94**、Frontend **158／158**、lint／build／OpenAPI lint 通過，Chrome／Edge 三角色與原片起播／拖曳通過、延遲回應競態各 **7／7**；Backend 完整回歸共 1280 項（1278 通過、1 個舊開關數斷言失敗、1 項 OS 權限跳過）；修正斷言後該檔 13／13 複驗通過，沒有未解失敗。獨立審查確認三項 P2 已修復，沒有已知 P1／P2 合併阻礙；證據及驗收邊界見[本機整合驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)。沒有 push、部署、正式 Atlas／VM／YouTube 操作或正式清理。原片播放與 privacy_guard 預設仍關閉；Firefox／iOS Safari、正式 nginx／500 MB／中斷／507／20 個 Range、第一次實際 YouTube 隱私讀回與學生嵌入需另行授權或設備驗證。清理必須先通過 Q-B 正式就緒驗收，原 #33 的日期不能直接當啟用條件。
+
+以下 YouTube 段落保留歷史時點，不能用來推定本輪正式環境現況。
+
 **YouTube 上傳｜已實作。** [上傳服務](../backend/src/services/youtubeUpload.service.js)由[影片完成通知](../backend/src/services/videoProcessing.service.js)排程，受功能開關與憑證條件控制。2026-10-22 部署後正式站憑證檢查為 `ok`、權限含 `youtube.force-ssl`（見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)）；經新版程式實際上傳的結果未驗證，延後到團隊下次上傳課程影片時確認。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
 **YouTube 恢復／清理｜已部署；恢復已開啟，清理未開啟。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-22 合併 `main` 部署到正式站（本機 Backend 1123、Frontend 107 項測試通過），恢復排程每 5 分鐘執行、管理員頁開關與待處理清單正常；清理的環境變數維持不允許，依決策 #33 於 2026-11-09～11-13 開啟。實際失敗後的自動恢復、清理刪檔與短片流程在正式站未驗證，過程見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)。最後驗證：2026-10-22；負責人：＿＿（待填）。

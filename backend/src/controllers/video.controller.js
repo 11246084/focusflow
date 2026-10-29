@@ -4,6 +4,13 @@ const { sendSuccess } = require('../utils/apiResponse');
 const videoService = require('../services/video.service');
 const videoProcessingService = require('../services/videoProcessing.service');
 const youtubeUploadService = require('../services/youtubeUpload.service');
+const playback = require('../services/localPlayback.service');
+const uploadStorage = require('../services/uploadStorage.service');
+const getUploadStatus = asyncHandler(async (req, res) => {
+  const { paused, apiQuota, channelLimit, earliestRetryAt } = await require('../services/youtubeUploadGate.service').getUploadPauseSnapshot();
+  return sendSuccess(res, { data: { pause: { paused, apiQuota, channelLimit, earliestRetryAt } } });
+});
+const { assertCanManageCourse } = require('../services/courseAccess.service');
 
 // Retry authorization and replay-safety checks stay in the service; this
 // controller only exposes the accepted request as an asynchronous 202 action.
@@ -25,7 +32,7 @@ const createYouTubeVideo = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     statusCode: 201,
     message: 'YouTube video registered successfully.',
-    data: { video },
+    data: { video: playback.presentVideo(video) },
   });
 });
 
@@ -46,7 +53,7 @@ const createVideo = asyncHandler(async (req, res) => {
     statusCode: 201,
     message: 'Video uploaded successfully.',
     data: {
-      video,
+      video: playback.presentVideo(video),
     },
   });
 });
@@ -57,7 +64,7 @@ const listCourseVideos = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     message: 'Videos fetched successfully.',
     data: {
-      videos: result.videos,
+      videos: result.videos.map(playback.presentVideo),
     },
     meta: {
       isBridgeCourse: result.presentation.isBridgeCourse,
@@ -80,9 +87,26 @@ const getVideoById = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     message: 'Video fetched successfully.',
     data: {
-      video,
+      video: playback.presentVideo(video),
     },
   });
+});
+
+const getUploadStorage = asyncHandler(async (req, res) => sendSuccess(res, { message: 'Upload storage fetched successfully.', data: await uploadStorage.status() }));
+
+const getVideoSource = asyncHandler(async (req, res) => {
+  const context = await videoService.resolveAccessibleVideoContext(req.params.videoId, req.user);
+  if ((context.video.videoSource || context.video.video_source) === 'youtube' && req.user.role === 'teacher') {
+    await assertCanManageCourse(req.user, context.course);
+  }
+  const file = playback.authorizeSource(context, req.user);
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Content-Disposition', 'inline');
+  if (playback.accelEnabled()) {
+    res.set('X-Accel-Redirect', playback.accelPath(file));
+    return res.status(200).end();
+  }
+  return res.sendFile(file);
 });
 
 const getVideoProcessing = asyncHandler(async (req, res) => {
@@ -128,7 +152,7 @@ const restoreVideoSource = asyncHandler(async (req, res) => {
 
   return sendSuccess(res, {
     message: 'Video source restored.',
-    data: { video },
+    data: { video: playback.presentVideo(video) },
   });
 });
 
@@ -180,7 +204,7 @@ const attachVideo = asyncHandler(async (req, res) => {
   return sendSuccess(res, {
     statusCode: 201,
     message: 'Video attached to course.',
-    data: { video },
+    data: { video: playback.presentVideo(video) },
   });
 });
 
@@ -195,10 +219,13 @@ const detachVideo = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getUploadStatus,
   createYouTubeVideo,
   createVideo,
   listCourseVideos,
   getVideoById,
+  getVideoSource,
+  getUploadStorage,
   getVideoProcessing,
   retryVideoProcessing,
   retryYouTubeUpload,

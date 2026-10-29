@@ -16,10 +16,11 @@ function fakeYouTube({ waitVerify, waitPut, counters = {}, id = 'reviewYt001' } 
   return async (url, options = {}) => {
     if (url === upload.YOUTUBE_TOKEN_URL) return response({ access_token: 'fake', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
     if (String(url).startsWith(quarantine.YOUTUBE_CHANNELS_URL)) return response({ items: [{ id: 'own-channel' }] });
-    if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) { await waitVerify?.(); return response({ items: [{ snippet: { channelId: 'own-channel' }, status: { privacyStatus: 'unlisted' } }] }); }
+    if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) { await waitVerify?.(); const ids = new URL(String(url)).searchParams.get('id')?.split(',') || []; return response({ items: ids.map(id => ({ id, snippet: { channelId: 'own-channel' }, status: { uploadStatus: 'processed', privacyStatus: 'unlisted', embeddable: true } })) }); }
     if (url === upload.YOUTUBE_UPLOAD_URL) { counters.sessions = (counters.sessions || 0) + 1; return response({}, { location: 'https://review.invalid/session' }); }
     if (url === 'https://review.invalid/session') { counters.puts = (counters.puts || 0) + 1; for await (const chunk of options.body) { void chunk; } await waitPut?.(); return response({ id }); }
     throw new Error('Unexpected mock URL');
   };
 }
+global.fetch = fakeYouTube();
 module.exports = { env, deferred, fakeYouTube };

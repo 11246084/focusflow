@@ -1,19 +1,20 @@
 const { discardUnreferencedUpload } = require('./localSourceCleanup.service');
 const { inspectLocalUploadFile, resolveLocalUploadPath } = require('../utils/localVideoSource');
 const { uploadClaimUpdate, keepUploadAlive, NO_CLEANUP_INTENT, reserveYouTubeBackup, attemptOwnerQuery, fileWorkKeys, observedFields, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
-const { existsSync, unlinkSync } = require('fs');
+const { existsSync } = require('fs');
 const ShortAsset = require('../models/shortAsset.model');
 const ShortScript = require('../models/shortScript.model');
 const AppError = require('../utils/appError');
+const uploadGate = require('./youtubeUploadGate.service');
 const env = require('../config/env');
 const { assertObjectId } = require('../utils/objectId');
 const { getCourseByIdOrThrow, assertCanManageCourse } = require('./courseAccess.service');
 const {
   buildYouTubeWatchUrl,
   isYouTubeUploadConfigured,
-  normalizePrivacyStatus,
   setVideoPrivacy,
   uploadLocalVideo,
+  uploadPhaseCallbacks, waitingFields, recordOrphanUpload,
 } = require('./youtubeUpload.service');
 const {
   YOUTUBE_LIFECYCLE_SWITCHES,
@@ -68,7 +69,7 @@ function buildShortAssetYouTubeDescription(asset) {
 }
 
 function shortErrorMessage(error) {
-  return String(error?.message || error || 'Unknown error').slice(0, 300);
+  return String(error?.message || error || 'Unknown error').replace(/https?:\/\/\S+/g, '[redacted-url]').slice(0, 300);
 }
 
 function assertUploadConfigured() {
@@ -118,6 +119,7 @@ function computeNextRetryAt({ retrySafe, attemptCount, failedAt }) {
 
 async function recordUploadFailure(assetId, { error, attemptCount, startedAt, owner, snapshot }) {
   // 沒標記過的一律視為不安全：可能已送出影片 bytes，自動重試會產生重複影片。
+  if (error.youtubeWaitReason) { await ShortAsset.findOneAndUpdate(owner, { $set: waitingFields(error, attemptCount) }); return; }
   const retrySafe = error?.youtubeRetrySafe === true;
   const failedAt = new Date();
   // 失敗時 status 維持 draft（不寫 status），只記錄原因與可否重試。
@@ -130,7 +132,7 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt, ow
       'youtubeUpload.failedAt': failedAt,
       'youtubeUpload.uploadedAt': null,
       'youtubeUpload.retrySafe': retrySafe,
-      'youtubeUpload.nextRetryAt': computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
+      'youtubeUpload.nextRetryAt': error.youtubeNextRetryAt || computeNextRetryAt({ retrySafe, attemptCount, failedAt }),
     }),
   }, { new: true });
   // 不可重試或已達重試上限的失敗會進入待處理清單，通知管理員（#20、#28、#34）。
@@ -151,7 +153,7 @@ async function recordUploadFailure(assetId, { error, attemptCount, startedAt, ow
  * publishApprovedShortAsset()。若上傳完成時審核已經通過（審核比上傳早結束），
  * 這裡會補上那一步，否則資產會停在「已審核通過但沒進學生牆」。
  */
-async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, observed, now = new Date() } = {}) {
+async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, observed, now = new Date(), probe = false } = {}) {
   assertObjectId(assetId, 'short asset');
   const release = tryAcquireWork([sourceWorkKey('short_asset', assetId)]);
   if (!release) throw new AppError('Short asset upload or source operation is already running.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
@@ -167,12 +169,22 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.UPLOAD))) {
       throw new AppError('YouTube upload is disabled.', 503, 'YOUTUBE_UPLOAD_NOT_CONFIGURED');
     }
+    const pause = await uploadGate.getUploadPauseSnapshot({ now });
+    if (!probe && (pause.paused || pause.probe)) {
+      await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true }), { $set: uploadStateUpdate(asset, {
+        ...waitingFields(uploadGate.quotaWaitingError(pause), Number(asset.youtubeUpload?.attemptCount || 0) + 1),
+        'youtubeUpload.queuedAt': asset.youtubeUpload?.queuedAt || now,
+      }) });
+      return null;
+    }
     const attemptCount = Number(asset.youtubeUpload?.attemptCount || 0) + 1;
     if (attemptCount > env.youtubeUploadMaxAttempts) throw new AppError('YouTube upload retry limit reached for this short asset.', 409, 'YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED');
     const startedAt = new Date();
     const attemptId = randomWorkId();
-    const claimed = await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true }), uploadClaimUpdate(asset, {
+    const claimed = await ShortAsset.findOneAndUpdate(uploadClaimQuery(asset, { observed: observed || asset, now, shortAsset: true, probe }), uploadClaimUpdate(asset, {
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING, 'youtubeUpload.attemptId': attemptId,
+        'youtubeUpload.phase': 'claimed', 'youtubeUpload.session': null, 'youtubeUpload.waitReason': null,
+        'youtubeUpload.queuedAt': asset.youtubeUpload?.queuedAt || now,
         'youtubeUpload.error': null, 'youtubeUpload.attemptCount': attemptCount,
         'youtubeUpload.lastAttemptAt': startedAt, 'youtubeUpload.failedAt': null,
         'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
@@ -192,8 +204,10 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       releaseFile = tryAcquireWork(fileWorkKeys(file));
       if (!releaseFile) { const error = new Error('Local source is in use.'); error.youtubeRetrySafe = true; throw error; }
       uploadResult = await uploadLocalVideo({ filePath, title: asset.title,
-        description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl, signal: heartbeat.signal });
+        description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl, signal: heartbeat.signal, probe, now,
+        ...uploadPhaseCallbacks(ShortAsset, owner) });
     } catch (error) {
+      if (error.youtubeInfrastructure || error.youtubeOwnershipUncertain) return null;
       error.youtubeUploadAttempted = true;
       await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
       throw error;
@@ -201,12 +215,13 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     const uploadedAt = new Date();
     let uploaded;
     try {
+      if (!(await ShortAsset.findOne(owner).lean())) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
       await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'short_asset', asset);
       uploaded = await ShortAsset.findOneAndUpdate(owner, { $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
-        youtubeAvailability: YOUTUBE_AVAILABILITIES.PLAYABLE,
-        youtubePrivacyStatus: normalizePrivacyStatus(uploadResult.privacyStatus), lastCheckedAt: uploadedAt,
+        'youtubeUpload.remoteState': 'processing',
+        youtubePrivacyStatus: uploadResult.privacyStatus, lastCheckedAt: uploadedAt,
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED, 'youtubeUpload.error': null,
         'youtubeUpload.uploadedAt': uploadedAt, 'youtubeUpload.failedAt': null,
         'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
@@ -216,11 +231,10 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
       throw error;
     }
-    if (!uploaded) return null;
-    if (uploaded.status !== SHORT_ASSET_STATUSES.ARCHIVED
-      && uploaded.reviewStatus === SHORT_ASSET_REVIEW_STATUSES.APPROVED
-      && Number(uploaded.reviewedGenerationVersion) === Number(uploaded.generationVersion || 1)) return await markShortAssetPublished(uploaded);
-    return uploaded;
+    if (!uploaded) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
+    await uploadGate.recordUploadSuccess({ probe }).catch(() => null);
+    const checked = await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'short_asset', item: uploaded, fetchImpl, now }).catch(() => null);
+    return checked || uploaded;
   } finally { await heartbeat?.stop(); releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release(); }
 }
 
@@ -242,10 +256,10 @@ function runTrackedShortAssetUpload(options = {}) {
  */
 async function markShortAssetPublished(asset) {
   assertReviewApproved(asset);
-  if (!asset.youtubeVideoId) return null;
+  if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
   const publishedAt = new Date();
   const published = await ShortAsset.findOneAndUpdate(
-    { _id: asset._id, status: { $nin: [SHORT_ASSET_STATUSES.ARCHIVED, SHORT_ASSET_STATUSES.PUBLISHED] },
+    { _id: asset._id, 'youtubeUpload.remoteState': 'ready', status: { $nin: [SHORT_ASSET_STATUSES.ARCHIVED, SHORT_ASSET_STATUSES.PUBLISHED] },
       ...NO_CLEANUP_INTENT, reviewStatus: SHORT_ASSET_REVIEW_STATUSES.APPROVED,
       // Hydrated legacy documents have a default generation/attempt which may
       // still be absent in Mongo. Null and missing mean "no attempt" here;
@@ -255,7 +269,7 @@ async function markShortAssetPublished(asset) {
         Number(asset.generationVersion || 1) === 1
           ? { $or: [{ generationVersion: 1 }, { generationVersion: null }] }
           : { generationVersion: asset.generationVersion },
-        ...observedFields(asset, ['reviewedGenerationVersion', 'filePath', 'youtubeVideoId']),
+        ...observedFields(asset, ['reviewedGenerationVersion', 'filePath', 'youtubeVideoId', 'youtubeUpload.readyAt']),
       ],
     },
     {
@@ -409,6 +423,8 @@ async function retryShortAssetUpload({ user, assetId, fetchImpl = global.fetch, 
     );
   }
   const uploadStatus = asset.youtubeUpload?.status || null;
+  if (uploadStatus === 'waiting') throw uploadGate.quotaWaitingError({ earliestRetryAt: asset.youtubeUpload.nextRetryAt });
+  await uploadGate.assertUploadNotPaused({ now });
   // 沒有任何上傳紀錄（status 為 null）也可以傳：那代表這支從來沒送出過 bytes，
   // 重試不可能產生重複影片。沒有這條，排程上傳因故沒跑到的資產會永遠卡著——
   // 教師既沒有影片可審，也按不動重試。
@@ -464,6 +480,8 @@ function toTeacherAsset(asset) {
       error: asset.youtubeUpload?.error || null,
       attemptCount: Number(asset.youtubeUpload?.attemptCount || 0),
       retrySafe: Boolean(asset.youtubeUpload?.retrySafe),
+      waitReason: asset.youtubeUpload?.waitReason || null, nextRetryAt: asset.youtubeUpload?.nextRetryAt || null,
+      remoteState: asset.youtubeUpload?.remoteState || null,
     },
     createdAt: asset.createdAt || null,
   };

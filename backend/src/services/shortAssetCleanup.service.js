@@ -38,14 +38,15 @@ function isCleanableShortAsset(asset) {
     && CLEANABLE_SHORT_ASSET_STATUSES.includes(asset.status)
     && asset.youtubeVideoId
     && asset.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED
-    && toValidTime(asset.youtubeUpload?.uploadedAt) !== null
+    && asset.youtubeUpload?.remoteState === 'ready'
+    && toValidTime(asset.youtubeUpload?.readyAt) !== null
     && asset.filePath
     && !asset.youtubeUpload?.localCleanupAt,
   );
 }
 
 // CLEANUP_SOURCES.short_asset.listEntries：只列出符合短片安全條件的成品，
-// 保留期從 YouTube 上傳完成起算（#30）。
+// 保留期從就緒與補回原片時間的較晚者起算（#58、#61）。
 async function listShortAssetCleanupEntries() {
   const assets = await ShortAsset.find({
     status: { $in: CLEANABLE_SHORT_ASSET_STATUSES },
@@ -55,7 +56,14 @@ async function listShortAssetCleanupEntries() {
   })
     .select('_id title courseId filePath status generationVersion youtubeVideoId youtubeUpload')
     .lean();
-  const cleanable = assets.filter(isCleanableShortAsset);
+  const checked = [];
+  for (const asset of assets) {
+    if (!asset.youtubeUpload?.remoteState) {
+      await require('./youtubeRemoteState.service').checkItemRemoteState({kind: SHORT_ASSET_CLEANUP_KIND, item:asset});
+      checked.push(await ShortAsset.findById(asset._id).lean());
+    } else checked.push(asset);
+  }
+  const cleanable = checked.filter(isCleanableShortAsset);
   if (!cleanable.length) return [];
 
   const references = await loadLocalFileReferences();
@@ -71,7 +79,7 @@ async function listShortAssetCleanupEntries() {
       courseId: asset.courseId ? String(asset.courseId?._id || asset.courseId) : null,
       sizeBytes: source.file.sizeBytes,
       sourceSnapshot: source.snapshot,
-      retentionStartTime: toValidTime(asset.youtubeUpload.uploadedAt),
+      retentionStartTime: Math.max(toValidTime(asset.youtubeUpload.readyAt), toValidTime(asset.youtubeUpload.localSourceRestoredAt) || 0),
     });
   }
   return entries;
@@ -91,7 +99,11 @@ async function cleanupShortAssetLocalFile(assetId, options = {}) {
   let sourceRemoved = false;
   try {
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) return { cleaned: false, reason: 'disabled' };
-    const asset = await ShortAsset.findById(assetId).lean();
+    let asset = await ShortAsset.findById(assetId).lean();
+    if (asset && !asset.youtubeUpload?.remoteState) {
+      await require('./youtubeRemoteState.service').checkItemRemoteState({kind: SHORT_ASSET_CLEANUP_KIND, item:asset, fetchImpl:options.fetchImpl});
+      asset = await ShortAsset.findById(assetId).lean();
+    }
     if (!asset) return { cleaned: false, reason: 'short_asset_not_found' };
     if (asset.youtubeUpload?.localCleanupAt) return { cleaned: false, reason: 'already_cleaned' };
     if (!isCleanableShortAsset(asset)) return { cleaned: false, reason: 'lifecycle_not_complete' };
@@ -107,7 +119,12 @@ async function cleanupShortAssetLocalFile(assetId, options = {}) {
     }
     owner = await claimCleanupSource(SHORT_ASSET_CLEANUP_KIND, asset, source, options);
     if (!owner) return { cleaned: false, reason: 'source_changed' };
-    const deletion = await deleteCleanupSource(source.file, { ...options, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
+    const beforeDelete = async () => {
+      const stop = await require('./youtubeRemoteState.service').verifyRemoteReadyForCleanup({kind: SHORT_ASSET_CLEANUP_KIND, id: assetId, fetchImpl: options.fetchImpl});
+      if (stop) return stop;
+      return options.beforeDelete ? options.beforeDelete() : null;
+    };
+    const deletion = await deleteCleanupSource(source.file, { ...options, beforeDelete, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
     sourceRemoved = deletion.cleaned;
     if (!deletion.cleaned) {
       if (deletion.reason === 'delete_failed') await ShortAsset.findOneAndUpdate(owner.filter, { $set: { 'youtubeUpload.localCleanupError': 'Local file deletion failed; source retained for retry.' } });

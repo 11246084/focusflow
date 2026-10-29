@@ -37,6 +37,13 @@ async function insert(kind, extra = {}) {
   const item = { _id: new mongoose.Types.ObjectId(), courseId, uploadedBy: teacherId, title: 'Fixture', sourceType: 'upload', filePath: file(),
     youtubeVideoId: 'backup00001', youtubeUpload: { status: 'uploaded', uploadedAt: new Date('2025-01-01') },
     ...(kind === 'video' ? { processing: { status: 'completed' } } : { status: 'published', generationVersion: 1 }), ...extra };
+  // These pre-Q fixtures exercise source ownership, not remote readiness.
+  // Explicitly establish the ready/switch boundary required by the Q contract.
+  if (item.youtubeUpload?.status === 'uploaded' && item.youtubeUpload.uploadedAt) {
+    item.youtubeUpload.remoteState ??= 'ready';
+    item.youtubeUpload.readyAt ??= item.youtubeUpload.uploadedAt;
+    if (kind === 'video') item.videoSource ??= 'youtube';
+  }
   await db.collection(kind === 'video' ? 'videos' : 'shortassets').insertOne(item); return item;
 }
 function worker(config) {
@@ -51,7 +58,7 @@ async function runWorker(config) { const w = worker(config); const r = await w.r
 before(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'ff-atomicity-')); env.uploadDir = root;
   isolated = await openIsolatedYouTubeMongo(uri);
-  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false }); db = mongoose.connection.db;
+  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false, directConnection: true }); db = mongoose.connection.db;
   for (const name of collections) await db.createCollection(name);
   await db.collection('shortassets').createIndex({ youtubeVideoId: 1 }, { unique: true, sparse: true });
 });

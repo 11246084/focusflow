@@ -410,7 +410,7 @@ async function verifyOwnYouTubeVideo(youtubeVideoId, fetchImpl) {
       'YOUTUBE_QUARANTINE_VIDEO_NOT_OWNED',
     );
   }
-  return { privacyStatus: remote.status?.privacyStatus || null };
+  return { privacyStatus: remote.status?.privacyStatus || null, status: remote.status || {}, snippet: remote.snippet || {}, id: remote.id || youtubeVideoId };
 }
 
 // 只在項目仍是同一種待處理狀態時寫入；檢查後被其他流程改掉時回 null，不覆寫。
@@ -446,13 +446,19 @@ async function applyQuarantinedItemOwned({
   const item = await loadQuarantinedItem(kind, id);
   await assertYouTubeVideoIdUnused(normalizedYouTubeVideoId);
   const remote = await verifyOwnYouTubeVideo(normalizedYouTubeVideoId, fetchImpl);
+  const readiness = require('./youtubeRemoteState.service').evaluateRemoteState(kind, item, remote, now);
+  if (remote.privacyStatus === 'public') await require('./notification.service').notifyYouTubeRemoteEvent({ kind, item, reason: 'privacy_public', detectedAt: item.youtubeUpload?.failedAt || now, urgent: true });
+  if (readiness.remoteState !== 'ready') throw new AppError('The YouTube video is not ready or does not meet the privacy policy.', 422, 'YOUTUBE_QUARANTINE_VIDEO_NOT_READY');
   await reserveYouTubeBackup(normalizedYouTubeVideoId, kind, item);
 
-  const updated = await updateIfStillQuarantined(kind, id, definition.buildApplyUpdate({
+  const updated = await updateIfStillQuarantined(kind, id, { ...definition.buildApplyUpdate({
     youtubeVideoId: normalizedYouTubeVideoId,
     privacyStatus: remote.privacyStatus,
     now,
-  }), [PENDING_REASONS.QUARANTINED], item);
+  }), 'youtubeUpload.remoteState': 'ready', 'youtubeUpload.readyAt': now,
+    'youtubeUpload.blockedReason': null, 'youtubeUpload.lastCheckAt': now, 'youtubeUpload.lastCheckError': null,
+    ...(kind === 'video' ? {'youtubeUpload.privacyStatus': remote.privacyStatus} : {}),
+  }, [PENDING_REASONS.QUARANTINED], item);
   if (!updated) throw createStateChangedError(definition);
   await definition.afterApply(updated);
   // 用處理前的失敗時間防重複：同一次失敗只通知一次。
@@ -519,4 +525,5 @@ module.exports = {
   loadQuarantinedItem,
   lookupQuarantinedItem,
   resetQuarantinedItem,
+  verifyOwnYouTubeVideo,
 };

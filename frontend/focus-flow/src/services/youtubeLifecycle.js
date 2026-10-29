@@ -5,9 +5,10 @@ import { apiFetch } from '../api.js';
 
 
 
-export const SWITCH_KEYS = ['upload', 'recovery', 'cleanup'];
+export const SWITCH_KEYS = ['upload', 'recovery', 'cleanup', 'privacy_guard'];
 
 export const SWITCH_META = {
+  privacy_guard: { label: '隱私保護', description: '發現系統上傳的影片公開時，嘗試改為私人。', envVar: 'YOUTUBE_PRIVACY_GUARD_ENABLED', defaultEnabled: false },
   upload: {
     label: '自動上傳',
     description: '影片處理完成後自動上傳到系統 YouTube 頻道（不公開）。',
@@ -22,7 +23,7 @@ export const SWITCH_META = {
   },
   cleanup: {
     label: '原片清理',
-    description: '依可用空間與保留期刪除已上傳完成的原片，刪除後無法自動取回。',
+    description: '依可用空間與保留期，刪除已確認可播放並切換至 YouTube 的原片；刪除後無法自動取回。',
     envVar: 'YOUTUBE_UPLOAD_CLEANUP_ENABLED',
     defaultEnabled: false,
   },
@@ -314,4 +315,17 @@ export function getVideoSourceState(video = {}) {
     showReprocess: reprocessable && !video.metadataOnly,
     reprocessHint,
   };
+}
+
+export async function getUploadOverview() { return (await apiFetch('/admin/youtube-lifecycle/uploads')).data; }
+export async function probeUpload() { return (await apiFetch('/admin/youtube-lifecycle/uploads/probe', jsonRequest('POST'))).data; }
+export async function getPrivacyIncidents() { return (await apiFetch('/admin/youtube-lifecycle/privacy-incidents')).data; }
+export async function restoreUnlisted(kind, id) { return (await apiFetch(`/admin/youtube-lifecycle/privacy/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/unlisted`, jsonRequest('POST'))).data; }
+export async function getAdminStorage() { return (await apiFetch('/admin/youtube-lifecycle/storage')).data; }
+export async function getTeacherUploadStatus() { return (await apiFetch('/videos/upload-status')).data; }
+export async function getUploadStorage() { return (await apiFetch('/videos/upload-storage')).data; }
+export function waitingUploadText(upload = {}) {
+  if (upload.status !== 'waiting') return '';
+  const time = upload.nextRetryAt ? new Date(upload.nextRetryAt).toLocaleString('zh-TW', { hour12: false }) : '';
+  return `YouTube 上傳等待中，系統會自動補傳${time ? `，最快 ${time}` : ''}。`;
 }

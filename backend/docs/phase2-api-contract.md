@@ -430,3 +430,11 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 本機瀏覽器可設定 `$env:AUTH_BROWSER_FIXTURE='local-only'`，執行 `node integration/auth.browser.cjs`，另啟動前端 Vite。此 fixture 只在 `127.0.0.1:4000` 使用記憶體 model 與假寄信；`127.0.0.1:4001` 可讀取假信驗證碼，`POST /reset?production=true&firstLoginRole=admin` 可重建 admin 首次登入情境，`POST /shutdown` 會關閉服務並清理專用上傳暫存目錄。它不載入 `server.js`、不連 Mongo、不寄真信或啟動 STT；production 參數只切換認證設定，正式 TLS、寄信送達與外部進站仍須另行驗收。
 
 adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-audit -- --database focusflow`。此帳號須有該集合的 createCollection 權限；authSessionsIndexer 不能代替。應用程式的新 model 都不在啟動時建集合或索引。
+
+## YouTube Q 上傳、就緒與播放介面
+
+正式欄位見[共用資料契約](../../docs/04_Features/YouTube_Lifecycle/shared-data-contract.md)，每個端點的請求與回應以[OpenAPI](openapi.yaml)為準。`youtubeUpload.status` 新增 waiting，教師重試回 409 YOUTUBE_UPLOAD_QUOTA_WAITING，公開 details 帶 earliestRetryAt；上傳完成先 processing，processed／可嵌入／隱私合格後才 ready 並切換播放。
+
+影片 API 新增 playbackSource.type（youtube／local／unavailable）；本機播放網址為同來源 `/api/v1/videos/:videoId/source`，GET／HEAD 各自驗權限與 Range。播放欄位的轉換只在影片 API 邊界，資料庫、問答、FAQ、LINE 與 bridgeScope 的原始引用不因此改寫。預設未啟用原片播放時回 409，公開 `/uploads` 已移除。
+
+教師可讀 `/videos/upload-status` 與 `/videos/upload-storage`；管理員可讀 `/admin/youtube-lifecycle/uploads`、`privacy-incidents`、`storage`，或 POST `uploads/probe` 單支試傳與 `privacy/:kind/:id/unlisted` 修復隱私。所有回應都不含 session URL；新欄位均為新增，舊前端／舊資料維持相容。

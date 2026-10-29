@@ -9,6 +9,7 @@ const {
 const { buildShortsSyncSnapshot } = require('../services/shortsSync.service');
 const { buildYouTubeUploadSnapshot } = require('../services/youtubeUpload.service');
 const { buildYouTubeLifecycleSnapshot } = require('../services/youtubeLifecycle.service');
+const { getUploadPauseSnapshot, getUploadGateSnapshot } = require('../services/youtubeUploadGate.service');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -16,6 +17,10 @@ const router = express.Router();
 router.get('/', asyncHandler(async (req, res) => {
   // 兩層開關要讀資料庫、可用空間要查磁碟；兩者失敗都只標在欄位內，不讓 /health 失敗。
   const youtubeLifecycle = await buildYouTubeLifecycleSnapshot();
+  const [pause, gate] = await Promise.all([
+    getUploadPauseSnapshot().catch(() => ({ unknown: true })),
+    getUploadGateSnapshot().catch(() => ({ unknown: true })),
+  ]);
   return sendSuccess(res, {
     message: 'Service is healthy.',
     data: {
@@ -29,7 +34,7 @@ router.get('/', asyncHandler(async (req, res) => {
         shortsSync: buildShortsSyncSnapshot(),
         youtubeUpload: {
           ...buildYouTubeUploadSnapshot(),
-          ...youtubeLifecycle,
+          ...youtubeLifecycle, pause, gate,
         },
       },
     },

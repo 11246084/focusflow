@@ -17,7 +17,7 @@ function file() { const filename = path.join(root, `${new mongoose.Types.ObjectI
 async function video() {
   const item = { _id: new mongoose.Types.ObjectId(), courseId, uploadedBy: teacherId, title: 'F3 fixture', sourceType: 'upload', fileName: 'fixture.mp4', filePath: file(),
     youtubeVideoId: 'f3Backup001', videoSource: 'youtube', videoUrl: 'https://www.youtube.com/watch?v=f3Backup001',
-    processing: { status: 'completed', attemptCount: 1 }, youtubeUpload: { status: 'uploaded', uploadedAt: new Date('2025-01-01') } };
+    processing: { status: 'completed', attemptCount: 1 }, youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: new Date('2025-01-01'), uploadedAt: new Date('2025-01-01') } };
   await db.collection('videos').insertOne(item); return item;
 }
 function worker(config) {
@@ -30,7 +30,7 @@ function worker(config) {
 }
 before(async () => {
   isolated = await openIsolatedYouTubeMongo(uri); root = fs.mkdtempSync(path.join(os.tmpdir(),'ff-f3-f4-mongo-')); env.uploadDir = root;
-  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false }); db = mongoose.connection.db;
+  await mongoose.connect(uri, { dbName: isolated.databaseName, autoIndex: false, autoCreate: false, directConnection: true }); db = mongoose.connection.db;
   for (const name of collections) await db.createCollection(name);
   await Setting.collection.createIndex({ key: 1 }, { unique: true });
 });

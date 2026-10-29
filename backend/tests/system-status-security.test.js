@@ -129,7 +129,7 @@ describe('系統狀態 API、404 與安全標頭', () => {
       upcomingCleanupCount: 0,
       upcomingCleanupBytes: 0,
     });
-    assert.equal(switches.length, 3);
+    assert.deepEqual(switches.map(item => item.key).sort(), ['cleanup', 'privacy_guard', 'recovery', 'upload']);
     assert.deepEqual(upcomingCleanupItems, []);
     assert.equal(error, null);
     const lifecycle = result.body.data.services.find((service) => service.key === 'youtube_lifecycle');

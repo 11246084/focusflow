@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { youtubeUploadContractFields } = require('./youtubeUploadContract.schema');
 const {
   COURSE_STATUS_VALUES,
   SHORT_ASSET_REVIEW_REASON_CODE_VALUES,
@@ -74,6 +75,7 @@ const disclosureSchema = new mongoose.Schema(
 // 否則教師只看得到「沒上架」而不知道為什麼，也判斷不出能不能重試。
 const shortAssetUploadSchema = new mongoose.Schema(
   {
+    ...youtubeUploadContractFields(),
     status: { type: String, enum: [...YOUTUBE_UPLOAD_STATUS_VALUES, null], default: null },
     error: { type: String, default: null, trim: true },
     attemptCount: { type: Number, default: 0, min: 0 },

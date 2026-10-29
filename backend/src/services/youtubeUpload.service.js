@@ -2,7 +2,7 @@ const { createReadStream, existsSync, statSync, unlinkSync } = require('fs');
 const path = require('path');
 const { inspectLocalUploadFile, resolveLocalUploadPath } = require('../utils/localVideoSource');
 const { claimCleanupSource, inspectCleanupSource, deleteCleanupSource } = require('./localSourceCleanup.service');
-const { uploadClaimUpdate, expiredUploadHeartbeat, keepUploadAlive, reserveYouTubeBackup, attemptOwnerQuery, fileWorkKeys, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
+const { observedFields, NO_CLEANUP_INTENT, uploadClaimUpdate, expiredUploadHeartbeat, keepUploadAlive, reserveYouTubeBackup, attemptOwnerQuery, fileWorkKeys, randomWorkId, sourceWorkKey, tryAcquireWork, uploadClaimQuery, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const Video = require('../models/video.model');
 const {
@@ -11,6 +11,7 @@ const {
   YOUTUBE_UPLOAD_STATUSES,
 } = require('../constants/enums');
 const AppError = require('../utils/appError');
+const uploadGate = require('./youtubeUploadGate.service');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanManageCourse, getCourseByIdOrThrow } = require('./courseAccess.service');
 const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
@@ -77,7 +78,7 @@ function nowIso() {
 }
 
 function shortErrorMessage(error) {
-  return String(error?.message || error || 'Unknown error').slice(0, 300);
+  return String(error?.message || error || 'Unknown error').replace(/https?:\/\/\S+/g, '[redacted-url]').slice(0, 300);
 }
 
 function tagRetrySafety(error, retrySafe) {
@@ -112,25 +113,6 @@ function buildMissingYouTubeVideoIdCondition() {
       { youtubeVideoId: { $exists: false } },
     ],
   };
-}
-
-function buildObservedLastAttemptCondition(lastAttemptAt) {
-  if (lastAttemptAt === undefined) {
-    return { 'youtubeUpload.lastAttemptAt': { $exists: false } };
-  }
-
-  // MongoDB treats `{ field: null }` as both null and missing. Keep the
-  // compare-and-set exact when the stale snapshot explicitly held null.
-  if (lastAttemptAt === null) {
-    return {
-      $and: [
-        { 'youtubeUpload.lastAttemptAt': null },
-        { 'youtubeUpload.lastAttemptAt': { $exists: true } },
-      ],
-    };
-  }
-
-  return { 'youtubeUpload.lastAttemptAt': lastAttemptAt };
 }
 
 function guessMimeType(filePath) {
@@ -185,9 +167,12 @@ function assertFetch(fetchImpl) {
   }
 }
 
-function createYouTubeApiError(message, responseText) {
-  const suffix = responseText ? ` ${responseText.slice(0, 300)}` : '';
-  return new AppError(`${message}${suffix}`.trim(), 502, 'YOUTUBE_UPLOAD_FAILED');
+function createYouTubeApiError(message, responseText, status) {
+  const error = new AppError(message, 502, 'YOUTUBE_UPLOAD_FAILED');
+  error.status = status;
+  try { error.reason = JSON.parse(responseText || '{}')?.error?.errors?.[0]?.reason || null; } catch { error.reason = null; }
+  error.quotaExceeded = error.reason === 'quotaExceeded';
+  return error;
 }
 
 async function fetchAccessToken({ fetchImpl = global.fetch } = {}) {
@@ -243,109 +228,136 @@ async function fetchAccessToken({ fetchImpl = global.fetch } = {}) {
   }
 }
 
-async function uploadLocalVideo({
-  filePath,
-  title,
-  description,
-  mimeType,
-  privacyStatus = env.youtubeUploadPrivacy || env.youtubeUploadPrivacyStatus,
-  fetchImpl = global.fetch,
-  signal,
-} = {}) {
-  if (!filePath) {
-    throw new AppError('filePath is required for YouTube upload.', 400, 'VALIDATION_ERROR');
-  }
-
+async function createUploadSession({ filePath, title, description, mimeType, privacyStatus = 'unlisted', fetchImpl = global.fetch, signal, now = new Date() } = {}) {
   assertFetch(fetchImpl);
-  let accessToken;
+  const accessToken = await fetchAccessToken({ fetchImpl });
+  const fileSize = statSync(filePath).size;
+  const contentType = mimeType || guessMimeType(filePath);
+  let response;
   try {
-    accessToken = await fetchAccessToken({ fetchImpl });
-  } catch (error) {
-    throw tagRetrySafety(error, true);
-  }
-  const fileStats = statSync(filePath);
-  const normalizedMimeType = mimeType || guessMimeType(filePath);
-  const normalizedPrivacyStatus = normalizePrivacyStatus(privacyStatus);
-  const metadata = {
-    snippet: {
-      title: String(title || path.basename(filePath)).trim().slice(0, 100),
-      description: String(description || '').trim(),
-      categoryId: env.youtubeUploadCategoryId || '27',
-    },
-    status: {
-      privacyStatus: normalizedPrivacyStatus,
-      selfDeclaredMadeForKids: false,
-    },
-  };
-
-  let sessionResponse;
-  try {
-    sessionResponse = await fetchImpl(YOUTUBE_UPLOAD_URL, {
-      signal,
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-        'X-Upload-Content-Type': normalizedMimeType,
-        'X-Upload-Content-Length': String(fileStats.size),
-      },
-      body: JSON.stringify(metadata),
+    response = await fetchImpl(YOUTUBE_UPLOAD_URL, { method: 'POST', signal,
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': contentType, 'X-Upload-Content-Length': String(fileSize) },
+      body: JSON.stringify({ snippet: { title: String(title || path.basename(filePath)).trim().slice(0, 100),
+        description: String(description || '').trim(), categoryId: env.youtubeUploadCategoryId || '27' },
+      status: { privacyStatus: normalizePrivacyStatus(privacyStatus), selfDeclaredMadeForKids: false } }),
     });
-  } catch (error) {
-    throw tagRetrySafety(error, true);
+  } catch { throw tagRetrySafety(createYouTubeApiError('YouTube upload session request failed.'), true); }
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    const classification = uploadGate.classifyUploadSessionError(response.status, body, response.headers?.get?.('retry-after'), now);
+    const error = tagRetrySafety(createYouTubeApiError('Failed to create YouTube upload session.'), true);
+    error.youtubeClassification = classification;
+    if (classification.type === 'rate_limit') error.youtubeNextRetryAt = classification.retryAt;
+    throw error;
   }
+  const url = response.headers?.get?.('location');
+  if (!url) throw tagRetrySafety(createYouTubeApiError('YouTube upload session did not return a Location header.'), true);
+  return { session: { url, fileSize, createdAt: new Date() }, accessToken, mimeType: contentType };
+}
 
-  if (!sessionResponse.ok) {
-    const responseText = await sessionResponse.text().catch(() => '');
-    throw tagRetrySafety(createYouTubeApiError('Failed to create YouTube upload session.', responseText), true);
-  }
-
-  const uploadUrl = sessionResponse.headers?.get?.('location');
-  if (!uploadUrl) {
-    throw tagRetrySafety(createYouTubeApiError('YouTube upload session did not return a Location header.'), true);
-  }
-
-  let uploadResponse;
-  const uploadStream = createReadStream(filePath);
+async function sendUploadContent({ session, accessToken, mimeType, filePath, fetchImpl = global.fetch, signal }) {
+  signal?.throwIfAborted();
+  const stream = createReadStream(filePath);
+  let response;
   try {
-    uploadResponse = await fetchImpl(uploadUrl, {
-      signal,
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': normalizedMimeType,
-        'Content-Length': String(fileStats.size),
-      },
-      body: uploadStream,
-      duplex: 'half',
-    });
+    response = await fetchImpl(session.url, { method: 'PUT', signal,
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': mimeType, 'Content-Length': String(session.fileSize) },
+      body: stream, duplex: 'half', redirect: 'manual' });
+  } catch {
+    throw tagRetrySafety(createYouTubeApiError('YouTube content transmission failed; remote outcome is unknown.'), false);
+  } finally { stream.once('error', () => {}); stream.destroy(); }
+  if (!response.ok) throw tagRetrySafety(createYouTubeApiError('YouTube rejected upload content.'), false);
+  let payload;
+  try { payload = await response.json(); } catch { throw tagRetrySafety(createYouTubeApiError('Invalid YouTube upload response.'), false); }
+  if (!payload.id) throw tagRetrySafety(createYouTubeApiError('YouTube upload response did not include a video id.'), false);
+  const privacyStatus = await require('./youtubeRemoteState.service').readUploadPrivacy({ youtubeVideoId: payload.id, response: payload, fetchImpl });
+  return { youtubeVideoId: payload.id, videoUrl: buildYouTubeWatchUrl(payload.id), privacyStatus };
+}
+
+async function queryUploadSession({ session, fetchImpl = global.fetch, signal } = {}) {
+  if (!session?.url || !Number.isFinite(session.fileSize)) return { status: null, result: 'session_missing', youtubeVideoId: null };
+  try {
+    const accessToken = await fetchAccessToken({ fetchImpl });
+    const response = await fetchImpl(session.url, { method: 'PUT', signal, redirect: 'manual',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Length': '0', 'Content-Range': `bytes */${session.fileSize}` } });
+    const status = response.status === 200 && String(response.headers?.get?.('x-http-status-code-override')) === '308' ? 308 : response.status;
+    if (status !== 201) {
+      const range = /^bytes=0-(\d+)$/i.exec(String(response.headers?.get?.('range') || '').trim());
+      const receivedBytes = status === 308 && range ? Number(range[1]) + 1 : null;
+      return { status, result: status === 308 ? 'incomplete' : status === 404 ? 'expired' : 'unknown', youtubeVideoId: null,
+        receivedBytes: Number.isSafeInteger(receivedBytes) && receivedBytes >= 0 && receivedBytes <= session.fileSize ? receivedBytes : null,
+        fileSize: session.fileSize };
+    }
+    const payload = await response.json();
+    return { status, result: payload.id ? 'completed' : 'invalid_response', youtubeVideoId: payload.id || null };
+  } catch { return { status: null, result: 'query_failed', youtubeVideoId: null }; }
+}
+
+function formatUploadSessionQueryResult(result) {
+  const progress = result.receivedBytes != null
+    ? `上傳工作階段已接收 ${(result.receivedBytes / 1024 ** 2).toFixed(2)}/${(result.fileSize / 1024 ** 2).toFixed(2)} MB，但尚未確認完成。`
+    : result.status === 308 ? '上傳工作階段尚未完成，YouTube 未提供已接收的位元組範圍。'
+      : result.status === 404 ? '上傳工作階段已失效，無法再從此工作階段確認結果。'
+        : result.result === 'query_failed' ? '上傳狀態查詢失敗，無法確認遠端結果。'
+          : result.result === 'session_missing' ? '沒有可查詢的上傳工作階段，無法確認遠端結果。'
+            : result.result === 'verification_failed' ? '取得影片 ID，但未通過自家頻道或備份歸屬確認。'
+              : 'YouTube 未回傳可確認完成的結果。';
+  return `Upload status query: ${result.status || 'none'} ${result.result}; administrator review required. ${progress}不能據此推定 YouTube 上沒有影片，請管理員至 YouTube Studio 確認後處理。`;
+}
+
+async function uploadLocalVideo({ filePath, title, description, mimeType, privacyStatus = 'unlisted', fetchImpl = global.fetch,
+  signal, onSessionSaved, onBeforeSend, probe = false, now = new Date() } = {}) {
+  if (!filePath) throw new AppError('filePath is required for YouTube upload.', 400, 'VALIDATION_ERROR');
+  await uploadGate.assertUploadNotPaused({ now, probe });
+  let gate;
+  try { gate = await uploadGate.waitForUploadGate({ signal }); }
+  catch (error) { error.youtubeInfrastructure = true; throw error; }
+  if (!gate) throw uploadGate.quotaWaitingError({ waitReason: 'gate_busy', nextRetryAt: new Date(now.getTime() + 60_000) });
+  let timer;
+  let leaseError;
+  const controller = new AbortController();
+  const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+  let created;
+  try {
+    await uploadGate.assertUploadNotPaused({ now, probe });
+    timer = setInterval(() => gate.renew().catch((error) => { error.youtubeInfrastructure = true; leaseError = error; controller.abort(); }), 15_000);
+    timer.unref?.();
+    created = await createUploadSession({ filePath, title, description, mimeType, privacyStatus, fetchImpl, signal: combinedSignal, now });
+    if (leaseError) throw leaseError;
+    try {
+      await gate.renew();
+      if (onSessionSaved) await onSessionSaved(created.session);
+      await gate.renew();
+    } catch (error) { error.youtubeInfrastructure = true; throw error; }
   } catch (error) {
-    uploadStream.once('error', () => {});
-    uploadStream.destroy();
-    // A network failure after bytes started flowing is ambiguous: YouTube may have
-    // finalized the video even though FocusFlow did not receive the response.
-    throw tagRetrySafety(error, false);
+    const classification = error.youtubeClassification;
+    if (classification && ['api_daily', 'channel_limit'].includes(classification.type)) {
+      let pause;
+      try { pause = await uploadGate.recordUploadPause(classification, { now }); }
+      catch (dbError) { dbError.youtubeInfrastructure = true; throw dbError; }
+      throw uploadGate.quotaWaitingError(pause);
+    }
+    throw tagRetrySafety(error, true);
+  } finally {
+    clearInterval(timer);
+    try { await gate.release(); } catch (error) { error.youtubeInfrastructure = true; throw error; }
   }
-
-  if (!uploadResponse.ok) {
-    const responseText = await uploadResponse.text().catch(() => '');
-    throw tagRetrySafety(createYouTubeApiError('Failed to upload video to YouTube.', responseText), false);
+  // A timed out CAS may have reached Mongo. Never send without an acknowledged success.
+  if (onBeforeSend) {
+    try { await onBeforeSend(); } catch {
+      const error = tagRetrySafety(createYouTubeApiError('Cannot confirm media transmission ownership.'), false);
+      error.youtubeOwnershipUncertain = true; throw error;
+    }
   }
-
-  const uploadPayload = await uploadResponse.json();
-  if (!uploadPayload.id) {
-    throw tagRetrySafety(createYouTubeApiError('YouTube upload response did not include a video id.'), false);
-  }
-
-  return {
-    youtubeVideoId: uploadPayload.id,
-    videoUrl: buildYouTubeWatchUrl(uploadPayload.id),
-    privacyStatus: normalizedPrivacyStatus,
-  };
+  combinedSignal.throwIfAborted();
+  const result = await sendUploadContent({ ...created, filePath, fetchImpl, signal: combinedSignal });
+  return result;
 }
 
 async function uploadVideoFileToYouTube({ filePath, title, description = '' }, fetchImpl = global.fetch) {
   const result = await uploadLocalVideo({ filePath, title, description, fetchImpl });
+  await uploadGate.recordUploadSuccess().catch(() => null);
   return result.youtubeVideoId;
 }
 
@@ -359,10 +371,15 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
   let sourceRemoved = false;
   try {
     if (!(await isYouTubeLifecycleSwitchEnabled(YOUTUBE_LIFECYCLE_SWITCHES.CLEANUP))) return { cleaned: false, reason: 'disabled' };
-    const video = await Video.findById(videoId).lean();
+    let video = await Video.findById(videoId).lean();
     if (!video) return { cleaned: false, reason: 'video_not_found' };
     if (!video.youtubeVideoId || video.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.UPLOADED
       || video.processing?.status !== VIDEO_PROCESSING_STATUSES.COMPLETED) return { cleaned: false, reason: 'lifecycle_not_complete' };
+    if (video.youtubeUpload.remoteState == null) {
+      await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'video', item: video, fetchImpl: options.fetchImpl, now: options.now });
+      video = await Video.findById(videoId).lean();
+    }
+    if (video?.youtubeUpload?.remoteState !== 'ready' || video.videoSource !== VIDEO_SOURCE_TYPES.YOUTUBE) return { cleaned: false, reason: 'remote_not_ready' };
     if (!video.filePath) return { cleaned: false, reason: 'already_cleaned' };
     let file;
     try { file = inspectLocalUploadFile(video.filePath); } catch { return { cleaned: false, reason: 'reference_check_failed' }; }
@@ -383,7 +400,10 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
       sourceUrl: youtubeUrl, videoUrl: youtubeUrl, videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
     });
     if (!owner) return { cleaned: false, reason: 'source_changed' };
-    const deletion = await deleteCleanupSource(source.file, { ...options, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
+    const deletion = await deleteCleanupSource(source.file, { ...options, beforeDelete: async () => {
+      const remoteReason = await require('./youtubeRemoteState.service').verifyRemoteReadyForCleanup({ kind: 'video', id: videoId, fetchImpl: options.fetchImpl, now: options.now });
+      return remoteReason || (options.beforeDelete ? options.beforeDelete() : null);
+    }, beginDelete: owner.beginDelete, verifyOwnership: owner.verifyOwnership, leaseValid: owner.leaseValid });
     sourceRemoved = deletion.cleaned;
     if (!deletion.cleaned) {
       if (deletion.reason === 'delete_failed') {
@@ -409,9 +429,90 @@ async function cleanupUploadedLocalVideo(videoId, options = {}) {
   } finally { if (owner && !sourceRemoved) await owner.release(); releaseFile?.(); release(); }
 }
 
+function uploadPhaseCallbacks(model, owner) {
+  return {
+    async onSessionSaved(session) {
+      const saved = await model.findOneAndUpdate({ ...owner, 'youtubeUpload.phase': 'claimed' },
+        { $set: { 'youtubeUpload.session': session, 'youtubeUpload.phase': 'session_saved' } }, { new: true });
+      if (!saved) throw tagRetrySafety(new Error('Upload ownership lost before saving session.'), true);
+    },
+    async onBeforeSend() {
+      const sending = await model.findOneAndUpdate({ ...owner, 'youtubeUpload.phase': 'session_saved' },
+        { $set: { 'youtubeUpload.phase': 'sending' } }, { new: true });
+      if (!sending) throw new Error('Upload ownership lost before media transmission.');
+    },
+  };
+}
+
+function waitingFields(error, attemptCount) {
+  return { 'youtubeUpload.status': 'waiting', 'youtubeUpload.waitReason': error.youtubeWaitReason,
+    'youtubeUpload.nextRetryAt': error.youtubeNextRetryAt, 'youtubeUpload.retrySafe': true,
+    'youtubeUpload.attemptCount': Math.max(0, attemptCount - 1), 'youtubeUpload.error': null,
+    'youtubeUpload.phase': null, 'youtubeUpload.session': null };
+}
+
+async function recordOrphanUpload(model, item, attemptId, youtubeVideoId, kind) {
+  // Never reserve/reassign a late result: append only to the original content.
+  await model.findOneAndUpdate({ _id: item._id }, { $addToSet: {
+    'youtubeUpload.orphanUploads': { youtubeVideoId, attemptId, detectedAt: new Date() },
+  } });
+  await require('./notification.service').notifyYouTubeSystemEvent({
+    dedupeKey: `youtube_orphan:${youtubeVideoId}`,
+    title: 'YouTube 孤兒上傳需要確認', content: `影片 ${item._id} 的較早工作已完成，YouTube ID：${youtubeVideoId}。請管理員確認，系統未變更備份歸屬。`,
+  });
+}
+
+async function recoverStaleUpload({ model, kind, item, fetchImpl = global.fetch, now = new Date() }) {
+  const preSend = ['claimed', 'session_saved'].includes(item.youtubeUpload?.phase);
+  const attemptId = randomWorkId();
+  const filter = { ...attemptOwnerQuery(item, item.youtubeUpload?.attemptId ?? null), ...NO_CLEANUP_INTENT,
+    $and: [...observedFields(item, ['filePath', 'generationVersion', 'youtubeUpload.lastAttemptAt', 'youtubeUpload.phase', 'youtubeUpload.attemptId']),
+      expiredUploadHeartbeat(), buildMissingYouTubeVideoIdCondition()] };
+  const claimed = await model.findOneAndUpdate(filter, { $set: {
+    'youtubeUpload.attemptId': attemptId,
+    ...(preSend ? { 'youtubeUpload.status': 'failed', 'youtubeUpload.retrySafe': true,
+      'youtubeUpload.attemptCount': Math.max(0, Number(item.youtubeUpload?.attemptCount || 0) - 1),
+      'youtubeUpload.failedAt': now, 'youtubeUpload.nextRetryAt': now,
+      'youtubeUpload.phase': null, 'youtubeUpload.session': null,
+      'youtubeUpload.error': 'Upload interrupted before media transmission; safe to retry.' } : {}),
+  }, $currentDate: { 'youtubeUpload.heartbeatAt': true } }, { new: true });
+  if (!claimed || preSend) return claimed;
+  const owner = attemptOwnerQuery(item, attemptId);
+  const heartbeat = keepUploadAlive(model, owner);
+  try {
+    const result = await queryUploadSession({ session: item.youtubeUpload?.session, fetchImpl, signal: heartbeat.signal });
+    if (result.status === 201 && result.youtubeVideoId) {
+      try {
+        const remote = await require('./youtubeQuarantine.service').verifyOwnYouTubeVideo(result.youtubeVideoId, fetchImpl);
+        if (!(await model.findOne(owner).lean())) { await recordOrphanUpload(model, item, attemptId, result.youtubeVideoId, kind); return null; }
+        await reserveYouTubeBackup(result.youtubeVideoId, kind, item);
+        const complete = await model.findOneAndUpdate(owner, { $set: {
+          youtubeVideoId: result.youtubeVideoId,
+          ...(kind === 'short_asset' ? { youtubeUrl: buildYouTubeWatchUrl(result.youtubeVideoId), youtubePrivacyStatus: remote.privacyStatus }
+            : { 'youtubeUpload.privacyStatus': remote.privacyStatus }),
+          'youtubeUpload.status': 'uploaded', 'youtubeUpload.remoteState': 'processing', 'youtubeUpload.uploadedAt': now,
+          'youtubeUpload.error': null, 'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
+        } }, { new: true });
+        if (complete) {
+          await uploadGate.recordUploadSuccess().catch(() => null);
+          await require('./youtubeRemoteState.service').checkItemRemoteState({ kind, item: complete, fetchImpl, now }).catch(() => null);
+        }
+        else await recordOrphanUpload(model, item, attemptId, result.youtubeVideoId, kind);
+        return complete;
+      } catch { result.result = 'verification_failed'; }
+    }
+    const failed = await model.findOneAndUpdate(owner, { $set: {
+      'youtubeUpload.status': 'failed', 'youtubeUpload.retrySafe': false, 'youtubeUpload.nextRetryAt': null,
+      'youtubeUpload.failedAt': now, 'youtubeUpload.error': formatUploadSessionQueryResult(result),
+    } }, { new: true });
+    if (failed) await notifyYouTubeUploadNeedsReview({ kind, item: failed });
+    return failed;
+  } finally { await heartbeat.stop(); }
+}
+
 async function autoUploadVideoToYouTube(
   videoId,
-  { fetchImpl = global.fetch, allowRetry = true, observed, now = new Date(), onClaim } = {},
+  { fetchImpl = global.fetch, allowRetry = true, observed, now = new Date(), onClaim, probe = false } = {},
 ) {
   const id = String(videoId).toLowerCase();
   const release = tryAcquireWork([sourceWorkKey('video', id)]);
@@ -437,15 +538,27 @@ async function autoUploadVideoToYouTube(
       return null;
     }
 
+    const pause = await uploadGate.getUploadPauseSnapshot({ now });
+    if (!probe && (pause.paused || pause.probe)) {
+      await Video.findOneAndUpdate(uploadClaimQuery(video, { allowRetry, observed: observed || video, now }), { $set: uploadStateUpdate(video, {
+        ...waitingFields(uploadGate.quotaWaitingError(pause), Number(video.youtubeUpload?.attemptCount || 0) + 1),
+        'youtubeUpload.queuedAt': video.youtubeUpload?.queuedAt || now,
+      }) });
+      return null;
+    }
     const previousAttempts = Number(video.youtubeUpload?.attemptCount || 0);
     if (previousAttempts >= env.youtubeUploadMaxAttempts) return null;
 
     attemptCount = previousAttempts + 1;
     attemptStartedAt = new Date();
     const claimedVideo = await Video.findOneAndUpdate(
-      uploadClaimQuery(video, { allowRetry, observed: observed || video, now }),
+      uploadClaimQuery(video, { allowRetry, observed: observed || video, now, probe }),
       uploadClaimUpdate(video, {
           'youtubeUpload.attemptId': attemptId,
+          'youtubeUpload.phase': 'claimed',
+          'youtubeUpload.session': null,
+          'youtubeUpload.waitReason': null,
+          'youtubeUpload.queuedAt': video.youtubeUpload?.queuedAt || now,
           'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
           'youtubeUpload.error': null,
           'youtubeUpload.uploadedAt': null,
@@ -497,17 +610,18 @@ async function autoUploadVideoToYouTube(
       filePath,
       title: claimedVideo.title,
       description: `Uploaded by FocusFlow (video ${id}).`,
-      fetchImpl, signal: heartbeat.signal,
+      fetchImpl, signal: heartbeat.signal, probe, now,
+      ...uploadPhaseCallbacks(Video, owner),
     });
+    if (!(await Video.findOne(owner).lean())) { await recordOrphanUpload(Video, video, attemptId, uploadResult.youtubeVideoId, 'video'); return null; }
     await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'video', video);
     const uploadedAt = new Date();
 
     const completed = await Video.findOneAndUpdate(owner, {
       $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
-        sourceUrl: uploadResult.videoUrl,
-        videoUrl: uploadResult.videoUrl,
-        videoSource: VIDEO_SOURCE_TYPES.YOUTUBE,
+        'youtubeUpload.remoteState': 'processing',
+        'youtubeUpload.privacyStatus': uploadResult.privacyStatus,
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
         'youtubeUpload.error': null,
         'youtubeUpload.uploadedAt': uploadedAt,
@@ -517,24 +631,31 @@ async function autoUploadVideoToYouTube(
         'youtubeUpload.retrySafe': false,
         'youtubeUpload.nextRetryAt': null,
       },
-    });
+    }, { new: true });
 
-    if (!completed) return null;
+    if (!completed) { await recordOrphanUpload(Video, video, attemptId, uploadResult.youtubeVideoId, 'video'); return null; }
+    await uploadGate.recordUploadSuccess({ probe }).catch(() => null);
+    await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'video', item: completed, fetchImpl, now }).catch(() => null);
     // 原片不在上傳完成時刪除，改由清理排程依保留期與空間判斷（#22）。
     return uploadResult.youtubeVideoId;
   } catch (error) {
     if (!owner) return null;
+    if (error.youtubeInfrastructure || error.youtubeOwnershipUncertain) return null;
+    if (error.youtubeWaitReason) {
+      await Video.findOneAndUpdate(owner, { $set: waitingFields(error, attemptCount) });
+      return null;
+    }
     const retrySafe = error?.youtubeRetrySafe === true;
     const canRetry = retrySafe && attemptCount < env.youtubeUploadMaxAttempts;
     const nextRetryAt = canRetry
-      ? new Date(Date.now() + (env.youtubeUploadRetryBaseMs * (2 ** (attemptCount - 1))))
+      ? (error.youtubeNextRetryAt || new Date(Date.now() + (env.youtubeUploadRetryBaseMs * (2 ** (attemptCount - 1)))))
       : null;
     const failedAt = new Date();
 
     const failedVideo = await Video.findOneAndUpdate(owner, {
       $set: {
         'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
-        'youtubeUpload.error': String(error.message || error).slice(0, 500),
+        'youtubeUpload.error': shortErrorMessage(error),
         'youtubeUpload.uploadedAt': null,
         'youtubeUpload.attemptCount': attemptCount,
         'youtubeUpload.lastAttemptAt': attemptStartedAt,
@@ -553,9 +674,7 @@ async function autoUploadVideoToYouTube(
       });
     }
 
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(`YouTube auto upload failed for video ${id}.`, error);
-    }
+    if (process.env.NODE_ENV !== 'test') console.error(`YouTube auto upload failed for video ${id}.`, shortErrorMessage(error));
     return null;
   } finally {
     await heartbeat?.stop();
@@ -575,6 +694,8 @@ async function assertRetryableUpload(videoId, user) {
   if (video.youtubeVideoId || video.youtubeUpload?.status === YOUTUBE_UPLOAD_STATUSES.UPLOADED) {
     throw new AppError('Video is already uploaded to YouTube.', 409, 'YOUTUBE_UPLOAD_ALREADY_COMPLETED');
   }
+  if (video.youtubeUpload?.status === 'waiting') throw uploadGate.quotaWaitingError({ earliestRetryAt: video.youtubeUpload.nextRetryAt });
+  await uploadGate.assertUploadNotPaused();
   if (video.youtubeUpload?.status !== YOUTUBE_UPLOAD_STATUSES.FAILED) {
     throw new AppError('Only failed YouTube uploads can be retried.', 409, 'YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED');
   }
@@ -623,6 +744,7 @@ function buildRecoveryCandidateQuery(now) {
       buildMissingYouTubeVideoIdCondition(),
       {
         $or: [
+          { 'youtubeUpload.status': 'waiting', 'youtubeUpload.nextRetryAt': { $lte: now } },
           {
             'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
             'youtubeUpload.retrySafe': true,
@@ -681,7 +803,8 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
   credentialState.lastRecoveryAttemptAt = now.toISOString();
   try {
     const candidates = await Video.find(buildRecoveryCandidateQuery(now))
-      .sort({ 'youtubeUpload.lastAttemptAt': 1 })
+      .select('+youtubeUpload.session.url')
+      .sort({ 'youtubeUpload.queuedAt': 1, _id: 1 })
       .limit(env.youtubeUploadRecoveryBatchSize)
       .lean();
     const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
@@ -700,32 +823,10 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
         const observedLastAttemptAt = video.youtubeUpload?.lastAttemptAt;
         const lastAttemptMs = new Date(observedLastAttemptAt || 0).getTime();
         if (lastAttemptMs <= staleBefore) {
-          const quarantinedVideo = await Video.findOneAndUpdate(
-            {
-              _id: video._id,
-              'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
-              'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
-              $and: [
-                buildMissingYouTubeVideoIdCondition(),
-                buildObservedLastAttemptCondition(observedLastAttemptAt),
-                expiredUploadHeartbeat(),
-                { 'youtubeUpload.attemptId': video.youtubeUpload?.attemptId ?? null },
-              ],
-            },
-            {
-              $set: {
-                'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
-                'youtubeUpload.error': 'Stale upload quarantined: review YouTube Studio before retrying.',
-                'youtubeUpload.failedAt': now,
-                'youtubeUpload.retrySafe': false,
-                'youtubeUpload.nextRetryAt': null,
-              },
-            },
-            { new: true },
-          );
+          const quarantinedVideo = await recoverStaleUpload({ model: Video, kind: 'video', item: video, fetchImpl, now });
           if (quarantinedVideo) {
-            quarantined += 1;
-            await notifyYouTubeUploadNeedsReview({ kind: 'video', item: quarantinedVideo });
+            if (quarantinedVideo.youtubeUpload.status === 'uploaded' || quarantinedVideo.youtubeUpload.retrySafe) recovered += 1;
+            else quarantined += 1;
           } else {
             skippedItems += 1;
           }
@@ -737,7 +838,7 @@ async function recoverPendingYouTubeUploads({ fetchImpl = global.fetch, now = ne
 
       const nextRetryMs = new Date(video.youtubeUpload?.nextRetryAt || 0).getTime();
       const attempts = Number(video.youtubeUpload?.attemptCount || 0);
-      if (video.youtubeUpload?.retrySafe === true && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
+      if ((video.youtubeUpload?.status === 'waiting' || video.youtubeUpload?.retrySafe === true) && attempts < env.youtubeUploadMaxAttempts && nextRetryMs <= now.getTime()) {
         let claimed = false;
         await autoUploadVideoToYouTube(String(video._id), { fetchImpl, allowRetry: true, observed: video, now, onClaim: () => { claimed = true; } });
         if (claimed) recovered += 1;
@@ -840,7 +941,7 @@ async function setVideoPrivacy({
   const listResponse = await fetchImpl(listUrl, { headers: authHeaders });
   if (!listResponse.ok) {
     const responseText = await listResponse.text().catch(() => '');
-    throw createYouTubeApiError('Failed to read YouTube video status.', responseText);
+    throw createYouTubeApiError('Failed to read YouTube video status.', responseText, listResponse.status);
   }
 
   const listPayload = await listResponse.json();
@@ -862,7 +963,7 @@ async function setVideoPrivacy({
 
   if (!updateResponse.ok) {
     const responseText = await updateResponse.text().catch(() => '');
-    throw createYouTubeApiError('Failed to update YouTube video privacy.', responseText);
+    throw createYouTubeApiError('Failed to update YouTube video privacy.', responseText, updateResponse.status);
   }
 
   return { youtubeVideoId, privacyStatus: targetPrivacy };
@@ -1140,6 +1241,13 @@ module.exports = {
   startYouTubeUploadRecoveryScheduler,
   stopYouTubeUploadRecoveryScheduler,
   uploadLocalVideo,
+  createUploadSession,
+  sendUploadContent,
+  queryUploadSession,
+  uploadPhaseCallbacks,
+  waitingFields,
+  recordOrphanUpload,
+  recoverStaleUpload,
   uploadVideoFileToYouTube,
   verifyYouTubeCredentials,
 };

@@ -240,6 +240,7 @@ describe('course and video routes', () => {
   });
 
   it('keeps local playback metadata until processing completes', async () => {
+    const originalLocalPlayback = env.localPlaybackEnabled; env.localPlaybackEnabled = false;
     const originalUploadEnabled = env.youtubeUploadEnabled;
     env.youtubeUploadEnabled = true;
 
@@ -267,7 +268,9 @@ describe('course and video routes', () => {
       assert.equal(uploadResult.body.data.video.youtubeVideoId, null);
       assert.equal(uploadResult.body.data.video.youtube_video_id, null);
       assert.equal(uploadResult.body.data.video.video_source, 'upload');
-      assert.match(uploadResult.body.data.video.sourceUrl, /^\/uploads\//);
+      assert.equal(uploadResult.body.data.video.sourceUrl, null);
+      assert.equal(uploadResult.body.data.video.playbackSource.type, 'unavailable');
+      assert.match(storedVideo.sourceUrl, /^\/uploads\//);
       assert.equal(uploadResult.body.data.video.video_url, uploadResult.body.data.video.sourceUrl);
       assert.equal(storedVideo.youtubeVideoId, null);
       assert.equal(storedVideo.youtubeUpload ?? null, null);
@@ -275,6 +278,7 @@ describe('course and video routes', () => {
       assert.ok(storedVideo.fileHash);
     } finally {
       env.youtubeUploadEnabled = originalUploadEnabled;
+      env.localPlaybackEnabled = originalLocalPlayback;
     }
   });
 

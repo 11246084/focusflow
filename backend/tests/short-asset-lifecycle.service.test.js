@@ -29,6 +29,7 @@ const NOW = new Date('2026-10-20T00:00:00.000Z');
 
 let tempRoot;
 let originalEnv;
+let savedFetch;
 
 function addAsset(overrides = {}) {
   const id = newObjectId();
@@ -61,7 +62,7 @@ function addUploadedAsset({ status = 'published', uploadedDaysAgo = 200, sizeByt
     status,
     reviewStatus: status === 'draft' ? 'pending' : 'approved',
     youtubeVideoId: `yt-short-${newObjectId()}`,
-    youtubeUpload: { status: 'uploaded', attemptCount: 1, uploadedAt: daysAgo(uploadedDaysAgo) },
+    youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: daysAgo(uploadedDaysAgo), attemptCount: 1, uploadedAt: daysAgo(uploadedDaysAgo) },
     ...overrides,
   });
   fs.writeFileSync(asset.filePath, Buffer.alloc(sizeBytes));
@@ -96,7 +97,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
     }
     if (String(url) === 'https://upload.test/short') {
       for await (const chunk of options.body) assert.ok(chunk.length);
-      return response({ id: youtubeId });
+      return response({ id: new URL(url).searchParams.get('id') || youtubeId, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } });
     }
     if (String(url).includes('/youtube/v3/videos')) {
       if (options.method === 'PUT') {
@@ -104,7 +105,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
         privacyUpdates.push(payload);
         return response(payload);
       }
-      return response({ items: [{ id: youtubeId, status: { privacyStatus: 'unlisted' } }] });
+      return response({ items: [{ id: new URL(url).searchParams.get('id') || youtubeId, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
     }
     throw new Error(`Unexpected fake fetch: ${url}`);
   };
@@ -114,6 +115,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
 function useTempUploadDir() {
   beforeEach(() => {
     resetStore();
+    savedFetch = global.fetch; global.fetch = fakeYouTube().fetchImpl;
     originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
     tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-short-lifecycle-'));
     env.uploadDir = tempRoot;
@@ -130,7 +132,7 @@ function useTempUploadDir() {
 
   afterEach(() => {
     lifecycleService.resetYouTubeLifecycleStateForTests();
-    Object.assign(env, originalEnv);
+    Object.assign(env, originalEnv); global.fetch = savedFetch;
     fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 }
@@ -258,7 +260,7 @@ describe('短片成品的清理候選（#28、#30）', () => {
       filePath: videoPath,
       youtubeVideoId: 'yt-video',
       processing: { status: 'completed' },
-      youtubeUpload: { status: 'uploaded', uploadedAt: daysAgo(40) },
+      videoSource: 'youtube', youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: daysAgo(40), uploadedAt: daysAgo(40) },
     });
     addUploadedAsset({ uploadedDaysAgo: 5, sizeBytes: 2048 });
 

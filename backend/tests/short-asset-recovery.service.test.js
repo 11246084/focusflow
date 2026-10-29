@@ -50,9 +50,10 @@ function buildUploadFetch({ youtubeId = 'shortRecov01', gate = null, failSession
       if (failSession) return jsonResponse({ error: 'quota' }, { status: 403 });
       return jsonResponse({}, { headers: { location: 'https://upload.youtube.test/short-session' } });
     }
+    if (String(url).includes('/youtube/v3/videos')) return jsonResponse({ items: [{ id: youtubeId, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
     if (gate) await gate;
     await drainStream(options.body);
-    return jsonResponse({ id: youtubeId });
+    return jsonResponse({ id: youtubeId, status: { privacyStatus: 'unlisted' } });
   };
   return { fetchImpl, calls };
 }

@@ -274,6 +274,12 @@ module.exports = {
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
   shortsSyncIntervalMs: parseNonNegativeNumber(process.env.SHORTS_SYNC_INTERVAL_MS, 600000),
   youtubeUploadEnabled: String(process.env.YOUTUBE_UPLOAD_ENABLED || 'false').toLowerCase() === 'true',
+  youtubePrivacyGuardEnabled: parseBoolean(process.env.YOUTUBE_PRIVACY_GUARD_ENABLED, false, 'YOUTUBE_PRIVACY_GUARD_ENABLED'),
+  localPlaybackEnabled: parseBoolean(process.env.LOCAL_PLAYBACK_ENABLED, false, 'LOCAL_PLAYBACK_ENABLED'),
+  mediaAccelRedirectEnabled: parseBoolean(process.env.MEDIA_ACCEL_REDIRECT_ENABLED, false, 'MEDIA_ACCEL_REDIRECT_ENABLED'),
+  mediaAccelRedirectPrefix: process.env.MEDIA_ACCEL_REDIRECT_PREFIX || '/_protected-uploads/',
+  uploadSpaceFactor: parsePositiveInteger(process.env.UPLOAD_SPACE_FACTOR, 1, 'UPLOAD_SPACE_FACTOR'),
+  uploadMinFreeGb: parseNonNegativeNumber(process.env.UPLOAD_MIN_FREE_GB, 5),
   // Keep the earlier OAuth variable names readable while deployments migrate to the canonical names.
   youtubeClientId: process.env.YOUTUBE_CLIENT_ID || process.env.YOUTUBE_OAUTH_CLIENT_ID || '',
   youtubeClientSecret: process.env.YOUTUBE_CLIENT_SECRET || process.env.YOUTUBE_OAUTH_CLIENT_SECRET || '',

@@ -164,6 +164,8 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `RECUT_SOURCE_AUDIO_INVALID` | 422 | 響度或真峰值量測無效 |
 | `RECUT_SOURCE_TOO_QUIET` | 422 | 受峰值限制而離目標響度至少 2 LU |
 | `RECUT_ASR_INVALID` | 422 | 逐字時間為空、無效或不在視窗內 |
+| `RECUT_SOURCE_INVALID` | 422 | 選段來源不存在或不屬於該腳本 |
+| `RECUT_MODEL_FAILED` | 502 | recut 模型呼叫失敗，已用額度與用量保留 |
 | `RECUT_CALL_LIMIT_EXCEEDED` | 409 | 任務固定的共用呼叫額度已用完（寫入任務錯誤，不直接回生成請求） |
 | `RECUT_VALIDATION_FAILED` | 422 | 背景步驟驗證未通過或沒有提供版本（寫入任務錯誤） |
 | `RECUT_TASK_INTERRUPTED` | 409 | 後端重啟中斷執行，保留嘗試紀錄並恢復原版（寫入任務錯誤） |

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">備用頁｜詢答：AI 寫的程式誰負責</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">B5｜人定義完成，AI 實作，人驗收</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">備用 B5</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="ai-flow" data-pptx-bounds="56 192 1168 136">
+    <g id="p15-s1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="64 200 380 120" data-pptx-av-adj="val 30000" fill="#1B4D5C" stroke="none">
+<path d="M 64 200 L 408 200 L 444 260 L 408 320 L 64 320 Z"/>
+</g>
+    <g id="p15-s2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="452 200 380 120" data-pptx-av-adj="val 30000" fill="#F5EFE3" stroke="#D9D1C1" stroke-width="1.5">
+<path d="M 452 200 L 796 200 L 832 260 L 796 320 L 452 320 Z"/>
+</g>
+    <g id="p15-s3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="840 200 376 120" data-pptx-av-adj="val 30000" fill="#1B4D5C" stroke="none">
+<path d="M 840 200 L 1180 200 L 1216 260 L 1180 320 L 840 320 Z"/>
+</g>
+    <use data-icon="phosphor-duotone/users-three" x="84" y="220" width="40" height="40" fill="#E8A93C"/>
+    <text x="136" y="250" font-size="22" font-weight="bold" fill="#E8A93C">組員</text>
+    <text x="84" y="294" font-size="22" fill="#FFFFFF">定義需求與完成條件</text>
+    <use data-icon="phosphor-duotone/robot" x="472" y="220" width="40" height="40" fill="#5E8F9C"/>
+    <text x="524" y="250" font-size="22" font-weight="bold" fill="#5E8F9C">AI 工具</text>
+    <text x="472" y="294" font-size="22" fill="#15171A">依工作說明實作</text>
+    <use data-icon="phosphor-duotone/shield-check" x="860" y="220" width="40" height="40" fill="#E8A93C"/>
+    <text x="912" y="250" font-size="22" font-weight="bold" fill="#E8A93C">組員</text>
+    <text x="860" y="294" font-size="22" fill="#FFFFFF">執行測試與正式驗收</text>
+  </g>
+  <g id="existing-records" data-pptx-bounds="56 344 580 284">
+    <rect x="64" y="350" width="564" height="272" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="84" y="388" font-size="22" font-weight="bold" fill="#1B4D5C">已有的紀錄</text>
+    <text x="84" y="428" font-size="22" fill="#15171A">・03-24 會議：ChatGPT 規劃、Codex 實作，<tspan x="84" dy="30">　並要求說明 AI 與人為貢獻的分界</tspan><tspan x="84" dy="40">・04-24 全組任務：理解 AI 生成的程式碼</tspan><tspan x="84" dy="40">・decisions.md 每項寫組員同意日期</tspan><tspan x="84" dy="40">・系統手冊 README 揭露 AI 使用</tspan></text>
+  </g>
+  <g id="current-gaps" data-pptx-bounds="644 344 580 284">
+    <rect x="652" y="350" width="564" height="272" rx="4" fill="#FBF8F2" stroke="#B5482E" stroke-width="1.5"/>
+    <text x="672" y="388" font-size="22" font-weight="bold" fill="#B5482E">目前缺口</text>
+    <text x="672" y="428" font-size="22" fill="#15171A">・部分 PR 自行合併，沒有審查紀錄<tspan x="672" dy="40">・「獨立審查」是組員或 AI 工作階段：</tspan><tspan x="672" dy="30">　待確認</tspan><tspan x="672" dy="56" font-weight="bold" fill="#1B4D5C">下一步：合併前至少一位組員審查</tspan></text>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="18" fill="#5A6066">來源：Notion 會議 08（03-24）、任務「理解初評階段 AI 生成的程式碼」、各功能 decisions.md</text>
+  </g>
+</svg>

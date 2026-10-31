@@ -1,0 +1,20 @@
+{
+  "stage": "stage1",
+  "lang": "zh",
+  "primary_language": "zh-Hant-TW",
+  "recommend": { "canvas": "ppt169" },
+  "audience": { "value": "鈦坦敏捷開發特別獎決賽評審團：由鈦坦科技與競賽委員會共同邀請的產、官、學代表，設召集人一名；個別評審與評分配分未公布。可預期熟悉敏捷方法（鈦坦自身實踐 Scrum），會檢查主張是否有證據、是否誠實。" },
+  "communication_intent": { "value": "先說明團隊實際採用的敏捷方式（Notion Kanban 看板、每週教授檢視、階段 Milestone、AI 模組內短週期迭代），再用兩個真實案例佐證：案例 A 面對外部模型停用的快速適應與風險控制，案例 B 依測試結果調整產品品質；最後主動揭露證據限制與下一步改善。產品功能只當案例背景。" },
+  "audience_outcome": { "value": "評審能說出團隊實際怎麼工作，看懂兩個案例中「問題 → 決策 → 行動 → 改善」如何發生，相信每個日期與數字都能追溯到紀錄，也看到團隊清楚知道自己還缺什麼（CI 關卡、自動回滾、學生試用回饋）。" },
+  "core_message": { "value": "我們如何運用敏捷開發，讓每一次需求變動、技術問題與測試回饋，都成為下一次產品改善的起點。" },
+  "delivery_context": { "value": "主要：2026-11-07 決賽現場主講，正文 10 頁約 6 分鐘（形式以行前通知為準）；接著約 7 分鐘詢答，用 5 張備用頁回答追問。次要：會後評審或組員自行翻閱。" },
+  "artifact_afterlife": { "value": "作為詢答備用資料與敏捷佐證的延伸紀錄，可在系統手冊、期末報告引用；團隊後續補到證據時要能逐頁更新。" },
+  "content_divergence": { "value": "" },
+  "template_options": {
+    "schema_version": 1,
+    "phase": "template",
+    "lang": "zh",
+    "default_mode": "free_design",
+    "explicit_workspace_roots": []
+  }
+}

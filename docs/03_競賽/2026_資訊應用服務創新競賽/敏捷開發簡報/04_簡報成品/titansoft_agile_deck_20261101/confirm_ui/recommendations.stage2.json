@@ -1,0 +1,133 @@
+{
+  "stage": "stage2",
+  "lang": "zh",
+  "selection_sha256": "7c14418d3c91d62ea2e6c211455e9e7ab34b60841a774b010f9bb5acfff346d8",
+  "recommend": {
+    "delivery_purpose": "presentation",
+    "mode": "custom",
+    "visual_style": "custom",
+    "image_strategy": "custom",
+    "image_usage": ["provided"],
+    "generation_mode": "continuous"
+  },
+  "page_count": { "value": "15（正文 10＋備用 5）" },
+  "image_notes": { "value": "只用專案內既有素材：Logo（docs/05_圖庫/Logo 的 lockup-color／mark-color，向量優先、原比例、不改色）；附件 3 內的截圖（Notion 看板、Milestone 時間軸、GitHub Contributions）只當證據放在需要的頁面，必須清楚可讀並標來源與日期。不使用 AI 生成圖或網路圖片；流程、時間軸、看板狀態、圖表一律用原生向量繪製。" },
+  "proactive_speaker_notes": { "value": true },
+  "proactive_custom_animations": { "value": false },
+  "proactive_narration_audio": { "value": false },
+  "refine_spec": { "value": false },
+  "design_spec_depth": { "value": "brief" },
+  "design_directions": {
+    "selected": 0,
+    "candidates": [
+      {
+        "id": "evidence-dashboard",
+        "name": "證據儀表板",
+        "note": "Modern Agile Dashboard × Editorial：明亮米白底、深藍綠結構、琥珀只標決策與關鍵數字，每頁一個結論加一組可追溯證據。",
+        "mode": "custom",
+        "mode_behavior": "以案例敘事推進（起點 → 工作方式 → 兩個案例 → 回饋 → 交付 → 驗證 → 不足），每頁標題寫成判斷句；案例頁固定走「問題 → 決策 → 行動 → 改善」四拍，證據代號（日期、PR、commit、紀錄名）只放在節點角落的小標籤，限制說明以小字留在同一頁，不另開頁。",
+        "mode_references": ["narrative", "pyramid"],
+        "visual_style": "custom",
+        "visual_style_behavior": "瑞士網格的直角平面與大留白做骨架，搭配編輯式的細線規、kicker 小標與大號數字；資訊用扁平卡片、看板狀態欄（待辦／進行中／測試中／已完成）、橫向時間軸與堆疊長條呈現，卡片近乎直角、無陰影，只有被強調的一張卡片用深藍綠實底反白。琥珀色只出現在決策點、關鍵數字與警示標籤；每頁右上角放 Logo 標識與頁碼，左上角一條短琥珀線當作跨頁母題。",
+        "visual_style_references": ["swiss-minimal", "editorial"],
+        "icons": "phosphor-duotone",
+        "color": {
+          "name": "Logo 品牌色延伸",
+          "palette": {
+            "background": "#FBF8F2",
+            "secondary_bg": "#F5EFE3",
+            "primary": "#1B4D5C",
+            "accent": "#E8A93C",
+            "secondary_accent": "#5E8F9C",
+            "body_text": "#15171A"
+          }
+        },
+        "typography": {
+          "name": "微軟正黑體＋Segoe UI（同族一致）",
+          "heading": { "primary": "Microsoft JhengHei", "english": "Segoe UI", "css": "sans-serif" },
+          "body": { "primary": "Microsoft JhengHei", "english": "Segoe UI", "css": "sans-serif" },
+          "body_size": 28
+        },
+        "image_strategy": {
+          "name": "證據截圖＋原生圖解",
+          "rendering": "custom",
+          "visual": "若日後需要插圖，採扁平幾何區塊：一塊深藍綠主平面、米白留白、單一琥珀點或線標示重點。",
+          "mood": "冷靜、可查核，像工程團隊的狀態儀表板配上調查報導的圖說",
+          "behavior": "由 minimalist-swiss 提供網格對齊與大面積留白，editorial 提供細線規與圖說層級；無陰影、無材質、無漸層，顏色只取簡報的品牌色角色。"
+        }
+      },
+      {
+        "id": "kanban-journey",
+        "name": "看板旅程",
+        "note": "把整份簡報當成一張看板：每頁像一張任務卡從待辦移到已完成，圓角卡片與柔和底色，親切、步驟感強。",
+        "mode": "custom",
+        "mode_behavior": "以看板欄位當章節導覽：起點與工作方式在「待辦」，兩個案例在「進行中→測試中」，交付與驗證在「已完成」，最後的不足回到「待辦」形成循環；每頁頂端顯示目前所在欄位，標題寫成這一步的結果。",
+        "mode_references": ["narrative"],
+        "visual_style": "custom",
+        "visual_style_behavior": "柔和圓角卡片為主要容器，頁首一條四段式看板進度條標示目前欄位；章節頁用深藍綠大面積底色，內容頁用米白底加淡色卡片，關鍵數字放進圓形編號；卡片有淺陰影表示「被拿起來的那張」，其餘卡片平放。",
+        "visual_style_references": ["soft-rounded"],
+        "icons": "tabler-filled",
+        "color": {
+          "name": "Logo 品牌色延伸",
+          "palette": {
+            "background": "#FBF8F2",
+            "secondary_bg": "#F5EFE3",
+            "primary": "#1B4D5C",
+            "accent": "#E8A93C",
+            "secondary_accent": "#5E8F9C",
+            "body_text": "#15171A"
+          }
+        },
+        "typography": {
+          "name": "微軟正黑體＋Segoe UI（同族一致）",
+          "heading": { "primary": "Microsoft JhengHei", "english": "Segoe UI", "css": "sans-serif" },
+          "body": { "primary": "Microsoft JhengHei", "english": "Segoe UI", "css": "sans-serif" },
+          "body_size": 28
+        },
+        "image_strategy": {
+          "name": "圓角扁平插圖",
+          "rendering": "custom",
+          "visual": "圓角幾何區塊與簡化圖示，深藍綠主塊、琥珀點綴。",
+          "mood": "友善、有節奏，像產品團隊的看板牆",
+          "behavior": "以 flat 的色塊重疊製造層次，不用描邊與陰影；顏色只取簡報品牌色角色。"
+        }
+      },
+      {
+        "id": "case-dossier",
+        "name": "案例調查報告",
+        "note": "像一份調查報導：襯線標題、細線欄位、大號引言與日期，強調紀錄與證據的權威感。",
+        "mode": "custom",
+        "mode_behavior": "結論先行：每頁標題直接寫判斷，下方一行導言，再用證據欄展開；案例頁以「事件時間表＋旁註」呈現，限制與待確認事項用邊註標示，像報導中的更正欄。",
+        "mode_references": ["pyramid"],
+        "visual_style": "custom",
+        "visual_style_behavior": "編輯式版面：頁面左側一條全高細線規，內容掛在規線右側；大號日期與數字作為錨點，引言跨欄；幾乎不用卡片，用細線與留白分區；深藍綠用於標題與規線，琥珀只用在一個重點數字或邊註標籤。",
+        "visual_style_references": ["editorial"],
+        "icons": "tabler-outline",
+        "color": {
+          "name": "Logo 品牌色延伸",
+          "palette": {
+            "background": "#FFFFFF",
+            "secondary_bg": "#F5EFE3",
+            "primary": "#1B4D5C",
+            "accent": "#E8A93C",
+            "secondary_accent": "#5E8F9C",
+            "body_text": "#15171A"
+          }
+        },
+        "typography": {
+          "name": "新細明體標題＋微軟正黑體內文（對比）",
+          "heading": { "primary": "PMingLiU", "english": "Georgia", "css": "serif" },
+          "body": { "primary": "Microsoft JhengHei", "english": "Segoe UI", "css": "sans-serif" },
+          "body_size": 28
+        },
+        "image_strategy": {
+          "name": "報導式資訊插圖",
+          "rendering": "custom",
+          "visual": "雜誌式資訊圖：一個主色區塊、細線分隔、單一琥珀強調。",
+          "mood": "審慎、可信，像財經雜誌的跨頁圖解",
+          "behavior": "由 editorial 提供版面節奏與細線規，minimalist-swiss 提供留白與對齊；扁平無陰影，只用簡報品牌色角色。"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,1552 @@
+[
+ {
+  "id": 40164725618,
+  "created_at": "2026-10-25T05:13:12Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d3de1ef11efadc895e5932498feed636dacaf78f",
+  "display_title": "Merge branch 'dev'",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/40164725618"
+ },
+ {
+  "id": 39742613012,
+  "created_at": "2026-10-22T07:44:29Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "88e34548dbfb0430a8e0b646a4b2e95dcaf2c1b8",
+  "display_title": "Merge branch 'dev'",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/39742613012"
+ },
+ {
+  "id": 38207744697,
+  "created_at": "2026-10-12T05:23:46Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c31b8174ecb92a3da99d7ec976a6450705b6f8d0",
+  "display_title": "Merge branch 'dev'",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/38207744697"
+ },
+ {
+  "id": 36382782831,
+  "created_at": "2026-09-28T05:38:23Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "94e4e8d6b12746df3277ccc3b23ab2673a48f4ef",
+  "display_title": "Merge pull request #8 from 11246084/dev",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/36382782831"
+ },
+ {
+  "id": 36142217005,
+  "created_at": "2026-09-25T13:38:14Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "18eba474a13138db36d7694f18881542ab6c8ec6",
+  "display_title": "Merge branch 'dev' of https://github.com/11246084/focusflow into dev",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/36142217005"
+ },
+ {
+  "id": 35713459783,
+  "created_at": "2026-09-22T09:59:17Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d47da31b4ac681184659365cf01bef5e60af42a2",
+  "display_title": "Merge pull request #7 from 11246084/dev",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35713459783"
+ },
+ {
+  "id": 35600437963,
+  "created_at": "2026-09-21T12:35:41Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4c0a9044eb4c1fcbba0a0444680b2d4e9bd24a61",
+  "display_title": "fix admin bug",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35600437963"
+ },
+ {
+  "id": 35596998385,
+  "created_at": "2026-09-21T11:59:44Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1f434c6e415dc087b2a48c3902683453bca0db36",
+  "display_title": "Merge branch 'main' of https://github.com/11246084/focusflow",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35596998385"
+ },
+ {
+  "id": 35595290012,
+  "created_at": "2026-09-21T11:40:12Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "a6fb995da972363e1b08049915c2a7611afec976",
+  "display_title": "新增系統手冊複評版建置工具與版型契約",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35595290012"
+ },
+ {
+  "id": 35594898085,
+  "created_at": "2026-09-21T11:35:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c757956cd404aed74cbb2b82957f6eb52d7d968a",
+  "display_title": "新增學生意見回饋浮動按鈕，連結 Google Forms 回饋表單",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35594898085"
+ },
+ {
+  "id": 35584896984,
+  "created_at": "2026-09-21T09:43:45Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "5f63e6aa8b60673c13b028a9bcb63b1c104f03a5",
+  "display_title": "更新系統手冊圖表目錄與 README 總覽",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35584896984"
+ },
+ {
+  "id": 35491717256,
+  "created_at": "2026-09-20T05:27:18Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d79ba0efdd86b49f3d8537ba963c94d82f7d22e3",
+  "display_title": "新增系統手冊新版輸出",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35491717256"
+ },
+ {
+  "id": 35372565844,
+  "created_at": "2026-09-18T17:08:25Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "749ed7d15751848323a5d9d61489a6cde32b5fff",
+  "display_title": "移除誤上傳的孤兒片段備份檔，並將備份檔加入 backend/.gitignore",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35372565844"
+ },
+ {
+  "id": 35356449428,
+  "created_at": "2026-09-18T14:28:34Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d65985d60cab59bf7392feed52f47ce545575a35",
+  "display_title": " 新增管理員系統服務狀態 API，修正未知路徑回 401 並補上安全標頭",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35356449428"
+ },
+ {
+  "id": 35351154518,
+  "created_at": "2026-09-18T13:35:59Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "bd6aac5afdd1741ddf1aabd8a54081765cb576d2",
+  "display_title": "Update line.service.js",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35351154518"
+ },
+ {
+  "id": 35350617443,
+  "created_at": "2026-09-18T13:30:31Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "458d12214b9740ea0c09eb3cc3c7a694ad35f7f5",
+  "display_title": "新增登入失敗剩餘次數提醒，第 5 次輸錯即告知帳號已鎖定",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35350617443"
+ },
+ {
+  "id": 35349403971,
+  "created_at": "2026-09-18T13:18:01Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1dc83d2d0d8ba5155a80560d9ec37ee8bb82328d",
+  "display_title": "修正 LINE 群組訊息冒用帳號，並新增登入失敗鎖定與 JWT_SECRET 啟動檢查",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35349403971"
+ },
+ {
+  "id": 35346589252,
+  "created_at": "2026-09-18T12:47:55Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "eacae38c8e501ea704b1e3d47a76b0a85590b676",
+  "display_title": "新增學生每日提問次數與字數上限，並修正 LINE 改綁與回覆失敗問題",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35346589252"
+ },
+ {
+  "id": 35336126463,
+  "created_at": "2026-09-18T10:43:39Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "44dc361058d197eb1f84ccd3c1b6e936dfb18e23",
+  "display_title": "首頁和登入頁的數字改回原始",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35336126463"
+ },
+ {
+  "id": 35335762900,
+  "created_at": "2026-09-18T10:39:17Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4f172f45bf6159df80cac97627626c77cc7ab8ae",
+  "display_title": "登入頁選教師身分時隱藏註冊連結",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35335762900"
+ },
+ {
+  "id": 35335345519,
+  "created_at": "2026-09-18T10:34:12Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e56cbcf710752ce5980012f0fdee725caaa9e887",
+  "display_title": "將教學短片頁的 YouTube 頻道按鈕移到上方標題列",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35335345519"
+ },
+ {
+  "id": 35334758115,
+  "created_at": "2026-09-18T10:27:08Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "63495d921f62bda129ba8ca18c91d3a6cd3fde90",
+  "display_title": "重繪第5章使用個案圖與分析類別圖",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35334758115"
+ },
+ {
+  "id": 35331944873,
+  "created_at": "2026-09-18T09:54:13Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "40ea0ea35f8aa0bc007595f3ae042df8df217cbf",
+  "display_title": "Merge branch 'main' of https://github.com/11246084/focusflow",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35331944873"
+ },
+ {
+  "id": 35319272982,
+  "created_at": "2026-09-18T07:24:32Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1bf12140701a81d75ca6b11511af48ed612b0f4d",
+  "display_title": "新增競賽系統概述與敏捷開發佐證文件",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35319272982"
+ },
+ {
+  "id": 35317858435,
+  "created_at": "2026-09-18T07:06:22Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "8398e3f26e7fde40b861ff1e1b6002680e362302",
+  "display_title": "排除其他組別系統手冊，避免公開 repo 收錄他組著作",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35317858435"
+ },
+ {
+  "id": 35301330349,
+  "created_at": "2026-09-18T02:56:59Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b81fe962342c60ccb58e25f934f97a6dfd7f928b",
+  "display_title": "修正三個彈窗的鍵盤焦點陷阱，補齊無障礙操作行為",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35301330349"
+ },
+ {
+  "id": 35287475807,
+  "created_at": "2026-09-17T23:34:54Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "25b7764890325a5d00507e4155c83de7924859a1",
+  "display_title": "新增學生問題回報浮動入口",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35287475807"
+ },
+ {
+  "id": 35279409058,
+  "created_at": "2026-09-17T21:56:29Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "02d450cb84be213edbd20eaad1b3f363d9c41944",
+  "display_title": "Create 2026-09-17_OOAD-UML-Skill-組員說明-v2.html",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35279409058"
+ },
+ {
+  "id": 35194433296,
+  "created_at": "2026-09-17T07:25:12Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "a6143f2b75ccef65577dfb5d02ef53f0c5c05fc6",
+  "display_title": "前端顯示修改",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35194433296"
+ },
+ {
+  "id": 35157524172,
+  "created_at": "2026-09-16T22:24:28Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "51325f2c2f2f0594a8b2c93d3575e320437ef991",
+  "display_title": "新增 FocusFlow 文件 Orchestrator Skill",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35157524172"
+ },
+ {
+  "id": 35116149295,
+  "created_at": "2026-09-16T15:33:28Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c62cf2d60c3af5a2a2ec7093660d78a972966602",
+  "display_title": "option前端顯示問題修復",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35116149295"
+ },
+ {
+  "id": 35084508599,
+  "created_at": "2026-09-16T10:21:11Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "2efd964813d8efa923caefb909feb42270e2cecf",
+  "display_title": "docs/50_Meetings/2026-09-17_OOAD-UML-Skill-組員說明.html",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35084508599"
+ },
+ {
+  "id": 35083204571,
+  "created_at": "2026-09-16T10:06:52Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4d5cb511834f3a0c788b35e14c48737cedd42e06",
+  "display_title": "Add OOAD UML diagramming skill with references and PlantUML templates",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/35083204571"
+ },
+ {
+  "id": 34933497455,
+  "created_at": "2026-09-15T05:37:31Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d55e3d9c067d09ba1df5ce26f47726910a53131e",
+  "display_title": "建立第六章的puml",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34933497455"
+ },
+ {
+  "id": 34919917008,
+  "created_at": "2026-09-15T02:06:44Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fe5aa396dca7e00171616b7b44e557c1bedf9b0c",
+  "display_title": "完成 FocusFlow 系統手冊第一階段整理與圖片命名",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34919917008"
+ },
+ {
+  "id": 34841327165,
+  "created_at": "2026-09-14T12:03:15Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b55ee76a2d7fea1c566939dfbb0ea106558b6c3f",
+  "display_title": "Add processing and YouTube upload retry buttons to teacher courses page",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34841327165"
+ },
+ {
+  "id": 34786506691,
+  "created_at": "2026-09-13T22:20:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c6ec6da5eb9d92358108ca437b459a3cfec9e392",
+  "display_title": "docs: 重整 FocusFlow 文件結構與四技部交付文件",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34786506691"
+ },
+ {
+  "id": 34734203317,
+  "created_at": "2026-09-13T02:54:57Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ad974c2321bd8762af7b7e00476c87e13767acdb",
+  "display_title": "調整AI問答區塊前端",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34734203317"
+ },
+ {
+  "id": 34726676149,
+  "created_at": "2026-09-12T23:56:01Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "26107fb50f82b492c53c2ac30f77f92f219bbbc1",
+  "display_title": "修正 Topbar 頭像即時同步與安全 fallback",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34726676149"
+ },
+ {
+  "id": 34725180825,
+  "created_at": "2026-09-12T23:21:04Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "5bb6bff6d716f7e75c3d109d3422d832075dea03",
+  "display_title": "修正 refresh 後登入狀態恢復與管理員權限驗證",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34725180825"
+ },
+ {
+  "id": 34722528505,
+  "created_at": "2026-09-12T22:21:32Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "79b32c4e5975e8e6fbf17a9d2f24d0ff612c2905",
+  "display_title": "fix(backend):完成 processing 後 YouTube 自動上傳與安全 recovery",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34722528505"
+ },
+ {
+  "id": 34614805773,
+  "created_at": "2026-09-11T15:13:06Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f30f519c0b17039998c65d9fcb7538c2c5583751",
+  "display_title": "Store avatars in MongoDB and resize before upload",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34614805773"
+ },
+ {
+  "id": 34606712083,
+  "created_at": "2026-09-11T13:51:26Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "6345cae80ed75baedd7339a5fda4cbd5eb19f1f0",
+  "display_title": "Add email-code password reset and count every video open in admin stats",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34606712083"
+ },
+ {
+  "id": 34504177061,
+  "created_at": "2026-09-10T16:46:46Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f06e4f78479a077c3e3f4bbc0744e3864a04f9ae",
+  "display_title": "Update TeacherShortScripts.jsx",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34504177061"
+ },
+ {
+  "id": 34503878361,
+  "created_at": "2026-09-10T16:43:52Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "77c789260a7b68b16bb63f035c64b019e5c6b131",
+  "display_title": "Notify on short rejection, pin script tabs, and collapse evidence and…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34503878361"
+ },
+ {
+  "id": 34502968801,
+  "created_at": "2026-09-10T16:34:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "af9e473c20452b6fadf9af675cf81d23feb2a5e5",
+  "display_title": "Notify script owners on short rejection and pin script detail tabs",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34502968801"
+ },
+ {
+  "id": 34500900184,
+  "created_at": "2026-09-10T16:15:08Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "975dda57da4514b5e9b8960f17eb0c785395a4b1",
+  "display_title": "Allow editing name and email on profile and clarify notification read…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34500900184"
+ },
+ {
+  "id": 34499776467,
+  "created_at": "2026-09-10T16:04:35Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "2bf6097a2d5dc4cddd0c63e23514ddc5fd9d79cb",
+  "display_title": "Allow users to edit their name and email on the profile page",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34499776467"
+ },
+ {
+  "id": 34498288020,
+  "created_at": "2026-09-10T15:50:37Z",
+  "conclusion": "failure",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1daf4e37b82a053260d3623a0544e321bcefc3d8",
+  "display_title": "Add self-service password change and link sidebar user card to profile",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34498288020"
+ },
+ {
+  "id": 34498287990,
+  "created_at": "2026-09-10T15:50:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1daf4e37b82a053260d3623a0544e321bcefc3d8",
+  "display_title": "Add self-service password change and link sidebar user card to profile",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34498287990"
+ },
+ {
+  "id": 34493899578,
+  "created_at": "2026-09-10T15:10:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "19eab389558a9ec103bd58841d84c6d65d772a73",
+  "display_title": "Document Let's Encrypt certificate rollout and update deployment docs",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34493899578"
+ },
+ {
+  "id": 34488207192,
+  "created_at": "2026-09-10T14:18:39Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "a5f3985e6b2729104c495c2f63456721a4e09f5f",
+  "display_title": "Rebuild short video examples as ten topic-free script templates",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34488207192"
+ },
+ {
+  "id": 34434400212,
+  "created_at": "2026-09-10T03:43:15Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "77cb4fba35d5e1b3e9fff41fdbe4199765ba6025",
+  "display_title": "Fix short asset regeneration skipping the YouTube upload",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34434400212"
+ },
+ {
+  "id": 34432789312,
+  "created_at": "2026-09-10T03:17:56Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f7039b1948f09b6a5706d64619f70ebcbebd1ad8",
+  "display_title": "Upload shorts to YouTube on submission and gate student visibility on…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34432789312"
+ },
+ {
+  "id": 34429470917,
+  "created_at": "2026-09-10T02:26:47Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "16eab72e586e8311190dc49d146e74efa2597923",
+  "display_title": "Pin short video uploads to unlisted and fix stale review copy",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34429470917"
+ },
+ {
+  "id": 34428346668,
+  "created_at": "2026-09-10T02:09:51Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "650e2c429bc9a095bbd7575ac00176d238455681",
+  "display_title": "Add teacher upload UI for finished short videos",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34428346668"
+ },
+ {
+  "id": 34368969806,
+  "created_at": "2026-09-09T15:14:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "cbf6efc1a9dd0ca94728f2139d8c61a9d7669a73",
+  "display_title": "Let teachers pick a topic and restyle the short script page",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34368969806"
+ },
+ {
+  "id": 34366565405,
+  "created_at": "2026-09-09T14:53:09Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "29490c39b398fbe75e02d4938c0bfaed003f117a",
+  "display_title": "Fix short script page layout and error reporting",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34366565405"
+ },
+ {
+  "id": 34365621071,
+  "created_at": "2026-09-09T14:44:35Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "a0dd341c6f1610c00ff97ecdb2bf15279697b6e1",
+  "display_title": "Fix short script regeneration flow and mark scripts published on upload",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34365621071"
+ },
+ {
+  "id": 34318302425,
+  "created_at": "2026-09-09T06:15:59Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fd91bc9e19bcea8bfd45e78bc8570384cbca3f6f",
+  "display_title": "保存 Student PoC 驗收與診斷證據",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34318302425"
+ },
+ {
+  "id": 34315105403,
+  "created_at": "2026-09-09T05:29:50Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "df404342120ea0648e55c6ab2e8efad59cb6a30f",
+  "display_title": "Diagnose production Atlas QA",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34315105403"
+ },
+ {
+  "id": 34314687301,
+  "created_at": "2026-09-09T05:23:35Z",
+  "conclusion": "failure",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "da1b42251b7a3ab4115e70b697f5566ff2f5bf83",
+  "display_title": "Validate production Atlas QA",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34314687301"
+ },
+ {
+  "id": 34314218407,
+  "created_at": "2026-09-09T05:16:24Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "20585bddd9a16ca98d2fa16d9ce30aa4d267c00c",
+  "display_title": "Enable Atlas QA for student pilot",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34314218407"
+ },
+ {
+  "id": 34313965757,
+  "created_at": "2026-09-09T05:12:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "979cabdf818dbfa9d6d7c6f0a2d081070a60040e",
+  "display_title": "Verify production readiness after deploy",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34313965757"
+ },
+ {
+  "id": 34313414423,
+  "created_at": "2026-09-09T05:04:26Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c82313129526e2c29a03f9b850a318e8b2c5acaf",
+  "display_title": "Rebuild stable student pilot leaf embeddings",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34313414423"
+ },
+ {
+  "id": 34205042886,
+  "created_at": "2026-09-08T08:32:23Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fde3f6ff76b7775f62bbee7b7517b9348245358e",
+  "display_title": "Harden script generation with Traditional Chinese and subtitle valida…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34205042886"
+ },
+ {
+  "id": 34192462071,
+  "created_at": "2026-09-08T05:54:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4d45ddaec75167cd7c3d7df13c35d6004025a8d6",
+  "display_title": "Add script review loop with retrieval and narrative feedback routing",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34192462071"
+ },
+ {
+  "id": 34181496506,
+  "created_at": "2026-09-08T02:51:24Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fc868c225fda6f34a0f10e401905cd4fcd01b7da",
+  "display_title": "Pass SP-1 acceptance with V5 evidence comparison and R-03 wording fix",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34181496506"
+ },
+ {
+  "id": 34142290169,
+  "created_at": "2026-09-07T16:14:07Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e368212af84b261298724d0c0916a604c7794d02",
+  "display_title": "fix: 鎖定 Phase 4B 送審讀回失敗狀態",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34142290169"
+ },
+ {
+  "id": 34130400243,
+  "created_at": "2026-09-07T13:58:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "8b27eb33153cfedab4e2d1f42cc25cca606e98b4",
+  "display_title": "Fix unresolved conflict markers committed into qa.service exports",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34130400243"
+ },
+ {
+  "id": 34108219962,
+  "created_at": "2026-09-07T09:50:05Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d3448049aa2ac18fe996b530447b7a5efbaef745",
+  "display_title": "Merge Phase 3 QA retrieval into short-script automation branch",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34108219962"
+ },
+ {
+  "id": 34031757583,
+  "created_at": "2026-09-06T11:58:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "915dcf122b2592d325c47f411ae91b92a6791298",
+  "display_title": "完成 Phase 3 Production QA 檢索與引用收斂",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/34031757583"
+ },
+ {
+  "id": 33886171451,
+  "created_at": "2026-09-04T14:51:46Z",
+  "conclusion": "cancelled",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ee0fd378d6207876173de4a6413fd6de2404f442",
+  "display_title": "Switch to automatic topic selection and bring YouTube publishing into…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33886171451"
+ },
+ {
+  "id": 33771643146,
+  "created_at": "2026-09-03T15:16:13Z",
+  "conclusion": "cancelled",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b2ddc8dcfb612903db79780305e06df80ae777bb",
+  "display_title": "Add short-video script automation spec and work order drafts",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33771643146"
+ },
+ {
+  "id": 33771064638,
+  "created_at": "2026-09-03T15:10:03Z",
+  "conclusion": "cancelled",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "2050b262de927010ba38d77df9352e53dd2ef620",
+  "display_title": "完成學生試用版 Phase 3C Round 8 deterministic anchor 最終診斷",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33771064638"
+ },
+ {
+  "id": 33570414971,
+  "created_at": "2026-09-01T23:18:26Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f404fe574e20037e143fdb6f9fd46b1269f6bbe9",
+  "display_title": "完成學生試用版 Phase 3C Round 1 retrieval 診斷",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33570414971"
+ },
+ {
+  "id": 33526576594,
+  "created_at": "2026-09-01T15:34:41Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b9674b5bbf0c6f49b8d4cb731d63b1ff7bdee479",
+  "display_title": "新增教師數位分身腳本範例（大語言模型、OpenCV vs YOLO）與空白架構模板",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33526576594"
+ },
+ {
+  "id": 33511176901,
+  "created_at": "2026-09-01T13:03:55Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "44e91087186718371738a88022f447befad53d58",
+  "display_title": "完成學生試用版 Phase 2 baseline 證據",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33511176901"
+ },
+ {
+  "id": 33473880812,
+  "created_at": "2026-09-01T05:30:41Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "166dd268b0c91714a88e487fa9177dd24db45eea",
+  "display_title": "完成學生試用版 Phase 2 baseline 安全工具",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33473880812"
+ },
+ {
+  "id": 33314441326,
+  "created_at": "2026-08-30T13:32:11Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "296ca0144b73f88442bec54e5cbd4c78f843db96",
+  "display_title": "完成學生試用版後端第二批安全隔離與驗收紀錄",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33314441326"
+ },
+ {
+  "id": 33309092621,
+  "created_at": "2026-08-30T11:30:30Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e4f11630fcdb7fade2c63acd1d696170762bdf25",
+  "display_title": "完成學生試用版後端第一批 fail-closed 隔離",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33309092621"
+ },
+ {
+  "id": 33305710981,
+  "created_at": "2026-08-30T10:07:38Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "7de721af3d5ad6e5a597b318a2dbacb4d1c28541",
+  "display_title": "docs: 定案學生試用版 Phase 1 規格 v1.2",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33305710981"
+ },
+ {
+  "id": 33304123544,
+  "created_at": "2026-08-30T09:28:05Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f3f547e1efa1080738be477c28e18fabfe0a393c",
+  "display_title": "Merge branch 'main' of https://github.com/11246084/focusflow",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33304123544"
+ },
+ {
+  "id": 33302071975,
+  "created_at": "2026-08-30T08:38:11Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "7c0cced3248a54903bb5071a7183b8bfc7a3b48e",
+  "display_title": "Refine QA answer prompt to fix incompleteness and false refusals",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33302071975"
+ },
+ {
+  "id": 33299591138,
+  "created_at": "2026-08-30T07:36:00Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "2414697c27241e6bd5a33cf37c870c0efeea2a63",
+  "display_title": "整理 Backend 與 Frontend 環境變數範本",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33299591138"
+ },
+ {
+  "id": 33259410255,
+  "created_at": "2026-08-29T15:08:01Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e4dbdacea4796097d644e61cc74746e2c7da764d",
+  "display_title": "強化影片上傳檢查與 Pipeline 排程穩定性",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33259410255"
+ },
+ {
+  "id": 33251924636,
+  "created_at": "2026-08-29T12:12:22Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "48ac226f831e9f2e9699687be976301083e73dc6",
+  "display_title": "docs(work-order): 施工單對齊規格書 v1.1，補上 LINE 多輪與 YouTube 工作項",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33251924636"
+ },
+ {
+  "id": 33179237712,
+  "created_at": "2026-08-28T14:15:15Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c53932c3dbf7ea754d96acd925de2bc3fb96ccbf",
+  "display_title": "docs(spec): 學生試用後端規格書升版 v1.1",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/33179237712"
+ },
+ {
+  "id": 32863702885,
+  "created_at": "2026-08-25T15:06:20Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "028fe7c6dee1ad162469fc62ec1bb8fe07b75362",
+  "display_title": "更新學生試用後端規格草案至 v0.6",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32863702885"
+ },
+ {
+  "id": 32808350715,
+  "created_at": "2026-08-25T04:16:45Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "54ed91d9371e5a14dbb047fae0f85bc5cfacefe8",
+  "display_title": "mongoDB連線",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32808350715"
+ },
+ {
+  "id": 32796849569,
+  "created_at": "2026-08-25T01:15:32Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "23728105b6caf3af962808c95c7b42b215c9f673",
+  "display_title": "新增教師短影片審核頁，移除共用登入頁的管理員入口",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32796849569"
+ },
+ {
+  "id": 32737344641,
+  "created_at": "2026-08-24T14:13:13Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ad84f6d5fa0b020ba2b275756aed5c2b177f2175",
+  "display_title": "Add QA answer-quality evaluation toolkit and 2026-08-24 baseline",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32737344641"
+ },
+ {
+  "id": 32653836764,
+  "created_at": "2026-08-23T17:07:47Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "cd5e1fde4f3e3fedda8369eac18e4896a345c51d",
+  "display_title": "fix: stabilize conversational QA scroll layout",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32653836764"
+ },
+ {
+  "id": 32649461347,
+  "created_at": "2026-08-23T15:43:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "134461deedbc325b3fcddc6fc533e18db10f251c",
+  "display_title": "test: add conversational QA coverage",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32649461347"
+ },
+ {
+  "id": 32582043081,
+  "created_at": "2026-08-22T15:33:12Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "8c095426e36f55895728001a997aa56d60963da7",
+  "display_title": "新增第 23 次教授會議紀錄與索引",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32582043081"
+ },
+ {
+  "id": 32143701292,
+  "created_at": "2026-08-18T13:40:08Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "cd3e4d89ed85c3b4b1f5f7186f21b736992f8a06",
+  "display_title": "Add short-video production spec, ten storyboard scripts, and shared c…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32143701292"
+ },
+ {
+  "id": 32083806857,
+  "created_at": "2026-08-18T00:15:33Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "523eb3c9470eca2f2fb9a439e1941213fa04bc84",
+  "display_title": "新增既有修課資料安全修復工具",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/32083806857"
+ },
+ {
+  "id": 31876161586,
+  "created_at": "2026-08-15T09:06:50Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ec8754893c5e7e07080edc1bb06486281704bd00",
+  "display_title": "同步跨模組契約、啟動設定與專案文件",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31876161586"
+ },
+ {
+  "id": 31499263387,
+  "created_at": "2026-08-11T14:01:06Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "9078a35915978f12ad9479a2a6f1c9309ed46dc1",
+  "display_title": "新增與教授會議紀錄- QA 評測與短影片生成",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31499263387"
+ },
+ {
+  "id": 31470926133,
+  "created_at": "2026-08-11T07:54:47Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "5ead72e53cc9fc5635e2afda76bbbfa11b1e0226",
+  "display_title": "Stop tracking Word backup files and ignore *.bak",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31470926133"
+ },
+ {
+  "id": 31323261847,
+  "created_at": "2026-08-09T16:14:25Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "9edecc4ee3723956c491023cfd916dac665c0781",
+  "display_title": "實作階層式檢索有限範圍 Rollout 控制",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31323261847"
+ },
+ {
+  "id": 31322339128,
+  "created_at": "2026-08-09T15:53:50Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1830ddaffbbe8a64867aeb9e85d8f5ac63a30b98",
+  "display_title": "docs: add Phase 2-2 limited hierarchical rollout plan",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31322339128"
+ },
+ {
+  "id": 31321898819,
+  "created_at": "2026-08-09T15:43:58Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "dc52e901b74f5e081a4033bbc0642ca4b0027046",
+  "display_title": "docs: add Phase 2-2 hierarchical retrieval gate review",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31321898819"
+ },
+ {
+  "id": 31320867935,
+  "created_at": "2026-08-09T15:21:00Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "30cc1c4f4fe3081718fcc422e5c9b1cfb60be1d3",
+  "display_title": "修正零寫入 E2E Runner 的 Atlas collection preflight",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31320867935"
+ },
+ {
+  "id": 31318934719,
+  "created_at": "2026-08-09T14:37:35Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "1157e3d1470c18fa0ca7b03b3cb782d51fe34b85",
+  "display_title": "完成 Parent Embedding Stable Contract 遷移",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31318934719"
+ },
+ {
+  "id": 31267761402,
+  "created_at": "2026-08-08T16:46:19Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "5af9ede837500b0aa3cb797edd7103755d65ff95",
+  "display_title": "補充 Stable Embedding 遷移與相容性檢查註解",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31267761402"
+ },
+ {
+  "id": 31267006336,
+  "created_at": "2026-08-08T16:27:51Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d00a5ed2569ad80c577274b588977562256f1056",
+  "display_title": "完成 Gemini stable embedding 遷移與相容性檢查 (#6)",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31267006336"
+ },
+ {
+  "id": 31111104996,
+  "created_at": "2026-08-06T14:29:50Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ff190feb1442ad39299aa3b70dd0a6895d33807f",
+  "display_title": "修正 QA Citation 的 Leaf chunkId 傳遞",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31111104996"
+ },
+ {
+  "id": 31111103726,
+  "created_at": "2026-08-06T14:29:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ff190feb1442ad39299aa3b70dd0a6895d33807f",
+  "display_title": "修正 QA Citation 的 Leaf chunkId 傳遞",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31111103726"
+ },
+ {
+  "id": 31085533595,
+  "created_at": "2026-08-06T08:35:35Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fe5e5b6a85c9830dcdf3d813e90533799cef2a3f",
+  "display_title": "完成 Phase 2-2 Citation Contract 與零寫入 E2E Runner",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/31085533595"
+ },
+ {
+  "id": 30923085603,
+  "created_at": "2026-08-04T15:14:02Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "07c889843c044e2de8e71c5e6c0579d69aa8c4a5",
+  "display_title": "Document VM deployment reality and external access status",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30923085603"
+ },
+ {
+  "id": 30892133733,
+  "created_at": "2026-08-04T08:28:59Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "22f333b068bb409fb1b979a3ff9a1b7cbf64c9ad",
+  "display_title": "同步 Notion 第 21 次教授會議紀錄與索引",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30892133733"
+ },
+ {
+  "id": 30830173871,
+  "created_at": "2026-08-03T16:00:47Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "282a7d273147be20fb17ebaceb610cc57bf74599",
+  "display_title": "新增 Phase 2-2 Parent Uploader 與安全發布驗證",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30830173871"
+ },
+ {
+  "id": 30781602413,
+  "created_at": "2026-08-03T03:21:14Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b51896d1b4ca179cc72ad08dc7558c8bf2daad70",
+  "display_title": "更新 FocusFlow 開發入口與 Phase 2-2 分工文件",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30781602413"
+ },
+ {
+  "id": 30751999526,
+  "created_at": "2026-08-02T14:23:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "bb4c3edd4d8a3f87920b027e68197350d7659cd4",
+  "display_title": "feat(backend): integrate hierarchical parent search (#5)",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30751999526"
+ },
+ {
+  "id": 30742018943,
+  "created_at": "2026-08-02T09:33:58Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "aa479a9b2f8e47b0dd94f7c3655e9ac29352e054",
+  "display_title": "Document youtubeUpload runtime snapshot in OpenAPI and docs",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30742018943"
+ },
+ {
+  "id": 30707519377,
+  "created_at": "2026-08-01T16:09:42Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d31bbf0574c030c1012385507b59c15c134974a8",
+  "display_title": "Add Parent Storage model, indexes, and setup script for Phase 2-2",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30707519377"
+ },
+ {
+  "id": 30697351283,
+  "created_at": "2026-08-01T11:15:51Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "3d9a234c69ec3d9cec930a0276d4dc61c6978e67",
+  "display_title": "建立 Hierarchical Retrieval 安全整合與 Leaf fallback 機制",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30697351283"
+ },
+ {
+  "id": 30695023508,
+  "created_at": "2026-08-01T10:05:25Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4b6e5dfadf9d92e634c3274535b3e59f2c6b958c",
+  "display_title": "完成 STT Accuracy Optimization Sprint 1",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30695023508"
+ },
+ {
+  "id": 30690158806,
+  "created_at": "2026-08-01T07:39:04Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "329ee4a9568931d85f5fceef94d431dd577db361",
+  "display_title": "完成 Phase 2-2 Sprint 2A Parent Embedding 實作",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30690158806"
+ },
+ {
+  "id": 30645912380,
+  "created_at": "2026-07-31T16:08:53Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "dbe8f3b503946fcdf2c3a20a2debf48bdc302b76",
+  "display_title": "改善 AI 回答的條列與粗體顯示",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30645912380"
+ },
+ {
+  "id": 30645011783,
+  "created_at": "2026-07-31T15:56:17Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ffa7d0ecc9e3cb0ee8a866e7e2f8ca3b997efc7e",
+  "display_title": "新增 Phase 2-2 Hierarchy Data Contract v1",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30645011783"
+ },
+ {
+  "id": 30432989825,
+  "created_at": "2026-07-29T07:47:55Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "bbb955ec453ac3646eb3dfb3aa5a1f4f7d60abd4",
+  "display_title": "擴大 AI 問答命中片段卡片的跳轉範圍",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30432989825"
+ },
+ {
+  "id": 30431546719,
+  "created_at": "2026-07-29T07:24:38Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e65c87a67e2e7b9759617f5796fd6dcdb6c3b945",
+  "display_title": "新增可 Resume 的 Deterministic Parent Chunk 階層生成",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30431546719"
+ },
+ {
+  "id": 30349944965,
+  "created_at": "2026-07-28T10:14:11Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "797c7d4b6067b608955d34651066e314cc5ee66e",
+  "display_title": "同步 Notion 會議紀錄並更新 GitHub 提交技能",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30349944965"
+ },
+ {
+  "id": 30320467344,
+  "created_at": "2026-07-28T01:30:55Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d24f9ba0b2d91f4ac04355e68cf0ecd62dd08006",
+  "display_title": "Add batch video processing and multi-file upload support",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30320467344"
+ },
+ {
+  "id": 30290967790,
+  "created_at": "2026-07-27T17:49:24Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fe8e795e9a66f031330d0b58ee8a993fe839c87a",
+  "display_title": "新增的管理員入口登入修正",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30290967790"
+ },
+ {
+  "id": 30289719535,
+  "created_at": "2026-07-27T17:32:49Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d2d38f13a5ba6aacf329aef65a04b9da1068bdef",
+  "display_title": "Merge origin/main: reconcile Topbar.jsx real notification API with mo…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30289719535"
+ },
+ {
+  "id": 30285249279,
+  "created_at": "2026-07-27T16:33:31Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "cee236992c9208a3e3a88c083a07d58c6cd61f65",
+  "display_title": "完成角色登入、站內通知與私有頭貼",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30285249279"
+ },
+ {
+  "id": 30154812537,
+  "created_at": "2026-07-25T10:38:08Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "3e2ca8c150ad36939a39776d02fc02e914acd3b6",
+  "display_title": "Fix QA answer quality by raising match limit and patch FAQ cache inva…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/30154812537"
+ },
+ {
+  "id": 29761257983,
+  "created_at": "2026-07-20T16:49:56Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "d0f51c14b0f6e2dd8cd0d582b471e5fdbc6285aa",
+  "display_title": "Update Icons.jsx",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29761257983"
+ },
+ {
+  "id": 29761240514,
+  "created_at": "2026-07-20T16:49:40Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ca46e797ff9601c7691e0574d97b84114903b003",
+  "display_title": "前端6項更新",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29761240514"
+ },
+ {
+  "id": 29747938626,
+  "created_at": "2026-07-20T13:49:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "ab647d2109736c6859c21e532ecc51da1acc534b",
+  "display_title": "Add YouTube upload setup guide and default embedding batch size to 1",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29747938626"
+ },
+ {
+  "id": 29733483887,
+  "created_at": "2026-07-20T10:00:14Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "5df3148d206706c75ee8220ed86f99b4fcd65785",
+  "display_title": "修正 Gemini 回答生成與多片段整合",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29733483887"
+ },
+ {
+  "id": 29723920905,
+  "created_at": "2026-07-20T07:13:13Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "573b6c2e2bd4cec1d5755484bba63575f66540fd",
+  "display_title": "feat: complete chunk strategy optimization sprint 1",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29723920905"
+ },
+ {
+  "id": 29688603823,
+  "created_at": "2026-07-19T13:17:44Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "75ef555bbbfa355c365e166860a335abd1149902",
+  "display_title": "Update student Shorts wall with authenticated course-filtered feed",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29688603823"
+ },
+ {
+  "id": 29434966000,
+  "created_at": "2026-07-15T17:03:40Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e3168d9f582928fdd470c6ad7e27a849504352e9",
+  "display_title": "Improve long-video pipeline reliability and performance",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29434966000"
+ },
+ {
+  "id": 29340055754,
+  "created_at": "2026-07-14T14:15:44Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "c70f1d7c355a5a6f140255c31e29344a23b50c3e",
+  "display_title": "Add 0714  meeting notes",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29340055754"
+ },
+ {
+  "id": 29339125439,
+  "created_at": "2026-07-14T14:03:09Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "27f28aaa1c9fd590ab03b4bd984e066a0dc924ef",
+  "display_title": "feat: complete phase 2 sprint 4 MongoDB upload improvement",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29339125439"
+ },
+ {
+  "id": 29294133155,
+  "created_at": "2026-07-13T23:48:33Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "f66fdea16104836702c89f03819c714eec0b803e",
+  "display_title": "整合 Phase 2 後端功能與 Shorts 頁面 (#4)",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29294133155"
+ },
+ {
+  "id": 29268491400,
+  "created_at": "2026-07-13T16:57:04Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e3b680419cda58476a4ae986cb61c1b8420161ae",
+  "display_title": "shorts頁面開發",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29268491400"
+ },
+ {
+  "id": 29262451122,
+  "created_at": "2026-07-13T15:29:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "2c351723759f9196467cdd00109164898e64406b",
+  "display_title": "feat: add pipeline resume and checkpoint recovery",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29262451122"
+ },
+ {
+  "id": 29239382221,
+  "created_at": "2026-07-13T09:30:38Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "bb10f208ca21205239eeb60583b0282d46e078ee",
+  "display_title": "Update docs for FAQ cache, progress fix, and 2026-07-13 status",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29239382221"
+ },
+ {
+  "id": 29193283785,
+  "created_at": "2026-07-12T12:48:41Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e3820694a317d21951947d5d15e36050946cc4ab",
+  "display_title": "Add multi-course video attach, YouTube auto-upload, and teacher stats…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/29193283785"
+ },
+ {
+  "id": 28996783527,
+  "created_at": "2026-07-09T05:40:43Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "13e35fbdc722876adbed54127b19a424720639b6",
+  "display_title": "Merge branch 'main' of https://github.com/11246084/focusflow",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/28996783527"
+ },
+ {
+  "id": 28996168818,
+  "created_at": "2026-07-09T05:24:44Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "6f3a29f2acf785f348efb384fbabb05694436cc2",
+  "display_title": "feat(ai-pipeline): add job tracking and run output versioning",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/28996168818"
+ },
+ {
+  "id": 27323538321,
+  "created_at": "2026-06-11T04:19:37Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "e1f101004dd774638f875bd7a71ed1cba75a73a6",
+  "display_title": "Fix STT pipeline trigger on Linux by resolving venv Python path per-p…",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27323538321"
+ },
+ {
+  "id": 27323478740,
+  "created_at": "2026-06-11T04:17:48Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4f4a9e8f0899612e6e9e462bff80176ffb4d0d8a",
+  "display_title": "初評文件上傳",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27323478740"
+ },
+ {
+  "id": 27323374540,
+  "created_at": "2026-06-11T04:14:41Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "336dc4d3b09aa89144b4403ecb4af785d1937142",
+  "display_title": "修正 Linux 上 STT pipeline 觸發失敗（venv Python 路徑寫死 Windows）",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27323374540"
+ },
+ {
+  "id": 27013081413,
+  "created_at": "2026-06-05T11:48:36Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "4f4a9e8f0899612e6e9e462bff80176ffb4d0d8a",
+  "display_title": "初評文件上傳",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27013081413"
+ },
+ {
+  "id": 27010895883,
+  "created_at": "2026-06-05T10:57:19Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "16aac8dc8ed78e57fef00d0318ee79bdfe01e205",
+  "display_title": "整理文件：重組架構圖、清理會議記錄舊版備份",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27010895883"
+ },
+ {
+  "id": 27006641506,
+  "created_at": "2026-06-05T09:20:27Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "af74ca966c420df59065e2dbc681ec5e69789316",
+  "display_title": "Add MongoDB study notes and update Atlas vector-index status",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/27006641506"
+ },
+ {
+  "id": 26582685005,
+  "created_at": "2026-05-28T14:57:14Z",
+  "conclusion": "success",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "b796ae4cd4239c038d7348d1ee7ebe89fc8c9cc0",
+  "display_title": "更改部署檔案",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/26582685005"
+ },
+ {
+  "id": 26582573467,
+  "created_at": "2026-05-28T14:55:17Z",
+  "conclusion": "failure",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "3d8259e7d289eddb761e767f252079b51d286997",
+  "display_title": "更新deploy yml檔",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/26582573467"
+ },
+ {
+  "id": 26582334194,
+  "created_at": "2026-05-28T14:51:10Z",
+  "conclusion": "failure",
+  "event": "push",
+  "head_branch": "main",
+  "head_sha": "fe7fd9824536cc05b01c79d480de252d9974945c",
+  "display_title": "GitHub Actions 自動部署",
+  "html_url": "https://github.com/11246084/focusflow/actions/runs/26582334194"
+ }
+]

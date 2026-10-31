@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">備用頁｜詢答：「5 天」的證據完整嗎</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">B1｜案例 A：每一天留下了什麼紀錄</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">備用 B1</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="event-table" data-pptx-bounds="56 186 1168 404">
+    <rect x="64" y="192" width="1152" height="38" fill="#1B4D5C"/>
+    <g font-size="20" font-weight="bold" fill="#FFFFFF">
+      <text x="80" y="218">日期</text>
+      <text x="260" y="218">發生了什麼</text>
+      <text x="830" y="218">紀錄</text>
+    </g>
+    <g fill="#F5EFE3">
+      <rect x="64" y="274" width="1152" height="44"/>
+      <rect x="64" y="362" width="1152" height="44"/>
+      <rect x="64" y="450" width="1152" height="44"/>
+      <rect x="64" y="538" width="1152" height="44"/>
+    </g>
+    <g font-size="22" font-weight="bold" fill="#1B4D5C">
+      <text x="80" y="260">08-02</text>
+      <text x="80" y="304">08-04</text>
+      <text x="80" y="348">08-07</text>
+      <text x="80" y="392">08-08</text>
+      <text x="80" y="436">08-09 00:27</text>
+      <text x="80" y="480">08-09 22:37</text>
+      <text x="80" y="524">08-11</text>
+      <text x="80" y="568">09-09</text>
+    </g>
+    <g font-size="22" fill="#15171A">
+      <text x="260" y="260">PR #5 合併；Phase 2-2 報告寫下停用風險</text>
+      <text x="260" y="304">教授會議：三組同步，新檢索功能先關</text>
+      <text x="260" y="348">建立看板任務（截止 08-11）</text>
+      <text x="260" y="392">跨組 embedding 契約文件</text>
+      <text x="260" y="436">PR #6 合併，自動部署成功</text>
+      <text x="260" y="480">Pipeline 端遷移完成</text>
+      <text x="260" y="524">進度報告；任務標完成並註明未驗證範圍</text>
+      <text x="260" y="568">資料重建、部署加契約檢查；首驗失敗→修正</text>
+    </g>
+    <g font-size="20" fill="#5A6066">
+      <text x="830" y="260">PR #5、Notion Phase 2-2 報告</text>
+      <text x="830" y="304">Notion 會議 21</text>
+      <text x="830" y="348">Notion 任務</text>
+      <text x="830" y="392">repo 契約文件</text>
+      <text x="830" y="436">PR #6、run 31267006336</text>
+      <text x="830" y="480">commit 1157e3d</text>
+      <text x="830" y="524">Notion 08-11 進度報告</text>
+      <text x="830" y="568">c823131、979cabd、da1b422→df40434</text>
+    </g>
+  </g>
+  <g id="not-run" data-pptx-bounds="56 596 588 90">
+    <rect x="64" y="600" width="572" height="82" rx="4" fill="#F5EFE3" stroke="#B5482E" stroke-width="1.5"/>
+    <text x="80" y="632" font-size="22" font-weight="bold" fill="#B5482E">PR #6 自己寫的「尚未執行」<tspan x="80" dy="30" font-weight="normal" fill="#15171A">Gemini 真實連線、正式資料庫與索引、資料重建</tspan></text>
+  </g>
+  <g id="to-confirm" data-pptx-bounds="644 596 580 90">
+    <rect x="652" y="600" width="564" height="82" rx="4" fill="#FBF8F2" stroke="#5A6066" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="668" y="632" font-size="22" font-weight="bold" fill="#5A6066">待確認<tspan x="668" dy="30" font-weight="normal" fill="#15171A">Google 公告發布日；8 月是否評估過其他模型</tspan></text>
+  </g>
+</svg>

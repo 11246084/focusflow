@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#5E8F9C" />
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜依測試回饋調整產品品質</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">第一次量測 0 題通過，我們沒有放寬標準</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">06 / 10</text>
+    <image href="data:image/png;base64,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" x="1172" y="38" width="40" height="40" />
+  </g>
+  <g id="steps-header" data-pptx-bounds="56 188 1168 72">
+    <g id="p06-h1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="64 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 64 196 L 320.4 196 L 340 224 L 320.4 252 L 64 252 L 83.6 224 Z" />
+</g>
+    <g id="p06-h2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="356 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 356 196 L 612.4 196 L 632 224 L 612.4 252 L 356 252 L 375.6 224 Z" />
+</g>
+    <g id="p06-h3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="648 196 276 56" data-pptx-av-adj="val 35000" fill="#E8A93C" stroke="none">
+<path d="M 648 196 L 904.4 196 L 924 224 L 904.4 252 L 648 252 L 667.6 224 Z" />
+</g>
+    <g id="p06-h4" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="940 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 940 196 L 1196.4 196 L 1216 224 L 1196.4 252 L 940 252 L 959.6 224 Z" />
+</g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="206" y="232">① 測試暴露問題</text>
+      <text x="498" y="232">② 分析問題來源</text>
+      <text x="790" y="232" fill="#15171A">③ 不放寬標準</text>
+      <text x="1082" y="232">④ 多輪調整</text>
+    </g>
+  </g>
+  <g id="baseline-result" data-pptx-bounds="60 268 284 312">
+    <text x="72" y="300" font-size="22" font-weight="bold" fill="#1B4D5C">09-01 baseline・14 題</text>
+    <g id="baseline-result-chartArea">
+      <line x1="72" y1="322" x2="72" y2="382" stroke="#1B4D5C" stroke-width="2" />
+      
+      <rect x="72" y="330" width="204.29" height="44" fill="#E8A93C" />
+      <rect x="276.29" y="330" width="55.71" height="44" fill="#B5482E" />
+      <text x="174" y="360" font-size="22" font-weight="bold" text-anchor="middle" fill="#15171A">11</text>
+      <text x="304" y="360" font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">3</text>
+    </g>
+    <g font-size="22" fill="#15171A">
+      <rect x="72" y="400" width="18" height="18" fill="#1B4D5C" />
+      <text x="100" y="417"><tspan font-weight="bold" fill="#1B4D5C">通過 0 題</tspan></text>
+      <rect x="72" y="434" width="18" height="18" fill="#E8A93C" />
+      <text x="100" y="451">偏弱 11 題</text>
+      <rect x="72" y="468" width="18" height="18" fill="#B5482E" />
+      <text x="100" y="485">失敗 3 題</text>
+      <text x="72" y="536">OpenCV 15 支影片</text><text x="72" y="568">唯讀・人工逐題複核</text></g>
+  </g>
+  <g id="problem-sources" data-pptx-bounds="352 268 284 334">
+    <rect x="356" y="270" width="276" height="140" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="372" y="302">程式邏輯</text><text font-size="22" fill="#15171A" font-weight="normal" x="372" y="332">拒答仍附引用</text><text font-size="22" fill="#15171A" font-weight="normal" x="372" y="362">引用＝全部搜尋結果</text><text font-size="22" fill="#15171A" font-weight="normal" x="372" y="392">有正確資料仍答錯</text><rect x="356" y="424" width="276" height="80" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="372" y="456">題目與教材</text><text font-size="22" fill="#15171A" font-weight="normal" x="372" y="486">Q09 教材支持不足</text><rect x="356" y="518" width="276" height="80" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="372" y="550">搜尋品質</text><text font-size="22" fill="#15171A" font-weight="normal" x="372" y="580">相鄰關鍵片段漏掉</text></g>
+  <g id="standard-lock" data-pptx-bounds="644 268 284 334">
+    <rect x="648" y="270" width="276" height="328" rx="4" fill="#1B4D5C" />
+    
+  <g transform="translate(664, 288) scale(0.1875)" fill="#E8A93C">
+    <path d="M208,88H48a8,8,0,0,0-8,8V208a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V96A8,8,0,0,0,208,88Zm-80,72a20,20,0,1,1,20-20A20,20,0,0,1,128,160Z" opacity="0.2" />
+    <path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-80-96a28,28,0,0,0-8,54.83V184a8,8,0,0,0,16,0V166.83A28,28,0,0,0,128,112Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,128,152Z" />
+  </g>
+    <text x="664" y="384" font-size="34" font-weight="bold" fill="#FFFFFF">標準不變</text>
+    <text font-size="22" fill="#FFFFFF" x="664" y="434">不放寬課程隔離</text><text font-size="22" fill="#FFFFFF" x="664" y="466">Q09 依教材修正題目，</text><text font-size="22" fill="#FFFFFF" x="664" y="498">不是降低判定標準</text><text font-size="22" fill="#FFFFFF" font-weight="bold" x="664" y="560">先分清問題來源，</text><text font-size="22" fill="#FFFFFF" font-weight="bold" x="664" y="590">再決定怎麼改</text></g>
+  <g id="iteration-rounds" data-pptx-bounds="936 268 284 334">
+    <text x="948" y="300" font-size="30" font-weight="bold" fill="#1B4D5C">09-02～09-06</text>
+    <rect x="940" y="320" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="956" y="355" font-size="22" fill="#15171A">問答契約修正</text>
+    <rect x="940" y="394" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="956" y="429" font-size="22" fill="#15171A">建立評測工具</text>
+    <rect x="940" y="468" width="276" height="54" rx="4" fill="#E8A93C" />
+    <text x="956" y="503" font-size="22" font-weight="bold" fill="#15171A">8 輪檢索診斷與調整</text>
+    <rect x="940" y="542" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="956" y="577" font-size="22" fill="#15171A">整合並凍結（09-06）</text>
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="1078" y1="376" x2="1078" y2="390" marker-end="url(#arrowDown)" />
+      <line x1="1078" y1="450" x2="1078" y2="464" marker-end="url(#arrowDown)" />
+      <line x1="1078" y1="524" x2="1078" y2="538" marker-end="url(#arrowDown)" />
+    </g>
+  </g>
+  <g id="limits" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="18" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">限制</tspan>：調整後的正式驗收證據（題庫、設定、原始結果、人工複核）尚未建立｜證據：2026-09-01 人工複核表</text>
+  </g>
+</svg>

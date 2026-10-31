@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1028 120">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">起點｜2026 年 3～4 月</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">一開始想做的太多，我們先收斂出一條主線</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">02 / 10</text>
+    <image href="data:image/png;base64,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" x="1172" y="38" width="40" height="40" />
+  </g>
+  <g id="initial-ideas" data-pptx-bounds="56 180 1164 64">
+    <text x="64" y="220" font-size="22" font-weight="bold" fill="#5A6066">最初構想</text>
+    <rect x="170" y="190" width="244" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="292" y="220" font-size="22" text-anchor="middle" fill="#5A6066">智慧衣櫥題目・未選</text>
+    <rect x="430" y="190" width="268" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="564" y="220" font-size="22" text-anchor="middle" fill="#5A6066">遊戲化寵物機制・放棄</text>
+    <rect x="714" y="190" width="268" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="848" y="220" font-size="22" text-anchor="middle" fill="#5A6066">短影音生成・延到後期</text>
+    <rect x="998" y="190" width="214" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="1105" y="220" font-size="22" text-anchor="middle" fill="#5A6066">個人化課程・後期</text>
+  </g>
+  <g id="meeting-timeline" data-pptx-bounds="56 264 1164 196">
+    <text x="64" y="292" font-size="22" font-weight="bold" fill="#1B4D5C">每次教授檢視，都調整一次方向</text>
+    <line x1="120" y1="340" x2="1160" y2="340" stroke="#5E8F9C" stroke-width="3" />
+    <g fill="#1B4D5C">
+      <circle cx="160" cy="340" r="9" />
+      <circle cx="352" cy="340" r="9" />
+      <circle cx="544" cy="340" r="9" />
+      <circle cx="736" cy="340" r="9" />
+      <circle cx="928" cy="340" r="9" />
+    </g>
+    <circle cx="1120" cy="340" r="12" fill="#E8A93C" />
+    <g font-size="22" text-anchor="middle" fill="#15171A">
+      <text x="160" y="384" fill="#1B4D5C" font-weight="bold">03-03</text><text x="160" y="414">衣櫥／短影音</text><text x="160" y="444">二選一</text><text x="352" y="384" fill="#1B4D5C" font-weight="bold">03-10</text><text x="352" y="414">確定短影音</text><text x="352" y="444">用教授上課錄影</text><text x="544" y="384" fill="#1B4D5C" font-weight="bold">03-24</text><text x="544" y="414">提出遊戲化</text><text x="544" y="444">寵物構想</text><text x="736" y="384" fill="#1B4D5C" font-weight="bold">03-31</text><text x="736" y="414">放棄寵物機制</text><text x="736" y="444">鎖定 RAG 問答</text><text x="928" y="384" fill="#1B4D5C" font-weight="bold">04-07</text><text x="928" y="414">改用 Gemini</text><text x="928" y="444">Embedding</text><text x="1120" y="384" fill="#1B4D5C" font-weight="bold">04-21</text><text x="1120" y="414">Phase 1 聚焦</text><text x="1120" y="444">核心流程</text></g>
+  </g>
+  <g id="mvp-pipeline" data-pptx-bounds="56 476 1164 136">
+    <text x="64" y="512" font-size="22" font-weight="bold" fill="#1B4D5C">MVP 主線：<tspan fill="#15171A" font-weight="normal">先讓影片變成可問答的知識，回答能跳回影片時間點</tspan></text>
+    <g id="p02-mvp-1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="64 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 64 532 L 224.8 532 L 250 568 L 224.8 604 L 64 604 L 89.2 568 Z" />
+</g>
+    <g id="p02-mvp-2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="224 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 224 532 L 384.8 532 L 410 568 L 384.8 604 L 224 604 L 249.2 568 Z" />
+</g>
+    <g id="p02-mvp-3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="384 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 384 532 L 544.8 532 L 570 568 L 544.8 604 L 384 604 L 409.2 568 Z" />
+</g>
+    <g id="p02-mvp-4" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="544 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 544 532 L 704.8 532 L 730 568 L 704.8 604 L 544 604 L 569.2 568 Z" />
+</g>
+    <g id="p02-mvp-5" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="704 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 704 532 L 864.8 532 L 890 568 L 864.8 604 L 704 604 L 729.2 568 Z" />
+</g>
+    <g id="p02-mvp-6" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="864 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 864 532 L 1024.8 532 L 1050 568 L 1024.8 604 L 864 604 L 889.2 568 Z" />
+</g>
+    <g id="p02-mvp-7" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="1024 532 186 72" data-pptx-av-adj="val 35000" fill="#E8A93C" stroke="none">
+<path d="M 1024 532 L 1184.8 532 L 1210 568 L 1184.8 604 L 1024 604 L 1049.2 568 Z" />
+</g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="160" y="576">音訊抽取</text>
+      <text x="320" y="576">語音轉文字</text>
+      <text x="480" y="576">切段</text>
+      <text x="640" y="576">Embedding</text>
+      <text x="800" y="576">語意檢索</text>
+      <text x="960" y="576">AI 回答</text>
+      <text x="1120" y="576" fill="#15171A">時間點回溯</text>
+    </g>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="668" font-size="18" fill="#5A6066">附件 3 所寫「六次方向調整」是否即上述六次會議：待團隊確認｜來源：Notion 會議紀錄、四階段規劃（04-28）</text>
+  </g>
+</svg>

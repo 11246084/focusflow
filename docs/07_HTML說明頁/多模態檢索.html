@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多模態檢索與章節</title>
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#1f2328; --muted:#5b6370; --line:#e3e1da;
+  --accent:#2f5bd3; --accent-soft:#e8eefc;
+  --free:#1f7a4d; --free-soft:#e6f4ec; --ask:#a15c00; --ask-soft:#fff2df;
+  --code:#f1f0ec; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --card:#1d2026; --ink:#e7e9ee; --muted:#a2a9b5; --line:#2e333b;
+    --accent:#8aa8ff; --accent-soft:#232c45;
+    --free:#6fd3a0; --free-soft:#1b3328; --ask:#ffbf6b; --ask-soft:#3a2a14;
+    --code:#252931; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+header.top{background:var(--card);border-bottom:1px solid var(--line)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header.top .wrap{padding-top:28px;padding-bottom:20px}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.04em}
+h1{font-size:28px;line-height:1.35;margin:6px 0 10px}
+.meta{font-size:13px;color:var(--muted)}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:8px;padding-bottom:8px;scrollbar-width:none}
+nav.toc a{flex:none;font-size:14px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:999px}
+nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+main .wrap{padding-top:8px;padding-bottom:64px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;margin:20px 0;box-shadow:var(--shadow)}
+section h2{font-size:20px;margin:0 0 12px;display:flex;gap:10px;align-items:baseline}
+section h2 .n{font-size:13px;color:var(--accent);font-weight:700}
+h3{font-size:16px;margin:18px 0 6px}
+p{margin:8px 0}
+ul,ol{padding-left:22px;margin:8px 0}
+li{margin:4px 0}
+.story{border-left:4px solid var(--accent);padding:4px 0 4px 16px;margin:12px 0}
+.story p{margin:6px 0}
+.chat{background:var(--code);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:15px}
+.chat b{color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.box{border-radius:12px;padding:14px 16px}
+.box h3{margin-top:0}
+.free{background:var(--free-soft)} .free h3{color:var(--free)}
+.ask{background:var(--ask-soft)} .ask h3{color:var(--ask)}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:1px 8px;margin-right:6px;vertical-align:1px}
+.tag.free{color:var(--free)} .tag.ask{color:var(--ask)}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:10px 0}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--muted);font-weight:600}
+.ref{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:1px 8px}
+details{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:8px 0;background:var(--card)}
+details summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:6px}
+details.term{display:inline;border:none;padding:0;margin:0;background:none}
+details.term summary{display:inline;font-weight:inherit;color:var(--accent);border-bottom:1px dotted var(--accent);list-style:none}
+details.term summary::-webkit-details-marker{display:none}
+details.term[open]{display:block;background:var(--accent-soft);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:15px}
+details.term[open] summary{margin-bottom:4px}
+.prompt{position:relative;background:var(--code);border-radius:10px;padding:14px 16px 14px;margin:10px 0;font:14px/1.7 ui-monospace,"Cascadia Mono",Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.copy{position:absolute;top:8px;right:8px;font:600 13px/1 system-ui,sans-serif;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 12px;cursor:pointer}
+.copy:focus-visible,nav.toc a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding-left:38px;margin:10px 0}
+.steps li::before{content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:grid;place-items:center}
+svg{width:100%;height:auto;display:block}
+.diagram{margin:12px 0 4px}
+.diagram text{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+.d-box{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.d-acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.d-txt{fill:var(--ink);font-size:14px}
+.d-sub{fill:var(--muted);font-size:12px}
+.d-arr{stroke:var(--muted);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.small{font-size:14px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:0 16px 40px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="kicker">FocusFlow · 庭語的任務說明頁</div>
+  <h1>讓學生找得到老師講過的那一段</h1>
+  <p>這頁用一個學生的故事，說明你這次要解決的問題、怎樣算成功、哪些事你和 AI 可以自己決定。讀完大約 10 分鐘，最後有兩段可以直接貼給 AI 的指令。</p>
+  <div class="meta">最後更新：2026-10-31｜對應 <code>docs/04_Features/Multimodal_Retrieval/decisions.md</code> 到 RC 項（2026-10-31）｜交付期限：11/13</div>
+</div></header>
+
+<nav class="toc" aria-label="段落"><div class="wrap">
+  <a href="#story">故事</a><a href="#why">要解決什麼</a><a href="#done">怎樣算成功</a><a href="#lines">不能踩的線</a><a href="#idea">參考做法</a><a href="#ai">和 AI 一起做</a><a href="#help">何時找 Weihao</a>
+</div></nav>
+
+<main><div class="wrap">
+
+<section id="story">
+  <h2><span class="n">1</span>一個學生的故事</h2>
+  <div class="story">
+    <p>期末前一晚，小美在複習 AI 入門課。她記得老師舉過「全聯先生廣告」的例子，想回去看那一段。</p>
+    <p>她打開 FocusFlow 問 AI：「老師在哪裡講全聯先生廣告？」</p>
+  </div>
+  <div class="chat"><b>AI：</b>抱歉，課程內容中找不到相關段落。</div>
+  <p>可是老師明明講過。問題出在語音轉文字：系統把老師說的「全聯」聽成了「全連」，逐字稿裡根本沒有「全聯」兩個字，所以怎麼找都找不到。</p>
+  <p>小美只好自己拖進度條。課程有 6 支影片，每支 30 分鐘，影片裡沒有任何章節，她拖了十幾分鐘才找到。</p>
+</section>
+
+<section id="why">
+  <h2><span class="n">2</span>這次要解決什麼問題</h2>
+  <p>故事裡藏了三個問題，也就是你這次的三個任務，依重要程度排列：</p>
+  <ol>
+    <li><b>逐字稿聽錯就找不到。</b>系統現在只比對逐字稿的文字。如果也能比對老師講話的<b>聲音</b>和投影片的<b>畫面</b>，就算字聽錯了，還有機會從其他線索找回來。這也是複評時評審直接問的：「聲音做到哪？」</li>
+    <li><b>長影片沒有章節。</b>學生不想花提問次數，也應該能從章節清單看出每段在講什麼、點一下就跳過去。</li>
+    <li><b>舊影片要能升級。</b>新功能需要新的資料（聲音向量、章節），已經處理好的影片也要補上。系統應該自己判斷每支影片缺什麼，就補什麼。</li>
+  </ol>
+  <p><b>終極目標</b>：即使轉錄不完美，系統仍然找得回內容，引用也跳得到正確的時間。展覽時評審再問「聲音做到哪」，我們能拿出數字回答。</p>
+  <details><summary>名詞：什麼是「向量」？</summary>
+    <p>把一段文字、聲音或畫面轉成一串數字，意思相近的內容，數字也相近。我們用的 Gemini 模型可以把文字、聲音、畫面放進同一個空間，所以學生打的文字問題，可以直接和老師講話的聲音比對。</p>
+  </details>
+</section>
+
+<section id="done">
+  <h2><span class="n">3</span>怎樣算成功</h2>
+  <h3>看得見的結果</h3>
+  <ul>
+    <li>小美再問一次，系統能把她帶到老師講全聯先生廣告的位置；AI 回答引用的仍是那一段的逐字稿。</li>
+    <li>引用卡片上看得出這一段是靠「逐字稿」「語音」還是「畫面」找到的。</li>
+    <li>每支影片下方都有章節清單，點一下就跳過去，也看得出現在播到哪一章。</li>
+    <li>AI入門 6 支影片升級完成，學生在升級過程中提問也不會出錯。</li>
+  </ul>
+  <h3>用數字證明，而且不是自己說了算</h3>
+  <p>我們有 43 題附標準答案的題目，每題都標好「答案在第幾支影片、幾分幾秒」。你要比較「只用逐字稿」和「加上聲音、畫面」兩種做法：</p>
+  <table>
+    <tr><th>要算的</th><th>白話意思</th></tr>
+    <tr><td>新增找回</td><td>原本找不到、加了聲音或畫面之後找到了幾題</td></tr>
+    <tr><td>退步</td><td>原本找得到、加了之後反而找不到幾題</td></tr>
+    <tr><td>淨改善</td><td>新增找回減掉退步</td></tr>
+  </table>
+  <p>你的程式要把每一題的排名結果存成一個檔案。Weihao 那邊會用<b>另一支程式</b>，只讀這個檔案重新算一次，兩邊數字一樣才算數。這就像考試由別人改考卷，不是自己對答案。</p>
+  <p class="small">沒有提升也沒關係，照實交付「接上了、沒有提升、數字如下」也是成果。不能做的，是看到結果之後改題目或挑數字。</p>
+  <details class="term"><summary>Recall@5 是什麼？</summary> 一題的前 5 筆結果裡，只要有一筆落在標準答案的時間範圍內，就算找到。43 題裡找到幾題，就是這個指標。</details>
+</section>
+
+<section id="lines">
+  <h2><span class="n">4</span>你和 AI 可以決定的事、不能踩的線</h2>
+  <div class="grid2">
+    <div class="box free">
+      <h3>你和 AI 自己決定</h3>
+      <ul>
+        <li>程式怎麼拆、函式怎麼寫、測試怎麼設計</li>
+        <li>聲音和畫面怎麼切片、怎麼呼叫模型</li>
+        <li>章節怎麼產生、要幾章、標題怎麼寫</li>
+        <li>章節清單長什麼樣子、放在哪裡</li>
+        <li>影片升級怎麼判斷「缺什麼」、怎麼觸發</li>
+        <li>課程有很多支影片時，清單和章節怎麼呈現</li>
+      </ul>
+    </div>
+    <div class="box ask">
+      <h3>這些線不能踩，要改先找 Weihao</h3>
+      <ul>
+        <li><b>量測規則先定好、不改。</b>就像考完試不能改評分標準：不能看到結果後把「前 5 名」改成「前 10 名」。</li>
+        <li><b>回答只用逐字稿當證據。</b>聲音和畫面只負責找到位置，不能拿來當回答的內容。</li>
+        <li><b>正式資料要小心換。</b>本機和正式網站用的是同一個資料庫。換資料前要自動備份，一次換一支，換的過程中學生不能查到空的。</li>
+        <li><b>不重新上傳影片。</b>重新上傳會產生新的影片，學生的提問紀錄會斷掉。</li>
+        <li><b>不動 recut 的資料。</b>那是 Weihao 的短影片功能，有引用到的話先停下來。</li>
+        <li><b>花的是教授的錢。</b>每次呼叫前先印出預估費用；累計超過 US$30 先問。</li>
+        <li><b>新功能預設關閉。</b>打開開關前，舊的問答要完全不受影響。</li>
+      </ul>
+    </div>
+  </div>
+  <p class="small">Weihao 已經預先同意：你的 AI 可以更新「AI入門基礎課」的逐字稿片段、章節與搜尋索引，不必每次問。詳細範圍寫在 HANDOFF，AI 會自己讀。</p>
+</section>
+
+<section id="idea">
+  <h2><span class="n">5</span>我們想到的一種做法 <span class="ref">參考，不是規定</span></h2>
+  <p>下面是協調時整理出的做法，你可以照著做，也可以想出更好的。</p>
+  <div class="diagram" role="img" aria-label="學生的問題同時比對逐字稿、聲音、畫面三條路，各取前 20 名合併成一份排名，前 5 筆送給 AI 回答，回答引用逐字稿並跳到該時間點">
+  <svg viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="d-acc" x="10" y="120" width="150" height="60" rx="10"/>
+    <text class="d-txt" x="85" y="146" text-anchor="middle">學生的問題</text>
+    <text class="d-sub" x="85" y="166" text-anchor="middle">「全聯先生廣告？」</text>
+    <rect class="d-box" x="230" y="30" width="170" height="54" rx="10"/>
+    <text class="d-txt" x="315" y="54" text-anchor="middle">比對逐字稿</text>
+    <text class="d-sub" x="315" y="73" text-anchor="middle">現在就有，取前 20 名</text>
+    <rect class="d-acc" x="230" y="123" width="170" height="54" rx="10"/>
+    <text class="d-txt" x="315" y="147" text-anchor="middle">比對聲音</text>
+    <text class="d-sub" x="315" y="166" text-anchor="middle">新增，取前 20 名</text>
+    <rect class="d-acc" x="230" y="216" width="170" height="54" rx="10"/>
+    <text class="d-txt" x="315" y="240" text-anchor="middle">比對畫面</text>
+    <text class="d-sub" x="315" y="259" text-anchor="middle">新增，取前 20 名</text>
+    <rect class="d-acc" x="470" y="120" width="150" height="60" rx="10"/>
+    <text class="d-txt" x="545" y="146" text-anchor="middle">合併排名</text>
+    <text class="d-sub" x="545" y="166" text-anchor="middle">只看名次（RRF）</text>
+    <rect class="d-box" x="680" y="120" width="130" height="60" rx="10"/>
+    <text class="d-txt" x="745" y="146" text-anchor="middle">前 5 段</text>
+    <text class="d-sub" x="745" y="166" text-anchor="middle">用逐字稿回答</text>
+    <path class="d-arr" d="M160,140 C195,140 195,57 228,57"/>
+    <path class="d-arr" d="M160,150 L228,150"/>
+    <path class="d-arr" d="M160,160 C195,160 195,243 228,243"/>
+    <path class="d-arr" d="M400,57 C435,57 435,140 468,140"/>
+    <path class="d-arr" d="M400,150 L468,150"/>
+    <path class="d-arr" d="M400,243 C435,243 435,160 468,160"/>
+    <path class="d-arr" d="M620,150 L678,150"/>
+  </svg>
+  </div>
+  <details class="term"><summary>RRF 是什麼？</summary> 三條路的分數尺度不一樣，不能直接相加。RRF 只看名次：第 1 名得分最高，名次越後面分數越低，三條路的分數加起來就是新的排名。這樣聲音排第 1 的片段，就有機會被排到前面。</details>
+  <h3>章節和升級的做法</h3>
+  <ul>
+    <li><b>章節</b>：讓 Gemini 讀整支影片的逐字稿，切出 5～10 章，每章一個起點時間和一個短標題。播放器下方列出章節，點一下就跳過去。</li>
+    <li><b>升級</b>：每支影片記錄自己的資料是哪一版做出來的。後端發現缺章節就只補章節，缺聲音向量就只補向量；要換逐字稿時，先在本機做好新的，確認沒問題後一次換掉。</li>
+  </ul>
+  <h3>你可能想得到更好的</h3>
+  <p>這些問題沒有標準答案，歡迎你和 AI 一起想：</p>
+  <details><summary>老師把重點寫在投影片上、但沒唸出來，系統要怎麼找到？</summary><p>畫面向量只能幫忙「找到位置」。業界常見的做法是把投影片上的字辨識出來（OCR），當成文字一起搜尋。這次先不做，但如果你發現很多題都卡在這裡，請記下來。</p></details>
+  <details><summary>聲音和畫面加進來之後，會不會把原本找得到的擠掉？</summary><p>研究結果顯示，影片檢索裡文字通常最強，加入畫面只會小幅提升，例如某篇研究從 0.302 升到 0.311。所以我們也準備了「文字權重比較高」的合併版本一起比較。</p></details>
+  <details><summary>章節要切多細？一門課有 20 支影片時怎麼呈現？</summary><p>YouTube 的章節每段至少 10 秒，常見是幾分鐘一章。不要預設一門課只有 6 支影片：老師這次分成 6 個 part，下一門課可能有 20 支。</p></details>
+  <details><summary>換資料的那幾秒，如果有學生剛好在提問怎麼辦？</summary><p>參考做法是「先做好新的，再一次換掉」，而且在同一個資料庫交易裡完成，學生要嘛查到舊的，要嘛查到新的，不會查到一半。你也可以想想有沒有更簡單的做法。</p></details>
+  <details><summary>業界怎麼做？</summary>
+    <table>
+      <tr><th>誰</th><th>做法</th></tr>
+      <tr><td>Twelve Labs</td><td>影片每 6 秒產生一個向量</td></tr>
+      <tr><td>Marengo 模型</td><td>同一支影片分別產生「畫面」和「聲音」向量，各自搜尋</td></tr>
+      <tr><td>講課影片研究</td><td>文字最準、聲音接近、畫面最低；聲音和畫面分開存，比混成一個好</td></tr>
+    </table>
+    <p class="small">完整來源在 <code>docs/04_Features/Multimodal_Retrieval/references.md</code>。</p>
+  </details>
+</section>
+
+<section id="ai">
+  <h2><span class="n">6</span>和 AI 一起做</h2>
+  <ol class="steps">
+    <li><code>git pull</code> 取得最新的 <code>dev</code>，用 Codex 或 Claude Code 打開 FocusFlow 專案。</li>
+    <li>貼上<b>開場指令</b>。AI 會先用例子教你這個問題，請你用自己的話說說看，再和你討論做法。</li>
+    <li>你選好做法、說「開始」，AI 就會在同一個對話裡一路做到完成，並自己 commit、測試、push 到 <code>dev</code>。</li>
+    <li>額度用完了？換另一個工具（Codex ↔ Claude Code）或等額度恢復，再貼一次開場指令，AI 會讀進度檔接著做。</li>
+    <li>做完後貼上<b>回報指令</b>，把摘要傳給 Weihao。</li>
+  </ol>
+  <h3>開場指令</h3>
+  <div class="prompt" id="p1"><button class="copy" data-target="p1t" type="button">複製</button><span id="p1t">你是我在 FocusFlow 專案的開發夥伴。我是庭語，這次負責「多模態檢索、章節與影片升級」。
+請先讀 docs/04_Features/Multimodal_Retrieval/HANDOFF.md，照裡面「開場時 AI 要做的事」進行：
+1. 只讀它指定的段落，不要一次讀完整份 decisions.md。
+2. 用一個具體例子跟我解釋這次要解決什麼問題，然後請我用自己的話說出要改什麼、怎樣算成功；我講錯的地方幫我釐清。
+3. 先問我有什麼想法，再拿參考方案出來比較，說明取捨。如果我的想法比較好，就採用，並寫回 decisions.md 和 docs/07_HTML說明頁/多模態檢索.html。
+4. 我說「開始」之後，在這個對話一路做到完成：小步 commit、push 前跑測試、只 push 到 dev、每次 commit 後更新 evidence/進度.md。
+5. 只有遇到 HANDOFF 寫的三種情況才停下來，並幫我寫好要傳給 Weihao 的訊息。如果預估 11/13 前做不完，最晚 11/9 提醒我求援。
+如果 evidence/進度.md 已經存在，先讀它，從上次停下的地方接著做。</span></div>
+  <h3>回報指令</h3>
+  <div class="prompt" id="p2"><button class="copy" data-target="p2t" type="button">複製</button><span id="p2t">請整理這次的回報，寫成 docs/04_Features/Multimodal_Retrieval/evidence/&lt;今天日期&gt;_回報.md，並在對話中給我一份可以直接傳給 Weihao 的摘要：
+1. 成果：三個優先項目各做到哪裡，附 commit。
+2. 測試證據：已執行與未執行的測試分開列，未執行要寫原因；附 per-question.json 的位置。
+3. 和參考方案不同的地方：改了什麼、為什麼。
+4. 我學到什麼：根據我們的對話，用我的口吻寫三到五句「我會怎麼向評審解釋這個功能」，先給我確認再存。
+5. 確認 decisions.md、HANDOFF.md 與 docs/07_HTML說明頁/多模態檢索.html 都已同步。</span></div>
+</section>
+
+<section id="help">
+  <h2><span class="n">7</span>什麼時候停下來找 Weihao</h2>
+  <p>大部分時間 AI 會自己往前做。只有這三種情況要停下來，AI 會幫你寫好訊息：</p>
+  <ol>
+    <li><b>要做的事不在 Weihao 預先同意的範圍內</b>，例如要動其他課程的資料。</li>
+    <li><b>要踩到第 4 段那些線</b>，例如想改量測規則，或發現 recut 有引用到要換掉的資料。</li>
+    <li><b>做不到</b>，例如發現模型其實聽不懂中文語音。請照實說，不要用「看起來完成」代替。</li>
+  </ol>
+  <p>另外，<b>如果 AI 預估 11/13 前做不完，最晚 11/9 就要求援</b>。提早求援，Weihao 才有時間調人手；不要自己偷偷砍範圍。</p>
+</section>
+
+</div></main>
+<footer>這頁由 AI 依 decisions.md 同步更新。內容和 decisions.md 不一致時，以 decisions.md 為準。</footer>
+<script>
+document.querySelectorAll('.copy').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var text=document.getElementById(btn.dataset.target).innerText;
+    var done=function(){var t=btn.textContent;btn.textContent='已複製';setTimeout(function(){btn.textContent=t},1500)};
+    if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done,function(){fallback(text);done()})}
+    else{fallback(text);done()}
+  });
+});
+function fallback(text){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta)}
+</script>
+</body>
+</html>

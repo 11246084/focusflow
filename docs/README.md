@@ -23,6 +23,7 @@ docs/
 │   ├─ Logo/
 │   └─ 系統手冊/       只有手冊用的圖，依章節 ch01～ch15 放，成品與原始碼同資料夾
 ├─ 06_會議紀錄/        教授會議/、組內會議/、會議範本
+├─ 07_HTML說明頁/      給人看的 HTML 說明頁（用瀏覽器打開）；README 是清單
 ├─ 10_Operations/      部署紀錄、MCP 設定、資料庫交付說明
 └─ 90_Archive/         snapshots/ 快照、docs-reorganization/ 整理紀錄、superseded/ 被取代方案、
                        chat-history/、learning-reports/、external-examples/ 參考手冊
@@ -41,6 +42,7 @@ docs/
 | [04 Features](04_Features/README.md) | 功能規格與驗收證據，含[分層檢索](04_Features/Hierarchical_Retrieval/README.md)、[YouTube 恢復與清理](04_Features/YouTube_Lifecycle/decisions.md)、[系統設定](04_Features/System_Settings/decisions.md)、[recut 教師體驗評估素材](04_Features/Short_Video/evidence/README.md)、[自研方法與比較實驗](04_Features/Research_Methods/自研方法與比較實驗.md) |
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
+| [07 HTML說明頁](07_HTML說明頁/README.md) | 給人看的任務說明頁：[多模態檢索](07_HTML說明頁/多模態檢索.html)、[LINE 綁定](07_HTML說明頁/LINE綁定.html) |
 | [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
 | [90 Archive](90_Archive/README.md) | 快照、重整紀錄、被取代方案與歷史原件 |
 | [目前狀態](current-status.md) | 唯一功能狀態正本 |
@@ -58,7 +60,7 @@ YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lif
 
 YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)，記錄 R07、R10～R12 的來源重新處理、總覽與並行稽核證據。
 
-設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)（[開發接手說明](04_Features/LINE_Binding/HANDOFF.md)）、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[多模態檢索](04_Features/Multimodal_Retrieval/decisions.md)（[參考文獻](04_Features/Multimodal_Retrieval/references.md)）、[教育開放資料補強](04_Features/Open_Data/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)、[教師短影片腳本與成品上傳流程](04_Features/Short_Script_Automation/decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。
+設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)（[開發接手說明](04_Features/LINE_Binding/HANDOFF.md)）、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[多模態檢索](04_Features/Multimodal_Retrieval/decisions.md)（[開發接手說明](04_Features/Multimodal_Retrieval/HANDOFF.md)、[參考文獻](04_Features/Multimodal_Retrieval/references.md)）、[教育開放資料補強](04_Features/Open_Data/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)（[chunk 版本契約](04_Features/Short_Video/chunk-version-contract.md)）、[教師短影片腳本與成品上傳流程](04_Features/Short_Script_Automation/decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 
@@ -75,3 +77,5 @@ YouTube 收尾複驗：[2026-10-27 F0～F2 最終審查與驗證](04_Features/Yo
 新增或整理文件時，依[文件類型與寫法](../.claude/skills/docs-maintainer/references/doc-types.md)決定放哪裡、怎麼寫。
 
 大檔與舊版存在雲端「學校專題」：ESG 投稿見[永續研討會 ESG 投稿](03_競賽/2026_永續研討會ESG投稿/README.md)，初評時期的架構圖與簡介 PDF 見[圖庫說明](05_圖庫/README.md)。
+
+組員任務的進度與回報：[多模態](04_Features/Multimodal_Retrieval/HANDOFF.md)與 [LINE 綁定](04_Features/LINE_Binding/HANDOFF.md)的 agent 在各自的 `evidence/` 寫 `進度.md`（每次 commit 後更新）與 `<日期>_回報.md`、`<日期>_retrieval-comparison/report.md` 等驗收紀錄，登記於此，不必逐檔新增。

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE 學習入口</title>
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#1f2328; --muted:#5b6370; --line:#e3e1da;
+  --accent:#2f5bd3; --accent-soft:#e8eefc;
+  --free:#1f7a4d; --free-soft:#e6f4ec; --ask:#a15c00; --ask-soft:#fff2df;
+  --code:#f1f0ec; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --card:#1d2026; --ink:#e7e9ee; --muted:#a2a9b5; --line:#2e333b;
+    --accent:#8aa8ff; --accent-soft:#232c45;
+    --free:#6fd3a0; --free-soft:#1b3328; --ask:#ffbf6b; --ask-soft:#3a2a14;
+    --code:#252931; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+header.top{background:var(--card);border-bottom:1px solid var(--line)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+header.top .wrap{padding-top:28px;padding-bottom:20px}
+.kicker{font-size:13px;color:var(--muted);letter-spacing:.04em}
+h1{font-size:28px;line-height:1.35;margin:6px 0 10px}
+.meta{font-size:13px;color:var(--muted)}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:8px;padding-bottom:8px;scrollbar-width:none}
+nav.toc a{flex:none;font-size:14px;color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:999px}
+nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+main .wrap{padding-top:8px;padding-bottom:64px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;margin:20px 0;box-shadow:var(--shadow)}
+section h2{font-size:20px;margin:0 0 12px;display:flex;gap:10px;align-items:baseline}
+section h2 .n{font-size:13px;color:var(--accent);font-weight:700}
+h3{font-size:16px;margin:18px 0 6px}
+p{margin:8px 0}
+ul,ol{padding-left:22px;margin:8px 0}
+li{margin:4px 0}
+.story{border-left:4px solid var(--accent);padding:4px 0 4px 16px;margin:12px 0}
+.story p{margin:6px 0}
+.chat{background:var(--code);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:15px}
+.chat b{color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.box{border-radius:12px;padding:14px 16px}
+.box h3{margin-top:0}
+.free{background:var(--free-soft)} .free h3{color:var(--free)}
+.ask{background:var(--ask-soft)} .ask h3{color:var(--ask)}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:1px 8px;margin-right:6px;vertical-align:1px}
+.tag.free{color:var(--free)} .tag.ask{color:var(--ask)}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:10px 0}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--muted);font-weight:600}
+.ref{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:1px 8px}
+details{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:8px 0;background:var(--card)}
+details summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:6px}
+details.term{display:inline;border:none;padding:0;margin:0;background:none}
+details.term summary{display:inline;font-weight:inherit;color:var(--accent);border-bottom:1px dotted var(--accent);list-style:none}
+details.term summary::-webkit-details-marker{display:none}
+details.term[open]{display:block;background:var(--accent-soft);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:15px}
+details.term[open] summary{margin-bottom:4px}
+.prompt{position:relative;background:var(--code);border-radius:10px;padding:14px 16px 14px;margin:10px 0;font:14px/1.7 ui-monospace,"Cascadia Mono",Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+.copy{position:absolute;top:8px;right:8px;font:600 13px/1 system-ui,sans-serif;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 12px;cursor:pointer}
+.copy:focus-visible,nav.toc a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding-left:38px;margin:10px 0}
+.steps li::before{content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:14px;display:grid;place-items:center}
+svg{width:100%;height:auto;display:block}
+.diagram{margin:12px 0 4px}
+.diagram text{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+.d-box{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.d-acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.d-txt{fill:var(--ink);font-size:14px}
+.d-sub{fill:var(--muted);font-size:12px}
+.d-arr{stroke:var(--muted);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.small{font-size:14px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:0 16px 40px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="kicker">FocusFlow · 百陶的任務說明頁</div>
+  <h1>讓 LINE 成為學生願意用的提問入口</h1>
+  <p>這頁用一個學生的故事，說明你這次要解決的問題、怎樣算成功、哪些事你和 AI 可以自己決定。讀完大約 10 分鐘，最後有兩段可以直接貼給 AI 的指令。</p>
+  <div class="meta">最後更新：2026-10-31｜對應 <code>docs/04_Features/LINE_Binding/decisions.md</code> 到 LP 項（2026-10-31）｜在 dev 完成期限：11/10</div>
+</div></header>
+
+<nav class="toc" aria-label="段落"><div class="wrap">
+  <a href="#first">第一步</a><a href="#story">故事</a><a href="#why">要解決什麼</a><a href="#done">怎樣算成功</a><a href="#lines">不能踩的線</a><a href="#idea">參考做法</a><a href="#ai">和 AI 一起做</a><a href="#help">何時找 Weihao</a>
+</div></nav>
+
+<main><div class="wrap">
+
+<section id="first" class="box ask" style="border:1px solid var(--line)">
+  <h2><span class="n">0</span>開工前的第一步</h2>
+  <p>在 LINE Developers Console 打開<b>正式</b> provider 的「Roles」，用 Weihao 的 LINE Developers 帳號 Email 邀請他，角色選 <b>Admin</b>（不是 Member）。Weihao 接受、出現在清單上才算完成。這樣 Weihao 才能幫你看設定，出問題時也能緊急處理。</p>
+</section>
+
+<section id="story">
+  <h2><span class="n">1</span>一個學生的故事</h2>
+  <div class="story">
+    <p>晚上十一點，阿哲在宿舍複習，想用 LINE 問 FocusFlow 一個問題。系統說要先綁定帳號。</p>
+    <p>他回到網頁，按「產生綁定碼」，畫面出現一串 64 個字元的亂碼。他在手機上長按複製、切到 LINE、貼給機器人……結果複製到一半，少了幾個字。</p>
+    <p>試了兩次都失敗，他就關掉了。</p>
+  </div>
+  <p>另一位同學綁成功了，問了問題，收到的回覆長這樣：</p>
+  <div class="chat"><b>Bot：</b>[MVP提示] 片段：75s - 120s ……</div>
+  <p>「MVP 提示」是什麼？75s 又是第幾分鐘？學生看不懂，這是開發時留下來的字樣。</p>
+  <p>老師那邊更是不知道：到底有多少學生在用 LINE 問問題？統計頁上只看得到總數。</p>
+</section>
+
+<section id="why">
+  <h2><span class="n">2</span>這次要解決什麼問題</h2>
+  <p>不只是把綁定碼換成一顆按鈕，而是打通整段體驗：</p>
+  <p style="text-align:center;font-weight:700;margin:14px 0">連結帳號 → 開始提問 → 看得懂回答 → 老師看得到使用情況</p>
+  <p><b>終極目標</b>：讓 LINE 成為學生輕鬆開始、安心使用、願意一直提問的學習入口。同時，<b>任何人的 LINE 都不會被綁到別人的帳號</b>。</p>
+  <details><summary>名詞：LINE Login、provider、channel 是什麼？</summary>
+    <p><b>LINE Login</b>：讓 LINE 幫我們確認「這個人真的是這個 LINE 帳號的主人」，再把結果交給 FocusFlow。<br><b>provider</b>：LINE Developers Console 裡管理服務的單位，像一個資料夾。<br><b>channel</b>：一個 LINE 服務的設定，例如現在的聊天機器人就是一個 Messaging API channel。</p>
+  </details>
+</section>
+
+<section id="done">
+  <h2><span class="n">3</span>怎樣算成功</h2>
+  <h3>看得見的結果</h3>
+  <ul>
+    <li>阿哲在網頁按「連結 LINE」，手機上按「同意」和「加好友」就完成，不用複製任何東西。</li>
+    <li>網頁看得出三件事：有沒有綁定成功、有沒有加好友、要怎麼解除綁定。出錯時告訴學生該怎麼做，不只丟出錯誤碼。</li>
+    <li>Bot 的回覆像正式產品：沒有開發字樣，時間寫成 <code>1:15 - 2:00</code>。</li>
+    <li>老師在統計頁看得到網頁和 LINE 各有多少提問。</li>
+  </ul>
+  <h3>安全不是自己說了算</h3>
+  <p>Weihao 那邊事先寫好了一份<b>攻擊情境清單</b>，共 19 條，例如：</p>
+  <table>
+    <tr><th>有人想……</th><th>系統必須……</th></tr>
+    <tr><td>把自己產生的授權連結騙同學點開</td><td>不能因此把同學的 LINE 綁到他的帳號</td></tr>
+    <tr><td>同一個授權請求用第二次</td><td>拒絕</td></tr>
+    <tr><td>用已經綁在別人帳號上的 LINE 再綁一次</td><td>拒絕，別人的綁定不變</td></tr>
+    <tr><td>在解除綁定時偷塞別人的帳號</td><td>只解除自己的</td></tr>
+  </table>
+  <p>每一條都要寫成自動測試並通過，再加上用測試環境在手機和電腦上實際跑過的紀錄。完整清單在 HANDOFF，AI 會自己讀。</p>
+</section>
+
+<section id="lines">
+  <h2><span class="n">4</span>你和 AI 可以決定的事、不能踩的線</h2>
+  <div class="grid2">
+    <div class="box free">
+      <h3>你和 AI 自己決定</h3>
+      <ul>
+        <li>按鈕放哪、畫面長怎樣、文案怎麼寫</li>
+        <li>程式怎麼拆、測試怎麼寫</li>
+        <li>授權流程的細節，只要通過攻擊情境清單</li>
+        <li>要在本機用測試環境，還是在正式 provider 測試</li>
+        <li>圖文選單要不要這次一起做</li>
+      </ul>
+    </div>
+    <div class="box ask">
+      <h3>這些線不能踩，要改先找 Weihao</h3>
+      <ul>
+        <li><b>一個 LINE 只能綁一個帳號。</b>想搶綁別人已經綁定的 LINE，一律拒絕。</li>
+        <li><b>換綁要先確認。</b>學生自己的帳號要換成新的 LINE，畫面要先問「確定要取代目前的 LINE 嗎？」。</li>
+        <li><b>不存 LINE 的 token。</b>用完就丟，資料庫裡少一份可以被偷的東西。</li>
+        <li><b>沒登入就不能綁定。</b>流程跳到另一個瀏覽器時，要請學生回原本的瀏覽器重來。</li>
+        <li><b>已經綁好的同學不能因為改版失效。</b></li>
+        <li><b>正式 LINE 後台每一步都先問。</b>尤其把 channel 改成 Published 之後就無法退回。</li>
+        <li><b>不推 <code>main</code>。</b>推 <code>main</code> 會直接部署到正式站，部署由 Weihao 做。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="idea">
+  <h2><span class="n">5</span>我們想到的一種做法 <span class="ref">參考，不是規定</span></h2>
+  <p>下面是查過 LINE 官方文件後整理的做法，你可以照著做，也可以想出更好的。</p>
+  <div class="diagram" role="img" aria-label="學生在網頁按連結 LINE，後端產生一次性的驗證碼，學生在 LINE 按同意與加好友，回到網頁後後端核對驗證碼與登入者，再向 LINE 確認身分，最後完成綁定並送出歡迎訊息">
+  <svg viewBox="0 0 820 230" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="d-acc" x="10" y="30" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="95" y="57" text-anchor="middle">按「連結 LINE」</text>
+    <text class="d-sub" x="95" y="77" text-anchor="middle">學生已登入網頁</text>
+    <rect class="d-box" x="225" y="30" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="310" y="57" text-anchor="middle">後端產生一次性 state</text>
+    <text class="d-sub" x="310" y="77" text-anchor="middle">記下「是誰」發起的</text>
+    <rect class="d-acc" x="440" y="30" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="525" y="57" text-anchor="middle">LINE 授權頁</text>
+    <text class="d-sub" x="525" y="77" text-anchor="middle">按同意、按加好友</text>
+    <rect class="d-box" x="440" y="140" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="525" y="167" text-anchor="middle">回到網頁</text>
+    <text class="d-sub" x="525" y="187" text-anchor="middle">/line/callback</text>
+    <rect class="d-box" x="225" y="140" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="310" y="167" text-anchor="middle">後端核對與確認身分</text>
+    <text class="d-sub" x="310" y="187" text-anchor="middle">state 和登入者對得上？</text>
+    <rect class="d-acc" x="10" y="140" width="170" height="64" rx="10"/>
+    <text class="d-txt" x="95" y="167" text-anchor="middle">顯示「已綁定」</text>
+    <text class="d-sub" x="95" y="187" text-anchor="middle">LINE 收到歡迎訊息</text>
+    <path class="d-arr" d="M180,62 L223,62"/>
+    <path class="d-arr" d="M395,62 L438,62"/>
+    <path class="d-arr" d="M610,62 C660,62 660,172 612,172"/>
+    <path class="d-arr" d="M440,172 L397,172"/>
+    <path class="d-arr" d="M225,172 L182,172"/>
+  </svg>
+  </div>
+  <details class="term"><summary>為什麼要「核對 state 和登入者」？</summary> 假設壞人自己按了「連結 LINE」，把產生的授權連結傳給你。如果系統只看連結、不看是誰登入，你點了之後，你的 LINE 就會被綁到壞人的帳號，你之後在 LINE 問的問題都會記到他那邊。核對「發起的人＝現在登入的人」就能擋掉。</details>
+  <h3>你可能想得到更好的</h3>
+  <details><summary>學生用電腦怎麼完成？</summary><p>電腦上沒有 LINE App，LINE Login 會顯示 QR code 讓手機掃。流程會多一步，畫面怎麼引導最清楚？</p></details>
+  <details><summary>學生在加好友那頁按了「略過」怎麼辦？</summary><p>綁定成功了，但 Bot 傳不了訊息給他。「已綁定」和「已加好友」要分開顯示，並給他一顆加好友的按鈕。</p></details>
+  <details><summary>從 LINE 那邊來的學生，怎麼引導他去綁定？</summary><p>還沒綁定的學生直接在 LINE 傳訊息，Bot 可以回一顆按鈕，打開網頁的連結頁。還有沒有更順的方式？</p></details>
+  <details><summary>在本機測試，還是在正式 provider 測試？</summary><p>本機另開一個測試用 provider 最安全，但要多建一個測試用官方帳號。在正式 provider 測試，channel 還在 Developing 時只有 Admin、Tester 能登入；但加好友會加到<b>正式</b>的官方帳號，測試訊息也會送到正式伺服器。你來評估哪個划算。</p></details>
+  <details><summary>業界怎麼做？</summary>
+    <table>
+      <tr><th>做法</th><th>說明</th></tr>
+      <tr><td>LINE Login（參考做法）</td><td>網頁按鈕發起，同一個流程可以順便加好友</td></tr>
+      <tr><td>LINE Account Link</td><td>從 Bot 發起，但學生仍要在 LINE 內建瀏覽器登入，步驟沒有比較少</td></tr>
+      <tr><td>OAuth 的 state 與 PKCE</td><td>業界標準的防偽造做法，LINE 官方文件也建議使用</td></tr>
+    </table>
+  </details>
+</section>
+
+<section id="ai">
+  <h2><span class="n">6</span>和 AI 一起做</h2>
+  <ol class="steps">
+    <li>先完成第 0 步：邀請 Weihao 為 Admin。</li>
+    <li><code>git pull</code> 取得最新的 <code>dev</code>，用 Codex 或 Claude Code 打開 FocusFlow 專案。</li>
+    <li>貼上<b>開場指令</b>。AI 會先用例子教你這個問題，請你用自己的話說說看，再和你討論做法與測試環境。</li>
+    <li>你選好做法、說「開始」，AI 就會在同一個對話裡一路做到完成，並自己 commit、測試、push 到 <code>dev</code>。</li>
+    <li>額度用完了？換另一個工具（Codex ↔ Claude Code）或等額度恢復，再貼一次開場指令，AI 會讀進度檔接著做。</li>
+    <li>做完後貼上<b>回報指令</b>，把摘要傳給 Weihao。</li>
+  </ol>
+  <h3>開場指令</h3>
+  <div class="prompt"><button class="copy" data-target="p1t" type="button">複製</button><span id="p1t">你是我在 FocusFlow 專案的開發夥伴。我是百陶，這次負責「LINE 學習入口與帳號綁定」。
+請先讀 docs/04_Features/LINE_Binding/HANDOFF.md，照裡面「開場時 AI 要做的事」進行：
+1. 只讀它指定的段落，不要一次讀完整份 decisions.md。
+2. 用一個具體例子跟我解釋這次要解決什麼問題，然後請我用自己的話說出要改什麼、怎樣算成功；我講錯的地方幫我釐清。
+3. 先問我有什麼想法，再拿參考方案出來比較，說明取捨；也幫我評估測試環境要用本機測試 provider 還是正式 provider，並提醒我評估圖文選單能不能一起做。如果我的想法比較好，就採用，並寫回 decisions.md 和 docs/07_HTML說明頁/LINE綁定.html。
+4. 我說「開始」之後，在這個對話一路做到完成：攻擊情境清單每一條都寫成測試、小步 commit、push 前跑測試、只 push 到 dev、每次 commit 後更新 evidence/進度.md。
+5. 只有遇到 HANDOFF 寫的三種情況才停下來（正式 LINE 後台的每一步都算），並幫我寫好要傳給 Weihao 的訊息。如果預估 11/10 前做不完，最晚 11/6 提醒我求援。
+如果 evidence/進度.md 已經存在，先讀它，從上次停下的地方接著做。</span></div>
+  <h3>回報指令</h3>
+  <div class="prompt"><button class="copy" data-target="p2t" type="button">複製</button><span id="p2t">請整理這次的回報，寫成 docs/04_Features/LINE_Binding/evidence/&lt;今天日期&gt;_回報.md，並在對話中給我一份可以直接傳給 Weihao 的摘要：
+1. 成果：五個優先項目各做到哪裡，附 commit。
+2. 測試證據：已執行與未執行的測試分開列，未執行要寫原因；附攻擊情境 A1～A19 與測試名稱的對照，以及手機、電腦端到端紀錄的位置。
+3. 和參考方案不同的地方：改了什麼、為什麼；測試環境選了哪一種、為什麼。
+4. 部署需要的設定清單，對照 HANDOFF 的正式環境關卡 P1～P6。
+5. 我學到什麼：根據我們的對話，用我的口吻寫三到五句「我會怎麼向評審解釋這個功能的安全設計」，先給我確認再存。
+6. 確認 decisions.md、HANDOFF.md 與 docs/07_HTML說明頁/LINE綁定.html 都已同步。</span></div>
+</section>
+
+<section id="help">
+  <h2><span class="n">7</span>什麼時候停下來找 Weihao</h2>
+  <p>大部分時間 AI 會自己往前做。只有這三種情況要停下來，AI 會幫你寫好訊息：</p>
+  <ol>
+    <li><b>任何正式環境的操作</b>：正式 LINE 後台、webhook、伺服器、正式資料庫、部署。每一步都先問，Weihao 同意才做。</li>
+    <li><b>要踩到第 4 段那些線</b>，例如想把 LINE 的 token 存起來，或要改問答回應的格式。</li>
+    <li><b>做不到</b>，或發現要求互相矛盾。請照實說。</li>
+  </ol>
+  <p>另外，<b>如果 AI 預估 11/10 前做不完，最晚 11/6 就要求援</b>。提早求援，Weihao 才有時間調人手；不要自己偷偷砍範圍。</p>
+</section>
+
+</div></main>
+<footer>這頁由 AI 依 decisions.md 同步更新。內容和 decisions.md 不一致時，以 decisions.md 為準。</footer>
+<script>
+document.querySelectorAll('.copy').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var text=document.getElementById(btn.dataset.target).innerText;
+    var done=function(){var t=btn.textContent;btn.textContent='已複製';setTimeout(function(){btn.textContent=t},1500)};
+    if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done,function(){fallback(text);done()})}
+    else{fallback(text);done()}
+  });
+});
+function fallback(text){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta)}
+</script>
+</body>
+</html>

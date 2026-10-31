@@ -6,7 +6,7 @@ process.once('message', async (config) => {
     assertLoopbackMongoUri(config.uri);
     if (!/^focusflow_youtube_test_[a-f0-9]{16}$/.test(config.dbName)) throw new Error('Unowned test database');
     env.uploadDir = config.root;
-    await mongoose.connect(config.uri, { dbName: config.dbName, autoIndex: false, autoCreate: false });
+    await mongoose.connect(config.uri, { dbName: config.dbName, autoIndex: false, autoCreate: false, directConnection: true });
     const gate = deferred();
     process.on('message', (m) => { if (m === 'continue') gate.resolve(); });
     const pause = async () => { process.send({ event: 'ready' }); await gate.promise; };

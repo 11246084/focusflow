@@ -25,6 +25,9 @@ function sourceSnapshot(item, file) {
       youtubeVideoId: item.youtubeVideoId,
       'youtubeUpload.status': item.youtubeUpload?.status,
       'youtubeUpload.uploadedAt': item.youtubeUpload?.uploadedAt,
+      'youtubeUpload.remoteState': item.youtubeUpload?.remoteState,
+      'youtubeUpload.readyAt': item.youtubeUpload?.readyAt,
+      videoSource: item.videoSource,
       'youtubeUpload.localSourceRestoredAt': item.youtubeUpload?.localSourceRestoredAt,
       'youtubeUpload.localCleanupAt': item.youtubeUpload?.localCleanupAt,
       'processing.status': item.processing?.status,
@@ -63,13 +66,15 @@ async function inspectCleanupSource(kind, item, references) {
 async function deleteCleanupSource(file, { beforeDelete, beginDelete, verifyOwnership, leaseValid = () => true, finalFreeBytes, minFreeBytes } = {}) {
   try {
     if (beginDelete && !(await beginDelete())) return { cleaned: false, reason: 'source_changed' };
-    if (verifyOwnership && !(await verifyOwnership())) return { cleaned: false, reason: 'source_changed' };
+
   } catch { return { cleaned: false, reason: 'reference_check_failed' }; }
-  if (!(await isYouTubeLifecycleSwitchEnabled('cleanup'))) return { cleaned: false, reason: 'disabled' };
+
   // Every DB/setting await precedes the final space decision. Production uses
   // statfsSync below; async providers exist only for deterministic tests.
   const stopReason = beforeDelete ? await beforeDelete() : null;
   if (stopReason) return { cleaned: false, reason: stopReason };
+  try { if (verifyOwnership && !(await verifyOwnership())) return { cleaned: false, reason: 'source_changed' }; } catch { return { cleaned: false, reason: 'reference_check_failed' }; }
+  if (!(await isYouTubeLifecycleSwitchEnabled('cleanup'))) return { cleaned: false, reason: 'disabled' };
   try {
     if (!leaseValid()) return { cleaned: false, reason: 'source_changed' };
     const current = inspectLocalUploadFile(file.localPath);

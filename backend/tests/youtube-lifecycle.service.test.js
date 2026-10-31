@@ -75,6 +75,9 @@ function buildFetchMock({ gate = null, youtubeId = 'ytLifecycle123' } = {}) {
     if (String(url).includes('uploadType=resumable')) {
       return jsonResponse({}, { headers: { location: 'https://upload.youtube.test/session' } });
     }
+    if (String(url).includes('/youtube/v3/videos?')) {
+      return jsonResponse({items:new URL(url).searchParams.get('id').split(',').map(id=>({id,status:{privacyStatus:'unlisted',uploadStatus:'processed',embeddable:true}}))});
+    }
     if (gate) await gate;
     await drainStream(options.body);
     uploads += 1;
@@ -438,6 +441,7 @@ describe('YouTube 上傳恢復排程', () => {
 describe('youtubeLifecycle.service 原片清理', () => {
   let originalEnv;
   let uploadDir;
+  let restoreYouTube;
 
   function makeUploadedVideo({ name, uploadedDaysAgo, restoredDaysAgo = null, sizeBytes = 1024, ...overrides }) {
     const filePath = path.join(uploadDir, name);
@@ -445,9 +449,9 @@ describe('youtubeLifecycle.service 原片清理', () => {
     return addVideo({
       filePath,
       youtubeVideoId: `yt-${name}`,
-      videoSource: 'upload',
+      videoSource: 'youtube',
       youtubeUpload: {
-        status: 'uploaded',
+        status: 'uploaded', remoteState:'ready', readyAt:new Date(NOW.getTime() - uploadedDaysAgo * DAY_MS),
         uploadedAt: new Date(NOW.getTime() - uploadedDaysAgo * DAY_MS),
         localSourceRestoredAt: restoredDaysAgo === null ? null : new Date(NOW.getTime() - restoredDaysAgo * DAY_MS),
       },
@@ -460,6 +464,11 @@ describe('youtubeLifecycle.service 原片清理', () => {
   beforeEach(() => {
     resetStore();
     lifecycleService.resetYouTubeLifecycleStateForTests();
+    restoreYouTube = require('./helpers/youtubeTestEnvironment').useYouTubeTestEnvironment(env,youtubeUploadService.resetYouTubeUploadState);
+    global.fetch = async (url) => {
+      const body = String(url).includes('oauth2.googleapis.com') ? {access_token:'fake'} : {items: new URL(url).searchParams.get('id').split(',').map(id=>({id,status:{privacyStatus:'unlisted',uploadStatus:'processed',embeddable:true}}))};
+      return jsonResponse(body);
+    };
     originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
     // 所有刪檔只發生在這個暫存目錄。
     uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-yt-cleanup-'));
@@ -472,6 +481,7 @@ describe('youtubeLifecycle.service 原片清理', () => {
 
   afterEach(() => {
     lifecycleService.resetYouTubeLifecycleStateForTests();
+    restoreYouTube?.();
     Object.assign(env, originalEnv);
     fs.rmSync(uploadDir, { recursive: true, force: true });
   });
@@ -690,6 +700,7 @@ describe('youtubeLifecycle.service 原片清理', () => {
     const snapshot = await lifecycleService.buildYouTubeLifecycleSnapshot({ getFreeBytes: async () => 5 * GB });
 
     assert.deepEqual(snapshot.switches, {
+      privacy_guard: {envAllowed:false,runtimeEnabled:null,effective:false,reason:'env_disabled'},
       upload: { envAllowed: true, runtimeEnabled: false, effective: false, reason: 'runtime_disabled' },
       recovery: { envAllowed: false, runtimeEnabled: null, effective: false, reason: 'env_disabled' },
       cleanup: { envAllowed: true, runtimeEnabled: null, effective: false, reason: 'default_off' },

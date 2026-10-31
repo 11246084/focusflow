@@ -4,7 +4,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import BottomSheet from '../components/BottomSheet';
 import brandMark from '../assets/mark-white.svg';
-import { apiFetch, BACKEND_ORIGIN } from '../api';
+import { apiFetch } from '../api';
+import { recoverLocalPlayback, resolveVideoPlayback } from './studentPlayback';
 import {
   findExtendedResourcesQuestion,
   formatVideoMeta,
@@ -60,63 +61,14 @@ function loadYouTubeIframeApi() {
   return youtubeApiPromise;
 }
 
-function extractYouTubeVideoId(value) {
-  if (!value) return null;
-  const text = String(value).trim();
-  if (/^[A-Za-z0-9_-]{11}$/.test(text)) return text;
-
-  const patterns = [
-    /[?&]v=([^&#]+)/,
-    /youtu\.be\/([^?&#/]+)/,
-    /\/shorts\/([^?&#/]+)/,
-    /\/embed\/([^?&#/]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) return match[1];
-  }
-
-  return null;
-}
-
-function resolveVideoPlayback(video) {
-  if (!video) return { type: 'none', youtubeId: null, videoUrl: null };
-
-  const sourceType = String(video.sourceType || video.videoSource || video.video_source || '').toLowerCase();
-  const youtubeId = (
-    extractYouTubeVideoId(video.youtubeVideoId)
-    || extractYouTubeVideoId(video.youtube_video_id)
-    || extractYouTubeVideoId(video.videoUrl)
-    || extractYouTubeVideoId(video.video_url)
-    || extractYouTubeVideoId(video.sourceUrl)
-  );
-
-  if (youtubeId) {
-    return { type: 'youtube', youtubeId, videoUrl: null };
-  }
-
-  if (sourceType === 'youtube' || video.metadataOnly || video.qaScopeOnly) {
-    return { type: 'unavailable', youtubeId: null, videoUrl: null };
-  }
-
-  const sourceUrl = video.sourceUrl || video.videoUrl || video.video_url;
-  if (!sourceUrl) return { type: 'none', youtubeId: null, videoUrl: null };
-
-  const textUrl = String(sourceUrl);
-  const videoUrl = textUrl.startsWith('/uploads/')
-    ? `${BACKEND_ORIGIN}${textUrl}`
-    : textUrl;
-
-  return { type: 'upload', youtubeId: null, videoUrl };
-}
-
-function YouTubePlayer({ videoId, seekRequest, onWatched }) {
+function YouTubePlayer({ videoId, seekRequest, onWatched, onError }) {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const readyRef = useRef(false);
   const seekRequestRef = useRef(seekRequest);
   const onWatchedRef = useRef(onWatched);
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
   const watchedFiredRef = useRef(false);
   const progressTimerRef = useRef(null);
 
@@ -166,6 +118,7 @@ function YouTubePlayer({ videoId, seekRequest, onWatched }) {
               event.target.playVideo();
             }
           },
+          onError: (event) => onErrorRef.current?.(event.data),
           onStateChange: (event) => {
             if (event.data === YT.PlayerState.ENDED) {
               fireWatched();
@@ -1018,6 +971,9 @@ export default function StudentCourses() {
   const [videos, setVideos]             = useState([]);
   const [vLoading, setVLoading]         = useState(false);
   const [playingVid, setPlayingVid]     = useState(null);
+  const [playbackError, setPlaybackError] = useState('');
+  const courseRequestRef = useRef(0);
+  const playbackSelectionRef = useRef(null);
   const [seekRequest, setSeekRequest]   = useState(null);
   const [playlistOpen, setPlaylistOpen] = useState(false);
   const [playerExpanded, setPlayerExpanded] = useState(false);
@@ -1063,6 +1019,8 @@ export default function StudentCourses() {
 
   function openVideo(index) {
     if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
+    playbackSelectionRef.current = { index, videoId: videos[index]?._id || videos[index]?.id };
+    setPlaybackError('');
     setPlayingVid(index);
     setSeekRequest(null);
     setPlaylistOpen(false);
@@ -1084,6 +1042,9 @@ export default function StudentCourses() {
   }, []);
 
   async function openCourse(course) {
+    const request = ++courseRequestRef.current;
+    playbackSelectionRef.current = null;
+    setPlaybackError('');
     setSelected(course);
     setPlayingVid(null);
     setSeekRequest(null);
@@ -1093,9 +1054,34 @@ export default function StudentCourses() {
     setVLoading(true);
     try {
       const r = await apiFetch(`/courses/${course._id}/videos`);
-      setVideos(r.data?.videos || []);
+      if (courseRequestRef.current !== request) return;
+      setVideos((current) => courseRequestRef.current === request ? (r.data?.videos || []) : current);
     } catch { /* ignore */ }
-    finally { setVLoading(false); }
+    finally {
+      if (courseRequestRef.current === request) {
+        setVLoading((current) => courseRequestRef.current === request ? false : current);
+      }
+    }
+  }
+
+  async function handleLocalPlaybackError(video, index, position) {
+    const id = video?._id || video?.id;
+    const selection = playbackSelectionRef.current;
+    const isCurrent = () => selection !== null && playbackSelectionRef.current === selection
+      && selection.index === index && selection.videoId === id;
+    const result = await recoverLocalPlayback({
+      videoId: id,
+      isCurrent,
+      probe: (videoId) => fetch(`/api/v1/videos/${encodeURIComponent(videoId)}/source`, { method: 'HEAD', credentials: 'same-origin', cache: 'no-store' }),
+      loadVideo: (videoId) => apiFetch(`/videos/${encodeURIComponent(videoId)}`),
+    });
+    if (!result || !isCurrent()) return;
+    if (result.refreshed) {
+      setVideos((current) => isCurrent() ? current.map((item, i) => i === index ? result.refreshed : item) : current);
+      setSeekRequest((current) => isCurrent() ? { videoIndex: index, startSec: position, nonce: Date.now() } : current);
+      return;
+    }
+    setPlaybackError((current) => isCurrent() ? result.error : current);
   }
 
   function jumpToVideo(index, startSec, sourceKey) {
@@ -1151,7 +1137,7 @@ export default function StudentCourses() {
     return (
       <div className={`course-study${compact ? ' course-study-compact' : ''}`}>
         <div className="course-study-header">
-          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { ++courseRequestRef.current; playbackSelectionRef.current = null; setPlaybackError(''); setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div className="course-study-title">
@@ -1170,10 +1156,13 @@ export default function StudentCourses() {
         <div ref={studyGridRef} className="course-detail-grid" style={{ '--study-video-width': `${videoWidth}fr`, '--study-chat-width': `${100 - videoWidth}fr` }}>
           <section className={`course-media${playerExpanded ? ' player-expanded' : ''}`} aria-label="課程播放器">
             <div className="course-player">
-              {youtubeId ? (
+              {playbackError ? (
+                <div role="status" style={{ padding: 24, color: 'rgba(255,255,255,0.75)' }}>{playbackError}</div>
+              ) : youtubeId ? (
                 <YouTubePlayer
                   key={youtubeId}
                   videoId={youtubeId}
+                  onError={(code) => setPlaybackError(code === 100 ? 'YouTube 找不到這支影片，請聯絡教師。' : [101, 150].includes(code) ? 'YouTube 不允許在此播放，請聯絡教師。' : '影片準備中，可先提問。')}
                   seekRequest={seekRequest?.videoIndex === playingVid ? seekRequest : null}
                   onWatched={() => markWatched(selectedCourse._id, playing?._id || playing?.id)}
                 />
@@ -1184,6 +1173,7 @@ export default function StudentCourses() {
                   src={videoUrl}
                   controls
                   playsInline
+                  onError={(e) => handleLocalPlaybackError(playing, playingVid, e.currentTarget.currentTime || 0)}
                   onLoadedMetadata={(e) => {
                     if (seekRequest?.videoIndex === playingVid) {
                       e.currentTarget.currentTime = seekRequest.startSec;
@@ -1202,7 +1192,7 @@ export default function StudentCourses() {
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'rgba(255,255,255,0.3)' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <div style={{ fontSize: 13 }}>{playing ? '此影片目前無法播放，仍可閱讀問答與來源。' : '從影片清單選擇影片開始播放'}</div>
+                  <div style={{ fontSize: 13 }}>{playing ? '影片準備中，可先提問。' : '從影片清單選擇影片開始播放'}</div>
                 </div>
               )}
             </div>

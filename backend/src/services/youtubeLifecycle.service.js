@@ -91,9 +91,10 @@ function toValidTime(value) {
   return Number.isNaN(time) ? null : time;
 }
 
-// 保留期從上傳完成或補回原片中較晚的時間起算（#24）。
+// 保留期從就緒或補回原片中較晚的時間起算（#58、#61）。
 function resolveRetentionStartTime(youtubeUpload = {}) {
-  const times = [youtubeUpload?.uploadedAt, youtubeUpload?.localSourceRestoredAt]
+  if (toValidTime(youtubeUpload?.readyAt) === null) return null;
+  const times = [youtubeUpload?.readyAt, youtubeUpload?.localSourceRestoredAt]
     .map(toValidTime)
     .filter((time) => time !== null);
   return times.length ? Math.max(...times) : null;
@@ -103,18 +104,24 @@ function resolveRetentionStartTime(youtubeUpload = {}) {
 // 沒有其他影片共用同一檔案。不符合的不列入候選，預告與排程都看不到。
 async function listVideoCleanupEntries() {
   const videos = await Video.find({
+    deletedAt: null,
     'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
     'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADED,
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     filePath: { $exists: true, $nin: [null, ''] },
   })
-    .select('_id title courseId filePath processing youtubeVideoId youtubeUpload')
+    .select('_id title courseId filePath processing videoSource youtubeVideoId youtubeUpload')
     .lean();
   if (!videos.length) return [];
 
   const references = await loadLocalFileReferences();
   const entries = [];
-  for (const video of videos) {
+  for (let video of videos) {
+    if (!video.youtubeUpload?.remoteState) {
+      await require('./youtubeRemoteState.service').checkItemRemoteState({kind:'video', item:video});
+      video = await Video.findById(video._id).lean();
+    }
+    if (video?.youtubeUpload?.remoteState !== 'ready' || video.videoSource !== 'youtube') continue;
     const source = await inspectCleanupSource('video', video, references);
     if (source.reason) continue;
     const retentionStartTime = resolveRetentionStartTime(video.youtubeUpload);
@@ -411,8 +418,11 @@ async function buildYouTubeLifecycleSnapshot({ getFreeBytes } = {}) {
     switchesError = String(error?.message || error).slice(0, 300);
   }
   const space = await readFreeBytes(getFreeBytes);
+  let remote;
+  try { remote = await require('./youtubeRemoteState.service').buildYouTubeRemoteStateSnapshot(); } catch { remote = { notReadyCount: null, error: 'Remote state counts unavailable.' }; }
 
   return {
+    remote,
     switches,
     switchesError,
     schedulers: {

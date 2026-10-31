@@ -46,6 +46,7 @@ const VIDEO_BATCH_UPLOAD_STATUSES = {
 };
 
 const YOUTUBE_UPLOAD_STATUSES = {
+  WAITING: 'waiting',
   UPLOADING: 'uploading',
   UPLOADED: 'uploaded',
   FAILED: 'failed',

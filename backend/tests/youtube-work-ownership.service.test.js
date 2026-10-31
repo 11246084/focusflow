@@ -38,6 +38,7 @@ describe('YouTube 工作所有權 F2', () => {
       youtubeUploadCleanupMinAgeDays: 14, youtubeUploadCleanupMinFreeGb: 0, youtubeUploadRetryBaseMs: 0 });
     store.videos = []; store.shortAssets = [];
     store.runtimeSettings.push({ key: 'youtubeLifecycle.cleanup', value: true });
+    global.fetch = fetchUploads().fetchImpl;
     originals = { settings: RuntimeSetting.findOne, videoCAS: Video.findOneAndUpdate, assetCAS: ShortAsset.findOneAndUpdate };
   });
   afterEach(() => {
@@ -52,7 +53,7 @@ describe('YouTube 工作所有權 F2', () => {
       processing: { status: 'completed' }, disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true },
       youtubeUpload: { status: 'failed', retrySafe: state === 'retry', attemptCount: 1, failedAt: new Date('2026-10-01'), nextRetryAt: null } };
     if (state === 'uploaded') {
-      item.youtubeVideoId = `yt-${item._id}`; item.youtubeUpload = { status: 'uploaded', uploadedAt: new Date('2025-01-01') };
+      item.youtubeVideoId = `yt-${item._id}`; item.youtubeUpload = { status: 'uploaded', remoteState: 'ready', readyAt: new Date('2025-01-01'), uploadedAt: new Date('2025-01-01') }; item.videoSource = 'youtube';
       if (kind !== 'video') item.status = 'published';
     }
     store[kind === 'video' ? 'videos' : 'shortAssets'].push(item); return item;
@@ -62,11 +63,12 @@ describe('YouTube 工作所有權 F2', () => {
     const fetchImpl = async (url, options = {}) => {
       if (url === upload.YOUTUBE_TOKEN_URL) return json({ access_token: 'fake-token', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
       if (url === upload.YOUTUBE_UPLOAD_URL) { const title = JSON.parse(options.body).snippet.title; sessions.push(title); return json({}, { location: `https://upload.test/${title}` }); }
+      if (String(url).startsWith(upload.YOUTUBE_VIDEOS_URL)) { const id = new URL(url).searchParams.get('id'); return json({ items: [{ id, snippet: { channelId: 'own-channel' }, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] }); }
       if (String(url).startsWith('https://upload.test/')) {
         const title = String(url).split('/').at(-1); puts.push(title);
         for await (const chunk of options.body) assert.ok(chunk.length);
         await onPut?.(title);
-        return json({ id: `yt-${title}` });
+        return json({ id: `yt-${title}`, status: { privacyStatus: 'unlisted' } });
       }
       throw new Error('Unexpected URL in upload mock');
     };
@@ -76,7 +78,7 @@ describe('YouTube 工作所有權 F2', () => {
     return async (url) => {
       if (String(url).includes('oauth2.googleapis.com/token')) return json({ access_token: 'fake-token', scope: 'https://www.googleapis.com/auth/youtube.force-ssl' });
       if (String(url).startsWith(quarantine.YOUTUBE_CHANNELS_URL)) return json({ items: [{ id: 'own-channel', contentDetails: { relatedPlaylists: { uploads: 'own-uploads' } } }] });
-      if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) { entered?.resolve(); if (gate) await gate.promise; return json({ items: [{ snippet: { channelId: 'own-channel' }, status: { privacyStatus: 'unlisted' } }] }); }
+      if (String(url).startsWith(quarantine.YOUTUBE_VIDEOS_URL)) { entered?.resolve(); if (gate) await gate.promise; return json({ items: [{ id: new URL(url).searchParams.get('id'), snippet: { channelId: 'own-channel' }, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] }); }
       throw new Error('Unexpected URL in quarantine mock');
     };
   }
@@ -133,7 +135,7 @@ describe('YouTube 工作所有權 F2', () => {
       try {
         await ready.promise;
         if (kind === 'video') { await upload.scheduleYouTubeUploadRetry(b._id, teacher, { fetchImpl: fake.fetchImpl }); await failed.promise; }
-        else await assert.rejects(shortUpload.retryShortAssetUpload({ assetId: b._id, user: teacher, fetchImpl: fake.fetchImpl }), /bytes sent/);
+        else await assert.rejects(shortUpload.retryShortAssetUpload({ assetId: b._id, user: teacher, fetchImpl: fake.fetchImpl }), /remote outcome is unknown/);
         assert.equal(b.youtubeUpload.retrySafe, false);
       } finally { gate.resolve(); }
       await run;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 import RestoreSourceModal from '../components/RestoreSourceModal';
+import ReprocessVideoModal from '../components/ReprocessVideoModal';
 import { getVideoSourceState } from '../services/youtubeLifecycle';
 
 const STATUS_LABEL = { completed: '完成', processing: '處理中', queued: '排隊', failed: '失敗', pending: '待處理' };
@@ -14,6 +15,7 @@ export default function AdminVideos() {
   const [deleting, setDeleting] = useState(null);
   const [confirm, setConfirm] = useState(null); // video object pending confirmation
   const [restoring, setRestoring] = useState(null);
+  const [reprocessing, setReprocessing] = useState(null);
   const [notice, setNotice] = useState('');
 
   const load = () => setTick(t => t + 1);
@@ -54,6 +56,10 @@ export default function AdminVideos() {
           }}
         />
       )}
+
+      {reprocessing && <ReprocessVideoModal video={reprocessing} onClose={() => setReprocessing(null)} onQueued={() => {
+        setReprocessing(null); setNotice('已重新排入處理佇列。'); load();
+      }} />}
 
       {/* Delete confirmation dialog */}
       {confirm && (
@@ -118,6 +124,10 @@ export default function AdminVideos() {
                     {v.createdAt ? new Date(v.createdAt).toLocaleDateString('zh-TW') : '—'}
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    {getVideoSourceState(v).showReprocess && (
+                      <button onClick={() => setReprocessing(v)} disabled={getVideoSourceState(v).reprocessDisabled}
+                        title={getVideoSourceState(v).reprocessHint} className="btn-secondary" style={{ marginRight: 6, padding: '5px 10px', fontSize: 11 }}>重新處理</button>
+                    )}
                     {getVideoSourceState(v).canRestore && (
                       <button
                         onClick={() => setRestoring(v)}

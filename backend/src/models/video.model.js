@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { youtubeUploadContractFields } = require('./youtubeUploadContract.schema');
 const {
   VIDEO_SOURCE_TYPE_VALUES,
   VIDEO_SOURCE_TYPES,
@@ -150,10 +151,22 @@ const videoSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    localPlayback: {
+      type: new mongoose.Schema({
+        compatible: { type: Boolean, default: null },
+        container: { type: String, default: null },
+        videoCodec: { type: String, default: null },
+        audioCodec: { type: String, default: null },
+        moovFirst: { type: Boolean, default: null },
+        probedAt: { type: Date, default: null },
+      }, { _id: false }),
+      default: null,
+    },
     // 本地上傳影片自動上傳 YouTube 的狀態；未啟用或 YouTube URL 影片為 null。
     youtubeUpload: {
       type: new mongoose.Schema(
         {
+          ...youtubeUploadContractFields({ video: true }),
           status: {
             type: String,
             enum: YOUTUBE_UPLOAD_STATUS_VALUES,

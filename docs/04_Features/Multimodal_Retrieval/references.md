@@ -112,6 +112,14 @@
 - **用在**：Q7 報告配對隨機化檢定的 p 值。
 - **限制**：資料是 TREC 文字檢索，題數 50 以下的結論來自第三方摘要；引用具體數字前應讀全文。
 
+### R13：以大型語言模型當評審
+
+- **書目**：L. Zheng, W.-L. Chiang, Y. Sheng, et al. "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena." *NeurIPS 2023 Datasets and Benchmarks*。[arXiv:2306.05685](https://arxiv.org/abs/2306.05685)
+- **查證範圍**：只讀摘要與搜尋摘錄。
+- **重點**：強模型（GPT-4）當評審時，與人類評分的一致率超過 80%，與人類彼此之間的一致率相當；同時指出評審模型有偏好自己產生答案的傾向（self-enhancement bias），以及位置、冗長等偏差。
+- **用在**：Q17 改用雙模型評分、避開產生回答的 Gemini、以 80% 一致率為門檻。
+- **限制**：評的是英文對話題，不是附來源的課程問答；具體數字引用前應讀全文。
+
 ## 業界與官方文件
 
 | 編號 | 文件 | 取用內容 | 用在 |
@@ -126,6 +134,7 @@
 | D8 | [MongoDB：免費與 Flex 叢集的搜尋限制](https://www.mongodb.com/docs/atlas/atlas-search/shared-tier-limitations/)、[免費叢集限制](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/)、[向量索引欄位](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type/) | 免費叢集不分種類最多 3 個搜尋索引、Flex 10 個；免費叢集資料上限 0.5 GB、MongoDB 8.0；一個向量索引可以有多個 `vector` 欄位、維度上限 8192 | Q9 |
 | D9 | [MongoDB：updateSearchIndex](https://www.mongodb.com/docs/manual/reference/command/updateSearchIndex/) | 修改索引定義後會重建；重建期間舊定義仍可查詢，完成後自動替換；要查 `queryable` 欄位確認新定義可用 | Q9 |
 | D10 | [MongoDB：BSON 向量（BinData）](https://www.mongodb.com/docs/atlas/atlas-vector-search/create-bson-vectors/) | BinData float32 向量比一般 float32 陣列約省三分之二的磁碟空間 | Q9 容量備案 |
+| D11 | [LlamaIndex：AutoMergingRetriever](https://developers.llamaindex.ai/python/framework/integrations/retrievers/auto_merging_retriever/)、[API 參考](https://docs.llamaindex.ai/en/latest/api_reference/retrievers/auto_merging/) | 先檢索小片段，同一 Parent 的子片段命中比例超過門檻（`simple_ratio_thresh` 預設 0.5）才合併成 Parent | Q12 |
 
 ## 查過但未採用
 

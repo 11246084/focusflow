@@ -327,3 +327,12 @@ F3 的 completed 影片重新處理入口接續同一套來源所有權；本節
 - **外部操作期限**：收尾複驗確認無回應的外部請求會卡住整輪待辦。單筆 token、轉私人及回應本文合計限 30 秒，超時發出 AbortSignal、結束等待並轉回 pending，繼續下一筆。逾時後不得開始後續 HTTP 呼叫或把遲到結果當成工作完成；若外部已生效，仍按相同 private 動作重試。此期限小於 120 秒工作租期，不改上傳 heartbeat 或清理協定。
 
 無新增待答產品問題；後續技術收尾依[最終審查與驗證](evidence/2026-10-27_f0-f2-final-review.md)，結案判定見狀態正本。未授權 Commit、Push、Merge 或部署。
+
+## F3／F4 實作約束（2026-10-27）
+
+本輪依既有 F 工單修復 R07、R10～R12，不變更 #51～#64、Q-0 或 Q-A～Q-F 的定案範圍。驗證證據見 [F3／F4 交接](evidence/2026-10-27_f3-f4-fixes.md)，進度以[目前狀態](../../current-status.md)為準。
+
+- **明確重新處理**：沿用 `POST /videos/:videoId/processing/retry`，課程教師或 admin 可將 failed 或 completed Video 排回 queued。完成影片先確認安全且完整的本機原片，再以檢查當下的來源版本、狀態、上傳 attempt 與 YouTube ID 原子更新；要求沒有清理 intent、沒有上傳中工作，並輪替來源版本。兩次請求只有一個取得排程，cleanup 先完成時舊快照不得排入。補回原片本身不自動重跑，Video／YouTube ID、播放 URL 與補回保留期不變。
+- **總覽與設定**：總覽讀取當次三個 effective／reason，憑證 readiness 另作設定診斷。7 天內到期清單直接使用管理頁 upcoming preview 的整理函式，包含影片／短片、課程、容量、日期與原因。任一查詢失敗時顯示未知並清除舊設定，不保留已啟用的畫面；錯誤提示不回傳底層 DB 訊息。
+- **並行紀錄**：開關以觀察到的舊 value 作條件，同一次原子更新寫值與 history。首次建立依現有 key 唯一索引處理競爭，失敗條件更新不追加紀錄；最多重試 10 次，仍衝突回 `409 YOUTUBE_LIFECYCLE_SWITCH_CONFLICT`。同值請求明確記錄一次，單一設定保留最近 50 筆；未新增集合、索引或需要回填的欄位。
+- **保留邊界**：沿用 F0～F2 的 cleanup intent、備份歸屬與課程交易；沒有改租約、刪檔或發布協定。可提交／合併判斷只涵蓋程式與本機隔離證據，不代表真實 STT、FFmpeg、YouTube 或正式清理驗收；依既有工單另經獨立 diff 複驗後整合。本輪不 Commit、Push、Merge 或部署。

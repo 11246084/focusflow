@@ -5,7 +5,8 @@
 // 這裡依賴 Express 4 的內部結構（app._router.stack、layer.regexp.fast_slash），
 // 升級 Express 5 時 assertSupportedExpressVersion() 會明確失敗，提醒改寫本檔。
 
-const ROUTE_METHOD_IGNORE = new Set(['_all', 'head', 'options']);
+// HEAD 沒有明確註冊時由 Express 的 GET 處理；明確註冊的 HEAD 仍應納入契約。
+const ROUTE_METHOD_IGNORE = new Set(['_all', 'options']);
 const OPENAPI_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const MOUNT_SUFFIX = '\\/?(?=\\/|$)';
 const SAFE_PATH_PATTERN = /^(\/[A-Za-z0-9._~-]+)*$/;

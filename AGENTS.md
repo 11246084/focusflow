@@ -31,6 +31,7 @@ FocusFlow 是 AI 教學影片問答系統：教師上傳影片，學生在網頁
 | 學生試用版後端 | `docs/04_Features/Student_Pilot_Backend/README.md`，依其任務權威順序 |
 | 部署／憑證 | `.github/workflows/deploy.yml`、`docs/10_Operations/deployment/部署與連線排錯.md` |
 | 系統手冊、文件整理 | skills：`project-documentation`、`docs-maintainer` |
+| 設計討論（逐輪提問、附建議答案） | skill：`grilling`（Claude Code 讀 `.claude/skills/`，Codex 讀 `.agents/skills/`）；定案寫入該功能的 `decisions.md` |
 
 ## 驗證依變更影響選擇
 

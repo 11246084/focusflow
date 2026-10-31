@@ -19,6 +19,7 @@ import {
   prepareSwitchChange,
   resetQuarantineItem,
   restoreVideoSource,
+  reprocessVideo,
   runRecoveryNow,
   updateLifecycleSwitch,
 } from '../src/services/youtubeLifecycle.js';
@@ -261,6 +262,19 @@ describe('待處理清單的操作（#17）', () => {
 });
 
 describe('補回原片（#21、#23）', () => {
+  it('completed 來源恢復後及管理員清單均可重新處理，缺檔則停用', () => {
+    assert.equal(getVideoSourceState({ sourceAvailable: true, processing: { status: 'completed' } }).showReprocess, true);
+    assert.equal(getVideoSourceState({ sourceAvailable: true, status: 'completed' }).showReprocess, true);
+    const cleaned = getVideoSourceState({ sourceAvailable: false, processing: { status: 'completed' }, youtubeUpload: { localCleanupAt: '2026-10-01' } });
+    assert.equal(cleaned.showReprocess, true); assert.equal(cleaned.reprocessDisabled, true);
+    for (const status of ['queued','processing']) assert.equal(getVideoSourceState({ sourceAvailable: true, status }).showReprocess, false);
+  });
+  it('明確重新處理沿用 processing/retry 並回傳排程狀態', async () => {
+    const calls = mockFetch(async () => response({ success: true, data: { id: 'v/1', processing: { status: 'queued' } } }));
+    const result = await reprocessVideo('v/1');
+    assert.equal(calls[0].url, `${BASE}/videos/v%2F1/processing/retry`);
+    assert.equal(calls[0].options.method, 'POST'); assert.equal(result.processing.status, 'queued');
+  });
   it('原片已清理時停用重新處理並提供補回', () => {
     const state = getVideoSourceState({
       sourceAvailable: false,

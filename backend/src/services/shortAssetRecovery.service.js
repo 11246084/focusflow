@@ -1,4 +1,3 @@
-const { expiredUploadHeartbeat, observedFields } = require('./youtubeWorkOwnership.service');
 const env = require('../config/env');
 const ShortAsset = require('../models/shortAsset.model');
 const { SHORT_ASSET_STATUSES, YOUTUBE_UPLOAD_STATUSES } = require('../constants/enums');
@@ -6,7 +5,6 @@ const {
   isShortAssetUploadRunning,
   runTrackedShortAssetUpload,
 } = require('./shortAssetPublish.service');
-const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
 
 // 短片成品納入 YouTube 上傳恢復排程（decisions.md #28）。由 youtubeUpload.service 的
 // recoverPendingYouTubeUploads 在處理完影片後呼叫：兩層開關、同一輪的鎖與批次大小都沿用影片的，
@@ -35,6 +33,7 @@ function buildShortAssetRecoveryQuery(now) {
       MISSING_YOUTUBE_VIDEO_ID,
       {
         $or: [
+          { 'youtubeUpload.status': 'waiting', 'youtubeUpload.nextRetryAt': { $lte: now } },
           {
             'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
             'youtubeUpload.retrySafe': true,
@@ -69,46 +68,6 @@ function buildShortAssetRecoveryQuery(now) {
   };
 }
 
-// 比照影片的 compare-and-set：只在掃描時看到的那次嘗試仍卡著時才隔離，
-// 不覆寫掃描後才完成或重新開始的上傳。
-function buildObservedAttemptCondition(lastAttemptAt) {
-  if (lastAttemptAt === undefined) return { 'youtubeUpload.lastAttemptAt': { $exists: false } };
-  if (lastAttemptAt === null) {
-    return {
-      $and: [
-        { 'youtubeUpload.lastAttemptAt': null },
-        { 'youtubeUpload.lastAttemptAt': { $exists: true } },
-      ],
-    };
-  }
-  return { 'youtubeUpload.lastAttemptAt': lastAttemptAt };
-}
-
-async function quarantineStaleShortAsset(asset, now) {
-  return ShortAsset.findOneAndUpdate(
-    {
-      _id: asset._id,
-      'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.UPLOADING,
-      $and: [
-        MISSING_YOUTUBE_VIDEO_ID,
-        buildObservedAttemptCondition(asset.youtubeUpload?.lastAttemptAt),
-        expiredUploadHeartbeat(),
-        ...observedFields(asset, ['generationVersion', 'filePath', 'youtubeUpload.attemptId']),
-      ],
-    },
-    {
-      $set: {
-        'youtubeUpload.status': YOUTUBE_UPLOAD_STATUSES.FAILED,
-        'youtubeUpload.error': STALE_UPLOAD_ERROR,
-        'youtubeUpload.failedAt': now,
-        'youtubeUpload.retrySafe': false,
-        'youtubeUpload.nextRetryAt': null,
-      },
-    },
-    { new: true },
-  );
-}
-
 async function recoverShortAssetUploads({ fetchImpl = global.fetch, now = new Date() } = {}) {
   // 短片自動化關閉時不得把任何東西送上 YouTube（同 scheduleUploadOnCreate），也不動上傳紀錄。
   if (!env.shortScriptAutomationEnabled) {
@@ -116,7 +75,8 @@ async function recoverShortAssetUploads({ fetchImpl = global.fetch, now = new Da
   }
 
   const candidates = await ShortAsset.find(buildShortAssetRecoveryQuery(now))
-    .sort({ 'youtubeUpload.lastAttemptAt': 1 })
+    .select('+youtubeUpload.session.url')
+    .sort({ 'youtubeUpload.queuedAt': 1, _id: 1 })
     .limit(env.youtubeUploadRecoveryBatchSize)
     .lean();
   const staleBefore = now.getTime() - env.youtubeUploadStuckAfterMs;
@@ -132,10 +92,10 @@ async function recoverShortAssetUploads({ fetchImpl = global.fetch, now = new Da
         skippedItems += 1;
         continue;
       }
-      const quarantinedAsset = await quarantineStaleShortAsset(asset, now);
+      const quarantinedAsset = await require('./youtubeUpload.service').recoverStaleUpload({ model: ShortAsset, kind: 'short_asset', item: asset, fetchImpl, now });
       if (quarantinedAsset) {
-        quarantined += 1;
-        await notifyYouTubeUploadNeedsReview({ kind: 'short_asset', item: quarantinedAsset });
+        if (quarantinedAsset.youtubeUpload.status === 'uploaded' || quarantinedAsset.youtubeUpload.retrySafe) recovered += 1;
+        else quarantined += 1;
       } else {
         skippedItems += 1;
       }

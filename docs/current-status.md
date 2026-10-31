@@ -27,6 +27,10 @@
 
 **單支影片與語音轉文字｜已實作。** 後端啟動處理程序，產生逐字稿、切段與搜尋向量，再接收完成或失敗通知；向量是用來比較內容相似度的一串數字。依據：[影片服務](../backend/src/services/video.service.js)、[處理入口](../STT_Whisper/src/main.py)、[回報處理](../backend/src/services/videoProcessing.service.js)；真實影片完整流程 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
+**YouTube Lifecycle F3／F4、Q-A～Q-F｜本機開發及隔離驗收完成；未部署。** 2026-10-29：F3／F4 經獨立複驗後，以 `b2feceb` 提交、`6cd381b` 合併至 dev；Q 共用契約 `3dc8c92`、後端 `ae8d22b`、前端 `5a0ee05`。範圍含額度暫停與單支試傳、租約與傳送階段、就緒／隱私政策、受保護 Range 播放、容量預約及半成品清理、教師與管理頁、來源切換續播與錯誤提示。隔離 Mongo **94／94**、Frontend **158／158**、lint／build／OpenAPI lint 通過，Chrome／Edge 三角色與原片起播／拖曳通過、延遲回應競態各 **7／7**；Backend 完整回歸共 1280 項（1278 通過、1 個舊開關數斷言失敗、1 項 OS 權限跳過）；修正斷言後該檔 13／13 複驗通過，沒有未解失敗。獨立審查確認三項 P2 已修復，沒有已知 P1／P2 合併阻礙；證據及驗收邊界見[本機整合驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)。沒有 push、部署、正式 Atlas／VM／YouTube 操作或正式清理。原片播放與 privacy_guard 預設仍關閉；Firefox／iOS Safari、正式 nginx／500 MB／中斷／507／20 個 Range、第一次實際 YouTube 隱私讀回與學生嵌入需另行授權或設備驗證。清理必須先通過 Q-B 正式就緒驗收，原 #33 的日期不能直接當啟用條件。
+
+以下 YouTube 段落保留歷史時點，不能用來推定本輪正式環境現況。
+
 **YouTube 上傳｜已實作。** [上傳服務](../backend/src/services/youtubeUpload.service.js)由[影片完成通知](../backend/src/services/videoProcessing.service.js)排程，受功能開關與憑證條件控制。2026-10-22 部署後正式站憑證檢查為 `ok`、權限含 `youtube.force-ssl`（見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)）；經新版程式實際上傳的結果未驗證，延後到團隊下次上傳課程影片時確認。最後驗證：2026-10-22；負責人：＿＿（待填）。
 
 **YouTube 恢復／清理｜已部署；恢復已開啟，清理未開啟。** 依[設計決策](04_Features/YouTube_Lifecycle/decisions.md)實作兩層開關、定期[恢復排程](../backend/src/services/youtubeUpload.service.js)、依空間與保留期的[原片清理](../backend/src/services/youtubeLifecycle.service.js)與刪除預告、管理員[隔離收尾](../backend/src/services/youtubeQuarantine.service.js)（含已達重試上限的項目）、補回原片，短片成品一併納入；管理員操作在「YouTube 上傳管理」頁。2026-10-22 合併 `main` 部署到正式站（本機 Backend 1123、Frontend 107 項測試通過），恢復排程每 5 分鐘執行、管理員頁開關與待處理清單正常；清理的環境變數維持不允許，依決策 #33 於 2026-11-09～11-13 開啟。實際失敗後的自動恢復、清理刪檔與短片流程在正式站未驗證，過程見[上線紀錄](10_Operations/deployment/2026-10_YouTube恢復與清理上線紀錄.md)。最後驗證：2026-10-22；負責人：＿＿（待填）。
@@ -50,6 +54,8 @@
 
 2026-10-26 F2 整合：backend 全套 1199／1199、Windows 與 Linux 容器清理／所有權各 41／41、隔離 Mongo 14／14 通過（未載入記憶體 harness；明確 loopback URI、隨機 DB、成功與失敗移除 DB；另驗證 null／缺欄位初次上傳、略過上傳及重啟遺留 token 隔離）。測試只處理自建暫存檔，沒有連 Atlas、VM 或真實 YouTube；未執行 STT／FFmpeg、前端／瀏覽器及決策 #33 的正式驗收。
 
+2026-10-27 F3／F4 修復（`fix/youtube-lifecycle-f3-f4`，基於 dev `b35c121`；未提交、未合併、未部署）：R07 已加入 completed 影片補回後的明確重新處理，沿用 F0～F2 原子來源所有權，保留 Video／YouTube ID、播放與保留期；R10～R12 已修正總覽有效開關、雙來源 7 天預告清單與並行 history。Backend **1208／1208**、隔離 Mongo **68／68**、Frontend **118／118**、真實元件瀏覽器（假 API）**8／8**，lint、build、OpenAPI lint、文件連結與 `git diff --check` 通過。未發現已知 P1／P2；程式與本機驗證達可提交候選標準，依既有 F 工單仍須獨立 diff 複驗後整合。本輪沒有驗證真實 STT／FFmpeg、YouTube、Atlas、VM 或正式清理，沒有實作 Q-A～Q-F；第三輪 #51～#64 與 Q-0／Q 工單完整保留。詳見[修復與驗證交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)。
+
 **多影片批次｜已實作。** [批次服務](../backend/src/services/videoBatchProcessing.service.js)與[批次入口](../STT_Whisper/src/batch_main.py)串接排程、重試及恢復；真實語音模型、向量產生與部署的完整流程未驗證。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
 **學生短影片瀏覽｜已實作。** [短影片頁](../frontend/focus-flow/src/pages/StudentShortsWall.jsx)串接[學生介面](../backend/src/routes/youtube.routes.js)。較新紀錄：[2026-09-29 後端整體回歸](../backend/docs/implementation-log.md)（原文為工作分支紀錄，非正式環境驗收）；直接相關的[縮圖測試](../backend/tests/shorts.routes.test.js)於 2026-09-27 加入（Git `d8360fc`，未記載單項執行結果）。最近播放驗收仍為 2026-08-13（限當時環境），未找到更新的播放驗收。最後驗證：2026-10-15；負責人：＿＿（待填）。
@@ -66,7 +72,7 @@
 
 **資料庫交付工具｜已實作；真實資料還原未驗證。** [匯出與還原服務](../backend/src/services/databaseDeliverable.service.js)有對應程式；舊文的記憶體模擬測試不代表實際資料庫還原成功。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**學生試用與部署｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。[部署設定](../.github/workflows/deploy.yml)只能證明部署步驟存在；歷史開放試用不等於本次驗收，需補目前環境與驗收紀錄。2026-10-23 VM 資安更新完成：Rocky Linux 9.8、Node.js 22.23.4、nginx 安全修補與 ngrok 更新，重開機後 `/health`、nginx 代理與 LINE 問答實測正常；語音轉文字流程更新後未實測，見[檢查報告](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)。最後驗證：2026-10-23；負責人：＿＿（待填）。
+**學生試用與部署｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。[部署設定](../.github/workflows/deploy.yml)只能證明部署步驟存在；歷史開放試用不等於本次驗收，需補目前環境與驗收紀錄。2026-10-23 VM 資安更新完成：Rocky Linux 9.8、Node.js 22.23.4、nginx 安全修補與 ngrok 更新，重開機後 `/health`、nginx 代理與 LINE 問答實測正常；語音轉文字流程更新後未實測。2026-10-30 查證 VM 核心受 CVE-2026-98432 影響，Rocky 尚未發布修補，等待中；同日檢查未發現入侵跡象，並將 `focusflow` 的 sudo 縮到部署所需兩個指令、關閉 root 直接 SSH 登入（縮權後的實際部署未驗證）；Node2Shell（CVE-2026-111497）已由 Node.js 22.23.4 與 `libbrotli` 安全更新修正；見[檢查報告](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)。最後驗證：2026-10-30；負責人：＿＿（待填）。
 
 ## 歷史查證索引（保留原日期，未重新驗證）
 

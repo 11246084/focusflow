@@ -685,6 +685,8 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
     courseId: { $in: publishedCourseIds },
     status: SHORT_ASSET_STATUSES.PUBLISHED,
     youtubeAvailability: YOUTUBE_AVAILABILITIES.PLAYABLE,
+    // 新版已判定 blocked／processing 不能進學生牆；未查詢的舊資料維持相容。
+    $and: [{ $or: [{ 'youtubeUpload.remoteState': 'ready' }, { 'youtubeUpload.remoteState': null }] }],
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     publishedAt: { $ne: null },
   };

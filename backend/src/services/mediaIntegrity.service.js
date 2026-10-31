@@ -86,4 +86,30 @@ function assertMediaIntegrity(filePath, originalName = filePath) {
   throw invalidMedia('The uploaded video container is not supported.');
 }
 
-module.exports = { assertMediaIntegrity };
+async function probeLocalPlayback(filePath, originalName = filePath) {
+  const { execFile } = require('child_process');
+  const extension = path.extname(String(originalName)).toLowerCase();
+  let moovFirst = null;
+  try {
+    if (ISO_BMFF_EXTENSIONS.has(extension)) {
+      const info = inspectIsoBmff(filePath, fs.statSync(filePath).size);
+      moovFirst = info.boxes.indexOf('moov') < info.boxes.indexOf('mdat');
+    }
+  } catch { /* integrity is independently checked by the upload flow */ }
+  const unknown = { compatible: null, container: null, videoCodec: null, audioCodec: null, moovFirst, probedAt: new Date() };
+  return new Promise((resolve) => {
+    execFile('ffprobe', ['-v', 'error', '-show_entries', 'format=format_name:stream=codec_type,codec_name', '-of', 'json', filePath], { timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true }, (error, stdout) => {
+      if (error) return resolve(unknown);
+      try {
+        const data = JSON.parse(stdout);
+        const container = data.format?.format_name || null;
+        const videoCodec = data.streams?.find((stream) => stream.codec_type === 'video')?.codec_name || null;
+        const audioCodec = data.streams?.find((stream) => stream.codec_type === 'audio')?.codec_name || null;
+        const compatible = Boolean(container?.split(',').includes('mp4') && videoCodec === 'h264' && (!audioCodec || audioCodec === 'aac'));
+        return resolve({ compatible, container, videoCodec, audioCodec, moovFirst, probedAt: new Date() });
+      } catch { return resolve(unknown); }
+    });
+  });
+}
+
+module.exports = { assertMediaIntegrity, probeLocalPlayback };

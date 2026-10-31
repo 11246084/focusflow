@@ -135,6 +135,18 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `DUPLICATE_RESOURCE` | 409 | 資源已存在（MongoDB 唯一索引衝突） |
 | `DUPLICATE_VIDEO` | 409 | 同課程內已存在相同 YouTube 影片（同 `courseId + youtubeVideoId`） |
 | `UPLOAD_ERROR` | 400 | 檔案上傳失敗（multer 錯誤） |
+| `YOUTUBE_UPLOAD_QUOTA_WAITING` | 409 | 等待每日額度、頻道上限或 session 閘門；public details 含 earliestRetryAt。 |
+| `YOUTUBE_UPLOAD_PROBE_RUNNING` | 409 | 已有提前恢復試傳進行中。 |
+| `CONTENT_LENGTH_REQUIRED` | 411 | multipart 缺少 Content-Length。 |
+| `INVALID_CONTENT_LENGTH` | 400 | 無效長度或 chunked 上傳。 |
+| `UPLOAD_TOO_LARGE` | 413 | 請求總長度超過允許上限。 |
+| `UPLOAD_STORAGE_LOW` | 507 | 原子容量預約不足或寫入時 ENOSPC。 |
+| `UPLOAD_STORAGE_BUSY` | 503 | 容量預約 CAS 無法取得可確認結果。 |
+| `UPLOAD_RESERVATION_EXPIRED` | 503 | 上傳預約無法續約或已過期。 |
+| `LOCAL_PLAYBACK_UNAVAILABLE` | 409 | 原片開關關閉、不相容、來源不可用或學生已改用 YouTube。 |
+| `YOUTUBE_PRIVACY_DEFERRED` | 409 | 隱私操作因並行、配額或限流延後。 |
+| `YOUTUBE_PRIVACY_NOT_CONFIRMED` | 502 | 隱私更新後無法讀回確認。 |
+| `YOUTUBE_PRIVACY_RESTORE_NOT_ALLOWED` | 409 | 該內容生命週期不接受改回 unlisted。 |
 | `YOUTUBE_UPLOAD_NOT_CONFIGURED` | 503 | YouTube 自動上傳已啟用但 OAuth 憑證不完整，或管理員停用了上傳的執行期開關（影片與短片重試） |
 | `YOUTUBE_UPLOAD_FAILED` | 502 | YouTube OAuth 或影片上傳 API 失敗 |
 | `YOUTUBE_UPLOAD_ALREADY_COMPLETED` | 409 | 影片已成功上傳，不可再排入重試 |
@@ -142,6 +154,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `YOUTUBE_UPLOAD_RETRY_UNSAFE` | 409 | 可能已傳送影片 bytes，不可由教師重試；由管理員在「YouTube 上傳管理」待處理清單查詢、套用或重設，避免重複影片 |
 | `YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED` | 409 | 影片或短片已達 `YOUTUBE_UPLOAD_MAX_ATTEMPTS`，教師不可再重試；項目已在管理員待處理清單，由管理員重設次數 |
 | `YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED` | 409 | 環境變數不允許的 YouTube 上傳／恢復／清理開關，不可在執行期切換 |
+| `YOUTUBE_LIFECYCLE_SWITCH_CONFLICT` | 409 | 開關並行修改重試達上限，重新整理後再試；失敗的條件更新不新增 history |
 | `YOUTUBE_RECOVERY_NOT_RUN` | 409 | 管理員「立即執行恢復」這一輪沒有執行；`details.reason` 為 `recovery_disabled`、`upload_not_configured`、`upload_disabled` 或 `already_running`（正式環境也回傳） |
 | `YOUTUBE_QUARANTINE_NOT_ALLOWED` | 409 | 項目不在待處理清單，或處理期間狀態已改變；查詢與套用只接受被隔離的上傳（失敗且不可自動重試），重設另接受已達重試上限的上傳 |
 | `YOUTUBE_QUARANTINE_VIDEO_IN_USE` | 409 | 要套用的 YouTube 影片已是其他 FocusFlow 上傳項目（影片或短片）的播放來源 |

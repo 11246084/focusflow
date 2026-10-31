@@ -19,5 +19,5 @@ GitHub 網頁不會顯示 HTML 的畫面。請先 `git pull`，再用以下任�
 ## 維護規則
 
 - 每份說明頁是單一檔案，不連外部網址，離線也能打開。
-- 設計依據以該功能的 `decisions.md` 為準；定案、選用的方案或結果改變時，AI 在同一批 commit 先更新 `decisions.md`，再更新說明頁與頁首日期（[AGENTS.md](../../AGENTS.md)「回報與文件」）。
+- 設計依據以該功能的 `decisions.md` 為準；定案、選用的方案或結果改變時，AI 在同一批 commit 先更新 `decisions.md`，再更新說明頁與頁尾的更新日期（[AGENTS.md](../../AGENTS.md)「回報與文件」）。
 - 新增說明頁時，在上表加一列，並在 [docs/README.md](../README.md) 登記。

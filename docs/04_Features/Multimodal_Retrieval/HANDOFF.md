@@ -103,4 +103,4 @@ Weihao 已預先授權以下範圍（decisions.md MB）；範圍外仍須另外�
 - 11/13：在 `dev` 完成，交付比較報告（`evidence/<日期>_retrieval-comparison/report.md`）、`per-question.json`、`config.json`（輸入檔雜湊、參數、程式版本）。
 - 11/14：Weihao 依報告做判斷①（是否預設開啟），並部署 `main`。需要的環境變數與索引狀態列在報告最後。
 - 完成時同步：[功能開關](../../../backend/docs/feature-flags.md)、`backend/.env.example`、`backend/docs/openapi.yaml`、[說明頁](../../07_HTML說明頁/多模態檢索.html)；狀態由 Weihao 更新到[目前狀態](../../current-status.md)。
-- 定案、選用的方案或結果改變時，同一批 commit 先更新 decisions.md，再更新說明頁與頁首日期（`AGENTS.md`）。
+- 定案、選用的方案或結果改變時，同一批 commit 先更新 decisions.md，再更新說明頁與頁尾的更新日期（`AGENTS.md`）。

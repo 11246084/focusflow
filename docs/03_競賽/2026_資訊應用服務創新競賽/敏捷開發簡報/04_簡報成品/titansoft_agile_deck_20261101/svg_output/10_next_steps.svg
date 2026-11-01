@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="ending">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">還沒做到的與下一步</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">還沒做到的，就是下一輪的待辦</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">10 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="column-heads" data-pptx-bounds="56 168 1168 34">
+    <text x="64" y="194" font-size="18" font-weight="bold" fill="#B5482E">現況（事實）</text>
+    <text x="652" y="194" font-size="18" font-weight="bold" fill="#1B4D5C">下一步</text>
+  </g>
+  <g id="gap-list" data-pptx-bounds="56 204 1168 384">
+    <g fill="#F5EFE3">
+      <rect x="64" y="210" width="536" height="70" rx="4"/>
+      <rect x="64" y="286" width="536" height="70" rx="4"/>
+      <rect x="64" y="362" width="536" height="70" rx="4"/>
+      <rect x="64" y="438" width="536" height="70" rx="4"/>
+      <rect x="64" y="514" width="536" height="70" rx="4"/>
+    </g>
+    <g fill="#B5482E">
+      <rect x="64" y="210" width="6" height="70"/>
+      <rect x="64" y="286" width="6" height="70"/>
+      <rect x="64" y="362" width="6" height="70"/>
+      <rect x="64" y="438" width="6" height="70"/>
+      <rect x="64" y="514" width="6" height="70"/>
+    </g>
+    <g fill="#1B4D5C" fill-opacity="0.08">
+      <rect x="652" y="210" width="564" height="70" rx="4"/>
+      <rect x="652" y="286" width="564" height="70" rx="4"/>
+      <rect x="652" y="362" width="564" height="70" rx="4"/>
+      <rect x="652" y="438" width="564" height="70" rx="4"/>
+      <rect x="652" y="514" width="564" height="70" rx="4"/>
+    </g>
+    <g id="p10-arrow-1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="610 230 32 30" fill="#5E8F9C" stroke="none">
+<path d="M 610 237.5 L 627 237.5 L 627 230 L 642 245 L 627 260 L 627 252.5 L 610 252.5 Z"/>
+</g>
+    <g id="p10-arrow-2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="610 306 32 30" fill="#5E8F9C" stroke="none">
+<path d="M 610 313.5 L 627 313.5 L 627 306 L 642 321 L 627 336 L 627 328.5 L 610 328.5 Z"/>
+</g>
+    <g id="p10-arrow-3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="610 382 32 30" fill="#5E8F9C" stroke="none">
+<path d="M 610 389.5 L 627 389.5 L 627 382 L 642 397 L 627 412 L 627 404.5 L 610 404.5 Z"/>
+</g>
+    <g id="p10-arrow-4" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="610 458 32 30" fill="#5E8F9C" stroke="none">
+<path d="M 610 465.5 L 627 465.5 L 627 458 L 642 473 L 627 488 L 627 480.5 L 610 480.5 Z"/>
+</g>
+    <g id="p10-arrow-5" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="610 534 32 30" fill="#5E8F9C" stroke="none">
+<path d="M 610 541.5 L 627 541.5 L 627 534 L 642 549 L 627 564 L 627 556.5 L 610 556.5 Z"/>
+</g>
+    <g font-size="22" fill="#15171A">
+      <text x="86" y="253">沒有 CI 關卡，測試只在本機執行</text>
+      <text x="86" y="329">沒有自動回滾，靠上線紀錄的退回版本</text>
+      <text x="86" y="390">部分 PR 自行合併、沒有審查紀錄；<tspan x="86" dy="28">GitHub 沒有 Issue</tspan></text>
+      <text x="86" y="481">案例 B 的正式驗收證據還沒建立</text>
+      <text x="86" y="557">學生試用回饋還沒整理</text>
+      <text x="672" y="253">push／PR 觸發三端測試，失敗就阻止部署</text>
+      <text x="672" y="329">健康檢查失敗時，自動退回上一版</text>
+      <text x="672" y="390">合併前至少一位組員審查；<tspan x="672" dy="28">commit 寫看板任務編號</tspan></text>
+      <text x="672" y="481">補齊題庫、設定、原始結果、人工複核</text>
+      <text x="672" y="557">用唯讀統計整理使用量與回報內容</text>
+    </g>
+  </g>
+  <g id="closing" data-pptx-bounds="56 602 1164 82">
+    <rect x="64" y="608" width="1152" height="70" fill="#1B4D5C"/>
+    <rect x="64" y="608" width="8" height="70" fill="#E8A93C"/>
+    <text x="96" y="653" font-size="30" font-weight="bold" fill="#FFFFFF">我們會把這五項，當成下一輪看板上的第一批任務</text>
+  </g>
+</svg>

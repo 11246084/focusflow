@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">讓工作看得見</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">每週的決議，會直接變成看板上的任務</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">04 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="step-meeting" data-pptx-bounds="56 224 392 316">
+    <g id="p04-step-1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="64 232 380 300" data-pptx-av-adj="val 16000" fill="#1B4D5C" stroke="none">
+<path d="M 64 232 L 396 232 L 444 382 L 396 532 L 64 532 Z"/>
+</g>
+    <text x="88" y="276" font-size="22" font-weight="bold" fill="#E8A93C">① 會議決議</text>
+    <text x="88" y="384" font-size="96" font-weight="bold" fill="#FFFFFF">13<tspan font-size="28"> 張任務卡</tspan></text>
+    <text x="88" y="436" font-size="22" fill="#FFFFFF">08-04 教授會議的<tspan x="88" dy="32">行動項目，直接連到</tspan><tspan x="88" dy="32">看板上的任務卡</tspan></text>
+  </g>
+  <g id="step-task" data-pptx-bounds="448 224 390 316">
+    <g id="p04-step-2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="452 232 380 300" data-pptx-av-adj="val 16000" fill="#F5EFE3" stroke="#D9D1C1" stroke-width="1.5">
+<path d="M 452 232 L 784 232 L 832 382 L 784 532 L 452 532 Z"/>
+</g>
+    <text x="476" y="276" font-size="22" font-weight="bold" fill="#5E8F9C">② 看板任務</text>
+    <text x="476" y="346" font-size="30" font-weight="bold" fill="#1B4D5C">08-12～08-14</text>
+    <text x="476" y="400" font-size="22" fill="#15171A">批次處理任務逐日記錄：<tspan x="476" dy="32">做了什麼、測試數字、</tspan><tspan x="476" dy="32">還缺什麼</tspan></text>
+  </g>
+  <g id="step-limit" data-pptx-bounds="838 224 386 316">
+    <g id="p04-step-3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="840 232 376 300" data-pptx-av-adj="val 16000" fill="#F5EFE3" stroke="#E8A93C" stroke-width="3">
+<path d="M 840 232 L 1168 232 L 1216 382 L 1168 532 L 840 532 Z"/>
+</g>
+    <text x="864" y="276" font-size="22" font-weight="bold" fill="#B5482E">③ 寫清楚不能宣稱的</text>
+    <text x="864" y="346" font-size="30" font-weight="bold" fill="#1B4D5C">尚未完成／不可誤稱</text>
+    <text x="864" y="400" font-size="22" fill="#15171A">真實 STT、Gemini 多影片<tspan x="864" dy="32">尚未驗證；新流程開關</tspan><tspan x="864" dy="32">維持關閉</tspan></text>
+  </g>
+  <g id="decision-docs" data-pptx-bounds="56 560 1164 64">
+    <rect x="64" y="568" width="1152" height="52" fill="#1B4D5C" fill-opacity="0.07"/>
+    <text x="84" y="602" font-size="22" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">設計決策也留紀錄</tspan>：每個功能一份 decisions.md，分「已定案／待答」，每項寫理由與來源</text>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="668" font-size="18" fill="#5A6066">證據｜Notion 會議 21（2026-08-04）行動項目；任務「後端跨 - 多影片批次處理與進度管理整合」逐日紀錄</text>
+  </g>
+</svg>

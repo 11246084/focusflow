@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">回饋從哪裡來、改變了什麼</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">回饋分來源記錄，每一條都寫下怎麼處理</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">07 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="column-heads" data-pptx-bounds="296 168 924 32">
+    <text x="300" y="192" font-size="18" font-weight="bold" fill="#5A6066">發生了什麼</text>
+    <text x="752" y="192" font-size="18" font-weight="bold" fill="#5A6066">改變了什麼</text>
+  </g>
+  <g id="lane-team" data-pptx-bounds="56 202 1168 140">
+    <rect x="64" y="206" width="1152" height="132" fill="#F5EFE3"/>
+    <use data-icon="phosphor-duotone/users-three" x="80" y="222" width="40" height="40" fill="#1B4D5C"/>
+    <text x="80" y="296" font-size="22" font-weight="bold" fill="#1B4D5C">團隊內部建議</text>
+    <text x="300" y="238" font-size="22" fill="#15171A"><tspan font-weight="bold">08-25</tspan> 試用版建議：<tspan x="300" dy="30">組員 11 條意見，逐條回應</tspan><tspan x="300" dy="30"><tspan font-weight="bold">09-18</tspan> 內部系統測試清單</tspan><tspan x="300" dy="30" fill="#5A6066">（示範帳號，不是學生）</tspan></text>
+    <g id="p07-arrow-1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="704 256 36 30" fill="#5E8F9C" stroke="none">
+<path d="M 704 263.5 L 725 263.5 L 725 256 L 740 271 L 725 286 L 725 278.5 L 704 278.5 Z"/>
+</g>
+    <text x="752" y="238" font-size="22" fill="#15171A">YouTube 上傳、LINE 多輪：<tspan x="752" dy="30">從「有餘力再做」改為<tspan font-weight="bold" fill="#1B4D5C">本輪必做</tspan></tspan><tspan x="752" dy="30">（規格 v1.0 → v1.1）</tspan><tspan x="752" dy="30">清單項目 10-23 進入看板任務</tspan></text>
+  </g>
+  <g id="lane-advisor" data-pptx-bounds="56 352 1168 140">
+    <rect x="64" y="356" width="1152" height="132" fill="#F5EFE3"/>
+    <use data-icon="phosphor-duotone/chalkboard-teacher" x="80" y="372" width="40" height="40" fill="#1B4D5C"/>
+    <text x="80" y="446" font-size="22" font-weight="bold" fill="#1B4D5C">教授與評審意見</text>
+    <text x="300" y="388" font-size="22" fill="#15171A"><tspan font-weight="bold">09-10</tspan> 教授會議：<tspan x="300" dy="30">凍結新功能、啟動班級測試</tspan><tspan x="300" dy="30"><tspan font-weight="bold">10-22</tspan> 複評：評審提問 12 題</tspan></text>
+    <g id="p07-arrow-2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="704 406 36 30" fill="#5E8F9C" stroke="none">
+<path d="M 704 413.5 L 725 413.5 L 725 406 L 740 421 L 725 436 L 725 428.5 L 704 428.5 Z"/>
+</g>
+    <text x="752" y="388" font-size="22" fill="#15171A">停止新增功能，轉向除錯與試用<tspan x="752" dy="30">12 題逐題寫處理方式，新任務</tspan><tspan x="752" dy="30">標「來源：複評 X-X」<tspan fill="#5A6066">（多數進行中）</tspan></tspan></text>
+  </g>
+  <g id="lane-student" data-pptx-bounds="56 502 1168 112">
+    <rect x="64" y="506" width="1152" height="104" fill="#FBF8F2" stroke="#5A6066" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <use data-icon="phosphor-duotone/student" x="80" y="522" width="40" height="40" fill="#5A6066"/>
+    <text x="80" y="592" font-size="22" font-weight="bold" fill="#5A6066">實際學生試用</text>
+    <text x="300" y="542" font-size="22" fill="#15171A"><tspan font-weight="bold">09-21</tspan> 開放學生試用<tspan x="300" dy="30"><tspan font-weight="bold">09-22</tspan> 上線「回報問題」功能</tspan></text>
+    <g id="p07-arrow-3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="704 548 36 30" fill="#5A6066" stroke="none">
+<path d="M 704 555.5 L 725 555.5 L 725 548 L 740 563 L 725 578 L 725 570.5 L 704 570.5 Z"/>
+</g>
+    <text x="752" y="542" font-size="22" fill="#5A6066">試用人數、回饋內容、據此修改的項目：<tspan x="752" dy="30" font-weight="bold" fill="#B5482E">整理中，尚無紀錄</tspan></text>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="668" font-size="18" fill="#5A6066">前兩類不是使用者回饋｜來源：Notion 試用版建議、系統測試問題清單、會議 25、複評後續處理總表</text>
+  </g>
+</svg>

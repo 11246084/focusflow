@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜外部技術變動：快速適應與風險控制</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">外部模型要停用：先評估影響，再小步切換</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">05 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="track-labels" data-pptx-bounds="56 270 116 290">
+    <text x="64" y="300" font-size="22" font-weight="bold" fill="#5E8F9C">團隊決策</text>
+    <text x="64" y="540" font-size="22" font-weight="bold" fill="#5E8F9C">交付驗證</text>
+  </g>
+  <g id="axis" data-pptx-bounds="176 386 1044 46">
+    <line x1="180" y1="410" x2="940" y2="410" stroke="#1B4D5C" stroke-width="3"/>
+    <line x1="964" y1="410" x2="1216" y2="410" stroke="#1B4D5C" stroke-width="3"/>
+    <line x1="942" y1="420" x2="950" y2="400" stroke="#1B4D5C" stroke-width="3"/>
+    <line x1="954" y1="420" x2="962" y2="400" stroke="#1B4D5C" stroke-width="3"/>
+    <g fill="#1B4D5C">
+      <circle cx="290" cy="410" r="8"/>
+      <circle cx="536" cy="410" r="8"/>
+      <circle cx="762" cy="410" r="8"/>
+      <circle cx="815" cy="410" r="8"/>
+    </g>
+    <circle cx="1091" cy="410" r="10" fill="#3E7D5A"/>
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="290" y1="380" x2="290" y2="402"/>
+      <line x1="536" y1="380" x2="536" y2="402"/>
+      <line x1="762" y1="380" x2="762" y2="402"/>
+      <line x1="815" y1="418" x2="815" y2="440"/>
+      <line x1="1091" y1="420" x2="1091" y2="440"/>
+    </g>
+  </g>
+  <g id="card-0802" data-pptx-bounds="176 206 228 178">
+    <rect x="180" y="210" width="220" height="170" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <rect x="196" y="222" width="56" height="26" rx="4" fill="#B5482E"/>
+    <text x="224" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">問題</text>
+    <text x="196" y="280" font-size="22" font-weight="bold" fill="#1B4D5C">08-02 首次記錄<tspan x="196" dy="30" font-weight="normal" fill="#15171A">Phase 2-2 報告、</tspan><tspan x="196" dy="30" font-weight="normal" fill="#15171A">PR #5 寫下風險</tspan></text>
+  </g>
+  <g id="card-0804" data-pptx-bounds="412 206 248 178">
+    <rect x="416" y="210" width="240" height="170" rx="4" fill="#1B4D5C"/>
+    <rect x="432" y="222" width="56" height="26" rx="4" fill="#E8A93C"/>
+    <text x="460" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#15171A">決策</text>
+    <text x="432" y="280" font-size="22" font-weight="bold" fill="#FFFFFF">08-04 教授會議<tspan x="432" dy="30" font-weight="normal">三組同步更換，</tspan><tspan x="432" dy="30" font-weight="normal">只改一組不可接受；</tspan><tspan x="432" dy="30" font-weight="normal">新檢索功能先關閉</tspan></text>
+  </g>
+  <g id="card-0807" data-pptx-bounds="668 206 188 178">
+    <rect x="672" y="210" width="180" height="170" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <rect x="688" y="222" width="56" height="26" rx="4" fill="#5E8F9C"/>
+    <text x="716" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">行動</text>
+    <text x="688" y="280" font-size="22" font-weight="bold" fill="#1B4D5C">08-07<tspan x="688" dy="30" font-weight="normal" fill="#15171A">建立看板任務</tspan><tspan x="688" dy="30" font-weight="normal" fill="#15171A">截止 08-11</tspan></text>
+  </g>
+  <g id="external-notice" data-pptx-bounds="864 206 356 178">
+    <rect x="868" y="210" width="348" height="170" rx="4" fill="#FBF8F2" stroke="#5A6066" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="884" y="244" font-size="18" font-weight="bold" fill="#5A6066">外部變化｜Google 停用時程</text>
+    <text x="884" y="282" font-size="22" fill="#15171A">preview 模型的最早可能<tspan x="884" dy="30">停用日：<tspan font-weight="bold" fill="#1B4D5C">2026-08-10</tspan></tspan><tspan x="884" dy="30" fill="#5A6066">公告發布日：待確認</tspan></text>
+  </g>
+  <g id="five-days" data-pptx-bounds="532 434 150 42">
+    <line x1="536" y1="442" x2="678" y2="442" stroke="#E8A93C" stroke-width="4"/>
+    <line x1="536" y1="436" x2="536" y2="448" stroke="#E8A93C" stroke-width="4"/>
+    <text x="606" y="468" font-size="22" font-weight="bold" text-anchor="middle" fill="#1B4D5C">→ 5 天</text>
+  </g>
+  <g id="card-0809" data-pptx-bounds="686 436 258 198">
+    <rect x="690" y="440" width="250" height="190" rx="4" fill="#F5EFE3" stroke="#1B4D5C" stroke-width="2"/>
+    <rect x="706" y="452" width="56" height="26" rx="4" fill="#5E8F9C"/>
+    <text x="734" y="471" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">行動</text>
+    <text x="706" y="510" font-size="22" font-weight="bold" fill="#1B4D5C">08-09 程式切換<tspan x="706" dy="30" font-weight="normal" fill="#15171A">PR #6 合併＋自動部署</tspan><tspan x="706" dy="30" font-weight="normal" fill="#15171A">Pipeline 同日完成</tspan><tspan x="706" dy="30" font-weight="normal" fill="#15171A">371 項測試通過</tspan></text>
+  </g>
+  <g id="card-0909" data-pptx-bounds="962 436 258 198">
+    <rect x="966" y="440" width="250" height="190" rx="4" fill="#F5EFE3" stroke="#3E7D5A" stroke-width="3"/>
+    <rect x="982" y="452" width="56" height="26" rx="4" fill="#3E7D5A"/>
+    <text x="1010" y="471" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">改善</text>
+    <text x="1050" y="471" font-size="18" fill="#5A6066">一個月後</text>
+    <text x="982" y="510" font-size="22" font-weight="bold" fill="#1B4D5C">09-09 正式完成<tspan x="982" dy="30" font-weight="normal" fill="#15171A">重建試用資料向量</tspan><tspan x="982" dy="30" font-weight="normal" fill="#15171A">部署加資料契約檢查</tspan><tspan x="982" dy="30" font-weight="normal" fill="#15171A">首驗失敗→同日修正</tspan></text>
+  </g>
+  <g id="limits" data-pptx-bounds="56 644 1164 42">
+    <text x="64" y="670" font-size="18" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">限制</tspan>：08-09 時尚未做 Gemini 真實連線、正式資料庫驗證與資料重建；PR #6 建立後 1.5 分鐘合併，沒有審查紀錄</text>
+  </g>
+</svg>

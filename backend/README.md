@@ -76,4 +76,42 @@ npm.cmd run test:youtube-mongo
 
 課程刪除的資料庫變更與 `coursedeletionjobs` 待辦在同一交易提交；YouTube 轉私人由提交後與啟動／每分鐘排程執行。單筆外部操作（含 token 與回應本文）上限 30 秒，超時取消請求並保留待辦重試，繼續處理下一筆。該集合以 `_id` 防重複、無 TTL 或自動索引同步；失敗及租約過期會重試，已完成紀錄保留。需要可交易的 MongoDB，standalone 回 `503 COURSE_DELETE_UNAVAILABLE`，不退回逐筆刪除。正式環境仍須另行授權查證；本機測試不代表部署前提已成立。
 
+<<<<<<< HEAD
 recut 成品核准、YouTube ready 與 worker 租約介面見 [審閱與worker契約](docs/recut-review.md)，本輪本機候選與驗證結果只看 [目前狀態](../docs/current-status.md)。
+=======
+## recut 本機試產 CLI
+
+以下工具把兩門指定課程的資料複製到本機，再從既有候選腳本試產一題。開發驗證只用假的模型、媒體與資料庫；實際唯讀 Atlas、呼叫 Gemini 或渲染，須當次授權並確認課程、筆數及呼叫額度。工具不載入 `.env`，連線與金鑰只從指令明確指定的環境變數名稱取得，不輸出其值。
+
+在 backend 目錄執行。先確認本機已有 `mongo:7`，沒有時停止，不拉取映像檔；啟動與停止不刪具名資料卷：
+
+```powershell
+docker image inspect mongo:7
+docker run --pull=never --detach --name focusflow-recut-local --publish 127.0.0.1:27131:27017 --mount source=focusflow-recut-local-data,target=/data/db mongo:7
+docker stop focusflow-recut-local
+docker start focusflow-recut-local
+```
+
+`RECUT_LOCAL_URI` 與本機後端的 `MONGODB_URI` 均設為 `mongodb://127.0.0.1:27131/recut_trial`；來源用另行提供的 `RECUT_SOURCE_URI`，只讀取 `courses`、`videos`、`video_segments_text`、`questions`、`shortscripts`。課程以兩個明確 ObjectId 篩選；影片含課程所掛載的 `videoIds`，片段只讀這些影片的 native／pipeline 識別碼。沒有複製帳號、憑證、其他課程、向量索引或圖片集合。缺少所需兩門課就停止；複製不是完整帳號搬移，本機教師需已有對應權限。
+
+```powershell
+node src/scripts/recutCopyCourses.js --source-uri-env RECUT_SOURCE_URI --target-uri-env RECUT_LOCAL_URI --courses <課程一ObjectId>,<課程二ObjectId>
+# 確認 dry-run 筆數並取得當次寫入本機授權後，才加 --execute
+node src/scripts/recutCopyCourses.js --source-uri-env RECUT_SOURCE_URI --target-uri-env RECUT_LOCAL_URI --courses <課程一ObjectId>,<課程二ObjectId> --execute
+node src/scripts/recutSingleTopic.js
+```
+
+最後一行只回預估：一般選段、配圖、整段檢查共 3 次模型呼叫，共用上限預設 5 次；每張程式碼圖卡另需 2 次。它不讀資料庫、不建立 adapter、不呼叫模型；token 取決於視窗與回應，無法事前精算。正式呼叫前先看預估，再提供 `--allow-model`；不設 fake provider 作預設。
+
+單題輸入 JSON 需有 `courseId`、`scriptId`（本機已複製的候選腳本），可附固定 `model: {"provider":"gemini","model":"<已核准模型ID>"}` 與 `callLimit`。runtime JSON 需有 `geminiApiKeyEnv`（例如 `RECUT_GEMINI_API_KEY`）、`model`、`browserExecutable`（已有的 chrome-headless-shell 路徑），與 `media: {allowedRoot, ffmpeg, ffprobe, python, transcriber, asrModel}`；各路徑明確指定本機現有檔案，`transcriber` 指向 `short_render/src/align/transcribe_words.py`。Whisper 只離線讀取已有模型，缺少模型就停止，不下載。
+
+```powershell
+node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --runtime D:/AI-workspace/recut/runtime.json --output D:/AI-workspace/recut/run-one --target-uri-env RECUT_LOCAL_URI --allow-model --render
+```
+
+例：指定已複製的 OpenCV 候選題 → RC2 視窗與辨識 → RC3 選段 → RC4 配圖與檢查 → 本機 `final.mp4`、`full-script.txt`、`plan.json`、`run.json`。每一步失敗即停止；模型次數、token 用量及步驟紀錄留在 run。資料庫只接受單一 loopback 主機、明確埠與資料庫名稱，拒絕 SRV、認證、多主機及 query 選項。新的 `recutsources` 快照記錄影片 `activeTranscriptVersion`（缺省 `legacy`）與片段快照，不覆寫來源 chunk。
+
+結果同步寫入本機 `recutversions`、`recutreviewevents`、`shortassets` 與 `recuttrialruns`，更新 `shortscripts.recut` 的版本與成品參照，供 RC8／RC9 讀取。產片後仍停在講稿審閱階段，成品沒有取得核准或發布授權。本機後端另依原有方式啟動，先確認 `MONGODB_URI` 指向上述 loopback DB，關閉不必要的外部服務設定，再開啟教師審閱頁；不要指向共享 Atlas 驗證。
+
+API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `decide`、renderer、`sourceOptions.media`、設定轉接及 `missing` 清單，可交給 `createRecutPipeline(...).register(queue)`。建構時不啟動資料庫、程序或模型；provider 與 `probe/decode/measure/transcribe` 不足時明確拒絕。單題工具另用原生 MongoDB driver，避免啟動 Mongoose autoIndex。課程範圍複製採固定集合、先讀再本機 upsert；相較整庫 dump 可避免帶入無關資料，但不搬媒體檔與帳號，寫入中斷可能留下部分本機資料，須修正後重跑，不能當完整備份使用。
+>>>>>>> 8486a5b1 (feat(recut): 接上惰性模型媒體轉接與本機試產資料庫)

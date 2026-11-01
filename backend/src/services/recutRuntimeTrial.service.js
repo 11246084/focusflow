@@ -20,7 +20,7 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
   if (targetUri !== undefined) assertLoopbackMongoTarget(targetUri);
   if (!allowModel) return { dryRun: true, estimatedSharedCalls: 3, sharedCallLimit: callLimit, extraCallsPerCodeCard: 2 };
   if (!pipeline?.generate?.length || !Number.isInteger(callLimit) || callLimit < 3 || !model?.model) throw fail('試產管線或固定模型設定無效。');
-  const task = { _id: input.taskId || 'local-trial', scriptId: input.scriptId, input, settingsSnapshot: { model }, callsUsed: 0, callLimit };
+  const task = { _id: input.taskId || 'local-trial', scriptId: input.scriptId, courseId: input.courseId, input, settingsSnapshot: { model }, callsUsed: 0, callLimit };
   const data = { ...input }, attempts = [];
   let stage = 'prepare';
   for (const step of pipeline.generate) {
@@ -52,16 +52,18 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
   }
   if (!data.version) throw fail('試產管線沒有產生版本。');
   await checkCancelled();
-  let asset = null;
+  let asset = null, renderDurationMs = null;
   if (render && data.version.plan) {
     if (typeof renderLocal !== 'function') throw fail('尚未提供本機渲染轉接。', 'RECUT_RENDER_NOT_CONFIGURED');
+    const started = Date.now();
     asset = await renderLocal({ version: data.version, checkCancelled });
+    renderDurationMs = Date.now() - started;
   }
   const result = { dryRun: false, state: data.version.selection.answerable ? 'script_review' : 'unanswerable',
-    version: data.version, suggestions: data.suggestions || [], asset, callsUsed: task.callsUsed, attempts };
+    version: data.version, suggestions: data.suggestions || [], asset, renderDurationMs, callsUsed: task.callsUsed, attempts };
   if (persistLocal) {
     if (!targetUri) throw fail('寫入本機資料庫前必須指定目標。', 'RECUT_LOCAL_DB_REQUIRED');
-    await checkCancelled(); await persistLocal({ targetUri, result });
+    await checkCancelled(); result.persisted = await persistLocal({ targetUri, result, input });
   }
   return result;
 }

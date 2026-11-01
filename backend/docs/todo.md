@@ -449,3 +449,4 @@ YouTube Lifecycle 的本機整合與正式待驗事項統一見[目前狀態](..
 3. RC7 後端專用 worker 身分、租約、心跳、版本與檢查、受限成品回傳。
 4. RC10 內容／聲音同意、撤回、取消工作與逐支下架，對接 YouTube 隱私與清理。
 5. 隔離測試、專用 loopback Mongo 交叉測試、契約檢查與獨立審查。進度及本輪證據只寫 [目前狀態](../../docs/current-status.md)。
+6. application factory 與同意／撤回的實際接線依[審閱契約](recut-review.md#同意閘門與撤回整合)驗證；既有教師 UI 需先保存內容同意及原音偏好，不能只沿用舊 disclosure。尚未取得的外部授權不以 fake 測試替代。

@@ -102,3 +102,9 @@
 2026-11-02 續接：後端整合由 `delivery_backend_resume` 負責 shared models／services／routes／harness／OpenAPI 與啟動組裝；`delivery_consent_resume` 負責 RC10 專屬同意模組；`delivery_pipeline_runtime` 負責 pipeline 與本機 CLI runtime。後端接續 DoD 是完成 RC4 真正註冊入口、API 與審閱共用 queue、持久化建議、RC10 在排程／worker／上傳／發布的實際閘門及撤回處置，再由最終驗證者序列執行全套與獨立審查。
 
 本輪已完成 `45dfd69`：凍結證據與 RecutSource 保存逐字稿版本，異版不回查 chunk，審閱使用快照並提示來源更新；targeted 69／69、補強斷言後增量 4／4、OpenAPI lint 通過，均預載 `noDotenv.cjs` 且外部服務使用替身。`c0bc4ac` 已合入最新 `origin/dev`（`66f45fc`，含本機 dev `2d4ebc9`）；四份 LINE 定案文件與該 dev 一致。尚未完成本輪全套、完整 fake E2E、RC10 整合及最終獨立驗證，不據此稱候選完成。
+
+2026-11-02 接續檢查點：程式整合 HEAD `abb60bb9`。`7c25e15` 抽出不讀設定的來源純演算法（19／19）；`42c3ada` 已實作惰性 application factory、API 與審閱共用 queue、建議持久化（18／18）。RC10 四筆已合入為 `905e21ef`、`866d544b`、`7d4f4b21`、`218ab5f8`；runtime 四筆已合入為 `c97d63e`、`fcf01a00`、`77aa47df`、`2f9b0630`。worker client 原 owner 的程式與文件已合入為 `94c85fe7`、`abb60bb9`；其 145／145 為 owner 本機證據，候選最終全套另驗。
+
+shared backend 已以 `b73ed48` 接上同意閘門、撤回實際取消／封存／轉私人待辦與通知、harness 及跨模組測試。跨模組撤回 6／6 通過，包含未選中已發布成品保留、選中成品封存、管理員去重通知，以及發布 CAS／YouTube 已送 bytes／渲染成品建立三種交錯。factory 4／4 含真 HTTP controller（缺配置 503、配置後生成及建議重跑）與 runtime factory 接 RC2～RC4 三次 fake 判斷。shared／worker／queue／契約 targeted 63／63、OpenAPI lint 通過；上傳／批次／短片回歸 115 項中 114 項通過，唯一舊 fixture 缺少新課程同意已補成真 HTTP「409 → 明確同意 → 201」，其後該項與最新撤回增量 7／7 通過。尚未以完整新一輪全套取代上述分段證據。
+
+最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 獨立審查 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產，另一 owner 已完成限定檔案／工具預檢；實際 Gemini 額度仍待具體估算與當次授權，Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。

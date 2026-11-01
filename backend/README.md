@@ -112,3 +112,21 @@ node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --
 結果同步寫入本機 `recutversions`、`recutreviewevents`、`shortassets` 與 `recuttrialruns`，更新 `shortscripts.recut` 的版本與成品參照，供 RC8／RC9 讀取。產片後仍停在講稿審閱階段，成品沒有取得核准或發布授權。本機後端另依原有方式啟動，先確認 `MONGODB_URI` 指向上述 loopback DB，關閉不必要的外部服務設定，再開啟教師審閱頁；不要指向共享 Atlas 驗證。
 
 API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `decide`、renderer、`sourceOptions.media`、設定轉接及 `missing` 清單，可交給 `createRecutPipeline(...).register(queue)`。建構時不啟動資料庫、程序或模型；provider 與 `probe/decode/measure/transcribe` 不足時明確拒絕。單題工具另用原生 MongoDB driver，避免啟動 Mongoose autoIndex。課程範圍複製採固定集合、先讀再本機 upsert；相較整庫 dump 可避免帶入無關資料，但不搬媒體檔與帳號，寫入中斷可能留下部分本機資料，須修正後重跑，不能當完整備份使用。
+
+### 十題技術試跑與統計
+
+先在本機挑出十個不同主題，準備 topics JSON 陣列；每筆有 `topicId`（英數、底線、點或連字號）、`scriptId`、`courseId`，可加 `operationTimes: [{"phase":"script_review","durationMs":1234}]`。操作階段只接受 `script_review`、`asset_review`、`production_wait`，時間來自實際操作紀錄，不填時維持空值。試跑重用上述 runtime JSON，完全從 loopback MongoDB 讀寫，不自動連 Atlas。
+
+```powershell
+node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json
+# 當次授權十題與模型呼叫後，才加 --allow-model；預設包含渲染
+node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json --runtime D:/AI-workspace/recut/runtime.json --output D:/AI-workspace/recut/trial-2026-11-18 --target-uri-env RECUT_LOCAL_URI --price D:/AI-workspace/recut/prices.json --allow-model
+```
+
+不提供 `--price` 也可執行，費用維持 null／unknown。價格 JSON 由執行者依當次已查證價目提供：`modelId`、`currency`、`inputPerMillion`、`outputPerMillion`、`asOf`，有快取 token 時另需 `cachedInputPerMillion`；工具不內建價格、不推測匯率，模型不符或用量不完整也不算費用。例：測試價的 input/output 各每百萬 2／4 單位，100 個 input 與 50 個 output 算出 0.0004 單位；此例不是現價。
+
+每題先跑一遍完整單題流程，再在同一份來源快照獨立重跑兩遍第一步，共三遍；採完整流程中尚未被整段檢查修訂的第一步結果比較。十題依序執行；單題失敗就停止該題並保留錯誤代碼，下一題繼續。一般共預估 50 次模型呼叫（每題 3 次完整流程＋2 次選段）；若各次任務均採預設 5 次額度，含重試上限為 150 次，程式碼圖卡另計；token 與費用預估為 unknown。`--no-render` 只適合除錯，這類執行不能當渲染驗收。
+
+統計採每兩次選段的「秒數交集／聯集」再取平均，先合併重疊時間避免重複計數；三次全部無選段時比例為 null，另記回答不了判斷是否一致。標籤差計三次標籤不一致的句數，並保留三組成對比較。成功率分開列生成成功、流程完成與回答不了；渲染時間及三段操作時間各報筆數、中位數與最小／最大值，缺資料不補零。費用包含 thinking 輸出與額外程式碼辨識，並分開列單次生成與穩定度重跑的用量。
+
+只在本次明確指定的 `--output` 目錄產生 `report.md`、`evidence.json` 與各題的施工單、講稿、run 紀錄／mp4。剪接自然度、團隊修改量、教授核准與回答不了判斷正確性均留空由人填。開發測試不在 repo 製造正式證據；實際授權試跑後，再將真實報告依 [RC11b 工單](../docs/04_Features/Short_Video/work-orders/RC11-trial-tooling.md) 登記至 evidence 索引。

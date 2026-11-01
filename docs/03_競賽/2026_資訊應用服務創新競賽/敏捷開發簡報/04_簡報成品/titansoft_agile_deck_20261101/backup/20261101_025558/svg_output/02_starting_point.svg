@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 120">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">起點｜2026 年 3～4 月</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">一開始想做的太多，我們先收斂出一條主線</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">02 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="initial-ideas" data-pptx-bounds="56 180 1164 64">
+    <text x="64" y="220" font-size="22" font-weight="bold" fill="#5A6066">最初構想</text>
+    <rect x="170" y="190" width="244" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="292" y="220" font-size="22" text-anchor="middle" fill="#5A6066">智慧衣櫥題目・未選</text>
+    <rect x="430" y="190" width="268" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="564" y="220" font-size="22" text-anchor="middle" fill="#5A6066">遊戲化寵物機制・放棄</text>
+    <rect x="714" y="190" width="268" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="848" y="220" font-size="22" text-anchor="middle" fill="#5A6066">短影音生成・延到後期</text>
+    <rect x="998" y="190" width="214" height="44" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1105" y="220" font-size="22" text-anchor="middle" fill="#5A6066">個人化課程・後期</text>
+  </g>
+  <g id="meeting-timeline" data-pptx-bounds="56 264 1164 196">
+    <text x="64" y="292" font-size="22" font-weight="bold" fill="#1B4D5C">每次教授檢視，都調整一次方向</text>
+    <line x1="120" y1="340" x2="1160" y2="340" stroke="#5E8F9C" stroke-width="3"/>
+    <g fill="#1B4D5C">
+      <circle cx="160" cy="340" r="9"/>
+      <circle cx="352" cy="340" r="9"/>
+      <circle cx="544" cy="340" r="9"/>
+      <circle cx="736" cy="340" r="9"/>
+      <circle cx="928" cy="340" r="9"/>
+    </g>
+    <circle cx="1120" cy="340" r="12" fill="#E8A93C"/>
+    <g font-size="22" text-anchor="middle" fill="#15171A">
+      <text x="160" y="384"><tspan font-weight="bold" fill="#1B4D5C">03-03</tspan><tspan x="160" dy="30">衣櫥／短影音</tspan><tspan x="160" dy="30">二選一</tspan></text>
+      <text x="352" y="384"><tspan font-weight="bold" fill="#1B4D5C">03-10</tspan><tspan x="352" dy="30">確定短影音</tspan><tspan x="352" dy="30">用教授上課錄影</tspan></text>
+      <text x="544" y="384"><tspan font-weight="bold" fill="#1B4D5C">03-24</tspan><tspan x="544" dy="30">提出遊戲化</tspan><tspan x="544" dy="30">寵物構想</tspan></text>
+      <text x="736" y="384"><tspan font-weight="bold" fill="#1B4D5C">03-31</tspan><tspan x="736" dy="30">放棄寵物機制</tspan><tspan x="736" dy="30">鎖定 RAG 問答</tspan></text>
+      <text x="928" y="384"><tspan font-weight="bold" fill="#1B4D5C">04-07</tspan><tspan x="928" dy="30">改用 Gemini</tspan><tspan x="928" dy="30">Embedding</tspan></text>
+      <text x="1120" y="384"><tspan font-weight="bold" fill="#1B4D5C">04-21</tspan><tspan x="1120" dy="30">Phase 1 聚焦</tspan><tspan x="1120" dy="30">核心流程</tspan></text>
+    </g>
+  </g>
+  <g id="mvp-pipeline" data-pptx-bounds="56 476 1164 136">
+    <text x="64" y="512" font-size="22" font-weight="bold" fill="#1B4D5C">MVP 主線：<tspan fill="#15171A" font-weight="normal">先讓影片變成可問答的知識，回答能跳回影片時間點</tspan></text>
+    <g id="p02-mvp-1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="64 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 64 532 L 224.8 532 L 250 568 L 224.8 604 L 64 604 L 89.2 568 Z"/>
+</g>
+    <g id="p02-mvp-2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="224 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 224 532 L 384.8 532 L 410 568 L 384.8 604 L 224 604 L 249.2 568 Z"/>
+</g>
+    <g id="p02-mvp-3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="384 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 384 532 L 544.8 532 L 570 568 L 544.8 604 L 384 604 L 409.2 568 Z"/>
+</g>
+    <g id="p02-mvp-4" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="544 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 544 532 L 704.8 532 L 730 568 L 704.8 604 L 544 604 L 569.2 568 Z"/>
+</g>
+    <g id="p02-mvp-5" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="704 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 704 532 L 864.8 532 L 890 568 L 864.8 604 L 704 604 L 729.2 568 Z"/>
+</g>
+    <g id="p02-mvp-6" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="864 532 186 72" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 864 532 L 1024.8 532 L 1050 568 L 1024.8 604 L 864 604 L 889.2 568 Z"/>
+</g>
+    <g id="p02-mvp-7" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="1024 532 186 72" data-pptx-av-adj="val 35000" fill="#E8A93C" stroke="none">
+<path d="M 1024 532 L 1184.8 532 L 1210 568 L 1184.8 604 L 1024 604 L 1049.2 568 Z"/>
+</g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="160" y="576">音訊抽取</text>
+      <text x="320" y="576">語音轉文字</text>
+      <text x="480" y="576">切段</text>
+      <text x="640" y="576">Embedding</text>
+      <text x="800" y="576">語意檢索</text>
+      <text x="960" y="576">AI 回答</text>
+      <text x="1120" y="576" fill="#15171A">時間點回溯</text>
+    </g>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="668" font-size="18" fill="#5A6066">附件 3 所寫「六次方向調整」是否即上述六次會議：待團隊確認｜來源：Notion 會議紀錄、四階段規劃（04-28）</text>
+  </g>
+</svg>

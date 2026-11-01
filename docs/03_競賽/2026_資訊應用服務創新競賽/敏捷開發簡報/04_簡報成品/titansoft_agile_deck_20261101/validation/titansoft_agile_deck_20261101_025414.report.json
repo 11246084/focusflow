@@ -1,0 +1,275 @@
+{
+  "schema": "ppt-master.pptx-postflight-report.v1",
+  "status": "passed-with-warnings",
+  "output": {
+    "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\exports\\titansoft_agile_deck_20261101_025414.pptx",
+    "bytes": 618218
+  },
+  "source": {
+    "svg_slide_count": 15,
+    "layout_definition_count": 0,
+    "fingerprint": {
+      "algorithm": "sha256",
+      "digest": "378788591c912132e107135c6fa4bfa8463df2b743083e6a49f3c642bc1a3f85",
+      "file_count": 15,
+      "files": [
+        {
+          "file": "01_cover.svg",
+          "sha256": "2ef4888516571dd0a21cf71a31d693a04e125e6ffcdc52c2ef8437939947af46"
+        },
+        {
+          "file": "02_starting_point.svg",
+          "sha256": "339260e748407d0b020f9c14ef3541b9a19461e04b5a5060460074e0dd457bdf"
+        },
+        {
+          "file": "03_how_we_work.svg",
+          "sha256": "b65980d6da20ace83abc93a44c18ed4a9c64a366d32c80a6c204aaf5b76d2d4d"
+        },
+        {
+          "file": "04_decision_to_work.svg",
+          "sha256": "8eebe7c886d76e4abe83c8e20f96e1b9541f180290d071f9f0cba16f0f18952f"
+        },
+        {
+          "file": "05_case_a_model_change.svg",
+          "sha256": "8204671c4f0bf77053d9587d8c0ed1037b05bd891bc2d0e94a104b30505b44d9"
+        },
+        {
+          "file": "06_case_b_test_feedback.svg",
+          "sha256": "6b1380397403851bf2977d682ff7dafe6a7dd99fa0268729ede82d227f904bc6"
+        },
+        {
+          "file": "07_feedback_sources.svg",
+          "sha256": "f45657f09cfc6d1f30ee4d280a99c81dd6c9897fa2a0419373fb740b198ad9c5"
+        },
+        {
+          "file": "08_incremental_delivery.svg",
+          "sha256": "9c44a3d72116837361876bec25ed4333b339c5d58e1b70547c9ff222f9708784"
+        },
+        {
+          "file": "09_verification.svg",
+          "sha256": "fae9b65aa0f3a74d13ac7445b713d0fca50cf4c942b9aecac473f57523dd28cd"
+        },
+        {
+          "file": "10_next_steps.svg",
+          "sha256": "66faa5a1116c144f6099118f9f9f91ae736f756c328c7f31d6eda5792eb33862"
+        },
+        {
+          "file": "11_b1_case_a_evidence.svg",
+          "sha256": "6eb5ff22aab8f4c848ab7dd415cf16f188b3838097fc43bc06ff8701fa1e6158"
+        },
+        {
+          "file": "12_b2_cookie_release.svg",
+          "sha256": "eb57b91a994cde1e0a9c211a745eccc6d93932a09b3902aee315ae95ca5c7fa7"
+        },
+        {
+          "file": "13_b3_baseline_record.svg",
+          "sha256": "cd5cb62cd6300490620cc0e5194d9e22c440d04f322c8611f5d33d5c689c2746"
+        },
+        {
+          "file": "14_b4_team_roles.svg",
+          "sha256": "677bdf1be0bb5eb337e416da12820f7cc406fa9644d4e267212f7752224aaa26"
+        },
+        {
+          "file": "15_b5_ai_assisted.svg",
+          "sha256": "f104dcbcec90a8829b377f906cb7a766e406dcc0027a226b8a0f34127771e91b"
+        }
+      ]
+    },
+    "authoring_roundtrip": null
+  },
+  "package": {
+    "zip_integrity": "passed",
+    "corrupt_member": null,
+    "slides": 15,
+    "notes": 15,
+    "masters": 1,
+    "layouts": 1
+  },
+  "checks": {
+    "zip_integrity": "passed",
+    "slide_count": "passed",
+    "internal_relationships": "enforced-at-build",
+    "structured_package": "not-applicable",
+    "transitions": "enforced-at-build",
+    "animations": "enforced-at-build",
+    "project_svg_contract": "enforced-at-build",
+    "compatibility_normalization": "not-applicable",
+    "authoring_roundtrip": "not-applicable",
+    "quality_gate": "passed",
+    "quality_warnings": "warning",
+    "template_tokens": "passed",
+    "external_images": "passed",
+    "font_portability": "passed"
+  },
+  "quality": {
+    "status": "loaded",
+    "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\validation\\svg_quality_report.json",
+    "schema": "ppt-master.svg-quality-report.v1",
+    "stage": "final",
+    "source_match": "passed",
+    "source_fingerprint": {
+      "algorithm": "sha256",
+      "digest": "378788591c912132e107135c6fa4bfa8463df2b743083e6a49f3c642bc1a3f85",
+      "file_count": 15,
+      "files": [
+        {
+          "file": "01_cover.svg",
+          "sha256": "2ef4888516571dd0a21cf71a31d693a04e125e6ffcdc52c2ef8437939947af46"
+        },
+        {
+          "file": "02_starting_point.svg",
+          "sha256": "339260e748407d0b020f9c14ef3541b9a19461e04b5a5060460074e0dd457bdf"
+        },
+        {
+          "file": "03_how_we_work.svg",
+          "sha256": "b65980d6da20ace83abc93a44c18ed4a9c64a366d32c80a6c204aaf5b76d2d4d"
+        },
+        {
+          "file": "04_decision_to_work.svg",
+          "sha256": "8eebe7c886d76e4abe83c8e20f96e1b9541f180290d071f9f0cba16f0f18952f"
+        },
+        {
+          "file": "05_case_a_model_change.svg",
+          "sha256": "8204671c4f0bf77053d9587d8c0ed1037b05bd891bc2d0e94a104b30505b44d9"
+        },
+        {
+          "file": "06_case_b_test_feedback.svg",
+          "sha256": "6b1380397403851bf2977d682ff7dafe6a7dd99fa0268729ede82d227f904bc6"
+        },
+        {
+          "file": "07_feedback_sources.svg",
+          "sha256": "f45657f09cfc6d1f30ee4d280a99c81dd6c9897fa2a0419373fb740b198ad9c5"
+        },
+        {
+          "file": "08_incremental_delivery.svg",
+          "sha256": "9c44a3d72116837361876bec25ed4333b339c5d58e1b70547c9ff222f9708784"
+        },
+        {
+          "file": "09_verification.svg",
+          "sha256": "fae9b65aa0f3a74d13ac7445b713d0fca50cf4c942b9aecac473f57523dd28cd"
+        },
+        {
+          "file": "10_next_steps.svg",
+          "sha256": "66faa5a1116c144f6099118f9f9f91ae736f756c328c7f31d6eda5792eb33862"
+        },
+        {
+          "file": "11_b1_case_a_evidence.svg",
+          "sha256": "6eb5ff22aab8f4c848ab7dd415cf16f188b3838097fc43bc06ff8701fa1e6158"
+        },
+        {
+          "file": "12_b2_cookie_release.svg",
+          "sha256": "eb57b91a994cde1e0a9c211a745eccc6d93932a09b3902aee315ae95ca5c7fa7"
+        },
+        {
+          "file": "13_b3_baseline_record.svg",
+          "sha256": "cd5cb62cd6300490620cc0e5194d9e22c440d04f322c8611f5d33d5c689c2746"
+        },
+        {
+          "file": "14_b4_team_roles.svg",
+          "sha256": "677bdf1be0bb5eb337e416da12820f7cc406fa9644d4e267212f7752224aaa26"
+        },
+        {
+          "file": "15_b5_ai_assisted.svg",
+          "sha256": "f104dcbcec90a8829b377f906cb7a766e406dcc0027a226b8a0f34127771e91b"
+        }
+      ]
+    },
+    "summary": {
+      "total": 15,
+      "passed": 10,
+      "warnings": 5,
+      "errors": 0
+    },
+    "categories": {
+      "blocking": {
+        "count": 0,
+        "issues": []
+      },
+      "introduced": {
+        "count": 5,
+        "issues": [
+          {
+            "file": "03_how_we_work.svg",
+            "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): cycle-notes:fill None -> '#15171A'; cycle-notes:font-size None -> '22'; text[34]:fill '#15171A' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+          },
+          {
+            "file": "05_case_a_model_change.svg",
+            "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): track-labels:fill None -> '#5E8F9C'; track-labels:font-size None -> '22'; track-labels:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+          },
+          {
+            "file": "07_feedback_sources.svg",
+            "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:fill None -> '#5A6066'; column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+          },
+          {
+            "file": "08_incremental_delivery.svg",
+            "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (24 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): node-0528:text-anchor None -> 'middle'; text[36]:text-anchor 'middle' -> None; text[37]:text-anchor 'middle' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+          },
+          {
+            "file": "10_next_steps.svg",
+            "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold'; text[11]:font-size '18' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+          }
+        ]
+      },
+      "inherited": {
+        "count": 0,
+        "issues": []
+      },
+      "source-import": {
+        "count": 0,
+        "summary": {
+          "warning_count": 0,
+          "by_code": {}
+        }
+      }
+    }
+  },
+  "resources": {
+    "unresolved_template_tokens": [],
+    "fonts": {
+      "stacks": [
+        "Microsoft JhengHei, Segoe UI, sans-serif"
+      ],
+      "generic_only_stacks": [],
+      "unsafe_exported_faces": []
+    },
+    "images": {
+      "data_uri": 0,
+      "local": 17,
+      "external": 0,
+      "external_references": []
+    }
+  },
+  "export_policy": {
+    "project_svg_contract": "strict",
+    "dangerous_normalization_count": 0
+  },
+  "deck_motion": {
+    "transition": {
+      "effect": "fade",
+      "effect_options": {},
+      "duration": 0.4,
+      "auto_advance": null,
+      "sound": null
+    },
+    "animation": {
+      "effect": "none",
+      "effect_request": null,
+      "duration": 0.4,
+      "stagger": 0.5,
+      "trigger": "after-previous"
+    },
+    "cli_overrides": {
+      "transition": false,
+      "transition_duration": false,
+      "auto_advance": false,
+      "transition_sound": false,
+      "animation": false,
+      "animation_duration": false,
+      "animation_stagger": false,
+      "animation_trigger": false
+    },
+    "narration_timings": false
+  },
+  "backup_path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\backup\\20261101_025414\\svg_output",
+  "conversion_trace_path": null
+}

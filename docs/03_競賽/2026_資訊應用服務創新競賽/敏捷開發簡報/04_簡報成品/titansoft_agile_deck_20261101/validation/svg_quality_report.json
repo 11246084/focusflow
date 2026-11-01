@@ -1,0 +1,1195 @@
+{
+  "schema": "ppt-master.svg-quality-report.v1",
+  "stage": "final",
+  "target": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101",
+  "source_fingerprint": {
+    "algorithm": "sha256",
+    "digest": "6899f02925268ab4f54a55b77e2af97a9861880909cc7455ec7a19e62d31c57f",
+    "file_count": 15,
+    "files": [
+      {
+        "file": "01_cover.svg",
+        "sha256": "2ef4888516571dd0a21cf71a31d693a04e125e6ffcdc52c2ef8437939947af46"
+      },
+      {
+        "file": "02_starting_point.svg",
+        "sha256": "339260e748407d0b020f9c14ef3541b9a19461e04b5a5060460074e0dd457bdf"
+      },
+      {
+        "file": "03_how_we_work.svg",
+        "sha256": "b65980d6da20ace83abc93a44c18ed4a9c64a366d32c80a6c204aaf5b76d2d4d"
+      },
+      {
+        "file": "04_decision_to_work.svg",
+        "sha256": "8eebe7c886d76e4abe83c8e20f96e1b9541f180290d071f9f0cba16f0f18952f"
+      },
+      {
+        "file": "05_case_a_model_change.svg",
+        "sha256": "c35702f7abb9b08e350808a79b409a9d7380187e2eeb3401599b50986bec1be2"
+      },
+      {
+        "file": "06_case_b_test_feedback.svg",
+        "sha256": "6b1380397403851bf2977d682ff7dafe6a7dd99fa0268729ede82d227f904bc6"
+      },
+      {
+        "file": "07_feedback_sources.svg",
+        "sha256": "f45657f09cfc6d1f30ee4d280a99c81dd6c9897fa2a0419373fb740b198ad9c5"
+      },
+      {
+        "file": "08_incremental_delivery.svg",
+        "sha256": "9c44a3d72116837361876bec25ed4333b339c5d58e1b70547c9ff222f9708784"
+      },
+      {
+        "file": "09_verification.svg",
+        "sha256": "fae9b65aa0f3a74d13ac7445b713d0fca50cf4c942b9aecac473f57523dd28cd"
+      },
+      {
+        "file": "10_next_steps.svg",
+        "sha256": "66faa5a1116c144f6099118f9f9f91ae736f756c328c7f31d6eda5792eb33862"
+      },
+      {
+        "file": "11_b1_case_a_evidence.svg",
+        "sha256": "6eb5ff22aab8f4c848ab7dd415cf16f188b3838097fc43bc06ff8701fa1e6158"
+      },
+      {
+        "file": "12_b2_cookie_release.svg",
+        "sha256": "eb57b91a994cde1e0a9c211a745eccc6d93932a09b3902aee315ae95ca5c7fa7"
+      },
+      {
+        "file": "13_b3_baseline_record.svg",
+        "sha256": "cd5cb62cd6300490620cc0e5194d9e22c440d04f322c8611f5d33d5c689c2746"
+      },
+      {
+        "file": "14_b4_team_roles.svg",
+        "sha256": "677bdf1be0bb5eb337e416da12820f7cc406fa9644d4e267212f7752224aaa26"
+      },
+      {
+        "file": "15_b5_ai_assisted.svg",
+        "sha256": "f104dcbcec90a8829b377f906cb7a766e406dcc0027a226b8a0f34127771e91b"
+      }
+    ]
+  },
+  "summary": {
+    "total": 15,
+    "passed": 10,
+    "warnings": 5,
+    "errors": 0
+  },
+  "issue_types": {},
+  "categories": {
+    "blocking": {
+      "count": 0,
+      "issues": []
+    },
+    "introduced": {
+      "count": 5,
+      "issues": [
+        {
+          "file": "03_how_we_work.svg",
+          "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): cycle-notes:fill None -> '#15171A'; cycle-notes:font-size None -> '22'; text[34]:fill '#15171A' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+        },
+        {
+          "file": "05_case_a_model_change.svg",
+          "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): track-labels:fill None -> '#5E8F9C'; track-labels:font-size None -> '22'; track-labels:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+        },
+        {
+          "file": "07_feedback_sources.svg",
+          "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:fill None -> '#5A6066'; column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+        },
+        {
+          "file": "08_incremental_delivery.svg",
+          "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (24 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): node-0528:text-anchor None -> 'middle'; text[36]:text-anchor 'middle' -> None; text[37]:text-anchor 'middle' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+        },
+        {
+          "file": "10_next_steps.svg",
+          "message": "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold'; text[11]:font-size '18' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+        }
+      ]
+    },
+    "inherited": {
+      "count": 0,
+      "issues": []
+    },
+    "source-import": {
+      "count": 0,
+      "summary": {
+        "warning_count": 0,
+        "by_code": {}
+      }
+    }
+  },
+  "drift": {
+    "colors": {
+      "#C9BFAA": [
+        "01_cover.svg"
+      ],
+      "#FFFFFF": [
+        "01_cover.svg",
+        "02_starting_point.svg",
+        "03_how_we_work.svg",
+        "04_decision_to_work.svg",
+        "05_case_a_model_change.svg",
+        "06_case_b_test_feedback.svg",
+        "09_verification.svg",
+        "10_next_steps.svg",
+        "11_b1_case_a_evidence.svg",
+        "12_b2_cookie_release.svg",
+        "13_b3_baseline_record.svg",
+        "15_b5_ai_assisted.svg"
+      ]
+    },
+    "fonts": {},
+    "sizes": {}
+  },
+  "carrier_receipt": {
+    "scope": "informational-not-a-quota",
+    "pages": 15,
+    "totals": {
+      "text_elements": 300,
+      "image_placements": 17,
+      "icons": 7,
+      "svg_geometry_elements": 187,
+      "preset_shapes": 29,
+      "page_frame_elements": 1,
+      "marker_uses": 10,
+      "inline_emphasis_runs": 37,
+      "gradient_uses": 0,
+      "filter_uses": 0,
+      "text_effects": 0
+    },
+    "pages_with": {
+      "images": 15,
+      "icons": 3,
+      "presets": 7,
+      "charts": 0,
+      "tables": 0,
+      "formulas": 0,
+      "inline_emphasis_runs": 12,
+      "gradient_uses": 0,
+      "filter_uses": 0,
+      "text_effects": 0
+    },
+    "relationship_pages": 14,
+    "geometry_elements": {
+      "circle": 21,
+      "ellipse": 0,
+      "line": 33,
+      "path": 0,
+      "polygon": 0,
+      "polyline": 1,
+      "rect": 132
+    },
+    "preset_names": {
+      "chevron": 15,
+      "homePlate": 6,
+      "rightArrow": 8
+    },
+    "native_objects": {
+      "chart": 0,
+      "formula_block": 0,
+      "formula_inline": 0,
+      "other": 0,
+      "table": 0
+    },
+    "image_page_max_frame_share_range": [
+      0.0017,
+      0.2487
+    ]
+  },
+  "project_issues": {
+    "template": [],
+    "animation": [],
+    "illustration": [],
+    "communication_trace": [],
+    "pptx_structure": []
+  },
+  "files": [
+    {
+      "file": "01_cover.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\01_cover.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 8,
+          "images": {
+            "placements": 1,
+            "files": [
+              "lockup-color.png"
+            ],
+            "max_frame_share": 0.0396
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 1,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 3,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 4,
+            "preset_names": {
+              "chevron": 4
+            },
+            "page_frame_elements": 1,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 8,
+        "tspan_elements": 2,
+        "contextual_values": {
+          "colors": [
+            "#C9BFAA",
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "2ef4888516571dd0a21cf71a31d693a04e125e6ffcdc52c2ef8437939947af46"
+    },
+    {
+      "file": "02_starting_point.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\02_starting_point.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 24,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 7,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 6,
+              "circle": 6,
+              "ellipse": 0,
+              "line": 1,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 7,
+            "preset_names": {
+              "chevron": 7
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 24,
+        "tspan_elements": 19,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "339260e748407d0b020f9c14ef3541b9a19461e04b5a5060460074e0dd457bdf"
+    },
+    {
+      "file": "03_how_we_work.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\03_how_we_work.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [
+        "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): cycle-notes:fill None -> '#15171A'; cycle-notes:font-size None -> '22'; text[34]:fill '#15171A' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+      ],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 15,
+          "images": {
+            "placements": 2,
+            "files": [
+              "image_001.png",
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.1336
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 5,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 7,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 4,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 4
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 15,
+        "tspan_elements": 9,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "b65980d6da20ace83abc93a44c18ed4a9c64a366d32c80a6c204aaf5b76d2d4d"
+    },
+    {
+      "file": "04_decision_to_work.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\04_decision_to_work.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 14,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 2,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 3,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 3,
+            "preset_names": {
+              "homePlate": 3
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 14,
+        "tspan_elements": 8,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "8eebe7c886d76e4abe83c8e20f96e1b9541f180290d071f9f0cba16f0f18952f"
+    },
+    {
+      "file": "05_case_a_model_change.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\05_case_a_model_change.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [
+        "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): track-labels:fill None -> '#5E8F9C'; track-labels:font-size None -> '22'; track-labels:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+      ],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 20,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 2,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 14,
+              "circle": 5,
+              "ellipse": 0,
+              "line": 12,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 20,
+        "tspan_elements": 17,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "c35702f7abb9b08e350808a79b409a9d7380187e2eeb3401599b50986bec1be2"
+    },
+    {
+      "file": "06_case_b_test_feedback.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\06_case_b_test_feedback.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 26,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 1,
+          "effects": {
+            "inline_emphasis_runs": 2,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 15,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 4,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 4,
+            "preset_names": {
+              "chevron": 4
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 3
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 26,
+        "tspan_elements": 11,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "6b1380397403851bf2977d682ff7dafe6a7dd99fa0268729ede82d227f904bc6"
+    },
+    {
+      "file": "07_feedback_sources.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\07_feedback_sources.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [
+        "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (9 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:fill None -> '#5A6066'; column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold' (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+      ],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 15,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 3,
+          "effects": {
+            "inline_emphasis_runs": 8,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 5,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 3,
+            "preset_names": {
+              "rightArrow": 3
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 15,
+        "tspan_elements": 20
+      },
+      "passed": true,
+      "source_sha256": "f45657f09cfc6d1f30ee4d280a99c81dd6c9897fa2a0419373fb740b198ad9c5"
+    },
+    {
+      "file": "08_incremental_delivery.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\08_incremental_delivery.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [
+        "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (24 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): node-0528:text-anchor None -> 'middle'; text[36]:text-anchor 'middle' -> None; text[37]:text-anchor 'middle' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+      ],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 25,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 1,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 3,
+              "circle": 7,
+              "ellipse": 0,
+              "line": 8,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 1
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 25,
+        "tspan_elements": 2
+      },
+      "passed": true,
+      "source_sha256": "9c44a3d72116837361876bec25ed4333b339c5d58e1b70547c9ff222f9708784"
+    },
+    {
+      "file": "09_verification.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\09_verification.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 22,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 1,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 9,
+              "circle": 3,
+              "ellipse": 0,
+              "line": 3,
+              "polyline": 1,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 2
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 22,
+        "tspan_elements": 10,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "fae9b65aa0f3a74d13ac7445b713d0fca50cf4c942b9aecac473f57523dd28cd"
+    },
+    {
+      "file": "10_next_steps.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\10_next_steps.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [
+        "Noncanonical compact authoring: Authoring SVG contains noncanonical or redundant inherited style declarations (6 change(s)); examples (group:attr None -> value hoists the shared value onto that group; child:attr value -> None drops the copy the child now inherits): column-heads:font-size None -> '18'; column-heads:font-weight None -> 'bold'; text[11]:font-size '18' -> None (advisory; normalize with `python3 scripts/compact_svg_styles.py <svg_output> --inplace`, re-stamp pages that carry Chart/Table fallbacks, and rerun the final gate, or leave the explicit form)"
+      ],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 16,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 19,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 5,
+            "preset_names": {
+              "rightArrow": 5
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 16,
+        "tspan_elements": 2,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "66faa5a1116c144f6099118f9f9f91ae736f756c328c7f31d6eda5792eb33862"
+    },
+    {
+      "file": "11_b1_case_a_evidence.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\11_b1_case_a_evidence.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 32,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 9,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 32,
+        "tspan_elements": 2,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "6eb5ff22aab8f4c848ab7dd415cf16f188b3838097fc43bc06ff8701fa1e6158"
+    },
+    {
+      "file": "12_b2_cookie_release.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\12_b2_cookie_release.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 22,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 6,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 9,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 1,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 22,
+        "tspan_elements": 21,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "eb57b91a994cde1e0a9c211a745eccc6d93932a09b3902aee315ae95ca5c7fa7"
+    },
+    {
+      "file": "13_b3_baseline_record.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\13_b3_baseline_record.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 30,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 1,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 21,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 30,
+        "tspan_elements": 9,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "cd5cb62cd6300490620cc0e5194d9e22c440d04f322c8611f5d33d5c689c2746"
+    },
+    {
+      "file": "14_b4_team_roles.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\14_b4_team_roles.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 17,
+          "images": {
+            "placements": 2,
+            "files": [
+              "image_005.png",
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.2487
+          },
+          "icons": 0,
+          "effects": {
+            "inline_emphasis_runs": 1,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 5,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 0,
+            "preset_names": {},
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 17,
+        "tspan_elements": 4
+      },
+      "passed": true,
+      "source_sha256": "677bdf1be0bb5eb337e416da12820f7cc406fa9644d4e267212f7752224aaa26"
+    },
+    {
+      "file": "15_b5_ai_assisted.svg",
+      "path": "C:\\Users\\ST-user\\Documents\\GitHub\\focusflow\\docs\\03_競賽\\2026_資訊應用服務創新競賽\\敏捷開發簡報\\04_簡報成品\\titansoft_agile_deck_20261101\\svg_output\\15_b5_ai_assisted.svg",
+      "exists": true,
+      "errors": [],
+      "warnings": [],
+      "info": {
+        "viewbox": "0 0 1280 720",
+        "carrier_receipt": {
+          "text_elements": 14,
+          "images": {
+            "placements": 1,
+            "files": [
+              "mark-color.png"
+            ],
+            "max_frame_share": 0.0017
+          },
+          "icons": 3,
+          "effects": {
+            "inline_emphasis_runs": 0,
+            "gradient_uses": 0,
+            "filter_uses": 0,
+            "text_effects": 0
+          },
+          "geometry": {
+            "svg_elements": {
+              "rect": 4,
+              "circle": 0,
+              "ellipse": 0,
+              "line": 0,
+              "polyline": 0,
+              "polygon": 0,
+              "path": 0
+            },
+            "preset_shapes": 3,
+            "preset_names": {
+              "homePlate": 3
+            },
+            "page_frame_elements": 0,
+            "marker_uses": {
+              "start": 0,
+              "mid": 0,
+              "end": 0
+            }
+          },
+          "native_objects": {
+            "chart": 0,
+            "table": 0,
+            "formula_block": 0,
+            "formula_inline": 0,
+            "other": 0
+          }
+        },
+        "fonts": [
+          "Microsoft JhengHei, Segoe UI, sans-serif"
+        ],
+        "text_elements": 14,
+        "tspan_elements": 7,
+        "contextual_values": {
+          "colors": [
+            "#FFFFFF"
+          ]
+        }
+      },
+      "passed": true,
+      "source_sha256": "f104dcbcec90a8829b377f906cb7a766e406dcc0027a226b8a0f34127771e91b"
+    }
+  ]
+}

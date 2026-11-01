@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜邊界</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">正式驗收證據，還在補</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">22</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="statement" data-pptx-bounds="56 250 1100 120">
+    <text x="64" y="320" font-size="34" fill="#15171A">調整之後，<tspan font-weight="bold" fill="#1B4D5C">還沒有一份正式驗收紀錄</tspan>可以證明改善了多少。</text>
+  </g>
+  <g id="pending-items" data-pptx-bounds="56 392 1168 140">
+    <text x="64" y="420" font-size="20" font-weight="bold" fill="#5E8F9C">接下來要補齊並存檔</text>
+    <g fill="none" stroke="#5A6066" stroke-width="2" stroke-dasharray="8,4">
+      <rect x="64" y="440" width="260" height="80"/>
+      <rect x="348" y="440" width="260" height="80"/>
+      <rect x="632" y="440" width="260" height="80"/>
+      <rect x="916" y="440" width="260" height="80"/>
+    </g>
+    <g font-size="28" font-weight="bold" text-anchor="middle" fill="#15171A">
+      <text x="194" y="490">固定題庫</text>
+      <text x="478" y="490">測試設定</text>
+      <text x="762" y="490">原始結果</text>
+      <text x="1046" y="490">人工複核</text>
+    </g>
+  </g>
+  <g id="informal-note" data-pptx-bounds="56 556 1040 64">
+    <text x="64" y="592" font-size="22" fill="#5A6066">附錄另有一筆非正式整合驗證紀錄，已註明不能當作正式驗收。</text>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E16 ›</text>
+  </g></a>
+</svg>

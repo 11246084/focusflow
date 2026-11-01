@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜改善</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">這次事件，讓部署多了一道檢查</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">17</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="event" data-pptx-bounds="56 216 520 300">
+    <use data-icon="tabler-outline/alert-triangle" x="64" y="226" width="48" height="48" fill="#B5482E" stroke-width="2"/>
+    <text x="64" y="316" font-size="20" font-weight="bold" fill="#5E8F9C">09-09 的事件</text>
+    <text x="64" y="372" font-size="28" fill="#15171A">正式驗證第一次失敗，<tspan x="64" dy="44">同一天修正</tspan></text>
+  </g>
+  <g id="deploy-flow" data-pptx-bounds="632 216 592 300">
+    <text x="640" y="290" font-size="20" font-weight="bold" fill="#5E8F9C">09-09 起的部署流程</text>
+    <g id="p17-step-merge" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="640 316 176 72" fill="#5E8F9C" stroke="none">
+<path d="M 640 316 L 780 316 L 816 352 L 780 388 L 640 388 Z"/>
+</g>
+    <g id="p17-step-check" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="800 316 256 72" fill="#E8A93C" stroke="none">
+<path d="M 800 316 L 1020 316 L 1056 352 L 1020 388 L 800 388 L 836 352 Z"/>
+</g>
+    <g id="p17-step-deploy" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="1040 316 176 72" fill="#1B4D5C" stroke="none">
+<path d="M 1040 316 L 1180 316 L 1216 352 L 1180 388 L 1040 388 L 1076 352 Z"/>
+</g>
+    <g font-size="24" font-weight="bold" text-anchor="middle">
+      <text x="720" y="361" fill="#FFFFFF">合併</text>
+      <text x="938" y="361" fill="#15171A">資料相容檢查</text>
+      <text x="1136" y="361" fill="#FFFFFF">部署</text>
+    </g>
+    <line x1="938" y1="392" x2="938" y2="438" stroke="#B5482E" stroke-width="3"/>
+    <text x="938" y="476" font-size="24" font-weight="bold" text-anchor="middle" fill="#B5482E">不一致 → 部署直接失敗</text>
+  </g>
+  <g id="limit" data-pptx-bounds="56 552 1040 72">
+    <rect x="64" y="560" width="1032" height="56" fill="#F5EFE3"/>
+    <rect x="64" y="560" width="6" height="56" fill="#B5482E"/>
+    <text x="92" y="597" font-size="24" fill="#15171A"><tspan font-weight="bold" fill="#B5482E">也要坦白：</tspan>這次模型遷移的程式合併，沒有審查紀錄</text>
+  </g>
+  <a href="#slide-33"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E12 ›</text>
+  </g></a>
+</svg>

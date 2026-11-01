@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">備用頁｜詢答：commit 集中在一個人？</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">B4｜各模組有負責人，整合與部署較集中</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">備用 B4</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="module-owners" data-pptx-bounds="56 186 568 236">
+    <text x="64" y="212" font-size="22" font-weight="bold" fill="#1B4D5C">模組負責人（Notion 專案面板）</text>
+    <g fill="#F5EFE3">
+      <rect x="64" y="228" width="552" height="42"/>
+      <rect x="64" y="320" width="552" height="42"/>
+    </g>
+    <g font-size="22" font-weight="bold" fill="#1B4D5C">
+      <text x="80" y="257">邱偉豪</text>
+      <text x="80" y="303">張庭語</text>
+      <text x="80" y="349">張家瑜</text>
+      <text x="80" y="395">鍾百陶</text>
+    </g>
+    <g font-size="22" fill="#15171A">
+      <text x="200" y="257">後端開發、伺服器部署與運維</text>
+      <text x="200" y="303">AI 模組</text>
+      <text x="200" y="349">前端開發</text>
+      <text x="200" y="395">LINE 開發、資料庫</text>
+    </g>
+  </g>
+  <g id="collaboration" data-pptx-bounds="56 428 568 200">
+    <text x="64" y="456" font-size="22" font-weight="bold" fill="#1B4D5C">案例中的協作<tspan x="64" dy="32" font-weight="normal" fill="#15171A">・案例 A：Pipeline 端遷移由張庭語提交</tspan><tspan x="64" dy="32" font-weight="normal" fill="#15171A">・案例 B：人工複核由兩人分審答案與引用</tspan></text>
+    <text x="64" y="566" font-size="22" fill="#15171A">commit 數（11-01，依學號推定作者）：<tspan x="64" dy="32" font-weight="bold" fill="#1B4D5C">邱偉豪 483・鍾百陶 149・張庭語 44・張家瑜 24</tspan></text>
+    <text x="64" y="622" font-size="18" fill="#5A6066">commit 數不代表工作量：會議、文件、測試未必有 commit</text>
+  </g>
+  <g id="contrib-evidence" data-pptx-bounds="632 186 592 446">
+    <rect x="640" y="192" width="576" height="398" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <image href="../images/image_005.png" x="640" y="192" width="576" height="398" preserveAspectRatio="xMidYMid meet"/>
+    <text x="640" y="618" font-size="18" fill="#5A6066">證據｜GitHub commits 與成員 Contributions（附件 3 圖 5）</text>
+  </g>
+  <g id="to-confirm" data-pptx-bounds="56 642 1164 44">
+    <text x="64" y="670" font-size="18" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">待確認</tspan>：部署負責人在附件 3、Notion、GitHub 三處紀錄不一致</text>
+  </g>
+</svg>

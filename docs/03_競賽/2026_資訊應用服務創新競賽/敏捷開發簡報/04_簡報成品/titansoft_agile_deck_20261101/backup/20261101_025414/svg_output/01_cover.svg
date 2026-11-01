@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="cover">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <rect id="side-field" data-pptx-role="decoration" x="1000" y="0" width="280" height="520" fill="#F5EFE3"/>
+  <g id="brand" data-pptx-bounds="56 56 384 116">
+    <image href="../images/lockup-color.png" x="64" y="64" width="360" height="101.25" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="cover-title" data-pptx-bounds="56 216 960 230">
+    <rect x="64" y="226" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="320" font-size="72" font-weight="bold" fill="#1B4D5C">每一次變化，<tspan x="64" dy="92">都是下一次改善的起點</tspan></text>
+  </g>
+  <g id="cover-sub" data-pptx-bounds="56 456 1000 80">
+    <text x="64" y="490" font-size="30" fill="#15171A">FocusFlow AI 的敏捷開發：<tspan font-weight="bold" fill="#1B4D5C">問題 → 決策 → 行動 → 改善</tspan></text>
+    <text x="64" y="526" font-size="20" fill="#5A6066">我們用 Notion 看板管理工作，讓每一次變化都能被看見、被處理、被驗證</text>
+  </g>
+  <g id="status-strip" data-pptx-bounds="56 552 1164 80">
+    <g id="p01-st-todo" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="64 560 300 64" data-pptx-av-adj="val 35000" fill="#F5EFE3" stroke="#C9BFAA" stroke-width="1.5">
+<path d="M 64 560 L 341.6 560 L 364 592 L 341.6 624 L 64 624 L 86.4 592 Z"/>
+</g>
+    <g id="p01-st-doing" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="346 560 300 64" data-pptx-av-adj="val 35000" fill="#5E8F9C" stroke="none">
+<path d="M 346 560 L 623.6 560 L 646 592 L 623.6 624 L 346 624 L 368.4 592 Z"/>
+</g>
+    <g id="p01-st-test" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="628 560 300 64" data-pptx-av-adj="val 35000" fill="#E8A93C" stroke="none">
+<path d="M 628 560 L 905.6 560 L 928 592 L 905.6 624 L 628 624 L 650.4 592 Z"/>
+</g>
+    <g id="p01-st-done" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="910 560 300 64" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 910 560 L 1187.6 560 L 1210 592 L 1187.6 624 L 910 624 L 932.4 592 Z"/>
+</g>
+    <g font-size="22" font-weight="bold" text-anchor="middle">
+      <text x="214" y="600" fill="#1B4D5C">待辦</text>
+      <text x="496" y="600" fill="#FFFFFF">進行中</text>
+      <text x="778" y="600" fill="#15171A">測試中</text>
+      <text x="1060" y="600" fill="#FFFFFF">已完成</text>
+    </g>
+  </g>
+  <g id="cover-footer" data-pptx-bounds="56 654 1164 32">
+    <text x="64" y="676" font-size="18" fill="#5A6066">2026 第 31 屆大專校院資訊應用服務創新競賽｜鈦坦敏捷開發特別獎｜115413 組｜2026-11-07 決賽</text>
+  </g>
+</svg>

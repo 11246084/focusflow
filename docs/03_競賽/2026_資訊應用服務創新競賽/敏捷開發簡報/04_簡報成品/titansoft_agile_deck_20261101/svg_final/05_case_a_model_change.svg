@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜外部技術變動：快速適應與風險控制</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">外部模型要停用：先評估影響，再小步切換</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">05 / 10</text>
+    <image href="data:image/png;base64,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" x="1172" y="38" width="40" height="40" />
+  </g>
+  <g id="track-labels" data-pptx-bounds="56 270 116 290">
+    <text x="64" y="300" font-size="22" font-weight="bold" fill="#5E8F9C">團隊決策</text>
+    <text x="64" y="540" font-size="22" font-weight="bold" fill="#5E8F9C">交付驗證</text>
+  </g>
+  <g id="axis" data-pptx-bounds="176 384 1044 48">
+    <line x1="536" y1="394" x2="815" y2="394" stroke="#E8A93C" stroke-width="3" />
+    <line x1="536" y1="388" x2="536" y2="400" stroke="#E8A93C" stroke-width="3" />
+    <line x1="815" y1="388" x2="815" y2="400" stroke="#E8A93C" stroke-width="3" />
+    <rect x="644" y="384" width="64" height="22" rx="4" fill="#E8A93C" />
+    <text x="676" y="401" font-size="18" font-weight="bold" text-anchor="middle" fill="#15171A">5 天</text>
+    <line x1="180" y1="410" x2="940" y2="410" stroke="#1B4D5C" stroke-width="3" />
+    <line x1="964" y1="410" x2="1216" y2="410" stroke="#1B4D5C" stroke-width="3" />
+    <line x1="942" y1="420" x2="950" y2="400" stroke="#1B4D5C" stroke-width="3" />
+    <line x1="954" y1="420" x2="962" y2="400" stroke="#1B4D5C" stroke-width="3" />
+    <g fill="#1B4D5C">
+      <circle cx="290" cy="410" r="8" />
+      <circle cx="536" cy="410" r="8" />
+      <circle cx="762" cy="410" r="8" />
+      <circle cx="815" cy="410" r="8" />
+    </g>
+    <circle cx="1091" cy="410" r="10" fill="#3E7D5A" />
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="290" y1="380" x2="290" y2="402" />
+      <line x1="536" y1="380" x2="536" y2="402" />
+      <line x1="762" y1="380" x2="762" y2="402" />
+      <line x1="815" y1="418" x2="815" y2="440" />
+      <line x1="1091" y1="420" x2="1091" y2="440" />
+    </g>
+  </g>
+  <g id="card-0802" data-pptx-bounds="176 206 228 178">
+    <rect x="180" y="210" width="220" height="170" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <rect x="196" y="222" width="56" height="26" rx="4" fill="#B5482E" />
+    <text x="224" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">問題</text>
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="196" y="280">08-02 首次記錄</text><text font-size="22" fill="#15171A" font-weight="normal" x="196" y="310">Phase 2-2 報告、</text><text font-size="22" fill="#15171A" font-weight="normal" x="196" y="340">PR #5 寫下風險</text></g>
+  <g id="card-0804" data-pptx-bounds="412 206 248 178">
+    <rect x="416" y="210" width="240" height="170" rx="4" fill="#1B4D5C" />
+    <rect x="432" y="222" width="56" height="26" rx="4" fill="#E8A93C" />
+    <text x="460" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#15171A">決策</text>
+    <text font-size="22" fill="#FFFFFF" font-weight="bold" x="432" y="280">08-04 教授會議</text><text font-size="22" fill="#FFFFFF" font-weight="normal" x="432" y="310">三組同步更換，</text><text font-size="22" fill="#FFFFFF" font-weight="normal" x="432" y="340">只改一組不可接受；</text><text font-size="22" fill="#FFFFFF" font-weight="normal" x="432" y="370">新檢索功能先關閉</text></g>
+  <g id="card-0807" data-pptx-bounds="668 206 188 178">
+    <rect x="672" y="210" width="180" height="170" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <rect x="688" y="222" width="56" height="26" rx="4" fill="#5E8F9C" />
+    <text x="716" y="241" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">行動</text>
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="688" y="280">08-07</text><text font-size="22" fill="#15171A" font-weight="normal" x="688" y="310">建立看板任務</text><text font-size="22" fill="#15171A" font-weight="normal" x="688" y="340">截止 08-11</text></g>
+  <g id="external-notice" data-pptx-bounds="864 206 356 178">
+    <rect x="868" y="210" width="348" height="170" rx="4" fill="#FBF8F2" stroke="#5A6066" stroke-width="1.5" stroke-dasharray="6,4" />
+    <text x="884" y="244" font-size="18" font-weight="bold" fill="#5A6066">外部變化｜Google 停用時程</text>
+    <text font-size="22" fill="#15171A" x="884" y="282">preview 模型的最早可能</text><text font-size="22" fill="#15171A" x="884" y="312"><tspan>停用日：<tspan font-weight="bold" fill="#1B4D5C">2026-08-10</tspan></tspan></text><text font-size="22" fill="#5A6066" x="884" y="342">公告發布日：待確認</text></g>
+  <g id="card-0809" data-pptx-bounds="686 436 258 198">
+    <rect x="690" y="440" width="250" height="190" rx="4" fill="#F5EFE3" stroke="#1B4D5C" stroke-width="2" />
+    <rect x="706" y="452" width="56" height="26" rx="4" fill="#5E8F9C" />
+    <text x="734" y="471" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">行動</text>
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="706" y="510">08-09 程式切換</text><text font-size="22" fill="#15171A" font-weight="normal" x="706" y="540">PR #6 合併＋自動部署</text><text font-size="22" fill="#15171A" font-weight="normal" x="706" y="570">Pipeline 同日完成</text><text font-size="22" fill="#15171A" font-weight="normal" x="706" y="600">371 項測試通過</text></g>
+  <g id="card-0909" data-pptx-bounds="962 436 258 198">
+    <rect x="966" y="440" width="250" height="190" rx="4" fill="#F5EFE3" stroke="#3E7D5A" stroke-width="3" />
+    <rect x="982" y="452" width="56" height="26" rx="4" fill="#3E7D5A" />
+    <text x="1010" y="471" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">改善</text>
+    <text x="1050" y="471" font-size="18" fill="#5A6066">一個月後</text>
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="982" y="510">09-09 正式完成</text><text font-size="22" fill="#15171A" font-weight="normal" x="982" y="540">重建試用資料向量</text><text font-size="22" fill="#15171A" font-weight="normal" x="982" y="570">部署加資料契約檢查</text><text font-size="22" fill="#15171A" font-weight="normal" x="982" y="600">首驗失敗→同日修正</text></g>
+  <g id="limits" data-pptx-bounds="56 644 1164 42">
+    <text x="64" y="670" font-size="18" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">限制</tspan>：08-09 時尚未做 Gemini 真實連線、正式資料庫驗證與資料重建；PR #6 建立後 1.5 分鐘合併，沒有審查紀錄</text>
+  </g>
+</svg>

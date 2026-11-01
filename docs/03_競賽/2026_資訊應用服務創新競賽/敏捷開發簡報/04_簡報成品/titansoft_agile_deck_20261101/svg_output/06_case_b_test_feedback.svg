@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowDown" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#5E8F9C"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜依測試回饋調整產品品質</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">第一次量測 0 題通過，我們沒有放寬標準</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">06 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="steps-header" data-pptx-bounds="56 188 1168 72">
+    <g id="p06-h1" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="64 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 64 196 L 320.4 196 L 340 224 L 320.4 252 L 64 252 L 83.6 224 Z"/>
+</g>
+    <g id="p06-h2" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="356 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 356 196 L 612.4 196 L 632 224 L 612.4 252 L 356 252 L 375.6 224 Z"/>
+</g>
+    <g id="p06-h3" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="648 196 276 56" data-pptx-av-adj="val 35000" fill="#E8A93C" stroke="none">
+<path d="M 648 196 L 904.4 196 L 924 224 L 904.4 252 L 648 252 L 667.6 224 Z"/>
+</g>
+    <g id="p06-h4" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="940 196 276 56" data-pptx-av-adj="val 35000" fill="#1B4D5C" stroke="none">
+<path d="M 940 196 L 1196.4 196 L 1216 224 L 1196.4 252 L 940 252 L 959.6 224 Z"/>
+</g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="206" y="232">① 測試暴露問題</text>
+      <text x="498" y="232">② 分析問題來源</text>
+      <text x="790" y="232" fill="#15171A">③ 不放寬標準</text>
+      <text x="1082" y="232">④ 多輪調整</text>
+    </g>
+  </g>
+  <g id="baseline-result" data-pptx-bounds="60 268 284 312">
+    <text x="72" y="300" font-size="22" font-weight="bold" fill="#1B4D5C">09-01 baseline・14 題</text>
+    <g id="baseline-result-chartArea">
+      <line x1="72" y1="322" x2="72" y2="382" stroke="#1B4D5C" stroke-width="2"/>
+      <!-- chart-plot-area: object=baseline-result | 72,326,332,378 -->
+      <rect x="72" y="330" width="204.29" height="44" fill="#E8A93C"/>
+      <rect x="276.29" y="330" width="55.71" height="44" fill="#B5482E"/>
+      <text x="174" y="360" font-size="22" font-weight="bold" text-anchor="middle" fill="#15171A">11</text>
+      <text x="304" y="360" font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">3</text>
+    </g>
+    <g font-size="22" fill="#15171A">
+      <rect x="72" y="400" width="18" height="18" fill="#1B4D5C"/>
+      <text x="100" y="417"><tspan font-weight="bold" fill="#1B4D5C">通過 0 題</tspan></text>
+      <rect x="72" y="434" width="18" height="18" fill="#E8A93C"/>
+      <text x="100" y="451">偏弱 11 題</text>
+      <rect x="72" y="468" width="18" height="18" fill="#B5482E"/>
+      <text x="100" y="485">失敗 3 題</text>
+      <text x="72" y="536">OpenCV 15 支影片<tspan x="72" dy="32">唯讀・人工逐題複核</tspan></text>
+    </g>
+  </g>
+  <g id="problem-sources" data-pptx-bounds="352 268 284 334">
+    <rect x="356" y="270" width="276" height="140" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="372" y="302" font-size="22" font-weight="bold" fill="#1B4D5C">程式邏輯<tspan x="372" dy="30" font-weight="normal" fill="#15171A">拒答仍附引用</tspan><tspan x="372" dy="30" font-weight="normal" fill="#15171A">引用＝全部搜尋結果</tspan><tspan x="372" dy="30" font-weight="normal" fill="#15171A">有正確資料仍答錯</tspan></text>
+    <rect x="356" y="424" width="276" height="80" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="372" y="456" font-size="22" font-weight="bold" fill="#1B4D5C">題目與教材<tspan x="372" dy="30" font-weight="normal" fill="#15171A">Q09 教材支持不足</tspan></text>
+    <rect x="356" y="518" width="276" height="80" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="372" y="550" font-size="22" font-weight="bold" fill="#1B4D5C">搜尋品質<tspan x="372" dy="30" font-weight="normal" fill="#15171A">相鄰關鍵片段漏掉</tspan></text>
+  </g>
+  <g id="standard-lock" data-pptx-bounds="644 268 284 334">
+    <rect x="648" y="270" width="276" height="328" rx="4" fill="#1B4D5C"/>
+    <use data-icon="phosphor-duotone/lock-key" x="664" y="288" width="48" height="48" fill="#E8A93C"/>
+    <text x="664" y="384" font-size="34" font-weight="bold" fill="#FFFFFF">標準不變</text>
+    <text x="664" y="434" font-size="22" fill="#FFFFFF">不放寬課程隔離<tspan x="664" dy="32">Q09 依教材修正題目，</tspan><tspan x="664" dy="32">不是降低判定標準</tspan></text>
+    <text x="664" y="560" font-size="22" font-weight="bold" fill="#FFFFFF">先分清問題來源，<tspan x="664" dy="30">再決定怎麼改</tspan></text>
+  </g>
+  <g id="iteration-rounds" data-pptx-bounds="936 268 284 334">
+    <text x="948" y="300" font-size="30" font-weight="bold" fill="#1B4D5C">09-02～09-06</text>
+    <rect x="940" y="320" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="956" y="355" font-size="22" fill="#15171A">問答契約修正</text>
+    <rect x="940" y="394" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="956" y="429" font-size="22" fill="#15171A">建立評測工具</text>
+    <rect x="940" y="468" width="276" height="54" rx="4" fill="#E8A93C"/>
+    <text x="956" y="503" font-size="22" font-weight="bold" fill="#15171A">8 輪檢索診斷與調整</text>
+    <rect x="940" y="542" width="276" height="54" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="956" y="577" font-size="22" fill="#15171A">整合並凍結（09-06）</text>
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="1078" y1="376" x2="1078" y2="390" marker-end="url(#arrowDown)"/>
+      <line x1="1078" y1="450" x2="1078" y2="464" marker-end="url(#arrowDown)"/>
+      <line x1="1078" y1="524" x2="1078" y2="538" marker-end="url(#arrowDown)"/>
+    </g>
+  </g>
+  <g id="limits" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="18" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">限制</tspan>：調整後的正式驗收證據（題庫、設定、原始結果、人工複核）尚未建立｜證據：2026-09-01 人工複核表</text>
+  </g>
+</svg>

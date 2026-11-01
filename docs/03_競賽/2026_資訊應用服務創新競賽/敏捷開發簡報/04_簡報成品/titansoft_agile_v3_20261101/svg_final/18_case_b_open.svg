@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="section">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#1B4D5C" />
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#E8A93C">案例 B｜測試結果驅動改善</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#FFFFFF">案例 B：第一次量測，0 題通過</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#F5EFE3">18</text>
+    <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAAJnElEQVR42u1be4xU1Rn/fefemX2wLwoLqBixGCRLbRuEliCL0NK04ismHUwT1D7StWrbmJCYxjYd1vJna9KmgkEaNbFpMqTRUtsEGroErCGCVuqjEUHbgqDhue/HzD2//rHnwPFy7zzY2Rc7X3Kzd+/cM+c7v/O9zvd9A1SoQhWqUIUqVKEKTU2SsZyMpJg5JWZu2ktEOCUAMqB4ZtFBCeM8c6vHEywZRWAUAHFBIVkL4LMA5gO4BsB0AD6AQQBnABwDcBTAhyKSc8b5AILxAEpGSWKUBYbkHAC3A1gLYCmAawt8RQ7AhwBeBbADwN9EpNuRKj1R1O9ywPGc+5tIbiV5hpdSjmQ24goi3v0vyU0krwlJ5+QEh+Qskk+RHAwBkjMAaOcKnEubd+3zrBlj6TTJx0kmw5sx0YERu6Mk7yF5zFlUNrTw8KLD5L4THmfpIMmbHds0acDZFANMEAPKOaM+R0keJ9kd8U42Bqh+kg9MaJAMOFatnnVUKXAW5ALzCckXSH6b5BdJNpOsIumTrCF5Fckvk/whyT+T7AmpaNT9YxMSJAOOHwJnyGHcNbaHST5CcmaJc1xP8gljexhhp6w0bZhwIDngbIoAJ+f8fYJknWvIjcQoA3L4uvC5M2YuyeciwHdBSk0Yw+2o1Z0OODoEznGSt7qAmviopEDTlQqjmgMhkKwH7Ca5YNxDAGuUSc4g+bHjkl2mD5O83ryfKBWYfECRXG3A0BGb8op515sI0rPF8TKuffiI5LzRsAkkE+bvV43UuqGA5eN742aPHLux0DDoBn02Mr5lNBl0QHooJD2Wl2Mk66xNGy/p2RbaNcvkL9xFjIGDeDnCKZDkD8q5SVKs7RERkmwGcARAvZO/EQD/AbAIwFAxh0kCgkxKobnl4vyn3qWs2x4UI8lm3hsA/AtAlU2LAFAADgG4eUxzSs6ufTdm1x4qdtfItCrgBKQEfn4XkmZrkxaXy+0XK4Z2J+50s34mEXYGwB/MwoJC4Ii060wq5d21YfY3KLKcQJMCT+oAHSLyDwBgOq2kvV3nx4gCYAuA7xjJgZnfN+mVN8qRzpES1KvGqNfVRpy1Yeb3IrKepJcvY2jBObXn+0vra6qfrkp6i+GJUVJBbigHrfly15B+sHnFUyfsvEWkbw8B+Jzhx27abhFZQ1KJiB5tCRIz8XwAV5lnyjAEALscZvOC0/PqI4v9hNqd9FR9Z89gIAIHAJGGxuo7aoPBv3ft/VErNm48QxJ5QPJEJEdytwOQVakWkrUi0lcI6EKkSpCy+ebeSolngHvTMKBjDTI28u1MKhkE+rmk79V39WSzSsQTiH/xgtd5rn+otqH6Ri3Bk9LerrF9XTH8HYh4NstI+oizpqUANDdUeRAAnQA+CtmpEEIpJSK89urmNQ11VTd19QwGSiEyFFBKEj3n+7Wn5N5zHQ/Ok3XbA6Zjjbqd7wNnw8RRs9ljBZClpgjmugD05B2154IrXwlP8dNqdelmaA3W1SYS4ntfAoA9q1AIoLPOhrmS3FAOD65GaK+yhTyXQ9OJIqJbIaGESrEJAFYV/t5cDA+JsQZoMOJZVdGhAnlSUISxpAgDCjVOAgBWvVtoTJVjnAvxO6oAnY2wS00AGvOOOmUWKGpnkM0JIHm8HZjwRXr7h7qFA/uHn2Z0AdvYbO61+WvXdH6sALI7eMwZY/W9DsB1eb8rtV0fPNiWeCM780BvX3ZnQ2O1RzAXo15BTUO10sRv61ufPc2DbYk8LtoCtMA5alhbNATg47zOYxQAOmJ03Z6FrN4viYuDmEl5IuCSJVuzq1e356QmWN/XO3S0Oun7xIVjAUmQpJ5Wk/S7z/Xtblyx+XERUJZszZKQfMcTAMsieD0BGBUdIUClRNIJAP828ZAbtf5FRO6Ii6TJtOrad2opPKwQ4vPUbPF8uUFrNCZ8JUa1kAt0oBTOBprvgDgigteFsq++dfM7eXhKAngPwLwQTztE5O5C0X05T/OeiAQknwdwn5EeG3f0AbjRxEMiIpqEACnV9cqM9YB8SwQLCGkS0CMwBLJXRLIQiEBATbPVTIrINBD+sIeU0wTfpuYz0299eqcmRAS0JWgAawDsck7yOeM0HhWRX5P03Rr/aB5WLZAvAbgfF9tXcgBqAbSJyM9JekynIdKuO/fOmi9K/waAJqQb4FsE3oLG6wlP3hvQwXEvkeitT/pBd9Dv6wE0eqKuI7AQkCUAF5GcK4K1UKpFdzywWOT5gWHwASNBj4bUyDM8/dWxS2OaD6oDcBjAHMcgWo+xEMBpc6ziiR1tNXUzvJ9C8zPKkz/2Dcr+2as39xTLWFdH28zA81d5indBsL9++eYtxjcoI80rAOw1fCjHPu4Rka+U46B6uTmhTTEZxRcKZRTJtCJTXiaT8phOmxQuhks+6bRiJuWRw5/lyRfZ0tA/Y3JT94xLXtrJSc8heT5UyLPM3f/p3HFaZTIpb3jhKLHsAxkel1bWizk56ScjwNEk3zQAjk/px8lL/yQik5czdatV5c5Nm40JJ+yzEcXEr5crkzgSRhXJJMlDoV200tRNco1ldKS7ab7DhAN8OCQx7vzbxhWcUNIcJL9gJCYX6uSw1daHXftVClCOrbESmyD5q4gavfv/2rGoqpSqavfFtKlYeonkorCxN5dnpNFe1vh6ofdXkzwQITkMNVydJ9k6Lga6gFd7LIJ5t/Wln+QzJJcVW8wjWU3yNpJ/iml7iWq8supdVpBGWjf3TV54A4BfOpUFL+IeJsG+16RJPzAVkZxJWTSbg+cyACvNkcbNYLqVi6heaxtN9wBYKyL7yhFJl1OS7iXZ6ahcXCNVeOfjPgt3pgUx6sUIb9Y9UdWthWRHqIUuCC0gG2NLgohuV+00gFraRvJupwMtmCwguS3Abab3MKo5M9zpqiM6XHOhOIckXyN5uzPHSpJdkw0k5cQs9Saoe62AeuViJMqGCztJftP5XuUEja1O8+fkACkqWCO5lOTPSO4yLSrZGNAGjOS9SPLHJBfmkVJ/LEAazd9qCEz1M/S8FsNFvVkmn50wCfZzAD4BcFJEhkKBqSCia8Txoq0mxVHneLOJ7d0iVK/oaDqqmbMIBzE51S3Pec6LuNTldIaNAKTJ8XOGMocaxYK03D1bVkC69MjyP+Npx76fcRKB9LVCqnbFiZfxar6I7MPwj/h6nJw1Qkl+YqpSjCS5EfrUVLEYkG4h+b6jYu+TXFaMkZYpAJItek7DxTL1fhHpHWl73pUEkirm2ZSUoNDRx4KiK5JToQpVqEIVuvLp/3i1Q4J37Oe2AAAAAElFTkSuQmCC" x="1182" y="38" width="36" height="36" />
+  </g>
+  <g id="zero-pass" data-pptx-bounds="56 216 900 240">
+    <text x="58" y="400" font-size="150" font-weight="bold" fill="#E8A93C">0</text>
+    <text x="176" y="340" font-size="34" font-weight="bold" fill="#FFFFFF">題完整通過</text>
+    <text x="176" y="396" font-size="22" fill="#F5EFE3">09-01 用真實課程資料量測 14 題，人工逐題複核</text>
+  </g>
+  <g id="result-strip" data-pptx-bounds="56 460 1168 128">
+    <g fill="#E8A93C">
+      <rect x="64" y="470" width="76" height="56" />
+      <rect x="146" y="470" width="76" height="56" />
+      <rect x="228" y="470" width="76" height="56" />
+      <rect x="310" y="470" width="76" height="56" />
+      <rect x="392" y="470" width="76" height="56" />
+      <rect x="474" y="470" width="76" height="56" />
+      <rect x="556" y="470" width="76" height="56" />
+      <rect x="638" y="470" width="76" height="56" />
+      <rect x="720" y="470" width="76" height="56" />
+      <rect x="802" y="470" width="76" height="56" />
+      <rect x="884" y="470" width="76" height="56" />
+    </g>
+    <g fill="#B5482E">
+      <rect x="966" y="470" width="76" height="56" />
+      <rect x="1048" y="470" width="76" height="56" />
+      <rect x="1130" y="470" width="76" height="56" />
+    </g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="512" y="568">偏弱 11 題</text>
+      <text x="1086" y="568">失敗 3 題</text>
+    </g>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#24606F" stroke="#5E8F9C" />
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#F5EFE3">E13 ›</text>
+  </g></a>
+</svg>

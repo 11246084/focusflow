@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="cover">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#1B4D5C"/>
+  <g id="brand" data-pptx-bounds="56 40 260 84">
+    <image href="../images/lockup-white.png" x="64" y="52" width="213" height="60" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="cover-title" data-pptx-bounds="56 200 1000 300">
+    <rect x="64" y="216" width="64" height="8" fill="#E8A93C"/>
+    <text x="64" y="320" font-size="76" font-weight="bold" fill="#FFFFFF">每一次變化，<tspan x="64" dy="104">都是下一次改善的起點</tspan></text>
+    <text x="64" y="484" font-size="34" fill="#F5EFE3">FocusFlow AI｜敏捷開發歷程</text>
+  </g>
+  <g id="kanban-bands" data-pptx-bounds="720 540 560 160" font-size="18">
+    <rect x="728" y="552" width="552" height="32" fill="#5E8F9C"/>
+    <rect x="808" y="588" width="472" height="32" fill="#E8A93C"/>
+    <rect x="888" y="624" width="392" height="32" fill="#F5EFE3"/>
+    <rect x="968" y="660" width="312" height="32" fill="#3E7D5A"/>
+    <text x="744" y="574" fill="#FFFFFF">待辦</text>
+    <text x="824" y="610" fill="#15171A">進行中</text>
+    <text x="904" y="646" fill="#15171A">測試中</text>
+    <text x="984" y="682" fill="#FFFFFF">已完成</text>
+  </g>
+</svg>

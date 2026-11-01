@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowAxis" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#1B4D5C"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">一步一步交付</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">每一階段都交付能操作的版本</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">08 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="axis" data-pptx-bounds="56 340 1168 104">
+    <line x1="72" y1="400" x2="1208" y2="400" stroke="#1B4D5C" stroke-width="4" marker-end="url(#arrowAxis)"/>
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="128" y1="344" x2="128" y2="390"/>
+      <line x1="468" y1="344" x2="468" y2="390"/>
+      <line x1="812" y1="344" x2="812" y2="390"/>
+      <line x1="1152" y1="344" x2="1152" y2="390"/>
+      <line x1="298" y1="410" x2="298" y2="440"/>
+      <line x1="640" y1="410" x2="640" y2="440"/>
+      <line x1="982" y1="410" x2="982" y2="440"/>
+    </g>
+    <g fill="#1B4D5C">
+      <circle cx="128" cy="400" r="10"/>
+      <circle cx="298" cy="400" r="10"/>
+      <circle cx="468" cy="400" r="10"/>
+      <circle cx="640" cy="400" r="10"/>
+      <circle cx="812" cy="400" r="10"/>
+      <circle cx="982" cy="400" r="10"/>
+    </g>
+    <circle cx="1152" cy="400" r="13" fill="#E8A93C"/>
+  </g>
+  <g id="node-0421" data-pptx-bounds="56 206 230 134">
+    <text x="64" y="236" font-size="30" font-weight="bold" fill="#1B4D5C">04-21</text>
+    <text x="64" y="270" font-size="22" fill="#15171A">核心流程可展示</text>
+    <text x="64" y="304" font-size="18" fill="#5A6066">教授會議 11</text>
+  </g>
+  <g id="node-0528" data-pptx-bounds="178 444 240 140">
+    <text x="298" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">05-28</text>
+    <text x="298" y="510" font-size="22" text-anchor="middle" fill="#15171A">自動部署上線</text>
+    <text x="298" y="544" font-size="18" text-anchor="middle" fill="#5A6066">GitHub Actions</text>
+  </g>
+  <g id="node-0809" data-pptx-bounds="340 206 256 134">
+    <text x="468" y="236" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-09</text>
+    <text x="468" y="270" font-size="22" text-anchor="middle" fill="#15171A">模型程式切換</text>
+    <text x="468" y="304" font-size="18" text-anchor="middle" fill="#5A6066">案例 A・PR #6</text>
+  </g>
+  <g id="node-0815" data-pptx-bounds="510 444 260 140">
+    <text x="640" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-15</text>
+    <text x="640" y="510" font-size="22" text-anchor="middle" fill="#15171A">批次處理<tspan x="640" dy="30">中斷可續跑</tspan></text>
+    <text x="640" y="574" font-size="18" text-anchor="middle" fill="#5A6066">commit 0ce4835</text>
+  </g>
+  <g id="node-0906" data-pptx-bounds="690 206 244 134">
+    <text x="812" y="236" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-30～09-06</text>
+    <text x="812" y="270" font-size="22" text-anchor="middle" fill="#15171A">課程隔離・問答改善</text>
+    <text x="812" y="304" font-size="18" text-anchor="middle" fill="#5A6066">案例 B</text>
+  </g>
+  <g id="node-0921" data-pptx-bounds="862 444 240 140">
+    <text x="982" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">09-21</text>
+    <text x="982" y="510" font-size="22" text-anchor="middle" fill="#15171A">開放學生試用</text>
+    <text x="982" y="544" font-size="18" text-anchor="middle" fill="#5A6066">試用紀錄</text>
+  </g>
+  <g id="node-1025" data-pptx-bounds="950 206 270 134">
+    <text x="1210" y="236" font-size="30" font-weight="bold" text-anchor="end" fill="#1B4D5C">10-25</text>
+    <text x="1210" y="270" font-size="22" text-anchor="end" fill="#15171A">cookie 登入上線驗收</text>
+    <text x="1210" y="304" font-size="18" text-anchor="end" fill="#5A6066">run 40164725618</text>
+  </g>
+  <g id="takeaway" data-pptx-bounds="56 606 1164 72">
+    <rect x="64" y="612" width="1152" height="60" fill="#1B4D5C" fill-opacity="0.07"/>
+    <text x="84" y="652" font-size="30" fill="#15171A">下一步怎麼走，由<tspan font-weight="bold" fill="#1B4D5C">每週檢視的結果</tspan>決定</text>
+  </g>
+</svg>

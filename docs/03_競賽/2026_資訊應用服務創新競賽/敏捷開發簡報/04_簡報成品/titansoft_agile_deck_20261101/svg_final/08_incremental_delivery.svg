@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowAxis" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#1B4D5C" />
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">一步一步交付</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">每一階段都交付能操作的版本</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">08 / 10</text>
+    <image href="data:image/png;base64,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" x="1172" y="38" width="40" height="40" />
+  </g>
+  <g id="axis" data-pptx-bounds="56 340 1168 104">
+    <line x1="72" y1="400" x2="1208" y2="400" stroke="#1B4D5C" stroke-width="4" marker-end="url(#arrowAxis)" />
+    <g stroke="#5E8F9C" stroke-width="2">
+      <line x1="128" y1="344" x2="128" y2="390" />
+      <line x1="468" y1="344" x2="468" y2="390" />
+      <line x1="812" y1="344" x2="812" y2="390" />
+      <line x1="1152" y1="344" x2="1152" y2="390" />
+      <line x1="298" y1="410" x2="298" y2="440" />
+      <line x1="640" y1="410" x2="640" y2="440" />
+      <line x1="982" y1="410" x2="982" y2="440" />
+    </g>
+    <g fill="#1B4D5C">
+      <circle cx="128" cy="400" r="10" />
+      <circle cx="298" cy="400" r="10" />
+      <circle cx="468" cy="400" r="10" />
+      <circle cx="640" cy="400" r="10" />
+      <circle cx="812" cy="400" r="10" />
+      <circle cx="982" cy="400" r="10" />
+    </g>
+    <circle cx="1152" cy="400" r="13" fill="#E8A93C" />
+  </g>
+  <g id="node-0421" data-pptx-bounds="56 206 230 134">
+    <text x="64" y="236" font-size="30" font-weight="bold" fill="#1B4D5C">04-21</text>
+    <text x="64" y="270" font-size="22" fill="#15171A">核心流程可展示</text>
+    <text x="64" y="304" font-size="18" fill="#5A6066">教授會議 11</text>
+  </g>
+  <g id="node-0528" data-pptx-bounds="178 444 240 140">
+    <text x="298" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">05-28</text>
+    <text x="298" y="510" font-size="22" text-anchor="middle" fill="#15171A">自動部署上線</text>
+    <text x="298" y="544" font-size="18" text-anchor="middle" fill="#5A6066">GitHub Actions</text>
+  </g>
+  <g id="node-0809" data-pptx-bounds="340 206 256 134">
+    <text x="468" y="236" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-09</text>
+    <text x="468" y="270" font-size="22" text-anchor="middle" fill="#15171A">模型程式切換</text>
+    <text x="468" y="304" font-size="18" text-anchor="middle" fill="#5A6066">案例 A・PR #6</text>
+  </g>
+  <g id="node-0815" data-pptx-bounds="510 444 260 140">
+    <text x="640" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-15</text>
+    <text font-size="22" fill="#15171A" text-anchor="middle" x="640" y="510">批次處理</text><text font-size="22" fill="#15171A" text-anchor="middle" x="640" y="540">中斷可續跑</text><text x="640" y="574" font-size="18" text-anchor="middle" fill="#5A6066">commit 0ce4835</text>
+  </g>
+  <g id="node-0906" data-pptx-bounds="690 206 244 134">
+    <text x="812" y="236" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">08-30～09-06</text>
+    <text x="812" y="270" font-size="22" text-anchor="middle" fill="#15171A">課程隔離・問答改善</text>
+    <text x="812" y="304" font-size="18" text-anchor="middle" fill="#5A6066">案例 B</text>
+  </g>
+  <g id="node-0921" data-pptx-bounds="862 444 240 140">
+    <text x="982" y="476" font-size="30" font-weight="bold" text-anchor="middle" fill="#1B4D5C">09-21</text>
+    <text x="982" y="510" font-size="22" text-anchor="middle" fill="#15171A">開放學生試用</text>
+    <text x="982" y="544" font-size="18" text-anchor="middle" fill="#5A6066">試用紀錄</text>
+  </g>
+  <g id="node-1025" data-pptx-bounds="950 206 270 134">
+    <text x="1210" y="236" font-size="30" font-weight="bold" text-anchor="end" fill="#1B4D5C">10-25</text>
+    <text x="1210" y="270" font-size="22" text-anchor="end" fill="#15171A">cookie 登入上線驗收</text>
+    <text x="1210" y="304" font-size="18" text-anchor="end" fill="#5A6066">run 40164725618</text>
+  </g>
+  <g id="takeaway" data-pptx-bounds="56 606 1164 72">
+    <rect x="64" y="612" width="1152" height="60" fill="#1B4D5C" fill-opacity="0.07" />
+    <text x="84" y="652" font-size="30" fill="#15171A">下一步怎麼走，由<tspan font-weight="bold" fill="#1B4D5C">每週檢視的結果</tspan>決定</text>
+  </g>
+</svg>

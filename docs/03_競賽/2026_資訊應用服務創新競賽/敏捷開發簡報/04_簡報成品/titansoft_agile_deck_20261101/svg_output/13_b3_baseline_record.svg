@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">備用頁｜詢答：測試結果可信嗎</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">B3｜Baseline 題目、標準與後續紀錄</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">備用 B3</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="criteria" data-pptx-bounds="56 186 548 214">
+    <text x="64" y="212" font-size="22" font-weight="bold" fill="#1B4D5C">判定標準（人工逐題複核）</text>
+    <rect x="64" y="230" width="84" height="32" rx="4" fill="#3E7D5A"/>
+    <text x="106" y="254" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">PASS</text>
+    <text x="164" y="254" font-size="22" fill="#15171A">回答正確完整、教材直接支持、<tspan x="164" dy="30">引用主要指向支持內容</tspan></text>
+    <rect x="64" y="304" width="84" height="32" rx="4" fill="#E8A93C"/>
+    <text x="106" y="328" font-size="18" font-weight="bold" text-anchor="middle" fill="#15171A">WEAK</text>
+    <text x="164" y="328" font-size="22" fill="#15171A">大致正確，但內容遺漏或引用過廣</text>
+    <rect x="64" y="350" width="84" height="32" rx="4" fill="#B5482E"/>
+    <text x="106" y="374" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">FAIL</text>
+    <text x="164" y="374" font-size="22" fill="#15171A">實質錯誤、教材不支持或負向題不符</text>
+  </g>
+  <g id="baseline-question-grid" data-pptx-bounds="56 408 548 182">
+    <g fill="#E8A93C">
+      <rect x="64" y="420" width="72" height="56"/>
+      <rect x="140" y="420" width="72" height="56"/>
+      <rect x="216" y="420" width="72" height="56"/>
+      <rect x="368" y="420" width="72" height="56"/>
+      <rect x="444" y="420" width="72" height="56"/>
+      <rect x="520" y="420" width="72" height="56"/>
+      <rect x="64" y="480" width="72" height="56"/>
+      <rect x="216" y="480" width="72" height="56"/>
+      <rect x="292" y="480" width="72" height="56"/>
+      <rect x="368" y="480" width="72" height="56"/>
+      <rect x="444" y="480" width="72" height="56"/>
+    </g>
+    <g fill="#B5482E">
+      <rect x="292" y="420" width="72" height="56"/>
+      <rect x="140" y="480" width="72" height="56"/>
+      <rect x="520" y="480" width="72" height="56"/>
+    </g>
+    <g font-size="20" font-weight="bold" text-anchor="middle" fill="#15171A">
+      <text x="100" y="455">Q01</text>
+      <text x="176" y="455">Q02</text>
+      <text x="252" y="455">Q03</text>
+      <text x="404" y="455">Q05</text>
+      <text x="480" y="455">Q06</text>
+      <text x="556" y="455">Q07</text>
+      <text x="100" y="515">Q08</text>
+      <text x="252" y="515">Q10</text>
+      <text x="328" y="515">Q11</text>
+      <text x="404" y="515">Q12</text>
+      <text x="480" y="515">N01</text>
+    </g>
+    <g font-size="20" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="328" y="455">Q04</text>
+      <text x="176" y="515">Q09</text>
+      <text x="556" y="515">N02</text>
+    </g>
+    <text x="64" y="572" font-size="22" fill="#15171A">09-01 baseline：<tspan font-weight="bold" fill="#1B4D5C">通過 0・偏弱 11・失敗 3</tspan></text>
+  </g>
+  <g id="q09-change" data-pptx-bounds="620 186 604 196">
+    <rect x="628" y="192" width="588" height="184" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="644" y="226" font-size="22" font-weight="bold" fill="#1B4D5C">Q09 為什麼改題</text>
+    <text x="644" y="262" font-size="22" fill="#15171A">原題：兩者在車牌辨識流程中如何配合<tspan x="644" dy="30">教材只支持「定位後接 OCR」</tspan><tspan x="644" dy="30">改為：偵測與分類的輸出差異、</tspan><tspan x="644" dy="30">教材所說的先後配合</tspan></text>
+  </g>
+  <g id="non-formal-record" data-pptx-bounds="620 392 604 220">
+    <rect x="628" y="398" width="588" height="208" rx="4" fill="#FBF8F2" stroke="#E8A93C" stroke-width="2" stroke-dasharray="8,4"/>
+    <text x="644" y="432" font-size="22" font-weight="bold" fill="#B5482E">非正式整合驗證紀錄（不是正式驗收）</text>
+    <text x="644" y="464" font-size="22" fill="#15171A">commit 915dcf1（09-06）記載：<tspan x="644" dy="30" font-weight="bold" fill="#1B4D5C">13 PASS／1 WEAK／0 FAIL</tspan><tspan x="644" dy="30">・Q09 已改寫，不是同一套 14 題</tspan><tspan x="644" dy="30">・原始結果未存檔，依團隊證據規則不算驗收</tspan><tspan x="644" dy="30">・剩下 1 題 WEAK 是哪題：待確認</tspan></text>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="18" fill="#5A6066">證據：2026-09-01 baseline 人工複核表、09-04 題庫改版說明、證據存放規則（evidence_README）</text>
+  </g>
+</svg>

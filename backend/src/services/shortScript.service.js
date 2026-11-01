@@ -20,6 +20,14 @@ const {
 // 證據代號 A、B、C…，對應腳本模板 §2 的對照表。
 const EVIDENCE_CODES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+async function stampTranscriptVersions(evidence, course) {
+  const { videos } = await require('./bridgeScope.service').collectScopedVideos(course);
+  return evidence.map((item) => {
+    const video = videos.find((entry) => [entry._id, entry.videoId, entry.video_id].filter(Boolean).some((id) => String(id) === String(item.videoId)));
+    return { ...item, transcriptVersion: video?.activeTranscriptVersion || 'legacy' };
+  });
+}
+
 // 已 approved / dismissed 的主題不再被自動選中（規格書附錄 F.1）。
 // 其餘狀態（evidence_ready、generated、changes_requested）代表還在進行中，
 // 同樣不該重複選題，因此一律排除——實際上 courseId + topicKey 有 unique 索引，
@@ -215,9 +223,9 @@ async function createScriptWithFrozenEvidence({ user, courseId, topicKey = null,
       limit: env.shortScriptMatchLimit,
     });
 
-    const candidateEvidence = buildEvidence(
+    const candidateEvidence = await stampTranscriptVersions(buildEvidence(
       await expandMatchesWithNeighbours(candidateRetrieval.matches),
-    );
+    ), course);
 
     if (candidateEvidence.length >= env.shortScriptEvidenceMinItems) {
       selected = candidate;
@@ -396,7 +404,7 @@ async function generateScriptVersion({ user, scriptId } = {}) {
       question: script.topic,
       limit: env.shortScriptMatchLimit,
     });
-    const refreshed = buildEvidence(await expandMatchesWithNeighbours(retrieval.matches));
+    const refreshed = await stampTranscriptVersions(buildEvidence(await expandMatchesWithNeighbours(retrieval.matches)), course);
 
     if (refreshed.length < env.shortScriptEvidenceMinItems) {
       throw new AppError(

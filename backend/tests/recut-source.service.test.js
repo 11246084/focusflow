@@ -71,6 +71,24 @@ describe('recut RC2 連續視窗與句子', () => {
     store.videoSegments.push(...segments.map((s) => ({ ...s, videoId: ids.teacherVideoExternal })));
     const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
     assert.equal(String(input.video._id), ids.teacherVideo); assert.equal(input.hits[0].videoId, ids.teacherVideo);
+    assert.ok(input.segments.length); assert.ok(input.segments.every((segment) => !segment.transcriptVersion));
+  });
+  it('同版本才以chunkId回查，排除其他版本片段', async () => {
+    const script = seedScript({ evidence: [{ ...segments[5], transcriptVersion: 'upgrade-1' }] });
+    store.videos.find((video) => String(video._id) === ids.teacherVideo).activeTranscriptVersion = 'upgrade-1';
+    store.videoSegments.push(...segments.map((segment) => ({ ...segment, transcriptVersion: 'upgrade-1', transcript: '快照原文' })));
+    store.videoSegments.push({ ...segments[5], transcriptVersion: 'upgrade-old', transcript: '不得讀取的舊文' });
+    const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
+    assert.ok(input.segments.length); assert.ok(input.segments.every((segment) => segment.transcriptVersion === 'upgrade-1'));
+  });
+  it('影片逐字稿升級後，舊凍結證據不得回查重用的chunkId', async () => {
+    const script = seedScript({ evidence: [{ ...segments[5] }] });
+    store.videos.find((video) => String(video._id) === ids.teacherVideo).activeTranscriptVersion = 'upgrade-2';
+    const Model = require('../src/models/videoSegment.model'); const original = Model.find; let queries = 0;
+    Model.find = (...args) => { queries++; return original(...args); };
+    try { await assert.rejects(loadSourceInputs({ scriptId: script._id, courseId: script.courseId }), { code: 'RECUT_SOURCE_UPDATED' }); }
+    finally { Model.find = original; }
+    assert.equal(queries, 0); assert.equal(script.evidence[0].startSec, segments[5].startSec);
   });
   for (const failure of ['probe', 'decode', 'measure']) {
     it(`${failure} 失敗停止任務、不辨識、不扣模型額度，教師取得原因`, async () => {
@@ -104,5 +122,7 @@ describe('recut RC2 連續視窗與句子', () => {
     assert.deepEqual(order, ['probe', 'decode', 'measure', 'asr']); assert.equal(store.recutSources.length, 1);
     assert.equal(store.recutSources[0].audio.fixedGainDb, 5); assert.equal(store.recutSources[0].sentences[0].id, 's1');
     assert.ok(store.recutSources[0].frozenAt); assert.equal(store.recutAttempts.length, 5);
+    assert.equal(store.recutSources[0].transcriptVersion, 'legacy');
+    assert.ok(store.recutSources[0].transcriptChunks.length);
   });
 });

@@ -13,6 +13,8 @@ const sentenceSchema = new Schema({
 const schema = new Schema({
   scriptId: { type: Schema.Types.ObjectId, ref: 'ShortScript', required: true, index: true },
   videoId: { type: Schema.Types.ObjectId, ref: 'Video', required: true },
+  transcriptVersion: { type: String, default: 'legacy' },
+  transcriptChunks: { type: [new Schema({ chunkId: String, startSec: Number, endSec: Number, rawText: String }, { _id: false })], default: [] },
   startSec: { type: Number, required: true, min: 0 }, endSec: { type: Number, required: true, min: 0 },
   frozenAt: { type: Date, required: true }, hitChunkIds: { type: [String], required: true },
   // 全部時間均為原片絕對秒數，RC2 不得把視窗相對時間直接存入。

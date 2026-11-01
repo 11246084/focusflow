@@ -19,6 +19,7 @@ const evidenceSchema = new mongoose.Schema(
     startSec: { type: Number, default: null },
     endSec: { type: Number, default: null },
     rawText: { type: String, default: '' },
+    transcriptVersion: { type: String, default: 'legacy' },
     // 這一筆是檢索直接命中，還是鄰接擴展補進來的（規格書 C.1）。
     // 兩者在 basedOn 引用時地位相同，但診斷時需要分得出來。
     expandedFrom: { type: String, default: null, trim: true },

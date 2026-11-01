@@ -45,6 +45,9 @@ const publicTiming = (event) => ({ id: String(event._id), versionId: String(even
 function createRecutReviewService({ queue = recutQueue, now = () => new Date() } = {}) {
   async function getReview(options) {
     const { script, version, source, pending } = await load(options);
+    const sourceVideo = await require('../models/video.model').findById(source.videoId).lean();
+    const transcriptVersion = source.transcriptVersion || 'legacy';
+    const sourceUpdated = transcriptVersion !== (sourceVideo?.activeTranscriptVersion || 'legacy');
     const current = preview(source, version.selection);
     const draft = pending ? { id: String(pending.draftId), ...preview(source, pending.draftSelection, version.selection.openingSentenceId) } : null;
     const effective = draft || current, selected = selectedIds(effective.selection, source);
@@ -58,6 +61,7 @@ function createRecutReviewService({ queue = recutQueue, now = () => new Date() }
     return { scriptId: String(script._id), versionId: String(version._id), revision: recutSnapshot(script).revision, recut: recutSnapshot(script),
       fullScript: current.fullScript, current, draft, latestChangeSummary,
       source: { videoId: String(source.videoId), startSec: source.startSec, endSec: source.endSec,
+        transcriptVersion, sourceUpdated, notice: sourceUpdated ? '來源已更新，需要重新凍結；目前顯示原有來源快照。' : null,
         sentences: source.sentences.map((s) => ({ ...s, selected: selected.has(s.id), label: labels.get(s.id), originalLabel: original.get(s.id),
           opening: s.id === effective.selection.openingSentenceId, teacherChanged: selected.has(s.id) !== originalIds.has(s.id) })) },
       suggestions: suggestions.map((s) => ({ id: String(s._id), problem: s.proposal?.problem || s.content || '', proposedChange: s.proposal?.proposedChange || '',

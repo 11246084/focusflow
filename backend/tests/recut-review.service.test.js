@@ -35,8 +35,19 @@ const taskFor = (task) => store.recutTasks.find((t) => String(t._id) === String(
 describe('recut 審閱、草稿、鎖定與兩階段核准', () => {
   beforeEach(resetStore);
   afterEach(async () => { for (const q of queues) { q.stop(); await q.idle(); } queues.length = 0; });
+  it('逐字稿升級後審閱使用凍結句子，不回查新chunk並明示來源更新', async () => {
+    const f = await setup();
+    store.videos.find((video) => String(video._id) === ids.teacherVideo).activeTranscriptVersion = 'upgrade-new';
+    const Model = require('../src/models/videoSegment.model'); const original = Model.find;
+    Model.find = () => { throw new Error('Must not resolve a frozen chunk against current transcript'); };
+    let view;
+    try { view = await f.service.getReview(options(f)); } finally { Model.find = original; }
+    assert.equal(view.source.transcriptVersion, 'legacy'); assert.equal(view.source.sourceUpdated, true);
+    assert.match(view.source.notice, /來源已更新/); assert.equal(view.source.sentences[0].text, f.source.sentences[0].text);
+  });
   it('完整講稿由實際原話組成，視窗回每句時間、理由、保留與片頭', async () => {
     const f = await setup({ opening: true }); const view = await f.service.getReview(options(f));
+    assert.equal(view.source.transcriptVersion, 'legacy'); assert.equal(view.source.sourceUpdated, false); assert.equal(view.source.notice, null);
     assert.equal(view.current.durationSec, 39); assert.match(view.fullScript, /^工具不同。/); assert.equal(view.source.sentences.length, 16);
     assert.equal(view.source.sentences[0].opening, true); assert.equal(view.source.sentences[6].selected, false); assert.equal(view.source.filePath, undefined);
   });

@@ -47,7 +47,7 @@ function expandContinuousWindow({ hits, segments, frozenAt = new Date() }) {
   return { videoId, startSec, endSec, frozenAt, hitChunkIds: [...new Set(hits.map(chunkId))],
     hitRanges: hits.map((h) => ({ chunkId: chunkId(h), startSec: h.startSec, endSec: h.endSec })),
     segments: ordered.filter((s) => s.startSec < endSec && s.endSec > startSec)
-      .map((s) => ({ chunkId: chunkId(s), startSec: s.startSec, endSec: s.endSec })) };
+      .map((s) => ({ chunkId: chunkId(s), startSec: s.startSec, endSec: s.endSec, rawText: s.transcript || s.text || s.rawText || '' })) };
 }
 
 function inspectProbe(probe, window) {
@@ -109,7 +109,13 @@ async function loadSourceInputs(task) {
   const rawVideo = resolved[0];
   const video = { ...(rawVideo.toObject ? rawVideo.toObject() : rawVideo), filePath: rawVideo.filePath || rawVideo.file_path };
   if (!mongoose.isValidObjectId(video._id) || !video.filePath) fail('本機原片已不存在。', 'RECUT_SOURCE_UNAVAILABLE');
-  const segments = await VideoSegment.find({ videoId: { $in: [String(video._id), video.videoId, video.video_id].filter(Boolean) } }).lean();
+  const transcriptVersion = video.activeTranscriptVersion || 'legacy';
+  // chunk IDs are reused after transcript upgrades. Never resolve old IDs against a new generation.
+  if (hits.some((hit) => (hit.transcriptVersion || 'legacy') !== transcriptVersion)) {
+    fail('來源已更新，需要重新凍結；保留原有講稿與來源快照。', 'RECUT_SOURCE_UPDATED');
+  }
+  const segments = await VideoSegment.find({ videoId: { $in: [String(video._id), video.videoId, video.video_id].filter(Boolean) },
+    ...(transcriptVersion === 'legacy' ? { $or: [{ transcriptVersion: 'legacy' }, { transcriptVersion: null }] } : { transcriptVersion }) }).lean();
   // 同一影片的 native／external 別名先正規化，再做連續視窗計算。
   return { script, video, hits: hits.map((h) => ({ ...h, videoId: String(video._id) })),
     segments: segments.map((s) => ({ ...s, videoId: String(video._id) })) };
@@ -119,7 +125,8 @@ function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createR
   return [
     { id: 'recut-window-v1', stage: 'sourceCheck', run: async ({ task }) => {
       const { video, hits, segments } = await loadInputs(task);
-      return { sourceWindow: expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath };
+      return { sourceWindow: expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath,
+        transcriptVersion: video.activeTranscriptVersion || 'legacy' };
     } },
     { id: 'recut-source-check-v1', stage: 'sourceCheck', run: async ({ data, checkCancelled }) => {
       const results = inspectProbe(await media.probe(data.sourcePath), data.sourceWindow);
@@ -132,7 +139,8 @@ function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createR
     { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => ({ rawWords: await media.transcribe(data.sourcePath, data.sourceWindow) }) },
     { id: 'recut-sentences-v1', stage: 'sourceCheck', run: async ({ task, data }) => {
       const source = await createRecutSource({ scriptId: task.scriptId, videoId: data.sourceVideoId,
-        ...data.sourceWindow, sentences: splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
+        ...data.sourceWindow, transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments,
+        sentences: splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
       return { sourceId: String(source._id) };
     } },
   ];

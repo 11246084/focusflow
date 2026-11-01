@@ -6,6 +6,8 @@
 
 狀態 mutation 先以 `ShortScript.recutMutationLock` 的 token／expiresAt 做資料庫 CAS 取得 2 分鐘租約，每 30 秒延長；只包住短暫資料庫更新，不包住模型或媒體工作。同程序 mutex 減少本機競爭，跨程序由 Mongo 租約拒絕另一個 owner；寫入 recut 快照仍同時核對 token、有效期限及 revision，失去租約的程序不能提交，釋放時也不能清除新 owner 的 token。程序中斷後只允許過期 lease 被接手。相較只用記憶體鎖，這能保護多程序部署；忙碌或租約改變時回 409，呼叫端重新讀取後再操作。對應 `recutState.service.js` 與 opt-in 的 `recut-mongo-isolated.test.js`，僅後者證明真 Mongo 的跨程序競爭行為。
 
+逐字稿依[版本契約](../../docs/04_Features/Short_Video/chunk-version-contract.md)處理：`shortScripts.evidence` 與 `RecutSource` 保存 `transcriptVersion`，缺欄位視為 `legacy`；RecutSource 另存視窗內 chunk 的 ID、原文與起訖快照。生成來源視窗前先比較影片 `activeTranscriptVersion`，不同即回 `RECUT_SOURCE_UPDATED`，不回查重用的 chunk ID。已凍結後的選段、施工單、審閱與 worker 都使用來源句子／逐字時間快照；審閱回 `sourceUpdated` 與提示，不因新 chunk 默默改寫原版。舊來源不自動重新凍結，也不寫入逐字稿集合。
+
 所有端點前綴為 `/api/v1/short-scripts/:scriptId/recut`，沿用短影片功能開關、登入與課程教師／admin 權限。學生、其他課程教師回 403，關閉功能回 404。寫入不接受客戶端自訂額度、任務類型、原片路徑或施工單。
 
 | method＋尾段 | 用途與結果 |

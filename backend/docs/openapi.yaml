@@ -10982,6 +10982,8 @@ components:
             - startSec
             - endSec
             - sentences
+            - transcriptVersion
+            - sourceUpdated
           properties:
             videoId:
               $ref: '#/components/schemas/ObjectId'
@@ -10989,6 +10991,14 @@ components:
               type: number
             endSec:
               type: number
+            transcriptVersion:
+              type: string
+              description: 凍結來源時的逐字稿版本；舊資料視為 legacy。
+            sourceUpdated:
+              type: boolean
+              description: 為 true 時只顯示來源快照，不以 chunkId 回查目前逐字稿。
+            notice:
+              type: [string, 'null']
             sentences:
               type: array
               items:

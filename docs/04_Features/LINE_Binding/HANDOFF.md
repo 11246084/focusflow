@@ -4,7 +4,7 @@
 
 這份文件給組員百陶的 AI（Codex 或 Claude Code），讓它不必讀過先前的對話，就能從現在一路做到 11/10 在 `dev` 完成。設計依據只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只寫結果目標、優先順序、規則、求援方式、攻擊情境清單與正式環境關卡。功能完成時，在同一批 commit 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-11-02（優先項目①後端完成並通過攻擊情境測試，尚未 commit；進度見 [evidence/進度.md](evidence/進度.md)）
+最後更新：2026-11-02（優先項目①②的程式完成，尚未用真的 LINE 實測，也尚未 commit；進度見 [evidence/進度.md](evidence/進度.md)）
 
 ## 第一步：邀請 Weihao 為 Admin
 
@@ -93,7 +93,7 @@
 | P1 | 在正式 provider（與現有 Messaging API channel 同一個）建立 LINE Login channel：App type 選 Web app、連結現有官方帳號、登記回呼網址、不申請 Email 權限 | 百陶 | 11/10 後 | channel 維持 Developing、不連結即可停用 |
 | P2 | VM 的 `.env` 加入 Login channel ID、secret 與回呼網址；需要新的集合或索引時，執行百陶寫好的 ensure 腳本 | Weihao | 11/14 部署前 | 移除變數，新 API 依缺設定回 503 |
 | P3 | Login channel 改成 Published | 百陶 | 部署當天、P2 完成後 | **無法退回**；只能停用新流程並保留綁定碼 |
-| P4 | 部署 `main`（第一次：「連結 LINE」為主，綁定碼收成「改用綁定碼」小連結當備援） | Weihao | 11/14，11/15 緩衝 | 回退部署 |
+| P4 | 部署 `main`（第一次：進 LINE 提問頁直接前往 LINE 授權，LINE Login 回 503 時自動改走綁定碼當備援，見 decisions.md LL7） | Weihao | 11/14，11/15 緩衝 | 回退部署 |
 | P5 | 正式站由團隊成員實際綁定一次，確認歡迎訊息、提問與教師統計 | 百陶與 Weihao | 部署後 | 依 P4 回退 |
 | P6 | 第二次部署：移除綁定碼的網頁、`POST /line/bind-token`、Bot 的綁定碼判斷；`line_bind_tokens` 不手動刪除，讓 TTL 清空 | 百陶實作、Weihao 部署 | 11/28 之後 | 回退部署 |
 

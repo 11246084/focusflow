@@ -151,6 +151,40 @@ describe('line webhook routes', () => {
     assert.equal(unboundResult.body.data.results[0].alreadyBound, false);
   });
 
+  it('封鎖與解除封鎖只更新好友狀態，不解除綁定', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineFriendStatus = 'friend';
+    const send = (type) => {
+      const payload = JSON.stringify({ events: [{ type, source: { userId: 'line-student-001' } }] });
+      return postLineWebhook(serverContext.baseUrl, payload, {
+        'x-line-signature': createLineSignature(payload),
+      });
+    };
+
+    const unfollow = await send('unfollow');
+    assert.equal(unfollow.body.data.results[0].handled, true);
+    assert.equal(student.lineFriendStatus, 'not_friend');
+    assert.equal(student.lineUserId, 'line-student-001');
+
+    await send('follow');
+    assert.equal(student.lineFriendStatus, 'friend');
+  });
+
+  it('解除綁定時一併清掉好友狀態，未綁定的 LINE 封鎖時不影響任何帳號', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineFriendStatus = 'friend';
+    const payload = JSON.stringify({ events: [{ type: 'unfollow', source: { userId: 'line-unbound' } }] });
+    await postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+    assert.equal(student.lineFriendStatus, 'friend');
+
+    const token = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    await jsonRequest(serverContext.baseUrl, '/api/v1/line/binding', { method: 'DELETE', token });
+
+    assert.equal(student.lineFriendStatus, undefined);
+  });
+
   it('rejects missing and invalid signatures', async () => {
     const payload = {
       events: [

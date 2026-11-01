@@ -1,5 +1,5 @@
 ﻿const mongoose = require('mongoose');
-const { USER_ROLE_VALUES, USER_ROLES } = require('../constants/enums');
+const { USER_ROLE_VALUES, USER_ROLES, LINE_FRIEND_STATUS_VALUES } = require('../constants/enums');
 
 // Presence metadata only; the image bytes live in the avatars collection (avatar.model.js).
 const avatarSchema = new mongoose.Schema(
@@ -92,6 +92,11 @@ const userSchema = new mongoose.Schema(
     lineBindAt: {
       type: Date,
       default: null,
+    },
+    // 綁定時由 LINE 查得，之後由加好友與封鎖事件更新；沒有資料代表無法確認。
+    lineFriendStatus: {
+      type: String,
+      enum: LINE_FRIEND_STATUS_VALUES,
     },
     activeCourseId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -471,7 +471,7 @@ z8:["教師統計（Source Breakdown）","free","網頁和 LINE 的提問數分�
 z9:["LINE Login channel","lock","在現有 provider 新建；正式後台每一步都要 Weihao 先同意，改成 Published 後無法退回。"],
 z10:["一次性 state 存放（State Store）","free","已做好：lineLoginStates 只存 state 的雜湊，10 分鐘過期；送進來就刪除，比對失敗也作廢（decisions.md LL1）。"],
 z11:["衝突檢查（Unique Index）","lock","一個 LINE 只能綁一個帳號；搶綁拒絕，自己換綁要先確認。"],
-z12:["綁定狀態頁","free","網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
+z12:["綁定狀態頁","free","已做好：未綁定進 LINE 提問頁就直接前往 LINE 授權；已綁定頁看得出是否已連結、怎麼解除，沒加好友才提示；/line/callback 告訴學生結果與下一步（decisions.md LL6、LL7）。還沒用真的 LINE 實測。"],
 z13:["19 條攻擊情境測試","lock","Weihao 寫好的清單，每一條都要寫成自動測試並通過，才算完成。"],
 z14:["圖文選單（Rich Menu）","free","兩張選單：未綁定一格「連結帳號」，已綁定四格「切換課程、今日額度、使用說明、網頁版」。綁定成功時由後端指定，解除時取消，學生不必重綁（decisions.md LM）。"],
 l1:["網頁產生綁定碼（Bind Token）","have","學生在「LINE 提問」頁按按鈕，後端產生 64 字元、10 分鐘有效的碼。從課程的「詢問助教」進來時，會產生帶課程的版本。"],

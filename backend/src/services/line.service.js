@@ -17,6 +17,7 @@ const {
   QUESTION_SOURCES,
   USAGE_LOG_EVENTS,
   COURSE_STATUSES,
+  LINE_FRIEND_STATUSES,
 } = require('../constants/enums');
 const {
   buildActiveEnrollmentFilter,
@@ -224,7 +225,7 @@ async function unbindLineUser(userId) {
 
   const wasBound = Boolean(user.lineUserId);
   await User.findByIdAndUpdate(userId, {
-    $unset: { lineUserId: '', activeCourseId: '' },
+    $unset: { lineUserId: '', activeCourseId: '', lineFriendStatus: '' },
     $set: {
       lineBindAt: null,
       lineConversationState: LINE_CONVERSATION_STATES.IDLE,
@@ -265,7 +266,7 @@ async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) 
       lineConversationState: LINE_CONVERSATION_STATES.IDLE,
       ...(replaced ? { lineConversationHistory: [] } : {}),
     },
-    ...(replaced ? { $unset: { activeCourseId: '' } } : {}),
+    ...(replaced ? { $unset: { activeCourseId: '', lineFriendStatus: '' } } : {}),
   };
 
   // 以讀到的舊值當條件更新：同時有另一個請求改了這個帳號的綁定時不會蓋掉。
@@ -308,9 +309,19 @@ async function bindLineUserWithToken(lineUserId, token) {
 
   const binding = await bindLineAccount({ userId: record.userId, lineUserId });
 
-  return binding.ok
-    ? { ok: true, userId: record.userId }
-    : binding;
+  if (!binding.ok) {
+    return binding;
+  }
+
+  // 能把綁定碼傳給 Bot，就代表已經是好友。
+  await updateLineFriendStatus(lineUserId, LINE_FRIEND_STATUSES.FRIEND);
+
+  return { ok: true, userId: record.userId };
+}
+
+// 記下綁定帳號的好友狀態；這個 LINE 沒有綁定任何帳號時不動作。
+async function updateLineFriendStatus(lineUserId, status) {
+  await User.findOneAndUpdate({ lineUserId }, { $set: { lineFriendStatus: status } });
 }
 
 // 綁定碼流程沒有網頁確認畫面，衝突時請學生回網頁處理。
@@ -368,6 +379,10 @@ async function handleFollow(event) {
   const lineUserId = event.source?.userId;
   const boundUser = lineUserId ? await User.findOne({ lineUserId }) : null;
 
+  if (boundUser) {
+    await updateLineFriendStatus(lineUserId, LINE_FRIEND_STATUSES.FRIEND);
+  }
+
   const text = boundUser
     ? '歡迎回來！你的 LINE 帳號已綁定 FocusFlow，可以直接提問；輸入「切換課程」可更換課程。'
     : '歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。';
@@ -378,6 +393,24 @@ async function handleFollow(event) {
     handled: true,
     alreadyBound: Boolean(boundUser),
   }, replyResult);
+}
+
+// 學生封鎖官方帳號時不解除綁定（解除封鎖後沿用），只記下好友狀態讓網頁顯示。
+// unfollow 事件沒有 replyToken，也不能回覆。
+async function handleUnfollow(event) {
+  const lineUserId = event.source?.userId;
+
+  if (lineUserId) {
+    await updateLineFriendStatus(lineUserId, LINE_FRIEND_STATUSES.NOT_FRIEND);
+  }
+
+  return {
+    type: 'unfollow',
+    handled: Boolean(lineUserId),
+    replySent: false,
+    replySkipped: true,
+    replyReason: 'not_applicable',
+  };
 }
 
 // 處理帳號綁定：使用者把 64 字元的 token 傳到 LINE Bot 時觸發
@@ -987,6 +1020,10 @@ async function processWebhookEvent(event) {
     return handleFollow(event);
   }
 
+  if (event.type === 'unfollow') {
+    return handleUnfollow(event);
+  }
+
   // 只處理一對一聊天且帶有 userId 的事件。
   // 缺 userId 時 User.findOne({ lineUserId: undefined }) 會被當成空條件，
   // 抓到資料庫第一個使用者，等於讓任何人冒用他的身分；群組或多人聊天室的
@@ -1094,6 +1131,7 @@ async function processWebhookEvents(events) {
 module.exports = {
   generateBindToken,
   bindLineAccount,
+  updateLineFriendStatus,
   selectCourseForBoundUser,
   sendBindWelcomeMessage,
   unbindLineUser,

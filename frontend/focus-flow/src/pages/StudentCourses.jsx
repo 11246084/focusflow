@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import BottomSheet from '../components/BottomSheet';
+import LineLinkButton from '../components/LineLinkButton';
 import brandMark from '../assets/mark-white.svg';
-import { apiFetch } from '../api';
+import { apiFetch, getUser } from '../api';
 import { recoverLocalPlayback, resolveVideoPlayback } from './studentPlayback';
 import {
   findExtendedResourcesQuestion,
@@ -191,9 +192,16 @@ async function buildCourseBindUrl(courseId) {
   }
 }
 
-function AskTAContent({ url, loading, courseName }) {
+function AskTAContent({ url, loading, courseId, courseName }) {
+  const [linkError, setLinkError] = useState(null);
+  // 還沒綁定時走 LINE Login，完成後直接切到這門課；QR code 留著當備援。
+  const showLineLink = courseId && getUser()?.isLineBound === false;
   return (
     <>
+      {showLineLink && (
+        <LineLinkButton courseId={courseId} onError={setLinkError} style={{ width: '100%', padding: '9px 16px', fontSize: 12 }} />
+      )}
+      {linkError && <div role="alert" style={{ fontSize: 11, color: '#ff6b6b', textAlign: 'center' }}>{linkError.message}</div>}
       {url && !loading && <div style={{ padding: 10, background: '#fff', borderRadius: 12 }}>
         <QRCodeSVG value={url} size={148} bgColor="#ffffff" fgColor="#000000" />
       </div>}
@@ -227,7 +235,7 @@ function AskTAPanel({ courseId, courseName }) {
   }, [courseId]);
   return (
     <div className="study-more-ta">
-      <AskTAContent url={state.url} loading={state.loading} courseName={courseName} />
+      <AskTAContent url={state.url} loading={state.loading} courseId={courseId} courseName={courseName} />
     </div>
   );
 }
@@ -313,7 +321,7 @@ function AskTAButton({ courseId, courseName, variant = 'list' }) {
           aria-label="LINE 助教 QR Code"
           style={{ position: 'fixed', zIndex: 1000, top: pos.top, left: pos.left, width: 224, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100dvh - 16px)', overflowY: 'auto', background: 'rgba(22,8,18,0.97)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
         >
-          <AskTAContent url={url} loading={loadingUrl} courseName={courseName} />
+          <AskTAContent url={url} loading={loadingUrl} courseId={courseId} courseName={courseName} />
         </div>, document.body
       )}
     </>

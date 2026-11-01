@@ -62,7 +62,8 @@
 | LL3 | scope 用 `openid profile`，`bot_prompt=aggressive`。姓名、頭貼不讀不存；ID token 只接受 HS256、以 channel secret 驗證 | 查好友狀態的 API 要求 `profile` scope（2026-11-02 查 [LINE Login API](https://developers.line.biz/en/reference/line-login/)）；網頁登入的 ID token 固定 HS256（[Verify ID token](https://developers.line.biz/en/docs/line-login/verify-id-token/)）。Login channel 必須選 Web app，否則 ID token 改用 ES256，驗證會失敗 |
 | LL4 | 舊綁定碼在退場前也走同一套規則：單一操作兌換、搶綁拒絕、不能略過確認改綁（原本會自動解除對方的綁定） | 綁定碼部署後仍是備援（P4～P6）；只修新流程的話，A9、A10、A12、A13 可以從舊路徑繞過 |
 | LL5 | 用戶端不能指定導回網址，回呼網址只來自 `LINE_LOGIN_CALLBACK_URL`；課程只看開始時的紀錄，完成時重新檢查修課權限，不符合時綁定成功但不切換課程 | A18；綁定不該因為課程權限變動而失敗 |
-| LL6 | 綁定後用當次 access token 查好友狀態，已加好友才推播一則歡迎訊息；查不到回 `unknown`，不影響綁定。好友狀態目前只在完成當下知道，網頁平時怎麼顯示留到優先項目② | 不存 LINE token（LA②），平時無法再向 LINE 查詢 |
+| LL6 | 綁定後用當次 access token 查好友狀態，已加好友才推播一則歡迎訊息；查不到回 `unknown`，不影響綁定。`users.lineFriendStatus` 記下狀態（綁定結果、加好友與封鎖事件更新），`/auth/me` 只回狀態、不回 LINE ID；封鎖不解除綁定。部署前已綁定的學生沒有資料，顯示「無法確認」，等他們下次加好友或重新連結才更新。已綁定頁確認已加好友時不多顯示，未加或無法確認才出現提示與「加入官方帳號」 | 不存 LINE token（LA②），平時無法再向 LINE 查詢，要靠 webhook 事件；L1 要求網頁看得出好友狀態與能否確認 |
+| LL7 | 前端：`/line/callback` 是獨立頁面，載入後先清掉網址上的 `code`、`state`，同一個 `state` 只送一次；未綁定的學生進 LINE 提問頁就直接前往 LINE 授權，不用再按按鈕（百陶 2026-11-02 決定：多按一次沒有意義，也不該讓學生自己複製綁定碼）；每個分頁只自動一次，在 LINE 取消、按返回或剛解除綁定時改顯示一顆「連結 LINE」，避免卡在迴圈。不顯示「改用綁定碼」。只有 LINE Login 不可用時（回 503，例如依 P2、P3 退回）才自動改走綁定碼：電腦版是左文字、右 QR code 與「在手機上開啟 LINE」，手機版只留說明與按鈕，綁定訊息自動帶入聊天室，學生按送出即可，不顯示步驟與綁定碼。已綁定頁維持原本版面（百陶 2026-11-02 指定），要換 LINE 就先解除綁定再重新連結；回呼頁仍會在帳號已綁定別的 LINE 時先確認取代（LA①）。「詢問助教」未綁定時多一顆「連結 LINE」，QR code 留著 | 授權碼不留在瀏覽紀錄；StrictMode 會執行兩次 effect，`state` 只能用一次；綁定碼仍是部署後的備援（P4～P6） |
 
 ### 圖文選單內容（2026-11-02，優先項目⑤）
 

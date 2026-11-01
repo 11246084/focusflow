@@ -447,7 +447,9 @@ adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_UR
 | 400 `LINE_LOGIN_STATE_INVALID`、403 `LINE_LOGIN_STATE_MISMATCH`、400 `LINE_LOGIN_ID_TOKEN_INVALID`、409 `LINE_BINDING_CHANGED`、502 `LINE_LOGIN_TOKEN_EXCHANGE_FAILED` | 連結沒有完成，請重新連結 |
 | 409 `LINE_ACCOUNT_ALREADY_BOUND` | 這個 LINE 已綁定其他帳號，請先從那個帳號解除 |
 | 409 `LINE_REPLACE_CONFIRMATION_REQUIRED` | 先問學生「將取代目前的 LINE」，同意後以 `replaceExisting: true` 重新開始 |
-| 503 `LINE_LOGIN_NOT_CONFIGURED` | 暫時無法連結，可改用綁定碼 |
+| 503 `LINE_LOGIN_NOT_CONFIGURED` | LINE 提問頁自動改走綁定碼：開啟 LINE 後送出已填好的訊息 |
+
+使用者資料另有 `lineFriendStatus`（`friend`／`not_friend`／`unknown`，未綁定為 null），由綁定結果與 LINE 的 `follow`、`unfollow` 事件更新；封鎖官方帳號不解除綁定。
 
 `state` 第一次送出就作廢，比對失敗也一樣。LINE 身分只取自驗證過的 ID token，沒有 API 接受用戶端傳入的 `lineUserId`；LINE 的 access token 用完即丟，不寫入資料庫。舊綁定碼退場前沿用同一套規則：一個 LINE 只能綁一個帳號，衝突時拒絕、不解除對方的綁定。
 

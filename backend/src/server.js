@@ -30,12 +30,12 @@ const {
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
-const { recoverQueuedRecutTasks, recutQueue } = require('./services/recutQueue.service');
+const { recutQueue } = require('./services/recutQueue.service');
 const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
 const { cleanupIncoming, warnLowSpace } = require('./services/uploadStorage.service');
 const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = require('./services/courseDeletionJobs.service');
 
-async function startServer() {
+async function startServer({ recutRuntimeAdapters } = {}) {
   validateStudentPilotRuntime();
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
@@ -50,6 +50,11 @@ async function startServer() {
     await seedDemoData({ silent: true });
   }
 
+  // Hosts supply concrete adapters. Missing configuration stays explicit (503),
+  // and never silently selects a provider or fake implementation.
+  const recutApplication = env.shortScriptAutomationEnabled
+    ? require('./services/recutApplication.service').configureRecutApplication({ runtimeAdapters: recutRuntimeAdapters }) : null;
+
   const server = app.listen(env.port, () => {
     console.log(`Focus Flow backend listening on port ${env.port}`);
   });
@@ -58,7 +63,7 @@ async function startServer() {
     console.error('Failed to recover queued video processing.', error);
   });
   startShortsSyncScheduler();
-  if (env.shortScriptAutomationEnabled) recoverQueuedRecutTasks().catch((error) => {
+  if (recutApplication && !recutApplication.missing.length) recutApplication.recover().catch((error) => {
     console.error('Failed to recover queued recut tasks.', error);
   });
   const renderRecoveryTimer = env.shortScriptAutomationEnabled ? setInterval(() => require('./services/recutWorker.service').recoverRenderJobs().catch((error) => console.error('[recut] render recovery failed', error.code)), 60000) : null;
@@ -100,7 +105,8 @@ async function startServer() {
   process.on('SIGTERM', shutdown);
 }
 
-startServer().catch((error) => {
+if (require.main === module) startServer().catch((error) => {
   console.error('Failed to start backend.', error);
   process.exit(1);
 });
+module.exports = { startServer };

@@ -26,9 +26,9 @@ async function setProductionMode({ user, scriptId, mode }) {
   const script = await setProductionModeForScript({ scriptId, mode });
   return { scriptId: String(script._id), productionMode: productionMode(script), recut: recutSnapshot(script) };
 }
-async function startGeneration({ user, scriptId }) {
+async function startGeneration({ user, scriptId }, queue = recutQueue) {
   const script = await loadForManage({ user, scriptId });
-  return toPublicTask(await recutQueue.enqueue({ script, requestedBy: user.id }));
+  return toPublicTask(await queue.enqueue({ script, requestedBy: user.id }));
 }
 async function getState({ user, scriptId }) {
   const script = await loadForManage({ user, scriptId });
@@ -45,8 +45,12 @@ async function loadTask(options) {
   return task;
 }
 async function getTask(options) { return toPublicTask(await loadTask(options)); }
-async function cancelTask(options) {
+async function cancelTask(options, queue = recutQueue) {
   await loadTask(options);
-  return toPublicTask(await recutQueue.requestCancel(options.taskId));
+  return toPublicTask(await queue.requestCancel(options.taskId));
 }
-module.exports = { setProductionMode, startGeneration, getState, getTask, cancelTask, loadForManage, toPublicTask };
+function createRecutService({ queue = recutQueue } = {}) {
+  return { setProductionMode, startGeneration: (options) => startGeneration(options, queue), getState, getTask,
+    cancelTask: (options) => cancelTask(options, queue), loadForManage, toPublicTask };
+}
+module.exports = { createRecutService, ...createRecutService() };

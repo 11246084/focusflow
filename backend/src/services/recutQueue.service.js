@@ -14,11 +14,20 @@ const cancelled = () => new AppError('Recut task cancelled.', 409, 'RECUT_TASK_C
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
 // 設定 S1 接上之前的轉接點。呼叫者可注入正式 getSetting；不從教師請求接受上限。
-function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = () => ({}), notify = (task) => notifications.notifyRecutTaskFinished(task) } = {}) {
+function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = () => ({}), notify = (task) => notifications.notifyRecutTaskFinished(task), beforeEnqueue = async () => {}, checkWork = async () => {} } = {}) {
   const pipelines = new Map();
   let draining = null;
   let scheduled = false;
   let stopped = false;
+  function configureRuntime(options = {}) {
+    for (const key of ['getSetting', 'captureSettings', 'beforeEnqueue', 'checkWork']) {
+      if (options[key] !== undefined && typeof options[key] !== 'function') throw new TypeError(`${key} must be a function.`);
+    }
+    getSetting = options.getSetting || getSetting;
+    captureSettings = options.captureSettings || captureSettings;
+    beforeEnqueue = options.beforeEnqueue || beforeEnqueue;
+    checkWork = options.checkWork || checkWork;
+  }
 
   function registerSteps(type, steps) {
     if (!Object.values(T).includes(type) || !Array.isArray(steps) || !steps.length
@@ -63,6 +72,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
     const current = await RecutTask.findById(taskId).lean();
     if (!current || current.status === J.CANCEL_REQUESTED || current.status === J.CANCELLED) throw cancelled();
     if (current.status !== J.RUNNING) throw new AppError('Recut task ownership changed.', 409, 'RECUT_STATE_INVALID');
+    await checkWork(current);
     return current;
   }
 
@@ -153,6 +163,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
         const { summarizeChanges } = require('./recutChangeSummary.service');
         await RecutTask.findByIdAndUpdate(task._id, { $set: { changeSummary: summarizeChanges(previous, context.data.version, source) } });
       }
+      await RecutTask.findByIdAndUpdate(task._id, { $set: { suggestions: context.data.suggestions || [] } });
       for (const suggestion of context.data.suggestions || []) {
         await require('../models/recutReviewEvent.model').create({ scriptId: task.scriptId, versionId: version._id, taskId: task._id,
           kind: 'suggestion', suggestionType: suggestion.suggestionType || 'quality', content: suggestion.content, proposal: suggestion.proposal });
@@ -193,6 +204,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
   }
 
   async function enqueue({ script, requestedBy, type = T.GENERATE, input = {}, transition = transitionRecut }) {
+    await beforeEnqueue({ script, requestedBy, type, input });
     const steps = pipelines.get(type);
     if (!steps) throw new AppError('Recut steps are not registered yet.', 503, 'RECUT_STEPS_NOT_CONFIGURED');
     if ((script.productionMode || 'avatar') !== 'recut' || script.recut?.activeTaskId) {
@@ -271,7 +283,7 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
     stopped = false;
     await drain();
   }
-  return { registerSteps, enqueue, requestCancel, recover, drain, stop: () => { stopped = true; },
+  return { registerSteps, configureRuntime, enqueue, requestCancel, recover, drain, stop: () => { stopped = true; },
     idle: async () => { if (scheduled) await new Promise(setImmediate); if (draining) await draining; } };
 }
 

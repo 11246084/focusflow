@@ -89,6 +89,8 @@ YouTube ready 與教師核准兩個入口共用 `markShortAssetPublished`。它�
 
 ## RC7 專用 worker 與持久租約
 
+啟動組裝使用 `recutApplication.service.js` 的 `configureRecutApplication({ runtimeAdapters })`，把 RC2～RC4 的 generate、選段修改、建議重跑註冊到 API 與 RC8 共用的 `recutQueue`。獨立本機工具可用 `createRecutApplication({ runtimeAdapters, queue })` 注入自己的 queue；建構不啟動資料庫或外部工作。`startServer({ recutRuntimeAdapters })` 接受同一組明確轉接，缺少 provider、renderer 或原片處理方法時，在建立任務前回 503 與缺項清單，不使用假的預設 provider。品質建議同時保存在 task 的 `suggestions` 及對應版本的 review events。
+
 管理員 `GET/POST /api/v1/admin/recut-workers`、`PATCH /:workerId` 建立、列出、暫停或永久停用。資料庫只存 SHA-256 雜湊；一次性金鑰只在建立回傳，所有管理動作留 adminAuditLogs。一般 JWT 與 worker 金鑰驗證分離；worker 不能使用教師、學生或管理員 API。
 
 worker 用專用 Bearer 金鑰呼叫 `/api/v1/recut-worker/jobs` 下的 `POST /claim`（shortRenderVersion/assetVersions）、`POST /:jobId/heartbeat`、`GET /:jobId/source`、`POST /:jobId/failure`、`POST /:jobId/result`。領取回工作、planHash、施工單、凍結逐字來源及一次性 leaseToken。其餘四個操作須 `X-Recut-Lease`；上傳使用 `video` 與 `metadata` JSON multipart，收檔前後均核對租約。原片下載僅能讀 uploads 內的安全檔案，不回絕對路徑。

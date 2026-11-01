@@ -2,6 +2,8 @@
 
 你在 FocusFlow repo 的一個 git worktree 裡工作，分支 `wip/system-settings-s4-line`，從已合併 S1（最好也已合併 S2、S3）的 `feat/system-settings` 切出。先讀 repo 根目錄的 `AGENTS.md` 與 [HANDOFF.md](../HANDOFF.md) 的「必守規則」並遵守。**[LINE 綁定](../../LINE_Binding/decisions.md)定案前不要開工**：圖文選單上要不要有「綁定帳號」、綁定碼何時停用，由那份文件決定。
 
+2026-10-31 補充：LINE 綁定已定案（[LINE 決策](../../LINE_Binding/decisions.md) L1、LC）。圖文選單中不依賴 S1～S3 的部分（未綁定顯示「連結帳號」、已綁定顯示切換課程與網頁版）可能由百陶在實作 LINE 綁定時一併完成；開工前先看 LINE 的 `evidence/進度.md` 與 decisions.md LC 的結果，避免重做。另依 [LINE 決策](../../LINE_Binding/decisions.md) LF，「切換課程」Flex 卡片與選單卡由百陶一起做；本工單第 2 項只需在既有選單卡與卡片上補「切換模型」「本月額度」，不重建。
+
 ## 先讀
 
 1. [decisions.md](../decisions.md)：第 11、31、35 項，以及待討論的「圖文選單依學生狀態切換」。

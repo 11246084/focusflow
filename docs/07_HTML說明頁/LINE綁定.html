@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE 學習入口</title>
+<style>
+:root{
+  --bg:#FAF9F5; --paper:#fff; --ink:#141413; --ink2:#3D3D3A; --muted:#87867F; --line:#D1CFC5; --soft:#F0EEE6;
+  --clay:#D97757; --clay-soft:#FBEDE6; --olive:#788C5D; --olive-soft:#EEF2E8; --rust:#B04A3F; --rust-soft:#F7E4E1;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1A1A18; --paper:#232321; --ink:#F0EEE6; --ink2:#D1CFC5; --muted:#9A998F; --line:#3D3D3A; --soft:#2C2C29;
+  --clay-soft:#3A271F; --olive-soft:#262D20; --rust-soft:#3A2220;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.7 var(--sans);padding:48px 16px 80px}
+.sheet{max-width:980px;margin:0 auto}
+.eyebrow{font:11px/1 var(--mono);letter-spacing:.08em;color:var(--muted);margin-bottom:12px}
+h1{font-size:30px;line-height:1.3;font-weight:700;margin-bottom:4px}
+.lead{color:var(--ink2);max-width:640px}
+h2{font-size:20px;display:flex;align-items:center;gap:10px;margin:48px 0 6px}
+h2 .no{font:600 11px/1 var(--mono);background:var(--soft);color:var(--ink2);border-radius:6px;padding:5px 7px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.stat{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .k{font:10.5px/1 var(--mono);letter-spacing:.06em;color:var(--muted)}
+.stat .v{font-size:22px;font-weight:700;margin-top:6px}
+.stat .v small{font-size:13px;font-weight:400;color:var(--ink2)}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+.canvas{background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+.cap{font:11px/1 var(--mono);letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+svg{display:block;width:100%;height:auto}
+svg[hidden]{display:none}
+svg text{font-family:var(--sans);fill:var(--ink);font-size:13px}
+svg .s{font-size:11px;fill:var(--muted)}
+svg .b{fill:var(--paper);stroke:var(--line);stroke-width:1.5}
+svg .new{fill:var(--clay-soft);stroke:var(--clay);stroke-width:1.5}
+svg .ok{fill:var(--olive-soft);stroke:var(--olive);stroke-width:1.5}
+svg .bad{fill:var(--rust-soft);stroke:var(--rust);stroke-width:1.5}
+svg .q{fill:var(--soft);stroke:var(--line);stroke-width:1.5}
+svg .ar{stroke:var(--muted);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+svg .ar.x{stroke:var(--rust);stroke-dasharray:4 3}
+svg .hl{fill:var(--rust);font-weight:700}
+.node{cursor:pointer;outline:none}
+.node:hover rect,.node:hover polygon,.node:focus-visible rect,.node:focus-visible polygon{stroke:var(--ink);stroke-width:2}
+.node.on rect,.node.on polygon{stroke:var(--clay);stroke-width:2.5}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
+@media (max-width:640px){.layout .canvas{overflow-x:auto}.layout .canvas svg{min-width:600px}.layout .canvas::before{content:"← 可左右滑動 →";display:block;font-size:11px;color:var(--muted);margin-bottom:6px}}
+.panel{background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:16px;position:sticky;top:16px;min-height:150px}
+.panel h3{font-size:16px;margin-bottom:6px}
+.panel p{font-size:14px;color:var(--ink2);margin-top:6px}
+.panel .think{border-left:3px solid var(--clay);padding-left:10px;margin-top:10px}
+.tag{display:inline-block;font:600 11px/1 var(--sans);border-radius:999px;padding:4px 9px}
+.t-have{background:var(--soft);color:var(--ink2)}
+.t-free{background:var(--olive-soft);color:var(--olive)}
+.t-lock{background:var(--rust-soft);color:var(--rust)}
+.t-warn{background:var(--clay-soft);color:var(--clay)}
+.t-none{background:var(--soft);color:var(--muted)}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs button{font:600 13px/1 var(--sans);border:1.5px solid var(--line);background:var(--paper);color:var(--ink2);border-radius:999px;padding:8px 14px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1.5px solid}
+.road{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:720px){.road{grid-template-columns:1fr}}
+.task{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:14px}
+.task .p{font:600 11px/1 var(--mono);color:var(--clay)}
+.task b{display:block;font-size:16px;margin:6px 0 4px}
+.task span{font-size:13px;color:var(--ink2)}
+.timeline{position:relative;margin:22px 24px 6px;height:72px}
+.timeline .bar{position:absolute;left:0;right:0;top:12px;height:3px;background:var(--line);border-radius:2px}
+.timeline .m{position:absolute;top:4px;transform:translateX(-50%);text-align:center;font-size:12px;white-space:nowrap}
+.timeline .m::before{content:"";display:block;width:14px;height:14px;border-radius:50%;margin:0 auto 6px;background:var(--paper);border:3px solid var(--muted)}
+.timeline .m.hot::before{border-color:var(--clay)}
+.timeline .m.red::before{border-color:var(--rust)}
+.timeline .m small{display:block;color:var(--muted);font-size:11px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(22px,1fr));gap:5px;margin:12px 0}
+.board div{aspect-ratio:1;border-radius:4px;background:var(--soft);border:1.5px solid var(--line)}
+.board .hit{background:var(--muted);border-color:var(--muted)}
+.board .gain{background:var(--olive);border-color:var(--olive)}
+.board .loss{background:var(--paper);border:2px solid var(--rust)}
+.toggle{display:flex;gap:6px;flex-wrap:wrap}
+.score{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;margin-top:4px}
+.score b{font-size:18px}
+.pipe{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:13px}
+.pipe span{background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:6px 10px}
+.pipe span.j{border-color:var(--olive);background:var(--olive-soft)}
+.pipe em{font-style:normal;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:13px/1.3 var(--sans);border-radius:999px;padding:7px 12px;border:1.5px solid;cursor:pointer;background:var(--paper);color:var(--ink)}
+.chip.g{border-color:var(--olive)} .chip.r{border-color:var(--rust)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tip{margin-top:12px;font-size:14px;color:var(--ink2);min-height:24px}
+.col h3{font-size:14px;margin-bottom:10px}
+.col.g h3{color:var(--olive)} .col.r h3{color:var(--rust)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;counter-reset:s}
+@media (max-width:720px){.steps{grid-template-columns:1fr 1fr}}
+.step{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:13px;counter-increment:s}
+.step::before{content:counter(s);display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--clay);color:#fff;font-weight:700;margin-bottom:8px}
+.step b{display:block;font-size:14px}
+details.prompt{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;margin-top:10px}
+details.prompt summary{cursor:pointer;padding:12px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center;list-style:none}
+details.prompt summary::-webkit-details-marker{display:none}
+details.prompt pre{font:13px/1.7 var(--mono);white-space:pre-wrap;word-break:break-word;padding:0 14px 14px;color:var(--ink2)}
+.copy{font:600 12px/1 var(--sans);background:var(--clay);color:#fff;border:0;border-radius:8px;padding:7px 12px;cursor:pointer}
+.stop{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+@media (max-width:720px){.stop{grid-template-columns:1fr}}
+.stop div{background:var(--rust-soft);border-radius:12px;padding:12px;font-size:13px}
+.stop b{display:block;font-size:14px;color:var(--rust)}
+button:focus-visible,.chip:focus-visible,summary:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
+.mock{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media (max-width:720px){.mock{grid-template-columns:1fr}}
+.chat{background:#8CABD9;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.chat .me{align-self:flex-end;background:#C6F2A5;color:#141413;border-radius:14px;padding:6px 12px;font-size:13px}
+.flex{background:#fff;color:#141413;border-radius:14px;overflow:hidden;max-width:300px;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.flex .fh{background:#2B4A9B;color:#fff;padding:12px 14px}
+.flex .fh b{display:block;font-size:16px}
+.flex .fh span{font-size:12px;opacity:.85}
+.flex .fb{padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.flex .fbtn{border-radius:8px;padding:8px;text-align:center;font-size:13px;color:#fff}
+.flex .k1{background:#1F8A5B}.flex .k2{background:#2F6FD8}.flex .k3{background:#C9821A}.flex .k4{background:#7A7F8C}
+.flex .fsep{border-top:1px solid #E3E1DA;margin:4px 0}
+.flex .fstat{font-size:12.5px;color:#3D3D3A;text-align:center}
+.flex .flink{font-size:12px;color:#B04A3F;text-align:center}
+.flex .ans{font-size:13.5px;line-height:1.6;color:#3D3D3A}
+.flex .cite{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;border-top:1px solid #F0EEE6;padding-top:7px}
+.flex .cite i{font-style:normal;background:#2B4A9B;color:#fff;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.qr{display:flex;gap:6px;flex-wrap:wrap}
+.qr span{background:#fff;color:#2B4A9B;border:1px solid #2B4A9B;border-radius:999px;padding:4px 10px;font-size:12px}
+.mockcap{font-size:12.5px;color:var(--muted);margin-top:8px}
+footer{margin-top:56px;font-size:12px;color:var(--muted)}
+details.glossary{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;margin-top:22px}
+details.glossary summary{cursor:pointer;padding:12px 14px;font-weight:700;font-size:15px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.glossary summary::-webkit-details-marker{display:none}
+details.glossary summary::after{content:"展開 ▾";font:600 12px/1 var(--sans);color:var(--muted)}
+details.glossary[open] summary::after{content:"收合 ▴"}
+details.glossary .inner{padding:0 14px 14px}
+details.glossary .terms{margin-top:0}
+.terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:10px}
+.term{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
+.term b{display:block;font-size:14px}
+.term span{display:block;font-size:12px;color:var(--muted);margin-top:3px;line-height:1.55}
+
+</style>
+<style>
+.first{background:var(--clay-soft);border:1.5px solid var(--clay);border-radius:14px;padding:16px;margin-top:28px}
+.first b.t{display:block;font-size:16px;margin-bottom:10px}
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}
+.strip span{background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:6px 10px}
+.strip span.k{border-color:var(--clay);font-weight:700}
+.strip em{font-style:normal;color:var(--muted)}
+.atk{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.atk button{text-align:left;font:13px/1.35 var(--sans);background:var(--paper);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer}
+.atk button small{display:block;font:600 10.5px/1 var(--mono);color:var(--rust);margin-bottom:4px}
+.atk button.on{border-color:var(--rust);background:var(--rust-soft)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:720px){.cmp{grid-template-columns:1fr}}
+.cmp div{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px}
+.cmp b{display:block;font-size:14px;margin-bottom:6px}
+.cmp p{margin:3px 0}
+.gates{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+@media (max-width:860px){.gates{grid-template-columns:repeat(2,1fr)}}
+.gate{background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:10px;font-size:12.5px;position:relative}
+.gate .p{font:600 11px/1 var(--mono);color:var(--muted)}
+.gate b{display:block;font-size:13.5px;margin:6px 0 4px}
+.gate .who{color:var(--muted);font-size:11.5px}
+.gate.lock::after{content:"🔒";position:absolute;top:8px;right:8px;font-size:12px}
+.gate.red{border-color:var(--rust);background:var(--rust-soft)}
+.gate.red b{color:var(--rust)}
+</style>
+</head>
+<body><div class="sheet">
+
+<header>
+  <h1>讓 LINE 成為學生願意用的提問入口</h1>
+  <div class="stats">
+    <div class="stat"><div class="k">優先項目</div><div class="v">5 <small>個，依序做</small></div></div>
+    <div class="stat"><div class="k">攻擊情境</div><div class="v">19 <small>條都要有測試</small></div></div>
+    <div class="stat"><div class="k">dev 完成</div><div class="v">11/10 <small>11/6 前求援</small></div></div>
+    <div class="stat"><div class="k">部署</div><div class="v">11/14 <small>由 Weihao</small></div></div>
+  </div>
+  <div class="first"><b class="t">開工前第一步：邀請 Weihao 為 Admin</b>
+    <div class="strip"><span>LINE Developers Console</span><em>→</em><span>正式 provider</span><em>→</em><span>Roles</span><em>→</em><span>用 Email 邀請 Weihao</span><em>→</em><span class="k">角色選 Admin（不是 Member）</span><em>→</em><span>Weihao 接受 ✓</span></div>
+  </div>
+</header>
+
+<h2><span class="no">00</span>前情提要：現在與做完之後的架構</h2>
+<p class="sub">上排是怎麼綁定，中排是綁定後提問，下排是現況問題或這次新增的零件。切換「現在／做完之後」比較，點格子看細節。</p>
+<div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-tab="now0">現在</button><button role="tab" aria-selected="false" data-tab="after0">做完之後</button></div>
+<div class="layout">
+  <div class="canvas">
+    <svg id="now0" viewBox="0 0 620 330" role="img" aria-label="目前 LINE：網頁產生綁定碼，學生貼到 LINE，Bot 兌換後寫入 lineUserId；提問走同一套問答；下排列出現況與問題">
+      <g class="node" data-k="l1" tabindex="0"><rect class="b" x="10" y="20" width="130" height="50" rx="8"/><text x="75" y="42" text-anchor="middle">網頁產生綁定碼</text><text x="75" y="60" text-anchor="middle" class="s">64 字、10 分鐘</text></g>
+      <g class="node" data-k="l2" tabindex="0"><rect class="bad" x="165" y="20" width="130" height="50" rx="8"/><text x="230" y="42" text-anchor="middle">學生貼到 LINE</text><text x="230" y="60" text-anchor="middle" class="s">最容易放棄</text></g>
+      <g class="node" data-k="l3" tabindex="0"><rect class="b" x="320" y="20" width="130" height="50" rx="8"/><text x="385" y="42" text-anchor="middle">Bot 兌換</text><text x="385" y="60" text-anchor="middle" class="s">Webhook 驗簽</text></g>
+      <g class="node" data-k="l4" tabindex="0"><rect class="b" x="475" y="20" width="135" height="50" rx="8"/><text x="542" y="42" text-anchor="middle">記下 lineUserId</text><text x="542" y="60" text-anchor="middle" class="s">綁定完成</text></g>
+      <g class="node" data-k="l5" tabindex="0"><rect class="q" x="10" y="120" width="130" height="50" rx="25"/><text x="75" y="142" text-anchor="middle">LINE 提問</text><text x="75" y="160" text-anchor="middle" class="s">和網頁共用次數</text></g>
+      <g class="node" data-k="l6" tabindex="0"><rect class="b" x="165" y="120" width="130" height="50" rx="8"/><text x="230" y="142" text-anchor="middle">同一套問答</text><text x="230" y="160" text-anchor="middle" class="s">和網頁一樣</text></g>
+      <g class="node" data-k="l7" tabindex="0"><rect class="bad" x="320" y="120" width="130" height="50" rx="8"/><text x="385" y="142" text-anchor="middle">Bot 回覆</text><text x="385" y="160" text-anchor="middle" class="s">有開發字樣</text></g>
+      <g class="node" data-k="l8" tabindex="0"><rect class="bad" x="475" y="120" width="135" height="50" rx="8"/><text x="542" y="142" text-anchor="middle">教師統計</text><text x="542" y="160" text-anchor="middle" class="s">只有總數</text></g>
+      <path class="ar" d="M140,45L163,45"/><path class="ar" d="M295,45L318,45"/><path class="ar" d="M450,45L473,45"/>
+      <path class="ar" d="M140,145L163,145"/><path class="ar" d="M295,145L318,145"/><path class="ar" d="M542,70L542,118" style="stroke-dasharray:3 3"/>
+      <path d="M10,196H610" stroke="var(--line)" stroke-dasharray="4 4"/>
+      <text x="10" y="216" class="s">現況：已經有、有問題、還沒有</text>
+      <g class="node" data-k="y1" tabindex="0"><rect class="ok" x="10" y="226" width="190" height="42" rx="8"/><text x="105" y="252" text-anchor="middle">✓ 登入 cookie 已上線</text></g>
+      <g class="node" data-k="y2" tabindex="0"><rect class="ok" x="215" y="226" width="190" height="42" rx="8"/><text x="310" y="252" text-anchor="middle">✓ webhook 與問答</text></g>
+      <g class="node" data-k="y3" tabindex="0"><rect class="bad" x="420" y="226" width="190" height="42" rx="8"/><text x="515" y="252" text-anchor="middle">⚠ 綁定碼可能被兌換兩次</text></g>
+      <g class="node" data-k="y4" tabindex="0"><rect class="bad" x="10" y="278" width="190" height="42" rx="8"/><text x="105" y="304" text-anchor="middle">⚠ 新帳號會搶走綁定</text></g>
+      <g class="node" data-k="y5" tabindex="0"><rect class="q" x="215" y="278" width="190" height="42" rx="8"/><text x="310" y="304" text-anchor="middle">✗ LINE Login channel</text></g>
+      <g class="node" data-k="y6" tabindex="0"><rect class="q" x="420" y="278" width="190" height="42" rx="8"/><text x="515" y="304" text-anchor="middle">✗ 圖文選單</text></g>
+    </svg>
+    <svg id="after0" viewBox="0 0 620 330" role="img" aria-label="做完之後：按連結 LINE 經 LINE 授權與後端驗證完成綁定；回覆與統計改善；新增六個零件" hidden>
+      <g class="node" data-k="z1" tabindex="0"><rect class="new" x="10" y="20" width="130" height="50" rx="8"/><text x="75" y="42" text-anchor="middle">按「連結 LINE」</text><text x="75" y="60" text-anchor="middle" class="s">網頁一個按鈕</text></g>
+      <g class="node" data-k="z2" tabindex="0"><rect class="new" x="165" y="20" width="130" height="50" rx="8"/><text x="230" y="42" text-anchor="middle">LINE 授權</text><text x="230" y="60" text-anchor="middle" class="s">按許可＋加好友</text></g>
+      <g class="node" data-k="z3" tabindex="0"><rect class="new" x="320" y="20" width="130" height="50" rx="8"/><text x="385" y="42" text-anchor="middle">後端核對＋驗證</text><text x="385" y="60" text-anchor="middle" class="s">state、ID Token</text></g>
+      <g class="node" data-k="l4" tabindex="0"><rect class="b" x="475" y="20" width="135" height="50" rx="8"/><text x="542.5" y="42" text-anchor="middle">記下 lineUserId</text><text x="542.5" y="60" text-anchor="middle" class="s">舊同學不必重綁</text></g>
+      <g class="node" data-k="l5" tabindex="0"><rect class="q" x="10" y="120" width="130" height="50" rx="25"/><text x="75" y="142" text-anchor="middle">LINE 提問</text><text x="75" y="160" text-anchor="middle" class="s">和網頁共用次數</text></g>
+      <g class="node" data-k="l6" tabindex="0"><rect class="b" x="165" y="120" width="130" height="50" rx="8"/><text x="230" y="142" text-anchor="middle">同一套問答</text><text x="230" y="160" text-anchor="middle" class="s">和網頁一樣</text></g>
+      <g class="node" data-k="z7" tabindex="0"><rect class="ok" x="320" y="120" width="130" height="50" rx="8"/><text x="385" y="142" text-anchor="middle">Bot 回覆</text><text x="385" y="160" text-anchor="middle" class="s">卡片＋1:15</text></g>
+      <g class="node" data-k="z8" tabindex="0"><rect class="ok" x="475" y="120" width="135" height="50" rx="8"/><text x="542.5" y="142" text-anchor="middle">教師統計</text><text x="542.5" y="160" text-anchor="middle" class="s">網頁／LINE 分開</text></g>
+      <path class="ar" d="M140,45L163,45"/><path class="ar" d="M295,45L318,45"/><path class="ar" d="M450,45L473,45"/>
+      <path class="ar" d="M140,145L163,145"/><path class="ar" d="M295,145L318,145"/><path class="ar" d="M542,70L542,118" style="stroke-dasharray:3 3"/>
+      <path d="M10,196H610" stroke="var(--line)" stroke-dasharray="4 4"/>
+      <text x="10" y="216" class="s">這次新增的零件</text>
+      <g class="node" data-k="z9" tabindex="0"><rect class="new" x="10" y="226" width="190" height="42" rx="8"/><text x="105" y="252" text-anchor="middle">✚ LINE Login channel</text></g>
+      <g class="node" data-k="z10" tabindex="0"><rect class="new" x="215" y="226" width="190" height="42" rx="8"/><text x="310" y="252" text-anchor="middle">✚ 一次性 state 存放</text></g>
+      <g class="node" data-k="z11" tabindex="0"><rect class="new" x="420" y="226" width="190" height="42" rx="8"/><text x="515" y="252" text-anchor="middle">✚ 衝突檢查（唯一索引）</text></g>
+      <g class="node" data-k="z12" tabindex="0"><rect class="new" x="10" y="278" width="190" height="42" rx="8"/><text x="105" y="304" text-anchor="middle">✚ 綁定狀態頁</text></g>
+      <g class="node" data-k="z13" tabindex="0"><rect class="new" x="215" y="278" width="190" height="42" rx="8"/><text x="310" y="304" text-anchor="middle">✚ 19 條攻擊情境測試</text></g>
+      <g class="node" data-k="z14" tabindex="0"><rect class="q" x="420" y="278" width="190" height="42" rx="8"/><text x="515" y="304" text-anchor="middle">✚ 圖文選單（評估）</text></g>
+      </svg>
+  </div>
+  <aside class="panel" aria-live="polite"><h3>點左邊任一格</h3><p>看這一塊現在的狀況，以及它和這次任務的關係。</p></aside>
+</div>
+
+<details class="glossary"><summary>這次會碰到的技術名詞（18 個）</summary><div class="inner">
+<p class="sub">不必懂細節，先認得名字，討論時比較好溝通。</p>
+<div class="terms">
+  <div class="term"><b>LINE 登入（LINE Login）</b><span>LINE 官方的授權機制，讓 LINE 證明「這個人是這個 LINE 帳號的主人」。</span></div>
+  <div class="term"><b>授權框架（OAuth 2.0）</b><span>業界標準的授權流程，LINE Login 依此設計。</span></div>
+  <div class="term"><b>身分層（OpenID Connect, OIDC）</b><span>在 OAuth 上加一張身分證明，告訴我們是誰登入。</span></div>
+  <div class="term"><b>身分證明（ID Token）</b><span>LINE 簽發的身分證明；要檢查給誰的、有沒有過期、簽章對不對。</span></div>
+  <div class="term"><b>狀態值（state）</b><span>每次連結產生的一次性亂碼，用來確認回來的是同一個請求。</span></div>
+  <div class="term"><b>一次性隨機值（nonce）</b><span>放進身分證明裡的亂碼，防止舊的證明被拿來重用。</span></div>
+  <div class="term"><b>授權碼（Authorization Code）</b><span>LINE 授權後給的短效代碼，後端拿去換身分證明。</span></div>
+  <div class="term"><b>授權碼防攔截（PKCE）</b><span>Proof Key for Code Exchange，防止授權碼被攔截後冒用。</span></div>
+  <div class="term"><b>存取權杖（Access Token）</b><span>代表授權的憑證；這次用完就丟，不存資料庫。</span></div>
+  <div class="term"><b>跨站請求偽造（CSRF）</b><span>騙使用者在不知情下送出請求，例如點了別人產生的授權連結。</span></div>
+  <div class="term"><b>重放攻擊（Replay Attack）</b><span>把舊的請求或證明再送一次。</span></div>
+  <div class="term"><b>競爭條件（Race Condition）</b><span>兩個請求同時進來，結果和一個一個處理時不同。</span></div>
+  <div class="term"><b>唯一索引（Unique Index）</b><span>資料庫保證同一個值只能出現一次，例如一個 LINE 只能綁一個帳號。</span></div>
+  <div class="term"><b>Webhook</b><span>LINE 有新訊息時，主動通知我們伺服器的網址。</span></div>
+  <div class="term"><b>訊息 API（Messaging API）</b><span>LINE 聊天機器人收發訊息用的介面。</span></div>
+  <div class="term"><b>Provider／Channel</b><span>LINE 後台的管理單位與一項服務的設定；同一個 provider 底下使用者 ID 相同。</span></div>
+  <div class="term"><b>httpOnly Cookie</b><span>瀏覽器裡程式讀不到的登入憑證，比較不容易被偷。</span></div>
+  <div class="term"><b>圖文選單（Rich Menu）</b><span>LINE 聊天室下方的按鈕選單。</span></div>
+</div>
+</div></details>
+
+<h2><span class="no">01</span>學生會感受到的差別</h2>
+<div class="two">
+  <div class="canvas"><div class="cap">現在</div>
+    <svg viewBox="0 0 300 250" role="img" aria-label="現在：學生要複製 64 字元綁定碼貼到 LINE，常常失敗；回覆出現開發字樣">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#87867F"/></marker></defs>
+      <rect class="b" x="10" y="10" width="280" height="40" rx="8"/><text x="22" y="35" class="s">綁定碼</text><text x="78" y="35" style="font-family:var(--mono);font-size:11px">a9F3k…（共 64 字）</text>
+      <path class="ar" d="M150,50L150,66"/>
+      <rect class="b" x="10" y="70" width="86" height="40" rx="8"/><text x="53" y="95" text-anchor="middle">長按複製</text>
+      <rect class="b" x="107" y="70" width="86" height="40" rx="8"/><text x="150" y="95" text-anchor="middle">切到 LINE</text>
+      <rect class="bad" x="204" y="70" width="86" height="40" rx="8"/><text x="247" y="95" text-anchor="middle">貼上 ✗</text>
+      <text x="247" y="128" text-anchor="middle" class="s">少了幾個字，放棄</text>
+      <rect class="q" x="10" y="150" width="280" height="86" rx="12"/>
+      <text x="22" y="174" class="s">Bot 的回覆</text>
+      <text x="22" y="198"><tspan class="hl">[MVP提示]</tspan> …</text>
+      <text x="22" y="222">片段：<tspan class="hl">75s - 120s</tspan></text>
+    </svg>
+  </div>
+  <div class="canvas"><div class="cap">做完之後</div>
+    <svg viewBox="0 0 300 250" role="img" aria-label="做完之後：按連結 LINE、按許可、加好友就完成；回覆時間寫成 1:15 - 2:00">
+      <rect class="new" x="10" y="10" width="280" height="40" rx="20"/><text x="150" y="35" text-anchor="middle">按「連結 LINE」</text>
+      <path class="ar" d="M150,50L150,66"/>
+      <rect class="b" x="10" y="70" width="86" height="40" rx="8"/><text x="53" y="95" text-anchor="middle">按「許可」</text>
+      <rect class="b" x="107" y="70" width="86" height="40" rx="8"/><text x="150" y="95" text-anchor="middle">加好友</text>
+      <rect class="ok" x="204" y="70" width="86" height="40" rx="8"/><text x="247" y="95" text-anchor="middle">已綁定 ✓</text>
+      <text x="247" y="128" text-anchor="middle" class="s">不用複製任何東西</text>
+      <rect class="q" x="10" y="150" width="280" height="86" rx="12"/>
+      <text x="22" y="174" class="s">Bot 的回覆</text>
+      <text x="22" y="198">老師在第 2 支影片講到這個概念</text>
+      <text x="22" y="222">片段：<tspan style="fill:var(--olive);font-weight:700">1:15 - 2:00</tspan></text>
+    </svg>
+  </div>
+</div>
+
+<h2><span class="no">02</span>要打通的整段體驗</h2>
+<p class="sub">不是做三個獨立功能，而是讓這條路一路順。點格子看對應的優先項目。</p>
+<div class="layout">
+  <div class="canvas">
+    <svg viewBox="0 0 620 150" role="img" aria-label="連結帳號、開始提問、看得懂回答、老師看得到使用情況">
+      <g class="node" data-k="e1" tabindex="0"><rect class="new" x="10" y="20" width="130" height="56" rx="10"/><text x="75" y="44" text-anchor="middle">連結帳號</text><text x="75" y="63" text-anchor="middle" class="s">優先 1、2</text></g>
+      <g class="node" data-k="e2" tabindex="0"><rect class="b" x="170" y="20" width="130" height="56" rx="10"/><text x="235" y="44" text-anchor="middle">開始提問</text><text x="235" y="63" text-anchor="middle" class="s">沿用現有問答</text></g>
+      <g class="node" data-k="e3" tabindex="0"><rect class="new" x="330" y="20" width="130" height="56" rx="10"/><text x="395" y="44" text-anchor="middle">看得懂回答</text><text x="395" y="63" text-anchor="middle" class="s">優先 3</text></g>
+      <g class="node" data-k="e4" tabindex="0"><rect class="new" x="490" y="20" width="120" height="56" rx="10"/><text x="550" y="44" text-anchor="middle">老師看得到</text><text x="550" y="63" text-anchor="middle" class="s">優先 4</text></g>
+      <g class="node" data-k="e5" tabindex="0"><rect class="q" x="170" y="100" width="290" height="40" rx="20"/><text x="315" y="125" text-anchor="middle">圖文選單：評估能不能一起做（優先 5）</text></g>
+      <path class="ar" d="M140,48L168,48"/><path class="ar" d="M300,48L328,48"/><path class="ar" d="M460,48L488,48"/>
+    </svg>
+  </div>
+  <aside class="panel" aria-live="polite"><h3>點左邊任一格</h3><p>每一格會說明要做到什麼、由誰決定。</p></aside>
+</div>
+
+<h2><span class="no">03</span>參考做法：綁定流程</h2>
+<p class="sub">這是一種做法，不是規定。紅色 ! 是攻擊會被擋下的地方，點看看。</p>
+<div class="layout">
+  <div class="canvas">
+    <svg viewBox="0 0 640 430" role="img" aria-label="綁定流程：學生、FocusFlow 後端、LINE 三方之間的八個步驟">
+      <text x="110" y="20" text-anchor="middle" style="font-weight:700">學生</text>
+      <text x="320" y="20" text-anchor="middle" style="font-weight:700">FocusFlow 後端</text>
+      <text x="530" y="20" text-anchor="middle" style="font-weight:700">LINE</text>
+      <path d="M110,30V420M320,30V420M530,30V420" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 4"/>
+      <g class="node" data-k="s1" tabindex="0"><rect class="new" x="25" y="40" width="170" height="36" rx="8"/><text x="110" y="63" text-anchor="middle">① 按「連結 LINE」</text></g>
+      <g class="node" data-k="s2" tabindex="0"><rect class="b" x="235" y="88" width="170" height="36" rx="8"/><text x="320" y="111" text-anchor="middle">② 產生一次性 state</text></g>
+      <g class="node" data-k="s3" tabindex="0"><rect class="b" x="445" y="136" width="170" height="36" rx="8"/><text x="530" y="159" text-anchor="middle">③ 按許可、加好友</text></g>
+      <g class="node" data-k="s4" tabindex="0"><rect class="b" x="25" y="184" width="170" height="36" rx="8"/><text x="110" y="207" text-anchor="middle">④ 回到 /line/callback</text></g>
+      <g class="node" data-k="s5" tabindex="0"><rect class="b" x="235" y="232" width="170" height="36" rx="8"/><text x="320" y="255" text-anchor="middle">⑤ 核對 state（防 CSRF）</text></g>
+      <g class="node" data-k="s6" tabindex="0"><rect class="b" x="235" y="280" width="170" height="36" rx="8"/><text x="320" y="303" text-anchor="middle">⑥ 驗證 ID Token</text></g>
+      <g class="node" data-k="s7" tabindex="0"><rect class="b" x="235" y="328" width="170" height="36" rx="8"/><text x="320" y="351" text-anchor="middle">⑦ 寫入綁定</text></g>
+      <g class="node" data-k="s8" tabindex="0"><rect class="ok" x="25" y="376" width="170" height="36" rx="8"/><text x="110" y="399" text-anchor="middle">⑧ 已綁定＋歡迎訊息</text></g>
+      <path class="ar" d="M195,58C220,58 215,106 233,106"/><path class="ar" d="M405,106C430,106 425,154 443,154"/><path class="ar" d="M445,160C300,175 230,190 197,202"/>
+      <path class="ar" d="M195,202C220,202 215,250 233,250"/><path class="ar" d="M320,268L320,278"/><path class="ar" d="M405,298L528,298L528,175" style="stroke-dasharray:3 3"/><path class="ar" d="M320,316L320,326"/>
+      <path class="ar" d="M235,346C215,346 220,394 197,394"/>
+      <g class="node" data-k="k1" tabindex="0"><rect class="bad" x="412" y="235" width="30" height="30" rx="15"/><text x="427" y="255" text-anchor="middle" style="fill:var(--rust);font-weight:700">!</text></g>
+      <g class="node" data-k="k2" tabindex="0"><rect class="bad" x="198" y="283" width="30" height="30" rx="15"/><text x="213" y="303" text-anchor="middle" style="fill:var(--rust);font-weight:700">!</text></g>
+      <g class="node" data-k="k3" tabindex="0"><rect class="bad" x="412" y="331" width="30" height="30" rx="15"/><text x="427" y="351" text-anchor="middle" style="fill:var(--rust);font-weight:700">!</text></g>
+    </svg>
+  </div>
+  <aside class="panel" aria-live="polite"><h3>點左邊任一格</h3><p>步驟格說明它做什麼；紅色 ! 說明它擋下哪種攻擊。</p></aside>
+</div>
+
+<h2><span class="no">04</span>參考樣式：選單卡與回答卡（Flex Message）</h2>
+<p class="sub">手機和電腦版 LINE 都能顯示的卡片訊息。這是暫定方向，卡片放哪些項目、長怎樣，由你和 AI 討論決定。</p>
+<div class="mock">
+  <div>
+    <div class="chat">
+      <div class="me">選單</div>
+      <div class="flex">
+        <div class="fh"><b>FocusFlow 助教</b><span>目前課程：AI入門基礎課</span></div>
+        <div class="fb">
+          <div class="fbtn k1">📚 切換課程</div>
+          <div class="fbtn k2">🔢 今天還能問 3 次</div>
+          <div class="fbtn k3">🌐 開啟網頁版</div>
+          <div class="fbtn k4">❓ 使用說明</div>
+          <div class="fsep"></div>
+          <div class="fstat">✅ 已綁定 · 已加好友</div>
+          <div class="flink">解除綁定（到網頁操作）</div>
+        </div>
+      </div>
+    </div>
+    <div class="mockcap">選單卡（Menu Card）：輸入「選單」或按手機的圖文選單叫出。換模型、本月額度等系統設定完成後再加。</div>
+  </div>
+  <div>
+    <div class="chat">
+      <div class="me">老師哪裡講全聯先生廣告？</div>
+      <div class="flex">
+        <div class="fh"><b>AI入門基礎課</b><span>根據課程影片回答</span></div>
+        <div class="fb">
+          <div class="ans">老師用全聯先生的廣告，說明「品牌形象」怎麼讓人記住一個商品……</div>
+          <div class="cite"><span>第 3 支・12:40 - 13:05</span><i>▶ 看這段</i></div>
+          <div class="cite"><span>第 3 支・13:05 - 13:30</span><i>▶ 看這段</i></div>
+        </div>
+      </div>
+      <div class="qr"><span>再問一題</span><span>換課程</span></div>
+    </div>
+    <div class="mockcap">回答卡（Answer Card）：引用點「▶ 看這段」，有 YouTube 版本就跳到該秒。卡片失敗時退回純文字。下方是快速回覆（Quick Reply），電腦版要實測。</div>
+  </div>
+</div>
+
+<h2><span class="no">05</span>怎樣算成功：19 條攻擊情境都擋得住</h2>
+<p class="sub">清單由 Weihao 這邊寫好，每一條都要寫成自動測試並通過。點卡片看「必須的結果」。</p>
+<div class="canvas">
+  <div class="atk" id="atk"></div>
+  <div class="tip" id="atktip"></div>
+  <div class="pipe"><span>Weihao 寫的清單</span><em>→</em><span>每條一個測試</span><em>→</em><span>全部通過</span><em>＋</em><span>手機與電腦實測紀錄</span><em>→</em><span class="j">才算完成</span></div>
+</div>
+
+<h2><span class="no">06</span>誰決定什麼</h2>
+<p class="sub">點一下看例子。</p>
+<div class="two">
+  <div class="canvas col g"><h3>你和 AI 自己決定</h3><div class="chips">
+    <button class="chip g" data-tip="按鈕放哪、畫面長怎樣、成功與錯誤的文案怎麼寫。">畫面與文案</button>
+    <button class="chip g" data-tip="程式怎麼拆、測試怎麼寫。">程式與測試</button>
+    <button class="chip g" data-tip="state 怎麼存、多久過期、怎麼驗證，都可以自己設計，只要 19 條攻擊情境都擋得住。">授權流程細節</button>
+    <button class="chip g" data-tip="在本機另開測試 provider，或在正式 provider 測試，見下方比較。">測試環境</button>
+    <button class="chip g" data-tip="選單卡、回答卡要放哪些項目、版面與文案，第 04 段只是參考。">卡片的項目與版面</button>
+    <button class="chip g" data-tip="圖文選單要不要這次一起做；只做不依賴系統設定的部分。">圖文選單要不要一起做</button>
+  </div></div>
+  <div class="canvas col r"><h3>不能踩的線，要改先找 Weihao</h3><div class="chips">
+    <button class="chip r" data-tip="一個 LINE 只能綁一個帳號；想綁已經綁在別人帳號上的 LINE，一律拒絕，別人的綁定不變。">一個 LINE 一個帳號</button>
+    <button class="chip r" data-tip="學生自己的帳號要換成新的 LINE，畫面要先問「確定要取代目前的 LINE 嗎？」。">換綁要先確認</button>
+    <button class="chip r" data-tip="LINE 的 access token、refresh token 用完就丟，不存進資料庫，少一份可以被偷的東西。">不存 LINE 的 token</button>
+    <button class="chip r" data-tip="流程跳到另一個瀏覽器時沒有登入，就請學生回原瀏覽器重來，不能只靠 state 完成綁定。">沒登入不能綁定</button>
+    <button class="chip r" data-tip="改版後，已經綁好的同學從 LINE 提問，仍對應到原本的帳號。">舊同學不能失效</button>
+    <button class="chip r" data-tip="正式 LINE 後台的每一步都要 Weihao 先同意；channel 改成 Published 之後無法退回。">正式後台每步先問</button>
+    <button class="chip r" data-tip="卡片只改呈現方式，回答內容與引用規則不改；也不為了跳回播放器去改學生課程頁（庭語也在改）。">回答與引用規則不改</button>
+    <button class="chip r" data-tip="推 main 會直接部署到正式站，部署由 Weihao 做。">不推 main</button>
+  </div></div>
+</div>
+<div class="tip" id="tip"></div>
+<h3 style="font-size:15px;margin:22px 0 10px">測試環境由你評估</h3>
+<div class="cmp">
+  <div><b>本機＋測試用 provider</b><p>＋ 完全不碰正式官方帳號與正式伺服器</p><p>＋ 測試者不會加到正式官方帳號</p><p>－ 要另外建測試用官方帳號與 Login channel</p><p>－ 本機回呼網址 localhost 要實測能不能用</p></div>
+  <div><b>正式 provider</b><p>＋ 和正式環境設定一致，少建一套</p><p>＋ channel 在 Developing 時只有 Admin、Tester 能登入</p><p>－ 加好友會加到<b style="display:inline">正式</b>官方帳號</p><p>－ 訊息會送到正式伺服器；每次操作都要先問 Weihao</p></div>
+</div>
+
+<h2><span class="no">07</span>正式環境關卡</h2>
+<p class="sub">🔒 的每一步都要 Weihao 先同意。</p>
+<div class="gates">
+  <div class="gate lock"><div class="p">P0</div><b>邀請 Admin</b><div class="who">開工前</div></div>
+  <div class="gate lock"><div class="p">P1</div><b>建 Login channel</b><div class="who">百陶 · 11/10 後</div></div>
+  <div class="gate lock"><div class="p">P2</div><b>VM 加設定</b><div class="who">Weihao · 部署前</div></div>
+  <div class="gate lock red"><div class="p">P3</div><b>改成 Published</b><div class="who">無法退回 · 部署當天</div></div>
+  <div class="gate lock"><div class="p">P4</div><b>部署</b><div class="who">Weihao · 11/14</div></div>
+  <div class="gate"><div class="p">P5</div><b>正式站實測一次</b><div class="who">部署後</div></div>
+  <div class="gate lock"><div class="p">P6</div><b>移除綁定碼</b><div class="who">11/28 之後</div></div>
+</div>
+
+<h2><span class="no">08</span>和 AI 一起做</h2>
+<div class="steps">
+  <div class="step"><b>git pull</b>用 Codex 或 Claude Code 打開專案</div>
+  <div class="step"><b>貼開場指令</b>AI 用例子教你，再和你討論做法與測試環境</div>
+  <div class="step"><b>說「開始」</b>AI 一路做完，自己 commit、push 到 dev</div>
+  <div class="step"><b>貼回報指令</b>把摘要傳給 Weihao</div>
+</div>
+<p class="sub" style="margin-top:10px">額度用完就換另一個工具或等恢復，再貼一次開場指令，AI 會讀進度檔接著做。</p>
+<details class="prompt" open><summary>開場指令 <button class="copy" data-target="p1" type="button">複製</button></summary><pre id="p1">你是我在 FocusFlow 專案的開發夥伴。我是百陶，這次負責「LINE 學習入口與帳號綁定」。
+請先讀 docs/04_Features/LINE_Binding/HANDOFF.md，照裡面「開場時 AI 要做的事」進行：
+1. 只讀它指定的段落，不要一次讀完整份 decisions.md。
+2. 用一個具體例子跟我解釋這次要解決什麼問題，然後請我用自己的話說出要改什麼、怎樣算成功；我講錯的地方幫我釐清。
+3. 先問我有什麼想法，再拿參考方案出來比較，說明取捨；也幫我評估測試環境要用本機測試 provider 還是正式 provider，並提醒我評估圖文選單能不能一起做。如果我的想法比較好，就採用，並寫回 decisions.md 和 docs/07_HTML說明頁/LINE綁定.html。
+4. 我說「開始」之後，在這個對話一路做到完成：攻擊情境清單每一條都寫成測試、小步 commit、push 前跑測試、只 push 到 dev、每次 commit 後更新 evidence/進度.md。
+5. 只有遇到 HANDOFF 寫的三種情況才停下來（正式 LINE 後台的每一步都算），並幫我寫好要傳給 Weihao 的訊息。如果預估 11/10 前做不完，最晚 11/6 提醒我求援。
+如果 evidence/進度.md 已經存在，先讀它，從上次停下的地方接著做。</pre></details>
+<details class="prompt"><summary>回報指令 <button class="copy" data-target="p2" type="button">複製</button></summary><pre id="p2">請整理這次的回報，寫成 docs/04_Features/LINE_Binding/evidence/&lt;今天日期&gt;_回報.md，並在對話中給我一份可以直接傳給 Weihao 的摘要：
+1. 成果：五個優先項目各做到哪裡，附 commit。
+2. 測試證據：已執行與未執行的測試分開列，未執行要寫原因；附攻擊情境 A1～A19 與測試名稱的對照，以及手機、電腦端到端紀錄的位置。
+3. 和參考方案不同的地方：改了什麼、為什麼；測試環境選了哪一種、為什麼。
+4. 部署需要的設定清單，對照 HANDOFF 的正式環境關卡 P1～P6。
+5. 我學到什麼：根據我們的對話，用我的口吻寫三到五句「我會怎麼向評審解釋這個功能的安全設計」，先給我確認再存。
+6. 確認 decisions.md、HANDOFF.md 與 docs/07_HTML說明頁/LINE綁定.html 都已同步。</pre></details>
+
+<h2><span class="no">09</span>只有這三種情況停下來找 Weihao</h2>
+<div class="stop">
+  <div><b>✋ 正式環境的操作</b>正式 LINE 後台、webhook、伺服器、正式資料庫、部署</div>
+  <div><b>✋ 要踩上面那些線</b>例：想存 LINE token、改問答回應格式</div>
+  <div><b>✋ 做不到</b>或要求互相矛盾。照實說</div>
+</div>
+
+<footer>更新 2026-10-31 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LP 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+</div>
+
+<script>
+var D={
+z1:["按「連結 LINE」（LINE Login）","free","學生已登入網頁，按一個按鈕就開始。從 Bot 或「詢問助教」進來的學生，也走同一條路。"],
+z2:["LINE 授權（OAuth 2.0）","have","在 LINE 的授權畫面按「許可」，由 LINE 證明這個人是這個 LINE 帳號的主人；加好友在同一畫面勾選，或在許可之後另跳一頁按「加入好友」，看用哪種設定（bot_prompt）。"],
+z3:["後端核對＋驗證（CSRF 防護、ID Token 驗證）","lock","確認 state 是同一位登入者發起、沒過期、沒用過，再驗證 LINE 給的身分證明。"],
+z7:["Bot 回覆（Flex 回答卡）","free","回答改成卡片：課程、回答、最多 3 筆引用，引用可點「▶ 看這段」。沒有開發字樣，時間寫成 1:15 - 2:00。卡片失敗時退回純文字。"],
+z8:["教師統計（Source Breakdown）","free","網頁和 LINE 的提問數分開顯示，總數算法不變，用來看改版有沒有效果。"],
+z9:["LINE Login channel","lock","在現有 provider 新建；正式後台每一步都要 Weihao 先同意，改成 Published 後無法退回。"],
+z10:["一次性 state 存放（State Store）","free","存放每次連結的 state，用過或過期就失效。怎麼存由你設計，只要攻擊情境都擋得住。"],
+z11:["衝突檢查（Unique Index）","lock","一個 LINE 只能綁一個帳號；搶綁拒絕，自己換綁要先確認。"],
+z12:["綁定狀態頁","free","網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
+z13:["19 條攻擊情境測試","lock","Weihao 寫好的清單，每一條都要寫成自動測試並通過，才算完成。"],
+z14:["圖文選單（Rich Menu，評估）","free","評估能不能一起做不依賴系統設定的部分；只寫建立腳本，正式建立要先問。"],
+l1:["網頁產生綁定碼（Bind Token）","have","學生在「LINE 提問」頁按按鈕，後端產生 64 字元、10 分鐘有效的碼。從課程的「詢問助教」進來時，會產生帶課程的版本。"],
+l2:["學生貼到 LINE","warn","要長按複製、切換 App、貼給 Bot。手機上最容易在這一步放棄。"],
+l3:["Bot 兌換（Webhook）","have","LINE 把訊息送到我們的 webhook，後端先驗證簽章，再兌換綁定碼。"],
+l4:["記下 lineUserId（User ID）","have","使用者資料上記 LINE 給的使用者 ID。同一個 provider 底下 ID 相同，所以 LINE Login 放在同一個 provider，已綁定的同學不必重綁。"],
+l5:["LINE 提問","have","每人每天 5 次，網頁和 LINE 合計。"],
+l6:["同一套問答（RAG）","have","和網頁用同一套檢索與回答，這次不改。"],
+l7:["Bot 回覆","warn","還留著 [MVP提示] 之類的開發字樣，時間顯示成 75s - 120s，學生看不懂。"],
+l8:["教師統計","warn","畫面只有總數。其實每筆提問已經記了來源（網頁是 api、LINE 是 line），不用改資料結構就能分開算。"],
+y1:["登入 cookie 已上線（httpOnly Cookie）","have","2026-10-25 上線：登入憑證放在瀏覽器拿不到的 cookie，而且只在同網站送出；寫入請求要帶防偽標頭。從 LINE 內建瀏覽器開網頁可以恢復登入。這會影響 LINE 授權完回到網頁時怎麼接。"],
+y2:["webhook 與問答（Messaging API）","have","驗證簽章、先回應再處理、問答接線都已經有；2026-10-23 正式站實測 LINE 問答正常。"],
+y3:["綁定碼可能被兌換兩次（Race Condition）","warn","現在兌換是「先查、再刪」，兩個請求同時進來可能都成功。新做法要一步完成（攻擊情境 A12）。"],
+y4:["新帳號會搶走綁定（Account Takeover）","warn","現在同一個 LINE 綁到新帳號，會自動把舊帳號解除。新規則改成拒絕（攻擊情境 A9）。"],
+y5:["LINE Login channel（OAuth 2.0）","none","還沒有。你是 provider 管理員，開工前先邀請 Weihao 為 Admin；正式 channel 的建立要先問 Weihao。"],
+y6:["圖文選單（Rich Menu）","none","還沒有，原本規劃在系統設定 S4。這次由你評估能不能一起做不依賴系統設定的部分。"],
+e1:["連結帳號","free","優先 1：安全的 LINE Login 綁定，19 條攻擊情境都擋得住。優先 2：網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
+e2:["開始提問","have","綁定後沿用現有的 LINE 問答，不改回答與引用規則。","想想看：還沒綁定的學生直接在 LINE 傳訊息，Bot 要怎麼引導他？"],
+e3:["看得懂回答（Flex Message）","free","優先 3：選單與回答改用卡片，手機和電腦都能用；移除開發字樣、時間寫成 1:15 - 2:00。卡片放哪些項目、長怎樣由你決定，參考樣式見第 04 段。"],
+e4:["老師看得到","free","優先 4：教師統計頁分開網頁與 LINE 的提問數，總數算法不變。很小，可以穿插先做。"],
+e5:["圖文選單","free","優先 5：評估能不能一起做。只做不依賴系統設定的部分，例如未綁定顯示「連結帳號」。只寫建立腳本，正式建立要先問 Weihao。"],
+s1:["① 按「連結 LINE」","free","學生已經登入網頁。按鈕放哪、長怎樣由你決定。","想想看：在電腦上沒有 LINE App，要怎麼完成？（LINE 會顯示 QR code）"],
+s2:["② 產生一次性 state（OAuth state）","free","後端產生一串只能用一次、很快過期的亂碼，並記下「是誰、哪個登入」發起的。"],
+s3:["③ 按許可、加好友（Consent Screen）","have","LINE 先顯示授權畫面，學生按「許可」。加好友有兩種設定：normal 是在同一個畫面勾選「加入好友」（只有認證過的 provider 會預設勾好）；aggressive 是按完許可後另跳一頁，再按一次加入好友。已經是好友就不會出現；封鎖中會變成「解除封鎖」。","想想看：學生可能略過加好友，所以「已綁定」和「已加好友」要分開顯示。用哪種設定由你評估。"],
+s4:["④ 回到回呼網址（Callback URL）","free","LINE 把學生帶回網頁，網址上帶著 code 和 state。網頁再呼叫後端完成綁定。"],
+s5:["⑤ 核對 state＝登入者（CSRF 防護）","lock","state 必須存在、沒過期、沒用過，而且發起的人就是現在登入的人。這是整個流程最重要的檢查。"],
+s6:["⑥ 向 LINE 確認身分（ID Token 驗證）","lock","用 code 向 LINE 換資料，並檢查 LINE 給的身分證明（ID token）真的是給我們、沒過期、沒被竄改。"],
+s7:["⑦ 寫入綁定（Unique Index）","lock","寫入前檢查衝突：這個 LINE 若已綁在別人帳號上就拒絕；學生自己換 LINE 要先確認。不存 LINE 的 token。"],
+s8:["⑧ 已綁定＋歡迎訊息","free","網頁顯示結果；已加好友就送一則歡迎訊息，沒加就顯示加好友按鈕。文案由你決定。"],
+k1:["擋下：騙別人點連結（Login CSRF）","lock","壞人自己按「連結 LINE」，把連結傳給你。如果只看連結不看登入者，你的 LINE 就會被綁到壞人帳號，你之後的提問都記到他那邊。核對「發起的人＝現在登入的人」就能擋掉（A1、A2、A4、A5、A6）。"],
+k2:["擋下：偽造或重用身分證明（Replay Attack）","lock","有人送假的或過期的身分證明、重複使用授權碼，都要失敗，而且不能留下任何綁定（A7、A8）。"],
+k3:["擋下：搶綁（Race Condition）","lock","同一個 LINE 想綁第二個帳號、兩個請求同時送、沒確認就換綁，都要被擋下（A9、A10、A12、A13）。"]
+};
+var TAG={warn:["有，但有問題","t-warn"],none:["還沒有","t-none"],have:["已經有","t-have"],free:["你決定怎麼做","t-free"],lock:["不能改，要改先找 Weihao","t-lock"]};
+document.querySelectorAll('.layout').forEach(function(lay){var p=lay.querySelector('.panel');lay.querySelectorAll('.node').forEach(function(n){var f=function(){var d=D[n.dataset.k];if(!d)return;lay.querySelectorAll('.node.on').forEach(function(x){x.classList.remove('on')});n.classList.add('on');
+p.innerHTML='<span class="tag '+TAG[d[1]][1]+'">'+TAG[d[1]][0]+'</span><h3 style="margin-top:10px">'+d[0]+'</h3><p>'+d[2]+'</p>'+(d[3]?'<p class="think">'+d[3]+'</p>':'')};
+n.addEventListener('click',f);n.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})})});
+document.querySelectorAll('[data-tab]').forEach(function(b){b.addEventListener('click',function(){b.closest('.tabs').querySelectorAll('[data-tab]').forEach(function(x){x.setAttribute('aria-selected',x===b);document.getElementById(x.dataset.tab).toggleAttribute("hidden",x!==b)})})});
+var A=[["騙別人點授權連結","不會把受害者的 LINE 綁到攻擊者帳號，也不會綁到受害者帳號"],["同一個 state 用兩次","第二次失敗"],["state 過期","失敗"],["用別人的 state","屬於另一位使用者或另一個登入時失敗"],["沒有或偽造 state","失敗"],["換瀏覽器、沒登入","失敗並提示回原瀏覽器重來，不建立綁定"],["偽造身分證明","ID token 的對象、發行者、到期時間、nonce 任一不符或簽章無效都失敗"],["授權碼重用或換不到 token","失敗且不建立綁定，回傳看得懂的錯誤"],["搶綁別人的 LINE","拒絕並提示先從那個帳號解除；別人的綁定不變"],["沒確認就換綁","不改變；明確確認後才改綁"],["解除別人的綁定","只解除呼叫者自己的綁定"],["同時送兩次","只有一個成功"],["同時綁到兩個帳號","只有一個成功，另一個拒絕"],["缺防偽標頭","缺 X-Requested-With 或來源網址不對時拒絕"],["自己填 LINE ID","顯示名稱、Email、自填 ID 都不能當身分依據"],["資料庫裡的 token","完成綁定後資料庫沒有 LINE token"],["舊同學失效","部署前已綁定的學生仍對應原帳號與課程"],["竄改導回網址","只導回同網站、已驗證的頁面；課程須是學生已修的課"],["錯誤訊息洩密","錯誤回應與 log 不含 token、secret、授權碼"]];
+var atk=document.getElementById('atk'),at=document.getElementById('atktip');
+A.forEach(function(a,i){var b=document.createElement('button');b.type='button';b.innerHTML='<small>A'+(i+1)+'</small>'+a[0];b.addEventListener('click',function(){var on=b.classList.contains('on');atk.querySelectorAll('.on').forEach(function(x){x.classList.remove('on')});if(!on){b.classList.add('on');at.textContent='A'+(i+1)+' 必須：'+a[1]}else{at.textContent=''}});atk.appendChild(b)});
+var tip=document.getElementById('tip');
+document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){document.querySelectorAll('.chip.on').forEach(function(x){if(x!==c)x.classList.remove('on')});c.classList.toggle('on');tip.textContent=c.classList.contains('on')?c.dataset.tip:''})});
+document.querySelectorAll('.copy').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var t=document.getElementById(btn.dataset.target).innerText;var ok=function(){var o=btn.textContent;btn.textContent='已複製';setTimeout(function(){btn.textContent=o},1500)};
+if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(ok,function(){fb(t);ok()})}else{fb(t);ok()}})});
+function fb(t){var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(a)}
+</script>
+</body>
+</html>

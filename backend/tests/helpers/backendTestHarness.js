@@ -53,6 +53,7 @@ const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
+const LineLoginState = require('../../src/models/lineLoginState.model');
 const Faq = require('../../src/models/faq.model');
 const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
@@ -91,6 +92,7 @@ const store = {
   usageLogs: [],
   questions: [],
   lineBindTokens: [],
+  lineLoginStates: [],
   faqs: [],
   openEduVideos: [],
   shortAssets: [],
@@ -610,6 +612,15 @@ function installModelStubs() {
 
     if (!user) {
       return null;
+    }
+
+    // 對應 users.lineUserId 的 unique index
+    const nextLineUserId = update?.$set?.lineUserId;
+    if (nextLineUserId && store.users.some((item) => item !== user && item.lineUserId === nextLineUserId)) {
+      const error = new Error('Duplicate LINE user.');
+      error.code = 11000;
+      error.keyValue = { lineUserId: nextLineUserId };
+      throw error;
     }
 
     applyUpdate(user, update);
@@ -1246,6 +1257,10 @@ function installModelStubs() {
     return token;
   };
   LineBindToken.findOne = async (query = {}) => store.lineBindTokens.find((item) => matchesQuery(item, query)) || null;
+  LineBindToken.findOneAndDelete = async (query = {}) => {
+    const index = store.lineBindTokens.findIndex((item) => matchesQuery(item, query));
+    return index >= 0 ? store.lineBindTokens.splice(index, 1)[0] : null;
+  };
   LineBindToken.deleteMany = async (query = {}) => deleteManyInStore(store.lineBindTokens, query);
   LineBindToken.deleteOne = async (query = {}) => {
     const index = store.lineBindTokens.findIndex((item) => matchesQuery(item, query));
@@ -1254,6 +1269,13 @@ function installModelStubs() {
       store.lineBindTokens.splice(index, 1);
     }
   };
+
+  LineLoginState.create = async (payload) => { store.lineLoginStates.push({ ...payload }); return payload; };
+  LineLoginState.findOneAndDelete = async (query = {}) => {
+    const index = store.lineLoginStates.findIndex((item) => matchesQuery(item, query));
+    return index >= 0 ? store.lineLoginStates.splice(index, 1)[0] : null;
+  };
+  LineLoginState.deleteMany = async (query = {}) => deleteManyInStore(store.lineLoginStates, query);
 
   Feedback.create = async (payload) => {
     const now = new Date().toISOString();
@@ -1381,6 +1403,7 @@ function resetStore() {
   store.usageLogs.length = 0;
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
+  store.lineLoginStates.length = 0;
   store.faqs.length = 0;
   store.openEduVideos.length = 0;
   store.shortAssets.length = 0;

@@ -42,6 +42,9 @@ describe('phase-1 mvp acceptance smoke', () => {
   });
 
   it('locks the backend-only demo mainline from health to line question flow', async () => {
+    // 主線驗的是首次綁定；已綁定的帳號換 LINE 要先解除或在網頁確認
+    delete store.users.find((user) => user._id === ids.student).lineUserId;
+
     const healthResult = await jsonRequest(serverContext.baseUrl, '/health');
 
     assert.equal(healthResult.status, 200);

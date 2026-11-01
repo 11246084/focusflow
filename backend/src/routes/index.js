@@ -15,6 +15,15 @@ const shortScriptRoutes = require('./short-script.routes');
 const feedbackRoutes = require('./feedback.routes');
 
 const router = express.Router();
+const consentLifecycle = require('../services/recutConsentLifecycle.service').configureRecutConsentLifecycle();
+const consentService = require('../services/recutConsent.service');
+router.use('/', require('./recut-consent.routes').createRecutConsentRouter({ service: { ...consentService,
+  listManualActions: async (options) => {
+    const core = await consentService.listManualActions(options); // Enforces admin authorization first.
+    const assets = await consentLifecycle.listManualAssetActions();
+    return [...core, ...assets.filter((item) => !core.some((action) => String(action.assetId) === item.assetId && action.withdrawalId === item.withdrawalId))];
+  },
+} }));
 
 router.use('/recut-worker', require('./recut-worker.routes'));
 router.use('/auth', authRoutes);

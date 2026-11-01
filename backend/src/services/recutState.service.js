@@ -176,6 +176,7 @@ function assertSettled(snapshot) {
 async function assertRecutAssetPublishable(asset) {
   if (!asset.recutVersionId) return;
   const script = await loadScript(asset.sourceScriptId);
+  if (asset.status !== 'published') await require('./recutWorkConsent.service').assertScriptConsent(script);
   assertRecut(script);
   const current = recutSnapshot(script);
   requireState(current.state, [S.ASSET_APPROVED, S.PUBLISHED]); assertSettled(current);
@@ -190,6 +191,10 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
   taskId, baseSnapshot, pendingEditId, expectedRevision, scope, reasons = [], now = new Date() } = {}) {
   const script = await loadScript(scriptId);
   assertRecut(script);
+  if (['queue_render', 'start_render', 'attach_asset', 'approve_asset'].includes(event)
+    || (event === 'publish' && script.recut?.state !== S.PUBLISHED)) {
+    await require('./recutWorkConsent.service').assertScriptConsent(script);
+  }
   const current = recutSnapshot(script);
   const next = { ...current };
   if (expectedRevision !== undefined && expectedRevision !== current.revision) invalid('Recut state changed.');
@@ -270,6 +275,10 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
       break;
     case 'render_failed':
       requireState(current.state, [S.RENDERING]); next.state = S.RENDER_FAILED;
+      break;
+    case 'consent_stop':
+      if (![S.RENDER_QUEUED, S.RENDERING].includes(current.state)) return script;
+      next.state = S.RENDER_FAILED;
       break;
     case 'attach_asset': {
       requireState(current.state, [S.RENDERING]); requireVersion();

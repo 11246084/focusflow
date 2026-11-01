@@ -59,6 +59,7 @@ async function authenticateWorker(key) {
   return worker;
 }
 async function approvedVersion(script, versionId) {
+  await require('./recutWorkConsent.service').assertScriptConsent(script);
   const snap = recutSnapshot(script);
   if (script.productionMode !== 'recut' || !same(snap.currentVersionId, versionId) || snap.activeTaskId || snap.pendingEditId) throw error('Current recut version changed.');
   const approved = (await Approval.find({ scriptId: script._id, versionId, type: 'script' }).lean()).some((a) => a.approvedAt && a.approvedBy && !a.revokedAt);
@@ -229,8 +230,12 @@ async function completeRender(options) {
     return await withRecutTransition(job.scriptId, async (transition) => {
       const currentJob = await ownedLease(options); const script = await ShortScript.findById(job.scriptId).lean();
       const version = await approvedVersion(script, job.versionId);
-      if (script.recut.state !== 'rendering' || !metadata || metadata.versionId !== String(version._id) || metadata.planHash !== job.planHash
+        if (script.recut.state !== 'rendering' || !metadata || metadata.versionId !== String(version._id) || metadata.planHash !== job.planHash
         || metadata.shortRenderVersion !== version.shortRenderVersion || JSON.stringify(canonical(metadata.assetVersions)) !== JSON.stringify(canonical(version.assetVersions))) throw error('Render result version mismatch.', 'RECUT_RENDER_VERSION_MISMATCH');
+      if ((metadata.planVersion !== undefined && metadata.planVersion !== version.plan.schemaVersion)
+        || (metadata.renderDurationMs !== undefined && (!Number.isSafeInteger(metadata.renderDurationMs) || metadata.renderDurationMs < 0))) {
+        throw error('Render metadata version or duration is invalid.', 'RECUT_RENDER_VERSION_MISMATCH');
+      }
       const specification = await require('./recutRenderSpec.service').renderSpecification(version);
       const classification = classifyRenderChecks(metadata.checks, specification);
       if (!classification.valid) throw error(`Render checks failed: ${classification.issues.join(',')}`, 'RECUT_RENDER_CHECK_FAILED');
@@ -241,6 +246,7 @@ async function completeRender(options) {
       const completed = await Job.findOneAndUpdate({ _id: currentJob._id, status: 'leased', workerId: options.worker._id,
         leaseHash: currentJob.leaseHash, leaseExpiresAt: { $gt: new Date() } }, { $set: {
         status: 'completing', checks: metadata.checks, filePath: file.path, resultAssetId: new mongoose.Types.ObjectId(),
+        planVersion: metadata.planVersion || version.plan.schemaVersion, renderDurationMs: metadata.renderDurationMs ?? null,
       } }, { new: true });
       if (!completed) throw error('Render lease changed.', 'RECUT_LEASE_INVALID');
       accepted = true;

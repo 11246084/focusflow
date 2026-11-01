@@ -21,9 +21,10 @@ function createRecutApplication({ runtimeAdapters = {}, queue, beforeEnqueue, ch
       'RECUT_STEPS_NOT_CONFIGURED', { missing: [...missing] });
   }
   const getSetting = runtimeAdapters.getSetting || fallbackSetting;
-  targetQueue.configureRuntime({ getSetting,
+  const restoreRuntime = targetQueue.configureRuntime({ getSetting,
     captureSettings: runtimeAdapters.captureSettings || (() => ({ model: getSetting('recut.geminiModel') })),
-    beforeEnqueue: async (request) => { assertConfigured(); await beforeEnqueue?.(request); },
+    beforeEnqueue: async (request) => { assertConfigured();
+      await require('./recutWorkConsent.service').assertScriptConsent(request.script); await beforeEnqueue?.(request); },
     ...(checkWork ? { checkWork } : {}),
   });
   let pipeline = null;
@@ -36,6 +37,7 @@ function createRecutApplication({ runtimeAdapters = {}, queue, beforeEnqueue, ch
     review: require('./recutReview.service').createRecutReviewService({ queue: targetQueue }),
     recover: () => { assertConfigured(); return targetQueue.recover(); },
     stop: () => targetQueue.stop(),
+    dispose: async () => { await targetQueue.idle(); restoreRuntime(); },
   };
 }
 let configuredApplication;

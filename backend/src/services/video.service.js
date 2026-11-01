@@ -343,6 +343,8 @@ async function createCourseVideoFromYouTube({ courseId, youtubeUrl, title, week,
   const course = await ensureCourseExists(courseId);
   await assertCanManageCourse(user, course);
 
+  await require('./recutWorkConsent.service').assertWorkConsent({ courseId, contentOnly: true });
+
   const existing = await Video.findOne({ courseId, youtubeVideoId });
   if (existing) {
     throw new AppError(
@@ -430,6 +432,7 @@ async function createCourseVideo({
 
   const course = await ensureCourseExists(courseId);
   await assertCanManageCourse(user, course);
+  await require('./recutWorkConsent.service').assertWorkConsent({ courseId, contentOnly: true });
   const originalName = decodeUploadFilename(file.originalname);
 
   if (process.env.NODE_ENV !== 'test') {

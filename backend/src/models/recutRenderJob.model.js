@@ -6,6 +6,7 @@ const schema = new Schema({
   versionId: { type: Schema.Types.ObjectId, ref: 'RecutVersion', required: true },
   status: { type: String, enum: ['queued', 'leased', 'completing', 'succeeded', 'failed', 'cancelled'], default: 'queued' },
   planHash: { type: String, required: true },
+  planVersion: { type: String, default: null }, renderDurationMs: { type: Number, min: 0, default: null },
   workerId: { type: Schema.Types.ObjectId, ref: 'RecutWorker', default: null },
   leaseHash: { type: String, default: null, select: false }, leaseExpiresAt: { type: Date, default: null },
   attemptCount: { type: Number, default: 0 },

@@ -100,3 +100,15 @@ worker 用專用 Bearer 金鑰呼叫 `/api/v1/recut-worker/jobs` 下的 `POST /c
 檢查依原始數值判斷，不信任 worker 宣稱 passed：720×1280、30fps、一影一音、來源選段加片尾總長 ±0.5 秒；黑畫面少於0.5秒（pix_th .05）、靜音少於2秒（-50dB）、-16 LUFS ±2、真峰值≤-1.5dBTP、字型已載入。門檻集中 `recutRenderChecks.service.js`，總長由凍結 source/selection 與 plan 計算。worker 回數據為受信任專用 worker 的檢查證據，後端不在此重跑 FFmpeg；遭控制的 worker 仍可能偽造測值，需在正式開放前驗證執行環境。
 
 替代方案為記憶體租約或直接讓 worker 使用教師 upload API，前者重啟失去排他、後者授權過寬，因此使用兩個專用集合及受限路由。跨文件的完成程序採可恢復提交而非要求 Mongo replica set transaction；目前版變更、撤回或過期結果一律不公開。真實 FFmpeg、媒體品質與外部 YouTube 不由 fake 測試證明，驗證紀錄見狀態正本。
+
+## 同意閘門與撤回整合
+
+內容同意在原片／YouTube 來源／批次上傳建立資料前檢查；recut 排隊、每次嘗試、渲染派工／心跳／下載／回傳、短片上傳及新發布均重查目前課程與教師同意。舊 `ShortAsset.disclosure.consentConfirmed` 不代表教師原音偏好。缺內容或語音同意回 409；選合成語音但 RC12 未就緒回 503，不偷偷改用原音。錯誤公開回傳 `error.details.consentTerms` 與 `consentUrl`，正式環境也可讀。
+
+既有教師上傳 UI 仍須補接：先 `GET /api/v1/recut-consent/terms`，向教師顯示條款並取得明確選擇，再 `POST /api/v1/courses/:courseId/recut-consent` 傳 `kind:content`、`choice:granted`、目前 `termsVersion` 與穩定 `requestId`，成功後才送原片。首次 recut 另以 `kind:voice` 保存 `original|synthetic`；偏好跨該教師所有課程共用。未補接時原有上傳會明確拒絕，這份後端契約不表示前端流程已可實機使用。
+
+撤回先持久記錄選擇，再取消仍處理中的 task／render job、失效 worker lease；只把教師選中的成品改為 `archived`，取消待上傳並盡力轉私人。未勾選的歷史已發布成品保留，feed 仍核對精確 version／asset／generation 核准，已封存的成品不會被 ready 回呼或重試恢復。回應 `status:pending` 與 `actions[].manualActionRequired:true` 表示仍需重試或管理員下架，不能顯示成全部完成。
+
+`consentWithdrawal.privateRequired` 是成品端的持久轉私人待辦。若撤回發生在已送出 YouTube bytes 或發布 CAS 等待中，晚到結果會封存並保存遠端 ID／孤兒紀錄；轉私人失敗會去重通知各管理員，啟動及每分鐘恢復待辦。渲染建立交錯則取消 completing job，封存其尚未完成的成品，不建立第二份。外部轉私人屬冪等操作；程序若在外部成功、紀錄尚未提交時中斷，恢復會再次確認轉私人。
+
+worker 原片下載固定 `application/octet-stream`，內容可以是 MP4 或其他允許的原始影音格式。成品 metadata 可加 `planVersion`（須等於 `plan.schemaVersion`）及非負整數 `renderDurationMs`；後端持久保存，舊 worker 省略時保留相容。

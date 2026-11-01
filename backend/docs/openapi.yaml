@@ -6164,7 +6164,7 @@ paths:
                 metadata:
                   type: string
                   description: >-
-                    JSON：versionId、planHash、shortRenderVersion、assetVersions、checks。checks
+                    JSON：versionId、planHash、shortRenderVersion、assetVersions、checks；可選planVersion必須等於plan.schemaVersion，renderDurationMs須非負整數，均持久保存。checks
                     為tracks/720x1280/30fps、durationSec、blackMaxSec、silenceMaxSec、integratedLufs、truePeakDbtp、fontLoaded，後端從來源重算長度。
   /api/v1/short-scripts/{scriptId}/recut/reject-asset:
     post:
@@ -6249,6 +6249,113 @@ paths:
         '409':
           $ref: '#/components/responses/RecutConflictError'
 
+  /api/v1/recut-consent/terms:
+    get:
+      tags: [Short Scripts]
+      operationId: getRecutConsentTerms
+      summary: 取得目前教師同意條款（教師或管理員）
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/courses/{courseId}/recut-consent:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Short Scripts]
+      operationId: getRecutConsent
+      summary: 查詢課程內容與教師全域偏好
+      parameters:
+        - $ref: '#/components/parameters/RecutConsentVideoId'
+        - $ref: '#/components/parameters/RecutConsentSourceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+    post:
+      tags: [Short Scripts]
+      operationId: recordRecutConsent
+      summary: 保存目前條款的明確同意或語音偏好
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutConsentDecisionInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawal-assets:
+    get:
+      tags: [Short Scripts]
+      operationId: listRecutConsentWithdrawalAssets
+      summary: 列出可逐支勾選的短片，預設均不勾選
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/RecutConsentVideoId'
+        - $ref: '#/components/parameters/RecutConsentSourceId'
+        - name: kind
+          in: query
+          required: true
+          description: voice與分身同意範圍為教師全域；content依課程或來源。
+          schema:
+            type: string
+            enum: [content, voice, avatarLikeness, voiceClone]
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawals:
+    post:
+      tags: [Short Scripts]
+      operationId: withdrawRecutConsent
+      summary: 撤回同意並處理選中短片；失敗保留pending及manualActionRequired
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutConsentWithdrawalInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawals/{withdrawalId}/retry:
+    post:
+      tags: [Short Scripts]
+      operationId: retryRecutConsentWithdrawal
+      summary: 重試持久撤回待辦，已完成動作不重做
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - name: withdrawalId
+          in: path
+          required: true
+          description: 撤回回應的工作識別碼。
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+  /api/v1/admin/recut-consent/manual-actions:
+    get:
+      tags: [Short Scripts]
+      operationId: listRecutConsentManualActions
+      summary: 管理員查詢尚需手動轉私人的撤回動作
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 components:
   securitySchemes:
     RecutWorkerKey:
@@ -6279,6 +6386,18 @@ components:
 
         這是一個 `integration-facing` 的簽章驗證流程；Swagger UI 不會自動替你計算 signature。
   parameters:
+    RecutConsentVideoId:
+      name: videoId
+      in: query
+      description: 課程內原片的Mongo識別碼；省略表示課程範圍。
+      schema:
+        type: string
+    RecutConsentSourceId:
+      name: sourceId
+      in: query
+      description: 原片external識別碼，須與課程或videoId一致。
+      schema:
+        type: string
     CourseId:
       name: courseId
       in: path
@@ -6344,6 +6463,16 @@ components:
       schema:
         $ref: '#/components/schemas/ObjectId'
   responses:
+    RecutConsentSuccess:
+      description: 同意資料、條款或撤回工作；withdrawal.status可為pending、processing、completed，actions含status及manualActionRequired。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                properties:
+                  data: {}
     RecutConflictError:
       description: RECUT_STATE_INVALID，產片方式、目前版本或狀態不允許此操作。
       content:
@@ -6774,6 +6903,58 @@ components:
                 error:
                   code: YOUTUBE_QUARANTINE_VERIFY_FAILED
   schemas:
+    RecutConsentDecisionInput:
+      type: object
+      required: [kind, choice, requestId, termsVersion]
+      properties:
+        kind:
+          type: string
+          enum: [content, voice, avatarLikeness, voiceClone]
+        choice:
+          type: string
+          enum: [granted, declined, original, synthetic]
+          description: voice僅original或synthetic，其他同意僅granted或declined。
+        requestId:
+          type: string
+          maxLength: 128
+          description: 同一決定重送沿用的冪等識別碼。
+        termsVersion:
+          type: string
+          description: GET條款回傳的version；舊版條款409。
+        videoId:
+          type: string
+        sourceId:
+          type: string
+        evidenceRef:
+          type: string
+          description: 教師書面同意證據參照；不含秘密或憑證。
+    RecutConsentWithdrawalInput:
+      type: object
+      required: [kind, requestId, termsVersion]
+      properties:
+        kind:
+          type: string
+          enum: [content, voice, avatarLikeness, voiceClone]
+        requestId:
+          type: string
+          maxLength: 128
+        termsVersion:
+          type: string
+        videoId:
+          type: string
+        sourceId:
+          type: string
+        selectedAssetIds:
+          type: array
+          maxItems: 1000
+          uniqueItems: true
+          items:
+            type: string
+          description: 只處理明確選中的短片；預設空陣列。
+        selectAll:
+          type: boolean
+          default: false
+          description: 不得同時提供非空selectedAssetIds。
     ObjectId:
       description: MongoDB ObjectId 的字串格式。
       type: string

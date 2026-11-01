@@ -14,12 +14,13 @@ const cancelled = () => new AppError('Recut task cancelled.', 409, 'RECUT_TASK_C
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
 // 設定 S1 接上之前的轉接點。呼叫者可注入正式 getSetting；不從教師請求接受上限。
-function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = () => ({}), notify = (task) => notifications.notifyRecutTaskFinished(task), beforeEnqueue = async () => {}, checkWork = async () => {} } = {}) {
+function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = () => ({}), notify = (task) => notifications.notifyRecutTaskFinished(task), beforeEnqueue = ({ script }) => require('./recutWorkConsent.service').assertScriptConsent(script), checkWork = (task) => require('./recutWorkConsent.service').assertTaskConsent(task) } = {}) {
   const pipelines = new Map();
   let draining = null;
   let scheduled = false;
   let stopped = false;
   function configureRuntime(options = {}) {
+    const previous = { getSetting, captureSettings, beforeEnqueue, checkWork, stopped, pipelines: new Map(pipelines) };
     for (const key of ['getSetting', 'captureSettings', 'beforeEnqueue', 'checkWork']) {
       if (options[key] !== undefined && typeof options[key] !== 'function') throw new TypeError(`${key} must be a function.`);
     }
@@ -27,6 +28,10 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
     captureSettings = options.captureSettings || captureSettings;
     beforeEnqueue = options.beforeEnqueue || beforeEnqueue;
     checkWork = options.checkWork || checkWork;
+    return () => {
+      ({ getSetting, captureSettings, beforeEnqueue, checkWork, stopped } = previous);
+      pipelines.clear(); for (const [type, steps] of previous.pipelines) pipelines.set(type, steps);
+    };
   }
 
   function registerSteps(type, steps) {

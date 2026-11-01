@@ -163,6 +163,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
   try {
     const asset = await ShortAsset.findById(assetId).lean();
     if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
+    await require('./recutWorkConsent.service').assertAssetConsent(asset);
     if (asset.youtubeVideoId) throw new AppError('This short asset is already uploaded to YouTube.', 409, 'YOUTUBE_UPLOAD_ALREADY_COMPLETED');
     assertDisclosureConfirmed(asset);
     assertUploadConfigured();
@@ -213,6 +214,12 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       throw error;
     }
     const uploadedAt = new Date();
+    try { await require('./recutWorkConsent.service').assertAssetConsent(asset); }
+    catch (error) {
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+      await require('./recutConsentLifecycle.service').quarantineForConsentLoss(asset, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+      throw error;
+    }
     let uploaded;
     try {
       if (!(await ShortAsset.findOne(owner).lean())) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
@@ -264,6 +271,7 @@ async function markShortAssetPublished(asset) {
 async function markShortAssetPublishedOwned(asset, transition) {
   asset = await ShortAsset.findById(asset._id).lean();
   if (!asset || asset.status === 'archived') return null;
+  if (asset.status !== 'published') await require('./recutWorkConsent.service').assertAssetConsent(asset);
   assertReviewApproved(asset);
   await require('./recutState.service').assertRecutAssetPublishable(asset);
   if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
@@ -296,6 +304,13 @@ async function markShortAssetPublishedOwned(asset, transition) {
   );
 
   if (!published) return null;
+  // Withdrawal may commit after the preflight check while this CAS was waiting.
+  // Only this newly published result is compensated; historical unchecked assets remain intact.
+  try { await require('./recutWorkConsent.service').assertAssetConsent(published); }
+  catch (error) {
+    await require('./recutConsentLifecycle.service').quarantineForConsentLoss(published);
+    throw error;
+  }
   await synchronize();
 
   // 影片已經對學生可見，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。

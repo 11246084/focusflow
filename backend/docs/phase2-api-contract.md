@@ -1,10 +1,12 @@
 # Phase 2 API Contract
 
-最後更新：2026-10-29
+最後更新：2026-11-02
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
 
 ## recut RC1 介面
+
+RC10 同意介面由 `/api/v1/recut-consent/terms`、`/courses/:courseId/recut-consent`（GET／POST）、`/withdrawal-assets`、`/withdrawals`、`/withdrawals/:withdrawalId/retry` 與管理員 `/api/v1/admin/recut-consent/manual-actions` 提供；後五個課程操作均接在 `/api/v1/courses/:courseId/recut-consent` 下。保存決定要帶目前 `termsVersion` 與穩定 `requestId`；撤回預設不勾選成品，回應 pending／manualActionRequired 不代表全部下架成功。原片上傳前須有內容同意，recut 另須教師全域語音偏好；缺同意 409 並公開回傳條款，合成語音未就緒 503。完整請求欄位見 OpenAPI，處置與前端待補接線見[審閱契約](recut-review.md#同意閘門與撤回整合)。
 
 以下沿用 Short Scripts 的 feature flag、session 驗證與課程教師／admin 權限；學生、非該課程教師回 403，功能關閉回 404。`ShortScript.productionMode` 舊資料缺欄位時讀為 `avatar`，不寫遷移；建立腳本的 `POST /courses/:courseId/short-scripts/auto` 可帶 `productionMode`，省略為 avatar。
 

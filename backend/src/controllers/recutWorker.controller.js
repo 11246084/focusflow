@@ -19,7 +19,7 @@ module.exports = {
   checkLease: asyncHandler(async (req, res, next) => { await service.ownedLease(leaseOptions(req)); next(); }),
   claim: asyncHandler(async (req, res) => sendSuccess(res, { data: await service.claimRenderJob({ worker: req.recutWorker, ...body(req, ['shortRenderVersion', 'assetVersions']) }) })),
   heartbeat: asyncHandler(async (req, res) => { body(req, []); return sendSuccess(res, { data: await service.heartbeat(leaseOptions(req)) }); }),
-  source: asyncHandler(async (req, res) => res.sendFile(await service.sourceFile(leaseOptions(req)))),
+  source: asyncHandler(async (req, res) => res.type('application/octet-stream').sendFile(await service.sourceFile(leaseOptions(req)))),
   failure: asyncHandler(async (req, res) => {
     const result = await service.failRender({ ...leaseOptions(req), ...body(req, ['code', 'message', 'checks']) });
     return sendSuccess(res, { data: { status: result.status, attemptCount: result.attemptCount } });

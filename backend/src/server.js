@@ -54,6 +54,14 @@ async function startServer({ recutRuntimeAdapters } = {}) {
   // and never silently selects a provider or fake implementation.
   const recutApplication = env.shortScriptAutomationEnabled
     ? require('./services/recutApplication.service').configureRecutApplication({ runtimeAdapters: recutRuntimeAdapters }) : null;
+  const consentLifecycle = require('./services/recutConsentLifecycle.service').configureRecutConsentLifecycle();
+  const recoverConsent = async () => {
+    await require('./services/recutConsent.service').recoverPendingWithdrawals();
+    await consentLifecycle.recoverAssetPrivacy();
+  };
+  recoverConsent().catch((error) => console.error('[recut] consent recovery failed', error.code));
+  const consentRecoveryTimer = setInterval(() => recoverConsent().catch((error) => console.error('[recut] consent recovery failed', error.code)), 60000);
+  consentRecoveryTimer.unref();
 
   const server = app.listen(env.port, () => {
     console.log(`Focus Flow backend listening on port ${env.port}`);
@@ -85,6 +93,7 @@ async function startServer({ recutRuntimeAdapters } = {}) {
   warnLowSpace().catch((error) => console.error('Upload storage warning failed.', error.message));
 
   const shutdown = async () => {
+    clearInterval(consentRecoveryTimer);
     recutQueue.stop();
     clearInterval(renderRecoveryTimer);
     stopShortsSyncScheduler();

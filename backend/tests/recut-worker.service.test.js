@@ -81,10 +81,11 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
   });
   it('成功回傳只產待審ShortAsset；同一核准版，未經成品核准不發布', async () => {
     const { f, worker: identity, job } = await claimed(); const file = fileFor();
-    const result = await worker.completeRender(lease(identity, job, { file, metadata: metadata(job) }));
+    const result = await worker.completeRender(lease(identity, job, { file, metadata: { ...metadata(job), planVersion: 'recut-v1', renderDurationMs: 1200 } }));
     assert.equal(result.status, 'asset_review'); assert.equal(snapshot(f.script).state, 'asset_review');
     const asset = store.shortAssets[0]; assert.equal(asset.reviewStatus, 'pending'); assert.equal(asset.status, 'draft');
     assert.equal(String(asset.recutVersionId), job.versionId); assert.equal(store.recutRenderJobs[0].status, 'succeeded');
+    assert.equal(store.recutRenderJobs[0].planVersion, 'recut-v1'); assert.equal(store.recutRenderJobs[0].renderDurationMs, 1200);
     assert.ok(fs.existsSync(file.path));
   });
   it('遲到上傳拒收並移除未引用檔案；錯version與檢查失敗同樣不進審核', async () => {

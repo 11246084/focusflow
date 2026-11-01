@@ -33,12 +33,24 @@ describe('recut RC4 生成與整段檢查', () => {
       assert.equal(validateIssues({ issues: [bad] }, f.source, f.cards).valid, false);
     }
   });
-  it('只剩一次先修可信度，品質轉建議', async () => {
-    const c = context(); c.task.callsUsed = 2;
-    const r = pipeline([fixture().cards, { issues: [issue('card_mismatch'), issue('unsupported_number')] }, fixture().cards], c);
+  it('剩兩次用於可信度修正與複檢，品質轉建議', async () => {
+    const c = context(); c.task.callsUsed = 1;
+    const r = pipeline([fixture().cards, { issues: [issue('card_mismatch'), issue('unsupported_number')] }, fixture().cards, { issues: [issue('card_mismatch')] }], c);
     const data = await run(r); assert.equal(c.task.callsUsed, 5); assert.equal(data.suggestions.length, 1);
     assert.equal(data.suggestions[0].suggestionType, 'card_mismatch');
     assert.deepEqual(c.attempts[2].input.errors.map((i) => i.type), ['unsupported_number']);
+  });
+  for (const remainingIssue of ['unsupported_number', 'missing_reference']) it(`修後仍有或新增${remainingIssue}時不能回版本`, async () => {
+    const c = context();
+    const r = pipeline([fixture().cards, { issues: [issue('unsupported_number')] }, fixture().cards,
+      { issues: [issue(remainingIssue, remainingIssue === 'missing_reference' ? { presentationPaths: [], selectionChanges: [{ sentenceId: 's1', action: 'add' }] } : {})] }], c);
+    await assert.rejects(run(r), { code: 'RECUT_VALIDATION_FAILED' }); assert.equal(c.data.version, undefined);
+    assert.equal(c.task.callsUsed, 5); assert.equal(c.attempts.filter((a) => a.input.issues === undefined && a.input.fullScript).length >= 2, true);
+  });
+  it('只剩一次不能只修可信度而跳過複檢', async () => {
+    const c = context(); c.task.callsUsed = 2;
+    const r = pipeline([fixture().cards, { issues: [issue('unsupported_number')] }], c);
+    await assert.rejects(run(r), { code: 'RECUT_CALL_LIMIT_EXCEEDED' }); assert.equal(c.data.version, undefined); assert.equal(c.task.callsUsed, 4);
   });
   it('可信度錯誤沒有額度時失敗，不回版本', async () => {
     const c = context(); c.task.callsUsed = 3; const r = pipeline([fixture().cards, { issues: [issue('unsupported_number')] }], c);

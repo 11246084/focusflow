@@ -47,7 +47,7 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
       issues = issues.filter((i) => i.target !== 'selection');
     }
     const credibility = issues.filter((i) => i.severity === 'credibility');
-    const quality = issues.filter((i) => i.severity === 'quality');
+    let quality = issues.filter((i) => i.severity === 'quality');
     const repair = async (problems) => {
       if (problems.some((i) => i.target === 'selection')) {
         if (!selection || task.callLimit - task.callsUsed < 2) return false;
@@ -57,7 +57,23 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
       Object.assign(data, await cards.run({ ...context, data: { ...data, repairIssues: problems } }));
       return true;
     };
-    if (credibility.length && !await repair(credibility)) throw fail('可信度錯誤尚未修正，無法產生新版。', 'RECUT_CALL_LIMIT_EXCEEDED');
+    if (credibility.length) {
+      // Reserve the mandatory post-repair semantic check from the same pool.
+      // A structurally valid renderer plan cannot prove the issue was fixed.
+      const required = credibility.some((i) => i.target === 'selection') ? 3 : 2;
+      if (task.callLimit - task.callsUsed < required || !await repair(credibility)) throw fail('可信度修正與複檢額度不足。', 'RECUT_CALL_LIMIT_EXCEEDED');
+      if (data.selection?.answerable === false) return { version: data.version, suggestions: [] };
+      result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema,
+        input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
+        validate: (output) => validateIssues(output, source, data.plan) });
+      issues = result.issues;
+      if (data.selectionLocked) {
+        suggestions.push(...issues.filter((i) => i.target === 'selection').map((i) => asSuggestion(i, source, data.selection)));
+        issues = issues.filter((i) => i.target !== 'selection');
+      }
+      if (issues.some((i) => i.severity === 'credibility')) throw fail('修正後仍有可信度錯誤，不能保存版本。');
+      quality = issues.filter((i) => i.severity === 'quality');
+    }
     if (data.selection?.answerable === false) return { version: data.version, suggestions: [] };
     // During teacher edits, only explicitly adopted changes may be repaired.
     if (quality.length) {

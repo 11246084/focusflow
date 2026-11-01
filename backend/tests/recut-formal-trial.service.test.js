@@ -70,6 +70,8 @@ it('ten topics run sequentially with one frozen source and three first steps, ac
     const markdown = await fs.readFile(path.join(output, 'report.md'), 'utf8');
     assert.ok(markdown.includes('2026-11-02T00:00:00.000Z')); assert.ok(markdown.includes('| topic-1 |  |  |  |  |  |'));
     assert.ok(!markdown.includes('mongodb')); assert.ok(!(await fs.readFile(path.join(output, 'evidence.json'), 'utf8')).includes('private'));
+    const failedRun = await fs.readFile(path.join(output, '03-topic-3/run.json'), 'utf8');
+    assert.ok(failedRun.includes('RECUT_SOURCE_INVALID')); assert.ok(!failedRun.includes('mongodb'));
     assert.ok((await fs.readFile(path.join(output, '01-topic-1/full-script.txt'), 'utf8')).includes('fake script'));
     assert.equal(trialMarkdown(report), markdown);
   } finally { await fs.rm(output, { recursive: true, force: true }); }

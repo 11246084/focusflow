@@ -33,12 +33,16 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
       return { sourceId: String(source._id) };
     } },
   ];
+  const frozenSelectionInputs = new Map();
   const selectionStep = { id: 'recut-selection-v1', stage: 'selection', run: async (context) => {
     const source = await local.loadSource(context.data.sourceId), script = await local.loadScript(context.task.scriptId);
     if (!source || !script || String(source.scriptId) !== String(script._id)) throw fail('選段來源無效。', 'RECUT_SOURCE_INVALID');
+    const sourceKey = String(source._id);
+    if (!frozenSelectionInputs.has(sourceKey)) frozenSelectionInputs.set(sourceKey, structuredClone({ question: script.topic,
+      variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map(({ question, askCount }) => ({ question, askCount })),
+      sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words })) }));
     const result = await retryDecision(context, { decide: adapters.decide, instructions: prompt.INSTRUCTIONS, responseSchema: prompt.responseSchema,
-      input: { question: script.topic, variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5),
-        sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words })) },
+      input: { ...structuredClone(frozenSelectionInputs.get(sourceKey)), errors: context.data.repairIssues || [] },
       validate: (output) => validateSelection(source, output) });
     const value = { sourceId: String(source._id), selection: result.selection, selectionResult: result, fullScript: result.fullScript, modelId: context.task.settingsSnapshot.model.model };
     if (!result.selection.answerable) value.version = { sourceId: value.sourceId, selection: result.selection, fullScript: '', plan: null, modelId: value.modelId, shortRenderVersion: 'not-rendered' };

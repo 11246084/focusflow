@@ -50,10 +50,13 @@ async function runFormalTrial({ topics, targetUri, runtimeFactory, allowModel = 
     } catch (error) {
       attempts.push(...(error.trial?.attempts || []));
       const usage = tokenUsage(attempts);
-      rows.push({ topicId: topic.topicId, status: 'failed', errorCode: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED',
+      const row = { topicId: topic.topicId, status: 'failed', errorCode: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED',
         stage: error.trial?.stage || null, unanswerable: result ? !result.version.selection.answerable : null, usage,
         cost: priceUsage(usage, price, runtime?.model?.model), renderDurationMs: result?.renderDurationMs ?? null, stability,
-        operationTimes, human: { editingNaturalness: null, teamModification: null, professorApproval: null, unanswerableCorrect: null, notes: null } });
+        operationTimes, human: { editingNaturalness: null, teamModification: null, professorApproval: null, unanswerableCorrect: null, notes: null } };
+      rows.push(row);
+      await fs.mkdir(directory, { recursive: true });
+      await fs.writeFile(path.join(directory, 'run.json'), JSON.stringify({ ...row, attempts }, null, 2));
     } finally { await runtime?.close?.(); }
   }
   const priceSchedule = price ? Object.fromEntries(['modelId', 'currency', 'inputPerMillion', 'outputPerMillion', 'cachedInputPerMillion', 'asOf'].filter((k) => price[k] !== undefined).map((k) => [k, price[k]])) : null;

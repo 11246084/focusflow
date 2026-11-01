@@ -33,9 +33,11 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     runCommand: (_binary, args, extra) => execute(config.media.ffmpeg, args, { windowsHide: true, ...extra }),
     ...(config.fontPath ? { resolveFont: () => config.fontPath } : {}),
     hyperframesImpl: async (args, cwd) => {
+      if (!path.isAbsolute(config.browserExecutable || '') || /^[\\/]{2}/.test(config.browserExecutable)) throw fail('須指定已有的本機瀏覽器。', 'RECUT_RENDER_NOT_CONFIGURED');
+      await fs.access(config.browserExecutable);
       const packageRoot = path.dirname(require.resolve('hyperframes/package.json', { paths: [path.resolve(__dirname, '../../../short_render')] }));
       return execute(process.execPath, [path.join(packageRoot, 'bin/hyperframes.mjs'), ...args], { cwd, windowsHide: true,
-        env: { HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1' }, timeout: 3600000, maxBuffer: 16 * 1024 * 1024 });
+        env: { HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_BROWSER_PATH: config.browserExecutable }, timeout: 3600000, maxBuffer: 16 * 1024 * 1024 });
     },
     ensureFontLoaded: (args) => require('../../../short_render/src/render/browser').ensureFontLoaded({ ...args, browserExecutable: config.browserExecutable }) });
   const runtime = createRecutLocalRuntime({ repository, targetUri, model: input.model || config.model, callLimit: input.callLimit || config.callLimit || 5,

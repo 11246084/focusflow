@@ -40,19 +40,23 @@ it('explicit media adapter preserves RC2 signatures and forces offline ASR', asy
 });
 it('native local runtime follows actual RC2→RC3→RC4 and persists RC8 version plus rendered asset', async () => {
   const f = fixture(), order = []; const selection = { ...f.selection }; delete selection.lockedSentenceIds;
-  let stored, responses = [selection, f.cards, { issues: [] }];
+  let stored, topic = 'OpenCV', responses = [selection, f.cards, { issues: [] }]; const questions = [];
   const repository = { loadInputs: async (task) => { assert.equal(task.courseId, 'course'); order.push('inputs'); return { script: { topic: 'OpenCV' }, video: { _id: 'video', filePath: 'fake.mp4' },
     hits: [{ chunkId: 'c1', videoId: 'video', startSec: 0, endSec: 30 }], segments: Array.from({ length: 5 }, (_, i) => ({ chunkId: `c${i + 1}`, videoId: 'video', startSec: i * 30, endSec: (i + 1) * 30 })) }; },
     saveSource: async (row) => { stored = { ...row, _id: 'source' }; assert.equal(row.transcriptVersion, 'legacy'); order.push('source'); return stored; },
-    loadSource: async () => stored, loadScript: async () => ({ _id: 'script', topic: 'OpenCV' }), loadBaseVersion: async () => null,
+    loadSource: async () => stored, loadScript: async () => ({ _id: 'script', topic }), loadBaseVersion: async () => null,
     persistLocal: async ({ input, result }) => { order.push('persist'); assert.equal(input.courseId, 'course'); assert.equal(result.version.sourceId, 'source'); assert.equal(result.asset.filePath, 'fake.mp4'); return { versionId: 'version', assetId: 'asset' }; }, close: async () => {} };
   const runtime = createRecutLocalRuntime({ repository, model: { provider: 'gemini', model: 'fake' }, media: media(), renderer: fakeRenderer(), allowModel: true,
-    provider: async () => { order.push(`model${4 - responses.length}`); return { output: responses.shift(), usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 } }; },
+    provider: async ({ input }) => { if (input.question) questions.push(input.question); order.push(`model${4 - responses.length}`); return { output: responses.shift(), usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 } }; },
     renderLocal: async () => { order.push('render'); return { filePath: 'fake.mp4' }; } });
   const result = await runSingleTopicTrial({ ...runtime, input: { scriptId: 'script', courseId: 'course' }, targetUri: 'mongodb://127.0.0.1:27131/trial', allowModel: true, render: true });
   assert.deepEqual(order, ['inputs', 'source', 'model1', 'model2', 'model3', 'render', 'persist']);
   assert.equal(result.callsUsed, 3); assert.equal(result.state, 'script_review'); assert.equal(result.persisted.versionId, 'version');
   assert.equal(result.attempts.filter((a) => a.consumesCall).length, 3); assert.ok(result.renderDurationMs >= 0);
+  topic = 'changed after first run'; responses = [selection, selection];
+  await runtime.repeatSelection({ sourceId: 'source', scriptId: 'script', courseId: 'course' });
+  await runtime.repeatSelection({ sourceId: 'source', scriptId: 'script', courseId: 'course' });
+  assert.deepEqual(questions, ['OpenCV', 'OpenCV', 'OpenCV']);
 });
 it('render adapter remains lazy, validates resolution, and stops if staging fails', async () => {
   const order = [];

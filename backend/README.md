@@ -101,7 +101,9 @@ node src/scripts/recutSingleTopic.js
 
 最後一行只回預估：一般選段、配圖、整段檢查共 3 次模型呼叫，共用上限預設 5 次；每張程式碼圖卡另需 2 次。它不讀資料庫、不建立 adapter、不呼叫模型；token 取決於視窗與回應，無法事前精算。正式呼叫前先看預估，再提供 `--allow-model`；不設 fake provider 作預設。
 
-單題輸入 JSON 需有 `courseId`、`scriptId`（本機已複製的候選腳本），可附固定 `model: {"provider":"gemini","model":"<已核准模型ID>"}` 與 `callLimit`。runtime JSON 需有 `geminiApiKeyEnv`（例如 `RECUT_GEMINI_API_KEY`）、`model`、`browserExecutable`（已有的 chrome-headless-shell 路徑），與 `media: {allowedRoot, ffmpeg, ffprobe, python, transcriber, asrModel}`；各路徑明確指定本機現有檔案，`transcriber` 指向 `short_render/src/align/transcribe_words.py`。Whisper 只離線讀取已有模型，缺少模型就停止，不下載。
+單題輸入 JSON 需有 `courseId`、`scriptId`（本機已複製的候選腳本），可附固定 `model: {"provider":"gemini","model":"<已核准模型ID>"}` 與 `callLimit`。runtime JSON 需有 `geminiApiKeyEnv`（例如 `RECUT_GEMINI_API_KEY`）、`model`、`browserExecutable`（已有的 chrome-headless-shell 路徑），與 `media: {allowedRoot, ffmpeg, ffprobe, python, transcriber, asrModel}`；各路徑明確指定本機現有檔案，`transcriber` 指向 `short_render/src/align/transcribe_words.py`。Whisper 只離線讀取已有模型，缺少模型就停止，不下載。`maxOutputTokens` 明確限制每次模型輸出，預設 4096，合法範圍 128～16384。
+
+需要程式碼圖卡時，在 runtime JSON 明確設 `codeCards: {"enabled":true}`。CLI 會惰性截取指定句子區間的最多三張本機 PNG，送 Gemini 圖片 parts 做抄錄與複核，每個來源句子區間最多兩次額外模型呼叫；失敗或看不清就用文字圖卡。只有這個獨立辨識路徑就緒時，配圖 schema 才開放請求 `code`，配圖模型不能自己提供程式碼行；其他待審的新元件維持停用。未開啟時回 `optionalMissing: ["codeCards.enabled"]`，明確開啟卻缺截圖轉接時列出 required `missing`。截圖不放進成品，日誌只記圖片指紋／來源秒數，不保存 base64；逐行來源留在 plan，畫面只顯示程式碼內容。
 
 ```powershell
 node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --runtime D:/AI-workspace/recut/runtime.json --output D:/AI-workspace/recut/run-one --target-uri-env RECUT_LOCAL_URI --allow-model --render

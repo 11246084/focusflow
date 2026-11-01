@@ -20,13 +20,14 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
   };
   const execute = run || require('node:util').promisify(require('node:child_process').execFile);
   const workspaceRoot = path.join(path.resolve(output), 'media-work');
-  const media = createRecutMediaAdapter({ ...config.media, run: execute, resolveSource,
+  const workspaces = {
     createWorkspace: async () => { await fs.mkdir(workspaceRoot, { recursive: true }); return fs.mkdtemp(path.join(workspaceRoot, 'recut-')); },
     removeWorkspace: async (directory) => {
       const relative = path.relative(workspaceRoot, directory);
       if (path.isAbsolute(relative) || !/^recut-[^/\\]+$/.test(relative)) throw fail('暫存路徑無效。', 'RECUT_MEDIA_FAILED');
       await fs.rm(directory, { recursive: true, force: true });
-    }, readJson: async (file) => JSON.parse(await fs.readFile(file, 'utf8')) });
+    } };
+  const media = createRecutMediaAdapter({ ...config.media, ...workspaces, run: execute, resolveSource, readJson: async (file) => JSON.parse(await fs.readFile(file, 'utf8')) });
   const renderLocal = createRecutRenderAdapter({ loadSource: repository.loadSource,
     resolveSourcePath: async (id) => resolveSource(await repository.resolveSourcePath(id)), outputDir: output,
     // RC5 only delegates FFmpeg to runCommand; use the explicit CLI binary.
@@ -41,7 +42,9 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     },
     ensureFontLoaded: (args) => require('../../../short_render/src/render/browser').ensureFontLoaded({ ...args, browserExecutable: config.browserExecutable }) });
   const runtime = createRecutLocalRuntime({ repository, targetUri, model: input.model || config.model, callLimit: input.callLimit || config.callLimit || 5,
-    gemini: { apiKey: env[config.geminiApiKeyEnv] }, media, allowModel: true, renderLocal });
+    gemini: { apiKey: env[config.geminiApiKeyEnv], maxOutputTokens: config.maxOutputTokens || 4096 }, media, allowModel: true, renderLocal,
+    codeCards: config.codeCards?.enabled ? { enabled: true, ...workspaces, run: execute, ffmpeg: config.media.ffmpeg,
+      resolveSourcePath: repository.resolveSourcePath, resolveSource, readFile: fs.readFile } : undefined });
   if (runtime.missing.length) throw fail('試產工具設定不足。', 'RECUT_STEPS_NOT_CONFIGURED');
   return runtime;
 }

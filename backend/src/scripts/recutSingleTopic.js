@@ -44,7 +44,7 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
     await fs.writeFile(path.join(output, 'plan.json'), JSON.stringify(result.version.plan, null, 2));
     await fs.writeFile(path.join(output, 'full-script.txt'), result.version.fullScript);
     await fs.writeFile(path.join(output, 'run.json'), JSON.stringify(result, null, 2));
-    return { state: result.state, callsUsed: result.callsUsed, output };
+    return { state: result.state, callsUsed: result.callsUsed, output, capabilities: runtime.capabilities, optionalMissing: runtime.optionalMissing };
   } catch (error) {
     if (error.trial) {
       await fs.mkdir(output, { recursive: true });

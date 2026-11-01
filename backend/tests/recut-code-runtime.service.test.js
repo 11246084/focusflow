@@ -1,0 +1,53 @@
+'use strict';
+const { it } = require('node:test');
+const assert = require('node:assert/strict');
+const { createRecutRuntimeAdapters } = require('../src/services/recutRuntimeAdapters.service');
+const { context } = require('./helpers/recutPipelineFixtures');
+const renderer = require('../../short_render/src/plan');
+function setup({ readable = true, failCapture = false } = {}) {
+  const http = [], commands = []; let cleaned = 0;
+  const runtime = createRecutRuntimeAdapters({ allowModel: true, gemini: { apiKey: 'fake-key', maxOutputTokens: 2048,
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body); http.push(body);
+      return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ readable, lines: readable ? http.length === 1 ? ['x = 1'] : ['x = 1', 'print(x)'] : [] }) }] } }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 3 } }) };
+    } }, renderer,
+    codeCards: { enabled: true, ffmpeg: 'fake-ffmpeg', run: async (_binary, args) => { commands.push(args); if (failCapture) throw new Error('private capture'); },
+      resolveSourcePath: async () => 'D:/source.mp4', resolveSource: async (file) => file,
+      createWorkspace: async () => 'D:/owned-work', removeWorkspace: async () => { cleaned++; }, readFile: async () => Buffer.from('fake-png-pixels') } });
+  return { runtime, http, commands, cleaned: () => cleaned };
+}
+it('configured RC6 exposes only guarded code request and sends real image parts through fake HTTP', async () => {
+  const r = setup(), c = context();
+  assert.equal(r.http.length, 0); assert.equal(r.commands.length, 0);
+  assert.equal(r.runtime.capabilities.codeCards, true);
+  const catalog = r.runtime.renderer.getComponentCatalog({ aiOnly: true });
+  assert.ok(catalog.some((item) => item.name === 'code' && item.review === 'rc6-capture-required'));
+  assert.ok(!catalog.some((item) => ['not-fit', 'not-merge', 'nested'].includes(item.name)));
+  const schema = r.runtime.renderer.getCardsResponseSchema(); assert.ok(schema.properties.scenes.items.properties.component.enum.includes('code'));
+  const scene = { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } };
+  const result = await r.runtime.codeCardHandler({ ...c, source: c.source, scene });
+  assert.equal(result.component, 'code'); assert.equal(r.commands.length, 3); assert.equal(r.cleaned(), 1);
+  assert.equal(r.http.length, 2); assert.equal(c.task.callsUsed, 1);
+  assert.deepEqual(result.params.lines.map((line) => line.source), ['畫面原樣', 'AI 補寫']);
+  for (const request of r.http) {
+    assert.equal(request.contents[0].parts.filter((p) => p.inlineData?.mimeType === 'image/png').length, 3);
+    assert.equal(request.generationConfig.maxOutputTokens, 2048);
+  }
+  assert.ok(!JSON.stringify(c.attempts).includes(Buffer.from('fake-png-pixels').toString('base64')));
+  assert.ok(!JSON.stringify(c.attempts).includes('fake-key'));
+  await r.runtime.codeCardHandler({ ...c, source: c.source, scene: { ...scene, id: 'renamed' } }); assert.equal(r.http.length, 2);
+});
+it('unconfigured RC6 stays unavailable and enabled-but-incomplete capture reports precise missing', () => {
+  const off = createRecutRuntimeAdapters({ renderer }); assert.equal(off.capabilities.codeCards, false); assert.deepEqual(off.optionalMissing, ['codeCards.enabled']);
+  assert.ok(!off.renderer.getCardsResponseSchema().properties.scenes.items.properties.component.enum.includes('code'));
+  const incomplete = createRecutRuntimeAdapters({ renderer, codeCards: { enabled: true } });
+  assert.ok(incomplete.missing.includes('codeCards.ffmpeg')); assert.ok(incomplete.missing.includes('codeCards.resolveSourcePath')); assert.equal(incomplete.codeCardHandler, undefined);
+});
+it('unreadable frames and failed capture fall back without fabricated code or leaked provider details', async () => {
+  for (const options of [{ readable: false }, { failCapture: true }]) {
+    const r = setup(options), c = context();
+    const result = await r.runtime.codeCardHandler({ ...c, source: c.source, scene: { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } } });
+    assert.equal(result.component, 'quote-reveal'); assert.ok(!JSON.stringify(result).includes('private')); assert.equal(r.cleaned(), 1);
+    assert.equal(r.http.length, options.failCapture ? 0 : 1);
+  }
+});

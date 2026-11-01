@@ -2,14 +2,16 @@
 const { fail } = require('./recutRuntime.service');
 const path = require('node:path');
 
-function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000 } = {}) {
-  return async ({ model, instructions, input, responseSchema }) => {
+function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096 } = {}) {
+  return async ({ model, instructions, input, responseSchema, images = [] }) => {
     if (!apiKey || model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '')) throw fail('模型設定不足。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+    if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 128 || maxOutputTokens > 16384 || !Array.isArray(images) || images.length > 3
+      || images.some((image) => !['image/png', 'image/jpeg'].includes(image?.mimeType) || typeof image.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data) || image.data.length > 3 * 1024 * 1024)) throw fail('模型圖片或輸出上限無效。', 'RECUT_PROVIDER_NOT_CONFIGURED');
     try {
       const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.model)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(timeoutMs),
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: instructions }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify(input) }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: instructions }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify(input) }, ...images.map((image) => ({ inlineData: image }))] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema, maxOutputTokens } }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error('provider');
@@ -54,7 +56,7 @@ function createRecutMediaAdapter({ run, ffmpeg, ffprobe, python, transcriber, as
   };
 }
 
-function createRecutRuntimeAdapters({ provider, gemini, media, mediaConfig, renderer, rendererLoader,
+function createRecutRuntimeAdapters({ provider, gemini, media, mediaConfig, renderer, rendererLoader, codeCards,
   sourceOptions = {}, loadSource, loadBaseVersion, codeCardHandler, courseTerms = [], captureSettings, getSetting, allowModel = false } = {}) {
   const invoke = typeof provider === 'function' ? provider : provider?.generateDecision?.bind(provider);
   const decision = invoke || (gemini?.apiKey ? createGeminiProvider(gemini) : null);
@@ -73,13 +75,21 @@ function createRecutRuntimeAdapters({ provider, gemini, media, mediaConfig, rend
     if (typeof load()?.[key] !== 'function') throw fail('渲染契約設定不足。', 'RECUT_RENDER_NOT_CONFIGURED');
     return load()[key](...args);
   }]));
-  return { decide: async (request) => {
+  const decide = async (request) => {
     if ((typeof allowModel === 'function' ? await allowModel(request) : allowModel) !== true) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
     if (!decision) throw fail('模型轉接尚未設定。', 'RECUT_PROVIDER_NOT_CONFIGURED');
     try { return await decision(request); } catch (error) {
       throw fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED');
     }
-  }, renderer: renderer || lazyRenderer, media: tools, sourceOptions: { ...sourceOptions, media: tools }, loadSource, loadBaseVersion,
-  codeCardHandler, courseTerms, captureSettings, getSetting, missing };
+  };
+  const optionalMissing = [];
+  if (codeCards?.enabled && !codeCardHandler) {
+    const codeRuntime = require('./recutCodeRuntime.service').createRecutCodeRuntime({ ...codeCards, decide });
+    if (codeRuntime.missing.length) missing.push(...codeRuntime.missing); else codeCardHandler = codeRuntime.handler;
+  } else if (!codeCardHandler) optionalMissing.push('codeCards.enabled');
+  const activeRenderer = renderer || lazyRenderer;
+  return { decide, renderer: codeCardHandler ? require('./recutCodeRuntime.service').withRecutCodeRequests(activeRenderer) : activeRenderer,
+    media: tools, sourceOptions: { ...sourceOptions, media: tools }, loadSource, loadBaseVersion,
+    codeCardHandler, courseTerms, captureSettings, getSetting, missing, optionalMissing, capabilities: { codeCards: Boolean(codeCardHandler) } };
 }
 module.exports = { createRecutRuntimeAdapters, createGeminiProvider, createRecutMediaAdapter };

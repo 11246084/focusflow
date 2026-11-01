@@ -30,16 +30,29 @@ function createRecutCopyRuntime({ sourceUri, targetUri, driverLoader = driverDef
         video_segments_text: await read('video_segments_text', { videoId: { $in: videoIds } }),
         questions: await read('questions', { courseId: { $in: ids } }),
         shortscripts: await read('shortscripts', { courseId: { $in: ids } }) };
-      if (execute) {
-        // Validate again at the exact write boundary. Reject SRV, multi-host,
-        // userinfo, query options, encoded host tricks and non-loopback aliases.
-        assertLoopbackMongoTarget(targetUri);
-        target = new MongoClient(targetUri, { serverSelectionTimeoutMS: 10000 });
-        await target.connect();
-        for (const name of COPY_COLLECTIONS) if (rows[name].length) await target.db().collection(name).bulkWrite(
-          rows[name].map((document) => ({ replaceOne: { filter: { _id: document._id }, replacement: document, upsert: true } })), { ordered: true });
+      // Read local identities even in dry-run, so the preview distinguishes new
+      // snapshots from documents that must preserve local review and approvals.
+      assertLoopbackMongoTarget(targetUri);
+      target = new MongoClient(targetUri, { serverSelectionTimeoutMS: 10000 });
+      await target.connect();
+      const existing = {}, wouldInsert = {}, inserted = {};
+      for (const name of COPY_COLLECTIONS) {
+        const local = target.db().collection(name);
+        const found = rows[name].length ? await local.find({ _id: { $in: rows[name].map((d) => d._id) } }, { projection: { _id: 1 } }).toArray() : [];
+        existing[name] = new Set(found.map((d) => String(d._id))).size;
+        wouldInsert[name] = rows[name].length - existing[name];
+        inserted[name] = 0;
+        if (execute && rows[name].length) {
+          // Atomic insert-only upsert also preserves a local document created
+          // between this preview and the write. Never overwrite source chunks,
+          // teacher edits, recut state, approvals or version/asset references.
+          assertLoopbackMongoTarget(targetUri);
+          const result = await local.bulkWrite(rows[name].map((document) => ({ updateOne: {
+            filter: { _id: document._id }, update: { $setOnInsert: document }, upsert: true } })), { ordered: true });
+          inserted[name] = result.upsertedCount;
+        }
       }
-      return { dryRun: !execute, courseIds: [...courseIds], counts: Object.fromEntries(COPY_COLLECTIONS.map((name) => [name, rows[name].length])) };
+      return { dryRun: !execute, courseIds: [...courseIds], counts: Object.fromEntries(COPY_COLLECTIONS.map((name) => [name, rows[name].length])), existing, wouldInsert, inserted };
     } catch (error) { throw safe(/^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_COPY_FAILED'); }
     finally { for (const client of [target, source]) if (client) await client.close().catch(() => {}); }
   } };

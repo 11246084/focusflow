@@ -63,6 +63,8 @@ recut 選段：[指示文字、驗證與共用呼叫介面](../backend/docs/recu
 
 recut 教師審閱：[RC8 API、草稿與 RC4／RC9 接手](../backend/docs/recut-review.md)。
 
+recut 同意與撤回：[RC10 條款、範圍與持久重試設計](../backend/docs/recut-consent.md)（交付候選整合中）。
+
 YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lifecycle/shared-data-contract.md)、[Q-A～Q-F 工作說明](04_Features/YouTube_Lifecycle/work-orders/Q-quota-playback-plan.md)、[額度與上傳可靠性研究](04_Features/YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](04_Features/YouTube_Lifecycle/local-playback-research.md)。
 
 YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)，記錄 R07、R10～R12 的來源重新處理、總覽與並行稽核證據。

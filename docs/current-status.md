@@ -96,3 +96,5 @@
 外部服務、Atlas、VM、真 YouTube／Gemini、正式部署與人工驗收未執行；正式前端 UI 不在本輪。RC12 因原音技術試跑尚未通過且模型下載未授權，維持 BLOCKED；合成語音選項須明確回未就緒。
 
 2026-11-01 本輪續接：成品核准同步 RecutApproval 與 ShortAsset 的精確 versionId／assetId／generationVersion；退回依呈現／內容分流，YouTube ready 與核准任一先到均可接續發布，中斷後修復同一成品。RC7 後端已加入雜湊 worker 金鑰、FIFO、10 分鐘租約、3 次派工上限、版本核對、受限原片下載、成品檢查與可恢復回傳。以禁止 dotenv 讀檔的 preload 執行 fake/harness targeted 58／58、路由契約 11／11、OpenAPI lint 通過；尚待跨程序 Mongo 競爭驗證、renderer／pipeline 整合、RC10 gate 與最終獨立驗證，不能據此稱整體完成。
+
+候選已依序合入當次 `origin/dev` 與本機 `dev` 已提交文件，以及 renderer core／hardening、pipeline 與單題工具四筆原始提交。新增 Mongo mutation lease 與 revision／token fencing；專用 `127.0.0.1:27029` 資料庫驗證跨 Node 程序互斥、失效 token 拒絕、同工作僅一次派工與過期 lease 接手，與外部服務隔離。仍須整合最新 chunk 版本契約、RC10 與完整 fake E2E 後交獨立驗證。

@@ -8,6 +8,10 @@ const RecutTask = require('../models/recutTask.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { PRODUCTION_MODES, RECUT_STATES: S } = require('../constants/recut');
+const { randomUUID } = require('node:crypto');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const mutationContext = new AsyncLocalStorage();
+const MUTATION_LEASE_MS = 120000;
 
 const productionMode = (script) => script.productionMode || PRODUCTION_MODES.AVATAR;
 const recutSnapshot = (script) => ({
@@ -24,7 +28,34 @@ async function withRecutScriptLock(scriptId, action) {
   const current = new Promise((resolve) => { release = resolve; });
   scriptLocks.set(key, current);
   await previous;
-  try { return await action(); } finally {
+  let token, heartbeat;
+  try {
+    assertObjectId(scriptId, 'short script');
+    token = randomUUID();
+    const now = new Date();
+    const acquired = await ShortScript.findOneAndUpdate({ _id: scriptId, $or: [
+      { 'recutMutationLock.token': null }, { 'recutMutationLock.expiresAt': { $lte: now } },
+    ] }, { $set: { 'recutMutationLock.token': token,
+      'recutMutationLock.expiresAt': new Date(now.getTime() + MUTATION_LEASE_MS) } }, { new: true });
+    if (!acquired) {
+      if (!await ShortScript.findById(scriptId).lean()) throw new AppError('Short script not found.', 404, 'SHORT_SCRIPT_NOT_FOUND');
+      invalid('Another process is updating this recut script. Reload before retrying.');
+    }
+    const owner = { scriptId: key, token, lost: false };
+    heartbeat = setInterval(async () => {
+      try {
+        const renewed = await ShortScript.findOneAndUpdate({ _id: scriptId,
+          'recutMutationLock.token': token, 'recutMutationLock.expiresAt': { $gt: new Date() } },
+        { $set: { 'recutMutationLock.expiresAt': new Date(Date.now() + MUTATION_LEASE_MS) } });
+        if (!renewed) owner.lost = true;
+      } catch { owner.lost = true; }
+    }, MUTATION_LEASE_MS / 4);
+    heartbeat.unref();
+    return await mutationContext.run(owner, action);
+  } finally {
+    clearInterval(heartbeat);
+    if (token) await ShortScript.findOneAndUpdate({ _id: scriptId, 'recutMutationLock.token': token },
+      { $set: { 'recutMutationLock.token': null, 'recutMutationLock.expiresAt': null } }).catch(() => null);
     release();
     if (scriptLocks.get(key) === current) scriptLocks.delete(key);
   }
@@ -40,14 +71,22 @@ async function loadScript(scriptId) {
   assertObjectId(scriptId, 'short script');
   const script = await ShortScript.findById(scriptId).lean();
   if (!script) throw new AppError('Short script not found.', 404, 'SHORT_SCRIPT_NOT_FOUND');
+  const owner = mutationContext.getStore();
+  if (owner?.scriptId === String(scriptId)) {
+    if (owner.lost || !(await ShortScript.find({ _id: scriptId, 'recutMutationLock.token': owner.token,
+      'recutMutationLock.expiresAt': { $gt: new Date() } }).lean()).length) invalid('Recut mutation lease changed.');
+  }
   return script;
 }
 
 // 不用 findByIdAndUpdate：讀到的版本／狀態必須仍相同才能寫入，避免並行請求覆蓋。
 async function saveSnapshot(script, next, extra = {}) {
+  const owner = mutationContext.getStore();
+  if (!owner || owner.scriptId !== String(script._id) || owner.lost) invalid('Recut mutation lease is required.');
   const updated = await ShortScript.findOneAndUpdate({
     _id: script._id, productionMode: script.productionMode ?? null,
     'recut.revision': script.recut?.revision ?? null,
+    'recutMutationLock.token': owner.token, 'recutMutationLock.expiresAt': { $gt: new Date() },
   }, { $set: { recut: { ...next, revision: recutSnapshot(script).revision + 1 }, ...extra } },
   { new: true, runValidators: true });
   if (!updated) invalid('The recut version or state changed. Reload before retrying.');

@@ -75,6 +75,11 @@ const shortScriptSchema = new mongoose.Schema(
     evidenceFrozenAt: { type: Date, default: null },
     versions: { type: [versionSchema], default: [] },
     productionMode: { type: String, enum: Object.values(PRODUCTION_MODES), default: PRODUCTION_MODES.AVATAR },
+    // Short database mutations only; media/model work never holds this lease.
+    recutMutationLock: {
+      token: { type: String, default: null, select: false },
+      expiresAt: { type: Date, default: null, select: false },
+    },
     recut: {
       state: { type: String, enum: Object.values(RECUT_STATES), default: RECUT_STATES.IDLE },
       revision: { type: Number, default: 0 },

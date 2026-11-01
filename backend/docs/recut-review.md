@@ -4,6 +4,8 @@
 
 ## RC9 端點
 
+狀態 mutation 先以 `ShortScript.recutMutationLock` 的 token／expiresAt 做資料庫 CAS 取得 2 分鐘租約，每 30 秒延長；只包住短暫資料庫更新，不包住模型或媒體工作。同程序 mutex 減少本機競爭，跨程序由 Mongo 租約拒絕另一個 owner；寫入 recut 快照仍同時核對 token、有效期限及 revision，失去租約的程序不能提交，釋放時也不能清除新 owner 的 token。程序中斷後只允許過期 lease 被接手。相較只用記憶體鎖，這能保護多程序部署；忙碌或租約改變時回 409，呼叫端重新讀取後再操作。對應 `recutState.service.js` 與 opt-in 的 `recut-mongo-isolated.test.js`，僅後者證明真 Mongo 的跨程序競爭行為。
+
 所有端點前綴為 `/api/v1/short-scripts/:scriptId/recut`，沿用短影片功能開關、登入與課程教師／admin 權限。學生、其他課程教師回 403，關閉功能回 404。寫入不接受客戶端自訂額度、任務類型、原片路徑或施工單。
 
 | method＋尾段 | 用途與結果 |

@@ -2,20 +2,20 @@ const Consent = require('../models/recutConsent.model');
 const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 
-function createMongoRepository() {
+function createMongoRepository({ ConsentModel = Consent, CourseModel = Course, VideoModel = Video } = {}) {
   return {
-    getCourse: (id) => Course.findById(id).lean(),
-    getVideo: (id) => Video.findById(id).lean(),
-    getSource: (sourceId, courseId) => Video.findOne({ courseId, videoId: sourceId }).lean(),
+    getCourse: (id) => CourseModel.findById(id).lean(),
+    getVideo: (id) => VideoModel.findById(id).lean(),
+    getSource: (sourceId, courseId) => VideoModel.findOne({ courseId, videoId: sourceId }).lean(),
     async read(teacherId) {
-      return await Consent.findOne({ teacherId }).lean()
+      return await ConsentModel.findOne({ teacherId }).lean()
         || { teacherId: String(teacherId), revision: 0, records: [], withdrawals: [] };
     },
     async commit(before, { record, withdrawals }) {
       const update = { $inc: { revision: 1 }, $set: { withdrawals } };
       if (record) update.$push = { records: record };
       try {
-        const result = await Consent.updateOne(
+        const result = await ConsentModel.updateOne(
           { teacherId: before.teacherId, revision: before.revision },
           update,
           { upsert: before.revision === 0, runValidators: true, setDefaultsOnInsert: false },
@@ -27,8 +27,8 @@ function createMongoRepository() {
         throw error;
       }
     },
-    listPending: () => Consent.find({ 'withdrawals.status': { $ne: 'completed' }, 'withdrawals.0': { $exists: true } }).lean(),
-    listManualActions: () => Consent.find({ 'withdrawals.actions.manualActionRequired': true }).lean(),
+    listPending: () => ConsentModel.find({ withdrawals: { $elemMatch: { status: { $ne: 'completed' } } } }).lean(),
+    listManualActions: () => ConsentModel.find({ 'withdrawals.actions.manualActionRequired': true }).lean(),
   };
 }
 module.exports = { createMongoRepository };

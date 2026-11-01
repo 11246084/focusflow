@@ -234,6 +234,14 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `LINE_SIGNATURE_INVALID` | 401 | LINE webhook 簽章不符 |
 | `LINE_RAW_BODY_MISSING` | 400 | 無法取得 LINE webhook 原始 body 以驗簽 |
 | `LINE_NOT_CONFIGURED` | 500 | 未設定 `LINE_CHANNEL_SECRET` |
+| `LINE_LOGIN_NOT_CONFIGURED` | 503 | 未設定 LINE Login channel ID、secret 或回呼網址 |
+| `LINE_LOGIN_STATE_INVALID` | 400 | `state` 不存在、已用過或已過期，要重新開始連結 |
+| `LINE_LOGIN_STATE_MISMATCH` | 403 | `state` 不是由目前的使用者與登入 session 發起；該流程同時作廢 |
+| `LINE_LOGIN_TOKEN_EXCHANGE_FAILED` | 502 | 向 LINE 交換 token 失敗；未建立綁定，不回傳 LINE 的錯誤內容 |
+| `LINE_LOGIN_ID_TOKEN_INVALID` | 400 | ID token 的簽章、`aud`、`iss`、到期時間或 `nonce` 驗證失敗 |
+| `LINE_ACCOUNT_ALREADY_BOUND` | 409 | 這個 LINE 已綁定其他 FocusFlow 帳號；對方的綁定不變 |
+| `LINE_REPLACE_CONFIRMATION_REQUIRED` | 409 | 帳號已綁定別的 LINE，開始連結時沒有確認取代 |
+| `LINE_BINDING_CHANGED` | 409 | 處理期間帳號的 LINE 綁定被另一個請求改變，要重新開始連結 |
 | `SHORT_ASSET_NOT_FOUND` | 404 | 短影片成品不存在 |
 | `SHORT_SCRIPT_GENERATION_FAILED` | 502 | 腳本生成的 LLM provider 呼叫失敗 |
 | `INTERNAL_SERVER_ERROR` | 500 | 未預期的伺服器錯誤 |

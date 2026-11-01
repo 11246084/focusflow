@@ -258,6 +258,10 @@ module.exports = {
   openaiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
   lineChannelSecret: process.env.LINE_CHANNEL_SECRET || '',
   lineChannelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
+  // LINE Login 是另一個 channel，三個值缺任何一個時 /line/login/* 回 503。
+  lineLoginChannelId: process.env.LINE_LOGIN_CHANNEL_ID || '',
+  lineLoginChannelSecret: process.env.LINE_LOGIN_CHANNEL_SECRET || '',
+  lineLoginCallbackUrl: process.env.LINE_LOGIN_CALLBACK_URL || '',
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
   videoProcessingConcurrency: parsePositiveInteger(
     process.env.VIDEO_PROCESSING_CONCURRENCY,

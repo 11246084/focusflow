@@ -4064,6 +4064,101 @@ paths:
                             message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/line/login/start:
+    post:
+      tags:
+        - LINE Webhook
+      summary: 開始 LINE Login 連結
+      description: |
+        已登入使用者開始連結 LINE，後端建立 10 分鐘有效、只能用一次的紀錄，回傳 LINE 授權網址，前端導向該網址。
+
+        同一位使用者開始新的連結時，先前未完成的流程作廢。不接受用戶端指定 LINE 身分或導回網址。
+      operationId: startLineLogin
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineLoginStartRequest'
+      responses:
+        '201':
+          description: 已建立連結流程
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineLoginStartResponse'
+        '400':
+          description: '`courseId` 格式錯誤'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '503':
+          description: 未設定 LINE Login（`LINE_LOGIN_NOT_CONFIGURED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/line/login/complete:
+    post:
+      tags:
+        - LINE Webhook
+      summary: 完成 LINE Login 連結
+      description: |
+        LINE 導回 `/line/callback` 後，前端帶 `code` 與 `state` 呼叫此端點完成綁定。必須是發起連結的同一位使用者與同一個登入 session；
+        未登入回 401，前端提示回到原本的瀏覽器重新連結。
+
+        `state` 在第一次送出時就作廢，比對失敗也一樣，要重新開始連結。LINE 身分只取自驗證過的 ID token；LINE 的 token 用完即丟，不寫入資料庫。
+      operationId: completeLineLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineLoginCompleteRequest'
+      responses:
+        '200':
+          description: 已綁定（或本來就綁定同一個 LINE）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineLoginCompleteResponse'
+        '400':
+          description: 缺少參數（`VALIDATION_ERROR`）、`state` 無效或過期（`LINE_LOGIN_STATE_INVALID`）、ID token 驗證失敗（`LINE_LOGIN_ID_TOKEN_INVALID`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 這個 LINE 已綁定其他帳號（`LINE_ACCOUNT_ALREADY_BOUND`）、自己的帳號換 LINE 尚未確認（`LINE_REPLACE_CONFIRMATION_REQUIRED`），或綁定在處理期間被改變（`LINE_BINDING_CHANGED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: 向 LINE 交換 token 失敗（`LINE_LOGIN_TOKEN_EXCHANGE_FAILED`）；未建立綁定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 未設定 LINE Login（`LINE_LOGIN_NOT_CONFIGURED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/line/binding:
     delete:
       tags:
@@ -9989,6 +10084,97 @@ components:
               properties:
                 lineRuntime:
                   $ref: '#/components/schemas/LineRuntimeSnapshot'
+    LineLoginStartRequest:
+      description: 開始 LINE Login 連結的選填參數。
+      type: object
+      properties:
+        courseId:
+          description: 從「詢問助教」進來時帶入；完成時重新檢查修課權限，不符合時只是不切換課程。
+          type: string
+          pattern: '^[a-f0-9]{24}$'
+        replaceExisting:
+          description: 學生已確認「將取代目前的 LINE」。只有這裡能送出確認，完成時再帶不生效。
+          type: boolean
+          default: false
+    LineLoginStartResponse:
+      description: "`/api/v1/line/login/start` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - authorizeUrl
+                - expiresAt
+              properties:
+                authorizeUrl:
+                  description: 前端要導向的 LINE 授權網址。
+                  type: string
+                  format: uri
+                expiresAt:
+                  type: string
+                  format: date-time
+    LineLoginCompleteRequest:
+      description: LINE 導回網址上的 `code` 與 `state`。
+      type: object
+      required:
+        - code
+        - state
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+    LineLoginCompleteResponse:
+      description: "`/api/v1/line/login/complete` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - bound
+                - alreadyBound
+                - replaced
+                - friendship
+                - welcomeSent
+                - course
+              properties:
+                bound:
+                  type: boolean
+                alreadyBound:
+                  description: 本來就綁定這個 LINE，這次沒有改變。
+                  type: boolean
+                replaced:
+                  description: 取代了原本綁定的另一個 LINE。
+                  type: boolean
+                friendship:
+                  description: 是否已加官方帳號好友；查不到時為 `unknown`，與綁定結果分開判斷。
+                  type: string
+                  enum:
+                    - friend
+                    - not_friend
+                    - unknown
+                welcomeSent:
+                  description: 這次是否推播了歡迎訊息。
+                  type: boolean
+                course:
+                  description: 綁定後切換到的課程；沒有帶課程或學生無權使用時為 null。
+                  type: [object, 'null']
+                  required:
+                    - id
+                    - title
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
     FeedbackCategory:
       description: 回報問題的分類。
       type: string

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜驗證</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">但程式切換，不等於正式完成</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">16</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="case-a-timeline" data-pptx-bounds="64 192 1152 84" font-size="18">
+    <line x1="100" y1="236" x2="668" y2="236" stroke="#D9D1C1" stroke-width="3"/>
+    <line x1="240" y1="236" x2="540" y2="236" stroke="#E8A93C" stroke-width="8"/>
+    <line x1="676" y1="246" x2="688" y2="226" stroke="#5A6066" stroke-width="2"/>
+    <line x1="690" y1="246" x2="702" y2="226" stroke="#5A6066" stroke-width="2"/>
+    <line x1="712" y1="236" x2="1180" y2="236" stroke="#D9D1C1" stroke-width="3"/>
+    <text x="860" y="220" text-anchor="middle" font-weight="bold" fill="#5A6066">一個月</text>
+    <line x1="600" y1="224" x2="600" y2="248" stroke="#B5482E" stroke-width="3"/>
+    <text x="600" y="268" text-anchor="middle" fill="#B5482E">08-10 最早可能停用</text>
+    <circle cx="120" cy="236" r="7" fill="#1B4D5C"/>
+    <text x="120" y="220" text-anchor="middle" fill="#5A6066">08-02</text>
+    <circle cx="240" cy="236" r="7" fill="#1B4D5C"/>
+    <text x="240" y="220" text-anchor="middle" fill="#5A6066">08-04</text>
+    <circle cx="540" cy="236" r="7" fill="#1B4D5C"/>
+    <text x="540" y="220" text-anchor="middle" fill="#5A6066">08-09</text>
+    <circle cx="1060" cy="236" r="9" fill="#E8A93C"/>
+    <text x="1060" y="220" text-anchor="middle" font-weight="bold" fill="#15171A">09-09</text>
+  </g>
+  <g id="switch-0809" data-pptx-bounds="56 300 520 300">
+    <rect x="64" y="308" width="504" height="284" fill="none" stroke="#1B4D5C" stroke-width="2"/>
+    <text x="96" y="360" font-size="20" font-weight="bold" fill="#5E8F9C">08-09｜程式切換</text>
+    <text x="96" y="420" font-size="28" fill="#15171A">程式合併、自動部署<tspan x="96" dy="44">後端測試全部通過</tspan></text>
+    <text x="96" y="540" font-size="22" fill="#5A6066">還沒做：真實連線、正式資料庫<tspan x="96" dy="32">驗證與資料重建</tspan></text>
+  </g>
+  <g id="p16-month-gap" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="rightArrow" data-pptx-frame="584 404 80 56" fill="#E8A93C" stroke="none">
+<path d="M 584 418 L 636 418 L 636 404 L 664 432 L 636 460 L 636 446 L 584 446 Z"/>
+</g>
+  <g id="done-0909" data-pptx-bounds="672 300 552 300">
+    <rect x="680" y="308" width="536" height="284" fill="#F5EFE3"/>
+    <rect x="680" y="308" width="536" height="6" fill="#E8A93C"/>
+    <text x="712" y="360" font-size="20" font-weight="bold" fill="#5E8F9C">09-09｜正式完成</text>
+    <text x="712" y="420" font-size="28" fill="#15171A">重建試用資料的向量</text>
+    <text x="712" y="476" font-size="28" fill="#15171A">正式驗證<tspan font-weight="bold" fill="#B5482E">第一次失敗</tspan></text>
+    <text x="712" y="532" font-size="28" fill="#15171A">→ <tspan font-weight="bold" fill="#3E7D5A">同一天修正</tspan></text>
+  </g>
+  <a href="#slide-33"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E11 ›</text>
+  </g></a>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜不放寬標準</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">我們沒有放寬標準</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">20</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="standard-fixed" data-pptx-bounds="56 236 1100 150">
+    <use data-icon="tabler-outline/lock" x="64" y="256" width="96" height="96" fill="#1B4D5C" stroke-width="2"/>
+    <text x="196" y="334" font-size="60" font-weight="bold" fill="#1B4D5C">判定標準：不變</text>
+  </g>
+  <g id="q09-note" data-pptx-bounds="56 420 1100 200">
+    <line x1="64" y1="428" x2="64" y2="604" stroke="#E8A93C" stroke-width="4"/>
+    <text x="96" y="476" font-size="30" fill="#15171A">依原因修，不調門檻湊分數。<tspan x="96" dy="52">Q09 是因為<tspan font-weight="bold" fill="#1B4D5C">教材不支持</tspan>而修正題目，</tspan><tspan x="96" dy="52">不是降低判定。</tspan></text>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E14 ›</text>
+  </g></a>
+</svg>

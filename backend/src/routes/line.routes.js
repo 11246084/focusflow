@@ -34,6 +34,14 @@ router.post('/webhook', lineSignature, parseLineJsonBody, lineController.handleW
 // authenticate 確保只有登入用戶才能拿到 token
 router.post('/bind-token', authenticate, lineController.issueBindToken);
 
+// POST /api/v1/line/login/start
+// 已登入使用者開始 LINE Login 連結，取得 LINE 授權網址
+router.post('/login/start', authenticate, lineController.startLineLogin);
+
+// POST /api/v1/line/login/complete
+// LINE 導回網頁後，前端帶 code 與 state 完成綁定；一定要登入，不能只憑 state 綁定
+router.post('/login/complete', authenticate, lineController.completeLineLogin);
+
 // DELETE /api/v1/line/binding
 // 已登入使用者解除自己的 LINE 綁定
 router.delete('/binding', authenticate, lineController.unbindLine);

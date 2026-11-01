@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜分析問題來源</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">逐題複核，分成三類問題</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">19</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="result-strip" data-pptx-bounds="56 192 1168 60">
+    <g fill="#E8A93C">
+      <rect x="64" y="200" width="76" height="16"/>
+      <rect x="146" y="200" width="76" height="16"/>
+      <rect x="228" y="200" width="76" height="16"/>
+      <rect x="310" y="200" width="76" height="16"/>
+      <rect x="392" y="200" width="76" height="16"/>
+      <rect x="474" y="200" width="76" height="16"/>
+      <rect x="556" y="200" width="76" height="16"/>
+      <rect x="638" y="200" width="76" height="16"/>
+      <rect x="720" y="200" width="76" height="16"/>
+      <rect x="802" y="200" width="76" height="16"/>
+      <rect x="884" y="200" width="76" height="16"/>
+    </g>
+    <g fill="#B5482E">
+      <rect x="966" y="200" width="76" height="16"/>
+      <rect x="1048" y="200" width="76" height="16"/>
+      <rect x="1130" y="200" width="76" height="16"/>
+    </g>
+    <text x="64" y="242" font-size="18" fill="#5A6066">09-01 量測：偏弱 11 題、失敗 3 題 → 逐題找原因</text>
+  </g>
+  <g id="cause-code" data-pptx-bounds="56 272 376 288">
+    <rect x="64" y="280" width="360" height="272" fill="#F5EFE3"/>
+    <rect x="64" y="280" width="360" height="6" fill="#1B4D5C"/>
+    <use data-icon="tabler-outline/bug" x="88" y="306" width="40" height="40" fill="#1B4D5C" stroke-width="2"/>
+    <text x="88" y="390" font-size="30" font-weight="bold" fill="#1B4D5C">程式邏輯</text>
+    <text x="88" y="440" font-size="28" fill="#15171A">拒答時仍附上引用<tspan x="88" dy="42">引用等於全部搜尋結果</tspan><tspan x="88" dy="42">拿到正確片段仍答錯</tspan></text>
+  </g>
+  <g id="cause-question" data-pptx-bounds="448 272 376 288">
+    <rect x="456" y="280" width="360" height="272" fill="#F5EFE3"/>
+    <rect x="456" y="280" width="360" height="6" fill="#1B4D5C"/>
+    <use data-icon="tabler-outline/file-text" x="480" y="306" width="40" height="40" fill="#1B4D5C" stroke-width="2"/>
+    <text x="480" y="390" font-size="30" font-weight="bold" fill="#1B4D5C">題目與教材</text>
+    <text x="480" y="440" font-size="28" fill="#15171A">Q09 題目後半，<tspan x="480" dy="42">教材沒有充分支持</tspan></text>
+  </g>
+  <g id="cause-search" data-pptx-bounds="840 272 384 288">
+    <rect x="848" y="280" width="368" height="272" fill="#F5EFE3"/>
+    <rect x="848" y="280" width="368" height="6" fill="#1B4D5C"/>
+    <use data-icon="tabler-outline/search" x="872" y="306" width="40" height="40" fill="#1B4D5C" stroke-width="2"/>
+    <text x="872" y="390" font-size="30" font-weight="bold" fill="#1B4D5C">搜尋品質</text>
+    <text x="872" y="440" font-size="28" fill="#15171A">相鄰的關鍵片段被漏掉<tspan x="872" dy="42">（4 題）</tspan></text>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E13 ›</text>
+  </g></a>
+</svg>

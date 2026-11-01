@@ -24,6 +24,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["-e", "process.env.YOUTUBE_UPLOAD_ENABLED='false';process.env.YOUTUBE_PRIVATIZE_ON_DELETE='false';process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON=JSON.stringify({provider:'gemini',model:'gemini-embedding-2',dimension:3072,instructionVersion:'gemini_embedding_2_asymmetric_retrieval_v2',generationVersion:'text_search_generation_v2',normalizationVersion:'unit_l2_v1',contractVersion:'gemini_embedding_2_text_v2',schemaVersion:'gemini_embedding_2_text_v2',taskType:null});require('C:/Users/940/Documents/GitHub/focusflow/backend/src/server.js')"],
       "port": 4000
+    },
+    {
+      "name": "backend-line-isolated",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "Object.assign(process.env,{MONGODB_URI:'mongodb://127.0.0.1:27099/focusflow_line_local',PHASE2_2_READONLY_MONGODB_URI:'',YOUTUBE_UPLOAD_ENABLED:'false',YOUTUBE_UPLOAD_RECOVERY_ENABLED:'false',YOUTUBE_UPLOAD_CLEANUP_ENABLED:'false',YOUTUBE_PRIVATIZE_ON_DELETE:'false',VIDEO_BATCH_PIPELINE_ENABLED:'false',LINE_CHANNEL_SECRET:'local-only',LINE_CHANNEL_ACCESS_TOKEN:'',SMTP_USER:'',QA_QUERY_EMBEDDING_PROVIDER:'mock',QA_ANSWER_PROVIDER:'template',QA_VECTOR_SEARCH_MODE:'memory',GEMINI_API_KEY:'',OPENAI_API_KEY:''});require('C:/Users/940/Documents/GitHub/focusflow/backend/src/server.js')"],
+      "port": 4000
     }
   ]
 }

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">產品｜FocusFlow AI</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">提問，就能跳回講解的那一秒</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">03</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="product-shot" data-pptx-bounds="56 192 744 452">
+    <rect x="63" y="199" width="722" height="407" fill="#15171A" stroke="#D9D1C1" stroke-width="2"/>
+    <image href="../images/p03_jump.png" x="64" y="200" width="720" height="405" preserveAspectRatio="xMidYMid meet"/>
+    <rect x="440" y="454" width="324" height="27" fill="none" stroke="#E8A93C" stroke-width="3"/>
+    <rect x="186" y="398" width="66" height="26" fill="none" stroke="#E8A93C" stroke-width="3"/>
+    <g font-size="18" font-weight="bold" text-anchor="middle" fill="#15171A">
+      <circle cx="470" cy="351" r="15" fill="#E8A93C"/>
+      <text x="470" y="357">1</text>
+      <circle cx="420" cy="404" r="15" fill="#E8A93C"/>
+      <text x="420" y="410">2</text>
+      <circle cx="424" cy="468" r="15" fill="#E8A93C"/>
+      <text x="424" y="474">3</text>
+    </g>
+    <text x="64" y="634" font-size="18" fill="#5A6066">實際系統畫面；課程影片畫面與帳號頭像已遮蔽</text>
+  </g>
+  <g id="step-1" data-pptx-bounds="812 214 412 104">
+    <circle cx="844" cy="248" r="22" fill="#E8A93C"/>
+    <text x="844" y="257" font-size="24" font-weight="bold" text-anchor="middle" fill="#15171A">1</text>
+    <text x="884" y="258" font-size="28" fill="#15171A">在網頁或 LINE <tspan font-weight="bold" fill="#1B4D5C">提問</tspan></text>
+  </g>
+  <g id="step-2" data-pptx-bounds="812 330 412 136">
+    <circle cx="844" cy="364" r="22" fill="#E8A93C"/>
+    <text x="844" y="373" font-size="24" font-weight="bold" text-anchor="middle" fill="#15171A">2</text>
+    <text x="884" y="374" font-size="28" fill="#15171A">只從課程影片找答案，<tspan x="884" dy="42">並<tspan font-weight="bold" fill="#1B4D5C">附上來源片段</tspan></tspan></text>
+  </g>
+  <g id="step-3" data-pptx-bounds="812 478 412 136">
+    <circle cx="844" cy="512" r="22" fill="#E8A93C"/>
+    <text x="844" y="521" font-size="24" font-weight="bold" text-anchor="middle" fill="#15171A">3</text>
+    <text x="884" y="522" font-size="28" fill="#15171A">點來源，<tspan font-weight="bold" fill="#1B4D5C">跳到 25:36</tspan><tspan x="884" dy="42">講解的那一秒</tspan></text>
+  </g>
+</svg>

@@ -246,7 +246,7 @@ describe('提問限制與失敗紀錄', () => {
     assert.equal(store.questions.filter((item) => item.status === 'failed').length, 1);
   });
 
-  it('同一個 LINE 帳號改綁另一個系統帳號時，自動解除舊帳號綁定', async () => {
+  it('同一個 LINE 帳號要綁到另一個系統帳號時拒絕，舊帳號的綁定不變', async () => {
     const token = 'c'.repeat(64);
     store.lineBindTokens.push({
       _id: newObjectId(),
@@ -257,11 +257,12 @@ describe('提問限制與失敗紀錄', () => {
 
     const result = await postLineText(context.baseUrl, token);
 
-    assert.equal(result.body.data.results[0].handled, true);
+    assert.equal(result.body.data.results[0].handled, false);
+    assert.equal(result.body.data.results[0].reason, 'line_bound_to_other_account');
     const student = store.users.find((user) => user._id === ids.student);
     const teacher = store.users.find((user) => user._id === ids.teacher);
-    assert.equal(teacher.lineUserId, 'line-student-001');
-    assert.equal(student.lineUserId, undefined);
+    assert.equal(student.lineUserId, 'line-student-001');
+    assert.equal(teacher.lineUserId, null);
   });
 
   it('LINE reply 失敗（replyToken 過期）時改用 push 送出答案', async () => {

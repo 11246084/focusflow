@@ -423,10 +423,8 @@ describe('line webhook routes', () => {
 
   it('binds a LINE user and selects a course from a single QR message', async () => {
     const student = store.users.find((user) => user._id === ids.student);
-    const admin = store.users.find((user) => user._id === ids.admin);
     student.lineUserId = null;
     student.activeCourseId = null;
-    admin.lineUserId = 'line-current-phone';
 
     store.lineBindTokens.push({
       _id: 'line-token-bind-course',
@@ -453,12 +451,38 @@ describe('line webhook routes', () => {
     assert.equal(result.body.data.results[0].type, 'bind_course');
     assert.equal(result.body.data.results[0].handled, true);
     assert.equal(student.lineUserId, 'line-current-phone');
-    assert.equal(admin.lineUserId, undefined);
     assert.equal(String(student.activeCourseId), ids.publishedCourse);
     assert.equal(
       store.lineBindTokens.some((token) => token.token === ids.lineBindTokenText),
       false,
     );
+  });
+
+  it('QR 綁定遇到 LINE 已綁定別的帳號時拒絕，對方的綁定不變也不切換課程', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    const admin = store.users.find((user) => user._id === ids.admin);
+    student.lineUserId = null;
+    student.activeCourseId = null;
+    admin.lineUserId = 'line-current-phone';
+
+    store.lineBindTokens.push({
+      _id: 'line-token-bind-course-conflict',
+      token: ids.lineBindTokenText,
+      userId: ids.student,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const result = await postLineText(
+      serverContext.baseUrl,
+      `BIND:${ids.lineBindTokenText}:COURSE:${ids.publishedCourse}`,
+      'line-current-phone',
+    );
+
+    assert.equal(result.body.data.results[0].handled, false);
+    assert.equal(result.body.data.results[0].reason, 'line_bound_to_other_account');
+    assert.equal(admin.lineUserId, 'line-current-phone');
+    assert.equal(student.lineUserId, null);
+    assert.equal(student.activeCourseId, null);
   });
 
   it('surfaces qa hard-fail details explicitly instead of collapsing question events into generic internal errors', async () => {

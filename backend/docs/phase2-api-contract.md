@@ -455,6 +455,30 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 
 adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-audit -- --database focusflow`。此帳號須有該集合的 createCollection 權限；authSessionsIndexer 不能代替。應用程式的新 model 都不在啟動時建集合或索引。
 
+## LINE Login 帳號連結
+
+已登入的學生以官方 LINE Login 連結 LINE，不必複製綁定碼；兩個端點都要登入，cookie 寫入同樣要符合 CSRF 檢查。
+
+1. `POST /api/v1/line/login/start`，選填 `courseId`、`replaceExisting`，回傳 `authorizeUrl`，前端導向該網址。
+2. LINE 導回 `LINE_LOGIN_CALLBACK_URL` 指定的前端頁面，網址帶 `code`、`state`。`SameSite=Strict` cookie 不會隨這次導回送出，所以由前端頁面接回呼，再以同來源 `fetch` 呼叫下一步。
+3. `POST /api/v1/line/login/complete` 帶 `code`、`state`，回傳 `bound`、`alreadyBound`、`replaced`、`friendship`（`friend`／`not_friend`／`unknown`）、`welcomeSent`、`course`。
+
+前端依錯誤碼提示下一步：
+
+| 錯誤 | 提示 |
+|---|---|
+| 401 `UNAUTHORIZED` | 回到原本的瀏覽器重新連結 |
+| 400 `LINE_LOGIN_STATE_INVALID`、403 `LINE_LOGIN_STATE_MISMATCH`、400 `LINE_LOGIN_ID_TOKEN_INVALID`、409 `LINE_BINDING_CHANGED`、502 `LINE_LOGIN_TOKEN_EXCHANGE_FAILED` | 連結沒有完成，請重新連結 |
+| 409 `LINE_ACCOUNT_ALREADY_BOUND` | 這個 LINE 已綁定其他帳號，請先從那個帳號解除 |
+| 409 `LINE_REPLACE_CONFIRMATION_REQUIRED` | 先問學生「將取代目前的 LINE」，同意後以 `replaceExisting: true` 重新開始 |
+| 503 `LINE_LOGIN_NOT_CONFIGURED` | 暫時無法連結，可改用綁定碼 |
+
+`state` 第一次送出就作廢，比對失敗也一樣。LINE 身分只取自驗證過的 ID token，沒有 API 接受用戶端傳入的 `lineUserId`；LINE 的 access token 用完即丟，不寫入資料庫。舊綁定碼退場前沿用同一套規則：一個 LINE 只能綁一個帳號，衝突時拒絕、不解除對方的綁定。
+
+正式環境需要 `LINE_LOGIN_CHANNEL_ID`、`LINE_LOGIN_CHANNEL_SECRET`、`LINE_LOGIN_CALLBACK_URL`，Login channel 的 App type 選 Web app，並與 Messaging API channel 放在同一個 provider。`lineLoginStates` 的索引由 `LINE_LOGIN_STATES_MONGODB_URI` 指定連線，執行 `npm.cmd run db:ensure-line-login-states -- --database <確認過的目標>` 建立；應用程式啟動時不建集合或索引。
+
+本機隔離 Mongo 的競爭測試：設 `$env:LINE_LOGIN_TEST_MONGODB_URI='mongodb://127.0.0.1:27099'`，再跑 `npm.cmd run test:line-login-mongo`，只接受 loopback 位址，測試用隨機資料庫並清理。
+
 ## YouTube Q 上傳、就緒與播放介面
 
 正式欄位見[共用資料契約](../../docs/04_Features/YouTube_Lifecycle/shared-data-contract.md)，每個端點的請求與回應以[OpenAPI](openapi.yaml)為準。`youtubeUpload.status` 新增 waiting，教師重試回 409 YOUTUBE_UPLOAD_QUOTA_WAITING，公開 details 帶 earliestRetryAt；上傳完成先 processing，processed／可嵌入／隱私合格後才 ready 並切換播放。

@@ -1,6 +1,9 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/apiResponse');
+const { assertObjectId } = require('../utils/objectId');
+const AppError = require('../utils/appError');
 const lineService = require('../services/line.service');
+const lineLoginService = require('../services/lineLogin.service');
 const { buildLineRuntimeSnapshot } = require('../services/runtimeDiagnostics.service');
 
 // POST /api/v1/line/webhook
@@ -37,6 +40,49 @@ const issueBindToken = asyncHandler(async (req, res) => {
   });
 });
 
+// POST /api/v1/line/login/start（需要登入）
+// 只接受 courseId 與 replaceExisting：沒有任何欄位能指定 LINE 身分或導回網址
+const startLineLogin = asyncHandler(async (req, res) => {
+  const courseId = req.body?.courseId || null;
+  if (courseId) assertObjectId(courseId, 'course');
+
+  const result = await lineLoginService.startLineLogin({
+    userId: req.user.id,
+    sid: req.auth.payload.sid,
+    courseId,
+    replaceExisting: req.body?.replaceExisting === true,
+  });
+
+  res.set('Cache-Control', 'no-store');
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: 'LINE login started.',
+    data: result,
+  });
+});
+
+// POST /api/v1/line/login/complete（需要登入）
+const completeLineLogin = asyncHandler(async (req, res) => {
+  const code = String(req.body?.code || '').trim();
+  const state = String(req.body?.state || '').trim();
+  if (!code || !state) {
+    throw new AppError('code and state are required.', 400, 'VALIDATION_ERROR');
+  }
+
+  const result = await lineLoginService.completeLineLogin({
+    userId: req.user.id,
+    sid: req.auth.payload.sid,
+    code,
+    state,
+  });
+
+  res.set('Cache-Control', 'no-store');
+  return sendSuccess(res, {
+    message: 'LINE account linked.',
+    data: result,
+  });
+});
+
 // DELETE /api/v1/line/binding（需要 JWT 登入）
 // 解除目前使用者的 LINE 綁定，讓學生可以改綁另一個 LINE 帳號
 const unbindLine = asyncHandler(async (req, res) => {
@@ -51,5 +97,7 @@ const unbindLine = asyncHandler(async (req, res) => {
 module.exports = {
   handleWebhook,
   issueBindToken,
+  startLineLogin,
+  completeLineLogin,
   unbindLine,
 };

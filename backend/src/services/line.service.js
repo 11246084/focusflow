@@ -235,8 +235,62 @@ async function unbindLineUser(userId) {
   return { unbound: wasBound };
 }
 
+// 所有綁定（LINE Login 與舊綁定碼）都走這裡，規則只有一套：
+// 一個 LINE 只能綁一個帳號，已綁在別人帳號上就拒絕，別人的綁定不動；
+// 自己的帳號要換 LINE，必須已在網頁確認過（replaceExisting）。
+async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return { ok: false, reason: 'user_not_found' };
+  }
+
+  if (user.lineUserId === lineUserId) {
+    return { ok: true, alreadyBound: true, replaced: false };
+  }
+
+  if (user.lineUserId && !replaceExisting) {
+    return { ok: false, reason: 'replace_confirmation_required' };
+  }
+
+  if (await User.findOne({ lineUserId })) {
+    return { ok: false, reason: 'line_bound_to_other_account' };
+  }
+
+  const replaced = Boolean(user.lineUserId);
+  const update = {
+    $set: {
+      lineUserId,
+      lineBindAt: new Date(),
+      lineConversationState: LINE_CONVERSATION_STATES.IDLE,
+      ...(replaced ? { lineConversationHistory: [] } : {}),
+    },
+    ...(replaced ? { $unset: { activeCourseId: '' } } : {}),
+  };
+
+  // 以讀到的舊值當條件更新：同時有另一個請求改了這個帳號的綁定時不會蓋掉。
+  // 上面的查詢擋不住同時送出的請求，最後由 lineUserId 的 unique index 保證唯一。
+  try {
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id, lineUserId: user.lineUserId ?? null },
+      update,
+    );
+    if (!updated) {
+      return { ok: false, reason: 'binding_changed' };
+    }
+  } catch (error) {
+    if (error?.code === 11000) {
+      return { ok: false, reason: 'line_bound_to_other_account' };
+    }
+    throw error;
+  }
+
+  return { ok: true, alreadyBound: false, replaced };
+}
+
+// 綁定碼以單一操作取出並刪除，同一組碼同時送兩次也只有一個拿得到。
 async function bindLineUserWithToken(lineUserId, token) {
-  const record = await LineBindToken.findOne({ token });
+  const record = await LineBindToken.findOneAndDelete({ token });
 
   if (!record) {
     return {
@@ -246,36 +300,66 @@ async function bindLineUserWithToken(lineUserId, token) {
   }
 
   if (record.expiresAt < new Date()) {
-    await LineBindToken.deleteOne({ token });
     return {
       ok: false,
       reason: 'token_expired',
     };
   }
 
-  await User.updateMany(
-    { lineUserId, _id: { $ne: record.userId } },
-    {
-      $unset: { lineUserId: '' },
-      $set: {
-        lineBindAt: null,
-        lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-      },
-    },
-  );
+  const binding = await bindLineAccount({ userId: record.userId, lineUserId });
 
-  await User.findByIdAndUpdate(record.userId, {
-    lineUserId,
-    lineBindAt: new Date(),
-    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-  });
+  return binding.ok
+    ? { ok: true, userId: record.userId }
+    : binding;
+}
 
-  await LineBindToken.deleteOne({ token });
+// 綁定碼流程沒有網頁確認畫面，衝突時請學生回網頁處理。
+function buildBindConflictText(reason) {
+  if (reason === 'line_bound_to_other_account') {
+    return '這個 LINE 帳號已綁定其他 FocusFlow 帳號，請先從那個帳號解除綁定。';
+  }
+  if (reason === 'replace_confirmation_required') {
+    return '你的 FocusFlow 帳號已綁定其他 LINE，請先到 FocusFlow 網頁解除綁定後再試一次。';
+  }
+  return '綁定沒有完成，請回到 FocusFlow 重新操作。';
+}
 
-  return {
-    ok: true,
-    userId: record.userId,
-  };
+// LINE Login 完成後的歡迎訊息；只傳給已加好友的學生，每次綁定最多一則，失敗不影響綁定結果。
+async function sendBindWelcomeMessage(lineUserId) {
+  if (!env.lineChannelAccessToken) return false;
+
+  try {
+    await pushMessage(lineUserId, [
+      buildTextMessage('帳號綁定成功！輸入「切換課程」選擇課程後就可以直接提問。想解除綁定時，請到 FocusFlow 網頁的 LINE 提問頁。'),
+    ]);
+    return true;
+  } catch {
+    if (env.nodeEnv !== 'test') {
+      console.warn('[LINE Login] welcome message failed.');
+    }
+    return false;
+  }
+}
+
+// 從「詢問助教」連結 LINE 時，綁定後切到該課程。課程來自開始時的紀錄，
+// 這裡仍重新檢查修課權限；不符合時只是不切換，綁定已經成功。
+async function selectCourseForBoundUser(userId, courseId) {
+  const user = await User.findById(userId);
+  const course = await Course.findById(courseId);
+  const enrollment = await findActiveEnrollment(userId, courseId);
+
+  if (!user || !course || course.status !== COURSE_STATUSES.PUBLISHED || !enrollment) {
+    return null;
+  }
+
+  const liveCourses = await filterCoursesWithLiveVideos([course]);
+  if (!liveCourses.length) {
+    return null;
+  }
+
+  await User.findByIdAndUpdate(userId, courseSelectionUpdate(user, courseId));
+
+  return { id: String(course._id), title: course.title };
 }
 
 // 處理「加好友」事件：第一次加好友、封鎖後解除封鎖、刪除好友後重加都會觸發。
@@ -299,10 +383,9 @@ async function handleFollow(event) {
 // 處理帳號綁定：使用者把 64 字元的 token 傳到 LINE Bot 時觸發
 // 驗證 token 有效後，把 lineUserId 寫入 User 文件，完成 LINE ↔ 系統帳號的對應
 async function handleBind(lineUserId, token, replyToken) {
-  // 在資料庫裡找這個 token
-  const record = await LineBindToken.findOne({ token });
+  const bindResult = await bindLineUserWithToken(lineUserId, token);
 
-  if (!record) {
+  if (bindResult.reason === 'token_not_found') {
     const replyResult = await replyMessage(replyToken, [
       buildTextMessage('這個綁定碼無效或已失效，請重新從系統取得新的綁定碼。'),
     ]);
@@ -315,8 +398,7 @@ async function handleBind(lineUserId, token, replyToken) {
   }
 
   // TTL index 只會定期清理，手動再判斷一次確保即時性
-  if (record.expiresAt < new Date()) {
-    await LineBindToken.deleteOne({ token });
+  if (bindResult.reason === 'token_expired') {
     const replyResult = await replyMessage(replyToken, [
       buildTextMessage('綁定碼已過期，請重新從系統取得新的綁定碼。'),
     ]);
@@ -328,29 +410,18 @@ async function handleBind(lineUserId, token, replyToken) {
     }, replyResult);
   }
 
-  // 同一個 LINE 帳號改綁另一個系統帳號：先解除舊帳號的綁定。
-  // lineUserId 有 unique index，沒先解除會撞 E11000，使用者完全收不到回覆。
-  await User.updateMany(
-    { lineUserId, _id: { $ne: record.userId } },
-    {
-      $unset: { lineUserId: '', activeCourseId: '' },
-      $set: {
-        lineBindAt: null,
-        lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-        lineConversationHistory: [],
-      },
-    },
-  );
+  if (!bindResult.ok) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage(buildBindConflictText(bindResult.reason)),
+    ]);
 
-  // 把 LINE userId 寫入系統使用者文件，並重設對話狀態
-  await User.findByIdAndUpdate(record.userId, {
-    lineUserId,
-    lineBindAt: new Date(),
-    lineConversationState: LINE_CONVERSATION_STATES.IDLE,
-  });
+    return attachReplyMetadata({
+      type: 'bind',
+      handled: false,
+      reason: bindResult.reason,
+    }, replyResult);
+  }
 
-  // Token 一次性使用，綁定成功後立即刪除
-  await LineBindToken.deleteOne({ token });
   const replyResult = await replyMessage(replyToken, [
     buildTextMessage('帳號綁定成功。接下來請先選擇課程，之後就可以直接提問。'),
   ]);
@@ -516,6 +587,13 @@ async function handleBindAndSelectCourse(lineUserId, token, courseId, replyToken
       buildTextMessage('綁定連結已過期，請回到 FocusFlow 重新開啟 QR code。'),
     ]);
     return attachReplyMetadata({ type: 'bind_course', handled: false, reason: 'token_expired' }, replyResult);
+  }
+
+  if (!bindResult.ok) {
+    const replyResult = await replyMessage(replyToken, [
+      buildTextMessage(buildBindConflictText(bindResult.reason)),
+    ]);
+    return attachReplyMetadata({ type: 'bind_course', handled: false, reason: bindResult.reason }, replyResult);
   }
 
   const user = await User.findById(bindResult.userId);
@@ -1015,6 +1093,9 @@ async function processWebhookEvents(events) {
 
 module.exports = {
   generateBindToken,
+  bindLineAccount,
+  selectCourseForBoundUser,
+  sendBindWelcomeMessage,
   unbindLineUser,
   processWebhookEvents,
   buildQuestionSummaryLines,

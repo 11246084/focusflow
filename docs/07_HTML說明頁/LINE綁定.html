@@ -233,7 +233,7 @@ details.glossary .terms{margin-top:0}
       <g class="node" data-k="z11" tabindex="0"><rect class="new" x="420" y="226" width="190" height="42" rx="8"/><text x="515" y="252" text-anchor="middle">✚ 衝突檢查（唯一索引）</text></g>
       <g class="node" data-k="z12" tabindex="0"><rect class="new" x="10" y="278" width="190" height="42" rx="8"/><text x="105" y="304" text-anchor="middle">✚ 綁定狀態頁</text></g>
       <g class="node" data-k="z13" tabindex="0"><rect class="new" x="215" y="278" width="190" height="42" rx="8"/><text x="310" y="304" text-anchor="middle">✚ 19 條攻擊情境測試</text></g>
-      <g class="node" data-k="z14" tabindex="0"><rect class="q" x="420" y="278" width="190" height="42" rx="8"/><text x="515" y="304" text-anchor="middle">✚ 圖文選單（評估）</text></g>
+      <g class="node" data-k="z14" tabindex="0"><rect class="q" x="420" y="278" width="190" height="42" rx="8"/><text x="515" y="304" text-anchor="middle">✚ 圖文選單（兩張）</text></g>
       </svg>
   </div>
   <aside class="panel" aria-live="polite"><h3>點左邊任一格</h3><p>看這一塊現在的狀況，以及它和這次任務的關係。</p></aside>
@@ -305,7 +305,7 @@ details.glossary .terms{margin-top:0}
       <g class="node" data-k="e2" tabindex="0"><rect class="b" x="170" y="20" width="130" height="56" rx="10"/><text x="235" y="44" text-anchor="middle">開始提問</text><text x="235" y="63" text-anchor="middle" class="s">沿用現有問答</text></g>
       <g class="node" data-k="e3" tabindex="0"><rect class="new" x="330" y="20" width="130" height="56" rx="10"/><text x="395" y="44" text-anchor="middle">看得懂回答</text><text x="395" y="63" text-anchor="middle" class="s">優先 3</text></g>
       <g class="node" data-k="e4" tabindex="0"><rect class="new" x="490" y="20" width="120" height="56" rx="10"/><text x="550" y="44" text-anchor="middle">老師看得到</text><text x="550" y="63" text-anchor="middle" class="s">優先 4</text></g>
-      <g class="node" data-k="e5" tabindex="0"><rect class="q" x="170" y="100" width="290" height="40" rx="20"/><text x="315" y="125" text-anchor="middle">圖文選單：評估能不能一起做（優先 5）</text></g>
+      <g class="node" data-k="e5" tabindex="0"><rect class="q" x="170" y="100" width="290" height="40" rx="20"/><text x="315" y="125" text-anchor="middle">圖文選單：依綁定狀態切換（優先 5）</text></g>
       <path class="ar" d="M140,48L168,48"/><path class="ar" d="M300,48L328,48"/><path class="ar" d="M460,48L488,48"/>
     </svg>
   </div>
@@ -395,7 +395,7 @@ details.glossary .terms{margin-top:0}
     <button class="chip g" data-tip="state 怎麼存、多久過期、怎麼驗證，都可以自己設計，只要 19 條攻擊情境都擋得住。">授權流程細節</button>
     <button class="chip g" data-tip="在本機另開測試 provider，或在正式 provider 測試，見下方比較。">測試環境</button>
     <button class="chip g" data-tip="選單卡、回答卡要放哪些項目、版面與文案，第 04 段只是參考。">卡片的項目與版面</button>
-    <button class="chip g" data-tip="圖文選單要不要這次一起做；只做不依賴系統設定的部分。">圖文選單要不要一起做</button>
+    <button class="chip g" data-tip="內容已定案（decisions.md LM），何時動工依優先順序決定；已綁定四格是切換課程、今日額度、使用說明、網頁版。">圖文選單何時動工</button>
   </div></div>
   <div class="canvas col r"><h3>不能踩的線，要改先找 Weihao</h3><div class="chips">
     <button class="chip r" data-tip="一個 LINE 只能綁一個帳號；想綁已經綁在別人帳號上的 LINE，一律拒絕，別人的綁定不變。">一個 LINE 一個帳號</button>
@@ -458,7 +458,7 @@ details.glossary .terms{margin-top:0}
   <div><b>✋ 做不到</b>或要求互相矛盾。照實說</div>
 </div>
 
-<footer>更新 2026-10-31 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LP 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<footer>更新 2026-11-02 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LM 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>
@@ -469,11 +469,11 @@ z3:["後端核對＋驗證（CSRF 防護、ID Token 驗證）","lock","確認 st
 z7:["Bot 回覆（Flex 回答卡）","free","回答改成卡片：課程、回答、最多 3 筆引用，引用可點「▶ 看這段」。沒有開發字樣，時間寫成 1:15 - 2:00。卡片失敗時退回純文字。"],
 z8:["教師統計（Source Breakdown）","free","網頁和 LINE 的提問數分開顯示，總數算法不變，用來看改版有沒有效果。"],
 z9:["LINE Login channel","lock","在現有 provider 新建；正式後台每一步都要 Weihao 先同意，改成 Published 後無法退回。"],
-z10:["一次性 state 存放（State Store）","free","存放每次連結的 state，用過或過期就失效。怎麼存由你設計，只要攻擊情境都擋得住。"],
+z10:["一次性 state 存放（State Store）","free","已做好：lineLoginStates 只存 state 的雜湊，10 分鐘過期；送進來就刪除，比對失敗也作廢（decisions.md LL1）。"],
 z11:["衝突檢查（Unique Index）","lock","一個 LINE 只能綁一個帳號；搶綁拒絕，自己換綁要先確認。"],
 z12:["綁定狀態頁","free","網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
 z13:["19 條攻擊情境測試","lock","Weihao 寫好的清單，每一條都要寫成自動測試並通過，才算完成。"],
-z14:["圖文選單（Rich Menu，評估）","free","評估能不能一起做不依賴系統設定的部分；只寫建立腳本，正式建立要先問。"],
+z14:["圖文選單（Rich Menu）","free","兩張選單：未綁定一格「連結帳號」，已綁定四格「切換課程、今日額度、使用說明、網頁版」。綁定成功時由後端指定，解除時取消，學生不必重綁（decisions.md LM）。"],
 l1:["網頁產生綁定碼（Bind Token）","have","學生在「LINE 提問」頁按按鈕，後端產生 64 字元、10 分鐘有效的碼。從課程的「詢問助教」進來時，會產生帶課程的版本。"],
 l2:["學生貼到 LINE","warn","要長按複製、切換 App、貼給 Bot。手機上最容易在這一步放棄。"],
 l3:["Bot 兌換（Webhook）","have","LINE 把訊息送到我們的 webhook，後端先驗證簽章，再兌換綁定碼。"],
@@ -487,19 +487,19 @@ y2:["webhook 與問答（Messaging API）","have","驗證簽章、先回應再�
 y3:["綁定碼可能被兌換兩次（Race Condition）","warn","現在兌換是「先查、再刪」，兩個請求同時進來可能都成功。新做法要一步完成（攻擊情境 A12）。"],
 y4:["新帳號會搶走綁定（Account Takeover）","warn","現在同一個 LINE 綁到新帳號，會自動把舊帳號解除。新規則改成拒絕（攻擊情境 A9）。"],
 y5:["LINE Login channel（OAuth 2.0）","none","還沒有。你是 provider 管理員，開工前先邀請 Weihao 為 Admin；正式 channel 的建立要先問 Weihao。"],
-y6:["圖文選單（Rich Menu）","none","還沒有，原本規劃在系統設定 S4。這次由你評估能不能一起做不依賴系統設定的部分。"],
+y6:["圖文選單（Rich Menu）","none","還沒有，原本規劃在系統設定 S4。內容已定案（decisions.md LM），還沒動工。"],
 e1:["連結帳號","free","優先 1：安全的 LINE Login 綁定，19 條攻擊情境都擋得住。優先 2：網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
 e2:["開始提問","have","綁定後沿用現有的 LINE 問答，不改回答與引用規則。","想想看：還沒綁定的學生直接在 LINE 傳訊息，Bot 要怎麼引導他？"],
 e3:["看得懂回答（Flex Message）","free","優先 3：選單與回答改用卡片，手機和電腦都能用；移除開發字樣、時間寫成 1:15 - 2:00。卡片放哪些項目、長怎樣由你決定，參考樣式見第 04 段。"],
 e4:["老師看得到","free","優先 4：教師統計頁分開網頁與 LINE 的提問數，總數算法不變。很小，可以穿插先做。"],
-e5:["圖文選單","free","優先 5：評估能不能一起做。只做不依賴系統設定的部分，例如未綁定顯示「連結帳號」。只寫建立腳本，正式建立要先問 Weihao。"],
+e5:["圖文選單","free","優先 5：未綁定一格「連結帳號」，已綁定四格「切換課程、今日額度、使用說明、網頁版」。今日額度、使用說明要新增文字指令；目前只接一個模型，不放切換模型。只寫建立腳本，正式建立依 decisions.md LB、LM。"],
 s1:["① 按「連結 LINE」","free","學生已經登入網頁。按鈕放哪、長怎樣由你決定。","想想看：在電腦上沒有 LINE App，要怎麼完成？（LINE 會顯示 QR code）"],
 s2:["② 產生一次性 state（OAuth state）","free","後端產生一串只能用一次、很快過期的亂碼，並記下「是誰、哪個登入」發起的。"],
 s3:["③ 按許可、加好友（Consent Screen）","have","LINE 先顯示授權畫面，學生按「許可」。加好友有兩種設定：normal 是在同一個畫面勾選「加入好友」（只有認證過的 provider 會預設勾好）；aggressive 是按完許可後另跳一頁，再按一次加入好友。已經是好友就不會出現；封鎖中會變成「解除封鎖」。","想想看：學生可能略過加好友，所以「已綁定」和「已加好友」要分開顯示。用哪種設定由你評估。"],
 s4:["④ 回到回呼網址（Callback URL）","free","LINE 把學生帶回網頁，網址上帶著 code 和 state。網頁再呼叫後端完成綁定。"],
 s5:["⑤ 核對 state＝登入者（CSRF 防護）","lock","state 必須存在、沒過期、沒用過，而且發起的人就是現在登入的人。這是整個流程最重要的檢查。"],
 s6:["⑥ 向 LINE 確認身分（ID Token 驗證）","lock","用 code 向 LINE 換資料，並檢查 LINE 給的身分證明（ID token）真的是給我們、沒過期、沒被竄改。"],
-s7:["⑦ 寫入綁定（Unique Index）","lock","寫入前檢查衝突：這個 LINE 若已綁在別人帳號上就拒絕；學生自己換 LINE 要先確認。不存 LINE 的 token。"],
+s7:["⑦ 寫入綁定（Unique Index）","lock","寫入前檢查衝突：這個 LINE 若已綁在別人帳號上就拒絕；學生自己換 LINE 要在按「連結 LINE」時先確認。舊綁定碼也走同一套規則。不存 LINE 的 token。"],
 s8:["⑧ 已綁定＋歡迎訊息","free","網頁顯示結果；已加好友就送一則歡迎訊息，沒加就顯示加好友按鈕。文案由你決定。"],
 k1:["擋下：騙別人點連結（Login CSRF）","lock","壞人自己按「連結 LINE」，把連結傳給你。如果只看連結不看登入者，你的 LINE 就會被綁到壞人帳號，你之後的提問都記到他那邊。核對「發起的人＝現在登入的人」就能擋掉（A1、A2、A4、A5、A6）。"],
 k2:["擋下：偽造或重用身分證明（Replay Attack）","lock","有人送假的或過期的身分證明、重複使用授權碼，都要失敗，而且不能留下任何綁定（A7、A8）。"],

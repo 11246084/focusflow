@@ -89,7 +89,7 @@
 
 ## 2026-10-29 recut 交付候選（進行中）
 
-候選 worktree：`D:/AI-workspace/focusflow-recut-delivery`；分支 `integration/recut-delivery-20261029`，整合基底 `0be742c`（dev `66caba4`＋recut `130aa4f`）。正式前端與兩份已定案決策保留。
+候選 worktree：`C:/Users/User/Documents/GitHub/_worktrees/focusflow/recut-delivery`；分支 `integration/recut-delivery-20261029`，整合基底 `0be742c`（dev `66caba4`＋recut `130aa4f`）。舊路徑 `D:/AI-workspace/focusflow-recut-delivery` 保留為相容 junction，兩者是同一份 checkout；後續直接接續此候選，不另建或搬移。正式前端與兩份已定案決策保留。
 
 本輪 DoD：先完成 recut 成品核准／退回、ShortAsset review 與 YouTube ready 雙向發布及失敗修復；再接 RC4／RC5／RC6、本機 CLI，完成可隔離驗證的 RC7 後端 worker 身分／租約／成品回傳與 RC10 同意／撤回。每項必須有本輪 fake/記憶體或專用 loopback Mongo 證據，最後獨立審查、修正與全套檢查後才稱候選完成。歷史測試數字不作本輪證據。
 
@@ -98,3 +98,7 @@
 2026-11-01 本輪續接：成品核准同步 RecutApproval 與 ShortAsset 的精確 versionId／assetId／generationVersion；退回依呈現／內容分流，YouTube ready 與核准任一先到均可接續發布，中斷後修復同一成品。RC7 後端已加入雜湊 worker 金鑰、FIFO、10 分鐘租約、3 次派工上限、版本核對、受限原片下載、成品檢查與可恢復回傳。以禁止 dotenv 讀檔的 preload 執行 fake/harness targeted 58／58、路由契約 11／11、OpenAPI lint 通過；尚待跨程序 Mongo 競爭驗證、renderer／pipeline 整合、RC10 gate 與最終獨立驗證，不能據此稱整體完成。
 
 候選已依序合入當次 `origin/dev` 與本機 `dev` 已提交文件，以及 renderer core／hardening、pipeline 與單題工具四筆原始提交。新增 Mongo mutation lease 與 revision／token fencing；專用 `127.0.0.1:27029` 資料庫驗證跨 Node 程序互斥、失效 token 拒絕、同工作僅一次派工與過期 lease 接手，與外部服務隔離。仍須整合最新 chunk 版本契約、RC10 與完整 fake E2E 後交獨立驗證。
+
+2026-11-02 續接：後端整合由 `delivery_backend_resume` 負責 shared models／services／routes／harness／OpenAPI 與啟動組裝；`delivery_consent_resume` 負責 RC10 專屬同意模組；`delivery_pipeline_runtime` 負責 pipeline 與本機 CLI runtime。後端接續 DoD 是完成 RC4 真正註冊入口、API 與審閱共用 queue、持久化建議、RC10 在排程／worker／上傳／發布的實際閘門及撤回處置，再由最終驗證者序列執行全套與獨立審查。
+
+本輪已完成 `45dfd69`：凍結證據與 RecutSource 保存逐字稿版本，異版不回查 chunk，審閱使用快照並提示來源更新；targeted 69／69、補強斷言後增量 4／4、OpenAPI lint 通過，均預載 `noDotenv.cjs` 且外部服務使用替身。`c0bc4ac` 已合入最新 `origin/dev`（`66f45fc`，含本機 dev `2d4ebc9`）；四份 LINE 定案文件與該 dev 一致。尚未完成本輪全套、完整 fake E2E、RC10 整合及最終獨立驗證，不據此稱候選完成。

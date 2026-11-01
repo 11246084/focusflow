@@ -153,6 +153,10 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
         const { summarizeChanges } = require('./recutChangeSummary.service');
         await RecutTask.findByIdAndUpdate(task._id, { $set: { changeSummary: summarizeChanges(previous, context.data.version, source) } });
       }
+      for (const suggestion of context.data.suggestions || []) {
+        await require('../models/recutReviewEvent.model').create({ scriptId: task.scriptId, versionId: version._id, taskId: task._id,
+          kind: 'suggestion', suggestionType: suggestion.suggestionType || 'quality', content: suggestion.content, proposal: suggestion.proposal });
+      }
       await checkCancelled(task._id);
       await transitionRecut({ scriptId: task.scriptId, event: 'complete_task', taskId: task._id, versionId: version._id });
       const finished = await RecutTask.findByIdAndUpdate(task._id, { $set: {

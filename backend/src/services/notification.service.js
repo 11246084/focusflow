@@ -636,7 +636,20 @@ async function notifyRecutTaskFinished(task) {
   } }]);
 }
 
+async function notifyRecutRenderFailed({ job, script }) {
+  const recipientIds = new Set((await User.find({ role: USER_ROLES.ADMIN, isActive: true }).select('_id').lean()).map((u) => String(u._id)));
+  const course = await Course.findById(job.courseId).select('teacherId').lean();
+  if (course?.teacherId || script?.createdBy) recipientIds.add(String(course?.teacherId || script.createdBy));
+  return upsertDedupedNotifications([...recipientIds].map((recipientId) => buildUpsertOperation({ recipientId,
+    dedupeKey: `recut_render_failed:${job._id}:${new Date(job.queuedAt).getTime()}`,
+    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: 'recut 渲染失敗',
+      content: truncate(job.error?.message || '短片渲染失敗，請稍後重新製作。', 2000),
+      courseIds: [job.courseId], scriptId: job.scriptId, urgent: false },
+  })));
+}
+
 module.exports = {
+  notifyRecutRenderFailed,
   notifyYouTubeSystemEvent, notifyYouTubeRemoteEvent, notifyYouTubeUploadPaused, notifyYouTubeUploadBlockedRounds, notifyRecutTaskFinished,
 
   DEFAULT_LIMIT,

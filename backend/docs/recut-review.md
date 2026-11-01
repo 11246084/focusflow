@@ -15,7 +15,7 @@
 | `POST /suggestions/apply` | 整批 `suggestionIds`、選填 `reasonLabel`；需推翻鎖定時明列 `confirmedSelectionChangeIds`；202 回同一任務 |
 | `POST /approve-script` | 核准眼前版本，記錄教師／時間；不直接製作 |
 | `POST /render` | 將已核准版本設為 `render_queued`；RC7 worker 或 RC11a 本機試產接手，不在此呼叫工具 |
-| `POST /approve-asset` | 另帶 `assetId/generationVersion`，精確核准目前 MP4；不直接發布 |
+| `POST /approve-asset` | 另帶 `assetId/generationVersion`，精確核准目前 MP4；同步 ShortAsset 審核，YouTube ready 時發布 |
 | `POST /review-time` | `start` 帶目前 `versionId/expectedRevision/phase`；`stop` 帶原 `versionId/timingId/phase`，時間由伺服器計算 |
 
 除計時停止外，寫入都要目前 `versionId` 與 `expectedRevision`，過時回 409。`/review` 的 `fullScript/current` 永遠是目前版，`draft.fullScript` 才是未套用預覽；逐句 `selected/label/opening/teacherChanged` 以草稿優先，`originalLabel` 保留目前版理由。閱讀講稿不顯示 JSON、圖卡規格或原始編號；修改時才用逐句來源。成品識別來自 `recut.currentAssetId/currentAssetGenerationVersion`，MP4 資料沿用既有 `GET /api/v1/shorts/:shortAssetId`。
@@ -74,3 +74,23 @@ AI 建議一項存一筆 `RecutReviewEvent`，`kind:'suggestion'`、`scriptId/ve
 `recut-review.service.test.js` 驗草稿、即時長度、復原、鎖定、範圍限制、取消／失敗、共用額度、回審、摘要與三段時間；`recut-review.routes.test.js` 驗九端點的功能開關、401／403、成功、錯版本與輸入。全部使用記憶體 harness 和假步驟，不啟動正式 server、renderer 或任何外部 API。
 
 2026-10-29 的子 agent 已確認九端點需求契約，並複核計時必填、目前版／草稿語意、無法回答原因、改動摘要與採納統計五項修正。這是 API 契約確認，不代表 RC4 接線、RC9 畫面或實際成品驗收；完整獨立審查仍依 HANDOFF 排定。
+
+## 成品核准、發布與退回
+
+`approve-asset` 在同一腳本鎖與 revision CAS 中建立精確 `(scriptId,versionId,assetId,generationVersion)` 核准，再 CAS 寫 `ShortAsset.reviewStatus/reviewedGenerationVersion`。先保存核准紀錄，資產寫入失敗時可重送補寫；發布仍檢查目前版與兩份紀錄。相同目前成品已核准的重送可接受舊 revision，不建立第二筆核准。
+
+YouTube ready 與教師核准兩個入口共用 `markShortAssetPublished`。它重新讀資產、檢查 current version/asset/generation 與有效核准，保留 YouTube 的 ready/attempt/file/generation CAS，再在同一腳本鎖內同步 recut `published`。若資產已公開但腳本提交失敗，後續 ready 查詢或核准重送補同步。學生 feed 也重查 recut 當前引用與核准，舊成品不能靠歷史 `published` 留在學生牆。一般 ShortAsset 審核與發布入口同樣轉入此流程。
+
+`POST /recut/reject-asset` 帶核准相同的識別／revision，另加 `scope:presentation|content` 與非空 `reasons`。先把舊成品改 `draft/rejected`、撤銷成品核准並留事件，清目前成品引用；呈現回 `script_approved`，內容回 `script_review` 並撤銷該版講稿核准。純呈現保留原音與順序，任何新 MP4 都重新審核。一般成品退回依 contentIncorrect/incomplete/other 保守回內容審閱，其他理由回呈現。
+
+## RC7 專用 worker 與持久租約
+
+管理員 `GET/POST /api/v1/admin/recut-workers`、`PATCH /:workerId` 建立、列出、暫停或永久停用。資料庫只存 SHA-256 雜湊；一次性金鑰只在建立回傳，所有管理動作留 adminAuditLogs。一般 JWT 與 worker 金鑰驗證分離；worker 不能使用教師、學生或管理員 API。
+
+worker 用專用 Bearer 金鑰呼叫 `/api/v1/recut-worker/jobs` 下的 `POST /claim`（shortRenderVersion/assetVersions）、`POST /:jobId/heartbeat`、`GET /:jobId/source`、`POST /:jobId/failure`、`POST /:jobId/result`。領取回工作、planHash、施工單、凍結逐字來源及一次性 leaseToken。其餘四個操作須 `X-Recut-Lease`；上傳使用 `video` 與 `metadata` JSON multipart，收檔前後均核對租約。原片下載僅能讀 uploads 內的安全檔案，不回絕對路徑。
+
+演算法採 DB FIFO＋雙重 CAS：先保留每台 worker 唯一 activeJob，再 claim 最早未租用且版本相符工作；租約 10 分鐘，每 60 秒 heartbeat 延長。逾時或偶發黑畫面／字型失敗才換另一台，最多三次；固定規格、長度、靜音、音量失敗第一次即終止，通知教師與所有管理員且去重。重啟及每分鐘恢復過期工作與未完成通知。`completing` 先持久保存成品引用，再建立／連結待審資產；中斷恢復同一 assetId，避免一支接受的成品被重派或重建。
+
+檢查依原始數值判斷，不信任 worker 宣稱 passed：720×1280、30fps、一影一音、來源選段加片尾總長 ±0.5 秒；黑畫面少於0.5秒（pix_th .05）、靜音少於2秒（-50dB）、-16 LUFS ±2、真峰值≤-1.5dBTP、字型已載入。門檻集中 `recutRenderChecks.service.js`，總長由凍結 source/selection 與 plan 計算。worker 回數據為受信任專用 worker 的檢查證據，後端不在此重跑 FFmpeg；遭控制的 worker 仍可能偽造測值，需在正式開放前驗證執行環境。
+
+替代方案為記憶體租約或直接讓 worker 使用教師 upload API，前者重啟失去排他、後者授權過寬，因此使用兩個專用集合及受限路由。跨文件的完成程序採可恢復提交而非要求 Mongo replica set transaction；目前版變更、撤回或過期結果一律不公開。真實 FFmpeg、媒體品質與外部 YouTube 不由 fake 測試證明，驗證紀錄見狀態正本。

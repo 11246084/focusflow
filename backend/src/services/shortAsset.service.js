@@ -702,7 +702,17 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
     .sort({ publishedAt: -1, _id: -1 })
     .limit(pageSize + 1)
     .lean();
-  const pageItems = assets.slice(0, pageSize);
+  const eligible = [];
+  for (const asset of assets) {
+    if (asset.recutVersionId) {
+      if (asset.youtubeUpload?.remoteState !== 'ready' || asset.reviewStatus !== 'approved'
+        || asset.reviewedGenerationVersion !== asset.generationVersion) continue;
+      try { await require('./recutState.service').assertRecutAssetPublishable(asset); }
+      catch (error) { if (['RECUT_STATE_INVALID', 'SHORT_SCRIPT_NOT_FOUND'].includes(error.code)) continue; throw error; }
+    }
+    eligible.push(asset);
+  }
+  const pageItems = eligible.slice(0, pageSize);
 
   return {
     items: pageItems.map((asset) => {
@@ -806,7 +816,22 @@ function acquireStatusMutation(ids) {
 // 審核仍可在 bytes 上傳中完成（DR-21），但不能在清理的最後設定 await 間改成草稿。
 async function reviewShortAsset(options) {
   const release = acquireStatusMutation([options.assetId]);
-  try { return await reviewShortAssetOwned(options); } finally { release(); }
+  try {
+    const asset = await ShortAsset.findById(options.assetId).lean();
+    if (asset?.recutVersionId) {
+      const course = await assertReviewAccess(asset, options.user);
+      const reasons = assertReviewRequest(options);
+      if (asset.generationVersion !== options.expectedGenerationVersion) throw new AppError('MP4 generation changed.', 409, 'SHORT_ASSET_REVIEW_STALE');
+      const script = await ShortScript.findById(asset.sourceScriptId).lean();
+      const review = require('./recutReview.service');
+      const action = options.status === 'approved' ? review.approveAsset : review.rejectAsset;
+      await action({ scriptId: asset.sourceScriptId, versionId: asset.recutVersionId, expectedRevision: script.recut.revision,
+        assetId: asset._id, generationVersion: asset.generationVersion, user: options.user, reasons,
+        scope: reasons.some((r) => ['contentIncorrect', 'incomplete', 'other'].includes(r.code)) ? 'content' : 'presentation' });
+      return toReviewAsset(await ShortAsset.findById(asset._id).lean(), course);
+    }
+    return await reviewShortAssetOwned(options);
+  } finally { release(); }
 }
 
 async function assertLocalBackupAvailable(item, id) {
@@ -830,9 +855,7 @@ async function updateShortAsset(assetId, patch) {
   try {
     if (patch.status === SHORT_ASSET_STATUSES.PUBLISHED) {
       const asset = await ShortAsset.findById(assetId).lean();
-      if (asset?.recutVersionId) {
-        return await require('./recutState.service').withRecutScriptLock(asset.sourceScriptId, () => updateShortAssetOwned(assetId, patch));
-      }
+      if (asset?.recutVersionId) return await require('./shortAssetPublish.service').markShortAssetPublished(asset);
     }
     return await updateShortAssetOwned(assetId, patch);
   } finally { release(); }
@@ -843,6 +866,7 @@ async function recordShortAssetRegeneration(assetId, patch = {}) {
 }
 
 module.exports = {
+  normalizeReviewReasons,
   DEFAULT_PAGE_LIMIT,
   MAX_PAGE_LIMIT,
   archiveForCourseDeletion,

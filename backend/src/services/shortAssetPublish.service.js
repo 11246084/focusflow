@@ -256,15 +256,21 @@ function runTrackedShortAssetUpload(options = {}) {
  */
 async function markShortAssetPublished(asset) {
   if (asset.recutVersionId) {
-    return require('./recutState.service').withRecutScriptLock(asset.sourceScriptId, () => markShortAssetPublishedOwned(asset));
+    return require('./recutState.service').withRecutTransition(asset.sourceScriptId, (transition) => markShortAssetPublishedOwned(asset, transition));
   }
   return markShortAssetPublishedOwned(asset);
 }
 
-async function markShortAssetPublishedOwned(asset) {
+async function markShortAssetPublishedOwned(asset, transition) {
+  asset = await ShortAsset.findById(asset._id).lean();
+  if (!asset || asset.status === 'archived') return null;
   assertReviewApproved(asset);
   await require('./recutState.service').assertRecutAssetPublishable(asset);
   if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
+  assertDisclosureConfirmed(asset);
+  const synchronize = async () => transition?.({ event: 'publish', versionId: asset.recutVersionId,
+    assetId: asset._id, generationVersion: asset.generationVersion });
+  if (asset.status === SHORT_ASSET_STATUSES.PUBLISHED) { await synchronize(); return asset; }
   const publishedAt = new Date();
   const published = await ShortAsset.findOneAndUpdate(
     { _id: asset._id, 'youtubeUpload.remoteState': 'ready', status: { $nin: [SHORT_ASSET_STATUSES.ARCHIVED, SHORT_ASSET_STATUSES.PUBLISHED] },
@@ -290,6 +296,7 @@ async function markShortAssetPublishedOwned(asset) {
   );
 
   if (!published) return null;
+  await synchronize();
 
   // 影片已經對學生可見，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
   if (asset.sourceScriptId) {
@@ -314,12 +321,9 @@ async function markShortAssetPublishedOwned(asset) {
  * uploadShortAssetToYouTube() 會看到審核已通過而補上這一步。
  */
 async function publishApprovedShortAsset(asset) {
-  if (!asset?._id || !asset.filePath) return null;
+  if (!asset?._id) return null;
   assertReviewApproved(asset);
-  assertDisclosureConfirmed(asset);
-  if (!asset.youtubeVideoId) return null;
-  if (asset.status === SHORT_ASSET_STATUSES.PUBLISHED) return null;
-
+  if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
   return markShortAssetPublished(asset);
 }
 

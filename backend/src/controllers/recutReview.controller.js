@@ -19,5 +19,6 @@ module.exports = {
   applySuggestions: mutation('applySuggestions', [...base, 'suggestionIds', 'confirmedSelectionChangeIds', 'reasonLabel'], 202),
   approveScript: mutation('approveScript', base), queueRender: mutation('queueRender', base),
   approveAsset: mutation('approveAsset', [...base, 'assetId', 'generationVersion']),
+  rejectAsset: mutation('rejectAsset', [...base, 'assetId', 'generationVersion', 'scope', 'reasons']),
   recordTime: mutation('recordTime', [...base, 'action', 'phase', 'timingId']),
 };

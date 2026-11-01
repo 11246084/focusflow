@@ -56,7 +56,7 @@ const LineBindToken = require('../../src/models/lineBindToken.model');
 const Faq = require('../../src/models/faq.model');
 const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
-const recutModels = ['Source', 'Version', 'Task', 'Attempt', 'Approval', 'ReviewEvent'].map((name) => ({
+const recutModels = ['Source', 'Version', 'Task', 'Attempt', 'Approval', 'ReviewEvent', 'Worker', 'RenderJob'].map((name) => ({
   key: `recut${name}s`, Model: require(`../../src/models/recut${name}.model`),
 }));
 const ShortAsset = require('../../src/models/shortAsset.model');

@@ -16,6 +16,7 @@ const feedbackRoutes = require('./feedback.routes');
 
 const router = express.Router();
 
+router.use('/recut-worker', require('./recut-worker.routes'));
 router.use('/auth', authRoutes);
 router.use('/courses', courseRoutes);
 router.use('/qa', qaRoutes);

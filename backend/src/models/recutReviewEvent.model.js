@@ -5,7 +5,10 @@ const { Schema } = mongoose;
 const schema = new Schema({
   scriptId: { type: Schema.Types.ObjectId, ref: 'ShortScript', required: true },
   versionId: { type: Schema.Types.ObjectId, ref: 'RecutVersion', required: true },
-  kind: { type: String, enum: ['suggestion', 'edit', 'timing'], required: true },
+  kind: { type: String, enum: ['suggestion', 'edit', 'timing', 'asset_rejection'], required: true },
+  assetId: { type: Schema.Types.ObjectId, ref: 'ShortAsset', default: null },
+  generationVersion: Number, scope: { type: String, enum: ['presentation', 'content'] },
+  reasons: { type: [Schema.Types.Mixed], default: undefined },
   actorId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   taskId: { type: Schema.Types.ObjectId, ref: 'RecutTask', default: null },
   draftId: { type: Schema.Types.ObjectId, default: null }, revertedAt: { type: Date, default: null },

@@ -10,6 +10,10 @@ const router = express.Router();
 
 router.use(authenticate, authorizeRoles(USER_ROLES.ADMIN));
 
+router.get('/recut-workers', require('../controllers/recutWorker.controller').listWorkers);
+router.post('/recut-workers', require('../controllers/recutWorker.controller').createWorker);
+router.patch('/recut-workers/:workerId', require('../controllers/recutWorker.controller').updateWorker);
+
 router.get('/youtube-lifecycle/uploads', youtubeAdminController.getUploadOverview);
 router.post('/youtube-lifecycle/uploads/probe', youtubeAdminController.probeUploads);
 router.get('/youtube-lifecycle/privacy-incidents', youtubeAdminController.listPrivacyIncidents);

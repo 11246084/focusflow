@@ -75,3 +75,5 @@ npm.cmd run test:youtube-mongo
 [NR01／NR02 回歸](integration/youtube-recovery-atomicity.mongo.js)另外檢查恢復接管、課程刪除交易與外部工作重試。預設以隔離 DB 時間戳注入租約過期；設 `$env:YOUTUBE_TEST_REAL_LEASE = 'true'` 會讓兩個原始競態案例各實際等待 120 秒。程序中斷測試可能等待 Mongo 清除未完成交易，整套需要數分鐘。要檢查 standalone 的拒絕行為，另用獨立的 loopback standalone Mongo URI 執行 `node --test integration/course-deletion-standalone.mongo.js`；預期回 503 且資料完全不變。
 
 課程刪除的資料庫變更與 `coursedeletionjobs` 待辦在同一交易提交；YouTube 轉私人由提交後與啟動／每分鐘排程執行。單筆外部操作（含 token 與回應本文）上限 30 秒，超時取消請求並保留待辦重試，繼續處理下一筆。該集合以 `_id` 防重複、無 TTL 或自動索引同步；失敗及租約過期會重試，已完成紀錄保留。需要可交易的 MongoDB，standalone 回 `503 COURSE_DELETE_UNAVAILABLE`，不退回逐筆刪除。正式環境仍須另行授權查證；本機測試不代表部署前提已成立。
+
+recut 成品核准、YouTube ready 與 worker 租約介面見 [審閱與worker契約](docs/recut-review.md)，本輪本機候選與驗證結果只看 [目前狀態](../docs/current-status.md)。

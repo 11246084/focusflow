@@ -61,6 +61,9 @@ async function startServer() {
   if (env.shortScriptAutomationEnabled) recoverQueuedRecutTasks().catch((error) => {
     console.error('Failed to recover queued recut tasks.', error);
   });
+  const renderRecoveryTimer = env.shortScriptAutomationEnabled ? setInterval(() => require('./services/recutWorker.service').recoverRenderJobs().catch((error) => console.error('[recut] render recovery failed', error.code)), 60000) : null;
+  renderRecoveryTimer?.unref();
+  if (env.shortScriptAutomationEnabled) require('./services/recutWorker.service').recoverRenderJobs().catch((error) => console.error('[recut] render startup recovery failed', error.code));
   startVideoBatchReconciliationScheduler();
   startYouTubeRemoteStateScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
@@ -78,6 +81,7 @@ async function startServer() {
 
   const shutdown = async () => {
     recutQueue.stop();
+    clearInterval(renderRecoveryTimer);
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();

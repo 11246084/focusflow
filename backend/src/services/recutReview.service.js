@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const ShortAsset = require('../models/shortAsset.model');
 const RecutVersion = require('../models/recutVersion.model');
 const RecutSource = require('../models/recutSource.model');
 const ReviewEvent = require('../models/recutReviewEvent.model');
@@ -157,23 +158,42 @@ function createRecutReviewService({ queue = recutQueue, now = () => new Date() }
   async function act(options, event) {
     await loadForManage(options);
     await withRecutTransition(options.scriptId, async (transition) => {
-      const { script, source, version } = await load(options); requireRevision(options, script);
+      const { script, source, version } = await load(options);
+      const current = recutSnapshot(script);
+      const retry = event === 'approve_asset' && ['asset_approved', 'published'].includes(current.state)
+        && same(options.versionId, current.currentVersionId) && same(options.assetId, current.currentAssetId)
+        && options.generationVersion === current.currentAssetGenerationVersion
+        && Number.isSafeInteger(options.expectedRevision) && options.expectedRevision >= 0 && options.expectedRevision <= current.revision;
+      if (!retry) requireRevision(options, script);
       if (['approve_script', 'approve_asset'].includes(event)) {
         const actual = preview(source, version.selection);
         if (!actual.durationValid || version.fullScript !== actual.fullScript) conflict('講稿、選段或總長不一致，請先重新整理講稿。');
       }
-      if (event === 'approve_asset') {
+      if (event === 'approve_asset' || event === 'reject_asset') {
         assertObjectId(options.assetId, 'short asset');
         if (!Number.isSafeInteger(options.generationVersion) || options.generationVersion < 1) validation('generationVersion 須為正整數。');
       }
-      await transition({ event, versionId: options.versionId, expectedRevision: options.expectedRevision, actorId: options.user.id,
-        assetId: options.assetId, generationVersion: options.generationVersion });
+      if (event === 'reject_asset') {
+        if (!['presentation', 'content'].includes(options.scope)) validation('scope 須為 presentation 或 content。');
+        options.reasons = require('./shortAsset.service').normalizeReviewReasons('rejected', options.reasons);
+      }
+      await transition({ event, scope: options.scope, reasons: options.reasons, versionId: options.versionId, expectedRevision: options.expectedRevision, actorId: options.user.id,
+        assetId: options.assetId, generationVersion: options.generationVersion,
+        ...(retry ? { expectedRevision: current.revision } : {}) });
       if (event === 'approve_script' || event === 'approve_asset') {
         for (const s of await ReviewEvent.find({ scriptId: options.scriptId, versionId: options.versionId, kind: 'suggestion', adopted: null }).lean()) {
           await ReviewEvent.findByIdAndUpdate(s._id, { $set: { adopted: false, adoptedAt: null } });
         }
       }
     });
+    // Release script lock before publishing; publishing takes the same lock.
+    if (event === 'queue_render') await require('./recutWorker.service').ensureRenderJob(options.scriptId);
+    if (event === 'approve_asset') await require('./shortAssetPublish.service').publishApprovedShortAsset(await ShortAsset.findById(options.assetId).lean());
+    if (event === 'reject_asset') {
+      const asset = await ShortAsset.findById(options.assetId).lean();
+      await require('./notification.service').notifyShortAssetRejected({ asset, reasons: options.reasons });
+      await require('./shortAssetPublish.service').privatizeRejectedShortAsset(asset);
+    }
     return getReview(options);
   }
   async function recordTime(options) {
@@ -202,6 +222,6 @@ function createRecutReviewService({ queue = recutQueue, now = () => new Date() }
     });
   }
   return { getReview, editSelection, restoreSelection, applySelection, applySuggestions, recordTime,
-    approveScript: (o) => act(o, 'approve_script'), queueRender: (o) => act(o, 'queue_render'), approveAsset: (o) => act(o, 'approve_asset') };
+    approveScript: (o) => act(o, 'approve_script'), queueRender: (o) => act(o, 'queue_render'), approveAsset: (o) => act(o, 'approve_asset'), rejectAsset: (o) => act(o, 'reject_asset') };
 }
 module.exports = { createRecutReviewService, ...createRecutReviewService() };

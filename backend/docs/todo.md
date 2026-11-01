@@ -441,3 +441,11 @@ RC8 的九端點、教師草稿、重跑介面及 AI 建議格式見[審閱介�
 - 完成任一任務後同步更新 [todo.md](todo.md)、[implementation-log.md](implementation-log.md)、[README.md](README.md) 的 Latest Update
 
 YouTube Lifecycle 的本機整合與正式待驗事項統一見[目前狀態](../../docs/current-status.md)，本清單不另存一份完成狀態。正式啟用前依[部署程序](../../docs/10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)逐項取得授權。
+
+## 本輪交付 DoD 與順序
+
+1. 整合 dev 與 recut，保留既有 8 拍、readiness CAS、正式前端與定案文件。
+2. 核准／ready 任一先後都只能公開當前 version＋asset＋generation；退回與新成品重審；中斷可修復。
+3. RC7 後端專用 worker 身分、租約、心跳、版本與檢查、受限成品回傳。
+4. RC10 內容／聲音同意、撤回、取消工作與逐支下架，對接 YouTube 隱私與清理。
+5. 隔離測試、專用 loopback Mongo 交叉測試、契約檢查與獨立審查。進度及本輪證據只寫 [目前狀態](../../docs/current-status.md)。

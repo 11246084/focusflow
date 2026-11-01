@@ -4932,8 +4932,8 @@ paths:
   /api/v1/short-scripts/{scriptId}/recut/approve-asset:
     post:
       tags: [Short Scripts]
-      summary: 核准目前實際 MP4，不直接發布
-      description: 版本、assetId 與 generationVersion 必須全部符合目前成品。任何新 MP4 都重新核准。
+      summary: 核准目前實際 MP4，YouTube ready 時才發布
+      description: 版本、assetId 與 generationVersion 必須全部符合目前成品。同步 ShortAsset 審核與 recut 核准；ready 先到或核准先到均在兩條件俱足才發布。相同成品核准可重送修復中斷。任何新 MP4 都重新核准。
       operationId: approveRecutAsset
       parameters:
         - $ref: '#/components/parameters/ScriptId'
@@ -5681,8 +5681,486 @@ paths:
           description: LOCAL_PLAYBACK_ENABLED 關閉、原片不相容或已切換到 YouTube
         '416':
           description: Range 超出檔案範圍
+  /api/v1/admin/recut-workers:
+    get:
+      tags:
+        - Short Scripts
+      summary: 列出 worker，不回金鑰或雜湊
+      operationId: listRecutWorkers
+      parameters: []
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+    post:
+      tags:
+        - Short Scripts
+      summary: 建立專用 worker，金鑰只顯示一次
+      operationId: createRecutWorker
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+      responses:
+        '201':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/admin/recut-workers/{workerId}:
+    patch:
+      tags:
+        - Short Scripts
+      summary: 暫停接工作或永久停用金鑰，保留稽核
+      operationId: updateRecutWorker
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties:
+                accepting:
+                  type: boolean
+                isActive:
+                  type: boolean
+                  enum:
+                    - false
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/claim:
+    post:
+      tags:
+        - Short Scripts
+      summary: 領取最早版本相符工作與10分鐘租約，每台一次一支
+      operationId: claimRecutRenderJob
+      parameters: []
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - shortRenderVersion
+                - assetVersions
+              properties:
+                shortRenderVersion:
+                  type: string
+                assetVersions:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/heartbeat:
+    post:
+      tags:
+        - Short Scripts
+      summary: 每60秒延長10分鐘租約；逾時或錯owner拒絕
+      operationId: heartbeatRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties: {}
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/source:
+    get:
+      tags:
+        - Short Scripts
+      summary: 下載同一核准版本原片，不公開檔案路徑
+      operationId: downloadRecutRenderSource
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      responses:
+        '200':
+          description: 已核准版本的原片，僅有效租約可下載。
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/failure:
+    post:
+      tags:
+        - Short Scripts
+      summary: 記錄檢查失敗；固定類終止，偶發類最多重派兩次
+      operationId: failRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - message
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+                checks:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/result:
+    post:
+      tags:
+        - Short Scripts
+      summary: 受限上傳待審成品；收檔前後均驗租約與版本
+      operationId: completeRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      responses:
+        '201':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - video
+                - metadata
+              properties:
+                video:
+                  type: string
+                  format: binary
+                metadata:
+                  type: string
+                  description: >-
+                    JSON：versionId、planHash、shortRenderVersion、assetVersions、checks。checks
+                    為tracks/720x1280/30fps、durationSec、blackMaxSec、silenceMaxSec、integratedLufs、truePeakDbtp、fontLoaded，後端從來源重算長度。
+  /api/v1/short-scripts/{scriptId}/recut/reject-asset:
+    post:
+      tags:
+        - Short Scripts
+      summary: 退回目前成品；依內容或呈現回對應審閱
+      operationId: rejectRecutAsset
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - versionId
+                - expectedRevision
+                - assetId
+                - generationVersion
+                - scope
+                - reasons
+              properties:
+                versionId:
+                  type: string
+                expectedRevision:
+                  type: integer
+                  minimum: 0
+                assetId:
+                  type: string
+                generationVersion:
+                  type: integer
+                  minimum: 1
+                scope:
+                  type: string
+                  enum:
+                    - presentation
+                    - content
+                reasons:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - code
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - contentIncorrect
+                          - audioIssue
+                          - visualQuality
+                          - subtitleIssue
+                          - incomplete
+                          - other
+                      note:
+                        type: string
+                        maxLength: 500
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+
 components:
   securitySchemes:
+    RecutWorkerKey:
+      type: http
+      scheme: bearer
+      description: 專用 rw_workerId.secret 金鑰，只能使用 recut-worker 路由。
+
     CookieAuth:
       type: apiKey
       in: cookie

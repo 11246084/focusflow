@@ -121,7 +121,7 @@ function narrationKey(version) {
 }
 async function scriptApproval(scriptId, versionId) {
   const approvals = await RecutApproval.find({ scriptId, versionId, type: 'script' }).lean();
-  return approvals.find((a) => a.approvedBy && a.approvedAt) || null;
+  return approvals.find((a) => a.approvedBy && a.approvedAt && !a.revokedAt) || null;
 }
 async function assertCurrentAsset(script, snapshot, { assetId, generationVersion }) {
   if (!sameId(snapshot.currentAssetId, assetId) || snapshot.currentAssetGenerationVersion !== generationVersion) invalid('This is not the current MP4.');
@@ -143,12 +143,12 @@ async function assertRecutAssetPublishable(asset) {
   await assertCurrentAsset(script, current, { assetId: asset._id, generationVersion: asset.generationVersion });
   const approvals = await RecutApproval.find({ scriptId: script._id, versionId: current.currentVersionId,
     type: 'asset', assetId: asset._id, generationVersion: asset.generationVersion }).lean();
-  if (!approvals.some((a) => a.approvedBy && a.approvedAt)) invalid('This MP4 has not been approved.');
+  if (!approvals.some((a) => a.approvedBy && a.approvedAt && !a.revokedAt)) invalid('This MP4 has not been approved.');
 }
 
 /** 唯一 recut 狀態寫入入口。內部使用；route 必須先做課程管理權限檢查。 */
 async function transitionOwned({ scriptId, event, versionId, assetId, generationVersion, actorId,
-  taskId, baseSnapshot, pendingEditId, expectedRevision } = {}) {
+  taskId, baseSnapshot, pendingEditId, expectedRevision, scope, reasons = [], now = new Date() } = {}) {
   const script = await loadScript(scriptId);
   assertRecut(script);
   const current = recutSnapshot(script);
@@ -225,6 +225,10 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
       if (!await scriptApproval(script._id, current.currentVersionId)) invalid('The current script has not been approved.');
       next.state = event === 'queue_render' ? S.RENDER_QUEUED : S.RENDERING;
       break;
+    case 'requeue_render':
+      requireState(current.state, [S.RENDERING]); requireVersion();
+      next.state = S.RENDER_QUEUED;
+      break;
     case 'render_failed':
       requireState(current.state, [S.RENDERING]); next.state = S.RENDER_FAILED;
       break;
@@ -237,19 +241,57 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
       next.currentAssetId = assetId; next.currentAssetGenerationVersion = generationVersion; next.state = S.ASSET_REVIEW;
       break;
     }
-    case 'approve_asset':
-      requireState(current.state, [S.ASSET_REVIEW]); assertSettled(current); requireVersion();
-      await assertCurrentAsset(script, current, { assetId, generationVersion });
+    case 'approve_asset': {
+      requireState(current.state, [S.ASSET_REVIEW, S.ASSET_APPROVED, S.PUBLISHED]); assertSettled(current); requireVersion();
+      const asset = await assertCurrentAsset(script, current, { assetId, generationVersion });
       assertObjectId(actorId, 'approver');
-      await RecutApproval.create({ scriptId: script._id, versionId, type: 'asset', assetId, generationVersion,
-        approvedBy: actorId, approvedAt: new Date() });
+      if (asset.reviewStatus === 'rejected') invalid('This MP4 was rejected. Render a new generation.');
+      let approval = (await RecutApproval.find({ scriptId: script._id, versionId, type: 'asset', assetId, generationVersion }).lean())
+        .find((entry) => entry.approvedBy && entry.approvedAt && !entry.revokedAt);
+      if (!approval) approval = await RecutApproval.create({ scriptId: script._id, versionId, type: 'asset', assetId, generationVersion,
+        approvedBy: actorId, approvedAt: now });
+      // Durable evidence first. Retry repairs a partial write; publishing requires both.
+      if (asset.reviewStatus !== 'approved' || asset.reviewedGenerationVersion !== generationVersion) {
+        const updated = await ShortAsset.findOneAndUpdate({ _id: assetId, sourceScriptId: script._id, recutVersionId: versionId,
+          generationVersion, status: { $ne: 'archived' }, reviewStatus: asset.reviewStatus ?? null,
+          'youtubeUpload.localCleanupAt': null, 'youtubeUpload.cleanupIntent': null }, { $set: {
+          reviewStatus: 'approved', reviewedGenerationVersion: generationVersion, reviewedBy: approval.approvedBy,
+          reviewedAt: approval.approvedAt, reviewReasons: [],
+        }, $push: { reviewHistory: { generationVersion, status: 'approved', reviewedBy: approval.approvedBy,
+          reviewedAt: approval.approvedAt, reasons: [] } } }, { new: true });
+        if (!updated) invalid('MP4 review or lifecycle changed.');
+      }
+      if ([S.ASSET_APPROVED, S.PUBLISHED].includes(current.state)) return script;
       next.state = S.ASSET_APPROVED;
       break;
+    }
+    case 'reject_asset': {
+      requireState(current.state, [S.ASSET_REVIEW, S.ASSET_APPROVED, S.PUBLISHED]); assertSettled(current); requireVersion();
+      if (!['presentation', 'content'].includes(scope)) invalid('Rejection scope must be presentation or content.');
+      assertObjectId(actorId, 'reviewer');
+      const asset = await assertCurrentAsset(script, current, { assetId, generationVersion });
+      const rejected = await ShortAsset.findOneAndUpdate({ _id: assetId, sourceScriptId: script._id, recutVersionId: versionId,
+        generationVersion, status: asset.status, 'youtubeUpload.localCleanupAt': null, 'youtubeUpload.cleanupIntent': null },
+      { $set: { status: 'draft', publishedAt: null, reviewStatus: 'rejected', reviewedGenerationVersion: generationVersion,
+        reviewedBy: actorId, reviewedAt: now, reviewReasons: reasons },
+      $push: { reviewHistory: { generationVersion, status: 'rejected', reviewedBy: actorId, reviewedAt: now, reasons } } }, { new: true });
+      if (!rejected) invalid('MP4 lifecycle changed.');
+      for (const approval of await RecutApproval.find({ scriptId: script._id, versionId }).lean()) {
+        if (approval.type === 'asset' || scope === 'content') await RecutApproval.findByIdAndUpdate(approval._id, { $set: { revokedAt: now } });
+      }
+      await RecutReviewEvent.create({ scriptId: script._id, versionId, kind: 'asset_rejection', actorId,
+        assetId, generationVersion, scope, reasons, occurredAt: now });
+      next.state = scope === 'presentation' ? S.SCRIPT_APPROVED : S.SCRIPT_REVIEW; clearAsset();
+      break;
+    }
     case 'publish': {
-      requireState(current.state, [S.ASSET_APPROVED]); assertSettled(current); requireVersion();
-      await assertCurrentAsset(script, current, { assetId, generationVersion });
+      requireState(current.state, [S.ASSET_APPROVED, S.PUBLISHED]); assertSettled(current); requireVersion();
+      const asset = await assertCurrentAsset(script, current, { assetId, generationVersion });
+      if (asset.status !== 'published' || asset.youtubeUpload?.remoteState !== 'ready' || asset.reviewStatus !== 'approved'
+        || asset.reviewedGenerationVersion !== generationVersion) invalid('The MP4 is not published and ready.');
+      if (current.state === S.PUBLISHED) return script;
       const approvals = await RecutApproval.find({ scriptId: script._id, versionId, type: 'asset', assetId, generationVersion }).lean();
-      if (!approvals.some((a) => a.approvedBy && a.approvedAt)) invalid('This MP4 has not been approved.');
+      if (!approvals.some((a) => a.approvedBy && a.approvedAt && !a.revokedAt)) invalid('This MP4 has not been approved.');
       next.state = S.PUBLISHED;
       break;
     }

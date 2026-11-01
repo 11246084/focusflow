@@ -7,6 +7,7 @@ const schema = new Schema({
   type: { type: String, enum: RECUT_APPROVAL_TYPES, required: true },
   assetId: { type: Schema.Types.ObjectId, ref: 'ShortAsset', default: null }, generationVersion: { type: Number, default: null },
   approvedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }, approvedAt: { type: Date, required: true },
+  revokedAt: { type: Date, default: null },
   inheritedFromApprovalId: { type: Schema.Types.ObjectId, ref: 'RecutApproval', default: null },
 }, { timestamps: true });
 schema.index({ scriptId: 1, versionId: 1, type: 1 });

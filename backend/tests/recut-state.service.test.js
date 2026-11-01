@@ -81,6 +81,7 @@ describe('recut 資料與狀態機', () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
     await blocked(() => move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: newObjectId(), generationVersion: 1, actorId: ids.teacher }));
     await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
+    Object.assign(asset, { status: 'published', youtubeUpload: { remoteState: 'ready' } });
     await move({ scriptId: script._id, event: 'publish', versionId: version._id, assetId: asset._id, generationVersion: 1 });
     assert.equal(snapshot(script).state, 'published');
   });
@@ -92,7 +93,7 @@ describe('recut 資料與狀態機', () => {
   });
   it('既有成品發布 service 也擋缺少 recut 核准的 MP4，核准後可發布', async () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
-    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1 });
+    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeVideoId: 'fake-recut1', youtubeUpload: { remoteState: 'ready' }, disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true } });
     const { updateShortAsset } = require('../src/services/shortAsset.service');
     const { markShortAssetPublished } = require('../src/services/shortAssetPublish.service');
     await blocked(() => updateShortAsset(asset._id, { status: 'published' }));
@@ -102,7 +103,7 @@ describe('recut 資料與狀態機', () => {
   });
   it('既有發布入口在核准檢查到寫入之間不允許並行切換目前版', async () => {
     const script = seedScript(); const { version, asset } = await renderedAsset(script);
-    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeVideoId: 'fake-recut-id' });
+    Object.assign(asset, { courseId: ids.teacherCourse, reviewStatus: 'approved', reviewedGenerationVersion: 1, youtubeVideoId: 'fake-recut-id', youtubeUpload: { remoteState: 'ready' }, disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true } });
     await move({ scriptId: script._id, event: 'approve_asset', versionId: version._id, assetId: asset._id, generationVersion: 1, actorId: ids.teacher });
     const newer = await makeVersion(script, { fullScript: '修改內容' }); let movement; let duringWrite;
     store.beforeShortAssetCompareAndSwap = async () => {

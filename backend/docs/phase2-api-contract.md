@@ -462,3 +462,7 @@ adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_UR
 影片 API 新增 playbackSource.type（youtube／local／unavailable）；本機播放網址為同來源 `/api/v1/videos/:videoId/source`，GET／HEAD 各自驗權限與 Range。播放欄位的轉換只在影片 API 邊界，資料庫、問答、FAQ、LINE 與 bridgeScope 的原始引用不因此改寫。預設未啟用原片播放時回 409，公開 `/uploads` 已移除。
 
 教師可讀 `/videos/upload-status` 與 `/videos/upload-storage`；管理員可讀 `/admin/youtube-lifecycle/uploads`、`privacy-incidents`、`storage`，或 POST `uploads/probe` 單支試傳與 `privacy/:kind/:id/unlisted` 修復隱私。所有回應都不含 session URL；新欄位均為新增，舊前端／舊資料維持相容。
+
+### recut 成品、worker 與發布
+
+成品核准同步 RecutApproval 與 ShortAsset review，僅 current version＋asset＋generation 且 YouTube remoteState=ready 才公開；ready／核准先後與已published補同步共用入口。新增 `POST /short-scripts/:scriptId/recut/reject-asset`，scope為presentation或content，分別回講稿已核准／待審。worker專用API與租約、checks、退回重審契約見 [recut審閱](recut-review.md#rc7-專用-worker-與持久租約) 及 [OpenAPI](openapi.yaml)；正式前端未接本輪新介面。

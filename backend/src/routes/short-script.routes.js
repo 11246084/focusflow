@@ -44,6 +44,7 @@ router.post('/short-scripts/:scriptId/recut/suggestions/apply', guard, recutRevi
 router.post('/short-scripts/:scriptId/recut/approve-script', guard, recutReview.approveScript);
 router.post('/short-scripts/:scriptId/recut/render', guard, recutReview.queueRender);
 router.post('/short-scripts/:scriptId/recut/approve-asset', guard, recutReview.approveAsset);
+router.post('/short-scripts/:scriptId/recut/reject-asset', guard, recutReview.rejectAsset);
 router.post('/short-scripts/:scriptId/recut/review-time', guard, recutReview.recordTime);
 router.post('/short-scripts/:scriptId/generate', guard, controller.generateVersion);
 router.post('/short-scripts/:scriptId/review', guard, controller.reviewScript);

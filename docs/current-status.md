@@ -86,3 +86,13 @@
 - 2026-09-29：舊文記載影像資料尚未綁定課程影片；2026-10-03：推薦功能僅本機實作；2026-10-07：資料庫交付工具僅模擬測試；2026-10-14：本機產片工具紀錄，未宣稱系統串接或部署。
 
 完整舊文（含其餘測試日期、原始數字與會議紀錄）保留在 Git 版本 `9140f9ec58beff5cc21cb97486bc4864f6898eec`，不另建一份狀態文件。查閱例：在 repo 根目錄輸入 `git show 9140f9e:docs/current-status.md` → 顯示整理前原文；把路徑換成 `backend/docs/current-state.md` 可查後端舊文。歷史文字與目前程式有差異時，以程式及新查證為準。
+
+## 2026-10-29 recut 交付候選（進行中）
+
+候選 worktree：`D:/AI-workspace/focusflow-recut-delivery`；分支 `integration/recut-delivery-20261029`，整合基底 `0be742c`（dev `66caba4`＋recut `130aa4f`）。正式前端與兩份已定案決策保留。
+
+本輪 DoD：先完成 recut 成品核准／退回、ShortAsset review 與 YouTube ready 雙向發布及失敗修復；再接 RC4／RC5／RC6、本機 CLI，完成可隔離驗證的 RC7 後端 worker 身分／租約／成品回傳與 RC10 同意／撤回。每項必須有本輪 fake/記憶體或專用 loopback Mongo 證據，最後獨立審查、修正與全套檢查後才稱候選完成。歷史測試數字不作本輪證據。
+
+外部服務、Atlas、VM、真 YouTube／Gemini、正式部署與人工驗收未執行；正式前端 UI 不在本輪。RC12 因原音技術試跑尚未通過且模型下載未授權，維持 BLOCKED；合成語音選項須明確回未就緒。
+
+2026-11-01 本輪續接：成品核准同步 RecutApproval 與 ShortAsset 的精確 versionId／assetId／generationVersion；退回依呈現／內容分流，YouTube ready 與核准任一先到均可接續發布，中斷後修復同一成品。RC7 後端已加入雜湊 worker 金鑰、FIFO、10 分鐘租約、3 次派工上限、版本核對、受限原片下載、成品檢查與可恢復回傳。以禁止 dotenv 讀檔的 preload 執行 fake/harness targeted 58／58、路由契約 11／11、OpenAPI lint 通過；尚待跨程序 Mongo 競爭驗證、renderer／pipeline 整合、RC10 gate 與最終獨立驗證，不能據此稱整體完成。

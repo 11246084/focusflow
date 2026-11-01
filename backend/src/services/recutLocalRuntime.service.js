@@ -69,8 +69,9 @@ function createRecutRenderAdapter({ loadSource, resolveSourcePath, outputDir, re
       const source = await loadSource(version.sourceId);
       const renderer = (rendererLoader || (() => require('../../../short_render/src/plan')))();
       const rendering = (renderLoader || (() => require('../../../short_render/src/render/render')))();
-      const resolved = renderer.resolvePlan(version.plan, { sentences: source.sentences, evidence: source });
-      if (resolved.errors?.length) throw new Error('invalid plan');
+      const resolution = renderer.resolvePlan(version.plan, { sentences: source.sentences, evidence: source });
+      if (resolution.errors?.length || !resolution.resolved) throw new Error('invalid plan');
+      const resolved = resolution.resolved;
       const sourcePath = await resolveSourcePath(source.videoId);
       const stageDir = await rendering.stageProject({ ...renderOptions, plan: version.plan, resolved, sentences: source.sentences, evidence: source, sourcePath, outDir: outputDir });
       await checkCancelled();

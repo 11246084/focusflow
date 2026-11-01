@@ -18,11 +18,12 @@ async function copyRecutCourseData({ courseIds, targetUri, readCourseData, write
 async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5, allowModel = false,
   render = false, renderLocal, persistLocal, targetUri, checkCancelled = async () => {} } = {}) {
   if (targetUri !== undefined) assertLoopbackMongoTarget(targetUri);
-  if (!allowModel) return { dryRun: true, estimatedSharedCalls: 3, sharedCallLimit: callLimit, extraCallsPerCodeCard: 2 };
+  if (!allowModel) return { dryRun: true, estimatedSharedCalls: 3, sharedCallLimit: callLimit, extraCallsPerCodeCard: 2,
+    estimatedInputTokens: null, estimatedOutputTokens: null, estimatedCost: null };
   if (!pipeline?.generate?.length || !Number.isInteger(callLimit) || callLimit < 3 || !model?.model) throw fail('試產管線或固定模型設定無效。');
   const task = { _id: input.taskId || 'local-trial', scriptId: input.scriptId, courseId: input.courseId, input, settingsSnapshot: { model }, callsUsed: 0, callLimit };
   const data = { ...input }, attempts = [];
-  let stage = 'prepare';
+  let stage = 'prepare', initialSelection = null;
   for (const step of pipeline.generate) {
     stage = step.stage;
     await checkCancelled();
@@ -43,10 +44,12 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
         finally { attempt.finishedAt = new Date().toISOString(); attempt.durationMs = Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt); }
       } });
       Object.assign(data, result);
+      if (step.stage === 'selection' && !initialSelection && result?.selectionResult) initialSelection = structuredClone(result.selectionResult);
       attempts.push({ stepId: step.id, stage, status: 'succeeded', consumesCall: false, startedAt, finishedAt: new Date().toISOString() });
       if (data.version?.selection?.answerable === false) break;
     } catch (error) {
       // Attach safe progress, retaining recorded model usage even for failures.
+      attempts.push({ stepId: step.id, stage, status: 'failed', consumesCall: false, startedAt, finishedAt: new Date().toISOString(), error: { code: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED' } });
       error.trial = { stage, callsUsed: task.callsUsed, attempts }; throw error;
     }
   }
@@ -56,14 +59,16 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
   if (render && data.version.plan) {
     if (typeof renderLocal !== 'function') throw fail('尚未提供本機渲染轉接。', 'RECUT_RENDER_NOT_CONFIGURED');
     const started = Date.now();
-    asset = await renderLocal({ version: data.version, checkCancelled });
+    try { asset = await renderLocal({ version: data.version, checkCancelled }); }
+    catch (error) { error.trial = { stage: 'render', callsUsed: task.callsUsed, attempts }; throw error; }
     renderDurationMs = Date.now() - started;
   }
   const result = { dryRun: false, state: data.version.selection.answerable ? 'script_review' : 'unanswerable',
-    version: data.version, suggestions: data.suggestions || [], asset, renderDurationMs, callsUsed: task.callsUsed, attempts };
+    version: data.version, initialSelection, suggestions: data.suggestions || [], asset, renderDurationMs, callsUsed: task.callsUsed, attempts };
   if (persistLocal) {
     if (!targetUri) throw fail('寫入本機資料庫前必須指定目標。', 'RECUT_LOCAL_DB_REQUIRED');
-    await checkCancelled(); result.persisted = await persistLocal({ targetUri, result, input });
+    try { await checkCancelled(); result.persisted = await persistLocal({ targetUri, result, input }); }
+    catch (error) { error.trial = { stage: 'persist', callsUsed: task.callsUsed, attempts }; throw error; }
   }
   return result;
 }

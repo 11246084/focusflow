@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { runSingleTopicTrial } = require('../services/recutRuntimeTrial.service');
+const { assertLoopbackMongoTarget } = require('../services/recutRuntime.service');
 async function main(argv = process.argv.slice(2), { env = process.env, createRuntime } = {}) {
   const flags = new Set(['--allow-model', '--render']);
   const values = new Set(['--input', '--adapter', '--runtime', '--output', '--target-uri', '--target-uri-env']);
@@ -20,6 +21,7 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
   if (path.extname(inputPath) !== '.json') throw new Error('RECUT_ARGUMENT_INVALID');
   const input = JSON.parse(await fs.readFile(inputPath, 'utf8'));
   const targetUri = options['target-uri-env'] ? env[options['target-uri-env']] : options['target-uri'];
+  if (targetUri !== undefined) assertLoopbackMongoTarget(targetUri);
   const output = path.resolve(options.output);
   let factory = createRuntime, config;
   if (options.runtime) {
@@ -43,6 +45,12 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
     await fs.writeFile(path.join(output, 'full-script.txt'), result.version.fullScript);
     await fs.writeFile(path.join(output, 'run.json'), JSON.stringify(result, null, 2));
     return { state: result.state, callsUsed: result.callsUsed, output };
+  } catch (error) {
+    if (error.trial) {
+      await fs.mkdir(output, { recursive: true });
+      await fs.writeFile(path.join(output, 'run.json'), JSON.stringify({ status: 'failed', code: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED', ...error.trial }, null, 2));
+    }
+    throw error;
   } finally { await runtime.close?.(); }
 }
 if (require.main === module) main().then((result) => process.stdout.write(`${JSON.stringify(result)}\n`)).catch((error) => {

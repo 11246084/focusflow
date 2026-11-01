@@ -57,7 +57,17 @@ it('native local runtime follows actual RC2→RC3→RC4 and persists RC8 version
 it('render adapter remains lazy, validates resolution, and stops if staging fails', async () => {
   const order = [];
   const render = createRecutRenderAdapter({ outputDir: 'D:/fake', loadSource: async () => ({ videoId: 'video', sentences: [] }), resolveSourcePath: async () => 'fake.mp4',
-    rendererLoader: () => ({ resolvePlan: () => ({ total: 40 }) }), renderLoader: () => ({ stageProject: async () => { order.push('stage'); throw new Error('mongodb://private'); }, renderProject: async () => { order.push('render'); } }) });
+    rendererLoader: () => ({ resolvePlan: () => ({ resolved: { total: 40 }, errors: [] }) }), renderLoader: () => ({ stageProject: async () => { order.push('stage'); throw new Error('mongodb://private'); }, renderProject: async () => { order.push('render'); } }) });
   assert.deepEqual(order, []); await assert.rejects(render({ version: { sourceId: 'source', plan: {} }, checkCancelled: async () => {} }), { code: 'RECUT_RENDER_FAILED' });
   assert.deepEqual(order, ['stage']);
+});
+it('real RC5 plan resolver feeds unwrapped clips into fake staging and rendering', async () => {
+  const renderer = require('../../short_render/src/plan'), f = fixture(), order = [];
+  const { plan, errors } = renderer.buildRecutPlan({ source: f.source, selectionResult: f.selectionResult, ...f.cards, endCard: { seconds: 0 }, modelId: 'fake', audio: f.source.audio, theme: 'N2' });
+  assert.deepEqual(errors, []);
+  const adapter = createRecutRenderAdapter({ outputDir: 'D:/fake', loadSource: async () => f.source, resolveSourcePath: async () => 'D:/fake/source.mp4',
+    rendererLoader: () => renderer, renderLoader: () => ({ stageProject: async ({ resolved, sourcePath }) => { assert.ok(resolved.clips.length); assert.ok(resolved.total > 30); assert.equal(sourcePath, 'D:/fake/source.mp4'); order.push('stage'); return 'D:/fake/stage'; },
+      renderProject: async ({ resolved, stageDir }) => { assert.ok(resolved.clips.length); assert.equal(stageDir, 'D:/fake/stage'); order.push('render'); return 'D:/fake/final.mp4'; } }) });
+  assert.deepEqual(await adapter({ version: { sourceId: 'source', plan }, checkCancelled: async () => {} }), { filePath: 'D:/fake/final.mp4' });
+  assert.deepEqual(order, ['stage', 'render']);
 });

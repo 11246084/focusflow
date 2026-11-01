@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜決策</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">決策：三組同步，新功能先關</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">14</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="case-a-timeline" data-pptx-bounds="64 192 1152 84" font-size="18">
+    <line x1="100" y1="236" x2="668" y2="236" stroke="#D9D1C1" stroke-width="3"/>
+    <line x1="600" y1="224" x2="600" y2="248" stroke="#B5482E" stroke-width="3"/>
+    <text x="600" y="268" text-anchor="middle" fill="#B5482E">08-10 最早可能停用</text>
+    <circle cx="120" cy="236" r="7" fill="#1B4D5C"/>
+    <text x="120" y="220" text-anchor="middle" fill="#5A6066">08-02</text>
+    <circle cx="240" cy="236" r="9" fill="#E8A93C"/>
+    <text x="240" y="220" text-anchor="middle" font-weight="bold" fill="#15171A">08-04</text>
+  </g>
+  <g id="decision-card" data-pptx-bounds="56 286 760 336">
+    <line x1="240" y1="294" x2="240" y2="320" stroke="#E8A93C" stroke-width="3"/>
+    <rect x="64" y="320" width="744" height="292" fill="#1B4D5C"/>
+    <text x="96" y="370" font-size="20" font-weight="bold" fill="#E8A93C">08-04 每週進度檢視的決議</text>
+    <text x="96" y="440" font-size="34" font-weight="bold" fill="#FFFFFF">① 三組同步更換模型</text>
+    <text x="96" y="492" font-size="22" fill="#F5EFE3">後端、資料處理、資料庫一起換，不只改一組</text>
+    <text x="96" y="556" font-size="34" font-weight="bold" fill="#FFFFFF">② 還沒驗證的新檢索功能，先關閉</text>
+  </g>
+  <g id="risk-first" data-pptx-bounds="856 336 360 200">
+    <use data-icon="tabler-outline/shield-check" x="864" y="350" width="48" height="48" fill="#1B4D5C" stroke-width="2"/>
+    <text x="864" y="446" font-size="30" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">先控制風險，</tspan><tspan x="864" dy="44">再動手切換</tspan></text>
+  </g>
+  <a href="#slide-33"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E09 ›</text>
+  </g></a>
+</svg>

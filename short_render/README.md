@@ -35,7 +35,7 @@ node bin/short-render.js render plan.json --evidence source.json --source source
 
 `align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁與 `catalog.json`；每 5 秒依序展示「放不進去」「合不起來」「層層包含」。三張新卡與 code 均維持 `aiEnabled:false`，另一位代理的手機畫面檢查尚未完成。
 
-`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。RC7 worker client 尚待另輪接線。
+`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。常駐 worker 的設定與啟動方式見下節。
 
 演算法與取捨：
 
@@ -45,6 +45,51 @@ node bin/short-render.js render plan.json --evidence source.json --source source
 - **版本 fencing**（`render.js`）：鎖定 renderer／素材／GSAP／HyperFrames 版本，再用雜湊阻止 staging 後內容漂移。這處理本機工件一致性；工作核准、租約與上傳版本核對由 RC7 後端處理，不能以本機雜湊代替核准。
 
 本輪測試見 `tests/render.sentence.test.js`：五主題、共用 seek、字型閘門、渲染頁來源隔離、音訊遭修改時拒絕、固定增益與純原音剪接，以及新卡 AI 仍停用。外部 FFmpeg、HyperFrames、瀏覽器啟動均以替身驗證；尚未宣稱真實響度、字型截圖、手機可讀性、MP4 或人工驗收通過。
+
+## RC7 常駐 worker
+
+worker 是組員電腦上的渲染程式：向後端領一支已核准工作，下載受限原片，再用上述 RC5 流程製作並檢查 MP4。每台電腦只用自己的專用金鑰，一次做一支；接工作／暫停及停用由管理員後台控制。功能進度與驗收範圍見[目前狀態](../docs/current-status.md)，API 詳見[後端 worker 契約](../backend/docs/recut-review.md#rc7-專用-worker-與持久租約)。
+
+先安裝 Node 22.23.4 以上的 22 版與鎖定依賴（`npm.cmd ci`），備妥既有 chrome-headless-shell、Noto Sans TC 可變字型及 FFmpeg／ffprobe。worker 不安裝瀏覽器、不下載模型；管理員必須先為這台電腦建立 worker 金鑰。不要使用教師／管理員 JWT，也不要把金鑰放在命令列或 Git。
+
+建立受信任的本機設定，例如 `D:/AI-workspace/private/recut-worker.cjs`；此檔是 Node 模組，只載入自己維護的設定。以下從具名環境變數注入未來的 worker 金鑰，不載入或掃描任何 `.env` 檔：
+
+```javascript
+module.exports = {
+  backendUrl: 'http://127.0.0.1:3000', // 非 localhost 必須 HTTPS，僅填 origin
+  getWorkerKey: async () => process.env.RECUT_WORKER_KEY,
+  workRoot: 'D:/AI-workspace/recut-worker-jobs',
+  browserExecutable: 'D:/tools/chrome-headless-shell/chrome-headless-shell.exe',
+  fontFile: 'C:/Windows/Fonts/NotoSansTC-VF.ttf',
+  ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', // 或填安裝後的完整路徑
+  hostKind: 'desktop',
+};
+```
+
+由自己的啟動環境提供 `RECUT_WORKER_KEY` 後，在 `short_render` 執行：
+
+```powershell
+# 只顯示用法，沒有領工作或啟動工具
+node bin/recut-worker.js --help
+# 以下會真正領工作、下載原片並渲染，需已準備好上述本機環境
+node bin/recut-worker.js --config D:/AI-workspace/private/recut-worker.cjs --once
+node bin/recut-worker.js --config D:/AI-workspace/private/recut-worker.cjs
+```
+
+`--once` 處理至多一支；常駐模式每 10 秒輪詢。Ctrl+C 中止目前工作。`hostKind:'vm'` 預設回 `disabled` 且不領工作；僅管理員已另外授權 VM 渲染時才明確加入 `enableVmRender:true`。沒有設定就只顯示用法；不隨後端啟動自動執行。版本不符時輸出 `RECUT_RENDER_VERSION_MISMATCH` 與 `action:'upgrade-worker'` 並停止，請管理員安裝與核准施工單相同的 renderer／素材版本；不可自行換模型或改施工單。
+
+例如「已核准 30 秒施工單」→ `claim` 取得凍結來源與 10 分鐘租約 → 同一 worker 每 60 秒延長租約 → 檢查合格後 `result` 送回待審成品；教師仍須看實際 MP4，才能核准發布。原片 URL、HTTP 回應檔名與 job 自帶下載目標均不採用，只能從同一後端的 `/api/v1/recut-worker/jobs/:jobId/source` 下載；不跟隨 redirect。預設原片上限 4 GiB、成品上限 512 MiB；`maxDownloadBytes`／`maxUploadBytes` 可由本機設定縮小，仍受後端上傳限制。
+
+演算法與取捨（對應 `src/worker/`）：
+
+- **單工與版本核對**：`client.js` 先檢查固定 renderer／素材版本、凍結來源、施工單 SHA-256、句子時間與固定 gain，之後才惰性載入 renderer。後端 FIFO 決定工作順序，client 不自行選片或重生施工單。planHash 的 canonical JSON 格式與後端相同；本機 staging 另驗 HTML、字型、音訊 hash，兩者用途不同。
+- **租約與取消**：領工作到完成始終持有同一 lease。心跳失敗、租約到期或取消會停止渲染；Windows 終止自己的程序樹，POSIX 終止自己的程序群組，等結束後才清暫存。成功、失敗與拒收均只清除 worker 自建的 `recut-job-*` 目錄，不採用遠端提供的本機路徑。
+- **實測後才上傳**：`checks.js` 從 ffprobe 讀一影一音、720×1280、30fps、總長 ±0.5 秒；從 FFmpeg 讀黑畫面（像素門檻 .05、須小於 .5 秒）、靜音（-50 dB、須小於 2 秒）、響度（-16 LUFS ±2）與真峰值（≤-1.5 dBTP）。字型旗標來自真正的 browser 載入檢查。缺少值不能用預設 passed；偶發／固定分類與後端門檻相同，原始測值隨 failure 或 result 回傳。
+- **結果只送一次**：先做最後一次 heartbeat，再以 `video`／`metadata` multipart 送到專用 result 路由；metadata 帶 `versionId`、`planVersion`、`planHash`、固定版本、`checks` 與 `renderDurationMs`。不直接用教師 asset API。上傳回應遺失可能表示後端已接受，故不重送 result 或接著送 failure；由後端持久紀錄恢復。逾期／錯 owner 的結果由後端拒絕，client 清理本機輸出。
+
+可調 `requestTimeoutMs`（預設 2 分鐘）、`jobTimeoutMs`（30 分鐘）、`pollMs`（10 秒）與 `heartbeatMs`（最多 60 秒）。timeout／取消透過偶發失敗交後端重派；同一支最多三次、不得派回同一台的規則由後端持久化，client 不建立第二套重試佇列。工具只繼承必要 OS 路徑環境，不傳 worker 金鑰；日誌只回安全狀態、ID 與錯誤代碼，不轉印上游 message／token。
+
+隔離驗證使用 `tests/worker.*.test.js`：HTTP、renderer、FFmpeg／ffprobe、browser 與程序控制均注入替身，涵蓋成功、固定／偶發檢查、錯版、過期、心跳、取消、單工、重複結果、串流大小限制、路徑與 redirect。這些測試不證明真實 MP4、外部 API、Atlas 或人工驗收；實際工作只能在取得授權且完成環境安裝後執行。
 
 <details>
 <summary>第一階段歷史原型說明（舊畫面、ASR 與音量資訊不適用 sentence-v1）</summary>

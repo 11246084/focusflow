@@ -14,7 +14,40 @@
 
 演算法與限制：建立句子 ID 索引，逐段依 RC3 首尾完整字詞選取、累加原片首字至末字的時間；冷開場只允許一次、不重複播放。片語僅在指定句內做唯一且完整字詞的比對，保留小數點、負號與程式符號；拒絕字元比例推算及模糊命中。圖卡完整覆蓋選句、每張 3～12 秒、只在句界更換。預覽與成品的固定增益為 `min(-16-inputLUFS,-1.5-inputTruePeak)` dB；峰值限制後低於 -18 LUFS 即拒絕。上述測試是離線合成資料驗證，未宣稱模型品質或實際 MP4 驗收。
 
-下方是保留回溯的第一階段原型說明；其中舊畫面、舊 ASR、舊音量資訊不適用 `sentence-v1`，RC5 的 HTML／worker 接線另依本模組後續更新。
+## sentence-v1 預覽與渲染
+
+Node 22.23.4 以上的 22 版；使用已安裝並固定版本的 npm 套件，執行中不下載圖示、字型或瀏覽器。字型使用既有 Noto Sans TC 可變字型；真正渲染另需已安裝的 chrome-headless-shell、FFmpeg／ffprobe。下方指令會處理本機檔案；本輪驗證只有合成資料與假的外部執行器，沒有製作真實 MP4。
+
+```powershell
+cd short_render
+npm.cmd test
+# 自製圖卡、30 秒靜音，沒有原片或外部呼叫
+node bin/prototype.js
+# 在瀏覽器開啟 out/prototypes/index.html，選主題後拖曳播放位置
+
+# source.json 為 RC2 的凍結來源，含 sentences 與逐字絕對時間
+node bin/short-render.js validate plan.json --evidence source.json
+node bin/short-render.js align plan.json --evidence source.json --out out/job
+node bin/short-render.js preview plan.json --evidence source.json --source source.mp4 --out out/job
+# preview 只剪原音與產生 stage/preview.html，不啟動 HyperFrames
+node bin/short-render.js render plan.json --evidence source.json --source source.mp4 --out out/job --browser C:/path/to/chrome-headless-shell.exe
+```
+
+`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁與 `catalog.json`；每 5 秒依序展示「放不進去」「合不起來」「層層包含」。三張新卡與 code 均維持 `aiEnabled:false`，另一位代理的手機畫面檢查尚未完成。
+
+`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。RC7 worker client 尚待另輪接線。
+
+演算法與取捨：
+
+- **同一時間軸**（`src/render/html.js`）：輸入 plan 與 resolved，產生共用的卡片、字幕與 GSAP 動畫；預覽只額外加入控制項與程式碼來源對照。播放、暫停與拖曳都用原音 `currentTime` 對動畫 seek；逐格渲染使用同一條已暫停的 timeline。卡片與字幕的可見區間同時寫進 timeline，避免逐格時重疊。相較分開維護兩套動畫，這能降低預覽與成品漂移，但仍需真實瀏覽器與 MP4 比對。字型載入後才註冊 timeline；手機預覽等比縮放 720×1280 畫布，輸出尺寸固定。
+- **原音剪接與固定增益**（`cut.js`、`render.js`）：以每段的絕對 srcStart／srcEnd 做 `atrim`，重設時間後串接 PCM 音訊；只在額外結尾卡補靜音。預覽套 Web Audio `10^(gainDb/20)`，成品於最後一步套一次 FFmpeg `volume=gainDb dB`。未採動態 loudnorm，避免改變聲音動態。結尾卡過長仍可能被 RC7 靜音檢查擋下；預設 0 秒。
+- **程式碼顯示與隔離**（`html.js`）：固定規則 tokenizer 為關鍵字、字串、數字與註解上色，不執行程式、不驗證語法；比完整編譯器簡單且沒有語言模型呼叫，但不能完整辨識所有語言。行號、行高亮、唯一片語方框與錯誤框來自已驗證參數；原始畫面抄錄與逐行來源只輸出到 preview 的畫布外對照區，render HTML 不序列化整份 plan，因此不帶 OCR／provenance。程式內容的正確性仍由 RC6 與教師審閱負責。
+- **版本 fencing**（`render.js`）：鎖定 renderer／素材／GSAP／HyperFrames 版本，再用雜湊阻止 staging 後內容漂移。這處理本機工件一致性；工作核准、租約與上傳版本核對由 RC7 後端處理，不能以本機雜湊代替核准。
+
+本輪測試見 `tests/render.sentence.test.js`：五主題、共用 seek、字型閘門、渲染頁來源隔離、音訊遭修改時拒絕、固定增益與純原音剪接，以及新卡 AI 仍停用。外部 FFmpeg、HyperFrames、瀏覽器啟動均以替身驗證；尚未宣稱真實響度、字型截圖、手機可讀性、MP4 或人工驗收通過。
+
+<details>
+<summary>第一階段歷史原型說明（舊畫面、ASR 與音量資訊不適用 sentence-v1）</summary>
 
 「程式化動畫＋老師原片原音」短影片的 plan 驗證器與渲染 CLI（`recut-v1`）。獨立於 `backend/`，做法與 `STT_Whisper/` 相同：自己的依賴、自己的指令。
 
@@ -137,3 +170,5 @@ V3 只擋數字；人名、專有名詞與語意是否偏移**不在自動檢查
 ## 授權
 
 HyperFrames 0.8.153 為 Apache-2.0（以套件 `package.json` 為準），GSAP 3.15.0 依其授權條款；Noto Sans TC 為 SIL OFL。本資料夾沒有複製任何第三方 skill 的程式碼。
+
+</details>

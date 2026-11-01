@@ -4,12 +4,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  validatePlan, resolvePlan, compareCutText,
+  validatePlan, resolvePlan,
 } = require('../src/plan');
 const { alignClips } = require('../src/align/align');
-const { stageProject, previewProject, renderProject } = require('../src/render/render');
+const { stageProject, renderProject } = require('../src/render/render');
+const { ensureFontLoaded } = require('../src/render/browser');
 const {
-  run, ffmpegBinary, pythonBinary, readJson, writeJson,
+  readJson, writeJson,
 } = require('../src/util');
 
 const USAGE = `short-render — recut plan validator and renderer
@@ -18,10 +19,12 @@ Usage:
   short-render validate <plan.json> --evidence <evidence.json> [--resolved <resolved.json>]
   short-render align    <plan.json> --evidence <evidence.json> --source <video> --out <dir> [--model small]
   short-render preview  <plan.json> --evidence <evidence.json> --source <video> --out <dir>
-  short-render render   <plan.json> --evidence <evidence.json> --source <video> --out <dir>
-                        [--quality draft|standard|high] [--no-loudnorm] [--skip-verify]
+  short-render render   <plan.json> --evidence <source-with-sentences.json> --source <video> --out <dir>
+                        --browser <existing-chrome-headless-shell> [--quality draft|standard|high]
 
-align/preview/render write intermediate files under <dir> (aligned words are cached there).
+sentence-v1 uses frozen source.sentences; align means deterministic resolution, no ASR.
+preview stages a local preview.html; render uses the same animation with fixed gain.
+Legacy fixtures support validate/align only.
 Exit code: 0 ok, 1 validation/alignment errors, 2 usage or environment error.
 `;
 
@@ -93,22 +96,6 @@ function exitIfInvalid(result) {
   }
 }
 
-/** V6：剪出來的音訊重新轉錄，與預期文字比對。 */
-async function verifyCut({ stageDir, resolved, aligned, out }) {
-  const wav = path.join(out, 'cache', 'teacher-check.wav');
-  const wordsFile = path.join(out, 'cache', 'teacher-check.json');
-  await run(ffmpegBinary(), ['-v', 'error', '-y', '-i', path.join(stageDir, 'teacher.mp4'), '-vn', '-ac', '1', '-ar', '16000', wav]);
-  await run(pythonBinary(), ['-I', path.join(__dirname, '..', 'src', 'align', 'transcribe_words.py'), wav, wordsFile], {
-    env: { ...process.env, PYTHONUTF8: '1', HF_HUB_DISABLE_SYMLINKS_WARNING: '1' },
-  });
-  const actual = readJson(wordsFile).map((word) => word.w).join('');
-  const expected = resolved.clips.map((clip) => aligned.wordsByClip[clip.id]
-    .filter((word) => word.s >= clip.wordStart - 0.02 && word.s <= clip.wordEnd)
-    .map((word) => word.w)
-    .join('')).join('');
-  return compareCutText(expected, actual);
-}
-
 async function main() {
   const { positional, flags } = parseArgs(process.argv.slice(2));
   const [command, planFile] = positional;
@@ -121,6 +108,28 @@ async function main() {
 
   const plan = readJson(planFile);
   const evidence = readJson(require_(flags, 'evidence'));
+  const sentences = evidence.sentences;
+
+  if (plan.contractVersion === 'sentence-v1') {
+    const { resolved, errors } = resolvePlan(plan, { sentences });
+    if (errors.length) { printIssues('ERROR', errors); process.exitCode = 1; return; }
+    exitIfInvalid(validatePlan(plan, { sentences, evidence, resolved }));
+    if (command === 'validate') { console.log('sentence-v1 plan and timing are valid.'); return; }
+    if (!['align', 'preview', 'render'].includes(command)) fail('unknown command');
+    const out = path.resolve(require_(flags, 'out'));
+    writeJson(path.join(out, 'resolved.json'), resolved);
+    if (command === 'align') return;
+    const sourcePath = path.resolve(require_(flags, 'source'));
+    if (!fs.existsSync(sourcePath)) fail('source video not found');
+    if (command === 'render') require_(flags, 'browser');
+    const stageDir = await stageProject({ plan, resolved, sentences, evidence, sourcePath, outDir: out });
+    if (command === 'preview') { console.log(path.join(stageDir, 'preview.html')); return; }
+    const finalPath = await renderProject({ plan, resolved, stageDir, outDir: out,
+      quality: typeof flags.quality === 'string' ? flags.quality : 'standard',
+      ensureFontLoaded: ({ stageDir: staged }) => ensureFontLoaded({ stageDir: staged, browserExecutable: flags.browser }),
+    });
+    console.log(finalPath); return;
+  }
 
   if (command === 'validate') {
     const resolved = flags.resolved ? readJson(flags.resolved) : null;
@@ -129,43 +138,16 @@ async function main() {
     console.log(`plan is valid${resolved ? ' (including resolved timing)' : ' (timing not checked; pass --resolved)'}.`);
     return;
   }
+  if (command !== 'align') fail('legacy prototype supports validate/align only; build a sentence-v1 plan for preview/render');
 
   // 對齊前先做不需要時間的檢查，省掉明知會失敗的 ASR。
   exitIfInvalid(validatePlan(plan, { evidence }));
 
   if (!['align', 'preview', 'render'].includes(command)) fail(`unknown command "${command}"\n\n${USAGE}`);
 
-  const { resolved, aligned, out } = await alignAndResolve(plan, evidence, flags);
+  const { resolved, out } = await alignAndResolve(plan, evidence, flags);
   exitIfInvalid(validatePlan(plan, { evidence, resolved }));
   console.log(`aligned: speech ${resolved.speechTotal}s, total ${resolved.total}s -> ${path.join(out, 'resolved.json')}`);
-  if (command === 'align') return;
-
-  const source = path.resolve(flags.source);
-  console.log('staging project (cutting teacher footage)...');
-  const stageDir = await stageProject({ plan, resolved, sourcePath: source, outDir: out });
-
-  if (command === 'preview') {
-    const { lint, snapshots } = await previewProject({ stageDir, resolved });
-    console.log(lint.trim().split('\n').slice(-3).join('\n'));
-    console.log(snapshots.trim());
-    return;
-  }
-
-  if (!flags['skip-verify']) {
-    console.log('verifying cut points (re-transcribing the cut audio)...');
-    const check = await verifyCut({ stageDir, resolved, aligned, out });
-    console.log(`  cut text similarity ${check.score}`);
-    if (!check.ok) fail('cut audio does not match the expected text (a word may be clipped). Fix the anchors or use cut:"exact"; --skip-verify to ignore.', 1);
-  }
-
-  console.log('rendering (this takes a few minutes)...');
-  const finalPath = await renderProject({
-    stageDir,
-    outDir: out,
-    quality: typeof flags.quality === 'string' ? flags.quality : 'standard',
-    loudnorm: !flags['no-loudnorm'],
-  });
-  console.log(`done: ${finalPath}`);
 }
 
 main().catch((error) => {

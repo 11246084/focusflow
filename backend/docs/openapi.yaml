@@ -6025,9 +6025,9 @@ paths:
         - RecutWorkerKey: []
       responses:
         '200':
-          description: 已核准版本的原片，僅有效租約可下載。
+          description: 已核准版本的原始影音bytes，僅有效租約可下載；格式依原片，不依副檔名判定。
           content:
-            video/mp4:
+            application/octet-stream:
               schema:
                 type: string
                 format: binary

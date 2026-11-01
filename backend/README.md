@@ -111,6 +111,8 @@ node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --
 
 結果同步寫入本機 `recutversions`、`recutreviewevents`、`shortassets` 與 `recuttrialruns`，更新 `shortscripts.recut` 的版本與成品參照，供 RC8／RC9 讀取。產片後仍停在講稿審閱階段，成品沒有取得核准或發布授權。本機後端另依原有方式啟動，先確認 `MONGODB_URI` 指向上述 loopback DB，關閉不必要的外部服務設定，再開啟教師審閱頁；不要指向共享 Atlas 驗證。
 
+字幕數字對證將阿拉伯／全形／中文數詞正規化後，逐句比對來源，保留正負、小數、百分比與分數的區別；例如「1 個」可改寫為「一個」，不能改為「九百九十九個」。一般詞語「一起／一般／一樣」不當成數量；這層不取代整段語意檢查。可信度修正後也須保留同一個共用池的整段複檢額度，不能只通過 renderer 結構驗證就保存版本。
+
 API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `decide`、renderer、`sourceOptions.media`、設定轉接及 `missing` 清單，可交給 `createRecutPipeline(...).register(queue)`。建構時不啟動資料庫、程序或模型；provider 與 `probe/decode/measure/transcribe` 不足時明確拒絕。單題工具另用原生 MongoDB driver，避免啟動 Mongoose autoIndex。課程範圍複製採固定集合與原子 insert-only upsert：同 `_id` 的本機文件一律保留，重跑不覆寫教師修改、recut 版次或核准。dry-run 唯讀比較來源與本機，分列 `existing`、`wouldInsert`；執行後另列實際 `inserted`。相較整庫 dump 可避免帶入無關資料，但不搬媒體檔與帳號，寫入中斷可能留下部分本機資料，須修正後重跑，不能當完整備份使用。
 
 ### 十題技術試跑與統計

@@ -76,9 +76,7 @@ npm.cmd run test:youtube-mongo
 
 課程刪除的資料庫變更與 `coursedeletionjobs` 待辦在同一交易提交；YouTube 轉私人由提交後與啟動／每分鐘排程執行。單筆外部操作（含 token 與回應本文）上限 30 秒，超時取消請求並保留待辦重試，繼續處理下一筆。該集合以 `_id` 防重複、無 TTL 或自動索引同步；失敗及租約過期會重試，已完成紀錄保留。需要可交易的 MongoDB，standalone 回 `503 COURSE_DELETE_UNAVAILABLE`，不退回逐筆刪除。正式環境仍須另行授權查證；本機測試不代表部署前提已成立。
 
-<<<<<<< HEAD
 recut 成品核准、YouTube ready 與 worker 租約介面見 [審閱與worker契約](docs/recut-review.md)，本輪本機候選與驗證結果只看 [目前狀態](../docs/current-status.md)。
-=======
 ## recut 本機試產 CLI
 
 以下工具把兩門指定課程的資料複製到本機，再從既有候選腳本試產一題。開發驗證只用假的模型、媒體與資料庫；實際唯讀 Atlas、呼叫 Gemini 或渲染，須當次授權並確認課程、筆數及呼叫額度。工具不載入 `.env`，連線與金鑰只從指令明確指定的環境變數名稱取得，不輸出其值。
@@ -114,4 +112,3 @@ node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --
 結果同步寫入本機 `recutversions`、`recutreviewevents`、`shortassets` 與 `recuttrialruns`，更新 `shortscripts.recut` 的版本與成品參照，供 RC8／RC9 讀取。產片後仍停在講稿審閱階段，成品沒有取得核准或發布授權。本機後端另依原有方式啟動，先確認 `MONGODB_URI` 指向上述 loopback DB，關閉不必要的外部服務設定，再開啟教師審閱頁；不要指向共享 Atlas 驗證。
 
 API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `decide`、renderer、`sourceOptions.media`、設定轉接及 `missing` 清單，可交給 `createRecutPipeline(...).register(queue)`。建構時不啟動資料庫、程序或模型；provider 與 `probe/decode/measure/transcribe` 不足時明確拒絕。單題工具另用原生 MongoDB driver，避免啟動 Mongoose autoIndex。課程範圍複製採固定集合、先讀再本機 upsert；相較整庫 dump 可避免帶入無關資料，但不搬媒體檔與帳號，寫入中斷可能留下部分本機資料，須修正後重跑，不能當完整備份使用。
->>>>>>> 8486a5b1 (feat(recut): 接上惰性模型媒體轉接與本機試產資料庫)

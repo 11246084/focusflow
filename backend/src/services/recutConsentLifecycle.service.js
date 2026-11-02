@@ -44,7 +44,7 @@ function createRecutConsentLifecycle({ queue, setVideoPrivacy = (request) => req
       const tasks = await require('../models/recutTask.model').find({ scriptId: script._id, status: { $in: ['queued', 'running', 'cancel_requested'] } }).lean();
       for (const task of tasks) await (queue || require('./recutQueue.service').recutQueue).requestCancel(task._id);
       await require('./recutState.service').withRecutTransition(script._id, async (transition) => {
-        for (const job of await Job.find({ scriptId: script._id, status: { $in: ['queued', 'leased', 'completing'] } }).lean()) {
+        for (const job of await Job.find({ scriptId: script._id, status: { $in: ['queued', 'leased', 'completing'] } }).select('+leaseHash').lean()) {
           const cancelled = await Job.findOneAndUpdate({ _id: job._id, status: job.status, leaseHash: job.leaseHash ?? null },
             { $set: { status: 'cancelled', leaseHash: null, leaseExpiresAt: null, finishedAt: new Date(),
               error: { code: 'RECUT_CONSENT_WITHDRAWN', message: 'Consent was withdrawn.' } } }, { new: true });

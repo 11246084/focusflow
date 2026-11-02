@@ -12,6 +12,9 @@ const Version = require('../src/models/recutVersion.model');
 const Approval = require('../src/models/recutApproval.model');
 const Worker = require('../src/models/recutWorker.model');
 const Job = require('../src/models/recutRenderJob.model');
+const Course = require('../src/models/course.model');
+const Video = require('../src/models/video.model');
+const Consent = require('../src/models/recutConsent.model');
 const state = require('../src/services/recutState.service');
 const fixture = require('./fixtures/recut-sentences.json');
 function child(operation, scriptId, workerId) {
@@ -23,7 +26,14 @@ function child(operation, scriptId, workerId) {
 }
 async function seed() {
   const script = await Script.create({ courseId: new mongoose.Types.ObjectId(), topic: 'isolated recut', topicKey: new mongoose.Types.ObjectId().toString(), productionMode: 'recut', createdBy: new mongoose.Types.ObjectId() });
-  const source = await state.createRecutSource({ ...fixture, scriptId: script._id });
+  const videoId = new mongoose.Types.ObjectId();
+  await Course.collection.insertOne({ _id: script.courseId, teacherId: script.createdBy, title: 'Isolated consent course' });
+  await Video.collection.insertOne({ _id: videoId, courseId: script.courseId, title: 'Isolated source' });
+  await Consent.collection.insertOne({ teacherId: script.createdBy, revision: 1, withdrawals: [], records: [
+    { kind: 'content', choice: 'granted', courseId: script.courseId, videoId: null, sourceId: null },
+    { kind: 'voice', choice: 'original', courseId: null, videoId: null, sourceId: null },
+  ] });
+  const source = await state.createRecutSource({ ...fixture, videoId, scriptId: script._id });
   const version = await state.createRecutVersion({ scriptId: script._id, sourceId: source._id,
     selection: { answerable: true, ranges: [{ from: 's1', to: 's2' }] }, fullScript: '原音快照', plan: { schemaVersion: 'recut-v1' }, modelId: 'fake', shortRenderVersion: 'isolated-render', assetVersions: {} });
   await state.transitionRecut({ scriptId: script._id, event: 'revise', versionId: version._id });
@@ -35,7 +45,7 @@ describe('recut 專用 loopback Mongo 跨程序 fencing', { skip: !uri, timeout:
     assert.equal(target.host, '127.0.0.1'); assert.equal(target.port, 27029);
     assert.match(target.database, /^recut_delivery_test_[a-zA-Z0-9_]+$/);
     await mongoose.connect(uri, { autoIndex: false, serverSelectionTimeoutMS: 3000 });
-    for (const model of [Script, Source, Version, Approval, Worker, Job]) { await model.createCollection(); await model.createIndexes(); }
+    for (const model of [Script, Source, Version, Approval, Worker, Job, Course, Video, Consent]) { await model.createCollection(); await model.createIndexes(); }
   });
   after(async () => {
     if (mongoose.connection.readyState === 1) { assert.match(mongoose.connection.name, /^recut_delivery_test_/); await mongoose.connection.dropDatabase(); }
@@ -77,5 +87,22 @@ describe('recut 專用 loopback Mongo 跨程序 fencing', { skip: !uri, timeout:
     await state.transitionRecut({ scriptId: script._id, event: 'approve_script', versionId: version._id, actorId: script.createdBy });
     const saved = await Script.findById(script._id).select('+recutMutationLock.token').lean();
     assert.equal(saved.recut.state, 'script_approved'); assert.equal(saved.recutMutationLock.token, null);
+  });
+  for (const status of ['leased', 'completing']) it(`真Mongo隱藏leaseHash下撤回仍取消${status}並清worker`, async () => {
+    const { script, version } = await seed();
+    await state.transitionRecut({ scriptId: script._id, event: 'approve_script', versionId: version._id, actorId: script.createdBy });
+    await state.transitionRecut({ scriptId: script._id, event: 'queue_render', versionId: version._id });
+    await state.transitionRecut({ scriptId: script._id, event: 'start_render', versionId: version._id });
+    const workerId = new mongoose.Types.ObjectId(); const jobId = new mongoose.Types.ObjectId();
+    await Worker.create({ _id: workerId, name: 'withdraw-isolated', keyHash: 'c'.repeat(64), createdBy: script.createdBy, activeJobId: jobId });
+    await Job.create({ _id: jobId, scriptId: script._id, courseId: script.courseId, versionId: version._id,
+      status, planHash: 'isolated-plan', leaseHash: 'hidden-owned-hash', workerId, leaseExpiresAt: new Date(Date.now() + 60000), queuedAt: new Date() });
+    assert.equal((await Job.findById(jobId).lean()).leaseHash, undefined);
+    const lifecycle = require('../src/services/recutConsentLifecycle.service').createRecutConsentLifecycle({ setVideoPrivacy: async () => { throw new Error('No remote asset is expected'); } });
+    await lifecycle.stopWork({ teacherId: script.createdBy, kind: 'voice', courseId: null, videoId: null, sourceId: null });
+    const saved = await Job.findById(jobId).select('+leaseHash').lean();
+    assert.equal(saved.status, 'cancelled'); assert.equal(saved.leaseHash, null);
+    assert.equal((await Worker.findById(workerId).lean()).activeJobId, null);
+    assert.equal((await Script.findById(script._id).lean()).recut.state, 'render_failed');
   });
 });

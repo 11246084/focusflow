@@ -79,6 +79,22 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
     assert.ok(store.notifications.some((n) => String(n.recipientId) === String(ids.teacher)));
     await assert.rejects(worker.heartbeat(lease(first, job)), { code: 'RECUT_LEASE_INVALID' });
   });
+  it('恢復讀到舊逾期快照後heartbeat延租成功，舊恢復不得重排有效租約', async () => {
+    const { f, worker: identity, job } = await claimed(); const stored = store.recutRenderJobs[0];
+    const observedExpiry = new Date(stored.leaseExpiresAt); const update = Job.findOneAndUpdate; let renewed = false;
+    Job.findOneAndUpdate = async (query, change, options) => {
+      if (!renewed && change.$set?.error?.code === 'RECUT_LEASE_EXPIRED') {
+        renewed = true;
+        await worker.heartbeat(lease(identity, job, { now: new Date(observedExpiry.getTime() - 1) }));
+      }
+      return update(query, change, options);
+    };
+    try { await worker.recoverRenderJobs({ now: new Date(observedExpiry.getTime() + 1) }); }
+    finally { Job.findOneAndUpdate = update; }
+    assert.equal(renewed, true); assert.equal(stored.status, 'leased'); assert.equal(stored.attempts.length, 0);
+    assert.ok(new Date(stored.leaseExpiresAt) > observedExpiry);
+    assert.equal(String(store.recutWorkers[0].activeJobId), String(stored._id)); assert.equal(snapshot(f.script).state, 'rendering');
+  });
   it('成功回傳只產待審ShortAsset；同一核准版，未經成品核准不發布', async () => {
     const { f, worker: identity, job } = await claimed(); const file = fileFor();
     const result = await worker.completeRender(lease(identity, job, { file, metadata: { ...metadata(job), planVersion: 'recut-v1', renderDurationMs: 1200 } }));

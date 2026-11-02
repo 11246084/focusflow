@@ -91,9 +91,11 @@ async function notifyFailure(job) {
   await notifications.notifyRecutRenderFailed({ job, script });
   await Job.findByIdAndUpdate(job._id, { $set: { notifiedAt: new Date() } });
 }
-async function settleFailure(job, { code, message, retryable, checks = null, now = new Date() }) {
+async function settleFailure(job, { code, message, retryable, checks = null, now = new Date(), expiredOnly = false }) {
   const failed = !retryable || job.attemptCount >= MAX_ATTEMPTS;
-  const saved = await Job.findOneAndUpdate({ _id: job._id, status: 'leased', leaseHash: job.leaseHash, workerId: job.workerId }, {
+  const saved = await Job.findOneAndUpdate({ _id: job._id, status: 'leased', leaseHash: job.leaseHash, workerId: job.workerId,
+    ...(expiredOnly ? { leaseExpiresAt: job.leaseExpiresAt, $and: [{ leaseExpiresAt: { $lte: now } }] } : {}),
+  }, {
     $set: { status: failed ? 'failed' : 'queued', error: { code, message: String(message || code).slice(0, 500) }, checks,
       workerId: null, leaseHash: null, leaseExpiresAt: null, ...(failed ? { finishedAt: now } : {}) },
     $push: { attempts: { workerId: job.workerId, at: now, code, checks }, excludedWorkerIds: job.workerId },
@@ -110,7 +112,7 @@ async function settleFailure(job, { code, message, retryable, checks = null, now
 }
 async function recoverRenderJobs({ now = new Date() } = {}) {
   for (const job of await Job.find({ status: 'leased', leaseExpiresAt: { $lte: now } }).select('+leaseHash').lean()) {
-    await settleFailure(job, { code: 'RECUT_LEASE_EXPIRED', message: 'Worker lease expired.', retryable: true, now });
+    await settleFailure(job, { code: 'RECUT_LEASE_EXPIRED', message: 'Worker lease expired.', retryable: true, now, expiredOnly: true });
   }
   for (const job of await Job.find({ status: 'completing' }).select('+leaseHash').lean()) await finalizeCompletion(job);
   // Repair a crash after reserving the worker but before attaching its job.

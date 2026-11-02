@@ -15,7 +15,9 @@ function createRecutSelectionStep({ decide = createRecutDecisionPoint(), readSet
     if (model?.provider !== 'gemini' || typeof model.model !== 'string' || !model.model.trim()) throw new AppError('Recut 模型設定無效。', 503, 'RECUT_SETTING_INVALID');
     const input = { question: script.topic,
       variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map((q) => ({ question: q.question, askCount: q.askCount })),
-      sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words })) };
+      sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words,
+        selectionAllowed: !(source.excludedSentenceIds || []).includes(s.id),
+        exclusionReason: (source.excludedSentenceIds || []).includes(s.id) ? '辨識視窗邊界截斷，禁止選用或加回' : null })) };
     const result = await runValidatedDecision({ ...context, decide, model, instructions: INSTRUCTIONS, input, responseSchema,
       validate: (output) => validateSelection(source, output) });
     const output = { sourceId: source._id, selection: result.selection, selectionResult: result, fullScript: result.fullScript, modelId: model.model };

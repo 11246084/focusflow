@@ -4861,6 +4861,12 @@ paths:
           $ref: '#/components/responses/ShortScriptNotFoundError'
         '409':
           $ref: '#/components/responses/RecutConflictError'
+        '422':
+          description: RECUT_SENTENCE_EXCLUDED，辨識視窗邊界截斷句不可加回；不保存草稿。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/short-scripts/{scriptId}/recut/selection/restore:
     post:
       tags: [Short Scripts]
@@ -6307,7 +6313,7 @@ paths:
             enum: [content, voice, avatarLikeness, voiceClone]
       responses:
         '200':
-          $ref: '#/components/responses/RecutConsentSuccess'
+          $ref: '#/components/responses/RecutWithdrawalAssetsSuccess'
         '403':
           $ref: '#/components/responses/ShortScriptManageForbiddenError'
   /api/v1/courses/{courseId}/recut-consent/withdrawals:
@@ -6353,9 +6359,11 @@ paths:
       summary: 管理員查詢尚需手動轉私人的撤回動作
       responses:
         '200':
-          $ref: '#/components/responses/RecutConsentSuccess'
+          $ref: '#/components/responses/RecutManualActionsSuccess'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
 components:
   securitySchemes:
     RecutWorkerKey:
@@ -6463,6 +6471,32 @@ components:
       schema:
         $ref: '#/components/schemas/ObjectId'
   responses:
+    RecutWithdrawalAssetsSuccess:
+      description: 依同意範圍列出可撤回成品，selectAll與每支selected預設false。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecutWithdrawalAssets'
+    RecutManualActionsSuccess:
+      description: 尚需管理員手動下架的撤回待辦；同意工作與晚到成品待辦皆可出現。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecutManualAction'
     RecutConsentSuccess:
       description: 同意資料、條款或撤回工作；withdrawal.status可為pending、processing、completed，actions含status及manualActionRequired。
       content:
@@ -11213,6 +11247,53 @@ components:
         endSec:
           type: number
           minimum: 0
+    RecutConsentScope:
+      type: object
+      required: [teacherId, kind]
+      properties:
+        teacherId: { type: string }
+        kind: { type: string, enum: [content, voice, avatarLikeness, voiceClone] }
+        courseId: { type: [string, 'null'] }
+        videoId: { type: [string, 'null'] }
+        sourceId: { type: [string, 'null'] }
+    RecutWithdrawalAssets:
+      type: object
+      required: [scope, assets, selectAll]
+      properties:
+        scope:
+          $ref: '#/components/schemas/RecutConsentScope'
+        selectAll: { type: boolean, const: false }
+        assets:
+          type: array
+          items:
+            type: object
+            required: [id, selected]
+            properties:
+              id: { type: string }
+              selected: { type: boolean, const: false }
+              title: { type: string }
+              courseId: { type: [string, 'null'] }
+              sourceScriptId: { type: [string, 'null'] }
+              sourceVideoId: { type: [string, 'null'] }
+              status: { type: string }
+              youtubeVideoId: { type: [string, 'null'] }
+              youtubePrivacyStatus: { type: [string, 'null'] }
+    RecutManualAction:
+      type: object
+      required: [id, withdrawalId, assetId, type, status, manualActionRequired]
+      properties:
+        id: { type: string }
+        withdrawalId: { type: string }
+        assetId: { type: string }
+        teacherId: { type: string, description: 同意工作待辦帶此欄位；晚到成品待辦可能省略。 }
+        courseId: { type: [string, 'null'] }
+        type: { type: string, const: makeYouTubePrivate }
+        status: { type: string, enum: [pending, failed, completed] }
+        manualActionRequired: { type: boolean, const: true }
+        attempts: { type: integer, minimum: 0 }
+        errorCode: { type: [string, 'null'] }
+        failedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
     RecutReviewSentence:
       type: object
       required:
@@ -11223,6 +11304,8 @@ components:
         - words
         - retrievalHit
         - selected
+        - selectionAllowed
+        - exclusionReason
         - label
         - opening
         - teacherChanged
@@ -11245,6 +11328,11 @@ components:
           type: array
           items:
             type: string
+        selectionAllowed:
+          type: boolean
+          description: false表示視窗邊界截斷句，不可選用或加回。
+        exclusionReason:
+          type: [string, 'null']
         selected:
           type: boolean
         label:

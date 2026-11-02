@@ -159,4 +159,17 @@ describe('recut 資料與狀態機', () => {
     await blocked(() => move({ scriptId: script._id, event: 'revise', versionId: version._id }));
     await blocked(() => move({ scriptId: script._id, event: 'queue_task', taskId: newObjectId(), expectedRevision: 99 }));
   });
+  it('real Mongoose source schema preserves ASR evidence and frozen transcript fields', () => {
+    const Source = require('../src/models/recutSource.model');
+    const document = new Source({ ...fixture, scriptId: newObjectId(), sourceSha256: 'a'.repeat(64),
+      transcriptVersion: 'frozen-2', transcriptChunks: [{ chunkId: 'one', startSec: 40, endSec: 50, rawText: '當時原話' }],
+      excludedSentenceIds: ['s1'], asrProvenance: { rawWordsSha256: 'b'.repeat(64), boundaryEndTruncated: true,
+        excludedWords: [{ w: '截', s: 150, e: 150, reason: 'explicit-cut' }], boundaryEvidence: { kind: 'ffmpeg-extracted-window' } } });
+    assert.equal(document.validateSync(), undefined);
+    const saved = document.toObject();
+    assert.equal(saved.sourceSha256, 'a'.repeat(64)); assert.equal(saved.transcriptVersion, 'frozen-2');
+    assert.equal(saved.transcriptChunks[0].rawText, '當時原話'); assert.deepEqual(saved.excludedSentenceIds, ['s1']);
+    assert.equal(saved.asrProvenance.excludedWords[0].s, 150); assert.equal(saved.asrProvenance.boundaryEvidence.kind, 'ffmpeg-extracted-window');
+  });
+
 });

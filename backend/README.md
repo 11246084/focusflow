@@ -192,3 +192,5 @@ node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json 
 統計採每兩次選段的「秒數交集／聯集」再取平均，先合併重疊時間避免重複計數；三次全部無選段時比例為 null，另記回答不了判斷是否一致。標籤差計三次標籤不一致的句數，並保留三組成對比較。成功率分開列生成成功、流程完成與回答不了；渲染時間及三段操作時間各報筆數、中位數與最小／最大值，缺資料不補零。費用包含 thinking 輸出與額外程式碼辨識，並分開列單次生成與穩定度重跑的用量。
 
 只在本次明確指定的 `--output` 目錄產生 `report.md`、`evidence.json` 與各題的施工單、講稿、run 紀錄／mp4。剪接自然度、團隊修改量、教授核准與回答不了判斷正確性均留空由人填。開發測試不在 repo 製造正式證據；實際授權試跑後，再將真實報告依 [RC11b 工單](../docs/04_Features/Short_Video/work-orders/RC11-trial-tooling.md) 登記至 evidence 索引。
+
+辨識與審閱串接需同時使用 [來源介面](docs/recut-source.md)與[選段限制](docs/recut-selection.md)：媒體轉接回逐字與辨識證據，凍結的截斷句禁止清單適用模型與教師修改，不能在前端解除。

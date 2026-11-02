@@ -1,6 +1,9 @@
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const fs = require('node:fs/promises');
+const { createReadStream } = require('node:fs');
+const { createHash } = require('node:crypto');
+const { normalizeRecutAsrResult } = require('./recutAsrNormalization.service');
 const os = require('node:os');
 const path = require('node:path');
 const env = require('../config/env');
@@ -12,7 +15,12 @@ function serialAsr(action) {
   const result = asrTail.then(action, action);
   asrTail = result.catch(() => {}); return result;
 }
-function createRecutMediaTools({ run = execute, resolveSource = (file) => {
+async function hashLocalSource(file) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(file)) hash.update(chunk);
+  return hash.digest('hex');
+}
+function createRecutMediaTools({ run = execute, hashSource = hashLocalSource, resolveSource = (file) => {
   const source = inspectLocalUploadFile(file);
   if (!source.safe || !source.exists) throw new AppError('本機原片不存在或不在允許目錄內。', 422, 'RECUT_SOURCE_UNAVAILABLE');
   return source.localPath;
@@ -41,7 +49,12 @@ function createRecutMediaTools({ run = execute, resolveSource = (file) => {
         await call(ffmpeg, [...inputArgs(file, w), '-vn', '-ac', '1', '-ar', '16000', wav]);
         await call(env.recutPython, ['-I', path.resolve(__dirname, '../../../short_render/src/align/transcribe_words.py'), wav, output, env.recutAsrModel],
           { env: { ...process.env, PYTHONUTF8: '1', HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1' } });
-        return JSON.parse(await fs.readFile(output, 'utf8'));
+        const raw = JSON.parse(await fs.readFile(output, 'utf8'));
+        const normalized = normalizeRecutAsrResult(raw, w, { boundaryCut: true });
+        return { ...normalized, sourceSha256: await hashSource(resolveSource(file)),
+          asrProvenance: { ...normalized.asrProvenance, boundaryEvidence: {
+            kind: 'ffmpeg-extracted-window', startSec: w.startSec, endSec: w.endSec, durationSec: w.endSec - w.startSec,
+          } } };
       } finally {
         const relative = path.relative(root, directory);
         if (path.isAbsolute(relative) || relative.startsWith('..') || !relative.startsWith('focusflow-recut-')) throw new Error('Unsafe recut temp directory.');

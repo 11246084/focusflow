@@ -117,4 +117,12 @@ describe('recut 教師審閱 API 與契約', () => {
     assert.equal((await jsonRequest(baseUrl, `/api/v1/short-scripts/${newObjectId()}/recut/review`, { token })).status, 404);
     assert.equal((await jsonRequest(baseUrl, '/api/v1/short-scripts/bad/recut/review', { token })).status, 400);
   });
+  it('excluded boundary sentences cannot be re-added through the public review route', async () => {
+    const f = await makeReview(), token = await login(); store.recutSources.find((s) => String(s._id) === String(f.source._id)).excludedSentenceIds = ['s7'];
+    const response = await jsonRequest(baseUrl, pathFor(f, 'selection'), { method: 'PATCH', token,
+      body: bodyFor(f, { changes: [{ sentenceId: 's7', action: 'add' }] }) });
+    assert.equal(response.status, 422); assert.equal(response.body.error.code, 'RECUT_SENTENCE_EXCLUDED');
+    assert.equal(store.recutReviewEvents.length, 0); assert.equal(snapshot(f.script).pendingEditId, null);
+  });
+
 });

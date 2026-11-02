@@ -1,4 +1,5 @@
 const { RECUT_REASON_LABELS } = require('../constants/recut');
+const AppError = require('../utils/appError');
 const KEEP = new Set(RECUT_REASON_LABELS.slice(0, 4));
 // 只忽略中文排版標點與空白；小數點、負號、C# 等技術內容必須保留。
 const norm = (s) => s.replace(/[。！？、，；「」『』“”‘’]/gu, '').normalize('NFKC').toLocaleLowerCase('en').replace(/[\p{Z}\s]/gu, '');
@@ -27,6 +28,8 @@ function anchorIndex(sentence, phrase, end) {
   invalid(`${sentence.id} 的錨點不在可用逐字邊界`);
 }
 function resolveSelection(source, input, { allowInvalidDuration = false } = {}) {
+  const excluded = new Set(source.excludedSentenceIds || []);
+  const assertAllowed = (id) => { if (excluded.has(id)) throw new AppError(`${id} 位於辨識視窗截斷邊界，不可選用或加回`, 422, 'RECUT_SENTENCE_EXCLUDED'); };
   const sentences = source.sentences; const index = new Map(sentences.map((s, i) => [s.id, i]));
   shape(input, ['answerable', 'unanswerableReason', 'ranges', 'sentenceLabels', 'openingSentenceId'], ['lockedSentenceIds']);
   if (typeof input.answerable !== 'boolean' || !Array.isArray(input.ranges) || !Array.isArray(input.sentenceLabels)) invalid('輸出型別錯誤');
@@ -44,6 +47,7 @@ function resolveSelection(source, input, { allowInvalidDuration = false } = {}) 
   }
   if (input.unanswerableReason !== null || (!allowInvalidDuration && !input.ranges.length)) invalid('可回答時須有範圍且原因為 null');
   const opening = input.openingSentenceId;
+  if (opening !== null) assertAllowed(opening);
   if (opening !== null && (!index.has(opening) || labels.get(opening) !== '冷開場'
     || sentences[index.get(opening)].endSec - sentences[index.get(opening)].startSec > 3)) invalid('片頭須為同一視窗不超過三秒的冷開場句');
   if ([...labels].some(([id, label]) => label === '冷開場' && id !== opening)) invalid('最多一次冷開場');
@@ -71,7 +75,7 @@ function resolveSelection(source, input, { allowInvalidDuration = false } = {}) 
     while (b >= a && labels.get(sentences[b].id) === '指畫面') b--;
     let group = [];
     for (let i = a; i <= b; i++) {
-      const s = sentences[i]; selected.add(s.id);
+      const s = sentences[i]; assertAllowed(s.id); selected.add(s.id);
       if (s.id === opening) { addGroup(group, range); group = []; continue; }
       const words = s.words.slice(s.id === range.from ? startWord : 0, s.id === range.to ? endWord + 1 : undefined);
       group.push({ ...s, words });

@@ -44,3 +44,9 @@ S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`�
 `recut-selection.service.test.js` 使用假 fetch 驗正常／多範圍、錨點、標籤、長度、剪邊、片頭、無法回答、重試、共用額度與請求格式；模型品質與真實用量沒有外部驗證。依決策 87 另由子 agent 檢查指示、schema、驗證器，修正與結果記於本輪交接；這不替代 11/6 起的完整獨立審查。
 
 2026-10-29 草稿檢查與複核：子 agent 找出模型可自行輸出教師鎖定欄位、過度移除標點會混同數字／程式名稱，以及冷開場缺具體正例。已拒絕模型的鎖定欄位、保留技術符號並要求完整逐字邊界、補上正反例；複核未發現此範圍尚未修正的實質不一致。對應回歸包含 `1.5≠15`、`C#≠C`、`-1≠1`。
+
+## 視窗截斷句的共用限制
+
+選段模型輸入的每句含 `selectionAllowed` 與 `exclusionReason`。`source.excludedSentenceIds` 是來源凍結的禁止清單，`resolveSelection` 對實際保留的範圍及片頭統一檢查；句內 `startAt/endAt` 或 `allowInvalidDuration` 只調整各自用途，不能解除排除。選段失敗會正常記錄並依額度重試，不把模型違反限制的結果交給配圖。
+
+教師草稿、建議套用與 RC8 prepare 的 `lockedSelection` 沿用同一檢查。被排除的句子仍可閱讀，但人工加回會回 `422 RECUT_SENTENCE_EXCLUDED`，並在寫入草稿前停止。

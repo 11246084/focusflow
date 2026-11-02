@@ -22,7 +22,7 @@
 | `POST /approve-asset` | 另帶 `assetId/generationVersion`，精確核准目前 MP4；同步 ShortAsset 審核，YouTube ready 時發布 |
 | `POST /review-time` | `start` 帶目前 `versionId/expectedRevision/phase`；`stop` 帶原 `versionId/timingId/phase`，時間由伺服器計算 |
 
-除計時停止外，寫入都要目前 `versionId` 與 `expectedRevision`，過時回 409。`/review` 的 `fullScript/current` 永遠是目前版，`draft.fullScript` 才是未套用預覽；逐句 `selected/label/opening/teacherChanged` 以草稿優先，`originalLabel` 保留目前版理由。閱讀講稿不顯示 JSON、圖卡規格或原始編號；修改時才用逐句來源。成品識別來自 `recut.currentAssetId/currentAssetGenerationVersion`，MP4 資料沿用既有 `GET /api/v1/shorts/:shortAssetId`。
+除計時停止外，寫入都要目前 `versionId` 與 `expectedRevision`，過時回 409。`/review` 的 `fullScript/current` 永遠是目前版，`draft.fullScript` 才是未套用預覽；逐句 `selectionAllowed/exclusionReason` 說明是否能加回；`selected/label/opening/teacherChanged` 以草稿優先，`originalLabel` 保留目前版理由。閱讀講稿不顯示 JSON、圖卡規格或原始編號；修改時才用逐句來源。成品識別來自 `recut.currentAssetId/currentAssetGenerationVersion`，MP4 資料沿用既有 `GET /api/v1/shorts/:shortAssetId`。
 
 例如 s7 原本跳過 → 加回 → 回傳 `current.durationSec:37`、`draft.durationSec:42`，核准停用；套用成功後切新版、清草稿，重新審講稿。取消或失敗回原版，s7 仍留在未套用修改。移除片頭回 `warnings`，不自動選新片頭。
 
@@ -116,3 +116,7 @@ worker 用專用 Bearer 金鑰呼叫 `/api/v1/recut-worker/jobs` 下的 `POST /c
 YouTube 回傳後的上傳 CAS 排除 `archived`；即使同意預檢已通過、教師之後才封存沒有遠端 ID 的成品，晚到 ID 仍會持久保存並排轉私人。CAS 成功後再讀目前資產與同意，補上提交後的撤回窗口。管理員待辦 API 合併同意文件 actions 與 Asset 晚到補償待辦，並在合併前驗證管理員角色。
 
 worker 原片下載固定 `application/octet-stream`，內容可以是 MP4 或其他允許的原始影音格式。成品 metadata 可加 `planVersion`（須等於 `plan.schemaVersion`）及非負整數 `renderDurationMs`；後端持久保存，舊 worker 省略時保留相容。
+
+視窗邊界截斷句沿用來源的 `excludedSentenceIds`。教師加回、採納選段建議與背景 `lockedSelection` 都經 `resolveSelection`；即使草稿容許暫時超長，也不能加回這些句子。公開修改端點回 `422 RECUT_SENTENCE_EXCLUDED` 且不保存事件或草稿；前端保留輸入並顯示逐句的 `exclusionReason`。
+
+撤回同意的 `withdrawal-assets` 回明確的 `scope/assets/selectAll`；每支 `selected` 與整體 `selectAll` 預設 false。管理員 `manual-actions` 回待手動下架的動作陣列，含 `id/withdrawalId/assetId/type/status/manualActionRequired`；晚到成品待辦可缺 `teacherId`，教師登入呼叫此端點仍為 403。完整欄位依 [OpenAPI](openapi.yaml)。

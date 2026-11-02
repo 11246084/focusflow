@@ -17,7 +17,7 @@ RC2 把主題證據變成同一影片的凍結視窗與帶時間的句子，供 
 
 ## 原片與固定增益
 
-`createRecutMediaTools({run,resolveSource})` 包裝外部工具，測試替換兩個依賴。本機原片先經既有 uploads 路徑與實體檔案檢查，不接受 API 自訂路徑。ffprobe 確認聲音軌與長度，FFmpeg 在視窗內解碼；任一步失敗都不做 ASR、不扣 Gemini 額度。
+`createRecutMediaTools({run,resolveSource,hashSource})` 包裝外部工具，測試替換執行、路徑解析與檔案雜湊依賴。本機原片先經既有 uploads 路徑與實體檔案檢查，不接受 API 自訂路徑。ffprobe 確認聲音軌與長度，FFmpeg 在視窗內解碼；任一步失敗都不做 ASR、不扣 Gemini 額度。
 
 視窗量測為整體響度 `I` 與真峰值 `P`，固定增益 `g = min(-16-I, -1.5-P)` dB。若加完仍比 -16 LUFS 低至少 2 LU，停止並回報原片音量過低。只保存固定增益供 renderer 使用，不壓縮動態或改聲音內容；量測為非有限數值也拒絕。
 
@@ -34,8 +34,18 @@ RC2 把主題證據變成同一影片的凍結視窗與帶時間的句子，供 
 
 ASR 原始輸入 `{w,s,e}` 為視窗相對秒數；輸出改成原片絕對秒數。停頓至少 0.3 秒、標點或累計即將超過 8 秒，在字詞邊界切句；單字詞超長則拒絕，不虛構字內時間。輸出格式與合成樣本見 [RC1 句子介面](recut-foundation.md#rc2--rc3-的句子清單)。`retrievalHit` 依句子與直接命中時間重疊標記，`chunkIds` 留下重疊片段。
 
-四步依序回傳 `sourceWindow/sourceVideoId/sourcePath`、`sourceCheck/audio`、`rawWords`、`sourceId`；最後透過 `createRecutSource` 寫 `recutsources`。前三者僅為步驟內資料，RC3 以 `sourceId` 讀凍結句子，不需重辨識。
+四步依序回傳 `sourceWindow/sourceVideoId/sourcePath`、`sourceCheck/audio`、`rawAsrResult`、`sourceId`；最後透過 `createRecutSource` 寫 `recutsources`。前三者僅為步驟內資料，RC3 以 `sourceId` 讀凍結句子，不需重辨識。
 
 ## 證據與限制
 
 `recut-source.service.test.js` 與 `recut-media.service.test.js` 使用合成 JSON／逐字時間與假外部執行器，涵蓋視窗、三類原片失敗、增益、切句、單一 ASR、清除暫存與 queue 失敗還原。2026-10-14 原型紀錄只供設計參考，沒有複製其肖像素材、腳本或成品。真實 FFmpeg、Whisper 的速度與辨識品質須在另行授權的試跑驗證。
+
+## 視窗邊界與辨識證據
+
+正式媒體轉接在 FFmpeg 成功抽出指定 WAV、辨識成功後，回傳 `{words, sourceSha256, asrProvenance}`；原片雜湊以串流計算，`boundaryEvidence` 記錄 `ffmpeg-extracted-window` 與實際指定起訖。來源步驟也接受舊的逐字陣列，並統一經過 [ASR 正規化](../src/services/recutAsrNormalization.service.js)，不因注入的 raw 回應自稱切窗就放寬檢查。
+
+只有明確切窗且最後一字的有限時間滿足 `s === e`、落在窗尾內側 50 ms，才略過該字。原始陣列 SHA-256、排除字的原文／相對時間／原因與門檻會留在 `asrProvenance`；內部零長、逆序、重疊或超窗仍拒絕，不延長或捏造時間。
+
+有效逐字仍經原本嚴格切句。`boundaryStartTruncated/boundaryEndTruncated` 各使第一句／最後一句加入 `excludedSentenceIds`；句子保留供審閱，但模型選段、片頭、句內微調、教師加回與背景鎖定選段都不可使用。例如 150 秒窗尾的零長字被略過 → 剩餘末句仍凍結 → 該末句不可加回。這是保守排除，不能判定未被標記的語句一定語意完整。
+
+`RecutSource` 持久保存 `sourceSha256`、`transcriptVersion/transcriptChunks`、`asrProvenance` 與 `excludedSentenceIds`。舊來源缺少這些新證據時維持可讀，不把缺欄位當成已驗證的辨識或邊界證據。測試涵蓋正式媒體轉接的假 FFmpeg、來源步驟與真 Mongoose schema 的記憶體序列化；實際 Whisper／FFmpeg 與正式資料庫驗證另行標示。

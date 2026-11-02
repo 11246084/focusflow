@@ -62,7 +62,9 @@ function createRecutReviewService({ queue = recutQueue, now = () => new Date() }
       fullScript: current.fullScript, current, draft, latestChangeSummary,
       source: { videoId: String(source.videoId), startSec: source.startSec, endSec: source.endSec,
         transcriptVersion, sourceUpdated, notice: sourceUpdated ? '來源已更新，需要重新凍結；目前顯示原有來源快照。' : null,
-        sentences: source.sentences.map((s) => ({ ...s, selected: selected.has(s.id), label: labels.get(s.id), originalLabel: original.get(s.id),
+        sentences: source.sentences.map((s) => ({ ...s,
+          selectionAllowed: !(source.excludedSentenceIds || []).includes(s.id),
+          exclusionReason: (source.excludedSentenceIds || []).includes(s.id) ? '辨識視窗邊界截斷，禁止選用或加回' : null, selected: selected.has(s.id), label: labels.get(s.id), originalLabel: original.get(s.id),
           opening: s.id === effective.selection.openingSentenceId, teacherChanged: selected.has(s.id) !== originalIds.has(s.id) })) },
       suggestions: suggestions.map((s) => ({ id: String(s._id), problem: s.proposal?.problem || s.content || '', proposedChange: s.proposal?.proposedChange || '',
         impact: s.proposal?.impact || '', requiresSelectionConfirmation: needsConfirmation(s, version.selection), adopted: s.adopted ?? null, adoptedAt: s.adoptedAt || null })) };

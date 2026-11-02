@@ -214,4 +214,19 @@ describe('recut 審閱、草稿、鎖定與兩階段核准', () => {
     assert.equal((await f.service.getReview(options(f))).current.selection.unanswerableReason, '原話未回答');
     await assert.rejects(() => edit(f, [{ sentenceId: 's7', action: 'add' }]), { code: 'RECUT_REVIEW_NOT_READY' });
   });
+  it('teacher cannot re-add an excluded source sentence and no draft is persisted', async () => {
+    const f = await setup(); store.recutSources.find((s) => String(s._id) === String(f.source._id)).excludedSentenceIds = ['s7'];
+    const view = await f.service.getReview(options(f));
+    assert.equal(view.source.sentences[6].selectionAllowed, false);
+    await assert.rejects(edit(f, [{ sentenceId: 's7', action: 'add' }]), { code: 'RECUT_SENTENCE_EXCLUDED' });
+    assert.equal(store.recutReviewEvents.length, 0); assert.equal(snapshot(f.script).pendingEditId, null);
+  });
+  it('lockedSelection cannot bypass the common source exclusion gate', async () => {
+    const f = await setup(); store.recutSources.find((s) => String(s._id) === String(f.source._id)).excludedSentenceIds = ['s2'];
+    const { createRecutReviewSteps } = require('../src/services/recutReviewSteps.service');
+    const steps = createRecutReviewSteps({ cards: { stage: 'cards' }, wholeCheck: { stage: 'wholeCheck' } });
+    await assert.rejects(steps[0].run({ task: { scriptId: f.script._id,
+      input: { sourceId: f.source._id, lockedSelection: f.version.selection } } }), { code: 'RECUT_SENTENCE_EXCLUDED' });
+  });
+
 });

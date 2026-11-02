@@ -6,6 +6,7 @@ const { collectScopedVideos } = require('./bridgeScope.service');
 const { createRecutSource } = require('./recutState.service');
 const { createRecutMediaTools } = require('./recutMedia.service');
 const { expandContinuousWindow, inspectProbe, calculateFixedGain, splitSentences } = require('./recutSourceAlgorithms.service');
+const { normalizeRecutAsrResult } = require('./recutAsrNormalization.service');
 const AppError = require('../utils/appError');
 function fail(message = '找不到同一支影片內的連續 2～3 分鐘視窗。', code = 'RECUT_WINDOW_NOT_FOUND') {
   throw new AppError(message, 422, code);
@@ -51,11 +52,19 @@ function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createR
       const audio = calculateFixedGain(await media.measure(data.sourcePath, data.sourceWindow));
       return { sourceCheck: { passed: true, results: { ...results, decodable: true }, checkedAt: new Date() }, audio };
     } },
-    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => ({ rawWords: await media.transcribe(data.sourcePath, data.sourceWindow) }) },
+    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => ({ rawAsrResult: await media.transcribe(data.sourcePath, data.sourceWindow) }) },
     { id: 'recut-sentences-v1', stage: 'sourceCheck', run: async ({ task, data }) => {
+      // Legacy arrays remain supported; only the media adapter may establish an explicit cut.
+      const normalized = normalizeRecutAsrResult(data.rawAsrResult ?? data.rawWords, data.sourceWindow);
+      const sentences = splitSentences(normalized.words, data.sourceWindow);
+      const excludedSentenceIds = [...new Set([
+        ...(normalized.excludeFirstSentence ? [sentences[0].id] : []),
+        ...(normalized.excludeLastSentence ? [sentences.at(-1).id] : []),
+      ])];
       const source = await createRecutSource({ scriptId: task.scriptId, videoId: data.sourceVideoId,
         ...data.sourceWindow, transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments,
-        sentences: splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
+        sourceSha256: data.rawAsrResult?.sourceSha256, asrProvenance: normalized.asrProvenance, excludedSentenceIds,
+        sentences, sourceCheck: data.sourceCheck, audio: data.audio });
       return { sourceId: String(source._id) };
     } },
   ];

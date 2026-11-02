@@ -120,3 +120,19 @@ shared backend 已以 `b73ed48` 接上同意閘門、撤回實際取消／封存
 | 同意 gate 之後、上傳 CAS 之前撤回留下 unlisted | `a3533ef` 上傳 CAS 排除 archived，CAS 後重讀，晚到 ID 留持久補償；新增 gated promise、privacy 失敗通知與恢復，撤回整合 8／8 通過 | 非作者複驗 |
 
 上述 fake worker／撤回共 24／24 及真 Mongo 6／6 為修復作者本輪驗證，尚未宣稱獨立審查通過。pipeline 四筆初審修正已合入 `51e7f16f`、`474921fc`、`c7382504`、`304a6c8b`；教授裸影片 bootstrap 與後續 trial guard 由原 owner 接續。工作樹內前端交接文件由另一 owner 維護，不能因 shared 修復完成就稱正式教師 UI 可用。
+
+### 2026-11-03 shared backend 恢復檢查點
+
+候選已依序整合 pipeline 五筆：`a9a89d6a`、`b4ce888f`、`6ac0cca7`、`8d9a2881`、`f8c3a2ac`。正式 source/media 已接 ASR 正規化，持久保存原片 SHA-256、逐字稿版本／片段、辨識證據與截斷句禁止清單；模型、教師加回、片頭、句內微調及 RC8 鎖定重跑共用拒絕檢查。程式碼圖卡遇有／無行號的「會／可能／就…出錯」提示時保守保留原話，不讓 OCR／AI 修正錯誤示範。OpenAPI 補齊禁止加回的 422、逐句可選狀態、撤回成品清單與管理員待辦回應／403。
+
+本輪作者精準測試 **140／140**、OpenAPI lint 與 `git diff --check` 通過；包含真 Express 本機 loopback、記憶體模型與真 Mongoose schema 的 `new/validateSync/toObject`。外部工具、模型與服務皆 fake，未連 Atlas／VM／YouTube／LINE；前端與兩份 Short_Video 決策無修改。精準測試 log：候選根目錄 `backend-shared-tests.log`；lint log：`backend-docs-lint.log`（忽略的本機證據檔，不提交）。完整 backend、隔離 Mongo、renderer 與非作者複驗由整合 owner 接續，不能將本輪作者測試當正式驗收。
+
+恢復命令（PowerShell，在候選 `backend/`）：
+
+```powershell
+$env:NODE_PATH='C:/Users/User/Documents/GitHub/focusflow/backend/node_modules;C:/Users/User/Documents/GitHub/_worktrees/focusflow/recut-rc5/short_render/node_modules'
+node --require ./tests/helpers/noDotenv.cjs --test --experimental-test-isolation=none --test-concurrency=1 --test-reporter=spec tests/recut-source.service.test.js tests/recut-media.service.test.js tests/recut-selection.service.test.js tests/recut-review.service.test.js tests/recut-review.routes.test.js tests/recut-state.service.test.js tests/recut-code-runtime.service.test.js tests/docs.routes.test.js tests/recut-consent-integration.test.js
+npm.cmd run docs:lint
+```
+
+只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。這些是當次 owner 診斷，需由後續執行者重新確認；不得改連正式資料庫或把費用授權當成已呼叫。

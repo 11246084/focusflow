@@ -13,6 +13,9 @@ const sentenceSchema = new Schema({
 const schema = new Schema({
   scriptId: { type: Schema.Types.ObjectId, ref: 'ShortScript', required: true, index: true },
   videoId: { type: Schema.Types.ObjectId, ref: 'Video', required: true },
+  sourceSha256: { type: String, match: /^[a-f0-9]{64}$/ },
+  asrProvenance: { type: Schema.Types.Mixed, default: null },
+  excludedSentenceIds: { type: [String], default: [] },
   transcriptVersion: { type: String, default: 'legacy' },
   transcriptChunks: { type: [new Schema({ chunkId: String, startSec: Number, endSec: Number, rawText: String }, { _id: false })], default: [] },
   startSec: { type: Number, required: true, min: 0 }, endSec: { type: Number, required: true, min: 0 },

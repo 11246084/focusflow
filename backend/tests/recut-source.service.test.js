@@ -125,4 +125,29 @@ describe('recut RC2 連續視窗與句子', () => {
     assert.equal(store.recutSources[0].transcriptVersion, 'legacy');
     assert.ok(store.recutSources[0].transcriptChunks.length);
   });
+  it('ASR provenance freezes excluded first/last sentence IDs and source identity', async () => {
+    const script = seedScript();
+    const steps = createRecutSourceSteps();
+    const result = await steps[3].run({ task: { scriptId: script._id }, data: {
+      sourceWindow: { ...fixedWindow(), frozenAt: new Date(), hitChunkIds: ['c5'] }, sourceVideoId: ids.teacherVideo,
+      transcriptVersion: 'generation-2', rawAsrResult: { sourceSha256: 'a'.repeat(64),
+        words: [word('截斷首句。', 0, 2), word('可用原話。', 3, 5), word('截斷尾句', 6, 8)],
+        asrProvenance: { kind: 'fresh-local-asr', boundaryStartTruncated: true, boundaryEndTruncated: true,
+          rawWordsSha256: 'b'.repeat(64), excludedWords: [{ w: '尾', s: 150, e: 150, reason: 'explicit-cut' }] } },
+    } });
+    const src = store.recutSources.find((v) => String(v._id) === result.sourceId);
+    assert.deepEqual(src.excludedSentenceIds, ['s1', 's3']); assert.equal(src.sourceSha256, 'a'.repeat(64));
+    assert.equal(src.asrProvenance.rawWordsSha256, 'b'.repeat(64)); assert.equal(src.asrProvenance.excludedWords[0].s, 150);
+    assert.equal(src.sentences.length, 3); assert.equal(src.transcriptVersion, 'generation-2');
+    assert.ok(src.transcriptChunks.length);
+  });
+  it('arbitrary raw/fake ASR cannot claim a cut to erase invalid trailing tokens', async () => {
+    const step = createRecutSourceSteps()[3]; const script = seedScript();
+    for (const raw of [[word('正常', 0, 2), word('零長', 150, 150)],
+      { words: [word('正常', 0, 2), word('零長', 150, 150)], boundaryEvidence: { kind: 'ffmpeg-extracted-window' } }]) {
+      await assert.rejects(step.run({ task: { scriptId: script._id }, data: { sourceWindow: fixedWindow(), rawAsrResult: raw } }), { code: 'RECUT_ASR_INVALID' });
+    }
+    assert.equal(store.recutSources.length, 0);
+  });
+
 });

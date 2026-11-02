@@ -12,9 +12,9 @@ const { getSetting } = require('../src/services/recutSettings.service');
 const queues = [];
 const source = sourceData();
 const label = (s, id, value) => { s.sentenceLabels.find((l) => l.sentenceId === id).label = value; return s; };
-async function pipeline(outputs, { limit = 5, model = 'fixed-gemini' } = {}) {
+async function pipeline(outputs, { limit = 5, model = 'fixed-gemini', excludedSentenceIds = [] } = {}) {
   const script = seedScript({ sourceQuestions: Array.from({ length: 8 }, (_, i) => ({ question: `問法${i}`, askCount: i })) });
-  const src = await createRecutSource({ ...sourceData(), scriptId: script._id });
+  const src = await createRecutSource({ ...sourceData(), scriptId: script._id, excludedSentenceIds });
   const calls = [];
   const decide = createRecutDecisionPoint({ apiKey: 'fixture-key', fetchImpl: async (url, options) => {
     calls.push({ url, body: JSON.parse(options.body) });
@@ -137,4 +137,24 @@ describe('recut 第一步選段與逐字驗證', () => {
     await assert.rejects(() => step.run({ task: { scriptId: script._id }, data: { sourceId: src._id } }), { code: 'RECUT_SOURCE_INVALID' });
     assert.equal(calls, 0);
   });
+  it('common exclusion gate blocks ranges, intra-sentence trims, opening, and relaxed duration', () => {
+    const { resolveSelection } = require('../src/services/recutSelectionValidation.service');
+    for (const excludedSentenceIds of [['s2'], ['s4'], ['s6']]) {
+      const src = { ...source, excludedSentenceIds }; const selected = selection();
+      selected.ranges[0].startAt = '句2'; selected.ranges[0].endAt = '的定義';
+      assert.equal(validate(src, selected).valid, false);
+      assert.throws(() => resolveSelection(src, selected, { allowInvalidDuration: true }), { code: 'RECUT_SENTENCE_EXCLUDED' });
+    }
+    const opening = label(selection(), 's1', '冷開場'); opening.openingSentenceId = 's1';
+    assert.equal(validate({ ...source, excludedSentenceIds: ['s1'] }, opening).valid, false);
+    assert.equal(validate({ ...source, excludedSentenceIds: ['s1', 's16'] }, selection()).valid, true);
+  });
+  it('real selection step tells the model exclusions and rejects attempts to select them', async () => {
+    const r = await pipeline([selection()], { limit: 3, excludedSentenceIds: ['s2'] });
+    const input = JSON.parse(r.calls[0].body.contents[0].parts[0].text);
+    assert.equal(input.sentences[1].selectionAllowed, false); assert.match(input.sentences[1].exclusionReason, /截斷/);
+    assert.equal(input.sentences[2].selectionAllowed, true);
+    assert.equal(r.task.status, 'failed'); assert.equal(r.downstreamCalls, 0);
+  });
+
 });

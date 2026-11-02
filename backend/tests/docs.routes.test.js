@@ -161,4 +161,17 @@ describe('Express route ↔ OpenAPI coverage', () => {
     assert.deepEqual(coverage.knownGapsNowDocumented, [], 'Remove documented entries from KNOWN_OPENAPI_GAPS.');
     assert.deepEqual(coverage.knownGapsNotRouted, [], 'Remove stale entries from KNOWN_OPENAPI_GAPS.');
   });
+  it('recut consent lists and excluded review sentences have explicit response contracts', () => {
+    const spec = yaml.load(readOpenApiYaml());
+    const manual = spec.paths['/api/v1/admin/recut-consent/manual-actions'].get;
+    assert.ok(manual.responses['403']);
+    assert.match(manual.responses['200'].$ref, /RecutManualActionsSuccess$/);
+    const assets = spec.paths['/api/v1/courses/{courseId}/recut-consent/withdrawal-assets'].get;
+    assert.match(assets.responses['200'].$ref, /RecutWithdrawalAssetsSuccess$/);
+    assert.deepEqual(spec.components.schemas.RecutWithdrawalAssets.required, ['scope', 'assets', 'selectAll']);
+    assert.ok(spec.components.schemas.RecutManualAction.required.includes('manualActionRequired'));
+    for (const field of ['selectionAllowed', 'exclusionReason']) assert.ok(spec.components.schemas.RecutReviewSentence.required.includes(field));
+    assert.ok(spec.paths['/api/v1/short-scripts/{scriptId}/recut/selection'].patch.responses['422']);
+  });
+
 });

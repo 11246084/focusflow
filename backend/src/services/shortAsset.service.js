@@ -691,26 +691,27 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     publishedAt: { $ne: null },
   };
-  if (cursor) {
-    query.$or = [
-      { publishedAt: { $lt: cursor.publishedAt } },
-      { publishedAt: cursor.publishedAt, _id: { $lt: cursor.id } },
-    ];
-  }
-
-  const assets = await ShortAsset.find(query)
-    .sort({ publishedAt: -1, _id: -1 })
-    .limit(pageSize + 1)
-    .lean();
   const eligible = [];
-  for (const asset of assets) {
-    if (asset.recutVersionId) {
-      if (asset.youtubeUpload?.remoteState !== 'ready' || asset.reviewStatus !== 'approved'
-        || asset.reviewedGenerationVersion !== asset.generationVersion) continue;
-      try { await require('./recutState.service').assertRecutAssetPublishable(asset); }
-      catch (error) { if (['RECUT_STATE_INVALID', 'SHORT_SCRIPT_NOT_FOUND'].includes(error.code)) continue; throw error; }
+  let scanCursor = cursor;
+  while (eligible.length <= pageSize) {
+    const scanQuery = { ...query, ...(scanCursor ? { $or: [
+      { publishedAt: { $lt: scanCursor.publishedAt } },
+      { publishedAt: scanCursor.publishedAt, _id: { $lt: scanCursor.id } },
+    ] } : {}) };
+    const assets = await ShortAsset.find(scanQuery).sort({ publishedAt: -1, _id: -1 }).limit(pageSize + 1).lean();
+    for (const asset of assets) {
+      if (asset.recutVersionId) {
+        if (asset.youtubeUpload?.remoteState !== 'ready' || asset.reviewStatus !== 'approved'
+          || asset.reviewedGenerationVersion !== asset.generationVersion) continue;
+        try { await require('./recutState.service').assertRecutAssetPublishable(asset); }
+        catch (error) { if (['RECUT_STATE_INVALID', 'SHORT_SCRIPT_NOT_FOUND'].includes(error.code)) continue; throw error; }
+      }
+      eligible.push(asset);
+      if (eligible.length > pageSize) break;
     }
-    eligible.push(asset);
+    if (eligible.length > pageSize || assets.length < pageSize + 1) break;
+    const last = assets.at(-1);
+    scanCursor = { publishedAt: new Date(last.publishedAt), id: String(last._id) };
   }
   const pageItems = eligible.slice(0, pageSize);
 
@@ -730,7 +731,7 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
         youtubeUrl: asset.youtubeUrl,
       };
     }),
-    nextPageToken: assets.length > pageSize
+    nextPageToken: eligible.length > pageSize
       ? encodePageToken(pageItems[pageItems.length - 1])
       : null,
   };

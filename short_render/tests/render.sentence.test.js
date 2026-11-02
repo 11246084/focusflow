@@ -100,10 +100,21 @@ test('version mismatch and stale resolved timing fail before any external comman
   assert.equal(called, false);
 });
 
-test('offline prototypes keep new cards disabled and produce five mobile preview entries', (t) => {
+test('offline prototypes keep new cards disabled and produce five themes plus real code renderer entries', (t) => {
   const { root, resolveFont } = temporary(t);
   const entry = buildPrototypes(root, { resolveFont }); assert.equal(fs.existsSync(entry), true);
   for (const theme of Object.keys(THEMES)) assert.match(fs.readFileSync(path.join(root, `${theme}.html`), 'utf8'), /resizePreview/);
+  for (const theme of Object.keys(THEMES)) {
+    const preview = fs.readFileSync(path.join(root, `code-${theme}.html`), 'utf8');
+    const render = fs.readFileSync(path.join(root, `code-${theme}.render.html`), 'utf8');
+    assert.match(preview, /class="code-line code-highlight"/); assert.match(preview, /<mark class="code-box">value<\/mark>/);
+    assert.match(preview, /SyntaxError: invalid syntax/); assert.match(preview, /程式碼來源對照/);
+    const plan = JSON.parse(fs.readFileSync(path.join(root, `code-${theme}.plan.json`), 'utf8'));
+    assert.equal(plan.scenes[0].params.lines[0].intentionalError, true);
+    assert.equal(plan.scenes[0].params.lines[0].text, plan.scenes[0].params.lines[0].originalText);
+    assert.doesNotMatch(render, /程式碼來源對照|畫面原樣|class="preview-provenance"/);
+    assert.match(render, /data-width="720" data-height="1280"/);
+  }
   for (const card of getComponentCatalog().filter((c) => ['not-fit', 'not-merge', 'nested', 'code'].includes(c.name))) assert.equal(card.aiEnabled, false);
 });
 
@@ -114,4 +125,15 @@ test('browser font preflight closes browser and blocks remote requests with fake
   }), close: async () => { closed = true; } });
   assert.equal(await ensureFontLoaded({ stageDir: '.', launch }), true); assert.equal(closed, true);
   let aborted = false; interceptor({ url: () => 'https://example.invalid', abort: () => { aborted = true; } }); assert.equal(aborted, true);
+});
+
+test('responsive preview confines the document and shrinks controls without changing the render canvas', () => {
+  const { plan, resolved } = fixture();
+  const preview = buildHtml(plan, resolved, { mode: 'preview' }), render = buildHtml(plan, resolved);
+  assert.match(preview, /<html lang="zh-Hant" class="preview-document">/);
+  assert.doesNotMatch(render, /<html[^>]*class="preview-document"/);
+  assert.match(preview, /html\.preview-document \{ width:100%; min-height:0; \}/);
+  assert.match(preview, /flex:1 1 0; width:0; min-width:44px/);
+  assert.match(preview, /Math\.min\(720,viewport\.clientWidth\)/);
+  for (const html of [preview, render]) assert.match(html, /data-width="720" data-height="1280"/);
 });

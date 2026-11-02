@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { input } = require('../tests/sentence.fixture');
+const { params: codeParams } = require('../tests/codePrototype.fixture');
 const { buildRecutPlan, getComponentCatalog } = require('../src/plan');
 const { THEMES } = require('../src/plan/runtime');
 const { buildHtml } = require('../src/render/html');
@@ -28,7 +29,7 @@ function buildPrototypes(outDir, { resolveFont = fontPath } = {}) {
     'not-merge': { left: { text: '第一份', icon: 'fluent:package' }, right: { text: '第二份', icon: 'fluent:package' }, result: { text: '一個整體', icon: 'fluent:desktop-computer' } },
     nested: { layers: [{ text: '整體', icon: 'fluent:desktop-computer' }, { text: '子系統', icon: 'fluent:package' }, { text: '元件', icon: 'phosphor:brackets-curly' }] },
   };
-  const links = [];
+  const links = [], codeLinks = [];
   for (const theme of Object.keys(THEMES)) {
     const args = input(); args.theme = theme; args.title.text = '新圖卡離線合成原型';
     args.scenes = args.scenes.map((scene, i) => {
@@ -39,9 +40,17 @@ function buildPrototypes(outDir, { resolveFont = fontPath } = {}) {
     if (built.errors.length) throw new Error(JSON.stringify(built.errors));
     fs.writeFileSync(path.join(outDir, `${theme}.html`), buildHtml(built.plan, built.resolved, { mode: 'preview' }));
     links.push(`<li><a href="${theme}.html">${theme}：放不進去 → 合不起來 → 層層包含</a></li>`);
+    const code = input(); code.theme = theme; code.title.text = '程式碼離線合成原型';
+    code.scenes = code.scenes.map((scene) => ({ ...scene, component: 'code', params: structuredClone(codeParams), cues: {} }));
+    const codeBuilt = buildRecutPlan(code);
+    if (codeBuilt.errors.length) throw new Error(JSON.stringify(codeBuilt.errors));
+    fs.writeFileSync(path.join(outDir, `code-${theme}.html`), buildHtml(codeBuilt.plan, codeBuilt.resolved, { mode: 'preview' }));
+    fs.writeFileSync(path.join(outDir, `code-${theme}.render.html`), buildHtml(codeBuilt.plan, codeBuilt.resolved, { mode: 'render' }));
+    fs.writeFileSync(path.join(outDir, `code-${theme}.plan.json`), JSON.stringify(codeBuilt.plan, null, 2));
+    codeLinks.push(`<li><a href="code-${theme}.html">${theme}：錯誤原樣、行號、高亮、方框與錯誤訊息</a></li>`);
   }
   fs.writeFileSync(path.join(outDir, 'catalog.json'), JSON.stringify(getComponentCatalog(), null, 2));
-  fs.writeFileSync(path.join(outDir, 'index.html'), `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>圖卡原型</title><style>body{font:18px sans-serif;line-height:1.7;margin:24px;max-width:720px}a{display:block;padding:12px}li{margin:8px 0}</style><h1>新圖卡離線合成原型</h1><p>全為自製合成資料，30 秒靜音；新圖卡仍停用 AI。每 5 秒換卡，拖曳播放位置檢查手機可讀性。此頁不代表實際成品或正式驗收。</p><ul>${links.join('')}</ul></html>`);
+  fs.writeFileSync(path.join(outDir, 'index.html'), `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>圖卡原型</title><style>body{font:18px sans-serif;line-height:1.7;margin:24px;max-width:720px;overflow-wrap:anywhere}a{display:block;padding:12px}li{margin:8px 0}</style><h1>新圖卡離線合成原型</h1><p>全為自製合成資料，30 秒靜音；新圖卡仍停用 AI。每 5 秒換卡，拖曳播放位置檢查手機可讀性。此頁不代表實際成品或正式驗收。</p><ul>${links.join('')}</ul><h2>程式碼固定範例</h2><p>自製 Python 語法錯誤範例，故意保留 value =。來源欄位表示本 fixture 原樣，並非真實畫面抄錄或 OCR／模型結果。逐行對照只在預覽畫布外；code 仍限 RC6 專用流程，未開放 AI 配圖。</p><ul>${codeLinks.join('')}</ul></html>`);
   return path.join(outDir, 'index.html');
 }
 if (require.main === module) console.log(buildPrototypes(path.resolve(process.argv[2] || path.join(__dirname, '..', 'out', 'prototypes'))));

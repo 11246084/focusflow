@@ -373,7 +373,7 @@ function buildHtml(plan, resolved, { css = null, audioSrc = 'narration.wav', mod
   b.raw('tl.fromTo("#hdr", {opacity:0, y:-16}, {opacity:1, y:0, duration:0.5, ease:"power3.out"}, 0.05);');
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant"${mode === 'preview' ? ' class="preview-document"' : ''}>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -429,7 +429,7 @@ function previewScript(gainDb) {
   return `
 const media=document.getElementById('narration');
 const seek=document.getElementById('preview-seek');
-function resizePreview(){const width=Math.min(720,document.documentElement.clientWidth);document.getElementById('root').style.transform='scale('+width/720+')';document.getElementById('preview-viewport').style.height=width*1280/720+'px';}
+function resizePreview(){const viewport=document.getElementById('preview-viewport');const width=Math.min(720,viewport.clientWidth);document.getElementById('root').style.transform='scale('+width/720+')';viewport.style.height=width*1280/720+'px';}
 window.addEventListener('resize',resizePreview);resizePreview();
 let audioContext, gainNode;
 async function prepareAudio(){

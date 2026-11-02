@@ -152,12 +152,13 @@ body { font-family: "Noto Sans TC", sans-serif; }
 /* The timeline also sequences visibility for frame capture. */
 .scene,.sub { visibility:hidden; }
 .hdr .ttl { font-size:38px; overflow-wrap:anywhere; white-space:normal; }
+html.preview-document { width:100%; min-height:0; }
 .preview-page { width:100%; min-height:0; max-width:720px; margin:auto; }
 .preview-page #root { transform-origin:top left; }
 #preview-viewport { width:100%; overflow:hidden; }
 .preview-controls,.preview-provenance { width:100%; }
 .preview-controls button { min-height:44px; flex-shrink:0; font-size:18px; }
-.preview-controls input { min-width:44px; min-height:44px; }
+.preview-controls input { flex:1 1 0; width:0; min-width:44px; min-height:44px; }
 .preview-caption { font-size:16px; padding:0 16px; color:var(--muted); }
 .preview-provenance { font-size:16px; }
 .preview-controls :focus-visible { outline:3px solid var(--orange); outline-offset:3px; }

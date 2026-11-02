@@ -22,8 +22,8 @@ Node 22.23.4 以上的 22 版；使用已安裝並固定版本的 npm 套件，�
 cd short_render
 npm.cmd test
 # 自製圖卡、30 秒靜音，沒有原片或外部呼叫
-node bin/prototype.js
-# 在瀏覽器開啟 out/prototypes/index.html，選主題後拖曳播放位置
+node bin/prototype.js out/prototypes-v2
+# 在瀏覽器開啟 out/prototypes-v2/index.html，選主題後拖曳播放位置
 
 # source.json 為 RC2 的凍結來源，含 sentences 與逐字絕對時間
 node bin/short-render.js validate plan.json --evidence source.json
@@ -33,13 +33,13 @@ node bin/short-render.js preview plan.json --evidence source.json --source sourc
 node bin/short-render.js render plan.json --evidence source.json --source source.mp4 --out out/job --browser C:/path/to/chrome-headless-shell.exe
 ```
 
-`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁與 `catalog.json`；每 5 秒依序展示「放不進去」「合不起來」「層層包含」。三張新卡與 code 均維持 `aiEnabled:false`，另一位代理的手機畫面檢查尚未完成。
+`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁、五個 `code-主題.html` 與 `catalog.json`；前三卡每 5 秒依序展示「放不進去」「合不起來」「層層包含」。程式碼頁使用 [固定自製範例](tests/codePrototype.fixture.js)，保留故意錯誤的 `value =`，顯示行號、行高亮、唯一詞方框與錯誤訊息；這些參數是離線 fixture，並非實際 OCR 或模型結果。`code-主題.render.html` 用正式 render 模式產生，供檢查 720×1280 與來源對照隔離；`code-主題.plan.json` 供核對固定輸入，均在忽略的輸出目錄。三張新卡與 code 仍維持 `aiEnabled:false`；獨立畫面複核結果只記在[目前狀態](../docs/current-status.md)。
 
 `stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。常駐 worker 的設定與啟動方式見下節。
 
 演算法與取捨：
 
-- **同一時間軸**（`src/render/html.js`）：輸入 plan 與 resolved，產生共用的卡片、字幕與 GSAP 動畫；預覽只額外加入控制項與程式碼來源對照。播放、暫停與拖曳都用原音 `currentTime` 對動畫 seek；逐格渲染使用同一條已暫停的 timeline。卡片與字幕的可見區間同時寫進 timeline，避免逐格時重疊。相較分開維護兩套動畫，這能降低預覽與成品漂移，但仍需真實瀏覽器與 MP4 比對。字型載入後才註冊 timeline；手機預覽等比縮放 720×1280 畫布，輸出尺寸固定。
+- **同一時間軸**（`src/render/html.js`）：輸入 plan 與 resolved，產生共用的卡片、字幕與 GSAP 動畫；預覽只額外加入控制項與程式碼來源對照。播放、暫停與拖曳都用原音 `currentTime` 對動畫 seek；逐格渲染使用同一條已暫停的 timeline。卡片與字幕的可見區間同時寫進 timeline，避免逐格時重疊。相較分開維護兩套動畫，這能降低預覽與成品漂移，但仍需真實瀏覽器與 MP4 比對。字型載入後才註冊 timeline；手機預覽以自身容器寬度等比縮放 720×1280 畫布，頁面根節點、控制列與來源區隨可用寬度收縮，避免被固定畫布寬度撐出水平捲軸；正式 render 頁沒有套用預覽根節點樣式，輸出尺寸固定。
 - **原音剪接與固定增益**（`cut.js`、`render.js`）：以每段的絕對 srcStart／srcEnd 做 `atrim`，重設時間後串接 PCM 音訊；只在額外結尾卡補靜音。預覽套 Web Audio `10^(gainDb/20)`，成品於最後一步套一次 FFmpeg `volume=gainDb dB`。未採動態 loudnorm，避免改變聲音動態。結尾卡過長仍可能被 RC7 靜音檢查擋下；預設 0 秒。
 - **程式碼顯示與隔離**（`html.js`）：固定規則 tokenizer 為關鍵字、字串、數字與註解上色，不執行程式、不驗證語法；比完整編譯器簡單且沒有語言模型呼叫，但不能完整辨識所有語言。行號、行高亮、唯一片語方框與錯誤框來自已驗證參數；原始畫面抄錄與逐行來源只輸出到 preview 的畫布外對照區，render HTML 不序列化整份 plan，因此不帶 OCR／provenance。程式內容的正確性仍由 RC6 與教師審閱負責。
 - **版本 fencing**（`render.js`）：鎖定 renderer／素材／GSAP／HyperFrames 版本，再用雜湊阻止 staging 後內容漂移。這處理本機工件一致性；工作核准、租約與上傳版本核對由 RC7 後端處理，不能以本機雜湊代替核准。

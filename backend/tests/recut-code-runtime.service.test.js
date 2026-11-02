@@ -51,3 +51,12 @@ it('unreadable frames and failed capture fall back without fabricated code or le
     assert.equal(r.http.length, options.failCapture ? 0 : 1);
   }
 });
+it('concrete capture never allows review to silently correct an intentional classroom error', async () => {
+  const r = setup(), c = context(); c.source.sentences[0].text = '這行故意寫錯給你們看';
+  const scene = { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } };
+  assert.equal((await r.runtime.codeCardHandler({ ...c, source: c.source, scene })).component, 'quote-reveal');
+  assert.equal(r.http.length, 0);
+  const known = setup(), k = context(); k.source.sentences[0].text = '第1行故意寫錯給你們看';
+  const result = await known.runtime.codeCardHandler({ ...k, source: k.source, scene });
+  assert.equal(result.component, 'code'); assert.equal(result.params.lines[0].intentionalError, true);
+});

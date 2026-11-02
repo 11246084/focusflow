@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const { createRecutCodeCardHandler } = require('./recutCodeCard.service');
 const { fail } = require('./recutRuntime.service');
+const { numericTokens } = require('./recutCardsValidation.service');
 
 function createRecutCodeRuntime({ decide, run, ffmpeg, resolveSourcePath, resolveSource, createWorkspace, removeWorkspace, readFile } = {}) {
   const missing = Object.entries({ decide, run, ffmpeg, resolveSourcePath, resolveSource, createWorkspace, removeWorkspace, readFile }).filter(([, v]) => !v).map(([k]) => `codeCards.${k}`);
@@ -28,7 +29,10 @@ function createRecutCodeRuntime({ decide, run, ffmpeg, resolveSourcePath, resolv
       }
       const nearby = source.sentences.slice(Math.max(0, first - 1), last + 2).map((s) => s.text).join('\n');
       const variables = [...new Set([...nearby.matchAll(/(?:變數|variable)\s*([A-Za-z_$][\w$]*)/giu)].map((m) => m[1]))];
-      const evidence = { frames, variables, intentionalErrorLines: [] };
+      const intentional = /(?:故意|刻意)[^。！？\n]{0,12}(?:錯|error)|錯誤示範|不要修正/iu.test(nearby);
+      const intentionalErrorLines = [...new Set([...nearby.matchAll(/第\s*([一二三四五六七八九十\d]+)\s*行[^。！？\n]{0,12}(?:故意|刻意|示範)[^。！？\n]{0,8}(?:錯|error)/giu)]
+        .map((m) => Number(numericTokens(m[1])[0])).filter((n) => Number.isInteger(n) && n >= 1 && n <= 12))];
+      const evidence = { frames, variables, intentionalErrorLines, intentionalErrorUnresolved: intentional && !intentionalErrorLines.length };
       images.set(evidence, parts); return evidence;
     } catch { throw fail('無法取得程式碼畫面。', 'RECUT_CODE_CAPTURE_FAILED'); }
     finally { await removeWorkspace(directory); }

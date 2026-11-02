@@ -40,7 +40,7 @@ function createRecutCodeCardHandler({ capture, extract, review, toCodeParams = t
       await context.checkCancelled();
       const evidence = await capture({ source, scene });
       await context.checkCancelled();
-      if (!evidence?.frames?.length || evidence.readable === false) return fallbackResult();
+      if (!evidence?.frames?.length || evidence.readable === false || evidence.intentionalErrorUnresolved) return fallbackResult();
       const start = source.sentences.findIndex((s) => s.id === scene.from), end = source.sentences.findIndex((s) => s.id === scene.to);
       const transcript = source.sentences.slice(Math.max(0, start - 1), end + 2).map((s) => s.text);
       reserve();

@@ -13,4 +13,6 @@ it('Chinese new quantities, changed signs/decimals/percentages and unsupported u
 it('ordinary lexical uses do not invent quantity one or ten million', () => {
   for (const text of ['一起看工具', '一般工具也一樣', '一定要統一', '一些工具一致', '千萬不要混用，萬一失敗']) assert.deepEqual(numericTokens(text), []);
   assert.equal(validate('工具', '一起看工具').valid, true);
+  assert.deepEqual(numericTokens('參考參數及陸地'), []); assert.equal(validate('看這個工具', '參考這個工具').valid, true);
+  assert.deepEqual(numericTokens('參佰個工具、陸個範例、第參章'), ['300', '6', '3']);
 });

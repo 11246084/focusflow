@@ -224,7 +224,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     try {
       if (!(await ShortAsset.findOne(owner).lean())) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
       await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'short_asset', asset);
-      uploaded = await ShortAsset.findOneAndUpdate(owner, { $set: {
+      uploaded = await ShortAsset.findOneAndUpdate({ ...owner, status: { $ne: 'archived' } }, { $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
         'youtubeUpload.remoteState': 'processing',
@@ -238,7 +238,27 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
       throw error;
     }
-    if (!uploaded) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
+    if (!uploaded) {
+      const current = await ShortAsset.findById(assetId).lean();
+      if (current?.status === 'archived' || current?.consentWithdrawal) {
+        await require('./recutConsentLifecycle.service').quarantineForConsentLoss(current, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+        await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+        throw new AppError('Consent or archival changed while upload completed.', 409, 'RECUT_CONSENT_WITHDRAWN');
+      }
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null;
+    }
+    // A withdrawal can also commit after the preflight check and upload CAS.
+    // Read the current asset before callbacks; either this check compensates it,
+    // or the withdrawal sees its persisted remote ID and schedules privacy work.
+    const current = await ShortAsset.findById(assetId).lean();
+    try {
+      if (current?.status === 'archived' || current?.consentWithdrawal) throw new AppError('Consent or archival changed while upload completed.', 409, 'RECUT_CONSENT_WITHDRAWN');
+      await require('./recutWorkConsent.service').assertAssetConsent(current || uploaded);
+    } catch (error) {
+      await require('./recutConsentLifecycle.service').quarantineForConsentLoss(current || uploaded, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+      throw error;
+    }
     await uploadGate.recordUploadSuccess({ probe }).catch(() => null);
     const checked = await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'short_asset', item: uploaded, fetchImpl, now }).catch(() => null);
     return checked || uploaded;

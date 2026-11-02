@@ -1,6 +1,6 @@
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { resetStore, store, ids } = require('./helpers/backendTestHarness');
+const { resetStore, store, ids, newObjectId, startServer, stopServer, loginAs, jsonRequest } = require('./helpers/backendTestHarness');
 const { makeReview, assetFor, teacher } = require('./helpers/recutReviewFixtures');
 const { seedScript, snapshot } = require('./helpers/recutFixtures');
 const consent = require('../src/services/recutConsent.service');
@@ -144,5 +144,46 @@ describe('RC10與實際排程、worker、發布及撤回整合', () => {
       assert.equal(store.recutRenderJobs[0].status, 'cancelled'); assert.equal(store.shortAssets.length, 1); assert.equal(store.shortAssets[0].status, 'archived');
       await worker.recoverRenderJobs(); assert.equal(store.shortAssets.length, 1); assert.equal(snapshot(f.script).state, 'render_failed');
     } finally { Asset.create = create; if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }
+  });
+  it('gate已過但upload CAS尚未提交時撤回，晚到遠端ID仍留privacy補償', async () => {
+    const { asset } = await rendered(); asset.youtubeVideoId = null; asset.youtubeUpload = { status: null, attemptCount: 0 };
+    const filePath = path.join(env.uploadDir, `test-late-commit-${asset._id}.mp4`); fs.writeFileSync(filePath, 'fake owned mp4'); asset.filePath = filePath;
+    const priorEnabled = env.youtubeUploadEnabled, priorToken = env.youtubeUploadAccessToken;
+    env.youtubeUploadEnabled = true; env.youtubeUploadAccessToken = 'fake-only';
+    let entered, release; const waiting = new Promise((resolve) => { entered = resolve; }); const gate = new Promise((resolve) => { release = resolve; });
+    let mediaCalls = 0;
+    const response = (payload, location) => ({ ok: true, status: 200, json: async () => payload,
+      headers: { get: (key) => key.toLowerCase() === 'location' ? location : null } });
+    const fetchImpl = async (url, options = {}) => {
+      if (String(url).includes('uploadType=resumable')) return response({}, 'https://upload.test/late-commit');
+      if (String(url) === 'https://upload.test/late-commit') { mediaCalls++; for await (const chunk of options.body) assert.ok(chunk.length);
+        return response({ id: 'fake-after-gate', status: { privacyStatus: 'unlisted' } }); }
+      throw new Error('Unexpected fake upload request');
+    };
+    store.beforeShortAssetCompareAndSwap = async (_query, change) => { if (change.$set?.youtubeVideoId === 'fake-after-gate') { entered(); await gate; } };
+    try {
+      const uploading = publish.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl }); await waiting;
+      await consent.withdraw(input({ kind: 'voice', requestId: 'late-commit', selectedAssetIds: [String(asset._id)] }));
+      assert.equal(asset.status, 'archived'); assert.equal(asset.consentWithdrawal.privateRequired, false);
+      privacyFails = true; release(); await assert.rejects(uploading, { code: 'RECUT_CONSENT_WITHDRAWN' });
+      assert.equal(asset.youtubeVideoId, 'fake-after-gate'); assert.equal(asset.consentWithdrawal.privateRequired, true);
+      assert.ok((await lifecycle.listManualAssetActions()).some((item) => item.assetId === String(asset._id)));
+      const notices = store.notifications.length; await lifecycle.recoverAssetPrivacy(); assert.equal(store.notifications.length, notices);
+      privacyFails = false; await lifecycle.recoverAssetPrivacy(); assert.equal(asset.youtubePrivacyStatus, 'private');
+      assert.equal(asset.consentWithdrawal.privateRequired, false); assert.equal(mediaCalls, 1);
+    } finally { store.beforeShortAssetCompareAndSwap = null; env.youtubeUploadEnabled = priorEnabled; env.youtubeUploadAccessToken = priorToken; if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }
+  });
+  it('真HTTP管理員待辦包含Asset晚到補償，非管理員拒絕', async () => {
+    const asset = { _id: newObjectId(), courseId: ids.teacherCourse, generationVersion: 1, status: 'draft', youtubeVideoId: 'fake-manual-only' };
+    store.shortAssets.push(asset); privacyFails = true; await lifecycle.quarantineAsset(asset);
+    assert.deepEqual(await consent.listManualActions({ user: { id: ids.admin, role: 'admin' } }), []);
+    const { server, baseUrl } = await startServer();
+    try {
+      const adminToken = await loginAs(baseUrl, 'admin@focusflow.local', 'Admin123!');
+      const result = await jsonRequest(baseUrl, '/api/v1/admin/recut-consent/manual-actions', { token: adminToken });
+      assert.equal(result.status, 200); assert.ok(result.body.data.some((item) => item.assetId === String(asset._id) && item.manualActionRequired));
+      const teacherToken = await loginAs(baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+      assert.equal((await jsonRequest(baseUrl, '/api/v1/admin/recut-consent/manual-actions', { token: teacherToken })).status, 403);
+    } finally { await stopServer(server); }
   });
 });

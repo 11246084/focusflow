@@ -15,4 +15,5 @@ it('ordinary lexical uses do not invent quantity one or ten million', () => {
   assert.equal(validate('工具', '一起看工具').valid, true);
   assert.deepEqual(numericTokens('參考參數及陸地'), []); assert.equal(validate('看這個工具', '參考這個工具').valid, true);
   assert.deepEqual(numericTokens('參佰個工具、陸個範例、第參章'), ['300', '6', '3']);
+  for (const text of ['價格陸圓', '距離伍公里', '數量是陸']) assert.equal(validate('工具', text).valid, false);
 });

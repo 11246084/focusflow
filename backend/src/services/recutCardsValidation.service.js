@@ -35,10 +35,13 @@ function numericTokens(text) {
   for (const match of input.matchAll(pattern)) {
     if (match[7] && /^[+負正-]?[壹貳參肆伍陸柒捌玖]$/.test(match[7])) {
       const before = input.slice(0, match.index), after = input.slice(match.index + match[0].length);
-      // Financial digits are also ordinary word characters (參考/參數/陸地).
-      // A single such character needs a numeric boundary, ordinal or unit.
-      if (!match[8] && !/第\s*$/.test(before) && !/^(個|件|次|項|步|種|台|支|秒|分|時|天|年|月|週|元|人|行|列|組|層|段|套|門|張|筆|倍|成|折|維|位|度)/.test(after)
-        && (/\p{Script=Han}/u.test(after[0] || '') || /\p{Script=Han}/u.test(before.at(-1) || ''))) continue;
+      // Exempt recognized lexical compounds, not unknown units or bare values.
+      // Thus 參考/陸地 are words, while 陸圓/伍公里/數量是陸 remain numbers.
+      const digit = match[7].replace(/^[+負正-]/, '');
+      const lexical = (digit === '參' && /^(考|數|照|與|加|訪|賽|見|拜|會|展|謀)/.test(after))
+        || (digit === '陸' && (/^(地|續|路|軍|海|空|戰|運)/.test(after) || /[大登著內]$/.test(before)))
+        || (digit === '伍' && /隊$/.test(before)) || (digit === '肆' && /^(虐|意)/.test(after));
+      if (!match[8] && !/第\s*$/.test(before) && lexical) continue;
     }
     if (match[1]) result.push(`${numberValue(match[1])}%`);
     else if (match[2]) result.push(`${numberValue(match[2])}‰`);

@@ -58,5 +58,7 @@ it('concrete capture never allows review to silently correct an intentional clas
   assert.equal(r.http.length, 0);
   const known = setup(), k = context(); k.source.sentences[0].text = '第1行故意寫錯給你們看';
   const result = await known.runtime.codeCardHandler({ ...k, source: k.source, scene });
-  assert.equal(result.component, 'code'); assert.equal(result.params.lines[0].intentionalError, true);
+  assert.equal(result.component, 'quote-reveal'); assert.equal(known.http.length, 0);
+  const warning = setup(), w = context(); w.source.sentences[0].text = '這行會出錯';
+  assert.equal((await warning.runtime.codeCardHandler({ ...w, source: w.source, scene })).component, 'quote-reveal'); assert.equal(warning.http.length, 0);
 });

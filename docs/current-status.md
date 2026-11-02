@@ -107,4 +107,16 @@
 
 shared backend 已以 `b73ed48` 接上同意閘門、撤回實際取消／封存／轉私人待辦與通知、harness 及跨模組測試。跨模組撤回 6／6 通過，包含未選中已發布成品保留、選中成品封存、管理員去重通知，以及發布 CAS／YouTube 已送 bytes／渲染成品建立三種交錯。factory 4／4 含真 HTTP controller（缺配置 503、配置後生成及建議重跑）與 runtime factory 接 RC2～RC4 三次 fake 判斷。shared／worker／queue／契約 targeted 63／63、OpenAPI lint 通過；上傳／批次／短片回歸 115 項中 114 項通過，唯一舊 fixture 缺少新課程同意已補成真 HTTP「409 → 明確同意 → 201」，其後該項與最新撤回增量 7／7 通過。尚未以完整新一輪全套取代上述分段證據。
 
-最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 獨立審查 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產，另一 owner 已完成限定檔案／工具預檢；實際 Gemini 額度仍待具體估算與當次授權，Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。
+最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 修後獨立複驗 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產；本輪教授試產 owner 回報重新執行 CPU small ASR 成功（45.03 秒、441 個有效 word、24 句），優先使用這份新辨識結果。較早 CPU／GPU 記憶體錯誤與 `legacy-cached-20261014` 快取仍為歷史紀錄，不把快取說成本次 ASR 成功。使用者另已授權單題 Gemini 費用不超過 US$0.50，後續試產固定 `gemini-3.8-flash`、最多 5 次、每次 output 4096，不傳原始影片且不使用備援模型；此處記錄授權，尚不表示模型已呼叫。Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。
+
+### shared backend 五項初審問題的修後檢查點
+
+| 初審問題 | 本輪處理與證據 | 尚待 |
+|---|---|---|
+| feed 過濾後空頁拋錯、後方有效成品遺漏 | `dd57410` 持續掃描到滿頁或耗盡；新回歸 2／2 通過 | 非作者複驗 |
+| 真 Mongo 隱藏 leaseHash 使撤回取消失敗 | `fa2995e` 明確 select 隱藏欄位；專用 `127.0.0.1:27029` 真 Mongo leased／completing 取消與原有 fencing 共 6／6 通過 | 非作者複驗 |
+| 舊過期快照覆蓋已續期 worker 租約 | `fa2995e` 在逾期恢復 CAS 加原到期時間與過期條件；gated heartbeat 回歸及 worker 16／16 通過 | 非作者複驗 |
+| 晚到成品不出現在管理員待辦 API | 當前 route 已合併 core actions 與 Asset 待辦；`a3533ef` 真 HTTP 驗證管理員 200 含該筆、教師 403。直接呼叫 core service 的空結果不能代表 route 缺接線 | 非作者確認初審是否撤回 |
+| 同意 gate 之後、上傳 CAS 之前撤回留下 unlisted | `a3533ef` 上傳 CAS 排除 archived，CAS 後重讀，晚到 ID 留持久補償；新增 gated promise、privacy 失敗通知與恢復，撤回整合 8／8 通過 | 非作者複驗 |
+
+上述 fake worker／撤回共 24／24 及真 Mongo 6／6 為修復作者本輪驗證，尚未宣稱獨立審查通過。pipeline 四筆初審修正已合入 `51e7f16f`、`474921fc`、`c7382504`、`304a6c8b`；教授裸影片 bootstrap 與後續 trial guard 由原 owner 接續。工作樹內前端交接文件由另一 owner 維護，不能因 shared 修復完成就稱正式教師 UI 可用。

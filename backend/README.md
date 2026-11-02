@@ -81,6 +81,39 @@ recut 成品核准、YouTube ready 與 worker 租約介面見 [審閱與worker�
 
 以下工具把兩門指定課程的資料複製到本機，再從既有候選腳本試產一題。開發驗證只用假的模型、媒體與資料庫；實際唯讀 Atlas、呼叫 Gemini 或渲染，須當次授權並確認課程、筆數及呼叫額度。工具不載入 `.env`，連線與金鑰只從指令明確指定的環境變數名稱取得，不輸出其值。
 
+### 從本機影片建立獨立試產資料
+
+沒有既有課程／候選腳本時，使用 `recutBootstrapTrial.js`，不需要 Atlas。準備 JSON：
+
+```json
+{
+  "trialId": "professor-siri",
+  "videoPath": "D:/local/professor-5.mp4",
+  "allowedRoot": "D:/local",
+  "topic": "Siri 如何處理問題？",
+  "startSec": 942,
+  "endSec": 1075,
+  "sourceSnapshotCache": "D:/local/fresh-source-snapshot.json",
+  "authorization": {
+    "scope": "local-trial-only",
+    "originalAudio": true,
+    "reference": "本次使用者允許教授影片的本機試產，尚未完成正式內容同意驗收"
+  }
+}
+```
+
+`trialId` 只接受小寫英數與連字號；目標必須是 loopback 的專用 `recut_trial_<trialId>` DB。視窗須為連續 120～180 秒；程式檢查影片路徑、SHA-256 與明確本機目錄。這只是試產範圍，不會授權發布或宣稱教授內容同意已驗收。
+
+```powershell
+node src/scripts/recutBootstrapTrial.js --input D:/AI-workspace/recut/import.json --target-uri-env RECUT_LOCAL_URI
+# 明確允許建立本機試產資料後才執行；不呼叫模型、ASR 或渲染
+node src/scripts/recutBootstrapTrial.js --input D:/AI-workspace/recut/import.json --target-uri-env RECUT_LOCAL_URI --execute --output D:/AI-workspace/recut/prepared
+```
+
+預設 dry-run 不連 DB、不寫檔、不取密碼。`--execute` 只以 insert-only 建立獨立測試教師、課程、影片、手動視窗、候選腳本與授權紀錄，產生後續單題所需的 `topic.json`；重跑不覆寫本機審閱。測試信箱為 `recut-<trialId>@trial.invalid`，預設隨機密碼只雜湊保存、不印出；若首次建立即需要網頁登入，可明確加 `--teacher-password-env RECUT_TRIAL_PASSWORD` 從具名變數取初始密碼。不要在對話、JSON 或命令列貼密碼；重跑不重設既有密碼，也不修改正式帳戶。
+
+`sourceSnapshotCache` 可省略，省略時不捏造逐字稿，後續才執行 RC2 ASR。提供時須是明確的 JSON 快照：`sourceSha256`、`transcriptVersion`、`asrProvenance`、`window.startSec/endSec/segments`、`sentences`、`excludedSentenceIds`。快照需與影片 SHA／視窗相符；保留 fresh ASR 或歷史快取的來源說明，不把歷史快取冒充新辨識。本機 chunk 標籤另加試產 namespace。後續 runtime 仍檢查原片與音量，重新核對 SHA，但不重跑 ASR；截斷邊界句由選段驗證器拒選。沒有模型生成或人工核聽證據時，仍不能稱完成試片或人工驗收。
+
 在 backend 目錄執行。先確認本機已有 `mongo:7`，沒有時停止，不拉取映像檔；啟動與停止不刪具名資料卷：
 
 ```powershell
@@ -116,6 +149,29 @@ node src/scripts/recutSingleTopic.js --input D:/AI-workspace/recut/topic.json --
 字幕數字對證將阿拉伯／全形／中文數詞正規化後，逐句比對來源，保留正負、小數、百分比與分數的區別；例如「1 個」可改寫為「一個」，不能改為「九百九十九個」。一般詞語「一起／一般／一樣」不當成數量；這層不取代整段語意檢查。可信度修正後也須保留同一個共用池的整段複檢額度，不能只通過 renderer 結構驗證就保存版本。
 
 API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `decide`、renderer、`sourceOptions.media`、設定轉接及 `missing` 清單，可交給 `createRecutPipeline(...).register(queue)`。建構時不啟動資料庫、程序或模型；provider 與 `probe/decode/measure/transcribe` 不足時明確拒絕。單題工具另用原生 MongoDB driver，避免啟動 Mongoose autoIndex。課程範圍複製採固定集合與原子 insert-only upsert：同 `_id` 的本機文件一律保留，重跑不覆寫教師修改、recut 版次或核准。dry-run 唯讀比較來源與本機，分列 `existing`、`wouldInsert`；執行後另列實際 `inserted`。相較整庫 dump 可避免帶入無關資料，但不搬媒體檔與帳號，寫入中斷可能留下部分本機資料，須修正後重跑，不能當完整備份使用。
+
+### 有當次金額上限的文字試片
+
+試片 runtime JSON 可明確提供 `trialPolicy`，不改產品的全域模型。例：本次核准模型為 `gemini-3.8-flash` 時，設定 `model: {"provider":"gemini","model":"gemini-3.8-flash"}`、`callLimit:5`、`maxOutputTokens:4096`、`thinkingLevel:"low"`、`codeCards:{"enabled":false}`，另設：
+
+```json
+{
+  "trialPolicy": {
+    "modelId": "gemini-3.8-flash",
+    "maxCalls": 5,
+    "maxRequestBytes": 100000,
+    "maxOutputTokens": 4096,
+    "budgetUsd": 0.50,
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 3.75,
+    "validUntil": "2026-12-31"
+  }
+}
+```
+
+這組價格是 2026-11-02 當次試片的明確輸入範例，來源為 [Gemini 3.8 官方說明](https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.8)；未來執行須重新查證並取得該次授權。provider 在每次外呼前核對固定模型、完整 request body 的 UTF-8 bytes、最多呼叫數、輸出上限及累計保守預留金額。用 bytes 作 input token 上界，以上設定的最壞預留為 US$0.4518；這是預留估計，實付仍依回傳 token 與注入價目計算。價格期限過期、缺設定或超額就停，不切模型。
+
+此模式只傳 stage 所需的題目、逐字稿、卡片／施工單與 schema，禁止圖片、原片、工具／grounding、帳戶／密碼、runtime／環境物件及本機媒體路徑。provider 保留 `generateContent`，使用官方 [ThinkingConfig REST 欄位](https://ai.google.dev/api/generate-content#thinkingconfig) 的 `thinkingConfig.thinkingLevel: "LOW"`，不送 `thinkingBudget` 或已移除的 sampling 參數；3.8 不接受 minimal。模型 404 或權限不足會明確失敗，不能以付費試探不同 API 或靜默換模型。`settingsSnapshot`、request 的 `requestedModelId` 與實際請求 URL 都保留當次固定模型。
 
 ### 十題技術試跑與統計
 

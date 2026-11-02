@@ -99,8 +99,10 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       if (!hitRows.length || !video || !(video.filePath || video.file_path)) throw safe('RECUT_SOURCE_UNAVAILABLE');
       const aliases = [String(video._id), video.videoId, video.video_id].filter(Boolean);
       const segments = await db.collection('video_segments_text').find({ videoId: { $in: aliases } }).toArray();
+      const cachedSource = script.localTrialSourceId ? await find('recutsources', script.localTrialSourceId) : null;
+      if (script.localTrialSourceId && (!cachedSource || String(cachedSource.scriptId) !== String(script._id) || String(cachedSource.videoId) !== String(video._id))) throw safe('RECUT_SOURCE_CACHE_INVALID');
       return { script, video: { ...video, filePath: video.filePath || video.file_path },
-        hits: hitRows.map((h) => ({ ...h, videoId: String(video._id) })), segments: segments.map((s) => ({ ...s, videoId: String(video._id) })) };
+        cachedSource, hits: hitRows.map((h) => ({ ...h, videoId: String(video._id) })), segments: segments.map((s) => ({ ...s, videoId: String(video._id) })) };
     }),
     persistLocal: guarded(async ({ result, input }) => {
       const script = await find('shortscripts', input.scriptId);

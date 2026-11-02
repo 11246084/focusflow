@@ -16,9 +16,16 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
   const algorithms = () => sourceAlgorithms || require('./recutSourceAlgorithms.service');
   const sourceSteps = [
     { id: 'recut-window-v1', stage: 'sourceCheck', run: async ({ task }) => {
-      const { script, video, hits, segments } = await local.loadInputs(task);
-      return { topic: script.topic, sourceWindow: algorithms().expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath,
-        transcriptVersion: video.activeTranscriptVersion || 'legacy' };
+      const { script, video, hits, segments, cachedSource } = await local.loadInputs(task);
+      let sourceWindow = algorithms().expandContinuousWindow({ hits, segments });
+      if (cachedSource) {
+        if (typeof options.verifyCachedSource !== 'function') throw fail('快取必須重新核對來源指紋。', 'RECUT_SOURCE_CACHE_INVALID');
+        await options.verifyCachedSource(cachedSource, video.filePath);
+        if (cachedSource.startSec !== sourceWindow.startSec || cachedSource.endSec !== sourceWindow.endSec) throw fail('快取視窗不符。', 'RECUT_SOURCE_CACHE_INVALID');
+        sourceWindow = { ...sourceWindow, hitChunkIds: cachedSource.hitChunkIds || [], hitRanges: [], segments: cachedSource.transcriptChunks || [] };
+      }
+      return { topic: script.topic, sourceWindow, sourceVideoId: String(video._id), sourcePath: video.filePath, cachedSource,
+        transcriptVersion: cachedSource?.transcriptVersion || video.activeTranscriptVersion || 'legacy' };
     } },
     { id: 'recut-source-check-v1', stage: 'sourceCheck', run: async ({ data, checkCancelled }) => {
       const results = algorithms().inspectProbe(await adapters.media.probe(data.sourcePath), data.sourceWindow);
@@ -26,10 +33,12 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
       const audio = algorithms().calculateFixedGain(await adapters.media.measure(data.sourcePath, data.sourceWindow));
       return { sourceCheck: { passed: true, results: { ...results, decodable: true }, checkedAt: new Date() }, audio };
     } },
-    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => ({ rawWords: await adapters.media.transcribe(data.sourcePath, data.sourceWindow) }) },
+    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => data.cachedSource ? { rawWords: null } : { rawWords: await adapters.media.transcribe(data.sourcePath, data.sourceWindow) } },
     { id: 'recut-sentences-v1', stage: 'sourceCheck', run: async ({ task, data }) => {
       const source = await local.saveSource({ ...data.sourceWindow, scriptId: task.scriptId, videoId: data.sourceVideoId,
-        transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments, sentences: algorithms().splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
+        transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments,
+        ...(data.cachedSource ? { sourceSha256: data.cachedSource.sourceSha256, asrProvenance: data.cachedSource.asrProvenance, excludedSentenceIds: data.cachedSource.excludedSentenceIds || [] } : {}),
+        sentences: data.cachedSource?.sentences || algorithms().splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
       return { sourceId: String(source._id) };
     } },
   ];
@@ -40,10 +49,15 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
     const sourceKey = String(source._id);
     if (!frozenSelectionInputs.has(sourceKey)) frozenSelectionInputs.set(sourceKey, structuredClone({ question: script.topic,
       variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map(({ question, askCount }) => ({ question, askCount })),
-      sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words })) }));
+      sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words,
+        ...((source.excludedSentenceIds || []).includes(s.id) ? { selectionAllowed: false, exclusionReason: '來源快照視窗邊界截斷，禁止選入' } : {}) })) }));
     const result = await retryDecision(context, { decide: adapters.decide, instructions: prompt.INSTRUCTIONS, responseSchema: prompt.responseSchema,
       input: { ...structuredClone(frozenSelectionInputs.get(sourceKey)), errors: context.data.repairIssues || [] },
-      validate: (output) => validateSelection(source, output) });
+      validate: (output) => {
+        const result = validateSelection(source, output);
+        if (result.valid && result.clips.some((clip) => clip.sentenceIds.some((id) => (source.excludedSentenceIds || []).includes(id)))) return { valid: false, errors: ['不可選入已標示截斷的邊界句。'] };
+        return result;
+      } });
     const value = { sourceId: String(source._id), selection: result.selection, selectionResult: result, fullScript: result.fullScript, modelId: context.task.settingsSnapshot.model.model };
     if (!result.selection.answerable) value.version = { sourceId: value.sourceId, selection: result.selection, fullScript: '', plan: null, modelId: value.modelId, shortRenderVersion: 'not-rendered' };
     return value;

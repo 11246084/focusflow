@@ -5,10 +5,14 @@ const { createRecutLocalRuntime, createRecutRenderAdapter } = require('./recutLo
 const { createRecutLocalRepository } = require('./recutCopyRuntime.service');
 const { createRecutMediaAdapter } = require('./recutRuntimeAdapters.service');
 const { fail } = require('./recutRuntime.service');
+const { hashLocalFile, validateSnapshotCache } = require('./recutSnapshotCache.service');
 
 async function createCliRuntime({ config, input, output, targetUri, allowModel = false, env = process.env, driverLoader, run } = {}) {
   if (!allowModel) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
   if (!/^[A-Z][A-Z0-9_]*$/.test(config?.geminiApiKeyEnv || '')) throw fail('須指定金鑰環境變數名稱。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+  if (!env[config.geminiApiKeyEnv]) throw fail(`缺少具名環境變數：${config.geminiApiKeyEnv}`, 'RECUT_PROVIDER_NOT_CONFIGURED');
+  const fixedModel = structuredClone(input.model || config.model), fixedCallLimit = input.callLimit || config.callLimit || 5;
+  if (config.trialPolicy && (fixedModel?.model !== config.trialPolicy.modelId || fixedCallLimit > config.trialPolicy.maxCalls || config.codeCards?.enabled)) throw fail('本次試片模型、額度或媒體政策不符。', 'RECUT_TRIAL_POLICY_INVALID');
   const repository = createRecutLocalRepository({ targetUri, driverLoader });
   if (!path.isAbsolute(config.media?.allowedRoot || '') || /^[\\/]{2}/.test(config.media.allowedRoot)) throw fail('須指定本機原片目錄。', 'RECUT_SOURCE_UNAVAILABLE');
   const root = await fs.realpath(config.media.allowedRoot);
@@ -41,8 +45,16 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
         env: { HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_BROWSER_PATH: config.browserExecutable }, timeout: 3600000, maxBuffer: 16 * 1024 * 1024 });
     },
     ensureFontLoaded: (args) => require('../../../short_render/src/render/browser').ensureFontLoaded({ ...args, browserExecutable: config.browserExecutable }) });
-  const runtime = createRecutLocalRuntime({ repository, targetUri, model: input.model || config.model, callLimit: input.callLimit || config.callLimit || 5,
-    gemini: { apiKey: env[config.geminiApiKeyEnv], maxOutputTokens: config.maxOutputTokens || 4096 }, media, allowModel: true, renderLocal,
+  const runtime = createRecutLocalRuntime({ repository, targetUri, model: fixedModel, callLimit: fixedCallLimit,
+    getSetting: (key) => {
+      if (key === 'recut.geminiModel') return structuredClone(fixedModel);
+      if (['recut.initialCallLimit', 'recut.modificationCallLimit'].includes(key)) return fixedCallLimit;
+      throw new TypeError('RECUT_SETTING_INVALID');
+    }, captureSettings: () => ({ model: structuredClone(fixedModel), callLimit: fixedCallLimit, initialCallLimit: fixedCallLimit, modificationCallLimit: fixedCallLimit }),
+    gemini: { apiKey: env[config.geminiApiKeyEnv], maxOutputTokens: config.maxOutputTokens || 4096, thinkingLevel: config.thinkingLevel,
+      trialPolicy: config.trialPolicy, forbiddenValues: [root] }, media, allowModel: true, renderLocal,
+    verifyCachedSource: async (source, file) => validateSnapshotCache({ ...source, window: { startSec: source.startSec, endSec: source.endSec } },
+      { sourceSha256: await hashLocalFile(await resolveSource(file)), startSec: source.startSec, endSec: source.endSec }),
     codeCards: config.codeCards?.enabled ? { enabled: true, ...workspaces, run: execute, ffmpeg: config.media.ffmpeg,
       resolveSourcePath: repository.resolveSourcePath, resolveSource, readFile: fs.readFile } : undefined });
   if (runtime.missing.length) throw fail('試產工具設定不足。', 'RECUT_STEPS_NOT_CONFIGURED');

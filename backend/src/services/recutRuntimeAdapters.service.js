@@ -2,22 +2,27 @@
 const { fail } = require('./recutRuntime.service');
 const path = require('node:path');
 
-function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096 } = {}) {
+function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096, thinkingLevel, trialPolicy, forbiddenValues = [], now } = {}) {
+  const guard = trialPolicy ? require('./recutTrialGuard.service').createRecutTrialGuard(trialPolicy, { forbiddenValues: [apiKey, ...forbiddenValues], now }) : null;
   return async ({ model, instructions, input, responseSchema, images = [] }) => {
     if (!apiKey || model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '')) throw fail('模型設定不足。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+    if (trialPolicy && model.model !== trialPolicy.modelId) throw fail('試片模型與核准設定不符。', 'RECUT_TRIAL_MODEL_MISMATCH');
     if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 128 || maxOutputTokens > 16384 || !Array.isArray(images) || images.length > 3
       || images.some((image) => !['image/png', 'image/jpeg'].includes(image?.mimeType) || typeof image.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data) || image.data.length > 3 * 1024 * 1024)) throw fail('模型圖片或輸出上限無效。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+    if (thinkingLevel && (!/^gemini-[34](?:\.|-)/.test(model.model) || !['LOW', 'MEDIUM', 'HIGH'].includes(String(thinkingLevel).toUpperCase()))) throw fail('模型思考層級設定不相容。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+    const body = JSON.stringify({ systemInstruction: { parts: [{ text: instructions }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify(input) }, ...images.map((image) => ({ inlineData: image }))] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema, maxOutputTokens, ...(thinkingLevel ? { thinkingConfig: { thinkingLevel: String(thinkingLevel).toUpperCase() } } : {}) } });
+    const reservation = guard?.reserve({ modelId: model.model, input, images, body, maxOutputTokens });
     try {
       const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.model)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(timeoutMs),
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: instructions }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify(input) }, ...images.map((image) => ({ inlineData: image }))] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema, maxOutputTokens } }),
+        body,
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error('provider');
-      return { output: body.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '',
-        modelId: body.modelVersion || model.model, usageMetadata: body.usageMetadata || null };
-    } catch { throw fail('模型呼叫失敗。', 'RECUT_MODEL_FAILED'); }
+      const payload = await response.json();
+      if (!response.ok) throw fail('模型呼叫遭拒絕。', response.status === 404 ? 'RECUT_MODEL_UNAVAILABLE' : [401, 403].includes(response.status) ? 'RECUT_PROVIDER_PERMISSION_DENIED' : 'RECUT_MODEL_FAILED');
+      return { output: payload.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text || '').join('') || '',
+        modelId: payload.modelVersion || model.model, usageMetadata: payload.usageMetadata || null, ...(reservation ? { trialRequest: reservation } : {}) };
+    } catch (error) { throw fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED'); }
   };
 }
 

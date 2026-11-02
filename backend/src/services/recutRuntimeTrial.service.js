@@ -64,6 +64,7 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
     renderDurationMs = Date.now() - started;
   }
   const result = { dryRun: false, state: data.version.selection.answerable ? 'script_review' : 'unanswerable',
+    settingsSnapshot: structuredClone(task.settingsSnapshot), sharedCallLimit: callLimit,
     version: data.version, initialSelection, suggestions: data.suggestions || [], asset, renderDurationMs, callsUsed: task.callsUsed, attempts };
   if (persistLocal) {
     if (!targetUri) throw fail('寫入本機資料庫前必須指定目標。', 'RECUT_LOCAL_DB_REQUIRED');

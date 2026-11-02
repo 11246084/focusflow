@@ -62,3 +62,12 @@ it('concrete capture never allows review to silently correct an intentional clas
   const warning = setup(), w = context(); w.source.sentences[0].text = '這行會出錯';
   assert.equal((await warning.runtime.codeCardHandler({ ...w, source: w.source, scene })).component, 'quote-reveal'); assert.equal(warning.http.length, 0);
 });
+
+for (const narration of ['第1行會出錯', '第十二行會出錯', '第 2 行可能出錯', '這一行就會出錯', '會出錯', '可能出錯', '這樣會有錯誤']) {
+  it(`intentional error warning fails closed without correcting code: ${narration}`, async () => {
+    const r = setup(), c = context(); c.source.sentences[0].text = narration;
+    const result = await r.runtime.codeCardHandler({ ...c, source: c.source,
+      scene: { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } } });
+    assert.equal(result.component, 'quote-reveal'); assert.equal(r.http.length, 0);
+  });
+}

@@ -1,7 +1,8 @@
 'use strict';
 const { it } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGeminiProvider } = require('../src/services/recutRuntimeAdapters.service');
+const { createGeminiProvider, createRecutRuntimeAdapters } = require('../src/services/recutRuntimeAdapters.service');
+const { runSingleTopicTrial } = require('../src/services/recutRuntimeTrial.service');
 const { createRecutTrialGuard } = require('../src/services/recutTrialGuard.service');
 const policy = () => ({ modelId: 'gemini-3.8-flash', maxCalls: 5, maxRequestBytes: 100000, maxOutputTokens: 4096,
   budgetUsd: 0.5, inputPerMillion: 0.75, outputPerMillion: 3.75, validUntil: '2026-12-31' });
@@ -59,4 +60,25 @@ it('byte-based reservation upper bound and explicit prices remain estimates, wit
     await assert.rejects(r.provider(request()), (e) => e.code === (status === 404 ? 'RECUT_MODEL_UNAVAILABLE' : 'RECUT_PROVIDER_PERMISSION_DENIED') && !e.message.includes('SECRET'));
     assert.equal(calls, 1);
   }
+});
+it('timeout/JSON/403 failures retain reservations and do not refund the five-call guard', async () => {
+  for (const mode of ['timeout', 'json', '403']) {
+    let calls = 0;
+    const r = setup({ fetchImpl: async () => { calls++;
+      if (mode === 'timeout') throw new Error('PRIVATE_TIMEOUT_DETAIL');
+      return { ok: mode !== '403', status: 403, json: async () => { if (mode === 'json') throw new Error('PRIVATE_JSON_DETAIL'); return {}; } };
+    } });
+    for (let i = 1; i <= 5; i++) await assert.rejects(r.provider(request()), (e) => e.trialRequest?.trialModelCalls === i && e.trialRequest.cumulativeBudgetReservationUsd > 0 && !e.message.includes('PRIVATE'));
+    await assert.rejects(r.provider(request()), { code: 'RECUT_TRIAL_CALL_LIMIT' }); assert.equal(calls, 5);
+  }
+});
+it('failed single-topic run preserves safe request reservations through decision and attempt wrappers', async () => {
+  const runtime = createRecutRuntimeAdapters({ allowModel: true, gemini: { apiKey: 'PRIVATE_KEY_SENTINEL', trialPolicy: policy(), now: () => new Date('2026-11-03T00:00:00Z'),
+    fetchImpl: async () => { throw new Error('PRIVATE_TIMEOUT_SENTINEL'); } } });
+  const pipeline = { generate: [{ id: 'decision', stage: 'selection', run: async (context) => context.runAttempt({ consumesCall: true, modelId: 'gemini-3.8-flash', execute: () => runtime.decide(request()) }) }] };
+  await assert.rejects(runSingleTopicTrial({ pipeline, model: request().model, allowModel: true }), (error) => {
+    const attempt = error.trial.attempts.find((a) => a.consumesCall);
+    assert.equal(attempt.trialRequest.trialModelCalls, 1); assert.ok(attempt.trialRequest.requestBodyBytes > 0);
+    assert.ok(!JSON.stringify(error.trial).includes('PRIVATE_')); return true;
+  });
 });

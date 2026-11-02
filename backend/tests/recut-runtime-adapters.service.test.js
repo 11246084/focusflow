@@ -38,6 +38,15 @@ it('explicit media adapter preserves RC2 signatures and forces offline ASR', asy
   await adapter.transcribe('D:/source', { startSec: 1, endSec: 5 });
   assert.equal(calls.at(-1)[2].env.HF_HUB_OFFLINE, '1'); assert.equal(clean, true);
 });
+it('media adapter records explicit extraction evidence and preserves the final zero token instead of inventing time', async () => {
+  const adapter = createRecutMediaAdapter({ run: async () => ({}), ffmpeg: 'fake', ffprobe: 'fake', python: 'fake', transcriber: 'fake', asrModel: 'local',
+    resolveSource: async (s) => s, createWorkspace: async () => 'D:/fake', removeWorkspace: async () => {},
+    readJson: async () => [{ w: '原話。', s: 0, e: 1 }, { w: '到', s: 132.98, e: 132.98 }] });
+  const result = await adapter.transcribe('D:/source', { startSec: 942, endSec: 1075 });
+  assert.equal(result.words.length, 1); assert.equal(result.excludeLastSentence, true);
+  assert.equal(result.asrProvenance.boundaryEvidence.kind, 'ffmpeg-explicit-window-extraction');
+  assert.equal(result.asrProvenance.boundaryEvidence.humanConfirmedTruncation, false);
+});
 it('native local runtime follows actual RC2→RC3→RC4 and persists RC8 version plus rendered asset', async () => {
   const f = fixture(), order = []; const selection = { ...f.selection }; delete selection.lockedSentenceIds;
   let stored, topic = 'OpenCV', responses = [selection, f.cards, { issues: [] }]; const questions = [];

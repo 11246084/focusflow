@@ -114,6 +114,8 @@ node src/scripts/recutBootstrapTrial.js --input D:/AI-workspace/recut/import.jso
 
 `sourceSnapshotCache` 可省略，省略時不捏造逐字稿，後續才執行 RC2 ASR。提供時須是明確的 JSON 快照：`sourceSha256`、`transcriptVersion`、`asrProvenance`、`window.startSec/endSec/segments`、`sentences`、`excludedSentenceIds`。快照需與影片 SHA／視窗相符；保留 fresh ASR 或歷史快取的來源說明，不把歷史快取冒充新辨識。本機 chunk 標籤另加試產 namespace。後續 runtime 仍檢查原片與音量，重新核對 SHA，但不重跑 ASR；截斷邊界句由選段驗證器拒選。沒有模型生成或人工核聽證據時，仍不能稱完成試片或人工驗收。
 
+新辨識路徑也保留逐字正規化證據：只有已成功抽取明確視窗、最後一字為有限 `s===e` 且位於窗尾 50ms 內，才排除該零長度字，保存原始逐字 SHA、排除字／時間／原因與抽取範圍；不補造時間。整個最後句禁選，若另有明確窗頭截斷證據也禁首句。這是保守邊界警告，不代表人工確認截斷；內部零長度、倒序、重疊、超窗或缺少抽取證據仍直接失敗。共用 API／人工編輯的持久排除檢查須由 shared source／schema 整合完成後，才可把同一快照交給網頁審閱與正式試產。
+
 在 backend 目錄執行。先確認本機已有 `mongo:7`，沒有時停止，不拉取映像檔；啟動與停止不刪具名資料卷：
 
 ```powershell

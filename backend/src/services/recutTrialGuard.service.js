@@ -33,4 +33,10 @@ function createRecutTrialGuard(policy, { forbiddenValues = [], now = () => new D
     return { requestedModelId: modelId, requestBodyBytes: bytes, trialModelCalls: calls, budgetReservationUsd: reservationUsd, cumulativeBudgetReservationUsd: reservedUsd, reservationOnly: true };
   } };
 }
-module.exports = { createRecutTrialGuard };
+function safeTrialRequest(value) {
+  if (!value || !/^[\w.-]+$/.test(value.requestedModelId || '')) return undefined;
+  return { requestedModelId: value.requestedModelId, reservationOnly: true,
+    ...Object.fromEntries(['requestBodyBytes', 'trialModelCalls', 'budgetReservationUsd', 'cumulativeBudgetReservationUsd']
+      .filter((key) => Number.isFinite(value[key]) && value[key] >= 0).map((key) => [key, value[key]])) };
+}
+module.exports = { createRecutTrialGuard, safeTrialRequest };

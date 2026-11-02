@@ -40,7 +40,10 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
           await checkCancelled();
           if (response.validation?.valid === false) throw fail('此步驟未通過驗證。');
           attempt.status = 'succeeded'; return response.output;
-        } catch (error) { attempt.status = error.code === 'RECUT_TASK_CANCELLED' ? 'discarded' : 'failed'; attempt.error = { code: error.code || 'RECUT_TRIAL_FAILED' }; throw error; }
+        } catch (error) { attempt.status = error.code === 'RECUT_TASK_CANCELLED' ? 'discarded' : 'failed'; attempt.error = { code: error.code || 'RECUT_TRIAL_FAILED' };
+          const trialRequest = require('./recutTrialGuard.service').safeTrialRequest(error.trialRequest);
+          if (trialRequest) attempt.trialRequest = trialRequest;
+          throw error; }
         finally { attempt.finishedAt = new Date().toISOString(); attempt.durationMs = Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt); }
       } });
       Object.assign(data, result);

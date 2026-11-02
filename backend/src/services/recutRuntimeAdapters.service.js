@@ -22,7 +22,11 @@ function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 12
       if (!response.ok) throw fail('模型呼叫遭拒絕。', response.status === 404 ? 'RECUT_MODEL_UNAVAILABLE' : [401, 403].includes(response.status) ? 'RECUT_PROVIDER_PERMISSION_DENIED' : 'RECUT_MODEL_FAILED');
       return { output: payload.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text || '').join('') || '',
         modelId: payload.modelVersion || model.model, usageMetadata: payload.usageMetadata || null, ...(reservation ? { trialRequest: reservation } : {}) };
-    } catch (error) { throw fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED'); }
+    } catch (error) {
+      const safe = fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED');
+      if (reservation) safe.trialRequest = reservation;
+      throw safe;
+    }
   };
 }
 
@@ -55,7 +59,11 @@ function createRecutMediaAdapter({ run, ffmpeg, ffprobe, python, transcriber, as
         await call(ffmpeg, [...await input(file, w), '-vn', '-ac', '1', '-ar', '16000', wav]);
         // Offline flags prevent faster-whisper downloading missing models.
         await call(python, ['-I', transcriber, wav, output, asrModel], { env: { PYTHONUTF8: '1', HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1' } });
-        return await readJson(output);
+        const raw = await readJson(output);
+        const result = require('./recutAsrNormalization.service').normalizeRecutAsrResult(raw, w, { boundaryCut: true });
+        result.asrProvenance.boundaryEvidence = { kind: 'ffmpeg-explicit-window-extraction', startSec: w.startSec, endSec: w.endSec,
+          relativeDurationSec: w.endSec - w.startSec, humanConfirmedTruncation: false };
+        return result;
       } finally { await removeWorkspace(directory); }
     },
   };
@@ -84,7 +92,10 @@ function createRecutRuntimeAdapters({ provider, gemini, media, mediaConfig, rend
     if ((typeof allowModel === 'function' ? await allowModel(request) : allowModel) !== true) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
     if (!decision) throw fail('模型轉接尚未設定。', 'RECUT_PROVIDER_NOT_CONFIGURED');
     try { return await decision(request); } catch (error) {
-      throw fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED');
+      const safe = fail('模型呼叫失敗。', /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_MODEL_FAILED');
+      const trialRequest = require('./recutTrialGuard.service').safeTrialRequest(error.trialRequest);
+      if (trialRequest) safe.trialRequest = trialRequest;
+      throw safe;
     }
   };
   const optionalMissing = [];

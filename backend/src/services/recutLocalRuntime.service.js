@@ -33,12 +33,17 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
       const audio = algorithms().calculateFixedGain(await adapters.media.measure(data.sourcePath, data.sourceWindow));
       return { sourceCheck: { passed: true, results: { ...results, decodable: true }, checkedAt: new Date() }, audio };
     } },
-    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => data.cachedSource ? { rawWords: null } : { rawWords: await adapters.media.transcribe(data.sourcePath, data.sourceWindow) } },
+    { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => data.cachedSource ? { rawWords: null } : {
+      asrResult: require('./recutAsrNormalization.service').normalizeRecutAsrResult(await adapters.media.transcribe(data.sourcePath, data.sourceWindow), data.sourceWindow) } },
     { id: 'recut-sentences-v1', stage: 'sourceCheck', run: async ({ task, data }) => {
+      const sentences = data.cachedSource?.sentences || algorithms().splitSentences(data.asrResult.words, data.sourceWindow);
+      const excludedSentenceIds = data.cachedSource?.excludedSentenceIds || [
+        ...(data.asrResult?.excludeFirstSentence ? [sentences[0].id] : []), ...(data.asrResult?.excludeLastSentence ? [sentences.at(-1).id] : [])];
       const source = await local.saveSource({ ...data.sourceWindow, scriptId: task.scriptId, videoId: data.sourceVideoId,
         transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments,
-        ...(data.cachedSource ? { sourceSha256: data.cachedSource.sourceSha256, asrProvenance: data.cachedSource.asrProvenance, excludedSentenceIds: data.cachedSource.excludedSentenceIds || [] } : {}),
-        sentences: data.cachedSource?.sentences || algorithms().splitSentences(data.rawWords, data.sourceWindow), sourceCheck: data.sourceCheck, audio: data.audio });
+        ...(data.cachedSource ? { sourceSha256: data.cachedSource.sourceSha256 } : {}),
+        asrProvenance: data.cachedSource?.asrProvenance || data.asrResult.asrProvenance, excludedSentenceIds,
+        sentences, sourceCheck: data.sourceCheck, audio: data.audio });
       return { sourceId: String(source._id) };
     } },
   ];
@@ -55,6 +60,7 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
       input: { ...structuredClone(frozenSelectionInputs.get(sourceKey)), errors: context.data.repairIssues || [] },
       validate: (output) => {
         const result = validateSelection(source, output);
+        if (result.valid && result.selection.answerable && options.gemini?.trialPolicy && (result.selection.ranges.length !== 1 || result.selection.openingSentenceId !== null)) return { valid: false, errors: ['本次試片只允許單一連續完整句範圍，不加入冷開場。'] };
         if (result.valid && result.clips.some((clip) => clip.sentenceIds.some((id) => (source.excludedSentenceIds || []).includes(id)))) return { valid: false, errors: ['不可選入已標示截斷的邊界句。'] };
         return result;
       } });

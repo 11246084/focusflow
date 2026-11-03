@@ -44,10 +44,10 @@ const DETAILS = {
 function getComponentCatalog({ aiOnly = false } = {}) {
   return COMPONENT_NAMES.map((name) => {
     const [purpose, example, doNotUse] = DETAILS[name];
-    // No self-approval: new scenes need the separate mobile review recorded by integration.
-    const aiEnabled = !['not-fit', 'not-merge', 'nested', 'code'].includes(name);
+    // Three relation cards passed the separate mobile review; code stays RC6-only.
+    const aiEnabled = name !== 'code';
     return { name, purpose, paramsSchema: structuredClone(PARAM_SCHEMAS[name]), example: `{\n  ${Object.entries(example).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}\n}`, doNotUse, aiEnabled,
-      review: ['not-fit', 'not-merge', 'nested'].includes(name) ? 'pending-independent-mobile-review' : name === 'code' ? 'rc6-only' : 'existing' };
+      review: ['not-fit', 'not-merge', 'nested'].includes(name) ? 'independent-mobile-reviewed-20261104' : name === 'code' ? 'rc6-only' : 'existing' };
   }).filter((v) => !aiOnly || v.aiEnabled);
 }
 
@@ -56,7 +56,7 @@ function getCardsResponseSchema() {
   const params = obj(Object.assign({}, ...names.map((name) => PARAM_SCHEMAS[name].properties)));
   // A superset is intentional: component-specific required fields are checked
   // in describeComponent; Gemini object schemas never contain an empty OBJECT.
-  const cueNames = ['label', 'kicker', 'value', 'unit', 'badge', 'show', 'note', 'text', 'enter', 'caption', 'dim', 'q', 'left', 'right', 'link', 'mark', 'head', 'banner', 'stamp', 'l0', 'l1'];
+  const cueNames = ['label', 'kicker', 'value', 'unit', 'badge', 'show', 'note', 'text', 'enter', 'caption', 'dim', 'q', 'left', 'right', 'link', 'mark', 'head', 'banner', 'stamp', 'l0', 'l1', 'object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2'];
   for (let i = 0; i < 6; i++) cueNames.push(`lit${i}`, `hl${i}`, `item${i}`, `d${i}`, `w${i}`);
   for (let r = 0; r < 4; r++) for (let t = 0; t < 6; t++) cueNames.push(`r${r}t${t}`);
   return obj({

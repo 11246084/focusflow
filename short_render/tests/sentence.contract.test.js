@@ -82,10 +82,22 @@ test('all rich item icon positions reject non-allowlisted assets', () => {
   }
   assert.deepEqual(describeComponent('compare', { left: { text: '工具', icon: 'fluent:toolbox' }, right: { text: '模型', icon: 'fluent:brain' } }).errors, []);
 });
-test('AI catalogue excludes unreviewed prototypes and code; schemas have no untyped object', () => {
+test('AI catalogue includes independently reviewed relation cards and excludes RC6-only code', () => {
   assert.equal(getComponentCatalog().length, 13);
-  assert.equal(getComponentCatalog({ aiOnly: true }).length, 9);
+  const ai = getComponentCatalog({ aiOnly: true });
+  assert.equal(ai.length, 12);
+  for (const name of ['not-fit', 'not-merge', 'nested']) {
+    assert.ok(ai.some((card) => card.name === name));
+    assert.equal(getComponentCatalog().find((card) => card.name === name).review, 'independent-mobile-reviewed-20261104');
+  }
+  assert.equal(ai.some((card) => card.name === 'code'), false);
+  assert.equal(getComponentCatalog().find((card) => card.name === 'code').review, 'rc6-only');
   const schema = getCardsResponseSchema();
+  const scene = schema.properties.scenes.items.properties;
+  for (const name of ['not-fit', 'not-merge', 'nested']) assert.ok(scene.component.enum.includes(name));
+  assert.equal(scene.component.enum.includes('code'), false);
+  assert.equal(scene.params.properties.lines, undefined);
+  for (const cue of ['object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2']) assert.ok(scene.cues.properties[cue]);
   const walk = (value) => { if (!value || typeof value !== 'object') return; if (value.type === 'OBJECT') assert.ok(value.properties && Object.keys(value.properties).length); Object.values(value).forEach(walk); };
   walk(schema);
   for (const entry of getComponentCatalog()) { assert.ok(entry.purpose); assert.ok(entry.doNotUse); assert.deepEqual(describeComponent(entry.name, JSON.parse(entry.example)).errors, [], entry.name); }

@@ -33,7 +33,7 @@ node bin/short-render.js preview plan.json --evidence source.json --source sourc
 node bin/short-render.js render plan.json --evidence source.json --source source.mp4 --out out/job --browser C:/path/to/chrome-headless-shell.exe
 ```
 
-`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁、五個 `code-主題.html` 與 `catalog.json`；前三卡每 5 秒依序展示「放不進去」「合不起來」「層層包含」。程式碼頁使用 [固定自製範例](tests/codePrototype.fixture.js)，保留故意錯誤的 `value =`，顯示行號、行高亮、唯一詞方框與錯誤訊息；這些參數是離線 fixture，並非實際 OCR 或模型結果。`code-主題.render.html` 用正式 render 模式產生，供檢查 720×1280 與來源對照隔離；`code-主題.plan.json` 供核對固定輸入，均在忽略的輸出目錄。三張新卡與 code 仍維持 `aiEnabled:false`；獨立畫面複核結果只記在[目前狀態](../docs/current-status.md)。
+`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁、五個 `code-主題.html` 與 `catalog.json`；前三卡每 5 秒依序展示「放不進去」「合不起來」「層層包含」。程式碼頁使用 [固定自製範例](tests/codePrototype.fixture.js)，保留故意錯誤的 `value =`，顯示行號、行高亮、唯一詞方框與錯誤訊息；這些參數是離線 fixture，並非實際 OCR 或模型結果。`code-主題.render.html` 用正式 render 模式產生，供檢查 720×1280 與來源對照隔離；`code-主題.plan.json` 供核對固定輸入，均在忽略的輸出目錄。三張關係圖卡經獨立手機複核後開放 AI catalog（9→12）；`code` 仍維持 `aiEnabled:false`、`rc6-only`。複核證據為本機 `out/qa-20261104/report.json`（五主題 × 360／390，各三卡，共 30 張）；這是合成卡片可讀性與預覽控制列檢查，沒有真實成品或正式驗收。完整狀態只記在[目前狀態](../docs/current-status.md)。
 
 `stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。常駐 worker 的設定與啟動方式見下節。
 
@@ -44,7 +44,7 @@ node bin/short-render.js render plan.json --evidence source.json --source source
 - **程式碼顯示與隔離**（`html.js`）：固定規則 tokenizer 為關鍵字、字串、數字與註解上色，不執行程式、不驗證語法；比完整編譯器簡單且沒有語言模型呼叫，但不能完整辨識所有語言。行號、行高亮、唯一片語方框與錯誤框來自已驗證參數；原始畫面抄錄與逐行來源只輸出到 preview 的畫布外對照區，render HTML 不序列化整份 plan，因此不帶 OCR／provenance。程式內容的正確性仍由 RC6 與教師審閱負責。
 - **版本 fencing**（`render.js`）：鎖定 renderer／素材／GSAP／HyperFrames 版本，再用雜湊阻止 staging 後內容漂移。這處理本機工件一致性；工作核准、租約與上傳版本核對由 RC7 後端處理，不能以本機雜湊代替核准。
 
-本輪測試見 `tests/render.sentence.test.js`：五主題、共用 seek、字型閘門、渲染頁來源隔離、音訊遭修改時拒絕、固定增益與純原音剪接，以及新卡 AI 仍停用。外部 FFmpeg、HyperFrames、瀏覽器啟動均以替身驗證；尚未宣稱真實響度、字型截圖、手機可讀性、MP4 或人工驗收通過。
+本輪測試見 `tests/render.sentence.test.js`：五主題、共用 seek、字型閘門、渲染頁來源隔離、音訊遭修改時拒絕、固定增益與純原音剪接，以及三張已複核關係卡開放、code 仍限 RC6。外部 FFmpeg、HyperFrames、瀏覽器啟動均以替身驗證；尚未宣稱真實響度、字型截圖、手機可讀性、MP4 或人工驗收通過。
 
 ## RC7 常駐 worker
 

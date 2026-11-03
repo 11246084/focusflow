@@ -100,7 +100,7 @@ test('version mismatch and stale resolved timing fail before any external comman
   assert.equal(called, false);
 });
 
-test('offline prototypes keep new cards disabled and produce five themes plus real code renderer entries', (t) => {
+test('offline prototypes preserve the reviewed relation catalog and RC6-only code renderer entries', (t) => {
   const { root, resolveFont } = temporary(t);
   const entry = buildPrototypes(root, { resolveFont }); assert.equal(fs.existsSync(entry), true);
   for (const theme of Object.keys(THEMES)) assert.match(fs.readFileSync(path.join(root, `${theme}.html`), 'utf8'), /resizePreview/);
@@ -115,7 +115,7 @@ test('offline prototypes keep new cards disabled and produce five themes plus re
     assert.doesNotMatch(render, /程式碼來源對照|畫面原樣|class="preview-provenance"/);
     assert.match(render, /data-width="720" data-height="1280"/);
   }
-  for (const card of getComponentCatalog().filter((c) => ['not-fit', 'not-merge', 'nested', 'code'].includes(c.name))) assert.equal(card.aiEnabled, false);
+  for (const card of getComponentCatalog().filter((c) => ['not-fit', 'not-merge', 'nested', 'code'].includes(c.name))) assert.equal(card.aiEnabled, card.name !== 'code');
 });
 
 test('browser font preflight closes browser and blocks remote requests with fake driver', async () => {

@@ -14,7 +14,7 @@ function renderItem(item) {
 function themeCss(name = 'N2') {
   if (!Object.hasOwn(THEMES, name)) throw new Error('THEME_INVALID');
   const t = THEMES[name];
-  return `:root{--bg:${t.bg};--panel:${t.panel};--end:${t.end};--card:${t.card};--card-edge:${t.edge};--white:${t.ink};--muted:${t.muted};--yellow:${t.accent};--accent-ink:${t.accentInk};--orange:#C2410C;--ok:${t.light ? '#166534' : '#4ADE80'};--tag-ink:#FFFFFF;--black:#000000;--soft:rgba(255,255,255,.05);--soft-edge:rgba(255,255,255,.12);--subtitle-bg:${t.light ? 'rgba(255,255,255,.88)' : 'transparent'};--subtitle-ink:${t.light ? t.ink : '#FFFFFF'};--subtitle-shadow:${t.light ? 'none' : '0 0 6px #000000,2px 2px 0 #000000,-2px -2px 0 #000000,2px -2px 0 #000000,-2px 2px 0 #000000'};}`;
+  return `:root{--bg:${t.bg};--panel:${t.panel};--end:${t.end};--card:${t.card};--card-edge:${t.edge};--white:${t.ink};--muted:${t.muted};--yellow:${t.accent};--accent-ink:${t.accentInk};--orange:#C2410C;--code-error:${t.light ? '#9A3412' : '#FDBA74'};--ok:${t.light ? '#166534' : '#4ADE80'};--tag-ink:#FFFFFF;--black:#000000;--soft:rgba(255,255,255,.05);--soft-edge:rgba(255,255,255,.12);--subtitle-bg:${t.light ? 'rgba(255,255,255,.88)' : 'transparent'};--subtitle-ink:${t.light ? t.ink : '#FFFFFF'};--subtitle-shadow:${t.light ? 'none' : '0 0 6px #000000,2px 2px 0 #000000,-2px -2px 0 #000000,2px -2px 0 #000000,-2px 2px 0 #000000'};}`;
 }
 
 // plan + resolved → HyperFrames 組合檔（單一 index.html）。
@@ -302,6 +302,11 @@ function syntaxHtml(value, language) {
   return result + escapeHtml(value.slice(cursor));
 }
 RENDERERS.code = (scene, p, cue, b) => {
+  // Short source snippets reach 16px on a 360px preview. Dense source retains
+  // its literal text and shrinks conservatively within the existing canvas.
+  const codeFontPx = Math.min(32, Math.floor(560 / Math.max(1, ...p.lines.map((line) => widthEm(line.text)))),
+    Math.floor((p.diagram ? 300 : 530) / (p.lines.length * 1.65)));
+  const errorFontPx = widthEm(p.errorMessage || '') > 50 ? 26 : 32;
   const rows = p.lines.map((line, i) => {
     b.fade(`#${scene.id}-line${i + 1}`, cue(`line${i + 1}`, .2 + i * .06), .15);
     const boxes = (p.boxes || []).filter((v) => v.line === i + 1).map((v) => ({ text: v.text, at: line.text.indexOf(v.text) })).sort((a, c) => a.at - c.at);
@@ -314,9 +319,9 @@ RENDERERS.code = (scene, p, cue, b) => {
     return `<div class="code-line${p.highlightLines?.includes(i + 1) ? ' code-highlight' : ''}" id="${scene.id}-line${i + 1}"><span class="line-no">${i + 1}</span><code>${content || ' '}</code></div>`;
   });
   let extra = '';
-  if (p.errorMessage) { b.pop(`#${scene.id}-error`, cue('error', 1.4)); extra += `<div class="code-error" id="${scene.id}-error">${escapeHtml(p.errorMessage)}</div>`; }
+  if (p.errorMessage) { b.pop(`#${scene.id}-error`, cue('error', 1.4)); extra += `<div class="code-error" id="${scene.id}-error" style="font-size:${errorFontPx}px">${escapeHtml(p.errorMessage)}</div>`; }
   if (p.diagram) { b.fade(`#${scene.id}-diagram`, cue('diagram', 1.6)); extra += `<div class="code-diagram" id="${scene.id}-diagram">${nestedHtml(p.diagram.layers, `${scene.id}-diagram`, b, () => cue('diagram', 1.6))}</div>`; }
-  return `<div class="code-editor"><div class="code-title">${escapeHtml(p.language)}</div>${rows.join('')}</div>${extra}`;
+  return `<div class="code-editor" style="--code-font-size:${codeFontPx}px"><div class="code-title">${escapeHtml(p.language)}</div>${rows.join('')}</div>${extra}`;
 };
 
 function provenanceHtml(plan) {

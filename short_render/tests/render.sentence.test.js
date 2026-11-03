@@ -138,3 +138,35 @@ test('responsive preview confines the document and shrinks controls without chan
   assert.match(preview, /Math\.min\(720,viewport\.clientWidth\)/);
   for (const html of [preview, render]) assert.match(html, /data-width="720" data-height="1280"/);
 });
+
+test('code readability grows short snippets, fits 36-character lines, and preserves literal errors', () => {
+  const simple = codeFixture();
+  assert.match(buildHtml(simple.plan, simple.resolved), /--code-font-size:32px/);
+  for (const count of [1, 12]) {
+    const args = input(), text = 'a'.repeat(36);
+    args.scenes[0] = { ...args.scenes[0], component: 'code', cues: {}, params: { language: 'python',
+      lines: Array.from({ length: count }, () => ({ text, originalText: text, source: '畫面原樣', intentionalError: true })),
+      errorMessage: 'SyntaxError: invalid syntax' } };
+    const built = buildRecutPlan(args); assert.deepEqual(built.errors, []);
+    const html = buildHtml(built.plan, built.resolved);
+    const font = Number(html.match(/--code-font-size:(\d+)px/)[1]);
+    assert.ok(font <= 26 && 36 * 0.6 * font <= 560);
+    assert.ok(html.includes(text)); assert.match(html, /data-width="720" data-height="1280"/);
+  }
+  const css = fs.readFileSync(path.join(__dirname, '../src/render/style.css'), 'utf8');
+  assert.match(css, /white-space:pre-wrap; overflow-wrap:anywhere; min-width:0/);
+});
+test('code error text clears 4.5 contrast against every theme surface', () => {
+  const { themeCss } = require('../src/render/html');
+  const luminance = (hex) => {
+    const rgb = hex.slice(1).match(/../g).map((v) => parseInt(v, 16) / 255).map((v) => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+  };
+  for (const [name, theme] of Object.entries(THEMES)) {
+    const foreground = themeCss(name).match(/--code-error:(#[A-Fa-f0-9]{6})/)[1];
+    for (const background of [theme.bg, theme.panel, theme.card]) {
+      const a = luminance(foreground), b = luminance(background);
+      assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5, name);
+    }
+  }
+});

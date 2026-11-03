@@ -15,9 +15,13 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
   const price = options['--price'] ? JSON.parse(await fs.readFile(path.resolve(options['--price']), 'utf8')) : null;
   if (!options['--allow-model']) return runFormalTrial({ topics, price });
   if (!options['--runtime'] || !options['--output'] || !/^[A-Z][A-Z0-9_]*$/.test(options['--target-uri-env'] || '')) throw new Error('RECUT_ARGUMENT_REQUIRED');
+  const targetUri = env[options['--target-uri-env']];
+  if (require('../services/recutCliRuntime.service').isProfessorTrialTarget(targetUri)) {
+    throw require('../services/recutRuntime.service').fail('教授試片授權只允許單題入口。', 'RECUT_PROFESSOR_SINGLE_TOPIC_ONLY');
+  }
   const config = JSON.parse(await fs.readFile(path.resolve(options['--runtime']), 'utf8'));
   const factory = createRuntime || require('../services/recutCliRuntime.service').createCliRuntime;
-  return runFormalTrial({ topics, price, targetUri: env[options['--target-uri-env']], output: options['--output'], allowModel: true, render: !options['--no-render'], onEstimate,
+  return runFormalTrial({ topics, price, targetUri, output: options['--output'], allowModel: true, render: !options['--no-render'], onEstimate,
     runtimeFactory: (args) => factory({ ...args, config, env }) });
 }
 if (require.main === module) main(process.argv.slice(2), { onEstimate: (result) => process.stdout.write(`${JSON.stringify(result)}\n`) })

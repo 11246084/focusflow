@@ -135,3 +135,16 @@ for (const missingPolicy of [undefined, null]) it(`professor namespace cannot by
       targetUri: 'mongodb://127.0.0.1:27131/recut_trial_generic' }));
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+for (const policy of [undefined, null, approvedPolicy()]) it(`formal CLI cannot use professor single-topic authorization (${policy ? 'complete policy' : policy})`, async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-formal-professor-denied-')); let built = 0;
+  try {
+    const topics = path.join(directory, 'topics.json'), runtime = path.join(directory, 'runtime.json'), output = path.join(directory, 'output');
+    await fs.writeFile(topics, JSON.stringify(Array.from({ length: 10 }, (_, n) => ({ topicId: `topic-${n}`, scriptId: 's', courseId: 'c' }))));
+    await fs.writeFile(runtime, JSON.stringify({ ...approvedConfig(), trialPolicy: policy }));
+    await assert.rejects(formalMain(['--topics', topics, '--runtime', runtime, '--output', output, '--target-uri-env', 'RECUT_LOCAL_URI', '--allow-model'],
+      { env: new Proxy({ RECUT_LOCAL_URI: approvedUri }, { get(target, key) { if (key !== 'RECUT_LOCAL_URI') throw new Error('unexpected key read'); return target[key]; } }),
+        createRuntime: async () => { built++; throw new Error('unexpected provider or DB'); } }), { code: 'RECUT_PROFESSOR_SINGLE_TOPIC_ONLY' });
+    assert.equal(built, 0); await assert.rejects(fs.stat(output), { code: 'ENOENT' });
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});

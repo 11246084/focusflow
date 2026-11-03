@@ -177,7 +177,7 @@ API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `dec
 
 ### 教授單題的單次預算與輸出保護
 
-目前核准的 `trialPolicy` 模式只接受 `gemini-3.8-flash`、LOW、最多 5 次、每次輸出 4096、request body 100000 bytes、US$0.50 上限與上述期限內價目；程式碼圖片與備援模型關閉。目標限 `mongodb://127.0.0.1:27029/recut_trial_professor-siri-YYYYMMDD`，拒絕其他主機／埠／資料庫及 query。教授 DB namespace 本身會強制要求完整政策，刪除或設 null 不能退回一般模式。這是本機教授試片範圍，沒有放寬正式同意或發布檢查。
+目前核准的 `trialPolicy` 模式只接受 `gemini-3.8-flash`、LOW、最多 5 次、每次輸出 4096、request body 100000 bytes、US$0.50 上限與上述期限內價目；程式碼圖片與備援模型關閉。目標限 `mongodb://127.0.0.1:27029/recut_trial_professor-siri-YYYYMMDD`，拒絕其他主機／埠／資料庫及 query。教授 DB namespace 本身會強制要求完整政策，刪除或設 null 不能退回一般模式；只允許已審查的 `recutSingleTopic.js` 單題入口，十題 `recutFormalTrial.js` 即使帶完整政策仍拒絕。這是本機教授試片範圍，沒有放寬正式同意或發布檢查。
 
 `recutSingleTopic.js` 在建立 provider 前獨占建立新的 output 目錄，既存目錄一律拒絕，避免覆寫已記錄用量。首次外呼前，原生本機 repository 在 `recuttrialbudgets` 以 **scriptId 作唯一 `_id`** 預留整次核准額度；變更 output、政策或重開程序都不能重置。已有 `recuttrialruns` 成功紀錄也拒絕再預留。預留後失敗或程序中斷仍保留，不退款、不自動清除，也不自動重試模型。此 collection 僅用在明確 loopback 試產 DB，沒有 Shared Atlas 寫入或全域 index／Mongoose schema 變更；dry-run 不建立它。
 

@@ -177,13 +177,13 @@ API 與 CLI 的惰性介面為 `createRecutRuntimeAdapters({...})`，回傳 `dec
 
 ### 教授單題的單次預算與輸出保護
 
-目前核准的 `trialPolicy` 模式只接受 `gemini-3.8-flash`、LOW、最多 5 次、每次輸出 4096、request body 100000 bytes、US$0.50 上限與上述期限內價目；程式碼圖片與備援模型關閉。目標限 `mongodb://127.0.0.1:27029/recut_trial_professor-siri-YYYYMMDD`，拒絕其他主機／埠／資料庫及 query。這是本機教授試片範圍，沒有放寬正式同意或發布檢查。
+目前核准的 `trialPolicy` 模式只接受 `gemini-3.8-flash`、LOW、最多 5 次、每次輸出 4096、request body 100000 bytes、US$0.50 上限與上述期限內價目；程式碼圖片與備援模型關閉。目標限 `mongodb://127.0.0.1:27029/recut_trial_professor-siri-YYYYMMDD`，拒絕其他主機／埠／資料庫及 query。教授 DB namespace 本身會強制要求完整政策，刪除或設 null 不能退回一般模式。這是本機教授試片範圍，沒有放寬正式同意或發布檢查。
 
 `recutSingleTopic.js` 在建立 provider 前獨占建立新的 output 目錄，既存目錄一律拒絕，避免覆寫已記錄用量。首次外呼前，原生本機 repository 在 `recuttrialbudgets` 以 **scriptId 作唯一 `_id`** 預留整次核准額度；變更 output、政策或重開程序都不能重置。已有 `recuttrialruns` 成功紀錄也拒絕再預留。預留後失敗或程序中斷仍保留，不退款、不自動清除，也不自動重試模型。此 collection 僅用在明確 loopback 試產 DB，沒有 Shared Atlas 寫入或全域 index／Mongoose schema 變更；dry-run 不建立它。
 
 金鑰只由執行者自己在目前 PowerShell 遮蔽輸入後，放在該視窗的暫時 `GEMINI_API_KEY`。命令只傳**變數名稱**，不可把實際值貼在命令列、JSON、文件或對話。先在相同視窗設定不含憑證的 `RECUT_LOCAL_URI`，使用絕對 `--require` 載入既有 `tests/helpers/noDotenv.cjs`；先 bootstrap `--execute` 建立本機資料，再將其 `topic.json` 交給 single-topic 的 `--allow-model --render`。完成後由執行者清除該視窗金鑰。這些指令不會讓其他終端機或代理取得該視窗的環境變數；不要為了傳遞金鑰去讀 `.env` 或擷取其他程序的環境。
 
-例如 `--output .../run-once` 已存在 → 在 provider 建構前回 `RECUT_TRIAL_OUTPUT_EXISTS`；改成別的 output 但 script 已預留 → 回 `RECUT_TRIAL_BUDGET_ALREADY_RESERVED`，不再呼叫模型。兩種失敗都保留既有證據。
+例如 `--output .../run-once` 已存在 → 在 provider 建構前回 `RECUT_TRIAL_OUTPUT_EXISTS`；改成別的 output 但 script 已預留 → 回 `RECUT_TRIAL_BUDGET_ALREADY_RESERVED`，不再呼叫模型。兩種失敗都保留既有證據。FFmpeg、Python 與 HyperFrames 子程序只繼承明列的 OS 路徑及離線／渲染旗標，不繼承 provider 金鑰或資料庫 URI。
 
 ### 十題技術試跑與統計
 

@@ -5,13 +5,13 @@ const { pathToFileURL } = require('node:url');
 
 // Uses HyperFrames' lockfile-pinned browser driver, never installs a browser.
 // Caller must supply an existing chrome-headless-shell executable.
-async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal }) {
+async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, env }) {
   signal?.throwIfAborted();
   if (!browserExecutable && !launch) throw new Error('existing chrome-headless-shell path is required');
   const browserLaunch = launch || require(require.resolve('puppeteer-core', {
     paths: [path.dirname(require.resolve('hyperframes/package.json'))],
   })).launch;
-  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true });
+  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true, ...(env ? { env } : {}) });
   const abort = () => { browser.close().catch(() => {}); };
   signal?.addEventListener('abort', abort, { once: true });
   try {

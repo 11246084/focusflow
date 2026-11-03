@@ -95,3 +95,43 @@ it('paid policy call cap is shared and the sixth reservation fails before a requ
   for (let n = 1; n <= 5; n++) assert.equal(guard.reserve(request).trialModelCalls, n);
   assert.throws(() => guard.reserve(request), { code: 'RECUT_TRIAL_CALL_LIMIT' });
 });
+
+it('local media child receives only public tool paths and never the terminal provider key or URI', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-cli-tools-')), calls = [];
+  try {
+    const file = path.join(directory, 'source.mp4'); await fs.writeFile(file, 'fake source');
+    const config = { ...approvedConfig(), media: { allowedRoot: directory, ffmpeg: 'fake-ffmpeg', ffprobe: 'fake-probe',
+      python: 'fake-python', transcriber: 'fake-transcriber', asrModel: 'fake-offline-model' } };
+    const runtime = await require('../src/services/recutCliRuntime.service').createCliRuntime({ config, input: {}, output: path.join(directory, 'output'),
+      targetUri: approvedUri, allowModel: true, env: { GEMINI_API_KEY: 'fake-provider-private', RECUT_LOCAL_URI: approvedUri,
+        OTHER_SECRET: 'fake-unrelated-private', PATH: 'public-tool-path' }, run: async (binary, args, options) => {
+        calls.push({ binary, args, env: options.env });
+        return binary === 'fake-probe' ? { stdout: JSON.stringify({ streams: [{ codec_type: 'audio' }], format: { duration: 300 } }) }
+          : { stderr: '{"input_i":"-20","input_tp":"-8"}' };
+      } });
+    try { await runtime.pipeline.generate.find((step) => step.id === 'recut-source-check-v1').run({
+      data: { sourcePath: file, sourceWindow: { startSec: 0, endSec: 150 } }, checkCancelled: async () => {} }); }
+    finally { await runtime.close?.(); }
+    assert.equal(calls.length, 3);
+    for (const call of calls) assert.deepEqual(call.env, { PATH: 'public-tool-path' });
+    assert.doesNotMatch(JSON.stringify(calls), /fake-provider-private|fake-unrelated-private|RECUT_LOCAL_URI/);
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+for (const missingPolicy of [undefined, null]) it(`professor namespace cannot bypass locks by removing policy (${missingPolicy})`, async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-professor-required-')); let built = 0;
+  try {
+    const config = { ...approvedConfig(), trialPolicy: missingPolicy };
+    const input = path.join(directory, 'input.json'), runtime = path.join(directory, 'runtime.json'), output = path.join(directory, 'output');
+    await fs.writeFile(input, JSON.stringify({ scriptId: 's', courseId: 'c' })); await fs.writeFile(runtime, JSON.stringify(config));
+    await assert.rejects(main(['--input', input, '--runtime', runtime, '--output', output, '--target-uri-env', 'RECUT_LOCAL_URI', '--allow-model'],
+      { env: { RECUT_LOCAL_URI: approvedUri }, createRuntime: async () => { built++; } }), { code: 'RECUT_TRIAL_POLICY_INVALID' });
+    assert.equal(built, 0); await assert.rejects(fs.stat(output), { code: 'ENOENT' });
+    await assert.rejects(require('../src/services/recutCliRuntime.service').createCliRuntime({ config, input: {},
+      targetUri: approvedUri, allowModel: true, env: new Proxy({}, { get() { throw new Error('must validate before key read'); } }),
+      driverLoader: () => { built++; } }), { code: 'RECUT_TRIAL_POLICY_INVALID' });
+    assert.equal(built, 0);
+    assert.doesNotThrow(() => require('../src/services/recutCliRuntime.service').assertCliTrialPolicy({ config,
+      targetUri: 'mongodb://127.0.0.1:27131/recut_trial_generic' }));
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});

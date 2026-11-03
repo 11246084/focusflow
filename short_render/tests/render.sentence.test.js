@@ -119,11 +119,12 @@ test('offline prototypes keep new cards disabled and produce five themes plus re
 });
 
 test('browser font preflight closes browser and blocks remote requests with fake driver', async () => {
-  let closed = false, interceptor;
-  const launch = async () => ({ newPage: async () => ({ setRequestInterception: async () => {},
+  let closed = false, interceptor, launchOptions;
+  const launch = async (options) => { launchOptions = options; return ({ newPage: async () => ({ setRequestInterception: async () => {},
     on: (name, callback) => { interceptor = callback; }, goto: async () => {}, evaluate: async () => true,
-  }), close: async () => { closed = true; } });
-  assert.equal(await ensureFontLoaded({ stageDir: '.', launch }), true); assert.equal(closed, true);
+  }), close: async () => { closed = true; } }); };
+  assert.equal(await ensureFontLoaded({ stageDir: '.', launch, env: { PATH: 'public-tool-path' } }), true);
+  assert.deepEqual(launchOptions.env, { PATH: 'public-tool-path' }); assert.equal(closed, true);
   let aborted = false; interceptor({ url: () => 'https://example.invalid', abort: () => { aborted = true; } }); assert.equal(aborted, true);
 });
 

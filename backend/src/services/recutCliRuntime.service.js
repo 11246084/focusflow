@@ -7,8 +7,12 @@ const { createRecutMediaAdapter } = require('./recutRuntimeAdapters.service');
 const { fail } = require('./recutRuntime.service');
 const { hashLocalFile, validateSnapshotCache } = require('./recutSnapshotCache.service');
 
+const isProfessorTrialTarget = (uri) => typeof uri === 'string' && /\/recut_trial_professor-siri-[^/?]*(?:[/?]|$)/.test(uri);
 function assertCliTrialPolicy({ config, input = {}, targetUri, now = new Date() }) {
-  if (!config?.trialPolicy) return;
+  if (!config?.trialPolicy) {
+    if (isProfessorTrialTarget(targetUri)) throw fail('教授試片必須提供完整核准預算政策。', 'RECUT_TRIAL_POLICY_INVALID');
+    return;
+  }
   const p = config.trialPolicy, model = input.model || config.model, calls = input.callLimit || config.callLimit;
   require('./recutTrialGuard.service').createRecutTrialGuard(p);
   if (!/^mongodb:\/\/127\.0\.0\.1:27029\/recut_trial_professor-siri-\d{8}$/.test(targetUri || '')) throw fail('試片資料庫不在本次允許範圍。', 'RECUT_LOCAL_DB_INVALID');
@@ -37,7 +41,16 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     if (!relative || relative.startsWith('..') || path.isAbsolute(relative) || !path.isAbsolute(file)) throw fail('原片不在本機允許目錄。', 'RECUT_SOURCE_UNAVAILABLE');
     return actual;
   };
-  const execute = run || require('node:util').promisify(require('node:child_process').execFile);
+  const runTool = run || require('node:util').promisify(require('node:child_process').execFile);
+  // Tools need OS paths and explicit offline/render flags, never provider keys
+  // or database URIs inherited from the user's terminal.
+  const toolKeys = ['SystemRoot', 'WINDIR', 'PATH', 'Path', 'PATHEXT', 'TEMP', 'TMP', 'COMSPEC', 'SystemDrive',
+    'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'HOMEDRIVE', 'HOMEPATH', 'PYTHONUTF8', 'HF_HUB_OFFLINE',
+    'TRANSFORMERS_OFFLINE', 'HYPERFRAMES_NO_TELEMETRY', 'DO_NOT_TRACK', 'HYPERFRAMES_BROWSER_PATH'];
+  const toolEnvironment = (overrides = {}) => Object.fromEntries(toolKeys.flatMap((key) => {
+    const value = overrides[key] ?? env[key]; return typeof value === 'string' ? [[key, value]] : [];
+  }));
+  const execute = (binary, args, options = {}) => runTool(binary, args, { ...options, env: toolEnvironment(options.env) });
   const workspaceRoot = path.join(path.resolve(output), 'media-work');
   const workspaces = {
     createWorkspace: async () => { await fs.mkdir(workspaceRoot, { recursive: true }); return fs.mkdtemp(path.join(workspaceRoot, 'recut-')); },
@@ -59,7 +72,7 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
       return execute(process.execPath, [path.join(packageRoot, 'bin/hyperframes.mjs'), ...args], { cwd, windowsHide: true,
         env: { HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_BROWSER_PATH: config.browserExecutable }, timeout: 3600000, maxBuffer: 16 * 1024 * 1024 });
     },
-    ensureFontLoaded: (args) => require('../../../short_render/src/render/browser').ensureFontLoaded({ ...args, browserExecutable: config.browserExecutable }) });
+    ensureFontLoaded: (args) => require('../../../short_render/src/render/browser').ensureFontLoaded({ ...args, browserExecutable: config.browserExecutable, env: toolEnvironment() }) });
   const runtime = createRecutLocalRuntime({ repository, targetUri, model: fixedModel, callLimit: fixedCallLimit,
     getSetting: (key) => {
       if (key === 'recut.geminiModel') return structuredClone(fixedModel);
@@ -75,4 +88,4 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
   if (runtime.missing.length) throw fail('試產工具設定不足。', 'RECUT_STEPS_NOT_CONFIGURED');
   return { ...runtime, ...(config.trialPolicy ? { reserveTrialBudget: () => repository.reserveTrialBudget({ input, policy: config.trialPolicy }) } : {}) };
 }
-module.exports = { createCliRuntime, assertCliTrialPolicy };
+module.exports = { createCliRuntime, assertCliTrialPolicy, isProfessorTrialTarget };

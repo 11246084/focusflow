@@ -50,8 +50,15 @@ async function startServer({ recutRuntimeAdapters } = {}) {
     await seedDemoData({ silent: true });
   }
 
-  // Hosts supply concrete adapters. Missing configuration stays explicit (503),
-  // and never silently selects a provider or fake implementation.
+  // An explicitly injected runtime remains available to hosts/tests. The normal
+  // entrypoint assembles the same adapters from an administrator's nonsecret config.
+  if (env.shortScriptAutomationEnabled && recutRuntimeAdapters === undefined) {
+    recutRuntimeAdapters = await require('./services/recutHostRuntime.service').createRecutHostRuntime({
+      enabled: true, runtimeConfigPath: env.recutRuntimeConfigPath,
+      databaseUri: env.mongodbUri, databaseName: mongoose.connection?.name,
+    });
+    console.info('[recut] host runtime:', recutRuntimeAdapters.hostStatus);
+  }
   const recutApplication = env.shortScriptAutomationEnabled
     ? require('./services/recutApplication.service').configureRecutApplication({ runtimeAdapters: recutRuntimeAdapters }) : null;
   const consentLifecycle = require('./services/recutConsentLifecycle.service').configureRecutConsentLifecycle();

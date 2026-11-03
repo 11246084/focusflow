@@ -250,6 +250,7 @@ module.exports = {
   qaActiveParentEmbeddingContractJson: process.env.QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON || '',
   geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash',
   recutFfmpeg: process.env.RECUT_FFMPEG || 'ffmpeg',
+  recutRuntimeConfigPath: process.env.RECUT_RUNTIME_CONFIG_PATH || '',
   recutFfprobe: process.env.RECUT_FFPROBE || 'ffprobe',
   recutPython: process.env.RECUT_PYTHON || path.resolve(projectRoot, '../STT_Whisper/.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
   recutAsrModel: process.env.RECUT_ASR_MODEL || 'small',

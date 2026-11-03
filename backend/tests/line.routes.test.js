@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { after, before, beforeEach, describe, it } = require('node:test');
+const { after, afterEach, before, beforeEach, describe, it } = require('node:test');
 const {
   env,
   ids,
@@ -114,6 +114,7 @@ function resetRuntimeEnv() {
   env.openaiApiKey = '';
   env.lineChannelSecret = 'line-secret-for-tests';
   env.lineChannelAccessToken = '';
+  env.lineLoginCallbackUrl = '';
   env.maxConversationTurns = 4;
 }
 
@@ -183,6 +184,81 @@ describe('line webhook routes', () => {
     await jsonRequest(serverContext.baseUrl, '/api/v1/line/binding', { method: 'DELETE', token });
 
     assert.equal(student.lineFriendStatus, undefined);
+  });
+
+  it('回答用卡片送出；卡片被 LINE 拒收時改送純文字，學生仍收到答案', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    env.lineChannelAccessToken = 'flex-test-access-token';
+    const originalFetch = global.fetch;
+    const sent = [];
+    let rejectFlex = false;
+    global.fetch = async (url, options) => {
+      if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+      if (String(url).endsWith('/chat/loading/start')) return { ok: true, text: async () => '' };
+      const body = JSON.parse(options.body);
+      sent.push({ url: String(url), type: body.messages[0].type });
+      if (rejectFlex && body.messages[0].type === 'flex') {
+        return { ok: false, status: 400, text: async () => '{"message":"A message is invalid"}' };
+      }
+      return { ok: true, text: async () => '{}' };
+    };
+
+    try {
+      const accepted = await postLineText(serverContext.baseUrl, 'What does the course say about JWT authentication?');
+      assert.equal(accepted.body.data.results[0].replyFormat, 'flex');
+      assert.equal(sent.at(-1).type, 'flex');
+
+      rejectFlex = true;
+      const rejected = await postLineText(serverContext.baseUrl, 'How is JWT authentication verified?');
+      assert.equal(rejected.body.data.results[0].handled, true);
+      assert.equal(rejected.body.data.results[0].replyFormat, 'text');
+      assert.equal(sent.at(-1).type, 'text');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it('未綁定的學生收到「連結 LINE」按鈕，連到網站的 LINE 提問頁', async () => {
+    env.lineChannelAccessToken = 'bind-prompt-access-token';
+    env.lineLoginCallbackUrl = 'https://focusflow.example/line/callback';
+    const originalFetch = global.fetch;
+    const payloads = [];
+    global.fetch = async (url, options) => {
+      if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+      payloads.push(JSON.parse(options.body));
+      return { ok: true, text: async () => '{}' };
+    };
+
+    try {
+      const result = await postLineText(serverContext.baseUrl, '切換課程', 'line-not-bound-yet');
+      const [message] = payloads.at(-1).messages;
+
+      assert.equal(result.body.data.results[0].reason, 'user_not_bound');
+      assert.equal(message.type, 'flex');
+      assert.match(JSON.stringify(message), /"label":"連結 LINE","uri":"https:\/\/focusflow\.example\/app\/line"/);
+    } finally {
+      global.fetch = originalFetch;
+      env.lineLoginCallbackUrl = '';
+    }
+  });
+
+  it('沒設定網站網址時，未綁定提示退回純文字', async () => {
+    env.lineChannelAccessToken = 'bind-prompt-access-token';
+    const originalFetch = global.fetch;
+    const payloads = [];
+    global.fetch = async (url, options) => {
+      if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+      payloads.push(JSON.parse(options.body));
+      return { ok: true, text: async () => '{}' };
+    };
+
+    try {
+      await postLineText(serverContext.baseUrl, '切換課程', 'line-not-bound-yet');
+      assert.equal(payloads.at(-1).messages[0].type, 'text');
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 
   it('rejects missing and invalid signatures', async () => {
@@ -816,7 +892,7 @@ describe('line webhook routes', () => {
       env.lineChannelAccessToken = '';
     }
     const forbiddenQuestion = store.questions.at(-1);
-    const forbiddenReply = lineReplyPayloads.at(-1)?.messages?.[0]?.text || '';
+    const forbiddenReply = JSON.stringify(lineReplyPayloads.at(-1)?.messages || []);
 
     assert.equal(forbiddenResult.status, 200);
     assert.equal(forbiddenResult.body.data.results[0].handled, true);
@@ -992,8 +1068,121 @@ describe('line webhook routes', () => {
   });
 });
 
+describe('LINE 回答卡片與時間格式', () => {
+  const { buildAnswerFlexMessage, formatClock } = require('../src/services/line.service');
+  const citation = (title, startSec, endSec, jumpUrl = null) => ({
+    videoTitle: title,
+    timestamp: { startSec, endSec, jumpUrl },
+  });
+
+  afterEach(() => {
+    env.lineLoginCallbackUrl = '';
+  });
+
+  it('時間顯示成分:秒，超過一小時加上時，小數秒捨去', () => {
+    assert.deepEqual([0, 12.9, 75, 120, 3725].map(formatClock), ['0:00', '0:12', '1:15', '2:00', '1:02:05']);
+  });
+
+  it('回答卡上方是課程、中間是回答、最多 3 筆引用，每筆可跳到該秒', () => {
+    const message = buildAnswerFlexMessage({
+      courseTitle: 'AI入門基礎課',
+      qaResult: {
+        answer: '老師用廣告說明品牌形象。',
+        citations: [
+          citation('第 3 支影片', 760, 785, 'https://youtu.be/a?t=760'),
+          citation('第 3 支影片', 785, 810, 'https://youtu.be/a?t=785'),
+          citation('第 4 支影片', 12, 40, 'https://youtu.be/b?t=12'),
+          citation('第 5 支影片', 1, 2, 'https://youtu.be/c?t=1'),
+        ],
+      },
+    });
+    const flat = JSON.stringify(message);
+    const buttons = flat.match(/▶ 看這段/g) || [];
+
+    assert.equal(message.type, 'flex');
+    assert.equal(message.contents.header.contents[0].text, 'AI入門基礎課');
+    assert.equal(message.contents.body.contents[0].text, '老師用廣告說明品牌形象。');
+    assert.equal(buttons.length, 3);
+    assert.match(flat, /第 3 支影片・12:40 - 13:05/);
+    assert.match(flat, /https:\/\/youtu\.be\/a\?t=760/);
+    assert.doesNotMatch(flat, /第 5 支影片/);
+    assert.ok(message.altText.length <= 400);
+  });
+
+  it('快取 clip 的連結優先用在第一筆引用', () => {
+    const message = buildAnswerFlexMessage({
+      courseTitle: '課程',
+      qaResult: {
+        answer: '回答',
+        clip: { jumpUrl: 'https://videos.local/watch?v=cached&t=12' },
+        citations: [citation('影片', 12, 32, 'https://youtu.be/match?t=12')],
+      },
+    });
+
+    assert.match(JSON.stringify(message), /videos\.local\/watch\?v=cached&t=12/);
+  });
+
+  it('沒有 YouTube 連結的片段改開網站課程頁；沒設定網站網址時只顯示文字', () => {
+    const qaResult = { answer: '回答', citations: [citation('本地上傳影片', 12, 32)] };
+
+    const withoutSite = JSON.stringify(buildAnswerFlexMessage({ courseTitle: '課程', qaResult }));
+    env.lineLoginCallbackUrl = 'https://focusflow.example/line/callback';
+    const withSite = JSON.stringify(buildAnswerFlexMessage({ courseTitle: '課程', qaResult }));
+
+    assert.doesNotMatch(withoutSite, /▶ 看這段/);
+    assert.match(withoutSite, /本地上傳影片・0:12 - 0:32/);
+    assert.match(withSite, /https:\/\/focusflow\.example\/app\/courses/);
+  });
+
+  it('拒答時沒有引用列', () => {
+    const message = buildAnswerFlexMessage({
+      courseTitle: '課程',
+      qaResult: { answer: '目前資料庫片段不足以回答這個問題。', citations: [] },
+    });
+
+    assert.doesNotMatch(JSON.stringify(message), /▶ 看這段|separator/);
+  });
+
+  it('降級時卡片保留 [MVP…] 警示，排在回答上方', () => {
+    const message = buildAnswerFlexMessage({
+      courseTitle: '課程',
+      qaResult: {
+        answer: '回答',
+        citations: [],
+        runtime: { fallbacks: [{ stage: 'retrieval' }, { stage: 'answer' }] },
+      },
+    });
+    const texts = message.contents.body.contents.map((item) => item.text);
+
+    assert.deepEqual(texts, [
+      '[MVP fallback] 檢索已改走 lexical ranking。',
+      '[MVP fallback] Gemini 暫時不可用，已改用 template answer。',
+      '回答',
+    ]);
+  });
+});
+
 describe('line question summary lines', () => {
   const { buildQuestionSummaryLines } = require('../src/services/line.service');
+
+  it('純文字備援保留 [MVP…] 降級警示', () => {
+    const lines = buildQuestionSummaryLines({
+      answer: 'JWT 用於身分驗證。',
+      citations: [],
+      clip: null,
+      runtime: {
+        matchStatus: 'no_searchable_segments',
+        fallbacks: [{ stage: 'retrieval' }, { stage: 'answer' }],
+      },
+    });
+
+    assert.deepEqual(lines, [
+      '[MVP提示] 這門課目前沒有可搜尋片段。',
+      '[MVP fallback] 檢索已改走 lexical ranking。',
+      '[MVP fallback] Gemini 暫時不可用，已改用 template answer。',
+      'JWT 用於身分驗證。',
+    ]);
+  });
 
   it('命中片段有 jumpUrl 時回覆包含跳轉連結', () => {
     const lines = buildQuestionSummaryLines({
@@ -1012,7 +1201,7 @@ describe('line question summary lines', () => {
     });
 
     assert.equal(lines.includes('跳轉：https://youtu.be/abc123def45?t=12'), true);
-    assert.equal(lines.includes('片段：12s - 32s'), true);
+    assert.equal(lines.includes('片段：0:12 - 0:32'), true);
   });
 
   it('命中片段沒有 jumpUrl 時回覆包含改用網站觀看的提示，而非整行消失', () => {

@@ -458,7 +458,7 @@ details.glossary .terms{margin-top:0}
   <div><b>✋ 做不到</b>或要求互相矛盾。照實說</div>
 </div>
 
-<footer>更新 2026-11-02 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LM 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<footer>更新 2026-11-03 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LM 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>
@@ -466,7 +466,7 @@ var D={
 z1:["按「連結 LINE」（LINE Login）","free","學生已登入網頁，按一個按鈕就開始。從 Bot 或「詢問助教」進來的學生，也走同一條路。"],
 z2:["LINE 授權（OAuth 2.0）","have","在 LINE 的授權畫面按「許可」，由 LINE 證明這個人是這個 LINE 帳號的主人；加好友在同一畫面勾選，或在許可之後另跳一頁按「加入好友」，看用哪種設定（bot_prompt）。"],
 z3:["後端核對＋驗證（CSRF 防護、ID Token 驗證）","lock","確認 state 是同一位登入者發起、沒過期、沒用過，再驗證 LINE 給的身分證明。"],
-z7:["Bot 回覆（Flex 回答卡）","free","回答改成卡片：課程、回答、最多 3 筆引用，引用可點「▶ 看這段」。沒有開發字樣，時間寫成 1:15 - 2:00。卡片失敗時退回純文字。"],
+z7:["Bot 回覆（Flex 回答卡）","free","已做好（程式）：回答改成卡片，上方課程、中間回答、最多 3 筆引用，可點「▶ 看這段」；沒有開發字樣，時間寫成 1:15 - 2:00；卡片失敗時退回純文字（decisions.md LL8）。還沒在手機與電腦版 LINE 實測。"],
 z8:["教師統計（Source Breakdown）","free","網頁和 LINE 的提問數分開顯示，總數算法不變，用來看改版有沒有效果。"],
 z9:["LINE Login channel","lock","在現有 provider 新建；正式後台每一步都要 Weihao 先同意，改成 Published 後無法退回。"],
 z10:["一次性 state 存放（State Store）","free","已做好：lineLoginStates 只存 state 的雜湊，10 分鐘過期；送進來就刪除，比對失敗也作廢（decisions.md LL1）。"],

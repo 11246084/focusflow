@@ -99,6 +99,127 @@ function normalizeIncomingTextMessage(text) {
   }
 }
 
+// 秒數轉成學生看得懂的時間，例：75 → 1:15；超過一小時加上時，例：3725 → 1:02:05
+function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = String(total % 60).padStart(2, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`;
+}
+
+function formatTimeRange(timestamp) {
+  return `${formatClock(timestamp?.startSec)} - ${formatClock(timestamp?.endSec)}`;
+}
+
+// 網站網址取自 LINE Login 回呼網址（兩者是同一個網站）；沒有設定時回 null，訊息就不放連結。
+function buildWebUrl(pathname) {
+  try {
+    return new URL(pathname, env.lineLoginCallbackUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+// 未綁定的學生：附一顆「連結 LINE」按鈕，打開後會直接前往 LINE 授權。
+function buildBindPromptMessage(text) {
+  const linkUrl = buildWebUrl('/app/line');
+  if (!linkUrl) return buildTextMessage(text);
+
+  return {
+    type: 'flex',
+    altText: `${text} ${linkUrl}`,
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text, wrap: true, size: 'sm', color: '#3D3D3A' },
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#06C755',
+            action: { type: 'uri', label: '連結 LINE', uri: linkUrl },
+          },
+        ],
+      },
+    },
+  };
+}
+
+// 每筆引用的跳轉連結：第一筆沿用快取 clip 的連結。
+function citationLink(qaResult, citation, index) {
+  return (index === 0 ? qaResult.clip?.jumpUrl : null) || citation.timestamp?.jumpUrl || null;
+}
+
+// 回答卡：上方課程、中間回答、下方最多 3 筆引用。只改呈現方式，回答與引用沿用問答結果。
+// 沒有 YouTube 版本的片段改開網站課程頁。
+function buildAnswerFlexMessage({ qaResult, courseTitle }) {
+  const title = courseTitle || 'FocusFlow 助教';
+  const answer = String(qaResult.answer || '').trim() || '目前沒有可以回答的內容。';
+  const coursePageUrl = buildWebUrl('/app/courses');
+  const citationRows = (qaResult.citations || []).slice(0, 3).map((citation, index) => {
+    const videoTitle = citation.videoTitle || citation.sourceVideo?.title || '課程影片';
+    const jumpUrl = citationLink(qaResult, citation, index) || coursePageUrl;
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'text',
+          text: `${videoTitle}・${formatTimeRange(citation.timestamp)}`,
+          size: 'xs',
+          color: '#555555',
+          wrap: true,
+          flex: 1,
+        },
+        ...(jumpUrl ? [{
+          type: 'button',
+          style: 'primary',
+          color: '#2B4A9B',
+          height: 'sm',
+          flex: 0,
+          action: { type: 'uri', label: '▶ 看這段', uri: jumpUrl },
+        }] : []),
+      ],
+    };
+  });
+
+  return {
+    type: 'flex',
+    altText: `${title}：${answer}`.slice(0, 400),
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#2B4A9B',
+        paddingAll: '14px',
+        contents: [
+          { type: 'text', text: title, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
+          { type: 'text', text: '根據課程影片回答', size: 'xs', color: '#DDE4F5' },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          ...buildDegradationNotices(qaResult).map((notice) => (
+            { type: 'text', text: notice, wrap: true, size: 'xxs', color: '#B04A3F' }
+          )),
+          { type: 'text', text: answer.slice(0, 2000), wrap: true, size: 'sm', color: '#3D3D3A' },
+          ...(citationRows.length ? [{ type: 'separator' }, ...citationRows] : []),
+        ],
+      },
+    },
+  };
+}
+
 // 把回覆結果（是否成功送出、跳過原因）合併進事件處理結果物件
 // 這樣每個 handler 回傳的物件格式都一致，方便 controller 層整理
 function attachReplyMetadata(result, replyResult) {
@@ -385,8 +506,10 @@ async function handleFollow(event) {
 
   const text = boundUser
     ? '歡迎回來！你的 LINE 帳號已綁定 FocusFlow，可以直接提問；輸入「切換課程」可更換課程。'
-    : '歡迎使用 FocusFlow。請先完成帳號綁定，綁定後就能在 LINE 直接提問課程內容。';
-  const replyResult = await replyMessage(event.replyToken, [buildTextMessage(text)]);
+    : '歡迎使用 FocusFlow！按下方按鈕連結帳號，就能直接在 LINE 提問課程內容。';
+  const replyResult = await replyMessage(event.replyToken, [
+    boundUser ? buildTextMessage(text) : buildBindPromptMessage(text),
+  ]);
 
   return attachReplyMetadata({
     type: 'follow',
@@ -501,7 +624,7 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
   if (!user) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先完成帳號綁定。')]);
+    const replyResult = await replyMessage(replyToken, [buildBindPromptMessage('請先連結 FocusFlow 帳號，連結後就能直接在這裡提問。')]);
 
     return attachReplyMetadata({
       type: 'switch_course',
@@ -571,7 +694,7 @@ async function handleDirectCourseSelect(lineUserId, courseId, replyToken) {
 
   if (!user) {
     const replyResult = await replyMessage(replyToken, [
-      buildTextMessage('請先完成帳號綁定後，再從系統進入課程。'),
+      buildBindPromptMessage('請先連結 FocusFlow 帳號，再從網站的課程頁進入。'),
     ]);
     return attachReplyMetadata({ type: 'direct_course_select', handled: false, reason: 'user_not_bound' }, replyResult);
   }
@@ -661,7 +784,7 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
   if (!user) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage('找不到綁定使用者，請重新綁定帳號。')]);
+    const replyResult = await replyMessage(replyToken, [buildBindPromptMessage('這個 LINE 目前沒有連結 FocusFlow 帳號，請重新連結。')]);
 
     return attachReplyMetadata({
       type: 'select_course',
@@ -722,37 +845,35 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
   }, replyResult);
 }
 
-// 把 QA 結果組裝成使用者看到的訊息文字行
-// 包含：fallback 提示（開發用）、AI 答案、片段時間戳、影片跳轉連結
+// 降級警示：問答沒有走完整流程時，在回覆上標出來，方便發現並修好降級本身。
+// 以下 [MVP提示] / [MVP fallback] 是刻意保留的診斷資訊，降級修好前不要拿掉。
+function buildDegradationNotices(qaResult) {
+  const notices = [];
+  const fallbacks = qaResult.runtime?.fallbacks || [];
+
+  if (qaResult.runtime?.matchStatus === 'no_searchable_segments') {
+    notices.push('[MVP提示] 這門課目前沒有可搜尋片段。');
+  }
+  if (fallbacks.some((item) => item.stage === 'retrieval')) {
+    notices.push('[MVP fallback] 檢索已改走 lexical ranking。');
+  }
+  if (fallbacks.some((item) => item.stage === 'answer')) {
+    notices.push('[MVP fallback] Gemini 暫時不可用，已改用 template answer。');
+  }
+  return notices;
+}
+
+// 純文字版回答：回答卡被 LINE 拒收時的備援。包含降級警示、AI 答案、片段時間與影片跳轉連結。
 function buildQuestionSummaryLines(qaResult) {
   const [topCitation] = qaResult.citations || [];
-  const summaryLines = [];
-  const answerFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'answer');
-  const retrievalFallback = qaResult.runtime?.fallbacks?.find((item) => item.stage === 'retrieval');
-
-  // 以下 [MVP提示] / [MVP fallback] 訊息是開發階段的診斷資訊，正式上線前可以移除
-  if (qaResult.runtime?.matchStatus === 'no_searchable_segments') {
-    summaryLines.push('[MVP提示] 這門課目前沒有可搜尋片段。');
-  }
-
-  if (retrievalFallback) {
-    summaryLines.push('[MVP fallback] 檢索已改走 lexical ranking。');
-  }
-
-  if (answerFallback) {
-    summaryLines.push('[MVP fallback] Gemini 暫時不可用，已改用 template answer。');
-  }
-
-  summaryLines.push(qaResult.answer);
+  const summaryLines = [...buildDegradationNotices(qaResult), qaResult.answer];
 
   // 附上最相關片段的時間區間，讓使用者知道答案來自影片哪個位置
   if (topCitation) {
-    summaryLines.push(`片段：${topCitation.timestamp.startSec}s - ${topCitation.timestamp.endSec}s`);
+    summaryLines.push(`片段：${formatTimeRange(topCitation.timestamp)}`);
   }
 
-  const jumpUrl = topCitation
-    ? qaResult.clip?.jumpUrl || topCitation.timestamp?.jumpUrl
-    : null;
+  const jumpUrl = topCitation ? citationLink(qaResult, topCitation, 0) : null;
 
   // 若有產生跳轉連結（對應影片片段的直接連結），一併附上
   if (jumpUrl) {
@@ -802,6 +923,7 @@ function buildAskLimitMessage(error) {
 }
 
 // 把 QA 錯誤轉成使用者看得懂的中文提示訊息
+// 把 QA 錯誤轉成提示訊息；[MVP hard-fail] 是刻意保留的診斷資訊，降級修好前不要拿掉。
 function buildQaFailureMessage(error) {
   switch (error?.code) {
     case 'QA_RUNTIME_MISCONFIGURED':
@@ -840,7 +962,7 @@ async function handleQuestion(lineUserId, text, replyToken) {
   const user = await User.findOne({ lineUserId });
 
   if (!user) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先完成帳號綁定。')]);
+    const replyResult = await replyMessage(replyToken, [buildBindPromptMessage('請先連結 FocusFlow 帳號，連結後就能直接在這裡提問。')]);
 
     return attachReplyMetadata({
       type: 'question',
@@ -987,15 +1109,31 @@ async function handleQuestion(lineUserId, text, replyToken) {
 
   // 把所有回答行用換行合併成一則訊息傳給使用者
   // AI 回答可能花了十幾秒，replyToken 過期時 deliverMessage 會改用 push 送出。
-  const replyResult = await deliverMessage({
-    replyToken,
-    lineUserId,
-    messages: [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))],
-  });
+  let replyFormat = 'flex';
+  let replyResult;
+  try {
+    replyResult = await deliverMessage({
+      replyToken,
+      lineUserId,
+      messages: [buildAnswerFlexMessage({ qaResult, courseTitle: activeCourse.title })],
+    });
+  } catch {
+    // 卡片被 LINE 拒收（例如內容超出限制）時改送純文字，學生一定收得到答案。
+    if (env.nodeEnv !== 'test') {
+      console.warn('[LINE] flex answer rejected, falling back to text.');
+    }
+    replyFormat = 'text';
+    replyResult = await deliverMessage({
+      replyToken,
+      lineUserId,
+      messages: [buildTextMessage(buildQuestionSummaryLines(qaResult).join('\n'))],
+    });
+  }
 
   return attachReplyMetadata({
     type: 'question',
     handled: true,
+    replyFormat,
     matchCount: qaResult.matches.length,
     qaRuntime: {
       status: qaResult.runtime?.status,
@@ -1137,5 +1275,7 @@ module.exports = {
   unbindLineUser,
   processWebhookEvents,
   buildQuestionSummaryLines,
+  buildAnswerFlexMessage,
+  formatClock,
   mapLineHistoryForContextualizer,
 };

@@ -4,7 +4,7 @@
 
 這份文件給組員百陶的 AI（Codex 或 Claude Code），讓它不必讀過先前的對話，就能從現在一路做到 11/10 在 `dev` 完成。設計依據只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只寫結果目標、優先順序、規則、求援方式、攻擊情境清單與正式環境關卡。功能完成時，在同一批 commit 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-11-02（優先項目①②的程式完成，尚未用真的 LINE 實測，也尚未 commit；進度見 [evidence/進度.md](evidence/進度.md)）
+最後更新：2026-11-03（優先項目①②的程式完成並在本機用真的 LINE 驗證綁定；③完成回答卡與移除開發字樣，選單卡尚未做；進度見 [evidence/進度.md](evidence/進度.md)）
 
 ## 第一步：邀請 Weihao 為 Admin
 

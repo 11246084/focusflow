@@ -33,12 +33,24 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
     factory = require(adapterPath).createRuntime;
   }
   if (typeof factory !== 'function') throw new Error('RECUT_ADAPTER_INVALID');
+  // Paid policy runs own a new output directory before constructing any provider.
+  // Keep it after failures too: a retry must never overwrite earlier usage evidence.
+  if (config?.trialPolicy) {
+    require('../services/recutCliRuntime.service').assertCliTrialPolicy({ config, input, targetUri });
+    await fs.mkdir(path.dirname(output), { recursive: true });
+    try { await fs.mkdir(output); }
+    catch (error) { if (error.code === 'EEXIST') throw new Error('RECUT_TRIAL_OUTPUT_EXISTS'); throw error; }
+  }
   // This preflight is emitted before construction or any model invocation.
   const estimate = await runSingleTopicTrial();
   if (require.main === module) process.stdout.write(`${JSON.stringify({ ...estimate, notice: '模型授權參數已提供；以下開始執行。' })}\n`);
   const runtime = await factory({ input, config, output, targetUri, env, allowModel: true });
   try {
     if (runtime.missing?.length) throw new Error('RECUT_STEPS_NOT_CONFIGURED');
+    if (config?.trialPolicy) {
+      if (typeof runtime.reserveTrialBudget !== 'function') throw new Error('RECUT_TRIAL_BUDGET_NOT_CONFIGURED');
+      await runtime.reserveTrialBudget();
+    }
     const result = await runSingleTopicTrial({ ...runtime, input, allowModel: true, render: Boolean(options.render), targetUri });
     await fs.mkdir(output, { recursive: true });
     await fs.writeFile(path.join(output, 'plan.json'), JSON.stringify(result.version.plan, null, 2));

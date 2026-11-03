@@ -77,6 +77,24 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
   const id = (value) => new ObjectId(String(value));
   const find = (name, value) => db.collection(name).findOne({ _id: id(value) });
   return {
+    // One authorization owns at most one budget for this local script, even
+    // after process crashes or a caller changes the output directory.
+    reserveTrialBudget: guarded(async ({ input, policy }) => {
+      require('./recutTrialGuard.service').createRecutTrialGuard(policy);
+      const script = await find('shortscripts', input.scriptId);
+      if (!script || String(script.courseId) !== String(input.courseId)) throw safe('RECUT_SOURCE_UNAVAILABLE');
+      if (await db.collection('recuttrialruns').findOne({ scriptId: script._id })) throw safe('RECUT_TRIAL_BUDGET_ALREADY_RESERVED');
+      try {
+        await db.collection('recuttrialbudgets').insertOne({ _id: script._id, scriptId: script._id, courseId: script.courseId,
+          modelId: policy.modelId, maxCalls: policy.maxCalls, budgetUsd: policy.budgetUsd,
+          maxRequestBytes: policy.maxRequestBytes, maxOutputTokens: policy.maxOutputTokens,
+          status: 'reserved', createdAt: new Date(), refundable: false });
+      } catch (error) {
+        if (error.code === 11000) throw safe('RECUT_TRIAL_BUDGET_ALREADY_RESERVED');
+        throw error;
+      }
+      return { modelId: policy.modelId, maxCalls: policy.maxCalls, budgetUsd: policy.budgetUsd, status: 'reserved' };
+    }),
     loadSource: guarded((value) => find('recutsources', value)),
     loadBaseVersion: guarded((value) => find('recutversions', value)),
     loadScript: guarded((value) => find('shortscripts', value)),

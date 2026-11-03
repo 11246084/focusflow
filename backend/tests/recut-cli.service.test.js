@@ -46,3 +46,52 @@ it('formal CLI dry-run uses topics only and does not construct runtime/read URI/
     assert.deepEqual(await fs.readdir(directory), ['topics.json']);
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 });
+
+const approvedPolicy = () => ({ modelId: 'gemini-3.8-flash', maxCalls: 5, maxRequestBytes: 100000,
+  maxOutputTokens: 4096, budgetUsd: 0.5, inputPerMillion: 0.75, outputPerMillion: 3.75, validUntil: '2026-12-31' });
+const approvedConfig = () => ({ geminiApiKeyEnv: 'GEMINI_API_KEY', model: { provider: 'gemini', model: 'gemini-3.8-flash' },
+  callLimit: 5, maxOutputTokens: 4096, thinkingLevel: 'LOW', codeCards: { enabled: false }, trialPolicy: approvedPolicy() });
+const approvedUri = 'mongodb://127.0.0.1:27029/recut_trial_professor-siri-20261103';
+it('paid CLI refuses existing or concurrently claimed output before constructing another runtime', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-cli-claim-')); let providers = 0, reserved = 0, modelCalls = 0;
+  try {
+    const input = path.join(directory, 'input.json'), config = path.join(directory, 'runtime.json'), output = path.join(directory, 'out');
+    await fs.writeFile(input, JSON.stringify({ scriptId: 's', courseId: 'c' })); await fs.writeFile(config, JSON.stringify(approvedConfig()));
+    const argv = ['--input', input, '--runtime', config, '--output', output, '--target-uri-env', 'RECUT_LOCAL_URI', '--allow-model'];
+    const env = { RECUT_LOCAL_URI: approvedUri, GEMINI_API_KEY: 'fake-key-not-for-argv-or-artifacts' };
+    const createRuntime = async () => { providers++; return { model: approvedConfig().model, reserveTrialBudget: async () => { reserved++; },
+      pipeline: { generate: [{ id: 'fixture', stage: 'selection', run: async () => { modelCalls++; return {
+        version: { selection: { answerable: false }, fullScript: '', plan: null } }; } }] } }; };
+    const results = await Promise.allSettled([main(argv, { env, createRuntime }), main(argv, { env, createRuntime })]);
+    assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
+    assert.match(results.find((r) => r.status === 'rejected').reason.message, /RECUT_TRIAL_OUTPUT_EXISTS/);
+    assert.equal(providers, 1); assert.equal(reserved, 1); assert.equal(modelCalls, 1);
+    const before = await fs.readFile(path.join(output, 'run.json'), 'utf8');
+    await assert.rejects(main(argv, { env, createRuntime }), /RECUT_TRIAL_OUTPUT_EXISTS/);
+    assert.equal(await fs.readFile(path.join(output, 'run.json'), 'utf8'), before);
+    assert.ok(!JSON.stringify({ argv, results, before }).includes(env.GEMINI_API_KEY));
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+it('approved paid policy rejects changed URI/model/limits/fallback before provider or output claim', async () => {
+  const { assertCliTrialPolicy } = require('../src/services/recutCliRuntime.service');
+  for (const config of [{ ...approvedConfig(), model: { provider: 'gemini', model: 'other' } },
+    { ...approvedConfig(), callLimit: 6 }, { ...approvedConfig(), codeCards: { enabled: true } },
+    { ...approvedConfig(), maxOutputTokens: 8192 }, { ...approvedConfig(), thinkingLevel: 'MINIMAL' },
+    { ...approvedConfig(), fallbackModel: 'other' }, { ...approvedConfig(), trialPolicy: { ...approvedPolicy(), budgetUsd: 1 } }]) {
+    assert.throws(() => assertCliTrialPolicy({ config, targetUri: approvedUri }), { code: 'RECUT_TRIAL_POLICY_INVALID' });
+  }
+  for (const targetUri of ['mongodb://localhost:27029/recut_trial_professor-siri-20261103',
+    'mongodb://127.0.0.1:27017/recut_trial_professor-siri-20261103', 'mongodb://127.0.0.1:27029/production',
+    approvedUri + '?authSource=admin']) assert.throws(() => assertCliTrialPolicy({ config: approvedConfig(), targetUri }), { code: 'RECUT_LOCAL_DB_INVALID' });
+  assert.throws(() => assertCliTrialPolicy({ config: approvedConfig(), targetUri: approvedUri, now: new Date('2027-01-01') }), { code: 'RECUT_TRIAL_POLICY_EXPIRED' });
+  let connections = 0;
+  await assert.rejects(require('../src/services/recutCliRuntime.service').createCliRuntime({ config: approvedConfig(), input: {},
+    targetUri: approvedUri, allowModel: true, env: {}, driverLoader: () => { connections++; } }), { code: 'RECUT_PROVIDER_NOT_CONFIGURED' });
+  assert.equal(connections, 0);
+});
+it('paid policy call cap is shared and the sixth reservation fails before a request', () => {
+  const guard = require('../src/services/recutTrialGuard.service').createRecutTrialGuard(approvedPolicy());
+  const request = { modelId: 'gemini-3.8-flash', input: {}, images: [], body: '{}', maxOutputTokens: 4096 };
+  for (let n = 1; n <= 5; n++) assert.equal(guard.reserve(request).trialModelCalls, n);
+  assert.throws(() => guard.reserve(request), { code: 'RECUT_TRIAL_CALL_LIMIT' });
+});

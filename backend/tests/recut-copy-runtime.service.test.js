@@ -81,3 +81,35 @@ it('copy CLI uses only named environment entries and emits only safe manifest', 
     env: { RECUT_SOURCE: 'private', RECUT_LOCAL: localUri }, runtimeFactory: (args) => { options = args; return { copy: async (args) => ({ dryRun: !args.execute }) }; } });
   assert.equal(options.sourceUri, 'private'); assert.deepEqual(result, { dryRun: true });
 });
+
+it('local trial budget reservation is atomic across processes, never refunded, and rejects earlier successful runs', async () => {
+  const rows = new Map(), collections = new Set(); let closeCount = 0;
+  class ObjectId { constructor(value) { this.value = value; } toString() { return this.value; } }
+  const script = { _id: new ObjectId(ids[0]), courseId: new ObjectId(ids[1]) };
+  let priorRun = false;
+  class MongoClient {
+    async connect() {} async close() { closeCount++; }
+    db() { return { collection: (name) => { collections.add(name); return {
+      findOne: async () => name === 'shortscripts' ? script : name === 'recuttrialruns' && priorRun ? { scriptId: script._id } : null,
+      insertOne: async (row) => { const key = String(row._id); if (rows.has(key)) throw Object.assign(new Error('duplicate'), { code: 11000 }); rows.set(key, row); },
+    }; } }; }
+  }
+  const policy = { modelId: 'gemini-3.8-flash', maxCalls: 5, maxRequestBytes: 100000, maxOutputTokens: 4096,
+    budgetUsd: 0.5, inputPerMillion: 0.75, outputPerMillion: 3.75, validUntil: '2026-12-31' };
+  const input = { scriptId: ids[0], courseId: ids[1] }, options = { targetUri: localUri, driverLoader: () => ({ MongoClient, ObjectId }) };
+  const first = createRecutLocalRepository(options), parallel = createRecutLocalRepository(options);
+  const claims = await Promise.allSettled([first.reserveTrialBudget({ input, policy }), parallel.reserveTrialBudget({ input, policy })]);
+  assert.equal(claims.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.equal(claims.find((r) => r.status === 'rejected').reason.code, 'RECUT_TRIAL_BUDGET_ALREADY_RESERVED');
+  await first.close(); await parallel.close();
+  const restarted = createRecutLocalRepository(options);
+  // A new process or changed policy/output cannot restart a paid authorization.
+  await assert.rejects(restarted.reserveTrialBudget({ input, policy: { ...policy, budgetUsd: 0.4 } }), { code: 'RECUT_TRIAL_BUDGET_ALREADY_RESERVED' });
+  assert.equal(rows.size, 1); assert.equal(rows.get(ids[0]).refundable, false);
+  assert.deepEqual([...collections].sort(), ['recuttrialbudgets', 'recuttrialruns', 'shortscripts']);
+  await restarted.close();
+  rows.clear(); priorRun = true;
+  const historical = createRecutLocalRepository(options);
+  await assert.rejects(historical.reserveTrialBudget({ input, policy }), { code: 'RECUT_TRIAL_BUDGET_ALREADY_RESERVED' });
+  assert.equal(rows.size, 0); await historical.close(); assert.equal(closeCount, 4);
+});

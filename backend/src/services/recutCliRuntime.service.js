@@ -7,8 +7,23 @@ const { createRecutMediaAdapter } = require('./recutRuntimeAdapters.service');
 const { fail } = require('./recutRuntime.service');
 const { hashLocalFile, validateSnapshotCache } = require('./recutSnapshotCache.service');
 
+function assertCliTrialPolicy({ config, input = {}, targetUri, now = new Date() }) {
+  if (!config?.trialPolicy) return;
+  const p = config.trialPolicy, model = input.model || config.model, calls = input.callLimit || config.callLimit;
+  require('./recutTrialGuard.service').createRecutTrialGuard(p);
+  if (!/^mongodb:\/\/127\.0\.0\.1:27029\/recut_trial_professor-siri-\d{8}$/.test(targetUri || '')) throw fail('試片資料庫不在本次允許範圍。', 'RECUT_LOCAL_DB_INVALID');
+  if (config.geminiApiKeyEnv !== 'GEMINI_API_KEY' || model?.provider !== 'gemini' || model.model !== 'gemini-3.8-flash'
+    || config.model?.model !== model.model || config.callLimit !== 5 || !Number.isInteger(calls) || calls < 3 || calls > 5
+    || config.maxOutputTokens !== 4096 || String(config.thinkingLevel).toUpperCase() !== 'LOW' || config.codeCards?.enabled !== false
+    || p.modelId !== model.model || p.maxCalls !== 5 || p.maxRequestBytes !== 100000 || p.maxOutputTokens !== 4096 || p.budgetUsd !== 0.5
+    || p.inputPerMillion !== 0.75 || p.outputPerMillion !== 3.75 || p.validUntil !== '2026-12-31'
+    || config.fallback || config.fallbackModel || config.fallbackModels) throw fail('試片設定與當次核准模型及預算不符。', 'RECUT_TRIAL_POLICY_INVALID');
+  if (now.toISOString().slice(0, 10) > p.validUntil) throw fail('試片價目期限已過。', 'RECUT_TRIAL_POLICY_EXPIRED');
+}
+
 async function createCliRuntime({ config, input, output, targetUri, allowModel = false, env = process.env, driverLoader, run } = {}) {
   if (!allowModel) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
+  assertCliTrialPolicy({ config, input, targetUri });
   if (!/^[A-Z][A-Z0-9_]*$/.test(config?.geminiApiKeyEnv || '')) throw fail('須指定金鑰環境變數名稱。', 'RECUT_PROVIDER_NOT_CONFIGURED');
   if (!env[config.geminiApiKeyEnv]) throw fail(`缺少具名環境變數：${config.geminiApiKeyEnv}`, 'RECUT_PROVIDER_NOT_CONFIGURED');
   const fixedModel = structuredClone(input.model || config.model), fixedCallLimit = input.callLimit || config.callLimit || 5;
@@ -58,6 +73,6 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     codeCards: config.codeCards?.enabled ? { enabled: true, ...workspaces, run: execute, ffmpeg: config.media.ffmpeg,
       resolveSourcePath: repository.resolveSourcePath, resolveSource, readFile: fs.readFile } : undefined });
   if (runtime.missing.length) throw fail('試產工具設定不足。', 'RECUT_STEPS_NOT_CONFIGURED');
-  return runtime;
+  return { ...runtime, ...(config.trialPolicy ? { reserveTrialBudget: () => repository.reserveTrialBudget({ input, policy: config.trialPolicy }) } : {}) };
 }
-module.exports = { createCliRuntime };
+module.exports = { createCliRuntime, assertCliTrialPolicy };

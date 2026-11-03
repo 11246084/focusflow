@@ -648,7 +648,18 @@ async function notifyRecutRenderFailed({ job, script }) {
   })));
 }
 
+async function notifyRecutRenderReady({ job, script, asset }) {
+  const course = await Course.findById(job.courseId).select('teacherId').lean();
+  if (!course?.teacherId) throw new Error('RECUT_NOTIFICATION_RECIPIENT_UNAVAILABLE');
+  return upsertDedupedNotifications([buildUpsertOperation({ recipientId: course.teacherId,
+    dedupeKey: `recut_render_ready:${job._id}:${asset._id}:${asset.generationVersion}`,
+    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: '短片已製作完成，請審閱成品',
+      content: '請開啟短片觀看實際 MP4，再決定是否核准。', courseIds: [job.courseId], scriptId: script._id },
+  })]);
+}
+
 module.exports = {
+  notifyRecutRenderReady,
   notifyRecutRenderFailed,
   notifyYouTubeSystemEvent, notifyYouTubeRemoteEvent, notifyYouTubeUploadPaused, notifyYouTubeUploadBlockedRounds, notifyRecutTaskFinished,
 

@@ -2,7 +2,11 @@ const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const dotenv = require('dotenv');
+const originalDotenv = dotenv.config;
+dotenv.config = () => ({ parsed: {} });
 const { resetStore, store, ids } = require('./helpers/backendTestHarness');
+dotenv.config = originalDotenv;
 const { makeReview, teacher } = require('./helpers/recutReviewFixtures');
 const { snapshot } = require('./helpers/recutFixtures');
 const review = require('../src/services/recutReview.service');
@@ -102,8 +106,63 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
     const asset = store.shortAssets[0]; assert.equal(asset.reviewStatus, 'pending'); assert.equal(asset.status, 'draft');
     assert.equal(String(asset.recutVersionId), job.versionId); assert.equal(store.recutRenderJobs[0].status, 'succeeded');
     assert.equal(store.recutRenderJobs[0].planVersion, 'recut-v1'); assert.equal(store.recutRenderJobs[0].renderDurationMs, 1200);
+    const notices = store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:'));
+    assert.equal(notices.length, 1); assert.equal(String(notices[0].recipientId), String(ids.teacher));
+    assert.equal(String(notices[0].scriptId), String(f.script._id));
+    assert.equal(store.recutRenderJobs[0].successNotificationPending, false); assert.ok(store.recutRenderJobs[0].successNotifiedAt);
+    await worker.recoverRenderJobs();
+    await assert.rejects(worker.completeRender(lease(identity, job, { file, metadata: metadata(job) })), { code: 'RECUT_LEASE_INVALID' });
+    assert.equal(store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:')).length, 1);
     assert.ok(fs.existsSync(file.path));
   });
+  it('通知寫入失敗保留成功成品與durable待送標記，恢復只重送通知', async () => {
+    const { f, worker: identity, job } = await claimed(); const file = fileFor();
+    const notifications = require('../src/services/notification.service'); const original = notifications.notifyRecutRenderReady;
+    notifications.notifyRecutRenderReady = async () => { throw Error('injected notification outage'); };
+    try {
+      const result = await worker.completeRender(lease(identity, job, { file, metadata: metadata(job) }));
+      assert.equal(result.status, 'asset_review');
+    } finally { notifications.notifyRecutRenderReady = original; }
+    const stored = store.recutRenderJobs[0];
+    assert.equal(stored.status, 'succeeded'); assert.equal(stored.successNotificationPending, true);
+    assert.equal(snapshot(f.script).state, 'asset_review'); assert.equal(store.shortAssets.length, 1);
+    assert.equal(store.recutWorkers[0].activeJobId, null); assert.ok(fs.existsSync(file.path));
+    const count = stored.attempts.length; await worker.recoverRenderJobs();
+    assert.equal(stored.successNotificationPending, false); assert.equal(stored.attempts.length, count);
+    assert.equal(store.shortAssets.length, 1); assert.equal(store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:')).length, 1);
+  });
+  it('通知已寫但ack中斷，重啟重送以同asset及generation去重', async () => {
+    const { worker: identity, job } = await claimed(); const file = fileFor(); const original = Job.findOneAndUpdate; let once = true;
+    Job.findOneAndUpdate = async (...args) => {
+      if (once && args[1].$set?.successNotifiedAt) { once = false; throw Error('injected ack outage'); }
+      return original(...args);
+    };
+    try { assert.equal((await worker.completeRender(lease(identity, job, { file, metadata: metadata(job) }))).status, 'asset_review'); }
+    finally { Job.findOneAndUpdate = original; }
+    assert.equal(store.recutRenderJobs[0].successNotificationPending, true);
+    await Promise.all([worker.recoverRenderJobs(), worker.recoverRenderJobs()]);
+    assert.equal(store.recutRenderJobs[0].successNotificationPending, false);
+    assert.equal(store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:')).length, 1);
+  });
+  for (const stale of ['version', 'generation', 'archived', 'withdrawn']) {
+    it(`恢復待送通知遇到${stale}不宣稱目前成品可審，歷史成功不補送`, async () => {
+      const { f, worker: identity, job } = await claimed(); const file = fileFor();
+      const notices = require('../src/services/notification.service'); const original = notices.notifyRecutRenderReady;
+      notices.notifyRecutRenderReady = async () => { throw Error('hold notification'); };
+      try { await worker.completeRender(lease(identity, job, { file, metadata: metadata(job) })); }
+      finally { notices.notifyRecutRenderReady = original; }
+      const script = store.shortScripts.find((entry) => String(entry._id) === String(f.script._id));
+      if (stale === 'version') script.recut.currentVersionId = ids.student;
+      if (stale === 'generation') store.shortAssets[0].generationVersion += 1;
+      if (stale === 'archived') store.shortAssets[0].status = 'archived';
+      if (stale === 'withdrawn') store.recutConsents.length = 0;
+      // Legacy successes deliberately have no new durable intent.
+      store.recutRenderJobs.push({ ...store.recutRenderJobs[0], _id: ids.student, successNotificationPending: undefined });
+      await worker.recoverRenderJobs();
+      assert.equal(store.recutRenderJobs[0].successNotificationPending, false);
+      assert.equal(store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:')).length, 0);
+    });
+  }
   it('遲到上傳拒收並移除未引用檔案；錯version與檢查失敗同樣不進審核', async () => {
     const { worker: identity, job } = await claimed(); const file = fileFor();
     await worker.recoverRenderJobs({ now: new Date(Date.now() + worker.LEASE_MS + 10) });

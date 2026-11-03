@@ -15,6 +15,9 @@ const schema = new Schema({
   checks: { type: Schema.Types.Mixed, default: null }, error: { type: Schema.Types.Mixed, default: null },
   filePath: { type: String, default: null },
   resultAssetId: { type: Schema.Types.ObjectId, ref: 'ShortAsset', default: null },
+  // Set atomically only by this completion path; historical successes are not backfilled.
+  successNotificationPending: { type: Boolean, default: false },
+  successNotifiedAt: { type: Date, default: null },
   notifiedAt: { type: Date, default: null }, queuedAt: { type: Date, required: true }, finishedAt: Date,
 }, { timestamps: true });
 schema.index({ scriptId: 1, versionId: 1 }, { unique: true });

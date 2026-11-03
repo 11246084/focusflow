@@ -78,6 +78,7 @@ async function ensureRenderJob(scriptId) {
       // Explicit teacher retry reuses the job with a new attempt budget; retain prior attempts.
       return Job.findOneAndUpdate({ _id: existing._id, status: existing.status }, { $set: {
         status: 'queued', attemptCount: 0, excludedWorkerIds: [], error: null, notifiedAt: null,
+        successNotificationPending: false, successNotifiedAt: null,
         queuedAt: new Date(), planHash: planHash(version), workerId: null, leaseHash: null, leaseExpiresAt: null,
       } }, { new: true });
     }
@@ -90,6 +91,41 @@ async function notifyFailure(job) {
   const notifications = require('./notification.service');
   await notifications.notifyRecutRenderFailed({ job, script });
   await Job.findByIdAndUpdate(job._id, { $set: { notifiedAt: new Date() } });
+}
+// Caller holds the script transition lock. Durable intent is created with the
+// succeeded job, and notification dedupe covers a crash before the acknowledgement.
+async function notifySuccessOwned(job) {
+  const owned = { _id: job._id, status: 'succeeded', resultAssetId: job.resultAssetId, successNotificationPending: true };
+  try {
+    const current = await Job.findOne(owned).lean();
+    if (!current) return;
+    const script = await ShortScript.findById(job.scriptId).lean();
+    const asset = await ShortAsset.findById(job.resultAssetId).lean();
+    const snap = script && recutSnapshot(script);
+    const active = script?.productionMode === 'recut' && snap.state === 'asset_review'
+      && same(script.courseId, job.courseId) && same(snap.currentVersionId, job.versionId)
+      && same(snap.currentAssetId, job.resultAssetId) && asset?.status !== 'archived' && asset?.reviewStatus === 'pending'
+      && same(asset.sourceScriptId, job.scriptId) && same(asset.recutVersionId, job.versionId)
+      && same(asset.courseId, job.courseId) && asset.generationVersion === snap.currentAssetGenerationVersion;
+    if (!active) {
+      await Job.findOneAndUpdate(owned, { $set: { successNotificationPending: false } });
+      return;
+    }
+    try { await approvedVersion(script, job.versionId); }
+    catch (err) {
+      if (/^RECUT_(?:CONTENT|VOICE|AVATAR)_CONSENT_REQUIRED$|^RECUT_SYNTHETIC_VOICE_NOT_READY$/.test(err.code || '')) {
+        await Job.findOneAndUpdate(owned, { $set: { successNotificationPending: false } });
+        return;
+      }
+      throw err;
+    }
+    await require('./notification.service').notifyRecutRenderReady({ job: current, script, asset });
+    await Job.findOneAndUpdate(owned, { $set: { successNotificationPending: false, successNotifiedAt: new Date() } });
+  } catch {
+    // Notification storage failure must not undo the accepted MP4 or send it to
+    // another renderer. The regular recovery loop retries this exact pending job.
+    console.error('[recut] render completion notification pending');
+  }
 }
 async function settleFailure(job, { code, message, retryable, checks = null, now = new Date(), expiredOnly = false }) {
   const failed = !retryable || job.attemptCount >= MAX_ATTEMPTS;
@@ -123,6 +159,9 @@ async function recoverRenderJobs({ now = new Date() } = {}) {
   }
   for (const script of await ShortScript.find({ productionMode: 'recut', 'recut.state': 'render_queued' }).lean()) await ensureRenderJob(script._id);
   for (const job of await Job.find({ status: 'failed', notifiedAt: null }).lean()) await notifyFailure(job);
+  for (const job of await Job.find({ status: 'succeeded', successNotificationPending: true }).lean()) {
+    await withRecutTransition(job.scriptId, () => notifySuccessOwned(job));
+  }
 }
 async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now = new Date() }) {
   await recoverRenderJobs({ now });
@@ -216,11 +255,12 @@ async function finalizeCompletionOwned(job, transition) {
   if (script.recut.state === 'rendering') await transition({ event: 'attach_asset', versionId: version._id, assetId: asset._id, generationVersion: 1 });
   else if (!same(script.recut.currentAssetId, asset._id)) throw error('Accepted render no longer owns the script.');
   const saved = await Job.findOneAndUpdate({ _id: job._id, status: 'completing', resultAssetId: asset._id }, {
-    $set: { status: 'succeeded', finishedAt: new Date(), leaseHash: null },
+    $set: { status: 'succeeded', finishedAt: new Date(), leaseHash: null, successNotificationPending: true, successNotifiedAt: null },
     $push: { attempts: { workerId: job.workerId, at: new Date(), code: 'succeeded', checks: job.checks } },
   }, { new: true });
   if (!saved) throw error('Render completion changed.');
   await Worker.findOneAndUpdate({ _id: job.workerId, activeJobId: job._id }, { $set: { activeJobId: null } });
+  await notifySuccessOwned(saved);
   return { assetId: String(asset._id), status: 'asset_review' };
 }
 const finalizeCompletion = (job) => withRecutTransition(job.scriptId, (transition) => finalizeCompletionOwned(job, transition));

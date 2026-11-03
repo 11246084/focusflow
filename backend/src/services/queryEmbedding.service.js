@@ -1,5 +1,6 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
+const { fetchWithRetry } = require('../utils/providerRequest');
 const {
   GEMINI_EMBEDDING_2_MODEL,
   GEMINI_EMBEDDING_DIMENSIONS,
@@ -109,7 +110,8 @@ async function embedWithGemini(text) {
 
   let response;
   try {
-    response = await fetch(
+    // Gemini 偶爾短暫失敗或變慢；逾時與暫時性錯誤重試 2 次，避免一次失敗就讓學生拿到錯誤。
+    response = await fetchWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
       {
         method: 'POST',
@@ -126,6 +128,7 @@ async function embedWithGemini(text) {
           output_dimensionality: GEMINI_QUERY_EMBEDDING_DIMENSIONS,
         }),
       },
+      { timeoutMs: env.qaEmbeddingTimeoutMs, retries: 2, retryDelayMs: env.qaProviderRetryDelayMs },
     );
   } catch {
     throw new AppError('Failed to reach the Gemini embedding provider.', 502, 'EMBEDDING_PROVIDER_ERROR');

@@ -249,6 +249,10 @@ module.exports = {
   qaActiveLeafEmbeddingContractJson: process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON || '',
   qaActiveParentEmbeddingContractJson: process.env.QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON || '',
   geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash',
+  // 外部模型 API 的逾時；逾時或暫時性錯誤（429、5xx、連線失敗）會重試，產生回答 1 次、embedding 2 次。
+  qaAnswerTimeoutMs: parsePositiveInteger(process.env.QA_ANSWER_TIMEOUT_MS, 20000, 'QA_ANSWER_TIMEOUT_MS'),
+  qaEmbeddingTimeoutMs: parsePositiveInteger(process.env.QA_EMBEDDING_TIMEOUT_MS, 8000, 'QA_EMBEDDING_TIMEOUT_MS'),
+  qaProviderRetryDelayMs: parseNonNegativeNumber(process.env.QA_PROVIDER_RETRY_DELAY_MS, 500),
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
   openaiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',

@@ -140,3 +140,68 @@ describe('query embedding service', () => {
     );
   });
 });
+
+describe('Gemini embedding 的逾時與重試', () => {
+  const originalDelay = env.qaProviderRetryDelayMs;
+  const originalTimeout = env.qaEmbeddingTimeoutMs;
+  const vectorReply = () => {
+    const values = Array.from({ length: GEMINI_QUERY_EMBEDDING_DIMENSIONS }, () => 0);
+    values[0] = 1;
+    return { ok: true, status: 200, json: async () => ({ embedding: { values } }) };
+  };
+
+  afterEach(() => {
+    env.qaProviderRetryDelayMs = originalDelay;
+    env.qaEmbeddingTimeoutMs = originalTimeout;
+  });
+
+  it('暫時失敗（429、503）時重試，第三次成功就回傳向量', async () => {
+    env.geminiApiKey = 'test-gemini-key';
+    env.qaProviderRetryDelayMs = 0;
+    const statuses = [429, 503];
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      const status = statuses[calls - 1];
+      return status ? { ok: false, status } : vectorReply();
+    };
+
+    const result = await embedWithGemini('問題');
+
+    assert.equal(calls, 3);
+    assert.equal(result[0], 1);
+  });
+
+  it('一直卡住時逾時重試，用完次數回報 EMBEDDING_PROVIDER_ERROR', async () => {
+    env.geminiApiKey = 'test-gemini-key';
+    env.qaProviderRetryDelayMs = 0;
+    env.qaEmbeddingTimeoutMs = 30;
+    let calls = 0;
+    global.fetch = async (_url, options) => {
+      calls += 1;
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason));
+      });
+    };
+    const startedAt = Date.now();
+
+    await assert.rejects(embedWithGemini('問題'), { code: 'EMBEDDING_PROVIDER_ERROR' });
+
+    assert.equal(calls, 3);
+    assert.ok(Date.now() - startedAt < 2000);
+  });
+
+  it('金鑰錯誤（403）不重試', async () => {
+    env.geminiApiKey = 'test-gemini-key';
+    env.qaProviderRetryDelayMs = 0;
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      return { ok: false, status: 403 };
+    };
+
+    await assert.rejects(embedWithGemini('問題'), { code: 'EMBEDDING_PROVIDER_ERROR' });
+
+    assert.equal(calls, 1);
+  });
+});

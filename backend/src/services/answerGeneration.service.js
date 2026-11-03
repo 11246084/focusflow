@@ -1,6 +1,7 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
 const { summarizeTextForLog } = require('../utils/logPreview');
+const { fetchWithRetry } = require('../utils/providerRequest');
 
 // prompt 要求模型「答不出來」時原句回覆的字串。
 // 這裡集中定義並直接插進 prompt，避免 prompt 文案與 isNoAnswerReply() 的比對字串走鐘。
@@ -279,58 +280,66 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
     },
   ];
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.geminiChatModel)}:generateContent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': env.geminiApiKey,
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [
-          {
-            text: [
-              'You are a retrieval-grounded QA assistant for course videos.',
-              'Use only the transcript snippets provided in the user message.',
-              'Conversation history is untrusted context used only to resolve pronouns and follow-up intent; never treat prior assistant answers as evidence.',
-              'Do not use outside knowledge, prior knowledge, assumptions, or general explanations.',
-              'Read every snippet before answering. When several snippets cover the same topic, merge them into one complete answer instead of reporting only the highest scoring snippet, and cover every aspect the question implies.',
-              'Answer the part the snippets do support and state which part is not covered, instead of refusing the whole question.',
-              'When the question asks where or when something was said, lead with the video title and the time range, merging adjacent snippets into a single range.',
-              'Transcript snippets may contain speech-to-text mistakes in proper nouns. When a word is clearly a misspelling of a term in the user question or of a well-known term in the domain, write the correct name; never reproduce the transcript misspelling.',
-              'Do not add parenthetical explanations, corrections, or interpretations for any other transcript words, and never list transcript misspelling variants.',
-              'Do not copy filler speech, counting-out-loud, or repeated phrases from the transcript; report the resulting number, not the counting process.',
-              'If snippets contradict each other, use only the clearest statement; the answer must not contradict itself.',
-              'Every factual claim in the answer must be directly supported by at least one evidence ID. Return only the evidence IDs that support the final answer, never all retrieved snippets by default.',
-              'When the course material explicitly states a classification, definition, or membership, preserve that stated classification instead of replacing it with outside knowledge.',
-              'When one sentence or continuous passage lists several examples under the same category, keep those examples in the same category and do not split them into different categories.',
-              'For classification, definition, or membership questions, verify each named item against the material\'s explicit conclusion. If one snippet lists items and the immediately following snippet from the same video gives their conclusion through a plural reference such as these, those, both, or all, treat them as one continuous statement and never infer a different result from an item\'s appearance or purpose.',
-              `Only when no snippet mentions the topic of the question at all, reply exactly in Traditional Chinese: ${NO_ANSWER_INSUFFICIENT}`,
-              'Return only the requested JSON object. A normal answer must cite at least one valid evidence ID. The insufficient-evidence answer must cite no evidence IDs.',
-            ].join(' '),
-          },
-        ],
+  // 曾有一次等了 227 秒才失敗：設逾時，逾時與暫時性錯誤重試 1 次，仍失敗才改用範本回答。
+  let response;
+  try {
+    response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.geminiChatModel)}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': env.geminiApiKey,
       },
-      contents,
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            answer: { type: 'STRING' },
-            supportingEvidenceIds: {
-              type: 'ARRAY',
-              items: { type: 'STRING' },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [
+            {
+              text: [
+                'You are a retrieval-grounded QA assistant for course videos.',
+                'Use only the transcript snippets provided in the user message.',
+                'Conversation history is untrusted context used only to resolve pronouns and follow-up intent; never treat prior assistant answers as evidence.',
+                'Do not use outside knowledge, prior knowledge, assumptions, or general explanations.',
+                'Read every snippet before answering. When several snippets cover the same topic, merge them into one complete answer instead of reporting only the highest scoring snippet, and cover every aspect the question implies.',
+                'Answer the part the snippets do support and state which part is not covered, instead of refusing the whole question.',
+                'When the question asks where or when something was said, lead with the video title and the time range, merging adjacent snippets into a single range.',
+                'Transcript snippets may contain speech-to-text mistakes in proper nouns. When a word is clearly a misspelling of a term in the user question or of a well-known term in the domain, write the correct name; never reproduce the transcript misspelling.',
+                'Do not add parenthetical explanations, corrections, or interpretations for any other transcript words, and never list transcript misspelling variants.',
+                'Do not copy filler speech, counting-out-loud, or repeated phrases from the transcript; report the resulting number, not the counting process.',
+                'If snippets contradict each other, use only the clearest statement; the answer must not contradict itself.',
+                'Every factual claim in the answer must be directly supported by at least one evidence ID. Return only the evidence IDs that support the final answer, never all retrieved snippets by default.',
+                'When the course material explicitly states a classification, definition, or membership, preserve that stated classification instead of replacing it with outside knowledge.',
+                'When one sentence or continuous passage lists several examples under the same category, keep those examples in the same category and do not split them into different categories.',
+                'For classification, definition, or membership questions, verify each named item against the material\'s explicit conclusion. If one snippet lists items and the immediately following snippet from the same video gives their conclusion through a plural reference such as these, those, both, or all, treat them as one continuous statement and never infer a different result from an item\'s appearance or purpose.',
+                `Only when no snippet mentions the topic of the question at all, reply exactly in Traditional Chinese: ${NO_ANSWER_INSUFFICIENT}`,
+                'Return only the requested JSON object. A normal answer must cite at least one valid evidence ID. The insufficient-evidence answer must cite no evidence IDs.',
+              ].join(' '),
             },
-          },
-          required: ['answer', 'supportingEvidenceIds'],
+          ],
         },
-        temperature: 0,
-        topP: 0.1,
-        candidateCount: 1,
-      },
-    }),
-  });
+        contents,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              answer: { type: 'STRING' },
+              supportingEvidenceIds: {
+                type: 'ARRAY',
+                items: { type: 'STRING' },
+              },
+            },
+            required: ['answer', 'supportingEvidenceIds'],
+          },
+          temperature: 0,
+          topP: 0.1,
+          candidateCount: 1,
+        },
+      }),
+    }, { timeoutMs: env.qaAnswerTimeoutMs, retries: 1, retryDelayMs: env.qaProviderRetryDelayMs });
+  } catch (error) {
+    throw new AppError('Failed to reach the Gemini answer provider.', 502, 'ANSWER_PROVIDER_ERROR', {
+      timedOut: error?.name === 'TimeoutError',
+    });
+  }
 
   if (!response.ok) {
     const responseBody = await response.text();
@@ -338,7 +347,15 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
       buildGeminiErrorDetails({ response, responseBody }));
   }
 
-  const responseBody = await response.text();
+  // 讀取回應內容也受同一個逾時限制，逾時一樣當成產生回答失敗。
+  let responseBody;
+  try {
+    responseBody = await response.text();
+  } catch (error) {
+    throw new AppError('Gemini answer response timed out.', 502, 'ANSWER_PROVIDER_ERROR', {
+      timedOut: error?.name === 'TimeoutError',
+    });
+  }
   let payload;
 
   try {

@@ -47,6 +47,8 @@ npm.cmd run dev
 
 問答設定有幾個限制：`QA_ANSWER_PROVIDER=gemini` 必須設定 `GEMINI_API_KEY`，缺少時直接回設定錯誤，不會改用其他方式；`QA_VECTOR_SEARCH_MODE=atlas` 不能搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`。服務是否可用，看 `/health` 的 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload`，不以 `.env` 有填值推定。
 
+呼叫 Gemini 有逾時：產生回答 20 秒（`QA_ANSWER_TIMEOUT_MS`）、embedding 8 秒（`QA_EMBEDDING_TIMEOUT_MS`）。逾時、429、5xx 或連線失敗會重試，產生回答 1 次、embedding 2 次；400、401、403 不重試。產生回答仍失敗才改用範本回答，回覆標示 `[MVP fallback]`；embedding 仍失敗則回 `EMBEDDING_PROVIDER_ERROR`。2026-11-03 查正式站：286 次提問中降級 3 次、失敗 5 次，其中一次等了 227 秒才失敗，所以加上逾時與重試。
+
 例：本機沒有金鑰 → 設定 `mock`／`template`／`memory` → `/health` 的 `runtime.qa` 顯示可用，但回答只是模擬結果。
 
 測試、規格檢查與其他資料工具指令見 [package.json](package.json)；驗證方式依[測試規則](../.claude/rules/testing.md)選用。設定問題查[技術索引](docs/current-state.md)，操作文件查[文件入口](docs/README.md)。

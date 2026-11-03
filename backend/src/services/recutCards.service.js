@@ -27,6 +27,35 @@ function restrictPresentation(candidate, scope) {
   }
   return result;
 }
+// Model transport has one canonical copy of each selected sentence. The full
+// source remains local for renderer/subtitle validation and whole-segment review.
+function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
+  const selected = new Set(data.selectionResult.clips.flatMap((clip) => clip.sentenceIds));
+  const sentences = source.sentences.filter((sentence) => selected.has(sentence.id));
+  if (sentences.length !== selected.size) throw fail('選段缺少完整來源句子。', 'RECUT_SOURCE_INVALID');
+  const catalog = renderer.getComponentCatalog({ aiOnly: true });
+  const allowed = renderer.getAllowedIcons?.() || [];
+  const icons = new Set();
+  const collect = (value) => {
+    if (!value || typeof value !== 'object') return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'icon' && typeof child === 'string' && allowed.includes(child)) icons.add(child);
+      else if (child && typeof child === 'object') collect(child);
+    }
+  };
+  for (const card of catalog) { try { collect(JSON.parse(card.example)); } catch {} }
+  collect(data.cardsOutput); collect(base?.plan);
+  for (const name of ['fluent:mobile-phone', 'fluent:round-pushpin', 'fluent:speech-balloon', 'fluent:fork-and-knife-with-plate',
+    'fluent:magnifying-glass-tilted-left', 'fluent:globe-showing-asia-australia', ...allowed]) {
+    if (icons.size >= 64) break; if (allowed.includes(name)) icons.add(name);
+  }
+  return { selection: data.selection,
+    clips: data.selectionResult.clips.map(({ sentenceIds, startSec, endSec, opening }) => ({ sentenceIds, startSec, endSec, opening })),
+    sentences, catalog: catalog.map(({ name, purpose, example, doNotUse, aiEnabled }) => ({ name, purpose, example, doNotUse, aiEnabled })),
+    iconAllowlist: [...icons].slice(0, 64), selectionLocked: Boolean(data.selectionLocked), adoptedSuggestions: data.adoptedSuggestions || [],
+    presentationScope: data.presentationScope || null, previousOutput: data.cardsOutput || null,
+    errors: data.repairIssues || [], basePlan: base?.plan || null, codeAvailable: Boolean(codeCardHandler) };
+}
 function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault, loadBaseVersion = loadBaseDefault, codeCardHandler, courseTerms = [] } = {}) {
   if (!renderer?.buildRecutPlan || !renderer?.validatePlan) throw new TypeError('Provide the RC5 renderer contract.');
   return { id: 'recut-cards-sentence-v1', stage: 'cards', run: async (context) => {
@@ -37,11 +66,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     const base = data.baseVersionId ? await loadBaseVersion(data.baseVersionId) : null;
     const modelId = data.modelId || task.settingsSnapshot?.model?.model;
     const result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema: getResponseSchema(renderer),
-      input: { selection: data.selection, clips: data.selectionResult.clips, sentences: source.sentences,
-        catalog: renderer.getComponentCatalog({ aiOnly: true }), iconAllowlist: renderer.getAllowedIcons?.() || [],
-        selectionLocked: Boolean(data.selectionLocked), adoptedSuggestions: data.adoptedSuggestions || [],
-        presentationScope: data.presentationScope || null, previousOutput: data.cardsOutput || null,
-        errors: data.repairIssues || [], basePlan: base?.plan || null, codeAvailable: Boolean(codeCardHandler) },
+      input: buildCardsInput({ source, data, renderer, base, codeCardHandler }),
       validate: async (output) => {
         try {
           if (!object(output) || !Array.isArray(output.scenes) || !Array.isArray(output.subtitles)
@@ -70,4 +95,4 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     return { plan: result.plan, theme: result.theme, cardsOutput: result.cardsOutput, modelId };
   } };
 }
-module.exports = { createRecutCardsStep, restrictPresentation };
+module.exports = { createRecutCardsStep, restrictPresentation, buildCardsInput };

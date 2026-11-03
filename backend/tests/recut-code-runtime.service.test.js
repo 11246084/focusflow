@@ -22,8 +22,19 @@ it('configured RC6 exposes only guarded code request and sends real image parts 
   assert.equal(r.runtime.capabilities.codeCards, true);
   const catalog = r.runtime.renderer.getComponentCatalog({ aiOnly: true });
   assert.ok(catalog.some((item) => item.name === 'code' && item.review === 'rc6-capture-required'));
-  assert.ok(!catalog.some((item) => ['not-fit', 'not-merge', 'nested'].includes(item.name)));
+  for (const name of ['not-fit', 'not-merge', 'nested']) {
+    const item = catalog.find((entry) => entry.name === name);
+    assert.ok(item); assert.equal(item.aiEnabled, true); assert.equal(item.review, 'independent-mobile-reviewed-20261104');
+    assert.deepEqual(item.paramsSchema, renderer.getComponentCatalog({ aiOnly: true }).find((entry) => entry.name === name).paramsSchema);
+  }
+  assert.equal(renderer.getComponentCatalog({ aiOnly: true }).some((entry) => entry.name === 'code'), false);
+  const guardedCode = catalog.find((entry) => entry.name === 'code');
+  assert.deepEqual(Object.keys(guardedCode.paramsSchema.properties), ['language']);
+  assert.equal(guardedCode.paramsSchema.properties.lines, undefined);
   const schema = r.runtime.renderer.getCardsResponseSchema(); assert.ok(schema.properties.scenes.items.properties.component.enum.includes('code'));
+  const properties = schema.properties.scenes.items.properties;
+  for (const name of ['not-fit', 'not-merge', 'nested']) assert.ok(properties.component.enum.includes(name));
+  assert.ok(properties.params.properties.language); assert.equal(properties.params.properties.lines, undefined);
   const scene = { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } };
   const result = await r.runtime.codeCardHandler({ ...c, source: c.source, scene });
   assert.equal(result.component, 'code'); assert.equal(r.commands.length, 3); assert.equal(r.cleaned(), 1);

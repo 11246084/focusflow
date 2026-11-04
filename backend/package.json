@@ -11,6 +11,7 @@
     "db:ensure-auth-audit": "node src/scripts/ensureAuthAuditLog.js",
     "db:ensure-auth-sessions": "node src/scripts/ensureAuthSessions.js",
     "db:ensure-line-login-states": "node src/scripts/ensureLineLoginStates.js",
+    "line:rich-menu": "node src/scripts/setupLineRichMenus.js",
     "db:ensure-questions": "node src/scripts/ensureQuestionsCollection.js",
     "db:backfill-questions": "node src/scripts/backfillQuestionsFromUsageLogs.js",
     "db:ensure-video-vector-index": "node src/scripts/ensureVideoVectorIndex.js",

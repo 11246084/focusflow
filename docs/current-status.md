@@ -43,7 +43,9 @@ R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）�
 
 **文字問答與多輪對話｜已實作。** 含課程範圍檢查、來源引用、常見問題快取及對話紀錄；快取是保留可重用回答以減少重複計算。依據：[問答服務](../backend/src/services/qa.service.js)、[對話服務](../backend/src/services/conversation.service.js)；回答品質與外部模型 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
-**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。實際收送訊息 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
+**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。
+
+**LINE Login 綁定與圖文選單｜已部署，正式站手機實測通過（僅一個帳號）。** 依 [LINE 決策](04_Features/LINE_Binding/decisions.md) LL、LM～LM4：學生按「連結帳號」到 LINE 授權後就完成綁定，不需綁定碼；未綁定看到「連結帳號」選單，綁定後換成 2×2 四格「切換課程、今日額度、使用說明、網頁版」，解除時換回；另有「今日額度」「使用說明」指令、課程卡片直接選課與回答分段。依據：[LINE Login 服務](../backend/src/services/lineLogin.service.js)、[選單服務](../backend/src/services/lineRichMenu.service.js)、[建立腳本](../backend/src/scripts/setupLineRichMenus.js)。2026-11-04 部署 `07c8c30`、`2d5e4d2`；LINE Login channel「FocusFlow 綁定」改為 Published，VM `backend/.env` 設定 `LINE_LOGIN_*` 三項與 `LINE_RICH_MENU_BOUND_ID`。同日以一個帳號在手機實測：解除綁定後選單換成「連結帳號」→ LINE 授權 → 綁定成功 → 選單換成 2×2。未測：從未加好友的帳號與歡迎訊息、電腦版 LINE、LINE 已綁定其他帳號的衝突、多位學生同時使用。後端完整測試有三支既有逾時測試會卡住整輪，本次排除未驗證（見決策 LM4）。最後驗證：2026-11-04；負責人：＿＿（待填）。
 
 **單支影片與語音轉文字｜已實作。** 後端啟動處理程序，產生逐字稿、切段與搜尋向量，再接收完成或失敗通知；向量是用來比較內容相似度的一串數字。依據：[影片服務](../backend/src/services/video.service.js)、[處理入口](../STT_Whisper/src/main.py)、[回報處理](../backend/src/services/videoProcessing.service.js)；真實影片完整流程 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 

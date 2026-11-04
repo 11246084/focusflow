@@ -7,7 +7,8 @@ const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const LineBindToken = require('../models/lineBindToken.model');
 const AppError = require('../utils/appError');
-const { assertCanAsk } = require('./askLimits.service');
+const { assertCanAsk, getDailyAskUsage } = require('./askLimits.service');
+const { ensureBoundRichMenu, unlinkRichMenu } = require('./lineRichMenu.service');
 const { askQuestion } = require('./qa.service');
 const { contextualizeQuestion } = require('./contextualQuestion.service');
 const { recordUsage } = require('./usageLog.service');
@@ -156,6 +157,63 @@ function citationLink(qaResult, citation, index) {
 
 // 回答卡：上方課程、中間回答、下方最多 3 筆引用。只改呈現方式，回答與引用沿用問答結果。
 // 沒有 YouTube 版本的片段改開網站課程頁。
+// 把回答切成段落：保留原本的換行，在「一、」「1.」「(1)」這類列點前換行，
+// 段落太長時再依句號切開，避免 LINE 卡片裡一大塊文字難以閱讀。
+const ANSWER_PARAGRAPH_MAX_LENGTH = 90;
+const LIST_MARKER_BEFORE = /(?<=[。！？；：:])\s*(?=(?:[一二三四五六七八九十]{1,2}、|\d{1,2}[.、](?!\d)|[（(]\d{1,2}[）)]))/g;
+
+function splitLongParagraph(paragraph, maxLength) {
+  if (paragraph.length <= maxLength) return [paragraph];
+  const sentences = paragraph.match(/[^。！？]+[。！？]+|[^。！？]+$/g) || [paragraph];
+  const chunks = [];
+  let current = '';
+  for (const sentence of sentences) {
+    if (current && current.length + sentence.length > maxLength) {
+      chunks.push(current);
+      current = '';
+    }
+    current += sentence;
+  }
+  if (current) chunks.push(current);
+  return chunks.map((chunk) => chunk.trim()).filter(Boolean);
+}
+
+function splitAnswerParagraphs(text, maxLength = ANSWER_PARAGRAPH_MAX_LENGTH) {
+  return String(text || '')
+    .replace(LIST_MARKER_BEFORE, '\n')
+    .split(/\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .flatMap((paragraph) => splitLongParagraph(paragraph, maxLength));
+}
+
+function buildAnswerTextComponents(answer) {
+  // Flex 單則訊息有大小上限；總字數維持原本的 2000 字。
+  let remaining = 2000;
+  const components = [];
+  for (const paragraph of splitAnswerParagraphs(answer)) {
+    if (remaining <= 0) break;
+    const text = paragraph.slice(0, remaining);
+    remaining -= text.length;
+    // 「一、惡用與犯罪問題：……」這類列點，冒號前的小標題用粗體（Flex span）。
+    const heading = text.match(/^((?:[一二三四五六七八九十]{1,2}、|\d{1,2}[.、]|[（(]\d{1,2}[）)])[^。！？：:]{1,20}[：:])(.+)$/s);
+    components.push(heading
+      ? {
+        type: 'text',
+        text,
+        wrap: true,
+        size: 'sm',
+        color: '#3D3D3A',
+        contents: [
+          { type: 'span', text: heading[1], weight: 'bold' },
+          { type: 'span', text: heading[2] },
+        ],
+      }
+      : { type: 'text', text, wrap: true, size: 'sm', color: '#3D3D3A' });
+  }
+  return components;
+}
+
 function buildAnswerFlexMessage({ qaResult, courseTitle }) {
   const title = courseTitle || 'FocusFlow 助教';
   const answer = String(qaResult.answer || '').trim() || '目前沒有可以回答的內容。';
@@ -212,7 +270,7 @@ function buildAnswerFlexMessage({ qaResult, courseTitle }) {
           ...buildDegradationNotices(qaResult).map((notice) => (
             { type: 'text', text: notice, wrap: true, size: 'xxs', color: '#B04A3F' }
           )),
-          { type: 'text', text: answer.slice(0, 2000), wrap: true, size: 'sm', color: '#3D3D3A' },
+          ...buildAnswerTextComponents(answer),
           ...(citationRows.length ? [{ type: 'separator' }, ...citationRows] : []),
         ],
       },
@@ -441,15 +499,19 @@ async function unbindLineUser(userId) {
     throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
   }
 
-  const wasBound = Boolean(user.lineUserId);
+  const previousLineUserId = user.lineUserId;
+  const wasBound = Boolean(previousLineUserId);
   await User.findByIdAndUpdate(userId, {
     $unset: { lineUserId: '', activeCourseId: '', lineFriendStatus: '' },
     $set: {
       lineBindAt: null,
+      lineRichMenuId: null,
       lineConversationState: LINE_CONVERSATION_STATES.IDLE,
       lineConversationHistory: [],
     },
   });
+  // 解除後回到預設的「連結帳號」選單；失敗不影響解除結果。
+  if (wasBound) await unlinkRichMenu(previousLineUserId);
 
   return { unbound: wasBound };
 }
@@ -465,6 +527,7 @@ async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) 
   }
 
   if (user.lineUserId === lineUserId) {
+    await ensureBoundRichMenu(user);
     return { ok: true, alreadyBound: true, replaced: false };
   }
 
@@ -476,11 +539,13 @@ async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) 
     return { ok: false, reason: 'line_bound_to_other_account' };
   }
 
-  const replaced = Boolean(user.lineUserId);
+  const previousLineUserId = user.lineUserId;
+  const replaced = Boolean(previousLineUserId);
   const update = {
     $set: {
       lineUserId,
       lineBindAt: new Date(),
+      lineRichMenuId: null,
       lineConversationState: LINE_CONVERSATION_STATES.IDLE,
       ...(replaced ? { lineConversationHistory: [] } : {}),
     },
@@ -503,6 +568,10 @@ async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) 
     }
     throw error;
   }
+
+  // 綁定成功後換成「已綁定」選單；換 LINE 時，舊的 LINE 回到預設選單。
+  await ensureBoundRichMenu({ _id: user._id, lineUserId, lineRichMenuId: null });
+  if (replaced) await unlinkRichMenu(previousLineUserId);
 
   return { ok: true, alreadyBound: false, replaced };
 }
@@ -593,12 +662,18 @@ async function selectCourseForBoundUser(userId, courseId) {
 
 // 處理「加好友」事件：第一次加好友、封鎖後解除封鎖、刪除好友後重加都會觸發。
 // 已綁定的使用者不要再叫他綁定，改成歡迎回來；未綁定才引導完成帳號綁定。
+function toPlain(doc) {
+  return typeof doc?.toObject === 'function' ? doc.toObject() : { ...doc };
+}
+
 async function handleFollow(event) {
   const lineUserId = event.source?.userId;
   const boundUser = lineUserId ? await User.findOne({ lineUserId }) : null;
 
   if (boundUser) {
     await updateLineFriendStatus(lineUserId, LINE_FRIEND_STATUSES.FRIEND);
+    // 綁定時還沒加好友，LINE 會拒絕指定選單；加好友時補做。封鎖後重加是否保留指定未查證，一律重新指定（可重複執行）。
+    await ensureBoundRichMenu({ ...toPlain(boundUser), lineRichMenuId: null });
   }
 
   const text = boundUser
@@ -884,14 +959,15 @@ async function handleSelectCourse(lineUserId, courseId, replyToken) {
     }, replyResult);
   }
 
-  // 防止使用者直接偽造 postback 跳過「切換課程」步驟
-  if (getLineConversationState(user) !== LINE_CONVERSATION_STATES.AWAITING_COURSE_SELECTION) {
-    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先輸入「切換課程」，再選擇課程。')]);
+  // 課程卡片上的「選這門課」隨時都能按（包含較早送出的卡片），不必先輸入「切換課程」。
+  // postback 只能來自 Bot 自己送出的按鈕（webhook 已驗簽），而且下面每次都重新檢查修課權限。
+  if (!/^[a-f0-9]{24}$/i.test(String(courseId || ''))) {
+    const replyResult = await replyMessage(replyToken, [buildTextMessage('找不到這門課程，請輸入「切換課程」重新選擇。')]);
 
     return attachReplyMetadata({
       type: 'select_course',
       handled: false,
-      reason: 'conversation_state_invalid',
+      reason: 'course_id_invalid',
     }, replyResult);
   }
 
@@ -1240,6 +1316,159 @@ async function handleQuestion(lineUserId, text, replyToken) {
 
 // 處理單一 LINE 事件，根據 event.type 分派給對應的 handler
 // LINE 事件類型：follow（加好友）、message（收到訊息）、postback（按下按鈕）
+// 使用說明用 Flex 輪播（手機與電腦版 LINE 都能顯示），每一步一張卡片；
+// 不支援 Flex 的環境顯示 altText 的純文字版。顏色沿用圖文選單圖片。
+const HELP_COLORS = { header: '#1F4E5F', accent: '#E8A93A', text: '#333333', muted: '#777777' };
+
+const LINE_HELP_TEXT = [
+  'FocusFlow 使用說明',
+  '1. 先按「切換課程」選擇要提問的課程。',
+  '2. 直接輸入問題，例如「這週講的遞迴是什麼？」，回答會附上影片片段與時間。',
+  '3. 按「今日額度」看今天還能問幾次。',
+  '4. 按「網頁版」開啟 FocusFlow 看完整影片與對話紀錄。',
+  '電腦版 LINE 沒有下方選單，可以直接輸入「切換課程」「今日額度」「使用說明」。',
+].join('\n');
+
+function buildHelpBubble({ step, title, lines, button }) {
+  return {
+    type: 'bubble',
+    size: 'kilo',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: HELP_COLORS.header,
+      paddingAll: '16px',
+      contents: [
+        { type: 'text', text: step, size: 'xs', weight: 'bold', color: HELP_COLORS.accent },
+        { type: 'text', text: title, size: 'lg', weight: 'bold', color: '#FFFFFF', margin: 'sm', wrap: true },
+      ],
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents: lines.map((line, index) => ({
+        type: 'text',
+        text: line,
+        size: 'sm',
+        wrap: true,
+        color: index === 0 ? HELP_COLORS.text : HELP_COLORS.muted,
+      })),
+    },
+    ...(button ? {
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{ type: 'button', style: 'primary', color: HELP_COLORS.header, height: 'sm', action: button }],
+      },
+    } : {}),
+  };
+}
+
+function buildHelpMessage({ bound }) {
+  // 網址沿用 buildWebUrl（以 LINE_LOGIN_CALLBACK_URL 的網站為準）；沒設定時卡片不放網址按鈕。
+  const linkUrl = buildWebUrl('/app/line');
+  const webUrl = buildWebUrl('/app');
+  const steps = [];
+
+  if (!bound) {
+    steps.push({
+      title: '先連結 FocusFlow 帳號',
+      lines: ['連結後，LINE 才知道你是誰、修了哪些課。', '到 FocusFlow 網頁的「LINE 提問」頁完成連結，之後就能在 LINE 直接提問。'],
+      button: linkUrl ? { type: 'uri', label: '前往連結', uri: linkUrl } : null,
+    });
+  }
+  steps.push(
+    {
+      title: '選擇課程',
+      lines: ['先選要提問的課程，回答只會引用這門課的影片。', '之後想換課，再按一次「切換課程」。'],
+      button: bound ? { type: 'postback', label: '切換課程', data: 'action=switch_course', displayText: '切換課程' } : null,
+    },
+    {
+      title: '直接輸入問題',
+      lines: ['例如「這週講的遞迴是什麼？」', '回答會附上影片片段與時間，點連結就能跳到那一段。'],
+      button: null,
+    },
+    {
+      title: '查看今日額度',
+      lines: ['每天可提問的次數有上限，網頁與 LINE 合併計算。', '每天 00:00（台灣時間）重置。'],
+      button: bound ? { type: 'postback', label: '今日額度', data: 'action=today_quota', displayText: '今日額度' } : null,
+    },
+    {
+      title: '在網頁看完整內容',
+      lines: ['網頁版可以看完整影片、對話紀錄與教學短片。', '電腦版 LINE 沒有下方選單，可直接輸入「切換課程」「今日額度」「使用說明」。'],
+      button: webUrl ? { type: 'uri', label: '開啟網頁版', uri: webUrl } : null,
+    },
+  );
+
+  const altText = bound
+    ? LINE_HELP_TEXT
+    : `${LINE_HELP_TEXT}\n\n你還沒連結 FocusFlow 帳號，請先到 FocusFlow 網頁的「LINE 提問」頁連結。`;
+
+  return {
+    type: 'flex',
+    // altText 上限 1500 字。
+    altText: altText.slice(0, 1500),
+    contents: {
+      type: 'carousel',
+      contents: steps.map((item, index) => buildHelpBubble({ ...item, step: `STEP ${index + 1}` })),
+    },
+  };
+}
+
+// 使用說明不需要綁定，未綁定時第一張卡片改成連結帳號。
+async function handleHelp(lineUserId, replyToken) {
+  const user = await User.findOne({ lineUserId });
+  const replyResult = await replyMessage(replyToken, [buildHelpMessage({ bound: Boolean(user) })]);
+  return attachReplyMetadata({ type: 'help', handled: true }, replyResult);
+}
+
+function formatAskLimitLine() {
+  return env.qaMaxQuestionLength > 0 ? `每題最多 ${env.qaMaxQuestionLength} 字。` : '';
+}
+
+// 今日額度：與網頁合併計算（askLimits.service）；教師、管理員或上限為 0 時不限次數。
+async function handleTodayQuota(lineUserId, replyToken) {
+  const user = await User.findOne({ lineUserId });
+
+  if (!user) {
+    const replyResult = await replyMessage(replyToken, [buildTextMessage('請先完成帳號綁定。')]);
+    return attachReplyMetadata({ type: 'today_quota', handled: false, reason: 'user_not_bound' }, replyResult);
+  }
+
+  const usage = await getDailyAskUsage({
+    id: String(user._id),
+    role: user.role,
+    dailyAskLimitOverride: user.dailyAskLimitOverride,
+  });
+  const lines = usage
+    ? [
+      `今天還能問 ${usage.remaining} 次（每天 ${usage.limit} 次，已用 ${usage.used} 次）。`,
+      '每天 00:00（台灣時間）重置，網頁與 LINE 合併計算。',
+    ]
+    : ['今天的提問次數沒有限制。'];
+  const lengthLine = formatAskLimitLine();
+  if (lengthLine) lines.push(lengthLine);
+
+  const replyResult = await replyMessage(replyToken, [buildTextMessage(lines.join('\n'))]);
+  return attachReplyMetadata({ type: 'today_quota', handled: true }, replyResult);
+}
+
+// 圖文選單按鈕送 postback（不送文字），避免學生自己打的字被當成指令；
+// 文字指令另外保留給電腦版 LINE（沒有圖文選單）與官方帳號後台的舊選單。
+const LINE_MENU_TEXT_COMMANDS = new Map([
+  ['切換課程', 'switch_course'],
+  ['今日額度', 'today_quota'],
+  ['使用說明', 'help'],
+]);
+
+function handleMenuAction(action, lineUserId, replyToken) {
+  if (action === 'switch_course') return handleSwitchCourse(lineUserId, replyToken);
+  if (action === 'today_quota') return handleTodayQuota(lineUserId, replyToken);
+  if (action === 'help') return handleHelp(lineUserId, replyToken);
+  return null;
+}
+
 async function processWebhookEvent(event) {
   const lineUserId = event.source?.userId;
   const replyToken = event.replyToken;
@@ -1270,6 +1499,12 @@ async function processWebhookEvent(event) {
     }, replyResult);
   }
 
+  // 已綁定但還沒拿到目前選單的人（上線前就綁定、綁定時還沒加好友）在這裡補指定；失敗不影響本次回覆。
+  if (event.type === 'message' || event.type === 'postback') {
+    const boundUser = await User.findOne({ lineUserId });
+    if (boundUser) await ensureBoundRichMenu(boundUser);
+  }
+
   // 使用者傳送文字訊息
   if (event.type === 'message' && event.message?.type === 'text') {
     const text = normalizeIncomingTextMessage(event.message.text);
@@ -1289,9 +1524,9 @@ async function processWebhookEvent(event) {
       return handleBind(lineUserId, text.toLowerCase(), replyToken);
     }
 
-    // 關鍵字「切換課程」→ 顯示課程選單
-    if (text === '切換課程') {
-      return handleSwitchCourse(lineUserId, replyToken);
+    // 選單文字指令：「切換課程」「今日額度」「使用說明」
+    if (LINE_MENU_TEXT_COMMANDS.has(text)) {
+      return handleMenuAction(LINE_MENU_TEXT_COMMANDS.get(text), lineUserId, replyToken);
     }
 
     // COURSE:{24位 ObjectId} → 從網頁「詢問助教」按鈕直接帶入課程，自動切換不需選單
@@ -1311,6 +1546,10 @@ async function processWebhookEvent(event) {
     if (action === 'select_course') {
       return handleSelectCourse(lineUserId, params.get('courseId'), replyToken);
     }
+
+    // 圖文選單按鈕（action=switch_course／today_quota／help）
+    const menuResult = handleMenuAction(action, lineUserId, replyToken);
+    if (menuResult) return menuResult;
   }
 
   // 其他不支援的事件類型（如貼圖、圖片等）一律忽略
@@ -1367,7 +1606,9 @@ module.exports = {
   processWebhookEvents,
   buildQuestionSummaryLines,
   buildAnswerFlexMessage,
+  splitAnswerParagraphs,
   buildCourseCarouselMessage,
+  buildHelpMessage,
   formatClock,
   mapLineHistoryForContextualizer,
 };

@@ -98,6 +98,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: LINE_FRIEND_STATUS_VALUES,
     },
+    // 已指定給這個 LINE 的圖文選單 ID；和 LINE_RICH_MENU_BOUND_ID 不同時，下次互動會重新指定。
+    lineRichMenuId: {
+      type: String,
+      default: null,
+    },
     activeCourseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',

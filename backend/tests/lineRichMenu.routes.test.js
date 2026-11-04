@@ -16,6 +16,7 @@ const {
 const {
   buildRichMenuDefinitions,
   createRichMenus,
+  deleteRichMenu,
   rollbackRichMenus,
 } = require('../src/scripts/setupLineRichMenus');
 
@@ -259,11 +260,15 @@ describe('LINE 選單指令', () => {
 });
 
 describe('圖文選單建立腳本', () => {
-  it('未綁定一格開啟 LINE 提問頁，已綁定四格各 625 寬', () => {
+  it('未綁定一格開啟 LINE 提問頁，已綁定是 2×2 四格各 1250×843', () => {
     const { unbound, bound } = buildRichMenuDefinitions('https://focusflow.example/ignored/path');
     assert.equal(unbound.body.areas[0].action.uri, 'https://focusflow.example/app/line');
-    assert.deepEqual(bound.body.size, { width: 2500, height: 843 });
-    assert.deepEqual(bound.body.areas.map((area) => area.bounds.x), [0, 625, 1250, 1875]);
+    assert.deepEqual(unbound.body.size, { width: 2500, height: 843 });
+    assert.deepEqual(bound.body.size, { width: 2500, height: 1686 });
+    assert.match(bound.image, /rich-menu-bound-large\.png$/);
+    assert.deepEqual(bound.body.areas.map((area) => [area.bounds.x, area.bounds.y, area.bounds.width, area.bounds.height]), [
+      [0, 0, 1250, 843], [1250, 0, 1250, 843], [0, 843, 1250, 843], [1250, 843, 1250, 843],
+    ]);
     assert.deepEqual(bound.body.areas.slice(0, 3).map((area) => area.action.data), [
       'action=switch_course',
       'action=today_quota',
@@ -308,6 +313,25 @@ describe('圖文選單建立腳本', () => {
     assert.deepEqual(ids, { unbound: `richmenu-${'1'.repeat(32)}`, bound: `richmenu-${'2'.repeat(32)}` });
     assert.deepEqual(log.map(([name]) => name), ['create', 'upload', 'create', 'upload', 'setDefault']);
     assert.deepEqual(log.at(-1), ['setDefault', ids.unbound]);
+  });
+
+  it('只重建已綁定選單時不建立未綁定選單，也不更動預設選單', async () => {
+    const { client, log } = fakeClient();
+    const ids = await createRichMenus({
+      client,
+      definitions: buildRichMenuDefinitions('https://focusflow.example'),
+      readImage: () => Buffer.from('png'),
+      only: 'bound',
+    });
+    assert.deepEqual(Object.keys(ids), ['bound']);
+    assert.deepEqual(log.map(([name]) => name), ['create', 'upload']);
+  });
+
+  it('刪除單一選單時檢查 ID 格式', async () => {
+    const { client, log } = fakeClient();
+    await assert.rejects(() => deleteRichMenu({ client, richMenuId: 'nope' }), /richmenu-/);
+    await deleteRichMenu({ client, richMenuId: `richmenu-${'c'.repeat(32)}` });
+    assert.deepEqual(log, [['delete', `richmenu-${'c'.repeat(32)}`]]);
   });
 
   it('中途失敗時刪掉這次建立的選單，不設預設', async () => {

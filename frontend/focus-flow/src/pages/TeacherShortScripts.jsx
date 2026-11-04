@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { consumePendingScriptOpen, OPEN_SCRIPT_EVENT } from '../utils/scriptDeepLink';
-import { Ic } from '../components/Icons';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  ASSET_PRIVACY_LABELS,
-  ASSET_REVIEW_LABELS,
-  ASSET_STATUS_LABELS,
-  ASSET_UPLOAD_LABELS,
+  OPEN_SCRIPT_EVENT,
+  SHORT_SCRIPT_PAGE,
+  SHORT_UPLOAD_PAGE,
+  consumePendingScriptOpen,
+  isScriptTargetForPage,
+  pickInitialCourseId,
+  recallShortScriptCourse,
+  rememberShortScriptCourse,
+  requestOpenScript,
+} from '../utils/scriptDeepLink';
+import { Ic } from '../components/Icons';
+import useCompactLayout from '../hooks/useCompactLayout';
+import useMobileDetailView from '../hooks/useMobileDetailView';
+import {
   FEEDBACK_TYPES,
-  STATUS_LABELS,
   createScript,
   formatTimestamp,
   generateVersion,
@@ -18,247 +25,115 @@ import {
   listCandidates,
   listCourses,
   listScripts,
-  retryAssetUpload,
   reviewScript,
-  uploadAsset,
 } from '../services/shortScript';
+import BottomSheet from '../components/BottomSheet';
+import { deriveDisplayStatus, describeAssetState, findScriptAsset, groupScripts } from '../services/shortScriptStatus';
 import { ARC_LABELS, renderScriptMarkdown } from '../services/shortScriptTemplate';
-import { formatFileSize } from './teacherUploadUtils';
+import { pickInitialTab, recallTab, rememberTab } from '../utils/shortScriptTabs';
+import { FlowBar, NextStepCard, StartGuide } from './shortScriptGuide';
+import {
+  ConfirmDialog, Disclosure, EmptyRow, ErrorBanner, ScriptRows, ScriptSwitchSheet, StatusPill, StatusTabList, StatusTabPanel,
+} from './shortScriptUi';
+import { ACCENT, BODY, DIVIDER, GHOST_BTN, HEADING, MUTED, SECTION_LABEL, SMALL_BTN, describeError } from './shortScriptStyles';
 
-// 版面照專案既有頁面的寫法（TeacherCourses.jsx / TeacherVideoReview.jsx）：
-// 頁面容器 padding 26、標題列用 Space Grotesk、主體是 .card 大卡片、
-// 列與列之間用 1px 分隔線而不是各自成塊，強調色 #F14F21。
-// .card / .card-sm 只給背景與圓角，padding 一律由各頁 inline 指定。
-const PAGE_STYLE = { padding: 26, height: '100%', overflowX: 'hidden' };
-const HEADING = { fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 700, color: '#fff' };
-const SECTION_LABEL = {
-  color: 'rgba(255,255,255,0.35)',
-  fontSize: 10.5,
-  fontWeight: 600,
-  letterSpacing: '.1em',
-  textTransform: 'uppercase',
-};
-const MUTED = { color: 'rgba(255,255,255,0.42)', fontSize: 12 };
-const BODY = { color: 'rgba(255,255,255,0.78)', fontSize: 13, lineHeight: 1.7 };
-const DIVIDER = '1px solid rgba(255,255,255,0.05)';
-const ACCENT = '#F14F21';
+// 版面：一個面板，頂部是課程、重新整理與「＋ 新腳本」；桌面與平板是左清單（狀態分頁）、右詳情兩欄，
+// 手機（≤768px）改單欄，點腳本後整個內容區切到詳情，並保留「切換腳本」抽屜，不用先回清單。
+// 新腳本（候選主題與建立）在桌面佔用右欄、在手機用底部抽屜，只在按「＋ 新腳本」後出現。
+// 上傳成品在獨立的「上傳短片」頁（TeacherShortUploads.jsx），這裡只顯示成品摘要並導過去。
+// 業務規則（建立 ≠ 生成、狀態轉換、兩種重新生成、退回後的兩條路）見
+// docs/04_Features/Short_Script_Automation/decisions.md。
 
-const RETRY_BUSY_PREFIX = 'retry:';
-
-const SMALL_BTN = { padding: '9px 16px', fontSize: 12 };
-const GHOST_BTN = {
-  ...SMALL_BTN,
-  background: 'rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.86)',
-  border: '1px solid rgba(255,255,255,0.16)',
+const MOBILE_HISTORY_KEY = 'ffShortScriptDetail';
+const TAB_KEYS = ['action', 'waiting', 'published', 'dismissed'];
+const TAB_EMPTY = {
+  action: '目前沒有需要你處理的腳本',
+  waiting: '沒有等待中的腳本',
+  published: '還沒有已上架的腳本',
+  dismissed: '沒有已否決的腳本',
 };
 
-// apiFetch 的訊息已轉成中文通用說明（例如 nginx 回 502 的 HTML 時），
-// 光看這句話無法分辨是權限、路由不存在還是後端掛了。把狀態碼與錯誤碼一起顯示。
-function describeError(error) {
-  const parts = [error.status, error.code].filter(Boolean).join(' ');
-  return parts ? `${error.message}（${parts}）` : error.message;
+function selectionLine(reason) {
+  if (!reason) return '';
+  return [
+    reason.selectedBy === 'teacher' ? '教師指定' : '系統自動選題',
+    reason.rank ? `排名第 ${reason.rank}` : '',
+    `${reason.uniqueAskerCount} 人問過`,
+    `共 ${reason.totalAskCount} 次`,
+    `證據 ${reason.evidenceCount} 筆`,
+  ].filter(Boolean).join(' · ');
 }
 
-const STATUS_TONE = {
-  evidence_ready: { color: '#a5b4fc', background: 'rgba(165,180,252,0.12)', border: 'rgba(165,180,252,0.22)' },
-  generated: { color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.22)' },
-  changes_requested: { color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.24)' },
-  approved: { color: '#4ade80', background: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.22)' },
-  dismissed: { color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.14)' },
-};
-
-function StatusPill({ status }) {
-  const tone = STATUS_TONE[status] || STATUS_TONE.dismissed;
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '3px 10px',
-        borderRadius: 50,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        color: tone.color,
-        background: tone.background,
-        border: `1px solid ${tone.border}`,
-      }}
-    >
-      {STATUS_LABELS[status] || status}
-    </span>
-  );
-}
-
-// 成品的審核狀態。上架與否看 upload.status，這裡只表示教師審過沒有。
-const ASSET_REVIEW_TONE = {
-  pending: { color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.22)' },
-  approved: { color: '#4ade80', background: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.22)' },
-  rejected: { color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.24)' },
-};
-
-function AssetPill({ reviewStatus }) {
-  const tone = ASSET_REVIEW_TONE[reviewStatus] || ASSET_REVIEW_TONE.pending;
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '3px 10px',
-        borderRadius: 50,
-        fontSize: 11,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        color: tone.color,
-        background: tone.background,
-        border: `1px solid ${tone.border}`,
-      }}
-    >
-      {ASSET_REVIEW_LABELS[reviewStatus] || reviewStatus}
-    </span>
-  );
-}
-
-// 兩個確認框都是必勾：規格書 R-07／附錄 K.5 要求教師明示確認 AI 揭露與書面同意，
-// 系統不代為取得也不驗真偽，只記錄確認時間。少勾任何一個後端回 SHORT_ASSET_DISCLOSURE_REQUIRED。
-function ConfirmRow({ checked, disabled, onChange, children }) {
-  return (
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 9,
-        marginTop: 9,
-        cursor: disabled ? 'default' : 'pointer',
-        ...BODY,
-        fontSize: 12.5,
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
-        style={{ accentColor: ACCENT, width: 14, height: 14, marginTop: 2, flexShrink: 0 }}
-      />
-      <span>{children}</span>
-    </label>
-  );
-}
-
-// 詳情面板的分頁。腳本內容本身就很長（證據對照表 + 分鏡 + 全文），
-// 成品上傳接在它下面會被埋在捲軸底部，所以分成兩個分頁而不是一路往下疊。
-function DetailTab({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        padding: '14px 8px',
-        background: active ? 'rgba(255,255,255,0.05)' : 'none',
-        border: 'none',
-        borderBottom: `2px solid ${active ? ACCENT : 'transparent'}`,
-        marginBottom: -1,
-        fontSize: 13.5,
-        fontWeight: 700,
-        textAlign: 'center',
-        cursor: 'pointer',
-        color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SectionCard({ title, action, children, style }) {
-  return (
-    <div className="card" style={{ overflow: 'hidden', ...style }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '13px 20px',
-          borderBottom: DIVIDER,
-        }}
-      >
-        <div style={SECTION_LABEL}>{title}</div>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function EmptyRow({ children }) {
-  return (
-    <div style={{ padding: 28, textAlign: 'center', color: 'rgba(255,255,255,0.42)', fontSize: 12.5 }}>
-      {children}
-    </div>
-  );
-}
-
-export default function TeacherShortScripts() {
+export default function TeacherShortScripts({ onNav }) {
+  const compact = useCompactLayout();
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [scripts, setScripts] = useState([]);
   const [candidates, setCandidates] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [selected, setSelected] = useState(null);
   const [metaphorIndex, setMetaphorIndex] = useState(0);
   // 教師選定要做的候選主題。不選就照 DR-12 的排序自動選第一個通過證據檢查的。
   const [pickedTopicKey, setPickedTopicKey] = useState('');
+  // 目前的狀態分頁；null 表示還沒選，依記住的分頁或資料決定（utils/shortScriptTabs）。
+  const [tab, setTab] = useState(null);
+  // 「＋ 新腳本」檢視：桌面佔用右欄，手機是底部抽屜。
+  const [newOpen, setNewOpen] = useState(false);
+  // 證據對照表預設收起；待生成時操作區的「點開核對證據」會打開它。
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const newButtonRef = useRef(null);
+  const newHeadingRef = useRef(null);
+  const tabsIdBase = useId();
 
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [featureDisabled, setFeatureDisabled] = useState(false);
-  // 「這版不要」面板：不是審核關卡（規格書 2.0），只是重新生成前讓教師講一句哪裡不對。
-  // 沒有這句話，模型會在沒有任何指引下重寫，結果多半跟上一版差不多。
+  // 「這版不要」面板：不是審核關卡（沒有腳本審核），只是重新生成前讓教師講一句哪裡不對。
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenType, setRegenType] = useState(FEEDBACK_TYPES[0].value);
   const [regenNote, setRegenNote] = useState('');
+  const [confirm, setConfirm] = useState(null); // null | 'dismiss' | 'regenPublished'
+  const [dismissNote, setDismissNote] = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  // 手機單欄：list＝清單（狀態分頁），detail＝詳情。
+  const { mobileView, setMobileView, showDetail, backToList } = useMobileDetailView(compact, MOBILE_HISTORY_KEY);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const switchButtonRef = useRef(null);
 
-  // 成品上傳。教師拍完影片回到這一頁上傳，只建立 draft 送審，不直接上架（規格書 R-08）。
-  const [assets, setAssets] = useState([]);
-  const [assetFile, setAssetFile] = useState(null);
-  const [assetTitle, setAssetTitle] = useState('');
-  const [assetDescription, setAssetDescription] = useState('');
-  const [assetDrag, setAssetDrag] = useState(false);
-  const [confirmedAi, setConfirmedAi] = useState(false);
-  const [confirmedConsent, setConfirmedConsent] = useState(false);
-  const [uploadNotice, setUploadNotice] = useState('');
-  const [detailTab, setDetailTab] = useState('script');
-  const assetInputRef = useRef(null);
   // A notification may ask this page to open one script (see utils/scriptDeepLink).
-  const [initialOpen] = useState(consumePendingScriptOpen);
+  const [initialOpen] = useState(() => consumePendingScriptOpen(SHORT_SCRIPT_PAGE));
   const pendingOpenRef = useRef(initialOpen);
-  const handleOpenRef = useRef(null);
+  const openRef = useRef(null);
   const courseIdRef = useRef('');
 
   useEffect(() => {
     listCourses()
       .then((list) => {
         setCourses(list);
-        const target = pendingOpenRef.current?.courseId;
-        if (target && list.some((course) => course._id === target)) setCourseId(target);
-        else if (list.length) setCourseId(list[0]._id);
+        setCourseId(pickInitialCourseId(list, {
+          requestedId: pendingOpenRef.current?.courseId,
+          rememberedId: recallShortScriptCourse(),
+        }));
       })
       .catch((requestError) => setError(`課程清單載入失敗：${describeError(requestError)}`));
   }, []);
 
   useEffect(() => {
     courseIdRef.current = courseId;
+    // 與上傳短片頁共用目前的課程，切換頁面時不必重選。
+    rememberShortScriptCourse(courseId);
   }, [courseId]);
 
   useEffect(() => {
     function onOpenScript(event) {
-      consumePendingScriptOpen();
       const target = event.detail || {};
-      if (!target.scriptId) return;
+      // 只接手指定給腳本頁的請求；給上傳短片頁的留在 sessionStorage 等那一頁掛載。
+      if (!isScriptTargetForPage(target, SHORT_SCRIPT_PAGE)) return;
+      consumePendingScriptOpen(SHORT_SCRIPT_PAGE);
       if (!target.courseId || target.courseId === courseIdRef.current) {
-        void handleOpenRef.current?.(target.scriptId);
+        void openRef.current?.(target.scriptId);
         return;
       }
       // Switch course first; the refresh effect opens the script once the list loads.
@@ -269,11 +144,12 @@ export default function TeacherShortScripts() {
     return () => window.removeEventListener(OPEN_SCRIPT_EVENT, onOpenScript);
   }, []);
 
-  const refresh = useCallback(async () => {
-    if (!courseId) return;
+  // clearError=false 用在操作之後的重讀：不能把剛顯示的操作錯誤蓋掉。
+  const refresh = useCallback(async ({ clearError = true } = {}) => {
+    if (!courseId) return courseId;
 
     setLoading(true);
-    setError('');
+    if (clearError) setError('');
     try {
       const [scriptList, candidateResult, assetList] = await Promise.all([
         listScripts(courseId),
@@ -286,11 +162,8 @@ export default function TeacherShortScripts() {
       setFeatureDisabled(false);
     } catch (requestError) {
       // 功能未啟用與一般錯誤要分開告知，否則教師只會看到「找不到」而不知原因。
-      if (isFeatureDisabledError(requestError)) {
-        setFeatureDisabled(true);
-      } else {
-        setError(describeError(requestError));
-      }
+      if (isFeatureDisabledError(requestError)) setFeatureDisabled(true);
+      else setError(describeError(requestError));
     } finally {
       setLoading(false);
     }
@@ -300,119 +173,102 @@ export default function TeacherShortScripts() {
   useEffect(() => {
     setSelected(null);
     setPickedTopicKey('');
+    setTab(null);
+    setNewOpen(false);
+    setMobileView('list');
     refresh().then((loadedCourseId) => {
       const pending = pendingOpenRef.current;
       if (pending && (!pending.courseId || pending.courseId === loadedCourseId)) {
         pendingOpenRef.current = null;
-        void handleOpenRef.current?.(pending.scriptId);
+        void openRef.current?.(pending.scriptId);
       }
     });
-  }, [refresh]);
+  }, [refresh, setMobileView]);
 
   const version = latestVersion(selected);
-
+  const status = selected ? deriveDisplayStatus(selected, assets) : null;
+  const groups = useMemo(() => groupScripts(scripts, assets), [scripts, assets]);
+  const rememberedTab = useMemo(() => recallTab(SHORT_SCRIPT_PAGE, courseId), [courseId]);
+  const activeTab = tab ?? pickInitialTab(TAB_KEYS, {
+    action: groups.action.length, waiting: groups.waiting.length, published: groups.published.length, dismissed: groups.dismissed.length,
+  }, rememberedTab);
+  const currentAsset = selected ? findScriptAsset(selected._id, assets) : null;
   const markdown = useMemo(
     () => (selected && version ? renderScriptMarkdown(selected, version, metaphorIndex) : ''),
     [selected, version, metaphorIndex],
   );
 
-  // 只列這份腳本產出的成品。同一份腳本重拍是同一筆資產的不同代（generationVersion），
-  // 不會各自成列，所以這裡通常只有一筆。
-  const scriptAssets = useMemo(
-    () => (selected ? assets.filter((asset) => asset.sourceScriptId === selected._id) : []),
-    [assets, selected],
-  );
-
-  async function runAction(label, action) {
-    setBusy(label);
-    setError('');
-    try {
-      const result = await action();
-      if (result) setSelected(result);
-      await refresh();
-    } catch (requestError) {
-      setError(describeError(requestError));
-    } finally {
-      setBusy('');
-    }
-  }
-
-  async function handleCreate() {
-    // 教師選了主題就做那一題；沒選就交給排序規則。
-    const result = await runAction('create', () => createScript(courseId, pickedTopicKey || null));
-    setPickedTopicKey('');
-    return result;
-  }
-
-  async function handleOpen(scriptId) {
+  async function loadScript(scriptId) {
     setError('');
     setCopied(false);
     setMetaphorIndex(0);
     setRegenOpen(false);
     setRegenNote('');
-    setDetailTab('script');
-    resetUploadForm();
+    setDismissNote('');
+    setEvidenceOpen(false);
     try {
-      const script = await getScript(scriptId);
-      setSelected(script);
-      // 標題預填主題，教師想改再改；留空時後端也會退回用主題。
-      setAssetTitle(script.topic || '');
+      setSelected(await getScript(scriptId));
+      return true;
     } catch (requestError) {
       setError(describeError(requestError));
+      return false;
+    }
+  }
+
+  async function openScript(scriptId) {
+    setNewOpen(false);
+    showDetail();
+    await loadScript(scriptId);
+  }
+
+  // 桌面與平板：關閉腳本詳情，右欄回到「建議下一步」，焦點回到清單裡原本選中的那一列。
+  function closeDetail() {
+    const previousId = selected?._id;
+    setSelected(null);
+    if (previousId) {
+      requestAnimationFrame(() => {
+        document.querySelector(`.ss-list-pane .ss-row[data-script-id="${previousId}"]`)?.focus();
+      });
     }
   }
 
   useEffect(() => {
-    handleOpenRef.current = handleOpen;
+    openRef.current = openScript;
   });
 
-  function resetUploadForm() {
-    setAssetFile(null);
-    setAssetDescription('');
-    setConfirmedAi(false);
-    setConfirmedConsent(false);
-    setUploadNotice('');
-    if (assetInputRef.current) assetInputRef.current.value = '';
+  // 桌面打開「新腳本」檢視時把焦點移到標題，鍵盤與螢幕閱讀器使用者知道右欄換了內容。
+  useEffect(() => {
+    if (newOpen && !compact) newHeadingRef.current?.focus();
+  }, [newOpen, compact]);
+
+  // Esc 關閉腳本詳情（桌面與平板）；有確認視窗開著時交給它自己處理 Esc。
+  useEffect(() => {
+    if (!selected || compact || confirm) return undefined;
+    function onKeyDown(event) {
+      if (event.key === 'Escape') closeDetail();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, compact, confirm]);
+
+  async function reloadAfterChange() {
+    if (selected) {
+      try { setSelected(await getScript(selected._id)); } catch { /* 清單重讀時會顯示錯誤 */ }
+    }
+    await refresh({ clearError: false });
   }
 
-  function pickAssetFile(files) {
-    const file = files?.[0];
-    if (!file) return;
-    setAssetFile(file);
-    setUploadNotice('');
+  async function handleCreate() {
+    setBusy('create');
     setError('');
-    // 同一個檔案連續選兩次時 change 事件不會再觸發，選完就清掉 input 的值。
-    if (assetInputRef.current) assetInputRef.current.value = '';
-  }
-
-  async function handleUploadAsset() {
-    if (!assetFile) {
-      setError('請先選擇成品影片檔。');
-      return;
-    }
-    if (!confirmedAi || !confirmedConsent) {
-      setError('請先確認 AI 揭露標示與教師書面同意，兩項都確認才能上傳。');
-      return;
-    }
-
-    setBusy('upload');
-    setError('');
-    setUploadNotice('');
     try {
-      await uploadAsset(selected._id, {
-        file: assetFile,
-        title: assetTitle.trim() || selected.topic,
-        description: assetDescription.trim(),
-        versionNo: version.versionNo,
-      });
-      resetUploadForm();
-      setUploadNotice(
-        '已送出。系統正在把影片以「非公開」傳上 YouTube，傳完就能在「短影片審核」頁看片審核；'
-        + '審核通過後學生才看得到。',
-      );
-      // 上傳可能把同一份腳本既有的待上架成品換代，腳本本身的狀態也可能改變，兩邊都重讀。
-      setSelected(await getScript(selected._id));
-      await refresh();
+      // 教師選了主題就做那一題；沒選就交給排序規則。建立只凍結證據，還不會產生腳本文字。
+      const created = await createScript(courseId, pickedTopicKey || null);
+      setPickedTopicKey('');
+      await refresh({ clearError: false });
+      setNewOpen(false);
+      if (created?._id) await openScript(created._id);
     } catch (requestError) {
       setError(describeError(requestError));
     } finally {
@@ -420,25 +276,24 @@ export default function TeacherShortScripts() {
     }
   }
 
-  async function handleRetryUpload(assetId) {
-    setBusy(RETRY_BUSY_PREFIX + assetId);
+  async function handleGenerate() {
+    setBusy('generate');
     setError('');
     try {
-      await retryAssetUpload(assetId);
-      await refresh();
+      setSelected(await generateVersion(selected._id));
+      await refresh({ clearError: false });
     } catch (requestError) {
-      setError(describeError(requestError));
+      setError(`生成失敗：${describeError(requestError)}`);
+      await refresh({ clearError: false });
     } finally {
       setBusy('');
     }
   }
 
-  // generated 狀態的腳本不能直接重生（狀態機沒有 generated → generated），
-  // 要先帶著回饋退回再生成；changes_requested 的回饋已經在上一版裡（成品退回時寫入），直接生成即可。
+  // generated／approved 不能直接重生（狀態機沒有 generated → generated），要先帶著回饋退回再生成；
+  // changes_requested 的回饋已經在最新一版裡，直接生成即可，不要求重填。
   async function handleRegenerate() {
-    if (selected.status === 'changes_requested') {
-      return runAction('generate', () => generateVersion(selected._id));
-    }
+    if (selected.status === 'changes_requested') return handleGenerate();
 
     const note = regenNote.trim();
     if (!note) {
@@ -446,17 +301,45 @@ export default function TeacherShortScripts() {
       return null;
     }
 
-    return runAction('generate', async () => {
-      await reviewScript(selected._id, {
-        decision: 'request_changes',
-        feedback: note,
-        feedbackType: regenType,
-      });
-      const result = await generateVersion(selected._id);
+    setBusy('generate');
+    setError('');
+    try {
+      await reviewScript(selected._id, { decision: 'request_changes', feedback: note, feedbackType: regenType });
+    } catch (requestError) {
+      // 退回沒成功：回饋與類型都留在面板上，可以直接再送。
+      setError(describeError(requestError));
+      setBusy('');
+      return null;
+    }
+    try {
+      setSelected(await generateVersion(selected._id));
       setRegenOpen(false);
       setRegenNote('');
-      return result;
-    });
+      await refresh({ clearError: false });
+    } catch (requestError) {
+      // 退回已成功、生成失敗：腳本停在 changes_requested，回饋已保存在最新一版。
+      setRegenOpen(false);
+      await reloadAfterChange();
+      setError(`回饋已儲存，但重新生成失敗：${describeError(requestError)}。可直接按「依回饋重新生成」再試，不必重填。`);
+    } finally {
+      setBusy('');
+    }
+    return null;
+  }
+
+  async function handleDismiss() {
+    setBusy('dismiss');
+    setConfirmError('');
+    try {
+      setSelected(await reviewScript(selected._id, { decision: 'dismiss', feedback: dismissNote.trim() || undefined }));
+      setConfirm(null);
+      setDismissNote('');
+      await refresh({ clearError: false });
+    } catch (requestError) {
+      setConfirmError(describeError(requestError));
+    } finally {
+      setBusy('');
+    }
   }
 
   async function handleCopy() {
@@ -469,53 +352,169 @@ export default function TeacherShortScripts() {
     }
   }
 
+  // 上傳短片在獨立頁面：帶著這份腳本過去，那一頁會直接選中它。
+  const goToUploads = () => {
+    requestOpenScript({ scriptId: selected._id, courseId, page: SHORT_UPLOAD_PAGE });
+    onNav?.('shortUploads');
+  };
+  // 每個階段只有一個主要按鈕：操作區已有主要按鈕（或兩條路並列）時，正文的「複製完整腳本」降為次要。
+  const actionHasPrimary = Boolean(status) && (
+    ['to_film', 'upload_failed', 'asset_rejected', 'changes_requested'].includes(status.key)
+    || (status.key === 'in_review' && Boolean(onNav))
+    || regenOpen
+  );
+
   if (featureDisabled) {
     return (
-      <div className="fu scrl" style={PAGE_STYLE}>
-        <div style={{ ...HEADING, marginBottom: 18 }}>短影片腳本</div>
+      <div className="fu scrl ss-page">
         <div className="card" style={{ padding: 32, maxWidth: 620 }}>
           <div style={{ ...HEADING, fontSize: 14, marginBottom: 10 }}>此功能尚未啟用</div>
           <div style={BODY}>
             後端的 <code>SHORT_SCRIPT_AUTOMATION_ENABLED</code> 為 <code>false</code>，整組短影片腳本路由回 404。
             在後端 <code>.env</code> 設成 <code>true</code> 並重啟後重新整理。
           </div>
-          <div style={{ ...MUTED, marginTop: 10, lineHeight: 1.7 }}>
-            部署環境的 <code>.env</code> 不進版控，本機可跑不代表伺服器可跑。
-          </div>
+          <div style={{ ...MUTED, marginTop: 10, lineHeight: 1.7 }}>部署環境的 <code>.env</code> 不進版控，本機可跑不代表伺服器可跑。</div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="fu scrl" style={PAGE_STYLE}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 18,
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
+  const pickedCandidate = candidates.find((candidate) => candidate.topicKey === pickedTopicKey);
+  const showList = !compact || mobileView === 'list';
+  const showDetailPane = !compact || mobileView === 'detail';
+  const tabs = [
+    { key: 'action', label: '需要你處理', icon: 'alert', count: groups.action.length, rows: groups.action },
+    { key: 'waiting', label: '等待中', icon: 'hourglass', count: groups.waiting.length, rows: groups.waiting, hint: '這些在等影片傳送或審核，你不需要動作。' },
+    { key: 'published', label: '已上架', icon: 'checkCircle', count: groups.published.length, rows: groups.published },
+    { key: 'dismissed', label: '已否決', icon: 'ban', count: groups.dismissed.length, rows: groups.dismissed },
+  ];
+  const currentTab = tabs.find((item) => item.key === activeTab) || tabs[0];
+
+  function chooseTab(key) {
+    setTab(key);
+    rememberTab(SHORT_SCRIPT_PAGE, courseId, key);
+  }
+
+  function openNewScript() {
+    setError('');
+    if (newOpen && !compact) newHeadingRef.current?.focus();
+    else setNewOpen(true);
+  }
+
+  function closeNewScript() {
+    setNewOpen(false);
+    newButtonRef.current?.focus();
+  }
+
+  // 待生成時「點開核對證據」：展開證據對照表並捲過去，焦點放在它的標題列。
+  function openEvidence() {
+    setEvidenceOpen(true);
+    requestAnimationFrame(() => {
+      const head = document.querySelector('#ss-evidence .ss-disclosure-head');
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      head?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      head?.focus({ preventScroll: true });
+    });
+  }
+
+  // ── 面板頂部：課程、重新整理、＋ 新腳本 ──
+  const panelBar = (
+    <div className="ss-panel-bar">
+      <select
+        className="ff-input ss-course-select"
+        aria-label="課程"
+        value={courseId}
+        onChange={(event) => setCourseId(event.target.value)}
       >
-        <div style={HEADING}>短影片腳本</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
-            className="ff-input"
-            aria-label="課程"
-            value={courseId}
-            style={{ width: 'auto', minWidth: 200, padding: '9px 40px 9px 16px', fontSize: 12, borderRadius: 10 }}
-            onChange={(event) => setCourseId(event.target.value)}
-          >
-            {!courses.length && <option value="">目前沒有可用課程</option>}
-            {courses.map((course) => (
-              <option key={course._id} value={course._id}>{course.title}</option>
-            ))}
-          </select>
-          <button type="button" className="btn-primary" style={GHOST_BTN} disabled={loading} onClick={refresh}>
-            <Ic n="sync" s={13} /> 重新整理
-          </button>
+        {!courses.length && <option value="">目前沒有可用課程</option>}
+        {courses.map((course) => (
+          <option key={course._id} value={course._id}>{course.title}</option>
+        ))}
+      </select>
+      <button type="button" className="ss-icon-btn" aria-label={loading ? '載入中' : '重新整理'} title="重新整理" disabled={loading} onClick={() => refresh()}>
+        <Ic n="sync" s={16} />
+      </button>
+      <span className="ss-bar-spacer" />
+      <button ref={newButtonRef} type="button" className="btn-primary" style={SMALL_BTN} disabled={!courseId} onClick={openNewScript}>
+        <Ic n="plus" s={13} /> 新腳本
+      </button>
+    </div>
+  );
+
+  // ── 分頁列：橫跨整個面板，放在課程選擇那一列下方 ──
+  const tabsBar = <StatusTabList idBase={tabsIdBase} tabs={tabs} active={currentTab.key} onChange={chooseTab} label="腳本狀態" />;
+
+  // ── 左欄：清單（說明文字放在清單頂端，不放在分頁列裡） ──
+  const listColumn = (
+    <div className="ss-pane ss-list-pane">
+      <StatusTabPanel idBase={tabsIdBase} tab={currentTab}>
+        <ScriptRows rows={currentTab.rows} selectedId={selected?._id} onOpen={openScript} empty={loading ? '載入中…' : TAB_EMPTY[currentTab.key]} />
+      </StatusTabPanel>
+    </div>
+  );
+
+  // ── 新腳本：候選主題、建立按鈕與說明（桌面在右欄，手機在底部抽屜） ──
+  function renderNewScript() {
+    return (
+      <div className="ss-new">
+        {!compact && (
+          <div className="ss-new-head">
+            <h2 ref={newHeadingRef} tabIndex={-1} style={{ ...HEADING, margin: 0 }}>新腳本</h2>
+            <button type="button" className="ss-icon-btn" aria-label="關閉新腳本" onClick={closeNewScript}>
+              <Ic n="x" s={16} />
+            </button>
+          </div>
+        )}
+        <div className="ss-new-intro">
+          {candidates.length ? (
+            <>
+              <div style={SECTION_LABEL}>候選主題 · {candidates.length}</div>
+              <div style={{ ...MUTED, marginTop: 6, lineHeight: 1.7 }}>
+                點一題指定要做；不指定就依「幾個人問過 → 問過幾次」自動選第一個證據足夠的。
+              </div>
+            </>
+          ) : (
+            <div style={BODY}>
+              目前沒有候選主題。候選主題來自學生在這門課的提問，同一個問題被問到一定次數後才會出現在這裡。
+              仍可以按下方「自動選題建立腳本」，沒有符合條件的主題時會顯示原因。
+            </div>
+          )}
+        </div>
+        {candidates.length > 0 && (
+          <div role="group" aria-label="候選主題">
+            {candidates.map((candidate, index) => {
+              const picked = pickedTopicKey === candidate.topicKey;
+              return (
+                <button
+                  key={candidate.topicKey}
+                  type="button"
+                  className={`ss-row ss-candidate${picked ? ' active' : ''}`}
+                  aria-pressed={picked}
+                  style={{ borderBottom: index === candidates.length - 1 ? 'none' : DIVIDER }}
+                  onClick={() => setPickedTopicKey(picked ? '' : candidate.topicKey)}
+                >
+                  <span className={`ss-rank${picked ? ' picked' : ''}`} aria-hidden="true">
+                    {picked ? <Ic n="check" s={12} /> : index + 1}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="ss-row-title" style={{ fontWeight: 500 }}>{candidate.question}</span>
+                    <span className="ss-row-next">
+                      {candidate.uniqueAskerCount} 人問過 · 共 {candidate.totalAskCount} 次 · 合併 {candidate.variants?.length || 1} 種問法
+                      {picked ? ' · 已選定' : ''}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="ss-create">
+          {pickedCandidate && (
+            <div style={{ ...BODY, marginBottom: 8 }}>
+              選定主題：<strong style={{ color: '#fff' }}>{pickedCandidate.question}</strong>
+              {' '}<button type="button" className="ss-text-btn" onClick={() => setPickedTopicKey('')}>取消選定</button>
+            </div>
+          )}
           <button
             type="button"
             className="btn-primary"
@@ -524,662 +523,444 @@ export default function TeacherShortScripts() {
             onClick={handleCreate}
           >
             <Ic n="plus" s={13} />
-            {busy === 'create' ? '建立中…' : (pickedTopicKey ? '用選定主題建立腳本' : '自動選題建立腳本')}
+            {busy === 'create' ? '建立中…（凍結證據）' : (pickedTopicKey ? '用選定主題建立腳本（固定證據）' : '自動選題建立腳本（固定證據）')}
           </button>
+          <div style={{ ...MUTED, marginTop: 8, lineHeight: 1.7 }}>
+            建立只會凍結證據，還沒有腳本文字；下一步再「生成腳本」（約 30–45 秒）。
+            建立後這個主題會<strong style={{ color: 'rgba(255,255,255,0.8)' }}>永久離開候選清單</strong>，之後否決也不會回來。
+          </div>
+          <ErrorBanner style={{ marginTop: 12 }}>{error}</ErrorBanner>
         </div>
       </div>
+    );
+  }
 
-      {error && (
-        <div
-          role="alert"
-          style={{
-            fontSize: 12.5,
-            color: '#ff8b72',
-            padding: '11px 16px',
-            background: 'rgba(255,107,107,0.08)',
-            borderRadius: 12,
-            border: '1px solid rgba(255,107,107,0.22)',
-            marginBottom: 16,
-          }}
-        >
-          {error}
+  // ── 依狀態出現的主要操作區：每個階段只有一個主要按鈕 ──
+  function renderActionArea() {
+    const generating = busy === 'generate';
+    const dismissButton = selected.status !== 'dismissed' && (
+      <button type="button" className="btn-primary" style={GHOST_BTN} disabled={Boolean(busy)} onClick={() => { setConfirmError(''); setConfirm('dismiss'); }}>
+        不做這一題
+      </button>
+    );
+
+    if (selected.status === 'evidence_ready') {
+      return (
+        <div className="ss-action">
+          <div style={BODY}>證據已凍結，還沒有腳本文字。先核對下方的選題理由與證據對照表，確認沒問題再生成。</div>
+          <div className="ss-actions">
+            <button type="button" className="btn-primary" style={SMALL_BTN} disabled={Boolean(busy)} onClick={handleGenerate}>
+              <Ic n="spark" s={13} /> {generating ? '生成中（約 30–45 秒）…' : '生成腳本'}
+            </button>
+            {!evidenceOpen && (
+              <button type="button" className="btn-primary" style={GHOST_BTN} onClick={openEvidence}>
+                點開核對證據（{selected.evidence?.length || 0} 筆）
+              </button>
+            )}
+            {dismissButton}
+          </div>
+          {generating && <div role="status" style={MUTED}>正在生成，請勿關閉頁面；完成後會自動顯示腳本。</div>}
         </div>
+      );
+    }
+
+    if (selected.status === 'changes_requested') {
+      const typeLabel = FEEDBACK_TYPES.find((type) => type.value === version?.feedbackType)?.label || version?.feedbackType;
+      return (
+        <div className="ss-action">
+          <div className="card-sm ss-feedback">
+            <div style={SECTION_LABEL}>
+              {version?.rejectedAsAsset ? '成品審核退回' : '教師退回'} · 第 {version?.versionNo} 版{typeLabel ? ` · ${typeLabel}` : ''}
+            </div>
+            <div style={{ ...BODY, marginTop: 4 }}>{version?.feedback || '（沒有填寫理由）'}</div>
+          </div>
+          <div style={MUTED}>兩條路都可以，依實際情況自己選：</div>
+          <div className="ss-paths">
+            <div className="card-sm ss-path">
+              <div style={{ ...HEADING, fontSize: 13.5 }}>(a) 依回饋重新生成腳本</div>
+              <div style={{ ...BODY, flex: 1 }}>產生第 {(version?.versionNo || 0) + 1} 版腳本，之後依新版重拍並上傳。回饋已保存，不用重填。</div>
+              <button type="button" className="btn-primary" style={GHOST_BTN} disabled={Boolean(busy)} onClick={handleRegenerate}>
+                <Ic n="sync" s={13} /> {generating ? '重新生成中（約 30–45 秒）…' : '依回饋重新生成'}
+              </button>
+            </div>
+            <div className="card-sm ss-path">
+              <div style={{ ...HEADING, fontSize: 13.5 }}>(b) 腳本沒問題，只重錄或重剪影片</div>
+              <div style={{ ...BODY, flex: 1 }}>不重新生成，到「上傳短片」頁用目前的第 {version?.versionNo} 版重傳；審核通過後就上架。</div>
+              <button type="button" className="btn-primary" style={GHOST_BTN} disabled={Boolean(busy)} onClick={goToUploads}>
+                <Ic n="shortUp" s={13} /> 前往上傳短片頁（第 {version?.versionNo} 版）
+              </button>
+            </div>
+          </div>
+          <div className="ss-actions">{dismissButton}</div>
+        </div>
+      );
+    }
+
+    if (selected.status === 'dismissed') {
+      return (
+        <div className="ss-action">
+          <div style={BODY}>這一題已否決，不會再生成或上傳成品。{selected.dismissReason ? `理由：${selected.dismissReason}` : ''}</div>
+        </div>
+      );
+    }
+
+    // generated 或 approved：有腳本正文。
+    const published = selected.status === 'approved';
+    const regenButton = (
+      <button
+        type="button"
+        className="btn-primary"
+        style={GHOST_BTN}
+        disabled={Boolean(busy)}
+        onClick={() => (published ? setConfirm('regenPublished') : setRegenOpen((open) => !open))}
+      >
+        <Ic n="sync" s={13} /> 這版不要，重新生成{published ? '…' : ''}
+      </button>
+    );
+    const nextHint = {
+      to_film: '腳本已生成。複製完整腳本去拍攝，拍完到「上傳短片」頁上傳送審。',
+      uploading: '成品正在傳上 YouTube，傳完就能到「短影片審核」看片審核。',
+      upload_failed: '成品傳送失敗，可到「上傳短片」頁重試。',
+      upload_needs_admin: '成品傳送失敗，需由管理員確認 YouTube 是否已收到，處理後會自動更新。',
+      in_review: '成品已傳上 YouTube（非公開），等待審核；審核通過後學生才看得到。',
+      approved_waiting_upload: '成品已審核通過，影片傳完後會自動上架。',
+      asset_rejected: '成品已被退回。可以到「上傳短片」頁重傳，或重新生成腳本。',
+      published: '已上架：審核通過的成品已在學生的短影片牆。',
+    }[status.key];
+
+    return (
+      <div className="ss-action">
+        {nextHint && <div style={BODY}>{nextHint}</div>}
+        <div className="ss-actions">
+          {status.key === 'to_film' && (
+            <button type="button" className="btn-primary" style={regenOpen ? GHOST_BTN : SMALL_BTN} onClick={handleCopy}>
+              <Ic n="check" s={13} /> {copied ? '已複製到剪貼簿' : '複製完整腳本'}
+            </button>
+          )}
+          {['upload_failed', 'asset_rejected'].includes(status.key) && (
+            <button type="button" className="btn-primary" style={regenOpen ? GHOST_BTN : SMALL_BTN} onClick={goToUploads}>
+              <Ic n="shortUp" s={13} /> 前往上傳短片
+            </button>
+          )}
+          {status.key === 'in_review' && onNav && (
+            <button type="button" className="btn-primary" style={regenOpen ? GHOST_BTN : SMALL_BTN} onClick={() => onNav('reviewShorts')}>
+              <Ic n="play" s={13} /> 前往短影片審核
+            </button>
+          )}
+          {!published && regenButton}
+          {!published && dismissButton}
+        </div>
+        {published && (
+          <div className="ss-actions ss-secondary">
+            <span style={MUTED}>其他操作：</span>
+            {regenButton}
+            {dismissButton}
+          </div>
+        )}
+        {regenOpen && (
+          <div className="card-sm" style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)' }}>
+            <div className="ss-chips" role="radiogroup" aria-label="哪裡不對">
+              {FEEDBACK_TYPES.map((type) => {
+                const on = regenType === type.value;
+                return (
+                  <button key={type.value} type="button" role="radio" aria-checked={on} className={`ss-chip${on ? ' on' : ''}`} onClick={() => setRegenType(type.value)}>
+                    {type.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ ...MUTED, marginTop: 6 }}>{FEEDBACK_TYPES.find((type) => type.value === regenType)?.hint}</div>
+            <textarea
+              className="ff-input ss-field"
+              rows={2}
+              aria-label="哪裡不對"
+              placeholder="一句話：哪裡不對？"
+              value={regenNote}
+              style={{ marginTop: 10, resize: 'vertical' }}
+              onChange={(event) => setRegenNote(event.target.value)}
+            />
+            <div className="ss-actions" style={{ marginTop: 10 }}>
+              <button type="button" className="btn-primary" style={SMALL_BTN} disabled={Boolean(busy)} onClick={handleRegenerate}>
+                {generating ? '重新生成中（約 30–45 秒）…' : '退回並重新生成'}
+              </button>
+              <button type="button" className="btn-primary" style={GHOST_BTN} disabled={generating} onClick={() => setRegenOpen(false)}>取消</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderScriptBody() {
+    const evidence = selected.evidence || [];
+    const evidenceDetails = (
+      <Disclosure id="ss-evidence" title="證據對照表" count={`${evidence.length} 筆`} open={evidenceOpen} onToggle={setEvidenceOpen}>
+        <div style={MUTED}>未修飾的逐字稿原文。</div>
+        {evidence.map((item) => (
+          <div key={item.chunkId} style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ color: ACCENT, fontSize: 13, fontWeight: 700 }}>[{item.code}]</span>
+              <span style={MUTED}>
+                {formatTimestamp(item.startSec)}–{formatTimestamp(item.endSec)}
+                {item.expandedFrom ? ' · 鄰接擴展' : ' · 檢索命中'}
+              </span>
+            </div>
+            <div className="ss-wrap" style={{ ...BODY, marginTop: 3 }}>{item.rawText}</div>
+          </div>
+        ))}
+      </Disclosure>
+    );
+
+    if (!version) return evidenceDetails;
+
+    const options = version.payload.visualMetaphorOptions || [];
+    const option = options[metaphorIndex];
+    const meanings = version.payload.stageMeanings;
+
+    return (
+      <>
+        <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
+          <div className="ss-body-head">
+            <div style={SECTION_LABEL}>完整腳本 · 第 {version.versionNo} 版</div>
+            <button type="button" className="btn-primary" style={actionHasPrimary ? GHOST_BTN : SMALL_BTN} onClick={handleCopy}>
+              <Ic n="check" s={13} /> {copied ? '已複製到剪貼簿' : '複製完整腳本'}
+            </button>
+          </div>
+          <textarea
+            className="ff-input ss-script-text"
+            readOnly
+            aria-label="完整腳本（唯讀）"
+            value={markdown}
+            rows={18}
+            onFocus={(event) => event.target.select()}
+          />
+          <div style={{ ...MUTED, marginTop: 6 }}>
+            複製內容使用目前選的視覺隱喻：{option?.label || '—'}
+          </div>
+        </div>
+
+        <Disclosure key={`${selected._id}-metaphor`} title="視覺隱喻" count={`${options.length} 組（目前：${option?.label || '—'}，會寫進複製內容）`}>
+          <div className="ss-chips" role="radiogroup" aria-label="視覺隱喻">
+            {options.map((item, index) => {
+              const on = metaphorIndex === index;
+              return (
+                <button key={item.label} type="button" role="radio" aria-checked={on} className={`ss-chip${on ? ' on' : ''}`} onClick={() => { setMetaphorIndex(index); setCopied(false); }}>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          {option && meanings && (
+            <div style={{ marginTop: 12 }}>
+              {['s1', 's2', 's3'].map((key) => (
+                <div key={key} className="ss-wrap" style={BODY}>
+                  <span style={{ color: ACCENT, fontWeight: 700 }}>{key.toUpperCase()}</span>{' '}{option[key]}
+                  <span style={MUTED}>{' '}＝ {meanings[key]}</span>
+                </div>
+              ))}
+              {option.rationale && <div style={{ ...MUTED, marginTop: 6, lineHeight: 1.7 }}>為什麼用這個隱喻：{option.rationale}</div>}
+            </div>
+          )}
+        </Disclosure>
+
+        {evidenceDetails}
+
+        <Disclosure key={`${selected._id}-shots`} title="分鏡" count={`${version.payload.shots.length} 鏡`}>
+          {version.payload.shots.map((shot) => (
+            <div key={shot.shotNo} className="ss-wrap" style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>鏡 {String(shot.shotNo).padStart(2, '0')}</span>
+                <span style={MUTED}>{ARC_LABELS[shot.arcRole] || shot.arcRole} · {shot.timeRange}</span>
+              </div>
+              <div style={{ ...BODY, marginTop: 3 }}>{shot.narration}</div>
+              <div style={{ ...MUTED, marginTop: 2 }}>字幕：{shot.subtitle}</div>
+              {shot.brollStage && <div style={MUTED}>素材：{shot.brollStage}{shot.brollNote ? `（${shot.brollNote}）` : ''}</div>}
+              {shot.cut && <div style={MUTED}>剪輯：{shot.cut}{shot.hookQuestion ? `｜埋問題：${shot.hookQuestion}` : ''}</div>}
+              <div style={MUTED}>依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}</div>
+            </div>
+          ))}
+        </Disclosure>
+      </>
+    );
+  }
+
+  function renderAssetSummary() {
+    const state = describeAssetState(currentAsset);
+    return (
+      <div className="ss-asset-summary">
+        <span style={MUTED}>
+          成品：{state ? `審核 ${state.review} · ${state.youtube} · ${state.students}` : '尚未上傳'}
+        </span>
+        {selected.status !== 'dismissed' && version && (
+          <button type="button" className="ss-text-btn" onClick={goToUploads}>前往上傳短片 →</button>
+        )}
+      </div>
+    );
+  }
+
+  // 右欄還沒選腳本時的引導（只在桌面與平板；手機直接看清單）。
+  function renderEmptyPane() {
+    if (compact) return <EmptyRow>請先選一份腳本</EmptyRow>;
+    if (loading && !scripts.length) return <EmptyRow>載入中…</EmptyRow>;
+    const newButton = (
+      <button type="button" className="btn-primary" style={SMALL_BTN} onClick={openNewScript}>
+        <Ic n="plus" s={13} /> 新腳本
+      </button>
+    );
+    const candidateHint = candidates.length
+      ? `目前有 ${candidates.length} 個候選主題，可以按「＋ 新腳本」挑一題建立，或讓系統自動選題。`
+      : '目前還沒有候選主題。候選主題來自學生在這門課的提問，同一個問題被問到一定次數後才會出現。';
+    if (!scripts.length) {
+      return (
+        <div className="ss-guide">
+          <StartGuide title="這門課還沒有短影片腳本" action={newButton}>{candidateHint}</StartGuide>
+        </div>
+      );
+    }
+    return (
+      <div className="ss-guide">
+        <NextStepCard row={groups.action[0]} actionLabel="打開這份腳本" onOpen={openScript}>
+          <div style={BODY}>目前沒有需要你處理的腳本。{candidateHint}</div>
+          <div>{newButton}</div>
+        </NextStepCard>
+      </div>
+    );
+  }
+
+  const detailPane = (
+    <div className="ss-pane ss-detail-pane">
+      {newOpen && !compact ? renderNewScript() : !selected ? renderEmptyPane() : (
+        <>
+          <div className="ss-detail-head">
+            {compact && (
+              <div className="ss-mobile-head">
+                <button type="button" className="ss-icon-btn" aria-label="返回腳本清單" onClick={backToList}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <div className="ss-mobile-title">{selected.topic}</div>
+                <StatusPill status={status} />
+              </div>
+            )}
+            {!compact && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <h2 style={{ ...HEADING, fontSize: 15, lineHeight: 1.5, minWidth: 0, margin: 0, overflowWrap: 'anywhere' }}>{selected.topic}</h2>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <StatusPill status={status} />
+                  <button type="button" className="ss-icon-btn" aria-label="關閉腳本詳情" onClick={closeDetail}>
+                    <Ic n="x" s={16} />
+                  </button>
+                </span>
+              </div>
+            )}
+            {selected.selectionReason && <div style={{ ...MUTED, marginTop: 6 }}>選題來源：{selectionLine(selected.selectionReason)}</div>}
+            {compact && (
+              <button
+                ref={switchButtonRef}
+                type="button"
+                className="btn-primary ss-switch-btn"
+                style={GHOST_BTN}
+                aria-haspopup="dialog"
+                aria-expanded={switchOpen}
+                onClick={() => setSwitchOpen(true)}
+              >
+                切換腳本 <span aria-hidden="true">▾</span>
+              </button>
+            )}
+          </div>
+
+          {error && <ErrorBanner style={{ margin: '16px 20px 0' }}>{error}</ErrorBanner>}
+
+          <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>{renderActionArea()}</div>
+          {renderScriptBody()}
+          {renderAssetSummary()}
+        </>
       )}
+    </div>
+  );
+
+  return (
+    <div className="fu scrl ss-page">
+      {/* 流程說明：頁首常駐、不收合。 */}
+      <FlowBar />
+
+      {/* 詳情或新腳本檢視顯示時，錯誤顯示在裡面（靠近操作區）；否則顯示在頁面上方。 */}
+      {(!selected || !showDetailPane) && !newOpen && <ErrorBanner style={{ marginBottom: 16 }}>{error}</ErrorBanner>}
 
       {!courses.length && !error && !loading && (
-        <div className="card" style={{ padding: 28, textAlign: 'center', ...MUTED }}>
-          這個帳號目前沒有可管理的課程。
-        </div>
+        <div className="card" style={{ padding: 28, marginBottom: 16, textAlign: 'center', ...MUTED }}>這個帳號目前沒有可管理的課程。</div>
       )}
 
-      <div
-        className="ff-grid-2"
-        style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 20, alignItems: 'start' }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
-          <SectionCard title={`腳本 · ${scripts.length}`}>
-            {!scripts.length ? (
-              <EmptyRow>{loading ? '載入中…' : '尚未建立任何腳本'}</EmptyRow>
-            ) : (
-              scripts.map((script, index) => {
-                const active = selected?._id === script._id;
-                return (
-                  <div
-                    key={script._id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleOpen(script._id)}
-                    onKeyDown={(event) => { if (event.key === 'Enter') handleOpen(script._id); }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '13px 20px',
-                      cursor: 'pointer',
-                      transition: 'background .15s',
-                      background: active ? 'rgba(241,79,33,0.06)' : 'transparent',
-                      borderBottom: index === scripts.length - 1 ? 'none' : DIVIDER,
-                      borderLeft: `2px solid ${active ? ACCENT : 'transparent'}`,
-                    }}
-                    onMouseEnter={(event) => {
-                      if (!active) event.currentTarget.style.background = 'rgba(255,255,255,0.025)';
-                    }}
-                    onMouseLeave={(event) => {
-                      if (!active) event.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.5 }}>
-                        {script.topic}
-                      </div>
-                    </div>
-                    <StatusPill status={script.status} />
-                  </div>
-                );
-              })
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="候選主題"
-            action={pickedTopicKey ? (
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ ...GHOST_BTN, padding: '6px 12px', fontSize: 11 }}
-                onClick={() => setPickedTopicKey('')}
-              >
-                取消選定
-              </button>
-            ) : null}
-          >
-            <div
-              style={{
-                padding: '12px 20px',
-                borderBottom: candidates.length ? DIVIDER : 'none',
-                ...MUTED,
-                lineHeight: 1.7,
-              }}
-            >
-              點一列指定要做的主題；不指定就依「幾個人問過 → 問過幾次」自動選第一個證據足夠的。
-            </div>
-            {!candidates.length ? (
-              <EmptyRow>{loading ? '載入中…' : '沒有符合條件的候選主題'}</EmptyRow>
-            ) : (
-              candidates.map((candidate, index) => {
-                const picked = pickedTopicKey === candidate.topicKey;
-                return (
-                  <div
-                    key={candidate.topicKey}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setPickedTopicKey(picked ? '' : candidate.topicKey)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') setPickedTopicKey(picked ? '' : candidate.topicKey);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      padding: '13px 20px',
-                      cursor: 'pointer',
-                      transition: 'background .15s',
-                      background: picked ? 'rgba(241,79,33,0.06)' : 'transparent',
-                      borderBottom: index === candidates.length - 1 ? 'none' : DIVIDER,
-                      borderLeft: `2px solid ${picked ? ACCENT : 'transparent'}`,
-                    }}
-                    onMouseEnter={(event) => {
-                      if (!picked) event.currentTarget.style.background = 'rgba(255,255,255,0.025)';
-                    }}
-                    onMouseLeave={(event) => {
-                      if (!picked) event.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: 7,
-                        flexShrink: 0,
-                        marginTop: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: picked ? '#fff' : 'rgba(255,255,255,0.5)',
-                        background: picked ? ACCENT : 'rgba(255,255,255,0.06)',
-                        border: `1px solid ${picked ? ACCENT : 'rgba(255,255,255,0.12)'}`,
-                      }}
-                    >
-                      {picked ? <Ic n="check" s={12} /> : index + 1}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: '#fff', lineHeight: 1.55 }}>{candidate.question}</div>
-                      <div style={{ ...MUTED, marginTop: 3 }}>
-                        {candidate.uniqueAskerCount} 人問過 · 共 {candidate.totalAskCount} 次
-                        · 合併 {candidate.variants?.length || 1} 種問法
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </SectionCard>
-        </div>
-
-        <div className="card" style={{ overflow: 'hidden', minWidth: 0 }}>
-          {!selected ? (
-            <EmptyRow>從左側選一份腳本查看內容</EmptyRow>
-          ) : (
-            <>
-              {/* Tabs sit above the topic, split evenly. */}
-              <div style={{ display: 'flex', borderBottom: DIVIDER }}>
-                <DetailTab active={detailTab === 'script'} onClick={() => setDetailTab('script')}>
-                  腳本內容
-                </DetailTab>
-                <DetailTab active={detailTab === 'asset'} onClick={() => setDetailTab('asset')}>
-                  成品上傳{scriptAssets.length ? ` · ${scriptAssets.length}` : ''}
-                </DetailTab>
-              </div>
-
-              <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                  <div style={{ ...HEADING, fontSize: 14, lineHeight: 1.5, minWidth: 0 }}>{selected.topic}</div>
-                  <StatusPill status={selected.status} />
-                </div>
-                {selected.selectionReason && (
-                  <div style={{ ...MUTED, marginTop: 6 }}>
-                    {selected.selectionReason.selectedBy === 'teacher' ? '教師指定' : '系統自動選題'}
-                    · 排名第 {selected.selectionReason.rank}
-                    · {selected.selectionReason.uniqueAskerCount} 人問過
-                    · 共 {selected.selectionReason.totalAskCount} 次
-                    · 證據 {selected.selectionReason.evidenceCount} 筆
-                  </div>
-                )}
-              </div>
-
-              {!version && detailTab === 'asset' && (
-                <EmptyRow>請先在「腳本內容」生成腳本，才能上傳成品。</EmptyRow>
-              )}
-
-              {!version && detailTab === 'script' && (
-                <div style={{ padding: '18px 20px' }}>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    style={SMALL_BTN}
-                    disabled={Boolean(busy)}
-                    onClick={() => runAction('generate', () => generateVersion(selected._id))}
-                  >
-                    <Ic n="spark" s={13} />
-                    {busy === 'generate' ? '生成中（約 30–45 秒）…' : '生成腳本'}
-                  </button>
-                </div>
-              )}
-
-              {version && detailTab === 'script' && (
-                <>
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                    <div style={{ ...SECTION_LABEL, marginBottom: 10 }}>視覺隱喻</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {(version.payload.visualMetaphorOptions || []).map((option, index) => {
-                        const on = metaphorIndex === index;
-                        return (
-                          <button
-                            key={option.label}
-                            type="button"
-                            onClick={() => { setMetaphorIndex(index); setCopied(false); }}
-                            style={{
-                              padding: '7px 14px',
-                              borderRadius: 50,
-                              fontSize: 12,
-                              cursor: 'pointer',
-                              color: on ? '#fff' : 'rgba(255,255,255,0.7)',
-                              background: on ? 'rgba(241,79,33,0.16)' : 'rgba(255,255,255,0.05)',
-                              border: `1px solid ${on ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.12)'}`,
-                            }}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div style={{ ...MUTED, marginTop: 8 }}>選一組，會寫進複製出的腳本。</div>
-                    {(() => {
-                      const option = (version.payload.visualMetaphorOptions || [])[metaphorIndex];
-                      const meanings = version.payload.stageMeanings;
-                      if (!option || !meanings) return null;
-                      return (
-                        <div style={{ marginTop: 12 }}>
-                          {['s1', 's2', 's3'].map((key) => (
-                            <div key={key} style={{ ...BODY, fontSize: 12.5 }}>
-                              <span style={{ color: ACCENT, fontWeight: 700 }}>{key.toUpperCase()}</span>
-                              {' '}{option[key]}
-                              <span style={MUTED}>{' '}＝ {meanings[key]}</span>
-                            </div>
-                          ))}
-                          {option.rationale && (
-                            <div style={{ ...MUTED, marginTop: 6, lineHeight: 1.7 }}>
-                              為什麼用這個隱喻：{option.rationale}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      <button type="button" className="btn-primary" style={SMALL_BTN} onClick={handleCopy}>
-                        <Ic n="check" s={13} />
-                        {copied ? '已複製到剪貼簿' : '複製完整腳本'}
-                      </button>
-                      {selected.status === 'changes_requested' ? (
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={GHOST_BTN}
-                          disabled={Boolean(busy)}
-                          onClick={handleRegenerate}
-                        >
-                          <Ic n="sync" s={13} />
-                          {busy === 'generate' ? '重新生成中…' : '依回饋重新生成'}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={GHOST_BTN}
-                          disabled={Boolean(busy) || selected.status === 'dismissed'}
-                          onClick={() => setRegenOpen((open) => !open)}
-                        >
-                          <Ic n="sync" s={13} /> 這版不要，重新生成
-                        </button>
-                      )}
-                    </div>
-
-                    {selected.status === 'changes_requested' && version.feedback && (
-                      <div style={{ ...MUTED, marginTop: 10, lineHeight: 1.7 }}>
-                        將依此回饋重新生成（
-                        {FEEDBACK_TYPES.find((type) => type.value === version.feedbackType)?.label
-                          || version.feedbackType}
-                        ）：{version.feedback}
-                      </div>
-                    )}
-
-                    {regenOpen && selected.status !== 'changes_requested' && (
-                      <div
-                        className="card-sm"
-                        style={{ padding: '14px 16px', marginTop: 12, background: 'rgba(255,255,255,0.03)' }}
-                      >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {FEEDBACK_TYPES.map((type) => {
-                            const on = regenType === type.value;
-                            return (
-                              <button
-                                key={type.value}
-                                type="button"
-                                onClick={() => setRegenType(type.value)}
-                                title={type.hint}
-                                style={{
-                                  padding: '7px 14px',
-                                  borderRadius: 50,
-                                  fontSize: 12,
-                                  cursor: 'pointer',
-                                  color: on ? '#fff' : 'rgba(255,255,255,0.7)',
-                                  background: on ? 'rgba(241,79,33,0.16)' : 'rgba(255,255,255,0.05)',
-                                  border: `1px solid ${on ? 'rgba(241,79,33,0.5)' : 'rgba(255,255,255,0.12)'}`,
-                                }}
-                              >
-                                {type.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div style={{ ...MUTED, marginTop: 6 }}>
-                          {FEEDBACK_TYPES.find((type) => type.value === regenType)?.hint}
-                        </div>
-                        <textarea
-                          className="ff-input"
-                          rows={2}
-                          placeholder="一句話：哪裡不對？"
-                          value={regenNote}
-                          style={{ marginTop: 10, fontSize: 13, padding: '10px 14px', resize: 'vertical' }}
-                          onChange={(event) => setRegenNote(event.target.value)}
-                        />
-                        <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            style={SMALL_BTN}
-                            disabled={Boolean(busy)}
-                            onClick={handleRegenerate}
-                          >
-                            {busy === 'generate' ? '重新生成中（約 30–45 秒）…' : '退回並重新生成'}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            style={GHOST_BTN}
-                            onClick={() => setRegenOpen(false)}
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ padding: '16px 20px', borderBottom: DIVIDER }}>
-                    <div style={{ ...SECTION_LABEL, marginBottom: 8 }}>完整腳本 · 可直接複製貼進製作流程</div>
-                    <textarea
-                      className="ff-input"
-                      readOnly
-                      value={markdown}
-                      rows={18}
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                        fontSize: 12,
-                        lineHeight: 1.65,
-                        padding: '12px 14px',
-                        resize: 'vertical',
-                      }}
-                      onFocus={(event) => event.target.select()}
-                    />
-                  </div>
-
-                  {/* 規格書 2.1：教師必須看得到證據與 STT 原文才判斷得出引用是否正確。
-                      多數時候用不到，所以收進可展開的區塊放在最下面，需要核對時再打開。 */}
-                  <details style={{ borderBottom: DIVIDER }}>
-                    <summary style={{ ...SECTION_LABEL, padding: '14px 20px', cursor: 'pointer' }}>
-                      證據對照表 · 未修飾的逐字稿原文（{(selected.evidence || []).length} 筆）
-                    </summary>
-                    <div style={{ padding: '0 20px 16px' }}>
-                      {(selected.evidence || []).map((item) => (
-                        <div key={item.chunkId} style={{ marginTop: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ color: ACCENT, fontSize: 12, fontWeight: 700 }}>[{item.code}]</span>
-                            <span style={MUTED}>
-                              {formatTimestamp(item.startSec)}–{formatTimestamp(item.endSec)}
-                              {item.expandedFrom ? ' · 鄰接擴展' : ' · 檢索命中'}
-                            </span>
-                          </div>
-                          <div style={{ ...BODY, marginTop: 3 }}>{item.rawText}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-
-                  <details>
-                    <summary style={{ ...SECTION_LABEL, padding: '14px 20px', cursor: 'pointer' }}>
-                      分鏡 · 第 {version.versionNo} 版（{version.payload.shots.length} 鏡）
-                    </summary>
-                    <div style={{ padding: '0 20px 16px' }}>
-                      {version.payload.shots.map((shot) => (
-                        <div key={shot.shotNo} style={{ marginTop: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                              鏡 {String(shot.shotNo).padStart(2, '0')}
-                            </span>
-                            <span style={MUTED}>
-                              {ARC_LABELS[shot.arcRole] || shot.arcRole} · {shot.timeRange}
-                            </span>
-                          </div>
-                          <div style={{ ...BODY, marginTop: 3 }}>{shot.narration}</div>
-                          <div style={{ ...MUTED, marginTop: 2 }}>字幕：{shot.subtitle}</div>
-                          {shot.brollStage && (
-                            <div style={MUTED}>
-                              素材：{shot.brollStage}{shot.brollNote ? `（${shot.brollNote}）` : ''}
-                            </div>
-                          )}
-                          {shot.cut && (
-                            <div style={MUTED}>
-                              剪輯：{shot.cut}{shot.hookQuestion ? `｜埋問題：${shot.hookQuestion}` : ''}
-                            </div>
-                          )}
-                          <div style={MUTED}>
-                            依據：{shot.basedOn === 'template' ? 'template' : (shot.basedOn || []).join('、')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </>
-              )}
-
-              {version && detailTab === 'asset' && (
-                <>
-                  {selected.status !== 'dismissed' && (
-                    <div style={{ padding: '16px 20px', borderBottom: scriptAssets.length ? DIVIDER : 'none' }}>
-                      <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>
-                        上傳成品 · 依第 {version.versionNo} 版腳本拍出來的影片
-                      </div>
-                      <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
-                        上傳後系統會立刻把影片以 YouTube 的「非公開」傳上去，讓你在「短影片審核」頁
-                        看得到影片再審。非公開＝有連結才看得到，不會出現在搜尋結果或頻道頁。
-                      </div>
-                      <div style={{ ...MUTED, lineHeight: 1.7, marginBottom: 12 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600 }}>學生要等審核通過才看得到</span>：通過後影片才進學生的短影片牆；退回時系統會把那支
-                        影片轉回「私人」，理由寫回第 {version.versionNo} 版腳本。
-                      </div>
-
-                      <div
-                        className="upload-z"
-                        style={{ height: 132, padding: 14, opacity: busy === 'upload' ? 0.6 : 1 }}
-                        onDragOver={(event) => { event.preventDefault(); setAssetDrag(true); }}
-                        onDragLeave={() => setAssetDrag(false)}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          setAssetDrag(false);
-                          if (busy !== 'upload') pickAssetFile(event.dataTransfer.files);
-                        }}
-                        onClick={() => { if (busy !== 'upload') assetInputRef.current?.click(); }}
-                      >
-                        <input
-                          ref={assetInputRef}
-                          type="file"
-                          accept=".mp4,.mov,.mkv,video/mp4,video/quicktime,video/x-matroska"
-                          style={{ display: 'none' }}
-                          onChange={(event) => pickAssetFile(event.target.files)}
-                        />
-                        {assetFile ? (
-                          <>
-                            <div style={{ color: ACCENT }}><Ic n="film" s={24} /></div>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                color: '#fff',
-                                maxWidth: '90%',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {assetFile.name}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>
-                              {formatFileSize(assetFile.size)} · 點擊可換一支
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div style={{ color: ACCENT }}><Ic n="up" s={26} /></div>
-                            <div style={{ fontSize: 13.5, fontWeight: 600, color: assetDrag ? '#fff' : 'rgba(255,255,255,0.7)' }}>
-                              拖曳成品影片至此
-                            </div>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-                              或點擊選擇檔案 · MP4、MOV、MKV，單支最大 500 MB
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      <div style={{ marginTop: 12 }}>
-                        <label className="ff-label">YouTube 標題</label>
-                        <input
-                          className="ff-input"
-                          value={assetTitle}
-                          placeholder={selected.topic}
-                          disabled={busy === 'upload'}
-                          style={{ fontSize: 13, padding: '10px 14px' }}
-                          onChange={(event) => setAssetTitle(event.target.value)}
-                        />
-                      </div>
-                      <div style={{ marginTop: 10 }}>
-                        <label className="ff-label">YouTube 說明（選填）</label>
-                        <textarea
-                          className="ff-input"
-                          rows={2}
-                          value={assetDescription}
-                          placeholder="影片說明，會一併帶到 YouTube"
-                          disabled={busy === 'upload'}
-                          style={{ fontSize: 13, padding: '10px 14px', resize: 'vertical' }}
-                          onChange={(event) => setAssetDescription(event.target.value)}
-                        />
-                      </div>
-
-                      <div
-                        className="card-sm"
-                        style={{ padding: '12px 16px', marginTop: 12, background: 'rgba(255,255,255,0.03)' }}
-                      >
-                        <div style={SECTION_LABEL}>上傳前必須確認</div>
-                        <ConfirmRow checked={confirmedAi} disabled={busy === 'upload'} onChange={setConfirmedAi}>
-                          AI 揭露已處理：有 AI 生成畫面或數位分身的，已加上全片常駐標示；純實拍影片不需要。
-                        </ConfirmRow>
-                        <ConfirmRow checked={confirmedConsent} disabled={busy === 'upload'} onChange={setConfirmedConsent}>
-                          授權已處理：使用教師數位分身的，已取得該教師書面同意；沒用分身不需要。
-                        </ConfirmRow>
-                        <div style={{ ...MUTED, marginTop: 8, lineHeight: 1.7 }}>
-                          系統只記錄你的確認與時間，不會代為檢查或取得同意書。
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={SMALL_BTN}
-                          disabled={Boolean(busy) || !assetFile || !confirmedAi || !confirmedConsent}
-                          onClick={handleUploadAsset}
-                        >
-                          <Ic n="up" s={13} />
-                          {busy === 'upload' ? '上傳中…' : '上傳成品並送審'}
-                        </button>
-                        {assetFile && busy !== 'upload' && (
-                          <button type="button" className="btn-primary" style={GHOST_BTN} onClick={resetUploadForm}>
-                            清除
-                          </button>
-                        )}
-                      </div>
-
-                      {uploadNotice && (
-                        <div
-                          style={{
-                            marginTop: 12,
-                            fontSize: 12.5,
-                            color: '#86efac',
-                            padding: '10px 14px',
-                            background: 'rgba(74,222,128,0.08)',
-                            border: '1px solid rgba(74,222,128,0.2)',
-                            borderRadius: 12,
-                          }}
-                        >
-                          {uploadNotice}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {scriptAssets.length > 0 && (
-                    <div style={{ padding: '16px 20px' }}>
-                      <div style={{ ...SECTION_LABEL, marginBottom: 4 }}>這份腳本的成品</div>
-                      {scriptAssets.map((asset) => (
-                        <div key={asset.id} style={{ marginTop: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{asset.title}</span>
-                            <AssetPill reviewStatus={asset.reviewStatus} />
-                            <span style={{ ...MUTED, fontSize: 11.5 }}>
-                              {ASSET_STATUS_LABELS[asset.status] || asset.status}
-                            </span>
-                          </div>
-                          <div style={{ ...MUTED, marginTop: 3 }}>
-                            第 {asset.generationVersion} 代成品 · 依第 {asset.sourceVersionNo ?? '?'} 版腳本
-                            {asset.upload.status
-                              ? ` · ${ASSET_UPLOAD_LABELS[asset.upload.status] || asset.upload.status}`
-                              : ' · 尚未上架'}
-                            {asset.privacyStatus
-                              ? ` · ${ASSET_PRIVACY_LABELS[asset.privacyStatus] || asset.privacyStatus}`
-                              : ''}
-                          </div>
-                          {asset.youtubeUrl && (
-                            <a
-                              href={asset.youtubeUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ fontSize: 12, color: ACCENT, textDecoration: 'none' }}
-                            >
-                              在 YouTube 開啟 ↗
-                            </a>
-                          )}
-                          {asset.upload.status === 'failed' && (
-                            <div style={{ marginTop: 6 }}>
-                              <div style={{ fontSize: 12, color: '#ff8b72', lineHeight: 1.7 }}>
-                                {asset.upload.error || '上架失敗。'}
-                              </div>
-                              {asset.upload.retrySafe ? (
-                                <button
-                                  type="button"
-                                  className="btn-primary"
-                                  style={{ ...GHOST_BTN, marginTop: 6 }}
-                                  disabled={Boolean(busy)}
-                                  onClick={() => handleRetryUpload(asset.id)}
-                                >
-                                  <Ic n="sync" s={13} />
-                                  {busy === RETRY_BUSY_PREFIX + asset.id ? '重試中…' : '重試上架'}
-                                </button>
-                              ) : (
-                                <div style={{ ...MUTED, marginTop: 4, lineHeight: 1.7 }}>
-                                  這次失敗可能已經送出影片內容，直接重試會在頻道留下重複影片。
-                                  需由管理員確認 YouTube 是否已收到，處理後會自動更新。
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {selected.status === 'dismissed' && !scriptAssets.length && (
-                    <EmptyRow>這份腳本已否決，不會再產出成品。</EmptyRow>
-                  )}
-                </>
-              )}
-            </>
-          )}
+      {/* 單一面板：頂部列＋分頁列（橫跨全寬）＋左右兩欄，欄與區塊之間只用分隔線。 */}
+      <div className="card ss-panel">
+        {showList && panelBar}
+        {showList && tabsBar}
+        <div className="ss-panel-body">
+          {showList && listColumn}
+          {showDetailPane && detailPane}
         </div>
       </div>
+
+      {compact && switchOpen && (
+        <ScriptSwitchSheet
+          tabs={tabs}
+          initialTab={currentTab.key}
+          selectedId={selected?._id}
+          onSelect={(scriptId) => { setSwitchOpen(false); void loadScript(scriptId); }}
+          onClose={() => setSwitchOpen(false)}
+          returnFocusRef={switchButtonRef}
+        />
+      )}
+
+      {compact && newOpen && (
+        <BottomSheet title="新腳本" onClose={closeNewScript} returnFocusRef={newButtonRef}>
+          {renderNewScript()}
+        </BottomSheet>
+      )}
+
+      {confirm === 'dismiss' && selected && (
+        <ConfirmDialog
+          title="不做這一題？"
+          confirmLabel="確定不做這一題"
+          busyLabel="處理中…"
+          danger
+          busy={busy === 'dismiss'}
+          onCancel={() => setConfirm(null)}
+          onConfirm={handleDismiss}
+        >
+          <p>「{selected.topic}」否決後：</p>
+          <ul>
+            <li>無法復原，腳本會停在「已否決」。</li>
+            <li>不能再生成或上傳這份腳本的成品。</li>
+            <li>這個主題不會回到候選清單。</li>
+            {currentAsset?.status === 'published' && <li>已上架的影片不會因此下架，學生仍看得到。</li>}
+          </ul>
+          <label className="ff-label" htmlFor="ss-dismiss-note">理由（選填）</label>
+          <textarea
+            id="ss-dismiss-note"
+            className="ff-input ss-field"
+            rows={2}
+            value={dismissNote}
+            disabled={busy === 'dismiss'}
+            onChange={(event) => setDismissNote(event.target.value)}
+          />
+          <ErrorBanner style={{ marginTop: 10 }}>{confirmError}</ErrorBanner>
+        </ConfirmDialog>
+      )}
+
+      {confirm === 'regenPublished' && selected && (
+        <ConfirmDialog
+          title="已上架的腳本要重新生成？"
+          confirmLabel="繼續，填寫哪裡不對"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => { setConfirm(null); setRegenOpen(true); }}
+        >
+          <p>這個操作會把腳本改回「需修改」並記下你的回饋，接著生成新一版。對已發布的影片：</p>
+          <ul>
+            <li>目前上架的影片<strong>不會下架</strong>，學生仍看得到，YouTube 上的影片也不變。</li>
+            <li>依新版重拍上傳後會建立<strong>另一支成品</strong>；它審核通過後也會進學生的短影片牆，原本那支不會自動下架。</li>
+          </ul>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

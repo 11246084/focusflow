@@ -46,6 +46,7 @@ const VIDEO_BATCH_UPLOAD_STATUSES = {
 };
 
 const YOUTUBE_UPLOAD_STATUSES = {
+  WAITING: 'waiting',
   UPLOADING: 'uploading',
   UPLOADED: 'uploaded',
   FAILED: 'failed',
@@ -139,6 +140,12 @@ const QUESTION_SOURCES = {
   DEBUG: 'debug',
 };
 
+const LINE_FRIEND_STATUSES = {
+  FRIEND: 'friend',
+  NOT_FRIEND: 'not_friend',
+  UNKNOWN: 'unknown',
+};
+
 const FEEDBACK_CATEGORIES = {
   LOGIN_ACCOUNT: 'login_account',
   COURSE_VIDEO: 'course_video',
@@ -202,6 +209,8 @@ module.exports = {
   QUESTION_STATUS_VALUES: Object.values(QUESTION_STATUSES),
   QUESTION_SOURCES,
   QUESTION_SOURCE_VALUES: Object.values(QUESTION_SOURCES),
+  LINE_FRIEND_STATUSES,
+  LINE_FRIEND_STATUS_VALUES: Object.values(LINE_FRIEND_STATUSES),
   FEEDBACK_CATEGORIES,
   FEEDBACK_CATEGORY_VALUES: Object.values(FEEDBACK_CATEGORIES),
   FEEDBACK_STATUSES,

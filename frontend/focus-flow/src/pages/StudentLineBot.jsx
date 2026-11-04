@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
-import { apiFetch } from '../api';
+import LineLinkButton from '../components/LineLinkButton';
+import { apiFetch, getUser, setUser as storeUser } from '../api';
+import { claimLineAutoStart, describeFriendStatus, requestLineAuthorizeUrl } from '../utils/lineLogin';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
@@ -18,22 +20,46 @@ export default function StudentLineBot() {
   const [tokenError, setTokenError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tokenLoading, setTokenLoading] = useState(false);
-  const [copied, setCopied]   = useState(false);
   const [confirmUnbind, setConfirmUnbind] = useState(false);
   const [unbinding, setUnbinding] = useState(false);
   const [unbindError, setUnbindError] = useState('');
+  const [showFallback, setShowFallback] = useState(false);
+  const [linkError, setLinkError] = useState(null);
+  const [autoStarting, setAutoStarting] = useState(false);
 
   useEffect(() => {
     apiFetch('/auth/me')
       .then((r) => {
         const currentUser = r.data?.user || null;
         setUser(currentUser);
-        // 已綁定就不需要綁定碼，避免每次開頁都產生一筆新的綁定碼。
-        if (!currentUser?.isLineBound) void getBindToken();
+        // 學生進這頁就是要連 LINE，不用再多按一次按鈕。
+        if (currentUser && !currentUser.isLineBound && claimLineAutoStart()) void autoStartLink();
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function autoStartLink() {
+    setAutoStarting(true);
+    try {
+      window.location.assign(await requestLineAuthorizeUrl());
+    } catch (error) {
+      handleLinkError(error);
+      setAutoStarting(false);
+    }
+  }
+
+  function handleLinkError(error) {
+    setLinkError(error);
+    if (error?.code === 'LINE_LOGIN_NOT_CONFIGURED') openFallback();
+  }
+
+  // 只有 LINE Login 不可用時才走綁定碼（正式環境的退回方式），平常學生只看到一顆按鈕。
+  function openFallback() {
+    setShowFallback(true);
+    if (!bindToken) void getBindToken();
+  }
 
   async function getBindToken() {
     setTokenLoading(true);
@@ -43,17 +69,10 @@ export default function StudentLineBot() {
       setToken(r.data?.token || r.data?.bindToken || '');
     } catch (e) {
       setToken('');
-      setTokenError(`無法取得綁定碼：${e.message || '請稍後再試'}`);
+      setTokenError(e.message || '請稍後再試');
     } finally {
       setTokenLoading(false);
     }
-  }
-
-  async function copyToken() {
-    if (!bindToken) return;
-    await navigator.clipboard.writeText(bindToken).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   async function unbind() {
@@ -61,9 +80,13 @@ export default function StudentLineBot() {
     setUnbindError('');
     try {
       await apiFetch('/line/binding', { method: 'DELETE' });
-      setUser((current) => ({ ...current, isLineBound: false, lineBindAt: null }));
+      setUser((current) => ({ ...current, isLineBound: false, lineBindAt: null, lineFriendStatus: null }));
+      // 課程頁的「詢問助教」讀這份快取判斷要不要顯示「連結 LINE」。
+      const cachedUser = getUser();
+      if (cachedUser) storeUser({ ...cachedUser, isLineBound: false });
+      // 剛解除綁定的學生不該被自動帶去重新連結。
+      claimLineAutoStart();
       setConfirmUnbind(false);
-      void getBindToken();
     } catch (e) {
       setUnbindError(e.message || '解除綁定失敗，請稍後再試。');
     } finally {
@@ -71,16 +94,19 @@ export default function StudentLineBot() {
     }
   }
 
-  if (loading) {
-    return <div style={{ padding: 26, color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>載入中…</div>;
+  if (loading || autoStarting) {
+    return <div style={{ padding: 26, color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>{autoStarting ? '前往 LINE 中…' : '載入中…'}</div>;
   }
 
   const isBound = user?.isLineBound;
   const lineOpenUrl = bindToken ? lineMessageUrl(bindToken) : LINE_BOT_URL;
+  const canOpenLine = Boolean(bindToken && LINE_BOT_URL);
+  const showLineQr = lineOpenUrl && (isBound || canOpenLine);
 
   return (
-    <div className="fu scrl" style={{ padding: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <div className="card" style={{ maxWidth: 720, width: '100%', padding: 40 }}>
+    // 卡片用 margin:auto 置中：內容比畫面矮時置中，比畫面高時從頂端排列、可完整捲動。
+    <div className="fu scrl" style={{ padding: 26, display: 'flex', height: '100%' }}>
+      <div className="card linebot-card" style={{ maxWidth: 720, width: '100%', margin: 'auto' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
@@ -94,13 +120,13 @@ export default function StudentLineBot() {
                 <span>✓</span> 已綁定 LINE 帳號
               </div>
             ) : (
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>加入 LINE 官方帳號並完成綁定，就能直接在 LINE 提問</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>連結 LINE 帳號，就能直接在 LINE 提問</div>
             )}
           </div>
         </div>
 
         {/* Body: 左文字區 + 右 QR code */}
-        <div className="ff-grid-auto" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 36, alignItems: 'start' }}>
+        <div className="ff-grid-auto" style={{ display: 'grid', gridTemplateColumns: showLineQr ? '1fr auto' : '1fr', gap: 36, alignItems: 'start' }}>
 
           {/* 左側 */}
           <div>
@@ -111,6 +137,16 @@ export default function StudentLineBot() {
                   直接在 LINE 輸入問題，AI 會找到最相關的影片片段並回答。<br /><br />
                   也可以在課程頁面點選「詢問助教」按鈕，LINE 會自動切換到對應課程。
                 </div>
+
+                {/* 已確認加好友時不多顯示，畫面保持簡單；沒加或無法確認才提示。 */}
+                {user?.lineFriendStatus !== 'friend' && (
+                  <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: '#fbbf24' }}>{describeFriendStatus(user?.lineFriendStatus)}</span>
+                    {LINE_BOT_URL && (
+                      <a href={LINE_BOT_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#4ade80' }}>加入官方帳號</a>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                   {confirmUnbind ? (
@@ -140,58 +176,58 @@ export default function StudentLineBot() {
               </>
             ) : (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                  {[
-                    ['01', '加入 LINE 官方帳號', '用手機掃 QR code，或在手機上直接點「在手機上開啟 LINE」'],
-                    ['02', '取得綁定碼', '進入此頁會自動產生一次性綁定碼（10 分鐘內有效）'],
-                    ['03', '傳送綁定碼', '在 LINE 聊天室貼上綁定碼送出；用手機開啟時會自動帶入'],
-                  ].map(([step, t, d]) => (
-                    <div key={step} style={{ display: 'flex', gap: 12, padding: '11px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 12 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(241,79,33,0.2)', border: '1px solid rgba(241,79,33,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#F14F21', flexShrink: 0 }}>{step}</div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{t}</div>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{d}</div>
-                      </div>
+                {showFallback ? (
+                  // LINE Login 不可用時的備援：不用複製，開啟 LINE 後送出已填好的訊息即可。
+                  <div className="linebot-fallback-text">
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.9 }}>
+                      {canOpenLine
+                        ? <>開啟 LINE 後，按送出已經填好的訊息，<wbr />就完成綁定了。</>
+                        : tokenLoading ? '準備中…' : '暫時無法連結 LINE，請稍後再試。'}
+                      {canOpenLine && (
+                        <div className="linebot-desktop-only">
+                          綁定後直接在 LINE 輸入問題，AI 會找到最相關的影片片段並回答。<br /><br />
+                          之後想換 LINE 或不再使用，回到這一頁就能解除綁定。
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-
-                {bindToken ? (
-                  <div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>你的綁定碼（傳送到 LINE 聊天室）：</div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontFamily: 'monospace', color: '#F14F21', letterSpacing: '.06em', wordBreak: 'break-all' }}>{bindToken}</div>
-                      <button type="button" onClick={copyToken} className="btn-primary" style={{ padding: '10px 16px', fontSize: 12, flexShrink: 0 }}>
-                        {copied ? '已複製' : '複製'}
+                    {tokenError && (
+                      <button type="button" className="btn-primary" style={{ width: '100%', padding: '13px', fontSize: 14, marginTop: 16 }} onClick={getBindToken} disabled={tokenLoading}>
+                        重試
                       </button>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <>
-                    {tokenError && <div style={{ fontSize: 12, color: '#ff6b6b', marginBottom: 10 }}>{tokenError}</div>}
-                    <button type="button" className="btn-primary" style={{ width: '100%', padding: '13px', fontSize: 14 }} onClick={getBindToken} disabled={tokenLoading}>
-                      {tokenLoading ? '產生中…' : '取得綁定碼'}
-                    </button>
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.9, marginBottom: 16 }}>
+                      按下按鈕，在 LINE 按「許可」並加入官方帳號就完成了，不用複製任何東西。
+                    </div>
+                    <LineLinkButton
+                      onError={handleLinkError}
+                      style={{ width: '100%', padding: '13px', fontSize: 14 }}
+                    />
+                    {linkError && linkError.code !== 'LINE_LOGIN_NOT_CONFIGURED' && (
+                      <div role="alert" style={{ fontSize: 12, color: '#ff6b6b', marginTop: 10 }}>{linkError.message}</div>
+                    )}
                   </>
                 )}
               </>
             )}
           </div>
 
-          {/* 右側 QR code；手機無法掃自己螢幕，另提供直接開啟 LINE 的按鈕 */}
-          {lineOpenUrl && (
+          {/* 右側 QR code；手機無法掃自己螢幕，另提供直接開啟 LINE 的按鈕。備援畫面在手機上只留按鈕。 */}
+          {showLineQr && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-              <div style={{ padding: 14, background: '#fff', borderRadius: 16 }}>
+              <div className={isBound ? undefined : 'linebot-desktop-only'} style={{ padding: 14, background: '#fff', borderRadius: 16 }}>
                 <QRCodeSVG value={lineOpenUrl} size={150} bgColor="#ffffff" fgColor="#000000" />
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
+              <div className={isBound ? undefined : 'linebot-desktop-only'} style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
                 用手機 LINE 掃描
               </div>
               <a
                 href={lineOpenUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-primary"
+                className={isBound ? 'btn-primary' : 'btn-primary linebot-fallback-open'}
                 style={{ background: '#06C755', padding: '9px 16px', fontSize: 12, textDecoration: 'none', color: '#fff', textAlign: 'center' }}
               >
                 在手機上開啟 LINE

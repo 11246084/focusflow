@@ -10,6 +10,12 @@ const router = express.Router();
 
 router.use(authenticate, authorizeRoles(USER_ROLES.ADMIN));
 
+router.get('/youtube-lifecycle/uploads', youtubeAdminController.getUploadOverview);
+router.post('/youtube-lifecycle/uploads/probe', youtubeAdminController.probeUploads);
+router.get('/youtube-lifecycle/privacy-incidents', youtubeAdminController.listPrivacyIncidents);
+router.post('/youtube-lifecycle/privacy/:kind/:id/unlisted', youtubeAdminController.restorePrivacy);
+router.get('/youtube-lifecycle/storage', youtubeAdminController.getStorageOverview);
+
 router.get('/youtube-lifecycle/settings', youtubeAdminController.getLifecycleSettings);
 router.patch('/youtube-lifecycle/settings', youtubeAdminController.updateLifecycleSwitch);
 router.get('/youtube-lifecycle/cleanup-preview', youtubeAdminController.getCleanupPreview);

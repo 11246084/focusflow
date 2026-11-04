@@ -29,6 +29,7 @@ const NOW = new Date('2026-10-20T00:00:00.000Z');
 
 let tempRoot;
 let originalEnv;
+let savedFetch;
 
 function addAsset(overrides = {}) {
   const id = newObjectId();
@@ -61,7 +62,7 @@ function addUploadedAsset({ status = 'published', uploadedDaysAgo = 200, sizeByt
     status,
     reviewStatus: status === 'draft' ? 'pending' : 'approved',
     youtubeVideoId: `yt-short-${newObjectId()}`,
-    youtubeUpload: { status: 'uploaded', attemptCount: 1, uploadedAt: daysAgo(uploadedDaysAgo) },
+    youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: daysAgo(uploadedDaysAgo), attemptCount: 1, uploadedAt: daysAgo(uploadedDaysAgo) },
     ...overrides,
   });
   fs.writeFileSync(asset.filePath, Buffer.alloc(sizeBytes));
@@ -96,7 +97,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
     }
     if (String(url) === 'https://upload.test/short') {
       for await (const chunk of options.body) assert.ok(chunk.length);
-      return response({ id: youtubeId });
+      return response({ id: new URL(url).searchParams.get('id') || youtubeId, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } });
     }
     if (String(url).includes('/youtube/v3/videos')) {
       if (options.method === 'PUT') {
@@ -104,7 +105,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
         privacyUpdates.push(payload);
         return response(payload);
       }
-      return response({ items: [{ id: youtubeId, status: { privacyStatus: 'unlisted' } }] });
+      return response({ items: [{ id: new URL(url).searchParams.get('id') || youtubeId, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
     }
     throw new Error(`Unexpected fake fetch: ${url}`);
   };
@@ -114,6 +115,7 @@ function fakeYouTube({ youtubeId = 'short-youtube-id' } = {}) {
 function useTempUploadDir() {
   beforeEach(() => {
     resetStore();
+    savedFetch = global.fetch; global.fetch = fakeYouTube().fetchImpl;
     originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, env[key]]));
     tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-short-lifecycle-'));
     env.uploadDir = tempRoot;
@@ -130,7 +132,7 @@ function useTempUploadDir() {
 
   afterEach(() => {
     lifecycleService.resetYouTubeLifecycleStateForTests();
-    Object.assign(env, originalEnv);
+    Object.assign(env, originalEnv); global.fetch = savedFetch;
     fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 }
@@ -195,7 +197,7 @@ describe('短片上傳描述標記（#29）', () => {
       consentConfirmed: true,
     });
     const fake = fakeYouTube();
-    await publishService.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl: fake.fetchImpl });
+    await publishService.uploadShortAssetToYouTube({ assetId: asset._id, fetchImpl: fake.fetchImpl, now: new Date(Date.now() + env.youtubeUploadRetryBaseMs + 1000) });
 
     assert.equal(asset.generationVersion, 2);
     assert.equal(fake.metadata[0].snippet.description, `新版說明\n(FocusFlow short ${asset._id})`);
@@ -258,7 +260,7 @@ describe('短片成品的清理候選（#28、#30）', () => {
       filePath: videoPath,
       youtubeVideoId: 'yt-video',
       processing: { status: 'completed' },
-      youtubeUpload: { status: 'uploaded', uploadedAt: daysAgo(40) },
+      videoSource: 'youtube', youtubeUpload: { status: 'uploaded', remoteState: 'ready', readyAt: daysAgo(40), uploadedAt: daysAgo(40) },
     });
     addUploadedAsset({ uploadedDaysAgo: 5, sizeBytes: 2048 });
 
@@ -307,7 +309,10 @@ describe('短片成品的清理候選（#28、#30）', () => {
     const lowSpace = addUploadedAsset({ uploadedDaysAgo: 90, sizeBytes: 3000 });
     addUploadedAsset({ uploadedDaysAgo: 60, sizeBytes: 3000 });
     addUploadedAsset({ status: 'draft', uploadedDaysAgo: 365, sizeBytes: 3000 });
-    const getFreeBytes = async () => 10 * GB - 5000;
+    const diskFiles = store.shortAssets.filter((item) => item.filePath && fs.existsSync(item.filePath))
+      .map((item) => ({ path: item.filePath, size: fs.statSync(item.filePath).size }));
+    const getFreeBytes = async () => 10 * GB - 5000
+      + diskFiles.filter((file) => !fs.existsSync(file.path)).reduce((sum, file) => sum + file.size, 0);
 
     const preview = await lifecycleService.buildYouTubeCleanupPreview({ scope: 'enable', now: NOW, getFreeBytes });
     setCleanupSwitch(true);
@@ -408,6 +413,7 @@ describe('短片成品清理後的狀態與行為（#31）', () => {
     await cleanAsset(asset);
     // 例如管理員確認 YouTube 上沒有這支、清掉影片 ID 後重新上傳。
     delete asset.youtubeVideoId;
+    Object.assign(asset.youtubeUpload, { status: 'failed', retrySafe: true, attemptCount: 0, nextRetryAt: null });
     const fake = fakeYouTube();
 
     await assert.rejects(

@@ -33,6 +33,7 @@ Mongoose 會自動將 Model 名稱轉為**小寫複數**作為集合名稱：
 | `Clip` | `clips` |
 | `UsageLog` | `usage_logs`（schema 明確指定） |
 | `LineBindToken` | `line_bind_tokens`（`mongoose.model` 第三個參數指定） |
+| `LineLoginState` | `lineLoginStates`（schema 明確指定；`autoIndex: false`，索引由 `db:ensure-line-login-states` 建立） |
 | `Faq` | `faqs` |
 | `Question` | `questions` |
 | `Notification` | `notifications` |

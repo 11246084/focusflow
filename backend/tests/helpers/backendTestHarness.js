@@ -12,6 +12,21 @@ process.env.QA_ANSWER_PROVIDER = 'template';
 process.env.LINE_CHANNEL_SECRET = 'line-secret-for-tests';
 process.env.LINE_CHANNEL_ACCESS_TOKEN = '';
 process.env.PROCESSING_WEBHOOK_SECRET = 'processing-secret-for-tests';
+for (const key of [
+  'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN',
+  'YOUTUBE_OAUTH_CLIENT_ID', 'YOUTUBE_OAUTH_CLIENT_SECRET', 'YOUTUBE_OAUTH_REFRESH_TOKEN',
+  'YOUTUBE_UPLOAD_ACCESS_TOKEN',
+]) process.env[key] = '';
+const uploadTestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-upload-tests-'));
+process.env.UPLOAD_DIR = uploadTestRoot;
+const localFetch = global.fetch;
+global.fetch = (input, ...args) => {
+  const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
+    throw new Error('Unexpected external fetch in backend test.');
+  }
+  return localFetch(input, ...args);
+};
 // 既有測試的問題常超過字數上限、同一學生一天會問很多次；預設關閉兩項限制，
 // 由 ask-limits 測試個別開啟驗證。
 process.env.QA_MAX_QUESTION_LENGTH = '0';
@@ -25,6 +40,7 @@ const env = require('../../src/config/env');
 // Some service tests load env before this harness. Re-assign the already cached
 // config object so avatar I/O always stays inside this harness-owned temp root.
 env.avatarUploadDir = avatarTestDirectory;
+env.uploadDir = uploadTestRoot;
 const User = require('../../src/models/user.model');
 const Avatar = require('../../src/models/avatar.model');
 const Course = require('../../src/models/course.model');
@@ -37,6 +53,7 @@ const Clip = require('../../src/models/clip.model');
 const UsageLog = require('../../src/models/usageLog.model');
 const Question = require('../../src/models/question.model');
 const LineBindToken = require('../../src/models/lineBindToken.model');
+const LineLoginState = require('../../src/models/lineLoginState.model');
 const Faq = require('../../src/models/faq.model');
 const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
@@ -48,6 +65,8 @@ const Message = require('../../src/models/message.model');
 const Feedback = require('../../src/models/feedback.model');
 const FeedbackAttachment = require('../../src/models/feedbackAttachment.model');
 const RuntimeSetting = require('../../src/models/runtimeSetting.model');
+const YouTubeBackup = require('../../src/models/youTubeBackup.model');
+const CourseDeletionJob = require('../../src/models/courseDeletionJob.model');
 const AuthSession = require('../../src/models/authSession.model');
 const AdminAuditLog = require('../../src/models/adminAuditLog.model');
 
@@ -73,6 +92,7 @@ const store = {
   usageLogs: [],
   questions: [],
   lineBindTokens: [],
+  lineLoginStates: [],
   faqs: [],
   openEduVideos: [],
   shortAssets: [],
@@ -83,6 +103,8 @@ const store = {
   feedbacks: [],
   feedbackAttachments: [],
   runtimeSettings: [],
+  youtubeBackups: [],
+  courseDeletionJobs: [],
   nextUserCreateError: null,
   nextUserFindByIdAndUpdateError: null,
   nextAvatarWriteError: null,
@@ -163,6 +185,16 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
   if (!update) {
     return target;
   }
+  if (Array.isArray(update)) {
+    for (const stage of update) {
+      for (const [key, value] of Object.entries(stage.$set || {})) {
+        setNested(target, key, value === '$$NOW' ? new Date() : value?.$literal !== undefined ? value.$literal
+          : value?.$add ? new Date(Date.now() + Number(value.$add[1])) : value);
+      }
+    }
+    return target;
+  }
+  for (const key of Object.keys(update.$currentDate || {})) setNested(target, key, new Date());
 
   const plainEntries = Object.entries(update).filter(([key]) => !key.startsWith('$'));
   for (const [key, value] of plainEntries) {
@@ -241,6 +273,18 @@ function applyUpdate(target, update, { isInsert = false } = {}) {
 
 function matchesQuery(document, query = {}) {
   return Object.entries(query).every(([key, value]) => {
+    if (key === '$expr') {
+      const evaluate = (expression) => {
+        if (expression === '$$NOW') return new Date();
+        if (typeof expression === 'string' && expression.startsWith('$')) return getNested(document, expression.slice(1));
+        if (typeof expression === 'number' || expression instanceof Date) return expression;
+        if (expression?.$subtract) { const [a, b] = expression.$subtract.map(evaluate); return a - b; }
+        if (expression?.$lte) { const [a, b] = expression.$lte.map(evaluate); return new Date(a).getTime() <= new Date(b).getTime(); }
+        if (expression?.$gt) { const [a, b] = expression.$gt.map(evaluate); return new Date(a).getTime() > new Date(b).getTime(); }
+        throw new Error('Unsupported test expression');
+      };
+      return evaluate(value);
+    }
     if (key === '$and') {
       return value.every((candidate) => matchesQuery(document, candidate));
     }
@@ -257,6 +301,7 @@ function matchesQuery(document, query = {}) {
       && Object.keys(value).some((operator) => operator.startsWith('$'));
 
     if (isOperatorObject) {
+      if ('$eq' in value && normalizeValue(currentValue) !== normalizeValue(value.$eq)) return false;
       if ('$exists' in value) {
         const exists = currentValue !== undefined;
         if (exists !== Boolean(value.$exists)) return false;
@@ -366,6 +411,16 @@ function createProcessingState({
   };
 }
 
+// BSON 自訂原型不經 structuredClone；fixture 的 Date、ObjectId、Buffer 都保留型別。
+function cloneSnapshot(value) {
+  if (value == null || typeof value !== 'object') return value;
+  if (value instanceof Date) return new Date(value.getTime());
+  if (value instanceof mongoose.Types.ObjectId) return new mongoose.Types.ObjectId(value.toHexString());
+  if (Buffer.isBuffer(value)) return Buffer.from(value);
+  if (Array.isArray(value)) return value.map(cloneSnapshot);
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneSnapshot(item)]));
+}
+
 function createQuery(initialValue, options = {}) {
   const state = {
     value: initialValue,
@@ -399,7 +454,7 @@ function createQuery(initialValue, options = {}) {
       return this;
     },
     lean() {
-      // store 已是 plain JS objects，hydration 在這個 harness 是 no-op
+      state.lean = true;
       return this;
     },
     select() {
@@ -407,10 +462,10 @@ function createQuery(initialValue, options = {}) {
       return this;
     },
     then(resolve, reject) {
-      return Promise.resolve(state.value).then(resolve, reject);
+      return Promise.resolve(state.lean ? cloneSnapshot(state.value) : state.value).then(resolve, reject);
     },
     catch(reject) {
-      return Promise.resolve(state.value).catch(reject);
+      return this.then(undefined, reject);
     },
   };
 }
@@ -471,6 +526,23 @@ async function bulkWriteInStore(collection, operations = []) {
 }
 
 function installModelStubs() {
+  // Unit-test rollback only. Isolation/write conflicts are verified by the
+  // explicit replica-set integration suite, never inferred from this harness.
+  mongoose.connection.transaction = async (action) => {
+    const snapshots = Object.entries(store).filter(([, value]) => Array.isArray(value))
+      .map(([key, value]) => [key, value.map((item) => ({ original: item, copy: cloneSnapshot(item) }))]);
+    try { return await action({ testOnly: true }); }
+    catch (error) {
+      for (const [key, rows] of snapshots) {
+        for (const { original, copy } of rows) {
+          for (const field of Object.keys(original)) delete original[field];
+          Object.assign(original, copy);
+        }
+        store[key].splice(0, store[key].length, ...rows.map(({ original }) => original));
+      }
+      throw error;
+    }
+  };
   const fault = (key) => { if (store[key]) { const error = store[key]; store[key] = null; throw error; } };
   AuthSession.create = async (payload) => { fault('nextAuthSessionWriteError'); store.authSessions.push({ ...payload }); return payload; };
   AuthSession.findOne = async (query = {}) => { fault('nextAuthSessionReadError'); return store.authSessions.find((item) => matchesQuery(item, query)) || null; };
@@ -540,6 +612,15 @@ function installModelStubs() {
 
     if (!user) {
       return null;
+    }
+
+    // 對應 users.lineUserId 的 unique index
+    const nextLineUserId = update?.$set?.lineUserId;
+    if (nextLineUserId && store.users.some((item) => item !== user && item.lineUserId === nextLineUserId)) {
+      const error = new Error('Duplicate LINE user.');
+      error.code = 11000;
+      error.keyValue = { lineUserId: nextLineUserId };
+      throw error;
     }
 
     applyUpdate(user, update);
@@ -709,7 +790,7 @@ function installModelStubs() {
       },
     },
   );
-  Video.findOne = async (query = {}) => store.videos.find((item) => matchesQuery(item, query)) || null;
+  Video.findOne = (query = {}) => createQuery(store.videos.find((item) => matchesQuery(item, query)) || null);
   Video.countDocuments = async (query = {}) => store.videos.filter((item) => matchesQuery(item, query)).length;
   Video.findById = (id) => createQuery(
     store.videos.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
@@ -1124,6 +1205,7 @@ function installModelStubs() {
     return asset;
   };
   ShortAsset.find = (query = {}) => createQuery(store.shortAssets.filter((item) => matchesQuery(item, query)));
+  ShortAsset.findOne = (query = {}) => createQuery(store.shortAssets.find((item) => matchesQuery(item, query)) || null);
   ShortAsset.countDocuments = async (query = {}) => store.shortAssets.filter((item) => matchesQuery(item, query)).length;
   ShortAsset.findById = (id) => createQuery(
     store.shortAssets.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
@@ -1175,6 +1257,10 @@ function installModelStubs() {
     return token;
   };
   LineBindToken.findOne = async (query = {}) => store.lineBindTokens.find((item) => matchesQuery(item, query)) || null;
+  LineBindToken.findOneAndDelete = async (query = {}) => {
+    const index = store.lineBindTokens.findIndex((item) => matchesQuery(item, query));
+    return index >= 0 ? store.lineBindTokens.splice(index, 1)[0] : null;
+  };
   LineBindToken.deleteMany = async (query = {}) => deleteManyInStore(store.lineBindTokens, query);
   LineBindToken.deleteOne = async (query = {}) => {
     const index = store.lineBindTokens.findIndex((item) => matchesQuery(item, query));
@@ -1183,6 +1269,13 @@ function installModelStubs() {
       store.lineBindTokens.splice(index, 1);
     }
   };
+
+  LineLoginState.create = async (payload) => { store.lineLoginStates.push({ ...payload }); return payload; };
+  LineLoginState.findOneAndDelete = async (query = {}) => {
+    const index = store.lineLoginStates.findIndex((item) => matchesQuery(item, query));
+    return index >= 0 ? store.lineLoginStates.splice(index, 1)[0] : null;
+  };
+  LineLoginState.deleteMany = async (query = {}) => deleteManyInStore(store.lineLoginStates, query);
 
   Feedback.create = async (payload) => {
     const now = new Date().toISOString();
@@ -1241,12 +1334,36 @@ function installModelStubs() {
   RuntimeSetting.findOne = (query = {}) => createQuery(
     store.runtimeSettings.find((item) => matchesQuery(item, query)) || null,
   );
+  RuntimeSetting.create = async (document) => {
+    if (store.runtimeSettings.some((item) => item.key === document.key)) throw Object.assign(new Error('Duplicate runtime setting key'), { code: 11000 });
+    const item = { _id: newObjectId(), history: [], ...cloneSnapshot(document) };
+    store.runtimeSettings.push(item); return item;
+  };
+  RuntimeSetting.updateOne = async (query, update) => {
+    const item = store.runtimeSettings.find((document) => matchesQuery(document, query));
+    if (!item) return { matchedCount: 0, modifiedCount: 0 };
+    applyUpdate(item, cloneSnapshot(update)); return { matchedCount: 1, modifiedCount: 1 };
+  };
+  YouTubeBackup.findOneAndUpdate = async (query, update, options) => {
+    const existing = store.youtubeBackups.find((item) => item._id === query._id);
+    if (existing && existing.contentKey !== query.contentKey) throw Object.assign(new Error('Duplicate backup owner'), { code: 11000 });
+    return findOneAndUpdateInStore(store.youtubeBackups, query, update, options);
+  };
+  CourseDeletionJob.insertMany = async (rows) => {
+    const documents = rows.map((row) => ({ attemptCount: 0, nextAttemptAt: null, ...row }));
+    store.courseDeletionJobs.push(...documents); return documents;
+  };
+  CourseDeletionJob.findOneAndUpdate = async (query, update, options) => findOneAndUpdateInStore(store.courseDeletionJobs, query, update, options);
   RuntimeSetting.find = (query = {}) => createQuery(
     store.runtimeSettings.filter((item) => matchesQuery(item, query)),
   );
-  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => createQuery(
-    findOneAndUpdateInStore(store.runtimeSettings, query, update, options),
-  );
+  RuntimeSetting.findOneAndUpdate = (query, update, options = {}) => {
+    const existing = store.runtimeSettings.find((item) => item.key === query.key);
+    if (options.upsert && existing && !matchesQuery(existing, query)) {
+      throw Object.assign(new Error('Duplicate runtime setting key'), { code: 11000 });
+    }
+    return createQuery(findOneAndUpdateInStore(store.runtimeSettings, query, update, options));
+  };
 
   Avatar.findOne = async (query = {}) => store.avatars.find((item) => matchesQuery(item, query)) || null;
   Avatar.findOneAndUpdate = async (query, update, options = {}) => {
@@ -1263,6 +1380,8 @@ function installModelStubs() {
 }
 
 function resetStore() {
+  store.courseDeletionJobs = [];
+  store.youtubeBackups = [];
   store.authSessions.length = 0;
   store.adminAuditLogs.length = 0;
   store.nextAuthSessionReadError = null;
@@ -1284,6 +1403,7 @@ function resetStore() {
   store.usageLogs.length = 0;
   store.questions.length = 0;
   store.lineBindTokens.length = 0;
+  store.lineLoginStates.length = 0;
   store.faqs.length = 0;
   store.openEduVideos.length = 0;
   store.shortAssets.length = 0;
@@ -1664,6 +1784,7 @@ function cleanupTestAvatars() {
 }
 
 process.once('exit', () => {
+  fs.rmSync(uploadTestRoot, { recursive: true, force: true });
   fs.rmSync(avatarTestRoot, {
     recursive: true,
     force: true,

@@ -28,3 +28,15 @@
 - 流程例：關閉並行查詢＋提問「投影片流程圖在哪裡？」→ 文字查無結果 → 嘗試影像查詢 → 有命中則回覆片段提示與時間位置；仍無命中則回覆查無依據。
 
 認證開關目前由 env 與 runtimesettings 讀取，沒有新增系統設定畫面或設定寫入 API。`mustChangePassword` 的首次改密碼不由這兩個驗證開關略過；資料庫設定讀取失敗時不關閉驗證。
+
+## YouTube Q 的播放與隱私設定
+
+| 設定 | 預設與用途 |
+|---|---|
+| `LOCAL_PLAYBACK_ENABLED` | false；授權原片播放端點，須先通過 nginx 與播放器驗收。 |
+| `MEDIA_ACCEL_REDIRECT_ENABLED` | false；本機用 sendFile，正式 nginx 驗證後才切 X-Accel-Redirect。 |
+| `MEDIA_ACCEL_REDIRECT_PREFIX` | `/_protected-uploads/`，必須對應 nginx internal location。 |
+| `UPLOAD_SPACE_FACTOR`／`UPLOAD_MIN_FREE_GB` | 1／5；容量原子預約倍率與保留空間。nginx 同磁碟緩衝時倍率設 2。 |
+| `YOUTUBE_PRIVACY_GUARD_ENABLED` | false；環境允許且 `privacy_guard` runtime enabled 才能自動轉私人。關閉仍偵測及通知。 |
+
+教學影片固定送出 unlisted；`YOUTUBE_UPLOAD_PRIVACY` 的其他值忽略並於 health 警告。清理需 ready、已切換與同輪遠端複查；保留期從 readyAt 與原片補回時間較晚者起算。清理及 privacy_guard 的正式啟用均需另行授權，不能因本機測試通過而開啟。

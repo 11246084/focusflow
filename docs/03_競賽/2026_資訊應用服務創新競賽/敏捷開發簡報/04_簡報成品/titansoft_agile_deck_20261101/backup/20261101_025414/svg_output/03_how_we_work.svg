@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowPrimary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#5E8F9C"/>
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1028 172">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">我們實際的工作方式</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">看板管日常，每週檢視定方向</text>
+    <text x="64" y="194" font-size="30" fill="#15171A">需求常在每週檢視後調整，所以用看板讓工作隨時可見、隨時重排</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">03 / 10</text>
+    <image href="../images/mark-color.png" x="1172" y="38" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="work-cycle" data-pptx-bounds="56 228 676 300">
+    <rect x="64" y="236" width="290" height="96" rx="4" fill="#1B4D5C"/>
+    <text x="84" y="274" font-size="28" font-weight="bold" fill="#FFFFFF">Notion 看板<tspan x="84" dy="34" font-size="22" font-weight="normal">四欄：待辦 → 已完成</tspan></text>
+    <rect x="434" y="236" width="290" height="96" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="454" y="274" font-size="28" font-weight="bold" fill="#1B4D5C">實作<tspan x="454" dy="34" font-size="22" font-weight="normal" fill="#15171A">負責人接任務、提交程式</tspan></text>
+    <rect x="434" y="424" width="290" height="96" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="454" y="462" font-size="28" font-weight="bold" fill="#1B4D5C">測試<tspan x="454" dy="34" font-size="22" font-weight="normal" fill="#15171A">本機測試＋驗證紀錄</tspan></text>
+    <rect x="64" y="424" width="290" height="96" rx="4" fill="#E8A93C"/>
+    <text x="84" y="462" font-size="28" font-weight="bold" fill="#15171A">每週教授檢視<tspan x="84" dy="34" font-size="22" font-weight="normal">依結果決定下一輪</tspan></text>
+    <g stroke="#5E8F9C" stroke-width="3">
+      <line x1="358" y1="284" x2="428" y2="284" marker-end="url(#arrowPrimary)"/>
+      <line x1="579" y1="336" x2="579" y2="418" marker-end="url(#arrowPrimary)"/>
+      <line x1="430" y1="472" x2="360" y2="472" marker-end="url(#arrowPrimary)"/>
+      <line x1="209" y1="420" x2="209" y2="338" marker-end="url(#arrowPrimary)"/>
+    </g>
+    <text x="394" y="386" font-size="22" font-weight="bold" text-anchor="middle" fill="#5E8F9C">每週循環</text>
+  </g>
+  <g id="cycle-notes" data-pptx-bounds="56 540 676 84">
+    <text x="64" y="568" font-size="22" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">Milestone</tspan>：依模組列負責人與預計起訖日</text>
+    <text x="64" y="604" font-size="22" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">AI 模組短迭代</tspan>：問答檢索 09-02～09-03 一天內多輪診斷</text>
+  </g>
+  <g id="kanban-evidence" data-pptx-bounds="752 228 472 400">
+    <rect x="760" y="236" width="456" height="270" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <image href="../images/image_001.png" x="760" y="236" width="456" height="270" preserveAspectRatio="xMidYMid meet"/>
+    <text x="760" y="538" font-size="18" fill="#5A6066">證據｜Notion 任務看板截圖（附件 3 圖 1）</text>
+    <text x="760" y="574" font-size="22" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">28 次</tspan>教授會議紀錄（2026-01-22～10-01）</text>
+    <text x="760" y="608" font-size="22" fill="#15171A"><tspan font-weight="bold" fill="#1B4D5C">123 張</tspan>任務卡（Notion，11-01 查詢）</text>
+  </g>
+  <g id="not-done" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="22" fill="#5A6066"><tspan font-weight="bold" fill="#B5482E">我們沒有做的</tspan>：WIP 上限・固定回顧會議・全組 Sprint ── 不宣稱有</text>
+  </g>
+</svg>

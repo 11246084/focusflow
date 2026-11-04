@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, Segoe UI, sans-serif" data-pptx-page-role="content">
+  <defs>
+    <marker id="arrowSmall" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#5E8F9C" />
+    </marker>
+  </defs>
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1028 124">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="84" font-size="20" font-weight="bold" fill="#5E8F9C">怎麼確認「真的有效」</text>
+    <text x="64" y="142" font-size="46" font-weight="bold" fill="#1B4D5C">測試通過，不等於可以上線</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1090 30 140 56">
+    <text x="1162" y="66" font-size="18" text-anchor="end" fill="#5A6066">09 / 10</text>
+    <image href="data:image/png;base64,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" x="1172" y="38" width="40" height="40" />
+  </g>
+  <g id="four-states" data-pptx-bounds="56 176 572 432">
+    <text x="64" y="204" font-size="22" font-weight="bold" fill="#1B4D5C">同一個功能，要走過四種狀態</text>
+    <rect x="148" y="222" width="472" height="86" rx="4" fill="#1B4D5C" />
+    <text font-size="22" fill="#E8A93C" font-weight="bold" x="164" y="256">④ 正式驗收</text><text font-size="22" fill="#FFFFFF" font-weight="normal" x="164" y="288">10-25 cookie 登入：正式站逐項驗收</text><rect x="120" y="318" width="500" height="86" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="136" y="352">③ 外部服務可用</text><text font-size="22" fill="#15171A" font-weight="normal" x="136" y="384">09-09 正式問答驗證：首次失敗→同日修正</text><rect x="92" y="414" width="528" height="86" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="108" y="448">② 自動化測試通過</text><text font-size="22" fill="#15171A" font-weight="normal" x="108" y="480">08-09 Backend 371 項通過</text><rect x="64" y="510" width="556" height="86" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="80" y="544">① 程式完成</text><text font-size="22" fill="#15171A" font-weight="normal" x="80" y="576">08-09 PR #6 合併</text></g>
+  <g id="deploy-evolution" data-pptx-bounds="656 176 568 196">
+    <text x="664" y="204" font-size="22" font-weight="bold" fill="#1B4D5C">部署流程一步步補上檢查</text>
+    <rect x="664" y="222" width="172" height="104" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="678" y="254">05-28</text><text font-size="22" fill="#15171A" font-weight="normal" x="678" y="284">純部署</text><rect x="854" y="222" width="172" height="104" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="868" y="254">09-09</text><text font-size="22" fill="#15171A" font-weight="normal" x="868" y="284">＋部署後</text><text font-size="22" fill="#15171A" font-weight="normal" x="868" y="312">健康檢查</text><rect x="1044" y="222" width="172" height="104" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text font-size="22" fill="#1B4D5C" font-weight="bold" x="1058" y="254">10-24</text><text font-size="22" fill="#15171A" font-weight="normal" x="1058" y="284">＋部署前</text><text font-size="22" fill="#15171A" font-weight="normal" x="1058" y="312">同來源檢查</text><g stroke="#5E8F9C" stroke-width="2">
+      <line x1="838" y1="274" x2="850" y2="274" marker-end="url(#arrowSmall)" />
+      <line x1="1028" y1="274" x2="1040" y2="274" marker-end="url(#arrowSmall)" />
+    </g>
+    <text x="664" y="360" font-size="22" fill="#15171A">GitHub Actions：<tspan font-weight="bold" fill="#1B4D5C">155 次執行、148 次成功</tspan></text>
+  </g>
+  <g id="backend-test-growth" data-pptx-bounds="656 380 568 238">
+    <text x="664" y="408" font-size="22" font-weight="bold" fill="#1B4D5C">Backend 全套測試數</text>
+    <g id="backend-test-growth-chartArea">
+      <line x1="700" y1="560" x2="1180" y2="560" stroke="#D9D1C1" stroke-width="2" />
+      
+      <polyline points="700,555.67 1051.68,504.32 1180,435" fill="none" stroke="#5E8F9C" stroke-width="3" />
+      <circle cx="700" cy="555.67" r="6" fill="#1B4D5C" />
+      <circle cx="1051.68" cy="504.32" r="6" fill="#1B4D5C" />
+      <circle cx="1180" cy="435" r="8" fill="#E8A93C" />
+      <g font-size="22" font-weight="bold" fill="#1B4D5C">
+        <text x="712" y="540">40</text>
+        <text x="1051.68" y="488" text-anchor="middle">514</text>
+        <text x="1164" y="440" text-anchor="end">1,154</text>
+      </g>
+      <g font-size="18" fill="#5A6066">
+        <text x="700" y="586">04-06</text>
+        <text x="1051.68" y="586" text-anchor="middle">09-01</text>
+        <text x="1180" y="586" text-anchor="end">10-25</text>
+      </g>
+    </g>
+    <text x="664" y="612" font-size="18" fill="#5A6066">各為當日全套測試數，不可相加</text>
+  </g>
+  <g id="footnote" data-pptx-bounds="56 640 1164 46">
+    <text x="64" y="670" font-size="18" fill="#5A6066">附件 3 寫部署後健康檢查未完成，是 09-01 的時點；09-09 已補上｜CI 關卡與自動回滾仍未建置</text>
+  </g>
+</svg>

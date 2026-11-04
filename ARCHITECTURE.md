@@ -243,6 +243,7 @@ Backend 觸發的單支輸出放在 `STT_Whisper/data/outputs/runs/<videoId>/`�
 | `notifications` | 使用者通知、read state 與 fanout 去重 |
 | `shortassets` | 課程 Short metadata、發布／封存與 YouTube availability |
 | `line_bind_tokens` | 一次性 LINE 綁定 token 與 TTL |
+| `lineLoginStates` | LINE Login 一次性 `state` 紀錄與 TTL，只存雜湊，不存 LINE token |
 
 `videos` 目前同時相容 App-owned record 與 Pipeline metadata record。新欄位以 camelCase 為準；`video_id` 等 snake_case 只在明確 legacy／跨系統契約邊界讀取，不得擴散成新的 Backend API 欄位。
 

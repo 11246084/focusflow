@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="section">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#1B4D5C"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#E8A93C">案例 B｜測試結果驅動改善</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#FFFFFF">案例 B：第一次量測，0 題通過</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#F5EFE3">18</text>
+    <image href="../images/mark-white.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="zero-pass" data-pptx-bounds="56 216 900 240">
+    <text x="58" y="400" font-size="150" font-weight="bold" fill="#E8A93C">0</text>
+    <text x="176" y="340" font-size="34" font-weight="bold" fill="#FFFFFF">題完整通過</text>
+    <text x="176" y="396" font-size="22" fill="#F5EFE3">09-01 用真實課程資料量測 14 題，人工逐題複核</text>
+  </g>
+  <g id="result-strip" data-pptx-bounds="56 460 1168 128">
+    <g fill="#E8A93C">
+      <rect x="64" y="470" width="76" height="56"/>
+      <rect x="146" y="470" width="76" height="56"/>
+      <rect x="228" y="470" width="76" height="56"/>
+      <rect x="310" y="470" width="76" height="56"/>
+      <rect x="392" y="470" width="76" height="56"/>
+      <rect x="474" y="470" width="76" height="56"/>
+      <rect x="556" y="470" width="76" height="56"/>
+      <rect x="638" y="470" width="76" height="56"/>
+      <rect x="720" y="470" width="76" height="56"/>
+      <rect x="802" y="470" width="76" height="56"/>
+      <rect x="884" y="470" width="76" height="56"/>
+    </g>
+    <g fill="#B5482E">
+      <rect x="966" y="470" width="76" height="56"/>
+      <rect x="1048" y="470" width="76" height="56"/>
+      <rect x="1130" y="470" width="76" height="56"/>
+    </g>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#FFFFFF">
+      <text x="512" y="568">偏弱 11 題</text>
+      <text x="1086" y="568">失敗 3 題</text>
+    </g>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#24606F" stroke="#5E8F9C"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#F5EFE3">E13 ›</text>
+  </g></a>
+</svg>

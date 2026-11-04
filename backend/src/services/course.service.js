@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Course = require('../models/course.model');
 const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
@@ -21,12 +22,10 @@ const {
   buildCourseBridgePresentation,
   collectScopedVideos,
 } = require('./bridgeScope.service');
-const {
-  archiveForCourseDeletion,
-  rollbackCourseDeletionArchive,
-} = require('./shortAsset.service');
-const { privatizeVideosOnDelete } = require('./youtubeUpload.service');
-const { removeVideoNotifications } = require('./notification.service');
+const { archiveForCourseDeletion } = require('./shortAsset.service');
+const Notification = require('../models/notification.model');
+const { NO_CLEANUP_INTENT } = require('./youtubeWorkOwnership.service');
+const { enqueueCourseDeletionJobs, runCourseDeletionJobs } = require('./courseDeletionJobs.service');
 
 async function buildCoursePresentation(course) {
   const scopedVideos = await collectScopedVideos(course);
@@ -154,56 +153,46 @@ async function updateCourse(courseId, { title, description, status, teacherId },
 
 async function deleteCourse(courseId, user) {
   assertObjectId(courseId, 'course');
-
-  const course = await Course.findById(courseId).lean();
-  if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
-
-  // Admin 可刪任何課程；教師只能刪自己擁有的課程。
-  const isOwnerTeacher = isTeacher(user) && String(course.teacherId) === String(user.id);
-  if (!isAdmin(user) && !isOwnerTeacher) {
-    throw new AppError('You do not have permission to delete this course.', 403, 'FORBIDDEN');
-  }
-
-  // 設計決策：UsageLog / Question 屬於歷史紀錄，不隨課程刪除一起清。
-  // 顯示層會自行處理「歷史記錄指向不存在課程」的情境。
-  const videos = await Video.find({ courseId }).lean();
-  for (const v of videos) {
-    const segKey = v.videoId || String(v._id);
-    await VideoSegment.deleteMany({ videoId: segKey });
-    await VideoSegmentVideo.deleteMany({ video_id: { $in: [...new Set([segKey, String(v._id)])] } });
-  }
-  await Video.deleteMany({ courseId });
-  // 主課程刪除連同影片刪除後，清掉其他課程對這些影片的掛載引用。
-  const deletedVideoIds = videos.map((v) => v._id);
-  if (deletedVideoIds.length) {
-    await Course.updateMany({}, { $pull: { videoIds: { $in: deletedVideoIds } } });
-    await removeVideoNotifications(deletedVideoIds);
-  }
-  // 影片已從 DB 移除，YouTube 上的副本一併轉 private，避免舊連結仍可播放。
-  // 放在 Course.deleteOne 之前：影片刪除本身不可逆，course delete 失敗也不該讓影片繼續公開。
-  await privatizeVideosOnDelete(videos);
-  await Enrollment.deleteMany({ courseId });
-  await Faq.deleteMany({ courseId });
-
-  // 仍保留：清空 LINE 對話狀態（這是 runtime state，不是歷史紀錄）。
-  await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } });
-
-  // ShortAsset 不隨課程 hard delete 消失。此步驟 retry-safe，但整段 cascade
-  // 沒有 transaction/atomicity 保證；只有最後 Course delete 失敗時做 best-effort 還原。
-  const archivedShortAssets = await archiveForCourseDeletion(course);
   try {
-    const result = await Course.deleteOne({ _id: courseId });
-    if (result?.deletedCount !== 1) {
-      throw new AppError('Course could not be deleted.', 500, 'COURSE_DELETE_FAILED');
-    }
+    await mongoose.connection.transaction(async (session) => {
+      const course = await Course.findById(courseId, null, { session }).lean();
+      if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+      const isOwnerTeacher = isTeacher(user) && String(course.teacherId) === String(user.id);
+      if (!isAdmin(user) && !isOwnerTeacher) throw new AppError('You do not have permission to delete this course.', 403, 'FORBIDDEN');
+      // Serialize competing deletes/updates on the course. This marker is never
+      // externally committed: either the whole deletion commits or it rolls back.
+      await Course.findOneAndUpdate({ _id: courseId }, { $set: { deletedAt: new Date() } }, { session });
+      await archiveForCourseDeletion(course, { session });
+      const videos = await Video.find({ courseId }, null, { session }).lean();
+      const deletedVideoIds = videos.map((v) => v._id);
+      const removed = await Video.deleteMany({ _id: { $in: deletedVideoIds }, ...NO_CLEANUP_INTENT,
+        'youtubeUpload.status': { $ne: 'uploading' } }, { session });
+      if (removed.deletedCount !== videos.length) throw new AppError('A course video has active source work.', 409, 'COURSE_DELETE_CONFLICT');
+      for (const v of videos) {
+        const segKey = v.videoId || String(v._id);
+        await VideoSegment.deleteMany({ videoId: segKey }, { session });
+        await VideoSegmentVideo.deleteMany({ video_id: { $in: [...new Set([segKey, String(v._id)])] } }, { session });
+      }
+      if (deletedVideoIds.length) {
+        await Course.updateMany({ videoIds: { $in: deletedVideoIds } }, { $pull: { videoIds: { $in: deletedVideoIds } } }, { session });
+        await Notification.deleteMany({ videoId: { $in: deletedVideoIds.map(String) } }, { session });
+      }
+      await Enrollment.deleteMany({ courseId }, { session });
+      await Faq.deleteMany({ courseId }, { session });
+      await User.updateMany({ activeCourseId: courseId }, { $unset: { activeCourseId: 1 } }, { session });
+      await enqueueCourseDeletionJobs(courseId, videos, session);
+      // UsageLog / Question remain historical records, as before.
+      const result = await Course.deleteOne({ _id: courseId }, { session });
+      if (result?.deletedCount !== 1) throw new AppError('Course could not be deleted.', 500, 'COURSE_DELETE_FAILED');
+    }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
   } catch (error) {
-    try {
-      await rollbackCourseDeletionArchive(archivedShortAssets);
-    } catch (rollbackError) {
-      console.error('Failed to roll back ShortAsset course deletion archive.', rollbackError);
-    }
+    // Standalone Mongo must fail closed; never fall back to a partial cascade.
+    if (error.code === 20) throw new AppError('Course deletion requires MongoDB transactions.', 503, 'COURSE_DELETE_UNAVAILABLE');
     throw error;
   }
+  // DB has committed. Remote failure must not report a misleading failed delete;
+  // the transactional outbox is retried by this process or the startup scheduler.
+  try { await runCourseDeletionJobs({ courseId }); } catch { /* persisted jobs retain their retry/lease state */ }
 }
 
 // Shared guard for student viewing records: enrolled student + video belongs to the course.

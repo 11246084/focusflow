@@ -1,3 +1,4 @@
+const { NO_CLEANUP_INTENT, observedFields, randomWorkId, uploadStateUpdate } = require('./youtubeWorkOwnership.service');
 const Video = require('../models/video.model');
 const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
@@ -102,17 +103,24 @@ async function runCompletionSideEffects(video) {
   // 原片不在處理完成時刪除，改由清理排程依保留期與空間判斷（decisions.md #22）。
 }
 
-async function queueVideoForProcessing(videoId) {
-  const video = await getVideoByIdOrThrow(videoId);
-  const currentStatus = video.processing?.status;
+async function queueVideoForProcessing(videoId, { allowCompleted = false, observed } = {}) {
+  const video = await Video.findById(videoId).lean();
+  if (!video) throw new AppError('Video not found.', 404, 'VIDEO_NOT_FOUND');
+  const expected = observed || video;
+  const currentStatus = expected.processing?.status;
 
-  if (currentStatus !== VIDEO_PROCESSING_STATUSES.FAILED) {
+  if (currentStatus !== VIDEO_PROCESSING_STATUSES.FAILED
+    && !(allowCompleted && currentStatus === VIDEO_PROCESSING_STATUSES.COMPLETED)) {
     throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.QUEUED);
   }
 
   // Retrying a failed job clears failure details but preserves how many attempts already ran.
-  return updateVideoProcessing(videoId, {
+  const queued = await Video.findOneAndUpdate({ _id: videoId, ...NO_CLEANUP_INTENT, 'processing.status': currentStatus,
+    'youtubeUpload.status': { $ne: 'uploading' },
+    $and: observedFields(expected, ['filePath', 'youtubeUpload.localSourceVersion', 'youtubeUpload.attemptId', 'youtubeVideoId']),
+  }, {
     $set: {
+      ...uploadStateUpdate(expected, { 'youtubeUpload.localSourceVersion': randomWorkId() }),
       'processing.status': VIDEO_PROCESSING_STATUSES.QUEUED,
       'processing.errorMessage': null,
       'processing.errorCode': null,
@@ -121,7 +129,9 @@ async function queueVideoForProcessing(videoId) {
       'processing.completedAt': null,
       'processing.failedAt': null,
     },
-  });
+  }, { new: true });
+  if (!queued) throw createTransitionError(currentStatus, VIDEO_PROCESSING_STATUSES.QUEUED);
+  return queued;
 }
 
 async function startVideoProcessing(videoId) {

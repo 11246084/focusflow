@@ -128,7 +128,7 @@ async function markBatchChecked(assets, checkedAt) {
   })), { ordered: false });
 }
 
-async function applySuccessfulBatch(assets, responseBody, checkedAt) {
+async function applySuccessfulBatch(assets, responseBody, checkedAt, {fetchImpl = global.fetch} = {}) {
   const returnedById = new Map((responseBody.items || []).map((item) => [item.id, item]));
   const operations = [];
 
@@ -187,6 +187,10 @@ async function applySuccessfulBatch(assets, responseBody, checkedAt) {
   }
 
   if (operations.length) await ShortAsset.bulkWrite(operations, { ordered: false });
+  for (const asset of assets) {
+    if (asset.youtubeUpload?.status !== 'uploaded') continue;
+    await require('./youtubeRemoteState.service').applyRemoteObservation({kind:'short_asset', item:asset, remote:returnedById.get(asset.youtubeVideoId), now:checkedAt, fetchImpl});
+  }
 }
 
 function errorMessage(error) {
@@ -210,7 +214,7 @@ async function executeShortsSync({
   const assets = await ShortAsset.find({
     status: { $ne: SHORT_ASSET_STATUSES.ARCHIVED },
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
-  }).select('_id youtubeVideoId youtubeAvailability').lean();
+  }).select('_id youtubeVideoId youtubeAvailability youtubePrivacyStatus youtubeUpload status reviewStatus generationVersion reviewedGenerationVersion filePath').lean();
 
   if (!assets.length) {
     state.lastSuccessAt = now().toISOString();
@@ -233,7 +237,7 @@ async function executeShortsSync({
         batch.map((asset) => asset.youtubeVideoId),
         { fetchImpl, sleep, random, now },
       );
-      await applySuccessfulBatch(batch, body, checkedAt);
+      await applySuccessfulBatch(batch, body, checkedAt, {fetchImpl});
     } catch (error) {
       await markBatchChecked(batch, checkedAt);
       failedBatches += 1;

@@ -1,0 +1,32 @@
+{
+  "schema": "ppt-master.source_to_md.profile.v1",
+  "converter": "doc_to_md.py",
+  "conversion_type": "docx",
+  "source": {
+    "path": "附件3_敏捷開發佐證說明書_v9.docx",
+    "name": "附件3_敏捷開發佐證說明書_v9.docx",
+    "suffix": ".docx",
+    "kind": "file",
+    "exists": true,
+    "size_bytes": 2261285
+  },
+  "outputs": {
+    "markdown": "附件3_敏捷開發佐證說明書_v9.md",
+    "asset_dir": "附件3_敏捷開發佐證說明書_v9_files",
+    "image_manifest": "附件3_敏捷開發佐證說明書_v9_files/image_manifest.json",
+    "image_count": 5
+  },
+  "markdown": {
+    "line_count": 116,
+    "char_count": 4438,
+    "heading_count": 0,
+    "table_count": 6,
+    "image_ref_count": 5,
+    "link_count": 0
+  },
+  "warnings": [
+    "Unrecognised paragraph style: Att3Title (Style ID: Att3Title)",
+    "Unrecognised paragraph style: Att3Heading (Style ID: Att3Heading)",
+    "Unrecognised paragraph style: Att3Caption (Style ID: Att3Caption)"
+  ]
+}

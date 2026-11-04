@@ -127,15 +127,15 @@ export default function StudentDashboard({ onNav }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 12, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 20, background: 'linear-gradient(135deg,rgba(6,199,85,0.1),rgba(38,12,30,0.72))' }}>
+      <div className="card student-line-card" style={{ marginTop: 12, background: 'linear-gradient(135deg,rgba(6,199,85,0.1),rgba(38,12,30,0.72))' }}>
         <div style={{ width: 46, height: 46, borderRadius: 13, background: 'rgba(6,199,85,0.2)', border: '1px solid rgba(6,199,85,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', flexShrink: 0 }}>
           <Ic n="chat" s={22} />
         </div>
-        <div style={{ flex: 1 }}>
+        <div className="student-line-card-text">
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14, fontWeight: 700, color: '#fff' }}>LINE 提問</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', marginTop: 3 }}>輸入問題、搜尋課程內容，快速回到重點片段</div>
+          <div className="student-line-card-desc" style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)' }}>輸入問題、搜尋課程內容，快速回到重點片段</div>
         </div>
-        <button onClick={() => onNav('linebot')} className="btn-primary" style={{ background: '#06C755', padding: '10px 22px', fontSize: 13, flexShrink: 0 }}>前往 LINE 提問</button>
+        <button type="button" onClick={() => onNav('linebot')} className="btn-primary student-line-card-btn" style={{ background: '#06C755', padding: '10px 22px', fontSize: 13 }}>前往 LINE 提問</button>
       </div>
     </div>
   );

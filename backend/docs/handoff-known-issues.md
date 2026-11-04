@@ -29,3 +29,10 @@ Gate 是控制是否使用分層檢索的開關；下列條件供下一次審查
 例：允許的影片缺少大段落資料 → 資料檢查不通過 → 控制服務維持原片段查詢；不能把另一支影片的歷史驗收當成通過依據。
 
 舊資料庫數字與歷史處置不是操作指令。需追查原文時，在 repo 根目錄執行 `git show 9140f9e:backend/docs/handoff-known-issues.md` → 顯示整理前版本；目前狀態仍回到[唯一正本](../../docs/current-status.md)。
+
+## YouTube Q 的部署邊界
+
+- unlisted 是持有連結即可觀看，不是校內限定；原片端點的選課權限不能限制 YouTube 連結轉貼。需要永久限制觀看時，不能用本方案承諾。
+- 每日限制只在媒體送出前分類；已跨越 sending 或狀態不明不重傳，管理員確認隔離與孤兒上傳。session URL 不回傳也不寫 log。
+- 所有 writer 必須一起遵守 attempt、heartbeat、cleanup intent 與備份歸屬。最低退回版本為已含 F0～F2 的版本，不支援更舊 binary 混跑。退回前須依部署文件預覽並經授權釋放 waiting。
+- Node requestTimeout 為 60 分鐘，上傳 10 分鐘無資料中止；nginx 閒置逾時、暫存容量、實際 500 MB 與 Range 的正式驗收見[部署程序](../../docs/10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)。

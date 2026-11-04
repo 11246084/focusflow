@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-10-20
+最後更新：2026-10-29
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,15 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+---
+
+### 本機展示帳號不受首次登入阻擋（2026-10-25）
+
+- **狀態**：Done
+- **背景**：cookie 認證上線後，`mustChangePassword` 預設為 `true`；`npm run seed` 建立的展示帳號因此被當成舊帳號，本機登入要求收驗證碼，沒有 SMTP 或信箱為 `@focusflow.local` 時無法登入。
+- **處理**：`demoSeed.service.js` 把展示帳號設為 `mustChangePassword: false` 並寫入 `emailVerifiedAt`，再次執行 seed 也會修正舊的展示帳號；正式站 `DEMO_SEED_ENABLED=false`，不受影響。
+- **驗證**：`demo-seed.service.test.js` 新增情境，未修正時失敗、修正後通過。
 
 ---
 
@@ -422,3 +431,5 @@
 - 跨組未 freeze 的議題先用 [handoff-known-issues.md](handoff-known-issues.md) 管住，不在 backend 單方面擴功能
 - demo 口徑以 `/health` 與 API runtime 訊號為準
 - 完成任一任務後同步更新 [todo.md](todo.md)、[implementation-log.md](implementation-log.md)、[README.md](README.md) 的 Latest Update
+
+YouTube Lifecycle 的本機整合與正式待驗事項統一見[目前狀態](../../docs/current-status.md)，本清單不另存一份完成狀態。正式啟用前依[部署程序](../../docs/10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)逐項取得授權。

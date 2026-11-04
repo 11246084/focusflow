@@ -534,7 +534,7 @@ export default function Profile({ role, user: authenticatedUser, onProfileUpdate
       <ChangePasswordCard />
       <section className="card" style={{ padding: 24, marginBottom: 20 }}>
         <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>帳號安全</h2>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)' }}>若懷疑帳號被他人使用，可一次登出所有裝置。</p>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)' ,marginBottom:12}}>若懷疑帳號被他人使用，可一次登出所有裝置。</p>
         {logoutError && <p role="alert" className="auth-error auth-message">{logoutError}</p>}
         <button type="button" className="btn-primary" style={{ padding: '12px 18px' }} disabled={logoutBusy} onClick={async () => {
           if (!window.confirm('所有裝置（包含這台）都會登出')) return;

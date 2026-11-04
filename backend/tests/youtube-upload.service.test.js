@@ -51,8 +51,12 @@ function buildSuccessfulFetchMock(calls) {
       return jsonResponse({}, { headers: { location: 'https://upload.youtube.test/session-1' } });
     }
 
+    if (String(url).includes('/youtube/v3/videos')) {
+      const id = new URL(url).searchParams.get('id');
+      return jsonResponse({ items: [{ id, status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
+    }
     await drainStream(options.body);
-    return jsonResponse({ id: 'ytVideo123' });
+    return jsonResponse({ id: 'ytVideo123', status: { privacyStatus: 'unlisted' } });
   };
 }
 
@@ -75,9 +79,11 @@ function buildPrivacyFetchMock(calls, currentStatus = { privacyStatus: 'unlisted
 describe('youtubeUpload.service', () => {
   let originalEnv;
   let tempFilePath;
+  let savedDefaultFetch;
 
   beforeEach(() => {
     resetStore();
+    savedDefaultFetch = global.fetch; global.fetch = buildSuccessfulFetchMock([]);
     youtubeUploadService.resetYouTubeUploadState();
     originalEnv = {
       youtubeUploadEnabled: env.youtubeUploadEnabled,
@@ -131,7 +137,7 @@ describe('youtubeUpload.service', () => {
   });
 
   afterEach(() => {
-    Object.assign(env, originalEnv);
+    Object.assign(env, originalEnv); global.fetch = savedDefaultFetch;
     fs.rmSync(tempFilePath, { force: true });
   });
 
@@ -474,7 +480,7 @@ describe('youtubeUpload.service', () => {
     assert.deepEqual(quarantined, { recovered: 0, quarantined: 1, skipped: false, skippedItems: 0 });
     assert.equal(stale.youtubeUpload.status, 'failed');
     assert.equal(stale.youtubeUpload.retrySafe, false);
-    assert.match(stale.youtubeUpload.error, /review YouTube Studio/i);
+    assert.match(stale.youtubeUpload.error, /Upload status query:.*administrator review/i);
   });
 
   it('recovery 對 missing、null 與空字串 YouTube ID 都隔離 stale uploading，且保留有效 ID', async () => {

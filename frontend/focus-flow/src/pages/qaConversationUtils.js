@@ -41,6 +41,21 @@ export function formatConversationDate(value, now = new Date()) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+const DEFAULT_CONVERSATION_TITLES = new Set(['新對話', 'New conversation']);
+const pad2 = (value) => String(value).padStart(2, '0');
+
+// 沒有標題的對話用 API 回傳的建立時間區分：今天顯示「新對話 · HH:mm」，其他日期顯示「新對話 · M/D」。
+export function formatConversationLabel(conversation, now = new Date()) {
+  const title = conversation?.title;
+  if (title && !DEFAULT_CONVERSATION_TITLES.has(title)) return title;
+  const date = new Date(conversation?.createdAt || conversation?.updatedAt);
+  if (!conversation || Number.isNaN(date.getTime())) return '新對話';
+  const sameDay = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  return `新對話 · ${sameDay ? `${pad2(date.getHours())}:${pad2(date.getMinutes())}` : `${date.getMonth() + 1}/${date.getDate()}`}`;
+}
+
 export function scrollConversationMessageIntoView(container, message, behavior = 'smooth') {
   if (!container || !message || typeof container.scrollTo !== 'function') return false;
 

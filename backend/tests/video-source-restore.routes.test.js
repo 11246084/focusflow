@@ -105,7 +105,10 @@ describe('POST /videos/:videoId/source/restore', () => {
   }
 
   function uploadedFiles() {
-    return fs.readdirSync(tempUploadDir);
+    const incoming = path.join(tempUploadDir, '.incoming');
+    if (fs.existsSync(incoming)) assert.deepEqual(fs.readdirSync(incoming), []);
+    return fs.readdirSync(tempUploadDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile()).map((entry) => entry.name);
   }
 
   it('學生被角色層擋下，不會寫入檔案', async () => {
@@ -264,7 +267,7 @@ describe('POST /videos/:videoId/source/restore', () => {
     const row = res.body.data.videos.find((video) => video.id === ids.teacherVideo);
     assert.equal(row.sourceAvailable, false);
     assert.equal(row.metadataOnly, false);
-    assert.deepEqual(row.youtubeUpload, { status: 'uploaded', localCleanupAt: '2026-10-01T00:00:00.000Z' });
+    assert.deepEqual(row.youtubeUpload, { status: 'uploaded', localCleanupAt: '2026-10-01T00:00:00.000Z', waitReason: null, nextRetryAt: null, remoteState: null, blockedReason: null });
   });
 
   it('原片已清理時重新處理回 SOURCE_UNAVAILABLE，影片不會被排入佇列', async () => {
@@ -284,8 +287,8 @@ describe('POST /videos/:videoId/source/restore', () => {
     assert.equal(teacherVideo().processing.status, 'failed');
   });
 
-  it('補回後可重新處理，完成時不重新上傳 YouTube', async () => {
-    markCleaned(teacherVideo(), { processingStatus: 'failed' });
+  for (const processingStatus of ['failed', 'completed']) it(`${processingStatus} 補回後可重新處理，完成時不重新上傳 YouTube`, async () => {
+    markCleaned(teacherVideo(), { processingStatus });
     const token = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
     const retryPath = `/api/v1/videos/${ids.teacherVideo}/processing/retry`;
 
@@ -362,19 +365,18 @@ describe('videoService.restoreVideoSource', () => {
     markCleaned(teacherVideo());
     const first = writeUpload('first.mp4');
     const second = writeUpload('second.mp4');
-    let raced = false;
-    // 模擬第二個請求在條件更新前，第一個請求已完成補回。
-    store.beforeVideoCompareAndSwap = async () => {
-      if (raced) return;
-      raced = true;
-      await videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: first, user: teacher });
-    };
-
-    await assert.rejects(
-      videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: second, user: teacher }),
-      (error) => error.code === 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
-    );
-    store.beforeVideoCompareAndSwap = null;
+    let entered; const ready = new Promise((resolve) => { entered = resolve; });
+    let release; const held = new Promise((resolve) => { release = resolve; });
+    store.beforeVideoCompareAndSwap = async () => { entered(); await held; };
+    const winner = videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: first, user: teacher });
+    try {
+      await ready;
+      await assert.rejects(
+        videoService.restoreVideoSource({ videoId: ids.teacherVideo, file: second, user: teacher }),
+        (error) => error.code === 'VIDEO_SOURCE_RESTORE_NOT_ALLOWED',
+      );
+    } finally { release(); store.beforeVideoCompareAndSwap = null; }
+    await winner;
 
     assert.equal(teacherVideo().filePath, first.path);
     assert.equal(fs.existsSync(first.path), true);

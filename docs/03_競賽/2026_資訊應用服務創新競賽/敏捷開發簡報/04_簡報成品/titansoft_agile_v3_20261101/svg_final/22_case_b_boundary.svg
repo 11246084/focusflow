@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2" />
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C" />
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜邊界</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">正式驗收證據，還在補</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">22</text>
+    <image href="data:image/png;base64,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" x="1182" y="38" width="36" height="36" />
+  </g>
+  <g id="statement" data-pptx-bounds="56 250 1100 120">
+    <text x="64" y="320" font-size="34" fill="#15171A">調整之後，<tspan font-weight="bold" fill="#1B4D5C">還沒有一份正式驗收紀錄</tspan>可以證明改善了多少。</text>
+  </g>
+  <g id="pending-items" data-pptx-bounds="56 392 1168 140">
+    <text x="64" y="420" font-size="20" font-weight="bold" fill="#5E8F9C">接下來要補齊並存檔</text>
+    <g fill="none" stroke="#5A6066" stroke-width="2" stroke-dasharray="8,4">
+      <rect x="64" y="440" width="260" height="80" />
+      <rect x="348" y="440" width="260" height="80" />
+      <rect x="632" y="440" width="260" height="80" />
+      <rect x="916" y="440" width="260" height="80" />
+    </g>
+    <g font-size="28" font-weight="bold" text-anchor="middle" fill="#15171A">
+      <text x="194" y="490">固定題庫</text>
+      <text x="478" y="490">測試設定</text>
+      <text x="762" y="490">原始結果</text>
+      <text x="1046" y="490">人工複核</text>
+    </g>
+  </g>
+  <g id="informal-note" data-pptx-bounds="56 556 1040 64">
+    <text x="64" y="592" font-size="22" fill="#5A6066">附錄另有一筆非正式整合驗證紀錄，已註明不能當作正式驗收。</text>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1" />
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E16 ›</text>
+  </g></a>
+</svg>

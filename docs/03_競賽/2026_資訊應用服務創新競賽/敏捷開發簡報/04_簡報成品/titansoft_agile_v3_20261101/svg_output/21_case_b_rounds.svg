@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 B｜多輪調整</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">五天，八輪診斷與調整</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">21</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="date-range" data-pptx-bounds="56 250 1168 56" font-size="22" font-weight="bold" fill="#5A6066">
+    <text x="64" y="290">09-02</text>
+    <text x="1216" y="290" text-anchor="end">09-06</text>
+    <line x1="140" y1="283" x2="1132" y2="283" stroke="#D9D1C1" stroke-width="2" stroke-dasharray="8,4"/>
+  </g>
+  <g id="round-strip" data-pptx-bounds="56 320 1168 110">
+    <g id="p21-step-contract" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="homePlate" data-pptx-frame="64 330 248 80" fill="#5E8F9C" stroke="none">
+<path d="M 64 330 L 272 330 L 312 370 L 272 410 L 64 410 Z"/>
+</g>
+    <g id="p21-step-tool" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="296 330 252 80" fill="#5E8F9C" stroke="none">
+<path d="M 296 330 L 508 330 L 548 370 L 508 410 L 296 410 L 336 370 Z"/>
+</g>
+    <g fill="#E8A93C">
+      <rect x="568" y="342" width="38" height="56"/>
+      <rect x="614" y="342" width="38" height="56"/>
+      <rect x="660" y="342" width="38" height="56"/>
+      <rect x="706" y="342" width="38" height="56"/>
+      <rect x="752" y="342" width="38" height="56"/>
+      <rect x="798" y="342" width="38" height="56"/>
+      <rect x="844" y="342" width="38" height="56"/>
+      <rect x="890" y="342" width="38" height="56"/>
+    </g>
+    <g id="p21-step-merge" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="chevron" data-pptx-frame="940 330 276 80" fill="#1B4D5C" stroke="none">
+<path d="M 940 330 L 1176 330 L 1216 370 L 1176 410 L 940 410 L 980 370 Z"/>
+</g>
+    <g font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle">
+      <text x="180" y="379">修正問答契約</text>
+      <text x="426" y="379">建立評測工具</text>
+      <text x="1090" y="379">整合</text>
+    </g>
+    <g font-size="20" font-weight="bold" fill="#15171A" text-anchor="middle">
+      <text x="587" y="377">1</text>
+      <text x="633" y="377">2</text>
+      <text x="679" y="377">3</text>
+      <text x="725" y="377">4</text>
+      <text x="771" y="377">5</text>
+      <text x="817" y="377">6</text>
+      <text x="863" y="377">7</text>
+      <text x="909" y="377">8</text>
+    </g>
+  </g>
+  <g id="round-detail" data-pptx-bounds="552 440 400 170">
+    <text x="568" y="480" font-size="28" font-weight="bold" fill="#1B4D5C">8 輪檢索診斷</text>
+    <text x="568" y="526" font-size="22" fill="#15171A">診斷面向：<tspan x="568" dy="34">候選數量、相鄰片段、</tspan><tspan x="568" dy="34">引用綁定答案</tspan></text>
+  </g>
+  <a href="#slide-34"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E15 ›</text>
+  </g></a>
+</svg>

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
 import EnrollmentManagerModal from '../components/EnrollmentManagerModal';
 import RestoreSourceModal from '../components/RestoreSourceModal';
+import ReprocessVideoModal from '../components/ReprocessVideoModal';
 import { apiFetch } from '../api';
-import { getVideoSourceState } from '../services/youtubeLifecycle';
+import { getVideoSourceState, waitingUploadText } from '../services/youtubeLifecycle';
 
 const COURSE_STATUS_LABEL = {
   draft: '草稿',
@@ -294,6 +295,7 @@ export default function TeacherCourses() {
   const [retrying, setRetrying] = useState(null);
   const [retryMessages, setRetryMessages] = useState({});
   const [restoring, setRestoring] = useState(null);
+  const [reprocessing, setReprocessing] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [openIds, setOpenIds] = useState(() => new Set());
 
@@ -478,6 +480,15 @@ export default function TeacherCourses() {
             setRefreshKey(key => key + 1);
           }}
         />
+      )}
+
+      {reprocessing && (
+        <ReprocessVideoModal video={reprocessing} onClose={() => setReprocessing(null)} onQueued={() => {
+          const videoId = reprocessing.id || reprocessing._id;
+          setReprocessing(null);
+          setRetryMessages(prev => ({ ...prev, [videoId]: { tone: 'ok', text: '已重新排入處理佇列。' } }));
+          setRefreshKey(key => key + 1);
+        }} />
       )}
 
       {attaching && (
@@ -704,6 +715,7 @@ export default function TeacherCourses() {
                             // 主課程 courseId 不是本課程 → 這支影片是從其他課程掛載進來的
                             const isAttached = !video.metadataOnly && video.courseId && String(video.courseId) !== String(course._id);
                             // 重試只在主課程列出，避免同一支影片在掛載課程重複出現按鈕。
+                            const youtubeWaiting = video.youtubeUpload?.status === 'waiting';
                             const youtubeFailed = video.youtubeUpload?.status === 'failed';
                             const youtubeNeedsAdmin = youtubeFailed && video.youtubeUpload?.retrySafe === false;
                             const source = getVideoSourceState(video);
@@ -738,6 +750,7 @@ export default function TeacherCourses() {
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                   {status ? <span className={`badge ${badge.cls}`}>{badge.text}</span> : <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>未知</span>}
+                                  {youtubeWaiting && <span className="badge by" title={waitingUploadText(video.youtubeUpload)}>YouTube 等待中</span>}
                                   {youtubeFailed && (
                                     <span className="badge br" title={youtubeNeedsAdmin ? YOUTUBE_NEEDS_ADMIN_HINT : video.youtubeUpload?.error || 'YouTube 上傳失敗'}>
                                       {youtubeNeedsAdmin ? 'YouTube 待確認' : 'YouTube 失敗'}
@@ -753,12 +766,12 @@ export default function TeacherCourses() {
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
                                   {canRetryProcessing && (
                                     <button
-                                      onClick={() => handleRetry(video, 'processing')}
+                                      onClick={() => setReprocessing(video)}
                                       disabled={!!retrying || source.reprocessDisabled}
                                       title={source.reprocessHint}
                                       style={{ ...RETRY_BUTTON_STYLE, ...(source.reprocessDisabled ? { opacity: 0.45, cursor: 'not-allowed' } : {}) }}
                                     >
-                                      {retrying === `processing:${videoId}` ? '重試中...' : '重試處理'}
+                                      {retrying === `processing:${videoId}` ? '排入中...' : '重新處理'}
                                     </button>
                                   )}
                                   {canRetryYoutube && (
@@ -799,6 +812,7 @@ export default function TeacherCourses() {
                                     </button>
                                   )}
                                 </div>
+                                {youtubeWaiting && <div style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{waitingUploadText(video.youtubeUpload)}</div>}
                                 {!isAttached && youtubeNeedsAdmin && !retryMessage && (
                                   <div style={{ gridColumn: '1 / -1', marginTop: 8, fontSize: 12, lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>
                                     {YOUTUBE_NEEDS_ADMIN_HINT}

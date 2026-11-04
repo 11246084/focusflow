@@ -5,6 +5,7 @@ const {
   seedDemoData,
 } = require('../src/services/demoSeed.service');
 const { store, resetStore } = require('./helpers/backendTestHarness');
+const { requiredPurpose } = require('../src/services/authSettings.service');
 
 function clearDemoStore() {
   store.users.length = 0;
@@ -62,6 +63,19 @@ describe('demo seed service', () => {
 
     assert.deepEqual(firstRun.courses, secondRun.courses);
     assert.deepEqual(firstRun.videos, secondRun.videos);
+  });
+
+  it('marks demo users as past first login so local logins need no verification mail', async () => {
+    store.users.push({ _id: 'legacy-demo-admin', email: 'admin@focusflow.local', role: 'admin', mustChangePassword: true, emailVerifiedAt: null });
+
+    await seedDemoData({ silent: true });
+
+    assert.equal(store.users.length, 3);
+    for (const user of store.users) {
+      assert.equal(user.mustChangePassword, false, user.email);
+      assert.ok(user.emailVerifiedAt instanceof Date, user.email);
+      assert.equal(await requiredPurpose(user), null, user.email);
+    }
   });
 
   it('repairs a fixed demo video whose natural videoId key is missing', async () => {

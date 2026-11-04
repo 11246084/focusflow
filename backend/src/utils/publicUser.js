@@ -17,6 +17,7 @@
     avatarUpdatedAt: hasAvatar ? source.avatar.updatedAt || null : null,
     isLineBound: Boolean(source.lineUserId),
     lineBindAt: source.lineBindAt || null,
+    lineFriendStatus: source.lineUserId ? source.lineFriendStatus || 'unknown' : null,
     activeCourseId: source.activeCourseId ? String(source.activeCourseId) : null,
     lineConversationState: source.lineConversationState ?? 'idle',
     dailyAskLimitOverride: Number.isInteger(source.dailyAskLimitOverride) ? source.dailyAskLimitOverride : null,

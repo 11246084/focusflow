@@ -31,6 +31,7 @@ FocusFlow 是 AI 教學影片問答系統：教師上傳影片，學生在網頁
 | 學生試用版後端 | `docs/04_Features/Student_Pilot_Backend/README.md`，依其任務權威順序 |
 | 部署／憑證 | `.github/workflows/deploy.yml`、`docs/10_Operations/deployment/部署與連線排錯.md` |
 | 系統手冊、文件整理 | skills：`project-documentation`、`docs-maintainer` |
+| 設計討論（逐輪提問、附建議答案） | skill：`grilling`（Claude Code 讀 `.claude/skills/`，Codex 讀 `.agents/skills/`）；定案寫入該功能的 `decisions.md` |
 
 ## 驗證依變更影響選擇
 
@@ -51,4 +52,5 @@ FocusFlow 是 AI 教學影片問答系統：教師上傳影片，學生在網頁
 - Feature flag、collection／index、webhook URL、provider 與 VM 設定要當次查證，舊結果不代表現況。
 - 進度與狀態只寫在 [docs/current-status.md](docs/current-status.md)，其他文件用連結；新增 md 前先登記在 [docs/README.md](docs/README.md)。
 - 設計討論的已定案事項、目前這一輪的待答題目與建議答案，寫在該功能的 `docs/04_Features/<功能>/decisions.md`，不只留在對話裡；換 session 或換 agent（Claude Code、Codex）時，以文件為準接續。
+- 功能在 `docs/07_HTML說明頁/` 有給人看的說明頁時，定案、選用的方案或結果一改變，即使使用者沒有要求，也要在同一批 commit 先更新 decisions.md，再更新該 HTML 與頁尾的更新日期。
 - 改功能時依影響更新對應文件；不需要更新時，回報說明理由。撰寫文件依[文件寫作規則](.claude/skills/docs-maintainer/references/writing-style.md)。

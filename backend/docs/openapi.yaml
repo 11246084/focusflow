@@ -1529,6 +1529,9 @@ paths:
 
         刪除會 cascade 清理對應的 Video / Segment / transcripts、`course.videoIds`、`Enrollment` 與 `User.activeCourseId`；
         但**保留** UsageLog / Question 歷史紀錄（改由 display 層分流顯示「內容已下架」）。
+        DB cascade、短片封存與待執行的 YouTube 轉私人工作以同一 MongoDB transaction 提交。
+        清理／來源衝突或 DB 操作失敗時整批回滾；不支援 transaction 的 MongoDB 不執行刪除。
+        200 代表 DB 刪除已完成；外部轉私人若未完成會保留持久工作，由啟動及週期排程重試。
       operationId: deleteCourse
       parameters:
         - $ref: '#/components/parameters/CourseId'
@@ -1552,6 +1555,18 @@ paths:
           $ref: '#/components/responses/CourseManageDeniedError'
         '404':
           $ref: '#/components/responses/CourseNotFoundError'
+        '409':
+          description: SHORT_ASSET_REVIEW_CONFLICT、COURSE_DELETE_CONFLICT 或 YOUTUBE_QUARANTINE_VIDEO_IN_USE；本次 DB 刪除整批回滾。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: COURSE_DELETE_UNAVAILABLE；資料庫不支援 transaction，未刪除資料。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/courses/{courseId}/enrollments:
     get:
       tags:
@@ -2372,11 +2387,11 @@ paths:
     post:
       tags:
         - Videos
-      summary: 重新排入失敗影片的 processing
+      summary: 明確重新處理已有本機原片的影片
       description: |
-        這是一個針對失敗 app-owned video 的 `guarded action` 類型 operational 端點。
+        這是 app-owned Video 的明確重新處理端點，保留原影片與 YouTube ID、播放 URL，不重新上傳 YouTube。
 
-        這不是 demo-only 的捷徑，而是提供 course owner teacher 與 admin 在 processing 失敗後重新排入工作的入口。只有目前狀態已經是 `failed` 時才能重試，否則 backend 會回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
+        只有 course owner teacher 與 admin 可呼叫；目前狀態必須為 `failed` 或 `completed`。完成影片須有安全且完整的本機原片，補回後仍須明確呼叫本端點。以來源版本與狀態條件原子排入一次；清理 intent、進行中的上傳或狀態競爭回 `409 VIDEO_PROCESSING_TRANSITION_INVALID`。
 
         重試需要 `UPLOAD_DIR` 內的本機原片。原片已在 YouTube 上傳後清理（`youtubeUpload.localCleanupAt` 有值、`filePath` 為 null）或找不到時回 `409 VIDEO_PROCESSING_RETRY_SOURCE_UNAVAILABLE`，不會改從 YouTube 下載；前端依影片的 `sourceAvailable` 停用按鈕，並改用 `POST /api/v1/videos/{videoId}/source/restore` 補回原片。
       operationId: retryVideoProcessing
@@ -2407,7 +2422,7 @@ paths:
                 invalidTransition:
                   value:
                     success: false
-                    message: Cannot transition video processing from completed to queued.
+                    message: Cannot transition video processing from queued to queued.
                     error:
                       code: VIDEO_PROCESSING_TRANSITION_INVALID
                 sourceUnavailable:
@@ -2929,7 +2944,7 @@ paths:
                                 detail:
                                   type: string
                           youtubeLifecycle:
-                            description: 讀取失敗時三個數量為 null（`youtube_lifecycle` 列顯示 unknown）。
+                            description: 當次有效開關與 7 天內到期清單，與 upcoming preview 共用政策。讀取失敗時資料為 null、服務列顯示 unknown，error 不含底層錯誤。
                             type: object
                             properties:
                               quarantineCount:
@@ -2945,6 +2960,20 @@ paths:
                               upcomingCleanupBytes:
                                 anyOf:
                                   - type: integer
+                                  - type: 'null'
+                              switches:
+                                anyOf:
+                                  - $ref: '#/components/schemas/YouTubeLifecycleSettings/properties/switches'
+                                  - type: 'null'
+                              upcomingCleanupItems:
+                                anyOf:
+                                  - type: array
+                                    items:
+                                      $ref: '#/components/schemas/YouTubeCleanupPreviewItem'
+                                  - type: 'null'
+                              error:
+                                anyOf:
+                                  - type: string
                                   - type: 'null'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
@@ -2981,7 +3010,7 @@ paths:
       summary: 切換單一 YouTube 生命週期開關
       description: |
         僅限 admin。只寫入執行期設定並記錄修改者；環境變數不允許的開關不可切換。
-        回傳切換後的整份設定（格式同 GET）。
+        回傳切換後的整份設定（格式同 GET）。值與 history 的 from/to 於同次條件更新寫入；並行衝突重新讀取後重試。同值請求仍記錄一次，保留最近 50 筆。
       operationId: updateAdminYouTubeLifecycleSwitch
       requestBody:
         required: true
@@ -2995,7 +3024,7 @@ paths:
               properties:
                 key:
                   type: string
-                  enum: [upload, recovery, cleanup]
+                  enum: [upload, recovery, cleanup, privacy_guard]
                 enabled:
                   type: boolean
       responses:
@@ -3017,7 +3046,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
         '409':
-          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許此開關，執行期不可切換"
+          description: "`YOUTUBE_LIFECYCLE_SWITCH_ENV_DISABLED`：環境變數不允許；`YOUTUBE_LIFECYCLE_SWITCH_CONFLICT`：並行修改重試達上限，重新整理後再試。"
           content:
             application/json:
               schema:
@@ -4035,6 +4064,101 @@ paths:
                             message: LINE_CHANNEL_ACCESS_TOKEN is missing, so LINE replies stay in backend-only mode.
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/line/login/start:
+    post:
+      tags:
+        - LINE Webhook
+      summary: 開始 LINE Login 連結
+      description: |
+        已登入使用者開始連結 LINE，後端建立 10 分鐘有效、只能用一次的紀錄，回傳 LINE 授權網址，前端導向該網址。
+
+        同一位使用者開始新的連結時，先前未完成的流程作廢。不接受用戶端指定 LINE 身分或導回網址。
+      operationId: startLineLogin
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineLoginStartRequest'
+      responses:
+        '201':
+          description: 已建立連結流程
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineLoginStartResponse'
+        '400':
+          description: '`courseId` 格式錯誤'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '503':
+          description: 未設定 LINE Login（`LINE_LOGIN_NOT_CONFIGURED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/line/login/complete:
+    post:
+      tags:
+        - LINE Webhook
+      summary: 完成 LINE Login 連結
+      description: |
+        LINE 導回 `/line/callback` 後，前端帶 `code` 與 `state` 呼叫此端點完成綁定。必須是發起連結的同一位使用者與同一個登入 session；
+        未登入回 401，前端提示回到原本的瀏覽器重新連結。
+
+        `state` 在第一次送出時就作廢，比對失敗也一樣，要重新開始連結。LINE 身分只取自驗證過的 ID token；LINE 的 token 用完即丟，不寫入資料庫。
+      operationId: completeLineLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineLoginCompleteRequest'
+      responses:
+        '200':
+          description: 已綁定（或本來就綁定同一個 LINE）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineLoginCompleteResponse'
+        '400':
+          description: 缺少參數（`VALIDATION_ERROR`）、`state` 無效或過期（`LINE_LOGIN_STATE_INVALID`）、ID token 驗證失敗（`LINE_LOGIN_ID_TOKEN_INVALID`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 這個 LINE 已綁定其他帳號（`LINE_ACCOUNT_ALREADY_BOUND`）、自己的帳號換 LINE 尚未確認（`LINE_REPLACE_CONFIRMATION_REQUIRED`），或綁定在處理期間被改變（`LINE_BINDING_CHANGED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: 向 LINE 交換 token 失敗（`LINE_LOGIN_TOKEN_EXCHANGE_FAILED`）；未建立綁定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 未設定 LINE Login（`LINE_LOGIN_NOT_CONFIGURED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/line/binding:
     delete:
       tags:
@@ -4949,6 +5073,274 @@ paths:
           $ref: '#/components/responses/ShortScriptManageForbiddenError'
         '404':
           $ref: '#/components/responses/ShortScriptCourseNotFoundError'
+  /api/v1/admin/youtube-lifecycle/uploads:
+    get:
+      tags: [Admin]
+      summary: 取得上傳額度、等待清單及紀錄
+      operationId: getYouTubeUploadOverview
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeUploadOverview'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 操作進行中或來源狀態已改變；試傳重複為 YOUTUBE_UPLOAD_PROBE_RUNNING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-lifecycle/uploads/probe:
+    post:
+      tags: [Admin]
+      summary: 提前檢查並只嘗試最早的一支上傳
+      operationId: probeYouTubeUpload
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeProbeResult'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 操作進行中或來源狀態已改變；試傳重複為 YOUTUBE_UPLOAD_PROBE_RUNNING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-lifecycle/privacy-incidents:
+    get:
+      tags: [Admin]
+      summary: 取得隱私事件與目前讀回的隱私
+      operationId: listYouTubePrivacyIncidents
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubePrivacyIncidentList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 操作進行中或來源狀態已改變；試傳重複為 YOUTUBE_UPLOAD_PROBE_RUNNING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-lifecycle/privacy/{kind}/{id}/unlisted:
+    post:
+      tags: [Admin]
+      summary: 確認自家頻道後改回不公開並重新判定就緒
+      operationId: restoreYouTubeUnlisted
+      parameters:
+        - in: path
+          name: kind
+          required: true
+          schema:
+            type: string
+            enum: [video, short_asset]
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeProbeResult'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 操作進行中或來源狀態已改變；試傳重複為 YOUTUBE_UPLOAD_PROBE_RUNNING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/admin/youtube-lifecycle/storage:
+    get:
+      tags: [Admin]
+      summary: 取得預約容量、未就緒原片容量與阻擋清單
+      operationId: getYouTubeStorageOverview
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/YouTubeStorageOverview'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 操作進行中或來源狀態已改變；試傳重複為 YOUTUBE_UPLOAD_PROBE_RUNNING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/videos/upload-storage:
+    get:
+      tags: [Videos]
+      summary: 教師與管理員查詢上傳剩餘容量
+      operationId: getVideoUploadStorage
+      responses:
+        '200':
+          description: 查詢當下容量；實際上傳仍由原子預約決定
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UploadStorageStatus'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/videos/upload-status:
+    get:
+      tags: [Videos]
+      summary: 教師與管理員查詢目前上傳暫停時間
+      operationId: getVideoUploadStatus
+      responses:
+        '200':
+          description: 僅含 pause paused、apiQuota、channelLimit、earliestRetryAt，不提供管理紀錄
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          pause:
+                            type: object
+                            properties:
+                              paused: { type: boolean }
+                              apiQuota: { type: [object, 'null'], additionalProperties: true }
+                              channelLimit: { type: [object, 'null'], additionalProperties: true }
+                              earliestRetryAt: { type: [string, 'null'], format: date-time }
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/videos/{videoId}/source:
+    get:
+      tags: [Videos]
+      summary: 播放受保護原片（每次重新驗證課程權限）
+      operationId: getProtectedVideoSource
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+        - in: header
+          name: Range
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 原片串流或 nginx internal redirect；private, no-store 與 inline
+          headers:
+            X-Accel-Redirect:
+              schema:
+                type: string
+              description: 僅開啟 MEDIA_ACCEL_REDIRECT_ENABLED 時使用
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Range 部分內容（sendFile 或 nginx）
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 影片、來源不存在或不提供本機播放
+        '409':
+          description: LOCAL_PLAYBACK_ENABLED 關閉、原片不相容或已切換到 YouTube
+        '416':
+          description: Range 超出檔案範圍
+    head:
+      tags: [Videos]
+      summary: 查詢受保護原片（每次重新驗證課程權限）
+      operationId: headProtectedVideoSource
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+        - in: header
+          name: Range
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 原片串流或 nginx internal redirect；private, no-store 與 inline
+          headers:
+            X-Accel-Redirect:
+              schema:
+                type: string
+              description: 僅開啟 MEDIA_ACCEL_REDIRECT_ENABLED 時使用
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Range 部分內容（sendFile 或 nginx）
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 影片、來源不存在或不提供本機播放
+        '409':
+          description: LOCAL_PLAYBACK_ENABLED 關閉、原片不相容或已切換到 YouTube
+        '416':
+          description: Range 超出檔案範圍
 components:
   securitySchemes:
     CookieAuth:
@@ -5603,6 +5995,14 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        lineFriendStatus:
+          description: 是否已加官方帳號好友，與綁定分開判斷；未綁定時為 null，無法確認時為 `unknown`。
+          type: [string, 'null']
+          enum:
+            - friend
+            - not_friend
+            - unknown
+            - null
         activeCourseId:
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
@@ -5998,6 +6398,96 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+    UploadStorageStatus:
+      type: object
+      properties:
+        freeBytes: { type: number }
+        reservedBytes: { type: number }
+        minimumFreeBytes: { type: number }
+        availableBytes: { type: number }
+    YouTubeUploadRow:
+      type: object
+      properties:
+        kind: { type: string, enum: [video, short_asset] }
+        id: { type: string }
+        title: { type: string }
+        courseId: { type: [string, 'null'] }
+        youtubeVideoId: { type: [string, 'null'] }
+        status: { type: [string, 'null'], enum: [uploading, uploaded, failed, waiting, null] }
+        error: { type: [string, 'null'], description: 上傳失敗或保守狀態查詢的結果說明，不含工作階段網址 }
+        waitReason: { type: [string, 'null'], enum: [api_quota, channel_limit, gate_busy, null] }
+        nextRetryAt: { type: [string, 'null'], format: date-time }
+        queuedAt: { type: [string, 'null'], format: date-time }
+        uploadedAt: { type: [string, 'null'], format: date-time }
+        phase: { type: [string, 'null'], enum: [claimed, session_saved, sending, null] }
+        attemptCount: { type: integer }
+        retrySafe: { type: boolean }
+        remoteState: { type: [string, 'null'], enum: [processing, ready, blocked, null] }
+        blockedReason: { type: [string, 'null'] }
+        readyAt: { type: [string, 'null'], format: date-time }
+        lastCheckAt: { type: [string, 'null'], format: date-time }
+        lastCheckError: { type: [string, 'null'] }
+        privacyStatus: { type: [string, 'null'] }
+        youtubeAvailability: { type: [string, 'null'] }
+        orphanUploads:
+          type: array
+          items:
+            type: object
+            properties:
+              youtubeVideoId: { type: string }
+              attemptId: { type: string }
+              detectedAt: { type: string, format: date-time }
+    YouTubeUploadOverview:
+      type: object
+      properties:
+        pause:
+          type: object
+          description: Q-0 暫停狀態；兩種限制都到期才放行。probe 與 log 不含工作階段網址。
+          additionalProperties: true
+        gate:
+          type: object
+          description: 租約是否使用中與到期時間，不含 owner token。
+          additionalProperties: true
+        waitingCount: { type: integer }
+        uploadingCount: { type: integer }
+        successLast24Hours: { type: integer }
+        lastPauseSuccessCount: { type: [integer, 'null'] }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/YouTubeUploadRow'
+    YouTubeProbeResult:
+      type: object
+      description: 單支試傳或隱私修復結果，工作階段網址不回傳。
+      additionalProperties: true
+    YouTubePrivacyIncidentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [video, short_asset] }
+              id: { type: string }
+              title: { type: string }
+              youtubeVideoId: { type: [string, 'null'] }
+              detectedAt: { type: string, format: date-time }
+              observed: { type: string }
+              action: { type: string }
+              result: { type: string }
+              actor: { type: string }
+              privacyStatus: { type: [string, 'null'] }
+    YouTubeStorageOverview:
+      allOf:
+        - $ref: '#/components/schemas/UploadStorageStatus'
+        - type: object
+          properties:
+            pendingLocalBytes: { type: number }
+            blocked:
+              type: array
+              items:
+                $ref: '#/components/schemas/YouTubeUploadRow'
     YouTubeUploadLifecycle:
       description: YouTube 自動上傳、有限重試與本地來源清理的持久化狀態。
       type: object
@@ -6012,6 +6502,15 @@ components:
             - uploading
             - uploaded
             - failed
+            - waiting
+        waitReason: { type: [string, 'null'], enum: [api_quota, channel_limit, gate_busy, null] }
+        queuedAt: { type: [string, 'null'], format: date-time }
+        remoteState: { type: [string, 'null'], enum: [processing, ready, blocked, null] }
+        blockedReason: { type: [string, 'null'] }
+        privacyStatus: { type: [string, 'null'] }
+        readyAt: { type: [string, 'null'], format: date-time }
+        lastCheckAt: { type: [string, 'null'], format: date-time }
+        lastCheckError: { type: [string, 'null'] }
         error:
           anyOf:
             - type: string
@@ -6638,7 +7137,7 @@ components:
           type: boolean
     YouTubeUploadRuntimeSnapshot:
       description: >-
-        YouTube 自動上傳、有限恢復、本地來源清理與「刪除時轉 private」的診斷快照。狀態只保留 process 內最後一次結果，不持久化。
+        YouTube 自動上傳、有限恢復、本地來源清理與「刪除時轉 private」的診斷快照。憑證與最後執行結果保留於 process；pause、gate、remote 與開關由 Mongo 讀取。
         server 啟動時會做一次非阻塞 OAuth token 交換，因此開機後即有 `credentialCheck` 可看（只換 access token，不消耗 YouTube 配額）。
       type: object
       required:
@@ -6654,6 +7153,35 @@ components:
         - lastRecovery
         - lastCleanup
       properties:
+        pause:
+          type: object
+          properties:
+            paused: { type: boolean }
+            earliestRetryAt: { type: [string, 'null'], format: date-time }
+            apiQuota: { type: [object, 'null'], additionalProperties: true }
+            channelLimit: { type: [object, 'null'], additionalProperties: true }
+            unknown: { type: boolean }
+          additionalProperties: true
+        gate:
+          type: object
+          properties:
+            held: { type: boolean }
+            leaseUntil: { type: [string, 'null'], format: date-time }
+            unknown: { type: boolean }
+        remote:
+          type: object
+          properties:
+            notReadyCount: { type: [integer, 'null'] }
+            groups:
+              type: array
+              items:
+                type: object
+                properties:
+                  kind: { type: string, enum: [video, short_asset] }
+                  processing: { type: integer }
+                  blocked: { type: integer }
+                  unchecked: { type: integer }
+            error: { type: string }
         uploadEnabled:
           type: boolean
           description: "`YOUTUBE_UPLOAD_ENABLED`（環境變數總開關；實際生效看 `switches.upload`）"
@@ -6880,6 +7408,26 @@ components:
             minFreeGb:
               type: number
               description: "`YOUTUBE_UPLOAD_CLEANUP_MIN_FREE_GB`"
+    YouTubeCleanupPreviewItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [video, short_asset]
+        id:
+          type: string
+        title:
+          type: string
+        courseTitle:
+          type: string
+        sizeBytes:
+          type: integer
+        eligibleAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          enum: [max_age, low_space]
     YouTubeLifecycleSwitchSnapshot:
       description: 兩層開關之一：環境變數允許且執行期設定開啟（或未設定且該開關預設跟隨環境變數）才生效。
       type: object
@@ -6925,7 +7473,7 @@ components:
                 properties:
                   key:
                     type: string
-                    enum: [upload, recovery, cleanup]
+                    enum: [upload, recovery, cleanup, privacy_guard]
         history:
           type: array
           description: 最近 50 筆修改紀錄，由新到舊。
@@ -6934,7 +7482,7 @@ components:
             properties:
               key:
                 type: string
-                enum: [upload, recovery, cleanup]
+                enum: [upload, recovery, cleanup, privacy_guard]
               from:
                 description: 修改前的執行期設定；null 代表原本未設定。
                 anyOf:
@@ -8612,6 +9160,97 @@ components:
               properties:
                 lineRuntime:
                   $ref: '#/components/schemas/LineRuntimeSnapshot'
+    LineLoginStartRequest:
+      description: 開始 LINE Login 連結的選填參數。
+      type: object
+      properties:
+        courseId:
+          description: 從「詢問助教」進來時帶入；完成時重新檢查修課權限，不符合時只是不切換課程。
+          type: string
+          pattern: '^[a-f0-9]{24}$'
+        replaceExisting:
+          description: 學生已確認「將取代目前的 LINE」。只有這裡能送出確認，完成時再帶不生效。
+          type: boolean
+          default: false
+    LineLoginStartResponse:
+      description: "`/api/v1/line/login/start` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - authorizeUrl
+                - expiresAt
+              properties:
+                authorizeUrl:
+                  description: 前端要導向的 LINE 授權網址。
+                  type: string
+                  format: uri
+                expiresAt:
+                  type: string
+                  format: date-time
+    LineLoginCompleteRequest:
+      description: LINE 導回網址上的 `code` 與 `state`。
+      type: object
+      required:
+        - code
+        - state
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+    LineLoginCompleteResponse:
+      description: "`/api/v1/line/login/complete` 的成功回應 envelope。"
+      allOf:
+        - $ref: '#/components/schemas/SuccessBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - bound
+                - alreadyBound
+                - replaced
+                - friendship
+                - welcomeSent
+                - course
+              properties:
+                bound:
+                  type: boolean
+                alreadyBound:
+                  description: 本來就綁定這個 LINE，這次沒有改變。
+                  type: boolean
+                replaced:
+                  description: 取代了原本綁定的另一個 LINE。
+                  type: boolean
+                friendship:
+                  description: 是否已加官方帳號好友；查不到時為 `unknown`，與綁定結果分開判斷。
+                  type: string
+                  enum:
+                    - friend
+                    - not_friend
+                    - unknown
+                welcomeSent:
+                  description: 這次是否推播了歡迎訊息。
+                  type: boolean
+                course:
+                  description: 綁定後切換到的課程；沒有帶課程或學生無權使用時為 null。
+                  type: [object, 'null']
+                  required:
+                    - id
+                    - title
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
     FeedbackCategory:
       description: 回報問題的分類。
       type: string

@@ -16,3 +16,5 @@
 例：教師上傳失敗 → 先查技術索引的影片流程 → 依 Pipeline README 查對應處理日誌。不要因舊交接寫「尚未實作」就判定功能不存在。
 
 修改 API 規格後，在 `backend/` 執行 `npm.cmd run docs:lint`；這是檢查規格格式的指令，不能代替功能驗收。進度更新寫入狀態正本，本索引只維護文件用途與連結。
+
+YouTube Q：設定見[功能開關](feature-flags.md)，介面見[OpenAPI](openapi.yaml)，驗證見[Q 整合證據](../../docs/04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)，進度只看[目前狀態](../../docs/current-status.md)。

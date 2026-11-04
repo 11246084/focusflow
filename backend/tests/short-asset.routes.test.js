@@ -85,7 +85,7 @@ function stubYouTubeUpload({ failAt = null } = {}) {
       if (String(options.method || 'GET').toUpperCase() === 'PUT') {
         return jsonResponse({ id: 'yt-short-1', status: { privacyStatus: 'private' } });
       }
-      return jsonResponse({ items: [{ id: 'yt-short-1', status: { privacyStatus: 'unlisted' } }] });
+      return jsonResponse({ items: [{ id: 'yt-short-1', status: { privacyStatus: 'unlisted', uploadStatus: 'processed', embeddable: true } }] });
     }
 
     return originalFetch(url, options);
@@ -182,7 +182,9 @@ describe('短影片上架（WO-08）', () => {
     stubYouTubeUpload();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // HTTP 201 precedes the background upload; drain it before clearing fixtures.
+    await waitFor(() => store.shortAssets.every((asset) => !publishService.isShortAssetUploadRunning(asset._id)));
     global.fetch = originalFetch;
     disableYouTube();
     env.shortScriptAutomationEnabled = false;
@@ -687,7 +689,8 @@ describe('短影片上架（WO-08）', () => {
 
       assert.equal(published.status, 'published');
       assert.equal(published.youtubeVideoId, 'yt-short-1');
-      assert.equal(published.youtubeAvailability, 'playable');
+      assert.equal(published.youtubeAvailability, undefined);
+      assert.equal(published.youtubeUpload.remoteState, 'ready');
       assert.equal(published.youtubeUpload.status, 'uploaded');
     });
 
@@ -777,7 +780,8 @@ describe('短影片上架（WO-08）', () => {
       enableYouTube();
       stubYouTubeUpload();
 
-      const published = await publishService.retryShortAssetUpload({ user: TEACHER, assetId: asset._id });
+      const published = await publishService.retryShortAssetUpload({ user: TEACHER, now: new Date(Date.now() + env.youtubeUploadRetryBaseMs + 1000),
+        assetId: asset._id });
 
       assert.equal(published.status, 'published');
     });
@@ -796,7 +800,7 @@ describe('短影片上架（WO-08）', () => {
         filePath: writeTempVideo(),
         youtubeVideoId: 'yt-short-1',
         youtubeUpload: {
-          status: 'uploaded', error: null, attemptCount: 1, retrySafe: false,
+          status: 'uploaded', error: null, attemptCount: 1, retrySafe: false, remoteState: 'ready',
         },
       });
 

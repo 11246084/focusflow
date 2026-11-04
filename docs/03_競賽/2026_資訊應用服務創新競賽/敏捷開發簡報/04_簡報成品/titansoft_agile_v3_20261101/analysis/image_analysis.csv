@@ -1,0 +1,8 @@
+No,Filename,Width,Height,AspectRatio,PixelAspectRatio,SourceDisplayRatio,RatioSource,Format,HasTransparentPixels,UsageCount,DisplayRatioVariants,AssetKind,SvgRenderable,PptxNativeSupported,SizeKB,Category
+1,lockup-color.png,1920,540,3.56,3.56,,native,PNG,True,1,,bitmap,True,True,72.3,Ultra-wide
+2,lockup-white.png,1920,540,3.56,3.56,,native,PNG,True,1,,bitmap,True,True,67.3,Ultra-wide
+3,mark-color.png,800,800,1.00,1.00,,native,PNG,True,1,,bitmap,True,True,42.5,Near square
+4,mark-white.png,800,800,1.00,1.00,,native,PNG,True,1,,bitmap,True,True,39.8,Near square
+5,p03_jump.png,3200,1800,1.78,1.78,,native,PNG,False,1,,bitmap,True,True,1685.6,Wide landscape
+6,p07_kanban.png,3200,1800,1.78,1.78,,native,PNG,False,1,,bitmap,True,True,107.5,Wide landscape
+7,p25_report_form.png,3200,1800,1.78,1.78,,native,PNG,False,1,,bitmap,True,True,639.2,Wide landscape

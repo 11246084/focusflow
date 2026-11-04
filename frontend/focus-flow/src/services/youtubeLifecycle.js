@@ -5,9 +5,10 @@ import { apiFetch } from '../api.js';
 
 
 
-export const SWITCH_KEYS = ['upload', 'recovery', 'cleanup'];
+export const SWITCH_KEYS = ['upload', 'recovery', 'cleanup', 'privacy_guard'];
 
 export const SWITCH_META = {
+  privacy_guard: { label: '隱私保護', description: '發現系統上傳的影片公開時，嘗試改為私人。', envVar: 'YOUTUBE_PRIVACY_GUARD_ENABLED', defaultEnabled: false },
   upload: {
     label: '自動上傳',
     description: '影片處理完成後自動上傳到系統 YouTube 頻道（不公開）。',
@@ -22,7 +23,7 @@ export const SWITCH_META = {
   },
   cleanup: {
     label: '原片清理',
-    description: '依可用空間與保留期刪除已上傳完成的原片，刪除後無法自動取回。',
+    description: '依可用空間與保留期，刪除已確認可播放並切換至 YouTube 的原片；刪除後無法自動取回。',
     envVar: 'YOUTUBE_UPLOAD_CLEANUP_ENABLED',
     defaultEnabled: false,
   },
@@ -60,8 +61,13 @@ export async function getLifecycleSettings() {
 }
 
 export async function updateLifecycleSwitch(key, enabled) {
-  const res = await apiFetch('/admin/youtube-lifecycle/settings', jsonRequest('PATCH', { key, enabled: Boolean(enabled) }));
-  return res.data;
+  try {
+    const res = await apiFetch('/admin/youtube-lifecycle/settings', jsonRequest('PATCH', { key, enabled: Boolean(enabled) }));
+    return res.data;
+  } catch (error) {
+    if (error.code === 'YOUTUBE_LIFECYCLE_SWITCH_CONFLICT') error.message = '設定剛被其他管理員修改，請重新整理後再試。';
+    throw error;
+  }
 }
 
 export async function getCleanupPreview(scope) {
@@ -118,6 +124,11 @@ export async function restoreVideoSource(videoId, file) {
   formData.append('video', file);
   const data = await apiFetch(`/videos/${encodeURIComponent(videoId)}/source/restore`, { method: 'POST', body: formData });
   return data.data?.video || data.data || {};
+}
+
+export async function reprocessVideo(videoId) {
+  const result = await apiFetch(`/videos/${encodeURIComponent(videoId)}/processing/retry`, { method: 'POST' });
+  return result.data;
 }
 
 // ---- 畫面判斷（純函式，供測試） ----
@@ -291,7 +302,8 @@ export function quarantineItemKey(item) {
 export function getVideoSourceState(video = {}) {
   const sourceMissing = video.sourceAvailable === false && !video.metadataOnly;
   const sourceCleaned = sourceMissing && Boolean(video.youtubeUpload?.localCleanupAt);
-  const failed = video.processing?.status === 'failed';
+  const processingStatus = video.processing?.status || video.status;
+  const reprocessable = processingStatus === 'failed' || processingStatus === 'completed';
   let reprocessHint = '重新執行語音轉文字與 AI 索引';
   if (sourceCleaned) reprocessHint = '原片已清理，無法重新處理；請先「補回原片」。';
   else if (sourceMissing) reprocessHint = '伺服器上沒有這支影片的原片，無法重新處理。';
@@ -300,7 +312,20 @@ export function getVideoSourceState(video = {}) {
     sourceCleaned,
     canRestore: sourceCleaned,
     reprocessDisabled: sourceMissing,
-    showReprocess: failed && !video.metadataOnly,
+    showReprocess: reprocessable && !video.metadataOnly,
     reprocessHint,
   };
+}
+
+export async function getUploadOverview() { return (await apiFetch('/admin/youtube-lifecycle/uploads')).data; }
+export async function probeUpload() { return (await apiFetch('/admin/youtube-lifecycle/uploads/probe', jsonRequest('POST'))).data; }
+export async function getPrivacyIncidents() { return (await apiFetch('/admin/youtube-lifecycle/privacy-incidents')).data; }
+export async function restoreUnlisted(kind, id) { return (await apiFetch(`/admin/youtube-lifecycle/privacy/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/unlisted`, jsonRequest('POST'))).data; }
+export async function getAdminStorage() { return (await apiFetch('/admin/youtube-lifecycle/storage')).data; }
+export async function getTeacherUploadStatus() { return (await apiFetch('/videos/upload-status')).data; }
+export async function getUploadStorage() { return (await apiFetch('/videos/upload-storage')).data; }
+export function waitingUploadText(upload = {}) {
+  if (upload.status !== 'waiting') return '';
+  const time = upload.nextRetryAt ? new Date(upload.nextRetryAt).toLocaleString('zh-TW', { hour12: false }) : '';
+  return `YouTube 上傳等待中，系統會自動補傳${time ? `，最快 ${time}` : ''}。`;
 }

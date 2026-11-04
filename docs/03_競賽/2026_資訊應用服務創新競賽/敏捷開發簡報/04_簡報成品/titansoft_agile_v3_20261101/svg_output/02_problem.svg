@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">開場｜要解決的問題</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">課堂上講過，卻找不到在哪裡</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">02</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="question" data-pptx-bounds="560 236 400 132">
+    <circle cx="760" cy="296" r="52" fill="#E8A93C"/>
+    <text x="760" y="322" font-size="72" font-weight="bold" text-anchor="middle" fill="#15171A">?</text>
+    <line x1="760" y1="348" x2="760" y2="366" stroke="#E8A93C" stroke-width="3"/>
+  </g>
+  <g id="video-bar" data-pptx-bounds="56 372 1168 108">
+    <g fill="#D9D1C1">
+      <rect x="64" y="392" width="184" height="20"/>
+      <rect x="258" y="392" width="184" height="20"/>
+      <rect x="452" y="392" width="184" height="20"/>
+      <rect x="646" y="392" width="184" height="20"/>
+      <rect x="840" y="392" width="184" height="20"/>
+      <rect x="1034" y="392" width="182" height="20"/>
+    </g>
+    <rect x="646" y="386" width="184" height="32" fill="none" stroke="#E8A93C" stroke-width="3"/>
+    <g font-size="22" fill="#5A6066" text-anchor="middle">
+      <text x="156" y="452">第 1 支影片</text>
+      <text x="350" y="452">第 2 支</text>
+      <text x="544" y="452">第 3 支</text>
+      <text x="738" y="452" font-weight="bold" fill="#15171A">哪一支？哪一分鐘？</text>
+      <text x="932" y="452">第 5 支</text>
+      <text x="1125" y="452">第 6 支</text>
+    </g>
+  </g>
+  <g id="statement" data-pptx-bounds="56 520 900 100">
+    <text x="64" y="572" font-size="30" fill="#15171A">學生記得課堂上講過某個觀念，<tspan font-weight="bold" fill="#1B4D5C">卻要在好幾小時的錄影裡重找。</tspan></text>
+  </g>
+  <g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E01</text>
+  </g>
+</svg>

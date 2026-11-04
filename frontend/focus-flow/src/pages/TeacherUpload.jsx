@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 import { uploadCourseVideos } from '../services/videoUpload';
+import { formatBytes, getTeacherUploadStatus, getUploadStorage } from '../services/youtubeLifecycle';
 import {
   fileKey,
   formatFileSize,
@@ -136,6 +137,8 @@ export default function TeacherUpload() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [uploadStatus, setUploadStatus] = useState(null);
+  const [storage, setStorage] = useState(null);
   const [trackedItems, setTrackedItems] = useState(initialTracking.items);
   const [batchId, setBatchId] = useState(initialTracking.batchId);
   const initialTrackingRef = useRef(initialTracking);
@@ -193,6 +196,8 @@ export default function TeacherUpload() {
   }, [batchId, pollProcessing, stopPolling]);
 
   useEffect(() => {
+    getTeacherUploadStatus().then(setUploadStatus).catch(() => setUploadStatus(null));
+    getUploadStorage().then(setStorage).catch(() => setStorage(null));
     apiFetch('/courses').then((response) => {
       const list = response.data?.courses || [];
       setCourses(list);
@@ -406,6 +411,8 @@ export default function TeacherUpload() {
             {isMultiple && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.42)' }}>多支上傳時以各影片檔名作為標題，所選課程套用到全部影片。</div>}
           </div>
 
+          {uploadStatus?.pause?.paused && <div role="status" style={{ marginTop: 12, color: '#fcd34d', fontSize: 12, lineHeight: 1.6 }}>YouTube 上傳暫停中；影片仍可上傳並處理，系統將自動補傳{uploadStatus.pause.earliestRetryAt ? `，最快 ${new Date(uploadStatus.pause.earliestRetryAt).toLocaleString('zh-TW', { hour12: false })}` : ''}。</div>}
+          {storage && <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>目前可用於上傳：約 {formatBytes(storage.availableBytes)}；實際可否上傳以伺服器檢查為準。</div>}
           {uploadError && <div style={{ marginTop: 12, fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>{uploadError}</div>}
 
           <button className="btn-primary" style={{ width: '100%', marginTop: 20, padding: 15, opacity: uploading || !selectedFiles.length ? 0.7 : 1 }} onClick={handleUpload} disabled={uploading || !selectedFiles.length}>

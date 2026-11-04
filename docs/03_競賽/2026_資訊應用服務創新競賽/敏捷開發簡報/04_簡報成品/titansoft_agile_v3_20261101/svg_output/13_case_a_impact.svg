@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FBF8F2"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#5E8F9C">案例 A｜影響範圍</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#1B4D5C">只換一組，搜尋就會對不上</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#5A6066">13</text>
+    <image href="../images/mark-color.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="case-a-timeline" data-pptx-bounds="64 192 1152 84" font-size="18">
+    <line x1="100" y1="236" x2="668" y2="236" stroke="#D9D1C1" stroke-width="3"/>
+    <line x1="600" y1="224" x2="600" y2="248" stroke="#B5482E" stroke-width="3"/>
+    <text x="600" y="268" text-anchor="middle" fill="#B5482E">08-10 最早可能停用</text>
+    <circle cx="120" cy="236" r="9" fill="#E8A93C"/>
+    <text x="120" y="220" text-anchor="middle" font-weight="bold" fill="#15171A">08-02</text>
+    <text x="120" y="268" text-anchor="middle" fill="#5A6066">記下風險</text>
+  </g>
+  <g id="impact-diagram" data-pptx-bounds="400 290 480 330">
+    <g id="p13-shared-space" data-pptx-authoring="preset" data-pptx-object="shape" data-pptx-prst="triangle" data-pptx-frame="470 335 340 210" fill="#E8A93C" stroke="none" fill-opacity="0.18">
+<path d="M 470 545 L 640 335 L 810 545 Z"/>
+</g>
+    <text x="640" y="482" font-size="22" font-weight="bold" text-anchor="middle" fill="#15171A">同一個<tspan x="640" dy="28">向量空間</tspan></text>
+    <g fill="#FBF8F2" stroke="#1B4D5C" stroke-width="3">
+      <circle cx="640" cy="350" r="56"/>
+      <circle cx="470" cy="552" r="56"/>
+      <circle cx="810" cy="552" r="56"/>
+    </g>
+    <use data-icon="tabler-outline/server" x="624" y="318" width="32" height="32" fill="#1B4D5C" stroke-width="2"/>
+    <use data-icon="tabler-outline/cpu" x="454" y="520" width="32" height="32" fill="#1B4D5C" stroke-width="2"/>
+    <use data-icon="tabler-outline/database" x="794" y="520" width="32" height="32" fill="#1B4D5C" stroke-width="2"/>
+    <g font-size="22" font-weight="bold" text-anchor="middle" fill="#1B4D5C">
+      <text x="640" y="378">後端</text>
+      <text x="470" y="580">資料處理</text>
+      <text x="810" y="580">資料庫</text>
+    </g>
+  </g>
+  <g id="mismatch-note" data-pptx-bounds="920 340 296 200">
+    <rect x="928" y="348" width="288" height="184" fill="#F5EFE3"/>
+    <rect x="928" y="348" width="6" height="184" fill="#B5482E"/>
+    <text x="956" y="398" font-size="28" font-weight="bold" fill="#B5482E">只換其中一組</text>
+    <text x="956" y="446" font-size="28" fill="#15171A">向量就對不上，<tspan x="956" dy="42">搜尋會找錯片段</tspan></text>
+  </g>
+  <a href="#slide-33"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#F5EFE3" stroke="#D9D1C1"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#5A6066">E08 ›</text>
+  </g></a>
+</svg>

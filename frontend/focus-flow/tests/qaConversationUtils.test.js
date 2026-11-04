@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  formatConversationLabel,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
@@ -34,6 +35,27 @@ describe('multi-turn citation presentation', () => {
     const message = mapConversationMessage({ role: 'assistant', content: '回答', sources });
     assert.equal(message.answer, '回答');
     assert.equal(message.matches.length, 5);
+  });
+});
+
+describe('recent conversation labels', () => {
+  const now = new Date(2026, 9, 27, 18, 30);
+
+  it('keeps a real conversation title', () => {
+    assert.equal(formatConversationLabel({ title: '什麼是 RAG？', createdAt: new Date(2026, 9, 27, 9, 5) }, now), '什麼是 RAG？');
+  });
+
+  it('labels an untitled conversation from today with its start time', () => {
+    assert.equal(formatConversationLabel({ title: 'New conversation', createdAt: new Date(2026, 9, 27, 9, 5) }, now), '新對話 · 09:05');
+  });
+
+  it('labels an untitled conversation from another day with its date', () => {
+    assert.equal(formatConversationLabel({ title: '新對話', createdAt: new Date(2026, 9, 25, 23, 50) }, now), '新對話 · 10/25');
+  });
+
+  it('falls back to the plain label when no time field is available', () => {
+    assert.equal(formatConversationLabel({ title: '' }, now), '新對話');
+    assert.equal(formatConversationLabel(undefined, now), '新對話');
   });
 });
 

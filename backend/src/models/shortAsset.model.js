@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { youtubeUploadContractFields } = require('./youtubeUploadContract.schema');
 const {
   COURSE_STATUS_VALUES,
   SHORT_ASSET_REVIEW_REASON_CODE_VALUES,
@@ -74,10 +75,16 @@ const disclosureSchema = new mongoose.Schema(
 // 否則教師只看得到「沒上架」而不知道為什麼，也判斷不出能不能重試。
 const shortAssetUploadSchema = new mongoose.Schema(
   {
+    ...youtubeUploadContractFields(),
     status: { type: String, enum: [...YOUTUBE_UPLOAD_STATUS_VALUES, null], default: null },
     error: { type: String, default: null, trim: true },
     attemptCount: { type: Number, default: 0, min: 0 },
     lastAttemptAt: { type: Date, default: null },
+    attemptId: { type: String, default: null },
+    heartbeatAt: { type: Date, default: null },
+    cleanupIntent: { type: mongoose.Schema.Types.Mixed, default: null },
+    cleanupClaimedAt: { type: Date, default: null },
+    localSourceVersion: { type: String, default: null },
     uploadedAt: { type: Date, default: null },
     failedAt: { type: Date, default: null },
     // 是否確定沒有送出任何影片 bytes。送出過就不能自動重試，否則會在 YouTube 上留下重複影片。

@@ -215,6 +215,80 @@ describe('parseStructuredAnswer', () => {
   });
 });
 
+describe('Gemini 產生回答的逾時與重試', () => {
+  const geminiReply = () => ({
+    ok: true,
+    status: 200,
+    async text() {
+      return JSON.stringify({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ answer: '重試後的回答。', supportingEvidenceIds: ['S1'] }) }] } }],
+      });
+    },
+  });
+
+  function useGemini() {
+    env.qaAnswerProvider = 'gemini';
+    env.geminiApiKey = 'gemini-test-key';
+    env.qaProviderRetryDelayMs = 0;
+    console.error = () => {};
+  }
+
+  afterEach(() => {
+    env.qaAnswerTimeoutMs = 20000;
+    env.qaProviderRetryDelayMs = 500;
+  });
+
+  it('Gemini 暫時失敗（503）時重試一次，成功就不降級', async () => {
+    useGemini();
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      return calls === 1 ? { ok: false, status: 503, text: async () => 'overloaded' } : geminiReply();
+    };
+
+    const result = await generateAnswer('問題', createMatches());
+
+    assert.equal(calls, 2);
+    assert.equal(result.provider, 'gemini');
+    assert.equal(result.fallback, null);
+    assert.equal(result.text, '重試後的回答。');
+  });
+
+  it('Gemini 卡住時在逾時後放棄並降級，不會一直等', async () => {
+    useGemini();
+    env.qaAnswerTimeoutMs = 40;
+    let calls = 0;
+    global.fetch = async (_url, options) => {
+      calls += 1;
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason));
+      });
+    };
+    const startedAt = Date.now();
+
+    const result = await generateAnswer('問題', createMatches());
+
+    assert.equal(calls, 2);
+    assert.ok(Date.now() - startedAt < 2000);
+    assert.equal(result.provider, 'template');
+    assert.equal(result.fallback.code, 'ANSWER_PROVIDER_ERROR');
+  });
+
+  it('請求本身被拒（400）不重試，直接降級', async () => {
+    useGemini();
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      return { ok: false, status: 400, text: async () => 'bad request' };
+    };
+
+    const result = await generateAnswer('問題', createMatches());
+
+    assert.equal(calls, 1);
+    assert.equal(result.provider, 'template');
+  });
+});
+
 describe('answer generation service', () => {
   it('uses Gemini to generate grounded answers when configured', async () => {
     const matches = createMatches();

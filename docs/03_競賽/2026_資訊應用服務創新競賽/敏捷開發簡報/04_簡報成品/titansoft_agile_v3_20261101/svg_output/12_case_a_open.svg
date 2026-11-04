@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="Microsoft JhengHei, sans-serif" data-pptx-page-role="section">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#1B4D5C"/>
+  <g id="header" data-pptx-bounds="56 40 1040 132">
+    <rect x="64" y="48" width="48" height="6" fill="#E8A93C"/>
+    <text x="64" y="86" font-size="20" font-weight="bold" fill="#E8A93C">案例 A｜外部技術變動</text>
+    <text x="64" y="150" font-size="48" font-weight="bold" fill="#FFFFFF">案例 A：外部模型要停用</text>
+  </g>
+  <g id="chrome" data-pptx-role="chrome" data-pptx-bounds="1120 28 112 56">
+    <text x="1172" y="64" font-size="18" text-anchor="end" fill="#F5EFE3">12</text>
+    <image href="../images/mark-white.png" x="1182" y="38" width="36" height="36" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+  <g id="deadline-0810" data-pptx-bounds="56 236 760 220">
+    <text x="58" y="400" font-size="150" font-weight="bold" fill="#E8A93C">08-10</text>
+  </g>
+  <g id="deadline-caption" data-pptx-bounds="56 470 1040 140">
+    <text x="64" y="516" font-size="34" font-weight="bold" fill="#FFFFFF">模型供應商列出的最早可能停用日</text>
+    <text x="64" y="580" font-size="22" fill="#F5EFE3">我們用的是預覽版模型；08-02 首次在規劃報告記下這個風險</text>
+  </g>
+  <a href="#slide-33"><g id="evidence" data-pptx-bounds="1128 636 96 44">
+    <rect x="1136" y="644" width="80" height="30" rx="4" fill="#24606F" stroke="#5E8F9C"/>
+    <text x="1176" y="665" font-size="18" text-anchor="middle" fill="#F5EFE3">E08 ›</text>
+  </g></a>
+</svg>

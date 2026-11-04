@@ -234,7 +234,7 @@ Shorts asset 是可管理的短影片成果。它可能只是 local/cloud draft�
 課程生命週期：
 
 - Course 改成 `archived` 時不修改 ShortAsset；feed 會因 Course status 自動隱藏，恢復 `published` 後重新顯示。
-- Course hard delete 時，在既有 cascade 成功後、`Course.deleteOne()` 前 idempotent 封存該課程尚未封存的 ShortAsset，保存最小 `courseSnapshot`；Course 刪除失敗時只 best-effort 還原本輪封存，不提供 transaction/atomicity 保證，也不刪除 ShortAsset。
+- Course hard delete 時，在同一資料庫交易內封存該課程尚未封存的 ShortAsset，保存最小 `courseSnapshot`，並完成影片／選課等 cascade；任一步衝突或失敗皆回滾，不刪除 ShortAsset。外部 YouTube 轉私人由交易內保存的待辦在提交後執行，詳見 4.1。
 
 YouTube metadata 同步只使用 `YOUTUBE_API_KEY` 呼叫 `videos.list`（每批最多 50 IDs）。`SHORTS_SYNC_INTERVAL_MS` 預設 600000，設 0 停用；startup、interval 與直接呼叫共用 single-flight promise，避免重疊消耗 quota 或舊結果覆寫新狀態。只有 public/unlisted 會標為 playable；private 或成功回應中缺少 ID 會標為 unavailable。網路、429、5xx 依 Retry-After 或 1s/2s/4s+jitter 最多重試三次；400/401/404 與 quotaExceeded 不重試。暫時性整批失敗保留上次成功 availability/privacy，只更新 `lastCheckedAt`。`youtube_video_not_returned` 與 `private` 原因只寫結構化 server log，不持久化到 ShortAsset。
 
@@ -347,17 +347,24 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 | `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/apply` | 只接受 `quarantined`：`{ youtubeVideoId }`，先向 YouTube 確認影片存在、屬於自家頻道且未被其他項目使用，再標成上傳完成並切換播放；完成後通知上傳的教師 | admin |
 | `POST /admin/youtube-quarantine/{videos\|short-assets}/:id/reset` | 兩種原因都接受：確定沒有上傳、或已達上限且原因已排除時使用，重設為可安全重試、次數歸零、重試時間設為現在，由恢復排程重新上傳；完成後通知上傳的教師 | admin |
 | `POST /videos/:videoId/source/restore` | 補回原片（multipart 欄位 `video`）：只接受已清理的影片，影片 ID 不變、不重新上傳 YouTube，保留期從補回時間起算 | 課程教師、admin |
+| `POST /videos/:videoId/processing/retry` | 明確重處理 `failed` 或 `completed` 的 Video；需安全本機原片，原子檢查來源版本、狀態與清理 intent，保留 Video／YouTube ID 與播放 URL，不從 YouTube 下載 | 課程教師、admin |
 
 - 查詢與套用需要讀自家頻道的權限（`youtube.force-ssl`）；憑證只有 `youtube.upload` 時，查詢回 `searchable: false`，套用會回 `502 YOUTUBE_QUARANTINE_VERIFY_FAILED`。
 - `retry_limit` 的失敗都發生在送出影片內容之前，YouTube 上確定沒有這支，所以不提供查詢與套用（回 `409 YOUTUBE_QUARANTINE_NOT_ALLOWED`），只能重設（[設計決策](../../docs/04_Features/YouTube_Lifecycle/decisions.md) #34）。教師重試已達上限的項目仍回 `409 YOUTUBE_UPLOAD_RETRY_LIMIT_REACHED`，畫面提示已通知管理員。
 - 影片或短片被隔離、或最後一次可安全重試的失敗達到上限時，通知所有啟用中的管理員（來源 `youtube_upload_needs_review`），同一次失敗只通知一次；收尾後通知教師（`youtube_upload_resolved`，短片附 `scriptId`）。
 - 課程影片清單與 `GET /admin/videos` 的每支影片附 `sourceAvailable`；前端只有在 `sourceAvailable=false` 且有 `youtubeUpload.localCleanupAt` 時才視為原片已清理並提供補回。
-- 系統狀態 `/admin/system-status` 另有 `youtube_lifecycle` 列，顯示待處理與 7 天內到期刪除的數量。
+- 系統狀態 `/admin/system-status` 的 `data.youtubeLifecycle` 附當次三個 `switches`（effective／reason）、`upcomingCleanupItems` 及數量／容量；項目與管理頁 upcoming preview 共用政策，包含影片與短片的課程、容量、到期時間及原因。設定或預告查詢失敗時欄位為 null、error 為安全提示，服務列顯示 unknown；憑證可用不代表 runtime 已開啟。
+- 開關值與 history 的 from/to 以條件更新同次寫入，首次建立依現有 key 唯一索引處理競爭。同值請求也稽核一次，保留最近 50 筆；條件重試不重複記錄，達上限回 `409 YOUTUBE_LIFECYCLE_SWITCH_CONFLICT`。
+- 上傳核心以當前狀態與觀察版本原子佔用；重試需 failed、retrySafe=true、未達上限且已到退避時間。短片各入口共用排他權，過期 attempt 的成功／失敗結果不會覆寫新來源；佔用競爭可回既有 `409 YOUTUBE_UPLOAD_RETRY_NOT_ALLOWED`。
+- 隔離套用與上傳完成先用共用 `youtubebackups` 集合原子佔用 YouTube ID（以 `_id` 唯一）；不同內容競爭回既有 `409 YOUTUBE_QUARANTINE_VIDEO_IN_USE`。歸屬綁內容，ShortAsset 另含代數；同一 Video 的跨課程 attach／detach 與匯入 URL 共用仍保留。清理 intent、上傳 heartbeat、attempt 與來源版本屬內部欄位，不擴充公開 response。所有 writer 都需遵守新版條件更新；舊資料相容與失敗恢復見[實作約束](../../docs/04_Features/YouTube_Lifecycle/decisions.md#fr01fr06-共用資料庫修復約束2026-10-27)。
+- 清理預告是查詢當下的估算。預告與實刪共用 Video／ShortAsset 的實體檔案引用檢查；相對路徑以 backend 根目錄解析，根外、根目錄本身與經 symlink／junction 的來源拒絕清理。任何草稿、處理中或其他引用都會保護同檔來源。
+- 每支低空間候選在刪除前重新讀取可用空間，未知或已達門檻即略過；超最長保留期仍獨立處理。每次 unlink 前重查清理開關，停用或設定讀取失敗即停止。刪檔成功但資料庫收尾失敗時，保留 intent；恢復者須先原子接管並換 id／來源版本，再觀察檔案、以相同新 id 收尾或取消，不得依接管前的存在快照取消。Video 清空 filePath；ShortAsset 保留路徑並記 localCleanupAt，禁止錯誤回到 draft。不重複計算釋放量。
+- 課程 hard delete 在同一 Mongo transaction 封存 ShortAsset、刪除主課程影片／segments／通知／選課／FAQ、移除掛載與 activeCourseId，並寫入轉私人待辦。清理 intent、活躍影片上傳或狀態競爭會回 409，整個交易回滾；standalone Mongo 回 `503 COURSE_DELETE_UNAVAILABLE` 且不刪資料。200 代表 DB 交易已提交，YouTube 外部操作不在交易內。
 
 權限與隱私限制：
 
 - 刪除影片時轉為私人影片，需 OAuth 權限屬於[上傳服務](../src/services/youtubeUpload.service.js)的 `PRIVACY_CAPABLE_SCOPES`（例如 `youtube.force-ssl`）；只有 `youtube.upload` 不足以轉私人。
-- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片；轉私人失敗只記錄錯誤、不中斷系統刪除，所以不能保證 YouTube 影片必定下架。
+- `privatizeVideoOnDelete` 只處理 `youtubeUpload.status === 'uploaded'` 的影片。課程刪除先持久記錄 `coursedeletionjobs`，提交後失敗會每分鐘重試；單筆外部操作含 token／回應本文上限 30 秒，超時取消並保留待辦、繼續下一筆。執行中的工作在租約過期後可接管，重複設定 private 可安全重做。沿用原有轉私人開關及 OAuth 條件，條件不足會保留待辦，不能保證刪課回應時已在 YouTube 下架。單支影片刪除維持既有行為。
 - `unlisted` 是知道連結即可觀看；課程權限不能阻止取得連結的人轉貼。
 
 ## 5. 已完成與待定版
@@ -376,7 +383,7 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 - `/health.runtime.multimodal` 監控 snapshot，顯示 `video_segments_video` / `video_embedding_index` 狀態與目前 QA 接入邊界。
 - `video_segments_video` 初版 visual citation retrieval：backend 會從 course-scoped videos 的檔名 / URL 解析 pipeline visual ID，並用 Atlas `video_embedding_index` + `video_id` filter 檢索同課程視覺片段；回覆標示 `modality=video`、`clipPath` 與 timestamp citation。
 - Video presentation ownership：`ownership=app_owned|pipeline_metadata`、`isAppOwned`、`metadataOnly` 已固定為前端/LINE 共用語意。
-- `ShortAsset` model、內部 create/update service、修課限定學生 feed、Course hard delete idempotent 封存與 best-effort rollback。
+- `ShortAsset` model、內部 create/update service、修課限定學生 feed、Course hard delete 交易內封存及原子回滾。
 - YouTube metadata `videos.list` 批次同步、retry/backoff、結構化 unavailable log 與 `/health.runtime.shortsSync` 診斷。
 
 待定版：
@@ -423,3 +430,37 @@ YOUTUBE_UPLOAD_CLEANUP_MIN_AGE_DAYS=14
 本機瀏覽器可設定 `$env:AUTH_BROWSER_FIXTURE='local-only'`，執行 `node integration/auth.browser.cjs`，另啟動前端 Vite。此 fixture 只在 `127.0.0.1:4000` 使用記憶體 model 與假寄信；`127.0.0.1:4001` 可讀取假信驗證碼，`POST /reset?production=true&firstLoginRole=admin` 可重建 admin 首次登入情境，`POST /shutdown` 會關閉服務並清理專用上傳暫存目錄。它不載入 `server.js`、不連 Mongo、不寄真信或啟動 STT；production 參數只切換認證設定，正式 TLS、寄信送達與外部進站仍須另行驗收。
 
 adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_URI`，執行 `npm.cmd run db:ensure-auth-audit -- --database focusflow`。此帳號須有該集合的 createCollection 權限；authSessionsIndexer 不能代替。應用程式的新 model 都不在啟動時建集合或索引。
+
+## LINE Login 帳號連結
+
+已登入的學生以官方 LINE Login 連結 LINE，不必複製綁定碼；兩個端點都要登入，cookie 寫入同樣要符合 CSRF 檢查。
+
+1. `POST /api/v1/line/login/start`，選填 `courseId`、`replaceExisting`，回傳 `authorizeUrl`，前端導向該網址。
+2. LINE 導回 `LINE_LOGIN_CALLBACK_URL` 指定的前端頁面，網址帶 `code`、`state`。`SameSite=Strict` cookie 不會隨這次導回送出，所以由前端頁面接回呼，再以同來源 `fetch` 呼叫下一步。
+3. `POST /api/v1/line/login/complete` 帶 `code`、`state`，回傳 `bound`、`alreadyBound`、`replaced`、`friendship`（`friend`／`not_friend`／`unknown`）、`welcomeSent`、`course`。
+
+前端依錯誤碼提示下一步：
+
+| 錯誤 | 提示 |
+|---|---|
+| 401 `UNAUTHORIZED` | 回到原本的瀏覽器重新連結 |
+| 400 `LINE_LOGIN_STATE_INVALID`、403 `LINE_LOGIN_STATE_MISMATCH`、400 `LINE_LOGIN_ID_TOKEN_INVALID`、409 `LINE_BINDING_CHANGED`、502 `LINE_LOGIN_TOKEN_EXCHANGE_FAILED` | 連結沒有完成，請重新連結 |
+| 409 `LINE_ACCOUNT_ALREADY_BOUND` | 這個 LINE 已綁定其他帳號，請先從那個帳號解除 |
+| 409 `LINE_REPLACE_CONFIRMATION_REQUIRED` | 先問學生「將取代目前的 LINE」，同意後以 `replaceExisting: true` 重新開始 |
+| 503 `LINE_LOGIN_NOT_CONFIGURED` | LINE 提問頁自動改走綁定碼：開啟 LINE 後送出已填好的訊息 |
+
+使用者資料另有 `lineFriendStatus`（`friend`／`not_friend`／`unknown`，未綁定為 null），由綁定結果與 LINE 的 `follow`、`unfollow` 事件更新；封鎖官方帳號不解除綁定。
+
+`state` 第一次送出就作廢，比對失敗也一樣。LINE 身分只取自驗證過的 ID token，沒有 API 接受用戶端傳入的 `lineUserId`；LINE 的 access token 用完即丟，不寫入資料庫。舊綁定碼退場前沿用同一套規則：一個 LINE 只能綁一個帳號，衝突時拒絕、不解除對方的綁定。
+
+正式環境需要 `LINE_LOGIN_CHANNEL_ID`、`LINE_LOGIN_CHANNEL_SECRET`、`LINE_LOGIN_CALLBACK_URL`，Login channel 的 App type 選 Web app，並與 Messaging API channel 放在同一個 provider。`lineLoginStates` 的索引由 `LINE_LOGIN_STATES_MONGODB_URI` 指定連線，執行 `npm.cmd run db:ensure-line-login-states -- --database <確認過的目標>` 建立；應用程式啟動時不建集合或索引。
+
+本機隔離 Mongo 的競爭測試：設 `$env:LINE_LOGIN_TEST_MONGODB_URI='mongodb://127.0.0.1:27099'`，再跑 `npm.cmd run test:line-login-mongo`，只接受 loopback 位址，測試用隨機資料庫並清理。
+
+## YouTube Q 上傳、就緒與播放介面
+
+正式欄位見[共用資料契約](../../docs/04_Features/YouTube_Lifecycle/shared-data-contract.md)，每個端點的請求與回應以[OpenAPI](openapi.yaml)為準。`youtubeUpload.status` 新增 waiting，教師重試回 409 YOUTUBE_UPLOAD_QUOTA_WAITING，公開 details 帶 earliestRetryAt；上傳完成先 processing，processed／可嵌入／隱私合格後才 ready 並切換播放。
+
+影片 API 新增 playbackSource.type（youtube／local／unavailable）；本機播放網址為同來源 `/api/v1/videos/:videoId/source`，GET／HEAD 各自驗權限與 Range。播放欄位的轉換只在影片 API 邊界，資料庫、問答、FAQ、LINE 與 bridgeScope 的原始引用不因此改寫。預設未啟用原片播放時回 409，公開 `/uploads` 已移除。
+
+教師可讀 `/videos/upload-status` 與 `/videos/upload-storage`；管理員可讀 `/admin/youtube-lifecycle/uploads`、`privacy-incidents`、`storage`，或 POST `uploads/probe` 單支試傳與 `privacy/:kind/:id/unlisted` 修復隱私。所有回應都不含 session URL；新欄位均為新增，舊前端／舊資料維持相容。

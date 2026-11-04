@@ -3,8 +3,10 @@ const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const LineLoginState = require('../models/lineLoginState.model');
 const AppError = require('../utils/appError');
+const { LINE_FRIEND_STATUSES } = require('../constants/enums');
 const {
   bindLineAccount,
+  updateLineFriendStatus,
   selectCourseForBoundUser,
   sendBindWelcomeMessage,
 } = require('./line.service');
@@ -19,12 +21,6 @@ const LINE_ID_TOKEN_ISSUER = 'https://access.line.me';
 const LINE_LOGIN_SCOPE = 'openid profile';
 const STATE_TTL_MS = 10 * 60 * 1000;
 const LINE_REQUEST_TIMEOUT_MS = 10 * 1000;
-
-const FRIENDSHIP = {
-  FRIEND: 'friend',
-  NOT_FRIEND: 'not_friend',
-  UNKNOWN: 'unknown',
-};
 
 const BINDING_FAILURES = {
   line_bound_to_other_account: () => new AppError(
@@ -206,14 +202,14 @@ async function readFriendship(accessToken) {
     });
     if (!response.ok) {
       logLineFailure('friendship check', response.status);
-      return FRIENDSHIP.UNKNOWN;
+      return LINE_FRIEND_STATUSES.UNKNOWN;
     }
     const payload = await response.json();
-    if (typeof payload?.friendFlag !== 'boolean') return FRIENDSHIP.UNKNOWN;
-    return payload.friendFlag ? FRIENDSHIP.FRIEND : FRIENDSHIP.NOT_FRIEND;
+    if (typeof payload?.friendFlag !== 'boolean') return LINE_FRIEND_STATUSES.UNKNOWN;
+    return payload.friendFlag ? LINE_FRIEND_STATUSES.FRIEND : LINE_FRIEND_STATUSES.NOT_FRIEND;
   } catch {
     logLineFailure('friendship check');
-    return FRIENDSHIP.UNKNOWN;
+    return LINE_FRIEND_STATUSES.UNKNOWN;
   }
 }
 
@@ -235,7 +231,11 @@ async function completeLineLogin({ userId, sid, code, state }) {
   }
 
   const friendship = await readFriendship(tokens.access_token);
-  const welcomeSent = friendship === FRIENDSHIP.FRIEND && !binding.alreadyBound
+  // 查不到時保留已知的狀態，不用 unknown 蓋掉
+  if (friendship !== LINE_FRIEND_STATUSES.UNKNOWN) {
+    await updateLineFriendStatus(lineUserId, friendship);
+  }
+  const welcomeSent = friendship === LINE_FRIEND_STATUSES.FRIEND && !binding.alreadyBound
     ? await sendBindWelcomeMessage(lineUserId)
     : false;
   const course = record.courseId

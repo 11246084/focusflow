@@ -7142,6 +7142,14 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        lineFriendStatus:
+          description: 是否已加官方帳號好友，與綁定分開判斷；未綁定時為 null，無法確認時為 `unknown`。
+          type: [string, 'null']
+          enum:
+            - friend
+            - not_friend
+            - unknown
+            - null
         activeCourseId:
           anyOf:
             - $ref: '#/components/schemas/ObjectId'

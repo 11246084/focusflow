@@ -340,26 +340,29 @@ details.glossary .terms{margin-top:0}
   <aside class="panel" aria-live="polite"><h3>點左邊任一格</h3><p>步驟格說明它做什麼；紅色 ! 說明它擋下哪種攻擊。</p></aside>
 </div>
 
-<h2><span class="no">04</span>參考樣式：選單卡與回答卡（Flex Message）</h2>
-<p class="sub">手機和電腦版 LINE 都能顯示的卡片訊息。這是暫定方向，卡片放哪些項目、長怎樣，由你和 AI 討論決定。</p>
+<h2><span class="no">04</span>卡片樣式：切換課程與回答卡（Flex Message）</h2>
+<p class="sub">手機和電腦版 LINE 都能顯示的卡片訊息。原本參考樣式裡的「選單」卡和圖文選單重複，2026-11-03 決定不做。</p>
 <div class="mock">
   <div>
     <div class="chat">
-      <div class="me">選單</div>
-      <div class="flex">
-        <div class="fh"><b>FocusFlow 助教</b><span>目前課程：AI入門基礎課</span></div>
-        <div class="fb">
-          <div class="fbtn k1">📚 切換課程</div>
-          <div class="fbtn k2">🔢 今天還能問 3 次</div>
-          <div class="fbtn k3">🌐 開啟網頁版</div>
-          <div class="fbtn k4">❓ 使用說明</div>
-          <div class="fsep"></div>
-          <div class="fstat">✅ 已綁定 · 已加好友</div>
-          <div class="flink">解除綁定（到網頁操作）</div>
+      <div class="me">切換課程</div>
+      <div style="display:flex;gap:8px;overflow:hidden">
+        <div class="flex" style="flex:0 0 62%">
+          <div class="fb">
+            <div class="fstat" style="text-align:left;color:#06C755;font-weight:700">目前選擇</div>
+            <div class="ans"><b>AI入門基礎課</b></div>
+            <div class="fbtn" style="background:#2B4A9B">選這門課</div>
+          </div>
+        </div>
+        <div class="flex" style="flex:0 0 62%">
+          <div class="fb">
+            <div class="ans"><b>行銷管理</b></div>
+            <div class="fbtn" style="background:#2B4A9B">選這門課</div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="mockcap">選單卡（Menu Card）：輸入「選單」或按手機的圖文選單叫出。換模型、本月額度等系統設定完成後再加。</div>
+    <div class="mockcap">切換課程輪播（Carousel）：每門課一張卡，左右滑動，取代最多 4 顆按鈕的舊選單；最多 12 張，超過時最後一張引導到網站課程頁。輪播失敗時退回舊選單。不另做「選單」卡，手機用圖文選單（decisions.md LL9）。</div>
   </div>
   <div>
     <div class="chat">
@@ -394,7 +397,7 @@ details.glossary .terms{margin-top:0}
     <button class="chip g" data-tip="程式怎麼拆、測試怎麼寫。">程式與測試</button>
     <button class="chip g" data-tip="state 怎麼存、多久過期、怎麼驗證，都可以自己設計，只要 19 條攻擊情境都擋得住。">授權流程細節</button>
     <button class="chip g" data-tip="在本機另開測試 provider，或在正式 provider 測試，見下方比較。">測試環境</button>
-    <button class="chip g" data-tip="選單卡、回答卡要放哪些項目、版面與文案，第 04 段只是參考。">卡片的項目與版面</button>
+    <button class="chip g" data-tip="切換課程輪播、回答卡要放哪些項目、版面與文案。">卡片的項目與版面</button>
     <button class="chip g" data-tip="內容已定案（decisions.md LM），何時動工依優先順序決定；已綁定四格是切換課程、今日額度、使用說明、網頁版。">圖文選單何時動工</button>
   </div></div>
   <div class="canvas col r"><h3>不能踩的線，要改先找 Weihao</h3><div class="chips">
@@ -458,7 +461,7 @@ details.glossary .terms{margin-top:0}
   <div><b>✋ 做不到</b>或要求互相矛盾。照實說</div>
 </div>
 
-<footer>更新 2026-11-02 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LM 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<footer>更新 2026-11-03 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LL9 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>
@@ -466,12 +469,12 @@ var D={
 z1:["按「連結 LINE」（LINE Login）","free","學生已登入網頁，按一個按鈕就開始。從 Bot 或「詢問助教」進來的學生，也走同一條路。"],
 z2:["LINE 授權（OAuth 2.0）","have","在 LINE 的授權畫面按「許可」，由 LINE 證明這個人是這個 LINE 帳號的主人；加好友在同一畫面勾選，或在許可之後另跳一頁按「加入好友」，看用哪種設定（bot_prompt）。"],
 z3:["後端核對＋驗證（CSRF 防護、ID Token 驗證）","lock","確認 state 是同一位登入者發起、沒過期、沒用過，再驗證 LINE 給的身分證明。"],
-z7:["Bot 回覆（Flex 回答卡）","free","回答改成卡片：課程、回答、最多 3 筆引用，引用可點「▶ 看這段」。沒有開發字樣，時間寫成 1:15 - 2:00。卡片失敗時退回純文字。"],
+z7:["Bot 回覆（Flex 回答卡）","free","已做好（程式）：回答改成卡片，上方課程、中間回答、最多 3 筆引用，可點「▶ 看這段」；時間寫成 1:15 - 2:00，降級時保留 [MVP…] 警示（降級本身另外修）；卡片失敗時退回純文字（decisions.md LL8）。切換課程改成卡片輪播，超過 4 門課也列得出來（LL9）。還沒在手機與電腦版 LINE 實測。"],
 z8:["教師統計（Source Breakdown）","free","網頁和 LINE 的提問數分開顯示，總數算法不變，用來看改版有沒有效果。"],
 z9:["LINE Login channel","lock","在現有 provider 新建；正式後台每一步都要 Weihao 先同意，改成 Published 後無法退回。"],
 z10:["一次性 state 存放（State Store）","free","已做好：lineLoginStates 只存 state 的雜湊，10 分鐘過期；送進來就刪除，比對失敗也作廢（decisions.md LL1）。"],
 z11:["衝突檢查（Unique Index）","lock","一個 LINE 只能綁一個帳號；搶綁拒絕，自己換綁要先確認。"],
-z12:["綁定狀態頁","free","網頁看得出是否已連結、是否已加好友、怎麼解除，出錯時告訴學生怎麼做。"],
+z12:["綁定狀態頁","free","已做好：未綁定進 LINE 提問頁就直接前往 LINE 授權；已綁定頁看得出是否已連結、怎麼解除，沒加好友才提示；/line/callback 告訴學生結果與下一步（decisions.md LL6、LL7）。還沒用真的 LINE 實測。"],
 z13:["19 條攻擊情境測試","lock","Weihao 寫好的清單，每一條都要寫成自動測試並通過，才算完成。"],
 z14:["圖文選單（Rich Menu）","free","兩張選單：未綁定一格「連結帳號」，已綁定四格「切換課程、今日額度、使用說明、網頁版」。綁定成功時由後端指定，解除時取消，學生不必重綁（decisions.md LM）。"],
 l1:["網頁產生綁定碼（Bind Token）","have","學生在「LINE 提問」頁按按鈕，後端產生 64 字元、10 分鐘有效的碼。從課程的「詢問助教」進來時，會產生帶課程的版本。"],

@@ -212,6 +212,29 @@ describe('LINE Login 綁定', () => {
       assert.equal(findUser(ids.student).lineUserId, NEW_LINE_ID);
     });
 
+    it('好友狀態會記下來，/auth/me 回傳狀態但不回傳 LINE ID', async () => {
+      line.friendship = () => jsonResponse(200, { friendFlag: false });
+      await runFlow(studentToken);
+
+      const me = await jsonRequest(serverContext.baseUrl, '/api/v1/auth/me', { token: studentToken });
+
+      assert.equal(me.body.data.user.isLineBound, true);
+      assert.equal(me.body.data.user.lineFriendStatus, 'not_friend');
+      assert.equal(JSON.stringify(me.body).includes(NEW_LINE_ID), false);
+    });
+
+    it('好友狀態查不到時保留已知的狀態', async () => {
+      const student = findUser(ids.student);
+      student.lineUserId = NEW_LINE_ID;
+      student.lineFriendStatus = 'friend';
+      line.friendship = () => jsonResponse(500, {});
+
+      const result = await runFlow(studentToken);
+
+      assert.equal(result.body.data.friendship, 'unknown');
+      assert.equal(student.lineFriendStatus, 'friend');
+    });
+
     it('開始新的連結時，同一位使用者先前未完成的流程作廢', async () => {
       const first = await startFlow(studentToken);
       await startFlow(studentToken);

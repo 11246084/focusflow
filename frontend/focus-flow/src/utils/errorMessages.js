@@ -1,6 +1,7 @@
 // 後端錯誤訊息是英文（給開發者與 log 用），使用者看到的一律換成中文。
 // 優先依錯誤碼對應；沒有對應時依 HTTP 狀態給通用說明。
 const CODE_MESSAGES = {
+  LINE_LOGIN_NOT_CONFIGURED: '暫時無法用這個方式連結 LINE，請稍後再試。',
   UPLOAD_STORAGE_LOW: '伺服器儲存空間不足，暫時無法上傳，請聯絡管理員。',
   YOUTUBE_UPLOAD_QUOTA_WAITING: 'YouTube 上傳等待中，系統會自動補傳，請稍後查看。',
   UPLOAD_TOO_LARGE: '檔案超過上傳大小上限。',

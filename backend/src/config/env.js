@@ -254,6 +254,10 @@ module.exports = {
   recutFfprobe: process.env.RECUT_FFPROBE || 'ffprobe',
   recutPython: process.env.RECUT_PYTHON || path.resolve(projectRoot, '../STT_Whisper/.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
   recutAsrModel: process.env.RECUT_ASR_MODEL || 'small',
+  // 外部模型 API 的逾時；逾時或暫時性錯誤（429、5xx、連線失敗）會重試，產生回答 1 次、embedding 2 次。
+  qaAnswerTimeoutMs: parsePositiveInteger(process.env.QA_ANSWER_TIMEOUT_MS, 20000, 'QA_ANSWER_TIMEOUT_MS'),
+  qaEmbeddingTimeoutMs: parsePositiveInteger(process.env.QA_EMBEDDING_TIMEOUT_MS, 8000, 'QA_EMBEDDING_TIMEOUT_MS'),
+  qaProviderRetryDelayMs: parseNonNegativeNumber(process.env.QA_PROVIDER_RETRY_DELAY_MS, 500),
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
   openaiChatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',

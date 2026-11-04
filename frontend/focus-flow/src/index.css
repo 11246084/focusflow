@@ -1655,6 +1655,13 @@ a.nav-item { text-decoration: none; }
   .stat-val { font-size: 26px; }
 }
 
+/* LINE 備援：電腦是左文字右 QR code；手機掃不了自己的螢幕，只留置中的說明與按鈕。 */
+@media (max-width: 768px) {
+  .linebot-desktop-only { display: none; }
+  .linebot-fallback-text { text-align: center; }
+  .linebot-fallback-open { width: 100%; }
+}
+
 /* Narrow viewports retain the vertical sidebar. */
 @media (max-width: 768px) {
   .dashboard-shell { height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }

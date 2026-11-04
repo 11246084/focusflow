@@ -43,6 +43,7 @@ npm.cmd run dev
 | `npm.cmd run seed:reset` | 保守清除示範帳號產生的資料後重建 |
 | `npm.cmd run db:sync-atlas` | 把本機資料同步到 Atlas |
 | `npm.cmd run db:ensure-questions` | 建立 `questions` 集合並同步索引 |
+| `npm.cmd run line:rich-menu -- --site-url <網址>` | 預覽 LINE 圖文選單；加 `--apply` 才在 LINE 建立兩張選單並設預設（對外寫入，需授權）。權杖從指令列環境的 `LINE_CHANNEL_ACCESS_TOKEN` 讀取，不讀 `.env`；退回用 `--rollback --unbound-id <ID> --bound-id <ID> --apply` |
 | `npm.cmd run db:backfill-questions` | 預設只預覽（dry-run），加 `-- --write` 才寫入 |
 
 問答設定有幾個限制：`QA_ANSWER_PROVIDER=gemini` 必須設定 `GEMINI_API_KEY`，缺少時直接回設定錯誤，不會改用其他方式；`QA_VECTOR_SEARCH_MODE=atlas` 不能搭配 `QA_QUERY_EMBEDDING_PROVIDER=mock`。服務是否可用，看 `/health` 的 `runtime.qa`、`runtime.line`、`runtime.youtubeUpload`，不以 `.env` 有填值推定。

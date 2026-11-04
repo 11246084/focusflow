@@ -754,7 +754,9 @@ describe('line webhook routes', () => {
     assert.equal(student.lineConversationState, 'idle');
   });
 
-  it('rejects select_course postbacks when course switching was not started', async () => {
+  it('課程卡片的選課按鈕不必先輸入「切換課程」，較早送出的卡片也能直接選', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.lineConversationState = 'idle';
     const payload = JSON.stringify({
       events: [
         {
@@ -770,8 +772,27 @@ describe('line webhook routes', () => {
     });
 
     assert.equal(result.status, 200);
-    assert.equal(result.body.data.results[0].handled, false);
-    assert.equal(result.body.data.results[0].reason, 'conversation_state_invalid');
+    assert.equal(result.body.data.results[0].handled, true);
+    assert.equal(String(student.activeCourseId), ids.publishedCourse);
+  });
+
+  it('選課按鈕仍會重新檢查修課權限與課程 ID 格式', async () => {
+    const send = async (courseId) => {
+      const payload = JSON.stringify({
+        events: [{
+          type: 'postback',
+          replyToken: `reply-select-${courseId}`,
+          source: { userId: 'line-student-001' },
+          postback: { data: `action=select_course&courseId=${courseId}` },
+        }],
+      });
+      return postLineWebhook(serverContext.baseUrl, payload, { 'x-line-signature': createLineSignature(payload) });
+    };
+
+    const invalid = await send('not-an-id');
+    assert.equal(invalid.body.data.results[0].reason, 'course_id_invalid');
+    const notEnrolled = await send(ids.teacherCourse);
+    assert.equal(notEnrolled.body.data.results[0].reason, 'course_access_denied');
   });
 
   it('blocks questions while course selection is pending', async () => {

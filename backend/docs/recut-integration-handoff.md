@@ -2,9 +2,9 @@
 
 這份草稿讓前端工程師把教師從上傳、同意、產稿、修改、審核到學生觀看串成可理解的流程。請先依目前 API 與狀態接線，再用實際瀏覽器與教師操作驗證；後端仍在整合及獨立審查，本文不代表正式驗收。進度只看[目前狀態](../../docs/current-status.md)，完整欄位與回應以 [OpenAPI](openapi.yaml) 和目前程式為準。
 
-## 2026-11-04 試產查核快照
+## 2026-11-05 交付查核快照
 
-授權教授原片已在本機 bootstrap，首尾截斷句不可選。前三次 provider 呼叫取得用量、第三次選段成功；原 cards 嘗試被本機 guard 阻擋，未出站。實際續跑第四次 provider 嘗試的 cards 為 36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null，遠端是否收件或計費未知。保守計額 provider 4 次、workflow 5 次，原五次上限剩一次，不足 cards 與必要 wholeCheck 兩步；永久 claim 不重置、無自動付費重試。目前無 generation checkpoint 或 MP4，教授試片 BLOCKED，需額外決策；這不阻擋前端依契約開發。目前 adapter 將 HTTP 與網路錯誤折疊為同一代碼且未保存狀態，無法回溯本次原因；schema 複雜度只是候選風險。建議後續加入不含原始錯誤、本文、header 或 prompt 的白名單診斷及另行評估 schema 瘦身，均尚未實作。最新合併候選 `028f8f8` 的 backend 全套進行中；進度與明細看[目前狀態](../../docs/current-status.md)。
+授權教授原片已在本機 bootstrap，首尾截斷句不可選。前三次 provider 呼叫取得用量、第三次選段成功；原 cards 嘗試被本機 guard 阻擋，未出站。實際續跑第四次 provider 嘗試的 cards 為 36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null，遠端是否收件或計費未知。保守計額 provider 4 次、workflow 5 次，原五次上限剩一次，不足 cards 與必要 wholeCheck 兩步；永久 claim 不重置、無自動付費重試。目前無 generation checkpoint 或 MP4，教授試片 BLOCKED，需額外決策；這不阻擋前端依契約開發。目前 adapter 將 HTTP 與網路錯誤折疊為同一代碼且未保存狀態，無法回溯本次原因；schema 複雜度只是候選風險。建議後續加入不含原始錯誤、本文、header 或 prompt 的白名單診斷及另行評估 schema 瘦身，均尚未實作。前一候選 `028f8f8` 的 backend 全套 1,710 通過、2 跳過、0 失敗、exit 0；最新來源 `2232036` 全套 1,750 項、1,748 通過、2 跳過、0 失敗、exit 0；共用 provider 重試 body 釋放修正已經獨立複核，與本次 cards 失敗原因無關；進度與明細看[目前狀態](../../docs/current-status.md)。
 
 ## 接手前先知道
 

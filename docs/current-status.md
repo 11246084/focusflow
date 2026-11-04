@@ -4,11 +4,11 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
-## Recut 交付候選檢查點（2026-11-04）
+## Recut 交付候選檢查點（2026-11-05）
 
 前端串接準備度為 **CONDITIONAL**：可依 [OpenAPI](../backend/docs/openapi.yaml) 與[前端交接](../backend/docs/recut-integration-handoff.md)開發，但正式使用仍需設定、正式 UI、外部服務與人工驗收。[工程報告](07_HTML說明頁/Recut工程交付報告.html)是本日快照，後續狀態以本節更新為準。
 
-最新 dev `7853130` 已合入候選 `028f8f8`，保留團隊 LINE、QA 與前端變更；設定範例衝突並存 recut 五欄及 QA 三欄。新進 timeout 測試因僅靠 unref AbortSignal 而取消，已只調整三個測試生命週期並保留斷言：定向 52／52、獨立合併複核 127 個不同測試通過，未改產品程式。`028f8f8` 完整 backend 測試進行中，early timeout 3／3；新 OpenAPI lint valid、1 ignored。recut 與 short_render 程式仍與 `9ad9407` 相同，當時 backend 1,682 項、1,680 通過、2 跳過、0 失敗、exit 0 屬較早來源結果，不能當新合併後全套結論。fresh 隔離 Mongo 租約 6／6、同意 1／1，renderer 148／148、0 跳過。Windows symlink 未驗證；本機 ignored 日誌不隨 Git 交付。
+本機 `feat/recut` 已快轉整合最新 `origin/dev` `8c0a5e0`（合併提交 `574daf2`），程式驗證點 `2232036`，recut 來源 `9ad9407`；交付範圍為 dev 協作分支，本輪未執行 main 或部署。獨立審查發現共用 provider 重試在 503 headers 已到、body 卡住時未釋放舊傳輸的 P2，`2232036` 在重試前中止被丟棄的傳輸，保留成功回應期限與取消行為。作者定向 57 項及獨立 60 項、native probe／cleanup matrix 通過，P2 已關閉；這不是教授 cards 失敗原因的修復。原 `8c0a5e0` 合併後全套主動中斷，不作通過證據；最新來源 `2232036` 完整 backend 全套 1,750 項、1,748 通過、0 失敗、2 跳過、0 取消，174 suites、exit 0，耗時 1,541,837 ms；481 個執行時 tracked 檔起訖 SHA-256 無差異。兩項跳過為 Windows symlink 與 consent Mongo opt-in；fencing suite 註記不另算第三項，專用 Mongo 已另驗 6＋1。前一候選 `028f8f8` 全套 1,712 項、1,710 通過、0 失敗、2 跳過、0 取消、exit 0，不能代替最新來源結果。較早 fresh 隔離 Mongo 租約 6／6、同意 1／1，renderer 148／148、0 跳過；Windows symlink 未驗證。本機 ignored 日誌不隨 Git 交付。
 
 `ce4a76f` 自動組裝 backend runtime，fake HTTP 202 → queue → script_review 測試 7／7；`1da5097` 加入可持久保存的 render-ready 通知，fake 測試 22／22。這些是本機替身測試，不代表真服務或教師驗收。正式前端尚未串接 recut，現有網頁仍是八拍流程；管理員正常配置一次並維持 RC7 worker 常駐後，目標流程才是教師審完整講稿、再審實際 MP4，並待遠端 ready 與當前成品核准雙閘門成立。
 

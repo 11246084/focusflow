@@ -13,6 +13,7 @@ GitHub 網頁不會顯示 HTML 的畫面。請先 `git pull`，再用以下任�
 
 | 說明頁 | 給誰 | 對應功能 |
 |---|---|---|
+| [Recut工程交付報告.html](Recut工程交付報告.html) | 前端工程師及跨職能接手者 | [前端串接交接](../../backend/docs/recut-integration-handoff.md) |
 | [多模態檢索.html](多模態檢索.html) | 庭語 | [多模態檢索、章節與影片升級](../04_Features/Multimodal_Retrieval/HANDOFF.md) |
 | [LINE綁定.html](LINE綁定.html) | 百陶 | [LINE 學習入口與帳號綁定](../04_Features/LINE_Binding/HANDOFF.md) |
 

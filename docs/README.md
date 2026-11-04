@@ -61,7 +61,9 @@ recut 原片處理：[連續視窗、音量與切句規則](../backend/docs/recu
 
 recut 選段：[指示文字、驗證與共用呼叫介面](../backend/docs/recut-selection.md)。
 
-recut 教師審閱：[RC8 API、草稿與 RC4／RC9 接手](../backend/docs/recut-review.md)。
+recut 工程交付：[離線互動報告](07_HTML說明頁/Recut工程交付報告.html)。
+
+recut 教師審閱：[RC8 API、草稿與 RC4／RC9 接手](../backend/docs/recut-review.md)；[前端串接交接草稿](../backend/docs/recut-integration-handoff.md)。
 
 recut 同意與撤回：[RC10 條款、範圍與持久重試設計](../backend/docs/recut-consent.md)（交付候選整合中）。
 

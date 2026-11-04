@@ -4,6 +4,26 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## Recut 交付候選檢查點（2026-11-04）
+
+前端串接準備度為 **CONDITIONAL**：可依 [OpenAPI](../backend/docs/openapi.yaml) 與[前端交接](../backend/docs/recut-integration-handoff.md)開發，但正式使用仍需設定、正式 UI、外部服務與人工驗收。[工程報告](07_HTML說明頁/Recut工程交付報告.html)是本日快照，後續狀態以本節更新為準。
+
+後端來源凍結於 `9ad9407`，renderer 字型修正為 `74317a5`；文件提交不納入此來源驗證點。backend `npm.cmd test` 共 1,682 項：1,680 通過、0 失敗、2 跳過、0 取消，原程序 exit 0。兩項跳過為 Windows 禁止 symlink 與未明確 opt-in 的 consent Mongo；另有 recut Mongo suite 跳過註記，不另計第三項測試。另以 fresh 專用隔離 Mongo 執行租約 6／6、同意 1／1；Windows symlink 未驗證。renderer `npm.cmd test` 148／148、0 跳過；`npm.cmd run docs:lint` valid、1 項明確忽略。完整日誌位於本機 ignored 的 `short_render/out/final-qa-20261104/`，不隨 Git 交付。較早全套 1,631 項中兩項失敗已由 `3972a7d` 修正測試前提並非作者複驗 56／56；該數字是歷史結果。
+
+`ce4a76f` 自動組裝 backend runtime，fake HTTP 202 → queue → script_review 測試 7／7；`1da5097` 加入可持久保存的 render-ready 通知，fake 測試 22／22。這些是本機替身測試，不代表真服務或教師驗收。正式前端尚未串接 recut，現有網頁仍是八拍流程；管理員正常配置一次並維持 RC7 worker 常駐後，目標流程才是教師審完整講稿、再審實際 MP4，並待遠端 ready 與當前成品核准雙閘門成立。
+
+獨立複核 core／consent 80／80、worker render／process 8／8；受限 sandbox 的 loopback 出現 EACCES，限定升權後 fake HTTP 15／15 通過。fresh 隔離 Mongo 租約 6／6、同意 1／1；後者使用的隨機資料庫保留，未刪除教授資料。對應測試及本機紀錄可由[工程報告](07_HTML說明頁/Recut工程交付報告.html)追溯。
+
+**交接限制：**RC10 決策 #78 要求即使功能開關關閉，上傳仍先檢查內容同意；現有前端尚未接上，舊上傳流程在缺少有效內容同意時會收到 409。可供前端開發與 dev 整合，不能直接部署 main。使用者已授權本次合併並 push dev；部署流程僅 main push 觸發。
+
+工程報告本身的離線瀏覽器複核通過 1440／390／360 寬度、六情境、12 個節點、8 種發布條件與鍵盤操作；這不是正式前端或教師驗收。
+
+R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）通過；catalog 的 aiOnly 為 12，code 仍為 RC6 專用。這不代表真實課程影片或真人審片驗收。
+
+教授授權原片經 CPU small ASR，45.03 秒，正規化 441 words、24 句。Docker 已重新啟動，專用 27029 與 27031 本機 Mongo 可用；bootstrap 已在本機 `recut_trial_professor-siri-20261103` 七個集合各新增一筆，fresh 24 句的 s1／s24 禁選。使用者自行在 PowerShell 遮蔽輸入金鑰，agent 未讀取金鑰或環境檔。單題試產實際呼叫 Gemini **3 次**：選段前兩次驗證失敗、第三次成功；cards 第四次工作嘗試因本機 100,000 bytes guard 回 `RECUT_TRIAL_REQUEST_TOO_LARGE`，未發 HTTP，也沒有該次模型用量。`callsUsed=4` 是工作嘗試計數，不是四次實際呼叫；目前沒有 MP4。執行紀錄為 `short_render/out/professor-run-once-20261104/run.json`，`5102638` 將 cards payload 由 104,529 降至 36,144 bytes，保留所有選句原始 words／timing 與完整驗證；安全續跑於 `9ad9407` 凍結：owner 60／60、獨立複核 59／59，另有 native Mongo CAS 與正式組裝 fake 驗證；教授資料的實際續跑結果待確認，不能宣稱成功。
+
+本次實際使用量為 input 39,049、output 1,062 tokens，Standard tier；依官方 Standard 價格估算約 US$0.03326925，並非帳單。保守預留累計 US$0.1234725；原上限五次實際呼叫、US$0.50 不變，尚餘兩次實際呼叫額度。正式十題試跑、RC12 原音正式試跑與下載未授權、未執行；Atlas、VM、真 YouTube／LINE、正式部署、正式前端 UI 與真人審片皆未驗證。
+
 ## 各模組
 
 **httpOnly cookie 認證｜已部署；2026-10-25 正式環境驗收通過。** 2026-10-25 13:13 部署到正式站（`main` = `d3de1ef`），部署探測與瀏覽器驗收通過，過程、Atlas 寫入與 VM 設定見[上線紀錄](10_Operations/deployment/2026-10-25_httpOnly_cookie認證上線紀錄.md)；正式站未測 step-up 與信任裝置，nginx 未轉送 `/uploads` 為既有問題。2026-10-24～25 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查及修正後複核。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋。2026-10-25 依使用者補充定案完成升權撤銷：學生／教師實際升為 admin 時，同次更新角色與版本、撤銷全部憑證；重新登入並通過信箱兩段式驗證，才取得 12 小時新 session。原 admin 僅編輯姓名不撤銷，session 刪除故障也不放行舊憑證。原審查 findings 已全部處理，本輪完整後端測試通過。
@@ -93,7 +113,7 @@
 
 本輪 DoD：先完成 recut 成品核准／退回、ShortAsset review 與 YouTube ready 雙向發布及失敗修復；再接 RC4／RC5／RC6、本機 CLI，完成可隔離驗證的 RC7 後端 worker 身分／租約／成品回傳與 RC10 同意／撤回。每項必須有本輪 fake/記憶體或專用 loopback Mongo 證據，最後獨立審查、修正與全套檢查後才稱候選完成。歷史測試數字不作本輪證據。
 
-外部服務、Atlas、VM、真 YouTube／Gemini、正式部署與人工驗收未執行；正式前端 UI 不在本輪。RC12 因原音技術試跑尚未通過且模型下載未授權，維持 BLOCKED；合成語音選項須明確回未就緒。
+當次外部服務、Atlas、VM、真 YouTube／Gemini、正式部署與人工驗收未執行；後續 Gemini 試產見上方 2026-11-04 檢查點。正式前端 UI 不在本輪。RC12 因原音技術試跑尚未通過且模型下載未授權，維持 BLOCKED；合成語音選項須明確回未就緒。
 
 2026-11-01 本輪續接：成品核准同步 RecutApproval 與 ShortAsset 的精確 versionId／assetId／generationVersion；退回依呈現／內容分流，YouTube ready 與核准任一先到均可接續發布，中斷後修復同一成品。RC7 後端已加入雜湊 worker 金鑰、FIFO、10 分鐘租約、3 次派工上限、版本核對、受限原片下載、成品檢查與可恢復回傳。以禁止 dotenv 讀檔的 preload 執行 fake/harness targeted 58／58、路由契約 11／11、OpenAPI lint 通過；尚待跨程序 Mongo 競爭驗證、renderer／pipeline 整合、RC10 gate 與最終獨立驗證，不能據此稱整體完成。
 
@@ -107,7 +127,7 @@
 
 shared backend 已以 `b73ed48` 接上同意閘門、撤回實際取消／封存／轉私人待辦與通知、harness 及跨模組測試。跨模組撤回 6／6 通過，包含未選中已發布成品保留、選中成品封存、管理員去重通知，以及發布 CAS／YouTube 已送 bytes／渲染成品建立三種交錯。factory 4／4 含真 HTTP controller（缺配置 503、配置後生成及建議重跑）與 runtime factory 接 RC2～RC4 三次 fake 判斷。shared／worker／queue／契約 targeted 63／63、OpenAPI lint 通過；上傳／批次／短片回歸 115 項中 114 項通過，唯一舊 fixture 缺少新課程同意已補成真 HTTP「409 → 明確同意 → 201」，其後該項與最新撤回增量 7／7 通過。尚未以完整新一輪全套取代上述分段證據。
 
-最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 修後獨立複驗 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產；本輪教授試產 owner 回報重新執行 CPU small ASR 成功（45.03 秒、441 個有效 word、24 句），優先使用這份新辨識結果。較早 CPU／GPU 記憶體錯誤與 `legacy-cached-20261014` 快取仍為歷史紀錄，不把快取說成本次 ASR 成功。使用者另已授權單題 Gemini 費用不超過 US$0.50，後續試產固定 `gemini-3.8-flash`、最多 5 次、每次 output 4096，不傳原始影片且不使用備援模型；此處記錄授權，尚不表示模型已呼叫。Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。
+最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 修後獨立複驗 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產；本輪教授試產 owner 回報重新執行 CPU small ASR 成功（45.03 秒、441 個有效 word、24 句），優先使用這份新辨識結果。較早 CPU／GPU 記憶體錯誤與 `legacy-cached-20261014` 快取仍為歷史紀錄，不把快取說成本次 ASR 成功。使用者另已授權單題 Gemini 費用不超過 US$0.50，後續試產固定 `gemini-3.8-flash`、最多 5 次、每次 output 4096，不傳原始影片且不使用備援模型；此段為當時授權紀錄；後續實際呼叫見上方 2026-11-04 檢查點。Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。
 
 ### shared backend 五項初審問題的修後檢查點
 
@@ -135,4 +155,4 @@ node --require ./tests/helpers/noDotenv.cjs --test --experimental-test-isolation
 npm.cmd run docs:lint
 ```
 
-只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。這些是當次 owner 診斷，需由後續執行者重新確認；不得改連正式資料庫或把費用授權當成已呼叫。
+只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。以上為 2026-11-03 當次診斷，已由上方 2026-11-04 Docker 與真模型試產紀錄取代；不得改連正式資料庫。

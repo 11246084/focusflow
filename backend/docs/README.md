@@ -11,7 +11,7 @@
 | 接上 recut 原片處理、生成與審閱 | [資料、狀態機與背景工作](recut-foundation.md)；含句子格式、註冊步驟與恢復規則 |
 | 接上 recut 視窗與辨識 | [連續視窗、音量與切句規則](recut-source.md) |
 | 接上 recut 第一步與 RC4 | [指示、驗證與共用呼叫介面](recut-selection.md) |
-| 接上 recut 教師審閱頁 | [審閱 API、草稿與重跑步驟](recut-review.md) |
+| 接上 recut 教師流程 | [前端串接交接草稿](recut-integration-handoff.md)、[審閱 API、草稿與重跑步驟](recut-review.md) |
 | 操作影片處理與續跑 | [Pipeline 使用方式](../../STT_Whisper/README.md) |
 | 查學生短片牆的接線與操作 | [前端完成交接](handoff-shorts-frontend-done.md) |
 | 查待辦或追溯變更 | [待辦](todo.md)、[實作紀錄](implementation-log.md)、[較早紀錄](implementation-log.archive.md)；保留原日期，不當目前狀態 |

@@ -204,3 +204,22 @@ node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json 
 只在本次明確指定的 `--output` 目錄產生 `report.md`、`evidence.json` 與各題的施工單、講稿、run 紀錄／mp4。剪接自然度、團隊修改量、教授核准與回答不了判斷正確性均留空由人填。開發測試不在 repo 製造正式證據；實際授權試跑後，再將真實報告依 [RC11b 工單](../docs/04_Features/Short_Video/work-orders/RC11-trial-tooling.md) 登記至 evidence 索引。
 
 辨識與審閱串接需同時使用 [來源介面](docs/recut-source.md)與[選段限制](docs/recut-selection.md)：媒體轉接回逐字與辨識證據，凍結的截斷句禁止清單適用模型與教師修改，不能在前端解除。
+
+## recut 後端自動處理與常駐渲染
+
+管理員先配置一次，正式前端完成串接後，教師才能從網頁送出生成任務；現有網頁仍為八拍流程，尚未接上 recut。後端收到任務後處理來源、選段、圖卡與檢查。MP4 由另外常駐的 RC7 worker 領取已核准工作；教師不需要執行試產指令或提供模型金鑰。功能進度及未驗收項目見[目前狀態](../docs/current-status.md)。
+
+1. 將[非秘密設定範例](examples/recut-host-runtime.example.json)複製到管理員維護的絕對路徑，填入已安裝的 FFmpeg、ffprobe、Python、轉錄程式與已有的 faster-whisper 模型目錄。原片允許目錄與暫存根目錄必須已存在；工具及原片須為本機實檔，原片解析符號連結後仍須在允許目錄。這份 JSON 不放金鑰、資料庫 URI 或登入資料；程式不代裝工具或下載模型。
+2. 在後端啟動環境設定 `SHORT_SCRIPT_AUTOMATION_ENABLED=true`、`RECUT_RUNTIME_CONFIG_PATH`（上述 JSON 的絕對路徑），並透過受信任方式注入 `geminiApiKeyEnv` 指定的環境變數。`allowedGeminiModels` 必須包含系統設定目前選用的模型；JSON 只限制可用模型，不取代 `recut.geminiModel` 與每次任務的設定快照。`modelCallsEnabled:true` 表示管理員允許此 host 呼叫所列模型，啟用前須確認服務及費用授權。`codeCardsEnabled` 明確決定是否接上來源畫面的程式碼辨識。
+3. 依一般方式啟動 backend。它會自行組裝模型、媒體與施工單轉接，建立轉接時不執行工具或送模型請求；收到任務後才處理，重啟時沿用既有排隊恢復規則。缺配置時其他後端功能仍可啟動，生成／套用回 `503 RECUT_STEPS_NOT_CONFIGURED`；啟動紀錄只顯示固定原因，如 `runtimeConfigMissing`、`pathsInvalid`、`modelNotAllowed`、`providerKeyMissing`，不輸出實際路徑或金鑰。
+4. 在指定渲染電腦依 [RC7 worker 安裝與設定](../short_render/README.md#rc7-常駐-worker)備妥 chrome-headless-shell、Noto Sans TC、工具與該電腦專用金鑰，再以常駐模式啟動 `node bin/recut-worker.js --config <本機設定的絕對路徑>`（在 `short_render` 執行，不加 `--once`）。管理員可將同一命令交由既有的作業系統程序管理工具在登入／開機時維持執行；後端本身不代裝系統服務。worker 每 10 秒領工作、渲染中每 60 秒回報心跳；VM 渲染仍預設停用。
+
+例：教師要求生成 → 後端回 202 並自行完成講稿 → 教師「通過講稿，製作短片」（前端依序呼叫核准與排入渲染）→ 常駐 worker 自行完成 MP4 → 教師審看實際成品。講稿核准成功但渲染排隊失敗時，前端保留已核准狀態，重新讀取目前 revision 後重試排隊；不要重新生成講稿或宣稱已發布。上述命令屬管理員一次性服務配置，真實工具、模型、worker 與教師操作仍須另外驗證。
+
+教授的 `recut_trial_professor-*` 單次試產資料庫另受該次政策與原始預算限制，普通 host 啟動會在讀 runtime JSON 或金鑰前回 `host.professorTrialNamespace`，不可借用這個入口補跑或繞過剩餘呼叫上限。該資料只使用既有單題試產與受控續跑服務。
+
+### 受控試產續跑與重新渲染（工程操作）
+
+正常教師流程由已串接的網頁呼叫 API，管理員只需依上節配置 host 並維持 RC7 worker 常駐；以下是受控試產的工程介面，並非教師每次操作。`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`。教授試產已用三次實際呼叫，原上限五次與 US$0.50 保持不變，最多再用 cards 與 wholeCheck 各一次；請求前資料庫 reservation ledger 永久 claim。新單題與續跑保存 progress、source、plan、full script、generation checkpoint 與資料庫 hash root。
+
+`executeRecutTrialRerender` 和單題 CLI 的 `--rerender-from` 支援零模型呼叫重新渲染，CLI 不帶 `--allow-model`；不讀模型金鑰，並檢查資料庫 generation／source／script 綁定及重新驗證原始 MP4 hash，自簽 checkpoint 不能繞過綁定。介面與限制見[交接文件](docs/recut-integration-handoff.md#受控試產續跑與重新渲染)及 [resume service](src/services/recutTrialResume.service.js)。本機 ignored 目錄中的私有輸入輔助程式不隨 Git 交付。

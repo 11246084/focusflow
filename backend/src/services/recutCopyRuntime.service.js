@@ -76,10 +76,33 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
   };
   const id = (value) => new ObjectId(String(value));
   const find = (name, value) => db.collection(name).findOne({ _id: id(value) });
+  const scriptSignature = (script) => require('./recutTrialResume.service').canonicalSha256({
+    _id: script._id, courseId: script.courseId, topic: script.topic, status: script.status, recut: script.recut });
+  const verifyResumeState = async (resume, requireTicket = true) => {
+    const { canonicalSha256 } = require('./recutTrialResume.service');
+    const cp = resume.checkpoint, input = resume.input;
+    const script = await find('shortscripts', input.scriptId), source = await find('recutsources', cp.source._id);
+    const budget = await find('recuttrialbudgets', input.scriptId);
+    if (!script || !source || !budget || String(script.courseId) !== input.courseId
+      || canonicalSha256(source) !== resume.identity.sourceCanonicalSha256
+      || canonicalSha256({ _id: script._id, recut: script.recut, status: script.status }) !== canonicalSha256(cp.script)
+      || script.topic !== resume.frozenQuestion
+      || canonicalSha256([...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map(({ question, askCount }) => ({ question, askCount }))) !== canonicalSha256(resume.frozenVariants)
+      || await db.collection('recuttrialruns').findOne({ scriptId: script._id })) throw safe('RECUT_TRIAL_RESUME_INVALID');
+    const projection = Object.fromEntries(Object.keys(cp.budget).map((key) => [key, budget[key]]));
+    if (canonicalSha256(projection) !== canonicalSha256(cp.budget)) throw safe('RECUT_TRIAL_RESUME_INVALID');
+    if (requireTicket && (!budget.resumeClaimed || budget.resumeTicketHash !== resume.ticketHash
+      || budget.originalReportSha256 !== resume.identity.originalReportSha256
+      || budget.resumeProviderCalls !== resume.identity.providerCalls || !Number.isFinite(budget.resumeReservedUsd) || Math.abs(budget.resumeReservedUsd - resume.identity.reservedUsd) > 1e-10
+      || budget.resumeWorkflowCallsUsed !== resume.identity.workflowCallsUsed || budget.maxAdditionalCalls !== 2
+      || budget.resumeOutput !== resume.ticket.output || budget.sourceCanonicalSha256 !== resume.identity.sourceCanonicalSha256
+      || canonicalSha256(budget.resumeIdentity) !== canonicalSha256(resume.identity))) throw safe('RECUT_TRIAL_RESUME_INVALID');
+    return { script, source, budget };
+  };
   return {
     // One authorization owns at most one budget for this local script, even
     // after process crashes or a caller changes the output directory.
-    reserveTrialBudget: guarded(async ({ input, policy }) => {
+    reserveTrialBudget: guarded(async ({ input, policy, identity }) => {
       require('./recutTrialGuard.service').createRecutTrialGuard(policy);
       const script = await find('shortscripts', input.scriptId);
       if (!script || String(script.courseId) !== String(input.courseId)) throw safe('RECUT_SOURCE_UNAVAILABLE');
@@ -88,12 +111,91 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
         await db.collection('recuttrialbudgets').insertOne({ _id: script._id, scriptId: script._id, courseId: script.courseId,
           modelId: policy.modelId, maxCalls: policy.maxCalls, budgetUsd: policy.budgetUsd,
           maxRequestBytes: policy.maxRequestBytes, maxOutputTokens: policy.maxOutputTokens,
-          status: 'reserved', createdAt: new Date(), refundable: false });
+          status: 'reserved', createdAt: new Date(), refundable: false, providerCallsUsed: 0, cumulativeBudgetReservationUsd: 0,
+          ...(identity ? { initialCheckpointIdentity: identity } : {}) });
       } catch (error) {
         if (error.code === 11000) throw safe('RECUT_TRIAL_BUDGET_ALREADY_RESERVED');
         throw error;
       }
       return { modelId: policy.modelId, maxCalls: policy.maxCalls, budgetUsd: policy.budgetUsd, status: 'reserved' };
+    }),
+    recordTrialFailure: guarded(async ({ input, reportSha256, checkpointSha256, workflowCallsUsed, providerCallsUsed, reservedUsd }) => {
+      if (!/^[a-f0-9]{64}$/.test(reportSha256 || '') || !/^[a-f0-9]{64}$/.test(checkpointSha256 || '')) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const saved = await db.collection('recuttrialbudgets').updateOne({ _id: id(input.scriptId), status: 'reserved',
+        resumeClaimed: { $exists: false }, failureReportSha256: { $exists: false },
+      }, { $set: { failureReportSha256: reportSha256, failureCheckpointSha256: checkpointSha256,
+        workflowCallsUsed, providerCallsUsed, cumulativeBudgetReservationUsd: reservedUsd } });
+      if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+    }),
+    recordTrialReservation: guarded(async ({ input, request, resume }) => {
+      const budget = await find('recuttrialbudgets', input.scriptId);
+      if (!budget || (resume && (!budget.resumeClaimed || budget.resumeTicketHash !== resume.ticketHash))
+        || !Number.isInteger(request.trialModelCalls) || request.trialModelCalls !== budget.providerCallsUsed + 1
+        || request.trialModelCalls > budget.maxCalls || request.requestedModelId !== budget.modelId
+        || !Number.isFinite(request.budgetReservationUsd) || request.budgetReservationUsd <= 0
+        || !Number.isFinite(request.cumulativeBudgetReservationUsd) || request.cumulativeBudgetReservationUsd > budget.budgetUsd
+        || request.cumulativeBudgetReservationUsd <= budget.cumulativeBudgetReservationUsd
+        || Math.abs(request.cumulativeBudgetReservationUsd - budget.cumulativeBudgetReservationUsd - request.budgetReservationUsd) > 1e-10) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const saved = await db.collection('recuttrialbudgets').updateOne({ _id: budget._id,
+        providerCallsUsed: budget.providerCallsUsed, cumulativeBudgetReservationUsd: budget.cumulativeBudgetReservationUsd,
+        ...(resume ? { resumeTicketHash: resume.ticketHash } : { resumeClaimed: { $exists: false } }),
+      }, { $set: { providerCallsUsed: request.trialModelCalls, cumulativeBudgetReservationUsd: request.cumulativeBudgetReservationUsd,
+        lastReservation: request, reservationRecordedAt: new Date() } });
+      if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+    }),
+    claimTrialResume: guarded(async (resume) => {
+      const { script, budget } = await verifyResumeState(resume, false);
+      if (budget.resumeClaimed) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+      if ((budget.providerCallsUsed !== undefined && budget.providerCallsUsed !== resume.identity.providerCalls)
+        || (budget.cumulativeBudgetReservationUsd !== undefined && Math.abs(budget.cumulativeBudgetReservationUsd - resume.identity.reservedUsd) > 1e-10)) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const result = await db.collection('recuttrialbudgets').updateOne({ _id: script._id,
+        status: 'reserved', modelId: resume.config.model.model, maxCalls: 5, budgetUsd: 0.5,
+        maxRequestBytes: 100000, maxOutputTokens: 4096, refundable: false,
+        createdAt: new Date(resume.checkpoint.budget.createdAt), resumeClaimed: { $exists: false },
+        providerCallsUsed: budget.providerCallsUsed === undefined ? { $exists: false } : budget.providerCallsUsed,
+        cumulativeBudgetReservationUsd: budget.cumulativeBudgetReservationUsd === undefined ? { $exists: false } : budget.cumulativeBudgetReservationUsd,
+      }, { $set: { resumeClaimed: true, resumeTicketHash: resume.ticketHash,
+        originalReportSha256: resume.identity.originalReportSha256,
+        resumeProviderCalls: resume.identity.providerCalls, resumeReservedUsd: resume.identity.reservedUsd,
+        resumeWorkflowCallsUsed: resume.identity.workflowCallsUsed, maxAdditionalCalls: 2,
+        providerCallsUsed: resume.identity.providerCalls, cumulativeBudgetReservationUsd: resume.identity.reservedUsd,
+        sourceCanonicalSha256: resume.identity.sourceCanonicalSha256, resumeIdentity: resume.identity,
+        resumeOutput: resume.ticket.output, resumeClaimedAt: new Date() } });
+      if (result.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+      // Catch a source/script edit which raced the claim; the ticket is never released.
+      await verifyResumeState(resume);
+      return { ticketHash: resume.ticketHash };
+    }),
+    verifyTrialResume: guarded((resume) => verifyResumeState(resume)),
+    recordResumeGeneration: guarded(async (resume, generation) => {
+      const { script } = await verifyResumeState(resume);
+      if (generation.providerCallsUsed > 5 || generation.cumulativeBudgetReservationUsd > 0.5) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const saved = await db.collection('recuttrialbudgets').updateOne({ _id: id(resume.input.scriptId),
+        resumeClaimed: true, resumeTicketHash: resume.ticketHash, resumeGenerationSha256: { $exists: false },
+      }, { $set: { resumeGenerationSha256: generation.sha256, resumeGenerationArtifact: generation.artifact,
+        generationSha256: generation.sha256, generationScriptSha256: scriptSignature(script),
+        generationSourceSha256: resume.identity.sourceCanonicalSha256,
+        providerCallsUsed: generation.providerCallsUsed, workflowCallsUsed: generation.workflowCallsUsed,
+        cumulativeBudgetReservationUsd: generation.cumulativeBudgetReservationUsd, generationVerifiedAt: new Date() } });
+      if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+    }),
+    recordTrialGeneration: guarded(async ({ input, source, generation }) => {
+      const { canonicalSha256 } = require('./recutTrialResume.service');
+      const script = await find('shortscripts', input.scriptId), currentSource = await find('recutsources', source._id);
+      if (!script || String(script.courseId) !== input.courseId || script.recut?.activeTaskId
+        || canonicalSha256(currentSource) !== canonicalSha256(source)) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const saved = await db.collection('recuttrialbudgets').updateOne({ _id: script._id, status: 'reserved', generationSha256: { $exists: false } },
+        { $set: { generationSha256: generation.sha256, generationArtifact: generation.artifact,
+          generationScriptSha256: scriptSignature(script), generationSourceSha256: canonicalSha256(source) } });
+      if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+    }),
+    verifyTrialGeneration: guarded(async (checkpoint) => {
+      const { canonicalSha256 } = require('./recutTrialResume.service');
+      const source = checkpoint.payload.source, script = await find('shortscripts', source.scriptId);
+      const budget = await find('recuttrialbudgets', source.scriptId), currentSource = await find('recutsources', source._id);
+      if (!script || !budget || budget.generationSha256 !== checkpoint.sha256 || canonicalSha256(checkpoint.payload) !== checkpoint.sha256
+        || budget.generationSourceSha256 !== canonicalSha256(currentSource) || canonicalSha256(currentSource) !== canonicalSha256(source)
+        || budget.generationScriptSha256 !== scriptSignature(script) || script.recut?.activeTaskId) throw safe('RECUT_TRIAL_RESUME_INVALID');
     }),
     loadSource: guarded((value) => find('recutsources', value)),
     loadBaseVersion: guarded((value) => find('recutversions', value)),
@@ -122,9 +224,10 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       return { script, video: { ...video, filePath: video.filePath || video.file_path },
         cachedSource, hits: hitRows.map((h) => ({ ...h, videoId: String(video._id) })), segments: segments.map((s) => ({ ...s, videoId: String(video._id) })) };
     }),
-    persistLocal: guarded(async ({ result, input }) => {
+    persistLocal: guarded(async ({ result, input, expectedRevision }) => {
       const script = await find('shortscripts', input.scriptId);
-      if (!script || String(script.courseId) !== String(input.courseId) || script.recut?.activeTaskId) throw safe('RECUT_STATE_INVALID');
+      if (!script || String(script.courseId) !== String(input.courseId) || script.recut?.activeTaskId
+        || (expectedRevision !== undefined && script.recut?.revision !== expectedRevision)) throw safe('RECUT_STATE_INVALID');
       const now = new Date(), versionId = new ObjectId();
       const version = { ...result.version, _id: versionId, scriptId: id(input.scriptId), sourceId: id(result.version.sourceId), taskId: null, createdAt: now, updatedAt: now };
       await db.collection('recutversions').insertOne(version);
@@ -140,7 +243,12 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
         { $set: { productionMode: 'recut', 'recut.state': result.state, 'recut.currentVersionId': versionId, 'recut.currentAssetId': assetId,
           'recut.currentAssetGenerationVersion': assetId ? 1 : null, 'recut.activeTaskId': null, updatedAt: now }, $inc: { 'recut.revision': 1 } });
       if (update.matchedCount !== 1) throw safe('RECUT_STATE_INVALID');
-      await db.collection('recuttrialruns').insertOne({ _id: new ObjectId(), scriptId: script._id, versionId, assetId, callsUsed: result.callsUsed, attempts: result.attempts, createdAt: now });
+      await db.collection('recuttrialruns').insertOne({ _id: new ObjectId(), scriptId: script._id, versionId, assetId, callsUsed: result.callsUsed, ...(result.resume ? { providerCallsUsed: result.providerCallsUsed, workflowCallsUsed: result.workflowCallsUsed, resume: result.resume } : {}), attempts: result.attempts, createdAt: now });
+      if (result.generationCheckpoint) {
+        const saved = await db.collection('recuttrialbudgets').updateOne({ _id: script._id, generationSha256: result.generationCheckpoint.sha256 },
+          { $set: { generationScriptSha256: scriptSignature(await find('shortscripts', input.scriptId)) } });
+        if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      }
       return { versionId: String(versionId), assetId: assetId && String(assetId) };
     }),
     close: async () => { if (client) await client.close().catch(() => {}); db = null; client = null; },

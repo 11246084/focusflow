@@ -2,8 +2,8 @@
 const { fail } = require('./recutRuntime.service');
 const path = require('node:path');
 
-function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096, thinkingLevel, trialPolicy, forbiddenValues = [], now } = {}) {
-  const guard = trialPolicy ? require('./recutTrialGuard.service').createRecutTrialGuard(trialPolicy, { forbiddenValues: [apiKey, ...forbiddenValues], now }) : null;
+function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096, thinkingLevel, trialPolicy, forbiddenValues = [], now, initialUsage, onUsageReserved } = {}) {
+  const guard = trialPolicy ? require('./recutTrialGuard.service').createRecutTrialGuard(trialPolicy, { forbiddenValues: [apiKey, ...forbiddenValues], now, initialUsage }) : null;
   return async ({ model, instructions, input, responseSchema, images = [] }) => {
     if (!apiKey || model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '')) throw fail('模型設定不足。', 'RECUT_PROVIDER_NOT_CONFIGURED');
     if (trialPolicy && model.model !== trialPolicy.modelId) throw fail('試片模型與核准設定不符。', 'RECUT_TRIAL_MODEL_MISMATCH');
@@ -14,6 +14,9 @@ function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 12
       generationConfig: { responseMimeType: 'application/json', responseSchema, maxOutputTokens, ...(thinkingLevel ? { thinkingConfig: { thinkingLevel: String(thinkingLevel).toUpperCase() } } : {}) } });
     const reservation = guard?.reserve({ modelId: model.model, input, images, body, maxOutputTokens });
     try {
+      // Fail closed before outbound HTTP if durable accounting is unavailable.
+      // A reservation is conservative and is never refunded after an uncertain send.
+      if (reservation && onUsageReserved) await onUsageReserved(reservation);
       const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.model)}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(timeoutMs),
         body,

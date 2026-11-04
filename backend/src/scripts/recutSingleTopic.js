@@ -6,7 +6,7 @@ const { runSingleTopicTrial } = require('../services/recutRuntimeTrial.service')
 const { assertLoopbackMongoTarget } = require('../services/recutRuntime.service');
 async function main(argv = process.argv.slice(2), { env = process.env, createRuntime } = {}) {
   const flags = new Set(['--allow-model', '--render']);
-  const values = new Set(['--input', '--adapter', '--runtime', '--output', '--target-uri', '--target-uri-env']);
+  const values = new Set(['--input', '--adapter', '--runtime', '--output', '--target-uri', '--target-uri-env', '--resume-from', '--resume-checkpoint', '--rerender-from']);
   const options = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -14,7 +14,7 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
     else if (values.has(arg) && argv[i + 1] && !argv[i + 1].startsWith('--')) options[arg.slice(2)] = argv[++i];
     else throw new Error('RECUT_ARGUMENT_INVALID');
   }
-  if (!options['allow-model']) return runSingleTopicTrial();
+  if (!options['allow-model'] && !options['rerender-from']) return runSingleTopicTrial();
   if (!options.input || (!options.adapter && !options.runtime) || (options.adapter && options.runtime) || !options.output) throw new Error('RECUT_ARGUMENT_REQUIRED');
   if (options['target-uri-env'] && !/^[A-Z][A-Z0-9_]*$/.test(options['target-uri-env'])) throw new Error('RECUT_ARGUMENT_INVALID');
   const inputPath = path.resolve(options.input);
@@ -35,6 +35,23 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
   if (typeof factory !== 'function') throw new Error('RECUT_ADAPTER_INVALID');
   const { assertCliTrialPolicy, isProfessorTrialTarget } = require('../services/recutCliRuntime.service');
   const protectedTrial = Boolean(config?.trialPolicy) || isProfessorTrialTarget(targetUri);
+  if (options['rerender-from']) {
+    if (!options.runtime || options.adapter || options['resume-from'] || options['allow-model']) throw new Error('RECUT_ARGUMENT_INVALID');
+    return require('../services/recutTrialResume.service').executeRecutTrialRerender({
+      loadCheckpoint: () => fs.readFile(path.resolve(options['rerender-from'])), output, targetUri, input, config,
+      runtimeFactory: (args) => factory({ ...args, env }),
+    });
+  }
+  if (options['resume-from']) {
+    if (!options.runtime || options.adapter || !protectedTrial) throw new Error('RECUT_TRIAL_RESUME_INVALID');
+    const base = path.dirname(inputPath);
+    const loadArtifacts = async () => Object.fromEntries(await Promise.all([
+      ['report', path.resolve(options['resume-from'])], ['input', inputPath], ['config', path.resolve(options.runtime)],
+      ['bootstrap', path.join(base, 'bootstrap.json')], ['checkpoint', path.resolve(options['resume-checkpoint'] || path.join(base, 'source-checkpoint.json'))],
+    ].map(async ([key, file]) => [key, await fs.readFile(file)])));
+    return require('../services/recutTrialResume.service').executeRecutTrialResume({ loadArtifacts, output, targetUri,
+      allowModel: true, render: Boolean(options.render), runtimeFactory: (args) => factory({ ...args, env }) });
+  }
   // Paid policy runs own a new output directory before constructing any provider.
   // Keep it after failures too: a retry must never overwrite earlier usage evidence.
   if (protectedTrial) {
@@ -47,22 +64,34 @@ async function main(argv = process.argv.slice(2), { env = process.env, createRun
   const estimate = await runSingleTopicTrial();
   if (require.main === module) process.stdout.write(`${JSON.stringify({ ...estimate, notice: '模型授權參數已提供；以下開始執行。' })}\n`);
   const runtime = await factory({ input, config, output, targetUri, env, allowModel: true });
+  let completedResult;
   try {
     if (runtime.missing?.length) throw new Error('RECUT_STEPS_NOT_CONFIGURED');
     if (protectedTrial) {
       if (typeof runtime.reserveTrialBudget !== 'function') throw new Error('RECUT_TRIAL_BUDGET_NOT_CONFIGURED');
       await runtime.reserveTrialBudget();
     }
-    const result = await runSingleTopicTrial({ ...runtime, input, allowModel: true, render: Boolean(options.render), targetUri });
+    const result = completedResult = await runSingleTopicTrial({ ...runtime, input, allowModel: true, render: Boolean(options.render), targetUri });
     await fs.mkdir(output, { recursive: true });
     await fs.writeFile(path.join(output, 'plan.json'), JSON.stringify(result.version.plan, null, 2));
     await fs.writeFile(path.join(output, 'full-script.txt'), result.version.fullScript);
     await fs.writeFile(path.join(output, 'run.json'), JSON.stringify(result, null, 2));
     return { state: result.state, callsUsed: result.callsUsed, output, capabilities: runtime.capabilities, optionalMissing: runtime.optionalMissing };
   } catch (error) {
-    if (error.trial) {
-      await fs.mkdir(output, { recursive: true });
-      await fs.writeFile(path.join(output, 'run.json'), JSON.stringify({ status: 'failed', code: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED', ...error.trial }, null, 2));
+    const progress = error.trial || (completedResult ? { ...completedResult, stage: 'finalize' } : null);
+    if (progress) {
+      const report = { ...progress, status: 'failed', code: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED' };
+      const raw = JSON.stringify(report, null, 2);
+      // Durable per-request reservations already precede HTTP. Failure of a
+      // filesystem report must not prevent the independent DB evidence update.
+      await fs.mkdir(output, { recursive: true }).then(() => fs.writeFile(path.join(output, 'run.json'), raw)).catch(() => {});
+      if (report.checkpoint && runtime.recordTrialFailure) {
+        const { canonicalSha256 } = require('../services/recutTrialResume.service');
+        const requests = report.attempts.filter((a) => a.trialRequest).map((a) => a.trialRequest);
+        await runtime.recordTrialFailure({ reportSha256: require('node:crypto').createHash('sha256').update(raw).digest('hex'),
+          checkpointSha256: canonicalSha256(report.checkpoint), workflowCallsUsed: report.callsUsed,
+          providerCallsUsed: requests.at(-1)?.trialModelCalls || 0, reservedUsd: requests.at(-1)?.cumulativeBudgetReservationUsd || 0 }).catch(() => {});
+      }
     }
     throw error;
   } finally { await runtime.close?.(); }

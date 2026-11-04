@@ -16,14 +16,30 @@ async function copyRecutCourseData({ courseIds, targetUri, readCourseData, write
 }
 
 async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5, allowModel = false,
-  render = false, renderLocal, persistLocal, targetUri, checkCancelled = async () => {} } = {}) {
+  render = false, renderLocal, persistLocal, targetUri, checkCancelled = async () => {}, resumeSeed, checkpointIdentity,
+  onProgress, onGenerationVerified } = {}) {
   if (targetUri !== undefined) assertLoopbackMongoTarget(targetUri);
   if (!allowModel) return { dryRun: true, estimatedSharedCalls: 3, sharedCallLimit: callLimit, extraCallsPerCodeCard: 2,
     estimatedInputTokens: null, estimatedOutputTokens: null, estimatedCost: null };
   if (!pipeline?.generate?.length || !Number.isInteger(callLimit) || callLimit < 3 || !model?.model) throw fail('試產管線或固定模型設定無效。');
-  const task = { _id: input.taskId || 'local-trial', scriptId: input.scriptId, courseId: input.courseId, input, settingsSnapshot: { model }, callsUsed: 0, callLimit };
-  const data = { ...input }, attempts = [];
-  let stage = 'prepare', initialSelection = null;
+  const task = { _id: input.taskId || 'local-trial', scriptId: input.scriptId, courseId: input.courseId, input, settingsSnapshot: { model }, callsUsed: resumeSeed?.providerCalls || 0, callLimit };
+  const data = { ...input, ...(resumeSeed?.data || {}) }, attempts = structuredClone(resumeSeed?.attempts || []);
+  let stage = 'prepare', initialSelection = resumeSeed?.selectionResult || null, cardsCalls = 0;
+  const accounting = () => {
+    const provider = attempts.filter((a) => a.trialRequest).map((a) => a.trialRequest);
+    if (!resumeSeed) return { callsUsed: task.callsUsed, providerCallsUsed: Math.max(0, ...provider.map((r) => r.trialModelCalls)),
+      cumulativeBudgetReservationUsd: Math.max(0, ...provider.map((r) => r.cumulativeBudgetReservationUsd)), ...(data.sourceCheckpoint ? { checkpoint: {
+      schemaVersion: 'recut-trial-checkpoint-v1', input: { scriptId: input.scriptId, courseId: input.courseId },
+      settingsSnapshot: structuredClone(task.settingsSnapshot), identity: checkpointIdentity || null,
+      source: data.sourceCheckpoint, selectionResult: data.selectionResult || null, fullScript: data.fullScript || '',
+    } } : {}) };
+    const callsUsed = resumeSeed.workflowCallsUsed + task.callsUsed - resumeSeed.providerCalls;
+    return { callsUsed, workflowCallsUsed: callsUsed, priorWorkflowCallsUsed: resumeSeed.workflowCallsUsed,
+      providerCallsUsed: Math.max(resumeSeed.providerCalls, ...provider.map((r) => r.trialModelCalls)),
+      cumulativeBudgetReservationUsd: Math.max(resumeSeed.reservedUsd, ...provider.map((r) => r.cumulativeBudgetReservationUsd)),
+      resume: resumeSeed.ticket };
+  };
+  try {
   for (const step of pipeline.generate) {
     stage = step.stage;
     await checkCancelled();
@@ -32,7 +48,8 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
       const result = await step.run({ task, data, checkCancelled, runAttempt: async ({ input: attemptInput, modelId, consumesCall = false, execute }) => {
         await checkCancelled();
         if (consumesCall && task.callsUsed >= callLimit) throw fail('共用呼叫額度已用完。', 'RECUT_CALL_LIMIT_EXCEEDED');
-        if (consumesCall) task.callsUsed++;
+        if (consumesCall && resumeSeed && stage === 'cards' && cardsCalls >= 1) throw fail('續跑必須保留一次整段檢查，不能再配圖重試。', 'RECUT_CALL_LIMIT_EXCEEDED');
+        if (consumesCall) { task.callsUsed++; if (stage === 'cards') cardsCalls++; }
         const attempt = { stepId: step.id, stage, input: attemptInput, modelId, consumesCall, startedAt: new Date().toISOString(), status: 'running' };
         attempts.push(attempt);
         try {
@@ -44,36 +61,48 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
           const trialRequest = require('./recutTrialGuard.service').safeTrialRequest(error.trialRequest);
           if (trialRequest) attempt.trialRequest = trialRequest;
           throw error; }
-        finally { attempt.finishedAt = new Date().toISOString(); attempt.durationMs = Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt); }
+        finally { attempt.finishedAt = new Date().toISOString(); attempt.durationMs = Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt);
+          if (onProgress) await onProgress({ stage, ...accounting(), attempts: structuredClone(attempts) }); }
       } });
       Object.assign(data, result);
       if (step.stage === 'selection' && !initialSelection && result?.selectionResult) initialSelection = structuredClone(result.selectionResult);
       attempts.push({ stepId: step.id, stage, status: 'succeeded', consumesCall: false, startedAt, finishedAt: new Date().toISOString() });
+      if (onProgress) await onProgress({ stage, ...accounting(), attempts: structuredClone(attempts) });
       if (data.version?.selection?.answerable === false) break;
     } catch (error) {
       // Attach safe progress, retaining recorded model usage even for failures.
       attempts.push({ stepId: step.id, stage, status: 'failed', consumesCall: false, startedAt, finishedAt: new Date().toISOString(), error: { code: /^RECUT_[A-Z_]+$/.test(error.code || '') ? error.code : 'RECUT_TRIAL_FAILED' } });
-      error.trial = { stage, callsUsed: task.callsUsed, attempts }; throw error;
+      error.trial = { stage, ...accounting(), attempts }; throw error;
     }
   }
   if (!data.version) throw fail('試產管線沒有產生版本。');
   await checkCancelled();
+  const verifiedResult = { dryRun: false, state: data.version.selection.answerable ? 'script_review' : 'unanswerable',
+    settingsSnapshot: structuredClone(task.settingsSnapshot), sharedCallLimit: callLimit,
+    version: data.version, initialSelection, suggestions: data.suggestions || [], asset: null, renderDurationMs: null, ...accounting(), attempts };
+  let generationCheckpoint;
+  if (onGenerationVerified && data.version.plan) generationCheckpoint = await onGenerationVerified({ result: verifiedResult, source: data.sourceCheckpoint });
   let asset = null, renderDurationMs = null;
   if (render && data.version.plan) {
     if (typeof renderLocal !== 'function') throw fail('尚未提供本機渲染轉接。', 'RECUT_RENDER_NOT_CONFIGURED');
     const started = Date.now();
     try { asset = await renderLocal({ version: data.version, checkCancelled }); }
-    catch (error) { error.trial = { stage: 'render', callsUsed: task.callsUsed, attempts }; throw error; }
+    catch (error) { error.trial = { stage: 'render', generationCheckpoint, version: data.version, ...accounting(), attempts }; throw error; }
     renderDurationMs = Date.now() - started;
   }
   const result = { dryRun: false, state: data.version.selection.answerable ? 'script_review' : 'unanswerable',
     settingsSnapshot: structuredClone(task.settingsSnapshot), sharedCallLimit: callLimit,
-    version: data.version, initialSelection, suggestions: data.suggestions || [], asset, renderDurationMs, callsUsed: task.callsUsed, attempts };
+    version: data.version, initialSelection, suggestions: data.suggestions || [], asset, renderDurationMs, ...accounting(), attempts,
+    ...(generationCheckpoint ? { generationCheckpoint } : {}) };
   if (persistLocal) {
     if (!targetUri) throw fail('寫入本機資料庫前必須指定目標。', 'RECUT_LOCAL_DB_REQUIRED');
     try { await checkCancelled(); result.persisted = await persistLocal({ targetUri, result, input }); }
-    catch (error) { error.trial = { stage: 'persist', callsUsed: task.callsUsed, attempts }; throw error; }
+    catch (error) { error.trial = { stage: 'persist', ...accounting(), attempts }; throw error; }
   }
   return result;
+  } catch (error) {
+    error.trial = { ...(error.trial || {}), stage: error.trial?.stage || stage, ...accounting(), attempts };
+    throw error;
+  }
 }
 module.exports = { COLLECTIONS, copyRecutCourseData, runSingleTopicTrial };

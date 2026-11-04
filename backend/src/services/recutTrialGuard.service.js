@@ -1,12 +1,14 @@
 'use strict';
 const { fail } = require('./recutRuntime.service');
 const INPUT_KEYS = new Set(['question', 'variants', 'sentences', 'selection', 'clips', 'catalog', 'iconAllowlist', 'selectionLocked', 'adoptedSuggestions', 'presentationScope', 'previousOutput', 'errors', 'basePlan', 'codeAvailable', 'fullScript', 'plan']);
-function createRecutTrialGuard(policy, { forbiddenValues = [], now = () => new Date() } = {}) {
+function createRecutTrialGuard(policy, { forbiddenValues = [], now = () => new Date(), initialUsage } = {}) {
   policy = structuredClone(policy);
   if (!policy || !policy.modelId || !Number.isInteger(policy.maxCalls) || policy.maxCalls < 1 || !Number.isInteger(policy.maxRequestBytes) || policy.maxRequestBytes < 1
     || !Number.isInteger(policy.maxOutputTokens) || policy.maxOutputTokens < 1
     || ![policy.budgetUsd, policy.inputPerMillion, policy.outputPerMillion].every((n) => Number.isFinite(n) && n > 0)) throw fail('試片預算設定不完整。', 'RECUT_TRIAL_POLICY_INVALID');
-  let calls = 0, reservedUsd = 0;
+  if (initialUsage && (!Number.isInteger(initialUsage.calls) || initialUsage.calls < 0 || initialUsage.calls > policy.maxCalls
+    || !Number.isFinite(initialUsage.reservedUsd) || initialUsage.reservedUsd < 0 || initialUsage.reservedUsd > policy.budgetUsd)) throw fail('續跑計帳起點無效。', 'RECUT_TRIAL_RESUME_INVALID');
+  let calls = initialUsage?.calls || 0, reservedUsd = initialUsage?.reservedUsd || 0;
   const inspect = (value, depth = 0) => {
     if (depth > 40 || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint' || Buffer.isBuffer(value)) throw fail('試片資料含非必要執行或媒體內容。', 'RECUT_TRIAL_INPUT_FORBIDDEN');
     if (value && typeof value === 'object') {

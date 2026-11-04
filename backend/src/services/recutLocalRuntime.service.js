@@ -25,7 +25,8 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
         sourceWindow = { ...sourceWindow, hitChunkIds: cachedSource.hitChunkIds || [], hitRanges: [], segments: cachedSource.transcriptChunks || [] };
       }
       return { topic: script.topic, sourceWindow, sourceVideoId: String(video._id), sourcePath: video.filePath, cachedSource,
-        transcriptVersion: cachedSource?.transcriptVersion || video.activeTranscriptVersion || 'legacy' };
+        transcriptVersion: cachedSource?.transcriptVersion || video.activeTranscriptVersion || 'legacy',
+        sourceSha256: cachedSource?.sourceSha256 || (options.sourceFingerprint ? await options.sourceFingerprint(video.filePath) : undefined) };
     } },
     { id: 'recut-source-check-v1', stage: 'sourceCheck', run: async ({ data, checkCancelled }) => {
       const results = algorithms().inspectProbe(await adapters.media.probe(data.sourcePath), data.sourceWindow);
@@ -41,10 +42,10 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
         ...(data.asrResult?.excludeFirstSentence ? [sentences[0].id] : []), ...(data.asrResult?.excludeLastSentence ? [sentences.at(-1).id] : [])];
       const source = await local.saveSource({ ...data.sourceWindow, scriptId: task.scriptId, videoId: data.sourceVideoId,
         transcriptVersion: data.transcriptVersion, transcriptChunks: data.sourceWindow.segments,
-        ...(data.cachedSource ? { sourceSha256: data.cachedSource.sourceSha256 } : {}),
+        ...(data.sourceSha256 ? { sourceSha256: data.sourceSha256 } : {}),
         asrProvenance: data.cachedSource?.asrProvenance || data.asrResult.asrProvenance, excludedSentenceIds,
         sentences, sourceCheck: data.sourceCheck, audio: data.audio });
-      return { sourceId: String(source._id) };
+      return { sourceId: String(source._id), sourceCheckpoint: source };
     } },
   ];
   const frozenSelectionInputs = new Map();

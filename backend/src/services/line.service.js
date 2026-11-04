@@ -220,6 +220,103 @@ function buildAnswerFlexMessage({ qaResult, courseTitle }) {
   };
 }
 
+// LINE 輪播最多 12 張卡片；超過時最後一張改成「其他課程」，引導到網站課程頁。
+const COURSE_CAROUSEL_LIMIT = 12;
+
+function buildCourseBubble(course, activeCourseId) {
+  const title = String(course.title || '未命名課程');
+  const isActive = Boolean(activeCourseId) && String(activeCourseId) === String(course._id);
+  return {
+    type: 'bubble',
+    size: 'kilo',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents: [
+        ...(isActive ? [{ type: 'text', text: '目前選擇', size: 'xxs', color: '#06C755', weight: 'bold' }] : []),
+        { type: 'text', text: title, weight: 'bold', size: 'md', color: '#3D3D3A', wrap: true, maxLines: 3 },
+      ],
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [{
+        type: 'button',
+        style: 'primary',
+        color: '#2B4A9B',
+        height: 'sm',
+        action: {
+          type: 'postback',
+          label: '選這門課',
+          data: `action=select_course&courseId=${course._id}`,
+          displayText: `切換到「${title}」`.slice(0, 300),
+        },
+      }],
+    },
+  };
+}
+
+function buildMoreCoursesBubble(hiddenCount) {
+  const coursePageUrl = buildWebUrl('/app/courses');
+  return {
+    type: 'bubble',
+    size: 'kilo',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      contents: [
+        { type: 'text', text: `還有 ${hiddenCount} 門課`, weight: 'bold', size: 'md', color: '#3D3D3A' },
+        { type: 'text', text: '請到網站的課程頁，點課程的「詢問助教」。', size: 'xs', color: '#555555', wrap: true },
+      ],
+    },
+    ...(coursePageUrl ? {
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [{
+          type: 'button',
+          style: 'secondary',
+          height: 'sm',
+          action: { type: 'uri', label: '開啟課程頁', uri: coursePageUrl },
+        }],
+      },
+    } : {}),
+  };
+}
+
+// 切換課程輪播：每門課一張卡，左右滑動，取代最多 4 顆按鈕、電腦版只顯示替代文字的 Buttons Template。
+function buildCourseCarouselMessage(courses, activeCourseId) {
+  const overflow = courses.length > COURSE_CAROUSEL_LIMIT;
+  const shown = overflow ? courses.slice(0, COURSE_CAROUSEL_LIMIT - 1) : courses;
+  const bubbles = shown.map((course) => buildCourseBubble(course, activeCourseId));
+  if (overflow) bubbles.push(buildMoreCoursesBubble(courses.length - shown.length));
+
+  return {
+    type: 'flex',
+    altText: '請選擇要提問的課程',
+    contents: { type: 'carousel', contents: bubbles },
+  };
+}
+
+// 輪播被 LINE 拒收時的退路：舊的 Buttons Template，最多 4 門課。
+function buildCourseButtonsTemplate(courses) {
+  return {
+    type: 'template',
+    altText: '請選擇課程',
+    template: {
+      type: 'buttons',
+      text: '請選擇你要提問的課程。',
+      actions: courses.slice(0, 4).map((course) => ({
+        type: 'postback',
+        label: course.title.slice(0, 20), // LINE 按鈕文字上限 20 字元
+        data: `action=select_course&courseId=${course._id}`,
+      })),
+    },
+  };
+}
+
 // 把回覆結果（是否成功送出、跳過原因）合併進事件處理結果物件
 // 這樣每個 handler 回傳的物件格式都一致，方便 controller 層整理
 function attachReplyMetadata(result, replyResult) {
@@ -619,7 +716,7 @@ async function filterCoursesWithLiveVideos(courses) {
 }
 
 // 處理「切換課程」指令：使用者傳送文字「切換課程」時觸發
-// 查詢使用者有權存取的課程，用 LINE Buttons Template 顯示最多 4 個課程按鈕
+// 查詢使用者有權存取的課程，用 Flex 輪播顯示（每門課一張卡）
 async function handleSwitchCourse(lineUserId, replyToken) {
   const user = await User.findOne({ lineUserId });
 
@@ -654,27 +751,20 @@ async function handleSwitchCourse(lineUserId, replyToken) {
     }, replyResult);
   }
 
-  // LINE Buttons Template 最多只能有 4 個按鈕，所以只取前 4 筆
-  // 每個按鈕用 postback 事件，data 帶 action 和 courseId，方便後續 handleSelectCourse 解析
-  const actions = selectableCourses
-    .slice(0, 4)
-    .map((course) => ({
-      type: 'postback',
-      label: course.title.slice(0, 20), // LINE 按鈕文字上限 20 字元
-      data: `action=select_course&courseId=${course._id}`,
-    }));
-
-  const replyResult = await replyMessage(replyToken, [
-    {
-      type: 'template',
-      altText: '請選擇課程',   // 不支援 template 的環境（如電腦版）顯示的替代文字
-      template: {
-        type: 'buttons',
-        text: '請選擇你要提問的課程。',
-        actions,
-      },
-    },
-  ]);
+  // 每張卡的按鈕用 postback，data 帶 action 和 courseId，交給 handleSelectCourse 解析
+  let replyFormat = 'flex';
+  let replyResult;
+  try {
+    replyResult = await replyMessage(replyToken, [
+      buildCourseCarouselMessage(selectableCourses, user.activeCourseId),
+    ]);
+  } catch {
+    if (env.nodeEnv !== 'test') {
+      console.warn('[LINE] course carousel rejected, falling back to buttons template.');
+    }
+    replyFormat = 'template';
+    replyResult = await replyMessage(replyToken, [buildCourseButtonsTemplate(selectableCourses)]);
+  }
 
   // 送出課程選單後，把狀態改為「等待課程選擇」，避免使用者直接提問
   await User.findByIdAndUpdate(user._id, {
@@ -684,6 +774,7 @@ async function handleSwitchCourse(lineUserId, replyToken) {
   return attachReplyMetadata({
     type: 'switch_course',
     handled: true,
+    replyFormat,
   }, replyResult);
 }
 
@@ -1276,6 +1367,7 @@ module.exports = {
   processWebhookEvents,
   buildQuestionSummaryLines,
   buildAnswerFlexMessage,
+  buildCourseCarouselMessage,
   formatClock,
   mapLineHistoryForContextualizer,
 };

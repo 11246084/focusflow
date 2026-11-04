@@ -219,6 +219,42 @@ describe('line webhook routes', () => {
     }
   });
 
+  it('切換課程用卡片輪播送出；輪播被 LINE 拒收時改送舊的課程按鈕', async () => {
+    const student = store.users.find((user) => user._id === ids.student);
+    student.activeCourseId = ids.publishedCourse;
+    env.lineChannelAccessToken = 'carousel-test-access-token';
+    const originalFetch = global.fetch;
+    const sent = [];
+    let rejectFlex = false;
+    global.fetch = async (url, options) => {
+      if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+      const [message] = JSON.parse(options.body).messages;
+      sent.push(message);
+      if (rejectFlex && message.type === 'flex') {
+        return { ok: false, status: 400, text: async () => '{"message":"A message is invalid"}' };
+      }
+      return { ok: true, text: async () => '{}' };
+    };
+
+    try {
+      const accepted = await postLineText(serverContext.baseUrl, '切換課程');
+      const carousel = sent.at(-1);
+      assert.equal(accepted.body.data.results[0].replyFormat, 'flex');
+      assert.equal(carousel.contents.type, 'carousel');
+      assert.match(JSON.stringify(carousel), new RegExp(`action=select_course&courseId=${ids.publishedCourse}`));
+      assert.match(JSON.stringify(carousel), /目前選擇/);
+
+      rejectFlex = true;
+      const rejected = await postLineText(serverContext.baseUrl, '切換課程');
+      assert.equal(rejected.body.data.results[0].handled, true);
+      assert.equal(rejected.body.data.results[0].replyFormat, 'template');
+      assert.equal(sent.at(-1).template.type, 'buttons');
+      assert.equal(student.lineConversationState, 'awaiting_course_selection');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it('未綁定的學生收到「連結 LINE」按鈕，連到網站的 LINE 提問頁', async () => {
     env.lineChannelAccessToken = 'bind-prompt-access-token';
     env.lineLoginCallbackUrl = 'https://focusflow.example/line/callback';
@@ -1248,5 +1284,46 @@ describe('line question summary lines', () => {
     });
 
     assert.deepEqual(lines, ['目前資料庫片段不足以回答這個問題。']);
+  });
+});
+
+describe('LINE 切換課程輪播', () => {
+  const { buildCourseCarouselMessage } = require('../src/services/line.service');
+  const courses = (count) => Array.from({ length: count }, (_, index) => ({
+    _id: `course-${index + 1}`,
+    title: `課程 ${index + 1}`,
+  }));
+
+  afterEach(() => {
+    env.lineLoginCallbackUrl = '';
+  });
+
+  it('每門課一張卡，超過 4 門也全部列出，只有目前的課標「目前選擇」', () => {
+    const message = buildCourseCarouselMessage(courses(6), 'course-2');
+    const bubbles = message.contents.contents;
+
+    assert.equal(bubbles.length, 6);
+    assert.equal(bubbles[5].footer.contents[0].action.data, 'action=select_course&courseId=course-6');
+    assert.equal(bubbles[1].footer.contents[0].action.displayText, '切換到「課程 2」');
+    assert.equal(JSON.stringify(message).match(/目前選擇/g).length, 1);
+    assert.match(JSON.stringify(bubbles[1]), /目前選擇/);
+  });
+
+  it('超過 12 門課時列前 11 門，最後一張說明還有幾門並連到網站課程頁', () => {
+    env.lineLoginCallbackUrl = 'https://focusflow.example/line/callback';
+    const bubbles = buildCourseCarouselMessage(courses(15), null).contents.contents;
+    const last = JSON.stringify(bubbles.at(-1));
+
+    assert.equal(bubbles.length, 12);
+    assert.match(last, /還有 4 門課/);
+    assert.match(last, /https:\/\/focusflow\.example\/app\/courses/);
+    assert.doesNotMatch(JSON.stringify(bubbles), /course-12/);
+  });
+
+  it('剛好 12 門課時全部列出，沒有「還有幾門」卡', () => {
+    const bubbles = buildCourseCarouselMessage(courses(12), null).contents.contents;
+
+    assert.equal(bubbles.length, 12);
+    assert.doesNotMatch(JSON.stringify(bubbles), /還有/);
   });
 });

@@ -1,14 +1,15 @@
 const assert = require('node:assert/strict');
 const { afterEach, beforeEach, describe, it } = require('node:test');
-const env = require('../src/config/env');
-const VideoSegment = require('../src/models/videoSegment.model');
-const { askQuestion } = require('../src/services/qa.service');
+// harness 必須最先載入：它先設定測試用環境變數，env 才不會停在預設值。
 const {
   ids,
   newObjectId,
   resetStore,
   store,
 } = require('./helpers/backendTestHarness');
+const env = require('../src/config/env');
+const VideoSegment = require('../src/models/videoSegment.model');
+const { askQuestion } = require('../src/services/qa.service');
 
 const originalFetch = global.fetch;
 const originalAggregate = VideoSegment.aggregate;

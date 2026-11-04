@@ -222,6 +222,6 @@ node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json 
 
 ### 受控試產續跑與重新渲染（工程操作）
 
-正常教師流程由已串接的網頁呼叫 API，管理員只需依上節配置 host 並維持 RC7 worker 常駐；以下是受控試產的工程介面，並非教師每次操作。`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`。教授試產已用三次實際呼叫，原上限五次與 US$0.50 保持不變，最多再用 cards 與 wholeCheck 各一次；請求前資料庫 reservation ledger 永久 claim。新單題與續跑保存 progress、source、plan、full script、generation checkpoint 與資料庫 hash root。
+正常教師流程由已串接的網頁呼叫 API，管理員只需依上節配置 host 並維持 RC7 worker 常駐；以下是受控試產的工程介面，並非教師每次操作。`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`。教授試產保守計額已用四次 provider 嘗試，原上限五次與 US$0.50 保持不變，僅餘一次，不足 cards 與必要 wholeCheck 兩步；不得自動重試或重置永久 claim；請求前資料庫 reservation ledger 永久 claim。新單題與續跑保存 progress、source、plan、full script、generation checkpoint 與資料庫 hash root。
 
 `executeRecutTrialRerender` 和單題 CLI 的 `--rerender-from` 支援零模型呼叫重新渲染，CLI 不帶 `--allow-model`；不讀模型金鑰，並檢查資料庫 generation／source／script 綁定及重新驗證原始 MP4 hash，自簽 checkpoint 不能繞過綁定。介面與限制見[交接文件](docs/recut-integration-handoff.md#受控試產續跑與重新渲染)及 [resume service](src/services/recutTrialResume.service.js)。本機 ignored 目錄中的私有輸入輔助程式不隨 Git 交付。

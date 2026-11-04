@@ -4,7 +4,7 @@
 
 ## 2026-11-04 試產查核快照
 
-授權教授原片已在本機完成 bootstrap；24 句中首尾截斷句不可選。使用者自行遮蔽輸入金鑰後，單題流程實際呼叫 Gemini 三次，第三次選段成功；cards 第四次工作嘗試被本機 100,000 bytes 請求上限阻擋，沒有第四次 HTTP 呼叫，也沒有 MP4。`callsUsed=4` 不等於四次真呼叫；`5102638` 已縮小 cards 請求並保留選句原始 word／timing 與完整檢查；安全續跑已凍結並通過隔離複核，但教授資料的實際續跑結果尚未確認，已知尚無 MP4。這次試產不代表正式同意、部署或教師驗收。凍結來源 backend 全套 1,682 項、1,680 通過、2 跳過、0 失敗；跳過及隔離 Mongo 證據；進度與明細看[目前狀態](../../docs/current-status.md)。
+授權教授原片已在本機 bootstrap，首尾截斷句不可選。前三次 provider 呼叫取得用量、第三次選段成功；原 cards 嘗試被本機 guard 阻擋，未出站。實際續跑第四次 provider 嘗試的 cards 為 36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null，遠端是否收件或計費未知。保守計額 provider 4 次、workflow 5 次，原五次上限剩一次，不足 cards 與必要 wholeCheck 兩步；永久 claim 不重置、無自動付費重試。目前無 generation checkpoint 或 MP4，教授試片 BLOCKED，需額外決策；這不阻擋前端依契約開發。目前 adapter 將 HTTP 與網路錯誤折疊為同一代碼且未保存狀態，無法回溯本次原因；schema 複雜度只是候選風險。建議後續加入不含原始錯誤、本文、header 或 prompt 的白名單診斷及另行評估 schema 瘦身，均尚未實作。最新合併候選 `028f8f8` 的 backend 全套進行中；進度與明細看[目前狀態](../../docs/current-status.md)。
 
 ## 接手前先知道
 
@@ -108,4 +108,4 @@ worker 以專用 Bearer 呼叫 `POST /api/v1/recut-worker/jobs/claim`，其後 `
 
 ## 受控試產續跑與重新渲染
 
-`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`；保留原先已用的三次實際呼叫，最多再呼叫 cards 與 wholeCheck 各一次，不能重置原額度。請求前由資料庫 reservation ledger 永久 claim；保存 source、plan、full script、generation checkpoint 與資料庫 hash root。`executeRecutTrialRerender` 不呼叫模型、不讀模型金鑰，仍檢查資料庫 generation／source／script 綁定並重新驗證原始 MP4 hash；自簽 checkpoint 不能繞過資料庫綁定。render-only CLI 使用 `--rerender-from`，不使用 `--allow-model`。新單題流程也在渲染前保存 progress 與 generation checkpoint。上述為凍結程式與隔離測試結果，不表示教授試產已續跑。
+`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`；保留已有額度與永久 claim；教授試產目前保守計額四次，剩一次不足 cards 與必要 wholeCheck，不可重置額度或自動重試。請求前由資料庫 reservation ledger 永久 claim；保存 source、plan、full script、generation checkpoint 與資料庫 hash root。`executeRecutTrialRerender` 不呼叫模型、不讀模型金鑰，仍檢查資料庫 generation／source／script 綁定並重新驗證原始 MP4 hash；自簽 checkpoint 不能繞過資料庫綁定。render-only CLI 使用 `--rerender-from`，不使用 `--allow-model`。新單題流程也在渲染前保存 progress 與 generation checkpoint。上述為凍結程式與隔離測試結果，教授續跑已失敗，不能宣稱試片完成。

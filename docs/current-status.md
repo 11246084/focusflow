@@ -8,7 +8,7 @@
 
 前端串接準備度為 **CONDITIONAL**：可依 [OpenAPI](../backend/docs/openapi.yaml) 與[前端交接](../backend/docs/recut-integration-handoff.md)開發，但正式使用仍需設定、正式 UI、外部服務與人工驗收。[工程報告](07_HTML說明頁/Recut工程交付報告.html)是本日快照，後續狀態以本節更新為準。
 
-後端來源凍結於 `9ad9407`，renderer 字型修正為 `74317a5`；文件提交不納入此來源驗證點。backend `npm.cmd test` 共 1,682 項：1,680 通過、0 失敗、2 跳過、0 取消，原程序 exit 0。兩項跳過為 Windows 禁止 symlink 與未明確 opt-in 的 consent Mongo；另有 recut Mongo suite 跳過註記，不另計第三項測試。另以 fresh 專用隔離 Mongo 執行租約 6／6、同意 1／1；Windows symlink 未驗證。renderer `npm.cmd test` 148／148、0 跳過；`npm.cmd run docs:lint` valid、1 項明確忽略。完整日誌位於本機 ignored 的 `short_render/out/final-qa-20261104/`，不隨 Git 交付。較早全套 1,631 項中兩項失敗已由 `3972a7d` 修正測試前提並非作者複驗 56／56；該數字是歷史結果。
+最新 dev `7853130` 已合入候選 `028f8f8`，保留團隊 LINE、QA 與前端變更；設定範例衝突並存 recut 五欄及 QA 三欄。新進 timeout 測試因僅靠 unref AbortSignal 而取消，已只調整三個測試生命週期並保留斷言：定向 52／52、獨立合併複核 127 個不同測試通過，未改產品程式。`028f8f8` 完整 backend 測試進行中，early timeout 3／3；新 OpenAPI lint valid、1 ignored。recut 與 short_render 程式仍與 `9ad9407` 相同，當時 backend 1,682 項、1,680 通過、2 跳過、0 失敗、exit 0 屬較早來源結果，不能當新合併後全套結論。fresh 隔離 Mongo 租約 6／6、同意 1／1，renderer 148／148、0 跳過。Windows symlink 未驗證；本機 ignored 日誌不隨 Git 交付。
 
 `ce4a76f` 自動組裝 backend runtime，fake HTTP 202 → queue → script_review 測試 7／7；`1da5097` 加入可持久保存的 render-ready 通知，fake 測試 22／22。這些是本機替身測試，不代表真服務或教師驗收。正式前端尚未串接 recut，現有網頁仍是八拍流程；管理員正常配置一次並維持 RC7 worker 常駐後，目標流程才是教師審完整講稿、再審實際 MP4，並待遠端 ready 與當前成品核准雙閘門成立。
 
@@ -20,9 +20,9 @@
 
 R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）通過；catalog 的 aiOnly 為 12，code 仍為 RC6 專用。這不代表真實課程影片或真人審片驗收。
 
-教授授權原片經 CPU small ASR，45.03 秒，正規化 441 words、24 句。Docker 已重新啟動，專用 27029 與 27031 本機 Mongo 可用；bootstrap 已在本機 `recut_trial_professor-siri-20261103` 七個集合各新增一筆，fresh 24 句的 s1／s24 禁選。使用者自行在 PowerShell 遮蔽輸入金鑰，agent 未讀取金鑰或環境檔。單題試產實際呼叫 Gemini **3 次**：選段前兩次驗證失敗、第三次成功；cards 第四次工作嘗試因本機 100,000 bytes guard 回 `RECUT_TRIAL_REQUEST_TOO_LARGE`，未發 HTTP，也沒有該次模型用量。`callsUsed=4` 是工作嘗試計數，不是四次實際呼叫；目前沒有 MP4。執行紀錄為 `short_render/out/professor-run-once-20261104/run.json`，`5102638` 將 cards payload 由 104,529 降至 36,144 bytes，保留所有選句原始 words／timing 與完整驗證；安全續跑於 `9ad9407` 凍結：owner 60／60、獨立複核 59／59，另有 native Mongo CAS 與正式組裝 fake 驗證；教授資料的實際續跑結果待確認，不能宣稱成功。
+教授授權原片經 CPU small ASR，45.03 秒、441 words、24 句；首尾截斷句 s1／s24 禁選。前三次 provider 呼叫取得用量，第三次選段成功；原 cards 工作嘗試被本機大小 guard 阻擋，未出站。`5102638` 將 cards payload 從 104,529 降至 36,144 bytes，保留選句原始 words／timing 與完整驗證。
 
-本次實際使用量為 input 39,049、output 1,062 tokens，Standard tier；依官方 Standard 價格估算約 US$0.03326925，並非帳單。保守預留累計 US$0.1234725；原上限五次實際呼叫、US$0.50 不變，尚餘兩次實際呼叫額度。正式十題試跑、RC12 原音正式試跑與下載未授權、未執行；Atlas、VM、真 YouTube／LINE、正式部署、正式前端 UI 與真人審片皆未驗證。
+實際受控續跑的第四次 provider 嘗試為 cards，36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null；HTTP 類型與遠端是否收件或計費尚不明。保守計額 provider 4 次、workflow 5 次，reservation 累計 US$0.1659405；原上限 5 次與 US$0.50 不變，僅餘一次，不足 cards 與必要 wholeCheck 兩步。永久 claim 不重置，也不自動付費重試；目前無 generation checkpoint 與 MP4，教授試片 **BLOCKED**，需額外決策。紀錄為本機 ignored 的 `short_render/out/professor-resume-cards-check-20261104/run.json` 與 `progress-checkpoint.json`。目前 adapter 將 HTTP 400／429／500／503 與網路錯誤折疊為同一代碼，未保存 HTTP 或 provider 狀態，因此無法回溯本次原因。cards schema 為 19,917 bytes、330 nodes、317 properties、210 optional、深度 8；複雜度只是候選風險，不能推定為 400 或服務故障。後續建議以白名單保存狀態碼、provider 狀態列舉、失敗階段及 schema hash／大小，不保存原始錯誤、本文、header 或 prompt；schema 瘦身另列改善，均尚未實作。正式十題、RC12 原音正式驗收與模型下載未授權；正式部署、真 YouTube／LINE、正式前端與真人審片未驗證。
 
 ## 各模組
 

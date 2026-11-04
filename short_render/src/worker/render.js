@@ -10,7 +10,7 @@ const { workerError } = require('./http');
 // Loaded only after an approved frozen job passed version/hash/timing checks.
 // No ASR/model/API calls or generated plan substitutions belong in this adapter.
 function createRenderer({ browserExecutable, fontFile, ffmpeg = 'ffmpeg', ffprobe = 'ffprobe' }, {
-  runCommand = createCommandRunner(), stage = stageProject, render = renderProject, fontCheck = ensureFontLoaded, inspect = inspectResult,
+  runCommand = createCommandRunner(), stage = stageProject, render = renderProject, fontCheck = ensureFontLoaded, inspect = inspectResult, environment,
 } = {}) {
   if (!path.isAbsolute(browserExecutable || '') || !path.isAbsolute(fontFile || '')) throw workerError('RECUT_RENDER_CONFIG_INVALID');
   return async ({ job, resolved, sourcePath, outDir, signal }) => {
@@ -26,11 +26,11 @@ function createRenderer({ browserExecutable, fontFile, ffmpeg = 'ffmpeg', ffprob
       hyperframesImpl: (args, cwd) => {
         const root = path.dirname(require.resolve('hyperframes/package.json'));
         return execute(process.execPath, [path.join(root, 'bin', 'hyperframes.mjs'), ...args], {
-          cwd, env: { ...toolEnvironment(), HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_BROWSER_PATH: browserExecutable },
+          cwd, env: { ...toolEnvironment(environment), HYPERFRAMES_NO_TELEMETRY: '1', DO_NOT_TRACK: '1', HYPERFRAMES_BROWSER_PATH: browserExecutable },
         });
       },
       ensureFontLoaded: async ({ stageDir: staged }) => {
-        fontLoaded = await fontCheck({ stageDir: staged, browserExecutable, signal });
+        fontLoaded = await fontCheck({ stageDir: staged, browserExecutable, signal, env: toolEnvironment(environment) });
         return fontLoaded;
       } });
     signal.throwIfAborted();

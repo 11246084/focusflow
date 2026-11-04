@@ -13,13 +13,15 @@ test('真實adapter串接RC5與實測檢查器，各外部工具均可完整注�
   const { plan, source, resolved } = fixture(), calls = [], signal = new AbortController().signal;
   const browserExecutable = path.resolve('synthetic-chrome.exe'), fontFile = path.resolve('synthetic-font.ttf');
   const renderer = createRenderer({ browserExecutable, fontFile, ffmpeg: 'pinned-ffmpeg', ffprobe: 'pinned-ffprobe' }, {
+    environment: { Path: 'synthetic-tools', RECUT_WORKER_KEY: 'synthetic-worker', GEMINI_API_KEY: 'synthetic-provider', MONGODB_URI: 'synthetic-db' },
     runCommand: async (binary, args, options) => { calls.push('exec'); assert.equal(options.signal, signal); assert.equal(options.env.HYPERFRAMES_BROWSER_PATH, browserExecutable); assert(args.includes('render')); return { stdout: '', stderr: '' }; },
     stage: async (options) => { calls.push('stage'); assert.equal(options.plan, plan); assert.equal(options.resolveFont(), fontFile); return '/fake-stage'; },
     render: async (options) => {
       calls.push('render'); assert.equal(await options.ensureFontLoaded({ stageDir: '/fake-stage' }), true);
       await options.hyperframesImpl(['render', '.'], '/fake-stage'); return '/fake-stage/final.mp4';
     },
-    fontCheck: async (options) => { calls.push('font'); assert.equal(options.signal, signal); assert.equal(options.browserExecutable, browserExecutable); return true; },
+    fontCheck: async (options) => { calls.push('font'); assert.equal(options.signal, signal); assert.equal(options.browserExecutable, browserExecutable);
+      assert.deepEqual(options.env, { Path: 'synthetic-tools' }); return true; },
     inspect: async (options) => { calls.push('inspect'); assert.equal(options.fontLoaded, true); assert.equal(options.ffprobe, 'pinned-ffprobe'); return { observed: true }; },
   });
   const output = await renderer({ job: { plan, source }, resolved, sourcePath: '/synthetic.mp4', outDir: '/fake-out', signal });

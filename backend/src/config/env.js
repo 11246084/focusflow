@@ -262,6 +262,9 @@ module.exports = {
   lineLoginChannelId: process.env.LINE_LOGIN_CHANNEL_ID || '',
   lineLoginChannelSecret: process.env.LINE_LOGIN_CHANNEL_SECRET || '',
   lineLoginCallbackUrl: process.env.LINE_LOGIN_CALLBACK_URL || '',
+  // 「已綁定」圖文選單的 richMenuId（npm run line:rich-menu 建立後取得）；
+  // 留空時不切換選單，綁定與問答照常運作。
+  lineRichMenuBoundId: String(process.env.LINE_RICH_MENU_BOUND_ID || '').trim(),
   processingWebhookSecret: process.env.PROCESSING_WEBHOOK_SECRET || '',
   videoProcessingConcurrency: parsePositiveInteger(
     process.env.VIDEO_PROCESSING_CONCURRENCY,

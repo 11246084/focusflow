@@ -44,6 +44,41 @@ function foldTransportCues(output) {
   });
   return { ...output, scenes };
 }
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function dangerousKeyPath(value, at) {
+  if (Array.isArray(value)) { for (const [i, item] of value.entries()) { const hit = dangerousKeyPath(item, `${at}[${i}]`); if (hit) return hit; } return null; }
+  if (!object(value)) return null;
+  for (const key of Object.keys(value)) {
+    if (DANGEROUS_KEYS.has(key)) return `${at}.${key}`;
+    const hit = dangerousKeyPath(value[key], `${at}.${key}`); if (hit) return hit;
+  }
+  return null;
+}
+// The cards schema sends params as {<component>: {...that component's fields}}
+// so no component is offered another's fields. Fold it back to the flat plan
+// form. A flat legacy params object (no component-name key holding an object)
+// passes through unchanged; checkParamFields and describeComponent still validate
+// the folded result strictly, so nothing is dropped here.
+function foldTransportParams(output, componentNames = []) {
+  if (!object(output) || !Array.isArray(output.scenes)) return output;
+  const names = new Set(componentNames);
+  const scenes = output.scenes.map((scene, index) => {
+    if (!object(scene) || !object(scene.params)) return scene;
+    const card = `第 ${index + 1} 張圖卡`;
+    const danger = dangerousKeyPath(scene.params, `scenes[${index}].params`);
+    if (danger) throw fail(`${card}的 params 含不允許的欄位名稱：${danger}。`);
+    const wrapped = Object.keys(scene.params).filter((key) => names.has(key) && object(scene.params[key]));
+    if (!wrapped.length) return scene;
+    if (wrapped.length !== 1 || Object.keys(scene.params).length !== 1 || wrapped[0] !== scene.component) {
+      throw fail(`${card}（component "${scene.component}"）的 params 只能有一個與 component 同名的鍵 "${scene.component}"，收到：${Object.keys(scene.params).join(', ')}。`);
+    }
+    return { ...scene, params: scene.params[scene.component] };
+  });
+  return { ...output, scenes };
+}
+function foldTransportOutput(output, componentNames) {
+  return foldTransportParams(foldTransportCues(output), componentNames);
+}
 // Model transport has one canonical copy of each selected sentence. The full
 // source remains local for renderer/subtitle validation and whole-segment review.
 function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
@@ -91,7 +126,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
             || Object.keys(output).some((key) => !['scenes', 'subtitles'].includes(key))) throw fail('配圖輸出欄位無效。');
           if (output.scenes.some((scene) => !object(scene) || Object.keys(scene).some((key) => !['id', 'from', 'to', 'component', 'params', 'cues', 'stamp'].includes(key)))
             || output.subtitles.some((subtitle) => !object(subtitle) || Object.keys(subtitle).some((key) => !['from', 'runs', 'level'].includes(key)))) throw fail('圖卡或字幕含未定義欄位，不能自行填剪接或秒數。');
-          const prepared = foldTransportCues(safeClone(output));
+          const prepared = foldTransportOutput(safeClone(output), renderer.getComponentCatalog({ aiOnly: false }).map((card) => card.name));
           for (let i = 0; i < prepared.scenes.length; i++) if (prepared.scenes[i].component === 'code') {
             if (!codeCardHandler) throw fail('程式碼圖卡必須經過畫面辨識。');
             prepared.scenes[i] = await codeCardHandler({ ...context, source, scene: prepared.scenes[i] });
@@ -113,4 +148,4 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     return { plan: result.plan, theme: result.theme, cardsOutput: result.cardsOutput, modelId };
   } };
 }
-module.exports = { createRecutCardsStep, restrictPresentation, buildCardsInput, foldTransportCues };
+module.exports = { createRecutCardsStep, restrictPresentation, buildCardsInput, foldTransportCues, foldTransportParams, foldTransportOutput };

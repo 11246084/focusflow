@@ -58,7 +58,7 @@ function validateSentenceStructure(plan) {
     if (s?.cues !== undefined && (!s.cues || typeof s.cues !== 'object' || Array.isArray(s.cues))) add('CUES_INVALID', `${path}.cues`, 'cues must be an object');
     else for (const [key, anchor] of Object.entries(s?.cues || {})) {
       keys(anchor, ['sentenceId', 'text'], `${path}.cues.${key}`);
-      if (!d.cues.includes(key)) add('CUE_UNKNOWN', `${path}.cues.${key}`, 'unknown component cue');
+      if (!d.cues.includes(key)) add('CUE_UNKNOWN', `${path}.cues.${key}`, `unknown component cue; component "${s?.component}" with these params accepts only: ${d.cues.join(', ')}`);
       if (!safeId(anchor?.sentenceId) || (anchor?.text !== undefined && !text(anchor.text)) || anchor?.offset !== undefined || anchor?.nth !== undefined) add('ANCHOR_INVALID', `${path}.cues.${key}`, 'sentenceId + optional unique text; offsets are not accepted');
     }
     keys(s?.stamp, ['text', 'tone'], `${path}.stamp`);

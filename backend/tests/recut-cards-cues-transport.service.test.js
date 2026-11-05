@@ -12,7 +12,9 @@ it('cards response schema sends cues as a keyed list and stays compact', () => {
   const cues = schema.properties.scenes.items.properties.cues;
   assert.equal(cues.type, 'ARRAY');
   assert.deepEqual(cues.items.required, ['key', 'sentenceId']);
-  assert.ok(cues.items.properties.key.enum.includes('text'));
+  // Cue names depend on each card's params, so the key is a plain string; the
+  // local validator checks the exact set (see short_render catalog.fields test).
+  assert.deepEqual(cues.items.properties.key, { type: 'STRING' });
   let typed = 0;
   (function walk(value) { if (value && typeof value === 'object') { if (value.type) typed++; Object.values(value).forEach(walk); } })(schema);
   assert.ok(JSON.stringify(schema).length < 8000, 'schema bytes');

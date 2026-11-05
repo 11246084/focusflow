@@ -34,7 +34,8 @@ it('configured RC6 exposes only guarded code request and sends real image parts 
   const schema = r.runtime.renderer.getCardsResponseSchema(); assert.ok(schema.properties.scenes.items.properties.component.enum.includes('code'));
   const properties = schema.properties.scenes.items.properties;
   for (const name of ['not-fit', 'not-merge', 'nested']) assert.ok(properties.component.enum.includes(name));
-  assert.ok(properties.params.properties.language); assert.equal(properties.params.properties.lines, undefined);
+  assert.deepEqual(Object.keys(properties.params.properties.code.properties), ['language']); assert.deepEqual(properties.params.properties.code.required, ['language']);
+  assert.equal(properties.params.properties.language, undefined); assert.equal(properties.params.properties.lines, undefined);
   const scene = { id: 'code', component: 'code', from: 's1', to: 's2', params: { language: 'python' } };
   const result = await r.runtime.codeCardHandler({ ...c, source: c.source, scene });
   assert.equal(result.component, 'code'); assert.equal(r.commands.length, 3); assert.equal(r.cleaned(), 1);

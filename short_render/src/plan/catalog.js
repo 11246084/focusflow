@@ -83,22 +83,30 @@ function getComponentCatalog({ aiOnly = false } = {}) {
   }).filter((v) => !aiOnly || v.aiEnabled);
 }
 
+const stripDescriptions = (schema) => JSON.parse(JSON.stringify(schema, (key, value) => (key === 'description' ? undefined : value)));
+// Model-facing params: one optional key per component, each holding exactly that
+// component's PARAM_SCHEMAS entry. A merged superset offered every component's
+// fields to every other component and let not-merge.left/right overwrite
+// compare.left/right. The backend folds `params[component]` back into the flat
+// plan form; checkParamFields still validates the result strictly.
+function getTransportParamsSchema(names) {
+  return obj(Object.fromEntries(names.map((name) => [name, stripDescriptions(PARAM_SCHEMAS[name])])));
+}
+
 function getCardsResponseSchema() {
   const names = getComponentCatalog({ aiOnly: true }).map((v) => v.name);
-  const params = obj(Object.assign({}, ...names.map((name) => PARAM_SCHEMAS[name].properties)));
-  // A superset is intentional: component-specific required fields are checked
-  // in describeComponent; Gemini object schemas never contain an empty OBJECT.
-  const cueNames = ['label', 'kicker', 'value', 'unit', 'badge', 'show', 'note', 'text', 'enter', 'caption', 'dim', 'q', 'left', 'right', 'link', 'mark', 'head', 'banner', 'stamp', 'l0', 'l1', 'object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2'];
-  for (let i = 0; i < 6; i++) cueNames.push(`lit${i}`, `hl${i}`, `item${i}`, `d${i}`, `w${i}`);
-  for (let r = 0; r < 4; r++) for (let t = 0; t < 6; t++) cueNames.push(`r${r}t${t}`);
+  const params = getTransportParamsSchema(names);
   // Transport only: one anchor object per cue name made the schema too large for
   // Gemini (HTTP 400 INVALID_ARGUMENT). The model returns a keyed list instead;
-  // the backend cards step folds it back into the plan's `cues` object.
-  const cues = arr(obj({ key: { type: 'STRING', enum: cueNames }, sentenceId: str(), text: str('unique complete-word phrase within that sentence, optional') }, ['key', 'sentenceId']));
+  // the backend cards step folds it back into the plan's `cues` object. Valid cue
+  // names depend on each card's params (lit0..litN, d0..dN, r0t0...), which a
+  // static enum cannot express; validateSentenceStructure checks the exact set
+  // and CUE_UNKNOWN lists the names valid for that card.
+  const cues = arr(obj({ key: str(), sentenceId: str(), text: str() }, ['key', 'sentenceId']));
   return obj({
     scenes: arr(obj({ id: str(), from: str(), to: str(), component: { type: 'STRING', enum: names }, params, cues, stamp: obj({ text: str(), tone: { type: 'STRING', enum: ['alert'] } }, ['text']) }, ['id', 'from', 'to', 'component', 'params', 'cues'])),
     subtitles: arr(obj({ from: ANCHOR_SCHEMA, runs: arr(obj({ t: str(), hl: { type: 'BOOLEAN' } }, ['t'])), level: { type: 'STRING', enum: ['condensed', 'corrected'] } }, ['from', 'runs'])),
   }, ['scenes', 'subtitles']);
 }
 
-module.exports = { getComponentCatalog, getCardsResponseSchema, checkParamFields, describeParamFields, PARAM_SCHEMAS, ANCHOR_SCHEMA };
+module.exports = { getComponentCatalog, getCardsResponseSchema, getTransportParamsSchema, checkParamFields, describeParamFields, PARAM_SCHEMAS, ANCHOR_SCHEMA };

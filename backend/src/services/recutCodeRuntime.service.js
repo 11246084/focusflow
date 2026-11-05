@@ -62,7 +62,7 @@ function withRecutCodeRequests(renderer) {
     getCardsResponseSchema() {
       const schema = structuredClone(renderer.getCardsResponseSchema()), scene = schema.properties.scenes.items;
       if (!scene.properties.component.enum.includes('code')) scene.properties.component.enum.push('code');
-      scene.properties.params.properties.language = { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] };
+      scene.properties.params.properties.code = { type: 'OBJECT', properties: { language: { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] } }, required: ['language'] };
       return schema;
     },
   };

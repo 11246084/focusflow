@@ -59,8 +59,12 @@ function getCardsResponseSchema() {
   const cueNames = ['label', 'kicker', 'value', 'unit', 'badge', 'show', 'note', 'text', 'enter', 'caption', 'dim', 'q', 'left', 'right', 'link', 'mark', 'head', 'banner', 'stamp', 'l0', 'l1', 'object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2'];
   for (let i = 0; i < 6; i++) cueNames.push(`lit${i}`, `hl${i}`, `item${i}`, `d${i}`, `w${i}`);
   for (let r = 0; r < 4; r++) for (let t = 0; t < 6; t++) cueNames.push(`r${r}t${t}`);
+  // Transport only: one anchor object per cue name made the schema too large for
+  // Gemini (HTTP 400 INVALID_ARGUMENT). The model returns a keyed list instead;
+  // the backend cards step folds it back into the plan's `cues` object.
+  const cues = arr(obj({ key: { type: 'STRING', enum: cueNames }, sentenceId: str(), text: str('unique complete-word phrase within that sentence, optional') }, ['key', 'sentenceId']));
   return obj({
-    scenes: arr(obj({ id: str(), from: str(), to: str(), component: { type: 'STRING', enum: names }, params, cues: obj(Object.fromEntries(cueNames.map((key) => [key, ANCHOR_SCHEMA]))), stamp: obj({ text: str(), tone: { type: 'STRING', enum: ['alert'] } }, ['text']) }, ['id', 'from', 'to', 'component', 'params', 'cues'])),
+    scenes: arr(obj({ id: str(), from: str(), to: str(), component: { type: 'STRING', enum: names }, params, cues, stamp: obj({ text: str(), tone: { type: 'STRING', enum: ['alert'] } }, ['text']) }, ['id', 'from', 'to', 'component', 'params', 'cues'])),
     subtitles: arr(obj({ from: ANCHOR_SCHEMA, runs: arr(obj({ t: str(), hl: { type: 'BOOLEAN' } }, ['t'])), level: { type: 'STRING', enum: ['condensed', 'corrected'] } }, ['from', 'runs'])),
   }, ['scenes', 'subtitles']);
 }

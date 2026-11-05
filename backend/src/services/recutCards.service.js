@@ -27,6 +27,23 @@ function restrictPresentation(candidate, scope) {
   }
   return result;
 }
+// The cards schema sends cues as [{key, sentenceId, text?}] to stay within
+// Gemini's schema limits; the plan keeps the keyed object form.
+function foldTransportCues(output) {
+  if (!object(output) || !Array.isArray(output.scenes)) return output;
+  const scenes = output.scenes.map((scene, index) => {
+    if (!object(scene) || !Array.isArray(scene.cues)) return scene;
+    const cues = {};
+    for (const cue of scene.cues) {
+      if (!object(cue) || Object.keys(cue).some((key) => !['key', 'sentenceId', 'text'].includes(key))
+        || typeof cue.key !== 'string' || !cue.key || ['__proto__', 'constructor', 'prototype'].includes(cue.key)) throw fail(`第 ${index + 1} 張圖卡的 cues 格式無效。`);
+      if (Object.hasOwn(cues, cue.key)) throw fail(`第 ${index + 1} 張圖卡的 cue「${cue.key}」重複。`);
+      cues[cue.key] = { sentenceId: cue.sentenceId, ...(cue.text !== undefined ? { text: cue.text } : {}) };
+    }
+    return { ...scene, cues };
+  });
+  return { ...output, scenes };
+}
 // Model transport has one canonical copy of each selected sentence. The full
 // source remains local for renderer/subtitle validation and whole-segment review.
 function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
@@ -73,7 +90,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
             || Object.keys(output).some((key) => !['scenes', 'subtitles'].includes(key))) throw fail('配圖輸出欄位無效。');
           if (output.scenes.some((scene) => !object(scene) || Object.keys(scene).some((key) => !['id', 'from', 'to', 'component', 'params', 'cues', 'stamp'].includes(key)))
             || output.subtitles.some((subtitle) => !object(subtitle) || Object.keys(subtitle).some((key) => !['from', 'runs', 'level'].includes(key)))) throw fail('圖卡或字幕含未定義欄位，不能自行填剪接或秒數。');
-          const prepared = safeClone(output);
+          const prepared = foldTransportCues(safeClone(output));
           for (let i = 0; i < prepared.scenes.length; i++) if (prepared.scenes[i].component === 'code') {
             if (!codeCardHandler) throw fail('程式碼圖卡必須經過畫面辨識。');
             prepared.scenes[i] = await codeCardHandler({ ...context, source, scene: prepared.scenes[i] });
@@ -95,4 +112,4 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     return { plan: result.plan, theme: result.theme, cardsOutput: result.cardsOutput, modelId };
   } };
 }
-module.exports = { createRecutCardsStep, restrictPresentation, buildCardsInput };
+module.exports = { createRecutCardsStep, restrictPresentation, buildCardsInput, foldTransportCues };

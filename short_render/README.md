@@ -6,7 +6,7 @@
 
 - `buildRecutPlan({source,selectionResult,scenes,subtitles,title,endCard,modelId,audio,theme})` 回 `{plan,resolved,errors}`；來源與選段使用 RC2／RC3 的凍結句子及絕對逐字秒數。`audio` 可用 RC2 的 `integratedLufs/truePeakDbtp/fixedGainDb`；預設 N2、結尾卡額外時長 0，避免擅改已鎖定的 65 秒選段。
 - `validatePlan(plan,{sentences,evidence,resolved?})` 回 `{valid,errors,warnings}`；`evidence` 可為凍結 chunk 陣列或 RC2 source。`resolvePlan(plan,{sentences})` 回 `{resolved,errors}`。新版不再呼叫第二次 ASR、模糊比對或靜音吸附，剪點須與 RC3 逐字邊界相同。
-- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:{text:{sentenceId:'s1',text?:'原話片語'}}}]`；程式填回 `clips/basedOn`。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
+- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:[{key:'text',sentenceId:'s1',text?:'原話片語'}]}]`；後端 `foldTransportCues` 先折回施工單的 `cues:{text:{sentenceId,text?}}` 物件，再交給本模組，程式填回 `clips/basedOn`。cues 改用清單是因為每個 cue 名稱各一個錨點物件的 schema 約 20 KB、330 個型別節點，Gemini 回 400 INVALID_ARGUMENT（2026-11-05 OpenCV 試產實測）；清單版約 4.5 KB、88 個節點。重複的 key 或未定義欄位會當成修正錯誤回給模型，不靜默略過；施工單、驗證器與渲染仍只接受物件形式。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
 - 圖卡目錄共 12 種加 RC6 `code` 擴充。`getComponentCatalog({aiOnly:true})` 暫回原有 9 種；三種新卡必須經另一位代理完成手機可讀性檢查才開 AI；`code` 由 RC6 畫面抄錄步驟提供，配圖模型不可自行編寫。每筆目錄含用途、參數 schema、三行範例與不適用情境。
 - RC6 `code.params`：`language`、`lines:[{text,source:'畫面原樣|AI 修正|AI 補寫',originalText,intentionalError?}]`，選填 `highlightLines:[1]`、`boxes:[{line:1,text:'唯一文字'}]`、`requiredVariables:['x']`、`errorMessage`、`diagram:{layers:[{text,icon?}]}`。每行至多 36 字、每卡至多 12 行；故意錯誤必須維持畫面原樣。
 

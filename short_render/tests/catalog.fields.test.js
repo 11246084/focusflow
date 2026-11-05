@@ -71,3 +71,19 @@ test('timing feedback names the scene duration, sentence spans and the ambiguous
   const result = resolvePlan(ambiguous, { sentences });
   assert.match(result.errors[0].message, /anchor absent or ambiguous in .+: 不存在的片語; use a phrase copied from that sentence that occurs exactly once \(sentence: /);
 });
+
+test('a whole-sentence anchor on a trimmed sentence explains that a phrase inside the kept part is needed', () => {
+  const { resolvePlan } = require('../src/plan');
+  const { plan, sentences } = fixture();
+  const trimmed = structuredClone(plan);
+  const first = sentences.find((s) => s.id === trimmed.clips[0].from);
+  assert.ok(first.words.length > 1);
+  // Start the clip at the sentence's last word; the scene still lasts >= 3s.
+  trimmed.clips[0].startAt = first.words.at(-1).text;
+  delete trimmed.clips[0].textAnchors;
+  const scene = trimmed.scenes.find((s) => s.from === first.id);
+  scene.cues = { stamp: { sentenceId: first.id } }; scene.stamp = { text: '注意' };
+  const result = resolvePlan(trimmed, { sentences });
+  assert.equal(result.resolved, null);
+  assert.match(result.errors[0].message, new RegExp(`whole-sentence anchor on ${first.id} was trimmed out of the clip; give a text phrase inside the kept part: ${first.words.at(-1).text}`));
+});

@@ -6,19 +6,23 @@ const loadSourceDefault = (id) => require('../models/recutSource.model').findByI
 function validateIssues(output, source, plan) {
   const errors = [];
   if (!output || !Array.isArray(output.issues) || Object.keys(output).some((k) => k !== 'issues')) return { valid: false, errors: ['整段檢查只接受 issues 陣列。'] };
-  for (const issue of output.issues) {
+  const scenePaths = (plan?.scenes || []).map((_, i) => `/plan/scenes/${i}/params`);
+  const subtitlePaths = (plan?.subtitles || []).flatMap((sub, i) => (sub.runs || []).map((_, j) => `/plan/subtitles/${i}/runs/${j}/t`));
+  const pathHint = () => `可用路徑：${[...scenePaths, ...subtitlePaths.slice(0, 6)].join('、')}${subtitlePaths.length > 6 ? ' 等字幕路徑' : ''}`;
+  for (const [index, issue] of output.issues.entries()) {
+    const label = `issues[${index}]（${issue?.type}）`;
     if (!issue || !ISSUE_TYPES[issue.type] || Object.keys(issue).some((k) => !['type', 'problem', 'proposedChange', 'impact', 'sentenceIds', 'presentationPaths', 'selectionChanges'].includes(k))
       || ['problem', 'proposedChange', 'impact'].some((k) => typeof issue[k] !== 'string' || !issue[k].trim())
       || !Array.isArray(issue.sentenceIds) || issue.sentenceIds.some((id) => !source.sentences.some((s) => s.id === id))
       || !Array.isArray(issue.presentationPaths) || !Array.isArray(issue.selectionChanges)
-      || issue.selectionChanges.some((c) => !c || Object.keys(c).some((k) => !['sentenceId', 'action'].includes(k)) || !['add', 'remove'].includes(c.action) || !source.sentences.some((s) => s.id === c.sentenceId))) { errors.push('問題分類或說明格式無效。'); continue; }
-    if (ISSUE_TYPES[issue.type].target === 'selection' && issue.presentationPaths.length) errors.push('選段問題不得帶呈現路徑。');
-    if (ISSUE_TYPES[issue.type].target === 'selection' && !issue.selectionChanges.length) errors.push('選段問題須明列加回或移除句子。');
-    if (ISSUE_TYPES[issue.type].target === 'cards' && issue.selectionChanges.length) errors.push('圖卡問題不得改選段。');
-    if (ISSUE_TYPES[issue.type].target === 'cards' && !issue.presentationPaths.length) errors.push('圖卡問題須提供具體呈現路徑。');
+      || issue.selectionChanges.some((c) => !c || Object.keys(c).some((k) => !['sentenceId', 'action'].includes(k)) || !['add', 'remove'].includes(c.action) || !source.sentences.some((s) => s.id === c.sentenceId))) { errors.push(`${label} 分類或說明格式無效：type 須為允許類型，problem/proposedChange/impact 不可空白，sentenceIds 與 selectionChanges 只能用提供的句子ID。`); continue; }
+    if (ISSUE_TYPES[issue.type].target === 'selection' && issue.presentationPaths.length) errors.push(`${label} 是選段問題，presentationPaths 必須是 []。`);
+    if (ISSUE_TYPES[issue.type].target === 'selection' && !issue.selectionChanges.length) errors.push(`${label} 是選段問題，須在 selectionChanges 明列 {sentenceId, action: add|remove}。`);
+    if (ISSUE_TYPES[issue.type].target === 'cards' && issue.selectionChanges.length) errors.push(`${label} 是圖卡問題，selectionChanges 必須是 []；要改選段請改用選段類型。`);
+    if (ISSUE_TYPES[issue.type].target === 'cards' && !issue.presentationPaths.length) errors.push(`${label} 是圖卡問題，須在 presentationPaths 列出要修的卡片或字幕路徑；plan.clips 的剪點由程式依 selection 產生，不能當成圖卡問題回報。${pathHint()}`);
     for (const path of issue.presentationPaths) {
       const match = /^\/plan\/(scenes|subtitles)\/(0|[1-9]\d*)\/(params(?:\/[\w-]+)*|runs\/(0|[1-9]\d*)\/t)$/.exec(path);
-      if (!match || /(?:^|\/)(__proto__|constructor|prototype)(?:\/|$)/.test(path) || !plan?.[match[1]]?.[+match[2]] || (match[1] === 'subtitles' ? !plan.subtitles[+match[2]].runs?.[+match[4]] : !match[3].startsWith('params'))) errors.push('問題的呈現路徑無效。');
+      if (!match || /(?:^|\/)(__proto__|constructor|prototype)(?:\/|$)/.test(path) || !plan?.[match[1]]?.[+match[2]] || (match[1] === 'subtitles' ? !plan.subtitles[+match[2]].runs?.[+match[4]] : !match[3].startsWith('params'))) errors.push(`${label} 的呈現路徑 ${path} 無效。${pathHint()}`);
     }
   }
   return { valid: !errors.length, errors, issues: output.issues.map((issue) => ({ ...issue, ...ISSUE_TYPES[issue.type] })) };

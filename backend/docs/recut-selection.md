@@ -50,3 +50,7 @@ S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`�
 選段模型輸入的每句含 `selectionAllowed` 與 `exclusionReason`。`source.excludedSentenceIds` 是來源凍結的禁止清單，`resolveSelection` 對實際保留的範圍及片頭統一檢查；句內 `startAt/endAt` 或 `allowInvalidDuration` 只調整各自用途，不能解除排除。選段失敗會正常記錄並依額度重試，不把模型違反限制的結果交給配圖。
 
 教師草稿、建議套用與 RC8 prepare 的 `lockedSelection` 沿用同一檢查。被排除的句子仍可閱讀，但人工加回會回 `422 RECUT_SENTENCE_EXCLUDED`，並在寫入草稿前停止。
+
+### 整段檢查的修正回饋
+
+整段檢查的 `validateIssues` 規則不變：圖卡類問題必須有 `/plan/scenes/i/params` 或 `/plan/subtitles/i/runs/j/t` 路徑，選段類問題必須有 `selectionChanges`，否則整份輸出無效、不採用。回給模型的錯誤會標出第幾個問題與其類型，並列出這份施工單實際可用的路徑。提示詞另說明 `plan.clips` 由程式依 selection 產生：selection 的 `endAt` 是剪點片語，`plan.clips` 的 `endAt`／`textAnchors` 是剪點後保留的完整原話，兩者指同一剪點，不算 `anchor_mismatch`；剪點本身不妥（例如帶出下一主題的半句）屬選段問題。2026-11-05 OpenCV 試產中，模型把這個差異回報成沒有路徑的 `anchor_mismatch`，舊訊息只說「須提供具體呈現路徑」，連續十二次同樣失敗，所以補上這些說明。

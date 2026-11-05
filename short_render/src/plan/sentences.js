@@ -157,7 +157,7 @@ function resolveSentencePlan(plan, { sentences } = {}) {
       if (!clipIds.includes(s.clip)) throw new Error('anchor sentence is outside the referenced clip');
       const match = phraseWords(s.source, anchor.text);
       const w = s.source.words[match.first];
-      if (w.startSec < s.words[0].startSec || s.source.words[match.last].endSec > s.words.at(-1).endSec) throw new Error(`anchor phrase "${anchor.text}" in ${anchor.sentenceId} was trimmed out of the clip; the clip keeps only: ${s.words.map((v) => v.text).join('')}`);
+      if (w.startSec < s.words[0].startSec || s.source.words[match.last].endSec > s.words.at(-1).endSec) throw new Error(`${anchor.text === undefined ? `whole-sentence anchor on ${anchor.sentenceId}` : `anchor phrase "${anchor.text}" in ${anchor.sentenceId}`} was trimmed out of the clip; give a text phrase inside the kept part: ${s.words.map((v) => v.text).join('')}`);
       return round(s.t0 + w.startSec - s.words[0].startSec);
     };
     let covered = 0;

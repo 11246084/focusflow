@@ -5,13 +5,17 @@ const { pathToFileURL } = require('node:url');
 
 // Uses HyperFrames' lockfile-pinned browser driver, never installs a browser.
 // Caller must supply an existing chrome-headless-shell executable.
-async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, env }) {
+// Chromium refuses to start as root on Linux without --no-sandbox. HyperFrames'
+// own render already launches that way; this check still loads only the local
+// stage and aborts every non-file/data/blob request below.
+const runningAsLinuxRoot = () => process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0;
+async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, env, isLinuxRoot = runningAsLinuxRoot }) {
   signal?.throwIfAborted();
   if (!browserExecutable && !launch) throw new Error('existing chrome-headless-shell path is required');
   const browserLaunch = launch || require(require.resolve('puppeteer-core', {
     paths: [path.dirname(require.resolve('hyperframes/package.json'))],
   })).launch;
-  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true, ...(env ? { env } : {}) });
+  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true, ...(env ? { env } : {}), ...(isLinuxRoot() ? { args: ['--no-sandbox'] } : {}) });
   const abort = () => { browser.close().catch(() => {}); };
   signal?.addEventListener('abort', abort, { once: true });
   try {

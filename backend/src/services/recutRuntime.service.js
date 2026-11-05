@@ -22,13 +22,21 @@ async function runDecision(context, { decide, instructions, input, responseSchem
   await context.checkCancelled();
   return result;
 }
+// Repeated equivalent failures switch to a targeted repair request once, then
+// stop with RECUT_REPAIR_STALLED instead of spending the rest of the shared budget.
 async function retryDecision(context, options) {
-  let errors = options.input.errors || [], previousOutput = options.input.previousOutput || null;
+  const { createRepairStallTracker, targetedRepairFields } = require('./recutRepairStall.service');
+  const { stage, ...decision } = options;
+  let errors = decision.input.errors || [], previousOutput = decision.input.previousOutput || null, strategy = {};
+  const tracker = createRepairStallTracker({ stage: stage || 'decision' });
   while (context.task.callsUsed < context.task.callLimit) {
     try {
-      return await runDecision(context, { ...options, input: { ...options.input, errors, previousOutput },
-        validate: async (output) => { previousOutput = output; const result = await options.validate(output); errors = result.errors || []; return result; } });
-    } catch (error) { if (error.code !== 'RECUT_VALIDATION_FAILED') throw error; }
+      return await runDecision(context, { ...decision, input: { ...decision.input, errors, previousOutput, ...strategy },
+        validate: async (output) => { previousOutput = output; const result = await decision.validate(output); errors = result.errors || []; return result; } });
+    } catch (error) {
+      if (error.code !== 'RECUT_VALIDATION_FAILED') throw error;
+      strategy = tracker.record(errors, { budgetLeft: context.task.callsUsed < context.task.callLimit }).strategy === 'targeted' ? targetedRepairFields(errors) : {};
+    }
   }
   throw fail('Recut 共用呼叫額度已用完，可信度檢查仍未通過。', 'RECUT_CALL_LIMIT_EXCEEDED');
 }

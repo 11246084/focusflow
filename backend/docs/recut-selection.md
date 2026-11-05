@@ -54,3 +54,13 @@ S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`�
 ### 整段檢查的修正回饋
 
 整段檢查的 `validateIssues` 規則不變：圖卡類問題必須有 `/plan/scenes/i/params` 或 `/plan/subtitles/i/runs/j/t` 路徑，選段類問題必須有 `selectionChanges`，否則整份輸出無效、不採用。回給模型的錯誤會標出第幾個問題與其類型，並列出這份施工單實際可用的路徑。提示詞另說明 `plan.clips` 由程式依 selection 產生：selection 的 `endAt` 是剪點片語，`plan.clips` 的 `endAt`／`textAnchors` 是剪點後保留的完整原話，兩者指同一剪點，不算 `anchor_mismatch`；剪點本身不妥（例如帶出下一主題的半句）屬選段問題。2026-11-05 OpenCV 試產中，模型把這個差異回報成沒有路徑的 `anchor_mismatch`，舊訊息只說「須提供具體呈現路徑」，連續十二次同樣失敗，所以補上這些說明。
+
+### 修正停滯偵測
+
+選段、配圖與整段檢查共用的重試迴圈（`retryDecision`、`runValidatedDecision`）在每次驗證失敗後，以 [recutRepairStall.service.js](../src/services/recutRepairStall.service.js) 算出錯誤簽章：結構化錯誤取 `code|path`，文字錯誤把數字換成 `#`，去重後排序。同一簽章第二次出現時，下一次請求改用定向修正：輸入加上 `repairStrategy: "targeted"`、`repairNotice` 與 `mustFix`（每個出錯位置只列一次），要求只改這些位置；第三次出現（含 A、B、A 交替）且仍有額度時停止，回 `RECUT_REPAIR_STALLED`，錯誤附 `diagnostics`（stage、簽章、次數、錯誤樣本）。額度已用完時維持原本的 `RECUT_CALL_LIMIT_EXCEEDED`。驗證規則不變，定向修正的輸出照樣逐項檢查。
+
+- 解決的問題：2026-11-05 OpenCV 試產 run-6 的配圖步驟把 relation 的 `words` 放進 stat，連續 11 次相同錯誤，耗掉共用額度。
+- 取捨：只看「同一迴圈內」的簽章，不跨步驟累計；錯誤每次不同（模型確實在改）時不算停滯。第三次才停是為了讓定向修正至少有一次機會。
+- 限制：簽章把文字錯誤裡的數字遮掉，兩個只差數字、但實際位置不同的文字錯誤會被視為相同；結構化錯誤保留完整 path，不受影響。
+- 測試：`backend/tests/recut-repair-stall.service.test.js`。
+- 額度預設不變：`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT` 未設定時仍為 5。

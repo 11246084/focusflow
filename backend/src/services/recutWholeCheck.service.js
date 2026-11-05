@@ -39,7 +39,7 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
     const { data, task } = context;
     const source = await loadSource(data.sourceId);
     if (!source || String(source.scriptId) !== String(task.scriptId)) throw fail('整段檢查來源無效。', 'RECUT_SOURCE_INVALID');
-    let result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema,
+    let result = await retryDecision(context, { stage: 'wholeCheck', decide, instructions: INSTRUCTIONS, responseSchema,
       input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
       validate: (output) => validateIssues(output, source, data.plan) });
     let issues = result.issues;
@@ -67,7 +67,7 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
       const required = credibility.some((i) => i.target === 'selection') ? 3 : 2;
       if (task.callLimit - task.callsUsed < required || !await repair(credibility)) throw fail('可信度修正與複檢額度不足。', 'RECUT_CALL_LIMIT_EXCEEDED');
       if (data.selection?.answerable === false) return { version: data.version, suggestions: [] };
-      result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema,
+      result = await retryDecision(context, { stage: 'wholeCheck', decide, instructions: INSTRUCTIONS, responseSchema,
         input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
         validate: (output) => validateIssues(output, source, data.plan) });
       issues = result.issues;
@@ -85,7 +85,7 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
       if (data.selectionLocked || credibility.length || task.callLimit - task.callsUsed < required) suggestions.push(...quality.map((i) => asSuggestion(i, source, data.selection)));
       else {
         await repair(quality);
-        result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema,
+        result = await retryDecision(context, { stage: 'wholeCheck', decide, instructions: INSTRUCTIONS, responseSchema,
           input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
           validate: (output) => validateIssues(output, source, data.plan) });
         if (result.issues.some((i) => i.severity === 'credibility')) throw fail('修正後仍有可信度錯誤。');

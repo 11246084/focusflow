@@ -22,10 +22,12 @@ function createRecutDecisionPoint({ fetchImpl = global.fetch, apiKey = env.gemin
 }
 // RC3、RC4 共用同一 runAttempt；重試不建立新任務或新額度。
 async function runValidatedDecision({ task, runAttempt, checkCancelled, decide, model, instructions, input, responseSchema, validate }) {
-  let previousOutput = null, errors = [];
+  const { createRepairStallTracker, targetedRepairFields } = require('./recutRepairStall.service');
+  const tracker = createRepairStallTracker({ stage: 'selection' });
+  let previousOutput = null, errors = [], strategy = {};
   while (task.callsUsed < task.callLimit) {
     await checkCancelled();
-    const request = { ...input, ...(errors.length ? { previousOutput, errors } : {}) };
+    const request = { ...input, ...(errors.length ? { previousOutput, errors, ...strategy } : {}) };
     try {
       let result;
       await runAttempt({ input: { instructions, ...request, responseSchema }, modelId: model.model, consumesCall: true,
@@ -42,6 +44,7 @@ async function runValidatedDecision({ task, runAttempt, checkCancelled, decide, 
       return result;
     } catch (error) {
       if (error.code !== 'RECUT_VALIDATION_FAILED') throw error;
+      strategy = tracker.record(errors, { budgetLeft: task.callsUsed < task.callLimit }).strategy === 'targeted' ? targetedRepairFields(errors) : {};
     }
   }
   throw new AppError('Recut 共用呼叫額度已用完，選段仍未通過驗證。', 409, 'RECUT_CALL_LIMIT_EXCEEDED');

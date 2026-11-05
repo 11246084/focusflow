@@ -118,7 +118,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     if (!source || String(source.scriptId) !== String(task.scriptId)) throw fail('配圖來源不屬於此腳本。', 'RECUT_SOURCE_INVALID');
     const base = data.baseVersionId ? await loadBaseVersion(data.baseVersionId) : null;
     const modelId = data.modelId || task.settingsSnapshot?.model?.model;
-    const result = await retryDecision(context, { decide, instructions: INSTRUCTIONS, responseSchema: getResponseSchema(renderer),
+    const result = await retryDecision(context, { stage: 'cards', decide, instructions: INSTRUCTIONS, responseSchema: getResponseSchema(renderer),
       input: buildCardsInput({ source, data, renderer, base, codeCardHandler }),
       validate: async (output) => {
         try {

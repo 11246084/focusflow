@@ -41,12 +41,44 @@ const DETAILS = {
   code: ['呈現來源畫面的短程式碼與指定行文字框。', { language: 'python', lines: [{ text: 'x = 1', source: '畫面原樣', originalText: 'x = 1' }], highlightLines: [1] }, '只接受 RC6 畫面抄錄與審核結果；不要讓配圖步驟自己編程式。'],
 };
 
+// Field paths per component, derived from PARAM_SCHEMAS so the model-facing
+// catalog, validation and repair feedback never diverge. Nested list items are
+// written as `rows[].tokens[]`.
+function describeParamFields(schema, prefix = '') {
+  if (schema?.type === 'ARRAY') return describeParamFields(schema.items, `${prefix}[]`);
+  if (schema?.type !== 'OBJECT') return [];
+  const entry = { path: prefix || 'params', allowed: Object.keys(schema.properties || {}), required: [...(schema.required || [])] };
+  return [entry, ...Object.entries(schema.properties || {}).flatMap(([key, child]) => describeParamFields(child, prefix ? `${prefix}.${key}` : key))];
+}
+const issue = (code, path, message) => ({ code, path, message });
+// Strict check: every unknown key is reported with the fields allowed at that
+// level. Nothing is removed; callers still reject the plan.
+function checkParamFields(component, params, path = 'params') {
+  const schema = PARAM_SCHEMAS[component], errors = [];
+  const walk = (value, node, at, label) => {
+    if (node?.type === 'ARRAY' && Array.isArray(value)) return value.forEach((v, i) => walk(v, node.items, `${at}[${i}]`, `${label}[]`));
+    if (node?.type !== 'OBJECT' || !value || typeof value !== 'object' || Array.isArray(value)) return;
+    const allowed = Object.keys(node.properties || {});
+    for (const key of Object.keys(value)) {
+      if (!allowed.includes(key)) errors.push(issue('FIELD_UNKNOWN', `${at}.${key}`,
+        `field is not in the sentence-v1 contract; component "${component}" ${label} allows only: ${allowed.join(', ')}${node.required?.length ? `; required: ${node.required.join(', ')}` : ''}`));
+      else walk(value[key], node.properties[key], `${at}.${key}`, label === 'params' ? key : `${label}.${key}`);
+    }
+  };
+  walk(params, schema, path, 'params');
+  return errors;
+}
+
 function getComponentCatalog({ aiOnly = false } = {}) {
+  const { describeComponent } = require('./components');
   return COMPONENT_NAMES.map((name) => {
     const [purpose, example, doNotUse] = DETAILS[name];
     // Three relation cards passed the separate mobile review; code stays RC6-only.
     const aiEnabled = name !== 'code';
+    const [top, ...nested] = describeParamFields(PARAM_SCHEMAS[name]);
     return { name, purpose, paramsSchema: structuredClone(PARAM_SCHEMAS[name]), example: `{\n  ${Object.entries(example).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}\n}`, doNotUse, aiEnabled,
+      fields: top.allowed, required: top.required, nestedFields: nested.map(({ path, allowed, required }) => ({ path, allowed, required })),
+      exampleCues: describeComponent(name, example).cues,
       review: ['not-fit', 'not-merge', 'nested'].includes(name) ? 'independent-mobile-reviewed-20261104' : name === 'code' ? 'rc6-only' : 'existing' };
   }).filter((v) => !aiOnly || v.aiEnabled);
 }
@@ -69,4 +101,4 @@ function getCardsResponseSchema() {
   }, ['scenes', 'subtitles']);
 }
 
-module.exports = { getComponentCatalog, getCardsResponseSchema, PARAM_SCHEMAS, ANCHOR_SCHEMA };
+module.exports = { getComponentCatalog, getCardsResponseSchema, checkParamFields, describeParamFields, PARAM_SCHEMAS, ANCHOR_SCHEMA };

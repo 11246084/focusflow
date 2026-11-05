@@ -68,7 +68,8 @@ function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
   }
   return { selection: data.selection,
     clips: data.selectionResult.clips.map(({ sentenceIds, startSec, endSec, opening }) => ({ sentenceIds, startSec, endSec, opening })),
-    sentences, catalog: catalog.map(({ name, purpose, example, doNotUse, aiEnabled }) => ({ name, purpose, example, doNotUse, aiEnabled })),
+    sentences, catalog: catalog.map(({ name, purpose, example, doNotUse, aiEnabled, fields, required, nestedFields, exampleCues }) => ({ name, purpose, example, doNotUse, aiEnabled,
+      ...(fields ? { fields, required: required || [], nestedFields: nestedFields || [] } : {}), ...(exampleCues ? { exampleCues } : {}) })),
     iconAllowlist: [...icons].slice(0, 64), selectionLocked: Boolean(data.selectionLocked), adoptedSuggestions: data.adoptedSuggestions || [],
     presentationScope: data.presentationScope || null, previousOutput: data.cardsOutput || null,
     errors: data.repairIssues || [], basePlan: base?.plan || null, codeAvailable: Boolean(codeCardHandler) };

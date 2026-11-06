@@ -1,6 +1,6 @@
 # short_render
 
-## RC5 句子契約（0.2.0）
+## RC5 句子契約（0.3.0；0.2.0 起的句子契約，0.3.0 加上 2026-11-06 渲染修正）
 
 後端以 `require('./src/plan')` 使用 `buildRecutPlan`、`validatePlan`、`resolvePlan`、`getComponentCatalog`、`getCardsResponseSchema`、`getAllowedIcons`、`getAssetCatalog`、`getRendererMetadata`。新版仍用 `schemaVersion: 'recut-v1'`，另帶 `contractVersion: 'sentence-v1'`，與下方歷史文字錨點原型分開辨識。`tests/sentence.fixture.js` 是無真人素材的完整合成樣本。
 

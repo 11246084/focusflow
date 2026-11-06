@@ -6,7 +6,7 @@
 
 ## Recut 修正候選（2026-11-06，分支 `wip/recut-cards-schema-fix`）
 
-**開發中，待獨立審查與人工審片；未合併 dev、未部署、未發布。** 分支從 `origin/dev` `18aed4c` 切出，以 draft PR 送審。
+**開發中，待人工 code review 與教師審片；未合併 dev、未部署、未發布。** 分支從團隊 `11246084/focusflow` 的 `dev` `18aed4c` 切出（團隊 dev 目前仍為 `18aed4c`，可直接快轉）；分支在 fork `Hao-weii/focusflow`。目前的 draft PR 誤指 fork 自己的 dev，改向團隊 repo 的跨 fork PR 尚待建立。
 
 2026-11-05 OpenCV 本機試產（教授影片 `aiA10_1140216_1.mp4` 18:04–20:26，本機 `recut_trial_opencv-20261105`，`gemini-3.8-flash`）：run-6 產出第一支可播放 MP4（46.5 秒），當天共 69 次 Gemini 外呼（含除錯），以回傳 token × 價目估算約 US$0.83，不是帳單。run-6 響度 −18.1 LUFS，不符決策 #62 的 ±2 LU；另有字幕跨剪接點 2.2 秒、scene-5 空白圖卡 3.18 秒、引言泡泡超出卡片 23 px、圖卡出現原話沒有的「大型模型」。
 
@@ -14,7 +14,7 @@
 
 修正版影片由 run-6 施工單離線重渲染，本階段 0 次模型呼叫：`revision-1`（43.3 秒，去掉 c3 尾端「當然啦」與 c4 開頭重說）與 `revision-1b`（45.5 秒，保留 c4 開頭重說）。兩支自動檢查都通過決策 #62 七項（−17.2／−17.1 LUFS、真峰值 −1.6 dBTP），沒有字幕跨剪接點、空白圖卡或文字超框。剪接改動會改變播放的老師原音，需重新核准講稿；c4 剪接點位於連續語音中，需人工聽音確認。run-6 沒有 generation checkpoint，也沒有資料庫綁定，無法用零呼叫重渲染流程回復，修正版不宣稱 checkpoint 來源。
 
-驗證（2026-11-06，Node 22.23.4，程式候選 `97b2a9c`；之後只有文件提交）：short_render `npm test` 165 項 164 通過、1 跳過（需瀏覽器的選用測試），另設 `SHORT_RENDER_TEST_BROWSER` 單獨執行該檔 4／4 通過；backend `npm test` 1780 項 1779 通過、1 跳過、0 失敗。OpenAPI 未變更，未跑 `docs:lint`。另一個 agent 完成一輪唯讀獨立審查，提出的停滯誤判、checkpoint 寫入時機、無效 JSON、原子 persist 與錯誤碼問題已在 `97b2a9c` 修正；人工 code review 尚未進行。未執行：以真實 Gemini 確認新 schema 被接受（新 schema 約 4.9 KB、124 節點，舊版 4.5 KB 已確認可用、20 KB 被拒）、真實 MongoDB＋真實渲染的零呼叫重渲染端到端、前端、教師審片。
+驗證分三類。**本次新執行（2026-11-06，Node 22.23.4，程式候選 `6581ad0`）**：backend `npm test` 1787 項 1786 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過（需瀏覽器的選用測試），另設 `SHORT_RENDER_TEST_BROWSER` 單獨執行該檔 4／4 通過。之後只有文件提交。 OpenAPI 未變更，未跑 `docs:lint`。**真實本機堆疊驗證**（專用本機資料庫 `recut_trial_ckpt-verify-20261106`、假 provider、真實 CLI 與 short_render／HyperFrames／FFmpeg 渲染）：生成 3 次假呼叫後寫入 checkpoint 與資料庫綁定、刻意讓渲染失敗、另起程序重渲染 0 次 provider 嘗試並產出可播放 MP4（決策 #62 自動檢查通過）；被改、重算 hash、缺欄位、input／config 不同、腳本或來源已變的 checkpoint 都拒絕且未渲染；原 run 檔案與資料庫紀錄不變。**獨立審查**：兩輪唯讀審查（第二輪針對 `936430d` 之後的 7 筆）提出的問題已修正，包含 checkpoint 前提改在任何模型呼叫前檢查、worker 不再被版本不符的工作擋住。**未執行**：以真實 Gemini 確認新 schema 會被接受（新 schema 約 4.9 KB、124 節點；舊版 4.5 KB 已確認可用、20 KB 被拒；確認呼叫待授權）、前端、人工 code review、教師審片。2026-11-05 與先前的雲端測試結果是歷史紀錄。
 
 ## Recut 交付候選檢查點（2026-11-05）
 

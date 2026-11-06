@@ -72,7 +72,9 @@
 - short_render 升為 0.3.0：0.2.0 的施工單（含 run-6）會被拒絕渲染，需重新產生或改版本後重新驗證。
 - 新 Gemini schema 尚未以真實呼叫確認（約 4.9 KB、124 節點；4.5 KB／88 節點已確認可用，20 KB／330 節點被拒）。下次授權試產前先做一次確認呼叫；若被拒，回到舊的聯集 params 需另開修正。
 - run-6 沒有 generation checkpoint 與資料庫綁定，不能用零呼叫重渲染回復；修正版 `revision-1`／`revision-1b` 是由 run-6 施工單離線重渲染，剪接改動需重新核准講稿，c4 剪接點在連續語音中，需人工聽音。
-- 獨立審查已由另一個 agent 完成一輪，主要問題已修正；人工 code review 與教師審片仍待進行。
+- 兩輪唯讀獨立審查的問題已修正；真實本機堆疊（專用本機資料庫、假 provider、真實渲染）已驗證「渲染失敗 → 重啟 → 零呼叫重渲染」與各種拒絕情況，證據見[目前狀態](../../current-status.md)。人工 code review 與教師審片仍待進行。
+- PR：分支在 fork `Hao-weii/focusflow`，整合目標是 `11246084/focusflow:dev`；跨 fork draft PR 尚待建立，建立後再關閉指向 fork dev 的舊 PR。
+- 升級 worker 到 short_render 0.3.0 前不必清空佇列：版本不符的舊工作會被略過並通知管理員，但仍需重新產生或改用相符版本處理。
 
 ## 下一步
 

@@ -4,6 +4,18 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## Recut 修正候選（2026-11-06，分支 `wip/recut-cards-schema-fix`）
+
+**開發中，待獨立審查與人工審片；未合併 dev、未部署、未發布。** 分支從 `origin/dev` `18aed4c` 切出，以 draft PR 送審。
+
+2026-11-05 OpenCV 本機試產（教授影片 `aiA10_1140216_1.mp4` 18:04–20:26，本機 `recut_trial_opencv-20261105`，`gemini-3.8-flash`）：run-6 產出第一支可播放 MP4（46.5 秒），當天共 69 次 Gemini 外呼（含除錯），以回傳 token × 價目估算約 US$0.83，不是帳單。run-6 響度 −18.1 LUFS，不符決策 #62 的 ±2 LU；另有字幕跨剪接點 2.2 秒、scene-5 空白圖卡 3.18 秒、引言泡泡超出卡片 23 px、圖卡出現原話沒有的「大型模型」。
+
+本分支修正：配圖 cues 改為清單（Gemini 400 的原因）；params 改為各元件獨立 schema（修正 compare 被 not-merge 覆蓋與跨元件欄位）；修正訊息附允許欄位與實際秒數；重複的修正失敗先改用定向修正、再停止並回 `RECUT_REPAIR_STALLED`；沒有 `trialPolicy` 的單題試產也在渲染前凍結 generation（`recuttrialgenerations`），可零呼叫重渲染；short_render 0.3.0 增益只套一次、字幕不跨剪接點、擋下空白圖卡、卡片文字超框時縮放或拒絕渲染。額度預設仍為 5。
+
+修正版影片由 run-6 施工單離線重渲染，本階段 0 次模型呼叫：`revision-1`（43.3 秒，去掉 c3 尾端「當然啦」與 c4 開頭重說）與 `revision-1b`（45.5 秒，保留 c4 開頭重說）。兩支自動檢查都通過決策 #62 七項（−17.2／−17.1 LUFS、真峰值 −1.6 dBTP），沒有字幕跨剪接點、空白圖卡或文字超框。剪接改動會改變播放的老師原音，需重新核准講稿；c4 剪接點位於連續語音中，需人工聽音確認。run-6 沒有 generation checkpoint，也沒有資料庫綁定，無法用零呼叫重渲染流程回復，修正版不宣稱 checkpoint 來源。
+
+驗證（2026-11-06，Node 22.23.4，程式候選 `97b2a9c`；之後只有文件提交）：short_render `npm test` 165 項 164 通過、1 跳過（需瀏覽器的選用測試），另設 `SHORT_RENDER_TEST_BROWSER` 單獨執行該檔 4／4 通過；backend `npm test` 1780 項 1779 通過、1 跳過、0 失敗。OpenAPI 未變更，未跑 `docs:lint`。另一個 agent 完成一輪唯讀獨立審查，提出的停滯誤判、checkpoint 寫入時機、無效 JSON、原子 persist 與錯誤碼問題已在 `97b2a9c` 修正；人工 code review 尚未進行。未執行：以真實 Gemini 確認新 schema 被接受（新 schema 約 4.9 KB、124 節點，舊版 4.5 KB 已確認可用、20 KB 被拒）、真實 MongoDB＋真實渲染的零呼叫重渲染端到端、前端、教師審片。
+
 ## Recut 交付候選檢查點（2026-11-05）
 
 前端串接準備度為 **CONDITIONAL**：可依 [OpenAPI](../backend/docs/openapi.yaml) 與[前端交接](../backend/docs/recut-integration-handoff.md)開發，但正式使用仍需設定、正式 UI、外部服務與人工驗收。[工程報告](07_HTML說明頁/Recut工程交付報告.html)是本日快照，後續狀態以本節更新為準。

@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-10-29
+最後更新：2026-11-06
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,8 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+**recut 2026-11-06 修正候選（Partial）**：分支 `wip/recut-cards-schema-fix`，狀態見[目前狀態](../../docs/current-status.md)。待辦：以一次授權的真實 Gemini 呼叫確認新的配圖 schema；真實 MongoDB＋真實渲染跑一次「渲染失敗 → 零呼叫重渲染」端到端；`RECUT_REPAIR_STALLED` 的 `diagnostics` 目前只在程序內，佇列紀錄只存訊息，需要時再擴充 `errorRecord`。
 
 recut RC1 的實作與驗證以[目前狀態](../../docs/current-status.md)為準。RC2 接 [來源／句子格式](recut-foundation.md)，RC3 接生成步驟與設定轉接，RC8 接狀態入口、修改事件與兩次核准；不在本工單補真實媒體與外部模型。
 

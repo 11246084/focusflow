@@ -43,7 +43,9 @@ async function stageProject({ plan, resolved, sentences, evidence, sourcePath, o
 
   fs.copyFileSync(resolveFont(), path.join(stageDir, 'fonts', 'NotoSansTC-VF.ttf'));
   fs.copyFileSync(require.resolve('gsap/dist/gsap.min.js'), path.join(stageDir, 'vendor', 'gsap.min.js'));
-  fs.writeFileSync(path.join(stageDir, 'index.html'), buildHtml(plan, resolved, { mode: 'render' }), 'utf8');
+  // Render page plays narration-render.wav, which already carries the fixed gain;
+  // the preview plays unity narration.wav and applies the same gain in Web Audio.
+  fs.writeFileSync(path.join(stageDir, 'index.html'), buildHtml(plan, resolved, { mode: 'render', audioSrc: 'narration-render.wav' }), 'utf8');
   fs.writeFileSync(path.join(stageDir, 'preview.html'), buildHtml(plan, resolved, { mode: 'preview' }), 'utf8');
   if (!skipCut) {
     await cutTeacherClip({
@@ -51,12 +53,20 @@ async function stageProject({ plan, resolved, sentences, evidence, sourcePath, o
       resolved,
       outPath: path.join(stageDir, 'narration.wav'), runCommand,
     });
+    // Apply the plan's fixed gain exactly once, before HyperFrames. Its AAC
+    // true-peak ceiling (-1 dBFS) then has nothing to lower, because the gain
+    // already caps the peak at -1.5 dBTP; the final mux copies that audio as-is.
+    // 2026-11-05 run-6 applied the gain after HyperFrames had already lowered
+    // unity audio by 1.1 dB, ending 2.1 LU under the -16 LUFS target.
+    await runCommand(ffmpegBinary(), ['-v', 'error', '-y', '-i', path.join(stageDir, 'narration.wav'),
+      '-af', `volume=${plan.audio.gainDb}dB`, '-c:a', 'pcm_s16le', '-ar', '48000', path.join(stageDir, 'narration-render.wav')]);
   }
   const digest = (file) => crypto.createHash('sha256').update(fs.readFileSync(path.join(stageDir, file))).digest('hex');
   writeJson(path.join(stageDir, 'render-manifest.json'), { planHash: planHash(plan), versions: plan.versions, gainDb: plan.audio.gainDb,
     fontSha256: digest('fonts/NotoSansTC-VF.ttf'), htmlSha256: digest('index.html'), gsapSha256: digest('vendor/gsap.min.js'),
     // skipCut stages are for offline prototypes and cannot become render jobs.
-    audioSha256: skipCut ? null : digest('narration.wav') });
+    audioSha256: skipCut ? null : digest('narration.wav'),
+    renderAudioSha256: skipCut ? null : digest('narration-render.wav'), renderAudioGainDb: skipCut ? null : plan.audio.gainDb });
   return stageDir;
 }
 
@@ -74,7 +84,8 @@ async function renderProject({ plan, resolved, stageDir, outDir, quality = 'stan
   const manifest = readJson(path.join(stageDir, 'render-manifest.json'));
   if (manifest.planHash !== planHash(plan) || resolved.planHash !== manifest.planHash || manifest.gainDb !== plan.audio.gainDb) throw new Error('RECUT_RENDER_VERSION_MISMATCH: staged plan or gain changed');
   if (!manifest.audioSha256) throw new Error('RECUT_RENDER_VERSION_MISMATCH: prototype has no staged narration');
-  for (const [file, key] of [['index.html', 'htmlSha256'], ['fonts/NotoSansTC-VF.ttf', 'fontSha256'], ['vendor/gsap.min.js', 'gsapSha256'], ['narration.wav', 'audioSha256']]) {
+  if (!manifest.renderAudioSha256 || manifest.renderAudioGainDb !== plan.audio.gainDb) throw new Error('RECUT_RENDER_VERSION_MISMATCH: staged render narration missing or gain changed');
+  for (const [file, key] of [['index.html', 'htmlSha256'], ['fonts/NotoSansTC-VF.ttf', 'fontSha256'], ['vendor/gsap.min.js', 'gsapSha256'], ['narration.wav', 'audioSha256'], ['narration-render.wav', 'renderAudioSha256']]) {
     const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(stageDir, file))).digest('hex');
     if (hash !== manifest[key]) throw new Error(`RECUT_RENDER_VERSION_MISMATCH: staged ${file} changed`);
   }
@@ -82,12 +93,13 @@ async function renderProject({ plan, resolved, stageDir, outDir, quality = 'stan
   // provide the observed font flag; no guessed success when no browser exists.
   if (typeof ensureFontLoaded !== 'function' || await ensureFontLoaded({ stageDir, readyExpression: 'window.__recutReady' }) !== true) throw new Error('RECUT_FONT_NOT_LOADED');
   const rawPath = path.join(outDir, 'render-raw.mp4');
-  await hyperframesImpl(['render', '.', '-o', rawPath, '--fps', String(plan.canvas.fps), '--quality', quality], stageDir);
+  const rendered = await hyperframesImpl(['render', '.', '-o', rawPath, '--fps', String(plan.canvas.fps), '--quality', quality], stageDir);
+  // A second attenuation means the delivered loudness no longer matches the plan.
+  if (/Audio lowered by/.test(`${rendered?.stdout || ''}${rendered?.stderr || ''}`)) throw new Error('RECUT_RENDER_AUDIO_LOWERED: HyperFrames lowered staged audio that already carries the plan gain');
 
   const finalPath = path.join(outDir, 'final.mp4');
   await runCommand(ffmpegBinary(), [
-    '-v', 'error', '-y', '-i', rawPath, '-c:v', 'copy',
-    '-af', `volume=${plan.audio.gainDb}dB`, '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', finalPath,
+    '-v', 'error', '-y', '-i', rawPath, '-c:v', 'copy', '-c:a', 'copy', '-movflags', '+faststart', finalPath,
   ]);
   return finalPath;
 }

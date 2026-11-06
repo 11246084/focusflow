@@ -27,10 +27,15 @@ async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, e
       else request.abort();
     });
     await page.goto(pathToFileURL(path.join(stageDir, 'index.html')).href, { waitUntil: 'load' });
-    return await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
       await window.__recutReady;
-      return window.__recutFontLoaded === true;
+      return { font: window.__recutFontLoaded === true, fit: window.__recutTextFit || [] };
     });
+    // Same page, font and layout as the render: a card whose text still spills out
+    // at the minimum zoom is a fixed defect, not a retryable font problem.
+    const overflowing = (result?.fit || []).filter((card) => card && card.overflow);
+    if (overflowing.length) throw new Error(`RECUT_TEXT_OVERFLOW: ${overflowing.map((card) => `${card.id} ${JSON.stringify(card.overflow)}`).join('; ')}`);
+    return typeof result === 'boolean' ? result : result?.font === true;
   } finally { signal?.removeEventListener('abort', abort); await browser.close(); }
 }
 module.exports = { ensureFontLoaded };

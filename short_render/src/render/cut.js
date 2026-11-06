@@ -3,7 +3,7 @@
 const { run, ffmpegBinary } = require('../util');
 
 /**
- * 只剪接原音，不讀取或輸出教師影像；增益由預覽／最終混音各套一次。
+ * 只剪接原音，不讀取或輸出教師影像；增益在預覽（Web Audio）與渲染用音檔（staging 時 FFmpeg volume）各套一次。
  * 純函式：只組出 ffmpeg 參數，方便測試與在文件裡重現。
  */
 function buildCutArgs({ sourcePath, resolved, outPath }) {

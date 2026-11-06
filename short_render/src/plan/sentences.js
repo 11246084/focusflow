@@ -9,6 +9,7 @@ const round = (v) => Math.round(v * 1000) / 1000;
 const norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[。！？、，；「」『』“”‘’\p{Z}\s]/gu, '');
 const text = (v) => typeof v === 'string' && !!v.trim();
 const safeId = (v) => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(v);
+const MAX_BLANK_CARD_SECONDS = 1.5;
 const planHash = (plan) => crypto.createHash('sha256').update(JSON.stringify(plan)).digest('hex');
 
 function validateSentenceStructure(plan) {
@@ -183,14 +184,27 @@ function resolveSentencePlan(plan, { sentences } = {}) {
         if (time < t0 || time >= t1) throw new Error(`cue ${name} is outside scene ${scene.id}`);
         cues[name] = time;
       }
+      // Empty-card guard: when every element of the card is timed explicitly and
+      // the earliest one lands well after the scene starts, the viewer sees a
+      // blank card while the teacher talks (run-6 scene-5: 3.18 s). Elements
+      // without an explicit cue use early default offsets, so they never trigger it.
+      const driving = describeComponent(scene.component, scene.params).cues.filter((name) => name !== 'stamp');
+      if (driving.length && driving.every((name) => Object.hasOwn(cues, name))) {
+        const first = Math.min(...driving.map((name) => cues[name]));
+        if (first - t0 > MAX_BLANK_CARD_SECONDS + 0.001) throw new Error(`scene ${scene.id} shows an empty card for ${round(first - t0)}s (first element at ${first}s, scene starts at ${t0}s); anchor its first cue within ${MAX_BLANK_CARD_SECONDS}s of the scene start, e.g. on a phrase in ${scene.from}`);
+      }
       return { id: scene.id, t0, t1, cues };
     });
     if (covered !== occurrences.length) throw new Error('scene coverage is incomplete');
     const subtitles = plan.subtitles.map((s, i) => ({ index: i, clip: s.clip, t0: anchorAt(s.from, [s.clip]) }));
+    const clipEnd = new Map(clips.map((c) => [c.id, c.outEnd]));
     for (let i = 0; i < subtitles.length; i++) {
       const s = subtitles[i], next = subtitles[i + 1];
       if ((i === 0 && s.t0 !== 0) || (next && next.t0 <= s.t0)) throw new Error('subtitles must start at zero and follow playback order');
-      s.t1 = next?.t0 ?? speechTotal;
+      // A subtitle belongs to one clip: it ends at the next subtitle or at its
+      // clip's cut, whichever is first, so it never runs over the next clip's audio
+      // (run-6: c3's line stayed on screen 2.2 s into c4).
+      s.t1 = round(Math.min(next?.t0 ?? speechTotal, clipEnd.get(s.clip)));
     }
     const total = round(speechTotal + plan.endCard.seconds);
     if (speechTotal < 30 || total > 65) throw new Error('speech must be >=30 seconds and total including end card <=65 seconds');

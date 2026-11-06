@@ -218,3 +218,16 @@ V3 只擋數字；人名、專有名詞與語意是否偏移**不在自動檢查
 HyperFrames 0.8.153 為 Apache-2.0（以套件 `package.json` 為準），GSAP 3.15.0 依其授權條款；Noto Sans TC 為 SIL OFL。本資料夾沒有複製任何第三方 skill 的程式碼。
 
 </details>
+
+## 2026-11-06 渲染修正（OpenCV 試片 run-6 的問題）
+
+以下四項都是確定性的程式規則，不需要模型；run-6 的施工單在新規則下會因空白圖卡被拒，這是預期結果。
+
+| 問題（run-6 實測） | 規則 | 位置 | 測試 |
+|---|---|---|---|
+| c3 的字幕延續到 c4 的原音 2.2 秒 | 字幕結束時間取「下一句字幕開始」與「所屬 clip 結尾」較早者；字幕不跨剪接點，中間沒有字幕的空檔保留空白 | `resolveSentencePlan`（`src/plan/sentences.js`） | `tests/render.timing-fit.test.js` |
+| scene-5 開場 3.18 秒只有空卡 | 一張卡的所有元素都明確指定 cue、且最早的 cue 晚於場景開始 1.5 秒以上時，回 `SENTENCE_TIMING` 並指出可錨定的句子；未指定 cue 的元素用預設的早期偏移，不會觸發 | 同上 | 同上 |
+| 響度 −18.1 LUFS（目標 −16） | 施工單的固定增益只套一次：staging 時用 FFmpeg `volume` 產生 `narration-render.wav` 給渲染頁，預覽仍播放原始 `narration.wav` 並用 Web Audio 套同一增益；最終混音 `-c:a copy`。HyperFrames 的 AAC 真峰值上限是 −1 dBFS，增益已把峰值壓在 −1.5 dBTP，若 HyperFrames 仍回報 `Audio lowered by` 就以 `RECUT_RENDER_AUDIO_LOWERED` 拒絕。manifest 記錄 `renderAudioSha256` 與 `renderAudioGainDb` | `stageProject`／`renderProject`（`src/render/render.js`） | `tests/render.sentence.test.js` |
+| scene-5 的引言泡泡超出卡片邊框 23 px | 字型載入後、時間軸註冊前，在相同頁面暫停 transform，量測每張卡文字與元素的外框，超出內框時對卡片內容套 layout `zoom`（不是 transform，不影響動畫），最小 0.6；仍超出時字型預檢回 `RECUT_TEXT_OVERFLOW`，不渲染 | `recutFitCards`（`src/render/html.js`）、`ensureFontLoaded`（`src/render/browser.js`） | `tests/render.timing-fit.test.js`（真實瀏覽器那項需設 `SHORT_RENDER_TEST_BROWSER`） |
+
+限制：空白圖卡規則只在「每個元素都明確指定 cue」時判斷，元素有預設偏移時不會攔下；文字縮放以 0.6 為下限，較長的 nowrap 文字仍可能被拒，需要改短或換元件。

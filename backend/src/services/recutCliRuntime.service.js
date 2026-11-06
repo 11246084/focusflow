@@ -28,11 +28,21 @@ function assertCliTrialPolicy({ config, input = {}, targetUri, now = new Date() 
 async function createCliRuntime({ config, input, output, targetUri, allowModel = false, env = process.env, driverLoader, run, resumeCheckpoint, renderOnly = false } = {}) {
   if (!allowModel && !renderOnly) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
   assertCliTrialPolicy({ config, input, targetUri });
-  // A generation checkpoint is written once per output folder ('wx'). Refuse a
-  // folder that already holds one before any provider exists or any call is made.
-  if (!config?.trialPolicy && !renderOnly && output
-    && await fs.access(path.join(path.resolve(output), 'generation-checkpoint.json')).then(() => true, () => false)) {
-    throw fail('輸出資料夾已有 generation checkpoint，請改用新的 --output。', 'RECUT_TRIAL_OUTPUT_EXISTS');
+  // Non-policy generation writes generation-checkpoint.json, plan.json,
+  // full-script.txt and source.json once ('wx') after every model call is spent,
+  // then binds the checkpoint in the local ledger. Check all of that here, before
+  // any provider exists: refuse a folder holding any of those files, claim the
+  // folder exclusively with a lock file (two concurrent runs cannot share it), and
+  // refuse scripts that belong to the paid-policy budget ledger.
+  const claimsLocalGeneration = !config?.trialPolicy && !renderOnly && Boolean(output);
+  if (claimsLocalGeneration) {
+    const directory = path.resolve(output);
+    for (const name of ['generation-checkpoint.json', 'plan.json', 'full-script.txt', 'source.json']) {
+      if (await fs.access(path.join(directory, name)).then(() => true, () => false)) throw fail(`輸出資料夾已有 ${name}，請改用新的 --output。`, 'RECUT_TRIAL_OUTPUT_EXISTS');
+    }
+    await fs.mkdir(directory, { recursive: true });
+    try { await fs.writeFile(path.join(directory, 'generation.lock'), JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() }), { flag: 'wx' }); }
+    catch (error) { if (error.code === 'EEXIST') throw fail('輸出資料夾已被另一次試產使用，請改用新的 --output。', 'RECUT_TRIAL_OUTPUT_EXISTS'); throw error; }
   }
   if (!/^[A-Z][A-Z0-9_]*$/.test(config?.geminiApiKeyEnv || '')) throw fail('須指定金鑰環境變數名稱。', 'RECUT_PROVIDER_NOT_CONFIGURED');
   if (!renderOnly && !env[config.geminiApiKeyEnv]) throw fail(`缺少具名環境變數：${config.geminiApiKeyEnv}`, 'RECUT_PROVIDER_NOT_CONFIGURED');
@@ -41,6 +51,7 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
   const { canonicalSha256 } = require('./recutTrialResume.service');
   const checkpointIdentity = { inputSha256: canonicalSha256(input), configSha256: canonicalSha256(config), policy: config.trialPolicy || null };
   const repository = createRecutLocalRepository({ targetUri, driverLoader });
+  if (claimsLocalGeneration) await repository.assertLocalGenerationAllowed({ input });
   if (!path.isAbsolute(config.media?.allowedRoot || '') || /^[\\/]{2}/.test(config.media.allowedRoot)) throw fail('須指定本機原片目錄。', 'RECUT_SOURCE_UNAVAILABLE');
   const root = await fs.realpath(config.media.allowedRoot);
   const resolveSource = async (file) => {

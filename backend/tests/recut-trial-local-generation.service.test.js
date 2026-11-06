@@ -154,21 +154,35 @@ it('persisting a recovered generation marks the ledger row and keeps the run att
   } finally { await repository.close(); }
 });
 
-it('an output folder that already holds a checkpoint is refused before any model call; hook failures keep progress', async (t) => {
-  const { directory, f, config, runtime } = await setup(t);
+it('an output folder that already holds a checkpoint is refused before any model call', async (t) => {
+  const { directory, f, runtime } = await setup(t);
   const output = path.join(directory, 'run-1');
   const first = await generateWithRenderFailure({ f, runtime, output });
   assert.equal(first.error.code, 'RECUT_RENDER_FAILED');
   await assert.rejects(runtime({ output, allowModel: true }), { code: 'RECUT_TRIAL_OUTPUT_EXISTS' });
-  // A ledger failure inside the hook (here: the generation is already recorded) carries
-  // stage and attempts so the CLI can still write run.json with the spent calls.
-  const other = path.join(directory, 'run-2');
-  // Force the ledger write to fail after the model calls: a budget row means this
-  // script belongs to the policy ledger, so recordLocalGeneration refuses.
+});
+
+// Review M1: every precondition of the post-generation checkpoint write is checked
+// before a provider exists, so a doomed run cannot spend model calls first.
+it('a folder with only plan.json, a concurrent claim, or a budget-ledger script is refused with zero model calls', async (t) => {
+  const { directory, f, runtime } = await setup(t);
+  const seeded = path.join(directory, 'seeded'); await fs.mkdir(seeded); await fs.writeFile(path.join(seeded, 'plan.json'), '{}');
+  await assert.rejects(runtime({ output: seeded, allowModel: true }), { code: 'RECUT_TRIAL_OUTPUT_EXISTS' });
+  const shared = path.join(directory, 'shared');
+  const holder = await runtime({ output: shared, allowModel: true });
+  try { await assert.rejects(runtime({ output: shared, allowModel: true }), { code: 'RECUT_TRIAL_OUTPUT_EXISTS' }); } finally { await holder.close(); }
   f.state.rows.recuttrialbudgets.push({ _id: f.input.scriptId, status: 'reserved' });
-  const second = await generateWithRenderFailure({ f, runtime, output: other });
-  assert.equal(second.error.code, 'RECUT_TRIAL_RESUME_INVALID');
-  assert.equal(second.error.trial.stage, 'checkpoint');
-  assert.ok(second.error.trial.attempts.some((a) => a.stage === 'cards' && a.consumesCall), 'spent calls are kept for run.json');
-  assert.deepEqual(second.calls, ['cards', 'wholeCheck']);
+  await assert.rejects(runtime({ output: path.join(directory, 'policy-script'), allowModel: true }), { code: 'RECUT_TRIAL_RESUME_INVALID' });
+});
+
+it('a failing checkpoint hook keeps stage and spent attempts for the run report', async () => {
+  const f = resumeFixture(); const calls = [];
+  const pipeline = createRecutPipeline({ renderer, loadSource: async () => f.source,
+    decide: async ({ input }) => { calls.push(input.plan ? 'wholeCheck' : 'cards'); return { output: input.plan ? { issues: [] } : f.cards }; },
+    sourceSteps: [{ id: 'source', stage: 'sourceCheck', run: async () => ({ sourceId: String(f.source._id), sourceCheckpoint: f.source }) }],
+    selectionStep: { id: 'selection', stage: 'selection', run: async () => ({ selection: f.selection, selectionResult: f.selectionResult, fullScript: f.selectionResult.fullScript }) } });
+  await assert.rejects(runSingleTopicTrial({ pipeline, input: f.input, model: { provider: 'gemini', model: 'gemini-3.8-flash' }, allowModel: true, render: true, targetUri: localUri,
+    onGenerationVerified: async () => { throw Object.assign(new Error('ledger down'), { code: 'RECUT_LOCAL_DB_FAILED' }); }, renderLocal: async () => { throw new Error('must not render'); } }),
+  (error) => error.code === 'RECUT_LOCAL_DB_FAILED' && error.trial.stage === 'checkpoint' && error.trial.attempts.some((a) => a.stage === 'cards' && a.consumesCall));
+  assert.deepEqual(calls, ['cards', 'wholeCheck']);
 });

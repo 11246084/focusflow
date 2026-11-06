@@ -57,7 +57,7 @@ S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`�
 
 ### 修正停滯偵測
 
-選段、配圖與整段檢查共用的重試迴圈（`retryDecision`、`runValidatedDecision`）在每次驗證失敗後，以 [recutRepairStall.service.js](../src/services/recutRepairStall.service.js) 算出錯誤簽章：結構化錯誤取 `code|path|message`、文字錯誤取原文，兩者都只把小數（例如秒數 12.58）換成 `#`，整數保留，所以 `s1` 與 `s2`、`scene-1` 與 `scene-5` 仍不同；去重後排序。模型輸出不是有效 JSON 時，該次只記「模型輸出不是有效 JSON」，不沿用上一次的錯誤。同一簽章第二次出現時（不必連續），下一次請求改用定向修正：輸入加上 `repairStrategy: "targeted"`、`repairNotice` 與 `mustFix`（每個出錯位置只列一次），要求只改這些位置；同一簽章第三次出現且仍有額度時停止，回 `RECUT_REPAIR_STALLED`，錯誤訊息附錯誤樣本（佇列紀錄只保存訊息，`diagnostics` 物件僅在程序內可用）。例：A、B、A 交替時第三次（A 第二次）改用定向修正，到第五次（A 第三次）才停止。額度已用完時維持原本的 `RECUT_CALL_LIMIT_EXCEEDED`。驗證規則不變，定向修正的輸出照樣逐項檢查。
+選段、配圖與整段檢查共用的重試迴圈（`retryDecision`、`runValidatedDecision`）在每次驗證失敗後，以 [recutRepairStall.service.js](../src/services/recutRepairStall.service.js) 算出錯誤簽章：結構化錯誤取 `code|path|message`、文字錯誤取原文，兩者都把秒數（`12.58s`、`13s`）與小數換成 `#`，其他整數保留，所以 `s1` 與 `s2`、`scene-1` 與 `scene-5` 仍不同；去重後排序。模型輸出不是有效 JSON 時，該次只記「模型輸出不是有效 JSON」，不沿用上一次的錯誤。同一簽章第二次出現時（不必連續），下一次請求改用定向修正：輸入加上 `repairStrategy: "targeted"`、`repairNotice` 與 `mustFix`（每個出錯位置只列一次），要求只改這些位置；同一簽章第三次出現且仍有額度時停止，回 `RECUT_REPAIR_STALLED`，錯誤訊息附錯誤樣本（佇列紀錄只保存訊息，`diagnostics` 物件僅在程序內可用）。例：A、B、A 交替時第三次（A 第二次）改用定向修正，到第五次（A 第三次）才停止。額度已用完時維持原本的 `RECUT_CALL_LIMIT_EXCEEDED`。驗證規則不變，定向修正的輸出照樣逐項檢查。
 
 - 解決的問題：2026-11-05 OpenCV 試產 run-6 的配圖步驟把 relation 的 `words` 放進 stat，連續 11 次相同錯誤，耗掉共用額度。
 - 取捨：只看「同一迴圈內」的簽章，不跨步驟累計；錯誤每次不同（模型確實在改）時不算停滯。第三次才停是為了讓定向修正至少有一次機會。

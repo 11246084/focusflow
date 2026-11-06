@@ -62,7 +62,9 @@ it('alternating failures are detected as a stall too', async () => {
   const c = context(); c.task.callLimit = 20;
   const { decide, requests } = repeatingCards(c, { alternate: true });
   await assert.rejects(createRecutCardsStep({ decide, renderer, loadSource: async () => c.source }).run(c), { code: 'RECUT_REPAIR_STALLED' });
-  assert.equal(requests.length, 5, 'words, unit, words(targeted), unit(targeted), words(third time) -> stop');
+  // words, unit, words (2nd words: next request targeted), unit (targeted), words (3rd words: stop).
+  assert.equal(requests.length, 5);
+  assert.equal(requests[2].repairStrategy, undefined); assert.equal(requests[3].repairStrategy, 'targeted'); assert.equal(requests[4].repairStrategy, 'targeted');
 });
 
 it('changing errors are not a stall and keep using the normal repair path', () => {
@@ -125,4 +127,19 @@ it('an invalid JSON attempt counts its own error, not the previous attempt\'s', 
   assert.deepEqual(requests[2].errors, ['模型輸出不是有效 JSON'], 'the JSON failure is reported as such');
   assert.equal(requests[2].previousOutput, null);
   assert.equal(requests[3].repairStrategy, 'targeted', 'A, json, A -> second A is targeted, not a stall');
+});
+
+it('integer and decimal second values are masked; ids keep their numbers', () => {
+  const t = (message) => [{ code: 'SENTENCE_TIMING', path: '$', message }];
+  assert.equal(errorSignature(t('scene scene-1 lasts 12.58s')), errorSignature(t('scene scene-1 lasts 13s')));
+  assert.notEqual(errorSignature(t('scene scene-1 lasts 13s')), errorSignature(t('scene scene-2 lasts 13s')));
+});
+
+// Review m4: with the production 5-call limit, a cards-only modification task that
+// repeats the same failure three times stops with two calls left (documented trade-off).
+it('5-call modification task: three identical cards failures stop with RECUT_REPAIR_STALLED and two calls left', async () => {
+  const c = context(); c.task.callLimit = 5; c.task.callsUsed = 0;
+  const { decide, requests } = repeatingCards(c);
+  await assert.rejects(createRecutCardsStep({ decide, renderer, loadSource: async () => c.source }).run(c), { code: 'RECUT_REPAIR_STALLED' });
+  assert.equal(requests.length, 3); assert.equal(c.task.callLimit - c.task.callsUsed, 2);
 });

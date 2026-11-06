@@ -120,3 +120,8 @@ worker 原片下載固定 `application/octet-stream`，內容可以是 MP4 或�
 視窗邊界截斷句沿用來源的 `excludedSentenceIds`。教師加回、採納選段建議與背景 `lockedSelection` 都經 `resolveSelection`；即使草稿容許暫時超長，也不能加回這些句子。公開修改端點回 `422 RECUT_SENTENCE_EXCLUDED` 且不保存事件或草稿；前端保留輸入並顯示逐句的 `exclusionReason`。
 
 撤回同意的 `withdrawal-assets` 回明確的 `scope/assets/selectAll`；每支 `selected` 與整體 `selectAll` 預設 false。管理員 `manual-actions` 回待手動下架的動作陣列，含 `id/withdrawalId/assetId/type/status/manualActionRequired`；晚到成品待辦可缺 `teacherId`，教師登入呼叫此端點仍為 403。完整欄位依 [OpenAPI](openapi.yaml)。
+
+
+### worker 版本不符的工作（2026-11-06）
+
+`claimRenderJob` 依排隊順序找工作；遇到施工單 short_render／素材版本與 worker 不符的工作時，照舊通知管理員，但略過該工作繼續找下一支，不再中止整次領取。只有整個佇列都沒有可領的工作、且途中遇過版本不符時，才回 `RECUT_RENDER_VERSION_MISMATCH`。short_render 0.3.0 上線後，0.2.0 核准的工作會留在佇列等相符的 worker 或重新產生，不會擋住後面的 0.3.0 工作。測試：`tests/recut-worker.service.test.js`。

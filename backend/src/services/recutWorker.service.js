@@ -167,7 +167,7 @@ async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now =
   await recoverRenderJobs({ now });
   const reserved = await Worker.findOneAndUpdate({ _id: worker._id, isActive: true, accepting: true, activeJobId: null }, { $set: { activeJobId: worker._id, lastSeenAt: now, reservedAt: now } }, { new: true });
   if (!reserved) return null;
-  let claimed = null;
+  let claimed = null, mismatch = null;
   try {
     for (const job of await Job.find({ status: 'queued' }).sort({ queuedAt: 1, _id: 1 }).lean()) {
       if (job.excludedWorkerIds?.some((id) => same(id, worker._id))) continue;
@@ -179,7 +179,10 @@ async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now =
         if (shortRenderVersion !== version.shortRenderVersion || JSON.stringify(canonical(assetVersions)) !== JSON.stringify(canonical(version.assetVersions))) {
           await require('./notification.service').notifyYouTubeSystemEvent({ dedupeKey: `recut_version_mismatch:${worker._id}:${job._id}:${job.planHash}`,
             title: 'recut worker 版本不符', content: `worker「${worker.name}」與施工單版本不符，未開始渲染。` });
-          throw error('Worker renderer or material version does not match the approved plan.', 'RECUT_RENDER_VERSION_MISMATCH');
+          // Skip, do not abort: a job approved for another renderer version must not
+          // block later jobs this worker can render. Reported only if nothing is claimed.
+          mismatch = error('Worker renderer or material version does not match the approved plan.', 'RECUT_RENDER_VERSION_MISMATCH');
+          return null;
         }
         const leaseToken = crypto.randomBytes(32).toString('base64url');
         const leaseExpiresAt = new Date(now.getTime() + LEASE_MS);
@@ -195,6 +198,7 @@ async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now =
       });
       if (result) return result;
     }
+    if (mismatch) throw mismatch;
     return null;
   } catch (err) {
     if (claimed) await settleFailure(claimed, { code: err.code || 'RECUT_CLAIM_FAILED', message: err.message, retryable: true, now });

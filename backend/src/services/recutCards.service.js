@@ -67,9 +67,12 @@ function foldTransportParams(output, componentNames = []) {
     const card = `第 ${index + 1} 張圖卡`;
     const danger = dangerousKeyPath(scene.params, `scenes[${index}].params`);
     if (danger) throw fail(`${card}的 params 含不允許的欄位名稱：${danger}。`);
-    const wrapped = Object.keys(scene.params).filter((key) => names.has(key) && object(scene.params[key]));
-    if (!wrapped.length) return scene;
-    if (wrapped.length !== 1 || Object.keys(scene.params).length !== 1 || wrapped[0] !== scene.component) {
+    const keys = Object.keys(scene.params);
+    const wrapped = keys.filter((key) => names.has(key) && object(scene.params[key]));
+    // Any non-component key means flat (legacy) params: leave it to the strict
+    // field check so a stray field gets FIELD_UNKNOWN with the allowed list.
+    if (!wrapped.length || wrapped.length !== keys.length) return scene;
+    if (wrapped.length !== 1 || wrapped[0] !== scene.component) {
       throw fail(`${card}（component "${scene.component}"）的 params 只能有一個與 component 同名的鍵 "${scene.component}"，收到：${Object.keys(scene.params).join(', ')}。`);
     }
     return { ...scene, params: scene.params[scene.component] };

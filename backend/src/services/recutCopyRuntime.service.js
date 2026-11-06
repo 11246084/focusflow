@@ -192,6 +192,12 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
     // Trials without a paid policy have no budget row. Their verified generation is
     // bound in an insert-only ledger keyed by the checkpoint hash, with the same
     // source and script signatures the budget path records.
+    // Same eligibility rule as recordLocalGeneration, checked before any model call.
+    assertLocalGenerationAllowed: guarded(async ({ input }) => {
+      const script = await find('shortscripts', input.scriptId);
+      if (!script || String(script.courseId) !== input.courseId) throw safe('RECUT_SOURCE_UNAVAILABLE');
+      if (await db.collection('recuttrialbudgets').findOne({ _id: script._id })) throw safe('RECUT_TRIAL_RESUME_INVALID');
+    }),
     recordLocalGeneration: guarded(async ({ input, source, generation }) => {
       const { canonicalSha256 } = require('./recutTrialResume.service');
       const script = await find('shortscripts', input.scriptId), currentSource = await find('recutsources', source._id);
@@ -246,9 +252,11 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       const script = await find('shortscripts', input.scriptId);
       if (!script || String(script.courseId) !== String(input.courseId) || script.recut?.activeTaskId
         || (expectedRevision !== undefined && script.recut?.revision !== expectedRevision)) throw safe('RECUT_STATE_INVALID');
-      // A local-ledger generation persists once. Claim it atomically
-      // (verified -> persisting) before any insert, so a repeated or concurrent
-      // persist cannot leave a partial version/asset behind.
+      // A local-ledger generation persists once: claim it (verified -> persisting)
+      // with one conditional update before any insert, so a second or concurrent
+      // persist is refused before writing. This is not a transaction: a failure
+      // after the claim leaves the row in "persisting" (and possibly a version or
+      // asset row) for manual inspection; it is never retried automatically.
       if (result.generationCheckpoint?.ledger === 'local') {
         const claim = await db.collection('recuttrialgenerations').updateOne({ _id: result.generationCheckpoint.sha256, status: 'verified' }, { $set: { status: 'persisting' } });
         if (claim.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');

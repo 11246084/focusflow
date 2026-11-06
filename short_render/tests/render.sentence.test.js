@@ -97,6 +97,10 @@ test('staging/render use fake externals, fixed gain once, and fence modified med
   await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 1.1 dB to stay under -1 dBTP' }) }), { code: 'RECUT_RENDER_AUDIO_LOWERED' });
   // A small AAC overshoot correction is tolerated (post-render loudness checks still apply).
   await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 0.3 dB to stay under -1 dBTP' }) });
+  // Review m2: without the HyperFrames log line (e.g. --quiet) the guard cannot see a
+  // lowering and lets the render through; the worker's post-render loudness check is the backstop.
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stdout: '', stderr: '' }) });
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => undefined });
   fs.appendFileSync(path.join(stageDir, 'narration-render.wav'), 'changed');
   await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true }), /narration-render.wav changed/);
   fs.appendFileSync(path.join(stageDir, 'narration.wav'), 'changed');

@@ -110,7 +110,16 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     const actual = await resolveSource(await repository.resolveSourcePath(source.videoId));
     if (!source.sourceSha256 || (await hashLocalFile(actual)).toLowerCase() !== source.sourceSha256.toLowerCase()) throw fail('凍結原片 SHA 不符。', 'RECUT_TRIAL_RESUME_INVALID');
   };
-  return { ...runtime, checkpointIdentity, verifyGenerationSource, verifyTrialGeneration: repository.verifyTrialGeneration,
+  const ledger = config.trialPolicy ? 'budget' : 'local';
+  return { ...runtime, checkpointIdentity, verifyGenerationSource,
+    verifyTrialGeneration: (checkpoint) => repository.verifyTrialGeneration(checkpoint, { ledger }),
+    // Every single-topic run freezes a trusted generation before rendering, so a
+    // render failure or restart can rerender with zero model calls.
+    ...(!config.trialPolicy && !renderOnly ? { onGenerationVerified: async ({ result, source }) => {
+      const generation = await require('./recutTrialResume.service').writeGenerationCheckpoint({ output, source, result, input, config });
+      await repository.recordLocalGeneration({ input, source, generation });
+      return { ...generation, ledger: 'local' };
+    } } : {}),
     ...(config.trialPolicy ? { reserveTrialBudget: () => repository.reserveTrialBudget({ input, policy: config.trialPolicy, identity: checkpointIdentity }),
     onProgress: async (progress) => {
       const temporary = path.join(output, 'progress-checkpoint.tmp');

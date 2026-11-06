@@ -189,13 +189,31 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
           generationScriptSha256: scriptSignature(script), generationSourceSha256: canonicalSha256(source) } });
       if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
     }),
-    verifyTrialGeneration: guarded(async (checkpoint) => {
+    // Trials without a paid policy have no budget row. Their verified generation is
+    // bound in an insert-only ledger keyed by the checkpoint hash, with the same
+    // source and script signatures the budget path records.
+    recordLocalGeneration: guarded(async ({ input, source, generation }) => {
+      const { canonicalSha256 } = require('./recutTrialResume.service');
+      const script = await find('shortscripts', input.scriptId), currentSource = await find('recutsources', source._id);
+      if (!script || String(script.courseId) !== input.courseId || script.recut?.activeTaskId || !generation?.sha256
+        || canonicalSha256(currentSource) !== canonicalSha256(source)) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      if (await db.collection('recuttrialbudgets').findOne({ _id: script._id })) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      if (await db.collection('recuttrialgenerations').findOne({ _id: generation.sha256 })) throw safe('RECUT_TRIAL_RESUME_ALREADY_CLAIMED');
+      await db.collection('recuttrialgenerations').insertOne({ _id: generation.sha256, scriptId: script._id, courseId: script.courseId,
+        sourceId: currentSource._id, artifact: generation.artifact, status: 'verified',
+        generationScriptSha256: scriptSignature(script), generationSourceSha256: canonicalSha256(source), createdAt: new Date() });
+    }),
+    verifyTrialGeneration: guarded(async (checkpoint, { ledger = 'budget' } = {}) => {
       const { canonicalSha256 } = require('./recutTrialResume.service');
       const source = checkpoint.payload.source, script = await find('shortscripts', source.scriptId);
-      const budget = await find('recuttrialbudgets', source.scriptId), currentSource = await find('recutsources', source._id);
-      if (!script || !budget || budget.generationSha256 !== checkpoint.sha256 || canonicalSha256(checkpoint.payload) !== checkpoint.sha256
-        || budget.generationSourceSha256 !== canonicalSha256(currentSource) || canonicalSha256(currentSource) !== canonicalSha256(source)
-        || budget.generationScriptSha256 !== scriptSignature(script) || script.recut?.activeTaskId) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      const record = ledger === 'local' ? await db.collection('recuttrialgenerations').findOne({ _id: checkpoint.sha256 })
+        : await find('recuttrialbudgets', source.scriptId);
+      const currentSource = await find('recutsources', source._id);
+      const boundHash = ledger === 'local' ? record?._id : record?.generationSha256;
+      if (!script || !record || boundHash !== checkpoint.sha256 || canonicalSha256(checkpoint.payload) !== checkpoint.sha256
+        || (ledger === 'local' && String(record.scriptId) !== String(script._id))
+        || record.generationSourceSha256 !== canonicalSha256(currentSource) || canonicalSha256(currentSource) !== canonicalSha256(source)
+        || record.generationScriptSha256 !== scriptSignature(script) || script.recut?.activeTaskId) throw safe('RECUT_TRIAL_RESUME_INVALID');
     }),
     loadSource: guarded((value) => find('recutsources', value)),
     loadBaseVersion: guarded((value) => find('recutversions', value)),
@@ -228,6 +246,10 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       const script = await find('shortscripts', input.scriptId);
       if (!script || String(script.courseId) !== String(input.courseId) || script.recut?.activeTaskId
         || (expectedRevision !== undefined && script.recut?.revision !== expectedRevision)) throw safe('RECUT_STATE_INVALID');
+      // A local-ledger generation persists once; check before any insert so a
+      // repeated persist cannot leave a partial version/asset behind.
+      if (result.generationCheckpoint?.ledger === 'local'
+        && (await db.collection('recuttrialgenerations').findOne({ _id: result.generationCheckpoint.sha256 }))?.status !== 'verified') throw safe('RECUT_TRIAL_RESUME_INVALID');
       const now = new Date(), versionId = new ObjectId();
       const version = { ...result.version, _id: versionId, scriptId: id(input.scriptId), sourceId: id(result.version.sourceId), taskId: null, createdAt: now, updatedAt: now };
       await db.collection('recutversions').insertOne(version);
@@ -244,7 +266,11 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
           'recut.currentAssetGenerationVersion': assetId ? 1 : null, 'recut.activeTaskId': null, updatedAt: now }, $inc: { 'recut.revision': 1 } });
       if (update.matchedCount !== 1) throw safe('RECUT_STATE_INVALID');
       await db.collection('recuttrialruns').insertOne({ _id: new ObjectId(), scriptId: script._id, versionId, assetId, callsUsed: result.callsUsed, ...(result.resume ? { providerCallsUsed: result.providerCallsUsed, workflowCallsUsed: result.workflowCallsUsed, resume: result.resume } : {}), attempts: result.attempts, createdAt: now });
-      if (result.generationCheckpoint) {
+      if (result.generationCheckpoint?.ledger === 'local') {
+        const saved = await db.collection('recuttrialgenerations').updateOne({ _id: result.generationCheckpoint.sha256, status: 'verified' },
+          { $set: { status: 'persisted', versionId, assetId, generationScriptSha256: scriptSignature(await find('shortscripts', input.scriptId)) } });
+        if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      } else if (result.generationCheckpoint) {
         const saved = await db.collection('recuttrialbudgets').updateOne({ _id: script._id, generationSha256: result.generationCheckpoint.sha256 },
           { $set: { generationScriptSha256: scriptSignature(await find('shortscripts', input.scriptId)) } });
         if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');

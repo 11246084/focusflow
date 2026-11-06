@@ -34,7 +34,7 @@ async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, e
     // Same page, font and layout as the render: a card whose text still spills out
     // at the minimum zoom is a fixed defect, not a retryable font problem.
     const overflowing = (result?.fit || []).filter((card) => card && card.overflow);
-    if (overflowing.length) throw new Error(`RECUT_TEXT_OVERFLOW: ${overflowing.map((card) => `${card.id} ${JSON.stringify(card.overflow)}`).join('; ')}`);
+    if (overflowing.length) throw Object.assign(new Error(`RECUT_TEXT_OVERFLOW: ${overflowing.map((card) => `${card.id} ${JSON.stringify(card.overflow)}`).join('; ')}`), { code: 'RECUT_TEXT_OVERFLOW' });
     return typeof result === 'boolean' ? result : result?.font === true;
   } finally { signal?.removeEventListener('abort', abort); await browser.close(); }
 }

@@ -17,8 +17,10 @@ it('cards response schema sends cues as a keyed list and stays compact', () => {
   assert.deepEqual(cues.items.properties.key, { type: 'STRING' });
   let typed = 0;
   (function walk(value) { if (value && typeof value === 'object') { if (value.type) typed++; Object.values(value).forEach(walk); } })(schema);
-  assert.ok(JSON.stringify(schema).length < 8000, 'schema bytes');
-  assert.ok(typed < 150, 'typed schema nodes');
+  // Pinned near the current size (4.9 KB / 124 typed nodes). The live API accepted a
+  // 4.5 KB / 88-node schema and rejected 20 KB / 330 nodes; growth must be deliberate.
+  assert.ok(JSON.stringify(schema).length <= 5200, `schema bytes ${JSON.stringify(schema).length}`);
+  assert.ok(typed <= 130, `typed schema nodes ${typed}`);
 });
 
 it('folds transport cues back into the plan object form and rejects ambiguous lists', () => {

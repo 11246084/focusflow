@@ -418,8 +418,9 @@ window.__recutSeek = function(seconds) {
 // Keep every card's text inside the card. Runs once after the font loads and
 // before the timeline is registered: with transforms neutralized, the text and
 // element boxes of each card are measured against the card's inner box, and the
-// card content gets a layout zoom (not a transform, so GSAP animations are
-// unaffected) until it fits, never below MIN_FIT_ZOOM. Cards that still overflow
+// card content gets a layout zoom until it fits, never below MIN_FIT_ZOOM. Zoom is
+// not a transform, so GSAP keeps animating transforms; px translate offsets inside
+// a zoomed card scale with it. Rotated elements are measured unrotated. Cards that still overflow
 // are reported; the render preflight refuses them (RECUT_TEXT_OVERFLOW).
 var MIN_FIT_ZOOM = ${MIN_FIT_ZOOM};
 function recutTextBoxes(root) {

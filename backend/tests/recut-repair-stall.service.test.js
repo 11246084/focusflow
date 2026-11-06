@@ -7,9 +7,10 @@ const { createRecutCardsStep } = require('../src/services/recutCards.service');
 const { runValidatedDecision } = require('../src/services/recutDecision.service');
 const { errorSignature, createRepairStallTracker } = require('../src/services/recutRepairStall.service');
 
-it('error signatures ignore order, duplicates and changing numbers but keep code and path', () => {
+it('error signatures ignore order, duplicates and changing decimal values but keep code, path and message', () => {
   const a = [{ code: 'FIELD_UNKNOWN', path: 'scenes[1].params.words', message: 'x' }, 'scene scene-1 lasts 12.58s'];
-  const b = ['scene scene-1 lasts 12.46s', { code: 'FIELD_UNKNOWN', path: 'scenes[1].params.words', message: 'other text' }, 'scene scene-1 lasts 12.46s'];
+  const b = ['scene scene-1 lasts 12.46s', { code: 'FIELD_UNKNOWN', path: 'scenes[1].params.words', message: 'x' }, 'scene scene-1 lasts 12.46s'];
+  assert.notEqual(errorSignature([{ code: 'FIELD_UNKNOWN', path: 'scenes[1].params.words', message: 'x' }]), errorSignature([{ code: 'FIELD_UNKNOWN', path: 'scenes[1].params.words', message: 'other text' }]));
   assert.equal(errorSignature(a), errorSignature(b));
   assert.notEqual(errorSignature(a), errorSignature([{ code: 'FIELD_UNKNOWN', path: 'scenes[2].params.words' }, 'scene scene-1 lasts 12.58s']));
 });
@@ -35,7 +36,8 @@ it('identical failures switch to a targeted request once, then stop with diagnos
     assert.equal(error.code, 'RECUT_REPAIR_STALLED');
     assert.equal(error.diagnostics.stage, 'cards');
     assert.equal(error.diagnostics.occurrences, 3);
-    assert.deepEqual(error.diagnostics.signature, ['FIELD_UNKNOWN|scenes[0].params.words']);
+    assert.equal(error.diagnostics.signature.length, 1);
+    assert.match(error.diagnostics.signature[0], /^FIELD_UNKNOWN\|scenes\[0\]\.params\.words\|field is not in the sentence-v1 contract/);
     assert.match(error.message, /scenes\[0\]\.params\.words/);
     return true;
   });
@@ -44,7 +46,7 @@ it('identical failures switch to a targeted request once, then stop with diagnos
   assert.equal(requests[1].repairStrategy, undefined);
   assert.equal(requests[2].repairStrategy, 'targeted');
   assert.match(requests[2].mustFix[0], /FIELD_UNKNOWN scenes\[0\]\.params\.words/);
-  assert.match(requests[2].repairNotice, /完全相同的錯誤/);
+  assert.match(requests[2].repairNotice, /再次出現同一組錯誤/);
 });
 
 it('a targeted request that fixes the problem completes normally', async () => {
@@ -98,4 +100,29 @@ it('when the budget is already used up the normal exhaustion code is kept', () =
   tracker.record(['same']); tracker.record(['same']);
   assert.equal(tracker.record(['same'], { budgetLeft: false }).strategy, 'targeted');
   assert.throws(() => tracker.record(['same'], { budgetLeft: true }), { code: 'RECUT_REPAIR_STALLED' });
+});
+
+// Review finding: SENTENCE_TIMING always uses path "$"; different timing problems must not look identical.
+it('different timing errors on the generic path are distinct; only decimal values are masked', () => {
+  const timing = (message) => [{ code: 'SENTENCE_TIMING', path: '$', message }];
+  const tracker = createRepairStallTracker({ stage: 'cards' });
+  for (const message of ['scene scene-1 (s4-s6) lasts 12.58s but must last 3-12 seconds', 'anchor absent or ambiguous in s12: GPU', 'whole-sentence anchor on s12 was trimmed out of the clip'])
+    assert.equal(tracker.record(timing(message)).strategy, 'repair');
+  assert.notEqual(errorSignature(timing('anchor absent or ambiguous in s1: a')), errorSignature(timing('anchor absent or ambiguous in s2: a')));
+  assert.equal(errorSignature(timing('scene scene-1 lasts 12.58s')), errorSignature(timing('scene scene-1 lasts 12.46s')));
+});
+
+it('an invalid JSON attempt counts its own error, not the previous attempt\'s', async () => {
+  const { retryDecision } = require('../src/services/recutRuntime.service');
+  const task = { callLimit: 10, callsUsed: 0, settingsSnapshot: { model: { model: 'fake' } } }; const requests = [];
+  const context = { task, checkCancelled: async () => {}, runAttempt: async ({ execute }) => { task.callsUsed += 1; const r = await execute();
+    if (r.validation.valid === false) throw Object.assign(new Error('v'), { code: 'RECUT_VALIDATION_FAILED' }); } };
+  const outputs = ['{"a":1}', 'not json', '{"a":1}', '{"ok":true}'];
+  const decide = async ({ input }) => { requests.push(structuredClone(input)); return { output: outputs[requests.length - 1] }; };
+  const result = await retryDecision(context, { stage: 'cards', decide, instructions: 'i', responseSchema: {}, input: {},
+    validate: (output) => (output.ok ? { valid: true, errors: [] } : { valid: false, errors: [{ code: 'FIELD_UNKNOWN', path: 'scenes[0].params.words', message: 'm' }] }) });
+  assert.equal(result.valid, true);
+  assert.deepEqual(requests[2].errors, ['模型輸出不是有效 JSON'], 'the JSON failure is reported as such');
+  assert.equal(requests[2].previousOutput, null);
+  assert.equal(requests[3].repairStrategy, 'targeted', 'A, json, A -> second A is targeted, not a stall');
 });

@@ -11,6 +11,7 @@ const { cutTeacherClip } = require('./cut');
 const { validatePlan, validateVersions, validateInstalledAssets } = require('../plan');
 const { planHash } = require('../plan/sentences');
 
+const MAX_AAC_CORRECTION_DB = 0.5;
 function hyperframesBin() {
   const root = path.dirname(require.resolve('hyperframes/package.json'));
   return path.join(root, 'bin', 'hyperframes.mjs');
@@ -94,8 +95,12 @@ async function renderProject({ plan, resolved, stageDir, outDir, quality = 'stan
   if (typeof ensureFontLoaded !== 'function' || await ensureFontLoaded({ stageDir, readyExpression: 'window.__recutReady' }) !== true) throw new Error('RECUT_FONT_NOT_LOADED');
   const rawPath = path.join(outDir, 'render-raw.mp4');
   const rendered = await hyperframesImpl(['render', '.', '-o', rawPath, '--fps', String(plan.canvas.fps), '--quality', quality], stageDir);
-  // A second attenuation means the delivered loudness no longer matches the plan.
-  if (/Audio lowered by/.test(`${rendered?.stdout || ''}${rendered?.stderr || ''}`)) throw new Error('RECUT_RENDER_AUDIO_LOWERED: HyperFrames lowered staged audio that already carries the plan gain');
+  // HyperFrames lowers AAC that peaks above -1 dBFS and logs "Audio lowered by X dB"
+  // (info level; this call does not pass --quiet). The staged gain caps the PCM
+  // peak at -1.5 dBTP, so a small AAC overshoot correction is tolerated; a larger
+  // one means the gain was applied twice or staging is wrong.
+  const lowered = Number(/Audio lowered by (\d+(?:\.\d+)?) dB/.exec(`${rendered?.stdout || ''}${rendered?.stderr || ''}`)?.[1] || 0);
+  if (lowered > MAX_AAC_CORRECTION_DB) throw Object.assign(new Error(`RECUT_RENDER_AUDIO_LOWERED: HyperFrames lowered staged audio by ${lowered} dB (limit ${MAX_AAC_CORRECTION_DB} dB) although it already carries the plan gain`), { code: 'RECUT_RENDER_AUDIO_LOWERED' });
 
   const finalPath = path.join(outDir, 'final.mp4');
   await runCommand(ffmpegBinary(), [

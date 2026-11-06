@@ -246,10 +246,13 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       const script = await find('shortscripts', input.scriptId);
       if (!script || String(script.courseId) !== String(input.courseId) || script.recut?.activeTaskId
         || (expectedRevision !== undefined && script.recut?.revision !== expectedRevision)) throw safe('RECUT_STATE_INVALID');
-      // A local-ledger generation persists once; check before any insert so a
-      // repeated persist cannot leave a partial version/asset behind.
-      if (result.generationCheckpoint?.ledger === 'local'
-        && (await db.collection('recuttrialgenerations').findOne({ _id: result.generationCheckpoint.sha256 }))?.status !== 'verified') throw safe('RECUT_TRIAL_RESUME_INVALID');
+      // A local-ledger generation persists once. Claim it atomically
+      // (verified -> persisting) before any insert, so a repeated or concurrent
+      // persist cannot leave a partial version/asset behind.
+      if (result.generationCheckpoint?.ledger === 'local') {
+        const claim = await db.collection('recuttrialgenerations').updateOne({ _id: result.generationCheckpoint.sha256, status: 'verified' }, { $set: { status: 'persisting' } });
+        if (claim.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');
+      }
       const now = new Date(), versionId = new ObjectId();
       const version = { ...result.version, _id: versionId, scriptId: id(input.scriptId), sourceId: id(result.version.sourceId), taskId: null, createdAt: now, updatedAt: now };
       await db.collection('recutversions').insertOne(version);
@@ -267,7 +270,7 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
       if (update.matchedCount !== 1) throw safe('RECUT_STATE_INVALID');
       await db.collection('recuttrialruns').insertOne({ _id: new ObjectId(), scriptId: script._id, versionId, assetId, callsUsed: result.callsUsed, ...(result.resume ? { providerCallsUsed: result.providerCallsUsed, workflowCallsUsed: result.workflowCallsUsed, resume: result.resume } : {}), attempts: result.attempts, createdAt: now });
       if (result.generationCheckpoint?.ledger === 'local') {
-        const saved = await db.collection('recuttrialgenerations').updateOne({ _id: result.generationCheckpoint.sha256, status: 'verified' },
+        const saved = await db.collection('recuttrialgenerations').updateOne({ _id: result.generationCheckpoint.sha256, status: 'persisting' },
           { $set: { status: 'persisted', versionId, assetId, generationScriptSha256: scriptSignature(await find('shortscripts', input.scriptId)) } });
         if (saved.matchedCount !== 1) throw safe('RECUT_TRIAL_RESUME_INVALID');
       } else if (result.generationCheckpoint) {

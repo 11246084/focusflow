@@ -94,7 +94,9 @@ test('staging/render use fake externals, fixed gain once, and fence modified med
   assert.doesNotMatch(commands.flat().join(' '), /loudnorm|crop|atempo/);
   assert.match(fs.readFileSync(path.join(stageDir, 'index.html'), 'utf8'), /src="narration-render.wav"/);
   assert.match(fs.readFileSync(path.join(stageDir, 'preview.html'), 'utf8'), /src="narration.wav"/);
-  await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 1.1 dB to stay under -1 dBTP' }) }), /RECUT_RENDER_AUDIO_LOWERED/);
+  await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 1.1 dB to stay under -1 dBTP' }) }), { code: 'RECUT_RENDER_AUDIO_LOWERED' });
+  // A small AAC overshoot correction is tolerated (post-render loudness checks still apply).
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 0.3 dB to stay under -1 dBTP' }) });
   fs.appendFileSync(path.join(stageDir, 'narration-render.wav'), 'changed');
   await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true }), /narration-render.wav changed/);
   fs.appendFileSync(path.join(stageDir, 'narration.wav'), 'changed');

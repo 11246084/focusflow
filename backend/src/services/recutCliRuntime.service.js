@@ -28,6 +28,12 @@ function assertCliTrialPolicy({ config, input = {}, targetUri, now = new Date() 
 async function createCliRuntime({ config, input, output, targetUri, allowModel = false, env = process.env, driverLoader, run, resumeCheckpoint, renderOnly = false } = {}) {
   if (!allowModel && !renderOnly) throw fail('尚未授權模型呼叫。', 'RECUT_MODEL_NOT_ALLOWED');
   assertCliTrialPolicy({ config, input, targetUri });
+  // A generation checkpoint is written once per output folder ('wx'). Refuse a
+  // folder that already holds one before any provider exists or any call is made.
+  if (!config?.trialPolicy && !renderOnly && output
+    && await fs.access(path.join(path.resolve(output), 'generation-checkpoint.json')).then(() => true, () => false)) {
+    throw fail('輸出資料夾已有 generation checkpoint，請改用新的 --output。', 'RECUT_TRIAL_OUTPUT_EXISTS');
+  }
   if (!/^[A-Z][A-Z0-9_]*$/.test(config?.geminiApiKeyEnv || '')) throw fail('須指定金鑰環境變數名稱。', 'RECUT_PROVIDER_NOT_CONFIGURED');
   if (!renderOnly && !env[config.geminiApiKeyEnv]) throw fail(`缺少具名環境變數：${config.geminiApiKeyEnv}`, 'RECUT_PROVIDER_NOT_CONFIGURED');
   const fixedModel = structuredClone(input.model || config.model), fixedCallLimit = input.callLimit || config.callLimit || 5;
@@ -116,6 +122,8 @@ async function createCliRuntime({ config, input, output, targetUri, allowModel =
     // Every single-topic run freezes a trusted generation before rendering, so a
     // render failure or restart can rerender with zero model calls.
     ...(!config.trialPolicy && !renderOnly ? { onGenerationVerified: async ({ result, source }) => {
+      // The output folder may not exist yet (cached source skips ASR workspaces).
+      await fs.mkdir(path.resolve(output), { recursive: true });
       const generation = await require('./recutTrialResume.service').writeGenerationCheckpoint({ output, source, result, input, config });
       await repository.recordLocalGeneration({ input, source, generation });
       return { ...generation, ledger: 'local' };

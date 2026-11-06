@@ -58,7 +58,7 @@ test('font preflight refuses a page that reports card text still overflowing at 
     evaluate: async () => ({ font: true, fit }) }), close: async () => {} });
   assert.equal(await ensureFontLoaded({ stageDir: '.', launch: page([{ id: 'a', zoom: 0.8, overflow: null }]), isLinuxRoot: () => false }), true);
   await assert.rejects(ensureFontLoaded({ stageDir: '.', launch: page([{ id: 'card7', zoom: 0.6, overflow: { left: 4, right: 4, top: 0, bottom: 0 } }]), isLinuxRoot: () => false }),
-    /RECUT_TEXT_OVERFLOW: card7/);
+    (error) => error.code === 'RECUT_TEXT_OVERFLOW' && /card7/.test(error.message));
 });
 
 // Real layout needs a browser; opt in with SHORT_RENDER_TEST_BROWSER=<chrome-headless-shell path>.

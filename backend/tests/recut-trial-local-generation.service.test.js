@@ -34,7 +34,8 @@ const fileHashes = async (directory) => Object.fromEntries(await Promise.all((aw
 
 // Runs generation with counted fake model calls and a render that fails.
 async function generateWithRenderFailure({ f, runtime, output }) {
-  await fs.mkdir(output);
+  // The output folder is deliberately not created here: the hook must create it
+  // (a cached source skips the ASR workspace that used to create it as a side effect).
   const live = await runtime({ output, allowModel: true });
   const calls = [];
   const pipeline = createRecutPipeline({ renderer, loadSource: async () => f.source,
@@ -151,4 +152,23 @@ it('persisting a recovered generation marks the ledger row and keeps the run att
     assert.equal(f.state.rows.recutversions.length, versions, 'no partial version on a repeated persist');
     assert.equal(f.state.rows.shortassets.length, assets);
   } finally { await repository.close(); }
+});
+
+it('an output folder that already holds a checkpoint is refused before any model call; hook failures keep progress', async (t) => {
+  const { directory, f, config, runtime } = await setup(t);
+  const output = path.join(directory, 'run-1');
+  const first = await generateWithRenderFailure({ f, runtime, output });
+  assert.equal(first.error.code, 'RECUT_RENDER_FAILED');
+  await assert.rejects(runtime({ output, allowModel: true }), { code: 'RECUT_TRIAL_OUTPUT_EXISTS' });
+  // A ledger failure inside the hook (here: the generation is already recorded) carries
+  // stage and attempts so the CLI can still write run.json with the spent calls.
+  const other = path.join(directory, 'run-2');
+  // Force the ledger write to fail after the model calls: a budget row means this
+  // script belongs to the policy ledger, so recordLocalGeneration refuses.
+  f.state.rows.recuttrialbudgets.push({ _id: f.input.scriptId, status: 'reserved' });
+  const second = await generateWithRenderFailure({ f, runtime, output: other });
+  assert.equal(second.error.code, 'RECUT_TRIAL_RESUME_INVALID');
+  assert.equal(second.error.trial.stage, 'checkpoint');
+  assert.ok(second.error.trial.attempts.some((a) => a.stage === 'cards' && a.consumesCall), 'spent calls are kept for run.json');
+  assert.deepEqual(second.calls, ['cards', 'wholeCheck']);
 });

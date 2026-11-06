@@ -30,8 +30,12 @@ async function retryDecision(context, options) {
   let errors = decision.input.errors || [], previousOutput = decision.input.previousOutput || null, strategy = {};
   const tracker = createRepairStallTracker({ stage: stage || 'decision' });
   while (context.task.callsUsed < context.task.callLimit) {
+    const request = { ...decision.input, errors, previousOutput, ...strategy };
+    // If the output is not valid JSON, validate is never called: count this
+    // attempt's own parse error, not the previous attempt's errors.
+    errors = ['模型輸出不是有效 JSON']; previousOutput = null;
     try {
-      return await runDecision(context, { ...decision, input: { ...decision.input, errors, previousOutput, ...strategy },
+      return await runDecision(context, { ...decision, input: request,
         validate: async (output) => { previousOutput = output; const result = await decision.validate(output); errors = result.errors || []; return result; } });
     } catch (error) {
       if (error.code !== 'RECUT_VALIDATION_FAILED') throw error;

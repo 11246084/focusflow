@@ -192,10 +192,12 @@ function createRecutLocalRepository({ targetUri, driverLoader = driverDefault } 
     // Trials without a paid policy have no budget row. Their verified generation is
     // bound in an insert-only ledger keyed by the checkpoint hash, with the same
     // source and script signatures the budget path records.
-    // Same eligibility rule as recordLocalGeneration, checked before any model call.
+    // The parts of recordLocalGeneration's eligibility rule that can be known before
+    // any model call (source hash and ledger duplicates can only be checked later).
     assertLocalGenerationAllowed: guarded(async ({ input }) => {
       const script = await find('shortscripts', input.scriptId);
       if (!script || String(script.courseId) !== input.courseId) throw safe('RECUT_SOURCE_UNAVAILABLE');
+      if (script.recut?.activeTaskId) throw safe('RECUT_TRIAL_RESUME_INVALID');
       if (await db.collection('recuttrialbudgets').findOne({ _id: script._id })) throw safe('RECUT_TRIAL_RESUME_INVALID');
     }),
     recordLocalGeneration: guarded(async ({ input, source, generation }) => {

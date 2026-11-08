@@ -13,7 +13,7 @@ const STOP_AFTER = 3; // seen three times: stop instead of spending more calls
 
 // Masks decimals and second values ("12.58s", "13s"); integers in ids such as
 // s18, scene-5 or item2 are kept.
-const maskDecimals = (text) => String(text).replace(/-?\d+(?:\.\d+)?s\b/g, '#s').replace(/-?\d+\.\d+/g, '#').replace(/\s+/g, ' ').trim();
+const maskDecimals = (text) => String(text).replace(/(?<![A-Za-z\d-])-?\d+(?:\.\d+)?s\b/g, '#s').replace(/-?\d+\.\d+/g, '#').replace(/\s+/g, ' ').trim();
 function normalizeError(error) {
   if (error && typeof error === 'object') return `${error.code || 'ERROR'}|${error.path || ''}|${maskDecimals(error.message || '')}`;
   return maskDecimals(error);

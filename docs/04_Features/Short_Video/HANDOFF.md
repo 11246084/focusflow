@@ -74,7 +74,7 @@
 - run-6 沒有 generation checkpoint 與資料庫綁定，不能用零呼叫重渲染回復；修正版 `revision-1`／`revision-1b` 是由 run-6 施工單離線重渲染，剪接改動需重新核准講稿，c4 剪接點在連續語音中，需人工聽音。
 - 兩輪唯讀獨立審查的問題已修正；真實本機堆疊（專用本機資料庫、假 provider、真實渲染）已驗證「渲染失敗 → 重啟 → 零呼叫重渲染」與各種拒絕情況，證據見[目前狀態](../../current-status.md)。人工 code review 與教師審片仍待進行。
 - PR：分支在 fork `Hao-weii/focusflow`，整合目標是 `11246084/focusflow:dev`；跨 fork draft PR 尚待建立，建立後再關閉指向 fork dev 的舊 PR。
-- 升級 worker 到 short_render 0.3.0 前不必清空佇列：版本不符的舊工作會被略過並通知管理員，但仍需重新產生或改用相符版本處理。
+- 升級 worker 到 short_render 0.3.0 前不必清空佇列：領取時略過版本不符的舊工作並通知管理員，沒有可領工作時回閒置，worker 不會因此停止；舊工作仍需重新產生或交給相符版本的 worker。
 
 ## 下一步
 

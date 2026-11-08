@@ -143,3 +143,9 @@ it('5-call modification task: three identical cards failures stop with RECUT_REP
   await assert.rejects(createRecutCardsStep({ decide, renderer, loadSource: async () => c.source }).run(c), { code: 'RECUT_REPAIR_STALLED' });
   assert.equal(requests.length, 3); assert.equal(c.task.callLimit - c.task.callsUsed, 2);
 });
+
+it('second values are masked only as standalone numbers', () => {
+  const t = (message) => [{ code: 'X', path: '$', message }];
+  assert.notEqual(errorSignature(t('cue item12s missing')), errorSignature(t('cue item13s missing')));
+  assert.equal(errorSignature(t('lasts 12.58s')), errorSignature(t('lasts 13s')));
+});

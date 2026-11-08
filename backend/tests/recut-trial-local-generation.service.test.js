@@ -186,3 +186,26 @@ it('a failing checkpoint hook keeps stage and spent attempts for the run report'
   (error) => error.code === 'RECUT_LOCAL_DB_FAILED' && error.trial.stage === 'checkpoint' && error.trial.attempts.some((a) => a.stage === 'cards' && a.consumesCall));
   assert.deepEqual(calls, ['cards', 'wholeCheck']);
 });
+
+// Final review S1/S2/m1: refusals while building the runtime close the database
+// client and release the output claim; pure configuration errors never claim it.
+it('a refused runtime build closes the client and frees the output folder for a corrected re-run', async (t) => {
+  const { directory, f, config } = await setup(t);
+  let opened = 0, closed = 0;
+  const base = f.driverLoader();
+  const counting = () => ({ ...base, MongoClient: class extends base.MongoClient { async connect() { opened++; return super.connect(); } async close() { closed++; return super.close(); } } });
+  const build = (output, extra = {}) => createCliRuntime({ config, input: f.input, targetUri: localUri, driverLoader: counting, output, allowModel: true, env: { GEMINI_API_KEY: 'synthetic' }, ...extra });
+  const output = path.join(directory, 'retry-me');
+  // Missing key: refused before the folder is claimed.
+  await assert.rejects(build(output, { env: {} }), { code: 'RECUT_PROVIDER_NOT_CONFIGURED' });
+  await assert.rejects(fs.access(path.join(output, 'generation.lock')));
+  // Active web task: refused after the claim; the client is closed and the lock removed.
+  f.state.rows.shortscripts[0].recut.activeTaskId = 'task-in-progress';
+  await assert.rejects(build(output), { code: 'RECUT_TRIAL_RESUME_INVALID' });
+  assert.ok(opened >= 1); assert.equal(closed, opened, 'every opened client was closed');
+  await assert.rejects(fs.access(path.join(output, 'generation.lock')));
+  // Corrected: the same --output now works and keeps its lock.
+  f.state.rows.shortscripts[0].recut.activeTaskId = null;
+  const live = await build(output);
+  try { await fs.access(path.join(output, 'generation.lock')); } finally { await live.close(); }
+});

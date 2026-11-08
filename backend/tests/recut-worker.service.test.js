@@ -68,9 +68,15 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
   });
   it('版本不符不耗重派次數並通知管理員；未核准不能排工作', async () => {
     const f = await queued(); const id = await identity();
-    await assert.rejects(worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), { code: 'RECUT_RENDER_VERSION_MISMATCH' });
+    // Final review B1: a claim that only skipped mismatched jobs is idle, so the worker
+    // client (which stops on RECUT_RENDER_VERSION_MISMATCH) keeps polling.
+    assert.equal(await worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), null);
+    assert.equal(store.recutRenderJobs[0].status, 'queued');
     assert.equal(store.recutRenderJobs[0].attemptCount, 0); assert.equal(store.recutWorkers[0].activeJobId, null);
     assert.ok(store.notifications.length);
+    const notified = store.notifications.length;
+    assert.equal(await worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), null);
+    assert.equal(store.notifications.length, notified, 'repeated idle polls do not add notifications');
     store.recutApprovals.length = 0;
     await assert.rejects(worker.ensureRenderJob(f.script._id));
   });

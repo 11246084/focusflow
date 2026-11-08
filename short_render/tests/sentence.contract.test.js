@@ -96,8 +96,9 @@ test('AI catalogue includes independently reviewed relation cards and excludes R
   const scene = schema.properties.scenes.items.properties;
   for (const name of ['not-fit', 'not-merge', 'nested']) assert.ok(scene.component.enum.includes(name));
   assert.equal(scene.component.enum.includes('code'), false);
-  assert.equal(scene.params.properties.lines, undefined);
-  for (const cue of ['object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2']) assert.ok(scene.cues.properties[cue]);
+  assert.equal(scene.params.properties.code, undefined); assert.equal(scene.params.properties.lines, undefined);
+  for (const name of ['not-fit', 'not-merge', 'nested']) assert.ok(scene.params.properties[name], name);
+  assert.deepEqual(scene.cues.items.properties.key, { type: 'STRING' });
   const walk = (value) => { if (!value || typeof value !== 'object') return; if (value.type === 'OBJECT') assert.ok(value.properties && Object.keys(value.properties).length); Object.values(value).forEach(walk); };
   walk(schema);
   for (const entry of getComponentCatalog()) { assert.ok(entry.purpose); assert.ok(entry.doNotUse); assert.deepEqual(describeComponent(entry.name, JSON.parse(entry.example)).errors, [], entry.name); }

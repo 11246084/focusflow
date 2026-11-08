@@ -52,11 +52,31 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
     await worker.updateWorker({ user: admin, workerId: id.worker._id, accepting: false });
     assert.equal(await worker.claimRenderJob({ worker: id.worker, ...versions }), null);
   });
+  // Review m9: after the 0.3.0 bump, a queued job approved for another renderer
+  // version must not block later jobs this worker can render.
+  it('版本不符的工作被略過，後面版本相符的工作仍可領取', async () => {
+    // The old job is queued with its version already set, like a job approved before the upgrade.
+    const old = await makeReview(); old.version.plan.canvas = { width: 720, height: 1280, fps: 30 };
+    Object.assign(store.recutVersions.find((v) => String(v._id) === String(old.version._id)), { plan: { ...old.version.plan }, shortRenderVersion: 'older-renderer' });
+    const oldOptions = () => ({ user: teacher, scriptId: old.script._id, versionId: old.version._id, expectedRevision: snapshot(old.script).revision });
+    await review.approveScript(oldOptions()); await review.queueRender(oldOptions());
+    const current = await queued(); const id = await identity();
+    const job = await worker.claimRenderJob({ worker: id.worker, ...versions });
+    assert.equal(job.scriptId, String(current.script._id));
+    assert.equal(store.recutRenderJobs.find((j) => String(j.scriptId) === String(old.script._id)).status, 'queued');
+    assert.ok(store.notifications.length, 'mismatch still notifies admins');
+  });
   it('版本不符不耗重派次數並通知管理員；未核准不能排工作', async () => {
     const f = await queued(); const id = await identity();
-    await assert.rejects(worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), { code: 'RECUT_RENDER_VERSION_MISMATCH' });
+    // Final review B1: a claim that only skipped mismatched jobs is idle, so the worker
+    // client (which stops on RECUT_RENDER_VERSION_MISMATCH) keeps polling.
+    assert.equal(await worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), null);
+    assert.equal(store.recutRenderJobs[0].status, 'queued');
     assert.equal(store.recutRenderJobs[0].attemptCount, 0); assert.equal(store.recutWorkers[0].activeJobId, null);
     assert.ok(store.notifications.length);
+    const notified = store.notifications.length;
+    assert.equal(await worker.claimRenderJob({ worker: id.worker, ...versions, shortRenderVersion: 'wrong' }), null);
+    assert.equal(store.notifications.length, notified, 'repeated idle polls do not add notifications');
     store.recutApprovals.length = 0;
     await assert.rejects(worker.ensureRenderJob(f.script._id));
   });

@@ -57,7 +57,7 @@ function createRecutLocalRuntime({ targetUri, repository, driverLoader, model, c
       variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map(({ question, askCount }) => ({ question, askCount })),
       sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words,
         ...((source.excludedSentenceIds || []).includes(s.id) ? { selectionAllowed: false, exclusionReason: '來源快照視窗邊界截斷，禁止選入' } : {}) })) }));
-    const result = await retryDecision(context, { decide: adapters.decide, instructions: prompt.INSTRUCTIONS, responseSchema: prompt.responseSchema,
+    const result = await retryDecision(context, { stage: 'selection', decide: adapters.decide, instructions: prompt.INSTRUCTIONS, responseSchema: prompt.responseSchema,
       input: { ...structuredClone(frozenSelectionInputs.get(sourceKey)), errors: context.data.repairIssues || [] },
       validate: (output) => {
         const result = validateSelection(source, output);

@@ -41,28 +41,72 @@ const DETAILS = {
   code: ['呈現來源畫面的短程式碼與指定行文字框。', { language: 'python', lines: [{ text: 'x = 1', source: '畫面原樣', originalText: 'x = 1' }], highlightLines: [1] }, '只接受 RC6 畫面抄錄與審核結果；不要讓配圖步驟自己編程式。'],
 };
 
+// Field paths per component, derived from PARAM_SCHEMAS so the model-facing
+// catalog, validation and repair feedback never diverge. Nested list items are
+// written as `rows[].tokens[]`.
+function describeParamFields(schema, prefix = '') {
+  if (schema?.type === 'ARRAY') return describeParamFields(schema.items, `${prefix}[]`);
+  if (schema?.type !== 'OBJECT') return [];
+  const entry = { path: prefix || 'params', allowed: Object.keys(schema.properties || {}), required: [...(schema.required || [])] };
+  return [entry, ...Object.entries(schema.properties || {}).flatMap(([key, child]) => describeParamFields(child, prefix ? `${prefix}.${key}` : key))];
+}
+const issue = (code, path, message) => ({ code, path, message });
+// Strict check: every unknown key is reported with the fields allowed at that
+// level. Nothing is removed; callers still reject the plan.
+function checkParamFields(component, params, path = 'params') {
+  const schema = PARAM_SCHEMAS[component], errors = [];
+  const walk = (value, node, at, label) => {
+    if (node?.type === 'ARRAY' && Array.isArray(value)) return value.forEach((v, i) => walk(v, node.items, `${at}[${i}]`, `${label}[]`));
+    if (node?.type !== 'OBJECT' || !value || typeof value !== 'object' || Array.isArray(value)) return;
+    const allowed = Object.keys(node.properties || {});
+    for (const key of Object.keys(value)) {
+      if (!allowed.includes(key)) errors.push(issue('FIELD_UNKNOWN', `${at}.${key}`,
+        `field is not in the sentence-v1 contract; component "${component}" ${label} allows only: ${allowed.join(', ')}${node.required?.length ? `; required: ${node.required.join(', ')}` : ''}`));
+      else walk(value[key], node.properties[key], `${at}.${key}`, label === 'params' ? key : `${label}.${key}`);
+    }
+  };
+  walk(params, schema, path, 'params');
+  return errors;
+}
+
 function getComponentCatalog({ aiOnly = false } = {}) {
+  const { describeComponent } = require('./components');
   return COMPONENT_NAMES.map((name) => {
     const [purpose, example, doNotUse] = DETAILS[name];
     // Three relation cards passed the separate mobile review; code stays RC6-only.
     const aiEnabled = name !== 'code';
+    const [top, ...nested] = describeParamFields(PARAM_SCHEMAS[name]);
     return { name, purpose, paramsSchema: structuredClone(PARAM_SCHEMAS[name]), example: `{\n  ${Object.entries(example).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(', ')}\n}`, doNotUse, aiEnabled,
+      fields: top.allowed, required: top.required, nestedFields: nested.map(({ path, allowed, required }) => ({ path, allowed, required })),
+      exampleCues: describeComponent(name, example).cues,
       review: ['not-fit', 'not-merge', 'nested'].includes(name) ? 'independent-mobile-reviewed-20261104' : name === 'code' ? 'rc6-only' : 'existing' };
   }).filter((v) => !aiOnly || v.aiEnabled);
 }
 
+const stripDescriptions = (schema) => JSON.parse(JSON.stringify(schema, (key, value) => (key === 'description' ? undefined : value)));
+// Model-facing params: one optional key per component, each holding exactly that
+// component's PARAM_SCHEMAS entry. A merged superset offered every component's
+// fields to every other component and let not-merge.left/right overwrite
+// compare.left/right. The backend folds `params[component]` back into the flat
+// plan form; checkParamFields still validates the result strictly.
+function getTransportParamsSchema(names) {
+  return obj(Object.fromEntries(names.map((name) => [name, stripDescriptions(PARAM_SCHEMAS[name])])));
+}
+
 function getCardsResponseSchema() {
   const names = getComponentCatalog({ aiOnly: true }).map((v) => v.name);
-  const params = obj(Object.assign({}, ...names.map((name) => PARAM_SCHEMAS[name].properties)));
-  // A superset is intentional: component-specific required fields are checked
-  // in describeComponent; Gemini object schemas never contain an empty OBJECT.
-  const cueNames = ['label', 'kicker', 'value', 'unit', 'badge', 'show', 'note', 'text', 'enter', 'caption', 'dim', 'q', 'left', 'right', 'link', 'mark', 'head', 'banner', 'stamp', 'l0', 'l1', 'object', 'container', 'attempt', 'reject', 'layer0', 'layer1', 'layer2'];
-  for (let i = 0; i < 6; i++) cueNames.push(`lit${i}`, `hl${i}`, `item${i}`, `d${i}`, `w${i}`);
-  for (let r = 0; r < 4; r++) for (let t = 0; t < 6; t++) cueNames.push(`r${r}t${t}`);
+  const params = getTransportParamsSchema(names);
+  // Transport only: one anchor object per cue name made the schema too large for
+  // Gemini (HTTP 400 INVALID_ARGUMENT). The model returns a keyed list instead;
+  // the backend cards step folds it back into the plan's `cues` object. Valid cue
+  // names depend on each card's params (lit0..litN, d0..dN, r0t0...), which a
+  // static enum cannot express; validateSentenceStructure checks the exact set
+  // and CUE_UNKNOWN lists the names valid for that card.
+  const cues = arr(obj({ key: str(), sentenceId: str(), text: str() }, ['key', 'sentenceId']));
   return obj({
-    scenes: arr(obj({ id: str(), from: str(), to: str(), component: { type: 'STRING', enum: names }, params, cues: obj(Object.fromEntries(cueNames.map((key) => [key, ANCHOR_SCHEMA]))), stamp: obj({ text: str(), tone: { type: 'STRING', enum: ['alert'] } }, ['text']) }, ['id', 'from', 'to', 'component', 'params', 'cues'])),
+    scenes: arr(obj({ id: str(), from: str(), to: str(), component: { type: 'STRING', enum: names }, params, cues, stamp: obj({ text: str(), tone: { type: 'STRING', enum: ['alert'] } }, ['text']) }, ['id', 'from', 'to', 'component', 'params', 'cues'])),
     subtitles: arr(obj({ from: ANCHOR_SCHEMA, runs: arr(obj({ t: str(), hl: { type: 'BOOLEAN' } }, ['t'])), level: { type: 'STRING', enum: ['condensed', 'corrected'] } }, ['from', 'runs'])),
   }, ['scenes', 'subtitles']);
 }
 
-module.exports = { getComponentCatalog, getCardsResponseSchema, PARAM_SCHEMAS, ANCHOR_SCHEMA };
+module.exports = { getComponentCatalog, getCardsResponseSchema, getTransportParamsSchema, checkParamFields, describeParamFields, PARAM_SCHEMAS, ANCHOR_SCHEMA };

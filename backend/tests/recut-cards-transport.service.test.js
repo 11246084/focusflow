@@ -24,8 +24,13 @@ it('real catalog plus a 24-sentence window fits the guard with full selected evi
   const input = buildCardsInput({ source: c.source, data: c.data, renderer });
   const legacy = { ...input, clips: c.data.selectionResult.clips, sentences: c.source.sentences,
     catalog: renderer.getComponentCatalog({ aiOnly: true }), iconAllowlist: renderer.getAllowedIcons() };
-  await assert.rejects(decide({ model: c.task.settingsSnapshot.model, instructions: INSTRUCTIONS, input: legacy, responseSchema: getResponseSchema(renderer) }),
+  // The compact cues schema leaves the untrimmed body under 100 KB, so pin the
+  // trimming benefit by size ratio and a stricter guard instead of the 100 KB limit.
+  const strict = createGeminiProvider({ apiKey: 'fixture-private-key', thinkingLevel: 'LOW', trialPolicy: { ...policy, maxRequestBytes: 50000 },
+    fetchImpl: async () => { throw new Error('must not send'); } });
+  await assert.rejects(strict({ model: c.task.settingsSnapshot.model, instructions: INSTRUCTIONS, input: legacy, responseSchema: getResponseSchema(renderer) }),
     { code: 'RECUT_TRIAL_REQUEST_TOO_LARGE' });
+  assert.ok(Buffer.byteLength(JSON.stringify(input)) * 4 < Buffer.byteLength(JSON.stringify(legacy)));
   assert.equal(requests.length, 0);
   const selected = c.source.sentences.slice(0, 6);
   assert.deepEqual(input.sentences, selected); assert.equal(input.clips[0].words, undefined);

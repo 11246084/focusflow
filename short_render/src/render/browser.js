@@ -5,13 +5,17 @@ const { pathToFileURL } = require('node:url');
 
 // Uses HyperFrames' lockfile-pinned browser driver, never installs a browser.
 // Caller must supply an existing chrome-headless-shell executable.
-async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, env }) {
+// Chromium refuses to start as root on Linux without --no-sandbox. HyperFrames'
+// own render already launches that way; this check still loads only the local
+// stage and aborts every non-file/data/blob request below.
+const runningAsLinuxRoot = () => process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0;
+async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, env, isLinuxRoot = runningAsLinuxRoot }) {
   signal?.throwIfAborted();
   if (!browserExecutable && !launch) throw new Error('existing chrome-headless-shell path is required');
   const browserLaunch = launch || require(require.resolve('puppeteer-core', {
     paths: [path.dirname(require.resolve('hyperframes/package.json'))],
   })).launch;
-  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true, ...(env ? { env } : {}) });
+  const browser = await browserLaunch({ executablePath: browserExecutable, headless: true, ...(env ? { env } : {}), ...(isLinuxRoot() ? { args: ['--no-sandbox'] } : {}) });
   const abort = () => { browser.close().catch(() => {}); };
   signal?.addEventListener('abort', abort, { once: true });
   try {
@@ -23,10 +27,15 @@ async function ensureFontLoaded({ stageDir, browserExecutable, launch, signal, e
       else request.abort();
     });
     await page.goto(pathToFileURL(path.join(stageDir, 'index.html')).href, { waitUntil: 'load' });
-    return await page.evaluate(async () => {
+    const result = await page.evaluate(async () => {
       await window.__recutReady;
-      return window.__recutFontLoaded === true;
+      return { font: window.__recutFontLoaded === true, fit: window.__recutTextFit || [] };
     });
+    // Same page, font and layout as the render: a card whose text still spills out
+    // at the minimum zoom is a fixed defect, not a retryable font problem.
+    const overflowing = (result?.fit || []).filter((card) => card && card.overflow);
+    if (overflowing.length) throw Object.assign(new Error(`RECUT_TEXT_OVERFLOW: ${overflowing.map((card) => `${card.id} ${JSON.stringify(card.overflow)}`).join('; ')}`), { code: 'RECUT_TEXT_OVERFLOW' });
+    return typeof result === 'boolean' ? result : result?.font === true;
   } finally { signal?.removeEventListener('abort', abort); await browser.close(); }
 }
 module.exports = { ensureFontLoaded };

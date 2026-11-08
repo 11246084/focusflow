@@ -86,8 +86,23 @@ test('staging/render use fake externals, fixed gain once, and fence modified med
   await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => false }), /FONT_NOT_LOADED/);
   assert.equal(frames.length, 0);
   await renderProject({ ...options, ensureFontLoaded: async () => true });
-  assert.equal(frames.length, 1); assert.equal(commands.length, 2);
-  assert.ok(commands[1].includes('volume=4dB')); assert.doesNotMatch(commands.flat().join(' '), /loudnorm|crop|atempo/);
+  assert.equal(frames.length, 1); assert.equal(commands.length, 3);
+  // cut (unity) -> stage render narration with the fixed gain -> final mux copies audio.
+  assert.equal(commands.flat().filter((arg) => /^volume=/.test(arg)).length, 1, 'gain applied exactly once');
+  assert.ok(commands[1].includes('volume=4dB')); assert.equal(commands[1].at(-1), path.join(stageDir, 'narration-render.wav'));
+  assert.ok(commands[2].includes('-c:a') && commands[2][commands[2].indexOf('-c:a') + 1] === 'copy');
+  assert.doesNotMatch(commands.flat().join(' '), /loudnorm|crop|atempo/);
+  assert.match(fs.readFileSync(path.join(stageDir, 'index.html'), 'utf8'), /src="narration-render.wav"/);
+  assert.match(fs.readFileSync(path.join(stageDir, 'preview.html'), 'utf8'), /src="narration.wav"/);
+  await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 1.1 dB to stay under -1 dBTP' }) }), { code: 'RECUT_RENDER_AUDIO_LOWERED' });
+  // A small AAC overshoot correction is tolerated (post-render loudness checks still apply).
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stderr: '[INFO] Audio lowered by 0.3 dB to stay under -1 dBTP' }) });
+  // Review m2: without the HyperFrames log line (e.g. --quiet) the guard cannot see a
+  // lowering and lets the render through; the worker's post-render loudness check is the backstop.
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => ({ stdout: '', stderr: '' }) });
+  await renderProject({ ...options, ensureFontLoaded: async () => true, hyperframesImpl: async () => undefined });
+  fs.appendFileSync(path.join(stageDir, 'narration-render.wav'), 'changed');
+  await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true }), /narration-render.wav changed/);
   fs.appendFileSync(path.join(stageDir, 'narration.wav'), 'changed');
   await assert.rejects(renderProject({ ...options, ensureFontLoaded: async () => true }), /narration.wav changed/);
 });

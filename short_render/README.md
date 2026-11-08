@@ -1,12 +1,13 @@
 # short_render
 
-## RC5 句子契約（0.2.0）
+## RC5 句子契約（0.3.0；0.2.0 起的句子契約，0.3.0 加上 2026-11-06 渲染修正）
 
 後端以 `require('./src/plan')` 使用 `buildRecutPlan`、`validatePlan`、`resolvePlan`、`getComponentCatalog`、`getCardsResponseSchema`、`getAllowedIcons`、`getAssetCatalog`、`getRendererMetadata`。新版仍用 `schemaVersion: 'recut-v1'`，另帶 `contractVersion: 'sentence-v1'`，與下方歷史文字錨點原型分開辨識。`tests/sentence.fixture.js` 是無真人素材的完整合成樣本。
 
 - `buildRecutPlan({source,selectionResult,scenes,subtitles,title,endCard,modelId,audio,theme})` 回 `{plan,resolved,errors}`；來源與選段使用 RC2／RC3 的凍結句子及絕對逐字秒數。`audio` 可用 RC2 的 `integratedLufs/truePeakDbtp/fixedGainDb`；預設 N2、結尾卡額外時長 0，避免擅改已鎖定的 65 秒選段。
 - `validatePlan(plan,{sentences,evidence,resolved?})` 回 `{valid,errors,warnings}`；`evidence` 可為凍結 chunk 陣列或 RC2 source。`resolvePlan(plan,{sentences})` 回 `{resolved,errors}`。新版不再呼叫第二次 ASR、模糊比對或靜音吸附，剪點須與 RC3 逐字邊界相同。
-- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:{text:{sentenceId:'s1',text?:'原話片語'}}}]`；程式填回 `clips/basedOn`。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
+- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:[{key:'text',sentenceId:'s1',text?:'原話片語'}]}]`；後端 `foldTransportCues` 先折回施工單的 `cues:{text:{sentenceId,text?}}` 物件，再交給本模組，程式填回 `clips/basedOn`。cues 改用清單是因為每個 cue 名稱各一個錨點物件的 schema 約 20 KB、330 個型別節點，Gemini 回 400 INVALID_ARGUMENT（2026-11-05 OpenCV 試產實測）；清單版約 4.5 KB、88 個節點。重複的 key 或未定義欄位會當成修正錯誤回給模型，不靜默略過；施工單、驗證器與渲染仍只接受物件形式。
+- `getComponentCatalog()` 每個元件另列 `fields`、`required`、`nestedFields`（巢狀項目路徑如 `rows[].tokens[]`）與依範例參數算出的 `exampleCues`，全部由 `PARAM_SCHEMAS` 推導；後端只把這些欄位清單與範例交給模型，不送完整 `paramsSchema`。回應 schema 的 `params` 原本是各元件欄位的聯集：模型只靠 schema 分不出欄位歸屬（2026-11-05 試產連續 `FIELD_UNKNOWN`，例如把 relation 的 `words` 放進 stat），而且 `not-merge.left/right` 會覆蓋 `compare.left/right` 的巢狀定義。現在 `getCardsResponseSchema` 的 `params` 以元件名為鍵（`params:{stat:{value}}`），每個鍵就是該元件去掉 description 的 `PARAM_SCHEMAS`；後端 `foldTransportParams` 取出與 `component` 同名的那一個鍵還原成扁平形式，多鍵、鍵名不符或 `__proto__`／`constructor`／`prototype` 一律拒絕，舊的扁平 params 原樣通過。`cues` 清單的 `key` 改成一般字串：合法 cue 名稱隨 params 而定（`lit0..`、`d0..`、`r0t0..`），靜態 enum 表達不了，由 `validateSentenceStructure` 依該卡 params 檢查，`CUE_UNKNOWN` 會列出該卡可用的名稱。新 schema 約 4.9 KB、124 個型別節點（舊聯集版 4.5 KB、88 節點已實測可用；20 KB、330 節點被拒）；新版尚未以真實 Gemini 呼叫確認會被接受。`checkParamFields` 是唯一的參數欄位檢查：未知欄位仍回 `FIELD_UNKNOWN` 並使整份施工單無效、不刪除，訊息附上該元件在該層允許與必填的欄位，例如 `component "quote-reveal" params allows only: text, label, icon; required: text`。場景長度與錨點錯誤訊息同樣附上實際秒數、各選句播放秒數或該句原文，判斷規則不變。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
 - 圖卡目錄共 12 種加 RC6 `code` 擴充。`getComponentCatalog({aiOnly:true})` 暫回原有 9 種；三種新卡必須經另一位代理完成手機可讀性檢查才開 AI；`code` 由 RC6 畫面抄錄步驟提供，配圖模型不可自行編寫。每筆目錄含用途、參數 schema、三行範例與不適用情境。
 - RC6 `code.params`：`language`、`lines:[{text,source:'畫面原樣|AI 修正|AI 補寫',originalText,intentionalError?}]`，選填 `highlightLines:[1]`、`boxes:[{line:1,text:'唯一文字'}]`、`requiredVariables:['x']`、`errorMessage`、`diagram:{layers:[{text,icon?}]}`。每行至多 36 字、每卡至多 12 行；故意錯誤必須維持畫面原樣。
 
@@ -35,7 +36,7 @@ node bin/short-render.js render plan.json --evidence source.json --source source
 
 `align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁、五個 `code-主題.html` 與 `catalog.json`；前三卡每 5 秒依序展示「放不進去」「合不起來」「層層包含」。程式碼頁使用 [固定自製範例](tests/codePrototype.fixture.js)，保留故意錯誤的 `value =`，顯示行號、行高亮、唯一詞方框與錯誤訊息；這些參數是離線 fixture，並非實際 OCR 或模型結果。`code-主題.render.html` 用正式 render 模式產生，供檢查 720×1280 與來源對照隔離；`code-主題.plan.json` 供核對固定輸入，均在忽略的輸出目錄。三張關係圖卡經獨立手機複核後開放 AI catalog（9→12）；`code` 仍維持 `aiEnabled:false`、`rc6-only`。複核證據為本機 `out/qa-20261104/report.json`（五主題 × 360／390，各三卡，共 30 張）；這是合成卡片可讀性與預覽控制列檢查，沒有真實成品或正式驗收。完整狀態只記在[目前狀態](../docs/current-status.md)。
 
-`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。常駐 worker 的設定與啟動方式見下節。
+`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。在 Linux 以 root 執行時（例如雲端容器），Chromium 必須帶 `--no-sandbox` 才能啟動，字型檢查只在這種情況加上這個旗標；HyperFrames 本身的渲染原本就以 `--no-sandbox` 啟動，字型檢查仍只載入本機 stage 並擋掉 file／data／blob 以外的請求。常駐 worker 的設定與啟動方式見下節。
 
 演算法與取捨：
 
@@ -217,3 +218,16 @@ V3 只擋數字；人名、專有名詞與語意是否偏移**不在自動檢查
 HyperFrames 0.8.153 為 Apache-2.0（以套件 `package.json` 為準），GSAP 3.15.0 依其授權條款；Noto Sans TC 為 SIL OFL。本資料夾沒有複製任何第三方 skill 的程式碼。
 
 </details>
+
+## 2026-11-06 渲染修正（OpenCV 試片 run-6 的問題）
+
+以下四項都是確定性的程式規則，不需要模型；run-6 的施工單在新規則下會因空白圖卡被拒，這是預期結果。
+
+| 問題（run-6 實測） | 規則 | 位置 | 測試 |
+|---|---|---|---|
+| c3 的字幕延續到 c4 的原音 2.2 秒 | 字幕結束時間取「下一句字幕開始」與「所屬 clip 結尾」較早者；字幕不跨剪接點，中間沒有字幕的空檔保留空白 | `resolveSentencePlan`（`src/plan/sentences.js`） | `tests/render.timing-fit.test.js` |
+| scene-5 開場 3.18 秒只有空卡 | 一張卡的所有元素都明確指定 cue、且最早的 cue 晚於場景開始 1.5 秒以上時，回 `SENTENCE_TIMING` 並指出可錨定的句子；未指定 cue 的元素用預設的早期偏移，不會觸發 | 同上 | 同上 |
+| 響度 −18.1 LUFS（目標 −16） | 施工單的固定增益只套一次：staging 時用 FFmpeg `volume` 產生 `narration-render.wav` 給渲染頁，預覽仍播放原始 `narration.wav` 並用 Web Audio 套同一增益；最終混音 `-c:a copy`。HyperFrames 的 AAC 真峰值上限是 −1 dBFS，增益已把峰值壓在 −1.5 dBTP，若 HyperFrames 仍回報 `Audio lowered by X dB` 且 X 超過 0.5 dB 就以 `RECUT_RENDER_AUDIO_LOWERED`（`error.code`）拒絕；0.5 dB 以內視為 AAC 編碼後的小幅峰值修正，仍由渲染後響度檢查把關。這項判斷依 HyperFrames 的 info 紀錄文字，呼叫時不得加 `--quiet`；紀錄缺少或改了措辭時會視為沒有壓低，worker 路徑仍有決策 #62 的渲染後響度檢查，本機試產 CLI 沒有，需另跑媒體檢查。manifest 記錄 `renderAudioSha256` 與 `renderAudioGainDb` | `stageProject`／`renderProject`（`src/render/render.js`） | `tests/render.sentence.test.js` |
+| scene-5 的引言泡泡超出卡片邊框 23 px | 字型載入後、時間軸註冊前，在相同頁面暫停 transform，量測每張卡文字與元素的外框，超出內框時對卡片內容套 layout `zoom`（不是 transform；GSAP 仍照常動畫，但縮放後卡內的 px 位移也一起縮小；旋轉元素以未旋轉的外框量測），最小 0.6；仍超出時字型預檢回 `RECUT_TEXT_OVERFLOW`（`error.code`），不渲染 | `recutFitCards`（`src/render/html.js`）、`ensureFontLoaded`（`src/render/browser.js`） | `tests/render.timing-fit.test.js`（真實瀏覽器那項需設 `SHORT_RENDER_TEST_BROWSER`） |
+
+`RECUT_TEXT_OVERFLOW` 目前只在渲染前檢查，講稿核准後才會發現；預覽頁同樣會算出 `window.__recutTextFit`，但尚未顯示給教師，是否列入決策 #62 的渲染後檢查需另外決定。限制：空白圖卡規則只在「每個元素都明確指定 cue」時判斷，元素有預設偏移時不會攔下；文字縮放以 0.6 為下限，較長的 nowrap 文字仍可能被拒，需要改短或換元件；字幕被截在 clip 結尾時沒有最短顯示時間，錨點接近 clip 結尾的字幕可能只閃一下。

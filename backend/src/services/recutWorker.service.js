@@ -179,7 +179,12 @@ async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now =
         if (shortRenderVersion !== version.shortRenderVersion || JSON.stringify(canonical(assetVersions)) !== JSON.stringify(canonical(version.assetVersions))) {
           await require('./notification.service').notifyYouTubeSystemEvent({ dedupeKey: `recut_version_mismatch:${worker._id}:${job._id}:${job.planHash}`,
             title: 'recut worker 版本不符', content: `worker「${worker.name}」與施工單版本不符，未開始渲染。` });
-          throw error('Worker renderer or material version does not match the approved plan.', 'RECUT_RENDER_VERSION_MISMATCH');
+          // Skip, do not abort: a job approved for another renderer version must not
+          // block later jobs this worker can render. Admins are notified (deduped per
+          // worker/job/plan). A claim that only skipped such jobs is idle (null), not an
+          // error: the worker client stops on RECUT_RENDER_VERSION_MISMATCH, which would
+          // shut down a correctly upgraded worker whose queue holds only old jobs.
+          return null;
         }
         const leaseToken = crypto.randomBytes(32).toString('base64url');
         const leaseExpiresAt = new Date(now.getTime() + LEASE_MS);

@@ -328,6 +328,7 @@ function provenanceHtml(plan) {
   return plan.scenes.filter((s) => s.component === 'code').map((s) => `<section class="preview-provenance"><h2>程式碼來源對照</h2>${s.params.lines.map((line, i) => `<div><b>第 ${i + 1} 行：${escapeHtml(line.source)}</b><pre>${escapeHtml(line.originalText)}</pre><pre>${escapeHtml(line.text)}</pre></div>`).join('')}</section>`).join('');
 }
 
+const MIN_FIT_ZOOM = 0.6;
 function buildHtml(plan, resolved, { css = null, audioSrc = 'narration.wav', mode = 'render' } = {}) {
   if (!['preview', 'render'].includes(mode)) throw new Error('mode must be preview or render');
   if (!textSafeLocal(audioSrc)) throw new Error('audioSrc must be a relative local asset path');
@@ -414,8 +415,58 @@ window.__recutSeek = function(seconds) {
     el.style.visibility=seconds>=start && seconds<end ? 'visible' : 'hidden';
   });
 };
+// Keep every card's text inside the card. Runs once after the font loads and
+// before the timeline is registered: with transforms neutralized, the text and
+// element boxes of each card are measured against the card's inner box, and the
+// card content gets a layout zoom until it fits, never below MIN_FIT_ZOOM. Zoom is
+// not a transform, so GSAP keeps animating transforms; px translate offsets inside
+// a zoomed card scale with it. Rotated elements are measured unrotated. Cards that still overflow
+// are reported; the render preflight refuses them (RECUT_TEXT_OVERFLOW).
+var MIN_FIT_ZOOM = ${MIN_FIT_ZOOM};
+function recutTextBoxes(root) {
+  var boxes = [], walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), node;
+  while ((node = walker.nextNode())) {
+    if (!node.nodeValue.trim()) continue;
+    var range = document.createRange(); range.selectNodeContents(node);
+    var rect = range.getBoundingClientRect(); if (rect.width || rect.height) boxes.push(rect);
+  }
+  root.querySelectorAll('svg,img,.chip,.slot,.item,.scene-item,.chipw,.bubble,.fit-object,.fit-container,.merge-result').forEach(function(el) {
+    var rect = el.getBoundingClientRect(); if (rect.width || rect.height) boxes.push(rect);
+  });
+  return boxes;
+}
+function recutFitCards() {
+  if (typeof document.createTreeWalker !== 'function' || typeof document.createRange !== 'function') return [];
+  var neutral = document.createElement('style');
+  neutral.textContent = '*{transform:none!important;transition:none!important;animation:none!important}';
+  document.head.appendChild(neutral);
+  var report = [];
+  document.querySelectorAll('.scene').forEach(function(scene) {
+    var cs = getComputedStyle(scene), box = scene.getBoundingClientRect(), px = function(v) { return parseFloat(v) || 0; };
+    var inner = { l: box.left + px(cs.paddingLeft) + px(cs.borderLeftWidth), r: box.right - px(cs.paddingRight) - px(cs.borderRightWidth),
+      t: box.top + px(cs.paddingTop) + px(cs.borderTopWidth), b: box.bottom - px(cs.paddingBottom) - px(cs.borderBottomWidth) };
+    var kids = Array.prototype.filter.call(scene.children, function(el) { return !el.classList.contains('stamp'); });
+    var zoom = 1, overflow = null;
+    for (var pass = 0; pass < 8; pass++) {
+      var boxes = []; kids.forEach(function(el) { boxes = boxes.concat(recutTextBoxes(el)); });
+      if (!boxes.length) { overflow = null; break; }
+      var u = { l: Math.min.apply(null, boxes.map(function(r) { return r.left; })), r: Math.max.apply(null, boxes.map(function(r) { return r.right; })),
+        t: Math.min.apply(null, boxes.map(function(r) { return r.top; })), b: Math.max.apply(null, boxes.map(function(r) { return r.bottom; })) };
+      if (u.l >= inner.l - 1 && u.r <= inner.r + 1 && u.t >= inner.t - 1 && u.b <= inner.b + 1) { overflow = null; break; }
+      overflow = { left: Math.round(inner.l - u.l), right: Math.round(u.r - inner.r), top: Math.round(inner.t - u.t), bottom: Math.round(u.b - inner.b) };
+      if (zoom <= MIN_FIT_ZOOM) break;
+      var factor = Math.min((inner.r - inner.l) / (u.r - u.l), (inner.b - inner.t) / (u.b - u.t), 0.97);
+      zoom = Math.max(MIN_FIT_ZOOM, Math.round(zoom * factor * 1000) / 1000);
+      kids.forEach(function(el) { el.style.zoom = String(zoom); });
+    }
+    report.push({ id: scene.id, zoom: zoom, overflow: overflow });
+  });
+  neutral.remove();
+  return report;
+}
 window.__recutReady = document.fonts.load('700 30px "Noto Sans TC"').then(function(fonts) {
   if (!fonts.length || !document.fonts.check('700 30px "Noto Sans TC"')) throw new Error('RECUT_FONT_NOT_LOADED');
+  window.__recutTextFit = recutFitCards();
   window.__timelines = window.__timelines || {};
   window.__timelines["recut"] = tl;
   window.__recutFontLoaded = true;

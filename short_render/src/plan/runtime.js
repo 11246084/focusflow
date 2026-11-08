@@ -5,7 +5,7 @@ const ASSET_VERSIONS = Object.freeze({
   '@iconify-json/fluent-emoji-flat': '1.2.6',
   '@phosphor-icons/core': '2.1.1',
 });
-const SHORT_RENDER_VERSION = '0.2.0';
+const SHORT_RENDER_VERSION = '0.3.0';
 const CONTRACT_VERSION = 'sentence-v1';
 const THEMES = Object.freeze({
   N2: { bg: '#151C3F', panel: '#1C1A40', end: '#28173A', card: '#293157', edge: '#7F83AD', ink: '#FFFFFF', muted: '#D3D5EB', accent: '#FFC93C', accentInk: '#171B34', light: false },

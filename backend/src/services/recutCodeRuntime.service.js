@@ -56,13 +56,13 @@ function withRecutCodeRequests(renderer) {
       if (!options?.aiOnly || catalog.some((v) => v.name === 'code')) return catalog;
       const entry = renderer.getComponentCatalog({ aiOnly: false }).find((v) => v.name === 'code');
       if (!entry) return catalog;
-      return [...catalog, { ...entry, aiEnabled: true, review: 'rc6-capture-required', paramsSchema: { type: 'OBJECT', properties: { language: { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] } }, required: ['language'] },
+      return [...catalog, { ...entry, aiEnabled: true, review: 'rc6-capture-required', fields: ['language'], required: ['language'], nestedFields: [], exampleCues: ['stamp'], paramsSchema: { type: 'OBJECT', properties: { language: { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] } }, required: ['language'] },
         example: '{"language":"python"}', doNotUse: '只請求來源畫面抄錄；不得提供 lines 或原創程式碼。' }];
     },
     getCardsResponseSchema() {
       const schema = structuredClone(renderer.getCardsResponseSchema()), scene = schema.properties.scenes.items;
       if (!scene.properties.component.enum.includes('code')) scene.properties.component.enum.push('code');
-      scene.properties.params.properties.language = { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] };
+      scene.properties.params.properties.code = { type: 'OBJECT', properties: { language: { type: 'STRING', enum: ['javascript', 'python', 'cpp', 'c', 'csharp', 'java', 'text'] } }, required: ['language'] };
       return schema;
     },
   };

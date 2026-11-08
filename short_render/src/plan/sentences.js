@@ -9,19 +9,13 @@ const round = (v) => Math.round(v * 1000) / 1000;
 const norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[。！？、，；「」『』“”‘’\p{Z}\s]/gu, '');
 const text = (v) => typeof v === 'string' && !!v.trim();
 const safeId = (v) => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(v);
+const MAX_BLANK_CARD_SECONDS = 1.5;
 const planHash = (plan) => crypto.createHash('sha256').update(JSON.stringify(plan)).digest('hex');
 
 function validateSentenceStructure(plan) {
   const errors = [];
   const add = (code, path, message) => errors.push(issue(code, path, message));
   const keys = (value, allowed, path) => { if (value && typeof value === 'object' && !Array.isArray(value)) for (const key of Object.keys(value)) if (!allowed.includes(key)) add('FIELD_UNKNOWN', `${path}.${key}`, 'field is not in the sentence-v1 contract'); };
-  const paramKeys = (value, schema, path) => {
-    if (schema?.type === 'ARRAY' && Array.isArray(value)) return value.forEach((v, i) => paramKeys(v, schema.items, `${path}[${i}]`));
-    if (schema?.type === 'OBJECT' && value && typeof value === 'object' && !Array.isArray(value)) {
-      keys(value, Object.keys(schema.properties || {}), path);
-      for (const [k, v] of Object.entries(value)) paramKeys(v, schema.properties?.[k], `${path}.${k}`);
-    }
-  };
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return [issue('PLAN_INVALID', '$', 'plan must be an object')];
   keys(plan, ['schemaVersion', 'contractVersion', 'layout', 'canvas', 'source', 'versions', 'theme', 'audio', 'title', 'clips', 'scenes', 'subtitles', 'endCard'], '$');
   keys(plan.canvas, ['width', 'height', 'fps'], 'canvas'); keys(plan.source, ['videoId'], 'source');
@@ -53,7 +47,7 @@ function validateSentenceStructure(plan) {
   else for (const [i, s] of plan.scenes.entries()) {
     const path = `scenes[${i}]`;
     keys(s, ['id', 'from', 'to', 'clips', 'component', 'params', 'cues', 'basedOn', 'stamp'], path);
-    paramKeys(s?.params, require('./catalog').PARAM_SCHEMAS[s?.component], `${path}.params`);
+    errors.push(...require('./catalog').checkParamFields(s?.component, s?.params, `${path}.params`));
     // Reserve renderer-owned IDs to prevent selector/script injection and collisions.
     if (!safeId(s?.id) || /^(?:root|hdr|endcard|end1|end2|narration|sub\d+)$/.test(s.id) || sceneIds.has(s.id)) add('SCENE_ID', path, 'unique safe non-reserved scene id required');
     sceneIds.add(s?.id);
@@ -65,7 +59,7 @@ function validateSentenceStructure(plan) {
     if (s?.cues !== undefined && (!s.cues || typeof s.cues !== 'object' || Array.isArray(s.cues))) add('CUES_INVALID', `${path}.cues`, 'cues must be an object');
     else for (const [key, anchor] of Object.entries(s?.cues || {})) {
       keys(anchor, ['sentenceId', 'text'], `${path}.cues.${key}`);
-      if (!d.cues.includes(key)) add('CUE_UNKNOWN', `${path}.cues.${key}`, 'unknown component cue');
+      if (!d.cues.includes(key)) add('CUE_UNKNOWN', `${path}.cues.${key}`, `unknown component cue; component "${s?.component}" with these params accepts only: ${d.cues.join(', ')}`);
       if (!safeId(anchor?.sentenceId) || (anchor?.text !== undefined && !text(anchor.text)) || anchor?.offset !== undefined || anchor?.nth !== undefined) add('ANCHOR_INVALID', `${path}.cues.${key}`, 'sentenceId + optional unique text; offsets are not accepted');
     }
     keys(s?.stamp, ['text', 'tone'], `${path}.stamp`);
@@ -112,7 +106,7 @@ function phraseWords(sentence, phrase) {
   if (phrase === undefined) return { first: 0, last: sentence.words.length - 1 };
   const parts = sentence.words.map((w) => norm(w.text));
   const joined = parts.join(''), needle = norm(phrase), at = joined.indexOf(needle);
-  if (!needle || at < 0 || joined.indexOf(needle, at + 1) >= 0) throw new Error(`anchor absent or ambiguous in ${sentence.id}: ${phrase}`);
+  if (!needle || at < 0 || joined.indexOf(needle, at + 1) >= 0) throw new Error(`anchor absent or ambiguous in ${sentence.id}: ${phrase}; use a phrase copied from that sentence that occurs exactly once (sentence: ${sentence.text})`);
   const starts = []; let cursor = 0;
   for (const part of parts) { starts.push(cursor); cursor += part.length; }
   const first = starts.indexOf(at), end = at + needle.length;
@@ -164,7 +158,7 @@ function resolveSentencePlan(plan, { sentences } = {}) {
       if (!clipIds.includes(s.clip)) throw new Error('anchor sentence is outside the referenced clip');
       const match = phraseWords(s.source, anchor.text);
       const w = s.source.words[match.first];
-      if (w.startSec < s.words[0].startSec || s.source.words[match.last].endSec > s.words.at(-1).endSec) throw new Error('anchor phrase was trimmed out of the clip');
+      if (w.startSec < s.words[0].startSec || s.source.words[match.last].endSec > s.words.at(-1).endSec) throw new Error(`${anchor.text === undefined ? `whole-sentence anchor on ${anchor.sentenceId}` : `anchor phrase "${anchor.text}" in ${anchor.sentenceId}`} was trimmed out of the clip; give a text phrase inside the kept part: ${s.words.map((v) => v.text).join('')}`);
       return round(s.t0 + w.startSec - s.words[0].startSec);
     };
     let covered = 0;
@@ -180,21 +174,37 @@ function resolveSentencePlan(plan, { sentences } = {}) {
       // The next scene starts at a sentence's first word; intervening pause
       // remains with the current card so there is no uncovered black interval.
       const t1 = occurrences[b + 1]?.t0 ?? speechTotal;
-      if (t1 - t0 < 3 - 0.001 || t1 - t0 > 12 + 0.001) throw new Error(`scene ${scene.id} must last 3-12 seconds`);
+      if (t1 - t0 < 3 - 0.001 || t1 - t0 > 12 + 0.001) {
+        const spans = occurrences.map((o, i) => `${o.id} ${round((occurrences[i + 1]?.t0 ?? speechTotal) - o.t0)}s`).join(', ');
+        throw new Error(`scene ${scene.id} (${scene.from}-${scene.to}) lasts ${round(t1 - t0)}s but must last 3-12 seconds; regroup sentences at sentence boundaries. Playback seconds per selected sentence: ${spans}`);
+      }
       const cues = {};
       for (const [name, anchor] of Object.entries(scene.cues || {})) {
         const time = anchorAt(anchor, actualClips);
         if (time < t0 || time >= t1) throw new Error(`cue ${name} is outside scene ${scene.id}`);
         cues[name] = time;
       }
+      // Empty-card guard: when every element of the card is timed explicitly and
+      // the earliest one lands well after the scene starts, the viewer sees a
+      // blank card while the teacher talks (run-6 scene-5: 3.18 s). Elements
+      // without an explicit cue use early default offsets, so they never trigger it.
+      const driving = describeComponent(scene.component, scene.params).cues.filter((name) => name !== 'stamp');
+      if (driving.length && driving.every((name) => Object.hasOwn(cues, name))) {
+        const first = Math.min(...driving.map((name) => cues[name]));
+        if (first - t0 > MAX_BLANK_CARD_SECONDS + 0.001) throw new Error(`scene ${scene.id} shows an empty card for ${round(first - t0)}s (first element at ${first}s, scene starts at ${t0}s); anchor its first cue within ${MAX_BLANK_CARD_SECONDS}s of the scene start, e.g. on a phrase in ${scene.from}`);
+      }
       return { id: scene.id, t0, t1, cues };
     });
     if (covered !== occurrences.length) throw new Error('scene coverage is incomplete');
     const subtitles = plan.subtitles.map((s, i) => ({ index: i, clip: s.clip, t0: anchorAt(s.from, [s.clip]) }));
+    const clipEnd = new Map(clips.map((c) => [c.id, c.outEnd]));
     for (let i = 0; i < subtitles.length; i++) {
       const s = subtitles[i], next = subtitles[i + 1];
       if ((i === 0 && s.t0 !== 0) || (next && next.t0 <= s.t0)) throw new Error('subtitles must start at zero and follow playback order');
-      s.t1 = next?.t0 ?? speechTotal;
+      // A subtitle belongs to one clip: it ends at the next subtitle or at its
+      // clip's cut, whichever is first, so it never runs over the next clip's audio
+      // (run-6: c3's line stayed on screen 2.2 s into c4).
+      s.t1 = round(Math.min(next?.t0 ?? speechTotal, clipEnd.get(s.clip)));
     }
     const total = round(speechTotal + plan.endCard.seconds);
     if (speechTotal < 30 || total > 65) throw new Error('speech must be >=30 seconds and total including end card <=65 seconds');

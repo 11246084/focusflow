@@ -1,6 +1,6 @@
 {
   "name": "focusflow-short-render",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Recut sentence-anchored full-animation plan validator and renderer.",
   "license": "UNLICENSED",

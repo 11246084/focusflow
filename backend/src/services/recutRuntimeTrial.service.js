@@ -81,7 +81,10 @@ async function runSingleTopicTrial({ pipeline, input = {}, model, callLimit = 5,
     settingsSnapshot: structuredClone(task.settingsSnapshot), sharedCallLimit: callLimit,
     version: data.version, initialSelection, suggestions: data.suggestions || [], asset: null, renderDurationMs: null, ...accounting(), attempts };
   let generationCheckpoint;
-  if (onGenerationVerified && data.version.plan) generationCheckpoint = await onGenerationVerified({ result: verifiedResult, source: data.sourceCheckpoint });
+  if (onGenerationVerified && data.version.plan) {
+    try { generationCheckpoint = await onGenerationVerified({ result: verifiedResult, source: data.sourceCheckpoint }); }
+    catch (error) { error.trial = { stage: 'checkpoint', version: data.version, ...accounting(), attempts }; throw error; }
+  }
   let asset = null, renderDurationMs = null;
   if (render && data.version.plan) {
     if (typeof renderLocal !== 'function') throw fail('尚未提供本機渲染轉接。', 'RECUT_RENDER_NOT_CONFIGURED');

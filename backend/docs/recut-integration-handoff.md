@@ -6,6 +6,24 @@
 
 授權教授原片已在本機 bootstrap，首尾截斷句不可選。前三次 provider 呼叫取得用量、第三次選段成功；原 cards 嘗試被本機 guard 阻擋，未出站。實際續跑第四次 provider 嘗試的 cards 為 36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null，遠端是否收件或計費未知。保守計額 provider 4 次、workflow 5 次，原五次上限剩一次，不足 cards 與必要 wholeCheck 兩步；永久 claim 不重置、無自動付費重試。目前無 generation checkpoint 或 MP4，教授試片 BLOCKED，需額外決策；這不阻擋前端依契約開發。目前 adapter 將 HTTP 與網路錯誤折疊為同一代碼且未保存狀態，無法回溯本次原因；schema 複雜度只是候選風險。建議後續加入不含原始錯誤、本文、header 或 prompt 的白名單診斷及另行評估 schema 瘦身，均尚未實作。前一候選 `028f8f8` 的 backend 全套 1,710 通過、2 跳過、0 失敗、exit 0；最新來源 `2232036` 全套 1,750 項、1,748 通過、2 跳過、0 失敗、exit 0；共用 provider 重試 body 釋放修正已經獨立複核，與本次 cards 失敗原因無關；進度與明細看[目前狀態](../../docs/current-status.md)。
 
+## 2026-11-08 修正候選對前端的影響（`wip/recut-cards-schema-fix`）
+
+**現在可以接的**：上傳與同意、選題與背景生成、完整講稿審閱與修改、講稿核准、排入渲染、成品審核、發布狀態、撤回與管理員待辦，API、請求欄位與狀態轉移都和下面各節相同；本候選沒有新增、刪除或修改任何 route、request／response 欄位或狀態，`openapi.yaml` 不變。講稿核准、成品精確版本核准與 YouTube ready 雙閘門的程式也未改。
+
+**要多處理的錯誤碼**（都已列在 `.claude/rules/api-design.md`）：
+
+| 出現位置 | 代碼 | 前端顯示與處理 |
+|---|---|---|
+| 背景工作失敗（`GET /recut/tasks/:taskId` 的任務錯誤） | `RECUT_REPAIR_STALLED` | 「AI 重複產生同一個錯誤，已停止以保留額度」；顯示任務錯誤訊息（內含錯誤樣本），恢復原版的處理與其他任務失敗相同。不要自動重送：同一份輸入通常會再停一次，應讓教師調整選段或主題後重新生成。 |
+| 背景工作失敗 | `RECUT_CALL_LIMIT_EXCEEDED`（既有） | 額度用完時仍是這個代碼，停滯判斷不會取代它。 |
+| 渲染失敗（`render_failed`） | `RECUT_TEXT_OVERFLOW` | 卡片文字縮到 0.6 倍仍放不下，屬固定類失敗，重送渲染不會成功；引導教師縮短圖卡文字或換元件（呈現修改，回到 `script_approved` 後重新渲染並重審 MP4）。 |
+| 渲染失敗 | `RECUT_RENDER_AUDIO_LOWERED` | 渲染時音量被重複壓低，固定類失敗；顯示「需管理員檢查渲染設定」，不要讓教師反覆重送。 |
+| 渲染排隊中 | （無錯誤碼） | 舊版本（short_render 0.2.0）核准的工作會一直停在 `render_queued`：0.3.0 worker 領取時略過它並通知管理員，不會擋住其他工作。前端照常顯示「等待渲染」；停留過久時引導教師聯絡管理員或重新產生。 |
+
+**狀態與重試**：狀態機不變。生成或套用修改失敗都恢復原版並保留已用額度；渲染失敗停在 `render_failed`，固定類失敗（上表）不要提供「直接再渲染」的捷徑。本機試產工具（`recutSingleTopic.js`）新增的 checkpoint 與零呼叫重渲染只在本機工具中，不是網頁 API，前端不需要接。
+
+**已知限制與待確認**：新的配圖 schema 尚未以真實 Gemini 呼叫確認會被接受（確認呼叫待授權），正式生成在確認前可能回 `RECUT_MODEL_FAILED`；`RECUT_TEXT_OVERFLOW` 只在渲染前檢查，教師要到講稿核准後才會看到，預覽頁尚未顯示文字縮放結果；修正版影片尚未經教師審片。
+
 ## 接手前先知道
 
 - 本輪沒有修改正式前端。RC10 決策 #78 規定開關關閉時上傳仍先檢查內容同意；現有上傳頁未串接，缺少有效內容同意時會收到 409，因此不能直接部署 main。現有教師網頁仍是舊八拍流程，尚未接上 recut；接線時沿用既有版面，不自行新增上線故事；完整稿放在閱讀主畫面，逐句編修工具按需展開。使用者應看得懂「目前在做什麼、完成後做什麼」。
@@ -108,4 +126,4 @@ worker 以專用 Bearer 呼叫 `POST /api/v1/recut-worker/jobs/claim`，其後 `
 
 ## 受控試產續跑與重新渲染
 
-`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`；保留已有額度與永久 claim；教授試產目前保守計額四次，剩一次不足 cards 與必要 wholeCheck，不可重置額度或自動重試。請求前由資料庫 reservation ledger 永久 claim；保存 source、plan、full script、generation checkpoint 與資料庫 hash root。`executeRecutTrialRerender` 不呼叫模型、不讀模型金鑰，仍檢查資料庫 generation／source／script 綁定並重新驗證原始 MP4 hash；自簽 checkpoint 不能繞過資料庫綁定。render-only CLI 使用 `--rerender-from`，不使用 `--allow-model`。新單題流程也在渲染前保存 progress 與 generation checkpoint。上述為凍結程式與隔離測試結果，教授續跑已失敗，不能宣稱試片完成。
+`executeRecutTrialResume` 接收 `loadArtifacts`、`runtimeFactory`、`output`、`targetUri`、`allowModel` 與 `render: false`；保留已有額度與永久 claim；教授試產目前保守計額四次，剩一次不足 cards 與必要 wholeCheck，不可重置額度或自動重試。請求前由資料庫 reservation ledger 永久 claim；保存 source、plan、full script、generation checkpoint 與資料庫 hash root。`executeRecutTrialRerender` 不呼叫模型、不讀模型金鑰，仍檢查資料庫 generation／source／script 綁定並重新驗證原始 MP4 hash；自簽 checkpoint 不能繞過資料庫綁定。render-only CLI 使用 `--rerender-from`，不使用 `--allow-model`。有 `trialPolicy` 的單題流程在渲染前保存 progress 與 generation checkpoint，綁定在 `recuttrialbudgets`；沒有 `trialPolicy` 的單題流程（2026-11-06 起）同樣在渲染前寫 `generation-checkpoint.json`，綁定在 `recuttrialgenerations`（`_id` 為 checkpoint hash，不可重複新增，之後只更新狀態），重渲染時檢查同樣的 source／script 簽章。2026-11-05 OpenCV run-1～run-6 在這項修正前執行，沒有 checkpoint 檔，也沒有資料庫綁定，不能補產 checkpoint 來重渲染。上述為凍結程式與隔離測試結果，教授續跑已失敗，不能宣稱試片完成。

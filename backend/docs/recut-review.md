@@ -124,4 +124,4 @@ worker 原片下載固定 `application/octet-stream`，內容可以是 MP4 或�
 
 ### worker 版本不符的工作（2026-11-06）
 
-`claimRenderJob` 依排隊順序找工作；遇到施工單 short_render／素材版本與 worker 不符的工作時，通知管理員（同一 worker、工作與施工單只通知一次），略過該工作繼續找下一支；只略過不符工作、沒有領到任何工作時回 `null`（閒置），不回錯誤。這是因為 worker 收到 `RECUT_RENDER_VERSION_MISMATCH` 會停止運作：若領取時回這個錯誤，佇列裡只剩舊版工作時，已正確升級的 worker 會自己停掉。worker 領到工作後自行驗證版本仍不符時，照舊回報並停止。short_render 0.3.0 上線後，0.2.0 核准的工作會留在佇列，直到有相符的 worker 或重新產生，不會擋住後面的 0.3.0 工作，也不會讓 0.3.0 worker 停止。測試：`tests/recut-worker.service.test.js`。
+`claimRenderJob` 依排隊順序找工作；遇到施工單 short_render／素材版本與 worker 不符的工作時，通知管理員（同一 worker、工作與施工單只通知一次），略過該工作繼續找下一支；只略過不符工作、沒有領到任何工作時回 `null`（閒置），不回錯誤。這是因為 worker 收到 `RECUT_RENDER_VERSION_MISMATCH` 會停止運作：若領取時回這個錯誤，佇列裡只剩舊版工作時，已正確升級的 worker 會自己停掉。worker 領到工作後自行驗證版本仍不符時，照舊回報並停止。short_render 0.3.0 上線後，0.2.0 核准的工作會留在佇列，直到有相符的 worker 或重新產生，不會擋住後面的 0.3.0 工作，也不會讓 0.3.0 worker 停止。反過來，沒有升級的舊版 worker 遇到只有新版工作的佇列時也只會閒置，不再以 `upgrade-worker` 停止；管理員若看到 worker 在線卻一直閒置、`render_queued` 越積越多，並收到「recut worker 版本不符」通知，就表示該 worker 需要升級。測試：`tests/recut-worker.service.test.js`。

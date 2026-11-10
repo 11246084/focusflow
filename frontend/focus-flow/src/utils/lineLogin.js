@@ -39,10 +39,12 @@ export function claimLineAutoStart(storage = globalThis.sessionStorage) {
   }
 }
 
-// 解析 LINE 導回網址：學生取消授權時帶 error，正常時帶 code 與 state。
+// 解析 LINE 導回網址：學生取消授權時帶 error=access_denied，正常時帶 code 與 state。
+// 其他 error（例：server_error、invalid_request）是 LINE 或設定的問題，不能說成學生取消。
 export function readLineCallback(search) {
   const params = new URLSearchParams(search);
-  if (params.get('error')) return { kind: 'cancelled' };
+  const error = params.get('error');
+  if (error) return { kind: error === 'access_denied' ? 'cancelled' : 'failed' };
 
   const code = params.get('code');
   const state = params.get('state');
@@ -114,6 +116,10 @@ const LOGIN_FAILURES = {
     message: '你的帳號已綁定另一個 LINE。確定要換的話，舊的 LINE 將不能再用你的身分提問。',
     canReplace: true,
   },
+  LINE_BINDING_CHANGED: {
+    heading: '連結沒有完成',
+    message: '處理期間你的 LINE 綁定被另一個操作改變了。請回到 LINE 提問頁確認目前的狀態，需要時再重新連結。',
+  },
   LINE_LOGIN_NOT_CONFIGURED: {
     heading: '暫時無法連結 LINE',
     message: '請回到 LINE 提問頁，用那裡顯示的方式綁定。',
@@ -129,6 +135,13 @@ const LINE_LOGIN_RETRY = {
 export function describeLineLoginFailure(error) {
   return LOGIN_FAILURES[error?.code] || LINE_LOGIN_RETRY;
 }
+
+// LINE 導回時帶了取消以外的 error。
+export const LINE_LOGIN_FAILED_CALLBACK = {
+  heading: '連結沒有完成',
+  message: 'LINE 授權沒有成功，帳號沒有變更。請稍後重新連結。',
+  canRetry: true,
+};
 
 export const LINE_LOGIN_CANCELLED = {
   heading: '已取消連結',

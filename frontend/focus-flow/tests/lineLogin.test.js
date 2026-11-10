@@ -175,6 +175,20 @@ describe('畫面文案', () => {
     assert.equal(/LINE_LOGIN/.test(failure.message), false);
   });
 
+  it('LINE 導回的 error 不是 access_denied 時不說成學生取消', () => {
+    assert.deepEqual(readLineCallback('?error=server_error&state=s1'), { kind: 'failed' });
+    assert.deepEqual(readLineCallback('?error=invalid_request'), { kind: 'failed' });
+    assert.deepEqual(readLineCallback('?error=access_denied'), { kind: 'cancelled' });
+  });
+
+  it('綁定在處理期間被改變時不說「沒有變更」，也不直接重新連結', () => {
+    const failure = describeLineLoginFailure({ code: 'LINE_BINDING_CHANGED' });
+
+    assert.equal(/沒有變更/.test(failure.message), false);
+    assert.equal(failure.canRetry, undefined);
+    assert.equal(/LINE_BINDING/.test(failure.message), false);
+  });
+
   it('好友狀態沒有資料時顯示無法確認', () => {
     assert.equal(describeFriendStatus('friend'), '已加入官方帳號');
     assert.equal(describeFriendStatus(null), '無法確認是否已加入官方帳號');

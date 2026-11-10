@@ -4,6 +4,11 @@ const { buildGeminiTextSearchContract, compareEmbeddingContracts, parseActiveEmb
 
 const VECTOR_FIELDS = { text: 'embedding', audio: 'audioEmbedding', visual: 'visualEmbedding' };
 const INDEX_NAME = 'text_embedding_index';
+const ISOLATED_INDEX_NAME = 'multimodal_sample_3_vector_index';
+function validateIndexName(name) {
+  if (![INDEX_NAME, ISOLATED_INDEX_NAME].includes(name)) throw new TypeError('Unsupported vector index name.');
+  return name;
+}
 
 function validateQuery(record) {
   if (record?.provider !== 'gemini' || record.model !== 'gemini-embedding-2'
@@ -17,11 +22,12 @@ function validateQuery(record) {
   if (!Number.isFinite(norm) || Math.abs(norm - 1) > 0.001) throw new TypeError('Query embedding must be unit normalized.');
 }
 
-async function readAtlasIndex(collection) {
+async function readAtlasIndex(collection, indexName = INDEX_NAME) {
+  validateIndexName(indexName);
   try {
-    const indexes = await collection.aggregate([{ $listSearchIndexes: { name: INDEX_NAME } }],
+    const indexes = await collection.aggregate([{ $listSearchIndexes: { name: indexName } }],
       { maxTimeMS: 10000, signal: AbortSignal.timeout(12000) }).toArray();
-    return indexes.find((index) => index.name === INDEX_NAME) || null;
+    return indexes.find((index) => index.name === indexName) || null;
   } catch {
     throw new Error('Atlas index preflight failed; details redacted.');
   }
@@ -32,8 +38,9 @@ function fieldsFor(textPath = 'embedding') {
   return { ...VECTOR_FIELDS, text: textPath };
 }
 
-function channelReadiness(index, channel, textDataContract, textPath = 'embedding') {
-  if (!index || index.name !== INDEX_NAME || index.type !== 'vectorSearch'
+function channelReadiness(index, channel, textDataContract, textPath = 'embedding', indexName = INDEX_NAME) {
+  validateIndexName(indexName);
+  if (!index || index.name !== indexName || index.type !== 'vectorSearch'
     || index.status !== 'READY' || index.queryable !== true) return 'index_not_ready';
   const field = index.latestDefinition?.fields?.find((value) => value.path === fieldsFor(textPath)[channel]);
   if (!field) return 'index_field_missing';
@@ -45,12 +52,13 @@ function channelReadiness(index, channel, textDataContract, textPath = 'embeddin
   return null;
 }
 
-function buildAtlasPipeline(channel, embedding, allowedVideoIds, textPath = 'embedding') {
+function buildAtlasPipeline(channel, embedding, allowedVideoIds, textPath = 'embedding', indexName = INDEX_NAME, courseId = null) {
+  validateIndexName(indexName);
   if (!Object.hasOwn(VECTOR_FIELDS, channel)) throw new TypeError('Unknown search channel.');
   if (!Array.isArray(allowedVideoIds) || !allowedVideoIds.length) throw new TypeError('Authorized video IDs are required.');
   return [
-    { $vectorSearch: { index: INDEX_NAME, path: fieldsFor(textPath)[channel], queryVector: embedding,
-      numCandidates: 100, limit: 20, filter: { videoId: { $in: allowedVideoIds } } } },
+    { $vectorSearch: { index: indexName, path: fieldsFor(textPath)[channel], queryVector: embedding,
+      numCandidates: 100, limit: 20, filter: { videoId: { $in: allowedVideoIds }, ...(courseId ? { courseId } : {}) } } },
     { $project: { _id: 0, chunkId: 1, segmentId: 1, courseId: 1, videoId: 1,
       startSec: 1, endSec: 1, text: 1, mediaEmbeddingMeta: 1,
       embeddingProvider: 1, embeddingModel: 1, embeddingDimension: 1, embeddingTaskType: 1,
@@ -70,7 +78,8 @@ function hasCompatibleMetadata(row, channel, textPath) {
 }
 
 async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, indexSnapshot,
-  textDataContract = null, mode = 'equal', timeoutMs = 10000, textPath = 'embedding' }) {
+  textDataContract = null, mode = 'equal', timeoutMs = 10000, textPath = 'embedding', indexName = INDEX_NAME }) {
+  validateIndexName(indexName);
   fieldsFor(textPath);
   validateQuery(queryEmbedding);
   if (!scope?.courseId || !Array.isArray(scope.allowedVideoIds) || !scope.allowedVideoIds.length
@@ -82,13 +91,14 @@ async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, inde
   const diagnostics = {};
   const searchers = {};
   for (const channel of Object.keys(VECTOR_FIELDS)) {
-    const reason = channelReadiness(indexSnapshot, channel, textDataContract, textPath);
+    const reason = channelReadiness(indexSnapshot, channel, textDataContract, textPath, indexName);
     diagnostics[channel] = { source: 'atlas', ms: 0, reason };
     if (reason) continue;
     searchers[channel] = async () => {
       const started = performance.now();
       try {
-        const rows = await collection.aggregate(buildAtlasPipeline(channel, queryEmbedding.embedding, [...authorized], textPath),
+        const rows = await collection.aggregate(buildAtlasPipeline(channel, queryEmbedding.embedding, [...authorized], textPath,
+          indexName, indexName === ISOLATED_INDEX_NAME ? scope.courseId : null),
           { maxTimeMS: timeoutMs, signal: AbortSignal.timeout(timeoutMs + 1000) }).toArray();
         diagnostics[channel].returnedRows = rows.length;
         return rows.filter((row) => hasCompatibleMetadata(row, channel, textPath) && authorized.has(row.videoId)
@@ -107,8 +117,8 @@ async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, inde
   for (const channel of Object.keys(VECTOR_FIELDS)) {
     result.diagnostics[channel] = { ...result.diagnostics[channel], ...diagnostics[channel] };
   }
-  return { ...result, source: 'atlas', indexName: INDEX_NAME };
+  return { ...result, source: 'atlas', indexName };
 }
 
-module.exports = { VECTOR_FIELDS, INDEX_NAME, validateQuery, readAtlasIndex, channelReadiness,
+module.exports = { VECTOR_FIELDS, INDEX_NAME, ISOLATED_INDEX_NAME, validateQuery, readAtlasIndex, channelReadiness,
   buildAtlasPipeline, retrieveAtlasMultimodal };

@@ -371,7 +371,8 @@ details.glossary .terms{margin-top:0}
 <section><h2>小樣本執行前檢查紀錄</h2><p>授權前已完成預設 Dry Run 與 12 個輸入的 Fake SDK 預演，第二次沿用全部 12 筆結果，新增請求為 0。授權清單與明細見 docs/04_Features/Multimodal_Retrieval/evidence/2026-11-10-preflight.md。</p></section>
 <section><h2>真實模型小樣本結果</h2><p>庭語授權後，12 個輸入全部成功，向量皆為 3072 維。三個探索問題中，文字與音訊各自都把預期片段排第一，畫面兩題，RRF 融合三題。程式累計預留約 US$0.059，實際帳單與服務端用量仍未知。新舊文字向量有相似訊號，但三筆不足以證明全面相容。結果只存本機，Atlas 整合待另行確認。完整數據見 docs/04_Features/Multimodal_Retrieval/evidence/2026-11-10-live-sample.md。</p></section>
 <section><h2>Atlas 小樣本準備</h2><p>694 筆已唯讀備份到本機，三筆舊文字自查詢都排名第一。新增三路尚缺索引欄位，沒有正式寫入或更新索引。建議保留舊文字向量，另存三筆 stable 文字、聲音與畫面向量；暫名 stableTextEmbedding 的欄位與索引 path 仍待 Weihao 確認。本輪測試與 Mock 融合通過，不代表 Atlas 三路已成功。</p><p>下一步需確認部署容量，並另行授權三筆寫入、同名索引更新及回復範圍。操作與協調訊息見 <a href="../04_Features/Multimodal_Retrieval/atlas-preparation.md">Atlas 準備說明</a>。整體交付狀態以 <a href="../current-status.md">目前狀態</a>為準。</p></section>
-<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md Atlas 準備與待確認方案 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<section><h2>第五階段：先驗證隔離三路搜尋</h2><p>將沿用三筆真實向量，規劃專用測試 Collection 與索引，不動正式資料。唯讀查到目前已有三個 READY 索引；若部署是 Free，名額已滿，不能新增第四個。帳號權限足夠，但方案、剩餘配額及資源成本仍待確認。本輪只有本機 payload、回復演練與測試，沒有 Atlas 寫入或新索引。</p><p>請先由 Weihao 確認可用名額，再由庭語授權三筆建立、真實搜尋與清理。具體目標、測試及授權清單見 <a href="../04_Features/Multimodal_Retrieval/atlas-isolated.md">第五階段隔離驗證</a>。</p></section>
+<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md 第五階段隔離驗證前置 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>

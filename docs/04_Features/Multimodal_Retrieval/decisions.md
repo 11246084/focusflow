@@ -350,6 +350,12 @@
 
 本輪建議 B：僅三筆新增 stableTextEmbedding、audioEmbedding、visualEmbedding 與 mediaEmbeddingMeta.text/audio/visual，沿用 text_embedding_index，加三個 vector path 並保留舊 embedding 及 filter。這是待 Weihao 確認的欄位方案，沒有取代原鎖定 #13，也未套用正式契約。A 方案工具仍可 Dry Run，但 preview 文字契約未確認時不執行 stable→preview 文字搜尋；C 全量重算不在本輪範圍。取捨、官方規格、唯讀證據與回復步驟見 [Atlas 準備說明](atlas-preparation.md)。
 
-目前待答：Weihao 是否同意上述 B 的新增欄位與 path，並提供當次 Atlas 方案及容量證據？建議同意 B 的三筆驗證，因三路可使用一致 stable 契約且新增模型成本為 0；正式寫入、索引更新及回復範圍仍由庭語下一次明確授權。功能狀態見[目前狀態](../../current-status.md)。
+上述 B 保留作正式整合的候選；第五階段依庭語新附件改為優先隔離驗證，暫不要求正式索引加 path。功能狀態見[目前狀態](../../current-status.md)。
+
+### 2026-11-10 第五階段隔離驗證
+
+已授權唯讀、工具調整、Dry Run、測試與 dev 提交，未授權 Atlas 寫入／索引建立。擬用 `focusflow.multimodal_sample_3_validation` 與 `multimodal_sample_3_vector_index`，只放原三筆 stable 文字／聲音／畫面向量，正式資料與三個索引不改。這是待授權的專用測試方案，不變更正式 #13 契約。
+
+實查已有三個 READY 索引，目標集合不存在，帳號對目標 namespace 的必要權限為 true。若部署仍是 Free，三個名額已滿；目前無管理層證據核實 tier／剩餘配額。待答：Weihao 能否確認當次方案、叢集至少一個空名額及可接受資源成本？建議先補這一項，不能以試建、刪正式索引或自行升級解決。可用後再由庭語授權三筆建立與清理。具體 payload、回復演練與精簡授權清單見[第五階段隔離驗證](atlas-isolated.md)。
 
 依 G3b 不切工單；結果目標、優先順序、執行稿與求援方式見 [HANDOFF](HANDOFF.md)。

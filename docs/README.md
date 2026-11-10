@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+三筆專用 Collection／Index 的前置查證與授權清單見 [第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。
+
 Atlas 小樣本整合的備份、Dry Run、檢索與回復操作見 [第四階段工具說明與查證](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
 
 多模態本機展示的操作見 [Demo README](../backend/scripts/multimodal-demo/README.md)，提交與驗證紀錄見 [進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。

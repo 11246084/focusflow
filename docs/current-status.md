@@ -6,6 +6,8 @@
 
 ## 多模態 Atlas 小樣本準備（2026-11-10）
 
+第五階段前置：新增專用 Collection／Index 的唯讀工具，準備原三筆／9 個真實 stable 向量，加入 Course／Video 雙 filter、兩版 RRF、本機排名比較與負向隔離探測。實查 `focusflow` 的 29 個 Collection 共 3 個 READY Search 索引，目標集合不存在，必要帳號權限可用；部署 tier／叢集剩餘配額與資源成本未核實，若為 Free 即已滿 3 個上限。Node 34 項通過、備份磁碟回讀與本機回復演練通過，尚未建立 Atlas 測試資源或執行真實三路查詢。等待 Weihao 確認配額及庭語另授權三筆寫入／索引建立／清理，不刪除正式索引、不自行升級。見[第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。
+
 已實作獨立的本機 checkpoint 匯出、694 筆資料與索引備份、三筆受控寫入 Dry Run、索引差異／READY 輪詢、資料回復與 Atlas 三路 CLI。真實 Atlas 唯讀確認舊索引 READY、queryable，三筆舊向量自查詢各回傳 20 筆且自身排名 1；新三路 path 尚未建立，因此沒有真實三路搜尋成功的證據。Node 27、Python 29 項通過，真實切片＋Mock 候選的 MVD rescue 回歸成功。未做正式寫入、索引調整、額外付費呼叫、qa.service.js 整合或 43 題評測。建議三筆另存 stable 文字欄位的 B 方案，仍待 Weihao 確認契約與部署容量、庭語另授權寫入與索引操作。完整操作、取捨與回復方案見 [Atlas 準備說明](04_Features/Multimodal_Retrieval/atlas-preparation.md)。11/13 完整多模態／章節／RU／評測交付有時程風險，已提醒需 Weihao 支援。
 
 ## Recut 修正（2026-11-06，2026-11-10 核對合併狀態）

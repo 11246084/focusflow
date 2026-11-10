@@ -4,12 +4,13 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
-## Recut 修正候選（2026-11-06，2026-11-08 更新，分支 `wip/recut-cards-schema-fix`）
+## Recut 修正（2026-11-06，2026-11-10 核對合併狀態）
 
-**2026-11-08 最終候選 `f708fa6`（程式），之後只有文件提交。** 團隊 `11246084/focusflow:dev` 重新 fetch 後仍為 `18aed4c`，候選可直接快轉、不需整合分支。第三次唯讀獨立審查（最終 diff，重點為 `e8d3c16` 之後）找到 1 項會阻擋交付的問題：版本不符時領取回錯誤，會讓已升級的 worker 在佇列只剩舊工作時自己停止；另有 2 項應修正（runtime 建立失敗時資料庫連線未關、輸出鎖殘留）。已在 `f708fa6` 修正並補回歸測試，同一位審查者複審結論為「接受，附註」。本次新執行：backend `npm test` 1789 項 1788 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過，另設瀏覽器執行選用測試 4／4 通過。OpenAPI 未變更、未跑 `docs:lint`；`/recut-worker/jobs/claim` 在「只有版本不符的工作」時改回閒置，已記在 `backend/docs/recut-review.md` 與前端交接。提交身分稽核：本交付 15 筆提交的 author／committer 都是 `Weihao <11246062@ntub.edu.tw>`，沒有 AI trailer 或署名；提交都帶 SSH 簽章（金鑰 `SHA256:32dP45eSMmVSt/G/CGvcxl/P+MO3Nwj9xeTh/GSA2wc`，由執行環境提供），是否已登記到個人 GitHub 帳號尚未確認。指向團隊 repo 的 draft PR 仍未建立（工作環境無權寫入該 repo），改附手動建立說明。Gemini schema 確認呼叫與教師審片仍待進行。
+**已於 2026-11-09 透過 PR #11 合入團隊 `dev`，合併提交為 `8a4c181a`。** 2026-11-10 核對本機 Git 紀錄，合併提交已包含於本次拉取的 `dev`（`80791830`）。本輪僅確認 Git 合併；正式部署、發布與教師驗收未查證。
 
+**2026-11-08 最終候選 `f708fa6`（程式），候選分支之後只有文件提交。** 第三次唯讀獨立審查（最終 diff，重點為 `e8d3c16` 之後）找到 1 項會阻擋交付的問題：版本不符時領取回錯誤，會讓已升級的 worker 在佇列只剩舊工作時自己停止；另有 2 項應修正（runtime 建立失敗時資料庫連線未關、輸出鎖殘留）。已在 `f708fa6` 修正並補回歸測試，同一位審查者複審結論為「接受，附註」。當日執行：backend `npm test` 1789 項 1788 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過，另設瀏覽器執行選用測試 4／4 通過。OpenAPI 未變更、未跑 `docs:lint`；`/recut-worker/jobs/claim` 在「只有版本不符的工作」時改回閒置，已記在 `backend/docs/recut-review.md` 與前端交接。提交身分稽核：本交付 15 筆提交的 author／committer 都是 `Weihao <11246062@ntub.edu.tw>`，沒有 AI trailer 或署名；提交都帶 SSH 簽章（金鑰 `SHA256:32dP45eSMmVSt/G/CGvcxl/P+MO3Nwj9xeTh/GSA2wc`，由執行環境提供），是否已登記到個人 GitHub 帳號尚未確認。Gemini schema 確認呼叫與教師審片仍待進行。
 
-**開發中，待人工 code review 與教師審片；未合併 dev、未部署、未發布。** 分支從團隊 `11246084/focusflow` 的 `dev` `18aed4c` 切出（團隊 dev 目前仍為 `18aed4c`，可直接快轉）；分支在 fork `Hao-weii/focusflow`。目前的 draft PR 誤指 fork 自己的 dev，改向團隊 repo 的跨 fork PR 尚待建立。
+來源分支為 fork `Hao-weii/focusflow` 的 `wip/recut-cards-schema-fix`，從團隊 `dev` 的 `18aed4c` 切出，以候選 `955c7cb0` 合入。以下保留 2026-11-05 至 11-08 的試產、測試與審查紀錄，不作為 2026-11-10 重新執行的驗證證據。
 
 2026-11-05 OpenCV 本機試產（教授影片 `aiA10_1140216_1.mp4` 18:04–20:26，本機 `recut_trial_opencv-20261105`，`gemini-3.8-flash`）：run-6 產出第一支可播放 MP4（46.5 秒），當天共 69 次 Gemini 外呼（含除錯），以回傳 token × 價目估算約 US$0.83，不是帳單。run-6 響度 −18.1 LUFS，不符決策 #62 的 ±2 LU；另有字幕跨剪接點 2.2 秒、scene-5 空白圖卡 3.18 秒、引言泡泡超出卡片 23 px、圖卡出現原話沒有的「大型模型」。
 

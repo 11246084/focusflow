@@ -104,6 +104,17 @@ class SegmentMediaTests(unittest.TestCase):
                                 and record["skipReason"] == "chunk_outside_video_duration"
                                 and record["embedding"] is None for record in failed))
 
+    def test_unreadable_duration_stops_the_video_and_releases_the_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            video = root / "source.mp4"
+            video.write_bytes(b"source")
+            with patch("segment_media_embedding.probe_duration", return_value=0):
+                with self.assertRaisesRegex(ValueError, "Video duration is unavailable"):
+                    prepare_chunks(video, [self.chunk()], root / "out", max_cost_usd=0)
+            self.assertFalse((root / "out" / ".prepare.lock").exists())
+            self.assertFalse((root / "out" / "manifest.json").exists())
+
     def test_mock_vector_is_deterministic(self):
         with tempfile.TemporaryDirectory() as directory:
             media = Path(directory) / "audio.wav"

@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+Atlas 小樣本整合的備份、Dry Run、檢索與回復操作見 [第四階段工具說明與查證](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
 多模態本機展示的操作見 [Demo README](../backend/scripts/multimodal-demo/README.md)，提交與驗證紀錄見 [進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
 
 多模態資料查證見 [唯讀診斷工具](../backend/scripts/multimodal-diagnostics/README.md)與 [2026-11-10 Atlas 查證報告](04_Features/Multimodal_Retrieval/evidence/2026-11-10-atlas-diagnostics.md)。

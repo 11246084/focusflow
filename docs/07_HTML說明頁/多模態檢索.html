@@ -370,7 +370,8 @@ details.glossary .terms{margin-top:0}
 <section><h2>真實模型與搜尋介面</h2><p>第二階段新增 Gemini 與 Atlas 三路 adapter，先用替身測試保護資料與額度。已查到 694 段的向量與時間完全匹配 8/1 標記 preview 的產物，穩定版能否混用仍待驗證。三個既有片段已準備好真實影音，下一輪可申請 US$0.25 的小樣本驗證，保留舊文字向量，在本機比較。付費呼叫與正式索引變更需取得當次授權。</p></section>
 <section><h2>小樣本執行前檢查紀錄</h2><p>授權前已完成預設 Dry Run 與 12 個輸入的 Fake SDK 預演，第二次沿用全部 12 筆結果，新增請求為 0。授權清單與明細見 docs/04_Features/Multimodal_Retrieval/evidence/2026-11-10-preflight.md。</p></section>
 <section><h2>真實模型小樣本結果</h2><p>庭語授權後，12 個輸入全部成功，向量皆為 3072 維。三個探索問題中，文字與音訊各自都把預期片段排第一，畫面兩題，RRF 融合三題。程式累計預留約 US$0.059，實際帳單與服務端用量仍未知。新舊文字向量有相似訊號，但三筆不足以證明全面相容。結果只存本機，Atlas 整合待另行確認。完整數據見 docs/04_Features/Multimodal_Retrieval/evidence/2026-11-10-live-sample.md。</p></section>
-<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md 已授權真實小樣本 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<section><h2>Atlas 小樣本準備</h2><p>694 筆已唯讀備份到本機，三筆舊文字自查詢都排名第一。新增三路尚缺索引欄位，沒有正式寫入或更新索引。建議保留舊文字向量，另存三筆 stable 文字、聲音與畫面向量；暫名 stableTextEmbedding 的欄位與索引 path 仍待 Weihao 確認。本輪測試與 Mock 融合通過，不代表 Atlas 三路已成功。</p><p>下一步需確認部署容量，並另行授權三筆寫入、同名索引更新及回復範圍。操作與協調訊息見 <a href="../04_Features/Multimodal_Retrieval/atlas-preparation.md">Atlas 準備說明</a>。整體交付狀態以 <a href="../current-status.md">目前狀態</a>為準。</p></section>
+<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md Atlas 準備與待確認方案 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>

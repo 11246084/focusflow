@@ -344,4 +344,12 @@
 
 ## 實作切分
 
+### 2026-11-10 Atlas 小樣本準備與待確認方案
+
+庭語授權本輪獨立開發、Atlas 唯讀、Dry Run、測試及 dev 提交；未授權正式資料／索引變更或付費呼叫。第三階段真實向量繼續沿用，既有 694 筆 embedding 不覆寫。
+
+本輪建議 B：僅三筆新增 stableTextEmbedding、audioEmbedding、visualEmbedding 與 mediaEmbeddingMeta.text/audio/visual，沿用 text_embedding_index，加三個 vector path 並保留舊 embedding 及 filter。這是待 Weihao 確認的欄位方案，沒有取代原鎖定 #13，也未套用正式契約。A 方案工具仍可 Dry Run，但 preview 文字契約未確認時不執行 stable→preview 文字搜尋；C 全量重算不在本輪範圍。取捨、官方規格、唯讀證據與回復步驟見 [Atlas 準備說明](atlas-preparation.md)。
+
+目前待答：Weihao 是否同意上述 B 的新增欄位與 path，並提供當次 Atlas 方案及容量證據？建議同意 B 的三筆驗證，因三路可使用一致 stable 契約且新增模型成本為 0；正式寫入、索引更新及回復範圍仍由庭語下一次明確授權。功能狀態見[目前狀態](../../current-status.md)。
+
 依 G3b 不切工單；結果目標、優先順序、執行稿與求援方式見 [HANDOFF](HANDOFF.md)。

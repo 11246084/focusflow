@@ -4,6 +4,10 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態 Atlas 小樣本準備（2026-11-10）
+
+已實作獨立的本機 checkpoint 匯出、694 筆資料與索引備份、三筆受控寫入 Dry Run、索引差異／READY 輪詢、資料回復與 Atlas 三路 CLI。真實 Atlas 唯讀確認舊索引 READY、queryable，三筆舊向量自查詢各回傳 20 筆且自身排名 1；新三路 path 尚未建立，因此沒有真實三路搜尋成功的證據。Node 27、Python 29 項通過，真實切片＋Mock 候選的 MVD rescue 回歸成功。未做正式寫入、索引調整、額外付費呼叫、qa.service.js 整合或 43 題評測。建議三筆另存 stable 文字欄位的 B 方案，仍待 Weihao 確認契約與部署容量、庭語另授權寫入與索引操作。完整操作、取捨與回復方案見 [Atlas 準備說明](04_Features/Multimodal_Retrieval/atlas-preparation.md)。11/13 完整多模態／章節／RU／評測交付有時程風險，已提醒需 Weihao 支援。
+
 ## Recut 修正候選（2026-11-06，2026-11-08 更新，分支 `wip/recut-cards-schema-fix`）
 
 **2026-11-08 最終候選 `f708fa6`（程式），之後只有文件提交。** 團隊 `11246084/focusflow:dev` 重新 fetch 後仍為 `18aed4c`，候選可直接快轉、不需整合分支。第三次唯讀獨立審查（最終 diff，重點為 `e8d3c16` 之後）找到 1 項會阻擋交付的問題：版本不符時領取回錯誤，會讓已升級的 worker 在佇列只剩舊工作時自己停止；另有 2 項應修正（runtime 建立失敗時資料庫連線未關、輸出鎖殘留）。已在 `f708fa6` 修正並補回歸測試，同一位審查者複審結論為「接受，附註」。本次新執行：backend `npm test` 1789 項 1788 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過，另設瀏覽器執行選用測試 4／4 通過。OpenAPI 未變更、未跑 `docs:lint`；`/recut-worker/jobs/claim` 在「只有版本不符的工作」時改回閒置，已記在 `backend/docs/recut-review.md` 與前端交接。提交身分稽核：本交付 15 筆提交的 author／committer 都是 `Weihao <11246062@ntub.edu.tw>`，沒有 AI trailer 或署名；提交都帶 SSH 簽章（金鑰 `SHA256:32dP45eSMmVSt/G/CGvcxl/P+MO3Nwj9xeTh/GSA2wc`，由執行環境提供），是否已登記到個人 GitHub 帳號尚未確認。指向團隊 repo 的 draft PR 仍未建立（工作環境無權寫入該 repo），改附手動建立說明。Gemini schema 確認呼叫與教師審片仍待進行。

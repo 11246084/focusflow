@@ -80,6 +80,30 @@ class SegmentMediaTests(unittest.TestCase):
                 skipped = prepare_chunks(video, [self.chunk(0, 61)], root / "skipped", max_cost_usd=0)
                 self.assertTrue(all(record["skipReason"] == "skipped_too_long" for record in skipped["records"]))
 
+    def test_chunk_outside_duration_fails_alone_without_aborting_other_chunks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            video = root / "source.mp4"
+            video.write_bytes(b"source")
+
+            def cut(_video, target, *_args):
+                target.write_bytes(b"media")
+
+            inside = self.chunk(10, 30)
+            outside = {**self.chunk(90, 100.4), "chunkId": "video-1_chunk_0099"}
+            with patch("segment_media_embedding.probe_duration", return_value=100), \
+                 patch("segment_media_embedding.cut_media", side_effect=cut):
+                manifest = prepare_chunks(video, [inside, outside], root / "out", max_cost_usd=0)
+            by_chunk = {}
+            for record in manifest["records"]:
+                by_chunk.setdefault(record["chunkId"], []).append(record)
+            self.assertTrue(all(record["status"] == "success" for record in by_chunk[inside["chunkId"]]))
+            failed = by_chunk["video-1_chunk_0099"]
+            self.assertEqual(len(failed), 2)
+            self.assertTrue(all(record["status"] == "failed"
+                                and record["skipReason"] == "chunk_outside_video_duration"
+                                and record["embedding"] is None for record in failed))
+
     def test_mock_vector_is_deterministic(self):
         with tempfile.TemporaryDirectory() as directory:
             media = Path(directory) / "audio.wav"

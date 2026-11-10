@@ -136,6 +136,9 @@ def _prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_u
     video = video.resolve(strict=True)
     ffmpeg = resolve_ffmpeg_binary()
     duration = probe_duration(video, ffmpeg)
+    # An unreadable duration is a problem with the video, not with individual chunks.
+    if not math.isfinite(duration) or duration <= 0:
+        raise ValueError("Video duration is unavailable")
     normalized = [normalize_chunk(chunk) for chunk in chunks]
     identities = [(chunk["courseId"], chunk["videoId"], chunk["chunkId"]) for chunk in normalized]
     if len(set(identities)) != len(identities) or len({chunk["videoId"] for chunk in normalized}) != 1:
@@ -143,7 +146,14 @@ def _prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_u
     source_hash = hashlib.sha256(video.read_bytes()).hexdigest()
     records = []
     for chunk in normalized:
-        window = sample_window(chunk, duration)
+        # One chunk whose end exceeds the probed duration (for example a final Whisper
+        # segment that overruns the container by a few milliseconds) must not abort the
+        # other chunks of the video; it is recorded as failed with an explicit reason.
+        try:
+            window = sample_window(chunk, duration)
+            window_error = None
+        except ValueError:
+            window, window_error = None, "chunk_outside_video_duration"
         for modality in ("audio", "visual"):
             signature = hashlib.sha256(json.dumps([source_hash, chunk, modality, CONTRACT_VERSION],
                                                   sort_keys=True).encode()).hexdigest()
@@ -162,7 +172,10 @@ def _prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_u
                       "model": "mock-sha256-v1", "dimension": DIMENSION, "status": "pending",
                       "error": None, "skipReason": None, "sampleStartSec": None, "sampleEndSec": None,
                       "embedding": None, "reused": False}
-            if window is None:
+            if window_error:
+                record.update(status="failed", skipReason=window_error,
+                              error={"type": "ValueError", "message": "Chunk extends outside video duration"})
+            elif window is None:
                 record.update(status="skipped", skipReason="skipped_too_long")
             else:
                 record.update(sampleStartSec=window[0], sampleEndSec=window[1])

@@ -84,6 +84,16 @@ def mock_embedding(media: Path, modality: str) -> list[float]:
     return [value / norm for value in vector]
 
 
+def normalize_embedding(vector: list[float]) -> list[float]:
+    if len(vector) != DIMENSION or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                                       or not math.isfinite(value) for value in vector):
+        raise ValueError("Embedding must contain 3072 finite numbers")
+    norm = math.sqrt(sum(value * value for value in vector))
+    if not math.isfinite(norm) or norm == 0:
+        raise ValueError("Embedding norm must be finite and positive")
+    return [value / norm for value in vector]
+
+
 def embed_with_adapter(media: Path, modality: str, adapter: Callable, *, provider: str,
                        model: str, sleep: Callable = time.sleep) -> dict:
     """Adapters receive one slice and return one vector. No network adapter is installed."""
@@ -92,14 +102,9 @@ def embed_with_adapter(media: Path, modality: str, adapter: Callable, *, provide
     for attempt in range(3):
         try:
             vector = adapter(media, modality)
-            if len(vector) != DIMENSION or any(isinstance(value, bool) or not isinstance(value, (int, float))
-                                               or not math.isfinite(value) for value in vector):
-                raise ValueError("Embedding must contain 3072 finite numbers")
-            norm = math.sqrt(sum(value * value for value in vector))
-            if not math.isfinite(norm) or norm == 0:
-                raise ValueError("Embedding norm must be finite and positive")
+            vector = normalize_embedding(vector)
             return {"provider": provider, "model": model, "dimension": DIMENSION,
-                    "embedding": [value / norm for value in vector]}
+                    "embedding": vector}
         except TransientEmbeddingError:
             if attempt == 2:
                 raise

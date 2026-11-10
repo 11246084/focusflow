@@ -18,9 +18,13 @@ function validateQuery(record) {
 }
 
 async function readAtlasIndex(collection) {
-  const indexes = await collection.aggregate([{ $listSearchIndexes: { name: INDEX_NAME } }],
-    { maxTimeMS: 10000, signal: AbortSignal.timeout(12000) }).toArray();
-  return indexes.find((index) => index.name === INDEX_NAME) || null;
+  try {
+    const indexes = await collection.aggregate([{ $listSearchIndexes: { name: INDEX_NAME } }],
+      { maxTimeMS: 10000, signal: AbortSignal.timeout(12000) }).toArray();
+    return indexes.find((index) => index.name === INDEX_NAME) || null;
+  } catch {
+    throw new Error('Atlas index preflight failed; details redacted.');
+  }
 }
 
 function channelReadiness(index, channel, textDataContract) {

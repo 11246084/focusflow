@@ -4,6 +4,8 @@
 
 多模態資料查證見 [唯讀診斷工具](../backend/scripts/multimodal-diagnostics/README.md)與 [2026-11-10 Atlas 查證報告](04_Features/Multimodal_Retrieval/evidence/2026-11-10-atlas-diagnostics.md)。
 
+多模態第二階段使用方式見 [Gemini／Atlas adapters](04_Features/Multimodal_Retrieval/phase2-adapters.md)，驗證依據見 [2026-11-10 第二階段紀錄](04_Features/Multimodal_Retrieval/evidence/2026-11-10-phase2.md)。
+
 這裡依用途收錄學校公告、交付文件、功能規格與圖檔，讓常用內容最多點兩層就能找到。請先查[目前狀態](current-status.md)，再從下表進入需要的文件；歷史快照只供追溯。
 
 ## 資料夾架構

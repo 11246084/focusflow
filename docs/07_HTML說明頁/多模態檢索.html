@@ -367,7 +367,8 @@ details.glossary .terms{margin-top:0}
 
 <section><h2>本機示範</h2><p>本階段以 CLI 展示真實影音切片，搭配清楚標示的範例 chunk、Mock 向量與三路 Mock 排名，執行 RRF 計算。文字漏找的案例用來理解流程，效果仍須真實模型與評測確認。完整目標與驗收門檻沿用原決議。</p><p>操作方式見 backend/scripts/multimodal-demo/README.md。此展示獨立執行，資料保存在本機。</p></section>
 <section><h2>資料實查</h2><p>2026-11-10 唯讀查到六支影片共 694 段，文字向量都是 3072 維，但沒有模型與版本紀錄，仍須追查來源。文字搜尋索引可查詢，聲音與畫面欄位尚待建立。現有分層檢索資料只有影片六的 3 筆 Parent，涵蓋 9 段。完整診斷見 docs/04_Features/Multimodal_Retrieval/evidence/2026-11-10-atlas-diagnostics.md。</p></section>
-<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md Atlas 唯讀查證結果 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<section><h2>真實模型與搜尋介面</h2><p>第二階段新增 Gemini 與 Atlas 三路 adapter，先用替身測試保護資料與額度。已查到 694 段的向量與時間完全匹配 8/1 標記 preview 的產物，穩定版能否混用仍待驗證。三個既有片段已準備好真實影音，下一輪可申請 US$0.25 的小樣本驗證，保留舊文字向量，在本機比較。付費呼叫與正式索引變更需取得當次授權。</p></section>
+<footer>更新 2026-11-10 · 對應 docs/04_Features/Multimodal_Retrieval/decisions.md 第二階段獨立 adapters · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>

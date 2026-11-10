@@ -10,7 +10,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from embedding_contract import GEMINI_EMBEDDING_CONTRACT_VERSION, build_parent_document_text
+from embedding_contract import (GEMINI_EMBEDDING_CONTRACT_VERSION, GEMINI_EMBEDDING_GENERATION_VERSION,
+                                GEMINI_EMBEDDING_INSTRUCTION_VERSION, GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+                                build_parent_document_text)
 from segment_media_embedding import DIMENSION, MODEL, normalize_embedding, probe_duration, write_json
 from utils import resolve_ffmpeg_binary
 
@@ -131,8 +133,13 @@ class GeminiMultimodalAdapter:
                   "modelVersionSource": "requested model ID; immutable server revision unavailable",
                   "sdkVersion": importlib.metadata.version("google-genai"), "dimension": DIMENSION,
                   "contractVersion": contract, "modality": modality, "status": "pending", "embedding": None,
+                  "normalizationVersion": GEMINI_EMBEDDING_NORMALIZATION_VERSION, "taskType": None,
                   "createdAt": datetime.now(timezone.utc).isoformat(), "reused": False,
                   "estimatedAttemptUsd": cost, "pricingVersion": PRICING_VERSION}
+        if modality in ("query", "text"):
+            record.update(instructionVersion=GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+                          generationVersion=GEMINI_EMBEDDING_GENERATION_VERSION, schemaVersion=contract)
+        print(f"Gemini {modality} estimated attempt USD {cost:.8f}; cumulative ceiling USD {self.max_cost_usd:.8f}", flush=True)
         client = None
         try:
             for attempt in range(MAX_ATTEMPTS):
@@ -160,7 +167,11 @@ class GeminiMultimodalAdapter:
                     if len(embeddings) != 1:
                         raise ValueError("Expected exactly one embedding")
                     vector = normalize_embedding(embeddings[0].values)
-                    record.update(status="success", embedding=vector, error=None)
+                    record.update(status="success", embedding=vector, error=None,
+                                  completedAt=datetime.now(timezone.utc).isoformat())
+                    characters = getattr(getattr(response, "metadata", None), "billable_character_count", None)
+                    if isinstance(characters, int) and characters >= 0:
+                        record["billableCharacterCount"] = characters
                     write_json(checkpoint, record)
                     return record
                 except Exception as error:

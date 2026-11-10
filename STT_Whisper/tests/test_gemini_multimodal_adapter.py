@@ -59,6 +59,8 @@ class GeminiAdapterTests(unittest.TestCase):
         self.assertEqual(config.http_options.timeout, 30000)
         self.assertEqual(config.http_options.retry_options.attempts, 1)
         self.assertAlmostEqual(sum(value * value for value in first["embedding"]), 1)
+        self.assertEqual(first["instructionVersion"], "gemini_embedding_2_asymmetric_retrieval_v2")
+        self.assertEqual(first["normalizationVersion"], "unit_l2_v1")
         self.assertTrue(adapter.embed_text("人工智慧")["reused"])
         self.assertEqual(len(self.client.calls), 1)
         adapter.embed_text("人工智慧", role="text")

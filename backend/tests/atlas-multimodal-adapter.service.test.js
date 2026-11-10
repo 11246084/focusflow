@@ -93,4 +93,6 @@ test('index preflight is bounded and read-only', async () => {
     return { toArray: async () => [index] };
   } };
   assert.equal(await readAtlasIndex(collection), index);
+  await assert.rejects(readAtlasIndex({ aggregate: () => { throw new Error('SECRET'); } }),
+    (error) => error.message === 'Atlas index preflight failed; details redacted.');
 });

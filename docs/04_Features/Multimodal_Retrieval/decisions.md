@@ -155,6 +155,12 @@
 
 ## 目前這一輪待答題目
 
+### 第二階段獨立 adapters（2026-11-10 庭語授權）
+
+本輪開發真實 Gemini SDK 與 Atlas 三路查詢介面，驗證使用替身，未授權付費呼叫、Atlas 寫入／索引變更或 `qa.service.js` 修改。694 筆 Atlas 向量與時間已全部匹配 8/1 preview 標記產物，穩定版相容性仍須獨立驗證。下一輪以三個既有 chunk 在本機另產 stable 文字與媒體向量，原向量保留。
+
+已選影片一短段／一般段及影片四中段，準備六份真實切片。12 個模型輸入的首輪估計 US$0.0573304，含全部三次嘗試估計 US$0.1719912，建議提出 US$0.25、最多 36 次嘗試的當次授權。完整介面、安全檢查與比較方式見 [adapters 說明](phase2-adapters.md)，實測證據見 [第二階段紀錄](evidence/2026-11-10-phase2.md)。
+
 ### Atlas 唯讀查證結果（2026-11-10）
 
 庭語授權獨立診斷工具與唯讀查詢。實查六支共 694 筆 Leaf，文字向量皆 3072 維，但缺少模型與版本 metadata，無法證明與穩定版契約相容。`text_embedding_index` READY、queryable，只含文字向量與 courseId／videoId 過濾，尚無媒體欄位。Parent 僅 3 筆，涵蓋影片六的 9 筆 Leaf。詳細結果見 [查證報告](evidence/2026-11-10-atlas-diagnostics.md)。

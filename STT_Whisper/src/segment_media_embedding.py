@@ -96,7 +96,7 @@ def normalize_embedding(vector: list[float]) -> list[float]:
 
 def embed_with_adapter(media: Path, modality: str, adapter: Callable, *, provider: str,
                        model: str, sleep: Callable = time.sleep) -> dict:
-    """Adapters receive one slice and return one vector. No network adapter is installed."""
+    """Adapters receive one slice and return one vector with explicit provider provenance."""
     if provider != "mock" and model != MODEL:
         raise ValueError("Media embeddings require the stable Gemini model")
     for attempt in range(3):

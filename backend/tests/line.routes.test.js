@@ -1348,3 +1348,329 @@ describe('LINE 切換課程輪播', () => {
     assert.doesNotMatch(JSON.stringify(bubbles), /還有/);
   });
 });
+
+describe('LINE 審查修正回歸', () => {
+  const { buildAnswerFlexMessage, buildQuestionSummaryLines } = require('../src/services/line.service');
+  const INACTIVE_TEXT = '這個 FocusFlow 帳號已停用，目前無法使用 LINE 提問，請聯絡老師或管理員。';
+  const URL_CLIP = 'https://videos.local/watch?v=clip&t=1';
+  const URL_CITATION = 'https://youtu.be/citation?t=2';
+  let serverContext;
+  let originalFetch;
+
+  before(async () => {
+    serverContext = await startServer();
+  });
+
+  after(async () => {
+    await stopServer(serverContext.server);
+  });
+
+  beforeEach(() => {
+    resetStore();
+    resetRuntimeEnv();
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    env.lineLoginCallbackUrl = '';
+  });
+
+  // 攔截 LINE API：記錄回覆文字，並可在讀取動畫（回答前一刻）時插入 hook。
+  function stubLineApi({ onLoading } = {}) {
+    env.lineChannelAccessToken = 'review-regression-access-token';
+    const calls = { replies: [], loading: 0 };
+    global.fetch = async (url, options) => {
+      if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+      if (String(url).endsWith('/chat/loading/start')) {
+        calls.loading += 1;
+        if (onLoading) onLoading();
+        return { ok: true, text: async () => '' };
+      }
+      const body = JSON.parse(options.body);
+      if (body.messages) calls.replies.push(...body.messages);
+      return { ok: true, text: async () => '{}' };
+    };
+    return calls;
+  }
+
+  async function postPostbackSelect(courseId, lineUserId = 'line-student-001') {
+    lineEventSequence += 1;
+    const payload = JSON.stringify({
+      events: [{
+        type: 'postback',
+        replyToken: `reply-review-${lineEventSequence}`,
+        source: { userId: lineUserId },
+        postback: { data: `action=select_course&courseId=${courseId}` },
+      }],
+    });
+    return postLineWebhook(serverContext.baseUrl, payload, {
+      'x-line-signature': createLineSignature(payload),
+    });
+  }
+
+  describe('停用帳號', () => {
+    function setupInactiveStudent() {
+      addCourseBFixture();
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      student.isActive = false;
+      return student;
+    }
+
+    function assertNothingRecorded(student, result, calls) {
+      assert.equal(result.status, 200);
+      assert.equal(result.body.data.results[0].handled, false);
+      assert.equal(result.body.data.results[0].reason, 'user_inactive');
+      assert.equal(calls.replies.at(-1).text, INACTIVE_TEXT);
+      assert.equal(calls.loading, 0);
+      assert.equal(store.questions.length, 0);
+      assert.equal(store.usageLogs.length, 0);
+      assert.equal(String(student.activeCourseId), ids.publishedCourse);
+    }
+
+    it('停用的已綁定使用者傳文字提問：回停用提示，不呼叫問答也不留紀錄', async () => {
+      const student = setupInactiveStudent();
+      const calls = stubLineApi();
+
+      const result = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+
+      assertNothingRecorded(student, result, calls);
+      assert.equal(student.lineConversationHistory?.length ?? 0, 0);
+    });
+
+    it('停用的已綁定使用者傳「切換課程」：回停用提示，不出現課程輪播', async () => {
+      const student = setupInactiveStudent();
+      const calls = stubLineApi();
+
+      const result = await postLineText(serverContext.baseUrl, '切換課程');
+
+      assertNothingRecorded(student, result, calls);
+      assert.equal(calls.replies.some((message) => message.type === 'flex'), false);
+    });
+
+    it('停用的已綁定使用者按課程選單 postback：不切換 activeCourseId', async () => {
+      const student = setupInactiveStudent();
+      const calls = stubLineApi();
+
+      const result = await postPostbackSelect(PHASE35_IDS.courseB);
+
+      assertNothingRecorded(student, result, calls);
+    });
+
+    it('isActive 為 true 或欄位不存在的使用者照常提問', async () => {
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      const calls = stubLineApi();
+
+      student.isActive = true;
+      const activeResult = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+      delete student.isActive;
+      const missingResult = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+
+      assert.equal(activeResult.body.data.results[0].handled, true);
+      assert.equal(missingResult.body.data.results[0].handled, true);
+      assert.notEqual(calls.replies.at(-1).text, INACTIVE_TEXT);
+      assert.equal(store.questions.length, 2);
+    });
+
+    it('停用的已綁定使用者重新加好友：歡迎訊息改為停用提示', async () => {
+      const student = setupInactiveStudent();
+      const calls = stubLineApi();
+      const payload = JSON.stringify({
+        events: [{ type: 'follow', replyToken: 'reply-review-follow', source: { type: 'user', userId: student.lineUserId } }],
+      });
+
+      const result = await postLineWebhook(serverContext.baseUrl, payload, {
+        'x-line-signature': createLineSignature(payload),
+      });
+
+      assert.equal(result.status, 200);
+      assert.equal(calls.replies.at(-1).text, INACTIVE_TEXT);
+    });
+
+    it('綁定碼發出後帳號被停用：傳給 bot 不會綁定，回停用提示', async () => {
+      const student = store.users.find((user) => user._id === ids.student);
+      student.lineUserId = null;
+      store.lineBindTokens.push({
+        _id: 'line-token-inactive',
+        token: ids.lineBindTokenText,
+        userId: ids.student,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      student.isActive = false;
+      const calls = stubLineApi();
+
+      const result = await postLineText(serverContext.baseUrl, ids.lineBindTokenText, 'line-student-inactive-bind');
+
+      assert.equal(result.body.data.results[0].handled, false);
+      assert.equal(result.body.data.results[0].reason, 'user_inactive');
+      assert.equal(student.lineUserId == null, true);
+      assert.equal(calls.replies.at(-1).text, INACTIVE_TEXT);
+    });
+  });
+
+  describe('引用跳轉連結防呆', () => {
+    const citation = (segmentId, jumpUrl) => ({
+      segmentId,
+      videoTitle: '影片',
+      timestamp: { startSec: 12, endSec: 32, jumpUrl },
+    });
+    const firstButtonUri = (qaResult) => {
+      const message = buildAnswerFlexMessage({ courseTitle: '課程', qaResult });
+      return JSON.stringify(message);
+    };
+
+    it('clip 與第一筆引用的 segmentId 不同時，卡片按鈕用引用自己的連結', () => {
+      const flat = firstButtonUri({
+        answer: '回答',
+        clip: { segmentId: 'A', jumpUrl: URL_CLIP },
+        citations: [citation('B', URL_CITATION)],
+      });
+
+      assert.match(flat, /youtu\.be\/citation\?t=2/);
+      assert.doesNotMatch(flat, /videos\.local/);
+    });
+
+    it('clip 與第一筆引用的 segmentId 不同時，純文字「跳轉：」用引用自己的連結', () => {
+      const lines = buildQuestionSummaryLines({
+        answer: '回答',
+        matches: [],
+        clip: { segmentId: 'A', jumpUrl: URL_CLIP },
+        citations: [citation('B', URL_CITATION)],
+        runtime: {},
+      });
+
+      assert.equal(lines.includes(`跳轉：${URL_CITATION}`), true);
+      assert.equal(lines.some((line) => line.includes(URL_CLIP)), false);
+    });
+
+    it('segmentId 相同時仍用快取 clip 的連結', () => {
+      const qaResult = {
+        answer: '回答',
+        clip: { segmentId: 'A', jumpUrl: URL_CLIP },
+        citations: [citation('A', URL_CITATION)],
+        matches: [],
+        runtime: {},
+      };
+
+      assert.match(firstButtonUri(qaResult), /videos\.local\/watch\?v=clip&t=1/);
+      assert.equal(buildQuestionSummaryLines(qaResult).includes(`跳轉：${URL_CLIP}`), true);
+    });
+
+    it('segmentId 不同且引用沒有連結時：卡片改開網站課程頁，純文字顯示尚未提供跳轉連結', () => {
+      env.lineLoginCallbackUrl = 'https://focusflow.example/line/callback';
+      const qaResult = {
+        answer: '回答',
+        clip: { segmentId: 'A', jumpUrl: URL_CLIP },
+        citations: [citation('B', null)],
+        matches: [],
+        runtime: {},
+      };
+
+      const flat = firstButtonUri(qaResult);
+      const lines = buildQuestionSummaryLines(qaResult);
+
+      assert.doesNotMatch(flat, /videos\.local/);
+      assert.match(flat, /https:\/\/focusflow\.example\/app\/courses/);
+      assert.equal(lines.some((line) => line.startsWith('跳轉：')), false);
+      assert.equal(lines.some((line) => line.includes('尚未提供跳轉連結')), true);
+    });
+  });
+
+  describe('對話歷史寫回防呆', () => {
+    it('沒有異動時，本輪兩筆對話照常寫入歷史', async () => {
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      student.lineConversationHistory = [];
+      stubLineApi();
+
+      const result = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+
+      assert.equal(result.body.data.results[0].handled, true);
+      assert.deepEqual(student.lineConversationHistory.map((item) => item.role), ['user', 'model']);
+      assert.equal(student.lineConversationHistory[0].content, 'JWT authentication 是什麼？');
+    });
+
+    it('等待回答期間學生切換了課程，舊課程的對話不寫回歷史', async () => {
+      addCourseBFixture();
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      student.lineConversationHistory = [];
+      stubLineApi({ onLoading: () => { student.activeCourseId = PHASE35_IDS.courseB; } });
+      // harness 的 User.findOne 回傳 store 裡的同一個物件，handleQuestion 手上的 user 會跟著被改，
+      // 與真實 Mongoose 回傳快照不同；這個測試暫時改回傳快照，結束後還原。
+      const User = require('../src/models/user.model');
+      const harnessFindOne = User.findOne;
+      User.findOne = async (query) => {
+        const found = await harnessFindOne(query);
+        return found ? { ...found } : found;
+      };
+
+      let result;
+      try {
+        result = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+      } finally {
+        User.findOne = harnessFindOne;
+      }
+
+      assert.equal(result.body.data.results[0].handled, true);
+      assert.equal(student.activeCourseId, PHASE35_IDS.courseB);
+      assert.equal(student.lineConversationHistory.length, 0);
+    });
+
+    it('等待回答期間學生解除了綁定，對話不寫回已清空的歷史', async () => {
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      student.lineConversationHistory = [];
+      stubLineApi({
+        onLoading: () => {
+          student.lineUserId = null;
+          student.lineConversationHistory = [];
+        },
+      });
+
+      const result = await postLineText(serverContext.baseUrl, 'JWT authentication 是什麼？');
+
+      assert.equal(result.body.data.results[0].handled, true);
+      assert.equal(student.lineConversationHistory.length, 0);
+    });
+  });
+
+  describe('Webhook 簽章比對', () => {
+    it('長度相同但內容錯誤的簽章回 401 LINE_SIGNATURE_INVALID', async () => {
+      const payload = JSON.stringify({ events: [] });
+      const valid = createLineSignature(payload);
+      // 只改最後一個有效字元，長度與格式都跟正確簽章一樣
+      const forged = `${valid.slice(0, 42)}${valid[42] === 'A' ? 'B' : 'A'}=`;
+      assert.equal(forged.length, valid.length);
+      assert.notEqual(forged, valid);
+
+      const result = await postLineWebhook(serverContext.baseUrl, payload, { 'x-line-signature': forged });
+
+      assert.equal(result.status, 401);
+      assert.equal(result.body.error.code, 'LINE_SIGNATURE_INVALID');
+    });
+
+    it('長度不同的簽章回 401 而不是 500', async () => {
+      const payload = JSON.stringify({ events: [] });
+      const valid = createLineSignature(payload);
+
+      for (const signature of [valid.slice(0, -4), `${valid}AAAA`, 'x']) {
+        const result = await postLineWebhook(serverContext.baseUrl, payload, { 'x-line-signature': signature });
+        assert.equal(result.status, 401);
+        assert.equal(result.body.error.code, 'LINE_SIGNATURE_INVALID');
+      }
+    });
+
+    it('正確簽章仍可通過', async () => {
+      const payload = JSON.stringify({ events: [] });
+
+      const result = await postLineWebhook(serverContext.baseUrl, payload, {
+        'x-line-signature': createLineSignature(payload),
+      });
+
+      assert.equal(result.status, 200);
+    });
+  });
+});

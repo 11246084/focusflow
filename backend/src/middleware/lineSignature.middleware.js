@@ -35,7 +35,10 @@ function lineSignature(req, res, next) {
 
   // 比對計算出的簽章和 LINE 送來的簽章是否一致
   // 不一致代表請求被篡改或來源不明，拒絕
-  if (expectedSignature !== signature) {
+  // 用固定時間比較，回應時間不會透露簽章前幾個字元是否正確。
+  const expected = Buffer.from(expectedSignature);
+  const received = Buffer.from(String(signature));
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
     return next(new AppError('Invalid LINE signature.', 401, 'LINE_SIGNATURE_INVALID'));
   }
 

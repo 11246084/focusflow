@@ -4136,7 +4136,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
+          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`）、帳號在處理期間被停用（`USER_INACTIVE`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
           content:
             application/json:
               schema:

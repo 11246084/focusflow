@@ -16,8 +16,8 @@ function candidate(chunkId = 'video_chunk_0001', extra = {}) {
     embeddingTaskType: null, embeddingInstructionVersion: contract.instructionVersion,
     generationVersion: contract.generationVersion, normalizationVersion: contract.normalizationVersion,
     embeddingContractVersion: contract.contractVersion, embeddingSchemaVersion: contract.schemaVersion,
-    mediaEmbeddingMeta: { audio: { status: 'success', model: 'gemini-embedding-2', contractVersion: 'gemini_embedding_2_audio_v1' },
-      visual: { status: 'success', model: 'gemini-embedding-2', contractVersion: 'gemini_embedding_2_visual_v1' } }, ...extra };
+    mediaEmbeddingMeta: { audio: { provider: 'gemini', dimension: 3072, status: 'success', model: 'gemini-embedding-2', contractVersion: 'gemini_embedding_2_audio_v1' },
+      visual: { provider: 'gemini', dimension: 3072, status: 'success', model: 'gemini-embedding-2', contractVersion: 'gemini_embedding_2_visual_v1' } }, ...extra };
 }
 
 test('three Atlas paths share the authorized video filter and omit vectors from candidate projection', () => {

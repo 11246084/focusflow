@@ -27,10 +27,15 @@ async function readAtlasIndex(collection) {
   }
 }
 
-function channelReadiness(index, channel, textDataContract) {
+function fieldsFor(textPath = 'embedding') {
+  if (!['embedding', 'stableTextEmbedding'].includes(textPath)) throw new TypeError('Unsupported text vector path.');
+  return { ...VECTOR_FIELDS, text: textPath };
+}
+
+function channelReadiness(index, channel, textDataContract, textPath = 'embedding') {
   if (!index || index.name !== INDEX_NAME || index.type !== 'vectorSearch'
     || index.status !== 'READY' || index.queryable !== true) return 'index_not_ready';
-  const field = index.latestDefinition?.fields?.find((value) => value.path === VECTOR_FIELDS[channel]);
+  const field = index.latestDefinition?.fields?.find((value) => value.path === fieldsFor(textPath)[channel]);
   if (!field) return 'index_field_missing';
   if (field.type !== 'vector' || field.numDimensions !== 3072 || field.similarity !== 'cosine') return 'index_field_incompatible';
   if (!index.latestDefinition.fields.some((value) => value.type === 'filter' && value.path === 'videoId')) return 'video_filter_missing';
@@ -40,11 +45,11 @@ function channelReadiness(index, channel, textDataContract) {
   return null;
 }
 
-function buildAtlasPipeline(channel, embedding, allowedVideoIds) {
+function buildAtlasPipeline(channel, embedding, allowedVideoIds, textPath = 'embedding') {
   if (!Object.hasOwn(VECTOR_FIELDS, channel)) throw new TypeError('Unknown search channel.');
   if (!Array.isArray(allowedVideoIds) || !allowedVideoIds.length) throw new TypeError('Authorized video IDs are required.');
   return [
-    { $vectorSearch: { index: INDEX_NAME, path: VECTOR_FIELDS[channel], queryVector: embedding,
+    { $vectorSearch: { index: INDEX_NAME, path: fieldsFor(textPath)[channel], queryVector: embedding,
       numCandidates: 100, limit: 20, filter: { videoId: { $in: allowedVideoIds } } } },
     { $project: { _id: 0, chunkId: 1, segmentId: 1, courseId: 1, videoId: 1,
       startSec: 1, endSec: 1, text: 1, mediaEmbeddingMeta: 1,
@@ -54,18 +59,19 @@ function buildAtlasPipeline(channel, embedding, allowedVideoIds) {
   ];
 }
 
-function hasCompatibleMetadata(row, channel) {
+function hasCompatibleMetadata(row, channel, textPath) {
   if (channel === 'text') {
-    const active = parseActiveEmbeddingContract(JSON.stringify(row), 'atlas_result');
+    const active = parseActiveEmbeddingContract(JSON.stringify(textPath === 'stableTextEmbedding' ? row.mediaEmbeddingMeta?.text : row), 'atlas_result');
     return compareEmbeddingContracts(buildGeminiTextSearchContract(), active.contract).length === 0;
   }
   const meta = row.mediaEmbeddingMeta?.[channel];
-  return meta?.status === 'success' && meta.model === 'gemini-embedding-2'
+  return meta?.status === 'success' && meta.provider === 'gemini' && meta.dimension === 3072 && meta.model === 'gemini-embedding-2'
     && meta.contractVersion === `gemini_embedding_2_${channel}_v1`;
 }
 
 async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, indexSnapshot,
-  textDataContract = null, mode = 'equal', timeoutMs = 10000 }) {
+  textDataContract = null, mode = 'equal', timeoutMs = 10000, textPath = 'embedding' }) {
+  fieldsFor(textPath);
   validateQuery(queryEmbedding);
   if (!scope?.courseId || !Array.isArray(scope.allowedVideoIds) || !scope.allowedVideoIds.length
     || !scope.allowedVideoIds.every((id) => typeof id === 'string' && id.length > 0)) {
@@ -76,15 +82,17 @@ async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, inde
   const diagnostics = {};
   const searchers = {};
   for (const channel of Object.keys(VECTOR_FIELDS)) {
-    const reason = channelReadiness(indexSnapshot, channel, textDataContract);
+    const reason = channelReadiness(indexSnapshot, channel, textDataContract, textPath);
     diagnostics[channel] = { source: 'atlas', ms: 0, reason };
     if (reason) continue;
     searchers[channel] = async () => {
       const started = performance.now();
       try {
-        const rows = await collection.aggregate(buildAtlasPipeline(channel, queryEmbedding.embedding, [...authorized]),
+        const rows = await collection.aggregate(buildAtlasPipeline(channel, queryEmbedding.embedding, [...authorized], textPath),
           { maxTimeMS: timeoutMs, signal: AbortSignal.timeout(timeoutMs + 1000) }).toArray();
-        return rows.filter((row) => hasCompatibleMetadata(row, channel) && authorized.has(row.videoId)
+        diagnostics[channel].returnedRows = rows.length;
+        return rows.filter((row) => hasCompatibleMetadata(row, channel, textPath) && authorized.has(row.videoId)
+          && (!scope.allowedChunkIds || scope.allowedChunkIds.includes(row.chunkId))
           && (row.courseId == null || String(row.courseId) === String(scope.courseId)))
           .map((row) => normalizeCandidate({ ...row, courseId: String(scope.courseId) }));
       } catch {

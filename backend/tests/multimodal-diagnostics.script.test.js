@@ -2,6 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { buildGeminiTextSearchContract } = require('../src/services/embeddingContract.service');
 const { COURSE_ID, VIDEO_IDS, chunkProjection, summarizeChunks, readRows, diagnose, safeLabel } = require('../scripts/multimodal-diagnostics/run');
+const { vectorDigest, compareArtifacts } = require('../scripts/multimodal-diagnostics/traceTextProvenance');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 function row(extra = {}) {
   const contract = buildGeminiTextSearchContract();
@@ -68,4 +72,24 @@ test('diagnostics use aggregation reads only and report denied index permissions
   assert.ok(!JSON.stringify(result).includes('secret connection string'));
   assert.ok(calls.every((call) => call.pipeline.every((stage) => ['$match', '$limit', '$project', '$listSearchIndexes'].includes(Object.keys(stage)[0]))));
   assert.equal(safeLabel('mongodb+srv://user:password@host'), '<unrecognized>');
+});
+
+test('provenance compares exact vectors and times without returning vectors or transcripts', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-provenance-'));
+  try {
+    const vector = Array(3072).fill(0.1);
+    const source = { video_id: VIDEO_IDS[0], chunk_id: `${VIDEO_IDS[0]}_chunk_0001`,
+      start_sec: 1, end_sec: 10, embedding_model: 'gemini-embedding-2-preview', embedding: vector };
+    const file = path.join(directory, 'artifact.jsonl');
+    fs.writeFileSync(file, JSON.stringify(source));
+    const key = JSON.stringify([source.video_id, source.chunk_id]);
+    const remote = new Map([[key, { digest: vectorDigest(vector), startSec: 1, endSec: 10 }]]);
+    const report = await compareArtifacts(remote, [file]);
+    assert.equal(report.matchedChunks, 1);
+    assert.equal(report.artifacts[0].declaredModels['gemini-embedding-2-preview'], 1);
+    assert.equal(JSON.stringify(report).includes('0.1,0.1'), false);
+    remote.get(key).endSec = 20;
+    assert.equal((await compareArtifacts(remote, [file])).matchedChunks, 0);
+    assert.throws(() => vectorDigest([1]), /3072/);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });

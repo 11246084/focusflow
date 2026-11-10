@@ -155,6 +155,12 @@
 
 ## 目前這一輪待答題目
 
+### Atlas 唯讀查證結果（2026-11-10）
+
+庭語授權獨立診斷工具與唯讀查詢。實查六支共 694 筆 Leaf，文字向量皆 3072 維，但缺少模型與版本 metadata，無法證明與穩定版契約相容。`text_embedding_index` READY、queryable，只含文字向量與 courseId／videoId 過濾，尚無媒體欄位。Parent 僅 3 筆，涵蓋影片六的 9 筆 Leaf。詳細結果見 [查證報告](evidence/2026-11-10-atlas-diagnostics.md)。
+
+下一輪可沿用 chunk 時間進行媒體準備，課程 ID 由影片關係於記憶體補入。文字向量保留，先向 Weihao 追查產生紀錄，不回填推測的 metadata。正式站使用版本、真實模型呼叫與索引更新仍依原邊界另行處理。
+
 ### 本機 Demo 開發範圍（2026-11-10 庭語授權）
 
 本階段先交付逐 chunk 真實影音切片、Mock Embedding adapter、三路 Mock 候選與實際 RRF 的 CLI 展示。候選沿用 `courseId`、`videoId`、`chunkId`、`startSec`、`endSec`、`text`，取樣時間另存。RRF 固定 k=60，展示等權與文字權重 2 的兩版。缺少的通道可為空，失敗通道附診斷，原始引用時間保持不變。

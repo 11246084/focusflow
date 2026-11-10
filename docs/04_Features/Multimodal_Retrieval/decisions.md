@@ -155,6 +155,14 @@
 
 ## 目前這一輪待答題目
 
+### 本機 Demo 開發範圍（2026-11-10 庭語授權）
+
+本階段先交付逐 chunk 真實影音切片、Mock Embedding adapter、三路 Mock 候選與實際 RRF 的 CLI 展示。候選沿用 `courseId`、`videoId`、`chunkId`、`startSec`、`endSec`、`text`，取樣時間另存。RRF 固定 k=60，展示等權與文字權重 2 的兩版。缺少的通道可為空，失敗通道附診斷，原始引用時間保持不變。
+
+不連資料庫、不執行付費呼叫、不修改 `qa.service.js`。真實模型由可注入 adapter 介面接續，Mock 的 provider、模型與狀態明確標示。正式 43 題比較待完整功能與基本測試通過後進行。本階段是完整目標的開發里程碑，MA、MB、RU、RC 與驗收門檻沿用原決議。
+
+本機範例 chunk 若無可核對的現行匯出檔，使用明確標示的範例時間與文字，不宣稱來自現行 Atlas。Demo 操作見 [README](../../../backend/scripts/multimodal-demo/README.md)。
+
 2026-10-31 討論完成，目前沒有待答題目。新的問題由庭語與她的 agent 在 G1 範圍內決定；碰到 G1 邊界時依 [HANDOFF](HANDOFF.md) 求援，定案後補進上方表格。
 
 ## 參考方案（原第三輪 Q12～Q19，2026-10-31 改為參考）

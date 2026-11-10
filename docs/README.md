@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+多模態本機展示的操作見 [Demo README](../backend/scripts/multimodal-demo/README.md)，提交與驗證紀錄見 [進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
 這裡依用途收錄學校公告、交付文件、功能規格與圖檔，讓常用內容最多點兩層就能找到。請先查[目前狀態](current-status.md)，再從下表進入需要的文件；歷史快照只供追溯。
 
 ## 資料夾架構

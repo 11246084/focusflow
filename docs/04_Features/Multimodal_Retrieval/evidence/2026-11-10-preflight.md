@@ -1,6 +1,6 @@
 # 真實 Gemini 小樣本執行前檢查
 
-本文件列出三個真實 chunk、12 個模型輸入與待授權的付費操作。2026-11-10 已完成 Dry Run、完整 Fake SDK 預演及續跑，真實 API 呼叫為 0。向量、原片與本機完整輸出保存在忽略目錄。
+本文件保存三個真實 chunk、12 個模型輸入的授權前快照。2026-11-10 完成 Dry Run、完整 Fake SDK 預演及續跑時，真實 API 呼叫為 0。授權後的實際結果見 [真實小樣本](2026-11-10-live-sample.md)，向量、原片與本機完整輸出保存在忽略目錄。
 
 ## 請求明細
 
@@ -45,7 +45,7 @@ STT_Whisper\.venv\Scripts\python.exe -X utf8 STT_Whisper/src/run_gemini_validati
 
 輸出在 `.local-tools/gemini-small-sample/dry-run/` 與 `fake-sdk/`，其中 request-plan.json 列出 12 個請求，state.json 保存逐筆狀態，comparison.json 保存相似度與兩版 RRF，summary.json 保存此次與累計呼叫數。完整向量只在 checkpoint。Fake SDK 的 provider 為 `fake-sdk`，與真實模式採不同簽章、目錄與帳本。
 
-以下指令待庭語明確授權後才執行。本輪沒有執行這個指令。
+以下指令在授權前保持未執行，授權後的執行紀錄見真實小樣本報告。
 
 ```powershell
 STT_Whisper\.venv\Scripts\python.exe -X utf8 STT_Whisper/src/run_gemini_validation.py --mode gemini --execute-paid --max-cost-usd 0.25 --max-calls 36

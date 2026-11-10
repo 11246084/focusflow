@@ -191,7 +191,7 @@ class GeminiMultimodalAdapter:
                 write_json(checkpoint, record)
                 try:
                     response = client.models.embed_content(model=MODEL, contents=content,
-                        config=types.EmbedContentConfig(output_dimensionality=DIMENSION, auto_truncate=False,
+                        config=types.EmbedContentConfig(output_dimensionality=DIMENSION,
                             http_options=types.HttpOptions(timeout=self.timeout_ms,
                                 retry_options=types.HttpRetryOptions(attempts=1))))
                     embeddings = list(response.embeddings or [])
@@ -210,7 +210,7 @@ class GeminiMultimodalAdapter:
                     code = getattr(error, "code", None)
                     safe_code = code if isinstance(code, int) else None
                     retryable = safe_code in (408, 429, 500, 502, 503, 504) or isinstance(error, (TimeoutError, httpx.TransportError))
-                    record.update(status="failed", error={"code": safe_code, "retryable": retryable})
+                    record.update(status="failed", error={"type": type(error).__name__, "code": safe_code, "retryable": retryable})
                     write_json(checkpoint, record)
                     if not retryable or attempt == MAX_ATTEMPTS - 1:
                         raise EmbeddingRequestError(f"Gemini embedding request failed (HTTP {safe_code})") from None

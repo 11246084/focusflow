@@ -152,6 +152,41 @@ class GeminiAdapterTests(unittest.TestCase):
             self.assertEqual(options["http_options"].base_url, "https://generativelanguage.googleapis.com")
             self.assertEqual(options["http_options"].api_version, "v1beta")
 
+    def test_real_sdk_serializes_all_modalities_through_offline_transport(self):
+        import httpx
+        from google import genai
+        from google.genai import types
+        requests = []
+        def transport(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={"embeddings": [{"values": [1.0] * 3072}]})
+        def factory(timeout_ms):
+            return genai.Client(api_key="unit-test-placeholder", vertexai=False,
+                http_options=types.HttpOptions(base_url="https://generativelanguage.googleapis.com", api_version="v1beta",
+                    httpx_client=httpx.Client(transport=httpx.MockTransport(transport)), timeout=timeout_ms,
+                    retry_options=types.HttpRetryOptions(attempts=1)))
+        adapter = self.adapter(client_factory=factory, duration_probe=lambda _: 8)
+        with patch("socket.create_connection", side_effect=AssertionError("Network disabled")):
+            client = factory(30000)
+            try:
+                with self.assertRaisesRegex(ValueError, "auto_truncate"):
+                    client.models.embed_content(model="gemini-embedding-2", contents="offline",
+                        config=types.EmbedContentConfig(output_dimensionality=3072, auto_truncate=False))
+                self.assertEqual(requests, [])
+            finally:
+                client.close()
+            adapter.embed_text("offline SDK serialization")
+            for kind, suffix in (("audio", ".wav"), ("visual", ".mp4")):
+                media = self.root / f"offline{suffix}"
+                media.write_bytes(b"test fixture")
+                adapter.embed_media({"courseId": "c", "videoId": "v", "chunkId": "v_chunk_0001",
+                    "startSec": 10, "endSec": 12, "sampleStartSec": 7, "sampleEndSec": 15,
+                    "status": "success", "modality": kind, "mediaPath": str(media)})
+        self.assertEqual(len(requests), 3)
+        for request in requests:
+            self.assertEqual(request["requests"][0]["outputDimensionality"], 3072)
+            self.assertNotIn("autoTruncate", request["requests"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

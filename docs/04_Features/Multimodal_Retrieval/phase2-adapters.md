@@ -27,7 +27,7 @@ STT_Whisper\.venv\Scripts\python.exe -X utf8 STT_Whisper/src/plan_multimodal_val
 - 檢查點綁定模型、模態、契約、輸入雜湊與 chunk／時間，成功結果續跑會沿用。Mock 與 Gemini 使用不同 provider 與契約。記錄 requested model ID、SDK 版本、處理時間、狀態與費用，服務端不可變模型修訂版尚無證據可填。
 - 帳本以 `.lock` 保護並行操作。強制終止後，先確認沒有執行中的模型請求，再處理殘留鎖，保留費用帳與已預留金額。所有真實向量與帳本留在本機忽略目錄。
 
-文字每次保守預留完整 8192 token 的費用；媒體先核對實際時長，聲音按秒向上取整，影片按最多 32 幀估算。媒體限制採 chunk 契約的最多 60 秒，inline 上限保守設為 15 MB。官網支援的較長媒體上限不改動本次 chunk 規則。
+文字每次保守預留完整 8192 token 的費用；媒體先核對實際時長，聲音按秒向上取整，影片按最多 32 幀估算。1 fps MP4 會有一格內的時長量化，允許最多 1 秒差異，另記 `mediaDurationSec`，原始與取樣時間均保留；費用使用實際與取樣時長的較大值。音訊容差維持 0.15 秒。媒體限制採 chunk 契約的最多 60 秒，inline 上限保守設為 15 MB。官網支援的較長媒體上限不改動本次 chunk 規則。
 
 ## Atlas adapter
 

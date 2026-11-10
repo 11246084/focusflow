@@ -94,6 +94,21 @@ class GeminiAdapterTests(unittest.TestCase):
         self.assertAlmostEqual(ledger["reservedUsd"], 3 * estimate_cost("query"), places=8)
         self.assertNotIn("SECRET", "".join(p.read_text() for p in self.root.rglob("*.json")))
 
+    def test_visual_one_fps_duration_quantization_preserves_original_range_and_budget(self):
+        media = self.root / "clip.mp4"
+        media.write_bytes(b"local-media")
+        record = {"mediaPath": str(media), "modality": "visual", "status": "success", "courseId": "c",
+                  "videoId": "v", "chunkId": "v_chunk_0001", "startSec": 6.42, "endSec": 35.62,
+                  "sampleStartSec": 6.42, "sampleEndSec": 35.62}
+        result = self.adapter(duration_probe=lambda _: 29).embed_media(record)
+        self.assertEqual(result["mediaDurationSec"], 29)
+        self.assertEqual(result["endSec"], 35.62)
+        self.assertEqual(result["estimatedAttemptUsd"], 30 * 0.00079)
+        audio = self.root / "clip.wav"
+        audio.write_bytes(b"local-media")
+        with self.assertRaises(ValueError):
+            self.adapter(duration_probe=lambda _: 29).embed_media({**record, "mediaPath": str(audio), "modality": "audio"})
+
     def test_terminal_error_invalid_vector_and_call_cap(self):
         self.client.failures = [type("Forbidden", (Exception,), {"code": 403})("SECRET")]
         with self.assertRaisesRegex(EmbeddingRequestError, "403"):

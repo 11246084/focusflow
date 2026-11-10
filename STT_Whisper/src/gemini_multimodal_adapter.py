@@ -13,7 +13,7 @@ from pathlib import Path
 from embedding_contract import (GEMINI_EMBEDDING_CONTRACT_VERSION, GEMINI_EMBEDDING_GENERATION_VERSION,
                                 GEMINI_EMBEDDING_INSTRUCTION_VERSION, GEMINI_EMBEDDING_NORMALIZATION_VERSION,
                                 build_parent_document_text)
-from segment_media_embedding import DIMENSION, MODEL, normalize_embedding, probe_duration, write_json
+from segment_media_embedding import DIMENSION, MODEL, normalize_chunk, normalize_embedding, probe_duration, write_json
 from utils import resolve_ffmpeg_binary
 
 PRICING_VERSION = "google_standard_2026-11-10"
@@ -73,6 +73,7 @@ class GeminiMultimodalAdapter:
 
     def embed_media(self, record: dict) -> dict:
         from google.genai import types
+        record = normalize_chunk(record)
         modality = record.get("modality")
         if modality not in ("audio", "visual") or record.get("status") != "success":
             raise ValueError("Expected a successful local media record")
@@ -85,14 +86,19 @@ class GeminiMultimodalAdapter:
         data = media.read_bytes()
         seconds = self.duration_probe(media)
         sample_seconds = record["sampleEndSec"] - record["sampleStartSec"]
-        if not math.isfinite(sample_seconds) or abs(seconds - sample_seconds) > 0.15:
+        if record["sampleStartSec"] < 0 or sample_seconds <= 0 \
+                or record["sampleStartSec"] > record["startSec"] or record["sampleEndSec"] < record["endSec"]:
+            raise ValueError("Sample window must contain the original chunk")
+        tolerance = 1.0 if modality == "visual" else 0.15
+        if not math.isfinite(sample_seconds) or abs(seconds - sample_seconds) > tolerance:
             raise ValueError("Media duration disagrees with sample timestamps")
         if not record.get("chunkId") or not record.get("videoId"):
             raise ValueError("Media identity is required")
         # Exactly one media part per request, without an instruction prefix.
         content = types.Content(parts=[types.Part.from_bytes(data=data, mime_type=mime)])
-        return self._embed(modality, content, data, estimate_cost(modality, seconds=seconds), identity={
-            key: record[key] for key in ("courseId", "videoId", "chunkId", "startSec", "endSec", "sampleStartSec", "sampleEndSec")})
+        identity = {key: record[key] for key in ("courseId", "videoId", "chunkId", "startSec", "endSec", "sampleStartSec", "sampleEndSec")}
+        identity["mediaDurationSec"] = seconds
+        return self._embed(modality, content, data, estimate_cost(modality, seconds=max(seconds, sample_seconds)), identity=identity)
 
     def _embed(self, modality, content, data: bytes, cost: float, identity=None) -> dict:
         if not self.allow_paid:

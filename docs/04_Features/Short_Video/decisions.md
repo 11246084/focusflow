@@ -147,6 +147,10 @@ UX-4 的 Animate UI 局部比較應配合新順序：先完成講稿審閱頁，
 - 實作時記錄演算法、選擇理由、替代方案、取捨及驗證；完成後同步受影響系統手冊，必要時重繪架構／UML。
 - 主要畫面圖提前審閱依 UX-13 排在現流程穩定後，未加入本輪第一版範圍。
 
+## 工程交付文件更正（2026-11-10）
+
+合併結果與正式驗收分開記錄：以 Git 紀錄核對合併事實，不因程式已合入而視為部署、發布或教師驗收完成。合併證據與待驗證項目集中在[目前狀態](../../current-status.md)；[Recut 工程交付報告](../../07_HTML說明頁/Recut工程交付報告.html)保留歷史查核快照，移除過期的待審 PR 描述並連回狀態正本。本次未調整教師流程、審稿與審片決策。
+
 ## 素材入口
 
 - [①講稿審閱](evidence/2026-10-21_recut-teacher-ux/01-preview-main.png)、[②修改與試聽](evidence/2026-10-21_recut-teacher-ux/02-selection-expanded.png)、[③套用修改中](evidence/2026-10-21_recut-teacher-ux/03-regenerating.png)、[④無法整理講稿](evidence/2026-10-21_recut-teacher-ux/04-cannot-answer.png)、[⑤AI 建議](evidence/2026-10-21_recut-teacher-ux/05-ai-suggestions.png)、[⑥成品審閱](evidence/2026-10-21_recut-teacher-ux/06-product-review.png)、[⑦成品試聽](evidence/2026-10-21_recut-teacher-ux/07-product-listen.png)。

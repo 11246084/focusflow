@@ -86,6 +86,15 @@ class SegmentMediaTests(unittest.TestCase):
             media.write_bytes(b"mock")
             self.assertEqual(mock_embedding(media, "audio"), mock_embedding(media, "audio"))
 
+    def test_concurrent_output_is_rejected_without_removing_another_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lock = root / ".prepare.lock"
+            lock.write_text("active", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                prepare_chunks(root / "video", [], root, max_cost_usd=0)
+            self.assertEqual(lock.read_text(encoding="utf-8"), "active")
+
 
 if __name__ == "__main__":
     unittest.main()

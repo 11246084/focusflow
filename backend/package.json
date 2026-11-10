@@ -4,6 +4,7 @@
   "description": "Focus Flow MVP backend service",
   "main": "src/server.js",
   "scripts": {
+    "demo:multimodal": "node scripts/multimodal-demo/run.js",
     "dev": "nodemon --ignore uploads src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seedDemoUsers.js",

@@ -115,10 +115,20 @@ def write_json(path: Path, value: dict) -> None:
 
 def prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_usd: float) -> dict:
     """Prepare local media and mock records, with source-bound, atomic checkpoints."""
+    output.mkdir(parents=True, exist_ok=True)
+    lock = output / ".prepare.lock"
+    with lock.open("x", encoding="utf-8") as handle:
+        handle.write("One media preparation process per output directory")
+    try:
+        return _prepare_chunks(video, chunks, output, max_cost_usd=max_cost_usd)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_usd: float) -> dict:
     if not math.isfinite(max_cost_usd) or max_cost_usd < 0:
         raise ValueError("A nonnegative cost ceiling is required")
     video = video.resolve(strict=True)
-    output.mkdir(parents=True, exist_ok=True)
     ffmpeg = resolve_ffmpeg_binary()
     duration = probe_duration(video, ffmpeg)
     normalized = [normalize_chunk(chunk) for chunk in chunks]

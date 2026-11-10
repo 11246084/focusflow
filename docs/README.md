@@ -6,6 +6,8 @@
 
 多模態第二階段使用方式見 [Gemini／Atlas adapters](04_Features/Multimodal_Retrieval/phase2-adapters.md)，驗證依據見 [2026-11-10 第二階段紀錄](04_Features/Multimodal_Retrieval/evidence/2026-11-10-phase2.md)。
 
+真實 Gemini 小樣本的授權清單、執行指令與無付費預演見 [2026-11-10 執行前檢查](04_Features/Multimodal_Retrieval/evidence/2026-11-10-preflight.md)。
+
 這裡依用途收錄學校公告、交付文件、功能規格與圖檔，讓常用內容最多點兩層就能找到。請先查[目前狀態](current-status.md)，再從下表進入需要的文件；歷史快照只供追溯。
 
 ## 資料夾架構

@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { retrieveMultimodal } = require('../src/services/multimodalRetrieval.service');
 const { createCase } = require('../scripts/multimodal-demo/cases');
+const { fuseQueries } = require('../scripts/multimodal-demo/fuseValidationCandidates');
 
 test('normal and rescue scenarios compute RRF with unchanged evidence times', async () => {
   for (const name of ['normal', 'rescue']) {
@@ -57,4 +58,15 @@ test('CLI runs failure scenario and writes a labelled, reproducible JSON report'
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('small-sample bridge uses the same RRF for equal and text-weighted rankings', () => {
+  const scenario = createCase('normal');
+  const first = scenario.chunks[0];
+  const second = scenario.chunks[1];
+  const result = fuseQueries([{ queryId: 'query', lists: { text: [first, second], audio: [second], visual: [second] } }]);
+  assert.equal(result[0].equal[0].chunkId, second.chunkId);
+  assert.ok(Math.abs(result[0].equal[0].fusionScore - (1 / 62 + 2 / 61)) < 1e-15);
+  assert.ok(Math.abs(result[0].textWeighted[0].fusionScore - (2 / 62 + 2 / 61)) < 1e-15);
+  assert.throws(() => fuseQueries([{}, {}, {}, {}]), /three/);
 });

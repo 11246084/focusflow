@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import json
 import math
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,21 +39,37 @@ def estimate_cost(modality: str, *, seconds: float = 0) -> float:
 
 
 def create_client(timeout_ms: int):
-    # google-genai reads the key from its documented environment variables internally.
+    # Credentials stay inside this process and are never included in records or logs.
     from google import genai
     from google.genai import types
-    return genai.Client(http_options=types.HttpOptions(timeout=timeout_ms,
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Gemini credential configuration is missing")
+    return genai.Client(api_key=api_key, vertexai=False, http_options=types.HttpOptions(timeout=timeout_ms,
+        base_url="https://generativelanguage.googleapis.com", api_version="v1beta",
         retry_options=types.HttpRetryOptions(attempts=1)))
+
+
+def build_text_content(text: str, role: str) -> str:
+    if role not in ("query", "text") or not isinstance(text, str) or not text.strip():
+        raise ValueError("Expected a query or document text")
+    payload = f"task: search result | query: {text.strip()}" if role == "query" else build_parent_document_text(text)
+    if len(payload.encode("utf-8")) > 8192:
+        raise ValueError("Text exceeds conservative UTF-8 input bound")
+    return payload
 
 
 class GeminiMultimodalAdapter:
     def __init__(self, output: Path, *, max_cost_usd: float, allow_paid: bool = False,
                  max_calls: int = 30, timeout_ms: int = 30000, client_factory=create_client,
-                 sleep=time.sleep, duration_probe=None, ledger_path: Path | None = None):
+                 sleep=time.sleep, duration_probe=None, ledger_path: Path | None = None,
+                 execution_mode: str = "gemini"):
         if not math.isfinite(max_cost_usd) or not 0 <= max_cost_usd <= 30:
             raise ValueError("Cost ceiling must be between USD 0 and 30")
         if not isinstance(max_calls, int) or max_calls <= 0 or not 1 <= timeout_ms <= 60000:
             raise ValueError("Invalid call or timeout limit")
+        if execution_mode not in ("gemini", "fake-sdk"):
+            raise ValueError("Invalid execution mode")
         self.output = Path(output)
         self.max_cost_usd = max_cost_usd
         self.allow_paid = allow_paid
@@ -61,15 +78,18 @@ class GeminiMultimodalAdapter:
         self.client_factory = client_factory
         self.sleep = sleep
         self.duration_probe = duration_probe or (lambda media: probe_duration(media, resolve_ffmpeg_binary()))
-        self.ledger_path = ledger_path or Path(__file__).resolve().parents[2] / ".local-tools/multimodal-gemini/cost-ledger.json"
+        self.execution_mode = execution_mode
+        default_ledger = Path(__file__).resolve().parents[2] / ".local-tools/multimodal-gemini/cost-ledger.json"
+        if execution_mode == "fake-sdk":
+            default_ledger = self.output / "fake-cost-ledger.json"
+        self.ledger_path = ledger_path or default_ledger
 
-    def embed_text(self, text: str, *, role: str = "query") -> dict:
-        if role not in ("query", "text") or not isinstance(text, str) or not text.strip():
-            raise ValueError("Expected a query or document text")
-        payload = f"task: search result | query: {text.strip()}" if role == "query" else build_parent_document_text(text)
-        if len(payload.encode("utf-8")) > 8192:
-            raise ValueError("Text exceeds conservative UTF-8 input bound")
-        return self._embed(role, payload, payload.encode("utf-8"), estimate_cost(role))
+    def embed_text(self, text: str, *, role: str = "query", identity: dict | None = None) -> dict:
+        payload = build_text_content(text, role)
+        if identity is not None:
+            normalized = normalize_chunk(identity)
+            identity = {key: normalized[key] for key in ("courseId", "videoId", "chunkId", "startSec", "endSec")}
+        return self._embed(role, payload, payload.encode("utf-8"), estimate_cost(role), identity=identity)
 
     def embed_media(self, record: dict) -> dict:
         from google.genai import types
@@ -104,7 +124,7 @@ class GeminiMultimodalAdapter:
         if not self.allow_paid:
             raise PermissionError("Paid API execution requires explicit opt-in")
         contract = GEMINI_EMBEDDING_CONTRACT_VERSION if modality in ("query", "text") else f"gemini_embedding_2_{modality}_v1"
-        signature = hashlib.sha256(json.dumps([MODEL, DIMENSION, modality, contract, identity,
+        signature = hashlib.sha256(json.dumps([self.execution_mode, MODEL, DIMENSION, modality, contract, identity,
                                                hashlib.sha256(data).hexdigest()], sort_keys=True).encode()).hexdigest()
         self.output.mkdir(parents=True, exist_ok=True)
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
@@ -112,11 +132,11 @@ class GeminiMultimodalAdapter:
         with lock.open("x", encoding="utf-8") as handle:
             handle.write("Single writer for checkpoint and conservative cost ledger")
         try:
-            return self._run_request(signature, modality, content, contract, cost, identity)
+            return self._run_request(signature, modality, content, contract, cost, identity, len(data))
         finally:
             lock.unlink(missing_ok=True)
 
-    def _run_request(self, signature, modality, content, contract, cost, identity):
+    def _run_request(self, signature, modality, content, contract, cost, identity, input_bytes):
         from google.genai import types
         import httpx
         checkpoint = self.output / f"{signature}.json"
@@ -132,15 +152,20 @@ class GeminiMultimodalAdapter:
         if checkpoint.exists():
             cached = json.loads(checkpoint.read_text(encoding="utf-8"))
             if cached.get("status") == "success" and cached.get("signature") == signature \
-                    and cached.get("provider") == "gemini" and cached.get("model") == MODEL:
+                    and cached.get("provider") == self.execution_mode and cached.get("model") == MODEL:
                 normalize_embedding(cached["embedding"])
+                digest = hashlib.sha256(json.dumps(cached["embedding"]).encode()).hexdigest()
+                if cached.get("embeddingDigest") != digest:
+                    raise ValueError("Checkpoint vector integrity check failed")
                 return {**cached, "reused": True}
-        record = {**(identity or {}), "signature": signature, "provider": "gemini", "model": MODEL,
+        record = {**(identity or {}), "signature": signature, "provider": self.execution_mode, "model": MODEL,
                   "modelVersionSource": "requested model ID; immutable server revision unavailable",
+                  "apiVersion": "v1beta",
                   "sdkVersion": importlib.metadata.version("google-genai"), "dimension": DIMENSION,
                   "contractVersion": contract, "modality": modality, "status": "pending", "embedding": None,
                   "normalizationVersion": GEMINI_EMBEDDING_NORMALIZATION_VERSION, "taskType": None,
                   "createdAt": datetime.now(timezone.utc).isoformat(), "reused": False,
+                  "inputBytes": input_bytes,
                   "estimatedAttemptUsd": cost, "pricingVersion": PRICING_VERSION}
         if modality in ("query", "text"):
             record.update(instructionVersion=GEMINI_EMBEDDING_INSTRUCTION_VERSION,
@@ -174,7 +199,8 @@ class GeminiMultimodalAdapter:
                         raise ValueError("Expected exactly one embedding")
                     vector = normalize_embedding(embeddings[0].values)
                     record.update(status="success", embedding=vector, error=None,
-                                  completedAt=datetime.now(timezone.utc).isoformat())
+                                  completedAt=datetime.now(timezone.utc).isoformat(),
+                                  embeddingDigest=hashlib.sha256(json.dumps(vector).encode()).hexdigest())
                     characters = getattr(getattr(response, "metadata", None), "billable_character_count", None)
                     if isinstance(characters, int) and characters >= 0:
                         record["billableCharacterCount"] = characters

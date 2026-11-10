@@ -1,13 +1,15 @@
 import json
 import math
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from gemini_multimodal_adapter import EmbeddingRequestError, GeminiMultimodalAdapter, estimate_cost
+from gemini_multimodal_adapter import EmbeddingRequestError, GeminiMultimodalAdapter, create_client, estimate_cost
 
 
 class FakeClient:
@@ -140,6 +142,15 @@ class GeminiAdapterTests(unittest.TestCase):
         with self.assertRaises(EmbeddingRequestError) as result:
             self.adapter(client_factory=fail).embed_text("question")
         self.assertNotIn("SECRET", str(result.exception))
+
+    def test_client_pins_gemini_endpoint_without_loading_other_credentials(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "unit-test-placeholder"}, clear=True), \
+             patch("google.genai.Client") as client:
+            create_client(30000)
+            options = client.call_args.kwargs
+            self.assertFalse(options["vertexai"])
+            self.assertEqual(options["http_options"].base_url, "https://generativelanguage.googleapis.com")
+            self.assertEqual(options["http_options"].api_version, "v1beta")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ const sourceSchema = new mongoose.Schema(
     endSec: { type: Number, default: null, min: 0 },
     videoTitle: { type: String, default: null, trim: true },
     transcript: { type: String, default: '', trim: true },
+    retrievedBy: { type: [String], enum: ['text', 'audio', 'visual'], default: [] },
+    channelRanks: { type: Map, of: Number, default: {} },
     score: { type: Number, default: null },
   },
   { _id: false },

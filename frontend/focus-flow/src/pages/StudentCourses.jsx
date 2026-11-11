@@ -876,6 +876,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
                   <span style={{ color: 'rgba(255,255,255,0.78)', fontWeight: 700 }}>{videoTitle}</span>
                   {isActive && <span className="citation-active-label">目前選取</span>}
+                  {seg.retrievalLabel && <span> · 比對方式 {seg.retrievalLabel}</span>}
                   {!canJump && <span className="citation-unavailable">（未提供可播放影片）</span>}
                   {' · '}
                   {text.slice(0, 160)}{text.length > 160 ? '…' : ''}

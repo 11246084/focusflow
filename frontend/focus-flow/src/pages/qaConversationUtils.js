@@ -22,6 +22,8 @@ export function getRemainingSourceCount(sources, previewCount = SOURCE_PREVIEW_C
 export function toStudentCitation(source) {
   return {
     modality: source.modality === 'video' ? 'video' : 'text',
+    retrievalLabel: (Array.isArray(source.retrievedBy) ? source.retrievedBy : [])
+      .map(channel => ({ text: '文字', audio: '聲音', visual: '畫面' })[channel]).filter(Boolean).join('、'),
     videoId: source.videoId || '',
     videoTitle: source.videoTitle || source.title || source.fileName || '',
     startSec: source.startSec ?? source.start_sec ?? 0,

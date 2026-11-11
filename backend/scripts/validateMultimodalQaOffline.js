@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const path = require('node:path');
 const assert = require('node:assert/strict');
 const { retrieveForQa } = require('../src/services/multimodalQaBridge.service');
 const { buildGeminiTextSearchContract } = require('../src/services/embeddingContract.service');
@@ -55,7 +56,19 @@ async function validate(bundle) {
 
 if (require.main === module) {
   validate(JSON.parse(fs.readFileSync(process.argv[2], 'utf8')))
-    .then(report => process.stdout.write(JSON.stringify(report, null, 2)))
+    .then(report => {
+      if (process.argv[3]) {
+        const output = path.resolve(process.argv[3]);
+        fs.mkdirSync(output, { recursive: true });
+        fs.writeFileSync(path.join(output, 'per-question.json'), JSON.stringify(report.comparison, null, 2));
+        fs.writeFileSync(path.join(output, 'config.json'), JSON.stringify({ schemaVersion: 'retrieval-comparison-v1',
+          source: report.source, formalEvaluation: false, questionCount: report.reports.length,
+          k: 60, perChannelLimit: 20, weights: ['equal', 'text_weighted'],
+          modes: ['flat', 'hierarchical'], groups: ['text', 'audio', 'visual', 'text_audio', 'text_visual', 'all'],
+        }, null, 2));
+      }
+      process.stdout.write(JSON.stringify(report, null, 2));
+    })
     .catch(() => { console.error('Offline validation failed; private input redacted'); process.exitCode = 1; });
 }
 module.exports = { validate };

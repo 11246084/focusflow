@@ -10,6 +10,10 @@ import {
 } from '../src/pages/qaConversationUtils.js';
 
 describe('multi-turn citation presentation', () => {
+  it('shows multimodal labels while leaving legacy citations unlabeled', () => {
+    assert.equal(toStudentCitation({ retrievedBy: ['text', 'audio', 'visual'] }).retrievalLabel, '文字、聲音、畫面');
+    assert.equal(toStudentCitation({}).retrievalLabel, '');
+  });
   const sources = Array.from({ length: 5 }, (_, index) => ({
     chunkId: `chunk-${index + 1}`, startSec: index * 10, score: 0.9 - index / 10,
   }));

@@ -153,6 +153,7 @@ module.exports = {
   ),
   // 影像片段（video_segments_video）與文字檢索並行查詢並附加為補充 citation。
   // 預設關閉；關閉時只在文字檢索 0 筆時才查影像（既有行為）。
+  qaMultimodalFusionEnabled: parseBoolean(process.env.QA_MULTIMODAL_FUSION_ENABLED, false, 'QA_MULTIMODAL_FUSION_ENABLED'),
   qaVisualRetrievalEnabled: parseBoolean(
     process.env.QA_VISUAL_RETRIEVAL_ENABLED,
     false,

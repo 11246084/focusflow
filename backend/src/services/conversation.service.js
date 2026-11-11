@@ -35,6 +35,8 @@ function conversationSourcesFromCitations(citations) {
     endSec: citation.timestamp?.endSec ?? null,
     videoTitle: citation.videoTitle || citation.sourceVideo?.title || null,
     transcript: citation.transcriptSnippet || '',
+    retrievedBy: citation.retrievedBy || [],
+    channelRanks: citation.channelRanks || {},
     score: typeof citation.match?.score === 'number' ? citation.match.score : null,
   }));
 }

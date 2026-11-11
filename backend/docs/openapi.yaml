@@ -9514,6 +9514,16 @@ components:
         - clipPath
         - transcriptSnippet
       properties:
+        retrievedBy:
+          type: array
+          items:
+            type: string
+            enum: [text, audio, visual]
+        channelRanks:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 1
         citationId:
           type: string
           example: C1

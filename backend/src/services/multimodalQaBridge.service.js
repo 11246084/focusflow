@@ -30,14 +30,18 @@ async function retrieveForQa({ scope, settings, question = '', queryEmbedding, a
     throw new TypeError('Text retrieval and transcript loader required');
   }
   async function hydrate(matches) {
-    const scoped = matches.map(normalizeCandidate).filter(authorized);
+    const normalizeValid = rows => rows.flatMap(row => {
+      try { return [normalizeCandidate(row)]; } catch { return []; }
+    });
+    const scoped = normalizeValid(matches).filter(authorized);
     const records = await loadEvidence(scoped, scope);
-    const evidence = new Map(records.map(normalizeCandidate).filter(authorized).map(row => [candidateKey(row), row]));
+    const evidence = new Map(normalizeValid(records).filter(authorized).map(row => [candidateKey(row), row]));
     return scoped.flatMap(match => {
       const record = evidence.get(candidateKey(match));
       if (!record || record.startSec !== match.startSec || record.endSec !== match.endSec
         || typeof record.text !== 'string' || !record.text.trim()) return [];
-      return [{ ...match, text: record.text, transcript: record.text }];
+      return [{ ...match, segmentId: record.segmentId || match.segmentId,
+        text: record.text, transcript: record.text }];
     });
   }
   let result = { matches: [], diagnostics: {} };

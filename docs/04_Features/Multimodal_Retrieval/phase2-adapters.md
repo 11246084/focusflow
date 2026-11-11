@@ -82,3 +82,10 @@ options 包含成功的 Gemini query embedding、已授權的 `{ courseId, allow
 ## Atlas 就緒後驗收
 
 先確認資料與 query 模型契約、三路索引 READY 及授權影片範圍，再以既有三筆向量核對各路前 20、兩版 RRF 與本機排名。執行跨課、未授權影片、缺索引與單路失敗探測。正式 QA 接線後再驗證快取切換、逐字稿證據、引用原始秒數與網頁標籤，最後才進入全量與 43 題比較。
+# 第七階段正式接線
+
+askQuestion 已在既有授權、Leaf／Parent rollout 後呼叫 Bridge，三路使用 stable path。原檢索結果保留作 fallback，分層 serve 只替換文字候選。loader 從同次已複核 scope 的逐字稿取證；舊資料缺 chunkId 時只在內部以 segmentId 識別，對外仍保留 chunkId=null。啟用時不執行舊影像補充路徑。retrievedBy 與 channelRanks 傳到 citations、對話 sources 及網頁「比對方式」。新向量欄位在 Mongoose 預設 select=false，避免正常逐字稿載入讀出三組向量。
+
+設定 false 保留原 FAQ 證據版本。true 的版本包含模型契約、stable path 版本及分層 rollout 設定；scope 每次重新驗證，降級結果沿用原規則不入快取。正式部署與 Atlas 就緒後才可規劃開啟。
+
+離線命令可加第三個參數 `node backend/scripts/validateMultimodalQaOffline.js .local-tools/atlas-preparation/bundle.json .local-tools/phase2-validation/phase7-comparison`，產出 per-question.json 與 config.json。config 標記 formalEvaluation=false；小樣本的 hierarchical text 是相同 fixture，只驗證輸出結構，不代表完整 43 題或 Parent 效果。固定排名與原始時間可供獨立重算。

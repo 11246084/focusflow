@@ -4,6 +4,16 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態正式 QA 接線（2026-11-11）
+
+第七階段已接 askQuestion、預設關閉的 QA_MULTIMODAL_FUSION_ENABLED、FAQ 分版、三路失敗回退、API 引用與網頁比對方式，對話 sources 保存來源與排名。使用保存 query 向量、Fake Atlas／embedding HTTP 及 template answer 的 4 項整合測試通過，涵蓋 API 到前端標籤、FAQ 開關切換、三路成功、單路失敗、缺索引、preflight 失敗、空結果與非法時間。既有授權、Leaf／Parent rollout 與 LINE 邏輯保留。測試均為本機 fixture，真實 Atlas 三路標記 BLOCKED，仍缺 stable paths；正式 runtime 開啟與部署未執行。
+
+本次 Atlas 唯讀診斷仍為 694 筆、無截斷與診斷錯誤；29 個集合內共 3 個 READY/queryable Search 索引，隔離目標不存在。tier／全叢集剩餘配額仍未知。已建立當次 694 筆前像備份與索引 before/after 提案，實際寫入與索引變更皆 0。B 方案授權範圍見 [Atlas 授權單](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
+前端 183/183、lint、build 與 OpenAPI lint 通過，build 有大於 500 kB 的 bundle 警告。正式 43 題未執行；本機輸出 3 題、72 筆 comparison 及 config.json，分層僅使用相同文字 fixture。
+
+Backend 全套首次 1849 項，1847 通過、1 失敗、1 略過；失敗為即時磁碟統計影響的預約測試，固定測試快照後 1/1 重跑通過，未改服務邏輯。最新定向回歸 28/28，後續修改未再重跑整套。命令與邊界見[驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
 ## 多模態 QA 獨立橋接（2026-11-11）
 
 第六階段新增 `multimodalQaBridge.service.js` 與離線評測輸出介面。已保存三筆真實 query 與九筆 document／audio／visual 向量經模擬 Atlas 排名、既有 adapter、RRF、教師逐字稿載入與引用輸出驗證，保留原始時間、retrievedBy、channelRanks。離線輸出涵蓋兩種文字檢索模式、六組模態及兩種權重，每題 24 筆逐題排名；小樣本分層文字沿用平面 fixture，沒有宣稱驗證完整 Parent 檢索。

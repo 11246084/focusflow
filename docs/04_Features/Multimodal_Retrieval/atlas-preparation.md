@@ -82,3 +82,15 @@ STT_Whisper/.venv/Scripts/python.exe -m unittest discover -s STT_Whisper/tests -
 給 Weihao 的訊息：
 
 > 四階段準備已完成唯讀備份、Dry Run 與檢索工具。舊索引可用，三筆舊文字自查詢都排第一；新三路尚未建立，沒有執行正式寫入。建議只在原三筆新增 stableTextEmbedding、audioEmbedding、visualEmbedding 與 metadata，保留全部 694 筆 embedding，沿用 text_embedding_index 加三個 path。stableTextEmbedding 超出原 #13，請確認欄位／索引契約，並提供當次 Atlas 方案與可用容量；再由庭語授權三筆寫入、同名索引更新及必要回復。qa.service.js 仍未改。11/13 完整目標還有 RAG、全量影音、章節／RU 與正式評測，時程有風險，需要你協調支援，不能把本輪小樣本當完整交付。
+# 第七階段 Atlas 操作授權單（待單獨核准，2026-11-11）
+
+目標 host 為 `focusflow.gw8l4ke.mongodb.net`，Database `focusflow`、Collection `video_segments_text`、既有 Index `text_embedding_index`。原定義包含 embedding（3072／cosine）及 courseId、videoId filter；提案只新增 stableTextEmbedding、audioEmbedding、visualEmbedding（各 3072／cosine），保留全部原欄位與舊 694 筆 embedding。這比原 HANDOFF 多一條 stable 文字 path，B 方案決策及實際操作均需使用者核准。
+
+- 三筆 allowlist 為 `6a6da68e56dd124511ec51b4_chunk_0117`、`6a6da68e56dd124511ec51b4_chunk_0001`、`6a6da69256dd124511ec51d5_chunk_0070`，課程 `6a6da68456dd124511ec5196`。只寫三個向量欄位與 mediaEmbeddingMeta.text/audio/visual，共九個已保存 stable gemini-embedding-2 向量；向量 JSON 約 594785 bytes，另加 metadata。沿用保存的三個 query，模型呼叫費用為 0。
+- 本次備份 `.local-tools/atlas-preparation/backup-1794363217578.json` 包含 694 筆與原索引，校驗碼由工具驗證；提案為 phase7-plan.json，純 JSON 索引前後像為 phase7-index-before.json／phase7-index-after.json。執行前重跑 index-plan 建立當次備份，核對三筆身分、原 embedding digest、索引 beforeHash 與計畫雜湊。不得沿用過期雜湊套用到不同前像。
+- 本次僅能確認本資料庫有 3 個 READY/queryable 索引，tier、全叢集名額、Search 用量及費用未知。擴充同名索引不增加索引數，仍可能重建、增加資源負擔或影響舊文字查詢。變更窗口由使用者指定，開關保持 false；先取得管理端 tier／限制證據，遇到配額拒絕立即停止，不升級、不刪索引。
+- 命令前綴均為支援版本的 `node backend/scripts/atlas-multimodal/run.js`。依序跑 `--mode baseline --output .local-tools/atlas-preparation/phase7-before-smoke.json`、`--mode index-plan --output .local-tools/atlas-preparation/phase7-approved-plan.json`。核准當次計畫後才跑 `--mode dry-run --strategy B --backup <當次備份> --execute-write --approve-plan <當次planHash> --output .local-tools/atlas-preparation/phase7-write-receipt.json`，逐筆 CAS 寫入並留 receipt。
+- Index 更新另在已驗證目標的 mongosh 執行 `db.getSiblingDB('focusflow').getCollection('video_segments_text').updateSearchIndex('text_embedding_index', JSON.parse(require('fs').readFileSync('<當次 after 定義純 JSON 路徑>', 'utf8')))`。此步只在核准後操作，現有 CLI 的 index-plan 不會修改索引。接著跑 `--mode index-wait --backup <當次備份>`，最多 61 次、間隔 30 秒；FAILED、逾時或定義 hash 不符即停止。重跑 baseline，三筆須各為自身第一名，再跑 `--mode search --strategy B --backup <當次備份> --output .local-tools/atlas-preparation/phase7-real-search.json`，核對三路成功、兩版 RRF 與跨課／未授權影片負例。
+- 回復時保持 flag=false，依 receipt 與原前像以 `--mode rollback --strategy B --backup <當次備份> --execute-write --approve-plan <同一當次planHash>` 回復三筆欄位，再以 updateSearchIndex 套用當次 before 純 JSON，等待 READY 並重驗舊文字 baseline。CAS 發現他人異動即停止，不強制覆寫。建議驗證後回復三筆與索引；如需保留，請在本授權中明確選定。真實 QA 的新 embedding 呼叫可能付費，本授權單只含保存向量查詢，正式 API 線上提問另訂費用範圍。
+
+請核准的項目為 B 方案契約差異、上述三筆／九向量寫入、同名索引更新與必要回復、變更窗口，以及驗證後回復或保留。尚未取得核准，以上寫入／索引命令均未執行。

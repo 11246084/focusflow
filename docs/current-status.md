@@ -4,6 +4,14 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態 QA 獨立橋接（2026-11-11）
+
+第六階段新增 `multimodalQaBridge.service.js` 與離線評測輸出介面。已保存三筆真實 query 與九筆 document／audio／visual 向量經模擬 Atlas 排名、既有 adapter、RRF、教師逐字稿載入與引用輸出驗證，保留原始時間、retrievedBy、channelRanks。離線輸出涵蓋兩種文字檢索模式、六組模態及兩種權重，每題 24 筆逐題排名；小樣本分層文字沿用平面 fixture，沒有宣稱驗證完整 Parent 檢索。
+
+預設關閉、全路失敗後文字回退、跨課／未授權影片、chunk allowlist、時間錯位及 FAQ 版本介面有回歸案例。正式 `qa.service.js`、LINE、S2／S3 未接線。Atlas 三路、全量媒體向量與正式 43 題尚待授權與整合。操作與精確接點見[橋接契約](04_Features/Multimodal_Retrieval/phase2-adapters.md)。
+
+本輪使用 Node 22.23.4。新增橋接 8 項、連同既有 Atlas／RRF／三路模組 24 項通過。已保存向量驗證 3 題及 72 筆比較輸出，API／Atlas 呼叫均為 0。後端依既有全套命令執行，共 1776 項，首次 1765 通過、10 失敗、1 略過；10 項均為 short_render 缺少已鎖定的 iconify 套件，依現有 lockfile 執行 npm ci --ignore-scripts 後，相關 Recut 87 項與 runtime adapter 7 項重跑全過。未重新執行整套，保留首次結果與重跑紀錄。QA／LINE 回歸在本次全套中通過。原始本機證據位於忽略目錄 `.local-tools/phase2-validation/` 的 phase6-backend.tap、phase6-recut-retry.tap 與 qa-bridge.json。git diff --check 通過；本輪沒有前端行為修改，未跑前端 build。真實 Atlas／付費生成／正式 43 題與部署未執行。
+
 ## 多模態 Atlas 小樣本準備（2026-11-10）
 
 2026-11-10 整合審查：已提交的檢索元件與工具審查通過，問答尚未接上多模態（沒有 `QA_MULTIMODAL_FUSION_ENABLED`、`retrievedBy`，43 題比較腳本也還沒有）；修正切片準備遇到超出影片長度的 chunk 會整支中斷的問題。接續點見[多模態進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。

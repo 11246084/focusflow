@@ -55,3 +55,30 @@ options 包含成功的 Gemini query embedding、已授權的 `{ courseId, allow
 6. 真實三路完成後再協調 `qa.service.js`、FAQ 與引用，整合通過後才做正式 43 題評測。
 
 費率與輸入規格於 2026-11-10 重新查閱，依據見 [官方文件 D1、D2](references.md#業界與官方文件)；SDK timeout／retry 行為參考 [Google Python SDK](https://googleapis.github.io/python-genai/genai.html)。估算採 Standard 付費費率，未使用 Batch 折扣或免費額度假設。
+# 第六階段 QA Retrieval Bridge 契約
+
+`backend/src/services/multimodalQaBridge.service.js` 提供 `retrieveForQa`，讓 QA 可注入既有文字檢索與教師逐字稿讀取。輸入 `scope` 必須由授權層產生，包含 courseId、allowedVideoIds，可選 allowedChunkIds；模組不自行判斷使用者身分。`settings` 接受 enabled、mode（equal／text_weighted）、hierarchy，enabled 預設 false。未提供分層文字檢索函式時不得開啟 hierarchy。
+
+使用 Atlas 時傳入 `atlas`（collection、indexSnapshot、textPath、textDataContract）與 queryEmbedding，queryEmbedding 沿用 adapter 的完整 Gemini query 紀錄契約。離線時可傳 searchers.audio／visual。textSearch 與 hierarchicalTextSearch 回傳 chunk 陣列；loadEvidence 接收候選與 scope，回傳同識別碼、原始起訖及 text 的授權教師逐字稿。教師逐字稿的載入失敗會往上拋錯，避免把不完整證據交給回答模型。
+
+輸出 matches 內 transcript 與 text 都取自 loader，citations 保留 chunkId、videoId、startSec、endSec、retrievedBy、channelRanks。例如音訊找回原始 10–12 秒的 chunk，即使媒體取樣延伸，也只引用 10–12 秒。候選與逐字稿秒數不合時丟棄候選。空結果或檢索錯誤重試文字路徑，文字仍無證據則回傳空清單，呼叫端沿用既有無答案處理；文字路徑本身失敗則往上拋錯。
+
+`faqEvidenceVersion(baseVersion, settings)` 將正規化設定加入版本雜湊。正式接入時應傳入現有 FAQ 基礎版本；所有快取讀取與寫入須共用同一個結果。橋接回傳的 evidenceVersion 是獨立介面的預設基礎版本。`supplementalVisualEnabled` 在 enabled=true 時固定 false。
+
+## 正式 QA 的協作接點
+
+- `qa.service.js` 的 askQuestion 檢索段，提供已授權 segmentScope、現有 Leaf 與 hierarchicalSearch，並把 numeric query vector 包成已核對契約的 query record。
+- `buildCitation`、respondFromFaqCache 與 FAQ 證據版本，串接 retrievedBy、channelRanks 與 faqEvidenceVersion；快取需保存及重建相同來源。
+- `parallelVisualSearchPromise` 與 selectSupplementalVisualMatches，依新開關停用舊補充引用。
+- `backend/src/config/env.js` 準備 `QA_MULTIMODAL_FUSION_ENABLED`，只在明確 true 時開啟；本階段僅交付獨立設定介面。
+- OpenAPI citation 與 StudentCourses 引用卡片，增加檢索來源傳遞及標籤。LINE 引用沿用現有路徑，不顯示標籤。
+
+## 離線驗證與評測輸出
+
+從根目錄使用支援的 Node 執行 `node backend/scripts/validateMultimodalQaOffline.js .local-tools/atlas-preparation/bundle.json`。輸出 JSON 含 citations 及 comparison，沒有完整向量或逐字稿；輸入保留在忽略目錄。這個工具只讀本機已保存向量，以內積模擬 Atlas cosine 排名；SDK 與 Atlas 網路呼叫均為零。
+
+`buildComparisonRecords` 接收 questionId、scope、flat 的 text/audio/visual 及 hierarchical.text，固定共享 media 候選，輸出兩種 mode × 六組 group × 兩種 weighting。每筆含 questionId、group、mode、weighting、ranked，ranked 最多 20 筆且只含 rank/chunkId/videoId/startSec/endSec。呼叫端可直接存成 per-question.json，交給獨立評分器與既有題庫重算。此模組不產生 Parent、不呼叫模型、不改評分器；正式 43 題需完整資料、固定設定與外部驗算。
+
+## Atlas 就緒後驗收
+
+先確認資料與 query 模型契約、三路索引 READY 及授權影片範圍，再以既有三筆向量核對各路前 20、兩版 RRF 與本機排名。執行跨課、未授權影片、缺索引與單路失敗探測。正式 QA 接線後再驗證快取切換、逐字稿證據、引用原始秒數與網頁標籤，最後才進入全量與 43 題比較。

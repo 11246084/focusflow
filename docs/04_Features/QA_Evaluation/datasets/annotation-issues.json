@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "annotation-issues-v1",
+  "bankHash": "2c20e387f61cab5de19756e3348389fad231957b6989891cfa03a8cc6a67b742",
+  "issues": [
+    {
+      "questionId": "X01",
+      "status": "needs-human-confirmation",
+      "missingTimeVideos": [
+        "V5"
+      ],
+      "original": {
+        "expectedVideos": "V2+V3+V5",
+        "expectedTimeRange": "V2 71-182,1527-1580 / V3 155-201"
+      },
+      "approvedCorrection": null
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/04_Features/QA_Evaluation/datasets/FocusFlow_QA評測_AI入門基礎課_v1.xlsx",
+      "sha256": "745268ccc4eda39e0fd6b1659b24b340610ffe8e2c4ad450f5386797f823ef95",
+      "cells": [
+        "A25",
+        "F25",
+        "G25",
+        "H25"
+      ],
+      "finding": "Same V2+V3+V5 declaration, no V5 time range",
+      "sheet": "評分表"
+    },
+    {
+      "commit": "ad84f6d",
+      "path": "docs/qa-eval/question-bank.json",
+      "finding": "Initial question bank; needs human source confirmation"
+    },
+    {
+      "path": "docs/04_Features/QA_Evaluation/runs/2026-08-24T13-00-40-654Z/results.json",
+      "finding": "Same annotation inconsistency; generated answers are not human gold"
+    },
+    {
+      "path": "docs/04_Features/QA_Evaluation/runs/2026-09-03T10-20-49-416Z/results.json",
+      "finding": "Same annotation inconsistency"
+    }
+  ],
+  "approvalProcess": [
+    "Reviewer identifies a human source video/time or confirms an expectedVideos correction",
+    "Record source, reviewer, explicit approval and before/after patch",
+    "Update approved bank and issue report together; regenerate bank/protocol/config hashes",
+    "Re-run independent audit; never reuse scores bound to prior hashes"
+  ],
+  "goldVersion": "bank-sha256:2c20e387f61cab5de19756e3348389fad231957b6989891cfa03a8cc6a67b742"
+}

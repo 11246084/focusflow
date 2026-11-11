@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { fingerprint, parseBank, auditRetrieval } = require('../src/services/offlineRetrievalAudit.service');
+const { fingerprint, parseBank, annotationReport, evaluationProtocol, auditRetrieval } = require('../src/services/offlineRetrievalAudit.service');
 const { verifyAudit } = require('../scripts/verifyMultimodalAudit');
 const { buildComparisonRecords, GROUPS } = require('../src/services/multimodalOfflineEvaluation.service');
 
@@ -17,6 +17,7 @@ function fixture() {
   const records = bank.questions.flatMap(question => buildComparisonRecords({ questionId: question.id, scope,
     flat: { text: [chunks[1], chunks[0]], audio: [], visual: [] }, hierarchical: { text: [chunks[0]] } }));
   const config = { bankHash: fingerprint(bank), manifestHash: fingerprint(manifest), k: 60,
+    protocolHash: fingerprint(evaluationProtocol(bank)),
     perChannelLimit: 20, questionCount: bank.questions.length, groups: Object.keys(GROUPS),
     modes: ['flat', 'hierarchical'], weights: ['equal', 'text_weighted'],
     provenance: 'synthetic', formalEvaluation: false };
@@ -30,6 +31,19 @@ test('real bank has 43 answerable, 7 refusal questions and fails closed on X01 m
   assert.equal(parsed.filter(question => question.refused).length, 7);
   assert.deepEqual(parsed.find(question => question.id === 'X01').missingVideos, ['V5']);
   assert.throws(() => parseBank(bank), /X01.*V5/);
+  const protocol = evaluationProtocol(bank);
+  assert.equal(protocol.scoredQuestionIds.length, 43);
+  assert.equal(protocol.diagnosticQuestionIds.length, 7);
+  assert.equal(protocol.primaryCells.length, 4);
+  assert.equal(protocol.primaryCells.length * protocol.weights.length, 8);
+  assert.equal(annotationReport(bank).issues[0].approvedCorrection, null);
+  const issueFile = require('../../docs/04_Features/QA_Evaluation/datasets/annotation-issues.json');
+  assert.equal(issueFile.bankHash, fingerprint(bank));
+  assert.equal(issueFile.goldVersion, protocol.goldVersion);
+  assert.deepEqual(issueFile.issues, annotationReport(bank).issues);
+  const protocolFile = require('../../docs/04_Features/QA_Evaluation/datasets/retrieval-protocol.json');
+  assert.deepEqual(protocolFile.protocol, protocol);
+  assert.equal(protocolFile.protocolHash, fingerprint(protocol));
 });
 
 test('independent interval sweep agrees on overlaps, multiple gold, empty ranks and all 24 groups', () => {
@@ -97,6 +111,7 @@ test('overlapping gold is a union, disjoint gaps do not become relevant and equa
   for (const question of data.bank.questions.filter(question => !question.shouldRefuse)) question.expectedTimeRange = '10-12,18-20';
   data.manifest.chunks.push({ ...data.manifest.chunks[0], chunkId: 'short-gold', endSec: 12 });
   data.config.bankHash = fingerprint(data.bank);
+  data.config.protocolHash = fingerprint(evaluationProtocol(data.bank));
   data.config.manifestHash = fingerprint(data.manifest);
   const report = auditRetrieval(data);
   assert.equal(report.aggregates[0].recallAt5, 0);
@@ -123,6 +138,7 @@ test('a first relevant result at rank six misses Recall@5 but contributes MRR', 
   const report = auditRetrieval(data);
   const group = report.aggregates.find(row => row.mode === 'flat' && row.group === 'text');
   assert.equal(group.recallAt5, 0);
+  assert.equal(group.recallAt10, 1);
   assert.ok(Math.abs(group.mrr - 1 / 6) < 1e-12);
   assert.equal(verifyAudit({ ...data, report }), true);
 });

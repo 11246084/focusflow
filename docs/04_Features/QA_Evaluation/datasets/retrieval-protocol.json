@@ -1,0 +1,102 @@
+{
+  "protocol": {
+    "version": "focusflow-retrieval-v1",
+    "bankHash": "2c20e387f61cab5de19756e3348389fad231957b6989891cfa03a8cc6a67b742",
+    "goldVersion": "bank-sha256:2c20e387f61cab5de19756e3348389fad231957b6989891cfa03a8cc6a67b742",
+    "scoredQuestionIds": [
+      "F01",
+      "F03",
+      "F04",
+      "F05",
+      "F06",
+      "F07",
+      "F08",
+      "F09",
+      "F10",
+      "F11",
+      "F12",
+      "F15",
+      "F16",
+      "M01",
+      "M02",
+      "M04",
+      "M05",
+      "M07",
+      "M08",
+      "M10",
+      "M11",
+      "M13",
+      "M14",
+      "X01",
+      "X02",
+      "X03",
+      "X04",
+      "X05",
+      "D01",
+      "D02",
+      "D04",
+      "D05",
+      "D07",
+      "T01",
+      "T02",
+      "T04",
+      "T05",
+      "T06",
+      "C01",
+      "C02",
+      "C03",
+      "C05",
+      "C06"
+    ],
+    "diagnosticQuestionIds": [
+      "N01",
+      "N03",
+      "N04",
+      "N05",
+      "N06",
+      "N07",
+      "N10"
+    ],
+    "recallAt5": "question hit in first 5 / all 43 answerable questions",
+    "recallAt10": "secondary question hit in first 10 over the same 43 questions",
+    "mrr": "mean first reciprocal rank in saved top 20 over the same 43 questions",
+    "refusalPolicy": "excluded from retrieval averages; top score diagnostics only",
+    "primaryCells": [
+      {
+        "mode": "flat",
+        "group": "text"
+      },
+      {
+        "mode": "flat",
+        "group": "all"
+      },
+      {
+        "mode": "hierarchical",
+        "group": "text"
+      },
+      {
+        "mode": "hierarchical",
+        "group": "all"
+      }
+    ],
+    "weights": [
+      "equal",
+      "text_weighted"
+    ],
+    "diagnosticGroups": [
+      "text",
+      "audio",
+      "visual",
+      "text_audio",
+      "text_visual",
+      "all"
+    ],
+    "k": 60,
+    "perChannelLimit": 20
+  },
+  "protocolHash": "39f1048c3ed2373dba2940154136e75a8986437a06e31056bde2400811ad4374",
+  "sources": [
+    "docs/04_Features/Multimodal_Retrieval/decisions.md: baseline table and decisions 6/7/8/MA",
+    "docs/04_Features/QA_Evaluation/README.md: 50-question type distribution"
+  ]
+}

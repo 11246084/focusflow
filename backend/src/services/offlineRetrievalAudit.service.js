@@ -54,6 +54,32 @@ function relevant(chunk, targets) {
   return overlap >= (chunk.endSec - chunk.startSec) / 2;
 }
 
+function annotationReport(bank) {
+  const questions = parseBank(bank, { allowIncompleteGold: true });
+  return { schemaVersion: 'annotation-issues-v1', bankHash: fingerprint(bank), goldVersion: `bank-sha256:${fingerprint(bank)}`,
+    issues: questions.filter(question => question.missingVideos?.length).map(question => ({
+      questionId: question.id, status: 'needs-human-confirmation', missingTimeVideos: question.missingVideos,
+      original: { expectedVideos: bank.questions.find(row => row.id === question.id).expectedVideos,
+        expectedTimeRange: bank.questions.find(row => row.id === question.id).expectedTimeRange },
+      approvedCorrection: null,
+    })) };
+}
+
+function evaluationProtocol(bank) {
+  const questions = parseBank(bank, { allowIncompleteGold: true });
+  return { version: 'focusflow-retrieval-v1', bankHash: fingerprint(bank),
+    goldVersion: `bank-sha256:${fingerprint(bank)}`,
+    scoredQuestionIds: questions.filter(question => !question.refused).map(question => question.id),
+    diagnosticQuestionIds: questions.filter(question => question.refused).map(question => question.id),
+    recallAt5: 'question hit in first 5 / all 43 answerable questions',
+    recallAt10: 'secondary question hit in first 10 over the same 43 questions',
+    mrr: 'mean first reciprocal rank in saved top 20 over the same 43 questions',
+    refusalPolicy: 'excluded from retrieval averages; top score diagnostics only',
+    primaryCells: MODES.flatMap(mode => ['text', 'all'].map(group => ({ mode, group }))),
+    weights: WEIGHTS, diagnosticGroups: Object.keys(GROUPS),
+    k: 60, perChannelLimit: 20 };
+}
+
 function inspectInputs(bank, manifest) {
   const questions = parseBank(bank);
   requireCondition(Array.isArray(manifest?.chunks) && manifest.provenance, 'Chunk manifest with provenance required');
@@ -74,6 +100,7 @@ function inspectInputs(bank, manifest) {
 function auditRetrieval({ bank, manifest, records, config }) {
   const inputs = inspectInputs(bank, manifest);
   requireCondition(config?.bankHash === fingerprint(bank) && config.manifestHash === fingerprint(manifest), 'Manifest or bank hash changed');
+  requireCondition(config.protocolHash === fingerprint(evaluationProtocol(bank)), 'Evaluation protocol hash changed');
   requireCondition(config.k === 60 && config.perChannelLimit === 20 && config.questionCount === inputs.questions.length, 'Evaluation parameters changed');
   requireCondition(JSON.stringify(config.modes) === JSON.stringify(MODES)
     && JSON.stringify(config.weights) === JSON.stringify(WEIGHTS)
@@ -104,6 +131,7 @@ function auditRetrieval({ bank, manifest, records, config }) {
     const first = hits.indexOf(true);
     return { questionId: record.questionId, mode: record.mode, group: record.group, weighting: record.weighting,
       recallAt5: question.refused ? null : Number(hits.slice(0, 5).some(Boolean)),
+      recallAt10: question.refused ? null : Number(hits.slice(0, 10).some(Boolean)),
       mrr: question.refused ? null : first < 0 ? 0 : 1 / (first + 1),
       refusalTopScore: question.refused ? record.ranked[0]?.score ?? null : null };
   });
@@ -113,14 +141,15 @@ function auditRetrieval({ bank, manifest, records, config }) {
     const rows = perQuery.filter(row => row.mode === mode && row.group === group && row.weighting === weighting && row.recallAt5 !== null);
     aggregates.push({ mode, group, weighting, count: rows.length,
       recallAt5: rows.reduce((sum, row) => sum + row.recallAt5, 0) / rows.length,
+      recallAt10: rows.reduce((sum, row) => sum + row.recallAt10, 0) / rows.length,
       mrr: rows.reduce((sum, row) => sum + row.mrr, 0) / rows.length });
   }
   return { status: 'AUDITED', provenance: config.provenance, formalEvaluation: false, qualityClaim: false,
     metricDefinition: 'question hit within top 5; first reciprocal rank within saved top 20; refusal questions excluded',
     bankHash: config.bankHash, manifestHash: config.manifestHash,
-    configHash: fingerprint(config), rankingHash: fingerprint(records),
+    configHash: fingerprint(config), rankingHash: fingerprint(records), protocolHash: config.protocolHash,
     missingRefusalScores: perQuery.filter(row => row.recallAt5 === null && row.refusalTopScore === null).length,
     perQuery, aggregates };
 }
 
-module.exports = { fingerprint, parseBank, inspectInputs, auditRetrieval, MODES, WEIGHTS };
+module.exports = { fingerprint, parseBank, annotationReport, evaluationProtocol, inspectInputs, auditRetrieval, MODES, WEIGHTS };

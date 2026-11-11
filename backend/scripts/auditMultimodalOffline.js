@@ -1,5 +1,5 @@
 const fs = require('node:fs');
-const { fingerprint, parseBank, inspectInputs, auditRetrieval } = require('../src/services/offlineRetrievalAudit.service');
+const { fingerprint, parseBank, annotationReport, evaluationProtocol, inspectInputs, auditRetrieval } = require('../src/services/offlineRetrievalAudit.service');
 const { verifyAudit } = require('./verifyMultimodalAudit');
 
 function run(argv) {
@@ -12,7 +12,9 @@ function run(argv) {
     .map(question => ({ questionId: question.id, missingTimeVideos: question.missingVideos }));
   if (gaps.length) return { status: 'BLOCKED', reason: 'Incomplete human gold labels', bankHash: fingerprint(bank),
     questionCount: questions.length, answerableCount: questions.filter(question => !question.refused).length,
-    refusalCount: questions.filter(question => question.refused).length, gaps };
+    refusalCount: questions.filter(question => question.refused).length, gaps,
+    annotationIssues: annotationReport(bank), protocol: evaluationProtocol(bank),
+    protocolHash: fingerprint(evaluationProtocol(bank)) };
   if (inspectionOnly) return { status: 'BANK_VALIDATED', bankHash: fingerprint(bank), questionCount: questions.length,
     answerableCount: questions.filter(question => !question.refused).length,
     refusalCount: questions.filter(question => question.refused).length };

@@ -114,6 +114,19 @@ for (const [name, code] of [['重複結果拒收', 'RECUT_LEASE_INVALID'], ['結
   assert.equal((await s.worker.runOnce()).code, code); assert.equal(attempts, 1); assert.equal(s.failure.length, 0);
   assert.deepEqual(await fs.readdir(s.root), []);
 });
+test('暫存資料夾清不掉時仍回報成功結果，下一次可以再領工作', async (t) => {
+  let removals = 0;
+  const s = await setup(t, { dependencies: { removeDirectory: async () => { removals++; throw Object.assign(new Error('busy'), { code: 'EBUSY' }); } } });
+  const originalError = console.error; console.error = () => {};
+  t.after(() => { console.error = originalError; });
+  const first = await s.worker.runOnce();
+  assert.equal(first.status, 'succeeded');
+  assert.equal(removals, 1);
+  // busy 沒有被放掉的話，這裡會丟 RECUT_WORKER_BUSY。
+  const second = await s.worker.runOnce();
+  assert.equal(second.status, 'succeeded');
+  assert.equal(s.calls.filter((c) => c === 'claim').length, 2);
+});
 test('不接受renderer指向工作目錄之外的成品', async (t) => {
   const s = await setup(t, { renderer: async ({ outDir }) => {
     const filePath = path.join(path.dirname(outDir), 'outside.mp4'); await fs.writeFile(filePath, 'outside');

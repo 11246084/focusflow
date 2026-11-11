@@ -1637,6 +1637,87 @@ describe('LINE 審查修正回歸', () => {
     });
   });
 
+  describe('Webhook 重送去重', () => {
+    async function postQuestionEvent(webhookEventId, { isRedelivery = false } = {}) {
+      lineEventSequence += 1;
+      const payload = JSON.stringify({
+        events: [{
+          type: 'message',
+          ...(webhookEventId ? { webhookEventId } : {}),
+          deliveryContext: { isRedelivery },
+          replyToken: `reply-dedup-${lineEventSequence}`,
+          source: { type: 'user', userId: 'line-student-001' },
+          message: { type: 'text', text: 'JWT authentication 是什麼？' },
+        }],
+      });
+      return postLineWebhook(serverContext.baseUrl, payload, {
+        'x-line-signature': createLineSignature(payload),
+      });
+    }
+
+    function setupAskingStudent() {
+      const student = store.users.find((user) => user._id === ids.student);
+      student.activeCourseId = ids.publishedCourse;
+      student.lineConversationHistory = [];
+      return student;
+    }
+
+    it('同一個 webhookEventId 送來第二次：不再提問、不再回覆、不重複計次', async () => {
+      setupAskingStudent();
+      const calls = stubLineApi();
+      const eventId = `evt-dedup-${Date.now()}-a`;
+
+      const first = await postQuestionEvent(eventId);
+      const repliesAfterFirst = calls.replies.length;
+      const usageLogsAfterFirst = store.usageLogs.length;
+      const second = await postQuestionEvent(eventId, { isRedelivery: true });
+
+      assert.equal(first.body.data.results[0].handled, true);
+      assert.equal(second.status, 200);
+      assert.equal(second.body.data.results[0].handled, false);
+      assert.equal(second.body.data.results[0].reason, 'duplicate_event');
+      assert.equal(calls.replies.length, repliesAfterFirst);
+      assert.equal(store.questions.length, 1);
+      assert.equal(usageLogsAfterFirst > 0, true);
+      assert.equal(store.usageLogs.length, usageLogsAfterFirst);
+    });
+
+    it('不同的 webhookEventId 或沒有 webhookEventId 的事件照常各處理一次', async () => {
+      setupAskingStudent();
+      stubLineApi();
+
+      const first = await postQuestionEvent(`evt-dedup-${Date.now()}-b`);
+      const second = await postQuestionEvent(`evt-dedup-${Date.now()}-c`);
+      const third = await postQuestionEvent(null);
+      const fourth = await postQuestionEvent(null);
+
+      for (const result of [first, second, third, fourth]) {
+        assert.equal(result.body.data.results[0].handled, true);
+      }
+      assert.equal(store.questions.length, 4);
+    });
+
+    it('第一次處理失敗的事件，重送時會再處理一次', async () => {
+      setupAskingStudent();
+      env.lineChannelAccessToken = 'review-regression-access-token';
+      const eventId = `evt-dedup-${Date.now()}-d`;
+      // 第一次：LINE 的 reply 與 push 都失敗，事件以 internal_error 結束。
+      global.fetch = async (url, options) => {
+        if (!String(url).startsWith('https://api.line.me/')) return originalFetch(url, options);
+        if (String(url).endsWith('/chat/loading/start')) return { ok: true, text: async () => '' };
+        return { ok: false, text: async () => 'line api down' };
+      };
+      const failed = await postQuestionEvent(eventId);
+      assert.equal(failed.body.data.results[0].reason, 'internal_error');
+
+      const calls = stubLineApi();
+      const retried = await postQuestionEvent(eventId, { isRedelivery: true });
+
+      assert.equal(retried.body.data.results[0].handled, true);
+      assert.equal(calls.replies.length > 0, true);
+    });
+  });
+
   describe('Webhook 簽章比對', () => {
     it('長度相同但內容錯誤的簽章回 401 LINE_SIGNATURE_INVALID', async () => {
       const payload = JSON.stringify({ events: [] });

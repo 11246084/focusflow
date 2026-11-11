@@ -31,6 +31,40 @@ const {
 
 // LINE Bot API 的基底 URL，所有發送訊息的請求都打這裡
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
+// LINE API 卡住時不能讓 webhook 一直等；逾時後 reply 會改走 push，讀取動畫則直接略過。
+const LINE_API_TIMEOUT_MS = 10 * 1000;
+const LINE_LOADING_TIMEOUT_MS = 3 * 1000;
+
+// webhook 重送去重：問答在回應 LINE 之前同步執行（十幾秒），LINE 後台開啟重送時，
+// 同一個事件可能被送來第二次，學生會收到兩次回答、提問次數也算兩次。
+// 以事件的 webhookEventId 記住處理過（含處理中）的事件一小時；只存在這個程序的記憶體，
+// 重啟後清空，足以涵蓋重送，不需要另開資料表。沒有 webhookEventId 的事件不去重。
+const WEBHOOK_EVENT_TTL_MS = 60 * 60 * 1000;
+const WEBHOOK_EVENT_CACHE_LIMIT = 5000;
+const seenWebhookEvents = new Map();
+
+function claimWebhookEvent(event, now = Date.now()) {
+  const eventId = typeof event?.webhookEventId === 'string' ? event.webhookEventId : '';
+  if (!eventId) return { eventId: null, duplicate: false };
+
+  const seenAt = seenWebhookEvents.get(eventId);
+  if (seenAt !== undefined && now - seenAt < WEBHOOK_EVENT_TTL_MS) {
+    return { eventId, duplicate: true };
+  }
+
+  // Map 依加入順序排列，最舊的在最前面：先清掉過期的，仍超過上限就丟最舊的。
+  for (const [key, value] of seenWebhookEvents) {
+    if (now - value < WEBHOOK_EVENT_TTL_MS && seenWebhookEvents.size < WEBHOOK_EVENT_CACHE_LIMIT) break;
+    seenWebhookEvents.delete(key);
+  }
+  seenWebhookEvents.delete(eventId);
+  seenWebhookEvents.set(eventId, now);
+  return { eventId, duplicate: false };
+}
+
+function releaseWebhookEvent(eventId) {
+  if (eventId) seenWebhookEvents.delete(eventId);
+}
 
 // 對話狀態機：記錄使用者目前在 LINE 對話流程中的哪個步驟
 // IDLE：正常狀態，可以直接提問
@@ -422,6 +456,7 @@ async function replyMessage(replyToken, messages) {
       Authorization: `Bearer ${env.lineChannelAccessToken}`,
     },
     body: JSON.stringify({ replyToken, messages }),
+    signal: AbortSignal.timeout(LINE_API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -446,6 +481,7 @@ async function pushMessage(lineUserId, messages) {
       Authorization: `Bearer ${env.lineChannelAccessToken}`,
     },
     body: JSON.stringify({ to: lineUserId, messages }),
+    signal: AbortSignal.timeout(LINE_API_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -483,6 +519,7 @@ async function startLoadingAnimation(lineUserId) {
         Authorization: `Bearer ${env.lineChannelAccessToken}`,
       },
       body: JSON.stringify({ chatId: lineUserId, loadingSeconds: 60 }),
+      signal: AbortSignal.timeout(LINE_LOADING_TIMEOUT_MS),
     });
   } catch {
     // ignore
@@ -1606,9 +1643,25 @@ async function processWebhookEvents(events) {
   const results = [];
 
   for (const event of events) {
+    const claim = claimWebhookEvent(event);
+    if (claim.duplicate) {
+      // 重送的事件：第一次已經處理（或正在處理），不再回覆、不再呼叫問答。
+      results.push({
+        type: event?.type || 'unknown',
+        handled: false,
+        reason: 'duplicate_event',
+        replySent: false,
+        replySkipped: true,
+        replyReason: 'duplicate_event',
+      });
+      continue;
+    }
+
     try {
       results.push(await processWebhookEvent(event));
     } catch (error) {
+      // 這次沒有處理完，放掉紀錄，LINE 重送時可以再處理一次。
+      releaseWebhookEvent(claim.eventId);
       // 單一事件處理失敗時記錄錯誤，但繼續處理下一個事件
       results.push({
         type: event?.type || 'unknown',

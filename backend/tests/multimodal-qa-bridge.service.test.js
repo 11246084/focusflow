@@ -131,6 +131,16 @@ test('穩定版文字只覆蓋部分且聲音畫面都沒有結果時，退回�
   assert.deepEqual(result.matches[0].retrievedBy, ['text']);
 });
 
+test('資料庫裡的逐字稿前後有空白時，仍可和既有文字檢索的結果合併', async () => {
+  const a = chunkOf('a', 10);
+  const stored = { ...a, text: `  ${a.text}\n` };
+  const result = await retrieveForQa({ ...base, ...atlasFixture({ audioEmbedding: [stored], visualEmbedding: [] }),
+    textSearch: async () => [a], loadEvidence: async () => [a], minTextCandidates: 1 });
+  assert.equal(result.usedFallback, false);
+  assert.deepEqual(result.matches[0].retrievedBy, ['text', 'audio']);
+  assert.equal(result.matches[0].transcript, a.text);
+});
+
 test('穩定版文字向量覆蓋足夠時照常使用，不另外呼叫既有文字檢索', async () => {
   const a = chunkOf('a', 10); const b = chunkOf('b', 20);
   let textCalls = 0;

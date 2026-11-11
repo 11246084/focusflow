@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+給組員的架構、成果層級、真實小樣本證據與下一步，先讀 [多模態團隊進度總覽](04_Features/Multimodal_Retrieval/team-overview.md)（2026-11-11 快照；最新狀態以 current-status 為準）。
+
 多模態授權邊界、Contract-first 測試矩陣與待審修正方案見 [授權契約審查](04_Features/Multimodal_Retrieval/authorization-contract-review.md)。
 
 第九階段離線驗算、Parent fixture 與瀏覽器 smoke 操作見 [多模態離線驗收](04_Features/Multimodal_Retrieval/offline-acceptance.md)。

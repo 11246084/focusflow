@@ -107,4 +107,4 @@ HTTP authenticate → 服務端 req.user → Course.findById → assertCanAccess
 3. U01/U02 先由使用者確認「合法掛載的影片是否共用同一 Leaf／向量，Leaf／media metadata 的 courseId 是否僅表來源」。建議沿用既有影片授權關係，但這只是建議；不得以本文件直接核准更改 Adapter 明示衝突規則。U03 可先做文件更正，runtime 字串另列小修正候選。
 4. 只有新測試在合法前置下證實明確違約，才提出該層最小程式修補並取得授權。禁止為 A05 加 mandatory courseId filter、補寫 Atlas.courseId、移除合法 Chunk、修改 RRF 或擴大 Bridge 職責。未取得一致契約前不重啟 Atlas 寫入／索引變更。
 
-本輪交付的是契約分析與待審矩陣。沒有執行新矩陣、修改正式模組／資料、重新連線 Atlas、付費模型、部署或 commit／push；實作及驗收標籤仍待後續授權與證據。
+契約審查當輪只交付分析與待審矩陣，沒有執行新矩陣、修改正式模組／資料、重新連線 Atlas、付費模型或部署。之後已依文件保存授權獨立提交於 `0891715`；這不改變實作與驗收標籤仍待後續授權及證據的限制。

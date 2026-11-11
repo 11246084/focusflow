@@ -4,6 +4,21 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態團隊溝通快照（2026-11-11）
+
+組員先讀 [團隊總覽](04_Features/Multimodal_Retrieval/team-overview.md)，再依需要看 [契約矩陣](04_Features/Multimodal_Retrieval/authorization-contract-review.md) 與 [Atlas 去敏實測摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-11-atlas-sample-summary.json)。總覽是當日溝通快照，本文件仍為唯一持續維護的狀態正本；不要把下方歷次快照直接當現在的放行條件。
+
+| 完成層級 | 已有成果與證據 | 明確未完成 |
+|---|---|---|
+| 程式已實作 | 逐 Chunk 影音／Gemini Adapter、Atlas Adapter、固定 RRF、QA Bridge、QA 開關／回退、FAQ 分版與引用；CAS 與索引安全工具 | 不代表正式 runtime 已啟用；本輪未查正式旗標 |
+| 離線驗證 | 66/66 安全工具與相關回歸；歷次本機 QA／引用及 Parent 合成驗證 | 新增 25 項 Contract-first 矩陣只完成設計，尚未實作／執行 |
+| 真實小樣本 | 12 個保存 Gemini 輸入結果；三筆九向量實際 Atlas 寫入、三題三路、兩版 RRF、舊文字與安全回復均有來源 | 原偽造 scope probe 不構成正式 QA 漏洞證據，也不代表完整授權測試通過 |
+| 全量／正式驗收 | 尚未完成；維持明確限制 | 694 筆全量影音、完整一致 Parent／語料、X01 核定、正式 43 題比較、正式網站多模態 E2E、開啟／部署決策 |
+
+Atlas 第一輪實測已結束並完整回復，最後 694 筆指定範圍完整文件與備份相同、全 collection 815 筆、原索引三節點 READY／QUERYABLE、舊文字三筆 rank 1。新三路資料及 path 沒有留作持續啟用；原查詢／回復觀察詳見下節與去敏 JSON。該 JSON 只含 allowlist 的識別碼、時間、排名／分數及雜湊，不含向量、逐字稿、憑證、完整 metadata 或私人帳號。
+
+契約審查已於 `0891715` 獨立保存；本輪另外授權團隊文件整理與 dev 提交，不授權功能實作、重新寫 Atlas 或部署。接下來先核定 U01/U02 與測試矩陣，再只補本機測試；合法前置下若有明確違約才提最小修補。之後全量、正式評測與部署各依條件另行授權。11/13 完整目標仍有時程風險，不以三題結果替代完整交付。
+
 ## 多模態 Contract-first 契約審查（2026-11-11）
 
 以 dev `13e8a8c` 完成 HANDOFF／decisions／QA-Adapter 契約、Course／Video 授權、資料模型與相關測試的靜態審查。既有契約明確支援 Leaf 缺頂層 courseId：正式 QA 先驗課程存取，再由服務端 Course／Video 關係產生 canonical 影片 allowlist，並在候選與逐字稿階段複核。控制器不接受客戶端傳入的任意 scope；Adapter／Bridge 的 scope 則要求由呼叫端先授權。

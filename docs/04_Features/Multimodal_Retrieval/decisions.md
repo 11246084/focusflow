@@ -10,7 +10,7 @@
 
 原 20:00–22:00 窗口取消，不排程或自動開始。無操作衝突與使用者的 Project Data Access Admin 角色已確認，使用者接受持續值守、READY 才繼續、BUILDING 不重送、FAILED／逾時／未知結果停止、依前像與 receipt 安全回復、無法安全回復則交 Project Owner／MongoDB 支援。一般操作不再要求另一位管理者；角色不等於保證所有平台異常都可自行處理。
 
-前輪使用者已單獨授權一次 B 小樣本實測及回復；本輪改為 Contract-first 契約審查與測試設計，不延用該次授權重新變更 Atlas，也不改 QA／Adapter／RRF／Bridge。使用者已接受 Atlas 小樣本不含正式站 E2E，以及 M0 監測盲區與重建耗時風險。當次證據與剩餘風險以 [目前狀態](../../current-status.md) 為準；下方歷史窗口及待確認敘述依本段最新決策解讀。本輪不自行 commit／push。
+前輪使用者已單獨授權一次 B 小樣本實測及回復；之後改為 Contract-first 契約審查與測試設計，不延用該次授權重新變更 Atlas，也不改 QA／Adapter／RRF／Bridge。使用者已接受 Atlas 小樣本不含正式站 E2E，以及 M0 監測盲區與重建耗時風險。當次證據與剩餘風險以 [目前狀態](../../current-status.md) 為準；下方歷史窗口及待確認敘述依本段最新決策解讀。契約審查已獨立保存；最新授權只增文件整理、commit／push 與 [團隊溝通快照](team-overview.md)，不代表授權實作、Atlas 變更或部署。
 
 索引操作沿用既有 Node Driver 工具，預設 Dry Run，執行須當次資料 planHash、索引 operationHash 及可回讀的磁碟 receipt。每次送出前核對前像／版本／三節點，送出後等待三節點完成；結果不明不重送、不盲目反向更新，CAS 衝突不覆寫。工具與回復關卡見 [Atlas 計畫](atlas-preparation.md#node-driver-離線驗證與操作介面)。
 

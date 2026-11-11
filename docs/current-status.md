@@ -4,6 +4,16 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 第十階段題庫一致性與完整本機問答（2026-11-11）
+
+已核對 decisions 基線表／第 6、7、8 項及 MA，固定 50 題中 43 可回答為 Recall@5／Recall@10／MRR 分母，7 拒答只另列診斷。新增 annotation-issues.json、retrieval-protocol.json 與 protocolHash／goldVersion 綁定。X01 在主評分表「評分表」F25／G25、ad84f6d 最初題庫及 8/24、9/3 結果都是同一缺漏，無 V5 人工時間來源，原題庫與主評分表未改，正式品質評測仍 BLOCKED。
+
+已用本機 Vite 的完整學生頁及隔離 Express 跑過實際登入、進課、六種問答情境、引用卡片、對話重載與 HTML video 跳轉。六情境為 off／flat／hierarchical／missing-index／all-failed／invalid-time，對話 POST 皆 201、越權課程皆 403，原始 1752.15–1754.55 秒與身份／排名保留，播放器實測落在原始起點附近。保存 Gemini query 為真實向量，Atlas／embedding HTTP 為 Fake、Parent 為 synthetic、回答為 template、影片為 1800 秒合成黑畫面。完整頁 headless Edge 自動驗收通過，未做正式站人工驗收、真實教學影片播放或真實生成品質驗收。
+
+Atlas 管理端資源、低風險窗口與另外的資料／索引執行授權仍未取得。小樣本真實驗證沿用既有 B 工具，實際窗口才重驗前像，不重跑無意義的 Dry Run。本輪未連 Atlas、未呼叫付費模型、未部署或操作 VM。詳見[驗收操作](04_Features/Multimodal_Retrieval/offline-acceptance.md)及 [Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
+Node 22.23.4：後端受影響回歸 210/210、無失敗／略過；含完整頁瀏覽器的 QA 檔 4/4 通過，主案例內跑六情境及對話重載。前端 184/184、lint／build 通過，保留大 bundle 警告。X01 inspect 預期 BLOCKED，沒有正式 Recall／MRR；未跑全套 Backend／pipeline、真實 Atlas 或正式站人工驗收。命令與來源快照見[驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
 ## 第九階段多模態離線驗收（2026-11-11）
 
 新增真正經既有 Parent search／Child expansion／Leaf context 的合成 fixture，Flat 與 Hierarchical 的文字候選不同，media 候選固定。覆蓋父子不同時間、合成向量排序、缺 Parent／Child、部分 Child、重複命中與跨課影片回退；正式 QA 測試另走 Fake Parent serve rollout。既有 Adapter、RRF、Bridge 與正式 QA 接線沿用。

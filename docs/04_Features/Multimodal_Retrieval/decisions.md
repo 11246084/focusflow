@@ -80,6 +80,12 @@
 
 完整書目、我們實際讀到的範圍與各篇限制見[參考文獻](references.md)；表中以 R（論文）、D（官方與業界文件）編號標示。只讀過摘要的論文，不引用摘要以外的內容。
 
+## 第十階段口徑核對（2026-11-11）
+
+沿用基線表、第 6／7／8 項及 MA，43 題是固定題庫中 shouldRefuse=false 的明確題號清單，7 題課程外診斷排除分母。主矩陣仍四格，兩版權重輸出與六組診斷不計成新增獨立題目或實驗。機器可核對的版本見 [retrieval-protocol.json](../QA_Evaluation/datasets/retrieval-protocol.json)。
+
+X01 的主評分表、最初提交及歷史結果均保留相同缺漏，沒有可核實的 V5 人工時間，待答事項與建議核定流程仍依 [annotation-issues.json](../QA_Evaluation/datasets/annotation-issues.json)，不得自動刪除 V5 或補時間。完整學生頁本機驗收操作見[離線驗收](offline-acceptance.md)，結果以[目前狀態](../../current-status.md)為準。
+
 ## 第九階段離線驗收邊界（2026-11-11）
 
 沿用第 7、8 項與 MA，離線驗算按題級 Recall@5／保存前 20 名的 MRR 與拒答題排除規則，採兩個獨立評分實作交叉核對。語料、題庫、排名與設定以 hash 綁定；合成 Parent 與合成 gold 只用於工具驗證。工具拒絕 formalEvaluation=true，不產生正式品質宣稱。

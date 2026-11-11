@@ -56,3 +56,28 @@ node frontend/focus-flow/tests/browser/citationSmoke.mjs .local-tools/phase2-val
 ```
 
 這是實際引用元件的本機 smoke，範圍不含整個 StudentCourses 頁面、正式播放器或正式站人工驗收。若缺瀏覽器，明列未執行，不自動安裝或宣稱通過。
+
+## 第十階段固定口徑
+
+`evaluationProtocol(bank)` 產生明確的 43 題計分清單與 7 題診斷清單，依據 decisions 基線表、第 6／7／8 項與 MA，沒有另選子集。Recall@5 為前五筆命中題數／43，Recall@10 同理；MRR 為保存前 20 名的首個相關名次倒數加總／43。7 題拒答不納入這三個平均，另列 top-score；人工拒答評分仍屬回答品質評測。
+
+主比較為 Flat／Hierarchical × text／all 共四格，等權及文字 2:1:1 各留一版，形成八組輸出。text 單路的權重不改排序，不重複計為新實驗。完整六組模態 × 兩模式 × 兩權重共 24 組診斷輸出，包含主比較而非額外再加；每組分母維持 43，不能把重複條件加大樣本數。若含拒答診斷，全 50 題輸出為 1200 筆，其中 1032 筆計分、168 筆拒答診斷；這是列數，獨立計分題數仍為 43。
+
+config 現在還必須包含 `protocolHash=fingerprint(evaluationProtocol(bank))`。protocol 與 annotation issue 都帶 `goldVersion=bank-sha256:<bankHash>`，獨立 checker 會核對 protocolHash；題庫／標註改動後不能沿用舊 config 或成績。[annotation-issues.json](../QA_Evaluation/datasets/annotation-issues.json)記錄 X01 原值、主評分表儲存格／SHA、最初提交、兩次歷史結果與核定流程，沒有修改人工標註。
+
+## 完整本機學生頁驗收
+
+沿用 `multimodal-qa.integration.test.js` 的隔離 Express／stub models，設定以下測試參數後執行該檔。`runStudentBrowserFixture.mjs` 在同一測試生命週期建立本機 Vite，瀏覽器真的操作登入、我的課程、輸入提問、API 對話、引用卡片與 HTML video；外部網路請求在瀏覽器端攔阻，Node 端 Gemini HTTP 由既有 fixture 攔截。
+
+- MULTIMODAL_OFFLINE_BUNDLE 指向保存 bundle。
+- MULTIMODAL_FULL_BROWSER_OUTPUT 指向忽略目錄的結果／截圖資料夾。
+- MULTIMODAL_SYNTHETIC_MEDIA 指向本機合成影片，長度須涵蓋 fixture 原始引用秒數。
+- PLAYWRIGHT_MODULE_PATH、PLAYWRIGHT_CHROMIUM_EXECUTABLE 沿用已安裝的 Playwright 與 Edge／Chromium。
+
+例如使用既有 imageio_ffmpeg 的 ffmpeg 將 `color=c=black:s=160x90:r=1` 編成 1800 秒 H.264／yuv420p MP4，放入 `.local-tools/phase2-validation/`。這是合成黑畫面，不對應教學內容。測試將它複製到 harness 私有 uploads，僅在 test env 開啟 local playback，結束時關閉 browser／Vite、恢復記憶體設定與 fixture，清除該份測試媒體副本，不啟動正式 server 或 queue。
+
+```powershell
+node --test backend/tests/multimodal-qa.integration.test.js
+```
+
+瀏覽器驗證六情境為 flag off、flat、hierarchical、missing-index、all-failed、invalid-time。檢查引用 video／chunk／channelRanks／原始起訖、API status、回退診斷、跨課 403 及播放器 currentTime；Flat 另重新整理並從最近對話恢復，再點引用跳轉。保存 checkpoint 是真實向量，Atlas／embedding HTTP／Parent 是假介面或合成關係，回答為 template，媒體為 synthetic。結果只證明本機整合與播放跳轉，不代表真實 Atlas、生成品質或正式站已驗收。

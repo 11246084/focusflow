@@ -97,7 +97,7 @@ R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）�
 
 **文字問答與多輪對話｜已實作。** 含課程範圍檢查、來源引用、常見問題快取及對話紀錄；快取是保留可重用回答以減少重複計算。依據：[問答服務](../backend/src/services/qa.service.js)、[對話服務](../backend/src/services/conversation.service.js)；回答品質與外部模型 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
-**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。2026-11-10 整合審查修正了停用帳號仍可在 LINE 提問、回答卡第一筆引用可能連到別段等問題，只有替身測試、尚未部署與實機驗證，見 [LINE 進度](04_Features/LINE_Binding/evidence/進度.md)。
+**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。2026-11-10 整合審查修正了停用帳號仍可在 LINE 提問、回答卡第一筆引用可能連到別段等問題，2026-11-11 再補上 webhook 重送去重、LINE API 逾時、教師首頁網頁與 LINE 提問數分開顯示，以及回呼頁兩個操作卡點。以上都只有替身測試、尚未部署與實機驗證，見 [LINE 進度](04_Features/LINE_Binding/evidence/進度.md)。
 
 **LINE Login 綁定與圖文選單｜已部署，正式站手機實測通過（僅一個帳號）。** 依 [LINE 決策](04_Features/LINE_Binding/decisions.md) LL、LM～LM4：學生按「連結帳號」到 LINE 授權後就完成綁定，不需綁定碼；未綁定看到「連結帳號」選單，綁定後換成 2×2 四格「切換課程、今日額度、使用說明、網頁版」，解除時換回；另有「今日額度」「使用說明」指令、課程卡片直接選課與回答分段。依據：[LINE Login 服務](../backend/src/services/lineLogin.service.js)、[選單服務](../backend/src/services/lineRichMenu.service.js)、[建立腳本](../backend/src/scripts/setupLineRichMenus.js)。2026-11-04 部署 `07c8c30`、`2d5e4d2`；LINE Login channel「FocusFlow 綁定」改為 Published，VM `backend/.env` 設定 `LINE_LOGIN_*` 三項與 `LINE_RICH_MENU_BOUND_ID`。同日以一個帳號在手機實測：解除綁定後選單換成「連結帳號」→ LINE 授權 → 綁定成功 → 選單換成 2×2。未測：從未加好友的帳號與歡迎訊息、電腦版 LINE、LINE 已綁定其他帳號的衝突、多位學生同時使用。後端完整測試有三支既有逾時測試會卡住整輪，本次排除未驗證（見決策 LM4）。最後驗證：2026-11-04；負責人：＿＿（待填）。
 

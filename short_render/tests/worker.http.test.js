@@ -86,6 +86,45 @@ test('request timeout取消fetch，不無限等待', async () => {
   }), { requestTimeoutMs: 15 });
   await assert.rejects(api.heartbeat(job), { code: 'RECUT_REQUEST_TIMEOUT_OR_CANCELLED' });
 });
+function slowStream(chunks, gapMs, { stallAfter = Infinity } = {}) {
+  let sent = 0, timer;
+  return new ReadableStream({
+    pull(controller) {
+      if (sent >= stallAfter) return new Promise(() => {});
+      return new Promise((resolve) => { timer = setTimeout(() => {
+        if (sent < chunks) { controller.enqueue(new TextEncoder().encode('x'.repeat(8))); sent++; }
+        if (sent >= chunks) controller.close();
+        resolve();
+      }, gapMs); });
+    },
+    cancel() { clearTimeout(timer); },
+  });
+}
+test('下載只要資料持續進來就不受總時限中斷：總時間超過request timeout仍完成', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-http-test-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const destination = path.join(root, 'source.mp4');
+  // 8 段、每段間隔 30ms，總長約 240ms；逾時設 100ms（舊的總時限做法一定中斷）。
+  const api = client(async () => new Response(slowStream(8, 30), { headers: { 'Content-Type': 'video/mp4' } }), { requestTimeoutMs: 100 });
+  await api.download(job, destination);
+  assert.equal((await fs.stat(destination)).size, 64);
+});
+test('下載中途完全沒有資料超過request timeout即中止，回報逾時而不是渲染失敗', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-http-test-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const keeper = setTimeout(() => {}, 2000); t.after(() => clearTimeout(keeper));
+  const api = client(async () => new Response(slowStream(8, 5, { stallAfter: 2 }), { headers: { 'Content-Type': 'video/mp4' } }), { requestTimeoutMs: 60 });
+  const started = Date.now();
+  await assert.rejects(api.download(job, path.join(root, 'source.mp4')), { code: 'RECUT_REQUEST_TIMEOUT_OR_CANCELLED' });
+  assert.ok(Date.now() - started < 1500);
+});
+test('上傳時限依檔案大小放寬：超過request timeout才回應的上傳仍成功', async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'recut-http-test-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const file = path.join(root, 'final.mp4'); await fs.writeFile(file, 'synthetic-output');
+  const api = client(async (_url, { signal }) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(Response.json({ success: true, data: { assetId: 'd'.repeat(24) } })), 120);
+    signal.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+  }), { requestTimeoutMs: 30 });
+  assert.deepEqual(await api.upload(job, file, {}), { assetId: 'd'.repeat(24) });
+});
 test('注入的金鑰provider卡住也受request timeout約束', async () => {
   const keeper = setTimeout(() => {}, 1000);
   try {

@@ -14,6 +14,10 @@ Atlas 管理端資源、低風險窗口與另外的資料／索引執行授權�
 
 Node 22.23.4：後端受影響回歸 210/210、無失敗／略過；含完整頁瀏覽器的 QA 檔 4/4 通過，主案例內跑六情境及對話重載。前端 184/184、lint／build 通過，保留大 bundle 警告。X01 inspect 預期 BLOCKED，沒有正式 Recall／MRR；未跑全套 Backend／pipeline、真實 Atlas 或正式站人工驗收。命令與來源快照見[驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
 
+推送前取得 Weihao 新增五筆至 `3e521ed`，以一般 merge `705ad76` 安全整合，保留 LINE 去重／逾時、教師統計及前端連結修正。合併後重跑受影響後端並納入 teacherStats，218/218；前端 192/192、lint／build、OpenAPI lint 通過；完整學生頁 QA 檔 4/4、六情境與對話重載再次通過。無失敗或略過，仍未跑全套 Backend／pipeline。
+
+接續中斷工作時本機與 origin/dev 已同為 `b5bd95b`，包含本輪提交及後續短影片修補。本輪多模態程式與前端相對 `705ad76` 無差異；在 b5bd95b 再跑同一後端子集，218/218、無失敗／略過。前端與瀏覽器沿用上述相同程式版本的已通過結果。
+
 ## 第九階段多模態離線驗收（2026-11-11）
 
 新增真正經既有 Parent search／Child expansion／Leaf context 的合成 fixture，Flat 與 Hierarchical 的文字候選不同，media 候選固定。覆蓋父子不同時間、合成向量排序、缺 Parent／Child、部分 Child、重複命中與跨課影片回退；正式 QA 測試另走 Fake Parent serve rollout。既有 Adapter、RRF、Bridge 與正式 QA 接線沿用。

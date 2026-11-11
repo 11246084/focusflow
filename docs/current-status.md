@@ -4,6 +4,18 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 第九階段多模態離線驗收（2026-11-11）
+
+新增真正經既有 Parent search／Child expansion／Leaf context 的合成 fixture，Flat 與 Hierarchical 的文字候選不同，media 候選固定。覆蓋父子不同時間、合成向量排序、缺 Parent／Child、部分 Child、重複命中與跨課影片回退；正式 QA 測試另走 Fake Parent serve rollout。既有 Adapter、RRF、Bridge 與正式 QA 接線沿用。
+
+新增本機排名 auditor 與獨立區間掃描 checker，校驗固定 43 題可回答／7 題拒答、gold 時間、manifest、身份、rank、完整 24 組與輸入 hash。發現 X01 宣告 V2+V3+V5，時間只標 V2／V3；真實題庫輸出 BLOCKED，未修改 gold 或產出正式品質分數。合成 43 題驗算僅驗證算式。完整 43 題實測還缺題庫維護者確認 X01、完整一致模型版本的語料／Parent／媒體向量與真實排名。
+
+引用標籤抽成實際 React 元件並補 aria-label。保存真實 Gemini query、Fake Atlas／embedding HTTP、template answer 的本機 API 產出引用 fixture，headless Edge 驗證實際元件標籤、原始 1752.15–1754.55 秒、身份／排名、鍵盤跳轉與舊資料無標籤通過。這是最小元件 smoke，未驗整個 StudentCourses、正式播放器或正式站。
+
+操作與資料來源見[離線驗收](04_Features/Multimodal_Retrieval/offline-acceptance.md)，Atlas 管理端資訊、低風險窗口與實際操作授權仍 BLOCKED，見 [Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。本輪沒有 Atlas 連線／寫入／索引操作、付費呼叫、部署或 VM 操作。
+
+Node 22.23.4 執行受影響後端回歸 209/209 通過；新增評分第六名邊界等案例後，auditor 定向重跑 6/6。第一次用共用程序跑相同子集為 205 通過／4 失敗，確認為 env 提問字數／每日次數的載入順序污染，改用 Node 預設檔案隔離後同子集全過，未改 production 配額邏輯。前端 184/184、lint／build 通過，保留既有大 bundle 警告；headless Edge 元件 smoke 通過並檢視截圖。未跑全套 Backend、pipeline、正式站或真實 Atlas；當次明細見[測試紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
 ## 多模態正式 QA 接線（2026-11-11）
 
 第七階段已接 askQuestion、預設關閉的 QA_MULTIMODAL_FUSION_ENABLED、FAQ 分版、三路失敗回退、API 引用與網頁比對方式，對話 sources 保存來源與排名。使用保存 query 向量、Fake Atlas／embedding HTTP 及 template answer 的 4 項整合測試通過，涵蓋 API 到前端標籤、FAQ 開關切換、三路成功、單路失敗、缺索引、preflight 失敗、空結果與非法時間。既有授權、Leaf／Parent rollout 與 LINE 邏輯保留。測試均為本機 fixture，真實 Atlas 三路標記 BLOCKED，仍缺 stable paths；正式 runtime 開啟與部署未執行。

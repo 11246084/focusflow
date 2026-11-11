@@ -80,6 +80,14 @@
 
 完整書目、我們實際讀到的範圍與各篇限制見[參考文獻](references.md)；表中以 R（論文）、D（官方與業界文件）編號標示。只讀過摘要的論文，不引用摘要以外的內容。
 
+## 第九階段離線驗收邊界（2026-11-11）
+
+沿用第 7、8 項與 MA，離線驗算按題級 Recall@5／保存前 20 名的 MRR 與拒答題排除規則，採兩個獨立評分實作交叉核對。語料、題庫、排名與設定以 hash 綁定；合成 Parent 與合成 gold 只用於工具驗證。工具拒絕 formalEvaluation=true，不產生正式品質宣稱。
+
+當輪待確認題為題庫 X01 的 V5 時間標註缺漏。建議由題庫維護者／教師確認實際 V5 範圍，或明確確認 expectedVideos 是否誤列；本輪保留題庫，不自動補標。操作與格式見[離線驗收](offline-acceptance.md)，狀態見[目前狀態](../../current-status.md)。
+
+第八階段使用者已同意 B 技術方案，要求真實驗證後預設回復。正式操作仍受管理端資源、變更窗口與再次明確授權限制；舊提案以下保留歷史脈絡。
+
 ## 第七階段 B 方案待核准提案（2026-11-11）
 
 使用者授權 Codex 接續正式 QA 程式接線與開發決策，一般程式修改不再等待 Weihao。原第 13 項與歷史決議保留。B 方案多加 `stableTextEmbedding`，並與 audioEmbedding、visualEmbedding 共用 stable 契約；舊 embedding 仍供原路徑與失敗回退使用。三條新 path 擬加在同名 text_embedding_index，可能觸發重建。此項正式資料／索引變更仍待使用者單獨核准，操作授權單見 [Atlas 準備說明](atlas-preparation.md)。

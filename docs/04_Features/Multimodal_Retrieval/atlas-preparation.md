@@ -94,3 +94,22 @@ STT_Whisper/.venv/Scripts/python.exe -m unittest discover -s STT_Whisper/tests -
 - 回復時保持 flag=false，依 receipt 與原前像以 `--mode rollback --strategy B --backup <當次備份> --execute-write --approve-plan <同一當次planHash>` 回復三筆欄位，再以 updateSearchIndex 套用當次 before 純 JSON，等待 READY 並重驗舊文字 baseline。CAS 發現他人異動即停止，不強制覆寫。建議驗證後回復三筆與索引；如需保留，請在本授權中明確選定。真實 QA 的新 embedding 呼叫可能付費，本授權單只含保存向量查詢，正式 API 線上提問另訂費用範圍。
 
 請核准的項目為 B 方案契約差異、上述三筆／九向量寫入、同名索引更新與必要回復、變更窗口，以及驗證後回復或保留。尚未取得核准，以上寫入／索引命令均未執行。
+
+## 第九階段 Go／No-Go 執行前表
+
+本表列出下次操作的證據與責任分工；歷次結果須在實際窗口重驗。第八階段的 B 技術決策已獲使用者同意，資料／索引執行授權仍分開取得。
+
+| 條件 | 現有證據 | 負責人 | 執行前狀態 |
+|---|---|---|---|
+| Tier／全叢集 Search 配額與容量 | 只有資料庫層的既有唯讀統計，無管理 UI 證據 | Atlas 專案管理者提供 Clusters tier、全叢集 Search 索引清單與限制 | BLOCKED |
+| Search CPU／記憶體／重建資源 | 無管理端 Metrics／Search Metrics | Atlas 專案管理者；若 Tier 不提供指標需明列並確認風險 | BLOCKED |
+| 帳務及費用限制 | 未確認重建／資源影響 | Atlas 計費／專案管理者 | BLOCKED |
+| 低風險窗口與復原聯絡人 | 未確認；不以網站故障推定窗口 | 使用者與 VM／維運管理者 | BLOCKED |
+| 寫入與索引更新權限 | 11/11 connectionStatus 布林確認，未試寫 | Codex 在窗口唯讀重驗 | 曾確認，待重驗 |
+| 694 舊向量、三筆身份與 baseline | 第八階段 694 筆相同，三筆自查第 1 | Codex 用既有 baseline／Dry Run 工具 | 曾通過，待重驗 |
+| 當次備份／CAS／planHash | 既有 phase8-dry-run 與備份；不固定沿用過期 hash | Codex／使用者核對實際計畫 | 窗口前重建並核准 |
+| 索引 before／after 與監測 | 同名增加三路；READY/queryable、定義 hash、文字 baseline | Codex／Atlas 管理者 | 待正式核准 |
+| rollback | CAS 比對 receipt，預設回復三筆欄位及原索引；他人異動即停 | 使用者核准必要回復，Codex 執行 | 待正式核准 |
+| 三路與權限驗收 | 保存九向量／三 query、本機預期排名；尚無真實三路結果 | Codex | BLOCKED 至索引與資料就緒 |
+
+全部條件達成後，仍須使用者明確核准三筆寫入、同名索引更新與必要回復。真實完整 43 題另缺 X01 的 V5 時間標註確認、完整一致版本的語料／Parent／媒體向量與排名，不以三筆小樣本取代。

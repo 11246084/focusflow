@@ -74,6 +74,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
     startSec: document?.identity.startSec || 12, endSec: document?.identity.endSec || 32,
     text: document?.text || 'JWT authentication teacher transcript', embedding: vector };
   store.videoSegments.splice(0, store.videoSegments.length, chunk);
+  store.clips[0].jumpUrl = `https://videos.local/watch?v=${ids.publishedVideoExternal}&t=${chunk.startSec}`;
   Object.assign(env, { qaMultimodalFusionEnabled: true, qaVectorSearchMode: 'atlas',
     qaQueryEmbeddingProvider: 'gemini', qaAnswerProvider: 'template', geminiApiKey: 'fake-test-key' });
   global.fetch = async () => ({ ok: true, json: async () => ({ embedding: { values: vector } }) });
@@ -109,6 +110,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
   assert.deepEqual(result.citations[0].retrievedBy, ['text', 'audio', 'visual']);
   assert.equal(result.citations[0].timestamp.startSec, chunk.startSec);
   assert.equal(result.citations[0].timestamp.endSec, chunk.endSec);
+  assert.ok(result.clip.jumpUrl.endsWith(`t=${chunk.startSec}`));
   for (const variant of ['partial', 'missing-index', 'preflight-failed', 'empty', 'invalid-time']) {
     scenario = variant;
     env.faqCacheEnabled = false;

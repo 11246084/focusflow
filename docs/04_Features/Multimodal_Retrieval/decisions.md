@@ -10,9 +10,15 @@
 
 原 20:00–22:00 窗口取消，不排程或自動開始。無操作衝突與使用者的 Project Data Access Admin 角色已確認，使用者接受持續值守、READY 才繼續、BUILDING 不重送、FAILED／逾時／未知結果停止、依前像與 receipt 安全回復、無法安全回復則交 Project Owner／MongoDB 支援。一般操作不再要求另一位管理者；角色不等於保證所有平台異常都可自行處理。
 
-目前僅授權演練、唯讀重驗及文件 commit／push。唯讀與離線演練 GO 不代表正式寫入／索引更新已獲准；正式執行維持 NO-GO，等待單獨授權。使用者已接受 Atlas 小樣本不含正式站 E2E，以及 M0 監測盲區與重建耗時風險。當次證據與剩餘風險以 [目前狀態](../../current-status.md) 為準；下方歷史窗口及待確認敘述依本段最新決策解讀。
+前輪使用者已單獨授權一次 B 小樣本實測及回復；本輪改為 Contract-first 契約審查與測試設計，不延用該次授權重新變更 Atlas，也不改 QA／Adapter／RRF／Bridge。使用者已接受 Atlas 小樣本不含正式站 E2E，以及 M0 監測盲區與重建耗時風險。當次證據與剩餘風險以 [目前狀態](../../current-status.md) 為準；下方歷史窗口及待確認敘述依本段最新決策解讀。本輪不自行 commit／push。
 
 索引操作沿用既有 Node Driver 工具，預設 Dry Run，執行須當次資料 planHash、索引 operationHash 及可回讀的磁碟 receipt。每次送出前核對前像／版本／三節點，送出後等待三節點完成；結果不明不重送、不盲目反向更新，CAS 衝突不覆寫。工具與回復關卡見 [Atlas 計畫](atlas-preparation.md#node-driver-離線驗證與操作介面)。
+
+### Contract-first 審查及本輪待決事項
+
+沿用既有 [QA／Adapter 契約](phase2-adapters.md)：原始 Leaf.courseId 可缺，由正式 QA 的課程存取與可信影片 allowlist 建立 scope；Adapter 與 Bridge 不自行授予權限。前輪任意組「錯誤課程＋原影片」直接傳 Adapter 並預期零筆，改列為不符合呼叫前置條件的測試，不能據此認定正式 QA 漏洞；真實排名與完整回復證據保留，不改寫原始紀錄。新測試先驗正式入口、可信 scope 建構、缺欄位合法資料及降級，再判斷是否需要修程式，細目見 [契約審查與矩陣](authorization-contract-review.md)。
+
+待使用者審查 U01/U02：合法跨課掛載可否共用同一 Leaf／向量，Leaf.courseId 與 media metadata.courseId 是否只表示原製作課程？建議沿用現有 canonical 影片授權與合法共享，但這不是核准更動 Adapter「存在時檢查 courseId」的規則；兩種現有約束需先取得一致語意。U03 的說明字串／註解漂移可列小修正候選，不在本輪改程式。不得藉本矩陣補寫 Atlas.courseId、增加強制 AND filter 或排除合法 Chunk。
 
 ## 名詞
 

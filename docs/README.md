@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+多模態授權邊界、Contract-first 測試矩陣與待審修正方案見 [授權契約審查](04_Features/Multimodal_Retrieval/authorization-contract-review.md)。
+
 第九階段離線驗算、Parent fixture 與瀏覽器 smoke 操作見 [多模態離線驗收](04_Features/Multimodal_Retrieval/offline-acceptance.md)。
 
 三筆專用 Collection／Index 的前置查證與授權清單見 [第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。

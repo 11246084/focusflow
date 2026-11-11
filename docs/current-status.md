@@ -4,6 +4,16 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態 Contract-first 契約審查（2026-11-11）
+
+以 dev `13e8a8c` 完成 HANDOFF／decisions／QA-Adapter 契約、Course／Video 授權、資料模型與相關測試的靜態審查。既有契約明確支援 Leaf 缺頂層 courseId：正式 QA 先驗課程存取，再由服務端 Course／Video 關係產生 canonical 影片 allowlist，並在候選與逐字稿階段複核。控制器不接受客戶端傳入的任意 scope；Adapter／Bridge 的 scope 則要求由呼叫端先授權。
+
+更正前輪判定：把錯誤課程與原影片 allowlist 人工配成 scope，直接呼叫 Adapter 後期待零筆，屬超出契約前置條件的測試假設錯誤，不能定為已證實的 Adapter／正式 QA 漏洞。正常缺 courseId 的合法 Chunk 不應被補寫或排除。合法跨課掛載確為既有功能；明示 Leaf.courseId 與當次掛載課程不同、media metadata 課程語意則列 U01/U02 跨模組契約待決，不擅選拒絕或接受當成修正。
+
+前輪真實 Atlas 觀察仍保留：三筆九向量 CAS 寫入、同名索引正向重建與三題三路／兩版 RRF 已完成；最後三筆與指定 694 筆完整文件皆回到前像、舊向量摘要不變、集合仍 815 筆、原索引三節點 READY／QUERYABLE、舊文字三筆 rank 1。原始來源在忽略目錄 `.local-tools/atlas-preparation/live-round1/` 的 report.json、scope-diagnostic.json、final.json 與正反向 receipt，不提交向量、備份或完整 metadata。當時因負例假設而安全停止並完整回復是有效事實；不能因此把正式 QA 跨課隔離或完整多模態品質驗收標成已通過。
+
+已整理 [契約分析、25 列測試／待決矩陣與最小修正方案](04_Features/Multimodal_Retrieval/authorization-contract-review.md)：每列含依據、fixture、輸入、預期理由、責任層與合法檢索影響。本輪只做文件與測試設計，沒有新增／執行矩陣測試、沒有連 Atlas／模型、沒有改程式或 commit／push；之前 66/66 不能當成本矩陣已通過。正式修改與後續實測仍待審查及另行授權。下方是先前各階段紀錄，不代表本輪有寫入授權。
+
 ## Atlas B 異常處理演練與即時唯讀核對（2026-11-11 17:14–17:17，台灣時間）
 
 **唯讀與離線演練 GO；正式 Atlas 寫入／索引更新 NO-GO，等待單獨授權。** 目標固定為現有 `focusflow.video_segments_text` 與 `text_embedding_index`；不另建資料庫、集合、專案、叢集或第四個索引。原晚間窗口已取消，不排程或自動開始。

@@ -211,3 +211,6 @@ docs/**/四技第115414組-*.pdf
 ~$*
 docs/01_系統手冊/output/_building_*
 docs/01_系統手冊/output/mso*.tmp
+
+# 多模態 Atlas 工具與測試的本機輸出（備份、receipt、模擬 journal），不進版控
+.local-tools/

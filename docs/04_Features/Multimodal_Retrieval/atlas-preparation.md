@@ -95,16 +95,45 @@ STT_Whisper/.venv/Scripts/python.exe -m unittest discover -s STT_Whisper/tests -
 
 請核准的項目為 B 方案契約差異、上述三筆／九向量寫入、同名索引更新與必要回復、變更窗口，以及驗證後回復或保留。尚未取得核准，以上寫入／索引命令均未執行。
 
-## 第九階段 Go／No-Go 執行前表
+## Free M0 官方限制與操作調整（2026-11-11）
+
+來源分開記錄：使用者提供 Atlas UI 實查，cluster focusflow、FREE M0、MongoDB 8.0.37、AWS Hong Kong；全叢集三個 Search 索引已滿，text_embedding_index 三節點皆 READY／QUERYABLE，估算文件數 815/815、每節點約 10.87 MB，原定義只有 embedding（3072／cosine）及 courseId、videoId filter。使用者未修改資料或索引；本輪只更新計畫，沒有重新連線 Atlas。
+
+官方允許同一 vectorSearch 定義內有多個 vector 欄位；Free 限三個 Search／Vector 索引，定義 JSON 不超過 3 KB。B 方案保留同名索引、原 embedding 與 filters，再加三個不同 path，合計四個 vector 欄位、兩個 filter。既存 phase8-index-after.json 的壓縮 JSON 為 424 UTF-8 bytes，符合定義大小限制；3 KB 是定義限制，不能拿來解讀每節點 10.87 MB 的實體索引大小。這是支援範圍核對，尚未完成 M0 真實重建驗收。[官方多向量定義](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type/?deployment-type=self&embedding=byo&interface=driver&language=go)、[Free Search 限制](https://www.mongodb.com/docs/search/deployment/feature-compatibility/)
+
+Free 監測只有 Connections、Logical Size、Network、Opcounters 等有限指標，Search CPU／Memory 不可取得屬已確認方案限制。以使用者可見的 Operation Throttling、索引三節點狀態、查詢錯誤／延遲及舊文字基準共同觀察；保留資源盲區，待使用者接受，不再要求提供該方案不存在的進階圖表。[官方 Free 限制](https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/)
+
+更新索引會背景重建，官方說明重建期間舊定義仍能服務，完成後才替換。M0 的共享資源仍可能影響延遲，官方沒有承諾本次耗時或資源峰值。815 是全 collection 的 UI 估算口徑，694 是先前六支課程的備份範圍，不能視為相同集合範圍；同名重建涵蓋整個 collection 的當次文件。窗口前核對全 collection 計數／索引範圍，保護其他課程與使用者，三筆以外不寫資料。[官方重建行為](https://www.mongodb.com/docs/manual/reference/method/db.collection.updatesearchindex/)
+
+調整執行順序與回復方式如下。
+
+1. 使用者指定無教學尖峰、影片處理或批次評測的兩小時維護窗口，安排 Atlas 管理者可觀察及接手。兩小時是預留建議，不是完成保證；範圍包括正向與回復兩次重建及驗收。正式多模態開關維持關閉。
+2. 以當次資料重建備份／CAS／planHash，核對三筆身份、694 舊向量、全 collection 範圍及完整索引 before 定義。三節點都要 READY／QUERYABLE。先跑舊文字三筆 baseline 並保存延遲、可用監測圖表與節點狀態。
+3. 核准後只做三筆／九個保存向量寫入、驗 receipt，再更新同名索引一次。保留 embedding 及 filters，不變更 quantization、模型生成或其他 path；三條新 path 使用保存向量，不啟用 autoEmbed。
+4. 既有 index-wait 的 61 次／30 秒約為 30 分鐘觀察界線，只核對整體狀態及定義 hash，不能取代 Atlas UI 三節點確認。到期仍建置時停止新變更並保留 receipt／狀態，由管理者判斷等待或可安全回復的時機；不把逾時直接當成可立即送反向更新的條件，也不重複送 updateSearchIndex。
+5. READY 且三節點完成後仍須輪詢三筆實際可查詢性，因資料與 Search 索引為最終一致；之後才比對三路排名、等權／文字 2:1:1 RRF、原始秒數及權限負例。前後舊文字 baseline 都須三筆自身排名 1；錯誤／超時、基準退化、配額拒絕或 FAILED 時停止後續寫入，保存證據。
+6. 驗證後預設回復：先以 receipt、當次前像及 CAS 核對並還原三筆新增欄位，再在沒有衝突更新且平台允許時套用 before 索引定義。這會觸發第二次重建，需再次等三節點 READY／QUERYABLE、核對原定義 hash、確認九向量欄位回到前像及 694 舊向量不變，最後重跑文字 baseline。他人異動或平台拒絕時停止並交管理者，不刪除再重建索引。
+
+剩餘核准為操作窗口、接受 M0 監測盲區及雙次重建風險、三筆 CAS 寫入、同名索引更新與必要回復。單一小樣本技術驗證沿用三個保存 query；完整 43 題品質驗收仍另外受 X01、全量資料與評測條件限制。
+
+## 2026-11-11 20:00–22:00 窗口與授權關卡
+
+使用者已指定台灣時間 2026-11-11 20:00–22:00。當前只核准文件提交／push、唯讀查證、備份校驗與 Dry Run，狀態為 PREP-ONLY／NO-GO FOR WRITE。即使準備檢查通過，也不建立排程或自動開始；必須使用者於窗口內在線再次明確核准三筆 CAS 寫入、同名索引更新、真實三路驗證與必要回復。
+
+窗口內還要確認 Atlas 管理者可聯絡且有處置權限、VM 管理者知悉且無重疊修復／部署。正式網站狀態未知時，須使用者明示接受只做 Atlas 小樣本且不含正式網站 E2E，否則 No-Go。當次備份、全部索引相關欄位的 before 快照與 checksum、三節點狀態、九向量來源、三筆新增欄位不存在、fresh planHash、baseline 與隔離健康均要即時重驗；下午的結果不代替窗口證據。
+
+驗證後預設回復。超出 22:00 仍在建置／回復時停止新的非必要變更，持續可行的唯讀監測並交接管理者；不得宣稱已恢復，也不盲送反向更新。窗口過期或人員失聯時未開始寫入即保持原狀。
+
+## 更新後 Go／No-Go 執行前表
 
 本表列出下次操作的證據與責任分工；歷次結果須在實際窗口重驗。第八階段的 B 技術決策已獲使用者同意，資料／索引執行授權仍分開取得。
 
 | 條件 | 現有證據 | 負責人 | 執行前狀態 |
 |---|---|---|---|
-| Tier／全叢集 Search 配額與容量 | 只有資料庫層的既有唯讀統計，無管理 UI 證據 | Atlas 專案管理者提供 Clusters tier、全叢集 Search 索引清單與限制 | BLOCKED |
-| Search CPU／記憶體／重建資源 | 無管理端 Metrics／Search Metrics | Atlas 專案管理者；若 Tier 不提供指標需明列並確認風險 | BLOCKED |
-| 帳務及費用限制 | 未確認重建／資源影響 | Atlas 計費／專案管理者 | BLOCKED |
-| 低風險窗口與復原聯絡人 | 未確認；不以網站故障推定窗口 | 使用者與 VM／維運管理者 | BLOCKED |
+| Tier／全叢集 Search 配額與容量 | 使用者 UI 實查 M0、三索引已滿；同名多 path 符合官方定義，現有索引約 10.87 MB／節點 | Atlas 管理者在窗口重驗全 collection 與 Logical Size；不能只據索引大小保證重建餘裕 | 支援範圍確認，資源峰值未知 |
+| Search CPU／記憶體／重建資源 | M0 不提供進階監測；採可用基礎指標、Throttling、查詢與三節點狀態 | 使用者接受盲區，Atlas 管理者監看 | 已確認限制，待風險接受 |
+| 帳務及費用限制 | Free M0，計畫維持方案且沿用保存向量；不新增付費服務 | 使用者核定本次範圍 | 本計畫無新增模型費用，待核定 |
+| 低風險窗口與復原聯絡人 | 已指定 2026-11-11 20:00–22:00 台灣時間；人員在線、管理者可接手及 VM 無重疊仍待確認 | 使用者與 Atlas／VM 管理者 | 窗口確定，值守／二次授權 BLOCKED |
 | 寫入與索引更新權限 | 11/11 connectionStatus 布林確認，未試寫 | Codex 在窗口唯讀重驗 | 曾確認，待重驗 |
 | 694 舊向量、三筆身份與 baseline | 第八階段 694 筆相同，三筆自查第 1 | Codex 用既有 baseline／Dry Run 工具 | 曾通過，待重驗 |
 | 當次備份／CAS／planHash | 既有 phase8-dry-run 與備份；不固定沿用過期 hash | Codex／使用者核對實際計畫 | 窗口前重建並核准 |

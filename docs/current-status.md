@@ -4,6 +4,16 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## Atlas M0 管理端資訊與操作計畫（2026-11-11）
+
+使用者提供 Atlas UI 查證：focusflow 為 Free M0、MongoDB 8.0.37、AWS Hong Kong，全叢集三個 Search 索引達上限；text_embedding_index 三節點 READY／QUERYABLE、估算文件數 815/815、每節點約 10.87 MB，只有 embedding（3072／cosine）及 courseId、videoId filters，未做 UI 修改。本輪依官方文件核對，同名索引加入三條 vector path 符合定義／數量限制；既有 after 定義壓縮 JSON 424 bytes，低於 3 KB。
+
+M0 Search CPU／Memory 不可取得已確認，改用基礎指標、Throttling、節點狀態與查詢基準。資源峰值與耗時仍未知；建議兩小時低峰窗口，含正向及回復兩次重建。815 為 UI 全 collection 口徑，694 為指定課程備份，重建影響範圍需當次核對。現有 index-wait 未逐節點驗證，計畫補上 Atlas UI 人工確認，沒有修改工具或正式設定。
+
+目前技術支援限制核對完成，實際執行仍 NO-GO，等待窗口、風險接受及三筆寫入／索引更新／回復明確授權。詳見[更新後 Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。本輪僅分析與更新文件，未連 Atlas、寫資料、改索引、升級或付費；純文件只做 diff／連結與計畫核對，未跑程式測試。
+
+使用者另指定 2026-11-11 20:00–22:00 台灣時間，只核准準備檢查與文件 commit／push。當前 PREP-ONLY／NO-GO FOR WRITE；需在窗口內確認使用者在線、Atlas 管理者可接手、VM 無重疊，以及 fresh 備份／planHash／三節點／baseline，再取得獨立二次授權。不得自動開始或排程。
+
 ## 第十階段題庫一致性與完整本機問答（2026-11-11）
 
 已核對 decisions 基線表／第 6、7、8 項及 MA，固定 50 題中 43 可回答為 Recall@5／Recall@10／MRR 分母，7 拒答只另列診斷。新增 annotation-issues.json、retrieval-protocol.json 與 protocolHash／goldVersion 綁定。X01 在主評分表「評分表」F25／G25、ad84f6d 最初題庫及 8/24、9/3 結果都是同一缺漏，無 V5 人工時間來源，原題庫與主評分表未改，正式品質評測仍 BLOCKED。

@@ -39,6 +39,7 @@ const BINDING_FAILURES = {
     'LINE_BINDING_CHANGED',
   ),
   user_not_found: () => new AppError('User not found.', 404, 'USER_NOT_FOUND'),
+  user_inactive: () => new AppError('This account is inactive.', 403, 'USER_INACTIVE'),
 };
 
 function randomToken() {
@@ -227,7 +228,8 @@ async function completeLineLogin({ userId, sid, code, state }) {
     replaceExisting: record.replaceExisting === true,
   });
   if (!binding.ok) {
-    throw BINDING_FAILURES[binding.reason]();
+    // 沒有對應的原因時仍回 409，不讓未知的失敗原因變成 500。
+    throw (BINDING_FAILURES[binding.reason] || BINDING_FAILURES.binding_changed)();
   }
 
   const friendship = await readFriendship(tokens.access_token);

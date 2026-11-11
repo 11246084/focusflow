@@ -40,3 +40,8 @@
 | `YOUTUBE_PRIVACY_GUARD_ENABLED` | false；環境允許且 `privacy_guard` runtime enabled 才能自動轉私人。關閉仍偵測及通知。 |
 
 教學影片固定送出 unlisted；`YOUTUBE_UPLOAD_PRIVACY` 的其他值忽略並於 health 警告。清理需 ready、已切換與同輪遠端複查；保留期從 readyAt 與原片補回時間較晚者起算。清理及 privacy_guard 的正式啟用均需另行授權，不能因本機測試通過而開啟。
+# 多模態 QA 融合
+
+`QA_MULTIMODAL_FUSION_ENABLED` 預設 false。啟用後使用 stableTextEmbedding、audioEmbedding、visualEmbedding，索引或契約不可用時回退已授權的既有文字檢索。runtime.multimodal 回報逐路診斷與回退原因，回退時增加 QA_MULTIMODAL_TEXT_FALLBACK。啟用時停用舊影像補充引用，FAQ 證據版本納入融合、分層 rollout 與模型契約。關閉時恢復原 QA／FAQ 路徑。
+
+三條 path 與資料寫入須另行核准，正式環境目前維持關閉。開關不授權付費呼叫、索引更新或部署。契約與操作見 [多模態說明](../../docs/04_Features/Multimodal_Retrieval/phase2-adapters.md)及 [Atlas 授權單](../../docs/04_Features/Multimodal_Retrieval/atlas-preparation.md)。

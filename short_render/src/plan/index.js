@@ -11,6 +11,11 @@ const {
 } = require('./resolve');
 
 module.exports = {
+  ...require('./runtime'),
+  ...require('./assets'),
+  ...require('./catalog'),
+  buildRecutPlan: require('./sentences').buildRecutPlan,
+  getAllowedIcons: () => { const a = require('./assets').getAssetCatalog(); return [...a.fluent.map((v) => `fluent:${v}`), ...a.phosphor.map((v) => `phosphor:${v}`)]; },
   ...constants,
   ...components,
   validateStructure,

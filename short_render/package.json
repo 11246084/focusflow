@@ -1,15 +1,22 @@
 {
   "name": "focusflow-short-render",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Recut short-video plan validator and renderer (animated panel + teacher footage).",
+  "description": "Recut sentence-anchored full-animation plan validator and renderer.",
   "license": "UNLICENSED",
-  "engines": { "node": ">=22" },
-  "bin": { "short-render": "bin/short-render.js" },
+  "engines": {
+    "node": ">=22.23.4 <23"
+  },
+  "bin": {
+    "short-render": "bin/short-render.js",
+    "recut-worker": "bin/recut-worker.js"
+  },
   "scripts": {
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.js\""
   },
   "dependencies": {
+    "@iconify-json/fluent-emoji-flat": "1.2.6",
+    "@phosphor-icons/core": "2.1.1",
     "gsap": "3.15.0",
     "hyperframes": "0.8.153"
   }

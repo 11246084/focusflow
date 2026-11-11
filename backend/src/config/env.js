@@ -153,6 +153,7 @@ module.exports = {
   ),
   // 影像片段（video_segments_video）與文字檢索並行查詢並附加為補充 citation。
   // 預設關閉；關閉時只在文字檢索 0 筆時才查影像（既有行為）。
+  qaMultimodalFusionEnabled: parseBoolean(process.env.QA_MULTIMODAL_FUSION_ENABLED, false, 'QA_MULTIMODAL_FUSION_ENABLED'),
   qaVisualRetrievalEnabled: parseBoolean(
     process.env.QA_VISUAL_RETRIEVAL_ENABLED,
     false,
@@ -249,6 +250,11 @@ module.exports = {
   qaActiveLeafEmbeddingContractJson: process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON || '',
   qaActiveParentEmbeddingContractJson: process.env.QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON || '',
   geminiChatModel: process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash',
+  recutFfmpeg: process.env.RECUT_FFMPEG || 'ffmpeg',
+  recutRuntimeConfigPath: process.env.RECUT_RUNTIME_CONFIG_PATH || '',
+  recutFfprobe: process.env.RECUT_FFPROBE || 'ffprobe',
+  recutPython: process.env.RECUT_PYTHON || path.resolve(projectRoot, '../STT_Whisper/.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
+  recutAsrModel: process.env.RECUT_ASR_MODEL || 'small',
   // 外部模型 API 的逾時；逾時或暫時性錯誤（429、5xx、連線失敗）會重試，產生回答 1 次、embedding 2 次。
   qaAnswerTimeoutMs: parsePositiveInteger(process.env.QA_ANSWER_TIMEOUT_MS, 20000, 'QA_ANSWER_TIMEOUT_MS'),
   qaEmbeddingTimeoutMs: parsePositiveInteger(process.env.QA_EMBEDDING_TIMEOUT_MS, 8000, 'QA_EMBEDDING_TIMEOUT_MS'),

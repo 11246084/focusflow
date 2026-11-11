@@ -279,7 +279,8 @@ function compareCutText(expected, actual) {
  *           resolved?: object }} context
  * @returns {{valid: boolean, errors: object[], warnings: object[]}}
  */
-function validatePlan(plan, { evidence = [], resolved = null } = {}) {
+function validatePlan(plan, { evidence = [], resolved = null, sentences } = {}) {
+  if (plan?.contractVersion !== undefined) return require('./sentences').validateSentencePlan(plan, { evidence, resolved, sentences });
   const errors = validateStructure(plan);
   const warnings = [];
   if (errors.length) {

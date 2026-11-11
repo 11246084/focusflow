@@ -330,6 +330,7 @@ async function updateShortAssetOwned(assetId, patch) {
   );
   if (isPublishTransition) {
     assertPublicationApproved(existing);
+    await require('./recutState.service').assertRecutAssetPublishable(existing);
   }
   assertPublishedPlayableMetadata({ ...existing, ...fields });
   const update = { $set: fields };
@@ -690,18 +691,29 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
     youtubeVideoId: { $exists: true, $nin: [null, ''] },
     publishedAt: { $ne: null },
   };
-  if (cursor) {
-    query.$or = [
-      { publishedAt: { $lt: cursor.publishedAt } },
-      { publishedAt: cursor.publishedAt, _id: { $lt: cursor.id } },
-    ];
+  const eligible = [];
+  let scanCursor = cursor;
+  while (eligible.length <= pageSize) {
+    const scanQuery = { ...query, ...(scanCursor ? { $or: [
+      { publishedAt: { $lt: scanCursor.publishedAt } },
+      { publishedAt: scanCursor.publishedAt, _id: { $lt: scanCursor.id } },
+    ] } : {}) };
+    const assets = await ShortAsset.find(scanQuery).sort({ publishedAt: -1, _id: -1 }).limit(pageSize + 1).lean();
+    for (const asset of assets) {
+      if (asset.recutVersionId) {
+        if (asset.youtubeUpload?.remoteState !== 'ready' || asset.reviewStatus !== 'approved'
+          || asset.reviewedGenerationVersion !== asset.generationVersion) continue;
+        try { await require('./recutState.service').assertRecutAssetPublishable(asset); }
+        catch (error) { if (['RECUT_STATE_INVALID', 'SHORT_SCRIPT_NOT_FOUND'].includes(error.code)) continue; throw error; }
+      }
+      eligible.push(asset);
+      if (eligible.length > pageSize) break;
+    }
+    if (eligible.length > pageSize || assets.length < pageSize + 1) break;
+    const last = assets.at(-1);
+    scanCursor = { publishedAt: new Date(last.publishedAt), id: String(last._id) };
   }
-
-  const assets = await ShortAsset.find(query)
-    .sort({ publishedAt: -1, _id: -1 })
-    .limit(pageSize + 1)
-    .lean();
-  const pageItems = assets.slice(0, pageSize);
+  const pageItems = eligible.slice(0, pageSize);
 
   return {
     items: pageItems.map((asset) => {
@@ -719,7 +731,7 @@ async function listStudentShorts({ studentId, pageToken, limit }) {
         youtubeUrl: asset.youtubeUrl,
       };
     }),
-    nextPageToken: assets.length > pageSize
+    nextPageToken: eligible.length > pageSize
       ? encodePageToken(pageItems[pageItems.length - 1])
       : null,
   };
@@ -805,7 +817,22 @@ function acquireStatusMutation(ids) {
 // 審核仍可在 bytes 上傳中完成（DR-21），但不能在清理的最後設定 await 間改成草稿。
 async function reviewShortAsset(options) {
   const release = acquireStatusMutation([options.assetId]);
-  try { return await reviewShortAssetOwned(options); } finally { release(); }
+  try {
+    const asset = await ShortAsset.findById(options.assetId).lean();
+    if (asset?.recutVersionId) {
+      const course = await assertReviewAccess(asset, options.user);
+      const reasons = assertReviewRequest(options);
+      if (asset.generationVersion !== options.expectedGenerationVersion) throw new AppError('MP4 generation changed.', 409, 'SHORT_ASSET_REVIEW_STALE');
+      const script = await ShortScript.findById(asset.sourceScriptId).lean();
+      const review = require('./recutReview.service');
+      const action = options.status === 'approved' ? review.approveAsset : review.rejectAsset;
+      await action({ scriptId: asset.sourceScriptId, versionId: asset.recutVersionId, expectedRevision: script.recut.revision,
+        assetId: asset._id, generationVersion: asset.generationVersion, user: options.user, reasons,
+        scope: reasons.some((r) => ['contentIncorrect', 'incomplete', 'other'].includes(r.code)) ? 'content' : 'presentation' });
+      return toReviewAsset(await ShortAsset.findById(asset._id).lean(), course);
+    }
+    return await reviewShortAssetOwned(options);
+  } finally { release(); }
 }
 
 async function assertLocalBackupAvailable(item, id) {
@@ -826,7 +853,13 @@ async function createShortAsset(payload) {
 }
 async function updateShortAsset(assetId, patch) {
   const release = acquireMutation(assetId, patch);
-  try { return await updateShortAssetOwned(assetId, patch); } finally { release(); }
+  try {
+    if (patch.status === SHORT_ASSET_STATUSES.PUBLISHED) {
+      const asset = await ShortAsset.findById(assetId).lean();
+      if (asset?.recutVersionId) return await require('./shortAssetPublish.service').markShortAssetPublished(asset);
+    }
+    return await updateShortAssetOwned(assetId, patch);
+  } finally { release(); }
 }
 async function recordShortAssetRegeneration(assetId, patch = {}) {
   const release = acquireMutation(assetId, patch);
@@ -834,6 +867,7 @@ async function recordShortAssetRegeneration(assetId, patch = {}) {
 }
 
 module.exports = {
+  normalizeReviewReasons,
   DEFAULT_PAGE_LIMIT,
   MAX_PAGE_LIMIT,
   archiveForCourseDeletion,

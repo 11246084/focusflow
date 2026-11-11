@@ -4,6 +4,68 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態正式 QA 接線（2026-11-11）
+
+第七階段已接 askQuestion、預設關閉的 QA_MULTIMODAL_FUSION_ENABLED、FAQ 分版、三路失敗回退、API 引用與網頁比對方式，對話 sources 保存來源與排名。使用保存 query 向量、Fake Atlas／embedding HTTP 及 template answer 的 4 項整合測試通過，涵蓋 API 到前端標籤、FAQ 開關切換、三路成功、單路失敗、缺索引、preflight 失敗、空結果與非法時間。既有授權、Leaf／Parent rollout 與 LINE 邏輯保留。測試均為本機 fixture，真實 Atlas 三路標記 BLOCKED，仍缺 stable paths；正式 runtime 開啟與部署未執行。
+
+本次 Atlas 唯讀診斷仍為 694 筆、無截斷與診斷錯誤；29 個集合內共 3 個 READY/queryable Search 索引，隔離目標不存在。tier／全叢集剩餘配額仍未知。已建立當次 694 筆前像備份與索引 before/after 提案，實際寫入與索引變更皆 0。B 方案授權範圍見 [Atlas 授權單](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
+前端 183/183、lint、build 與 OpenAPI lint 通過，build 有大於 500 kB 的 bundle 警告。正式 43 題未執行；本機輸出 3 題、72 筆 comparison 及 config.json，分層僅使用相同文字 fixture。
+
+Backend 全套首次 1849 項，1847 通過、1 失敗、1 略過；失敗為即時磁碟統計影響的預約測試，固定測試快照後 1/1 重跑通過，未改服務邏輯。最新定向回歸 28/28，後續修改未再重跑整套。命令與邊界見[驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+## 多模態 QA 獨立橋接（2026-11-11）
+
+第六階段新增 `multimodalQaBridge.service.js` 與離線評測輸出介面。已保存三筆真實 query 與九筆 document／audio／visual 向量經模擬 Atlas 排名、既有 adapter、RRF、教師逐字稿載入與引用輸出驗證，保留原始時間、retrievedBy、channelRanks。離線輸出涵蓋兩種文字檢索模式、六組模態及兩種權重，每題 24 筆逐題排名；小樣本分層文字沿用平面 fixture，沒有宣稱驗證完整 Parent 檢索。
+
+預設關閉、全路失敗後文字回退、跨課／未授權影片、chunk allowlist、時間錯位及 FAQ 版本介面有回歸案例。正式 `qa.service.js`、LINE、S2／S3 未接線。Atlas 三路、全量媒體向量與正式 43 題尚待授權與整合。操作與精確接點見[橋接契約](04_Features/Multimodal_Retrieval/phase2-adapters.md)。
+
+本輪使用 Node 22.23.4。新增橋接 8 項、連同既有 Atlas／RRF／三路模組 24 項通過。已保存向量驗證 3 題及 72 筆比較輸出，API／Atlas 呼叫均為 0。後端依既有全套命令執行，共 1776 項，首次 1765 通過、10 失敗、1 略過；10 項均為 short_render 缺少已鎖定的 iconify 套件，依現有 lockfile 執行 npm ci --ignore-scripts 後，相關 Recut 87 項與 runtime adapter 7 項重跑全過。未重新執行整套，保留首次結果與重跑紀錄。QA／LINE 回歸在本次全套中通過。原始本機證據位於忽略目錄 `.local-tools/phase2-validation/` 的 phase6-backend.tap、phase6-recut-retry.tap 與 qa-bridge.json。git diff --check 通過；本輪沒有前端行為修改，未跑前端 build。真實 Atlas／付費生成／正式 43 題與部署未執行。
+
+## 多模態 Atlas 小樣本準備（2026-11-10）
+
+2026-11-10 整合審查：已提交的檢索元件與工具審查通過，問答尚未接上多模態（沒有 `QA_MULTIMODAL_FUSION_ENABLED`、`retrievedBy`，43 題比較腳本也還沒有）；修正切片準備遇到超出影片長度的 chunk 會整支中斷的問題。接續點見[多模態進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+第五階段前置：新增專用 Collection／Index 的唯讀工具，準備原三筆／9 個真實 stable 向量，加入 Course／Video 雙 filter、兩版 RRF、本機排名比較與負向隔離探測。實查 `focusflow` 的 29 個 Collection 共 3 個 READY Search 索引，目標集合不存在，必要帳號權限可用；部署 tier／叢集剩餘配額與資源成本未核實，若為 Free 即已滿 3 個上限。Node 34 項通過、備份磁碟回讀與本機回復演練通過，尚未建立 Atlas 測試資源或執行真實三路查詢。等待 Weihao 確認配額及庭語另授權三筆寫入／索引建立／清理，不刪除正式索引、不自行升級。見[第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。
+
+已實作獨立的本機 checkpoint 匯出、694 筆資料與索引備份、三筆受控寫入 Dry Run、索引差異／READY 輪詢、資料回復與 Atlas 三路 CLI。真實 Atlas 唯讀確認舊索引 READY、queryable，三筆舊向量自查詢各回傳 20 筆且自身排名 1；新三路 path 尚未建立，因此沒有真實三路搜尋成功的證據。Node 27、Python 29 項通過，真實切片＋Mock 候選的 MVD rescue 回歸成功。未做正式寫入、索引調整、額外付費呼叫、qa.service.js 整合或 43 題評測。建議三筆另存 stable 文字欄位的 B 方案，仍待 Weihao 確認契約與部署容量、庭語另授權寫入與索引操作。完整操作、取捨與回復方案見 [Atlas 準備說明](04_Features/Multimodal_Retrieval/atlas-preparation.md)。11/13 完整多模態／章節／RU／評測交付有時程風險，已提醒需 Weihao 支援。
+
+## Recut 修正（2026-11-06，2026-11-10 核對合併狀態）
+
+**已於 2026-11-09 透過 PR #11 合入團隊 `dev`，合併提交為 `8a4c181a`。** 2026-11-10 核對本機 Git 紀錄，合併提交已包含於本次拉取的 `dev`（`80791830`）。本輪僅確認 Git 合併；正式部署、發布與教師驗收未查證。
+
+**2026-11-08 最終候選 `f708fa6`（程式），候選分支之後只有文件提交。** 第三次唯讀獨立審查（最終 diff，重點為 `e8d3c16` 之後）找到 1 項會阻擋交付的問題：版本不符時領取回錯誤，會讓已升級的 worker 在佇列只剩舊工作時自己停止；另有 2 項應修正（runtime 建立失敗時資料庫連線未關、輸出鎖殘留）。已在 `f708fa6` 修正並補回歸測試，同一位審查者複審結論為「接受，附註」。當日執行：backend `npm test` 1789 項 1788 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過，另設瀏覽器執行選用測試 4／4 通過。OpenAPI 未變更、未跑 `docs:lint`；`/recut-worker/jobs/claim` 在「只有版本不符的工作」時改回閒置，已記在 `backend/docs/recut-review.md` 與前端交接。提交身分稽核：本交付 15 筆提交的 author／committer 都是 `Weihao <11246062@ntub.edu.tw>`，沒有 AI trailer 或署名；提交都帶 SSH 簽章（金鑰 `SHA256:32dP45eSMmVSt/G/CGvcxl/P+MO3Nwj9xeTh/GSA2wc`，由執行環境提供），是否已登記到個人 GitHub 帳號尚未確認。Gemini schema 確認呼叫與教師審片仍待進行。
+
+來源分支為 fork `Hao-weii/focusflow` 的 `wip/recut-cards-schema-fix`，從團隊 `dev` 的 `18aed4c` 切出，以候選 `955c7cb0` 合入。以下保留 2026-11-05 至 11-08 的試產、測試與審查紀錄，不作為 2026-11-10 重新執行的驗證證據。
+
+2026-11-05 OpenCV 本機試產（教授影片 `aiA10_1140216_1.mp4` 18:04–20:26，本機 `recut_trial_opencv-20261105`，`gemini-3.8-flash`）：run-6 產出第一支可播放 MP4（46.5 秒），當天共 69 次 Gemini 外呼（含除錯），以回傳 token × 價目估算約 US$0.83，不是帳單。run-6 響度 −18.1 LUFS，不符決策 #62 的 ±2 LU；另有字幕跨剪接點 2.2 秒、scene-5 空白圖卡 3.18 秒、引言泡泡超出卡片 23 px、圖卡出現原話沒有的「大型模型」。
+
+本分支修正：配圖 cues 改為清單（Gemini 400 的原因）；params 改為各元件獨立 schema（修正 compare 被 not-merge 覆蓋與跨元件欄位）；修正訊息附允許欄位與實際秒數；重複的修正失敗先改用定向修正、再停止並回 `RECUT_REPAIR_STALLED`；沒有 `trialPolicy` 的單題試產也在渲染前凍結 generation（`recuttrialgenerations`），可零呼叫重渲染；short_render 0.3.0 增益只套一次、字幕不跨剪接點、擋下空白圖卡、卡片文字超框時縮放或拒絕渲染。額度預設仍為 5。
+
+修正版影片由 run-6 施工單離線重渲染，本階段 0 次模型呼叫：`revision-1`（43.3 秒，去掉 c3 尾端「當然啦」與 c4 開頭重說）與 `revision-1b`（45.5 秒，保留 c4 開頭重說）。兩支自動檢查都通過決策 #62 七項（−17.2／−17.1 LUFS、真峰值 −1.6 dBTP），沒有字幕跨剪接點、空白圖卡或文字超框。剪接改動會改變播放的老師原音，需重新核准講稿；c4 剪接點位於連續語音中，需人工聽音確認。run-6 沒有 generation checkpoint，也沒有資料庫綁定，無法用零呼叫重渲染流程回復，修正版不宣稱 checkpoint 來源。
+
+驗證分三類。**本次新執行（2026-11-06，Node 22.23.4，程式候選 `6581ad0`）**：backend `npm test` 1787 項 1786 通過、1 跳過、0 失敗；short_render `npm test` 165 項 164 通過、1 跳過（需瀏覽器的選用測試），另設 `SHORT_RENDER_TEST_BROWSER` 單獨執行該檔 4／4 通過。之後只有文件提交。 OpenAPI 未變更，未跑 `docs:lint`。**真實本機堆疊驗證**（專用本機資料庫 `recut_trial_ckpt-verify-20261106`、假 provider、真實 CLI 與 short_render／HyperFrames／FFmpeg 渲染）：生成 3 次假呼叫後寫入 checkpoint 與資料庫綁定、刻意讓渲染失敗、另起程序重渲染 0 次 provider 嘗試並產出可播放 MP4（決策 #62 自動檢查通過）；被改、重算 hash、缺欄位、input／config 不同、腳本或來源已變的 checkpoint 都拒絕且未渲染；原 run 檔案與資料庫紀錄不變。**獨立審查**：兩輪唯讀審查（第二輪針對 `936430d` 之後的 7 筆）提出的問題已修正，包含 checkpoint 前提改在任何模型呼叫前檢查、worker 不再被版本不符的工作擋住。**未執行**：以真實 Gemini 確認新 schema 會被接受（新 schema 約 4.9 KB、124 節點；舊版 4.5 KB 已確認可用、20 KB 被拒；確認呼叫待授權）、前端、人工 code review、教師審片。2026-11-05 與先前的雲端測試結果是歷史紀錄。
+
+## Recut 交付候選檢查點（2026-11-05）
+
+前端串接準備度為 **CONDITIONAL**：可依 [OpenAPI](../backend/docs/openapi.yaml) 與[前端交接](../backend/docs/recut-integration-handoff.md)開發，但正式使用仍需設定、正式 UI、外部服務與人工驗收。[工程報告](07_HTML說明頁/Recut工程交付報告.html)是本日快照，後續狀態以本節更新為準。
+
+本機 `feat/recut` 已快轉整合最新 `origin/dev` `8c0a5e0`（合併提交 `574daf2`），程式驗證點 `2232036`，recut 來源 `9ad9407`；交付範圍為 dev 協作分支，本輪未執行 main 或部署。獨立審查發現共用 provider 重試在 503 headers 已到、body 卡住時未釋放舊傳輸的 P2，`2232036` 在重試前中止被丟棄的傳輸，保留成功回應期限與取消行為。作者定向 57 項及獨立 60 項、native probe／cleanup matrix 通過，P2 已關閉；這不是教授 cards 失敗原因的修復。原 `8c0a5e0` 合併後全套主動中斷，不作通過證據；最新來源 `2232036` 完整 backend 全套 1,750 項、1,748 通過、0 失敗、2 跳過、0 取消，174 suites、exit 0，耗時 1,541,837 ms；481 個執行時 tracked 檔起訖 SHA-256 無差異。兩項跳過為 Windows symlink 與 consent Mongo opt-in；fencing suite 註記不另算第三項，專用 Mongo 已另驗 6＋1。前一候選 `028f8f8` 全套 1,712 項、1,710 通過、0 失敗、2 跳過、0 取消、exit 0，不能代替最新來源結果。較早 fresh 隔離 Mongo 租約 6／6、同意 1／1，renderer 148／148、0 跳過；Windows symlink 未驗證。本機 ignored 日誌不隨 Git 交付。
+
+`ce4a76f` 自動組裝 backend runtime，fake HTTP 202 → queue → script_review 測試 7／7；`1da5097` 加入可持久保存的 render-ready 通知，fake 測試 22／22。這些是本機替身測試，不代表真服務或教師驗收。正式前端尚未串接 recut，現有網頁仍是八拍流程；管理員正常配置一次並維持 RC7 worker 常駐後，目標流程才是教師審完整講稿、再審實際 MP4，並待遠端 ready 與當前成品核准雙閘門成立。
+
+獨立複核 core／consent 80／80、worker render／process 8／8；受限 sandbox 的 loopback 出現 EACCES，限定升權後 fake HTTP 15／15 通過。fresh 隔離 Mongo 租約 6／6、同意 1／1；後者使用的隨機資料庫保留，未刪除教授資料。對應測試及本機紀錄可由[工程報告](07_HTML說明頁/Recut工程交付報告.html)追溯。
+
+**交接限制：**RC10 決策 #78 要求即使功能開關關閉，上傳仍先檢查內容同意；現有前端尚未接上，舊上傳流程在缺少有效內容同意時會收到 409。可供前端開發與 dev 整合，不能直接部署 main。使用者已授權本次合併並 push dev；部署流程僅 main push 觸發。
+
+工程報告本身的離線瀏覽器複核通過 1440／390／360 寬度、六情境、12 個節點、8 種發布條件與鍵盤操作；這不是正式前端或教師驗收。
+
+R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）通過；catalog 的 aiOnly 為 12，code 仍為 RC6 專用。這不代表真實課程影片或真人審片驗收。
+
+教授授權原片經 CPU small ASR，45.03 秒、441 words、24 句；首尾截斷句 s1／s24 禁選。前三次 provider 呼叫取得用量，第三次選段成功；原 cards 工作嘗試被本機大小 guard 阻擋，未出站。`5102638` 將 cards payload 從 104,529 降至 36,144 bytes，保留選句原始 words／timing 與完整驗證。
+
+實際受控續跑的第四次 provider 嘗試為 cards，36,144 bytes、4,603 ms，回 `RECUT_MODEL_FAILED`、usage null；HTTP 類型與遠端是否收件或計費尚不明。保守計額 provider 4 次、workflow 5 次，reservation 累計 US$0.1659405；原上限 5 次與 US$0.50 不變，僅餘一次，不足 cards 與必要 wholeCheck 兩步。永久 claim 不重置，也不自動付費重試；目前無 generation checkpoint 與 MP4，教授試片 **BLOCKED**，需額外決策。紀錄為本機 ignored 的 `short_render/out/professor-resume-cards-check-20261104/run.json` 與 `progress-checkpoint.json`。目前 adapter 將 HTTP 400／429／500／503 與網路錯誤折疊為同一代碼，未保存 HTTP 或 provider 狀態，因此無法回溯本次原因。cards schema 為 19,917 bytes、330 nodes、317 properties、210 optional、深度 8；複雜度只是候選風險，不能推定為 400 或服務故障。後續建議以白名單保存狀態碼、provider 狀態列舉、失敗階段及 schema hash／大小，不保存原始錯誤、本文、header 或 prompt；schema 瘦身另列改善，均尚未實作。正式十題、RC12 原音正式驗收與模型下載未授權；正式部署、真 YouTube／LINE、正式前端與真人審片未驗證。
+
 ## 各模組
 
 **httpOnly cookie 認證｜已部署；2026-10-25 正式環境驗收通過。** 2026-10-25 13:13 部署到正式站（`main` = `d3de1ef`），部署探測與瀏覽器驗收通過，過程、Atlas 寫入與 VM 設定見[上線紀錄](10_Operations/deployment/2026-10-25_httpOnly_cookie認證上線紀錄.md)；正式站未測 step-up 與信任裝置，nginx 未轉送 `/uploads` 為既有問題。2026-10-24～25 已接上後端、前端及 deploy.yml，依[決策第 1～25 項](04_Features/HttpOnly_Cookie/decisions.md)完成獨立逐條審查及修正後複核。已修正 pending／忘記密碼重寄與猜碼次數的競態、admin 驗證失敗稽核、OpenAPI 描述及登入恢復重試按鈕遮擋。2026-10-25 依使用者補充定案完成升權撤銷：學生／教師實際升為 admin 時，同次更新角色與版本、撤銷全部憑證；重新登入並通過信箱兩段式驗證，才取得 12 小時新 session。原 admin 僅編輯姓名不撤銷，session 刪除故障也不放行舊憑證。原審查 findings 已全部處理，本輪完整後端測試通過。
@@ -23,7 +85,7 @@
 
 **文字問答與多輪對話｜已實作。** 含課程範圍檢查、來源引用、常見問題快取及對話紀錄；快取是保留可重用回答以減少重複計算。依據：[問答服務](../backend/src/services/qa.service.js)、[對話服務](../backend/src/services/conversation.service.js)；回答品質與外部模型 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
-**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。
+**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。2026-11-10 整合審查修正了停用帳號仍可在 LINE 提問、回答卡第一筆引用可能連到別段等問題，只有替身測試、尚未部署與實機驗證，見 [LINE 進度](04_Features/LINE_Binding/evidence/進度.md)。
 
 **LINE Login 綁定與圖文選單｜已部署，正式站手機實測通過（僅一個帳號）。** 依 [LINE 決策](04_Features/LINE_Binding/decisions.md) LL、LM～LM4：學生按「連結帳號」到 LINE 授權後就完成綁定，不需綁定碼；未綁定看到「連結帳號」選單，綁定後換成 2×2 四格「切換課程、今日額度、使用說明、網頁版」，解除時換回；另有「今日額度」「使用說明」指令、課程卡片直接選課與回答分段。依據：[LINE Login 服務](../backend/src/services/lineLogin.service.js)、[選單服務](../backend/src/services/lineRichMenu.service.js)、[建立腳本](../backend/src/scripts/setupLineRichMenus.js)。2026-11-04 部署 `07c8c30`、`2d5e4d2`；LINE Login channel「FocusFlow 綁定」改為 Published，VM `backend/.env` 設定 `LINE_LOGIN_*` 三項與 `LINE_RICH_MENU_BOUND_ID`。同日以一個帳號在手機實測：解除綁定後選單換成「連結帳號」→ LINE 授權 → 綁定成功 → 選單換成 2×2。未測：從未加好友的帳號與歡迎訊息、電腦版 LINE、LINE 已綁定其他帳號的衝突、多位學生同時使用。後端完整測試有三支既有逾時測試會卡住整輪，本次排除未驗證（見決策 LM4）。最後驗證：2026-11-04；負責人：＿＿（待填）。
 
@@ -64,7 +126,7 @@
 
 **短影片腳本｜已實作；上架未驗證。** [腳本介面](../backend/src/routes/short-script.routes.js)串接選題、生成、成品上傳與審核；[發布服務](../backend/src/services/shortAssetPublish.service.js)處理 YouTube 上傳與審核後提供學生瀏覽。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
-**短影片自動產片｜規劃中。** 新方向原型位於 [short_render/](../short_render/)（原片剪輯加程式動畫，不使用教授端生成模型），尚未接入前後端。依據：[指令入口](../short_render/bin/short-render.js)與 2026-10-15 團隊決定。最後驗證：2026-10-15；負責人：＿＿（待填）。
+**短影片自動產片｜開發中。** RC1 資料／狀態機／背景工作、RC2 視窗／原片檢查／辨識包裝／切句、RC3 設定轉接／選段判斷／逐字驗證、RC8 教師審閱／草稿／採納建議／核准／計時已完成本機實作；介面見 [RC1](../backend/docs/recut-foundation.md)、[RC2](../backend/docs/recut-source.md)、[RC3](../backend/docs/recut-selection.md)、[RC8](../backend/docs/recut-review.md)。2026-10-29 Node 22.23.4 的 backend 全套 1322／1322、隔離 loopback Mongo 6／6、OpenAPI lint 與文件路由測試 11／11 通過。RC2 專屬19項、RC3專屬21項、RC8專屬39項，8拍程式與既有測試未改。子 agent 已複核選段草稿與審閱API契約；外部工具及模型皆注入假實作。未執行真實辨識、Gemini、渲染、VM／Atlas／YouTube、前端或人工驗收；完整管線待 RC4、RC5，S1 尚用轉接。後續依 [HANDOFF](04_Features/Short_Video/HANDOFF.md) 接續，完整獨立審查排定 11/6 起。
 
 **分層檢索與向量發布｜⚠️ 待決。** 依實際資料與部署環境判斷，相關部分未驗證。分層檢索是先找較大段落，再找可引用的小片段；[檢索服務](../backend/src/services/hierarchicalRetrieval.service.js)、[資料檢查](../backend/src/services/hierarchicalDataReadiness.service.js)與[發布入口](../STT_Whisper/src/publish_parent_embeddings.py)有對應程式，不據此判定可啟用。最後驗證：2026-10-15；負責人：＿＿（待填）。
 
@@ -88,3 +150,53 @@
 - 2026-09-29：舊文記載影像資料尚未綁定課程影片；2026-10-03：推薦功能僅本機實作；2026-10-07：資料庫交付工具僅模擬測試；2026-10-14：本機產片工具紀錄，未宣稱系統串接或部署。
 
 完整舊文（含其餘測試日期、原始數字與會議紀錄）保留在 Git 版本 `9140f9ec58beff5cc21cb97486bc4864f6898eec`，不另建一份狀態文件。查閱例：在 repo 根目錄輸入 `git show 9140f9e:docs/current-status.md` → 顯示整理前原文；把路徑換成 `backend/docs/current-state.md` 可查後端舊文。歷史文字與目前程式有差異時，以程式及新查證為準。
+
+## 2026-10-29 recut 交付候選（進行中）
+
+候選 worktree：`C:/Users/User/Documents/GitHub/_worktrees/focusflow/recut-delivery`；分支 `integration/recut-delivery-20261029`，整合基底 `0be742c`（dev `66caba4`＋recut `130aa4f`）。舊路徑 `D:/AI-workspace/focusflow-recut-delivery` 保留為相容 junction，兩者是同一份 checkout；後續直接接續此候選，不另建或搬移。正式前端與兩份已定案決策保留。
+
+本輪 DoD：先完成 recut 成品核准／退回、ShortAsset review 與 YouTube ready 雙向發布及失敗修復；再接 RC4／RC5／RC6、本機 CLI，完成可隔離驗證的 RC7 後端 worker 身分／租約／成品回傳與 RC10 同意／撤回。每項必須有本輪 fake/記憶體或專用 loopback Mongo 證據，最後獨立審查、修正與全套檢查後才稱候選完成。歷史測試數字不作本輪證據。
+
+當次外部服務、Atlas、VM、真 YouTube／Gemini、正式部署與人工驗收未執行；後續 Gemini 試產見上方 2026-11-04 檢查點。正式前端 UI 不在本輪。RC12 因原音技術試跑尚未通過且模型下載未授權，維持 BLOCKED；合成語音選項須明確回未就緒。
+
+2026-11-01 本輪續接：成品核准同步 RecutApproval 與 ShortAsset 的精確 versionId／assetId／generationVersion；退回依呈現／內容分流，YouTube ready 與核准任一先到均可接續發布，中斷後修復同一成品。RC7 後端已加入雜湊 worker 金鑰、FIFO、10 分鐘租約、3 次派工上限、版本核對、受限原片下載、成品檢查與可恢復回傳。以禁止 dotenv 讀檔的 preload 執行 fake/harness targeted 58／58、路由契約 11／11、OpenAPI lint 通過；尚待跨程序 Mongo 競爭驗證、renderer／pipeline 整合、RC10 gate 與最終獨立驗證，不能據此稱整體完成。
+
+候選已依序合入當次 `origin/dev` 與本機 `dev` 已提交文件，以及 renderer core／hardening、pipeline 與單題工具四筆原始提交。新增 Mongo mutation lease 與 revision／token fencing；專用 `127.0.0.1:27029` 資料庫驗證跨 Node 程序互斥、失效 token 拒絕、同工作僅一次派工與過期 lease 接手，與外部服務隔離。仍須整合最新 chunk 版本契約、RC10 與完整 fake E2E 後交獨立驗證。
+
+2026-11-02 續接：後端整合由 `delivery_backend_resume` 負責 shared models／services／routes／harness／OpenAPI 與啟動組裝；`delivery_consent_resume` 負責 RC10 專屬同意模組；`delivery_pipeline_runtime` 負責 pipeline 與本機 CLI runtime。後端接續 DoD 是完成 RC4 真正註冊入口、API 與審閱共用 queue、持久化建議、RC10 在排程／worker／上傳／發布的實際閘門及撤回處置，再由最終驗證者序列執行全套與獨立審查。
+
+本輪已完成 `45dfd69`：凍結證據與 RecutSource 保存逐字稿版本，異版不回查 chunk，審閱使用快照並提示來源更新；targeted 69／69、補強斷言後增量 4／4、OpenAPI lint 通過，均預載 `noDotenv.cjs` 且外部服務使用替身。`c0bc4ac` 已合入最新 `origin/dev`（`66f45fc`，含本機 dev `2d4ebc9`）；四份 LINE 定案文件與該 dev 一致。尚未完成本輪全套、完整 fake E2E、RC10 整合及最終獨立驗證，不據此稱候選完成。
+
+2026-11-02 接續檢查點：程式整合 HEAD `abb60bb9`。`7c25e15` 抽出不讀設定的來源純演算法（19／19）；`42c3ada` 已實作惰性 application factory、API 與審閱共用 queue、建議持久化（18／18）。RC10 四筆已合入為 `905e21ef`、`866d544b`、`7d4f4b21`、`218ab5f8`；runtime 四筆已合入為 `c97d63e`、`fcf01a00`、`77aa47df`、`2f9b0630`。worker client 原 owner 的程式與文件已合入為 `94c85fe7`、`abb60bb9`；其 145／145 為 owner 本機證據，候選最終全套另驗。
+
+shared backend 已以 `b73ed48` 接上同意閘門、撤回實際取消／封存／轉私人待辦與通知、harness 及跨模組測試。跨模組撤回 6／6 通過，包含未選中已發布成品保留、選中成品封存、管理員去重通知，以及發布 CAS／YouTube 已送 bytes／渲染成品建立三種交錯。factory 4／4 含真 HTTP controller（缺配置 503、配置後生成及建議重跑）與 runtime factory 接 RC2～RC4 三次 fake 判斷。shared／worker／queue／契約 targeted 63／63、OpenAPI lint 通過；上傳／批次／短片回歸 115 項中 114 項通過，唯一舊 fixture 缺少新課程同意已補成真 HTTP「409 → 明確同意 → 201」，其後該項與最新撤回增量 7／7 通過。尚未以完整新一輪全套取代上述分段證據。
+
+最後四筆 pipeline／worker 合入後，factory 與三次選段增量 25／25 通過，包含真 HTTP 與實際 adapter 建構；外部仍全 fake。接續順序：處理已派給 pipeline owner 的獨立審查問題及教授原片本機 bootstrap → shared backend 修後獨立複驗 → 受影響子系統全套與 HTML 檢查。使用者已授權 `D:/User/Weihao/Videos/短影音測試用/原始上課完整片段` 內指定教授影片的本機試產；本輪教授試產 owner 回報重新執行 CPU small ASR 成功（45.03 秒、441 個有效 word、24 句），優先使用這份新辨識結果。較早 CPU／GPU 記憶體錯誤與 `legacy-cached-20261014` 快取仍為歷史紀錄，不把快取說成本次 ASR 成功。使用者另已授權單題 Gemini 費用不超過 US$0.50，後續試產固定 `gemini-3.8-flash`、最多 5 次、每次 output 4096，不傳原始影片且不使用備援模型；此段為當時授權紀錄；後續實際呼叫見上方 2026-11-04 檢查點。Atlas、YouTube、VM 仍未執行。尚無真實 recut MP4、正式部署或人工網頁驗收證據；fake 生成與審閱成功不能代替這些驗收。既有教師 UI 尚須補接同意請求，操作契約見[後端審閱介面](../backend/docs/recut-review.md#同意閘門與撤回整合)。
+
+### shared backend 五項初審問題的修後檢查點
+
+| 初審問題 | 本輪處理與證據 | 尚待 |
+|---|---|---|
+| feed 過濾後空頁拋錯、後方有效成品遺漏 | `dd57410` 持續掃描到滿頁或耗盡；新回歸 2／2 通過 | 非作者複驗 |
+| 真 Mongo 隱藏 leaseHash 使撤回取消失敗 | `fa2995e` 明確 select 隱藏欄位；專用 `127.0.0.1:27029` 真 Mongo leased／completing 取消與原有 fencing 共 6／6 通過 | 非作者複驗 |
+| 舊過期快照覆蓋已續期 worker 租約 | `fa2995e` 在逾期恢復 CAS 加原到期時間與過期條件；gated heartbeat 回歸及 worker 16／16 通過 | 非作者複驗 |
+| 晚到成品不出現在管理員待辦 API | 當前 route 已合併 core actions 與 Asset 待辦；`a3533ef` 真 HTTP 驗證管理員 200 含該筆、教師 403。直接呼叫 core service 的空結果不能代表 route 缺接線 | 非作者確認初審是否撤回 |
+| 同意 gate 之後、上傳 CAS 之前撤回留下 unlisted | `a3533ef` 上傳 CAS 排除 archived，CAS 後重讀，晚到 ID 留持久補償；新增 gated promise、privacy 失敗通知與恢復，撤回整合 8／8 通過 | 非作者複驗 |
+
+上述 fake worker／撤回共 24／24 及真 Mongo 6／6 為修復作者本輪驗證，尚未宣稱獨立審查通過。pipeline 四筆初審修正已合入 `51e7f16f`、`474921fc`、`c7382504`、`304a6c8b`；教授裸影片 bootstrap 與後續 trial guard 由原 owner 接續。工作樹內前端交接文件由另一 owner 維護，不能因 shared 修復完成就稱正式教師 UI 可用。
+
+### 2026-11-03 shared backend 恢復檢查點
+
+候選已依序整合 pipeline 五筆：`a9a89d6a`、`b4ce888f`、`6ac0cca7`、`8d9a2881`、`f8c3a2ac`。正式 source/media 已接 ASR 正規化，持久保存原片 SHA-256、逐字稿版本／片段、辨識證據與截斷句禁止清單；模型、教師加回、片頭、句內微調及 RC8 鎖定重跑共用拒絕檢查。程式碼圖卡遇有／無行號的「會／可能／就…出錯」提示時保守保留原話，不讓 OCR／AI 修正錯誤示範。OpenAPI 補齊禁止加回的 422、逐句可選狀態、撤回成品清單與管理員待辦回應／403。
+
+本輪作者精準測試 **140／140**、OpenAPI lint 與 `git diff --check` 通過；包含真 Express 本機 loopback、記憶體模型與真 Mongoose schema 的 `new/validateSync/toObject`。外部工具、模型與服務皆 fake，未連 Atlas／VM／YouTube／LINE；前端與兩份 Short_Video 決策無修改。精準測試 log：候選根目錄 `backend-shared-tests.log`；lint log：`backend-docs-lint.log`（忽略的本機證據檔，不提交）。完整 backend、隔離 Mongo、renderer 與非作者複驗由整合 owner 接續，不能將本輪作者測試當正式驗收。
+
+恢復命令（PowerShell，在候選 `backend/`）：
+
+```powershell
+$env:NODE_PATH='C:/Users/User/Documents/GitHub/focusflow/backend/node_modules;C:/Users/User/Documents/GitHub/_worktrees/focusflow/recut-rc5/short_render/node_modules'
+node --require ./tests/helpers/noDotenv.cjs --test --experimental-test-isolation=none --test-concurrency=1 --test-reporter=spec tests/recut-source.service.test.js tests/recut-media.service.test.js tests/recut-selection.service.test.js tests/recut-review.service.test.js tests/recut-review.routes.test.js tests/recut-state.service.test.js tests/recut-code-runtime.service.test.js tests/docs.routes.test.js tests/recut-consent-integration.test.js
+npm.cmd run docs:lint
+```
+
+只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。以上為 2026-11-03 當次診斷，已由上方 2026-11-04 Docker 與真模型試產紀錄取代；不得改連正式資料庫。

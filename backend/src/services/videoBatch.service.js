@@ -145,6 +145,7 @@ async function createVideoBatch({ courseId, files, titles = [], user }) {
   try {
     const course = await getCourseByIdOrThrow(courseId);
     await assertCanManageCourse(user, course);
+    await require('./recutWorkConsent.service').assertWorkConsent({ courseId, contentOnly: true });
     batchId = createBatchId();
     batch = await VideoBatch.create({
       batchId,

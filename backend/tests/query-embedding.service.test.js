@@ -179,8 +179,17 @@ describe('Gemini embedding 的逾時與重試', () => {
     let calls = 0;
     global.fetch = async (_url, options) => {
       calls += 1;
+      // Keep only this fake pending transport alive, with a bounded failure
+      // deadline; the production AbortSignal timeout remains under test.
+      let watchdog, onAbort;
       return new Promise((_, reject) => {
-        options.signal.addEventListener('abort', () => reject(options.signal.reason));
+        watchdog = setTimeout(() => reject(new Error('timeout signal did not fire')), 1500);
+        onAbort = () => reject(options.signal.reason);
+        options.signal.addEventListener('abort', onAbort, { once: true });
+        if (options.signal.aborted) onAbort();
+      }).finally(() => {
+        clearTimeout(watchdog);
+        options.signal.removeEventListener('abort', onAbort);
       });
     };
     const startedAt = Date.now();

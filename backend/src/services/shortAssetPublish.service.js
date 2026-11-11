@@ -163,6 +163,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
   try {
     const asset = await ShortAsset.findById(assetId).lean();
     if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
+    await require('./recutWorkConsent.service').assertAssetConsent(asset);
     if (asset.youtubeVideoId) throw new AppError('This short asset is already uploaded to YouTube.', 409, 'YOUTUBE_UPLOAD_ALREADY_COMPLETED');
     assertDisclosureConfirmed(asset);
     assertUploadConfigured();
@@ -213,11 +214,17 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       throw error;
     }
     const uploadedAt = new Date();
+    try { await require('./recutWorkConsent.service').assertAssetConsent(asset); }
+    catch (error) {
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+      await require('./recutConsentLifecycle.service').quarantineForConsentLoss(asset, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+      throw error;
+    }
     let uploaded;
     try {
       if (!(await ShortAsset.findOne(owner).lean())) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
       await reserveYouTubeBackup(uploadResult.youtubeVideoId, 'short_asset', asset);
-      uploaded = await ShortAsset.findOneAndUpdate(owner, { $set: {
+      uploaded = await ShortAsset.findOneAndUpdate({ ...owner, status: { $ne: 'archived' } }, { $set: {
         youtubeVideoId: uploadResult.youtubeVideoId,
         youtubeUrl: uploadResult.videoUrl || buildYouTubeWatchUrl(uploadResult.youtubeVideoId),
         'youtubeUpload.remoteState': 'processing',
@@ -231,7 +238,27 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       await recordUploadFailure(assetId, { error, attemptCount, startedAt, owner });
       throw error;
     }
-    if (!uploaded) { await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null; }
+    if (!uploaded) {
+      const current = await ShortAsset.findById(assetId).lean();
+      if (current?.status === 'archived' || current?.consentWithdrawal) {
+        await require('./recutConsentLifecycle.service').quarantineForConsentLoss(current, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+        await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+        throw new AppError('Consent or archival changed while upload completed.', 409, 'RECUT_CONSENT_WITHDRAWN');
+      }
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset'); return null;
+    }
+    // A withdrawal can also commit after the preflight check and upload CAS.
+    // Read the current asset before callbacks; either this check compensates it,
+    // or the withdrawal sees its persisted remote ID and schedules privacy work.
+    const current = await ShortAsset.findById(assetId).lean();
+    try {
+      if (current?.status === 'archived' || current?.consentWithdrawal) throw new AppError('Consent or archival changed while upload completed.', 409, 'RECUT_CONSENT_WITHDRAWN');
+      await require('./recutWorkConsent.service').assertAssetConsent(current || uploaded);
+    } catch (error) {
+      await require('./recutConsentLifecycle.service').quarantineForConsentLoss(current || uploaded, { youtubeVideoId: uploadResult.youtubeVideoId, fetchImpl });
+      await recordOrphanUpload(ShortAsset, asset, attemptId, uploadResult.youtubeVideoId, 'short_asset');
+      throw error;
+    }
     await uploadGate.recordUploadSuccess({ probe }).catch(() => null);
     const checked = await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'short_asset', item: uploaded, fetchImpl, now }).catch(() => null);
     return checked || uploaded;
@@ -255,8 +282,23 @@ function runTrackedShortAssetUpload(options = {}) {
  * 只改 FocusFlow 這端的可見性。
  */
 async function markShortAssetPublished(asset) {
+  if (asset.recutVersionId) {
+    return require('./recutState.service').withRecutTransition(asset.sourceScriptId, (transition) => markShortAssetPublishedOwned(asset, transition));
+  }
+  return markShortAssetPublishedOwned(asset);
+}
+
+async function markShortAssetPublishedOwned(asset, transition) {
+  asset = await ShortAsset.findById(asset._id).lean();
+  if (!asset || asset.status === 'archived') return null;
+  if (asset.status !== 'published') await require('./recutWorkConsent.service').assertAssetConsent(asset);
   assertReviewApproved(asset);
+  await require('./recutState.service').assertRecutAssetPublishable(asset);
   if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
+  assertDisclosureConfirmed(asset);
+  const synchronize = async () => transition?.({ event: 'publish', versionId: asset.recutVersionId,
+    assetId: asset._id, generationVersion: asset.generationVersion });
+  if (asset.status === SHORT_ASSET_STATUSES.PUBLISHED) { await synchronize(); return asset; }
   const publishedAt = new Date();
   const published = await ShortAsset.findOneAndUpdate(
     { _id: asset._id, 'youtubeUpload.remoteState': 'ready', status: { $nin: [SHORT_ASSET_STATUSES.ARCHIVED, SHORT_ASSET_STATUSES.PUBLISHED] },
@@ -282,6 +324,14 @@ async function markShortAssetPublished(asset) {
   );
 
   if (!published) return null;
+  // Withdrawal may commit after the preflight check while this CAS was waiting.
+  // Only this newly published result is compensated; historical unchecked assets remain intact.
+  try { await require('./recutWorkConsent.service').assertAssetConsent(published); }
+  catch (error) {
+    await require('./recutConsentLifecycle.service').quarantineForConsentLoss(published);
+    throw error;
+  }
+  await synchronize();
 
   // 影片已經對學生可見，這裡失敗只是腳本標籤沒更新，不能讓上架回錯誤。
   if (asset.sourceScriptId) {
@@ -306,12 +356,9 @@ async function markShortAssetPublished(asset) {
  * uploadShortAssetToYouTube() 會看到審核已通過而補上這一步。
  */
 async function publishApprovedShortAsset(asset) {
-  if (!asset?._id || !asset.filePath) return null;
+  if (!asset?._id) return null;
   assertReviewApproved(asset);
-  assertDisclosureConfirmed(asset);
-  if (!asset.youtubeVideoId) return null;
-  if (asset.status === SHORT_ASSET_STATUSES.PUBLISHED) return null;
-
+  if (!asset.youtubeVideoId || asset.youtubeUpload?.remoteState !== 'ready') return null;
   return markShortAssetPublished(asset);
 }
 
@@ -525,6 +572,10 @@ async function createAssetFromScriptOwned({
 
     const course = await getCourseByIdOrThrow(script.courseId);
     await assertCanManageCourse(user, course);
+
+    if (script.productionMode === 'recut') {
+      throw new AppError('Recut assets must use the approved render workflow.', 409, 'RECUT_STATE_INVALID');
+    }
 
     const versions = script.versions || [];
     if (!versions.length) {

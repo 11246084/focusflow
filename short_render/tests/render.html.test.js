@@ -46,9 +46,10 @@ for (const [name, build] of cases) {
       assert.equal((html.match(/<script src=/g) || []).length, 1);
     });
 
-    it('老師影片用原音、時間長度等於說話總長（不是含結尾卡的總長）', () => {
-      assert.match(html, /<video id="teacher" src="teacher\.mp4"[^>]*data-has-audio="true"/);
-      assert.ok(html.includes(`data-duration="${resolved.speechTotal.toFixed(3)}" data-track-index="1"`));
+    it('只帶原音、不輸出教師影像，結尾卡使用靜音補齊', () => {
+      assert.match(html, /<audio id="narration" src="narration\.wav"[^>]*data-has-audio="true"/);
+      assert.equal(/<video|id="teacher"/.test(html), false);
+      assert.ok(html.includes(`data-duration="${resolved.total.toFixed(3)}" data-track-index="1"`));
       assert.ok(html.includes(`data-duration="${resolved.total.toFixed(3)}">`));
     });
 
@@ -105,17 +106,19 @@ describe('buildCutArgs', () => {
   });
   const graph = args[args.indexOf('-filter_complex') + 1];
 
-  it('每個 clip 都有 trim、裁老師視窗與 concat', () => {
-    assert.equal((graph.match(/trim=start=/g) || []).length, resolved.clips.length * 2);
-    assert.ok(graph.includes('crop=359:268:1520:272'));
-    assert.ok(graph.includes(`concat=n=${resolved.clips.length}:v=1:a=1`));
+  it('每個 clip 只剪音訊並串接，不讀取教師影像', () => {
+    assert.equal((graph.match(/atrim=start=/g) || []).length, resolved.clips.length);
+    assert.equal(/crop|\[0:v\]/.test(graph), false);
+    assert.ok(graph.includes(`concat=n=${resolved.clips.length}:v=0:a=1`));
   });
 
   it('不加速、不改音高（模板 06：聲音不能動）', () => {
     assert.equal(/atempo|setpts=PTS\/|setpts=0\./.test(graph), false);
   });
 
-  it('每秒一個關鍵格，渲染器逐格 seek 不會停格', () => {
-    assert.ok(args.includes('-g') && args[args.indexOf('-g') + 1] === '30');
+  it('使用 PCM 原音並補齊結尾卡，不正規化、不改音色', () => {
+    assert.ok(args.includes('pcm_s16le') && args.includes('-vn'));
+    assert.ok(graph.includes(`apad,atrim=end=${resolved.total}`));
+    assert.equal(/loudnorm|volume/.test(graph), false);
   });
 });

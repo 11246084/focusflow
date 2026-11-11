@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   LINE_LOGIN_CANCELLED,
+  LINE_LOGIN_FAILED_CALLBACK,
   LINE_LOGIN_INVALID_CALLBACK,
   LINE_PAGE_PATH,
   completeLineLogin,
@@ -14,6 +15,7 @@ const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
 function initialResult(callback) {
   if (callback.kind === 'cancelled') return LINE_LOGIN_CANCELLED;
+  if (callback.kind === 'failed') return LINE_LOGIN_FAILED_CALLBACK;
   if (callback.kind === 'invalid') return LINE_LOGIN_INVALID_CALLBACK;
   return null;
 }

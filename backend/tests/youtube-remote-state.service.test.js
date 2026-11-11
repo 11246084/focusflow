@@ -169,11 +169,24 @@ describe('Q-B 遠端就緒與隱私', () => {
   });
   it('投影或 hydration 補入 null 的 legacy callback 用完整 lean 判定並補上架', async () => {
     const item = add({ status: 'draft', reviewStatus: 'approved', reviewedGenerationVersion: 1,
+      disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true },
       youtubeUpload: { status: 'uploaded', uploadedAt: NOW } }, 'short_asset');
     const supplied = { _id: item._id, youtubeVideoId: item.youtubeVideoId, generationVersion: 1,
       youtubeUpload: { status: 'uploaded', attemptId: null, readyAt: null } };
     await remote.checkItemRemoteState({ kind: 'short_asset', item: supplied, fetchImpl: fake().fetchImpl, now: NOW });
     assert.equal(item.youtubeUpload.remoteState, 'ready'); assert.equal(item.status, 'published');
+  });
+  for (const disclosure of [undefined, { aiDisclosureConfirmed: true, consentConfirmed: false },
+    { aiDisclosureConfirmed: false, consentConfirmed: true }]) it('legacy callback不能用投影偽造缺少的發布揭露', async () => {
+    const item = add({ status: 'draft', reviewStatus: 'approved', reviewedGenerationVersion: 1, disclosure,
+      youtubeUpload: { status: 'uploaded', uploadedAt: NOW } }, 'short_asset');
+    const supplied = { _id: item._id, youtubeVideoId: item.youtubeVideoId, generationVersion: 1,
+      disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true },
+      youtubeUpload: { status: 'uploaded', attemptId: null, readyAt: null } };
+    await assert.rejects(remote.checkItemRemoteState({ kind: 'short_asset', item: supplied, fetchImpl: fake().fetchImpl, now: NOW }),
+      { code: 'SHORT_ASSET_DISCLOSURE_REQUIRED' });
+    assert.equal(item.youtubeUpload.remoteState, 'ready'); assert.equal(item.status, 'draft');
+    assert.equal(item.publishedAt, undefined);
   });
   it('隱私失敗逐次退避 5 分、15 分、1 小時、之後每 6 小時', () => {
     const item = add(); item.youtubeUpload.privacyStatus = 'public';

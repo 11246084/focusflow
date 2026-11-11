@@ -11,6 +11,7 @@ const createScript = asyncHandler(async (req, res) => {
     courseId: req.params.courseId,
     // 教師可指定主題；不給就照 DR-12 的排序自動選。
     topicKey: String(req.body?.topicKey || '').trim() || null,
+    productionMode: req.body?.productionMode,
   });
 
   return sendSuccess(res, {

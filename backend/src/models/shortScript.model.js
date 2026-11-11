@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { PRODUCTION_MODES, RECUT_STATES } = require('../constants/recut');
 const {
   SHORT_SCRIPT_STATUSES,
   SHORT_SCRIPT_STATUS_VALUES,
@@ -18,6 +19,7 @@ const evidenceSchema = new mongoose.Schema(
     startSec: { type: Number, default: null },
     endSec: { type: Number, default: null },
     rawText: { type: String, default: '' },
+    transcriptVersion: { type: String, default: 'legacy' },
     // 這一筆是檢索直接命中，還是鄰接擴展補進來的（規格書 C.1）。
     // 兩者在 basedOn 引用時地位相同，但診斷時需要分得出來。
     expandedFrom: { type: String, default: null, trim: true },
@@ -73,6 +75,22 @@ const shortScriptSchema = new mongoose.Schema(
     evidence: { type: [evidenceSchema], default: [] },
     evidenceFrozenAt: { type: Date, default: null },
     versions: { type: [versionSchema], default: [] },
+    productionMode: { type: String, enum: Object.values(PRODUCTION_MODES), default: PRODUCTION_MODES.AVATAR },
+    // Short database mutations only; media/model work never holds this lease.
+    recutMutationLock: {
+      token: { type: String, default: null, select: false },
+      expiresAt: { type: Date, default: null, select: false },
+    },
+    recut: {
+      state: { type: String, enum: Object.values(RECUT_STATES), default: RECUT_STATES.IDLE },
+      revision: { type: Number, default: 0 },
+      currentVersionId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutVersion', default: null },
+      currentAssetId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShortAsset', default: null },
+      currentAssetGenerationVersion: { type: Number, default: null },
+      activeTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutTask', default: null },
+      lastCompletedTaskId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutTask', default: null },
+      pendingEditId: { type: mongoose.Schema.Types.ObjectId, ref: 'RecutReviewEvent', default: null },
+    },
     status: {
       type: String,
       enum: SHORT_SCRIPT_STATUS_VALUES,

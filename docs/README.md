@@ -1,5 +1,19 @@
 # FocusFlow 文件總覽
 
+三筆專用 Collection／Index 的前置查證與授權清單見 [第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。
+
+Atlas 小樣本整合的備份、Dry Run、檢索與回復操作見 [第四階段工具說明與查證](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
+多模態本機展示的操作見 [Demo README](../backend/scripts/multimodal-demo/README.md)，提交與驗證紀錄見 [進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+多模態資料查證見 [唯讀診斷工具](../backend/scripts/multimodal-diagnostics/README.md)與 [2026-11-10 Atlas 查證報告](04_Features/Multimodal_Retrieval/evidence/2026-11-10-atlas-diagnostics.md)。
+
+多模態第二階段使用方式見 [Gemini／Atlas adapters](04_Features/Multimodal_Retrieval/phase2-adapters.md)，驗證依據見 [2026-11-10 第二階段紀錄](04_Features/Multimodal_Retrieval/evidence/2026-11-10-phase2.md)。
+
+真實 Gemini 小樣本的授權清單、執行指令與無付費預演見 [2026-11-10 執行前檢查](04_Features/Multimodal_Retrieval/evidence/2026-11-10-preflight.md)。
+
+授權後的 12 筆真實結果、相似度、排名與費用核對見 [2026-11-10 真實小樣本](04_Features/Multimodal_Retrieval/evidence/2026-11-10-live-sample.md)。
+
 這裡依用途收錄學校公告、交付文件、功能規格與圖檔，讓常用內容最多點兩層就能找到。請先查[目前狀態](current-status.md)，再從下表進入需要的文件；歷史快照只供追溯。
 
 ## 資料夾架構
@@ -55,6 +69,17 @@ docs/
 ## 文件責任
 
 YouTube Q 整合：[2026-10-29 本機驗收證據](04_Features/YouTube_Lifecycle/evidence/2026-10-29_q-integration.md)、[部署與退回程序](10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)、[後端文件入口](../backend/docs/README.md)。
+recut 後端接手：[RC1 資料、狀態機與背景工作](../backend/docs/recut-foundation.md)（集合、句子格式、RC2／RC3／RC8 介面）；本機變更紀錄沿用 [implementation-log](../backend/docs/implementation-log.md)。
+
+recut 原片處理：[連續視窗、音量與切句規則](../backend/docs/recut-source.md)。
+
+recut 選段：[指示文字、驗證與共用呼叫介面](../backend/docs/recut-selection.md)。
+
+recut 工程交付：[離線互動報告](07_HTML說明頁/Recut工程交付報告.html)。
+
+recut 教師審閱：[RC8 API、草稿與 RC4／RC9 接手](../backend/docs/recut-review.md)；[前端串接交接草稿](../backend/docs/recut-integration-handoff.md)。
+
+recut 同意與撤回：[RC10 條款、範圍與持久重試設計](../backend/docs/recut-consent.md)（交付候選整合中）。
 
 YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lifecycle/shared-data-contract.md)、[Q-A～Q-F 工作說明](04_Features/YouTube_Lifecycle/work-orders/Q-quota-playback-plan.md)、[額度與上傳可靠性研究](04_Features/YouTube_Lifecycle/quota-upload-research.md)、[原片暫存播放研究](04_Features/YouTube_Lifecycle/local-playback-research.md)。
 

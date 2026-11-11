@@ -1,5 +1,100 @@
 # short_render
 
+## RC5 句子契約（0.3.0；0.2.0 起的句子契約，0.3.0 加上 2026-11-06 渲染修正）
+
+後端以 `require('./src/plan')` 使用 `buildRecutPlan`、`validatePlan`、`resolvePlan`、`getComponentCatalog`、`getCardsResponseSchema`、`getAllowedIcons`、`getAssetCatalog`、`getRendererMetadata`。新版仍用 `schemaVersion: 'recut-v1'`，另帶 `contractVersion: 'sentence-v1'`，與下方歷史文字錨點原型分開辨識。`tests/sentence.fixture.js` 是無真人素材的完整合成樣本。
+
+- `buildRecutPlan({source,selectionResult,scenes,subtitles,title,endCard,modelId,audio,theme})` 回 `{plan,resolved,errors}`；來源與選段使用 RC2／RC3 的凍結句子及絕對逐字秒數。`audio` 可用 RC2 的 `integratedLufs/truePeakDbtp/fixedGainDb`；預設 N2、結尾卡額外時長 0，避免擅改已鎖定的 65 秒選段。
+- `validatePlan(plan,{sentences,evidence,resolved?})` 回 `{valid,errors,warnings}`；`evidence` 可為凍結 chunk 陣列或 RC2 source。`resolvePlan(plan,{sentences})` 回 `{resolved,errors}`。新版不再呼叫第二次 ASR、模糊比對或靜音吸附，剪點須與 RC3 逐字邊界相同。
+- 配圖輸出 `scenes:[{id,from:'s1',to:'s3',component,params,cues:[{key:'text',sentenceId:'s1',text?:'原話片語'}]}]`；後端 `foldTransportCues` 先折回施工單的 `cues:{text:{sentenceId,text?}}` 物件，再交給本模組，程式填回 `clips/basedOn`。cues 改用清單是因為每個 cue 名稱各一個錨點物件的 schema 約 20 KB、330 個型別節點，Gemini 回 400 INVALID_ARGUMENT（2026-11-05 OpenCV 試產實測）；清單版約 4.5 KB、88 個節點。重複的 key 或未定義欄位會當成修正錯誤回給模型，不靜默略過；施工單、驗證器與渲染仍只接受物件形式。
+- `getComponentCatalog()` 每個元件另列 `fields`、`required`、`nestedFields`（巢狀項目路徑如 `rows[].tokens[]`）與依範例參數算出的 `exampleCues`，全部由 `PARAM_SCHEMAS` 推導；後端只把這些欄位清單與範例交給模型，不送完整 `paramsSchema`。回應 schema 的 `params` 原本是各元件欄位的聯集：模型只靠 schema 分不出欄位歸屬（2026-11-05 試產連續 `FIELD_UNKNOWN`，例如把 relation 的 `words` 放進 stat），而且 `not-merge.left/right` 會覆蓋 `compare.left/right` 的巢狀定義。現在 `getCardsResponseSchema` 的 `params` 以元件名為鍵（`params:{stat:{value}}`），每個鍵就是該元件去掉 description 的 `PARAM_SCHEMAS`；後端 `foldTransportParams` 取出與 `component` 同名的那一個鍵還原成扁平形式，多鍵、鍵名不符或 `__proto__`／`constructor`／`prototype` 一律拒絕，舊的扁平 params 原樣通過。`cues` 清單的 `key` 改成一般字串：合法 cue 名稱隨 params 而定（`lit0..`、`d0..`、`r0t0..`），靜態 enum 表達不了，由 `validateSentenceStructure` 依該卡 params 檢查，`CUE_UNKNOWN` 會列出該卡可用的名稱。新 schema 約 4.9 KB、124 個型別節點（舊聯集版 4.5 KB、88 節點已實測可用；20 KB、330 節點被拒）；新版尚未以真實 Gemini 呼叫確認會被接受。`checkParamFields` 是唯一的參數欄位檢查：未知欄位仍回 `FIELD_UNKNOWN` 並使整份施工單無效、不刪除，訊息附上該元件在該層允許與必填的欄位，例如 `component "quote-reveal" params allows only: text, label, icon; required: text`。場景長度與錨點錯誤訊息同樣附上實際秒數、各選句播放秒數或該句原文，判斷規則不變。字幕為 `subtitles:[{from:{sentenceId:'s1',text?},runs:[{t,hl?}],level?}]`；程式填 clip。施工單的 clip 另外保留程式填入的 `textAnchors` 作回溯。
+- 圖卡目錄共 12 種加 RC6 `code` 擴充。`getComponentCatalog({aiOnly:true})` 暫回原有 9 種；三種新卡必須經另一位代理完成手機可讀性檢查才開 AI；`code` 由 RC6 畫面抄錄步驟提供，配圖模型不可自行編寫。每筆目錄含用途、參數 schema、三行範例與不適用情境。
+- RC6 `code.params`：`language`、`lines:[{text,source:'畫面原樣|AI 修正|AI 補寫',originalText,intentionalError?}]`，選填 `highlightLines:[1]`、`boxes:[{line:1,text:'唯一文字'}]`、`requiredVariables:['x']`、`errorMessage`、`diagram:{layers:[{text,icon?}]}`。每行至多 36 字、每卡至多 12 行；故意錯誤必須維持畫面原樣。
+
+素材只讀固定 npm 套件：Fluent 1.2.6、Phosphor 2.1.1；依已核准的 2026-10-17 清單開放 1,341 個預設 Fluent，排除 51 個物件、Flags 及非白名單 Symbols。Iconify 的右指手勢是鏡像 alias，程式明確保留這個預設 alias；不能用名字結尾 `light` 一律判膚色，否則會誤擋紅綠燈。
+
+演算法與限制：建立句子 ID 索引，逐段依 RC3 首尾完整字詞選取、累加原片首字至末字的時間；冷開場只允許一次、不重複播放。片語僅在指定句內做唯一且完整字詞的比對，保留小數點、負號與程式符號；拒絕字元比例推算及模糊命中。圖卡完整覆蓋選句、每張 3～12 秒、只在句界更換。預覽與成品的固定增益為 `min(-16-inputLUFS,-1.5-inputTruePeak)` dB；峰值限制後低於 -18 LUFS 即拒絕。上述測試是離線合成資料驗證，未宣稱模型品質或實際 MP4 驗收。
+
+## sentence-v1 預覽與渲染
+
+Node 22.23.4 以上的 22 版；使用已安裝並固定版本的 npm 套件，執行中不下載圖示、字型或瀏覽器。字型使用既有 Noto Sans TC 可變字型；真正渲染另需已安裝的 chrome-headless-shell、FFmpeg／ffprobe。下方指令會處理本機檔案；本輪驗證只有合成資料與假的外部執行器，沒有製作真實 MP4。
+
+```powershell
+cd short_render
+npm.cmd test
+# 自製圖卡、30 秒靜音，沒有原片或外部呼叫
+node bin/prototype.js out/prototypes-v2
+# 在瀏覽器開啟 out/prototypes-v2/index.html，選主題後拖曳播放位置
+
+# source.json 為 RC2 的凍結來源，含 sentences 與逐字絕對時間
+node bin/short-render.js validate plan.json --evidence source.json
+node bin/short-render.js align plan.json --evidence source.json --out out/job
+node bin/short-render.js preview plan.json --evidence source.json --source source.mp4 --out out/job
+# preview 只剪原音與產生 stage/preview.html，不啟動 HyperFrames
+node bin/short-render.js render plan.json --evidence source.json --source source.mp4 --out out/job --browser C:/path/to/chrome-headless-shell.exe
+```
+
+`align` 對 sentence-v1 只做確定性句子解析，不重跑 ASR。舊 fixtures 保留 validate／align 相容性；舊版不能直接 stage／render，避免缺少固定增益與版本資料。原型入口會重建五個主題頁、五個 `code-主題.html` 與 `catalog.json`；前三卡每 5 秒依序展示「放不進去」「合不起來」「層層包含」。程式碼頁使用 [固定自製範例](tests/codePrototype.fixture.js)，保留故意錯誤的 `value =`，顯示行號、行高亮、唯一詞方框與錯誤訊息；這些參數是離線 fixture，並非實際 OCR 或模型結果。`code-主題.render.html` 用正式 render 模式產生，供檢查 720×1280 與來源對照隔離；`code-主題.plan.json` 供核對固定輸入，均在忽略的輸出目錄。三張關係圖卡經獨立手機複核後開放 AI catalog（9→12）；`code` 仍維持 `aiEnabled:false`、`rc6-only`。複核證據為本機 `out/qa-20261104/report.json`（五主題 × 360／390，各三卡，共 30 張）；這是合成卡片可讀性與預覽控制列檢查，沒有真實成品或正式驗收。完整狀態只記在[目前狀態](../docs/current-status.md)。
+
+`stageProject({plan,resolved,sentences,evidence,sourcePath,outDir,runCommand?,resolveFont?})` 先核對版本與重新解析後的完整時間，再建立 `stage/index.html`、`preview.html`、本機字型、GSAP 與 `narration.wav`。`skipCut:true` 只供離線原型使用，不能進入 render。`renderProject({plan,resolved,stageDir,outDir,runCommand?,hyperframesImpl?,ensureFontLoaded})` 重新核對 planHash、增益、HTML／字型／GSAP／音訊雜湊；缺少字型檢查器或觀測失敗就拒絕渲染。`src/render/browser.js` 使用 HyperFrames 鎖定依賴中的 puppeteer-core，僅啟動傳入的既有瀏覽器路徑，不安裝瀏覽器、不允許網路請求。在 Linux 以 root 執行時（例如雲端容器），Chromium 必須帶 `--no-sandbox` 才能啟動，字型檢查只在這種情況加上這個旗標；HyperFrames 本身的渲染原本就以 `--no-sandbox` 啟動，字型檢查仍只載入本機 stage 並擋掉 file／data／blob 以外的請求。常駐 worker 的設定與啟動方式見下節。
+
+演算法與取捨：
+
+- **同一時間軸**（`src/render/html.js`）：輸入 plan 與 resolved，產生共用的卡片、字幕與 GSAP 動畫；預覽只額外加入控制項與程式碼來源對照。播放、暫停與拖曳都用原音 `currentTime` 對動畫 seek；逐格渲染使用同一條已暫停的 timeline。卡片與字幕的可見區間同時寫進 timeline，避免逐格時重疊。相較分開維護兩套動畫，這能降低預覽與成品漂移，但仍需真實瀏覽器與 MP4 比對。字型載入後才註冊 timeline；手機預覽以自身容器寬度等比縮放 720×1280 畫布，頁面根節點、控制列與來源區隨可用寬度收縮，避免被固定畫布寬度撐出水平捲軸；正式 render 頁沒有套用預覽根節點樣式，輸出尺寸固定。
+- **原音剪接與固定增益**（`cut.js`、`render.js`）：以每段的絕對 srcStart／srcEnd 做 `atrim`，重設時間後串接 PCM 音訊；只在額外結尾卡補靜音。預覽套 Web Audio `10^(gainDb/20)`，成品於最後一步套一次 FFmpeg `volume=gainDb dB`。未採動態 loudnorm，避免改變聲音動態。結尾卡過長仍可能被 RC7 靜音檢查擋下；預設 0 秒。
+- **程式碼顯示與隔離**（`html.js`）：固定規則 tokenizer 為關鍵字、字串、數字與註解上色，不執行程式、不驗證語法；比完整編譯器簡單且沒有語言模型呼叫，但不能完整辨識所有語言。行號、行高亮、唯一片語方框與錯誤框來自已驗證參數；原始畫面抄錄與逐行來源只輸出到 preview 的畫布外對照區，render HTML 不序列化整份 plan，因此不帶 OCR／provenance。短程式行與錯誤訊息提高到畫布 32px（360px 預覽約 16px）；長行依文字寬度與行數保守縮小，必要時保留原文換行，避免 36 字元行超出畫布。深色／淺色主題的錯誤文字分別使用較亮／較深色，與各主題表面至少 4.5 對比。密集程式仍可能需要縮字，這不等同任意 12 行內容皆已通過手機驗收；程式內容的正確性仍由 RC6 與教師審閱負責。
+- **版本 fencing**（`render.js`）：鎖定 renderer／素材／GSAP／HyperFrames 版本，再用雜湊阻止 staging 後內容漂移。這處理本機工件一致性；工作核准、租約與上傳版本核對由 RC7 後端處理，不能以本機雜湊代替核准。
+
+本輪測試見 `tests/render.sentence.test.js`：五主題、共用 seek、字型閘門、渲染頁來源隔離、音訊遭修改時拒絕、固定增益與純原音剪接，以及三張已複核關係卡開放、code 仍限 RC6。外部 FFmpeg、HyperFrames、瀏覽器啟動均以替身驗證；尚未宣稱真實響度、字型截圖、手機可讀性、MP4 或人工驗收通過。
+
+## RC7 常駐 worker
+
+worker 是組員電腦上的渲染程式：向後端領一支已核准工作，下載受限原片，再用上述 RC5 流程製作並檢查 MP4。每台電腦只用自己的專用金鑰，一次做一支；接工作／暫停及停用由管理員後台控制。功能進度與驗收範圍見[目前狀態](../docs/current-status.md)，API 詳見[後端 worker 契約](../backend/docs/recut-review.md#rc7-專用-worker-與持久租約)。
+
+先安裝 Node 22.23.4 以上的 22 版與鎖定依賴（`npm.cmd ci`），備妥既有 chrome-headless-shell、Noto Sans TC 可變字型及 FFmpeg／ffprobe。worker 不安裝瀏覽器、不下載模型；管理員必須先為這台電腦建立 worker 金鑰。不要使用教師／管理員 JWT，也不要把金鑰放在命令列或 Git。
+
+建立受信任的本機設定，例如 `D:/AI-workspace/private/recut-worker.cjs`；此檔是 Node 模組，只載入自己維護的設定。以下從具名環境變數注入未來的 worker 金鑰，不載入或掃描任何 `.env` 檔：
+
+```javascript
+module.exports = {
+  backendUrl: 'http://127.0.0.1:3000', // 非 localhost 必須 HTTPS，僅填 origin
+  getWorkerKey: async () => process.env.RECUT_WORKER_KEY,
+  workRoot: 'D:/AI-workspace/recut-worker-jobs',
+  browserExecutable: 'D:/tools/chrome-headless-shell/chrome-headless-shell.exe',
+  fontFile: 'C:/Windows/Fonts/NotoSansTC-VF.ttf',
+  ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', // 或填安裝後的完整路徑
+  hostKind: 'desktop',
+};
+```
+
+由自己的啟動環境提供 `RECUT_WORKER_KEY` 後，在 `short_render` 執行：
+
+```powershell
+# 只顯示用法，沒有領工作或啟動工具
+node bin/recut-worker.js --help
+# 以下會真正領工作、下載原片並渲染，需已準備好上述本機環境
+node bin/recut-worker.js --config D:/AI-workspace/private/recut-worker.cjs --once
+node bin/recut-worker.js --config D:/AI-workspace/private/recut-worker.cjs
+```
+
+`--once` 處理至多一支；常駐模式每 10 秒輪詢。Ctrl+C 中止目前工作。`hostKind:'vm'` 預設回 `disabled` 且不領工作；僅管理員已另外授權 VM 渲染時才明確加入 `enableVmRender:true`。沒有設定就只顯示用法；不隨後端啟動自動執行。版本不符時輸出 `RECUT_RENDER_VERSION_MISMATCH` 與 `action:'upgrade-worker'` 並停止，請管理員安裝與核准施工單相同的 renderer／素材版本；不可自行換模型或改施工單。
+
+例如「已核准 30 秒施工單」→ `claim` 取得凍結來源與 10 分鐘租約 → 同一 worker 每 60 秒延長租約 → 檢查合格後 `result` 送回待審成品；教師仍須看實際 MP4，才能核准發布。原片 URL、HTTP 回應檔名與 job 自帶下載目標均不採用，只能從同一後端的 `/api/v1/recut-worker/jobs/:jobId/source` 下載；不跟隨 redirect。預設原片上限 4 GiB、成品上限 512 MiB；`maxDownloadBytes`／`maxUploadBytes` 可由本機設定縮小，仍受後端上傳限制。
+
+演算法與取捨（對應 `src/worker/`）：
+
+- **單工與版本核對**：`client.js` 先檢查固定 renderer／素材版本、凍結來源、施工單 SHA-256、句子時間與固定 gain，之後才惰性載入 renderer。後端 FIFO 決定工作順序，client 不自行選片或重生施工單。planHash 的 canonical JSON 格式與後端相同；本機 staging 另驗 HTML、字型、音訊 hash，兩者用途不同。
+- **租約與取消**：領工作到完成始終持有同一 lease。心跳失敗、租約到期或取消會停止渲染；Windows 終止自己的程序樹，POSIX 終止自己的程序群組，等結束後才清暫存。成功、失敗與拒收均只清除 worker 自建的 `recut-job-*` 目錄，不採用遠端提供的本機路徑。
+- **實測後才上傳**：`checks.js` 從 ffprobe 讀一影一音、720×1280、30fps、總長 ±0.5 秒；從 FFmpeg 讀黑畫面（像素門檻 .05、須小於 .5 秒）、靜音（-50 dB、須小於 2 秒）、響度（-16 LUFS ±2）與真峰值（≤-1.5 dBTP）。字型旗標來自真正的 browser 載入檢查。缺少值不能用預設 passed；偶發／固定分類與後端門檻相同，原始測值隨 failure 或 result 回傳。
+- **結果只送一次**：先做最後一次 heartbeat，再以 `video`／`metadata` multipart 送到專用 result 路由；metadata 帶 `versionId`、`planVersion`、`planHash`、固定版本、`checks` 與 `renderDurationMs`。不直接用教師 asset API。上傳回應遺失可能表示後端已接受，故不重送 result 或接著送 failure；由後端持久紀錄恢復。逾期／錯 owner 的結果由後端拒絕，client 清理本機輸出。
+
+可調 `requestTimeoutMs`（預設 2 分鐘）、`jobTimeoutMs`（30 分鐘）、`pollMs`（10 秒）與 `heartbeatMs`（最多 60 秒）。timeout／取消透過偶發失敗交後端重派；同一支最多三次、不得派回同一台的規則由後端持久化，client 不建立第二套重試佇列。工具只繼承必要 OS 路徑環境，不傳 worker 金鑰；日誌只回安全狀態、ID 與錯誤代碼，不轉印上游 message／token。
+
+隔離驗證使用 `tests/worker.*.test.js`：HTTP、renderer、FFmpeg／ffprobe、browser 與程序控制均注入替身，涵蓋成功、固定／偶發檢查、錯版、過期、心跳、取消、單工、重複結果、串流大小限制、路徑與 redirect。這些測試不證明真實 MP4、外部 API、Atlas 或人工驗收；實際工作只能在取得授權且完成環境安裝後執行。
+
+<details>
+<summary>第一階段歷史原型說明（舊畫面、ASR 與音量資訊不適用 sentence-v1）</summary>
+
 「程式化動畫＋老師原片原音」短影片的 plan 驗證器與渲染 CLI（`recut-v1`）。獨立於 `backend/`，做法與 `STT_Whisper/` 相同：自己的依賴、自己的指令。
 
 **狀態：第一階段（本機工具）。** 後端沒有呼叫它，也沒有 API／資料表／前端；`ShortScript.payload.kind = "recut-v1"`、LLM 生成 plan、教師審核介面都還沒做。目前只驗證過兩支原型（見「已驗證與未驗證」）。
@@ -121,3 +216,18 @@ V3 只擋數字；人名、專有名詞與語意是否偏移**不在自動檢查
 ## 授權
 
 HyperFrames 0.8.153 為 Apache-2.0（以套件 `package.json` 為準），GSAP 3.15.0 依其授權條款；Noto Sans TC 為 SIL OFL。本資料夾沒有複製任何第三方 skill 的程式碼。
+
+</details>
+
+## 2026-11-06 渲染修正（OpenCV 試片 run-6 的問題）
+
+以下四項都是確定性的程式規則，不需要模型；run-6 的施工單在新規則下會因空白圖卡被拒，這是預期結果。
+
+| 問題（run-6 實測） | 規則 | 位置 | 測試 |
+|---|---|---|---|
+| c3 的字幕延續到 c4 的原音 2.2 秒 | 字幕結束時間取「下一句字幕開始」與「所屬 clip 結尾」較早者；字幕不跨剪接點，中間沒有字幕的空檔保留空白 | `resolveSentencePlan`（`src/plan/sentences.js`） | `tests/render.timing-fit.test.js` |
+| scene-5 開場 3.18 秒只有空卡 | 一張卡的所有元素都明確指定 cue、且最早的 cue 晚於場景開始 1.5 秒以上時，回 `SENTENCE_TIMING` 並指出可錨定的句子；未指定 cue 的元素用預設的早期偏移，不會觸發 | 同上 | 同上 |
+| 響度 −18.1 LUFS（目標 −16） | 施工單的固定增益只套一次：staging 時用 FFmpeg `volume` 產生 `narration-render.wav` 給渲染頁，預覽仍播放原始 `narration.wav` 並用 Web Audio 套同一增益；最終混音 `-c:a copy`。HyperFrames 的 AAC 真峰值上限是 −1 dBFS，增益已把峰值壓在 −1.5 dBTP，若 HyperFrames 仍回報 `Audio lowered by X dB` 且 X 超過 0.5 dB 就以 `RECUT_RENDER_AUDIO_LOWERED`（`error.code`）拒絕；0.5 dB 以內視為 AAC 編碼後的小幅峰值修正，仍由渲染後響度檢查把關。這項判斷依 HyperFrames 的 info 紀錄文字，呼叫時不得加 `--quiet`；紀錄缺少或改了措辭時會視為沒有壓低，worker 路徑仍有決策 #62 的渲染後響度檢查，本機試產 CLI 沒有，需另跑媒體檢查。manifest 記錄 `renderAudioSha256` 與 `renderAudioGainDb` | `stageProject`／`renderProject`（`src/render/render.js`） | `tests/render.sentence.test.js` |
+| scene-5 的引言泡泡超出卡片邊框 23 px | 字型載入後、時間軸註冊前，在相同頁面暫停 transform，量測每張卡文字與元素的外框，超出內框時對卡片內容套 layout `zoom`（不是 transform；GSAP 仍照常動畫，但縮放後卡內的 px 位移也一起縮小；旋轉元素以未旋轉的外框量測），最小 0.6；仍超出時字型預檢回 `RECUT_TEXT_OVERFLOW`（`error.code`），不渲染 | `recutFitCards`（`src/render/html.js`）、`ensureFontLoaded`（`src/render/browser.js`） | `tests/render.timing-fit.test.js`（真實瀏覽器那項需設 `SHORT_RENDER_TEST_BROWSER`） |
+
+`RECUT_TEXT_OVERFLOW` 目前只在渲染前檢查，講稿核准後才會發現；預覽頁同樣會算出 `window.__recutTextFit`，但尚未顯示給教師，是否列入決策 #62 的渲染後檢查需另外決定。限制：空白圖卡規則只在「每個元素都明確指定 cue」時判斷，元素有預設偏移時不會攔下；文字縮放以 0.6 為下限，較長的 nowrap 文字仍可能被拒，需要改短或換元件；字幕被截在 clip 結尾時沒有最短顯示時間，錨點接近 clip 結尾的字幕可能只閃一下。

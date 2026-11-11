@@ -622,11 +622,47 @@ function notifyYouTubeRemoteEvent({ kind, item, reason, detectedAt, urgent = fal
     content: `「${String(item.title || '影片')}」：${message}`, urgent });
 }
 
+async function notifyRecutTaskFinished(task) {
+  const succeeded = task.status === 'succeeded';
+  const course = await Course.findById(task.courseId).select('teacherId').lean();
+  const recipientId = course?.teacherId || task.requestedBy;
+  return upsertDedupedNotifications([{ updateOne: {
+    filter: { recipientId, dedupeKey: `recut_task_finished:${task._id}` },
+    update: { $setOnInsert: { recipientId, source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED,
+      title: succeeded ? 'recut 講稿已更新' : 'recut 處理失敗，已回到原版',
+      content: succeeded ? '請開啟講稿審閱最新版本。' : truncate(task.error?.message || '處理失敗，請稍後重試。', 2000),
+      urgent: false, readAt: null, courseIds: [task.courseId], scriptId: task.scriptId,
+      dedupeKey: `recut_task_finished:${task._id}` } }, upsert: true,
+  } }]);
+}
+
+async function notifyRecutRenderFailed({ job, script }) {
+  const recipientIds = new Set((await User.find({ role: USER_ROLES.ADMIN, isActive: true }).select('_id').lean()).map((u) => String(u._id)));
+  const course = await Course.findById(job.courseId).select('teacherId').lean();
+  if (course?.teacherId || script?.createdBy) recipientIds.add(String(course?.teacherId || script.createdBy));
+  return upsertDedupedNotifications([...recipientIds].map((recipientId) => buildUpsertOperation({ recipientId,
+    dedupeKey: `recut_render_failed:${job._id}:${new Date(job.queuedAt).getTime()}`,
+    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: 'recut 渲染失敗',
+      content: truncate(job.error?.message || '短片渲染失敗，請稍後重新製作。', 2000),
+      courseIds: [job.courseId], scriptId: job.scriptId, urgent: false },
+  })));
+}
+
+async function notifyRecutRenderReady({ job, script, asset }) {
+  const course = await Course.findById(job.courseId).select('teacherId').lean();
+  if (!course?.teacherId) throw new Error('RECUT_NOTIFICATION_RECIPIENT_UNAVAILABLE');
+  return upsertDedupedNotifications([buildUpsertOperation({ recipientId: course.teacherId,
+    dedupeKey: `recut_render_ready:${job._id}:${asset._id}:${asset.generationVersion}`,
+    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: '短片已製作完成，請審閱成品',
+      content: '請開啟短片觀看實際 MP4，再決定是否核准。', courseIds: [job.courseId], scriptId: script._id },
+  })]);
+}
+
 module.exports = {
-  notifyYouTubeSystemEvent,
-  notifyYouTubeRemoteEvent,
-  notifyYouTubeUploadPaused,
-  notifyYouTubeUploadBlockedRounds,
+  notifyRecutRenderReady,
+  notifyRecutRenderFailed,
+  notifyYouTubeSystemEvent, notifyYouTubeRemoteEvent, notifyYouTubeUploadPaused, notifyYouTubeUploadBlockedRounds, notifyRecutTaskFinished,
+
   DEFAULT_LIMIT,
   MAX_LIMIT,
   removeVideoNotifications,

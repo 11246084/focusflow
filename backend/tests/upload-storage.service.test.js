@@ -8,13 +8,15 @@ const RuntimeSetting = require('../src/models/runtimeSetting.model');
 const storage = require('../src/services/uploadStorage.service');
 
 test('concurrent reservations use version checks and release space', async () => {
-  const old = { dir: env.uploadDir, min: env.uploadMinFreeGb, factor: env.uploadSpaceFactor, findOne: RuntimeSetting.findOne, create: RuntimeSetting.create, updateOne: RuntimeSetting.updateOne };
+  const old = { dir: env.uploadDir, min: env.uploadMinFreeGb, factor: env.uploadSpaceFactor, findOne: RuntimeSetting.findOne, create: RuntimeSetting.create, updateOne: RuntimeSetting.updateOne, statfs: fs.promises.statfs };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'focusflow-space-'));
   let doc = null;
   try {
     env.uploadDir = dir;
     env.uploadSpaceFactor = 1;
     const stat = fs.statfsSync(dir);
+    // Keep the 100 KB reservation boundary independent of concurrent OS disk writes.
+    fs.promises.statfs = async () => stat;
     const free = Number(stat.bavail) * Number(stat.bsize);
     env.uploadMinFreeGb = (free - 100000) / 1024 ** 3;
     RuntimeSetting.findOne = () => ({ lean: async () => doc && structuredClone(doc) });
@@ -35,6 +37,7 @@ test('concurrent reservations use version checks and release space', async () =>
   } finally {
     env.uploadDir = old.dir; env.uploadMinFreeGb = old.min; env.uploadSpaceFactor = old.factor;
     RuntimeSetting.findOne = old.findOne; RuntimeSetting.create = old.create; RuntimeSetting.updateOne = old.updateOne;
+    fs.promises.statfs = old.statfs;
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

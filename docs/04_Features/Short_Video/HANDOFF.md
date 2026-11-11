@@ -2,7 +2,7 @@
 
 這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能開工或接續 recut。設計只看 [recut 設計決策](recut-design-decisions.md)（下稱「決策」）與[體驗設計決策](decisions.md)（UX-1～UX-19），功能狀態只看[目前狀態](../../current-status.md)；這裡只記錄工單、分支、時程、人工確認點與下一步。功能完成時，在同一個 PR 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-10-27（排定時程：11/5 先在本機產出短片並以網頁審閱；尚未開工）
+最後更新：2026-11-06（功能狀態見[目前狀態](../../current-status.md)。新增「2026-11-06 修正候選」一節）
 
 ## 必守規則
 
@@ -25,11 +25,11 @@
 
 | 工單 | 範圍 | 分支 | 前提 | 目標日 | 狀態 |
 |---|---|---|---|---|---|
-| [RC1 資料模型、狀態機與背景工作](work-orders/RC1-data-model-state.md) | 後端 | `wip/recut-rc1-data-model` | 無 | 10/29 | 未開工 |
+| [RC1 資料模型、狀態機與背景工作](work-orders/RC1-data-model-state.md) | 後端 | `wip/recut-rc1-data-model` | 無 | 10/29 | 本機開發與驗證完成；獨立審查待 11/6 |
 | [RC5 short_render 對齊決策](work-orders/RC5-short-render.md) | short_render | `wip/recut-rc5-render` | 無 | 10/29 | 未開工 |
-| [RC2 連續視窗、原片檢查與視窗辨識](work-orders/RC2-window-asr.md) | 後端＋Python | `wip/recut-rc2-window` | RC1 | 11/1 | 未開工 |
-| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 未開工 |
-| [RC8 審閱流程 API](work-orders/RC8-review-api.md) | 後端 | `wip/recut-rc8-review-api` | RC1（RC4 合併後接上重跑入口） | 11/1 | 未開工 |
+| [RC2 連續視窗、原片檢查與視窗辨識](work-orders/RC2-window-asr.md) | 後端＋Python | `wip/recut-rc2-window` | RC1 | 11/1 | 本機開發與驗證完成；獨立審查待 11/6 |
+| [RC3 第一步選段](work-orders/RC3-step1-selection.md) | 後端 | `wip/recut-rc3-selection` | RC1；系統設定 S1 未合併時用轉接函式 | 11/1 | 本機開發與驗證完成；草稿複核通過，完整獨立審查待 11/6 |
+| [RC8 審閱流程 API](work-orders/RC8-review-api.md) | 後端 | `wip/recut-rc8-review-api` | RC1（RC4 合併後接上重跑入口） | 11/1 | 本機開發與驗證完成；API 契約確認，完整獨立審查待 11/6 |
 | [RC4 第二、三步：圖卡、字幕與整段檢查](work-orders/RC4-step2-3-cards-check.md) | 後端 | `wip/recut-rc4-cards` | RC3、RC5 | 11/3 | 未開工 |
 | [RC9 教師審閱介面](work-orders/RC9-teacher-ui.md) | 前端 | `wip/recut-rc9-teacher-ui` | RC8 的 OpenAPI | 11/3 | 未開工 |
 | [RC6 程式碼圖卡](work-orders/RC6-code-card.md) | 後端＋short_render | `wip/recut-rc6-code-card` | RC4 | 11/4 | 未開工 |
@@ -63,8 +63,21 @@
 4. 最後一則訊息回報：commit 清單、測試結果（已執行與未執行分開列）、子 agent 的檢查結果、和工單不同的地方與原因、留給後續工單的介面。
 5. 獨立審查：11/5 前的工單在 11/6 起統一審查；其他工單由另一個 agent 依兩份決策文件逐條審查，通過後才合併回整合分支。
 
+## 2026-11-06 修正候選（`wip/recut-cards-schema-fix`）
+
+2026-11-05 以 OpenCV 教授影片（18:04–20:26）在本機試產，run-6 產出第一支 MP4；本分支修正試產中發現的問題，以 draft PR 對 `dev` 送審。狀態、驗證數字與未執行項目只看[目前狀態](../../current-status.md)；以下是接手要知道的事。
+
+- 範圍：配圖 schema（cues 清單、params 各元件獨立）、修正訊息、停滯偵測（`RECUT_REPAIR_STALLED`）、一般單題試產的 generation checkpoint 與零呼叫重渲染（`recuttrialgenerations`）、short_render 0.3.0 渲染修正（增益一次、字幕不跨剪接點、空白圖卡、文字超框）。說明分別在 `backend/docs/recut-selection.md`、`backend/README.md`、`short_render/README.md`。
+- 8 拍生成程式與測試未改；`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT` 預設仍為 5。
+- short_render 升為 0.3.0：0.2.0 的施工單（含 run-6）會被拒絕渲染，需重新產生或改版本後重新驗證。
+- 新 Gemini schema 尚未以真實呼叫確認（約 4.9 KB、124 節點；4.5 KB／88 節點已確認可用，20 KB／330 節點被拒）。下次授權試產前先做一次確認呼叫；若被拒，回到舊的聯集 params 需另開修正。
+- run-6 沒有 generation checkpoint 與資料庫綁定，不能用零呼叫重渲染回復；修正版 `revision-1`／`revision-1b` 是由 run-6 施工單離線重渲染，剪接改動需重新核准講稿，c4 剪接點在連續語音中，需人工聽音。
+- 兩輪唯讀獨立審查的問題已修正；真實本機堆疊（專用本機資料庫、假 provider、真實渲染）已驗證「渲染失敗 → 重啟 → 零呼叫重渲染」與各種拒絕情況，證據見[目前狀態](../../current-status.md)。人工 code review 與教師審片仍待進行。
+- PR：分支在 fork `Hao-weii/focusflow`，整合目標是 `11246084/focusflow:dev`；跨 fork draft PR 尚待建立，建立後再關閉指向 fork dev 的舊 PR。
+- 升級 worker 到 short_render 0.3.0 前不必清空佇列：領取時略過版本不符的舊工作並通知管理員，沒有可領工作時回閒置，worker 不會因此停止；舊工作仍需重新產生或交給相符版本的 worker。
+
 ## 下一步
 
-1. 建立 `feat/recut` 與 RC1、RC5 的 worktree，交給 Codex 同時開工。
-2. RC1 合併後，同時交出 RC2、RC3、RC8。
+1. RC4 依 [RC3 選段介面](../../../backend/docs/recut-selection.md) 與 [RC8 重跑／建議介面](../../../backend/docs/recut-review.md) 接上第二、三步；RC5 可獨立開工。完整生成步驟未註冊時仍明確回 503。
+2. RC9 依 RC8 已確認的 OpenAPI 接審閱；先核對 `dev` 目前教師腳本／上傳頁版面，保留前端同仁的新布局。沒有完成真實生成、渲染或網頁人工驗收。
 3. 系統設定 S1 合併進 `dev` 後，RC3 改用正式的 `getSetting`，移除轉接函式。

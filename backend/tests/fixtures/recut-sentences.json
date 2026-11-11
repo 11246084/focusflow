@@ -1,0 +1,19 @@
+{
+  "videoId": "507f191e810c19729de860ec",
+  "startSec": 40,
+  "endSec": 180,
+  "frozenAt": "2026-10-27T02:00:00.000Z",
+  "hitChunkIds": ["chunk_0002"],
+  "sentences": [
+    { "id": "s1", "startSec": 41.2, "endSec": 44.8, "text": "OpenCV 是工具箱。", "words": [
+      { "text": "OpenCV", "startSec": 41.2, "endSec": 42.5 },
+      { "text": "是工具箱", "startSec": 42.5, "endSec": 44.8 }
+    ], "retrievalHit": true, "chunkIds": ["chunk_0002"] },
+    { "id": "s2", "startSec": 45.2, "endSec": 48.6, "text": "YOLO 是訓練好的模型。", "words": [
+      { "text": "YOLO", "startSec": 45.2, "endSec": 46.1 },
+      { "text": "是訓練好的模型", "startSec": 46.1, "endSec": 48.6 }
+    ], "retrievalHit": false, "chunkIds": ["chunk_0003"] }
+  ],
+  "sourceCheck": { "passed": true, "checkedAt": "2026-10-27T02:01:00.000Z", "results": { "audioTrack": true, "decodable": true, "windowDuration": true } },
+  "audio": { "integratedLufs": -21, "truePeakDbtp": -7, "fixedGainDb": 5, "targetLufs": -16, "peakLimitDbtp": -1.5 }
+}

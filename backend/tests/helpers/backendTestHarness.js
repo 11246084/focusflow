@@ -57,6 +57,9 @@ const LineLoginState = require('../../src/models/lineLoginState.model');
 const Faq = require('../../src/models/faq.model');
 const OpenEduVideo = require('../../src/models/openEduVideo.model');
 const ShortScript = require('../../src/models/shortScript.model');
+const recutModels = ['Source', 'Version', 'Task', 'Attempt', 'Approval', 'ReviewEvent', 'Worker', 'RenderJob', 'Consent'].map((name) => ({
+  key: `recut${name}s`, Model: require(`../../src/models/recut${name}.model`),
+}));
 const ShortAsset = require('../../src/models/shortAsset.model');
 const Notification = require('../../src/models/notification.model');
 const { resetLoginThrottleForTests } = require('../../src/services/loginThrottle.service');
@@ -75,6 +78,7 @@ const TEST_UPLOAD_PREFIX = 'test-upload-';
 
 // All model stubs read from and write to this shared in-memory store.
 const store = {
+  ...Object.fromEntries(recutModels.map(({ key }) => [key, []])),
   users: [],
   authSessions: [],
   adminAuditLogs: [],
@@ -301,6 +305,7 @@ function matchesQuery(document, query = {}) {
       && Object.keys(value).some((operator) => operator.startsWith('$'));
 
     if (isOperatorObject) {
+      if ('$elemMatch' in value && (!Array.isArray(currentValue) || !currentValue.some((item) => matchesQuery(item, value.$elemMatch)))) return false;
       if ('$eq' in value && normalizeValue(currentValue) !== normalizeValue(value.$eq)) return false;
       if ('$exists' in value) {
         const exists = currentValue !== undefined;
@@ -1247,6 +1252,31 @@ function installModelStubs() {
     return script;
   };
   ShortScript.deleteMany = async (query = {}) => deleteManyInStore(store.shortScripts, query);
+  ShortScript.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(store.shortScripts, query, update, options);
+
+  for (const { key, Model } of recutModels) {
+    Model.create = async (payload) => {
+      const doc = new Model(payload);
+      const error = doc.validateSync();
+      if (error) throw error;
+      const item = cloneSnapshot({ ...doc.toObject({ flattenMaps: true }), createdAt: payload.createdAt || new Date(), updatedAt: new Date() });
+      store[key].push(item);
+      return cloneSnapshot(item);
+    };
+    Model.find = (query = {}) => createQuery(store[key].filter((item) => matchesQuery(item, query)));
+    Model.findOne = (query = {}) => createQuery(store[key].find((item) => matchesQuery(item, query)) || null);
+    Model.findById = (id) => createQuery(store[key].find((item) => normalizeValue(item._id) === normalizeValue(id)) || null);
+    Model.findOneAndUpdate = async (query, update, options = {}) => cloneSnapshot(findOneAndUpdateInStore(store[key], query, update, options));
+    Model.findByIdAndUpdate = async (id, update, options = {}) => cloneSnapshot(findOneAndUpdateInStore(store[key], { _id: id }, update, options));
+    Model.updateOne = async (query, update, options = {}) => {
+      const exists = store[key].some((item) => matchesQuery(item, query));
+      if (!exists && options.upsert && key === 'recutConsents' && store[key].some((item) => normalizeValue(item.teacherId) === normalizeValue(query.teacherId))) {
+        throw Object.assign(new Error('Duplicate test consent teacher'), { code: 11000 });
+      }
+      const item = findOneAndUpdateInStore(store[key], query, update, options);
+      return { modifiedCount: item && exists ? 1 : 0, upsertedCount: item && !exists ? 1 : 0 };
+    };
+  }
 
   LineBindToken.create = async (payload) => {
     const token = {
@@ -1380,6 +1410,7 @@ function installModelStubs() {
 }
 
 function resetStore() {
+  for (const { key } of recutModels) store[key].length = 0;
   store.courseDeletionJobs = [];
   store.youtubeBackups = [];
   store.authSessions.length = 0;
@@ -1620,6 +1651,17 @@ function resetStore() {
   });
   // Baseline fixtures represent accounts that already completed first login.
   for (const user of store.users) { user.mustChangePassword = false; user.tokenVersion = 0; }
+  // Explicit test consent history; production never assumes these choices.
+  for (const teacherId of [ids.teacher, ids.otherTeacher]) {
+    const { TERMS_VERSION } = require('../../src/constants/recutConsent');
+    const records = store.courses.filter((course) => course.teacherId === teacherId).map((course) => ({
+      kind: 'content', choice: 'granted', teacherId, courseId: course._id, videoId: null, sourceId: null,
+      termsVersion: TERMS_VERSION, recordedAt: new Date().toISOString(),
+    }));
+    records.push(...['voice', 'avatarLikeness', 'voiceClone'].map((kind) => ({ kind, choice: kind === 'voice' ? 'original' : 'granted',
+      teacherId, courseId: null, videoId: null, sourceId: null, termsVersion: TERMS_VERSION, recordedAt: new Date().toISOString() })));
+    store.recutConsents.push({ _id: newObjectId(), teacherId, revision: 1, records, withdrawals: [] });
+  }
 }
 
 async function startServer() {

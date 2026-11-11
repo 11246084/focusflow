@@ -196,6 +196,18 @@ describe('course and video routes', () => {
       },
     });
 
+    const deniedUpload = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${createCourseResult.body.data.course._id}/videos`, {
+      method: 'POST', token: teacherToken, body: createVideoUploadForm({ title: '尚未同意', filename: 'test-upload-before-consent.mp4' }),
+    });
+    assert.equal(deniedUpload.status, 409); assert.equal(deniedUpload.body.error.code, 'RECUT_CONTENT_CONSENT_REQUIRED');
+    assert.ok(deniedUpload.body.error.details.consentTerms.version);
+    const consentResult = await jsonRequest(serverContext.baseUrl, `/api/v1/courses/${createCourseResult.body.data.course._id}/recut-consent`, {
+      method: 'POST', token: teacherToken,
+      body: { kind: 'content', choice: 'granted', requestId: 'integration-course-content',
+        termsVersion: require('../src/constants/recutConsent').TERMS_VERSION },
+    });
+    assert.equal(consentResult.status, 200);
+
     const formData = createVideoUploadForm({
       title: 'Integration Test Video',
       filename: `${Date.now()}-test-upload-success.mp4`,

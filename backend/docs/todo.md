@@ -1,6 +1,6 @@
 # Backend TODO
 
-最後更新：2026-10-29
+最後更新：2026-11-06
 
 > 本文件為後端組員**個人執行版**任務清單。跨服務整體進度看 repo 根目錄 [docs/current-status.md](../../docs/current-status.md)。
 > runtime 現況看 [current-state.md](current-state.md)，協作缺口看 [handoff-known-issues.md](handoff-known-issues.md)。
@@ -16,6 +16,16 @@
 ---
 
 ## 個人任務清單（僅後端）
+
+**recut 2026-11-06 修正候選（Partial）**：分支 `wip/recut-cards-schema-fix`，狀態見[目前狀態](../../docs/current-status.md)。待辦：以一次授權的真實 Gemini 呼叫確認新的配圖 schema；真實 MongoDB＋真實渲染跑一次「渲染失敗 → 零呼叫重渲染」端到端；`RECUT_REPAIR_STALLED` 的 `diagnostics` 目前只在程序內，佇列紀錄只存訊息，需要時再擴充 `errorRecord`。
+
+recut RC1 的實作與驗證以[目前狀態](../../docs/current-status.md)為準。RC2 接 [來源／句子格式](recut-foundation.md)，RC3 接生成步驟與設定轉接，RC8 接狀態入口、修改事件與兩次核准；不在本工單補真實媒體與外部模型。
+
+RC2 的視窗選擇、原片檢查、增益與四步串接見[原片處理說明](recut-source.md)；RC3 直接使用 `sourceId`，RC4 最後才交付完整版本。
+
+RC3 的 `createRecutSelectionStep`、`selectionResult` 與共用 `runValidatedDecision` 見[選段介面](recut-selection.md)。S1 合併後替換設定轉接點，RC4 註冊完整管線後再開啟真實生成。
+
+RC8 的九端點、教師草稿、重跑介面及 AI 建議格式見[審閱介面](recut-review.md)；RC9 依 OpenAPI 接資料，RC4 依 `registerRecutReviewSteps` 接 cards／wholeCheck。契約確認與驗證範圍見狀態正本，不能把假步驟測試視為成品驗收。
 
 ---
 
@@ -433,3 +443,14 @@
 - 完成任一任務後同步更新 [todo.md](todo.md)、[implementation-log.md](implementation-log.md)、[README.md](README.md) 的 Latest Update
 
 YouTube Lifecycle 的本機整合與正式待驗事項統一見[目前狀態](../../docs/current-status.md)，本清單不另存一份完成狀態。正式啟用前依[部署程序](../../docs/10_Operations/deployment/部署與連線排錯.md#youtube-q-原片暫存播放與部署順序)逐項取得授權。
+
+## 本輪交付 DoD 與順序
+
+1. 整合 dev 與 recut，保留既有 8 拍、readiness CAS、正式前端與定案文件。
+2. 核准／ready 任一先後都只能公開當前 version＋asset＋generation；退回與新成品重審；中斷可修復。
+3. RC7 後端專用 worker 身分、租約、心跳、版本與檢查、受限成品回傳。
+4. RC10 內容／聲音同意、撤回、取消工作與逐支下架，對接 YouTube 隱私與清理。
+5. 隔離測試、專用 loopback Mongo 交叉測試、契約檢查與獨立審查。進度及本輪證據只寫 [目前狀態](../../docs/current-status.md)。
+6. application factory 與同意／撤回的實際接線依[審閱契約](recut-review.md#同意閘門與撤回整合)驗證；既有教師 UI 需先保存內容同意及原音偏好，不能只沿用舊 disclosure。尚未取得的外部授權不以 fake 測試替代。
+
+來源辨識證據與視窗截斷句的禁止清單由 [來源介面](recut-source.md#視窗邊界與辨識證據)定義；模型、教師修改及鎖定重跑共用[選段限制](recut-selection.md#視窗截斷句的共用限制)。驗證與待補項依狀態正本，不因已保存草稿就視為可選用截斷句。

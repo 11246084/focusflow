@@ -171,7 +171,7 @@ async function applyRemoteObservation({ kind, item, remote, now = new Date(), fe
     saved = await handlePublicPrivacy({ kind, item: saved, remote, now, fetchImpl }) || saved;
   }
   if (publish && kind === 'short_asset' && evaluation.remoteState === 'ready'
-    && saved.reviewStatus === 'approved' && saved.status !== 'archived' && saved.status !== 'published'
+    && saved.reviewStatus === 'approved' && saved.status !== 'archived'
     && Number(saved.reviewedGenerationVersion) === Number(saved.generationVersion || 1)) {
     await require('./shortAssetPublish.service').markShortAssetPublished(saved);
   }

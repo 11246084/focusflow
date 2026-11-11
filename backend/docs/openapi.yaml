@@ -54,7 +54,7 @@ tags:
       feature flag 檢查排在這組路由自己的身分驗證之前，所以 `/api/v1/short-scripts/*`、`/api/v1/short-assets/*` 未帶 token 也回 404。
       例外：`/api/v1/courses/{courseId}/short-*` 會先經過課程路由的身分驗證，未帶 token 時回 `401`。
 
-      Short Script 回應是 MongoDB 文件原樣輸出，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；與其他資源使用的 `id` 不同。
+      既有 Short Script 回應沿用 MongoDB 文件格式，識別欄位為 `_id`，並帶有 Mongoose 的 `__v`；缺少 productionMode 時讀為 avatar。recut 最小 API 另使用明確欄位 mapper，任務識別為 `id`。
   - name: LINE Webhook
     description: |
       LINE Platform 的 `integration-facing` webhook callback 入口。
@@ -4136,7 +4136,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
+          description: '`state` 不是由目前的使用者與登入 session 發起（`LINE_LOGIN_STATE_MISMATCH`）、帳號在處理期間被停用（`USER_INACTIVE`），或 CSRF 檢查失敗（`CSRF_REJECTED`）'
           content:
             application/json:
               schema:
@@ -4706,6 +4706,447 @@ paths:
                       code: SHORT_SCRIPT_EVIDENCE_EMPTY
         '502':
           $ref: '#/components/responses/EmbeddingProviderError'
+  /api/v1/short-scripts/{scriptId}/production-mode:
+    patch:
+      tags: [Short Scripts]
+      summary: 設定短影片產片方式
+      description: 教師限管理自己的課程；admin 可管理所有課程。切換保留既有兩種產片紀錄，背景工作或渲染中回 409。沿用短影片 feature flag，關閉時回 404。
+      operationId: setShortScriptProductionMode
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [productionMode]
+              properties:
+                productionMode:
+                  $ref: '#/components/schemas/ShortScriptProductionMode'
+      responses:
+        '200':
+          description: 產片方式與目前 recut 狀態。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutStateResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/generate:
+    post:
+      tags: [Short Scripts]
+      summary: 排入 recut 初次生成工作
+      description: |
+        需先選 recut；教師限自己的課程，admin 可管理所有課程。回 202 與 data.id，不等待生成。
+        body 可省略或為空物件；教師不能指定模型、呼叫額度、步驟或任務類型。
+        RC2～RC4 尚未註冊步驟時回 503 RECUT_STEPS_NOT_CONFIGURED；不建立假的成功工作。
+        沿用 SHORT_SCRIPT_AUTOMATION_ENABLED，關閉時回 404。
+      operationId: startRecutGeneration
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '202':
+          description: 工作已持久化；data.id 是查詢與取消使用的 taskId。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+        '503':
+          description: RECUT_STEPS_NOT_CONFIGURED 或 RECUT_SETTING_INVALID，尚未註冊步驟或後端呼叫上限設定無效。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/short-scripts/{scriptId}/recut:
+    get:
+      tags: [Short Scripts]
+      summary: 查詢產片方式、recut 目前狀態與最新任務
+      description: 教師限自己的課程；admin 可管理所有課程。舊文件缺少 productionMode 時讀為 avatar，不寫資料遷移。沿用短影片 feature flag，關閉時回 404。
+      operationId: getRecutState
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      responses:
+        '200':
+          description: 狀態與最新任務；沒有任務時 task 為 null。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutStateResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+  /api/v1/short-scripts/{scriptId}/recut/review:
+    get:
+      tags: [Short Scripts]
+      summary: 讀取講稿、逐句來源、未套用修改與 AI 建議
+      description: 教師限自己的課程、admin 可管理所有課程。沿用短影片功能開關，關閉回404；學生及其他教師403。完整講稿依實際原音播放順序，不由 AI 改寫。沒有目前版本回409。
+      operationId: getRecutReview
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/selection:
+    patch:
+      tags: [Short Scripts]
+      summary: 儲存整句修改並立即計算總長
+      description: 只改既有可回答版本；未套用時核准停用，處理中不能編輯。移除片頭回 warnings，不自行換句。過時 versionId 或 expectedRevision 回409。
+      operationId: editRecutSelection
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutSelectionEdit'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+        '422':
+          description: RECUT_SENTENCE_EXCLUDED，辨識視窗邊界截斷句不可加回；不保存草稿。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/short-scripts/{scriptId}/recut/selection/restore:
+    post:
+      tags: [Short Scripts]
+      summary: 全部復原未套用修改，不重跑
+      description: 保留修改歷史，恢復原版本及施工單。
+      operationId: restoreRecutSelection
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutVersionMutation'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/selection/apply:
+    post:
+      tags: [Short Scripts]
+      summary: 整批套用修改，排入重新配圖與檢查
+      description: 總長須30～65秒，選段鎖定；取消或失敗回原版並保留未套用修改。RC4 步驟未註冊回503。202 data 是任務。
+      operationId: applyRecutSelection
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutVersionMutation'
+      responses:
+        '202':
+          description: 工作已排隊，data.id 為任務ID。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+        '422':
+          description: RECUT_DURATION_INVALID 或來源、建議修改不合法。
+        '503':
+          description: RECUT_STEPS_NOT_CONFIGURED 或 RECUT_SETTING_INVALID。
+  /api/v1/short-scripts/{scriptId}/recut/suggestions/apply:
+    post:
+      tags: [Short Scripts]
+      summary: 整批套用教師選取的 AI 建議
+      description: 僅接受目前版本建議ID；先處理未套用修改。整批共用一個任務額度。需要改教師鎖定選段的建議須列入 confirmedSelectionChangeIds，否則409 RECUT_LOCK_CONFIRM_REQUIRED，說明見建議 impact；不自動修未採納的建議。
+      operationId: applyRecutSuggestions
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutSuggestionsApply'
+      responses:
+        '202':
+          description: 工作已排隊，data.id 為任務ID。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+        '422':
+          description: RECUT_DURATION_INVALID 或來源、建議修改不合法。
+        '503':
+          description: RECUT_STEPS_NOT_CONFIGURED 或 RECUT_SETTING_INVALID。
+  /api/v1/short-scripts/{scriptId}/recut/approve-script:
+    post:
+      tags: [Short Scripts]
+      summary: 核准目前講稿並記錄教師與版本
+      description: 未套用修改、背景工作、無法回答或無施工單時拒絕；不直接製作或發布。
+      operationId: approveRecutScript
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutVersionMutation'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/render:
+    post:
+      tags: [Short Scripts]
+      summary: 將核准版本設為等待製作
+      description: 只執行 RC1 queue_render；worker 由 RC7、本機試產由 RC11a 接手。不呼叫 renderer 或外部發布。
+      operationId: queueRecutRender
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutVersionMutation'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/approve-asset:
+    post:
+      tags: [Short Scripts]
+      summary: 核准目前實際 MP4，YouTube ready 時才發布
+      description: 版本、assetId 與 generationVersion 必須全部符合目前成品。同步 ShortAsset 審核與 recut 核准；ready 先到或核准先到均在兩條件俱足才發布。相同成品核准可重送修復中斷。任何新 MP4 都重新核准。
+      operationId: approveRecutAsset
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutAssetApproval'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/review-time:
+    post:
+      tags: [Short Scripts]
+      summary: 開始或結束審閱及等待計時
+      description: 時間由伺服器決定；start 須目前版本及revision、phase須符合狀態。stop 使用自己開始的 timingId/versionId，允許版本已更新；重送不改原結果。不接受客戶端duration。
+      operationId: recordRecutReviewTime
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutReviewTimeMutation'
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutReviewTimeResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/short-scripts/{scriptId}/recut/tasks/{taskId}:
+    get:
+      tags: [Short Scripts]
+      summary: 查詢 recut 任務
+      description: 教師限自己的課程，admin 可管理所有課程；task 必須屬於 script。回應不含內部輸入輸出或完整恢復快照。沿用短影片 feature flag，關閉時回 404。
+      operationId: getRecutTask
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+        - $ref: '#/components/parameters/RecutTaskId'
+      responses:
+        '200':
+          description: 任務類型、狀態、固定額度、用量與錯誤原因。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/RecutTaskNotFoundError'
+  /api/v1/short-scripts/{scriptId}/recut/tasks/{taskId}/cancel:
+    post:
+      tags: [Short Scripts]
+      summary: 要求取消 recut 工作
+      description: |
+        教師限自己的課程，admin 可管理所有課程；task 必須屬於 script。每一步之間取消；進行中的呼叫不強制中斷，晚到結果留紀錄但不採用。
+        排隊工作可立即取消；已結束的工作保持原結果。取消或失敗恢復原版本並保留未套用修改。沿用短影片 feature flag，關閉時回 404。
+      operationId: cancelRecutTask
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+        - $ref: '#/components/parameters/RecutTaskId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: 目前工作狀態（cancel_requested、cancelled，或已結束狀態）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecutTaskResponse'
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/RecutTaskNotFoundError'
   /api/v1/short-scripts/{scriptId}:
     get:
       tags:
@@ -5341,8 +5782,595 @@ paths:
           description: LOCAL_PLAYBACK_ENABLED 關閉、原片不相容或已切換到 YouTube
         '416':
           description: Range 超出檔案範圍
+  /api/v1/admin/recut-workers:
+    get:
+      tags:
+        - Short Scripts
+      summary: 列出 worker，不回金鑰或雜湊
+      operationId: listRecutWorkers
+      parameters: []
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+    post:
+      tags:
+        - Short Scripts
+      summary: 建立專用 worker，金鑰只顯示一次
+      operationId: createRecutWorker
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+      responses:
+        '201':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/admin/recut-workers/{workerId}:
+    patch:
+      tags:
+        - Short Scripts
+      summary: 暫停接工作或永久停用金鑰，保留稽核
+      operationId: updateRecutWorker
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties:
+                accepting:
+                  type: boolean
+                isActive:
+                  type: boolean
+                  enum:
+                    - false
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/claim:
+    post:
+      tags:
+        - Short Scripts
+      summary: 領取最早版本相符工作與10分鐘租約，每台一次一支
+      operationId: claimRecutRenderJob
+      parameters: []
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - shortRenderVersion
+                - assetVersions
+              properties:
+                shortRenderVersion:
+                  type: string
+                assetVersions:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/heartbeat:
+    post:
+      tags:
+        - Short Scripts
+      summary: 每60秒延長10分鐘租約；逾時或錯owner拒絕
+      operationId: heartbeatRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: []
+              properties: {}
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/source:
+    get:
+      tags:
+        - Short Scripts
+      summary: 下載同一核准版本原片，不公開檔案路徑
+      operationId: downloadRecutRenderSource
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      responses:
+        '200':
+          description: 已核准版本的原始影音bytes，僅有效租約可下載；格式依原片，不依副檔名判定。
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/failure:
+    post:
+      tags:
+        - Short Scripts
+      summary: 記錄檢查失敗；固定類終止，偶發類最多重派兩次
+      operationId: failRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+                - message
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+                checks:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/recut-worker/jobs/{jobId}/result:
+    post:
+      tags:
+        - Short Scripts
+      summary: 受限上傳待審成品；收檔前後均驗租約與版本
+      operationId: completeRecutRenderJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源ID。
+        - name: X-Recut-Lease
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 領工作時取得的租約token。
+      security:
+        - RecutWorkerKey: []
+      responses:
+        '201':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - video
+                - metadata
+              properties:
+                video:
+                  type: string
+                  format: binary
+                metadata:
+                  type: string
+                  description: >-
+                    JSON：versionId、planHash、shortRenderVersion、assetVersions、checks；可選planVersion必須等於plan.schemaVersion，renderDurationMs須非負整數，均持久保存。checks
+                    為tracks/720x1280/30fps、durationSec、blackMaxSec、silenceMaxSec、integratedLufs、truePeakDbtp、fontLoaded，後端從來源重算長度。
+  /api/v1/short-scripts/{scriptId}/recut/reject-asset:
+    post:
+      tags:
+        - Short Scripts
+      summary: 退回目前成品；依內容或呈現回對應審閱
+      operationId: rejectRecutAsset
+      parameters:
+        - $ref: '#/components/parameters/ScriptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - versionId
+                - expectedRevision
+                - assetId
+                - generationVersion
+                - scope
+                - reasons
+              properties:
+                versionId:
+                  type: string
+                expectedRevision:
+                  type: integer
+                  minimum: 0
+                assetId:
+                  type: string
+                generationVersion:
+                  type: integer
+                  minimum: 1
+                scope:
+                  type: string
+                  enum:
+                    - presentation
+                    - content
+                reasons:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - code
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - contentIncorrect
+                          - audioIssue
+                          - visualQuality
+                          - subtitleIssue
+                          - incomplete
+                          - other
+                      note:
+                        type: string
+                        maxLength: 500
+      responses:
+        '200':
+          description: 操作結果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+                  data: {}
+        '400':
+          $ref: '#/components/responses/InvalidIdError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+        '404':
+          $ref: '#/components/responses/ShortScriptNotFoundError'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+
+  /api/v1/recut-consent/terms:
+    get:
+      tags: [Short Scripts]
+      operationId: getRecutConsentTerms
+      summary: 取得目前教師同意條款（教師或管理員）
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/courses/{courseId}/recut-consent:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Short Scripts]
+      operationId: getRecutConsent
+      summary: 查詢課程內容與教師全域偏好
+      parameters:
+        - $ref: '#/components/parameters/RecutConsentVideoId'
+        - $ref: '#/components/parameters/RecutConsentSourceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+    post:
+      tags: [Short Scripts]
+      operationId: recordRecutConsent
+      summary: 保存目前條款的明確同意或語音偏好
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutConsentDecisionInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawal-assets:
+    get:
+      tags: [Short Scripts]
+      operationId: listRecutConsentWithdrawalAssets
+      summary: 列出可逐支勾選的短片，預設均不勾選
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/RecutConsentVideoId'
+        - $ref: '#/components/parameters/RecutConsentSourceId'
+        - name: kind
+          in: query
+          required: true
+          description: voice與分身同意範圍為教師全域；content依課程或來源。
+          schema:
+            type: string
+            enum: [content, voice, avatarLikeness, voiceClone]
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutWithdrawalAssetsSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawals:
+    post:
+      tags: [Short Scripts]
+      operationId: withdrawRecutConsent
+      summary: 撤回同意並處理選中短片；失敗保留pending及manualActionRequired
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecutConsentWithdrawalInput'
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '409':
+          $ref: '#/components/responses/RecutConflictError'
+  /api/v1/courses/{courseId}/recut-consent/withdrawals/{withdrawalId}/retry:
+    post:
+      tags: [Short Scripts]
+      operationId: retryRecutConsentWithdrawal
+      summary: 重試持久撤回待辦，已完成動作不重做
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - name: withdrawalId
+          in: path
+          required: true
+          description: 撤回回應的工作識別碼。
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutConsentSuccess'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
+  /api/v1/admin/recut-consent/manual-actions:
+    get:
+      tags: [Short Scripts]
+      operationId: listRecutConsentManualActions
+      summary: 管理員查詢尚需手動轉私人的撤回動作
+      responses:
+        '200':
+          $ref: '#/components/responses/RecutManualActionsSuccess'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ShortScriptManageForbiddenError'
 components:
   securitySchemes:
+    RecutWorkerKey:
+      type: http
+      scheme: bearer
+      description: 專用 rw_workerId.secret 金鑰，只能使用 recut-worker 路由。
+
     CookieAuth:
       type: apiKey
       in: cookie
@@ -5366,6 +6394,18 @@ components:
 
         這是一個 `integration-facing` 的簽章驗證流程；Swagger UI 不會自動替你計算 signature。
   parameters:
+    RecutConsentVideoId:
+      name: videoId
+      in: query
+      description: 課程內原片的Mongo識別碼；省略表示課程範圍。
+      schema:
+        type: string
+    RecutConsentSourceId:
+      name: sourceId
+      in: query
+      description: 原片external識別碼，須與課程或videoId一致。
+      schema:
+        type: string
     CourseId:
       name: courseId
       in: path
@@ -5416,6 +6456,13 @@ components:
       description: 目標短影片腳本的 MongoDB ObjectId（腳本回應中的 `_id`）。
       schema:
         $ref: '#/components/schemas/ObjectId'
+    RecutTaskId:
+      name: taskId
+      in: path
+      required: true
+      description: recut 工作的 MongoDB ObjectId（202 回應的 data.id）。
+      schema:
+        $ref: '#/components/schemas/ObjectId'
     AssetId:
       name: assetId
       in: path
@@ -5424,6 +6471,54 @@ components:
       schema:
         $ref: '#/components/schemas/ObjectId'
   responses:
+    RecutWithdrawalAssetsSuccess:
+      description: 依同意範圍列出可撤回成品，selectAll與每支selected預設false。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecutWithdrawalAssets'
+    RecutManualActionsSuccess:
+      description: 尚需管理員手動下架的撤回待辦；同意工作與晚到成品待辦皆可出現。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecutManualAction'
+    RecutConsentSuccess:
+      description: 同意資料、條款或撤回工作；withdrawal.status可為pending、processing、completed，actions含status及manualActionRequired。
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessBase'
+              - type: object
+                properties:
+                  data: {}
+    RecutConflictError:
+      description: RECUT_STATE_INVALID，產片方式、目前版本或狀態不允許此操作。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RecutTaskNotFoundError:
+      description: RECUT_TASK_NOT_FOUND、SHORT_SCRIPT_NOT_FOUND、COURSE_NOT_FOUND，或功能關閉時 NOT_FOUND。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     ValidationError:
       description: request payload 驗證失敗。
       content:
@@ -5842,6 +6937,58 @@ components:
                 error:
                   code: YOUTUBE_QUARANTINE_VERIFY_FAILED
   schemas:
+    RecutConsentDecisionInput:
+      type: object
+      required: [kind, choice, requestId, termsVersion]
+      properties:
+        kind:
+          type: string
+          enum: [content, voice, avatarLikeness, voiceClone]
+        choice:
+          type: string
+          enum: [granted, declined, original, synthetic]
+          description: voice僅original或synthetic，其他同意僅granted或declined。
+        requestId:
+          type: string
+          maxLength: 128
+          description: 同一決定重送沿用的冪等識別碼。
+        termsVersion:
+          type: string
+          description: GET條款回傳的version；舊版條款409。
+        videoId:
+          type: string
+        sourceId:
+          type: string
+        evidenceRef:
+          type: string
+          description: 教師書面同意證據參照；不含秘密或憑證。
+    RecutConsentWithdrawalInput:
+      type: object
+      required: [kind, requestId, termsVersion]
+      properties:
+        kind:
+          type: string
+          enum: [content, voice, avatarLikeness, voiceClone]
+        requestId:
+          type: string
+          maxLength: 128
+        termsVersion:
+          type: string
+        videoId:
+          type: string
+        sourceId:
+          type: string
+        selectedAssetIds:
+          type: array
+          maxItems: 1000
+          uniqueItems: true
+          items:
+            type: string
+          description: 只處理明確選中的短片；預設空陣列。
+        selectAll:
+          type: boolean
+          default: false
+          description: 不得同時提供非空selectedAssetIds。
     ObjectId:
       description: MongoDB ObjectId 的字串格式。
       type: string
@@ -8367,6 +9514,16 @@ components:
         - clipPath
         - transcriptSnippet
       properties:
+        retrievedBy:
+          type: array
+          items:
+            type: string
+            enum: [text, audio, visual]
+        channelRanks:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 1
         citationId:
           type: string
           example: C1
@@ -9834,9 +10991,600 @@ components:
         rejectedAsAsset:
           description: 這一版的回饋來自成品影片被退回，而不是腳本審核。
           type: boolean
+    ShortScriptProductionMode:
+      type: string
+      enum: [avatar, recut]
+      default: avatar
+    RecutSnapshot:
+      type: object
+      required: [state, revision, currentVersionId, currentAssetId, currentAssetGenerationVersion, activeTaskId, lastCompletedTaskId, pendingEditId]
+      properties:
+        state:
+          type: string
+          enum: [idle, queued, generating, updating, script_review, script_approved, render_queued, rendering, render_failed, asset_review, asset_approved, published]
+        revision: { type: integer, minimum: 0 }
+        currentVersionId: { type: [string, 'null'] }
+        currentAssetId: { type: [string, 'null'] }
+        currentAssetGenerationVersion: { type: [integer, 'null'], minimum: 1 }
+        activeTaskId: { type: [string, 'null'] }
+        lastCompletedTaskId: { type: [string, 'null'] }
+        pendingEditId: { type: [string, 'null'] }
+    RecutEditReason:
+      type: string
+      enum:
+        - 漏了重點
+        - 不必要
+        - 接不起來
+        - 剪接點不自然
+        - 其他
+    RecutVersionMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - versionId
+        - expectedRevision
+      properties:
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        expectedRevision:
+          type: integer
+          minimum: 0
+    RecutSelectionEdit:
+      type: object
+      additionalProperties: false
+      required:
+        - versionId
+        - expectedRevision
+        - changes
+      properties:
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        expectedRevision:
+          type: integer
+          minimum: 0
+        changes:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - sentenceId
+              - action
+            properties:
+              sentenceId:
+                type: string
+                pattern: ^s[1-9][0-9]*$
+              action:
+                type: string
+                enum:
+                  - add
+                  - remove
+              reasonLabel:
+                $ref: '#/components/schemas/RecutEditReason'
+    RecutSuggestionsApply:
+      type: object
+      additionalProperties: false
+      required:
+        - versionId
+        - expectedRevision
+        - suggestionIds
+      properties:
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        expectedRevision:
+          type: integer
+          minimum: 0
+        suggestionIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/ObjectId'
+        confirmedSelectionChangeIds:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/ObjectId'
+        reasonLabel:
+          $ref: '#/components/schemas/RecutEditReason'
+    RecutAssetApproval:
+      type: object
+      additionalProperties: false
+      required:
+        - versionId
+        - expectedRevision
+        - assetId
+        - generationVersion
+      properties:
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        expectedRevision:
+          type: integer
+          minimum: 0
+        assetId:
+          $ref: '#/components/schemas/ObjectId'
+        generationVersion:
+          type: integer
+          minimum: 1
+    RecutReviewTimeMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - versionId
+        - action
+        - phase
+      properties:
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        expectedRevision:
+          type: integer
+          minimum: 0
+        action:
+          type: string
+          enum:
+            - start
+            - stop
+        phase:
+          type: string
+          enum:
+            - script_review
+            - asset_review
+            - production_wait
+        timingId:
+          $ref: '#/components/schemas/ObjectId'
+      oneOf:
+        - required:
+            - expectedRevision
+          properties:
+            action:
+              const: start
+          not:
+            required:
+              - timingId
+            properties:
+              timingId: {}
+        - required:
+            - timingId
+          properties:
+            action:
+              const: stop
+    RecutReviewTiming:
+      type: object
+      required:
+        - id
+        - versionId
+        - phase
+        - startedAt
+        - endedAt
+        - durationMs
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        phase:
+          type: string
+          enum:
+            - script_review
+            - asset_review
+            - production_wait
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        durationMs:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+    RecutSentenceRange:
+      type: object
+      additionalProperties: false
+      required:
+        - from
+        - to
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        startAt:
+          type: string
+        endAt:
+          type: string
+    RecutSelection:
+      type: object
+      required:
+        - answerable
+        - ranges
+        - sentenceLabels
+        - openingSentenceId
+        - lockedSentenceIds
+        - unanswerableReason
+      properties:
+        answerable:
+          type: boolean
+        unanswerableReason:
+          type:
+            - string
+            - 'null'
+          description: 可回答時為 null；無法回答時必有教師可讀的原因。
+        ranges:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecutSentenceRange'
+        sentenceLabels:
+          type: array
+          items:
+            type: object
+            required:
+              - sentenceId
+              - label
+            properties:
+              sentenceId:
+                type: string
+              label:
+                type: string
+                enum:
+                  - 結論或定義
+                  - 理由
+                  - 例子
+                  - 冷開場
+                  - 複習
+                  - 離題
+                  - 指畫面
+                  - 重複
+        openingSentenceId:
+          type:
+            - string
+            - 'null'
+        lockedSentenceIds:
+          type: array
+          items:
+            type: string
+    RecutWord:
+      type: object
+      required:
+        - text
+        - startSec
+        - endSec
+      properties:
+        text:
+          type: string
+        startSec:
+          type: number
+          minimum: 0
+        endSec:
+          type: number
+          minimum: 0
+    RecutConsentScope:
+      type: object
+      required: [teacherId, kind]
+      properties:
+        teacherId: { type: string }
+        kind: { type: string, enum: [content, voice, avatarLikeness, voiceClone] }
+        courseId: { type: [string, 'null'] }
+        videoId: { type: [string, 'null'] }
+        sourceId: { type: [string, 'null'] }
+    RecutWithdrawalAssets:
+      type: object
+      required: [scope, assets, selectAll]
+      properties:
+        scope:
+          $ref: '#/components/schemas/RecutConsentScope'
+        selectAll: { type: boolean, const: false }
+        assets:
+          type: array
+          items:
+            type: object
+            required: [id, selected]
+            properties:
+              id: { type: string }
+              selected: { type: boolean, const: false }
+              title: { type: string }
+              courseId: { type: [string, 'null'] }
+              sourceScriptId: { type: [string, 'null'] }
+              sourceVideoId: { type: [string, 'null'] }
+              status: { type: string }
+              youtubeVideoId: { type: [string, 'null'] }
+              youtubePrivacyStatus: { type: [string, 'null'] }
+    RecutManualAction:
+      type: object
+      required: [id, withdrawalId, assetId, type, status, manualActionRequired]
+      properties:
+        id: { type: string }
+        withdrawalId: { type: string }
+        assetId: { type: string }
+        teacherId: { type: string, description: 同意工作待辦帶此欄位；晚到成品待辦可能省略。 }
+        courseId: { type: [string, 'null'] }
+        type: { type: string, const: makeYouTubePrivate }
+        status: { type: string, enum: [pending, failed, completed] }
+        manualActionRequired: { type: boolean, const: true }
+        attempts: { type: integer, minimum: 0 }
+        errorCode: { type: [string, 'null'] }
+        failedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+    RecutReviewSentence:
+      type: object
+      required:
+        - id
+        - text
+        - startSec
+        - endSec
+        - words
+        - retrievalHit
+        - selected
+        - selectionAllowed
+        - exclusionReason
+        - label
+        - opening
+        - teacherChanged
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        startSec:
+          type: number
+        endSec:
+          type: number
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecutWord'
+        retrievalHit:
+          type: boolean
+        chunkIds:
+          type: array
+          items:
+            type: string
+        selectionAllowed:
+          type: boolean
+          description: false表示視窗邊界截斷句，不可選用或加回。
+        exclusionReason:
+          type: [string, 'null']
+        selected:
+          type: boolean
+        label:
+          type: string
+        originalLabel:
+          type: string
+        opening:
+          type: boolean
+        teacherChanged:
+          type: boolean
+    RecutReviewSuggestion:
+      type: object
+      required:
+        - id
+        - problem
+        - proposedChange
+        - impact
+        - requiresSelectionConfirmation
+        - adopted
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        problem:
+          type: string
+        proposedChange:
+          type: string
+        impact:
+          type: string
+        requiresSelectionConfirmation:
+          type: boolean
+        adopted:
+          type:
+            - boolean
+            - 'null'
+          description: null 尚未決定；true 教師曾按套用（不代表任務成功）；false 未採納。整批套用時其餘記 false，直接核准講稿或成品也將未決定項結算為 false；任務結果另查 task。
+        adoptedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    RecutSelectionPreview:
+      type: object
+      required:
+        - selection
+        - durationSec
+        - durationValid
+        - fullScript
+        - warnings
+      properties:
+        selection:
+          $ref: '#/components/schemas/RecutSelection'
+        durationSec:
+          type: number
+        durationValid:
+          type: boolean
+        fullScript:
+          type: string
+        warnings:
+          type: array
+          items:
+            type: string
+    RecutReview:
+      type: object
+      required:
+        - scriptId
+        - versionId
+        - revision
+        - recut
+        - fullScript
+        - current
+        - draft
+        - source
+        - suggestions
+        - latestChangeSummary
+      properties:
+        scriptId:
+          $ref: '#/components/schemas/ObjectId'
+        versionId:
+          $ref: '#/components/schemas/ObjectId'
+        revision:
+          type: integer
+          minimum: 0
+        recut:
+          $ref: '#/components/schemas/RecutSnapshot'
+        fullScript:
+          type: string
+        current:
+          $ref: '#/components/schemas/RecutSelectionPreview'
+        draft:
+          oneOf:
+            - allOf:
+                - $ref: '#/components/schemas/RecutSelectionPreview'
+                - type: object
+                  properties:
+                    id:
+                      $ref: '#/components/schemas/ObjectId'
+            - type: 'null'
+        source:
+          type: object
+          required:
+            - videoId
+            - startSec
+            - endSec
+            - sentences
+            - transcriptVersion
+            - sourceUpdated
+          properties:
+            videoId:
+              $ref: '#/components/schemas/ObjectId'
+            startSec:
+              type: number
+            endSec:
+              type: number
+            transcriptVersion:
+              type: string
+              description: 凍結來源時的逐字稿版本；舊資料視為 legacy。
+            sourceUpdated:
+              type: boolean
+              description: 為 true 時只顯示來源快照，不以 chunkId 回查目前逐字稿。
+            notice:
+              type: [string, 'null']
+            sentences:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecutReviewSentence'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecutReviewSuggestion'
+        latestChangeSummary:
+          type:
+            - object
+            - 'null'
+          description: 從已完成任務讀取的持久改動摘要；初次生成或尚無修改時為 null。
+          required:
+            - taskId
+            - fromVersionId
+            - toVersionId
+            - changes
+          properties:
+            taskId:
+              $ref: '#/components/schemas/ObjectId'
+            fromVersionId:
+              $ref: '#/components/schemas/ObjectId'
+            toVersionId:
+              $ref: '#/components/schemas/ObjectId'
+            changes:
+              type: array
+              items:
+                type: string
+      description: >-
+        fullScript/current 永遠是目前版本；draft 是未套用預覽，沒有時為 null。source.sentences 的 selected/label/opening/teacherChanged
+        以草稿優先，originalLabel 保留目前版本理由。
+    RecutReviewResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/RecutReview'
+    RecutReviewTimeResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          const: true
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/RecutReviewTiming'
+    RecutTask:
+      type: object
+      required: [id, scriptId, type, status, callLimit, callsUsed, stepIds, resultVersionId, queuedAt, startedAt, finishedAt, error]
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        scriptId:
+          $ref: '#/components/schemas/ObjectId'
+        type: { type: string, enum: [generate, apply_selection, apply_suggestions] }
+        status: { type: string, enum: [queued, running, cancel_requested, succeeded, failed, cancelled] }
+        callLimit: { type: integer, minimum: 2 }
+        callsUsed: { type: integer, minimum: 0 }
+        stepIds: { type: array, items: { type: string } }
+        resultVersionId: { type: [string, 'null'] }
+        queuedAt: { type: string, format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        error:
+          type: [object, 'null']
+          properties:
+            code: { type: string }
+            message: { type: string }
+    RecutTaskResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          $ref: '#/components/schemas/RecutTask'
+    RecutStateResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [scriptId, productionMode, recut]
+          properties:
+            scriptId:
+              $ref: '#/components/schemas/ObjectId'
+            productionMode:
+              $ref: '#/components/schemas/ShortScriptProductionMode'
+            recut:
+              $ref: '#/components/schemas/RecutSnapshot'
+            task:
+              oneOf:
+                - $ref: '#/components/schemas/RecutTask'
+                - type: 'null'
     ShortScript:
       description: |
-        短影片腳本（MongoDB 文件原樣輸出，未經 mapper）。讀取時不會補上 schema default，
+        短影片腳本沿用 MongoDB 文件格式；讀取時缺少 productionMode 會補 avatar，其餘不補 schema default，
         因此 `required` 只列建立時一定寫入的欄位；其餘欄位在舊資料上可能不存在。
       type: object
       required:
@@ -9860,6 +11608,10 @@ components:
         topicKey:
           description: 代表問句的正規化文字；同一課程內唯一。
           type: string
+        productionMode:
+          $ref: '#/components/schemas/ShortScriptProductionMode'
+        recut:
+          $ref: '#/components/schemas/RecutSnapshot'
         sourceQuestions:
           type: array
           items:
@@ -9955,6 +11707,8 @@ components:
     ShortScriptCreateRequest:
       type: object
       properties:
+        productionMode:
+          $ref: '#/components/schemas/ShortScriptProductionMode'
         topicKey:
           description: 教師指定的候選 `topicKey`；省略或空白時由系統依排序自動選題。
           type: string

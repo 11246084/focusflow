@@ -30,11 +30,12 @@ const {
 } = require('./services/videoBatchReconciliation.service');
 const { migrateVideoFields } = require('./services/videoMigration.service');
 const { recoverQueuedVideoProcessing } = require('./services/video.service');
+const { recutQueue } = require('./services/recutQueue.service');
 const { validateStudentPilotRuntime } = require('./services/studentPilotRuntime.service');
 const { cleanupIncoming, warnLowSpace } = require('./services/uploadStorage.service');
 const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = require('./services/courseDeletionJobs.service');
 
-async function startServer() {
+async function startServer({ recutRuntimeAdapters } = {}) {
   validateStudentPilotRuntime();
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
@@ -49,6 +50,26 @@ async function startServer() {
     await seedDemoData({ silent: true });
   }
 
+  // An explicitly injected runtime remains available to hosts/tests. The normal
+  // entrypoint assembles the same adapters from an administrator's nonsecret config.
+  if (env.shortScriptAutomationEnabled && recutRuntimeAdapters === undefined) {
+    recutRuntimeAdapters = await require('./services/recutHostRuntime.service').createRecutHostRuntime({
+      enabled: true, runtimeConfigPath: env.recutRuntimeConfigPath,
+      databaseUri: env.mongodbUri, databaseName: mongoose.connection?.name,
+    });
+    console.info('[recut] host runtime:', recutRuntimeAdapters.hostStatus);
+  }
+  const recutApplication = env.shortScriptAutomationEnabled
+    ? require('./services/recutApplication.service').configureRecutApplication({ runtimeAdapters: recutRuntimeAdapters }) : null;
+  const consentLifecycle = require('./services/recutConsentLifecycle.service').configureRecutConsentLifecycle();
+  const recoverConsent = async () => {
+    await require('./services/recutConsent.service').recoverPendingWithdrawals();
+    await consentLifecycle.recoverAssetPrivacy();
+  };
+  recoverConsent().catch((error) => console.error('[recut] consent recovery failed', error.code));
+  const consentRecoveryTimer = setInterval(() => recoverConsent().catch((error) => console.error('[recut] consent recovery failed', error.code)), 60000);
+  consentRecoveryTimer.unref();
+
   const server = app.listen(env.port, () => {
     console.log(`Focus Flow backend listening on port ${env.port}`);
   });
@@ -57,6 +78,12 @@ async function startServer() {
     console.error('Failed to recover queued video processing.', error);
   });
   startShortsSyncScheduler();
+  if (recutApplication && !recutApplication.missing.length) recutApplication.recover().catch((error) => {
+    console.error('Failed to recover queued recut tasks.', error);
+  });
+  const renderRecoveryTimer = env.shortScriptAutomationEnabled ? setInterval(() => require('./services/recutWorker.service').recoverRenderJobs().catch((error) => console.error('[recut] render recovery failed', error.code)), 60000) : null;
+  renderRecoveryTimer?.unref();
+  if (env.shortScriptAutomationEnabled) require('./services/recutWorker.service').recoverRenderJobs().catch((error) => console.error('[recut] render startup recovery failed', error.code));
   startVideoBatchReconciliationScheduler();
   startYouTubeRemoteStateScheduler();
   // 非阻塞：讓 /health.runtime.youtubeUpload 從開機就有憑證狀態，不必等第一次上傳。
@@ -73,6 +100,9 @@ async function startServer() {
   warnLowSpace().catch((error) => console.error('Upload storage warning failed.', error.message));
 
   const shutdown = async () => {
+    clearInterval(consentRecoveryTimer);
+    recutQueue.stop();
+    clearInterval(renderRecoveryTimer);
     stopShortsSyncScheduler();
     stopVideoBatchReconciliationScheduler();
     stopYouTubeUploadRecoveryScheduler();
@@ -91,7 +121,8 @@ async function startServer() {
   process.on('SIGTERM', shutdown);
 }
 
-startServer().catch((error) => {
+if (require.main === module) startServer().catch((error) => {
   console.error('Failed to start backend.', error);
   process.exit(1);
 });
+module.exports = { startServer };

@@ -121,6 +121,7 @@ const videoSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
+    activeTranscriptVersion: { type: String, default: 'legacy' },
     week: {
       type: Number,
       default: null,

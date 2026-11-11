@@ -1,0 +1,592 @@
+{
+  "date": "2026-11-10",
+  "scope": "local MVD; synthetic chunks, mock embeddings and mock search",
+  "source": "backend/uploads/1785570957608-aiA10_1140119_1.mp4",
+  "sourceSha256": "2931462f4db6dc9779b18cc408663e7d15ad9861e928fcff5b7e817338672ccd",
+  "durationSec": 1756.5,
+  "media": [
+    {
+      "modality": "audio",
+      "durationSec": 8,
+      "bytes": 256078,
+      "reused": true
+    },
+    {
+      "modality": "visual",
+      "durationSec": 8,
+      "bytes": 248015,
+      "reused": true
+    },
+    {
+      "modality": "audio",
+      "durationSec": 10,
+      "bytes": 320078,
+      "reused": true
+    },
+    {
+      "modality": "visual",
+      "durationSec": 10,
+      "bytes": 290828,
+      "reused": true
+    },
+    {
+      "modality": "audio",
+      "durationSec": 10,
+      "bytes": 320078,
+      "reused": true
+    },
+    {
+      "modality": "visual",
+      "durationSec": 10,
+      "bytes": 279177,
+      "reused": true
+    }
+  ],
+  "tests": {
+    "newNode": 8,
+    "existingNode": 15,
+    "python": 7,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "name": "normal-equal",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "real local slices",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 3
+        },
+        "audio": {
+          "status": "success",
+          "count": 2
+        },
+        "visual": {
+          "status": "success",
+          "count": 2
+        }
+      },
+      "matches": [
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0002",
+          "startSec": 22,
+          "endSec": 32,
+          "text": "範例逐字稿：人工智慧與機器學習。",
+          "score": 1,
+          "fusionScore": 0.04918032786885246,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          },
+          "channelScores": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          },
+          "contributions": {
+            "text": 0.01639344262295082,
+            "audio": 0.01639344262295082,
+            "visual": 0.01639344262295082
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0003",
+          "startSec": 40,
+          "endSec": 50,
+          "text": "範例逐字稿：課程介紹。",
+          "score": 0.5,
+          "fusionScore": 0.03225806451612903,
+          "retrievedBy": [
+            "text",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "visual": 2
+          },
+          "channelScores": {
+            "text": 0.5,
+            "visual": 0.5
+          },
+          "contributions": {
+            "text": 0.016129032258064516,
+            "visual": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0001",
+          "startSec": 10,
+          "endSec": 12,
+          "text": "範例逐字稿：全連先生廣告。",
+          "score": 0.3333333333333333,
+          "fusionScore": 0.03200204813108039,
+          "retrievedBy": [
+            "text",
+            "audio"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 2
+          },
+          "channelScores": {
+            "text": 0.3333333333333333,
+            "audio": 0.5
+          },
+          "contributions": {
+            "text": 0.015873015873015872,
+            "audio": 0.016129032258064516
+          }
+        }
+      ]
+    },
+    {
+      "name": "rescue-equal",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "real local slices",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 2
+        },
+        "audio": {
+          "status": "success",
+          "count": 2
+        },
+        "visual": {
+          "status": "success",
+          "count": 2
+        }
+      },
+      "matches": [
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0001",
+          "startSec": 10,
+          "endSec": 12,
+          "text": "範例逐字稿：全連先生廣告。",
+          "score": 1,
+          "fusionScore": 0.03278688524590164,
+          "retrievedBy": [
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "audio": 1,
+            "visual": 1
+          },
+          "channelScores": {
+            "audio": 1,
+            "visual": 1
+          },
+          "contributions": {
+            "audio": 0.01639344262295082,
+            "visual": 0.01639344262295082
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0002",
+          "startSec": 22,
+          "endSec": 32,
+          "text": "範例逐字稿：人工智慧與機器學習。",
+          "score": 1,
+          "fusionScore": 0.03252247488101534,
+          "retrievedBy": [
+            "text",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "visual": 2
+          },
+          "channelScores": {
+            "text": 1,
+            "visual": 0.5
+          },
+          "contributions": {
+            "text": 0.01639344262295082,
+            "visual": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0003",
+          "startSec": 40,
+          "endSec": 50,
+          "text": "範例逐字稿：課程介紹。",
+          "score": 0.5,
+          "fusionScore": 0.03225806451612903,
+          "retrievedBy": [
+            "text",
+            "audio"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2
+          },
+          "channelScores": {
+            "text": 0.5,
+            "audio": 0.5
+          },
+          "contributions": {
+            "text": 0.016129032258064516,
+            "audio": 0.016129032258064516
+          }
+        }
+      ]
+    },
+    {
+      "name": "rescue-text_weighted",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "real local slices",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 2
+        },
+        "audio": {
+          "status": "success",
+          "count": 2
+        },
+        "visual": {
+          "status": "success",
+          "count": 2
+        }
+      },
+      "matches": [
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0002",
+          "startSec": 22,
+          "endSec": 32,
+          "text": "範例逐字稿：人工智慧與機器學習。",
+          "score": 1,
+          "fusionScore": 0.04891591750396616,
+          "retrievedBy": [
+            "text",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "visual": 2
+          },
+          "channelScores": {
+            "text": 1,
+            "visual": 0.5
+          },
+          "contributions": {
+            "text": 0.03278688524590164,
+            "visual": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0003",
+          "startSec": 40,
+          "endSec": 50,
+          "text": "範例逐字稿：課程介紹。",
+          "score": 0.5,
+          "fusionScore": 0.04838709677419355,
+          "retrievedBy": [
+            "text",
+            "audio"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2
+          },
+          "channelScores": {
+            "text": 0.5,
+            "audio": 0.5
+          },
+          "contributions": {
+            "text": 0.03225806451612903,
+            "audio": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0001",
+          "startSec": 10,
+          "endSec": 12,
+          "text": "範例逐字稿：全連先生廣告。",
+          "score": 1,
+          "fusionScore": 0.03278688524590164,
+          "retrievedBy": [
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "audio": 1,
+            "visual": 1
+          },
+          "channelScores": {
+            "audio": 1,
+            "visual": 1
+          },
+          "contributions": {
+            "audio": 0.01639344262295082,
+            "visual": 0.01639344262295082
+          }
+        }
+      ]
+    },
+    {
+      "name": "rescue-equal-fail-audio",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "real local slices",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 2
+        },
+        "audio": {
+          "status": "failed",
+          "count": 0
+        },
+        "visual": {
+          "status": "success",
+          "count": 2
+        }
+      },
+      "matches": [
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0002",
+          "startSec": 22,
+          "endSec": 32,
+          "text": "範例逐字稿：人工智慧與機器學習。",
+          "score": 1,
+          "fusionScore": 0.03252247488101534,
+          "retrievedBy": [
+            "text",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "visual": 2
+          },
+          "channelScores": {
+            "text": 1,
+            "visual": 0.5
+          },
+          "contributions": {
+            "text": 0.01639344262295082,
+            "visual": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0001",
+          "startSec": 10,
+          "endSec": 12,
+          "text": "範例逐字稿：全連先生廣告。",
+          "score": 1,
+          "fusionScore": 0.01639344262295082,
+          "retrievedBy": [
+            "visual"
+          ],
+          "channelRanks": {
+            "visual": 1
+          },
+          "channelScores": {
+            "visual": 1
+          },
+          "contributions": {
+            "visual": 0.01639344262295082
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0003",
+          "startSec": 40,
+          "endSec": 50,
+          "text": "範例逐字稿：課程介紹。",
+          "score": 0.5,
+          "fusionScore": 0.016129032258064516,
+          "retrievedBy": [
+            "text"
+          ],
+          "channelRanks": {
+            "text": 2
+          },
+          "channelScores": {
+            "text": 0.5
+          },
+          "contributions": {
+            "text": 0.016129032258064516
+          }
+        }
+      ]
+    },
+    {
+      "name": "rescue-equal-missing-visual",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "real local slices",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 2
+        },
+        "audio": {
+          "status": "success",
+          "count": 2
+        },
+        "visual": {
+          "status": "missing",
+          "count": 0
+        }
+      },
+      "matches": [
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0003",
+          "startSec": 40,
+          "endSec": 50,
+          "text": "範例逐字稿：課程介紹。",
+          "score": 0.5,
+          "fusionScore": 0.03225806451612903,
+          "retrievedBy": [
+            "text",
+            "audio"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2
+          },
+          "channelScores": {
+            "text": 0.5,
+            "audio": 0.5
+          },
+          "contributions": {
+            "text": 0.016129032258064516,
+            "audio": 0.016129032258064516
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0001",
+          "startSec": 10,
+          "endSec": 12,
+          "text": "範例逐字稿：全連先生廣告。",
+          "score": 1,
+          "fusionScore": 0.01639344262295082,
+          "retrievedBy": [
+            "audio"
+          ],
+          "channelRanks": {
+            "audio": 1
+          },
+          "channelScores": {
+            "audio": 1
+          },
+          "contributions": {
+            "audio": 0.01639344262295082
+          }
+        },
+        {
+          "courseId": "6a6da68456dd124511ec5196",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "chunkId": "6a6da68e56dd124511ec51b4_demo_0002",
+          "startSec": 22,
+          "endSec": 32,
+          "text": "範例逐字稿：人工智慧與機器學習。",
+          "score": 1,
+          "fusionScore": 0.01639344262295082,
+          "retrievedBy": [
+            "text"
+          ],
+          "channelRanks": {
+            "text": 1
+          },
+          "channelScores": {
+            "text": 1
+          },
+          "contributions": {
+            "text": 0.01639344262295082
+          }
+        }
+      ]
+    },
+    {
+      "name": "empty-equal",
+      "labels": {
+        "chunks": "synthetic example",
+        "media": "not run",
+        "embeddings": "mock-sha256-v1",
+        "retrieval": "mock candidates",
+        "fusion": "real RRF",
+        "rag": "not connected"
+      },
+      "diagnostics": {
+        "text": {
+          "status": "success",
+          "count": 0
+        },
+        "audio": {
+          "status": "success",
+          "count": 0
+        },
+        "visual": {
+          "status": "success",
+          "count": 0
+        }
+      },
+      "matches": []
+    }
+  ]
+}

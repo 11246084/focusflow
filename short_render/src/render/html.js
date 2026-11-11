@@ -2,6 +2,20 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { iconSvg } = require('../plan/assets');
+const { THEMES, validateVersions, validateAudio } = require('../plan/runtime');
+const { describeComponent } = require('../plan/components');
+
+function renderItem(item) {
+  if (item && typeof item === 'object') return `${item.icon ? iconSvg(item.icon) : ''}<span>${escapeHtml(item.text ?? item.value ?? '')}</span>`;
+  return escapeHtml(item);
+}
+
+function themeCss(name = 'N2') {
+  if (!Object.hasOwn(THEMES, name)) throw new Error('THEME_INVALID');
+  const t = THEMES[name];
+  return `:root{--bg:${t.bg};--panel:${t.panel};--end:${t.end};--card:${t.card};--card-edge:${t.edge};--white:${t.ink};--muted:${t.muted};--yellow:${t.accent};--accent-ink:${t.accentInk};--orange:#C2410C;--code-error:${t.light ? '#9A3412' : '#FDBA74'};--ok:${t.light ? '#166534' : '#4ADE80'};--tag-ink:#FFFFFF;--black:#000000;--soft:rgba(255,255,255,.05);--soft-edge:rgba(255,255,255,.12);--subtitle-bg:${t.light ? 'rgba(255,255,255,.88)' : 'transparent'};--subtitle-ink:${t.light ? t.ink : '#FFFFFF'};--subtitle-shadow:${t.light ? 'none' : '0 0 6px #000000,2px 2px 0 #000000,-2px -2px 0 #000000,2px -2px 0 #000000,-2px 2px 0 #000000'};}`;
+}
 
 // plan + resolved → HyperFrames 組合檔（單一 index.html）。
 // 純字串產生，沒有任何模型參與：同一份 plan 與 resolved 一定產出同一份 HTML。
@@ -67,7 +81,7 @@ function createBuilder() {
 const RENDERERS = {
   stat(scene, params, cue, b) {
     const id = scene.id;
-    const parts = [];
+    const parts = params.icon ? [iconSvg(params.icon)] : [];
     if (params.label) {
       parts.push(`<div class="lbl" id="${id}-label">${escapeHtml(params.label)}</div>`);
       b.pop(`#${id}-label`, cue('label', 0.3), { y: 12, d: 0.35 });
@@ -95,7 +109,7 @@ const RENDERERS = {
 
   slots(scene, params, cue, b) {
     const id = scene.id;
-    const slots = Array.from({ length: params.count }, (_, i) => `<div class="slot" id="${id}-slot${i}"><span>${escapeHtml(params.badge)}</span></div>`).join('');
+    const slots = Array.from({ length: params.count }, (_, i) => `<div class="slot" id="${id}-slot${i}">${params.icon ? iconSvg(params.icon) : ''}<span>${escapeHtml(params.badge)}</span></div>`).join('');
     const show = cue('show', 0.8);
     const parts = [];
     if (params.label) {
@@ -106,7 +120,7 @@ const RENDERERS = {
     b.pop(`#${id}-server`, show, { y: 40, d: 0.6 });
     for (let i = 0; i < params.count; i += 1) {
       const at = cue(`lit${i}`, 1.6 + i * 0.35);
-      b.raw(`tl.to("#${id}-slot${i}", {backgroundColor:"#FFC93C", color:"#25101F", boxShadow:"0 0 28px rgba(255,201,60,.8)", duration:0.25}, ${num(at)});`);
+      b.raw(`tl.to("#${id}-slot${i}", {backgroundColor:"var(--yellow)", color:"var(--accent-ink)", duration:0.25}, ${num(at)});`);
     }
     return parts.join('');
   },
@@ -124,7 +138,7 @@ const RENDERERS = {
         const at = cue(`r${r}t${t}`, 0.3 + order * 0.35);
         order += 1;
         b.pop(`#${id}-r${r}t${t}`, at, { y: 16, d: 0.35 });
-        return `<span class="tok tok-${style}" id="${id}-r${r}t${t}" style="font-size:${size}px">${escapeHtml(token.t)}</span>`;
+        return `<span class="tok tok-${style}" id="${id}-r${r}t${t}" style="font-size:${size}px">${token.icon ? iconSvg(token.icon) : ''}${escapeHtml(token.t)}</span>`;
       });
       return `<div class="rowx">${tokens.join('')}</div>`;
     });
@@ -143,7 +157,7 @@ const RENDERERS = {
       parts.push(`<div class="lbl" id="${id}-label">${escapeHtml(params.label)}</div>`);
       b.pop(`#${id}-label`, cue('label', 0.3), { y: 10, d: 0.3 });
     }
-    parts.push(`<div class="bubble" id="${id}-bub"><span id="${id}-txt">${escapeHtml(params.text)}</span></div>`);
+    parts.push(`${params.icon ? iconSvg(params.icon) : ''}<div class="bubble" id="${id}-bub"><span id="${id}-txt">${escapeHtml(params.text)}</span></div>`);
     const textAt = cue('text', 1.0);
     const reveal = Math.max(0.8, Math.min(2.4, scene.t1 - textAt - 0.3));
     b.raw(`tl.fromTo("#${id}-bub", {opacity:0, scale:0.9}, {opacity:1, scale:1, duration:0.3, ease:"power2.out"}, ${num(textAt - 0.1)});`);
@@ -158,21 +172,21 @@ const RENDERERS = {
       parts.push(`<div class="note2" id="${id}-note">${escapeHtml(params.note)}</div>`);
       b.pop(`#${id}-note`, cue('note', 0.6), { y: 10, d: 0.3 });
     }
-    parts.push(`<div class="chips">${params.chips.map((text, k) => `<div class="chipw" id="${id}-ch${k}">${escapeHtml(text)}</div>`).join('')}</div>`);
+    parts.push(`<div class="chips">${params.chips.map((text, k) => `<div class="chipw" id="${id}-ch${k}">${renderItem(text)}</div>`).join('')}</div>`);
     const enter = cue('enter', 0.2);
     params.chips.forEach((_, k) => {
       b.raw(`tl.fromTo("#${id}-ch${k}", {opacity:0, y:20}, {opacity:1, y:0, duration:0.3, ease:"power3.out"}, ${num(enter + 0.12 * k)});`);
     });
     for (const k of params.highlight || []) {
       const at = cue(`hl${k}`, 1.0);
-      b.raw(`tl.to("#${id}-ch${k}", {backgroundColor:"#FFC93C", color:"#25101F", borderColor:"#FFC93C", scale:1.12, duration:0.25}, ${num(at)});`);
+      b.raw(`tl.to("#${id}-ch${k}", {backgroundColor:"var(--yellow)", color:"var(--accent-ink)", borderColor:"var(--yellow)", scale:1.12, duration:0.25}, ${num(at)});`);
     }
     if (params.dimKeep !== undefined) {
       const at = cue('dim', 1.5);
       params.chips.forEach((_, k) => {
         if (k !== params.dimKeep) b.raw(`tl.to("#${id}-ch${k}", {opacity:0.18, duration:0.3}, ${num(at)});`);
       });
-      b.raw(`tl.to("#${id}-ch${params.dimKeep}", {backgroundColor:"#FFC93C", color:"#25101F", borderColor:"#FFC93C", scale:1.3, duration:0.3}, ${num(at)});`);
+      b.raw(`tl.to("#${id}-ch${params.dimKeep}", {backgroundColor:"var(--yellow)", color:"var(--accent-ink)", borderColor:"var(--yellow)", scale:1.3, duration:0.3}, ${num(at)});`);
     }
     if (params.question) {
       parts.push(`<div class="qmark" id="${id}-q">？</div>`);
@@ -191,7 +205,7 @@ const RENDERERS = {
       const classes = ['loc'];
       if (value.highlight) classes.push('hl');
       if (value.bad) classes.push('bad');
-      return `<div class="${classes.join(' ')}" id="${id}-${key}">${value.label ? `<div class="ll">${escapeHtml(value.label)}</div>` : ''}<div class="lv">${escapeHtml(value.value)}</div></div>`;
+      return `<div class="${classes.join(' ')}" id="${id}-${key}">${value.label ? `<div class="ll">${escapeHtml(value.label)}</div>` : ''}<div class="lv">${renderItem(value)}</div></div>`;
     };
     const link = params.link && params.link !== '→'
       ? `<div class="lk" id="${id}-link"><div class="lkl">${escapeHtml(params.link)}</div><div class="lkline"></div></div>`
@@ -217,7 +231,7 @@ const RENDERERS = {
       parts.push(`<div class="mid2" id="${id}-head">${escapeHtml(params.head)}</div>`);
       b.pop(`#${id}-head`, cue('head', 0.3), { y: 14, d: 0.35 });
     }
-    const items = params.items.map((text, k) => `<div class="item${plain ? ' plain' : ''}" id="${id}-item${k}">${plain ? '' : `<span class="x${params.mark === '✓' ? ' ok' : ''}">${params.mark}</span>`}<span class="nm">${escapeHtml(text)}</span></div>`);
+    const items = params.items.map((text, k) => `<div class="item${plain ? ' plain' : ''}" id="${id}-item${k}">${plain ? '' : `<span class="x${params.mark === '✓' ? ' ok' : ''}">${params.mark}</span>`}<span class="nm">${renderItem(text)}</span></div>`);
     parts.push(`<div class="items${plain ? ' single' : ''}">${items.join('')}</div>`);
     params.items.forEach((_, k) => b.slideIn(`#${id}-item${k}`, cue(`item${k}`, 0.8 + k * 0.5)));
     if (params.banner) {
@@ -229,7 +243,7 @@ const RENDERERS = {
 
   'place-values'(scene, params, cue, b) {
     const id = scene.id;
-    const cells = params.digits.map((digit, k) => `<div class="cell" id="${id}-d${k}"><div class="dg">${digit}</div><div class="pl">${escapeHtml(params.labels[k])}</div></div>`);
+    const cells = params.digits.map((digit, k) => `<div class="cell" id="${id}-d${k}"><div class="dg">${escapeHtml(digit)}</div><div class="pl">${renderItem(params.labels[k])}</div></div>`);
     const parts = [`<div class="digits">${cells.join('')}</div>`];
     params.digits.forEach((_, k) => b.scalePop(`#${id}-d${k}`, cue(`d${k}`, 0.3 + (params.digits.length - 1 - k) * 0.4), 0.35));
     if (params.note) {
@@ -241,7 +255,7 @@ const RENDERERS = {
 
   relation(scene, params, cue, b) {
     const id = scene.id;
-    const words = params.words.map((text, k) => `<div class="chipw${k === 2 ? ' hl' : ''}" id="${id}-w${k}">${escapeHtml(text)}</div>`);
+    const words = params.words.map((text, k) => `<div class="chipw${k === 2 ? ' hl' : ''}" id="${id}-w${k}">${renderItem(text)}</div>`);
     const row = `${words[0]}<div class="lnk" id="${id}-l0"></div>${words[1]}<div class="lnk" id="${id}-l1"></div>${words[2]}`;
     const parts = [`<div class="relrow">${row}</div>`];
     params.words.forEach((_, k) => b.pop(`#${id}-w${k}`, cue(`w${k}`, 0.3 + k * 0.5), { y: 14, d: 0.3 }));
@@ -254,7 +268,81 @@ const RENDERERS = {
   },
 };
 
-function buildHtml(plan, resolved, { css = null, teacherSrc = 'teacher.mp4' } = {}) {
+RENDERERS['not-fit'] = (scene, p, cue, b) => {
+  b.pop(`#${scene.id}-object`, cue('object', 0.2));
+  b.pop(`#${scene.id}-container`, cue('container', 0.6));
+  b.raw(`tl.to("#${scene.id}-object",{x:60,duration:.5,ease:"power2.inOut"},${num(cue('attempt', 1.3))});`);
+  b.raw(`tl.to("#${scene.id}-object",{x:0,duration:.4,ease:"power2.out"},${num(cue('reject', 2.1))});`);
+  b.scalePop(`#${scene.id}-reject`, cue('reject', 2.1));
+  return `<div class="fit-layout"><div class="fit-object" id="${scene.id}-object">${renderItem(p.object)}</div><div class="fit-container" id="${scene.id}-container">${renderItem(p.container)}</div></div><div class="rejection" id="${scene.id}-reject">${iconSvg('phosphor:x')}<span>放不進去</span></div>`;
+};
+RENDERERS['not-merge'] = (scene, p, cue, b) => {
+  b.pop(`#${scene.id}-left`, cue('left', .2)); b.pop(`#${scene.id}-right`, cue('right', .6));
+  b.pop(`#${scene.id}-result`, cue('attempt', 1.2)); b.scalePop(`#${scene.id}-reject`, cue('reject', 2.1));
+  return `<div class="merge-parts"><div class="scene-item" id="${scene.id}-left">${renderItem(p.left)}</div><div class="merge-plus">${iconSvg('phosphor:plus')}</div><div class="scene-item" id="${scene.id}-right">${renderItem(p.right)}</div></div><div class="rejection" id="${scene.id}-reject">${iconSvg('phosphor:x')}<span>不能直接合成</span></div><div class="merge-result" id="${scene.id}-result">${renderItem(p.result)}</div>`;
+};
+function nestedHtml(layers, id, b, cue, index = 0) {
+  b.pop(`#${id}-layer${index}`, cue(`layer${index}`, .3 + index * .6), { y: 10, d: .3 });
+  return `<div class="nested-layer" id="${id}-layer${index}"><div class="nested-label">${renderItem(layers[index])}</div>${layers[index + 1] ? nestedHtml(layers, id, b, cue, index + 1) : ''}</div>`;
+}
+RENDERERS.nested = (scene, p, cue, b) => `<div class="nested-diagram">${nestedHtml(p.layers, scene.id, b, cue)}</div>`;
+
+// Deliberately small, deterministic display tokenizer. It never executes code
+// or claims to validate syntax; RC6 owns screen transcription and correctness.
+function syntaxHtml(value, language) {
+  if (language === 'text') return escapeHtml(value);
+  const pattern = /\/\/.*|#.*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b\d+(?:\.\d+)?\b|\b(?:const|let|var|function|return|if|else|for|while|class|def|import|from|in|public|private|static|void|int|float|double|true|false|True|False|None|null|new|using)\b/g;
+  let cursor = 0, result = '';
+  for (const m of value.matchAll(pattern)) {
+    result += escapeHtml(value.slice(cursor, m.index));
+    const kind = /^\/\/|^#/.test(m[0]) ? 'comment' : /^["']/.test(m[0]) ? 'string' : /^\d/.test(m[0]) ? 'number' : 'keyword';
+    result += `<span class="syntax-${kind}">${escapeHtml(m[0])}</span>`;
+    cursor = m.index + m[0].length;
+  }
+  return result + escapeHtml(value.slice(cursor));
+}
+RENDERERS.code = (scene, p, cue, b) => {
+  // Short source snippets reach 16px on a 360px preview. Dense source retains
+  // its literal text and shrinks conservatively within the existing canvas.
+  const codeFontPx = Math.min(32, Math.floor(560 / Math.max(1, ...p.lines.map((line) => widthEm(line.text)))),
+    Math.floor((p.diagram ? 300 : 530) / (p.lines.length * 1.65)));
+  const errorFontPx = widthEm(p.errorMessage || '') > 50 ? 26 : 32;
+  const rows = p.lines.map((line, i) => {
+    b.fade(`#${scene.id}-line${i + 1}`, cue(`line${i + 1}`, .2 + i * .06), .15);
+    const boxes = (p.boxes || []).filter((v) => v.line === i + 1).map((v) => ({ text: v.text, at: line.text.indexOf(v.text) })).sort((a, c) => a.at - c.at);
+    let content = '', cursor = 0;
+    for (const box of boxes) {
+      content += syntaxHtml(line.text.slice(cursor, box.at), p.language) + `<mark class="code-box">${syntaxHtml(box.text, p.language)}</mark>`;
+      cursor = box.at + box.text.length;
+    }
+    content += syntaxHtml(line.text.slice(cursor), p.language);
+    return `<div class="code-line${p.highlightLines?.includes(i + 1) ? ' code-highlight' : ''}" id="${scene.id}-line${i + 1}"><span class="line-no">${i + 1}</span><code>${content || ' '}</code></div>`;
+  });
+  let extra = '';
+  if (p.errorMessage) { b.pop(`#${scene.id}-error`, cue('error', 1.4)); extra += `<div class="code-error" id="${scene.id}-error" style="font-size:${errorFontPx}px">${escapeHtml(p.errorMessage)}</div>`; }
+  if (p.diagram) { b.fade(`#${scene.id}-diagram`, cue('diagram', 1.6)); extra += `<div class="code-diagram" id="${scene.id}-diagram">${nestedHtml(p.diagram.layers, `${scene.id}-diagram`, b, () => cue('diagram', 1.6))}</div>`; }
+  return `<div class="code-editor" style="--code-font-size:${codeFontPx}px"><div class="code-title">${escapeHtml(p.language)}</div>${rows.join('')}</div>${extra}`;
+};
+
+function provenanceHtml(plan) {
+  return plan.scenes.filter((s) => s.component === 'code').map((s) => `<section class="preview-provenance"><h2>程式碼來源對照</h2>${s.params.lines.map((line, i) => `<div><b>第 ${i + 1} 行：${escapeHtml(line.source)}</b><pre>${escapeHtml(line.originalText)}</pre><pre>${escapeHtml(line.text)}</pre></div>`).join('')}</section>`).join('');
+}
+
+const MIN_FIT_ZOOM = 0.6;
+function buildHtml(plan, resolved, { css = null, audioSrc = 'narration.wav', mode = 'render' } = {}) {
+  if (!['preview', 'render'].includes(mode)) throw new Error('mode must be preview or render');
+  if (!textSafeLocal(audioSrc)) throw new Error('audioSrc must be a relative local asset path');
+  if (plan.contractVersion !== undefined) {
+    const errors = require('../plan/schema').validateStructure(plan);
+    if (errors.length) throw new Error(`invalid render plan: ${JSON.stringify(errors)}`);
+    if (validateVersions(plan.versions).length || validateAudio(plan.audio).length) throw new Error('version or audio mismatch');
+    if (resolved.planHash !== require('../plan/sentences').planHash(plan)) throw new Error('resolved plan hash mismatch');
+  }
+  for (const scene of plan.scenes) {
+    if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(scene.id)) throw new Error('unsafe scene id');
+    const e = describeComponent(scene.component, scene.params).errors;
+    if (e.length) throw new Error(`invalid component: ${e.join('; ')}`);
+  }
   const styles = css ?? fs.readFileSync(STYLE_PATH, 'utf8');
   const b = createBuilder();
   const sceneTimes = Object.fromEntries(resolved.scenes.map((scene) => [scene.id, scene]));
@@ -262,7 +350,7 @@ function buildHtml(plan, resolved, { css = null, teacherSrc = 'teacher.mp4' } = 
   const sceneHtml = plan.scenes.map((scene) => {
     const timing = sceneTimes[scene.id];
     const context = { id: scene.id, t0: timing.t0, t1: timing.t1 };
-    const cue = (name, fallback = 0.3) => (timing.cues[name] !== undefined ? timing.cues[name] : round3(timing.t0 + fallback));
+    const cue = (name, fallback = 0.3) => (timing.cues[name] !== undefined ? timing.cues[name] : round3(Math.min(timing.t1 - .5, timing.t0 + fallback)));
     const inner = RENDERERS[scene.component](context, scene.params, cue, b);
     let stamp = '';
     if (scene.stamp) {
@@ -271,6 +359,7 @@ function buildHtml(plan, resolved, { css = null, teacherSrc = 'teacher.mp4' } = 
       b.raw(`tl.fromTo("#${scene.id}-stamp", {opacity:0, scale:2.0, rotation:-12}, {opacity:1, scale:1, rotation:-7, duration:0.3, ease:"power4.in"}, ${num(at)});`);
     }
     b.fadeOut(`#${scene.id}`, timing.t1 - 0.28, 0.25);
+    b.raw(`tl.set("#${scene.id}",{visibility:"visible"},${num(timing.t0)});tl.set("#${scene.id}",{visibility:"hidden"},${num(timing.t1)});`);
     // 有印章的場景把主要內容往上讓出右下角，避免蓋到最後一列
     return `<div class="scene sc-${scene.component}${scene.stamp ? ' has-stamp' : ''} clip" id="${scene.id}" data-start="${num(timing.t0)}" data-duration="${num(timing.t1 - timing.t0)}">${inner}${stamp}</div>`;
   });
@@ -279,7 +368,8 @@ function buildHtml(plan, resolved, { css = null, teacherSrc = 'teacher.mp4' } = 
     const subtitle = plan.subtitles[timing.index];
     const runs = subtitle.runs.map((run) => (run.hl ? `<b>${escapeHtml(run.t)}</b>` : escapeHtml(run.t))).join('');
     b.raw(`tl.fromTo("#sub${k}", {opacity:0, y:14}, {opacity:1, y:0, duration:0.18, ease:"power2.out"}, ${num(timing.t0 + 0.02)});`);
-    return `<div class="sub clip" data-start="${num(timing.t0)}" data-duration="${num(timing.t1 - timing.t0)}"><span id="sub${k}">${runs}</span></div>`;
+    b.raw(`tl.set("#subtitle${k}",{visibility:"visible"},${num(timing.t0)});tl.set("#subtitle${k}",{visibility:"hidden"},${num(timing.t1)});`);
+    return `<div class="sub clip" id="subtitle${k}" data-start="${num(timing.t0)}" data-duration="${num(timing.t1 - timing.t0)}"><span id="sub${k}">${runs}</span></div>`;
   });
 
   const end = resolved.endCard;
@@ -289,17 +379,19 @@ function buildHtml(plan, resolved, { css = null, teacherSrc = 'teacher.mp4' } = 
   b.raw('tl.fromTo("#hdr", {opacity:0, y:-16}, {opacity:1, y:0, duration:0.5, ease:"power3.out"}, 0.05);');
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant"${mode === 'preview' ? ' class="preview-document"' : ''}>
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=720, height=1280" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(plan.title.text)}</title>
 <script src="vendor/gsap.min.js"></script>
 <style>
 ${styles}
+${themeCss(plan.theme || 'N2')}
 </style>
 </head>
-<body>
+<body${mode === 'preview' ? ' class="preview-page"' : ''}>
+${mode === 'preview' ? '<div id="preview-viewport">' : ''}
 <div id="root" data-composition-id="recut" data-start="0" data-width="720" data-height="1280" data-duration="${num(resolved.total)}">
   <div class="panel"></div>
   <div class="hdr" id="hdr"><div class="tag">${escapeHtml(plan.title.tag)}</div><div class="ttl">${escapeHtml(plan.title.text)}</div><div class="logo">FocusFlow</div></div>
@@ -309,18 +401,110 @@ ${styles}
   <div class="band">
     ${subtitleHtml.join('\n    ')}
   </div>
-  <div class="rule"></div>
-  <video id="teacher" src="${teacherSrc}" playsinline data-has-audio="true" data-start="0" data-duration="${num(resolved.speechTotal)}" data-track-index="1"></video>
+  <audio id="narration" src="${escapeHtml(audioSrc)}" data-has-audio="true" data-start="0" data-duration="${num(resolved.total)}" data-track-index="1"></audio>
   <div id="endcard" class="endcard"><div class="e1" id="end1">${escapeHtml(plan.endCard.line1)}</div><div class="e2" id="end2">${escapeHtml(plan.endCard.line2 || '')}</div></div>
 </div>
+${mode === 'preview' ? `</div><div class="preview-controls"><button id="play-toggle" type="button">播放／暫停</button><input id="preview-seek" type="range" min="0" max="${resolved.total}" step="0.01" value="0" aria-label="播放位置" /></div><p class="preview-caption">輔助預覽；核准講稿後仍需審閱實際成品。</p>${provenanceHtml(plan)}` : ''}
 <script>
 const tl = gsap.timeline({ paused: true });
 ${b.statements.join('\n')}
-window.__timelines["recut"] = tl;
+window.__recutSeek = function(seconds) {
+  tl.seek(seconds, false);
+  document.querySelectorAll('.clip').forEach(function(el) {
+    const start=Number(el.dataset.start), end=start+Number(el.dataset.duration);
+    el.style.visibility=seconds>=start && seconds<end ? 'visible' : 'hidden';
+  });
+};
+// Keep every card's text inside the card. Runs once after the font loads and
+// before the timeline is registered: with transforms neutralized, the text and
+// element boxes of each card are measured against the card's inner box, and the
+// card content gets a layout zoom until it fits, never below MIN_FIT_ZOOM. Zoom is
+// not a transform, so GSAP keeps animating transforms; px translate offsets inside
+// a zoomed card scale with it. Rotated elements are measured unrotated. Cards that still overflow
+// are reported; the render preflight refuses them (RECUT_TEXT_OVERFLOW).
+var MIN_FIT_ZOOM = ${MIN_FIT_ZOOM};
+function recutTextBoxes(root) {
+  var boxes = [], walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), node;
+  while ((node = walker.nextNode())) {
+    if (!node.nodeValue.trim()) continue;
+    var range = document.createRange(); range.selectNodeContents(node);
+    var rect = range.getBoundingClientRect(); if (rect.width || rect.height) boxes.push(rect);
+  }
+  root.querySelectorAll('svg,img,.chip,.slot,.item,.scene-item,.chipw,.bubble,.fit-object,.fit-container,.merge-result').forEach(function(el) {
+    var rect = el.getBoundingClientRect(); if (rect.width || rect.height) boxes.push(rect);
+  });
+  return boxes;
+}
+function recutFitCards() {
+  if (typeof document.createTreeWalker !== 'function' || typeof document.createRange !== 'function') return [];
+  var neutral = document.createElement('style');
+  neutral.textContent = '*{transform:none!important;transition:none!important;animation:none!important}';
+  document.head.appendChild(neutral);
+  var report = [];
+  document.querySelectorAll('.scene').forEach(function(scene) {
+    var cs = getComputedStyle(scene), box = scene.getBoundingClientRect(), px = function(v) { return parseFloat(v) || 0; };
+    var inner = { l: box.left + px(cs.paddingLeft) + px(cs.borderLeftWidth), r: box.right - px(cs.paddingRight) - px(cs.borderRightWidth),
+      t: box.top + px(cs.paddingTop) + px(cs.borderTopWidth), b: box.bottom - px(cs.paddingBottom) - px(cs.borderBottomWidth) };
+    var kids = Array.prototype.filter.call(scene.children, function(el) { return !el.classList.contains('stamp'); });
+    var zoom = 1, overflow = null;
+    for (var pass = 0; pass < 8; pass++) {
+      var boxes = []; kids.forEach(function(el) { boxes = boxes.concat(recutTextBoxes(el)); });
+      if (!boxes.length) { overflow = null; break; }
+      var u = { l: Math.min.apply(null, boxes.map(function(r) { return r.left; })), r: Math.max.apply(null, boxes.map(function(r) { return r.right; })),
+        t: Math.min.apply(null, boxes.map(function(r) { return r.top; })), b: Math.max.apply(null, boxes.map(function(r) { return r.bottom; })) };
+      if (u.l >= inner.l - 1 && u.r <= inner.r + 1 && u.t >= inner.t - 1 && u.b <= inner.b + 1) { overflow = null; break; }
+      overflow = { left: Math.round(inner.l - u.l), right: Math.round(u.r - inner.r), top: Math.round(inner.t - u.t), bottom: Math.round(u.b - inner.b) };
+      if (zoom <= MIN_FIT_ZOOM) break;
+      var factor = Math.min((inner.r - inner.l) / (u.r - u.l), (inner.b - inner.t) / (u.b - u.t), 0.97);
+      zoom = Math.max(MIN_FIT_ZOOM, Math.round(zoom * factor * 1000) / 1000);
+      kids.forEach(function(el) { el.style.zoom = String(zoom); });
+    }
+    report.push({ id: scene.id, zoom: zoom, overflow: overflow });
+  });
+  neutral.remove();
+  return report;
+}
+window.__recutReady = document.fonts.load('700 30px "Noto Sans TC"').then(function(fonts) {
+  if (!fonts.length || !document.fonts.check('700 30px "Noto Sans TC"')) throw new Error('RECUT_FONT_NOT_LOADED');
+  window.__recutTextFit = recutFitCards();
+  window.__timelines = window.__timelines || {};
+  window.__timelines["recut"] = tl;
+  window.__recutFontLoaded = true;
+  window.__recutSeek(0);
+  return true;
+});
+${mode === 'preview' ? previewScript(plan.audio?.gainDb || 0) : ''}
 </script>
 </body>
 </html>
 `;
 }
 
-module.exports = { buildHtml, escapeHtml, widthEm };
+function textSafeLocal(value) { return typeof value === 'string' && /^(?![\\/])(?!.*(?:\.\.|:))[A-Za-z0-9_./-]+$/.test(value); }
+function previewScript(gainDb) {
+  return `
+const media=document.getElementById('narration');
+const seek=document.getElementById('preview-seek');
+function resizePreview(){const viewport=document.getElementById('preview-viewport');const width=Math.min(720,viewport.clientWidth);document.getElementById('root').style.transform='scale('+width/720+')';viewport.style.height=width*1280/720+'px';}
+window.addEventListener('resize',resizePreview);resizePreview();
+let audioContext, gainNode;
+async function prepareAudio(){
+  if(!audioContext){
+    audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    const source=audioContext.createMediaElementSource(media);
+    gainNode=audioContext.createGain();
+    gainNode.gain.value=Math.pow(10,${gainDb}/20);
+    source.connect(gainNode);gainNode.connect(audioContext.destination);
+  }
+  await audioContext.resume();
+}
+function tick(){window.__recutSeek(media.currentTime);seek.value=media.currentTime;if(!media.paused)requestAnimationFrame(tick);}
+document.getElementById('play-toggle').addEventListener('click',async function(){await window.__recutReady;await prepareAudio();if(media.paused)await media.play();else media.pause();});
+media.addEventListener('play',tick);
+media.addEventListener('timeupdate',function(){window.__recutSeek(media.currentTime);seek.value=media.currentTime;});
+media.addEventListener('seeked',function(){window.__recutSeek(media.currentTime);});
+media.addEventListener('ended',function(){window.__recutSeek(media.duration);});
+seek.addEventListener('input',function(){media.currentTime=Number(seek.value);window.__recutSeek(media.currentTime);});
+`;
+}
+module.exports = { buildHtml, escapeHtml, widthEm, themeCss, syntaxHtml };

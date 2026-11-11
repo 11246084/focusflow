@@ -11,6 +11,13 @@ const {
 const { USER_ROLES } = require('../constants/enums');
 
 const router = express.Router();
+const requireContentConsent = require('../utils/asyncHandler')(async (req, _res, next) => {
+  const access = require('../services/courseAccess.service');
+  const course = await access.getCourseByIdOrThrow(req.params.courseId);
+  await access.assertCanManageCourse(req.user, course);
+  await require('../services/recutWorkConsent.service').assertWorkConsent({ courseId: req.params.courseId, contentOnly: true });
+  next();
+});
 
 // 這個 router 掛在 /api/v1 根路徑，authenticate 只套在自己負責的前綴；
 // 若寫成 router.use(authenticate)，任何不存在的 API 路徑都會先被擋成 401 而不是 404。
@@ -24,6 +31,7 @@ router.post(
 router.post(
   '/courses/:courseId/videos',
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  requireContentConsent,
   uploadSingleVideo,
   videoController.createVideo,
 );
@@ -64,6 +72,7 @@ router.post(
 router.post(
   '/courses/:courseId/video-batches',
   authorizeRoles(USER_ROLES.TEACHER, USER_ROLES.ADMIN),
+  requireContentConsent,
   uploadVideoBatch,
   validateVideoBatchMetadata,
   videoBatchController.createVideoBatch,

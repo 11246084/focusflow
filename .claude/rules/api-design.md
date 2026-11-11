@@ -165,6 +165,34 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `QA_DAILY_LIMIT_EXCEEDED` | 429 | 學生當天（台灣時間）提問次數已達上限：管理員設定的個別上限 `User.dailyAskLimitOverride`，未設定時為 `QA_DAILY_ASK_LIMIT_PER_STUDENT`（預設 5 次，網頁與 LINE 合併；failed 不計） |
 | `FAQ_INVALIDATION_FAILED` | 503 | 影片刪除／解除掛載前的 FAQ 清除失敗；mutation 未執行，可安全重試 |
 | `SHORT_SCRIPT_NOT_FOUND` | 404 | 短影片腳本不存在 |
+| `RECUT_STATE_INVALID` | 409 | 產片方式、目前版本、核准紀錄或背景工作狀態不允許此操作 |
+| `RECUT_TASK_NOT_FOUND` | 404 | recut 任務不存在或不屬於指定腳本 |
+| `RECUT_STEPS_NOT_CONFIGURED` | 503 | recut 步驟尚未註冊，或排隊時記錄的步驟 ID 與目前程式不符 |
+| `RECUT_SETTING_INVALID` | 503 | recut 呼叫上限設定無效（初次至少 3 次，修改至少 2 次） |
+| `RECUT_WINDOW_NOT_FOUND` | 422 | 直接命中無法形成同影片連續 120～180 秒視窗 |
+| `RECUT_SOURCE_UNAVAILABLE` | 422 | 課程內本機原片不可用 |
+| `RECUT_SOURCE_NO_AUDIO` | 422 | 原片無聲音軌 |
+| `RECUT_SOURCE_TOO_SHORT` | 422 | 原片或音軌長度不足 |
+| `RECUT_SOURCE_UNDECODABLE` | 422 | 原片工具檢查或解碼失敗 |
+| `RECUT_SOURCE_AUDIO_INVALID` | 422 | 響度或真峰值量測無效 |
+| `RECUT_SOURCE_TOO_QUIET` | 422 | 受峰值限制而離目標響度至少 2 LU |
+| `RECUT_ASR_INVALID` | 422 | 逐字時間為空、無效或不在視窗內 |
+| `RECUT_SOURCE_INVALID` | 422 | 選段來源不存在或不屬於該腳本 |
+| `RECUT_MODEL_FAILED` | 502 | recut 模型呼叫失敗，已用額度與用量保留 |
+| `RECUT_REVIEW_NOT_READY` | 409 | 無目前 recut 版本，或無法回答時試圖從零手動選句 |
+| `RECUT_DURATION_INVALID` | 422 | 修改後總長不在 30～65 秒；草稿保留 |
+| `RECUT_LOCK_CONFIRM_REQUIRED` | 409 | 採納建議將改教師鎖定選段，需明確確認 |
+| `RECUT_SUGGESTION_NOT_READY` | 409 | 呈現建議未提供明確合法修改範圍 |
+| `RECUT_LOCKED_SELECTION_CHANGED` | 422 | 背景步驟推翻鎖定選段，任務失敗並恢復原版 |
+| `RECUT_SUGGESTION_SCOPE_CHANGED` | 422 | 背景步驟修改未採納的呈現範圍，任務失敗並恢復原版 |
+| `RECUT_CALL_LIMIT_EXCEEDED` | 409 | 任務固定的共用呼叫額度已用完（寫入任務錯誤，不直接回生成請求） |
+| `RECUT_VALIDATION_FAILED` | 422 | 背景步驟驗證未通過或沒有提供版本（寫入任務錯誤） |
+| `RECUT_TASK_INTERRUPTED` | 409 | 後端重啟中斷執行，保留嘗試紀錄並恢復原版（寫入任務錯誤） |
+| `RECUT_TASK_CANCELLED` | 409 | 取消已在步驟間生效，恢復原版（寫入任務錯誤） |
+| `RECUT_TASK_FAILED` | 500 | 背景工作未提供自訂錯誤碼時的通用失敗原因（寫入任務錯誤） |
+| `RECUT_REPAIR_STALLED` | 422 | 同一組驗證錯誤第三次出現且仍有額度，停止修正以免耗盡共用額度；訊息附錯誤樣本（寫入任務錯誤） |
+| `RECUT_TEXT_OVERFLOW` | — | worker 渲染前檢查：卡片文字縮到 0.6 倍仍超出卡片，固定類失敗（worker 回報） |
+| `RECUT_RENDER_AUDIO_LOWERED` | — | worker 渲染：HyperFrames 再壓低已套增益的音訊超過 0.5 dB，固定類失敗（worker 回報） |
 | `SHORT_SCRIPT_NO_CANDIDATE` | 422 | 自動選題後沒有候選通過過濾，不得降低門檻硬選 |
 | `SHORT_SCRIPT_EVIDENCE_EMPTY` | 422 | 檢索不到足夠片段，無法凍結證據 |
 | `SHORT_SCRIPT_ARC_NOT_APPLICABLE` | 422 | 證據包無轉折句，不適用 8 拍敘事弧線 |

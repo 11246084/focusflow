@@ -47,6 +47,10 @@ const videoSegmentSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.Mixed],
       default: [],
     },
+    stableTextEmbedding: { type: [Number], default: undefined, select: false },
+    audioEmbedding: { type: [Number], default: undefined, select: false },
+    visualEmbedding: { type: [Number], default: undefined, select: false },
+    mediaEmbeddingMeta: { type: mongoose.Schema.Types.Mixed, default: undefined, select: false },
     embedding: {
       type: [Number],
       default: [],

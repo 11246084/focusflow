@@ -1,8 +1,34 @@
 # Phase 2 API Contract
 
-最後更新：2026-10-24
+最後更新：2026-11-02
 
 本文件收斂 Notion「後端開發」Phase 2 任務的 API 回傳語意。它不是完整 OpenAPI 取代品；正式欄位仍以 `backend/docs/openapi.yaml` 與 route files 為準。
+
+## recut RC1 介面
+
+RC10 同意介面由 `/api/v1/recut-consent/terms`、`/courses/:courseId/recut-consent`（GET／POST）、`/withdrawal-assets`、`/withdrawals`、`/withdrawals/:withdrawalId/retry` 與管理員 `/api/v1/admin/recut-consent/manual-actions` 提供；後五個課程操作均接在 `/api/v1/courses/:courseId/recut-consent` 下。保存決定要帶目前 `termsVersion` 與穩定 `requestId`；撤回預設不勾選成品，回應 pending／manualActionRequired 不代表全部下架成功。原片上傳前須有內容同意，recut 另須教師全域語音偏好；缺同意 409 並公開回傳條款，合成語音未就緒 503。完整請求欄位見 OpenAPI，處置與前端待補接線見[審閱契約](recut-review.md#同意閘門與撤回整合)。
+
+以下沿用 Short Scripts 的 feature flag、session 驗證與課程教師／admin 權限；學生、非該課程教師回 403，功能關閉回 404。`ShortScript.productionMode` 舊資料缺欄位時讀為 `avatar`，不寫遷移；建立腳本的 `POST /courses/:courseId/short-scripts/auto` 可帶 `productionMode`，省略為 avatar。
+
+| method + path（省略 `/api/v1`） | 輸入與回應 |
+|---|---|
+| `PATCH /short-scripts/:scriptId/production-mode` | `{ productionMode: 'avatar'\|'recut' }`；200 回 `data.{scriptId,productionMode,recut}`，生成／渲染中不可切換，舊紀錄保留 |
+| `POST /short-scripts/:scriptId/recut/generate` | 無 body 或 `{}`；202 回 `data.id` 任務 ID，含固定 `callLimit`、`callsUsed` 與狀態；不等待生成 |
+| `GET /short-scripts/:scriptId/recut` | 200 回 `data.{scriptId,productionMode,recut,task}`；task 是最新任務或 null |
+| `GET /short-scripts/:scriptId/recut/tasks/:taskId` | 200 回任務；不含內部輸入輸出、恢復快照或 `__v` |
+| `POST /short-scripts/:scriptId/recut/tasks/:taskId/cancel` | 無 body 或 `{}`；200 回目前任務，可能是 `cancel_requested` 或 `cancelled`；已結束者保留結果 |
+
+task 必須屬於 script；不屬於時回 404 `RECUT_TASK_NOT_FOUND`。拒絕多餘輸入欄位，不接受教師指定呼叫額度或任務類型。尚未註冊生成步驟回 503 `RECUT_STEPS_NOT_CONFIGURED`；未選 recut、版本過時、重複啟動或非法轉換回 409 `RECUT_STATE_INVALID`。背景錯誤存在 `task.error.{code,message}`，不把已回 202 的請求改成同步錯誤。
+
+任務狀態是 `queued/running/cancel_requested/succeeded/failed/cancelled`。取消在步驟間生效，進行中的呼叫留紀錄但不採用晚到輸出；取消或失敗恢復原版並保留未套用修改。首次與修改預設共用額度各 5 次，任務建立時固定；上限讀取介面與狀態轉換規則見 [recut 後端接手](recut-foundation.md)。審閱／修改 API 由 RC8 接手。
+
+## recut RC8 審閱契約
+
+九個新增端點與 RC9 接手例子見[審閱介面](recut-review.md#rc9-端點)，OpenAPI 定義所有欄位。沿用 RC1 功能開關、課程教師／admin 權限。寫入都帶目前 `versionId/expectedRevision`，計時停止例外使用原 `versionId/timingId`；不接受任意 plan、來源路徑、額度或計時秒數。
+
+`GET /short-scripts/:scriptId/recut/review` 的 `fullScript/current` 是目前版，`draft` 是未套用預覽；逐句標記以草稿優先。修改先存 DB、立即回總長與 `durationValid`；未套用時核准被擋。套用或採納建議回 202 單一任務，RC4 未註冊回 503；失敗／取消回原版並保留草稿，完成摘要從持久任務重讀。只改呈現時保留講稿核准，新 MP4 仍重新核准；改原話或順序先重審講稿。
+
+`adopted:null` 為未決定，true 為教師按過套用，false 為未採納；任務成敗另查。直接核准將該版本未決定建議結算 false。品質建議不擋核准。講稿核准、等待製作與成品核准為不同 API，不直接呼叫 YouTube 或發布。
 
 ## 1. QA 回答契約
 
@@ -464,3 +490,7 @@ adminAuditLogs 另以使用者明確授權的帳號設定 `AUTH_AUDIT_MONGODB_UR
 影片 API 新增 playbackSource.type（youtube／local／unavailable）；本機播放網址為同來源 `/api/v1/videos/:videoId/source`，GET／HEAD 各自驗權限與 Range。播放欄位的轉換只在影片 API 邊界，資料庫、問答、FAQ、LINE 與 bridgeScope 的原始引用不因此改寫。預設未啟用原片播放時回 409，公開 `/uploads` 已移除。
 
 教師可讀 `/videos/upload-status` 與 `/videos/upload-storage`；管理員可讀 `/admin/youtube-lifecycle/uploads`、`privacy-incidents`、`storage`，或 POST `uploads/probe` 單支試傳與 `privacy/:kind/:id/unlisted` 修復隱私。所有回應都不含 session URL；新欄位均為新增，舊前端／舊資料維持相容。
+
+### recut 成品、worker 與發布
+
+成品核准同步 RecutApproval 與 ShortAsset review，僅 current version＋asset＋generation 且 YouTube remoteState=ready 才公開；ready／核准先後與已published補同步共用入口。新增 `POST /short-scripts/:scriptId/recut/reject-asset`，scope為presentation或content，分別回講稿已核准／待審。worker專用API與租約、checks、退回重審契約見 [recut審閱](recut-review.md#rc7-專用-worker-與持久租約) 及 [OpenAPI](openapi.yaml)；正式前端未接本輪新介面。

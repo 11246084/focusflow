@@ -80,6 +80,18 @@
 
 完整書目、我們實際讀到的範圍與各篇限制見[參考文獻](references.md)；表中以 R（論文）、D（官方與業界文件）編號標示。只讀過摘要的論文，不引用摘要以外的內容。
 
+## 第七階段 B 方案待核准提案（2026-11-11）
+
+使用者授權 Codex 接續正式 QA 程式接線與開發決策，一般程式修改不再等待 Weihao。原第 13 項與歷史決議保留。B 方案多加 `stableTextEmbedding`，並與 audioEmbedding、visualEmbedding 共用 stable 契約；舊 embedding 仍供原路徑與失敗回退使用。三條新 path 擬加在同名 text_embedding_index，可能觸發重建。此項正式資料／索引變更仍待使用者單獨核准，操作授權單見 [Atlas 準備說明](atlas-preparation.md)。
+
+程式預設關閉；啟用時沿用既有授權範圍、分層 rollout 與教師逐字稿證據。比較 stable 三路與舊 preview 文字時，模型版本與模態效果須分開解讀。正式評測固定同一組資料與模型契約，不以三筆結果決定預設開啟。
+
+## 第六階段橋接契約（2026-11-11）
+
+沿用第 7、8、12 項與 MA。獨立橋接模組以呼叫端傳入的授權範圍、教師逐字稿 loader 及文字檢索函式為邊界，預設關閉；正式 QA 接入由 Weihao 協調。這項實作沒有改動既有 API 行為或評分規則。
+
+橋接與離線輸出契約見 [phase2-adapters.md](phase2-adapters.md)，當次驗證與完成範圍見[目前狀態](../../current-status.md)。
+
 ## 已定案
 
 討論前已確認的前提：
@@ -154,6 +166,40 @@
 | RC | chunk 版本契約（全文見 [recut chunk 版本契約](../Short_Video/chunk-version-contract.md)）：`chunkId` 格式 `<videoId>_chunk_<NNNN>` 不變；每筆 chunk 帶 `transcriptVersion`，影片記錄 `activeTranscriptVersion`，由庭語寫入；同一支影片的新 chunk 先在本機產生並驗證（暫存處用本機檔案，不另開 Atlas 集合），之後在一個交易內刪舊換新並清 FAQ 快取，新舊不同時存在；其他功能需要日後引用 chunk 時一律存快照並記下當時的 `transcriptVersion`，只在版本相同時回查目前的 chunk，版本不同就用快照或標示「來源已更新，需要重新凍結」。recut 端的調整由 Weihao 的 recut session 負責 | 查證：`chunkId` 依順序編號（`STT_Whisper/src/chunking.py`），重新切段後同一個編號會被不同內容重用，舊引用會悄悄指到別段文字；鄰近片段擴展（`leafContextSelection.service.js`）與教師統計（`teacherStats.service.js`）都依編號格式拼出 `chunkId`，所以格式不能改。先定契約，recut 與多模態才能並行 |
 
 ## 目前這一輪待答題目
+
+### 已授權真實小樣本（2026-11-10）
+
+庭語明確授權原三個 chunk、12 個輸入、最多 36 次嘗試、程式預估 US$0.25 上限，結果只存本機。已成功完成 12/12，皆為 3072 維；HTTP 前 SDK 轉換失敗 1 次經修正後續跑，帳本合計 13 次與 US$0.0589688 保守預留。
+
+三題文字／音訊首名皆對應預期，畫面兩題，兩版 RRF 三題皆對應預期。新舊文字 cosine 約 0.882–0.890，尚不足以支持跨版本全面混用。模型用量／帳單無可核對數字，保持未知。完整數字、失敗修正、限制及 Atlas 前置條件見 [真實小樣本結果](evidence/2026-11-10-live-sample.md)。
+
+本輪結束於小樣本分析。Atlas 寫入／索引更新、文字版本策略、共用 QA 與正式評測仍需後續協調，未自動擴大資料或重新計算原 694 筆向量。
+
+### 真實小樣本執行前檢查（2026-11-10）
+
+庭語授權完成 Dry Run、12 個輸入的 Fake SDK 完整預演、價格與停損測試，真實 Gemini 呼叫需最後一次明確授權。入口採三種模式，Fake SDK 與 Gemini 的 provider、檢查點簽章、輸出及帳本分開，已成功的真實請求可續跑。
+
+指定三筆 chunk、三個問題與當次費用明細見 [執行前檢查](evidence/2026-11-10-preflight.md)。首輪估計仍為 US$0.0573304，全部三次嘗試為 US$0.1719912，待核准範圍是 12 個輸入、最多 36 次嘗試、程式預估上限 US$0.25，僅保存本機。Atlas 寫入、索引、共用 QA 與正式評測維持後續獨立協調。
+
+### 第二階段獨立 adapters（2026-11-10 庭語授權）
+
+本輪開發真實 Gemini SDK 與 Atlas 三路查詢介面，驗證使用替身，未授權付費呼叫、Atlas 寫入／索引變更或 `qa.service.js` 修改。694 筆 Atlas 向量與時間已全部匹配 8/1 preview 標記產物，穩定版相容性仍須獨立驗證。下一輪以三個既有 chunk 在本機另產 stable 文字與媒體向量，原向量保留。
+
+已選影片一短段／一般段及影片四中段，準備六份真實切片。12 個模型輸入的首輪估計 US$0.0573304，含全部三次嘗試估計 US$0.1719912，建議提出 US$0.25、最多 36 次嘗試的當次授權。完整介面、安全檢查與比較方式見 [adapters 說明](phase2-adapters.md)，實測證據見 [第二階段紀錄](evidence/2026-11-10-phase2.md)。
+
+### Atlas 唯讀查證結果（2026-11-10）
+
+庭語授權獨立診斷工具與唯讀查詢。實查六支共 694 筆 Leaf，文字向量皆 3072 維，但缺少模型與版本 metadata，無法證明與穩定版契約相容。`text_embedding_index` READY、queryable，只含文字向量與 courseId／videoId 過濾，尚無媒體欄位。Parent 僅 3 筆，涵蓋影片六的 9 筆 Leaf。詳細結果見 [查證報告](evidence/2026-11-10-atlas-diagnostics.md)。
+
+下一輪可沿用 chunk 時間進行媒體準備，課程 ID 由影片關係於記憶體補入。文字向量保留，先向 Weihao 追查產生紀錄，不回填推測的 metadata。正式站使用版本、真實模型呼叫與索引更新仍依原邊界另行處理。
+
+### 本機 Demo 開發範圍（2026-11-10 庭語授權）
+
+本階段先交付逐 chunk 真實影音切片、Mock Embedding adapter、三路 Mock 候選與實際 RRF 的 CLI 展示。候選沿用 `courseId`、`videoId`、`chunkId`、`startSec`、`endSec`、`text`，取樣時間另存。RRF 固定 k=60，展示等權與文字權重 2 的兩版。缺少的通道可為空，失敗通道附診斷，原始引用時間保持不變。
+
+不連資料庫、不執行付費呼叫、不修改 `qa.service.js`。真實模型由可注入 adapter 介面接續，Mock 的 provider、模型與狀態明確標示。正式 43 題比較待完整功能與基本測試通過後進行。本階段是完整目標的開發里程碑，MA、MB、RU、RC 與驗收門檻沿用原決議。
+
+本機範例 chunk 若無可核對的現行匯出檔，使用明確標示的範例時間與文字，不宣稱來自現行 Atlas。Demo 操作見 [README](../../../backend/scripts/multimodal-demo/README.md)。
 
 2026-10-31 討論完成，目前沒有待答題目。新的問題由庭語與她的 agent 在 G1 範圍內決定；碰到 G1 邊界時依 [HANDOFF](HANDOFF.md) 求援，定案後補進上方表格。
 
@@ -309,5 +355,19 @@
 **理由**：庭語不需做技術判斷，規格就必須寫到「照做即可」的程度：檔名、欄位、開關、參數、輸出格式與成功條件都固定。關鍵選擇的依據都已在前面定案（chunk 一對一、分開兩個向量、程式內 RRF、不新增索引）；這裡把它們落成具體名稱。切片用 inline bytes 而非上傳檔案，是因為 8～60 秒的片段只有數 MB，且可省去檔案上傳與清理；畫面降到 480 高是因為 Gemini 依格數計價，解析度不影響費用但影響上傳大小。
 
 ## 實作切分
+
+### 2026-11-10 Atlas 小樣本準備與待確認方案
+
+庭語授權本輪獨立開發、Atlas 唯讀、Dry Run、測試及 dev 提交；未授權正式資料／索引變更或付費呼叫。第三階段真實向量繼續沿用，既有 694 筆 embedding 不覆寫。
+
+本輪建議 B：僅三筆新增 stableTextEmbedding、audioEmbedding、visualEmbedding 與 mediaEmbeddingMeta.text/audio/visual，沿用 text_embedding_index，加三個 vector path 並保留舊 embedding 及 filter。這是待 Weihao 確認的欄位方案，沒有取代原鎖定 #13，也未套用正式契約。A 方案工具仍可 Dry Run，但 preview 文字契約未確認時不執行 stable→preview 文字搜尋；C 全量重算不在本輪範圍。取捨、官方規格、唯讀證據與回復步驟見 [Atlas 準備說明](atlas-preparation.md)。
+
+上述 B 保留作正式整合的候選；第五階段依庭語新附件改為優先隔離驗證，暫不要求正式索引加 path。功能狀態見[目前狀態](../../current-status.md)。
+
+### 2026-11-10 第五階段隔離驗證
+
+已授權唯讀、工具調整、Dry Run、測試與 dev 提交，未授權 Atlas 寫入／索引建立。擬用 `focusflow.multimodal_sample_3_validation` 與 `multimodal_sample_3_vector_index`，只放原三筆 stable 文字／聲音／畫面向量，正式資料與三個索引不改。這是待授權的專用測試方案，不變更正式 #13 契約。
+
+實查已有三個 READY 索引，目標集合不存在，帳號對目標 namespace 的必要權限為 true。若部署仍是 Free，三個名額已滿；目前無管理層證據核實 tier／剩餘配額。待答：Weihao 能否確認當次方案、叢集至少一個空名額及可接受資源成本？建議先補這一項，不能以試建、刪正式索引或自行升級解決。可用後再由庭語授權三筆建立與清理。具體 payload、回復演練與精簡授權清單見[第五階段隔離驗證](atlas-isolated.md)。
 
 依 G3b 不切工單；結果目標、優先順序、執行稿與求援方式見 [HANDOFF](HANDOFF.md)。

@@ -151,8 +151,16 @@ function buildBindPromptMessage(text) {
 }
 
 // 每筆引用的跳轉連結：第一筆沿用快取 clip 的連結。
+// clip 取自回答的第一筆證據；那筆證據因為沒有可播放來源被濾掉時，第一筆引用會換成別段，
+// 這時 clip 屬於另一個片段，不能套用，否則卡片上的影片與時間會和按鈕連結對不上。
 function citationLink(qaResult, citation, index) {
-  return (index === 0 ? qaResult.clip?.jumpUrl : null) || citation.timestamp?.jumpUrl || null;
+  const clip = index === 0 ? qaResult.clip : null;
+  const clipMatchesCitation = Boolean(clip?.jumpUrl) && (
+    clip.segmentId == null
+    || citation.segmentId == null
+    || String(clip.segmentId) === String(citation.segmentId)
+  );
+  return (clipMatchesCitation ? clip.jumpUrl : null) || citation.timestamp?.jumpUrl || null;
 }
 
 // 回答卡：上方課程、中間回答、下方最多 3 筆引用。只改呈現方式，回答與引用沿用問答結果。
@@ -526,6 +534,11 @@ async function bindLineAccount({ userId, lineUserId, replaceExisting = false }) 
     return { ok: false, reason: 'user_not_found' };
   }
 
+  // 停用的帳號不能再建立綁定（綁定碼在停用前取得、停用後才兌換的情況）。
+  if (user.isActive === false) {
+    return { ok: false, reason: 'user_inactive' };
+  }
+
   if (user.lineUserId === lineUserId) {
     await ensureBoundRichMenu(user);
     return { ok: true, alreadyBound: true, replaced: false };
@@ -611,6 +624,8 @@ async function updateLineFriendStatus(lineUserId, status) {
   await User.findOneAndUpdate({ lineUserId }, { $set: { lineFriendStatus: status } });
 }
 
+const INACTIVE_ACCOUNT_TEXT = '這個 FocusFlow 帳號已停用，目前無法使用 LINE 提問，請聯絡老師或管理員。';
+
 // 綁定碼流程沒有網頁確認畫面，衝突時請學生回網頁處理。
 function buildBindConflictText(reason) {
   if (reason === 'line_bound_to_other_account') {
@@ -618,6 +633,9 @@ function buildBindConflictText(reason) {
   }
   if (reason === 'replace_confirmation_required') {
     return '你的 FocusFlow 帳號已綁定其他 LINE，請先到 FocusFlow 網頁解除綁定後再試一次。';
+  }
+  if (reason === 'user_inactive') {
+    return INACTIVE_ACCOUNT_TEXT;
   }
   return '綁定沒有完成，請回到 FocusFlow 重新操作。';
 }
@@ -676,8 +694,12 @@ async function handleFollow(event) {
     await ensureBoundRichMenu({ ...toPlain(boundUser), lineRichMenuId: null });
   }
 
+  // 停用的帳號加回好友時不說「可以直接提問」，改用停用提示。
+  const boundText = boundUser?.isActive === false
+    ? INACTIVE_ACCOUNT_TEXT
+    : '歡迎回來！你的 LINE 帳號已綁定 FocusFlow，可以直接提問；輸入「切換課程」可更換課程。';
   const text = boundUser
-    ? '歡迎回來！你的 LINE 帳號已綁定 FocusFlow，可以直接提問；輸入「切換課程」可更換課程。'
+    ? boundText
     : '歡迎使用 FocusFlow！按下方按鈕連結帳號，就能直接在 LINE 提問課程內容。';
   const replyResult = await replyMessage(event.replyToken, [
     boundUser ? buildTextMessage(text) : buildBindPromptMessage(text),
@@ -1272,7 +1294,12 @@ async function handleQuestion(lineUserId, text, replyToken) {
     { role: 'model', content: qaResult.answer },
   ]);
 
-  await User.findByIdAndUpdate(user._id, { lineConversationHistory: updatedHistory });
+  // 回答要等十幾秒；這段時間學生若解除綁定、改綁或切換課程，舊課程的對話不能寫回去，
+  // 否則已清空的歷史會復原，下一題會帶著別門課的上下文去檢索。
+  await User.findOneAndUpdate(
+    { _id: user._id, lineUserId, activeCourseId: user.activeCourseId },
+    { lineConversationHistory: updatedHistory },
+  );
 
   // 把所有回答行用換行合併成一則訊息傳給使用者
   // AI 回答可能花了十幾秒，replyToken 過期時 deliverMessage 會改用 push 送出。
@@ -1502,6 +1529,16 @@ async function processWebhookEvent(event) {
   // 已綁定但還沒拿到目前選單的人（上線前就綁定、綁定時還沒加好友）在這裡補指定；失敗不影響本次回覆。
   if (event.type === 'message' || event.type === 'postback') {
     const boundUser = await User.findOne({ lineUserId });
+    // 網頁登入會擋停用的帳號（auth.middleware），LINE 沿用同一條規則：
+    // 停用後不能再提問、切換課程或查額度，綁定資料保留，重新啟用後照常使用。
+    if (boundUser && boundUser.isActive === false) {
+      const replyResult = await replyMessage(replyToken, [buildTextMessage(INACTIVE_ACCOUNT_TEXT)]);
+      return attachReplyMetadata({
+        type: event.type,
+        handled: false,
+        reason: 'user_inactive',
+      }, replyResult);
+    }
     if (boundUser) await ensureBoundRichMenu(boundUser);
   }
 

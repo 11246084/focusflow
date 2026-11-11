@@ -127,7 +127,9 @@ function cueTime(clip, words, region, anchor) {
  *          silencesByClip?: Object<string, [number, number][]>}} input
  * @returns {{resolved: object|null, errors: object[]}}
  */
-function resolvePlan(plan, { wordsByClip, silencesByClip = {} }) {
+function resolvePlan(plan, input = {}) {
+  if (plan?.contractVersion !== undefined) return require('./sentences').resolveSentencePlan(plan, input);
+  const { wordsByClip, silencesByClip = {} } = input;
   const errors = [];
   const clips = [];
   const regions = {};

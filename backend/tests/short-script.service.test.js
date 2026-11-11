@@ -94,6 +94,7 @@ describe('shortScript.service 證據包凍結', () => {
     assert.equal(script.topic, 'OpenCV 跟 YOLO 差在哪?');
     assert.ok(script.evidence.length >= 6);
     assert.ok(script.evidenceFrozenAt);
+    assert.ok(script.evidence.every((item) => item.transcriptVersion === 'legacy'));
     assert.equal(script.selectionReason.rank, 1);
     assert.equal(script.selectionReason.totalAskCount, 8);
   });

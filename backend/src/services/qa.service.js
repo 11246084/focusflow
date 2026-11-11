@@ -11,6 +11,9 @@ const { assertObjectId } = require('../utils/objectId');
 const { computeCosineSimilarity } = require('../utils/vectorSimilarity');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
+const { retrieveForQa, faqEvidenceVersion } = require('./multimodalQaBridge.service');
+const { readAtlasIndex } = require('./atlasMultimodalAdapter.service');
+const { buildGeminiTextSearchContract } = require('./embeddingContract.service');
 const { generateAnswer, isNoAnswerReply } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
 const { assertQaQuotaAvailable } = require('./costControl.service');
@@ -725,6 +728,7 @@ function selectSupplementalVisualMatches(visualMatches, textEvidenceMatches, {
 
 function buildCitation(match, index) {
   return {
+    ...(Array.isArray(match.retrievedBy) ? { retrievedBy: match.retrievedBy, channelRanks: match.channelRanks || {} } : {}),
     citationId: `C${index + 1}`,
     modality: match.modality || 'text',
     // Keep the canonical Leaf identity explicit. Legacy matches that only have
@@ -922,6 +926,17 @@ async function applyProductionLeafContextSelection({
 
 const FAQ_ANSWER_EVIDENCE_VERSION = 'supporting-evidence-v1';
 
+function currentFaqEvidenceVersion() {
+  if (!env.qaMultimodalFusionEnabled) return FAQ_ANSWER_EVIDENCE_VERSION;
+  const contract = JSON.stringify({ embedding: buildGeminiTextSearchContract(env.geminiEmbeddingModelName),
+    rollout: env.hierarchicalRetrievalRolloutMode,
+    courses: env.hierarchicalRetrievalAllowedCourseIds,
+    videos: env.hierarchicalRetrievalAllowedVideoIds, users: env.hierarchicalRetrievalAllowedUserIds });
+  return faqEvidenceVersion(`${FAQ_ANSWER_EVIDENCE_VERSION}:stable-path-v1:${contract}`, {
+    enabled: true, hierarchy: env.hierarchicalRetrievalEnabled,
+  });
+}
+
 function resolveSupportingMatches(matches, supportingEvidenceIds) {
   const sourceMatches = Array.isArray(matches) ? matches : [];
   if (!Array.isArray(supportingEvidenceIds)) return sourceMatches;
@@ -942,14 +957,14 @@ function resolveSupportingMatches(matches, supportingEvidenceIds) {
 function markFaqAnswerEvidence(matches) {
   return (Array.isArray(matches) ? matches : []).map((match) => ({
     ...match,
-    _answerEvidenceVersion: FAQ_ANSWER_EVIDENCE_VERSION,
+    _answerEvidenceVersion: currentFaqEvidenceVersion(),
   }));
 }
 
 function hasCurrentFaqAnswerEvidence(faq) {
   const matches = Array.isArray(faq?.matches) ? faq.matches : [];
   return matches.length > 0
-    && matches.every((match) => match?._answerEvidenceVersion === FAQ_ANSWER_EVIDENCE_VERSION);
+    && matches.every((match) => match?._answerEvidenceVersion === currentFaqEvidenceVersion());
 }
 
 function stripFaqAnswerEvidenceMarker(match) {
@@ -1113,6 +1128,7 @@ function buildQaRuntime({
     answerProviderUsed: answerResult?.provider || null,
     visualSearch: visualSearchDiagnostics,
     fallbacks,
+    ...(searchDiagnostics?.multimodal ? { multimodal: searchDiagnostics.multimodal } : {}),
     ...(searchDiagnostics?.hierarchical
       ? { hierarchicalRetrieval: searchDiagnostics.hierarchical }
       : {}),
@@ -1548,16 +1564,62 @@ async function askQuestion({
   // QA_VISUAL_RETRIEVAL_ENABLED 時影像檢索與文字檢索並行；關閉時維持「文字 0 筆
   // 才查影像」的既有行為。影像檢索失敗只寫入 runtime.visualSearch，不影響文字答案。
   // 多取一倍候選，因為和已引用文字片段時間重疊的影像片段會被剔除。
-  const parallelVisualSearchPromise = env.qaVisualRetrievalEnabled
+  const parallelVisualSearchPromise = env.qaVisualRetrievalEnabled && !env.qaMultimodalFusionEnabled
     ? searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector, {
       limit: env.qaVisualMatchLimit * 2,
     })
     : null;
-  const searchResult = await executeHierarchicalRollout({
+  const legacyTextSearch = () => executeHierarchicalRollout({
     decision: rolloutDecision,
     leafSearch,
     hierarchicalSearch,
   });
+  let searchResult = env.qaMultimodalFusionEnabled ? null : await legacyTextSearch();
+  if (env.qaMultimodalFusionEnabled) {
+    let legacyResult = null;
+    const courseId = String(course._id);
+    const asEvidence = match => ({ ...match, courseId, chunkId: match.chunkId || match.segmentId,
+      text: match.transcript });
+    const getLegacyMatches = async () => {
+      legacyResult ||= await legacyTextSearch();
+      return legacyResult.matches.map(asEvidence);
+    };
+    const scope = { courseId, allowedVideoIds: [...segmentScope.allowedVideoIds] };
+    let indexSnapshot = null;
+    if (env.qaVectorSearchMode === 'atlas' && env.qaQueryEmbeddingProvider === 'gemini') {
+      try {
+        indexSnapshot = await readAtlasIndex(VideoSegment.collection);
+      } catch {
+        // Index inspection failure follows the same fail-safe path as an unavailable index.
+        indexSnapshot = null;
+      }
+    }
+    const bridge = await retrieveForQa({ scope,
+      settings: { enabled: true, hierarchy: rolloutDecision.eligible && rolloutDecision.mode === 'serve' },
+      question: standaloneQuestion,
+      queryEmbedding: { ...buildGeminiTextSearchContract(env.geminiEmbeddingModelName),
+        provider: env.qaQueryEmbeddingProvider, modality: 'query', status: 'success', embedding: queryVector },
+      atlas: { collection: VideoSegment.collection, indexSnapshot, textPath: 'stableTextEmbedding',
+        textDataContract: buildGeminiTextSearchContract() },
+      textSearch: getLegacyMatches,
+      hierarchicalTextSearch: getLegacyMatches,
+      loadEvidence: async () => scopedSegments.map(asEvidence),
+    });
+    const bridgeMatches = bridge.usedFallback ? legacyResult.matches.map(match => ({
+      ...match, retrievedBy: ['text'], channelRanks: {},
+    })) : bridge.matches.map(match => ({
+      ...match, chunkId: scopedSegments.find(record => record.segmentId === match.segmentId)?.chunkId || null,
+    }));
+    searchResult = { matches: bridgeMatches.slice(0, env.qaMatchLimit), diagnostics: {
+      ...(legacyResult?.diagnostics || { searchBackendUsed: 'atlas', scoringMode: 'rrf' }),
+      multimodal: { channels: bridge.diagnostics, usedFallback: bridge.usedFallback,
+        reason: bridge.fallbackReason },
+      fallbacks: [...(legacyResult?.diagnostics?.fallbacks || []), ...(bridge.usedFallback ? [{
+        stage: 'retrieval', code: 'QA_MULTIMODAL_TEXT_FALLBACK', from: 'multimodal', to: 'text',
+        message: 'Multimodal evidence unavailable; using authorized text retrieval.',
+      }] : [])],
+    } };
+  }
   tMark = qaTimingMark(`search (${env.qaVectorSearchMode})`, tMark);
 
   const matches = enrichMatchesWithVideoMetadata(searchResult.matches, scopedVideos);
@@ -1565,7 +1627,8 @@ async function askQuestion({
   if (!matches.length) {
     const visualSearchResult = parallelVisualSearchPromise
       ? await parallelVisualSearchPromise
-      : await searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector);
+      : env.qaMultimodalFusionEnabled ? { matches: [], diagnostics: {} }
+        : await searchVisualSegmentsWithAtlas(visualSegmentScope, queryVector);
     const visualMatches = enrichMatchesWithVideoMetadata(visualSearchResult.matches, scopedVideos);
     const visualSearchDiagnostics = {
       ...visualSearchResult.diagnostics,

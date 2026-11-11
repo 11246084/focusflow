@@ -324,14 +324,37 @@ describe('YouTube 工作所有權 F2', () => {
     await run; assert.equal(item.status, 'published'); assert.equal(fake.puts.length, 1);
   });
 
-  it('F2-T5 上傳期間課程封存，遲到完成不得重新上架', async () => {
-    const item = add('short_asset'); item.reviewStatus = 'approved'; item.reviewedGenerationVersion = 1;
-    const ready = deferred(); const gate = deferred();
-    const fake = fetchUploads({ onPut: async () => { ready.resolve(); await gate.promise; } });
-    const run = shortUpload.runTrackedShortAssetUpload({ assetId: item._id, fetchImpl: fake.fetchImpl });
-    await ready.promise;
-    try { await archiveForCourseDeletion(store.courses.find((course) => course._id === ids.teacherCourse)); }
-    finally { gate.resolve(); }
-    await run; assert.equal(item.status, 'archived'); assert.equal(item.youtubeUpload.status, 'uploaded');
+  for (const privacyFails of [false, true]) it(`F2-T5 上傳期間課程封存，遲到完成隔離且轉私人${privacyFails ? '失敗留待辦' : '成功'}`, async () => {
+    const { configureRecutConsentLifecycle } = require('../src/services/recutConsentLifecycle.service');
+    const privacyCalls = [];
+    // Own the privacy integration explicitly: no global lifecycle left by another suite.
+    const compensation = configureRecutConsentLifecycle({ setVideoPrivacy: async (request) => {
+      privacyCalls.push({ youtubeVideoId: request.youtubeVideoId, privacyStatus: request.privacyStatus });
+      if (privacyFails) throw new Error('fake privacy unavailable');
+    } });
+    try {
+      const item = add('short_asset'); item.reviewStatus = 'approved'; item.reviewedGenerationVersion = 1;
+      const ready = deferred(); const gate = deferred();
+      const fake = fetchUploads({ onPut: async () => { ready.resolve(); await gate.promise; } });
+      const run = shortUpload.runTrackedShortAssetUpload({ assetId: item._id, fetchImpl: fake.fetchImpl });
+      const rejected = assert.rejects(run, { code: 'RECUT_CONSENT_WITHDRAWN' });
+      await ready.promise;
+      try { await archiveForCourseDeletion(store.courses.find((course) => course._id === ids.teacherCourse)); }
+      finally { gate.resolve(); }
+      await rejected;
+      const lateId = `yt-${item.title}`;
+      assert.equal(item.status, 'archived'); assert.equal(item.publishedAt, null);
+      assert.equal(item.youtubeVideoId, lateId); assert.equal(item.youtubeUpload.retrySafe, false);
+      assert.ok(item.youtubeUpload.orphanUploads.some((entry) => entry.youtubeVideoId === lateId));
+      assert.deepEqual(privacyCalls, [{ youtubeVideoId: lateId, privacyStatus: 'private' }]);
+      assert.equal(item.consentWithdrawal.privateRequired, privacyFails);
+      assert.equal(item.consentWithdrawal.manualActionRequired, privacyFails);
+      if (!privacyFails) assert.equal(item.youtubePrivacyStatus, 'private');
+      const manual = await compensation.listManualAssetActions();
+      assert.equal(manual.some((entry) => entry.assetId === String(item._id)), privacyFails);
+      await assert.rejects(shortUpload.runTrackedShortAssetUpload({ assetId: item._id, fetchImpl: fake.fetchImpl }),
+        { code: 'YOUTUBE_UPLOAD_ALREADY_COMPLETED' });
+      assert.equal(fake.puts.length, 1);
+    } finally { configureRecutConsentLifecycle(); }
   });
 });

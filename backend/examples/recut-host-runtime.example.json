@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "modelCallsEnabled": true,
+  "geminiApiKeyEnv": "GEMINI_API_KEY",
+  "allowedGeminiModels": ["REPLACE_WITH_ADMIN_APPROVED_MODEL"],
+  "maxOutputTokens": 4096,
+  "thinkingLevel": "LOW",
+  "codeCardsEnabled": false,
+  "workspaceRoot": "D:/recut-runtime/workspaces",
+  "media": {
+    "allowedRoot": "D:/focusflow/uploads",
+    "ffmpeg": "D:/recut-tools/ffmpeg.exe",
+    "ffprobe": "D:/recut-tools/ffprobe.exe",
+    "python": "D:/recut-tools/python.exe",
+    "transcriber": "D:/focusflow/short_render/src/align/transcribe_words.py",
+    "asrModel": "D:/recut-models/faster-whisper-small"
+  }
+}

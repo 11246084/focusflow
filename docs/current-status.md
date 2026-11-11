@@ -236,3 +236,13 @@ npm.cmd run docs:lint
 ```
 
 只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。以上為 2026-11-03 當次診斷，已由上方 2026-11-04 Docker 與真模型試產紀錄取代；不得改連正式資料庫。
+
+## 窗口前唯讀證據（2026-11-11 15:39–15:44 台灣時間）
+
+本次實際連線 Atlas，只讀取與查詢；資料寫入、索引更新／回復及付費模型呼叫皆為 0。全 collection 實際計數 815，指定課程備份 694 筆，與 phase7 備份逐筆比較舊 embedding 全部相同。三筆新欄位皆不存在，Dry Run 三筆通過；既有工具／Adapter 定向測試 20/20 通過。未執行新三路真實搜尋、正式網站 E2E 或完整 43 題評測。
+
+本機證據位於忽略目錄 `.local-tools/atlas-preparation/`：`backup-1794382699301.json`（由既有工具回讀校驗）、`window-prep-20261111-dry-run.json`、`window-prep-20261111-baseline.json`、`window-prep-20261111-status.json`、`window-prep-20261111-latency.json`、`window-prep-20261111-definition-audit.json`。當次 planHash 為 `fcc472a27039656983b3bb4fe4e4db708b4886a9d20c99d3b0d68b7ca22249f2`；這是下午證據，不能直接視為 20:00 窗口的核准計畫。備份含指定範圍 694 筆，不是全 collection 815 筆的完整災難備份，也不授權全量還原。
+
+目標索引與三節點 mainIndex 皆 READY／queryable；帳號 find、update、listSearchIndexes、updateSearchIndex 權限以唯讀方式確認，未試寫。三筆舊文字自查皆 rank 1，各回傳 20 筆，耗時依序 165.50／65.19／78.92 ms（0001／0117／0070）；未授權影片與錯誤課程 filter 均為 0 筆。這只是三次查詢觀察，不能推論 p95 或承諾重建期間效能。
+
+執行狀態仍為 PREP-ONLY／NO-GO FOR WRITE：待窗口內 fresh 核對、Atlas 管理者值守與監測、無重疊 VM／部署確認、必要時接受不含正式站 E2E、M0 資源盲區與兩次重建風險接受，以及使用者再次明確授權。原始定義差異與回復核對方式見 [操作計畫](04_Features/Multimodal_Retrieval/atlas-preparation.md#索引前像的預設欄位核對)。

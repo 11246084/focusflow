@@ -142,3 +142,11 @@ Free 監測只有 Connections、Logical Size、Network、Opcounters 等有限指
 | 三路與權限驗收 | 保存九向量／三 query、本機預期排名；尚無真實三路結果 | Codex | BLOCKED 至索引與資料就緒 |
 
 全部條件達成後，仍須使用者明確核准三筆寫入、同名索引更新與必要回復。真實完整 43 題另缺 X01 的 V5 時間標註確認、完整一致版本的語料／Parent／媒體向量與排名，不以三筆小樣本取代。
+
+## 索引前像的預設欄位核對
+
+完整保存 latestDefinition 與各節點 mainIndex.definition，不覆蓋原始快照。2026-11-11 下午查證三節點定義完全相同，與 latestDefinition 的 fields 相同，唯一差異為節點定義多出 numPartitions: 1。[官方 Vector Search API 定義](https://www.mongodb.com/docs/api/doc/atlas-admin-api-v2/operation/operation-creategroupclustersearchindex) 明列此欄位預設為 1；因此可辨識這個已知預設值差異，但不能宣稱兩種原始 JSON checksum 相等。
+
+當次 latestDefinition beforeHash 為 `1cb8b24998df4c6ec0a629b4490044d1cdd868c6d711cc1c2680596cce785935`；三節點完整定義 hash 均為 `4a3f8d5c8bbf57d82bec890bdca8574d00fabbea4310263af75727b4db126eb4`。窗口核對須同時保留兩者，確認 fields 完全一致、差異只限已確認的預設 numPartitions: 1；其他差異即停止。更新／回復使用當次保存的使用者定義，不把節點狀態或額外預設欄位直接抄入提案。每次重建後仍要檢查三節點 READY／queryable、使用者定義 hash 及逐節點欄位，不能僅依現有 index-wait 的整體結果放行。
+
+目前本機未安裝 mongosh。若窗口核准後仍沿用文件中的 mongosh 操作，須先備妥該操作環境；也可先明確選定既有 Node MongoDB driver 的 collection.updateSearchIndex 等價操作，唯讀已確認方法與帳號權限存在。此次沒有安裝工具、試更新或新增開發。下午實查證據與剩餘門檻以 [目前狀態](../../current-status.md) 為準。

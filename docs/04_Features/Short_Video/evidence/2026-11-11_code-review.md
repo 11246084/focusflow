@@ -7,20 +7,22 @@ Weihao 的協調 session 對 `dev`（`60fedad`）的短影片程式做唯讀審�
 - 沒有做：沒有啟動服務、沒有連資料庫或呼叫模型、沒有瀏覽器實測、沒有真實渲染。併發類問題都是讀碼推論，沒有實際重現。
 - 離線工具（`recutCli`、`recutTrial*`、`recutCopyRuntime`、`recutFormalTrial`）沒有掛在 route 上，只略讀。
 
+**後續（2026-11-11）**：Weihao 指定先修下表第 1、3、6、8 項，已在同一天修正並補回歸測試，各項的「核對」欄標「已修正」。其餘項目維持原狀。
+
 結論：沒有發現未授權的人可以越權操作的問題。問題集中在三類：一筆壞資料卡住整條流程、沒有比對狀態就寫入、前端舊回應蓋掉新畫面。
 
 ## 建議優先處理
 
 | # | 等級 | 位置 | 問題 | 建議修法 | 核對 |
 |---|---|---|---|---|---|
-| 1 | 中 | `backend/src/services/recutWorker.service.js` `recoverRenderJobs`（第 148～162 行）、`claimRenderJob`（第 164 行起） | 領取工作前會先跑恢復，恢復迴圈沒有逐筆隔離錯誤。只要有一筆停在 `completing` 的工作每次收尾都失敗（例如成品檔不見、建立成品驗證失敗），所有 worker 的領取都會一直回錯，後面的恢復步驟也不會執行 | 恢復迴圈每筆各包 `try/catch` 並記錄；領取不被恢復失敗中斷；重複失敗的 `completing` 工作設上限後轉 `failed` | 已核對 |
+| 1 | 中 | `backend/src/services/recutWorker.service.js` `recoverRenderJobs`（第 148～162 行）、`claimRenderJob`（第 164 行起） | 領取工作前會先跑恢復，恢復迴圈沒有逐筆隔離錯誤。只要有一筆停在 `completing` 的工作每次收尾都失敗（例如成品檔不見、建立成品驗證失敗），所有 worker 的領取都會一直回錯，後面的恢復步驟也不會執行 | 恢復迴圈每筆各包 `try/catch` 並記錄；領取不被恢復失敗中斷；重複失敗的 `completing` 工作設上限後轉 `failed` | 已修正：恢復逐筆隔離；收尾連續失敗 10 次以上且持續超過一個租約時間的工作改記為 `RECUT_COMPLETION_FAILED`，釋放 worker 並通知教師。停機後重啟只失敗一次不會放棄已收下的成品 |
 | 2 | 中 | 同檔 `settleFailure`（第 130～141 行）、`claimRenderJob` 的排除判斷 | 工作失敗或租約逾時時，那台 worker 會被加進 `excludedWorkerIds`，之後領取會跳過。只有一台 worker 時，重試過一次的工作就再也沒人能領，腳本停在 `render_queued`，只有教師重新排入才會清掉 | 沒有其他啟用中的 worker 時不排除，或排除名單加時效 | 已核對程式；正式站是否只有一台 worker 待確認 |
-| 3 | 中 | `backend/src/services/shortScript.service.js` `generateScriptVersion`（第 387～474 行） | 先讀狀態、呼叫模型、最後只用 `_id` 更新，版本號用讀取當下的 `versions.length + 1`。教師連點或兩個分頁同時生成時，會各自呼叫模型並各推一筆，出現兩筆相同 `versionNo`；之後上傳與退回只會找到第一筆。`submitReview` 用讀取當下的索引寫回饋，也有同樣問題 | 更新條件加上讀到的狀態與版本數，沒命中回 409 `SHORT_SCRIPT_STATE_INVALID` | 已核對 |
+| 3 | 中 | `backend/src/services/shortScript.service.js` `generateScriptVersion`（第 387～474 行） | 先讀狀態、呼叫模型、最後只用 `_id` 更新，版本號用讀取當下的 `versions.length + 1`。教師連點或兩個分頁同時生成時，會各自呼叫模型並各推一筆，出現兩筆相同 `versionNo`；之後上傳與退回只會找到第一筆。`submitReview` 用讀取當下的索引寫回饋，也有同樣問題 | 更新條件加上讀到的狀態與版本數，沒命中回 409 `SHORT_SCRIPT_STATE_INVALID` | 已修正：生成與審核都改成條件更新。併發時模型仍會各被呼叫一次，只有一筆寫得進去 |
 | 4 | 中 | `backend/src/services/recutWholeCheck.service.js`（第 83～92 行） | 整段檢查發現「品質」類問題時會呼叫 `repair`，沒有接住錯誤。修正過程用完共用額度時整個任務失敗，已經通過驗證的版本一起作廢；品質問題本來可以降級成建議 | `repair` 或複檢失敗時接住，保留原版本，把品質問題轉成建議 | 已核對程式結構；`repair` 實際會不會丟錯沒有重現 |
 | 5 | 中 | `backend/src/services/recutWorker.service.js` `sourceFile`；`recutSource.service.js`、`recutRuntimeAdapters.service.js` | 渲染時直接用影片目前的檔案，沒有比對它是不是凍結證據時的那個檔。原片被清理後補回的若是不同檔案，會用新檔配舊時間軸。另外正式路徑的轉錄結果沒有帶 `sourceSha256`，這個欄位可能從來沒寫入 | 正式路徑補算雜湊，提供原片與完成渲染前比對 | 代理結論，未核對 |
-| 6 | 中 | `short_render/src/worker/client.js`（第 127～138 行） | `finally` 裡清理暫存資料夾若丟錯（Windows 上剛結束的 Chrome、ffmpeg 常見 `EBUSY`），會跳過 `busy = false`，之後每次都回 `RECUT_WORKER_BUSY`；`run()` 沒有接錯，worker 直接結束。已上傳成功的工作也可能被回報成失敗 | `busy = false` 放到最外層一定會執行的位置；清理包 `try/catch` 並加重試；啟動時清掉殘留的 `recut-job-*` | 已核對 |
+| 6 | 中 | `short_render/src/worker/client.js`（第 127～138 行） | `finally` 裡清理暫存資料夾若丟錯（Windows 上剛結束的 Chrome、ffmpeg 常見 `EBUSY`），會跳過 `busy = false`，之後每次都回 `RECUT_WORKER_BUSY`；`run()` 沒有接錯，worker 直接結束。已上傳成功的工作也可能被回報成失敗 | `busy = false` 放到最外層一定會執行的位置；清理包 `try/catch` 並加重試；啟動時清掉殘留的 `recut-job-*` | 已修正：清理失敗只記錄、一定釋放忙碌狀態、刪除會重試。啟動時清殘留資料夾沒有做 |
 | 7 | 中 | `short_render/src/worker/http.js` | 逾時 120 秒是整個下載或上傳的總時限，不是「沒有資料才逾時」。原片大、頻寬小時一定中斷，被當成暫時性失敗後重派再失敗 | 改成閒置逾時，或依檔案大小放寬 | 代理結論，未核對 |
-| 8 | 中 | `short_render/src/plan/sentences.js`（第 52 行） | 場景 id 的保留清單只擋 `root`、`hdr`、`endcard`、`end1`、`end2`、`narration`、`sub<數字>`；`html.js` 自己還用了 `subtitle<數字>`、`preview-viewport`、`play-toggle`、`preview-seek`。場景取這些名字能通過驗證，畫面上 id 重複，動畫會作用到錯的元素 | 保留清單補上這幾個，或場景 id 強制加前綴 | 已核對 |
+| 8 | 中 | `short_render/src/plan/sentences.js`（第 52 行） | 場景 id 的保留清單只擋 `root`、`hdr`、`endcard`、`end1`、`end2`、`narration`、`sub<數字>`；`html.js` 自己還用了 `subtitle<數字>`、`preview-viewport`、`play-toggle`、`preview-seek`。場景取這些名字能通過驗證，畫面上 id 重複，動畫會作用到錯的元素 | 保留清單補上這幾個，或場景 id 強制加前綴 | 已修正：保留清單補齊，並加測試自動比對 `html.js` 裡寫死的 id |
 
 ## 前端（短影片頁面）
 

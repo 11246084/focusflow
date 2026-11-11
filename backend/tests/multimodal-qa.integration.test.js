@@ -3,16 +3,25 @@ const { test, afterEach } = require('node:test');
 const { env, ids, resetStore, store, startServer, stopServer, loginAs, jsonRequest } = require('./helpers/backendTestHarness');
 const { askQuestion } = require('../src/services/qa.service');
 const VideoSegment = require('../src/models/videoSegment.model');
+const VideoSegmentParent = require('../src/models/videoSegmentParent.model');
+const { contractHash, setHierarchicalDataReadinessForTests, resetHierarchicalDataReadinessForTests }
+  = require('../src/services/hierarchicalDataReadiness.service');
 const { buildGeminiTextSearchContract } = require('../src/services/embeddingContract.service');
 const originalAggregate = VideoSegment.collection.aggregate;
 const originalModelAggregate = VideoSegment.aggregate;
+const originalParentAggregate = VideoSegmentParent.aggregate;
 const originalFetch = global.fetch;
 const keys = ['qaMultimodalFusionEnabled', 'qaVectorSearchMode', 'qaQueryEmbeddingProvider',
   'qaAnswerProvider', 'geminiApiKey', 'qaVisualRetrievalEnabled', 'faqCacheEnabled',
-  'qaActiveLeafEmbeddingContractJson', 'qaAtlasVectorIndexName'];
+  'qaActiveLeafEmbeddingContractJson', 'qaAtlasVectorIndexName', 'qaActiveParentEmbeddingContractJson',
+  'hierarchicalRetrievalEnabled', 'hierarchicalRetrievalRolloutMode', 'hierarchicalRetrievalRolloutModeValid',
+  'hierarchicalRetrievalAllowedCourseIds', 'hierarchicalRetrievalAllowedVideoIds',
+  'hierarchicalRetrievalAllowedUserIds', 'hierarchicalRetrievalAllowlistsValid'];
 const saved = Object.fromEntries(keys.map(key => [key, env[key]]));
 afterEach(() => { Object.assign(env, saved); global.fetch = originalFetch;
   VideoSegment.aggregate = originalModelAggregate;
+  VideoSegmentParent.aggregate = originalParentAggregate;
+  resetHierarchicalDataReadinessForTests();
   VideoSegment.collection.aggregate = originalAggregate; });
 const ask = () => askQuestion({ user: { id: ids.student, role: 'student' },
   courseId: ids.publishedCourse, question: 'JWT authentication', source: 'test' });
@@ -111,6 +120,30 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
   assert.equal(result.citations[0].timestamp.startSec, chunk.startSec);
   assert.equal(result.citations[0].timestamp.endSec, chunk.endSec);
   assert.ok(result.clip.jumpUrl.endsWith(`t=${chunk.startSec}`));
+  Object.assign(env, { hierarchicalRetrievalEnabled: true, hierarchicalRetrievalRolloutMode: 'serve',
+    hierarchicalRetrievalRolloutModeValid: true, hierarchicalRetrievalAllowedCourseIds: [ids.publishedCourse],
+    hierarchicalRetrievalAllowedVideoIds: [chunk.videoId], hierarchicalRetrievalAllowedUserIds: [ids.student],
+    hierarchicalRetrievalAllowlistsValid: true, qaActiveParentEmbeddingContractJson: JSON.stringify(contract) });
+  setHierarchicalDataReadinessForTests({ status: 'verified', ready: true, checkedAt: new Date(0).toISOString(),
+    source: 'synthetic-fixture', reason: null, failures: [], evidence: { contractHash: contractHash(contract) } });
+  let parentCalls = 0;
+  VideoSegmentParent.aggregate = async () => {
+    parentCalls++;
+    return [{ parentId: 'synthetic-real-qa-parent', courseId: ids.publishedCourse, videoId: chunk.videoId,
+      childChunkIds: [chunk.chunkId], startSec: 0, endSec: chunk.endSec + 10, score: 0.95,
+      order: 1, hierarchyLevel: 1, documentType: 'parent_chunk', isActive: true,
+      embeddingProvider: contract.provider, embeddingModel: contract.model, embeddingDimension: contract.dimension,
+      embeddingTaskType: null, embeddingInstructionVersion: contract.instructionVersion,
+      generationVersion: contract.generationVersion, normalizationVersion: contract.normalizationVersion,
+      embeddingContractVersion: contract.contractVersion, embeddingSchemaVersion: 'parent_embedding_v2' }];
+  };
+  env.faqCacheEnabled = false;
+  const hierarchical = await ask();
+  assert.equal(parentCalls, 1);
+  assert.equal(hierarchical.runtime.hierarchicalRetrieval.retrievalMode, 'hierarchical');
+  assert.equal(hierarchical.citations[0].timestamp.startSec, chunk.startSec);
+  assert.deepEqual(hierarchical.citations[0].retrievedBy, ['text', 'audio', 'visual']);
+  env.hierarchicalRetrievalEnabled = false;
   for (const variant of ['partial', 'missing-index', 'preflight-failed', 'empty', 'invalid-time']) {
     scenario = variant;
     env.faqCacheEnabled = false;
@@ -130,6 +163,19 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
       body: { courseId: ids.publishedCourse, question: 'JWT authentication' } });
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.data.citations[0].retrievedBy, ['text', 'audio', 'visual']);
+    if (process.env.MULTIMODAL_BROWSER_FIXTURE) {
+      const match = response.body.data.matches[0];
+      fs.writeFileSync(process.env.MULTIMODAL_BROWSER_FIXTURE, JSON.stringify({
+        provenance: 'saved-gemini-query / fake-atlas / template-answer',
+        match: { videoId: match.videoId, chunkId: match.chunkId, startSec: match.startSec,
+          endSec: match.endSec, retrievedBy: match.retrievedBy, channelRanks: match.channelRanks },
+        citation: { videoId: response.body.data.citations[0].videoId,
+          chunkId: response.body.data.citations[0].chunkId,
+          timestamp: response.body.data.citations[0].timestamp,
+          retrievedBy: response.body.data.citations[0].retrievedBy,
+          channelRanks: response.body.data.citations[0].channelRanks },
+      }));
+    }
     const { toStudentCitation } = await import('../../frontend/focus-flow/src/pages/qaConversationUtils.js');
     assert.equal(toStudentCitation(response.body.data.matches[0]).retrievalLabel, '文字、聲音、畫面');
   } finally {

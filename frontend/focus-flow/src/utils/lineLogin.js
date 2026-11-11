@@ -21,7 +21,49 @@ export async function requestLineAuthorizeUrl({ courseId, replaceExisting = fals
   if (!authorizeUrl || new URL(authorizeUrl).origin !== LINE_AUTHORIZE_ORIGIN) {
     throw new Error('無法開始連結 LINE，請稍後再試。');
   }
+  // 帶課程開始就記住，沒帶課程就清掉，避免之後重新連結沿用過期的課程。
+  if (courseId) rememberLineLoginCourse(courseId);
+  else clearLineLoginCourse();
   return authorizeUrl;
+}
+
+const LINE_LOGIN_COURSE_KEY = 'ff_line_login_course';
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
+
+// 從課程頁開始連結時記住 courseId：授權後若要在回呼頁重新連結，才能一併切換課程。
+// 只收 24 位十六進位的 ObjectId；瀏覽器不給用 sessionStorage 時維持不記。
+export function rememberLineLoginCourse(courseId, storage) {
+  try {
+    if (typeof courseId !== 'string' || !OBJECT_ID_PATTERN.test(courseId)) return false;
+    // 有些瀏覽器設定下光是讀取 sessionStorage 就會丟錯，所以在 try 裡面才取用。
+    (storage ?? globalThis.sessionStorage).setItem(LINE_LOGIN_COURSE_KEY, courseId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readLineLoginCourse(storage) {
+  try {
+    const value = (storage ?? globalThis.sessionStorage).getItem(LINE_LOGIN_COURSE_KEY);
+    return typeof value === 'string' && OBJECT_ID_PATTERN.test(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function clearLineLoginCourse(storage) {
+  try {
+    (storage ?? globalThis.sessionStorage).removeItem(LINE_LOGIN_COURSE_KEY);
+  } catch {
+    // 無法使用 sessionStorage 時維持原行為。
+  }
+}
+
+// 從上一頁（含返回）以 bfcache 還原時，頁面狀態會原樣保留，
+// 「前往 LINE 中…」之類的暫時狀態要重設，否則按鈕會一直停用。
+export function isRestoredFromBackForwardCache(event) {
+  return Boolean(event?.persisted);
 }
 
 const LINE_AUTO_START_KEY = 'ff_line_auto_start';

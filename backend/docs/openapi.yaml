@@ -2854,7 +2854,22 @@ paths:
                   - type: object
                     properties:
                       data:
+                        type: object
                         description: 教師 dashboard 彙總數據。
+                        properties:
+                          queriesCount:
+                            type: integer
+                            description: 自己課程的累計提問次數（依使用紀錄計算）。
+                          queriesBySource:
+                            type: object
+                            description: 依提問紀錄的來源分開計數；與 `queriesCount` 的計算來源不同，分項相加不一定等於總數。
+                            properties:
+                              web:
+                                type: integer
+                                description: 網頁提問數（`source = api`）。
+                              line:
+                                type: integer
+                                description: LINE 提問數（`source = line`）。
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':

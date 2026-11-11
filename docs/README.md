@@ -91,6 +91,8 @@ YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecyc
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 
+短影片程式審查：[2026-11-11 審查結果](04_Features/Short_Video/evidence/2026-11-11_code-review.md)，列出腳本與成品、recut、渲染與前端頁面的發現與建議修法，沒有修改程式。
+
 YouTube 恢復與清理：[2026-10-26 F0～F2 獨立審查](04_Features/YouTube_Lifecycle/evidence/2026-10-26_f0-f2-review.md)，記錄交錯重現、共享資料庫限制、舊資料相容性與測試辨識力。
 
 YouTube 審查修復：[2026-10-27 FR01～FR06 修復與複驗交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_fr01-fr06-fixes.md)，記錄修改、跨行程回歸與修正前對照結果。

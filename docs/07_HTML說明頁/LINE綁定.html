@@ -461,7 +461,7 @@ details.glossary .terms{margin-top:0}
   <div><b>✋ 做不到</b>或要求互相矛盾。照實說</div>
 </div>
 
-<footer>更新 2026-11-03 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LL9 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
+<footer>更新 2026-11-11 · 對應 docs/04_Features/LINE_Binding/decisions.md 到 LL13 項 · 這頁由 AI 依 decisions.md 同步更新，兩者不一致時以 decisions.md 為準。</footer>
 </div>
 
 <script>
@@ -484,7 +484,7 @@ l4:["記下 lineUserId（User ID）","have","使用者資料上記 LINE 給的�
 l5:["LINE 提問","have","每人每天 5 次，網頁和 LINE 合計。"],
 l6:["同一套問答（RAG）","have","和網頁用同一套檢索與回答，這次不改。"],
 l7:["Bot 回覆","warn","還留著 [MVP提示] 之類的開發字樣，時間顯示成 75s - 120s，學生看不懂。"],
-l8:["教師統計","warn","畫面只有總數。其實每筆提問已經記了來源（網頁是 api、LINE 是 line），不用改資料結構就能分開算。"],
+l8:["教師統計","warn","改版前畫面只有總數。每筆提問已經記了來源（網頁是 api、LINE 是 line），不用改資料結構就能分開算；2026-11-11 已做完，見 LL12。"],
 y1:["登入 cookie 已上線（httpOnly Cookie）","have","2026-10-25 上線：登入憑證放在瀏覽器拿不到的 cookie，而且只在同網站送出；寫入請求要帶防偽標頭。從 LINE 內建瀏覽器開網頁可以恢復登入。這會影響 LINE 授權完回到網頁時怎麼接。"],
 y2:["webhook 與問答（Messaging API）","have","驗證簽章、先回應再處理、問答接線都已經有；2026-10-23 正式站實測 LINE 問答正常。"],
 y3:["綁定碼可能被兌換兩次（Race Condition）","warn","現在兌換是「先查、再刪」，兩個請求同時進來可能都成功。新做法要一步完成（攻擊情境 A12）。"],

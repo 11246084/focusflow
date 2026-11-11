@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Ic } from '../components/Icons';
 import LineLinkButton from '../components/LineLinkButton';
 import { apiFetch, getUser, setUser as storeUser } from '../api';
-import { claimLineAutoStart, describeFriendStatus, requestLineAuthorizeUrl } from '../utils/lineLogin';
+import { claimLineAutoStart, describeFriendStatus, isRestoredFromBackForwardCache, requestLineAuthorizeUrl } from '../utils/lineLogin';
 
 const LINE_BOT_URL = import.meta.env.VITE_LINE_BOT_URL || '';
 
@@ -38,6 +38,13 @@ export default function StudentLineBot() {
       .catch(() => {})
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 按瀏覽器返回、頁面從 bfcache 還原時，不能停在「前往 LINE 中…」。
+  useEffect(() => {
+    const onPageShow = (event) => { if (isRestoredFromBackForwardCache(event)) setAutoStarting(false); };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
   async function autoStartLink() {

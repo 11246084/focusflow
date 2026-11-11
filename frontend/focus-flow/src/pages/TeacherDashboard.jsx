@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
+import { describeQueriesSub } from './teacherDashboardUtils';
 
 const STATUS_MAP = {
   completed: { text: '完成', cls: 'bg' },
@@ -29,7 +30,7 @@ export default function TeacherDashboard({ onNav }) {
     [stats?.coursesCount ?? '-', '課程數量', 'courses', '目前授課中的課程'],
     [stats?.videosCount ?? '-', '影片數量', 'videos', '課程中的影片'],
     [stats?.segmentsCount ?? '-', 'AI 片段', 'segments', '可供 AI 搜尋的片段'],
-    [stats?.queriesCount ?? '-', '學生提問', 'queries', '累計提問次數'],
+    [stats?.queriesCount ?? '-', '學生提問', 'queries', describeQueriesSub(stats?.queriesBySource)],
   ];
 
   return (

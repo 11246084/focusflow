@@ -6,7 +6,7 @@ const UsageLog = require('../models/usageLog.model');
 const Question = require('../models/question.model');
 const Enrollment = require('../models/enrollment.model');
 const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
-const { USAGE_LOG_EVENTS } = require('../constants/enums');
+const { USAGE_LOG_EVENTS, QUESTION_SOURCES } = require('../constants/enums');
 const { isLikelyEncodingDamaged } = require('../utils/textEncoding');
 
 function presentQuestionText(text) {
@@ -127,10 +127,14 @@ async function getTeacherDashboardStats(user) {
   const courseMap = Object.fromEntries(courses.map((course) => [String(course._id), course.title]));
 
   // 平行抓 4 條互不相依的資料（皆只依賴 courseIds）
-  const [rawVideos, segmentsCount, queriesCount, topSegmentsAgg] = await Promise.all([
+  // 來源分開算的是 questions（source：網頁 api、LINE line）；總數 queriesCount 沿用 usageLogs 的算法不變，
+  // 兩個集合的紀錄時機不同，分項相加不一定等於總數（LINE 決策 LP ④）。
+  const [rawVideos, segmentsCount, queriesCount, webQueriesCount, lineQueriesCount, topSegmentsAgg] = await Promise.all([
     Video.find({ courseId: { $in: courseIds } }).lean(),
     VideoSegment.countDocuments(),
     UsageLog.countDocuments({ event: USAGE_LOG_EVENTS.ASK, courseId: { $in: courseIds } }),
+    Question.countDocuments({ courseId: { $in: courseIds }, source: QUESTION_SOURCES.API }),
+    Question.countDocuments({ courseId: { $in: courseIds }, source: QUESTION_SOURCES.LINE }),
     UsageLog.aggregate([
       {
         $match: {
@@ -184,6 +188,7 @@ async function getTeacherDashboardStats(user) {
     videosCount: videos.length,
     segmentsCount,
     queriesCount,
+    queriesBySource: { web: webQueriesCount, line: lineQueriesCount },
     recentVideos,
     topSegments,
   };

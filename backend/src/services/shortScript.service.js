@@ -343,6 +343,25 @@ function assertTransition(from, to) {
   }
 }
 
+// 生成與審核都是「先讀、判斷、最後才寫」，中間可能隔一次模型呼叫（數十秒）。
+// 寫入時以讀到的狀態與版本數當條件：這段時間腳本被另一個請求改過（教師連點、兩個分頁、
+// 同時否決）就不寫入，避免出現兩筆相同版本號，或把回饋寫到別的版本上。
+function unchangedScriptFilter(script) {
+  return {
+    _id: script._id,
+    status: script.status,
+    [`versions.${(script.versions || []).length}`]: { $exists: false },
+  };
+}
+
+function scriptChangedError() {
+  return new AppError(
+    'The short script was changed by another request. Reload and try again.',
+    409,
+    'SHORT_SCRIPT_STATE_INVALID',
+  );
+}
+
 async function loadScriptForManage({ user, scriptId }) {
   assertObjectId(scriptId, 'short script');
 
@@ -458,8 +477,8 @@ async function generateScriptVersion({ user, scriptId } = {}) {
     },
   });
 
-  return ShortScript.findByIdAndUpdate(
-    script._id,
+  const updated = await ShortScript.findOneAndUpdate(
+    unchangedScriptFilter(script),
     {
       $set: {
         status: SHORT_SCRIPT_STATUSES.GENERATED,
@@ -470,6 +489,8 @@ async function generateScriptVersion({ user, scriptId } = {}) {
     },
     { new: true },
   );
+  if (!updated) throw scriptChangedError();
+  return updated;
 }
 
 /**
@@ -530,7 +551,9 @@ async function submitReview({
     update.$set[`versions.${versions.length - 1}.reviewedAt`] = new Date();
   }
 
-  return ShortScript.findByIdAndUpdate(script._id, update, { new: true });
+  const updated = await ShortScript.findOneAndUpdate(unchangedScriptFilter(script), update, { new: true });
+  if (!updated) throw scriptChangedError();
+  return updated;
 }
 
 // 成品退回理由 → 腳本回饋類型（規格書 DR-20）。

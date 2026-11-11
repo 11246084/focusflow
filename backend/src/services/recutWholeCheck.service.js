@@ -34,6 +34,8 @@ function asSuggestion(issue) {
   else proposal.allowedPaths = issue.presentationPaths;
   return { suggestionType: issue.type, content: issue.problem, proposal };
 }
+const QUALITY_REPAIR_FALLBACK_CODES = new Set(['RECUT_CALL_LIMIT_EXCEEDED', 'RECUT_VALIDATION_FAILED',
+  'RECUT_REPAIR_STALLED', 'RECUT_MODEL_FAILED']);
 function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSource = loadSourceDefault } = {}) {
   return { id: 'recut-whole-check-sentence-v1', stage: 'wholeCheck', run: async (context) => {
     const { data, task } = context;
@@ -84,12 +86,24 @@ function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSou
       const required = quality.some((i) => i.target === 'selection') ? 3 : 2;
       if (data.selectionLocked || credibility.length || task.callLimit - task.callsUsed < required) suggestions.push(...quality.map((i) => asSuggestion(i, source, data.selection)));
       else {
-        await repair(quality);
-        result = await retryDecision(context, { stage: 'wholeCheck', decide, instructions: INSTRUCTIONS, responseSchema,
-          input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
-          validate: (output) => validateIssues(output, source, data.plan) });
-        if (result.issues.some((i) => i.severity === 'credibility')) throw fail('修正後仍有可信度錯誤。');
-        suggestions.push(...result.issues.map((i) => asSuggestion(i, source, data.selection)));
+        // 走到這裡的內容已經通過可信度檢查，品質修正只是加分。修正或複檢失敗時
+        // （額度用完、輸出驗證不過、修正卡住、模型失敗、修正後反而出現可信度錯誤）
+        // 回到修正前的內容，把品質問題改列為建議，不讓已經可用的版本跟著作廢。
+        // 取消、中斷這類不是修正本身造成的錯誤照常往外丟。
+        const before = { ...data };
+        try {
+          await repair(quality);
+          result = await retryDecision(context, { stage: 'wholeCheck', decide, instructions: INSTRUCTIONS, responseSchema,
+            input: { selection: data.selection, fullScript: data.fullScript, plan: data.plan, sentences: source.sentences },
+            validate: (output) => validateIssues(output, source, data.plan) });
+          if (result.issues.some((i) => i.severity === 'credibility')) throw fail('修正後仍有可信度錯誤。');
+          suggestions.push(...result.issues.map((i) => asSuggestion(i, source, data.selection)));
+        } catch (error) {
+          if (!QUALITY_REPAIR_FALLBACK_CODES.has(error?.code)) throw error;
+          for (const key of Object.keys(data)) if (!(key in before)) delete data[key];
+          Object.assign(data, before);
+          suggestions.push(...quality.map((i) => asSuggestion(i, source, data.selection)));
+        }
       }
     }
     const validation = renderer.validatePlan(data.plan, { sentences: source.sentences, evidence: source });

@@ -60,6 +60,35 @@ describe('recut RC4 生成與整段檢查', () => {
     const c = context(); c.task.callsUsed = 3; const r = pipeline([fixture().cards, { issues: [issue('subtitle_drift')] }], c);
     const data = await run(r); assert.ok(data.version); assert.deepEqual(data.suggestions[0].proposal.allowedPaths, ['/plan/scenes/0/params']);
   });
+  it('品質修正用完額度時保留修正前已通過的版本，品質問題改列建議', async () => {
+    const c = context(); const bad = { ...fixture().cards, clips: [] };
+    // cards、整段檢查各一次後剩 2 次；兩次修正輸出都不合格，額度用完。
+    const r = pipeline([fixture().cards, { issues: [issue('subtitle_drift')] }, bad, bad], c);
+    Object.assign(c.data, await r.p.cards.run(c)); const planBefore = structuredClone(c.data.plan);
+    Object.assign(c.data, await r.p.wholeCheck.run(c));
+    assert.ok(c.data.version); assert.deepEqual(c.data.version.plan, planBefore);
+    assert.equal(c.data.suggestions.length, 1); assert.equal(c.data.suggestions[0].suggestionType, 'subtitle_drift');
+    assert.equal(c.task.callsUsed >= c.task.callLimit, true); assert.equal(c.data.repairIssues, undefined);
+  });
+  it('品質修正後複檢反而出現可信度錯誤時，回到修正前的版本而不是整個失敗', async () => {
+    const c = context(); const changed = structuredClone(fixture().cards); changed.scenes[0].params = { ...changed.scenes[0].params };
+    const r = pipeline([fixture().cards, { issues: [issue('subtitle_drift')] }, changed, { issues: [issue('unsupported_number')] }], c);
+    Object.assign(c.data, await r.p.cards.run(c)); const planBefore = structuredClone(c.data.plan);
+    Object.assign(c.data, await r.p.wholeCheck.run(c));
+    assert.ok(c.data.version); assert.deepEqual(c.data.version.plan, planBefore);
+    assert.deepEqual(c.data.suggestions.map((s) => s.suggestionType), ['subtitle_drift']);
+  });
+  it('品質修正期間被取消時照常中止，不產生版本', async () => {
+    const c = context(); let calls = 0;
+    const outputs = [fixture().cards, { issues: [issue('subtitle_drift')] }];
+    const r = pipeline(outputs, c);
+    const runAttempt = c.runAttempt;
+    c.runAttempt = async (options) => {
+      if (++calls > 2) throw Object.assign(new Error('cancelled'), { code: 'RECUT_TASK_CANCELLED' });
+      return runAttempt(options);
+    };
+    await assert.rejects(run(r), { code: 'RECUT_TASK_CANCELLED' }); assert.equal(c.data.version, undefined);
+  });
   it('locked selection的退回第一步問題只轉建議', async () => {
     const c = context({ selectionLocked: true }); let selections = 0;
     const r = pipeline([fixture().cards, { issues: [issue('disconnected_passage')] }], c, { selectionStep: { run: async () => { selections++; } } });

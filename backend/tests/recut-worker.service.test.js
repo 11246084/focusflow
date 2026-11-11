@@ -199,6 +199,98 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
     await worker.recoverRenderJobs(); assert.equal(snapshot(f.script).state, 'asset_review');
     assert.equal(store.shortAssets.length, 1); assert.equal(store.recutRenderJobs[0].status, 'succeeded');
   });
+  // 收尾永遠失敗的 completing 工作：已收下的 MP4 與資產都不見，finalizeCompletion 必拋錯。
+  async function stuckCompleting() {
+    const made = await claimed(); const file = fileFor(); const original = Script.findOneAndUpdate; let once = true;
+    Script.findOneAndUpdate = async (...args) => { if (once && args[1].$set?.recut?.state === 'asset_review') { once = false; throw new Error('injected attach outage'); } return original(...args); };
+    try { await assert.rejects(worker.completeRender(lease(made.worker, made.job, { file, metadata: metadata(made.job) })), /attach outage/); }
+    finally { Script.findOneAndUpdate = original; }
+    store.shortAssets.length = 0; fs.unlinkSync(file.path);
+    assert.equal(store.recutRenderJobs[0].status, 'completing');
+    return made;
+  }
+  async function quietly(task) {
+    const original = console.error; console.error = () => {};
+    try { return await task(); } finally { console.error = original; }
+  }
+  const failNotices = () => store.notifications.filter((n) => String(n.recipientId) === String(ids.teacher) && /fail/i.test(`${n.type || ''}${n.dedupeKey || ''}`));
+  it('收尾失敗的completing工作（租約未過久）不讓recover拋錯，也不擋其他worker領取別支工作', async () => {
+    const { f } = await stuckCompleting(); const next = await queued(); const other = await identity('other worker');
+    const stored = store.recutRenderJobs[0];
+    await quietly(async () => { await worker.recoverRenderJobs({ now: new Date(new Date(stored.leaseExpiresAt).getTime() + 60 * 1000) }); });
+    assert.equal(stored.status, 'completing');
+    const job = await quietly(() => worker.claimRenderJob({ worker: other.worker, ...versions }));
+    assert.ok(job); assert.equal(job.scriptId, String(next.script._id));
+    assert.equal(snapshot(f.script).state, 'rendering');
+  });
+  // 從 start 起每隔 stepMs 跑一次恢復，共 times 次；回傳最後一次的時間。
+  async function recoverRepeatedly(start, times, stepMs) {
+    let now = start;
+    for (let index = 0; index < times; index += 1) {
+      now = new Date(start.getTime() + index * stepMs);
+      await quietly(() => worker.recoverRenderJobs({ now }));
+    }
+    return now;
+  }
+  it('停機很久後重啟只失敗一次不放棄已收下的成品：completing保留並記下第一次失敗', async () => {
+    await stuckCompleting(); const stored = store.recutRenderJobs[0];
+    const afterDowntime = new Date(new Date(stored.leaseExpiresAt).getTime() + 6 * worker.LEASE_MS);
+    await quietly(() => worker.recoverRenderJobs({ now: afterDowntime }));
+    assert.equal(stored.status, 'completing'); assert.equal(stored.completionFailureCount, 1);
+    assert.equal(new Date(stored.completionFailedAt).getTime(), afterDowntime.getTime());
+    assert.ok(store.recutWorkers[0].activeJobId);
+  });
+  it('短時間內連續失敗很多次（未滿一個租約時間）不放棄；失敗次數不足也不放棄', async () => {
+    await stuckCompleting(); const stored = store.recutRenderJobs[0];
+    const start = new Date(new Date(stored.leaseExpiresAt).getTime() + 1000);
+    await recoverRepeatedly(start, worker.COMPLETION_FAILURE_LIMIT + 5, 1000);
+    assert.equal(stored.status, 'completing'); assert.equal(stored.completionFailureCount, worker.COMPLETION_FAILURE_LIMIT + 5);
+  });
+  it('收尾連續失敗達上限且持續超過一個租約時間，改記RECUT_COMPLETION_FAILED、釋放worker、腳本進渲染失敗並通知一次', async () => {
+    const { f } = await stuckCompleting(); const stored = store.recutRenderJobs[0];
+    const start = new Date(new Date(stored.leaseExpiresAt).getTime() + 1000);
+    const before = failNotices().length;
+    // 前 9 次分散在超過一個租約時間內：時間夠了但次數不足，仍保留。
+    await recoverRepeatedly(start, worker.COMPLETION_FAILURE_LIMIT - 1, Math.ceil(worker.LEASE_MS / 4));
+    assert.equal(stored.status, 'completing'); assert.equal(failNotices().length, before);
+    const now = new Date(start.getTime() + 3 * worker.LEASE_MS);
+    await quietly(() => worker.recoverRenderJobs({ now }));
+    assert.equal(stored.status, 'failed'); assert.equal(stored.error.code, 'RECUT_COMPLETION_FAILED');
+    assert.equal(store.recutWorkers[0].activeJobId, null); assert.equal(snapshot(f.script).state, 'render_failed');
+    assert.equal(failNotices().length, before + 1); assert.ok(stored.notifiedAt);
+    const count = store.notifications.length; const attempts = stored.attempts.length; const finishedAt = stored.finishedAt;
+    await quietly(() => worker.recoverRenderJobs({ now: new Date(now.getTime() + 1000) }));
+    assert.equal(store.notifications.length, count); assert.equal(stored.attempts.length, attempts);
+    assert.equal(stored.status, 'failed'); assert.equal(stored.finishedAt, finishedAt);
+  });
+  it('放棄收尾時腳本已不在該版本渲染中，只結束工作並標記已通知，不發失敗通知', async () => {
+    const { f } = await stuckCompleting(); const stored = store.recutRenderJobs[0];
+    store.shortScripts.find((entry) => String(entry._id) === String(f.script._id)).recut.currentVersionId = ids.student;
+    const count = store.notifications.length;
+    const start = new Date(new Date(stored.leaseExpiresAt).getTime() + 1000);
+    await recoverRepeatedly(start, worker.COMPLETION_FAILURE_LIMIT, Math.ceil(worker.LEASE_MS / 4));
+    assert.equal(stored.status, 'failed'); assert.equal(stored.error.code, 'RECUT_COMPLETION_FAILED');
+    assert.equal(store.recutWorkers[0].activeJobId, null); assert.ok(stored.notifiedAt);
+    assert.equal(store.notifications.length, count);
+  });
+  it('教師重新排入失敗的工作時，收尾失敗的起點與次數歸零', async () => {
+    const { f } = await stuckCompleting(); const stored = store.recutRenderJobs[0];
+    const start = new Date(new Date(stored.leaseExpiresAt).getTime() + 1000);
+    await recoverRepeatedly(start, worker.COMPLETION_FAILURE_LIMIT, Math.ceil(worker.LEASE_MS / 4));
+    assert.equal(stored.status, 'failed'); assert.ok(stored.completionFailureCount >= worker.COMPLETION_FAILURE_LIMIT);
+    store.shortScripts.find((entry) => String(entry._id) === String(f.script._id)).recut.state = 'render_queued';
+    await worker.ensureRenderJob(f.script._id);
+    assert.equal(stored.status, 'queued'); assert.equal(stored.completionFailureCount, 0); assert.equal(stored.completionFailedAt, null);
+  });
+  it('前面一筆恢復失敗不阻擋後面步驟：同一次recover仍替render_queued腳本建立工作', async () => {
+    await stuckCompleting(); const orphan = await queued();
+    const kept = store.recutRenderJobs.filter((j) => String(j.scriptId) !== String(orphan.script._id));
+    store.recutRenderJobs.splice(0, store.recutRenderJobs.length, ...kept);
+    assert.equal(store.recutRenderJobs.some((j) => String(j.scriptId) === String(orphan.script._id)), false);
+    await quietly(() => worker.recoverRenderJobs());
+    const created = store.recutRenderJobs.find((j) => String(j.scriptId) === String(orphan.script._id));
+    assert.ok(created); assert.equal(created.status, 'queued');
+  });
   for (const [key, value, retryable] of [['blackMaxSec', 0.5, true], ['fontLoaded', false, true], ['silenceMaxSec', 2, false], ['integratedLufs', -19, false], ['truePeakDbtp', -1, false], ['durationSec', 38, false], ['videoTracks', 0, false]]) {
     it(`${key}門檻違反分類${retryable ? '偶發' : '固定'}`, () => {
       const result = classifyRenderChecks({ ...checks(), [key]: value }, { width: 720, height: 1280, fps: 30, durationSec: 37 });

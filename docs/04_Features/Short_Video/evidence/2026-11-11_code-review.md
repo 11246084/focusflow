@@ -7,7 +7,7 @@ Weihao 的協調 session 對 `dev`（`60fedad`）的短影片程式做唯讀審�
 - 沒有做：沒有啟動服務、沒有連資料庫或呼叫模型、沒有瀏覽器實測、沒有真實渲染。併發類問題都是讀碼推論，沒有實際重現。
 - 離線工具（`recutCli`、`recutTrial*`、`recutCopyRuntime`、`recutFormalTrial`）沒有掛在 route 上，只略讀。
 
-**後續（2026-11-11）**：Weihao 指定先修下表第 1、3、6、8 項，已在同一天修正並補回歸測試，各項的「核對」欄標「已修正」。其餘項目維持原狀。
+**後續（2026-11-11）**：Weihao 指定先修下表第 1、3、6、8 項，接著再修第 4、7 項與前端第 9～13 項，都已修正並補回歸測試，表內標「已修正」。第 2、5 項與其餘低等級項目維持原狀。前端修正只有單元測試，沒有瀏覽器實測。
 
 結論：沒有發現未授權的人可以越權操作的問題。問題集中在三類：一筆壞資料卡住整條流程、沒有比對狀態就寫入、前端舊回應蓋掉新畫面。
 
@@ -18,21 +18,21 @@ Weihao 的協調 session 對 `dev`（`60fedad`）的短影片程式做唯讀審�
 | 1 | 中 | `backend/src/services/recutWorker.service.js` `recoverRenderJobs`（第 148～162 行）、`claimRenderJob`（第 164 行起） | 領取工作前會先跑恢復，恢復迴圈沒有逐筆隔離錯誤。只要有一筆停在 `completing` 的工作每次收尾都失敗（例如成品檔不見、建立成品驗證失敗），所有 worker 的領取都會一直回錯，後面的恢復步驟也不會執行 | 恢復迴圈每筆各包 `try/catch` 並記錄；領取不被恢復失敗中斷；重複失敗的 `completing` 工作設上限後轉 `failed` | 已修正：恢復逐筆隔離；收尾持續失敗（每分鐘最多計一次、連續 10 次以上且超過一個租約時間）的工作改記為 `RECUT_COMPLETION_FAILED`，釋放 worker 並通知教師。停機後重啟、短時間密集失敗或拿不到腳本鎖，都不會放棄已收下的成品 |
 | 2 | 中 | 同檔 `settleFailure`（第 130～141 行）、`claimRenderJob` 的排除判斷 | 工作失敗或租約逾時時，那台 worker 會被加進 `excludedWorkerIds`，之後領取會跳過。只有一台 worker 時，重試過一次的工作就再也沒人能領，腳本停在 `render_queued`，只有教師重新排入才會清掉 | 沒有其他啟用中的 worker 時不排除，或排除名單加時效 | 已核對程式；正式站是否只有一台 worker 待確認 |
 | 3 | 中 | `backend/src/services/shortScript.service.js` `generateScriptVersion`（第 387～474 行） | 先讀狀態、呼叫模型、最後只用 `_id` 更新，版本號用讀取當下的 `versions.length + 1`。教師連點或兩個分頁同時生成時，會各自呼叫模型並各推一筆，出現兩筆相同 `versionNo`；之後上傳與退回只會找到第一筆。`submitReview` 用讀取當下的索引寫回饋，也有同樣問題 | 更新條件加上讀到的狀態與版本數，沒命中回 409 `SHORT_SCRIPT_STATE_INVALID` | 已修正：生成與審核都改成條件更新。併發時模型仍會各被呼叫一次，只有一筆寫得進去 |
-| 4 | 中 | `backend/src/services/recutWholeCheck.service.js`（第 83～92 行） | 整段檢查發現「品質」類問題時會呼叫 `repair`，沒有接住錯誤。修正過程用完共用額度時整個任務失敗，已經通過驗證的版本一起作廢；品質問題本來可以降級成建議 | `repair` 或複檢失敗時接住，保留原版本，把品質問題轉成建議 | 已核對程式結構；`repair` 實際會不會丟錯沒有重現 |
+| 4 | 中 | `backend/src/services/recutWholeCheck.service.js`（第 83～92 行） | 整段檢查發現「品質」類問題時會呼叫 `repair`，沒有接住錯誤。修正過程用完共用額度時整個任務失敗，已經通過驗證的版本一起作廢；品質問題本來可以降級成建議 | `repair` 或複檢失敗時接住，保留原版本，把品質問題轉成建議 | 已修正：額度用完、驗證不過、修正卡住、模型失敗或修正後反而出現可信度錯誤時，回到修正前的版本並改列建議；取消與中斷照常中止 |
 | 5 | 中 | `backend/src/services/recutWorker.service.js` `sourceFile`；`recutSource.service.js`、`recutRuntimeAdapters.service.js` | 渲染時直接用影片目前的檔案，沒有比對它是不是凍結證據時的那個檔。原片被清理後補回的若是不同檔案，會用新檔配舊時間軸。另外正式路徑的轉錄結果沒有帶 `sourceSha256`，這個欄位可能從來沒寫入 | 正式路徑補算雜湊，提供原片與完成渲染前比對 | 代理結論，未核對 |
 | 6 | 中 | `short_render/src/worker/client.js`（第 127～138 行） | `finally` 裡清理暫存資料夾若丟錯（Windows 上剛結束的 Chrome、ffmpeg 常見 `EBUSY`），會跳過 `busy = false`，之後每次都回 `RECUT_WORKER_BUSY`；`run()` 沒有接錯，worker 直接結束。已上傳成功的工作也可能被回報成失敗 | `busy = false` 放到最外層一定會執行的位置；清理包 `try/catch` 並加重試；啟動時清掉殘留的 `recut-job-*` | 已修正：清理失敗只記錄、一定釋放忙碌狀態、刪除會重試。啟動時清殘留資料夾沒有做 |
-| 7 | 中 | `short_render/src/worker/http.js` | 逾時 120 秒是整個下載或上傳的總時限，不是「沒有資料才逾時」。原片大、頻寬小時一定中斷，被當成暫時性失敗後重派再失敗 | 改成閒置逾時，或依檔案大小放寬 | 代理結論，未核對 |
+| 7 | 中 | `short_render/src/worker/http.js` | 逾時 120 秒是整個下載或上傳的總時限，不是「沒有資料才逾時」。原片大、頻寬小時一定中斷，被當成暫時性失敗後重派再失敗 | 改成閒置逾時，或依檔案大小放寬 | 已修正：下載改成沒有資料才逾時，上傳時限依檔案大小放寬 |
 | 8 | 中 | `short_render/src/plan/sentences.js`（第 52 行） | 場景 id 的保留清單只擋 `root`、`hdr`、`endcard`、`end1`、`end2`、`narration`、`sub<數字>`；`html.js` 自己還用了 `subtitle<數字>`、`preview-viewport`、`play-toggle`、`preview-seek`。場景取這些名字能通過驗證，畫面上 id 重複，動畫會作用到錯的元素 | 保留清單補上這幾個，或場景 id 強制加前綴 | 已修正：保留清單補齊，並加測試自動比對 `html.js` 裡寫死的 id |
 
 ## 前端（短影片頁面）
 
 | # | 等級 | 位置 | 問題 | 建議修法 |
 |---|---|---|---|---|
-| 9 | 中 | `TeacherShortScripts.jsx`（`refresh`、`loadScript`），`TeacherShortUploads.jsx` 同樣寫法 | 沒有請求編號或取消。切課程或連點腳本時，較慢回來的舊回應會蓋掉新畫面：下拉選的是課程 B，清單卻是課程 A | 用 ref 記住最新的課程與腳本 id，回應到達時不符就丟掉 |
-| 10 | 中 | `TeacherShortScripts.jsx`（`handleGenerate`、`handleRegenerate`、`handleDismiss`） | 生成要 30～45 秒，期間清單沒有停用。生成腳本 A 時點了腳本 B，結果回來後畫面被拉回 A | 忙碌時停用切換，或回應回來時比對目前選取的 id |
-| 11 | 中 | `ShortAssetPanel.jsx`、`TeacherShortUploads.jsx` | 上傳最大 500 MB。上傳中切換腳本，面板被卸載，完成後用舊的選取把畫面拉回舊腳本；上傳結果與錯誤看不到，教師可能再傳一份 | 上傳中鎖定切換，或完成時檢查目前選取的 id |
-| 12 | 中 | `TeacherShortUploads.jsx`（第 328 行附近） | 文案寫「等待中的會自動更新」，但這幾頁沒有任何自動更新，狀態要按重新整理或切課程才會變 | 對傳送中、等待、審核中的狀態定時更新，離開頁面時停止；或改文案 |
-| 13 | 低 | `ShortAssetPanel.jsx` `pickFile` | 拖放沒有先檢查檔案類型與大小（點選才有），整個檔案傳完才被後端拒絕 | 先呼叫 `teacherUploadUtils` 的 `validateVideoFile` |
+| 9 | 中 | `TeacherShortScripts.jsx`（`refresh`、`loadScript`），`TeacherShortUploads.jsx` 同樣寫法 | 沒有請求編號或取消。切課程或連點腳本時，較慢回來的舊回應會蓋掉新畫面：下拉選的是課程 B，清單卻是課程 A | 用 ref 記住最新的課程與腳本 id，回應到達時不符就丟掉。**已修正** |
+| 10 | 中 | `TeacherShortScripts.jsx`（`handleGenerate`、`handleRegenerate`、`handleDismiss`） | 生成要 30～45 秒，期間清單沒有停用。生成腳本 A 時點了腳本 B，結果回來後畫面被拉回 A | 忙碌時停用切換，或回應回來時比對目前選取的 id。**已修正**（比對目前選取的 id，清單不停用） |
+| 11 | 中 | `ShortAssetPanel.jsx`、`TeacherShortUploads.jsx` | 上傳最大 500 MB。上傳中切換腳本，面板被卸載，完成後用舊的選取把畫面拉回舊腳本；上傳結果與錯誤看不到，教師可能再傳一份 | 上傳中鎖定切換，或完成時檢查目前選取的 id。**已修正**（完成時只在仍選同一份才重讀詳情；切走後上傳失敗的訊息仍看不到，沒有處理） |
+| 12 | 中 | `TeacherShortUploads.jsx`（第 328 行附近） | 文案寫「等待中的會自動更新」，但這幾頁沒有任何自動更新，狀態要按重新整理或切課程才會變 | 對傳送中、等待、審核中的狀態定時更新，離開頁面時停止；或改文案。**已修正**（每 15 秒更新清單，分頁隱藏或離開時停止；已開啟的詳情不會跟著更新） |
+| 13 | 低 | `ShortAssetPanel.jsx` `pickFile` | 拖放沒有先檢查檔案類型與大小（點選才有），整個檔案傳完才被後端拒絕 | 先呼叫 `teacherUploadUtils` 的 `validateVideoFile`。**已修正** |
 | 14 | 低 | `StudentShortsWall.jsx`（第 79 行） | iframe 網址直接接 `videoId`，網域固定是 youtube.com 所以不會換主機，但沒驗證格式 | 用 `^[A-Za-z0-9_-]{11}$` 驗證 |
 | 15 | 低 | `StudentShortsWall.jsx` | 「載入更多」進行中按重試，舊分頁會接到新清單後面 | 加請求編號 |
 | 16 | 低 | `ShortAssetPanel.jsx`（第 284 行） | `asset.youtubeUrl` 直接放進連結，沒檢查是 https 的 YouTube 網址 | 只在符合時輸出連結 |

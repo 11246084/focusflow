@@ -193,6 +193,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `RECUT_REPAIR_STALLED` | 422 | 同一組驗證錯誤第三次出現且仍有額度，停止修正以免耗盡共用額度；訊息附錯誤樣本（寫入任務錯誤） |
 | `RECUT_TEXT_OVERFLOW` | — | worker 渲染前檢查：卡片文字縮到 0.6 倍仍超出卡片，固定類失敗（worker 回報） |
 | `RECUT_RENDER_AUDIO_LOWERED` | — | worker 渲染：HyperFrames 再壓低已套增益的音訊超過 0.5 dB，固定類失敗（worker 回報） |
+| `RECUT_COMPLETION_FAILED` | — | 渲染結果已收下，但建立成品持續失敗（每分鐘最多計一次，連續 10 次以上且超過一個租約時間；例如檔案遺失、核准或同意已改變）；渲染工作改記為失敗並通知教師重新製作（寫入渲染工作錯誤） |
 | `SHORT_SCRIPT_NO_CANDIDATE` | 422 | 自動選題後沒有候選通過過濾，不得降低門檻硬選 |
 | `SHORT_SCRIPT_EVIDENCE_EMPTY` | 422 | 檢索不到足夠片段，無法凍結證據 |
 | `SHORT_SCRIPT_ARC_NOT_APPLICABLE` | 422 | 證據包無轉折句，不適用 8 拍敘事弧線 |

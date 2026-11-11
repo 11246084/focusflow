@@ -37,7 +37,9 @@ function validateJob(job) {
   return resolved;
 }
 function createWorker(config, { api = createHttpClient(config), loadRenderer = () => require('./render').createRenderer(config),
-  now = Date.now, setIntervalImpl = setInterval, clearIntervalImpl = clearInterval } = {}) {
+  now = Date.now, setIntervalImpl = setInterval, clearIntervalImpl = clearInterval,
+  // Windows 上剛結束的 Chrome／ffmpeg 可能還握著檔案（EBUSY、EPERM），刪除時重試幾次。
+  removeDirectory = (target) => fs.rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } = {}) {
   const { workRoot, heartbeatMs = 60000, jobTimeoutMs = 30 * 60000, pollMs = 10000, hostKind = 'desktop', enableVmRender = false } = config;
   if (typeof workRoot !== 'string' || !path.isAbsolute(workRoot)
     || ![heartbeatMs, jobTimeoutMs, pollMs].every((v) => Number.isSafeInteger(v) && v > 0)
@@ -130,12 +132,19 @@ function createWorker(config, { api = createHttpClient(config), loadRenderer = (
       // Drain an in-flight heartbeat before freeing the single-job slot.
       await heartbeatPending.catch(() => {});
       signal?.removeEventListener('abort', onCancel);
-      if (directory) {
-        const real = await fs.realpath(directory);
-        if (path.dirname(real) !== root || !path.basename(real).startsWith('recut-job-')) throw workerError('RECUT_CLEANUP_PATH_INVALID');
-        await fs.rm(real, { recursive: true, force: true });
+      // 清理暫存只是善後：失敗時留下資料夾並記錄，不能蓋掉已經算好的結果，
+      // 也不能讓 busy 停在 true（之後每次都會回 RECUT_WORKER_BUSY，worker 等於卡死）。
+      try {
+        if (directory) {
+          const real = await fs.realpath(directory);
+          if (path.dirname(real) !== root || !path.basename(real).startsWith('recut-job-')) throw workerError('RECUT_CLEANUP_PATH_INVALID');
+          await removeDirectory(real);
+        }
+      } catch (cleanupError) {
+        console.error('[recut-worker] job directory cleanup failed', String(cleanupError?.code || 'ERROR'));
+      } finally {
+        busy = false;
       }
-      busy = false;
     }
   }
   async function run({ signal, onStatus = () => {} } = {}) {

@@ -78,6 +78,7 @@ async function ensureRenderJob(scriptId) {
       // Explicit teacher retry reuses the job with a new attempt budget; retain prior attempts.
       return Job.findOneAndUpdate({ _id: existing._id, status: existing.status }, { $set: {
         status: 'queued', attemptCount: 0, excludedWorkerIds: [], error: null, notifiedAt: null,
+        completionFailedAt: null, completionLastFailedAt: null, completionFailureCount: 0,
         successNotificationPending: false, successNotifiedAt: null,
         queuedAt: new Date(), planHash: planHash(version), workerId: null, leaseHash: null, leaseExpiresAt: null,
       } }, { new: true });
@@ -146,21 +147,90 @@ async function settleFailure(job, { code, message, retryable, checks = null, now
   if (failed) await notifyFailure(saved);
   return saved;
 }
+// 恢復逐筆隔離：一筆資料的錯誤只記錄代碼，不中斷後面的恢復步驟，也不讓所有 worker 領不到工作。
+async function isolated(step, id, task) {
+  try { await task(); } catch (err) { console.error('[recut] recovery step failed', step, String(id), String(err?.code || err?.name || 'ERROR')); }
+}
+// 收尾一直失敗的工作（例如已收下的 MP4 不見、核准或同意已改變）不能永遠佔住 worker 與腳本，
+// 但也不能因為資料庫或磁碟短暫不穩就丟掉已收下的成品。判斷方式是「持續失敗」：
+// - 失敗每隔至少 COMPLETION_FAILURE_INTERVAL_MS 才計一次（worker 每十秒領一次工作，太密集的重試不重複計）；
+// - 距上次失敗超過一個租約時間就重新起算（中間停機或曾經恢復，舊的失敗不算數）；
+// - 拿不到腳本鎖不計（收尾根本還沒執行）。
+// 連續計到 COMPLETION_FAILURE_LIMIT 次、且從起點算已超過一個租約時間，才改記為失敗：
+// 釋放 worker、腳本回到渲染失敗、通知教師重新製作。已收下的 MP4 留在原位，不改派給其他工作；
+// 成品已掛上腳本時只結束這筆工作，不發失敗通知。
+const COMPLETION_FAILURE_LIMIT = 10;
+const COMPLETION_FAILURE_INTERVAL_MS = 60 * 1000;
+const lockBusy = (err) => err?.code === 'RECUT_STATE_INVALID' && /Another process is updating/.test(String(err.message));
+async function abandonStuckCompletion(job, cause, now) {
+  if (lockBusy(cause)) return false;
+  const last = job.completionLastFailedAt ? new Date(job.completionLastFailedAt) : null;
+  if (last && now - last >= 0 && now - last < COMPLETION_FAILURE_INTERVAL_MS) return false;
+  const restart = !last || !job.completionFailedAt || now - last >= LEASE_MS || now - last < 0;
+  const marked = await Job.findOneAndUpdate({ _id: job._id, status: 'completing' }, restart
+    ? { $set: { completionFailedAt: now, completionLastFailedAt: now, completionFailureCount: 1 } }
+    : { $set: { completionLastFailedAt: now }, $inc: { completionFailureCount: 1 } }, { new: true });
+  if (!marked || marked.completionFailureCount < COMPLETION_FAILURE_LIMIT
+    || now - new Date(marked.completionFailedAt) < LEASE_MS) return false;
+  const code = 'RECUT_COMPLETION_FAILED';
+  let saved = null;
+  let rendering = false;
+  const close = async () => {
+    saved = await Job.findOneAndUpdate({ _id: job._id, status: 'completing' }, {
+      $set: { status: 'failed', finishedAt: now, leaseHash: null, leaseExpiresAt: null,
+        error: { code, message: `短片渲染完成後無法建立成品（${String(cause?.code || 'INTERNAL_ERROR').slice(0, 100)}），請重新製作。` } },
+      $push: { attempts: { workerId: job.workerId, at: now, code, checks: job.checks } },
+    }, { new: true });
+    if (saved) await Worker.findOneAndUpdate({ _id: job.workerId, activeJobId: job._id }, { $set: { activeJobId: null } });
+    return saved;
+  };
+  try {
+    // 和收尾（finalizeCompletion）用同一把腳本鎖，兩者不會交錯：收尾先成功時工作已不是 completing，這裡不動作。
+    // 先轉移腳本狀態、成功後才把工作記為失敗；轉移失敗時工作仍是 completing，下一輪再試，
+    // 不會留下「工作已失敗、腳本卻停在渲染中」的狀態。
+    await withRecutTransition(job.scriptId, async (transition) => {
+      if (!await Job.findOne({ _id: job._id, status: 'completing' }).lean()) return;
+      const script = await ShortScript.findById(job.scriptId).lean();
+      if (same(script?.recut?.currentVersionId, job.versionId) && script.recut.state === 'rendering') {
+        await transition({ event: 'render_failed', versionId: job.versionId });
+        rendering = true;
+      }
+      await close();
+    });
+  } catch (err) {
+    // 腳本已經不存在時拿不到鎖，也沒有狀態要轉移：直接結束這筆工作並釋放 worker。
+    if (err?.code !== 'SHORT_SCRIPT_NOT_FOUND') throw err;
+    if (!saved) await close();
+  }
+  if (!saved) return false;
+  if (rendering) await notifyFailure(saved);
+  else await Job.findByIdAndUpdate(saved._id, { $set: { notifiedAt: now } });
+  return true;
+}
 async function recoverRenderJobs({ now = new Date() } = {}) {
   for (const job of await Job.find({ status: 'leased', leaseExpiresAt: { $lte: now } }).select('+leaseHash').lean()) {
-    await settleFailure(job, { code: 'RECUT_LEASE_EXPIRED', message: 'Worker lease expired.', retryable: true, now, expiredOnly: true });
+    await isolated('lease_expired', job._id, () => settleFailure(job, { code: 'RECUT_LEASE_EXPIRED', message: 'Worker lease expired.', retryable: true, now, expiredOnly: true }));
   }
-  for (const job of await Job.find({ status: 'completing' }).select('+leaseHash').lean()) await finalizeCompletion(job);
+  for (const job of await Job.find({ status: 'completing' }).select('+leaseHash').lean()) {
+    await isolated('completing', job._id, async () => {
+      try { await finalizeCompletion(job); }
+      catch (err) { if (!await abandonStuckCompletion(job, err, now)) throw err; }
+    });
+  }
   // Repair a crash after reserving the worker but before attaching its job.
   for (const worker of await Worker.find({ activeJobId: { $ne: null } }).lean()) {
-    const job = await Job.findById(worker.activeJobId).lean();
-    if ((!job || !['leased', 'completing'].includes(job.status) || !same(job.workerId, worker._id))
-      && (!same(worker.activeJobId, worker._id) || !worker.reservedAt || now - new Date(worker.reservedAt) >= LEASE_MS)) await Worker.findOneAndUpdate({ _id: worker._id, activeJobId: worker.activeJobId }, { $set: { activeJobId: null } });
+    await isolated('worker_reservation', worker._id, async () => {
+      const job = await Job.findById(worker.activeJobId).lean();
+      if ((!job || !['leased', 'completing'].includes(job.status) || !same(job.workerId, worker._id))
+        && (!same(worker.activeJobId, worker._id) || !worker.reservedAt || now - new Date(worker.reservedAt) >= LEASE_MS)) await Worker.findOneAndUpdate({ _id: worker._id, activeJobId: worker.activeJobId }, { $set: { activeJobId: null } });
+    });
   }
-  for (const script of await ShortScript.find({ productionMode: 'recut', 'recut.state': 'render_queued' }).lean()) await ensureRenderJob(script._id);
-  for (const job of await Job.find({ status: 'failed', notifiedAt: null }).lean()) await notifyFailure(job);
+  for (const script of await ShortScript.find({ productionMode: 'recut', 'recut.state': 'render_queued' }).lean()) {
+    await isolated('ensure_job', script._id, () => ensureRenderJob(script._id));
+  }
+  for (const job of await Job.find({ status: 'failed', notifiedAt: null }).lean()) await isolated('notify_failure', job._id, () => notifyFailure(job));
   for (const job of await Job.find({ status: 'succeeded', successNotificationPending: true }).lean()) {
-    await withRecutTransition(job.scriptId, () => notifySuccessOwned(job));
+    await isolated('notify_success', job._id, () => withRecutTransition(job.scriptId, () => notifySuccessOwned(job)));
   }
 }
 async function claimRenderJob({ worker, shortRenderVersion, assetVersions, now = new Date() }) {
@@ -307,5 +377,5 @@ async function completeRender(options) {
     throw err;
   }
 }
-module.exports = { LEASE_MS, MAX_ATTEMPTS, digest, planHash, publicWorker, createWorker, listWorkers, updateWorker,
+module.exports = { LEASE_MS, MAX_ATTEMPTS, COMPLETION_FAILURE_LIMIT, COMPLETION_FAILURE_INTERVAL_MS, digest, planHash, publicWorker, createWorker, listWorkers, updateWorker,
   finalizeCompletion, authenticateWorker, ensureRenderJob, recoverRenderJobs, claimRenderJob, ownedLease, heartbeat, sourceFile, failRender, completeRender };

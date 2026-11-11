@@ -35,6 +35,22 @@ test('phrase lookup is sentence-local, unique, full-word and preserves decimals/
   }
   assert.throws(() => phraseWords({ id: 's', words: [{ text: '說明' }, { text: '說明' }] }, '說明'));
 });
+test('scene ids that the renderer uses for its own elements are rejected', () => {
+  const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '../src/render/html.js'), 'utf8');
+  // Every literal element id written by render/html.js must be reserved, so a new one cannot be forgotten.
+  const literalIds = [...html.matchAll(/id="([A-Za-z][A-Za-z0-9_-]*)"/g)].map((match) => match[1]);
+  assert.ok(literalIds.includes('preview-seek') && literalIds.includes('root'));
+  for (const id of new Set([...literalIds, 'sub0', 'sub12', 'subtitle0', 'subtitle12'])) {
+    const { plan } = fixture();
+    plan.scenes[0].id = id;
+    assert.ok(validateStructure(plan).some((e) => e.code === 'SCENE_ID'), `scene id ${id} must be reserved`);
+  }
+  for (const id of ['card1', 'subject', 'subtitles', 'preview', 'rooted']) {
+    const { plan } = fixture();
+    plan.scenes[0].id = id;
+    assert.equal(validateStructure(plan).some((e) => e.code === 'SCENE_ID'), false, `scene id ${id} must stay allowed`);
+  }
+});
 test('trimmed out words, stale resolved, repeated source sentences and unsafe identifiers fail', () => {
   const { plan, sentences, resolved, source } = fixture();
   const stale = structuredClone(resolved); stale.clips[0].srcStart = 42;

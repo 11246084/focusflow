@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { afterEach, beforeEach, describe, it } = require('node:test');
 const shortScriptService = require('../src/services/shortScript.service');
 const env = require('../src/config/env');
+const ShortScript = require('../src/models/shortScript.model');
 const {
   ids,
   newObjectId,
@@ -145,6 +146,77 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.versions.length, 1);
     assert.equal(updated.versions[0].versionNo, 1);
     assert.equal(updated.versions[0].payload.shots.length, 8);
+  });
+
+  // 讓 provider 停在「等一個可手動放行的 promise」，確保兩個請求都在任何寫入前讀完腳本。
+  function gateProvider() {
+    const inner = global.fetch; let release; const gate = new Promise((resolve) => { release = resolve; });
+    let waiting = 0; let reached;
+    const allReached = new Promise((resolve) => { reached = resolve; });
+    global.fetch = async (...args) => { waiting += 1; if (waiting >= 2) reached(); await gate; return inner(...args); };
+    return { release, allReached, oneReached: () => new Promise((resolve) => { const t = setInterval(() => { if (waiting >= 1) { clearInterval(t); resolve(); } }, 1); }) };
+  }
+  const storedScript = (script) => store.shortScripts.find((item) => String(item._id) === String(script._id));
+
+  it('兩個生成請求同時進行，只有一個成功，另一個回 SHORT_SCRIPT_STATE_INVALID，且只留一筆 versionNo 1', async () => {
+    const script = await createScript();
+    stubGeneration(); const gate = gateProvider();
+    const pending = [1, 2].map(() => shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id }));
+    await gate.allReached; gate.release();
+    const results = await Promise.allSettled(pending);
+
+    assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
+    const rejected = results.find((r) => r.status === 'rejected');
+    assert.equal(rejected.reason.code, 'SHORT_SCRIPT_STATE_INVALID');
+    assert.equal(rejected.reason.statusCode ?? rejected.reason.status, 409);
+    const stored = storedScript(script);
+    assert.equal(stored.versions.length, 1);
+    assert.equal(stored.versions[0].versionNo, 1);
+  });
+
+  it('生成等待模型時腳本被否決，生成回 SHORT_SCRIPT_STATE_INVALID，腳本維持 dismissed 且沒有新版本', async () => {
+    const script = await createScript();
+    stubGeneration(); const gate = gateProvider();
+    const generating = shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+    const settled = generating.then(() => null, (error) => error);
+    await gate.oneReached();
+    await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'dismiss', feedback: '不做' });
+    gate.release();
+
+    const error = await settled;
+    assert.equal(error?.code, 'SHORT_SCRIPT_STATE_INVALID');
+    const stored = storedScript(script);
+    assert.equal(stored.status, 'dismissed'); assert.equal(stored.versions.length, 0);
+  });
+
+  it('退回時腳本在讀取後被別的請求新增一版，退回回 SHORT_SCRIPT_STATE_INVALID，回饋不寫到任何版本', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+    const original = ShortScript.findById; let injected = false;
+    ShortScript.findById = (id) => ({
+      lean: async () => {
+        const snapshot = JSON.parse(JSON.stringify(await original(id).lean()));
+        if (!injected) {
+          injected = true; // 讀完之後、寫入之前：另一個請求已完成「退回 + 重生」，腳本多了第 2 版。
+          const stored = storedScript(script);
+          stored.versions.push({ ...JSON.parse(JSON.stringify(stored.versions[0])), versionNo: 2, feedback: null, feedbackType: null });
+        }
+        return snapshot;
+      },
+    });
+    try {
+      await assert.rejects(
+        () => shortScriptService.submitReview({
+          user: TEACHER, scriptId: script._id, decision: 'request_changes', feedback: '開頭不夠吸引人', feedbackType: 'narrative',
+        }),
+        (error) => error.code === 'SHORT_SCRIPT_STATE_INVALID' && (error.statusCode ?? error.status) === 409,
+      );
+    } finally { ShortScript.findById = original; }
+    assert.equal(injected, true);
+    const stored = storedScript(script);
+    assert.equal(stored.status, 'generated');
+    for (const version of stored.versions) { assert.equal(version.feedback, null); assert.equal(version.reviewedAt, null); }
   });
 
   it('生成會寫入成本紀錄，且用獨立的 event 型別（DR-06）', async () => {

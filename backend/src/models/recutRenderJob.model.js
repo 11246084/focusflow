@@ -14,8 +14,10 @@ const schema = new Schema({
   attempts: { type: [Schema.Types.Mixed], default: [] },
   checks: { type: Schema.Types.Mixed, default: null }, error: { type: Schema.Types.Mixed, default: null },
   filePath: { type: String, default: null },
-  // 收尾（建立成品）連續失敗的起點與次數；持續失敗夠久才放棄，見 recutWorker.service 的 abandonStuckCompletion。
-  completionFailedAt: { type: Date, default: null }, completionFailureCount: { type: Number, default: 0 },
+  // 收尾（建立成品）這一輪連續失敗的起點、最近一次與計入次數；持續失敗夠久才放棄，
+  // 見 recutWorker.service 的 abandonStuckCompletion。
+  completionFailedAt: { type: Date, default: null }, completionLastFailedAt: { type: Date, default: null },
+  completionFailureCount: { type: Number, default: 0 },
   resultAssetId: { type: Schema.Types.ObjectId, ref: 'ShortAsset', default: null },
   // Set atomically only by this completion path; historical successes are not backfilled.
   successNotificationPending: { type: Boolean, default: false },

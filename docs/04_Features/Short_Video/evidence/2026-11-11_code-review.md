@@ -15,7 +15,7 @@ Weihao 的協調 session 對 `dev`（`60fedad`）的短影片程式做唯讀審�
 
 | # | 等級 | 位置 | 問題 | 建議修法 | 核對 |
 |---|---|---|---|---|---|
-| 1 | 中 | `backend/src/services/recutWorker.service.js` `recoverRenderJobs`（第 148～162 行）、`claimRenderJob`（第 164 行起） | 領取工作前會先跑恢復，恢復迴圈沒有逐筆隔離錯誤。只要有一筆停在 `completing` 的工作每次收尾都失敗（例如成品檔不見、建立成品驗證失敗），所有 worker 的領取都會一直回錯，後面的恢復步驟也不會執行 | 恢復迴圈每筆各包 `try/catch` 並記錄；領取不被恢復失敗中斷；重複失敗的 `completing` 工作設上限後轉 `failed` | 已修正：恢復逐筆隔離；收尾連續失敗 10 次以上且持續超過一個租約時間的工作改記為 `RECUT_COMPLETION_FAILED`，釋放 worker 並通知教師。停機後重啟只失敗一次不會放棄已收下的成品 |
+| 1 | 中 | `backend/src/services/recutWorker.service.js` `recoverRenderJobs`（第 148～162 行）、`claimRenderJob`（第 164 行起） | 領取工作前會先跑恢復，恢復迴圈沒有逐筆隔離錯誤。只要有一筆停在 `completing` 的工作每次收尾都失敗（例如成品檔不見、建立成品驗證失敗），所有 worker 的領取都會一直回錯，後面的恢復步驟也不會執行 | 恢復迴圈每筆各包 `try/catch` 並記錄；領取不被恢復失敗中斷；重複失敗的 `completing` 工作設上限後轉 `failed` | 已修正：恢復逐筆隔離；收尾持續失敗（每分鐘最多計一次、連續 10 次以上且超過一個租約時間）的工作改記為 `RECUT_COMPLETION_FAILED`，釋放 worker 並通知教師。停機後重啟、短時間密集失敗或拿不到腳本鎖，都不會放棄已收下的成品 |
 | 2 | 中 | 同檔 `settleFailure`（第 130～141 行）、`claimRenderJob` 的排除判斷 | 工作失敗或租約逾時時，那台 worker 會被加進 `excludedWorkerIds`，之後領取會跳過。只有一台 worker 時，重試過一次的工作就再也沒人能領，腳本停在 `render_queued`，只有教師重新排入才會清掉 | 沒有其他啟用中的 worker 時不排除，或排除名單加時效 | 已核對程式；正式站是否只有一台 worker 待確認 |
 | 3 | 中 | `backend/src/services/shortScript.service.js` `generateScriptVersion`（第 387～474 行） | 先讀狀態、呼叫模型、最後只用 `_id` 更新，版本號用讀取當下的 `versions.length + 1`。教師連點或兩個分頁同時生成時，會各自呼叫模型並各推一筆，出現兩筆相同 `versionNo`；之後上傳與退回只會找到第一筆。`submitReview` 用讀取當下的索引寫回饋，也有同樣問題 | 更新條件加上讀到的狀態與版本數，沒命中回 409 `SHORT_SCRIPT_STATE_INVALID` | 已修正：生成與審核都改成條件更新。併發時模型仍會各被呼叫一次，只有一筆寫得進去 |
 | 4 | 中 | `backend/src/services/recutWholeCheck.service.js`（第 83～92 行） | 整段檢查發現「品質」類問題時會呼叫 `repair`，沒有接住錯誤。修正過程用完共用額度時整個任務失敗，已經通過驗證的版本一起作廢；品質問題本來可以降級成建議 | `repair` 或複檢失敗時接住，保留原版本，把品質問題轉成建議 | 已核對程式結構；`repair` 實際會不會丟錯沒有重現 |

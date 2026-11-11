@@ -6,9 +6,13 @@
 
 ## 2026-11-11 最新操作邊界
 
-使用者已取消原 20:00–22:00 窗口，改為即時 Go／No-Go；後續最新指示維持 No-Go，本輪只授權獨立工具、Fake／Mock 測試、文件與 commit／push。未確認操作無衝突及可接手管理者前，不執行正式 Atlas 寫入或索引更新，也不自行排程。使用者已接受本次只驗 Atlas 小樣本、不含正式站 E2E，以及 M0 監測盲區與重建耗時風險；這些接受不取代人員確認與執行當下重驗。
+使用者要求整合到目前系統使用的 `focusflow.video_segments_text`，只在既定三筆新增九個保存向量及 metadata，擴充同一個 `text_embedding_index`，保留原 694 筆 embedding 及 filters。不採新增資料庫、集合、專案或叢集，不建立第四個索引；隔離選項僅留歷史評估，不繼續推進。
 
-索引操作沿用同名 B 方案與 Node Driver，獨立工具預設 Dry Run，執行需當次索引操作雜湊及可回讀、含 checksum 的磁碟 receipt。正向／回復分別保存紀錄；每次送出前重驗前像、版本與三節點，送出後等三節點完成。結果不明、逾時或有衝突時停止且不自動重送；更新索引沒有伺服器 CAS，管理者排他協調仍是硬門檻。工具與最終清單見 [Atlas 計畫](atlas-preparation.md#node-driver-離線驗證與操作介面)，實際驗證範圍見 [目前狀態](../../current-status.md)。下方歷史窗口及待授權敘述依本段最新邊界解讀。
+原 20:00–22:00 窗口取消，不排程或自動開始。無操作衝突與使用者的 Project Data Access Admin 角色已確認，使用者接受持續值守、READY 才繼續、BUILDING 不重送、FAILED／逾時／未知結果停止、依前像與 receipt 安全回復、無法安全回復則交 Project Owner／MongoDB 支援。一般操作不再要求另一位管理者；角色不等於保證所有平台異常都可自行處理。
+
+目前僅授權演練、唯讀重驗及文件 commit／push。唯讀與離線演練 GO 不代表正式寫入／索引更新已獲准；正式執行維持 NO-GO，等待單獨授權。使用者已接受 Atlas 小樣本不含正式站 E2E，以及 M0 監測盲區與重建耗時風險。當次證據與剩餘風險以 [目前狀態](../../current-status.md) 為準；下方歷史窗口及待確認敘述依本段最新決策解讀。
+
+索引操作沿用既有 Node Driver 工具，預設 Dry Run，執行須當次資料 planHash、索引 operationHash 及可回讀的磁碟 receipt。每次送出前核對前像／版本／三節點，送出後等待三節點完成；結果不明不重送、不盲目反向更新，CAS 衝突不覆寫。工具與回復關卡見 [Atlas 計畫](atlas-preparation.md#node-driver-離線驗證與操作介面)。
 
 ## 名詞
 

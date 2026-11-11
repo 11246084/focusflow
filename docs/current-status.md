@@ -4,9 +4,23 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
-## Atlas B Driver 離線安全驗證（2026-11-11）
+## Atlas B 異常處理演練與即時唯讀核對（2026-11-11 17:14–17:17，台灣時間）
 
-原 20:00–22:00 窗口已取消，最新授權只含獨立工具、Mock 測試、文件與 commit／push；正式 Atlas 仍 No-Go。使用者已接受小樣本不含正式站 E2E、M0 監測盲區與重建耗時風險。無操作衝突及可接手管理者尚未確認；下方舊紀錄的窗口／待接受事項不代表目前授權。
+**唯讀與離線演練 GO；正式 Atlas 寫入／索引更新 NO-GO，等待單獨授權。** 目標固定為現有 `focusflow.video_segments_text` 與 `text_embedding_index`；不另建資料庫、集合、專案、叢集或第四個索引。原晚間窗口已取消，不排程或自動開始。
+
+使用者已確認無操作衝突，具有 Project Data Access Admin，並願意負責持續監看、停止、依前像回復及必要時聯繫 Project Owner／MongoDB 支援；不再把一般操作必須另有一位管理者當成缺口。角色與處置原則由使用者確認；本次是工具／程序演練，不是人工操作正式 Atlas 回復的實作測驗，也不保證外部支援能即時介入。
+
+Node 22.23.4 重跑既有 8 檔定向測試，66/66、無失敗／略過；涵蓋 BUILDING 等待、FAILED／逾時／未知結果停止、跨執行禁止重送、receipt 損毀、CAS 衝突與安全回復。磁碟 Fake journal 寫入回讀、索引 before／after 純 JSON 雜湊核對均通過。程式／QA／RRF／Bridge 沒有修改。
+
+當次 Atlas 唯讀結果：694 筆指定範圍備份回讀 checksum 通過，舊 embedding 與第七階段備份全部相同；三筆完整前像未變且新增欄位不存在。全 collection 計數 815；694 備份不是全 collection 災難備份。三節點 READY／QUERYABLE，mainIndex 定義在保留原始快照、辨識預設 numPartitions: 1 後一致；Driver 的 find／update／listSearchIndexes／updateSearchIndex 均可用，未試寫。三筆文字 self-query 都 rank 1、各 20 筆，耗時 133.77／73.37／73.61 ms；課程與未授權影片負例均 0 筆，這不是正式問題品質評測。
+
+控制台確認 Free M0、8.0.37、AWS Hong Kong、全叢集三個 Search 索引已滿，目標索引 815/815、約 10.87 MB；資料 58.12 MB／512 MB、連線 20／500、無未結案告警。Operation Throttling 有入口但圖為空白，不能宣稱節流為 0；M0 監測盲區、重建時間及索引無伺服器 CAS 的風險保留。三路真實搜尋、兩版 RRF 的 Atlas 結果及正式回復尚未執行。
+
+原始證據只存忽略的 `.local-tools/atlas-preparation/`，不提交備份、完整向量、checkpoint、逐字稿、憑證或私人帳號資訊。精確檔名與當次雜湊見 [操作計畫](04_Features/Multimodal_Retrieval/atlas-preparation.md#最終-gono-go-與管理者確認)，演練命令與來源見 [驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。本次實際 Atlas 寫入／索引更新／回復、付費 Gemini、部署與 VM 操作均為 0。後續必須另有正式授權；延後或狀態改變時刷新唯讀證據，不沿用本快照自動放行。
+
+## Atlas B Driver 離線安全驗證（2026-11-11，先前工具階段紀錄）
+
+當時原 20:00–22:00 窗口已取消，該工具階段授權只含獨立工具、Mock 測試、文件與 commit／push。當時待確認的人員與即時核對已由上節更新，不能把本段歷史限制當成目前缺口；正式寫入仍待單獨授權。
 
 新增獨立 `index-control.js`：限定 B 方案與同名索引，預設 Dry Run；前像、版本、三節點與定義核對，正向／回復各只送出一次。含 checksum 的磁碟 receipt 記錄 prepared／submission_started／submitted／verified；結果不明時跨執行阻擋重送。資料 rollback 補逐筆 receipt，保留既有 CAS、原 embedding 與他人異動保護。未改 QA、RRF、Bridge 或部署。
 

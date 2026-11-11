@@ -2,7 +2,7 @@
 
 本文件說明如何用第三階段保存的向量，準備三筆 Chunk 的 Atlas 驗證。工具預設只讀取資料及產生寫入計畫，完整備份、逐字稿與向量只保存在忽略的 `.local-tools/`。整體功能狀態見[目前狀態](../../current-status.md)，提交紀錄見[進度](evidence/進度.md)。
 
-**最新邊界（2026-11-11）：原晚間窗口已取消。本輪僅獨立工具與離線驗證，正式 Atlas 操作仍 No-Go。** 使用者接受小樣本範圍與 M0 剩餘風險；無衝突、接手管理者及執行當下證據仍須確認。以下歷史窗口不再是執行時程，最終依本頁末的清單與 [decisions.md](decisions.md#2026-11-11-最新操作邊界) 接續，不自動開始。
+**最新邊界（2026-11-11）：唯讀與離線演練 GO；正式 Atlas 寫入／索引更新 NO-GO，等待單獨授權。** 原晚間窗口已取消，使用者已確認無操作衝突、具 Project Data Access Admin 並負責值守／停止／安全回復與升級處理，不重複詢問已確認事項。只整合現有資料庫、集合與同名索引。以下歷史窗口不再是執行時程，當次結果只看 [目前狀態](../../current-status.md)，後續依本頁末清單及 [decisions.md](decisions.md#2026-11-11-最新操作邊界) 接續，不自動開始。
 
 ## 2026-11-10 實際查證
 
@@ -177,11 +177,26 @@ const restore = await transitionIndex(collection, proposal, { direction: 'restor
 
 ## 最終 Go／No-Go 與管理者確認
 
-管理者須當次確認並留下時間／姓名／聯絡方式：目前無 Atlas 資料／索引變更、VM 修復或正式部署衝突；操作期間不啟動其他變更；有具處置權限者在線接手；可讀取索引三節點、Throttling／告警與基礎資源圖表；若超時或失聯，由誰持續唯讀監測與交接。無法確認任一項即 No-Go。不能只從 GitHub 沒有執行中的部署推定所有人都沒操作。
+使用者已確認無 Atlas／VM／部署操作衝突，並以 Project Data Access Admin 擔任本次操作負責人，接受監看、停止、依證據回復及無法安全回復時交 Project Owner／MongoDB 支援的程序。一般流程不再要求另一位管理者；不把已確認事項重新當成缺口，也不保證任何外部支援可即時介入。正式操作仍需有效授權、持續值守及當次狀態符合前像；出現新的衝突、失聯或不可安全回復情形即停止。
+
+### 17:14–17:17 唯讀快照的使用方式
+
+以下雜湊來自 2026-11-11 台灣時間 17:14:27 完成的唯讀查詢，17:16:56 完成報告彙整；不是未來任何時間都有效的批准。資料備份是指定六支影片 694 筆，不是全 collection 815 筆備份。回讀 checksum、三筆完整前像、新欄位尚不存在、694 舊向量一致與三節點定義核對的結果見 [目前狀態](../../current-status.md)，來源與重現方式見 [驗證紀錄](evidence/進度.md)。
+
+| 項目 | 當次值 |
+|---|---|
+| 資料 planHash | `a9943793db856e92474f6f7f9d64e4c739bc575d758c261a45ec973371914a1c` |
+| 索引 operationHash | `c2f4b0274cac9148182eec4e1038556ae94ec84e6b7ee6ce155d8dd30a1092b4` |
+| beforeHash | `1cb8b24998df4c6ec0a629b4490044d1cdd868c6d711cc1c2680596cce785935` |
+| afterHash（只提出、未套用） | `b12f505e0be14bd7ea4bbc1638882dbda784a1f9b92646a8cf75483da5c68c30` |
+
+本機私有來源皆在忽略的 `.local-tools/atlas-preparation/`：`backup-1794388353661.json`、`operator-preflight-20261111.json`、`operator-recheck-20261111.json`、`operator-go-no-go-20261111.json`、`operator-index-before-20261111.json`、`operator-index-after-20261111.json`。完整查詢回應在 `operator-baseline-private-20261111.json`，不提交 Git。磁碟 journal 回讀演練用 `operator-drill-only`，另有測試故意損毀的 `mock-journal-*`；兩者都是 Fake，不得當正式寫入 receipt，正式操作要使用當次獨立 journal 及資料 receipt。
+
+Operation Throttling 圖目前空白，不能作為零節流證據；以可用監測、節點、查詢錯誤／延遲及告警共同觀察，保留 M0 盲區與重建耗時風險。若正式執行延後或狀態改變，重驗資料／索引前像、hash、權限與文字基準，不沿用此快照自動開始。實際寫入、索引更新、回復仍須單獨授權。
 
 | 放行條件 | 必要證據／停止條件 |
 |---|---|
-| 最新授權與人員 | 本輪只授權離線工作；正式操作前確認最新授權有效、排他協調與接手人員，不自動開始 |
+| 最新授權與人員 | 值守與無衝突已確認；本輪只整理文件並提交。正式寫入／索引更新維持 NO-GO，等待單獨授權；人員失聯或新衝突即停 |
 | M0／索引與資源 | 管理端當次 M0、全叢集三索引、可用監測與告警；不建立第四個，不升級；嚴重節流／告警即停 |
 | 前像及資料 | fresh 備份回讀 checksum、限定 694 範圍標示、三筆身份／原始時間／逐字稿／舊 embedding、九個保存向量及新增欄位狀態；與舊備份不一致先查明 |
 | 計畫與索引 | 當次資料 planHash 及索引 operationHash、完整 before／after、三節點 READY／queryable；出現未核准欄位或版本衝突即停 |

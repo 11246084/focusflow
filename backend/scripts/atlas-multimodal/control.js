@@ -62,11 +62,14 @@ function indexPlan(index, strategy = 'B') {
   }
   return { strategy, before, after, added, beforeHash: hash(before), afterHash: hash(after), approvalRequired: true };
 }
-async function waitReady(read, definition, { attempts = 61, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+async function waitReady(read, definition, { attempts = 61, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  validate = () => {}, isReady = () => true } = {}) {
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 61) throw new Error('Invalid polling attempts');
   for (let i = 0; i < attempts; i++) {
     const index = await read();
-    if (index?.status === 'FAILED') throw new Error('Index failed; stop and request rollback authorization');
-    if (index?.status === 'READY' && index.queryable === true && hash(index.latestDefinition) === hash(definition)) return index;
+    validate(index);
+    if (index?.status === 'FAILED') throw new Error('Index failed; stop and inspect platform state');
+    if (index?.status === 'READY' && index.queryable === true && hash(index.latestDefinition) === hash(definition) && isReady(index)) return index;
     if (i + 1 < attempts) await sleep(30000);
   }
   throw new Error('Index readiness timeout; stop');
@@ -142,11 +145,11 @@ async function applyPlan(collection, plans, { execute = false, receipt = async (
   }
   return results;
 }
-async function rollbackPlan(collection, plans, { execute = false } = {}) {
+async function rollbackPlan(collection, plans, { execute = false, receipt = async () => {} } = {}) {
   const result = [];
   for (const p of plans) {
     const current = await collection.findOne({ _id: p.before._id }, OPTIONS);
-    if (currentMatches(current, p.before)) { result.push({ chunkId: p.chunkId, status: 'already_restored' }); continue; }
+    if (currentMatches(current, p.before)) { result.push({ chunkId: p.chunkId, status: 'already_restored' }); await receipt(result); continue; }
     if (!current || protectedHash(current) !== p.protectedHash || !p.keys.every(k => hash(get(current, k)) === hash(p.desired[k]))) throw new Error('Rollback conflict; stopped');
     const $set = {}, $unset = {};
     for (const k of p.keys) { if (get(p.before, k) === undefined) $unset[k] = ''; else $set[k] = get(p.before, k); }
@@ -160,7 +163,9 @@ async function rollbackPlan(collection, plans, { execute = false } = {}) {
       const r = await collection.updateOne(casFilter(current), update, { ...OPTIONS, upsert: false });
       if (r.matchedCount !== 1 || !currentMatches(await collection.findOne({ _id: current._id }, OPTIONS), p.before)) throw new Error('Rollback verification failed');
     }
-    result.push({ chunkId: p.chunkId, status: execute ? 'restored' : 'rollback_dry_run' });
+    result.push({ chunkId: p.chunkId, status: execute ? 'restored' : 'rollback_dry_run',
+      beforeHash: hash(current), afterHash: hash(p.before), fields: p.keys });
+    await receipt(result);
   }
   return result;
 }

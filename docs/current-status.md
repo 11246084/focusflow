@@ -4,7 +4,17 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
-## Atlas M0 管理端資訊與操作計畫（2026-11-11）
+## Atlas B Driver 離線安全驗證（2026-11-11）
+
+原 20:00–22:00 窗口已取消，最新授權只含獨立工具、Mock 測試、文件與 commit／push；正式 Atlas 仍 No-Go。使用者已接受小樣本不含正式站 E2E、M0 監測盲區與重建耗時風險。無操作衝突及可接手管理者尚未確認；下方舊紀錄的窗口／待接受事項不代表目前授權。
+
+新增獨立 `index-control.js`：限定 B 方案與同名索引，預設 Dry Run；前像、版本、三節點與定義核對，正向／回復各只送出一次。含 checksum 的磁碟 receipt 記錄 prepared／submission_started／submitted／verified；結果不明時跨執行阻擋重送。資料 rollback 補逐筆 receipt，保留既有 CAS、原 embedding 與他人異動保護。未改 QA、RRF、Bridge 或部署。
+
+Node 22.23.4 的 8 個相關檔案共 66/66 通過，無失敗／略過。包含實際安裝 Driver 的 Collection.updateSearchIndex 與命令建構器，執行端以 Fake 取代，沒有 connect／socket；驗證正反向 JSON、三節點輪詢、逾時／權限／配額／網路未知結果、receipt 損毀與程序重啟保護，並回歸三筆 CAS、資料回復及既有融合／Bridge。全部是離線 Fake／Synthetic 驗證；本輪未連 Atlas、未寫入／更新索引、未付費或部署，也未宣稱真實三路驗收完成。命令與日誌見 [驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+工具路徑已離線驗證，餘下正式門檻為管理者協調／監測、執行當下 M0／配額／三節點、備份／舊 694 向量／planHash／baseline 重驗，以及符合最新正式操作授權。完整 [Go／No-Go 與管理者清單](04_Features/Multimodal_Retrieval/atlas-preparation.md#最終-gono-go-與管理者確認)。未跑 Backend 全套、前端或 pipeline，因本輪只修改獨立工具與對應測試。
+
+## Atlas M0 管理端資訊與操作計畫（2026-11-11，先前準備紀錄）
 
 使用者提供 Atlas UI 查證：focusflow 為 Free M0、MongoDB 8.0.37、AWS Hong Kong，全叢集三個 Search 索引達上限；text_embedding_index 三節點 READY／QUERYABLE、估算文件數 815/815、每節點約 10.87 MB，只有 embedding（3072／cosine）及 courseId、videoId filters，未做 UI 修改。本輪依官方文件核對，同名索引加入三條 vector path 符合定義／數量限制；既有 after 定義壓縮 JSON 424 bytes，低於 3 KB。
 

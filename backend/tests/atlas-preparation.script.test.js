@@ -80,6 +80,40 @@ test('CAS loses a race safely and existing owned fields cannot be overwritten', 
   await assert.rejects(c.applyPlan(db, plans, { execute: true }), /CAS/);
   snapshot.documents[0].audioEmbedding = [2]; assert.throws(() => c.planWrites(snapshot, bundle), /Existing/);
 });
+test('three CAS receipts preserve old embeddings, rollback checkpoints survive interruption and repeated restore', async () => {
+  const { snapshot, bundle } = fixtures(); const plans = c.planWrites(snapshot, bundle); const db = repo(snapshot.documents);
+  const applied = [], restored = [];
+  await c.applyPlan(db, plans, { execute: true, receipt: async r => applied.push(structuredClone(r)) });
+  assert.deepEqual(applied.map(r => r.length), [1, 2, 3]);
+  assert.ok(applied.at(-1).every(r => r.status === 'verified' && r.protectedBeforeHash === r.protectedAfterHash));
+  assert.deepEqual(db.rows.map(r => r.embedding), snapshot.documents.map(r => r.embedding));
+  await assert.rejects(c.rollbackPlan(db, plans, { execute: true, receipt: async r => {
+    restored.push(structuredClone(r)); throw new Error('receipt disk full');
+  } }), /disk full/);
+  assert.equal(db.writes, 4); assert.equal(restored[0][0].status, 'restored');
+  const retry = await c.rollbackPlan(db, plans, { execute: true, receipt: async r => restored.push(structuredClone(r)) });
+  assert.deepEqual(retry.map(r => r.status), ['already_restored', 'restored', 'restored']);
+  assert.equal(db.writes, 6); assert.deepEqual(db.rows, snapshot.documents);
+  await c.rollbackPlan(db, plans, { execute: true }); assert.equal(db.writes, 6);
+});
+test('rollback stops on a lost CAS or intervening owned/protected changes without overwriting them', async () => {
+  for (const mutate of [db => { db.updateOne = async () => ({ matchedCount: 0, modifiedCount: 0 }); },
+    db => { db.rows[0].audioEmbedding = [99]; }, db => { db.rows[0].embedding = [99]; },
+    db => { db.rows[0].mediaEmbeddingMeta.otherOwner = { value: 'concurrent' }; }]) {
+    const { snapshot, bundle } = fixtures(); const db = repo(snapshot.documents); const plans = c.planWrites(snapshot, bundle);
+    await c.applyPlan(db, plans, { execute: true }); mutate(db);
+    const beforeAttempt = structuredClone(db.rows);
+    await assert.rejects(c.rollbackPlan(db, plans, { execute: true }), /conflict|verification/);
+    assert.deepEqual(db.rows, beforeAttempt);
+  }
+});
+test('post-write read mismatch stops subsequent rows and never emits a verified receipt', async () => {
+  const { snapshot, bundle } = fixtures(); const db = repo(snapshot.documents); const plans = c.planWrites(snapshot, bundle);
+  const write = db.updateOne; db.updateOne = async (...args) => { const result = await write(...args); db.rows[0].text = 'another writer'; return result; };
+  const receipts = [];
+  await assert.rejects(c.applyPlan(db, plans, { execute: true, receipt: async r => receipts.push(r) }), /Post-write/);
+  assert.equal(db.writes, 1); assert.equal(receipts.length, 0);
+});
 test('index proposals preserve legacy fields, reject conflicts and poll expected definition only', async () => {
   const p = c.indexPlan(index); assert.equal(p.added.length, 3); assert.deepEqual(p.before, index.latestDefinition);
   assert.equal(c.indexPlan(index, 'A').added.length, 2);

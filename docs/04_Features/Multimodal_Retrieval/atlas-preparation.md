@@ -2,6 +2,8 @@
 
 本文件說明如何用第三階段保存的向量，準備三筆 Chunk 的 Atlas 驗證。工具預設只讀取資料及產生寫入計畫，完整備份、逐字稿與向量只保存在忽略的 `.local-tools/`。整體功能狀態見[目前狀態](../../current-status.md)，提交紀錄見[進度](evidence/進度.md)。
 
+**最新邊界（2026-11-11）：原晚間窗口已取消。本輪僅獨立工具與離線驗證，正式 Atlas 操作仍 No-Go。** 使用者接受小樣本範圍與 M0 剩餘風險；無衝突、接手管理者及執行當下證據仍須確認。以下歷史窗口不再是執行時程，最終依本頁末的清單與 [decisions.md](decisions.md#2026-11-11-最新操作邊界) 接續，不自動開始。
+
 ## 2026-11-10 實際查證
 
 - `focusflow.video_segments_text` 六支指定影片共 694 筆，已完整匯出為 BSON Extended JSON，保留型別及 SHA-256 校驗。每份約 88.7 MB，只存本機，不進 Git。
@@ -116,7 +118,7 @@ Free 監測只有 Connections、Logical Size、Network、Opcounters 等有限指
 
 剩餘核准為操作窗口、接受 M0 監測盲區及雙次重建風險、三筆 CAS 寫入、同名索引更新與必要回復。單一小樣本技術驗證沿用三個保存 query；完整 43 題品質驗收仍另外受 X01、全量資料與評測條件限制。
 
-## 2026-11-11 20:00–22:00 窗口與授權關卡
+## 原 2026-11-11 20:00–22:00 窗口與授權關卡（已取消，歷史紀錄）
 
 使用者已指定台灣時間 2026-11-11 20:00–22:00。當前只核准文件提交／push、唯讀查證、備份校驗與 Dry Run，狀態為 PREP-ONLY／NO-GO FOR WRITE。即使準備檢查通過，也不建立排程或自動開始；必須使用者於窗口內在線再次明確核准三筆 CAS 寫入、同名索引更新、真實三路驗證與必要回復。
 
@@ -150,3 +152,41 @@ Free 監測只有 Connections、Logical Size、Network、Opcounters 等有限指
 當次 latestDefinition beforeHash 為 `1cb8b24998df4c6ec0a629b4490044d1cdd868c6d711cc1c2680596cce785935`；三節點完整定義 hash 均為 `4a3f8d5c8bbf57d82bec890bdca8574d00fabbea4310263af75727b4db126eb4`。窗口核對須同時保留兩者，確認 fields 完全一致、差異只限已確認的預設 numPartitions: 1；其他差異即停止。更新／回復使用當次保存的使用者定義，不把節點狀態或額外預設欄位直接抄入提案。每次重建後仍要檢查三節點 READY／queryable、使用者定義 hash 及逐節點欄位，不能僅依現有 index-wait 的整體結果放行。
 
 目前本機未安裝 mongosh。若窗口核准後仍沿用文件中的 mongosh 操作，須先備妥該操作環境；也可先明確選定既有 Node MongoDB driver 的 collection.updateSearchIndex 等價操作，唯讀已確認方法與帳號權限存在。此次沒有安裝工具、試更新或新增開發。下午實查證據與剩餘門檻以 [目前狀態](../../current-status.md) 為準。
+
+## Node Driver 離線驗證與操作介面
+
+使用獨立 [index-control.js](../../../backend/scripts/atlas-multimodal/index-control.js)，不載入 app／models 或 env，也不建立連線；呼叫端提供已核對命名空間、關閉 retryReads／retryWrites 並設好連線逾時的 collection。沒有新增 CLI 寫入模式、自動排程或自動回復。原 `run.js --mode index-wait` 仍是整體狀態檢查，不可取代此介面的逐節點驗證。
+
+`transitionIndex(collection, proposal, options)` 的 proposal 是既有 `control.indexPlan(當次索引前像, 'B')`；會重新驗算 beforeHash／afterHash、保留舊向量與 filters、只增三個 path、定義不超過 3 KB。direction 為 forward 或 restore，預設 execute=false：讀取／檢查 → 回傳 dry_run 與目標 JSON → 更新次數 0。restore 使用同一份前像提案的 before，而不是從變更後索引重新產生提案。
+
+正式核准後才可指定 execute=true、approveHash=approvalHash(proposal)，並傳入 `createIndexJournal('.local-tools/atlas-preparation/<當次操作>/index-receipts')` 回傳的 receipt／readReceipt。這個索引 operationHash 綁定 namespace、索引名及 before／after；它與既有綁定 bundle／三筆資料的 planHash 分工不同，正式檢查必須同時記錄，不能互相替代。紀錄檔依 operationHash 與 direction 分開，包含完整檢查快照、階段與 checksum，寫後 flush 並回讀；不得刪除紀錄來規避重送保護。範例只讀呼叫：
+
+```js
+const { transitionIndex } = require('./backend/scripts/atlas-multimodal/index-control');
+// collection 與 proposal 由已完成目標／備份核對的呼叫端提供；這裡不建立連線。
+const forward = await transitionIndex(collection, proposal); // dry_run，after JSON
+// restore Dry Run 僅在正向已完成且三節點就緒時適用；原索引已在前像則回報 already_at_target。
+const restore = await transitionIndex(collection, proposal, { direction: 'restore' });
+```
+
+流程為前像／三節點就緒 → prepared 落盤 → 重新讀取前像／版本／index id → submission_started 落盤 → 單次 `collection.updateSearchIndex('text_embedding_index', target)` → submitted 落盤 → 輪詢三節點及定義 → verified 落盤。所有節點需 READY／queryable，無 stagedIndex，定義只允許已確認的 numPartitions: 1 預設差異。Node Driver 的真實方法及命令建構器以 Fake 執行端離線驗證；這不等於 Atlas 已接受或完成更新。
+
+輪詢最多 61 次、間隔 30 秒；逾時只停止，不重送、不反向重建。FAILED、額外定義、節點缺漏、權限／配額拒絕、網路未知結果或 receipt 故障均向呼叫端拋錯，不捕捉後自動重試。submitted／submission_started 紀錄存在時，後續執行若未確認三節點已達目標則禁止再送；已達目標只回報 already_at_target。索引更新無伺服器 CAS，最後一次讀取後仍存在競爭時間差，因此不得同時跑多個工具／管理者；不能以 Mock 測試取代排他操作確認。
+
+三筆資料仍沿用 `planWrites/applyPlan/rollbackPlan`。rollback 現在也逐筆保存 receipt；失敗後已回復項目不重寫，其他人的欄位或 CAS 衝突均停止。索引 journal 與資料 write／rollback receipt 使用不同檔案；錯誤、逾時時一併保留，不能用完整 collection 備份強制覆蓋。正式驗證後，只有在平台狀態允許時才按既定計畫回復欄位及索引，回復完成同樣必須有三節點與舊文字基準證據。
+
+## 最終 Go／No-Go 與管理者確認
+
+管理者須當次確認並留下時間／姓名／聯絡方式：目前無 Atlas 資料／索引變更、VM 修復或正式部署衝突；操作期間不啟動其他變更；有具處置權限者在線接手；可讀取索引三節點、Throttling／告警與基礎資源圖表；若超時或失聯，由誰持續唯讀監測與交接。無法確認任一項即 No-Go。不能只從 GitHub 沒有執行中的部署推定所有人都沒操作。
+
+| 放行條件 | 必要證據／停止條件 |
+|---|---|
+| 最新授權與人員 | 本輪只授權離線工作；正式操作前確認最新授權有效、排他協調與接手人員，不自動開始 |
+| M0／索引與資源 | 管理端當次 M0、全叢集三索引、可用監測與告警；不建立第四個，不升級；嚴重節流／告警即停 |
+| 前像及資料 | fresh 備份回讀 checksum、限定 694 範圍標示、三筆身份／原始時間／逐字稿／舊 embedding、九個保存向量及新增欄位狀態；與舊備份不一致先查明 |
+| 計畫與索引 | 當次資料 planHash 及索引 operationHash、完整 before／after、三節點 READY／queryable；出現未核准欄位或版本衝突即停 |
+| 基準與 receipt | 舊文字三筆 rank 1、課程／影片負例正常、延遲觀察；磁碟資料 receipt、正反向索引 journal 與監測可用 |
+| Driver／CAS 離線門檻 | 執行驗證紀錄中的定向測試確認工具行為；Mock 通過不等於以上即時條件已通過，測試結果見目前狀態 |
+| 驗證與回復 | 真實三路、兩種 RRF、原始時間及授權負例，再按 receipt／CAS 回復三筆與原索引；等待回復重建完成、694 向量不變、重跑舊文字基準 |
+
+任何前置未通過即不寫入。送出後結果不明先查平台，保留全部證據交接管理者；不得因為尚未完成驗收就宣稱成功或盲目回復。

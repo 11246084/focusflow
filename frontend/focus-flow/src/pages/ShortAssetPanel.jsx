@@ -3,7 +3,7 @@ import { Ic } from '../components/Icons';
 import { formatBytes, getTeacherUploadStatus, getUploadStorage, waitingUploadText } from '../services/youtubeLifecycle';
 import { retryAssetUpload, uploadAsset } from '../services/shortScript';
 import { describeAssetState } from '../services/shortScriptStatus';
-import { formatFileSize } from './teacherUploadUtils';
+import { formatFileSize, validateVideoFile } from './teacherUploadUtils';
 import { EmptyRow, ErrorBanner, Pill } from './shortScriptUi';
 import { ACCENT, BODY, DIVIDER, GHOST_BTN, MUTED, SECTION_LABEL, SMALL_BTN, describeError } from './shortScriptStyles';
 
@@ -50,6 +50,12 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
   const inputRef = useRef(null);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [storage, setStorage] = useState(null);
+  // 上傳可能跑很久，教師中途切到別份腳本時這個元件會卸載；await 之後先看這個旗標再寫 state。
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   useEffect(() => {
     let active = true;
     getTeacherUploadStatus().then((data) => { if (active) setUploadStatus(data); }).catch(() => {});
@@ -70,11 +76,17 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
   function pickFile(files) {
     const picked = files?.[0];
     if (!picked) return;
-    setFile(picked);
-    setNotice('');
-    setError('');
+    // 拖放不受 input 的 accept 限制：類型或大小不符就立刻擋下，不等整支上傳完才被後端拒絕。
+    const invalid = validateVideoFile(picked);
     // 同一個檔案連續選兩次時 change 事件不會再觸發，選完就清掉 input 的值。
     if (inputRef.current) inputRef.current.value = '';
+    setNotice('');
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    setFile(picked);
+    setError('');
   }
 
   async function handleUpload() {
@@ -93,15 +105,18 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
         description: description.trim(),
         versionNo: version.versionNo,
       });
-      resetForm();
-      setNotice(uploadStatus?.pause?.paused ? '已送出。YouTube 上傳暫停中，系統會自動補傳；完成後可在「短影片審核」頁看片審核。' : '已送出。系統會將影片傳上 YouTube，完成後可在「短影片審核」頁看片審核；審核通過後學生才看得到。');
+      if (mountedRef.current) {
+        resetForm();
+        setNotice(uploadStatus?.pause?.paused ? '已送出。YouTube 上傳暫停中，系統會自動補傳；完成後可在「短影片審核」頁看片審核。' : '已送出。系統會將影片傳上 YouTube，完成後可在「短影片審核」頁看片審核；審核通過後學生才看得到。');
+      }
       // 上傳可能把同一份腳本既有的待上架成品換代，腳本狀態也可能改變，兩邊都要重讀。
-      await onChanged?.();
+      // 元件已卸載時仍要通知，由上層依「現在選的腳本」決定只更新清單或連詳情一起重讀。
+      await onChanged?.(script._id);
     } catch (requestError) {
       // 失敗時保留教師已選的檔案、標題與勾選，修正後可直接再送。
-      setError(describeError(requestError));
+      if (mountedRef.current) setError(describeError(requestError));
     } finally {
-      setBusy('');
+      if (mountedRef.current) setBusy('');
     }
   }
 
@@ -110,11 +125,11 @@ export default function ShortAssetPanel({ script, version, assets, compact = fal
     setError('');
     try {
       await retryAssetUpload(assetId);
-      await onChanged?.();
+      await onChanged?.(script._id);
     } catch (requestError) {
-      setError(describeError(requestError));
+      if (mountedRef.current) setError(describeError(requestError));
     } finally {
-      setBusy('');
+      if (mountedRef.current) setBusy('');
     }
   }
 

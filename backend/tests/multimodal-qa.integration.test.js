@@ -105,7 +105,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
     const channel = { stableTextEmbedding: 'text', audioEmbedding: 'audio', visualEmbedding: 'visual' }
       [pipeline[0].$vectorSearch.path];
     assert.ok(pipeline[0].$vectorSearch.filter.videoId.$in.includes(chunk.videoId));
-    if (scenario === 'partial' && channel === 'audio') throw new Error('unavailable');
+    if (scenario === 'all-failed' || (scenario === 'partial' && channel === 'audio')) throw new Error('unavailable');
     if (scenario === 'empty') return [];
     return [{ ...chunk, ...(scenario === 'invalid-time' ? { endSec: -1 } : {}), score: 0.9, mediaEmbeddingMeta: {
       [channel]: channel === 'text' ? contract : { provider: 'gemini', dimension: 3072,
@@ -144,7 +144,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
   assert.equal(hierarchical.citations[0].timestamp.startSec, chunk.startSec);
   assert.deepEqual(hierarchical.citations[0].retrievedBy, ['text', 'audio', 'visual']);
   env.hierarchicalRetrievalEnabled = false;
-  for (const variant of ['partial', 'missing-index', 'preflight-failed', 'empty', 'invalid-time']) {
+  for (const variant of ['partial', 'missing-index', 'preflight-failed', 'empty', 'invalid-time', 'all-failed']) {
     scenario = variant;
     env.faqCacheEnabled = false;
     const degraded = await ask();
@@ -178,6 +178,14 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
     }
     const { toStudentCitation } = await import('../../frontend/focus-flow/src/pages/qaConversationUtils.js');
     assert.equal(toStudentCitation(response.body.data.matches[0]).retrievalLabel, '文字、聲音、畫面');
+    if (process.env.MULTIMODAL_FULL_BROWSER_OUTPUT) {
+      const { runStudentBrowser } = await import('../scripts/runStudentBrowserFixture.mjs');
+      const result = await runStudentBrowser({ backendUrl: context.baseUrl, env, store, ids,
+        chunkId: chunk.chunkId, startSec: chunk.startSec, endSec: chunk.endSec, setScenario: value => { scenario = value; },
+        outputDirectory: process.env.MULTIMODAL_FULL_BROWSER_OUTPUT,
+        mediaFile: process.env.MULTIMODAL_SYNTHETIC_MEDIA });
+      assert.equal(result.length, 6);
+    }
   } finally {
     await stopServer(context.server);
   }

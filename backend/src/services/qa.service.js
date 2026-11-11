@@ -1604,6 +1604,8 @@ async function askQuestion({
       textSearch: getLegacyMatches,
       hierarchicalTextSearch: getLegacyMatches,
       loadEvidence: async () => scopedSegments.map(asEvidence),
+      // 穩定版文字向量還沒覆蓋整個範圍時（例如只寫入部分 chunk），改用既有文字檢索當文字那一路。
+      minTextCandidates: Math.min(20, scopedSegments.length),
     });
     const bridgeMatches = bridge.usedFallback ? legacyResult.matches.map(match => ({
       ...match, retrievedBy: ['text'], channelRanks: {},

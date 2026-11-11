@@ -79,6 +79,70 @@ test('missing transcript and restricted chunk allowlist reject visual evidence',
   }
 });
 
+// 以下四項是整合審查補的回歸測試：穩定版文字向量不在索引裡、或只覆蓋部分 chunk 時的行為。
+function atlasFixture(rowsByPath) {
+  const { buildGeminiTextSearchContract } = require('../src/services/embeddingContract.service');
+  const contract = buildGeminiTextSearchContract();
+  const meta = channel => (channel === 'text' ? contract : { provider: 'gemini', dimension: 3072, status: 'success',
+    model: 'gemini-embedding-2', contractVersion: `gemini_embedding_2_${channel}_v1` });
+  const channelOf = { stableTextEmbedding: 'text', audioEmbedding: 'audio', visualEmbedding: 'visual' };
+  const indexSnapshot = { name: 'text_embedding_index', type: 'vectorSearch', status: 'READY', queryable: true,
+    latestDefinition: { fields: Object.keys(rowsByPath).map(path => ({ path, type: 'vector', numDimensions: 3072,
+      similarity: 'cosine' })).concat([{ path: 'videoId', type: 'filter' }]) } };
+  const collection = { aggregate: pipeline => ({ toArray: async () => {
+    const path = pipeline[0].$vectorSearch.path;
+    return (rowsByPath[path] || []).map((row, index) => ({ ...row, score: 0.9 - index / 100,
+      mediaEmbeddingMeta: { [channelOf[path]]: meta(channelOf[path]) } }));
+  } }) };
+  return { atlas: { collection, indexSnapshot, textPath: 'stableTextEmbedding', textDataContract: contract },
+    queryEmbedding: { ...contract, provider: 'gemini', modality: 'query', status: 'success',
+      embedding: [1, ...Array(3071).fill(0)] } };
+}
+const chunkOf = (id, startSec) => ({ ...chunk, chunkId: id, startSec, endSec: startSec + 2, text: `逐字稿 ${id}` });
+
+test('索引沒有穩定版文字欄位時，文字那一路改用既有文字檢索，不會只剩聲音與畫面', async () => {
+  const a = chunkOf('a', 10); const b = chunkOf('b', 20);
+  const result = await retrieveForQa({ ...base, ...atlasFixture({ audioEmbedding: [a], visualEmbedding: [] }),
+    textSearch: async () => [b, a], loadEvidence: async () => [a, b], minTextCandidates: 2 });
+  assert.equal(result.usedFallback, false);
+  assert.equal(result.diagnostics.textSource, 'scoped_text_search');
+  assert.deepEqual(result.matches.map(match => match.chunkId).sort(), ['a', 'b']);
+  assert.deepEqual(result.matches.find(match => match.chunkId === 'a').retrievedBy, ['text', 'audio']);
+  assert.deepEqual(result.matches.find(match => match.chunkId === 'b').retrievedBy, ['text']);
+});
+
+test('穩定版文字向量只覆蓋部分 chunk 時不拿那一小部分當文字結果', async () => {
+  const a = chunkOf('a', 10); const b = chunkOf('b', 20); const covered = chunkOf('covered', 30);
+  const fixture = atlasFixture({ stableTextEmbedding: [covered], audioEmbedding: [a], visualEmbedding: [] });
+  const result = await retrieveForQa({ ...base, ...fixture, textSearch: async () => [a, b],
+    loadEvidence: async () => [a, b, covered], minTextCandidates: 20 });
+  assert.equal(result.usedFallback, false);
+  assert.equal(result.matches.some(match => match.chunkId === 'covered'), false);
+  assert.deepEqual(result.matches.map(match => match.chunkId).sort(), ['a', 'b']);
+});
+
+test('穩定版文字只覆蓋部分且聲音畫面都沒有結果時，退回既有文字檢索', async () => {
+  const a = chunkOf('a', 10); const covered = chunkOf('covered', 30);
+  const fixture = atlasFixture({ stableTextEmbedding: [covered], audioEmbedding: [], visualEmbedding: [] });
+  const result = await retrieveForQa({ ...base, ...fixture, textSearch: async () => [a],
+    loadEvidence: async () => [a, covered], minTextCandidates: 20 });
+  assert.equal(result.usedFallback, true);
+  assert.deepEqual(result.matches.map(match => match.chunkId), ['a']);
+  assert.deepEqual(result.matches[0].retrievedBy, ['text']);
+});
+
+test('穩定版文字向量覆蓋足夠時照常使用，不另外呼叫既有文字檢索', async () => {
+  const a = chunkOf('a', 10); const b = chunkOf('b', 20);
+  let textCalls = 0;
+  const fixture = atlasFixture({ stableTextEmbedding: [b, a], audioEmbedding: [a], visualEmbedding: [] });
+  const result = await retrieveForQa({ ...base, ...fixture, textSearch: async () => { textCalls++; return []; },
+    loadEvidence: async () => [a, b], minTextCandidates: 2 });
+  assert.equal(textCalls, 0);
+  assert.equal(result.usedFallback, false);
+  assert.equal(result.diagnostics.textSource, undefined);
+  assert.deepEqual(result.matches.find(match => match.chunkId === 'a').retrievedBy, ['text', 'audio']);
+});
+
 test('offline export covers six groups, two hierarchies and two weights with shared media', () => {
   const records = buildComparisonRecords({ questionId: 'q1', scope,
     flat: { text: [], audio: [chunk], visual: [] }, hierarchical: { text: [chunk] } });

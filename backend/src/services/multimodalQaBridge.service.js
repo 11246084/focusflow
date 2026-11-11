@@ -16,7 +16,7 @@ function faqEvidenceVersion(baseVersion, settings) {
 
 // The caller supplies authorized transcript records, never model-generated visual descriptions.
 async function retrieveForQa({ scope, settings, question = '', queryEmbedding, atlas,
-  searchers, textSearch, hierarchicalTextSearch, loadEvidence }) {
+  searchers, textSearch, hierarchicalTextSearch, loadEvidence, minTextCandidates = 1 }) {
   const config = retrievalSettings(settings);
   if (!scope?.courseId || !Array.isArray(scope.allowedVideoIds)
     || !scope.allowedVideoIds.every(id => typeof id === 'string' && id)) {
@@ -50,14 +50,27 @@ async function retrieveForQa({ scope, settings, question = '', queryEmbedding, a
     try {
       if (atlas) {
         result = await retrieveAtlasMultimodal({ ...atlas, queryEmbedding, scope, mode: config.mode });
+        // The stable text path can be absent from the index, or cover only part of the scope while
+        // vectors are still being written. Fusing then would answer from media channels alone, or from
+        // the covered subset of chunks. In that case the caller's text search, which covers every
+        // authorized chunk, is the text channel (the same substitution hierarchy already makes).
+        const stableText = result.diagnostics?.text;
+        const stableTextReady = stableText?.status === 'success'
+          && stableText.count >= Math.max(1, Number(minTextCandidates) || 1);
+        const mediaFound = (result.lists?.audio?.length || 0) + (result.lists?.visual?.length || 0) > 0;
         // Hierarchy changes only the text channel; reuse the adapter's media lists.
-        if (config.hierarchy) {
+        if (config.hierarchy || (!stableTextReady && mediaFound)) {
           const atlasResult = result;
           result = await retrieveMultimodal({ question, scope, mode: config.mode, searchers: {
             text: () => text(question, scope), audio: async () => atlasResult.lists.audio,
             visual: async () => atlasResult.lists.visual,
           } });
           result.diagnostics.atlas = atlasResult.diagnostics;
+          result.diagnostics.textSource = config.hierarchy ? 'hierarchy' : 'scoped_text_search';
+        } else if (!stableTextReady) {
+          // No media candidates and no usable stable text: nothing to fuse. Dropping the partial
+          // text rows lets the scoped text fallback below answer, exactly as when multimodal is off.
+          result = { ...result, matches: [] };
         }
       } else {
         result = await retrieveMultimodal({ question, scope, mode: config.mode,

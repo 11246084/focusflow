@@ -242,11 +242,11 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
   // ── 這一步的主要動作與停用原因 ─────────────────────────────────────
   let primary = null;
-  if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生講稿' : '產生講稿', onClick: generate, busy: pending === 'generate' };
+  if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
   else if (state === 'script_review' && review?.draft) {
     primary = { label: '套用修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
-    primary = { label: '核准講稿，開始製作', onClick: approveAndRender, busy: pending === 'approve',
+    primary = { label: '核准講稿', onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
   } else if (state === 'script_approved') primary = { label: '開始製作', onClick: render, busy: pending === 'render' };
   else if (state === 'render_failed' && review?.draft) {
@@ -400,11 +400,11 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         {loading && <p className="rc-reason">載入中…</p>}
         {!loading && busy && (
           <StatusCard title={BUSY_TEXT[state] || info.label}>
-            <p>{state === 'rendering' || state === 'render_queued' ? '大約需要幾分鐘，完成後會通知你。可以先離開這一頁。' : '通常不到一分鐘，完成後講稿會出現在這裡。'}</p>
+            <p>{state === 'rendering' || state === 'render_queued' ? '約幾分鐘，完成會通知你' : '約一分鐘'}</p>
           </StatusCard>
         )}
         {!loading && state === 'idle' && !review && (
-          <section className="rc-panel"><p>{info.label === '尚未產生講稿' ? 'AI 會從原片挑出能回答這題的句子，整理成 30～65 秒的講稿。' : (error || info.label)}</p></section>
+          <section className="rc-panel"><p>{info.label === '尚未產生講稿' ? '還沒有講稿' : info.label}</p></section>
         )}
 
         {!loading && showAsset && (

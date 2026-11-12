@@ -124,4 +124,4 @@ async function transitionIndex(collection, plan, { direction = 'forward', execut
   await receipt(result);
   return result;
 }
-module.exports = { sameDefinition, nodesReady, approvalHash, transitionIndex, createIndexJournal };
+module.exports = { assertSnapshot, ready, sameDefinition, nodesReady, approvalHash, transitionIndex, createIndexJournal };

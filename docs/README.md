@@ -1,5 +1,9 @@
 # FocusFlow 文件總覽
 
+影片一建置前的實查、成本邊界與執行阻塞見 [影片一最終檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)（2026-11-12）。
+
+影片一工具的無付費預演、受控寫入與安全 QA 操作方式見 [影片一批次工具](04_Features/Multimodal_Retrieval/video1-tools.md)。
+
 既有六支影片、題庫與四組公平比較的盤點／規劃見 [真實資料優先測試計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)（2026-11-12）。
 
 給組員的架構、成果層級、真實小樣本證據與下一步，先讀 [多模態團隊進度總覽](04_Features/Multimodal_Retrieval/team-overview.md)（2026-11-11 快照；最新狀態以 current-status 為準）。

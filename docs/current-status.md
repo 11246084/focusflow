@@ -4,6 +4,14 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 影片一三項工具擴充（2026-11-12）
+
+三項工具缺口已完成本機實作：固定117筆 manifest／351輸入的 Gemini batch（共用20美元 ledger、跨重啟三次上限）、B方案117筆 CAS／自動備份／雜湊授權與固定索引 journal、安全真實 Atlas QA Harness（正式 QA 邏輯、全部狀態寫入記憶體）。目前只驗證 Fake Atlas，不宣稱真實 Atlas QA 成功或回答品質驗收。既有234個切片完成351輸入Fake SDK，6筆真實原生 Checkpoint 重用驗證成功且 ledger 未變。真實字稿／原時間／保存 query 的 Fake Atlas HTTP QA＋對話也通過。Backend完整1942項、1941通過、0失敗、1既有略過；最終寫入工具4項、QA工具2項另通過。Pipeline受影響五檔34項通過；全套 discover 在本機提前結束且未留下可採信測試輸出，不能列為通過。無付費、Atlas寫入／索引更新、部署、正式評測或開旗標，qa.service.js未改。工具層GO；下一輪真實執行仍需當次授權與當下索引／權限／容量檢查，Hierarchical真實Parent另待39筆。詳見[工具操作](04_Features/Multimodal_Retrieval/video1-tools.md)。
+
+## 影片一建置前最終檢查（2026-11-12）
+
+已 pull，dev e3774d4。唯讀實查 V1 117 Chunk、舊向量 117、新三路各 0；保存 6 筆向量可重用，尚缺 345 輸入。117 段影音共 234 檔實際切出並解碼；694 完整範圍備份重讀校驗、三索引三節點 READY、三筆 Dry Run／回復 Dry Run、62 項 Backend、10 項 Adapter、US$20 重試邊界通過。批次實作仍 NO-GO：現有 runner／writer 固定 12 輸入／原三筆，尚缺安全真實 Atlas QA harness。本輪僅提出最小修正，未改核心程式、未付費、未 Atlas 寫入／索引更新、未正式評測、未開旗標、未 commit/push。當次本機旗標未設定，未查正式站設定；完整結果與下一步見[影片一檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)。
+
 ## 多模態交接缺口修正（2026-11-12）
 
 庭語已接手三項：完整授權範圍stable文字覆蓋檢查（包含25/40但搜尋回滿20的回歸）、索引30秒成功／5秒失敗快取與清除、25項授權矩陣。Q5已核定合法共享向量，Adapter不再把來源courseId當ACL。受影響62項通過，完整Backend以檔案隔離4併行回歸1936項、1935通過、0失敗、1既有略過；最新矩陣25項另獨立通過，包含語意FAQ及draft角色子例。矩陣包含信任前置觀察，不全是攻擊阻擋證據。42題暫定計分支援已實作、X01排名／Gold保留、protocolHash分版，未執行正式評測。新覆蓋聚合實際唯讀查到0/694且正確不放行。未做全量向量／Atlas寫入／索引操作、開旗標或部署；ON＋shadow低優先缺口仍在。新版四階段取消S60，先V1、其餘五片、自動備份、索引只改一次、US$20停，成功資料保留且旗標關閉；詳見[計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)及[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。

@@ -21,13 +21,15 @@ function vectorDigest(vector) {
   vector.forEach((v, i) => bytes.writeDoubleLE(v, i * 8));
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
-function validateBundle(bundle) {
-  if (bundle?.schemaVersion !== 'atlas_sample_v1' || bundle.executionMode !== 'gemini' || bundle.records?.length !== 12) throw new Error('Invalid bundle');
+function validateBundle(bundle, scope = null) {
+  const ids = scope?.ids || IDS;
+  const kinds = scope ? ['text', 'audio', 'visual'] : ['query', 'text', 'audio', 'visual'];
+  if (bundle?.schemaVersion !== (scope ? 'atlas_video1_v1' : 'atlas_sample_v1') || bundle.executionMode !== 'gemini' || bundle.records?.length !== ids.length * kinds.length) throw new Error('Invalid bundle');
   const seen = new Set();
   for (const r of bundle.records) {
     const m = r.metadata;
     const key = `${r.identity?.chunkId}:${r.kind}`;
-    if (seen.has(key) || !IDS.includes(r.identity?.chunkId) || !['query', 'text', 'audio', 'visual'].includes(r.kind)
+    if (seen.has(key) || !ids.includes(r.identity?.chunkId) || !kinds.includes(r.kind)
       || r.identity.courseId !== COURSE_ID || !VIDEO_IDS.includes(r.identity.videoId)
       || !r.identity.chunkId.startsWith(`${r.identity.videoId}_chunk_`)
       || !Number.isFinite(r.identity.startSec) || !(r.identity.endSec > r.identity.startSec)
@@ -74,9 +76,9 @@ async function waitReady(read, definition, { attempts = 61, sleep = ms => new Pr
   }
   throw new Error('Index readiness timeout; stop');
 }
-function assertScope(doc, videos, identity) {
+function assertScope(doc, videos, identity, ids = IDS) {
   const video = videos.find(v => String(v._id) === doc.videoId);
-  if (!IDS.includes(doc.chunkId) || !video || String(video.courseId) !== COURSE_ID
+  if (!ids.includes(doc.chunkId) || !video || String(video.courseId) !== COURSE_ID
     || (doc.courseId != null && String(doc.courseId) !== COURSE_ID)
     || doc.videoId !== identity.videoId || doc.chunkId !== identity.chunkId
     || doc.startSec !== identity.startSec || doc.endSec !== identity.endSec) throw new Error('Live identity conflict');
@@ -96,11 +98,14 @@ function protectedHash(doc) {
   }
   return hash(copy);
 }
-function planWrites(snapshot, bundle, strategy = 'B') {
-  validateBundle(bundle);
-  if (snapshot.database !== 'focusflow' || snapshot.collection !== 'video_segments_text' || snapshot.documents.length !== 3
-    || new Set(snapshot.documents.map(d => d.chunkId)).size !== 3) throw new Error('Invalid snapshot scope');
-  return IDS.map(id => {
+function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
+  if (scope) require('./video1-scope').validateScope(scope);
+  const ids = scope?.ids || IDS;
+  if (scope && strategy !== 'B') throw new Error('Video1 requires strategy B');
+  validateBundle(bundle, scope);
+  if (snapshot.database !== 'focusflow' || snapshot.collection !== 'video_segments_text' || snapshot.documents.length !== ids.length
+    || new Set(snapshot.documents.map(d => d.chunkId)).size !== ids.length) throw new Error('Invalid snapshot scope');
+  return ids.map(id => {
     const doc = snapshot.documents.find(d => d.chunkId === id);
     if (!doc) throw new Error('Missing target');
     if (doc.mediaEmbeddingMeta != null && (typeof doc.mediaEmbeddingMeta !== 'object' || Array.isArray(doc.mediaEmbeddingMeta))) throw new Error('Metadata root conflict');
@@ -108,7 +113,11 @@ function planWrites(snapshot, bundle, strategy = 'B') {
     const desired = {};
     for (const kind of Object.keys(PATHS).filter(k => strategy === 'B' || k !== 'text')) {
       const r = bundle.records.find(r => r.kind === kind && r.identity.chunkId === id);
-      assertScope(doc, snapshot.videos, r.identity);
+      assertScope(doc, snapshot.videos, r.identity, ids);
+      if (scope) {
+        const frozen = scope.chunks.find(c => c.chunkId === id);
+        if (doc.text !== frozen.text || ['videoId', 'startSec', 'endSec'].some(k => doc[k] !== frozen[k])) throw new Error('Manifest identity conflict');
+      }
       const text = bundle.records.find(r => r.kind === 'text' && r.identity.chunkId === id);
       if (doc.text !== text.text) throw new Error('Transcript conflict');
       desired[PATHS[kind]] = r.embedding;
@@ -124,7 +133,7 @@ function casFilter(current) {
   // $expr compares the complete document; any concurrent edit causes matchedCount=0.
   return { _id: current._id, $expr: { $eq: ['$$ROOT', { $literal: current }] } };
 }
-async function applyPlan(collection, plans, { execute = false, receipt = async () => {} } = {}) {
+async function applyPlan(collection, plans, { execute = false, receipt = async () => {}, intent = async () => {} } = {}) {
   const results = [];
   for (const plan of plans) {
     const current = await collection.findOne({ _id: plan.before._id }, OPTIONS);
@@ -136,6 +145,7 @@ async function applyPlan(collection, plans, { execute = false, receipt = async (
     if (!execute) { results.push({ chunkId: plan.chunkId, status: 'dry_run', fields: plan.keys,
       changes: plan.keys.map(path => ({ path, existed: get(current, path) !== undefined,
         beforeHash: hash(get(current, path)), afterHash: hash(plan.desired[path]) })) }); continue; }
+    await intent({ chunkId: plan.chunkId, operation: 'apply', beforeHash: hash(current), desiredHash: hash(plan.desired) });
     const update = await collection.updateOne(casFilter(current), { $set: plan.desired }, { ...OPTIONS, upsert: false });
     if (update.matchedCount !== 1 || update.modifiedCount !== 1) throw new Error('CAS conflict; stopped');
     const after = await collection.findOne({ _id: current._id }, OPTIONS);
@@ -145,7 +155,7 @@ async function applyPlan(collection, plans, { execute = false, receipt = async (
   }
   return results;
 }
-async function rollbackPlan(collection, plans, { execute = false, receipt = async () => {} } = {}) {
+async function rollbackPlan(collection, plans, { execute = false, receipt = async () => {}, intent = async () => {} } = {}) {
   const result = [];
   for (const p of plans) {
     const current = await collection.findOne({ _id: p.before._id }, OPTIONS);
@@ -160,6 +170,7 @@ async function rollbackPlan(collection, plans, { execute = false, receipt = asyn
     }
     if (execute) {
       const update = { ...(Object.keys($set).length ? { $set } : {}), ...(Object.keys($unset).length ? { $unset } : {}) };
+      await intent({ chunkId: p.chunkId, operation: 'restore', beforeHash: hash(current), desiredHash: hash(p.before) });
       const r = await collection.updateOne(casFilter(current), update, { ...OPTIONS, upsert: false });
       if (r.matchedCount !== 1 || !currentMatches(await collection.findOne({ _id: current._id }, OPTIONS), p.before)) throw new Error('Rollback verification failed');
     }

@@ -167,6 +167,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `SHORT_SCRIPT_NOT_FOUND` | 404 | 短影片腳本不存在 |
 | `RECUT_STATE_INVALID` | 409 | 產片方式、目前版本、核准紀錄或背景工作狀態不允許此操作 |
 | `RECUT_TASK_NOT_FOUND` | 404 | recut 任務不存在或不屬於指定腳本 |
+| `RECUT_BATCH_LIMIT_EXCEEDED` | 409 | 同一門課已有 5 支 recut 短片在排隊或產生講稿，暫不接受新的產生（教師一批最多 5 支） |
 | `RECUT_STEPS_NOT_CONFIGURED` | 503 | recut 步驟尚未註冊，或排隊時記錄的步驟 ID 與目前程式不符 |
 | `RECUT_SETTING_INVALID` | 503 | recut 呼叫上限設定無效（初次至少 3 次，修改至少 2 次） |
 | `RECUT_WINDOW_NOT_FOUND` | 422 | 直接命中無法形成同影片連續 120～180 秒視窗 |

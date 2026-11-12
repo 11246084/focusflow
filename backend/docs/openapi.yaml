@@ -4765,6 +4765,7 @@ paths:
         需先選 recut；教師限自己的課程，admin 可管理所有課程。回 202 與 data.id，不等待生成。
         body 可省略或為空物件；教師不能指定模型、呼叫額度、步驟或任務類型。
         RC2～RC4 尚未註冊步驟時回 503 RECUT_STEPS_NOT_CONFIGURED；不建立假的成功工作。
+        同一門課已有 5 支 recut 短片在排隊或產生講稿時回 409 RECUT_BATCH_LIMIT_EXCEEDED，不建立工作。
         沿用 SHORT_SCRIPT_AUTOMATION_ENABLED，關閉時回 404。
       operationId: startRecutGeneration
       parameters:
@@ -4790,7 +4791,11 @@ paths:
         '404':
           $ref: '#/components/responses/ShortScriptNotFoundError'
         '409':
-          $ref: '#/components/responses/RecutConflictError'
+          description: RECUT_STATE_INVALID（狀態不允許），或 RECUT_BATCH_LIMIT_EXCEEDED（同一門課已有 5 支在產生講稿）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: RECUT_STEPS_NOT_CONFIGURED 或 RECUT_SETTING_INVALID，尚未註冊步驟或後端呼叫上限設定無效。
           content:

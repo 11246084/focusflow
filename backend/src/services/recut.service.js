@@ -6,6 +6,7 @@ const { assertObjectId } = require('../utils/objectId');
 const { getCourseByIdOrThrow, assertCanManageCourse } = require('./courseAccess.service');
 const { productionMode, recutSnapshot, setProductionModeForScript } = require('./recutState.service');
 const { recutQueue } = require('./recutQueue.service');
+const { RECUT_GENERATION_BATCH_LIMIT, RECUT_STATES } = require('../constants/recut');
 
 async function loadForManage({ user, scriptId }) {
   assertObjectId(scriptId, 'short script');
@@ -27,8 +28,20 @@ async function setProductionMode({ user, scriptId, mode }) {
   const script = await setProductionModeForScript({ scriptId, mode });
   return { scriptId: String(script._id), productionMode: productionMode(script), recut: recutSnapshot(script) };
 }
+// 一批最多 5 支：同一門課已有 5 支在排隊或產生講稿時，不再接受新的產生。
+// 這是額度保護；兩個請求同時送出時可能都通過計數，前端一律依序送出。
+async function assertGenerationBatchLimit(script) {
+  const generating = new Set([RECUT_STATES.QUEUED, RECUT_STATES.GENERATING]);
+  const active = (await ShortScript.find({ courseId: script.courseId, productionMode: 'recut' }).lean())
+    .filter((item) => String(item._id) !== String(script._id) && generating.has(item.recut?.state));
+  if (active.length >= RECUT_GENERATION_BATCH_LIMIT) {
+    throw new AppError(`同一門課最多同時產生 ${RECUT_GENERATION_BATCH_LIMIT} 支短片的講稿，請等目前的完成後再開始。`,
+      409, 'RECUT_BATCH_LIMIT_EXCEEDED');
+  }
+}
 async function startGeneration({ user, scriptId }, queue = recutQueue) {
   const script = await loadForManage({ user, scriptId });
+  await assertGenerationBatchLimit(script);
   return toPublicTask(await queue.enqueue({ script, requestedBy: user.id }));
 }
 // 只公開目前版本渲染工作的狀態與錯誤代碼；worker 回報的原始訊息可能含技術細節，不給教師端。

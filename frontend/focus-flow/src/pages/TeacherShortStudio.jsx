@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import {
-  MAX_BATCH, consentNeeds, describeScript, isRecutScript, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
+  batchRoom, consentNeeds, describeScript, isRecutScript, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
 } from '../services/recutFlow.js';
 import {
   OPEN_SCRIPT_EVENT, consumePendingScriptOpen, isScriptTargetForPage, pickInitialCourseId, recallShortScriptCourse, rememberShortScriptCourse,
@@ -119,9 +119,11 @@ export default function TeacherShortStudio({ onNav }) {
     return undefined;
   }, [picking, candidates, courseId]);
 
+  // 後端同樣限制同一門課最多 5 支同時產生講稿；已在產生中的也算進去。
+  const room = batchRoom(scripts);
   const toggleTopic = (topicKey) => setChosen((prev) => (prev.includes(topicKey)
     ? prev.filter((key) => key !== topicKey)
-    : prev.length >= MAX_BATCH ? prev : [...prev, topicKey]));
+    : prev.length >= room ? prev : [...prev, topicKey]));
 
   // 一批最多 5 支：依序建立並開始產生，個別失敗不擋其他主題。
   const startBatch = async () => {
@@ -152,7 +154,7 @@ export default function TeacherShortStudio({ onNav }) {
   const pickerActions = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
-        disabled={!chosen.length} reason={`勾選要做的問題，一次最多 ${MAX_BATCH} 支`} />
+        disabled={!chosen.length} reason={room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
         <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 8 }} disabled={starting}
           onClick={() => { setPicking(false); setSelectedId(String(sorted[0]._id)); }}>返回</button>
@@ -183,7 +185,7 @@ export default function TeacherShortStudio({ onNav }) {
               <ul className="rc-topics">
                 {candidates.map((candidate) => {
                   const checked = chosen.includes(candidate.topicKey);
-                  const full = !checked && chosen.length >= MAX_BATCH;
+                  const full = !checked && chosen.length >= room;
                   return (
                     <li key={candidate.topicKey}>
                       <label className="rc-check" style={full ? { opacity: 0.55 } : undefined}>

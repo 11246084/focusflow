@@ -25,6 +25,12 @@ const STATE_INFO = {
   published: { step: 3, bucket: 'done', label: '已上架' },
 };
 
+// 這門課還能再開始幾支：上限扣掉已在排隊或產生講稿中的。
+export function batchRoom(scripts = []) {
+  const busy = scripts.filter((s) => ['queued', 'generating'].includes(s?.recut?.state)).length;
+  return Math.max(0, MAX_BATCH - busy);
+}
+
 export function stateInfo(state) {
   return STATE_INFO[state] || STATE_INFO.idle;
 }
@@ -162,6 +168,7 @@ export function rejectScope(codes = []) {
 
 const ERROR_TEXT = {
   RECUT_STATE_INVALID: '這支短片剛剛有更新，已重新載入。',
+  RECUT_BATCH_LIMIT_EXCEEDED: '這門課已有 5 支在產生講稿，完成後再開始。',
   RECUT_REVIEW_NOT_READY: '講稿還沒準備好。',
   RECUT_DURATION_INVALID: '總長需在 30～65 秒才能套用。',
   RECUT_LOCK_CONFIRM_REQUIRED: '這個建議會改到你調整過的句子，請確認後再採納。',

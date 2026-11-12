@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  buildScriptLines, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  batchRoom, buildScriptLines, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -26,6 +26,12 @@ describe('recut 狀態對應的步驟與待辦', () => {
 
   it('idle 且最近一次工作失敗時顯示產生失敗', () => {
     assert.equal(describeScript({ recut: { state: 'idle' } }, { status: 'failed' }).label, '產生失敗');
+  });
+
+  it('這門課還能開始的支數扣掉已在產生講稿中的', () => {
+    const busy = (state) => ({ recut: { state } });
+    assert.equal(batchRoom([busy('queued'), busy('generating'), busy('updating'), busy('script_review')]), 3);
+    assert.equal(batchRoom(Array.from({ length: 6 }, () => busy('generating'))), 0);
   });
 
   it('管理清單把等你處理排在最前，同組新的在前', () => {

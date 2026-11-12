@@ -70,6 +70,25 @@ describe('recut 最小 API', () => {
     const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: { callLimit: 100, type: 'apply_selection' } });
     assert.equal(response.status, 400); assert.equal(store.recutTasks.length, 0);
   });
+  it('同一門課已有 5 支在產生講稿時，第 6 支回 409 且不建立工作', async () => {
+    const token = await teacherToken();
+    for (let i = 0; i < 5; i += 1) seedScript({ topicKey: `busy-${i}`, recut: { state: i % 2 ? 'generating' : 'queued', revision: 1 } });
+    const script = seedScript({ topicKey: 'sixth' }); await installSteps(script);
+    const before = store.recutTasks.length;
+    const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
+    assert.equal(response.status, 409); assert.equal(response.body.error.code, 'RECUT_BATCH_LIMIT_EXCEEDED');
+    assert.equal(store.recutTasks.length, before);
+  });
+  it('套用修改中、其他課程或已完成的短片不計入 5 支上限', async () => {
+    const token = await teacherToken();
+    for (let i = 0; i < 4; i += 1) seedScript({ topicKey: `busy-${i}`, recut: { state: 'generating', revision: 1 } });
+    seedScript({ topicKey: 'editing', recut: { state: 'updating', revision: 1 } });
+    seedScript({ topicKey: 'other-course', courseId: newObjectId(), recut: { state: 'generating', revision: 1 } });
+    seedScript({ topicKey: 'done', recut: { state: 'script_review', revision: 1 } });
+    const script = seedScript({ topicKey: 'fifth' }); await installSteps(script);
+    const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
+    assert.equal(response.status, 202);
+  });
   it('目前狀態帶出渲染失敗的錯誤代碼，不帶原始訊息', async () => {
     const script = seedScript(); const token = await teacherToken();
     const versionId = newObjectId();

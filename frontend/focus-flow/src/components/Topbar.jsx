@@ -303,7 +303,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
     if (!target) return;
     if (target.scriptId) {
       // Rejection notices jump straight to the script so the teacher can regenerate it.
-      requestOpenScript({ scriptId: target.scriptId, courseId: target.courseId });
+      requestOpenScript({ scriptId: target.scriptId, courseId: target.courseId, page: target.sub });
     }
     if (target.section === 'quarantine') requestOpenQuarantine();
     // 影片完成通知帶到課程頁，學生與教師的課程頁代號都是 courses。

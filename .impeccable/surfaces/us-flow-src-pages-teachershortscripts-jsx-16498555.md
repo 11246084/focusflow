@@ -49,3 +49,17 @@ related_targets: ["frontend/focus-flow/src/pages/TeacherShortUploads.jsx","front
 ## 驗收
 
 - 電腦 1440px、1024px，手機 390px（含 LINE 內建瀏覽器）都實際走完全流程。
+
+## Direction contract
+
+THESIS：講稿就是短片的時間軸。留用句與被略過的前後句排在原片順序的原位，點一下加回或移除，右側時長即時伸縮；拒絕「表單＋狀態表格＋另開編輯器」的後台預設排法。
+
+OWN-WORLD：夜間備課桌——Night Ink 底、Plum Night 面板、白字依重要性降透明度（最淡 55%），唯一實心 Deep Ember 按鈕；狀態是「圖示＋文字」小色塊；講稿句子是無框的行，略過句降為 55% 白並在行尾留「加回」，片頭句前面有 Ember 細標。
+
+STORY：老師看到最上方那個學生問題，讀完整篇講稿，點時間聽原音核對，補回需要的前後句，按一次核准；短片做好後看成品、字幕同步亮起目前那句，再按一次上架。
+
+FIRST VIEWPORT：電腦三欄——左欄課程與這一批短片的進度列（目前那支最亮）；中欄最上方問題（標題大小）、細流程列、講稿逐句；右欄大字總長與 30～65 秒尺、唯一主要按鈕、AI 建議清單。手機單欄，底部固定時長＋主要按鈕。
+
+FORM：seed: none (pinned)，「沿用 DESIGN.md『夜間備課桌』與 recut 示意圖語言（UX-14～UX-19）」。簽名動作：時長尺隨每次加回／移除即時伸縮，超出範圍時尺上直接標出差幾秒。
+
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

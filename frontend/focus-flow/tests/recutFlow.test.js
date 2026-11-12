@@ -1,0 +1,149 @@
+import assert from 'node:assert/strict';
+import { afterEach, beforeEach, describe, it } from 'node:test';
+
+import {
+  buildScriptLines, consentNeeds, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
+} from '../src/services/recutFlow.js';
+import * as api from '../src/services/recut.js';
+import { isValidSubPage } from '../src/components/navigationConfig.js';
+import { resolveNotificationTarget } from '../src/utils/notificationTarget.js';
+
+const s = (id, selected, extra = {}) => ({ id, text: id, startSec: 0, endSec: 2, selected, ...extra });
+
+describe('recut 狀態對應的步驟與待辦', () => {
+  it('確認講稿、製作失敗、確認成品歸為等你處理', () => {
+    for (const state of ['script_review', 'script_approved', 'render_failed', 'asset_review']) {
+      assert.equal(describeScript({ recut: { state } }).bucket, 'mine', state);
+    }
+  });
+
+  it('背景處理中的狀態歸為處理中', () => {
+    for (const state of ['queued', 'generating', 'updating', 'render_queued', 'rendering', 'asset_approved']) {
+      assert.equal(isBusyState(state), true, state);
+    }
+  });
+
+  it('idle 且最近一次工作失敗時顯示產生失敗', () => {
+    assert.equal(describeScript({ recut: { state: 'idle' } }, { status: 'failed' }).label, '產生失敗');
+  });
+
+  it('管理清單把等你處理排在最前，同組新的在前', () => {
+    const items = sortManageItems([
+      { bucket: 'done', updatedAt: '2026-11-12' },
+      { bucket: 'mine', updatedAt: '2026-11-10' },
+      { bucket: 'waiting', updatedAt: '2026-11-12' },
+      { bucket: 'mine', updatedAt: '2026-11-11' },
+    ]);
+    assert.deepEqual(items.map((i) => `${i.bucket}:${i.updatedAt}`), ['mine:2026-11-11', 'mine:2026-11-10', 'waiting:2026-11-12', 'done:2026-11-12']);
+  });
+
+  it('管理清單的標題用學生原本的問法', () => {
+    const item = toManageItem({ _id: 'x', courseId: 'c', topic: '主題', sourceQuestions: [{ question: '為什麼？' }], recut: { state: 'asset_review' } }, { title: '課' });
+    assert.equal(item.question, '為什麼？');
+    assert.equal(item.action, '確認成品');
+  });
+});
+
+describe('講稿逐句排列', () => {
+  it('留用句前後各一句略過句留在原位，更遠的收成一行', () => {
+    const lines = buildScriptLines([s('a', false), s('b', false), s('c', false), s('d', true), s('e', false), s('f', false)]);
+    assert.deepEqual(lines.map((l) => (l.type === 'gap' ? `gap${l.count}` : `${l.role}:${l.sentence.id}`)),
+      ['gap2', 'omitted:c', 'kept:d', 'omitted:e', 'gap1']);
+  });
+
+  it('展開的略過行改為逐句列出', () => {
+    const lines = buildScriptLines([s('a', false), s('b', false), s('c', true)], new Set(['gap-a']));
+    assert.deepEqual(lines.map((l) => l.sentence?.id), ['a', 'b', 'c']);
+  });
+
+  it('片頭句不在原位重複', () => {
+    const lines = buildScriptLines([s('a', true, { opening: true }), s('b', true)]);
+    assert.deepEqual(lines.map((l) => l.sentence.id), ['b']);
+  });
+
+  it('成品播放時依片頭在前的順序推算目前那一句', () => {
+    const timeline = playbackTimeline([s('a', true), s('b', true, { opening: true, startSec: 10, endSec: 13 })]);
+    assert.equal(sentenceAt(timeline, 1), 'b');
+    assert.equal(sentenceAt(timeline, 4), 'a');
+    assert.equal(sentenceAt(timeline, 99), null);
+  });
+});
+
+describe('時長、退回與錯誤文案', () => {
+  it('30～65 秒以外說明差幾秒', () => {
+    assert.equal(durationStatus(48).valid, true);
+    assert.equal(durationStatus(70).message, '超過 5 秒');
+    assert.equal(durationStatus(25).message, '還差 5 秒');
+  });
+
+  it('內容類退回原因回到講稿，其他回到製作', () => {
+    assert.equal(rejectScope(['subtitleIssue']), 'presentation');
+    assert.equal(rejectScope(['subtitleIssue', 'contentIncorrect']), 'content');
+    assert.equal(rejectScope(['other']), 'content');
+  });
+
+  it('功能未開放與已知代碼轉成教師看得懂的文字', () => {
+    assert.equal(recutErrorText({ status: 404, code: 'NOT_FOUND' }), '短影片功能目前未開放。');
+    assert.match(recutErrorText({ status: 422, code: 'RECUT_DURATION_INVALID' }), /30～65/);
+  });
+
+  it('第一次使用要補內容同意與原音', () => {
+    assert.deepEqual(consentNeeds({ decisions: {}, voiceMode: null }), { content: true, voice: true });
+    assert.deepEqual(consentNeeds({ decisions: { content: { choice: 'granted' } }, voiceMode: 'original' }), { content: false, voice: false });
+  });
+
+  it('記住最後打開的那一支', () => {
+    const store = new Map();
+    const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+    rememberLastScript({ courseId: 'c1', scriptId: 's1' }, storage);
+    assert.deepEqual(recallLastScript(storage), { courseId: 'c1', scriptId: 's1' });
+  });
+});
+
+describe('導覽與通知', () => {
+  it('側欄改為短影片製作與管理，數位分身舊頁仍可進入', () => {
+    for (const sub of ['shortStudio', 'shortManage', 'shortScripts', 'shortUploads', 'reviewShorts']) assert.equal(isValidSubPage('teacher', sub), true, sub);
+  });
+
+  it('recut 完成通知打開短影片製作', () => {
+    assert.equal(resolveNotificationTarget({ source: 'recut_task_finished', scriptId: 's1', courseIds: ['c1'] }).sub, 'shortStudio');
+  });
+});
+
+describe('recut API 請求內容', () => {
+  const originalFetch = globalThis.fetch;
+  let calls;
+  beforeEach(() => {
+    calls = [];
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url, options, body: options.body ? JSON.parse(options.body) : null });
+      return { ok: true, status: 200, async json() { return { data: { id: 't1' } }; } };
+    };
+  });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  const review = { versionId: 'v1', revision: 3, recut: { currentAssetId: 'a1', currentAssetGenerationVersion: 2 } };
+
+  it('逐句修改帶版本與修訂號', async () => {
+    await api.editSelection('s1', review, [{ sentenceId: 'x', action: 'add' }]);
+    assert.equal(calls[0].url, '/api/v1/short-scripts/s1/recut/selection');
+    assert.equal(calls[0].options.method, 'PATCH');
+    assert.deepEqual(calls[0].body, { versionId: 'v1', expectedRevision: 3, changes: [{ sentenceId: 'x', action: 'add' }] });
+  });
+
+  it('退回成品帶成品版次與範圍', async () => {
+    await api.rejectAsset('s1', review, { scope: 'content', reasons: [{ code: 'contentIncorrect' }] });
+    assert.deepEqual(calls[0].body, { versionId: 'v1', expectedRevision: 3, assetId: 'a1', generationVersion: 2, scope: 'content', reasons: [{ code: 'contentIncorrect' }] });
+  });
+
+  it('建立短片直接指定 recut', async () => {
+    await api.createRecutScript('c1', 'topic-1');
+    assert.deepEqual(calls[0].body, { topicKey: 'topic-1', productionMode: 'recut' });
+  });
+
+  it('全選撤回不送逐支清單', async () => {
+    await api.withdrawConsent('c1', { kind: 'voice', termsVersion: 'v', requestId: 'r', selectAll: true, selectedAssetIds: ['a'] });
+    assert.deepEqual(calls[0].body, { kind: 'voice', termsVersion: 'v', requestId: 'r', selectAll: true });
+  });
+});

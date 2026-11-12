@@ -2,6 +2,7 @@
 
 export const YOUTUBE_NEEDS_REVIEW_SOURCE = 'youtube_upload_needs_review';
 export const YOUTUBE_RESOLVED_SOURCE = 'youtube_upload_resolved';
+export const RECUT_TASK_FINISHED_SOURCE = 'recut_task_finished';
 
 export function canOpenNotificationVideo(notification = {}) {
   return Boolean(notification.videoId) && notification.videoAvailable !== false;
@@ -11,6 +12,10 @@ export function resolveNotificationTarget(notification = {}, role = '') {
   // 隔離通知只發給管理員，點擊後到 YouTube 上傳管理的待處理清單（#20）。
   if (notification.source === YOUTUBE_NEEDS_REVIEW_SOURCE) {
     return role === 'admin' ? { sub: 'youtubeLifecycle', section: 'quarantine' } : null;
+  }
+  // recut 的完成與失敗通知打開短影片製作的那一支。
+  if (notification.scriptId && notification.source === RECUT_TASK_FINISHED_SOURCE) {
+    return { sub: 'shortStudio', scriptId: notification.scriptId, courseId: notification.courseIds?.[0] || '' };
   }
   if (notification.scriptId) {
     return { sub: 'shortScripts', scriptId: notification.scriptId, courseId: notification.courseIds?.[0] || '' };
@@ -29,6 +34,7 @@ export function notificationTargetLabel(target) {
   if (!target) return '';
   if (target.sub === 'youtubeLifecycle') return '前往待處理 →';
   if (target.sub === 'shortScripts') return '前往腳本 →';
+  if (target.sub === 'shortStudio') return '前往短片 →';
   return '前往課程 →';
 }
 

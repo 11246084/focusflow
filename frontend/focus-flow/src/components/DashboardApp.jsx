@@ -15,6 +15,8 @@ import TeacherUpload       from '../pages/TeacherUpload';
 import TeacherVideoReview  from '../pages/TeacherVideoReview';
 import TeacherShortScripts from '../pages/TeacherShortScripts';
 import TeacherShortUploads from '../pages/TeacherShortUploads';
+import TeacherShortStudio from '../pages/TeacherShortStudio';
+import TeacherShortManage from '../pages/TeacherShortManage';
 import AdminOverview    from '../pages/AdminOverview';
 import AdminUsers       from '../pages/AdminUsers';
 import AdminCourses     from '../pages/AdminCourses';
@@ -28,7 +30,7 @@ function DashboardRouter({ role, sub, onNav, user, onProfileUpdated }) {
   const profile = <Profile role={role} user={user} onProfileUpdated={onProfileUpdated} />;
   const map = {
     student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile },
-    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortScripts: <TeacherShortScripts onNav={onNav} />, shortUploads: <TeacherShortUploads onNav={onNav} />, reviewShorts: <TeacherVideoReview />, profile },
+    teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortStudio: <TeacherShortStudio onNav={onNav} />, shortManage: <TeacherShortManage onNav={onNav} />, shortScripts: <TeacherShortScripts onNav={onNav} />, shortUploads: <TeacherShortUploads onNav={onNav} />, reviewShorts: <TeacherVideoReview />, profile },
     admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, youtubeLifecycle: <AdminYouTubeLifecycle />, feedback: <AdminFeedback />, stats: <AdminStats />, profile },
   };
   return map[role]?.[sub] || null;

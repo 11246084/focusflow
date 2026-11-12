@@ -9,7 +9,13 @@ function verifyAudit({ bank, manifest, records, config, report }) {
     [config, report.configHash], [records, report.rankingHash]]) {
     assert.equal(createHash('sha256').update(JSON.stringify(value)).digest('hex'), expected);
   }
-  const questions = new Map(parseBank(bank).map(question => [question.id, question]));
+  const pendingX01 = config.pendingX01 === true;
+  const questions = new Map(parseBank(bank, { allowIncompleteGold: pendingX01 }).map(question => [question.id, question]));
+  if (pendingX01) {
+    assert.deepEqual(questions.get('X01')?.missingVideos, ['V5']);
+    assert.ok([...questions.values()].every(q => !q.missingVideos?.length || q.id === 'X01'));
+    assert.deepEqual(report.pendingQuestionIds, ['X01']); assert.equal(report.scoringCount, 42);
+  }
   assert.equal(report.perQuery.length, records.length);
   const groups = new Map();
   records.forEach((record, index) => {
@@ -36,13 +42,14 @@ function verifyAudit({ bank, manifest, records, config, report }) {
     for (let i = matches.length - 1; i >= 0; i--) if (matches[i]) reciprocal = 1 / (i + 1);
     const hit = Number(matches.filter((value, i) => value && i < 5).length > 0);
     const hit10 = Number(matches.filter((value, i) => value && i < 10).length > 0);
-    assert.equal(expected.recallAt5, question.refused ? null : hit);
-    assert.equal(expected.recallAt10, question.refused ? null : hit10);
-    assert.equal(expected.mrr, question.refused ? null : reciprocal);
+    const scored = !question.refused && !(pendingX01 && question.id === 'X01');
+    assert.equal(expected.recallAt5, scored ? hit : null);
+    assert.equal(expected.recallAt10, scored ? hit10 : null);
+    assert.equal(expected.mrr, scored ? reciprocal : null);
     const key = JSON.stringify([record.mode, record.group, record.weighting]);
     if (!groups.has(key)) groups.set(key, { hits: 0, hits10: 0, reciprocal: 0, count: 0 });
     const group = groups.get(key);
-    if (!question.refused) { group.count++; group.hits += hit; group.hits10 += hit10; group.reciprocal += reciprocal; }
+    if (scored) { group.count++; group.hits += hit; group.hits10 += hit10; group.reciprocal += reciprocal; }
   });
   assert.equal(report.aggregates.length, groups.size);
   const seen = new Set();

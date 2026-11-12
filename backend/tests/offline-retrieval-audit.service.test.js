@@ -42,8 +42,9 @@ test('real bank has 43 answerable, 7 refusal questions and fails closed on X01 m
   assert.equal(issueFile.goldVersion, protocol.goldVersion);
   assert.deepEqual(issueFile.issues, annotationReport(bank).issues);
   const protocolFile = require('../../docs/04_Features/QA_Evaluation/datasets/retrieval-protocol.json');
-  assert.deepEqual(protocolFile.protocol, protocol);
-  assert.equal(protocolFile.protocolHash, fingerprint(protocol));
+  const provisional = evaluationProtocol(bank, { pendingX01: true });
+  assert.deepEqual(protocolFile.protocol, provisional);
+  assert.equal(protocolFile.protocolHash, fingerprint(provisional));
 });
 
 test('independent interval sweep agrees on overlaps, multiple gold, empty ranks and all 24 groups', () => {
@@ -125,6 +126,24 @@ test('overlapping gold is a union, disjoint gaps do not become relevant and equa
   assert.deepEqual(first, second);
   assert.deepEqual(first.find(row => row.mode === 'flat' && row.group === 'text_audio'
     && row.weighting === 'equal').ranked.map(row => row.chunkId), ['hit', 'short-gold', 'miss']);
+});
+
+test('approved provisional policy scores exactly42, preserves X01 rows and hashes; no other missing gold is silently omitted', () => {
+  const data = fixture();
+  data.bank.videos.V5 = { videoId: 'other-video' };
+  data.bank.questions[0] = { ...data.bank.questions[0], id: 'X01', expectedVideos: 'V1+V5', expectedTimeRange: 'V1 10-25' };
+  for (const record of data.records) if (record.questionId === 'q0') record.questionId = 'X01';
+  data.config.pendingX01 = true;
+  data.config.bankHash = fingerprint(data.bank);
+  data.config.protocolHash = fingerprint(evaluationProtocol(data.bank, { pendingX01: true }));
+  const report = auditRetrieval(data);
+  assert.equal(report.scoringCount, 42); assert.deepEqual(report.pendingQuestionIds, ['X01']);
+  assert.equal(report.perQuery.filter(r => r.questionId === 'X01').length, 24);
+  assert.ok(report.perQuery.filter(r => r.questionId === 'X01').every(r => r.mrr === null));
+  assert.ok(report.aggregates.every(r => r.count === 42)); assert.equal(verifyAudit({ ...data, report }), true);
+  data.config.pendingX01 = false; assert.throws(() => auditRetrieval(data), /Incomplete/);
+  data.bank.questions[1].expectedVideos = 'V1+V5'; data.bank.questions[1].expectedTimeRange = 'V1 10-25';
+  assert.throws(() => evaluationProtocol(data.bank, { pendingX01: true }), /Only unresolved X01/);
 });
 
 test('a first relevant result at rank six misses Recall@5 but contributes MRR', () => {

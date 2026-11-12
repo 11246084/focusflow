@@ -65,23 +65,28 @@ function annotationReport(bank) {
     })) };
 }
 
-function evaluationProtocol(bank) {
+function evaluationProtocol(bank, { pendingX01 = false } = {}) {
   const questions = parseBank(bank, { allowIncompleteGold: true });
-  return { version: 'focusflow-retrieval-v1', bankHash: fingerprint(bank),
+  if (pendingX01) requireCondition(questions.some(q => q.id === 'X01' && JSON.stringify(q.missingVideos) === '["V5"]')
+    && questions.every(q => !q.missingVideos?.length || q.id === 'X01'), 'Only unresolved X01 may be excluded');
+  const scored = questions.filter(question => !question.refused && !(pendingX01 && question.id === 'X01'));
+  return { version: pendingX01 ? 'focusflow-retrieval-pending-X01-v1' : 'focusflow-retrieval-v1', bankHash: fingerprint(bank),
     goldVersion: `bank-sha256:${fingerprint(bank)}`,
-    scoredQuestionIds: questions.filter(question => !question.refused).map(question => question.id),
+    scoredQuestionIds: scored.map(question => question.id),
+    ...(pendingX01 ? { pendingQuestionIds: ['X01'], scoringCount: 42 } : {}),
     diagnosticQuestionIds: questions.filter(question => question.refused).map(question => question.id),
-    recallAt5: 'question hit in first 5 / all 43 answerable questions',
-    recallAt10: 'secondary question hit in first 10 over the same 43 questions',
-    mrr: 'mean first reciprocal rank in saved top 20 over the same 43 questions',
+    recallAt5: `question hit in first 5 / all ${scored.length} answerable questions`,
+    recallAt10: `secondary question hit in first 10 over the same ${scored.length} questions`,
+    mrr: `mean first reciprocal rank in saved top 20 over the same ${scored.length} questions`,
     refusalPolicy: 'excluded from retrieval averages; top score diagnostics only',
     primaryCells: MODES.flatMap(mode => ['text', 'all'].map(group => ({ mode, group }))),
     weights: WEIGHTS, diagnosticGroups: Object.keys(GROUPS),
     k: 60, perChannelLimit: 20 };
 }
 
-function inspectInputs(bank, manifest) {
-  const questions = parseBank(bank);
+function inspectInputs(bank, manifest, { pendingX01 = false } = {}) {
+  if (pendingX01) evaluationProtocol(bank, { pendingX01 });
+  const questions = parseBank(bank, { allowIncompleteGold: pendingX01 });
   requireCondition(Array.isArray(manifest?.chunks) && manifest.provenance, 'Chunk manifest with provenance required');
   const videos = new Set(Object.values(bank.videos).map(video => video.videoId));
   const chunks = new Map();
@@ -91,16 +96,17 @@ function inspectInputs(bank, manifest) {
     requireCondition(!chunks.has(chunk.chunkId), 'Duplicate manifest chunk');
     chunks.set(chunk.chunkId, chunk);
   }
-  const gold = new Map(questions.filter(question => !question.refused).map(question => [question.id,
+  const gold = new Map(questions.filter(question => !question.refused && !(pendingX01 && question.id === 'X01')).map(question => [question.id,
     new Set([...chunks.values()].filter(chunk => relevant(chunk, question.targets)).map(chunk => chunk.chunkId))]));
   const missingGold = [...gold].filter(([, ids]) => !ids.size).map(([id]) => id);
   return { questions, chunks, gold, missingGold };
 }
 
 function auditRetrieval({ bank, manifest, records, config }) {
-  const inputs = inspectInputs(bank, manifest);
+  const pendingX01 = config?.pendingX01 === true;
+  const inputs = inspectInputs(bank, manifest, { pendingX01 });
   requireCondition(config?.bankHash === fingerprint(bank) && config.manifestHash === fingerprint(manifest), 'Manifest or bank hash changed');
-  requireCondition(config.protocolHash === fingerprint(evaluationProtocol(bank)), 'Evaluation protocol hash changed');
+  requireCondition(config.protocolHash === fingerprint(evaluationProtocol(bank, { pendingX01 })), 'Evaluation protocol hash changed');
   requireCondition(config.k === 60 && config.perChannelLimit === 20 && config.questionCount === inputs.questions.length, 'Evaluation parameters changed');
   requireCondition(JSON.stringify(config.modes) === JSON.stringify(MODES)
     && JSON.stringify(config.weights) === JSON.stringify(WEIGHTS)
@@ -129,10 +135,12 @@ function auditRetrieval({ bank, manifest, records, config }) {
       return inputs.gold.get(question.id)?.has(candidate.chunkId) || false;
     });
     const first = hits.indexOf(true);
+    const scored = !question.refused && !(pendingX01 && question.id === 'X01');
     return { questionId: record.questionId, mode: record.mode, group: record.group, weighting: record.weighting,
-      recallAt5: question.refused ? null : Number(hits.slice(0, 5).some(Boolean)),
-      recallAt10: question.refused ? null : Number(hits.slice(0, 10).some(Boolean)),
-      mrr: question.refused ? null : first < 0 ? 0 : 1 / (first + 1),
+      ...(pendingX01 && question.id === 'X01' ? { goldStatus: 'pending_human_approval' } : {}),
+      recallAt5: scored ? Number(hits.slice(0, 5).some(Boolean)) : null,
+      recallAt10: scored ? Number(hits.slice(0, 10).some(Boolean)) : null,
+      mrr: scored ? first < 0 ? 0 : 1 / (first + 1) : null,
       refusalTopScore: question.refused ? record.ranked[0]?.score ?? null : null };
   });
   requireCondition(seen.size === inputs.questions.length * 24, 'Missing comparison groups or questions');
@@ -145,10 +153,11 @@ function auditRetrieval({ bank, manifest, records, config }) {
       mrr: rows.reduce((sum, row) => sum + row.mrr, 0) / rows.length });
   }
   return { status: 'AUDITED', provenance: config.provenance, formalEvaluation: false, qualityClaim: false,
+    scoringCount: inputs.gold.size, pendingQuestionIds: pendingX01 ? ['X01'] : [],
     metricDefinition: 'question hit within top 5; first reciprocal rank within saved top 20; refusal questions excluded',
     bankHash: config.bankHash, manifestHash: config.manifestHash,
     configHash: fingerprint(config), rankingHash: fingerprint(records), protocolHash: config.protocolHash,
-    missingRefusalScores: perQuery.filter(row => row.recallAt5 === null && row.refusalTopScore === null).length,
+    missingRefusalScores: perQuery.filter(row => inputs.questions.find(q => q.id === row.questionId)?.refused && row.refusalTopScore === null).length,
     perQuery, aggregates };
 }
 

@@ -5,7 +5,7 @@ import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import * as api from '../services/recut.js';
 import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
-  isCancellableState, openingSentence, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
+  isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
 import { ConfirmDialog, DurationMeter, FlowStrip, PrimaryAction, StateChip, StatusCard } from './recutUi';
 
@@ -251,7 +251,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   } else if (state === 'script_approved') primary = { label: '開始製作', onClick: render, busy: pending === 'render' };
   else if (state === 'render_failed' && review?.draft) {
     primary = { label: '套用修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
-  } else if (state === 'render_failed') primary = { label: '重新製作', onClick: render, busy: pending === 'render' };
+  } else if (state === 'render_failed' && !isFixedRenderFailure(snapshot?.render?.errorCode)) {
+    primary = { label: '重新製作', onClick: render, busy: pending === 'render' };
+  }
   else if (state === 'asset_review' && rejecting) {
     primary = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
       reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
@@ -389,6 +391,12 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>
 
+        {!loading && state === 'render_failed' && (
+          <section className="rc-panel" role="alert">
+            <StateChip tone="error">製作失敗</StateChip>
+            <p style={{ marginTop: 8, color: 'var(--ff-chalk-white)' }}>{renderFailureText(snapshot?.render)}</p>
+          </section>
+        )}
         {loading && <p className="rc-reason">載入中…</p>}
         {!loading && busy && (
           <StatusCard title={BUSY_TEXT[state] || info.label}>

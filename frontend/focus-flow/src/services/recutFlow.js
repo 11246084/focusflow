@@ -179,9 +179,11 @@ const ERROR_TEXT = {
   RECUT_SYNTHETIC_VOICE_NOT_READY: '合成語音還沒開放，請改用老師原音。',
   RECUT_CONSENT_TERMS_OUTDATED: '條款已更新，請重新閱讀後確認。',
   RECUT_CONSENT_WITHDRAWAL_PENDING: '還有下架工作沒完成，請先處理。',
-  RECUT_TEXT_OVERFLOW: '圖卡文字太長放不下，請退回講稿縮短內容。',
-  RECUT_RENDER_AUDIO_LOWERED: '製作時聲音處理異常，需要管理員檢查。',
+  RECUT_TEXT_OVERFLOW: '圖卡文字太長放不下。移除或換掉較長的句子，套用修改後再製作。',
+  RECUT_RENDER_AUDIO_LOWERED: '製作時聲音處理異常，已通知管理員檢查，重新製作也會失敗。',
+  RECUT_RENDER_CHECK_FAILED: '影片沒有通過聲音或長度檢查，已通知管理員檢查。',
   RECUT_COMPLETION_FAILED: '影片做好了但無法存檔，請重新製作。',
+  RECUT_RENDER_FAILED: '製作沒有完成，可以重新製作一次。',
   SHORT_SCRIPT_NO_CANDIDATE: '這個主題目前沒有足夠的學生提問。',
   SHORT_SCRIPT_EVIDENCE_EMPTY: '原片裡找不到能回答這題的段落。',
   LOCAL_PLAYBACK_UNAVAILABLE: '原片目前無法播放。',
@@ -195,8 +197,13 @@ export function recutErrorText(error) {
 }
 
 // 渲染失敗的固定類錯誤，重送也不會成功，不提供「再製作一次」。
+// RECUT_TEXT_OVERFLOW 要先改講稿；聲音異常與檢查不通過需要管理員處理。
 export function isFixedRenderFailure(code) {
-  return code === 'RECUT_TEXT_OVERFLOW' || code === 'RECUT_RENDER_AUDIO_LOWERED';
+  return ['RECUT_TEXT_OVERFLOW', 'RECUT_RENDER_AUDIO_LOWERED', 'RECUT_RENDER_CHECK_FAILED'].includes(code);
+}
+
+export function renderFailureText(render) {
+  return recutErrorText({ code: render?.errorCode || 'RECUT_RENDER_FAILED' });
 }
 
 export function newRequestId() {

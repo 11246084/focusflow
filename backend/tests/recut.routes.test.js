@@ -70,6 +70,25 @@ describe('recut 最小 API', () => {
     const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: { callLimit: 100, type: 'apply_selection' } });
     assert.equal(response.status, 400); assert.equal(store.recutTasks.length, 0);
   });
+  it('目前狀態帶出渲染失敗的錯誤代碼，不帶原始訊息', async () => {
+    const script = seedScript(); const token = await teacherToken();
+    const versionId = newObjectId();
+    script.productionMode = 'recut';
+    script.recut = { ...(script.recut || {}), state: 'render_failed', revision: 4, currentVersionId: versionId };
+    store.recutRenderJobs.push({ _id: newObjectId(), scriptId: script._id, courseId: script.courseId, versionId, status: 'failed',
+      planHash: 'h', attemptCount: 1, queuedAt: new Date(), finishedAt: new Date(),
+      error: { code: 'RECUT_TEXT_OVERFLOW', message: 'card scene-3 overflow at 0.6x' } });
+    const state = await jsonRequest(baseUrl, pathFor(script, '/recut'), { token });
+    assert.equal(state.status, 200);
+    assert.equal(state.body.data.render.status, 'failed');
+    assert.equal(state.body.data.render.errorCode, 'RECUT_TEXT_OVERFLOW');
+    assert.equal(JSON.stringify(state.body.data.render).includes('overflow at'), false);
+  });
+  it('尚未排入渲染時 render 為 null', async () => {
+    const script = seedScript(); const token = await teacherToken();
+    const state = await jsonRequest(baseUrl, pathFor(script, '/recut'), { token });
+    assert.equal(state.body.data.render, null);
+  });
   it('無效 ID 回 400，不存在或不屬於本腳本的任務回 404', async () => {
     const script = seedScript(); const other = seedScript(); await installSteps(other); const token = await teacherToken();
     const started = await jsonRequest(baseUrl, pathFor(other, '/recut/generate'), { method: 'POST', token, body: {} });

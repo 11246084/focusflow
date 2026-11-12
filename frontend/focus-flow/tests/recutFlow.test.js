@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  buildScriptLines, consentNeeds, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  buildScriptLines, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -81,6 +81,13 @@ describe('時長、退回與錯誤文案', () => {
     assert.equal(rejectScope(['subtitleIssue']), 'presentation');
     assert.equal(rejectScope(['subtitleIssue', 'contentIncorrect']), 'content');
     assert.equal(rejectScope(['other']), 'content');
+  });
+
+  it('製作失敗依代碼說明原因，固定類失敗不提供重新製作', () => {
+    assert.match(renderFailureText({ errorCode: 'RECUT_TEXT_OVERFLOW' }), /圖卡文字太長/);
+    assert.match(renderFailureText(null), /重新製作/);
+    assert.equal(isFixedRenderFailure('RECUT_TEXT_OVERFLOW'), true);
+    assert.equal(isFixedRenderFailure('RECUT_COMPLETION_FAILED'), false);
   });
 
   it('功能未開放與已知代碼轉成教師看得懂的文字', () => {

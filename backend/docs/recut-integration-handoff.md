@@ -79,7 +79,7 @@
 
 起點是目前版本可回答、沒有待套用草稿或執行中工作。教師看完整稿後，`POST /api/v1/short-scripts/:scriptId/recut/approve-script`（`approveRecutScript`）帶 `versionId/expectedRevision`；200 後以新 revision 更新畫面，進 `script_approved`。核准只確認講稿，不代表產片或發布。若 409 重新讀取並重審變動；關閉確認視窗可取消尚未送出的操作。
 
-`POST /api/v1/short-scripts/:scriptId/recut/render`（`queueRecutRender`）帶目前版本及 revision，成功排入 `render_queued`，再由 worker 處理。輪詢 recut state；`render_failed` 顯示失敗與可重新送 render 的動作，避免不停自動重試。沒有契約說明此階段有教師取消端點，不要把離頁說成取消。完成進 `asset_review`，用 `GET /api/v1/shorts/:shortAssetId`（`getReviewShortAsset`）讀成品；老師應觀看當前 MP4，再決定。
+`POST /api/v1/short-scripts/:scriptId/recut/render`（`queueRecutRender`）帶目前版本及 revision，成功排入 `render_queued`，再由 worker 處理。輪詢 recut state；`render_failed` 時讀 state 的 `render.errorCode`（只有代碼，不含 worker 原始訊息）說明原因：`RECUT_TEXT_OVERFLOW` 引導改講稿，`RECUT_RENDER_AUDIO_LOWERED`、`RECUT_RENDER_CHECK_FAILED` 交給管理員，這三種不提供重新送 render；其他代碼可重新送 render，避免不停自動重試。沒有契約說明此階段有教師取消端點，不要把離頁說成取消。完成進 `asset_review`，用 `GET /api/v1/shorts/:shortAssetId`（`getReviewShortAsset`）讀成品；老師應觀看當前 MP4，再決定。
 
 - 核准：`POST /api/v1/short-scripts/:scriptId/recut/approve-asset`（`approveRecutAsset`）帶 `versionId/expectedRevision/assetId/generationVersion`。200 表示精確成品已核准；先取得的 YouTube ready 與此核准都成立，後端才發布。相同目前成品的核准重送可補齊部分提交；仍先查當前狀態。
 - 退回：`POST /api/v1/short-scripts/:scriptId/recut/reject-asset`（`rejectRecutAsset`）帶同樣識別資訊、`scope: presentation|content` 與非空 `reasons`。呈現問題回 `script_approved`，內容問題回 `script_review` 並撤銷講稿核准；成品核准撤銷、舊資產移出目前引用。此操作不是取消對話框能復原；新 MP4 要重新觀看核准。

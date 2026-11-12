@@ -11597,6 +11597,24 @@ components:
               oneOf:
                 - $ref: '#/components/schemas/RecutTask'
                 - type: 'null'
+            render:
+              description: 目前版本的渲染工作；尚未排入渲染時為 null。只公開錯誤代碼，不含 worker 回報的原始訊息。
+              oneOf:
+                - $ref: '#/components/schemas/RecutRenderStatus'
+                - type: 'null'
+    RecutRenderStatus:
+      type: object
+      required: [status, errorCode, attemptCount]
+      properties:
+        status:
+          type: string
+          enum: [queued, leased, completing, succeeded, failed, cancelled]
+        errorCode:
+          description: status 為 failed 時的錯誤代碼，例如 RECUT_TEXT_OVERFLOW、RECUT_RENDER_AUDIO_LOWERED、RECUT_RENDER_CHECK_FAILED、RECUT_COMPLETION_FAILED；其他狀態為 null。
+          type: [string, 'null']
+        attemptCount: { type: integer, minimum: 0 }
+        queuedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
     ShortScript:
       description: |
         短影片腳本沿用 MongoDB 文件格式；讀取時缺少 productionMode 會補 avatar，其餘不補 schema default，

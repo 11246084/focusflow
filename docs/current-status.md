@@ -6,7 +6,7 @@
 
 ## 後五片可執行工具與無付費驗證（2026-11-12）
 
-影片一正式驗收摘要已獨立提交並push `94014c7`。後五片工具已完成最小擴充：同一corpus.json供Python／Node使用，凍結來源與產物hash、精確577筆allowlist；兩長段只建文字、影音略過。沿用既有Adapter／CAS及原生Checkpoint，按Chunk分批、共用US$20 ledger、簽章嘗試上限、失敗先停／明確一次重試permit、成功快取損壞拒絕重建。Atlas新清單只接受現有三路READY索引，禁止任何index操作，寫前／後核對影片一117筆全文件指紋；全694範圍自動備份、CAS、receipt與回復機制保留。QA Harness已支援各片授權範圍，沒有改核心QA／RRF／Bridge。
+影片一正式驗收摘要已獨立提交並push `94014c7`，後五片工具提交 `2063ece`。後五片工具已完成最小擴充：同一corpus.json供Python／Node使用，凍結來源與產物hash、精確577筆allowlist；兩長段只建文字、影音略過。沿用既有Adapter／CAS及原生Checkpoint，按Chunk分批、共用US$20 ledger、簽章嘗試上限、失敗先停／明確一次重試permit、成功快取損壞拒絕重建。Atlas新清單只接受現有三路READY索引，禁止任何index操作，寫前／後核對影片一117筆全文件指紋；全694範圍自動備份、CAS、receipt與回復機制保留。QA Harness已支援各片授權範圍，沒有改核心QA／RRF／Bridge。
 
 五份manifest與1150個真實影音檔已完成準備，1727輸入Fake SDK全成功，第二次全部重用、Fake SDK新增呼叫0；可重用V4原生向量3筆，尚缺1724真實模型輸入，首次保守預留US$8.6620184，加既有ledger共約US$10.5477036，不含另需授權的5個題庫query（最多US$0.008192）或Parent。最壞三次約US$27.8717會超20，仍由共用ledger硬停，不能宣稱所有重試保證完成。本輪真實ledger維持US$1.8856852。後端完整1951項、1950通過、0失敗、1既有略過；Pipeline受影響41項通過。五片Fake HTTP QA／對話、來源時間、RRF、無fallback及授權負例通過，不是真實五片QA。
 

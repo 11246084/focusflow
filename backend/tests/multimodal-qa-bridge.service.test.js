@@ -153,6 +153,19 @@ test('穩定版文字向量覆蓋足夠時照常使用，不另外呼叫既有�
   assert.deepEqual(result.matches.find(match => match.chunkId === 'a').retrievedBy, ['text', 'audio']);
 });
 
+test('文字搜尋回滿20筆但完整範圍只覆蓋25/40筆時，仍替換成原文字路徑', async () => {
+  const covered = Array.from({ length: 20 }, (_, i) => chunkOf(`covered-${i}`, i * 3));
+  const outside = chunkOf('not-yet-embedded', 200);
+  const fixture = atlasFixture({ stableTextEmbedding: covered, audioEmbedding: [covered[0]], visualEmbedding: [] });
+  for (const coverage of [{ complete: false, expected: 40, covered: 25 }, { complete: false, reason: 'coverage_check_failed' }]) {
+    const result = await retrieveForQa({ ...base, ...fixture, stableTextCoverage: coverage, minTextCandidates: 20,
+      textSearch: async () => [outside], loadEvidence: async () => [...covered, outside] });
+    assert.equal(result.diagnostics.textSource, 'scoped_text_search');
+    assert.equal(result.matches.some(r => r.chunkId === outside.chunkId), true);
+    assert.equal(result.matches.some(r => r.chunkId === covered[1].chunkId), false);
+  }
+});
+
 test('offline export covers six groups, two hierarchies and two weights with shared media', () => {
   const records = buildComparisonRecords({ questionId: 'q1', scope,
     flat: { text: [], audio: [chunk], visual: [] }, hierarchical: { text: [chunk] } });

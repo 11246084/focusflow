@@ -12,7 +12,7 @@ const { computeCosineSimilarity } = require('../utils/vectorSimilarity');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
 const { retrieveForQa, faqEvidenceVersion } = require('./multimodalQaBridge.service');
-const { readAtlasIndex } = require('./atlasMultimodalAdapter.service');
+const { getAtlasIndexSnapshot, readStableTextCoverage } = require('./multimodalReadiness.service');
 const { buildGeminiTextSearchContract } = require('./embeddingContract.service');
 const { generateAnswer, isNoAnswerReply } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
@@ -1586,9 +1586,14 @@ async function askQuestion({
     };
     const scope = { courseId, allowedVideoIds: [...segmentScope.allowedVideoIds] };
     let indexSnapshot = null;
+    let stableTextCoverage = { complete: false, expected: scopedSegments.length, covered: 0, reason: 'index_unavailable' };
     if (env.qaVectorSearchMode === 'atlas' && env.qaQueryEmbeddingProvider === 'gemini') {
       try {
-        indexSnapshot = await readAtlasIndex(VideoSegment.collection);
+        indexSnapshot = await getAtlasIndexSnapshot(VideoSegment.collection);
+        if (indexSnapshot?.status === 'READY' && indexSnapshot.queryable === true
+          && indexSnapshot.latestDefinition?.fields?.some(field => field.path === 'stableTextEmbedding')) {
+          stableTextCoverage = await readStableTextCoverage(VideoSegment.collection, scope, scopedSegments);
+        }
       } catch {
         // Index inspection failure follows the same fail-safe path as an unavailable index.
         indexSnapshot = null;
@@ -1606,6 +1611,7 @@ async function askQuestion({
       loadEvidence: async () => scopedSegments.map(asEvidence),
       // 穩定版文字向量還沒覆蓋整個範圍時（例如只寫入部分 chunk），改用既有文字檢索當文字那一路。
       minTextCandidates: Math.min(20, scopedSegments.length),
+      stableTextCoverage,
     });
     const bridgeMatches = bridge.usedFallback ? legacyResult.matches.map(match => ({
       ...match, retrievedBy: ['text'], channelRanks: {},

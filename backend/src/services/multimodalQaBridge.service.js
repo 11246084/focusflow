@@ -16,7 +16,7 @@ function faqEvidenceVersion(baseVersion, settings) {
 
 // The caller supplies authorized transcript records, never model-generated visual descriptions.
 async function retrieveForQa({ scope, settings, question = '', queryEmbedding, atlas,
-  searchers, textSearch, hierarchicalTextSearch, loadEvidence, minTextCandidates = 1 }) {
+  searchers, textSearch, hierarchicalTextSearch, loadEvidence, minTextCandidates = 1, stableTextCoverage = null }) {
   const config = retrievalSettings(settings);
   if (!scope?.courseId || !Array.isArray(scope.allowedVideoIds)
     || !scope.allowedVideoIds.every(id => typeof id === 'string' && id)) {
@@ -56,7 +56,9 @@ async function retrieveForQa({ scope, settings, question = '', queryEmbedding, a
         // authorized chunk, is the text channel (the same substitution hierarchy already makes).
         const stableText = result.diagnostics?.text;
         const stableTextReady = stableText?.status === 'success'
-          && stableText.count >= Math.max(1, Number(minTextCandidates) || 1);
+          && stableText.count >= Math.max(1, Number(minTextCandidates) || 1)
+          && (!stableTextCoverage || stableTextCoverage.complete === true);
+        if (stableTextCoverage) result.diagnostics.stableTextCoverage = stableTextCoverage;
         const mediaFound = (result.lists?.audio?.length || 0) + (result.lists?.visual?.length || 0) > 0;
         // Hierarchy changes only the text channel; reuse the adapter's media lists.
         if (config.hierarchy || (!stableTextReady && mediaFound)) {

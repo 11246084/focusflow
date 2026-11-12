@@ -7,6 +7,7 @@ const VideoSegmentParent = require('../src/models/videoSegmentParent.model');
 const { contractHash, setHierarchicalDataReadinessForTests, resetHierarchicalDataReadinessForTests }
   = require('../src/services/hierarchicalDataReadiness.service');
 const { buildGeminiTextSearchContract } = require('../src/services/embeddingContract.service');
+const { clearMultimodalIndexCache } = require('../src/services/multimodalReadiness.service');
 const originalAggregate = VideoSegment.collection.aggregate;
 const originalModelAggregate = VideoSegment.aggregate;
 const originalParentAggregate = VideoSegmentParent.aggregate;
@@ -18,7 +19,7 @@ const keys = ['qaMultimodalFusionEnabled', 'qaVectorSearchMode', 'qaQueryEmbeddi
   'hierarchicalRetrievalAllowedCourseIds', 'hierarchicalRetrievalAllowedVideoIds',
   'hierarchicalRetrievalAllowedUserIds', 'hierarchicalRetrievalAllowlistsValid'];
 const saved = Object.fromEntries(keys.map(key => [key, env[key]]));
-afterEach(() => { Object.assign(env, saved); global.fetch = originalFetch;
+afterEach(() => { clearMultimodalIndexCache(); Object.assign(env, saved); global.fetch = originalFetch;
   VideoSegment.aggregate = originalModelAggregate;
   VideoSegmentParent.aggregate = originalParentAggregate;
   resetHierarchicalDataReadinessForTests();
@@ -71,6 +72,34 @@ test('flag ON with unavailable multimodal contract preserves legacy text and dis
   assert.equal(result.runtime.visualSearch, null);
 });
 
+test('QA with25/40 stable vectors still uses the full legacy text scope even when stable search returns20', async () => {
+  resetStore(); clearMultimodalIndexCache();
+  const original = store.videoSegments[0], vector = [1, ...Array(3071).fill(0)], contract = buildGeminiTextSearchContract();
+  const rows = Array.from({ length: 40 }, (_, i) => ({ ...original, _id: `coverage-${i}`,
+    segmentId: `coverage-${i}`, chunkId: `coverage-${i}`, startSec: i * 3, endSec: i * 3 + 2 }));
+  store.videoSegments.splice(0, store.videoSegments.length, ...rows);
+  Object.assign(env, { qaMultimodalFusionEnabled: true, qaVectorSearchMode: 'atlas', qaQueryEmbeddingProvider: 'gemini',
+    qaAnswerProvider: 'template', geminiApiKey: 'fake-test-key', faqCacheEnabled: false,
+    qaAtlasVectorIndexName: 'text_embedding_index', qaActiveLeafEmbeddingContractJson: JSON.stringify(contract) });
+  global.fetch = async () => ({ ok: true, json: async () => ({ embedding: { values: vector } }) });
+  VideoSegment.aggregate = async () => [rows[39], ...rows.slice(0, 19)].map(row => ({ ...row, score: .9 }));
+  VideoSegment.collection.aggregate = p => ({ toArray: async () => {
+    if (p[0].$listSearchIndexes) return [{ name: 'text_embedding_index', type: 'vectorSearch', status: 'READY', queryable: true,
+      latestDefinition: { fields: ['stableTextEmbedding', 'audioEmbedding', 'visualEmbedding'].map(path => ({ path, type: 'vector', numDimensions: 3072, similarity: 'cosine' }))
+        .concat([{ path: 'videoId', type: 'filter' }]) } }];
+    if (p[0].$match) return rows.slice(0, 25);
+    const path = p[0].$vectorSearch.path, kind = path === 'stableTextEmbedding' ? 'text' : path === 'audioEmbedding' ? 'audio' : 'visual';
+    return (kind === 'text' ? rows.slice(0, 20) : rows.slice(0, 1)).map(r => ({ ...r, score: .9,
+      mediaEmbeddingMeta: { [kind]: kind === 'text' ? contract : { provider: 'gemini', model: contract.model,
+        dimension: 3072, status: 'success', contractVersion: `gemini_embedding_2_${kind}_v1` } } }));
+  } });
+  const r = await ask();
+  assert.equal(r.runtime.multimodal.channels.textSource, 'scoped_text_search');
+  assert.deepEqual(r.runtime.multimodal.channels.atlas.stableTextCoverage, {
+    complete: false, expected: 40, covered: 25, reason: 'partial_stable_text_coverage' });
+  assert.ok(r.matches.some(m => m.chunkId === rows[39].chunkId));
+});
+
 test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer and citation', async () => {
   resetStore();
   const fs = require('node:fs');
@@ -97,6 +126,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
   VideoSegment.aggregate = async () => [{ ...chunk, score: 0.9 }];
   let scenario = 'success';
   VideoSegment.collection.aggregate = pipeline => ({ toArray: async () => {
+    if (pipeline[0].$match) return [chunk]; // Full-scope coverage preflight, separate from search top-K.
     if (pipeline[0].$listSearchIndexes) {
       if (scenario === 'preflight-failed') throw new Error('unavailable');
       if (scenario === 'missing-index') return [{ ...index, latestDefinition: { fields: [] } }];
@@ -145,6 +175,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
   assert.deepEqual(hierarchical.citations[0].retrievedBy, ['text', 'audio', 'visual']);
   env.hierarchicalRetrievalEnabled = false;
   for (const variant of ['partial', 'missing-index', 'preflight-failed', 'empty', 'invalid-time', 'all-failed']) {
+    clearMultimodalIndexCache();
     scenario = variant;
     env.faqCacheEnabled = false;
     const degraded = await ask();
@@ -153,6 +184,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
     assert.equal(degraded.citations[0].timestamp.startSec, chunk.startSec);
   }
   scenario = 'success';
+  clearMultimodalIndexCache();
   global.fetch = async (url, ...args) => String(url).startsWith('https://generativelanguage.googleapis.com/')
     ? { ok: true, json: async () => ({ embedding: { values: vector } }) }
     : originalFetch(url, ...args);
@@ -181,7 +213,7 @@ test('flag ON saved vectors pass query, Atlas adapter, RRF, transcript, answer a
     if (process.env.MULTIMODAL_FULL_BROWSER_OUTPUT) {
       const { runStudentBrowser } = await import('../scripts/runStudentBrowserFixture.mjs');
       const result = await runStudentBrowser({ backendUrl: context.baseUrl, env, store, ids,
-        chunkId: chunk.chunkId, startSec: chunk.startSec, endSec: chunk.endSec, setScenario: value => { scenario = value; },
+        chunkId: chunk.chunkId, startSec: chunk.startSec, endSec: chunk.endSec, setScenario: value => { scenario = value; clearMultimodalIndexCache(); },
         outputDirectory: process.env.MULTIMODAL_FULL_BROWSER_OUTPUT,
         mediaFile: process.env.MULTIMODAL_SYNTHETIC_MEDIA });
       assert.equal(result.length, 6);

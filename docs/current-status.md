@@ -6,7 +6,7 @@
 
 ## 多模態交接缺口修正（2026-11-12）
 
-庭語已接手三項：完整授權範圍stable文字覆蓋檢查（包含25/40但搜尋回滿20的回歸）、索引30秒成功／5秒失敗快取與清除、25項授權矩陣。Q5已核定合法共享向量，Adapter不再把來源courseId當ACL。最新受影響62項通過（25項矩陣包含信任前置觀察，不全是攻擊阻擋證據）；完整Backend回歸執行中。42題暫定計分支援已實作、X01排名／Gold保留、protocolHash分版，未執行正式評測。實際全量向量／Atlas操作、開關及部署均未執行；ON＋shadow低優先缺口仍在。新版四階段取消S60，先V1、其餘五片、自動備份、索引只改一次、US$20停，成功資料保留且旗標關閉；詳見[計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)及[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+庭語已接手三項：完整授權範圍stable文字覆蓋檢查（包含25/40但搜尋回滿20的回歸）、索引30秒成功／5秒失敗快取與清除、25項授權矩陣。Q5已核定合法共享向量，Adapter不再把來源courseId當ACL。受影響62項通過，完整Backend以檔案隔離4併行回歸1936項、1935通過、0失敗、1既有略過；最新矩陣25項另獨立通過，包含語意FAQ及draft角色子例。矩陣包含信任前置觀察，不全是攻擊阻擋證據。42題暫定計分支援已實作、X01排名／Gold保留、protocolHash分版，未執行正式評測。新覆蓋聚合實際唯讀查到0/694且正確不放行。未做全量向量／Atlas寫入／索引操作、開旗標或部署；ON＋shadow低優先缺口仍在。新版四階段取消S60，先V1、其餘五片、自動備份、索引只改一次、US$20停，成功資料保留且旗標關閉；詳見[計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)及[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
 
 ## 多模態交付範圍定案（2026-11-12）
 

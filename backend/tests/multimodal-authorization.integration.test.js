@@ -1,7 +1,7 @@
 // Contract matrix Q01..Q11/A01..A06/B01..B05/U01..U03. Reuses the existing harness;
 // all providers/repositories are local fakes, not new teaching material or Atlas operations.
 const assert = require('node:assert/strict');
-const { test, before, after, beforeEach, afterEach } = require('node:test');
+const { test, describe, before, after, beforeEach, afterEach } = require('node:test');
 const { env, ids, store, resetStore, startServer, stopServer, loginAs, jsonRequest, newObjectId } = require('./helpers/backendTestHarness');
 const VideoSegment = require('../src/models/videoSegment.model');
 const { retrieveAtlasMultimodal, buildAtlasPipeline } = require('../src/services/atlasMultimodalAdapter.service');
@@ -15,6 +15,7 @@ const envKeys = ['qaMultimodalFusionEnabled', 'qaVectorSearchMode', 'qaQueryEmbe
   'qaUserMonthlyTokenQuota', 'qaMaxQuestionLength', 'qaDailyAskLimitPerStudent', 'geminiApiKey',
   'qaAtlasVectorIndexName', 'qaActiveLeafEmbeddingContractJson'];
 original.env = Object.fromEntries(envKeys.map(k => [k, env[k]]));
+describe('multimodal authorization contract matrix', () => {
 let server;
 const localFetch = (input, options = {}) => original.fetch(input, { ...options,
   headers: { ...options.headers, Connection: 'close' } });
@@ -138,9 +139,17 @@ test('Q07 empty resolved video scope returns no searchable segments without quer
 test('Q08 invalid FAQ evidence is discarded; revoked enrollment still denies cached answers', async () => {
   env.faqCacheEnabled = true;
   await saveFaqEntry({ courseId: ids.publishedCourse, question: 'JWT authentication', answer: 'STALE_FAQ_CONTROL',
-    matches: [{ ...store.videoSegments[0], videoId: ids.teacherVideo }], clip: null, questionEmbedding: [] });
+    matches: [{ ...store.videoSegments[0], videoId: ids.teacherVideo, _answerEvidenceVersion: 'supporting-evidence-v1' }], clip: null, questionEmbedding: [] });
   const r = await ask(); assert.equal(r.status, 200); assert.notEqual(r.body.data.answer, 'STALE_FAQ_CONTROL');
   assert.ok(r.body.data.citations.length);
+  const semanticQuestion = 'JWT authentication verification';
+  const queryEmbedding = await require('../src/services/queryEmbedding.service').embedQuery(semanticQuestion);
+  await saveFaqEntry({ courseId: ids.publishedCourse, question: 'semantic-cache-control', answer: 'STALE_SEMANTIC_FAQ_CONTROL',
+    matches: [{ ...store.videoSegments[0], videoId: ids.teacherVideo, _answerEvidenceVersion: 'supporting-evidence-v1' }],
+    clip: null, questionEmbedding: queryEmbedding });
+  const similar = await ask(ids.publishedCourse, { question: semanticQuestion });
+  assert.equal(similar.status, 200); assert.notEqual(similar.body.data.answer, 'STALE_SEMANTIC_FAQ_CONTROL');
+  assert.ok(similar.body.data.citations.every(c => c.videoId === ids.publishedVideo));
   store.enrollments.find(e => e.courseId === ids.publishedCourse).status = 'revoked'; assert.equal((await ask()).status, 403);
 });
 test('Q09 student enrolled only in B can use its legally shared A video', async () => {
@@ -155,6 +164,9 @@ test('Q10 owner/admin/legacy enrollment remain legal; other teacher is denied', 
     const r = await ask(ids.publishedCourse, {}, who); assert.equal(r.status, 200, who);
   }
   assert.equal((await ask(ids.publishedCourse, {}, ids.otherTeacher)).status, 403);
+  store.courses.find(c => c._id === ids.publishedCourse).status = 'draft';
+  for (const who of [ids.teacher, ids.admin]) assert.equal((await ask(ids.publishedCourse, {}, who)).status, 200);
+  assert.equal((await ask()).status, 403);
 });
 test('Q11 mentioning another course in question text cannot change the authorized scope', async () => {
   publishB();
@@ -241,4 +253,5 @@ for (const [id, leafCourse] of [['U01', true], ['U02', false]]) test(`${id} lega
 test('U03 query scope uses canonical Video._id and no mandatory source-course filter', () => {
   const p = buildAtlasPipeline('text', vector, [ids.publishedVideo])[0].$vectorSearch.filter;
   assert.deepEqual(p, { videoId: { $in: [ids.publishedVideo] } }); assert.notEqual(ids.publishedVideo, ids.publishedVideoExternal);
+});
 });

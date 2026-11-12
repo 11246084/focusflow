@@ -4,6 +4,16 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 後五片可執行工具與無付費驗證（2026-11-12）
+
+影片一正式驗收摘要已獨立提交並push `94014c7`。後五片工具已完成最小擴充：同一corpus.json供Python／Node使用，凍結來源與產物hash、精確577筆allowlist；兩長段只建文字、影音略過。沿用既有Adapter／CAS及原生Checkpoint，按Chunk分批、共用US$20 ledger、簽章嘗試上限、失敗先停／明確一次重試permit、成功快取損壞拒絕重建。Atlas新清單只接受現有三路READY索引，禁止任何index操作，寫前／後核對影片一117筆全文件指紋；全694範圍自動備份、CAS、receipt與回復機制保留。QA Harness已支援各片授權範圍，沒有改核心QA／RRF／Bridge。
+
+五份manifest與1150個真實影音檔已完成準備，1727輸入Fake SDK全成功，第二次全部重用、Fake SDK新增呼叫0；可重用V4原生向量3筆，尚缺1724真實模型輸入，首次保守預留US$8.6620184，加既有ledger共約US$10.5477036，不含另需授權的5個題庫query（最多US$0.008192）或Parent。最壞三次約US$27.8717會超20，仍由共用ledger硬停，不能宣稱所有重試保證完成。本輪真實ledger維持US$1.8856852。後端完整1951項、1950通過、0失敗、1既有略過；Pipeline受影響41項通過。五片Fake HTTP QA／對話、來源時間、RRF、無fallback及授權負例通過，不是真實五片QA。
+
+當次Atlas唯讀694筆字稿／時間／原embedding與原生產物逐筆相同；V1三路完整、後五片新增欄位均0；三索引三節點READY/queryable、Leaf version4且所需定義差異0。dataSize約71.66MB、storage約129.97MB，依V1增量估後五片再加約74.16MB；Search用量及全叢集容量不由這些數字保證。管理頁存取逾時，當次tier／Search容量未核實，寫入窗口仍需確認告警／資源與無衝突。42題＋X01另列及7拒答的題庫檢查通過，六組×兩權重×Flat/Hierarchical的per-question格式與獨立重算工具沿用，未執行正式成效評測；query／真實Parent與全量覆蓋尚待建立。
+
+**判定**：下一輪Leaf模型批次工具與首次預算GO，須先取得付費授權；Atlas逐片執行仍須當次Preflight／容量與授權，不做無條件全量GO。其他五片、正式旗標與部署本輪均未操作。可執行命令見[後五片工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md)，[可分享摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-12-remaining-preparation-summary.json)不含原向量／字稿／備份／敏感receipt，完整證據留`.local-tools/remaining-videos-20261112/`。
+
 ## 影片一真實 Atlas／QA 技術驗證（2026-11-12）
 
 已依當次授權完成117/117筆CAS新增三路欄位，351向量及metadata讀回符合本機Checkpoint。694筆原embedding／保護欄位未變，577非目標文件整份未變；694完整範圍前像備份重讀通過，寫前再自動備份。text_embedding_index僅一次擴充、version3→4，保留舊embedding／filters；三個Search Index各三節點READY/queryable、無staged，未新建／刪除索引或collection，無回復。當次人員無衝突／無告警由庭語確認並監看；M0 currentOp回8000不可用，不宣稱Driver已觀測全域零活動。

@@ -6,6 +6,7 @@ const { buildGeminiTextSearchContract, compareEmbeddingContracts } = require('..
 const IDS = ['6a6da68e56dd124511ec51b4_chunk_0117', '6a6da68e56dd124511ec51b4_chunk_0001',
   '6a6da69256dd124511ec51d5_chunk_0070'];
 const PATHS = { text: 'stableTextEmbedding', audio: 'audioEmbedding', visual: 'visualEmbedding' };
+const scopeTools = require('./video1-scope');
 const OPTIONS = { maxTimeMS: 15000 };
 function sorted(value) {
   if (Array.isArray(value)) return value.map(sorted);
@@ -22,14 +23,15 @@ function vectorDigest(vector) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 function validateBundle(bundle, scope = null) {
+  if (scope) scopeTools.validateScope(scope);
   const ids = scope?.ids || IDS;
   const kinds = scope ? ['text', 'audio', 'visual'] : ['query', 'text', 'audio', 'visual'];
-  if (bundle?.schemaVersion !== (scope ? 'atlas_video1_v1' : 'atlas_sample_v1') || bundle.executionMode !== 'gemini' || bundle.records?.length !== ids.length * kinds.length) throw new Error('Invalid bundle');
+  if (bundle?.schemaVersion !== (scope ? scope.schemaVersion === 'video_manifest_v1' ? 'atlas_video_v1' : 'atlas_video1_v1' : 'atlas_sample_v1') || bundle.executionMode !== 'gemini' || bundle.records?.length !== (scope ? scopeTools.expectedRecords(scope) : ids.length * kinds.length)) throw new Error('Invalid bundle');
   const seen = new Set();
   for (const r of bundle.records) {
     const m = r.metadata;
     const key = `${r.identity?.chunkId}:${r.kind}`;
-    if (seen.has(key) || !ids.includes(r.identity?.chunkId) || !kinds.includes(r.kind)
+    if (seen.has(key) || !ids.includes(r.identity?.chunkId) || !(scope ? scopeTools.expectedKinds(scope, r.identity?.chunkId) : kinds).includes(r.kind)
       || r.identity.courseId !== COURSE_ID || !VIDEO_IDS.includes(r.identity.videoId)
       || !r.identity.chunkId.startsWith(`${r.identity.videoId}_chunk_`)
       || !Number.isFinite(r.identity.startSec) || !(r.identity.endSec > r.identity.startSec)
@@ -87,15 +89,14 @@ function ownedKeys(strategy) {
   if (!['A', 'B'].includes(strategy)) throw new Error('Invalid strategy');
   return Object.entries(PATHS).filter(([k]) => strategy === 'B' || k !== 'text').flatMap(([k, p]) => [p, `mediaEmbeddingMeta.${k}`]);
 }
-function protectedHash(doc) {
-  // Preserve every existing non-owned field, including any future schema additions.
+function protectedHash(doc, keys = ownedKeys('B')) {
   const copy = { ...doc };
-  for (const p of Object.values(PATHS)) delete copy[p];
-  if (copy.mediaEmbeddingMeta && typeof copy.mediaEmbeddingMeta === 'object') {
-    copy.mediaEmbeddingMeta = { ...copy.mediaEmbeddingMeta };
-    for (const k of Object.keys(PATHS)) delete copy.mediaEmbeddingMeta[k];
-    if (!Object.keys(copy.mediaEmbeddingMeta).length) delete copy.mediaEmbeddingMeta;
+  if (copy.mediaEmbeddingMeta) copy.mediaEmbeddingMeta = { ...copy.mediaEmbeddingMeta };
+  for (const key of keys) {
+    const [root, nested] = key.split('.');
+    if (nested) { if (copy[root]) delete copy[root][nested]; } else delete copy[root];
   }
+  if (copy.mediaEmbeddingMeta && !Object.keys(copy.mediaEmbeddingMeta).length) delete copy.mediaEmbeddingMeta;
   return hash(copy);
 }
 function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
@@ -111,7 +112,7 @@ function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
     if (doc.mediaEmbeddingMeta != null && (typeof doc.mediaEmbeddingMeta !== 'object' || Array.isArray(doc.mediaEmbeddingMeta))) throw new Error('Metadata root conflict');
     if (Object.hasOwn(doc, 'mediaEmbeddingMeta') && doc.mediaEmbeddingMeta === null) throw new Error('Metadata root conflict');
     const desired = {};
-    for (const kind of Object.keys(PATHS).filter(k => strategy === 'B' || k !== 'text')) {
+    for (const kind of Object.keys(PATHS).filter(k => (strategy === 'B' || k !== 'text') && (!scope || scopeTools.expectedKinds(scope, id).includes(k)))) {
       const r = bundle.records.find(r => r.kind === kind && r.identity.chunkId === id);
       assertScope(doc, snapshot.videos, r.identity, ids);
       if (scope) {
@@ -123,9 +124,11 @@ function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
       desired[PATHS[kind]] = r.embedding;
       desired[`mediaEmbeddingMeta.${kind}`] = { ...r.metadata, vectorDigest: r.vectorDigest };
     }
-    const keys = ownedKeys(strategy);
+    const keys = Object.keys(desired);
+    if (scope && scopeTools.expectedKinds(scope, id).length === 1
+      && ['audioEmbedding', 'visualEmbedding'].some(k => Object.hasOwn(doc, k))) throw new Error('Skipped media already exists; inspect');
     for (const key of keys) if (get(doc, key) !== undefined && hash(get(doc, key)) !== hash(desired[key])) throw new Error('Existing target conflict');
-    return { chunkId: id, before: doc, protectedHash: protectedHash(doc), desired, keys };
+    return { chunkId: id, before: doc, protectedHash: protectedHash(doc, keys), desired, keys };
   });
 }
 function currentMatches(current, expected) { return hash(current) === hash(expected); }
@@ -137,7 +140,7 @@ async function applyPlan(collection, plans, { execute = false, receipt = async (
   const results = [];
   for (const plan of plans) {
     const current = await collection.findOne({ _id: plan.before._id }, OPTIONS);
-    if (!current || protectedHash(current) !== plan.protectedHash) throw new Error('Protected data conflict; stopped');
+    if (!current || protectedHash(current, plan.keys) !== plan.protectedHash) throw new Error('Protected data conflict; stopped');
     if (plan.keys.every(k => hash(get(current, k)) === hash(plan.desired[k]))) {
       results.push({ chunkId: plan.chunkId, status: 'already_applied' }); await receipt(results); continue;
     }
@@ -149,9 +152,9 @@ async function applyPlan(collection, plans, { execute = false, receipt = async (
     const update = await collection.updateOne(casFilter(current), { $set: plan.desired }, { ...OPTIONS, upsert: false });
     if (update.matchedCount !== 1 || update.modifiedCount !== 1) throw new Error('CAS conflict; stopped');
     const after = await collection.findOne({ _id: current._id }, OPTIONS);
-    if (!after || protectedHash(after) !== plan.protectedHash || !plan.keys.every(k => hash(get(after, k)) === hash(plan.desired[k]))) throw new Error('Post-write verification failed; stopped');
+    if (!after || protectedHash(after, plan.keys) !== plan.protectedHash || !plan.keys.every(k => hash(get(after, k)) === hash(plan.desired[k]))) throw new Error('Post-write verification failed; stopped');
     results.push({ chunkId: plan.chunkId, status: 'verified', beforeHash: hash(current), afterHash: hash(after),
-      protectedBeforeHash: plan.protectedHash, protectedAfterHash: protectedHash(after), fields: plan.keys }); await receipt(results);
+      protectedBeforeHash: plan.protectedHash, protectedAfterHash: protectedHash(after, plan.keys), fields: plan.keys }); await receipt(results);
   }
   return results;
 }
@@ -160,7 +163,7 @@ async function rollbackPlan(collection, plans, { execute = false, receipt = asyn
   for (const p of plans) {
     const current = await collection.findOne({ _id: p.before._id }, OPTIONS);
     if (currentMatches(current, p.before)) { result.push({ chunkId: p.chunkId, status: 'already_restored' }); await receipt(result); continue; }
-    if (!current || protectedHash(current) !== p.protectedHash || !p.keys.every(k => hash(get(current, k)) === hash(p.desired[k]))) throw new Error('Rollback conflict; stopped');
+    if (!current || protectedHash(current, p.keys) !== p.protectedHash || !p.keys.every(k => hash(get(current, k)) === hash(p.desired[k]))) throw new Error('Rollback conflict; stopped');
     const $set = {}, $unset = {};
     for (const k of p.keys) { if (get(p.before, k) === undefined) $unset[k] = ''; else $set[k] = get(p.before, k); }
     // Remove an originally absent metadata root only if it contains exactly our entries.

@@ -1,15 +1,20 @@
 const c = require('../../scripts/atlas-multimodal/control');
 const s = require('../../scripts/atlas-multimodal/video1-scope');
 const { buildGeminiTextSearchContract } = require('../../src/services/embeddingContract.service');
-function fixture() {
+function fixture(number = 1) {
+  const spec = s.CORPUS.videos[number - 1];
+  const targetIds = number === 1 ? s.IDS : Array.from({ length: spec.count }, (_, i) => `${spec.videoId}_chunk_${String(i + 1).padStart(4, '0')}`);
   const vector = [1, ...Array(3071).fill(0)], contract = buildGeminiTextSearchContract();
-  const chunks = s.IDS.map((chunkId, i) => ({ courseId: s.COURSE_ID, videoId: s.VIDEO_ID, chunkId,
-    startSec: i * 10, endSec: i * 10 + 8, text: 'Synthetic contract fixture: authentication course evidence.' }));
-  const scope = { schemaVersion: 'video1_manifest_v1', courseId: s.COURSE_ID, videoId: s.VIDEO_ID, ids: s.IDS, chunks };
-  const documents = chunks.map((d, i) => ({ ...d, _id: `v1-${i}`, segmentId: d.chunkId, embedding: vector }));
-  const bundle = { schemaVersion: 'atlas_video1_v1', executionMode: 'gemini', records: chunks.flatMap(d =>
-    ['text', 'audio', 'visual'].map(kind => {
-      const { text, ...identity } = d;
+  const chunks = targetIds.map((chunkId, i) => ({ courseId: s.COURSE_ID, videoId: spec.videoId, chunkId,
+    startSec: i * 10, endSec: i * 10 + (spec.skipMediaIds.includes(chunkId) ? 61 : 8),
+    ...(number === 1 ? {} : { media: spec.skipMediaIds.includes(chunkId) ? {} : { audio: {}, visual: {} },
+      ...(spec.skipMediaIds.includes(chunkId) ? { skipMediaReason: 'duration_over_60s' } : {}) }), text: 'Synthetic contract fixture: authentication course evidence.' }));
+  const scope = { schemaVersion: number === 1 ? 'video1_manifest_v1' : 'video_manifest_v1', courseId: s.COURSE_ID, videoId: spec.videoId, ids: targetIds, chunks,
+    ...(number === 1 ? {} : { sourceSha256: spec.sourceSha256, artifactSha256: spec.artifactSha256, durationSec: spec.durationSec }) };
+  const documents = chunks.map((d, i) => ({ ...d, _id: `${spec.key.toLowerCase()}-${i}`, segmentId: d.chunkId, embedding: vector }));
+  const bundle = { schemaVersion: number === 1 ? 'atlas_video1_v1' : 'atlas_video_v1', executionMode: 'gemini', records: chunks.flatMap(d =>
+    s.expectedKinds(scope, d.chunkId).map(kind => {
+      const identity = Object.fromEntries(['courseId', 'videoId', 'chunkId', 'startSec', 'endSec'].map(k => [k, d[k]])); const text = d.text;
       return { kind, identity, text: kind === 'text' ? text : null, embedding: vector, vectorDigest: c.vectorDigest(vector),
         metadata: { ...contract, ...identity, status: 'success', modality: kind, signature: 'a'.repeat(64),
           contractVersion: kind === 'text' ? contract.contractVersion : `gemini_embedding_2_${kind}_v1`,

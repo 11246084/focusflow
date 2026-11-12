@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "multimodal_corpus_v1",
+  "courseId": "6a6da68456dd124511ec5196",
+  "expectedDocuments": 694,
+  "costCeilingUsd": 20,
+  "maxCalls": 6247,
+  "videos": [
+    {
+      "key": "V1",
+      "videoId": "6a6da68e56dd124511ec51b4",
+      "count": 117,
+      "filename": "1785570957608-aiA10_1140119_1.mp4",
+      "run": "run_20260801_155559",
+      "sourceSha256": "2931462f4db6dc9779b18cc408663e7d15ad9861e928fcff5b7e817338672ccd",
+      "artifactSha256": "90571a3eecbf67677c902ce9aacd5c193d5bd684f1ba8a7cab0a679de7fb82b5",
+      "durationSec": 1756.5,
+      "skipMediaIds": []
+    },
+    {
+      "key": "V2",
+      "videoId": "6a6da69056dd124511ec51bf",
+      "count": 123,
+      "filename": "1785570958892-aiA10_1140119_2.mp4",
+      "run": "run_20260801_155600",
+      "sourceSha256": "dea476b2ed801ce0eeb790cd30e64c3bcab71114e43a38fe343225efbd090000",
+      "artifactSha256": "279f86c79d88d09e4b0a6f6f115d1d35f760717e978b7509f93dcef8cf46c39b",
+      "durationSec": 1796.74,
+      "skipMediaIds": []
+    },
+    {
+      "key": "V3",
+      "videoId": "6a6da69156dd124511ec51ca",
+      "count": 83,
+      "filename": "1785570960294-aiA10_1140119_3.mp4",
+      "run": "run_20260801_155601",
+      "sourceSha256": "e0f9ef28ac523e44bd2303a384b7cb2d0d1acdb812eaf8fd4ddb622664af7454",
+      "artifactSha256": "2bc133c54b10a501c66970d15307956825227a0226c1576d5bdc66f484dfd736",
+      "durationSec": 1785.87,
+      "skipMediaIds": [
+        "6a6da69156dd124511ec51ca_chunk_0034"
+      ]
+    },
+    {
+      "key": "V4",
+      "videoId": "6a6da69256dd124511ec51d5",
+      "count": 144,
+      "filename": "1785570961660-aiA10_1140119_4.mp4",
+      "run": "run_20260801_155603",
+      "sourceSha256": "0aa43d089637a909d508591b0b4d49dbddae957a1b15ab060541ce78df35069d",
+      "artifactSha256": "f33eb24d8f6793cb0a97c5a09dbc1db31849fda80d2c9859df0ca2fa44cdeaa4",
+      "durationSec": 1825.18,
+      "skipMediaIds": []
+    },
+    {
+      "key": "V5",
+      "videoId": "6a6da69356dd124511ec51e0",
+      "count": 88,
+      "filename": "1785570962845-aiA10_1140119_5.mp4",
+      "run": "run_20260801_155604",
+      "sourceSha256": "4a3c2c52ca9630b338d065c526495f25a8d1f5bab19dbbd0252d153a90f5fd5c",
+      "artifactSha256": "16884d898c116b8fba46a8b44f832d4a300acc64c4f13fca6b5039b353f93c45",
+      "durationSec": 1827.32,
+      "skipMediaIds": [
+        "6a6da69356dd124511ec51e0_chunk_0016"
+      ]
+    },
+    {
+      "key": "V6",
+      "videoId": "6a6da69556dd124511ec51eb",
+      "count": 139,
+      "filename": "1785570963783-aiA10_1140119_6.mp4",
+      "run": "run_20260801_155605",
+      "sourceSha256": "69d71da1d00f592921618f584d1fc599cca329bf9b03de4322693bdd9e319bd5",
+      "artifactSha256": "bcae2f669006778594b3b90bd70c462f8e69c1d694fc980c0b7f6646c8f53cf8",
+      "durationSec": 2184.81,
+      "skipMediaIds": []
+    }
+  ]
+}

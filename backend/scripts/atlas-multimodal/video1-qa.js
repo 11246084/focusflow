@@ -19,13 +19,13 @@ function readonlyAtlas(collection, scope, query, audit) {
     if (first.$vectorSearch) {
       const v = first.$vectorSearch; channel = PATHS[v.path];
       assert.ok(channel, 'Unexpected vector path'); assert.equal(v.index, 'text_embedding_index');
-      assert.deepEqual(v.filter, { videoId: { $in: [VIDEO_ID] } });
+      assert.deepEqual(v.filter, { videoId: { $in: [scope.videoId] } });
       assert.equal(v.limit, 20); assert.equal(v.numCandidates, 100);
       vectorDigest(v.queryVector);
       assert.ok(v.queryVector.every((value, i) => Math.abs(value - query.embedding[i]) <= 1e-12),
         'Query differs beyond harmless provider normalization rounding');
     } else if (first.$match) {
-      assert.deepEqual(first.$match.videoId, { $in: [VIDEO_ID] });
+      assert.deepEqual(first.$match.videoId, { $in: [scope.videoId] });
       assert.deepEqual(new Set(first.$match.chunkId.$in), new Set(scope.ids));
     } else assert.deepEqual(first, { $listSearchIndexes: { name: 'text_embedding_index' } });
     return { toArray: async () => {
@@ -44,14 +44,15 @@ async function runAcceptance({ collection, scope, documents, video, query, evide
   assert.equal(query.metadata.model, 'gemini-embedding-2');
   assert.equal(query.metadata.provider, 'gemini'); assert.equal(query.metadata.status, 'success');
   assert.equal(query.metadata.dimension, 3072);
-  assert.equal(documents.length, 117);
+  const videoId = scope.videoId, count = scope.ids.length;
+  assert.equal(documents.length, count);
   assert.deepEqual(new Set(documents.map(d => d.chunkId)), new Set(scope.ids));
   for (const d of documents) {
     const original = scope.chunks.find(c => c.chunkId === d.chunkId);
-    assert.equal(d.videoId, VIDEO_ID);
+    assert.equal(d.videoId, videoId);
     for (const k of ['text', 'startSec', 'endSec']) assert.equal(d[k], original[k], 'Live source changed');
   }
-  assert.equal(String(video._id), VIDEO_ID);
+  assert.equal(String(video._id), videoId);
   assert.equal(String(video.courseId), COURSE_ID);
   // Harness is loaded only here, never in production runtime or a server startup path.
   const h = require('../../tests/helpers/backendTestHarness');
@@ -66,12 +67,12 @@ async function runAcceptance({ collection, scope, documents, video, query, evide
     mongoose.connect = mongoose.connection.openUri = () => { throw new Error('Mongoose connections forbidden in acceptance'); };
     h.resetStore(); readiness.clearMultimodalIndexCache();
     const course = h.store.courses.find(c => c._id === h.ids.publishedCourse);
-    course.title = 'LOCAL V1 acceptance scope — not the six-video course'; course.videoIds = [VIDEO_ID];
+    course.title = 'LOCAL V1 acceptance scope — not the six-video course'; course.videoIds = [videoId];
     const templateVideo = h.store.videos.find(v => v._id === h.ids.publishedVideo);
-    h.store.videos.splice(0, h.store.videos.length, { ...templateVideo, ...video, _id: VIDEO_ID,
+    h.store.videos.splice(0, h.store.videos.length, { ...templateVideo, ...video, _id: videoId,
       courseId: COURSE_ID, status: 'active', uploadedBy: h.ids.teacher });
     h.store.videoSegments.splice(0, h.store.videoSegments.length, ...documents.map(d => ({ ...d,
-      _id: String(d._id), videoId: VIDEO_ID, segmentId: d.segmentId || d.chunkId })));
+      _id: String(d._id), videoId: videoId, segmentId: d.segmentId || d.chunkId })));
     h.store.clips.length = 0;
     Object.assign(h.env, { qaMultimodalFusionEnabled: true, qaVectorSearchMode: 'atlas', qaQueryEmbeddingProvider: 'gemini',
       qaAnswerProvider: 'template', geminiApiKey: 'local-replay-no-credential', geminiEmbeddingModelName: 'gemini-embedding-2',
@@ -104,7 +105,7 @@ async function runAcceptance({ collection, scope, documents, video, query, evide
     assert.equal(audit.length, 3);
     for (const a of audit) assert.ok(a.candidates.length > 0, `No ${a.channel} candidates`);
     assert.equal(runtime.channels.stableTextCoverage.complete, true);
-    assert.equal(runtime.channels.stableTextCoverage.covered, 117);
+    assert.equal(runtime.channels.stableTextCoverage.covered, count);
     const lists = Object.fromEntries(audit.map(a => [a.channel, a.candidates.map(c => ({ ...c, courseId: course._id }))]));
     const fused = reciprocalRankFusion(lists);
     assert.ok(result.matches.length && result.citations.length);
@@ -115,7 +116,7 @@ async function runAcceptance({ collection, scope, documents, video, query, evide
     }
     for (const citation of result.citations) {
       const original = documents.find(d => d.chunkId === citation.chunkId);
-      assert.ok(original); assert.equal(citation.videoId, VIDEO_ID);
+      assert.ok(original); assert.equal(citation.videoId, videoId);
       assert.equal(citation.timestamp.startSec, original.startSec);
       assert.equal(citation.timestamp.endSec, original.endSec);
     }
@@ -135,8 +136,8 @@ async function runAcceptance({ collection, scope, documents, video, query, evide
       body: { courseId: course._id, question: query.queryText } });
     assert.equal(denied.status, 403); assert.equal(audit.length, beforeDenied);
     return { status: 'passed', evidenceSource, answerProvider: 'existing-template', answerQualityVerified: false,
-      scope: { kind: 'local-memory-legitimate-mount', videoIds: [VIDEO_ID], chunks: 117, originalCourseComplete: false },
-      source: { videoId: VIDEO_ID, sourceUrl: video.sourceUrl || video.video_url || null },
+      scope: { kind: 'local-memory-legitimate-mount', videoIds: [videoId], chunks: count, originalCourseComplete: false },
+      source: { videoId: videoId, sourceUrl: video.sourceUrl || video.video_url || null },
       queryReplays, paidCalls: 0, atlasWrites: 0, stateSink: 'existing-harness-memory',
       memoryWrites: Object.fromEntries(['conversations', 'messages', 'faqs', 'usageLogs', 'questions'].map(k => [k, h.store[k].length])),
       conversationEvidence: { status: 'passed', channels: audit.slice(3).map(a => a.channel), persistedInMemoryMessages: h.store.messages.length },
@@ -165,8 +166,8 @@ async function main() {
   const client = new MongoClient(env.mongodbUri, { retryWrites: false, serverSelectionTimeoutMS: 15000 });
   try {
     await client.connect(); const db = client.db('focusflow'), collection = db.collection('video_segments_text');
-    const documents = await collection.find({ videoId: VIDEO_ID }, { maxTimeMS: 15000 }).limit(118).toArray();
-    const video = await db.collection('videos').findOne({ _id: new ObjectId(VIDEO_ID) }, { maxTimeMS: 15000 });
+    const documents = await collection.find({ videoId: scope.videoId }, { maxTimeMS: 15000 }).limit(scope.ids.length + 1).toArray();
+    const video = await db.collection('videos').findOne({ _id: new ObjectId(scope.videoId) }, { maxTimeMS: 15000 });
     const report = await runAcceptance({ collection, scope, documents, video, query });
     fs.writeFileSync(localPath(v.output), JSON.stringify(report, null, 2), { flag: 'wx', mode: 0o600 });
     console.log(JSON.stringify({ status: report.status, paidCalls: 0, atlasWrites: 0, answerQualityVerified: false }));

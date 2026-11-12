@@ -1,4 +1,4 @@
-// V1 orchestration around the existing B/CAS tools. Never starts the application.
+// Approved per-video orchestration around the existing B/CAS tools. Never starts the application.
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseArgs } = require('node:util');
@@ -19,11 +19,24 @@ function save(file, data, exclusive = false) {
   fs.writeFileSync(file, BSON.EJSON.stringify(data, { relaxed: false }), { flag: exclusive ? 'wx' : 'w', mode: 0o600 });
 }
 function load(file) { return BSON.EJSON.parse(fs.readFileSync(localPath(file), 'utf8'), { relaxed: true }); }
+function completedV1Hash(documents) {
+  const rows = documents.filter(d => d.videoId === scopeTools.VIDEO_ID).sort((a, b) => a.chunkId.localeCompare(b.chunkId));
+  if (rows.length !== 117 || new Set(rows.map(r => r.chunkId)).size !== 117) throw new Error('Completed V1 scope missing');
+  for (const row of rows) for (const [kind, key] of Object.entries(c.PATHS)) {
+    c.vectorDigest(row[key]); const meta = row.mediaEmbeddingMeta?.[kind];
+    if (meta?.status !== 'success' || meta.model !== 'gemini-embedding-2' || meta.dimension !== 3072) throw new Error('V1 vectors not complete');
+  }
+  return c.hash(rows);
+}
 function validateBackup(snapshot, scope, bundle) {
   if (snapshot.documents.length !== 694 || new Set(snapshot.documents.map(d => d.chunkId)).size !== 694
     || snapshot.videos.length !== 6) throw new Error('Incomplete six-video backup');
   indexControl.assertSnapshot(snapshot.index);
   if (!indexControl.ready(snapshot.index, snapshot.index.latestDefinition)) throw new Error('Index not fully ready');
+  if (scope.schemaVersion === 'video_manifest_v1') {
+    if (c.indexPlan(snapshot.index, 'B').added.length) throw new Error('Existing three-path index required; no index update allowed');
+    completedV1Hash(snapshot.documents);
+  }
   const documents = snapshot.documents.filter(d => scope.ids.includes(d.chunkId));
   return c.planWrites({ ...snapshot, documents }, bundle, 'B', scope);
 }
@@ -54,6 +67,7 @@ async function prepare(db, collection, { scope, manifestHash, bundle, bundleHash
   if (!actions.find || !actions.update || !actions.listSearchIndexes) throw new Error('Required privileges unverified');
   const index = c.indexPlan(snapshot.index, 'B');
   const plan = { schemaVersion: 'video1_write_plan_v1', manifestHash, bundleHash,
+    ...(scope.schemaVersion === 'video_manifest_v1' ? { protectedV1Hash: completedV1Hash(snapshot.documents), targetVideoId: scope.videoId, indexMutationAllowed: false } : {}),
     backupFile: localPath(backupFile), backupHash: c.hash(snapshot), index,
     indexId: String(snapshot.index.id), indexVersion: snapshot.index.latestDefinitionVersion.version,
     videoIds: snapshot.videos.map(v => v._id), permissionsHash: c.hash(actions),
@@ -77,15 +91,25 @@ async function execute(db, collection, { plan, scope, bundle, manifestHash, bund
     if (fresh.documents.length !== 694 || fresh.videos.length !== 6) throw new Error('Fresh full backup incomplete');
   }
   await freshChecks(db, collection, plan);
+  if (scope.schemaVersion === 'video_manifest_v1') {
+    if (plan.targetVideoId !== scope.videoId || plan.indexMutationAllowed !== false || plan.index.added.length !== 0) throw new Error('Data-only plan scope conflict');
+    const v1 = await collection.find({ videoId: scopeTools.VIDEO_ID }, { maxTimeMS: 15000 }).toArray();
+    if (completedV1Hash(v1) !== plan.protectedV1Hash) throw new Error('Completed V1 changed before write');
+  }
   // Before the first update, preflight EVERY target. Individual writes still use CAS.
   for (const p of writes) {
     const row = await collection.findOne({ _id: p.before._id }, { maxTimeMS: 15000 });
-    if (!row || c.protectedHash(row) !== p.protectedHash || !(c.hash(row) === c.hash(p.before)
+    if (!row || c.protectedHash(row, p.keys) !== p.protectedHash || !(c.hash(row) === c.hash(p.before)
       || p.keys.every(k => c.hash(c.get(row, k)) === c.hash(p.desired[k])))) throw new Error('Live before-image conflict');
   }
   if (!['forward', 'restore'].includes(direction)) throw new Error('Invalid direction');
-  return direction === 'restore' ? c.rollbackPlan(collection, writes, { execute: executeWrite, receipt, intent })
-    : c.applyPlan(collection, writes, { execute: executeWrite, receipt, intent });
+  const results = await (direction === 'restore' ? c.rollbackPlan(collection, writes, { execute: executeWrite, receipt, intent })
+    : c.applyPlan(collection, writes, { execute: executeWrite, receipt, intent }));
+  if (scope.schemaVersion === 'video_manifest_v1') {
+    const v1 = await collection.find({ videoId: scopeTools.VIDEO_ID }, { maxTimeMS: 15000 }).toArray();
+    if (completedV1Hash(v1) !== plan.protectedV1Hash) throw new Error('Completed V1 changed; stopped');
+  }
+  return results;
 }
 async function main() {
   const { values: v } = parseArgs({ options: {
@@ -98,6 +122,7 @@ async function main() {
     || v['execute-write'] && !['apply', 'rollback'].includes(v.mode)
     || v['execute-index'] && !['index-update', 'index-restore'].includes(v.mode)) throw new Error('Invalid operation');
   const scope = scopeTools.readManifest(localPath(v.manifest), v['approve-manifest']);
+  if (scope.schemaVersion === 'video_manifest_v1' && !['dry-run', 'apply', 'rollback'].includes(v.mode)) throw new Error('Remaining videos are data-only; index operations forbidden');
   const bundleBytes = fs.readFileSync(localPath(v.bundle)), bundleHash = scopeTools.sha(bundleBytes);
   const bundle = JSON.parse(bundleBytes); c.validateBundle(bundle, scope);
   require('../../src/config/env');
@@ -109,7 +134,7 @@ async function main() {
       const plan = await prepare(db, collection, { scope, manifestHash: v['approve-manifest'], bundle, bundleHash,
         backupFile: `${output}.backup.json` });
       save(output, plan, true);
-      console.log(JSON.stringify({ status: 'prepared', targets: 117, approvalHash: plan.approvalHash, writes: 0 }));
+      console.log(JSON.stringify({ status: 'prepared', targets: scope.ids.length, approvalHash: plan.approvalHash, writes: 0 }));
     } else {
       const plan = load(v.plan);
       if (['index-plan', 'index-update', 'index-restore'].includes(v.mode)) {
@@ -136,4 +161,4 @@ async function main() {
   } finally { await client.close(); }
 }
 if (require.main === module) main().catch(() => { console.error('V1 operation stopped; details redacted. Inspect receipts; never blindly retry.'); process.exitCode = 1; });
-module.exports = { permissions, validateBackup, prepare, execute, planHash, freshChecks };
+module.exports = { permissions, completedV1Hash, validateBackup, prepare, execute, planHash, freshChecks };

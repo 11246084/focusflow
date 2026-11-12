@@ -6,7 +6,7 @@
 
 ## 影片一三項工具擴充（2026-11-12）
 
-三項工具缺口已完成本機實作：固定117筆 manifest／351輸入的 Gemini batch（共用20美元 ledger、跨重啟三次上限）、B方案117筆 CAS／自動備份／雜湊授權與固定索引 journal、安全真實 Atlas QA Harness（正式 QA 邏輯、全部狀態寫入記憶體）。目前只驗證 Fake Atlas，不宣稱真實 Atlas QA 成功或回答品質驗收。既有234個切片完成351輸入Fake SDK，6筆真實原生 Checkpoint 重用驗證成功且 ledger 未變。真實字稿／原時間／保存 query 的 Fake Atlas HTTP QA＋對話也通過。Backend完整1942項、1941通過、0失敗、1既有略過；最終寫入工具4項、QA工具2項另通過。Pipeline受影響五檔34項通過；全套 discover 在本機提前結束且未留下可採信測試輸出，不能列為通過。無付費、Atlas寫入／索引更新、部署、正式評測或開旗標，qa.service.js未改。工具層GO；下一輪真實執行仍需當次授權與當下索引／權限／容量檢查，Hierarchical真實Parent另待39筆。詳見[工具操作](04_Features/Multimodal_Retrieval/video1-tools.md)。
+程式提交 `22bff4b`、`4c618f0`。三項工具缺口已完成本機實作：固定117筆 manifest／351輸入的 Gemini batch（共用20美元 ledger、跨重啟三次上限）、B方案117筆 CAS／自動備份／雜湊授權與固定索引 journal、安全真實 Atlas QA Harness（正式 QA 邏輯、全部狀態寫入記憶體）。目前只驗證 Fake Atlas，不宣稱真實 Atlas QA 成功或回答品質驗收。既有234個切片完成351輸入Fake SDK，6筆真實原生 Checkpoint 重用驗證成功且 ledger 未變。真實字稿／原時間／保存 query 的 Fake Atlas HTTP QA＋對話也通過。Backend完整1942項、1941通過、0失敗、1既有略過；最終寫入工具4項、QA工具2項另通過。Pipeline受影響五檔34項通過；全套 discover 在本機提前結束且未留下可採信測試輸出，不能列為通過。無付費、Atlas寫入／索引更新、部署、正式評測或開旗標，qa.service.js未改。工具層GO；下一輪真實執行仍需當次授權與當下索引／權限／容量檢查，Hierarchical真實Parent另待39筆。詳見[工具操作](04_Features/Multimodal_Retrieval/video1-tools.md)。
 
 ## 影片一建置前最終檢查（2026-11-12）
 

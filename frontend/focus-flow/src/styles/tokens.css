@@ -1,0 +1,55 @@
+/*
+ * 新頁面用的設計變數（從 recut 教師介面開始）。數值與用法見 repo 根目錄的 DESIGN.md。
+ * 只定義變數，不改任何既有選擇器，所以既有頁面的外觀不受影響。
+ * 和既有頁面不同的兩處都是為了 WCAG 2.1 AA：實心按鈕用 --ff-deep-ember（白字 4.63:1），
+ * 文字最淡只用 --ff-chalk-muted（55% 白）。
+ */
+:root {
+  /* 顏色 */
+  --ff-ember-orange: #F14F21;
+  --ff-deep-ember: #D83A0E;
+  --ff-deep-ember-pressed: #BF330C;
+  --ff-night-ink: #0A0E27;
+  --ff-plum-night: #260C1E;
+  --ff-sidebar-dusk: rgba(18, 5, 14, 0.92);
+  --ff-chalk-white: #FFFFFF;
+  --ff-chalk-body: rgba(255, 255, 255, 0.8);
+  --ff-chalk-muted: rgba(255, 255, 255, 0.55);
+  --ff-hairline: rgba(255, 255, 255, 0.09);
+  --ff-divider: rgba(255, 255, 255, 0.05);
+  --ff-field-fill: rgba(255, 255, 255, 0.055);
+  --ff-field-stroke: rgba(255, 255, 255, 0.12);
+  --ff-status-ok: #4ADE80;
+  --ff-status-wait: #FACC15;
+  --ff-status-error: #F87171;
+  --ff-status-info: #A5B4FC;
+  --ff-danger-text: #FF8B72;
+
+  /* 字體 */
+  --ff-font-display: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+  --ff-font-body: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', sans-serif;
+  --ff-text-body: 13px;
+  --ff-text-title: 15px;
+  --ff-text-action: 14px;
+  --ff-text-min-cjk: 12px;
+
+  /* 圓角 */
+  --ff-radius-sm: 8px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 14px;
+  --ff-radius-xl: 18px;
+  --ff-radius-card: 22px;
+  --ff-radius-pill: 50px;
+
+  /* 間距 */
+  --ff-space-xs: 8px;
+  --ff-space-sm: 12px;
+  --ff-space-md: 18px;
+  --ff-space-lg: 22px;
+  --ff-space-page: 26px;
+
+  /* 互動 */
+  --ff-focus-ring: 2px solid var(--ff-ember-orange);
+  --ff-touch-target: 44px;
+  --ff-glow-primary: 0 8px 24px rgba(241, 79, 33, 0.35);
+}

@@ -4,6 +4,10 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 多模態交付範圍定案（2026-11-12）
+
+Weihao 定案（見 [decisions.md](04_Features/Multimodal_Retrieval/decisions.md)「交付前規劃第一輪」）：11/13 交付程式完整且 `QA_MULTIMODAL_FUSION_ENABLED` 關閉、離線與三筆真實小樣本證據及未完成項清單；全量影音向量、Atlas 正式寫入與正式 43 題在 11/15 前完成，判斷①改在 11/15，通過才在 11/16 凍結前開啟。11/14 部署時開關關閉。章節與影片升級移出這一階段。X01 的 V5 時間待核准，核准前正式報告以 42 題計分。多模態由庭語接手，交接內容見[多模態進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
 ## 多模態團隊溝通快照（2026-11-11）
 
 組員先讀 [團隊總覽](04_Features/Multimodal_Retrieval/team-overview.md)，再依需要看 [契約矩陣](04_Features/Multimodal_Retrieval/authorization-contract-review.md) 與 [Atlas 去敏實測摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-11-atlas-sample-summary.json)。總覽是當日溝通快照，本文件仍為唯一持續維護的狀態正本；不要把下方歷次快照直接當現在的放行條件。

@@ -115,7 +115,7 @@ YouTube 收尾複驗：[2026-10-27 F0～F2 最終審查與驗證](04_Features/Yo
 
 根目錄 [README](../README.md) 負責啟動導覽，[PROJECT](../PROJECT.md) 負責產品範圍，[ARCHITECTURE](../ARCHITECTURE.md) 負責穩定架構，[AGENTS](../AGENTS.md) 負責代理工作入口。技術細節仍由 [Backend](../backend/docs/)、[Pipeline](../STT_Whisper/README.md)、[Database](../database/README.md) 維護。進度與狀態只寫在狀態正本；歷史原文與會議紀錄不改內文。
 
-設計基準：[PRODUCT](../PRODUCT.md) 記錄給設計工具與 AI agent 讀的產品事實，[DESIGN](../DESIGN.md) 記錄前端既有的視覺樣式與新頁面要遵守的規則（2026-11-11 依 Impeccable 的 init／extract 流程整理）；新頁面用的 CSS 變數在 `frontend/focus-flow/src/styles/tokens.css`。
+設計基準：[PRODUCT](../PRODUCT.md) 記錄給設計工具與 AI agent 讀的產品事實，[DESIGN](../DESIGN.md) 記錄前端既有的視覺樣式與新頁面要遵守的規則（2026-11-11 依 Impeccable 的 init／extract 流程整理）；新頁面用的 CSS 變數在 `frontend/focus-flow/src/styles/tokens.css`。各工作區的頁面規劃放在 `.impeccable/surfaces/`，目前有教師短影片工作區（製作／管理），對應短影片決策 UX-20～UX-23。
 
 新增或整理文件時，依[文件類型與寫法](../.claude/skills/docs-maintainer/references/doc-types.md)決定放哪裡、怎麼寫。
 

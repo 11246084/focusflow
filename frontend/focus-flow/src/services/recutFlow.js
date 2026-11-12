@@ -7,7 +7,10 @@ export const MAX_BATCH = 5;
 export const POLL_INTERVAL_MS = 4000;
 export const MANAGE_REFRESH_MS = 20000;
 
+import { deriveDisplayStatus } from './shortScriptStatus.js';
+
 export const STEPS = ['確認講稿', '製作短片', '確認成品'];
+export const AVATAR_STEPS = ['確認腳本', '拍攝上傳', '確認成品'];
 
 // bucket：mine＝等你處理、waiting＝處理中、done＝已上架。
 const STATE_INFO = {
@@ -59,14 +62,45 @@ export function isRecutScript(script) {
 }
 
 // 管理清單排序：等你處理在前，其次處理中，最後已上架；同組依最後更新時間新到舊。
-const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2 };
+const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
 export function sortManageItems(items) {
   return [...items].sort((a, b) => (BUCKET_ORDER[a.bucket] - BUCKET_ORDER[b.bucket])
     || (Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0)));
 }
 
-export function toManageItem(script, course) {
-  const info = describeScript(script);
+// 數位分身：系統只產生腳本，教授在地端做好影片後傳回，再確認成品上架（UX-24）。
+// 狀態沿用舊頁面的 deriveDisplayStatus，這裡只換成工作區的步驟與待辦分組。
+const AVATAR_INFO = {
+  to_generate: { step: 0, bucket: 'mine', label: '尚未產生腳本', action: '產生腳本' },
+  changes_requested: { step: 0, bucket: 'mine', label: '需修改', action: '重新產生' },
+  to_film: { step: 1, bucket: 'mine', label: '待拍攝上傳', action: '上傳影片' },
+  asset_rejected: { step: 1, bucket: 'mine', label: '成品已退回', action: '重新上傳' },
+  upload_failed: { step: 1, bucket: 'mine', label: '上傳失敗', action: '重試' },
+  upload_waiting: { step: 1, bucket: 'waiting', label: '等待上傳' },
+  uploading: { step: 1, bucket: 'waiting', label: '傳送中' },
+  upload_needs_admin: { step: 1, bucket: 'waiting', label: '等管理員確認' },
+  in_review: { step: 2, bucket: 'mine', label: '確認成品', action: '確認成品' },
+  approved_waiting_upload: { step: 2, bucket: 'waiting', label: '已核准，等待上架' },
+  published: { step: 3, bucket: 'done', label: '已上架' },
+  dismissed: { step: 3, bucket: 'closed', label: '不做了' },
+};
+
+export function describeAvatar(script, assets = []) {
+  const status = deriveDisplayStatus(script, assets);
+  return { ...(AVATAR_INFO[status.key] || AVATAR_INFO.to_generate), state: status.key };
+}
+
+// 兩種產片方式共用的描述：清單、管理頁都用這個。
+export function describeShort(script, assets = []) {
+  return isRecutScript(script) ? describeScript(script) : describeAvatar(script, assets);
+}
+
+export function chipTone(info) {
+  return ['render_failed', 'upload_failed'].includes(info.state) || info.label === '產生失敗' ? 'error' : info.bucket;
+}
+
+export function toManageItem(script, course, assets = []) {
+  const info = describeShort(script, assets);
   return {
     scriptId: String(script._id),
     courseId: String(script.courseId || course?._id || ''),
@@ -76,6 +110,7 @@ export function toManageItem(script, course) {
     label: info.label,
     action: info.action || null,
     bucket: info.bucket,
+    tone: chipTone(info),
     updatedAt: script.updatedAt || script.createdAt || null,
   };
 }

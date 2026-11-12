@@ -1,26 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
+import { createScript as createAvatarScript, generateVersion, listAssets } from '../services/shortScript.js';
 import {
-  batchRoom, consentNeeds, describeScript, isRecutScript, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
+  MAX_BATCH, batchRoom, chipTone, consentNeeds, describeShort, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
 } from '../services/recutFlow.js';
 import {
   OPEN_SCRIPT_EVENT, consumePendingScriptOpen, isScriptTargetForPage, pickInitialCourseId, recallShortScriptCourse, rememberShortScriptCourse,
 } from '../utils/scriptDeepLink.js';
 import useCompactLayout from '../hooks/useCompactLayout';
 import RecutWorkspace from './RecutWorkspace';
+import AvatarWorkspace from './AvatarWorkspace';
 import { RecutConsentGate } from './RecutConsent';
 import useRecutConsent from '../hooks/useRecutConsent';
 import { PrimaryAction, StateChip } from './recutUi';
 
 export const SHORT_STUDIO_PAGE = 'shortStudio';
-const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2 };
+const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
 
 // 短影片製作：左欄這門課的短片與批次進度，中欄講稿，右欄時長與主要按鈕。
-export default function TeacherShortStudio({ onNav }) {
+// recut 與數位分身都在這裡做，選題時一起選產片方式（UX-24）。
+export default function TeacherShortStudio() {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [scripts, setScripts] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [mode, setMode] = useState('recut');
+  const [consentStep, setConsentStep] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [picking, setPicking] = useState(false);
   const [candidates, setCandidates] = useState(null);
@@ -56,9 +62,10 @@ export default function TeacherShortStudio({ onNav }) {
   }, []);
 
   const loadScripts = useCallback(async (id) => {
-    const list = (await api.listScripts(id)).filter(isRecutScript);
+    const [list, courseAssets] = await Promise.all([api.listScripts(id), listAssets(id).catch(() => [])]);
     setScripts(list);
-    return list;
+    setAssets(courseAssets);
+    return { list, courseAssets };
   }, []);
 
   useEffect(() => {
@@ -70,10 +77,10 @@ export default function TeacherShortStudio({ onNav }) {
     setPicking(false);
     setCandidates(null);
     setChosen([]);
-    loadScripts(courseId).then((list) => {
+    loadScripts(courseId).then(({ list, courseAssets }) => {
       if (!alive) return;
       const wanted = target && list.find((s) => String(s._id) === String(target.scriptId));
-      const firstMine = list.find((s) => describeScript(s).bucket === 'mine');
+      const firstMine = list.find((s) => describeShort(s, courseAssets).bucket === 'mine');
       const pick = wanted || firstMine || list[0];
       if (pick) setSelectedId(String(pick._id));
       else setPicking(true);
@@ -95,9 +102,10 @@ export default function TeacherShortStudio({ onNav }) {
     if (selectedId) rememberLastScript({ courseId, scriptId: selectedId });
   }, [courseId, selectedId]);
 
-  const sorted = useMemo(() => [...scripts].sort((a, b) => BUCKET_ORDER[describeScript(a).bucket] - BUCKET_ORDER[describeScript(b).bucket]), [scripts]);
+  const sorted = useMemo(() => [...scripts].sort((a, b) => BUCKET_ORDER[describeShort(a, assets).bucket] - BUCKET_ORDER[describeShort(b, assets).bucket]), [scripts, assets]);
   const selected = scripts.find((s) => String(s._id) === selectedId) || null;
-  const nextMine = sorted.find((s) => String(s._id) !== selectedId && describeScript(s).bucket === 'mine');
+  const nextMine = sorted.find((s) => String(s._id) !== selectedId && describeShort(s, assets).bucket === 'mine');
+  const reload = useCallback(() => loadScripts(courseId), [loadScripts, courseId]);
 
   const onStateChange = useCallback((id, recut) => {
     setScripts((prev) => prev.map((s) => (String(s._id) === id ? { ...s, recut } : s)));
@@ -109,6 +117,7 @@ export default function TeacherShortStudio({ onNav }) {
     setChosen([]);
     setBatchErrors([]);
     setCandidates(null);
+    setConsentStep(false);
   };
   useEffect(() => {
     if (picking && candidates === null && courseId) {
@@ -119,14 +128,19 @@ export default function TeacherShortStudio({ onNav }) {
     return undefined;
   }, [picking, candidates, courseId]);
 
-  // 後端同樣限制同一門課最多 5 支同時產生講稿；已在產生中的也算進去。
-  const room = batchRoom(scripts);
+  // 後端同樣限制同一門課最多 5 支 recut 同時產生講稿；已在產生中的也算進去。
+  const room = mode === 'recut' ? batchRoom(scripts) : MAX_BATCH;
+  const changeMode = (next) => { setMode(next); setChosen((prev) => prev.slice(0, next === 'recut' ? batchRoom(scripts) : MAX_BATCH)); };
   const toggleTopic = (topicKey) => setChosen((prev) => (prev.includes(topicKey)
     ? prev.filter((key) => key !== topicKey)
     : prev.length >= room ? prev : [...prev, topicKey]));
 
+  const needs = consentNeeds(consent);
+  const needsConsent = Boolean(consent) && (needs.content || needs.voice);
+
   // 一批最多 5 支：依序建立並開始產生，個別失敗不擋其他主題。
   const startBatch = async () => {
+    if (mode === 'recut' && needsConsent && terms) { setConsentStep(true); return; }
     setStarting(true);
     setError('');
     const failures = [];
@@ -134,8 +148,14 @@ export default function TeacherShortStudio({ onNav }) {
     for (const topicKey of chosen) {
       const candidate = candidates.find((c) => c.topicKey === topicKey);
       try {
-        const script = await api.createRecutScript(courseId, topicKey);
-        await api.startGeneration(script._id);
+        if (mode === 'recut') {
+          const script = await api.createRecutScript(courseId, topicKey);
+          await api.startGeneration(script._id);
+          if (!firstId) firstId = String(script._id);
+          continue;
+        }
+        const script = await createAvatarScript(courseId, topicKey);
+        await generateVersion(script._id);
         if (!firstId) firstId = String(script._id);
       } catch (err) {
         failures.push({ topicKey, question: candidate?.question || topicKey, message: recutErrorText(err) });
@@ -147,12 +167,19 @@ export default function TeacherShortStudio({ onNav }) {
     if (firstId) { setSelectedId(firstId); setPicking(false); setChosen([]); setCandidates(null); }
   };
 
-  const needs = consentNeeds(consent);
-  const needsConsent = Boolean(consent) && (needs.content || needs.voice);
   const featureOff = /未開放/.test(error);
 
   const pickerActions = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
+      <fieldset className="rc-pills" style={{ border: 0, margin: '0 0 12px', padding: 0 }} disabled={starting}>
+        <legend className="rc-visually-hidden">產片方式</legend>
+        {[['recut', '原片剪輯'], ['avatar', '數位分身']].map(([value, label]) => (
+          <label key={value} className="rc-pill" style={{ flex: 1, justifyContent: 'center' }}>
+            <input type="radio" name="rc-mode" checked={mode === value} onChange={() => changeMode(value)} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
         disabled={!chosen.length} reason={room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
@@ -171,8 +198,9 @@ export default function TeacherShortStudio({ onNav }) {
   else if (!courses.length) body = <div className="rc-col rc-main"><section className="rc-panel"><p>還沒有課程。</p></section></div>;
   else if (consentLoading) body = <div className="rc-col rc-main"><p className="rc-reason">載入中…</p></div>;
   else if (consentError && !consent) body = <div className="rc-col rc-main"><section className="rc-panel"><p className="rc-error">{consentError}</p></section></div>;
-  else if (needsConsent && terms && (picking || !selected)) {
-    body = <RecutConsentGate key={courseId} courseId={courseId} consent={consent} terms={terms} onRecorded={setConsent} />;
+  else if (picking && consentStep && terms) {
+    body = <RecutConsentGate key={courseId} courseId={courseId} consent={consent} terms={terms}
+      onRecorded={(latest) => { setConsent(latest); setConsentStep(false); }} />;
   } else if (picking) {
     body = (
       <>
@@ -207,10 +235,10 @@ export default function TeacherShortStudio({ onNav }) {
       </>
     );
   } else if (selected) {
-    body = (
-      <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange}
-        onNext={nextMine ? () => setSelectedId(String(nextMine._id)) : undefined} />
-    );
+    const onNext = nextMine ? () => setSelectedId(String(nextMine._id)) : undefined;
+    body = selected.productionMode === 'recut'
+      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onNext={onNext} />
+      : <AvatarWorkspace key={selectedId} script={selected} assets={assets} onChanged={reload} onNext={onNext} />;
   } else body = <div className="rc-col rc-main" />;
 
   return (
@@ -228,20 +256,20 @@ export default function TeacherShortStudio({ onNav }) {
               <span className="rc-field-label">短片</span>
               <select className="rc-select" value={picking ? '' : selectedId} onChange={(event) => { if (event.target.value) { setPicking(false); setSelectedId(event.target.value); } }}>
                 {picking && <option value="">新增短片</option>}
-                {sorted.map((script) => <option key={script._id} value={String(script._id)}>{`${describeScript(script).label}・${scriptQuestion(script)}`}</option>)}
+                {sorted.map((script) => <option key={script._id} value={String(script._id)}>{`${describeShort(script, assets).label}・${scriptQuestion(script)}`}</option>)}
               </select>
             </label>
           )) : (
             <ul className="rc-list">
               {sorted.map((script) => {
-                const info = describeScript(script);
+                const info = describeShort(script, assets);
                 const id = String(script._id);
                 return (
                   <li key={id}>
                     <button type="button" className="rc-list-item" aria-current={id === selectedId && !picking ? 'true' : undefined}
                       onClick={() => { setPicking(false); setSelectedId(id); }}>
                       <span className="rc-list-title">{scriptQuestion(script)}</span>
-                      <StateChip tone={info.state === 'render_failed' || info.label === '產生失敗' ? 'error' : info.bucket}>{info.label}</StateChip>
+                      <StateChip tone={chipTone(info)}>{info.label}</StateChip>
                     </button>
                   </li>
                 );
@@ -250,7 +278,6 @@ export default function TeacherShortStudio({ onNav }) {
           )}
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 12 }}
             aria-pressed={picking} onClick={openPicker} disabled={!courseId}>新增短片</button>
-          <button type="button" className="rc-btn-text" style={{ marginTop: 8 }} onClick={() => onNav?.('shortScripts')}>數位分身短片</button>
         </div>
       </nav>
       {body}

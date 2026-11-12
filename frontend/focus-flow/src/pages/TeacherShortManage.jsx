@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
-import { MANAGE_REFRESH_MS, isRecutScript, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
+import { listAssets } from '../services/shortScript.js';
+import { MANAGE_REFRESH_MS, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
 import { requestOpenScript } from '../utils/scriptDeepLink.js';
 import { RecutConsentManager } from './RecutConsent';
 import { StateChip } from './recutUi';
@@ -16,8 +17,8 @@ const SECTIONS = [
 async function fetchManageData() {
   const list = await api.listCourses();
   const perCourse = await Promise.all(list.map(async (course) => {
-    const scripts = await api.listScripts(course._id);
-    return scripts.filter(isRecutScript).map((script) => toManageItem(script, course));
+    const [scripts, assets] = await Promise.all([api.listScripts(course._id), listAssets(course._id).catch(() => [])]);
+    return scripts.map((script) => toManageItem(script, course, assets));
   }));
   return { list, rows: sortManageItems(perCourse.flat()) };
 }
@@ -79,7 +80,7 @@ export default function TeacherShortManage({ onNav }) {
                         <span className="rc-row-title">{item.question}</span>
                         {multiCourse && <span className="rc-row-course" style={{ display: 'block' }}>{item.courseTitle}</span>}
                       </span>
-                      <StateChip tone={item.state === 'render_failed' ? 'error' : item.bucket}>{item.label}</StateChip>
+                      <StateChip tone={item.tone}>{item.label}</StateChip>
                     </button>
                   </li>
                 ))}

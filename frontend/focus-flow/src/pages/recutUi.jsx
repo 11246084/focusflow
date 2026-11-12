@@ -16,10 +16,10 @@ export function StateChip({ tone, children }) {
 }
 
 // step：0 確認講稿、1 製作短片、2 確認成品、3 全部完成。
-export function FlowStrip({ step }) {
+export function FlowStrip({ step, steps = STEPS }) {
   return (
     <ol className="rc-flow" aria-label="短影片進度">
-      {STEPS.map((name, index) => {
+      {steps.map((name, index) => {
         const state = index < step ? 'done' : index === step ? 'current' : 'todo';
         const status = state === 'done' ? '已完成' : state === 'current' ? '目前步驟' : '還沒到';
         return (

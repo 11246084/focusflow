@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  batchRoom, buildScriptLines, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  batchRoom, buildScriptLines, describeShort, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -28,6 +28,14 @@ describe('recut 狀態對應的步驟與待辦', () => {
     assert.equal(describeScript({ recut: { state: 'idle' } }, { status: 'failed' }).label, '產生失敗');
   });
 
+  it('數位分身依成品狀態對應步驟：沒影片待上傳、待審核等你確認、不做了不列入待辦', () => {
+    const avatar = (status) => ({ _id: 's1', productionMode: 'avatar', status });
+    assert.equal(describeShort(avatar('generated'), []).label, '待拍攝上傳');
+    assert.equal(describeShort(avatar('generated'), [{ id: 'a1', sourceScriptId: 's1', status: 'draft', reviewStatus: 'pending', upload: { status: 'uploaded' } }]).bucket, 'mine');
+    assert.equal(describeShort(avatar('dismissed'), []).bucket, 'closed');
+    assert.equal(describeShort(avatar('evidence_ready'), []).action, '產生腳本');
+  });
+
   it('這門課還能開始的支數扣掉已在產生講稿中的', () => {
     const busy = (state) => ({ recut: { state } });
     assert.equal(batchRoom([busy('queued'), busy('generating'), busy('updating'), busy('script_review')]), 3);
@@ -45,7 +53,7 @@ describe('recut 狀態對應的步驟與待辦', () => {
   });
 
   it('管理清單的標題用學生原本的問法', () => {
-    const item = toManageItem({ _id: 'x', courseId: 'c', topic: '主題', sourceQuestions: [{ question: '為什麼？' }], recut: { state: 'asset_review' } }, { title: '課' });
+    const item = toManageItem({ _id: 'x', courseId: 'c', topic: '主題', sourceQuestions: [{ question: '為什麼？' }], productionMode: 'recut', recut: { state: 'asset_review' } }, { title: '課' });
     assert.equal(item.question, '為什麼？');
     assert.equal(item.action, '確認成品');
   });

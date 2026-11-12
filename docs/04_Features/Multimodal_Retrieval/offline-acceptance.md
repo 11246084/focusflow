@@ -1,5 +1,13 @@
 # 多模態離線驗收
 
+## 2026-11-12 暫定42題口徑
+
+依交付前Q3，X01未核准前以其餘42題計分，7拒答獨立診斷，X01保留原題與排名、metrics為null，不能混入拒答或平均。Gold檔案不改，`retrieval-protocol.json`已綁定`focusflow-retrieval-pending-X01-v1`及42題清單。原嚴格43模式保留，下文「缺Gold即BLOCKED」適用未明確指定暫定政策的執行。
+
+明確使用`node backend/scripts/auditMultimodalOffline.js --pending-x01 --inspect-bank docs/04_Features/QA_Evaluation/datasets/question-bank.json`檢查。驗算命令為`node backend/scripts/auditMultimodalOffline.js --pending-x01 bank.json manifest.json per-question.json config.json`；config須有`pendingX01:true`、對應protocolHash，bankHash不因排除改寫。僅允許目前X01缺V5的情況，任何其他缺漏或X01已核准仍用舊暫定政策都拒絕。
+
+固定每題24列／總50題1200列不變：42×24=1008列計分、7×24=168列拒答、X01的24列另列待核准。獨立checker也以42分母重算。原第11項開啟門檻不改；仍須同時保存舊embedding文字與stableTextEmbedding文字基準，六組模態×兩版權重及平面／分層MA都保留。回答正確性延到佈展後，不作本輪判斷①依據。這項離線工具不自動授權正式品質宣稱或觸發模型／資料庫操作。
+
 這套工具驗證 Parent 到引用的程式路徑，以及固定題庫的排名驗算。執行時只讀本機 JSON，使用合成 fixture 或已保存向量，不連 Atlas、不呼叫模型。實際完成範圍與當次結果見[目前狀態](../../current-status.md)。
 
 ## Parent 路徑

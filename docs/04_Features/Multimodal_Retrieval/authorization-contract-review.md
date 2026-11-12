@@ -1,5 +1,13 @@
 # 多模態授權契約審查與測試矩陣
 
+## 2026-11-12 定案後的實作對照
+
+Q5已核定合法跨課掛載沿用同份片段／向量，原始Leaf／media metadata的courseId僅為來源，不是ACL。新版Adapter只依可信canonical影片allowlist判定範圍，再轉成當次候選courseId；Bridge的候選／loader仍須由QA正規化成當次scope。下文為13e8a8c歷史審查，保留當時U01/U02待決與A02舊預期，不當作新規則。
+
+`backend/tests/multimodal-authorization.integration.test.js`以既有harness實作25項Q01～Q11、A01～A06、B01～B05、U01～U03。A02依Q5更新為來源courseId不能拒絕合法影片；B02測越界video／chunk與合法fallback，不將來源課程欄位誤作ACL；U01/U02經真正HTTP QA與Fake Atlas確認共享。A05／A06／B05是信任邊界／查詢前置觀察，不能列作「越權攻擊被Adapter獨立阻擋」。U03核對實際canonical查詢，不修改既有runtime呈現字串。其餘合法缺courseId、未修課／revoked／draft、request注入、FAQ及角色案例均保留原業務關係。
+
+這25項為本機HTTP／Fake repository驗證，不是Atlas或正式部署驗收；通過結果與完整範圍見[狀態正本](../../current-status.md)。真實學生教材不改，授權控制關係使用既有測試store，沒有為測試補寫正式courseId。
+
 本文件以 `dev 13e8a8ce894678c3501eb7bb9f99d90c000ebe5a` 的契約、程式與既有測試，重新審查 2026-11-11 真實 Atlas 小樣本的跨課探測。先確定每層接收什麼可信資料，再設計測試；不是授權改程式或 Atlas。當次進度、已執行與未執行範圍只看 [目前狀態](../../current-status.md)。
 
 ## 結論及前輪判定更正

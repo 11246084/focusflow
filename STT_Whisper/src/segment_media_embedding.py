@@ -6,8 +6,10 @@ import argparse
 import hashlib
 import json
 import math
-import subprocess
+import os
+import tempfile
 import time
+import subprocess
 from pathlib import Path
 from typing import Callable
 
@@ -113,9 +115,25 @@ def embed_with_adapter(media: Path, modality: str, adapter: Callable, *, provide
 
 
 def write_json(path: Path, value: dict) -> None:
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+    # Persist before replacement; Windows scanners can briefly hold the destination open.
+    # Retry only local atomic replacement, never a model call or a database mutation.
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                     prefix=path.name + ".", suffix=".tmp", delete=False) as handle:
+        temporary = Path(handle.name)
+        json.dump(value, handle, ensure_ascii=False, indent=2)
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        for attempt in range(10):
+            try:
+                temporary.replace(path)
+                break
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.05)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def prepare_chunks(video: Path, chunks: list[dict], output: Path, *, max_cost_usd: float) -> dict:

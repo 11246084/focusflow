@@ -149,6 +149,7 @@ class GeminiMultimodalAdapter:
                 or not isinstance(ledger.get("reservedUsd"), (int, float)) \
                 or not math.isfinite(ledger["reservedUsd"]) or ledger["reservedUsd"] < 0:
             raise ValueError("Invalid cost ledger")
+        cached = {}
         if checkpoint.exists():
             cached = json.loads(checkpoint.read_text(encoding="utf-8"))
             if cached.get("status") == "success" and cached.get("signature") == signature \
@@ -158,6 +159,14 @@ class GeminiMultimodalAdapter:
                 if cached.get("embeddingDigest") != digest:
                     raise ValueError("Checkpoint vector integrity check failed")
                 return {**cached, "reused": True}
+        attempts_by_signature = ledger.setdefault("attemptsBySignature", {})
+        if not isinstance(attempts_by_signature, dict):
+            raise ValueError("Invalid attempt ledger")
+        previous_attempts = max(attempts_by_signature.get(signature, 0), cached.get("attempts", 0))
+        if not isinstance(previous_attempts, int) or not 0 <= previous_attempts <= MAX_ATTEMPTS:
+            raise ValueError("Invalid attempt count")
+        if previous_attempts >= MAX_ATTEMPTS:
+            raise EmbeddingRequestError("Attempt ceiling reached; inspect checkpoint before continuing")
         record = {**(identity or {}), "signature": signature, "provider": self.execution_mode, "model": MODEL,
                   "modelVersionSource": "requested model ID; immutable server revision unavailable",
                   "apiVersion": "v1beta",
@@ -173,7 +182,7 @@ class GeminiMultimodalAdapter:
         print(f"Gemini {modality} estimated attempt USD {cost:.8f}; cumulative ceiling USD {self.max_cost_usd:.8f}", flush=True)
         client = None
         try:
-            for attempt in range(MAX_ATTEMPTS):
+            for attempt in range(previous_attempts, MAX_ATTEMPTS):
                 next_total = math.ceil((ledger["reservedUsd"] + cost) * 1e8) / 1e8
                 if next_total > self.max_cost_usd or next_total > 30 or ledger["calls"] >= self.max_calls:
                     record.update(status="blocked_budget", error={"code": "BUDGET_EXCEEDED"})
@@ -185,6 +194,7 @@ class GeminiMultimodalAdapter:
                     except Exception:
                         raise EmbeddingRequestError("Gemini client initialization failed; details redacted") from None
                 # Reserve before every attempt. Timeouts and unknown billing are never refunded.
+                attempts_by_signature[signature] = attempt + 1
                 ledger.update(reservedUsd=next_total, calls=ledger["calls"] + 1)
                 write_json(ledger_path, ledger)
                 record.update(attempts=attempt + 1, reservedTotalUsd=next_total)

@@ -1,5 +1,7 @@
 # 影片一批次工具操作
 
+本工具後續已完成限定影片一真實操作；當次狀態、證據與未完成範圍只看[狀態正本](../../current-status.md)。下列 execute 指令均須當次授權與新Preflight，不能因前次成功直接重送。
+
 這份說明沿用現有 Gemini Adapter、B 方案 CAS、索引 journal 與 QA Harness，供影片一建置與驗收使用。預設只做 Dry Run；付費、Atlas 寫入、索引更新均須另外取得當次授權。測試結果與尚未完成的真實驗收見[狀態正本](../../current-status.md)。
 
 ## 清單與 Embedding

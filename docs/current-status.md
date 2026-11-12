@@ -4,6 +4,14 @@
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
 
+## 影片一真實 Atlas／QA 技術驗證（2026-11-12）
+
+已依當次授權完成117/117筆CAS新增三路欄位，351向量及metadata讀回符合本機Checkpoint。694筆原embedding／保護欄位未變，577非目標文件整份未變；694完整範圍前像備份重讀通過，寫前再自動備份。text_embedding_index僅一次擴充、version3→4，保留舊embedding／filters；三個Search Index各三節點READY/queryable、無staged，未新建／刪除索引或collection，無回復。當次人員無衝突／無告警由庭語確認並監看；M0 currentOp回8000不可用，不宣稱Driver已觀測全域零活動。
+
+兩個保存問題各跑真實Atlas HTTP QA＋對話，文字／音訊／畫面各20候選，分別融合39／44候選；RRF k60、1:1:1重算與原時間戳引用通過，無fallback或文字替換；兩個未授權負例403且不搜尋。全部QA狀態只留Harness memory；答案沿用template，未驗LLM正確性。舊文字三個自查rank1、Top20順序全同；68項相關本機回歸通過（FAQ、Flat/Hierarchical、fallback、25授權矩陣及工具），未重跑無關全套。完整原生向量共351筆／117三路完整，六片stable覆蓋仍117/694、complete=false；本機旗標false、未查改正式VM旗標。
+
+本輪未呼叫付費Gemini、未改核心QA/RRF/Bridge、未部署／正式評測、未建其餘五片。Gemini ledger維持US$1.88568520保守預留，原逾時帳單仍未知。影片一技術門檻GO；後五片需另授權、核准allowlist／工具範圍擴充；39筆V1 Parent與全量品質門檻仍待處理。向量預設保留，不能開正式旗標。私有證據與報告位於`.local-tools/video1-build/atlas-live-v1-20261112/`，索引journal固定於`.local-tools/video1-build/index-journal/`；安全摘要見[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。本輪僅更新交接文件，未commit/push。
+
 ## 影片一三項工具擴充（2026-11-12）
 
 程式提交 `22bff4b`、`4c618f0`。三項工具缺口已完成本機實作：固定117筆 manifest／351輸入的 Gemini batch（共用20美元 ledger、跨重啟三次上限）、B方案117筆 CAS／自動備份／雜湊授權與固定索引 journal、安全真實 Atlas QA Harness（正式 QA 邏輯、全部狀態寫入記憶體）。目前只驗證 Fake Atlas，不宣稱真實 Atlas QA 成功或回答品質驗收。既有234個切片完成351輸入Fake SDK，6筆真實原生 Checkpoint 重用驗證成功且 ledger 未變。真實字稿／原時間／保存 query 的 Fake Atlas HTTP QA＋對話也通過。Backend完整1942項、1941通過、0失敗、1既有略過；最終寫入工具4項、QA工具2項另通過。Pipeline受影響五檔34項通過；全套 discover 在本機提前結束且未留下可採信測試輸出，不能列為通過。無付費、Atlas寫入／索引更新、部署、正式評測或開旗標，qa.service.js未改。工具層GO；下一輪真實執行仍需當次授權與當下索引／權限／容量檢查，Hierarchical真實Parent另待39筆。詳見[工具操作](04_Features/Multimodal_Retrieval/video1-tools.md)。

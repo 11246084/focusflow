@@ -226,7 +226,8 @@ components:
 - **Placeholder:** 既有頁面是 28% 白；新頁面的提示文字改放在欄位上方的說明，不只依賴 placeholder。
 
 ### Navigation
-- **Sidebar:** Sidebar Dusk 底，項目 14px 圓角、內距 11px 13px；目前頁面以橘色標示。
+- **Sidebar:** Sidebar Dusk 底，項目 14px 圓角、內距 11px 13px；目前頁面以橘色標示。未選中的項目文字與圖示用 55% 白（6.25:1；原本 45% 只有 4.48:1）。
+- **Skip link:** 短影片製作頁最前面有「跳到主要動作」，只在鍵盤聚焦時出現，按下後焦點移到這一步的主要按鈕。
 - **Focus:** 2px 的 70% 透明度橘色外框，外推 2px。
 
 ### Status Flow（短影片流程列）

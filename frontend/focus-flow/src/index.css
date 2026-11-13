@@ -1034,7 +1034,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   gap: 11px;
   padding: 11px 13px;
   border-radius: 14px;
-  color: rgba(255, 255, 255, 0.45);
+  /* 55% 白：在側欄底色上 6.25:1（原本 45% 只有 4.48:1，不到 4.5:1） */
+  color: rgba(255, 255, 255, 0.55);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
@@ -1078,7 +1079,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .nav-item .ni {
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
   flex-shrink: 0;
   transition: color 0.15s;
 }

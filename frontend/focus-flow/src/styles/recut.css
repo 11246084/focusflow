@@ -5,6 +5,9 @@
 .rc :where(button, select, a, input, [tabindex]):focus-visible { outline: var(--ff-focus-ring); outline-offset: 2px; }
 .rc h1, .rc h2, .rc h3 { text-wrap: balance; margin: 0; color: var(--ff-chalk-white); font-family: var(--ff-font-display); }
 .rc p { text-wrap: pretty; margin: 0; }
+.rc-skip { position: absolute; z-index: 20; translate: 0 -200%; padding: 10px 16px; border: 0; border-radius: var(--ff-radius-md); background: var(--ff-elev-3-surface); color: var(--ff-chalk-white); font: inherit; font-weight: 700; box-shadow: var(--ff-elev-2-shadow); cursor: pointer; }
+.rc-skip:focus-visible { translate: 0 0; outline: var(--ff-focus-ring); outline-offset: 2px; }
+.rc-col:has(> .rc-skip) { position: relative; }
 .rc-visually-hidden { position: absolute !important; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
 
 /* 三欄工作區 */
@@ -123,6 +126,9 @@
 .rc-btn-text:disabled { color: var(--ff-chalk-muted); cursor: not-allowed; }
 .rc-btn-text[data-act="add"] { color: var(--ff-ember-orange); }
 .rc-btn-block { width: 100%; }
+.rc-done { display: flex; align-items: center; gap: 10px; color: var(--ff-chalk-white); font-size: var(--ff-text-title); font-weight: 700; }
+.rc-done > span { color: var(--ff-status-wait); display: inline-flex; }
+.rc-done[data-done="true"] > span { color: var(--ff-status-ok); }
 .rc-reason { font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); text-align: center; }
 .rc-error { color: var(--ff-status-error); font-size: var(--ff-text-min-cjk); }
 

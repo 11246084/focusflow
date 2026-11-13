@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
 import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import { FEEDBACK_TYPES, generateVersion, latestVersion, retryAssetUpload, reviewScript, uploadAsset } from '../services/shortScript.js';
@@ -146,7 +147,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   else if (reviewStage) primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
 
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'}>
+    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
       <div className="rc-actions">
         {primary && <PrimaryAction {...primary} />}
         {version && (scriptStage || uploadStage) && (!mode || compact) && (
@@ -166,6 +167,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
             onClick={() => { setMode((value) => (value === 'reject' ? null : 'reject')); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
             {mode === 'reject' && !compact ? '不退回' : '退回'}
           </button>
+        )}
+        {['approved_waiting_upload', 'published'].includes(info.state) && (
+          <p className="rc-done" role="status" data-done={info.state === 'published' ? 'true' : undefined}>
+            <span aria-hidden="true"><Ic n={info.state === 'published' ? 'checkCircle' : 'hourglass'} s={18} /></span>
+            {info.state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
+          </p>
         )}
         {onNext && !primary && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>下一支</button>
@@ -280,7 +287,6 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         <section className="rc-panel rc-main" aria-labelledby={`av-q-${scriptId}`}>
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
-          {info.state === 'published' && <StateChip tone="done">已上架，學生看得到</StateChip>}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}

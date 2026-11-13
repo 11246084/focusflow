@@ -113,6 +113,11 @@ export default function TeacherShortStudio() {
   }, []);
 
   const rootRef = useRef(null);
+  const focusActions = () => {
+    const actions = rootRef.current?.querySelectorAll('[data-rc-actions] button, .rc-side button');
+    const target = [...(actions || [])].find((button) => !button.disabled);
+    target?.focus();
+  };
   // 手機上換一支短片時回到頁首，從問題開始看。
   const openShort = (id) => {
     setPicking(false);
@@ -252,6 +257,10 @@ export default function TeacherShortStudio() {
   return (
     <div ref={rootRef} className="rc rc-studio">
       <nav className="rc-col" aria-label="這門課的短片">
+        {/* 鍵盤捷徑：只在 Tab 到時出現，直接跳到這一步的主要按鈕，不必經過整份清單與講稿。 */}
+        {!compact && (selected || picking) && (
+          <button type="button" className="rc-skip" onClick={focusActions}>跳到主要動作</button>
+        )}
         <div className="rc-panel">
           <div className={compact ? 'rc-nav-row' : undefined}>
             <label>

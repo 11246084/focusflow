@@ -167,6 +167,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const editable = EDITABLE_STATES.has(state);
   const answerable = review?.current?.selection?.answerable !== false;
   const duration = durationStatus(view?.durationSec);
+  // 核准時要說清楚核准的是什麼：留用幾句、總長幾秒（片頭算在內）。
+  const keptCount = sentences.filter((item) => item.selected || item.opening).length;
 
   const toggleSentence = (sentence) => {
     if (pending) return;
@@ -270,7 +272,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   else if (state === 'script_review' && review?.draft) {
     primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
-    primary = { label: '核准講稿', hint: '接著自動製作短片', onClick: approveAndRender, busy: pending === 'approve',
+    primary = { label: '核准講稿', hint: `${keptCount} 句・${duration.sec} 秒，接著自動製作短片`, onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
   } else if (state === 'script_approved') primary = { label: '開始製作', onClick: render, busy: pending === 'render' };
   else if (state === 'render_failed' && review?.draft) {
@@ -321,7 +323,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'}>
+    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
       <div className="rc-actions">
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
@@ -338,6 +340,12 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending) || snapshot.task.status === 'cancel_requested'} onClick={cancel}>
             {snapshot.task.status === 'cancel_requested' ? '正在取消' : '取消'}
           </button>
+        )}
+        {['asset_approved', 'published'].includes(state) && (
+          <p className="rc-done" role="status" data-done={state === 'published' ? 'true' : undefined}>
+            <span aria-hidden="true"><Ic n={state === 'published' ? 'checkCircle' : 'hourglass'} s={18} /></span>
+            {state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
+          </p>
         )}
         {onNext && ['render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
@@ -433,9 +441,6 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
-          {['asset_approved', 'published'].includes(state) && (
-            <StateChip tone={state === 'published' ? 'done' : 'waiting'}>{state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}</StateChip>
-          )}
           {review?.source?.notice && <p className="rc-reason" style={{ textAlign: 'left' }}>{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>

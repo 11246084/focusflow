@@ -155,6 +155,12 @@
 .rc-pill:has(input:focus-visible) { outline: var(--ff-focus-ring); outline-offset: 2px; }
 .rc-textarea { width: 100%; box-sizing: border-box; min-height: 88px; resize: vertical; background: var(--ff-field-fill); border: 1px solid var(--ff-field-stroke); border-radius: var(--ff-radius-lg); color: var(--ff-chalk-white); padding: 12px 14px; font: inherit; }
 
+/* 產片方式：一句具體差別，這是選題時唯一保留的說明 */
+.rc-mode { min-height: 64px; padding: 10px 16px; border-radius: var(--ff-radius-lg); }
+.rc-mode > span { display: grid; gap: 2px; }
+.rc-mode strong { color: var(--ff-chalk-white); font-weight: 700; }
+.rc-mode > span > span { font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); }
+
 /* 主題選擇 */
 .rc-topics { list-style: none; margin: 0; padding: 0; }
 .rc-topics li + li { border-top: 1px solid var(--ff-divider); }

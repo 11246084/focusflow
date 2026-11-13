@@ -10,7 +10,7 @@ export const MANAGE_REFRESH_MS = 20000;
 import { deriveDisplayStatus } from './shortScriptStatus.js';
 
 export const STEPS = ['確認講稿', '製作短片', '確認成品'];
-export const AVATAR_STEPS = ['確認腳本', '拍攝上傳', '確認成品'];
+export const AVATAR_STEPS = ['確認腳本', '上傳影片', '確認成品'];
 
 // bucket：mine＝等你處理、waiting＝處理中、done＝已上架。
 const STATE_INFO = {
@@ -73,7 +73,7 @@ export function sortManageItems(items) {
 const AVATAR_INFO = {
   to_generate: { step: 0, bucket: 'mine', label: '尚未產生腳本', action: '產生腳本' },
   changes_requested: { step: 0, bucket: 'mine', label: '需修改', action: '重新產生' },
-  to_film: { step: 1, bucket: 'mine', label: '待拍攝上傳', action: '上傳影片' },
+  to_film: { step: 1, bucket: 'mine', label: '待上傳影片', action: '上傳影片' },
   asset_rejected: { step: 1, bucket: 'mine', label: '成品已退回', action: '重新上傳' },
   upload_failed: { step: 1, bucket: 'mine', label: '上傳失敗', action: '重試' },
   upload_waiting: { step: 1, bucket: 'waiting', label: '等待上傳' },
@@ -265,7 +265,7 @@ const ERROR_TEXT = {
   RECUT_SYNTHETIC_VOICE_NOT_READY: '合成語音還沒開放，請改用老師原音。',
   RECUT_CONSENT_TERMS_OUTDATED: '條款已更新，請重新閱讀後確認。',
   RECUT_CONSENT_WITHDRAWAL_PENDING: '還有下架工作沒完成，請先處理。',
-  RECUT_TEXT_OVERFLOW: '圖卡文字太長放不下。移除或換掉較長的句子，套用修改後再製作。',
+  RECUT_TEXT_OVERFLOW: '圖卡文字太長放不下。移除或換掉較長的句子，確定修改後再製作。',
   RECUT_RENDER_AUDIO_LOWERED: '製作時聲音處理異常，已通知管理員檢查，重新製作也會失敗。',
   RECUT_RENDER_CHECK_FAILED: '影片沒有通過聲音或長度檢查，已通知管理員檢查。',
   RECUT_COMPLETION_FAILED: '影片做好了但無法存檔，請重新製作。',

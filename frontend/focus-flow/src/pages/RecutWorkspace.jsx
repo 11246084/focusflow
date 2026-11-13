@@ -266,13 +266,13 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   let primary = null;
   if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
   else if (state === 'script_review' && review?.draft) {
-    primary = { label: '套用修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
+    primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
-    primary = { label: '核准講稿', onClick: approveAndRender, busy: pending === 'approve',
+    primary = { label: '核准講稿', hint: '接著自動製作短片', onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
   } else if (state === 'script_approved') primary = { label: '開始製作', onClick: render, busy: pending === 'render' };
   else if (state === 'render_failed' && review?.draft) {
-    primary = { label: '套用修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
+    primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'render_failed' && !isFixedRenderFailure(snapshot?.render?.errorCode)) {
     primary = { label: '重新製作', onClick: render, busy: pending === 'render' };
   }
@@ -282,7 +282,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   if (state === 'asset_review' && rejecting && !compact) {
     primary = rejectAction;
   } else if (state === 'asset_review') {
-    primary = { label: '核准上架', onClick: approveAsset, busy: pending === 'approveAsset',
+    primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
 
@@ -320,7 +320,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
         {(state === 'script_review' || state === 'render_failed') && review?.draft && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'restore' })}>全部復原</button>
+          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'restore' })}>放棄修改</button>
         )}
         {state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
@@ -427,6 +427,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
+          {['asset_approved', 'published'].includes(state) && (
+            <StateChip tone={state === 'published' ? 'done' : 'waiting'}>{state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}</StateChip>
+          )}
           {review?.source?.notice && <p className="rc-reason" style={{ textAlign: 'left' }}>{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>
@@ -478,7 +481,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
               ) : line.type === 'gap' ? (
                 <li key={line.id} className="rc-gap">
                   <button type="button" className="rc-btn-text" onClick={() => setExpandedGaps((prev) => new Set(prev).add(line.id))}>
-                    略過 {line.count} 句
+                    展開略過的 {line.count} 句
                   </button>
                 </li>
               ) : renderLine(line.sentence, line.role)))}
@@ -512,7 +515,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         </SheetDialog>
       )}
 
-      <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="全部復原" danger
+      <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="放棄修改" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>
         <p>講稿會回到 AI 整理的版本。</p>
       </ConfirmDialog>

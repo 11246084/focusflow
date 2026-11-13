@@ -207,10 +207,10 @@ export default function TeacherShortStudio() {
           <section className="rc-panel" aria-labelledby="rc-topics-title">
             <fieldset className="rc-pills" style={{ border: 0, margin: '0 0 22px', padding: 0 }} disabled={starting}>
               <legend className="rc-visually-hidden">產片方式</legend>
-              {[['recut', '原片剪輯'], ['avatar', '數位分身']].map(([value, label]) => (
-                <label key={value} className="rc-pill" style={{ flex: 1, justifyContent: 'center' }}>
+              {[['recut', '原片剪輯', '用你的課堂原音剪成'], ['avatar', '數位分身', '系統寫腳本，你自己製作']].map(([value, label, detail]) => (
+                <label key={value} className="rc-pill rc-mode" style={{ flex: 1 }}>
                   <input type="radio" name="rc-mode" checked={mode === value} onChange={() => changeMode(value)} />
-                  {label}
+                  <span><strong>{label}</strong><span>{detail}</span></span>
                 </label>
               ))}
             </fieldset>

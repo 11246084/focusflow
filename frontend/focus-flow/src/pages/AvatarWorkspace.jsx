@@ -141,7 +141,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   else if (uploadStage) {
     primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !aiConfirmed || !consentConfirmed, reason: '勾選上傳前的兩項確認' };
   } else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
-  else if (reviewStage) primary = { label: '核准上架', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
+  else if (reviewStage) primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
 
   const actionBlock = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
@@ -274,6 +274,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         <section className="rc-panel rc-main" aria-labelledby={`av-q-${scriptId}`}>
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
+          {info.state === 'published' && <StateChip tone="done">已上架，學生看得到</StateChip>}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}

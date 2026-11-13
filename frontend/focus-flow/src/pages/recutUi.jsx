@@ -96,15 +96,17 @@ export function ConfirmDialog({ open, title, children, confirmLabel, danger = fa
 }
 
 // 停用的主要按鈕旁只留一句原因。
-export function PrimaryAction({ label, onClick, disabled = false, reason = '', busy = false }) {
-  const reasonId = useId();
+// hint：按下後會發生、老師需要先知道的一句後果（只用在核准這類關鍵動作），可按時才顯示。
+export function PrimaryAction({ label, onClick, disabled = false, reason = '', hint = '', busy = false }) {
+  const noteId = useId();
+  const note = disabled ? reason : hint;
   return (
     <div className="rc-actions">
       <button type="button" className="rc-btn rc-btn-primary rc-btn-block" onClick={onClick}
-        disabled={disabled || busy} aria-describedby={disabled && reason ? reasonId : undefined}>
+        disabled={disabled || busy} aria-describedby={note ? noteId : undefined}>
         {busy ? '處理中…' : label}
       </button>
-      {disabled && reason && <p id={reasonId} className="rc-reason">{reason}</p>}
+      {note && <p id={noteId} className="rc-reason">{note}</p>}
     </div>
   );
 }

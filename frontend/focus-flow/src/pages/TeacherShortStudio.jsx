@@ -180,7 +180,7 @@ export default function TeacherShortStudio() {
   const pickerActions = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
-        disabled={!chosen.length} reason={room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
+        disabled={!chosen.length} reason={candidates?.length === 0 ? '這門課目前沒有可做的問題' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
         <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 8 }} disabled={starting}
           onClick={() => { setPicking(false); setSelectedId(String(sorted[0]._id)); }}>返回</button>
@@ -260,7 +260,7 @@ export default function TeacherShortStudio() {
                 {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
               </select>
             </label>
-            {compact && (
+            {compact && !featureOff && (
               <label>
                 <span className="rc-field-label">短片</span>
                 <select className="rc-select" value={picking ? NEW_SHORT : selectedId} disabled={!courseId}
@@ -289,7 +289,7 @@ export default function TeacherShortStudio() {
               })}
             </ul>
           )}
-          {!compact && (
+          {!compact && !featureOff && (
             <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 12 }}
               aria-pressed={picking} onClick={openPicker} disabled={!courseId}>新增短片</button>
           )}

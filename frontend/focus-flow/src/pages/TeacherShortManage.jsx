@@ -56,13 +56,15 @@ export default function TeacherShortManage({ onNav }) {
     onNav?.(SHORT_STUDIO_PAGE);
   };
   const multiCourse = courses.length > 1;
+  // 功能未開放是正常狀態，不是錯誤：只說明一句，不顯示空清單與製作按鈕。
+  const featureOff = error === recutErrorText({ status: 404, code: 'NOT_FOUND' });
 
   return (
     <div className="rc rc-manage">
       <div className="rc-main">
         {items === null && <p className="rc-reason">載入中…</p>}
-        {error && <section className="rc-panel"><p className="rc-error" role="alert">{error}</p></section>}
-        {items && SECTIONS.map((section) => {
+        {error && <section className="rc-panel"><p className={featureOff ? undefined : 'rc-error'} role={featureOff ? 'status' : 'alert'}>{error}</p></section>}
+        {items && !featureOff && SECTIONS.map((section) => {
           const rows = items.filter((item) => item.bucket === section.bucket);
           if (section.bucket !== 'mine' && !rows.length) return null;
           return (
@@ -88,7 +90,7 @@ export default function TeacherShortManage({ onNav }) {
             </section>
           );
         })}
-        {items && (
+        {items && !featureOff && (
           <button type="button" className="rc-btn rc-btn-outline" style={{ alignSelf: 'flex-start' }} onClick={() => onNav?.(SHORT_STUDIO_PAGE)}>製作新短片</button>
         )}
       </div>

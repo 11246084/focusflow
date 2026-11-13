@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
-import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import * as api from '../services/recut.js';
 import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
   isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
-import { ConfirmDialog, DurationMeter, FlowStrip, PrimaryAction, SheetDialog, StateChip, StatusCard } from './recutUi';
+import { ConfirmDialog, DurationMeter, FlowStrip, HelpTip, PrimaryAction, RejectReasonFields, SheetDialog, StateChip, StatusCard } from './recutUi';
 
 // 一支 recut 短片的審閱畫面。製作與管理兩個入口都打開這一份。
 // 中欄：問題、流程列、講稿（或成品）；右欄（手機為底部固定列）：時長與這一步唯一的主要按鈕。
@@ -23,7 +22,7 @@ const BUSY_TEXT = {
 const EDITABLE_STATES = new Set(['script_review', 'render_failed']);
 const YT_ORIGIN = 'https://www.youtube.com';
 
-export default function RecutWorkspace({ script, onStateChange, onNext, nextLabel }) {
+export default function RecutWorkspace({ script, onStateChange, onNext, nextLabel, onManage }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const [snapshot, setSnapshot] = useState(null);
@@ -40,7 +39,6 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
   const [noteTouched, setNoteTouched] = useState(false);
-  const noteErrorId = `${String(script._id)}-note-error`;
   const [playingId, setPlayingId] = useState(null);
   const [playheadId, setPlayheadId] = useState(null);
   const audioRef = useRef(null);
@@ -272,7 +270,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   else if (state === 'script_review' && review?.draft) {
     primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
-    primary = { label: '核准講稿', hint: `${keptCount} 句・${duration.sec} 秒，接著自動製作短片`, onClick: approveAndRender, busy: pending === 'approve',
+    primary = { label: '核准講稿', hint: `${keptCount} 句，接著自動製作短片；做好後會再請你確認才上架`, onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
   } else if (state === 'script_approved') primary = { label: '開始製作', onClick: render, busy: pending === 'render' };
   else if (state === 'render_failed' && review?.draft) {
@@ -284,38 +282,13 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
   // 退回原因在面板裡選（手機從底部升起、電腦置中），主要按鈕一直是「核准上架」。
   if (state === 'asset_review') {
-    primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: approveAsset, busy: pending === 'approveAsset',
+    primary = { label: '核准上架', hint: '學生短片牆會看到；之後可在短影片管理撤下', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
 
   const rejectFields = (
-    <>
-      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className="rc-visually-hidden">哪裡要改</legend>
-        <div className="rc-pills">
-          {REJECTION_REASONS.map((reason) => (
-            <label key={reason.code} className="rc-pill">
-              <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
-                const next = new Set(prev);
-                if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
-                return next;
-              })} />
-              {reason.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      {rejectCodes.has(otherCode) && (
-        <label style={{ display: 'block', marginTop: 12 }}>
-          <span className="rc-field-label">其他原因</span>
-          <textarea className="rc-textarea" value={rejectNote} maxLength={500} required
-            aria-invalid={noteTouched && !rejectNote.trim() ? 'true' : undefined}
-            aria-describedby={noteTouched && !rejectNote.trim() ? noteErrorId : undefined}
-            onBlur={() => setNoteTouched(true)} onChange={(event) => setRejectNote(event.target.value)} />
-          {noteTouched && !rejectNote.trim() && <p id={noteErrorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
-        </label>
-      )}
-    </>
+    <RejectReasonFields codes={rejectCodes} onCodesChange={setRejectCodes} note={rejectNote} onNoteChange={setRejectNote}
+      noteTouched={noteTouched} onNoteTouched={setNoteTouched} />
   );
 
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
@@ -345,7 +318,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
           </p>
         )}
-        {state === 'published' && <p className="rc-after">要撤下這支，到「短影片管理」的授權設定選擇下架。</p>}
+        {state === 'published' && onManage && <button type="button" className="rc-btn-text rc-after" onClick={onManage}>要撤下這支？到短影片管理</button>}
         {onNext && ['render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
@@ -372,7 +345,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {sentence.text}
           </p>
           <span className="rc-line-meta">
-            <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}>
+            <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}
+              aria-label={`播放原音 ${formatClock(sentence.startSec)}：${sentence.text}`}>
               <Ic n="play" s={10} /> 原音 {formatClock(sentence.startSec)}
             </button>
             {sentence.teacherChanged && <StateChip tone="edit">{kept ? '已加回' : '已移除'}</StateChip>}
@@ -386,6 +360,18 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         )}
       </li>
     );
+  };
+
+  // 上下鍵在句子間移動：停在同一種按鈕（移除／加回，或原音），不必一路按 Tab。
+  const moveBetweenLines = (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const kind = event.target.closest?.('.rc-line-toggle') ? '.rc-line-toggle' : event.target.closest?.('.rc-time') ? '.rc-time' : null;
+    if (!kind) return;
+    const all = [...event.currentTarget.querySelectorAll(kind)];
+    const next = all[all.indexOf(event.target.closest(kind)) + (event.key === 'ArrowDown' ? 1 : -1)];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
   };
 
   const changeSummary = review?.latestChangeSummary?.changes || [];
@@ -478,7 +464,19 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
         {!loading && !busy && review && (
           <section className="rc-panel" aria-label="講稿">
-            <ol className="rc-script">
+            <div className="rc-script-tools">
+              <HelpTip title="講稿怎麼看">
+                <dl className="rc-help-list">
+                  <dt>短片 0:04</dt><dd>這句在短片裡從第幾秒開始。</dd>
+                  <dt>原音 1:15</dt><dd>這句在課堂錄音裡的位置，按下去可以聽。</dd>
+                  <dt>片頭</dt><dd>放在最前面、先講結論的一句。</dd>
+                  <dt>灰色句子</dt><dd>沒放進短片；按「加回」放進來，按「移除」拿掉。</dd>
+                  <dt>30 秒、65 秒線</dt><dd>短片要落在這兩條線之間。</dd>
+                  <dt>鍵盤</dt><dd>在「移除／加回」或「原音」上按上下鍵，換到上一句或下一句。</dd>
+                </dl>
+              </HelpTip>
+            </div>
+            <ol className="rc-script" onKeyDown={moveBetweenLines}>
               {opening && renderLine(opening, 'opening')}
               {lines.map((line) => (line.type === 'mark' ? (
                 <li key={line.id} className="rc-mark" data-sec={line.sec}><span>{line.sec} 秒</span></li>

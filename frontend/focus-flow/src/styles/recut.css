@@ -86,7 +86,7 @@
 .rc-line-toggle[aria-disabled="true"] { opacity: 0.5; cursor: progress; }
 .rc-question:focus { outline: none; }
 .rc-question:focus-visible { outline: var(--ff-focus-ring); outline-offset: 4px; }
-.rc-time { min-height: 32px; padding: 0 6px; background: none; border: 1px solid transparent; border-radius: var(--ff-radius-sm); color: var(--ff-chalk-muted); font: inherit; font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.rc-time { min-height: 32px; padding: 0 6px; background: none; border: 1px solid transparent; border-radius: var(--ff-radius-sm); color: var(--ff-chalk-muted); font: inherit; font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .rc-time:hover { color: var(--ff-chalk-white); border-color: var(--ff-field-stroke); }
 .rc-time[aria-pressed="true"] { color: var(--ff-ember-orange); }
 .rc-gap { display: flex; justify-content: center; padding: 4px 0; }
@@ -97,10 +97,14 @@
 .rc-review-grid { display: grid; gap: var(--ff-space-md); }
 .rc-review-grid[data-asset="true"] .rc-player { width: min(100%, 280px); }
 .rc-now { margin-top: 10px; text-align: center; color: var(--ff-chalk-white); font-size: var(--ff-text-read); min-height: 1.7em; }
-@container review (inline-size > 760px) {
-  .rc-review-grid[data-asset="true"] { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); align-items: start; }
+@container review (inline-size > 500px) {
+  .rc-review-grid[data-asset="true"] { grid-template-columns: clamp(180px, 34cqi, 260px) minmax(0, 1fr); align-items: start; }
   .rc-review-grid[data-asset="true"] > .rc-panel:first-child { position: sticky; top: 0; }
   .rc-review-grid[data-asset="true"] .rc-now { display: none; }
+  /* 成品審閱不能改句子，沒有右側按鈕欄；講稿欄窄，時間縮到 3.4em，讓每行至少十幾個字。 */
+  .rc-review-grid[data-asset="true"] .rc-panel { padding: var(--ff-space-md); }
+  .rc-review-grid[data-asset="true"] .rc-line { grid-template-columns: 3.4em minmax(0, 1fr); gap: 2px 8px; }
+  .rc-review-grid[data-asset="true"] .rc-line-text { font-size: var(--ff-text-body); }
 }
 
 /* 按鈕 */
@@ -203,6 +207,7 @@
 .rc-upload { display: grid; gap: 2px; }
 .rc-upload-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ff-chalk-white); overflow-wrap: anywhere; }
 .rc-script-tools { display: flex; justify-content: flex-end; gap: 4px; margin: -6px -6px 6px 0; }
+.rc-script-tools .rc-help-btn { margin-right: auto; margin-left: -10px; }
 .rc-more > summary { cursor: pointer; min-height: var(--ff-touch-target); display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; color: var(--ff-chalk-body); list-style: none; }
 .rc-more > summary::-webkit-details-marker { display: none; }
 /* 自己畫展開箭頭（display:flex 會拿掉原生標記）：關著朝下，打開朝上。 */
@@ -211,6 +216,25 @@
 .rc-more > summary:hover { color: var(--ff-chalk-white); }
 .rc-more[open] > summary { margin-bottom: 8px; }
 .rc-more-body { display: grid; gap: 12px; }
+
+/* 退回原因分組 */
+.rc-reason-group { border: 0; margin: 0 0 14px; padding: 0; }
+.rc-reason-group:last-of-type { margin-bottom: 0; }
+
+/* 需要時才看的說明（原生 popover） */
+.rc-help-btn { display: inline-flex; align-items: center; gap: 4px; }
+.rc-help { max-width: min(360px, calc(100vw - 32px)); margin: auto; padding: var(--ff-space-lg); border: 1px solid var(--ff-hairline); border-radius: var(--ff-radius-card); background: var(--ff-elev-2-surface); color: var(--ff-chalk-body); box-shadow: var(--ff-elev-2-shadow); font-size: var(--ff-text-body); line-height: 1.7; }
+.rc-help::backdrop { background: rgba(0, 0, 0, 0.35); }
+.rc-help h2 { font-size: var(--ff-text-title); margin-bottom: 10px; }
+.rc-help-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+.rc-help-list dt { color: var(--ff-chalk-white); font-weight: 700; white-space: nowrap; }
+.rc-help-list dd { margin: 0; }
+.rc-help-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* 數位分身鏡頭：時間欄較寬，字幕前加小標 */
+.rc-line-shot { grid-template-columns: 6.6em minmax(0, 1fr); }
+.rc-shot-sub { color: var(--ff-chalk-muted); font-size: var(--ff-text-body); }
+.rc-shot-sub > span { margin-right: 6px; padding: 0 6px; border-radius: var(--ff-radius-sm); background: rgba(255, 255, 255, 0.06); font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-body); }
 
 /* 主題選擇 */
 .rc-topics { list-style: none; margin: 0; padding: 0; }

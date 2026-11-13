@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import { Ic } from '../components/Icons';
 import { MAX_DURATION_SEC, MIN_DURATION_SEC, STEPS, durationStatus, meterPercent } from '../services/recutFlow.js';
 
@@ -146,5 +147,65 @@ export function SheetDialog({ open, title, onClose, action, children }) {
       {children}
       <div className="rc-sheet-action">{action}</div>
     </dialog>
+  );
+}
+
+// 退回原因：6 項分成「內容」「影音」兩組加「其他」，一眼只要掃兩三個選項。可複選，選「其他」才要寫原因。
+const REJECT_GROUPS = [
+  { title: '內容', codes: ['contentIncorrect', 'incomplete'] },
+  { title: '聲音、畫面、字幕', codes: ['audioIssue', 'visualQuality', 'subtitleIssue'] },
+  { title: '', codes: ['other'] },
+];
+const REASON_BY_CODE = new Map(REJECTION_REASONS.map((reason) => [reason.code, reason]));
+
+export function RejectReasonFields({ codes, onCodesChange, note, onNoteChange, noteTouched, onNoteTouched }) {
+  const errorId = useId();
+  const toggle = (code, checked) => {
+    const next = new Set(codes);
+    if (checked) next.add(code); else next.delete(code);
+    onCodesChange(next);
+  };
+  const noteMissing = noteTouched && !note.trim();
+  return (
+    <>
+      {REJECT_GROUPS.map((group) => (
+        <fieldset key={group.codes[0]} className="rc-reason-group">
+          {group.title ? <legend className="rc-field-label">{group.title}</legend> : <legend className="rc-visually-hidden">其他</legend>}
+          <div className="rc-pills">
+            {group.codes.map((code) => (
+              <label key={code} className="rc-pill">
+                <input type="checkbox" checked={codes.has(code)} onChange={(event) => toggle(code, event.target.checked)} />
+                {REASON_BY_CODE.get(code)?.label || code}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+      {codes.has('other') && (
+        <label style={{ display: 'block', marginTop: 12 }}>
+          <span className="rc-field-label">其他原因</span>
+          <textarea className="rc-textarea" value={note} maxLength={500} required
+            aria-invalid={noteMissing ? 'true' : undefined} aria-describedby={noteMissing ? errorId : undefined}
+            onBlur={() => onNoteTouched(true)} onChange={(event) => onNoteChange(event.target.value)} />
+          {noteMissing && <p id={errorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
+        </label>
+      )}
+    </>
+  );
+}
+
+// 需要時才看的說明：預設收起，按「怎麼看」才展開（原生 popover，Esc 或點外面關閉）。
+export function HelpTip({ label = '怎麼看', title, children }) {
+  const id = useId();
+  return (
+    <>
+      <button type="button" className="rc-btn-text rc-help-btn" popoverTarget={id} aria-haspopup="dialog">
+        <span aria-hidden="true"><Ic n="info" s={13} /></span>{label}
+      </button>
+      <div id={id} popover="auto" className="rc-help" role="dialog" aria-label={title}>
+        <h2>{title}</h2>
+        {children}
+      </div>
+    </>
   );
 }

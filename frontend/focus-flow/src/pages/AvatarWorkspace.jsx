@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
-import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import { FEEDBACK_TYPES, generateVersion, latestVersion, retryAssetUpload, reviewScript, uploadAsset } from '../services/shortScript.js';
 import { findScriptAsset } from '../services/shortScriptStatus.js';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate.js';
 import { getReviewErrorMessage, submitReviewAndReadback, validateRejectionReasons } from '../services/videoReview.js';
-import { AVATAR_STEPS, describeAvatar, recutErrorText } from '../services/recutFlow.js';
+import { AVATAR_STEPS, describeAvatar, formatShotRange, recutErrorText } from '../services/recutFlow.js';
 import { formatFileSize, validateVideoFile } from './teacherUploadUtils';
-import { ConfirmDialog, FlowStrip, PrimaryAction, SheetDialog, StateChip, StatusCard } from './recutUi';
+import { ConfirmDialog, FlowStrip, HelpTip, PrimaryAction, RejectReasonFields, SheetDialog, StateChip, StatusCard } from './recutUi';
 
 // 數位分身短片的審閱畫面（UX-24）：系統產生腳本；教授在地端做好影片後傳回，確認成品後上架。
 // 版面與 recut 相同：中欄問題、流程列與內容，右欄（手機為底部固定列）唯一的主要按鈕。
@@ -37,7 +36,6 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
   const [noteTouched, setNoteTouched] = useState(false);
-  const noteErrorId = `${String(script._id)}-note-error`;
   const [file, setFile] = useState(null);
   const [aiConfirmed, setAiConfirmed] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
@@ -139,11 +137,29 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
   // 這一步真正要做的是傳回影片：還沒選影片時主要按鈕是「選擇影片」，選了才換成「上傳影片」。
-  else if (uploadStage && !file) primary = { label: '選擇影片', onClick: () => fileRef.current?.click(), disabled: pending === 'upload' };
+  else if (uploadStage && !file) primary = { label: '選擇影片', hint: '選你在自己電腦做好的影片檔', onClick: () => fileRef.current?.click(), disabled: pending === 'upload' };
   else if (uploadStage) {
     primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !aiConfirmed || !consentConfirmed, reason: '勾選上傳前的兩項確認' };
   } else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
   else if (reviewStage) primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
+
+  // 選好影片後的檔名與兩項確認：電腦在右欄主要按鈕上方；手機放在主欄，底部列只留主要按鈕，不遮住腳本。
+  const uploadChecks = uploadStage && file ? (
+    <div className="rc-upload">
+      <p className="rc-upload-file">
+        <span>{file.name}（{formatFileSize(file.size)}）</span>
+        <button type="button" className="rc-btn-text" onClick={() => fileRef.current?.click()} disabled={pending === 'upload'}>換一支</button>
+      </p>
+      <label className="rc-check">
+        <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
+        <span className="rc-check-body"><strong>右上角全程顯示「AI 合成影像・經本人授權」</strong></span>
+      </label>
+      <label className="rc-check">
+        <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
+        <span className="rc-check-body"><strong>我已簽署數位分身書面同意書</strong><span>寫明用途、範圍、期限，並可撤回</span></span>
+      </label>
+    </div>
+  ) : null;
 
   const actionBlock = (
     <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
@@ -152,22 +168,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
             onChange={pickFile} disabled={pending === 'upload'} />
         )}
-        {uploadStage && file && (
-          <div className="rc-upload">
-            <p className="rc-upload-file">
-              <span>{file.name}（{formatFileSize(file.size)}）</span>
-              <button type="button" className="rc-btn-text" onClick={() => fileRef.current?.click()} disabled={pending === 'upload'}>換一支</button>
-            </p>
-            <label className="rc-check">
-              <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
-              <span className="rc-check-body"><strong>右上角從頭到尾都有「AI 合成影像・經本人授權」</strong></span>
-            </label>
-            <label className="rc-check">
-              <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
-              <span className="rc-check-body"><strong>影片裡的老師已簽書面同意</strong><span>寫明用途、範圍、期限，並可撤回</span></span>
-            </label>
-          </div>
-        )}
+        {!compact && uploadChecks}
         {primary && <PrimaryAction {...primary} />}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
@@ -210,33 +211,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     </>
   );
   const rejectFields = (
-    <>
-      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className="rc-visually-hidden">哪裡要改</legend>
-        <div className="rc-pills">
-          {REJECTION_REASONS.map((reason) => (
-            <label key={reason.code} className="rc-pill">
-              <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
-                const next = new Set(prev);
-                if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
-                return next;
-              })} />
-              {reason.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      {rejectCodes.has('other') && (
-        <label style={{ display: 'block', marginTop: 12 }}>
-          <span className="rc-field-label">其他原因</span>
-          <textarea className="rc-textarea" value={rejectNote} maxLength={500} required
-            aria-invalid={noteTouched && !rejectNote.trim() ? 'true' : undefined}
-            aria-describedby={noteTouched && !rejectNote.trim() ? noteErrorId : undefined}
-            onBlur={() => setNoteTouched(true)} onChange={(event) => setRejectNote(event.target.value)} />
-          {noteTouched && !rejectNote.trim() && <p id={noteErrorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
-        </label>
-      )}
-    </>
+    <RejectReasonFields codes={rejectCodes} onCodesChange={setRejectCodes} note={rejectNote} onNoteChange={setRejectNote}
+      noteTouched={noteTouched} onNoteTouched={setNoteTouched} />
   );
 
   const options = version?.payload?.visualMetaphorOptions || [];
@@ -271,7 +247,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
           {/* 唯一保留的說明：數位分身要老師在自己電腦上做影片，版面本身表達不出這件事。 */}
-          {uploadStage && <p className="rc-source">照腳本在自己的電腦做好影片，從這裡傳回。下載的腳本最後有驗收清單，傳回前照著檢查。</p>}
+          {uploadStage && <p className="rc-source">照腳本在自己的電腦做好影片，再從這裡傳回。</p>}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}
@@ -282,6 +258,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           </section>
         )}
         {info.state === 'to_generate' && <section className="rc-panel"><p>還沒有腳本</p></section>}
+        {compact && uploadChecks && <section className="rc-panel">{uploadChecks}</section>}
 
         {showAsset && (
           <section className="rc-panel" aria-label="成品">
@@ -302,17 +279,25 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           <section className="rc-panel" aria-label="腳本">
             {(scriptStage || uploadStage) && (
               <div className="rc-script-tools">
+                <HelpTip label="怎麼做" title="數位分身短片怎麼做">
+                  <ol className="rc-help-steps">
+                    <li>複製或下載腳本，用你電腦上的數位分身工具照著做。</li>
+                    <li>影片右上角全程放「AI 合成影像・經本人授權」。</li>
+                    <li>下載的腳本最後有驗收清單，做完照著檢查。</li>
+                    <li>回到這裡按「選擇影片」傳回，再確認成品上架。</li>
+                  </ol>
+                </HelpTip>
                 <button type="button" className="rc-btn-text" onClick={copy}>複製腳本</button>
                 <button type="button" className="rc-btn-text" onClick={download}>下載腳本</button>
               </div>
             )}
             <ol className="rc-script">
               {shots.map((shot) => (
-                <li key={shot.shotNo} className="rc-line" data-role="kept">
-                  <span className="rc-time" aria-hidden="true" style={{ cursor: 'default' }}>{shot.timeRange}</span>
+                <li key={shot.shotNo} className="rc-line rc-line-shot" data-role="kept">
+                  <span className="rc-cut">{formatShotRange(shot.timeRange)}</span>
                   <div className="rc-line-body">
                     <p className="rc-line-text">{shot.narration}</p>
-                    {shot.subtitle && shot.subtitle !== shot.narration && <p className="rc-reason" style={{ textAlign: 'left' }}>{shot.subtitle}</p>}
+                    {shot.subtitle && shot.subtitle !== shot.narration && <p className="rc-shot-sub"><span>字幕</span>{shot.subtitle}</p>}
                   </div>
                 </li>
               ))}

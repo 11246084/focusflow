@@ -10,7 +10,7 @@ export const MANAGE_REFRESH_MS = 20000;
 import { deriveDisplayStatus } from './shortScriptStatus.js';
 
 export const STEPS = ['確認講稿', '製作短片', '確認成品'];
-export const AVATAR_STEPS = ['產生腳本', '傳回影片', '確認成品'];
+export const AVATAR_STEPS = ['產生腳本', '做影片並傳回', '確認成品'];
 
 // bucket：mine＝等你處理、waiting＝處理中、done＝已上架。
 const STATE_INFO = {
@@ -133,6 +133,13 @@ export function durationStatus(seconds) {
 export const METER_MAX_SEC = 80;
 export function meterPercent(seconds) {
   return Math.max(0, Math.min(100, ((Number(seconds) || 0) / METER_MAX_SEC) * 100));
+}
+
+// 數位分身腳本的鏡頭時間（例如「5-15s」）改成和講稿一樣的 0:05–0:15；看不懂的格式原樣顯示。
+export function formatShotRange(range) {
+  const match = String(range || '').trim().match(/^(\d+(?:\.\d+)?)\s*[-–~]\s*(\d+(?:\.\d+)?)\s*s?$/i);
+  if (!match) return String(range || '');
+  return `${formatClock(match[1])}–${formatClock(match[2])}`;
 }
 
 export function formatClock(seconds) {

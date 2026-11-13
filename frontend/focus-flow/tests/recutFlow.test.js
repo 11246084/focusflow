@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  batchRoom, buildScriptLines, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  batchRoom, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -197,4 +197,11 @@ describe('recut API 請求內容', () => {
     await api.withdrawConsent('c1', { kind: 'voice', termsVersion: 'v', requestId: 'r', selectAll: true, selectedAssetIds: ['a'] });
     assert.deepEqual(calls[0].body, { kind: 'voice', termsVersion: 'v', requestId: 'r', selectAll: true });
   });
+});
+
+it('formatShotRange 把鏡頭時間改成和講稿相同的格式', () => {
+  assert.equal(formatShotRange('5-15s'), '0:05–0:15');
+  assert.equal(formatShotRange('60–75s'), '1:00–1:15');
+  assert.equal(formatShotRange('開場'), '開場');
+  assert.equal(formatShotRange(undefined), '');
 });

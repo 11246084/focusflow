@@ -21,7 +21,7 @@ const NEW_SHORT = '__new__';
 
 // 短影片製作：左欄這門課的短片與批次進度，中欄講稿，右欄時長與主要按鈕。
 // recut 與數位分身都在這裡做，選題時一起選產片方式（UX-24）。
-export default function TeacherShortStudio() {
+export default function TeacherShortStudio({ onNav }) {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [scripts, setScripts] = useState([]);
@@ -254,7 +254,7 @@ export default function TeacherShortStudio() {
   } else if (selected) {
     const onNext = nextMine ? () => setSelectedId(String(nextMine._id)) : undefined;
     body = selected.productionMode === 'recut'
-      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onNext={onNext} />
+      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onNext={onNext} onManage={onNav ? () => onNav('shortManage') : undefined} />
       : <AvatarWorkspace key={selectedId} script={selected} assets={assets} onChanged={reload} onNext={onNext} />;
   } else body = <div className="rc-col rc-main" />;
 

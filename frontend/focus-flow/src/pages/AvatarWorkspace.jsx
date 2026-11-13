@@ -134,10 +134,9 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const modeAction = mode === 'regenerate'
     ? { label: '重新產生', onClick: regenerate, busy: pending === 'regenerate' }
     : mode === 'reject' ? { label: '送出退回', onClick: () => review('rejected'), busy: pending === 'reject', disabled: Boolean(rejectProblem), reason: rejectProblem } : null;
-  // 手機上原因放在底部面板，底部列維持這一步原本的主要按鈕。
+  // 原因一律放在面板裡選（手機從底部升起、電腦置中），這一步的主要按鈕不會被換掉。
   let primary = null;
-  if (modeAction && !compact) primary = modeAction;
-  else if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
+  if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
   // 這一步真正要做的是傳回影片：還沒選影片時主要按鈕是「選擇影片」，選了才換成「上傳影片」。
   else if (uploadStage && !file) primary = { label: '選擇影片', onClick: () => fileRef.current?.click(), disabled: pending === 'upload' };
@@ -153,7 +152,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
             onChange={pickFile} disabled={pending === 'upload'} />
         )}
-        {uploadStage && file && !mode && (
+        {uploadStage && file && (
           <div className="rc-upload">
             <p className="rc-upload-file">
               <span>{file.name}（{formatFileSize(file.size)}）</span>
@@ -161,22 +160,19 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
             </p>
             <label className="rc-check">
               <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
-              <span className="rc-check-body"><strong>影片已加上全片常駐的 AI 生成標示</strong></span>
+              <span className="rc-check-body"><strong>右上角從頭到尾都有「AI 合成影像・經本人授權」</strong></span>
             </label>
             <label className="rc-check">
               <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
-              <span className="rc-check-body"><strong>已取得出現在影片中的教師書面同意</strong></span>
+              <span className="rc-check-body"><strong>影片裡的老師已簽書面同意</strong><span>寫明用途、範圍、期限，並可撤回</span></span>
             </label>
           </div>
         )}
         {primary && <PrimaryAction {...primary} />}
-        {mode === 'regenerate' && !compact && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={() => setMode(null)}>不重新產生</button>
-        )}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
-            onClick={() => { setMode((value) => (value === 'reject' ? null : 'reject')); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
-            {mode === 'reject' && !compact ? '不退回' : '退回'}
+            onClick={() => { setMode('reject'); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
+            退回
           </button>
         )}
         {['approved_waiting_upload', 'published'].includes(info.state) && (
@@ -197,7 +193,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const regenerateFields = (
     <>
       <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <legend className="rc-visually-hidden">哪裡要改</legend>
         <div className="rc-pills">
           {FEEDBACK_TYPES.map((type) => (
             <label key={type.value} className="rc-pill">
@@ -216,7 +212,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const rejectFields = (
     <>
       <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <legend className="rc-visually-hidden">哪裡要改</legend>
         <div className="rc-pills">
           {REJECTION_REASONS.map((reason) => (
             <label key={reason.code} className="rc-pill">
@@ -246,17 +242,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const options = version?.payload?.visualMetaphorOptions || [];
   const sidePanels = (
     <>
-      {mode === 'regenerate' && !compact && (
-        <section className="rc-panel">
-          {regenerateFields}
-        </section>
-      )}
-      {mode === 'reject' && !compact && (
-        <section className="rc-panel">
-          {rejectFields}
-        </section>
-      )}
-      {canRevise && !mode && (
+      {canRevise && (
         <details className="rc-panel rc-more">
           <summary>更多</summary>
           <div className="rc-more-body">
@@ -285,7 +271,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
           {/* 唯一保留的說明：數位分身要老師在自己電腦上做影片，版面本身表達不出這件事。 */}
-          {uploadStage && <p className="rc-source">在自己的電腦做好影片後，從這裡傳回。</p>}
+          {uploadStage && <p className="rc-source">照腳本在自己的電腦做好影片，從這裡傳回。下載的腳本最後有驗收清單，傳回前照著檢查。</p>}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}
@@ -341,12 +327,10 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {!compact && sidePanels}
       </aside>
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
-      {compact && (
-        <SheetDialog open={Boolean(mode)} title={mode === 'reject' ? '哪裡要改' : '重新產生'} onClose={() => setMode(null)}
-          action={modeAction && <PrimaryAction {...modeAction} />}>
-          {mode === 'reject' ? rejectFields : regenerateFields}
-        </SheetDialog>
-      )}
+      <SheetDialog open={Boolean(mode)} title={mode === 'reject' ? '哪裡要改' : '重新產生腳本'} onClose={() => setMode(null)}
+        action={modeAction && <PrimaryAction {...modeAction} />}>
+        {mode === 'reject' ? rejectFields : regenerateFields}
+      </SheetDialog>
       <ConfirmDialog open={dismissOpen} title="不做這支短片？" confirmLabel="不做了" danger busy={pending === 'dismiss'}
         onConfirm={dismiss} onClose={() => setDismissOpen(false)}>
         <p>之後不會再出現在待辦裡。</p>

@@ -2389,3 +2389,8 @@ option{
 .auth-session-notice:not(:empty) { position: fixed; z-index: 1800; top: 16px; left: 50%; transform: translateX(-50%); max-width: min(90vw, 640px); padding: 12px 20px; border-radius: 10px; background: #451d2d; color: #fff; box-shadow: 0 8px 30px #0005; }
 
 .login-form-header h1 { margin: 0; }
+
+/* 觸控裝置：頂欄鈴鐺與頭像的點擊範圍至少 44px（滑鼠操作維持 36px 的視覺大小）。 */
+@media (pointer: coarse) {
+  .topbar .btn-icon, .topbar .topbar-avatar { width: 44px !important; height: 44px !important; }
+}

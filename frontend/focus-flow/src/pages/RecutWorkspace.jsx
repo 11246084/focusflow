@@ -282,10 +282,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   }
   const rejectAction = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
     reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
-  // 手機上退回原因在底部面板裡，底部列維持「核准上架」；電腦版把主要按鈕換成「送出退回」。
-  if (state === 'asset_review' && rejecting && !compact) {
-    primary = rejectAction;
-  } else if (state === 'asset_review') {
+  // 退回原因在面板裡選（手機從底部升起、電腦置中），主要按鈕一直是「核准上架」。
+  if (state === 'asset_review') {
     primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
@@ -293,7 +291,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const rejectFields = (
     <>
       <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <legend className="rc-visually-hidden">哪裡要改</legend>
         <div className="rc-pills">
           {REJECTION_REASONS.map((reason) => (
             <label key={reason.code} className="rc-pill">
@@ -332,8 +330,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         )}
         {state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
-            onClick={() => { setRejecting((value) => !value); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
-            {rejecting && !compact ? '不退回' : '退回'}
+            onClick={() => { setRejecting(true); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
+            退回
           </button>
         )}
         {isCancellableState(state) && snapshot?.task?.id && (
@@ -347,6 +345,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
           </p>
         )}
+        {state === 'published' && <p className="rc-after">要撤下這支，到「短影片管理」的授權設定選擇下架。</p>}
         {onNext && ['render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
@@ -363,7 +362,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     return (
       <li key={sentence.id} className="rc-line" data-role={role} data-playing={live}>
         <span className="rc-cut" aria-hidden={!kept}>
-          {kept && cutStart.has(sentence.id) ? <><span className="rc-visually-hidden">短片 </span>{formatClock(cutStart.get(sentence.id))}</> : ''}
+          {kept && cutStart.has(sentence.id) ? <><span className="rc-cut-label">短片</span>{formatClock(cutStart.get(sentence.id))}</> : ''}
         </span>
         <div className="rc-line-body">
           {role === 'opening' && <span className="rc-line-tag">片頭</span>}
@@ -392,12 +391,6 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const changeSummary = review?.latestChangeSummary?.changes || [];
   const sidePanels = (
     <>
-        {state === 'asset_review' && rejecting && !compact && (
-          <section className="rc-panel">
-            {rejectFields}
-          </section>
-        )}
-
         {state === 'script_review' && !review?.draft && openSuggestions.length > 0 && (
           <section className="rc-panel">
             <h2 className="rc-section-title">AI 建議</h2>
@@ -519,12 +512,10 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
 
-      {compact && (
-        <SheetDialog open={state === 'asset_review' && rejecting} title="哪裡要改" onClose={() => setRejecting(false)}
-          action={<PrimaryAction {...rejectAction} />}>
-          {rejectFields}
-        </SheetDialog>
-      )}
+      <SheetDialog open={state === 'asset_review' && rejecting} title="哪裡要改" onClose={() => setRejecting(false)}
+        action={<PrimaryAction {...rejectAction} />}>
+        {rejectFields}
+      </SheetDialog>
 
       <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="放棄修改" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>

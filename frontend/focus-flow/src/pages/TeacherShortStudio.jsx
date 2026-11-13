@@ -113,10 +113,14 @@ export default function TeacherShortStudio() {
   }, []);
 
   const rootRef = useRef(null);
+  // 固定跳到這一步的主要按鈕（停用時也在 Tab 順序裡，會念出原因）；這一步沒有主要按鈕時，跳到第一個可按的動作，再不然回到標題。
   const focusActions = () => {
-    const actions = rootRef.current?.querySelectorAll('[data-rc-actions] button, .rc-side button');
-    const target = [...(actions || [])].find((button) => !button.disabled);
+    const root = rootRef.current;
+    const primary = root?.querySelector('[data-rc-actions] [data-rc-primary], .rc-side [data-rc-primary], .rc-dock [data-rc-primary]');
+    const fallback = [...(root?.querySelectorAll('[data-rc-actions] button, .rc-side button') || [])].find((button) => !button.disabled);
+    const target = primary || fallback || root?.querySelector('h1');
     target?.focus();
+    target?.scrollIntoView({ block: 'nearest' });
   };
   // 手機上換一支短片時回到頁首，從問題開始看。
   const openShort = (id) => {
@@ -183,7 +187,7 @@ export default function TeacherShortStudio() {
   const featureOff = /未開放/.test(error);
 
   const pickerActions = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'}>
+    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
         disabled={!chosen.length} reason={candidates?.length === 0 ? '這門課目前沒有可做的問題' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
@@ -219,7 +223,7 @@ export default function TeacherShortStudio() {
                 </label>
               ))}
             </fieldset>
-            <h1 id="rc-topics-title" className="rc-question" style={{ marginBottom: 12 }}>學生最常問的問題</h1>
+            <h1 id="rc-topics-title" tabIndex={-1} className="rc-question" style={{ marginBottom: 12 }}>學生最常問的問題</h1>
             {candidates === null && <p className="rc-reason">載入中…</p>}
             {candidates?.length === 0 && <p>這門課目前沒有足夠的學生提問。</p>}
             {candidates?.length > 0 && (

@@ -106,26 +106,28 @@ function BusyLabel({ busy, children }) {
   );
 }
 
-// 停用的主要按鈕旁只留一句原因。
-// hint：按下後會發生、老師需要先知道的一句後果（只用在核准這類關鍵動作），可按時才顯示。
+// 主要按鈕：後果（hint）放在按鈕上方，先讀到再按；停用原因放在按鈕下方。
+// 停用時不設 disabled，改用 aria-disabled：按鈕留在 Tab 順序裡，「跳到主要動作」與螢幕報讀都找得到它和原因。
 export function PrimaryAction({ label, onClick, disabled = false, reason = '', hint = '', busy = false }) {
   const noteId = useId();
   const note = disabled ? reason : hint;
+  const blocked = disabled || busy;
   return (
     <div className="rc-actions">
-      {/* 處理中不設 disabled：按鈕留在 Tab 順序裡、焦點不會掉，只忽略重複點擊；原文字保留撐住寬度。 */}
-      <button type="button" className="rc-btn rc-btn-primary rc-btn-block" onClick={busy ? undefined : onClick}
-        disabled={disabled} aria-disabled={busy || undefined} aria-busy={busy || undefined}
+      {!disabled && hint && <p id={noteId} className="rc-hint">{hint}</p>}
+      <button type="button" className="rc-btn rc-btn-primary rc-btn-block" data-rc-primary
+        data-disabled={disabled || undefined} onClick={blocked ? undefined : onClick}
+        aria-disabled={blocked || undefined} aria-busy={busy || undefined}
         aria-describedby={note ? noteId : undefined}>
         <BusyLabel busy={busy}>{label}</BusyLabel>
       </button>
-      {note && <p id={noteId} className="rc-reason">{note}</p>}
+      {disabled && reason && <p id={noteId} className="rc-reason">{reason}</p>}
     </div>
   );
 }
 
-// 手機的底部面板：原生 <dialog> 由瀏覽器負責焦點、背景不可操作與 Esc／返回手勢關閉。
-// 退回原因、重新產生原因這類「點了按鈕才要選」的內容放這裡，選項與送出按鈕都在拇指範圍內。
+// 選原因的面板：原生 <dialog> 由瀏覽器負責焦點、背景不可操作與 Esc／返回手勢關閉。
+// 退回原因、重新產生原因這類「點了按鈕才要選」的內容一律放這裡：手機從底部升起、電腦置中，兩邊操作一樣。
 export function SheetDialog({ open, title, onClose, action, children }) {
   const ref = useRef(null);
   const titleId = useId();

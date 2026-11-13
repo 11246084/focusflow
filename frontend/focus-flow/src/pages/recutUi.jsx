@@ -87,11 +87,22 @@ export function ConfirmDialog({ open, title, children, confirmLabel, danger = fa
       {children}
       <div className="rc-dialog-actions">
         <button type="button" className="rc-btn rc-btn-outline" autoFocus onClick={onClose} disabled={busy}>取消</button>
-        <button type="button" className={`rc-btn ${danger ? 'rc-btn-danger' : 'rc-btn-primary'}`} onClick={onConfirm} disabled={busy}>
-          {busy ? '處理中…' : confirmLabel}
+        <button type="button" className={`rc-btn ${danger ? 'rc-btn-danger' : 'rc-btn-primary'}`} onClick={busy ? undefined : onConfirm}
+          aria-disabled={busy || undefined} aria-busy={busy || undefined}>
+          <BusyLabel busy={busy}>{confirmLabel}</BusyLabel>
         </button>
       </div>
     </dialog>
+  );
+}
+
+// 處理中：原文字隱藏但保留寬度，疊上「處理中…」，按鈕不跳寬。
+function BusyLabel({ busy, children }) {
+  return (
+    <>
+      <span style={busy ? { visibility: 'hidden' } : undefined}>{children}</span>
+      {busy && <span className="rc-btn-busy">處理中…</span>}
+    </>
   );
 }
 
@@ -102,9 +113,11 @@ export function PrimaryAction({ label, onClick, disabled = false, reason = '', h
   const note = disabled ? reason : hint;
   return (
     <div className="rc-actions">
-      <button type="button" className="rc-btn rc-btn-primary rc-btn-block" onClick={onClick}
-        disabled={disabled || busy} aria-describedby={note ? noteId : undefined}>
-        {busy ? '處理中…' : label}
+      {/* 處理中不設 disabled：按鈕留在 Tab 順序裡、焦點不會掉，只忽略重複點擊；原文字保留撐住寬度。 */}
+      <button type="button" className="rc-btn rc-btn-primary rc-btn-block" onClick={busy ? undefined : onClick}
+        disabled={disabled} aria-disabled={busy || undefined} aria-busy={busy || undefined}
+        aria-describedby={note ? noteId : undefined}>
+        <BusyLabel busy={busy}>{label}</BusyLabel>
       </button>
       {note && <p id={noteId} className="rc-reason">{note}</p>}
     </div>

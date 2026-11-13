@@ -52,4 +52,21 @@
   --ff-focus-ring: 2px solid var(--ff-ember-orange);
   --ff-touch-target: 44px;
   --ff-glow-primary: 0 8px 24px rgba(241, 79, 33, 0.35);
+
+  /* 高度層級（Elevation）：深色介面用「表面亮度＋陰影」一起表達 Z 軸，靜止的頁面與卡片不加陰影（Flat-At-Rest）。 */
+  --ff-elev-0-shadow: none;                                     /* Level 0：頁面、卡片靜止 */
+  --ff-elev-1-shadow: var(--ff-glow-primary);                   /* Level 1：唯一的主要按鈕滑過 */
+  --ff-elev-2-surface: #2E1226;                                 /* Level 2：下拉、選單、通知面板 */
+  --ff-elev-2-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --ff-elev-3-surface: #331529;                                 /* Level 3：Modal、底部面板 */
+  --ff-elev-3-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --ff-elev-4-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);           /* Level 4：Toast，蓋在 Modal 之上 */
+  /* Level 5 保留給拖曳中的元素，目前沒有使用。 */
+
+  /* 動態：顏色變化用短的平順曲線；空間回饋（按壓、開啟浮層）用彈簧。 */
+  --ff-ease-state: cubic-bezier(0.2, 0, 0, 1);
+  --ff-duration-state: 120ms;
+  /* 彈簧：stiffness 400、damping 28、mass 1（阻尼比 0.70），約 490ms 收斂，輕微回彈一次。 */
+  --ff-spring: linear(0, 0.141 6.2%, 0.413 12.5%, 0.672 18.8%, 0.863 25%, 0.977 31.2%, 1.031 37.5%, 1.046 43.8%, 1.041 50%, 1.029 56.2%, 1.016 62.5%, 1.007 68.8%, 1.002 75%, 0.999 81.2%, 0.998 87.5%, 0.998 93.8%, 1);
+  --ff-spring-duration: 490ms;
 }

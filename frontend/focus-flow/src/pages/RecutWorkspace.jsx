@@ -39,6 +39,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const [rejecting, setRejecting] = useState(false);
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
+  const [noteTouched, setNoteTouched] = useState(false);
+  const noteErrorId = `${String(script._id)}-note-error`;
   const [playingId, setPlayingId] = useState(null);
   const [playheadId, setPlayheadId] = useState(null);
   const audioRef = useRef(null);
@@ -258,7 +260,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     setReview(data);
     setRejecting(false);
     setRejectCodes(new Set());
-    setRejectNote('');
+    setRejectNote(''); setNoteTouched(false);
     await refresh();
   }).catch(() => {});
 
@@ -306,7 +308,11 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       {rejectCodes.has(otherCode) && (
         <label style={{ display: 'block', marginTop: 12 }}>
           <span className="rc-field-label">其他原因</span>
-          <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
+          <textarea className="rc-textarea" value={rejectNote} maxLength={500} required
+            aria-invalid={noteTouched && !rejectNote.trim() ? 'true' : undefined}
+            aria-describedby={noteTouched && !rejectNote.trim() ? noteErrorId : undefined}
+            onBlur={() => setNoteTouched(true)} onChange={(event) => setRejectNote(event.target.value)} />
+          {noteTouched && !rejectNote.trim() && <p id={noteErrorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
         </label>
       )}
     </>
@@ -324,7 +330,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         )}
         {state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
-            onClick={() => { setRejecting((value) => !value); setRejectCodes(new Set()); setRejectNote(''); }}>
+            onClick={() => { setRejecting((value) => !value); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
             {rejecting && !compact ? '不退回' : '退回'}
           </button>
         )}

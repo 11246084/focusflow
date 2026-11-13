@@ -35,6 +35,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const [feedback, setFeedback] = useState('');
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
+  const [noteTouched, setNoteTouched] = useState(false);
+  const noteErrorId = `${String(script._id)}-note-error`;
   const [file, setFile] = useState(null);
   const [aiConfirmed, setAiConfirmed] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
@@ -120,7 +122,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
       ...(status === 'rejected' ? { reasons: rejectReasons } : {}) });
     setMode(null);
     setRejectCodes(new Set());
-    setRejectNote('');
+    setRejectNote(''); setNoteTouched(false);
   }, getReviewErrorMessage);
 
   const scriptStage = ['to_generate', 'changes_requested'].includes(info.state);
@@ -161,7 +163,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         )}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
-            onClick={() => { setMode((value) => (value === 'reject' ? null : 'reject')); setRejectCodes(new Set()); setRejectNote(''); }}>
+            onClick={() => { setMode((value) => (value === 'reject' ? null : 'reject')); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
             {mode === 'reject' && !compact ? '不退回' : '退回'}
           </button>
         )}
@@ -213,7 +215,11 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
       {rejectCodes.has('other') && (
         <label style={{ display: 'block', marginTop: 12 }}>
           <span className="rc-field-label">其他原因</span>
-          <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
+          <textarea className="rc-textarea" value={rejectNote} maxLength={500} required
+            aria-invalid={noteTouched && !rejectNote.trim() ? 'true' : undefined}
+            aria-describedby={noteTouched && !rejectNote.trim() ? noteErrorId : undefined}
+            onBlur={() => setNoteTouched(true)} onChange={(event) => setRejectNote(event.target.value)} />
+          {noteTouched && !rejectNote.trim() && <p id={noteErrorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
         </label>
       )}
     </>

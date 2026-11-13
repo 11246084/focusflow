@@ -1160,6 +1160,9 @@ a.nav-item { text-decoration: none; }
 .btn-ghost:hover { border-color: rgba(255,255,255,0.45); color: #fff; }
 .btn-icon { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.55); transition: all .2s; }
 .btn-icon:hover { background: rgba(255,255,255,0.1); color: #fff; }
+/* 頂欄的鈴鐺與頭像是 <button>：清掉瀏覽器預設樣式，鍵盤焦點用與側欄相同的橘框。 */
+button.btn-icon { padding: 0; font: inherit; }
+.btn-icon:focus-visible, .topbar-avatar:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
 
 .stat-card { background: rgba(38,12,30,0.88); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 22px; }
 .stat-val { font-size: 34px; font-weight: 900; color: #F14F21; font-family: 'Space Grotesk',sans-serif; line-height: 1; letter-spacing: -.02em; }
@@ -1432,6 +1435,9 @@ a.nav-item { text-decoration: none; }
 /* Topbar light dropdown panels (notifications / user menu) */
 .dd-item { padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #27272a; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background .15s; font-family: 'Noto Sans TC', sans-serif; }
 .dd-item:hover { background: rgba(0,0,0,0.05); }
+button.dd-item { width: 100%; border: none; background: none; text-align: left; }
+/* 下拉選單是白底，焦點框用深橘（對白底 4.6:1）。 */
+.dd-item:focus-visible { outline: 2px solid #D83A0E; outline-offset: -2px; }
 .dd-item .ni { color: rgba(0,0,0,0.4); display: flex; align-items: center; }
 .dd-row:hover { background: rgba(0,0,0,0.03); }
 

@@ -129,7 +129,8 @@ components:
 - **Field Fill / Field Stroke**：輸入框的底與框線。
 
 ### Status
-- **Status OK / Wait / Error / Info**（綠、黃、紅、藍紫）：狀態小色塊的文字色，底色用同色 14% 透明度。四色在卡片上的對比都超過 6.5:1。
+- **Status OK / Wait / Error / Info**（綠、黃、紅、藍紫）：狀態小色塊的文字色，底色用同色 14% 透明度。在色塊自己的底色上量，四色都至少 5.3:1。
+- **待處理色塊**：文字用 `#FF8B72`（在 14% 橘底上 6.77:1）。Ember Orange 在自己的 14% 底色上只有 4.33:1，不能當色塊文字。
 
 ### Named Rules
 **The One Ember Rule.** 一個畫面上只有目前這一步的主要動作用實心橘色按鈕；其他動作用外框按鈕或文字按鈕。
@@ -164,7 +165,18 @@ components:
 
 ## Elevation & Depth
 
-以色調分層表達深度：頁面（Night Ink）→ 卡片（Plum Night）→ 卡片內的輸入框與小區塊（白色 5%～8% 疊加）。平常不使用陰影；只有主要按鈕滑過時出現橘色光暈（`0 8px 24px rgba(241, 79, 33, 0.35)`）。彈出視窗用半透明黑底加 6px 模糊遮住背景。
+以色調分層表達深度：頁面（Night Ink）→ 卡片（Plum Night）→ 卡片內的輸入框與小區塊（白色 5%～8% 疊加）。陰影只表達真實的 Z 軸高度，變數在 `tokens.css` 的 `--ff-elev-*`：
+
+| 層級 | 用途 | 表面 | 陰影 |
+|---|---|---|---|
+| 0 | 頁面、卡片靜止 | Night Ink／Plum Night | 無 |
+| 1 | 唯一的主要按鈕滑過 | — | 橘色光暈 `0 8px 24px rgba(241, 79, 33, 0.35)` |
+| 2 | 下拉、選單、通知面板 | `#2E1226` | `0 8px 24px rgba(0, 0, 0, 0.45)` |
+| 3 | Modal、底部面板 | `#331529` | `0 24px 60px rgba(0, 0, 0, 0.55)` |
+| 4 | Toast（蓋在 Modal 之上） | — | `0 12px 32px rgba(0, 0, 0, 0.6)` |
+| 5 | 保留給拖曳中的元素，目前不用 | — | — |
+
+彈出視窗用半透明黑底加 6px 模糊遮住背景。
 
 ### Named Rules
 **The Flat-At-Rest Rule.** 元件靜止時是平的，陰影只在滑過或彈出時出現。
@@ -178,10 +190,12 @@ components:
 ### Buttons
 - **Shape:** 膠囊形（50px）。
 - **Primary:** 新頁面用 Deep Ember 底、白字、14px 粗體，內距 14px 34px；小按鈕內距 9px 16px、12.5px。
-- **Hover / Pressed:** 底色換成 Deep Ember Pressed，上移 1px 並出現橘色光暈；減少動態效果時不移動。
+- **Hover:** 底色換成 Deep Ember Pressed 並出現第 1 層光暈；不位移。
+- **Pressed:** 縮到 0.97，放開時用彈簧回彈（stiffness 400、damping 28）；減少動態效果時不縮放，只保留顏色變化。
+- **Loading:** 保留原文字寬度，疊上「處理中…」；按鈕不設 `disabled`，改用 `aria-busy`／`aria-disabled`，焦點不會掉。
 - **Outline:** 透明底、Chalk Body 文字、1.5px 的 16% 白框線；滑過時底色加 6% 白。
 - **Danger Outline:** 文字 `#ff8b72`、紅色框線，用於刪除、撤回這類不可逆動作。
-- **Disabled:** 降低不透明度並顯示原因文字，不只是變灰。
+- **Disabled:** 實心按鈕改成中性實色（白色 8% 底、Chalk Muted 文字），不靠降低透明度；旁邊顯示原因文字。
 
 ### Chips（狀態色塊）
 - **Style:** 膠囊形，內距 3px 9px，11px 粗體；底色是狀態色 14% 透明度，文字是狀態色。
@@ -213,7 +227,8 @@ components:
 - **Do** 文字最淡用 Chalk Muted（55% 白），中文不小於 12px。
 - **Do** 所有可操作元素都有看得見的焦點框（2px 橘色或白色外框）。
 - **Do** 背景工作用文字說明「正在做什麼、大約要多久、完成會通知你」。
-- **Do** 尊重 `prefers-reduced-motion`：關掉位移與淡入動畫，只保留必要的狀態變化。
+- **Do** 尊重 `prefers-reduced-motion`：只關掉空間位移（按壓縮放、浮層彈出、時長尺伸縮），顏色變化保留。
+- **Do** 動畫只用在解釋、引導或確認操作：按壓回饋、浮層從按鈕開出、時長跟著修改變化。顏色變化用 120ms 平順曲線，空間回饋用 `--ff-spring`。
 
 ### Don't:
 - **Don't** 在新頁面用 Ember Orange 當白字按鈕的底色（對比 3.57:1）。

@@ -175,7 +175,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       const data = await api.editSelection(scriptId, review, [{ sentenceId: sentence.id, action: adding ? 'add' : 'remove' }]);
       setReview(data);
       const total = Math.round(Number((data.draft || data.current)?.durationSec) || 0);
-      setAnnouncement(`${adding ? '已加回' : '已移除'}，總長 ${total} 秒`);
+      setAnnouncement(`${adding ? '已加回' : '已移除'}，總長 ${total} 秒；按「確定修改」後才能核准`);
     }).catch(() => {});
   };
 
@@ -268,7 +268,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   let primary = null;
   if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
   else if (state === 'script_review' && review?.draft) {
-    primary = { label: '確定修改', hint: '每一句的修改都已自動儲存；確定後重新整理講稿，約一分鐘', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
+    primary = { label: '確定修改', hint: '修改已自動儲存；按下後系統依修改重排講稿，約一分鐘，完成後再核准', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
     primary = { label: '核准講稿', hint: `${keptCount} 句，接著自動製作短片；做好後會再請你確認才上架`, onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
@@ -319,7 +319,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </p>
         )}
         {state === 'published' && onManage && <button type="button" className="rc-btn-text rc-after" onClick={onManage}>要撤下這支？到短影片管理</button>}
-        {onNext && ['render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
+        {onNext && ['render_failed', 'render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
         {error && <p className="rc-error" role="alert">{error}</p>}
@@ -339,14 +339,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         </span>
         <div className="rc-line-body">
           {role === 'opening' && <span className="rc-line-tag">片頭</span>}
-          <p className="rc-line-text">
+          <p className="rc-line-text" id={`${scriptId}-${sentence.id}`}>
             {!kept && <span className="rc-visually-hidden">略過：</span>}
             {live && <span className="rc-visually-hidden">正在播放：</span>}
             {sentence.text}
           </p>
           <span className="rc-line-meta">
             <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}
-              aria-label={`播放原音 ${formatClock(sentence.startSec)}`}>
+              aria-label={`播放原音 ${formatClock(sentence.startSec)}`} aria-describedby={`${scriptId}-${sentence.id}`}>
               <Ic n="play" s={10} /> 原音 {formatClock(sentence.startSec)}
             </button>
             {sentence.teacherChanged && <StateChip tone="edit">{kept ? '已加回' : '已移除'}</StateChip>}
@@ -474,6 +474,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
                     <>
                       <dt>灰色句子</dt><dd>沒放進短片；按「加回」放進來，按「移除」拿掉。</dd>
                       <dt>30 秒、65 秒線</dt><dd>短片要落在這兩條線之間。</dd>
+                      <dt>確定修改</dt><dd>改過句子後按它，系統重排講稿約一分鐘，之後才能核准。</dd>
                       <dt>鍵盤</dt><dd>在「移除／加回」或「原音」上按上下鍵，換到上一句或下一句。</dd>
                     </>
                   ) : (

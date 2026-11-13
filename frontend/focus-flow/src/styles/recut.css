@@ -83,7 +83,7 @@
 .rc-source { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }
 .rc-line-tag { font-size: var(--ff-text-min-cjk); color: var(--ff-ember-orange); font-weight: 700; }
 .rc-line-toggle { margin-top: 2px; min-width: 4em; }
-.rc-line-toggle[aria-disabled="true"] { opacity: 0.5; cursor: progress; }
+.rc-line-toggle[aria-disabled="true"] { color: var(--ff-chalk-muted); cursor: progress; }
 .rc-question:focus { outline: none; }
 .rc-question:focus-visible { outline: var(--ff-focus-ring); outline-offset: 4px; }
 .rc-time { min-height: 32px; padding: 0 6px; background: none; border: 1px solid transparent; border-radius: var(--ff-radius-sm); color: var(--ff-chalk-muted); font: inherit; font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -129,7 +129,8 @@
 .rc-btn-text:hover:not(:disabled) { color: var(--ff-chalk-white); background: rgba(255, 255, 255, 0.06); }
 .rc-btn-text:active:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
 .rc-btn-text:disabled { color: var(--ff-chalk-muted); cursor: not-allowed; }
-.rc-btn-text[data-act="add"] { color: var(--ff-ember-orange); }
+/* 加回用白色粗體：橘色只留給主要按鈕，略過的句子靠灰字辨識。 */
+.rc-btn-text[data-act="add"] { color: var(--ff-chalk-white); text-decoration: underline; text-underline-offset: 3px; }
 .rc-btn-block { width: 100%; }
 .rc-done { display: flex; align-items: center; gap: 10px; color: var(--ff-chalk-white); font-size: var(--ff-text-title); font-weight: 700; }
 .rc-done > span { color: var(--ff-status-wait); display: inline-flex; }
@@ -161,6 +162,9 @@
 .rc-check-body { display: grid; gap: 2px; }
 .rc-check-body strong { color: var(--ff-chalk-white); font-weight: 500; }
 .rc-check-body span { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }
+/* 已選滿：文字換成最淡的 55% 白，不用整體透明度（會掉到 55% 以下）。 */
+.rc-check[data-full] { cursor: not-allowed; }
+.rc-check[data-full] .rc-check-body strong { color: var(--ff-chalk-muted); }
 
 /* 處理中置中狀態卡 */
 .rc-status { display: grid; justify-items: center; gap: 12px; padding: 48px var(--ff-space-lg); text-align: center; }

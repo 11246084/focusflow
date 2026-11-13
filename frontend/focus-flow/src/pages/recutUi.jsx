@@ -41,7 +41,8 @@ export function DurationMeter({ seconds }) {
   const to = meterPercent(MAX_DURATION_SEC);
   return (
     <div className="rc-duration" data-valid={status.valid}>
-      <p className="rc-duration-value" aria-live="polite">
+      {/* 加回／移除後的總長由工作區的狀態列念出，這裡不再重複播報。 */}
+      <p className="rc-duration-value">
         <strong>{status.sec}</strong> 秒
         {!status.valid && <span className="rc-error">{status.message}</span>}
       </p>

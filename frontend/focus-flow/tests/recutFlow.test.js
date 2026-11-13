@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  batchRoom, buildScriptLines, describeShort, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  batchRoom, buildScriptLines, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -74,6 +74,26 @@ describe('講稿逐句排列', () => {
   it('老師移除的句子留在原位，不收進略過行', () => {
     const lines = buildScriptLines([s('a', false), s('b', false), s('c', false, { teacherChanged: true }), s('d', false), s('e', false), s('f', true)]);
     assert.ok(lines.some((l) => l.sentence?.id === 'c'));
+  });
+
+  it('30／65 秒刻線放在第一句從該秒數之後開始的留用句前面', () => {
+    const lines = [1, 2, 3].map((n) => ({ type: 'sentence', role: 'kept', sentence: { id: `k${n}` } }));
+    const marked = withCutMarks(lines, [{ id: 'k1', from: 0 }, { id: 'k2', from: 31 }, { id: 'k3', from: 66 }]);
+    assert.deepEqual(marked.map((l) => l.id || l.sentence.id), ['k1', 'mark-30', 'k2', 'mark-65', 'k3']);
+    assert.equal(withCutMarks(lines.slice(0, 1), [{ id: 'k1', from: 0 }]).length, 1);
+  });
+
+  it('來源寫出影片名稱與原片時間範圍', () => {
+    assert.equal(sourceLabel({ evidence: [{ videoId: 'v1', videoTitle: '第三週' }] }, { videoId: 'v1', startSec: 40, endSec: 180 }), '第三週・0:40–3:00');
+    assert.equal(sourceLabel({}, { videoId: 'v9', startSec: 0, endSec: 125 }), '原片 0:00–2:05');
+    assert.equal(sourceLabel({}, { videoId: 'v9', sentences: [{ startSec: 40, endSec: 44 }, { startSec: 90, endSec: 95 }] }), '原片 0:40–1:35');
+  });
+
+  it('多久前更新', () => {
+    const now = Date.parse('2026-11-13T10:00:00Z');
+    assert.equal(formatAgo('2026-11-13T09:59:30Z', now), '剛剛');
+    assert.equal(formatAgo('2026-11-13T08:00:00Z', now), '2 小時前');
+    assert.equal(formatAgo('2026-11-10T10:00:00Z', now), '3 天前');
   });
 
   it('片頭句不在原位重複', () => {

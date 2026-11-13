@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import { Ic } from '../components/Icons';
-import { MAX_DURATION_SEC, METER_MAX_SEC, MIN_DURATION_SEC, STEPS, durationStatus, meterPercent } from '../services/recutFlow.js';
+import { MAX_DURATION_SEC, MIN_DURATION_SEC, STEPS, durationStatus, meterPercent } from '../services/recutFlow.js';
 
 // recut 工作區共用的小元件：流程列、狀態色塊、時長尺、處理中狀態卡、確認對話框。
 
@@ -50,7 +50,7 @@ export function DurationMeter({ seconds }) {
           <span className="rc-meter-fill" style={{ width: `${meterPercent(seconds)}%` }} />
         </div>
         <div className="rc-meter-scale" aria-hidden="true">
-          {[0, MIN_DURATION_SEC, MAX_DURATION_SEC, METER_MAX_SEC].map((value) => (
+          {[0, MIN_DURATION_SEC, MAX_DURATION_SEC].map((value) => (
             <span key={value} style={{ left: `${meterPercent(value)}%` }}>{value}</span>
           ))}
         </div>

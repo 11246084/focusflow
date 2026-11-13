@@ -185,6 +185,49 @@ export function playbackTimeline(sentences = []) {
   });
 }
 
+// 講稿時間軸上的 30／65 秒刻線：放在第一句從該秒數之後才開始的留用句前面，
+// 老師加回或移除句子時刻線跟著移動，看得出哪幾句會超出長度。
+export const CUT_MARKS = [MIN_DURATION_SEC, MAX_DURATION_SEC];
+export function withCutMarks(lines, timeline) {
+  const starts = new Map(timeline.map((item) => [item.id, item.from]));
+  const pending = [...CUT_MARKS];
+  const result = [];
+  for (const line of lines) {
+    const from = line.type === 'sentence' && line.role === 'kept' ? starts.get(line.sentence.id) : undefined;
+    while (from !== undefined && pending.length && from >= pending[0]) {
+      result.push({ type: 'mark', id: `mark-${pending[0]}`, sec: pending[0] });
+      pending.shift();
+    }
+    result.push(line);
+  }
+  return result;
+}
+
+// 素材來源：影片名稱與這段在原片的時間範圍，讓老師知道剪自哪裡（可查核）。
+export function sourceLabel(script, source) {
+  if (!source) return '';
+  const evidence = script?.evidence || [];
+  const title = evidence.find((item) => String(item.videoId) === String(source.videoId))?.videoTitle || evidence[0]?.videoTitle || '';
+  const sentences = source.sentences || [];
+  const start = Number.isFinite(source.startSec) ? source.startSec : sentences[0]?.startSec;
+  const end = Number.isFinite(source.endSec) ? source.endSec : sentences.at(-1)?.endSec;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return title;
+  const range = `${formatClock(start)}–${formatClock(end)}`;
+  return title ? `${title}・${range}` : `原片 ${range}`;
+}
+
+// 管理清單的「多久前更新」。
+export function formatAgo(value, now = Date.now()) {
+  const time = Date.parse(value || '');
+  if (!Number.isFinite(time)) return '';
+  const minutes = Math.max(0, Math.floor((now - time) / 60000));
+  if (minutes < 1) return '剛剛';
+  if (minutes < 60) return `${minutes} 分鐘前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小時前`;
+  return `${Math.floor(hours / 24)} 天前`;
+}
+
 export function sentenceAt(timeline, seconds) {
   const t = Number(seconds) || 0;
   const hit = timeline.find((item) => t >= item.from && t < item.to);

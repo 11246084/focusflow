@@ -136,9 +136,10 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   if (modeAction && !compact) primary = modeAction;
   else if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
+  // 依步驟排：還沒選影片時先「複製腳本」拿去地端做；選了影片才換成「上傳影片」。
+  else if (uploadStage && !file) primary = { label: '複製腳本', onClick: copy };
   else if (uploadStage) {
-    const reason = !file ? '選擇地端做好的影片' : '勾選上傳前的兩項確認';
-    primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !file || !aiConfirmed || !consentConfirmed, reason };
+    primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !aiConfirmed || !consentConfirmed, reason: '勾選上傳前的兩項確認' };
   } else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
   else if (reviewStage) primary = { label: '核准上架', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
 
@@ -148,8 +149,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {primary && <PrimaryAction {...primary} />}
         {version && (scriptStage || uploadStage) && (!mode || compact) && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={copy}>複製腳本</button>
-            <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={download}>下載</button>
+            {primary?.label !== '複製腳本' && <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={copy}>複製腳本</button>}
+            <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={download}>下載腳本</button>
           </div>
         )}
         {canRevise && (

@@ -56,7 +56,20 @@
 .rc-line[data-playing="true"] { background: rgba(241, 79, 33, 0.12); }
 .rc-line[data-role="opening"] { border-top: 0; padding-bottom: 14px; margin-bottom: 4px; }
 .rc-line[data-role="opening"] .rc-line-text { font-weight: 700; }
-.rc-line-body { display: grid; gap: 4px; min-width: 0; }
+.rc-line-body { display: grid; gap: 2px; min-width: 0; }
+.rc-line-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-left: -6px; }
+/* 時間軸：左欄是這句在短片裡的開始時間；略過的句子不在短片裡，留空。 */
+.rc-cut { padding-top: 4px; font-family: var(--ff-font-display); font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; color: var(--ff-chalk-muted); }
+.rc-line[data-role="kept"] .rc-cut, .rc-line[data-role="opening"] .rc-cut { color: var(--ff-chalk-body); }
+.rc-line[data-role="opening"] .rc-cut { color: var(--ff-ember-orange); font-weight: 700; }
+/* 30／65 秒刻線：一條細線加秒數，跟著加回與移除移動。 */
+.rc-mark { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; color: var(--ff-chalk-muted); }
+.rc-mark::before, .rc-mark::after { content: ""; height: 1px; flex: 1; background: var(--ff-field-stroke); }
+.rc-mark::before { flex: 0 0 40px; }
+.rc-mark[data-sec="65"] { color: var(--ff-status-error); }
+.rc-mark[data-sec="65"]::before, .rc-mark[data-sec="65"]::after { background: rgba(248, 113, 113, 0.45); }
+.rc-mark + .rc-line, .rc-line + .rc-mark { border-top: 0; }
+.rc-source { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }
 .rc-line-tag { font-size: var(--ff-text-min-cjk); color: var(--ff-ember-orange); font-weight: 700; }
 .rc-line-toggle { margin-top: 2px; min-width: 4em; }
 .rc-line-toggle[aria-disabled="true"] { opacity: 0.5; cursor: progress; }
@@ -67,6 +80,17 @@
 .rc-time[aria-pressed="true"] { color: var(--ff-ember-orange); }
 .rc-gap { display: flex; justify-content: center; padding: 4px 0; }
 .rc-gap + .rc-line, .rc-line + .rc-gap { border-top: 1px solid var(--ff-divider); }
+
+/* 成品審閱：欄位夠寬時播放器固定在左、講稿在右，播放中的那一句看得到；窄的時候播放器下方顯示目前那一句。 */
+.rc-review { container: review / inline-size; }
+.rc-review-grid { display: grid; gap: var(--ff-space-md); }
+.rc-review-grid[data-asset="true"] .rc-player { width: min(100%, 280px); }
+.rc-now { margin-top: 10px; text-align: center; color: var(--ff-chalk-white); font-size: 15px; min-height: 1.7em; }
+@container review (inline-size > 760px) {
+  .rc-review-grid[data-asset="true"] { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); align-items: start; }
+  .rc-review-grid[data-asset="true"] > .rc-panel:first-child { position: sticky; top: 0; }
+  .rc-review-grid[data-asset="true"] .rc-now { display: none; }
+}
 
 /* 按鈕 */
 .rc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ff-touch-target); padding: 0 26px; border-radius: var(--ff-radius-pill); font: inherit; font-size: var(--ff-text-action); font-weight: 700; cursor: pointer; border: 1.5px solid transparent; transition: background-color 160ms ease-out, transform 160ms ease-out, box-shadow 160ms ease-out; }
@@ -97,7 +121,6 @@
 .rc-meter-scale { position: relative; height: 1.7em; margin-top: 4px; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); font-variant-numeric: tabular-nums; }
 .rc-meter-scale span { position: absolute; translate: -50% 0; }
 .rc-meter-scale span:first-child { translate: 0 0; }
-.rc-meter-scale span:last-child { translate: -100% 0; }
 
 .rc-actions { display: grid; gap: 8px; }
 .rc-section-title { font-size: var(--ff-text-title); font-weight: 700; color: var(--ff-chalk-white); margin: 0 0 8px; }
@@ -156,9 +179,10 @@
 .rc-manage-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .rc-manage-heading h2 { font-size: var(--ff-text-title); }
 .rc-manage-heading span { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; }
-.rc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; width: 100%; min-height: 56px; padding: 12px 8px; background: none; border: 0; border-radius: var(--ff-radius-md); color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.rc-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 6px; width: 100%; min-height: 56px; padding: 12px 8px; background: none; border: 0; border-radius: var(--ff-radius-md); color: inherit; text-align: left; font: inherit; cursor: pointer; }
 .rc-row:hover { background: rgba(255, 255, 255, 0.04); }
 .rc-row-title { color: var(--ff-chalk-white); font-weight: 500; overflow-wrap: anywhere; }
+.rc-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .rc-row-course { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }
 .rc-empty { color: var(--ff-chalk-muted); padding: 10px 8px; }
 
@@ -174,10 +198,12 @@
   .rc-nav-row .rc-select { padding: 0 10px; }
   .rc-panel { padding: 16px; border-radius: var(--ff-radius-xl); }
   .rc-question { font-size: 18px; }
-  .rc-line { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 8px 2px; }
-  .rc-line-body { grid-column: 1; grid-row: 1; }
-  .rc-line > .rc-time { grid-column: 1; grid-row: 2; justify-self: start; min-height: var(--ff-touch-target); margin-left: -6px; }
+  .rc-line { grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; padding: 8px 2px; }
+  .rc-cut { grid-column: 1; grid-row: 1; padding-top: 0; }
+  .rc-cut:empty { display: none; }
+  .rc-line-body { grid-column: 1; grid-row: 2; }
   .rc-line-toggle { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-height: var(--ff-touch-target); min-width: var(--ff-touch-target); margin: 0; }
+  .rc-time { min-height: var(--ff-touch-target); }
   .rc-dock { position: sticky; bottom: 0; z-index: 5; margin: 0 -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(18, 5, 14, 0.96); border-top: 1px solid var(--ff-hairline); }
   .rc-dock .rc-duration { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 12px; }
   .rc-dock .rc-duration-value strong { font-size: 22px; }

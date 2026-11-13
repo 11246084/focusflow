@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import { listAssets } from '../services/shortScript.js';
-import { MANAGE_REFRESH_MS, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
+import { MANAGE_REFRESH_MS, formatAgo, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
 import { requestOpenScript } from '../utils/scriptDeepLink.js';
 import { RecutConsentManager } from './RecutConsent';
 import { StateChip } from './recutUi';
@@ -76,11 +76,11 @@ export default function TeacherShortManage({ onNav }) {
                 {rows.map((item) => (
                   <li key={item.scriptId}>
                     <button type="button" className="rc-row" onClick={() => open(item)}>
-                      <span>
-                        <span className="rc-row-title">{item.question}</span>
-                        {multiCourse && <span className="rc-row-course" style={{ display: 'block' }}>{item.courseTitle}</span>}
+                      <span className="rc-row-title">{item.question}</span>
+                      <span className="rc-row-meta">
+                        <StateChip tone={item.tone}>{item.label}</StateChip>
+                        <span className="rc-row-course">{[multiCourse ? item.courseTitle : '', formatAgo(item.updatedAt)].filter(Boolean).join('・')}</span>
                       </span>
-                      <StateChip tone={item.tone}>{item.label}</StateChip>
                     </button>
                   </li>
                 ))}

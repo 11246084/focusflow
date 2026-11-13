@@ -5,7 +5,7 @@ import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import * as api from '../services/recut.js';
 import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
-  isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
+  isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
 import { ConfirmDialog, DurationMeter, FlowStrip, PrimaryAction, SheetDialog, StateChip, StatusCard } from './recutUi';
 
@@ -157,7 +157,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   // ── 講稿 ───────────────────────────────────────────────────────
   const view = review?.draft || review?.current;
   const sentences = useMemo(() => review?.source?.sentences || [], [review]);
-  const lines = useMemo(() => buildScriptLines(sentences, expandedGaps), [sentences, expandedGaps]);
+  const timelineItems = useMemo(() => playbackTimeline(sentences), [sentences]);
+  const cutStart = useMemo(() => new Map(timelineItems.map((item) => [item.id, item.from])), [timelineItems]);
+  const lines = useMemo(() => withCutMarks(buildScriptLines(sentences, expandedGaps), timelineItems), [sentences, expandedGaps, timelineItems]);
   const opening = openingSentence(sentences);
   // 修改送出中不拿掉按鈕（拿掉會讓鍵盤焦點掉回頁首、整欄重排），只忽略重複點擊。
   const editable = EDITABLE_STATES.has(state);
@@ -193,7 +195,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   };
 
   // ── 成品播放：讀 YouTube 播放器回報的時間，標出講稿目前那一句 ─────────────
-  const timeline = useMemo(() => playbackTimeline(sentences), [sentences]);
+  const timeline = timelineItems;
   const showAsset = ['asset_review', 'asset_approved', 'published'].includes(state);
   useEffect(() => {
     if (!showAsset || !asset?.youtubeVideoId) return undefined;
@@ -310,6 +312,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     </>
   );
 
+  const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
@@ -345,10 +348,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     const canToggle = editable && sentence.selectionAllowed !== false && answerable;
     return (
       <li key={sentence.id} className="rc-line" data-role={role} data-playing={live}>
-        <button type="button" className="rc-time" aria-pressed={playingId === sentence.id}
-          aria-label={`原音 ${formatClock(sentence.startSec)}`} onClick={() => playSentence(sentence)}>
-          <Ic n="play" s={10} /> {formatClock(sentence.startSec)}
-        </button>
+        <span className="rc-cut" aria-hidden={!kept}>
+          {kept && cutStart.has(sentence.id) ? <><span className="rc-visually-hidden">短片 </span>{formatClock(cutStart.get(sentence.id))}</> : ''}
+        </span>
         <div className="rc-line-body">
           {role === 'opening' && <span className="rc-line-tag">片頭</span>}
           <p className="rc-line-text">
@@ -356,7 +358,12 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {live && <span className="rc-visually-hidden">正在播放：</span>}
             {sentence.text}
           </p>
-          {sentence.teacherChanged && <StateChip tone="mine">{kept ? '已加回' : '已移除'}</StateChip>}
+          <span className="rc-line-meta">
+            <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}>
+              <Ic n="play" s={10} /> 原音 {formatClock(sentence.startSec)}
+            </button>
+            {sentence.teacherChanged && <StateChip tone="mine">{kept ? '已加回' : '已移除'}</StateChip>}
+          </span>
         </div>
         {canToggle && (
           <button type="button" className="rc-btn-text rc-line-toggle" data-act={kept ? 'remove' : 'add'} onClick={() => toggleSentence(sentence)}
@@ -418,6 +425,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       <div className="rc-col rc-main">
         <section className="rc-panel rc-main" aria-labelledby={`rc-q-${scriptId}`}>
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
+          {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
           {review?.source?.notice && <p className="rc-reason" style={{ textAlign: 'left' }}>{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
@@ -439,8 +447,11 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <section className="rc-panel"><p>{info.label === '尚未產生講稿' ? '還沒有講稿' : info.label}</p></section>
         )}
 
+        <div className="rc-review">
+          <div className="rc-review-grid" data-asset={showAsset && !loading ? 'true' : undefined}>
         {!loading && showAsset && (
           <section className="rc-panel" aria-label="成品">
+            <div className="rc-player-wrap">
             <div className="rc-player">
               {asset?.youtubeVideoId ? (
                 <iframe ref={iframeRef} onLoad={listenToPlayer} title={`成品：${script.topic}`}
@@ -449,6 +460,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
               ) : (
                 <p className="rc-player-empty">影片還在上傳</p>
               )}
+            </div>
+            {playheadText && <p className="rc-now" aria-hidden="true">{playheadText}</p>}
             </div>
             {state === 'published' && asset?.youtubeUrl && (
               <p style={{ marginTop: 12, textAlign: 'center' }}><a href={asset.youtubeUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ff-ember-orange)' }}>在 YouTube 開啟</a></p>
@@ -460,7 +473,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <section className="rc-panel" aria-label="講稿">
             <ol className="rc-script">
               {opening && renderLine(opening, 'opening')}
-              {lines.map((line) => (line.type === 'gap' ? (
+              {lines.map((line) => (line.type === 'mark' ? (
+                <li key={line.id} className="rc-mark" data-sec={line.sec}><span>{line.sec} 秒</span></li>
+              ) : line.type === 'gap' ? (
                 <li key={line.id} className="rc-gap">
                   <button type="button" className="rc-btn-text" onClick={() => setExpandedGaps((prev) => new Set(prev).add(line.id))}>
                     略過 {line.count} 句
@@ -470,6 +485,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             </ol>
           </section>
         )}
+          </div>
+        </div>
         {compact && sidePanels}
         {compact && actionBlock}
       </div>

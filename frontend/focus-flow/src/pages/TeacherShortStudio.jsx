@@ -179,15 +179,6 @@ export default function TeacherShortStudio() {
 
   const pickerActions = (
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
-      <fieldset className="rc-pills" style={{ border: 0, margin: '0 0 12px', padding: 0 }} disabled={starting}>
-        <legend className="rc-visually-hidden">產片方式</legend>
-        {[['recut', '原片剪輯'], ['avatar', '數位分身']].map(([value, label]) => (
-          <label key={value} className="rc-pill" style={{ flex: 1, justifyContent: 'center' }}>
-            <input type="radio" name="rc-mode" checked={mode === value} onChange={() => changeMode(value)} />
-            {label}
-          </label>
-        ))}
-      </fieldset>
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
         disabled={!chosen.length} reason={room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
@@ -214,6 +205,15 @@ export default function TeacherShortStudio() {
       <>
         <div className="rc-col rc-main">
           <section className="rc-panel" aria-labelledby="rc-topics-title">
+            <fieldset className="rc-pills" style={{ border: 0, margin: '0 0 22px', padding: 0 }} disabled={starting}>
+              <legend className="rc-visually-hidden">產片方式</legend>
+              {[['recut', '原片剪輯'], ['avatar', '數位分身']].map(([value, label]) => (
+                <label key={value} className="rc-pill" style={{ flex: 1, justifyContent: 'center' }}>
+                  <input type="radio" name="rc-mode" checked={mode === value} onChange={() => changeMode(value)} />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
             <h1 id="rc-topics-title" className="rc-question" style={{ marginBottom: 12 }}>學生最常問的問題</h1>
             {candidates === null && <p className="rc-reason">載入中…</p>}
             {candidates?.length === 0 && <p>這門課目前沒有足夠的學生提問。</p>}

@@ -3,6 +3,8 @@ import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
 import useVisiblePolling from '../hooks/useVisiblePolling';
 import * as api from '../services/recut.js';
+import { listAssets } from '../services/shortScript.js';
+import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
   isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
@@ -21,9 +23,10 @@ const BUSY_TEXT = {
   rendering: '正在製作短片',
 };
 const EDITABLE_STATES = new Set(['script_review', 'render_failed']);
+const REJECT_LABEL = new Map(REJECTION_REASONS.map((reason) => [reason.code, reason.label]));
 const YT_ORIGIN = 'https://www.youtube.com';
 
-export default function RecutWorkspace({ script, onStateChange, onNext, nextLabel, onManage }) {
+export default function RecutWorkspace({ script, onStateChange, onNext, nextLabel }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const [snapshot, setSnapshot] = useState(null);
@@ -40,7 +43,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
   const [noteTouched, setNoteTouched] = useState(false);
-  const [lineError, setLineError] = useState(null); // { id, text }：逐句修改失敗時顯示在那一句下方
+  const [lineError, setLineError] = useState(null);
+  const [lastReject, setLastReject] = useState(null); // 上一支成品被退回的原因代碼 // { id, text }：逐句修改失敗時顯示在那一句下方
   const [playingId, setPlayingId] = useState(null);
   const [playheadId, setPlayheadId] = useState(null);
   const audioRef = useRef(null);
@@ -106,6 +110,21 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   // 成品在 YouTube 處理完成前不能核准；已核准的要等上架。這兩段也要定時查，畫面才會自己更新。
   const waitingForYouTube = (state === 'asset_review' && !asset?.youtubeVideoId) || state === 'asset_approved';
   useVisiblePolling(() => { refresh().catch(() => {}); }, POLL_INTERVAL_MS * 2, waitingForYouTube);
+
+  // 成品被退回後目前成品會清空：從這門課的成品裡找這支最近一次被退回的原因，告訴老師為什麼回到這一步、接下來做什麼。
+  useEffect(() => {
+    if (!['script_review', 'script_approved', 'render_failed'].includes(state)) { setLastReject(null); return undefined; }
+    let alive = true;
+    (async () => {
+      const own = (await listAssets(script.courseId)).filter((item) => item.sourceScriptId === scriptId && item.status !== 'archived')
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      const latest = own[0];
+      if (!latest || latest.reviewStatus !== 'rejected') { if (alive) setLastReject(null); return; }
+      const detail = await api.getShortAsset(latest.id);
+      if (alive) setLastReject((detail.reviewReasons || []).map((reason) => reason.code));
+    })().catch(() => { if (alive) setLastReject(null); });
+    return () => { alive = false; };
+  }, [state, script.courseId, scriptId]);
 
   // 換步驟時（例如核准後開始製作），原本的主要按鈕會消失；焦點若掉到頁面本身，移回標題並念出新步驟。
   const previousStateRef = useRef(null);
@@ -302,13 +321,16 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
   // 退回原因在面板裡選（手機從底部升起、電腦置中），主要按鈕一直是「核准上架」。
   if (state === 'asset_review') {
-    primary = { label: '核准上架', hint: '學生短片牆會看到；之後可在短影片管理撤下', onClick: approveAsset, busy: pending === 'approveAsset',
+    primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
 
   const rejectFields = (
-    <RejectReasonFields codes={rejectCodes} onCodesChange={setRejectCodes} note={rejectNote} onNoteChange={setRejectNote}
+    <>
+      <p className="rc-reason rc-reason-start rc-sheet-note">選「內容」或「其他」會回到講稿修改；只選聲音、畫面、字幕，會用同一份講稿重新製作。</p>
+      <RejectReasonFields codes={rejectCodes} onCodesChange={setRejectCodes} note={rejectNote} onNoteChange={setRejectNote}
       noteTouched={noteTouched} onNoteTouched={setNoteTouched} />
+    </>
   );
 
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
@@ -335,7 +357,6 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
           </p>
         )}
-        {state === 'published' && onManage && <button type="button" className="rc-btn-text rc-after" onClick={onManage}>要撤下這支？到短影片管理</button>}
         {onNext && ['render_failed', 'render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
@@ -443,6 +464,15 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>
 
+        {!loading && lastReject && state !== 'render_failed' && (
+          <section className="rc-panel" role="status">
+            <StateChip tone="mine">上一支成品已退回</StateChip>
+            <p className="rc-mt-s rc-strong-text">{lastReject.map((code) => REJECT_LABEL.get(code) || code).join('、') || '未提供原因'}</p>
+            <p className="rc-after rc-mt-xs">{state === 'script_review'
+              ? '在下方修改講稿，確定後核准，系統會重新製作。'
+              : '講稿不用改。按「開始製作」會用同一份講稿重新做一支，做好後再請你確認。'}</p>
+          </section>
+        )}
         {!loading && state === 'render_failed' && (
           <section className="rc-panel" role="alert">
             <StateChip tone="error">製作失敗</StateChip>

@@ -94,8 +94,11 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${script.topic || '短片腳本'}.md`;
+    document.body.append(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    // 立刻收回網址會讓部分瀏覽器存成沒有副檔名的「download」，等下載開始後再收。
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const pickFile = (event) => {

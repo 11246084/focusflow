@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as api from '../services/recut.js';
 import { consentNeeds, newRequestId, recutErrorText } from '../services/recutFlow.js';
+import { recallShortScriptCourse } from '../utils/scriptDeepLink.js';
 import { ConfirmDialog, PrimaryAction, StateChip } from './recutUi';
 
 // 第一次製作時在流程內同意，依產片方式問不同的項目：
@@ -73,7 +74,11 @@ const ACTION_TEXT = { stopWork: '停止製作中的短片', archiveAsset: '從�
 
 // 管理頁的授權設定：目前同意狀態、撤回（逐支或全選，預設都不選）、未完成的下架工作。
 export function RecutConsentManager({ courses }) {
-  const [courseId, setCourseId] = useState(() => String(courses[0]?._id || ''));
+  // 預設顯示老師最近在短影片製作用的那門課，剛同意完回來看得到「已同意」。
+  const [courseId, setCourseId] = useState(() => {
+    const recent = recallShortScriptCourse();
+    return String(courses.find((course) => String(course._id) === String(recent))?._id || courses[0]?._id || '');
+  });
   const [terms, setTerms] = useState(null);
   const [consent, setConsent] = useState(null);
   const [error, setError] = useState('');

@@ -273,7 +273,7 @@
 .rc-topics li + li { border-top: 1px solid var(--ff-divider); }
 
 /* 彈出確認 */
-.rc-dialog { max-width: min(440px, calc(100vw - 32px)); padding: var(--ff-space-lg); border: 1px solid var(--ff-hairline); border-radius: var(--ff-radius-card); background: var(--ff-elev-3-surface); color: var(--ff-chalk-body); box-shadow: var(--ff-elev-3-shadow); }
+.rc-dialog { margin: auto; max-width: min(440px, calc(100vw - 32px)); padding: var(--ff-space-lg); border: 1px solid var(--ff-hairline); border-radius: var(--ff-radius-card); background: var(--ff-elev-3-surface); color: var(--ff-chalk-body); box-shadow: var(--ff-elev-3-shadow); }
 .rc-dialog:modal { overscroll-behavior: contain; }
 .rc-dialog::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px); overflow: hidden; overscroll-behavior: contain; }
 .rc-dialog h2 { font-size: var(--ff-text-title); margin-bottom: 10px; }

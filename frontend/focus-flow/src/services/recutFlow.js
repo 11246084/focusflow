@@ -288,7 +288,10 @@ export function recutErrorText(error) {
   // fetch 本身失敗（離線、斷線）時沒有 HTTP 狀態，訊息是瀏覽器的英文，不能直接給老師看。
   if (!error.status && error.name !== 'AbortError' && !error.code) return '連不上伺服器，請確認網路後再試。';
   if (error.status === 503) return '服務暫時無法使用，請稍後再試。';
-  return ERROR_TEXT[error.code] || error.message || '發生錯誤，請稍後再試。';
+  // 沒對應的代碼時，只有中文的伺服器訊息才直接顯示；英文或技術訊息一律換成可理解的說法。
+  if (ERROR_TEXT[error.code]) return ERROR_TEXT[error.code];
+  if (/[\u3400-\u9fff]/.test(error.message || '')) return error.message;
+  return '發生錯誤，請稍後再試；一直失敗請聯絡管理員。';
 }
 
 // 渲染失敗的固定類錯誤，重送也不會成功，不提供「再製作一次」。

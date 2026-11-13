@@ -29,7 +29,7 @@
 .rc-list-item { display: grid; gap: 4px; width: 100%; min-height: var(--ff-touch-target); padding: 10px 10px; background: none; border: 0; border-radius: var(--ff-radius-md); color: var(--ff-chalk-body); text-align: left; font: inherit; cursor: pointer; }
 .rc-list-item:hover { background: rgba(255, 255, 255, 0.04); }
 .rc-list-item:active { background: rgba(255, 255, 255, 0.07); }
-.rc-list-item[aria-current="true"] { background: rgba(241, 79, 33, 0.1); color: var(--ff-chalk-white); }
+.rc-list-item[aria-current="true"] { background: rgba(241, 79, 33, 0.16); color: var(--ff-chalk-white); box-shadow: inset 3px 0 0 var(--ff-ember-orange); }
 .rc-list-item[aria-current="true"] .rc-list-title { color: var(--ff-chalk-white); }
 .rc-list-title { color: var(--ff-chalk-body); font-weight: 500; overflow-wrap: anywhere; }
 .rc-list-group { margin: var(--ff-space-md) 0 0; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); }
@@ -98,7 +98,7 @@
 .rc-review-grid[data-asset="true"] .rc-player { width: min(100%, 280px); }
 .rc-now { margin-top: 10px; text-align: center; color: var(--ff-chalk-white); font-size: var(--ff-text-read); min-height: 1.7em; }
 @container review (inline-size > 500px) {
-  .rc-review-grid[data-asset="true"] { grid-template-columns: clamp(180px, 34cqi, 260px) minmax(0, 1fr); align-items: start; }
+  .rc-review-grid[data-asset="true"] { grid-template-columns: clamp(200px, 44cqi, 300px) minmax(0, 1fr); align-items: start; }
   .rc-review-grid[data-asset="true"] > .rc-panel:first-child { position: sticky; top: 0; }
   .rc-review-grid[data-asset="true"] .rc-now { display: none; }
   /* 成品審閱不能改句子，沒有右側按鈕欄；講稿欄窄，時間縮到 3.4em，讓每行至少十幾個字。 */
@@ -303,6 +303,8 @@
   .rc-dock .rc-duration { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 12px; }
   .rc-dock .rc-duration-value strong { font-size: 24px; }
   .rc-dock .rc-meter-scale { display: none; }
+  /* 核准與退回之間多留一點距離，單手時不容易誤觸 */
+  .rc-dock .rc-actions { gap: 12px; }
   .rc-manage { grid-template-columns: minmax(0, 1fr); padding: 0 16px 16px; height: auto; overflow: visible; }
 }
 @media (pointer: coarse) {

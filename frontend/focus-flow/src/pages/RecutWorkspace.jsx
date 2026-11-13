@@ -268,7 +268,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   let primary = null;
   if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
   else if (state === 'script_review' && review?.draft) {
-    primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
+    primary = { label: '確定修改', hint: '每一句的修改都已自動儲存；確定後重新整理講稿，約一分鐘', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
     primary = { label: '核准講稿', hint: `${keptCount} 句，接著自動製作短片；做好後會再請你確認才上架`, onClick: approveAndRender, busy: pending === 'approve',
       disabled: !answerable, reason: review.current?.selection?.unanswerableReason || '這段錄音無法回答這個問題' };
@@ -346,7 +346,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </p>
           <span className="rc-line-meta">
             <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}
-              aria-label={`播放原音 ${formatClock(sentence.startSec)}：${sentence.text}`}>
+              aria-label={`播放原音 ${formatClock(sentence.startSec)}`}>
               <Ic n="play" s={10} /> 原音 {formatClock(sentence.startSec)}
             </button>
             {sentence.teacherChanged && <StateChip tone="edit">{kept ? '已加回' : '已移除'}</StateChip>}
@@ -396,7 +396,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             ))}
             <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 10 }}
               disabled={!chosenSuggestions.size || Boolean(pending)} onClick={requestAdopt}>
-              {pending === 'adopt' ? '處理中…' : chosenSuggestions.size ? `採納 ${chosenSuggestions.size} 項建議` : '採納建議'}
+              {pending === 'adopt' ? '處理中…' : chosenSuggestions.size ? `採納 ${chosenSuggestions.size} 項建議` : '勾選建議後採納'}
             </button>
           </section>
         )}
@@ -470,9 +470,19 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
                   <dt>短片 0:04</dt><dd>這句在短片裡從第幾秒開始。</dd>
                   <dt>原音 1:15</dt><dd>這句在課堂錄音裡的位置，按下去可以聽。</dd>
                   <dt>片頭</dt><dd>放在最前面、先講結論的一句。</dd>
-                  <dt>灰色句子</dt><dd>沒放進短片；按「加回」放進來，按「移除」拿掉。</dd>
-                  <dt>30 秒、65 秒線</dt><dd>短片要落在這兩條線之間。</dd>
-                  <dt>鍵盤</dt><dd>在「移除／加回」或「原音」上按上下鍵，換到上一句或下一句。</dd>
+                  {editable ? (
+                    <>
+                      <dt>灰色句子</dt><dd>沒放進短片；按「加回」放進來，按「移除」拿掉。</dd>
+                      <dt>30 秒、65 秒線</dt><dd>短片要落在這兩條線之間。</dd>
+                      <dt>鍵盤</dt><dd>在「移除／加回」或「原音」上按上下鍵，換到上一句或下一句。</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt>灰色句子</dt><dd>沒放進短片，只是讓你看前後文。</dd>
+                      {showAsset && <dt>播放成品</dt>}
+                      {showAsset && <dd>播放時，講稿會標出正在播的那一句。</dd>}
+                    </>
+                  )}
                 </dl>
               </HelpTip>
             </div>
@@ -517,7 +527,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
       <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="放棄修改" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>
-        <p>講稿會回到 AI 整理的版本。</p>
+        <p>這次加回與移除的句子都會取消，講稿回到上一次確定的版本。</p>
       </ConfirmDialog>
       <ConfirmDialog open={dialog?.type === 'confirmSuggestions'} title="這些建議會改到你調整過的句子" confirmLabel="仍要採納"
         busy={pending === 'adopt'} onConfirm={() => adopt(dialog?.ids || [])} onClose={() => setDialog(null)}>

@@ -199,10 +199,10 @@ export function HelpTip({ label = '怎麼看', title, children }) {
   const id = useId();
   return (
     <>
-      <button type="button" className="rc-btn-text rc-help-btn" popoverTarget={id} aria-haspopup="dialog">
+      <button type="button" className="rc-btn-text rc-help-btn" popoverTarget={id}>
         <span aria-hidden="true"><Ic n="info" s={13} /></span>{label}
       </button>
-      <div id={id} popover="auto" className="rc-help" role="dialog" aria-label={title}>
+      <div id={id} popover="auto" className="rc-help" aria-label={title}>
         <h2>{title}</h2>
         {children}
       </div>

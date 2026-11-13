@@ -3,7 +3,7 @@ import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import { createScript as createAvatarScript, generateVersion, listAssets } from '../services/shortScript.js';
 import {
-  MAX_BATCH, batchRoom, chipTone, consentNeeds, describeShort, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
+  MAX_BATCH, batchRoom, chipTone, consentNeeds, describeShort, needsAnyConsent, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion,
 } from '../services/recutFlow.js';
 import {
   OPEN_SCRIPT_EVENT, consumePendingScriptOpen, isScriptTargetForPage, pickInitialCourseId, recallShortScriptCourse, rememberShortScriptCourse,
@@ -152,12 +152,12 @@ export default function TeacherShortStudio({ onNav }) {
     ? prev.filter((key) => key !== topicKey)
     : prev.length >= room ? prev : [...prev, topicKey]));
 
-  const needs = consentNeeds(consent);
-  const needsConsent = Boolean(consent) && (needs.content || needs.voice);
+  const needsConsent = Boolean(consent) && needsAnyConsent(consentNeeds(consent, mode));
 
   // 一批最多 5 支：依序建立並開始產生，個別失敗不擋其他主題。
-  const startBatch = async () => {
-    if (mode === 'recut' && needsConsent && terms) { setConsentStep(true); return; }
+  // 同意剛記錄完成時（skipConsent）直接接著開始，不讓老師回到選題再按一次。
+  const startBatch = async ({ skipConsent = false } = {}) => {
+    if (!skipConsent && needsConsent && terms) { setConsentStep(true); return; }
     setStarting(true);
     setError('');
     const failures = [];
@@ -184,12 +184,16 @@ export default function TeacherShortStudio({ onNav }) {
     if (firstId) { setSelectedId(firstId); setPicking(false); setChosen([]); setCandidates(null); }
   };
 
+  // 這門課已經做過（或正在做）的題目不再出現在候選裡，避免選到後才收到「已存在」。
+  const madeTopicKeys = new Set(scripts.map((script) => script.topicKey).filter(Boolean));
+  const shownCandidates = candidates === null ? null : candidates.filter((candidate) => !madeTopicKeys.has(candidate.topicKey));
+
   const featureOff = /未開放/.test(error);
 
   const pickerActions = (
     <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
-      <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
-        disabled={!chosen.length} reason={candidates?.length === 0 ? '' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
+      <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={() => startBatch()} busy={starting}
+        disabled={!chosen.length} reason={shownCandidates?.length === 0 ? '' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
         <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-mt-s" disabled={starting}
           onClick={() => { setPicking(false); setSelectedId(String(sorted[0]._id)); }}>返回</button>
@@ -207,8 +211,8 @@ export default function TeacherShortStudio({ onNav }) {
   else if (consentLoading) body = <div className="rc-col rc-main"><p className="rc-reason">載入中…</p></div>;
   else if (consentError && !consent) body = <div className="rc-col rc-main"><section className="rc-panel"><p className="rc-error">{consentError}</p></section></div>;
   else if (picking && consentStep && terms) {
-    body = <RecutConsentGate key={courseId} courseId={courseId} consent={consent} terms={terms}
-      onRecorded={(latest) => { setConsent(latest); setConsentStep(false); }} />;
+    body = <RecutConsentGate key={`${courseId}-${mode}`} courseId={courseId} mode={mode} consent={consent} terms={terms}
+      onRecorded={(latest) => { setConsent(latest); setConsentStep(false); startBatch({ skipConsent: true }); }} />;
   } else if (picking) {
     body = (
       <>
@@ -224,11 +228,11 @@ export default function TeacherShortStudio({ onNav }) {
               ))}
             </fieldset>
             <h1 id="rc-topics-title" tabIndex={-1} className="rc-question rc-topics-title">學生最常問的問題</h1>
-            {candidates === null && <p className="rc-reason">載入中…</p>}
-            {candidates?.length === 0 && <p>這門課目前還沒有足夠的學生提問。學生在網頁或 LINE 提問後，題目會出現在這裡。</p>}
-            {candidates?.length > 0 && (
+            {shownCandidates === null && <p className="rc-reason">載入中…</p>}
+            {shownCandidates?.length === 0 && <p>這門課目前還沒有足夠的學生提問。學生在網頁或 LINE 提問後，題目會出現在這裡。</p>}
+            {shownCandidates?.length > 0 && (
               <ul className="rc-topics">
-                {candidates.map((candidate) => {
+                {shownCandidates.map((candidate) => {
                   const checked = chosen.includes(candidate.topicKey);
                   const full = !checked && chosen.length >= room;
                   return (

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
+import useVisiblePolling from '../hooks/useVisiblePolling';
 import { FEEDBACK_TYPES, generateVersion, latestVersion, retryAssetUpload, reviewScript, uploadAsset } from '../services/shortScript.js';
 import { findScriptAsset } from '../services/shortScriptStatus.js';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate.js';
@@ -123,6 +124,10 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     setRejectCodes(new Set());
     setRejectNote(''); setNoteTouched(false);
   }, getReviewErrorMessage);
+
+  // 傳送中、等管理員、等 YouTube 處理完成時定時重新讀取（分頁在背景時暫停），畫面會自己換到下一步。
+  const waitingOutside = Boolean(BUSY_TEXT[info.state]) || (info.state === 'in_review' && !asset?.youtubeVideoId);
+  useVisiblePolling(() => { onChanged?.()?.catch?.(() => {}); }, 8000, waitingOutside);
 
   const scriptStage = ['to_generate', 'changes_requested'].includes(info.state);
   const uploadStage = ['to_film', 'asset_rejected'].includes(info.state);

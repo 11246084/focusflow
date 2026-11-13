@@ -140,8 +140,12 @@ describe('時長、退回與錯誤文案', () => {
   });
 
   it('第一次使用要補內容同意與原音', () => {
-    assert.deepEqual(consentNeeds({ decisions: {}, voiceMode: null }), { content: true, voice: true });
-    assert.deepEqual(consentNeeds({ decisions: { content: { choice: 'granted' } }, voiceMode: 'original' }), { content: false, voice: false });
+    assert.deepEqual(consentNeeds({ decisions: {}, voiceMode: null }), { content: true, voice: true, avatarLikeness: false, voiceClone: false });
+    assert.deepEqual(consentNeeds({ decisions: { content: { choice: 'granted' } }, voiceMode: 'original' }), { content: false, voice: false, avatarLikeness: false, voiceClone: false });
+    // 數位分身要肖像與聲音複製同意，不問原音。
+    assert.deepEqual(consentNeeds({ decisions: { content: { choice: 'granted' } }, voiceMode: null }, 'avatar'), { content: false, voice: false, avatarLikeness: true, voiceClone: true });
+    assert.deepEqual(consentNeeds({ decisions: { content: { choice: 'granted' }, avatarLikeness: { choice: 'granted' }, voiceClone: { choice: 'granted' } } }, 'avatar'),
+      { content: false, voice: false, avatarLikeness: false, voiceClone: false });
   });
 
   it('記住最後打開的那一支', () => {

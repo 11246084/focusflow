@@ -310,11 +310,17 @@ export function newRequestId() {
 }
 
 // 第一次使用時要補哪些同意：內容同意依課程、聲音偏好是教師全域。
-export function consentNeeds(consent) {
-  return {
-    content: consent?.decisions?.content?.choice !== 'granted',
-    voice: consent?.voiceMode !== 'original',
-  };
+// 原片剪輯：授課內容＋老師原音。數位分身：授課內容＋肖像＋聲音複製（後端上架前會檢查這三項）。
+export function consentNeeds(consent, mode = 'recut') {
+  const granted = (kind) => consent?.decisions?.[kind]?.choice === 'granted';
+  if (mode === 'avatar') {
+    return { content: !granted('content'), voice: false, avatarLikeness: !granted('avatarLikeness'), voiceClone: !granted('voiceClone') };
+  }
+  return { content: !granted('content'), voice: consent?.voiceMode !== 'original', avatarLikeness: false, voiceClone: false };
+}
+
+export function needsAnyConsent(needs) {
+  return Object.values(needs).some(Boolean);
 }
 
 // ── 接續上次的位置 ─────────────────────────────────────────────────

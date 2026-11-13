@@ -103,6 +103,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
   // 背景處理中定時查狀態（分頁在背景時暫停）；停止等待不等於取消。
   useVisiblePolling(() => { refresh().catch(() => {}); }, POLL_INTERVAL_MS, isBusyState(state));
+  // 成品在 YouTube 處理完成前不能核准；已核准的要等上架。這兩段也要定時查，畫面才會自己更新。
+  const waitingForYouTube = (state === 'asset_review' && !asset?.youtubeVideoId) || state === 'asset_approved';
+  useVisiblePolling(() => { refresh().catch(() => {}); }, POLL_INTERVAL_MS * 2, waitingForYouTube);
 
   // 換步驟時（例如核准後開始製作），原本的主要按鈕會消失；焦點若掉到頁面本身，移回標題並念出新步驟。
   const previousStateRef = useRef(null);
@@ -117,14 +120,25 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
   // 試跑要量審閱時間：進入確認講稿／確認成品時開始，離開時結束。失敗不影響操作。
   const timingPhase = state === 'script_review' ? 'script_review' : state === 'asset_review' ? 'asset_review' : null;
-  const timingVersion = review?.versionId;
+  // 狀態先換、講稿稍後才重新讀到：講稿的 revision 不舊於目前狀態才開始計時（逐句修改會讓講稿較新），否則會拿舊版本去開始而被拒。
+  const reviewFresh = Boolean(review && snapshot && review.revision >= (snapshot.recut?.revision ?? 0));
+  const timingVersion = reviewFresh ? review.versionId : null;
+  // 送出會換版本或換狀態的動作前先結束計時；等狀態換完才結束，後端會因版本已更新而拒收。
+  const timingRef = useRef(null);
+  const stopTiming = useCallback(async () => {
+    const timing = timingRef.current;
+    timingRef.current = null;
+    if (timing) await api.stopReviewTimer(scriptId, timing).catch(() => {});
+  }, [scriptId]);
   useEffect(() => {
     if (!timingPhase || !timingVersion || !review) return undefined;
-    let timing = null;
-    api.startReviewTimer(scriptId, review, timingPhase).then((data) => { timing = data; }).catch(() => {});
-    return () => {
-      if (timing) api.stopReviewTimer(scriptId, { versionId: timing.versionId, timingId: timing.id, phase: timingPhase }).catch(() => {});
-    };
+    let cancelled = false;
+    api.startReviewTimer(scriptId, review, timingPhase).then((data) => {
+      const timing = { versionId: data.versionId, timingId: data.id, phase: timingPhase };
+      if (cancelled) api.stopReviewTimer(scriptId, timing).catch(() => {});
+      else timingRef.current = timing;
+    }).catch(() => {});
+    return () => { cancelled = true; stopTiming(); };
     // 只在階段或版本改變時重新計時，revision 變動（逐句草稿）不算新的一段。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptId, timingPhase, timingVersion]);
@@ -220,13 +234,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
   // ── 動作 ───────────────────────────────────────────────────────
   const approveAndRender = () => run('approve', async () => {
+    await stopTiming();
     const approved = await api.approveScript(scriptId, review);
     setReview(approved);
     await api.queueRender(scriptId, approved);
     await refresh();
   }).catch(() => {});
   const render = () => run('render', async () => { await api.queueRender(scriptId, review); await refresh(); }).catch(() => {});
-  const applyDraft = () => startTask('apply', () => api.applySelection(scriptId, review)).catch(() => {});
+  const applyDraft = () => startTask('apply', async () => { await stopTiming(); return api.applySelection(scriptId, review); }).catch(() => {});
   const restoreDraft = () => run('restore', async () => {
     const data = await api.restoreSelection(scriptId, review);
     setReview(data);
@@ -240,7 +255,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   }).catch(() => {});
 
   const openSuggestions = (review?.suggestions || []).filter((s) => s.adopted === null);
-  const adopt = (confirmed = []) => startTask('adopt', () => api.applySuggestions(scriptId, review, [...chosenSuggestions], confirmed))
+  const adopt = (confirmed = []) => startTask('adopt', async () => { await stopTiming(); return api.applySuggestions(scriptId, review, [...chosenSuggestions], confirmed); })
     .then(() => { setChosenSuggestions(new Set()); setDialog(null); })
     .catch(() => setDialog(null));
   const requestAdopt = () => {
@@ -250,6 +265,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   };
 
   const approveAsset = () => run('approveAsset', async () => {
+    await stopTiming();
     const data = await api.approveAsset(scriptId, review);
     setReview(data);
     await refresh();
@@ -257,6 +273,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const otherCode = 'other';
   const rejectReady = rejectCodes.size > 0 && (!rejectCodes.has(otherCode) || rejectNote.trim());
   const sendReject = () => run('reject', async () => {
+    await stopTiming();
     const codes = [...rejectCodes];
     const reasons = codes.map((code) => ({ code, ...(code === otherCode ? { note: rejectNote.trim() } : {}) }));
     const data = await api.rejectAsset(scriptId, review, { scope: rejectScope(codes), reasons });

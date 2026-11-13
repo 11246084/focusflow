@@ -3,25 +3,34 @@ import * as api from '../services/recut.js';
 import { consentNeeds, newRequestId, recutErrorText } from '../services/recutFlow.js';
 import { ConfirmDialog, PrimaryAction, StateChip } from './recutUi';
 
-// 第一次製作時在流程內同意：授課內容（依課程）＋使用老師原音（教師全域）。
-// 確認框一律預設不勾；合成語音尚未開放，這一輪只提供老師原音。
-export function RecutConsentGate({ courseId, consent, terms, onRecorded }) {
-  const needs = consentNeeds(consent);
-  const [contentChecked, setContentChecked] = useState(false);
-  const [voiceChecked, setVoiceChecked] = useState(false);
+// 第一次製作時在流程內同意，依產片方式問不同的項目：
+// 原片剪輯＝授課內容（依課程）＋老師原音（教師全域）；數位分身＝授課內容＋肖像＋聲音複製。
+// 確認框一律預設不勾；合成語音尚未開放，原片剪輯只提供老師原音。
+const GATE_ITEMS = [
+  { kind: 'content', choice: 'granted', title: '同意這門課的授課內容用來製作短片', body: (terms) => [terms.content, terms.processing] },
+  { kind: 'voice', choice: 'original', title: '短片使用我的授課原音', body: (terms) => [terms.voice] },
+  { kind: 'avatarLikeness', choice: 'granted', title: '同意數位分身使用我的肖像', body: (terms) => [terms.avatarLikeness] },
+  { kind: 'voiceClone', choice: 'granted', title: '同意數位分身複製我的聲音', body: (terms) => [terms.voiceClone] },
+];
+
+export function RecutConsentGate({ courseId, mode = 'recut', consent, terms, onRecorded }) {
+  const needs = consentNeeds(consent, mode);
+  const items = GATE_ITEMS.filter((item) => needs[item.kind]);
+  const [checked, setChecked] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // 同一次決定重送沿用同一個 requestId，避免重複紀錄。
-  const requestIds = useMemo(() => ({ content: newRequestId(), voice: newRequestId() }), []);
-  const ready = (!needs.content || contentChecked) && (!needs.voice || voiceChecked);
+  const requestIds = useMemo(() => Object.fromEntries(GATE_ITEMS.map((item) => [item.kind, newRequestId()])), []);
+  const ready = items.every((item) => checked.has(item.kind));
 
   const submit = async () => {
     setBusy(true);
     setError('');
     try {
       let latest = consent;
-      if (needs.content) latest = await api.recordConsent(courseId, { kind: 'content', choice: 'granted', termsVersion: terms.version, requestId: requestIds.content });
-      if (needs.voice) latest = await api.recordConsent(courseId, { kind: 'voice', choice: 'original', termsVersion: terms.version, requestId: requestIds.voice });
+      for (const item of items) {
+        latest = await api.recordConsent(courseId, { kind: item.kind, choice: item.choice, termsVersion: terms.version, requestId: requestIds[item.kind] });
+      }
       onRecorded(latest);
     } catch (err) {
       setError(recutErrorText(err));
@@ -36,23 +45,21 @@ export function RecutConsentGate({ courseId, consent, terms, onRecorded }) {
         <section className="rc-panel rc-main" aria-labelledby="rc-consent-title">
           <h1 id="rc-consent-title" className="rc-question">{terms.title}</h1>
           <p className="rc-reason rc-reason-start">{terms.notice}</p>
-          {needs.content && (
-            <label className="rc-check">
-              <input type="checkbox" checked={contentChecked} onChange={(event) => setContentChecked(event.target.checked)} />
-              <span className="rc-check-body"><strong>同意這門課的授課內容用來製作短片</strong><span>{terms.content}</span><span>{terms.processing}</span></span>
+          {items.map((item) => (
+            <label key={item.kind} className="rc-check">
+              <input type="checkbox" checked={checked.has(item.kind)} onChange={(event) => setChecked((prev) => {
+                const next = new Set(prev);
+                if (event.target.checked) next.add(item.kind); else next.delete(item.kind);
+                return next;
+              })} />
+              <span className="rc-check-body"><strong>{item.title}</strong>{item.body(terms).filter(Boolean).map((text) => <span key={text}>{text}</span>)}</span>
             </label>
-          )}
-          {needs.voice && (
-            <label className="rc-check">
-              <input type="checkbox" checked={voiceChecked} onChange={(event) => setVoiceChecked(event.target.checked)} />
-              <span className="rc-check-body"><strong>短片使用我的授課原音</strong><span>{terms.voice}</span></span>
-            </label>
-          )}
+          ))}
           <p className="rc-reason rc-reason-start">{terms.withdrawal}</p>
         </section>
       </div>
       <aside className="rc-col rc-side">
-        <div className="rc-panel">
+        <div className="rc-panel" data-rc-actions>
           <PrimaryAction label="同意並繼續" onClick={submit} busy={busy} disabled={!ready} reason="勾選上面的同意後才能繼續" />
           {error && <p className="rc-error rc-mt-s" role="alert">{error}</p>}
         </div>
@@ -61,7 +68,7 @@ export function RecutConsentGate({ courseId, consent, terms, onRecorded }) {
   );
 }
 
-const KIND_TEXT = { content: '授課內容', voice: '老師原音' };
+const KIND_TEXT = { content: '授課內容', voice: '老師原音', avatarLikeness: '數位分身肖像', voiceClone: '數位分身聲音複製' };
 const ACTION_TEXT = { stopWork: '停止製作中的短片', archiveAsset: '從學生短片牆移除', makeYouTubePrivate: 'YouTube 轉為私人' };
 
 // 管理頁的授權設定：目前同意狀態、撤回（逐支或全選，預設都不選）、未完成的下架工作。
@@ -147,6 +154,19 @@ export function RecutConsentManager({ courses }) {
             {voice === 'original' && <button type="button" className="rc-btn-text" onClick={() => openWithdraw('voice')}>撤回</button>}
           </span>
         </li>
+        {/* 數位分身的兩項同意只在做過決定後才列出，沒用過數位分身的老師不會看到多餘的項目。 */}
+        {['avatarLikeness', 'voiceClone'].filter((kind) => consent?.decisions?.[kind]).map((kind) => {
+          const choice = consent.decisions[kind].choice;
+          return (
+            <li key={kind} className="rc-row rc-row-static">
+              <span className="rc-row-title">{KIND_TEXT[kind]}</span>
+              <span className="rc-inline">
+                {choice === 'granted' ? <StateChip tone="done">已同意</StateChip> : <StateChip tone="mine">{choice === 'withdrawn' ? '已撤回' : '未同意'}</StateChip>}
+                {choice === 'granted' && <button type="button" className="rc-btn-text" onClick={() => openWithdraw(kind)}>撤回</button>}
+              </span>
+            </li>
+          );
+        })}
       </ul>
       {jobs.map((job) => {
         const open = (job.actions || []).filter((action) => action.status !== 'completed');
@@ -169,7 +189,7 @@ export function RecutConsentManager({ courses }) {
 
       <ConfirmDialog open={Boolean(withdrawKind)} title={`撤回${KIND_TEXT[withdrawKind] || ''}同意`} danger busy={busy}
         confirmLabel={selected.size ? `撤回並下架 ${selected.size} 支` : '撤回'} onConfirm={submitWithdraw} onClose={() => setWithdrawKind(null)}>
-        <p>{withdrawKind === 'voice' ? '撤回後，所有課程都不能再用你的原音製作新短片。' : '撤回後，這門課不能再製作新短片。'}勾選的短片會從學生短片牆移除；已被下載或轉傳的影片無法收回。</p>
+        <p>{withdrawKind === 'voice' ? '撤回後，所有課程都不能再用你的原音製作新短片。' : ['avatarLikeness', 'voiceClone'].includes(withdrawKind) ? '撤回後，不能再用數位分身製作新短片。' : '撤回後，這門課不能再製作新短片。'}勾選的短片會從學生短片牆移除；已被下載或轉傳的影片無法收回。</p>
         {assets.length > 0 ? (
           <div className="rc-scroll-list">
             <label className="rc-check">

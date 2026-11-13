@@ -195,6 +195,15 @@
 .rc-mode strong { color: var(--ff-chalk-white); font-weight: 700; }
 .rc-mode > span > span { font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); }
 
+/* 數位分身：傳回影片 */
+.rc-upload { display: grid; gap: 2px; }
+.rc-upload-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ff-chalk-white); overflow-wrap: anywhere; }
+.rc-script-tools { display: flex; justify-content: flex-end; gap: 4px; margin: -6px -6px 6px 0; }
+.rc-more > summary { cursor: pointer; min-height: var(--ff-touch-target); display: flex; align-items: center; font-weight: 700; color: var(--ff-chalk-body); list-style-position: inside; }
+.rc-more > summary:hover { color: var(--ff-chalk-white); }
+.rc-more[open] > summary { margin-bottom: 8px; }
+.rc-more-body { display: grid; gap: 12px; }
+
 /* 主題選擇 */
 .rc-topics { list-style: none; margin: 0; padding: 0; }
 .rc-topics li + li { border-top: 1px solid var(--ff-divider); }

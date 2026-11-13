@@ -1145,6 +1145,9 @@ a.nav-item { text-decoration: none; }
   overflow: hidden;
 }
 
+.skip-link { position: fixed; z-index: 2000; top: 12px; left: 12px; padding: 10px 16px; border-radius: 10px; background: #331529; color: #fff; font-weight: 700; text-decoration: none; translate: 0 -200%; }
+.skip-link:focus-visible { translate: 0 0; outline: 2px solid #fb9476; outline-offset: 2px; }
+.dashboard-content:focus { outline: none; }
 .dashboard-content {
   flex: 1;
   overflow: hidden;

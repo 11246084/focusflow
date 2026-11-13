@@ -54,11 +54,17 @@ export default function DashboardApp({ role, sub, onNav, onLogout }) {
   return (
     <div className="dashboard-shell">
       <div className="ff-bg" />
+      {/* 鍵盤捷徑：只在 Tab 到時出現，跳過側欄與頂欄，直接到這一頁的內容。 */}
+      <a className="skip-link" href="#main-content" onClick={(event) => {
+        // 不改網址（避免觸發頁面路由同步），只把焦點移到內容區。
+        event.preventDefault();
+        document.getElementById('main-content')?.focus();
+      }}>跳到主要內容</a>
       <div className="dashboard-inner">
         <Sidebar role={role} active={sub} onNav={onNav} onLogout={onLogout} user={currentUser} />
         <div className="dashboard-main">
           <Topbar user={currentUser} title={tb[0]} sub={subtitle} actions={role === 'student' && sub === 'shorts' ? <ShortsChannelLink /> : null} onNav={onNav} onLogout={onLogout} />
-          <div className="dashboard-content">
+          <div className="dashboard-content" id="main-content" tabIndex={-1}>
             <DashboardRouter role={role} sub={sub} onNav={onNav} user={currentUser} onProfileUpdated={handleProfileUpdated} />
           </div>
         </div>

@@ -139,8 +139,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   if (modeAction && !compact) primary = modeAction;
   else if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
-  // 依步驟排：還沒選影片時先「複製腳本」拿去地端做；選了影片才換成「上傳影片」。
-  else if (uploadStage && !file) primary = { label: '複製腳本', onClick: copy };
+  // 這一步真正要做的是傳回影片：還沒選影片時主要按鈕是「選擇影片」，選了才換成「上傳影片」。
+  else if (uploadStage && !file) primary = { label: '選擇影片', onClick: () => fileRef.current?.click(), disabled: pending === 'upload' };
   else if (uploadStage) {
     primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !aiConfirmed || !consentConfirmed, reason: '勾選上傳前的兩項確認' };
   } else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
@@ -149,18 +149,29 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const actionBlock = (
     <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
       <div className="rc-actions">
-        {primary && <PrimaryAction {...primary} />}
-        {version && (scriptStage || uploadStage) && (!mode || compact) && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            {primary?.label !== '複製腳本' && <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={copy}>複製腳本</button>}
-            <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={download}>下載腳本</button>
+        {uploadStage && (
+          <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
+            onChange={pickFile} disabled={pending === 'upload'} />
+        )}
+        {uploadStage && file && !mode && (
+          <div className="rc-upload">
+            <p className="rc-upload-file">
+              <span>{file.name}（{formatFileSize(file.size)}）</span>
+              <button type="button" className="rc-btn-text" onClick={() => fileRef.current?.click()} disabled={pending === 'upload'}>換一支</button>
+            </p>
+            <label className="rc-check">
+              <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
+              <span className="rc-check-body"><strong>影片已加上全片常駐的 AI 生成標示</strong></span>
+            </label>
+            <label className="rc-check">
+              <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
+              <span className="rc-check-body"><strong>已取得出現在影片中的教師書面同意</strong></span>
+            </label>
           </div>
         )}
-        {canRevise && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
-            onClick={() => setMode((value) => (value === 'regenerate' ? null : 'regenerate'))}>
-            {mode === 'regenerate' && !compact ? '不重新產生' : '重新產生'}
-          </button>
+        {primary && <PrimaryAction {...primary} />}
+        {mode === 'regenerate' && !compact && (
+          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={() => setMode(null)}>不重新產生</button>
         )}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
@@ -245,36 +256,22 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           {rejectFields}
         </section>
       )}
-      {uploadStage && (!mode || compact) && (
-        <section className="rc-panel" aria-labelledby={`up-${scriptId}`}>
-          <h2 id={`up-${scriptId}`} className="rc-section-title">傳回影片</h2>
-          <label className="rc-btn rc-btn-outline rc-btn-block" style={{ position: 'relative' }}>
-            <input ref={fileRef} type="file" accept="video/*" onChange={pickFile} disabled={pending === 'upload'}
-              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
-            {file ? `${file.name}（${formatFileSize(file.size)}）` : '選擇影片'}
-          </label>
-          <label className="rc-check">
-            <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
-            <span className="rc-check-body"><strong>影片已加上全片常駐的 AI 生成標示</strong></span>
-          </label>
-          <label className="rc-check">
-            <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
-            <span className="rc-check-body"><strong>已取得出現在影片中的教師書面同意</strong></span>
-          </label>
-        </section>
-      )}
-      {version && (scriptStage || uploadStage) && options.length > 1 && !mode && (
-        <section className="rc-panel">
-          <label>
-            <span className="rc-field-label">視覺隱喻</span>
-            <select className="rc-select" value={metaphor} onChange={(event) => setMetaphor(Number(event.target.value))}>
-              {options.map((option, index) => <option key={option.label} value={index}>{option.label}</option>)}
-            </select>
-          </label>
-        </section>
-      )}
       {canRevise && !mode && (
-        <button type="button" className="rc-btn-text" style={{ alignSelf: 'flex-start' }} onClick={() => setDismissOpen(true)}>不做這支</button>
+        <details className="rc-panel rc-more">
+          <summary>更多</summary>
+          <div className="rc-more-body">
+            <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)} onClick={() => setMode('regenerate')}>重新產生腳本</button>
+            {options.length > 1 && (
+              <label>
+                <span className="rc-field-label">視覺隱喻</span>
+                <select className="rc-select" value={metaphor} onChange={(event) => setMetaphor(Number(event.target.value))}>
+                  {options.map((option, index) => <option key={option.label} value={index}>{option.label}</option>)}
+                </select>
+              </label>
+            )}
+            <button type="button" className="rc-btn-text" style={{ alignSelf: 'flex-start' }} onClick={() => setDismissOpen(true)}>不做這支</button>
+          </div>
+        </details>
       )}
     </>
   );
@@ -287,6 +284,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         <section className="rc-panel rc-main" aria-labelledby={`av-q-${scriptId}`}>
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
+          {/* 唯一保留的說明：數位分身要老師在自己電腦上做影片，版面本身表達不出這件事。 */}
+          {uploadStage && <p className="rc-source">在自己的電腦做好影片後，從這裡傳回。</p>}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}
@@ -315,6 +314,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
 
         {shots.length > 0 && (
           <section className="rc-panel" aria-label="腳本">
+            {(scriptStage || uploadStage) && (
+              <div className="rc-script-tools">
+                <button type="button" className="rc-btn-text" onClick={copy}>複製腳本</button>
+                <button type="button" className="rc-btn-text" onClick={download}>下載腳本</button>
+              </div>
+            )}
             <ol className="rc-script">
               {shots.map((shot) => (
                 <li key={shot.shotNo} className="rc-line" data-role="kept">

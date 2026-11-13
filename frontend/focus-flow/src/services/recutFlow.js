@@ -73,7 +73,7 @@ export function sortManageItems(items) {
 const AVATAR_INFO = {
   to_generate: { step: 0, bucket: 'mine', label: '尚未產生腳本', action: '產生腳本' },
   changes_requested: { step: 0, bucket: 'mine', label: '需修改', action: '重新產生' },
-  to_film: { step: 1, bucket: 'mine', label: '待上傳影片', action: '上傳影片' },
+  to_film: { step: 1, bucket: 'mine', label: '待傳回影片', action: '傳回影片' },
   asset_rejected: { step: 1, bucket: 'mine', label: '成品已退回', action: '重新上傳' },
   upload_failed: { step: 1, bucket: 'mine', label: '上傳失敗', action: '重試' },
   upload_waiting: { step: 1, bucket: 'waiting', label: '等待上傳' },

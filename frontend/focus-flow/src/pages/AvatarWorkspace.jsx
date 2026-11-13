@@ -220,17 +220,9 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     <>
       {canRevise && (
         <details className="rc-panel rc-more">
-          <summary>更多</summary>
+          <summary>重新產生或不做這支</summary>
           <div className="rc-more-body">
             <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)} onClick={() => setMode('regenerate')}>重新產生腳本</button>
-            {options.length > 1 && (
-              <label>
-                <span className="rc-field-label">視覺隱喻</span>
-                <select className="rc-select" value={metaphor} onChange={(event) => setMetaphor(Number(event.target.value))}>
-                  {options.map((option, index) => <option key={option.label} value={index}>{option.label}</option>)}
-                </select>
-              </label>
-            )}
             <button type="button" className="rc-btn-text rc-self-start" onClick={() => setDismissOpen(true)}>不做這支</button>
           </div>
         </details>
@@ -289,6 +281,17 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
                 </HelpTip>
                 <button type="button" className="rc-btn-text" onClick={copy}>複製腳本</button>
                 <button type="button" className="rc-btn-text" onClick={download}>下載腳本</button>
+              </div>
+            )}
+            {/* 畫面上的腳本與下載的腳本用同一個視覺隱喻，老師照畫面做也拿得到完整方向。 */}
+            {options.length > 0 && (
+              <div className="rc-concept">
+                <span>視覺隱喻</span>
+                {options.length > 1 && (scriptStage || uploadStage) ? (
+                  <select className="rc-select" aria-label="視覺隱喻" value={metaphor} onChange={(event) => setMetaphor(Number(event.target.value))}>
+                    {options.map((option, index) => <option key={option.label} value={index}>{option.label}</option>)}
+                  </select>
+                ) : <strong>{options[metaphor]?.label || options[0].label}</strong>}
               </div>
             )}
             <ol className="rc-script">

@@ -53,7 +53,7 @@ export function DurationMeter({ seconds }) {
         </div>
         <div className="rc-meter-scale" aria-hidden="true">
           {[0, MIN_DURATION_SEC, MAX_DURATION_SEC].map((value) => (
-            <span key={value} style={{ left: `${meterPercent(value)}%` }}>{value}</span>
+            <span key={value} style={{ left: `${meterPercent(value)}%` }}>{value === MAX_DURATION_SEC ? `${value} 秒` : value}</span>
           ))}
         </div>
       </div>

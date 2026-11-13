@@ -40,6 +40,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const [rejectCodes, setRejectCodes] = useState(() => new Set());
   const [rejectNote, setRejectNote] = useState('');
   const [noteTouched, setNoteTouched] = useState(false);
+  const [lineError, setLineError] = useState(null); // { id, text }：逐句修改失敗時顯示在那一句下方
   const [playingId, setPlayingId] = useState(null);
   const [playheadId, setPlayheadId] = useState(null);
   const audioRef = useRef(null);
@@ -168,12 +169,17 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const toggleSentence = (sentence) => {
     if (pending) return;
     const adding = !sentence.selected;
+    setLineError(null);
     run('edit', async () => {
       const data = await api.editSelection(scriptId, review, [{ sentenceId: sentence.id, action: adding ? 'add' : 'remove' }]);
       setReview(data);
       const total = Math.round(Number((data.draft || data.current)?.durationSec) || 0);
       setAnnouncement(`${adding ? '已加回' : '已移除'}，總長 ${total} 秒；按「確定修改」後才能核准`);
-    }).catch(() => {});
+    }).catch((err) => {
+      // 錯誤放在那一句下面（而不是右欄），老師不用找。
+      setError('');
+      setLineError({ id: sentence.id, text: recutErrorText(err) });
+    });
   };
 
   const stopAudio = () => { audioRef.current?.pause(); stopAtRef.current = null; setPlayingId(null); };
@@ -295,9 +301,6 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       <div className="rc-actions">
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
-        {(state === 'script_review' || state === 'render_failed') && review?.draft && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'restore' })}>放棄修改</button>
-        )}
         {state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
             onClick={() => { setRejecting(true); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
@@ -348,6 +351,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             </button>
             {sentence.teacherChanged && <StateChip tone="edit">{kept ? '已加回' : '已移除'}</StateChip>}
           </span>
+          {lineError?.id === sentence.id && <p className="rc-line-error" role="alert">{lineError.text}</p>}
         </div>
         {canToggle && (
           <button type="button" className="rc-btn-text rc-line-toggle" data-act={kept ? 'remove' : 'add'} onClick={() => toggleSentence(sentence)}
@@ -395,6 +399,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
               disabled={!chosenSuggestions.size || Boolean(pending)} onClick={requestAdopt}>
               {pending === 'adopt' ? '處理中…' : chosenSuggestions.size ? `採納 ${chosenSuggestions.size} 項建議` : '勾選建議後採納'}
             </button>
+            {chosenSuggestions.size > 0 && <p className="rc-reason rc-mt-xs">採納後系統重排講稿，約一分鐘</p>}
           </section>
         )}
 
@@ -483,6 +488,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
                   )}
                 </dl>
               </HelpTip>
+              {editable && review?.draft && (
+                <button type="button" className="rc-btn-text" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'restore' })}>放棄修改</button>
+              )}
             </div>
             <ol className="rc-script" onKeyDown={moveBetweenLines}>
               {opening && renderLine(opening, 'opening')}

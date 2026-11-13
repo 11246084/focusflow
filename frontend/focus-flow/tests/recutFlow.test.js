@@ -30,7 +30,7 @@ describe('recut 狀態對應的步驟與待辦', () => {
 
   it('數位分身依成品狀態對應步驟：沒影片待上傳、待審核等你確認、不做了不列入待辦', () => {
     const avatar = (status) => ({ _id: 's1', productionMode: 'avatar', status });
-    assert.equal(describeShort(avatar('generated'), []).label, '待上傳影片');
+    assert.equal(describeShort(avatar('generated'), []).label, '待傳回影片');
     assert.equal(describeShort(avatar('generated'), [{ id: 'a1', sourceScriptId: 's1', status: 'draft', reviewStatus: 'pending', upload: { status: 'uploaded' } }]).bucket, 'mine');
     assert.equal(describeShort(avatar('dismissed'), []).bucket, 'closed');
     assert.equal(describeShort(avatar('evidence_ready'), []).action, '產生腳本');

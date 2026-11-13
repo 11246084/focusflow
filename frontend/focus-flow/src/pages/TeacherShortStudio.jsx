@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import { createScript as createAvatarScript, generateVersion, listAssets } from '../services/shortScript.js';
@@ -17,6 +17,7 @@ import { PrimaryAction, StateChip } from './recutUi';
 
 export const SHORT_STUDIO_PAGE = 'shortStudio';
 const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
+const NEW_SHORT = '__new__';
 
 // 短影片製作：左欄這門課的短片與批次進度，中欄講稿，右欄時長與主要按鈕。
 // recut 與數位分身都在這裡做，選題時一起選產片方式（UX-24）。
@@ -111,6 +112,13 @@ export default function TeacherShortStudio() {
     setScripts((prev) => prev.map((s) => (String(s._id) === id ? { ...s, recut } : s)));
   }, []);
 
+  const rootRef = useRef(null);
+  // 手機上換一支短片時回到頁首，從問題開始看。
+  const openShort = (id) => {
+    setPicking(false);
+    setSelectedId(id);
+    if (compact) rootRef.current?.scrollIntoView({ block: 'start' });
+  };
   const openPicker = () => {
     setPicking(true);
     setSelectedId('');
@@ -242,24 +250,29 @@ export default function TeacherShortStudio() {
   } else body = <div className="rc-col rc-main" />;
 
   return (
-    <div className="rc rc-studio">
+    <div ref={rootRef} className="rc rc-studio">
       <nav className="rc-col" aria-label="這門課的短片">
         <div className="rc-panel">
-          <label>
-            <span className="rc-field-label">課程</span>
-            <select className="rc-select" value={courseId} onChange={(event) => setCourseId(event.target.value)}>
-              {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
-            </select>
-          </label>
-          {compact ? (sorted.length > 0 && (
-            <label style={{ display: 'block', marginTop: 12 }}>
-              <span className="rc-field-label">短片</span>
-              <select className="rc-select" value={picking ? '' : selectedId} onChange={(event) => { if (event.target.value) { setPicking(false); setSelectedId(event.target.value); } }}>
-                {picking && <option value="">新增短片</option>}
-                {sorted.map((script) => <option key={script._id} value={String(script._id)}>{`${describeShort(script, assets).label}・${scriptQuestion(script)}`}</option>)}
+          <div className={compact ? 'rc-nav-row' : undefined}>
+            <label>
+              <span className="rc-field-label">課程</span>
+              <select className="rc-select" value={courseId} onChange={(event) => setCourseId(event.target.value)}>
+                {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
               </select>
             </label>
-          )) : (
+            {compact && (
+              <label>
+                <span className="rc-field-label">短片</span>
+                <select className="rc-select" value={picking ? NEW_SHORT : selectedId} disabled={!courseId}
+                  onChange={(event) => (event.target.value === NEW_SHORT ? openPicker() : openShort(event.target.value))}>
+                  {!picking && !selectedId && <option value="">選擇短片</option>}
+                  {sorted.map((script) => <option key={script._id} value={String(script._id)}>{`${scriptQuestion(script)}（${describeShort(script, assets).label}）`}</option>)}
+                  <option value={NEW_SHORT}>＋ 新增短片</option>
+                </select>
+              </label>
+            )}
+          </div>
+          {!compact && (
             <ul className="rc-list">
               {sorted.map((script) => {
                 const info = describeShort(script, assets);
@@ -267,7 +280,7 @@ export default function TeacherShortStudio() {
                 return (
                   <li key={id}>
                     <button type="button" className="rc-list-item" aria-current={id === selectedId && !picking ? 'true' : undefined}
-                      onClick={() => { setPicking(false); setSelectedId(id); }}>
+                      onClick={() => openShort(id)}>
                       <span className="rc-list-title">{scriptQuestion(script)}</span>
                       <StateChip tone={chipTone(info)}>{info.label}</StateChip>
                     </button>
@@ -276,8 +289,10 @@ export default function TeacherShortStudio() {
               })}
             </ul>
           )}
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 12 }}
-            aria-pressed={picking} onClick={openPicker} disabled={!courseId}>新增短片</button>
+          {!compact && (
+            <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 12 }}
+              aria-pressed={picking} onClick={openPicker} disabled={!courseId}>新增短片</button>
+          )}
         </div>
       </nav>
       {body}

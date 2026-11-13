@@ -7,7 +7,7 @@ import { renderScriptMarkdown } from '../services/shortScriptTemplate.js';
 import { getReviewErrorMessage, submitReviewAndReadback, validateRejectionReasons } from '../services/videoReview.js';
 import { AVATAR_STEPS, describeAvatar, recutErrorText } from '../services/recutFlow.js';
 import { formatFileSize, validateVideoFile } from './teacherUploadUtils';
-import { ConfirmDialog, FlowStrip, PrimaryAction, StateChip, StatusCard } from './recutUi';
+import { ConfirmDialog, FlowStrip, PrimaryAction, SheetDialog, StateChip, StatusCard } from './recutUi';
 
 // 數位分身短片的審閱畫面（UX-24）：系統產生腳本；教授在地端做好影片後傳回，確認成品後上架。
 // 版面與 recut 相同：中欄問題、流程列與內容，右欄（手機為底部固定列）唯一的主要按鈕。
@@ -128,9 +128,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const reviewStage = info.state === 'in_review';
   const canRevise = version && (scriptStage || uploadStage);
 
+  const modeAction = mode === 'regenerate'
+    ? { label: '重新產生', onClick: regenerate, busy: pending === 'regenerate' }
+    : mode === 'reject' ? { label: '送出退回', onClick: () => review('rejected'), busy: pending === 'reject', disabled: Boolean(rejectProblem), reason: rejectProblem } : null;
+  // 手機上原因放在底部面板，底部列維持這一步原本的主要按鈕。
   let primary = null;
-  if (mode === 'regenerate') primary = { label: '重新產生', onClick: regenerate, busy: pending === 'regenerate' };
-  else if (mode === 'reject') primary = { label: '送出退回', onClick: () => review('rejected'), busy: pending === 'reject', disabled: Boolean(rejectProblem), reason: rejectProblem };
+  if (modeAction && !compact) primary = modeAction;
   else if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
   else if (uploadStage) {
@@ -143,7 +146,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     <div className={compact ? 'rc-dock' : 'rc-panel'}>
       <div className="rc-actions">
         {primary && <PrimaryAction {...primary} />}
-        {version && (scriptStage || uploadStage) && !mode && (
+        {version && (scriptStage || uploadStage) && (!mode || compact) && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={copy}>複製腳本</button>
             <button type="button" className="rc-btn rc-btn-outline" style={{ flex: 1 }} onClick={download}>下載</button>
@@ -152,13 +155,13 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {canRevise && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
             onClick={() => setMode((value) => (value === 'regenerate' ? null : 'regenerate'))}>
-            {mode === 'regenerate' ? '不重新產生' : '重新產生'}
+            {mode === 'regenerate' && !compact ? '不重新產生' : '重新產生'}
           </button>
         )}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
             onClick={() => { setMode((value) => (value === 'reject' ? null : 'reject')); setRejectCodes(new Set()); setRejectNote(''); }}>
-            {mode === 'reject' ? '不退回' : '退回'}
+            {mode === 'reject' && !compact ? '不退回' : '退回'}
           </button>
         )}
         {onNext && !primary && (
@@ -170,54 +173,65 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     </div>
   );
 
+  const regenerateFields = (
+    <>
+      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <div className="rc-pills">
+          {FEEDBACK_TYPES.map((type) => (
+            <label key={type.value} className="rc-pill">
+              <input type="radio" name={`fb-${scriptId}`} checked={feedbackType === type.value} onChange={() => setFeedbackType(type.value)} />
+              {type.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <label style={{ display: 'block', marginTop: 12 }}>
+        <span className="rc-field-label">補充（選填）</span>
+        <textarea className="rc-textarea" value={feedback} maxLength={500} onChange={(event) => setFeedback(event.target.value)} />
+      </label>
+    </>
+  );
+  const rejectFields = (
+    <>
+      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <div className="rc-pills">
+          {REJECTION_REASONS.map((reason) => (
+            <label key={reason.code} className="rc-pill">
+              <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
+                const next = new Set(prev);
+                if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
+                return next;
+              })} />
+              {reason.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {rejectCodes.has('other') && (
+        <label style={{ display: 'block', marginTop: 12 }}>
+          <span className="rc-field-label">其他原因</span>
+          <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
+        </label>
+      )}
+    </>
+  );
+
   const options = version?.payload?.visualMetaphorOptions || [];
   const sidePanels = (
     <>
-      {mode === 'regenerate' && (
+      {mode === 'regenerate' && !compact && (
         <section className="rc-panel">
-          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-            <legend className="rc-section-title">哪裡要改</legend>
-            <div className="rc-pills">
-              {FEEDBACK_TYPES.map((type) => (
-                <label key={type.value} className="rc-pill">
-                  <input type="radio" name={`fb-${scriptId}`} checked={feedbackType === type.value} onChange={() => setFeedbackType(type.value)} />
-                  {type.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <label style={{ display: 'block', marginTop: 12 }}>
-            <span className="rc-field-label">補充（選填）</span>
-            <textarea className="rc-textarea" value={feedback} maxLength={500} onChange={(event) => setFeedback(event.target.value)} />
-          </label>
+          {regenerateFields}
         </section>
       )}
-      {mode === 'reject' && (
+      {mode === 'reject' && !compact && (
         <section className="rc-panel">
-          <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-            <legend className="rc-section-title">哪裡要改</legend>
-            <div className="rc-pills">
-              {REJECTION_REASONS.map((reason) => (
-                <label key={reason.code} className="rc-pill">
-                  <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
-                    const next = new Set(prev);
-                    if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
-                    return next;
-                  })} />
-                  {reason.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          {rejectCodes.has('other') && (
-            <label style={{ display: 'block', marginTop: 12 }}>
-              <span className="rc-field-label">其他原因</span>
-              <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
-            </label>
-          )}
+          {rejectFields}
         </section>
       )}
-      {uploadStage && !mode && (
+      {uploadStage && (!mode || compact) && (
         <section className="rc-panel" aria-labelledby={`up-${scriptId}`}>
           <h2 id={`up-${scriptId}`} className="rc-section-title">傳回影片</h2>
           <label className="rc-btn rc-btn-outline rc-btn-block" style={{ position: 'relative' }}>
@@ -308,6 +322,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {!compact && sidePanels}
       </aside>
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
+      {compact && (
+        <SheetDialog open={Boolean(mode)} title={mode === 'reject' ? '哪裡要改' : '重新產生'} onClose={() => setMode(null)}
+          action={modeAction && <PrimaryAction {...modeAction} />}>
+          {mode === 'reject' ? rejectFields : regenerateFields}
+        </SheetDialog>
+      )}
       <ConfirmDialog open={dismissOpen} title="不做這支短片？" confirmLabel="不做了" danger busy={pending === 'dismiss'}
         onConfirm={dismiss} onClose={() => setDismissOpen(false)}>
         <p>之後不會再出現在待辦裡。</p>

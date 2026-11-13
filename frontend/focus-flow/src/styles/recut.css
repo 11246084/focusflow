@@ -143,6 +143,14 @@
 .rc-dialog h2 { font-size: var(--ff-text-title); margin-bottom: 10px; }
 .rc-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: var(--ff-space-md); }
 
+/* 手機底部面板 */
+.rc-sheet { width: 100%; max-width: 100%; max-height: 85dvh; margin: auto 0 0; padding: var(--ff-space-lg) 16px max(16px, env(safe-area-inset-bottom, 0px)); box-sizing: border-box; border: 1px solid var(--ff-hairline); border-bottom: 0; border-radius: var(--ff-radius-card) var(--ff-radius-card) 0 0; background: var(--ff-plum-night); color: var(--ff-chalk-body); overflow-y: auto; }
+.rc-sheet:modal { overscroll-behavior: contain; }
+.rc-sheet::backdrop { background: rgba(0, 0, 0, 0.55); overflow: hidden; overscroll-behavior: contain; }
+.rc-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.rc-sheet-head h2 { font-size: var(--ff-text-title); }
+.rc-sheet-action { margin-top: var(--ff-space-md); }
+
 /* 管理頁 */
 .rc-manage { padding: 0 var(--ff-space-page) var(--ff-space-page); height: 100%; overflow-y: auto; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--ff-space-md); align-content: start; }
 .rc-manage-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
@@ -162,6 +170,8 @@
 @media (max-width: 768px) {
   .rc-studio { display: flex; flex-direction: column; height: auto; padding: 0 16px; gap: var(--ff-space-sm); }
   .rc-col { overflow: visible; }
+  .rc-nav-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+  .rc-nav-row .rc-select { padding: 0 10px; }
   .rc-panel { padding: 16px; border-radius: var(--ff-radius-xl); }
   .rc-question { font-size: 18px; }
   .rc-line { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 8px 2px; }
@@ -173,6 +183,9 @@
   .rc-dock .rc-duration-value strong { font-size: 22px; }
   .rc-dock .rc-meter-scale { display: none; }
   .rc-manage { grid-template-columns: minmax(0, 1fr); padding: 0 16px 16px; height: auto; overflow: visible; }
+}
+@media (pointer: coarse) {
+  .rc-btn-text { min-height: var(--ff-touch-target); padding: 0 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rc-btn-primary:not(:disabled):hover, .rc-btn-primary:not(:disabled):active { transform: none; }

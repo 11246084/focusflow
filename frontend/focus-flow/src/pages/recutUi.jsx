@@ -108,3 +108,26 @@ export function PrimaryAction({ label, onClick, disabled = false, reason = '', b
     </div>
   );
 }
+
+// 手機的底部面板：原生 <dialog> 由瀏覽器負責焦點、背景不可操作與 Esc／返回手勢關閉。
+// 退回原因、重新產生原因這類「點了按鈕才要選」的內容放這裡，選項與送出按鈕都在拇指範圍內。
+export function SheetDialog({ open, title, onClose, action, children }) {
+  const ref = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+  return (
+    <dialog ref={ref} className="rc-sheet rc" aria-labelledby={titleId} onClose={onClose} {...{ closedby: 'any' }}>
+      <div className="rc-sheet-head">
+        <h2 id={titleId}>{title}</h2>
+        <button type="button" className="rc-btn-text" onClick={onClose}>取消</button>
+      </div>
+      {children}
+      <div className="rc-sheet-action">{action}</div>
+    </dialog>
+  );
+}

@@ -7,7 +7,7 @@ import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
   isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
-import { ConfirmDialog, DurationMeter, FlowStrip, PrimaryAction, StateChip, StatusCard } from './recutUi';
+import { ConfirmDialog, DurationMeter, FlowStrip, PrimaryAction, SheetDialog, StateChip, StatusCard } from './recutUi';
 
 // 一支 recut 短片的審閱畫面。製作與管理兩個入口都打開這一份。
 // 中欄：問題、流程列、講稿（或成品）；右欄（手機為底部固定列）：時長與這一步唯一的主要按鈕。
@@ -274,13 +274,41 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   } else if (state === 'render_failed' && !isFixedRenderFailure(snapshot?.render?.errorCode)) {
     primary = { label: '重新製作', onClick: render, busy: pending === 'render' };
   }
-  else if (state === 'asset_review' && rejecting) {
-    primary = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
-      reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
+  const rejectAction = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
+    reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
+  // 手機上退回原因在底部面板裡，底部列維持「核准上架」；電腦版把主要按鈕換成「送出退回」。
+  if (state === 'asset_review' && rejecting && !compact) {
+    primary = rejectAction;
   } else if (state === 'asset_review') {
     primary = { label: '核准上架', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
+
+  const rejectFields = (
+    <>
+      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+        <legend className={compact ? 'rc-visually-hidden' : 'rc-section-title'}>哪裡要改</legend>
+        <div className="rc-pills">
+          {REJECTION_REASONS.map((reason) => (
+            <label key={reason.code} className="rc-pill">
+              <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
+                const next = new Set(prev);
+                if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
+                return next;
+              })} />
+              {reason.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {rejectCodes.has(otherCode) && (
+        <label style={{ display: 'block', marginTop: 12 }}>
+          <span className="rc-field-label">其他原因</span>
+          <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
+        </label>
+      )}
+    </>
+  );
 
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
@@ -294,7 +322,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         {state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
             onClick={() => { setRejecting((value) => !value); setRejectCodes(new Set()); setRejectNote(''); }}>
-            {rejecting ? '不退回' : '退回'}
+            {rejecting && !compact ? '不退回' : '退回'}
           </button>
         )}
         {isCancellableState(state) && snapshot?.task?.id && (
@@ -343,29 +371,9 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const changeSummary = review?.latestChangeSummary?.changes || [];
   const sidePanels = (
     <>
-        {state === 'asset_review' && rejecting && (
+        {state === 'asset_review' && rejecting && !compact && (
           <section className="rc-panel">
-            <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-              <legend className="rc-section-title">哪裡要改</legend>
-              <div className="rc-pills">
-                {REJECTION_REASONS.map((reason) => (
-                  <label key={reason.code} className="rc-pill">
-                    <input type="checkbox" checked={rejectCodes.has(reason.code)} onChange={(event) => setRejectCodes((prev) => {
-                      const next = new Set(prev);
-                      if (event.target.checked) next.add(reason.code); else next.delete(reason.code);
-                      return next;
-                    })} />
-                    {reason.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {rejectCodes.has(otherCode) && (
-              <label style={{ display: 'block', marginTop: 12 }}>
-                <span className="rc-field-label">其他原因</span>
-                <textarea className="rc-textarea" value={rejectNote} maxLength={500} onChange={(event) => setRejectNote(event.target.value)} />
-              </label>
-            )}
+            {rejectFields}
           </section>
         )}
 
@@ -479,6 +487,13 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       )}
 
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
+
+      {compact && (
+        <SheetDialog open={state === 'asset_review' && rejecting} title="哪裡要改" onClose={() => setRejecting(false)}
+          action={<PrimaryAction {...rejectAction} />}>
+          {rejectFields}
+        </SheetDialog>
+      )}
 
       <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="全部復原" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>

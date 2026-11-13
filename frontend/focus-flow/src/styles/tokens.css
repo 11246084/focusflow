@@ -28,10 +28,14 @@
   /* 字體 */
   --ff-font-display: 'Space Grotesk', 'Noto Sans TC', sans-serif;
   --ff-font-body: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', sans-serif;
-  --ff-text-body: 13px;
-  --ff-text-title: 15px;
-  --ff-text-action: 14px;
+  /* 字級角色：標籤 12（中文下限）→ 內文 14 → 閱讀 16 → 區塊標題 17 → 問題標題 26（手機 22）。 */
   --ff-text-min-cjk: 12px;
+  --ff-text-body: 14px;
+  --ff-text-read: 16px;
+  --ff-text-title: 17px;
+  --ff-text-heading: 26px;
+  --ff-text-heading-compact: 22px;
+  --ff-text-action: 14px;
 
   /* 圓角 */
   --ff-radius-sm: 8px;

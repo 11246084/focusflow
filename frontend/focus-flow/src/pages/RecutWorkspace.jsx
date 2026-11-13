@@ -409,7 +409,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             ))}
             <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 10 }}
               disabled={!chosenSuggestions.size || Boolean(pending)} onClick={requestAdopt}>
-              {pending === 'adopt' ? '處理中…' : `採納 ${chosenSuggestions.size || ''} 項建議`}
+              {pending === 'adopt' ? '處理中…' : chosenSuggestions.size ? `採納 ${chosenSuggestions.size} 項建議` : '採納建議'}
             </button>
           </section>
         )}

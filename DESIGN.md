@@ -154,6 +154,17 @@ components:
 - **Action**（700，14px）：按鈕文字；小按鈕 12.5px。
 - **Label**（600，11px，字距 0.1em）：英文大寫的區塊小標。
 
+### 新頁面的字級角色（`tokens.css`）
+| 角色 | 字級 | 用途 |
+|---|---|---|
+| `--ff-text-min-cjk` | 12px | 標籤、時間、狀態色塊、說明 |
+| `--ff-text-body` | 14px | 內文、清單標題（新頁面另加 0.01em 字距，補償深色底上的淺色字） |
+| `--ff-text-read` | 16px | 講稿逐句、播放中的那一句（主要閱讀內容） |
+| `--ff-text-title` | 17px | 區塊與對話框標題 |
+| `--ff-text-heading` | 26px（手機 22px） | 問題標題 |
+
+講稿欄寬上限 40em，每行不超過約 40 個中文字。舊頁面仍用上面 Hierarchy 的 13／15px。
+
 ### Named Rules
 **The Readable Chinese Rule.** 中文文字不小於 12px；11px 只給英文大寫小標。
 

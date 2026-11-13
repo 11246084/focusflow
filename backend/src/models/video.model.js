@@ -31,6 +31,12 @@ function isPipelineMetadataRecord(video) {
 
 const processingSchema = new mongoose.Schema(
   {
+    multimodal: {
+      type: new mongoose.Schema({
+        version: String, status: String, mode: String, records: Number, errorType: String,
+      }, { _id: false }),
+      default: undefined,
+    },
     status: {
       type: String,
       enum: VIDEO_PROCESSING_STATUS_VALUES,

@@ -1,5 +1,21 @@
 # 多模態檢索、章節與影片升級：開發接手說明
 
+### 新上傳影片
+
+重新處理令原計畫失效時，保留原 before-image 與 receipt，使用 `--plan atlas-before-<識別碼>.json` 建立新的備份及核准碼。準備、寫入與回復要指定同一計畫檔。
+
+續跑單一世代使用 `python STT_Whisper/src/upload_multimodal.py --resume <世代目錄>`，沿用 Worker 的環境設定。入口重新核對影片、課程、來源 SHA、manifest 及資料庫片段，只執行多模態階段。先前有未知計費時，既有 ledger 會阻止重送。
+
+上傳儲存服務依主機／磁碟保留容量；它沒有跨 Worker 的 Checkpoint 讀寫介面。驗收的共享磁碟需由維運提供存取控制，正式模式仍需實測斷線、換機與備份恢復。刪除影片後寫入器會因查無擁有者停止，私有 Checkpoint 與稽核證據的保留、清除週期需另行配置。
+
+開發驗收若要由 Python 接續建立 Atlas 計畫，另設 `UPLOAD_MULTIMODAL_ATLAS_ACCEPTANCE=true`。操作員可在該世代的私有目錄放置 `atlas-approval.json`（只含當次 approvalHash）；下次接續時會在啟動寫入前消耗該核准，相同核准不會自動重送。操作員也可直接使用下方 CLI。遇未知結果查核後才可人工接續。
+
+教師單片與批次 API 透過 Queue 或批次管理器啟動單片 Python 程序。文字上傳與完成通知後，`UPLOAD_MULTIMODAL_MODE=fake-sdk` 可在隔離測試環境執行新增階段。整條上傳路徑仍包含原本 STT 的外部依賴；只測新增階段可跑 `python -m unittest discover -s STT_Whisper/tests -p test_upload_multimodal.py`。
+
+真實模式需另行核准付費，再配置 `UPLOAD_MULTIMODAL_MODE=gemini`、`UPLOAD_MULTIMODAL_ALLOW_PAID=true`、`UPLOAD_MULTIMODAL_STORAGE` 與 `UPLOAD_MULTIMODAL_LEDGER`。儲存根目錄與原有 ledger 應掛載於所有 Worker 共用、服務身分專用且支援排他建立與原子換檔的持久磁碟。禁止以空白 ledger 取代累計帳本。世代目錄依 mode／courseId／videoId／manifestHash 區隔。pause、cancel 檔案在批次邊界生效；故障後先檢查 worker.lock、ledger 與最近 intent，再續跑。同片重處理須核對當前來源與版本。
+
+開發驗收的 Atlas CLI 是 `node backend/scripts/atlas-multimodal/upload.js --directory <世代目錄>`。它要求真實 bundle、目前影片版本與既有三路索引，保存 before-image 後回傳 approvalHash。只有具該次授權的操作員可用相同指令附加 `--approve <approvalHash>`。回復使用 `--restore` 取得獨立核准碼。未知結果或衝突應先檢查該次 intent、receipt 與資料庫，不得自動重送。正式自動寫入政策尚未啟用。
+
 > 2026-11-13 接手入口：先讀[目前狀態](../../current-status.md)最新多模態段落。Gemini 付費請求目前 NO-GO；不要重複分析相同 429、嘗試重送或自動恢復。先依[後五片工具](remaining-videos-tools.md)進行唯讀及無付費驗證。本機 Checkpoint 完成與 Atlas 寫入完成分開判讀；V2～V5當次限定寫入已完成，後續不重送成功資料，題庫E2E的Query依賴見狀態正本；下文歷史執行稿不構成新的外部操作授權。
 
 > 組員請先用瀏覽器打開 [docs/07_HTML說明頁/多模態檢索.html](../../07_HTML說明頁/多模態檢索.html)；這份 Markdown 是寫給 AI 讀的。

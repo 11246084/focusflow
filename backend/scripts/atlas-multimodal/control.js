@@ -22,17 +22,16 @@ function vectorDigest(vector) {
   vector.forEach((v, i) => bytes.writeDoubleLE(v, i * 8));
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
-function validateBundle(bundle, scope = null) {
-  if (scope) scopeTools.validateScope(scope);
+function checkBundle(bundle, scope, { courseId, videoIds, schema, kindsFor }) {
   const ids = scope?.ids || IDS;
-  const kinds = scope ? ['text', 'audio', 'visual'] : ['query', 'text', 'audio', 'visual'];
-  if (bundle?.schemaVersion !== (scope ? scope.schemaVersion === 'video_manifest_v1' ? 'atlas_video_v1' : 'atlas_video1_v1' : 'atlas_sample_v1') || bundle.executionMode !== 'gemini' || bundle.records?.length !== (scope ? scopeTools.expectedRecords(scope) : ids.length * kinds.length)) throw new Error('Invalid bundle');
+  if (bundle?.schemaVersion !== schema || bundle.executionMode !== 'gemini' ||
+    bundle.records?.length !== ids.reduce((n, id) => n + kindsFor(id).length, 0)) throw new Error('Invalid bundle');
   const seen = new Set();
   for (const r of bundle.records) {
     const m = r.metadata;
     const key = `${r.identity?.chunkId}:${r.kind}`;
-    if (seen.has(key) || !ids.includes(r.identity?.chunkId) || !(scope ? scopeTools.expectedKinds(scope, r.identity?.chunkId) : kinds).includes(r.kind)
-      || r.identity.courseId !== COURSE_ID || !VIDEO_IDS.includes(r.identity.videoId)
+    if (seen.has(key) || !ids.includes(r.identity?.chunkId) || !kindsFor(r.identity?.chunkId).includes(r.kind)
+      || r.identity.courseId !== courseId || !videoIds.includes(r.identity.videoId)
       || !r.identity.chunkId.startsWith(`${r.identity.videoId}_chunk_`)
       || !Number.isFinite(r.identity.startSec) || !(r.identity.endSec > r.identity.startSec)
       || m?.provider !== 'gemini' || m.model !== 'gemini-embedding-2' || m.status !== 'success'
@@ -47,6 +46,12 @@ function validateBundle(bundle, scope = null) {
     seen.add(key);
   }
   return bundle;
+}
+function validateBundle(bundle, scope = null) {
+  if (scope) scopeTools.validateScope(scope);
+  return checkBundle(bundle, scope, { courseId: COURSE_ID, videoIds: VIDEO_IDS,
+    schema: scope ? scope.schemaVersion === 'video_manifest_v1' ? 'atlas_video_v1' : 'atlas_video1_v1' : 'atlas_sample_v1',
+    kindsFor: id => scope ? scopeTools.expectedKinds(scope, id) : ['query', 'text', 'audio', 'visual'] });
 }
 function indexPlan(index, strategy = 'B') {
   if (!['A', 'B'].includes(strategy) || index?.name !== 'text_embedding_index' || index.type !== 'vectorSearch'
@@ -78,10 +83,10 @@ async function waitReady(read, definition, { attempts = 61, sleep = ms => new Pr
   }
   throw new Error('Index readiness timeout; stop');
 }
-function assertScope(doc, videos, identity, ids = IDS) {
+function assertScope(doc, videos, identity, ids, courseId) {
   const video = videos.find(v => String(v._id) === doc.videoId);
-  if (!ids.includes(doc.chunkId) || !video || String(video.courseId) !== COURSE_ID
-    || (doc.courseId != null && String(doc.courseId) !== COURSE_ID)
+  if (!ids.includes(doc.chunkId) || !video || String(video.courseId) !== courseId
+    || (doc.courseId != null && String(doc.courseId) !== courseId)
     || doc.videoId !== identity.videoId || doc.chunkId !== identity.chunkId
     || doc.startSec !== identity.startSec || doc.endSec !== identity.endSec) throw new Error('Live identity conflict');
 }
@@ -101,9 +106,29 @@ function protectedHash(doc, keys = ownedKeys('B')) {
 }
 function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
   if (scope) require('./video1-scope').validateScope(scope);
-  const ids = scope?.ids || IDS;
   if (scope && strategy !== 'B') throw new Error('Video1 requires strategy B');
   validateBundle(bundle, scope);
+  return buildWrites(snapshot, bundle, strategy, scope, COURSE_ID, id => scopeTools.expectedKinds(scope, id));
+}
+// Build the upload allowlist from the complete database read for this owned video.
+function planUploadWrites(snapshot, bundle, videoId, courseId) {
+  if (!/^[0-9a-f]{24}$/.test(courseId) || !/^[0-9a-f]{24}$/.test(videoId)
+    || snapshot.videos.length !== 1 || String(snapshot.videos[0]._id) !== videoId
+    || String(snapshot.videos[0].courseId) !== courseId || !snapshot.documents.length
+    || snapshot.documents.some(d => d.videoId !== videoId || !Number.isFinite(d.endSec))) {
+    throw new Error('Unverified upload scope');
+  }
+  const chunks = snapshot.documents;
+  const scope = { ids: chunks.map(d => d.chunkId), chunks };
+  const kindsFor = id => {
+    const row = chunks.find(d => d.chunkId === id);
+    return row.endSec - row.startSec > 60 ? ['text'] : ['text', 'audio', 'visual'];
+  };
+  checkBundle(bundle, scope, { courseId, videoIds: [videoId], schema: 'atlas_upload_v1', kindsFor });
+  return buildWrites(snapshot, bundle, 'B', scope, courseId, kindsFor);
+}
+function buildWrites(snapshot, bundle, strategy, scope, courseId, kindsFor) {
+  const ids = scope?.ids || IDS;
   if (snapshot.database !== 'focusflow' || snapshot.collection !== 'video_segments_text' || snapshot.documents.length !== ids.length
     || new Set(snapshot.documents.map(d => d.chunkId)).size !== ids.length) throw new Error('Invalid snapshot scope');
   return ids.map(id => {
@@ -112,9 +137,9 @@ function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
     if (doc.mediaEmbeddingMeta != null && (typeof doc.mediaEmbeddingMeta !== 'object' || Array.isArray(doc.mediaEmbeddingMeta))) throw new Error('Metadata root conflict');
     if (Object.hasOwn(doc, 'mediaEmbeddingMeta') && doc.mediaEmbeddingMeta === null) throw new Error('Metadata root conflict');
     const desired = {};
-    for (const kind of Object.keys(PATHS).filter(k => (strategy === 'B' || k !== 'text') && (!scope || scopeTools.expectedKinds(scope, id).includes(k)))) {
+    for (const kind of Object.keys(PATHS).filter(k => (strategy === 'B' || k !== 'text') && (!scope || kindsFor(id).includes(k)))) {
       const r = bundle.records.find(r => r.kind === kind && r.identity.chunkId === id);
-      assertScope(doc, snapshot.videos, r.identity, ids);
+      assertScope(doc, snapshot.videos, r.identity, ids, courseId);
       if (scope) {
         const frozen = scope.chunks.find(c => c.chunkId === id);
         if (doc.text !== frozen.text || ['videoId', 'startSec', 'endSec'].some(k => doc[k] !== frozen[k])) throw new Error('Manifest identity conflict');
@@ -125,7 +150,7 @@ function planWrites(snapshot, bundle, strategy = 'B', scope = null) {
       desired[`mediaEmbeddingMeta.${kind}`] = { ...r.metadata, vectorDigest: r.vectorDigest };
     }
     const keys = Object.keys(desired);
-    if (scope && scopeTools.expectedKinds(scope, id).length === 1
+    if (scope && kindsFor(id).length === 1
       && ['audioEmbedding', 'visualEmbedding'].some(k => Object.hasOwn(doc, k))) throw new Error('Skipped media already exists; inspect');
     for (const key of keys) if (get(doc, key) !== undefined && hash(get(doc, key)) !== hash(desired[key])) throw new Error('Existing target conflict');
     return { chunkId: id, before: doc, protectedHash: protectedHash(doc, keys), desired, keys };
@@ -184,4 +209,4 @@ async function rollbackPlan(collection, plans, { execute = false, receipt = asyn
   return result;
 }
 module.exports = { IDS, PATHS, COURSE_ID, VIDEO_IDS, hash, get, vectorDigest, validateBundle, indexPlan,
-  waitReady, planWrites, applyPlan, rollbackPlan, protectedHash };
+  waitReady, planWrites, planUploadWrites, applyPlan, rollbackPlan, protectedHash };

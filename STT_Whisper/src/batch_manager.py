@@ -51,6 +51,19 @@ class BatchAlreadyRunningError(RuntimeError):
 def _process_is_alive(pid: int) -> bool:
     if pid <= 0:
         return False
+    if os.name == "nt":
+        # Windows os.kill(pid, 0) can terminate the process being inspected.
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        handle = kernel.OpenProcess(0x100000, False, pid)  # SYNCHRONIZE
+        if not handle:
+            return ctypes.get_last_error() != 87  # ERROR_INVALID_PARAMETER: no such PID
+        try:
+            return kernel.WaitForSingleObject(wintypes.HANDLE(handle), 0) != 0
+        finally:
+            kernel.CloseHandle(wintypes.HANDLE(handle))
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

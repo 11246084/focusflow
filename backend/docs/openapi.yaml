@@ -7442,6 +7442,8 @@ components:
         - failedAt
         - attemptCount
       properties:
+        multimodal:
+          $ref: '#/components/schemas/UploadMultimodalProgress'
         status:
           $ref: '#/components/schemas/VideoProcessingStatus'
         errorMessage:
@@ -7475,6 +7477,16 @@ components:
         attemptCount:
           type: integer
           minimum: 0
+    UploadMultimodalProgress:
+      type: object
+      properties:
+        mode: { type: string, enum: [fake-sdk, gemini] }
+        version: { type: string }
+        records: { type: integer, minimum: 0 }
+        errorType: { type: string }
+        status:
+          type: string
+          enum: [queued, generating, checkpoint_saved, awaiting_atlas_approval, verifying, ready, stopped, paused, cancelled, fake_checkpoints_complete]
     VideoBatchItem:
       type: object
       required:
@@ -7497,6 +7509,8 @@ components:
         uploadStatus:
           type: string
           enum: [uploaded, failed]
+        multimodal:
+          $ref: '#/components/schemas/UploadMultimodalProgress'
         processingStatus:
           anyOf:
             - $ref: '#/components/schemas/VideoProcessingStatus'

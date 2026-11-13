@@ -42,6 +42,66 @@ function repo(documents) {
       return { matchedCount: 1, modifiedCount: 1 };
     } };
 }
+test('uploaded video scopes use the owning video, complete three-way coverage and existing CAS writer', async () => {
+  const { snapshot, bundle } = fixtures();
+  const courseId = 'c'.repeat(24), videoId = 'd'.repeat(24);
+  const row = snapshot.documents[0];
+  Object.assign(row, { courseId, videoId, chunkId: videoId + '_chunk_0001' });
+  snapshot.documents = [row];
+  snapshot.videos = [{ _id: videoId, courseId }];
+  bundle.schemaVersion = 'atlas_upload_v1';
+  bundle.records = bundle.records.slice(1, 4);
+  for (const record of bundle.records) {
+    Object.assign(record.identity, { courseId, videoId, chunkId: row.chunkId });
+    Object.assign(record.metadata, record.identity);
+  }
+  const plan = c.planUploadWrites(snapshot, bundle, videoId, courseId);
+  const collection = repo(snapshot.documents);
+  await c.applyPlan(collection, plan);
+  assert.equal(collection.writes, 0);
+  await c.applyPlan(collection, plan, { execute: true });
+  assert.equal((await c.applyPlan(collection, plan))[0].status, 'already_applied');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'upload-atlas-'));
+  try {
+    const mock = repo(snapshot.documents);
+    const definition = c.indexPlan(index).after;
+    const ready = { ...index, id: 'fixture', latestDefinitionVersion: { version: 2 }, latestDefinition: definition,
+      statusDetail: ['a', 'b', 'c'].map(hostname => ({ hostname, queryable: true, status: 'READY',
+        mainIndex: { queryable: true, status: 'READY', definition } })) };
+    Object.assign(mock, { collectionName: 'video_segments_text',
+      find: () => ({ sort: () => ({ toArray: async () => structuredClone(mock.rows) }) }),
+      aggregate: () => ({ toArray: async () => [ready] }) });
+    Object.assign(bundle, { manifestHash: 'e'.repeat(64), sourceSha256: 'f'.repeat(64) });
+    const owner = { ...snapshot.videos[0], fileHash: bundle.sourceSha256,
+      processing: { completedAt: new Date(), multimodal: { mode: 'gemini', version: bundle.manifestHash } } };
+    const statuses = [];
+    const db = { databaseName: 'focusflow', collection: name => name === 'videos'
+      ? { findOne: async () => owner, updateOne: async (_, update) => {
+        statuses.push(update.$set['processing.multimodal.status']); return { matchedCount: 1 };
+      } } : mock, command: async () => ({ authInfo: { authenticatedUserPrivileges: [
+        { resource: { db: 'focusflow', collection: 'video_segments_text' }, actions: ['find', 'update', 'listSearchIndexes'] }] } }) };
+    fs.writeFileSync(path.join(directory, 'bundle.json'), JSON.stringify(bundle));
+    const { run } = require('../scripts/atlas-multimodal/upload');
+    const prepared = await run(db, directory);
+    assert.equal(prepared.status, 'awaiting_atlas_approval');
+    await assert.rejects(run(db, directory, { approve: 'wrong' }), /approval mismatch/);
+    assert.equal(mock.writes, 0);
+    await run(db, directory, { approve: prepared.approvalHash });
+    assert.equal(statuses.at(-1), 'ready');
+    await run(db, directory, { approve: prepared.approvalHash });
+    assert.equal(mock.writes, 1);
+    const rollback = await run(db, directory, { restore: true });
+    await run(db, directory, { restore: true, approve: rollback.approvalHash });
+    assert.deepEqual(mock.rows, snapshot.documents);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  assert.throws(() => c.planUploadWrites(snapshot, bundle, videoId, 'a'.repeat(24)));
+  bundle.records.pop();
+  assert.throws(() => c.planUploadWrites(snapshot, bundle, videoId, courseId));
+});
 test('bundle validates full contracts, finite dimensions, digest and identity', () => {
   const { snapshot, bundle } = fixtures();
   assert.equal(c.planWrites(snapshot, bundle).length, 3);

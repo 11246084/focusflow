@@ -83,12 +83,13 @@ function readInitialTracking() {
 function persistTracking(items, batchId = '') {
   // Persist only presentation-safe identifiers/status, never File objects or
   // authentication data. The URL stores either a batch id or legacy video ids.
-  const safeItems = items.map(({ itemId, videoId, name, processingStatus, uploadStatus, errorCode, error }) => ({
+  const safeItems = items.map(({ itemId, videoId, name, processingStatus, multimodal, uploadStatus, errorCode, error }) => ({
     batchId,
     itemId: itemId || '',
     videoId: videoId || '',
     name,
     processingStatus,
+    ...(multimodal && { multimodal: { status: multimodal.status } }),
     uploadStatus,
     errorCode: errorCode || '',
     error: error || '',
@@ -108,6 +109,18 @@ function persistTracking(items, batchId = '') {
   window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+const multimodalLabels = {
+  queued: '等待產生向量', generating: '正在產生向量', checkpoint_saved: '已保存進度',
+  awaiting_atlas_approval: '等待資料庫寫入授權', verifying: '正在寫入並驗證',
+  ready: '多模態已就緒', stopped: '已停止，等待檢查', paused: '已暫停', cancelled: '已取消',
+  fake_checkpoints_complete: '本機模擬驗收完成',
+};
+
+function trackingComplete(item) {
+  return isTerminalStatus(item.processingStatus) &&
+    !['queued', 'generating', 'checkpoint_saved', 'verifying'].includes(item.multimodal?.status);
+}
+
 function mergeBatchItems(batchItems, current = []) {
   return batchItems.map((item, index) => {
     const existing = current.find((candidate) => candidate.itemId === item.itemId)
@@ -120,6 +133,7 @@ function mergeBatchItems(batchItems, current = []) {
       itemId: item.itemId,
       name: item.originalName || existing.name || `影片 ${index + 1}`,
       videoId: item.videoId || '',
+      multimodal: item.multimodal,
       uploadStatus: item.errorCode === 'DUPLICATE_VIDEO' ? 'duplicate' : item.uploadStatus === 'failed' ? 'failed' : 'processing',
       processingStatus: item.processingStatus || (item.errorCode === 'DUPLICATE_VIDEO' ? 'duplicate' : item.status || 'queued'),
       errorCode: item.errorCode || '',
@@ -158,7 +172,7 @@ export default function TeacherUpload() {
         setTrackedItems((current) => {
           const next = mergeBatchItems(batchItems, current);
           persistTracking(next, targetBatchId);
-          if (next.length && next.every((item) => isTerminalStatus(item.processingStatus))) stopPolling();
+          if (next.length && next.every(trackingComplete)) stopPolling();
           return next;
         });
       } catch {
@@ -167,7 +181,7 @@ export default function TeacherUpload() {
       return;
     }
     const snapshot = readTracking();
-    const pending = snapshot.filter((item) => !isTerminalStatus(item.processingStatus));
+    const pending = snapshot.filter((item) => !trackingComplete(item));
     if (!pending.length) {
       stopPolling();
       return;
@@ -175,7 +189,8 @@ export default function TeacherUpload() {
     const updates = await Promise.all(pending.map(async (item) => {
       try {
         const response = await apiFetch(`/videos/${item.videoId}/processing`);
-        return { ...item, processingStatus: response.data?.processing?.status || response.data?.status || 'queued' };
+        return { ...item, multimodal: response.data?.processing?.multimodal,
+          processingStatus: response.data?.processing?.status || response.data?.status || 'queued' };
       } catch {
         return item;
       }
@@ -184,7 +199,7 @@ export default function TeacherUpload() {
     setTrackedItems((current) => {
       const next = current.map((item) => byId.get(item.videoId) || item);
       persistTracking(next, '');
-      if (next.every((item) => isTerminalStatus(item.processingStatus))) stopPolling();
+      if (next.every(trackingComplete)) stopPolling();
       return next;
     });
   }, [batchId, stopPolling]);
@@ -210,7 +225,7 @@ export default function TeacherUpload() {
     let restartTimer = null;
     if (restored.batchId || restored.items.length) {
       persistTracking(restored.items, restored.batchId);
-      if (restored.batchId || restored.items.some((item) => !isTerminalStatus(item.processingStatus))) {
+      if (restored.batchId || restored.items.some((item) => !trackingComplete(item))) {
         restartTimer = window.setTimeout(startPolling, 0);
       }
     }
@@ -378,6 +393,9 @@ export default function TeacherUpload() {
               </div>
             ))}
             {allTerminal && <div style={{ marginTop: 10, fontSize: 12, color: failedCount ? '#ffb080' : '#86efac' }}>{failedCount ? `${completedCount} 支完成，${failedCount} 支失敗` : `${completedCount} 支影片已完成 AI 索引${duplicateCount ? `，${duplicateCount} 支已存在且未重複排程` : ''}`}</div>}
+            {trackedItems.filter(item => item.multimodal).map(item => (
+              <div key={item.videoId}>{item.name} · {multimodalLabels[item.multimodal.status] || '等待狀態更新'}</div>
+            ))}
             {trackedItems.map((item) => item.error ? (
               <div key={item.key || item.videoId} style={{ marginTop: 6, fontSize: 11, color: '#ff8b72' }}>
                 {item.name}：{item.errorCode === 'DUPLICATE_VIDEO'

@@ -1266,7 +1266,7 @@ async function askQuestion({
   }
   tMark = qaTimingMark('course-lookup', tMark);
 
-  const faqCacheEnabled = isFaqCacheEnabled()
+  let faqCacheEnabled = isFaqCacheEnabled()
     && !(Array.isArray(conversationHistory) && conversationHistory.length);
 
   // 平行：權限檢查、scoped videos、FAQ exact 查詢三者互不依賴；
@@ -1279,6 +1279,9 @@ async function askQuestion({
       : Promise.resolve(null),
   ]);
   tMark = qaTimingMark(`access+videos (${scopedVideos.videos?.length || 0} videos)`, tMark);
+  const uploadPending = env.qaMultimodalFusionEnabled && scopedVideos.videos.some(video =>
+    video.processing?.multimodal && video.processing.multimodal.status !== 'ready');
+  if (uploadPending) faqCacheEnabled = false;
 
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
@@ -1341,7 +1344,7 @@ async function askQuestion({
   }
 
   // FAQ 快取第一層：正規化文字完全相同 → 零 token，直接回快取答案
-  if (exactFaq
+  if (faqCacheEnabled && exactFaq
       && await faqMatchesCurrentScope(exactFaq)
       && faqHasCurrentAnswerEvidence(exactFaq)) {
     const cachedResult = await respondFromFaqCache({
@@ -1574,8 +1577,9 @@ async function askQuestion({
     leafSearch,
     hierarchicalSearch,
   });
-  let searchResult = env.qaMultimodalFusionEnabled ? null : await legacyTextSearch();
-  if (env.qaMultimodalFusionEnabled) {
+  const useFusion = env.qaMultimodalFusionEnabled && !uploadPending;
+  let searchResult = useFusion ? null : await legacyTextSearch();
+  if (useFusion) {
     let legacyResult = null;
     const courseId = String(course._id);
     const asEvidence = match => ({ ...match, courseId, chunkId: match.chunkId || match.segmentId,

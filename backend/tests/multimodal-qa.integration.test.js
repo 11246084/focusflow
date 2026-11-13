@@ -27,6 +27,18 @@ afterEach(() => { clearMultimodalIndexCache(); Object.assign(env, saved); global
 const ask = () => askQuestion({ user: { id: ids.student, role: 'student' },
   courseId: ids.publishedCourse, question: 'JWT authentication', source: 'test' });
 
+test('a pending upload generation uses the existing text retrieval path', async () => {
+  resetStore();
+  Object.assign(env, { qaMultimodalFusionEnabled: true, qaVectorSearchMode: 'memory',
+    qaQueryEmbeddingProvider: 'mock', qaAnswerProvider: 'template', faqCacheEnabled: true });
+  const video = store.videos.find(v => String(v._id) === String(ids.publishedVideo));
+  video.processing.multimodal = { status: 'awaiting_atlas_approval' };
+  const answer = await ask();
+  assert.ok(answer.matches.length);
+  assert.equal(answer.runtime.multimodal, undefined);
+  assert.equal(answer.runtime.faqCache.enabled, false);
+});
+
 test('new vector fields stay excluded and conversation source provenance survives schema casting', () => {
   for (const key of ['stableTextEmbedding', 'audioEmbedding', 'visualEmbedding', 'mediaEmbeddingMeta']) {
     assert.equal(VideoSegment.schema.path(key).options.select, false);

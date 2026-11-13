@@ -71,6 +71,11 @@ describe('講稿逐句排列', () => {
     assert.deepEqual(lines.map((l) => l.sentence?.id), ['a', 'b', 'c']);
   });
 
+  it('老師移除的句子留在原位，不收進略過行', () => {
+    const lines = buildScriptLines([s('a', false), s('b', false), s('c', false, { teacherChanged: true }), s('d', false), s('e', false), s('f', true)]);
+    assert.ok(lines.some((l) => l.sentence?.id === 'c'));
+  });
+
   it('片頭句不在原位重複', () => {
     const lines = buildScriptLines([s('a', true, { opening: true }), s('b', true)]);
     assert.deepEqual(lines.map((l) => l.sentence.id), ['b']);
@@ -102,6 +107,11 @@ describe('時長、退回與錯誤文案', () => {
     assert.match(renderFailureText(null), /重新製作/);
     assert.equal(isFixedRenderFailure('RECUT_TEXT_OVERFLOW'), true);
     assert.equal(isFixedRenderFailure('RECUT_COMPLETION_FAILED'), false);
+  });
+
+  it('斷線時不把瀏覽器的英文錯誤給老師看', () => {
+    assert.equal(recutErrorText(new TypeError('Failed to fetch')), '連不上伺服器，請確認網路後再試。');
+    assert.notEqual(recutErrorText({ name: 'AbortError', code: 'STALE_AUTH_RESPONSE', message: 'x' }), '連不上伺服器，請確認網路後再試。');
   });
 
   it('功能未開放與已知代碼轉成教師看得懂的文字', () => {

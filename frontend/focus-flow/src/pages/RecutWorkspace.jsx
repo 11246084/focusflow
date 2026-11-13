@@ -46,6 +46,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const iframeRef = useRef(null);
   const watchedTaskRef = useRef(null);
   const aliveRef = useRef(true);
+  const headingRef = useRef(null);
+  const [announcement, setAnnouncement] = useState('');
   const onStateChangeRef = useRef(onStateChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
 
@@ -104,6 +106,17 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     return () => clearInterval(timer);
   }, [state, refresh]);
 
+  // 換步驟時（例如核准後開始製作），原本的主要按鈕會消失；焦點若掉到頁面本身，移回標題並念出新步驟。
+  const previousStateRef = useRef(null);
+  useEffect(() => {
+    const previous = previousStateRef.current;
+    previousStateRef.current = state;
+    if (loading || previous === null || previous === state) return;
+    setAnnouncement(describeScript({ recut: { state } }).label);
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus();
+  }, [state, loading]);
+
   // 試跑要量審閱時間：進入確認講稿／確認成品時開始，離開時結束。失敗不影響操作。
   const timingPhase = state === 'script_review' ? 'script_review' : state === 'asset_review' ? 'asset_review' : null;
   const timingVersion = review?.versionId;
@@ -146,14 +159,21 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const sentences = useMemo(() => review?.source?.sentences || [], [review]);
   const lines = useMemo(() => buildScriptLines(sentences, expandedGaps), [sentences, expandedGaps]);
   const opening = openingSentence(sentences);
-  const editable = EDITABLE_STATES.has(state) && !pending;
+  // 修改送出中不拿掉按鈕（拿掉會讓鍵盤焦點掉回頁首、整欄重排），只忽略重複點擊。
+  const editable = EDITABLE_STATES.has(state);
   const answerable = review?.current?.selection?.answerable !== false;
   const duration = durationStatus(view?.durationSec);
 
-  const toggleSentence = (sentence) => run('edit', async () => {
-    const data = await api.editSelection(scriptId, review, [{ sentenceId: sentence.id, action: sentence.selected ? 'remove' : 'add' }]);
-    setReview(data);
-  }).catch(() => {});
+  const toggleSentence = (sentence) => {
+    if (pending) return;
+    const adding = !sentence.selected;
+    run('edit', async () => {
+      const data = await api.editSelection(scriptId, review, [{ sentenceId: sentence.id, action: adding ? 'add' : 'remove' }]);
+      setReview(data);
+      const total = Math.round(Number((data.draft || data.current)?.durationSec) || 0);
+      setAnnouncement(`${adding ? '已加回' : '已移除'}，總長 ${total} 秒`);
+    }).catch(() => {});
+  };
 
   const stopAudio = () => { audioRef.current?.pause(); stopAtRef.current = null; setPlayingId(null); };
   const playSentence = (sentence) => {
@@ -298,17 +318,21 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     return (
       <li key={sentence.id} className="rc-line" data-role={role} data-playing={live}>
         <button type="button" className="rc-time" aria-pressed={playingId === sentence.id}
-          aria-label={`${playingId === sentence.id ? '停止' : '播放'}原音 ${formatClock(sentence.startSec)}`} onClick={() => playSentence(sentence)}>
+          aria-label={`原音 ${formatClock(sentence.startSec)}`} onClick={() => playSentence(sentence)}>
           <Ic n="play" s={10} /> {formatClock(sentence.startSec)}
         </button>
         <div className="rc-line-body">
           {role === 'opening' && <span className="rc-line-tag">片頭</span>}
-          <p className="rc-line-text">{sentence.text}</p>
+          <p className="rc-line-text">
+            {!kept && <span className="rc-visually-hidden">略過：</span>}
+            {live && <span className="rc-visually-hidden">正在播放：</span>}
+            {sentence.text}
+          </p>
           {sentence.teacherChanged && <StateChip tone="mine">{kept ? '已加回' : '已移除'}</StateChip>}
         </div>
         {canToggle && (
           <button type="button" className="rc-btn-text rc-line-toggle" data-act={kept ? 'remove' : 'add'} onClick={() => toggleSentence(sentence)}
-            aria-label={`${kept ? '移除' : '加回'}：${sentence.text}`}>
+            aria-disabled={pending ? 'true' : undefined} aria-label={`${kept ? '移除' : '加回'}：${sentence.text}`}>
             {kept ? '移除' : '加回'}
           </button>
         )}
@@ -385,7 +409,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     <>
       <div className="rc-col rc-main">
         <section className="rc-panel rc-main" aria-labelledby={`rc-q-${scriptId}`}>
-          <h1 id={`rc-q-${scriptId}`} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
+          <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={step} />
           {review?.source?.notice && <p className="rc-reason" style={{ textAlign: 'left' }}>{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
@@ -453,6 +477,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           onTimeUpdate={onAudioTime} onPause={() => setPlayingId(null)}
           onError={() => { setPlayingId(null); setError(recutErrorText({ code: 'LOCAL_PLAYBACK_UNAVAILABLE' })); }} />
       )}
+
+      <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
 
       <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="全部復原" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>

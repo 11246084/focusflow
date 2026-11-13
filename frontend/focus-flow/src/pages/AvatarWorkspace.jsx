@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useCompactLayout from '../hooks/useCompactLayout';
 import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import { FEEDBACK_TYPES, generateVersion, latestVersion, retryAssetUpload, reviewScript, uploadAsset } from '../services/shortScript.js';
@@ -40,6 +40,17 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [dismissOpen, setDismissOpen] = useState(false);
   const fileRef = useRef(null);
+  const headingRef = useRef(null);
+  const [announcement, setAnnouncement] = useState('');
+  // 換步驟時原本的主要按鈕會消失；焦點若掉到頁面本身，移回標題並念出新步驟。
+  const previousStateRef = useRef(info.state);
+  useEffect(() => {
+    if (previousStateRef.current === info.state) return;
+    previousStateRef.current = info.state;
+    setAnnouncement(info.label);
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus();
+  }, [info.state, info.label]);
 
   const run = async (name, action, describe = recutErrorText) => {
     setPending(name);
@@ -246,7 +257,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     <>
       <div className="rc-col rc-main">
         <section className="rc-panel rc-main" aria-labelledby={`av-q-${scriptId}`}>
-          <h1 id={`av-q-${scriptId}`} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
+          <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
         </section>
 
@@ -296,6 +307,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {!compact && actionBlock}
         {!compact && sidePanels}
       </aside>
+      <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
       <ConfirmDialog open={dismissOpen} title="不做這支短片？" confirmLabel="不做了" danger busy={pending === 'dismiss'}
         onConfirm={dismiss} onClose={() => setDismissOpen(false)}>
         <p>之後不會再出現在待辦裡。</p>

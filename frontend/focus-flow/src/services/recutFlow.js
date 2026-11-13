@@ -160,7 +160,8 @@ export function buildScriptLines(sentences = [], expandedGaps = new Set()) {
   };
   list.forEach((s, i) => {
     if (s.selected) { flushGap(); lines.push({ type: 'sentence', role: 'kept', sentence: s }); return; }
-    if (near.has(i) || !keptIdx.length) { flushGap(); lines.push({ type: 'sentence', role: 'omitted', sentence: s }); return; }
+    // 老師移除的句子留在原位（帶「已移除」），焦點與修改紀錄都不會消失。
+    if (near.has(i) || s.teacherChanged || !keptIdx.length) { flushGap(); lines.push({ type: 'sentence', role: 'omitted', sentence: s }); return; }
     gap.push(s);
   });
   flushGap();
@@ -234,6 +235,8 @@ const ERROR_TEXT = {
 export function recutErrorText(error) {
   if (!error) return '';
   if (error.status === 404 && error.code === 'NOT_FOUND') return '短影片功能目前未開放。';
+  // fetch 本身失敗（離線、斷線）時沒有 HTTP 狀態，訊息是瀏覽器的英文，不能直接給老師看。
+  if (!error.status && error.name !== 'AbortError' && !error.code) return '連不上伺服器，請確認網路後再試。';
   if (error.status === 503) return '服務暫時無法使用，請稍後再試。';
   return ERROR_TEXT[error.code] || error.message || '發生錯誤，請稍後再試。';
 }

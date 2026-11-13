@@ -368,7 +368,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             <button type="button" className="rc-time" aria-pressed={playingId === sentence.id} onClick={() => playSentence(sentence)}>
               <Ic n="play" s={10} /> 原音 {formatClock(sentence.startSec)}
             </button>
-            {sentence.teacherChanged && <StateChip tone="mine">{kept ? '已加回' : '已移除'}</StateChip>}
+            {sentence.teacherChanged && <StateChip tone="edit">{kept ? '已加回' : '已移除'}</StateChip>}
           </span>
         </div>
         {canToggle && (

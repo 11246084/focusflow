@@ -35,7 +35,10 @@
 .rc-chip { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 3px 9px; border-radius: var(--ff-radius-pill); font-size: var(--ff-text-min-cjk); font-weight: 700; line-height: 1.4; white-space: nowrap; }
 .rc-chip svg { flex: none; }
 /* 文字用 danger-text 色值：在自己 14% 底色上 6.77:1（原本 ember 只有 4.33:1，不合格） */
-.rc-chip[data-tone="mine"] { color: var(--ff-danger-text); background: rgba(241, 79, 33, 0.14); }
+/* 等你處理：中性白框＋圖示。橘色只留給目前這一支、主要按鈕與「加回」，「要你動手」靠白框與圖示區分，不靠顏色。 */
+.rc-chip[data-tone="mine"] { color: var(--ff-chalk-white); background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+/* 老師自己改過的句子：中性、用編輯圖示，不像警示。 */
+.rc-chip[data-tone="edit"] { color: var(--ff-chalk-body); background: rgba(255, 255, 255, 0.06); font-weight: 600; }
 .rc-chip[data-tone="waiting"] { color: var(--ff-status-wait); background: rgba(250, 204, 21, 0.14); }
 .rc-chip[data-tone="done"] { color: var(--ff-status-ok); background: rgba(74, 222, 128, 0.14); }
 .rc-chip[data-tone="error"] { color: var(--ff-status-error); background: rgba(248, 113, 113, 0.14); }
@@ -65,7 +68,7 @@
 /* 時間軸：左欄是這句在短片裡的開始時間；略過的句子不在短片裡，留空。 */
 .rc-cut { padding-top: 4px; font-family: var(--ff-font-display); font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; color: var(--ff-chalk-muted); }
 .rc-line[data-role="kept"] .rc-cut, .rc-line[data-role="opening"] .rc-cut { color: var(--ff-chalk-body); }
-.rc-line[data-role="opening"] .rc-cut { color: var(--ff-ember-orange); font-weight: 700; }
+.rc-line[data-role="opening"] .rc-cut { color: var(--ff-chalk-white); font-weight: 700; }
 /* 30／65 秒刻線：一條細線加秒數，跟著加回與移除移動。 */
 .rc-mark { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; color: var(--ff-chalk-muted); }
 .rc-mark::before, .rc-mark::after { content: ""; height: 1px; flex: 1; background: var(--ff-field-stroke); }
@@ -179,6 +182,9 @@
 
 /* 產片方式：一句具體差別，這是選題時唯一保留的說明 */
 .rc-mode { min-height: 64px; padding: 10px 16px; border-radius: var(--ff-radius-lg); }
+/* 選中的產片方式用填色：一眼看得出選了哪一種 */
+.rc-mode:has(input:checked) { background: rgba(241, 79, 33, 0.22); border-color: var(--ff-ember-orange); }
+.rc-mode:has(input:checked) > span > span { color: var(--ff-chalk-body); }
 .rc-mode > span { display: grid; gap: 2px; }
 .rc-mode strong { color: var(--ff-chalk-white); font-weight: 700; }
 .rc-mode > span > span { font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); }

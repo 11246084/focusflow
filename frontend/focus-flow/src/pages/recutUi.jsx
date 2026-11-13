@@ -4,7 +4,7 @@ import { MAX_DURATION_SEC, MIN_DURATION_SEC, STEPS, durationStatus, meterPercent
 
 // recut 工作區共用的小元件：流程列、狀態色塊、時長尺、處理中狀態卡、確認對話框。
 
-const TONE_ICON = { mine: 'alert', waiting: 'hourglass', done: 'checkCircle', error: 'warning' };
+const TONE_ICON = { mine: 'alert', waiting: 'hourglass', done: 'checkCircle', error: 'warning', edit: 'edit' };
 
 export function StateChip({ tone, children }) {
   return (

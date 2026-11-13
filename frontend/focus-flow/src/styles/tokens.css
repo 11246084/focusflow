@@ -15,6 +15,16 @@
   --ff-chalk-white: #FFFFFF;
   --ff-chalk-body: rgba(255, 255, 255, 0.8);
   --ff-chalk-muted: rgba(255, 255, 255, 0.55);
+  /* 白色疊層：底色、框線、hover 用的透明白（不是文字色；文字最淡仍是 Chalk Muted） */
+  --ff-white-04: rgba(255, 255, 255, 0.04);
+  --ff-white-06: rgba(255, 255, 255, 0.06);
+  --ff-white-07: rgba(255, 255, 255, 0.07);
+  --ff-white-08: rgba(255, 255, 255, 0.08);
+  --ff-white-10: rgba(255, 255, 255, 0.1);
+  --ff-white-16: rgba(255, 255, 255, 0.16);
+  --ff-white-24: rgba(255, 255, 255, 0.24);
+  --ff-white-28: rgba(255, 255, 255, 0.28);
+  --ff-white-30: rgba(255, 255, 255, 0.3);
   --ff-hairline: rgba(255, 255, 255, 0.09);
   --ff-divider: rgba(255, 255, 255, 0.05);
   --ff-field-fill: rgba(255, 255, 255, 0.055);

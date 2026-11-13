@@ -124,6 +124,7 @@ components:
 - **Chalk White**：標題與最重要的文字。
 - **Chalk Body**：內文（對比約 11.7:1）。
 - **Chalk Muted**：次要說明、時間、輔助資訊（對比約 6.1:1）。
+- **White overlays**（`--ff-white-04`～`--ff-white-30`）：底色、框線、hover 用的透明白，只當底色與框線，不當文字色。新頁面不再直接寫 `rgba(255, 255, 255, x)`。
 - **Hairline**：卡片外框。
 - **Divider**：卡片內項目之間的分隔線，不承載文字。
 - **Field Fill / Field Stroke**：輸入框的底與框線。

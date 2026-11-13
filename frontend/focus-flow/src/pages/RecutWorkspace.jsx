@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ic } from '../components/Icons';
 import useCompactLayout from '../hooks/useCompactLayout';
+import useVisiblePolling from '../hooks/useVisiblePolling';
 import * as api from '../services/recut.js';
 import {
   POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
@@ -99,12 +100,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     return () => { aliveRef.current = false; };
   }, [refresh]);
 
-  // 背景處理中定時查狀態；停止等待不等於取消。
-  useEffect(() => {
-    if (!isBusyState(state)) return undefined;
-    const timer = setInterval(() => { refresh().catch(() => {}); }, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [state, refresh]);
+  // 背景處理中定時查狀態（分頁在背景時暫停）；停止等待不等於取消。
+  useVisiblePolling(() => { refresh().catch(() => {}); }, POLL_INTERVAL_MS, isBusyState(state));
 
   // 換步驟時（例如核准後開始製作），原本的主要按鈕會消失；焦點若掉到頁面本身，移回標題並念出新步驟。
   const previousStateRef = useRef(null);
@@ -394,7 +391,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
                 </span>
               </label>
             ))}
-            <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 10 }}
+            <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-mt-s"
               disabled={!chosenSuggestions.size || Boolean(pending)} onClick={requestAdopt}>
               {pending === 'adopt' ? '處理中…' : chosenSuggestions.size ? `採納 ${chosenSuggestions.size} 項建議` : '勾選建議後採納'}
             </button>
@@ -404,7 +401,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
         {changeSummary.length > 0 && state === 'script_review' && (
           <section className="rc-panel">
             <h2 className="rc-section-title">這一版改了</h2>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>{changeSummary.map((change) => <li key={change}>{change}</li>)}</ul>
+            <ul className="rc-bullets">{changeSummary.map((change) => <li key={change}>{change}</li>)}</ul>
           </section>
         )}
     </>
@@ -420,14 +417,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
-          {review?.source?.notice && <p className="rc-reason" style={{ textAlign: 'left' }}>{review.source.notice}</p>}
+          {review?.source?.notice && <p className="rc-reason rc-reason-start">{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>
 
         {!loading && state === 'render_failed' && (
           <section className="rc-panel" role="alert">
             <StateChip tone="error">製作失敗</StateChip>
-            <p style={{ marginTop: 8, color: 'var(--ff-chalk-white)' }}>{renderFailureText(snapshot?.render)}</p>
+            <p className="rc-mt-s rc-strong-text">{renderFailureText(snapshot?.render)}</p>
           </section>
         )}
         {loading && <p className="rc-reason">載入中…</p>}
@@ -457,7 +454,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             {playheadText && <p className="rc-now" aria-hidden="true">{playheadText}</p>}
             </div>
             {state === 'published' && asset?.youtubeUrl && (
-              <p style={{ marginTop: 12, textAlign: 'center' }}><a href={asset.youtubeUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ff-ember-orange)' }}>在 YouTube 開啟</a></p>
+              <p className="rc-external"><a href={asset.youtubeUrl} target="_blank" rel="noopener noreferrer">在 YouTube 開啟</a></p>
             )}
           </section>
         )}
@@ -532,7 +529,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       </ConfirmDialog>
       <ConfirmDialog open={dialog?.type === 'confirmSuggestions'} title="這些建議會改到你調整過的句子" confirmLabel="仍要採納"
         busy={pending === 'adopt'} onConfirm={() => adopt(dialog?.ids || [])} onClose={() => setDialog(null)}>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="rc-bullets">
           {openSuggestions.filter((s) => dialog?.ids?.includes(s.id)).map((s) => <li key={s.id}>{s.proposedChange || s.problem}</li>)}
         </ul>
       </ConfirmDialog>

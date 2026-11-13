@@ -35,7 +35,7 @@ export function RecutConsentGate({ courseId, consent, terms, onRecorded }) {
       <div className="rc-col rc-main">
         <section className="rc-panel rc-main" aria-labelledby="rc-consent-title">
           <h1 id="rc-consent-title" className="rc-question">{terms.title}</h1>
-          <p className="rc-reason" style={{ textAlign: 'left' }}>{terms.notice}</p>
+          <p className="rc-reason rc-reason-start">{terms.notice}</p>
           {needs.content && (
             <label className="rc-check">
               <input type="checkbox" checked={contentChecked} onChange={(event) => setContentChecked(event.target.checked)} />
@@ -48,13 +48,13 @@ export function RecutConsentGate({ courseId, consent, terms, onRecorded }) {
               <span className="rc-check-body"><strong>短片使用我的授課原音</strong><span>{terms.voice}</span></span>
             </label>
           )}
-          <p className="rc-reason" style={{ textAlign: 'left' }}>{terms.withdrawal}</p>
+          <p className="rc-reason rc-reason-start">{terms.withdrawal}</p>
         </section>
       </div>
       <aside className="rc-col rc-side">
         <div className="rc-panel">
           <PrimaryAction label="同意並繼續" onClick={submit} busy={busy} disabled={!ready} reason="勾選上面的同意後才能繼續" />
-          {error && <p className="rc-error" role="alert" style={{ marginTop: 8 }}>{error}</p>}
+          {error && <p className="rc-error rc-mt-s" role="alert">{error}</p>}
         </div>
       </aside>
     </>
@@ -125,24 +125,24 @@ export function RecutConsentManager({ courses }) {
     <section className="rc-panel" aria-labelledby="rc-consent-manage">
       <h2 id="rc-consent-manage" className="rc-section-title">授權</h2>
       {courses.length > 1 && (
-        <label style={{ display: 'block', marginBottom: 10 }}>
+        <label className="rc-field rc-field-first">
           <span className="rc-field-label">課程</span>
           <select className="rc-select" value={courseId} onChange={(event) => { setCourseId(event.target.value); setJobs([]); }}>
             {courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
           </select>
         </label>
       )}
-      <ul className="rc-list" style={{ marginTop: 0 }}>
-        <li className="rc-row" style={{ cursor: 'default' }}>
+      <ul className="rc-list rc-list-flush">
+        <li className="rc-row rc-row-static">
           <span className="rc-row-title">授課內容</span>
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="rc-inline">
             {content === 'granted' ? <StateChip tone="done">已同意</StateChip> : <StateChip tone="mine">{content === 'withdrawn' ? '已撤回' : '未同意'}</StateChip>}
             {content === 'granted' && <button type="button" className="rc-btn-text" onClick={() => openWithdraw('content')}>撤回</button>}
           </span>
         </li>
-        <li className="rc-row" style={{ cursor: 'default' }}>
-          <span className="rc-row-title">老師原音<span className="rc-row-course" style={{ display: 'block' }}>所有課程共用</span></span>
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <li className="rc-row rc-row-static">
+          <span className="rc-row-title">老師原音<span className="rc-row-course rc-block">所有課程共用</span></span>
+          <span className="rc-inline">
             {voice === 'original' ? <StateChip tone="done">使用中</StateChip> : <StateChip tone="mine">未選擇</StateChip>}
             {voice === 'original' && <button type="button" className="rc-btn-text" onClick={() => openWithdraw('voice')}>撤回</button>}
           </span>
@@ -152,11 +152,11 @@ export function RecutConsentManager({ courses }) {
         const open = (job.actions || []).filter((action) => action.status !== 'completed');
         const done = job.status === 'completed' && !open.length;
         return (
-          <div key={job.id} role="status" style={{ marginTop: 12 }}>
+          <div key={job.id} role="status" className="rc-mt-m">
             {done ? <StateChip tone="done">{KIND_TEXT[job.kind]}已撤回，下架完成</StateChip> : (
               <>
                 <StateChip tone="error">尚有下架工作</StateChip>
-                <ul style={{ margin: '8px 0', paddingLeft: 18 }}>
+                <ul className="rc-bullets rc-bullets-spaced">
                   {open.map((action) => <li key={action.id}>{ACTION_TEXT[action.type] || action.type}{action.manualActionRequired ? '（已通知管理員）' : ''}</li>)}
                 </ul>
                 <button type="button" className="rc-btn rc-btn-outline" disabled={busy} onClick={() => retry(job)}>再試一次</button>
@@ -165,13 +165,13 @@ export function RecutConsentManager({ courses }) {
           </div>
         );
       })}
-      {error && <p className="rc-error" role="alert" style={{ marginTop: 8 }}>{error}</p>}
+      {error && <p className="rc-error rc-mt-s" role="alert">{error}</p>}
 
       <ConfirmDialog open={Boolean(withdrawKind)} title={`撤回${KIND_TEXT[withdrawKind] || ''}同意`} danger busy={busy}
         confirmLabel={selected.size ? `撤回並下架 ${selected.size} 支` : '撤回'} onConfirm={submitWithdraw} onClose={() => setWithdrawKind(null)}>
         <p>{withdrawKind === 'voice' ? '撤回後，所有課程都不能再用你的原音製作新短片。' : '撤回後，這門課不能再製作新短片。'}勾選的短片會從學生短片牆移除；已被下載或轉傳的影片無法收回。</p>
         {assets.length > 0 ? (
-          <div style={{ marginTop: 12, maxHeight: '40vh', overflowY: 'auto' }}>
+          <div className="rc-scroll-list">
             <label className="rc-check">
               <input type="checkbox" checked={allSelected} onChange={(event) => setSelected(event.target.checked ? new Set(assets.map((asset) => asset.id)) : new Set())} />
               <span className="rc-check-body"><strong>全選（{assets.length} 支）</strong></span>
@@ -187,7 +187,7 @@ export function RecutConsentManager({ courses }) {
               </label>
             ))}
           </div>
-        ) : <p className="rc-reason" style={{ textAlign: 'left', marginTop: 8 }}>沒有已完成的短片。</p>}
+        ) : <p className="rc-reason rc-reason-start rc-mt-s">沒有已完成的短片。</p>}
       </ConfirmDialog>
     </section>
   );

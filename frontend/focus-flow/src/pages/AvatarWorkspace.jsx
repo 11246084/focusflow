@@ -193,7 +193,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
 
   const regenerateFields = (
     <>
-      <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+      <fieldset className="rc-fieldset">
         <legend className="rc-visually-hidden">哪裡要改</legend>
         <div className="rc-pills">
           {FEEDBACK_TYPES.map((type) => (
@@ -204,7 +204,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           ))}
         </div>
       </fieldset>
-      <label style={{ display: 'block', marginTop: 12 }}>
+      <label className="rc-field">
         <span className="rc-field-label">補充（選填）</span>
         <textarea className="rc-textarea" value={feedback} maxLength={500} onChange={(event) => setFeedback(event.target.value)} />
       </label>
@@ -231,7 +231,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
                 </select>
               </label>
             )}
-            <button type="button" className="rc-btn-text" style={{ alignSelf: 'flex-start' }} onClick={() => setDismissOpen(true)}>不做這支</button>
+            <button type="button" className="rc-btn-text rc-self-start" onClick={() => setDismissOpen(true)}>不做這支</button>
           </div>
         </details>
       )}
@@ -254,7 +254,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
         {info.state === 'upload_failed' && (
           <section className="rc-panel" role="alert">
             <StateChip tone="error">上傳失敗</StateChip>
-            <p style={{ marginTop: 8 }}>{asset?.upload?.retrySafe ? '可以重試一次。' : '已通知管理員確認，不要重新上傳同一支影片。'}</p>
+            <p className="rc-mt-s">{asset?.upload?.retrySafe ? '可以重試一次。' : '已通知管理員確認，不要重新上傳同一支影片。'}</p>
           </section>
         )}
         {info.state === 'to_generate' && <section className="rc-panel"><p>還沒有腳本</p></section>}
@@ -270,7 +270,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
               ) : <p className="rc-player-empty">影片還在上傳</p>}
             </div>
             {info.state === 'published' && asset?.youtubeUrl && (
-              <p style={{ marginTop: 12, textAlign: 'center' }}><a href={asset.youtubeUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ff-ember-orange)' }}>在 YouTube 開啟</a></p>
+              <p className="rc-external"><a href={asset.youtubeUrl} target="_blank" rel="noopener noreferrer">在 YouTube 開啟</a></p>
             )}
           </section>
         )}

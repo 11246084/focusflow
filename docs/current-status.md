@@ -105,6 +105,14 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 第八次留下、試跑後再處理：手機文字欄偏窄（全站側欄佔 72px）與修改後底部列偏高、1440 成品審閱版面、數位分身畫面上未顯示視覺隱喻、採納建議沒有先說會重排約一分鐘。
 
+`/impeccable audit`（2026-11-13）原為 15/20，依序修正 harden、optimize、polish：
+- 全站外殼加上 `<main>`、`<header>`、側欄 `<aside>` 地標，短影片管理頁補頁面標題。
+- 短影片製作與管理的輪詢改用 `useVisiblePolling`，分頁在背景時暫停，回到分頁立刻刷新。
+- 登入後各頁面改為用到時才載入，首頁的 three.js 背景與按鈕也改為延後載入：主程式由 1.6 MB（gzip 431 kB）降到 484 kB（gzip 140 kB）。
+- 短影片頁面的 inline style 改成 class（只留時長尺的動態位置），透明白改用 `--ff-white-*` tokens。
+
+修正後 axe-core 4.10.2 在 8 個畫面 0 項違規。
+
 驗證（2026-11-13）：前端 `npm test` 230 項全過；後端 `tests/recut.routes.test.js` 14 項全過、`docs:lint` 通過、`lint`、`build` 通過；Impeccable 偵測無問題；以 Vite 與模擬 API 在 Chromium 1440／1024／390px 走過選短片、加回句子、管理清單打開成品、退回原因、數位分身腳本與選產片方式，無頁面錯誤。**未執行**：連真實後端（需開啟 `SHORT_SCRIPT_AUTOMATION_ENABLED`）、真實原音播放、YouTube 成品播放、LINE 內建瀏覽器、教師操作驗收。
 
 ## 後五片可執行工具與無付費驗證（2026-11-12）

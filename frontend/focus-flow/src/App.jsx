@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import './index.css';
-import LiquidGradientBg from './components/LiquidGradientBg';
-import Button3D          from './components/Button3D';
+// 首頁的 3D 背景與按鈕要用 three.js／gsap（約 600 kB），登入後的頁面用不到：改成首頁才下載。
+const LiquidGradientBg = lazy(() => import('./components/LiquidGradientBg'));
+const Button3D = lazy(() => import('./components/Button3D'));
+// 3D 載入前先顯示同樣外觀的一般按鈕，可以立刻點。
+function StartButton({ onClick, children }) {
+  return (
+    <Suspense fallback={<div className="btn-3d-wrapper"><button type="button" className="btn-3d" onClick={onClick}><span>{children}</span></button></div>}>
+      <Button3D onClick={onClick}>{children}</Button3D>
+    </Suspense>
+  );
+}
 import LoginPage         from './components/LoginPage';
 import RegisterPage      from './components/RegisterPage';
 import DashboardApp      from './components/DashboardApp';
@@ -136,7 +145,7 @@ export default function App() {
 
   return (
     <div className="page">
-      <LiquidGradientBg />
+      <Suspense fallback={null}><LiquidGradientBg /></Suspense>
       <div className="noise-overlay" />
       <Cursor />
 
@@ -207,7 +216,7 @@ export default function App() {
             </p>
 
             <div className="hero-actions">
-              <Button3D onClick={() => setPage('login')}>立 即 開 始</Button3D>
+              <StartButton onClick={() => setPage('login')}>立 即 開 始</StartButton>
 
               {/* Two overlapping circles: Group 11 + Group 12 */}
               <div className="circles-pair">

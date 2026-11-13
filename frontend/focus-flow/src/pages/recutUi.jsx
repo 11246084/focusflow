@@ -102,7 +102,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, danger = fa
 function BusyLabel({ busy, children }) {
   return (
     <>
-      <span style={busy ? { visibility: 'hidden' } : undefined}>{children}</span>
+      <span className={busy ? 'rc-busy-hidden' : undefined}>{children}</span>
       {busy && <span className="rc-btn-busy">處理中…</span>}
     </>
   );
@@ -183,12 +183,12 @@ export function RejectReasonFields({ codes, onCodesChange, note, onNoteChange, n
         </fieldset>
       ))}
       {codes.has('other') && (
-        <label style={{ display: 'block', marginTop: 12 }}>
+        <label className="rc-field">
           <span className="rc-field-label">其他原因</span>
           <textarea className="rc-textarea" value={note} maxLength={500} required
             aria-invalid={noteMissing ? 'true' : undefined} aria-describedby={noteMissing ? errorId : undefined}
             onBlur={() => onNoteTouched(true)} onChange={(event) => onNoteChange(event.target.value)} />
-          {noteMissing && <p id={errorId} className="rc-error" style={{ marginTop: 6 }}>請寫下其他原因</p>}
+          {noteMissing && <p id={errorId} className="rc-error rc-mt-xs">請寫下其他原因</p>}
         </label>
       )}
     </>

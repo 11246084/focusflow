@@ -191,11 +191,11 @@ export default function TeacherShortStudio({ onNav }) {
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={startBatch} busy={starting}
         disabled={!chosen.length} reason={candidates?.length === 0 ? '' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
-        <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 8 }} disabled={starting}
+        <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-mt-s" disabled={starting}
           onClick={() => { setPicking(false); setSelectedId(String(sorted[0]._id)); }}>返回</button>
       )}
       {batchErrors.map((failure) => (
-        <p key={failure.topicKey} className="rc-error" role="alert" style={{ marginTop: 8 }}>{failure.question}：{failure.message}</p>
+        <p key={failure.topicKey} className="rc-error rc-mt-s" role="alert">{failure.question}：{failure.message}</p>
       ))}
     </div>
   );
@@ -214,16 +214,16 @@ export default function TeacherShortStudio({ onNav }) {
       <>
         <div className="rc-col rc-main">
           <section className="rc-panel" aria-labelledby="rc-topics-title">
-            <fieldset className="rc-pills" style={{ border: 0, margin: '0 0 22px', padding: 0 }} disabled={starting}>
+            <fieldset className="rc-pills rc-fieldset rc-mode-set" disabled={starting}>
               <legend className="rc-visually-hidden">產片方式</legend>
               {[['recut', '原片剪輯', '用你的課堂原音剪成'], ['avatar', '數位分身', '系統寫腳本，你在自己電腦製作']].map(([value, label, detail]) => (
-                <label key={value} className="rc-pill rc-mode" style={{ flex: 1 }}>
+                <label key={value} className="rc-pill rc-mode">
                   <input type="radio" name="rc-mode" checked={mode === value} onChange={() => changeMode(value)} />
                   <span><strong>{label}</strong><span>{detail}</span></span>
                 </label>
               ))}
             </fieldset>
-            <h1 id="rc-topics-title" tabIndex={-1} className="rc-question" style={{ marginBottom: 12 }}>學生最常問的問題</h1>
+            <h1 id="rc-topics-title" tabIndex={-1} className="rc-question rc-topics-title">學生最常問的問題</h1>
             {candidates === null && <p className="rc-reason">載入中…</p>}
             {candidates?.length === 0 && <p>這門課目前還沒有足夠的學生提問。學生在網頁或 LINE 提問後，題目會出現在這裡。</p>}
             {candidates?.length > 0 && (
@@ -303,7 +303,7 @@ export default function TeacherShortStudio({ onNav }) {
             </ul>
           )}
           {!compact && !featureOff && (
-            <button type="button" className="rc-btn rc-btn-outline rc-btn-block" style={{ marginTop: 12 }}
+            <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-mt-m"
               aria-pressed={picking} onClick={openPicker} disabled={!courseId}>新增短片</button>
           )}
         </div>

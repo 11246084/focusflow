@@ -2394,3 +2394,6 @@ option{
 @media (pointer: coarse) {
   .topbar .btn-icon, .topbar .topbar-avatar { width: 44px !important; height: 44px !important; }
 }
+
+/* 頁面程式下載中（各頁面用到時才載入） */
+.page-loading { padding: 24px 28px; color: rgba(255, 255, 255, 0.55); font-size: 14px; }

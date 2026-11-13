@@ -4,6 +4,7 @@ import * as api from '../services/recut.js';
 import { listAssets } from '../services/shortScript.js';
 import { MANAGE_REFRESH_MS, formatAgo, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
 import { requestOpenScript } from '../utils/scriptDeepLink.js';
+import useVisiblePolling from '../hooks/useVisiblePolling';
 import { RecutConsentManager } from './RecutConsent';
 import { StateChip } from './recutUi';
 import { SHORT_STUDIO_PAGE } from './TeacherShortStudio';
@@ -45,11 +46,7 @@ export default function TeacherShortManage({ onNav }) {
   }, [apply]);
 
   const hasWaiting = Boolean(items?.some((item) => item.bucket === 'waiting'));
-  useEffect(() => {
-    if (!hasWaiting) return undefined;
-    const timer = setInterval(() => { load().catch(() => {}); }, MANAGE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [hasWaiting, load]);
+  useVisiblePolling(() => { load().catch(() => {}); }, MANAGE_REFRESH_MS, hasWaiting);
 
   const open = (item) => {
     requestOpenScript({ scriptId: item.scriptId, courseId: item.courseId, page: SHORT_STUDIO_PAGE });
@@ -62,6 +59,8 @@ export default function TeacherShortManage({ onNav }) {
   return (
     <div className="rc rc-manage">
       <div className="rc-main">
+        {/* 頁名在頂欄；這裡補一個給螢幕報讀器的頁面標題。 */}
+        <h1 className="rc-visually-hidden">短影片管理</h1>
         {items === null && <p className="rc-reason">載入中…</p>}
         {error && <section className="rc-panel"><p className={featureOff ? undefined : 'rc-error'} role={featureOff ? 'status' : 'alert'}>{error}</p></section>}
         {items && !featureOff && SECTIONS.map((section) => {
@@ -74,7 +73,7 @@ export default function TeacherShortManage({ onNav }) {
                 <span>{rows.length}</span>
               </div>
               {!rows.length && <p className="rc-empty">{items.length ? '目前沒有等你處理的短片。' : '還沒有短片。'}</p>}
-              <ul className="rc-list" style={{ marginTop: 0 }}>
+              <ul className="rc-list rc-list-flush">
                 {rows.map((item) => (
                   <li key={item.scriptId}>
                     <button type="button" className="rc-row" onClick={() => open(item)}>
@@ -91,7 +90,7 @@ export default function TeacherShortManage({ onNav }) {
           );
         })}
         {items && !featureOff && (
-          <button type="button" className="rc-btn rc-btn-outline" style={{ alignSelf: 'flex-start' }} onClick={() => onNav?.(SHORT_STUDIO_PAGE)}>製作新短片</button>
+          <button type="button" className="rc-btn rc-btn-outline rc-self-start" onClick={() => onNav?.(SHORT_STUDIO_PAGE)}>製作新短片</button>
         )}
       </div>
       <aside className="rc-side">

@@ -12,7 +12,7 @@
 
 /* 三欄工作區 */
 .rc-studio { display: grid; grid-template-columns: 252px minmax(0, 1fr) 300px; gap: var(--ff-space-md); height: 100%; padding: 0 var(--ff-space-page) var(--ff-space-page); box-sizing: border-box; }
-.rc-col { min-height: 0; overflow-y: auto; scrollbar-color: rgba(255, 255, 255, 0.28) transparent; }
+.rc-col { min-height: 0; overflow-y: auto; scrollbar-color: var(--ff-white-28) transparent; }
 .rc-panel { background: var(--ff-plum-night); border: 1px solid var(--ff-hairline); border-radius: var(--ff-radius-card); padding: var(--ff-space-lg); }
 .rc-main { display: flex; flex-direction: column; gap: var(--ff-space-md); }
 .rc-side { display: flex; flex-direction: column; gap: var(--ff-space-sm); }
@@ -20,15 +20,15 @@
 /* 左欄：課程與短片清單 */
 .rc-field-label { display: block; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); margin-bottom: 6px; }
 .rc-select { width: 100%; min-height: var(--ff-touch-target); background: var(--ff-field-fill); border: 1px solid var(--ff-field-stroke); border-radius: var(--ff-radius-lg); color: var(--ff-chalk-white); padding: 0 14px; font: inherit; }
-.rc-select:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.24); }
+.rc-select:hover:not(:disabled) { border-color: var(--ff-white-24); }
 .rc-select:focus-visible { border-color: rgba(241, 79, 33, 0.55); }
 .rc-select:disabled { color: var(--ff-chalk-muted); background: transparent; cursor: not-allowed; }
 .rc-select option { background: var(--ff-plum-night); }
 .rc-list { list-style: none; margin: var(--ff-space-sm) 0 0; padding: 0; }
 .rc-list li + li { border-top: 1px solid var(--ff-divider); }
 .rc-list-item { display: grid; gap: 4px; width: 100%; min-height: var(--ff-touch-target); padding: 10px 10px; background: none; border: 0; border-radius: var(--ff-radius-md); color: var(--ff-chalk-body); text-align: left; font: inherit; cursor: pointer; }
-.rc-list-item:hover { background: rgba(255, 255, 255, 0.04); }
-.rc-list-item:active { background: rgba(255, 255, 255, 0.07); }
+.rc-list-item:hover { background: var(--ff-white-04); }
+.rc-list-item:active { background: var(--ff-white-07); }
 .rc-list-item[aria-current="true"] { background: rgba(241, 79, 33, 0.16); color: var(--ff-chalk-white); box-shadow: inset 3px 0 0 var(--ff-ember-orange); }
 .rc-list-item[aria-current="true"] .rc-list-title { color: var(--ff-chalk-white); }
 .rc-list-title { color: var(--ff-chalk-body); font-weight: 500; overflow-wrap: anywhere; }
@@ -39,9 +39,9 @@
 .rc-chip svg { flex: none; }
 /* 文字用 danger-text 色值：在自己 14% 底色上 6.77:1（原本 ember 只有 4.33:1，不合格） */
 /* 等你處理：中性白框＋圖示。橘色只留給目前這一支、主要按鈕與「加回」，「要你動手」靠白框與圖示區分，不靠顏色。 */
-.rc-chip[data-tone="mine"] { color: var(--ff-chalk-white); background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+.rc-chip[data-tone="mine"] { color: var(--ff-chalk-white); background: var(--ff-white-08); box-shadow: inset 0 0 0 1px var(--ff-white-28); }
 /* 老師自己改過的句子：中性、用編輯圖示，不像警示。 */
-.rc-chip[data-tone="edit"] { color: var(--ff-chalk-body); background: rgba(255, 255, 255, 0.06); font-weight: 600; }
+.rc-chip[data-tone="edit"] { color: var(--ff-chalk-body); background: var(--ff-white-06); font-weight: 600; }
 .rc-chip[data-tone="waiting"] { color: var(--ff-status-wait); background: rgba(250, 204, 21, 0.14); }
 .rc-chip[data-tone="done"] { color: var(--ff-status-ok); background: rgba(74, 222, 128, 0.14); }
 .rc-chip[data-tone="error"] { color: var(--ff-status-error); background: rgba(248, 113, 113, 0.14); }
@@ -119,15 +119,15 @@
 .rc-btn-primary { background: var(--ff-deep-ember); color: var(--ff-chalk-white); }
 .rc-btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--ff-deep-ember-pressed); box-shadow: var(--ff-elev-1-shadow); }
 /* 停用改用可讀的中性實色（文字 6.1:1），不再用透明度把橘色變混濁 */
-.rc-btn-primary:disabled, .rc-btn-primary[data-disabled] { background: rgba(255, 255, 255, 0.08); color: var(--ff-chalk-muted); }
-.rc-btn-outline { background: transparent; color: var(--ff-chalk-body); border-color: rgba(255, 255, 255, 0.16); }
-.rc-btn-outline:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.3); color: var(--ff-chalk-white); }
-.rc-btn-outline:disabled, .rc-btn-danger:disabled { color: var(--ff-chalk-muted); border-color: rgba(255, 255, 255, 0.08); }
+.rc-btn-primary:disabled, .rc-btn-primary[data-disabled] { background: var(--ff-white-08); color: var(--ff-chalk-muted); }
+.rc-btn-outline { background: transparent; color: var(--ff-chalk-body); border-color: var(--ff-white-16); }
+.rc-btn-outline:hover:not(:disabled) { background: var(--ff-white-06); border-color: var(--ff-white-30); color: var(--ff-chalk-white); }
+.rc-btn-outline:disabled, .rc-btn-danger:disabled { color: var(--ff-chalk-muted); border-color: var(--ff-white-08); }
 .rc-btn-danger { background: transparent; color: var(--ff-danger-text); border-color: rgba(248, 113, 113, 0.45); }
 .rc-btn-danger:hover:not(:disabled) { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.7); }
 .rc-btn-text { min-height: 32px; padding: 0 10px; background: none; border: 0; color: var(--ff-chalk-body); font: inherit; font-size: var(--ff-text-min-cjk); font-weight: 700; border-radius: var(--ff-radius-sm); cursor: pointer; white-space: nowrap; transition: background-color var(--ff-duration-state) var(--ff-ease-state), color var(--ff-duration-state) var(--ff-ease-state); }
-.rc-btn-text:hover:not(:disabled) { color: var(--ff-chalk-white); background: rgba(255, 255, 255, 0.06); }
-.rc-btn-text:active:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.rc-btn-text:hover:not(:disabled) { color: var(--ff-chalk-white); background: var(--ff-white-06); }
+.rc-btn-text:active:not(:disabled) { background: var(--ff-white-10); }
 .rc-btn-text:disabled { color: var(--ff-chalk-muted); cursor: not-allowed; }
 /* 加回用白色粗體：橘色只留給主要按鈕，略過的句子靠灰字辨識。 */
 .rc-btn-text[data-act="add"] { color: var(--ff-chalk-white); text-decoration: underline; text-underline-offset: 3px; }
@@ -146,7 +146,7 @@
 .rc-duration-value { display: flex; align-items: baseline; gap: 6px; font-family: var(--ff-font-display); color: var(--ff-chalk-white); font-variant-numeric: tabular-nums; }
 .rc-duration-value strong { font-size: 34px; font-weight: 900; line-height: 1; letter-spacing: -0.02em; }
 .rc-duration[data-valid="false"] .rc-duration-value strong { color: var(--ff-status-error); }
-.rc-meter { position: relative; height: 10px; border-radius: var(--ff-radius-pill); background: rgba(255, 255, 255, 0.07); }
+.rc-meter { position: relative; height: 10px; border-radius: var(--ff-radius-pill); background: var(--ff-white-07); }
 .rc-meter-range { position: absolute; top: 0; bottom: 0; border-radius: var(--ff-radius-pill); background: rgba(74, 222, 128, 0.18); }
 .rc-meter-fill { position: absolute; left: 0; top: 2px; bottom: 2px; border-radius: var(--ff-radius-pill); background: var(--ff-ember-orange); transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1); }
 .rc-duration[data-valid="false"] .rc-meter-fill { background: var(--ff-status-error); }
@@ -169,7 +169,7 @@
 /* 處理中置中狀態卡 */
 .rc-status { display: grid; justify-items: center; gap: 12px; padding: 48px var(--ff-space-lg); text-align: center; }
 .rc-status h2 { font-size: var(--ff-text-title); }
-.rc-status progress { width: min(320px, 100%); height: 6px; appearance: none; border: 0 solid; overflow: clip; border-radius: var(--ff-radius-pill); background: rgba(255, 255, 255, 0.08); container-type: inline-size; --rc-indeterminate: 1.6s; }
+.rc-status progress { width: min(320px, 100%); height: 6px; appearance: none; border: 0 solid; overflow: clip; border-radius: var(--ff-radius-pill); background: var(--ff-white-08); container-type: inline-size; --rc-indeterminate: 1.6s; }
 .rc-status progress::-webkit-progress-bar { background: transparent; }
 .rc-status progress::-webkit-progress-value { background: var(--ff-ember-orange); border-radius: var(--ff-radius-pill); }
 .rc-status progress::-moz-progress-bar { background: var(--ff-ember-orange); border-radius: var(--ff-radius-pill); }
@@ -184,22 +184,22 @@
 
 /* 退回原因：可直接點選的膠囊 */
 .rc-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.rc-pill { position: relative; display: inline-flex; align-items: center; min-height: var(--ff-touch-target); padding: 0 16px; border-radius: var(--ff-radius-pill); border: 1.5px solid rgba(255, 255, 255, 0.16); color: var(--ff-chalk-body); cursor: pointer; font-weight: 500; }
+.rc-pill { position: relative; display: inline-flex; align-items: center; min-height: var(--ff-touch-target); padding: 0 16px; border-radius: var(--ff-radius-pill); border: 1.5px solid var(--ff-white-16); color: var(--ff-chalk-body); cursor: pointer; font-weight: 500; }
 .rc-pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .rc-pill:has(input:checked) { border-color: var(--ff-ember-orange); color: var(--ff-chalk-white); background: rgba(241, 79, 33, 0.12); }
 .rc-pill:has(input:focus-visible) { outline: var(--ff-focus-ring); outline-offset: 2px; }
-.rc-pill:hover:not(:has(input:disabled)) { border-color: rgba(255, 255, 255, 0.3); }
-.rc-pill:active:not(:has(input:disabled)) { background: rgba(255, 255, 255, 0.06); }
+.rc-pill:hover:not(:has(input:disabled)) { border-color: var(--ff-white-30); }
+.rc-pill:active:not(:has(input:disabled)) { background: var(--ff-white-06); }
 .rc-pill:has(input:disabled) { color: var(--ff-chalk-muted); cursor: not-allowed; }
 .rc-textarea { width: 100%; box-sizing: border-box; min-height: 88px; resize: vertical; background: var(--ff-field-fill); border: 1px solid var(--ff-field-stroke); border-radius: var(--ff-radius-lg); color: var(--ff-chalk-white); padding: 12px 14px; font: inherit; }
-.rc-textarea:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.24); }
+.rc-textarea:hover:not(:disabled) { border-color: var(--ff-white-24); }
 .rc-textarea:focus-visible { border-color: rgba(241, 79, 33, 0.55); }
 .rc-textarea:disabled { color: var(--ff-chalk-muted); background: transparent; cursor: not-allowed; }
 /* 錯誤只在使用者動過欄位後才顯示 */
 .rc-textarea[aria-invalid="true"] { border-color: var(--ff-status-error); }
 
 /* 產片方式：一句具體差別，這是選題時唯一保留的說明 */
-.rc-mode { min-height: 64px; padding: 10px 16px; border-radius: var(--ff-radius-lg); }
+.rc-mode { flex: 1; min-height: 64px; padding: 10px 16px; border-radius: var(--ff-radius-lg); }
 /* 選中的產片方式用填色：一眼看得出選了哪一種 */
 .rc-mode:has(input:checked) { background: rgba(241, 79, 33, 0.22); border-color: var(--ff-ember-orange); }
 .rc-mode:has(input:checked) > span > span { color: var(--ff-chalk-body); }
@@ -238,7 +238,31 @@
 /* 數位分身鏡頭：時間欄較寬，字幕前加小標 */
 .rc-line-shot { grid-template-columns: 6.6em minmax(0, 1fr); }
 .rc-shot-sub { color: var(--ff-chalk-muted); font-size: var(--ff-text-body); }
-.rc-shot-sub > span { margin-right: 6px; padding: 0 6px; border-radius: var(--ff-radius-sm); background: rgba(255, 255, 255, 0.06); font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-body); }
+.rc-shot-sub > span { margin-right: 6px; padding: 0 6px; border-radius: var(--ff-radius-sm); background: var(--ff-white-06); font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-body); }
+
+/* 版面小工具：取代頁面裡的 inline style，間距一律走這幾個值 */
+.rc-mt-xs { margin-top: 6px; }
+.rc-mt-s { margin-top: 8px; }
+.rc-mt-m { margin-top: 12px; }
+.rc-reason-start { text-align: start; }
+.rc-field { display: block; margin-top: 12px; }
+.rc-field-first { margin: 0 0 10px; }
+.rc-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.rc-mode-set { margin-bottom: 22px; }
+.rc-topics-title { margin-bottom: 12px; }
+.rc-list-flush { margin-top: 0; }
+.rc-row-static { cursor: default; }
+.rc-row-static:hover, .rc-row-static:active { background: none; }
+.rc-inline { display: flex; align-items: center; gap: 8px; }
+.rc-block { display: block; }
+.rc-bullets { margin: 0; padding-left: 18px; }
+.rc-bullets-spaced { margin: 8px 0; }
+.rc-scroll-list { margin-top: 12px; max-height: 40vh; overflow-y: auto; }
+.rc-self-start { align-self: flex-start; }
+.rc-strong-text { color: var(--ff-chalk-white); }
+.rc-external { margin-top: 12px; text-align: center; }
+.rc-external a { color: var(--ff-ember-orange); }
+.rc-busy-hidden { visibility: hidden; }
 
 /* 主題選擇 */
 .rc-topics { list-style: none; margin: 0; padding: 0; }
@@ -277,8 +301,8 @@
 .rc-manage-heading h2 { font-size: var(--ff-text-title); }
 .rc-manage-heading span { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; }
 .rc-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 6px; width: 100%; min-height: 56px; padding: 12px 8px; background: none; border: 0; border-radius: var(--ff-radius-md); color: inherit; text-align: left; font: inherit; cursor: pointer; }
-.rc-row:hover { background: rgba(255, 255, 255, 0.04); }
-.rc-row:active { background: rgba(255, 255, 255, 0.07); }
+.rc-row:hover { background: var(--ff-white-04); }
+.rc-row:active { background: var(--ff-white-07); }
 .rc-row-title { color: var(--ff-chalk-white); font-weight: 500; overflow-wrap: anywhere; }
 .rc-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .rc-row-course { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }

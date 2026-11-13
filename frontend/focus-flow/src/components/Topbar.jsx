@@ -375,7 +375,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
   }
 
   return (
-    <div className="topbar">
+    <header className="topbar">
       <div>
         <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '.02em' }}>{title}</div>
         {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{sub}</div>}
@@ -563,6 +563,6 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
           </div>
         </DropdownPanel>
       )}
-    </div>
+    </header>
   );
 }

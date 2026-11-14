@@ -34,6 +34,35 @@ function assertRuntime(plan) {
 }
 
 /** 同一份動畫、字型與原音；預覽有控制項，渲染不含來源標示。 */
+// 成品的聲音一律是雙聲道（HyperFrames 輸出 AAC stereo）。單聲道原片若直接複製到左右聲道，
+// BS.1770 量到的響度會多 3 LU（2026-11-14 真實渲染 -17 → -14 LUFS，超出 -16±2）；改成每聲道 0.7071 倍，
+// 總功率與原片相同。固定增益照 plan 只套一次，再用 -3 dBFS 的峰值限制保留 AAC 編碼的過衝空間：
+// 增益把峰值壓在 -1.5 dBTP 時，AAC 編碼後會略超過 worker 檢查的 -1.5 dBTP 上限（同日實測 -1.47）。
+// 限制器只處理超過 -3 dBFS 的峰值，不做 loudnorm 那種整體動態調整，對整體響度的影響很小。
+const PEAK_LIMIT_LINEAR = 0.70795; // -3 dBFS
+function renderAudioFilter(gainDb, channels) {
+  const filters = [`volume=${gainDb}dB`];
+  if (channels === 1) filters.push('pan=stereo|c0=0.70711*c0|c1=0.70711*c0');
+  filters.push(`alimiter=limit=${PEAK_LIMIT_LINEAR}:attack=5:release=50:level=false`);
+  return filters.join(',');
+}
+// 讀 WAV 檔頭的聲道數（ffmpeg 寫出的 pcm_s16le RIFF），讀不到時回 null，維持雙聲道處理。
+function wavChannels(file) {
+  try {
+    const header = Buffer.alloc(64);
+    const fd = fs.openSync(file, 'r');
+    try { fs.readSync(fd, header, 0, 64, 0); } finally { fs.closeSync(fd); }
+    if (header.toString('ascii', 0, 4) !== 'RIFF' || header.toString('ascii', 8, 12) !== 'WAVE') return null;
+    let offset = 12;
+    while (offset + 8 <= header.length) {
+      const id = header.toString('ascii', offset, offset + 4); const size = header.readUInt32LE(offset + 4);
+      if (id === 'fmt ') return header.readUInt16LE(offset + 10);
+      offset += 8 + size;
+    }
+    return null;
+  } catch { return null; }
+}
+
 async function stageProject({ plan, resolved, sentences, evidence, sourcePath, outDir, skipCut = false, runCommand = run, resolveFont = fontPath }) {
   assertRuntime(plan);
   const validation = validatePlan(plan, { sentences, evidence, resolved });
@@ -60,7 +89,7 @@ async function stageProject({ plan, resolved, sentences, evidence, sourcePath, o
     // 2026-11-05 run-6 applied the gain after HyperFrames had already lowered
     // unity audio by 1.1 dB, ending 2.1 LU under the -16 LUFS target.
     await runCommand(ffmpegBinary(), ['-v', 'error', '-y', '-i', path.join(stageDir, 'narration.wav'),
-      '-af', `volume=${plan.audio.gainDb}dB`, '-c:a', 'pcm_s16le', '-ar', '48000', path.join(stageDir, 'narration-render.wav')]);
+      '-af', renderAudioFilter(plan.audio.gainDb, wavChannels(path.join(stageDir, 'narration.wav'))), '-c:a', 'pcm_s16le', '-ar', '48000', path.join(stageDir, 'narration-render.wav')]);
   }
   const digest = (file) => crypto.createHash('sha256').update(fs.readFileSync(path.join(stageDir, file))).digest('hex');
   writeJson(path.join(stageDir, 'render-manifest.json'), { planHash: planHash(plan), versions: plan.versions, gainDb: plan.audio.gainDb,
@@ -111,5 +140,5 @@ async function renderProject({ plan, resolved, stageDir, outDir, quality = 'stan
 
 module.exports = {
   stageProject, previewProject, renderProject, readJson, writeJson,
-  assertRuntime,
+  assertRuntime, renderAudioFilter, wavChannels,
 };

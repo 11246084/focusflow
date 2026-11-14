@@ -11,7 +11,7 @@
 | YouTube 與本機檔案 | [上傳服務](../src/services/youtubeUpload.service.js)由[完成通知](../src/services/videoProcessing.service.js)排程；清理原片有開關、完成狀態、路徑及共用檔案檢查，不可整批清空 uploads。YouTube 的 unlisted 是知道連結即可觀看，課程權限不能阻止轉貼連結。 | [上傳與清理](../src/services/youtubeUpload.service.js)、[短片發布](../src/services/shortAssetPublish.service.js) |
 | 影像回覆 | 沒有逐字稿的影像命中只提供來源提示；並行查詢開關關閉時仍保留文字查無結果的影像備援，詳見[功能開關](current-state.md#功能開關)。 | [查詢與回覆](../src/services/qa.service.js) |
 | LINE 與部署設定 | LINE 回報網址、憑證及環境設定要對照實際部署；健康檢查或歷史成功紀錄不能保證外部服務當下可用。 | [LINE 路由](../src/routes/line.routes.js)、[診斷服務](../src/services/runtimeDiagnostics.service.js) |
-| recut 渲染的響度 | 固定增益是 `min(-16 - 原片響度, -1.5 - 原片真峰值)`：峰值先碰到上限時，成品峰值剛好在 -1.5 dBTP，AAC 編碼再多一點就超過 worker 檢查的上限而失敗。另外單聲道原片會在最後輸出成雙聲道，量到的響度多 3 LU，可能超過 -16±2。2026-11-14 真實渲染實測兩者都發生，尚未修正；修正方向要後端來源量測、short_render 與檢查門檻一起決定。 | [來源量測](../src/services/recutSource.service.js)、[short_render 檢查](../../short_render/src/worker/checks.js) |
+| recut 渲染的響度 | 固定增益是 `min(-16 - 原片響度, -1.5 - 原片真峰值)`，後端與 short_render 都以這個公式核對。2026-11-14 真實渲染發現兩個問題，已在 short_render 的 staging 修正、公式不變：峰值受限時 AAC 編碼後真峰值略超 -1.5 dBTP（加 -3 dBFS 峰值限制）；單聲道原片輸出成雙聲道後響度多 3 LU（改成每聲道 0.7071 倍）。原片若響度太低、峰值又高，增益後仍可能低於 -18 LUFS，來源檢查會拒收，這是預期行為。 | [來源量測](../src/services/recutSourceAlgorithms.service.js)、[staging 音訊](../../short_render/src/render/render.js) |
 | 學生短片牆的可見性 | 成品上架後，要等 Shorts 同步排程（預設每 10 分鐘，需 `YOUTUBE_API_KEY`）把 `youtubeAvailability` 改成可播放，學生牆才看得到；沒有金鑰時同步不啟動，學生永遠看不到。部署時看 `/health` 的 `shortsSync.enabled` 與最近成功時間。 | [Shorts 同步](../src/services/shortsSync.service.js)、[學生牆查詢](../src/services/shortAsset.service.js) |
 | 操作寫入範圍 | 啟動後端、示範資料與上傳工具可能寫入資料庫；先核對目標。需要模擬或隔離驗證時，依[測試規則](../../.claude/rules/testing.md)選擇工具。 | [資料庫連線](../src/config/database.js)、[上傳工具](../../STT_Whisper/src/mongodb_uploader.py) |
 

@@ -130,6 +130,7 @@ details.glossary .terms{margin-top:0}
 </style>
 </head>
 <body><div class="sheet">
+<section><h2>產品方向定案（2026-11-14）</h2><p>團隊決定問答預設用逐字稿、聲音、畫面三路檢索。影片的三路向量還不完整時（例如影片六），那支影片退回文字檢索，不擋整個功能。43 題評測照做，但改成開啟後確認沒有變差，不再是開啟門檻。實際開啟要等 Gemini 額度恢復。更新於 2026-11-14，細節見<a href="../04_Features/Multimodal_Retrieval/decisions.md">設計決策</a>。</p></section>
 <section><h2>上傳後的多模態處理</h2><p>文字索引完成後，系統可接續準備三路向量。新上傳影片的真實向量須通過完整性檢查與寫入授權，才能寫入並讀回驗證。更新於 2026-11-13，驗收範圍見<a href="../current-status.md">目前狀態</a>。</p></section>
 
 <header>
@@ -427,7 +428,7 @@ mm[31]='gain';mm[34]='gain';mm[38]='gain';mm[7]='loss';
 var board=document.getElementById('board'),score=document.getElementById('score');
 function paint(m){board.innerHTML='';var a=m==='mm'?mm:base;a.forEach(function(c){var d=document.createElement('div');if(c)d.className=c;board.appendChild(d)});
 var g=a.filter(function(c){return c==='gain'}).length,l=a.filter(function(c){return c==='loss'}).length,f=a.filter(function(c){return c==='hit'||c==='gain'}).length;
-score.innerHTML=m==='mm'?'<span>找到 <b>'+f+'</b>/43</span><span>新增找回 <b>'+g+'</b></span><span>退步 <b>'+l+'</b></span><span>淨改善 <b>+'+(g-l)+'</b>（門檻要 +3，這個例子沒過，也照實交付）</span>':'<span>找到 <b>'+f+'</b>/43</span>';}
+score.innerHTML=m==='mm'?'<span>找到 <b>'+f+'</b>/43</span><span>新增找回 <b>'+g+'</b></span><span>退步 <b>'+l+'</b></span><span>淨改善 <b>+'+(g-l)+'</b>（評測用來確認沒有變差，退步的題目要逐題檢查）</span>':'<span>找到 <b>'+f+'</b>/43</span>';}
 document.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('[data-mode]').forEach(function(x){x.setAttribute('aria-selected',x===b)});paint(b.dataset.mode)})});
 paint('base');
 var tip=document.getElementById('tip');

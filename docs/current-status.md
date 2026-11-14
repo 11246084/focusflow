@@ -1,5 +1,14 @@
 # FocusFlow 目前狀態
 
+## 2026-11-14 正式站開啟多模態融合
+
+Weihao 定案產品方向為多模態（見[多模態決策](04_Features/Multimodal_Retrieval/decisions.md)）。VM 的 `backend/.env` 已設 `QA_MULTIMODAL_FUSION_ENABLED=true`（先備份 `.env`），`pm2 restart` 後 `online`、`/health` 回 200，啟動錯誤紀錄沒有新錯誤。正式站程式仍是 `main` `cb17930`。
+
+- 生效範圍：AI入門 V1～V5 已有三路向量；V6 未完成部分與其他課程由程式自動用文字檢索。
+- 未驗證：Gemini 專案已達每月花費上限，查詢向量呼叫回 429，所以還沒有真實提問確認三路結果與引用標籤；開關開或關都一樣無法回答新問題。上限由教授處理中。
+- `runtime.flag_snapshot` 與 `/health` 目前不顯示此開關，只能從 `.env` 與重啟時間確認。
+- 關閉方式：把該行改回 `false` 後 `pm2 restart focusflow-backend --update-env`。
+
 ## 2026-11-14 工具交接提交前驗證
 
 使用者授權提交16個多模態程式／測試／文件（含CLOUD_DEPLOYMENT_HANDOFF.md），指定訊息`feat: finalize multimodal evaluation tools and handoff`。以dev `1361f2e`為基準，提交前確認origin/dev無新提交；Node22.23.4下Backend定向12項與Python七檔72項共84項通過，Python測試封鎖外部socket連線。全部變更語法、安全模式掃描與git diff --check通過，無新增失效連結，原三處implementation-log歷史缺檔維持。沒有Gemini請求、Atlas操作、向量建置、部署或旗標變更；未跑無關大型全套。原私有成果保持忽略、不stage，實際提交版本以Git紀錄為準。

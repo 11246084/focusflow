@@ -96,8 +96,23 @@ def _default_provider(
     texts: list[str],
     config: PipelineConfig,
 ) -> tuple[list[list[float]], list[str | None]]:
-    client = _load_gemini_client(config)
-    return embed_text_contents(client, texts, config)
+    # Use the same durable reserve/attempt ledger as Leaf and evaluation Query.
+    # Import lazily: offline Parent preflight must never initialize a provider.
+    from run_video1_batch import BatchAdapter, LEDGER, CHECKPOINTS, CATALOG, stop_retry
+    if config.gemini_embedding_model_name != "gemini-embedding-2" or config.gemini_embedding_output_dim != 3072:
+        raise ValueError("Shared-ledger Parent execution requires gemini-embedding-2/3072")
+    if not LEDGER.is_file():
+        raise PermissionError("Existing shared cost ledger required for Parent embedding")
+    adapter = BatchAdapter(CHECKPOINTS, max_cost_usd=20, max_calls=CATALOG["maxCalls"],
+        allow_paid=True, ledger_path=LEDGER, sleep=stop_retry,
+        client_factory=lambda _: _load_gemini_client(config))
+    records = []
+    for text in texts:
+        record = adapter.embed_text(text, role="text")
+        records.append(record)
+        if not record.get("reused"):
+            time.sleep(2)
+    return [record["embedding"] for record in records], [None] * len(records)
 
 
 def _build_record(
@@ -236,6 +251,13 @@ def embed_parent_chunks(
                     )
                 break
             except Exception as exc:
+                if provider is None:
+                    # Native Checkpoints already preserve successful requests. Never
+                    # advance to another Parent after unknown billing/quota failure.
+                    raise ParentEmbeddingStageError(
+                        "Shared-ledger Parent batch stopped; inspect native checkpoint and ledger.",
+                        list(completed.values()),
+                    ) from None
                 quota_error = _is_resource_exhausted_error(exc)
                 if quota_error and attempt < config.gemini_max_retries:
                     attempt += 1

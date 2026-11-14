@@ -1,5 +1,15 @@
 # 多模態檢索、章節與影片升級：開發接手說明
 
+> 雲端接手先讀[CLOUD_DEPLOYMENT_HANDOFF.md](CLOUD_DEPLOYMENT_HANDOFF.md)：區分既有Atlas QA、新上傳Worker及六片離線成果遷移。workflow未佈建Python／多模態私有磁碟；VM實際設定與跨Worker恢復尚須Weihao查證，文件不是部署或付費授權。
+
+> 429診斷接手：先看[狀態正本](../../current-status.md)最新精準診斷段落。三次歷史錯誤沒有quotaDetails，不能確診原因；Adapter已加入安全白名單記錄並完成Mock測試，不可為補紀錄新發請求。注意V6強制backend/.env優先、一般Pipeline程序環境優先、新evaluation入口只用程序環境；不能假設入口使用同一專案。原失敗簽章三次上限不變。
+
+> 最新工具入口：[Query／Parent批次與記憶體評分](remaining-videos-tools.md#queryparent批次與記憶體評分入口)。三項缺口已完成離線工具與Fake測試；實際模型、完整真實語料評分與Parent發布仍未執行。先讀[狀態正本](../../current-status.md)最新工具／429段落。chunk_0109三次上限不變，不能因新批次入口存在而繞過。環境金鑰值不得用於交接或診斷輸出。
+
+> 最新邊界：教授確認額度前全面停止新Gemini請求；恢復額度不自動授權重試。先讀[暫停API後的驗收結果](../../current-status.md)與[本輪決策](decisions.md#2026-11-14-暫停api期間的驗收範圍)。保存探索Query可做唯讀驗證，不能冒充正式Gold題庫；全題排名收集與Parent共用ledger接線仍需完成。
+
+> 2026-11-14 接手提醒：本輪已同步dev並依明確授權完成影片六的一次受控重試。結果與停止條件請先讀[目前狀態](../../current-status.md)最上方；本次許可已使用，不可再次重送。Atlas成功資料保留，Query／Parent與後續寫入仍需另行授權。
+
 ### 新上傳影片
 
 重新處理令原計畫失效時，保留原 before-image 與 receipt，使用 `--plan atlas-before-<識別碼>.json` 建立新的備份及核准碼。準備、寫入與回復要指定同一計畫檔。

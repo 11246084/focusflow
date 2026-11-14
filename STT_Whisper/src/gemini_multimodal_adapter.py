@@ -16,6 +16,7 @@ from embedding_contract import (GEMINI_EMBEDDING_CONTRACT_VERSION, GEMINI_EMBEDD
                                 build_parent_document_text)
 from segment_media_embedding import DIMENSION, MODEL, normalize_chunk, normalize_embedding, probe_duration, write_json
 from utils import resolve_ffmpeg_binary
+from gemini_error_diagnostics import safe_error_diagnostics
 
 PRICING_VERSION = "google_standard_2026-11-10"
 MAX_ATTEMPTS = 3
@@ -221,6 +222,8 @@ class GeminiMultimodalAdapter:
                     safe_code = code if isinstance(code, int) else None
                     retryable = safe_code in (408, 429, 500, 502, 503, 504) or isinstance(error, (TimeoutError, httpx.TransportError))
                     record.update(status="failed", error={"type": type(error).__name__, "code": safe_code, "retryable": retryable})
+                    record["error"]["diagnostics"] = safe_error_diagnostics(
+                        error, model=MODEL, signature=signature, modality=modality)
                     write_json(checkpoint, record)
                     if not retryable or attempt == MAX_ATTEMPTS - 1:
                         raise EmbeddingRequestError(f"Gemini embedding request failed (HTTP {safe_code})") from None

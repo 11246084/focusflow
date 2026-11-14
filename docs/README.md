@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+雲端多模態QA、新上傳Worker、持久帳本與安全發布的設定交接見[多模態雲端部署交接](04_Features/Multimodal_Retrieval/CLOUD_DEPLOYMENT_HANDOFF.md)；主機實際設定仍須維運人員當次確認。
+
 影片一建置前的實查、成本邊界與執行阻塞見 [影片一最終檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)（2026-11-12）。
 
 影片一工具的無付費預演、受控寫入與安全 QA 操作方式見 [影片一批次工具](04_Features/Multimodal_Retrieval/video1-tools.md)。

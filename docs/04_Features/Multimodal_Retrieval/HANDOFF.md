@@ -1,5 +1,7 @@
 # 多模態檢索、章節與影片升級：開發接手說明
 
+> 2026-11-14 產品方向已定：問答預設三路，影片缺三路向量時退回文字；正式站已開 `QA_MULTIMODAL_FUSION_ENABLED`。第 11 項不再是開啟門檻，43 題評測改為開啟後確認沒有變差。見 [decisions.md](decisions.md) 最上方一節；下文舊規則以該節為準。
+
 > 雲端接手先讀[CLOUD_DEPLOYMENT_HANDOFF.md](CLOUD_DEPLOYMENT_HANDOFF.md)：區分既有Atlas QA、新上傳Worker及六片離線成果遷移。workflow未佈建Python／多模態私有磁碟；VM實際設定與跨Worker恢復尚須Weihao查證，文件不是部署或付費授權。
 
 > 429診斷接手：先看[狀態正本](../../current-status.md)最新精準診斷段落。三次歷史錯誤沒有quotaDetails，不能確診原因；Adapter已加入安全白名單記錄並完成Mock測試，不可為補紀錄新發請求。注意V6強制backend/.env優先、一般Pipeline程序環境優先、新evaluation入口只用程序環境；不能假設入口使用同一專案。原失敗簽章三次上限不變。
@@ -59,7 +61,7 @@
 
 組員的 AI 決定「怎麼寫」，不決定「量什麼」（G1）。以下照 decisions.md，要改就先求援：
 
-- **評分規則**：第 7 項（chunk 一半以上落在標註範圍才算命中、Recall@5 為主、每路取前 20 名、一般 RRF k=60 與文字加權版兩版）、第 8 項（6 組）、第 11 項（預設開啟的門檻）、MA（2×2 只比檢索、Parent 用固定 3 筆合併、分層只改變文字檢索那一路）。跑之前固定，不調參數。
+- **評分規則**：第 7 項（chunk 一半以上落在標註範圍才算命中、Recall@5 為主、每路取前 20 名、一般 RRF k=60 與文字加權版兩版）、第 8 項（6 組）、第 11 項的評分與比較方式（2026-11-14 起不再是預設開啟的門檻，改為開啟後確認沒有變差）、MA（2×2 只比檢索、Parent 用固定 3 筆合併、分層只改變文字檢索那一路）。跑之前固定，不調參數。
 - **向量與證據**：第 9 項（一個 chunk 各一個聲音、一個畫面向量，短於 8 秒延伸到 8 秒、長於 60 秒不產生）；第 12 項（回答證據一律用同一筆 chunk 的逐字稿、`QA_MULTIMODAL_FUSION_ENABLED` 開啟時停用舊的影像補充引用、FAQ 快取的證據版本納入檢索設定）。
 - **資料與索引**：第 13 項（`audioEmbedding`、`visualEmbedding` 存在 `video_segments_text`，加進 `text_embedding_index`，不新增索引）；RU 四條不變條件；[chunk 版本契約](../Short_Video/chunk-version-contract.md) C1～C6。
 - **模型**：`gemini-embedding-2`（已定案第 4 項）。
@@ -129,6 +131,6 @@ Weihao 已預先授權以下範圍（decisions.md MB）；範圍外仍須另外�
 ## 交付與部署
 
 - 11/13：在 `dev` 完成，交付比較報告（`evidence/<日期>_retrieval-comparison/report.md`）、`per-question.json`、`config.json`（輸入檔雜湊、參數、程式版本）。
-- 11/14：Weihao 依報告做判斷①（是否預設開啟），並部署 `main`。需要的環境變數與索引狀態列在報告最後。
+- 11/14：原訂由 Weihao 依報告做判斷①（是否預設開啟）。2026-11-14 改為產品方向定案直接開啟，正式站已設 `QA_MULTIMODAL_FUSION_ENABLED=true`；報告改用來確認沒有變差。
 - 完成時同步：[功能開關](../../../backend/docs/feature-flags.md)、`backend/.env.example`、`backend/docs/openapi.yaml`、[說明頁](../../07_HTML說明頁/多模態檢索.html)；狀態由 Weihao 更新到[目前狀態](../../current-status.md)。
 - 定案、選用的方案或結果改變時，同一批 commit 先更新 decisions.md，再更新說明頁與頁尾的更新日期（`AGENTS.md`）。

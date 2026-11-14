@@ -54,7 +54,8 @@ step() { printf '\n== %s\n' "$1"; }
 env_value() {
   local name="$1"
   [ -f "$ENV_FILE" ] || return 0
-  grep -E "^${name}=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'
+  # 選填值不存在時 grep 回 1；不可讓 pipefail 中斷整個設定流程。
+  { grep -E "^${name}=" "$ENV_FILE" || [ "$?" = 1 ]; } | tail -n 1 | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//'
 }
 
 step "1. 檢查基本工具"

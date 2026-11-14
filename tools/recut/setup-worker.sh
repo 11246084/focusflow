@@ -15,7 +15,8 @@
 #   BACKEND_URL=https://focusflow.ntub.edu.tw bash tools/recut/setup-worker.sh   # 另一台機器（非本機必須 HTTPS）
 #
 # 可用環境變數覆寫：FOCUSFLOW_ROOT（預設 /opt/focusflow）、WORKER_HOME（預設 ~/recut-worker）、BACKEND_URL、
-# BROWSER_PATH、FONT_FILE、WORKER_NAME（預設主機名稱）、PM2_WORKER（預設 focusflow-recut-worker）、ADMIN_EMAIL。
+# BROWSER_PATH、FONT_FILE、WORKER_NAME（預設主機名稱）、PM2_WORKER（預設 focusflow-recut-worker）、ADMIN_EMAIL、
+# ADMIN_ORIGIN（預設 https://focusflow.ntub.edu.tw，須為後端信任的網站來源）。登入會要求信箱驗證碼。
 
 set -euo pipefail
 
@@ -87,19 +88,50 @@ else
   [ -n "$ADMIN_EMAIL" ] || read -r -p "  管理員 Email：" ADMIN_EMAIL
   read -r -s -p "  管理員密碼（不會顯示）：" ADMIN_PASSWORD; echo
   umask 077
-  ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" BACKEND_URL="$BACKEND_URL" WORKER_NAME="$WORKER_NAME" node > "$KEY_FILE.tmp" <<'NODE'
+  ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" ADMIN_ORIGIN="${ADMIN_ORIGIN:-https://focusflow.ntub.edu.tw}" BACKEND_URL="$BACKEND_URL" WORKER_NAME="$WORKER_NAME" node > "$KEY_FILE.tmp" <<'NODE'
 (async () => {
   const base = `${process.env.BACKEND_URL.replace(/\/$/, '')}/api/v1`;
-  const login = await fetch(`${base}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD, role: 'admin' }) });
-  const session = await login.json().catch(() => ({}));
-  if (!login.ok || !session?.data?.token) { console.error(`  [失敗] 管理員登入失敗（HTTP ${login.status} ${session?.error?.code || ''}）`); process.exit(1); }
-  const made = await fetch(`${base}/admin/recut-workers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.data.token}` },
-    body: JSON.stringify({ name: process.env.WORKER_NAME }) });
-  const worker = await made.json().catch(() => ({}));
-  if (!made.ok || !/^rw_/.test(worker?.data?.key || '')) { console.error(`  [失敗] 建立 worker 金鑰失敗（HTTP ${made.status} ${worker?.error?.code || ''}）`); process.exit(1); }
-  console.log(`RECUT_WORKER_KEY=${worker.data.key}`);
-})().catch(() => { console.error('  [失敗] 連不到後端'); process.exit(1); });
+  const jar = new Map();
+  async function request(path, body, method = 'POST') {
+    const response = await fetch(`${base}${path}`, { method, redirect: 'error', signal: AbortSignal.timeout(30000),
+      headers: { 'Content-Type': 'application/json', Origin: process.env.ADMIN_ORIGIN,
+        'X-Requested-With': 'FocusFlow', Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    for (const cookie of response.headers.getSetCookie()) {
+      const pair = cookie.split(';', 1)[0]; const at = pair.indexOf('=');
+      const name = pair.slice(0, at); const value = pair.slice(at + 1);
+      if (value) jar.set(name, value); else jar.delete(name);
+    }
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(`HTTP ${response.status} ${result?.error?.code || ''}`);
+    return result.data;
+  }
+  try {
+    let session = await request('/auth/session', { email: process.env.ADMIN_EMAIL,
+      password: process.env.ADMIN_PASSWORD, role: 'admin' });
+    delete process.env.ADMIN_PASSWORD;
+    if (session?.requiresVerification) {
+      if (session.purpose === 'first_login') throw new Error('請先在網站完成首次登入、信箱驗證與改密碼，再重跑腳本');
+      console.error(`  驗證碼已寄至 ${session.maskedEmail || '管理員信箱'}`);
+      // stdin 是腳本本身、stdout 是金鑰檔；互動輸入必須使用終端機。
+      const answer = require('node:child_process').spawnSync('bash', ['-c',
+        'read -r -s -p "  信箱驗證碼（不會顯示）：" code </dev/tty; result=$?; printf "\\n" >/dev/tty; [ "$result" = 0 ] || exit 1; printf "%s" "$code"'], { encoding: 'utf8' });
+      if (answer.status !== 0 || !/^\d{6}$/.test(answer.stdout)) throw new Error('未輸入有效的六位數驗證碼');
+      session = await request('/auth/pending/verify', { code: answer.stdout, trustDevice: false });
+    }
+    if (session?.requiresVerification || session?.user?.role !== 'admin') throw new Error('管理員驗證尚未完成');
+    const worker = await request('/admin/recut-workers', { name: process.env.WORKER_NAME });
+    if (!/^rw_[a-f\d]{24}\.[A-Za-z\d_-]{43}$/.test(worker?.key || '')) throw new Error('建立 worker 金鑰回應無效');
+    console.log(`RECUT_WORKER_KEY=${worker.key}`);
+  } finally {
+    delete process.env.ADMIN_PASSWORD;
+    if ([...jar.keys()].some((name) => name.endsWith('ff_session'))) {
+      await request('/auth/session', undefined, 'DELETE').catch(() => console.error('  [注意] 暫時管理員 session 登出失敗，請在網站登出所有裝置'));
+    } else if ([...jar.keys()].some((name) => name.endsWith('ff_pending'))) {
+      await request('/auth/pending', undefined, 'DELETE').catch(() => {});
+    }
+  }
+})().catch((error) => { console.error(`  [失敗] ${error.message.startsWith('HTTP ') || /^[請未管建]/.test(error.message) ? error.message : '登入或建立金鑰失敗，請檢查連線與後端日誌'}`); process.exitCode = 1; });
 NODE
   unset ADMIN_PASSWORD
   mv "$KEY_FILE.tmp" "$KEY_FILE"

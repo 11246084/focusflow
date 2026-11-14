@@ -135,6 +135,19 @@ describe('recut 專用 worker、CAS 租約與成品回傳', () => {
     assert.equal(store.notifications.filter((notice) => notice.dedupeKey?.startsWith('recut_render_ready:')).length, 1);
     assert.ok(fs.existsSync(file.path));
   });
+  it('成品建立後排程上傳 YouTube，教師才能觀看與核准', async () => {
+    const { worker: identity, job } = await claimed(); const file = fileFor();
+    const publish = require('../src/services/shortAssetPublish.service'); const original = publish.scheduleUploadOnCreate;
+    const scheduled = [];
+    publish.scheduleUploadOnCreate = (asset) => { scheduled.push(asset); return null; };
+    try {
+      const result = await worker.completeRender(lease(identity, job, { file, metadata: metadata(job) }));
+      for (let i = 0; i < 20 && !scheduled.length; i += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+      assert.equal(scheduled.length, 1);
+      assert.equal(String(scheduled[0]._id), result.assetId);
+      assert.ok(scheduled[0].filePath);
+    } finally { publish.scheduleUploadOnCreate = original; }
+  });
   it('通知寫入失敗保留成功成品與durable待送標記，恢復只重送通知', async () => {
     const { f, worker: identity, job } = await claimed(); const file = fileFor();
     const notifications = require('../src/services/notification.service'); const original = notifications.notifyRecutRenderReady;

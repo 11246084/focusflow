@@ -24,6 +24,15 @@ for (const [key, value, retryable] of [
   const result = classifyChecks({ ...pass, [key]: value }, expected);
   assert.equal(result.valid, false); assert.equal(result.retryable, retryable);
 });
+test('FFmpeg以科學記號印出的極短靜音與黑畫面不能讀成數秒', async () => {
+  const checks = await inspectResult({ filePath: 'fake.mp4', fontLoaded: true, runCommand: async (binary) => (binary === 'ffprobe'
+    ? { stdout: JSON.stringify({ streams: [{ codec_type: 'video', width: 720, height: 1280, avg_frame_rate: '30/1' }, { codec_type: 'audio' }], format: { duration: '35' } }) }
+    : { stderr: 'black_duration:4.16667e-02\nsilence_start: 0.00927083\nsilence_end: 0.00929167 | silence_duration: 2.08333e-05\n'
+      + 'silence_start: 3.2\nsilence_end: 3.65 | silence_duration: 0.45\nsilence_end: 9.01 | silence_duration: 8.33333e-05\n{"input_i":"-16.2","input_tp":"-2.3"}' }) });
+  assert.equal(checks.silenceMaxSec, 0.45);
+  assert.equal(checks.blackMaxSec, 0.0416667);
+  assert.equal(classifyChecks(checks, expected).valid, true);
+});
 test('固定與偶發同時出現，以固定失敗處理', () => {
   assert.equal(classifyChecks({ ...pass, width: 1, fontLoaded: false }, expected).retryable, false);
 });

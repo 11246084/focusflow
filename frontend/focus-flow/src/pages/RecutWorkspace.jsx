@@ -373,7 +373,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     return (
       <li key={sentence.id} className="rc-line" data-role={role} data-playing={live}>
         <span className="rc-cut" aria-hidden={!kept}>
-          {kept && cutStart.has(sentence.id) ? <><span className="rc-cut-label">短片</span>{formatClock(cutStart.get(sentence.id))}</> : ''}
+          {kept && cutStart.has(sentence.id) ? <><span className="rc-cut-label">短片</span>{' '}{formatClock(cutStart.get(sentence.id))}</> : ''}
         </span>
         <div className="rc-line-body">
           {role === 'opening' && <span className="rc-line-tag">片頭</span>}

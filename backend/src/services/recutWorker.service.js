@@ -338,13 +338,25 @@ async function finalizeCompletionOwned(job, transition) {
   await notifySuccessOwned(saved);
   return { assetId: String(asset._id), status: 'asset_review' };
 }
-const finalizeCompletion = (job) => withRecutTransition(job.scriptId, (transition) => finalizeCompletionOwned(job, transition));
+// 成品建立後要送上 YouTube（不公開），教師才能觀看與核准，核准後才會上架。
+// 在腳本鎖釋放後才排程：上傳完成若已核准會進入上架，而上架要取得同一把鎖。不等上傳完成，回傳 worker 不被拖慢。
+function scheduleRecutAssetUpload(assetId) {
+  if (!assetId) return;
+  ShortAsset.findById(assetId).lean()
+    .then((asset) => require('./shortAssetPublish.service').scheduleUploadOnCreate(asset))
+    .catch((err) => console.error('[recut] failed to schedule YouTube upload', { assetId: String(assetId), code: err.code }));
+}
+const finalizeCompletion = async (job) => {
+  const result = await withRecutTransition(job.scriptId, (transition) => finalizeCompletionOwned(job, transition));
+  scheduleRecutAssetUpload(result?.assetId);
+  return result;
+};
 async function completeRender(options) {
   const { file, metadata } = options;
   let accepted = false;
   try {
     const job = await ownedLease(options);
-    return await withRecutTransition(job.scriptId, async (transition) => {
+    const result = await withRecutTransition(job.scriptId, async (transition) => {
       const currentJob = await ownedLease(options); const script = await ShortScript.findById(job.scriptId).lean();
       const version = await approvedVersion(script, job.versionId);
         if (script.recut.state !== 'rendering' || !metadata || metadata.versionId !== String(version._id) || metadata.planHash !== job.planHash
@@ -369,6 +381,8 @@ async function completeRender(options) {
       accepted = true;
       return finalizeCompletionOwned(completed, transition);
     });
+    scheduleRecutAssetUpload(result?.assetId);
+    return result;
   } catch (err) {
     if (!accepted) {
       await discardUnreferencedUpload(file);

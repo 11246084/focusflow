@@ -71,7 +71,7 @@ docs/
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
 | [07 HTML說明頁](07_HTML說明頁/README.md) | 給人看的任務說明頁：[多模態檢索](07_HTML說明頁/多模態檢索.html)、[LINE 綁定](07_HTML說明頁/LINE綁定.html) |
-| [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
+| [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[短影片上線](10_Operations/deployment/短影片上線步驟.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
 | [90 Archive](90_Archive/README.md) | 快照、重整紀錄、被取代方案與歷史原件 |
 | [目前狀態](current-status.md) | 唯一功能狀態正本 |
 | [重要決策](decision-log.md) | 決策原因與影響 |

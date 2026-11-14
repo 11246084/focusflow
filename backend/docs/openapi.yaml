@@ -216,6 +216,11 @@ paths:
                           lastSuccessAt: '2026-07-18T02:00:01.000Z'
                           lastError: null
                           degraded: false
+                        recut:
+                          automationEnabled: true
+                          ready: true
+                          hostStatus: configured
+                          missing: []
                         youtubeUpload:
                           uploadEnabled: true
                           recoveryEnabled: false
@@ -9122,6 +9127,7 @@ components:
             - line
             - multimodal
             - shortsSync
+            - recut
             - youtubeUpload
           properties:
             qa:
@@ -9132,8 +9138,26 @@ components:
               $ref: '#/components/schemas/MultimodalRuntimeSnapshot'
             shortsSync:
               $ref: '#/components/schemas/ShortsSyncRuntimeSnapshot'
+            recut:
+              $ref: '#/components/schemas/RecutRuntimeSnapshot'
             youtubeUpload:
               $ref: '#/components/schemas/YouTubeUploadRuntimeSnapshot'
+    RecutRuntimeSnapshot:
+      description: >-
+        原片剪輯短片能否產生。`ready` 為 true 才代表開關已開、主機設定與所有轉接都已就緒；
+        `missing` 只列固定代碼（例如 `provider`、`media.transcribe`、`host.runtimeConfigMissing`），不含路徑或金鑰。
+        渲染由另外的 worker 處理，這裡不代表 worker 在線。
+      type: object
+      required: [automationEnabled, ready, hostStatus, missing]
+      properties:
+        automationEnabled: { type: boolean }
+        ready: { type: boolean }
+        hostStatus:
+          type: [string, 'null']
+          description: 主機設定狀態，例如 configured、disabled、runtimeConfigMissing、providerKeyMissing、pathsInvalid。
+        missing:
+          type: array
+          items: { type: string }
     AuthLoginRequest:
       description: "`/api/v1/auth/login` 的 request body。"
       type: object

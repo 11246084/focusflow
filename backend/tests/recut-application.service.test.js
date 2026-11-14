@@ -4,7 +4,7 @@ const { resetStore, store, ids, startServer, stopServer, loginAs, jsonRequest } 
 const { seedScript, snapshot } = require('./helpers/recutFixtures');
 const { fixture, fakeRenderer } = require('./helpers/recutPipelineFixtures');
 const { createRecutQueue } = require('../src/services/recutQueue.service');
-const { createRecutApplication, configureRecutApplication } = require('../src/services/recutApplication.service');
+const { createRecutApplication, configureRecutApplication, buildRecutRuntimeSnapshot } = require('../src/services/recutApplication.service');
 const { createRecutSource } = require('../src/services/recutState.service');
 const queues = [];
 const user = { id: ids.teacher, role: 'teacher' };
@@ -12,6 +12,15 @@ describe('recut application 真正組裝與共用佇列', () => {
   beforeEach(resetStore);
   afterEach(async () => { for (const queue of queues) { queue.stop(); await queue.idle(); } queues.length = 0; });
   function queue() { const q = createRecutQueue(); queues.push(q); return q; }
+  it('/health 的 recut 狀態：開關關閉不列缺項；缺轉接時 ready 為 false 並列出固定代碼', () => {
+    configureRecutApplication({ runtimeAdapters: { hostStatus: 'runtimeConfigMissing', missing: ['host.runtimeConfigMissing'] }, queue: queue() });
+    assert.deepEqual(buildRecutRuntimeSnapshot({ automationEnabled: false }).missing, []);
+    const snap = buildRecutRuntimeSnapshot({ automationEnabled: true });
+    assert.equal(snap.ready, false); assert.equal(snap.hostStatus, 'runtimeConfigMissing');
+    assert.ok(snap.missing.includes('host.runtimeConfigMissing')); assert.ok(snap.missing.includes('provider'));
+    configureRecutApplication({ runtimeAdapters: { hostStatus: 'configured', decide: async () => ({}), renderer: fakeRenderer(), sourceSteps: [] }, queue: queue() });
+    assert.deepEqual(buildRecutRuntimeSnapshot({ automationEnabled: true }), { automationEnabled: true, ready: true, hostStatus: 'configured', missing: [] });
+  });
   it('缺轉接在建立任務前回503，明列缺項且不啟動外部工作', async () => {
     const app = createRecutApplication({ queue: queue() }); const script = seedScript();
     await assert.rejects(app.generation.startGeneration({ user, scriptId: script._id }), (error) => {

@@ -32,7 +32,7 @@ function createRecutApplication({ runtimeAdapters = {}, queue, beforeEnqueue, ch
     pipeline = require('./recutPipeline.service').createRecutPipeline(runtimeAdapters);
     pipeline.register(targetQueue);
   }
-  return { queue: targetQueue, pipeline, missing: [...missing], assertConfigured,
+  return { queue: targetQueue, pipeline, missing: [...missing], hostStatus: runtimeAdapters.hostStatus || null, assertConfigured,
     generation: require('./recut.service').createRecutService({ queue: targetQueue }),
     review: require('./recutReview.service').createRecutReviewService({ queue: targetQueue }),
     recover: () => { assertConfigured(); return targetQueue.recover(); },
@@ -48,4 +48,12 @@ function configureRecutApplication(options) {
 function getRecutApplication() {
   return configuredApplication || configureRecutApplication();
 }
-module.exports = { createRecutApplication, configureRecutApplication, getRecutApplication };
+// /health 用：只讀啟動時組好的狀態，不建立任何東西。缺項只回固定代碼（例如 provider、media.transcribe、
+// host.runtimeConfigMissing），不含路徑、金鑰或錯誤原文。
+function buildRecutRuntimeSnapshot({ automationEnabled = require('../config/env').shortScriptAutomationEnabled } = {}) {
+  const app = configuredApplication;
+  const missing = app ? [...app.missing] : ['host.notStarted'];
+  return { automationEnabled: Boolean(automationEnabled), ready: Boolean(automationEnabled && app && !missing.length),
+    hostStatus: app?.hostStatus || (app ? null : 'notStarted'), missing: automationEnabled ? missing : [] };
+}
+module.exports = { createRecutApplication, configureRecutApplication, getRecutApplication, buildRecutRuntimeSnapshot };

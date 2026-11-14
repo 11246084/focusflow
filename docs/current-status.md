@@ -115,6 +115,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 之後的 `/impeccable polish`：逐句修改失敗的訊息改在那一句下方；「放棄修改」移到講稿上方，手機修改後底部列由約 220px 降到 167px；採納建議前說明會重排約一分鐘；數位分身的視覺隱喻放到腳本上方、清單狀態改為「待傳回影片」；目前這一支改用細框（不用左側色條）；手機流程列不再出現行首連接線；短影片管理沒有任何短片時只顯示一個空狀態與「製作新短片」。
 
+**上線準備（2026-11-14）**：`/health` 新增 `runtime.recut`（開關、是否就緒、主機設定狀態與缺項代碼），部署後可直接確認能否產生短片；上線所需設定、渲染 worker、驗證與關閉方式寫在[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。正式上線仍需：調高 Gemini 專案花費上限、VM 設定 `YOUTUBE_API_KEY` 與 recut runtime（含離線 faster-whisper 模型）、準備渲染 worker、負責人授權部署（`dev` 合併到 `main`），以及真機、LINE 與真人教師驗收。
+
 **真實外部服務驗證（2026-11-14，使用者授權：FocusFlow 頻道、Gemini 不超過 15 美元）**：本機真後端＋隔離 Mongo（非 Atlas）＋真 short_render worker（chrome-headless-shell、Noto Sans TC）＋真 YouTube 上傳，原片用本機離線語音合成的講課（句子時間精確已知，取代這台機器沒有的語音辨識模型）。結果：
 - **Gemini 未執行**：API 回 429「專案已超過每月花費上限」，沒有產生費用；選段、配圖與數位分身腳本改用依真實格式寫好的固定輸出，仍經過 short_render 的真實驗證。要真實生成需先在 AI Studio 調整花費上限。
 - **原片剪輯**：教師在真前端完成同意 → 講稿 → 核准 → 真實渲染（49 秒 MP4，檢查全過）→ 自動上傳 YouTube（`A4h49gfOIQ0`，FocusFlow 頻道，unlisted、已處理完成）→ 畫面自動換成可核准 → 核准 → 已上架。

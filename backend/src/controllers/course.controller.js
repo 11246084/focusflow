@@ -28,7 +28,7 @@ const createCourse = asyncHandler(async (req, res) => {
 });
 
 const listCourses = asyncHandler(async (req, res) => {
-  const courses = await courseService.listCourses(req.user);
+  const courses = await courseService.listCourses(req.user, { scope: req.query.scope });
 
   return sendSuccess(res, {
     message: 'Courses fetched successfully.',

@@ -18,8 +18,9 @@ export function isFeatureDisabledError(error) {
   return error?.status === 404 && error?.code === 'NOT_FOUND';
 }
 
+// 短影片頁只列出自己授課的課程（admin 全部）。
 export async function listCourses() {
-  const response = await apiFetch('/courses');
+  const response = await apiFetch('/courses?scope=managed');
   return response.data?.courses || [];
 }
 

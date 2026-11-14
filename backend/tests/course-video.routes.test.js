@@ -32,6 +32,31 @@ describe('course and video routes', () => {
     cleanupTestUploads();
   });
 
+  it('scope=managed lists only courses the teacher teaches; admin sees all; invalid scope is rejected', async () => {
+    const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');
+    const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');
+    const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    store.courses.push({
+      _id: newObjectId(), title: 'Foreign Published Course', description: '', teacherId: ids.otherTeacher,
+      videoIds: [], status: 'published', createdAt: '2026-04-07T10:00:00.000Z',
+    });
+
+    const teacherResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses?scope=managed', { token: teacherToken });
+    const adminResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses?scope=managed', { token: adminToken });
+    const studentResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses?scope=managed', { token: studentToken });
+    const invalidResult = await jsonRequest(serverContext.baseUrl, '/api/v1/courses?scope=all', { token: teacherToken });
+
+    assert.equal(teacherResult.status, 200);
+    const teacherIds = teacherResult.body.data.courses.map((course) => String(course.teacherId?._id || course.teacherId));
+    assert.ok(teacherResult.body.data.courses.length > 0);
+    assert.ok(teacherIds.every((id) => id === String(ids.teacher)), 'only the teacher\'s own courses');
+    assert.equal(adminResult.status, 200);
+    assert.equal(adminResult.body.data.courses.length, store.courses.length);
+    assert.equal(studentResult.status, 200);
+    assert.deepEqual(studentResult.body.data.courses, []);
+    assert.equal(invalidResult.status, 400);
+  });
+
   it('lists courses by role-specific access rules', async () => {
     const adminToken = await loginAs(serverContext.baseUrl, 'admin@focusflow.local', 'Admin123!');
     const teacherToken = await loginAs(serverContext.baseUrl, 'teacher@focusflow.local', 'Teacher123!');

@@ -21,12 +21,12 @@ describe('通知點擊導向', () => {
     assert.equal(resolveNotificationTarget({ source: YOUTUBE_NEEDS_REVIEW_SOURCE, videoId: 'v1' }, 'teacher'), null);
   });
 
-  it('教師的處理完成通知導到課程頁；短片有腳本時導到腳本頁', () => {
+  it('教師的處理完成通知導到課程頁；短片有腳本時導到短影片製作', () => {
     assert.deepEqual(resolveNotificationTarget({ source: YOUTUBE_RESOLVED_SOURCE, videoId: 'v1' }, 'teacher'), { sub: 'courses' });
     assert.deepEqual(resolveNotificationTarget({ source: YOUTUBE_RESOLVED_SOURCE }, 'teacher'), { sub: 'courses' });
     assert.deepEqual(
       resolveNotificationTarget({ source: YOUTUBE_RESOLVED_SOURCE, scriptId: 's1', courseIds: ['c1'] }, 'teacher'),
-      { sub: 'shortScripts', scriptId: 's1', courseId: 'c1' },
+      { sub: 'shortStudio', scriptId: 's1', courseId: 'c1' },
     );
   });
 
@@ -36,7 +36,7 @@ describe('通知點擊導向', () => {
     assert.equal(resolveNotificationTarget({ source: 'system_maintenance' }, 'student'), null);
     assert.equal(
       notificationTargetLabel(resolveNotificationTarget({ source: 'short_asset_rejected', scriptId: 's1' }, 'teacher')),
-      '前往腳本 →',
+      '前往短片 →',
     );
   });
 });

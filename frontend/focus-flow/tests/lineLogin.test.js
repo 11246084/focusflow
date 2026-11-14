@@ -6,8 +6,12 @@ import {
   completeLineLogin,
   describeFriendStatus,
   describeLineLoginFailure,
+  clearLineLoginCourse,
   describeLineLoginSuccess,
+  isRestoredFromBackForwardCache,
   readLineCallback,
+  readLineLoginCourse,
+  rememberLineLoginCourse,
   requestLineAuthorizeUrl,
 } from '../src/utils/lineLogin.js';
 
@@ -175,6 +179,22 @@ describe('畫面文案', () => {
     assert.equal(/LINE_LOGIN/.test(failure.message), false);
   });
 
+  it('讀取 sessionStorage 本身就會丟錯的瀏覽器，記住課程的三個函式都不丟錯', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      get() { throw new Error('SecurityError'); },
+    });
+    try {
+      assert.equal(rememberLineLoginCourse('a'.repeat(24)), false);
+      assert.equal(readLineLoginCourse(), undefined);
+      assert.doesNotThrow(() => clearLineLoginCourse());
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, 'sessionStorage', descriptor);
+      else delete globalThis.sessionStorage;
+    }
+  });
+
   it('LINE 導回的 error 不是 access_denied 時不說成學生取消', () => {
     assert.deepEqual(readLineCallback('?error=server_error&state=s1'), { kind: 'failed' });
     assert.deepEqual(readLineCallback('?error=invalid_request'), { kind: 'failed' });
@@ -196,5 +216,56 @@ describe('畫面文案', () => {
 
   it('完成後固定回到站內頁面', () => {
     assert.equal(LINE_PAGE_PATH, '/app/line');
+  });
+});
+
+describe('記住連結的課程', () => {
+  const COURSE_ID = '64b7f0c2a1b2c3d4e5f60718';
+  const memoryStorage = () => {
+    const values = new Map();
+    return {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    };
+  };
+  const throwing = {
+    getItem: () => { throw new Error('blocked'); },
+    setItem: () => { throw new Error('blocked'); },
+    removeItem: () => { throw new Error('blocked'); },
+  };
+
+  it('記住後可讀回，清除後讀不到', () => {
+    const storage = memoryStorage();
+
+    assert.equal(rememberLineLoginCourse(COURSE_ID, storage), true);
+    assert.equal(readLineLoginCourse(storage), COURSE_ID);
+    clearLineLoginCourse(storage);
+    assert.equal(readLineLoginCourse(storage), undefined);
+  });
+
+  it('不是 24 位十六進位的值不記錄，也不會讀出', () => {
+    const storage = memoryStorage();
+
+    assert.equal(rememberLineLoginCourse('course-1', storage), false);
+    assert.equal(rememberLineLoginCourse({ $ne: null }, storage), false);
+    assert.equal(readLineLoginCourse(storage), undefined);
+
+    storage.setItem('ff_line_login_course', 'not-an-object-id');
+    assert.equal(readLineLoginCourse(storage), undefined);
+  });
+
+  it('sessionStorage 會丟錯時不影響流程', () => {
+    assert.equal(rememberLineLoginCourse(COURSE_ID, throwing), false);
+    assert.equal(readLineLoginCourse(throwing), undefined);
+    assert.doesNotThrow(() => clearLineLoginCourse(throwing));
+  });
+});
+
+describe('bfcache 還原', () => {
+  it('只有 persisted 為 true 才算從返回還原', () => {
+    assert.equal(isRestoredFromBackForwardCache({ persisted: true }), true);
+    assert.equal(isRestoredFromBackForwardCache({ persisted: false }), false);
+    assert.equal(isRestoredFromBackForwardCache(undefined), false);
   });
 });

@@ -216,6 +216,37 @@ describe('teacherStats.service - getTeacherDashboardStats', () => {
     assert.equal(missingRows[0].videoId, null);
   });
 
+  it('提問數依來源分開：只算自己課程的網頁（api）與 LINE（line），不含 debug 與別人的課程', async () => {
+    const question = (courseId, source) => ({
+      _id: new mongoose.Types.ObjectId().toString(),
+      userId: new mongoose.Types.ObjectId(ids.student),
+      courseId,
+      question: 'q',
+      answer: 'a',
+      status: 'answered',
+      source,
+      matchCount: 1,
+      askedAt: new Date(),
+    });
+    store.questions.push(
+      question(ids.publishedCourse, 'api'),
+      question(ids.publishedCourse, 'api'),
+      question(ids.teacherCourse, 'line'),
+      question(ids.publishedCourse, 'debug'),
+      question(ids.foreignDraftCourse, 'api'),
+      question(ids.foreignDraftCourse, 'line'),
+    );
+    const totalBefore = (await getTeacherDashboardStats({ id: ids.teacher })).queriesCount;
+
+    const stats = await getTeacherDashboardStats({ id: ids.teacher });
+
+    assert.deepEqual(stats.queriesBySource, { web: 2, line: 1 });
+    // 總數沿用原本 usageLogs 的算法，不因為新增來源分項而改變。
+    assert.equal(stats.queriesCount, totalBefore);
+    assert.equal(stats.queriesCount, store.usageLogs.filter((log) => log.event === 'ask'
+      && [ids.publishedCourse, ids.teacherCourse].includes(String(log.courseId))).length);
+  });
+
   it('sorts recent videos by creation time so the dashboard matches uploaded videos recency', async () => {
     const latestVideoId = new mongoose.Types.ObjectId().toString();
 

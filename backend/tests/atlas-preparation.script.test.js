@@ -42,6 +42,66 @@ function repo(documents) {
       return { matchedCount: 1, modifiedCount: 1 };
     } };
 }
+test('uploaded video scopes use the owning video, complete three-way coverage and existing CAS writer', async () => {
+  const { snapshot, bundle } = fixtures();
+  const courseId = 'c'.repeat(24), videoId = 'd'.repeat(24);
+  const row = snapshot.documents[0];
+  Object.assign(row, { courseId, videoId, chunkId: videoId + '_chunk_0001' });
+  snapshot.documents = [row];
+  snapshot.videos = [{ _id: videoId, courseId }];
+  bundle.schemaVersion = 'atlas_upload_v1';
+  bundle.records = bundle.records.slice(1, 4);
+  for (const record of bundle.records) {
+    Object.assign(record.identity, { courseId, videoId, chunkId: row.chunkId });
+    Object.assign(record.metadata, record.identity);
+  }
+  const plan = c.planUploadWrites(snapshot, bundle, videoId, courseId);
+  const collection = repo(snapshot.documents);
+  await c.applyPlan(collection, plan);
+  assert.equal(collection.writes, 0);
+  await c.applyPlan(collection, plan, { execute: true });
+  assert.equal((await c.applyPlan(collection, plan))[0].status, 'already_applied');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'upload-atlas-'));
+  try {
+    const mock = repo(snapshot.documents);
+    const definition = c.indexPlan(index).after;
+    const ready = { ...index, id: 'fixture', latestDefinitionVersion: { version: 2 }, latestDefinition: definition,
+      statusDetail: ['a', 'b', 'c'].map(hostname => ({ hostname, queryable: true, status: 'READY',
+        mainIndex: { queryable: true, status: 'READY', definition } })) };
+    Object.assign(mock, { collectionName: 'video_segments_text',
+      find: () => ({ sort: () => ({ toArray: async () => structuredClone(mock.rows) }) }),
+      aggregate: () => ({ toArray: async () => [ready] }) });
+    Object.assign(bundle, { manifestHash: 'e'.repeat(64), sourceSha256: 'f'.repeat(64) });
+    const owner = { ...snapshot.videos[0], fileHash: bundle.sourceSha256,
+      processing: { completedAt: new Date(), multimodal: { mode: 'gemini', version: bundle.manifestHash } } };
+    const statuses = [];
+    const db = { databaseName: 'focusflow', collection: name => name === 'videos'
+      ? { findOne: async () => owner, updateOne: async (_, update) => {
+        statuses.push(update.$set['processing.multimodal.status']); return { matchedCount: 1 };
+      } } : mock, command: async () => ({ authInfo: { authenticatedUserPrivileges: [
+        { resource: { db: 'focusflow', collection: 'video_segments_text' }, actions: ['find', 'update', 'listSearchIndexes'] }] } }) };
+    fs.writeFileSync(path.join(directory, 'bundle.json'), JSON.stringify(bundle));
+    const { run } = require('../scripts/atlas-multimodal/upload');
+    const prepared = await run(db, directory);
+    assert.equal(prepared.status, 'awaiting_atlas_approval');
+    await assert.rejects(run(db, directory, { approve: 'wrong' }), /approval mismatch/);
+    assert.equal(mock.writes, 0);
+    await run(db, directory, { approve: prepared.approvalHash });
+    assert.equal(statuses.at(-1), 'ready');
+    await run(db, directory, { approve: prepared.approvalHash });
+    assert.equal(mock.writes, 1);
+    const rollback = await run(db, directory, { restore: true });
+    await run(db, directory, { restore: true, approve: rollback.approvalHash });
+    assert.deepEqual(mock.rows, snapshot.documents);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+  assert.throws(() => c.planUploadWrites(snapshot, bundle, videoId, 'a'.repeat(24)));
+  bundle.records.pop();
+  assert.throws(() => c.planUploadWrites(snapshot, bundle, videoId, courseId));
+});
 test('bundle validates full contracts, finite dimensions, digest and identity', () => {
   const { snapshot, bundle } = fixtures();
   assert.equal(c.planWrites(snapshot, bundle).length, 3);
@@ -79,6 +139,40 @@ test('CAS loses a race safely and existing owned fields cannot be overwritten', 
   db.updateOne = async () => ({ matchedCount: 0, modifiedCount: 0 });
   await assert.rejects(c.applyPlan(db, plans, { execute: true }), /CAS/);
   snapshot.documents[0].audioEmbedding = [2]; assert.throws(() => c.planWrites(snapshot, bundle), /Existing/);
+});
+test('three CAS receipts preserve old embeddings, rollback checkpoints survive interruption and repeated restore', async () => {
+  const { snapshot, bundle } = fixtures(); const plans = c.planWrites(snapshot, bundle); const db = repo(snapshot.documents);
+  const applied = [], restored = [];
+  await c.applyPlan(db, plans, { execute: true, receipt: async r => applied.push(structuredClone(r)) });
+  assert.deepEqual(applied.map(r => r.length), [1, 2, 3]);
+  assert.ok(applied.at(-1).every(r => r.status === 'verified' && r.protectedBeforeHash === r.protectedAfterHash));
+  assert.deepEqual(db.rows.map(r => r.embedding), snapshot.documents.map(r => r.embedding));
+  await assert.rejects(c.rollbackPlan(db, plans, { execute: true, receipt: async r => {
+    restored.push(structuredClone(r)); throw new Error('receipt disk full');
+  } }), /disk full/);
+  assert.equal(db.writes, 4); assert.equal(restored[0][0].status, 'restored');
+  const retry = await c.rollbackPlan(db, plans, { execute: true, receipt: async r => restored.push(structuredClone(r)) });
+  assert.deepEqual(retry.map(r => r.status), ['already_restored', 'restored', 'restored']);
+  assert.equal(db.writes, 6); assert.deepEqual(db.rows, snapshot.documents);
+  await c.rollbackPlan(db, plans, { execute: true }); assert.equal(db.writes, 6);
+});
+test('rollback stops on a lost CAS or intervening owned/protected changes without overwriting them', async () => {
+  for (const mutate of [db => { db.updateOne = async () => ({ matchedCount: 0, modifiedCount: 0 }); },
+    db => { db.rows[0].audioEmbedding = [99]; }, db => { db.rows[0].embedding = [99]; },
+    db => { db.rows[0].mediaEmbeddingMeta.otherOwner = { value: 'concurrent' }; }]) {
+    const { snapshot, bundle } = fixtures(); const db = repo(snapshot.documents); const plans = c.planWrites(snapshot, bundle);
+    await c.applyPlan(db, plans, { execute: true }); mutate(db);
+    const beforeAttempt = structuredClone(db.rows);
+    await assert.rejects(c.rollbackPlan(db, plans, { execute: true }), /conflict|verification/);
+    assert.deepEqual(db.rows, beforeAttempt);
+  }
+});
+test('post-write read mismatch stops subsequent rows and never emits a verified receipt', async () => {
+  const { snapshot, bundle } = fixtures(); const db = repo(snapshot.documents); const plans = c.planWrites(snapshot, bundle);
+  const write = db.updateOne; db.updateOne = async (...args) => { const result = await write(...args); db.rows[0].text = 'another writer'; return result; };
+  const receipts = [];
+  await assert.rejects(c.applyPlan(db, plans, { execute: true, receipt: async r => receipts.push(r) }), /Post-write/);
+  assert.equal(db.writes, 1); assert.equal(receipts.length, 0);
 });
 test('index proposals preserve legacy fields, reject conflicts and poll expected definition only', async () => {
   const p = c.indexPlan(index); assert.equal(p.added.length, 3); assert.deepEqual(p.before, index.latestDefinition);

@@ -35,7 +35,11 @@ STT_Whisper\.venv\Scripts\python.exe -X utf8 STT_Whisper/src/plan_multimodal_val
 
 options 包含成功的 Gemini query embedding、已授權的 `{ courseId, allowedVideoIds }`、當次 `indexSnapshot`、經實際資料驗證的 `textDataContract` 與融合模式。使用同一 `text_embedding_index`，各路 path 為 `embedding`、`audioEmbedding`、`visualEmbedding`，top20、numCandidates=100，保持既有查詢候選倍率 5。
 
-既有 Leaf 缺 courseId，搜尋沿用影片 allowlist；呼叫端須先用現有課程存取流程建立允許影片清單。結果會再檢查影片與存在時的 courseId，才以已確認的課程關係補入候選。此 adapter 不負責登入或自行授予課程權限。
+既有 Leaf 可缺 courseId，搜尋沿用canonical影片allowlist；呼叫端須先驗課程存取及合法掛載關係。2026-11-12 Q5定案：Leaf／media metadata的courseId僅為來源，結果依已授權影片保留，再以當次scope課程正規化候選；不因來源課程不同拒絕合法共享。此adapter不負責登入或自行授予權限。
+
+正式QA開關ON時另以`readStableTextCoverage`核對授權範圍的每個Chunk ID／video／原秒數，及3072維、數值／unit norm與完整stable文字契約；不依top20筆數推定全量完成。部分覆蓋或查證失敗改用原文字檢索當文字一路，媒體皆不可用則整體回退。coverage不快取成功值，避免刪除／更新後沿用舊的「完整」狀態；查詢只回身份與時間，不把向量傳回Node。
+
+正式QA的索引定義以collection物件隔離，成功快取30秒、失敗或不存在5秒，同時請求合併一次讀取；到期不使用過期READY，刷新失敗即回退。工具的`readAtlasIndex`仍為即時讀取，操作窗口不受QA快取影響。測試切換情境使用`clearMultimodalIndexCache`，不以清正式快取作驗收資料修補。開關OFF不新增索引／coverage查詢。
 
 索引需 READY、queryable、3072 維 cosine 並具 videoId filter。缺欄位會回傳 missing 與原因。文字契約未知時停用文字路徑，結果 metadata 也再次核對；媒體結果需成功狀態、穩定版模型與對應契約。各路具 maxTimeMS、AbortSignal、耗時、來源及錯誤診斷，單路錯誤可降級。融合使用既有 RRF，原始引用時間維持不變。
 

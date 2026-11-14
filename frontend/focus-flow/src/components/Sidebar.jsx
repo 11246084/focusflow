@@ -74,7 +74,7 @@ export default function Sidebar({ role, active, onNav, onLogout, user: userProp 
   const homeLabel = items.find((it) => it.id === 'home')?.label || '總覽';
   const displayName = getDisplayName(user);
   return (
-    <div ref={sidebarRef} className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
+    <aside ref={sidebarRef} className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`} aria-label="側欄">
 
       {/* Logo */}
       <div className="sidebar-logo">
@@ -135,6 +135,6 @@ export default function Sidebar({ role, active, onNav, onLogout, user: userProp 
         </button>
       </div>
 
-    </div>
+    </aside>
   );
 }

@@ -61,11 +61,11 @@ test('existing text-only index and unknown preview contract cause zero queries',
   assert.equal(channelReadiness({ ...index, queryable: false }, 'text', contract), 'index_not_ready');
 });
 
-test('unauthorized videos, course conflicts and invalid media metadata are excluded', async () => {
+test('unauthorized videos and invalid metadata are excluded; source course does not override authorized video sharing', async () => {
   const collection = { aggregate: () => ({ toArray: async () => [candidate('bad', { videoId: 'other' }),
     candidate('bad2', { courseId: 'other-course' }), candidate('bad3', { mediaEmbeddingMeta: {} }), candidate()] }) };
   const result = await retrieveAtlasMultimodal({ collection, queryEmbedding: query, scope, indexSnapshot: index });
-  assert.deepEqual(result.matches.map((item) => item.chunkId), ['video_chunk_0001']);
+  assert.deepEqual(result.matches.map((item) => item.chunkId), ['bad2', 'video_chunk_0001']);
 });
 
 test('one failed route degrades safely and provider error contents stay private', async () => {

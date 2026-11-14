@@ -12,7 +12,7 @@ const { computeCosineSimilarity } = require('../utils/vectorSimilarity');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { embedQuery } = require('./queryEmbedding.service');
 const { retrieveForQa, faqEvidenceVersion } = require('./multimodalQaBridge.service');
-const { readAtlasIndex } = require('./atlasMultimodalAdapter.service');
+const { getAtlasIndexSnapshot, readStableTextCoverage } = require('./multimodalReadiness.service');
 const { buildGeminiTextSearchContract } = require('./embeddingContract.service');
 const { generateAnswer, isNoAnswerReply } = require('./answerGeneration.service');
 const { recordUsage } = require('./usageLog.service');
@@ -1266,7 +1266,7 @@ async function askQuestion({
   }
   tMark = qaTimingMark('course-lookup', tMark);
 
-  const faqCacheEnabled = isFaqCacheEnabled()
+  let faqCacheEnabled = isFaqCacheEnabled()
     && !(Array.isArray(conversationHistory) && conversationHistory.length);
 
   // 平行：權限檢查、scoped videos、FAQ exact 查詢三者互不依賴；
@@ -1279,6 +1279,9 @@ async function askQuestion({
       : Promise.resolve(null),
   ]);
   tMark = qaTimingMark(`access+videos (${scopedVideos.videos?.length || 0} videos)`, tMark);
+  const uploadPending = env.qaMultimodalFusionEnabled && scopedVideos.videos.some(video =>
+    video.processing?.multimodal && video.processing.multimodal.status !== 'ready');
+  if (uploadPending) faqCacheEnabled = false;
 
   const courseSummary = buildCourseBridgeSummary(course, scopedVideos);
   const segmentScope = await buildCourseSegmentScope(course, scopedVideos);
@@ -1341,7 +1344,7 @@ async function askQuestion({
   }
 
   // FAQ 快取第一層：正規化文字完全相同 → 零 token，直接回快取答案
-  if (exactFaq
+  if (faqCacheEnabled && exactFaq
       && await faqMatchesCurrentScope(exactFaq)
       && faqHasCurrentAnswerEvidence(exactFaq)) {
     const cachedResult = await respondFromFaqCache({
@@ -1574,8 +1577,9 @@ async function askQuestion({
     leafSearch,
     hierarchicalSearch,
   });
-  let searchResult = env.qaMultimodalFusionEnabled ? null : await legacyTextSearch();
-  if (env.qaMultimodalFusionEnabled) {
+  const useFusion = env.qaMultimodalFusionEnabled && !uploadPending;
+  let searchResult = useFusion ? null : await legacyTextSearch();
+  if (useFusion) {
     let legacyResult = null;
     const courseId = String(course._id);
     const asEvidence = match => ({ ...match, courseId, chunkId: match.chunkId || match.segmentId,
@@ -1586,9 +1590,14 @@ async function askQuestion({
     };
     const scope = { courseId, allowedVideoIds: [...segmentScope.allowedVideoIds] };
     let indexSnapshot = null;
+    let stableTextCoverage = { complete: false, expected: scopedSegments.length, covered: 0, reason: 'index_unavailable' };
     if (env.qaVectorSearchMode === 'atlas' && env.qaQueryEmbeddingProvider === 'gemini') {
       try {
-        indexSnapshot = await readAtlasIndex(VideoSegment.collection);
+        indexSnapshot = await getAtlasIndexSnapshot(VideoSegment.collection);
+        if (indexSnapshot?.status === 'READY' && indexSnapshot.queryable === true
+          && indexSnapshot.latestDefinition?.fields?.some(field => field.path === 'stableTextEmbedding')) {
+          stableTextCoverage = await readStableTextCoverage(VideoSegment.collection, scope, scopedSegments);
+        }
       } catch {
         // Index inspection failure follows the same fail-safe path as an unavailable index.
         indexSnapshot = null;
@@ -1604,6 +1613,9 @@ async function askQuestion({
       textSearch: getLegacyMatches,
       hierarchicalTextSearch: getLegacyMatches,
       loadEvidence: async () => scopedSegments.map(asEvidence),
+      // 穩定版文字向量還沒覆蓋整個範圍時（例如只寫入部分 chunk），改用既有文字檢索當文字那一路。
+      minTextCandidates: Math.min(20, scopedSegments.length),
+      stableTextCoverage,
     });
     const bridgeMatches = bridge.usedFallback ? legacyResult.matches.map(match => ({
       ...match, retrievedBy: ['text'], channelRanks: {},

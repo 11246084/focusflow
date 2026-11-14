@@ -1,0 +1,842 @@
+{
+  "schemaVersion": "focusflow_atlas_sample_summary_v1",
+  "snapshotDate": "2026-11-11",
+  "timeZone": "Asia/Taipei",
+  "provenance": {
+    "kind": "Real Atlas Vector Search over three saved Gemini document/media vectors per chunk; no new model calls",
+    "codeBaseline": "13e8a8ce894678c3501eb7bb9f99d90c000ebe5a",
+    "privateSourceSha256": "29ed2ed87a0da22176c171c32279a801ed56b11d55149c6a405ad3d2bf4fffcd",
+    "limits": "Allowlisted summary only. Full backup, vectors, transcripts, checkpoints, credentials and raw metadata remain private. This JSON is not a full backup."
+  },
+  "sample": {
+    "documents": 3,
+    "savedDocumentMediaVectors": 9,
+    "dimensions": 3072,
+    "savedQueries": 3,
+    "aliases": [
+      {
+        "alias": "A",
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117"
+      },
+      {
+        "alias": "B",
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001"
+      },
+      {
+        "alias": "C",
+        "chunkId": "6a6da69256dd124511ec51d5_chunk_0070"
+      }
+    ]
+  },
+  "plan": {
+    "dataPlanHash": "4a5725dc2b506acf48c53e05e6a054c55395520efd49c29d8545847c6bb12fdc",
+    "indexOperationHash": "c2f4b0274cac9148182eec4e1038556ae94ec84e6b7ee6ce155d8dd30a1092b4",
+    "indexBeforeHash": "1cb8b24998df4c6ec0a629b4490044d1cdd868c6d711cc1c2680596cce785935",
+    "indexAfterHash": "b12f505e0be14bd7ea4bbc1638882dbda784a1f9b92646a8cf75483da5c68c30"
+  },
+  "execution": {
+    "dataWrites": [
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+        "status": "verified"
+      },
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+        "status": "verified"
+      },
+      {
+        "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+        "status": "verified"
+      }
+    ],
+    "forwardIndexEvents": [
+      {
+        "status": "prepared",
+        "at": "2026-11-11T09:30:33.586Z"
+      },
+      {
+        "status": "submission_started",
+        "at": "2026-11-11T09:30:34.510Z"
+      },
+      {
+        "status": "submitted",
+        "at": "2026-11-11T09:30:35.505Z"
+      },
+      {
+        "status": "verified",
+        "at": "2026-11-11T09:31:37.846Z"
+      }
+    ],
+    "restoreIndexEvents": [
+      {
+        "status": "prepared",
+        "at": "2026-11-11T09:35:52.508Z"
+      },
+      {
+        "status": "submission_started",
+        "at": "2026-11-11T09:35:53.409Z"
+      },
+      {
+        "status": "submitted",
+        "at": "2026-11-11T09:35:54.413Z"
+      },
+      {
+        "status": "verified",
+        "at": "2026-11-11T09:36:57.152Z"
+      }
+    ],
+    "positiveAtlasQueries": 9,
+    "rrfK": 60,
+    "equalWeights": {
+      "text": 1,
+      "audio": 1,
+      "visual": 1
+    },
+    "textWeightedWeights": {
+      "text": 2,
+      "audio": 1,
+      "visual": 1
+    }
+  },
+  "queries": [
+    {
+      "query": "A",
+      "targetChunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+      "channels": {
+        "text": [
+          {
+            "rank": 1,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.9165488481521606
+          },
+          {
+            "rank": 2,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.839880108833313
+          },
+          {
+            "rank": 3,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.827485203742981
+          }
+        ],
+        "audio": [
+          {
+            "rank": 1,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.8476994037628174
+          },
+          {
+            "rank": 2,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.7865958213806152
+          },
+          {
+            "rank": 3,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.7827734351158142
+          }
+        ],
+        "visual": [
+          {
+            "rank": 1,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.8208340406417847
+          },
+          {
+            "rank": 2,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.8118011951446533
+          },
+          {
+            "rank": 3,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.7867467999458313
+          }
+        ]
+      },
+      "equal": [
+        {
+          "rank": 1,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.04918032786885246,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.048131080389144903,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2,
+            "visual": 3
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.04787506400409626,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 3,
+            "visual": 2
+          }
+        }
+      ],
+      "textWeighted": [
+        {
+          "rank": 1,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.06557377049180328,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.06426011264720942,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2,
+            "visual": 3
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.06374807987711213,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 3,
+            "visual": 2
+          }
+        }
+      ]
+    },
+    {
+      "query": "B",
+      "targetChunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+      "channels": {
+        "text": [
+          {
+            "rank": 1,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.8938552141189575
+          },
+          {
+            "rank": 2,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.8237239718437195
+          },
+          {
+            "rank": 3,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.794137716293335
+          }
+        ],
+        "audio": [
+          {
+            "rank": 1,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.8152111768722534
+          },
+          {
+            "rank": 2,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.775114119052887
+          },
+          {
+            "rank": 3,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.7703972458839417
+          }
+        ],
+        "visual": [
+          {
+            "rank": 1,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.811703085899353
+          },
+          {
+            "rank": 2,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.8085261583328247
+          },
+          {
+            "rank": 3,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.7749968767166138
+          }
+        ]
+      },
+      "equal": [
+        {
+          "rank": 1,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.04865990111891751,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 3
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.04839549075403121,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 2,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.048131080389144903,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 3,
+            "visual": 2
+          }
+        }
+      ],
+      "textWeighted": [
+        {
+          "rank": 1,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.06505334374186833,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 3
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.06426850662704708,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 2,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.06426011264720942,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 3,
+            "visual": 2
+          }
+        }
+      ]
+    },
+    {
+      "query": "C",
+      "targetChunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+      "channels": {
+        "text": [
+          {
+            "rank": 1,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.9186280965805054
+          },
+          {
+            "rank": 2,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.8095262050628662
+          },
+          {
+            "rank": 3,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.8014287948608398
+          }
+        ],
+        "audio": [
+          {
+            "rank": 1,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.8569903373718262
+          },
+          {
+            "rank": 2,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.7655462026596069
+          },
+          {
+            "rank": 3,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.7495492696762085
+          }
+        ],
+        "visual": [
+          {
+            "rank": 1,
+            "alias": "C",
+            "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+            "videoId": "6a6da69256dd124511ec51d5",
+            "startSec": 888.2,
+            "endSec": 900.2,
+            "score": 0.7941395044326782
+          },
+          {
+            "rank": 2,
+            "alias": "A",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 1752.15,
+            "endSec": 1754.55,
+            "score": 0.787642240524292
+          },
+          {
+            "rank": 3,
+            "alias": "B",
+            "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+            "videoId": "6a6da68e56dd124511ec51b4",
+            "startSec": 6.42,
+            "endSec": 35.62,
+            "score": 0.7688173055648804
+          }
+        ]
+      },
+      "equal": [
+        {
+          "rank": 1,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.04918032786885246,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.04838709677419355,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2,
+            "visual": 2
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.047619047619047616,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 3,
+            "visual": 3
+          }
+        }
+      ],
+      "textWeighted": [
+        {
+          "rank": 1,
+          "alias": "C",
+          "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+          "videoId": "6a6da69256dd124511ec51d5",
+          "startSec": 888.2,
+          "endSec": 900.2,
+          "fusionScore": 0.06557377049180328,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 1,
+            "audio": 1,
+            "visual": 1
+          }
+        },
+        {
+          "rank": 2,
+          "alias": "A",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 1752.15,
+          "endSec": 1754.55,
+          "fusionScore": 0.06451612903225806,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 2,
+            "audio": 2,
+            "visual": 2
+          }
+        },
+        {
+          "rank": 3,
+          "alias": "B",
+          "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+          "videoId": "6a6da68e56dd124511ec51b4",
+          "startSec": 6.42,
+          "endSec": 35.62,
+          "fusionScore": 0.06349206349206349,
+          "retrievedBy": [
+            "text",
+            "audio",
+            "visual"
+          ],
+          "channelRanks": {
+            "text": 3,
+            "audio": 3,
+            "visual": 3
+          }
+        }
+      ]
+    }
+  ],
+  "scopeProbe": {
+    "input": "Artificial wrong course paired with original video allowlist, passed directly to standalone Adapter",
+    "sourceDocumentsMissingTopLevelCourseId": 3,
+    "observed": [
+      {
+        "invalid": "course",
+        "returnedCandidates": 3,
+        "returnedPerChannel": {
+          "text": 3,
+          "audio": 3,
+          "visual": 3
+        }
+      },
+      {
+        "invalid": "video",
+        "returnedCandidates": 0,
+        "returnedPerChannel": {
+          "text": 0,
+          "audio": 0,
+          "visual": 0
+        }
+      }
+    ],
+    "originalRunDisposition": "PARTIAL ACCEPTANCE / COURSE NEGATIVE FAILED / FULLY RESTORED",
+    "contractReviewDisposition": "Wrong-course scope violates documented caller precondition; expected-zero assumption is invalid for this Adapter probe. Does not establish a production QA vulnerability. Trusted QA/Bridge tests remain pending.",
+    "review": "../authorization-contract-review.md",
+    "unresolved": "U01/U02: legitimate cross-course attachments and the meaning of Leaf/media courseId"
+  },
+  "recovery": {
+    "fullyRestored": true,
+    "sampleRestoredExactly": true,
+    "all694DocumentsRestoredExactly": true,
+    "backupScopeDocuments": 694,
+    "collectionCountAfter": 815,
+    "originalIndexDefinitionHashAfter": "1cb8b24998df4c6ec0a629b4490044d1cdd868c6d711cc1c2680596cce785935",
+    "nodes": [
+      {
+        "node": 1,
+        "status": "READY",
+        "queryable": true,
+        "rawHash": "4a3f8d5c8bbf57d82bec890bdca8574d00fabbea4310263af75727b4db126eb4"
+      },
+      {
+        "node": 2,
+        "status": "READY",
+        "queryable": true,
+        "rawHash": "4a3f8d5c8bbf57d82bec890bdca8574d00fabbea4310263af75727b4db126eb4"
+      },
+      {
+        "node": 3,
+        "status": "READY",
+        "queryable": true,
+        "rawHash": "4a3f8d5c8bbf57d82bec890bdca8574d00fabbea4310263af75727b4db126eb4"
+      }
+    ],
+    "legacyVectorDigest": "40e3097628f745009173f03813ce3acb45d8de34a4d3f26e59df8833750f537d",
+    "baselineBefore": [
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 134.12
+      },
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 81.29
+      },
+      {
+        "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 65.78
+      }
+    ],
+    "baselineAfter": [
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0117",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 129.14
+      },
+      {
+        "chunkId": "6a6da68e56dd124511ec51b4_chunk_0001",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 60.56
+      },
+      {
+        "chunkId": "6a6da69256dd124511ec51d5_chunk_0070",
+        "rank": 1,
+        "count": 20,
+        "elapsedMs": 63.24
+      }
+    ]
+  },
+  "boundaries": {
+    "formal43QuestionEvaluation": false,
+    "fullCorpusMediaBuild": false,
+    "productionWebsiteE2e": false,
+    "newIndexCount": 0,
+    "newCollectionCount": 0,
+    "paidModelCallsThisAtlasRun": 0,
+    "note": "Positive three-path retrieval and safe recovery are observed; they do not imply full release acceptance or production activation."
+  }
+}

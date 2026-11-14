@@ -2,6 +2,7 @@
 
 export const YOUTUBE_NEEDS_REVIEW_SOURCE = 'youtube_upload_needs_review';
 export const YOUTUBE_RESOLVED_SOURCE = 'youtube_upload_resolved';
+export const RECUT_TASK_FINISHED_SOURCE = 'recut_task_finished';
 
 export function canOpenNotificationVideo(notification = {}) {
   return Boolean(notification.videoId) && notification.videoAvailable !== false;
@@ -12,8 +13,9 @@ export function resolveNotificationTarget(notification = {}, role = '') {
   if (notification.source === YOUTUBE_NEEDS_REVIEW_SOURCE) {
     return role === 'admin' ? { sub: 'youtubeLifecycle', section: 'quarantine' } : null;
   }
+  // 短片的通知（recut 完成／失敗、成品退回）都打開短影片製作的那一支；兩種產片方式都在那裡（UX-24）。
   if (notification.scriptId) {
-    return { sub: 'shortScripts', scriptId: notification.scriptId, courseId: notification.courseIds?.[0] || '' };
+    return { sub: 'shortStudio', scriptId: notification.scriptId, courseId: notification.courseIds?.[0] || '' };
   }
   // 管理員處理完成後通知教師：影片回課程頁；短片有 scriptId 時已在上面導到腳本頁。
   if (notification.source === YOUTUBE_RESOLVED_SOURCE) {
@@ -29,6 +31,7 @@ export function notificationTargetLabel(target) {
   if (!target) return '';
   if (target.sub === 'youtubeLifecycle') return '前往待處理 →';
   if (target.sub === 'shortScripts') return '前往腳本 →';
+  if (target.sub === 'shortStudio') return '前往短片 →';
   return '前往課程 →';
 }
 

@@ -1034,7 +1034,8 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
   gap: 11px;
   padding: 11px 13px;
   border-radius: 14px;
-  color: rgba(255, 255, 255, 0.45);
+  /* 55% 白：在側欄底色上 6.25:1（原本 45% 只有 4.48:1，不到 4.5:1） */
+  color: rgba(255, 255, 255, 0.55);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
@@ -1078,7 +1079,7 @@ select.ff-input option:checked, select.ff-input option:hover { background-color:
 .nav-item .ni {
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.55);
   flex-shrink: 0;
   transition: color 0.15s;
 }
@@ -1144,6 +1145,9 @@ a.nav-item { text-decoration: none; }
   overflow: hidden;
 }
 
+.skip-link { position: fixed; z-index: 2000; top: 12px; left: 12px; padding: 10px 16px; border-radius: 10px; background: #331529; color: #fff; font-weight: 700; text-decoration: none; translate: 0 -200%; }
+.skip-link:focus-visible { translate: 0 0; outline: 2px solid #fb9476; outline-offset: 2px; }
+.dashboard-content:focus { outline: none; }
 .dashboard-content {
   flex: 1;
   overflow: hidden;
@@ -1160,6 +1164,9 @@ a.nav-item { text-decoration: none; }
 .btn-ghost:hover { border-color: rgba(255,255,255,0.45); color: #fff; }
 .btn-icon { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.55); transition: all .2s; }
 .btn-icon:hover { background: rgba(255,255,255,0.1); color: #fff; }
+/* 頂欄的鈴鐺與頭像是 <button>：清掉瀏覽器預設樣式，鍵盤焦點用與側欄相同的橘框。 */
+button.btn-icon { padding: 0; font: inherit; }
+.btn-icon:focus-visible, .topbar-avatar:focus-visible { outline: 2px solid #fb9476; outline-offset: 2px; }
 
 .stat-card { background: rgba(38,12,30,0.88); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 22px; }
 .stat-val { font-size: 34px; font-weight: 900; color: #F14F21; font-family: 'Space Grotesk',sans-serif; line-height: 1; letter-spacing: -.02em; }
@@ -1432,6 +1439,9 @@ a.nav-item { text-decoration: none; }
 /* Topbar light dropdown panels (notifications / user menu) */
 .dd-item { padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #27272a; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background .15s; font-family: 'Noto Sans TC', sans-serif; }
 .dd-item:hover { background: rgba(0,0,0,0.05); }
+button.dd-item { width: 100%; border: none; background: none; text-align: left; }
+/* 下拉選單是白底，焦點框用深橘（對白底 4.6:1）。 */
+.dd-item:focus-visible { outline: 2px solid #D83A0E; outline-offset: -2px; }
 .dd-item .ni { color: rgba(0,0,0,0.4); display: flex; align-items: center; }
 .dd-row:hover { background: rgba(0,0,0,0.03); }
 
@@ -2379,3 +2389,11 @@ option{
 .auth-session-notice:not(:empty) { position: fixed; z-index: 1800; top: 16px; left: 50%; transform: translateX(-50%); max-width: min(90vw, 640px); padding: 12px 20px; border-radius: 10px; background: #451d2d; color: #fff; box-shadow: 0 8px 30px #0005; }
 
 .login-form-header h1 { margin: 0; }
+
+/* 觸控裝置：頂欄鈴鐺與頭像的點擊範圍至少 44px（滑鼠操作維持 36px 的視覺大小）。 */
+@media (pointer: coarse) {
+  .topbar .btn-icon, .topbar .topbar-avatar { width: 44px !important; height: 44px !important; }
+}
+
+/* 頁面程式下載中（各頁面用到時才載入） */
+.page-loading { padding: 24px 28px; color: rgba(255, 255, 255, 0.55); font-size: 14px; }

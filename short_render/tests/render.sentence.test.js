@@ -89,7 +89,7 @@ test('staging/render use fake externals, fixed gain once, and fence modified med
   assert.equal(frames.length, 1); assert.equal(commands.length, 3);
   // cut (unity) -> stage render narration with the fixed gain -> final mux copies audio.
   assert.equal(commands.flat().filter((arg) => /^volume=/.test(arg)).length, 1, 'gain applied exactly once');
-  assert.ok(commands[1].includes('volume=4dB')); assert.equal(commands[1].at(-1), path.join(stageDir, 'narration-render.wav'));
+  assert.ok(commands[1].some((arg) => arg.startsWith('volume=4dB,'))); assert.equal(commands[1].at(-1), path.join(stageDir, 'narration-render.wav'));
   assert.ok(commands[2].includes('-c:a') && commands[2][commands[2].indexOf('-c:a') + 1] === 'copy');
   assert.doesNotMatch(commands.flat().join(' '), /loudnorm|crop|atempo/);
   assert.match(fs.readFileSync(path.join(stageDir, 'index.html'), 'utf8'), /src="narration-render.wav"/);
@@ -184,4 +184,34 @@ test('code error text clears 4.5 contrast against every theme surface', () => {
       assert.ok((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5, name);
     }
   }
+});
+
+test('單聲道原片轉成每聲道 0.7071 倍的雙聲道，總響度不變；一律加 -3 dBFS 峰值限制', () => {
+  const { renderAudioFilter } = require('../src/render/render');
+  const mono = renderAudioFilter(2.5, 1);
+  assert.ok(mono.startsWith('volume=2.5dB,'));
+  assert.match(mono, /pan=stereo\|c0=0\.70711\*c0\|c1=0\.70711\*c0/);
+  assert.match(mono, /alimiter=limit=0\.70795:.*level=false/);
+  const stereo = renderAudioFilter(-1, 2);
+  assert.doesNotMatch(stereo, /pan=/);
+  assert.match(stereo, /alimiter=limit=0\.70795/);
+  assert.equal((stereo.match(/volume=/g) || []).length, 1);
+});
+
+test('從 WAV 檔頭讀聲道數，讀不到時回 null', () => {
+  const { wavChannels } = require('../src/render/render');
+  const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wavch-'));
+  const header = (channels) => {
+    const b = Buffer.alloc(44); b.write('RIFF', 0, 'ascii'); b.writeUInt32LE(36, 4); b.write('WAVE', 8, 'ascii');
+    b.write('fmt ', 12, 'ascii'); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(channels, 22);
+    b.writeUInt32LE(48000, 24); b.write('data', 36, 'ascii'); return b;
+  };
+  fs.writeFileSync(path.join(dir, 'mono.wav'), header(1)); fs.writeFileSync(path.join(dir, 'stereo.wav'), header(2));
+  fs.writeFileSync(path.join(dir, 'bad.wav'), 'not a wav');
+  assert.equal(wavChannels(path.join(dir, 'mono.wav')), 1);
+  assert.equal(wavChannels(path.join(dir, 'stereo.wav')), 2);
+  assert.equal(wavChannels(path.join(dir, 'bad.wav')), null);
+  assert.equal(wavChannels(path.join(dir, 'missing.wav')), null);
+  fs.rmSync(dir, { recursive: true, force: true });
 });

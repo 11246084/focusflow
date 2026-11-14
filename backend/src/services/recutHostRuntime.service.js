@@ -62,6 +62,9 @@ async function createRecutHostRuntime({ enabled = false, runtimeConfigPath, data
     const workspaceRoot = await existing(config.workspaceRoot, true);
     const tools = {};
     for (const key of ['ffmpeg', 'ffprobe', 'python', 'transcriber']) tools[key] = await existing(config.media[key]);
+    // Python 虛擬環境的直譯器是指向系統 Python 的 symlink（Linux 預設）；用 realpath 執行會脫離虛擬環境、
+    // 找不到 faster_whisper（2026-11-14 實測）。仍要求實際目標存在且是檔案，但以設定的路徑執行。
+    tools.python = config.media.python;
     tools.asrModel = await existing(config.media.asrModel, true);
     // Keep the existing S1 settings adapter and queue snapshot as the authority.
     // The JSON allowlist is an additional deployment guard, never a model override.

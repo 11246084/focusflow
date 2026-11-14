@@ -70,6 +70,44 @@ describe('recut 最小 API', () => {
     const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: { callLimit: 100, type: 'apply_selection' } });
     assert.equal(response.status, 400); assert.equal(store.recutTasks.length, 0);
   });
+  it('同一門課已有 5 支在產生講稿時，第 6 支回 409 且不建立工作', async () => {
+    const token = await teacherToken();
+    for (let i = 0; i < 5; i += 1) seedScript({ topicKey: `busy-${i}`, recut: { state: i % 2 ? 'generating' : 'queued', revision: 1 } });
+    const script = seedScript({ topicKey: 'sixth' }); await installSteps(script);
+    const before = store.recutTasks.length;
+    const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
+    assert.equal(response.status, 409); assert.equal(response.body.error.code, 'RECUT_BATCH_LIMIT_EXCEEDED');
+    assert.equal(store.recutTasks.length, before);
+  });
+  it('套用修改中、其他課程或已完成的短片不計入 5 支上限', async () => {
+    const token = await teacherToken();
+    for (let i = 0; i < 4; i += 1) seedScript({ topicKey: `busy-${i}`, recut: { state: 'generating', revision: 1 } });
+    seedScript({ topicKey: 'editing', recut: { state: 'updating', revision: 1 } });
+    seedScript({ topicKey: 'other-course', courseId: newObjectId(), recut: { state: 'generating', revision: 1 } });
+    seedScript({ topicKey: 'done', recut: { state: 'script_review', revision: 1 } });
+    const script = seedScript({ topicKey: 'fifth' }); await installSteps(script);
+    const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
+    assert.equal(response.status, 202);
+  });
+  it('目前狀態帶出渲染失敗的錯誤代碼，不帶原始訊息', async () => {
+    const script = seedScript(); const token = await teacherToken();
+    const versionId = newObjectId();
+    script.productionMode = 'recut';
+    script.recut = { ...(script.recut || {}), state: 'render_failed', revision: 4, currentVersionId: versionId };
+    store.recutRenderJobs.push({ _id: newObjectId(), scriptId: script._id, courseId: script.courseId, versionId, status: 'failed',
+      planHash: 'h', attemptCount: 1, queuedAt: new Date(), finishedAt: new Date(),
+      error: { code: 'RECUT_TEXT_OVERFLOW', message: 'card scene-3 overflow at 0.6x' } });
+    const state = await jsonRequest(baseUrl, pathFor(script, '/recut'), { token });
+    assert.equal(state.status, 200);
+    assert.equal(state.body.data.render.status, 'failed');
+    assert.equal(state.body.data.render.errorCode, 'RECUT_TEXT_OVERFLOW');
+    assert.equal(JSON.stringify(state.body.data.render).includes('overflow at'), false);
+  });
+  it('尚未排入渲染時 render 為 null', async () => {
+    const script = seedScript(); const token = await teacherToken();
+    const state = await jsonRequest(baseUrl, pathFor(script, '/recut'), { token });
+    assert.equal(state.body.data.render, null);
+  });
   it('無效 ID 回 400，不存在或不屬於本腳本的任務回 404', async () => {
     const script = seedScript(); const other = seedScript(); await installSteps(other); const token = await teacherToken();
     const started = await jsonRequest(baseUrl, pathFor(other, '/recut/generate'), { method: 'POST', token, body: {} });

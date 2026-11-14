@@ -24,7 +24,9 @@ const RECUT_THEMES = Object.freeze(['N2', 'N1', 'C', 'B', 'G']);
 const RECUT_APPROVAL_TYPES = Object.freeze(['script', 'asset']);
 const RECUT_TIMING_PHASES = Object.freeze(['script_review', 'asset_review', 'production_wait']);
 const RECUT_ATTEMPT_STATUSES = Object.freeze(['running', 'succeeded', 'failed', 'discarded']);
+// 同一門課同時排隊或產生講稿中的 recut 短片上限（教師一批最多 5 支，UX-21）。
+const RECUT_GENERATION_BATCH_LIMIT = 5;
 const RECUT_ACTIVE_TASK_STATUSES = Object.freeze(['queued', 'running', 'cancel_requested']);
 module.exports = { RECUT_STAGES, PRODUCTION_MODES, RECUT_STATES, RECUT_TASK_TYPES, RECUT_TASK_STATUSES,
   RECUT_REASON_LABELS, RECUT_EDIT_REASONS, RECUT_THEMES, RECUT_APPROVAL_TYPES, RECUT_TIMING_PHASES,
-  RECUT_ATTEMPT_STATUSES, RECUT_ACTIVE_TASK_STATUSES };
+  RECUT_ATTEMPT_STATUSES, RECUT_ACTIVE_TASK_STATUSES, RECUT_GENERATION_BATCH_LIMIT };

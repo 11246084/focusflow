@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "remaining_corpus_preparation_v1",
+  "checkedAt": "2026-11-12T10:50:00.079692+00:00",
+  "evidenceType": "real_sources_and_fake_provider_readonly_atlas",
+  "semanticQualityVerified": false,
+  "sourceDocumentsMatched": 694,
+  "completedV1Protected": true,
+  "videos": [
+    {
+      "video": "V2",
+      "chunks": 123,
+      "eligibleMediaChunks": 123,
+      "skippedMediaChunks": 0,
+      "inputCount": 369,
+      "nativeReusable": 0,
+      "newModelInputs": 369,
+      "estimatedFirstAttemptReserveUsd": 1.9067732,
+      "fakeFirstCalls": 369,
+      "fakeResumeCalls": 0,
+      "manifestSha256": "8a965ede894b713e51658f59538f3f03d5ee9b2deb744adb82965d51b83325ed"
+    },
+    {
+      "video": "V3",
+      "chunks": 83,
+      "eligibleMediaChunks": 82,
+      "skippedMediaChunks": 1,
+      "inputCount": 247,
+      "nativeReusable": 0,
+      "newModelInputs": 247,
+      "estimatedFirstAttemptReserveUsd": 1.2588872,
+      "fakeFirstCalls": 247,
+      "fakeResumeCalls": 0,
+      "manifestSha256": "80a0acff74ee5a12349617f77457a67c3ba2f946410b1c7b277cfaed537cd821"
+    },
+    {
+      "video": "V4",
+      "chunks": 144,
+      "eligibleMediaChunks": 144,
+      "skippedMediaChunks": 0,
+      "inputCount": 432,
+      "nativeReusable": 3,
+      "newModelInputs": 429,
+      "estimatedFirstAttemptReserveUsd": 1.9732912,
+      "fakeFirstCalls": 432,
+      "fakeResumeCalls": 0,
+      "manifestSha256": "ead83ce2621bda610c890d5cfe9bd4fac53173711018e0ac6bf4856e0e56e9f6"
+    },
+    {
+      "video": "V5",
+      "chunks": 88,
+      "eligibleMediaChunks": 87,
+      "skippedMediaChunks": 1,
+      "inputCount": 262,
+      "nativeReusable": 0,
+      "newModelInputs": 262,
+      "estimatedFirstAttemptReserveUsd": 1.2746792,
+      "fakeFirstCalls": 262,
+      "fakeResumeCalls": 0,
+      "manifestSha256": "12c7864cd102bf87011020b63950b1c445ac99d789576dc3a135048ddecb53c3"
+    },
+    {
+      "video": "V6",
+      "chunks": 139,
+      "eligibleMediaChunks": 139,
+      "skippedMediaChunks": 0,
+      "inputCount": 417,
+      "nativeReusable": 0,
+      "newModelInputs": 417,
+      "estimatedFirstAttemptReserveUsd": 2.2483876,
+      "fakeFirstCalls": 417,
+      "fakeResumeCalls": 0,
+      "manifestSha256": "47028861def1af3218db9442fc09a86636aea2f4731439b861bc7095bca58608"
+    }
+  ],
+  "totals": {
+    "chunks": 577,
+    "mediaFiles": 1150,
+    "inputs": 1727,
+    "nativeReused": 3,
+    "newInputs": 1724,
+    "newReserveUsd": 8.662018400000017,
+    "currentLedgerUsd": 1.8856852,
+    "realLedgerUnchanged": true,
+    "paidCalls": 0
+  },
+  "tests": {
+    "backendTotal": 1951,
+    "backendPass": 1950,
+    "backendFail": 0,
+    "backendSkip": 1,
+    "affectedPythonPass": 41
+  },
+  "indexes": {
+    "count": 3,
+    "leafVersion": 4,
+    "allReadyQueryable": true,
+    "neededDefinitionUpdates": 0
+  },
+  "evaluation": {
+    "status": "PROVISIONAL_42_VALIDATED",
+    "scoringCount": 42,
+    "pendingQuestionIds": [
+      "X01"
+    ],
+    "refusalCount": 7,
+    "groups": [
+      "text",
+      "audio",
+      "visual",
+      "text_audio",
+      "text_visual",
+      "all"
+    ],
+    "weights": [
+      "equal",
+      "text_weighted"
+    ],
+    "primaryCells": [
+      {
+        "mode": "flat",
+        "group": "text"
+      },
+      {
+        "mode": "flat",
+        "group": "all"
+      },
+      {
+        "mode": "hierarchical",
+        "group": "text"
+      },
+      {
+        "mode": "hierarchical",
+        "group": "all"
+      }
+    ],
+    "protocolHash": "0972fdcd0e1dbe8d7a48cfebd8fe262975be720bf7ee2247c53956aacec84ab0",
+    "formalEvaluationExecuted": false
+  },
+  "qaPlans": [
+    {
+      "video": "V2",
+      "questionId": "F06",
+      "chunkId": "6a6da69056dd124511ec51bf_chunk_0037",
+      "queryReserveUsd": 0.0016384000000000001
+    },
+    {
+      "video": "V3",
+      "questionId": "F08",
+      "chunkId": "6a6da69156dd124511ec51ca_chunk_0012",
+      "queryReserveUsd": 0.0016384000000000001
+    },
+    {
+      "video": "V4",
+      "questionId": "F15",
+      "chunkId": "6a6da69256dd124511ec51d5_chunk_0067",
+      "queryReserveUsd": 0.0016384000000000001
+    },
+    {
+      "video": "V5",
+      "questionId": "F12",
+      "chunkId": "6a6da69356dd124511ec51e0_chunk_0078",
+      "queryReserveUsd": 0.0016384000000000001
+    },
+    {
+      "video": "V6",
+      "questionId": "F11",
+      "chunkId": "6a6da69556dd124511ec51eb_chunk_0101",
+      "queryReserveUsd": 0.0016384000000000001
+    }
+  ],
+  "externalWrites": 0,
+  "indexUpdates": 0,
+  "remainingPaidCalls": 0,
+  "limitations": [
+    "current tier/control-plane Search capacity not reverified; UI access timed out",
+    "no new real query or Parent embeddings; no full corpus evaluation",
+    "three attempts for every input exceed20; shared runtime ceiling stops calls"
+  ]
+}

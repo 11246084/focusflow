@@ -413,7 +413,10 @@ async function notifyShortAssetRejected({ asset, script, reasons = [] }) {
       source: NOTIFICATION_SOURCES.SHORT_ASSET_REJECTED,
       title: truncate(`短影片未通過審核：${assetTitle}`, 120),
       content: truncate(
-        `不通過理由：${reasonText || '未提供'}。點擊前往腳本頁重新生成。`,
+        // 原片剪輯與數位分身退回後的下一步不同，通知要和打開後的畫面一致。
+        `不通過理由：${reasonText || '未提供'}。${asset.recutVersionId
+          ? '打開這支短片，依原因修改講稿或重新製作。'
+          : '打開這支短片，改好影片後重新傳回。'}`,
         2000,
       ),
       urgent: false,

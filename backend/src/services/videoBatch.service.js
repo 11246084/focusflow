@@ -91,6 +91,7 @@ async function buildBatchPresentation(batch) {
       videoId: video ? String(video._id) : null,
       uploadStatus: item.uploadStatus,
       processingStatus,
+      ...(video?.processing?.multimodal && { multimodal: video.processing.multimodal }),
       status: failed ? VIDEO_BATCH_STATUSES.FAILED
         : processingStatus === VIDEO_PROCESSING_STATUSES.COMPLETED
           ? VIDEO_BATCH_STATUSES.COMPLETED

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -1026,6 +1027,16 @@ def main() -> int:
         return 1
 
     # 打印成功消息和輸出路徑
+    mode = os.getenv("UPLOAD_MULTIMODAL_MODE")
+    if mode in ("fake-sdk", "gemini") and len(pipeline_videos) == 1 and (config.target_video_id or args.resume_run_id):
+        try:
+            from upload_multimodal import process_registered_upload, LEDGER
+            root = Path(os.getenv("UPLOAD_MULTIMODAL_STORAGE") or config.data_dir / "multimodal-acceptance")
+            ledger = Path(os.getenv("UPLOAD_MULTIMODAL_LEDGER") or LEDGER)
+            process_registered_upload(config, pipeline_videos[0], pipeline_data["chunks"], mode, root, ledger)
+        except Exception as exc:
+            logger.error("Multimodal acceptance stage stopped (%s)", type(exc).__name__)
+
     print("FocusFlow AI pipeline completed successfully.")
     for name, path in output_paths.items():
         print(f"{name}: {path}")

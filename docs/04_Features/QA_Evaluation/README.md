@@ -7,6 +7,16 @@
 題庫課程：**AI入門基礎課**（`courseId 6a6da68456dd124511ec5196`），6 支影片、約 3.4 小時、694 個逐字稿片段。
 所有題目與 Gold 要點皆取自實際逐字稿，非虛構。
 
+## 多模態檢索口徑與標註核定
+
+2026-11-12 Q3已定：X01的V5候選由庭語提出、Weihao核准前先以其餘42題計分，X01保留原題／Gold／排名而metrics為null；7題拒答不變。使用`--pending-x01`及新protocolHash，不能把42分母的成績稱為43題完整驗收。下文43是完整核定後的原口徑。原Gold不改、核准後才重產43題protocol／config，詳見[暫定42題操作](../Multimodal_Retrieval/offline-acceptance.md)。
+
+回答品質的 50 題人工六面向評分，與多模態「只比檢索」的 43 題指標分開記錄。依多模態 decisions 的基線表、第 6／7／8 項及 MA，固定 43 題為 question-bank.json 中 shouldRefuse=false 的題號清單；7 題 shouldRefuse=true 不納入 Recall／MRR 分母，只另記第一名分數，不以此代替人工拒答品質評分。
+
+明確題號、bank／gold 版本與矩陣保存在 [retrieval-protocol.json](datasets/retrieval-protocol.json)，可審核缺漏保存在 [annotation-issues.json](datasets/annotation-issues.json)。X01 的評分表 F25／G25、最初題庫提交與歷史兩輪結果皆宣告 V2+V3+V5，但只有 V2、V3 時間，尚無可靠 V5 人工時間來源。人工 Gold 原文保留。
+
+核定流程為題庫維護者／教師提供影片時間或確認誤列影片的證據，記錄核定人與明確同意，再審閱 before／after patch；同批更新題庫、issue report、protocol 與 hash，重新產生 config 並獨立重算。沒有可靠來源時 approvedCorrection 保持 null，不產生猜測補丁，也不沿用舊 hash 的成績。執行方式見[多模態離線驗收](../Multimodal_Retrieval/offline-acceptance.md)，完成狀態見[目前狀態](../../current-status.md)。
+
 ## 檔案
 
 | 檔案 | 用途 |

@@ -27,3 +27,7 @@
 - [代理使用者測試腳本](2026-10-21_recut-teacher-ux/proxy-user-test.md)：六個任務（讀稿、修改查核、取消、部分採納建議、兩階段審核、成品試聽）、記錄表與繁體中文 SUS 問卷，對應第 57 項②；待可操作版本完成後執行。
 - [HTML 原始檔](2026-10-21_recut-teacher-ux/preview-mockup.html)與[PNG 截圖工具](2026-10-21_recut-teacher-ux/render-mockups.cjs)：離線開啟／重製方式見檢查表，不啟動服務或呼叫模型。
 - [設計方案與自評](2026-10-21_recut-teacher-ux/design-review.md)：2026-10-23 第五輪依現有教師頁重做，第六輪依瀏覽器回饋精簡資訊，再依 frontend-design／design-critique 檢查風格與可用性；提案與已定產品規則分開記錄。
+
+## 程式審查（2026-11-11）
+
+- [短影片程式審查](2026-11-11_code-review.md)：腳本與成品、recut 後端、`short_render` 與前端短影片頁面的唯讀審查，列出發現、建議修法與審查通過的重點；沒有修改程式。

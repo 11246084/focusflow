@@ -222,8 +222,11 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
     if (!notifOpen && !menuOpen) return undefined;
     function handleKeyDown(event) {
       if (event.key !== 'Escape') return;
+      // 關閉後把焦點還給打開它的按鈕，鍵盤使用者不會掉回頁首。
+      const trigger = menuOpen ? avatarRef.current : bellRef.current;
       setNotifOpen(false);
       setMenuOpen(false);
+      trigger?.focus();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -303,7 +306,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
     if (!target) return;
     if (target.scriptId) {
       // Rejection notices jump straight to the script so the teacher can regenerate it.
-      requestOpenScript({ scriptId: target.scriptId, courseId: target.courseId });
+      requestOpenScript({ scriptId: target.scriptId, courseId: target.courseId, page: target.sub });
     }
     if (target.section === 'quarantine') requestOpenQuarantine();
     // 影片完成通知帶到課程頁，學生與教師的課程頁代號都是 courses。
@@ -372,26 +375,32 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
   }
 
   return (
-    <div className="topbar">
+    <header className="topbar">
       <div>
         <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '.02em' }}>{title}</div>
         {sub && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>{sub}</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {actions}
-        <div ref={bellRef} className="btn-icon" style={{ position: 'relative' }} onClick={toggleNotif}>
+        <button type="button" ref={bellRef} className="btn-icon" style={{ position: 'relative' }} onClick={toggleNotif}
+          aria-label={unreadCount > 0 ? `通知，${unreadCount} 則未讀` : '通知'} aria-expanded={notifOpen} aria-haspopup="dialog">
           <Ic n="bell" s={15} />
           {unreadCount > 0 && (
-            <div style={{ position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, padding: '0 3px', borderRadius: 8, background: '#F14F21', border: '1.5px solid #381230', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff', fontFamily: "'Space Grotesk',sans-serif" }}>
+            <div aria-hidden="true" style={{ position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, padding: '0 3px', borderRadius: 8, background: '#F14F21', border: '1.5px solid #381230', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff', fontFamily: "'Space Grotesk',sans-serif" }}>
               {unreadCount > 9 ? '9+' : unreadCount}
             </div>
           )}
-        </div>
+        </button>
 
-        <div
+        <button
+          type="button"
           ref={avatarRef}
+          className="topbar-avatar"
           onClick={toggleMenu}
-          style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg,#F14F21,#a01a50)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif" }}
+          aria-label={`${displayName} 的帳號選單`}
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          style={{ border: 'none', padding: 0, width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg,#F14F21,#a01a50)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif" }}
         >
           {avatarUrl ? (
             <img
@@ -403,7 +412,7 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
           ) : (
             displayName.charAt(0)
           )}
-        </div>
+        </button>
       </div>
 
       {notifOpen && (
@@ -535,23 +544,25 @@ export default function Topbar({ user: userProp, title, sub, actions, onNav, onL
             {roleLabel && <div style={{ fontSize: 10.5, color: '#F14F21', marginTop: 4, fontWeight: 700 }}>{roleLabel}</div>}
           </div>
           <div style={{ padding: 6 }}>
-            <div
+            <button
+              type="button"
               className="dd-item"
               onClick={() => { setMenuOpen(false); onNav && onNav('profile'); }}
             >
-              <span className="ni"><Ic n="users" s={15} /></span>
+              <span className="ni" aria-hidden="true"><Ic n="users" s={15} /></span>
               個人資料
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               className="dd-item"
               onClick={() => { setMenuOpen(false); onLogout && onLogout(); }}
             >
-              <span className="ni"><Ic n="out" s={15} /></span>
+              <span className="ni" aria-hidden="true"><Ic n="out" s={15} /></span>
               登出
-            </div>
+            </button>
           </div>
         </DropdownPanel>
       )}
-    </div>
+    </header>
   );
 }

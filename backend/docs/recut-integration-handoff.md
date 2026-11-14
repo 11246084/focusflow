@@ -60,7 +60,7 @@
 
 首次產生 recut 先讀該課程同意並顯示目前教師的 `voiceMode`；缺少時明確詢問 `original` 或 `synthetic`，再用同意 POST 的 `kind: voice`、選擇、`termsVersion`、穩定 `requestId` 記錄。這是教師全域偏好，其他課程也會顯示；每次生成前都要可見並可改選或撤回，內容同意仍按課程／來源區分。`syntheticReady` 為假時仍可保存選擇，但產片會 503；RC12 未開放時不可暗中改用原音。等待儲存時停用重送；成功後更新偏好，失敗保留選擇。
 
-`PATCH /api/v1/short-scripts/:scriptId/production-mode`（`setShortScriptProductionMode`）帶 `productionMode: recut`；成功後 `POST /api/v1/short-scripts/:scriptId/recut/generate`（`startRecutGeneration`）不帶欄位或傳空物件。202 回 `data.id`，以 `GET /api/v1/short-scripts/:scriptId/recut/tasks/:taskId`（`getRecutTask`）查進度，並以 `GET /api/v1/short-scripts/:scriptId/recut`（`getRecutState`）讀目前狀態。不可在前端指定模型、額度、路徑或工作類型。
+`PATCH /api/v1/short-scripts/:scriptId/production-mode`（`setShortScriptProductionMode`）帶 `productionMode: recut`；成功後 `POST /api/v1/short-scripts/:scriptId/recut/generate`（`startRecutGeneration`）不帶欄位或傳空物件。同一門課已有 5 支在排隊或產生講稿時回 `409 RECUT_BATCH_LIMIT_EXCEEDED`，請教師等目前的完成後再開始。202 回 `data.id`，以 `GET /api/v1/short-scripts/:scriptId/recut/tasks/:taskId`（`getRecutTask`）查進度，並以 `GET /api/v1/short-scripts/:scriptId/recut`（`getRecutState`）讀目前狀態。不可在前端指定模型、額度、路徑或工作類型。
 
 提供 `POST /api/v1/short-scripts/:scriptId/recut/tasks/:taskId/cancel`（`cancelRecutTask`，空 body）作取消要求，顯示「正在取消」直到查到終態；取消或失敗恢復原快照、已用額度不退。成功後進完整稿；失敗顯示原因與依狀態重試，503 缺少步驟／轉接或合成語音未就緒時不要自動連續重試。`RECUT_SOURCE_UPDATED` 需重新取得來源，不可把舊逐字稿當新來源。
 
@@ -79,7 +79,7 @@
 
 起點是目前版本可回答、沒有待套用草稿或執行中工作。教師看完整稿後，`POST /api/v1/short-scripts/:scriptId/recut/approve-script`（`approveRecutScript`）帶 `versionId/expectedRevision`；200 後以新 revision 更新畫面，進 `script_approved`。核准只確認講稿，不代表產片或發布。若 409 重新讀取並重審變動；關閉確認視窗可取消尚未送出的操作。
 
-`POST /api/v1/short-scripts/:scriptId/recut/render`（`queueRecutRender`）帶目前版本及 revision，成功排入 `render_queued`，再由 worker 處理。輪詢 recut state；`render_failed` 顯示失敗與可重新送 render 的動作，避免不停自動重試。沒有契約說明此階段有教師取消端點，不要把離頁說成取消。完成進 `asset_review`，用 `GET /api/v1/shorts/:shortAssetId`（`getReviewShortAsset`）讀成品；老師應觀看當前 MP4，再決定。
+`POST /api/v1/short-scripts/:scriptId/recut/render`（`queueRecutRender`）帶目前版本及 revision，成功排入 `render_queued`，再由 worker 處理。輪詢 recut state；`render_failed` 時讀 state 的 `render.errorCode`（只有代碼，不含 worker 原始訊息）說明原因：`RECUT_TEXT_OVERFLOW` 引導改講稿，`RECUT_RENDER_AUDIO_LOWERED`、`RECUT_RENDER_CHECK_FAILED` 交給管理員，這三種不提供重新送 render；其他代碼可重新送 render，避免不停自動重試。沒有契約說明此階段有教師取消端點，不要把離頁說成取消。完成進 `asset_review`，用 `GET /api/v1/shorts/:shortAssetId`（`getReviewShortAsset`）讀成品；老師應觀看當前 MP4，再決定。
 
 - 核准：`POST /api/v1/short-scripts/:scriptId/recut/approve-asset`（`approveRecutAsset`）帶 `versionId/expectedRevision/assetId/generationVersion`。200 表示精確成品已核准；先取得的 YouTube ready 與此核准都成立，後端才發布。相同目前成品的核准重送可補齊部分提交；仍先查當前狀態。
 - 退回：`POST /api/v1/short-scripts/:scriptId/recut/reject-asset`（`rejectRecutAsset`）帶同樣識別資訊、`scope: presentation|content` 與非空 `reasons`。呈現問題回 `script_approved`，內容問題回 `script_review` 並撤銷講稿核准；成品核准撤銷、舊資產移出目前引用。此操作不是取消對話框能復原；新 MP4 要重新觀看核准。

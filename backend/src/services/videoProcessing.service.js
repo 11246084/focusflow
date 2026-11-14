@@ -121,6 +121,9 @@ async function queueVideoForProcessing(videoId, { allowCompleted = false, observ
   }, {
     $set: {
       ...uploadStateUpdate(expected, { 'youtubeUpload.localSourceVersion': randomWorkId() }),
+      ...(expected.processing?.multimodal && { 'processing.multimodal': {
+        mode: expected.processing.multimodal.mode, status: 'stopped',
+      } }),
       'processing.status': VIDEO_PROCESSING_STATUSES.QUEUED,
       'processing.errorMessage': null,
       'processing.errorCode': null,
@@ -177,6 +180,8 @@ async function completeVideoProcessing(videoId, { durationSec, externalVideoId }
 
   const normalizedDurationSec = normalizeDurationSec(durationSec);
   const $set = {
+    ...(['fake-sdk', 'gemini'].includes(process.env.UPLOAD_MULTIMODAL_MODE) && video.fileHash
+      ? { 'processing.multimodal': { status: 'queued', mode: process.env.UPLOAD_MULTIMODAL_MODE } } : {}),
     'processing.status': VIDEO_PROCESSING_STATUSES.COMPLETED,
     'processing.errorMessage': null,
     'processing.errorCode': null,

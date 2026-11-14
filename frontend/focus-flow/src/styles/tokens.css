@@ -1,0 +1,86 @@
+/*
+ * 新頁面用的設計變數（從 recut 教師介面開始）。數值與用法見 repo 根目錄的 DESIGN.md。
+ * 只定義變數，不改任何既有選擇器，所以既有頁面的外觀不受影響。
+ * 和既有頁面不同的兩處都是為了 WCAG 2.1 AA：實心按鈕用 --ff-deep-ember（白字 4.63:1），
+ * 文字最淡只用 --ff-chalk-muted（55% 白）。
+ */
+:root {
+  /* 顏色 */
+  --ff-ember-orange: #F14F21;
+  --ff-deep-ember: #D83A0E;
+  --ff-deep-ember-pressed: #BF330C;
+  --ff-night-ink: #0A0E27;
+  --ff-plum-night: #260C1E;
+  --ff-sidebar-dusk: rgba(18, 5, 14, 0.92);
+  --ff-chalk-white: #FFFFFF;
+  --ff-chalk-body: rgba(255, 255, 255, 0.8);
+  --ff-chalk-muted: rgba(255, 255, 255, 0.55);
+  /* 白色疊層：底色、框線、hover 用的透明白（不是文字色；文字最淡仍是 Chalk Muted） */
+  --ff-white-04: rgba(255, 255, 255, 0.04);
+  --ff-white-06: rgba(255, 255, 255, 0.06);
+  --ff-white-07: rgba(255, 255, 255, 0.07);
+  --ff-white-08: rgba(255, 255, 255, 0.08);
+  --ff-white-10: rgba(255, 255, 255, 0.1);
+  --ff-white-16: rgba(255, 255, 255, 0.16);
+  --ff-white-24: rgba(255, 255, 255, 0.24);
+  --ff-white-28: rgba(255, 255, 255, 0.28);
+  --ff-white-30: rgba(255, 255, 255, 0.3);
+  --ff-hairline: rgba(255, 255, 255, 0.09);
+  --ff-divider: rgba(255, 255, 255, 0.05);
+  --ff-field-fill: rgba(255, 255, 255, 0.055);
+  --ff-field-stroke: rgba(255, 255, 255, 0.12);
+  --ff-status-ok: #4ADE80;
+  --ff-status-wait: #FACC15;
+  --ff-status-error: #F87171;
+  --ff-status-info: #A5B4FC;
+  --ff-danger-text: #FF8B72;
+
+  /* 字體 */
+  --ff-font-display: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+  --ff-font-body: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', sans-serif;
+  /* 字級角色：標籤 12（中文下限）→ 內文 14 → 閱讀 16 → 區塊標題 17 → 問題標題 26（手機 22）。 */
+  --ff-text-min-cjk: 12px;
+  --ff-text-body: 14px;
+  --ff-text-read: 16px;
+  --ff-text-title: 17px;
+  --ff-text-heading: 26px;
+  --ff-text-heading-compact: 22px;
+  --ff-text-action: 14px;
+
+  /* 圓角 */
+  --ff-radius-sm: 8px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 14px;
+  --ff-radius-xl: 18px;
+  --ff-radius-card: 22px;
+  --ff-radius-pill: 50px;
+
+  /* 間距 */
+  --ff-space-xs: 8px;
+  --ff-space-sm: 12px;
+  --ff-space-md: 18px;
+  --ff-space-lg: 22px;
+  --ff-space-page: 26px;
+
+  /* 互動 */
+  --ff-focus-ring: 2px solid var(--ff-ember-orange);
+  --ff-touch-target: 44px;
+  --ff-glow-primary: 0 8px 24px rgba(241, 79, 33, 0.35);
+
+  /* 高度層級（Elevation）：深色介面用「表面亮度＋陰影」一起表達 Z 軸，靜止的頁面與卡片不加陰影（Flat-At-Rest）。 */
+  --ff-elev-0-shadow: none;                                     /* Level 0：頁面、卡片靜止 */
+  --ff-elev-1-shadow: var(--ff-glow-primary);                   /* Level 1：唯一的主要按鈕滑過 */
+  --ff-elev-2-surface: #2E1226;                                 /* Level 2：下拉、選單、通知面板 */
+  --ff-elev-2-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --ff-elev-3-surface: #331529;                                 /* Level 3：Modal、底部面板 */
+  --ff-elev-3-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --ff-elev-4-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);           /* Level 4：Toast，蓋在 Modal 之上 */
+  /* Level 5 保留給拖曳中的元素，目前沒有使用。 */
+
+  /* 動態：顏色變化用短的平順曲線；空間回饋（按壓、開啟浮層）用彈簧。 */
+  --ff-ease-state: cubic-bezier(0.2, 0, 0, 1);
+  --ff-duration-state: 120ms;
+  /* 彈簧：stiffness 400、damping 28、mass 1（阻尼比 0.70），約 490ms 收斂，輕微回彈一次。 */
+  --ff-spring: linear(0, 0.141 6.2%, 0.413 12.5%, 0.672 18.8%, 0.863 25%, 0.977 31.2%, 1.031 37.5%, 1.046 43.8%, 1.041 50%, 1.029 56.2%, 1.016 62.5%, 1.007 68.8%, 1.002 75%, 0.999 81.2%, 0.998 87.5%, 0.998 93.8%, 1);
+  --ff-spring-duration: 490ms;
+}

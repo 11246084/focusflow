@@ -4,10 +4,12 @@ import {
   LINE_LOGIN_FAILED_CALLBACK,
   LINE_LOGIN_INVALID_CALLBACK,
   LINE_PAGE_PATH,
+  clearLineLoginCourse,
   completeLineLogin,
   describeLineLoginFailure,
   describeLineLoginSuccess,
   readLineCallback,
+  readLineLoginCourse,
   requestLineAuthorizeUrl,
 } from '../utils/lineLogin';
 
@@ -35,7 +37,11 @@ export default function LineCallback() {
 
     let active = true;
     completeLineLogin(callback)
-      .then((data) => { if (active) setResult(describeLineLoginSuccess(data)); })
+      .then((data) => {
+        // 連結完成後課程已處理，之後重新連結不再沿用。
+        clearLineLoginCourse();
+        if (active) setResult(describeLineLoginSuccess(data));
+      })
       .catch((error) => { if (active) setResult(describeLineLoginFailure(error)); });
     return () => { active = false; };
   }, [callback]);
@@ -44,7 +50,7 @@ export default function LineCallback() {
     setRestarting(true);
     setRestartError('');
     try {
-      window.location.assign(await requestLineAuthorizeUrl({ replaceExisting }));
+      window.location.assign(await requestLineAuthorizeUrl({ courseId: readLineLoginCourse(), replaceExisting }));
     } catch (error) {
       setRestartError(error.message || '無法開始連結 LINE，請稍後再試。');
       setRestarting(false);

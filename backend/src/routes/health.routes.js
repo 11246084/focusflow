@@ -7,6 +7,7 @@ const {
   buildMultimodalRuntimeSnapshot,
 } = require('../services/runtimeDiagnostics.service');
 const { buildShortsSyncSnapshot } = require('../services/shortsSync.service');
+const { buildRecutRuntimeSnapshot } = require('../services/recutApplication.service');
 const { buildYouTubeUploadSnapshot } = require('../services/youtubeUpload.service');
 const { buildYouTubeLifecycleSnapshot } = require('../services/youtubeLifecycle.service');
 const { getUploadPauseSnapshot, getUploadGateSnapshot } = require('../services/youtubeUploadGate.service');
@@ -32,6 +33,7 @@ router.get('/', asyncHandler(async (req, res) => {
         line: buildLineRuntimeSnapshot(),
         multimodal: buildMultimodalRuntimeSnapshot(),
         shortsSync: buildShortsSyncSnapshot(),
+        recut: buildRecutRuntimeSnapshot(),
         youtubeUpload: {
           ...buildYouTubeUploadSnapshot(),
           ...youtubeLifecycle, pause, gate,

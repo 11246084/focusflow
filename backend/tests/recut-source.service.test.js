@@ -47,6 +47,14 @@ describe('recut RC2 連續視窗與句子', () => {
     blocked(() => gain({ integratedLufs: -21, truePeakDbtp: -4.5 }), 'RECUT_SOURCE_TOO_QUIET');
     blocked(() => gain({ integratedLufs: -Infinity, truePeakDbtp: -Infinity }), 'RECUT_SOURCE_AUDIO_INVALID');
   });
+  it('數字裡的小數點與千分位逗號不斷句（Whisper 會把 0.01 切成「0.」「01」）', () => {
+    const sentences = splitSentences([word('從0.', 0, 1), word('01', 1, 1.5), word('開始試。', 1.5, 2.5), word('有1,', 2.6, 3), word('000張圖。', 3, 4)], fixedWindow());
+    assert.deepEqual(sentences.map((s) => s.text), ['從0.01開始試。', '有1,000張圖。']);
+  });
+  it('句尾的點或逗號後面不是數字時照常斷句', () => {
+    const sentences = splitSentences([word('版本是3.', 0, 1), word('下一句', 1.1, 2)], fixedWindow());
+    assert.deepEqual(sentences.map((s) => s.text), ['版本是3.', '下一句']);
+  });
   it('依 0.3 秒停頓、標點切句，編號依序且轉成原片絕對秒數', () => {
     const sentences = splitSentences([word('第一', 0, 1), word('句', 1.3, 2), word('。', 2, 2.1), word('第二', 2.1, 3)], fixedWindow());
     assert.deepEqual(sentences.map((s) => s.id), ['s1', 's2', 's3']);

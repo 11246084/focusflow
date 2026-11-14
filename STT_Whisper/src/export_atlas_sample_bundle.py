@@ -54,6 +54,7 @@ def export_bundle(root: Path, output: Path) -> dict:
             raise ValueError("Checkpoint input signature mismatch")
         result.append({"requestId": request["requestId"], "kind": request["kind"], "identity": request["identity"],
             "text": request.get("text") if request["kind"] == "text" else None,
+            "queryText": request.get("text") if request["kind"] == "query" else None,
             "embedding": vector, "vectorDigest": hashlib.sha256(struct.pack("<3072d", *vector)).hexdigest(),
             "metadata": {key: value for key, value in record.items() if key not in ("embedding", "embeddingDigest")}})
     bundle = {"schemaVersion": "atlas_sample_v1", "executionMode": "gemini", "records": result}

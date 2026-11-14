@@ -94,7 +94,7 @@ async function main() {
       deploymentTier: 'unverified: requires Atlas management evidence', writes: 0, apiCalls: 0 };
     if (['dry-run', 'rollback'].includes(v.mode)) {
       const receipt = async results => save(v.output, { ...report, results, executionAuthorizedByFlag: v['execute-write'] });
-      report.results = v.mode === 'rollback' ? await control.rollbackPlan(collection, plans, { execute: v['execute-write'] })
+      report.results = v.mode === 'rollback' ? await control.rollbackPlan(collection, plans, { execute: v['execute-write'], receipt })
         : await control.applyPlan(collection, plans, { execute: v['execute-write'], receipt });
       report.writes = report.results.filter(r => ['verified', 'restored'].includes(r.status)).length;
     }

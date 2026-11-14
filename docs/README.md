@@ -1,5 +1,19 @@
 # FocusFlow 文件總覽
 
+影片一建置前的實查、成本邊界與執行阻塞見 [影片一最終檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)（2026-11-12）。
+
+影片一工具的無付費預演、受控寫入與安全 QA 操作方式見 [影片一批次工具](04_Features/Multimodal_Retrieval/video1-tools.md)。
+
+影片二至六的凍結清單、可執行批次指令與不重建索引的寫入方式見 [後五片建置工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md)。
+
+既有六支影片、題庫與四組公平比較的盤點／規劃見 [真實資料優先測試計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)（2026-11-12）。
+
+給組員的架構、成果層級、真實小樣本證據與下一步，先讀 [多模態團隊進度總覽](04_Features/Multimodal_Retrieval/team-overview.md)（2026-11-11 快照；最新狀態以 current-status 為準）。
+
+多模態授權邊界、Contract-first 測試矩陣與待審修正方案見 [授權契約審查](04_Features/Multimodal_Retrieval/authorization-contract-review.md)。
+
+第九階段離線驗算、Parent fixture 與瀏覽器 smoke 操作見 [多模態離線驗收](04_Features/Multimodal_Retrieval/offline-acceptance.md)。
+
 三筆專用 Collection／Index 的前置查證與授權清單見 [第五階段隔離驗證](04_Features/Multimodal_Retrieval/atlas-isolated.md)。
 
 Atlas 小樣本整合的備份、Dry Run、檢索與回復操作見 [第四階段工具說明與查證](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
@@ -57,7 +71,7 @@ docs/
 | [05 圖庫](05_圖庫/README.md) | 架構、研究架構、Logo、手冊各章圖號與原始碼 |
 | [06 會議紀錄](06_會議紀錄/README.md) | 教授與組內會議原文 |
 | [07 HTML說明頁](07_HTML說明頁/README.md) | 給人看的任務說明頁：[多模態檢索](07_HTML說明頁/多模態檢索.html)、[LINE 綁定](07_HTML說明頁/LINE綁定.html) |
-| [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
+| [10 Operations](10_Operations/README.md) | 開發、維運、[部署排錯](10_Operations/deployment/部署與連線排錯.md)、[短影片上線](10_Operations/deployment/短影片上線步驟.md)、[VM 資安檢查](10_Operations/deployment/2026-10-23_VM資安檢查報告.md)與[資料庫交付](10_Operations/database-delivery.md) |
 | [90 Archive](90_Archive/README.md) | 快照、重整紀錄、被取代方案與歷史原件 |
 | [目前狀態](current-status.md) | 唯一功能狀態正本 |
 | [重要決策](decision-log.md) | 決策原因與影響 |
@@ -89,6 +103,8 @@ YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecyc
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 
+短影片程式審查：[2026-11-11 審查結果](04_Features/Short_Video/evidence/2026-11-11_code-review.md)，列出腳本與成品、recut、渲染與前端頁面的發現與建議修法，沒有修改程式。
+
 YouTube 恢復與清理：[2026-10-26 F0～F2 獨立審查](04_Features/YouTube_Lifecycle/evidence/2026-10-26_f0-f2-review.md)，記錄交錯重現、共享資料庫限制、舊資料相容性與測試辨識力。
 
 YouTube 審查修復：[2026-10-27 FR01～FR06 修復與複驗交接](04_Features/YouTube_Lifecycle/evidence/2026-10-27_fr01-fr06-fixes.md)，記錄修改、跨行程回歸與修正前對照結果。
@@ -98,6 +114,8 @@ YouTube 再複驗修復：[2026-10-27 NR01／NR02 修復交接](04_Features/YouT
 YouTube 收尾複驗：[2026-10-27 F0～F2 最終審查與驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f0-f2-final-review.md)，記錄阻斷問題判定、外部待辦期限修復及最終驗收證據。
 
 根目錄 [README](../README.md) 負責啟動導覽，[PROJECT](../PROJECT.md) 負責產品範圍，[ARCHITECTURE](../ARCHITECTURE.md) 負責穩定架構，[AGENTS](../AGENTS.md) 負責代理工作入口。技術細節仍由 [Backend](../backend/docs/)、[Pipeline](../STT_Whisper/README.md)、[Database](../database/README.md) 維護。進度與狀態只寫在狀態正本；歷史原文與會議紀錄不改內文。
+
+設計基準：[PRODUCT](../PRODUCT.md) 記錄給設計工具與 AI agent 讀的產品事實，[DESIGN](../DESIGN.md) 記錄前端既有的視覺樣式與新頁面要遵守的規則（2026-11-11 依 Impeccable 的 init／extract 流程整理）；新頁面用的 CSS 變數在 `frontend/focus-flow/src/styles/tokens.css`。各工作區的頁面規劃放在 `.impeccable/surfaces/`，目前有教師短影片工作區（製作／管理），對應短影片決策 UX-20～UX-23。
 
 新增或整理文件時，依[文件類型與寫法](../.claude/skills/docs-maintainer/references/doc-types.md)決定放哪裡、怎麼寫。
 

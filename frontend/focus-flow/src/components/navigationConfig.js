@@ -1,7 +1,12 @@
 export const navItems = {
   student: [{ id: 'home', ic: 'home', label: '總覽' }, { id: 'courses', ic: 'book', label: '我的課程' }, { id: 'linebot', ic: 'chat', label: 'LINE 提問' }, { id: 'shorts', ic: 'play', label: '教學短片' }],
-  teacher: [{ id: 'home', ic: 'home', label: '總覽' }, { id: 'courses', ic: 'film', label: '課程管理' }, { id: 'upload', ic: 'up', label: '上傳影片' }, { id: 'shortScripts', ic: 'book', label: '短影片腳本' }, { id: 'shortUploads', ic: 'shortUp', label: '上傳短片' }, { id: 'reviewShorts', ic: 'play', label: '短影片審核' }],
+  teacher: [{ id: 'home', ic: 'home', label: '總覽' }, { id: 'courses', ic: 'film', label: '課程管理' }, { id: 'upload', ic: 'up', label: '上傳影片' }, { id: 'shortStudio', ic: 'edit', label: '短影片製作' }, { id: 'shortManage', ic: 'play', label: '短影片管理' }],
   admin:   [{ id: 'home', ic: 'home', label: '系統總覽' }, { id: 'users', ic: 'users', label: '使用者' }, { id: 'courses', ic: 'book', label: '課程' }, { id: 'videos', ic: 'film', label: '影片' }, { id: 'youtubeLifecycle', ic: 'sync', label: 'YouTube 上傳' }, { id: 'feedback', ic: 'chat', label: '問題回報' }, { id: 'stats', ic: 'bar', label: '使用統計' }],
+};
+
+// 不在側欄、但仍可由網址或頁面內連結進入的頁面：數位分身短片沿用舊頁面，正式試跑後再搬進短影片製作。
+export const hiddenNavItems = {
+  teacher: ['shortScripts', 'shortUploads', 'reviewShorts'],
 };
 
 export const roleLabels = { student: '學生', teacher: '教師', admin: '管理員' };
@@ -11,7 +16,7 @@ export const topbarMap = {
   // The student home fallback is identity-neutral; DashboardApp replaces it
   // with the authenticated display name when available.
   student: { home: ['總覽', '歡迎回來'], courses: ['我的課程', '觀看影片並向 AI 提問'], linebot: ['LINE 提問', '在 LINE 上提問課程內容'], shorts: ['教學短片', '瀏覽 FocusFlow 頻道影片'], profile: ['個人資料', '管理帳號資訊'] },
-  teacher: { home: ['總覽', '管理課程與影片'], courses: ['課程管理', '課程、影片與修課學生'], upload: ['上傳影片', '影片上傳後自動建立 AI 索引'], shortScripts: ['短影片腳本', '依學生提問選題並生成腳本'], shortUploads: ['上傳短片', '依腳本拍好短片後，在這裡上傳送審'], reviewShorts: ['短影片審核', '審核 AI 生成短影片是否通過'], profile: ['個人資料', '管理帳號資訊'] },
+  teacher: { home: ['總覽', '管理課程與影片'], courses: ['課程管理', '課程、影片與修課學生'], upload: ['上傳影片', '影片上傳後自動建立 AI 索引'], shortStudio: ['短影片製作', ''], shortManage: ['短影片管理', ''], shortScripts: ['數位分身短片腳本', '依學生提問選題並生成腳本'], shortUploads: ['上傳短片', '依腳本拍好短片後，在這裡上傳送審'], reviewShorts: ['短影片審核', '審核 AI 生成短影片是否通過'], profile: ['個人資料', '管理帳號資訊'] },
   admin:   { home: ['系統總覽', '監控整體系統運作'], users: ['使用者管理', '學生 / 教師帳號'], courses: ['課程管理', '課程新增 / 編輯 / 刪除'], videos: ['影片管理', '全系統影片管理'], youtubeLifecycle: ['YouTube 上傳管理', '上傳恢復、原片清理與待處理影片'], feedback: ['問題回報', '學生與教師回報的問題與建議'], stats: ['使用統計', '使用紀錄統計'], profile: ['個人資料', '管理帳號資訊'] },
 };
 
@@ -22,6 +27,8 @@ export const pagePaths = {
   linebot: 'line',
   shorts: 'shorts',
   upload: 'upload',
+  shortStudio: 'short-studio',
+  shortManage: 'short-manage',
   shortScripts: 'short-scripts',
   shortUploads: 'short-uploads',
   reviewShorts: 'short-reviews',
@@ -35,5 +42,5 @@ export const pagePaths = {
 
 export function isValidSubPage(role, sub) {
   if (sub === 'profile') return true;
-  return (navItems[role] || []).some((item) => item.id === sub);
+  return (navItems[role] || []).some((item) => item.id === sub) || (hiddenNavItems[role] || []).includes(sub);
 }

@@ -9,6 +9,9 @@ const round = (v) => Math.round(v * 1000) / 1000;
 const norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[。！？、，；「」『』“”‘’\p{Z}\s]/gu, '');
 const text = (v) => typeof v === 'string' && !!v.trim();
 const safeId = (v) => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(v);
+// Element ids the renderer itself writes into the page (render/html.js). A scene must not reuse one:
+// duplicate ids make the timeline selectors (for example "#subtitle0") act on the wrong element.
+const RESERVED_SCENE_ID = /^(?:root|recut|hdr|endcard|end1|end2|narration|sub\d+|subtitle\d+|play-toggle|preview-viewport|preview-seek)$/;
 const MAX_BLANK_CARD_SECONDS = 1.5;
 const planHash = (plan) => crypto.createHash('sha256').update(JSON.stringify(plan)).digest('hex');
 
@@ -49,7 +52,7 @@ function validateSentenceStructure(plan) {
     keys(s, ['id', 'from', 'to', 'clips', 'component', 'params', 'cues', 'basedOn', 'stamp'], path);
     errors.push(...require('./catalog').checkParamFields(s?.component, s?.params, `${path}.params`));
     // Reserve renderer-owned IDs to prevent selector/script injection and collisions.
-    if (!safeId(s?.id) || /^(?:root|hdr|endcard|end1|end2|narration|sub\d+)$/.test(s.id) || sceneIds.has(s.id)) add('SCENE_ID', path, 'unique safe non-reserved scene id required');
+    if (!safeId(s?.id) || RESERVED_SCENE_ID.test(s.id) || sceneIds.has(s.id)) add('SCENE_ID', path, 'unique safe non-reserved scene id required');
     sceneIds.add(s?.id);
     if (typeof s?.id === 'string' && [...sceneIds].some((v) => typeof v === 'string' && v !== s.id && (v.startsWith(`${s.id}-`) || s.id.startsWith(`${v}-`)))) add('SCENE_ID', path, 'scene id overlaps a generated child id namespace');
     if (!safeId(s?.from) || !safeId(s?.to) || !Array.isArray(s?.clips) || !s.clips.length || !s.clips.every((id) => ids.has(id))) add('SCENE_CLIPS', path, 'sentence range and existing clips required');

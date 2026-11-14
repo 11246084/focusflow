@@ -1,4 +1,6 @@
 faster-whisper>=1.1.0
+# faster-whisper 1.2.x 開檔時傳 metadata_errors，PyAV 19 起不接受，語音辨識會直接失敗（2026-11-14 實測 17、18 正常）。
+av>=11,<19
 sentence-transformers>=3.0.1
 python-dotenv>=1.0.1
 imageio-ffmpeg>=0.5.1

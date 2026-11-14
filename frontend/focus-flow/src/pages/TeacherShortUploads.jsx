@@ -25,6 +25,7 @@ import {
 } from '../utils/scriptDeepLink';
 import { pickInitialTab, recallTab, rememberTab } from '../utils/shortScriptTabs';
 import ShortAssetPanel from './ShortAssetPanel';
+import { AUTO_REFRESH_INTERVAL_MS, createLatestGuard, needsAutoRefresh } from './shortScriptRequestUtils';
 import { NextStepCard, StartGuide } from './shortScriptGuide';
 import {
   Disclosure, EmptyRow, ErrorBanner, ScriptRows, ScriptSwitchSheet, StatusPill, StatusTabList, StatusTabPanel,
@@ -73,6 +74,17 @@ export default function TeacherShortUploads({ onNav }) {
   const pendingOpenRef = useRef(initialOpen);
   const openRef = useRef(null);
   const courseIdRef = useRef('');
+  // 非同步回應的「最新請求」檢查：慢的舊回應不能蓋掉新的清單或詳情。
+  const [listGuard] = useState(createLatestGuard);
+  const [detailGuard] = useState(createLatestGuard);
+  // 目前選中（或剛點下、詳情還在載入）的腳本 id；上傳這類很久的動作結束後用它判斷，不讀過期的 state。
+  const selectedIdRef = useRef(null);
+  const refreshRef = useRef(null);
+  // 進行中的清單請求數；自動重新整理遇到仍在途中的請求就跳過這一輪。
+  const pendingRefreshRef = useRef(0);
+
+  // 離開頁面後，仍在途中的回應一律丟棄。
+  useEffect(() => () => { listGuard.next(); detailGuard.next(); }, [listGuard, detailGuard]);
 
   useEffect(() => {
     listCourses()
@@ -107,36 +119,53 @@ export default function TeacherShortUploads({ onNav }) {
     return () => window.removeEventListener(OPEN_SCRIPT_EVENT, onOpenScript);
   }, []);
 
-  const refresh = useCallback(async ({ clearError = true } = {}) => {
+  // silent＝自動重新整理：不顯示「載入中」、不清也不寫錯誤（下一輪或手動重新整理會再試）。
+  // 回傳 null 表示這次回應已過期（有更新的請求或已換課程），呼叫端不要據此開啟腳本。
+  const refresh = useCallback(async ({ clearError = true, silent = false } = {}) => {
+    // 過期閉包（例如換課程前就開始的上傳）傳進來的舊課程不重讀，避免蓋掉目前課程的清單。
+    // 這個檢查要在取代號之前：過期的呼叫不能讓目前課程正在讀的清單被當成過期而丟掉。
+    if (courseIdRef.current !== courseId) return null;
+    const token = listGuard.next();
     if (!courseId) return courseId;
-    setLoading(true);
-    if (clearError) setError('');
+    pendingRefreshRef.current += 1;
+    if (!silent) {
+      setLoading(true);
+      if (clearError) setError('');
+    }
     try {
       const [scriptList, assetList] = await Promise.all([listScripts(courseId), listAssets(courseId)]);
+      if (!listGuard.isCurrent(token)) return null;
       setScripts(scriptList);
       setAssets(assetList);
       setFeatureDisabled(false);
     } catch (requestError) {
-      if (isFeatureDisabledError(requestError)) setFeatureDisabled(true);
-      else setError(describeError(requestError));
+      if (!listGuard.isCurrent(token)) return null;
+      if (!silent) {
+        if (isFeatureDisabledError(requestError)) setFeatureDisabled(true);
+        else setError(describeError(requestError));
+      }
     } finally {
-      setLoading(false);
+      pendingRefreshRef.current -= 1;
+      if (!silent && listGuard.isCurrent(token)) setLoading(false);
     }
     return courseId;
-  }, [courseId]);
+  }, [courseId, listGuard]);
 
   useEffect(() => {
     setSelected(null);
+    selectedIdRef.current = null;
+    detailGuard.next();
     setTab(null);
     setMobileView('list');
     refresh().then((loadedCourseId) => {
+      if (loadedCourseId === null) return;
       const pending = pendingOpenRef.current;
       if (pending && (!pending.courseId || pending.courseId === loadedCourseId)) {
         pendingOpenRef.current = null;
         void openRef.current?.(pending.scriptId);
       }
     });
-  }, [refresh, setMobileView]);
+  }, [refresh, setMobileView, detailGuard]);
 
   const groups = useMemo(() => {
     const grouped = groupUploadScripts(scripts, assets);
@@ -162,11 +191,15 @@ export default function TeacherShortUploads({ onNav }) {
   );
 
   async function loadScript(scriptId) {
+    const token = detailGuard.next();
+    selectedIdRef.current = scriptId;
     setError('');
     try {
-      setSelected(await getScript(scriptId));
+      const script = await getScript(scriptId);
+      // 連點兩份腳本時，先點的詳情較晚回來要丟棄。
+      if (detailGuard.isCurrent(token)) setSelected(script);
     } catch (requestError) {
-      setError(describeError(requestError));
+      if (detailGuard.isCurrent(token)) setError(describeError(requestError));
     }
   }
 
@@ -178,6 +211,8 @@ export default function TeacherShortUploads({ onNav }) {
   // 桌面與平板：關閉詳情，右欄回到「建議下一步」，焦點回到清單裡原本選中的那一列。
   function closeDetail() {
     const previousId = selected?._id;
+    selectedIdRef.current = null;
+    detailGuard.next();
     setSelected(null);
     if (previousId) {
       requestAnimationFrame(() => {
@@ -188,7 +223,40 @@ export default function TeacherShortUploads({ onNav }) {
 
   useEffect(() => {
     openRef.current = openScript;
+    refreshRef.current = refresh;
   });
+
+  // 自動重新整理：頁面掛載、分頁可見、清單裡還有狀態會自己變的項目時，每 15 秒重讀一次清單。
+  // 只換 scripts／assets，不動選取、分頁與表單；隱藏分頁時停掉，回到可見時立刻補讀一次。
+  const shouldAutoRefresh = needsAutoRefresh(groups.waiting);
+  useEffect(() => {
+    if (!shouldAutoRefresh) return undefined;
+    let timer = null;
+    function tick() {
+      if (document.hidden || pendingRefreshRef.current > 0) return;
+      void refreshRef.current?.({ silent: true });
+    }
+    function start() {
+      if (timer === null && !document.hidden) timer = setInterval(tick, AUTO_REFRESH_INTERVAL_MS);
+    }
+    function stop() {
+      if (timer !== null) { clearInterval(timer); timer = null; }
+    }
+    function onVisibilityChange() {
+      if (document.hidden) {
+        stop();
+      } else {
+        start();
+        tick();
+      }
+    }
+    start();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [shouldAutoRefresh]);
 
   // Esc 關閉詳情（桌面與平板）。
   useEffect(() => {
@@ -201,11 +269,17 @@ export default function TeacherShortUploads({ onNav }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, compact]);
 
-  async function reloadAfterChange() {
-    if (selected) {
-      try { setSelected(await getScript(selected._id)); } catch { /* 清單重讀時會顯示錯誤 */ }
+  // 上傳可能跑很久，教師可能已切到別份腳本；onChanged 是過期閉包，所以用 ref 比對「現在」選的是哪份。
+  // 還停在同一份才重讀詳情，否則只更新清單，不把畫面拉回上傳的那份。
+  async function reloadAfterChange(scriptId) {
+    if (scriptId && selectedIdRef.current === scriptId) {
+      const token = detailGuard.next();
+      try {
+        const script = await getScript(scriptId);
+        if (detailGuard.isCurrent(token) && selectedIdRef.current === scriptId) setSelected(script);
+      } catch { /* 清單重讀時會顯示錯誤 */ }
     }
-    await refresh({ clearError: false });
+    await (refreshRef.current || refresh)({ clearError: false });
   }
 
   const goToScripts = (scriptId = null) => {

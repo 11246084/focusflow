@@ -1,8 +1,264 @@
 # FocusFlow 目前狀態
 
+### 2026-11-13 上傳後多模態串接（實作中）
+
+本機以 V2 原片與第一筆原始 Chunk 重跑 FFmpeg／Fake SDK，三路首次 3 次、重跑 0 次。隔離 Backend 回歸 1,956 passed、1 skipped、0 failed；新增 Atlas 模擬驗證涵蓋缺授權、錯誤核准碼、CAS、讀回、冪等與回復。前端 229 項通過，lint、build 及 OpenAPI lint 通過。STT 全套 242 項通過；單獨續跑入口另以模擬資料庫核對來源及世代。以上無新增付費呼叫或共用 Atlas 寫入。
+
+單片入口在文字 Pipeline 完成後可選擇產生三路 Checkpoint。合成影片驗證使用 FFmpeg 與 Fake SDK，首次三筆、相同輸入重跑零次 SDK 呼叫。新影片的 Atlas 工具依課程、原片雜湊、向量版本與當次核准計畫限制寫入。新上傳流程尚無真實 Atlas／QA E2E 證據，正式共享儲存、成本帳本移轉與服務帳號政策尚未驗收。執行與恢復方式見[交接](04_Features/Multimodal_Retrieval/HANDOFF.md)。
+
 這份文件集中記錄各模組的進度，避免不同文件各寫一份。請先看狀態與依據，再由團隊填寫負責人及待決項目；後端技術說明見[技術索引](../backend/docs/current-state.md)。
 
 **狀態定義：**「規劃中」指方案研究；「實作中」指仍在補功能；「已實作」只代表本段範圍的程式接線完成，不代表驗收通過，尚未查證的部分另列「○○未驗證」；「已驗收」需指定環境與驗收證據。各模組的執行與驗證範圍以該段記錄為準；日期為最後查閱或驗證日期，正式驗收日期另列。
+
+## 影片二至五真實 Atlas CAS 寫入完成（2026-11-13 12:49，UTC+8）
+
+**本輪限定438筆Chunk／1310個已保存向量的Atlas寫入已完成；沒有Gemini呼叫、影片六寫入、索引修改、部署或開旗標。** Git fetch／ff-only pull確認dev為`40b552f`（新增僅短影音前端）；保留本機七份未提交交接文件，多模態核心與寫入工具未變。庭語當次確認無其他組員修改共享Atlas，並負責協調監看。
+
+| 影片 | CAS成功Chunk | stable文字／音訊／畫面 | 新增向量讀回 |
+|---|---:|---|---:|
+| V2 | 123/123 | 123／123／123 | 369/369 |
+| V3 | 83/83 | 83／82／82 | 247/247 |
+| V4 | 144/144 | 144／144／144 | 432/432 |
+| V5 | 88/88 | 88／87／87 | 262/262 |
+| 合計 | 438/438 | 438／436／436 | 1310/1310 |
+
+V3 chunk_0034與V5 chunk_0016仍只寫穩定文字，原長段未改、沒有假影音欄位。每片先建立新的694筆範圍備份、六片版本與索引快照並讀回校驗，再建立plan hash；執行前再次自動備份、全目標前像／權限／版本／索引核對，逐筆CAS與讀回，intent／receipt逐筆落盤。共438次更新、全部verified，無already-applied重送、CAS衝突、未知寫入結果或回復。中斷後只接續既有程序，沒有重啟已完成更新。本機操作包裝腳本曾在解析階段出現語法錯誤、尚未連線／寫入即修正並通過node --check；既有CAS核心未改。
+
+**寫後獨立查證：**1310個向量及metadata逐筆符合凍結bundle；694筆原embedding、字稿、原時間戳、courseId/videoId一致，影片一117筆全文件指紋及影片六139筆全文件均未變；集合仍815筆。每片完成後核對整個694範圍與已完成／非目標文件。三個索引各三節點READY／QUERYABLE，定義、ID及版本不變（text version4、parent/video version0）；新增資料的12次三路self-query成功，這是可搜尋性驗證，不是學生題庫QA或模態成效。
+
+**回歸：**6個保存舊embedding自查詢，在四片寫後各次Top20順序與分數都和寫前相同。影片一兩個既有保存Query重跑真實Atlas HTTP QA＋對話，三路與RRF、原引用時間及授權撤銷403通過、無fallback；用量／FAQ／對話等狀態只在Harness記憶體，template答案不作LLM正確性宣稱。未執行影片二至五的學生題庫QA E2E，也未跑正式42題評測；沒有為了驗證修改QA／RRF／Bridge。
+
+**當次容量：**寫前管理頁Free M0、72.48MB／512MB，前後未結案專案告警均0。寫後Driver dbStats dataSize=127,907,244 bytes（比寫前增加56,251,670）、storageSize=129,970,176、一般indexSize=4,349,952。管理頁寫後仍顯示舊72.48MB，未即時反映增量，因此不能用它宣稱寫後仍剩439.52MB。最終694範圍備份及checksum已讀回通過；此備份不是全815筆或全DB災難備份。
+
+**目前課程覆蓋：**Atlas V1～V5共555筆stable文字、553筆音訊、553筆畫面，合計1661個新增向量；V6新增三路仍0。課程stable覆蓋555/694、complete=false，正式多模態旗標不能開啟。V6本機324/417及其餘成功Checkpoint皆保留，仍缺93模型輸入；共用ledger維持1992次／US$10.04894215保守預留，含歷史未知與429，不是實際帳單。
+
+**下一步條件：**V2～V5向量落地與可搜尋性GO，原F06/F08/F15/F12題庫QA尚缺4個相符Query向量；它們是完整50題Query子集，不重複計算。現有3個探索Query不等於這4題，不能拿文件向量偽裝問題向量。所有Gemini呼叫仍NO-GO，等教授實際專案／配額及庭語另行授權；本輪不產Parent／Query。正式分層評測另需233個同契約Parent及完整題庫Query，沿用42題計分／X01另列及第11項門檻。成功資料與現有索引保留，後續不得自動回復、重寫或以本輪授權寫影片六。
+
+敏感備份、前像、計畫、完整receipt及原生向量留在忽略的`.local-tools/atlas-write-v2-v5-20261113/`；當次主報告`report.md`、`independent-readback.json`、各片receipt／三路self-query／legacy-after與兩份V1-qa紀錄供本機追查。先前寫入輪僅更新文件；庭語已另行授權將本批交接文件提交並推送dev，Git紀錄見[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。沒有重跑不相關全套，因核心程式未變。下一位先讀本段，再看[後五片工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md)與[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)，下節是寫入前歷史快照。
+
+## 寫入前的多模態資料與工具準備快照（2026-11-13，現況以上節為準）
+
+**Gemini 付費請求維持 NO-GO；本輪沒有模型請求、Atlas 寫入、索引更新、部署或開啟正式旗標。** 程式基準 dev `eb9d267`，工作項目只有唯讀查證、既有工具 Dry Run／本機測試與文件。影片六 HTTP 429 的調查不重做，等教授確認實際金鑰所屬專案與配額後，再由庭語明確授權恢復；目前任何既有付費範例都不可直接執行。
+
+### 本機完成與 Atlas 寫入要分開看
+
+影片一 351/351 個本機向量及 Atlas 117 筆三路資料均保留；本輪重新查證 Atlas 全文件指紋與先前驗證一致。後五片 1,634/1,727 個本機真實向量重新核對凍結 manifest、來源影音 SHA、原生請求簽章、Chunk／時間、模型、3072 維、正規化及向量 digest，全部通過；它們尚未寫入 Atlas。
+
+| 影片 | 原 Chunk | 本機文字／音訊／畫面 | 本機有效／目標向量 | Atlas 新三路向量 |
+|---|---:|---|---:|---:|
+| V2 | 123 | 123／123／123 | 369/369 | 0 |
+| V3 | 83 | 83／82／82 | 247/247 | 0 |
+| V4 | 144 | 144／144／144 | 432/432（3 筆原有重用） | 0 |
+| V5 | 88 | 88／87／87 | 262/262 | 0 |
+| V6 | 139 | 108／108／108 | 324/417 | 0 |
+
+兩筆超過 60 秒的原片段只保留文字；546/577 個 Chunk 已依規則完整，其中544筆三路完整、2筆僅文字。V6 剩93個向量（chunk_0109 text 的429失敗1筆、未嘗試92筆），不將它匯出成完整 bundle，也不縮小原139筆 allowlist 繞過檢查。共用 ledger 仍為1,992次紀錄、US$10.04894215保守預留；歷史 ReadTimeout、ConnectError 及429預留不沖回，不是已核實帳單。
+
+### 當次 Atlas 與寫入保護
+
+Driver唯讀查到六片694筆字稿、時間與原 embedding 全部匹配原生教材產物；三個 Search Index 各三節點 READY／QUERYABLE、無 staged，text_embedding_index version4，所需新增定義差異0。V1三路各117，後五片各0。dbStats：dataSize 71,655,574 bytes、storageSize 129,970,176 bytes、一般indexSize 4,349,952 bytes，這些不是Search索引用量。
+
+這次管理頁也可讀：Free M0、MongoDB8.0.37，資料量72.48MB／512MB、名目餘額約439.52MB；Search三個名額已滿，text／parent／video索引顯示13.7MB／44.75KB／402.86KB，專案沒有未結案告警。**先前無法核實tier／容量的資訊缺口已補上，但這是當次快照、不是保留空間或無並行操作保證。** 雲端備份OFF；本輪自動本機備份及讀回驗證只涵蓋指定694筆、六片版本與索引，不是全collection815筆或整個資料庫災難備份。
+
+V2～V5沿用B方案產生當次計畫、自動完整範圍備份與讀回、所有目標前像／版本／權限／索引雜湊查證，以及正向／回復Dry Run；完整結果見本機`.local-tools/atlas-ready-20261113/write-dry-run.json`。計畫不含影片一，前後核對其完整文件指紋；只新增stableTextEmbedding、audioEmbedding、visualEmbedding與相應metadata，不動舊embedding、原逐字稿、課程／影片／時間。V6未完整時拒絕可執行計畫；後五片入口禁止索引操作，不需要再次重建。四片當前bundle的未壓縮BSON增量合計56,251,670 bytes，不含Search索引增長，不是實際寫入量。
+
+真正執行仍要重新建立當次計畫與備份、確認操作窗口／告警／容量、核對approvalHash，再獲限定寫入授權。CAS（只在文件仍符合前像時更新）、intent、receipt與逐筆讀回沿用；衝突、逾時／未知寫入結果或讀回不符即停，不盲目重送或自動回復。真實回復須另依證據與授權決定；回復Dry Run不是已在Atlas寫後實際回復。
+
+### E2E 與正式評測依賴
+
+沿用video1-qa.js與原題庫，每片預期來源如下；下表是核對用Gold與來源錨點，不保證檢索一定排名命中，也沒有改Gold。
+
+| 影片／原題 | 原題庫時間秒 | 真實來源Chunk與原時間秒 |
+|---|---|---|
+| V2 F06 圖靈測試提出時間 | 462–504 | chunk_0037：476.61–491.49 |
+| V3 F08 Llama 3最小版本及記憶體 | 180–234 | chunk_0012：180.08–201.28 |
+| V4 F15 ChatGPT免費／付費版模型 | 838–879 | chunk_0067：849.20–865.20 |
+| V5 F12 Transformer論文及引用 | 1635–1770 | chunk_0078：1671.41–1693.40 |
+| V6 F11 BERT詞向量維度 | 1531–1574 | chunk_0101：1541.68–1558.86 |
+
+Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未執行、目前資料條件不足**：需該片向量先正式寫入，且保存相符問題的Query向量。通過條件仍為真實三路vectorSearch、各路Top20、RRF k60排名／貢獻重算、QA Bridge同Chunk原逐字稿／影片／時間、無fallback、撤銷授權後403且不搜尋；問答／FAQ／用量等狀態只留本機記憶體。template答案只驗接線，不能宣稱LLM回答品質。
+
+固定三Leaf Parent需求：V1～V6為39／41／28／48／30／47，共233。影片六本機已有47筆preview及47筆stable舊v1 Parent，Atlas只有3筆v1 Parent，均未證實符合現用text_v2，不能扣成可重用233筆。現有Parent獨立付費入口未見接入本次共用US$20 ledger；若後續獲准，先補最小成本保護接入，不直接執行。離線檢查固定233個Parent文字輸入均未超既有Adapter8192-byte保護。
+
+原50題Query（43可回答、7拒答）目前可驗證重用0；三個探索Query與原題庫無同文匹配。五片E2E所需5題是50題子集，先建後可同簽章重用，不重複算成55；現有逐片Query入口可準備這5題，全50題受控匯出入口仍須確認／最小接入。Query／Parent模型呼叫及Atlas落地均未授權。42題計分、X01另列的題庫檢查通過；六模態×兩權重×Flat／Hierarchical、固定per-question格式與獨立重算規則不變，未執行正式檢索評測或第11項驗收。
+
+本輪測試：Backend9個定向檔84/84通過（CAS、receipt／未知結果、索引保護、25授權矩陣、Bridge／RRF、五片Fake HTTP QA）；Python corpus7/7通過；1,634筆原生向量／來源完整性無付費核驗通過。沙箱內19項本機HTTP fetch失敗，沙箱外同組84項全過，未改程式繞過。Fake Atlas／Synthetic Vector不是後五片真實檢索證據。本輪未跑無關全套、未做付費Query或真實五片E2E，原因如上；文件另驗連結、路徑及git diff --check。
+
+**判定：V2～V5本機資料與唯讀寫入工具條件GO；實際Atlas寫入NO-GO，待當次明確授權與操作窗口。V6完整寫入、後五片真實E2E、正式品質驗收及開旗標NO-GO。** 距11/15報告仍有配額、93筆Leaf、Parent／Query與真實驗收依賴，應立即請Weihao協調教授配額及驗收排程，不能將本輪工具準備當成完成驗收。交接入口為[HANDOFF](04_Features/Multimodal_Retrieval/HANDOFF.md)、[後五片工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md)與[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。敏感完整證據留忽略的`.local-tools/atlas-ready-20261113/`；本輪只修改文件，未stage、commit或push。
+
+## 教師短影片製作／管理前端第一版（2026-11-12）
+
+**實作中。** 依[短影片決策](04_Features/Short_Video/decisions.md) UX-20～UX-23，教師側欄的「短影片腳本、上傳短片、短影片審核」改為「短影片製作」「短影片管理」；recut 一條流程接上後端 API：選題（一批最多 5 支）、第一次使用時同意授課內容與老師原音、逐句加回／移除（每改一句存成後端草稿）、採納 AI 建議、核准講稿並製作、成品播放（字幕預設開啟、講稿同步標出目前那一句）、核准或退回、跨課程待辦清單與撤回同意。數位分身依 UX-24 併入短影片製作：選題時選「原片剪輯」或「數位分身」；數位分身由系統產生腳本，教師複製或下載後用地端模型製作，影片傳回後在同一畫面確認成品上架。舊的三個頁面保留網址到試跑結束，側欄與製作頁不再連過去；短片通知一律打開短影片製作。製作失敗時，`GET /short-scripts/:scriptId/recut` 新增的 `render` 欄位帶出錯誤代碼，畫面說明原因；圖卡文字太長、聲音異常、檢查不通過三種不提供「重新製作」。同一門課最多 5 支同時產生講稿，後端第 6 支回 `409 RECUT_BATCH_LIMIT_EXCEEDED`。實作中先採用的五項作法列在決策檔「教師工作區第一版實作待確認」。
+
+之後依 `/impeccable critique`（28/40）的建議逐項修正：鍵盤焦點與螢幕閱讀器播報、手機退回改用底部面板、講稿改為短片時間軸（每句短片時間、原音按鈕、30／65 秒刻線、來源範圍）、核准後果與用詞、橘色只留給目前動作、新頁面字級層次、共用元件狀態與高度層級（`tokens.css` 的 `--ff-elev-*`、`--ff-spring`），以及頂欄鈴鐺與頭像改為可用鍵盤操作；功能未開放與沒有學生提問時的畫面也已整理。
+
+第二次 `/impeccable critique` 仍為 28/40、P1 由 3 項降為 2 項，已修正：短影片製作頁加入「跳到主要動作」鍵盤捷徑、核准講稿提示改為具體句數與秒數、核准上架後顯示完成狀態，以及全站側欄未選中項目對比提高到 6.25:1。第三次 `/impeccable critique` 為 29/40，之後再修兩項 P1：數位分身「傳回影片」這一步改為主要按鈕「選擇影片」→「上傳影片」，確認框接在檔名下方，複製／下載移到腳本上方，重新產生、視覺隱喻、不做這支收進「更多」；全站外殼最前面加入「跳到主要內容」，從頁面開頭 4 個按鍵可到主要按鈕。
+
+第四次 `/impeccable critique` 為 28/40，之後連續修正四輪，第八次為 **36/40**（P0 0 項、P1 1 項）。修正內容：
+- 核准講稿與核准上架的後果寫在按鈕上方。
+- 「跳到主要動作」固定落在主要按鈕，停用時也一樣，並念出原因。
+- 退回原因在電腦與手機都開面板，分「內容」「聲音、畫面、字幕」兩組加「其他」。
+- 每句標示「短片」「原音」兩個時間；講稿與數位分身腳本各有「怎麼看／怎麼做」說明（依畫面切換）；移除／加回與原音可用上下鍵換句。
+- 數位分身步驟改為「產生腳本／做影片並傳回／確認成品」，兩項確認寫明標示文字與同意書內容，手機上移到主欄。
+- 1440 成品審閱播放器與講稿左右並排；已上架可直接前往短影片管理撤下。
+- 錯誤不再顯示英文技術訊息；觸控裝置頂欄按鈕 44px。
+
+第八次留下、試跑後再處理：手機文字欄偏窄（全站側欄佔 72px）與修改後底部列偏高、1440 成品審閱版面、數位分身畫面上未顯示視覺隱喻、採納建議沒有先說會重排約一分鐘。
+
+`/impeccable audit`（2026-11-13）原為 15/20，依序修正 harden、optimize、polish：
+- 全站外殼加上 `<main>`、`<header>`、側欄 `<aside>` 地標，短影片管理頁補頁面標題。
+- 短影片製作與管理的輪詢改用 `useVisiblePolling`，分頁在背景時暫停，回到分頁立刻刷新。
+- 登入後各頁面改為用到時才載入，首頁的 three.js 背景與按鈕也改為延後載入：主程式由 1.6 MB（gzip 431 kB）降到 484 kB（gzip 140 kB）。
+- 短影片頁面的 inline style 改成 class（只留時長尺的動態位置），透明白改用 `--ff-white-*` tokens。
+
+修正後 axe-core 4.10.2 在 8 個畫面 0 項違規。
+
+之後的 `/impeccable polish`：逐句修改失敗的訊息改在那一句下方；「放棄修改」移到講稿上方，手機修改後底部列由約 220px 降到 167px；採納建議前說明會重排約一分鐘；數位分身的視覺隱喻放到腳本上方、清單狀態改為「待傳回影片」；目前這一支改用細框（不用左側色條）；手機流程列不再出現行首連接線；短影片管理沒有任何短片時只顯示一個空狀態與「製作新短片」。
+
+**上線準備（2026-11-14）**：`/health` 新增 `runtime.recut`（開關、是否就緒、主機設定狀態與缺項代碼），部署後可直接確認能否產生短片；上線所需設定、渲染 worker、驗證與關閉方式寫在[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。正式上線仍需：調高 Gemini 專案花費上限、VM 設定 `YOUTUBE_API_KEY` 與 recut runtime（含離線 faster-whisper 模型）、準備渲染 worker、負責人授權部署（`dev` 合併到 `main`），以及真機、LINE 與真人教師驗收。
+
+正式組裝的語音辨識路徑（同日）：以後端 `createRecutHostRuntime` 讀正式格式的 runtime JSON，在 Linux 跑真實的視窗、原片檢查、faster-whisper 逐字時間（small 模型）、切句與 worker 渲染，全部成功（44 句、成品 44.2 秒、-15.9 LUFS）；只有 Gemini 因花費上限改用固定輸出。過程中找到並修正三個會讓正式站失敗的問題：host 把 `python` 解開 symlink 後脫離虛擬環境、找不到 faster_whisper（Linux 虛擬環境預設是 symlink，Windows 試產沒踩到）；`STT_Whisper` 沒限制 PyAV，新安裝會拿到 19 版而讓辨識開檔失敗（改成 `av>=11,<19`）；切句把 Whisper 的「0.」「01」在小數點斷開（數字中的點與逗號不再斷句）。
+
+**真實外部服務驗證（2026-11-14，使用者授權：FocusFlow 頻道、Gemini 不超過 15 美元）**：本機真後端＋隔離 Mongo（非 Atlas）＋真 short_render worker（chrome-headless-shell、Noto Sans TC）＋真 YouTube 上傳，原片用本機離線語音合成的講課（句子時間精確已知，取代這台機器沒有的語音辨識模型）。結果：
+- **Gemini 未執行**：API 回 429「專案已超過每月花費上限」，沒有產生費用；選段、配圖與數位分身腳本改用依真實格式寫好的固定輸出，仍經過 short_render 的真實驗證。要真實生成需先在 AI Studio 調整花費上限。
+- **原片剪輯**：教師在真前端完成同意 → 講稿 → 核准 → 真實渲染（49 秒 MP4，檢查全過）→ 自動上傳 YouTube（`A4h49gfOIQ0`，FocusFlow 頻道，unlisted、已處理完成）→ 畫面自動換成可核准 → 核准 → 已上架。
+- **數位分身**（手機寬度）：同意肖像與聲音複製 → 腳本 → 傳回 48 秒影片 → 上傳 YouTube（`2MRKbNjUXCg`）→ 核准 → 已上架。
+- 兩支都上架後學生牆仍是空的：學生牆要等 Shorts 同步（需 `YOUTUBE_API_KEY`），這個環境沒有金鑰；以同步會寫入的值代替後，學生牆看得到兩支。
+- 驗證時找到並修正：**原片剪輯成品從不上傳 YouTube**（worker 完成只建立成品，沒有排程上傳；正式環境教師會一直停在「影片還在上傳」）；**short_render 檢查把 FFmpeg 的科學記號讀錯**（8.33e-05 秒讀成 8.3 秒靜音，任何有正常句間停頓的成品都會被判失敗）。
+- 響度問題（同日修正）：峰值先碰上限時成品真峰值會略超 -1.5 dBTP；單聲道原片輸出成雙聲道後響度多 3 LU。已在 short_render staging 修正（-3 dBFS 峰值限制、單聲道每聲道 0.7071 倍），以真實渲染驗證單聲道（-16.11 LUFS）、雙聲道（-16.13）與峰值受限（-17.9 LUFS、-2.96 dBTP）三種原片都通過 worker 檢查。
+- 裝置：以 LINE 內建瀏覽器的 user agent 模擬 iPhone 13 與 Pixel 7 尺寸，沒有頁面錯誤或水平捲動；讀取螢幕報讀器會讀到的無障礙樹，閱讀順序與按鈕名稱合理。這些都是模擬，**真機、真 LINE、真螢幕報讀器與真人教師驗收仍未執行**。
+- 依使用者要求，測試結束後把兩支測試影片改為公開；系統設計是 unlisted（條款也這樣寫），系統若偵測到自己管理的影片是公開會自動改回私人並通知管理員，正式站不認得這兩支測試影片所以不受影響。
+
+**本機真後端端到端驗證（2026-11-13）**：真後端程式＋隔離 Mongo（127.0.0.1，非 Atlas），AI 選段、配圖、整體檢查與數位分身腳本用固定的假回應，渲染用走正式 worker API 的假 worker（ffmpeg 產生 720×1280 測試影片），「YouTube 處理完成」以直接改本機資料代替；程序內移除執行環境帶的 Gemini／YouTube 憑證並擋下所有 Google／YouTube 網址。第一次啟動時尚未移除憑證，後端啟動檢查可能向 Google 取過一次 YouTube OAuth token（沒有上傳）。結果：
+- 用真前端在 1440 與 390（觸控模擬）走完：同意 → 產生講稿 → 加回超過 65 秒時停用確定修改 → 移除後確定修改 → 核准講稿 → 製作 → 成品就緒自動更新 → 核准上架 → 短影片管理 → 學生短片牆看得到；成品退回顯示原因與下一步；數位分身同意 → 腳本 → 傳回影片 → 核准上架。
+- 驗證時找到並修正：數位分身上架要肖像與聲音複製同意，前端原本沒問，核准後一直停在「已核准，等待上架」（後端只寫在 log）；同意後要回選題再按一次；已做過的題目仍在候選；成品等 YouTube 時畫面不會自己更新；審閱計時在換版本後才結束而收到 409；退回後沒說原因和下一步；退回通知寫「前往腳本頁重新生成」但畫面沒有這個按鈕；確認對話框被全站 `margin: 0` 擠到左上角；授權欄預設顯示別門課。另移除「上架後可在短影片管理撤下」的說法：目前沒有單支撤下的 API，撤下只能撤回整門課的授課內容同意。
+- 教師操作驗收由子代理扮演教授，用畫面操作 5 項任務全部完成、沒有 P0；不等於真人教師驗收。留待決定：單支撤下需要後端 API；同意條款含 PoC、recut、Gemini、Kokoro 等技術詞（條款文字要經團隊確認）；數位分身下載的腳本是工程規格，非技術老師難以照做；手機全站側欄只有圖示且佔約 1/3 寬度；退回原因不能補充說明；傳回影片長度與腳本不符時沒有提醒。
+- **未執行**：真實 Gemini 生成、真實 short_render 渲染、YouTube 上傳與播放（需授權與指定頻道）、真機、LINE 內建瀏覽器、螢幕報讀器、真人教師驗收。
+
+驗證（2026-11-13）：前端 `npm test` 230 項全過；後端 `tests/recut.routes.test.js` 14 項全過、`docs:lint` 通過、`lint`、`build` 通過；Impeccable 偵測無問題；以 Vite 與模擬 API 在 Chromium 1440／1024／390px 走過選短片、加回句子、管理清單打開成品、退回原因、數位分身腳本與選產片方式，無頁面錯誤。**未執行**：連真實後端（需開啟 `SHORT_SCRIPT_AUTOMATION_ENABLED`）、真實原音播放、YouTube 成品播放、LINE 內建瀏覽器、教師操作驗收。
+
+## 後五片可執行工具與無付費驗證（2026-11-12）
+
+影片一正式驗收摘要已獨立提交並push `94014c7`，後五片工具提交 `2063ece`。後五片工具已完成最小擴充：同一corpus.json供Python／Node使用，凍結來源與產物hash、精確577筆allowlist；兩長段只建文字、影音略過。沿用既有Adapter／CAS及原生Checkpoint，按Chunk分批、共用US$20 ledger、簽章嘗試上限、失敗先停／明確一次重試permit、成功快取損壞拒絕重建。Atlas新清單只接受現有三路READY索引，禁止任何index操作，寫前／後核對影片一117筆全文件指紋；全694範圍自動備份、CAS、receipt與回復機制保留。QA Harness已支援各片授權範圍，沒有改核心QA／RRF／Bridge。
+
+五份manifest與1150個真實影音檔已完成準備，1727輸入Fake SDK全成功，第二次全部重用、Fake SDK新增呼叫0；可重用V4原生向量3筆，尚缺1724真實模型輸入，首次保守預留US$8.6620184，加既有ledger共約US$10.5477036，不含另需授權的5個題庫query（最多US$0.008192）或Parent。最壞三次約US$27.8717會超20，仍由共用ledger硬停，不能宣稱所有重試保證完成。本輪真實ledger維持US$1.8856852。後端完整1951項、1950通過、0失敗、1既有略過；Pipeline受影響41項通過。五片Fake HTTP QA／對話、來源時間、RRF、無fallback及授權負例通過，不是真實五片QA。
+
+當次Atlas唯讀694筆字稿／時間／原embedding與原生產物逐筆相同；V1三路完整、後五片新增欄位均0；三索引三節點READY/queryable、Leaf version4且所需定義差異0。dataSize約71.66MB、storage約129.97MB，依V1增量估後五片再加約74.16MB；Search用量及全叢集容量不由這些數字保證。管理頁存取逾時，當次tier／Search容量未核實，寫入窗口仍需確認告警／資源與無衝突。42題＋X01另列及7拒答的題庫檢查通過，六組×兩權重×Flat/Hierarchical的per-question格式與獨立重算工具沿用，未執行正式成效評測；query／真實Parent與全量覆蓋尚待建立。
+
+**判定**：下一輪Leaf模型批次工具與首次預算GO，須先取得付費授權；Atlas逐片執行仍須當次Preflight／容量與授權，不做無條件全量GO。其他五片、正式旗標與部署本輪均未操作。可執行命令見[後五片工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md)，[可分享摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-12-remaining-preparation-summary.json)不含原向量／字稿／備份／敏感receipt，完整證據留`.local-tools/remaining-videos-20261112/`。
+
+## 影片一真實 Atlas／QA 技術驗證（2026-11-12）
+
+已依當次授權完成117/117筆CAS新增三路欄位，351向量及metadata讀回符合本機Checkpoint。694筆原embedding／保護欄位未變，577非目標文件整份未變；694完整範圍前像備份重讀通過，寫前再自動備份。text_embedding_index僅一次擴充、version3→4，保留舊embedding／filters；三個Search Index各三節點READY/queryable、無staged，未新建／刪除索引或collection，無回復。當次人員無衝突／無告警由庭語確認並監看；M0 currentOp回8000不可用，不宣稱Driver已觀測全域零活動。
+
+兩個保存問題各跑真實Atlas HTTP QA＋對話，文字／音訊／畫面各20候選，分別融合39／44候選；RRF k60、1:1:1重算與原時間戳引用通過，無fallback或文字替換；兩個未授權負例403且不搜尋。全部QA狀態只留Harness memory；答案沿用template，未驗LLM正確性。舊文字三個自查rank1、Top20順序全同；68項相關本機回歸通過（FAQ、Flat/Hierarchical、fallback、25授權矩陣及工具），未重跑無關全套。完整原生向量共351筆／117三路完整，六片stable覆蓋仍117/694、complete=false；本機旗標false、未查改正式VM旗標。
+
+本輪未呼叫付費Gemini、未改核心QA/RRF/Bridge、未部署／正式評測、未建其餘五片。Gemini ledger維持US$1.88568520保守預留，原逾時帳單仍未知。影片一技術門檻GO；後五片需另授權、核准allowlist／工具範圍擴充；39筆V1 Parent與全量品質門檻仍待處理。向量預設保留，不能開正式旗標。私有證據與報告位於`.local-tools/video1-build/atlas-live-v1-20261112/`，索引journal固定於`.local-tools/video1-build/index-journal/`；安全摘要見[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。本輪僅更新交接文件，未commit/push。
+
+## 影片一三項工具擴充（2026-11-12）
+
+程式提交 `22bff4b`、`4c618f0`。三項工具缺口已完成本機實作：固定117筆 manifest／351輸入的 Gemini batch（共用20美元 ledger、跨重啟三次上限）、B方案117筆 CAS／自動備份／雜湊授權與固定索引 journal、安全真實 Atlas QA Harness（正式 QA 邏輯、全部狀態寫入記憶體）。目前只驗證 Fake Atlas，不宣稱真實 Atlas QA 成功或回答品質驗收。既有234個切片完成351輸入Fake SDK，6筆真實原生 Checkpoint 重用驗證成功且 ledger 未變。真實字稿／原時間／保存 query 的 Fake Atlas HTTP QA＋對話也通過。Backend完整1942項、1941通過、0失敗、1既有略過；最終寫入工具4項、QA工具2項另通過。Pipeline受影響五檔34項通過；全套 discover 在本機提前結束且未留下可採信測試輸出，不能列為通過。無付費、Atlas寫入／索引更新、部署、正式評測或開旗標，qa.service.js未改。工具層GO；下一輪真實執行仍需當次授權與當下索引／權限／容量檢查，Hierarchical真實Parent另待39筆。詳見[工具操作](04_Features/Multimodal_Retrieval/video1-tools.md)。
+
+## 影片一建置前最終檢查（2026-11-12）
+
+已 pull，dev e3774d4。唯讀實查 V1 117 Chunk、舊向量 117、新三路各 0；保存 6 筆向量可重用，尚缺 345 輸入。117 段影音共 234 檔實際切出並解碼；694 完整範圍備份重讀校驗、三索引三節點 READY、三筆 Dry Run／回復 Dry Run、62 項 Backend、10 項 Adapter、US$20 重試邊界通過。批次實作仍 NO-GO：現有 runner／writer 固定 12 輸入／原三筆，尚缺安全真實 Atlas QA harness。本輪僅提出最小修正，未改核心程式、未付費、未 Atlas 寫入／索引更新、未正式評測、未開旗標、未 commit/push。當次本機旗標未設定，未查正式站設定；完整結果與下一步見[影片一檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)。
+
+## 多模態交接缺口修正（2026-11-12）
+
+庭語已接手三項：完整授權範圍stable文字覆蓋檢查（包含25/40但搜尋回滿20的回歸）、索引30秒成功／5秒失敗快取與清除、25項授權矩陣。Q5已核定合法共享向量，Adapter不再把來源courseId當ACL。受影響62項通過，完整Backend以檔案隔離4併行回歸1936項、1935通過、0失敗、1既有略過；最新矩陣25項另獨立通過，包含語意FAQ及draft角色子例。矩陣包含信任前置觀察，不全是攻擊阻擋證據。42題暫定計分支援已實作、X01排名／Gold保留、protocolHash分版，未執行正式評測。新覆蓋聚合實際唯讀查到0/694且正確不放行。未做全量向量／Atlas寫入／索引操作、開旗標或部署；ON＋shadow低優先缺口仍在。新版四階段取消S60，先V1、其餘五片、自動備份、索引只改一次、US$20停，成功資料保留且旗標關閉；詳見[計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)及[進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+## 多模態交付範圍定案（2026-11-12）
+
+Weihao 定案（見 [decisions.md](04_Features/Multimodal_Retrieval/decisions.md)「交付前規劃第一輪」）：11/13 交付程式完整且 `QA_MULTIMODAL_FUSION_ENABLED` 關閉、離線與三筆真實小樣本證據及未完成項清單；全量影音向量、Atlas 正式寫入與正式 43 題在 11/15 前完成，判斷①改在 11/15，通過才在 11/16 凍結前開啟。11/14 部署時開關關閉。章節與影片升級移出這一階段。X01 的 V5 時間待核准，核准前正式報告以 42 題計分。多模態由庭語接手，交接內容見[多模態進度](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+## 前輪多模態真實資料測試盤點（2026-11-12）
+
+本輪只唯讀／離線檢查與文件。六原片可讀、合計630,096,168 bytes，694筆Atlas文字向量與六份preview產物逐筆向量及時間一致；692段影音合格，15段需延伸8秒，2段超60秒略過影音。現行Atlas仍是舊embedding索引，影音0筆，前輪三筆真實實測已回復。43可回答＋7拒答題庫可讀，但X01缺V5 Gold仍BLOCKED；三個保存探索query不在原題庫，不能代表43題成績。33項既有測試、12筆checkpoint重驗與保存3題72列離線重播通過；六個現有Gold anchor實際切片12/12解碼。四組同語料比較、S60探索及全量成本／M0方案見[真實資料測試計畫](04_Features/Multimodal_Retrieval/real-data-test-plan.md)。未改程式、未做新QA E2E／正式評測，無Atlas寫入、索引變更、模型呼叫、部署或commit/push；11/13完整交付仍需Gold、全量向量與契約／驗收支援。
+
+## 多模態團隊溝通快照（2026-11-11）
+
+組員先讀 [團隊總覽](04_Features/Multimodal_Retrieval/team-overview.md)，再依需要看 [契約矩陣](04_Features/Multimodal_Retrieval/authorization-contract-review.md) 與 [Atlas 去敏實測摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-11-atlas-sample-summary.json)。總覽是當日溝通快照，本文件仍為唯一持續維護的狀態正本；不要把下方歷次快照直接當現在的放行條件。
+
+| 完成層級 | 已有成果與證據 | 明確未完成 |
+|---|---|---|
+| 程式已實作 | 逐 Chunk 影音／Gemini Adapter、Atlas Adapter、固定 RRF、QA Bridge、QA 開關／回退、FAQ 分版與引用；CAS 與索引安全工具 | 不代表正式 runtime 已啟用；本輪未查正式旗標 |
+| 離線驗證 | 66/66 安全工具與相關回歸；歷次本機 QA／引用及 Parent 合成驗證 | 新增 25 項 Contract-first 矩陣只完成設計，尚未實作／執行 |
+| 真實小樣本 | 12 個保存 Gemini 輸入結果；三筆九向量實際 Atlas 寫入、三題三路、兩版 RRF、舊文字與安全回復均有來源 | 原偽造 scope probe 不構成正式 QA 漏洞證據，也不代表完整授權測試通過 |
+| 全量／正式驗收 | 尚未完成；維持明確限制 | 694 筆全量影音、完整一致 Parent／語料、X01 核定、正式 43 題比較、正式網站多模態 E2E、開啟／部署決策 |
+
+Atlas 第一輪實測已結束並完整回復，最後 694 筆指定範圍完整文件與備份相同、全 collection 815 筆、原索引三節點 READY／QUERYABLE、舊文字三筆 rank 1。新三路資料及 path 沒有留作持續啟用；原查詢／回復觀察詳見下節與去敏 JSON。該 JSON 只含 allowlist 的識別碼、時間、排名／分數及雜湊，不含向量、逐字稿、憑證、完整 metadata 或私人帳號。
+
+契約審查已於 `0891715` 獨立保存；本輪另外授權團隊文件整理與 dev 提交，不授權功能實作、重新寫 Atlas 或部署。接下來先核定 U01/U02 與測試矩陣，再只補本機測試；合法前置下若有明確違約才提最小修補。之後全量、正式評測與部署各依條件另行授權。11/13 完整目標仍有時程風險，不以三題結果替代完整交付。
+
+## 多模態 Contract-first 契約審查（2026-11-11）
+
+以 dev `13e8a8c` 完成 HANDOFF／decisions／QA-Adapter 契約、Course／Video 授權、資料模型與相關測試的靜態審查。既有契約明確支援 Leaf 缺頂層 courseId：正式 QA 先驗課程存取，再由服務端 Course／Video 關係產生 canonical 影片 allowlist，並在候選與逐字稿階段複核。控制器不接受客戶端傳入的任意 scope；Adapter／Bridge 的 scope 則要求由呼叫端先授權。
+
+更正前輪判定：把錯誤課程與原影片 allowlist 人工配成 scope，直接呼叫 Adapter 後期待零筆，屬超出契約前置條件的測試假設錯誤，不能定為已證實的 Adapter／正式 QA 漏洞。正常缺 courseId 的合法 Chunk 不應被補寫或排除。合法跨課掛載確為既有功能；明示 Leaf.courseId 與當次掛載課程不同、media metadata 課程語意則列 U01/U02 跨模組契約待決，不擅選拒絕或接受當成修正。
+
+前輪真實 Atlas 觀察仍保留：三筆九向量 CAS 寫入、同名索引正向重建與三題三路／兩版 RRF 已完成；最後三筆與指定 694 筆完整文件皆回到前像、舊向量摘要不變、集合仍 815 筆、原索引三節點 READY／QUERYABLE、舊文字三筆 rank 1。原始來源在忽略目錄 `.local-tools/atlas-preparation/live-round1/` 的 report.json、scope-diagnostic.json、final.json 與正反向 receipt，不提交向量、備份或完整 metadata。當時因負例假設而安全停止並完整回復是有效事實；不能因此把正式 QA 跨課隔離或完整多模態品質驗收標成已通過。
+
+已整理 [契約分析、25 列測試／待決矩陣與最小修正方案](04_Features/Multimodal_Retrieval/authorization-contract-review.md)：每列含依據、fixture、輸入、預期理由、責任層與合法檢索影響。本輪只做文件與測試設計，沒有新增／執行矩陣測試、沒有連 Atlas／模型、沒有改程式或 commit／push；之前 66/66 不能當成本矩陣已通過。正式修改與後續實測仍待審查及另行授權。下方是先前各階段紀錄，不代表本輪有寫入授權。
+
+## Atlas B 異常處理演練與即時唯讀核對（2026-11-11 17:14–17:17，台灣時間）
+
+**唯讀與離線演練 GO；正式 Atlas 寫入／索引更新 NO-GO，等待單獨授權。** 目標固定為現有 `focusflow.video_segments_text` 與 `text_embedding_index`；不另建資料庫、集合、專案、叢集或第四個索引。原晚間窗口已取消，不排程或自動開始。
+
+使用者已確認無操作衝突，具有 Project Data Access Admin，並願意負責持續監看、停止、依前像回復及必要時聯繫 Project Owner／MongoDB 支援；不再把一般操作必須另有一位管理者當成缺口。角色與處置原則由使用者確認；本次是工具／程序演練，不是人工操作正式 Atlas 回復的實作測驗，也不保證外部支援能即時介入。
+
+Node 22.23.4 重跑既有 8 檔定向測試，66/66、無失敗／略過；涵蓋 BUILDING 等待、FAILED／逾時／未知結果停止、跨執行禁止重送、receipt 損毀、CAS 衝突與安全回復。磁碟 Fake journal 寫入回讀、索引 before／after 純 JSON 雜湊核對均通過。程式／QA／RRF／Bridge 沒有修改。
+
+當次 Atlas 唯讀結果：694 筆指定範圍備份回讀 checksum 通過，舊 embedding 與第七階段備份全部相同；三筆完整前像未變且新增欄位不存在。全 collection 計數 815；694 備份不是全 collection 災難備份。三節點 READY／QUERYABLE，mainIndex 定義在保留原始快照、辨識預設 numPartitions: 1 後一致；Driver 的 find／update／listSearchIndexes／updateSearchIndex 均可用，未試寫。三筆文字 self-query 都 rank 1、各 20 筆，耗時 133.77／73.37／73.61 ms；課程與未授權影片負例均 0 筆，這不是正式問題品質評測。
+
+控制台確認 Free M0、8.0.37、AWS Hong Kong、全叢集三個 Search 索引已滿，目標索引 815/815、約 10.87 MB；資料 58.12 MB／512 MB、連線 20／500、無未結案告警。Operation Throttling 有入口但圖為空白，不能宣稱節流為 0；M0 監測盲區、重建時間及索引無伺服器 CAS 的風險保留。三路真實搜尋、兩版 RRF 的 Atlas 結果及正式回復尚未執行。
+
+原始證據只存忽略的 `.local-tools/atlas-preparation/`，不提交備份、完整向量、checkpoint、逐字稿、憑證或私人帳號資訊。精確檔名與當次雜湊見 [操作計畫](04_Features/Multimodal_Retrieval/atlas-preparation.md#最終-gono-go-與管理者確認)，演練命令與來源見 [驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。本次實際 Atlas 寫入／索引更新／回復、付費 Gemini、部署與 VM 操作均為 0。後續必須另有正式授權；延後或狀態改變時刷新唯讀證據，不沿用本快照自動放行。
+
+## Atlas B Driver 離線安全驗證（2026-11-11，先前工具階段紀錄）
+
+當時原 20:00–22:00 窗口已取消，該工具階段授權只含獨立工具、Mock 測試、文件與 commit／push。當時待確認的人員與即時核對已由上節更新，不能把本段歷史限制當成目前缺口；正式寫入仍待單獨授權。
+
+新增獨立 `index-control.js`：限定 B 方案與同名索引，預設 Dry Run；前像、版本、三節點與定義核對，正向／回復各只送出一次。含 checksum 的磁碟 receipt 記錄 prepared／submission_started／submitted／verified；結果不明時跨執行阻擋重送。資料 rollback 補逐筆 receipt，保留既有 CAS、原 embedding 與他人異動保護。未改 QA、RRF、Bridge 或部署。
+
+Node 22.23.4 的 8 個相關檔案共 66/66 通過，無失敗／略過。包含實際安裝 Driver 的 Collection.updateSearchIndex 與命令建構器，執行端以 Fake 取代，沒有 connect／socket；驗證正反向 JSON、三節點輪詢、逾時／權限／配額／網路未知結果、receipt 損毀與程序重啟保護，並回歸三筆 CAS、資料回復及既有融合／Bridge。全部是離線 Fake／Synthetic 驗證；本輪未連 Atlas、未寫入／更新索引、未付費或部署，也未宣稱真實三路驗收完成。命令與日誌見 [驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+工具路徑已離線驗證，餘下正式門檻為管理者協調／監測、執行當下 M0／配額／三節點、備份／舊 694 向量／planHash／baseline 重驗，以及符合最新正式操作授權。完整 [Go／No-Go 與管理者清單](04_Features/Multimodal_Retrieval/atlas-preparation.md#最終-gono-go-與管理者確認)。未跑 Backend 全套、前端或 pipeline，因本輪只修改獨立工具與對應測試。
+
+## Atlas M0 管理端資訊與操作計畫（2026-11-11，先前準備紀錄）
+
+使用者提供 Atlas UI 查證：focusflow 為 Free M0、MongoDB 8.0.37、AWS Hong Kong，全叢集三個 Search 索引達上限；text_embedding_index 三節點 READY／QUERYABLE、估算文件數 815/815、每節點約 10.87 MB，只有 embedding（3072／cosine）及 courseId、videoId filters，未做 UI 修改。本輪依官方文件核對，同名索引加入三條 vector path 符合定義／數量限制；既有 after 定義壓縮 JSON 424 bytes，低於 3 KB。
+
+M0 Search CPU／Memory 不可取得已確認，改用基礎指標、Throttling、節點狀態與查詢基準。資源峰值與耗時仍未知；建議兩小時低峰窗口，含正向及回復兩次重建。815 為 UI 全 collection 口徑，694 為指定課程備份，重建影響範圍需當次核對。現有 index-wait 未逐節點驗證，計畫補上 Atlas UI 人工確認，沒有修改工具或正式設定。
+
+目前技術支援限制核對完成，實際執行仍 NO-GO，等待窗口、風險接受及三筆寫入／索引更新／回復明確授權。詳見[更新後 Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。本輪僅分析與更新文件，未連 Atlas、寫資料、改索引、升級或付費；純文件只做 diff／連結與計畫核對，未跑程式測試。
+
+使用者另指定 2026-11-11 20:00–22:00 台灣時間，只核准準備檢查與文件 commit／push。當前 PREP-ONLY／NO-GO FOR WRITE；需在窗口內確認使用者在線、Atlas 管理者可接手、VM 無重疊，以及 fresh 備份／planHash／三節點／baseline，再取得獨立二次授權。不得自動開始或排程。
+
+## 第十階段題庫一致性與完整本機問答（2026-11-11）
+
+已核對 decisions 基線表／第 6、7、8 項及 MA，固定 50 題中 43 可回答為 Recall@5／Recall@10／MRR 分母，7 拒答只另列診斷。新增 annotation-issues.json、retrieval-protocol.json 與 protocolHash／goldVersion 綁定。X01 在主評分表「評分表」F25／G25、ad84f6d 最初題庫及 8/24、9/3 結果都是同一缺漏，無 V5 人工時間來源，原題庫與主評分表未改，正式品質評測仍 BLOCKED。
+
+已用本機 Vite 的完整學生頁及隔離 Express 跑過實際登入、進課、六種問答情境、引用卡片、對話重載與 HTML video 跳轉。六情境為 off／flat／hierarchical／missing-index／all-failed／invalid-time，對話 POST 皆 201、越權課程皆 403，原始 1752.15–1754.55 秒與身份／排名保留，播放器實測落在原始起點附近。保存 Gemini query 為真實向量，Atlas／embedding HTTP 為 Fake、Parent 為 synthetic、回答為 template、影片為 1800 秒合成黑畫面。完整頁 headless Edge 自動驗收通過，未做正式站人工驗收、真實教學影片播放或真實生成品質驗收。
+
+Atlas 管理端資源、低風險窗口與另外的資料／索引執行授權仍未取得。小樣本真實驗證沿用既有 B 工具，實際窗口才重驗前像，不重跑無意義的 Dry Run。本輪未連 Atlas、未呼叫付費模型、未部署或操作 VM。詳見[驗收操作](04_Features/Multimodal_Retrieval/offline-acceptance.md)及 [Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+
+Node 22.23.4：後端受影響回歸 210/210、無失敗／略過；含完整頁瀏覽器的 QA 檔 4/4 通過，主案例內跑六情境及對話重載。前端 184/184、lint／build 通過，保留大 bundle 警告。X01 inspect 預期 BLOCKED，沒有正式 Recall／MRR；未跑全套 Backend／pipeline、真實 Atlas 或正式站人工驗收。命令與來源快照見[驗證紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
+
+推送前取得 Weihao 新增五筆至 `3e521ed`，以一般 merge `705ad76` 安全整合，保留 LINE 去重／逾時、教師統計及前端連結修正。合併後重跑受影響後端並納入 teacherStats，218/218；前端 192/192、lint／build、OpenAPI lint 通過；完整學生頁 QA 檔 4/4、六情境與對話重載再次通過。無失敗或略過，仍未跑全套 Backend／pipeline。
+
+接續中斷工作時本機與 origin/dev 已同為 `b5bd95b`，包含本輪提交及後續短影片修補。本輪多模態程式與前端相對 `705ad76` 無差異；在 b5bd95b 再跑同一後端子集，218/218、無失敗／略過。前端與瀏覽器沿用上述相同程式版本的已通過結果。
+
+## 第九階段多模態離線驗收（2026-11-11）
+
+新增真正經既有 Parent search／Child expansion／Leaf context 的合成 fixture，Flat 與 Hierarchical 的文字候選不同，media 候選固定。覆蓋父子不同時間、合成向量排序、缺 Parent／Child、部分 Child、重複命中與跨課影片回退；正式 QA 測試另走 Fake Parent serve rollout。既有 Adapter、RRF、Bridge 與正式 QA 接線沿用。
+
+新增本機排名 auditor 與獨立區間掃描 checker，校驗固定 43 題可回答／7 題拒答、gold 時間、manifest、身份、rank、完整 24 組與輸入 hash。發現 X01 宣告 V2+V3+V5，時間只標 V2／V3；真實題庫輸出 BLOCKED，未修改 gold 或產出正式品質分數。合成 43 題驗算僅驗證算式。完整 43 題實測還缺題庫維護者確認 X01、完整一致模型版本的語料／Parent／媒體向量與真實排名。
+
+引用標籤抽成實際 React 元件並補 aria-label。保存真實 Gemini query、Fake Atlas／embedding HTTP、template answer 的本機 API 產出引用 fixture，headless Edge 驗證實際元件標籤、原始 1752.15–1754.55 秒、身份／排名、鍵盤跳轉與舊資料無標籤通過。這是最小元件 smoke，未驗整個 StudentCourses、正式播放器或正式站。
+
+操作與資料來源見[離線驗收](04_Features/Multimodal_Retrieval/offline-acceptance.md)，Atlas 管理端資訊、低風險窗口與實際操作授權仍 BLOCKED，見 [Go／No-Go](04_Features/Multimodal_Retrieval/atlas-preparation.md)。本輪沒有 Atlas 連線／寫入／索引操作、付費呼叫、部署或 VM 操作。
+
+Node 22.23.4 執行受影響後端回歸 209/209 通過；新增評分第六名邊界等案例後，auditor 定向重跑 6/6。第一次用共用程序跑相同子集為 205 通過／4 失敗，確認為 env 提問字數／每日次數的載入順序污染，改用 Node 預設檔案隔離後同子集全過，未改 production 配額邏輯。前端 184/184、lint／build 通過，保留既有大 bundle 警告；headless Edge 元件 smoke 通過並檢視截圖。未跑全套 Backend、pipeline、正式站或真實 Atlas；當次明細見[測試紀錄](04_Features/Multimodal_Retrieval/evidence/進度.md)。
 
 ## 多模態正式 QA 接線（2026-11-11）
 
@@ -85,7 +341,7 @@ R2 獨立畫面複核：三種新卡 30 圖與 code 15 圖（短合成範例）�
 
 **文字問答與多輪對話｜已實作。** 含課程範圍檢查、來源引用、常見問題快取及對話紀錄；快取是保留可重用回答以減少重複計算。依據：[問答服務](../backend/src/services/qa.service.js)、[對話服務](../backend/src/services/conversation.service.js)；回答品質與外部模型 ⚠️ 未驗證。最後驗證：2026-10-14；負責人：＿＿（待填）。
 
-**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。2026-11-10 整合審查修正了停用帳號仍可在 LINE 提問、回答卡第一筆引用可能連到別段等問題，只有替身測試、尚未部署與實機驗證，見 [LINE 進度](04_Features/LINE_Binding/evidence/進度.md)。
+**LINE 綁定與問答｜已實作。** 含訊息驗簽、帳號綁定與問答接線；依據：[LINE 介面](../backend/src/routes/line.routes.js)、[訊息處理](../backend/src/services/line.service.js)。2026-11-04 正式站以一個帳號在手機實測收送訊息正常，見下段。最後驗證：2026-11-04；負責人：＿＿（待填）。2026-11-10 整合審查修正了停用帳號仍可在 LINE 提問、回答卡第一筆引用可能連到別段等問題，2026-11-11 再補上 webhook 重送去重、LINE API 逾時、教師首頁網頁與 LINE 提問數分開顯示，以及回呼頁兩個操作卡點。以上都只有替身測試、尚未部署與實機驗證，見 [LINE 進度](04_Features/LINE_Binding/evidence/進度.md)。
 
 **LINE Login 綁定與圖文選單｜已部署，正式站手機實測通過（僅一個帳號）。** 依 [LINE 決策](04_Features/LINE_Binding/decisions.md) LL、LM～LM4：學生按「連結帳號」到 LINE 授權後就完成綁定，不需綁定碼；未綁定看到「連結帳號」選單，綁定後換成 2×2 四格「切換課程、今日額度、使用說明、網頁版」，解除時換回；另有「今日額度」「使用說明」指令、課程卡片直接選課與回答分段。依據：[LINE Login 服務](../backend/src/services/lineLogin.service.js)、[選單服務](../backend/src/services/lineRichMenu.service.js)、[建立腳本](../backend/src/scripts/setupLineRichMenus.js)。2026-11-04 部署 `07c8c30`、`2d5e4d2`；LINE Login channel「FocusFlow 綁定」改為 Published，VM `backend/.env` 設定 `LINE_LOGIN_*` 三項與 `LINE_RICH_MENU_BOUND_ID`。同日以一個帳號在手機實測：解除綁定後選單換成「連結帳號」→ LINE 授權 → 綁定成功 → 選單換成 2×2。未測：從未加好友的帳號與歡迎訊息、電腦版 LINE、LINE 已綁定其他帳號的衝突、多位學生同時使用。後端完整測試有三支既有逾時測試會卡住整輪，本次排除未驗證（見決策 LM4）。最後驗證：2026-11-04；負責人：＿＿（待填）。
 
@@ -200,3 +456,13 @@ npm.cmd run docs:lint
 ```
 
 只使用指定 preload 禁止載入環境檔，不讀或回報任何金鑰值。整合 owner 當次回報的執行阻塞：Docker Desktop 兩次以隱藏視窗啟動仍未就緒、專用 `127.0.0.1:27029` 拒絕連線；教授試產 runner 只回報缺少 `GEMINI_API_KEY` 變數名，**0 次真模型呼叫**。以上為 2026-11-03 當次診斷，已由上方 2026-11-04 Docker 與真模型試產紀錄取代；不得改連正式資料庫。
+
+## 窗口前唯讀證據（2026-11-11 15:39–15:44 台灣時間）
+
+本次實際連線 Atlas，只讀取與查詢；資料寫入、索引更新／回復及付費模型呼叫皆為 0。全 collection 實際計數 815，指定課程備份 694 筆，與 phase7 備份逐筆比較舊 embedding 全部相同。三筆新欄位皆不存在，Dry Run 三筆通過；既有工具／Adapter 定向測試 20/20 通過。未執行新三路真實搜尋、正式網站 E2E 或完整 43 題評測。
+
+本機證據位於忽略目錄 `.local-tools/atlas-preparation/`：`backup-1794382699301.json`（由既有工具回讀校驗）、`window-prep-20261111-dry-run.json`、`window-prep-20261111-baseline.json`、`window-prep-20261111-status.json`、`window-prep-20261111-latency.json`、`window-prep-20261111-definition-audit.json`。當次 planHash 為 `fcc472a27039656983b3bb4fe4e4db708b4886a9d20c99d3b0d68b7ca22249f2`；這是下午證據，不能直接視為 20:00 窗口的核准計畫。備份含指定範圍 694 筆，不是全 collection 815 筆的完整災難備份，也不授權全量還原。
+
+目標索引與三節點 mainIndex 皆 READY／queryable；帳號 find、update、listSearchIndexes、updateSearchIndex 權限以唯讀方式確認，未試寫。三筆舊文字自查皆 rank 1，各回傳 20 筆，耗時依序 165.50／65.19／78.92 ms（0001／0117／0070）；未授權影片與錯誤課程 filter 均為 0 筆。這只是三次查詢觀察，不能推論 p95 或承諾重建期間效能。
+
+執行狀態仍為 PREP-ONLY／NO-GO FOR WRITE：待窗口內 fresh 核對、Atlas 管理者值守與監測、無重疊 VM／部署確認、必要時接受不含正式站 E2E、M0 資源盲區與兩次重建風險接受，以及使用者再次明確授權。原始定義差異與回復核對方式見 [操作計畫](04_Features/Multimodal_Retrieval/atlas-preparation.md#索引前像的預設欄位核對)。

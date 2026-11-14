@@ -102,9 +102,13 @@ async function retrieveAtlasMultimodal({ collection, queryEmbedding, scope, inde
           { maxTimeMS: timeoutMs, signal: AbortSignal.timeout(timeoutMs + 1000) }).toArray();
         diagnostics[channel].returnedRows = rows.length;
         return rows.filter((row) => hasCompatibleMetadata(row, channel, textPath) && authorized.has(row.videoId)
-          && (!scope.allowedChunkIds || scope.allowedChunkIds.includes(row.chunkId))
-          && (row.courseId == null || String(row.courseId) === String(scope.courseId)))
-          .map((row) => normalizeCandidate({ ...row, courseId: String(scope.courseId) }));
+          && (!scope.allowedChunkIds || scope.allowedChunkIds.includes(row.chunkId)))
+          // Course ownership is provenance. Authorization comes from the caller's canonical video
+          // allowlist, including videos legitimately mounted in another course (decision Q5).
+          // 既有文字檢索回傳的逐字稿是去掉前後空白的；這裡用同一個形式，
+          // 同一個片段在兩邊的文字才會相同，合併時不會被當成證據衝突。
+          .map((row) => normalizeCandidate({ ...row, courseId: String(scope.courseId),
+            ...(typeof row.text === 'string' ? { text: row.text.trim() } : {}) }));
       } catch {
         diagnostics[channel].reason = 'atlas_query_failed';
         throw new Error('Atlas channel query failed; details redacted.');

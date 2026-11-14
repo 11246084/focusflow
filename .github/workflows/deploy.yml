@@ -18,6 +18,15 @@ jobs:
           cd /opt/focusflow/backend
           npm install --production
 
+      # 後端產生短影片講稿時會載入 short_render 的施工單模組（需要它的圖示資料套件）。
+      # VM 不渲染影片，所以略過安裝腳本，不下載瀏覽器。
+      - name: short_render plan dependencies
+        run: |
+          set -euo pipefail
+          cd /opt/focusflow/short_render
+          npm ci --omit=dev --ignore-scripts
+          node -e "require('./src/plan'); console.log('short_render plan module loads')"
+
       - name: Build frontend
         run: |
           set -euo pipefail

@@ -32,6 +32,7 @@ import { deriveDisplayStatus, describeAssetState, findScriptAsset, groupScripts 
 import { ARC_LABELS, renderScriptMarkdown } from '../services/shortScriptTemplate';
 import { pickInitialTab, recallTab, rememberTab } from '../utils/shortScriptTabs';
 import { FlowBar, NextStepCard, StartGuide } from './shortScriptGuide';
+import { createLatestGuard } from './shortScriptRequestUtils';
 import {
   ConfirmDialog, Disclosure, EmptyRow, ErrorBanner, ScriptRows, ScriptSwitchSheet, StatusPill, StatusTabList, StatusTabPanel,
 } from './shortScriptUi';
@@ -107,6 +108,15 @@ export default function TeacherShortScripts({ onNav }) {
   const pendingOpenRef = useRef(initialOpen);
   const openRef = useRef(null);
   const courseIdRef = useRef('');
+  // 非同步回應的「最新請求」檢查：慢的舊回應不能蓋掉新的清單或詳情。
+  const [listGuard] = useState(createLatestGuard);
+  const [detailGuard] = useState(createLatestGuard);
+  // 目前選中（或剛點下、詳情還在載入）的腳本 id；async 流程在 await 之後用它判斷，不讀過期的 state。
+  const selectedIdRef = useRef(null);
+  const refreshRef = useRef(null);
+
+  // 離開頁面後，仍在途中的回應一律丟棄。
+  useEffect(() => () => { listGuard.next(); detailGuard.next(); }, [listGuard, detailGuard]);
 
   useEffect(() => {
     listCourses()
@@ -145,7 +155,12 @@ export default function TeacherShortScripts({ onNav }) {
   }, []);
 
   // clearError=false 用在操作之後的重讀：不能把剛顯示的操作錯誤蓋掉。
+  // 回傳 null 表示這次回應已過期（有更新的請求或已換課程），呼叫端不要據此開啟腳本。
   const refresh = useCallback(async ({ clearError = true } = {}) => {
+    // 過期閉包（例如換課程前就開始的上傳）傳進來的舊課程不重讀，避免蓋掉目前課程的清單。
+    // 這個檢查要在取代號之前：過期的呼叫不能讓目前課程正在讀的清單被當成過期而丟掉。
+    if (courseIdRef.current !== courseId) return null;
+    const token = listGuard.next();
     if (!courseId) return courseId;
 
     setLoading(true);
@@ -156,34 +171,39 @@ export default function TeacherShortScripts({ onNav }) {
         listCandidates(courseId),
         listAssets(courseId),
       ]);
+      if (!listGuard.isCurrent(token)) return null;
       setScripts(scriptList);
       setCandidates(candidateResult.candidates);
       setAssets(assetList);
       setFeatureDisabled(false);
     } catch (requestError) {
+      if (!listGuard.isCurrent(token)) return null;
       // 功能未啟用與一般錯誤要分開告知，否則教師只會看到「找不到」而不知原因。
       if (isFeatureDisabledError(requestError)) setFeatureDisabled(true);
       else setError(describeError(requestError));
     } finally {
-      setLoading(false);
+      if (listGuard.isCurrent(token)) setLoading(false);
     }
     return courseId;
-  }, [courseId]);
+  }, [courseId, listGuard]);
 
   useEffect(() => {
     setSelected(null);
+    selectedIdRef.current = null;
+    detailGuard.next();
     setPickedTopicKey('');
     setTab(null);
     setNewOpen(false);
     setMobileView('list');
     refresh().then((loadedCourseId) => {
+      if (loadedCourseId === null) return;
       const pending = pendingOpenRef.current;
       if (pending && (!pending.courseId || pending.courseId === loadedCourseId)) {
         pendingOpenRef.current = null;
         void openRef.current?.(pending.scriptId);
       }
     });
-  }, [refresh, setMobileView]);
+  }, [refresh, setMobileView, detailGuard]);
 
   const version = latestVersion(selected);
   const status = selected ? deriveDisplayStatus(selected, assets) : null;
@@ -199,6 +219,8 @@ export default function TeacherShortScripts({ onNav }) {
   );
 
   async function loadScript(scriptId) {
+    const token = detailGuard.next();
+    selectedIdRef.current = scriptId;
     setError('');
     setCopied(false);
     setMetaphorIndex(0);
@@ -207,12 +229,25 @@ export default function TeacherShortScripts({ onNav }) {
     setDismissNote('');
     setEvidenceOpen(false);
     try {
-      setSelected(await getScript(scriptId));
+      const script = await getScript(scriptId);
+      // 連點兩份腳本時，先點的詳情較晚回來要丟棄。
+      if (!detailGuard.isCurrent(token)) return false;
+      setSelected(script);
       return true;
     } catch (requestError) {
+      if (!detailGuard.isCurrent(token)) return false;
       setError(describeError(requestError));
       return false;
     }
+  }
+
+  // 長時間動作（生成、否決…）結束後，只有教師還停在發動時那份腳本才換掉詳情；
+  // 否則詳情維持教師現在看的那份，清單由 refresh 更新。
+  function applyResultIfSelected(scriptId, script) {
+    if (selectedIdRef.current !== scriptId) return false;
+    detailGuard.next();
+    setSelected(script);
+    return true;
   }
 
   async function openScript(scriptId) {
@@ -224,6 +259,8 @@ export default function TeacherShortScripts({ onNav }) {
   // 桌面與平板：關閉腳本詳情，右欄回到「建議下一步」，焦點回到清單裡原本選中的那一列。
   function closeDetail() {
     const previousId = selected?._id;
+    selectedIdRef.current = null;
+    detailGuard.next();
     setSelected(null);
     if (previousId) {
       requestAnimationFrame(() => {
@@ -234,6 +271,7 @@ export default function TeacherShortScripts({ onNav }) {
 
   useEffect(() => {
     openRef.current = openScript;
+    refreshRef.current = refresh;
   });
 
   // 桌面打開「新腳本」檢視時把焦點移到標題，鍵盤與螢幕閱讀器使用者知道右欄換了內容。
@@ -252,11 +290,15 @@ export default function TeacherShortScripts({ onNav }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, compact, confirm]);
 
-  async function reloadAfterChange() {
-    if (selected) {
-      try { setSelected(await getScript(selected._id)); } catch { /* 清單重讀時會顯示錯誤 */ }
+  async function reloadAfterChange(scriptId = selected?._id) {
+    if (scriptId && selectedIdRef.current === scriptId) {
+      const token = detailGuard.next();
+      try {
+        const script = await getScript(scriptId);
+        if (detailGuard.isCurrent(token) && selectedIdRef.current === scriptId) setSelected(script);
+      } catch { /* 清單重讀時會顯示錯誤 */ }
     }
-    await refresh({ clearError: false });
+    await (refreshRef.current || refresh)({ clearError: false });
   }
 
   async function handleCreate() {
@@ -277,13 +319,14 @@ export default function TeacherShortScripts({ onNav }) {
   }
 
   async function handleGenerate() {
+    const scriptId = selected._id;
     setBusy('generate');
     setError('');
     try {
-      setSelected(await generateVersion(selected._id));
+      applyResultIfSelected(scriptId, await generateVersion(scriptId));
       await refresh({ clearError: false });
     } catch (requestError) {
-      setError(`生成失敗：${describeError(requestError)}`);
+      if (selectedIdRef.current === scriptId) setError(`生成失敗：${describeError(requestError)}`);
       await refresh({ clearError: false });
     } finally {
       setBusy('');
@@ -295,6 +338,7 @@ export default function TeacherShortScripts({ onNav }) {
   async function handleRegenerate() {
     if (selected.status === 'changes_requested') return handleGenerate();
 
+    const scriptId = selected._id;
     const note = regenNote.trim();
     if (!note) {
       setError('請先寫一句哪裡不對，重新生成才有依據。');
@@ -304,23 +348,29 @@ export default function TeacherShortScripts({ onNav }) {
     setBusy('generate');
     setError('');
     try {
-      await reviewScript(selected._id, { decision: 'request_changes', feedback: note, feedbackType: regenType });
+      await reviewScript(scriptId, { decision: 'request_changes', feedback: note, feedbackType: regenType });
     } catch (requestError) {
       // 退回沒成功：回饋與類型都留在面板上，可以直接再送。
-      setError(describeError(requestError));
+      if (selectedIdRef.current === scriptId) setError(describeError(requestError));
       setBusy('');
       return null;
     }
     try {
-      setSelected(await generateVersion(selected._id));
-      setRegenOpen(false);
-      setRegenNote('');
+      const result = await generateVersion(scriptId);
+      // 教師已切到別份腳本時，不動目前的詳情與面板狀態。
+      if (applyResultIfSelected(scriptId, result)) {
+        setRegenOpen(false);
+        setRegenNote('');
+      }
       await refresh({ clearError: false });
     } catch (requestError) {
       // 退回已成功、生成失敗：腳本停在 changes_requested，回饋已保存在最新一版。
-      setRegenOpen(false);
-      await reloadAfterChange();
-      setError(`回饋已儲存，但重新生成失敗：${describeError(requestError)}。可直接按「依回饋重新生成」再試，不必重填。`);
+      const stillSelected = selectedIdRef.current === scriptId;
+      if (stillSelected) setRegenOpen(false);
+      await reloadAfterChange(scriptId);
+      if (stillSelected && selectedIdRef.current === scriptId) {
+        setError(`回饋已儲存，但重新生成失敗：${describeError(requestError)}。可直接按「依回饋重新生成」再試，不必重填。`);
+      }
     } finally {
       setBusy('');
     }
@@ -328,10 +378,12 @@ export default function TeacherShortScripts({ onNav }) {
   }
 
   async function handleDismiss() {
+    const scriptId = selected._id;
     setBusy('dismiss');
     setConfirmError('');
     try {
-      setSelected(await reviewScript(selected._id, { decision: 'dismiss', feedback: dismissNote.trim() || undefined }));
+      const result = await reviewScript(scriptId, { decision: 'dismiss', feedback: dismissNote.trim() || undefined });
+      applyResultIfSelected(scriptId, result);
       setConfirm(null);
       setDismissNote('');
       await refresh({ clearError: false });

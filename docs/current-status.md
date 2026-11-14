@@ -1,5 +1,58 @@
 # FocusFlow 目前狀態
 
+## 2026-11-14 暫停API後的唯讀驗收
+
+**本輪新增Gemini請求0、Atlas寫入0、索引變更0。** 再次fetch／ff-only pull後dev與origin/dev仍為`f43cd4f1d98fae9b85e2223d82cc5bcacd32c6a4`，保留前輪六份文件異動。原生Checkpoint、Gold及共用ledger前後雜湊完全相同，累計仍1,993次／US$10.05058055預留；未重試chunk_0109、未產生任何向量。完整私有證據在`.local-tools/no-api-acceptance-20261114/`。
+
+| 證據類型 | 本輪實際結果 | 不能代表的範圍 |
+|---|---|---|
+| 真實Atlas self-query | V1～V5每片三路，共15次成功，保存各路Top20及原時間 | 不是學生題庫成績 |
+| 保存探索Query的真實檢索 | 同一保存Query在V1～V5各片明確allowlist內各重播2次，三路均20筆；RRF k60、1:1:1獨立重算通過，原字稿／Chunk／時間相符，兩次排名與分數一致 | 不是各片題庫相關性或品質驗收；呼叫端scope為受控驗證範圍 |
+| 真實Atlas＋本機HTTP QA | V1兩題、V4一題既有探索Query，各2次通過QA與多輪對話、原引用、無fallback、撤銷授權403且不搜尋；跨次三路排名／分數與scope一致 | 狀態只在Harness記憶體、template回答；不是正式站或LLM品質，V2／V3／V5及正式Gold QA仍缺相符Query |
+| Mock／Fake補充回歸 | Backend 5檔30項通過：上傳授權／CAS／備份讀回／冪等回復、FAQ、分層QA、Parent整合、離線評測；Python續跑14項、原文字上傳12項通過 | 無真實Atlas寫入、無真實STT外部模型 |
+| 正式評測工具Dry Run | 實際694筆來源與42題Gold對應均有可評分Chunk；50題×24組共1,200列空排名測試資料、config與獨立重算通過 | 空排名只測格式與計算，不能引用其分數；未做正式檢索評測 |
+
+QA比較包裝初次把三路並行完成順序納入比較而停止；依模態名稱對齊後再驗。單程序跨題Harness重用也遇斷言停止，保留失敗log，改用既有獨立CLI程序完成其餘題目；產品QA／RRF／Bridge程式未修改。最終證據為`qa-final-summary.json`、`canonical-V1-0117-repeat*.json`與`isolated-V*-repeat*.json`，不將失敗包裝算作通過。
+
+**資料現況：**本輪新備份694筆並重讀校驗；V1～V5仍1,661個Atlas向量，V6仍0。三索引各三節點READY／QUERYABLE、版本4／0／0及定義不變；原字稿、時間與舊embedding符合原生產物。完整本機1,985/2,078的前輪逐筆核驗沿用，這輪另核對所有Checkpoint檔案未變，不重跑已通過的全量影音解碼。Atlas仍只有3筆V6舊text_v1 Parent，不能扣抵目前233筆text_v2需求。
+
+**上傳Pipeline：**沿用同SHA前輪真FFmpeg／Fake SDK的首次3次、重播及resume零新增呼叫、來源／世代變更拒絕證據；本輪補跑新上傳Atlas工具測試與原文字上傳／resume測試。未核准不寫向量、錯誤核准碼拒絕、CAS與讀回通過Mock驗證。程式接點位於原文字完成與通知後，多模態失敗獨立捕捉；本輪未啟動完整外部STT、live webhook或資料庫寫入。未Ready文字回退、授權矩陣及一般多模態QA沿用同SHA上一輪69項定向通過證據，沒有重跑大型全套。
+
+**評測資料已備妥：**`pending-query-inputs.json`保存50題原文及實際輸入digest；`pending-parent-inputs.json`保存固定三Leaf的233筆Parent文字、child IDs與原時間（39／41／28／48／30／47），最大輸入784 bytes。三個探索Query與50題無同文匹配，可重用題庫Query仍0。`gold-chunk-map.json`、`evaluation-manifest.json`與`evaluation-dry-run-summary.json`綁定原題庫、42題計分／X01另列／7拒答；六模態組×兩權重×Flat／Hierarchical、Top20、k60、文字加權2:1:1維持不變。沒有修改Gold或人工標註。
+
+**恢復後最短路徑與成本：**先確認配額並取得新的受控授權，完成93 Leaf（US$0.50204040）；先建5個E2E題庫Query（US$0.00819200，包含在50題內）以驗V2～V5，V6需完整417向量另獲139筆Chunk的Atlas寫入授權後驗收。其餘45 Query（US$0.07372800）與233 Parent（US$0.38174720）須另授權；合計新增376輸入、首次預留US$0.96570760，累計估US$11.01628815，不含重試且不是帳單。
+
+**仍未完成：**受控全題Query批次匯出與實際Flat／Hierarchical排名收集入口仍須接線／驗證；現有audit工具只消費保存排名，不能誤用舊Top15文字／影片評測程式代替新Top20三路契約。Parent付費入口尚須接入共用ledger，Parent Atlas發布另需明確計畫與授權。真實分層多模態、FAQ正式環境、新上傳全流程E2E、正式每題排名／第11項與獨立品質審查仍缺證據。不得因離線Dry Run通過就宣稱API恢復後無工具缺口。正式部署及旗標仍未操作。
+
+## 2026-11-14 同步與影片六受控重試
+
+**Gemini 仍回 HTTP 429，已依使用者要求停止付費流程。** 本輪 `chunk_0109` 文字僅新增一次受控重試（該簽章第2次）；未續跑其他92筆，也未新增Query／Parent請求。429原因不能僅由安全錯誤碼判定為儲值或特定配額。原失敗前像、ledger與一次重試permit均保留；下一次不能沿用本輪重試許可。
+
+Git 開始時 dev 工作目錄乾淨；fetch、`pull --ff-only origin dev` 完成，HEAD與origin/dev均為 `f43cd4f1d98fae9b85e2223d82cc5bcacd32c6a4`。近期變更包含短影片前端、渲染與語音辨識修正、Gemini診斷及上傳多模態串接，均保留。本輪未改產品程式、stage、commit或push。
+
+| 影片 | 原Chunk | 本機文字／音訊／畫面 | 本機有效／目標向量 | 本輪Atlas唯讀新增向量 |
+|---|---:|---|---:|---:|
+| V1 | 117 | 117／117／117 | 351/351 | 351 |
+| V2 | 123 | 123／123／123 | 369/369 | 369 |
+| V3 | 83 | 83／82／82 | 247/247 | 247 |
+| V4 | 144 | 144／144／144 | 432/432 | 432 |
+| V5 | 88 | 88／87／87 | 262/262 | 262 |
+| V6 | 139 | 108／108／108 | 324/417 | 0 |
+
+後五片為1,634/1,727，六片為1,985/2,078；兩個超長段仍只建文字。本輪全部成功Checkpoint重新核對凍結來源、影音雜湊、原始時間、原生簽章、3072維與向量digest，重用核驗不新增模型呼叫。Gemini ledger由1,992次／US$10.04894215變為1,993次／US$10.05058055；本輪新增預留US$0.00163840，包含失敗且不代表實際帳單。尚缺93輸入原估預留US$0.50204040，金額上限仍有餘裕，但不能據此忽略429停止條件。
+
+**Atlas（本輪唯讀）：**694筆原embedding、逐字稿、影片與原時間匹配原生產物；新建694筆範圍備份並重讀checksum，V1整份文件指紋與歷史驗證相同。V1～V5共1,661筆向量與metadata逐筆符合凍結bundle，V6三路仍0；三個索引各三節點READY／QUERYABLE、無staged，text version4、parent/video version0，定義無須變更。dbStats dataSize=127,908,581 bytes、storageSize=138,506,240、一般indexSize=4,382,720；不代表Search用量或可用容量。管理頁tier／容量／告警及組員操作窗口本輪未重新確認，不能沿用11/13確認作當次寫入放行。
+
+V1～V5的15次三路self-query全部成功，完整排名、來源與原時間保存於`self-queries.json`；這只驗證可搜尋性，不是正式題庫成績。V6部分bundle驗證正確拒絕324/417，沒有可執行計畫或approvalHash；目前可核准的完整V6寫入為0。完成後預計僅對V6既有139筆Chunk新增417個向量與metadata；須當次備份、完整Dry Run、CAS前像與核准碼、容量／窗口確認後另請授權，不動舊embedding、字稿、時間或索引。V2～V5成功receipt與資料保留，不重送。
+
+**本輪驗證：**Backend 9個定向檔69/69通過，涵蓋CAS、受控寫入、三路／RRF／Bridge、FAQ與降級、多輪與授權矩陣；沙箱內20項HTTP fetch失敗，沙箱外同組全過，未改程式繞過。Python corpus 7/7、Adapter 10/10、上傳階段1/1通過；上傳測試用真FFmpeg／Fake SDK，首次三路3次、重跑0次。影片一保存Query的真實Atlas HTTP QA及多輪對話通過，三路各20候選、RRF k60可重算、引用原影片與時間、無fallback；撤銷授權403且不搜尋。答案為template，狀態僅存Harness記憶體，不能宣稱LLM回答品質驗收。
+
+**環境與未執行：**系統Node26不在專案指定版本線，實際使用既有Node22.23.4；前後端`npm ls --depth=0 --offline`通過。Python3.11.9、google-genai1.70.0、httpx0.28.1、PyAV17與FFmpeg可用；既有金鑰／DB設定存在，未輸出憑證。本機多模態旗標與上傳付費模式未設定（沿用預設關閉）；後端仍提示JWT設定只適合開發，未改設定或查改VM。未啟動正式服務、全上傳外部Pipeline、全前後端回歸或部署：本輪產品程式未改且外部操作未授權。新上傳真Atlas／QA E2E、共享儲存換機恢復與正式服務帳號政策仍未驗收。
+
+**正式評測依賴：**原題庫及鎖定規則檢查通過，42題計分、X01另列、7拒答維持；未改Gold。當次核對仍需50個相符Query及233個固定三Leaf Parent，五片E2E的5個Query是50題子集，不能重複算成55。保守首次預留分別US$0.08192000與US$0.38174720；五片E2E先行子集為US$0.00819200，均未授權或呼叫。Parent入口仍須先接入共用成本ledger再執行。正式每題24組排名、獨立重算與第11項驗收尚未進行。
+
+完整私有證據位於`.local-tools/resume-20261114/`（preflight、controlled-retry、vector-verification、backup-current、atlas-readonly、bundle-readback-and-dry-run、V1-qa-0001、測試及題庫檢查）。下一步先由教授確認本次金鑰所屬專案的配額／花費限制，再明確授權該簽章第3次且最多一次重試；成功才續跑其餘92輸入。Atlas、Query／Parent、部署與正式旗標均保持未授權。
+
 ### 2026-11-13 上傳後多模態串接（實作中）
 
 本機以 V2 原片與第一筆原始 Chunk 重跑 FFmpeg／Fake SDK，三路首次 3 次、重跑 0 次。隔離 Backend 回歸 1,956 passed、1 skipped、0 failed；新增 Atlas 模擬驗證涵蓋缺授權、錯誤核准碼、CAS、讀回、冪等與回復。前端 229 項通過，lint、build 及 OpenAPI lint 通過。STT 全套 242 項通過；單獨續跑入口另以模擬資料庫核對來源及世代。以上無新增付費呼叫或共用 Atlas 寫入。

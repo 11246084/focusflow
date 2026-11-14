@@ -2,7 +2,7 @@
 
 ## 2026-11-14 正式站開啟多模態融合
 
-Weihao 定案產品方向為多模態（見[多模態決策](04_Features/Multimodal_Retrieval/decisions.md)）。VM 的 `backend/.env` 已設 `QA_MULTIMODAL_FUSION_ENABLED=true`（先備份 `.env`），`pm2 restart` 後 `online`、`/health` 回 200，啟動錯誤紀錄沒有新錯誤。正式站程式仍是 `main` `cb17930`。
+Weihao 定案產品方向為多模態（見[多模態決策](04_Features/Multimodal_Retrieval/decisions.md)）。VM 的 `backend/.env` 已設 `QA_MULTIMODAL_FUSION_ENABLED=true`（先備份 `.env`），`pm2 restart` 後 `online`、`/health` 回 200，啟動錯誤紀錄沒有新錯誤。同日 Weihao 授權合併 dev 到 main（`067abb3`，Deploy to VM #162 成功）；VM 核對版本為 `067abb3`、開關仍為 `true`、`/health` 200，`npm run diagnose:gemini -- --probe` 回報查模型 OK、生成請求 SPEND_CAP_REACHED（HTTP 429）。
 
 - 生效範圍：AI入門 V1～V5 已有三路向量；V6 未完成部分與其他課程由程式自動用文字檢索。
 - 未驗證：Gemini 專案已達每月花費上限，查詢向量呼叫回 429，所以還沒有真實提問確認三路結果與引用標籤；開關開或關都一樣無法回答新問題。上限由教授處理中。

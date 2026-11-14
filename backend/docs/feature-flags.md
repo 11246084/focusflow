@@ -44,4 +44,4 @@
 
 `QA_MULTIMODAL_FUSION_ENABLED` 預設 false。啟用後使用 stableTextEmbedding、audioEmbedding、visualEmbedding，索引或契約不可用時回退已授權的既有文字檢索。runtime.multimodal 回報逐路診斷與回退原因，回退時增加 QA_MULTIMODAL_TEXT_FALLBACK。啟用時停用舊影像補充引用，FAQ 證據版本納入融合、分層 rollout 與模型契約。關閉時恢復原 QA／FAQ 路徑。
 
-三條 path 與資料寫入須另行核准，正式環境目前維持關閉。開關不授權付費呼叫、索引更新或部署。契約與操作見 [多模態說明](../../docs/04_Features/Multimodal_Retrieval/phase2-adapters.md)及 [Atlas 授權單](../../docs/04_Features/Multimodal_Retrieval/atlas-preparation.md)。
+程式預設仍是 false；正式環境自 2026-11-14 起在 VM 的 `backend/.env` 設為 true（產品方向定案為預設三路，見[多模態決策](../../docs/04_Features/Multimodal_Retrieval/decisions.md)最上方）。沒有三路向量的影片由上述回退走文字檢索；課程中有新上傳影片的多模態處理未 ready 時，整門課暫時不融合。新資料寫入仍須另行核准。開關不授權付費呼叫、索引更新或部署。契約與操作見 [多模態說明](../../docs/04_Features/Multimodal_Retrieval/phase2-adapters.md)及 [Atlas 授權單](../../docs/04_Features/Multimodal_Retrieval/atlas-preparation.md)。

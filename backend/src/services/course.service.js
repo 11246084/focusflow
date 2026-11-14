@@ -72,8 +72,21 @@ async function createCourse({ title, description, teacherId, status, creator }) 
   return buildCoursePresentation(createdCourse);
 }
 
-async function listCourses(user) {
+// scope=managed：只列出可管理的課程（admin 全部、teacher 只有自己授課的），給短影片等管理頁的選單用。
+async function listCourses(user, { scope } = {}) {
   let courses = [];
+
+  if (scope !== undefined && scope !== 'managed') {
+    throw new AppError('scope must be "managed" when provided.', 400, 'VALIDATION_ERROR');
+  }
+
+  if (scope === 'managed' && !isAdmin(user)) {
+    if (!isTeacher(user)) return [];
+    courses = await Course.find({ teacherId: user.id })
+      .populate('teacherId', 'name email role isActive')
+      .sort({ createdAt: -1 });
+    return Promise.all(courses.map((course) => buildCoursePresentation(course)));
+  }
 
   if (isAdmin(user)) {
     courses = await Course.find().populate('teacherId', 'name email role isActive').sort({ createdAt: -1 });

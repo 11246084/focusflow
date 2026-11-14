@@ -11,8 +11,9 @@ const json = (method, body) => ({
 });
 const scriptPath = (scriptId) => `/short-scripts/${enc(scriptId)}`;
 
+// 短影片頁只列出自己授課的課程（admin 全部），不列其他老師公開的課程。
 export async function listCourses() {
-  const response = await apiFetch('/courses');
+  const response = await apiFetch('/courses?scope=managed');
   return response.data?.courses || [];
 }
 

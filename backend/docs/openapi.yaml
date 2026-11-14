@@ -1434,7 +1434,18 @@ paths:
         student 僅回傳 `active Enrollment ∩ Course.status=published`；公開狀態本身不是學生存取授權。teacher / admin 依各自管理範圍回傳。
 
         這個回應在 Phase-1 是 `bridge-aware`，可能會帶出 `qaScopeOnly`、`bridgeMode` 等欄位，讓 frontend 或 demo 使用者可以區分一般課程與 QA-only 的 bridge 呈現。
+
+        帶 `scope=managed` 時只回傳可管理的課程：admin 全部、teacher 只有自己授課的課程、student 為空陣列。短影片製作與管理頁的課程選單使用此範圍。
       operationId: listCourses
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          description: 只接受 `managed`；其他值回 400。
+          schema:
+            type: string
+            enum:
+              - managed
       responses:
         '200':
           description: 成功取得課程列表
@@ -1442,6 +1453,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CourseListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     post:

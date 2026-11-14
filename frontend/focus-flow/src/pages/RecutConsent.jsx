@@ -58,13 +58,13 @@ export function RecutConsentGate({ courseId, mode = 'recut', consent, terms, onR
           ))}
           <p className="rc-reason rc-reason-start">{terms.withdrawal}</p>
         </section>
-      </div>
-      <aside className="rc-col rc-side">
-        <div className="rc-panel" data-rc-actions>
-          <PrimaryAction label="同意並繼續" onClick={submit} busy={busy} disabled={!ready} reason="勾選上面的同意後才能繼續" />
-          {error && <p className="rc-error rc-mt-s" role="alert">{error}</p>}
+        <div className="rc-panel rc-actionbar" data-rc-actions>
+          <div className="rc-actions">
+            <PrimaryAction label="同意並繼續" onClick={submit} busy={busy} disabled={!ready} reason="勾選上面的同意後才能繼續" />
+            {error && <p className="rc-error" role="alert">{error}</p>}
+          </div>
         </div>
-      </aside>
+      </div>
     </>
   );
 }

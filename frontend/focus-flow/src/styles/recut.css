@@ -1,6 +1,11 @@
 /* 教師短影片製作／管理（recut）。只用 tokens.css 的變數；規則見 DESIGN.md。 */
 
-.rc { color: var(--ff-chalk-body); font-family: var(--ff-font-body); font-size: var(--ff-text-body); line-height: 1.7; letter-spacing: 0.01em; accent-color: var(--ff-deep-ember); color-scheme: dark; }
+.rc {
+  /* 這兩頁的局部色：暗紅棕（品牌色）退到卡片與微光，底色改成帶暖調的炭黑；完成用鼠尾草綠、進行中用琥珀，紅綠不再互搶。 */
+  --rc-base: #141011; --rc-surface: rgba(43, 20, 24, 0.66); --rc-surface-solid: #22121A;
+  --rc-edge: rgba(235, 130, 120, 0.14); --rc-edge-strong: rgba(235, 130, 120, 0.26); --rc-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --ff-status-ok: #A3C4A0; --ff-status-wait: #E8B65A; --rc-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--ff-chalk-body); font-family: var(--ff-font-body); font-size: var(--ff-text-body); line-height: 1.7; letter-spacing: 0.01em; accent-color: var(--ff-deep-ember); color-scheme: dark; }
 .rc ::selection { background: rgba(241, 79, 33, 0.38); color: var(--ff-chalk-white); }
 .rc :where(button, select, a, input, [tabindex]):focus-visible { outline: var(--ff-focus-ring); outline-offset: 2px; }
 .rc h1, .rc h2, .rc h3 { text-wrap: balance; margin: 0; color: var(--ff-chalk-white); font-family: var(--ff-font-display); }
@@ -10,12 +15,28 @@
 .rc-col:has(> .rc-skip) { position: relative; }
 .rc-visually-hidden { position: absolute !important; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
 
-/* 三欄工作區 */
-.rc-studio { display: grid; grid-template-columns: 252px minmax(0, 1fr) 300px; gap: var(--ff-space-md); height: 100%; padding: 0 var(--ff-space-page) var(--ff-space-page); box-sizing: border-box; }
-.rc-col { min-height: 0; overflow-y: auto; scrollbar-color: var(--ff-white-28) transparent; }
-.rc-panel { background: var(--ff-plum-night); border: 1px solid var(--ff-hairline); border-radius: var(--ff-radius-card); padding: var(--ff-space-lg); }
-.rc-main { display: flex; flex-direction: column; gap: var(--ff-space-md); }
+/* 兩欄工作區：左邊短片清單，右邊工作區；主要動作在工作區底部的固定列，不再另開第三欄。 */
+.rc-studio { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 20px; height: 100%; padding: var(--ff-space-md) var(--ff-space-page) var(--ff-space-page); box-sizing: border-box; }
+/* 頁面底：全站漸層照舊，這兩頁在上面鋪一層暖炭黑，只在右上留一道品牌色微光，讓卡片浮得出來。 */
+.rc-studio, .rc-manage { background: radial-gradient(80% 50% at 78% -6%, rgba(160, 52, 44, 0.20), transparent 64%), color-mix(in srgb, var(--rc-base) 86%, transparent); border-top-left-radius: var(--ff-radius-card); box-shadow: inset 1px 1px 0 var(--rc-edge); }
+.rc-col { min-height: 0; overflow-y: auto; }
+/* 捲軸：平常隱形，滑過或在裡面操作時才出現一條細的半透明條。 */
+.rc-col, .rc-manage, .rc-scroll-list, .rc-sheet { scrollbar-width: thin; scrollbar-color: transparent transparent; transition: scrollbar-color 240ms ease-out; }
+.rc-col:hover, .rc-col:focus-within, .rc-manage:hover, .rc-scroll-list:hover, .rc-sheet:hover { scrollbar-color: var(--ff-white-16) transparent; }
+.rc-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 120px), var(--rc-surface); border: 1px solid var(--rc-edge); border-radius: var(--ff-radius-card); padding: 24px; box-shadow: var(--rc-sheen); backdrop-filter: blur(12px); }
+.rc-main { display: flex; flex-direction: column; gap: 16px; }
 .rc-side { display: flex; flex-direction: column; gap: var(--ff-space-sm); }
+/* 工作區底部的動作列：捲動講稿時固定在底部，底下的內容透出一點。 */
+.rc-actionbar { position: sticky; bottom: 0; z-index: 4; padding: 16px 20px; background: color-mix(in srgb, var(--rc-surface-solid) 88%, transparent); border-color: var(--rc-edge-strong); backdrop-filter: blur(18px) saturate(1.1); box-shadow: var(--rc-sheen), 0 -12px 32px rgba(10, 6, 8, 0.45); }
+.rc-actionbar > .rc-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 16px; }
+.rc-actionbar > .rc-actions > .rc-duration { flex: 1 1 260px; margin-right: auto; }
+.rc-actionbar > .rc-actions > .rc-actions { flex: 0 1 300px; }
+.rc-actionbar > .rc-actions > .rc-btn-block { width: auto; }
+/* 次要動作（返回、退回、取消）排在主要按鈕左邊；列內不需要額外上邊距。 */
+.rc-actionbar > .rc-actions > .rc-btn-outline { order: -1; }
+.rc-actionbar > .rc-actions > .rc-mt-s { margin-top: 0; }
+.rc-actionbar > .rc-actions > .rc-done { margin-right: auto; }
+.rc-actionbar > .rc-actions > .rc-error, .rc-actionbar > .rc-actions > .rc-reason { flex-basis: 100%; text-align: end; }
 
 /* 左欄：課程與短片清單 */
 .rc-field-label { display: block; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); margin-bottom: 6px; }
@@ -25,14 +46,23 @@
 .rc-select:disabled { color: var(--ff-chalk-muted); background: transparent; cursor: not-allowed; }
 .rc-select option { background: var(--ff-plum-night); }
 .rc-list { list-style: none; margin: var(--ff-space-sm) 0 0; padding: 0; }
-.rc-list li + li { border-top: 1px solid var(--ff-divider); }
-.rc-list-item { display: grid; gap: 4px; width: 100%; min-height: var(--ff-touch-target); padding: 10px 10px; background: none; border: 0; border-radius: var(--ff-radius-md); color: var(--ff-chalk-body); text-align: left; font: inherit; cursor: pointer; }
+.rc-list li + li { margin-top: 2px; }
+.rc-list-item { display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: baseline; column-gap: 10px; width: 100%; min-height: var(--ff-touch-target); padding: 11px 12px; background: none; border: 0; border-radius: var(--ff-radius-md); color: var(--ff-chalk-body); text-align: left; font: inherit; cursor: pointer; transition: background-color 200ms var(--rc-ease-out), box-shadow 200ms var(--rc-ease-out); }
+.rc-list-item > .rc-dot { grid-column: 1; grid-row: 1; translate: 0 -1px; }
+.rc-list-item > .rc-list-title { grid-column: 2; grid-row: 1; }
 .rc-list-item:hover { background: var(--ff-white-04); }
 .rc-list-item:active { background: var(--ff-white-07); }
-.rc-list-item[aria-current="true"] { background: rgba(241, 79, 33, 0.16); color: var(--ff-chalk-white); box-shadow: inset 0 0 0 1px rgba(241, 79, 33, 0.45); }
+.rc-list-item[aria-current="true"] { background: rgba(241, 79, 33, 0.13); color: var(--ff-chalk-white); box-shadow: inset 0 0 0 1px rgba(241, 79, 33, 0.38); }
 .rc-list-item[aria-current="true"] .rc-list-title { color: var(--ff-chalk-white); font-weight: 700; }
 .rc-list-title { color: var(--ff-chalk-body); font-weight: 500; overflow-wrap: anywhere; }
 .rc-list-group { margin: var(--ff-space-md) 0 0; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); }
+
+/* 清單的狀態點：形狀＋顏色（空心圈＝等你處理、缺角圈＝處理中、實心＝完成、菱形＝失敗），文字給螢幕報讀與滑過提示。 */
+.rc-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; }
+.rc-dot[data-tone="mine"] { border: 2px solid var(--ff-chalk-white); }
+.rc-dot[data-tone="waiting"] { background: conic-gradient(var(--ff-status-wait) 0 72%, transparent 0); box-shadow: inset 0 0 0 2px var(--ff-status-wait); }
+.rc-dot[data-tone="done"] { background: var(--ff-status-ok); }
+.rc-dot[data-tone="error"] { width: 8px; height: 8px; border-radius: 2px; rotate: 45deg; background: var(--ff-status-error); }
 
 /* 狀態小色塊：圖示＋文字 */
 .rc-chip { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 3px 9px; border-radius: var(--ff-radius-pill); font-size: var(--ff-text-min-cjk); font-weight: 700; line-height: 1.4; white-space: nowrap; }
@@ -42,8 +72,8 @@
 .rc-chip[data-tone="mine"] { color: var(--ff-chalk-white); background: var(--ff-white-08); box-shadow: inset 0 0 0 1px var(--ff-white-28); }
 /* 老師自己改過的句子：中性、用編輯圖示，不像警示。 */
 .rc-chip[data-tone="edit"] { color: var(--ff-chalk-body); background: var(--ff-white-06); font-weight: 600; }
-.rc-chip[data-tone="waiting"] { color: var(--ff-status-wait); background: rgba(250, 204, 21, 0.14); }
-.rc-chip[data-tone="done"] { color: var(--ff-status-ok); background: rgba(74, 222, 128, 0.14); }
+.rc-chip[data-tone="waiting"] { color: var(--ff-status-wait); background: rgba(232, 182, 90, 0.14); }
+.rc-chip[data-tone="done"] { color: var(--ff-status-ok); background: rgba(163, 196, 160, 0.14); }
 .rc-chip[data-tone="error"] { color: var(--ff-status-error); background: rgba(248, 113, 113, 0.14); }
 
 /* 中欄：問題、流程列、講稿 */
@@ -57,8 +87,8 @@
 .rc-flow-mark { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; box-sizing: border-box; }
 .rc-flow li[data-state="done"] .rc-flow-mark { background: currentColor; }
 
-.rc-script { list-style: none; margin: 0; padding: 0; max-width: 40em; }
-.rc-line { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 4.5em; align-items: start; gap: 4px 10px; padding: 9px 6px; border-radius: var(--ff-radius-md); transition: background-color 160ms ease-out; }
+.rc-script { list-style: none; margin: 0; padding: 0; max-width: 52em; }
+.rc-line { display: grid; grid-template-columns: 4.2em minmax(0, 1fr) 4.5em; align-items: start; gap: 4px 12px; padding: 11px 8px; border-radius: var(--ff-radius-md); transition: background-color 160ms ease-out; }
 .rc-line + .rc-line { border-top: 1px solid var(--ff-divider); }
 .rc-line-text { color: var(--ff-chalk-body); font-size: var(--ff-text-read); line-height: 1.75; overflow-wrap: anywhere; }
 .rc-line[data-role="kept"] .rc-line-text { color: var(--ff-chalk-white); }
@@ -111,16 +141,16 @@
 /* 按鈕 */
 /* 按鈕狀態：Idle／Hover（換色）／Active（彈簧按壓）／Focus-visible（.rc 的橘框）／Disabled（實色＋原因文字）／
    Loading（aria-busy）。Error 由按鈕下方 role="alert" 的文字表達；Success 由畫面換到下一步表達，不在按鈕上閃色。 */
-.rc-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ff-touch-target); padding: 0 26px; border-radius: var(--ff-radius-pill); font: inherit; font-size: var(--ff-text-action); font-weight: 700; cursor: pointer; border: 1.5px solid transparent;
+.rc-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ff-touch-target); padding: 0 22px; border-radius: var(--ff-radius-pill); font: inherit; font-size: var(--ff-text-action); font-weight: 700; cursor: pointer; border: 1.5px solid transparent;
   transition: background-color var(--ff-duration-state) var(--ff-ease-state), border-color var(--ff-duration-state) var(--ff-ease-state), color var(--ff-duration-state) var(--ff-ease-state), box-shadow var(--ff-duration-state) var(--ff-ease-state), scale var(--ff-spring-duration) var(--ff-spring); }
 .rc-btn:active:not(:disabled):not([aria-disabled="true"]) { scale: 0.97; transition-duration: 80ms; }
 .rc-btn:disabled, .rc-btn[data-disabled] { cursor: not-allowed; }
 .rc-btn[aria-busy="true"] { cursor: progress; }
 .rc-btn-busy { position: absolute; inset: 0; display: grid; place-items: center; }
-.rc-btn-primary { background: var(--ff-deep-ember); color: var(--ff-chalk-white); }
-.rc-btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--ff-deep-ember-pressed); box-shadow: var(--ff-elev-1-shadow); }
+.rc-btn-primary { background: linear-gradient(180deg, var(--ff-deep-ember), var(--ff-deep-ember-pressed)); color: var(--ff-chalk-white); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(0, 0, 0, 0.35); }
+.rc-btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--ff-deep-ember-pressed); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--ff-elev-1-shadow); }
 /* 停用改用可讀的中性實色（文字 6.1:1），不再用透明度把橘色變混濁 */
-.rc-btn-primary:disabled, .rc-btn-primary[data-disabled] { background: var(--ff-white-08); color: var(--ff-chalk-muted); }
+.rc-btn-primary:disabled, .rc-btn-primary[data-disabled] { background: var(--ff-white-08); color: var(--ff-chalk-muted); box-shadow: none; }
 .rc-btn-outline { background: transparent; color: var(--ff-chalk-body); border-color: var(--ff-white-16); }
 .rc-btn-outline:hover:not(:disabled) { background: var(--ff-white-06); border-color: var(--ff-white-30); color: var(--ff-chalk-white); }
 .rc-btn-outline:disabled, .rc-btn-danger:disabled { color: var(--ff-chalk-muted); border-color: var(--ff-white-08); }
@@ -148,7 +178,7 @@
 .rc-duration-value strong { font-size: 34px; font-weight: 900; line-height: 1; letter-spacing: -0.02em; }
 .rc-duration[data-valid="false"] .rc-duration-value strong { color: var(--ff-status-error); }
 .rc-meter { position: relative; height: 10px; border-radius: var(--ff-radius-pill); background: var(--ff-white-07); }
-.rc-meter-range { position: absolute; top: 0; bottom: 0; border-radius: var(--ff-radius-pill); background: rgba(74, 222, 128, 0.18); }
+.rc-meter-range { position: absolute; top: 0; bottom: 0; border-radius: var(--ff-radius-pill); background: rgba(163, 196, 160, 0.2); }
 .rc-meter-fill { position: absolute; left: 0; top: 2px; bottom: 2px; border-radius: var(--ff-radius-pill); background: var(--ff-ember-orange); transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1); }
 .rc-duration[data-valid="false"] .rc-meter-fill { background: var(--ff-status-error); }
 .rc-meter-scale { position: relative; height: 1.7em; margin-top: 4px; font-size: var(--ff-text-min-cjk); color: var(--ff-chalk-muted); font-variant-numeric: tabular-nums; }
@@ -300,25 +330,30 @@
 }
 
 /* 管理頁 */
-.rc-manage { padding: 0 var(--ff-space-page) var(--ff-space-page); height: 100%; overflow-y: auto; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--ff-space-md); align-content: start; }
+.rc-manage { padding: var(--ff-space-md) var(--ff-space-page) var(--ff-space-page); height: 100%; overflow-y: auto; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--ff-space-md); align-content: start; }
 .rc-manage-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .rc-manage-heading h2 { font-size: var(--ff-text-title); }
 .rc-manage-heading span { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); font-variant-numeric: tabular-nums; }
-.rc-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 6px; width: 100%; min-height: 56px; padding: 12px 8px; background: none; border: 0; border-radius: var(--ff-radius-md); color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.rc-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 6px; width: 100%; min-height: 56px; padding: 13px 12px; transition: background-color 200ms var(--rc-ease-out); background: none; border: 0; border-radius: var(--ff-radius-md); color: inherit; text-align: left; font: inherit; cursor: pointer; }
 .rc-row:hover { background: var(--ff-white-04); }
 .rc-row:active { background: var(--ff-white-07); }
 .rc-row-title { color: var(--ff-chalk-white); font-weight: 500; overflow-wrap: anywhere; }
+.rc-row:has(> .rc-dot) { grid-template-columns: 10px minmax(0, 1fr); align-items: baseline; gap: 4px 10px; }
+.rc-row > .rc-dot { grid-column: 1; grid-row: 1; translate: 0 -1px; }
+.rc-row:has(> .rc-dot) > .rc-row-title, .rc-row:has(> .rc-dot) > .rc-row-meta { grid-column: 2; }
 .rc-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.rc-row-status { color: var(--ff-chalk-body); font-size: var(--ff-text-min-cjk); font-weight: 600; }
 .rc-row-course { color: var(--ff-chalk-muted); font-size: var(--ff-text-min-cjk); }
 .rc-empty { color: var(--ff-chalk-muted); padding: 10px 8px; }
 
 /* 手機：單欄，主要動作固定在底部拇指範圍 */
 @media (max-width: 1100px) {
-  .rc-studio { grid-template-columns: 220px minmax(0, 1fr) 270px; gap: var(--ff-space-sm); padding: 0 18px 18px; }
+  .rc-studio { grid-template-columns: 232px minmax(0, 1fr); gap: 16px; padding: var(--ff-space-sm) 18px 18px; }
   .rc-manage { grid-template-columns: minmax(0, 1fr) 300px; }
 }
 @media (max-width: 768px) {
-  .rc-studio { display: flex; flex-direction: column; height: auto; padding: 0 16px; gap: var(--ff-space-sm); }
+  .rc-studio { display: flex; flex-direction: column; height: auto; padding: var(--ff-space-sm) 16px 0; gap: var(--ff-space-sm); border-radius: 0; }
+  .rc-manage { border-radius: 0; }
   .rc-col { overflow: visible; }
   .rc-nav-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
   .rc-nav-row .rc-select { padding: 0 10px; }
@@ -334,7 +369,7 @@
   .rc-line-toggle { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-height: var(--ff-touch-target); min-width: var(--ff-touch-target); margin: 0; }
   .rc-time { min-height: var(--ff-touch-target); }
   .rc-cut-label { display: inline; margin-right: 4px; }
-  .rc-dock { position: sticky; bottom: 0; z-index: 5; margin: 0 -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px)); background: var(--ff-elev-2-surface); border-top: 1px solid var(--ff-hairline); }
+  .rc-dock { position: sticky; bottom: 0; z-index: 5; margin: 0 -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--rc-surface-solid) 92%, transparent); backdrop-filter: blur(18px); border-top: 1px solid var(--rc-edge-strong); }
   .rc-dock .rc-duration { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 12px; }
   .rc-dock .rc-duration-value strong { font-size: 24px; }
   .rc-dock .rc-meter-scale { display: none; }
@@ -352,3 +387,24 @@
   .rc-meter-fill { transition: none; }
   .rc-status progress { --rc-indeterminate: 10s; }
 }
+
+/* 動態：只用在解釋狀態與連貫性。
+   ① 換一支短片：工作區從輕微失焦到清楚、往上就位（重點時刻，320ms）；清單選取的底色跟著滑過去。
+   ② 數字更新：總秒數換值時從下方淡入，看得出「剛剛變了」。
+   ③ 狀態回饋：處理中的狀態點緩慢呼吸；完成的勾勾彈一下；新出現的提醒與錯誤淡入。 */
+@media (prefers-reduced-motion: no-preference) {
+  .rc-main > :not(.rc-actionbar):not(.rc-dock) { animation: rc-enter 320ms var(--rc-ease-out) both; }
+  .rc-main > :nth-child(2):not(.rc-actionbar):not(.rc-dock) { animation-delay: 40ms; }
+  .rc-main > :nth-child(3):not(.rc-actionbar):not(.rc-dock) { animation-delay: 80ms; }
+  .rc-main > :nth-child(n+4):not(.rc-actionbar):not(.rc-dock) { animation-delay: 110ms; }
+  .rc-actionbar, .rc-dock { animation: rc-bar-in 360ms var(--rc-ease-out) both; }
+  .rc-num { display: inline-block; animation: rc-num-in 240ms var(--rc-ease-out) both; }
+  .rc-dot[data-tone="waiting"] { animation: rc-breathe 2.4s ease-in-out infinite; }
+  .rc-done > span svg { animation: rc-pop 280ms var(--rc-ease-out) both; }
+  .rc-help:popover-open { animation: rc-dialog-in 260ms var(--rc-ease-out) both; }
+}
+@keyframes rc-enter { from { opacity: 0; translate: 0 8px; filter: blur(5px); } }
+@keyframes rc-bar-in { from { opacity: 0; translate: 0 12px; } }
+@keyframes rc-num-in { from { opacity: 0; translate: 0 0.35em; } }
+@keyframes rc-breathe { 50% { box-shadow: inset 0 0 0 2px var(--ff-status-wait), 0 0 0 4px rgba(232, 182, 90, 0.16); } }
+@keyframes rc-pop { from { scale: 0.4; } }

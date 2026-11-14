@@ -115,6 +115,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 之後的 `/impeccable polish`：逐句修改失敗的訊息改在那一句下方；「放棄修改」移到講稿上方，手機修改後底部列由約 220px 降到 167px；採納建議前說明會重排約一分鐘；數位分身的視覺隱喻放到腳本上方、清單狀態改為「待傳回影片」；目前這一支改用細框（不用左側色條）；手機流程列不再出現行首連接線；短影片管理沒有任何短片時只顯示一個空狀態與「製作新短片」。
 
+**正式站部署（2026-11-14）**：使用者授權後把 `dev` 合併到 `main`（`cb17930`，含組員 29 個提交、無衝突），部署 run #161 成功，部署流程新增的 short_render 套件安裝步驟也通過；從外部確認正式站已載入新版短影片頁。後端短影片能否產片取決於 VM 設定（`SHORT_SCRIPT_AUTOMATION_ENABLED`、recut runtime JSON、語音辨識模型、`YOUTUBE_API_KEY`、渲染 worker），外部看不到 `/health`，需在主機內 `curl localhost:4000/health` 看 `runtime.recut.ready`。Gemini 以新增的 `npm run diagnose:gemini -- --probe` 診斷：金鑰有效、模型存在，生成被「專案每月花費上限」擋下，要在 AI Studio 調高上限。
+
 **上線準備（2026-11-14）**：`/health` 新增 `runtime.recut`（開關、是否就緒、主機設定狀態與缺項代碼），部署後可直接確認能否產生短片；上線所需設定、渲染 worker、驗證與關閉方式寫在[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。正式上線仍需：調高 Gemini 專案花費上限、VM 設定 `YOUTUBE_API_KEY` 與 recut runtime（含離線 faster-whisper 模型）、準備渲染 worker、負責人授權部署（`dev` 合併到 `main`），以及真機、LINE 與真人教師驗收。
 
 正式組裝的語音辨識路徑（同日）：以後端 `createRecutHostRuntime` 讀正式格式的 runtime JSON，在 Linux 跑真實的視窗、原片檢查、faster-whisper 逐字時間（small 模型）、切句與 worker 渲染，全部成功（44 句、成品 44.2 秒、-15.9 LUFS）；只有 Gemini 因花費上限改用固定輸出。過程中找到並修正三個會讓正式站失敗的問題：host 把 `python` 解開 symlink 後脫離虛擬環境、找不到 faster_whisper（Linux 虛擬環境預設是 symlink，Windows 試產沒踩到）；`STT_Whisper` 沒限制 PyAV，新安裝會拿到 19 版而讓辨識開檔失敗（改成 `av>=11,<19`）；切句把 Whisper 的「0.」「01」在小數點斷開（數字中的點與逗號不再斷句）。

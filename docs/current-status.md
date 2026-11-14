@@ -117,6 +117,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 **上線準備（2026-11-14）**：`/health` 新增 `runtime.recut`（開關、是否就緒、主機設定狀態與缺項代碼），部署後可直接確認能否產生短片；上線所需設定、渲染 worker、驗證與關閉方式寫在[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。正式上線仍需：調高 Gemini 專案花費上限、VM 設定 `YOUTUBE_API_KEY` 與 recut runtime（含離線 faster-whisper 模型）、準備渲染 worker、負責人授權部署（`dev` 合併到 `main`），以及真機、LINE 與真人教師驗收。
 
+正式組裝的語音辨識路徑（同日）：以後端 `createRecutHostRuntime` 讀正式格式的 runtime JSON，在 Linux 跑真實的視窗、原片檢查、faster-whisper 逐字時間（small 模型）、切句與 worker 渲染，全部成功（44 句、成品 44.2 秒、-15.9 LUFS）；只有 Gemini 因花費上限改用固定輸出。過程中找到並修正三個會讓正式站失敗的問題：host 把 `python` 解開 symlink 後脫離虛擬環境、找不到 faster_whisper（Linux 虛擬環境預設是 symlink，Windows 試產沒踩到）；`STT_Whisper` 沒限制 PyAV，新安裝會拿到 19 版而讓辨識開檔失敗（改成 `av>=11,<19`）；切句把 Whisper 的「0.」「01」在小數點斷開（數字中的點與逗號不再斷句）。
+
 **真實外部服務驗證（2026-11-14，使用者授權：FocusFlow 頻道、Gemini 不超過 15 美元）**：本機真後端＋隔離 Mongo（非 Atlas）＋真 short_render worker（chrome-headless-shell、Noto Sans TC）＋真 YouTube 上傳，原片用本機離線語音合成的講課（句子時間精確已知，取代這台機器沒有的語音辨識模型）。結果：
 - **Gemini 未執行**：API 回 429「專案已超過每月花費上限」，沒有產生費用；選段、配圖與數位分身腳本改用依真實格式寫好的固定輸出，仍經過 short_render 的真實驗證。要真實生成需先在 AI Studio 調整花費上限。
 - **原片剪輯**：教師在真前端完成同意 → 講稿 → 核准 → 真實渲染（49 秒 MP4，檢查全過）→ 自動上傳 YouTube（`A4h49gfOIQ0`，FocusFlow 頻道，unlisted、已處理完成）→ 畫面自動換成可核准 → 核准 → 已上架。

@@ -82,6 +82,22 @@ describe('recut host 一次性設定與自主 pipeline', () => {
     assert.equal((await createRecutHostRuntime({ ...f.options, fs: { ...f.options.fs, readFile: async () => '{' } })).hostStatus, 'runtimeConfigInvalid');
     assert.deepEqual(f.factoryCalls, []);
   });
+  it('Python 以設定的路徑執行（虛擬環境的 symlink 不解開），其他工具仍用實際路徑', async () => {
+    const f = setup(); let mediaOptions;
+    f.options.fs.realpath = async (value) => (value === file('python') ? '/usr/bin/python3.13' : value === file('ffmpeg') ? file('real-ffmpeg') : value);
+    const runtime = await createRecutHostRuntime({ ...f.options, mediaFactory: (options) => {
+      mediaOptions = options; return Object.fromEntries(['probe', 'decode', 'measure', 'transcribe'].map((key) => [key, async () => {}]));
+    } });
+    assert.equal(runtime.hostStatus, 'configured');
+    assert.equal(mediaOptions.python, file('python'));
+    assert.equal(mediaOptions.ffmpeg, file('real-ffmpeg'));
+  });
+  it('Python 的實際目標不存在時仍 fail closed', async () => {
+    const f = setup();
+    f.options.fs.realpath = async (value) => { if (value === file('python')) throw Object.assign(new Error('missing'), { code: 'ENOENT' }); return value; };
+    const runtime = await createRecutHostRuntime(f.options);
+    assert.equal(runtime.hostStatus, 'pathsInvalid');
+  });
   it('完整組裝保持惰性，source 實檔與symlink越界拒絕，子程序只繼承白名單', async () => {
     const f = setup(); let mediaOptions;
     const runtime = await createRecutHostRuntime({ ...f.options, mediaFactory: (options) => {

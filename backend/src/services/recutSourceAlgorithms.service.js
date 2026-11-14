@@ -74,7 +74,7 @@ function splitSentences(rawWords, window) {
       retrievalHit: window.hitRanges.some(overlaps), chunkIds: window.segments.filter(overlaps).map((s) => s.chunkId) });
     current = [];
   };
-  for (const raw of rawWords) {
+  for (const [index, raw] of rawWords.entries()) {
     const word = { text: String(raw.w ?? '').trim(), startSec: round(raw.s + window.startSec), endSec: round(raw.e + window.startSec) };
     if (!word.text || !Number.isFinite(raw.s) || !Number.isFinite(raw.e) || word.startSec < previousEnd - 0.001
       || word.endSec <= word.startSec || word.endSec > window.endSec + 0.001 || word.endSec - word.startSec > C.MAX_SENTENCE_SEC) {
@@ -85,7 +85,10 @@ function splitSentences(rawWords, window) {
     if (current.length && (word.startSec - previousEnd >= C.SENTENCE_PAUSE_SEC - 1e-9
       || word.endSec - current[0].startSec > C.MAX_SENTENCE_SEC)) flush();
     current.push(word); previousEnd = word.endSec;
-    if (/[，。！？；、,.!?;:]$/u.test(word.text)) flush();
+    // Whisper 會把 0.01、1,000 切成「0.」「01」：數字後的點或逗號、下一個字又以數字開頭時是同一個數字，不能斷句。
+    const nextText = String(rawWords[index + 1]?.w ?? '').trim();
+    const insideNumber = /\d[.,]$/u.test(word.text) && /^\d/u.test(nextText);
+    if (!insideNumber && /[，。！？；、,.!?;:]$/u.test(word.text)) flush();
   }
   flush(); return sentences;
 }

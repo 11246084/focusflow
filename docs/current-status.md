@@ -1,5 +1,90 @@
 # FocusFlow 目前狀態
 
+## 2026-11-14 工具交接提交前驗證
+
+使用者授權提交16個多模態程式／測試／文件（含CLOUD_DEPLOYMENT_HANDOFF.md），指定訊息`feat: finalize multimodal evaluation tools and handoff`。以dev `1361f2e`為基準，提交前確認origin/dev無新提交；Node22.23.4下Backend定向12項與Python七檔72項共84項通過，Python測試封鎖外部socket連線。全部變更語法、安全模式掃描與git diff --check通過，無新增失效連結，原三處implementation-log歷史缺檔維持。沒有Gemini請求、Atlas操作、向量建置、部署或旗標變更；未跑無關大型全套。原私有成果保持忽略、不stage，實際提交版本以Git紀錄為準。
+
+## 2026-11-14 多模態雲端部署交接盤點
+
+安全fetch／ff-only同步至dev `1361f2e`（遠端新增系統設定決策），保留全部既有未提交工具與文件。依workflow、Backend本機spawn／Queue、STT與多模態儲存／CAS程式完成[雲端部署交接](04_Features/Multimodal_Retrieval/CLOUD_DEPLOYMENT_HANDOFF.md)，區分必須／建議調整、程式已具備與主機待查證；未登入VM、未讀正式憑證、未呼叫模型或操作Atlas。
+
+文件列明：部署workflow未提供Python與私有持久儲存佈建；六片Checkpoint／ledger不隨Git同步且有路徑遷移限制；程序內Queue／本機PID lease不是跨主機排程保證；新上傳付費階段尚缺可配置成功請求節流；health.runtime.multimodal仍是舊影像路徑，不作新三路啟用門檻。上述為部署準備與維運查核要求，不代表本輪已修正／實測VM環境。純文件變更只檢查連結、設定名稱、指令與git diff --check，不重跑產品測試、部署或E2E。
+
+## 2026-11-14 HTTP429精準唯讀診斷與安全記錄
+
+fetch／ff-only pull確認dev與origin/dev仍為`c4f6487312443c869e74ec917acc311b2ae23796`，保留既有工具程式及文件異動。沒有Gemini請求、Atlas操作或部署。本輪沒有開啟憑證檔或讀取完整Key；只核對程式載入規則、環境變數名稱是否存在與設定檔是否存在，不能據此判定實際憑證專案。
+
+**確認的呼叫路徑：**Gemini Developer API `https://generativelanguage.googleapis.com`、v1beta、`genai.Client(vertexai=False)`、`client.models.embed_content`；模型gemini-embedding-2、3072維、單一輸入。安裝與第三次失敗Checkpoint記錄的google-genai均1.70.0。SDK client與單次請求均指定attempts=1；原生Adapter最多3次，V6 BatchAdapter配合stop_retry在任何provider失敗後先停，重啟須另有簽章許可。三次歷史嘗試不是本機無限制自動重送。
+
+**環境載入：**V6 run_video1_batch與兩份歷史重試包裝均先移除程序GEMINI_API_KEY，再載入backend/.env、override=True，因此該路徑使用backend設定而非繼承值；但未核對Key內容，不能確認教授更新的專案相同。一般PipelineConfig則載入STT_Whisper/.env（不存在時dotenv自動尋找），未設override，程序環境優先；新evaluation batch直接沿用程序環境、不自動載入backend/.env；Parent預設provider用PipelineConfig。未來不得混用入口推定Key來源一致。本輪執行程序僅確認沒有繼承的GEMINI_API_KEY名稱，沒有載入真實Key測試。
+
+| 待判原因 | 證據結論 |
+|---|---|
+| RPM／TPM／RPD | 尚無法確認。舊本機批次最高滾動60秒36次，沒有實際token、專案配額及其他呼叫者用量；不能由本機節流推定未超限 |
+| 餘額不足／帳務未生效 | 尚無法確認。ledger不是Google帳單，三次錯誤無帳務訊息 |
+| Key與教授更新專案不同 | 尚無法確認。只確認載入檔與優先順序，未查看Key或其專案映射 |
+| 模型專屬metric或配額映射異常 | 尚無法確認。歷史無quota metric；公開案例不構成本專案證據 |
+| Google暫時性限制 | 尚無法確認。沒有可對應的供應商事件／support結論 |
+| 本機US$20預算阻擋 | 可排除為這三次429的直接原因：請求已送出且回ClientError429；帳本US$10.05221895未達20；Mock測試確認超額在provider初始化前停止 |
+
+原三次createdAt（非精確回應抵達時間）為台北11/13 10:46:02、11/14 13:10:01、19:24:28。未保存HTTP body、headers、quotaDetails或Retry-After，無法事後還原。當次本機程序快照沒有node／python Worker、共用ledger.lock不存在；只代表該時點本機未觀察到，無法排除遠端或同專案其他程式。ledger排他鎖涵蓋單次請求，不是跨整批的全域單Worker保證。**目前只能定位為Google回覆的拒絕；沒有足夠證據將某一項配額／帳務原因排為確診或最可能根因。**
+
+**最小程式修正：**新增gemini_error_diagnostics.py並在Adapter失敗Checkpoint的error.diagnostics保存白名單欄位。讀取SDK結構化錯誤與指定headers，不呼叫response.json／text、不寫原始訊息／Key／Authorization／教材；metrics僅保留Google服務格式，請求ID僅接受安全UUID／hex。新欄位只適用未來另獲授權的失敗請求，未重寫歷史檔案，也不為補紀錄發新請求。
+
+**測試：**Mock診斷5項、既有Adapter10項及評測batch6項，共21項通過；含帶假Key／Authorization／私密文字的SDK429回應、Retry-After秒數／日期、quota metric、缺欄位降級、一次失敗即停／歷史預留保留與US$20前置阻擋。無大型回歸或真實模型驗證。證據在`.local-tools/429-precise-20261114/`，共用ledger仍1,994次／US$10.05221895，chunk_0109仍3次。
+
+**教授最精簡查核：**①私下確認目前backend憑證所屬project ID／number與已調額專案相同，不傳Key；②在該專案選gemini-embedding-2查看RPM／TPM／RPD及上述時間用量／quota違規metric，包含其他程式；③查Billing的Prepay餘額、付款生效、帳務連結、專案／帳務帳號花費上限及暫停狀態。若均正常，附project／模型／時間請Google support查實際metric與套用限制，不以換Key／模型或反覆重試排查。
+
+額度恢復也不能直接再跑chunk_0109：三次上限已耗盡，須先依教授資訊審查並明確授權後續受控恢復政策。政策獲准後才允許單次探測，成功再單一並行續跑其餘92輸入，重用324成功Checkpoint、原帳本不清除；任何429／未知費用即停。Query／Parent付費及完整V6 Atlas寫入仍各自另行授權。
+
+## 2026-11-14 配額唯讀診斷與評測工具完成
+
+本輪fetch／ff-only pull確認dev為`c4f6487312443c869e74ec917acc311b2ae23796`，保留原兩份未提交文件。沒有新Gemini請求、Atlas連線／寫入或索引修改，不重跑V1～V5 E2E；未查看本機憑證檔或輸出API Key。共用真實ledger雜湊未變，仍1,994次／US$10.05221895保守預留。
+
+**429仍無法歸因。** 保存三次請求的createdAt為UTC `2026-11-13T02:46:02.140850`、`2026-11-14T05:10:01.118866`、`2026-11-14T11:24:28.022001`，模型均gemini-embedding-2，3072維、text；三次只保存ClientError／429／retryable，沒有原始response body、headers、Retry-After或quotaDetails。ledger是保守成本帳本，缺實際token與同專案其他呼叫資訊；前輪已知歷史滾動60秒峰值36次不能用來判定這三次碰到哪項限制，也不能由隔很久重試仍429就排除帳務以外原因。程式固定Gemini Developer API v1beta端點；本輪未讀Key，不能證明實際Key對應哪個專案或教授調整的是同一專案。
+
+**請教授在Google AI Studio／對應帳務專案確認（不提供Key）：**本機使用憑證所屬的project ID／number，額度調整是否套用該專案與gemini-embedding-2；該模型當前RPM、TPM、RPD限制與上述時間的usage／quota違規metric；專案其他程式的同時用量；billing account連結與啟用狀態、付款／儲值是否已生效、有無花費上限或帳務暫停。若平台保留該次錯誤，提供已遮蔽憑證的quota metric／limit／retry資訊。資料不足前不猜測、不新測API，chunk_0109三次上限不變。
+
+| 工具缺口 | 本輪完成 | 限制 |
+|---|---|---|
+| Parent共用ledger | 既有parent_embedding預設provider改用BatchAdapter、原共用ledger／Checkpoint及US$20上限；付費錯誤立即停止下一個Parent | 未呼叫模型、未發布Parent；注入Fake provider測試介面保留 |
+| Gold Query批次 | 新evaluation_embedding_batch.py固定50題／233 Parent來源與計畫hash，子集、批次、排他鎖、逐筆state、原生Checkpoint、失敗拒絕自動重試、成功快取缺失拒絕重建及唯讀匯出 | live需額外allow-paid及當次授權；Fake state不能匯出為真實bundle |
+| 排名與獨立評分 | 新collectMultimodalEvaluation.js依MA記憶體exact cosine收集50題×24組；固定三Leaf Parent，沿用展開／上下文函式；保存原排名、config／輸入hash、舊文字基準及兩個評分實作結果 | 不連DB或模型；formalEvaluation=false、無自動品質放行，仍需第11項與協調session審查 |
+
+**本輪實際驗證：**新增Query／Parent批次6項（含失敗／預留／共用ledger／快取缺失與Parent立即停）、既有Parent36項及原Parent CLI3項通過；Backend新排名入口5項與既有離線評分7項，共12項通過（包含CLI收集後交獨立CLI重算）。新排名測試涵蓋完整1,200列、獨立重算、X01排除、非法資料拒絕、保存Gemini契約的合成向量與舊文字基準，均明確為合成資料。實際原題庫與Parent來源的Fake預演：50／233次首次成功，第二次新增呼叫0，真實ledger未改。產品前端與核心QA未改，未跑大型全套或正式模型／Atlas E2E。
+
+Parent數仍39／41／28／48／30／47共233，Query五題是50題子集；費用首次預留分別US$0.38174720／US$0.08192000，未付費。排名保留42題計分、X01另列、7拒答、六組×兩權重×Flat／Hierarchical、Top20／k60；Hierarchical沿用Parent Top5、展開30、上下文15筆／5000字，只替換文字一路。舊文字與stable文字基準分列；不把完整語料exact cosine說成真實Atlas ANN E2E或正式品質驗收。
+
+完整操作介面見[工具說明](04_Features/Multimodal_Retrieval/remaining-videos-tools.md#queryparent批次與記憶體評分入口)。私有Fake預演、原失敗時間與摘要位於`.local-tools/evaluation-tools-20261114/`；測試log為`.local-tools/evaluation-tools-{node,batch,parent,parent-cli}.txt`。API恢復且獲新授權後，先處理V6失敗簽章政策與93 Leaf，再建5個E2E Query、其餘45 Query及233 Parent；每批重用成功Checkpoint。完整V6 Atlas與Parent發布需獨立授權；全量資料齊備後用新入口收集／獨立重算，再交協調session審查，不開正式旗標。
+
+## 2026-11-14 額度更新後的V6受控恢復
+
+本輪使用者明確重新授權V6剩餘93個Leaf。fetch及ff-only pull確認dev與origin/dev均為`c4f6487312443c869e74ec917acc311b2ae23796`；保留既有兩份未提交文件，批次與Adapter相對前輪無程式差異。沿用backend/.env既有金鑰、gemini-embedding-2、原共用ledger與US$20上限；凍結manifest、原片來源、切片與324筆成功狀態核對後，僅對chunk_0109文字執行一次簽章第3次受控重試。
+
+**結果仍為HTTP429，已立即停止。** 本輪新增1次請求、US$0.00163840保守預留；ledger累計1,994次／US$10.05221895，失敗預留未沖回，不代表實際帳單。未呼叫其餘92輸入，V6仍324/417，六片仍1,985/2,078；V1～V5不重建。失敗簽章已達工具MAX_ATTEMPTS=3，不能再使用原入口重試或清除歷史繞過限制；需先確認實際金鑰所屬專案的拒絕原因，再審查是否另行授權調整受控重試政策。單憑429無法認定儲值更新未生效或特定配額原因。
+
+V6未完整，沒有完整bundle或可執行Atlas寫入計畫；Atlas寫入、索引操作、Query／Parent付費、部署及旗標均未執行。既有成功Checkpoint、原失敗前像與permit保留，證據在`.local-tools/v6-quota-restored/`的ledger-before.json、failed-before.json、result.json；共用controlled-retry-permits保存本次第3次許可。沒有產品程式變更，因此未重跑已通過回歸；來源檢查與實際一次API請求為本輪執行驗證，後續完整向量及Atlas驗收因429未執行。
+
+## 2026-11-14 V2／V3／V5真實探索QA與多影片回退驗收
+
+本輪fetch與ff-only pull後仍為dev `f43cd4f1d98fae9b85e2223d82cc5bcacd32c6a4`，保留六份未提交文件。新增Gemini請求、Atlas寫入、索引修改均0；Gold、原生Checkpoint及ledger雜湊未變。產品程式未改，未部署或開正式旗標。
+
+| 影片 | 真實Atlas＋本機HTTP QA證據 | 正式Gold情境 |
+|---|---|---|
+| V1 | 沿用同SHA前輪兩個保存探索Query的QA／多輪重播通過 | 缺相符題庫Query |
+| V2 | 本輪保存探索Query通過，三路各20筆、RRF、引用與多輪、撤銷授權403且不搜尋 | F06相符Query仍缺 |
+| V3 | 本輪同上通過 | F08相符Query仍缺 |
+| V4 | 沿用同SHA前輪一個保存探索Query的QA／多輪重播通過 | F15相符Query仍缺 |
+| V5 | 本輪同上通過 | F12相符Query仍缺 |
+
+V2／V3／V5直接呼叫既有runAcceptance，重用原文為「課程開頭預計介紹哪些自然語言處理與ChatGPT觀念？」的保存向量，實際比對保留原文空白；Query原始identity未改。各片以完整manifest掛載於合法本機授權範圍，讀取真實Atlas，不冒稱各片Gold問題或相關性驗收。回答為template，FAQ／對話／用量只存在Harness記憶體，無LLM品質或正式站驗收宣稱。
+
+**本輪新增多影片實測：**V1～V5合併555筆範圍，三路各20筆、覆蓋555/555、RRF重算與原逐字稿／影片／Chunk／時間通過，無fallback。全六片694筆範圍偵測555/694覆蓋不足，文字路改為全範圍舊embedding檢索（15筆），保留已完成影片的影音候選，textSource=scoped_text_search。V6單片139筆範圍三路均0，成功全文字fallback，舊embedding取得15筆；不將V6部分Checkpoint寫入。三情境均驗證原逐字稿與引用時間，以及撤銷授權403且不再搜尋。
+
+**回歸與限制：**本輪只跑multimodal-qa.integration與multimodal-authorization.integration兩檔，31/31通過，涵蓋FAQ旗標切換、未Ready／部分覆蓋回退、文字RAG、多輪及權限矩陣。Fake／Mock回歸與上述真實Atlas證據分開；未重跑大型全套。正式分層多模態、正式環境FAQ、LLM回答品質、正式Gold每題排名與獨立品質審查尚未驗收。正式評測仍缺50個相符Query、233個現契約Parent及V6剩餘93 Leaf；Parent共用ledger與全題排名收集入口缺口沿用下節，不因探索QA通過而解除。
+
+完整證據在`.local-tools/qa-e2e-v1-v5-20261114/`：V2／V3／V5-qa.json、multi-five／six／v6.json、regression.txt及summary.json。這些包含真實檢索排名與引用，屬私有本機證據。下一步先確認API配額並另獲模型授權；V6完整後的Atlas寫入、Parent發布及正式旗標均另需授權。
+
 ## 2026-11-14 暫停API後的唯讀驗收
 
 **本輪新增Gemini請求0、Atlas寫入0、索引變更0。** 再次fetch／ff-only pull後dev與origin/dev仍為`f43cd4f1d98fae9b85e2223d82cc5bcacd32c6a4`，保留前輪六份文件異動。原生Checkpoint、Gold及共用ledger前後雜湊完全相同，累計仍1,993次／US$10.05058055預留；未重試chunk_0109、未產生任何向量。完整私有證據在`.local-tools/no-api-acceptance-20261114/`。

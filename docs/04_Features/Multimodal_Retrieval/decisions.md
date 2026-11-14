@@ -1,5 +1,19 @@
 # 多模態檢索設計決策
 
+## 2026-11-14 雲端部署交接範圍
+
+本輪依使用者要求只查本機程式及部署設定，整理既有Atlas QA、新上傳多模態Worker、六片成果遷移三種範圍；不新增Worker架構、不登入VM或啟用付費／寫入／功能旗標。交接列出的主機路徑與限速／持久儲存方案是待維運確認項，不是已部署設定。操作入口見[雲端交接](CLOUD_DEPLOYMENT_HANDOFF.md)，驗證範圍見[目前狀態](../../current-status.md)。
+
+## 2026-11-14 429安全診斷記錄
+
+本輪僅授權既有證據唯讀檢查與Mock429測試。Adapter未來失敗時只新增白名單診斷欄位：HTTP狀態、列舉錯誤代碼、Google quota metric、Retry-After／RPC等待秒數、時間、固定模型、既有簽章與符合格式的請求ID。不保存原始body、message、headers或私密輸入；解析失敗也必須保存原有失敗Checkpoint。既有ledger、三次上限與付費授權邊界不變；原因證據及教授待查項見[目前狀態](../../current-status.md)。
+
+## 2026-11-14 API暫停期間完成評測工具
+
+使用者授權實作Parent共用ledger、Gold Query批次Checkpoint與排名／獨立評分入口，僅用Fake／Synthetic驗證。批次固定原Gold與六片Leaf來源，真實模式另需當次付費授權，沿用US$20 ledger及失敗即停政策，不提供新的重試繞過。Parent既有預設provider同步接入，未知結果不繼續下一筆。
+
+排名沿用MA的記憶體比較與既有Parent展開／上下文函式，輸入與原文字基準以hash綁定，保留原42題／X01／拒答及24組規則。工具的兩個獨立評分實作通過不取代協調session的第11項品質審查；結果只見[目前狀態](../../current-status.md)。
+
 ## 2026-11-14 暫停API期間的驗收範圍
 
 使用者明確要求在教授確認額度及儲值前全面停止新Gemini請求，包括chunk_0109重試、Query與Parent。允許保存Query的Atlas唯讀檢索、無付費QA／Pipeline測試、評測Dry Run及必要小修；不改Gold、不寫Atlas、不動索引、不部署或開旗標。額度恢復本身不等於新的付費或寫入授權。

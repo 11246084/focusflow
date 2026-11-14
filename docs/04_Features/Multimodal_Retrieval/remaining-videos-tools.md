@@ -1,5 +1,38 @@
 # 影片二至六建置工具
 
+## Query／Parent批次與記憶體評分入口
+
+API暫停期間只用`plan`與`fake`。以下入口不修改Gold、Atlas或索引；正式模型執行仍須新的明確授權。假資料與真實資料使用不同directory，不能把Fake state升級為真實bundle。
+
+```powershell
+. ./.local-tools/activate.ps1
+$py = 'STT_Whisper/.venv/Scripts/python.exe'
+$dir = '.local-tools/evaluation-query-live'
+& $py -X utf8 STT_Whisper/src/evaluation_embedding_batch.py --kind query --directory $dir
+$approved = (Get-FileHash "$dir/plan.json" -Algorithm SHA256).Hash.ToLower()
+# 本輪只允許Fake預演：先在獨立的evaluation-query-fake目錄重新plan，再使用該目錄hash。
+# --kind parent 使用相同介面，來源固定六片原Leaf與每三Leaf一組。
+```
+
+`--mode fake --approve-plan <hash> --limit 50`用獨立fake ledger及Checkpoint；重跑只補缺漏。真實`--mode gemini --allow-paid --approve-plan <hash> --limit 10`固定沿用原共用ledger、原生Checkpoint及US$20上限，單一並行、每次新呼叫後節流2秒；不得在本輪執行。先做五題可加`--ids F06 F08 F15 F12 F11`；後續不帶ids時會重用它們，不重複付費。任何先前失敗／未知簽章拒絕自動再試，入口沒有重試許可參數。
+
+`--mode export --approve-plan <hash>`重新驗證成功Checkpoint與原生簽章／digest，只匯出完整請求範圍；可用同樣`--ids`匯出五題。匯出禁止provider呼叫。Query bundle保留原題id／文字，不假造Leaf錨點；E2E可直接使用既有`runAcceptance`，CLI若要求chunk錨點則由原Gold來源計畫選擇，不改Query簽章。Parent bundle保留原文、child IDs及時間；不是Atlas發布授權。
+
+舊`embed_parent_chunk_artifact.py --execute`的預設provider也已接入共用ledger；既有注入Fake provider測試介面不變。遇付費provider錯誤立即停止後續Parent，成功原生Checkpoint保留。舊Parent JSONL與新評測bundle為不同格式，不可直接互換；需要發布時仍沿用已驗證的Parent發布工具與當次授權。
+
+記憶體排名入口沿用決策MA，對保存向量做完整語料exact cosine，完全不連Atlas或模型：
+
+```powershell
+node backend/scripts/collectMultimodalEvaluation.js --bank docs/04_Features/QA_Evaluation/datasets/question-bank.json --manifest .local-tools/eval/manifest.json --leaves .local-tools/eval/leaf-bundle-paths.json --queries .local-tools/evaluation-query-live/bundle.json --parents .local-tools/evaluation-parent-live/bundle.json --legacy .local-tools/eval/original-text.json --output .local-tools/eval/results-01
+node backend/scripts/auditMultimodalOffline.js --pending-x01 docs/04_Features/QA_Evaluation/datasets/question-bank.json .local-tools/eval/manifest.json .local-tools/eval/results-01/per-question.json .local-tools/eval/results-01/config.json
+```
+
+`manifest.json`為`{provenance:"atlas",chunks:[{courseId,videoId,chunkId,startSec,endSec}]}`；來源須為同一凍結六片。`leaf-bundle-paths.json`是六個真實Leaf bundle路徑的JSON陣列。`original-text.json`是全部原文字記錄陣列，每筆含`identity`（courseId／videoId／chunkId／startSec／endSec）、原`text`與舊`embedding`，由原始產物匯出，不動原向量。這些均屬私有資料。
+
+入口拒絕缺Query、缺Leaf模態、無效契約／digest、Parent非固定三Leaf或原時間／文字不符。輸出`raw-rankings.json`、`per-question.json`、`config.json`、`report.json`與分列的`legacy-baseline.json`。Flat三路各Top20；Hierarchical沿用既有Parent Top5、展開30、上下文15筆／5000字的組合函式，只替換文字一路；設定寫入config，不從正式VM推定。舊文字基準使用同一保存Query，另列其契約限制，不混稱原系統全流程品質。
+
+42題計分、X01另列、7拒答、六組×兩權重×兩模式、RRF k60與文字加權2:1:1保持原規則。兩個既有評分實作核對一致才輸出；`formalEvaluation=false`及外部第11項品質審查門檻保留。`--synthetic`只供合成測試，Fake不得用作真實模型證據。本輪結果見[狀態正本](../../current-status.md)。
+
 > 2026-11-14：影片六一次受控重試許可已使用；接續前先讀[目前狀態](../../current-status.md)最新段落。不要直接重跑以下付費範例或使用已消耗的retry permit。成功Checkpoint與Atlas資料維持重用。
 
 本輪把影片一的既有入口擴充成依核准清單逐片執行，沒有重寫 Embedding、Atlas Adapter、RRF 或 QA Bridge。下列實際付費／寫入指令均須取得下一輪授權；本輪只完成素材準備、Fake 預演、唯讀查證與測試。最新結果看[狀態正本](../../current-status.md)。

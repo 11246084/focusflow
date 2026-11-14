@@ -16,6 +16,11 @@ export function StateChip({ tone, children }) {
   );
 }
 
+// 清單用的狀態點：形狀＋顏色，文字給螢幕報讀（放在標題後面，念成「標題、狀態」）。
+export function StatusDot({ tone, label }) {
+  return <span className="rc-dot" data-tone={tone} role="img" aria-label={label} />;
+}
+
 // step：0 確認講稿、1 製作短片、2 確認成品、3 全部完成。
 export function FlowStrip({ step, steps = STEPS }) {
   return (
@@ -43,7 +48,7 @@ export function DurationMeter({ seconds }) {
     <div className="rc-duration" data-valid={status.valid}>
       {/* 加回／移除後的總長由工作區的狀態列念出，這裡不再重複播報。 */}
       <p className="rc-duration-value">
-        <strong>{status.sec}</strong> 秒
+        <strong key={status.sec} className="rc-num">{status.sec}</strong> 秒
         {!status.valid && <span className="rc-error">{status.message}</span>}
       </p>
       <div>

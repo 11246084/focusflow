@@ -170,13 +170,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   ) : null;
 
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
+    <div className={compact ? 'rc-dock' : 'rc-panel rc-actionbar'} data-rc-actions>
       <div className="rc-actions">
         {uploadStage && (
           <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
             onChange={pickFile} disabled={pending === 'upload'} />
         )}
-        {!compact && uploadChecks}
         {primary && <PrimaryAction {...primary} />}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
@@ -258,7 +257,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           </section>
         )}
         {info.state === 'to_generate' && <section className="rc-panel"><p>還沒有腳本</p></section>}
-        {compact && uploadChecks && <section className="rc-panel">{uploadChecks}</section>}
+        {uploadChecks && <section className="rc-panel">{uploadChecks}</section>}
 
         {showAsset && (
           <section className="rc-panel" aria-label="成品">
@@ -315,13 +314,9 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
             </ol>
           </section>
         )}
-        {compact && sidePanels}
-        {compact && actionBlock}
+        {sidePanels}
+        {actionBlock}
       </div>
-      <aside className="rc-col rc-side" aria-label="這一步">
-        {!compact && actionBlock}
-        {!compact && sidePanels}
-      </aside>
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
       <SheetDialog open={Boolean(mode)} title={mode === 'reject' ? '哪裡要改' : '重新產生腳本'} onClose={() => setMode(null)}
         action={modeAction && <PrimaryAction {...modeAction} />}>

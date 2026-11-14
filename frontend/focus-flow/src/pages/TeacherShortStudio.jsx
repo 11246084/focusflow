@@ -13,7 +13,7 @@ import RecutWorkspace from './RecutWorkspace';
 import AvatarWorkspace from './AvatarWorkspace';
 import { RecutConsentGate } from './RecutConsent';
 import useRecutConsent from '../hooks/useRecutConsent';
-import { PrimaryAction, StateChip } from './recutUi';
+import { PrimaryAction, StatusDot } from './recutUi';
 
 export const SHORT_STUDIO_PAGE = 'shortStudio';
 const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
@@ -116,8 +116,8 @@ export default function TeacherShortStudio() {
   // 固定跳到這一步的主要按鈕（停用時也在 Tab 順序裡，會念出原因）；這一步沒有主要按鈕時，跳到第一個可按的動作，再不然回到標題。
   const focusActions = () => {
     const root = rootRef.current;
-    const primary = root?.querySelector('[data-rc-actions] [data-rc-primary], .rc-side [data-rc-primary], .rc-dock [data-rc-primary]');
-    const fallback = [...(root?.querySelectorAll('[data-rc-actions] button, .rc-side button') || [])].find((button) => !button.disabled);
+    const primary = root?.querySelector('[data-rc-actions] [data-rc-primary], .rc-dock [data-rc-primary]');
+    const fallback = [...(root?.querySelectorAll('[data-rc-actions] button') || [])].find((button) => !button.disabled);
     const target = primary || fallback || root?.querySelector('h1');
     target?.focus();
     target?.scrollIntoView({ block: 'nearest' });
@@ -191,7 +191,8 @@ export default function TeacherShortStudio() {
   const featureOff = /未開放/.test(error);
 
   const pickerActions = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
+    <div className={compact ? 'rc-dock' : 'rc-panel rc-actionbar'} data-rc-actions>
+      <div className="rc-actions">
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={() => startBatch()} busy={starting}
         disabled={!chosen.length} reason={shownCandidates?.length === 0 ? '' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
       {scripts.length > 0 && (
@@ -201,6 +202,7 @@ export default function TeacherShortStudio() {
       {batchErrors.map((failure) => (
         <p key={failure.topicKey} className="rc-error rc-mt-s" role="alert">{failure.question}：{failure.message}</p>
       ))}
+      </div>
     </div>
   );
 
@@ -250,9 +252,8 @@ export default function TeacherShortStudio() {
               </ul>
             )}
           </section>
-          {compact && pickerActions}
+          {pickerActions}
         </div>
-        <aside className="rc-col rc-side">{!compact && pickerActions}</aside>
       </>
     );
   } else if (selected) {
@@ -297,9 +298,9 @@ export default function TeacherShortStudio() {
                 return (
                   <li key={id}>
                     <button type="button" className="rc-list-item" aria-current={id === selectedId && !picking ? 'true' : undefined}
-                      onClick={() => openShort(id)}>
+                      title={info.label} onClick={() => openShort(id)}>
                       <span className="rc-list-title">{scriptQuestion(script)}</span>
-                      <StateChip tone={chipTone(info)}>{info.label}</StateChip>
+                      <StatusDot tone={chipTone(info)} label={info.label} />
                     </button>
                   </li>
                 );

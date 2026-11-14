@@ -6,7 +6,6 @@ import { MANAGE_REFRESH_MS, formatAgo, recutErrorText, sortManageItems, toManage
 import { requestOpenScript } from '../utils/scriptDeepLink.js';
 import useVisiblePolling from '../hooks/useVisiblePolling';
 import { RecutConsentManager } from './RecutConsent';
-import { StateChip } from './recutUi';
 import { SHORT_STUDIO_PAGE } from './TeacherShortStudio';
 
 const SECTIONS = [
@@ -85,8 +84,9 @@ export default function TeacherShortManage({ onNav }) {
                   <li key={item.scriptId}>
                     <button type="button" className="rc-row" onClick={() => open(item)}>
                       <span className="rc-row-title">{item.question}</span>
+                      <span className="rc-dot" data-tone={item.tone} aria-hidden="true" />
                       <span className="rc-row-meta">
-                        <StateChip tone={item.tone}>{item.label}</StateChip>
+                        <span className="rc-row-status">{item.label}</span>
                         <span className="rc-row-course">{[multiCourse ? item.courseTitle : '', formatAgo(item.updatedAt)].filter(Boolean).join('・')}</span>
                       </span>
                     </button>

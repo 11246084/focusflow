@@ -336,7 +336,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel'} data-rc-actions>
+    <div className={compact ? 'rc-dock' : 'rc-panel rc-actionbar'} data-rc-actions>
       <div className="rc-actions">
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
@@ -463,6 +463,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           {review?.source?.notice && <p className="rc-reason rc-reason-start">{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
         </section>
+        {/* 電腦版：AI 建議與「這一版改了」放在講稿上方，先看到再決定；手機維持在講稿下方。 */}
+        {!compact && sidePanels}
 
         {!loading && lastReject && state !== 'render_failed' && (
           <section className="rc-panel" role="status">
@@ -556,14 +558,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </div>
         </div>
         {compact && sidePanels}
-        {compact && actionBlock}
+        {actionBlock}
       </div>
-
-      <aside className="rc-col rc-side" aria-label="這一步">
-        {!compact && actionBlock}
-
-        {!compact && sidePanels}
-      </aside>
 
       {review?.source?.videoId && (
         <audio ref={audioRef} preload="none" src={`/api/v1/videos/${encodeURIComponent(review.source.videoId)}/source`}

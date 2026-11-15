@@ -1571,6 +1571,17 @@ button.dd-item { width: 100%; border: none; background: none; text-align: left; 
 
 .qa-answer > :first-child { margin-top: 0; }
 .qa-answer > :last-child { margin-bottom: 0; }
+.qa-copy-answer {
+  margin: 8px 0 10px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 12px;
+}
+.qa-copy-answer:hover, .qa-copy-answer:focus-visible { color: #fff; border-color: #fff; }
 .qa-answer p { margin: 0 0 12px; }
 .qa-answer h3 {
   margin: 18px 0 8px;

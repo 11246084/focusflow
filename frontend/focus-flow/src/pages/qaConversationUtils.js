@@ -1,5 +1,18 @@
 export const SOURCE_PREVIEW_COUNT = 3;
 
+export function canCopyAnswer(clipboard) {
+  return typeof clipboard?.writeText === 'function';
+}
+
+export async function copyAnswer(clipboard, answer) {
+  try {
+    await clipboard.writeText(answer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function mapConversationMessage(message) {
   const sources = message.sources || message.matches || message.segments || [];
   return {

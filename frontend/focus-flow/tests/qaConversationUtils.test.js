@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  canCopyAnswer,
+  copyAnswer,
   formatConversationLabel,
   getRemainingSourceCount,
   getVisibleSources,
@@ -8,6 +10,24 @@ import {
   scrollConversationMessageIntoView,
   toStudentCitation,
 } from '../src/pages/qaConversationUtils.js';
+
+describe('複製回答', () => {
+  it('僅在剪貼簿支援寫入文字時顯示功能', () => {
+    assert.equal(canCopyAnswer(undefined), false);
+    assert.equal(canCopyAnswer({ writeText: () => {} }), true);
+  });
+
+  it('寫入完整回答文字', async () => {
+    let copied;
+    const answer = '第一行\n第二行';
+    assert.equal(await copyAnswer({ writeText: async (text) => { copied = text; } }, answer), true);
+    assert.equal(copied, answer);
+  });
+
+  it('剪貼簿拒絕寫入時不拋出錯誤', async () => {
+    assert.equal(await copyAnswer({ writeText: async () => { throw new Error('denied'); } }, '回答'), false);
+  });
+});
 
 describe('multi-turn citation presentation', () => {
   it('shows multimodal labels while leaving legacy citations unlabeled', () => {

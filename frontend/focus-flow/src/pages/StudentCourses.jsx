@@ -16,6 +16,8 @@ import {
 } from '../utils/extendedResources';
 import {
   SOURCE_PREVIEW_COUNT,
+  canCopyAnswer,
+  copyAnswer,
   formatConversationDate,
   formatConversationLabel,
   getRemainingSourceCount,
@@ -822,6 +824,11 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           <div className="qa-ai-body">
           <span className="sr-only">AI 回答：</span>
           <AnswerContent answer={result.answer} />
+          {result.status === 'completed' && canCopyAnswer(navigator.clipboard) && (
+            <button type="button" className="qa-copy-answer" aria-label="複製 AI 回答" onClick={() => { void copyAnswer(navigator.clipboard, result.answer); }}>
+              複製
+            </button>
+          )}
           {result.status === 'failed' && (
             <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
               重新產生

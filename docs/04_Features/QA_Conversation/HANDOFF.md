@@ -2,7 +2,7 @@
 
 這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能實作學生對話欄的第一批優化。設計與理由只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只列工作項目、要改的檔案、驗收方式與不能動的地方。請照「工作項目」的順序做，每項各自提交。
 
-最後更新：2026-11-15（建立，尚未開工；補上 Codex 雲端版的 Git 身分、分支與提交規則）
+最後更新：2026-11-15（建立，尚未開工；提交方式改為直接推 `dev`，合併 `main` 前由 Claude 審查）
 
 ## 範圍
 
@@ -15,7 +15,7 @@
 - 共用規則依 [AGENTS.md](../../../AGENTS.md)：先看 `git status --short`、不回退無關檔案、第一次跑 Node.js 指令前先 `node -v`。
 - **作者只有 Weihao**：本機執行用本機 Git 設定的身分；雲端版依下一節設定。不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等 AI 署名。
 - **小步 commit**：一個工作項目至少一筆，每筆都要通過相關測試；訊息用中文並沿用 repo 風格。
-- **合併 `main` 與部署由 Weihao 決定**。推到 `main` 會自動部署到 VM。在本機執行時不自行 push；用 Codex 雲端版時見下一節。
+- **完成的提交直接推到 `dev`**（Weihao 2026-11-15 決定），不另開 PR。**不推 `main`、不合併到 `main`**：推到 `main` 會自動部署到 VM，合併前必須先由 Claude 完成審查，再由 Weihao 授權。
 - **不連共用 Atlas、VM、LINE、YouTube 或付費模型 API**。本機用 `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory`；後端測試用 `backend/tests/helpers/backendTestHarness.js` 的記憶體替身。不要為了驗證而啟動會連 Atlas 的服務。
 - **不新增資料庫索引**，也不新增套件。第一批的設計刻意只用既有欄位與既有索引。
 - **不修改 `decisions.md` 的已定案內容**。發現設計做不到或互相矛盾時停下，在回報中說明。
@@ -23,16 +23,15 @@
 
 ## 用 Codex 雲端版執行時
 
-雲端版在自己的容器裡複製 repo、完成後開一個 PR，和在本機執行有幾點不同。Weihao 計畫用雲端版執行（2026-11-15）。
+雲端版在自己的容器裡複製 repo 並執行，和在本機執行有幾點不同。Weihao 計畫用雲端版執行（2026-11-15）。
 
 - **基準分支選 `dev`**。這份文件與 `decisions.md` 只在 `dev`，`main` 上沒有；選錯分支會找不到規格。
-- **PR 的目標分支是 `dev`，不是 `main`**。合併到 `main` 會自動部署。
-- **一個工作項目開一個任務**（W1～W3 可以合成一個），每個任務一個 PR。W4 與 W5 各自單獨開，方便審查。後一個任務要等前一個 PR 合併進 `dev` 再開，否則會從舊的 `dev` 出發而互相衝突。
+- **一個工作項目開一個任務**（W1～W3 可以合成一個）。W4 與 W5 各自單獨開，方便審查與還原。後一個任務要等前一個任務推上 `dev` 之後再開，否則會從舊的 `dev` 出發而互相衝突。
 - **Node.js 版本**：環境要設成 22.23.4 以上的 22 版（見[根 README 的環境需求](../../../README.md#環境需求)）。任務開始時先跑 `node -v`，版本不符就停下回報，不要用舊版跑測試。
 - **不需要任何金鑰或資料庫連線**。後端測試用記憶體替身，問答用上面那組模擬設定。環境設定裡不要放 Gemini 金鑰或 `MONGODB_URI`，避免測試誤連共用 Atlas。
 - **畫面只能有限度地檢查**。雲端容器不一定能開瀏覽器看頁面；做不到時在回報裡寫明「未實際開頁面檢查」，由 Weihao 或另一個 agent 在本機補看。
 
-### Git 身分、分支與提交（雲端版必做）
+### Git 身分與提交（雲端版必做）
 
 雲端容器裡沒有 Weihao 的本機 Git 設定，所以每個任務開始時要自己設定，不能沿用容器的預設身分。
 
@@ -47,11 +46,11 @@
 
 2. **訊息不加任何 AI 署名**。commit 訊息、PR 標題與 PR 內文都不放 `Co-Authored-By`、`Claude-Session`、`Generated with`、`Signed-off-by: Codex` 之類的字樣，也不放模型名稱或任務連結。工具若會自動附加這類文字，提交前關掉或手動刪除，推送前用 `git log --format=%B` 檢查一次。
 
-3. **分支名稱用 `wip/qa-conversation-<項目>`**，例如 `wip/qa-conversation-w1-w3`、`wip/qa-conversation-w4`。不用 `codex/` 或 `claude/` 開頭。工具若自動建立了這類前綴的分支，改名後再推送。
+3. **直接在 `dev` 上提交並推送到 `origin/dev`**。推送前先 `git fetch origin dev`，遠端有新提交就用 `git pull --rebase origin dev` 接上去再推；發生衝突而無法確定怎麼解時停下回報。不強制推送（force push），不改寫別人的提交。
 
-4. **只推送自己的工作分支，並開 PR 到 `dev`**。不直接推 `dev`，不推 `main`，不強制推送（force push），不改寫別人的提交。
+4. **不建立 `codex/` 或 `claude/` 開頭的分支**。工具若自動建立了這類分支並在上面提交，把提交帶回 `dev` 後推送 `dev`，不要把那個分支推上遠端，也不要開 PR。
 
-5. **不自行合併 PR**。合併由 Weihao 決定。
+5. **不推 `main`，不合併到 `main`，不觸發部署**。
 
 6. **只提交和工作項目有關的檔案**。提交前看 `git status --short`；不提交 `.env`、金鑰、容器產生的暫存檔或鎖定檔的無關變動。
 
@@ -155,7 +154,7 @@
 1. 依 [AGENTS.md 的驗證表](../../../AGENTS.md#驗證依變更影響選擇)選擇驗證：只改前端的項目跑 `frontend/focus-flow/` 的 `npm test`、`npm run lint`，W4、W5 另跑 `npm run build`；動到後端的項目跑對應的 `node:test`，W4、W5 完成時跑 `backend/` 全套 `npm test`；改到 OpenAPI 另跑 `npm run docs:lint`。
 2. 畫面變更實際開頁面檢查，含手機寬度。
 3. 回報分開列出：已執行與未執行的驗證及原因、commit 清單、和本文件或 `decisions.md` 不同的地方與原因。
-4. W4 與 W5 完成後，各由另一個 agent 依 `decisions.md` 第 15～17 項逐條做獨立審查，通過後才請 Weihao 決定是否合併。
+4. 推上 `dev` 的程式在合併到 `main` 之前，必須由 Claude 依 `decisions.md` 第 15～20 項逐條審查並通過。審查發現的問題在 `dev` 上修正後再審。
 
 全部或一部分上線後，更新[目前狀態](../../current-status.md)；該功能目前沒有 HTML 說明頁，不需要同步。
 
@@ -175,7 +174,7 @@
 | 1 | 在 VM 執行 `sudo nginx -T` 並檢查 `gzip_types` 是否含 `text/event-stream`、`/api/` 是否設了 `proxy_cache` 或關閉 `X-Accel-*` 標頭 | W4 上線前。設定不合時進度提示會累積到最後才出現，功能仍可用 |
 | 2 | 同一份輸出檢查前端頁面是否帶 `Permissions-Policy` 且含 `microphone=()` | W7 開工前 |
 | 3 | Gemini 花費上限解決後，在真實課程實測兩題固定建議題答不答得出來；答不出來就換題目 | W3 的開關何時打開 |
-| 4 | 決定是否合併到 `main` 與部署 | 每次上線 |
+| 4 | 請 Claude 審查 `dev` 上的實作；審查通過後決定是否合併到 `main` 與部署 | 每次上線 |
 
 ## 已知的殘餘風險
 

@@ -1,4 +1,7 @@
 export const SOURCE_PREVIEW_COUNT = 3;
+// 真實課程驗證兩題回答品質後才開啟。
+export const SHOW_STARTER_QUESTIONS = false;
+export const STARTER_QUESTIONS = ['這門課主要在教什麼？', '這門課有哪些重要的名詞？'];
 
 export function shouldSubmitQuestionOnKeyDown(event) {
   return event.key === 'Enter' && !event.shiftKey

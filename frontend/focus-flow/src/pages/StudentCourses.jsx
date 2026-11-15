@@ -16,6 +16,8 @@ import {
 } from '../utils/extendedResources';
 import {
   SOURCE_PREVIEW_COUNT,
+  SHOW_STARTER_QUESTIONS,
+  STARTER_QUESTIONS,
   canCopyAnswer,
   copyAnswer,
   formatConversationDate,
@@ -673,14 +675,15 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     }
   }
 
-  async function ask(event) {
+  async function ask(event, suggestedQuestion) {
     event?.preventDefault();
-    if (loading || !question.trim()) return;
-    if (questionTooLong) {
+    const currentQuestion = (suggestedQuestion ?? question).trim();
+    if (loading || !currentQuestion) return;
+    const tooLong = suggestedQuestion === undefined ? questionTooLong : [...currentQuestion].length > MAX_QUESTION_LENGTH;
+    if (tooLong) {
       setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`);
       return;
     }
-    const currentQuestion = question.trim();
     setLoading(true); setError('');
     setAwaitingAnswer(true);
     const temporaryId = `pending-${Date.now()}`;
@@ -833,7 +836,15 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       )}
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
         {messages.length === 0 && !awaitingAnswer && (
-          <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span></div>
+          <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span>
+            {SHOW_STARTER_QUESTIONS && !loading && (
+              <div className="qa-starter-questions">
+                {STARTER_QUESTIONS.map((starter) => (
+                  <button key={starter} type="button" onClick={() => ask(null, starter)}>{starter}</button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {error && (
           <div className="qa-ai-message qa-ai-error" role="alert">

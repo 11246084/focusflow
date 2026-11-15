@@ -1,6 +1,6 @@
 # FocusFlow 前端安裝與使用
 
-這份文件說明網頁的啟動方式與教師批次上傳操作。請先啟動後端，再設定前端連線；功能進度及驗收結果只看[目前狀態](../../docs/current-status.md)。
+這份文件說明網頁的啟動方式、學生問答與教師批次上傳操作。請先啟動後端，再設定前端連線；功能進度及驗收結果只看[目前狀態](../../docs/current-status.md)。
 
 ## 安裝與啟動
 
@@ -22,6 +22,12 @@ npm.cmd run dev
 | `VITE_DEV_PROXY_TARGET` | 選用的開發轉送目標；預設 `http://127.0.0.1:4000`，Vite 將 `/api` 與 `/uploads` 轉送到後端，見[開發設定](vite.config.js)。 |
 
 修改設定後重新啟動 Vite；打包版本則需重新執行 build。以上前端變數會提供給瀏覽器，不能放私密金鑰。
+
+## 學生問答
+
+輸入問題後按 Enter 送出，按 Shift+Enter 換行。瀏覽器支援剪貼簿時，可按已完成回答下方的「複製」取得回答文字。
+
+空白對話的兩題固定建議由 [qaConversationUtils.js](src/pages/qaConversationUtils.js) 的 `SHOW_STARTER_QUESTIONS` 控制，預設關閉；須先在真實課程驗證回答品質，再決定是否開啟。
 
 ## 教師批次上傳
 

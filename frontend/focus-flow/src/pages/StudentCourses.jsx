@@ -394,6 +394,38 @@ function AnswerContent({ answer }) {
   );
 }
 
+function CopyAnswerButton({ answer }) {
+  const [feedback, setFeedback] = useState('');
+  const requestId = useRef(0);
+  const timer = useRef(null);
+
+  useEffect(() => () => {
+    requestId.current += 1;
+    clearTimeout(timer.current);
+  }, []);
+
+  async function handleCopy() {
+    const currentRequest = ++requestId.current;
+    clearTimeout(timer.current);
+    setFeedback('');
+    const succeeded = await copyAnswer(navigator.clipboard, answer);
+    if (currentRequest !== requestId.current) return;
+    setFeedback(succeeded ? '已複製' : '複製失敗');
+    if (succeeded) {
+      timer.current = setTimeout(() => setFeedback(''), 2000);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className="qa-copy-answer" aria-label="複製 AI 回答" onClick={handleCopy}>
+        {feedback || '複製'}
+      </button>
+      <span className="sr-only" aria-live="polite">{feedback}</span>
+    </>
+  );
+}
+
 // 2026-09-18 前建立的對話預設標題是英文。
 function isDefaultConversationTitle(title) {
   return !title || title === '新對話' || title === 'New conversation';
@@ -803,9 +835,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           <span className="sr-only">AI 回答：</span>
           <AnswerContent answer={result.answer} />
           {result.status === 'completed' && canCopyAnswer(navigator.clipboard) && (
-            <button type="button" className="qa-copy-answer" aria-label="複製 AI 回答" onClick={() => { void copyAnswer(navigator.clipboard, result.answer); }}>
-              複製
-            </button>
+            <CopyAnswerButton answer={result.answer} />
           )}
           {result.status === 'failed' && (
             <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>

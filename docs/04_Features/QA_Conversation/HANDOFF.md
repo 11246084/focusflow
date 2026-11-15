@@ -2,7 +2,7 @@
 
 這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能實作學生對話欄的第一批優化。設計與理由只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只列工作項目、要改的檔案、驗收方式與不能動的地方。請照「工作項目」的順序做，每項各自提交。
 
-最後更新：2026-11-15（建立，尚未開工；補上 Codex 雲端版的注意事項）
+最後更新：2026-11-15（建立，尚未開工；補上 Codex 雲端版的 Git 身分、分支與提交規則）
 
 ## 範圍
 
@@ -13,7 +13,7 @@
 ## 必守規則
 
 - 共用規則依 [AGENTS.md](../../../AGENTS.md)：先看 `git status --short`、不回退無關檔案、第一次跑 Node.js 指令前先 `node -v`。
-- **作者只有 Weihao**：用本機 Git 設定的身分，不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等 AI 署名。
+- **作者只有 Weihao**：本機執行用本機 Git 設定的身分；雲端版依下一節設定。不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等 AI 署名。
 - **小步 commit**：一個工作項目至少一筆，每筆都要通過相關測試；訊息用中文並沿用 repo 風格。
 - **合併 `main` 與部署由 Weihao 決定**。推到 `main` 會自動部署到 VM。在本機執行時不自行 push；用 Codex 雲端版時見下一節。
 - **不連共用 Atlas、VM、LINE、YouTube 或付費模型 API**。本機用 `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory`；後端測試用 `backend/tests/helpers/backendTestHarness.js` 的記憶體替身。不要為了驗證而啟動會連 Atlas 的服務。
@@ -32,11 +32,32 @@
 - **不需要任何金鑰或資料庫連線**。後端測試用記憶體替身，問答用上面那組模擬設定。環境設定裡不要放 Gemini 金鑰或 `MONGODB_URI`，避免測試誤連共用 Atlas。
 - **畫面只能有限度地檢查**。雲端容器不一定能開瀏覽器看頁面；做不到時在回報裡寫明「未實際開頁面檢查」，由 Weihao 或另一個 agent 在本機補看。
 
-下面三點取決於 Codex 雲端版當下的行為，Claude 沒有查證，請在第一個 PR 確認：
+### Git 身分、分支與提交（雲端版必做）
 
-- 分支名稱是否帶 `codex/` 前綴。專案慣例不用 `codex/` 或 `claude/` 開頭的分支名；若無法指定名稱，由 Weihao 決定是否接受或在合併前改名。
-- commit 的作者是不是 Weihao 的 Git 身分、訊息裡有沒有被加上 AI 署名。不符合時在合併前修正（例如用 squash 合併並改寫作者與訊息）。
-- 安裝套件時容器是否有網路。`npm ci` 需要連到 npm；若任務執行階段沒有網路，要把安裝寫在環境的設定腳本裡。
+雲端容器裡沒有 Weihao 的本機 Git 設定，所以每個任務開始時要自己設定，不能沿用容器的預設身分。
+
+1. **設定作者**。在 repo 目錄執行：
+
+   ```bash
+   git config user.name "Weihao"
+   git config user.email "11246062@ntub.edu.tw"
+   ```
+
+   提交後用 `git log -1 --format='%an <%ae> | %cn <%ce>'` 確認作者與提交者都是這個身分。不是的話修正後再繼續，不要帶著錯的身分推上去。
+
+2. **訊息不加任何 AI 署名**。commit 訊息、PR 標題與 PR 內文都不放 `Co-Authored-By`、`Claude-Session`、`Generated with`、`Signed-off-by: Codex` 之類的字樣，也不放模型名稱或任務連結。工具若會自動附加這類文字，提交前關掉或手動刪除，推送前用 `git log --format=%B` 檢查一次。
+
+3. **分支名稱用 `wip/qa-conversation-<項目>`**，例如 `wip/qa-conversation-w1-w3`、`wip/qa-conversation-w4`。不用 `codex/` 或 `claude/` 開頭。工具若自動建立了這類前綴的分支，改名後再推送。
+
+4. **只推送自己的工作分支，並開 PR 到 `dev`**。不直接推 `dev`，不推 `main`，不強制推送（force push），不改寫別人的提交。
+
+5. **不自行合併 PR**。合併由 Weihao 決定。
+
+6. **只提交和工作項目有關的檔案**。提交前看 `git status --short`；不提交 `.env`、金鑰、容器產生的暫存檔或鎖定檔的無關變動。
+
+### 套件安裝
+
+`backend/` 與 `frontend/focus-flow/` 各自執行 `npm ci`。若任務執行階段沒有網路而安裝失敗，停下回報，由 Weihao 把安裝步驟加進環境的設定腳本；不要改用其他套件來源，也不要跳過測試。
 
 ## 會動到的主要檔案
 

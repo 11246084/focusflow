@@ -1582,6 +1582,7 @@ button.dd-item { width: 100%; border: none; background: none; text-align: left; 
   font-size: 12px;
 }
 .qa-copy-answer:hover, .qa-copy-answer:focus-visible { color: #fff; border-color: #fff; }
+.qa-question-input { resize: none; overflow-y: hidden; }
 .qa-answer p { margin: 0 0 12px; }
 .qa-answer h3 {
   margin: 18px 0 8px;

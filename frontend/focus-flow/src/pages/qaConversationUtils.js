@@ -1,5 +1,10 @@
 export const SOURCE_PREVIEW_COUNT = 3;
 
+export function shouldSubmitQuestionOnKeyDown(event) {
+  return event.key === 'Enter' && !event.shiftKey
+    && !event.nativeEvent.isComposing && event.keyCode !== 229;
+}
+
 export function canCopyAnswer(clipboard) {
   return typeof clipboard?.writeText === 'function';
 }

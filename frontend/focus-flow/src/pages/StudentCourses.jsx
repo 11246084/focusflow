@@ -24,6 +24,7 @@ import {
   getVisibleSources,
   mapConversationMessage,
   scrollConversationMessageIntoView,
+  shouldSubmitQuestionOnKeyDown,
   toStudentCitation,
 } from './qaConversationUtils';
 
@@ -543,6 +544,12 @@ function scrollMenuItemIntoView(menu, item) {
   else if (item.offsetTop + item.offsetHeight > menu.scrollTop + menu.clientHeight) menu.scrollTop = item.offsetTop + item.offsetHeight - menu.clientHeight;
 }
 
+function resizeQuestionInput(input) {
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+}
+
 function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -561,6 +568,30 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
   const latestMessageRef = useRef(null);
   const historyButtonRef = useRef(null);
   const historyMenuRef = useRef(null);
+  const questionRef = useRef(null);
+
+  useLayoutEffect(() => {
+    resizeQuestionInput(questionRef.current);
+  }, [question, compact]);
+
+  useEffect(() => {
+    const input = questionRef.current;
+    if (!input) return undefined;
+    const resize = () => resizeQuestionInput(input);
+    let width = input.clientWidth;
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      if (input.clientWidth !== width) {
+        width = input.clientWidth;
+        resize();
+      }
+    });
+    observer?.observe(input);
+    window.addEventListener('resize', resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
   useEffect(() => {
@@ -930,16 +961,18 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       <div className="qa-input-area">
         {/* 用 form 送出：按 Enter 即送出，而且中文輸入法選字時按的 Enter 不會誤送 */}
         <form onSubmit={ask} style={{ display: 'flex', gap: 8 }}>
-          <input
-            className="ff-input"
+          <textarea
+            ref={questionRef}
+            className="ff-input qa-question-input"
             style={{ flex: 1, margin: 0, minWidth: 0 }}
+            rows={1}
             placeholder="輸入問題，按 Enter 送出…"
             aria-label="輸入課程問題"
             value={question}
             onChange={e => setQuestion(e.target.value)}
             onKeyDown={(e) => {
               // 中文輸入法選字時的 Enter（isComposing / keyCode 229）只是確認文字，不送出。
-              if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (!shouldSubmitQuestionOnKeyDown(e)) return;
               ask(e);
             }}
             enterKeyHint="send"

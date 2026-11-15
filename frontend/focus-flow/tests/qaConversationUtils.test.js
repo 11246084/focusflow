@@ -8,8 +8,24 @@ import {
   getVisibleSources,
   mapConversationMessage,
   scrollConversationMessageIntoView,
+  shouldSubmitQuestionOnKeyDown,
   toStudentCitation,
 } from '../src/pages/qaConversationUtils.js';
+
+describe('多行問題輸入', () => {
+  const keyEvent = (overrides = {}) => ({ key: 'Enter', shiftKey: false, keyCode: 13, nativeEvent: { isComposing: false }, ...overrides });
+
+  it('Enter 送出，Shift+Enter 保留換行', () => {
+    assert.equal(shouldSubmitQuestionOnKeyDown(keyEvent()), true);
+    assert.equal(shouldSubmitQuestionOnKeyDown(keyEvent({ shiftKey: true })), false);
+    assert.equal(shouldSubmitQuestionOnKeyDown(keyEvent({ key: 'a' })), false);
+  });
+
+  it('中文輸入法選字時的 Enter 不送出', () => {
+    assert.equal(shouldSubmitQuestionOnKeyDown(keyEvent({ nativeEvent: { isComposing: true } })), false);
+    assert.equal(shouldSubmitQuestionOnKeyDown(keyEvent({ keyCode: 229 })), false);
+  });
+});
 
 describe('複製回答', () => {
   it('僅在剪貼簿支援寫入文字時顯示功能', () => {

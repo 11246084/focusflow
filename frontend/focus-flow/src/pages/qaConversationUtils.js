@@ -12,9 +12,84 @@ export function canCopyAnswer(clipboard) {
   return typeof clipboard?.writeText === 'function';
 }
 
+function normalizeAnswerLines(value) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    // AI responses sometimes place numbered or bulleted items in one paragraph.
+    .replace(/([^\n])\s+(?=(?:\d+[.)、](?:\s|\*\*)|[一二三四五六七八九十]+[、.．](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
+    .split('\n');
+}
+
+export function getAnswerBlocks(answer) {
+  const blocks = [];
+  let paragraph = [];
+  let list = null;
+
+  function flushParagraph() {
+    if (paragraph.length > 0) {
+      blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
+      paragraph = [];
+    }
+  }
+
+  function flushList() {
+    if (list) {
+      blocks.push(list);
+      list = null;
+    }
+  }
+
+  normalizeAnswerLines(answer).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'heading', text: heading[1] });
+      return;
+    }
+
+    const ordered = line.match(/^(?:\d+[.)、]|[一二三四五六七八九十]+[、.．])\s*(.+)$/);
+    const unordered = line.match(/^(?:[-•*])\s+(.+)$/);
+    if (ordered || unordered) {
+      flushParagraph();
+      const type = ordered ? 'ordered-list' : 'unordered-list';
+      if (!list || list.type !== type) {
+        flushList();
+        list = { type, items: [] };
+      }
+      list.items.push((ordered || unordered)[1]);
+      return;
+    }
+
+    flushList();
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+export function answerToPlainText(answer) {
+  const inlineText = (text) => text.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+  return getAnswerBlocks(answer).map((block) => {
+    if (block.items) {
+      return block.items.map((item, index) => `${block.type === 'ordered-list' ? `${index + 1}.` : '-'} ${inlineText(item)}`).join('\n');
+    }
+    return inlineText(block.text);
+  }).join('\n\n');
+}
+
 export async function copyAnswer(clipboard, answer) {
   try {
-    await clipboard.writeText(answer);
+    await clipboard.writeText(answerToPlainText(answer));
     return true;
   } catch {
     return false;

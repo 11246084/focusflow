@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  answerToPlainText,
   canCopyAnswer,
   copyAnswer,
   formatConversationLabel,
@@ -33,11 +34,24 @@ describe('複製回答', () => {
     assert.equal(canCopyAnswer({ writeText: () => {} }), true);
   });
 
-  it('寫入完整回答文字', async () => {
+  it('將畫面上的段落文字寫入剪貼簿', async () => {
     let copied;
     const answer = '第一行\n第二行';
     assert.equal(await copyAnswer({ writeText: async (text) => { copied = text; } }, answer), true);
-    assert.equal(copied, answer);
+    assert.equal(copied, '第一行 第二行');
+  });
+
+  it('依畫面解析標題、粗體與各種條列，將同段清單拆行', async () => {
+    const answer = '## **重點**\r\n介紹 **概念** 1. 第一項 2) **第二項**\n• 第三項\n* 第四項\n一、 中文序號';
+    const expected = '重點\n\n介紹 概念\n\n1. 第一項\n2. 第二項\n\n- 第三項\n- 第四項\n\n1. 中文序號';
+    assert.equal(answerToPlainText(answer), expected);
+    let copied;
+    await copyAnswer({ writeText: async (text) => { copied = text; } }, answer);
+    assert.equal(copied, expected);
+  });
+
+  it('保留非標題符號、未成對星號及數學文字', () => {
+    assert.equal(answerToPlainText('C# 與 #標籤\n2 ** 3 = 8'), 'C# 與 #標籤 2 ** 3 = 8');
   });
 
   it('剪貼簿拒絕寫入時不拋出錯誤', async () => {

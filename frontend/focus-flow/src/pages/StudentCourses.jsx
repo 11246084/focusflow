@@ -22,6 +22,7 @@ import {
   copyAnswer,
   formatConversationDate,
   formatConversationLabel,
+  getAnswerBlocks,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
@@ -361,14 +362,6 @@ const SEGMENT_PREVIEW_COUNT = SOURCE_PREVIEW_COUNT;
 const MAX_QUESTION_LENGTH = 50;
 const DAILY_ASK_LIMIT = 5;
 
-function normalizeAnswerLines(value) {
-  return String(value || '')
-    .replace(/\r\n?/g, '\n')
-    // AI responses sometimes place numbered or bulleted items in one paragraph.
-    .replace(/([^\n])\s+(?=(?:\d+[.)、](?:\s|\*\*)|[一二三四五六七八九十]+[、.．](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
-    .split('\n');
-}
-
 function renderAnswerInline(text, lineIndex) {
   const parts = String(text).split(/(\*\*[^*\n]+\*\*)/g);
 
@@ -380,63 +373,6 @@ function renderAnswerInline(text, lineIndex) {
     // Never leak incomplete Markdown bold delimiters into the visible answer.
     return <span key={key}>{part.replaceAll('**', '')}</span>;
   });
-}
-
-function getAnswerBlocks(answer) {
-  const blocks = [];
-  let paragraph = [];
-  let list = null;
-
-  function flushParagraph() {
-    if (paragraph.length > 0) {
-      blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
-      paragraph = [];
-    }
-  }
-
-  function flushList() {
-    if (list) {
-      blocks.push(list);
-      list = null;
-    }
-  }
-
-  normalizeAnswerLines(answer).forEach((rawLine) => {
-    const line = rawLine.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      return;
-    }
-
-    const heading = line.match(/^#{1,3}\s+(.+)$/);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      blocks.push({ type: 'heading', text: heading[1] });
-      return;
-    }
-
-    const ordered = line.match(/^(?:\d+[.)、]|[一二三四五六七八九十]+[、.．])\s*(.+)$/);
-    const unordered = line.match(/^(?:[-•*])\s+(.+)$/);
-    if (ordered || unordered) {
-      flushParagraph();
-      const type = ordered ? 'ordered-list' : 'unordered-list';
-      if (!list || list.type !== type) {
-        flushList();
-        list = { type, items: [] };
-      }
-      list.items.push((ordered || unordered)[1]);
-      return;
-    }
-
-    flushList();
-    paragraph.push(line);
-  });
-
-  flushParagraph();
-  flushList();
-  return blocks;
 }
 
 function AnswerContent({ answer }) {

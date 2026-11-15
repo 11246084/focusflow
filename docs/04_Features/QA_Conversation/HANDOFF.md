@@ -2,7 +2,7 @@
 
 這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能實作學生對話欄的第一批優化。設計與理由只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只列工作項目、要改的檔案、驗收方式與不能動的地方。請照「工作項目」的順序做，每項各自提交。
 
-最後更新：2026-11-15（建立，尚未開工）
+最後更新：2026-11-15（建立，尚未開工；補上 Codex 雲端版的注意事項）
 
 ## 範圍
 
@@ -15,11 +15,28 @@
 - 共用規則依 [AGENTS.md](../../../AGENTS.md)：先看 `git status --short`、不回退無關檔案、第一次跑 Node.js 指令前先 `node -v`。
 - **作者只有 Weihao**：用本機 Git 設定的身分，不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等 AI 署名。
 - **小步 commit**：一個工作項目至少一筆，每筆都要通過相關測試；訊息用中文並沿用 repo 風格。
-- **push、合併 `main` 與部署由 Weihao 決定**。推到 `main` 會自動部署到 VM。
+- **合併 `main` 與部署由 Weihao 決定**。推到 `main` 會自動部署到 VM。在本機執行時不自行 push；用 Codex 雲端版時見下一節。
 - **不連共用 Atlas、VM、LINE、YouTube 或付費模型 API**。本機用 `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory`；後端測試用 `backend/tests/helpers/backendTestHarness.js` 的記憶體替身。不要為了驗證而啟動會連 Atlas 的服務。
 - **不新增資料庫索引**，也不新增套件。第一批的設計刻意只用既有欄位與既有索引。
 - **不修改 `decisions.md` 的已定案內容**。發現設計做不到或互相矛盾時停下，在回報中說明。
 - **LINE 的問答行為不能變**。LINE 直接呼叫 `askQuestion`，不經過對話服務；新增的參數都要是選填、預設不啟用。
+
+## 用 Codex 雲端版執行時
+
+雲端版在自己的容器裡複製 repo、完成後開一個 PR，和在本機執行有幾點不同。Weihao 計畫用雲端版執行（2026-11-15）。
+
+- **基準分支選 `dev`**。這份文件與 `decisions.md` 只在 `dev`，`main` 上沒有；選錯分支會找不到規格。
+- **PR 的目標分支是 `dev`，不是 `main`**。合併到 `main` 會自動部署。
+- **一個工作項目開一個任務**（W1～W3 可以合成一個），每個任務一個 PR。W4 與 W5 各自單獨開，方便審查。後一個任務要等前一個 PR 合併進 `dev` 再開，否則會從舊的 `dev` 出發而互相衝突。
+- **Node.js 版本**：環境要設成 22.23.4 以上的 22 版（見[根 README 的環境需求](../../../README.md#環境需求)）。任務開始時先跑 `node -v`，版本不符就停下回報，不要用舊版跑測試。
+- **不需要任何金鑰或資料庫連線**。後端測試用記憶體替身，問答用上面那組模擬設定。環境設定裡不要放 Gemini 金鑰或 `MONGODB_URI`，避免測試誤連共用 Atlas。
+- **畫面只能有限度地檢查**。雲端容器不一定能開瀏覽器看頁面；做不到時在回報裡寫明「未實際開頁面檢查」，由 Weihao 或另一個 agent 在本機補看。
+
+下面三點取決於 Codex 雲端版當下的行為，Claude 沒有查證，請在第一個 PR 確認：
+
+- 分支名稱是否帶 `codex/` 前綴。專案慣例不用 `codex/` 或 `claude/` 開頭的分支名；若無法指定名稱，由 Weihao 決定是否接受或在合併前改名。
+- commit 的作者是不是 Weihao 的 Git 身分、訊息裡有沒有被加上 AI 署名。不符合時在合併前修正（例如用 squash 合併並改寫作者與訊息）。
+- 安裝套件時容器是否有網路。`npm ci` 需要連到 npm；若任務執行階段沒有網路，要把安裝寫在環境的設定腳本裡。
 
 ## 會動到的主要檔案
 

@@ -6,7 +6,7 @@ import BottomSheet from '../components/BottomSheet';
 import CitationRetrievalLabel from '../components/CitationRetrievalLabel';
 import LineLinkButton from '../components/LineLinkButton';
 import brandMark from '../assets/mark-white.svg';
-import { apiFetch, getUser } from '../api';
+import { apiFetch, apiStream, getUser } from '../api';
 import { recoverLocalPlayback, resolveVideoPlayback } from './studentPlayback';
 import {
   findExtendedResourcesQuestion,
@@ -23,6 +23,11 @@ import {
   formatConversationDate,
   formatConversationLabel,
   getAnswerBlocks,
+  getUnansweredMessages,
+  hasNewUserMessage,
+  isStaleMessage,
+  isRetryRecoveryPending,
+  isDefiniteRejection,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
@@ -441,14 +446,14 @@ function AiAvatar() {
   );
 }
 
-function PendingAnswer() {
+function PendingAnswer({ stage }) {
   return (
     <div className="qa-ai-message qa-pending-answer" role="status">
       <AiAvatar />
       <div className="qa-ai-body qa-pending-body">
         <span className="sr-only">AI 回答：</span>
         <span className="qa-pending-dots" aria-hidden="true"><span /><span /><span /></span>
-        <span>AI 正在搜尋課程片段並整理答案，通常需要 10～20 秒，請稍候…</span>
+        <span>{stage === 'searching' ? '搜尋課程片段' : stage === 'writing' ? '撰寫回答' : '等待回答'}</span>
       </div>
     </div>
   );
@@ -525,6 +530,12 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
   const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  const [stage, setStage] = useState('');
+  const [pollTick, setPollTick] = useState(0);
+  const generationRef = useRef(0);
+  const streamRef = useRef(null);
+  const recoveryRef = useRef(null);
+  useEffect(() => () => { generationRef.current += 1; streamRef.current?.abort(); }, []);
   const questionLength = [...question.trim()].length;
   const questionTooLong = questionLength > MAX_QUESTION_LENGTH;
   const [messages, setMessages] = useState([]);
@@ -614,99 +625,146 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     return () => document.removeEventListener('mousedown', closeOnOutside);
   }, [compact, historyOpen]);
 
+  function cancelRequests() {
+    generationRef.current += 1;
+    streamRef.current?.abort();
+    streamRef.current = null;
+    recoveryRef.current = null;
+    setAwaitingAnswer(false); setStage(''); setLoading(false);
+  }
+
   async function createNewConversation() {
+    const generation = generationRef.current;
     setError('');
     const response = await apiFetch('/conversations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId }),
     });
-    setConversationId(response.data.id);
-    setMessages([]);
-    setExpandedMessageIds(new Set());
+    if (generation !== generationRef.current) return null;
+    setConversationId(response.data.id); setMessages([]); setExpandedMessageIds(new Set());
     setConversations((items) => [response.data, ...items]);
     return response.data.id;
   }
 
   async function resumeConversation(id) {
+    cancelRequests();
+    const generation = generationRef.current;
     setLoading(true); setError('');
     try {
       const response = await apiFetch(`/conversations/${id}/messages`);
-      setConversationId(id);
-      setMessages((response.data?.messages || []).map(mapConversationMessage));
-      setExpandedMessageIds(new Set());
-      setHistoryOpen(false);
+      if (generation !== generationRef.current) return;
+      setConversationId(id); setMessages((response.data?.messages || []).map(mapConversationMessage));
+      setExpandedMessageIds(new Set()); setHistoryOpen(false);
     } catch (e) {
-      setError(e.message || '無法恢復對話');
-    } finally {
-      setLoading(false);
-    }
+      if (generation === generationRef.current) setError(e.message || '無法恢復對話');
+    } finally { if (generation === generationRef.current) setLoading(false); }
   }
+
+  useEffect(() => {
+    const unresolved = getUnansweredMessages(messages);
+    if (!conversationId || (loading && !recoveryRef.current) || (!recoveryRef.current && !unresolved.some((item) => !isStaleMessage(item)))) return undefined;
+    const generation = generationRef.current;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await apiFetch(`/conversations/${conversationId}/messages`);
+        if (generation !== generationRef.current) return;
+        const fresh = (response.data?.messages || []).map(mapConversationMessage);
+        const recovery = recoveryRef.current;
+        if (isRetryRecoveryPending(fresh, recovery)) {
+          setError('連線中斷，正在重試');
+          setPollTick((value) => value + 1);
+          return;
+        }
+        if (recovery?.accepted && recovery.userMessageId && !fresh.some((item) => item.id === recovery.userMessageId)) {
+          setError('連線中斷，正在重試');
+          setPollTick((value) => value + 1);
+          return;
+        }
+        if (recovery && !recovery.retry && !recovery.accepted && !hasNewUserMessage(fresh, recovery.lastKnownId)) {
+          setQuestion(recovery.question); setError(recovery.error || '問題尚未送出，請再試一次。');
+        } else setError('');
+        recoveryRef.current = null;
+        setMessages(fresh); setAwaitingAnswer(false); setStage(''); setLoading(false);
+      } catch {
+        if (generation !== generationRef.current) return;
+        setError('連線中斷，正在重試');
+      }
+      if (generation === generationRef.current) setPollTick((value) => value + 1);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [conversationId, messages, pollTick, loading]);
 
   async function ask(event, suggestedQuestion) {
     event?.preventDefault();
     const currentQuestion = (suggestedQuestion ?? question).trim();
     if (loading || !currentQuestion) return;
     const tooLong = suggestedQuestion === undefined ? questionTooLong : [...currentQuestion].length > MAX_QUESTION_LENGTH;
-    if (tooLong) {
-      setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`);
-      return;
-    }
-    setLoading(true); setError('');
-    setAwaitingAnswer(true);
+    if (tooLong) { setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`); return; }
+    const generation = generationRef.current;
+    const lastKnownId = messages.at(-1)?.id;
+    let activeConversationId = conversationId;
+    let accepted = false;
+    let userMessageId = null;
+    let submitted = false;
     const temporaryId = `pending-${Date.now()}`;
-    setMessages((items) => [...items, {
-      id: temporaryId, role: 'user', content: currentQuestion, status: 'completed',
-    }]);
+    setLoading(true); setError(''); setAwaitingAnswer(true); setStage('');
+    setMessages((items) => [...items, { id: temporaryId, role: 'user', content: currentQuestion, status: 'completed' }]);
     setQuestion('');
     try {
-      let activeConversationId = conversationId;
-      if (!activeConversationId) {
-        activeConversationId = await createNewConversation();
+      if (!activeConversationId) activeConversationId = await createNewConversation();
+      if (!activeConversationId || generation !== generationRef.current) return;
+      if (!conversationId) setMessages([{ id: temporaryId, role: 'user', content: currentQuestion, status: 'completed' }]);
+      const path = `/conversations/${activeConversationId}/messages`;
+      const controller = new AbortController(); streamRef.current = controller;
+      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: currentQuestion }), signal: controller.signal };
+      let result;
+      submitted = true;
+      try {
+        await apiStream(`${path}/stream`, options, (eventName, payload) => {
+          if (generation !== generationRef.current) return;
+          if (eventName === 'accepted') { accepted = true; userMessageId = payload.userMessageId || payload.userMessage?.id; }
+          if (eventName === 'stage') setStage(payload.stage);
+          if (eventName === 'done') result = payload;
+        });
+      } catch (e) {
+        if (e.status !== 404 && e.status !== 405) throw e;
+        result = await apiFetch(path, options);
       }
-      const res = await apiFetch(`/conversations/${activeConversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: currentQuestion }),
-      });
-      setMessages((items) => [
-        ...items.filter((message) => message.id !== temporaryId),
-        mapConversationMessage(res.data.userMessage),
-        mapConversationMessage(res.data.assistantMessage),
-      ]);
-      setConversations((items) => items.map((item) => (
-        item.id === activeConversationId
-          ? { ...item, title: isDefaultConversationTitle(item.title) ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() }
-          : item
-      )).sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
+      if (generation !== generationRef.current) return;
+      setMessages((items) => [...items.filter((message) => message.id !== temporaryId), mapConversationMessage(result.data.userMessage), mapConversationMessage(result.data.assistantMessage)]);
+      setConversations((items) => items.map((item) => item.id === activeConversationId
+        ? { ...item, title: isDefaultConversationTitle(item.title) ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() } : item)
+        .sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
+      setLoading(false); setAwaitingAnswer(false); setStage('');
     } catch (e) {
-      // 被拒絕（字數、次數用完等）時問題沒有送出：移除暫時顯示的提問，並把文字放回輸入框。
-      setMessages((items) => items.filter((message) => message.id !== temporaryId));
-      setQuestion(currentQuestion);
-      setError(e.message || '問答失敗');
-    } finally {
-      setLoading(false);
-      setAwaitingAnswer(false);
-    }
+      if (generation !== generationRef.current) return;
+      if (!submitted || isDefiniteRejection(e)) {
+        setMessages((items) => items.filter((message) => message.id !== temporaryId));
+        setQuestion(currentQuestion); setError(e.message || '問答失敗'); setLoading(false); setAwaitingAnswer(false);
+      } else {
+        recoveryRef.current = { accepted, userMessageId, lastKnownId, question: currentQuestion, error: e.message };
+        setError('連線中斷，正在重試'); setPollTick((value) => value + 1);
+      }
+    } finally { if (generation === generationRef.current) streamRef.current = null; }
   }
 
   async function retryAnswer(message) {
-    setLoading(true); setError('');
-    setRetryingMessageId(message.id);
+    const generation = generationRef.current;
+    setLoading(true); setError(''); setRetryingMessageId(message.id);
     try {
-      const response = await apiFetch(
-        `/conversations/${conversationId}/messages/${message.replyToMessageId}/retry`,
-        { method: 'POST' },
-      );
-      setMessages((items) => items.map((item) => (
-        item.id === message.id ? mapConversationMessage(response.data.assistantMessage) : item
-      )));
+      await apiFetch(`/conversations/${conversationId}/messages/${message.role === 'user' ? message.id : message.replyToMessageId}/retry`, { method: 'POST' });
+      if (generation !== generationRef.current) return;
+      const fresh = await apiFetch(`/conversations/${conversationId}/messages`);
+      if (generation === generationRef.current) setMessages((fresh.data?.messages || []).map(mapConversationMessage));
     } catch (e) {
-      setError(e.message || '重新產生失敗');
-    } finally {
-      setLoading(false);
-      setRetryingMessageId(null);
-    }
+      if (generation === generationRef.current) {
+        if (!isDefiniteRejection(e)) {
+          recoveryRef.current = { retry: true, messageId: message.id, status: message.status, updatedAt: message.updatedAt, startedAt: Date.now() };
+          setError('連線中斷，正在重試');
+        } else setError(e.message || '重新產生失敗');
+        setPollTick((value) => value + 1);
+      }
+    } finally { if (generation === generationRef.current) { setLoading(Boolean(recoveryRef.current)); setRetryingMessageId(null); } }
   }
 
   function handleCitationClick(matchedIndex, startSec, sourceKey) {
@@ -715,7 +773,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     }
   }
 
-  const startNewConversation = () => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'));
+  const startNewConversation = () => { cancelRequests(); createNewConversation().catch((e) => setError(e.message || '無法建立新對話')); };
   const currentTitle = formatConversationLabel(conversations.find((item) => item.id === conversationId));
   const recentConversations = conversations.slice(0, 20);
 
@@ -822,11 +880,14 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
         )}
         {messages.map((message, messageIndex) => message.id && message.id === retryingMessageId ? (
           <div key={message.id} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined}>
-            <PendingAnswer />
+            <PendingAnswer stage={stage} />
           </div>
+        ) : message.role === 'assistant' && message.status === 'pending' ? (
+          <div key={message.id}>{isStaleMessage(message) ? <button type="button" onClick={() => retryAnswer(message)} disabled={loading}>重新產生</button> : <PendingAnswer stage={stage} />}</div>
         ) : message.role === 'user' ? (
         <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {message.content}
+          {getUnansweredMessages(messages).some((item) => item.id === message.id) && isStaleMessage(message) && <button type="button" onClick={() => retryAnswer(message)} disabled={loading}>重新產生</button>}
         </div>
       ) : (() => { const result = message; return (
         <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} className="qa-ai-message">
@@ -933,7 +994,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           </div>
         </div>
         ); })())}
-        {awaitingAnswer && <PendingAnswer />}
+        {awaitingAnswer && <PendingAnswer stage={stage} />}
       </div>
       <div className="qa-input-area">
         {/* 用 form 送出：按 Enter 即送出，而且中文輸入法選字時按的 Enter 不會誤送 */}

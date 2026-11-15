@@ -1138,6 +1138,7 @@ function installModelStubs() {
   Message.findById = (id) => createQuery(
     store.messages.find((item) => normalizeValue(item._id) === normalizeValue(id)) || null,
   );
+  Message.findOneAndUpdate = async (query, update, options = {}) => findOneAndUpdateInStore(store.messages, query, update, options);
   Message.findByIdAndUpdate = async (id, update) => {
     const document = store.messages.find((item) => normalizeValue(item._id) === normalizeValue(id));
     if (!document) return null;

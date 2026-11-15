@@ -2676,10 +2676,55 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Conversation not found }
+  /api/v1/conversations/{conversationId}/messages/stream:
+    post:
+      tags: [QA]
+      summary: 串流回答進度與完整結果
+      operationId: streamConversationMessage
+      description: |
+        回應標頭為 `Content-Type: text/event-stream`、`Cache-Control: no-cache, no-transform`、
+        `Connection: keep-alive`、`X-Accel-Buffering: no`、`Content-Encoding: identity`。
+        每 15 秒送出 SSE 註解 `:` 保持連線。
+
+        事件依序為：
+        - `accepted`：`data` 為 `{userMessageId, assistantMessageId, userMessage, assistantMessage}`。
+        - `stage`：`data` 為 `{stage: "searching"}` 或 `{stage: "writing"}`；FAQ 命中可略過步驟。
+        - `done`：`data` 為一般 API 的完整成功 envelope `{success, message, data}`；回答失敗時 `data.failed` 為 true。
+        - `error`：標頭送出後發生非預期錯誤時，`data` 為 `{message, code}`，隨後結束。
+
+        開始前的權限、字數及額度錯誤回傳一般 HTTP JSON 錯誤。斷線後回答仍繼續並儲存。
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '201':
+          description: SSE events
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Conversation not found }
+        '429': { description: Daily question limit exceeded }
   /api/v1/conversations/{conversationId}/messages/{messageId}/retry:
     post:
       tags: [QA]
-      summary: 使用同一則 user message 重新產生失敗回答
+      summary: 使用同一則 user message 重新產生回答
+      description: |
+        接受 failed 回答、updatedAt 超過 2 分鐘的 pending 回答，或 createdAt 超過 2 分鐘且沒有任何回覆的 user message。
+        以條件更新佔位；狀態不允許或並行佔位衝突回傳 409。重試仍受每日額度限制。
       operationId: retryConversationMessage
       parameters:
         - name: conversationId
@@ -2695,7 +2740,8 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Conversation or user message not found }
-        '409': { description: Message is not retryable }
+        '409': { description: Message is not retryable or retry claim conflicted }
+        '429': { description: Daily question limit exceeded }
   /api/v1/qa/ask:
     post:
       tags:

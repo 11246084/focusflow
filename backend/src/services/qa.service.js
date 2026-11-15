@@ -1244,7 +1244,7 @@ function qaTimingMark(label, startNs) {
 
 async function askQuestion({
   user, courseId, question, retrievalQuestion = null, source = 'api',
-  conversationHistory = null, conversationId = null, contextualization = null,
+  conversationHistory = null, conversationId = null, contextualization = null, onStage = null,
 }) {
   const t0 = process.hrtime.bigint();
   const totalStartedAt = Date.now();
@@ -1368,6 +1368,7 @@ async function askQuestion({
   // 投機性啟動：片段載入與 query embedding 互不依賴，先讓 DB 查詢跑起來，
   // 之後第二層 FAQ 快取命中時直接 return，不 await 這個 promise，
   // 讓載入耗時不計入回應延遲（原本順序會白等一次完整載入）。
+  if (onStage) onStage('searching');
   const scopedSegmentsPromise = loadScopedSearchableSegments(segmentScope);
   // 命中提早 return 時沒人 await 這個 promise，補 no-op catch 避免 unhandled rejection；
   // miss 路徑仍 await 原 promise，載入失敗照樣往外拋。
@@ -1746,6 +1747,7 @@ async function askQuestion({
 
   // Citation/clip 必須以答案實際採用的 evidence 為準，不能再固定取 retrieval Top1。
   const generationStartedAt = Date.now();
+  if (onStage) onStage('writing');
   const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
   stageLatency.generationLatencyMs = Date.now() - generationStartedAt;
   const noAnswerReply = isNoAnswerReply(answerResult.text);

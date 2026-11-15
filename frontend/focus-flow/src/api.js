@@ -114,3 +114,46 @@ export function buildApiError({ status, data = {}, fallbackMessage } = {}) {
   err.code = code; err.status = status; err.details = details; err.originalMessage = originalMessage;
   return err;
 }
+
+// POST SSE uses the same cookie, CSRF and session handling as ordinary requests.
+export async function apiStream(path, options = {}, onEvent = () => {}) {
+  const epoch = getAuthEpoch();
+  const response = await send(path, options, epoch);
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    handleFailure(path, options, response.status, data, epoch);
+  }
+  if (!response.body) throw new Error('串流連線中斷');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let doneEvent = false;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      assertAuthEpoch(epoch);
+      buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+      // Normalise CRLF only after full lines are available, including split CRLF chunks.
+      let match;
+      while ((match = /\r?\n\r?\n/.exec(buffer))) {
+        const frame = buffer.slice(0, match.index);
+        buffer = buffer.slice(match.index + match[0].length);
+        let event = 'message';
+        const data = [];
+        for (const line of frame.split(/\r?\n/)) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
+        }
+        if (!data.length) continue;
+        const payload = JSON.parse(data.join('\n'));
+        if (event === 'error') throw Object.assign(new Error(payload.message || '串流發生錯誤'), { streamError: true });
+        onEvent(event, payload);
+        if (event === 'done') { doneEvent = true; await reader.cancel(); return; }
+      }
+      if (chunk.done) break;
+    }
+    if (!doneEvent) throw new Error('串流連線中斷');
+  } finally {
+    reader.releaseLock();
+  }
+}

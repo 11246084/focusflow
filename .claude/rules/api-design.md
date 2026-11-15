@@ -53,7 +53,9 @@ const course_id = req.params.course_id;
 
 ## 統一 JSON 回應格式
 
-所有回應必須透過 `utils/apiResponse.js` 中的 `sendSuccess` 或 `buildErrorResponse` 產出，**不可直接 `res.json()` 自訂格式**。
+SSE 路由 `POST /conversations/:conversationId/messages/stream` 在送出標頭後直接寫入事件；其 `done` 事件仍使用既有成功回應格式，標頭前的錯誤沿用一般 JSON 錯誤處理。
+
+其他回應必須透過 `utils/apiResponse.js` 中的 `sendSuccess` 或 `buildErrorResponse` 產出，**不可直接 `res.json()` 自訂格式**。
 
 ### 成功回應
 

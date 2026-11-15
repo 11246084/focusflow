@@ -21,6 +21,7 @@ function publicMessage(message) {
     sources: message.sources || [],
     standaloneQuestion: message.standaloneQuestion || null,
     createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
   };
 }
 
@@ -96,11 +97,11 @@ async function listMessages({ user, conversationId }) {
 
 function historyFromMessages(messages) {
   return normalizeHistory((Array.isArray(messages) ? messages : [])
-    .filter((message) => message.status !== 'failed')
+    .filter((message) => !['failed', 'pending'].includes(message.status))
     .map((message) => ({ role: message.role, content: message.content })));
 }
 
-async function runQuestion({ user, conversation, userMessage, history, assistantMessage = null }) {
+async function runQuestion({ user, conversation, userMessage, history, assistantMessage = null, onStage }) {
   const contextualStartedAt = Date.now();
   const contextual = contextualizeQuestion({
     recentConversationHistory: history,
@@ -119,6 +120,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       conversationHistory: history,
       conversationId: conversation._id,
       contextualization: contextual,
+      onStage,
     });
     const runtime = {
       ...(result.runtime || {}),
@@ -205,7 +207,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
   }
 }
 
-async function sendMessage({ user, conversationId, content }) {
+async function sendMessage({ user, conversationId, content, onAccepted, onStage }) {
   const conversation = await loadOwnedConversation({ user, conversationId });
   const question = String(content || '').trim();
   if (!question) throw new AppError('Message content is required.', 400, 'VALIDATION_ERROR');
@@ -218,7 +220,11 @@ async function sendMessage({ user, conversationId, content }) {
   const userMessage = await Message.create({
     conversationId, role: 'user', content: question, status: 'completed',
   });
-  const execution = await runQuestion({ user, conversation, userMessage, history });
+  const assistantMessagePending = await Message.create({
+    conversationId, role: 'assistant', content: '回答產生中。', status: 'pending', replyToMessageId: userMessage._id,
+  });
+  if (onAccepted) onAccepted(publicMessage(userMessage), publicMessage(assistantMessagePending));
+  const execution = await runQuestion({ user, conversation, userMessage, history, assistantMessage: assistantMessagePending, onStage });
   const result = execution.result;
   const contextual = execution.contextual;
   const assistantMessage = execution.assistantMessage;
@@ -245,16 +251,26 @@ async function retryMessage({ user, conversationId, userMessageId }) {
   if (!userMessage || userMessage.role !== 'user') {
     throw new AppError('User message not found.', 404, 'MESSAGE_NOT_FOUND');
   }
-  const failedAssistant = messages.find((message) => (
-    message.role === 'assistant'
-    && message.status === 'failed'
-    && String(message.replyToMessageId) === String(userMessage._id)
+  const reply = messages.find((message) => (
+    message.role === 'assistant' && String(message.replyToMessageId) === String(userMessage._id)
   ));
-  if (!failedAssistant) {
+  const cutoff = new Date(Date.now() - 120000);
+  if (reply && reply.status !== 'failed' && !(reply.status === 'pending' && new Date(reply.updatedAt) < cutoff)) {
     throw new AppError('Message is not retryable.', 409, 'MESSAGE_RETRY_NOT_ALLOWED');
   }
-  // 失敗的回答不扣次數，但重新產生成功會計入今天的次數。
+  if (!reply && new Date(userMessage.createdAt) >= cutoff) {
+    throw new AppError('Message is not retryable.', 409, 'MESSAGE_RETRY_NOT_ALLOWED');
+  }
   await assertDailyAskAvailable(user);
+  // Claim both failed and stale pending replies atomically; claim orphan users too.
+  const claimFilter = reply
+    ? { _id: reply._id, status: reply.status, ...(reply.status === 'pending' ? { updatedAt: { $lt: cutoff } } : {}) }
+    : { _id: userMessage._id, updatedAt: { $lt: cutoff } };
+  const claimed = await Message.findOneAndUpdate(claimFilter, { $set: { updatedAt: new Date(), ...(reply ? { status: 'pending', content: '回答產生中。' } : {}) } }, { new: true });
+  if (!claimed) throw new AppError('Message is not retryable.', 409, 'MESSAGE_RETRY_NOT_ALLOWED');
+  const failedAssistant = reply ? claimed : await Message.create({
+    conversationId, role: 'assistant', content: '回答產生中。', status: 'pending', replyToMessageId: userMessage._id,
+  });
   const history = historyFromMessages(messages.slice(0, index));
   const execution = await runQuestion({
     user, conversation, userMessage, history, assistantMessage: failedAssistant,

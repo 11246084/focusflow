@@ -176,3 +176,30 @@ export function scrollConversationMessageIntoView(container, message, behavior =
   container.scrollTo({ top: Math.max(0, top), behavior });
   return true;
 }
+
+export const PENDING_TIMEOUT_MS = 120000;
+export function isStaleMessage(message, now = Date.now()) {
+  const timestamp = Date.parse(message.updatedAt || message.createdAt);
+  return Number.isFinite(timestamp) && now - timestamp >= PENDING_TIMEOUT_MS;
+}
+export function getUnansweredMessages(messages) {
+  const replied = new Set(messages.filter((message) => message.role === 'assistant').map((message) => message.replyToMessageId));
+  return messages.filter((message) => (message.role === 'assistant' && message.status === 'pending')
+    || (message.role === 'user' && !replied.has(message.id)));
+}
+export function hasNewUserMessage(messages, lastKnownId) {
+  const index = lastKnownId ? messages.findIndex((message) => message.id === lastKnownId) : -1;
+  // If the boundary disappeared, avoid restoring and risking a duplicate submission.
+  if (lastKnownId && index < 0) return true;
+  return messages.slice(index + 1).some((message) => message.role === 'user');
+}
+
+// A lost retry response is uncertain until the stored assistant changes or the retry times out.
+export function isRetryRecoveryPending(messages, recovery, now = Date.now()) {
+  if (!recovery?.retry || now - recovery.startedAt >= PENDING_TIMEOUT_MS) return false;
+  const current = messages.find((item) => item.id === recovery.messageId);
+  return !current || (current.status === recovery.status && current.updatedAt === recovery.updatedAt);
+}
+export function isDefiniteRejection(error) {
+  return [400, 401, 403, 409, 413, 422, 429].includes(error.status);
+}

@@ -19,7 +19,7 @@
 | Jev 問題守門與 LINE 意圖分類 | [設計決策與待答題目](Jev_Judgment/decisions.md) |
 | LINE 帳號綁定 | [設計決策與待答題目](LINE_Binding/decisions.md)；回呼設計須等 cookie 方案定案 |
 | 學生端播放介面（章節、分段時間軸、回到目前播放位置） | [設計決策與待答題目](Student_Player_UX/decisions.md) |
-| 對話功能優化（串流、追問、帶播放位置、回答操作） | [設計決策與待答題目](QA_Conversation/decisions.md) |
+| 對話功能優化（串流、追問、帶播放位置、回答操作） | [設計決策與待答題目](QA_Conversation/decisions.md)、[LibreChat SSE 研究](QA_Conversation/evidence/2026-11-15_librechat-sse-research.md) |
 | 帳號、課程、影片、網頁與 LINE | [後端技術索引](../../backend/docs/current-state.md)、[網頁使用方式](../../frontend/focus-flow/README.md) |
 
 例：想知道短影片能否交付 → 讀狀態正本的短影片模組 → 再查該功能的規格與驗收證據；不能把規格中的目標當成驗收結果。

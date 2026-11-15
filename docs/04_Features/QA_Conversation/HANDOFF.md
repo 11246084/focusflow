@@ -1,0 +1,148 @@
+# 對話功能優化：開發接手說明
+
+這份文件讓接手的人或 AI（Codex、Claude Code）不必重讀對話就能實作學生對話欄的第一批優化。設計與理由只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只列工作項目、要改的檔案、驗收方式與不能動的地方。請照「工作項目」的順序做，每項各自提交。
+
+最後更新：2026-11-15（建立，尚未開工）
+
+## 範圍
+
+- **只做第一批**（下面的 W1～W8）。第一批都不改給模型的提示詞，也不改回答的 JSON 格式。
+- **不做第二批**：行內互動區塊、建議追問、問題模糊時先確認、小測驗（[決策第 13、14 項](decisions.md)）。這些要改提示詞，必須等 Gemini 可用、跑過評測才能做。
+- 不做[決策第 7 項](decisions.md)列為「之後再評估」的項目。
+
+## 必守規則
+
+- 共用規則依 [AGENTS.md](../../../AGENTS.md)：先看 `git status --short`、不回退無關檔案、第一次跑 Node.js 指令前先 `node -v`。
+- **作者只有 Weihao**：用本機 Git 設定的身分，不加 `Co-Authored-By`、`Claude-Session`、`Generated with` 等 AI 署名。
+- **小步 commit**：一個工作項目至少一筆，每筆都要通過相關測試；訊息用中文並沿用 repo 風格。
+- **push、合併 `main` 與部署由 Weihao 決定**。推到 `main` 會自動部署到 VM。
+- **不連共用 Atlas、VM、LINE、YouTube 或付費模型 API**。本機用 `QA_QUERY_EMBEDDING_PROVIDER=mock`、`QA_ANSWER_PROVIDER=template`、`QA_VECTOR_SEARCH_MODE=memory`；後端測試用 `backend/tests/helpers/backendTestHarness.js` 的記憶體替身。不要為了驗證而啟動會連 Atlas 的服務。
+- **不新增資料庫索引**，也不新增套件。第一批的設計刻意只用既有欄位與既有索引。
+- **不修改 `decisions.md` 的已定案內容**。發現設計做不到或互相矛盾時停下，在回報中說明。
+- **LINE 的問答行為不能變**。LINE 直接呼叫 `askQuestion`，不經過對話服務；新增的參數都要是選填、預設不啟用。
+
+## 會動到的主要檔案
+
+| 檔案 | 用途 |
+|---|---|
+| `frontend/focus-flow/src/pages/StudentCourses.jsx` | 學生課程頁；對話欄是 `QAPanel`，播放器是 `YouTubePlayer` 與本機 `<video>` |
+| `frontend/focus-flow/src/pages/qaConversationUtils.js` | 對話欄的純函式，測試在 `frontend/focus-flow/tests/qaConversationUtils.test.js` |
+| `frontend/focus-flow/src/api.js` | 前端呼叫 API 的共用函式；標頭、cookie 與登入過期處理在未匯出的 `send()` 與 `handleFailure` |
+| `backend/src/routes/conversation.routes.js`、`controllers/conversation.controller.js`、`services/conversation.service.js` | 對話 API；`sendMessage`、`runQuestion`、`retryMessage` 在 service |
+| `backend/src/services/qa.service.js` | 問答主流程 `askQuestion`（約 2,000 行，有多個提早回傳點） |
+| `backend/src/services/answerGeneration.service.js` | 呼叫模型產生回答；Gemini 失敗時會退回樣板回答 |
+| `backend/docs/openapi.yaml`、`.claude/rules/api-design.md` | API 文件與規則；新增路由或錯誤碼要同步 |
+| `backend/tests/conversation.routes.test.js`、`qa.service.test.js` | 既有測試 |
+
+## 工作項目
+
+每項的完整規則在括號內的決策項次，這裡只列容易漏掉的重點。
+
+### W1 複製回答（只改前端）
+
+- 每則已完成的 AI 回答下方加「複製」按鈕，複製回答的純文字。
+- 瀏覽器不支援剪貼簿 API 時不顯示按鈕。
+- 驗收：點擊後剪貼簿內容與回答文字相同；按鈕有可讀的 `aria-label`。
+
+### W2 多行輸入（只改前端）
+
+- 把輸入框從 `<input>` 換成會隨內容長高的 `<textarea>`。Enter 送出，Shift+Enter 換行。
+- **保留現有的中文輸入法判斷**：選字時的 Enter（`isComposing` 或 `keyCode === 229`）不送出。
+- 保留現有的字數上限提示與 `readOnly={loading}` 行為。
+- 驗收：注音選字按 Enter 不會送出；Shift+Enter 換行；手機鍵盤的送出鍵仍可送出。
+
+### W3 開場的兩題固定建議題（只改前端；決策第 11、18 項）
+
+- 空白的新對話顯示兩顆按鈕：「這門課主要在教什麼？」「這門課有哪些重要的名詞？」。點了直接送出，照一般提問處理。
+- 學生送出第一個問題後按鈕消失。**只能出現在空白對話**，不要放到對話中途。
+- **不要呼叫 `GET /courses/:courseId/faqs`**，不顯示任何學生問過的問題。
+- **用一個前端常數控制是否顯示，預設關閉**。這兩題要等 Gemini 可用、在真實課程實測答得出來才開放（見「需要 Weihao 處理的事」）。
+- 驗收：開關打開時空白對話看得到 2 顆可點的按鈕；關閉時畫面與現在相同。
+
+### W4 進度提示與 `pending` 訊息（前後端；決策第 9、15、16 項）
+
+後端：
+
+- 新增 `POST /conversations/:conversationId/messages/stream`，回應是 SSE。原本的 `POST .../messages` 保留不動。
+- 回應標頭與寫法照 [LibreChat SSE 研究](evidence/2026-11-15_librechat-sse-research.md)的「採用」各列：五個標頭加 `flushHeaders()`、寫入前檢查回應是否已結束、每 15 秒一行保持連線的註解。
+- 事件順序：`accepted`（帶使用者訊息與助理訊息的 ID）→ `stage: searching` → `stage: writing` → `done`。`done` 的內容是現有 API 的完整回應。FAQ 快取命中時可以跳過步驟直接 `done`。
+- 錯誤三種情況：①開始回答前被擋下的（額度、字數、權限）照現在回一般的 HTTP JSON 錯誤，**此時還沒送出 SSE 標頭**；②回答產生失敗送 `done` 且 `failed: true`；③標頭送出後的非預期錯誤由這個 controller 自己 `try/catch` 並送 `error` 事件。共用的錯誤處理中介層不會判斷標頭是否已送出，不能依賴它。
+- 開始回答前先建立一則 `status: 'pending'` 的助理訊息，完成或失敗時更新同一則（`runQuestion` 已支援傳入 `assistantMessage`）。`content` 是必填欄位，`pending` 期間放固定的佔位文字。**新舊兩條 API 都要這樣做**。
+- `historyFromMessages` 目前只排除 `failed`，要一併排除 `pending`。
+- 步驟通知用一個選填的回呼參數傳進 `askQuestion`，沒有傳就不做事。`askQuestion` 有多個提早回傳點，逐一確認每條路徑的事件順序合理。
+- 重試 API 放寬為接受兩種情況：`pending` 訊息的 `updatedAt` 早於 2 分鐘前；使用者訊息建立超過 2 分鐘仍沒有任何回覆。重試 `pending` 訊息前**先做帶條件的更新**（條件：`status` 是 `pending` 且 `updatedAt` 早於門檻；同時把 `updatedAt` 推到現在），更新不到就回 409，不執行回答。
+- 瀏覽器斷線後回答照常做完並寫入，不要因為 `req` 關閉而中止。
+
+前端：
+
+- 在 `api.js` 新增串流用的函式，重用 `send()` 與 `handleFailure`；頁面裡不直接呼叫 `fetch`。
+- 等待畫面依收到的步驟顯示「搜尋課程片段」「撰寫回答」。
+- 訊息清單看到 `status: 'pending'` 的助理訊息時畫 `PendingAnswer`，不顯示佔位文字，並每隔幾秒重新讀取對話。`pending` 超過 2 分鐘顯示「重新產生」。
+- **連線失敗時不重送問題。** 已收到 `accepted` 的，定時重新讀取對話。還沒收到的，重新讀取後看送出前最後一則已知訊息之後有沒有新的使用者訊息：有就照 `pending` 處理，沒有才把問題放回輸入框。重新讀取也失敗時顯示「連線中斷，正在重試」。
+- **只有新路由回 404 或 405 時才改用舊 API。** 其他失敗一律不改用，否則同一題會被送出兩次、扣兩次額度。
+
+文件與測試：
+
+- `openapi.yaml` 新增這條路由，回應類型寫 `text/event-stream`；在 `.claude/rules/api-design.md` 註明它不經過共用的成功／錯誤回應函式。
+- 測試工具的 `jsonRequest` 只會把回應當 JSON 讀，要另寫一個讀 SSE 的輔助函式。
+- 至少涵蓋：事件順序；`done` 與舊 API 回應相同（排除訊息 ID、時間戳與延遲數字）；開始前被擋下時回一般 HTTP 錯誤；回答失敗時 `done` 帶 `failed: true`；`pending` 不進對話歷史；連按兩次重試第二次回 409；未滿 2 分鐘的 `pending` 重試回 409。
+
+### W5 問目前這段（前後端；決策第 17 項）
+
+- 前端新增接線，讓 `QAPanel` 能取得目前的影片與秒數。`YouTubePlayer` 的 `playerRef` 目前封在元件內部，本機 `<video>` 的 `videoRef` 在父元件，兩種來源都要支援。暫停中也算有播放位置。
+- 空白對話的建議按鈕最前面加一顆「這段在講什麼」，只在有播放位置、而且影片已處理完成時顯示。這顆按鈕不受 W3 的開關控制。
+- 按鈕送出時附 `scope: "current_segment"` 與影片、秒數。**學生自己打字的問題不附，也不從文字判斷。** 新舊兩條 API 都接受這組欄位，OpenAPI 兩處都要改。
+- 後端**在建立訊息之前**做片段預檢：把前端傳來的影片對到這門課已授權的影片清單（`scopedVideos`），對不到就當作沒有播放位置；只讀那一支影片的片段（不讀向量欄位），篩出目前秒數前後各 60 秒，涵蓋目前秒數的那一段排第一。**不要用前端傳來的影片代碼直接查片段集合**，那會繞過課程範圍。
+- 預檢篩不到片段：回一般的 HTTP 錯誤（新錯誤碼，補進 `.claude/rules/api-design.md` 的錯誤碼表），不建立訊息、不扣額度。前端顯示「這個位置沒有可用的課程內容」，不把「這段在講什麼」放回輸入框。
+- 這條路徑不做追問改寫、不做向量搜尋、不讀不寫 FAQ 快取；**每日額度檢查照常執行**。
+- 在回答產生函式加一個選填參數：Gemini 失敗時不退回樣板，改為丟錯，讓這一題記為失敗、不扣額度。一般提問與 LINE 不傳這個參數。`QA_ANSWER_PROVIDER=template` 時樣板是正常回答，不受影響。
+- 問答紀錄與 `runtime` 診斷標明這一題依播放位置取片段。
+- 驗收：按鈕的回答來源都落在目前影片的前後 60 秒內；片頭或沒有片段的位置按下不扣額度也不留訊息；打字問「目前最常用的演算法是什麼」仍走整門課檢索；既有的 LINE 與問答測試不變。
+
+### W6 來源時間軸（只改前端；決策第 19 項）
+
+- 回答引用同一支影片 2 個以上片段時，在來源清單上方畫時間軸，標記可點擊跳轉。畫出全部來源，包含預設收合的。
+- 影片長度取自前端已有的影片清單（`durationSec`）；**沒有長度資料就不畫**，不要用最大的結束秒數代替。
+- 跨多支影片時每支符合條件的各畫一條，最多 3 條。
+- 驗收：只有一個來源或沒有長度時畫面與現在相同；標記位置與來源的起始秒數一致。
+
+### W7 語音輸入、W8 朗讀回答（只改前端；決策第 12 項）
+
+- 用瀏覽器內建功能，不經過後端。瀏覽器不支援時不顯示按鈕。
+- **W7 開工前先看「需要 Weihao 處理的事」第 2 項**：正式站若禁止使用麥克風，按鈕在正式站不會有作用。
+- 實測各瀏覽器的支援情況並寫進回報。錄音若會送到瀏覽器廠商的伺服器辨識，介面上加一句說明。
+
+## 每項完成時
+
+1. 依 [AGENTS.md 的驗證表](../../../AGENTS.md#驗證依變更影響選擇)選擇驗證：只改前端的項目跑 `frontend/focus-flow/` 的 `npm test`、`npm run lint`，W4、W5 另跑 `npm run build`；動到後端的項目跑對應的 `node:test`，W4、W5 完成時跑 `backend/` 全套 `npm test`；改到 OpenAPI 另跑 `npm run docs:lint`。
+2. 畫面變更實際開頁面檢查，含手機寬度。
+3. 回報分開列出：已執行與未執行的驗證及原因、commit 清單、和本文件或 `decisions.md` 不同的地方與原因。
+4. W4 與 W5 完成後，各由另一個 agent 依 `decisions.md` 第 15～17 項逐條做獨立審查，通過後才請 Weihao 決定是否合併。
+
+全部或一部分上線後，更新[目前狀態](../../current-status.md)；該功能目前沒有 HTML 說明頁，不需要同步。
+
+## 驗收標準（[決策第 8 項](decisions.md)）
+
+1. 空白對話看得到至少 2 個可點的問題，點了直接送出。
+2. 送出後 1 秒內出現「搜尋課程片段」，之後的提示對應後端實際完成的步驟。
+3. 播放到某一段時按「這段在講什麼」，回答的來源落在目前這支影片的前後 60 秒內。
+4. 既有的後端與前端測試全數通過，LINE 問答行為不變。
+
+四條都用模擬回答檢查。真實回答品質要等 Gemini 可用後另外驗收，回報時不能把模擬測試通過寫成已驗收。
+
+## 需要 Weihao 處理的事
+
+| # | 事項 | 影響哪一項 |
+|---|---|---|
+| 1 | 在 VM 執行 `sudo nginx -T` 並檢查 `gzip_types` 是否含 `text/event-stream`、`/api/` 是否設了 `proxy_cache` 或關閉 `X-Accel-*` 標頭 | W4 上線前。設定不合時進度提示會累積到最後才出現，功能仍可用 |
+| 2 | 同一份輸出檢查前端頁面是否帶 `Permissions-Policy` 且含 `microphone=()` | W7 開工前 |
+| 3 | Gemini 花費上限解決後，在真實課程實測兩題固定建議題答不答得出來；答不出來就換題目 | W3 的開關何時打開 |
+| 4 | 決定是否合併到 `main` 與部署 | 每次上線 |
+
+## 已知的殘餘風險
+
+實作時不需要處理，但回報與驗收時要知道（[決策第 16 項](decisions.md)）：
+
+- 連線失敗後立刻重新讀取時，請求可能還在路上、訊息尚未建立；學生此時再送一次會重複。
+- 原本的回答超過 2 分鐘仍在執行時，學生按了重試，原本那次完成時仍會寫入並多記一筆提問。
+- 2 分鐘的門檻是依逾時設定估算的，資料庫在 Atlas 上的實際耗時沒有量過。

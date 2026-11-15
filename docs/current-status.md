@@ -1,5 +1,13 @@
 # FocusFlow 目前狀態
 
+## 2026-11-15 對話功能優化第一批：W1～W3 進 dev
+
+依[對話功能優化決策](04_Features/QA_Conversation/decisions.md)與[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)，Codex 雲端版完成複製回答（`a9884da`）、多行輸入（`ccfad08`）與預設關閉的兩題固定建議題（`19284af`），推到 Weihao 個人 repo 後由 Claude 審查並帶到團隊 `dev`。只改前端，尚未合併 `main`、尚未部署。
+
+- 已驗證（Claude，Node.js 22.23.4）：前端測試 235 項、lint、build 通過；以模擬 API 在桌面與手機寬度實際操作複製、換行與送出。
+- 未驗證：真實後端與真實回答、手機實機鍵盤與真人注音選字；後端沒有變更，未跑後端測試。
+- 待修三項（複製含格式符號、複製後沒有回饋、多行問題顯示成一行），明細與 W4～W8 的進度見開發接手說明。固定建議題要等 Gemini 可用、實測答得出來才打開。
+
 ## 2026-11-15 短影片頁課程範圍與改版上線
 
 Weihao 授權合併 dev 到 main（`7547eb5`，Deploy to VM #163 成功）；VM 核對版本 `7547eb5`、`/health` 200。合併前 Backend 全套 452 檔 0 失敗，Frontend 230 項、lint、build 通過。

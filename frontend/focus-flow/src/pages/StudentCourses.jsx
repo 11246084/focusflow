@@ -825,7 +825,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
             <PendingAnswer />
           </div>
         ) : message.role === 'user' ? (
-        <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
+        <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {message.content}
         </div>
       ) : (() => { const result = message; return (

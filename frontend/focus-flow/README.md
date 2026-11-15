@@ -25,7 +25,7 @@ npm.cmd run dev
 
 ## 學生問答
 
-輸入問題後按 Enter 送出，按 Shift+Enter 換行。瀏覽器支援剪貼簿時，可按已完成回答下方的「複製」取得回答文字；成功時顯示「已複製」，失敗時顯示「複製失敗」。
+輸入問題後按 Enter 送出，按 Shift+Enter 換行，送出後的學生訊息會保留換行。瀏覽器支援剪貼簿時，可按已完成回答下方的「複製」取得回答文字；成功時顯示「已複製」，失敗時顯示「複製失敗」。
 
 空白對話的兩題固定建議由 [qaConversationUtils.js](src/pages/qaConversationUtils.js) 的 `SHOW_STARTER_QUESTIONS` 控制，預設關閉；須先在真實課程驗證回答品質，再決定是否開啟。
 

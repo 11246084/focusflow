@@ -1,5 +1,12 @@
 # FocusFlow 目前狀態
 
+## 2026-11-15 短影片頁課程範圍與改版上線
+
+Weihao 授權合併 dev 到 main（`7547eb5`，Deploy to VM #163 成功）；VM 核對版本 `7547eb5`、`/health` 200。合併前 Backend 全套 452 檔 0 失敗，Frontend 230 項、lint、build 通過。
+
+- 課程清單 API 新增 `scope=managed`（教師只回自己授課的課程、admin 全部、student 空），短影片製作與管理頁的選單改用它；管理頁不再因別人的公開課程回 `COURSE_MANAGE_DENIED` 而整頁失敗。不帶參數時行為不變。
+- 兩頁改為兩欄、暖炭黑降噪底、狀態點與動態（規則見 [DESIGN.md](../DESIGN.md)）。只用模擬 API 截圖檢查，尚未以真實帳號操作驗收。
+
 ## 2026-11-14 正式站開啟多模態融合
 
 Weihao 定案產品方向為多模態（見[多模態決策](04_Features/Multimodal_Retrieval/decisions.md)）。VM 的 `backend/.env` 已設 `QA_MULTIMODAL_FUSION_ENABLED=true`（先備份 `.env`），`pm2 restart` 後 `online`、`/health` 回 200，啟動錯誤紀錄沒有新錯誤。同日 Weihao 授權合併 dev 到 main（`067abb3`，Deploy to VM #162 成功）；VM 核對版本為 `067abb3`、開關仍為 `true`、`/health` 200，`npm run diagnose:gemini -- --probe` 回報查模型 OK、生成請求 SPEND_CAP_REACHED（HTTP 429）。

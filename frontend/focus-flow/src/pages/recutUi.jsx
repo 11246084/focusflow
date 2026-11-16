@@ -1,11 +1,11 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import { Ic } from '../components/Icons';
-import { MAX_DURATION_SEC, MIN_DURATION_SEC, STEPS, durationStatus, meterPercent } from '../services/recutFlow.js';
+import { MAX_DURATION_SEC, MIN_DURATION_SEC, STEPS, durationStatus, groupIcon, meterPercent } from '../services/recutFlow.js';
 
 // recut 工作區共用的小元件：流程列、狀態色塊、時長尺、處理中狀態卡、確認對話框。
 
-const TONE_ICON = { mine: 'alert', waiting: 'hourglass', done: 'checkCircle', error: 'warning', edit: 'edit' };
+const TONE_ICON = { mine: 'alert', waiting: 'hourglass', done: 'checkCircle', error: 'warning', edit: 'edit', closed: 'ban' };
 
 export function StateChip({ tone, children }) {
   return (
@@ -13,6 +13,53 @@ export function StateChip({ tone, children }) {
       <span aria-hidden="true"><Ic n={TONE_ICON[tone] || 'dot'} s={12} /></span>
       {children}
     </span>
+  );
+}
+
+const FOLD_KEY = 'ff_rc_fold2_';
+function readFold(id, fallback) {
+  if (!id) return fallback;
+  try {
+    const saved = localStorage.getItem(FOLD_KEY + id);
+    return saved === null ? fallback : saved === '1';
+  } catch { return fallback; }
+}
+
+// 可摺疊的分組（原生 <details>）：標題旁顯示數量，預設收合；有 id 時記住老師上次展開或收合。
+// count 為 0 時只顯示標題與 0，不能展開。forceOpen：由 false 變 true 時展開一次（例如勾選了收合裡的題目）。
+export function FoldGroup({ id, title, count, tone, defaultOpen = false, forceOpen = false, className = '', children }) {
+  const [open, setOpen] = useState(() => forceOpen || readFold(id, defaultOpen));
+  // 只在 forceOpen 由 false 變 true 時展開一次，之後老師仍可自行收合。
+  const [forced, setForced] = useState(forceOpen);
+  if (forceOpen !== forced) {
+    setForced(forceOpen);
+    if (forceOpen) setOpen(true);
+  }
+  const onToggle = (event) => {
+    const next = event.currentTarget.open;
+    setOpen(next);
+    if (!id) return;
+    try { localStorage.setItem(FOLD_KEY + id, next ? '1' : '0'); } catch { /* 無法儲存時只影響下次預設 */ }
+  };
+  if (count === 0) {
+    return (
+      <div className={`rc-fold rc-fold-empty ${className}`.trim()} data-tone={tone}>
+        <span className="rc-fold-head">
+          {tone && <span className="rc-fold-icon" aria-hidden="true"><Ic n={groupIcon(tone)} s={16} /></span>}
+          <span className="rc-fold-title">{title}</span><span className="rc-fold-count">0</span>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <details className={`rc-fold ${className}`.trim()} open={open} onToggle={onToggle}>
+      <summary data-tone={tone}>
+        {tone && <span className="rc-fold-icon" aria-hidden="true"><Ic n={groupIcon(tone)} s={16} /></span>}
+        <span className="rc-fold-title">{title}</span>
+        {count !== undefined && <span className="rc-fold-count">{count}</span>}
+      </summary>
+      {children}
+    </details>
   );
 }
 

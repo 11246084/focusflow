@@ -73,7 +73,7 @@ const KIND_TEXT = { content: '授課內容', voice: '老師原音', avatarLikene
 const ACTION_TEXT = { stopWork: '停止製作中的短片', archiveAsset: '從學生短片牆移除', makeYouTubePrivate: 'YouTube 轉為私人' };
 
 // 管理頁的授權設定：目前同意狀態、撤回（逐支或全選，預設都不選）、未完成的下架工作。
-export function RecutConsentManager({ courses }) {
+export function RecutConsentManager({ courses, titled = true }) {
   // 預設顯示老師最近在短影片製作用的那門課，剛同意完回來看得到「已同意」。
   const [courseId, setCourseId] = useState(() => {
     const recent = recallShortScriptCourse();
@@ -134,8 +134,8 @@ export function RecutConsentManager({ courses }) {
   const content = consent?.decisions?.content?.choice;
   const voice = consent?.voiceMode;
   return (
-    <section className="rc-panel" aria-labelledby="rc-consent-manage">
-      <h2 id="rc-consent-manage" className="rc-section-title">授權</h2>
+    <section className={titled ? 'rc-panel' : 'rc-consent-body'} aria-labelledby={titled ? 'rc-consent-manage' : undefined} aria-label={titled ? undefined : '授權'}>
+      {titled && <h2 id="rc-consent-manage" className="rc-section-title">授權</h2>}
       {courses.length > 1 && (
         <label className="rc-field rc-field-first">
           <span className="rc-field-label">課程</span>

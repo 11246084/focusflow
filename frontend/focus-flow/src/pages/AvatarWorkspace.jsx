@@ -21,7 +21,7 @@ const BUSY_TEXT = {
   approved_waiting_upload: '已核准，影片傳完就上架',
 };
 
-export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
+export default function AvatarWorkspace({ script, assets, onChanged, onNext, nextLabel }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const info = describeAvatar(script, assets);
@@ -101,13 +101,19 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const pickFile = (event) => {
-    const picked = event.target.files?.[0];
+  const [dragging, setDragging] = useState(false);
+  const takeFile = (picked) => {
     if (!picked) return;
     const invalid = validateVideoFile(picked);
     if (invalid) { setError(invalid); setFile(null); return; }
     setError('');
     setFile(picked);
+  };
+  const pickFile = (event) => takeFile(event.target.files?.[0]);
+  const dropFile = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    if (pending !== 'upload') takeFile(event.dataTransfer.files?.[0]);
   };
   const upload = () => run('upload', async () => {
     await uploadAsset(scriptId, { file, title: script.topic, versionNo: version.versionNo });
@@ -144,11 +150,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   let primary = null;
   if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
-  // 這一步真正要做的是傳回影片：還沒選影片時主要按鈕是「選擇影片」，選了才換成「上傳影片」。
-  else if (uploadStage && !file) primary = { label: '選擇影片', hint: '選你在自己電腦做好的影片檔', onClick: () => fileRef.current?.click(), disabled: pending === 'upload' };
-  else if (uploadStage) {
-    primary = { label: '上傳影片', onClick: upload, busy: pending === 'upload', disabled: !aiConfirmed || !consentConfirmed, reason: '勾選上傳前的兩項確認' };
-  } else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
+  // 傳回影片這一步的動作在腳本下方的「傳回做好的影片」卡片裡（照順序：先看腳本、做影片，再傳回），標題列不放按鈕。
+  else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
   else if (reviewStage) primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
 
   // 選好影片後的檔名與兩項確認：電腦在右欄主要按鈕上方；手機放在主欄，底部列只留主要按鈕，不遮住腳本。
@@ -170,12 +173,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   ) : null;
 
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel rc-actionbar'} data-rc-actions>
+    <div className={compact ? 'rc-dock' : 'rc-head-actions'} data-rc-actions>
       <div className="rc-actions">
-        {uploadStage && (
-          <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
-            onChange={pickFile} disabled={pending === 'upload'} />
-        )}
         {primary && <PrimaryAction {...primary} />}
         {reviewStage && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
@@ -189,8 +188,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
             {info.state === 'published' ? '已上架，學生看得到' : '已核准，影片上傳完成後自動上架'}
           </p>
         )}
-        {onNext && !primary && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>下一支</button>
+        {onNext && !primary && !uploadStage && (
+          <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-next" title={nextLabel || undefined} onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
         {error && <p className="rc-error" role="alert">{error}</p>}
         {notice && <p className="rc-reason" role="status">{notice}</p>}
@@ -225,7 +224,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   const options = version?.payload?.visualMetaphorOptions || [];
   const sidePanels = (
     <>
-      {canRevise && (
+      {canRevise && !(version?.payload?.shots || []).length && (
         <details className="rc-panel rc-more">
           <summary>重新產生或不做這支</summary>
           <div className="rc-more-body">
@@ -242,11 +241,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
   return (
     <>
       <div className="rc-col rc-main">
-        <section className="rc-panel rc-main" aria-labelledby={`av-q-${scriptId}`}>
+        <section className="rc-panel rc-task-head" aria-labelledby={`av-q-${scriptId}`}>
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
           {/* 唯一保留的說明：數位分身要老師在自己電腦上做影片，版面本身表達不出這件事。 */}
-          {uploadStage && <p className="rc-source">照腳本在自己的電腦做好影片，再從這裡傳回。</p>}
+          {uploadStage && <p className="rc-source">照下方腳本在自己的電腦做好影片，再拖到最下面傳回。</p>}
+          {!compact && actionBlock}
         </section>
 
         {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}
@@ -257,7 +257,6 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
           </section>
         )}
         {info.state === 'to_generate' && <section className="rc-panel"><p>還沒有腳本</p></section>}
-        {uploadChecks && <section className="rc-panel">{uploadChecks}</section>}
 
         {showAsset && (
           <section className="rc-panel" aria-label="成品">
@@ -286,8 +285,16 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
                     <li>回到這裡按「選擇影片」傳回，再確認成品上架。</li>
                   </ol>
                 </HelpTip>
-                <button type="button" className="rc-btn-text" onClick={copy}>複製腳本</button>
-                <button type="button" className="rc-btn-text" onClick={download}>下載腳本</button>
+                <button type="button" className="rc-tool-btn" onClick={copy}><Ic n="copy" s={15} />複製腳本</button>
+                <button type="button" className="rc-tool-btn" onClick={download}><Ic n="download" s={15} />下載腳本</button>
+                {/* 重新產生與不做這支是少用的動作：跟腳本工具放在同一列，不另開一塊。 */}
+                {canRevise && (
+                  <>
+                    <span className="rc-tools-sep" aria-hidden="true" />
+                    <button type="button" className="rc-tool-btn" disabled={Boolean(pending)} onClick={() => setMode('regenerate')}><Ic n="sync" s={15} />重新產生</button>
+                    <button type="button" className="rc-tool-btn rc-tool-danger" disabled={Boolean(pending)} onClick={() => setDismissOpen(true)}><Ic n="ban" s={15} />不做這支</button>
+                  </>
+                )}
               </div>
             )}
             {/* 畫面上的腳本與下載的腳本用同一個視覺隱喻，老師照畫面做也拿得到完整方向。 */}
@@ -314,8 +321,34 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext }) {
             </ol>
           </section>
         )}
+
+        {uploadStage && (
+          <section className="rc-panel rc-return" aria-labelledby={`av-return-${scriptId}`} data-rc-actions>
+            <h2 id={`av-return-${scriptId}`} className="rc-section-title">傳回做好的影片</h2>
+            <input ref={fileRef} type="file" accept="video/*" className="rc-visually-hidden" tabIndex={-1} aria-hidden="true"
+              onChange={pickFile} disabled={pending === 'upload'} />
+            {!file ? (
+              <button type="button" className="rc-drop" data-rc-primary data-dragging={dragging || undefined} disabled={pending === 'upload'}
+                onClick={() => fileRef.current?.click()}
+                onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)} onDrop={dropFile}>
+                <span className="rc-drop-icon" aria-hidden="true"><Ic n="up" s={26} /></span>
+                <strong>拖曳影片到這裡，或點一下選擇檔案</strong>
+                <span>在自己電腦照上面的腳本做好的影片</span>
+              </button>
+            ) : (
+              <>
+                {uploadChecks}
+                <div className="rc-return-action">
+                  <PrimaryAction label="上傳影片" onClick={upload} busy={pending === 'upload'}
+                    disabled={!aiConfirmed || !consentConfirmed} reason="勾選上傳前的兩項確認" />
+                </div>
+              </>
+            )}
+          </section>
+        )}
         {sidePanels}
-        {actionBlock}
+        {compact && actionBlock}
       </div>
       <p className="rc-visually-hidden" role="status" aria-live="polite">{announcement}</p>
       <SheetDialog open={Boolean(mode)} title={mode === 'reject' ? '哪裡要改' : '重新產生腳本'} onClose={() => setMode(null)}

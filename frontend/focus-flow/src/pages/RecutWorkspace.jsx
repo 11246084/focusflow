@@ -336,7 +336,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
-    <div className={compact ? 'rc-dock' : 'rc-panel rc-actionbar'} data-rc-actions>
+    <div className={compact ? 'rc-dock' : 'rc-head-actions'} data-rc-actions>
       <div className="rc-actions">
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
@@ -358,7 +358,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </p>
         )}
         {onNext && ['render_failed', 'render_queued', 'rendering', 'asset_approved', 'published', 'queued', 'generating', 'updating'].includes(state) && (
-          <button type="button" className="rc-btn rc-btn-outline rc-btn-block" onClick={onNext}>{nextLabel || '下一支'}</button>
+          <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-next" title={nextLabel || undefined} onClick={onNext}>{nextLabel || '下一支'}</button>
         )}
         {error && <p className="rc-error" role="alert">{error}</p>}
         {notice && <p className="rc-reason" role="status">{notice}</p>}
@@ -456,12 +456,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   return (
     <>
       <div className="rc-col rc-main">
-        <section className="rc-panel rc-main" aria-labelledby={`rc-q-${scriptId}`}>
+        <section className="rc-panel rc-task-head" aria-labelledby={`rc-q-${scriptId}`}>
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
           {review?.source?.notice && <p className="rc-reason rc-reason-start">{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
+          {/* 電腦版：這一步的動作放在題目旁、跟著捲動停在上方；手機維持底部固定列。 */}
+          {!compact && actionBlock}
         </section>
         {/* 電腦版：AI 建議與「這一版改了」放在講稿上方，先看到再決定；手機維持在講稿下方。 */}
         {!compact && sidePanels}
@@ -558,7 +560,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </div>
         </div>
         {compact && sidePanels}
-        {actionBlock}
+        {compact && actionBlock}
       </div>
 
       {review?.source?.videoId && (

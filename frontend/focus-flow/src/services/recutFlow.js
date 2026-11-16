@@ -62,10 +62,31 @@ export function isRecutScript(script) {
 }
 
 // 管理清單排序：等你處理在前，其次處理中，最後已上架；同組依最後更新時間新到舊。
-const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
+// 等你處理裡越接近完成的排越前面（確認成品 → 確認講稿／傳回影片 → 產生），快的先清掉。
+export const BUCKET_ORDER = { mine: 0, waiting: 1, done: 2, closed: 3 };
 export function sortManageItems(items) {
   return [...items].sort((a, b) => (BUCKET_ORDER[a.bucket] - BUCKET_ORDER[b.bucket])
+    || (a.bucket === 'mine' ? (b.step ?? 0) - (a.step ?? 0) : 0)
     || (Date.parse(b.updatedAt || 0) - Date.parse(a.updatedAt || 0)));
+}
+
+// 四種狀態一律列出（含 0 支），讓老師一眼看到全部分組。
+export const SHORT_GROUPS = [
+  { bucket: 'mine', title: '等你處理' },
+  { bucket: 'waiting', title: '處理中' },
+  { bucket: 'done', title: '已上架' },
+  { bucket: 'closed', title: '不做了' },
+];
+
+// 狀態分組的圖示名稱（Icons.jsx）：等你處理、處理中、已上架、不做了。
+const GROUP_ICON = { mine: 'alert', waiting: 'hourglass', done: 'checkCircle', closed: 'ban' };
+export const groupIcon = (bucket) => GROUP_ICON[bucket] || 'dot';
+
+export const MODE_TEXT = { recut: '原片剪輯', avatar: '數位分身' };
+
+// 清單第二行：等你處理寫下一步動作，其他寫狀態。
+export function rowStatusText(info) {
+  return (info.bucket === 'mine' && info.action) || info.label;
 }
 
 // 數位分身：系統只產生腳本，教授在地端做好影片後傳回，再確認成品上架（UX-24）。
@@ -109,6 +130,9 @@ export function toManageItem(script, course, assets = []) {
     state: info.state,
     label: info.label,
     action: info.action || null,
+    status: rowStatusText(info),
+    mode: isRecutScript(script) ? 'recut' : 'avatar',
+    step: info.step,
     bucket: info.bucket,
     tone: chipTone(info),
     updatedAt: script.updatedAt || script.createdAt || null,

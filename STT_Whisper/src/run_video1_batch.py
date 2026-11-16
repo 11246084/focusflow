@@ -226,10 +226,19 @@ def stop_retry(_):
 
 class BatchAdapter(GeminiMultimodalAdapter):
     """Never regenerate a known success, or automatically restart a previously attempted input."""
-    def __init__(self, *args, known_successes=None, retry_signature=None, retry_attempt=None, **kwargs):
+    def __init__(self, *args, known_successes=None, retry_signature=None, retry_attempt=None,
+                 extra_retry_signature=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.known_successes = known_successes or set()
         self.retry_signature, self.retry_attempt = retry_signature, retry_attempt
+        if extra_retry_signature is not None and (not re.fullmatch('[a-f0-9]{64}', extra_retry_signature)
+                or extra_retry_signature != retry_signature or retry_attempt != 4):
+            raise ValueError('Extra retry requires one exact signature and attempt 4')
+        self.extra_retry_signature = extra_retry_signature
+
+    def _attempt_limit(self, signature):
+        # Only an explicitly authorized signature can consume a fourth attempt.
+        return 4 if signature == self.extra_retry_signature else super()._attempt_limit(signature)
 
     def _run_request(self, signature, modality, content, contract, cost, identity, input_bytes):
         checkpoint = self.output / (signature + '.json')
@@ -246,10 +255,13 @@ class BatchAdapter(GeminiMultimodalAdapter):
         ledger = json.loads(self.ledger_path.read_text()) if self.ledger_path.exists() else {}
         previous = max(cached.get('attempts', 0), ledger.get('attemptsBySignature', {}).get(signature, 0))
         if cached.get('status') != 'success':
+            if signature == self.extra_retry_signature and previous != 3:
+                raise PermissionError('Extra retry requires exactly three preserved prior attempts')
             if key in self.known_successes:
                 raise PermissionError('Lost successful cache must be restored, never regenerated')
             if previous:
-                if self.retry_signature != signature or self.retry_attempt != previous + 1 or self.retry_attempt > 3:
+                extra = signature == self.extra_retry_signature and previous == 3 and self.retry_attempt == 4
+                if self.retry_signature != signature or self.retry_attempt != previous + 1 or (self.retry_attempt > 3 and not extra):
                     raise PermissionError('Prior input requires explicit signature and next-attempt authorization')
                 permits = self.ledger_path.parent / 'controlled-retry-permits'
                 permits.mkdir(exist_ok=True)

@@ -7,10 +7,75 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from multimodal_corpus import CATALOG, ids_for, validate_scope
 from run_video1_batch import BatchAdapter, run_requests, stop_retry, query_request
+from gemini_multimodal_adapter import GeminiMultimodalAdapter, EmbeddingRequestError
 from test_gemini_multimodal_adapter import FakeClient
 
 
 class CorpusBatchTests(unittest.TestCase):
+    def test_fourth_attempt_is_exact_single_use_and_preserves_history(self):
+        for fails in (False, True):
+            with self.subTest(fails=fails), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); ledger = root/'shared.json'; cp = root/'cp'
+                rate = type('RateLimit', (Exception,), {'code': 429})
+                initial = FakeClient(failures=[rate(), rate(), rate()])
+                def adapter(cls, client, **extra):
+                    return cls(cp, max_cost_usd=20, max_calls=100, allow_paid=True,
+                        ledger_path=ledger, client_factory=lambda _: client, sleep=lambda _: None, **extra)
+                with self.assertRaises(EmbeddingRequestError):
+                    adapter(GeminiMultimodalAdapter, initial).embed_text('exact fourth fixture', role='text')
+                file = next(cp.glob('*.json')); prior = json.loads(file.read_text()); sig = prior['signature']
+                before = json.loads(ledger.read_text())
+                denied = FakeClient()
+                with self.assertRaises(PermissionError):
+                    adapter(BatchAdapter, denied, retry_signature=sig, retry_attempt=4).embed_text('exact fourth fixture', role='text')
+                with self.assertRaises(PermissionError):
+                    adapter(BatchAdapter, denied, retry_signature='0'*64, retry_attempt=4,
+                        extra_retry_signature='0'*64).embed_text('exact fourth fixture', role='text')
+                self.assertEqual(denied.calls, [])
+                retry = FakeClient(failures=[rate()] if fails else [])
+                authorized = adapter(BatchAdapter, retry, retry_signature=sig, retry_attempt=4, extra_retry_signature=sig)
+                if fails:
+                    with self.assertRaises(EmbeddingRequestError):
+                        authorized.embed_text('exact fourth fixture', role='text')
+                    with self.assertRaises(PermissionError):
+                        authorized.embed_text('exact fourth fixture', role='text')
+                else:
+                    self.assertEqual(authorized.embed_text('exact fourth fixture', role='text')['status'], 'success')
+                    self.assertTrue(authorized.embed_text('exact fourth fixture', role='text')['reused'])
+                self.assertEqual(len(retry.calls), 1)
+                after = json.loads(ledger.read_text())
+                self.assertEqual(after['calls'], before['calls'] + 1)
+                self.assertGreater(after['reservedUsd'], before['reservedUsd'])
+                self.assertEqual(after['attemptsBySignature'][sig], 4)
+                permit = json.loads((root/'controlled-retry-permits'/f'{sig}-4.json').read_text())
+                self.assertEqual(permit['beforeCheckpoint'], prior)
+                self.assertEqual(permit['beforeLedgerCalls'], 3)
+                self.assertEqual(authorized._attempt_limit('0'*64), 3)
+                # New output paths cannot bypass consumed permits / ledger history.
+                with self.assertRaises(PermissionError):
+                    BatchAdapter(root/'different', retry_signature=sig, retry_attempt=4, extra_retry_signature=sig,
+                        max_cost_usd=20, allow_paid=True, ledger_path=ledger,
+                        client_factory=lambda _: denied).embed_text('exact fourth fixture', role='text')
+                self.assertEqual(denied.calls, [])
+
+    def test_extra_retry_configuration_and_budget_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for signature, attempt in [('bad', 4), ('0'*64, 3), ('1'*64, 4)]:
+                with self.assertRaises(ValueError):
+                    BatchAdapter(root/'cp', max_cost_usd=20, retry_signature='0'*64,
+                        retry_attempt=attempt, extra_retry_signature=signature)
+            ledger = root/'shared.json'
+            ledger.write_text(json.dumps({'calls':0,'reservedUsd':20,'pricingVersion':'google_standard_2026-11-10'}))
+            client = FakeClient()
+            adapter = BatchAdapter(root/'cp', max_cost_usd=20, allow_paid=True, ledger_path=ledger,
+                retry_signature='0'*64, retry_attempt=4, extra_retry_signature='0'*64,
+                client_factory=lambda _:client)
+            with self.assertRaises(PermissionError):
+                adapter.embed_text('budget fixture', role='text')
+            self.assertEqual(client.calls, [])
+            self.assertEqual(json.loads(ledger.read_text())['reservedUsd'],20)
+
     def test_query_plan_uses_existing_bank_question_and_real_time_anchor_without_changing_gold(self):
         spec = CATALOG['videos'][1]
         manifest = {'videoId': spec['videoId'], 'courseId': CATALOG['courseId'], 'chunks': [

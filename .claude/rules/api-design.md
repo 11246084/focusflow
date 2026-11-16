@@ -107,6 +107,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 
 | 錯誤碼 | HTTP 狀態 | 使用情境 |
 |--------|-----------|----------|
+| `CURRENT_SEGMENT_UNAVAILABLE` | 400 | 播放位置無效、影片不在授權課程範圍或附近沒有可用片段 |
 | `UNAUTHORIZED` | 401 | 未提供 Token 或 Token 無效 |
 | `INVALID_TOKEN` | 401 | Token 格式錯誤或已過期 |
 | `FORBIDDEN` | 403 | 無此資源的操作權限 |

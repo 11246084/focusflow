@@ -2670,9 +2670,12 @@ paths:
               required: [content]
               properties:
                 content: { type: string }
+                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；播放位置必須有片段涵蓋，附近片段在前後 60 秒界內；省略時搜尋整門課 }
+                videoId: { $ref: '#/components/schemas/ObjectId' }
+                positionSec: { type: number, minimum: 0, description: 播放位置秒數 }
       responses:
         '201': { description: Message answered }
-        '400': { $ref: '#/components/responses/ValidationError' }
+        '400': { description: 'Validation error or CURRENT_SEGMENT_UNAVAILABLE when position or authorized segment is unavailable' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Conversation not found }
@@ -2707,13 +2710,16 @@ paths:
               required: [content]
               properties:
                 content: { type: string }
+                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；播放位置必須有片段涵蓋，附近片段在前後 60 秒界內；省略時搜尋整門課 }
+                videoId: { $ref: '#/components/schemas/ObjectId' }
+                positionSec: { type: number, minimum: 0, description: 播放位置秒數 }
       responses:
         '201':
           description: SSE events
           content:
             text/event-stream:
               schema: { type: string }
-        '400': { $ref: '#/components/responses/ValidationError' }
+        '400': { description: 'Validation error or CURRENT_SEGMENT_UNAVAILABLE when position or authorized segment is unavailable' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Conversation not found }

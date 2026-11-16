@@ -61,6 +61,7 @@ const CODE_MESSAGES = {
   QA_QUOTA_EXCEEDED: '本月的 AI 提問額度已用完。',
   QA_DAILY_LIMIT_EXCEEDED: '今天的提問次數已用完（網頁與 LINE 合併計算），明天再來問吧！',
   QUESTION_TOO_LONG: '問題太長了，請精簡後再問一次。',
+  CURRENT_SEGMENT_UNAVAILABLE: '這個位置沒有可用的課程內容',
   CONVERSATION_NOT_FOUND: '找不到這段對話。',
   CONVERSATION_ACCESS_DENIED: '你沒有權限查看這段對話。',
   MESSAGE_NOT_FOUND: '找不到這則訊息。',

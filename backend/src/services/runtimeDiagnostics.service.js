@@ -429,6 +429,18 @@ function assertQaRuntimeConfiguration() {
   return snapshot;
 }
 
+// Position-based answers do not use embeddings or a vector index.
+function assertCurrentSegmentRuntimeConfiguration() {
+  const snapshot = buildQaRuntimeSnapshot();
+  const answerFailures = snapshot.hardFailures.filter(({ code }) => [
+    'QA_ANSWER_PROVIDER_UNSUPPORTED', 'OPENAI_API_KEY_MISSING_FOR_ANSWER_PROVIDER', 'GEMINI_API_KEY_MISSING',
+  ].includes(code));
+  const result = { answerProvider: snapshot.answerProvider, readiness: answerFailures.length ? 'hard_fail' : 'ready',
+    readyForAsk: answerFailures.length === 0, hardFailures: answerFailures };
+  if (answerFailures.length) throw new AppError(answerFailures[0].message, 500, 'QA_RUNTIME_MISCONFIGURED', result);
+  return result;
+}
+
 module.exports = {
   QA_QUERY_EMBEDDING_PROVIDERS,
   QA_VECTOR_SEARCH_MODES,
@@ -441,4 +453,5 @@ module.exports = {
   isParentQueryEmbeddingCompatible,
   buildHierarchicalRolloutContractStatus,
   assertQaRuntimeConfiguration,
+  assertCurrentSegmentRuntimeConfiguration,
 };

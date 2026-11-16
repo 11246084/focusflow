@@ -203,3 +203,21 @@ export function isRetryRecoveryPending(messages, recovery, now = Date.now()) {
 export function isDefiniteRejection(error) {
   return [400, 401, 403, 409, 413, 422, 429].includes(error.status);
 }
+
+export const CURRENT_SEGMENT_QUESTION = '這段在講什麼';
+
+// Read at click time: a paused player still has a valid position.
+export function getCurrentSegmentPosition(video, player, kind) {
+  const videoId = video?._id || video?.id;
+  if (!videoId || video?.processing?.status !== 'completed' || !player) return null;
+  try {
+    if (kind === 'local' && player.readyState < 1) return null;
+    const positionSec = kind === 'youtube' ? player.getCurrentTime() : player.currentTime;
+    if (typeof positionSec !== 'number' || !Number.isFinite(positionSec) || positionSec < 0) return null;
+    return { videoId, positionSec };
+  } catch { return null; }
+}
+
+export function buildQuestionPayload(content, segment) {
+  return segment ? { content, scope: 'current_segment', ...segment } : { content };
+}

@@ -156,3 +156,26 @@ describe('conversation viewport scrolling', () => {
     assert.deepEqual(container.calls, [{ top: 432, behavior: 'auto' }]);
   });
 });
+
+describe('問目前這段', () => {
+  it('從已處理的本機或 YouTube 播放器即時讀取暫停位置', async () => {
+    const { getCurrentSegmentPosition } = await import('../src/pages/qaConversationUtils.js');
+    const video = { _id: 'video-1', processing: { status: 'completed' } };
+    const local = { readyState: 1, currentTime: 12.5, paused: true };
+    assert.deepEqual(getCurrentSegmentPosition(video, local, 'local'), { videoId: 'video-1', positionSec: 12.5 });
+    local.currentTime = 30;
+    assert.equal(getCurrentSegmentPosition(video, local, 'local').positionSec, 30);
+    assert.deepEqual(getCurrentSegmentPosition(video, { getCurrentTime: () => 0 }, 'youtube'), { videoId: 'video-1', positionSec: 0 });
+    assert.equal(getCurrentSegmentPosition({ ...video, processing: { status: 'processing' } }, local, 'local'), null);
+    assert.equal(getCurrentSegmentPosition(video, { readyState: 0, currentTime: 1 }, 'local'), null);
+    assert.equal(getCurrentSegmentPosition(video, { getCurrentTime: () => { throw new Error(); } }, 'youtube'), null);
+    assert.equal(getCurrentSegmentPosition(video, { getCurrentTime: () => NaN }, 'youtube'), null);
+  });
+
+  it('只有按鈕送出附播放範圍，文字相同的手動問題也不附', async () => {
+    const { buildQuestionPayload, CURRENT_SEGMENT_QUESTION } = await import('../src/pages/qaConversationUtils.js');
+    assert.deepEqual(buildQuestionPayload(CURRENT_SEGMENT_QUESTION), { content: CURRENT_SEGMENT_QUESTION });
+    assert.deepEqual(buildQuestionPayload('目前最常用的演算法是什麼'), { content: '目前最常用的演算法是什麼' });
+    assert.deepEqual(buildQuestionPayload(CURRENT_SEGMENT_QUESTION, { videoId: 'v', positionSec: 2 }), { content: CURRENT_SEGMENT_QUESTION, scope: 'current_segment', videoId: 'v', positionSec: 2 });
+  });
+});

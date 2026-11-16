@@ -92,3 +92,10 @@ test('立即執行恢復沒有執行時依原因說明', () => {
     '這一輪恢復沒有執行，請稍後再試。',
   );
 });
+
+test('目前片段不可用時顯示指定提示', () => {
+  assert.equal(
+    toChineseErrorMessage({ code: 'CURRENT_SEGMENT_UNAVAILABLE', status: 400, message: 'No segment available.' }),
+    '這個位置沒有可用的課程內容',
+  );
+});

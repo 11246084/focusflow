@@ -16,6 +16,9 @@ import {
 } from '../utils/extendedResources';
 import {
   SOURCE_PREVIEW_COUNT,
+  CURRENT_SEGMENT_QUESTION,
+  buildQuestionPayload,
+  getCurrentSegmentPosition,
   SHOW_STARTER_QUESTIONS,
   STARTER_QUESTIONS,
   canCopyAnswer,
@@ -74,13 +77,15 @@ function loadYouTubeIframeApi() {
   return youtubeApiPromise;
 }
 
-function YouTubePlayer({ videoId, seekRequest, onWatched, onError }) {
+function YouTubePlayer({ videoId, seekRequest, onWatched, onError, onPositionReady }) {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const readyRef = useRef(false);
   const seekRequestRef = useRef(seekRequest);
   const onWatchedRef = useRef(onWatched);
   const onErrorRef = useRef(onError);
+  const onPositionReadyRef = useRef(onPositionReady);
+  useEffect(() => { onPositionReadyRef.current = onPositionReady; }, [onPositionReady]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   const watchedFiredRef = useRef(false);
   const progressTimerRef = useRef(null);
@@ -124,15 +129,18 @@ function YouTubePlayer({ videoId, seekRequest, onWatched, onError }) {
         },
         events: {
           onReady: (event) => {
+            if (cancelled) return;
             readyRef.current = true;
+            onPositionReadyRef.current?.(event.target);
             const pendingSeek = seekRequestRef.current;
             if (pendingSeek?.startSec != null) {
               event.target.seekTo(Math.max(0, Number(pendingSeek.startSec) || 0), true);
               event.target.playVideo();
             }
           },
-          onError: (event) => onErrorRef.current?.(event.data),
+          onError: (event) => { if (!cancelled) onErrorRef.current?.(event.data); },
           onStateChange: (event) => {
+            if (cancelled) return;
             if (event.data === YT.PlayerState.ENDED) {
               fireWatched();
               return;
@@ -525,7 +533,7 @@ function resizeQuestionInput(input) {
   input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
 }
 
-function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false }) {
+function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false, getPlaybackPosition, positionAvailable = false }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
@@ -681,7 +689,8 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           return;
         }
         if (recovery && !recovery.retry && !recovery.accepted && !hasNewUserMessage(fresh, recovery.lastKnownId)) {
-          setQuestion(recovery.question); setError(recovery.error || '問題尚未送出，請再試一次。');
+          if (!recovery.segment) setQuestion(recovery.question);
+          setError(recovery.error || '問題尚未送出，請再試一次。');
         } else setError('');
         recoveryRef.current = null;
         setMessages(fresh); setAwaitingAnswer(false); setStage(''); setLoading(false);
@@ -694,7 +703,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     return () => clearTimeout(timer);
   }, [conversationId, messages, pollTick, loading]);
 
-  async function ask(event, suggestedQuestion) {
+  async function ask(event, suggestedQuestion, segment = null) {
     event?.preventDefault();
     const currentQuestion = (suggestedQuestion ?? question).trim();
     if (loading || !currentQuestion) return;
@@ -716,7 +725,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       if (!conversationId) setMessages([{ id: temporaryId, role: 'user', content: currentQuestion, status: 'completed' }]);
       const path = `/conversations/${activeConversationId}/messages`;
       const controller = new AbortController(); streamRef.current = controller;
-      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: currentQuestion }), signal: controller.signal };
+      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildQuestionPayload(currentQuestion, segment)), signal: controller.signal };
       let result;
       submitted = true;
       try {
@@ -740,12 +749,18 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       if (generation !== generationRef.current) return;
       if (!submitted || isDefiniteRejection(e)) {
         setMessages((items) => items.filter((message) => message.id !== temporaryId));
-        setQuestion(currentQuestion); setError(e.message || '問答失敗'); setLoading(false); setAwaitingAnswer(false);
+        if (!segment) setQuestion(currentQuestion);
+        setError(e.message || '問答失敗'); setLoading(false); setAwaitingAnswer(false);
       } else {
-        recoveryRef.current = { accepted, userMessageId, lastKnownId, question: currentQuestion, error: e.message };
+        recoveryRef.current = { accepted, userMessageId, lastKnownId, question: currentQuestion, segment, error: e.message };
         setError('連線中斷，正在重試'); setPollTick((value) => value + 1);
       }
     } finally { if (generation === generationRef.current) streamRef.current = null; }
+  }
+
+  function askCurrentSegment() {
+    const segment = getPlaybackPosition?.();
+    if (segment) ask(null, CURRENT_SEGMENT_QUESTION, segment);
   }
 
   async function retryAnswer(message) {
@@ -863,9 +878,10 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
         {messages.length === 0 && !awaitingAnswer && (
           <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span>
-            {SHOW_STARTER_QUESTIONS && !loading && (
+            {(positionAvailable || SHOW_STARTER_QUESTIONS) && !loading && (
               <div className="qa-starter-questions">
-                {STARTER_QUESTIONS.map((starter) => (
+                {positionAvailable && <button type="button" onClick={askCurrentSegment}>這段在講什麼</button>}
+                {SHOW_STARTER_QUESTIONS && STARTER_QUESTIONS.map((starter) => (
                   <button key={starter} type="button" onClick={() => ask(null, starter)}>{starter}</button>
                 ))}
               </div>
@@ -1077,6 +1093,9 @@ export default function StudentCourses() {
   const studyGridRef = useRef(null);
   const [progressByCourse, setProgressByCourse] = useState({});
   const videoRef = useRef(null);
+  const youtubePlayerRef = useRef(null);
+  const [positionReady, setPositionReady] = useState(false);
+  const [selectionToken, setSelectionToken] = useState(0);
   const watchedMarkedRef = useRef(new Set());
 
   function resizeStudy(event) {
@@ -1105,9 +1124,21 @@ export default function StudentCourses() {
     apiFetch(`/courses/${courseId}/videos/${videoId}/opened`, { method: 'POST' }).catch(() => {});
   }
 
+  function clearPlaybackPosition() {
+    youtubePlayerRef.current = null;
+    setPositionReady(false);
+  }
+
   function openVideo(index) {
+    const videoId = videos[index]?._id || videos[index]?.id;
+    const selection = playbackSelectionRef.current;
+    const sameSelection = selection && selection.index === index && selection.videoId === videoId && !playbackError;
+    if (!sameSelection) {
+      clearPlaybackPosition();
+      setSelectionToken((token) => token + 1);
+      playbackSelectionRef.current = { index, videoId };
+    }
     if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
-    playbackSelectionRef.current = { index, videoId: videos[index]?._id || videos[index]?.id };
     setPlaybackError('');
     setPlayingVid(index);
     setSeekRequest(null);
@@ -1132,6 +1163,7 @@ export default function StudentCourses() {
   async function openCourse(course) {
     const request = ++courseRequestRef.current;
     playbackSelectionRef.current = null;
+    clearPlaybackPosition();
     setPlaybackError('');
     setSelected(course);
     setPlayingVid(null);
@@ -1190,9 +1222,16 @@ export default function StudentCourses() {
   // Course detail view
   if (selectedCourse) {
     const playing = playingVid !== null ? videos[playingVid] : null;
+    const selection = playbackSelectionRef.current;
+    const isCurrentSelection = () => selection !== null && playbackSelectionRef.current === selection;
     const playback = resolveVideoPlayback(playing);
     const youtubeId = playback.youtubeId;
     const videoUrl = playback.videoUrl;
+    const getPlaybackPosition = () => {
+      if (playbackError || playbackSelectionRef.current?.videoId !== (playing?._id || playing?.id)) return null;
+      return getCurrentSegmentPosition(playing, youtubeId ? youtubePlayerRef.current : videoRef.current, youtubeId ? 'youtube' : 'local');
+    };
+    const positionAvailable = positionReady && Boolean(getPlaybackPosition());
 
     const playingLabel = playing ? formatVideoLabel({}, playing) : '尚未選擇影片';
     const playlistTriggerProps = compact
@@ -1225,7 +1264,7 @@ export default function StudentCourses() {
     return (
       <div className={`course-study${compact ? ' course-study-compact' : ''}`}>
         <div className="course-study-header">
-          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { ++courseRequestRef.current; playbackSelectionRef.current = null; setPlaybackError(''); setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { ++courseRequestRef.current; playbackSelectionRef.current = null; clearPlaybackPosition(); setPlaybackError(''); setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div className="course-study-title">
@@ -1248,21 +1287,24 @@ export default function StudentCourses() {
                 <div role="status" style={{ padding: 24, color: 'rgba(255,255,255,0.75)' }}>{playbackError}</div>
               ) : youtubeId ? (
                 <YouTubePlayer
-                  key={youtubeId}
+                  key={`${selectionToken}:${playing?._id || playing?.id}:${youtubeId}`}
                   videoId={youtubeId}
-                  onError={(code) => setPlaybackError(code === 100 ? 'YouTube 找不到這支影片，請聯絡教師。' : [101, 150].includes(code) ? 'YouTube 不允許在此播放，請聯絡教師。' : '影片準備中，可先提問。')}
+                  onPositionReady={(player) => { if (isCurrentSelection()) { youtubePlayerRef.current = player; setPositionReady(true); } }}
+                  onError={(code) => { if (!isCurrentSelection()) return; clearPlaybackPosition(); setPlaybackError(code === 100 ? 'YouTube 找不到這支影片，請聯絡教師。' : [101, 150].includes(code) ? 'YouTube 不允許在此播放，請聯絡教師。' : '影片準備中，可先提問。'); }}
                   seekRequest={seekRequest?.videoIndex === playingVid ? seekRequest : null}
                   onWatched={() => markWatched(selectedCourse._id, playing?._id || playing?.id)}
                 />
               ) : videoUrl ? (
                 <video
                   ref={videoRef}
-                  key={videoUrl}
+                  key={`${selectionToken}:${playing?._id || playing?.id}:${videoUrl}`}
                   src={videoUrl}
                   controls
                   playsInline
-                  onError={(e) => handleLocalPlaybackError(playing, playingVid, e.currentTarget.currentTime || 0)}
+                  onError={(e) => { if (!isCurrentSelection() || e.currentTarget !== videoRef.current) return; clearPlaybackPosition(); handleLocalPlaybackError(playing, playingVid, e.currentTarget.currentTime || 0); }}
                   onLoadedMetadata={(e) => {
+                    if (!isCurrentSelection() || e.currentTarget !== videoRef.current) return;
+                    setPositionReady(true);
                     if (seekRequest?.videoIndex === playingVid) {
                       e.currentTarget.currentTime = seekRequest.startSec;
                       e.currentTarget.play().catch(() => {});
@@ -1334,7 +1376,7 @@ export default function StudentCourses() {
               setVideoWidth((value) => event.key === 'Home' ? 25 : event.key === 'End' ? 60 : Math.max(25, Math.min(60, value + (event.key === 'ArrowLeft' ? -2 : 2))));
             }}
           />
-          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} compact={compact} />
+          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} compact={compact} getPlaybackPosition={getPlaybackPosition} positionAvailable={positionAvailable} />
         </div>
 
         {compact && videoSheetOpen && (

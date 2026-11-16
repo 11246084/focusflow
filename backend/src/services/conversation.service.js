@@ -5,7 +5,7 @@ const AppError = require('../utils/appError');
 const { assertObjectId } = require('../utils/objectId');
 const { assertCanAccessCourse } = require('./courseAccess.service');
 const { contextualizeQuestion, normalizeHistory } = require('./contextualQuestion.service');
-const { askQuestion, recordFailedAsk } = require('./qa.service');
+const { askQuestion, recordFailedAsk, preflightCurrentSegment } = require('./qa.service');
 const { assertCanAsk, assertDailyAskAvailable } = require('./askLimits.service');
 const { summarizeTextForLog } = require('../utils/logPreview');
 
@@ -101,12 +101,11 @@ function historyFromMessages(messages) {
     .map((message) => ({ role: message.role, content: message.content })));
 }
 
-async function runQuestion({ user, conversation, userMessage, history, assistantMessage = null, onStage }) {
+async function runQuestion({ user, conversation, userMessage, history, assistantMessage = null, onStage, currentSegment = null }) {
   const contextualStartedAt = Date.now();
-  const contextual = contextualizeQuestion({
-    recentConversationHistory: history,
-    currentQuestion: userMessage.content,
-  });
+  const contextual = currentSegment
+    ? { standaloneQuestion: userMessage.content, requiresContext: false }
+    : contextualizeQuestion({ recentConversationHistory: history, currentQuestion: userMessage.content });
   const contextualizationLatencyMs = Date.now() - contextualStartedAt;
   const startedAt = Date.now();
 
@@ -121,6 +120,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       conversationId: conversation._id,
       contextualization: contextual,
       onStage,
+      currentSegment,
     });
     const runtime = {
       ...(result.runtime || {}),
@@ -182,6 +182,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       source: 'api',
       error,
       answer: '回答產生失敗，請稍後重新產生。',
+      currentSegment,
     });
     const failedPayload = {
       conversationId: conversation._id,
@@ -193,6 +194,7 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
       sources: [],
       standaloneQuestion: contextual.standaloneQuestion,
       runtime: {
+        ...(currentSegment ? { scope: 'current_segment', currentSegment: { videoId: currentSegment.videoId, positionSec: currentSegment.positionSec } } : {}),
         conversationLatency: {
           contextualizationLatencyMs,
           totalLatencyMs: Date.now() - contextualStartedAt,
@@ -207,24 +209,28 @@ async function runQuestion({ user, conversation, userMessage, history, assistant
   }
 }
 
-async function sendMessage({ user, conversationId, content, onAccepted, onStage }) {
+async function sendMessage({ user, conversationId, content, scope, videoId, positionSec, onAccepted, onStage }) {
   const conversation = await loadOwnedConversation({ user, conversationId });
   const question = String(content || '').trim();
   if (!question) throw new AppError('Message content is required.', 400, 'VALIDATION_ERROR');
   // 超過字數或今天次數已用完時直接拒絕，不建立訊息。
   await assertCanAsk({ user, question });
+  if (scope && scope !== 'current_segment') throw new AppError('Invalid scope.', 400, 'VALIDATION_ERROR');
+  const currentSegment = scope === 'current_segment'
+    ? await preflightCurrentSegment({ user, courseId: conversation.courseId, videoId, positionSec }) : null;
 
   const existing = await Message.find({ conversationId }).sort({ createdAt: -1 })
     .limit(require('../config/env').maxConversationTurns * 2).lean();
   const history = historyFromMessages([...existing].reverse());
   const userMessage = await Message.create({
     conversationId, role: 'user', content: question, status: 'completed',
+    ...(currentSegment ? { runtime: { scope: 'current_segment', currentSegment: { videoId: currentSegment.videoId, positionSec: currentSegment.positionSec } } } : {}),
   });
   const assistantMessagePending = await Message.create({
     conversationId, role: 'assistant', content: '回答產生中。', status: 'pending', replyToMessageId: userMessage._id,
   });
   if (onAccepted) onAccepted(publicMessage(userMessage), publicMessage(assistantMessagePending));
-  const execution = await runQuestion({ user, conversation, userMessage, history, assistantMessage: assistantMessagePending, onStage });
+  const execution = await runQuestion({ user, conversation, userMessage, history, assistantMessage: assistantMessagePending, onStage, currentSegment });
   const result = execution.result;
   const contextual = execution.contextual;
   const assistantMessage = execution.assistantMessage;
@@ -262,6 +268,8 @@ async function retryMessage({ user, conversationId, userMessageId }) {
     throw new AppError('Message is not retryable.', 409, 'MESSAGE_RETRY_NOT_ALLOWED');
   }
   await assertDailyAskAvailable(user);
+  const segmentContext = userMessage.runtime?.scope === 'current_segment' ? userMessage.runtime.currentSegment : null;
+  const currentSegment = segmentContext ? await preflightCurrentSegment({ user, courseId: conversation.courseId, ...segmentContext }) : null;
   // Claim both failed and stale pending replies atomically; claim orphan users too.
   const claimFilter = reply
     ? { _id: reply._id, status: reply.status, ...(reply.status === 'pending' ? { updatedAt: { $lt: cutoff } } : {}) }
@@ -273,7 +281,7 @@ async function retryMessage({ user, conversationId, userMessageId }) {
   });
   const history = historyFromMessages(messages.slice(0, index));
   const execution = await runQuestion({
-    user, conversation, userMessage, history, assistantMessage: failedAssistant,
+    user, conversation, userMessage, history, assistantMessage: failedAssistant, currentSegment,
   });
   return {
     conversationId: String(conversationId),

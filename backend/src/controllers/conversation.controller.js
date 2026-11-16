@@ -22,7 +22,7 @@ const listMessages = asyncHandler(async (req, res) => {
 const sendMessage = asyncHandler(async (req, res) => {
   const content = String(req.body.content || '').trim();
   if (!content) throw new AppError('content is required.', 400, 'VALIDATION_ERROR');
-  const data = await service.sendMessage({ user: req.user, conversationId: req.params.conversationId, content });
+  const data = await service.sendMessage({ user: req.user, conversationId: req.params.conversationId, content, scope: req.body.scope, videoId: req.body.videoId, positionSec: req.body.positionSec });
   return sendSuccess(res, { statusCode: 201, message: 'Message answered.', data });
 });
 const streamMessage = asyncHandler(async (req, res) => {
@@ -35,6 +35,7 @@ const streamMessage = asyncHandler(async (req, res) => {
   try {
     const data = await service.sendMessage({
       user: req.user, conversationId: req.params.conversationId, content,
+      scope: req.body.scope, videoId: req.body.videoId, positionSec: req.body.positionSec,
       onAccepted: (userMessage, assistantMessage) => {
         res.status(201);
         res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',

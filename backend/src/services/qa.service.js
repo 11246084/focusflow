@@ -1274,7 +1274,6 @@ async function answerCurrentSegment({ user, question, source, conversationId, cu
   const { course, scopedVideos, matches, videoId, positionSec } = currentSegment;
   const runtimeSnapshot = assertCurrentSegmentRuntimeConfiguration();
   const costControl = await assertQaQuotaAvailable({ userId: user.id });
-  if (onStage) onStage('searching');
   if (onStage) onStage('writing');
   const answerResult = await generateAnswer(question, matches, null, { disableFallback: true });
   const runtime = buildQaRuntime({ runtimeSnapshot, courseSummary: buildCourseBridgeSummary(course, scopedVideos),

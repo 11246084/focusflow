@@ -2691,7 +2691,7 @@ paths:
 
         事件依序為：
         - `accepted`：`data` 為 `{userMessageId, assistantMessageId, userMessage, assistantMessage}`。
-        - `stage`：`data` 為 `{stage: "searching"}` 或 `{stage: "writing"}`；FAQ 命中可略過步驟。
+        - `stage`：`data` 為 `{stage: "searching"}` 或 `{stage: "writing"}`；FAQ 命中可略過步驟；`current_segment` 只送 `writing`。
         - `done`：`data` 為一般 API 的完整成功 envelope `{success, message, data}`；回答失敗時 `data.failed` 為 true。
         - `error`：標頭送出後發生非預期錯誤時，`data` 為 `{message, code}`，隨後結束。
 

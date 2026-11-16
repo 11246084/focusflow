@@ -89,7 +89,8 @@ describe('current segment questions', () => {
     const response = await fetch(`${context.baseUrl}/api/v1/conversations/${conversationId}/messages/stream`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body()) });
     assert.equal(response.status, 201); assert.match(response.headers.get('content-type'), /text\/event-stream/);
     const events = (await response.text()).split('\n\n').filter((part) => part.startsWith('event: ')).map((part) => { const lines = part.split('\n'); return { event: lines[0].slice(7), data: JSON.parse(lines[1].slice(6)) }; });
-    assert.deepEqual(events.map((event) => event.event), ['accepted', 'stage', 'stage', 'done']);
+    assert.deepEqual(events.map((event) => event.event), ['accepted', 'stage', 'done']);
+    assert.deepEqual(events.filter((event) => event.event === 'stage').map((event) => event.data.stage), ['writing']);
     const accepted = events[0].data; const done = events.at(-1).data.data;
     assert.equal(accepted.assistantMessage.status, 'pending'); assert.equal(done.runtime.scope, 'current_segment'); assert.ok(done.sources.length > 0);
     assert.equal(done.userMessage.id, accepted.userMessageId); assert.equal(done.assistantMessage.id, accepted.assistantMessageId);

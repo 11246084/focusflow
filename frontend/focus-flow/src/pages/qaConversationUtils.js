@@ -200,6 +200,10 @@ export function isRetryRecoveryPending(messages, recovery, now = Date.now()) {
   const current = messages.find((item) => item.id === recovery.messageId);
   return !current || (current.status === recovery.status && current.updatedAt === recovery.updatedAt);
 }
+export function isTerminalConversationReadError(error) {
+  return error?.status === 403 || error?.status === 404;
+}
+
 export function isDefiniteRejection(error) {
   return [400, 401, 403, 409, 413, 422, 429].includes(error.status);
 }

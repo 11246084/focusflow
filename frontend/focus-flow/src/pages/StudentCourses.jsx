@@ -31,6 +31,7 @@ import {
   isStaleMessage,
   isRetryRecoveryPending,
   isDefiniteRejection,
+  isTerminalConversationReadError,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
@@ -547,6 +548,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
   const generationRef = useRef(0);
   const streamRef = useRef(null);
   const recoveryRef = useRef(null);
+  const stoppedPollingGenerationRef = useRef(null);
   useEffect(() => () => { generationRef.current += 1; streamRef.current?.abort(); }, []);
   const questionLength = [...question.trim()].length;
   const questionTooLong = questionLength > MAX_QUESTION_LENGTH;
@@ -639,6 +641,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
 
   function cancelRequests() {
     generationRef.current += 1;
+    stoppedPollingGenerationRef.current = null;
     streamRef.current?.abort();
     streamRef.current = null;
     recoveryRef.current = null;
@@ -674,7 +677,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
 
   useEffect(() => {
     const unresolved = getUnansweredMessages(messages);
-    if (!conversationId || (loading && !recoveryRef.current) || (!recoveryRef.current && !unresolved.some((item) => !isStaleMessage(item)))) return undefined;
+    if (stoppedPollingGenerationRef.current === generationRef.current || !conversationId || (loading && !recoveryRef.current) || (!recoveryRef.current && !unresolved.some((item) => !isStaleMessage(item)))) return undefined;
     const generation = generationRef.current;
     const timer = setTimeout(async () => {
       try {
@@ -698,8 +701,15 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
         } else setError('');
         recoveryRef.current = null;
         setMessages(fresh); setAwaitingAnswer(false); setStage(''); setLoading(false);
-      } catch {
+      } catch (e) {
         if (generation !== generationRef.current) return;
+        if (isTerminalConversationReadError(e)) {
+          stoppedPollingGenerationRef.current = generation;
+          recoveryRef.current = null;
+          setAwaitingAnswer(false); setStage(''); setLoading(false); setRetryingMessageId(null);
+          setError(e.message || '無法載入對話');
+          return;
+        }
         setError('連線中斷，正在重試');
       }
       if (generation === generationRef.current) setPollTick((value) => value + 1);

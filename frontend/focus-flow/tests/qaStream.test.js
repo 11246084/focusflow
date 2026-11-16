@@ -62,3 +62,11 @@ test('a 502 or dropped stream performs one POST and exposes the failure for reco
     assert.equal(posts, 1);
   }
 });
+
+
+test('conversation reads stop polling only for forbidden or missing conversations', async () => {
+  const { isTerminalConversationReadError } = await import('../src/pages/qaConversationUtils.js');
+  for (const status of [403, 404]) assert.equal(isTerminalConversationReadError({ status }), true);
+  for (const status of [401, 429, 500, 503]) assert.equal(isTerminalConversationReadError({ status }), false);
+  assert.equal(isTerminalConversationReadError(new TypeError('network')), false);
+});

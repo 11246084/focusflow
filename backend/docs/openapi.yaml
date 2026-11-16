@@ -2670,7 +2670,7 @@ paths:
               required: [content]
               properties:
                 content: { type: string }
-                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；播放位置必須有片段涵蓋，附近片段在前後 60 秒界內；省略時搜尋整門課 }
+                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；選取與播放位置前後 60 秒範圍有交集的片段（含邊界），涵蓋播放位置者優先；省略時搜尋整門課 }
                 videoId: { $ref: '#/components/schemas/ObjectId' }
                 positionSec: { type: number, minimum: 0, description: 播放位置秒數 }
       responses:
@@ -2710,7 +2710,7 @@ paths:
               required: [content]
               properties:
                 content: { type: string }
-                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；播放位置必須有片段涵蓋，附近片段在前後 60 秒界內；省略時搜尋整門課 }
+                scope: { type: string, enum: [current_segment], description: 限定目前播放片段；選取與播放位置前後 60 秒範圍有交集的片段（含邊界），涵蓋播放位置者優先；省略時搜尋整門課 }
                 videoId: { $ref: '#/components/schemas/ObjectId' }
                 positionSec: { type: number, minimum: 0, description: 播放位置秒數 }
       responses:

@@ -1260,12 +1260,13 @@ async function preflightCurrentSegment({ user, courseId, videoId, positionSec })
   const end = positionSec + 60;
   const matches = segments.map(normalizeSegment)
     .filter((segment) => segment.transcript && segment.startSec != null && segment.endSec != null
-      && segment.startSec >= start && segment.endSec <= end && segment.endSec >= segment.startSec)
+      && segment.startSec <= end && segment.endSec >= start && segment.endSec >= segment.startSec)
     .sort((a, b) => Number(b.startSec <= positionSec && b.endSec >= positionSec)
       - Number(a.startSec <= positionSec && a.endSec >= positionSec)
-      || Math.abs(a.startSec - positionSec) - Math.abs(b.startSec - positionSec))
+      || Math.max(a.startSec - positionSec, positionSec - a.endSec, 0)
+        - Math.max(b.startSec - positionSec, positionSec - b.endSec, 0))
     .slice(0, env.qaMatchLimit).map((segment) => mapSegmentMatch(segment, 1));
-  if (!matches.some((match) => match.startSec <= positionSec && match.endSec >= positionSec)) throw unavailable();
+  if (!matches.length) throw unavailable();
   return { course, scopedVideos, matches: enrichMatchesWithVideoMetadata(matches, scopedVideos), videoId: authorizedId, positionSec };
 }
 

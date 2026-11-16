@@ -27,7 +27,7 @@ describe('current segment questions', () => {
       assert.equal(query.videoId, ids.publishedVideo); assert.ok(!projection.includes('embedding'));
       assert.ok(result.body.data.sources.length > 0);
       assert.ok(result.body.data.sources[0].startSec <= 45 && result.body.data.sources[0].endSec >= 45);
-      assert.ok(result.body.data.sources.every((source) => source.startSec >= 0 && source.endSec <= 105));
+      assert.ok(result.body.data.sources.every((source) => source.startSec <= 105 && source.endSec >= 0));
       assert.equal(store.questions[0].runtime.scope, 'current_segment'); assert.equal(store.messages[0].runtime.currentSegment.positionSec, 45);
     } finally { VideoSegment.find = originalFind; Faq.findOne = originalFaqFind; }
   });
@@ -37,27 +37,38 @@ describe('current segment questions', () => {
     }
     assert.equal(store.messages.length, 0); assert.equal(store.questions.length, 0); assert.equal(store.usageLogs.length, usageBefore);
   });
-  it('rejects a position without a covering segment even when nearby segments exist', async () => {
+  it('accepts nearby content at the beginning and in a gap on both endpoints', async () => {
     for (const positionSec of [0, 36]) {
       for (const stream of [false, true]) {
         const result = await send({ ...body(), positionSec }, stream);
-        assert.equal(result.status, 400); assert.equal(result.body.error.code, 'CURRENT_SEGMENT_UNAVAILABLE');
+        assert.equal(result.status, 201);
       }
+    }
+  });
+  it('rejects non-overlapping windows without writes or quota on both endpoints', async () => {
+    for (const stream of [false, true]) {
+      const result = await send({ ...body(), positionSec: 5000 }, stream);
+      assert.equal(result.status, 400); assert.equal(result.body.error.code, 'CURRENT_SEGMENT_UNAVAILABLE');
     }
     assert.equal(store.messages.length, 0); assert.equal(store.questions.length, 0);
     assert.equal(store.usageLogs.length, usageBefore);
     assert.equal((await getDailyAskUsage({ id: ids.student, role: 'student', dailyAskLimitOverride: 1 })).used, 0);
   });
-  it('includes both window boundaries, excludes out-of-window segments and prioritizes the covering segment', async () => {
+  it('includes closed window intersections and orders by distance to the interval', async () => {
     const sample = store.videoSegments[0];
-    for (const [id, startSec, endSec] of [['left', 40, 41], ['right', 159, 160], ['outside-left', 39, 40], ['outside-right', 160, 161], ['covering', 95, 105]]) {
+    store.videoSegments.length = 0;
+    for (const [id, startSec, endSec] of [
+      ['left-cross', 20, 40], ['right-cross', 160, 180],
+      ['outside-left', 20, 39], ['outside-right', 161, 180],
+      ['past', 50, 99], ['future', 102, 103], ['covering', 90, 110],
+    ]) {
       store.videoSegments.push({ ...sample, _id: id, segmentId: id, chunkId: id, startSec, endSec });
     }
     const result = await preflightCurrentSegment({ user: { id: ids.student, role: 'student' }, courseId: ids.publishedCourse, videoId: ids.publishedVideo, positionSec: 100 });
     const segments = result.matches.map((match) => match.segmentId);
-    assert.equal(segments[0], 'covering'); assert.ok(segments.includes('left')); assert.ok(segments.includes('right'));
+    assert.deepEqual(segments.slice(0, 3), ['covering', 'past', 'future']);
+    assert.ok(segments.includes('left-cross')); assert.ok(segments.includes('right-cross'));
     assert.ok(!segments.includes('outside-left')); assert.ok(!segments.includes('outside-right'));
-    assert.ok(result.matches.every((match) => match.startSec >= 40 && match.endSec <= 160));
   });
   it('rejects an existing video from another course before querying segments', async () => {
     assert.ok(store.videos.some((video) => String(video._id) === ids.teacherVideo));

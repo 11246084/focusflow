@@ -1,5 +1,14 @@
 # FocusFlow 目前狀態
 
+## 2026-11-16 對話功能優化第一批：W4、W5 進 dev
+
+Codex 雲端版完成進度提示與中斷恢復（`b883d2b`）、依播放位置提問（`118423f`），由 Claude 審查後帶到團隊 `dev`。尚未合併 `main`、尚未部署；明細與待修項目見[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)。
+
+- 新增 `POST /conversations/:conversationId/messages/stream`（SSE）；新舊兩條提問 API 都先建立 `pending` 回答、都接受 `scope: "current_segment"`；重試 API 可接手逾時 2 分鐘的 `pending` 回答。新增錯誤碼 `CURRENT_SEGMENT_UNAVAILABLE`。
+- 已驗證（Claude，Node.js 22.23.4）：後端全套 2,000 項中 1,999 項通過、1 項略過、0 項失敗；前端 245 項、lint、build、`docs:lint` 通過；以模擬 API 在桌面與手機寬度實測七種情況。
+- 未驗證：真實後端與真實回答、正式站 nginx 下進度事件是否即時、YouTube 播放器取得秒數、正式資料庫既有對話的顯示。
+- 待修四項：「這段在講什麼」的擋下條件比定案嚴格、逾時後的「重新產生」按鈕沒有樣式、對話讀不到時無限重試、播放位置路徑多送一個進度步驟。
+
 ## 2026-11-15 對話功能優化第一批：W1～W3 進 dev
 
 依[對話功能優化決策](04_Features/QA_Conversation/decisions.md)與[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)，Codex 雲端版完成複製回答（`a9884da`）、多行輸入（`ccfad08`）與預設關閉的兩題固定建議題（`19284af`），推到 Weihao 個人 repo 後由 Claude 審查並帶到團隊 `dev`。只改前端，尚未合併 `main`、尚未部署。

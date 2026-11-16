@@ -1536,6 +1536,7 @@ button.dd-item { width: 100%; border: none; background: none; text-align: left; 
 .qa-ai-avatar img { width: 16px; height: 16px; }
 .qa-ai-body { flex: 1; min-width: 0; color: rgba(255,255,255,.9); }
 .qa-pending-body { display: flex; align-items: center; gap: 10px; min-height: 26px; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,.8); }
+.qa-retry-answer { margin-bottom: 10px; padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(255,107,107,.45); background: rgba(255,107,107,.08); color: #ff8b8b; cursor: pointer; font-size: 11px; font-weight: 700; }
 .qa-ai-error .qa-ai-body { padding-top: 3px; font-size: 13px; line-height: 1.6; color: #ffa3a3; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

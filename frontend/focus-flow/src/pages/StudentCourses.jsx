@@ -454,6 +454,10 @@ function AiAvatar() {
   );
 }
 
+function RetryAnswerButton({ onClick, disabled }) {
+  return <button type="button" className="qa-retry-answer" onClick={onClick} disabled={disabled}>重新產生</button>;
+}
+
 function PendingAnswer({ stage }) {
   return (
     <div className="qa-ai-message qa-pending-answer" role="status">
@@ -899,11 +903,13 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
             <PendingAnswer stage={stage} />
           </div>
         ) : message.role === 'assistant' && message.status === 'pending' ? (
-          <div key={message.id}>{isStaleMessage(message) ? <button type="button" onClick={() => retryAnswer(message)} disabled={loading}>重新產生</button> : <PendingAnswer stage={stage} />}</div>
+          <div key={message.id}>{isStaleMessage(message) ? (
+            <div className="qa-ai-message"><AiAvatar /><div className="qa-ai-body"><RetryAnswerButton onClick={() => retryAnswer(message)} disabled={loading} /></div></div>
+          ) : <PendingAnswer stage={stage} />}</div>
         ) : message.role === 'user' ? (
         <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {message.content}
-          {getUnansweredMessages(messages).some((item) => item.id === message.id) && isStaleMessage(message) && <button type="button" onClick={() => retryAnswer(message)} disabled={loading}>重新產生</button>}
+          {getUnansweredMessages(messages).some((item) => item.id === message.id) && isStaleMessage(message) && <RetryAnswerButton onClick={() => retryAnswer(message)} disabled={loading} />}
         </div>
       ) : (() => { const result = message; return (
         <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} className="qa-ai-message">
@@ -915,9 +921,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
             <CopyAnswerButton answer={result.answer} />
           )}
           {result.status === 'failed' && (
-            <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-              重新產生
-            </button>
+            <RetryAnswerButton onClick={() => retryAnswer(result)} disabled={loading} />
           )}
           {(result.matches || result.segments || []).length > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>

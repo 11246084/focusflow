@@ -4,11 +4,108 @@ import tempfile
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from evaluation_embedding_batch import run_batch
+from evaluation_embedding_batch import run_batch, input_signature, inspect_checkpoints
 from run_video1_batch import BatchAdapter, stop_retry
 from run_gemini_validation import FakeSDK
 
 class EvaluationBatchTests(unittest.TestCase):
+    def native_checkpoint(self, row):
+        import hashlib
+        from embedding_contract import (GEMINI_EMBEDDING_CONTRACT_VERSION as contract,
+            GEMINI_EMBEDDING_INSTRUCTION_VERSION as instruction,
+            GEMINI_EMBEDDING_GENERATION_VERSION as generation,
+            GEMINI_EMBEDDING_NORMALIZATION_VERSION as normalization)
+        values = [1.0] + [0.0] * 3071
+        return {'signature': input_signature(row), 'provider': 'gemini', 'model': 'gemini-embedding-2',
+            'dimension': 3072, 'status': 'success', 'modality': row['role'], 'embedding': values,
+            'embeddingDigest': hashlib.sha256(json.dumps(values).encode()).hexdigest(),
+            'contractVersion': contract, 'schemaVersion': contract, 'instructionVersion': instruction,
+            'generationVersion': generation, 'normalizationVersion': normalization, 'taskType': None,
+            **(row['identity'] or {})}
+
+    def test_readonly_inventory_separates_missing_blocked_and_valid_without_provider(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); spec = self.spec(); row = spec['rows'][0]
+            cp = self.native_checkpoint(row); path = root/(cp['signature']+'.json')
+            path.write_text(json.dumps(cp), encoding='utf-8'); before = path.read_bytes()
+            ledger = {'attemptsBySignature': {input_signature(spec['rows'][1]): 1}}
+            report = inspect_checkpoints(spec, root, ledger)
+            self.assertEqual((report['reusable'], report['missing'], report['blocked']), (1, 1, 1))
+            self.assertEqual(report['apiCalls'], 0); self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(len(list(root.iterdir())), 1)
+
+    def test_inventory_rejects_fake_contract_identity_and_vector_corruption(self):
+        from copy import deepcopy
+        row = self.spec()['rows'][0]
+        row['identity'] = {'courseId': 'c', 'videoId': 'v', 'chunkId': 'parent', 'startSec': 1, 'endSec': 2}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); cp = self.native_checkpoint(row)
+            for key, value in [('provider', 'fake-sdk'), ('generationVersion', 'old'),
+                               ('videoId', 'other'), ('embeddingDigest', 'bad'), ('dimension', 3),
+                               ('embedding', [float('nan')]*3072)]:
+                bad = deepcopy(cp); bad[key] = value
+                (root/(cp['signature']+'.json')).write_text(json.dumps(bad), encoding='utf-8')
+                report = inspect_checkpoints({'rows': [row]}, root, {})
+                self.assertEqual(report['reusable'], 0, key)
+                self.assertEqual(report['blocked'], 1, key)
+
+    def test_input_digest_and_parent_identity_are_bound_to_signature(self):
+        row = self.spec()['rows'][0]
+        original = input_signature(row)
+        self.assertNotEqual(original, input_signature({**row, 'identity': {'chunkId': 'different'}}))
+        self.assertNotEqual(original, input_signature(row, 'fake-sdk'))
+        with self.assertRaises(ValueError): input_signature({**row, 'inputSha256': 'bad'})
+
+    def test_export_missing_cache_is_readonly_and_chinese_plan_uses_utf8(self):
+        import hashlib
+        from unittest.mock import patch
+        from evaluation_embedding_batch import main
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); directory = root/'.local-tools/export'; directory.mkdir(parents=True)
+            spec = self.spec(); spec['rows'][0]['text'] = '中文題目'
+            plan_file = directory/'plan.json'; plan_file.write_text(json.dumps(spec, ensure_ascii=False), encoding='utf-8')
+            digest = hashlib.sha256(plan_file.read_bytes()).hexdigest()
+            state = {'planHash': hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest(),
+                     'mode': 'gemini', 'results': {r['id']: {'status': 'success', 'signature': input_signature(r)} for r in spec['rows']}}
+            (directory/'state.json').write_text(json.dumps(state), encoding='utf-8')
+            ledger = root/'ledger.json'; ledger.write_text('{"calls": 2088}', encoding='utf-8')
+            before = {p: p.read_bytes() for p in root.rglob('*.json')}
+            args = ['batch', '--kind', 'query', '--directory', str(directory), '--mode', 'export', '--approve-plan', digest]
+            with patch('evaluation_embedding_batch.ROOT', root), patch('evaluation_embedding_batch.LEDGER', ledger), \
+                 patch('evaluation_embedding_batch.CHECKPOINTS', root/'cache'), patch('evaluation_embedding_batch.plan', return_value=spec), \
+                 patch('sys.argv', args):
+                with self.assertRaisesRegex(ValueError, 'complete valid native'): main()
+            self.assertEqual(before, {p: p.read_bytes() for p in root.rglob('*.json')})
+
+    def test_export_complete_native_cache_keeps_ledger_and_vectors_unchanged(self):
+        import hashlib
+        from unittest.mock import patch
+        from evaluation_embedding_batch import main
+        from gemini_multimodal_adapter import PRICING_VERSION
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); directory = root/'.local-tools/export'; directory.mkdir(parents=True)
+            cache = root/'cache'; cache.mkdir(); spec = {**self.spec(), 'bankSha256': 'fixture-bank'}
+            plan_file = directory/'plan.json'; plan_file.write_text(json.dumps(spec), encoding='utf-8')
+            state = {'planHash': hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest(),
+                     'mode': 'gemini', 'results': {}}
+            for row in spec['rows']:
+                cp = self.native_checkpoint(row)
+                (cache/(cp['signature']+'.json')).write_text(json.dumps(cp), encoding='utf-8')
+                state['results'][row['id']] = {'status': 'success', 'signature': cp['signature']}
+            (directory/'state.json').write_text(json.dumps(state), encoding='utf-8')
+            ledger = root/'ledger.json'
+            ledger.write_text(json.dumps({'pricingVersion': PRICING_VERSION, 'calls': 2088, 'reservedUsd': 10.55589788}), encoding='utf-8')
+            before = {p: p.read_bytes() for p in root.rglob('*.json')}
+            args = ['batch', '--kind', 'query', '--directory', str(directory), '--mode', 'export',
+                    '--approve-plan', hashlib.sha256(plan_file.read_bytes()).hexdigest()]
+            with patch('evaluation_embedding_batch.ROOT', root), patch('evaluation_embedding_batch.LEDGER', ledger), \
+                 patch('evaluation_embedding_batch.CHECKPOINTS', cache), patch('evaluation_embedding_batch.plan', return_value=spec), \
+                 patch('sys.argv', args): main()
+            bundle = json.loads((directory/'bundle.json').read_text(encoding='utf-8'))
+            self.assertEqual(len(bundle['records']), 3)
+            self.assertTrue(all(r['metadata']['reused'] for r in bundle['records']))
+            self.assertTrue(all(p.read_bytes() == data for p, data in before.items()))
+
     def adapter(self, root, sdk, maximum=20):
         return BatchAdapter(root/'cp', max_cost_usd=maximum, max_calls=20, allow_paid=True,
             execution_mode='fake-sdk', ledger_path=root/'shared.json', client_factory=lambda _:sdk, sleep=stop_retry)

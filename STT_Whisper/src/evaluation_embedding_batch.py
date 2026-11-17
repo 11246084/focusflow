@@ -4,6 +4,7 @@ import hashlib
 import json
 import time
 import struct
+import math
 from pathlib import Path
 from run_video1_batch import ROOT, LEDGER, CHECKPOINTS, CATALOG, BatchAdapter, stop_retry
 from gemini_multimodal_adapter import estimate_cost, build_text_content
@@ -11,6 +12,62 @@ from build_parent_chunk_artifact import load_leaf_chunks
 from hierarchy_chunking import build_parent_chunks
 from run_gemini_validation import FakeSDK, file_digest
 from segment_media_embedding import write_json
+from embedding_contract import (GEMINI_EMBEDDING_CONTRACT_VERSION,
+    GEMINI_EMBEDDING_INSTRUCTION_VERSION, GEMINI_EMBEDDING_GENERATION_VERSION,
+    GEMINI_EMBEDDING_NORMALIZATION_VERSION)
+
+
+def input_signature(row, mode='gemini'):
+    payload = build_text_content(row['text'], row['role']).encode('utf-8')
+    input_hash = hashlib.sha256(payload).hexdigest()
+    if row.get('inputSha256', input_hash) != input_hash:
+        raise ValueError('Input digest changed')
+    return hashlib.sha256(json.dumps([mode, 'gemini-embedding-2', 3072, row['role'],
+        GEMINI_EMBEDDING_CONTRACT_VERSION, row['identity'], input_hash], sort_keys=True).encode()).hexdigest()
+
+
+def inspect_checkpoints(spec, checkpoint_directory, ledger):
+    """Read-only native cache audit; never construct a provider or reserve cost."""
+    rows = []
+    for row in spec['rows']:
+        signature = input_signature(row)
+        path = Path(checkpoint_directory) / (signature + '.json')
+        result = {'id': row['id'], 'signature': signature, 'status': 'missing',
+                  'previousAttempts': ledger.get('attemptsBySignature', {}).get(signature, 0)}
+        if path.exists():
+            result['checkpointSha256'] = file_digest(path)
+            try:
+                cp = json.loads(path.read_text(encoding='utf-8'))
+                result['previousAttempts'] = max(result['previousAttempts'], cp.get('attempts', 0))
+                if cp.get('status') != 'success':
+                    result['status'] = 'blocked_prior_attempt'
+                else:
+                    expected = {'signature': signature, 'status': 'success', 'provider': 'gemini',
+                        'model': 'gemini-embedding-2', 'dimension': 3072, 'modality': row['role'],
+                        'contractVersion': GEMINI_EMBEDDING_CONTRACT_VERSION,
+                        'schemaVersion': GEMINI_EMBEDDING_CONTRACT_VERSION,
+                        'instructionVersion': GEMINI_EMBEDDING_INSTRUCTION_VERSION,
+                        'generationVersion': GEMINI_EMBEDDING_GENERATION_VERSION,
+                        'normalizationVersion': GEMINI_EMBEDDING_NORMALIZATION_VERSION,
+                        'taskType': None, **(row['identity'] or {})}
+                    if any(key not in cp or cp[key] != value for key, value in expected.items()):
+                        raise ValueError('Checkpoint contract or identity differs')
+                    values = cp['embedding']
+                    if len(values) != 3072 or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                            and math.isfinite(v) for v in values) or abs(sum(v*v for v in values) - 1) > .001:
+                        raise ValueError('Invalid vector')
+                    if hashlib.sha256(json.dumps(values).encode()).hexdigest() != cp['embeddingDigest']:
+                        raise ValueError('Vector digest differs')
+                    result.update(status='reusable', vectorDigest=hashlib.sha256(struct.pack('<3072d', *values)).hexdigest())
+            except (ValueError, TypeError, KeyError):
+                result['status'] = 'invalid_restore_required'
+        elif result['previousAttempts']:
+            result['status'] = 'blocked_prior_attempt'
+        rows.append(result)
+    return {'kind': spec.get('kind'), 'count': len(rows), 'reusable': sum(r['status'] == 'reusable' for r in rows),
+        'missing': sum(r['status'] == 'missing' for r in rows),
+        'blocked': sum(r['status'] not in ('missing', 'reusable') for r in rows), 'rows': rows,
+        'apiCalls': 0, 'ledgerWrites': 0}
 
 
 def plan(kind):
@@ -55,7 +112,7 @@ def run_batch(spec, adapter, directory, *, ids=None, limit=10, pause=time.sleep)
     try:
         digest = hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
         state_file = directory / 'state.json'
-        state = json.loads(state_file.read_text()) if state_file.exists() else {
+        state = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else {
             'planHash': digest, 'mode': adapter.execution_mode, 'results': {}}
         if state['planHash'] != digest or state['mode'] != adapter.execution_mode:
             raise ValueError('Checkpoint scope changed')
@@ -90,7 +147,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--kind', choices=['query', 'parent'], required=True)
     p.add_argument('--directory', type=Path, required=True)
-    p.add_argument('--mode', choices=['plan', 'fake', 'gemini', 'export'], default='plan')
+    p.add_argument('--mode', choices=['plan', 'inspect', 'fake', 'gemini', 'export'], default='plan')
     p.add_argument('--approve-plan')
     p.add_argument('--allow-paid', action='store_true')
     p.add_argument('--ids', nargs='+')
@@ -103,18 +160,32 @@ def main():
     spec = plan(a.kind)
     plan_file = directory / 'plan.json'
     if a.mode == 'plan':
-        if plan_file.exists() and json.loads(plan_file.read_text()) != spec:
+        if plan_file.exists() and json.loads(plan_file.read_text(encoding='utf-8')) != spec:
             raise ValueError('Existing plan changed')
         if not plan_file.exists():
             write_json(plan_file, spec)
         print(json.dumps({'planHash': file_digest(plan_file), 'count': len(spec['rows']),
                           'reserveUsd': spec['firstAttemptReserveUsd'], 'apiCalls': 0}))
         return
-    if file_digest(plan_file) != a.approve_plan or json.loads(plan_file.read_text()) != spec:
+    if file_digest(plan_file) != a.approve_plan or json.loads(plan_file.read_text(encoding='utf-8')) != spec:
         raise ValueError('Exact current plan approval required')
+    if a.mode == 'inspect':
+        ledger = json.loads(LEDGER.read_text(encoding='utf-8'))
+        report = inspect_checkpoints(spec, CHECKPOINTS, ledger)
+        write_json(directory / 'cache-inventory.json', {**report, 'planSha256': a.approve_plan,
+            'ledgerSha256': file_digest(LEDGER), 'ledgerCalls': ledger['calls'], 'ledgerReserveUsd': ledger['reservedUsd']})
+        print(json.dumps({k: v for k, v in report.items() if k != 'rows'}))
+        return
     fake = a.mode == 'fake'
     if a.mode == 'gemini' and (not a.allow_paid or not LEDGER.is_file()):
         raise PermissionError('Separate paid authorization and existing shared ledger required')
+    if a.mode == 'gemini':
+        selected = spec['rows'] if a.ids is None else [r for r in spec['rows'] if r['id'] in a.ids]
+        if not selected or a.ids is not None and set(a.ids) != {r['id'] for r in selected}:
+            raise ValueError('Unknown or empty IDs')
+        inventory = inspect_checkpoints({'rows': selected}, CHECKPOINTS, json.loads(LEDGER.read_text(encoding='utf-8')))
+        if inventory['blocked']:
+            raise ValueError('Restore invalid caches or resolve prior attempts before paid execution')
     output = directory / 'fake-checkpoints' if fake else CHECKPOINTS
     sdk = FakeSDK() if fake else None
     options = {'client_factory': lambda _: sdk} if fake else {}
@@ -124,7 +195,7 @@ def main():
         execution_mode='fake-sdk' if fake else 'gemini', ledger_path=directory / 'fake-ledger.json' if fake else LEDGER,
         sleep=stop_retry, **options)
     if a.mode == 'export':
-        state = json.loads((directory / 'state.json').read_text())
+        state = json.loads((directory / 'state.json').read_text(encoding='utf-8'))
         expected = hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()
         if state['planHash'] != expected or state['mode'] != 'gemini':
             raise ValueError('Real matching state required')
@@ -132,6 +203,13 @@ def main():
         selected = spec['rows'] if a.ids is None else [r for r in spec['rows'] if r['id'] in a.ids]
         if a.ids is not None and set(a.ids) != {r['id'] for r in selected}:
             raise ValueError('Unknown export IDs')
+        # Validate the entire requested cache before the adapter can create locks or touch files.
+        inventory = inspect_checkpoints({'rows': selected}, CHECKPOINTS, json.loads(LEDGER.read_text(encoding='utf-8')))
+        if inventory['reusable'] != len(selected) or not selected:
+            raise ValueError('Export requires complete valid native checkpoints')
+        for item in inventory['rows']:
+            if state['results'].get(item['id'], {}).get('signature') != item['signature']:
+                raise ValueError('Export state signature differs')
         for row in selected:
             entry = state['results'].get(row['id'], {})
             if entry.get('status') != 'success':

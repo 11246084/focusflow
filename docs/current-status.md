@@ -1,5 +1,14 @@
 # FocusFlow 目前狀態
 
+## 2026-11-17 對話功能第一批（W1～W5）與短影片頁重整上線
+
+Weihao 授權合併 `dev` 到 `main`（`fbb7137`，Deploy to VM #164 成功）。部署流程的後端與代理健康檢查通過；「Verify production Atlas QA once」與其後的診斷步驟這次被略過，沒有對正式站實際提問。VM 上的版本尚未由人工核對。
+
+- 上線內容：對話功能的複製回答、多行輸入、進度提示與中斷恢復、「這段在講什麼」及三輪修正（見[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)）；短影片製作與管理頁重整、全站下拉選單樣式（`b41ca5d`，決策 UX-25）；多模態批次工具修正與六支影片寫入紀錄。兩題固定建議題的程式已上線但開關關閉。
+- 合併前驗證（Node.js 22.23.4）：後端全套 2,001 項中 2,000 項通過、1 項略過、0 項失敗（在 `b41ca5d`、`530896b` 進來之前執行，兩筆都沒有改後端程式）；前端 251 項、lint、build 通過；以模擬 API 在瀏覽器實測對話欄七種情況與短影片兩頁。
+- 未驗證：正式站 nginx 下進度事件是否即時送達；正式資料庫既有對話的顯示；真實回答（Gemini 是否已恢復未確認）；YouTube 播放器取得秒數；管理員頁與問題回報表單的下拉選單；STT_Whisper 的 Python 測試未執行（部署不安裝也不執行 Python）。
+- 待人工驗收：學生帳號提問一題並觀察進度文字是否即時；打開一個舊對話確認沒有多出「重新產生」；播放影片後按「這段在講什麼」。
+
 ## 2026-11-16 六片 Leaf 成果 Git 保存檢查
 
 本輪只整理 Git 成果：fetch 發現團隊 dev 新增 4 個對話修正提交，以 ff-only 安全同步至 `9f32f1c`，原六份未提交異動的檔案指紋完全保留。整理單次額外重試防護／測試、狀態與決策／HTML，更新 [Weihao 接手入口](04_Features/Multimodal_Retrieval/HANDOFF.md)、[進度導覽](04_Features/Multimodal_Retrieval/evidence/進度.md)及 AI 使用揭露；[可分享成果摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-16_atlas-leaf-completion-summary.json)只含計數、驗收邊界與私有稽核檔校驗值，沒有向量、完整 receipt、備份或憑證。

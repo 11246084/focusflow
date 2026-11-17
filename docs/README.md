@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+2026-11-17多模態正式評測與品質診斷的可分享保存稿見[研究快照](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.md)及[結構化數據](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.json)；只含研究結論、計數／排名與來源校驗值，不包含向量、影音、逐字稿或憑證。最新進度仍以[目前狀態](current-status.md)為準。
+
 雲端多模態QA、新上傳Worker、持久帳本與安全發布的設定交接見[多模態雲端部署交接](04_Features/Multimodal_Retrieval/CLOUD_DEPLOYMENT_HANDOFF.md)；主機實際設定仍須維運人員當次確認。
 
 影片一建置前的實查、成本邊界與執行阻塞見 [影片一最終檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)（2026-11-12）。

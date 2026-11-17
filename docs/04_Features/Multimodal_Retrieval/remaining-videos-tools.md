@@ -2,6 +2,35 @@
 
 ## Query／Parent批次與記憶體評分入口
 
+### 真實 Atlas 與本機 Parent 的評測來源
+
+排名後的品質診斷另存新私有目錄，先核對原artifact hash，只讀通道排名、RRF貢獻、原向量與切片；不要重跑既有Atlas收集稿或覆寫per-question／config／report。全庫exact名次可用來釐清指定候選是否在Top20外，但屬診斷，不是新參數實驗。畫面抽查要保存原media hash、抽樣位置與範圍限制。實際診斷及候選邊界見[目前狀態](../../current-status.md)與[決策](decisions.md#2026-11-17-正式評測後的品質診斷與待選方案)。
+
+既有 `collectMultimodalEvaluation.js` 只做本機 exact cosine，不會連 Atlas；沒有 `--synthetic` 時使用真實保存向量，但舊版 config 的 `saved-gemini-fake-atlas` 指記憶體傳輸，不是 Fake Embedding。判斷資料真偽應核對 bundle.executionMode／metadata.provider、原生 Checkpoint、來源與 digest。工具的 `formalEvaluation=false`／`qualityClaim=false` 是保留外部品質簽核，不能為了輸出報告自行改成通過。
+
+Atlas 實驗沿用 `atlasMultimodalAdapter.service.js` 的唯讀搜尋與 `buildComparisonRecords`，保存每題三路與原文字基準 Top20，再用既有 RRF／`auditMultimodalOffline.js`／`verifyMultimodalAudit.js`評分。Hierarchical 可重用真實本機 Parent 的 exact Top5／既有 Child 展開結果，只替換文字一路；不能標示成 Atlas Parent 已發布或 Atlas Parent ANN。ANN 與 MA exact 的 config／raw／report 必須分開，即使兩次排名相同也不能混稱來源。
+
+目前真實執行紀錄、完整24組數字與逐題證據只見[目前狀態](../../current-status.md)。下方付費與首次建置範例仍受當次授權限制，不能因評測已獲准而重新產生向量。
+
+### 執行前盤點與分批方式
+
+`evaluation_embedding_batch.py --mode inspect` 只讀核准計畫、原生 Checkpoint 與共用 ledger，輸出私有 `cache-inventory.json`：逐筆列出簽章、Checkpoint SHA-256、向量 digest，以及 reusable／missing／blocked。它不建立模型 client、不預留費用、不改帳本。數量與最近驗證見[目前狀態](../../current-status.md)。
+
+例如：原題 F06 → 原始題文加 query 前綴 → 輸入 SHA-256 → 綁定模式／模型／3072 維／query 角色／text_v2／身份的原生簽章。相同維度的探索 Query、preview Parent 或舊 text_v1 都不能代替。
+
+本機準備目錄為 `.local-tools/gold-preflight-20261117/`，含 `query/plan.json`、`parent/plan.json`、694 筆 `manifest.json`、`original-text.json`、`leaf-bundle-paths.json`、`gold-chunk-map.json`、X01 候選與私有驗證紀錄。這些檔案不隨 Git 傳遞，跨機先安全交接，不以缺檔為由重新產生 Leaf。
+
+```powershell
+$py = 'STT_Whisper/.venv/Scripts/python.exe'
+$dir = '.local-tools/gold-preflight-20261117/query' # Parent 改成 parent
+$approved = (Get-FileHash "$dir/plan.json" -Algorithm SHA256).Hash.ToLower()
+& $py -X utf8 STT_Whisper/src/evaluation_embedding_batch.py --kind query --directory $dir --mode inspect --approve-plan $approved
+```
+
+以下是另獲當次付費授權時的分批規則，已完成的輸入不重送：Query 先做 F06／F08／F15／F12／F11 五題（`--ids F06 F08 F15 F12 F11 --limit 5`），確認原生 Checkpoint、費用及簽章後，移除 `--ids`，以 `--limit 10` 接續；Parent 同樣每批最多 10 個新輸入。實際模式為 `--mode gemini --allow-paid --approve-plan <當次hash>`。每批檢查 state／inventory／ledger，已有成功向量不吃新增次數。全部齊備後才各自 `--mode export`，不帶 `--ids` 匯出完整 bundle；匯出先檢查全部所選快取，缺檔、契約或 digest 異常時停止，不進 provider。既有真實 bundle 的位置與驗證結果只見[目前狀態](../../current-status.md)，不照歷史範例重建。
+
+任何 429、逾時、未知計費、來源／計畫／簽章改變、成功快取遺失或損壞、鎖衝突、預留達 US$20 都停止。保留 ledger／state／Checkpoint，不清鎖、不沖回歷史成本、不自動再試。計畫、當次模型配額與金鑰專案須在獲准後確認；本輪離線通過不代表外部 API 可用。完成 Embedding 不自動授權排名、Parent 發布、Atlas 或部署。
+
 API暫停期間只用`plan`與`fake`。以下入口不修改Gold、Atlas或索引；正式模型執行仍須新的明確授權。假資料與真實資料使用不同directory，不能把Fake state升級為真實bundle。
 
 ```powershell

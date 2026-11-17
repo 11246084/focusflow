@@ -381,7 +381,7 @@ function isStructuredAnswerError(error) {
     && ['ANSWER_PROVIDER_INVALID_RESPONSE', 'ANSWER_PROVIDER_EMPTY_RESPONSE'].includes(error.code);
 }
 
-async function generateAnswer(question, matches, conversationHistory = null) {
+async function generateAnswer(question, matches, conversationHistory = null, { disableFallback = false } = {}) {
   if (!matches.length) {
     return buildTemplateAnswerResult(question, matches);
   }
@@ -398,7 +398,7 @@ async function generateAnswer(question, matches, conversationHistory = null) {
         provider: 'openai',
       });
     } catch (error) {
-      if (!isStructuredAnswerError(error)) {
+      if (disableFallback || !isStructuredAnswerError(error)) {
         throw error;
       }
 
@@ -422,7 +422,7 @@ async function generateAnswer(question, matches, conversationHistory = null) {
         provider: 'gemini',
       });
     } catch (error) {
-      if (error instanceof AppError && error.code === 'ANSWER_PROVIDER_NOT_CONFIGURED') {
+      if (disableFallback || (error instanceof AppError && error.code === 'ANSWER_PROVIDER_NOT_CONFIGURED')) {
         throw error;
       }
 

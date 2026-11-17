@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
   batchRoom, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
-  recutErrorText, rejectScope, rememberLastScript, sentenceAt, sortManageItems, toManageItem,
+  recutErrorText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
 import { isValidSubPage } from '../src/components/navigationConfig.js';
@@ -50,6 +50,25 @@ describe('recut 狀態對應的步驟與待辦', () => {
       { bucket: 'mine', updatedAt: '2026-11-11' },
     ]);
     assert.deepEqual(items.map((i) => `${i.bucket}:${i.updatedAt}`), ['mine:2026-11-11', 'mine:2026-11-10', 'waiting:2026-11-12', 'done:2026-11-12']);
+  });
+
+  it('等你處理裡越接近完成的排越前面，同一步再比時間', () => {
+    const items = sortManageItems([
+      { bucket: 'mine', step: 0, updatedAt: '2026-11-12' },
+      { bucket: 'mine', step: 2, updatedAt: '2026-11-01' },
+      { bucket: 'mine', step: 1, updatedAt: '2026-11-10' },
+    ]);
+    assert.deepEqual(items.map((i) => i.step), [2, 1, 0]);
+  });
+
+  it('清單第二行：等你處理寫動作，其他寫狀態', () => {
+    assert.equal(rowStatusText({ bucket: 'mine', action: '傳回影片', label: '待傳回影片' }), '傳回影片');
+    assert.equal(rowStatusText({ bucket: 'waiting', label: '製作中' }), '製作中');
+  });
+
+  it('管理清單標出產片方式', () => {
+    assert.equal(toManageItem({ _id: 'a', productionMode: 'recut', recut: { state: 'idle' } }, null).mode, 'recut');
+    assert.equal(toManageItem({ _id: 'b', productionMode: 'avatar', status: 'draft' }, null).mode, 'avatar');
   });
 
   it('管理清單的標題用學生原本的問法', () => {

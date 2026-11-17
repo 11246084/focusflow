@@ -6,7 +6,7 @@ import BottomSheet from '../components/BottomSheet';
 import CitationRetrievalLabel from '../components/CitationRetrievalLabel';
 import LineLinkButton from '../components/LineLinkButton';
 import brandMark from '../assets/mark-white.svg';
-import { apiFetch, getUser } from '../api';
+import { apiFetch, apiStream, getUser } from '../api';
 import { recoverLocalPlayback, resolveVideoPlayback } from './studentPlayback';
 import {
   findExtendedResourcesQuestion,
@@ -16,12 +16,27 @@ import {
 } from '../utils/extendedResources';
 import {
   SOURCE_PREVIEW_COUNT,
+  CURRENT_SEGMENT_QUESTION,
+  buildQuestionPayload,
+  getCurrentSegmentPosition,
+  SHOW_STARTER_QUESTIONS,
+  STARTER_QUESTIONS,
+  canCopyAnswer,
+  copyAnswer,
   formatConversationDate,
   formatConversationLabel,
+  getAnswerBlocks,
+  getUnansweredMessages,
+  hasNewUserMessage,
+  isStaleMessage,
+  isRetryRecoveryPending,
+  isDefiniteRejection,
+  isTerminalConversationReadError,
   getRemainingSourceCount,
   getVisibleSources,
   mapConversationMessage,
   scrollConversationMessageIntoView,
+  shouldSubmitQuestionOnKeyDown,
   toStudentCitation,
 } from './qaConversationUtils';
 
@@ -63,13 +78,15 @@ function loadYouTubeIframeApi() {
   return youtubeApiPromise;
 }
 
-function YouTubePlayer({ videoId, seekRequest, onWatched, onError }) {
+function YouTubePlayer({ videoId, seekRequest, onWatched, onError, onPositionReady }) {
   const wrapperRef = useRef(null);
   const playerRef = useRef(null);
   const readyRef = useRef(false);
   const seekRequestRef = useRef(seekRequest);
   const onWatchedRef = useRef(onWatched);
   const onErrorRef = useRef(onError);
+  const onPositionReadyRef = useRef(onPositionReady);
+  useEffect(() => { onPositionReadyRef.current = onPositionReady; }, [onPositionReady]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   const watchedFiredRef = useRef(false);
   const progressTimerRef = useRef(null);
@@ -113,15 +130,18 @@ function YouTubePlayer({ videoId, seekRequest, onWatched, onError }) {
         },
         events: {
           onReady: (event) => {
+            if (cancelled) return;
             readyRef.current = true;
+            onPositionReadyRef.current?.(event.target);
             const pendingSeek = seekRequestRef.current;
             if (pendingSeek?.startSec != null) {
               event.target.seekTo(Math.max(0, Number(pendingSeek.startSec) || 0), true);
               event.target.playVideo();
             }
           },
-          onError: (event) => onErrorRef.current?.(event.data),
+          onError: (event) => { if (!cancelled) onErrorRef.current?.(event.data); },
           onStateChange: (event) => {
+            if (cancelled) return;
             if (event.data === YT.PlayerState.ENDED) {
               fireWatched();
               return;
@@ -356,14 +376,6 @@ const SEGMENT_PREVIEW_COUNT = SOURCE_PREVIEW_COUNT;
 const MAX_QUESTION_LENGTH = 50;
 const DAILY_ASK_LIMIT = 5;
 
-function normalizeAnswerLines(value) {
-  return String(value || '')
-    .replace(/\r\n?/g, '\n')
-    // AI responses sometimes place numbered or bulleted items in one paragraph.
-    .replace(/([^\n])\s+(?=(?:\d+[.)、](?:\s|\*\*)|[一二三四五六七八九十]+[、.．](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
-    .split('\n');
-}
-
 function renderAnswerInline(text, lineIndex) {
   const parts = String(text).split(/(\*\*[^*\n]+\*\*)/g);
 
@@ -375,63 +387,6 @@ function renderAnswerInline(text, lineIndex) {
     // Never leak incomplete Markdown bold delimiters into the visible answer.
     return <span key={key}>{part.replaceAll('**', '')}</span>;
   });
-}
-
-function getAnswerBlocks(answer) {
-  const blocks = [];
-  let paragraph = [];
-  let list = null;
-
-  function flushParagraph() {
-    if (paragraph.length > 0) {
-      blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
-      paragraph = [];
-    }
-  }
-
-  function flushList() {
-    if (list) {
-      blocks.push(list);
-      list = null;
-    }
-  }
-
-  normalizeAnswerLines(answer).forEach((rawLine) => {
-    const line = rawLine.trim();
-    if (!line) {
-      flushParagraph();
-      flushList();
-      return;
-    }
-
-    const heading = line.match(/^#{1,3}\s+(.+)$/);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      blocks.push({ type: 'heading', text: heading[1] });
-      return;
-    }
-
-    const ordered = line.match(/^(?:\d+[.)、]|[一二三四五六七八九十]+[、.．])\s*(.+)$/);
-    const unordered = line.match(/^(?:[-•*])\s+(.+)$/);
-    if (ordered || unordered) {
-      flushParagraph();
-      const type = ordered ? 'ordered-list' : 'unordered-list';
-      if (!list || list.type !== type) {
-        flushList();
-        list = { type, items: [] };
-      }
-      list.items.push((ordered || unordered)[1]);
-      return;
-    }
-
-    flushList();
-    paragraph.push(line);
-  });
-
-  flushParagraph();
-  flushList();
-  return blocks;
 }
 
 function AnswerContent({ answer }) {
@@ -453,6 +408,38 @@ function AnswerContent({ answer }) {
   );
 }
 
+function CopyAnswerButton({ answer }) {
+  const [feedback, setFeedback] = useState('');
+  const requestId = useRef(0);
+  const timer = useRef(null);
+
+  useEffect(() => () => {
+    requestId.current += 1;
+    clearTimeout(timer.current);
+  }, []);
+
+  async function handleCopy() {
+    const currentRequest = ++requestId.current;
+    clearTimeout(timer.current);
+    setFeedback('');
+    const succeeded = await copyAnswer(navigator.clipboard, answer);
+    if (currentRequest !== requestId.current) return;
+    setFeedback(succeeded ? '已複製' : '複製失敗');
+    if (succeeded) {
+      timer.current = setTimeout(() => setFeedback(''), 2000);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className="qa-copy-answer" aria-label="複製 AI 回答" onClick={handleCopy}>
+        {feedback || '複製'}
+      </button>
+      <span className="sr-only" aria-live="polite">{feedback}</span>
+    </>
+  );
+}
+
 // 2026-09-18 前建立的對話預設標題是英文。
 function isDefaultConversationTitle(title) {
   return !title || title === '新對話' || title === 'New conversation';
@@ -468,14 +455,18 @@ function AiAvatar() {
   );
 }
 
-function PendingAnswer() {
+function RetryAnswerButton({ onClick, disabled }) {
+  return <button type="button" className="qa-retry-answer" onClick={onClick} disabled={disabled}>重新產生</button>;
+}
+
+function PendingAnswer({ stage }) {
   return (
     <div className="qa-ai-message qa-pending-answer" role="status">
       <AiAvatar />
       <div className="qa-ai-body qa-pending-body">
         <span className="sr-only">AI 回答：</span>
         <span className="qa-pending-dots" aria-hidden="true"><span /><span /><span /></span>
-        <span>AI 正在搜尋課程片段並整理答案，通常需要 10～20 秒，請稍候…</span>
+        <span>{stage === 'searching' ? '搜尋課程片段' : stage === 'writing' ? '撰寫回答' : '等待回答'}</span>
       </div>
     </div>
   );
@@ -541,11 +532,24 @@ function scrollMenuItemIntoView(menu, item) {
   else if (item.offsetTop + item.offsetHeight > menu.scrollTop + menu.clientHeight) menu.scrollTop = item.offsetTop + item.offsetHeight - menu.clientHeight;
 }
 
-function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false }) {
+function resizeQuestionInput(input) {
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`;
+}
+
+function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compact = false, getPlaybackPosition, positionAvailable = false }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
   const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  const [stage, setStage] = useState('');
+  const [pollTick, setPollTick] = useState(0);
+  const generationRef = useRef(0);
+  const streamRef = useRef(null);
+  const recoveryRef = useRef(null);
+  const stoppedPollingGenerationRef = useRef(null);
+  useEffect(() => () => { generationRef.current += 1; streamRef.current?.abort(); }, []);
   const questionLength = [...question.trim()].length;
   const questionTooLong = questionLength > MAX_QUESTION_LENGTH;
   const [messages, setMessages] = useState([]);
@@ -559,6 +563,30 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
   const latestMessageRef = useRef(null);
   const historyButtonRef = useRef(null);
   const historyMenuRef = useRef(null);
+  const questionRef = useRef(null);
+
+  useLayoutEffect(() => {
+    resizeQuestionInput(questionRef.current);
+  }, [question, compact]);
+
+  useEffect(() => {
+    const input = questionRef.current;
+    if (!input) return undefined;
+    const resize = () => resizeQuestionInput(input);
+    let width = input.clientWidth;
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      if (input.clientWidth !== width) {
+        width = input.clientWidth;
+        resize();
+      }
+    });
+    observer?.observe(input);
+    window.addEventListener('resize', resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
   // 預設只列前 SEGMENT_PREVIEW_COUNT 筆，避免 QA_MATCH_LIMIT 調大後洗掉整個面板；
   // AI 的答案可能引用超過這個數量的片段，所以要能展開讓學生點到每個時間戳。
   useEffect(() => {
@@ -611,98 +639,161 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     return () => document.removeEventListener('mousedown', closeOnOutside);
   }, [compact, historyOpen]);
 
+  function cancelRequests() {
+    generationRef.current += 1;
+    stoppedPollingGenerationRef.current = null;
+    streamRef.current?.abort();
+    streamRef.current = null;
+    recoveryRef.current = null;
+    setAwaitingAnswer(false); setStage(''); setLoading(false);
+  }
+
   async function createNewConversation() {
+    const generation = generationRef.current;
     setError('');
     const response = await apiFetch('/conversations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ courseId }),
     });
-    setConversationId(response.data.id);
-    setMessages([]);
-    setExpandedMessageIds(new Set());
+    if (generation !== generationRef.current) return null;
+    setConversationId(response.data.id); setMessages([]); setExpandedMessageIds(new Set());
     setConversations((items) => [response.data, ...items]);
     return response.data.id;
   }
 
   async function resumeConversation(id) {
+    cancelRequests();
+    const generation = generationRef.current;
     setLoading(true); setError('');
     try {
       const response = await apiFetch(`/conversations/${id}/messages`);
-      setConversationId(id);
-      setMessages((response.data?.messages || []).map(mapConversationMessage));
-      setExpandedMessageIds(new Set());
-      setHistoryOpen(false);
+      if (generation !== generationRef.current) return;
+      setConversationId(id); setMessages((response.data?.messages || []).map(mapConversationMessage));
+      setExpandedMessageIds(new Set()); setHistoryOpen(false);
     } catch (e) {
-      setError(e.message || '無法恢復對話');
-    } finally {
-      setLoading(false);
-    }
+      if (generation === generationRef.current) setError(e.message || '無法恢復對話');
+    } finally { if (generation === generationRef.current) setLoading(false); }
   }
 
-  async function ask(event) {
+  useEffect(() => {
+    const unresolved = getUnansweredMessages(messages);
+    if (stoppedPollingGenerationRef.current === generationRef.current || !conversationId || (loading && !recoveryRef.current) || (!recoveryRef.current && !unresolved.some((item) => !isStaleMessage(item)))) return undefined;
+    const generation = generationRef.current;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await apiFetch(`/conversations/${conversationId}/messages`);
+        if (generation !== generationRef.current) return;
+        const fresh = (response.data?.messages || []).map(mapConversationMessage);
+        const recovery = recoveryRef.current;
+        if (isRetryRecoveryPending(fresh, recovery)) {
+          setError('連線中斷，正在重試');
+          setPollTick((value) => value + 1);
+          return;
+        }
+        if (recovery?.accepted && recovery.userMessageId && !fresh.some((item) => item.id === recovery.userMessageId)) {
+          setError('連線中斷，正在重試');
+          setPollTick((value) => value + 1);
+          return;
+        }
+        if (recovery && !recovery.retry && !recovery.accepted && !hasNewUserMessage(fresh, recovery.lastKnownId)) {
+          if (!recovery.segment) setQuestion(recovery.question);
+          setError(recovery.error || '問題尚未送出，請再試一次。');
+        } else setError('');
+        recoveryRef.current = null;
+        setMessages(fresh); setAwaitingAnswer(false); setStage(''); setLoading(false);
+      } catch (e) {
+        if (generation !== generationRef.current) return;
+        if (isTerminalConversationReadError(e)) {
+          stoppedPollingGenerationRef.current = generation;
+          recoveryRef.current = null;
+          setAwaitingAnswer(false); setStage(''); setLoading(false); setRetryingMessageId(null);
+          setError(e.message || '無法載入對話');
+          return;
+        }
+        setError('連線中斷，正在重試');
+      }
+      if (generation === generationRef.current) setPollTick((value) => value + 1);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [conversationId, messages, pollTick, loading]);
+
+  async function ask(event, suggestedQuestion, segment = null) {
     event?.preventDefault();
-    if (loading || !question.trim()) return;
-    if (questionTooLong) {
-      setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`);
-      return;
-    }
-    const currentQuestion = question.trim();
-    setLoading(true); setError('');
-    setAwaitingAnswer(true);
+    const currentQuestion = (suggestedQuestion ?? question).trim();
+    if (loading || !currentQuestion) return;
+    const tooLong = suggestedQuestion === undefined ? questionTooLong : [...currentQuestion].length > MAX_QUESTION_LENGTH;
+    if (tooLong) { setError(`問題太長了，請精簡到 ${MAX_QUESTION_LENGTH} 個字以內。`); return; }
+    const generation = generationRef.current;
+    const lastKnownId = messages.at(-1)?.id;
+    let activeConversationId = conversationId;
+    let accepted = false;
+    let userMessageId = null;
+    let submitted = false;
     const temporaryId = `pending-${Date.now()}`;
-    setMessages((items) => [...items, {
-      id: temporaryId, role: 'user', content: currentQuestion, status: 'completed',
-    }]);
+    setLoading(true); setError(''); setAwaitingAnswer(true); setStage('');
+    setMessages((items) => [...items, { id: temporaryId, role: 'user', content: currentQuestion, status: 'completed' }]);
     setQuestion('');
     try {
-      let activeConversationId = conversationId;
-      if (!activeConversationId) {
-        activeConversationId = await createNewConversation();
+      if (!activeConversationId) activeConversationId = await createNewConversation();
+      if (!activeConversationId || generation !== generationRef.current) return;
+      if (!conversationId) setMessages([{ id: temporaryId, role: 'user', content: currentQuestion, status: 'completed' }]);
+      const path = `/conversations/${activeConversationId}/messages`;
+      const controller = new AbortController(); streamRef.current = controller;
+      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildQuestionPayload(currentQuestion, segment)), signal: controller.signal };
+      let result;
+      submitted = true;
+      try {
+        await apiStream(`${path}/stream`, options, (eventName, payload) => {
+          if (generation !== generationRef.current) return;
+          if (eventName === 'accepted') { accepted = true; userMessageId = payload.userMessageId || payload.userMessage?.id; }
+          if (eventName === 'stage') setStage(payload.stage);
+          if (eventName === 'done') result = payload;
+        });
+      } catch (e) {
+        if (e.status !== 404 && e.status !== 405) throw e;
+        result = await apiFetch(path, options);
       }
-      const res = await apiFetch(`/conversations/${activeConversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: currentQuestion }),
-      });
-      setMessages((items) => [
-        ...items.filter((message) => message.id !== temporaryId),
-        mapConversationMessage(res.data.userMessage),
-        mapConversationMessage(res.data.assistantMessage),
-      ]);
-      setConversations((items) => items.map((item) => (
-        item.id === activeConversationId
-          ? { ...item, title: isDefaultConversationTitle(item.title) ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() }
-          : item
-      )).sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
+      if (generation !== generationRef.current) return;
+      setMessages((items) => [...items.filter((message) => message.id !== temporaryId), mapConversationMessage(result.data.userMessage), mapConversationMessage(result.data.assistantMessage)]);
+      setConversations((items) => items.map((item) => item.id === activeConversationId
+        ? { ...item, title: isDefaultConversationTitle(item.title) ? currentQuestion.slice(0, 120) : item.title, updatedAt: new Date().toISOString() } : item)
+        .sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0)));
+      setLoading(false); setAwaitingAnswer(false); setStage('');
     } catch (e) {
-      // 被拒絕（字數、次數用完等）時問題沒有送出：移除暫時顯示的提問，並把文字放回輸入框。
-      setMessages((items) => items.filter((message) => message.id !== temporaryId));
-      setQuestion(currentQuestion);
-      setError(e.message || '問答失敗');
-    } finally {
-      setLoading(false);
-      setAwaitingAnswer(false);
-    }
+      if (generation !== generationRef.current) return;
+      if (!submitted || isDefiniteRejection(e)) {
+        setMessages((items) => items.filter((message) => message.id !== temporaryId));
+        if (!segment) setQuestion(currentQuestion);
+        setError(e.message || '問答失敗'); setLoading(false); setAwaitingAnswer(false);
+      } else {
+        recoveryRef.current = { accepted, userMessageId, lastKnownId, question: currentQuestion, segment, error: e.message };
+        setError('連線中斷，正在重試'); setPollTick((value) => value + 1);
+      }
+    } finally { if (generation === generationRef.current) streamRef.current = null; }
+  }
+
+  function askCurrentSegment() {
+    const segment = getPlaybackPosition?.();
+    if (segment) ask(null, CURRENT_SEGMENT_QUESTION, segment);
   }
 
   async function retryAnswer(message) {
-    setLoading(true); setError('');
-    setRetryingMessageId(message.id);
+    const generation = generationRef.current;
+    setLoading(true); setError(''); setRetryingMessageId(message.id);
     try {
-      const response = await apiFetch(
-        `/conversations/${conversationId}/messages/${message.replyToMessageId}/retry`,
-        { method: 'POST' },
-      );
-      setMessages((items) => items.map((item) => (
-        item.id === message.id ? mapConversationMessage(response.data.assistantMessage) : item
-      )));
+      await apiFetch(`/conversations/${conversationId}/messages/${message.role === 'user' ? message.id : message.replyToMessageId}/retry`, { method: 'POST' });
+      if (generation !== generationRef.current) return;
+      const fresh = await apiFetch(`/conversations/${conversationId}/messages`);
+      if (generation === generationRef.current) setMessages((fresh.data?.messages || []).map(mapConversationMessage));
     } catch (e) {
-      setError(e.message || '重新產生失敗');
-    } finally {
-      setLoading(false);
-      setRetryingMessageId(null);
-    }
+      if (generation === generationRef.current) {
+        if (!isDefiniteRejection(e)) {
+          recoveryRef.current = { retry: true, messageId: message.id, status: message.status, updatedAt: message.updatedAt, startedAt: Date.now() };
+          setError('連線中斷，正在重試');
+        } else setError(e.message || '重新產生失敗');
+        setPollTick((value) => value + 1);
+      }
+    } finally { if (generation === generationRef.current) { setLoading(Boolean(recoveryRef.current)); setRetryingMessageId(null); } }
   }
 
   function handleCitationClick(matchedIndex, startSec, sourceKey) {
@@ -711,7 +802,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
     }
   }
 
-  const startNewConversation = () => createNewConversation().catch((e) => setError(e.message || '無法建立新對話'));
+  const startNewConversation = () => { cancelRequests(); createNewConversation().catch((e) => setError(e.message || '無法建立新對話')); };
   const currentTitle = formatConversationLabel(conversations.find((item) => item.id === conversationId));
   const recentConversations = conversations.slice(0, 20);
 
@@ -800,7 +891,16 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
       )}
       <div ref={messageListRef} className="qa-message-list" aria-live="polite">
         {messages.length === 0 && !awaitingAnswer && (
-          <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span></div>
+          <div className="qa-empty-state">邊看影片，邊釐清問題。<br /><span>回答中的來源可直接跳轉影片，對話會留在原處。</span>
+            {(positionAvailable || SHOW_STARTER_QUESTIONS) && !loading && (
+              <div className="qa-starter-questions">
+                {positionAvailable && <button type="button" onClick={askCurrentSegment}>這段在講什麼</button>}
+                {SHOW_STARTER_QUESTIONS && STARTER_QUESTIONS.map((starter) => (
+                  <button key={starter} type="button" onClick={() => ask(null, starter)}>{starter}</button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {error && (
           <div className="qa-ai-message qa-ai-error" role="alert">
@@ -810,11 +910,16 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
         )}
         {messages.map((message, messageIndex) => message.id && message.id === retryingMessageId ? (
           <div key={message.id} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined}>
-            <PendingAnswer />
+            <PendingAnswer stage={stage} />
           </div>
+        ) : message.role === 'assistant' && message.status === 'pending' ? (
+          <div key={message.id}>{isStaleMessage(message) ? (
+            <div className="qa-ai-message"><AiAvatar /><div className="qa-ai-body"><RetryAnswerButton onClick={() => retryAnswer(message)} disabled={loading} /></div></div>
+          ) : <PendingAnswer stage={stage} />}</div>
         ) : message.role === 'user' ? (
-        <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13 }}>
+        <div key={message.id || `user-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} style={{ marginTop: 12, marginLeft: '18%', padding: '9px 12px', borderRadius: 12, background: 'rgba(241,79,33,0.18)', color: '#fff', fontSize: 13, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {message.content}
+          {getUnansweredMessages(messages).some((item) => item.id === message.id) && isStaleMessage(message) && <RetryAnswerButton onClick={() => retryAnswer(message)} disabled={loading} />}
         </div>
       ) : (() => { const result = message; return (
         <div key={message.id || `assistant-${messageIndex}`} ref={messageIndex === messages.length - 1 ? latestMessageRef : undefined} className="qa-ai-message">
@@ -822,10 +927,11 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           <div className="qa-ai-body">
           <span className="sr-only">AI 回答：</span>
           <AnswerContent answer={result.answer} />
+          {result.status === 'completed' && canCopyAnswer(navigator.clipboard) && (
+            <CopyAnswerButton answer={result.answer} />
+          )}
           {result.status === 'failed' && (
-            <button type="button" onClick={() => retryAnswer(result)} disabled={loading} style={{ marginBottom: 10, padding: '7px 11px', borderRadius: 8, border: '1px solid rgba(255,107,107,0.45)', background: 'rgba(255,107,107,0.08)', color: '#ff8b8b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-              重新產生
-            </button>
+            <RetryAnswerButton onClick={() => retryAnswer(result)} disabled={loading} />
           )}
           {(result.matches || result.segments || []).length > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.42)', letterSpacing: '.06em', marginBottom: 6 }}>
@@ -918,21 +1024,23 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           </div>
         </div>
         ); })())}
-        {awaitingAnswer && <PendingAnswer />}
+        {awaitingAnswer && <PendingAnswer stage={stage} />}
       </div>
       <div className="qa-input-area">
         {/* 用 form 送出：按 Enter 即送出，而且中文輸入法選字時按的 Enter 不會誤送 */}
         <form onSubmit={ask} style={{ display: 'flex', gap: 8 }}>
-          <input
-            className="ff-input"
+          <textarea
+            ref={questionRef}
+            className="ff-input qa-question-input"
             style={{ flex: 1, margin: 0, minWidth: 0 }}
+            rows={1}
             placeholder="輸入問題，按 Enter 送出…"
             aria-label="輸入課程問題"
             value={question}
             onChange={e => setQuestion(e.target.value)}
             onKeyDown={(e) => {
               // 中文輸入法選字時的 Enter（isComposing / keyCode 229）只是確認文字，不送出。
-              if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (!shouldSubmitQuestionOnKeyDown(e)) return;
               ask(e);
             }}
             enterKeyHint="send"
@@ -999,6 +1107,9 @@ export default function StudentCourses() {
   const studyGridRef = useRef(null);
   const [progressByCourse, setProgressByCourse] = useState({});
   const videoRef = useRef(null);
+  const youtubePlayerRef = useRef(null);
+  const [positionReady, setPositionReady] = useState(false);
+  const [selectionToken, setSelectionToken] = useState(0);
   const watchedMarkedRef = useRef(new Set());
 
   function resizeStudy(event) {
@@ -1027,9 +1138,21 @@ export default function StudentCourses() {
     apiFetch(`/courses/${courseId}/videos/${videoId}/opened`, { method: 'POST' }).catch(() => {});
   }
 
+  function clearPlaybackPosition() {
+    youtubePlayerRef.current = null;
+    setPositionReady(false);
+  }
+
   function openVideo(index) {
+    const videoId = videos[index]?._id || videos[index]?.id;
+    const selection = playbackSelectionRef.current;
+    const sameSelection = selection && selection.index === index && selection.videoId === videoId && !playbackError;
+    if (!sameSelection) {
+      clearPlaybackPosition();
+      setSelectionToken((token) => token + 1);
+      playbackSelectionRef.current = { index, videoId };
+    }
     if (index !== playingVid) markOpened(selectedCourse?._id, videos[index]);
-    playbackSelectionRef.current = { index, videoId: videos[index]?._id || videos[index]?.id };
     setPlaybackError('');
     setPlayingVid(index);
     setSeekRequest(null);
@@ -1054,6 +1177,7 @@ export default function StudentCourses() {
   async function openCourse(course) {
     const request = ++courseRequestRef.current;
     playbackSelectionRef.current = null;
+    clearPlaybackPosition();
     setPlaybackError('');
     setSelected(course);
     setPlayingVid(null);
@@ -1112,9 +1236,16 @@ export default function StudentCourses() {
   // Course detail view
   if (selectedCourse) {
     const playing = playingVid !== null ? videos[playingVid] : null;
+    const selection = playbackSelectionRef.current;
+    const isCurrentSelection = () => selection !== null && playbackSelectionRef.current === selection;
     const playback = resolveVideoPlayback(playing);
     const youtubeId = playback.youtubeId;
     const videoUrl = playback.videoUrl;
+    const getPlaybackPosition = () => {
+      if (playbackError || playbackSelectionRef.current?.videoId !== (playing?._id || playing?.id)) return null;
+      return getCurrentSegmentPosition(playing, youtubeId ? youtubePlayerRef.current : videoRef.current, youtubeId ? 'youtube' : 'local');
+    };
+    const positionAvailable = positionReady && Boolean(getPlaybackPosition());
 
     const playingLabel = playing ? formatVideoLabel({}, playing) : '尚未選擇影片';
     const playlistTriggerProps = compact
@@ -1147,7 +1278,7 @@ export default function StudentCourses() {
     return (
       <div className={`course-study${compact ? ' course-study-compact' : ''}`}>
         <div className="course-study-header">
-          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { ++courseRequestRef.current; playbackSelectionRef.current = null; setPlaybackError(''); setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
+          <button type="button" className="study-back-btn" aria-label="返回課程列表" onClick={() => { ++courseRequestRef.current; playbackSelectionRef.current = null; clearPlaybackPosition(); setPlaybackError(''); setSelected(null); setPlayingVid(null); setSeekRequest(null); }} style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div className="course-study-title">
@@ -1170,21 +1301,24 @@ export default function StudentCourses() {
                 <div role="status" style={{ padding: 24, color: 'rgba(255,255,255,0.75)' }}>{playbackError}</div>
               ) : youtubeId ? (
                 <YouTubePlayer
-                  key={youtubeId}
+                  key={`${selectionToken}:${playing?._id || playing?.id}:${youtubeId}`}
                   videoId={youtubeId}
-                  onError={(code) => setPlaybackError(code === 100 ? 'YouTube 找不到這支影片，請聯絡教師。' : [101, 150].includes(code) ? 'YouTube 不允許在此播放，請聯絡教師。' : '影片準備中，可先提問。')}
+                  onPositionReady={(player) => { if (isCurrentSelection()) { youtubePlayerRef.current = player; setPositionReady(true); } }}
+                  onError={(code) => { if (!isCurrentSelection()) return; clearPlaybackPosition(); setPlaybackError(code === 100 ? 'YouTube 找不到這支影片，請聯絡教師。' : [101, 150].includes(code) ? 'YouTube 不允許在此播放，請聯絡教師。' : '影片準備中，可先提問。'); }}
                   seekRequest={seekRequest?.videoIndex === playingVid ? seekRequest : null}
                   onWatched={() => markWatched(selectedCourse._id, playing?._id || playing?.id)}
                 />
               ) : videoUrl ? (
                 <video
                   ref={videoRef}
-                  key={videoUrl}
+                  key={`${selectionToken}:${playing?._id || playing?.id}:${videoUrl}`}
                   src={videoUrl}
                   controls
                   playsInline
-                  onError={(e) => handleLocalPlaybackError(playing, playingVid, e.currentTarget.currentTime || 0)}
+                  onError={(e) => { if (!isCurrentSelection() || e.currentTarget !== videoRef.current) return; clearPlaybackPosition(); handleLocalPlaybackError(playing, playingVid, e.currentTarget.currentTime || 0); }}
                   onLoadedMetadata={(e) => {
+                    if (!isCurrentSelection() || e.currentTarget !== videoRef.current) return;
+                    setPositionReady(true);
                     if (seekRequest?.videoIndex === playingVid) {
                       e.currentTarget.currentTime = seekRequest.startSec;
                       e.currentTarget.play().catch(() => {});
@@ -1256,7 +1390,7 @@ export default function StudentCourses() {
               setVideoWidth((value) => event.key === 'Home' ? 25 : event.key === 'End' ? 60 : Math.max(25, Math.min(60, value + (event.key === 'ArrowLeft' ? -2 : 2))));
             }}
           />
-          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} compact={compact} />
+          <QAPanel key={selectedCourse._id} courseId={selectedCourse._id} videos={videos} onJumpToVideo={jumpToVideo} activeSourceKey={seekRequest?.sourceKey} compact={compact} getPlaybackPosition={getPlaybackPosition} positionAvailable={positionAvailable} />
         </div>
 
         {compact && videoSheetOpen && (

@@ -1,18 +1,29 @@
 # 多模態檢索、章節與影片升級：開發接手說明
 
-> 2026-11-14 產品方向已定：問答預設三路，影片缺三路向量時退回文字；正式站已開 `QA_MULTIMODAL_FUSION_ENABLED`。第 11 項不再是開啟門檻，43 題評測改為開啟後確認沒有變差。見 [decisions.md](decisions.md) 最上方一節；下文舊規則以該節為準。
+最後更新：2026-11-16。Weihao 接手先讀[狀態正本](../../current-status.md)的六片 Atlas Leaf 完成紀錄；這份文件提供接續路線與操作邊界，不另維護完成數。下方早期執行稿的日期、窗口與授權只作歷史參考。
 
-> 雲端接手先讀[CLOUD_DEPLOYMENT_HANDOFF.md](CLOUD_DEPLOYMENT_HANDOFF.md)：區分既有Atlas QA、新上傳Worker及六片離線成果遷移。workflow未佈建Python／多模態私有磁碟；VM實際設定與跨Worker恢復尚須Weihao查證，文件不是部署或付費授權。
+## 接手閱讀順序
 
-> 429診斷接手：先看[狀態正本](../../current-status.md)最新精準診斷段落。三次歷史錯誤沒有quotaDetails，不能確診原因；Adapter已加入安全白名單記錄並完成Mock測試，不可為補紀錄新發請求。注意V6強制backend/.env優先、一般Pipeline程序環境優先、新evaluation入口只用程序環境；不能假設入口使用同一專案。原失敗簽章三次上限不變。
+| 要確認什麼 | 文件 |
+|---|---|
+| 六片建置、V6 CAS／讀回、QA 證據及尚未完成的驗收 | [目前狀態](../../current-status.md) |
+| 可分享的計數、驗收邊界及私有稽核檔校驗值 | [成果摘要](evidence/2026-11-16_atlas-leaf-completion-summary.json) |
+| 單次額外重試、正式寫入及分數差異查核原則 | [設計決策](decisions.md) |
+| 正式 Gold 的 Query／Parent、排名收集與獨立評分入口 | [後五片工具](remaining-videos-tools.md#queryparent批次與記憶體評分入口) |
+| VM、新上傳 Worker 與私有成果遷移 | [雲端交接](CLOUD_DEPLOYMENT_HANDOFF.md) |
 
-> 最新工具入口：[Query／Parent批次與記憶體評分](remaining-videos-tools.md#queryparent批次與記憶體評分入口)。三項缺口已完成離線工具與Fake測試；實際模型、完整真實語料評分與Parent發布仍未執行。先讀[狀態正本](../../current-status.md)最新工具／429段落。chunk_0109三次上限不變，不能因新批次入口存在而繞過。環境金鑰值不得用於交接或診斷輸出。
+## 保存與驗收邊界
 
-> 最新邊界：教授確認額度前全面停止新Gemini請求；恢復額度不自動授權重試。先讀[暫停API後的驗收結果](../../current-status.md)與[本輪決策](decisions.md#2026-11-14-暫停api期間的驗收範圍)。保存探索Query可做唯讀驗證，不能冒充正式Gold題庫；全題排名收集與Parent共用ledger接線仍需完成。
+- Git 只保存程式、測試、文件與去敏感摘要。完整的 139 筆 intent／receipt、14 批讀回、備份與原始診斷保留在資料持有人本機 `.local-tools/v6-atlas-write-20261116/`；Checkpoint、ledger 與 bundle 也不隨 Git 同步，跨機須另行安全交接，不得因檔案不在 checkout 就重建向量。
+- 成功向量及已消耗許可不重送。預設三次上限不變；已授權簽章的第 4 次屬一次性例外，不是一般 CLI 選項，成功快取遺失時先找回原檔，不清空帳本或重新付費。
+- 真實 Atlas 檢索、保存 Query 重播的 RRF／QA Bridge 與 template 答案，分別記錄證據；它們不能代替相符題庫 Query、正式 Gold 或 LLM 答案品質驗收。
+- 不沿用過去的付費、寫入、回復、索引或部署授權。當次 provider、金鑰專案、模型與 VM 設定仍需查證；交接不輸出憑證值。
 
-> 2026-11-14 接手提醒：本輪已同步dev並依明確授權完成影片六的一次受控重試。結果與停止條件請先讀[目前狀態](../../current-status.md)最上方；本次許可已使用，不可再次重送。Atlas成功資料保留，Query／Parent與後續寫入仍需另行授權。
+## 正式 Gold／LLM 下一步
 
-### 新上傳影片
+先依狀態正本的缺口取得新的明確授權，再使用既有工具核對 50 個相符 Query（F11 包含其中）及固定三 Leaf 的 233 個 Parent。X01 的 V5 人工時間未核定前，維持 42 題計分、7 題拒答另列、X01 另列；24 組排名設定、原／stable 文字基準及獨立評分不變。Parent 發布與 LLM 回答品質驗收各自列明範圍，不自動接續付費或寫入。
+
+## 新上傳影片
 
 重新處理令原計畫失效時，保留原 before-image 與 receipt，使用 `--plan atlas-before-<識別碼>.json` 建立新的備份及核准碼。準備、寫入與回復要指定同一計畫檔。
 
@@ -28,13 +39,15 @@
 
 開發驗收的 Atlas CLI 是 `node backend/scripts/atlas-multimodal/upload.js --directory <世代目錄>`。它要求真實 bundle、目前影片版本與既有三路索引，保存 before-image 後回傳 approvalHash。只有具該次授權的操作員可用相同指令附加 `--approve <approvalHash>`。回復使用 `--restore` 取得獨立核准碼。未知結果或衝突應先檢查該次 intent、receipt 與資料庫，不得自動重送。正式自動寫入政策尚未啟用。
 
-> 2026-11-13 接手入口：先讀[目前狀態](../../current-status.md)最新多模態段落。Gemini 付費請求目前 NO-GO；不要重複分析相同 429、嘗試重送或自動恢復。先依[後五片工具](remaining-videos-tools.md)進行唯讀及無付費驗證。本機 Checkpoint 完成與 Atlas 寫入完成分開判讀；V2～V5當次限定寫入已完成，後續不重送成功資料，題庫E2E的Query依賴見狀態正本；下文歷史執行稿不構成新的外部操作授權。
+## 早期交付執行稿（歷史參考）
+
+以下保留原交付目標、分工及執行稿，便於追查設計脈絡。舊付費暫停、截止日與預先授權不代表當前狀態或新的操作許可；以本頁上方接手入口、狀態正本及當次使用者授權接續。
 
 > 組員請先用瀏覽器打開 [docs/07_HTML說明頁/多模態檢索.html](../../07_HTML說明頁/多模態檢索.html)；這份 Markdown 是寫給 AI 讀的。
 
 這份文件給組員庭語的 AI（Codex 或 Claude Code），讓它不必讀過先前的對話，就能從現在一路做到 11/13 交付。設計依據只看 [decisions.md](decisions.md)，功能狀態只看[目前狀態](../../current-status.md)；這裡只寫結果目標、優先順序、規則、求援方式與需要授權的執行稿。功能完成時，在同一批 commit 內把本文件移到 `docs/90_Archive/`。
 
-最後更新：2026-11-13（增補付費暫停期間的接手入口；下文原始執行稿保留歷史規則）
+原始執行稿更新：2026-11-13。
 
 ## 開場時 AI 要做的事
 

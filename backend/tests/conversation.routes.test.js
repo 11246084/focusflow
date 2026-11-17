@@ -237,3 +237,159 @@ describe('conversation routes', () => {
     assert.equal(store.messages.filter((item) => item.role === 'assistant').length, 1);
   });
 });
+
+async function sseRequest(baseUrl, path, token, content) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  const text = await response.text();
+  const events = text.split('\n\n').filter((part) => part.startsWith('event: ')).map((part) => {
+    const lines = part.split('\n');
+    return { event: lines[0].slice(7), data: JSON.parse(lines[1].slice(6)) };
+  });
+  return { response, text, events };
+}
+
+describe('conversation streaming', () => {
+  let context;
+  let originalEnv;
+  before(async () => {
+    originalEnv = Object.fromEntries(['qaQueryEmbeddingProvider', 'qaVectorSearchMode', 'qaAnswerProvider', 'geminiApiKey'].map((key) => [key, env[key]]));
+    context = await startServer();
+  });
+  after(async () => {
+    try { await stopServer(context.server); } finally { Object.assign(env, originalEnv); }
+  });
+  beforeEach(() => { resetStore(); env.qaQueryEmbeddingProvider = 'mock'; env.qaVectorSearchMode = 'memory'; env.qaAnswerProvider = 'template'; env.geminiApiKey = ''; });
+  async function setup() {
+    const token = await loginAs(context.baseUrl, 'student@focusflow.local', 'Student123!');
+    const created = await jsonRequest(context.baseUrl, '/api/v1/conversations', { method: 'POST', token, body: { courseId: ids.publishedCourse } });
+    return { token, id: created.body.data.id };
+  }
+  it('streams accepted, real stages and the existing response envelope', async () => {
+    const { token, id } = await setup();
+    const result = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, 'What does the course say about JWT authentication?');
+    assert.match(result.response.headers.get('content-type'), /text\/event-stream/);
+    assert.equal(result.response.headers.get('x-accel-buffering'), 'no');
+    assert.deepEqual(result.events.map((item) => item.event), ['accepted', 'stage', 'stage', 'done']);
+    assert.deepEqual(result.events.filter((item) => item.event === 'stage').map((item) => item.data.stage), ['searching', 'writing']);
+    const accepted = result.events[0].data;
+    const done = result.events.at(-1).data;
+    assert.equal(done.success, true);
+    assert.equal(done.message, 'Message answered.');
+    assert.equal(done.data.assistantMessage.id, accepted.assistantMessageId);
+    assert.equal(done.data.assistantMessage.status, 'completed');
+  });
+  it('matches the legacy response apart from identifiers, timestamps and latency', async () => {
+    const { token, id } = await setup();
+    const second = await jsonRequest(context.baseUrl, '/api/v1/conversations', { method: 'POST', token, body: { courseId: ids.publishedCourse } });
+    const question = 'What does the course say about JWT authentication?';
+    const stream = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, question);
+    const legacy = await jsonRequest(context.baseUrl, `/api/v1/conversations/${second.body.data.id}/messages`, { method: 'POST', token, body: { content: question } });
+    function normalize(value) {
+      if (Array.isArray(value)) return value.map(normalize);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(Object.entries(value).filter(([key]) => !['id', 'conversationId', 'replyToMessageId', 'createdAt', 'updatedAt', 'latency', 'conversationLatency'].includes(key) && !/LatencyMs$/.test(key)).map(([key, item]) => [key, normalize(item)]));
+    }
+    assert.deepEqual(normalize(stream.events.at(-1).data), normalize(legacy.body));
+  });
+  it('claims an orphan user only once', async () => {
+    const { token, id } = await setup();
+    const old = new Date(Date.now() - 121000);
+    const userId = newObjectId();
+    store.messages.push({ _id: userId, conversationId: id, role: 'user', content: 'Question?', status: 'completed', createdAt: old, updatedAt: old });
+    const path = `/api/v1/conversations/${id}/messages/${userId}/retry`;
+    const results = await Promise.all([1, 2].map(() => jsonRequest(context.baseUrl, path, { method: 'POST', token })));
+    assert.deepEqual(results.map((item) => item.status).sort(), [200, 409]);
+    assert.equal(store.messages.filter((item) => item.role === 'assistant').length, 1);
+  });
+  it('skips stages for an exact FAQ cache hit', async () => {
+    const previous = env.faqCacheEnabled;
+    env.faqCacheEnabled = true;
+    try {
+      const { buildMockEmbedding } = require('../src/services/queryEmbedding.service');
+      for (const segment of store.videoSegments) segment.embedding = buildMockEmbedding(segment.text);
+      const { token, id } = await setup();
+      const question = 'What does the course say about JWT authentication?';
+      await jsonRequest(context.baseUrl, '/api/v1/qa/ask', { method: 'POST', token, body: { courseId: ids.publishedCourse, question } });
+      const result = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, question);
+      assert.equal(result.events.at(-1).data.data.runtime.faqCache.hit, true);
+      assert.deepEqual(result.events.map((item) => item.event), ['accepted', 'done']);
+    } finally { env.faqCacheEnabled = previous; }
+  });
+  it('emits error after headers for unexpected controller failures', async () => {
+    const service = require('../src/services/conversation.service');
+    const original = service.sendMessage;
+    service.sendMessage = async ({ onAccepted }) => {
+      onAccepted({ id: 'user' }, { id: 'assistant' });
+      throw new Error('unexpected');
+    };
+    try {
+      const { token, id } = await setup();
+      const result = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, 'Question?');
+      assert.deepEqual(result.events.map((item) => item.event), ['accepted', 'error']);
+    } finally { service.sendMessage = original; }
+  });
+  it('persists the answer after the client disconnects', async () => {
+    const Message = require('../src/models/message.model');
+    const original = Message.findByIdAndUpdate;
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    let completed;
+    const saved = new Promise((resolve) => { completed = resolve; });
+    Message.findByIdAndUpdate = async (...args) => {
+      await gate;
+      const result = await original(...args);
+      completed();
+      return result;
+    };
+    try {
+      const { token, id } = await setup();
+      const abort = new AbortController();
+      const response = await fetch(`${context.baseUrl}/api/v1/conversations/${id}/messages/stream`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: 'Question?' }), signal: abort.signal,
+      });
+      await response.body.getReader().read();
+      abort.abort();
+      release();
+      await saved;
+      assert.equal(store.messages.at(-1).status, 'completed');
+    } finally { release(); Message.findByIdAndUpdate = original; }
+  });
+  it('returns JSON before headers on validation and done on answer failure', async () => {
+    const { token, id } = await setup();
+    const previousLimit = env.qaMaxQuestionLength;
+    try {
+      env.qaMaxQuestionLength = 50;
+      const denied = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, 'x'.repeat(1000));
+      assert.equal(denied.response.status, 400);
+      assert.match(denied.response.headers.get('content-type'), /application\/json/);
+      assert.equal(store.messages.length, 0);
+    } finally {
+      env.qaMaxQuestionLength = previousLimit;
+    }
+    env.qaQueryEmbeddingProvider = 'gemini';
+    const failed = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, 'Question?');
+    assert.equal(failed.events.at(-1).data.data.failed, true);
+    assert.equal(store.messages.at(-1).status, 'failed');
+  });
+  it('excludes pending from history and claims stale retries once', async () => {
+    const { historyFromMessages } = require('../src/services/conversation.service');
+    assert.deepEqual(historyFromMessages([{ role: 'assistant', status: 'pending', content: 'placeholder' }]), []);
+    const { token, id } = await setup();
+    env.qaQueryEmbeddingProvider = 'gemini';
+    const failed = await sseRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/stream`, token, 'Question?');
+    const userId = failed.events[0].data.userMessageId;
+    const assistant = store.messages.at(-1);
+    assistant.status = 'pending';
+    let retry = await jsonRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/${userId}/retry`, { method: 'POST', token });
+    assert.equal(retry.status, 409);
+    assistant.updatedAt = new Date(Date.now() - 121000);
+    env.qaQueryEmbeddingProvider = 'mock';
+    const results = await Promise.all([1, 2].map(() => jsonRequest(context.baseUrl, `/api/v1/conversations/${id}/messages/${userId}/retry`, { method: 'POST', token })));
+    assert.deepEqual(results.map((item) => item.status).sort(), [200, 409]);
+    assert.equal(store.messages.length, 2);
+  });
+});

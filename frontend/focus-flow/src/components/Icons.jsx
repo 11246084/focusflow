@@ -32,6 +32,8 @@ export const Ic = ({ n, s = 18, c = 'currentColor' }) => {
     // 上傳短片：場記板加上傳箭頭，和「上傳影片」的雲朵箭頭（up）區分。
     shortUp: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10h18v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 10l-.4-2.6a1 1 0 01.8-1.1l14.8-2.6a1 1 0 011.2.8L19.8 7"/><line x1="7.5" y1="5.6" x2="9.4" y2="9"/><line x1="12.5" y1="4.7" x2="14.4" y2="8.1"/><polyline points="9.5 15.5 12 13 14.5 15.5"/><line x1="12" y1="13" x2="12" y2="18.5"/></svg>,
     sync: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
+    copy: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>,
+    download: <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>,
   };
   return d[n] || null;
 };

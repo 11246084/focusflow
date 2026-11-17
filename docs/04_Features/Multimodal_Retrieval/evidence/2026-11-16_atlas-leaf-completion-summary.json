@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "six_video_atlas_ingestion_summary_v1",
+  "observedAt": "2026-11-16T12:30:59.858Z",
+  "runtimeVerificationBaseRevision": "1fc5777dd5d0f067a460bcf7a8806e9b1288c141",
+  "runtimeWorkingTreeIncludedScopedRetryGuard": true,
+  "source": "Preserved real Atlas execution/readback evidence; no live recheck during Git publication",
+  "chunks": 694,
+  "leafVectors": 2078,
+  "model": "gemini-embedding-2",
+  "dimension": 3072,
+  "videos": [
+    {
+      "video": "V1",
+      "chunks": 117,
+      "modalities": {
+        "text": 117,
+        "audio": 117,
+        "visual": 117
+      },
+      "vectors": 351
+    },
+    {
+      "video": "V2",
+      "chunks": 123,
+      "modalities": {
+        "text": 123,
+        "audio": 123,
+        "visual": 123
+      },
+      "vectors": 369
+    },
+    {
+      "video": "V3",
+      "chunks": 83,
+      "modalities": {
+        "text": 83,
+        "audio": 82,
+        "visual": 82
+      },
+      "vectors": 247
+    },
+    {
+      "video": "V4",
+      "chunks": 144,
+      "modalities": {
+        "text": 144,
+        "audio": 144,
+        "visual": 144
+      },
+      "vectors": 432
+    },
+    {
+      "video": "V5",
+      "chunks": 88,
+      "modalities": {
+        "text": 88,
+        "audio": 87,
+        "visual": 87
+      },
+      "vectors": 262
+    },
+    {
+      "video": "V6",
+      "chunks": 139,
+      "modalities": {
+        "text": 139,
+        "audio": 139,
+        "visual": 139
+      },
+      "vectors": 417
+    }
+  ],
+  "v6": {
+    "casUpdates": 139,
+    "vectors": 417,
+    "intentRecords": 139,
+    "receiptRecords": 139,
+    "readbackBatches": 14,
+    "backupReadbackVerified": true,
+    "freshBackupBytes": 302553638,
+    "independentReadbackVerified": true,
+    "writeRetries": 0,
+    "rollbackCalls": 0
+  },
+  "integrity": {
+    "original694EmbeddingAndProtectedFieldsUnchanged": true,
+    "nonTarget555WholeDocumentsUnchanged": true,
+    "allThreeIndexesAndNineNodesReadyQueryable": true,
+    "indexIdentityAndVersionsUnchanged": true
+  },
+  "qa": {
+    "evidence": "Actual Atlas retrieval with saved real exploratory Query replay",
+    "selfQueries": 9,
+    "selfQueriesAllRankOne": true,
+    "singleVideoScopesPassed": 6,
+    "courseScopesPassed": 2,
+    "rrfAndBridgeVerified": true,
+    "citationsAndTimestampsVerified": true,
+    "authorizationNegativeControlsPassed": true,
+    "stateSink": "memory",
+    "answerProvider": "existing-template",
+    "answerQualityVerified": false,
+    "formalGoldEvaluation": false,
+    "F11ExactQueryAvailable": false
+  },
+  "validationNotes": {
+    "originalPostWriteProgramStopped": true,
+    "reason": "Bitwise search-score comparison",
+    "readOnlyReconciliationVerified": true,
+    "legacyTop20RanksSourcesTimesUnchanged": true,
+    "searchScoresBitwiseEqual": false,
+    "maxObservedScoreDelta": 1.1920928955078125e-07
+  },
+  "outOfScopeActionsPerformed": {
+    "paidGeminiCalls": 0,
+    "newQueryOrParentEmbeddings": 0,
+    "indexMutations": 0,
+    "productionDeployment": false,
+    "productionFlagChanges": false
+  },
+  "pending": {
+    "exactGoldQueries": 50,
+    "F11IsPartOf50": true,
+    "fixedThreeLeafParents": 233,
+    "X01": "Requires human confirmation of V5 timestamps; 42 scored questions and 7 refusals remain separate",
+    "rankConfigurationsPerQuestion": 24,
+    "independentScoringRequired": true,
+    "llmAnswerQualityAcceptanceRequired": true
+  },
+  "privateEvidence": {
+    "rawArtifactsIncluded": false,
+    "vectorsIncluded": false,
+    "custody": "Data holder retains the original local evidence; Git contains only counts and checksums",
+    "checksums": [
+      {
+        "artifact": "prewrite-backup.json",
+        "sha256": "57673a6f395880a55f6c96aa943370fa8545271aa8663653556dd74070d194ce"
+      },
+      {
+        "artifact": "intent.jsonl",
+        "sha256": "212ef14593d0a6f38a8aada0a3e116f069681989dcc3e4770d811fadad74ed9e"
+      },
+      {
+        "artifact": "receipt.json",
+        "sha256": "2a0278408fc6193c593dc8a92e5799137e7938e551ed1221c3d9159b397ce4c7"
+      },
+      {
+        "artifact": "independent-readback.json",
+        "sha256": "16626e7276a830ce8fce6158016308bc765d39775fae04c2d180e2dceea2fee0"
+      },
+      {
+        "artifact": "write-reconciliation.json",
+        "sha256": "7190d312b1212e21dd5e7d391e4aa1c657055bb7c961e9dbd661c3a7473241c1"
+      }
+    ],
+    "batchChecksums": [
+      {
+        "artifact": "batch-010.json",
+        "sha256": "17c0ebd41215fdcebc10ad5c1eff5a94237e74b52d7b36778420745f9efdeb4d"
+      },
+      {
+        "artifact": "batch-020.json",
+        "sha256": "9451ffb7f9363d1f89ae0b6f80aad0dbac9418db46bcc601f04283cdfd1810c6"
+      },
+      {
+        "artifact": "batch-030.json",
+        "sha256": "55dce8af03fb54c95a989cd8670e1669262dcca9208202f50fd9d2ca8935e1d5"
+      },
+      {
+        "artifact": "batch-040.json",
+        "sha256": "e384678b5fa76ffdd58239e08158481bdfa832290d055e5451d41df215994bb8"
+      },
+      {
+        "artifact": "batch-050.json",
+        "sha256": "30933cd85a1cc2a8b08fdc544974e6592b23a18096c96ea7b69d181a81a7aaf9"
+      },
+      {
+        "artifact": "batch-060.json",
+        "sha256": "310b028b2791c08402b9f92bc39f0a511cf3f86cf9dc586ac89caea490fc5a1e"
+      },
+      {
+        "artifact": "batch-070.json",
+        "sha256": "f2f7da098693c11ee55d66b186a8a5fbb960817c80cf977881ca8414545ab417"
+      },
+      {
+        "artifact": "batch-080.json",
+        "sha256": "49c83411a1a07c8609e864fb5c1daddd7d021b625f31d88c973b74019acd5efa"
+      },
+      {
+        "artifact": "batch-090.json",
+        "sha256": "ff0ebe21c5e494ad7f9febd06ca69cc839d25499aaccbb1c49d7872c7a441b22"
+      },
+      {
+        "artifact": "batch-100.json",
+        "sha256": "bef6c24d05da76a9eb8df8f5aaeb54e0be1388891f5381be1081f783ecce2b63"
+      },
+      {
+        "artifact": "batch-110.json",
+        "sha256": "7e9b5d8c16607fa6aeb2bc4b8968bc594b35811b464a5cb100b202de0c37497f"
+      },
+      {
+        "artifact": "batch-120.json",
+        "sha256": "950621591849fcb98c19e083b8af60605940f51ddf9e7805c06252214b3c8833"
+      },
+      {
+        "artifact": "batch-130.json",
+        "sha256": "ec60c5d3351e3f59ce1cc1be3e40392b491b49c2987404bc0585a05b0f705c3f"
+      },
+      {
+        "artifact": "batch-139.json",
+        "sha256": "d0f9b0807b4deb5f89e26dc1a41bc1355de507f8ce144fef6dcdea3c43abca63"
+      }
+    ]
+  }
+}

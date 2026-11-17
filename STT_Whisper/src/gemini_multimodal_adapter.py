@@ -61,6 +61,9 @@ def build_text_content(text: str, role: str) -> str:
 
 
 class GeminiMultimodalAdapter:
+    def _attempt_limit(self, signature):
+        return MAX_ATTEMPTS
+
     def __init__(self, output: Path, *, max_cost_usd: float, allow_paid: bool = False,
                  max_calls: int = 30, timeout_ms: int = 30000, client_factory=create_client,
                  sleep=time.sleep, duration_probe=None, ledger_path: Path | None = None,
@@ -164,9 +167,10 @@ class GeminiMultimodalAdapter:
         if not isinstance(attempts_by_signature, dict):
             raise ValueError("Invalid attempt ledger")
         previous_attempts = max(attempts_by_signature.get(signature, 0), cached.get("attempts", 0))
-        if not isinstance(previous_attempts, int) or not 0 <= previous_attempts <= MAX_ATTEMPTS:
+        attempt_limit = self._attempt_limit(signature)
+        if not isinstance(previous_attempts, int) or not 0 <= previous_attempts <= attempt_limit:
             raise ValueError("Invalid attempt count")
-        if previous_attempts >= MAX_ATTEMPTS:
+        if previous_attempts >= attempt_limit:
             raise EmbeddingRequestError("Attempt ceiling reached; inspect checkpoint before continuing")
         record = {**(identity or {}), "signature": signature, "provider": self.execution_mode, "model": MODEL,
                   "modelVersionSource": "requested model ID; immutable server revision unavailable",
@@ -183,7 +187,7 @@ class GeminiMultimodalAdapter:
         print(f"Gemini {modality} estimated attempt USD {cost:.8f}; cumulative ceiling USD {self.max_cost_usd:.8f}", flush=True)
         client = None
         try:
-            for attempt in range(previous_attempts, MAX_ATTEMPTS):
+            for attempt in range(previous_attempts, attempt_limit):
                 next_total = math.ceil((ledger["reservedUsd"] + cost) * 1e8) / 1e8
                 if next_total > self.max_cost_usd or next_total > 30 or ledger["calls"] >= self.max_calls:
                     record.update(status="blocked_budget", error={"code": "BUDGET_EXCEEDED"})
@@ -225,7 +229,7 @@ class GeminiMultimodalAdapter:
                     record["error"]["diagnostics"] = safe_error_diagnostics(
                         error, model=MODEL, signature=signature, modality=modality)
                     write_json(checkpoint, record)
-                    if not retryable or attempt == MAX_ATTEMPTS - 1:
+                    if not retryable or attempt == attempt_limit - 1:
                         raise EmbeddingRequestError(f"Gemini embedding request failed (HTTP {safe_code})") from None
                     self.sleep(2 ** attempt)
         finally:

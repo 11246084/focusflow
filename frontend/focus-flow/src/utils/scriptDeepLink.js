@@ -13,7 +13,18 @@ export const SHORT_SCRIPT_PAGE = 'shortScripts';
 export const SHORT_UPLOAD_PAGE = 'shortUploads';
 
 export function isScriptTargetForPage(target, page) {
-  return Boolean(target?.scriptId) && (target.page || SHORT_SCRIPT_PAGE) === page;
+  return Boolean(target?.scriptId || target?.intent === 'new') && (target.page || SHORT_SCRIPT_PAGE) === page;
+}
+
+// 「製作新短片」：打開製作頁時直接進選題，不先打開一支舊的。
+export function requestNewShort({ page, courseId = '' }) {
+  const target = { intent: 'new', scriptId: '', courseId: courseId ? String(courseId) : '', page };
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(target));
+  } catch {
+    // Storage can be blocked; the event below still reaches a mounted page.
+  }
+  window.dispatchEvent(new CustomEvent(OPEN_SCRIPT_EVENT, { detail: target }));
 }
 
 export function requestOpenScript({ scriptId, courseId, page = SHORT_SCRIPT_PAGE }) {

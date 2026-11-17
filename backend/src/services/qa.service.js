@@ -45,6 +45,7 @@ const {
 const {
   buildQaRuntimeSnapshot,
   assertQaRuntimeConfiguration,
+  assertCurrentSegmentRuntimeConfiguration,
 } = require('./runtimeDiagnostics.service');
 const { createParentSearchRepository } = require('./parentSearchAdapter.service');
 const { createLeafRepository } = require('./childExpansion.service');
@@ -1242,10 +1243,59 @@ function qaTimingMark(label, startNs) {
   return now;
 }
 
+async function preflightCurrentSegment({ user, courseId, videoId, positionSec }) {
+  const unavailable = () => new AppError('No course content is available at this position.', 400, 'CURRENT_SEGMENT_UNAVAILABLE');
+  if (!videoId || typeof positionSec !== 'number' || !Number.isFinite(positionSec) || positionSec < 0) throw unavailable();
+  const course = await Course.findById(courseId);
+  if (!course) throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
+  await assertCanAccessCourse(user, course);
+  const scopedVideos = await collectScopedVideos(course);
+  const video = scopedVideos.videos.find((item) => [item._id, item.videoId, item.video_id].some((id) => id != null && String(id) === String(videoId)));
+  if (!video) throw unavailable();
+  // The lookup key is derived solely from the authorized video record.
+  const authorizedId = String(video._id);
+  const segments = await VideoSegment.find({ videoId: authorizedId })
+    .select('_id segmentId chunkId videoId courseId startSec endSec text').lean();
+  const start = Math.max(0, positionSec - 60);
+  const end = positionSec + 60;
+  const matches = segments.map(normalizeSegment)
+    .filter((segment) => segment.transcript && segment.startSec != null && segment.endSec != null
+      && segment.startSec <= end && segment.endSec >= start && segment.endSec >= segment.startSec)
+    .sort((a, b) => Number(b.startSec <= positionSec && b.endSec >= positionSec)
+      - Number(a.startSec <= positionSec && a.endSec >= positionSec)
+      || Math.max(a.startSec - positionSec, positionSec - a.endSec, 0)
+        - Math.max(b.startSec - positionSec, positionSec - b.endSec, 0))
+    .slice(0, env.qaMatchLimit).map((segment) => mapSegmentMatch(segment, 1));
+  if (!matches.length) throw unavailable();
+  return { course, scopedVideos, matches: enrichMatchesWithVideoMetadata(matches, scopedVideos), videoId: authorizedId, positionSec };
+}
+
+async function answerCurrentSegment({ user, question, source, conversationId, currentSegment, onStage }) {
+  const { course, scopedVideos, matches, videoId, positionSec } = currentSegment;
+  const runtimeSnapshot = assertCurrentSegmentRuntimeConfiguration();
+  const costControl = await assertQaQuotaAvailable({ userId: user.id });
+  if (onStage) onStage('writing');
+  const answerResult = await generateAnswer(question, matches, null, { disableFallback: true });
+  const runtime = buildQaRuntime({ runtimeSnapshot, courseSummary: buildCourseBridgeSummary(course, scopedVideos),
+    searchableSegmentCount: matches.length, matchStatus: 'matched',
+    searchDiagnostics: { searchBackendUsed: 'current_segment', scoringMode: 'position', fallbacks: [] }, answerResult });
+  runtime.scope = 'current_segment';
+  runtime.currentSegment = { videoId, positionSec };
+  if (conversationId) runtime.conversation = { conversationId: String(conversationId), originalQuestion: question, standaloneQuestion: question, requiresContext: false };
+  const noAnswer = isNoAnswerReply(answerResult.text);
+  const usage = await recordUsage({ userId: user.id, courseId: course._id, event: USAGE_LOG_EVENTS.ASK,
+    metadata: { source, question, matchCount: matches.length, runtime, costControl } });
+  await recordQuestion({ userId: user.id, courseId: course._id, question, answer: answerResult.text,
+    status: noAnswer ? QUESTION_STATUSES.NO_MATCH : QUESTION_STATUSES.ANSWERED, source, matches, runtime, sourceUsageLogId: usage?._id });
+  return buildQaResponse({ answer: answerResult.text, matches, supportingEvidenceIds: answerResult.supportingEvidenceIds,
+    clip: null, runtime, scopedVideos, courseId: course._id });
+}
+
 async function askQuestion({
   user, courseId, question, retrievalQuestion = null, source = 'api',
-  conversationHistory = null, conversationId = null, contextualization = null,
+  conversationHistory = null, conversationId = null, contextualization = null, onStage = null, currentSegment = null,
 }) {
+  if (currentSegment) return answerCurrentSegment({ user, question, source, conversationId, currentSegment, onStage });
   const t0 = process.hrtime.bigint();
   const totalStartedAt = Date.now();
   const stageLatency = {};
@@ -1368,6 +1418,7 @@ async function askQuestion({
   // 投機性啟動：片段載入與 query embedding 互不依賴，先讓 DB 查詢跑起來，
   // 之後第二層 FAQ 快取命中時直接 return，不 await 這個 promise，
   // 讓載入耗時不計入回應延遲（原本順序會白等一次完整載入）。
+  if (onStage) onStage('searching');
   const scopedSegmentsPromise = loadScopedSearchableSegments(segmentScope);
   // 命中提早 return 時沒人 await 這個 promise，補 no-op catch 避免 unhandled rejection；
   // miss 路徑仍 await 原 promise，載入失敗照樣往外拋。
@@ -1746,6 +1797,7 @@ async function askQuestion({
 
   // Citation/clip 必須以答案實際採用的 evidence 為準，不能再固定取 retrieval Top1。
   const generationStartedAt = Date.now();
+  if (onStage) onStage('writing');
   const answerResult = await generateAnswer(trimmedQuestion, matches, conversationHistory);
   stageLatency.generationLatencyMs = Date.now() - generationStartedAt;
   const noAnswerReply = isNoAnswerReply(answerResult.text);
@@ -1999,11 +2051,12 @@ function isSystemAskFailure(error) {
   return !error?.statusCode || error.statusCode >= 500;
 }
 
-async function recordFailedAsk({ user, courseId, question, source = 'api', error, answer = '' }) {
+async function recordFailedAsk({ user, courseId, question, source = 'api', error, answer = '', currentSegment = null }) {
   if (!isSystemAskFailure(error)) return null;
 
   const runtime = {
     status: 'failed',
+    ...(currentSegment ? { scope: 'current_segment', currentSegment: { videoId: currentSegment.videoId, positionSec: currentSegment.positionSec } } : {}),
     errorCode: error?.code || 'INTERNAL_SERVER_ERROR',
     ...(Array.isArray(error?.details?.hardFailures)
       ? { hardFailureCodes: error.details.hardFailures.map((item) => item.code) }
@@ -2059,7 +2112,7 @@ async function askQuestionFromApi(params) {
 }
 
 module.exports = {
-  askQuestion,
+  preflightCurrentSegment, askQuestion,
   askQuestionFromApi,
   recordFailedAsk,
   buildAnswerStatus,

@@ -7,5 +7,6 @@ router.get('/', controller.listConversations);
 router.post('/', controller.createConversation);
 router.get('/:conversationId/messages', controller.listMessages);
 router.post('/:conversationId/messages', controller.sendMessage);
+router.post('/:conversationId/messages/stream', controller.streamMessage);
 router.post('/:conversationId/messages/:messageId/retry', controller.retryMessage);
 module.exports = router;

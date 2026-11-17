@@ -1,4 +1,100 @@
 export const SOURCE_PREVIEW_COUNT = 3;
+// 真實課程驗證兩題回答品質後才開啟。
+export const SHOW_STARTER_QUESTIONS = false;
+export const STARTER_QUESTIONS = ['這門課主要在教什麼？', '這門課有哪些重要的名詞？'];
+
+export function shouldSubmitQuestionOnKeyDown(event) {
+  return event.key === 'Enter' && !event.shiftKey
+    && !event.nativeEvent.isComposing && event.keyCode !== 229;
+}
+
+export function canCopyAnswer(clipboard) {
+  return typeof clipboard?.writeText === 'function';
+}
+
+function normalizeAnswerLines(value) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    // AI responses sometimes place numbered or bulleted items in one paragraph.
+    .replace(/([^\n])\s+(?=(?:\d+[.)、](?:\s|\*\*)|[一二三四五六七八九十]+[、.．](?:\s|\*\*)|[-•]\s+))/g, '$1\n')
+    .split('\n');
+}
+
+export function getAnswerBlocks(answer) {
+  const blocks = [];
+  let paragraph = [];
+  let list = null;
+
+  function flushParagraph() {
+    if (paragraph.length > 0) {
+      blocks.push({ type: 'paragraph', text: paragraph.join(' ') });
+      paragraph = [];
+    }
+  }
+
+  function flushList() {
+    if (list) {
+      blocks.push(list);
+      list = null;
+    }
+  }
+
+  normalizeAnswerLines(answer).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: 'heading', text: heading[1] });
+      return;
+    }
+
+    const ordered = line.match(/^(?:\d+[.)、]|[一二三四五六七八九十]+[、.．])\s*(.+)$/);
+    const unordered = line.match(/^(?:[-•*])\s+(.+)$/);
+    if (ordered || unordered) {
+      flushParagraph();
+      const type = ordered ? 'ordered-list' : 'unordered-list';
+      if (!list || list.type !== type) {
+        flushList();
+        list = { type, items: [] };
+      }
+      list.items.push((ordered || unordered)[1]);
+      return;
+    }
+
+    flushList();
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+export function answerToPlainText(answer) {
+  const inlineText = (text) => text.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+  return getAnswerBlocks(answer).map((block) => {
+    if (block.items) {
+      return block.items.map((item, index) => `${block.type === 'ordered-list' ? `${index + 1}.` : '-'} ${inlineText(item)}`).join('\n');
+    }
+    return inlineText(block.text);
+  }).join('\n\n');
+}
+
+export async function copyAnswer(clipboard, answer) {
+  try {
+    await clipboard.writeText(answerToPlainText(answer));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function mapConversationMessage(message) {
   const sources = message.sources || message.matches || message.segments || [];
@@ -79,4 +175,53 @@ export function scrollConversationMessageIntoView(container, message, behavior =
   if (top === null) return false;
   container.scrollTo({ top: Math.max(0, top), behavior });
   return true;
+}
+
+export const PENDING_TIMEOUT_MS = 120000;
+export function isStaleMessage(message, now = Date.now()) {
+  const timestamp = Date.parse(message.updatedAt || message.createdAt);
+  return Number.isFinite(timestamp) && now - timestamp >= PENDING_TIMEOUT_MS;
+}
+export function getUnansweredMessages(messages) {
+  const replied = new Set(messages.filter((message) => message.role === 'assistant').map((message) => message.replyToMessageId));
+  return messages.filter((message) => (message.role === 'assistant' && message.status === 'pending')
+    || (message.role === 'user' && !replied.has(message.id)));
+}
+export function hasNewUserMessage(messages, lastKnownId) {
+  const index = lastKnownId ? messages.findIndex((message) => message.id === lastKnownId) : -1;
+  // If the boundary disappeared, avoid restoring and risking a duplicate submission.
+  if (lastKnownId && index < 0) return true;
+  return messages.slice(index + 1).some((message) => message.role === 'user');
+}
+
+// A lost retry response is uncertain until the stored assistant changes or the retry times out.
+export function isRetryRecoveryPending(messages, recovery, now = Date.now()) {
+  if (!recovery?.retry || now - recovery.startedAt >= PENDING_TIMEOUT_MS) return false;
+  const current = messages.find((item) => item.id === recovery.messageId);
+  return !current || (current.status === recovery.status && current.updatedAt === recovery.updatedAt);
+}
+export function isTerminalConversationReadError(error) {
+  return error?.status === 403 || error?.status === 404;
+}
+
+export function isDefiniteRejection(error) {
+  return [400, 401, 403, 409, 413, 422, 429].includes(error.status);
+}
+
+export const CURRENT_SEGMENT_QUESTION = '這段在講什麼';
+
+// Read at click time: a paused player still has a valid position.
+export function getCurrentSegmentPosition(video, player, kind) {
+  const videoId = video?._id || video?.id;
+  if (!videoId || video?.processing?.status !== 'completed' || !player) return null;
+  try {
+    if (kind === 'local' && player.readyState < 1) return null;
+    const positionSec = kind === 'youtube' ? player.getCurrentTime() : player.currentTime;
+    if (typeof positionSec !== 'number' || !Number.isFinite(positionSec) || positionSec < 0) return null;
+    return { videoId, positionSec };
+  } catch { return null; }
+}
+
+export function buildQuestionPayload(content, segment) {
+  return segment ? { content, scope: 'current_segment', ...segment } : { content };
 }

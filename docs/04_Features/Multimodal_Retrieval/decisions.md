@@ -1,5 +1,31 @@
 # 多模態檢索設計決策
 
+## 2026-11-16 V6 正式 CAS 寫入與初步驗收授權
+
+使用者已明確授權既有計畫 `aec9b6574c05c32fc55e6367f7c06bcb5fff5864f591d0779fb9df10c728b663` 的 V6 正式寫入，並初步確認沒有其他組員正在修改共用資料庫。範圍固定為同課程、同影片的 chunk_0001～chunk_0139，僅新增三個向量欄位與三份 mediaEmbeddingMeta；原 embedding／字稿／時間／身份及 V1～V5 不變，索引不修改。前段「唯讀準備」保留為該輪歷史邊界。
+
+沿用既有 execute／完整文件 CAS 寫入工具。正式更新前重驗 bundle、原生 Checkpoint、已核准計畫及備份，另存新的完整六片備份並讀回校驗；比對全部 694 筆及非目標 555 筆前像。逐筆 intent、CAS、讀回與 digest 驗證、receipt flush／讀回；每 10 個 Chunk 暫停核驗全六片預期文件、索引與容量。任何衝突、未知結果或資料不一致立即停止，不盲目重送、不自動回復。
+
+初步驗收只使用已保存的真實 Query 重播及實際 Atlas 唯讀檢索，沿用正式 RRF／QA Bridge、既有 template 答案與本機記憶體 harness，不啟動正式旗標或寫入 QA 狀態。不得把探索 Query、文件 self-query 或模板答案當成 V6 F11／正式 Gold 品質驗收；缺相符 Query 時先回報，任何新 Query／Parent 付費均須另行授權。實際寫入、讀回與驗收結果只見[目前狀態](../../current-status.md)。
+
+資料完整性與檢索分數分開驗證：向量／metadata／受保護欄位採精確 digest／指紋；檢索回歸比較排名、來源與時間，另記浮點分數差值。若嚴格分數雜湊不同，先停並唯讀定位，不能推定為資料被改；確認資料、排名、來源與時間相同後，只接續唯讀驗收，保留原中止紀錄與差值，不重送寫入、不修改正式 RRF。
+
+## 2026-11-16 V6 Atlas 寫入前準備邊界
+
+本輪使用者只授權唯讀 Atlas 現況核對、本機 before-image 備份及 CAS Dry Run；沿用既有 `atlas-multimodal/video1.js`、`run.js`、`control.js` 與索引節點檢查，不開發新寫入器、不呼叫 Gemini、不執行 Atlas 寫入或索引修改。完整 139 筆 allowlist 與 417 個真實 Leaf 綁定凍結 manifest／bundle，不縮小範圍或改原字稿／時間／舊 embedding。
+
+下一階段可提出的正式授權僅限 `focusflow.video_segments_text`、courseId `6a6da68456dd124511ec5196`、videoId `6a6da69556dd124511ec51eb` 的 chunk_0001～chunk_0139，逐筆 CAS 新增 stableTextEmbedding／audioEmbedding／visualEmbedding 與 mediaEmbeddingMeta.text／audio／visual。必須核准當次 approvalHash；寫前再備份並核對權限、影片版本、索引 ID／定義／三節點、全部目標前像及非目標 555 筆指紋，寫後核對原欄位、向量／metadata、非目標資料及 receipt。此為待核准範圍，不是本輪寫入授權。
+
+intent 必須先落盤，更新使用完整文件 CAS 與 upsert=false，每筆讀回確認後保存 receipt；CAS、讀回、告警或未知結果有異常就停，不盲目重送，也不自動回復。Atlas 雲端備份未啟用時，本機完整備份仍須保留並讀回；本次資料指紋及控制台快照不能保證其他操作者稍後不會寫入，正式授權時須確認無重疊操作並即時重驗。正式寫入、回復、索引、Query／Parent 付費及部署各自需明確授權。檢查結果、approvalHash 與 GO／NO-GO 只見[目前狀態](../../current-status.md)。
+
+## 2026-11-16 V6 限定第四次重試與本機補完授權
+
+使用者明確授權 V6 chunk_0109 的原文字輸入額外一次受控重試；成功且通過原生 Checkpoint 驗證後，才可續跑其餘 92 個缺少的 Leaf。僅對簽章 `57d35d5a06218439e4d56937d9ebcffdf781e67ad813df44a892a2a34188375b` 開放第 4 次，其他簽章維持三次上限，CLI 不新增通用第四次選項；任何失敗、未知計費、逾時或資料不一致立即停，不取得第 5 次許可。
+
+執行前保存原 ledger、失敗 Checkpoint、state 及成功 Checkpoint 雜湊；共用 ledger 的排他鎖內，以不可覆寫的單次 permit 保存前三次失敗前像及原累計預留，費用不沖回。每次請求先預留成本、累計 US$20 停止，SDK 單次、不自動重送；單一並行，請求開始至少間隔 3 秒，每 9 個新向量驗證與保存一批，逐筆保存原生 Checkpoint 與 state。
+
+例：原簽章三次失敗 → 建立 attempt 4 單次 permit → 原輸入成功且驗證 3072 維／來源時間／簽章／digest → 接續缺少的影音與後續 Leaf；第四次失敗則停止。完成後只匯出完整本機 V6 bundle，V1～V5 與既有成功向量不重建。Query／Parent 付費、Atlas 寫入、索引、部署及旗標仍不在授權內。實際完成度、帳本與驗證結果只見[目前狀態](../../current-status.md)。
+
 ## 2026-11-14 產品方向：預設三路，資料不完整時退回文字（Weihao 定案）
 
 團隊決定產品方向是多模態問答與檢索。以下取代第 11 項「各模態通過門檻才預設開啟」的用法。

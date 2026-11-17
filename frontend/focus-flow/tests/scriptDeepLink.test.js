@@ -10,6 +10,7 @@ import {
   pickInitialCourseId,
   recallShortScriptCourse,
   rememberShortScriptCourse,
+  requestNewShort,
   requestOpenScript,
 } from '../src/utils/scriptDeepLink.js';
 
@@ -74,5 +75,22 @@ describe('兩頁共用的課程選擇', () => {
     assert.equal(pickInitialCourseId(courses, { requestedId: 'zz', rememberedId: 'b' }), 'b');
     assert.equal(pickInitialCourseId(courses, { rememberedId: 'gone' }), 'a');
     assert.equal(pickInitialCourseId([], {}), '');
+  });
+});
+
+describe('製作新短片的深連結', () => {
+  beforeEach(installBrowserStubs);
+
+  it('只交給指定的頁面，且不需要 scriptId', () => {
+    requestNewShort({ page: 'shortStudio', courseId: 'c1' });
+    assert.equal(consumePendingScriptOpen(SHORT_SCRIPT_PAGE), null);
+    assert.deepEqual(consumePendingScriptOpen('shortStudio'), { intent: 'new', scriptId: '', courseId: 'c1', page: 'shortStudio' });
+  });
+
+  it('已掛載的頁面收到事件', () => {
+    let detail = null;
+    window.addEventListener(OPEN_SCRIPT_EVENT, (event) => { detail = event.detail; });
+    requestNewShort({ page: 'shortStudio' });
+    assert.equal(isScriptTargetForPage(detail, 'shortStudio'), true);
   });
 });

@@ -2,6 +2,7 @@
 const { retryDecision, fail } = require('./recutRuntime.service');
 const { INSTRUCTIONS, getResponseSchema } = require('../prompts/recutCards');
 const { validateSubtitleSources } = require('./recutCardsValidation.service');
+const { autoFixCardsOutput } = require('./recutCardsAutoFix.service');
 const loadSourceDefault = (id) => require('../models/recutSource.model').findById(id).lean();
 const loadBaseDefault = (id) => require('../models/recutVersion.model').findById(id).lean();
 const safeClone = (v) => structuredClone(v);
@@ -129,7 +130,9 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
             || Object.keys(output).some((key) => !['scenes', 'subtitles'].includes(key))) throw fail('配圖輸出欄位無效。');
           if (output.scenes.some((scene) => !object(scene) || Object.keys(scene).some((key) => !['id', 'from', 'to', 'component', 'params', 'cues', 'stamp'].includes(key)))
             || output.subtitles.some((subtitle) => !object(subtitle) || Object.keys(subtitle).some((key) => !['from', 'runs', 'level'].includes(key)))) throw fail('圖卡或字幕含未定義欄位，不能自行填剪接或秒數。');
-          const prepared = foldTransportOutput(safeClone(output), renderer.getComponentCatalog({ aiOnly: false }).map((card) => card.name));
+          let prepared = foldTransportOutput(safeClone(output), renderer.getComponentCatalog({ aiOnly: false }).map((card) => card.name));
+          // 字幕過長、圖卡秒數差一點點由程式依句子邊界修正，不再花呼叫額度。
+          prepared = autoFixCardsOutput(prepared, { source, selectionResult: data.selectionResult }).output;
           for (let i = 0; i < prepared.scenes.length; i++) if (prepared.scenes[i].component === 'code') {
             if (!codeCardHandler) throw fail('程式碼圖卡必須經過畫面辨識。');
             prepared.scenes[i] = await codeCardHandler({ ...context, source, scene: prepared.scenes[i] });

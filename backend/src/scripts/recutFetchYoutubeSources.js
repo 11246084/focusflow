@@ -58,6 +58,13 @@ function createMediaTools({ ytDlp = 'yt-dlp', cookies = null, extraArgs = [], ff
   };
 }
 
+// 以 root（sudo）執行時，下載的檔案改成和上傳目錄同一個擁有者，後端才能搬移或清理。
+function matchOwner(file, dir) {
+  if (typeof process.getuid !== 'function' || process.getuid() !== 0) return;
+  const { uid, gid } = fs.statSync(dir);
+  if (uid !== 0) fs.chownSync(file, uid, gid);
+}
+
 async function transcriptEnd(video) {
   const ids = [String(video._id), video.videoId, video.video_id].filter(Boolean);
   const last = await VideoSegment.find({ videoId: { $in: ids } }).sort({ endSec: -1 }).limit(1).lean();
@@ -87,6 +94,7 @@ async function fetchYoutubeSources({ courseIds, write = false, uploadDir, media,
       item.downloadedSec = downloadedSec;
       if (!check.ok) { fs.rmSync(partPath, { force: true }); item.result = `rejected: ${check.reason}`; continue; }
       fs.renameSync(partPath, finalPath);
+      matchOwner(finalPath, uploadDir);
       // 條件更新：處理期間 filePath 被其他流程改過就不覆蓋。
       const updated = await Video.findOneAndUpdate({ _id: video._id, filePath: video.filePath ?? null },
         { $set: { filePath: finalPath, fileName: path.basename(finalPath) } }, { new: true });

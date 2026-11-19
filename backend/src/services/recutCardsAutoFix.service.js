@@ -121,6 +121,40 @@ function fixEmptyCards(output, timeline) {
   return changed ? { output: { ...output, scenes }, changed } : { output, changed: false };
 }
 
+// chips 圖卡要 2～6 個詞：超過 6 個保留前 6 個；只有 1 個時，能用頓號、逗號或斜線拆開就拆，
+// 拆不開改成單句引言圖卡（quote-reveal）。只動畫面上的詞卡，不影響原音與字幕。
+const chipText = (chip) => (chip && typeof chip === 'object' ? chip.text : chip);
+function fixChipsParams(output) {
+  if (!Array.isArray(output?.scenes)) return { output, changed: false };
+  let changed = false;
+  const scenes = output.scenes.map((scene) => {
+    if (scene?.component !== 'chips' || !scene.params || !Array.isArray(scene.params.chips)) return scene;
+    const chips = scene.params.chips.filter((chip) => typeof chipText(chip) === 'string' && chipText(chip).trim());
+    if (chips.length >= 2 && chips.length <= 6 && chips.length === scene.params.chips.length) return scene;
+    if (chips.length > 6) {
+      const params = { ...scene.params, chips: chips.slice(0, 6) };
+      if (Array.isArray(params.highlight)) params.highlight = params.highlight.filter((i) => Number.isInteger(i) && i < 6);
+      if (Number.isInteger(params.dimKeep) && params.dimKeep >= 6) delete params.dimKeep;
+      changed = true; return { ...scene, params };
+    }
+    if (chips.length >= 2) {
+      changed = true; return { ...scene, params: { ...scene.params, chips, highlight: (scene.params.highlight || []).filter((i) => i < chips.length) } };
+    }
+    if (chips.length === 1) {
+      const text = chipText(chips[0]).trim();
+      const parts = text.split(/[、,，/／]/u).map((v) => v.trim()).filter(Boolean);
+      if (parts.length >= 2 && parts.length <= 6) { changed = true; return { ...scene, params: { ...scene.params, chips: parts, highlight: [] } }; }
+      if ([...text].length <= 24) {
+        changed = true;
+        const { cues, ...rest } = scene;
+        return { ...rest, component: 'quote-reveal', params: { text } };
+      }
+    }
+    return scene;
+  });
+  return changed ? { output: { ...output, scenes }, changed } : { output, changed: false };
+}
+
 function uniqueId(base, scenes) {
   const used = new Set(scenes.map((s) => s.scene.id));
   let id = base; let n = 2;
@@ -205,11 +239,12 @@ function splitSubtitle(subtitle, sentence) {
 }
 
 function autoFixCardsOutput(output, { source, selectionResult } = {}) {
-  const subtitles = splitLongSubtitles(output, source);
+  const chips = fixChipsParams(output);
+  const subtitles = splitLongSubtitles(chips.output, source);
   const timeline = playbackTimeline(source, selectionResult);
   const scenes = fixSceneTiming(subtitles.output, timeline);
   const cards = fixEmptyCards(scenes.output, timeline);
-  return { output: cards.output, changed: subtitles.changed || scenes.changed || cards.changed };
+  return { output: cards.output, changed: chips.changed || subtitles.changed || scenes.changed || cards.changed };
 }
 
-module.exports = { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, splitLongSubtitles, playbackTimeline };
+module.exports = { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, fixChipsParams, splitLongSubtitles, playbackTimeline };

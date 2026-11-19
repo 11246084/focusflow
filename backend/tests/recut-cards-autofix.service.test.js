@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, splitLongSubtitles, playbackTimeline } = require('../src/services/recutCardsAutoFix.service');
+const { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, fixChipsParams, splitLongSubtitles, playbackTimeline } = require('../src/services/recutCardsAutoFix.service');
 
 // 2026-11-19 正式站「摩爾定律」實際失敗的每句播放秒數。
 const SPANS = [7.84, 1.74, 2.9, 8, 4.14, 7.8, 3.3, 7.86, 4.9, 7.28];
@@ -100,5 +100,20 @@ describe('recut 配圖卡程式修正', () => {
     const { source, selectionResult } = fixture();
     const output = { scenes: [scene('a', 's1', 's3'), scene('b', 's4', 's4'), scene('c', 's5', 's6'), scene('d', 's7', 's8'), scene('e', 's9', 's9'), scene('f', 's10', 's10')], subtitles: [] };
     assert.equal(autoFixCardsOutput(output, { source, selectionResult }).changed, true);
+  });
+  it('chips 超過 6 個保留前 6 個，超出範圍的強調一併移除', () => {
+    const output = { scenes: [{ id: 'a', component: 'chips', params: { chips: ['一', '二', '三', '四', '五', '六', '七'], highlight: [1, 6] } }] };
+    const fixed = fixChipsParams(output);
+    assert.equal(fixed.output.scenes[0].params.chips.length, 6); assert.deepEqual(fixed.output.scenes[0].params.highlight, [1]);
+  });
+  it('chips 只有 1 個時能拆就拆，拆不開改成單句引言圖卡', () => {
+    const split = fixChipsParams({ scenes: [{ id: 'a', component: 'chips', params: { chips: [{ text: 'CPU、GPU、記憶體' }] } }] });
+    assert.deepEqual(split.output.scenes[0].params.chips, ['CPU', 'GPU', '記憶體']);
+    const quote = fixChipsParams({ scenes: [{ id: 'a', component: 'chips', params: { chips: ['摩爾定律'] }, cues: { enter: { sentenceId: 's1' } } }] });
+    assert.equal(quote.output.scenes[0].component, 'quote-reveal'); assert.deepEqual(quote.output.scenes[0].params, { text: '摩爾定律' });
+    assert.equal(quote.output.scenes[0].cues, undefined);
+  });
+  it('chips 數量合規時不改動', () => {
+    assert.equal(fixChipsParams({ scenes: [{ id: 'a', component: 'chips', params: { chips: ['甲', '乙'] } }] }).changed, false);
   });
 });

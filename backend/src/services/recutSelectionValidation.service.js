@@ -94,11 +94,51 @@ function resolveSelection(source, input, { allowInvalidDuration = false } = {}) 
   if (!Array.isArray(locked) || new Set(locked).size !== locked.length || locked.some((id) => !index.has(id))) invalid('鎖定句子不存在或重複');
   return { selection: { ...input, ranges, lockedSentenceIds: [...locked] }, clips, durationSec, fullScript: clips.map((c) => c.text).join('\n\n') };
 }
+// 總長只超過 65 秒一點點時，由程式拿掉頭尾一句（優先拿最後一句，不拿 ★ 命中句與冷開場），
+// 被拿掉的句子標成「重複」，不再花一次模型呼叫（recut 決策第 94 項）。最多拿兩句。
+const MAX_DURATION = 65;
+function trimOverlong(source, input) {
+  const hit = new Map(source.sentences.map((s) => [s.id, s.retrievalHit === true]));
+  const order = source.sentences.map((s) => s.id);
+  let current = structuredClone(input);
+  for (let n = 0; n < 2; n++) {
+    const resolved = resolveSelection(source, current, { allowInvalidDuration: true });
+    if (resolved.durationSec <= MAX_DURATION) return resolved.durationSec >= 30 ? current : null;
+    const ranges = current.ranges;
+    const last = ranges.at(-1), first = ranges[0];
+    const drop = (id) => { current.sentenceLabels = current.sentenceLabels.map((l) => (l.sentenceId === id ? { ...l, label: '重複' } : l)); };
+    const shrinkEnd = (range) => {
+      const id = range.to;
+      if (range.from === range.to) { if (ranges.length < 2) return false; ranges.pop(); }
+      else { range.to = order[order.indexOf(id) - 1]; delete range.endAt; }
+      drop(id); return true;
+    };
+    const shrinkStart = (range) => {
+      const id = range.from;
+      if (range.from === range.to) { if (ranges.length < 2) return false; ranges.shift(); }
+      else { range.from = order[order.indexOf(id) + 1]; delete range.startAt; }
+      drop(id); return true;
+    };
+    if (last && !hit.get(last.to) && last.to !== current.openingSentenceId && shrinkEnd(last)) continue;
+    if (first && !hit.get(first.from) && first.from !== current.openingSentenceId && shrinkStart(first)) continue;
+    return null;
+  }
+  const resolved = resolveSelection(source, current, { allowInvalidDuration: true });
+  return resolved.durationSec <= MAX_DURATION && resolved.durationSec >= 30 ? current : null;
+}
 function validateSelection(source, input) {
   try {
     if (input && Object.hasOwn(input, 'lockedSentenceIds')) invalid('模型不得自行設定教師鎖定句子');
     return { valid: true, errors: [], ...resolveSelection(source, input) };
   }
-  catch (error) { return { valid: false, errors: [error.message] }; }
+  catch (error) {
+    if (/^總長 .* 秒，不在 30～65 秒$/.test(error.message)) {
+      try {
+        const trimmed = trimOverlong(source, input);
+        if (trimmed) return { valid: true, errors: [], ...resolveSelection(source, trimmed), autoTrimmed: true };
+      } catch { /* 修不了就回報原本的錯誤 */ }
+    }
+    return { valid: false, errors: [error.message] };
+  }
 }
 module.exports = { validateSelection, resolveSelection, KEEP };

@@ -15,6 +15,7 @@ module.exports = {
   ...require('./assets'),
   ...require('./catalog'),
   buildRecutPlan: require('./sentences').buildRecutPlan,
+  phraseWords: require('./sentences').phraseWords,
   getAllowedIcons: () => { const a = require('./assets').getAssetCatalog(); return [...a.fluent.map((v) => `fluent:${v}`), ...a.phosphor.map((v) => `phosphor:${v}`)]; },
   ...constants,
   ...components,

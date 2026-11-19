@@ -53,6 +53,19 @@ test('暫停或空佇列不載入renderer', async (t) => {
   const s = await setup(t, { api: { claim: async () => null } });
   assert.deepEqual(await s.worker.runOnce(), { status: 'idle' }); assert.equal(s.loads, 0);
 });
+test('部署要求重新載入時完成手上工作後退出，保留上傳與租約', async (t) => {
+  let draining = false;
+  const s = await setup(t, { api: { download: async (_job, destination) => {
+    draining = true;
+    await fs.writeFile(destination, 'synthetic-source');
+  } } });
+  const statuses = [];
+  const result = await s.worker.run({ shouldStop: () => draining, onStatus: (r) => statuses.push(r.status) });
+  assert.equal(result.status, 'stopped');
+  assert.deepEqual(statuses, ['succeeded']);
+  assert.equal(s.uploads.length, 1);
+  assert.equal(s.failure.length, 0);
+});
 test('VM渲染預設關閉，沒有主動claim', async (t) => {
   const s = await setup(t, { config: { hostKind: 'vm' } });
   assert.deepEqual(await s.worker.runOnce(), { status: 'disabled' }); assert.deepEqual(s.calls, []);

@@ -17,14 +17,20 @@ async function main(argv = process.argv.slice(2)) {
   const worker = createWorker(config);
   const controller = new AbortController();
   const cancel = () => controller.abort();
+  let draining = false;
+  const drain = () => { draining = true; };
+  process.on('SIGUSR2', drain);
   process.once('SIGINT', cancel); process.once('SIGTERM', cancel);
   try {
     const onStatus = (result) => console.log(JSON.stringify(result));
     const result = argv.includes('--once') ? await worker.runOnce({ signal: controller.signal })
-      : await worker.run({ signal: controller.signal, onStatus });
+      : await worker.run({ signal: controller.signal, onStatus, shouldStop: () => draining });
     onStatus(result);
     if (['failed', 'cancelled'].includes(result.status) || result.code) process.exitCode = 1;
-  } finally { process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel); }
+  } finally {
+    process.removeListener('SIGUSR2', drain);
+    process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel);
+  }
 }
 if (require.main === module) main().catch(() => { console.error('RECUT_WORKER_START_FAILED: check the explicit local config.'); process.exitCode = 2; });
 module.exports = { main };

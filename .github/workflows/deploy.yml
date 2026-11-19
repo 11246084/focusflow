@@ -19,12 +19,16 @@ jobs:
           npm install --production
 
       # 後端產生短影片講稿時會載入 short_render 的施工單模組（需要它的圖示資料套件）。
-      # VM 不渲染影片，所以略過安裝腳本，不下載瀏覽器。
+      # 渲染器沿用 setup-worker.sh 配置的瀏覽器與字型。
       - name: short_render plan dependencies
         run: |
           set -euo pipefail
           cd /opt/focusflow/short_render
-          npm ci --omit=dev --ignore-scripts
+          lock=$(sha256sum package-lock.json package.json)
+          if [[ "$(cat node_modules/.focusflow-installed 2>/dev/null || true)" != "$lock" ]]; then
+            npm ci --omit=dev --ignore-scripts
+            printf '%s\n' "$lock" > node_modules/.focusflow-installed
+          fi
           node -e "require('./src/plan'); console.log('short_render plan module loads')"
 
       - name: Build frontend
@@ -87,6 +91,38 @@ jobs:
           pm2 restart focusflow-backend --update-env
           pm2 save
           sudo systemctl reload nginx
+
+      - name: Refresh installed VM recut worker
+        run: |
+          set -euo pipefail
+          cd /opt/focusflow
+          name=focusflow-recut-worker
+          pm2 describe "$name" >/dev/null || exit 0
+          marker=$(git rev-parse --git-path focusflow-recut-worker-runtime)
+          runtime=$(git rev-parse HEAD:short_render)
+          pid=$(pm2 pid "$name")
+          [[ "$pid" =~ ^[1-9][0-9]*$ ]]
+          [[ "$(cat "$marker" 2>/dev/null || true)" != "$runtime" ]] || exit 0
+          if [[ -s "$marker" ]]; then
+            # Complete the active lease before PM2 launches the updated worker.
+            kill -USR2 "$pid"
+          else
+            # One-time migration from the worker that predates graceful reload.
+            pm2 restart "$name"
+          fi
+          for attempt in {1..420}; do
+            current=$(pm2 pid "$name")
+            if [[ "$current" =~ ^[1-9][0-9]*$ && "$current" != "$pid" ]]; then
+              sleep 2
+              if [[ "$(pm2 pid "$name")" == "$current" ]]; then
+                printf '%s\n' "$runtime" > "$marker"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "Recut worker failed to reload."
+          exit 1
 
       - name: Verify backend and proxy readiness
         run: |

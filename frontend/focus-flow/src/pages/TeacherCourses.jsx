@@ -305,7 +305,7 @@ export default function TeacherCourses() {
       setError('');
 
       try {
-        const coursesRes = await apiFetch('/courses');
+        const coursesRes = await apiFetch('/courses?scope=managed');
         const loadedCourses = coursesRes.data?.courses || [];
 
         const enriched = await Promise.all(

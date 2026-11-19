@@ -213,7 +213,7 @@ export default function TeacherUpload() {
   useEffect(() => {
     getTeacherUploadStatus().then(setUploadStatus).catch(() => setUploadStatus(null));
     getUploadStorage().then(setStorage).catch(() => setStorage(null));
-    apiFetch('/courses').then((response) => {
+    apiFetch('/courses?scope=managed').then((response) => {
       const list = response.data?.courses || [];
       setCourses(list);
       if (list.length) setCourseId(list[0]._id);

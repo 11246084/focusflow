@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
+import { filterUsers } from './adminUsersFilter';
 
 const ROLE_LABELS = { student: '學生', teacher: '教師', admin: '管理員' };
 const ROLE_BADGE = { student: 'bb', teacher: 'bg', admin: 'br' };
@@ -164,6 +165,13 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [tick, setTick] = useState(0);
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const visibleUsers = useMemo(
+    () => filterUsers(users, { query, role: roleFilter, status: statusFilter }),
+    [users, query, roleFilter, statusFilter],
+  );
 
   const load = () => setTick(t => t + 1);
 
@@ -200,9 +208,27 @@ export default function AdminUsers() {
         <button className="btn-primary" onClick={load} style={{ padding: '9px 20px', fontSize: 12 }}><Ic n="sync" s={13} />重新整理</button>
       </div>
 
+      <div className="admin-users-filters">
+        <input className="ff-input admin-users-search" type="search" aria-label="搜尋姓名或 Email" placeholder="搜尋姓名或 Email" value={query} onChange={e => setQuery(e.target.value)} />
+        <select className="ff-input" aria-label="身分" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+          <option value="all">全部身分</option>
+          <option value="student">學生</option>
+          <option value="teacher">教師</option>
+          <option value="admin">管理員</option>
+        </select>
+        <select className="ff-input" aria-label="狀態" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="all">全部狀態</option>
+          <option value="active">啟用中</option>
+          <option value="inactive">已停用</option>
+        </select>
+        {!loading && <span className="admin-users-count">共 {visibleUsers.length} 位</span>}
+      </div>
+
       <div className="card" style={{ overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>載入中...</div>
+        ) : visibleUsers.length === 0 ? (
+          <div className="admin-users-empty">沒有符合條件的使用者</div>
         ) : (
           <div className="ff-tbl-wrap">
           <table className="ff-tbl">
@@ -210,7 +236,7 @@ export default function AdminUsers() {
               <tr><th>使用者</th><th>Email</th><th>身分</th><th>課程數</th><th>提問數</th><th>狀態</th><th>加入日期</th><th></th></tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {visibleUsers.map((u) => {
                 const av = avatarColor(u.role);
                 return (
                   <tr key={u.id}>

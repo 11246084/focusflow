@@ -173,7 +173,7 @@ export default function AdminFeedback() {
                         {ROLE_LABEL[item.submitter?.role] || item.submitter?.role} · {item.submitter?.email}
                       </div>
                     </td>
-                    <td style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{CATEGORY_LABEL[item.category] || item.category}</td>
+                    <td style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{item.category === 'bug' ? '程式錯誤' : CATEGORY_LABEL[item.category] || item.category}</td>
                     <td>
                       <span
                         className={`badge ${SEVERITY_BADGE[item.severity] || 'bb'}`}

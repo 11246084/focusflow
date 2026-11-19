@@ -140,7 +140,7 @@ export function describeSwitch(sw = {}) {
   const toggleable = sw.envAllowed === true;
   let note;
   if (!toggleable) {
-    note = `環境未允許：VM 的 ${meta.envVar} 未開啟，需由有主機權限的人修改並重啟後才能切換。`;
+    note = '這項功能需要由主機管理者開啟。';
   } else if (sw.runtimeEnabled === null || sw.runtimeEnabled === undefined) {
     note = meta.defaultEnabled
       ? '尚未在此設定，依預設為開啟。'
@@ -158,6 +158,8 @@ export function describeSwitch(sw = {}) {
     toggleable,
     unset: sw.runtimeEnabled === null || sw.runtimeEnabled === undefined,
     note,
+    // 環境變數名稱只在「技術資訊」收合區顯示；主機端未允許時才有意義。
+    techInfo: toggleable || !meta.envVar ? '' : `主機需開啟環境變數 ${meta.envVar}，修改後須重啟才能切換。`,
     nextEnabled: !effective,
   };
 }

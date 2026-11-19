@@ -189,14 +189,14 @@ export default function App() {
 
           {/* Step 2 stats — no card background, text directly on dark block */}
           <div className="block-2">
-            <div className="stat-label">問答準確率</div>
-            <div className="stat-value">98%</div>
+            <div className="stat-label">影片問答</div>
+            <div className="stat-value">AI</div>
           </div>
 
           {/* Step 3 stats — no card background */}
           <div className="block-3">
-            <div className="stat-label">平均回應時間</div>
-            <div className="stat-value">&lt;&nbsp;3s</div>
+            <div className="stat-label">行動提問</div>
+            <div className="stat-value">LINE</div>
           </div>
 
         </div>

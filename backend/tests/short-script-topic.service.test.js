@@ -258,6 +258,33 @@ describe('shortScriptTopic.service 自動選題', () => {
     assert.equal(candidates[0].uniqueAskerCount, 1, '兩種寫法都是同一人問的，不能算兩個人');
   });
 
+  it('熱門主題都被排除時，會往後找出其餘候選而不是回傳空清單', async () => {
+    // limit 1 時第一輪只看前 3 名；前 3 名都已做成短片，要往後擴大才找得到第 4、5 名。
+    ['甲題', '乙題', '丙題', '丁題', '戊題'].forEach((question, index) => {
+      addQuestion({ question, askCount: 9 - index, askerIds: [ids.student, newObjectId()] });
+    });
+    const top = await topicService.listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse, limit: 3 });
+    const excludedTopicKeys = top.candidates.map((candidate) => candidate.topicKey);
+    assert.equal(excludedTopicKeys.length, 3);
+
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER, courseId: ids.teacherCourse, limit: 1, excludedTopicKeys,
+    });
+
+    assert.equal(candidates.length, 1);
+    assert.equal(excludedTopicKeys.includes(candidates[0].topicKey), false);
+  });
+
+  it('所有主題都被排除時回傳空清單，不會無限擴大', async () => {
+    addQuestion({ question: '甲題', askCount: 3 });
+    addQuestion({ question: '乙題', askCount: 2 });
+    const top = await topicService.listTopicCandidates({ user: TEACHER, courseId: ids.teacherCourse });
+    const { candidates } = await topicService.listTopicCandidates({
+      user: TEACHER, courseId: ids.teacherCourse, limit: 1, excludedTopicKeys: top.candidates.map((c) => c.topicKey),
+    });
+    assert.deepEqual(candidates, []);
+  });
+
   it('limit 限制回傳筆數', async () => {
     addQuestion({ question: 'A 題', askCount: 9, questionEmbedding: VECTORS.yolo });
     addQuestion({ question: 'B 題', askCount: 8, questionEmbedding: VECTORS.llm });

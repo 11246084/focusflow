@@ -2,6 +2,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 const { sendSuccess } = require('../utils/apiResponse');
 const qaService = require('../services/qa.service');
+const { getDailyAskUsage } = require('../services/askLimits.service');
+const env = require('../config/env');
 const { isLikelyEncodingDamaged } = require('../utils/textEncoding');
 
 const askQuestion = asyncHandler(async (req, res) => {
@@ -34,5 +36,8 @@ const askQuestion = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getAskOptions: asyncHandler(async (req, res) => sendSuccess(res, {
+    data: { dailyUsage: await getDailyAskUsage(req.user), extendedResourcesEnabled: env.openDataExtensionEnabled },
+  })),
   askQuestion,
 };

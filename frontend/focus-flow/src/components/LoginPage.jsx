@@ -80,7 +80,7 @@ export default function LoginPage({ onLogin, onBack, onGoRegister, externalError
 
           {/* Stat pills */}
           <div className="login-stats">
-            {[['98%', '問答準確率'], ['< 3s', '平均回應時間'], ['Vector', '語意索引']].map(([v, l]) => (
+            {[['AI', '影片問答'], ['LINE', '行動提問'], ['Vector', '語意索引']].map(([v, l]) => (
               <div key={l} className="login-stat-pill">
                 <div className="login-stat-val">{v}</div>
                 <div className="login-stat-lbl">{l}</div>

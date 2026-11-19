@@ -1,5 +1,13 @@
 # FocusFlow 目前狀態
 
+## 2026-11-19 決評實測修正
+
+AI 入門課的顯示卡短片曾因辨識把型號和價格連寫而連續三次退回字幕。修正後以當時三次輸出重播，三次均通過數字與術語來源驗證。原片缺檔、來源段落不足與正式產片仍須依個案驗收。其他改動與實測項目見[決評 demo 實測](10_Operations/2026-11-19_決評demo實測.md)。
+
+## 2026-11-19 正式站 Gemini 恢復
+
+Weihao 在 VM 執行 `npm run --silent diagnose:gemini -- --probe`：模型 `gemini-3.5-flash`，查詢模型資訊與極小生成請求都回 HTTP 200（OK）。先前的每月花費上限問題已解除，正式站可以產生回答。查詢向量（`gemini-embedding-2`）這次沒有另外測試；學生實際提問會同時用到兩者，要以正式站提問一題確認。
+
 ## 2026-11-17 多模態診斷成果Git保存
 
 本輪只整理既有成果供暫時切換工作：確認本機dev與origin/dev同為 `3e62f27ae9804d12f89655baebb6a25db72f2055`，保留七份未提交異動。將先前已完成的真實評測與離線診斷，以欄位白名單整理為[可分享研究快照](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.md)及[結構化數據](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.json)，並登記索引、接手與AI使用紀錄；原始診斷檔及原24組結果不覆寫。快照保留指標、名次／分數與52份來源SHA-256，不含向量、影音、截圖、逐字稿、完整ledger／Checkpoint、憑證或連線資訊。

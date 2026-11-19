@@ -372,7 +372,7 @@ export default function AdminYouTubeLifecycle() {
       {/* 兩層開關：環境變數允許 + 執行期設定（#9、#13、#16） */}
       <div className="card" style={{ padding: 22, marginBottom: 12 }}>
         <div style={{ ...TITLE, marginBottom: 4 }}>營運開關</div>
-        <div style={{ ...MUTED, marginBottom: 14 }}>環境變數允許且這裡開啟才會生效；切換後下一次檢查就套用，不需重啟。</div>
+        <div style={{ ...MUTED, marginBottom: 14 }}>主機端允許且這裡開啟才會生效；切換後下一次檢查就套用，不需重啟。</div>
         {settingsError && <div role="alert" style={{ fontSize: 12, color: '#f87171' }}>{settingsError}</div>}
         {!settingsError && !settings && <div style={MUTED}>讀取中...</div>}
         {switches.map((sw) => {
@@ -383,11 +383,12 @@ export default function AdminYouTubeLifecycle() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{view.label}</span>
                   <span className={`badge ${view.effective ? 'bg' : 'bb'}`}>{view.effective ? '生效中' : '未生效'}</span>
-                  {!view.toggleable && <span className="badge by">環境未允許</span>}
+                  {!view.toggleable && <span className="badge by">主機未開啟</span>}
                   {view.toggleable && view.unset && <span className="badge bb">預設值</span>}
                 </div>
                 <div style={{ ...MUTED, marginTop: 3 }}>{view.description}</div>
                 <div style={{ fontSize: 12, color: view.toggleable ? 'rgba(255,255,255,0.68)' : '#facc15', marginTop: 3, lineHeight: 1.6 }}>{view.note}</div>
+                {view.techInfo && <details style={{ ...MUTED, marginTop: 3 }}><summary style={{ cursor: 'pointer' }}>技術資訊</summary>{view.techInfo}</details>}
               </div>
               <button
                 type="button"

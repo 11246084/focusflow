@@ -4,6 +4,7 @@ const Video = require('../models/video.model');
 const VideoSegment = require('../models/videoSegment.model');
 const UsageLog = require('../models/usageLog.model');
 const Question = require('../models/question.model');
+const { NO_ANSWER_INSUFFICIENT, NO_ANSWER_UNDETERMINED, NO_ANSWER_OFF_TOPIC } = require('./answerGeneration.service');
 const Enrollment = require('../models/enrollment.model');
 const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const { USAGE_LOG_EVENTS, QUESTION_SOURCES } = require('../constants/enums');
@@ -208,7 +209,8 @@ async function getStudentDashboardStats(user) {
     Course.find({ status: 'published' }).lean(),
     Question.countDocuments(visibleQuestionFilter),
     Question.countDocuments({ ...visibleQuestionFilter, askedAt: { $gte: weekAgo } }),
-    Question.countDocuments({ ...visibleQuestionFilter, status: 'answered' }),
+    Question.countDocuments({ ...visibleQuestionFilter, status: 'answered',
+      answer: { $nin: [NO_ANSWER_INSUFFICIENT, NO_ANSWER_UNDETERMINED, NO_ANSWER_OFF_TOPIC] } }),
     Question.find(visibleQuestionFilter).sort({ askedAt: -1 }).limit(4).lean(),
   ]);
 

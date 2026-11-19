@@ -9,9 +9,15 @@ const {
   parseStructuredAnswer,
   NO_ANSWER_INSUFFICIENT,
   NO_ANSWER_UNDETERMINED,
+  NO_ANSWER_OFF_TOPIC,
 } = require('../src/services/answerGeneration.service');
 
 const originalFetch = global.fetch;
+it('treats an off-topic reply as unanswered and removes any generated citations', () => {
+  assert.ok(isNoAnswerReply(NO_ANSWER_OFF_TOPIC));
+  assert.deepEqual(parseStructuredAnswer(JSON.stringify({ answer: NO_ANSWER_OFF_TOPIC, supportingEvidenceIds: ['S1'] }), createMatches()),
+    { text: NO_ANSWER_OFF_TOPIC, supportingEvidenceIds: [] });
+});
 const originalConsoleError = console.error;
 
 function createMatches() {

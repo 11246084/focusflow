@@ -3,6 +3,8 @@ import { Ic } from '../components/Icons';
 import { apiFetch } from '../api';
 import { uploadCourseVideos } from '../services/videoUpload';
 import { formatBytes, getTeacherUploadStatus, getUploadStorage } from '../services/youtubeLifecycle';
+import { getConsent, getConsentTerms, recordConsent } from '../services/recut';
+import { newRequestId } from '../services/recutFlow';
 import {
   fileKey,
   formatFileSize,
@@ -147,6 +149,10 @@ export default function TeacherUpload() {
   const [drag, setDrag] = useState(false);
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
+  // 授課內容授權是每門課各自同意的；新建的課程沒同意前，後端會擋下上傳。
+  const [consent, setConsent] = useState({ status: 'unknown', terms: null });
+  const [consentBusy, setConsentBusy] = useState(false);
+  const consentRequestId = useRef('');
   const [title, setTitle] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -211,9 +217,39 @@ export default function TeacherUpload() {
   }, [batchId, pollProcessing, stopPolling]);
 
   useEffect(() => {
+    if (!courseId) return undefined;
+    let active = true;
+    setConsent({ status: 'checking', terms: null });
+    consentRequestId.current = newRequestId();
+    Promise.all([getConsent(courseId), getConsentTerms()])
+      .then(([state, terms]) => {
+        if (!active) return;
+        setConsent({ status: state?.decisions?.content?.choice === 'granted' ? 'granted' : 'needed', terms });
+      })
+      .catch(() => { if (active) setConsent({ status: 'error', terms: null }); });
+    return () => { active = false; };
+  }, [courseId]);
+
+  async function grantContentConsent() {
+    if (consentBusy || !consent.terms) return;
+    setConsentBusy(true);
+    setUploadError('');
+    try {
+      await recordConsent(courseId, {
+        kind: 'content', choice: 'granted', termsVersion: consent.terms.version, requestId: consentRequestId.current,
+      });
+      setConsent((current) => ({ ...current, status: 'granted' }));
+    } catch (error) {
+      setUploadError(error.message || '授權沒有完成，請稍後再試。');
+    } finally {
+      setConsentBusy(false);
+    }
+  }
+
+  useEffect(() => {
     getTeacherUploadStatus().then(setUploadStatus).catch(() => setUploadStatus(null));
     getUploadStorage().then(setStorage).catch(() => setStorage(null));
-    apiFetch('/courses').then((response) => {
+    apiFetch('/courses?scope=managed').then((response) => {
       const list = response.data?.courses || [];
       setCourses(list);
       if (list.length) setCourseId(list[0]._id);
@@ -285,6 +321,12 @@ export default function TeacherUpload() {
       setTitle('');
       startPolling(uploaded.batchId);
     } catch (error) {
+      if (error.code === 'RECUT_CONTENT_CONSENT_REQUIRED') {
+        setConsent((current) => ({ ...current, status: 'needed' }));
+        setTrackedItems([]);
+        setUploadError('這門課上傳影片前，需要先同意授課內容授權。');
+        return;
+      }
       setUploadError(error.message || '批次上傳失敗，請稍後再試。');
       setTrackedItems((current) => current.map((item) => ({
         ...item,
@@ -431,9 +473,21 @@ export default function TeacherUpload() {
 
           {uploadStatus?.pause?.paused && <div role="status" style={{ marginTop: 12, color: '#fcd34d', fontSize: 12, lineHeight: 1.6 }}>YouTube 上傳暫停中；影片仍可上傳並處理，系統將自動補傳{uploadStatus.pause.earliestRetryAt ? `，最快 ${new Date(uploadStatus.pause.earliestRetryAt).toLocaleString('zh-TW', { hour12: false })}` : ''}。</div>}
           {storage && <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>目前可用於上傳：約 {formatBytes(storage.availableBytes)}；實際可否上傳以伺服器檢查為準。</div>}
+          {consent.status === 'needed' && (
+            <div className="upload-consent" role="region" aria-label="授課內容授權">
+              <strong>這門課需要先同意授課內容授權</strong>
+              {consent.terms?.content && <p>{consent.terms.content}</p>}
+              {consent.terms?.processing && (
+                <details><summary>處理方式</summary><p>{consent.terms.processing}</p></details>
+              )}
+              <button type="button" className="btn-primary" onClick={grantContentConsent} disabled={consentBusy || !consent.terms}>
+                {consentBusy ? '處理中…' : '同意並繼續'}
+              </button>
+            </div>
+          )}
           {uploadError && <div style={{ marginTop: 12, fontSize: 12, color: '#ff6b6b', padding: '8px 12px', background: 'rgba(255,107,107,0.1)', borderRadius: 8, border: '1px solid rgba(255,107,107,0.2)' }}>{uploadError}</div>}
 
-          <button className="btn-primary" style={{ width: '100%', marginTop: 20, padding: 15, opacity: uploading || !selectedFiles.length ? 0.7 : 1 }} onClick={handleUpload} disabled={uploading || !selectedFiles.length}>
+          <button className="btn-primary" style={{ width: '100%', marginTop: 20, padding: 15, opacity: uploading || !selectedFiles.length ? 0.7 : 1 }} onClick={handleUpload} disabled={uploading || !selectedFiles.length || consent.status === 'needed' || consent.status === 'checking'}>
             <Ic n="up" s={16} /> {uploading ? '正在上傳檔案...' : selectedFiles.length > 1 ? `上傳 ${selectedFiles.length} 支影片並建立 AI 索引` : '上傳影片並建立 AI 索引'}
           </button>
 

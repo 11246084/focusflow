@@ -7,7 +7,7 @@ import { listAssets } from '../services/shortScript.js';
 import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import {
   POLL_INTERVAL_MS, buildScriptLines, canChangeShort, describeScript, durationStatus, formatClock, isBusyState,
-  isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
+  isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, recutTaskFailureText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
 import { ConfirmDialog, DurationMeter, FlowStrip, HelpTip, PrimaryAction, RejectReasonFields, SheetDialog, StateChip, StatusCard } from './recutUi';
 
@@ -84,7 +84,7 @@ export default function RecutWorkspace({ script, onStateChange, onChanged, onNex
     const watched = watchedTaskRef.current;
     if (watched && data.task?.id === watched && ['failed', 'cancelled'].includes(data.task.status)) {
       watchedTaskRef.current = null;
-      setError(recutErrorText(data.task.error || { code: data.task.status === 'cancelled' ? 'RECUT_TASK_CANCELLED' : 'RECUT_TASK_FAILED' }));
+      setError(recutTaskFailureText(data.task.error || { code: data.task.status === 'cancelled' ? 'RECUT_TASK_CANCELLED' : 'RECUT_TASK_FAILED' }));
     }
     if (!isBusyState(data.recut.state)) {
       await Promise.all([loadReview(data.recut), loadAsset(data.recut)]);
@@ -512,7 +512,7 @@ export default function RecutWorkspace({ script, onStateChange, onChanged, onNex
           <section className="rc-panel">
             <p>{closed || info.label !== '尚未產生講稿' ? info.label : '還沒有講稿'}</p>
             {!closed && snapshot?.task?.status === 'failed' && snapshot.task.error && !error && (
-              <p className="rc-reason">{recutErrorText(snapshot.task.error)}</p>
+              <p className="rc-reason">{recutTaskFailureText(snapshot.task.error)}</p>
             )}
             {changeTools && <div className="rc-script-tools rc-mt-s">{changeTools}</div>}
           </section>

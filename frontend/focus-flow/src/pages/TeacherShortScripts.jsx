@@ -172,7 +172,7 @@ export default function TeacherShortScripts({ onNav }) {
         listAssets(courseId),
       ]);
       if (!listGuard.isCurrent(token)) return null;
-      setScripts(scriptList);
+      setScripts(scriptList.filter((script) => script.productionMode !== 'recut'));
       setCandidates(candidateResult.candidates);
       setAssets(assetList);
       setFeatureDisabled(false);
@@ -232,6 +232,11 @@ export default function TeacherShortScripts({ onNav }) {
       const script = await getScript(scriptId);
       // 連點兩份腳本時，先點的詳情較晚回來要丟棄。
       if (!detailGuard.isCurrent(token)) return false;
+      if (script.productionMode === 'recut') {
+        requestOpenScript({ scriptId, courseId, page: 'shortStudio' });
+        onNav?.('shortStudio');
+        return false;
+      }
       setSelected(script);
       return true;
     } catch (requestError) {

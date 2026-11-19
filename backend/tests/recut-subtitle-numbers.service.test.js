@@ -3,6 +3,16 @@ const { it } = require('node:test');
 const assert = require('node:assert/strict');
 const { numericTokens, validateSubtitleSources } = require('../src/services/recutCardsValidation.service');
 const validate = (original, text) => validateSubtitleSources({ subtitles: [{ from: { sentenceId: 's1' }, runs: [{ t: text }] }] }, { sentences: [{ id: 's1', text: original }] });
+it('辨識把型號與價格連寫時，只採用有鄰句佐證且唯一的詞界', () => {
+  const source = { sentences: [{ id: 'a', text: '定價7萬塊' }, { id: 'b', text: '4090大概是6萬' },
+    { id: 'c', text: '5090比4090划算' }, { id: 's1', text: '因為50907萬台幣',
+      words: ['因為', '50', '90', '7', '萬', '台', '幣'].map(text => ({ text })) }] };
+  const check = text => validateSubtitleSources({ subtitles: [{ from: { sentenceId: 's1' }, runs: [{ t: text }] }] }, source).valid;
+  assert.equal(check('5090售價7萬元'), true);
+  assert.equal(check('4090售價6萬元'), false);
+  source.sentences[0].text = '只討論顯示卡';
+  assert.equal(check('5090售價7萬元'), false);
+});
 it('Chinese, Arabic and full-width equivalent quantities share a canonical numeric token', () => {
   for (const [original, text] of [['工具1', '一個工具'], ['999個', '九百九十九個'], ['2萬', '兩萬'], ['負1.5秒', '-一點五秒'], ['50%', '百分之五十'], ['1/3', '三分之一'], ['2026年', '二〇二六年'], ['１２３４個', '一千二百三十四個']]) assert.equal(validate(original, text).valid, true, `${original} -> ${text}`);
   assert.deepEqual(numericTokens('三個、五次、兩層、第十步、三維'), ['3', '5', '2', '10', '3']);

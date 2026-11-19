@@ -305,7 +305,7 @@ export default function TeacherCourses() {
       setError('');
 
       try {
-        const coursesRes = await apiFetch('/courses');
+        const coursesRes = await apiFetch('/courses?scope=managed');
         const loadedCourses = coursesRes.data?.courses || [];
 
         const enriched = await Promise.all(
@@ -313,10 +313,6 @@ export default function TeacherCourses() {
             try {
               const vRes = await apiFetch(`/courses/${course._id}/videos`);
               const courseVideos = vRes.data?.videos || [];
-              courseVideos.sort((a, b) =>
-                new Date(b.updatedAt || b.createdAt || 0) -
-                new Date(a.updatedAt || a.createdAt || 0)
-              );
               return { ...course, videos: courseVideos };
             } catch {
               return { ...course, videos: [] };
@@ -573,12 +569,12 @@ export default function TeacherCourses() {
           <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.72)', fontSize: 13 }}>尚未建立課程</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 640 }}>
+          <div className="teacher-course-list">
             {/* Header row */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 110px 90px 120px 90px',
+                gridTemplateColumns: 'var(--course-columns)',
                 alignItems: 'center',
                 padding: '12px 20px',
                 borderBottom: '1px solid rgba(255,255,255,0.07)',
@@ -607,7 +603,7 @@ export default function TeacherCourses() {
                     onClick={() => toggle(course._id)}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 110px 90px 120px 90px',
+                      gridTemplateColumns: 'var(--course-columns)',
                       alignItems: 'center',
                       padding: '14px 20px',
                       cursor: 'pointer',
@@ -651,7 +647,7 @@ export default function TeacherCourses() {
                       {videos.length}
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{created}</div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, whiteSpace: 'nowrap' }}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setManagingEnrollments(course); }}
                         style={{ background: 'none', border: '1px solid rgba(165,180,252,0.4)', borderRadius: 8, color: '#c7d2fe', padding: '5px 9px', fontSize: 11, cursor: 'pointer' }}
@@ -687,7 +683,7 @@ export default function TeacherCourses() {
                           color: 'rgba(255,255,255,0.5)',
                           fontSize: 12.5,
                         }}>
-                          此課程尚未上傳影片。前往 Upload 頁面新增第一支影片。
+                          此課程尚未上傳影片。前往「上傳影片」新增第一支影片。
                         </div>
                       ) : (
                         <div style={{ overflowX: 'auto' }}>

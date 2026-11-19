@@ -6,6 +6,7 @@ const { fetchWithRetry } = require('../utils/providerRequest');
 // prompt 要求模型「答不出來」時原句回覆的字串。
 // 這裡集中定義並直接插進 prompt，避免 prompt 文案與 isNoAnswerReply() 的比對字串走鐘。
 const NO_ANSWER_INSUFFICIENT = '目前資料庫片段不足以回答這個問題。';
+const NO_ANSWER_OFF_TOPIC = '這個問題超出課程問答的範圍。可以問我影片裡的概念，或指定想了解的段落。';
 // 2026-08-30 起 prompt 只用 NO_ANSWER_INSUFFICIENT 一句罐頭回覆（原本兩句會讓模型更容易整題拒答）。
 // 這句保留給 isNoAnswerReply()，讓改版前留下的舊答案仍能被判為「答不出來」而不進 FAQ 快取。
 const NO_ANSWER_UNDETERMINED = '無法從提供的影片片段判斷。';
@@ -27,7 +28,7 @@ function isNoAnswerReply(text) {
     return false;
   }
 
-  return [NO_ANSWER_INSUFFICIENT, NO_ANSWER_UNDETERMINED]
+  return [NO_ANSWER_INSUFFICIENT, NO_ANSWER_UNDETERMINED, NO_ANSWER_OFF_TOPIC]
     .some((canned) => normalized === normalizeReply(canned));
 }
 
@@ -168,7 +169,7 @@ function buildPrompt(question, matches) {
     '2. 先掃過全部片段再作答。同一個主題被拆在多個片段時，必須逐一整合成一個完整答案，不可只取分數最高的一筆或只答其中一個面向。',
     '3. 問題若隱含多個面向（「有哪些」「為什麼」「哪些有、哪些沒有」），每個面向都要分別交代；片段中用來說明該主題的例子、比喻或案例也要一併帶進答案。',
     '4. 只要片段能支持部分答案，就先回答能確定的部分，並說明哪些部分片段沒有提到。',
-    `5. 只有在所有片段都沒有提到問題的主題時，才回覆：「${NO_ANSWER_INSUFFICIENT}」。不要因為片段講得不夠完整就整題拒答。`,
+    `5. 若明確要求課程以外的服務（例如查詢今天的天氣），回覆「${NO_ANSWER_OFF_TOPIC}」。其餘問題只有在所有片段都沒有提到問題的主題時，才回覆：「${NO_ANSWER_INSUFFICIENT}」。不要因為片段講得不夠完整就整題拒答。兩種拒答都用空的 supportingEvidenceIds。`,
     '6. 問題若在問「在哪一段／哪裡／第幾分鐘」，時間區間就是答案主體：先給影片名稱與時間區間（相鄰的連續片段合併成一個區間），再用一兩句說明那段的內容。',
     '7. transcript 可能有 STT 專有名詞誤寫。若某個詞明顯是使用者問題中的名詞或該領域常見專有名詞的誤寫，答案要直接寫成正確名稱，不可把逐字稿的錯字拼法寫進答案。',
     '8. 不要替其他 transcript 詞語加括號解釋、補註，也不要在答案中列出逐字稿的錯字變體或說明 STT 誤寫。',
@@ -309,7 +310,7 @@ async function generateAnswerWithGemini(question, matches, conversationHistory =
                 'When the course material explicitly states a classification, definition, or membership, preserve that stated classification instead of replacing it with outside knowledge.',
                 'When one sentence or continuous passage lists several examples under the same category, keep those examples in the same category and do not split them into different categories.',
                 'For classification, definition, or membership questions, verify each named item against the material\'s explicit conclusion. If one snippet lists items and the immediately following snippet from the same video gives their conclusion through a plural reference such as these, those, both, or all, treat them as one continuous statement and never infer a different result from an item\'s appearance or purpose.',
-                `Only when no snippet mentions the topic of the question at all, reply exactly in Traditional Chinese: ${NO_ANSWER_INSUFFICIENT}`,
+                `For clearly unrelated service requests such as a live weather forecast, reply exactly: ${NO_ANSWER_OFF_TOPIC} Otherwise, when no snippet mentions the question's topic, reply exactly: ${NO_ANSWER_INSUFFICIENT} Both replies cite no evidence.`,
                 'Return only the requested JSON object. A normal answer must cite at least one valid evidence ID. The insufficient-evidence answer must cite no evidence IDs.',
               ].join(' '),
             },
@@ -457,5 +458,6 @@ module.exports = {
   parseStructuredAnswer,
   isNoAnswerReply,
   NO_ANSWER_INSUFFICIENT,
+  NO_ANSWER_OFF_TOPIC,
   NO_ANSWER_UNDETERMINED,
 };

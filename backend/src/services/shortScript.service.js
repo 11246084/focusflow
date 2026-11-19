@@ -741,6 +741,7 @@ function assertAvatarMode(script) {
 
 module.exports = {
   createScriptWithFrozenEvidence,
+  loadExcludedTopicKeys,
   generateScriptVersion,
   submitReview,
   getScriptById,

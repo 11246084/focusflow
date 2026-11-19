@@ -6,7 +6,7 @@ import * as api from '../services/recut.js';
 import { listAssets } from '../services/shortScript.js';
 import { REJECTION_REASONS } from '../constants/videoReviewReasons';
 import {
-  POLL_INTERVAL_MS, buildScriptLines, describeScript, durationStatus, formatClock, isBusyState,
+  POLL_INTERVAL_MS, buildScriptLines, canChangeShort, describeScript, durationStatus, formatClock, isBusyState,
   isCancellableState, isFixedRenderFailure, openingSentence, renderFailureText, sourceLabel, withCutMarks, playbackTimeline, recutErrorText, rejectScope, sentenceAt, stateInfo,
 } from '../services/recutFlow.js';
 import { ConfirmDialog, DurationMeter, FlowStrip, HelpTip, PrimaryAction, RejectReasonFields, SheetDialog, StateChip, StatusCard } from './recutUi';
@@ -26,7 +26,7 @@ const EDITABLE_STATES = new Set(['script_review', 'render_failed']);
 const REJECT_LABEL = new Map(REJECTION_REASONS.map((reason) => [reason.code, reason.label]));
 const YT_ORIGIN = 'https://www.youtube.com';
 
-export default function RecutWorkspace({ script, onStateChange, onNext, nextLabel }) {
+export default function RecutWorkspace({ script, onStateChange, onChanged, onNext, nextLabel }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const [snapshot, setSnapshot] = useState(null);
@@ -58,7 +58,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
 
   const state = snapshot?.recut?.state || script.recut?.state || 'idle';
-  const info = describeScript({ recut: { state } }, snapshot?.task);
+  const closed = script.status === 'dismissed';
+  const info = describeScript({ status: script.status, recut: { state } }, snapshot?.task);
 
   const loadReview = useCallback(async (recut) => {
     if (!recut?.currentVersionId) { setReview(null); return null; }
@@ -193,7 +194,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const lines = useMemo(() => withCutMarks(buildScriptLines(sentences, expandedGaps), timelineItems), [sentences, expandedGaps, timelineItems]);
   const opening = openingSentence(sentences);
   // 修改送出中不拿掉按鈕（拿掉會讓鍵盤焦點掉回頁首、整欄重排），只忽略重複點擊。
-  const editable = EDITABLE_STATES.has(state);
+  const editable = !closed && EDITABLE_STATES.has(state);
   const answerable = review?.current?.selection?.answerable !== false;
   const duration = durationStatus(view?.durationSec);
   // 核准時要說清楚核准的是什麼：留用幾句、總長幾秒（片頭算在內）。
@@ -267,6 +268,15 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     setDialog(null);
   }).catch(() => setDialog(null));
   const generate = () => startTask('generate', () => api.startGeneration(scriptId)).catch(() => {});
+  // 換產片方式、不做這支、恢復都會改變清單分組或要換成另一個工作區，完成後請上層重新載入（UX-26）。
+  const changeShort = (name, action) => run(name, async () => {
+    await action();
+    setDialog(null);
+    await onChanged?.();
+  }).catch(() => {});
+  const switchToAvatar = () => changeShort('switchMode', () => api.setProductionMode(scriptId, 'avatar'));
+  const closeShort = () => changeShort('close', () => api.closeScript(scriptId));
+  const restoreShort = () => changeShort('reopen', () => api.restoreScript(scriptId));
   const cancel = () => run('cancel', async () => {
     if (snapshot?.task?.id) await api.cancelTask(scriptId, snapshot.task.id);
     setNotice('正在取消，講稿會維持原樣。');
@@ -305,7 +315,8 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
 
   // ── 這一步的主要動作與停用原因 ─────────────────────────────────────
   let primary = null;
-  if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
+  if (closed) primary = { label: '恢復', onClick: restoreShort, busy: pending === 'reopen' };
+  else if (state === 'idle') primary = { label: info.action === '重新產生' ? '重新產生' : '產生講稿', onClick: generate, busy: pending === 'generate' };
   else if (state === 'script_review' && review?.draft) {
     primary = { label: '確定修改', hint: '修改已自動儲存；按下後系統依修改重排講稿，約一分鐘，完成後再核准', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'script_review' && review) {
@@ -320,7 +331,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const rejectAction = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
     reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };
   // 退回原因在面板裡選（手機從底部升起、電腦置中），主要按鈕一直是「核准上架」。
-  if (state === 'asset_review') {
+  if (!closed && state === 'asset_review') {
     primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: approveAsset, busy: pending === 'approveAsset',
       disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
   }
@@ -333,6 +344,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
     </>
   );
 
+  // 等你處理的短片才能換產片方式或不做這支；放在講稿工具列，沒有講稿時放在狀態卡裡。
+  const changeTools = !closed && !loading && canChangeShort(info) ? (
+    <>
+      <button type="button" className="rc-tool-btn" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'switchMode' })}><Ic n="users" s={15} />改用數位分身</button>
+      <button type="button" className="rc-tool-btn rc-tool-danger" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'close' })}><Ic n="ban" s={15} />不做這支</button>
+    </>
+  ) : null;
+
   const playheadText = playheadId ? sentences.find((item) => item.id === playheadId)?.text || '' : '';
   const showDuration = Boolean(view) && !showAsset && !isBusyState(state);
   const actionBlock = (
@@ -340,7 +359,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       <div className="rc-actions">
         {showDuration && <DurationMeter seconds={view.durationSec} />}
         {primary && <PrimaryAction {...primary} />}
-        {state === 'asset_review' && (
+        {!closed && state === 'asset_review' && (
           <button type="button" className="rc-btn rc-btn-outline rc-btn-block" disabled={Boolean(pending)}
             onClick={() => { setRejecting(true); setRejectCodes(new Set()); setRejectNote(''); setNoteTouched(false); }}>
             退回
@@ -416,7 +435,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
   const changeSummary = review?.latestChangeSummary?.changes || [];
   const sidePanels = (
     <>
-        {state === 'script_review' && !review?.draft && openSuggestions.length > 0 && (
+        {!closed && state === 'script_review' && !review?.draft && openSuggestions.length > 0 && (
           <section className="rc-panel">
             <h2 className="rc-section-title">AI 建議</h2>
             {openSuggestions.map((suggestion) => (
@@ -489,12 +508,13 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
             <p>{state === 'rendering' || state === 'render_queued' ? '約幾分鐘，完成會通知你' : '約一分鐘'}</p>
           </StatusCard>
         )}
-        {!loading && state === 'idle' && !review && (
+        {!loading && (closed || (state === 'idle' && !review)) && (
           <section className="rc-panel">
-            <p>{info.label === '尚未產生講稿' ? '還沒有講稿' : info.label}</p>
-            {snapshot?.task?.status === 'failed' && snapshot.task.error && !error && (
+            <p>{closed || info.label !== '尚未產生講稿' ? info.label : '還沒有講稿'}</p>
+            {!closed && snapshot?.task?.status === 'failed' && snapshot.task.error && !error && (
               <p className="rc-reason">{recutErrorText(snapshot.task.error)}</p>
             )}
+            {changeTools && <div className="rc-script-tools rc-mt-s">{changeTools}</div>}
           </section>
         )}
 
@@ -547,6 +567,7 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
               {editable && review?.draft && (
                 <button type="button" className="rc-btn-text" disabled={Boolean(pending)} onClick={() => setDialog({ type: 'restore' })}>放棄修改</button>
               )}
+              {changeTools && <><span className="rc-tools-sep" aria-hidden="true" />{changeTools}</>}
             </div>
             <ol className="rc-script" onKeyDown={moveBetweenLines}>
               {opening && renderLine(opening, 'opening')}
@@ -584,6 +605,14 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
       <ConfirmDialog open={dialog?.type === 'restore'} title="放棄這些修改？" confirmLabel="放棄修改" danger
         busy={pending === 'restore'} onConfirm={restoreDraft} onClose={() => setDialog(null)}>
         <p>這次加回與移除的句子都會取消，講稿回到上一次確定的版本。</p>
+      </ConfirmDialog>
+      <ConfirmDialog open={dialog?.type === 'switchMode'} title="改用數位分身？" confirmLabel="改用數位分身"
+        busy={pending === 'switchMode'} onConfirm={switchToAvatar} onClose={() => setDialog(null)}>
+        <p>原片剪輯的講稿會保留，之後切回來還在。</p>
+      </ConfirmDialog>
+      <ConfirmDialog open={dialog?.type === 'close'} title="不做這支短片？" confirmLabel="不做了" danger
+        busy={pending === 'close'} onConfirm={closeShort} onClose={() => setDialog(null)}>
+        <p>之後可以在「不做了」恢復。</p>
       </ConfirmDialog>
       <ConfirmDialog open={dialog?.type === 'confirmSuggestions'} title="這些建議會改到你調整過的句子" confirmLabel="仍要採納"
         busy={pending === 'adopt'} onConfirm={() => adopt(dialog?.ids || [])} onClose={() => setDialog(null)}>

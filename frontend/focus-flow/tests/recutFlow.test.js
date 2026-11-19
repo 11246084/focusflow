@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
-  batchRoom, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
+  batchRoom, canChangeShort, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
   recutErrorText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
@@ -28,11 +28,26 @@ describe('recut 狀態對應的步驟與待辦', () => {
     assert.equal(describeScript({ recut: { state: 'idle' } }, { status: 'failed' }).label, '產生失敗');
   });
 
+  it('原片剪輯不做了列入不做了分組，動作是恢復', () => {
+    const info = describeScript({ status: 'dismissed', recut: { state: 'script_review' } });
+    assert.equal(info.bucket, 'closed'); assert.equal(info.action, '恢復');
+    assert.equal(describeShort({ productionMode: 'recut', status: 'dismissed', recut: { state: 'idle' } }).bucket, 'closed');
+  });
+
+  it('只有等你處理的短片能換產片方式或不做這支', () => {
+    assert.equal(canChangeShort(describeScript({ recut: { state: 'script_review' } })), true);
+    for (const state of ['generating', 'rendering', 'asset_approved', 'published']) {
+      assert.equal(canChangeShort(describeScript({ recut: { state } })), false, state);
+    }
+    assert.equal(canChangeShort(describeScript({ status: 'dismissed', recut: { state: 'idle' } })), false);
+  });
+
   it('數位分身依成品狀態對應步驟：沒影片待上傳、待審核等你確認、不做了不列入待辦', () => {
     const avatar = (status) => ({ _id: 's1', productionMode: 'avatar', status });
     assert.equal(describeShort(avatar('generated'), []).label, '待傳回影片');
     assert.equal(describeShort(avatar('generated'), [{ id: 'a1', sourceScriptId: 's1', status: 'draft', reviewStatus: 'pending', upload: { status: 'uploaded' } }]).bucket, 'mine');
     assert.equal(describeShort(avatar('dismissed'), []).bucket, 'closed');
+    assert.equal(describeShort(avatar('dismissed'), []).action, '恢復');
     assert.equal(describeShort(avatar('evidence_ready'), []).action, '產生腳本');
   });
 

@@ -14,8 +14,30 @@ function normalizeRecutAsrResult(result, window, { boundaryCut = false } = {}) {
   if (boundaryCut && Number.isFinite(last.s) && last.s === last.e && last.s <= duration && duration - last.s <= 0.05 + 1e-9) {
     excludedWords.push({ ...words.pop(), reason: 'zero-duration-final-token-at-explicit-cut-boundary', windowEndSec: window.endSec, toleranceSec: 0.05 });
   }
+  // Whisper 偶爾給出長度為 0 的字（開始＝結束）。併進時間較近的相鄰字：文字照原順序接上，
+  // 相鄰字的邊界延伸到這個字的時間點；用的都是辨識給的時間，不自行推估（recut 決策第 95 項）。
+  // 重疊、倒序、超出視窗仍照舊停止。
+  const kept = []; let zeroDurationMerged = 0;
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    if (typeof word.w === 'string' && word.w.trim() && Number.isFinite(word.s) && word.s === word.e) {
+      const prev = kept.at(-1), next = words[i + 1], at = word.s;
+      const prevOk = prev && Number.isFinite(prev.e) && prev.e <= at + 0.001;
+      const nextOk = next && typeof next.w === 'string' && Number.isFinite(next.s) && Number.isFinite(next.e) && next.e > next.s && next.s >= at - 0.001;
+      if (prevOk && (!nextOk || at - prev.e <= next.s - at)) { prev.w += word.w; prev.e = Math.max(prev.e, at); zeroDurationMerged++; continue; }
+      if (nextOk) { words[i + 1] = { ...next, w: word.w + next.w, s: Math.min(next.s, at) }; zeroDurationMerged++; continue; }
+    }
+    kept.push(word);
+  }
+  words.splice(0, words.length, ...kept);
+  // 0.3 秒以內的小重疊對齊到前一字結尾；字尾超出視窗 0.3 秒以內截在視窗結尾（recut 決策第 96 項）。
+  const SMALL_GAP = 0.3; let timingClamped = 0;
   let previousEnd = 0;
   for (const [index, word] of words.entries()) {
+    if (Number.isFinite(word.s) && Number.isFinite(word.e)) {
+      if (word.s < previousEnd && previousEnd - word.s <= SMALL_GAP && word.e > previousEnd) { word.s = previousEnd; timingClamped++; }
+      if (word.e > duration && word.e - duration <= SMALL_GAP && word.s < duration) { word.e = duration; timingClamped++; }
+    }
     const reason = typeof word.w !== 'string' || !word.w.trim() ? '空白字詞'
       : !Number.isFinite(word.s) || !Number.isFinite(word.e) ? '時間不是數字'
         : word.s < 0 ? '開始時間小於 0'
@@ -34,7 +56,7 @@ function normalizeRecutAsrResult(result, window, { boundaryCut = false } = {}) {
     excludedWords: [...(previous.excludedWords || []), ...excludedWords], excludedWordCount: (previous.excludedWords || []).length + excludedWords.length,
     boundaryEndTruncated: previous.boundaryEndTruncated === true || excludedWords.length > 0,
     boundaryStartTruncated: previous.boundaryStartTruncated === true,
-    normalization: 'explicit-cut-final-zero-token-v1', textConversion: 'simplified-to-traditional-v1' },
+    normalization: 'explicit-cut-final-zero-token-v1', textConversion: 'simplified-to-traditional-v1', zeroDurationMerged, timingClamped },
     excludeLastSentence: previous.boundaryEndTruncated === true || excludedWords.length > 0,
     excludeFirstSentence: previous.boundaryStartTruncated === true };
 }

@@ -51,12 +51,14 @@ afterEach(() => {
 });
 
 describe('兩層開關的停用原因', () => {
-  it('環境變數未允許時不可切換，並說明需改 VM 設定', () => {
+  it('環境變數未允許時不可切換，一般說明不含變數名稱，技術資訊另放', () => {
     const view = describeSwitch({ key: 'cleanup', envAllowed: false, runtimeEnabled: true, effective: false, reason: 'env_disabled' });
     assert.equal(view.toggleable, false);
     assert.equal(view.effective, false);
-    assert.match(view.note, /YOUTUBE_UPLOAD_CLEANUP_ENABLED/);
-    assert.match(view.note, /環境未允許/);
+    assert.match(view.note, /主機管理者開啟/);
+    assert.doesNotMatch(view.note, /YOUTUBE_|VM|環境/);
+    assert.match(view.techInfo, /YOUTUBE_UPLOAD_CLEANUP_ENABLED/);
+    assert.equal(describeSwitch({ key: 'cleanup', envAllowed: true, effective: true }).techInfo, '');
   });
 
   it('未設定時依預設：上傳與恢復視為開啟，清理視為關閉', () => {
@@ -130,7 +132,7 @@ describe('啟用清理的預告確認（#27①）', () => {
   it('環境未允許的開關不能準備切換', async () => {
     await assert.rejects(
       prepareSwitchChange({ key: 'upload', envAllowed: false, runtimeEnabled: null, effective: false }),
-      /環境未允許/,
+      /主機管理者開啟/,
     );
   });
 

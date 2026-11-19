@@ -141,9 +141,10 @@ export default function AdminOverview({ onNav }) {
         {(systemStatusError || systemStatus?.youtubeLifecycle?.error) && <p role="alert">無法讀取 YouTube 設定與清理預告，請稍後重新整理。狀態未知。</p>}
         {systemStatus?.youtubeLifecycle?.switches?.map(sw => {
           const state = describeSwitch(sw);
-          return <p key={sw.key} data-overview-switch={sw.key} style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+          return <div key={sw.key} data-overview-switch={sw.key} style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: '1em 0' }}>
             <strong>{state.label}：{state.effective ? '已啟用' : '未啟用'}</strong> · {state.note}
-          </p>;
+            {state.techInfo && <details style={{ fontSize: 12, marginTop: 4 }}><summary style={{ cursor: 'pointer' }}>技術資訊</summary>{state.techInfo}</details>}
+          </div>;
         })}
         {systemStatus?.youtubeLifecycle && !systemStatus.youtubeLifecycle.error && (
           <>

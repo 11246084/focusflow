@@ -245,7 +245,26 @@ function autoFixCardsOutput(output, { source, selectionResult } = {}) {
   const timeline = playbackTimeline(source, selectionResult);
   const scenes = fixSceneTiming(subtitles.output, timeline);
   const cards = fixEmptyCards(scenes.output, timeline);
-  return { output: cards.output, changed: chips.changed || subtitles.changed || scenes.changed || cards.changed };
+  // A sentence-only anchor normally refers to the whole original sentence.
+  // After an in-sentence trim, anchor at the same audible onset using kept words.
+  const byId = new Map((source?.sentences || []).map((s) => [s.id, s]));
+  const phrases = new Map();
+  for (const { id, kept } of timeline?.order || []) {
+    const sentence = byId.get(id);
+    if (kept.length === sentence.words.length) continue;
+    const phrase = kept.map((w) => w.text).join('');
+    const full = norm(sentence.text), part = norm(phrase);
+    const start = full.indexOf(part);
+    if (part && start >= 0 && full.indexOf(part, start + 1) < 0) phrases.set(id, phrase);
+  }
+  if (!phrases.size) return { output: cards.output, changed: chips.changed || subtitles.changed || scenes.changed || cards.changed };
+  const anchor = (a) => a && a.text === undefined && phrases.has(a.sentenceId) ? { ...a, text: phrases.get(a.sentenceId) } : a;
+  const fixed = { ...cards.output,
+    subtitles: cards.output.subtitles.map((s) => ({ ...s, from: anchor(s.from) })),
+    scenes: cards.output.scenes.map((s) => s.cues && !Array.isArray(s.cues)
+      ? { ...s, cues: Object.fromEntries(Object.entries(s.cues).map(([key, value]) => [key, anchor(value)])) } : s),
+  };
+  return { output: fixed, changed: true };
 }
 
 module.exports = { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, fixChipsParams, splitLongSubtitles, playbackTimeline };

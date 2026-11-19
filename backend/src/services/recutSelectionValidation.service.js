@@ -1,5 +1,6 @@
 const { RECUT_REASON_LABELS } = require('../constants/recut');
 const AppError = require('../utils/appError');
+const { LIMITS } = require('./recutRenderChecks.service');
 const KEEP = new Set(RECUT_REASON_LABELS.slice(0, 4));
 // 只忽略中文排版標點與空白；小數點、負號、C# 等技術內容必須保留。
 const norm = (s) => s.replace(/[。！？、，；「」『』“”‘’]/gu, '').normalize('NFKC').toLocaleLowerCase('en').replace(/[\p{Z}\s]/gu, '');
@@ -27,7 +28,7 @@ function anchorIndex(sentence, phrase, end) {
   }
   invalid(`${sentence.id} 的錨點不在可用逐字邊界`);
 }
-function resolveSelection(source, input, { allowInvalidDuration = false } = {}) {
+function resolveSelection(source, input, { allowInvalidDuration = false, cutLongPauses = false, silenceIntervals = [] } = {}) {
   const excluded = new Set(source.excludedSentenceIds || []);
   const assertAllowed = (id) => { if (excluded.has(id)) throw new AppError(`${id} 位於辨識視窗截斷邊界，不可選用或加回`, 422, 'RECUT_SENTENCE_EXCLUDED'); };
   const sentences = source.sentences; const index = new Map(sentences.map((s, i) => [s.id, i]));
@@ -78,6 +79,12 @@ function resolveSelection(source, input, { allowInvalidDuration = false } = {}) 
       const s = sentences[i]; assertAllowed(s.id); selected.add(s.id);
       if (s.id === opening) { addGroup(group, range); group = []; continue; }
       const words = s.words.slice(s.id === range.from ? startWord : 0, s.id === range.to ? endWord + 1 : undefined);
+      const previousEnd = group.at(-1)?.words.at(-1)?.endSec;
+      if (round(words[0].startSec - previousEnd) >= LIMITS.silenceMaxSec && (cutLongPauses || silenceIntervals.some((p) =>
+        round(Math.min(words[0].startSec, p.endSec) - Math.max(previousEnd, p.startSec)) >= LIMITS.silenceMaxSec))) {
+        addGroup(group, range);
+        group = [];
+      }
       group.push({ ...s, words });
     }
     addGroup(group, range);
@@ -150,15 +157,17 @@ function alignLabels(source, input) {
 }
 function validateSelection(source, rawInput) {
   let input = rawInput;
+  const silenceIntervals = source.sourceCheck?.results?.silenceIntervals || [];
   try {
     if (input && Object.hasOwn(input, 'lockedSentenceIds')) invalid('模型不得自行設定教師鎖定句子');
     input = alignLabels(source, input);
-    return { valid: true, errors: [], ...resolveSelection(source, input) };
+    return { valid: true, errors: [], ...resolveSelection(source, input, { silenceIntervals }) };
   }
   catch (error) {
     if (/^總長 .* 秒，不在 30～65 秒$/.test(error.message)) {
       try {
-        const trimmed = trimOverlong(source, input);
+        const { selection } = resolveSelection(source, input, { allowInvalidDuration: true, silenceIntervals });
+        const trimmed = trimOverlong(source, selection);
         if (trimmed) return { valid: true, errors: [], ...resolveSelection(source, trimmed), autoTrimmed: true };
       } catch { /* 修不了就回報原本的錯誤 */ }
     }

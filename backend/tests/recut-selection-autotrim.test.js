@@ -40,3 +40,20 @@ it('總長合規時不改動', () => {
   const result = validateSelection(src, selection(src, 's1', 's5'));
   assert.equal(result.valid, true); assert.equal(result.autoTrimmed, undefined);
 });
+it('初次製作從句界剪掉長停頓，保存的剪點可重建相同時間與全部原話', () => {
+  const src = source([8, 8, 8, 8, 8]);
+  for (const s of src.sentences.slice(2)) {
+    s.startSec += 3; s.endSec += 3;
+    s.words[0].startSec += 3; s.words[0].endSec += 3;
+  }
+  const raw = selection(src, 's1', 's5');
+  src.sourceCheck = { results: { silenceIntervals: [{ startSec: src.sentences[1].endSec, endSec: src.sentences[2].startSec }] } };
+  const { resolveSelection } = require('../src/services/recutSelectionValidation.service');
+  const original = resolveSelection(src, raw);
+  const result = validateSelection(src, raw);
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.selection.ranges, [{ from: 's1', to: 's2' }, { from: 's3', to: 's5' }]);
+  assert.deepEqual(result.clips.flatMap(c => c.words), original.clips[0].words);
+  assert.equal(resolveSelection(src, result.selection).durationSec, result.durationSec);
+  assert.equal(Math.round((original.durationSec - result.durationSec) * 100), 320);
+});

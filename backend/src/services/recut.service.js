@@ -47,6 +47,18 @@ async function startGeneration({ user, scriptId }, queue = recutQueue) {
   const script = await loadForManage({ user, scriptId });
   assertNotClosed(script);
   await assertGenerationBatchLimit(script);
+  if (script.recut?.state === RECUT_STATES.RENDER_FAILED && script.recut.currentVersionId && !script.recut.pendingEditId) {
+    const versionId = script.recut.currentVersionId;
+    const job = await RecutRenderJob.findOne({ scriptId: script._id, versionId, status: 'failed' }).lean();
+    if (job?.error?.code === 'RECUT_RENDER_CHECK_FAILED') {
+      const base = await require('../models/recutVersion.model').findById(versionId).lean();
+      const source = base && await require('../models/recutSource.model').findById(base.sourceId).lean();
+      const checks = job.attempts?.at(-1)?.checks;
+      const version = String(base?.scriptId) === String(script._id) &&
+        require('./recutPauseRevision.service').buildPauseRevision(base, source, checks, require('../../../short_render/src/plan'));
+      if (version) return toPublicTask(await queue.enqueue({ script, requestedBy: user.id, type: 'trim_pauses', input: { version, baseVersionId: versionId } }));
+    }
+  }
   return toPublicTask(await queue.enqueue({ script, requestedBy: user.id }));
 }
 // 只公開目前版本渲染工作的狀態與錯誤代碼；worker 回報的原始訊息可能含技術細節，不給教師端。

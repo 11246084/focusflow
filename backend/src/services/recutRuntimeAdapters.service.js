@@ -22,6 +22,7 @@ function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 12
         body,
       });
       const payload = await response.json();
+      if (response.status === 429) throw fail('模型服務目前限流或配額已用完。', 'RECUT_PROVIDER_RATE_LIMITED');
       if (!response.ok) throw fail('模型呼叫遭拒絕。', response.status === 404 ? 'RECUT_MODEL_UNAVAILABLE' : [401, 403].includes(response.status) ? 'RECUT_PROVIDER_PERMISSION_DENIED' : 'RECUT_MODEL_FAILED');
       return { output: payload.candidates?.[0]?.content?.parts?.filter((p) => !p.thought).map((p) => p.text || '').join('') || '',
         modelId: payload.modelVersion || model.model, usageMetadata: payload.usageMetadata || null, ...(reservation ? { trialRequest: reservation } : {}) };
@@ -49,10 +50,15 @@ function createRecutMediaAdapter({ run, ffmpeg, ffprobe, python, transcriber, as
     decode: async (file, w) => call(ffmpeg, [...await input(file, w), '-map', '0:a:0', '-f', 'null', '-']),
     measure: async (file, w) => {
       const args = await input(file, w); args[2] = 'info';
-      const { stderr } = await call(ffmpeg, [...args, '-map', '0:a:0', '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json', '-f', 'null', '-']);
+      const { LIMITS } = require('./recutRenderChecks.service');
+      const { stderr } = await call(ffmpeg, [...args, '-map', '0:a:0', '-af',
+        `silencedetect=n=${LIMITS.silenceNoiseDb}dB:d=${LIMITS.silenceMaxSec},loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json`, '-f', 'null', '-']);
       const raw = [...String(stderr).matchAll(/\{[^{}]*"input_i"[^{}]*\}/g)].at(-1)?.[0];
       if (!raw) throw fail('音量量測無效。', 'RECUT_MEDIA_FAILED');
-      const data = JSON.parse(raw); return { integratedLufs: Number(data.input_i), truePeakDbtp: Number(data.input_tp) };
+      const silenceIntervals = Array.from(String(stderr).matchAll(/silence_end:\s*([\d.e+-]+)\s*\|\s*silence_duration:\s*([\d.e+-]+)/gi),
+        ([, end, duration]) => ({ startSec: w.startSec + Number(end) - Number(duration), endSec: w.startSec + Number(end) }));
+      const data = JSON.parse(raw); return { integratedLufs: Number(data.input_i), truePeakDbtp: Number(data.input_tp),
+        ...(silenceIntervals.length ? { silenceIntervals } : {}) };
     },
     transcribe: async (file, w) => {
       if (missing.length) throw fail('媒體工具設定不足。', 'RECUT_MEDIA_NOT_CONFIGURED');
@@ -85,7 +91,7 @@ function createRecutRuntimeAdapters({ provider, gemini, media, mediaConfig, rend
   // started by obtaining or registering this contract.
   let plan = renderer;
   const load = () => (plan ||= (rendererLoader || (() => require('../../../short_render/src/plan')))());
-  const planMethods = ['buildRecutPlan', 'validatePlan', 'getCardsResponseSchema', 'getComponentCatalog', 'getAllowedIcons', 'resolvePlan'];
+  const planMethods = ['buildRecutPlan', 'validatePlan', 'getCardsResponseSchema', 'getComponentCatalog', 'getAllowedIcons', 'resolvePlan', 'phraseWords'];
   if (renderer) for (const key of planMethods.slice(0, 4)) if (typeof renderer[key] !== 'function') missing.push(`renderer.${key}`);
   const lazyRenderer = Object.fromEntries(planMethods.map((key) => [key, (...args) => {
     if (typeof load()?.[key] !== 'function') throw fail('渲染契約設定不足。', 'RECUT_RENDER_NOT_CONFIGURED');

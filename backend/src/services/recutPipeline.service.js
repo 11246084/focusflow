@@ -17,6 +17,10 @@ function createRecutPipeline({ decide, renderer, sourceOptions, loadSource, load
     if (!queue?.registerSteps) throw new TypeError('Provide a recut queue.');
     const sources = sourceSteps || require('./recutSource.service').createRecutSourceSteps(sourceOptions);
     queue.registerSteps('generate', [...sources, selection, cards, wholeCheck]);
+    queue.registerSteps('trim_pauses', [{ id: 'recut-pause-revision-v1', stage: 'cards', run: async ({ task }) => {
+      if (String(task.input.baseVersionId) !== String(task.baseSnapshot.currentVersionId)) throw new Error('講稿版本已變更。');
+      return { version: task.input.version };
+    } }]);
     require('./recutReviewSteps.service').registerRecutReviewSteps({ cards, wholeCheck }, queue);
     return { cards, wholeCheck };
   } };

@@ -35,7 +35,7 @@ function asSuggestion(issue) {
   return { suggestionType: issue.type, content: issue.problem, proposal };
 }
 const QUALITY_REPAIR_FALLBACK_CODES = new Set(['RECUT_CALL_LIMIT_EXCEEDED', 'RECUT_VALIDATION_FAILED',
-  'RECUT_REPAIR_STALLED', 'RECUT_MODEL_FAILED']);
+  'RECUT_REPAIR_STALLED', 'RECUT_MODEL_FAILED', 'RECUT_PROVIDER_RATE_LIMITED']);
 function createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSource = loadSourceDefault } = {}) {
   return { id: 'recut-whole-check-sentence-v1', stage: 'wholeCheck', run: async (context) => {
     const { data, task } = context;

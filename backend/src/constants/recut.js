@@ -16,7 +16,7 @@ const RECUT_STATES = Object.freeze({
   RENDER_QUEUED: 'render_queued', RENDERING: 'rendering', RENDER_FAILED: 'render_failed',
   ASSET_REVIEW: 'asset_review', ASSET_APPROVED: 'asset_approved', PUBLISHED: 'published',
 });
-const RECUT_TASK_TYPES = Object.freeze({ GENERATE: 'generate', APPLY_SELECTION: 'apply_selection', APPLY_SUGGESTIONS: 'apply_suggestions' });
+const RECUT_TASK_TYPES = Object.freeze({ GENERATE: 'generate', APPLY_SELECTION: 'apply_selection', APPLY_SUGGESTIONS: 'apply_suggestions', TRIM_PAUSES: 'trim_pauses' });
 const RECUT_TASK_STATUSES = Object.freeze({ QUEUED: 'queued', RUNNING: 'running', CANCEL_REQUESTED: 'cancel_requested', SUCCEEDED: 'succeeded', FAILED: 'failed', CANCELLED: 'cancelled' });
 const RECUT_REASON_LABELS = Object.freeze(['結論或定義', '理由', '例子', '冷開場', '複習', '離題', '指畫面', '重複']);
 const RECUT_EDIT_REASONS = Object.freeze(['漏了重點', '不必要', '接不起來', '剪接點不自然', '其他']);

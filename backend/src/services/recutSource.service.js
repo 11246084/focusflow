@@ -121,7 +121,9 @@ function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createR
       await checkCancelled();
       try { await media.decode(data.sourcePath, data.sourceWindow); } catch { fail('原片無法正常解碼。', 'RECUT_SOURCE_UNDECODABLE'); }
       await checkCancelled();
-      const audio = calculateFixedGain(await media.measure(data.sourcePath, data.sourceWindow));
+      const measurement = await media.measure(data.sourcePath, data.sourceWindow);
+      if (measurement.silenceIntervals?.length) results.silenceIntervals = measurement.silenceIntervals;
+      const audio = calculateFixedGain(measurement);
       return { sourceCheck: { passed: true, results: { ...results, decodable: true }, checkedAt: new Date() }, audio };
     } },
     { id: 'recut-window-asr-v1', stage: 'sourceCheck', run: async ({ data }) => ({ rawAsrResult: await media.transcribe(data.sourcePath, data.sourceWindow) }) },

@@ -92,4 +92,23 @@ describe('recut RC4 與 RC5 真實句子契約', () => {
     assert.equal(result.plan.scenes[0].params.lines[0].intentionalError, true);
     assert.equal(result.plan.scenes[0].params.lines[0].source, '畫面原樣');
   });
+  it('靜音失敗的舊版沿用原話、圖卡和字幕，只改剪點且需建立新版本', async () => {
+    const { buildPauseRevision } = require('../src/services/recutPauseRevision.service');
+    const { source, selection, cards } = fixture();
+    for (const s of source.sentences.slice(3)) {
+      s.startSec += 3; s.endSec += 3;
+      for (const w of s.words) { w.startSec += 3; w.endSec += 3; }
+    }
+    const selectionResult = require('../src/services/recutSelectionValidation.service').resolveSelection(source, selection);
+    const base = renderer.buildRecutPlan({ source, selectionResult, ...cards, modelId: 'test' }).plan;
+    const version = { scriptId: source.scriptId, sourceId: source._id, selection, plan: base, modelId: 'test' };
+    const checks = { videoTracks: 1, audioTracks: 1, ...base.canvas, durationSec: selectionResult.durationSec, blackMaxSec: 0,
+      silenceMaxSec: 3.1, integratedLufs: -16, truePeakDbtp: -2, fontLoaded: true };
+    const next = buildPauseRevision(version, source, checks, renderer);
+    assert.equal(base.clips.length, 1); assert.equal(next.plan.clips.length, 2);
+    assert.deepEqual(next.plan.subtitles.map(s => s.runs), base.subtitles.map(s => s.runs));
+    assert.deepEqual(next.plan.scenes.map(s => s.params), base.scenes.map(s => s.params));
+    assert.equal(buildPauseRevision(version, source, { ...checks, blackMaxSec: 4 }, renderer), null);
+    assert.equal(buildPauseRevision(version, source, { ...checks, silenceMaxSec: 0.5 }, renderer), null);
+  });
 });

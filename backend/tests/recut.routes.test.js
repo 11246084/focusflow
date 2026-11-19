@@ -56,7 +56,7 @@ describe('recut 最小 API', () => {
     const script = seedScript(); await installSteps(script); const token = await teacherToken();
     const response = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
     assert.equal(response.status, 202); const taskId = response.body.data.id; assert.match(taskId, /^[a-f0-9]{24}$/);
-    assert.equal(response.body.data.callLimit, 5); assert.equal(response.body.data.status, 'queued');
+    assert.equal(response.body.data.callLimit, 8); assert.equal(response.body.data.status, 'queued');
     const query = await jsonRequest(baseUrl, pathFor(script, `/recut/tasks/${taskId}`), { token });
     assert.equal(query.status, 200); assert.equal(query.body.data.id, taskId); assert.equal(query.body.data.baseSnapshot, undefined);
     const state = await jsonRequest(baseUrl, pathFor(script, '/recut'), { token });

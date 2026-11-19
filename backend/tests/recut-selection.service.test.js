@@ -113,7 +113,7 @@ describe('recut 第一步選段與逐字驗證', () => {
     assert.equal(r.task.error.code, 'RECUT_CALL_LIMIT_EXCEEDED'); assert.equal(snapshot(r.script).state, 'idle'); assert.equal(r.attempts.length, 3);
   });
   it('設定轉接讀模型物件與兩種上限，非法值交由 queue 拒絕', () => {
-    assert.equal(getSetting('recut.geminiModel').provider, 'gemini'); assert.equal(getSetting('recut.initialCallLimit'), 5);
+    assert.equal(getSetting('recut.geminiModel').provider, 'gemini'); assert.equal(getSetting('recut.initialCallLimit'), 8);
     assert.equal(getSetting('recut.modificationCallLimit'), 5); assert.throws(() => getSetting('missing'));
   });
   it('HTTP 失敗保留用量，不洩漏金鑰到 URL 或輸入紀錄', async () => {

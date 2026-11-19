@@ -2,13 +2,14 @@
 // 只處理有 youtubeVideoId、且 filePath 為空或檔案不在 VM 上的影片；不重跑語音辨識，
 // 逐字稿與已凍結的證據不變。下載後比對長度，差超過 2 秒就不採用，避免時間點對不上。
 // 預設只列出要處理的影片；加 --write 才下載並更新 Video.filePath。
-// 用法：node src/scripts/recutFetchYoutubeSources.js --course <courseId> [--course <id>] [--write] [--cookies <file>] [--yt-dlp <path>]
+// 用法：node src/scripts/recutFetchYoutubeSources.js (--course <courseId> | --course-title <課程名稱>)... [--write] [--cookies <file>] [--yt-dlp <path>]
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const mongoose = require('mongoose');
 const Video = require('../models/video.model');
+const Course = require('../models/course.model');
 const VideoSegment = require('../models/videoSegment.model');
 const { inspectLocalUploadFile } = require('../utils/localVideoSource');
 
@@ -67,7 +68,8 @@ async function fetchYoutubeSources({ courseIds, write = false, uploadDir, media,
   const videos = await Video.find({ courseId: { $in: courseIds.map((id) => new mongoose.Types.ObjectId(id)) } }).lean();
   const items = [];
   for (const video of videos) {
-    const item = { videoId: String(video._id), title: video.title || '', youtubeVideoId: video.youtubeVideoId || null };
+    const item = { videoId: String(video._id), title: video.title || '', youtubeVideoId: video.youtubeVideoId || null,
+      previousFilePath: video.filePath || video.file_path || null };
     items.push(item);
     if (!sourceMissing(video, inspect)) { item.result = 'source present'; continue; }
     if (!YOUTUBE_ID.test(item.youtubeVideoId || '')) { item.result = 'skipped: no youtubeVideoId'; continue; }
@@ -99,9 +101,10 @@ async function fetchYoutubeSources({ courseIds, write = false, uploadDir, media,
 }
 
 function parseArgs(argv) {
-  const options = { courseIds: [], write: argv.includes('--write'), cookies: null, ytDlp: process.env.YTDLP_PATH || 'yt-dlp' };
+  const options = { courseIds: [], courseTitles: [], write: argv.includes('--write'), cookies: null, ytDlp: process.env.YTDLP_PATH || 'yt-dlp' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--course') options.courseIds.push(argv[++i]);
+    if (argv[i] === '--course-title') options.courseTitles.push(argv[++i]);
     if (argv[i] === '--cookies') options.cookies = argv[++i];
     if (argv[i] === '--yt-dlp') options.ytDlp = argv[++i];
   }
@@ -110,13 +113,18 @@ function parseArgs(argv) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  if (!options.courseIds.length || options.courseIds.some((id) => !mongoose.isValidObjectId(id))) {
-    console.error('Usage: --course <courseId> [--course <id>] [--write] [--cookies <file>] [--yt-dlp <path>]');
+  if ((!options.courseIds.length && !options.courseTitles.length) || options.courseIds.some((id) => !mongoose.isValidObjectId(id))) {
+    console.error('Usage: (--course <courseId> | --course-title <title>)... [--write] [--cookies <file>] [--yt-dlp <path>]');
     process.exitCode = 1; return;
   }
   const env = require('../config/env');
   await mongoose.connect(env.mongodbUri, { autoIndex: false, autoCreate: false });
   try {
+    for (const title of options.courseTitles) {
+      const courses = await Course.find({ title }).select('_id').lean();
+      if (courses.length !== 1) throw new Error(`Course title "${title}" matched ${courses.length} courses; use --course <id>.`);
+      options.courseIds.push(String(courses[0]._id));
+    }
     // 例：YTDLP_EXTRA_ARGS='--js-runtimes node'（新版 yt-dlp 解 YouTube 需要 JavaScript runtime）。
     const extraArgs = String(process.env.YTDLP_EXTRA_ARGS || '').split(/\s+/).filter(Boolean);
     const media = createMediaTools({ ytDlp: options.ytDlp, cookies: options.cookies, extraArgs, ffmpeg: env.recutFfmpeg, ffprobe: env.recutFfprobe });

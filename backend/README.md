@@ -224,10 +224,12 @@ node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json 
 recut 要剪老師原音，影片在 VM 上必須有原片。用 YouTube 連結匯入的影片，以及在其他電腦上傳後才同步到 Atlas 的影片，VM 上都沒有檔案。正式的補檔功能完成前，可以在 VM 上用 `yt-dlp` 從 YouTube 取回這些影片（2026-11-19 使用者決定作為過渡做法；這不是 YouTube 官方提供的下載方式）。
 
 ```bash
-cd /opt/focusflow/backend
-sudo env "PATH=$PATH" node src/scripts/recutFetchYoutubeSources.js --course <courseId>          # 只列出，不下載
-sudo env "PATH=$PATH" node src/scripts/recutFetchYoutubeSources.js --course <courseId> --write  # 下載並更新 filePath
+cd /opt/focusflow
+bash tools/recut/fetch-youtube-sources.sh           # 安裝 yt-dlp（沒有才裝），列出兩門課缺原片的影片
+bash tools/recut/fetch-youtube-sources.sh --write   # 下載並更新 filePath
 ```
+
+外層腳本會處理 yt-dlp 安裝、讀不到 `.env` 時改用 `sudo`，並把每次結果（含更新前的 `filePath`）存到 `~/recut-runtime/logs/`。要指定課程可加 `--course-title "<課程名稱>"`；也可以直接執行 `node src/scripts/recutFetchYoutubeSources.js --course <courseId>`。
 
 - 只處理有 `youtubeVideoId`，而且 `filePath` 是空的、或檔案不在 VM 上的影片；原片還在的直接略過。
 - 下載 720p 以下的 MP4 到 `UPLOAD_DIR`，存成 `youtube-source-<videoId>.mp4`。和系統記錄的長度差超過 2 秒就不採用；沒有記錄長度時，比逐字稿最後一段還短也不採用。

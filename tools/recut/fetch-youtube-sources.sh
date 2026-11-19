@@ -43,12 +43,22 @@ done
 step() { printf '\n== %s\n' "$1"; }
 
 step "1. yt-dlp"
-if command -v yt-dlp >/dev/null 2>&1; then
+# 用官方打包好的 Linux 執行檔：自帶 Python，不受 VM 的 Python 版本限制（一般版需要 3.11 以上）。
+ytdlp_works() { "$1" --version >/dev/null 2>&1; }
+if command -v yt-dlp >/dev/null 2>&1 && ytdlp_works "$(command -v yt-dlp)"; then
   YTDLP="$(command -v yt-dlp)"
-elif [ ! -x "$YTDLP" ]; then
+elif ! ytdlp_works "$YTDLP"; then
+  case "$(uname -m)" in
+    x86_64) ASSET=yt-dlp_linux ;;
+    aarch64|arm64) ASSET=yt-dlp_linux_aarch64 ;;
+    *) echo "不支援的 CPU 架構：$(uname -m)" >&2; exit 1 ;;
+  esac
+  echo "下載 $ASSET 到 $YTDLP"
   mkdir -p "$(dirname "$YTDLP")"
-  curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "$YTDLP"
+  rm -rf "$YTDLP"
+  curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/$ASSET" -o "$YTDLP"
   chmod a+rx "$YTDLP"
+  ytdlp_works "$YTDLP" || { echo "yt-dlp 無法執行：" >&2; "$YTDLP" --version >&2 || true; exit 1; }
 fi
 echo "使用 $YTDLP（版本 $("$YTDLP" --version)）"
 

@@ -2,7 +2,7 @@
 const { retryDecision, fail } = require('./recutRuntime.service');
 const { INSTRUCTIONS, getResponseSchema } = require('../prompts/recutCards');
 const { validateSubtitleSources } = require('./recutCardsValidation.service');
-const { autoFixCardsOutput } = require('./recutCardsAutoFix.service');
+const { autoFixCardsOutput, playbackTimeline } = require('./recutCardsAutoFix.service');
 const loadSourceDefault = (id) => require('../models/recutSource.model').findById(id).lean();
 const loadBaseDefault = (id) => require('../models/recutVersion.model').findById(id).lean();
 const safeClone = (v) => structuredClone(v);
@@ -111,7 +111,15 @@ function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
       ...(fields ? { fields, required: required || [], nestedFields: nestedFields || [] } : {}), ...(exampleCues ? { exampleCues } : {}) })),
     iconAllowlist: [...icons].slice(0, 64), selectionLocked: Boolean(data.selectionLocked), adoptedSuggestions: data.adoptedSuggestions || [],
     presentationScope: data.presentationScope || null, previousOutput: data.cardsOutput || null,
-    errors: data.repairIssues || [], basePlan: base?.plan || null, codeAvailable: Boolean(codeCardHandler) };
+    errors: data.repairIssues || [], basePlan: base?.plan || null, codeAvailable: Boolean(codeCardHandler),
+    playbackSeconds: playbackSeconds(source, data.selectionResult) };
+}
+// 每句在成品裡實際播放的秒數（含句後停頓），讓模型第一次就照秒數分圖卡。
+function playbackSeconds(source, selectionResult) {
+  const timeline = playbackTimeline(source, selectionResult);
+  if (!timeline) return null;
+  const { order, total } = timeline;
+  return Object.fromEntries(order.map((o, i) => [o.id, Math.round(((order[i + 1]?.t0 ?? total) - o.t0) * 100) / 100]));
 }
 function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault, loadBaseVersion = loadBaseDefault, codeCardHandler, courseTerms = [] } = {}) {
   if (!renderer?.buildRecutPlan || !renderer?.validatePlan) throw new TypeError('Provide the RC5 renderer contract.');

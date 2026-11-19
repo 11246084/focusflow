@@ -2456,3 +2456,10 @@ button.dd-item { width: 100%; border: none; background: none; text-align: left; 
   .admin-users-filters .ff-input { font-size: 16px; }
   .admin-users-search { flex-basis: 100%; max-width: none; }
 }
+
+/* 教師上傳頁：新課程需要先同意授課內容授權 */
+.upload-consent { margin-top: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(241,79,33,0.3); background: rgba(241,79,33,0.08); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.7; color: rgba(255,255,255,0.86); }
+.upload-consent strong { color: #fff; font-size: 14px; }
+.upload-consent p { margin: 0; color: rgba(255,255,255,0.72); white-space: pre-line; }
+.upload-consent summary { cursor: pointer; color: rgba(255,255,255,0.72); }
+.upload-consent .btn-primary { align-self: flex-start; padding: 9px 18px; }

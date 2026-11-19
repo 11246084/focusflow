@@ -60,6 +60,7 @@ const CODE_MESSAGES = {
   ANSWER_PROVIDER_NOT_CONFIGURED: 'AI 回答服務尚未設定，請聯絡管理員。',
   QA_QUOTA_EXCEEDED: '本月的 AI 提問額度已用完。',
   QA_DAILY_LIMIT_EXCEEDED: '今天的提問次數已用完（網頁與 LINE 合併計算），明天再來問吧！',
+  RECUT_CONTENT_CONSENT_REQUIRED: '這門課需要先同意授課內容授權。',
   QUESTION_TOO_LONG: '問題太長了，請精簡後再問一次。',
   CURRENT_SEGMENT_UNAVAILABLE: '這個位置沒有可用的課程內容',
   CONVERSATION_NOT_FOUND: '找不到這段對話。',

@@ -16,9 +16,26 @@ function fail(message = '找不到同一支影片內的連續 2～3 分鐘視窗
 // 換一群命中再試就可能成功的錯誤；其餘（如腳本不存在）直接停止。
 const RETRYABLE = new Set(['RECUT_WINDOW_NOT_FOUND', 'RECUT_SOURCE_UNAVAILABLE', 'RECUT_SOURCE_UPDATED']);
 
+// 題目關鍵字：中文取相鄰兩字、英數取整個詞，去掉「老師、什麼、那個」這類問句常用字。
+const FILLER = new Set(['老師', '師說', '說的', '的那', '那個', '這個', '什麼', '是什', '麼啊', '是啥', '請問', '為什', '怎麼', '如何',
+  '可以', '一下', '的是', '差在', '在哪', '哪裡', '是不', '不是', '有沒', '沒有', '什么', '那个', '这个']);
+function questionTerms(questions) {
+  const terms = new Set();
+  for (const q of questions) {
+    const text = String(q || '').toLowerCase();
+    for (const word of text.match(/[a-z0-9][a-z0-9.+#-]*/g) || []) if (word.length >= 2) terms.add(word);
+    for (const run of text.match(/\p{Script=Han}+/gu) || []) for (let i = 0; i + 1 < run.length; i++) {
+      const pair = run.slice(i, i + 2); if (!FILLER.has(pair)) terms.add(pair);
+    }
+  }
+  return terms;
+}
+const relevance = (terms, text) => { const t = String(text || '').toLowerCase(); let n = 0; for (const term of terms) if (t.includes(term)) n++; return n; };
+
 // 命中分散在多支影片、或同一影片相距超過三分鐘時，切成「同一影片、三分鐘內」的命中群。
-// 依命中數多到少、最前面命中的檢索排名排序，逐群嘗試（recut 決策第 1 項，2026-11-19 修訂）。
-function hitClusters(entries) {
+// 依「命中片段含題目關鍵字的數量」、命中數、最前面命中的檢索排名排序，逐群嘗試
+// （recut 決策第 1 項，2026-11-19 修訂；關鍵字排序見第 97 項）。
+function hitClusters(entries, { terms = new Set(), textOf = (e) => e.hit.rawText } = {}) {
   const byVideo = new Map();
   for (const entry of entries) {
     const key = String(entry.video._id);
@@ -31,10 +48,11 @@ function hitClusters(entries) {
     for (let i = 0; i < sorted.length; i++) {
       const members = sorted.slice(i).filter((e) => e.hit.endSec - sorted[i].hit.startSec <= C.MAX_WINDOW_SEC);
       const key = `${String(sorted[i].video._id)}:${members.map((e) => e.rank).join(',')}`;
-      clusters.set(key, { video: sorted[i].video, members, rank: Math.min(...members.map((e) => e.rank)) });
+      clusters.set(key, { key, video: sorted[i].video, members, rank: Math.min(...members.map((e) => e.rank)),
+        score: relevance(terms, members.map(textOf).join(' ')) });
     }
   }
-  return [...clusters.values()].sort((a, b) => b.members.length - a.members.length || a.rank - b.rank);
+  return [...clusters.values()].sort((a, b) => b.score - a.score || b.members.length - a.members.length || a.rank - b.rank);
 }
 
 async function loadClusterInputs({ script, video: rawVideo, hits }) {
@@ -54,7 +72,8 @@ async function loadClusterInputs({ script, video: rawVideo, hits }) {
   return input;
 }
 
-async function loadSourceInputs(task) {
+// exclude：已經試過、模型判定無法回答的命中群（recut 決策第 98 項）。
+async function loadSourceInputs(task, { exclude = [] } = {}) {
   const script = await ShortScript.findById(task.scriptId).lean();
   if (!script || String(script.courseId) !== String(task.courseId)) fail('找不到任務所屬腳本。', 'RECUT_SOURCE_UNAVAILABLE');
   const hits = (script.evidence || []).filter((s) => s.expandedFrom == null);
@@ -66,23 +85,31 @@ async function loadSourceInputs(task) {
     .filter((e) => e.video);
   if (!entries.length) fail('原片不在課程範圍內。', 'RECUT_SOURCE_UNAVAILABLE');
   let firstError = null;
-  for (const cluster of hitClusters(entries)) {
+  // 命中片段連同前後擴展的片段一起比對關鍵字（例如「拉馬，這個字的意思是羊駝」）。
+  const evidence = script.evidence || [];
+  const textOf = (e) => [e.hit.rawText, ...evidence.filter((x) => x.expandedFrom && x.expandedFrom === e.hit.chunkId).map((x) => x.rawText)].join(' ');
+  const terms = questionTerms([script.topic, ...(script.sourceQuestions || []).map((q) => q.question)]);
+  const skipped = new Set(exclude);
+  const clusters = hitClusters(entries, { terms, textOf }).filter((cluster) => !skipped.has(cluster.key));
+  for (const [index, cluster] of clusters.entries()) {
     try {
-      return await loadClusterInputs({ script, video: cluster.video, hits: cluster.members.map((e) => e.hit) });
+      const input = await loadClusterInputs({ script, video: cluster.video, hits: cluster.members.map((e) => e.hit) });
+      return { ...input, clusterKey: cluster.key, alternatives: clusters.length - index - 1 };
     } catch (error) {
       if (!RETRYABLE.has(error.code)) throw error;
       firstError = firstError || error;
     }
   }
-  throw firstError;
+  throw firstError || new AppError('找不到其他可用的原片段落。', 422, 'RECUT_WINDOW_NOT_FOUND');
 }
 
 function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createRecutMediaTools() } = {}) {
   return [
-    { id: 'recut-window-v1', stage: 'sourceCheck', run: async ({ task }) => {
-      const { video, hits, segments } = await loadInputs(task);
+    { id: 'recut-window-v1', stage: 'sourceCheck', run: async ({ task, data = {} }) => {
+      const { video, hits, segments, clusterKey, alternatives } = await loadInputs(task, { exclude: data.excludedClusterKeys || [] });
       return { sourceWindow: expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath,
-        transcriptVersion: video.activeTranscriptVersion || 'legacy' };
+        transcriptVersion: video.activeTranscriptVersion || 'legacy',
+        ...(clusterKey ? { sourceClusterKey: clusterKey, sourceAlternatives: alternatives } : {}) };
     } },
     { id: 'recut-source-check-v1', stage: 'sourceCheck', run: async ({ data, checkCancelled }) => {
       const results = inspectProbe(await media.probe(data.sourcePath), data.sourceWindow);
@@ -109,4 +136,4 @@ function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createR
     } },
   ];
 }
-module.exports = { expandContinuousWindow, inspectProbe, calculateFixedGain, splitSentences, loadSourceInputs, createRecutSourceSteps };
+module.exports = { expandContinuousWindow, inspectProbe, calculateFixedGain, splitSentences, loadSourceInputs, createRecutSourceSteps, hitClusters, questionTerms };

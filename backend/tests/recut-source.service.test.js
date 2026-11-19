@@ -2,7 +2,7 @@ const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { resetStore, store, ids } = require('./helpers/backendTestHarness');
 const { seedScript, snapshot } = require('./helpers/recutFixtures');
-const { expandContinuousWindow: expand, inspectProbe, calculateFixedGain: gain, splitSentences, createRecutSourceSteps, loadSourceInputs } = require('../src/services/recutSource.service');
+const { expandContinuousWindow: expand, inspectProbe, calculateFixedGain: gain, splitSentences, createRecutSourceSteps, loadSourceInputs, hitClusters, questionTerms } = require('../src/services/recutSource.service');
 const { createRecutQueue } = require('../src/services/recutQueue.service');
 const segments = Array.from({ length: 20 }, (_, i) => ({ videoId: ids.teacherVideo, chunkId: `c${i}`, startSec: i * 15, endSec: (i + 1) * 15 }));
 const windowInput = () => ({ hits: [segments[5], segments[7]], segments });
@@ -100,10 +100,27 @@ describe('recut RC2 連續視窗與句子', () => {
     const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
     assert.deepEqual(input.hits.map((h) => h.chunkId), ['c0']);
   });
+  it('排除已試過的命中群，回報還剩幾群可換（決策第 98 項）', async () => {
+    const script = seedScript({ evidence: [segments[0], segments[18], segments[19]].map((s) => ({ ...s, expandedFrom: null })) });
+    store.videoSegments.push(...segments);
+    const first = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
+    assert.deepEqual(first.hits.map((h) => h.chunkId), ['c18', 'c19']); assert.ok(first.alternatives >= 1);
+    const next = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId }, { exclude: [first.clusterKey] });
+    assert.notEqual(next.clusterKey, first.clusterKey); assert.ok(!next.hits.some((h) => h.chunkId === 'c18' && h.chunkId === 'c19'));
+  });
   it('所有命中群都接不出視窗時，回報排名最前那一群的原因', async () => {
     const script = seedScript({ evidence: [{ ...segments[5], expandedFrom: null }] });
     store.videoSegments.push(segments[5]);
     await assert.rejects(loadSourceInputs({ scriptId: script._id, courseId: script.courseId }), { code: 'RECUT_WINDOW_NOT_FOUND' });
+  });
+  it('命中群先比題目關鍵字，再比命中數（正式站「羊駝」選錯講自然語言的影片）', () => {
+    const terms = questionTerms(['老師說的那個羊駝是什麼啊？']);
+    assert.ok(terms.has('羊駝')); assert.ok(!terms.has('老師')); assert.ok(!terms.has('什麼'));
+    const entry = (video, startSec, rawText, rank) => ({ hit: { startSec, endSec: startSec + 15, rawText }, rank, video: { _id: video } });
+    const clusters = hitClusters([entry('a', 154.8, '現在最有名的就是拉馬 這個字的意思是羊駝', 1),
+      entry('b', 1755, '難道我不自然語言嗎', 2), entry('b', 1788, '它也是語言', 3)], { terms });
+    assert.equal(clusters[0].video._id, 'a');
+    assert.equal(hitClusters([entry('a', 1, '無關', 1), entry('b', 1, '無關', 2), entry('b', 20, '無關', 3)], { terms })[0].video._id, 'b');
   });
   it('同版本才以chunkId回查，排除其他版本片段', async () => {
     const script = seedScript({ evidence: [{ ...segments[5], transcriptVersion: 'upgrade-1' }] });

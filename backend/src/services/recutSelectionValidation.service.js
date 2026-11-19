@@ -95,13 +95,13 @@ function resolveSelection(source, input, { allowInvalidDuration = false } = {}) 
   return { selection: { ...input, ranges, lockedSentenceIds: [...locked] }, clips, durationSec, fullScript: clips.map((c) => c.text).join('\n\n') };
 }
 // 總長只超過 65 秒一點點時，由程式拿掉頭尾一句（優先拿最後一句，不拿 ★ 命中句與冷開場），
-// 被拿掉的句子標成「重複」，不再花一次模型呼叫（recut 決策第 94 項）。最多拿兩句。
+// 被拿掉的句子標成「重複」，不再花一次模型呼叫（recut 決策第 94 項；第 96 項放寬為最多三句）。
 const MAX_DURATION = 65;
 function trimOverlong(source, input) {
   const hit = new Map(source.sentences.map((s) => [s.id, s.retrievalHit === true]));
   const order = source.sentences.map((s) => s.id);
   let current = structuredClone(input);
-  for (let n = 0; n < 2; n++) {
+  for (let n = 0; n < 3; n++) {
     const resolved = resolveSelection(source, current, { allowInvalidDuration: true });
     if (resolved.durationSec <= MAX_DURATION) return resolved.durationSec >= 30 ? current : null;
     const ranges = current.ranges;
@@ -126,9 +126,33 @@ function trimOverlong(source, input) {
   const resolved = resolveSelection(source, current, { allowInvalidDuration: true });
   return resolved.durationSec <= MAX_DURATION && resolved.durationSec >= 30 ? current : null;
 }
-function validateSelection(source, input) {
+// 理由標籤與選取範圍不一致時，以範圍為準改標籤：選到的句子若標成跳過類改為「理由」，
+// 沒選到的句子若標成保留類改為「重複」（recut 決策第 96 項）。冷開場與指畫面不動。
+function alignLabels(source, input) {
+  if (!input || typeof input !== 'object' || !input.answerable || !Array.isArray(input.ranges) || !Array.isArray(input.sentenceLabels)) return input;
+  const order = source.sentences.map((s) => s.id); const index = new Map(order.map((id, i) => [id, i]));
+  const selected = new Set();
+  for (const range of input.ranges) {
+    const a = index.get(range?.from), b = index.get(range?.to);
+    if (a === undefined || b === undefined || a > b) return input;
+    for (let i = a; i <= b; i++) selected.add(order[i]);
+  }
+  if (input.openingSentenceId) selected.add(input.openingSentenceId);
+  let changed = false;
+  const sentenceLabels = input.sentenceLabels.map((item) => {
+    if (!item || ['冷開場', '指畫面'].includes(item.label)) return item;
+    const keep = KEEP.has(item.label);
+    if (selected.has(item.sentenceId) && !keep) { changed = true; return { ...item, label: '理由' }; }
+    if (!selected.has(item.sentenceId) && keep) { changed = true; return { ...item, label: '重複' }; }
+    return item;
+  });
+  return changed ? { ...input, sentenceLabels } : input;
+}
+function validateSelection(source, rawInput) {
+  let input = rawInput;
   try {
     if (input && Object.hasOwn(input, 'lockedSentenceIds')) invalid('模型不得自行設定教師鎖定句子');
+    input = alignLabels(source, input);
     return { valid: true, errors: [], ...resolveSelection(source, input) };
   }
   catch (error) {

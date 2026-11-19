@@ -33,14 +33,15 @@ it('recut 媒體工具解析 ffprobe 與 loudnorm 量測 JSON，不以動態 lou
   assert.deepEqual(await tools.measure('input', { startSec: 30, endSec: 180 }), { integratedLufs: -21, truePeakDbtp: -8 });
 });
 
-it('explicit ffmpeg extraction normalizes only a final zero token and keeps boundary evidence', async () => {
+it('explicit ffmpeg extraction drops only a final boundary zero token and keeps boundary evidence', async () => {
   for (const words of [[{ w: '保留', s: 0, e: 1 }, { w: '截斷', s: 149.98, e: 149.98 }],
     [{ w: '內部零字', s: 1, e: 1 }, { w: '正常', s: 2, e: 3 }]]) {
     let calls = 0;
     const tools = createRecutMediaTools({ resolveSource: () => 'fixture.mp4', hashSource: async () => 'b'.repeat(64),
       run: async (_, args) => { calls++; if (args[0] === '-I') await fs.writeFile(args[3], JSON.stringify(words)); return {}; } });
     const result = tools.transcribe('fixture', { startSec: 40, endSec: 190 });
-    if (words[0].s === words[0].e) await assert.rejects(result, { code: 'RECUT_ASR_INVALID' });
+    // 開頭的零長度字併進下一個字（recut 決策第 95 項），不再整段停止。
+    if (words[0].s === words[0].e) assert.deepEqual((await result).words.map((w) => [w.w, w.s, w.e]), [['內部零字正常', 1, 3]]);
     else {
       const value = await result;
       assert.equal(value.words.length, 1); assert.equal(value.excludeLastSentence, true);

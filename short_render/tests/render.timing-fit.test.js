@@ -39,7 +39,7 @@ test('a card whose every element is timed late is rejected with an actionable me
       cues: { label: { sentenceId: 's2' }, text: { sentenceId: 's2' } } }, ...a.scenes.slice(2)];
   });
   const timing = (errors.length ? errors : validatePlan(plan, { sentences: args.source.sentences, evidence: args.source }).errors).find((e) => e.code === 'SENTENCE_TIMING');
-  assert.match(timing.message, /scene card1 shows an empty card for 5s .*anchor its first cue within 1.5s of the scene start, e.g. on a phrase in s1/);
+  assert.match(timing.message, /scene card1 shows an empty card for 5s .*anchor its first cue within 3s of the scene start, e.g. on a phrase in s1/);
   const ok = build((a) => {
     a.scenes = [{ id: 'card1', from: 's1', to: 's2', component: 'quote-reveal', params: { label: '重點', text: '段落說明' },
       cues: { label: { sentenceId: 's1' }, text: { sentenceId: 's2' } } }, ...a.scenes.slice(2)];

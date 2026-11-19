@@ -42,7 +42,7 @@ ASR 原始輸入 `{w,s,e}` 為視窗相對秒數；輸出改成原片絕對秒�
 
 ## 視窗邊界與辨識證據
 
-正式媒體轉接在 FFmpeg 成功抽出指定 WAV、辨識成功後，回傳 `{words, sourceSha256, asrProvenance}`；原片雜湊以串流計算，`boundaryEvidence` 記錄 `ffmpeg-extracted-window` 與實際指定起訖。來源步驟也接受舊的逐字陣列，並統一經過 [ASR 正規化](../src/services/recutAsrNormalization.service.js)，不因注入的 raw 回應自稱切窗就放寬檢查。
+正式媒體轉接在 FFmpeg 成功抽出指定 WAV、辨識成功後，回傳 `{words, sourceSha256, asrProvenance}`；原片雜湊以串流計算，`boundaryEvidence` 記錄 `ffmpeg-extracted-window` 與實際指定起訖。來源步驟也接受舊的逐字陣列，並統一經過 [ASR 正規化](../src/services/recutAsrNormalization.service.js)，不因注入的 raw 回應自稱切窗就放寬檢查。正規化會先把簡體字轉成繁體，並把中間長度為 0 的字併進時間較近的相鄰字（只用辨識給的時間，見 recut 決策第 95 項）；重疊、倒序、超出視窗仍然停止，錯誤訊息寫出第一個出錯的字與原因。
 
 只有明確切窗且最後一字的有限時間滿足 `s === e`、落在窗尾內側 50 ms，才略過該字。原始陣列 SHA-256、排除字的原文／相對時間／原因與門檻會留在 `asrProvenance`；內部零長、逆序、重疊或超窗仍拒絕，不延長或捏造時間。
 

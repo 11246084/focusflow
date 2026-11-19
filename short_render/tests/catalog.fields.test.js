@@ -64,7 +64,7 @@ test('timing feedback names the scene duration, sentence spans and the ambiguous
   short.scenes = [{ ...short.scenes[0], to: short.scenes.at(-1).to, clips: [...new Set(short.scenes.flatMap((s) => s.clips))], basedOn: [...new Set(short.scenes.flatMap((s) => s.basedOn))], cues: {} }];
   const long = resolvePlan(short, { sentences });
   assert.equal(long.resolved, null);
-  assert.match(long.errors[0].message, /lasts 30s but must last 3-12 seconds; regroup sentences at sentence boundaries\. Playback seconds per selected sentence: /);
+  assert.match(long.errors[0].message, /lasts 30s but must last 2-15 seconds; regroup sentences at sentence boundaries\. Playback seconds per selected sentence: /);
   const ambiguous = structuredClone(plan);
   ambiguous.scenes[0].cues = { stamp: { sentenceId: ambiguous.scenes[0].from, text: '不存在的片語' } };
   ambiguous.scenes[0].stamp = { text: '注意' };

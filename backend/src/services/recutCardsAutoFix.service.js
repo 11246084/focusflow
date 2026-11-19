@@ -1,12 +1,13 @@
 'use strict';
-// 配圖卡輸出的程式修正（2026-11-19）：字幕過長、圖卡秒數超出 3～12 秒這類「差一點點」的問題，
+// 配圖卡輸出的程式修正（2026-11-19）：字幕過長、圖卡秒數超出 2～15 秒這類「差一點點」的問題，
 // 由程式依句子邊界直接修，不再花模型呼叫額度重送。修正只搬動既有內容的位置，
 // 不新增、不刪改字幕文字；修不了的情況維持原樣，交給後續驗證回報給模型。
 const SUBTITLE_MAX = 20;
-const SCENE_MIN = 3;
-const SCENE_MAX = 12;
+// 與 short_render 的圖卡長度一致（recut 決策第 96 項放寬為 2～15 秒）。
+const SCENE_MIN = 2;
+const SCENE_MAX = 15;
 const EPS = 0.01;
-const MAX_BLANK = 1.4; // renderer 允許 1.5 秒，留一點餘裕
+const MAX_BLANK = 2.9; // renderer 允許 3 秒，留一點餘裕
 const norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[。！？、，；「」『』“”‘’\p{Z}\s]/gu, '');
 const PUNCT = /[，。！？、；：,.!?;:]/u;
 const clone = (v) => structuredClone(v);

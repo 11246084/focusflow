@@ -25,53 +25,54 @@ describe('recut 配圖卡程式修正', () => {
     assert.equal(timeline.order[1].t0.toFixed(2), '7.84');
     assert.equal(timeline.total.toFixed(2), (SPANS.reduce((a, b) => a + b) - 0.2).toFixed(2));
   });
-  it('第一張 12.48 秒時把最後一句讓給下一張，兩張都回到 3～12 秒', () => {
+  // 每句秒數：s1 7.84、s2 1.74、s3 2.9、s4 8、s5 4.14、s6 7.8、s7 3.3、s8 7.86、s9 4.9、s10 7.08；圖卡須 2～15 秒。
+  const longFirst = () => [scene('a', 's1', 's4', { title: { sentenceId: 's1' }, detail: { sentenceId: 's4' } }), scene('b', 's5', 's5'),
+    scene('c', 's6', 's7'), scene('d', 's8', 's8'), scene('e', 's9', 's10')];
+  it('第一張 20.48 秒時把最後一句讓給下一張，兩張都回到 2～15 秒', () => {
     const { source, selectionResult } = fixture();
-    const output = { scenes: [scene('a', 's1', 's3'), scene('b', 's4', 's4'), scene('c', 's5', 's6'), scene('d', 's7', 's8'), scene('e', 's9', 's10')], subtitles: [] };
-    const fixed = fixSceneTiming(output, playbackTimeline(source, selectionResult));
+    const fixed = fixSceneTiming({ scenes: longFirst(), subtitles: [] }, playbackTimeline(source, selectionResult));
     assert.equal(fixed.changed, true);
-    assert.deepEqual(ranges(fixed.output).slice(0, 2), ['s1-s2', 's3-s4']);
+    assert.deepEqual(ranges(fixed.output).slice(0, 2), ['s1-s3', 's4-s5']);
   });
   it('讓不出去時在句子邊界拆成兩張同樣的圖卡', () => {
     const { source, selectionResult } = fixture();
-    // c 是 s4～s6（19.94 秒），前後兩張都塞不下，只能拆。
-    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's3'), scene('c', 's4', 's6'), scene('d', 's7', 's8'), scene('e', 's9', 's10')], subtitles: [] };
+    const output = { scenes: [scene('a', 's1', 's4'), scene('b', 's5', 's6'), scene('c', 's7', 's8'), scene('d', 's9', 's10')], subtitles: [] };
     const fixed = fixSceneTiming(output, playbackTimeline(source, selectionResult));
-    assert.deepEqual(ranges(fixed.output), ['s1-s1', 's2-s3', 's4-s4', 's5-s6', 's7-s8', 's9-s10']);
-    assert.equal(fixed.output.scenes[3].id, 'cb'); assert.equal(fixed.output.scenes[3].component, 'statement');
+    assert.deepEqual(ranges(fixed.output), ['s1-s1', 's2-s4', 's5-s6', 's7-s8', 's9-s10']);
+    assert.equal(fixed.output.scenes[1].id, 'ab'); assert.equal(fixed.output.scenes[1].component, 'statement');
   });
   it('太短的圖卡向相鄰圖卡借一句', () => {
     const { source, selectionResult } = fixture();
-    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's2'), scene('c', 's3', 's4'), scene('d', 's5', 's6'), scene('e', 's7', 's8'), scene('f', 's9', 's9'), scene('g', 's10', 's10')], subtitles: [] };
+    // s2 只有 1.74 秒，不到 2 秒。
+    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's2'), scene('c', 's3', 's4'), scene('d', 's5', 's6'), scene('e', 's7', 's8'), scene('f', 's9', 's10')], subtitles: [] };
     const fixed = fixSceneTiming(output, playbackTimeline(source, selectionResult));
     assert.deepEqual(ranges(fixed.output).slice(0, 3), ['s1-s1', 's2-s3', 's4-s4']);
   });
-  it('一張圖卡長到要拆成三張時逐步拆開（正式站 s4～s7 23.24 秒）', () => {
+  it('一張圖卡長到要拆成三張以上時逐步拆開', () => {
     const { source, selectionResult } = fixture();
-    const output = { scenes: [scene('a', 's1', 's3'), scene('b', 's4', 's7'), scene('c', 's8', 's10')], subtitles: [] };
+    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's9'), scene('c', 's10', 's10')], subtitles: [] };
     const timeline = playbackTimeline(source, selectionResult);
     const fixed = fixSceneTiming(output, timeline);
     const at = (id) => timeline.order.findIndex((o) => o.id === id);
+    assert.ok(fixed.output.scenes.length >= 5);
     for (const sc of fixed.output.scenes) {
       const a = at(sc.from), b = at(sc.to);
       const d = (b + 1 < timeline.order.length ? timeline.order[b + 1].t0 : timeline.total) - timeline.order[a].t0;
-      assert.ok(d >= 3 && d <= 12, `${sc.id} ${sc.from}-${sc.to} ${d}`);
+      assert.ok(d >= 2 && d <= 15, `${sc.id} ${sc.from}-${sc.to} ${d}`);
     }
   });
-  it('圖卡第一個元素在開場 1.5 秒後才出現時，移除最早的 cue', () => {
+  it('圖卡第一個元素在開場 3 秒後才出現時，移除太晚的 cue', () => {
     const { source, selectionResult } = fixture();
-    // s3 在 s2 開始後 1.74 秒，超過 1.5 秒。
-    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's4', { title: { sentenceId: 's3' }, detail: { sentenceId: 's4' } })], subtitles: [] };
+    // s4 在 s2 開始後 4.64 秒。
+    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's4', { title: { sentenceId: 's4' }, detail: { sentenceId: 's4' } })], subtitles: [] };
     const fixed = fixEmptyCards(output, playbackTimeline(source, selectionResult));
     assert.equal(fixed.changed, true); assert.deepEqual(Object.keys(fixed.output.scenes[1].cues), []);
-    const good = { scenes: [scene('b', 's2', 's4', { title: { sentenceId: 's2' }, detail: { sentenceId: 's4' } })], subtitles: [] };
+    const good = { scenes: [scene('b', 's2', 's4', { title: { sentenceId: 's3' }, detail: { sentenceId: 's4' } })], subtitles: [] };
     assert.equal(fixEmptyCards(good, playbackTimeline(source, selectionResult)).changed, false);
   });
   it('搬走的句子上的 cue 一併移除', () => {
     const { source, selectionResult } = fixture();
-    const output = { scenes: [scene('a', 's1', 's3', { title: { sentenceId: 's1' }, detail: { sentenceId: 's3' } }), scene('b', 's4', 's4'),
-      scene('c', 's5', 's6'), scene('d', 's7', 's8'), scene('e', 's9', 's9'), scene('f', 's10', 's10')], subtitles: [] };
-    const fixed = fixSceneTiming(output, playbackTimeline(source, selectionResult));
+    const fixed = fixSceneTiming({ scenes: longFirst(), subtitles: [] }, playbackTimeline(source, selectionResult));
     assert.deepEqual(Object.keys(fixed.output.scenes[0].cues), ['title']);
   });
   it('時間都合規時不改動', () => {
@@ -98,7 +99,7 @@ describe('recut 配圖卡程式修正', () => {
   });
   it('autoFixCardsOutput 同時處理字幕與圖卡秒數', () => {
     const { source, selectionResult } = fixture();
-    const output = { scenes: [scene('a', 's1', 's3'), scene('b', 's4', 's4'), scene('c', 's5', 's6'), scene('d', 's7', 's8'), scene('e', 's9', 's9'), scene('f', 's10', 's10')], subtitles: [] };
+    const output = { scenes: longFirst(), subtitles: [] };
     assert.equal(autoFixCardsOutput(output, { source, selectionResult }).changed, true);
   });
   it('chips 超過 6 個保留前 6 個，超出範圍的強調一併移除', () => {

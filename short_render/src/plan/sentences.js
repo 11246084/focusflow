@@ -12,7 +12,10 @@ const safeId = (v) => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.t
 // Element ids the renderer itself writes into the page (render/html.js). A scene must not reuse one:
 // duplicate ids make the timeline selectors (for example "#subtitle0") act on the wrong element.
 const RESERVED_SCENE_ID = /^(?:root|recut|hdr|endcard|end1|end2|narration|sub\d+|subtitle\d+|play-toggle|preview-viewport|preview-seek)$/;
-const MAX_BLANK_CARD_SECONDS = 1.5;
+// 2026-11-19 放寬（recut 決策第 96 項）：圖卡 2～15 秒、開頭空白上限 3 秒。
+const MAX_BLANK_CARD_SECONDS = 3;
+const SCENE_MIN_SECONDS = 2;
+const SCENE_MAX_SECONDS = 15;
 const planHash = (plan) => crypto.createHash('sha256').update(JSON.stringify(plan)).digest('hex');
 
 function validateSentenceStructure(plan) {
@@ -177,9 +180,9 @@ function resolveSentencePlan(plan, { sentences } = {}) {
       // The next scene starts at a sentence's first word; intervening pause
       // remains with the current card so there is no uncovered black interval.
       const t1 = occurrences[b + 1]?.t0 ?? speechTotal;
-      if (t1 - t0 < 3 - 0.001 || t1 - t0 > 12 + 0.001) {
+      if (t1 - t0 < SCENE_MIN_SECONDS - 0.001 || t1 - t0 > SCENE_MAX_SECONDS + 0.001) {
         const spans = occurrences.map((o, i) => `${o.id} ${round((occurrences[i + 1]?.t0 ?? speechTotal) - o.t0)}s`).join(', ');
-        throw new Error(`scene ${scene.id} (${scene.from}-${scene.to}) lasts ${round(t1 - t0)}s but must last 3-12 seconds; regroup sentences at sentence boundaries. Playback seconds per selected sentence: ${spans}`);
+        throw new Error(`scene ${scene.id} (${scene.from}-${scene.to}) lasts ${round(t1 - t0)}s but must last ${SCENE_MIN_SECONDS}-${SCENE_MAX_SECONDS} seconds; regroup sentences at sentence boundaries. Playback seconds per selected sentence: ${spans}`);
       }
       const cues = {};
       for (const [name, anchor] of Object.entries(scene.cues || {})) {

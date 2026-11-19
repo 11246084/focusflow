@@ -1,6 +1,6 @@
 'use strict';
 const { fail } = require('./recutRuntime.service');
-const INPUT_KEYS = new Set(['question', 'variants', 'sentences', 'selection', 'clips', 'catalog', 'iconAllowlist', 'selectionLocked', 'adoptedSuggestions', 'presentationScope', 'previousOutput', 'errors', 'basePlan', 'codeAvailable', 'fullScript', 'plan']);
+const INPUT_KEYS = new Set(['question', 'variants', 'sentences', 'selection', 'clips', 'catalog', 'iconAllowlist', 'selectionLocked', 'adoptedSuggestions', 'presentationScope', 'previousOutput', 'errors', 'basePlan', 'codeAvailable', 'fullScript', 'plan', 'playbackSeconds']);
 function createRecutTrialGuard(policy, { forbiddenValues = [], now = () => new Date(), initialUsage } = {}) {
   policy = structuredClone(policy);
   if (!policy || !policy.modelId || !Number.isInteger(policy.maxCalls) || policy.maxCalls < 1 || !Number.isInteger(policy.maxRequestBytes) || policy.maxRequestBytes < 1

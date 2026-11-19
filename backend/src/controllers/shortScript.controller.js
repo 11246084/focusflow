@@ -4,6 +4,7 @@ const { sendSuccess } = require('../utils/apiResponse');
 const shortScriptService = require('../services/shortScript.service');
 const shortAssetPublishService = require('../services/shortAssetPublish.service');
 const { listTopicCandidates } = require('../services/shortScriptTopic.service');
+const { assertObjectId } = require('../utils/objectId');
 
 const createScript = asyncHandler(async (req, res) => {
   const script = await shortScriptService.createScriptWithFrozenEvidence({
@@ -67,10 +68,14 @@ const listScripts = asyncHandler(async (req, res) => {
 
 // 唯讀的候選預覽。自動選題不需要它，但教師想知道「系統下一支會做什麼」時，
 // 這條路徑可以在不建立腳本、不消耗 LLM 的情況下先看。
+// 已經做成短片的主題不再列出，和自動選題用同一份排除清單；
+// 否則熱門題都做過時，前端過濾後清單會是空的。
 const listCandidates = asyncHandler(async (req, res) => {
+  assertObjectId(req.params.courseId, 'course');
   const result = await listTopicCandidates({
     user: req.user,
     courseId: req.params.courseId,
+    excludedTopicKeys: await shortScriptService.loadExcludedTopicKeys(req.params.courseId),
   });
 
   return sendSuccess(res, {

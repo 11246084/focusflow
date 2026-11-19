@@ -285,22 +285,31 @@ async function listTopicCandidates({
   const pageSize = Number(limit) > 0 ? Number(limit) : env.shortScriptTopicCandidateLimit;
 
   // 先用免費的精確合併結果過濾與排序，只把前 M 名送進需要向量的第 2 層。
-  const shortlist = groups
+  const ranked = groups
     .filter((group) => group.askCount >= 1)
-    .sort(compareGroupsForClustering)
-    .slice(0, Math.max(pageSize * 3, pageSize));
-
-  const embeddingByNormalized = await loadEmbeddingsForGroups(course._id, shortlist, thresholdOverride);
-  const clusters = clusterGroups(shortlist, embeddingByNormalized, thresholdOverride);
-
+    .sort(compareGroupsForClustering);
   const excluded = new Set(excludedTopicKeys.map((key) => String(key)));
 
-  const candidates = clusters
-    .map(buildCandidate)
-    .filter((candidate) => candidate.totalAskCount >= minAskCount)
-    .filter((candidate) => !excluded.has(candidate.topicKey))
-    .sort(compareCandidates)
-    .slice(0, pageSize);
+  // 熱門題目都已經做成短片時，前 M 名全被排除，清單會變空（2026-11-19 正式站
+  // AI入門基礎課：231 題提問卻沒有候選）。所以候選不足時逐步擴大 M，直到湊滿
+  // 或所有題目都看過為止。資料量小，多讀幾次向量的成本可以接受。
+  let windowSize = Math.max(pageSize * 3, pageSize);
+  let clusters = [];
+  let candidates = [];
+  for (;;) {
+    const shortlist = ranked.slice(0, windowSize);
+    // eslint-disable-next-line no-await-in-loop
+    const embeddingByNormalized = await loadEmbeddingsForGroups(course._id, shortlist, thresholdOverride);
+    clusters = clusterGroups(shortlist, embeddingByNormalized, thresholdOverride);
+    candidates = clusters
+      .map(buildCandidate)
+      .filter((candidate) => candidate.totalAskCount >= minAskCount)
+      .filter((candidate) => !excluded.has(candidate.topicKey))
+      .sort(compareCandidates)
+      .slice(0, pageSize);
+    if (candidates.length >= pageSize || windowSize >= ranked.length) break;
+    windowSize *= 2;
+  }
 
   return {
     candidates,

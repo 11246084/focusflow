@@ -17,6 +17,7 @@ function requireOpenDataExtensionEnabled(req, res, next) {
 }
 
 router.use(authenticate);
+router.get('/options', qaController.getAskOptions);
 router.post('/ask', qaController.askQuestion);
 router.post(
   '/extended-resources',

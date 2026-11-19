@@ -32,6 +32,8 @@ task 必須屬於 script；不屬於時回 404 `RECUT_TASK_NOT_FOUND`。拒絕�
 
 ## 1. QA 回答契約
 
+學生對話頁透過 `GET /api/v1/qa/options` 讀取 `data.dailyUsage`（今日上限、已用與剩餘次數、重設時間；不限次數時為 null）與 `data.extendedResourcesEnabled`，開啟延伸學習時才送出延伸資源查詢。
+
 `POST /api/v1/qa/ask` 回傳主體：
 
 ```json

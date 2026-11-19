@@ -59,6 +59,19 @@ describe('qa routes', () => {
     assert.equal(result.body.error.code, 'UNAUTHORIZED');
   });
 
+  it('reports the signed-in student quota and the current extension setting', async () => {
+    const student = store.users.find((user) => user.email === 'student@focusflow.local');
+    student.dailyAskLimitOverride = 5;
+    const token = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
+    const result = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/options', { token });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.data.extendedResourcesEnabled, env.openDataExtensionEnabled);
+    assert.equal(result.body.data.dailyUsage.remaining, result.body.data.dailyUsage.limit - result.body.data.dailyUsage.used);
+    student.dailyAskLimitOverride = 0;
+    const unlimited = await jsonRequest(serverContext.baseUrl, '/api/v1/qa/options', { token });
+    assert.equal(unlimited.body.data.dailyUsage, null);
+  });
+
   it('validates required qa request fields', async () => {
     const studentToken = await loginAs(serverContext.baseUrl, 'student@focusflow.local', 'Student123!');
 

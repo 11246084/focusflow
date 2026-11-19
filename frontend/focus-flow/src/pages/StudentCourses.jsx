@@ -374,7 +374,6 @@ const SEGMENT_PREVIEW_COUNT = SOURCE_PREVIEW_COUNT;
 // 需與後端 QA_MAX_QUESTION_LENGTH / QA_DAILY_ASK_LIMIT_PER_STUDENT 一致（預設 50 字、每天 5 次）。
 // 後端才是真正的限制，這裡只是事先提示。
 const MAX_QUESTION_LENGTH = 50;
-const DAILY_ASK_LIMIT = 5;
 
 function renderAnswerInline(text, lineIndex) {
   const parts = String(text).split(/(\*\*[^*\n]+\*\*)/g);
@@ -543,6 +542,17 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
   const [loading, setLoading]   = useState(false);
   const [retryingMessageId, setRetryingMessageId] = useState(null);
   const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  const [askOptions, setAskOptions] = useState(null);
+  useEffect(() => {
+    if (loading || awaitingAnswer) return undefined;
+    let active = true;
+    const refresh = () => apiFetch('/qa/options')
+      .then(({ data }) => { if (active) setAskOptions(data); })
+      .catch(() => { if (active) setAskOptions(null); });
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.removeEventListener('focus', refresh); };
+  }, [loading, awaitingAnswer]);
   const [stage, setStage] = useState('');
   const [pollTick, setPollTick] = useState(0);
   const generationRef = useRef(0);
@@ -951,7 +961,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
             const start = seg.startSec;
             const end = seg.endSec;
             // 影像片段沒有逐字稿，改顯示來源說明，避免卡片只剩標題
-            const text = seg.transcript || (seg.modality === 'video' ? '影像片段（依畫面比對，無逐字稿）' : '');
+            const text = seg.transcript?.replace(/\bOvenCV\b/gi, 'OpenCV') || (seg.modality === 'video' ? '影像片段（依畫面比對，無逐字稿）' : '');
             const matchedIndex = videos.findIndex((video) => (
               String(video._id || video.id || '') === String(seg.videoId || '')
               || String(video.videoId || video.externalVideoId || '') === String(seg.videoId || '')
@@ -1019,7 +1029,7 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           )}
           <ExtendedLearning
             courseId={courseId}
-            question={findExtendedResourcesQuestion(messages, messageIndex)}
+            question={askOptions?.extendedResourcesEnabled ? findExtendedResourcesQuestion(messages, messageIndex) : ''}
           />
           </div>
         </div>
@@ -1051,7 +1061,8 @@ function QAPanel({ courseId, videos = [], onJumpToVideo, activeSourceKey, compac
           </button>
         </form>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6, fontSize: 11, color: questionTooLong ? '#ff6b6b' : 'rgba(255,255,255,0.4)' }}>
-          <span>{questionTooLong ? `超過 ${MAX_QUESTION_LENGTH} 字，請精簡問題` : `每天可提問 ${DAILY_ASK_LIMIT} 次（網頁與 LINE 合併計算）`}</span>
+          <span>{questionTooLong ? `超過 ${MAX_QUESTION_LENGTH} 字，請精簡問題` : askOptions?.dailyUsage
+            ? `今日還可提問 ${askOptions.dailyUsage.remaining}／${askOptions.dailyUsage.limit} 次（含 LINE）` : ''}</span>
           <span aria-live="polite">{questionLength} / {MAX_QUESTION_LENGTH}</span>
         </div>
       </div>

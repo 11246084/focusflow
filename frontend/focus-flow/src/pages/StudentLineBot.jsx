@@ -148,7 +148,7 @@ export default function StudentLineBot() {
                 {/* 已確認加好友時不多顯示，畫面保持簡單；沒加或無法確認才提示。 */}
                 {user?.lineFriendStatus !== 'friend' && (
                   <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, color: '#fbbf24' }}>{describeFriendStatus(user?.lineFriendStatus)}</span>
+                    <span style={{ fontSize: 13, color: user?.lineFriendStatus === 'not_friend' ? '#fbbf24' : 'rgba(255,255,255,0.72)' }}>{describeFriendStatus(user?.lineFriendStatus)}</span>
                     {LINE_BOT_URL && (
                       <a href={LINE_BOT_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#4ade80' }}>加入官方帳號</a>
                     )}

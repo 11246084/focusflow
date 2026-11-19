@@ -51,15 +51,45 @@ function numericTokens(text) {
   }
   return result;
 }
+// Whisper sometimes emits a model number and a price as consecutive words,
+// e.g. ["50", "90", "7", "萬"]. Recover a boundary only when nearby speech
+// independently names both values and there is exactly one supported split.
+function sourceNumbers(sentences, index) {
+  const sentence = sentences[index];
+  const numbers = new Set(numericTokens(sentence.text));
+  const words = (sentence.words || []).map((word) => normalized(word.text));
+  if (words.join('') !== normalized(sentence.text)) return numbers;
+  const nearby = new Set(sentences.slice(Math.max(0, index - 3), index + 4)
+    .filter((other) => other !== sentence).flatMap((other) => numericTokens(other.text)));
+  for (let start = 0; start < words.length; start++) {
+    if (!/^\d+$/.test(words[start])) continue;
+    let end = start + 1;
+    while (end < words.length && /^\d+$/.test(words[end])) end++;
+    if (end - start >= 2 && /^[萬億兆]$/.test(words[end])) {
+      const combined = words.slice(start, end + 1).join('');
+      const splits = [];
+      if (numbers.has(numberValue(combined))) {
+        for (let cut = start + 1; cut < end; cut++) {
+          const values = [numberValue(words.slice(start, cut).join('')), numberValue(words.slice(cut, end + 1).join(''))];
+          if (values.every((value) => nearby.has(value))) splits.push(values);
+        }
+      }
+      if (splits.length === 1) for (const value of splits[0]) numbers.add(value);
+    }
+    start = end - 1;
+  }
+  return numbers;
+}
 // Exact tokens, sentence-local. No semantic similarity threshold: paraphrase is
 // allowed; meaning drift remains the third model check and teacher decision.
 function validateSubtitleSources(plan, source, courseTerms = []) {
-  const errors = [], byId = new Map(source.sentences.map((s) => [s.id, s]));
+  const errors = [], byId = new Map(source.sentences.map((s, i) => [s.id, i]));
   for (const [index, subtitle] of (plan.subtitles || []).entries()) {
-    const sentence = byId.get(subtitle.from?.sentenceId);
+    const sourceIndex = byId.get(subtitle.from?.sentenceId);
+    const sentence = source.sentences[sourceIndex];
     if (!sentence) { errors.push(`字幕${index}引用不存在的句子。`); continue; }
     const text = (subtitle.runs || []).map((run) => run.t).join('');
-    const originalNumbers = new Set(numericTokens(sentence.text)), originalTerms = new Set(technicalTokens(sentence.text));
+    const originalNumbers = sourceNumbers(source.sentences, sourceIndex), originalTerms = new Set(technicalTokens(sentence.text));
     for (const token of numericTokens(text)) if (!originalNumbers.has(token)) errors.push(`字幕${index}數字沒有對應原句出處：${token}`);
     for (const token of technicalTokens(text)) if (!originalTerms.has(token)) errors.push(`字幕${index}專有名詞沒有對應原句出處：${token}`);
     for (const term of courseTerms) if (normalized(text).includes(normalized(term)) && !normalized(sentence.text).includes(normalized(term))) errors.push(`字幕${index}課程術語沒有對應原句出處：${term}`);

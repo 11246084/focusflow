@@ -2748,6 +2748,15 @@ paths:
         '404': { description: Conversation or user message not found }
         '409': { description: Message is not retryable or retry claim conflicted }
         '429': { description: Daily question limit exceeded }
+  /api/v1/qa/options:
+    get:
+      operationId: getQaOptions
+      tags: [QA]
+      summary: 取得登入者今日提問額度與延伸學習開關
+      responses:
+        '200':
+          description: data 包含 extendedResourcesEnabled 布林值，以及 dailyUsage（limit、used、remaining、resetsAt）；不限次數時 dailyUsage 為 null。
+        '401': { description: Authentication required }
   /api/v1/qa/ask:
     post:
       tags:

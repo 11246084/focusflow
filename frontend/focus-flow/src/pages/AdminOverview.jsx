@@ -72,7 +72,7 @@ export default function AdminOverview({ onNav }) {
         ))}
       </div>
 
-      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="ff-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
         {/* User Distribution */}
         <div className="card" style={{ padding: 22 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>

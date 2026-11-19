@@ -490,7 +490,12 @@ export default function RecutWorkspace({ script, onStateChange, onNext, nextLabe
           </StatusCard>
         )}
         {!loading && state === 'idle' && !review && (
-          <section className="rc-panel"><p>{info.label === '尚未產生講稿' ? '還沒有講稿' : info.label}</p></section>
+          <section className="rc-panel">
+            <p>{info.label === '尚未產生講稿' ? '還沒有講稿' : info.label}</p>
+            {snapshot?.task?.status === 'failed' && snapshot.task.error && !error && (
+              <p className="rc-reason">{recutErrorText(snapshot.task.error)}</p>
+            )}
+          </section>
         )}
 
         <div className="rc-review">

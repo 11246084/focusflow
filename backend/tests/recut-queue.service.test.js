@@ -47,6 +47,40 @@ describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
     assert.match(current.selection.unanswerableReason, /沒有說明/);
     await assert.rejects(() => transitionRecut({ scriptId: script._id, event: 'approve_script', versionId: current._id, actorId: ids.teacher }), { code: 'RECUT_STATE_INVALID' });
   });
+  // recut 決策第 98 項：判定無法回答時換下一個候選命中群。
+  const unanswerable = (version) => ({ ...payload(version), plan: null, selection: { answerable: false, unanswerableReason: '這段沒講到',
+    ranges: [], sentenceLabels: [{ sentenceId: 's1', label: '離題' }, { sentenceId: 's2', label: '離題' }] } });
+  function retrySteps(q, version, { alternatives = 2, failSecondSource = false } = {}) {
+    const seen = [];
+    q.registerSteps('generate', [
+      { id: 'fake-window', stage: 'sourceCheck', run: async ({ data }) => {
+        const tried = data.excludedClusterKeys || []; seen.push([...tried]);
+        if (failSecondSource && tried.length) { const e = new Error('next source broken'); e.code = 'RECUT_SOURCE_NO_AUDIO'; throw e; }
+        return { sourceClusterKey: `k${tried.length}`, sourceAlternatives: alternatives - tried.length };
+      } },
+      { id: 'fake-selection', stage: 'selection', run: async ({ data }) => ({ version: data.sourceClusterKey === 'k0' ? unanswerable(version) : payload(version) }) },
+    ]);
+    return seen;
+  }
+  it('第一個命中群判定無法回答時換下一群重跑，成功產出講稿', async () => {
+    const { q, script, version } = await setup(); const seen = retrySteps(q, version);
+    const task = await enqueue(q, script); await q.idle();
+    assert.equal(taskFor(task._id).status, 'succeeded'); assert.deepEqual(seen, [[], ['k0']]);
+    const current = store.recutVersions.find((v) => String(v._id) === String(snapshot(script).currentVersionId));
+    assert.notEqual(current.selection.answerable, false);
+  });
+  it('換下一群途中出錯時回到前一次「無法回答」的結果，不變成失敗', async () => {
+    const { q, script, version } = await setup(); retrySteps(q, version, { failSecondSource: true });
+    const task = await enqueue(q, script); await q.idle();
+    assert.equal(taskFor(task._id).status, 'succeeded');
+    const current = store.recutVersions.find((v) => String(v._id) === String(snapshot(script).currentVersionId));
+    assert.equal(current.selection.answerable, false);
+  });
+  it('沒有其他命中群時不重試', async () => {
+    const { q, script, version } = await setup(); const seen = retrySteps(q, version, { alternatives: 0 });
+    const task = await enqueue(q, script); await q.idle();
+    assert.equal(taskFor(task._id).status, 'succeeded'); assert.deepEqual(seen, [[]]);
+  });
   it('管理員啟動時仍通知課程教師', async () => {
     const { q, script } = await setup(); const task = await enqueue(q, script, { requestedBy: ids.admin }); await q.idle();
     assert.equal(taskFor(task._id).status, 'succeeded'); assert.equal(String(store.notifications[0].recipientId), ids.teacher);

@@ -11,6 +11,7 @@ const { getSetting: defaultGetSetting } = require('./recutSettings.service');
 
 const errorRecord = (error) => ({ code: error.code || 'RECUT_TASK_FAILED', message: String(error.message || error).slice(0, 1000) });
 const cancelled = () => new AppError('Recut task cancelled.', 409, 'RECUT_TASK_CANCELLED');
+const MAX_SOURCE_RETRIES = 2;
 const sameId = (a, b) => a != null && b != null && String(a) === String(b);
 
 // 設定 S1 接上之前的轉接點。呼叫者可注入正式 getSetting；不從教師請求接受上限。
@@ -89,6 +90,9 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
       }
       await transitionRecut({ scriptId: task.scriptId, event: 'start_task', taskId: task._id });
       const context = { task, data: { ...(task.input || {}) } };
+      // 模型判定「這段沒講到」時換下一個候選命中群，從來源步驟重跑，最多再試兩次（recut 決策第 98 項）。
+      // 換段途中出錯（下一支原片有問題、額度用完）就回到前一次「無法回答」的結果，不把它變成失敗。
+      let sourceRetries = 0; let fallback = null;
 
       async function runAttempt(step, { input = null, modelId = null, consumesCall = false, execute }) {
         await checkCancelled(task._id);
@@ -130,17 +134,32 @@ function createRecutQueue({ getSetting = defaultGetSetting, captureSettings = ()
         }
       }
 
-      for (const step of steps) {
-        await checkCancelled(task._id);
-        const output = await runAttempt(step, { input: context.data, execute: async () => ({
-          output: await step.run({ ...context,
-            runAttempt: (options) => runAttempt(step, options),
-            checkCancelled: () => checkCancelled(task._id),
-          }),
-        }) });
-        if (output && typeof output === 'object') Object.assign(context.data, output);
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        try {
+          await checkCancelled(task._id);
+          const output = await runAttempt(step, { input: context.data, execute: async () => ({
+            output: await step.run({ ...context,
+              runAttempt: (options) => runAttempt(step, options),
+              checkCancelled: () => checkCancelled(task._id),
+            }),
+          }) });
+          if (output && typeof output === 'object') Object.assign(context.data, output);
+        } catch (error) {
+          if (!fallback || /CANCELLED|STATE_INVALID|CONSENT/.test(error.code || '')) throw error;
+          context.data = fallback; break;
+        }
         // 無法回答是有紀錄的終止結果，不再配圖、檢查或重試（決策第 27、56 項）。
-        if (context.data.version?.selection?.answerable === false) break;
+        if (context.data.version?.selection?.answerable === false) {
+          if (task.type === T.GENERATE && !task.input?.lockedSelection && context.data.sourceClusterKey
+            && context.data.sourceAlternatives > 0 && sourceRetries < MAX_SOURCE_RETRIES) {
+            sourceRetries++;
+            fallback = context.data; // 下一行換成新物件，這份不會再被改動
+            context.data = { ...(task.input || {}), excludedClusterKeys: [...(context.data.excludedClusterKeys || []), context.data.sourceClusterKey] };
+            i = -1; continue;
+          }
+          break;
+        }
       }
       await checkCancelled(task._id);
       if (!context.data.version) throw new AppError('Recut pipeline returned no version.', 502, 'RECUT_VALIDATION_FAILED');

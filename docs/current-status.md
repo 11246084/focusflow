@@ -493,6 +493,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 **正式站部署（2026-11-14）**：使用者授權後把 `dev` 合併到 `main`（`cb17930`，含組員 29 個提交、無衝突），部署 run #161 成功，部署流程新增的 short_render 套件安裝步驟也通過；從外部確認正式站已載入新版短影片頁。後端短影片能否產片取決於 VM 設定（`SHORT_SCRIPT_AUTOMATION_ENABLED`、recut runtime JSON、語音辨識模型、`YOUTUBE_API_KEY`、渲染 worker），外部看不到 `/health`，需在主機內 `curl localhost:4000/health` 看 `runtime.recut.ready`。Gemini 以新增的 `npm run diagnose:gemini -- --probe` 診斷：金鑰有效、模型存在，生成被「專案每月花費上限」擋下，要在 AI Studio 調高上限。
 
+**recut 命中群改依題目關鍵字排序、無法回答時換段（2026-11-19）**：放寬後「羊駝」流程跑完，但選到講自然語言處理的影片而判定無法回答；依 [recut 決策第 97、98 項](04_Features/Short_Video/recut-design-decisions.md)，命中群先比題目關鍵字（每次從題目與學生問句自動抽取）再比命中數，模型判定無法回答時自動換下一群重跑，最多再試兩次。**未執行**：正式站重新產生。
+
 **recut 穩定性：放寬程式檢查（2026-11-19，第三輪）**：依 [recut 決策第 95、96 項](04_Features/Short_Video/recut-design-decisions.md)，辨識結果中長度為 0 的字併進相鄰字、0.3 秒以內的小重疊與超窗自動對齊；圖卡長度放寬為 2～15 秒、開頭空白上限 3 秒；選段標籤矛盾以範圍為準修正、超長時最多拿掉三句。驗證：short_render 全套 173 項（172 通過、1 略過）；後端 recut 相關測試見本段 commit 紀錄。**未執行**：正式站重新產生。
 
 **recut 穩定性：程式接手算數（2026-11-19，第二輪）**：上限 8 次後「摩爾定律」仍失敗，8 次中 6 次是算術錯誤。依 [recut 決策第 94 項](04_Features/Short_Video/recut-design-decisions.md)：選段總長略超過 65 秒時程式拿掉頭尾一句；配圖卡輸入加上每句播放秒數；chips 詞卡數量由程式修正；圖卡可拆成三張以上、開頭空白過久時移除最早的 cue。「羊駝」那題改在辨識步驟失敗（`RECUT_ASR_INVALID`）；錯誤訊息改為寫出第一個出錯的字後，查到是長度為 0 的字「就是」（28.4～28.4 秒），依 recut 決策第 95 項改為併進相鄰字。驗證見本段 commit 的測試紀錄。**未執行**：正式站重新產生、固定 10 題穩定度量測（會產生 Gemini 費用，待使用者同意）。

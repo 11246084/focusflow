@@ -61,13 +61,21 @@ describe('recut 第一步選段與逐字驗證', () => {
       assert.equal(validate(src, s).valid, false);
     }
   });
-  it('保留標籤與範圍矛盾拒絕', () => { assert.equal(validate(source, label(selection(), 's3', '離題')).valid, false); });
+  it('標籤與範圍矛盾時以範圍為準改標籤（決策第 96 項），原始輸出不被改寫', () => {
+    const s = label(selection(), 's3', '離題'); const result = validate(source, s);
+    assert.equal(result.valid, true); assert.equal(result.selection.sentenceLabels.find((l) => l.sentenceId === 's3').label, '理由');
+    assert.equal(s.sentenceLabels.find((l) => l.sentenceId === 's3').label, '離題');
+  });
   it('漏標、重複標籤與未知句子拒絕', () => {
     const s = selection(); s.sentenceLabels.pop(); assert.equal(validate(source, s).valid, false);
     s.sentenceLabels.push(s.sentenceLabels[0]); assert.equal(validate(source, s).valid, false);
     s.sentenceLabels[0].sentenceId = 's999'; assert.equal(validate(source, s).valid, false);
   });
-  it('總長不足或超過均拒絕', () => { assert.equal(validate(source, selection(2, 3)).valid, false); assert.equal(validate(source, selection(2, 12)).valid, false); });
+  it('總長不足拒絕；略超過由程式拿掉頭尾句，超過太多仍拒絕', () => {
+    assert.equal(validate(source, selection(2, 3)).valid, false);
+    const trimmed = validate(source, selection(2, 12)); assert.equal(trimmed.valid, true); assert.equal(trimmed.autoTrimmed, true); assert.ok(trimmed.durationSec <= 65);
+    assert.equal(validate(source, selection(0, 20)).valid, false);
+  });
   it('頭尾指畫面先自動剪除再重算，原始輸出不被改寫', () => {
     const s = label(label(selection(2, 8), 's2', '指畫面'), 's8', '指畫面');
     const result = validate(source, s); assert.equal(result.valid, true); assert.equal(result.durationSec, 37);
@@ -101,8 +109,8 @@ describe('recut 第一步選段與逐字驗證', () => {
     assert.equal(r.version.plan, null); assert.equal(r.version.selection.unanswerableReason, '沒有解釋差異');
   });
   it('格式錯誤重試附前次輸出與錯誤，使用同一池且保留失敗紀錄', async () => {
-    const r = await pipeline([label(selection(), 's3', '離題'), selection()]); assert.equal(r.task.callsUsed, 2);
-    const input = JSON.parse(r.calls[1].body.contents[0].parts[0].text); assert.match(input.previousOutput, /離題/); assert.match(input.errors[0], /矛盾/);
+    const r = await pipeline([label(selection(), 's4', '指畫面'), selection()]); assert.equal(r.task.callsUsed, 2);
+    const input = JSON.parse(r.calls[1].body.contents[0].parts[0].text); assert.match(input.previousOutput, /指畫面/); assert.match(input.errors[0], /矛盾/);
     assert.equal(r.attempts[0].status, 'failed'); assert.equal(r.attempts[1].status, 'succeeded');
   });
   it('JSON 錯誤保留原始回應並附錯誤重試', async () => {

@@ -183,7 +183,9 @@ describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
     assert.equal(String(snapshot(script).currentVersionId), String(current._id));
     assert.equal(String(snapshot(script).pendingEditId), String(edit._id));
     assert.equal(store.notifications.length, 1); assert.equal(String(store.notifications[0].recipientId), ids.teacher);
-    assert.match(store.notifications[0].content, /missing audio/);
+    assert.match(store.notifications[0].content, /這次沒有做成/);
+    assert.doesNotMatch(store.notifications[0].content, /missing audio/);
+    assert.equal(taskFor(task._id).error.message, 'fake source is missing audio');
     assert.equal(store.recutAttempts[0].status, 'failed');
   });
   it('每次嘗試保存輸入、輸出、驗證、模型、usageMetadata 與耗時，可由步驟重試', async () => {

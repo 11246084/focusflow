@@ -328,6 +328,35 @@ export function recutErrorText(error) {
   return '發生錯誤，請稍後再試；一直失敗請聯絡管理員。';
 }
 
+// 上次產生失敗的原因：與後端通知同一套說法（backend/src/utils/recutFailureText.js）。
+// 工單上的原始訊息是給管理員查的，不直接顯示；沒對應的原因一律用通用說法。
+const KEEP_ORIGINAL = '已保留原本的版本，可以到短影片製作頁重新產生。';
+const TASK_FAILURE_GENERIC = `這支短片這次沒有做成，${KEEP_ORIGINAL}`;
+const AI_NOT_GOOD = `AI 產生的內容一直沒有達到標準，${KEEP_ORIGINAL}可以調整講稿或換一個主題再試。`;
+const NOT_ENOUGH = `原片的內容不足以做成短片，${KEEP_ORIGINAL}可以換一個主題。`;
+const TASK_FAILURE_TEXT = {
+  RECUT_CALL_LIMIT_EXCEEDED: '這支短片的 AI 使用次數已用完，已保留原本的版本，請聯絡管理員。',
+  RECUT_SOURCE_UNAVAILABLE: `找不到這門課的原片檔案，${KEEP_ORIGINAL}請先確認原片仍在系統上。`,
+  RECUT_SOURCE_UNDECODABLE: `這門課的原片檔案無法讀取，${KEEP_ORIGINAL}請先確認原片可以正常播放。`,
+  RECUT_SOURCE_UPDATED: '原片的逐字稿剛更新過，已保留原本的版本，請重新產生講稿。',
+  RECUT_SOURCE_TOO_SHORT: NOT_ENOUGH,
+  RECUT_WINDOW_NOT_FOUND: `原片裡找不到足夠的內容可以做成短片，${KEEP_ORIGINAL}可以換一個主題。`,
+  SHORT_SCRIPT_NO_CANDIDATE: `這個主題目前沒有足夠的內容可以做成短片，${KEEP_ORIGINAL}可以換一個主題。`,
+  SHORT_SCRIPT_EVIDENCE_EMPTY: `原片裡找不到能回答這個主題的段落，${KEEP_ORIGINAL}可以換一個主題。`,
+  RECUT_REPAIR_STALLED: AI_NOT_GOOD,
+  RECUT_VALIDATION_FAILED: AI_NOT_GOOD,
+  RECUT_MODEL_FAILED: `AI 暫時無法完成，${KEEP_ORIGINAL}`,
+  RECUT_MODEL_UNAVAILABLE: `AI 暫時無法使用，${KEEP_ORIGINAL}`,
+  RECUT_TASK_INTERRUPTED: `系統重新啟動中斷了處理，${KEEP_ORIGINAL}`,
+};
+
+export function recutTaskFailureText(error) {
+  if (!error) return '';
+  if (TASK_FAILURE_TEXT[error.code]) return TASK_FAILURE_TEXT[error.code];
+  if (error.code === 'RECUT_TASK_CANCELLED') return ERROR_TEXT.RECUT_TASK_CANCELLED;
+  return TASK_FAILURE_GENERIC;
+}
+
 // 渲染失敗的固定類錯誤，重送也不會成功，不提供「再製作一次」。
 // RECUT_TEXT_OVERFLOW 要先改講稿；聲音異常與檢查不通過需要管理員處理。
 export function isFixedRenderFailure(code) {

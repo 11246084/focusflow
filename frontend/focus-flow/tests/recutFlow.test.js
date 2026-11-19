@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
   batchRoom, canChangeShort, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
-  recutErrorText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
+  recutErrorText, recutTaskFailureText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
 import { isValidSubPage } from '../src/components/navigationConfig.js';
@@ -171,6 +171,20 @@ describe('時長、退回與錯誤文案', () => {
   it('功能未開放與已知代碼轉成教師看得懂的文字', () => {
     assert.equal(recutErrorText({ status: 404, code: 'NOT_FOUND' }), '短影片功能目前未開放。');
     assert.match(recutErrorText({ status: 422, code: 'RECUT_DURATION_INVALID' }), /30～65/);
+  });
+
+  it('上次失敗的原因轉成白話，未知原因用通用說法且不露出內部訊息', () => {
+    const internal = '第 68/408 個字「就是」28.4～28.4 秒';
+    const cases = [['RECUT_CALL_LIMIT_EXCEEDED', /AI 使用次數已用完/], ['RECUT_SOURCE_UNAVAILABLE', /找不到這門課的原片/],
+      ['RECUT_WINDOW_NOT_FOUND', /內容/], ['RECUT_REPAIR_STALLED', /一直沒有達到標準/], ['RECUT_VALIDATION_FAILED', /一直沒有達到標準/]];
+    for (const [code, pattern] of cases) assert.match(recutTaskFailureText({ code, message: internal }), pattern, code);
+    for (const error of [{ code: 'RECUT_ASR_INVALID', message: internal }, { code: 'RECUT_TASK_FAILED', message: '字幕4數字沒有對應原句出處：5090' }, {}]) {
+      const text = recutTaskFailureText(error);
+      assert.match(text, /這次沒有做成/);
+      assert.doesNotMatch(text, /第 68|出處|5090/);
+    }
+    assert.equal(recutTaskFailureText(null), '');
+    assert.equal(recutTaskFailureText({ code: 'RECUT_TASK_CANCELLED' }), '已取消，講稿維持原樣。');
   });
 
   it('第一次使用要補內容同意與原音', () => {

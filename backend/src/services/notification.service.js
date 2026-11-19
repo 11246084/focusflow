@@ -6,6 +6,7 @@ const Enrollment = require('../models/enrollment.model');
 const { buildActiveEnrollmentFilter } = require('./courseAccess.service');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
+const { recutTaskFailureText, recutRenderFailureText } = require('../utils/recutFailureText');
 const { assertObjectId } = require('../utils/objectId');
 const { NOTIFICATION_SOURCES, USER_ROLES } = require('../constants/enums');
 
@@ -632,8 +633,8 @@ async function notifyRecutTaskFinished(task) {
   return upsertDedupedNotifications([{ updateOne: {
     filter: { recipientId, dedupeKey: `recut_task_finished:${task._id}` },
     update: { $setOnInsert: { recipientId, source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED,
-      title: succeeded ? 'recut 講稿已更新' : 'recut 處理失敗，已回到原版',
-      content: succeeded ? '請開啟講稿審閱最新版本。' : truncate(task.error?.message || '處理失敗，請稍後重試。', 2000),
+      title: succeeded ? '短影片講稿已更新' : '短片這次沒有做成，已保留原版',
+      content: succeeded ? '請開啟講稿審閱最新版本。' : recutTaskFailureText(task.error),
       urgent: false, readAt: null, courseIds: [task.courseId], scriptId: task.scriptId,
       dedupeKey: `recut_task_finished:${task._id}` } }, upsert: true,
   } }]);
@@ -645,8 +646,8 @@ async function notifyRecutRenderFailed({ job, script }) {
   if (course?.teacherId || script?.createdBy) recipientIds.add(String(course?.teacherId || script.createdBy));
   return upsertDedupedNotifications([...recipientIds].map((recipientId) => buildUpsertOperation({ recipientId,
     dedupeKey: `recut_render_failed:${job._id}:${new Date(job.queuedAt).getTime()}`,
-    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: 'recut 渲染失敗',
-      content: truncate(job.error?.message || '短片渲染失敗，請稍後重新製作。', 2000),
+    document: { source: NOTIFICATION_SOURCES.RECUT_TASK_FINISHED, title: '短片製作沒有完成',
+      content: recutRenderFailureText(job.error),
       courseIds: [job.courseId], scriptId: job.scriptId, urgent: false },
   })));
 }

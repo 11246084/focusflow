@@ -493,6 +493,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 **正式站部署（2026-11-14）**：使用者授權後把 `dev` 合併到 `main`（`cb17930`，含組員 29 個提交、無衝突），部署 run #161 成功，部署流程新增的 short_render 套件安裝步驟也通過；從外部確認正式站已載入新版短影片頁。後端短影片能否產片取決於 VM 設定（`SHORT_SCRIPT_AUTOMATION_ENABLED`、recut runtime JSON、語音辨識模型、`YOUTUBE_API_KEY`、渲染 worker），外部看不到 `/health`，需在主機內 `curl localhost:4000/health` 看 `runtime.recut.ready`。Gemini 以新增的 `npm run diagnose:gemini -- --probe` 診斷：金鑰有效、模型存在，生成被「專案每月花費上限」擋下，要在 AI Studio 調高上限。
 
+**recut 穩定性：程式接手算數（2026-11-19，第二輪）**：上限 8 次後「摩爾定律」仍失敗，8 次中 6 次是算術錯誤。依 [recut 決策第 94 項](04_Features/Short_Video/recut-design-decisions.md)：選段總長略超過 65 秒時程式拿掉頭尾一句；配圖卡輸入加上每句播放秒數；chips 詞卡數量由程式修正；圖卡可拆成三張以上、開頭空白過久時移除最早的 cue。「羊駝」那題改在辨識步驟失敗（`RECUT_ASR_INVALID`），錯誤訊息改為寫出第一個出錯的字與原因，待重新產生後依實際原因判斷。驗證見本段 commit 的測試紀錄。**未執行**：正式站重新產生、固定 10 題穩定度量測（會產生 Gemini 費用，待使用者同意）。
+
 **recut 配圖卡程式修正與額度（2026-11-19）**：VM 用 yt-dlp 取回 AI入門 6 支原片後，正式站「摩爾定律」產生講稿已通過原片檢查、辨識與選段，但配圖卡連續修正字幕長度與圖卡秒數，用完 5 次呼叫（`RECUT_CALL_LIMIT_EXCEEDED`）。依 [recut 決策第 93 項](04_Features/Short_Video/recut-design-decisions.md)：初次產生上限預設改為 8；字幕過長與圖卡秒數由 `recutCardsAutoFix.service.js` 依句子邊界修正；辨識結果的簡體字由 `utils/simplifiedToTraditional.js` 轉成繁體。驗證：新增配圖卡修正 9 項、簡繁轉換 2 項、辨識正規化 1 項，連同既有配圖卡、修正停滯與 pipeline 共 81 項通過。**未執行**：正式站重新產生、後端全套測試。VM 的 `backend/.env` 若明確寫了 `RECUT_INITIAL_CALL_LIMIT=5`，要改成 8 或刪掉該行，新預設值才會生效。
 
 **過渡工具：從 YouTube 取回缺少的原片（2026-11-19，未在 VM 執行）**：VM 唯讀查證，「影片處理工具 - OpenCV」14 講是 YouTube 連結匯入、從未有本機檔；「AI入門基礎課」6 支記錄了檔案路徑，但 VM 上沒有檔案，也沒有清理紀錄，所以 recut 回報找不到原片，現有的「補回原片」也不適用。依使用者決定，新增 `backend/src/scripts/recutFetchYoutubeSources.js`：用 yt-dlp 取回原片、比對長度後更新 `filePath`，不重跑語音辨識；用法見[後端 README](../backend/README.md#過渡工具從-youtube-取回缺少的原片)。驗證：`tests/recut-fetch-youtube-sources.test.js` 7 項全過（假下載）。**未執行**：在 VM 安裝 yt-dlp、實際下載、寫入 Atlas、重新產生講稿。

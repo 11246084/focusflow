@@ -2443,3 +2443,16 @@ button.dd-item { width: 100%; border: none; background: none; text-align: left; 
 
 /* 頁面程式下載中（各頁面用到時才載入） */
 .page-loading { padding: 24px 28px; color: rgba(255, 255, 255, 0.55); font-size: 14px; }
+
+/* 管理員使用者頁：搜尋與篩選列 */
+.admin-users-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.admin-users-filters .ff-input { width: auto; padding: 9px 14px; font-size: 13px; border-radius: 10px; }
+.admin-users-filters select.ff-input { padding-right: 36px; }
+.admin-users-search { flex: 1 1 220px; min-width: 0; max-width: 360px; }
+.admin-users-filters .admin-users-search { width: auto; }
+.admin-users-count { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, 0.45); white-space: nowrap; }
+.admin-users-empty { padding: 32px; text-align: center; color: rgba(255, 255, 255, 0.35); font-size: 13px; }
+@media (max-width: 640px) {
+  .admin-users-filters .ff-input { font-size: 16px; }
+  .admin-users-search { flex-basis: 100%; max-width: none; }
+}

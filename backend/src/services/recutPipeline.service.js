@@ -8,8 +8,7 @@ function createRecutPipeline({ decide, renderer, sourceOptions, loadSource, load
   if (typeof decide !== 'function') throw new TypeError('An explicit recut decision provider is required.');
   const selection = selectionStep || { id: 'recut-selection-v1', stage: 'selection', run: (context) => {
     const { createRecutSelectionStep } = require('./recutSelection.service');
-    return createRecutSelectionStep({ decide: (request) => decide({ ...request,
-      input: { ...request.input, ...(context.data.repairIssues ? { errors: context.data.repairIssues } : {}) } }) }).run(context);
+    return createRecutSelectionStep({ decide }).run(context);
   } };
   const cards = createRecutCardsStep({ decide, renderer, loadSource, loadBaseVersion, codeCardHandler, courseTerms });
   const wholeCheck = createRecutWholeCheckStep({ decide, renderer, cards, selection, loadSource });

@@ -19,6 +19,10 @@ describe('recut RC4 生成與整段檢查', () => {
     const r = pipeline([fixture().cards, { issues: [] }]); const data = await run(r);
     assert.equal(data.version.plan.audio.gainDb, 2); assert.equal(data.version.shortRenderVersion, 'fixture-renderer');
     assert.equal(r.c.task.callsUsed, 3); assert.ok(r.c.attempts.every((a) => a.usageMetadata.totalTokenCount === 9));
+    const paths = r.c.attempts.at(-1).input.responseSchema.properties.issues.items.properties.presentationPaths.items.enum;
+    assert.ok(paths.includes('/plan/scenes/5/params'));
+    assert.ok(paths.includes('/plan/subtitles/0/runs/0/t'));
+    assert.ok(!paths.includes('/plan/scenes/0/from'));
   });
   it('不允許模型輸出剪接欄位，修正記前次輸出與錯誤', async () => {
     const bad = { ...fixture().cards, clips: [] }; const r = pipeline([bad, fixture().cards, { issues: [] }]); await run(r);

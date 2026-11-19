@@ -81,6 +81,27 @@ describe('recut 持久化背景佇列（外部步驟皆為假實作）', () => {
     const task = await enqueue(q, script); await q.idle();
     assert.equal(taskFor(task._id).status, 'succeeded'); assert.deepEqual(seen, [[]]);
   });
+  it('原片路徑有紀錄但實際缺檔時，從其他原片重新取材且不耗用模型額度', async () => {
+    const { q, script, version } = await setup();
+    const tried = [];
+    q.registerSteps('generate', [
+      { id: 'locate', stage: 'sourceCheck', run: async ({ data }) => {
+        tried.push(data.missingVideoIds || []);
+        const id = tried.length === 1 ? 'missing' : 'available';
+        return { sourceClusterKey: id, sourceVideoId: id, sourceAlternatives: 1,
+          sourceWindow: { videoId: id, startSec: 1, endSec: 151 } };
+      } },
+      { id: 'probe', stage: 'sourceCheck', run: async ({ data }) => {
+        if (data.sourceVideoId === 'missing') throw Object.assign(new Error('missing'), { code: 'RECUT_SOURCE_UNAVAILABLE' });
+        assert.deepEqual(data.excludedWindows, [{ videoId: 'missing', startSec: 1, endSec: 151 }]);
+        return { version: payload(version) };
+      } },
+    ]);
+    const task = await enqueue(q, script); await q.idle();
+    assert.deepEqual(tried, [[], ['missing']]);
+    assert.equal(taskFor(task._id).status, 'succeeded');
+    assert.equal(taskFor(task._id).callsUsed, 0);
+  });
   it('管理員啟動時仍通知課程教師', async () => {
     const { q, script } = await setup(); const task = await enqueue(q, script, { requestedBy: ids.admin }); await q.idle();
     assert.equal(taskFor(task._id).status, 'succeeded'); assert.equal(String(store.notifications[0].recipientId), ids.teacher);

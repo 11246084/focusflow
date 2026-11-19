@@ -68,12 +68,12 @@ async function loadClusterInputs({ script, video: rawVideo, hits }) {
   // 同一影片的 native／external 別名先正規化，再做連續視窗計算。
   const input = { script, video, hits: hits.map((h) => ({ ...h, videoId: String(video._id) })),
     segments: segments.map((s) => ({ ...s, videoId: String(video._id) })) };
-  expandContinuousWindow({ hits: input.hits, segments: input.segments });
+  input.sourceWindow = expandContinuousWindow({ hits: input.hits, segments: input.segments });
   return input;
 }
 
 // exclude：已經試過、模型判定無法回答的命中群（recut 決策第 98 項）。
-async function loadSourceInputs(task, { exclude = [] } = {}) {
+async function loadSourceInputs(task, { exclude = [], excludedWindows = [], missingVideoIds = [] } = {}) {
   const script = await ShortScript.findById(task.scriptId).lean();
   if (!script || String(script.courseId) !== String(task.courseId)) fail('找不到任務所屬腳本。', 'RECUT_SOURCE_UNAVAILABLE');
   const hits = (script.evidence || []).filter((s) => s.expandedFrom == null);
@@ -90,10 +90,13 @@ async function loadSourceInputs(task, { exclude = [] } = {}) {
   const textOf = (e) => [e.hit.rawText, ...evidence.filter((x) => x.expandedFrom && x.expandedFrom === e.hit.chunkId).map((x) => x.rawText)].join(' ');
   const terms = questionTerms([script.topic, ...(script.sourceQuestions || []).map((q) => q.question)]);
   const skipped = new Set(exclude);
-  const clusters = hitClusters(entries, { terms, textOf }).filter((cluster) => !skipped.has(cluster.key));
+  const clusters = hitClusters(entries, { terms, textOf }).filter((cluster) =>
+    !skipped.has(cluster.key) && !missingVideoIds.includes(String(cluster.video._id)));
   for (const [index, cluster] of clusters.entries()) {
     try {
       const input = await loadClusterInputs({ script, video: cluster.video, hits: cluster.members.map((e) => e.hit) });
+      const window = input.sourceWindow;
+      if (excludedWindows.some((w) => w.videoId === window.videoId && w.startSec === window.startSec && w.endSec === window.endSec)) continue;
       return { ...input, clusterKey: cluster.key, alternatives: clusters.length - index - 1 };
     } catch (error) {
       if (!RETRYABLE.has(error.code)) throw error;
@@ -106,8 +109,10 @@ async function loadSourceInputs(task, { exclude = [] } = {}) {
 function createRecutSourceSteps({ loadInputs = loadSourceInputs, media = createRecutMediaTools() } = {}) {
   return [
     { id: 'recut-window-v1', stage: 'sourceCheck', run: async ({ task, data = {} }) => {
-      const { video, hits, segments, clusterKey, alternatives } = await loadInputs(task, { exclude: data.excludedClusterKeys || [] });
-      return { sourceWindow: expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath,
+      const { video, hits, segments, sourceWindow, clusterKey, alternatives } = await loadInputs(task, {
+        exclude: data.excludedClusterKeys || [], excludedWindows: data.excludedWindows || [], missingVideoIds: data.missingVideoIds || [],
+      });
+      return { sourceWindow: sourceWindow || expandContinuousWindow({ hits, segments }), sourceVideoId: String(video._id), sourcePath: video.filePath,
         transcriptVersion: video.activeTranscriptVersion || 'legacy',
         ...(clusterKey ? { sourceClusterKey: clusterKey, sourceAlternatives: alternatives } : {}) };
     } },

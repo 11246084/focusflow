@@ -90,8 +90,8 @@ function validateSubtitleSources(plan, source, courseTerms = []) {
     if (!sentence) { errors.push(`字幕${index}引用不存在的句子。`); continue; }
     const text = (subtitle.runs || []).map((run) => run.t).join('');
     const originalNumbers = sourceNumbers(source.sentences, sourceIndex), originalTerms = new Set(technicalTokens(sentence.text));
-    for (const token of numericTokens(text)) if (!originalNumbers.has(token)) errors.push(`字幕${index}數字沒有對應原句出處：${token}`);
-    for (const token of technicalTokens(text)) if (!originalTerms.has(token)) errors.push(`字幕${index}專有名詞沒有對應原句出處：${token}`);
+    for (const token of numericTokens(text)) if (!originalNumbers.has(token)) errors.push(`字幕${index}數字沒有對應原句出處：${token}。請依 ${sentence.id} 改寫，此句可用數值：${[...originalNumbers].join('、') || '無'}。`);
+    for (const token of technicalTokens(text)) if (!originalTerms.has(token)) errors.push(`字幕${index}專有名詞沒有對應原句出處：${token}。請依 ${sentence.id} 改寫，此句可用英文詞：${[...originalTerms].join('、') || '無'}。`);
     for (const term of courseTerms) if (normalized(text).includes(normalized(term)) && !normalized(sentence.text).includes(normalized(term))) errors.push(`字幕${index}課程術語沒有對應原句出處：${term}`);
   }
   return { valid: !errors.length, errors };

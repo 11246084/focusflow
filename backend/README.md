@@ -219,6 +219,22 @@ node src/scripts/recutFormalTrial.js --topics D:/AI-workspace/recut/topics.json 
 
 例：教師要求生成 → 後端回 202 並自行完成講稿 → 教師「通過講稿，製作短片」（前端依序呼叫核准與排入渲染）→ 常駐 worker 自行完成 MP4 → 教師審看實際成品。講稿核准成功但渲染排隊失敗時，前端保留已核准狀態，重新讀取目前 revision 後重試排隊；不要重新生成講稿或宣稱已發布。上述命令屬管理員一次性服務配置，真實工具、模型、worker 與教師操作仍須另外驗證。
 
+### 過渡工具：從 YouTube 取回缺少的原片
+
+recut 要剪老師原音，影片在 VM 上必須有原片。用 YouTube 連結匯入的影片，以及在其他電腦上傳後才同步到 Atlas 的影片，VM 上都沒有檔案。正式的補檔功能完成前，可以在 VM 上用 `yt-dlp` 從 YouTube 取回這些影片（2026-11-19 使用者決定作為過渡做法；這不是 YouTube 官方提供的下載方式）。
+
+```bash
+cd /opt/focusflow/backend
+sudo env "PATH=$PATH" node src/scripts/recutFetchYoutubeSources.js --course <courseId>          # 只列出，不下載
+sudo env "PATH=$PATH" node src/scripts/recutFetchYoutubeSources.js --course <courseId> --write  # 下載並更新 filePath
+```
+
+- 只處理有 `youtubeVideoId`，而且 `filePath` 是空的、或檔案不在 VM 上的影片；原片還在的直接略過。
+- 下載 720p 以下的 MP4 到 `UPLOAD_DIR`，存成 `youtube-source-<videoId>.mp4`。和系統記錄的長度差超過 2 秒就不採用；沒有記錄長度時，比逐字稿最後一段還短也不採用。
+- 不重跑語音辨識，逐字稿、問答紀錄和已凍結的證據都不變。
+- 需要先在 VM 安裝 `yt-dlp`，也可以用 `--yt-dlp <路徑>` 或 `YTDLP_PATH` 指定位置。YouTube 要求確認不是機器人時，加 `--cookies <cookies.txt>`。新版 yt-dlp 需要 JavaScript runtime 才能解析 YouTube；VM 已有 Node，可以設定 `YTDLP_EXTRA_ARGS='--js-runtimes node'`。
+- 原片放回去之後，要確認 `YOUTUBE_UPLOAD_CLEANUP_ENABLED` 是關閉的，否則系統上傳到 YouTube 的影片之後可能再被清理。recut runtime JSON 裡的原片允許目錄也要涵蓋 `UPLOAD_DIR`。
+
 教授的 `recut_trial_professor-*` 單次試產資料庫另受該次政策與原始預算限制，普通 host 啟動會在讀 runtime JSON 或金鑰前回 `host.professorTrialNamespace`，不可借用這個入口補跑或繞過剩餘呼叫上限。該資料只使用既有單題試產與受控續跑服務。
 
 ### 受控試產續跑與重新渲染（工程操作）

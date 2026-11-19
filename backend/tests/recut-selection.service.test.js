@@ -12,7 +12,7 @@ const { getSetting } = require('../src/services/recutSettings.service');
 const queues = [];
 const source = sourceData();
 const label = (s, id, value) => { s.sentenceLabels.find((l) => l.sentenceId === id).label = value; return s; };
-async function pipeline(outputs, { limit = 5, model = 'fixed-gemini', excludedSentenceIds = [] } = {}) {
+async function pipeline(outputs, { limit = 5, model = 'fixed-gemini', excludedSentenceIds = [], input = {} } = {}) {
   const script = seedScript({ sourceQuestions: Array.from({ length: 8 }, (_, i) => ({ question: `問法${i}`, askCount: i })) });
   const src = await createRecutSource({ ...sourceData(), scriptId: script._id, excludedSentenceIds });
   const calls = [];
@@ -27,7 +27,7 @@ async function pipeline(outputs, { limit = 5, model = 'fixed-gemini', excludedSe
   q.registerSteps('generate', [createRecutSelectionStep({ decide, readSetting: () => { throw new Error('固定後不得重讀設定'); } }),
     { id: 'fake-cards-final', stage: 'cards', run: async ({ data }) => { downstreamCalls++; return { version: { sourceId: src._id, selection: data.selection,
       fullScript: data.fullScript, modelId: data.modelId, shortRenderVersion: 'fixture', plan: { schemaVersion: 'recut-v1' } } }; } }]);
-  const task = await q.enqueue({ script, requestedBy: ids.teacher, input: { sourceId: src._id } }); await q.idle();
+  const task = await q.enqueue({ script, requestedBy: ids.teacher, input: { sourceId: src._id, ...input } }); await q.idle();
   return { script, calls, task: store.recutTasks.find((t) => String(t._id) === String(task._id)), downstreamCalls,
     attempts: store.recutAttempts.filter((a) => a.consumesCall), version: store.recutVersions.find((v) => String(v._id) === String(snapshot(script).currentVersionId)) };
 }
@@ -115,6 +115,15 @@ describe('recut 第一步選段與逐字驗證', () => {
   });
   it('JSON 錯誤保留原始回應並附錯誤重試', async () => {
     const r = await pipeline(['not-json', selection()]); assert.equal(r.task.status, 'succeeded'); assert.equal(r.attempts[0].output, 'not-json');
+  });
+  it('重選時同時保留複檢意見、舊選段與本輪格式錯誤', async () => {
+    const previous = selection();
+    const issues = [{ type: 'missing_reference', problem: '補回定義' }];
+    const r = await pipeline(['not-json', previous], { input: { repairIssues: issues, selection: previous } });
+    const input = JSON.parse(r.calls[1].body.contents[0].parts[0].text);
+    assert.deepEqual(input.reviewIssues, issues);
+    assert.deepEqual(input.previousSelection, previous);
+    assert.match(input.errors[0], /JSON/);
   });
   it('額度耗盡任務失敗還原，所有嘗試與最後錯誤保留', async () => {
     const r = await pipeline([selection(2, 3)], { limit: 3 }); assert.equal(r.calls.length, 3); assert.equal(r.task.status, 'failed');

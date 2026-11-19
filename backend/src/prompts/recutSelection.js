@@ -15,7 +15,7 @@ const INSTRUCTIONS = `你是教師原音短片的選段判斷點。只用提供�
 選段頭尾的指畫面句由程式先剪除，再驗標籤與總長；中間不自動剪。若中間仍需保留有畫面指涉的原話，依它回答問題的用途標保留類，留給整段檢查提出品質建議。
 總長依實際剪點及片段內停頓計算，含片頭只計一次，必須 30～65 秒。
 錄音沒回答問題時 answerable=false，附具體原因、ranges=[]、openingSentenceId=null，每句都標跳過類；不得硬選，這個結果不重試。能回答時 unanswerableReason=null。
-修正時只重做選段，參考提供的 previousOutput 與 errors，仍須遵守全部規則。`;
+整段複檢退回時，依 reviewIssues 調整 previousSelection；若新選段格式仍有錯，依 errors 修正最近的 previousOutput。兩輪都須保留能直接回答代表題的原話。`;
 const responseSchema = {
   type: 'OBJECT', required: ['answerable', 'unanswerableReason', 'ranges', 'sentenceLabels', 'openingSentenceId'],
   properties: {

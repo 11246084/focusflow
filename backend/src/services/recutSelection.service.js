@@ -14,6 +14,7 @@ function createRecutSelectionStep({ decide = createRecutDecisionPoint(), readSet
     const model = task.settingsSnapshot?.model || await readSetting('recut.geminiModel');
     if (model?.provider !== 'gemini' || typeof model.model !== 'string' || !model.model.trim()) throw new AppError('Recut 模型設定無效。', 503, 'RECUT_SETTING_INVALID');
     const input = { question: script.topic,
+      ...(data.repairIssues?.length ? { reviewIssues: data.repairIssues, previousSelection: data.selection } : {}),
       variants: [...(script.sourceQuestions || [])].sort((a, b) => b.askCount - a.askCount).slice(0, 5).map((q) => ({ question: q.question, askCount: q.askCount })),
       sentences: source.sentences.map((s) => ({ id: s.id, text: s.text, startSec: s.startSec, endSec: s.endSec, marker: s.retrievalHit ? '★' : '', words: s.words,
         selectionAllowed: !(source.excludedSentenceIds || []).includes(s.id),

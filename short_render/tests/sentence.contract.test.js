@@ -61,7 +61,7 @@ test('trimmed out words, stale resolved, repeated source sentences and unsafe id
   plan.clips.push({ ...plan.clips[0], id: 'c2' });
   assert.ok(resolvePlan(plan, { sentences }).errors.length);
 });
-test('cards cover selected sentences exactly at sentence boundaries and last 3-12 seconds', () => {
+test('cards cover selected sentences exactly at sentence boundaries and last 2-15 seconds', () => {
   const { plan, sentences } = fixture();
   plan.scenes[0].to = 's3';
   assert.ok(resolvePlan(plan, { sentences }).errors.length);

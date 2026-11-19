@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { autoFixCardsOutput, fixSceneTiming, splitLongSubtitles, playbackTimeline } = require('../src/services/recutCardsAutoFix.service');
+const { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, splitLongSubtitles, playbackTimeline } = require('../src/services/recutCardsAutoFix.service');
 
 // 2026-11-19 正式站「摩爾定律」實際失敗的每句播放秒數。
 const SPANS = [7.84, 1.74, 2.9, 8, 4.14, 7.8, 3.3, 7.86, 4.9, 7.28];
@@ -45,6 +45,27 @@ describe('recut 配圖卡程式修正', () => {
     const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's2'), scene('c', 's3', 's4'), scene('d', 's5', 's6'), scene('e', 's7', 's8'), scene('f', 's9', 's9'), scene('g', 's10', 's10')], subtitles: [] };
     const fixed = fixSceneTiming(output, playbackTimeline(source, selectionResult));
     assert.deepEqual(ranges(fixed.output).slice(0, 3), ['s1-s1', 's2-s3', 's4-s4']);
+  });
+  it('一張圖卡長到要拆成三張時逐步拆開（正式站 s4～s7 23.24 秒）', () => {
+    const { source, selectionResult } = fixture();
+    const output = { scenes: [scene('a', 's1', 's3'), scene('b', 's4', 's7'), scene('c', 's8', 's10')], subtitles: [] };
+    const timeline = playbackTimeline(source, selectionResult);
+    const fixed = fixSceneTiming(output, timeline);
+    const at = (id) => timeline.order.findIndex((o) => o.id === id);
+    for (const sc of fixed.output.scenes) {
+      const a = at(sc.from), b = at(sc.to);
+      const d = (b + 1 < timeline.order.length ? timeline.order[b + 1].t0 : timeline.total) - timeline.order[a].t0;
+      assert.ok(d >= 3 && d <= 12, `${sc.id} ${sc.from}-${sc.to} ${d}`);
+    }
+  });
+  it('圖卡第一個元素在開場 1.5 秒後才出現時，移除最早的 cue', () => {
+    const { source, selectionResult } = fixture();
+    // s3 在 s2 開始後 1.74 秒，超過 1.5 秒。
+    const output = { scenes: [scene('a', 's1', 's1'), scene('b', 's2', 's4', { title: { sentenceId: 's3' }, detail: { sentenceId: 's4' } })], subtitles: [] };
+    const fixed = fixEmptyCards(output, playbackTimeline(source, selectionResult));
+    assert.equal(fixed.changed, true); assert.deepEqual(Object.keys(fixed.output.scenes[1].cues), []);
+    const good = { scenes: [scene('b', 's2', 's4', { title: { sentenceId: 's2' }, detail: { sentenceId: 's4' } })], subtitles: [] };
+    assert.equal(fixEmptyCards(good, playbackTimeline(source, selectionResult)).changed, false);
   });
   it('搬走的句子上的 cue 一併移除', () => {
     const { source, selectionResult } = fixture();

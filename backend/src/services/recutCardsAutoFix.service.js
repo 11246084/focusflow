@@ -6,6 +6,7 @@ const SUBTITLE_MAX = 20;
 const SCENE_MIN = 3;
 const SCENE_MAX = 12;
 const EPS = 0.01;
+const MAX_BLANK = 1.4; // renderer 允許 1.5 秒，留一點餘裕
 const norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[。！？、，；「」『』“”‘’\p{Z}\s]/gu, '');
 const PUNCT = /[，。！？、；：,.!?;:]/u;
 const clone = (v) => structuredClone(v);
@@ -24,7 +25,7 @@ function playbackTimeline(source, selectionResult) {
       const sentence = byId.get(id);
       const kept = (sentence?.words || []).filter((w) => w.startSec >= clipStart - 0.001 && w.endSec <= clipEnd + 0.001);
       if (!kept.length) return null;
-      order.push({ id, t0: cursor + kept[0].startSec - clipStart });
+      order.push({ id, t0: cursor + kept[0].startSec - clipStart, kept });
     }
     cursor += clipEnd - clipStart;
   }
@@ -54,13 +55,15 @@ function fixSceneTiming(output, timeline) {
         if (next && ok(dur({ a: s.b, b: next.b })) && ok(dur({ a: s.a, b: s.b - 1 })) ) { next.a = s.b; s.b -= 1; moved = true; }
         else if (prev && ok(dur({ a: prev.a, b: s.a })) && ok(dur({ a: s.a + 1, b: s.b }))) { prev.b = s.a; s.a += 1; moved = true; }
         else {
-          // 讓不出去就在句子邊界拆成兩張同樣的圖卡。
-          for (let cut = s.a; cut < s.b && !moved; cut++) {
-            if (ok(dur({ a: s.a, b: cut })) && ok(dur({ a: cut + 1, b: s.b }))) {
-              const id = uniqueId(`${s.scene.id}b`, scenes);
-              scenes.splice(i + 1, 0, { scene: { ...clone(s.scene), id }, a: cut + 1, b: s.b });
-              s.b = cut; moved = true;
-            }
+          // 讓不出去就在句子邊界拆成同樣的圖卡：先找兩半都合規的切點；
+          // 沒有就切下前段最長的合規部分，剩下的下一輪再處理（可拆成三張以上）。
+          let cut = -1;
+          for (let c = s.a; c < s.b; c++) if (ok(dur({ a: s.a, b: c })) && ok(dur({ a: c + 1, b: s.b }))) { cut = c; break; }
+          if (cut < 0) for (let c = s.b - 1; c >= s.a; c--) if (ok(dur({ a: s.a, b: c }))) { cut = c; break; }
+          if (cut >= 0) {
+            const id = uniqueId(`${s.scene.id}b`, scenes);
+            scenes.splice(i + 1, 0, { scene: { ...clone(s.scene), id }, a: cut + 1, b: s.b });
+            s.b = cut; moved = true;
           }
         }
       } else if (d < SCENE_MIN + EPS) {
@@ -84,6 +87,38 @@ function fixSceneTiming(output, timeline) {
     return next;
   });
   return { output: { ...output, scenes: fixed }, changed: true };
+}
+
+// 圖卡開頭空白太久（第一個元素在開場 1.5 秒後才出現）：移除最早的那個 cue，
+// 讓該元素改用預設的開場時間。只看物件形式的 cues（傳輸格式攤平後）。
+function fixEmptyCards(output, timeline) {
+  if (!timeline || !Array.isArray(output?.scenes)) return { output, changed: false };
+  const occ = new Map(timeline.order.map((o) => [o.id, o]));
+  const cueTime = (cue) => {
+    const o = occ.get(cue?.sentenceId);
+    if (!o) return null;
+    if (!cue.text) return o.t0;
+    const parts = o.kept.map((w) => norm(w.text)), joined = parts.join(''), at = joined.indexOf(norm(cue.text));
+    if (at < 0) return o.t0;
+    let pos = 0;
+    for (const [i, part] of parts.entries()) { if (pos + part.length > at) return o.t0 + o.kept[i].startSec - o.kept[0].startSec; pos += part.length; }
+    return o.t0;
+  };
+  let changed = false;
+  const scenes = output.scenes.map((scene) => {
+    const start = occ.get(scene?.from)?.t0;
+    if (!Number.isFinite(start) || !scene.cues || typeof scene.cues !== 'object' || Array.isArray(scene.cues)) return scene;
+    const cues = { ...scene.cues };
+    for (;;) {
+      const timed = Object.entries(cues).filter(([key]) => key !== 'stamp').map(([key, cue]) => [key, cueTime(cue)]).filter(([, t]) => Number.isFinite(t));
+      if (!timed.length) break;
+      const [key, first] = timed.reduce((a, b) => (b[1] < a[1] ? b : a));
+      if (first - start <= MAX_BLANK) break;
+      delete cues[key]; changed = true;
+    }
+    return Object.keys(cues).length === Object.keys(scene.cues).length ? scene : { ...scene, cues };
+  });
+  return changed ? { output: { ...output, scenes }, changed } : { output, changed: false };
 }
 
 function uniqueId(base, scenes) {
@@ -171,8 +206,10 @@ function splitSubtitle(subtitle, sentence) {
 
 function autoFixCardsOutput(output, { source, selectionResult } = {}) {
   const subtitles = splitLongSubtitles(output, source);
-  const scenes = fixSceneTiming(subtitles.output, playbackTimeline(source, selectionResult));
-  return { output: scenes.output, changed: subtitles.changed || scenes.changed };
+  const timeline = playbackTimeline(source, selectionResult);
+  const scenes = fixSceneTiming(subtitles.output, timeline);
+  const cards = fixEmptyCards(scenes.output, timeline);
+  return { output: cards.output, changed: subtitles.changed || scenes.changed || cards.changed };
 }
 
-module.exports = { autoFixCardsOutput, fixSceneTiming, splitLongSubtitles, playbackTimeline };
+module.exports = { autoFixCardsOutput, fixSceneTiming, fixEmptyCards, splitLongSubtitles, playbackTimeline };

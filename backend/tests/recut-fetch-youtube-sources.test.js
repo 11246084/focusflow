@@ -61,5 +61,6 @@ describe('recut 過渡工具：從 YouTube 取回缺少的原片', () => {
   it('參數解析：可重複 --course，預設不寫入', () => {
     const options = parseArgs(['--course', 'a', '--course', 'b', '--cookies', 'c.txt']);
     assert.deepEqual(options.courseIds, ['a', 'b']); assert.equal(options.write, false); assert.equal(options.cookies, 'c.txt');
+    assert.deepEqual(parseArgs(['--course-title', 'AI入門基礎課']).courseTitles, ['AI入門基礎課']);
   });
 });

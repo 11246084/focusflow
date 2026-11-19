@@ -82,14 +82,14 @@ it('selection loop uses the same stall rule', async () => {
   assert.equal(requests[2].repairStrategy, 'targeted');
 });
 
-it('production call-limit defaults are unchanged', () => {
+it('production call-limit defaults: initial 8, modification 5', () => {
   const saved = { a: process.env.RECUT_INITIAL_CALL_LIMIT, b: process.env.RECUT_MODIFICATION_CALL_LIMIT };
   delete process.env.RECUT_INITIAL_CALL_LIMIT; delete process.env.RECUT_MODIFICATION_CALL_LIMIT;
   try {
     const settings = require('../src/services/recutSettings.service');
     const read = settings.getSetting || settings.getRecutSetting;
     assert.equal(typeof read, 'function');
-    assert.equal(read('recut.initialCallLimit'), 5);
+    assert.equal(read('recut.initialCallLimit'), 8);
     assert.equal(read('recut.modificationCallLimit'), 5);
   } finally {
     if (saved.a !== undefined) process.env.RECUT_INITIAL_CALL_LIMIT = saved.a;

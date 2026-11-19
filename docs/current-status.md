@@ -495,6 +495,8 @@ Harness與題目／來源計畫已就緒；**後五片真實Atlas QA E2E尚未�
 
 **命中分散不再整題失敗（2026-11-19，未部署）**：正式站「老師說的那個羊駝是什麼啊？」產生講稿失敗，Atlas 唯讀查證為 `RECUT_WINDOW_NOT_FOUND`（直接命中分散在 4 支影片，未呼叫模型、未用額度）。依[決策第 1 項](04_Features/Short_Video/recut-design-decisions.md)修訂，`loadSourceInputs` 改為把命中分成「同一影片、三分鐘內」的群，依命中數與檢索排名逐群嘗試，全部不行才失敗；工作區重新打開時也會顯示上次失敗的原因。驗證：`tests/recut-source.service.test.js` 27 項全過（新增 4 項）；前端 `npm test` 237 項全過、`RecutWorkspace.jsx` lint 通過。**未執行**：部署、正式站重新產生、前端 build。
 
+**換產片方式、不做這支與恢復（2026-11-19，未部署）**：依[短影片決策](04_Features/Short_Video/decisions.md) UX-26，「等你處理」的短片可在工作區改用另一種產片方式（已產生的講稿或腳本保留），原片剪輯補上「不做這支」，「不做了」的短片可恢復到收起前的狀態。後端 `POST /short-scripts/:scriptId/review` 的 `dismiss` 改為兩種產片方式共用並記下 `statusBeforeDismiss`，新增 `restore`；收起的短片不能產生或換產片方式。驗證見同日回報；**未執行**：部署、正式站操作。
+
 **上線準備（2026-11-14）**：`/health` 新增 `runtime.recut`（開關、是否就緒、主機設定狀態與缺項代碼），部署後可直接確認能否產生短片；上線所需設定、渲染 worker、驗證與關閉方式寫在[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。正式上線仍需：調高 Gemini 專案花費上限、VM 設定 `YOUTUBE_API_KEY` 與 recut runtime（含離線 faster-whisper 模型）、準備渲染 worker、負責人授權部署（`dev` 合併到 `main`），以及真機、LINE 與真人教師驗收。
 
 正式組裝的語音辨識路徑（同日）：以後端 `createRecutHostRuntime` 讀正式格式的 runtime JSON，在 Linux 跑真實的視窗、原片檢查、faster-whisper 逐字時間（small 模型）、切句與 worker 渲染，全部成功（44 句、成品 44.2 秒、-15.9 LUFS）；只有 Gemini 因花費上限改用固定輸出。過程中找到並修正三個會讓正式站失敗的問題：host 把 `python` 解開 symlink 後脫離虛擬環境、找不到 faster_whisper（Linux 虛擬環境預設是 symlink，Windows 試產沒踩到）；`STT_Whisper` 沒限制 PyAV，新安裝會拿到 19 版而讓辨識開檔失敗（改成 `av>=11,<19`）；切句把 Whisper 的「0.」「01」在小數點斷開（數字中的點與逗號不再斷句）。

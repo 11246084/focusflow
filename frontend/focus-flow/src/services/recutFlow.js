@@ -28,6 +28,13 @@ const STATE_INFO = {
   published: { step: 3, bucket: 'done', label: '已上架' },
 };
 
+const CLOSED_INFO = { step: 3, bucket: 'closed', label: '不做了', action: '恢復' };
+
+// 換產片方式與不做這支只給「等你處理」的短片；產生、製作中或已上架時後端也會擋（UX-26）。
+export function canChangeShort(info) {
+  return info.bucket === 'mine';
+}
+
 // 這門課還能再開始幾支：上限扣掉已在排隊或產生講稿中的。
 export function batchRoom(scripts = []) {
   const busy = scripts.filter((s) => ['queued', 'generating'].includes(s?.recut?.state)).length;
@@ -50,6 +57,8 @@ export function isCancellableState(state) {
 // idle 但最近一次工作失敗時，顯示失敗而不是「尚未產生」。
 export function describeScript(script, task = null) {
   const state = script?.recut?.state || 'idle';
+  // 「不做了」記在腳本狀態，不是 recut 狀態；恢復後回到原本的 recut 進度（UX-26）。
+  if (script?.status === 'dismissed') return { ...CLOSED_INFO, state: 'dismissed' };
   const info = stateInfo(state);
   if (state === 'idle' && ['failed', 'cancelled'].includes(task?.status)) {
     return { ...info, state, label: task.status === 'cancelled' ? '已取消' : '產生失敗', action: '重新產生' };
@@ -103,7 +112,7 @@ const AVATAR_INFO = {
   in_review: { step: 2, bucket: 'mine', label: '確認成品', action: '確認成品' },
   approved_waiting_upload: { step: 2, bucket: 'waiting', label: '已核准，等待上架' },
   published: { step: 3, bucket: 'done', label: '已上架' },
-  dismissed: { step: 3, bucket: 'closed', label: '不做了' },
+  dismissed: { step: 3, bucket: 'closed', label: '不做了', action: '恢復' },
 };
 
 export function describeAvatar(script, assets = []) {
@@ -278,6 +287,7 @@ export function rejectScope(codes = []) {
 
 const ERROR_TEXT = {
   RECUT_STATE_INVALID: '這支短片剛剛有更新，已重新載入。',
+  SHORT_SCRIPT_STATE_INVALID: '這支短片的狀態剛剛改變，請重新整理後再試。',
   RECUT_BATCH_LIMIT_EXCEEDED: '這門課已有 5 支在產生講稿，完成後再開始。',
   RECUT_REVIEW_NOT_READY: '講稿還沒準備好。',
   RECUT_DURATION_INVALID: '總長需在 30～65 秒才能套用。',

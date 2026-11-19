@@ -458,6 +458,19 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.dismissReason, '這題不適合做影片');
   });
 
+  it('不做了的數位分身可恢復回收起前的狀態，主題回到選題排除清單之外的正常流程', async () => {
+    const script = await createScript();
+    stubGeneration();
+    await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+    await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'dismiss', feedback: '先不做' });
+
+    const restored = await shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'restore' });
+
+    assert.equal(restored.status, 'generated');
+    assert.equal(restored.dismissReason, null);
+    assert.equal(restored.versions.length, 1);
+  });
+
   it('非課程 owner 不得審核', async () => {
     const script = await createScript();
     stubGeneration();

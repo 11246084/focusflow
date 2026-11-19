@@ -6,7 +6,8 @@ import { FEEDBACK_TYPES, generateVersion, latestVersion, retryAssetUpload, revie
 import { findScriptAsset } from '../services/shortScriptStatus.js';
 import { renderScriptMarkdown } from '../services/shortScriptTemplate.js';
 import { getReviewErrorMessage, submitReviewAndReadback, validateRejectionReasons } from '../services/videoReview.js';
-import { AVATAR_STEPS, describeAvatar, formatShotRange, recutErrorText } from '../services/recutFlow.js';
+import { AVATAR_STEPS, canChangeShort, describeAvatar, formatShotRange, recutErrorText } from '../services/recutFlow.js';
+import { setProductionMode } from '../services/recut.js';
 import { formatFileSize, validateVideoFile } from './teacherUploadUtils';
 import { ConfirmDialog, FlowStrip, HelpTip, PrimaryAction, RejectReasonFields, SheetDialog, StateChip, StatusCard } from './recutUi';
 
@@ -41,6 +42,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
   const [aiConfirmed, setAiConfirmed] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [dismissOpen, setDismissOpen] = useState(false);
+  const [switchOpen, setSwitchOpen] = useState(false);
   const fileRef = useRef(null);
   const headingRef = useRef(null);
   const [announcement, setAnnouncement] = useState('');
@@ -79,6 +81,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
     await reviewScript(scriptId, { decision: 'dismiss' });
     setDismissOpen(false);
   });
+  // 換產片方式與恢復（UX-26）：完成後上層重新載入，改顯示原片剪輯工作區或回到原本進度。
+  const switchToRecut = () => run('switchMode', async () => {
+    await setProductionMode(scriptId, 'recut');
+    setSwitchOpen(false);
+  });
+  const restore = () => run('reopen', () => reviewScript(scriptId, { decision: 'restore' }));
   const markdown = version ? renderScriptMarkdown(script, version, metaphor) : '';
   const copy = async () => {
     try {
@@ -148,7 +156,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
     : mode === 'reject' ? { label: '送出退回', onClick: () => review('rejected'), busy: pending === 'reject', disabled: Boolean(rejectProblem), reason: rejectProblem } : null;
   // 原因一律放在面板裡選（手機從底部升起、電腦置中），這一步的主要按鈕不會被換掉。
   let primary = null;
-  if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
+  if (info.state === 'dismissed') primary = { label: '恢復', onClick: restore, busy: pending === 'reopen' };
+  else if (info.state === 'to_generate') primary = { label: '產生腳本', onClick: generate, busy: pending === 'generate' };
   else if (info.state === 'changes_requested') primary = { label: '重新產生', onClick: generate, busy: pending === 'generate' };
   // 傳回影片這一步的動作在腳本下方的「傳回做好的影片」卡片裡（照順序：先看腳本、做影片，再傳回），標題列不放按鈕。
   else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
@@ -221,6 +230,14 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
       noteTouched={noteTouched} onNoteTouched={setNoteTouched} />
   );
 
+  const changeable = canChangeShort(info);
+  const switchButton = (
+    <button type="button" className="rc-tool-btn" disabled={Boolean(pending)} onClick={() => setSwitchOpen(true)}><Ic n="film" s={15} />改用原片剪輯</button>
+  );
+  const dismissButton = (
+    <button type="button" className="rc-tool-btn rc-tool-danger" disabled={Boolean(pending)} onClick={() => setDismissOpen(true)}><Ic n="ban" s={15} />不做這支</button>
+  );
+
   const options = version?.payload?.visualMetaphorOptions || [];
   const sidePanels = (
     <>
@@ -256,7 +273,12 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
             <p className="rc-mt-s">{asset?.upload?.retrySafe ? '可以重試一次。' : '已通知管理員確認，不要重新上傳同一支影片。'}</p>
           </section>
         )}
-        {info.state === 'to_generate' && <section className="rc-panel"><p>還沒有腳本</p></section>}
+        {(info.state === 'to_generate' || info.state === 'dismissed') && (
+          <section className="rc-panel">
+            <p>{info.state === 'dismissed' ? info.label : '還沒有腳本'}</p>
+            {changeable && !shots.length && <div className="rc-script-tools rc-mt-s">{switchButton}{dismissButton}</div>}
+          </section>
+        )}
 
         {showAsset && (
           <section className="rc-panel" aria-label="成品">
@@ -288,13 +310,10 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
                 <button type="button" className="rc-tool-btn" onClick={copy}><Ic n="copy" s={15} />複製腳本</button>
                 <button type="button" className="rc-tool-btn" onClick={download}><Ic n="download" s={15} />下載腳本</button>
                 {/* 重新產生與不做這支是少用的動作：跟腳本工具放在同一列，不另開一塊。 */}
-                {canRevise && (
-                  <>
-                    <span className="rc-tools-sep" aria-hidden="true" />
-                    <button type="button" className="rc-tool-btn" disabled={Boolean(pending)} onClick={() => setMode('regenerate')}><Ic n="sync" s={15} />重新產生</button>
-                    <button type="button" className="rc-tool-btn rc-tool-danger" disabled={Boolean(pending)} onClick={() => setDismissOpen(true)}><Ic n="ban" s={15} />不做這支</button>
-                  </>
-                )}
+                {(canRevise || changeable) && <span className="rc-tools-sep" aria-hidden="true" />}
+                {canRevise && <button type="button" className="rc-tool-btn" disabled={Boolean(pending)} onClick={() => setMode('regenerate')}><Ic n="sync" s={15} />重新產生</button>}
+                {changeable && switchButton}
+                {(canRevise || changeable) && dismissButton}
               </div>
             )}
             {/* 畫面上的腳本與下載的腳本用同一個視覺隱喻，老師照畫面做也拿得到完整方向。 */}
@@ -357,7 +376,11 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
       </SheetDialog>
       <ConfirmDialog open={dismissOpen} title="不做這支短片？" confirmLabel="不做了" danger busy={pending === 'dismiss'}
         onConfirm={dismiss} onClose={() => setDismissOpen(false)}>
-        <p>之後不會再出現在待辦裡。</p>
+        <p>之後可以在「不做了」恢復。</p>
+      </ConfirmDialog>
+      <ConfirmDialog open={switchOpen} title="改用原片剪輯？" confirmLabel="改用原片剪輯" busy={pending === 'switchMode'}
+        onConfirm={switchToRecut} onClose={() => setSwitchOpen(false)}>
+        <p>數位分身的腳本會保留，之後切回來還在。</p>
       </ConfirmDialog>
     </>
   );

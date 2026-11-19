@@ -496,13 +496,15 @@ async function generateScriptVersion({ user, scriptId } = {}) {
 /**
  * 教師審核（規格書 WO-06 / DR-09）。
  *
- * @param {'approve'|'request_changes'|'dismiss'} decision
+ * @param {'approve'|'request_changes'|'dismiss'|'restore'} decision
  * @param {'retrieval'|'narrative'} feedbackType  request_changes 時必填，系統不猜
  */
 async function submitReview({
   user, scriptId, decision, feedback = null, feedbackType = null,
 } = {}) {
   const { script } = await loadScriptForManage({ user, scriptId });
+  // 不做這支與恢復兩種產片方式共用（UX-26）；退回修改只屬於數位分身。
+  if (decision === 'dismiss' || decision === 'restore') return setScriptClosed({ script, decision, feedback });
   assertAvatarMode(script);
 
   // approved 不開放人工按出來（2026-09-09 決議）：它只有一種來源——這份腳本的影片
@@ -552,6 +554,37 @@ async function submitReview({
   }
 
   const updated = await ShortScript.findOneAndUpdate(unchangedScriptFilter(script), update, { new: true });
+  if (!updated) throw scriptChangedError();
+  return updated;
+}
+
+// recut 正在產生、製作或已核准上架時不能收起；寫入時比對 recut.revision，
+// 避免讀完之後剛好開始產生講稿。
+const RECUT_CLOSE_BLOCKED = ['queued', 'generating', 'updating', 'render_queued', 'rendering', 'asset_approved', 'published'];
+
+async function setScriptClosed({ script, decision, feedback }) {
+  const recut = readProductionMode(script) === PRODUCTION_MODES.RECUT;
+  let update;
+  if (decision === 'dismiss') {
+    if (recut && (script.recut?.activeTaskId || RECUT_CLOSE_BLOCKED.includes(script.recut?.state))) {
+      throw new AppError('Wait for the current recut work to finish before closing this short.', 409, 'RECUT_STATE_INVALID');
+    }
+    assertTransition(script.status, SHORT_SCRIPT_STATUSES.DISMISSED);
+    update = { $set: { status: SHORT_SCRIPT_STATUSES.DISMISSED, statusBeforeDismiss: script.status,
+      dismissReason: String(feedback || '').trim() || null } };
+  } else {
+    if (script.status !== SHORT_SCRIPT_STATUSES.DISMISSED) {
+      throw new AppError('Only a closed short can be restored.', 409, 'SHORT_SCRIPT_STATE_INVALID');
+    }
+    // 舊資料沒有記收起前的狀態：有腳本版本就回到待審，沒有就回到待產生。
+    const previous = Object.values(SHORT_SCRIPT_STATUSES).includes(script.statusBeforeDismiss)
+      && script.statusBeforeDismiss !== SHORT_SCRIPT_STATUSES.DISMISSED
+      ? script.statusBeforeDismiss
+      : ((script.versions || []).length ? SHORT_SCRIPT_STATUSES.GENERATED : SHORT_SCRIPT_STATUSES.EVIDENCE_READY);
+    update = { $set: { status: previous, statusBeforeDismiss: null, dismissReason: null } };
+  }
+  const filter = { ...unchangedScriptFilter(script), ...(recut ? { 'recut.revision': script.recut?.revision ?? null } : {}) };
+  const updated = await ShortScript.findOneAndUpdate(filter, update, { new: true });
   if (!updated) throw scriptChangedError();
   return updated;
 }

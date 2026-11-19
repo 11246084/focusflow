@@ -42,6 +42,20 @@ export async function setRecutMode(scriptId) {
   return (await apiFetch(`${scriptPath(scriptId)}/production-mode`, json('PATCH', { productionMode: 'recut' }))).data;
 }
 
+// 換產片方式（recut／avatar）；產生或製作中後端回 409（UX-26）。
+export async function setProductionMode(scriptId, mode) {
+  return (await apiFetch(`${scriptPath(scriptId)}/production-mode`, json('PATCH', { productionMode: mode }))).data;
+}
+
+// 不做這支／恢復兩種產片方式共用同一個審核端點（UX-26）。
+export async function closeScript(scriptId) {
+  return (await apiFetch(`${scriptPath(scriptId)}/review`, json('POST', { decision: 'dismiss' }))).data;
+}
+
+export async function restoreScript(scriptId) {
+  return (await apiFetch(`${scriptPath(scriptId)}/review`, json('POST', { decision: 'restore' }))).data;
+}
+
 export async function startGeneration(scriptId) {
   return (await apiFetch(`${scriptPath(scriptId)}/recut/generate`, json('POST'))).data;
 }

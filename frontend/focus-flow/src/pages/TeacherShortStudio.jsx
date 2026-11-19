@@ -309,7 +309,7 @@ export default function TeacherShortStudio({ onNav }) {
     const onNext = nextMine ? () => openShort(nextMine.scriptId) : onNav ? () => onNav(MANAGE_PAGE) : undefined;
     const nextLabel = nextMine ? `下一支：${nextMine.question}` : '回短影片管理';
     body = selected.productionMode === 'recut'
-      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onNext={onNext} nextLabel={nextLabel} />
+      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onChanged={reload} onNext={onNext} nextLabel={nextLabel} />
       : <AvatarWorkspace key={selectedId} script={selected} assets={assets} onChanged={reload} onNext={onNext} nextLabel={nextLabel} />;
   } else body = <div className="rc-col rc-main" />;
 

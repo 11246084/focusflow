@@ -98,6 +98,8 @@ const shortScriptSchema = new mongoose.Schema(
       index: true,
     },
     dismissReason: { type: String, default: null, trim: true },
+    // 收起前的狀態，恢復時回到這裡（UX-26）。
+    statusBeforeDismiss: { type: String, default: null },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

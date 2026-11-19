@@ -16,12 +16,17 @@ function command(name, args) {
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
-    console.log('node backend/scripts/video-source-audit.cjs --pid PID [--video-id OBJECTID] [--limit 1000] [--log-file PATH]'); return;
+    console.log('node backend/scripts/video-source-audit.cjs [--pid PID] [--video-id OBJECTID] [--limit 1000] [--log-file PATH]'); return;
   }
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
     if (!['--pid', '--video-id', '--limit', '--log-file'].includes(args[i]) || !args[i + 1]) throw new Error('ARGUMENTS');
     options[args[i]] = args[i + 1];
+  }
+  if (!options['--pid']) {
+    const pm2Pid = command('pm2', ['pid', 'focusflow-backend']);
+    const detected = pm2Pid.ok ? pm2Pid.output.split(/\s+/).filter(x => /^\d+$/.test(x) && x !== '0').at(-1) : null;
+    if (detected) options['--pid'] = detected;
   }
   if (process.platform !== 'linux' || !/^\d+$/.test(options['--pid'] || '')) throw new Error('LINUX_PID_REQUIRED');
   const v = process.versions.node.split('.').map(Number);
@@ -31,8 +36,13 @@ async function main() {
   const proc = `/proc/${options['--pid']}`;
   const before = fs.readFileSync(`${proc}/stat`, 'utf8');
   const cwd = fs.realpathSync(`${proc}/cwd`);
-  const backend = path.resolve(__dirname, '..');
-  if (cwd !== backend) throw new Error('PID_CWD_MUST_MATCH_THIS_BACKEND_CHECKOUT');
+  const cmdline = fs.readFileSync(`${proc}/cmdline`, 'utf8').split('\0').filter(Boolean);
+  const backend = fs.realpathSync(path.resolve(__dirname, '..'));
+  const matchesCheckout = cwd === backend || cmdline.some(arg => {
+    try { return fs.realpathSync(path.resolve(cwd, arg)).startsWith(`${backend}${path.sep}`); }
+    catch { return arg.startsWith(`${backend}${path.sep}`); }
+  });
+  if (!matchesCheckout) throw new Error('PID_CWD_MUST_MATCH_THIS_BACKEND_CHECKOUT');
   const req = createRequire(path.join(backend, 'package.json'));
   const inherited = Object.fromEntries(fs.readFileSync(`${proc}/environ`, 'utf8').split('\0').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), x.slice(i + 1)]; }));
   const envFile = path.join(backend, '.env');
@@ -42,9 +52,10 @@ async function main() {
   const defaults = ['uploads', 'false', '3600000', '180', '10', '14'];
   const configuration = Object.fromEntries(keys.map((k, i) => [k, { value: env[k] || defaults[i], source: Object.hasOwn(inherited, k) ? 'process_initial_environment' : Object.hasOwn(diskEnv, k) ? 'current_dotenv_unverified_at_process_start' : 'checkout_default' }]));
   const uploadDir = path.resolve(backend, env.UPLOAD_DIR || 'uploads');
-  const report = { capturedAt: new Date().toISOString(), pid: Number(options['--pid']), backend, processExecutable: fs.realpathSync(`${proc}/exe`), processStat: before, gitHead: command('git', ['-C', backend, 'rev-parse', 'HEAD']), configuration,
+  const cwdUploadDir = cwd !== backend ? path.resolve(cwd, env.UPLOAD_DIR || 'uploads') : null;
+  const report = { capturedAt: new Date().toISOString(), pid: Number(options['--pid']), backend, processCwd: cwd, processExecutable: fs.realpathSync(`${proc}/exe`), processStat: before, gitHead: command('git', ['-C', backend, 'rev-parse', 'HEAD']), configuration,
     limitations: ['proc environment excludes dotenv loaded after process start; current .env and checkout may differ from running code', 'filesystem and database are not a transactional snapshot', 'no YouTube API requests; remote state is database evidence only', 'no raw logs collected; inspect restricted logs separately'],
-    dotenv: stat(envFile), storage: { path: uploadDir, stat: stat(uploadDir), mount: command('findmnt', ['-T', uploadDir, '-n', '-o', 'TARGET,SOURCE,FSTYPE']), disk: command('df', ['-Pk', uploadDir]) } };
+    dotenv: stat(envFile), storage: { path: uploadDir, stat: stat(uploadDir), ...(cwdUploadDir ? { cwdPath: cwdUploadDir, cwdStat: stat(cwdUploadDir) } : {}), mount: command('findmnt', ['-T', uploadDir, '-n', '-o', 'TARGET,SOURCE,FSTYPE']), disk: command('df', ['-Pk', uploadDir]) } };
   if (options['--log-file']) {
     const filename = path.resolve(options['--log-file']);
     let fd;
@@ -83,7 +94,9 @@ async function main() {
     report.videos = rows.slice(0, limit).map(v => {
       const resolved = v.filePath ? path.resolve(backend, v.filePath) : null;
       const local = resolved ? stat(resolved) : null;
-      return { ...v, resolvedPath: resolved, local, evidence: v.youtubeUpload?.localCleanupAt ? 'cleanup_metadata_present_requires_log_corroboration' : local?.exists === false ? 'path_missing_cause_unknown' : !resolved ? 'no_file_path_cause_unknown' : 'inspect_local_result' };
+      const cwdResolved = v.filePath && cwd !== backend ? path.resolve(cwd, v.filePath) : null;
+      const cwdLocal = cwdResolved && cwdResolved !== resolved ? stat(cwdResolved) : null;
+      return { ...v, resolvedPath: resolved, local, ...(cwdLocal ? { cwdResolvedPath: cwdResolved, cwdLocal } : {}), evidence: v.youtubeUpload?.localCleanupAt ? 'cleanup_metadata_present_requires_log_corroboration' : local?.exists === false ? (cwdLocal?.exists === true ? 'found_under_process_cwd' : 'path_missing_cause_unknown') : !resolved ? 'no_file_path_cause_unknown' : 'inspect_local_result' };
     });
   } catch (e) { report.database = { ok: false, error: ['MONGODB_URI_MISSING', 'INVALID_VIDEO_ID'].includes(e.message) ? e.message : 'DB_QUERY_FAILED_CHECK_CONNECTIVITY_AND_READ_PERMISSION' }; process.exitCode = 2; }
   finally { await client?.close(); }

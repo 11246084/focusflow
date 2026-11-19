@@ -14,14 +14,15 @@
 ```sh
 cd /opt/focusflow
 node -v
-pm2 pid focusflow-backend
-# 將上一步的非零 PID 填入；多個 PID 必須逐一執行。
 umask 077
-node backend/scripts/video-source-audit.cjs --pid 12345 > /tmp/focusflow-video-audit-12345.json
+node backend/scripts/video-source-audit.cjs \
+  --log-file /home/focusflow/.pm2/logs/focusflow-backend-error.log \
+  > /tmp/focusflow-video-audit.json
 echo $?
+cat /tmp/focusflow-video-audit.json
 ```
 
-成功回傳 0；資料庫或選填日誌檢查失敗回傳 2，JSON 仍保留其他證據；參數、程序權限或環境錯誤回傳 1。PID 必須為 Node 後端、cwd 必須與工具所屬 backend 相同，避免查錯服務。不要直接輸出 `pm2 jlist`、`/proc/PID/environ` 或 `.env`，其中可能有機密。
+成功回傳 0；資料庫或選填日誌檢查失敗回傳 2，JSON 仍保留其他證據；參數、程序權限或環境錯誤回傳 1。省略 `--pid` 時會自動執行 `pm2 pid focusflow-backend` 取得目前後端 PID（有多個 PID 時請逐一以 `--pid` 指定）。PID 必須為此 backend checkout 的 Node 後端（`cwd` 或 `cmdline` 指向此 `backend`），若程序自其他目錄（例如 `/home/focusflow`）啟動，報告會同時記錄 `processCwd` 並一併檢查相對 `processCwd` 的路徑。不要直接輸出 `pm2 jlist`、`/proc/PID/environ` 或 `.env`，其中可能有機密。
 
 只查一支影片及指定日誌範例（替換 ID、PID 與實際日誌位置）：
 

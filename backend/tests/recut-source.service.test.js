@@ -81,6 +81,30 @@ describe('recut RC2 連續視窗與句子', () => {
     assert.equal(String(input.video._id), ids.teacherVideo); assert.equal(input.hits[0].videoId, ids.teacherVideo);
     assert.ok(input.segments.length); assert.ok(input.segments.every((segment) => !segment.transcriptVersion));
   });
+  it('命中有部分不在課程範圍內時，改用課程內影片的命中', async () => {
+    const script = seedScript({ evidence: [{ ...segments[2], videoId: 'not-in-course', expandedFrom: null },
+      { ...segments[5], expandedFrom: null }] });
+    store.videoSegments.push(...segments);
+    const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
+    assert.equal(String(input.video._id), ids.teacherVideo); assert.deepEqual(input.hits.map((h) => h.chunkId), ['c5']);
+  });
+  it('同一影片命中相距超過三分鐘時，挑命中最多的三分鐘內那一群', async () => {
+    const script = seedScript({ evidence: [segments[0], segments[18], segments[19]].map((s) => ({ ...s, expandedFrom: null })) });
+    store.videoSegments.push(...segments);
+    const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
+    assert.deepEqual(input.hits.map((h) => h.chunkId), ['c18', 'c19']);
+  });
+  it('命中數相同時取檢索排名較前的一群；前一群接不出視窗就換下一群', async () => {
+    const script = seedScript({ evidence: [segments[19], segments[0]].map((s) => ({ ...s, expandedFrom: null })) });
+    store.videoSegments.push(...segments.filter((s) => s.chunkId !== 'c18'));
+    const input = await loadSourceInputs({ scriptId: script._id, courseId: script.courseId });
+    assert.deepEqual(input.hits.map((h) => h.chunkId), ['c0']);
+  });
+  it('所有命中群都接不出視窗時，回報排名最前那一群的原因', async () => {
+    const script = seedScript({ evidence: [{ ...segments[5], expandedFrom: null }] });
+    store.videoSegments.push(segments[5]);
+    await assert.rejects(loadSourceInputs({ scriptId: script._id, courseId: script.courseId }), { code: 'RECUT_WINDOW_NOT_FOUND' });
+  });
   it('同版本才以chunkId回查，排除其他版本片段', async () => {
     const script = seedScript({ evidence: [{ ...segments[5], transcriptVersion: 'upgrade-1' }] });
     store.videos.find((video) => String(video._id) === ids.teacherVideo).activeTranscriptVersion = 'upgrade-1';

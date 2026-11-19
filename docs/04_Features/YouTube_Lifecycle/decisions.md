@@ -154,6 +154,18 @@
 6. ~~短影片成品要不要納入~~：已定案，見 #28～#32。
 7. ~~開啟與驗收~~：已定案，見 #33。
 8. ~~YouTube 每日上傳額度用完怎麼辦~~：已定案，見 #35～#64（2026-10-24～26 討論；技術依據見[額度研究](quota-upload-research.md)、[原片暫存播放研究](local-playback-research.md)，欄位見[共用資料契約](shared-data-contract.md)）。
+9. **避免原片清理與 recut 短影片衝突（2026-11-19 討論中）**：見下方「目前這一輪待答題目」。
+
+### 目前這一輪待答題目（2026-11-19：避免原片清理與 recut 短影片衝突）
+
+背景：[recut 短影片](../Short_Video/recut-design-decisions.md)在「生成講稿與視窗辨識（RC2）」與「Worker 下載原片渲染（RC7）」兩個階段都必須讀取 VM `UPLOAD_DIR` 內的課程長影片原片（`Video.filePath`）。第一輪已定案：**① 課程長影片原片（`Video`）永久留存、從自動清理與到期預告中移除，自動清理排程只清理「已上架或已封存、且 YouTube 已就緒」的短片成品（`ShortAsset`）；② 保留「補回原片」功能與介面入口，補回後的課程原片同樣永久留存、不再起算清理保留期。**
+
+以下為第二輪待答題目：
+
+| 題目 | 建議答案（尚未定案） | 理由與前提 |
+|---|---|---|
+| Q3：「補回原片」（`POST /videos/:videoId/source/restore` 與前端按鈕）的適用條件是否放寬到所有缺少本機原片的影片？ | **放寬為：只要該影片在伺服器上缺少可用的本機原片（`!isLocalVideoSourceAvailable(video.filePath)`）且非處理／上傳進行中，課程教師與管理員皆可使用「補回原片」上傳原檔**（不再限制必須有 `youtubeUpload.localCleanupAt` 與 `filePath: null`） | 現行程式只允許「曾被自動清理排程刪除（有 `localCleanupAt`）」的影片補回原片；像本機批次匯入或因其他原因缺檔的影片（有或沒有 `filePath`、但磁碟缺檔且無 `localCleanupAt`）在網頁上反而無法按「補回原片」。放寬後所有缺本機原片的課程影片都能直接從網頁補檔供 `recut` 使用 |
+| Q4：單支課程影片原片清理函式（`cleanupUploadedLocalVideo`）與管理員介面文案如何調整？ | **兩項都做**：① 後端 `cleanupUploadedLocalVideo()` 停用刪檔（直接回傳 `{ cleaned: false, reason: 'video_cleanup_disabled' }`，僅保留 `repairCleanupIntents()` 對舊未完成 intent 的安全收尾）；② 管理員「YouTube 生命週期」頁面的清理開關與預告文案改為明確標示**「短片成品清理（僅清理已上架／已封存且 YouTube 可播放的短片成品；課程長影片原片永久保留）」** | 確保任何程式路徑都不會誤刪課程長影片原片，且管理員在後台開啟清理開關時能清楚知道只會清理短片 MP4 成品、不會動到課程原片 |
 
 ### 額度用完的處理
 

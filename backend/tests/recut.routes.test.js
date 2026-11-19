@@ -119,8 +119,36 @@ describe('recut 最小 API', () => {
   it('recut 不會誤走既有 8 拍同步生成或腳本審核路徑', async () => {
     const script = seedScript({ status: 'generated' }); const token = await teacherToken();
     const generated = await jsonRequest(baseUrl, pathFor(script, '/generate'), { method: 'POST', token, body: {} });
-    const reviewed = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token, body: { decision: 'dismiss' } });
+    const reviewed = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token,
+      body: { decision: 'request_changes', feedback: '改', feedbackType: 'narrative' } });
     assert.equal(generated.status, 409); assert.equal(reviewed.status, 409);
     assert.equal(store.usageLogs.filter((log) => log.event === 'short_script_generate').length, 0);
+  });
+  it('recut 可以不做這支，之後恢復回原本狀態', async () => {
+    const script = seedScript({ recut: { state: 'script_review', revision: 3 } }); const token = await teacherToken();
+    const closed = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token, body: { decision: 'dismiss' } });
+    assert.equal(closed.status, 200); assert.equal(closed.body.data.status, 'dismissed');
+    const restored = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token, body: { decision: 'restore' } });
+    assert.equal(restored.status, 200); assert.equal(restored.body.data.status, 'evidence_ready');
+    assert.equal(restored.body.data.recut.state, 'script_review');
+  });
+  it('recut 產生或製作中不能不做這支', async () => {
+    const token = await teacherToken();
+    for (const state of ['generating', 'rendering', 'published']) {
+      const script = seedScript({ recut: { state, revision: 1 } });
+      const closed = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token, body: { decision: 'dismiss' } });
+      assert.equal(closed.status, 409); assert.equal(closed.body.error.code, 'RECUT_STATE_INVALID');
+    }
+  });
+  it('不做了的短片要先恢復才能產生或換產片方式', async () => {
+    const script = seedScript({ status: 'dismissed' }); await installSteps(script); const token = await teacherToken();
+    const started = await jsonRequest(baseUrl, pathFor(script, '/recut/generate'), { method: 'POST', token, body: {} });
+    const switched = await jsonRequest(baseUrl, pathFor(script, '/production-mode'), { method: 'PATCH', token, body: { productionMode: 'avatar' } });
+    assert.equal(started.status, 409); assert.equal(switched.status, 409);
+  });
+  it('還沒收起的短片不能恢復', async () => {
+    const script = seedScript(); const token = await teacherToken();
+    const restored = await jsonRequest(baseUrl, pathFor(script, '/review'), { method: 'POST', token, body: { decision: 'restore' } });
+    assert.equal(restored.status, 409); assert.equal(restored.body.error.code, 'SHORT_SCRIPT_STATE_INVALID');
   });
 });

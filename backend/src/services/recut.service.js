@@ -23,8 +23,12 @@ function toPublicTask(task) {
     resultVersionId: task.resultVersionId ? String(task.resultVersionId) : null,
     queuedAt: task.queuedAt, startedAt: task.startedAt || null, finishedAt: task.finishedAt || null, error: task.error || null };
 }
+// 「不做了」的短片要先恢復，才能換產片方式或產生（UX-26）。
+function assertNotClosed(script) {
+  if (script.status === 'dismissed') throw new AppError('Restore this short before continuing.', 409, 'RECUT_STATE_INVALID');
+}
 async function setProductionMode({ user, scriptId, mode }) {
-  await loadForManage({ user, scriptId });
+  assertNotClosed(await loadForManage({ user, scriptId }));
   const script = await setProductionModeForScript({ scriptId, mode });
   return { scriptId: String(script._id), productionMode: productionMode(script), recut: recutSnapshot(script) };
 }
@@ -41,6 +45,7 @@ async function assertGenerationBatchLimit(script) {
 }
 async function startGeneration({ user, scriptId }, queue = recutQueue) {
   const script = await loadForManage({ user, scriptId });
+  assertNotClosed(script);
   await assertGenerationBatchLimit(script);
   return toPublicTask(await queue.enqueue({ script, requestedBy: user.id }));
 }

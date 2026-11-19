@@ -5346,13 +5346,15 @@ paths:
     post:
       tags:
         - Short Scripts
-      summary: 審核腳本（要求修改或否決）
+      summary: 審核腳本（要求修改、不做這支或恢復）
       description: |
-        `decision` 只接受 `request_changes` 與 `dismiss`。`approved` 不開放人工設定：
+        `decision` 只接受 `request_changes`、`dismiss` 與 `restore`。`approved` 不開放人工設定：
         腳本只會在對應成品通過審核並上架後，由系統標成 `approved`；傳 `approve` 會回 `400`。
 
-        `request_changes` 必須附 `feedback` 與 `feedbackType`（`retrieval` 或 `narrative`，由教師指定，系統不猜）。
-        `dismiss` 的 `feedback` 會存成 `dismissReason`。回饋記在最新一版上。
+        `request_changes` 只用於數位分身（原片剪輯回 `409 RECUT_STATE_INVALID`），必須附 `feedback` 與 `feedbackType`（`retrieval` 或 `narrative`，由教師指定，系統不猜），回饋記在最新一版上。
+
+        `dismiss`（不做這支）兩種產片方式都可用，`feedback` 會存成 `dismissReason`，並記下收起前的狀態；原片剪輯正在產生、製作或已核准上架時回 `409 RECUT_STATE_INVALID`。
+        `restore` 只接受已收起（`dismissed`）的腳本，回到收起前的狀態並清除 `dismissReason`；原片剪輯的講稿與進度不受影響。不做了的短片要先恢復，才能產生或換產片方式。
       operationId: reviewShortScript
       parameters:
         - $ref: '#/components/parameters/ScriptId'
@@ -5372,6 +5374,9 @@ paths:
                 value:
                   decision: dismiss
                   feedback: 主題與下週課程重複。
+              restore:
+                value:
+                  decision: restore
       responses:
         '200':
           description: 審核已記錄，回傳更新後的腳本
@@ -11776,6 +11781,11 @@ components:
           $ref: '#/components/schemas/ShortScriptStatus'
         dismissReason:
           type: [string, 'null']
+        statusBeforeDismiss:
+          description: 不做這支時記下的原本狀態，恢復時回到這裡；未收起時為 `null`。
+          anyOf:
+            - $ref: '#/components/schemas/ShortScriptStatus'
+            - type: 'null'
         createdBy:
           anyOf:
             - $ref: '#/components/schemas/ObjectId'
@@ -11864,6 +11874,7 @@ components:
           enum:
             - request_changes
             - dismiss
+            - restore
         feedback:
           description: 修改意見；`dismiss` 時存成否決理由。
           type: string

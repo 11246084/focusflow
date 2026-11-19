@@ -1,5 +1,7 @@
 # FocusFlow 文件總覽
 
+2026-11-17多模態正式評測與品質診斷的可分享保存稿見[研究快照](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.md)及[結構化數據](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.json)；只含研究結論、計數／排名與來源校驗值，不包含向量、影音、逐字稿或憑證。最新進度仍以[目前狀態](current-status.md)為準。
+
 雲端多模態QA、新上傳Worker、持久帳本與安全發布的設定交接見[多模態雲端部署交接](04_Features/Multimodal_Retrieval/CLOUD_DEPLOYMENT_HANDOFF.md)；主機實際設定仍須維運人員當次確認。
 
 影片一建置前的實查、成本邊界與執行阻塞見 [影片一最終檢查](04_Features/Multimodal_Retrieval/video1-preflight.md)（2026-11-12）。
@@ -101,7 +103,7 @@ YouTube 第三輪定案規格：[共用資料契約 Q-0](04_Features/YouTube_Lif
 
 YouTube F3／F4：[2026-10-27 修復與隔離驗證](04_Features/YouTube_Lifecycle/evidence/2026-10-27_f3-f4-fixes.md)，記錄 R07、R10～R12 的來源重新處理、總覽與並行稽核證據。
 
-設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)（[開發接手說明](04_Features/LINE_Binding/HANDOFF.md)）、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[對話功能優化](04_Features/QA_Conversation/decisions.md)（[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)、[LibreChat SSE 研究](04_Features/QA_Conversation/evidence/2026-11-15_librechat-sse-research.md)）、[多模態檢索](04_Features/Multimodal_Retrieval/decisions.md)（[開發接手說明](04_Features/Multimodal_Retrieval/HANDOFF.md)、[參考文獻](04_Features/Multimodal_Retrieval/references.md)）、[教育開放資料補強](04_Features/Open_Data/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)（[chunk 版本契約](04_Features/Short_Video/chunk-version-contract.md)）、[教師短影片腳本與成品上傳流程](04_Features/Short_Script_Automation/decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。
+設計討論入口：[recut 預覽與選段說明](04_Features/Short_Video/decisions.md)、[httpOnly cookie 登入](04_Features/HttpOnly_Cookie/decisions.md)、[Jev 問題守門與 LINE 分類](04_Features/Jev_Judgment/decisions.md)、[LINE 帳號綁定](04_Features/LINE_Binding/decisions.md)（[開發接手說明](04_Features/LINE_Binding/HANDOFF.md)）、[學生端播放介面與章節](04_Features/Student_Player_UX/decisions.md)、[管理員介面與教師儀表板重調](04_Features/Dashboard_Redesign/decisions.md)（[開發接手說明](04_Features/Dashboard_Redesign/HANDOFF.md)）、[對話功能優化](04_Features/QA_Conversation/decisions.md)（[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)、[LibreChat SSE 研究](04_Features/QA_Conversation/evidence/2026-11-15_librechat-sse-research.md)）、[多模態檢索](04_Features/Multimodal_Retrieval/decisions.md)（[開發接手說明](04_Features/Multimodal_Retrieval/HANDOFF.md)、[參考文獻](04_Features/Multimodal_Retrieval/references.md)）、[教育開放資料補強](04_Features/Open_Data/decisions.md)、[recut 產製設計](04_Features/Short_Video/recut-design-decisions.md)（[chunk 版本契約](04_Features/Short_Video/chunk-version-contract.md)）、[教師短影片腳本與成品上傳流程](04_Features/Short_Script_Automation/decisions.md)。各文件的「目前這一輪待答題目」保留問題、建議答案與理由，供逐題討論。
 
 recut 畫面重做：[設計方案與自評](04_Features/Short_Video/evidence/2026-10-21_recut-teacher-ux/design-review.md)，保留技能使用、視覺取捨與實際檢查證據。
 

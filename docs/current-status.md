@@ -1,5 +1,128 @@
 # FocusFlow 目前狀態
 
+## 2026-11-17 多模態診斷成果Git保存
+
+本輪只整理既有成果供暫時切換工作：確認本機dev與origin/dev同為 `3e62f27ae9804d12f89655baebb6a25db72f2055`，保留七份未提交異動。將先前已完成的真實評測與離線診斷，以欄位白名單整理為[可分享研究快照](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.md)及[結構化數據](04_Features/Multimodal_Retrieval/evidence/2026-11-17_multimodal-quality-diagnosis.json)，並登記索引、接手與AI使用紀錄；原始診斷檔及原24組結果不覆寫。快照保留指標、名次／分數與52份來源SHA-256，不含向量、影音、截圖、逐字稿、完整ledger／Checkpoint、憑證或連線資訊。
+
+提交範圍只含確認安全的文件，訊息為 `docs: preserve multimodal retrieval diagnosis 2026-11-17`；前輪 `STT_Whisper/src/evaluation_embedding_batch.py` 與對應測試的兩份未提交修改留在本機，不納入此文件commit。未新增實驗、Gemini／Atlas呼叫、向量或正式程式修改；本輪驗證僅檔案保存指紋、快照數據一致性、連結、敏感資料與staged diff／git diff --check。實際提交與遠端同步結果以Git紀錄為準。
+
+下次從品質審查、未定案候選A與獨立盲測設計接續；不重做已完成Embedding與原24組評測。跨機先安全交接私有原檔，不能把Git摘要當完整重算資料或把新增inspect能力當成已發布。詳見[HANDOFF](04_Features/Multimodal_Retrieval/HANDOFF.md)。
+
+## 2026-11-17 多模態排名品質離線診斷完成
+
+fetch與GitHub `ls-remote`確認最新dev仍為 `3e62f27ae9804d12f89655baebb6a25db72f2055`，保留原七份未提交異動。只分析 `.local-tools/gold-atlas-evaluation-20261117/` 的真實report／metrics／per-question／config／各路排名及獨立核驗紀錄，另讀原Leaf／Query向量診斷指定Chunk全庫名次、抽查原切片；沒有重新執行Atlas檢索、Gemini或候選參數實驗。原24組與所有原始評測檔案前後hash相同。
+
+**主要可重現瓶頸是多路重合加票與精準語義／時間定位脫節，本批未發現可解釋退步的RRF實作缺陷。** RRF只看名次：單路第1名貢獻1／61＝0.016393，兩路各第20名已合計0.025；多路支持不等於彼此獨立、直接支持問題的多份證據。Gold時間外的候選可能仍在談斷詞／CKIP等相關概念，不能一概稱為完全語意錯誤。
+
+| 指定來源 | 文字全庫名次 | 聲音全庫名次 | 畫面全庫名次 | 三路Flat等權／2:1:1名次 |
+|---|---|---|---|---|
+| D04／V6 chunk_0050，723.72–739.02秒 | 4 | 2 | 29（Top20外） | 4／6 |
+| D05／V6 chunk_0071，1054.84–1070.98秒 | 2 | 49（Top20外） | 34（Top20外） | 16／12 |
+
+**D04：**0050等權貢獻為文字0.015625＋聲音0.016129＋畫面0＝0.031754；2:1:1為0.031250＋0.016129＝0.047379，分數增加卻名次下降。0061（893.49–912.21秒、CKIP）與0076（1127.92–1141秒、停用詞）都獲三路支持，0054（英文空格斷詞）等文字前段候選也被加權；相對票數使0050落出Top5，不是去重或計算錯誤。分層時指定0050文字在第11名（第四名Parent的第二個child），三路等權／加權為第6／7；同Gold時間內其他片段可更早命中，因此「第一Gold名次」不等於指定Chunk名次。
+
+**D05：**指定0071僅由文字支持，等權為1／62＝0.016129，2:1:1為2／62＝0.032258。0050／0051等斷詞片段由多路共同支持，排在詞幹片段前；0071等權第16、加權第12。聲音Top20沒有任何Gold，畫面有另一筆Gold在第15名；不能誤稱畫面Top20完全沒有Gold。指定片段已由文字進入融合聯集，不是整體候選遺失；在影音路徑落出Top20的名次也由全庫exact重算確認，不是本批Atlas ANN漏掉了本應在Top20的指定向量。尚無受控聽辨證據可將聲音低名次定因為錄音、發音或encoder，僅能確認此題的音訊檢索特異性不足。
+
+**畫面抽查：**核對8個原生media SHA-256後取中點，兩個指定正確片段與多個競爭片段皆顯示同一張投影片18「Step1.資料預處理」，同時列出Tokenization、Stemming及停用詞。D05畫面有正確「詞幹處理(Stemming)、goes→go」，字稿卻是「磁幹處理」且未保留完整投影片定義。這證明存在字稿外畫面資訊，但靜態頁橫跨多個講述片段，視覺可能找對主題而定位不到老師當下所講的細項；不能直接把Gold外的畫面判成語意完全不符。僅抽查8個中點，未逐格看全片，也未做紅筆／講者小窗消融，不外推全體畫面或宣稱底層encoder成因已確診。
+
+**42題整體貢獻（皆對stableText Flat）：**
+
+| 加入通道／權重 | Recall@5改善／不變／退步 | MRR升／平／降 | Recall退步題 |
+|---|---|---|---|
+| 文字＋聲音等權 | 0／41／1 | 3／34／5 | D05 |
+| 文字＋聲音2:1:1 | 0／41／1 | 2／36／4 | D05 |
+| 文字＋畫面等權 | 0／38／4 | 1／25／16 | F11、M11、D04、D05 |
+| 文字＋畫面2:1:1 | 0／38／4 | 1／29／12 | F11、M11、D04、D05 |
+| 三路等權 | 0／41／1 | 2／30／10 | D05 |
+| 三路2:1:1 | 0／40／2 | 2／29／11 | D04、D05 |
+
+Top20平均重疊：文字／聲音11.86個（交集／20＝59.29%，平均Jaccard 43.26%）；文字／畫面3.26個（16.31%，9.39%）；聲音／畫面2.90個（14.52%，8.33%）。畫面Top5命中18／42、Top20命中26／42。17題的畫面Top20找到文字Top20沒有的另一個Gold Chunk，但文字已42題全中，這不是補回17題，也不足以證明找回了17個字稿缺失事實。
+
+**分層文字＋聲音的MRR：**等權0.906926→0.950397，6升／34平／2降，Recall命中集合不變；2:1:1為6升／35平／1降，最終同為0.950397。等權改善F05、F15、M01、X04、T02各2→1，D05由11→6；退步D04由2→4、F12由1→2。影音候選完全不變，Parent改變文字候選與其展開順序，有時提升正確片段、有時移除舊競爭片段的文字票；X04正確片段兩路名次未變仍2→1，顯示競爭者改變也有作用。D05仍未進Top5，因此較高平均MRR不是全面改善或LLM答案品質證明。對stableText Flat則為3升／37平／2降，MRR差+0.019841。
+
+**題庫驗證邊界：**README明記原題／Gold出自逐字稿；42題沒有視覺必要／ASR受損標籤，題文掃描亦無明確畫面指示詞，但不能單憑掃描斷言每題都不需視覺。口語錯字子集5題的文字Recall@5＝5／5、MRR＝1.0，三路等權仍5／5、MRR＝0.766667；口語錯字並非受控ASR對照。現題庫適合作回歸與時間定位，不足以單獨驗證視覺補洞或ASR韌性。QA Bridge仍只載入同Chunk逐字稿，未將畫面定義／OCR交給回答器，故畫面檢索與真正能回答字稿缺失資訊必須分開驗證。
+
+**已執行驗證及保存：**Node 22.23.4以實際RRF函式重算1,200列、檢查所有通道Top20／來源範圍；通道內重複0、範圍錯誤0。唯讀負向控制通過：同路重複只計一次、跨路合法累加、衝突證據拒絕、k＝60／權重及未授權來源過濾。Python離線分析保存42題增退清單、逐題重疊率、完整競爭片段分數／原文、Parent變化及指定Chunk全庫名次。完整私有診斷在 `.local-tools/gold-quality-diagnosis-20261117/diagnosis.html`，各JSON、`visual-contact-sheet.png`與8張原生中點PNG可重查。原正式結果完全未覆寫；ledger仍2,371 calls／US$11.01956508。
+
+**下一步建議：**最多三項候選及六項說明見[決策](04_Features/Multimodal_Retrieval/decisions.md#2026-11-17-正式評測後的品質診斷與待選方案)：優先A，另建離線query–evidence重排序候選；B是投影片時段感知的視覺訊號；C是獨立視覺／ASR盲測資料。皆未定案或實作。先鎖定未參與診斷的新盲測，原42題只作已看過的回歸，不把D04／D05叫holdout。原Gold／RRF／QA不改，正式整合與任何新付費需另授權。
+
+未執行新Atlas查詢、Gemini、Embedding、候選參數實驗、正式程式修改、部署、VM E2E或無關全套回歸；本輪診斷只讀本機，沒有外部服務／旗標變更。新增唯讀診斷稿不作正式24組成效；文件連結與git diff --check通過，未stage／commit／push。
+
+## 2026-11-17 真實 Gold 排名與 Atlas 唯讀評測完成
+
+fetch／GitHub `ls-remote` 確認 dev 新增四筆儀表板文件，與原七份未提交異動不重疊，ff-only 安全同步至 `3e62f27ae9804d12f89655baebb6a25db72f2055`，原修改與私有成果保留。沿用 Node 22.23.4、既有 collector／Atlas Adapter／RRF／兩套評分工具，不修改功能或評測程式；私有執行稿只組合既有函式並保存證據。新授權及實驗邊界見[決策](04_Features/Multimodal_Retrieval/decisions.md#2026-11-17-真實-gold-排名與-atlas-唯讀評測授權)。
+
+**完成真實 Atlas Flat 12組＋Atlas Leaf／本機 Parent Hierarchical 12組，共50題×24＝1,200列；另完成 MA 契約的真實 exact memory 24組。** 每次都是42題計分、7題拒答、X01另列，未用 Fake、Mock 或空排名。Atlas 對每題執行 stableText／audio／visual／舊 embedding 四次搜尋，共200次 `$vectorSearch`；candidate=100、每路Top20、RRF k=60及1:1:1／2:1:1固定。Hierarchical 的Parent是本機233筆真實text_v2、exact Top5，沿用展開上限30、15段／5000字，只替換文字一路，部分文字組少於20筆是契約上限，不補假排名。Atlas Parent當次實查只有3筆舊text_v1，完全未用，未發布任何Parent。
+
+**以下每格為 Recall@5／MRR，計分題數均42。Atlas混合實驗與exact實驗的1,200列排名完全相同，24組指標逐項一致；仍分開保存設定與來源，不能推論未來所有ANN與exact必然一致。**
+
+| 模態 | Flat等權 | Flat文字加權 | Hierarchical等權 | Hierarchical文字加權 |
+|---|---|---|---|---|
+| text | 100%／0.930556 | 100%／0.930556 | 100%／0.789683 | 100%／0.789683 |
+| audio | 97.62%／0.896825 | 97.62%／0.896825 | 97.62%／0.896825 | 97.62%／0.896825 |
+| visual | 42.86%／0.347421 | 42.86%／0.347421 | 42.86%／0.347421 | 42.86%／0.347421 |
+| text_audio | 97.62%／0.906926 | 97.62%／0.901190 | 97.62%／0.950397 | 97.62%／0.950397 |
+| text_visual | 90.48%／0.729034 | 90.48%／0.780650 | 88.10%／0.726077 | 97.62%／0.786735 |
+| all | 97.62%／0.825694 | 95.24%／0.824206 | 95.24%／0.887302 | 95.24%／0.899802 |
+
+保存的**原文字向量基準**為41／42、Recall@5 97.62%、MRR 0.867920；stableText Flat為42／42、MRR 0.930556。原文字基準以同一stable Query查舊preview文件向量，屬版本遷移比較，不能假稱重現歷史preview Query全流程，也不能把差異全部歸因模態。純模態比較另對照stableText：其Recall已滿分，三路融合沒有新增找回空間，但仍有退步。
+
+| 三路融合 | 對原文字基準：新增／退步 | 對stableText Flat：新增／退步 |
+|---|---|---|
+| Flat等權 | 0／0 | 0／1（D05） |
+| Flat文字加權 | 0／1（D04） | 0／2（D04、D05） |
+| Hierarchical等權 | 0／1（D04） | 0／2（D04、D05） |
+| Hierarchical文字加權 | 0／1（D04） | 0／2（D04、D05） |
+
+**逐題退步證據：**D04「什麼是斷詞斷句？為什麼要做？」Gold為V6 708–768秒；stableText第一筆Gold是chunk_0050、723.72–739.02秒、第4名，Flat等權仍第4名，文字加權退至第6名；Hierarchical兩權重均第6名。D05「什麼是詞幹處理？」Gold為V6 1024–1097秒；stableText第一筆Gold是chunk_0071、1054.84–1070.98秒、第2名，Flat等權退至第16名、文字加權第12名，Hierarchical為第10／8名。D05聲音Top20無Gold、畫面第一筆Gold第15名；最前文字命中只由文字支持，被多路共同出現的其他片段擠壓。D04多路共同出現的非Gold候選也排在正確片段前方。逐題保存原題、Gold範圍、原文、全部排名／時間／來源通道名次／RRF貢獻；這些觀察不能替代完整LLM語義品質審查。
+
+**已執行核驗：**檢索前後逐筆比較真實Atlas六片694文件的原文／身份／原時間、原embedding與2,078 Leaf、metadata／簽章／digest及六支影片課程關係，皆符合凍結來源。50 Query、233 Parent的bundle／原生Checkpoint校驗值一致；原索引ID、version 4、定義hash與三個READY／QUERYABLE節點未變。`auditMultimodalOffline.js`呼叫`verifyMultimodalAudit.js`獨立重算；另以不匯入既有scorer的Python核驗每次1,200列RRF、24組Recall@5／10／MRR、72組基準增退比較，逐項一致。七題拒答的檢索分數另存，沒有LLM拒答判定。
+
+私有證據在 `.local-tools/gold-atlas-evaluation-20261117/`：`report.html`供人閱讀；`raw-atlas-rankings.json`、50份逐題讀回、`source-validation.json`、索引前像與`completion.json`保存Atlas來源；`atlas-local-parent/`與`exact-memory/`各含per-question／config／report／legacy-baseline／changes／change-evidence／independent-cli-report。前者另存逐組retrievedBy、channelRanks、channelScores與RRF貢獻。`metrics.csv`列出兩實驗48組完整精度指標；`independent-verification.json`與`artifact-checksums.json`可供獨立查核。原向量、私有備份、ledger及歷史證據不隨Git傳遞。
+
+**結論與下一步：**數字核驗通過，但三路融合未顯示Recall改善，且相較stableText退步；不能宣稱「沒有變差」或品質驗收通過，不因結果而改Gold／權重／旗標。Parent發布不是本次評測的阻塞；正式VM如需Atlas Hierarchical，仍需獨立發布授權與備份／CAS計畫。本機資料可供下一階段真實LLM抽查，但模型費用、VM版本／provider／旗標／nginx串流與真實帳號權限等仍需另授權及實機驗收；X01仍缺V5人工時間，候選及核准流程維持原決策。
+
+本輪Gemini／付費Embedding呼叫0、Atlas寫入／index變更0、Parent發布0；監測到的命令僅find／aggregate／getMore。共用ledger仍2,371 calls／US$11.01956508，SHA-256 `7b09cbc1dcc60928ec05b06e3c8295450bd4f630a0b04e9d2c68ba91d0584ca8`未變。未執行LLM回答品質、正式VM E2E、部署／旗標變更或無關前端／QA回歸，因本輪只做檢索評測、未改功能程式；工具保留`formalEvaluation=false`／`qualityClaim=false`外部簽核保護，並非使用Fake向量。文件連結及git diff --check通過，未stage／commit／push。
+
+## 2026-11-17 正式 Gold Query／Parent Embedding 完成
+
+依使用者本輪明確授權，沿用 `.local-tools/gold-preflight-20261117/next-batch-plan.json` 及既有 `evaluation_embedding_batch.py`，沒有重做 Preflight、修改評測工具或重跑已通過的離線測試。fetch 與 GitHub `ls-remote` 確認最新 dev 仍為 `b3a3a90c181fcc790f4926b4ee4a1fb8b5d9b508`，保留前輪七份未提交異動；開始前比對原 2,130 份保護檔案、283 筆輸入簽章、兩份核准 plan hash 與 ledger，皆未異常，無遺留鎖。
+
+**50／50 個正式 Gold Query、233／233 個 text_v2 Parent 全部成功，新增 283 次請求、零重試。** 先完成五題 Query，再完成其餘 Query，最後執行 Parent，共 30 批，每批最多十個新輸入、單一並行、每次新請求後至少等待兩秒；保存的輸入建立時間最小間隔 3.048418 秒。沿用 backend 私有憑證、gemini-embedding-2／3072 維、Developer API v1beta 及共用 ledger／原生 Checkpoint，SDK attempts=1。沒有 429、逾時、未知計費、簽章異常或失敗；每批成功後讀回核驗，未重送已成功輸入。
+
+**最終共用 ledger：2,371 calls／US$11.01956508 保守預留。** 相較執行前 2,088 calls／US$10.55589788，新增 US$0.46366720，低於 US$20 硬上限；每次請求前先預留，並非實際帳單。ledger SHA-256 `7b09cbc1dcc60928ec05b06e3c8295450bd4f630a0b04e9d2c68ba91d0584ca8`。原 attemptsBySignature 歷史完整保留，283 個新簽章均為一次嘗試；除獲准累計的 ledger 外，原 2,129 份 Checkpoint／六片 bundle／V6 JSON 稽核與備份雜湊完全一致，原 2,078 個 Leaf 未重建或改寫。
+
+**已執行完成後核驗：**獨立禁止網路的讀回逐筆比對原 plan／bank 原文、六份凍結來源 SHA-256、Query 前綴／Parent 原文與固定三 Leaf 組成、來源身份／原時間、text_v2 完整契約、3072 維有限值／unit norm、原生簽章、Checkpoint JSON digest 與 bundle 二進位向量 digest，全部通過。X01 僅產生原題 Query；Gold 原檔未改，V5 人工時間仍待核定。所有批次鎖均已釋放，成功 Checkpoint 保存在原 `.local-tools/gemini-small-sample/gemini/checkpoints/`。
+
+完整真實 bundle 為 `.local-tools/gold-preflight-20261117/query/bundle.json`（50 筆，SHA-256 `c40c834d19406da89886c8302f2061a01b546da0668328e0d1d6a0bac0224e6f`）與 `parent/bundle.json`（233 筆，`4d185ce9147a48c38e668d1b498eb7f9d060a22734573b864b59059b428b7f1d`）。同目錄 `authorized-execution/` 保存當次 authorization、ledger 前後像、30 批 Checkpoint 稽核／進度、完成 summary 與逐筆 verification；前輪盤點及 Fake／合成紀錄保留，不混作真實結果。
+
+**正式排名的資料條件已齊備，成效尚未驗收。** 可沿用保存的 694 Chunk manifest、六片 Leaf、原文字基準及上述真實 Query／Parent bundle，在 memory 模式執行 24 組排名，不需先發布 Parent 到 Atlas。下一輪仍須另行授權正式排名與獨立評分；X01 核定前維持 42 題計分、7 題拒答、X01 另列。當次未連線或修改 Atlas、未發布 Parent、未跑正式排名／LLM 品質驗收、未部署或更動功能旗標；未跑前端／QA／短影片回歸，因本輪未改功能程式。文件連結及 git diff --check 通過，未 stage／commit／push。操作邊界見[決策](04_Features/Multimodal_Retrieval/decisions.md#2026-11-17-正式-queryparent-embedding-執行授權)。
+
+## 2026-11-17 正式 Gold 輸入盤點與離線執行準備
+
+基準為 `dev`／`origin/dev` `b3a3a90c181fcc790f4926b4ee4a1fb8b5d9b508`，開始時工作樹乾淨。本輪僅離線盤點、評測工具必要修正與測試；沒有 Gemini 請求、Atlas 連線／修改、真實 Gold 排名、部署、旗標變更或 Leaf 重建。
+
+**正式可重用 Query 0／50，缺 50；Parent 0／233，缺 233，兩者均無歷史失敗簽章阻塞。** 逐題核對原始 ID／文字、query 前綴／text_v2、原生輸入簽章與共用 ledger／Checkpoint；掃描本機其他同簽章及無身份舊快取，沒有相符正式輸入。保存的三題探索 Query 原文不符 Gold，未計入。V6 舊 Parent 有 47 筆 preview 與 47 筆 stable 舊產物；後者仍是 `gemini_embedding_2_text_v1`／`text_search_generation_v1`，不同於本輪 text_v2，兩版均保留、均不計為可重用。
+
+固定三 Leaf、零重疊 Parent 共 233 筆：V1～V6 分別 39／41／28／48／30／47，尾組容許不足三筆；原文用換行串接，時間取第一個 Leaf 起點與最後一個終點。六份凍結來源 SHA-256 符合 corpus，694 筆 Chunk 的原文／身份／時間及原文字向量核對通過；六片 bundle 的 2,078 個向量與原生 Checkpoint／digest 相符。42 題 Gold 都有可計分 Chunk，缺口只剩 X01 的 V5 人工時間；7 題拒答與 X01 另列，不改題庫。
+
+**執行準備已落盤：**`.local-tools/gold-preflight-20261117/` 保存兩份 plan、逐筆 cache-inventory、manifest、original-text、六份 Leaf bundle 路徑、gold-chunk-map、舊 Parent／探索 Query 診斷、X01 原題及逐字稿候選、Fake 預演與測試證據。Query plan SHA-256 `5a54e3e24e9e41975a40c80cc3f58b840c1329ac7346899d921b29c39969f1b7`；Parent plan SHA-256 `4a17fae596fd68cb8575810c1cd731794323ce56b957a69a3fc785986ca3ec08`。這些是資料指紋，並非付費授權。X01 待確認問題及建議先看片段見[決策](04_Features/Multimodal_Retrieval/decisions.md#2026-11-17-正式-gold-執行準備邊界)。
+
+**修正及已執行驗證：**評測批次工具明確使用 UTF-8 讀中文計畫／state，新增不初始化 provider 的 `inspect`，付費前與匯出前先核對全部所選快取的完整契約／身份／簽章／向量 digest。Node 22.23.4 下評測相關 12 項測試通過；既有 Python 3.11.9 venv 下 Evaluation Batch 11、Adapter 10、Corpus Batch 9、Video1 Batch 5，共 35 項通過，socket／DNS 阻擋、網路嘗試 0。50 Query／233 Parent 的 Fake 首次執行與零新增重播通過；以凍結 694 身份、合成向量跑完整 1,200 列、六組×兩權重×flat／hierarchical、Top20 上限、原文字基準分列及兩套獨立 Recall@5／10／MRR 核對通過。結果均標記 synthetic／formalEvaluation=false／qualityClaim=false，不能視為真實檢索成效。檔案連結與 git diff --check 通過。
+
+**成本與保存：**當次真實 ledger 仍 2,088 calls／US$10.55589788，2,130 份原 ledger／原生 Checkpoint／六片 bundle／V6 JSON 證據的前後 SHA-256 相同。缺 283 筆首次輸入，依既有每筆 US$0.00163840 保守預留及逐次進位，新增 US$0.46366720，投影 2,371 calls／US$11.01956508，低於 US$20 硬上限；不是帳單或新授權。實際 API 配額／帳務、Atlas／VM 現況及 LLM 答案品質本輪未查證。
+
+**下一輪：**另授權上述兩份 plan 的 50 Query＋233 Parent 首次付費輸入；先五題 Query，再每批至多 10 個新輸入，單一並行、每次新請求後等待 2 秒、每批核驗。任何 429／逾時／未知費用／契約或來源改變／成功快取異常／鎖衝突／預算阻擋立即停止，不重送。Embedding 完成後離線匯出完整 bundle；正式排名、Parent 發布、Atlas 與部署須另列授權。步驟見[批次工具](04_Features/Multimodal_Retrieval/remaining-videos-tools.md#執行前盤點與分批方式)。未跑前端／QA／短影片／VM 回歸，因本輪未改這些功能；沒有 stage／commit／push。
+
+## 2026-11-17 對話功能第一批（W1～W5）與短影片頁重整上線
+
+Weihao 授權合併 `dev` 到 `main`（`fbb7137`，Deploy to VM #164 成功）。部署流程的後端與代理健康檢查通過；「Verify production Atlas QA once」與其後的診斷步驟這次被略過，沒有對正式站實際提問。VM 上的版本尚未由人工核對。
+
+- 上線內容：對話功能的複製回答、多行輸入、進度提示與中斷恢復、「這段在講什麼」及三輪修正（見[開發接手說明](04_Features/QA_Conversation/HANDOFF.md)）；短影片製作與管理頁重整、全站下拉選單樣式（`b41ca5d`，決策 UX-25）；多模態批次工具修正與六支影片寫入紀錄。兩題固定建議題的程式已上線但開關關閉。
+- 合併前驗證（Node.js 22.23.4）：後端全套 2,001 項中 2,000 項通過、1 項略過、0 項失敗（在 `b41ca5d`、`530896b` 進來之前執行，兩筆都沒有改後端程式）；前端 251 項、lint、build 通過；以模擬 API 在瀏覽器實測對話欄七種情況與短影片兩頁。
+- 未驗證：正式站 nginx 下進度事件是否即時送達；正式資料庫既有對話的顯示；真實回答（Gemini 是否已恢復未確認）；YouTube 播放器取得秒數；管理員頁與問題回報表單的下拉選單；STT_Whisper 的 Python 測試未執行（部署不安裝也不執行 Python）。
+- 待人工驗收：學生帳號提問一題並觀察進度文字是否即時；打開一個舊對話確認沒有多出「重新產生」；播放影片後按「這段在講什麼」。
+
 ## 2026-11-16 六片 Leaf 成果 Git 保存檢查
 
 本輪只整理 Git 成果：fetch 發現團隊 dev 新增 4 個對話修正提交，以 ff-only 安全同步至 `9f32f1c`，原六份未提交異動的檔案指紋完全保留。整理單次額外重試防護／測試、狀態與決策／HTML，更新 [Weihao 接手入口](04_Features/Multimodal_Retrieval/HANDOFF.md)、[進度導覽](04_Features/Multimodal_Retrieval/evidence/進度.md)及 AI 使用揭露；[可分享成果摘要](04_Features/Multimodal_Retrieval/evidence/2026-11-16_atlas-leaf-completion-summary.json)只含計數、驗收邊界與私有稽核檔校驗值，沒有向量、完整 receipt、備份或憑證。

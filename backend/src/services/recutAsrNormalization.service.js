@@ -1,13 +1,15 @@
 'use strict';
 const crypto = require('node:crypto');
 const { fail } = require('./recutRuntime.service');
+const { toTraditional } = require('../utils/simplifiedToTraditional');
 // Only an explicitly cut window supplies boundary evidence. The original
 // response hash and exact excluded token survive JSON/database serialization.
 function normalizeRecutAsrResult(result, window, { boundaryCut = false } = {}) {
   const raw = Array.isArray(result) ? result : result?.words;
   const duration = window?.endSec - window?.startSec;
   if (!Array.isArray(raw) || !raw.length || !Number.isFinite(duration) || duration <= 0) throw fail('辨識輸出無效。', 'RECUT_ASR_INVALID');
-  const words = raw.map((w) => ({ ...w })), excludedWords = [];
+  // 辨識常混出簡體字，切句前轉成繁體；只換字不動時間。原始輸出的雜湊仍以轉換前計算。
+  const words = raw.map((w) => (typeof w?.w === 'string' ? { ...w, w: toTraditional(w.w) } : { ...w })), excludedWords = [];
   const last = words.at(-1);
   if (boundaryCut && Number.isFinite(last.s) && last.s === last.e && last.s <= duration && duration - last.s <= 0.05 + 1e-9) {
     excludedWords.push({ ...words.pop(), reason: 'zero-duration-final-token-at-explicit-cut-boundary', windowEndSec: window.endSec, toleranceSec: 0.05 });
@@ -25,7 +27,7 @@ function normalizeRecutAsrResult(result, window, { boundaryCut = false } = {}) {
     excludedWords: [...(previous.excludedWords || []), ...excludedWords], excludedWordCount: (previous.excludedWords || []).length + excludedWords.length,
     boundaryEndTruncated: previous.boundaryEndTruncated === true || excludedWords.length > 0,
     boundaryStartTruncated: previous.boundaryStartTruncated === true,
-    normalization: 'explicit-cut-final-zero-token-v1' },
+    normalization: 'explicit-cut-final-zero-token-v1', textConversion: 'simplified-to-traditional-v1' },
     excludeLastSentence: previous.boundaryEndTruncated === true || excludedWords.length > 0,
     excludeFirstSentence: previous.boundaryStartTruncated === true };
 }

@@ -26,3 +26,11 @@ it('legacy arrays stay compatible and explicit object provenance can prohibit th
   const result = normalizeRecutAsrResult({ words, asrProvenance: { boundaryStartTruncated: true, kind: 'explicit-local-window' } }, window);
   assert.equal(result.excludeFirstSentence, true); assert.equal(result.asrProvenance.kind, 'explicit-local-window');
 });
+it('辨識混出的簡體字轉成繁體，時間與原始雜湊不變', () => {
+  const raw = [{ w: '那个运算', s: 0, e: 1 }, { w: '能力', s: 1, e: 2 }, { w: '超级电脑', s: 2, e: 3 }];
+  const result = normalizeRecutAsrResult(raw, window);
+  assert.deepEqual(result.words.map((w) => w.w), ['那個運算', '能力', '超級電腦']);
+  assert.deepEqual(result.words.map((w) => [w.s, w.e]), [[0, 1], [1, 2], [2, 3]]);
+  assert.equal(raw[0].w, '那个运算'); assert.equal(result.asrProvenance.textConversion, 'simplified-to-traditional-v1');
+  assert.equal(result.asrProvenance.rawWordsSha256, require('node:crypto').createHash('sha256').update(JSON.stringify(raw)).digest('hex'));
+});

@@ -38,13 +38,18 @@ async function main() {
   const cwd = fs.realpathSync(`${proc}/cwd`);
   const cmdline = fs.readFileSync(`${proc}/cmdline`, 'utf8').split('\0').filter(Boolean);
   const backend = fs.realpathSync(path.resolve(__dirname, '..'));
-  const matchesCheckout = cwd === backend || cmdline.some(arg => {
-    try { return fs.realpathSync(path.resolve(cwd, arg)).startsWith(`${backend}${path.sep}`); }
-    catch { return arg.startsWith(`${backend}${path.sep}`); }
-  });
-  if (!matchesCheckout) throw new Error('PID_CWD_MUST_MATCH_THIS_BACKEND_CHECKOUT');
   const req = createRequire(path.join(backend, 'package.json'));
   const inherited = Object.fromEntries(fs.readFileSync(`${proc}/environ`, 'utf8').split('\0').filter(Boolean).map(x => { const i = x.indexOf('='); return [x.slice(0, i), x.slice(i + 1)]; }));
+  const candidates = [cwd, inherited.pm_exec_path, inherited.PWD, ...cmdline].filter(Boolean);
+  const matchesCheckout = candidates.some(arg => {
+    try {
+      const resolved = fs.realpathSync(path.resolve(cwd, arg));
+      return resolved === backend || resolved.startsWith(`${backend}${path.sep}`);
+    } catch {
+      return arg === backend || arg.startsWith(`${backend}${path.sep}`);
+    }
+  });
+  if (!matchesCheckout) throw new Error('PID_CWD_MUST_MATCH_THIS_BACKEND_CHECKOUT');
   const envFile = path.join(backend, '.env');
   const diskEnv = fs.existsSync(envFile) ? req('dotenv').parse(fs.readFileSync(envFile)) : {};
   const env = { ...diskEnv, ...inherited };

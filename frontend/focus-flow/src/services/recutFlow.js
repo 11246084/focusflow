@@ -294,6 +294,7 @@ const ERROR_TEXT = {
   RECUT_LOCK_CONFIRM_REQUIRED: '這個建議會改到你調整過的句子，請確認後再採納。',
   RECUT_SUGGESTION_NOT_READY: '這個建議暫時無法套用。',
   RECUT_MODEL_FAILED: 'AI 暫時無法完成，已保留原本的講稿。',
+  RECUT_PROVIDER_RATE_LIMITED: 'AI 服務目前限流或配額已用完，請稍後再試。',
   RECUT_CALL_LIMIT_EXCEEDED: '這支短片的 AI 次數已用完，請聯絡管理員。',
   RECUT_REPAIR_STALLED: 'AI 重複出現同一個錯誤，已停止以保留次數。請調整講稿或換一個主題。',
   RECUT_TASK_CANCELLED: '已取消，講稿維持原樣。',
@@ -346,6 +347,7 @@ const TASK_FAILURE_TEXT = {
   RECUT_REPAIR_STALLED: AI_NOT_GOOD,
   RECUT_VALIDATION_FAILED: AI_NOT_GOOD,
   RECUT_MODEL_FAILED: `AI 暫時無法完成，${KEEP_ORIGINAL}`,
+  RECUT_PROVIDER_RATE_LIMITED: 'AI 服務目前限流或配額已用完，請稍後再試。',
   RECUT_MODEL_UNAVAILABLE: `AI 暫時無法使用，${KEEP_ORIGINAL}`,
   RECUT_TASK_INTERRUPTED: `系統重新啟動中斷了處理，${KEEP_ORIGINAL}`,
 };

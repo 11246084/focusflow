@@ -29,14 +29,23 @@ it('Gemini adapter uses explicit key only at invocation and never returns provid
 });
 it('explicit media adapter preserves RC2 signatures and forces offline ASR', async () => {
   const calls = []; let clean = false;
-  const adapter = createRecutMediaAdapter({ run: async (...args) => { calls.push(args); return { stdout: '{}', stderr: '{"input_i":"-18","input_tp":"-4"}' }; },
+  const adapter = createRecutMediaAdapter({ run: async (...args) => { calls.push(args); return { stdout: '{}', stderr: 'silence_end: 3.5 | silence_duration: 2.5\n{"input_i":"-18","input_tp":"-4"}' }; },
     ffmpeg: 'fake-ffmpeg', ffprobe: 'fake-probe', python: 'fake-python', transcriber: 'fake-transcriber', asrModel: 'local-model', resolveSource: async (s) => s,
     createWorkspace: async () => 'D:/fake', removeWorkspace: async () => { clean = true; }, readJson: async () => [{ w: 'x', s: 0, e: 1 }] });
   assert.deepEqual(adapter.missing, []); assert.equal(calls.length, 0);
   await adapter.probe('D:/source'); await adapter.decode('D:/source', { startSec: 1, endSec: 5 });
-  assert.deepEqual(await adapter.measure('D:/source', { startSec: 1, endSec: 5 }), { integratedLufs: -18, truePeakDbtp: -4 });
+  assert.deepEqual(await adapter.measure('D:/source', { startSec: 1, endSec: 5 }), { integratedLufs: -18, truePeakDbtp: -4,
+    silenceIntervals: [{ startSec: 2, endSec: 4.5 }] });
   await adapter.transcribe('D:/source', { startSec: 1, endSec: 5 });
   assert.equal(calls.at(-1)[2].env.HF_HUB_OFFLINE, '1'); assert.equal(clean, true);
+});
+it('部署使用的延遲載入轉接器可依原句解析錨點，限流時保留原因', async () => {
+  const { createGeminiProvider } = require('../src/services/recutRuntimeAdapters.service');
+  const runtime = createRecutRuntimeAdapters({ rendererLoader: () => require('../../short_render/src/plan') });
+  const sentence = fixture().source.sentences[0];
+  assert.deepEqual(runtime.renderer.phraseWords(sentence, sentence.words[0].text), { first: 0, last: 0 });
+  const decide = createGeminiProvider({ apiKey: 'fixture', fetchImpl: async () => ({ status: 429, json: async () => ({}) }) });
+  await assert.rejects(decide({ model: { provider: 'gemini', model: 'test' }, instructions: '', input: {} }), { code: 'RECUT_PROVIDER_RATE_LIMITED' });
 });
 it('media adapter records explicit extraction evidence and preserves the final zero token instead of inventing time', async () => {
   const adapter = createRecutMediaAdapter({ run: async () => ({}), ffmpeg: 'fake', ffprobe: 'fake', python: 'fake', transcriber: 'fake', asrModel: 'local',

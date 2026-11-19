@@ -327,6 +327,8 @@ export default function RecutWorkspace({ script, onStateChange, onChanged, onNex
     primary = { label: '確定修改', onClick: applyDraft, busy: pending === 'apply', disabled: !duration.valid, reason: '總長需在 30～65 秒' };
   } else if (state === 'render_failed' && !isFixedRenderFailure(snapshot?.render?.errorCode)) {
     primary = { label: '重新製作', onClick: render, busy: pending === 'render' };
+  } else if (state === 'render_failed' && snapshot?.render?.errorCode === 'RECUT_RENDER_CHECK_FAILED') {
+    primary = { label: '重新產生講稿', hint: '若只有句間停頓過長，會保留原話並重排剪點。請再確認新版講稿。', onClick: generate, busy: pending === 'generate' };
   }
   const rejectAction = { label: '送出退回', onClick: sendReject, busy: pending === 'reject', disabled: !rejectReady,
     reason: rejectCodes.has(otherCode) ? '請寫下其他原因' : '請選擇退回原因' };

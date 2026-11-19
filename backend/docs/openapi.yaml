@@ -11677,7 +11677,7 @@ components:
           $ref: '#/components/schemas/ObjectId'
         scriptId:
           $ref: '#/components/schemas/ObjectId'
-        type: { type: string, enum: [generate, apply_selection, apply_suggestions] }
+        type: { type: string, enum: [generate, apply_selection, apply_suggestions, trim_pauses] }
         status: { type: string, enum: [queued, running, cancel_requested, succeeded, failed, cancelled] }
         callLimit: { type: integer, minimum: 2 }
         callsUsed: { type: integer, minimum: 0 }

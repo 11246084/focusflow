@@ -97,24 +97,53 @@ function audibleSource(source, selectionResult) {
 // Initial generation may paraphrase a caption that cannot fit on screen or
 // introduce an unsupported term. Use that sentence's audible words instead.
 // The regular splitter, renderer and semantic review still check the result.
-function groundCaptions(output, audible, courseTerms) {
+function groundCaptions(output, audible, courseTerms, source, timeline, phraseWords) {
+  if (!timeline || !phraseWords) return output;
+  const originals = new Map(source.sentences.map((s) => [s.id, s]));
+  const played = new Map(timeline.order.map((s) => [s.id, s]));
   const byId = new Map(audible.sentences.map((s) => [s.id, s]));
+  const timeOf = (anchor) => {
+    const entry = played.get(anchor?.sentenceId);
+    if (!entry) return undefined;
+    if (anchor.text === undefined) return entry.t0;
+    const sentence = originals.get(entry.id);
+    try {
+      const { first, last } = phraseWords(sentence, anchor.text);
+      const start = sentence.words[first].startSec;
+      if (start >= entry.kept[0].startSec && sentence.words[last].endSec <= entry.kept.at(-1).endSec)
+        return entry.t0 + start - entry.kept[0].startSec;
+    } catch { /* A paraphrase or repeated phrase has no unique word time. */ }
+    return undefined;
+  };
+  const scenes = output.scenes.map((s) => {
+    if (!object(s.cues)) return s;
+    return { ...s, cues: Object.fromEntries(Object.entries(s.cues).filter(([, anchor]) =>
+      !played.has(anchor?.sentenceId) || timeOf(anchor) !== undefined)) };
+  });
+  if (!output.subtitles.length || output.subtitles.some((s) => !played.has(s.from?.sentenceId) || !Array.isArray(s.runs))) return { ...output, scenes };
   const replace = new Set();
+  const seen = new Set();
   for (const sub of output.subtitles) {
-    if (!Array.isArray(sub.runs) || !byId.has(sub.from?.sentenceId)) continue;
+    const time = timeOf(sub.from);
     const text = sub.runs.map((r) => r.t).join('');
-    if ([...text].length > 20 || !validateSubtitleSources({ subtitles: [sub] }, audible, courseTerms).valid) replace.add(sub.from.sentenceId);
+    if (time === undefined || seen.has(time) || [...text].length > 20 ||
+        !validateSubtitleSources({ subtitles: [sub] }, audible, courseTerms).valid) replace.add(sub.from.sentenceId);
+    seen.add(time);
   }
-  if (!replace.size) return output;
+  const firstId = timeline.order[0].id;
+  if (!seen.has(0)) replace.add(firstId);
+  const literal = (id) => ({ from: { sentenceId: id }, runs: [{ t: byId.get(id).text }] });
   const emitted = new Set();
   const subtitles = output.subtitles.flatMap((sub) => {
     const id = sub.from?.sentenceId;
     if (!replace.has(id)) return [sub];
     if (emitted.has(id)) return [];
     emitted.add(id);
-    return [{ from: { sentenceId: id }, runs: [{ t: byId.get(id).text }] }];
+    return [literal(id)];
   });
-  return { ...output, subtitles };
+  if (replace.has(firstId) && !emitted.has(firstId)) subtitles.push(literal(firstId));
+  subtitles.sort((a, b) => timeOf(a.from) - timeOf(b.from));
+  return { ...output, scenes, subtitles };
 }
 function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
   const selected = new Set(data.selectionResult.clips.flatMap((clip) => clip.sentenceIds));
@@ -179,7 +208,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
             }
           }
           if (task.type === 'generate' && !data.selectionLocked && !data.presentationScope) {
-            prepared = groundCaptions(prepared, audible, courseTerms);
+            prepared = groundCaptions(prepared, audible, courseTerms, source, playbackTimeline(source, data.selectionResult), renderer.phraseWords);
           }
           // 字幕過長、圖卡秒數差一點點由程式依句子邊界修正，不再花呼叫額度。
           prepared = autoFixCardsOutput(prepared, { source, selectionResult: data.selectionResult }).output;

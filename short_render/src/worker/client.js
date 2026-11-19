@@ -147,11 +147,11 @@ function createWorker(config, { api = createHttpClient(config), loadRenderer = (
       }
     }
   }
-  async function run({ signal, onStatus = () => {} } = {}) {
-    while (!signal?.aborted) {
+  async function run({ signal, shouldStop = () => false, onStatus = () => {} } = {}) {
+    while (!signal?.aborted && !shouldStop()) {
       const result = await runOnce({ signal }); onStatus(result);
       if (result.status === 'disabled' || ['RECUT_WORKER_UNAUTHORIZED', 'RECUT_RENDER_VERSION_MISMATCH', 'RECUT_WORKER_KEY_INVALID'].includes(result.code)) return result;
-      if (signal?.aborted) break;
+      if (signal?.aborted || shouldStop()) break;
       try { await delay(pollMs, undefined, { signal }); } catch { break; }
     }
     return { status: 'stopped' };

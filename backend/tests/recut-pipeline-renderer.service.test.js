@@ -37,6 +37,26 @@ describe('recut RC4 與 RC5 真實句子契約', () => {
     }
     const f = fixture(); assert.equal(validateSubtitleSources({ subtitles: [{ from: { sentenceId: 's1' }, runs: [{ t: '卷積神經網路' }] }] }, f.source, ['卷積神經網路']).valid, false);
   });
+  it('初次製作依保留的原音替換無出處字幕，剪掉的詞不會再進入模型、字幕或錨點', async () => {
+    const c = context();
+    c.task.type = 'generate';
+    const clip = c.data.selectionResult.clips[0];
+    clip.words = clip.words.slice(1);
+    clip.startSec = clip.words[0].startSec;
+    const output = structuredClone(c.cards);
+    output.subtitles[0].runs = [{ t: 'OpenCV是工具999' }];
+    output.scenes[0].component = 'stat';
+    output.scenes[0].params = { value: '工具', unit: '' };
+    let input;
+    const pipeline = createRecutPipeline({ renderer, loadSource: async () => c.source, sourceSteps: [],
+      decide: async (request) => { input = request.input; return { output }; } });
+    const result = await pipeline.cards.run(c);
+    assert.equal(input.sentences[0].text, '是工具1。');
+    assert.deepEqual(result.plan.subtitles[0].runs, [{ t: '是工具1。' }]);
+    assert.equal(result.plan.subtitles[0].from.text, '是工具1。');
+    assert.equal(result.plan.scenes[0].params.unit, undefined);
+    assert.equal(output.scenes[0].params.unit, '');
+  });
   it('RC6畫面來源code卡可通過真renderer，故意錯誤逐行資料保留', async () => {
     const codeCardHandler = createRecutCodeCardHandler({ capture: async () => ({ frames: ['synthetic'], variables: ['x'], intentionalErrorLines: [1] }),
       extract: async () => ({ output: { readable: true, lines: ['x == 1'] } }), review: async () => ({ output: { readable: true, lines: ['x == 1'] } }) });

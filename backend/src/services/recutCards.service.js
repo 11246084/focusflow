@@ -85,9 +85,40 @@ function foldTransportOutput(output, componentNames) {
 }
 // Model transport has one canonical copy of each selected sentence. The full
 // source remains local for renderer/subtitle validation and whole-segment review.
+function audibleSource(source, selectionResult) {
+  const timeline = playbackTimeline(source, selectionResult);
+  const trimmed = new Map(timeline?.order.map(({ id, kept }) => [id, kept]));
+  return { ...source, sentences: source.sentences.map((sentence) => {
+    const words = trimmed.get(sentence.id);
+    if (!words || words.length === sentence.words.length) return sentence;
+    return { ...sentence, words, text: words.map((w) => w.text).join(''), startSec: words[0].startSec, endSec: words.at(-1).endSec };
+  }) };
+}
+// Initial generation may paraphrase a caption that cannot fit on screen or
+// introduce an unsupported term. Use that sentence's audible words instead.
+// The regular splitter, renderer and semantic review still check the result.
+function groundCaptions(output, audible, courseTerms) {
+  const byId = new Map(audible.sentences.map((s) => [s.id, s]));
+  const replace = new Set();
+  for (const sub of output.subtitles) {
+    if (!Array.isArray(sub.runs) || !byId.has(sub.from?.sentenceId)) continue;
+    const text = sub.runs.map((r) => r.t).join('');
+    if ([...text].length > 20 || !validateSubtitleSources({ subtitles: [sub] }, audible, courseTerms).valid) replace.add(sub.from.sentenceId);
+  }
+  if (!replace.size) return output;
+  const emitted = new Set();
+  const subtitles = output.subtitles.flatMap((sub) => {
+    const id = sub.from?.sentenceId;
+    if (!replace.has(id)) return [sub];
+    if (emitted.has(id)) return [];
+    emitted.add(id);
+    return [{ from: { sentenceId: id }, runs: [{ t: byId.get(id).text }] }];
+  });
+  return { ...output, subtitles };
+}
 function buildCardsInput({ source, data, renderer, base, codeCardHandler }) {
   const selected = new Set(data.selectionResult.clips.flatMap((clip) => clip.sentenceIds));
-  const sentences = source.sentences.filter((sentence) => selected.has(sentence.id));
+  const sentences = audibleSource(source, data.selectionResult).sentences.filter((sentence) => selected.has(sentence.id));
   if (sentences.length !== selected.size) throw fail('選段缺少完整來源句子。', 'RECUT_SOURCE_INVALID');
   const catalog = renderer.getComponentCatalog({ aiOnly: true });
   const allowed = renderer.getAllowedIcons?.() || [];
@@ -130,6 +161,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
     if (!source || String(source.scriptId) !== String(task.scriptId)) throw fail('配圖來源不屬於此腳本。', 'RECUT_SOURCE_INVALID');
     const base = data.baseVersionId ? await loadBaseVersion(data.baseVersionId) : null;
     const modelId = data.modelId || task.settingsSnapshot?.model?.model;
+    const audible = audibleSource(source, data.selectionResult);
     const result = await retryDecision(context, { stage: 'cards', decide, instructions: INSTRUCTIONS, responseSchema: getResponseSchema(renderer),
       input: buildCardsInput({ source, data, renderer, base, codeCardHandler }),
       validate: async (output) => {
@@ -138,7 +170,17 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
             || Object.keys(output).some((key) => !['scenes', 'subtitles'].includes(key))) throw fail('配圖輸出欄位無效。');
           if (output.scenes.some((scene) => !object(scene) || Object.keys(scene).some((key) => !['id', 'from', 'to', 'component', 'params', 'cues', 'stamp'].includes(key)))
             || output.subtitles.some((subtitle) => !object(subtitle) || Object.keys(subtitle).some((key) => !['from', 'runs', 'level'].includes(key)))) throw fail('圖卡或字幕含未定義欄位，不能自行填剪接或秒數。');
-          let prepared = foldTransportOutput(safeClone(output), renderer.getComponentCatalog({ aiOnly: false }).map((card) => card.name));
+          const catalog = renderer.getComponentCatalog({ aiOnly: false });
+          let prepared = foldTransportOutput(safeClone(output), catalog.map((card) => card.name));
+          for (const scene of prepared.scenes) {
+            const component = catalog.find((c) => c.name === scene.component);
+            for (const field of component?.fields || []) {
+              if (!component.required?.includes(field) && typeof scene.params?.[field] === 'string' && !scene.params[field].trim()) delete scene.params[field];
+            }
+          }
+          if (task.type === 'generate' && !data.selectionLocked && !data.presentationScope) {
+            prepared = groundCaptions(prepared, audible, courseTerms);
+          }
           // 字幕過長、圖卡秒數差一點點由程式依句子邊界修正，不再花呼叫額度。
           prepared = autoFixCardsOutput(prepared, { source, selectionResult: data.selectionResult }).output;
           for (let i = 0; i < prepared.scenes.length; i++) if (prepared.scenes[i].component === 'code') {
@@ -151,7 +193,7 @@ function createRecutCardsStep({ decide, renderer, loadSource = loadSourceDefault
           const candidate = restrictPresentation({ plan: built.plan, theme: base?.theme || 'N2' }, data.presentationScope);
           const validation = renderer.validatePlan(candidate.plan, { sentences: source.sentences, evidence: source });
           if (!validation.valid) return validation;
-          const subtitleValidation = validateSubtitleSources(candidate.plan, source, courseTerms);
+          const subtitleValidation = validateSubtitleSources(candidate.plan, audible, courseTerms);
           if (!subtitleValidation.valid) return subtitleValidation;
           return { valid: true, errors: [], plan: candidate.plan, theme: candidate.theme, cardsOutput: output };
         } catch (error) {

@@ -35,6 +35,10 @@ export function canChangeShort(info) {
   return info.bucket === 'mine';
 }
 
+export function isReturnedTopic(script) {
+  return script.status === 'dismissed' && script.returnedToPicker === true;
+}
+
 // 這門課還能再開始幾支：上限扣掉已在排隊或產生講稿中的。
 export function batchRoom(scripts = []) {
   const busy = scripts.filter((s) => ['queued', 'generating'].includes(s?.recut?.state)).length;

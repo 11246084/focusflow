@@ -456,6 +456,54 @@ describe('shortScript.service 審核迴圈', () => {
 
     assert.equal(updated.status, 'dismissed');
     assert.equal(updated.dismissReason, '這題不適合做影片');
+    assert.equal(updated.returnedToPicker, false);
+  });
+
+  for (const mode of ['avatar', 'recut']) {
+    it(`${mode} 退回選題後可接回同一份講稿和進度`, async () => {
+      const script = await createScript();
+      stubGeneration();
+      await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+      const stored = storedScript(script);
+      stored.productionMode = mode;
+      if (mode === 'recut') stored.recut = { state: 'script_review', revision: 3, currentVersionId: newObjectId() };
+      const before = JSON.stringify([stored.versions, stored.recut]);
+      const review = (decision) => shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision });
+      assert.equal((await review('return_to_picker')).returnedToPicker, true);
+      const listed = await shortScriptService.listCourseScripts({ user: TEACHER, courseId: ids.teacherCourse });
+      assert.equal(listed.filter((s) => s.returnedToPicker && s.status === 'dismissed').length, 1);
+      const restored = await review('restore');
+      assert.equal(String(restored._id), String(script._id));
+      assert.equal(restored.status, 'generated');
+      assert.equal(restored.returnedToPicker, false);
+      assert.equal(JSON.stringify([restored.versions, restored.recut]), before);
+      assert.equal(store.recutTasks.length, 0);
+      assert.equal(store.shortScripts.length, 1);
+    });
+  }
+
+  it('短片正在剪輯或已核准發布時不能退回選題', async () => {
+    const script = await createScript();
+    const stored = storedScript(script);
+    stored.productionMode = 'recut';
+    for (const state of ['generating', 'rendering', 'asset_approved', 'published']) {
+      stored.recut = { state, revision: 1 };
+      await assert.rejects(() => shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'return_to_picker' }),
+        { code: 'RECUT_STATE_INVALID' });
+      assert.notEqual(stored.status, 'dismissed');
+    }
+  });
+
+  it('數位分身的成品正在上傳或已核准時保留原工作狀態', async () => {
+    const script = await createScript();
+    const asset = { sourceScriptId: script._id, status: 'draft', youtubeUpload: { status: 'uploading' } };
+    store.shortAssets.push(asset);
+    const review = () => shortScriptService.submitReview({ user: TEACHER, scriptId: script._id, decision: 'return_to_picker' });
+    await assert.rejects(review, { code: 'SHORT_SCRIPT_STATE_INVALID' });
+    asset.youtubeUpload.status = 'uploaded';
+    asset.reviewStatus = 'approved';
+    await assert.rejects(review, { code: 'SHORT_SCRIPT_STATE_INVALID' });
+    assert.notEqual(storedScript(script).status, 'dismissed');
   });
 
   it('不做了的數位分身可恢復回收起前的狀態，主題回到選題排除清單之外的正常流程', async () => {

@@ -3,7 +3,7 @@ import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import { createScript as createAvatarScript, generateVersion, listAssets } from '../services/shortScript.js';
 import {
-  MAX_BATCH, SHORT_GROUPS, batchRoom, consentNeeds, needsAnyConsent, recallLastScript, recutErrorText, rememberLastScript, sortManageItems, toManageItem,
+  MAX_BATCH, SHORT_GROUPS, batchRoom, consentNeeds, isReturnedTopic, needsAnyConsent, recallLastScript, recutErrorText, rememberLastScript, scriptQuestion, sortManageItems, toManageItem,
 } from '../services/recutFlow.js';
 import {
   OPEN_SCRIPT_EVENT, consumePendingScriptOpen, isScriptTargetForPage, pickInitialCourseId, recallShortScriptCourse, rememberShortScriptCourse,
@@ -39,6 +39,7 @@ export default function TeacherShortStudio({ onNav }) {
   const [error, setError] = useState('');
   const [batchErrors, setBatchErrors] = useState([]);
   const [target, setTarget] = useState(() => consumePendingScriptOpen(SHORT_STUDIO_PAGE) || recallLastScript());
+  const currentCourse = useRef('');
   const { terms, consent, setConsent, error: consentError, loading: consentLoading } = useRecutConsent(courseId);
   const compact = useCompactLayout();
   // 1100px 以下左欄改成上方下拉選單，工作區用滿寬度。
@@ -69,31 +70,37 @@ export default function TeacherShortStudio({ onNav }) {
 
   const loadScripts = useCallback(async (id) => {
     const [list, courseAssets] = await Promise.all([api.listScripts(id), listAssets(id).catch(() => [])]);
-    setScripts(list);
-    setAssets(courseAssets);
+    if (currentCourse.current === id) {
+      setScripts(list);
+      setAssets(courseAssets);
+    }
     return { list, courseAssets };
   }, []);
 
   useEffect(() => {
     if (!courseId) return undefined;
     let alive = true;
+    currentCourse.current = courseId;
     rememberShortScriptCourse(courseId);
     setScripts([]);
     setSelectedId('');
     setPicking(false);
+    setError('');
+    setStarting(false);
     setCandidates(null);
     setChosen([]);
     loadScripts(courseId).then(({ list, courseAssets }) => {
       if (!alive) return;
       if (target?.intent === 'new') { setPicking(true); setReturnId(''); setTarget(null); return; }
       const wanted = target && list.find((s) => String(s._id) === String(target.scriptId));
-      const firstMine = sortManageItems(list.map((s) => toManageItem(s, null, courseAssets))).find((item) => item.bucket === 'mine');
-      const pickId = wanted ? String(wanted._id) : firstMine?.scriptId || (list[0] ? String(list[0]._id) : '');
+      const visible = list.filter((s) => !isReturnedTopic(s));
+      const firstMine = sortManageItems(visible.map((s) => toManageItem(s, null, courseAssets))).find((item) => item.bucket === 'mine');
+      const pickId = wanted ? (isReturnedTopic(wanted) ? '' : String(wanted._id)) : firstMine?.scriptId || String(visible[0]?._id || '');
       if (pickId) setSelectedId(pickId);
       else setPicking(true);
       setTarget(null);
     }).catch((err) => alive && setError(recutErrorText(err)));
-    return () => { alive = false; };
+    return () => { alive = false; currentCourse.current = ''; };
     // target 只在換課程或深連結時讀一次。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, loadScripts]);
@@ -108,7 +115,12 @@ export default function TeacherShortStudio({ onNav }) {
     }
     if (!scripts.length || String(target.courseId) !== String(courseId)) return;
     const wanted = scripts.find((s) => String(s._id) === String(target.scriptId));
-    if (wanted) { setSelectedId(String(wanted._id)); setPicking(false); setTarget(null); }
+    if (wanted) {
+      const returned = isReturnedTopic(wanted);
+      setSelectedId(returned ? '' : String(wanted._id));
+      setPicking(returned);
+      setTarget(null);
+    }
   }, [target, scripts, courseId]);
 
   useEffect(() => {
@@ -116,7 +128,8 @@ export default function TeacherShortStudio({ onNav }) {
   }, [courseId, selectedId]);
 
   // 和管理頁同一套分組與排序：等你處理在前，越接近完成的越前面。
-  const rows = useMemo(() => sortManageItems(scripts.map((script) => toManageItem(script, null, assets))), [scripts, assets]);
+  const rows = useMemo(() => sortManageItems(scripts.filter((s) => !isReturnedTopic(s)).map((script) => toManageItem(script, null, assets))), [scripts, assets]);
+  const returnedTopics = scripts.filter(isReturnedTopic);
   const groups = SHORT_GROUPS.map((group) => ({ ...group, rows: rows.filter((row) => row.bucket === group.bucket) }));
   const selected = scripts.find((s) => String(s._id) === selectedId) || null;
   const nextMine = rows.find((row) => row.scriptId !== selectedId && row.bucket === 'mine');
@@ -143,6 +156,7 @@ export default function TeacherShortStudio({ onNav }) {
     if (compact) rootRef.current?.scrollIntoView({ block: 'start' });
   };
   const openPicker = () => {
+    setError('');
     if (!picking) setReturnId(selectedId);
     setPicking(true);
     setSelectedId('');
@@ -150,6 +164,29 @@ export default function TeacherShortStudio({ onNav }) {
     setBatchErrors([]);
     setCandidates(null);
     setConsentStep(false);
+  };
+  const updateScript = (updated) => setScripts((list) => list.map((s) => String(s._id) === String(updated._id) ? updated : s));
+  const returnTopic = async (id) => {
+    const updated = await api.returnToPicker(id);
+    if (currentCourse.current !== courseId) return;
+    updateScript(updated);
+    openPicker();
+  };
+  const resumeTopic = async (id) => {
+    setStarting(true);
+    setError('');
+    try {
+      const updated = await api.restoreScript(id);
+      if (currentCourse.current !== courseId) return;
+      updateScript(updated);
+      openShort(String(id));
+    } catch (err) {
+      if (currentCourse.current !== courseId) return;
+      setError(recutErrorText(err));
+      if (err?.status === 409) await reload().catch(() => {});
+    } finally {
+      if (currentCourse.current === courseId) setStarting(false);
+    }
   };
   useEffect(() => {
     if (picking && candidates === null && courseId) {
@@ -216,7 +253,7 @@ export default function TeacherShortStudio({ onNav }) {
       <div className="rc-actions">
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={() => startBatch()} busy={starting}
         disabled={!chosen.length} reason={shownCandidates?.length === 0 ? '' : room ? `勾選要做的問題，最多 ${room} 支` : '已有 5 支在產生講稿，完成後再開始'} />
-      {scripts.length > 0 && (
+      {rows.length > 0 && (
         <button type="button" className="rc-btn rc-btn-outline rc-btn-block rc-mt-s" disabled={starting}
           onClick={cancelPicker}>取消</button>
       )}
@@ -233,7 +270,7 @@ export default function TeacherShortStudio({ onNav }) {
       <p className="rc-picker-count" aria-live="polite">
         {room ? <>已選 <strong>{chosen.length}</strong>／{room} 支</> : '已有 5 支在產生講稿，完成後再開始'}
       </p>
-      {scripts.length > 0 && (
+      {rows.length > 0 && (
         <button type="button" className="rc-btn rc-btn-outline" disabled={starting} onClick={cancelPicker}>取消</button>
       )}
       <PrimaryAction label={chosen.length ? `開始製作 ${chosen.length} 支` : '開始製作'} onClick={() => startBatch()} busy={starting} disabled={!chosen.length} />
@@ -285,8 +322,9 @@ export default function TeacherShortStudio({ onNav }) {
             </fieldset>
           </section>
           <section className="rc-panel" aria-label="題目">
+            {error && <p className="rc-error" role="alert">{error}</p>}
             {shownCandidates === null && <p className="rc-reason">載入中…</p>}
-            {shownCandidates?.length === 0 && <p>這門課目前還沒有足夠的學生提問。學生在網頁或 LINE 提問後，題目會出現在這裡。</p>}
+            {!error && shownCandidates?.length === 0 && <p>{scripts.length ? '這門課目前沒有新的候選題目。' : '這門課目前還沒有足夠的學生提問。學生在網頁或 LINE 提問後，題目會出現在這裡。'}</p>}
             {shownCandidates?.length > 0 && (
               <>
                 <ul className="rc-topics">{shownCandidates.slice(0, TOP_TOPICS).map(topicItem)}</ul>
@@ -300,6 +338,17 @@ export default function TeacherShortStudio({ onNav }) {
               </>
             )}
           </section>
+          {returnedTopics.length > 0 && (
+            <section className="rc-panel" aria-labelledby="rc-returned-title">
+              <h2 id="rc-returned-title">退回的題目</h2>
+              <ul className="rc-list">{returnedTopics.map((s) => (
+                <li key={s._id}><button type="button" className="rc-list-item" disabled={starting} onClick={() => resumeTopic(s._id)}>
+                  <span className="rc-list-title">{scriptQuestion(s)}</span>
+                  <span className="rc-list-status">繼續製作</span>
+                </button></li>
+              ))}</ul>
+            </section>
+          )}
           {compact && pickerActions}
         </div>
       </>
@@ -309,8 +358,8 @@ export default function TeacherShortStudio({ onNav }) {
     const onNext = nextMine ? () => openShort(nextMine.scriptId) : onNav ? () => onNav(MANAGE_PAGE) : undefined;
     const nextLabel = nextMine ? `下一支：${nextMine.question}` : '回短影片管理';
     body = selected.productionMode === 'recut'
-      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onChanged={reload} onNext={onNext} nextLabel={nextLabel} />
-      : <AvatarWorkspace key={selectedId} script={selected} assets={assets} onChanged={reload} onNext={onNext} nextLabel={nextLabel} />;
+      ? <RecutWorkspace key={selectedId} script={selected} onStateChange={onStateChange} onChanged={reload} onReturnTopic={returnTopic} onNext={onNext} nextLabel={nextLabel} />
+      : <AvatarWorkspace key={selectedId} script={selected} assets={assets} onChanged={reload} onReturnTopic={returnTopic} onNext={onNext} nextLabel={nextLabel} />;
   } else body = <div className="rc-col rc-main" />;
 
   return (

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import {
   batchRoom, canChangeShort, buildScriptLines, formatShotRange, describeShort, formatAgo, sourceLabel, withCutMarks, consentNeeds, isFixedRenderFailure, renderFailureText, describeScript, durationStatus, isBusyState, playbackTimeline, recallLastScript,
-  recutErrorText, recutTaskFailureText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
+  isReturnedTopic, recutErrorText, recutTaskFailureText, rejectScope, rememberLastScript, rowStatusText, sentenceAt, sortManageItems, toManageItem,
 } from '../src/services/recutFlow.js';
 import * as api from '../src/services/recut.js';
 import { isValidSubPage } from '../src/components/navigationConfig.js';
@@ -12,6 +12,11 @@ import { resolveNotificationTarget } from '../src/utils/notificationTarget.js';
 const s = (id, selected, extra = {}) => ({ id, text: id, startSec: 0, endSec: 2, selected, ...extra });
 
 describe('recut 狀態對應的步驟與待辦', () => {
+  it('只有教師退回的題目會移到選題頁，舊的「不做了」仍在管理清單', () => {
+    assert.equal(isReturnedTopic({ status: 'dismissed', returnedToPicker: true }), true);
+    assert.equal(isReturnedTopic({ status: 'dismissed' }), false);
+    assert.equal(isReturnedTopic({ status: 'generated', returnedToPicker: false }), false);
+  });
   it('確認講稿、製作失敗、確認成品歸為等你處理', () => {
     for (const state of ['script_review', 'script_approved', 'render_failed', 'asset_review']) {
       assert.equal(describeScript({ recut: { state } }).bucket, 'mine', state);

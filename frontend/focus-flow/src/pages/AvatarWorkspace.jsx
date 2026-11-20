@@ -22,7 +22,7 @@ const BUSY_TEXT = {
   approved_waiting_upload: '已核准，影片傳完就上架',
 };
 
-export default function AvatarWorkspace({ script, assets, onChanged, onNext, nextLabel }) {
+export default function AvatarWorkspace({ script, assets, onChanged, onReturnTopic, onNext, nextLabel }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const info = describeAvatar(script, assets);
@@ -261,6 +261,8 @@ export default function AvatarWorkspace({ script, assets, onChanged, onNext, nex
         <section className="rc-panel rc-task-head" aria-labelledby={`av-q-${scriptId}`}>
           <h1 id={`av-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           <FlowStrip step={info.step} steps={AVATAR_STEPS} />
+          {changeable && <button type="button" className="rc-tool-btn" disabled={Boolean(pending)}
+            onClick={() => run('returnTopic', () => onReturnTopic(scriptId))}>退回選題</button>}
           {/* 唯一保留的說明：數位分身要老師在自己電腦上做影片，版面本身表達不出這件事。 */}
           {uploadStage && <p className="rc-source">照下方腳本在自己的電腦做好影片，再拖到最下面傳回。</p>}
           {!compact && actionBlock}

@@ -121,10 +121,10 @@ title <圖名，須與檔名中的名稱一致>
 
 ```bash
 # 匯出單一檔案（需本機有 plantuml）
-plantuml -tpng "figures/ch05/圖5-3-1-註冊與登入活動圖.puml"
+plantuml -tpng "docs/05_圖庫/系統手冊/ch05/圖5-3-1-註冊與登入活動圖.puml"
 
 # 僅檢查語法，不產圖
-plantuml -checkonly "figures/ch05/圖5-3-1-註冊與登入活動圖.puml"
+plantuml -checkonly "docs/05_圖庫/系統手冊/ch05/圖5-3-1-註冊與登入活動圖.puml"
 
 # 檢查檔頭、檔名／title、版本、PNG、正文與圖目錄鏈結
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py \

@@ -7,7 +7,6 @@ paths:
 
 # 測試規範
 
-> 適用範圍：`backend/tests/`
 
 ---
 
@@ -32,7 +31,7 @@ cd backend && node --test --experimental-test-isolation=none --test-concurrency=
 | 後端測試 | `backend/tests/` | `<module>.test.js` |
 | 測試輔助工具 | `backend/tests/helpers/` | `<name>.js` |
 
-**現有測試檔：** `backend/tests/` 目前約 85 個 `*.test.js`（2026-09-23 計數），以 `ls backend/tests` 為準，不在此逐一列出。命名慣例：route 整合測試為 `<module>.routes.test.js`（如 `auth.routes.test.js`、`course-video.routes.test.js`、`qa.routes.test.js`、`line.routes.test.js`），service 單元測試為 `<module>.service.test.js`。修改某模組前先找同名測試檔。
+**現有測試檔：** 以 `ls backend/tests` 為準，不在此逐一列出。命名慣例：route 整合測試為 `<module>.routes.test.js`（如 `auth.routes.test.js`、`course-video.routes.test.js`、`qa.routes.test.js`、`line.routes.test.js`），service 單元測試為 `<module>.service.test.js`。修改某模組前先找同名測試檔。
 
 ---
 

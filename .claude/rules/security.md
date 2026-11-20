@@ -10,7 +10,6 @@ paths:
 
 # 安全規範
 
-> 適用範圍：`backend/src/middleware/`、`backend/src/services/auth.service.js`、`backend/src/utils/`
 
 ---
 
@@ -142,7 +141,7 @@ assertObjectId(req.params.courseId, 'course');
 
 - `ALLOWED_ORIGINS`（逗號分隔；舊名 `ALLOWED_ORIGIN` 仍相容）有值時，只對白名單 origin 回 `Access-Control-Allow-Origin`，並啟用 `credentials`
 - 未設定時維持開發期相容（允許所有來源），只適合本機
-- 正式 VM 已設定（2026-09-23 外部實測：非白名單 Origin 的預檢請求不會拿到 `Access-Control-Allow-Origin`）。新增前端網域時要同步更新 VM 的 `backend/.env`，否則前端會被擋
+- 正式 VM 是否已設定白名單要當次查證：以非白名單 Origin 送預檢請求，不應拿到 `Access-Control-Allow-Origin`。新增前端網域時要同步更新 VM 的 `backend/.env`，否則前端會被擋
 
 ## 安全標頭
 

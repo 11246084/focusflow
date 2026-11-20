@@ -9,7 +9,6 @@ paths:
 
 # API 設計規範
 
-> 適用範圍：`backend/src/routes/`、`backend/src/controllers/`、`backend/src/services/`
 
 ---
 
@@ -228,7 +227,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `VIDEO_FILE_REQUIRED` | 400 | 上傳影片請求未附檔案 |
 | `INVALID_FILE_TYPE` | 400 | 上傳的不是影片檔 |
 | `INVALID_MEDIA_CONTAINER` | 400 | 影片容器結構損壞或不完整（例如 MP4 box header 截斷、box size 無效） |
-| `VIDEO_PROCESSING_TRANSITION_INVALID` | 409 | 影片 processing 狀態轉換不合法（見 CLAUDE.md 狀態機） |
+| `VIDEO_PROCESSING_TRANSITION_INVALID` | 409 | 影片 processing 狀態轉換不合法（見 `backend/docs/stt-integration.md` 的處理狀態機） |
 | `COURSE_DELETE_FAILED` | 500 | 課程刪除失敗，整筆資料庫交易回滾 |
 | `COURSE_DELETE_CONFLICT` | 409 | 課程影片仍有清理或上傳工作，整筆刪除交易回滾 |
 | `COURSE_DELETE_UNAVAILABLE` | 503 | MongoDB 不支援課程刪除所需交易，未執行破壞性降級 |

@@ -6,9 +6,9 @@
 
 | # | 落點 | 規格 | 範例 |
 |---|---|---|---|
-| 1 | 圖源檔名 | `figures/ch{NN}/圖{章}-{節}-{序}-{名稱}.puml` 或 `.mmd` | `figures/ch06/圖6-1-1-學生自助註冊循序圖.mmd` |
+| 1 | 圖源檔名 | `docs/05_圖庫/系統手冊/ch{NN}/圖{章}-{節}-{序}-{名稱}.puml` 或 `.mmd` | `docs/05_圖庫/系統手冊/ch06/圖6-1-1-學生自助註冊循序圖.mmd` |
 | 2 | 圖源顯示名稱 | PlantUML `title`／Mermaid frontmatter `title` 必須等於 `{名稱}` | `title: 網頁問答循序圖` |
-| 3 | 匯出圖檔 | 與現行圖源**同目錄、同主檔名**，僅副檔名不同 | `figures/ch06/圖6-1-1-學生自助註冊循序圖.png` |
+| 3 | 匯出圖檔 | 與現行圖源**同目錄、同主檔名**，僅副檔名不同 | `docs/05_圖庫/系統手冊/ch06/圖6-1-1-學生自助註冊循序圖.png` |
 | 4 | 正文圖說 | 置於圖**下方**，格式 `圖{章}-{節}-{序} {名稱}` | `圖6-1-3 網頁問答循序圖` |
 | 5 | 正文引用 | 至少一處「⋯⋯如圖{章}-{節}-{序}所示」 | `流程如圖6-1-3所示。` |
 | 6 | 圖目錄 | 一列，名稱與圖說一致，含頁碼 | `圖6-1-3　網頁問答循序圖 …… 28` |
@@ -39,7 +39,7 @@
 
 ## 可執行的檢查方式
 
-以下指令假設圖源與成品共置於 `figures/chNN/`，章節 Markdown 於 `chapters/`；共用檔置於 `figures/_shared/`。
+以下指令假設圖源與成品共置於 `docs/05_圖庫/系統手冊/chNN/`，章節 Markdown 於 `docs/01_系統手冊/chapters/`，圖目錄在 `docs/05_圖庫/README.md`；共用檔置於 `docs/05_圖庫/系統手冊/_shared/`。
 實際路徑見 `local/focusflow-conventions.md`。
 
 優先使用 skill 內建的跨平台檢查器。它支援 `.puml` 與 `.mmd`，檢查檔頭、現行檔名（手冊程式產圖不加版本後綴）、顯示 title、同名匯出圖檔、正文圖檔路徑／圖說／引用，以及圖目錄名稱／版本；它**不取代**所選 renderer 的真實渲染與圖片目視檢查。
@@ -56,28 +56,30 @@ python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py
 
 ```bash
 # 1+3. PlantUML 檔名與 title 是否一致（Mermaid 請用 Python 檢查器）
-for f in $(find figures/ch* -name "*.puml"); do
+for f in $(find docs/05_圖庫/系統手冊/ch* -name "*.puml"); do
   base=$(basename "$f" .puml)
   name="${base#*-*-*-}"                       # 去掉 圖X-Y-Z- 前綴
   name=$(printf '%s' "$name" | sed -E 's/-v[0-9]+-[0-9]+$//')
   grep -q "^title $name$" "$f" || echo "title 不符: $f"
 done
 
-# 2. 每個 PlantUML source 是否有對應圖檔
-for f in $(find figures/ch* -name "*.puml"); do
-  base=$(basename "$f" .puml)
-  ls "$(dirname "$f")/$base".* >/dev/null 2>&1 || echo "缺匯出圖檔: $base"
-done
+# 2. 每個 PlantUML 圖源是否有同名 PNG 或 SVG
+find docs/05_圖庫/系統手冊/ch* -type f -name '*.puml' -exec sh -c '
+  for src do
+    stem=${src%.puml}
+    [ -f "$stem.png" ] || [ -f "$stem.svg" ] || echo "缺匯出圖檔: $src"
+  done
+' sh {} +
 
 # 4+6. 孤兒圖檔：圖檔存在但正文未引用
-for img in figures/ch*/圖*.png; do
+for img in docs/05_圖庫/系統手冊/ch*/圖*.png; do
   id=$(basename "$img" | grep -o '^圖[0-9]*-[0-9]*-[0-9]*')
-  grep -rq "$id" chapters/ || echo "孤兒圖檔: $id"
+  grep -rq "$id" docs/01_系統手冊/chapters/ || echo "孤兒圖檔: $id"
 done
 
 # 5+7. 圖目錄與實際圖檔雙向比對
-grep -o '^| 圖[0-9]*-[0-9]*-[0-9]*' 圖表目錄.md | sed 's/^| //' | sort -u > /tmp/toc.txt
-ls figures/ch*/圖*.png | grep -o '圖[0-9]*-[0-9]*-[0-9]*' | sort -u > /tmp/files.txt
+grep -o '^| 圖[0-9]*-[0-9]*-[0-9]*' docs/05_圖庫/README.md | sed 's/^| //' | sort -u > /tmp/toc.txt
+ls docs/05_圖庫/系統手冊/ch*/圖*.png | grep -o '圖[0-9]*-[0-9]*-[0-9]*' | sort -u > /tmp/files.txt
 diff /tmp/toc.txt /tmp/files.txt
 ```
 

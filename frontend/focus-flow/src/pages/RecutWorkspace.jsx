@@ -26,7 +26,7 @@ const EDITABLE_STATES = new Set(['script_review', 'render_failed']);
 const REJECT_LABEL = new Map(REJECTION_REASONS.map((reason) => [reason.code, reason.label]));
 const YT_ORIGIN = 'https://www.youtube.com';
 
-export default function RecutWorkspace({ script, onStateChange, onChanged, onNext, nextLabel }) {
+export default function RecutWorkspace({ script, onStateChange, onChanged, onReturnTopic, onNext, nextLabel }) {
   const scriptId = String(script._id);
   const compact = useCompactLayout();
   const [snapshot, setSnapshot] = useState(null);
@@ -481,6 +481,8 @@ export default function RecutWorkspace({ script, onStateChange, onChanged, onNex
           <h1 id={`rc-q-${scriptId}`} ref={headingRef} tabIndex={-1} className="rc-question">{script.sourceQuestions?.[0]?.question || script.topic}</h1>
           {review?.source && <p className="rc-source">{sourceLabel(script, review.source)}</p>}
           <FlowStrip step={step} />
+          {!loading && canChangeShort(info) && <button type="button" className="rc-tool-btn" disabled={Boolean(pending)}
+            onClick={() => run('returnTopic', () => onReturnTopic(scriptId)).catch(() => {})}>退回選題</button>}
           {review?.source?.notice && <p className="rc-reason rc-reason-start">{review.source.notice}</p>}
           {view?.warnings?.map((warning) => <p key={warning} className="rc-error">{warning}</p>)}
           {/* 電腦版：這一步的動作放在題目旁、跟著捲動停在上方；手機維持底部固定列。 */}

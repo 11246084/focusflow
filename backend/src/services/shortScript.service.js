@@ -1,4 +1,5 @@
 const ShortScript = require('../models/shortScript.model');
+const ShortAsset = require('../models/shortAsset.model');
 const { productionMode: readProductionMode } = require('./recutState.service');
 const { PRODUCTION_MODES } = require('../constants/recut');
 const VideoSegment = require('../models/videoSegment.model');
@@ -496,7 +497,7 @@ async function generateScriptVersion({ user, scriptId } = {}) {
 /**
  * 教師審核（規格書 WO-06 / DR-09）。
  *
- * @param {'approve'|'request_changes'|'dismiss'|'restore'} decision
+ * @param {'request_changes'|'dismiss'|'return_to_picker'|'restore'} decision
  * @param {'retrieval'|'narrative'} feedbackType  request_changes 時必填，系統不猜
  */
 async function submitReview({
@@ -504,7 +505,7 @@ async function submitReview({
 } = {}) {
   const { script } = await loadScriptForManage({ user, scriptId });
   // 不做這支與恢復兩種產片方式共用（UX-26）；退回修改只屬於數位分身。
-  if (decision === 'dismiss' || decision === 'restore') return setScriptClosed({ script, decision, feedback });
+  if (['dismiss', 'restore', 'return_to_picker'].includes(decision)) return setScriptClosed({ script, decision, feedback });
   assertAvatarMode(script);
 
   // approved 不開放人工按出來（2026-09-09 決議）：它只有一種來源——這份腳本的影片
@@ -562,16 +563,30 @@ async function submitReview({
 // 避免讀完之後剛好開始產生講稿。
 const RECUT_CLOSE_BLOCKED = ['queued', 'generating', 'updating', 'render_queued', 'rendering', 'asset_approved', 'published'];
 
+function assetBlocksTopicReturn(asset) {
+  if (asset.status === 'archived') return false;
+  if (asset.status === 'published' || asset.reviewStatus === 'approved') return true;
+  const upload = asset.youtubeUpload;
+  return upload?.status !== 'uploaded' && !(upload?.status === 'failed' && upload.retrySafe);
+}
+
 async function setScriptClosed({ script, decision, feedback }) {
   const recut = readProductionMode(script) === PRODUCTION_MODES.RECUT;
   let update;
-  if (decision === 'dismiss') {
+  if (decision !== 'restore') {
+    if (decision === 'return_to_picker' && script.status === SHORT_SCRIPT_STATUSES.APPROVED) {
+      throw scriptChangedError();
+    }
+    if (decision === 'return_to_picker' && !recut) {
+      const assets = await ShortAsset.find({ sourceScriptId: script._id }).lean();
+      if (assets.some(assetBlocksTopicReturn)) throw scriptChangedError();
+    }
     if (recut && (script.recut?.activeTaskId || RECUT_CLOSE_BLOCKED.includes(script.recut?.state))) {
       throw new AppError('Wait for the current recut work to finish before closing this short.', 409, 'RECUT_STATE_INVALID');
     }
     assertTransition(script.status, SHORT_SCRIPT_STATUSES.DISMISSED);
     update = { $set: { status: SHORT_SCRIPT_STATUSES.DISMISSED, statusBeforeDismiss: script.status,
-      dismissReason: String(feedback || '').trim() || null } };
+      returnedToPicker: decision === 'return_to_picker', dismissReason: String(feedback || '').trim() || null } };
   } else {
     if (script.status !== SHORT_SCRIPT_STATUSES.DISMISSED) {
       throw new AppError('Only a closed short can be restored.', 409, 'SHORT_SCRIPT_STATE_INVALID');
@@ -581,9 +596,13 @@ async function setScriptClosed({ script, decision, feedback }) {
       && script.statusBeforeDismiss !== SHORT_SCRIPT_STATUSES.DISMISSED
       ? script.statusBeforeDismiss
       : ((script.versions || []).length ? SHORT_SCRIPT_STATUSES.GENERATED : SHORT_SCRIPT_STATUSES.EVIDENCE_READY);
-    update = { $set: { status: previous, statusBeforeDismiss: null, dismissReason: null } };
+    update = { $set: { status: previous, statusBeforeDismiss: null, dismissReason: null, returnedToPicker: false } };
   }
   const filter = { ...unchangedScriptFilter(script), ...(recut ? { 'recut.revision': script.recut?.revision ?? null } : {}) };
+  if (decision === 'return_to_picker' || script.returnedToPicker) {
+    filter.productionMode = script.productionMode ?? null;
+    filter.$or = [{ 'recutMutationLock.token': null }, { 'recutMutationLock.expiresAt': { $lte: new Date() } }];
+  }
   const updated = await ShortScript.findOneAndUpdate(filter, update, { new: true });
   if (!updated) throw scriptChangedError();
   return updated;

@@ -98,6 +98,7 @@ async function setProductionModeOwned({ scriptId, mode }) {
     throw new AppError('productionMode must be avatar or recut.', 400, 'VALIDATION_ERROR');
   }
   const script = await loadScript(scriptId);
+  if (script.returnedToPicker) invalid('Restore the returned topic before changing production mode.');
   if (productionMode(script) === mode) return { ...script, productionMode: mode };
   const snapshot = recutSnapshot(script);
   if (snapshot.activeTaskId || [S.QUEUED, S.GENERATING, S.UPDATING, S.RENDER_QUEUED, S.RENDERING].includes(snapshot.state)) {
@@ -191,6 +192,7 @@ async function transitionOwned({ scriptId, event, versionId, assetId, generation
   taskId, baseSnapshot, pendingEditId, expectedRevision, scope, reasons = [], now = new Date() } = {}) {
   const script = await loadScript(scriptId);
   assertRecut(script);
+  if (script.returnedToPicker && event !== 'consent_stop') invalid('Restore the returned topic before continuing.');
   if (['queue_render', 'start_render', 'attach_asset', 'approve_asset'].includes(event)
     || (event === 'publish' && script.recut?.state !== S.PUBLISHED)) {
     await require('./recutWorkConsent.service').assertScriptConsent(script);

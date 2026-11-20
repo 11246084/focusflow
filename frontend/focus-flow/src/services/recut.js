@@ -56,6 +56,10 @@ export async function restoreScript(scriptId) {
   return (await apiFetch(`${scriptPath(scriptId)}/review`, json('POST', { decision: 'restore' }))).data;
 }
 
+export async function returnToPicker(scriptId) {
+  return (await apiFetch(`${scriptPath(scriptId)}/review`, json('POST', { decision: 'return_to_picker' }))).data;
+}
+
 export async function startGeneration(scriptId) {
   return (await apiFetch(`${scriptPath(scriptId)}/recut/generate`, json('POST'))).data;
 }

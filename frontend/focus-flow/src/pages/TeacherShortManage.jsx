@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import '../styles/recut.css';
 import * as api from '../services/recut.js';
 import { listAssets } from '../services/shortScript.js';
-import { MANAGE_REFRESH_MS, MODE_TEXT, SHORT_GROUPS, formatAgo, groupIcon, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
+import { MANAGE_REFRESH_MS, MODE_TEXT, SHORT_GROUPS, formatAgo, groupIcon, isReturnedTopic, recutErrorText, sortManageItems, toManageItem } from '../services/recutFlow.js';
 import { requestNewShort, requestOpenScript } from '../utils/scriptDeepLink.js';
 import useVisiblePolling from '../hooks/useVisiblePolling';
 import { Ic } from '../components/Icons';
@@ -17,7 +17,7 @@ async function fetchManageData() {
   const list = await api.listCourses();
   const perCourse = await Promise.all(list.map(async (course) => {
     const [scripts, assets] = await Promise.all([api.listScripts(course._id), listAssets(course._id).catch(() => [])]);
-    return scripts.map((script) => toManageItem(script, course, assets));
+    return scripts.filter((script) => !isReturnedTopic(script)).map((script) => toManageItem(script, course, assets));
   }));
   return { list, rows: sortManageItems(perCourse.flat()) };
 }

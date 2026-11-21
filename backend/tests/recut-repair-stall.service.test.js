@@ -89,7 +89,7 @@ it('production call-limit defaults: initial 8, modification 5', () => {
     const settings = require('../src/services/recutSettings.service');
     const read = settings.getSetting || settings.getRecutSetting;
     assert.equal(typeof read, 'function');
-    assert.equal(read('recut.initialCallLimit'), 8);
+    assert.equal(read('recut.initialCallLimit'), 30);
     assert.equal(read('recut.modificationCallLimit'), 5);
   } finally {
     if (saved.a !== undefined) process.env.RECUT_INITIAL_CALL_LIMIT = saved.a;

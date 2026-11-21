@@ -1,5 +1,15 @@
 # FocusFlow 目前狀態
 
+## 2026-11-21 短影片產生上限、數位分身通知與 AI 標示（未部署）
+
+依[短影片決策 UX-28](04_Features/Short_Video/decisions.md)與 [recut 決策第 99 項](04_Features/Short_Video/recut-design-decisions.md)：
+
+- **原片剪輯**：初次產生講稿的 Gemini 呼叫上限預設由 8 次改為 30 次（`RECUT_INITIAL_CALL_LIMIT`，修改仍為 5 次），因應佈展大量試用。
+
+**正式站設定（2026-11-21，使用者在 VM 執行）**：`/opt/focusflow/backend/.env` 新增 `RECUT_INITIAL_CALL_LIMIT=30`（原本沒有這行，正式站一直用預設 8 次；備份 `.env.bak-20261121`），重啟 `focusflow-backend` 後 `/health` 的 `runtime.recut` 為 `ready: true`、無缺項。
+
+**未執行**：程式部署、正式站以實際上傳的數位分身影片壓標示、正式站產片與真實 YouTube 上傳。
+
 ## 2026-11-20 短影音 A1 實測
 
 短影音修正已部署。[GitHub Actions 部署紀錄](https://github.com/11246084/focusflow/actions/runs/44637458048)

@@ -37,7 +37,7 @@ RC3 從 RC2 的 `sourceId` 讀凍結句子，產出驗證過的選段，供 RC4 
 
 `createRecutDecisionPoint({fetchImpl,apiKey,timeoutMs})` 的 `decide({model,instructions,input,responseSchema})` 回 `{output,modelId,usageMetadata}`；HTTP 金鑰放 header、不存紀錄。`runValidatedDecision` 包住 RC1 的 `runAttempt`，每次 `consumesCall:true`，所有步驟與重試共用任務 `callsUsed/callLimit`，無取樣參數。RC4 可使用同一函式加自己的 schema／validate，不建立第二個池。
 
-S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`：`recut.geminiModel` 回 `{provider:'gemini',model}`，讀 `RECUT_GEMINI_MODEL`、未填沿用 `GEMINI_CHAT_MODEL`；兩個上限鍵讀 `RECUT_INITIAL_CALL_LIMIT/RECUT_MODIFICATION_CALL_LIMIT`，初次預設 8（2026-11-19 由 5 調高）、修改預設 5。singleton 在 enqueue 將模型寫入 `recuttasks.settingsSnapshot.model`，同時固定上限。自建 queue 可注入 `captureSettings`。S1 接手只換此轉接點的實作／匯入，保留鍵名與簽名，移除臨時環境讀取；不改 8 拍。
+S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`：`recut.geminiModel` 回 `{provider:'gemini',model}`，讀 `RECUT_GEMINI_MODEL`、未填沿用 `GEMINI_CHAT_MODEL`；兩個上限鍵讀 `RECUT_INITIAL_CALL_LIMIT/RECUT_MODIFICATION_CALL_LIMIT`，初次預設 30（2026-11-19 由 5 調為 8，2026-11-21 再調為 30）、修改預設 5。singleton 在 enqueue 將模型寫入 `recuttasks.settingsSnapshot.model`，同時固定上限。自建 queue 可注入 `captureSettings`。S1 接手只換此轉接點的實作／匯入，保留鍵名與簽名，移除臨時環境讀取；不改 8 拍。
 
 ## 驗證界線
 
@@ -63,4 +63,4 @@ S1 尚未合併，`recutSettings.service.js` 暫實作同步 `getSetting(key)`�
 - 取捨：只看「同一迴圈內」的簽章，不跨步驟累計；錯誤每次不同（模型確實在改）時不算停滯。第三次才停是為了讓定向修正至少有一次機會。
 - 限制：只差小數的兩個錯誤（例如同一場景長度 12.58 與 12.46 秒）會被視為相同，這是刻意的；教師修改流程只有 5 次額度時，同一錯誤第三次出現就停止，可能比原本少一次嘗試，換來保留後續整段檢查的額度。
 - 測試：`backend/tests/recut-repair-stall.service.test.js`。
-- 額度預設不變：`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT` 未設定時初次為 8、修改為 5。
+- 額度預設不變：`RECUT_INITIAL_CALL_LIMIT`、`RECUT_MODIFICATION_CALL_LIMIT` 未設定時初次為 30、修改為 5。

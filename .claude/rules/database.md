@@ -8,7 +8,6 @@ paths:
 
 # 資料庫規範
 
-> 適用範圍：`backend/src/models/`、`STT_Whisper/src/mongodb_uploader.py`
 
 ---
 

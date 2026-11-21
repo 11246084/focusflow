@@ -42,9 +42,9 @@ Use current code, schemas, routes, tests, runtime evidence, and maintained curre
 
 ### Step 3 — Inspect current project and document state
 
-Inspect the target chapter, relevant diagram sources, exported images, `圖表目錄.md`, related requirements/current-state documents, code, schemas, routes, tests, and current git diff as needed. Preserve user changes.
+Inspect the target chapter, relevant diagram sources, exported images, the figure index in `docs/05_圖庫/README.md`, related requirements/current-state documents, code, schemas, routes, tests, and current git diff as needed. Preserve user changes.
 
-For System Manual assets, inspect `docs/05_圖庫/系統手冊/chNN/`: each chapter keeps source and output files together with the same basename. Shared styles and helpers live in `figures/_shared/`. Follow the current chapter captions for names; generated diagrams and screenshots have no version suffix, while unclassified source-free artwork keeps its original names and versions until the user decides. Use `git mv` for relocation and update script paths and chapter image links together.
+For System Manual assets, inspect `docs/05_圖庫/系統手冊/chNN/`: each chapter keeps source and output files together with the same basename. Shared styles and helpers live in `docs/05_圖庫/系統手冊/_shared/`. Follow the current chapter captions for names; generated diagrams and screenshots have no version suffix, while unclassified source-free artwork keeps its original names and versions until the user decides. Use `git mv` for relocation and update script paths and chapter image links together.
 
 Classify artifacts as reusable after verification, needs correction, missing, or optional. Existing diagrams, old manuals, drafts, and meeting notes are inputs, not proof of current implementation.
 

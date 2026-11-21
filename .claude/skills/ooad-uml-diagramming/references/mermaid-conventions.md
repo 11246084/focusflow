@@ -52,8 +52,8 @@ sequenceDiagram
 3. 已核准的 Kroki instance。
 
 ```powershell
-mmdc -i "figures/ch06/圖6-1-1-學生自助註冊循序圖.mmd" `
-  -o "figures/ch06/圖6-1-1-學生自助註冊循序圖.png"
+mmdc -i "docs/05_圖庫/系統手冊/ch06/圖6-1-1-學生自助註冊循序圖.mmd" `
+  -o "docs/05_圖庫/系統手冊/ch06/圖6-1-1-學生自助註冊循序圖.png"
 
 python .claude/skills/ooad-uml-diagramming/scripts/validate_diagram_artifacts.py `
   --diagram-dir docs/05_圖庫/系統手冊/ch06 `

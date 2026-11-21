@@ -44,7 +44,7 @@
 
 ## 既有圖表的已知落差
 
-`[FF]` 以下依 `圖表目錄.md` 與 `figures/ch06/` 盤點，供後續處理時參考。
+`[FF]` 以下依 `docs/05_圖庫/README.md` 與 `docs/05_圖庫/系統手冊/ch06/` 盤點，供後續處理時參考。
 **這些是待處理事項，不是現況事實的證據。**
 
 | # | 落差 | 建議處理 |
@@ -99,9 +99,7 @@
 `[FF:MUST]` **禁止使用 `skinparam Padding`**：目前 PlantUML 版本已停用，會在圖上印出
 「Please use CSS style instead of skinparam padding」警告橫幅。
 
-`[FF]` ~~不採用 Mermaid~~ **（2026-09-21 當日稍後修正，見下一節）**：此判斷已被初評第 6 章的
-實例推翻，第 6 章循序圖／設計類別圖改用 Mermaid。5-4 因類別數多（14 類別）仍用手工 SVG，
-理由改列在 5-4 專節。
+`[FF]` 第 6 章循序圖／設計類別圖使用 Mermaid；5-4 因類別數多（14 類別）使用手工 SVG，工具分工見「圖源格式與樣式」。
 
 ## 參考初評第 5、6 章母稿（2026-09-21 決議）
 
@@ -184,13 +182,13 @@ review 時列為 warning，不阻擋製圖。
 
 ## 圖源格式與樣式
 
-`[FF]` 共用樣式檔置於 `figures/_shared/_style.puml`。單一 PlantUML 圖不得自訂 `skinparam`。
+`[FF]` 共用樣式檔置於 `docs/05_圖庫/系統手冊/_shared/_style.puml`。單一 PlantUML 圖不得自訂 `skinparam`。
 
 `[FF:MUST]` **依圖種分工具**（2026-09-21 訂定，同日依初評比對結果修正循序圖／設計類別圖）：
 
 | 圖種 | 工具 | 理由 |
 |---|---|---|
-| 5-4 系統分析類別圖（整個系統單一圖，14+ 類別） | `figures/_shared/svgdiag.js`（手工座標 SVG 產生器） | 元素數多，自動排版無法控制方框位置與走線；此產生器可指定每個方框 x/y 與每條線的走線點 |
+| 5-4 系統分析類別圖（整個系統單一圖，14+ 類別） | `docs/05_圖庫/系統手冊/_shared/svgdiag.js`（手工座標 SVG 產生器） | 元素數多，自動排版無法控制方框位置與走線；此產生器可指定每個方框 x/y 與每條線的走線點 |
 | 6-1 循序圖、6-2 設計類別圖／物件圖 | **Mermaid.js**（`sequenceDiagram`／`classDiagram`） | 初評第 6 章已證明：participant／類別數控制在 5～7 個時，Mermaid 自動排版即乾淨可讀，不需手工座標；沿用初評的弧形關聯線畫風 |
 | 5-3 活動圖 | PlantUML | 套用「各分支獨立 stop」後即為線性流程，PlantUML 排版穩定 |
 | 5-2 使用個案圖 | **draw.io**（手寫 mxfile XML ＋ desktop CLI 匯出） | 使用個案圖版面慣例固定（行為者置於兩側、使用個案置中、`«include»` 另成一欄），PlantUML 的 usecase 自動排版無法控制橢圓與行為者位置；draw.io 可精確指定座標與連線錨點。圖源是純文字 XML，agent 與使用者可編輯同一份母稿 |
@@ -202,8 +200,8 @@ review 時列為 warning，不阻擋製圖。
   `%LOCALAPPDATA%\Programs\draw.io\draw.io.exe`。PNG 與 SVG 各跑一次：
 
   ```
-  draw.io.exe -x -f png -e -b 12 -s 2 --disable-gpu -o "figures/chNN/圖X.png" "figures/chNN/圖X.drawio"
-  draw.io.exe -x -f svg -e -b 12 --disable-gpu -o "figures/chNN/圖X.svg" "figures/chNN/圖X.drawio"
+  draw.io.exe -x -f png -e -b 12 -s 2 --disable-gpu -o "docs/05_圖庫/系統手冊/chNN/圖X.png" "docs/05_圖庫/系統手冊/chNN/圖X.drawio"
+  draw.io.exe -x -f svg -e -b 12 --disable-gpu -o "docs/05_圖庫/系統手冊/chNN/圖X.svg" "docs/05_圖庫/系統手冊/chNN/圖X.drawio"
   ```
 
   `-e` 把圖源 XML 嵌進匯出檔，匯出的 PNG／SVG 仍可拖回 draw.io 編輯；`-s 2` 讓 PNG 在 14 字內文環境下清晰；`--disable-gpu` 避免 Electron 在無 GPU 環境回報 `GPU process isn't usable`。此管道不經 kroki.io，也不需要 `sharp`。
@@ -211,29 +209,23 @@ review 時列為 warning，不阻擋製圖。
   送出前需將 `!include ../_shared/_style.puml` 就地展開，因為 kroki 讀不到本機檔案。
 - Mermaid 圖以 **kroki.io** 的 `POST /mermaid/svg`（**不是 `/png`**，見下方已知問題）轉檔，母稿存
   `.mmd`，`%%{init: {'theme':'neutral'}}%%` 開頭套用中性灰階主題（最接近初評畫風）；SVG 再以
-  `sharp`（**`density 72`**）轉 PNG 至同一個 `figures/chNN/`，不需另存 JPG 截圖（初評用截圖是因為從 Notion
+  `sharp`（**`density 72`**）轉 PNG 至同一個 `docs/05_圖庫/系統手冊/chNN/`，不需另存 JPG 截圖（初評用截圖是因為從 Notion
   匯出，本專案母稿與轉檔可控，不需要這個中間步驟）。
 - SVG 產生器（5-4 專用）以 `sharp` 轉 PNG（`density 150`）。
 
 `[FF:MUST]` **兩條管道的 density 不同是刻意的，不要「統一」**（2026-09-21 實查更正）：Mermaid 管道
 用 72、5-4 的 SVG 產生器用 150。實查既有圖檔的 metadata 可證實此分歧確實存在於已交付的圖上
 （`圖6-2-1` 為 72dpi／1165×954，`圖5-4-1` 為 150dpi／3042×2042）。Mermaid 圖若改用 150 會放大約
-兩倍，與同章其他圖的比例不一致；5-4 是單一大圖、元素多，需要 150 才看得清文字。本節先前誤把
-Mermaid 那行也寫成 150，已更正——新增第 6 章圖時請沿用 72。
+兩倍，與同章其他圖的比例不一致；5-4 是單一大圖、元素多，需要 150 才看得清文字。新增第 6 章圖時沿用 72。
 
-`[FF:MUST]` **kroki.io 目前版本 Mermaid 轉檔的已知限制**（2026-09-21 實測，同日修正過一次誤判）：
-
-**真正的成因是單筆訊息／標籤文字過長**（約 20 個中文字以上）會讓這版 kroki 的 Mermaid／resvg
-轉檔 500。之前誤以為是「巢狀 `alt`」「自我訊息」「`Note` 中文」個別造成的，重測後發現用**短文字**
-時三者都正常渲染，證實只是長文字觸發同一個 bug。因此：
+`[FF:MUST]` **kroki.io Mermaid 轉檔的已知限制**（2026-09-21 實測）：單筆訊息／標籤文字過長（約 20 個中文字以上）會讓 kroki 的 Mermaid／resvg 轉檔回 500。因此：
 
 1. `POST /mermaid/png` 對含 CJK 的圖經常回 500，改用 `POST /mermaid/svg` 再本機轉 PNG（維持不變）。
 2. **超過約 20 個中文字的訊息／條件文字要用 `<br/>` 換行**，不要單行硬塞，也不要為了縮短文字而
    刪減內容（例如把「驗證成功則簽發 JWT 並記錄登入事件」砍成只剩「驗證成功」）。`<br/>` 後兩段
    仍計入原本的語意，不算內容縮水。
 3. **`alt` 可以巢狀**、**可以使用自我訊息**（`X->>X: ...`）、**`Note` 可以放中文**——三者都只要
-   搭配上一條的換行規則即可，不必迴避。舊版「一律禁止」的寫法已經是錯誤結論，會不必要地閹割
-   內容深度（實測案例：圖6-1-1 因此誤刪了註冊流程與登入事件記錄兩個步驟，經使用者指出後修正）。
+   搭配上一條的換行規則即可，不必迴避，也不要為此刪減流程步驟。
 4. 多重 `else`（同一 `alt` 內兩個以上分支）目前仍會 500，這點與長度無關；三種以上分支請拆成
    巢狀 `alt`（外層兩分支、內層再兩分支），不要用同一層三個 `else`。
 

@@ -1,113 +1,20 @@
 ---
 name: project-documentation
-description: 規劃、製作或審查 FocusFlow 系統手冊章節；需要 UML 時轉交共用 ooad-uml-diagramming 規範。一般 README 與進度整理改用 docs-maintainer。
+description: 規劃、製作或審查 FocusFlow 系統手冊章節與 UML。一般 README 與進度文件使用 docs-maintainer。
 ---
 
-# Project Documentation Orchestrator
+# 系統手冊
 
-## Scope
+依當次交付範圍討論、規劃、製作或審查。盤點時指出可沿用、需修正與缺少的素材；實作敘述須有當前程式、schema、測試或 runtime 證據。
 
-Act as the thin, user-facing coordinator for FocusFlow documentation. This MVP prioritizes the NTUB object-oriented System Manual. Own goal detection, document context, evidence discovery, planning, specialist routing, integration, and gap reporting.
+- 北商手冊依[學校公告](../../../docs/00_學校公告/)、[章節契約](../../../.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md)與[專案慣例](../../../.claude/skills/ooad-uml-diagramming/references/local/focusflow-conventions.md)。公告與整理版有出入時以公告為準，說明差異。
+- 章文在[手冊章節](../../../docs/01_系統手冊/chapters/)。各章圖源與成品見[圖目錄](../../../docs/05_圖庫/README.md)，共用樣式及工具在 [_shared](../../../docs/05_圖庫/系統手冊/_shared/)。
+- 製作及審查 UML 時遵循[共用 OOAD/UML 規範](../../../.claude/skills/ooad-uml-diagramming/SKILL.md)。驗收涵蓋章文、圖源、實際渲染與目視檢查、圖號圖說、正文引用及圖目錄的一致性。標明草稿、未驗證項目與人工驗收結果。
 
-Do not redefine OOAD/UML rules or split this MVP into more skills. The canonical `.claude/skills/ooad-uml-diagramming/` owns diagram selection, drawing conventions, traceability, pre-draw checks, review, and artifact-chain rules.
-
-## Modes
-
-Infer and preserve the user's mode:
-
-- **Discuss** — 「先討論」「這樣合理嗎」：explain options; do not edit.
-- **Plan** — 「怎麼做」「從哪開始」「先盤點」：inspect and plan; do not make broad edits.
-- **Create** — 「幫我製作」「完成第六章」：discover first, then create only requested artifacts.
-- **Modify** — 「修改這章」「修正這張圖」：verify the artifact and evidence before editing.
-- **Review** — 「這張圖怪怪的」「幫我審查」：diagnose; do not silently turn review into implementation.
-
-For explicit Create or Modify requests, gather available repository and specification evidence before asking questions. Ask only when missing information materially affects correctness or would force a consequential assumption.
-
-## Workflow
-
-### Step 1 — Understand goal
-
-Resolve the deliverable or chapter, mode, UML/non-UML scope, acceptance boundary, and allowed mutations. Infer inspectable context instead of asking the user to repeat it.
-
-### Step 2 — Resolve document context and source of truth
-
-For the NTUB manual, read as applicable:
-
-- `AGENTS.md`, `CLAUDE.md`, and relevant repo rules;
-- official sources in `docs/00_學校公告/`;
-- `.claude/skills/ooad-uml-diagramming/references/local/ntub-chapter-contract.md`;
-- `.claude/skills/ooad-uml-diagramming/references/local/focusflow-conventions.md`.
-
-Use current code, schemas, routes, tests, runtime evidence, and maintained current-state documents for implementation claims. If an official source conflicts with the normalized contract, follow the official source and report contract drift. For other document families, find their contract; do not apply NTUB rules automatically.
-
-### Step 3 — Inspect current project and document state
-
-Inspect the target chapter, relevant diagram sources, exported images, `圖表目錄.md`, related requirements/current-state documents, code, schemas, routes, tests, and current git diff as needed. Preserve user changes.
-
-Classify artifacts as reusable after verification, needs correction, missing, or optional. Existing diagrams, old manuals, drafts, and meeting notes are inputs, not proof of current implementation.
-
-### Step 4 — Plan work
-
-State what the live contract requires, what can be reused, what must be corrected or created, what is optional, the evidence for each artifact, and any specialist or human-confirmation needs. Do not add artifacts merely to increase diagram count.
-
-In Discuss or Plan mode, stop after useful discovery and planning unless the user expands the request. In Create or Modify mode, continue with authorized in-scope work.
-
-### Step 4.5 — Check diagram tooling before diagram creation
-
-Only when the selected output uses `diagram-design`, run its bootstrap in read-only check mode. For plain PlantUML or Mermaid, check only the chosen renderer; do not check or install optional diagram-design dependencies:
+只有選用 `diagram-design` 時才從 repo 根目錄檢查工具：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .agents/skills/project-documentation/scripts/bootstrap-diagram-design.ps1 -Mode Check
 ```
 
-If the current Codex host is missing `diagram-design` or its Playwright/Chromium export dependencies:
-
-- when the current request explicitly authorizes installing diagram tools, run the same script with `-Mode InstallCodex` without asking again;
-- otherwise explain that installation changes the user's global Codex/Python environment, request one-time approval, and then run `-Mode InstallCodex`;
-- never install silently during Discuss, Plan, or Review mode;
-- if installation is declined or unavailable, continue with PlantUML/Mermaid when that still satisfies the deliverable and report the presentation-layer limitation.
-
-The bootstrap is idempotent and owns installation commands. Do not copy its commands into this skill. A newly installed plugin may require a fresh Codex task before it appears in the active skill list.
-
-### Step 5 — Delegate specialist work (Codex/Agents)
-
-When UML selection, creation, modification, or review is needed and automatic skill delegation is unavailable:
-
-1. Read `.claude/skills/ooad-uml-diagramming/SKILL.md` completely before UML decisions or edits.
-2. Complete its diagram brief, then follow its References loading table and open only the needed diagram-family guide, checklist, and template.
-3. Apply its workflow with the chapter, intent, evidence, existing paths, traceability IDs, and desired artifact.
-4. Bring its draft, review result, and unresolved gaps back for integration.
-
-Use `diagram-design` only when the canonical UML skill routes to it as an optional editorial rendering/import/export layer. It must not replace the UML working source, implementation evidence, traceability, status labels, or artifact-chain review.
-
-Do not create `.agents/skills/ooad-uml-diagramming`, copy or restate its rules, or invent a substitute standard. If the canonical skill or a routed resource is unavailable, report the blocker.
-
-### Step 6 — Validate result and report gaps
-
-Before claiming completion:
-
-- recheck the target chapter against the live contract;
-- verify implementation claims against current evidence;
-- require UML output to pass the specialist's routed pre-draw, real-render/visual review, and artifact-chain checks;
-- when in scope, align chapter text, diagram source (`.puml`／`.mmd`), image, caption/number, body reference, and diagram index;
-- separate verified facts, inferences, optional extensions, open issues, and unperformed manual/external validation.
-
-Report changed files, validation performed, unresolved gaps, and draft versus human-accepted status. Generated diagrams and local checks do not prove formal school acceptance.
-
-## E2E: Chapter 6 planning
-
-Example:
-
-```text
-/project-documentation 我現在想開始整理系統手冊第六章。請先查看目前第六章內容、現有 UML 圖與專案現況，判斷哪些能沿用、哪些有問題、哪些缺少；接著規劃怎麼完成，需要製作或修改 UML 時使用 ooad-uml-diagramming。
-```
-
-Expected behavior:
-
-1. Select Plan mode and inspect the chapter, diagrams, index, live contract, conventions, and relevant implementation.
-2. From the live contract, identify 6-1 as sequence **or** communication diagram, 6-2 design class diagram as required, and design object diagram as an extension.
-3. Do not treat old diagrams as current-state evidence.
-4. Return a reuse/problem/missing inventory and ordered plan before broad edits.
-5. Route UML selection, creation, modification, and review through `.claude/skills/ooad-uml-diagramming/`.
-
-These are E2E assertions, not duplicate governing rules. Re-read the live contract and specialist during execution.
+取得安裝授權後，才使用同一腳本的 `-Mode InstallCodex`。PlantUML 或 Mermaid 直接使用該圖所需的 renderer。

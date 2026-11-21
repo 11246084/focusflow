@@ -2,10 +2,23 @@
 const { buildErrorResponse } = require('../utils/apiResponse');
 const AppError = require('../utils/appError');
 
+// Request bodies on these paths carry secrets. body-parser errors keep the raw
+// body on error.body and JSON.parse messages quote the input, so neither may
+// reach the log or the response.
+const SECRET_BODY_PATHS = [/^\/api\/v1\/admin\/gemini-key(?:[/?]|$)/i];
+
 function errorHandler(err, req, res, next) {
   const error = err;
+  const secretBody = SECRET_BODY_PATHS.some((pattern) => pattern.test(String(req?.originalUrl || '')));
 
-  if (env.nodeEnv !== 'test') {
+  if (secretBody) {
+    if (env.nodeEnv !== 'test') {
+      console.error(`[request] Gemini key administration failed status=${error?.statusCode || error?.status || 500} code=${typeof error?.code === 'string' ? error.code : 'unknown'}`);
+    }
+    if (typeof error?.type === 'string' && error.type.startsWith('entity.')) {
+      return res.status(400).json(buildErrorResponse({ message: 'Malformed request body.', code: 'INVALID_REQUEST_BODY' }));
+    }
+  } else if (env.nodeEnv !== 'test') {
     console.error(error);
   }
 

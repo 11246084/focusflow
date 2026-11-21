@@ -1,5 +1,9 @@
 # FocusFlow 目前狀態
 
+## 2026-11-21 管理員更換全站 Gemini 金鑰（本機整合）
+
+管理員可在 `/admin/gemini-key` 驗證密碼、測試新金鑰並啟用。流程與持久化設定見[短影片上線步驟](10_Operations/deployment/短影片上線步驟.md)。本機後端全套 2,127 項通過、2 項跳過，前端 266 項通過，OpenAPI、lint 與 build 均通過。以 Chrome 連至隔離的 Express 後端，已驗證管理員登入、密碼再驗證、測試金鑰、啟用並保存；Google 回應與資料庫使用測試替身。正式站部署與個人金鑰實測待驗收。
+
 ## 2026-11-21 短影片產生上限、數位分身通知與 AI 標示（未部署）
 
 依[短影片決策 UX-28](04_Features/Short_Video/decisions.md)與 [recut 決策第 99 項](04_Features/Short_Video/recut-design-decisions.md)：

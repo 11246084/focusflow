@@ -2976,6 +2976,153 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/gemini-key:
+    get:
+      tags:
+        - Admin
+      summary: 全站 Gemini API 金鑰狀態
+      description: |
+        僅限 admin。只回傳金鑰來源（`environment` 未輪替、`rotated` 已輪替、`none` 未設定）、啟用時間、
+        保存方式（`file` 主機本機私有檔、`memory` 重啟後回到環境變數）、測試會呼叫的模型與本人尚未使用的測試。
+        任何回應都不含金鑰或其片段。回應標頭 `Cache-Control: no-store`。
+      operationId: getAdminGeminiKeyStatus
+      responses:
+        '200':
+          description: 成功取得狀態
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GeminiKeyStatus'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/admin/gemini-key/test:
+    post:
+      tags:
+        - Admin
+      summary: 在伺服器端測試候選 Gemini 金鑰
+      description: |
+        僅限 admin，且需 5 分鐘內的密碼重新驗證（`POST /api/v1/auth/step-up`，cookie session）。
+        後端依序呼叫固定的 Google 端點：`gemini-embedding-2:embedContent`（必須回 3072 維）與每個設定的生成模型
+        `:generateContent`（輸入 `ping`、`maxOutputTokens` 256，須取得文字回覆），第一個失敗即停止。成功時回傳 10 分鐘內有效、
+        綁定此金鑰、目前模型設定與目前金鑰版本的 `testId`。不改變正在使用的金鑰。
+        每位管理員 10 分鐘 5 次、全站 10 分鐘 15 次；同時只允許一個測試或啟用動作。
+      operationId: testAdminGeminiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeminiKeyCandidateRequest'
+      responses:
+        '200':
+          description: 所有檢查通過
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GeminiKeyTestResult'
+        '400':
+          $ref: '#/components/responses/GeminiKeyBadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/GeminiKeyForbidden'
+        '409':
+          $ref: '#/components/responses/GeminiKeyConflict'
+        '422':
+          description: "Google 拒絕候選金鑰或回應不符：`GEMINI_KEY_REJECTED`、`GEMINI_KEY_PERMISSION_DENIED`、`GEMINI_KEY_MODEL_UNAVAILABLE`、`GEMINI_KEY_PROBE_INVALID_RESPONSE`。`details` 為 `{ check, model, reason }`。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/GeminiKeyRateLimited'
+        '502':
+          description: "`GEMINI_KEY_PROBE_UNAVAILABLE`：連不到 Google、逾時或 Google 5xx。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/GeminiKeyRotationUnavailable'
+  /api/v1/admin/gemini-key/activate:
+    post:
+      tags:
+        - Admin
+      summary: 啟用已測試通過的 Gemini 金鑰
+      description: |
+        僅限 admin，且需 5 分鐘內的密碼重新驗證。必須帶同一把金鑰與測試回傳的 `testId`；
+        測試只能使用一次，金鑰不同、測試過期、模型設定或全站金鑰已在測試後變更時拒絕（需重新測試）。
+        先寫入主機本機私有檔（有設定時，原子替換、權限 0600）再切換記憶體中的金鑰，寫入失敗不會改變正在使用的金鑰。
+        啟用後，之後的 AI 問答、腳本生成、recut 模型呼叫與新啟動的語音轉文字都使用新金鑰，不必重啟；離線 CLI 不受影響。
+        每位管理員 10 分鐘 5 次。
+      operationId: activateAdminGeminiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/GeminiKeyCandidateRequest'
+                - type: object
+                  required:
+                    - testId
+                  properties:
+                    testId:
+                      type: string
+                      format: uuid
+      responses:
+        '200':
+          description: 已啟用
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessBase'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [source, activatedAt, persistence]
+                        properties:
+                          source:
+                            type: string
+                            enum: [rotated]
+                          activatedAt:
+                            type: string
+                            format: date-time
+                          persistence:
+                            type: string
+                            enum: [file, memory]
+        '400':
+          $ref: '#/components/responses/GeminiKeyBadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/GeminiKeyForbidden'
+        '409':
+          $ref: '#/components/responses/GeminiKeyConflict'
+        '429':
+          $ref: '#/components/responses/GeminiKeyRateLimited'
+        '500':
+          description: "`GEMINI_KEY_STORAGE_FAILED`：私有檔寫入失敗，仍沿用原本的金鑰。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/GeminiKeyRotationUnavailable'
   /api/v1/admin/stats:
     get:
       tags:
@@ -6693,6 +6840,48 @@ components:
                 message: You do not have permission to perform this action.
                 error:
                   code: FORBIDDEN
+    GeminiKeyBadRequest:
+      description: "`GEMINI_KEY_FORMAT_INVALID`：金鑰格式不符；`INVALID_REQUEST_BODY`：JSON 無法解析（不回顯內容）。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GeminiKeyForbidden:
+      description: "`FORBIDDEN`：非 admin；`STEP_UP_REQUIRED`：需重新輸入管理員密碼；`CSRF_REJECTED`：缺少瀏覽器來源標頭。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GeminiKeyConflict:
+      description: "`GEMINI_KEY_OPERATION_IN_PROGRESS`：另一個測試或啟用正在進行；`GEMINI_KEY_TEST_REQUIRED`：沒有有效測試；`GEMINI_KEY_TEST_MISMATCH`：金鑰與測試的不同；`GEMINI_KEY_TEST_STALE`：模型設定已變更；`GEMINI_KEY_CHANGED_CONCURRENTLY`：測試後全站金鑰已被更換。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GeminiKeyRateLimited:
+      description: "`GEMINI_KEY_ADMIN_RATE_LIMITED`：本站對測試／啟用的次數限制，`details` 為 `{ retryAfterSec, action }`；`GEMINI_KEY_PROVIDER_RATE_LIMITED`：Google 回報此金鑰限流或配額用完，`details` 為 `{ check, model, reason, retryAfterSec }`（`retryAfterSec` 可能為 null）。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            provider:
+              value:
+                success: false
+                message: Google reported rate limiting or exhausted quota for this key.
+                error:
+                  code: GEMINI_KEY_PROVIDER_RATE_LIMITED
+                  details:
+                    check: generation
+                    model: gemini-3.5-flash
+                    reason: rate_limited
+                    retryAfterSec: 30
+    GeminiKeyRotationUnavailable:
+      description: "`GEMINI_KEY_ROTATION_UNAVAILABLE`：此程序未啟用輪替，或私有檔設定／權限不符（`details.storageError`）。"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     InvalidIdError:
       description: path 或 body 內的 ObjectId 格式不合法。
       content:
@@ -7168,6 +7357,97 @@ components:
         - live
         - backend_only
         - disabled
+    GeminiKeyCandidateRequest:
+      description: 候選金鑰只在請求中傳送；伺服器不回傳、不寫入稽核或 log。前後空白會被移除。
+      type: object
+      required:
+        - apiKey
+      properties:
+        apiKey:
+          type: string
+          minLength: 20
+          maxLength: 256
+          pattern: '^[A-Za-z0-9._-]+$'
+          writeOnly: true
+    GeminiKeyStatus:
+      type: object
+      required: [source, activatedAt, persistence, rotationAvailable, storageError, models, modelsError, pendingTest]
+      properties:
+        source:
+          type: string
+          enum: [environment, rotated, none]
+        activatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        persistence:
+          type: string
+          enum: [file, memory]
+        rotationAvailable:
+          type: boolean
+        storageError:
+          description: 私有檔設定或權限不符時的固定代碼；此時沿用環境變數金鑰且不能輪替。
+          anyOf:
+            - type: string
+              enum: [GEMINI_KEY_STORAGE_FAILED, GEMINI_KEY_STORAGE_PATH_INVALID, GEMINI_KEY_STORAGE_PERMISSIONS_INVALID, GEMINI_KEY_STORAGE_CORRUPT]
+            - type: 'null'
+        models:
+          anyOf:
+            - type: object
+              required: [embedding, embeddingDimensions, generation]
+              properties:
+                embedding:
+                  type: string
+                embeddingDimensions:
+                  type: integer
+                  const: 3072
+                generation:
+                  type: array
+                  items:
+                    type: string
+            - type: 'null'
+        modelsError:
+          anyOf:
+            - type: string
+            - type: 'null'
+        pendingTest:
+          anyOf:
+            - type: object
+              required: [testId, expiresAt]
+              properties:
+                testId:
+                  type: string
+                  format: uuid
+                expiresAt:
+                  type: string
+                  format: date-time
+            - type: 'null'
+    GeminiKeyTestResult:
+      type: object
+      required: [testId, expiresAt, checks]
+      properties:
+        testId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+        checks:
+          type: array
+          items:
+            type: object
+            required: [check, model, ok]
+            properties:
+              check:
+                type: string
+                enum: [embedding, generation]
+              model:
+                type: string
+              ok:
+                const: true
+              dimensions:
+                type: integer
     SuccessBase:
       description: 所有成功回應共用的 envelope 基底。
       type: object

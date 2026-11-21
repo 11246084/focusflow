@@ -135,6 +135,20 @@ describe('error middleware 未預期錯誤遮蔽', () => {
     assert.equal(res.body.message, 'Unexpected token } in JSON at position 10');
   });
 
+  it('金鑰路由的 JSON 解析錯誤不回顯也不記錄原始 body', () => {
+    env.nodeEnv = 'development';
+    const secret = 'AIzaSecretInBody_0123456789abcdefghij';
+    const error = new SyntaxError(`Unexpected end of JSON input: {"apiKey":"${secret}"`);
+    Object.assign(error, { status: 400, statusCode: 400, type: 'entity.parse.failed', body: `{"apiKey":"${secret}"` });
+    const res = { status(code) { this.statusCode = code; return this; }, json(payload) { this.body = payload; return this; } };
+    errorHandler(error, { originalUrl: '/API/v1/Admin/Gemini-Key/test', method: 'POST', path: '/gemini-key/test' }, res, () => {});
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.error.code, 'INVALID_REQUEST_BODY');
+    assert.equal(JSON.stringify(res.body).includes(secret), false);
+    assert.equal(logged.length, 1);
+    assert.equal(JSON.stringify(logged).includes(secret), false);
+  });
+
   it('非 production 的非 AppError 仍回原始訊息方便除錯', () => {
     env.nodeEnv = 'development';
     const res = runHandler(buildUnexpectedError());

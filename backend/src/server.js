@@ -37,6 +37,9 @@ const { startCourseDeletionJobScheduler, stopCourseDeletionJobScheduler } = requ
 
 async function startServer({ recutRuntimeAdapters } = {}) {
   validateStudentPilotRuntime();
+  // Only the server process enables admin key rotation; CLI tools keep their env.
+  const geminiKey = await require('./services/geminiKeyStore.service').geminiKeyStore.initialize();
+  console.info(`[gemini-key] source=${geminiKey.source} persistence=${geminiKey.persistence}${geminiKey.storageError ? ` storageError=${geminiKey.storageError}` : ''}`);
   fs.mkdirSync(env.uploadDir, { recursive: true });
   await connectDatabase();
   await migrateVideoFields();
@@ -56,6 +59,7 @@ async function startServer({ recutRuntimeAdapters } = {}) {
     recutRuntimeAdapters = await require('./services/recutHostRuntime.service').createRecutHostRuntime({
       enabled: true, runtimeConfigPath: env.recutRuntimeConfigPath,
       databaseUri: env.mongodbUri, databaseName: mongoose.connection?.name,
+      geminiKeyResolver: () => env.geminiApiKey,
     });
     console.info('[recut] host runtime:', recutRuntimeAdapters.hostStatus);
   }

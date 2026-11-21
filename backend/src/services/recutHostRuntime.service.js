@@ -22,7 +22,7 @@ function isProfessorTrialNamespace(databaseUri, databaseName) {
 // Disabled construction performs no configuration, environment or client access.
 // Tool execution and provider HTTP calls remain lazy until a queued job runs.
 async function createRecutHostRuntime({ enabled = false, runtimeConfigPath, databaseUri, databaseName, env = process.env, fs,
-  getSetting, settingsLoader = () => require('./recutSettings.service'), run,
+  getSetting, settingsLoader = () => require('./recutSettings.service'), run, geminiKeyResolver,
   runtimeFactory = (options) => require('./recutRuntimeAdapters.service').createRecutRuntimeAdapters(options),
   providerFactory = (options) => require('./recutRuntimeAdapters.service').createGeminiProvider(options),
   mediaFactory = (options) => require('./recutRuntimeAdapters.service').createRecutMediaAdapter(options),
@@ -74,8 +74,12 @@ async function createRecutHostRuntime({ enabled = false, runtimeConfigPath, data
       && (!config.thinkingLevel || /^gemini-[34](?:\.|-)/.test(model.model));
     if (!allowed({ model: await setting('recut.geminiModel') })) throw invalid();
     phase = 'providerKeyMissing';
-    const apiKey = env[config.geminiApiKeyEnv];
-    if (typeof apiKey !== 'string' || !apiKey.trim()) throw invalid();
+    // The server passes a resolver for the whole-site key; when the runtime JSON
+    // names GEMINI_API_KEY the cached provider re-reads it on every call so an
+    // admin rotation applies to future recut jobs. Any other env name stays fixed.
+    const siteKey = config.geminiApiKeyEnv === 'GEMINI_API_KEY' && typeof geminiKeyResolver === 'function';
+    const apiKey = siteKey ? geminiKeyResolver() : env[config.geminiApiKeyEnv];
+    if (!siteKey && (typeof apiKey !== 'string' || !apiKey.trim())) throw invalid();
     const resolveSource = async (file) => {
       try { const actual = await existing(file); if (!inside(root, actual)) throw invalid(); return actual; }
       catch { throw fail('原片不在允許的本機目錄。', 'RECUT_SOURCE_UNAVAILABLE'); }
@@ -106,13 +110,14 @@ async function createRecutHostRuntime({ enabled = false, runtimeConfigPath, data
     phase = 'adaptersInvalid';
     const media = mediaFactory({ ...tools, ...workspaces, run: execute, resolveSource,
       readJson: async (file) => JSON.parse(await files.readFile(file, 'utf8')) });
-    const provider = providerFactory({ apiKey, maxOutputTokens: config.maxOutputTokens, thinkingLevel: config.thinkingLevel });
+    const provider = providerFactory({ apiKey, ...(siteKey ? { getApiKey: () => geminiKeyResolver() } : {}),
+      maxOutputTokens: config.maxOutputTokens, thinkingLevel: config.thinkingLevel });
     // RC5's plan contract is pure; MP4/browser work belongs to the separate RC7 worker.
     const renderer = rendererLoader();
     const adapters = runtimeFactory({ provider, media, renderer, getSetting: setting, allowModel: allowed,
       codeCards: config.codeCardsEnabled ? { enabled: true, ...workspaces, run: execute, ffmpeg: tools.ffmpeg,
         resolveSourcePath: lookup, resolveSource, readFile: (...args) => files.readFile(...args) } : undefined });
-    return { ...adapters, hostStatus: adapters.missing?.length ? 'adaptersInvalid' : 'configured' };
+    return { ...adapters, ...(siteKey ? { providerAvailable: () => Boolean(geminiKeyResolver()?.trim()) } : {}), hostStatus: adapters.missing?.length ? 'adaptersInvalid' : 'configured' };
   } catch {
     // Only fixed reason codes escape construction; paths, key values and provider
     // exception text must not reach HTTP details or startup logs.

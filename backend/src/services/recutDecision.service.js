@@ -1,12 +1,15 @@
 const env = require('../config/env');
 const AppError = require('../utils/appError');
-function createRecutDecisionPoint({ fetchImpl = global.fetch, apiKey = env.geminiApiKey, timeoutMs = 120000 } = {}) {
+// Without an explicit apiKey the site key is read per call, so an admin rotation
+// reaches long-lived decision points without a restart.
+function createRecutDecisionPoint({ fetchImpl = global.fetch, apiKey, timeoutMs = 120000 } = {}) {
   return async function decide({ model, instructions, input, responseSchema }) {
-    if (model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '') || !apiKey) {
+    const key = apiKey !== undefined ? apiKey : env.geminiApiKey;
+    if (model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '') || !key) {
       throw new AppError('Recut 模型或金鑰尚未設定。', 503, 'RECUT_SETTING_INVALID');
     }
     const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.model)}:generateContent`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(timeoutMs),
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({ systemInstruction: { parts: [{ text: instructions }] },
         contents: [{ role: 'user', parts: [{ text: JSON.stringify(input) }] }],
         generationConfig: { responseMimeType: 'application/json', responseSchema } }),

@@ -104,6 +104,9 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+let geminiEnvironmentApiKey = process.env.GEMINI_API_KEY || '';
+let geminiApiKeyOverride = null;
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 4000,
@@ -250,7 +253,10 @@ module.exports = {
   loginLockMinutes: parseNonNegativeInteger(process.env.LOGIN_LOCK_MINUTES, 15) || 15,
   // 單一問題的字數上限；0 表示不限制。
   qaMaxQuestionLength: parseNonNegativeInteger(process.env.QA_MAX_QUESTION_LENGTH, 50),
-  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  // geminiApiKey 是下方定義的 getter：管理員輪替後由 geminiKeyStore 覆寫，未輪替前沿用環境變數。
+  // 只有 server 入口會啟用覆寫；離線 CLI 與腳本維持讀自己的環境變數。
+  // 選填：輪替金鑰的主機本機持久化檔案（絕對路徑，須在 checkout 與 uploads 之外）。預設使用服務帳號家目錄下的私有檔案。
+  geminiKeyOverrideFile: String(process.env.GEMINI_KEY_OVERRIDE_FILE || '').trim() || path.join(require('node:os').homedir(), '.focusflow-secrets', 'gemini-key.json'),
   geminiEmbeddingModelName: process.env.GEMINI_EMBEDDING_MODEL_NAME || 'gemini-embedding-2',
   qaActiveLeafEmbeddingContractJson: process.env.QA_ACTIVE_LEAF_EMBEDDING_CONTRACT_JSON || '',
   qaActiveParentEmbeddingContractJson: process.env.QA_ACTIVE_PARENT_EMBEDDING_CONTRACT_JSON || '',
@@ -377,3 +383,24 @@ module.exports = {
   parseRolloutMode,
   parseIdentifierAllowlist,
 };
+
+// Every consumer reads env.geminiApiKey at request time, so a rotation applies
+// to the next QA, script or recut call without a restart. Assignment keeps the
+// historical test/CLI behaviour: it replaces the environment fallback only.
+Object.defineProperty(module.exports, 'geminiApiKey', {
+  enumerable: true,
+  configurable: false,
+  get() {
+    const override = typeof geminiApiKeyOverride === 'function' ? geminiApiKeyOverride() : '';
+    return typeof override === 'string' && override ? override : geminiEnvironmentApiKey;
+  },
+  set(value) { geminiEnvironmentApiKey = typeof value === 'string' ? value : ''; },
+});
+Object.defineProperty(module.exports, 'geminiEnvironmentApiKey', {
+  enumerable: false,
+  get() { return geminiEnvironmentApiKey; },
+});
+Object.defineProperty(module.exports, 'setGeminiApiKeyOverride', {
+  enumerable: false,
+  value(resolver) { geminiApiKeyOverride = typeof resolver === 'function' ? resolver : null; },
+});

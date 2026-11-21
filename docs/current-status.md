@@ -8,7 +8,7 @@
 - **數位分身**：教授只收腳本，系統不串接教授的電腦。每支短片最多產生 10 版腳本（`SHORT_SCRIPT_MAX_VERSIONS`，超過回 409 `SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED`）。傳回的影片在 YouTube 處理完成時通知建立腳本的教師（新通知來源 `short_asset_ready`）；原本畫面寫「完成會通知你」但沒有通知。
 - **AI 揭露標示由系統壓上**：數位分身成品每次上傳 YouTube 前，後端用 FFmpeg 從原檔另存一份右上角壓上「AI 合成影像・經本人授權」的暫存檔上傳，傳完刪除；原片剪輯成品不經過這一步。標示失敗時不送出影片，記成可安全重試。畫面上的標示勾選與下載腳本中的手動疊標示步驟已移除；開關 `SHORT_ASSET_AI_LABEL_ENABLED`（預設開啟）；字型用 `SHORT_ASSET_AI_LABEL_FONT`，未設定時找 Noto Sans TC 字型檔，都沒有就交給 fontconfig 找 Noto Sans CJK TC Medium（`.ttc` 合集直接指定檔案會用到日文字形）。
 
-驗證：後端新增與修改的定向測試（AI 標示 7 項含本機真 FFmpeg 實測、可審閱通知 2 項、版本上限 1 項、呼叫上限預設值 3 項）通過，`docs:lint` 通過；前端 `npm test` 261 項全過、變更檔 lint 通過。後端全套測試在提交時仍在執行，中途發現 `recut.routes.test.js` 一項寫死舊預設 8 次，已修正並重跑該檔 18 項全過。VM 查證：FFmpeg 7.1.5 含 drawtext，字型只有 `/usr/share/fonts/google-noto-cjk/` 的 `.ttc` 合集；`fc-match "Noto Sans CJK TC Medium"` 對到繁中版本，並以同樣的 drawtext（字型名稱）在 `/tmp` 成功產生測試圖，部署後不需另設字型。
+驗證：後端新增與修改的定向測試（AI 標示 7 項含本機真 FFmpeg 實測、可審閱通知 2 項、版本上限 1 項、呼叫上限預設值 3 項）通過，`docs:lint` 通過；前端 `npm test` 261 項全過、變更檔 lint 通過。後端全套 2,085 項：2,082 通過、2 略過（Windows symlink、未開啟的 consent Mongo），唯一失敗是 `recut.routes.test.js` 一項寫死舊預設 8 次，已修正並重跑該檔 18 項全過；AI 標示的字型改動在全套執行途中加入，另重跑該檔 7 項全過。VM 查證：FFmpeg 7.1.5 含 drawtext，字型只有 `/usr/share/fonts/google-noto-cjk/` 的 `.ttc` 合集；`fc-match "Noto Sans CJK TC Medium"` 對到繁中版本，並以同樣的 drawtext（字型名稱）在 `/tmp` 成功產生測試圖，部署後不需另設字型。
 
 **正式站設定（2026-11-21，使用者在 VM 執行）**：`/opt/focusflow/backend/.env` 新增 `RECUT_INITIAL_CALL_LIMIT=30`（原本沒有這行，正式站一直用預設 8 次；備份 `.env.bak-20261121`），重啟 `focusflow-backend` 後 `/health` 的 `runtime.recut` 為 `ready: true`、無缺項。
 

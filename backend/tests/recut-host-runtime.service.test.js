@@ -152,6 +152,7 @@ describe('recut host 一次性設定與自主 pipeline', () => {
       const modules = {
         dns: { setServers() {} }, fs: { mkdirSync() {} }, mongoose: generic,
         './config/env': { shortScriptAutomationEnabled: mode !== 'disabled', recutRuntimeConfigPath: file('runtime.json'), uploadDir: file('uploads') },
+        './services/geminiKeyStore.service': { geminiKeyStore: { initialize: async () => ({ source: 'environment', persistence: 'file' }) } },
         './app': { listen: () => ({ close() {} }) },
         './services/recutHostRuntime.service': { createRecutHostRuntime: async (options) => {
           events.push('host'); assert.equal(options.runtimeConfigPath, file('runtime.json')); return adapters;

@@ -2,11 +2,15 @@ const { closeSync, writeSync } = require('fs');
 
 const STT_OWNED_OPTIONAL_ENV_KEYS = ['GEMINI_API_KEY'];
 
-function buildSttProcessEnvironment(parentEnvironment, overrides) {
+function buildSttProcessEnvironment(parentEnvironment, overrides,
+  rotatedGeminiKey = require('./geminiKeyStore.service').geminiKeyStore.getRotatedKey()) {
   const childEnvironment = {
     ...parentEnvironment,
     ...overrides,
   };
+  // After an admin rotation every newly spawned STT run gets the active site
+  // key; before the first rotation the historical environment behaviour holds.
+  if (rotatedGeminiKey) childEnvironment.GEMINI_API_KEY = rotatedGeminiKey;
 
   // An empty Backend value would mask the valid value loaded later from
   // STT_Whisper/.env because python-dotenv does not override existing keys.

@@ -16,9 +16,15 @@ function createRecutApplication({ runtimeAdapters = {}, queue, beforeEnqueue, ch
   if (!runtimeAdapters.sourceSteps) for (const method of ['probe', 'decode', 'measure', 'transcribe']) {
     if (typeof runtimeAdapters.sourceOptions?.media?.[method] !== 'function') missing.add(`media.${method}`);
   }
+  function currentMissing() {
+    const fields = [...missing];
+    if (runtimeAdapters.providerAvailable?.() === false) fields.push('host.providerKeyMissing');
+    return fields;
+  }
   function assertConfigured() {
-    if (missing.size) throw new AppError(`Recut 尚缺必要轉接：${[...missing].join(', ')}`, 503,
-      'RECUT_STEPS_NOT_CONFIGURED', { missing: [...missing] });
+    const fields = currentMissing();
+    if (fields.length) throw new AppError(`Recut 尚缺必要轉接：${fields.join(', ')}`, 503,
+      'RECUT_STEPS_NOT_CONFIGURED', { missing: fields });
   }
   const getSetting = runtimeAdapters.getSetting || fallbackSetting;
   const restoreRuntime = targetQueue.configureRuntime({ getSetting,
@@ -32,7 +38,9 @@ function createRecutApplication({ runtimeAdapters = {}, queue, beforeEnqueue, ch
     pipeline = require('./recutPipeline.service').createRecutPipeline(runtimeAdapters);
     pipeline.register(targetQueue);
   }
-  return { queue: targetQueue, pipeline, missing: [...missing], hostStatus: runtimeAdapters.hostStatus || null, assertConfigured,
+  return { queue: targetQueue, pipeline, get missing() { return currentMissing(); },
+    get hostStatus() { return runtimeAdapters.providerAvailable?.() === false ? 'providerKeyMissing' : runtimeAdapters.hostStatus || null; },
+    assertConfigured,
     generation: require('./recut.service').createRecutService({ queue: targetQueue }),
     review: require('./recutReview.service').createRecutReviewService({ queue: targetQueue }),
     recover: () => { assertConfigured(); return targetQueue.recover(); },

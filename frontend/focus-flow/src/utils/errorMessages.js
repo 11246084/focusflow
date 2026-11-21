@@ -105,7 +105,51 @@ const CODE_MESSAGES = {
   VIDEO_METADATA_ONLY: '這支影片沒有可播放的檔案。',
   INVALID_ENCODING: '問題文字編碼有誤，請重新輸入。',
   INVALID_YOUTUBE_URL: 'YouTube 網址格式錯誤。',
+  INVALID_REQUEST_BODY: '請求內容格式錯誤，請重新整理後再試。',
+  GEMINI_KEY_FORMAT_INVALID: '金鑰格式不正確：請貼上完整的 Google AI Studio API 金鑰（只含英數字、-、_、.）。',
+  GEMINI_KEY_REJECTED: 'Google 拒絕這把金鑰：金鑰無效、已刪除或複製不完整。目前使用中的金鑰沒有變更。',
+  GEMINI_KEY_PERMISSION_DENIED: '這把金鑰沒有 Gemini API 權限（可能未啟用 Generative Language API，或金鑰設有 API／IP 限制）。目前使用中的金鑰沒有變更。',
+  GEMINI_KEY_MODEL_UNAVAILABLE: '這把金鑰無法使用系統設定的模型。目前使用中的金鑰沒有變更。',
+  GEMINI_KEY_PROBE_INVALID_RESPONSE: 'Google 的測試回應不符預期（例如向量維度不是 3072），不能啟用這把金鑰。',
+  GEMINI_KEY_PROBE_UNAVAILABLE: '暫時連不到 Google 或 Google 服務異常，測試沒有完成，請稍後再試。目前使用中的金鑰沒有變更。',
+  GEMINI_KEY_PROVIDER_RATE_LIMITED: 'Google 回報這把金鑰目前限流或配額已用完（429），請稍後再測，或改用配額足夠的金鑰。目前使用中的金鑰沒有變更。',
+  GEMINI_KEY_ADMIN_RATE_LIMITED: '測試或啟用金鑰的次數太頻繁，請稍後再試。',
+  GEMINI_KEY_OPERATION_IN_PROGRESS: '另一個金鑰測試或啟用正在進行，請稍候幾秒再試。',
+  GEMINI_KEY_TEST_REQUIRED: '請先測試這把金鑰，測試通過後 10 分鐘內才能啟用。',
+  GEMINI_KEY_TEST_MISMATCH: '輸入的金鑰與剛才測試的不同，請重新測試。',
+  GEMINI_KEY_TEST_STALE: '測試後系統的模型設定已變更，請重新測試。',
+  GEMINI_KEY_CHANGED_CONCURRENTLY: '測試後全站金鑰已被其他管理員更換，請重新整理並重新測試。',
+  GEMINI_KEY_ROTATION_UNAVAILABLE: '這台主機目前無法更換金鑰（金鑰保存檔設定或權限不符），仍沿用環境變數的金鑰。請由有主機權限的人檢查設定。',
+  GEMINI_KEY_STORAGE_FAILED: '無法寫入金鑰保存檔，金鑰沒有更換，仍沿用原本的金鑰。',
+  GEMINI_KEY_STORAGE_PATH_INVALID: '金鑰保存檔路徑不符規定，金鑰沒有更換。請由有主機權限的人檢查 GEMINI_KEY_OVERRIDE_FILE。',
+  GEMINI_KEY_STORAGE_PERMISSIONS_INVALID: '金鑰保存檔或其目錄權限不符（須為本人擁有且僅本人可讀寫），金鑰沒有更換。',
+  GEMINI_KEY_STORAGE_CORRUPT: '金鑰保存檔內容無法讀取，金鑰沒有更換。',
+  GEMINI_MODEL_CONFIG_INVALID: '系統的 Gemini 模型設定有誤，無法測試金鑰，請由有主機權限的人檢查設定。',
 };
+
+const GEMINI_CHECK_LABELS = { embedding: '向量（embedding）', generation: '文字生成' };
+
+function formatWait(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return seconds < 60 ? `${Math.ceil(seconds)} 秒` : `${Math.ceil(seconds / 60)} 分鐘`;
+}
+
+// 金鑰測試的錯誤帶有 check／model／retryAfterSec，補上是哪一項檢查與需要等多久。
+function buildGeminiKeyMessage(code, details) {
+  if (!code?.startsWith('GEMINI_KEY_') || !CODE_MESSAGES[code]) return null;
+  let message = CODE_MESSAGES[code];
+  if (code === 'GEMINI_KEY_ADMIN_RATE_LIMITED') {
+    const wait = formatWait(details?.retryAfterSec);
+    return wait ? `測試或啟用金鑰的次數太頻繁，請約 ${wait}後再試。` : message;
+  }
+  const check = GEMINI_CHECK_LABELS[details?.check];
+  if (check && typeof details?.model === 'string') message = `${check}檢查（${details.model}）：${message}`;
+  if (code === 'GEMINI_KEY_PROVIDER_RATE_LIMITED') {
+    const wait = formatWait(details?.retryAfterSec);
+    if (wait) message += `Google 建議約 ${wait}後再試。`;
+  }
+  return message;
+}
 
 // VALIDATION_ERROR 底下的訊息各有不同意義，常見的逐句翻譯。
 const VALIDATION_MESSAGES = {
@@ -187,6 +231,8 @@ export function toChineseErrorMessage({ code, status, message, details } = {}) {
   if (loginAttemptMessage) return loginAttemptMessage;
   const recoveryMessage = buildRecoveryNotRunMessage(code, details);
   if (recoveryMessage) return recoveryMessage;
+  const geminiKeyMessage = buildGeminiKeyMessage(code, details);
+  if (geminiKeyMessage) return geminiKeyMessage;
   if (message && VALIDATION_MESSAGES[message]) return VALIDATION_MESSAGES[message];
   if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code];
   // 後端有些訊息本身就是中文（例如 LINE、FAQ 相關），直接沿用。

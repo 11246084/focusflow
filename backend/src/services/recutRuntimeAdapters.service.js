@@ -2,10 +2,17 @@
 const { fail } = require('./recutRuntime.service');
 const path = require('node:path');
 
-function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096, thinkingLevel, trialPolicy, forbiddenValues = [], now, initialUsage, onUsageReserved } = {}) {
+// getApiKey (server host only) resolves the current site key on every call so a
+// cached provider follows admin rotation; CLI/trial callers pass a fixed apiKey.
+function createGeminiProvider({ apiKey, getApiKey, fetchImpl = global.fetch, timeoutMs = 120000, maxOutputTokens = 4096, thinkingLevel, trialPolicy, forbiddenValues = [], now, initialUsage, onUsageReserved } = {}) {
   const guard = trialPolicy ? require('./recutTrialGuard.service').createRecutTrialGuard(trialPolicy, { forbiddenValues: [apiKey, ...forbiddenValues], now, initialUsage }) : null;
+  const currentKey = () => {
+    const value = typeof getApiKey === 'function' && !trialPolicy ? getApiKey() : apiKey;
+    return typeof value === 'string' ? value : '';
+  };
   return async ({ model, instructions, input, responseSchema, images = [] }) => {
-    if (!apiKey || model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '')) throw fail('模型設定不足。', 'RECUT_PROVIDER_NOT_CONFIGURED');
+    const key = currentKey();
+    if (!key || model?.provider !== 'gemini' || !/^[\w.-]+$/.test(model.model || '')) throw fail('模型設定不足。', 'RECUT_PROVIDER_NOT_CONFIGURED');
     if (trialPolicy && model.model !== trialPolicy.modelId) throw fail('試片模型與核准設定不符。', 'RECUT_TRIAL_MODEL_MISMATCH');
     if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 128 || maxOutputTokens > 16384 || !Array.isArray(images) || images.length > 3
       || images.some((image) => !['image/png', 'image/jpeg'].includes(image?.mimeType) || typeof image.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data) || image.data.length > 3 * 1024 * 1024)) throw fail('模型圖片或輸出上限無效。', 'RECUT_PROVIDER_NOT_CONFIGURED');
@@ -18,7 +25,7 @@ function createGeminiProvider({ apiKey, fetchImpl = global.fetch, timeoutMs = 12
       // A reservation is conservative and is never refunded after an uncertain send.
       if (reservation && onUsageReserved) await onUsageReserved(reservation);
       const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.model)}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, signal: AbortSignal.timeout(timeoutMs),
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(timeoutMs),
         body,
       });
       const payload = await response.json();

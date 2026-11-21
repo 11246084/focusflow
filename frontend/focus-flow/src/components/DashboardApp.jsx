@@ -25,6 +25,7 @@ const AdminVideos = lazy(() => import('../pages/AdminVideos'));
 const AdminFeedback = lazy(() => import('../pages/AdminFeedback'));
 const AdminYouTubeLifecycle = lazy(() => import('../pages/AdminYouTubeLifecycle'));
 const AdminStats = lazy(() => import('../pages/AdminStats'));
+const AdminGeminiKey = lazy(() => import('../pages/AdminGeminiKey'));
 const Profile = lazy(() => import('../pages/Profile'));
 
 function DashboardRouter({ role, sub, onNav, user, onProfileUpdated }) {
@@ -32,7 +33,7 @@ function DashboardRouter({ role, sub, onNav, user, onProfileUpdated }) {
   const map = {
     student: { home: <StudentDashboard onNav={onNav} />, courses: <StudentCourses />, linebot: <StudentLineBot />, shorts: <StudentShortsWall />, profile },
     teacher: { home: <TeacherDashboard onNav={onNav} />, courses: <TeacherCourses />, upload: <TeacherUpload />, shortStudio: <TeacherShortStudio onNav={onNav} />, shortManage: <TeacherShortManage onNav={onNav} />, shortScripts: <TeacherShortScripts onNav={onNav} />, shortUploads: <TeacherShortUploads onNav={onNav} />, reviewShorts: <TeacherVideoReview />, profile },
-    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, youtubeLifecycle: <AdminYouTubeLifecycle />, feedback: <AdminFeedback />, stats: <AdminStats />, profile },
+    admin:   { home: <AdminOverview onNav={onNav} />, users: <AdminUsers />, courses: <AdminCourses />, videos: <AdminVideos />, youtubeLifecycle: <AdminYouTubeLifecycle />, geminiKey: <AdminGeminiKey />, feedback: <AdminFeedback />, stats: <AdminStats />, profile },
   };
   return map[role]?.[sub] || null;
 }

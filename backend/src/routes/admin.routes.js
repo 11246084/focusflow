@@ -32,6 +32,11 @@ router.post('/youtube-quarantine/short-assets/:assetId/apply', youtubeAdminContr
 router.post('/youtube-quarantine/videos/:videoId/reset', youtubeAdminController.resetQuarantinedVideo);
 router.post('/youtube-quarantine/short-assets/:assetId/reset', youtubeAdminController.resetQuarantinedShortAsset);
 
+const geminiKeyController = require('../controllers/geminiKey.controller');
+router.get('/gemini-key', geminiKeyController.getGeminiKeyStatus);
+router.post('/gemini-key/test', geminiKeyController.testGeminiKey);
+router.post('/gemini-key/activate', geminiKeyController.activateGeminiKey);
+
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.listUsers);
 router.patch('/users/:userId', adminController.updateUser);

@@ -39,7 +39,6 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
   const [rejectNote, setRejectNote] = useState('');
   const [noteTouched, setNoteTouched] = useState(false);
   const [file, setFile] = useState(null);
-  const [aiConfirmed, setAiConfirmed] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [dismissOpen, setDismissOpen] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -126,7 +125,6 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
   const upload = () => run('upload', async () => {
     await uploadAsset(scriptId, { file, title: script.topic, versionNo: version.versionNo });
     setFile(null);
-    setAiConfirmed(false);
     setConsentConfirmed(false);
     if (fileRef.current) fileRef.current.value = '';
   });
@@ -163,17 +161,13 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
   else if (info.state === 'upload_failed' && asset?.upload?.retrySafe) primary = { label: '重試上傳', onClick: retry, busy: pending === 'retry' };
   else if (reviewStage) primary = { label: '核准上架', hint: '學生短片牆會看到', onClick: () => review('approved'), busy: pending === 'approve', disabled: !asset?.youtubeVideoId, reason: '影片還在上傳，完成後才能觀看' };
 
-  // 選好影片後的檔名與兩項確認：電腦在右欄主要按鈕上方；手機放在主欄，底部列只留主要按鈕，不遮住腳本。
+  // 選好影片後的檔名與同意確認（AI 標示由系統上傳時壓上，UX-28）：電腦在右欄主要按鈕上方；手機放在主欄，底部列只留主要按鈕，不遮住腳本。
   const uploadChecks = uploadStage && file ? (
     <div className="rc-upload">
       <p className="rc-upload-file">
         <span>{file.name}（{formatFileSize(file.size)}）</span>
         <button type="button" className="rc-btn-text" onClick={() => fileRef.current?.click()} disabled={pending === 'upload'}>換一支</button>
       </p>
-      <label className="rc-check">
-        <input type="checkbox" checked={aiConfirmed} onChange={(event) => setAiConfirmed(event.target.checked)} />
-        <span className="rc-check-body"><strong>右上角全程顯示「AI 合成影像・經本人授權」</strong></span>
-      </label>
       <label className="rc-check">
         <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} />
         <span className="rc-check-body"><strong>我已簽署數位分身書面同意書</strong><span>寫明用途、範圍、期限，並可撤回</span></span>
@@ -304,7 +298,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
                 <HelpTip label="怎麼做" title="數位分身短片怎麼做">
                   <ol className="rc-help-steps">
                     <li>複製或下載腳本，用你電腦上的數位分身工具照著做。</li>
-                    <li>影片右上角全程放「AI 合成影像・經本人授權」。</li>
+                    <li>不用自己加 AI 標示，傳回後系統會在右上角加上「AI 合成影像・經本人授權」。</li>
                     <li>下載的腳本最後有驗收清單，做完照著檢查。</li>
                     <li>回到這裡按「選擇影片」傳回，再確認成品上架。</li>
                   </ol>
@@ -362,7 +356,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
                 {uploadChecks}
                 <div className="rc-return-action">
                   <PrimaryAction label="上傳影片" onClick={upload} busy={pending === 'upload'}
-                    disabled={!aiConfirmed || !consentConfirmed} reason="勾選上傳前的兩項確認" />
+                    disabled={!consentConfirmed} reason="勾選上傳前的確認" />
                 </div>
               </>
             )}

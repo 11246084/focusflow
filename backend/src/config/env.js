@@ -222,6 +222,9 @@ module.exports = {
   shortScriptGenerationRetryLimit: Number(process.env.SHORT_SCRIPT_GENERATION_RETRY_LIMIT ?? 2),
   // 數位分身每支短片最多產生幾版腳本（2026-11-21）。每版最多呼叫 Gemini 3 次，10 版約等於原片剪輯一次產生的 30 次上限。
   shortScriptMaxVersions: Number(process.env.SHORT_SCRIPT_MAX_VERSIONS) || 10,
+  // 數位分身成品上傳 YouTube 前由系統壓上 AI 揭露標示（UX-28）；字型未設定時依序找 Noto Sans TC 字型檔，最後交給 fontconfig 找 Noto Sans CJK TC Medium。
+  shortAssetAiLabelEnabled: parseBoolean(process.env.SHORT_ASSET_AI_LABEL_ENABLED, true, 'SHORT_ASSET_AI_LABEL_ENABLED'),
+  shortAssetAiLabelFont: process.env.SHORT_ASSET_AI_LABEL_FONT || '',
   // 短影片腳本自動化的總開關（規格書 G.1）。預設關閉，關閉時整組路由回 404。
   shortScriptAutomationEnabled: parseBoolean(
     process.env.SHORT_SCRIPT_AUTOMATION_ENABLED,

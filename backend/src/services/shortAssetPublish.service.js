@@ -23,6 +23,7 @@ const {
 const { recordShortAssetRegeneration } = require('./shortAsset.service');
 const { markScriptPublished } = require('./shortScript.service');
 const { notifyYouTubeUploadNeedsReview } = require('./notification.service');
+const { burnAiLabel } = require('./shortAssetAiLabel.service');
 const {
   SHORT_ASSET_REVIEW_STATUSES,
   SHORT_ASSET_STATUSES,
@@ -160,6 +161,7 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
   runningShortAssetUploads.set(String(assetId).toLowerCase(), true);
   let releaseFile;
   let heartbeat;
+  let labeledPath = null;
   try {
     const asset = await ShortAsset.findById(assetId).lean();
     if (!asset) throw new AppError('Short asset not found.', 404, 'SHORT_ASSET_NOT_FOUND');
@@ -204,7 +206,9 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
       const file = inspectLocalUploadFile(asset.filePath);
       releaseFile = tryAcquireWork(fileWorkKeys(file));
       if (!releaseFile) { const error = new Error('Local source is in use.'); error.youtubeRetrySafe = true; throw error; }
-      uploadResult = await uploadLocalVideo({ filePath, title: asset.title,
+      // 數位分身成品每次上傳都從原檔重新壓 AI 標示（UX-28）；原片剪輯的成品由 worker 渲染，不經過這裡。
+      labeledPath = asset.recutVersionId ? null : await burnAiLabel(filePath, { attemptId });
+      uploadResult = await uploadLocalVideo({ filePath: labeledPath || filePath, title: asset.title,
         description: buildShortAssetYouTubeDescription(asset), privacyStatus: SHORT_ASSET_PRIVACY_STATUS, fetchImpl, signal: heartbeat.signal, probe, now,
         ...uploadPhaseCallbacks(ShortAsset, owner) });
     } catch (error) {
@@ -262,7 +266,10 @@ async function uploadShortAssetToYouTube({ assetId, fetchImpl = global.fetch, ob
     await uploadGate.recordUploadSuccess({ probe }).catch(() => null);
     const checked = await require('./youtubeRemoteState.service').checkItemRemoteState({ kind: 'short_asset', item: uploaded, fetchImpl, now }).catch(() => null);
     return checked || uploaded;
-  } finally { await heartbeat?.stop(); releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release(); }
+  } finally {
+    if (labeledPath) await require('fs').promises.rm(labeledPath, { force: true }).catch(() => null);
+    await heartbeat?.stop(); releaseFile?.(); runningShortAssetUploads.delete(String(assetId).toLowerCase()); release();
+  }
 }
 
 function isShortAssetUploadRunning(assetId) {

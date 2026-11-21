@@ -5,6 +5,7 @@
 依[短影片決策 UX-28](04_Features/Short_Video/decisions.md)與 [recut 決策第 99 項](04_Features/Short_Video/recut-design-decisions.md)：
 
 - **原片剪輯**：初次產生講稿的 Gemini 呼叫上限預設由 8 次改為 30 次（`RECUT_INITIAL_CALL_LIMIT`，修改仍為 5 次），因應佈展大量試用。
+- **數位分身**：教授只收腳本，系統不串接教授的電腦。每支短片最多產生 10 版腳本（`SHORT_SCRIPT_MAX_VERSIONS`，超過回 409 `SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED`）。傳回的影片在 YouTube 處理完成時通知建立腳本的教師（新通知來源 `short_asset_ready`）；原本畫面寫「完成會通知你」但沒有通知。
 
 **正式站設定（2026-11-21，使用者在 VM 執行）**：`/opt/focusflow/backend/.env` 新增 `RECUT_INITIAL_CALL_LIMIT=30`（原本沒有這行，正式站一直用預設 8 次；備份 `.env.bak-20261121`），重啟 `focusflow-backend` 後 `/health` 的 `runtime.recut` 為 `ready: true`、無缺項。
 

@@ -220,6 +220,8 @@ module.exports = {
   // 引用驗證失敗的重試次數（規格書 DR-07）：重試 2 次＝最多生成 3 次。
   // 仍失敗時保留最後一次原始輸出，否則無法診斷是 prompt 問題還是證據問題。
   shortScriptGenerationRetryLimit: Number(process.env.SHORT_SCRIPT_GENERATION_RETRY_LIMIT ?? 2),
+  // 數位分身每支短片最多產生幾版腳本（2026-11-21）。每版最多呼叫 Gemini 3 次，10 版約等於原片剪輯一次產生的 30 次上限。
+  shortScriptMaxVersions: Number(process.env.SHORT_SCRIPT_MAX_VERSIONS) || 10,
   // 短影片腳本自動化的總開關（規格書 G.1）。預設關閉，關閉時整組路由回 404。
   shortScriptAutomationEnabled: parseBoolean(
     process.env.SHORT_SCRIPT_AUTOMATION_ENABLED,

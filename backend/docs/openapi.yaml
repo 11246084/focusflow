@@ -5279,6 +5279,7 @@ paths:
 
         上一版的回饋類型決定是否重撈證據：`retrieval` 會先重新檢索並凍結證據，`narrative` 沿用原證據、只把回饋帶進 prompt。
         生成結果引用了證據包以外的片段時，最多重試 `SHORT_SCRIPT_GENERATION_RETRY_LIMIT` 次。
+        每支短片最多產生 `SHORT_SCRIPT_MAX_VERSIONS` 版（預設 10 版），達到上限回 409 `SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED`。
         失敗回應的 `error.details`（嘗試次數、驗證錯誤、最後一次原始輸出）只在非 production 環境回傳。
       operationId: generateShortScriptVersion
       parameters:
@@ -5299,7 +5300,13 @@ paths:
         '404':
           $ref: '#/components/responses/ShortScriptNotFoundError'
         '409':
-          $ref: '#/components/responses/ShortScriptStateInvalidError'
+          description: |
+            - `SHORT_SCRIPT_STATE_INVALID`：目前狀態不允許產生
+            - `SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED`：這支短片已產生到版本上限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: |
             - `SHORT_SCRIPT_EVIDENCE_EMPTY`：`retrieval` 回饋重撈後證據不足
@@ -9297,6 +9304,8 @@ components:
             - video_completed
             - system_maintenance
             - short_asset_rejected
+            - short_asset_ready
+            - recut_task_finished
             - youtube_upload_needs_review
             - youtube_upload_resolved
         title:

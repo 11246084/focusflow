@@ -268,7 +268,7 @@ export default function AvatarWorkspace({ script, assets, onChanged, onReturnTop
           {!compact && actionBlock}
         </section>
 
-        {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>完成會通知你</p></StatusCard>}
+        {BUSY_TEXT[info.state] && <StatusCard title={BUSY_TEXT[info.state]}><p>{info.state === 'approved_waiting_upload' ? '傳完會自動上架' : '可以審閱時會通知你'}</p></StatusCard>}
         {info.state === 'upload_failed' && (
           <section className="rc-panel" role="alert">
             <StateChip tone="error">上傳失敗</StateChip>

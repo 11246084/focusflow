@@ -123,6 +123,8 @@ const NOTIFICATION_SOURCES = {
   SYSTEM_MAINTENANCE: 'system_maintenance',
   // Sent to the script owner when a generated short is rejected; links back to the script.
   SHORT_ASSET_REJECTED: 'short_asset_rejected',
+  // Sent to the script owner when an uploaded digital-avatar short finishes YouTube processing and can be reviewed.
+  SHORT_ASSET_READY: 'short_asset_ready',
   // Sent to every active admin when a YouTube upload (video or short) is quarantined.
   YOUTUBE_UPLOAD_NEEDS_REVIEW: 'youtube_upload_needs_review',
   // Sent to the uploader (or course teacher) after an admin resolves a quarantined upload.

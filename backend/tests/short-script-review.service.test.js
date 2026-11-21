@@ -148,6 +148,26 @@ describe('shortScript.service 審核迴圈', () => {
     assert.equal(updated.versions[0].payload.shots.length, 8);
   });
 
+  it('數位分身每支短片產生到版本上限後不再呼叫 Gemini', async () => {
+    const script = await createScript();
+    stubGeneration();
+    const saved = env.shortScriptMaxVersions;
+    env.shortScriptMaxVersions = 1;
+    try {
+      await shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id });
+      const stored = store.shortScripts.find((item) => String(item._id) === String(script._id));
+      stored.status = 'changes_requested';
+      let calls = 0; const inner = global.fetch;
+      global.fetch = async (...args) => { calls += 1; return inner(...args); };
+      await assert.rejects(
+        shortScriptService.generateScriptVersion({ user: TEACHER, scriptId: script._id }),
+        (error) => error.code === 'SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED' && error.statusCode === 409,
+      );
+      assert.equal(calls, 0);
+      assert.equal(stored.versions.length, 1);
+    } finally { env.shortScriptMaxVersions = saved; }
+  });
+
   // 讓 provider 停在「等一個可手動放行的 promise」，確保兩個請求都在任何寫入前讀完腳本。
   function gateProvider() {
     const inner = global.fetch; let release; const gate = new Promise((resolve) => { release = resolve; });

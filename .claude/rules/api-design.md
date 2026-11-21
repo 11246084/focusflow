@@ -201,6 +201,7 @@ throw new AppError('Course not found.', 404, 'COURSE_NOT_FOUND');
 | `SHORT_SCRIPT_EVIDENCE_EMPTY` | 422 | 檢索不到足夠片段，無法凍結證據 |
 | `SHORT_SCRIPT_ARC_NOT_APPLICABLE` | 422 | 證據包無轉折句，不適用 8 拍敘事弧線 |
 | `SHORT_SCRIPT_STATE_INVALID` | 409 | 腳本狀態轉換不合法 |
+| `SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED` | 409 | 數位分身這支短片已產生到 `SHORT_SCRIPT_MAX_VERSIONS` 版（預設 10 版），不再產生新版本 |
 | `SHORT_SCRIPT_CITATION_INVALID` | 502 | 生成結果引用了證據包外的 chunkId，重試上限內未通過 |
 | `SHORT_SCRIPT_OUTPUT_INVALID` | 502 | 生成結果不是可解析的 JSON |
 | `SHORT_SCRIPT_PROVIDER_NOT_CONFIGURED` | 500 | 腳本生成的 LLM provider 未設定 |

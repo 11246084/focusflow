@@ -292,6 +292,7 @@ export function rejectScope(codes = []) {
 const ERROR_TEXT = {
   RECUT_STATE_INVALID: '這支短片剛剛有更新，已重新載入。',
   SHORT_SCRIPT_STATE_INVALID: '這支短片的狀態剛剛改變，請重新整理後再試。',
+  SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED: '這支短片的腳本已產生到上限，請用目前的腳本，或改用原片剪輯。',
   RECUT_BATCH_LIMIT_EXCEEDED: '這門課已有 5 支在產生講稿，完成後再開始。',
   RECUT_REVIEW_NOT_READY: '講稿還沒準備好。',
   RECUT_DURATION_INVALID: '總長需在 30～65 秒才能套用。',

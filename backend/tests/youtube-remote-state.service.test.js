@@ -233,4 +233,22 @@ describe('Q-B 遠端就緒與隱私', () => {
       assert.equal(api.calls.filter((call) => call.url.includes('/videos?')).length, initialLists + 1);
     } finally { remote.stopYouTubeRemoteStateScheduler(); env.youtubeUploadRecoveryEnabled = originalRecovery; }
   });
+  it('數位分身成品第一次處理完成通知建立腳本的教師，只發一次', async () => {
+    const scriptId = newObjectId();
+    store.shortScripts.push({ _id: scriptId, courseId: ids.teacherCourse, createdBy: ids.teacher, topic: '羊駝' });
+    const item = add({ status: 'draft', reviewStatus: 'pending', sourceScriptId: scriptId }, 'short_asset');
+    await remote.checkItemRemoteState({ kind: 'short_asset', item, fetchImpl: fake().fetchImpl, now: NOW });
+    await remote.checkItemRemoteState({ kind: 'short_asset', item, fetchImpl: fake().fetchImpl, now: NOW });
+    const ready = store.notifications.filter((notification) => notification.source === 'short_asset_ready');
+    assert.equal(ready.length, 1);
+    assert.equal(String(ready[0].recipientId), ids.teacher);
+    assert.equal(String(ready[0].scriptId), String(scriptId));
+  });
+  it('原片剪輯成品與已核准成品不發可審閱通知', async () => {
+    add({ status: 'draft', reviewStatus: 'pending', recutVersionId: newObjectId() }, 'short_asset');
+    add({ status: 'draft', reviewStatus: 'approved', reviewedGenerationVersion: 1,
+      disclosure: { aiDisclosureConfirmed: true, consentConfirmed: true } }, 'short_asset');
+    for (const item of [...store.shortAssets]) await remote.checkItemRemoteState({ kind: 'short_asset', item, fetchImpl: fake().fetchImpl, now: NOW }).catch(() => null);
+    assert.equal(store.notifications.filter((notification) => notification.source === 'short_asset_ready').length, 0);
+  });
 });

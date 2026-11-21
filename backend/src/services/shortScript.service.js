@@ -408,6 +408,10 @@ async function generateScriptVersion({ user, scriptId } = {}) {
   const { script, course } = await loadScriptForManage({ user, scriptId });
   assertAvatarMode(script);
   assertTransition(script.status, SHORT_SCRIPT_STATUSES.GENERATED);
+  // 每支短片的產生次數有上限，避免重複按「重新產生」一直花 Gemini 費用。
+  if ((script.versions || []).length >= env.shortScriptMaxVersions) {
+    throw new AppError(`This short script has reached the ${env.shortScriptMaxVersions}-version limit.`, 409, 'SHORT_SCRIPT_VERSION_LIMIT_EXCEEDED');
+  }
 
   const previous = latestVersion(script);
   const feedbackType = previous?.feedbackType || null;

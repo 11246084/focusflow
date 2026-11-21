@@ -175,7 +175,7 @@ Fade in over 1 second, fade out over 1.5 seconds.
 |---|---|---|---|
 | 主字卡 | Noto Sans TC Bold | 96px | 上 2/3 區塊內 |
 | 逐字字幕 | Noto Sans TC Medium | 64px | 上 2/3 區塊內，距底部 ≥ 220px |
-| 揭露標示 | Noto Sans TC Regular | 30px | 右上角，\`AI 合成影像・經本人授權\`，**全程常駐，必做** |
+| 揭露標示 | — | — | 不用自己做：傳回系統後自動在右上角加上 \`AI 合成影像・經本人授權\` |
 
 白字 + 3px 黑描邊；每屏 4–7 字；驗收標準：靜音播放要能看懂。
 
@@ -201,12 +201,8 @@ ffmpeg -i composite.mp4 -i narration.wav -i bgm.wav -filter_complex \\
 -map 0:v -map "[a]" -c:v libx264 -crf 20 -c:a aac with_audio.mp4 -y
 
 # ⑥ 燒字幕
-ffmpeg -i with_audio.mp4 -vf "ass=script.ass" -c:a copy subtitled.mp4
+ffmpeg -i with_audio.mp4 -vf "ass=script.ass" -c:a copy final.mp4
 
-# ⑦ 疊揭露標示（必做）
-ffmpeg -i subtitled.mp4 -vf \\
-"drawtext=fontfile=NotoSansTC-Regular.otf:text='AI 合成影像・經本人授權':x=w-tw-28:y=28:fontsize=30:fontcolor=white@0.78:box=1:boxcolor=black@0.35:boxborderw=10" \\
--c:a copy final.mp4
 \`\`\`
 
 輸出規格：\`1080×1920 / H.264 / CRF 20 / 30fps / AAC 128k / faststart\`
@@ -221,7 +217,6 @@ ffmpeg -i subtitled.mp4 -vf \\
 **教師數位分身（硬條件）**
 - [ ] MiniMax H3 已實測能輸出透明背景或綠幕
 - [ ] 書面同意已簽署，載明用途、範圍、期限、可撤回
-- [ ] 右上角揭露標示全片常駐
 - [ ] 分身全程嘴巴閉合、沒有自行生成台詞或口型
 - [ ] 各段分身素材之間主體沒有跑掉
 

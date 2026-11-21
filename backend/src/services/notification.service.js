@@ -434,6 +434,25 @@ async function notifyShortAssetRejected({ asset, script, reasons = [] }) {
   }
 }
 
+// 數位分身成品在 YouTube 處理完成、可以審閱時通知建立腳本的教師。原片剪輯在渲染完成時另有通知
+// （notifyRecutRenderReady），這裡只處理沒有 recutVersionId 的成品，避免同一支收到兩則。
+async function notifyShortAssetReadyForReview({ asset }) {
+  if (!asset || asset.recutVersionId || asset.reviewStatus !== 'pending') return null;
+  const script = asset.sourceScriptId
+    ? await require('../models/shortScript.model').findById(asset.sourceScriptId).select('_id createdBy topic').lean()
+    : null;
+  const course = await Course.findById(asset.courseId).select('_id teacherId').lean();
+  const recipientId = script?.createdBy || course?.teacherId;
+  if (!recipientId) return null;
+  const assetTitle = String(asset.title || script?.topic || '短影片').trim() || '短影片';
+  return upsertDedupedNotifications([buildUpsertOperation({ recipientId,
+    dedupeKey: `short_asset_ready:${asset._id}:${asset.generationVersion || 1}`,
+    document: { source: NOTIFICATION_SOURCES.SHORT_ASSET_READY, title: truncate(`短片已可審閱：${assetTitle}`, 120),
+      content: '傳回的影片已處理完成，打開這支短片看過後決定核准上架或退回。',
+      courseIds: [asset.courseId], videoId: null, scriptId: script?._id || asset.sourceScriptId || null },
+  })]);
+}
+
 const YOUTUBE_UPLOAD_KIND_LABELS = {
   video: '影片',
   short_asset: '短影片',
@@ -671,6 +690,7 @@ module.exports = {
   MAX_LIMIT,
   removeVideoNotifications,
   notifyShortAssetRejected,
+  notifyShortAssetReadyForReview,
   notifyYouTubeUploadNeedsReview,
   notifyYouTubeUploadResolved,
   toPublicNotification,

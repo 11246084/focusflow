@@ -3,6 +3,7 @@ const Video = require('../models/video.model');
 const ShortAsset = require('../models/shortAsset.model');
 const RuntimeSetting = require('../models/runtimeSetting.model');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
 const { inspectLocalUploadFile } = require('../utils/localVideoSource');
 const { observedField, observedFields } = require('./youtubeWorkOwnership.service');
 const { isYouTubeLifecycleSwitchEnabled } = require('./youtubeLifecycleSettings.service');
@@ -169,6 +170,11 @@ async function applyRemoteObservation({ kind, item, remote, now = new Date(), fe
   }
   if (evaluation.privacyStatus === 'public') {
     saved = await handlePublicPrivacy({ kind, item: saved, remote, now, fetchImpl }) || saved;
+  }
+  // 數位分身成品第一次處理完成時通知教師可以審閱；附帶動作，失敗不影響狀態更新。
+  if (kind === 'short_asset' && evaluation.remoteState === 'ready' && item.youtubeUpload?.remoteState !== 'ready') {
+    await require('./notification.service').notifyShortAssetReadyForReview({ asset: saved })
+      .catch((error) => logger.warn('[youtube] short asset ready notification failed', { assetId: String(saved._id), error: error?.message }));
   }
   if (publish && kind === 'short_asset' && evaluation.remoteState === 'ready'
     && saved.reviewStatus === 'approved' && saved.status !== 'archived'

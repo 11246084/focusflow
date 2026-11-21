@@ -41,6 +41,8 @@ const env = require('../../src/config/env');
 // config object so avatar I/O always stays inside this harness-owned temp root.
 env.avatarUploadDir = avatarTestDirectory;
 env.uploadDir = uploadTestRoot;
+// 測試的成品檔不是真影片；壓 AI 標示另由 short-asset-ai-label 測試以替身或真 FFmpeg 驗證。
+env.shortAssetAiLabelEnabled = false;
 const User = require('../../src/models/user.model');
 const Avatar = require('../../src/models/avatar.model');
 const Course = require('../../src/models/course.model');
